@@ -1,6 +1,10 @@
 package graphics.scenery
 
-import cleargl.GLVector
+import graphics.scenery.utils.extensions.minus
+import graphics.scenery.utils.extensions.plus
+import graphics.scenery.utils.extensions.times
+import org.joml.Vector2f
+import org.joml.Vector3f
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
 import java.util.*
@@ -23,15 +27,15 @@ open class Icosphere(val radius: Float, val subdivisions: Int) : Node("Icosphere
     override var texcoords: FloatBuffer = BufferUtils.allocateFloat(0)
     override var indices: IntBuffer = BufferUtils.allocateInt(0)
 
-    fun MutableList<GLVector>.addVertex(vararg v: Float) {
-        this.add(GLVector(*v))
+    fun MutableList<Vector3f>.addVertex(vararg v: Float) {
+        this.add(Vector3f(v))
     }
 
     fun MutableList<Triple<Int, Int, Int>>.addFace(i: Int, j: Int, k: Int) {
         this.add(kotlin.Triple(i, j, k))
     }
 
-    protected fun createBaseVertices(vertices: MutableList<GLVector>, indices: MutableList<Triple<Int, Int, Int>>) {
+    protected fun createBaseVertices(vertices: MutableList<Vector3f>, indices: MutableList<Triple<Int, Int, Int>>) {
         val s = sqrt((5.0f - sqrt(5.0f)) / 10.0f)
         val t = sqrt((5.0f + sqrt(5.0f)) / 10.0f)
 
@@ -79,7 +83,7 @@ open class Icosphere(val radius: Float, val subdivisions: Int) : Node("Icosphere
     }
 
     protected fun refineTriangles(recursionLevel: Int,
-                                  vertices: MutableList<GLVector>,
+                                  vertices: MutableList<Vector3f>,
                                   indices: MutableList<Triple<Int, Int, Int>>): MutableList<Triple<Int, Int, Int>> {
         // refine triangles
         var faces = indices
@@ -104,13 +108,13 @@ open class Icosphere(val radius: Float, val subdivisions: Int) : Node("Icosphere
         return faces
     }
 
-    protected fun MutableList<GLVector>.addVertex(v: GLVector): Int {
-        this.add(v.normalized)
+    protected fun MutableList<Vector3f>.addVertex(v: Vector3f): Int {
+        this.add(v.normalize())
         return this.size - 1
     }
 
     private val middlePointIndexCache = HashMap<Long, Int>()
-    protected fun MutableList<GLVector>.getMiddlePoint(p1: Int, p2: Int): Int {
+    protected fun MutableList<Vector3f>.getMiddlePoint(p1: Int, p2: Int): Int {
         // first check if we have it already
         val firstIsSmaller = p1 < p2
         val smallerIndex = if(firstIsSmaller) { p1 } else { p2 }
@@ -135,14 +139,14 @@ open class Icosphere(val radius: Float, val subdivisions: Int) : Node("Icosphere
         return i
     }
 
-    private fun vertexToUV(n: GLVector): GLVector {
+    private fun vertexToUV(n: Vector3f): Vector3f {
         val u = 0.5f - 0.5f * atan2(n.x(), -n.z())/ PI.toFloat()
         val v = 1.0f - acos(n.y()) / PI.toFloat()
-        return GLVector(u, v, 0.0f)
+        return Vector3f(u, v, 0.0f)
     }
 
     init {
-        val vertexBuffer = ArrayList<GLVector>()
+        val vertexBuffer = ArrayList<Vector3f>()
         val indexBuffer = ArrayList<Triple<Int, Int, Int>>()
 
         createBaseVertices(vertexBuffer, indexBuffer)
@@ -161,30 +165,30 @@ open class Icosphere(val radius: Float, val subdivisions: Int) : Node("Icosphere
             val uv2 = vertexToUV(v2.normalize())
             val uv3 = vertexToUV(v3.normalize())
 
-            vertices.put((v1 * radius).toFloatArray())
-            vertices.put((v2 * radius).toFloatArray())
-            vertices.put((v3 * radius).toFloatArray())
+            (v1 * radius).get(vertices).position(vertices.position() + 3)
+            (v2 * radius).get(vertices).position(vertices.position() + 3)
+            (v3 * radius).get(vertices).position(vertices.position() + 3)
 
-            normals.put(v1.toFloatArray())
-            normals.put(v2.toFloatArray())
-            normals.put(v3.toFloatArray())
+            v1.get(normals).position(normals.position() + 3)
+            v2.get(normals).position(normals.position() + 3)
+            v3.get(normals).position(normals.position() + 3)
 
             val uvNormal = (uv2 - uv1).cross(uv3 - uv1)
             if(uvNormal.z() < 0.0f) {
                 if(uv1.x() < 0.25f) {
-                    uv1.set(0, uv1.x() + 1.0f)
+                    uv1.x = uv1.x() + 1.0f
                 }
                 if(uv2.x() < 0.25f) {
-                    uv2.set(0, uv2.x() + 1.0f)
+                    uv2.x = uv2.x() + 1.0f
                 }
                 if(uv3.x() < 0.25f) {
-                    uv3.set(0, uv3.x() + 1.0f)
+                    uv3.x = uv3.x() + 1.0f
                 }
             }
 
-            texcoords.put(uv1.toFloatArray(), 0, 2)
-            texcoords.put(uv2.toFloatArray(), 0, 2)
-            texcoords.put(uv3.toFloatArray(), 0, 2)
+            uv1.get(texcoords).position(texcoords.position() + 2)
+            uv2.get(texcoords).position(texcoords.position() + 2)
+            uv3.get(texcoords).position(texcoords.position() + 2)
         }
 
         vertices.flip()

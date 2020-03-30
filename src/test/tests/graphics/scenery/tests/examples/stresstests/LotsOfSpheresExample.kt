@@ -1,6 +1,6 @@
 package graphics.scenery.tests.examples.stresstests
 
-import cleargl.GLVector
+import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
@@ -18,20 +18,20 @@ class LotsOfSpheresExample: SceneryBase("LotsOfSpheres", wantREPL = true) {
 
         for(i in 0 until 12000) {
             val s = Sphere(0.1f, 10)
-            s.position = Random.randomVectorFromRange(3, -10.0f, 10.0f)
+            s.position = Random.random3DVectorFromRange(-10.0f, 10.0f)
             scene.addChild(s)
         }
 
         val light = PointLight(radius = 15.0f)
-        light.position = GLVector(0.0f, 0.0f, 2.0f)
+        light.position = Vector3f(0.0f, 0.0f, 2.0f)
         light.intensity = 100.0f
-        light.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
+        light.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
         scene.addChild(light)
 
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
-            position = GLVector(0.0f, 0.0f, 5.0f)
-            perspectiveCamera(50.0f, 512.0f, 512.0f)
+            position = Vector3f(0.0f, 0.0f, 5.0f)
+            perspectiveCamera(50.0f, 512, 512)
             active = true
 
             scene.addChild(this)
@@ -40,7 +40,7 @@ class LotsOfSpheresExample: SceneryBase("LotsOfSpheres", wantREPL = true) {
         thread {
             for(i in 0 until 12000) {
                 val s = Sphere(0.1f, 10)
-                s.position = Random.randomVectorFromRange(3, -10.0f, 10.0f)
+                s.position = Random.random3DVectorFromRange(-10.0f, 10.0f)
                 scene.addChild(s)
                 Thread.sleep(5)
             }

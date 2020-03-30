@@ -19,9 +19,11 @@ import bdv.viewer.Interpolation
 import bdv.viewer.Source
 import bdv.viewer.SourceAndConverter
 import bdv.viewer.state.ViewerState
-import cleargl.GLVector
+import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.extensions.minus
+import graphics.scenery.utils.extensions.times
 import graphics.scenery.volumes.Colormap
 import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.bdv.Volume.VolumeDataSource.SpimDataMinimalSource
@@ -35,6 +37,7 @@ import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.numeric.ARGBType
 import net.imglib2.type.numeric.NumericType
 import net.imglib2.util.Util
+import org.joml.Matrix4f
 import tpietzsch.example2.VolumeViewerOptions
 import java.nio.ByteBuffer
 import java.nio.FloatBuffer
@@ -222,7 +225,7 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
     /**
      * Returns the local scaling of the volume, taking voxel size and [pixelToWorldRatio] into account.
      */
-    open fun localScale(): GLVector {
+    open fun localScale(): Vector3f {
         // we are using the first visible source here, which might of course change.
         // TODO: Figure out a better way to do this. It might be an issue for multi-view datasets.
         var voxelSizes: VoxelDimensions = FinalVoxelDimensions("um", 1.0, 1.0, 1.0)
@@ -233,7 +236,7 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
             voxelSizes = source.spimSource.voxelDimensions ?: voxelSizes
         }
 
-        return GLVector(
+        return Vector3f(
 //            voxelSizes.dimension(0).toFloat() * pixelToWorldRatio,
 //            voxelSizes.dimension(1).toFloat() * pixelToWorldRatio,
 //            voxelSizes.dimension(2).toFloat() * pixelToWorldRatio
@@ -252,9 +255,9 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
         @Suppress("SENSELESS_COMPARISON")
         if(position != null && rotation != null && scale != null) {
             val L = localScale() * (1.0f/2.0f)
-            model.setIdentity()
+            model.identity()
             model.translate(this.position.x(), this.position.y(), this.position.z())
-            model.mult(this.rotation)
+            model.mul(Matrix4f().set(this.rotation))
             model.scale(this.scale.x(), this.scale.y(), this.scale.z())
             model.scale(L.x(), L.y(), L.z())
         }
@@ -268,19 +271,19 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
             }
         }
 
-        override fun localScale(): GLVector {
-            var size = GLVector(1.0f, 1.0f, 1.0f)
+        override fun localScale(): Vector3f {
+            var size = Vector3f(1.0f, 1.0f, 1.0f)
             val source = ds.sources.firstOrNull()
 
             if(source != null) {
                 val s = source.spimSource.getSource(0, 0)
-                val min = GLVector(s.min(0).toFloat(), s.min(1).toFloat(), s.min(2).toFloat())
-                val max = GLVector(s.max(0).toFloat(), s.max(1).toFloat(), s.max(2).toFloat())
+                val min = Vector3f(s.min(0).toFloat(), s.min(1).toFloat(), s.min(2).toFloat())
+                val max = Vector3f(s.max(0).toFloat(), s.max(1).toFloat(), s.max(2).toFloat())
                 size = max - min
             }
             logger.info("Sizes are $size")
 
-            return GLVector(
+            return Vector3f(
                 size.x() * pixelToWorldRatio / 10.0f,
                 size.y() * pixelToWorldRatio / 10.0f,
                 size.z() * pixelToWorldRatio / 10.0f
@@ -294,9 +297,9 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
                 val L = localScale()
                 logger.info("Local scale is $L")
                 val Lh = L * (1.0f/2.0f)
-                model.setIdentity()
+                model.identity()
                 model.translate(this.position.x(), this.position.y(), this.position.z())
-                model.mult(this.rotation)
+                model.mul(Matrix4f().set(this.rotation))
                 model.scale(this.scale.x(), this.scale.y(), this.scale.z())
                 model.scale(Lh.x(), Lh.y(), Lh.z())
                 model.translate(-L.x()/pixelToWorldRatio*5.0f, -L.y()/pixelToWorldRatio*5.0f, -L.z()/pixelToWorldRatio*5.0f)

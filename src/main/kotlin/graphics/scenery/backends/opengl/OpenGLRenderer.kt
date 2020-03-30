@@ -21,6 +21,7 @@ import net.imglib2.type.numeric.NumericType
 import net.imglib2.type.numeric.integer.*
 import net.imglib2.type.numeric.real.DoubleType
 import net.imglib2.type.numeric.real.FloatType
+import org.joml.*
 import org.lwjgl.system.MemoryUtil
 import java.awt.BorderLayout
 import java.awt.Dimension
@@ -28,6 +29,7 @@ import java.awt.image.DataBufferInt
 import java.io.File
 import java.io.FileNotFoundException
 import java.io.FileOutputStream
+import java.lang.Math
 import java.lang.reflect.Field
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -404,7 +406,7 @@ open class OpenGLRenderer(hub: Hub,
                     canvas!!.glAutoDrawable
                  */
                 drawable = if (panel is SceneryJPanel) {
-                    val surfaceScale = hub.get<Settings>()?.get("Renderer.SurfaceScale", GLVector(1.0f, 1.0f)) ?: GLVector(1.0f, 1.0f)
+                    val surfaceScale = hub.get<Settings>()?.get("Renderer.SurfaceScale", Vector2f(1.0f, 1.0f)) ?: Vector2f(1.0f, 1.0f)
                     this.window.width = (panel.width * surfaceScale.x()).toInt()
                     this.window.height = (panel.height * surfaceScale.y()).toInt()
 
@@ -461,7 +463,7 @@ open class OpenGLRenderer(hub: Hub,
                 embedIn?.let { panel ->
                     panel.imageScaleY = -1.0f
                     window = panel.init(resizeHandler)
-                    val surfaceScale = hub.get<Settings>()?.get("Renderer.SurfaceScale", GLVector(1.0f, 1.0f)) ?: GLVector(1.0f, 1.0f)
+                    val surfaceScale = hub.get<Settings>()?.get("Renderer.SurfaceScale", Vector2f(1.0f, 1.0f)) ?: Vector2f(1.0f, 1.0f)
 
                     window.width = (panel.panelWidth * surfaceScale.x()).toInt()
                     window.height = (panel.panelHeight * surfaceScale.y()).toInt()
@@ -534,7 +536,7 @@ open class OpenGLRenderer(hub: Hub,
         val extensions = (0 until numExtensionsBuffer[0]).map { gl.glGetStringi(GL4.GL_EXTENSIONS, it) }
         logger.debug("Available OpenGL extensions: ${extensions.joinToString(", ")}")
 
-        settings.set("ssao.FilterRadius", GLVector(5.0f / width, 5.0f / height))
+        settings.set("ssao.FilterRadius", Vector2f(5.0f / width, 5.0f / height))
 
         buffers = DefaultBuffers(
             UBOs = OpenGLBuffer(gl, 10 * 1024 * 1024),
@@ -620,7 +622,13 @@ open class OpenGLRenderer(hub: Hub,
         val supersamplingFactor = getSupersamplingFactor(cglWindow)
 
         scene.findObserver()?.let { cam ->
-            cam.perspectiveCamera(cam.fov, windowWidth * supersamplingFactor, windowHeight * supersamplingFactor, cam.nearPlaneDistance, cam.farPlaneDistance)
+            cam.perspectiveCamera(
+                cam.fov,
+                (windowWidth * supersamplingFactor).roundToInt(),
+                (windowHeight * supersamplingFactor).roundToInt(),
+                cam.nearPlaneDistance,
+                cam.farPlaneDistance
+            )
         }
 
         settings.set("Renderer.displayWidth", (windowWidth * supersamplingFactor).toInt())
@@ -782,7 +790,7 @@ open class OpenGLRenderer(hub: Hub,
         this.joglDrawable = pDrawable
 
         if (mustRecreateFramebuffers) {
-            val surfaceScale = hub?.get<Settings>()?.get("Renderer.SurfaceScale", GLVector(1.0f, 1.0f)) ?: GLVector(1.0f, 1.0f)
+            val surfaceScale = hub?.get<Settings>()?.get("Renderer.SurfaceScale", Vector2f(1.0f, 1.0f)) ?: Vector2f(1.0f, 1.0f)
             logger.info("Recreating framebuffers (${window.width}x${window.height})")
 
             // FIXME: This needs to be done here in order to be able to run on HiDPI screens correctly
@@ -1074,14 +1082,14 @@ open class OpenGLRenderer(hub: Hub,
                 ?: cam.projection)
         })
         vrUbo.add("inverseProjection0", {
-            (hmd?.getEyeProjection(0, cam.nearPlaneDistance, cam.farPlaneDistance)
-                ?: cam.projection).inverse
+            Matrix4f(hmd?.getEyeProjection(0, cam.nearPlaneDistance, cam.farPlaneDistance)
+                ?: cam.projection).invert()
         })
         vrUbo.add("inverseProjection1", {
-            (hmd?.getEyeProjection(1, cam.nearPlaneDistance, cam.farPlaneDistance)
-                ?: cam.projection).inverse
+            Matrix4f(hmd?.getEyeProjection(1, cam.nearPlaneDistance, cam.farPlaneDistance)
+                ?: cam.projection).invert()
         })
-        vrUbo.add("headShift", { hmd?.getHeadToEyeTransform(0) ?: GLMatrix.getIdentity() })
+        vrUbo.add("headShift", { hmd?.getHeadToEyeTransform(0) ?: Matrix4f().identity() })
         vrUbo.add("IPD", { hmd?.getIPD() ?: 0.05f })
         vrUbo.add("stereoEnabled", { renderConfig.stereoEnabled.toInt() })
 
@@ -1111,7 +1119,7 @@ open class OpenGLRenderer(hub: Hub,
 
             var bufferOffset = ubo.advanceBackingBuffer()
             ubo.offset = bufferOffset
-            node.view.copyFrom(cam.view)
+            node.view.set(cam.view)
             nodeUpdated = ubo.populate(offset = bufferOffset.toLong())
 
             val materialUbo = (node.metadata["OpenGLRenderer"]!! as OpenGLObjectState).UBOs.getValue("MaterialProperties")
@@ -1161,10 +1169,10 @@ open class OpenGLRenderer(hub: Hub,
 
         lightUbo.add("ViewMatrix0", { cam.getTransformationForEye(0) })
         lightUbo.add("ViewMatrix1", { cam.getTransformationForEye(1) })
-        lightUbo.add("InverseViewMatrix0", { cam.getTransformationForEye(0).inverse })
-        lightUbo.add("InverseViewMatrix1", { cam.getTransformationForEye(1).inverse })
+        lightUbo.add("InverseViewMatrix0", { cam.getTransformationForEye(0).invert() })
+        lightUbo.add("InverseViewMatrix1", { cam.getTransformationForEye(1).invert() })
         lightUbo.add("ProjectionMatrix", { cam.projection })
-        lightUbo.add("InverseProjectionMatrix", { cam.projection.inverse })
+        lightUbo.add("InverseProjectionMatrix", { Matrix4f(cam.projection).invert() })
         lightUbo.add("CamPosition", { cam.position })
 //        lightUbo.add("numLights", { lights.size })
 
@@ -1237,7 +1245,7 @@ open class OpenGLRenderer(hub: Hub,
      * whether they are marked up with the [ShaderProperty] annotation. If this is the case,
      * the [GLProgram]'s uniform with the same name as the field is set to its value.
      *
-     * Currently limited to GLVector, GLMatrix, Int and Float properties.
+     * Currently limited to Vector3f, Matrix4f, Int and Float properties.
      *
      * @param[n] The Node to search for [ShaderProperty]s
      * @param[program] The [GLProgram] used to render the Node
@@ -1251,8 +1259,19 @@ open class OpenGLRenderer(hub: Hub,
                 val field = property.get(n)
 
                 when (property.type) {
-                    GLVector::class.java -> {
-                        program.getUniform(property.name).setFloatVector(field as GLVector)
+                    Vector2f::class.java -> {
+                        val v = field as Vector2f
+                        program.getUniform(property.name).setFloatVector2(v.x, v.y)
+                    }
+
+                    Vector3f::class.java -> {
+                        val v = field as Vector3f
+                        program.getUniform(property.name).setFloatVector3(v.x, v.y, v.z)
+                    }
+
+                    Vector4f::class.java -> {
+                        val v = field as Vector4f
+                        program.getUniform(property.name).setFloatVector3(v.x, v.y, v.z, v.w)
                     }
 
                     Int::class.java -> {
@@ -1263,8 +1282,12 @@ open class OpenGLRenderer(hub: Hub,
                         program.getUniform(property.name).setFloat(field as Float)
                     }
 
-                    GLMatrix::class.java -> {
-                        program.getUniform(property.name).setFloatMatrix((field as GLMatrix).floatArray, false)
+                    Matrix4f::class.java -> {
+                        val m = field as Matrix4f
+                        val array = FloatArray(16)
+                        m.get(array)
+
+                        program.getUniform(property.name).setFloatMatrix(array, false)
                     }
 
                     else -> {
@@ -1431,20 +1454,25 @@ open class OpenGLRenderer(hub: Hub,
                     java.lang.Boolean::class.java,
                     Boolean::class.java -> GL4.GL_INT
 
-                    GLMatrix::class.java -> GL4.GL_FLOAT
-                    GLVector::class.java -> GL4.GL_FLOAT
+                    Matrix4f::class.java -> GL4.GL_FLOAT
+                    Vector3f::class.java -> GL4.GL_FLOAT
 
                     else -> { logger.error("Don't know how to serialise ${result.javaClass} for instancing."); GL4.GL_FLOAT }
                 }
 
                 val count = when (result) {
-                    is GLMatrix -> 4
-                    is GLVector -> result.toFloatArray().size
+                    is Matrix4f -> 4
+                    is Vector2f -> 2
+                    is Vector3f -> 3
+                    is Vector4f -> 4
+                    is Vector2i -> 2
+                    is Vector3i -> 3
+                    is Vector4i -> 4
                     else -> { logger.error("Don't know element size of ${result.javaClass} for instancing."); 1 }
                 }
 
-                val necessaryAttributes = if(result is GLMatrix) {
-                    result.floatArray.size / count
+                val necessaryAttributes = if(result is Matrix4f) {
+                    4 * 4 / count
                 } else {
                     1
                 }
@@ -2190,7 +2218,7 @@ open class OpenGLRenderer(hub: Hub,
         val quadName = "fullscreenQuad-${program.id}"
 
         quad = nodeStore.getOrPut(quadName) {
-            val q = Plane(GLVector(1.0f, 1.0f, 0.0f))
+            val q = Plane(Vector3f(1.0f, 1.0f, 0.0f))
 
             q.metadata["OpenGLRenderer"] = OpenGLObjectState()
             initializeNode(q)
@@ -2280,7 +2308,7 @@ open class OpenGLRenderer(hub: Hub,
         with(matricesUbo) {
             name = "Matrices"
             add("ModelMatrix", { node.world })
-            add("NormalMatrix", { node.world.inverse.transpose() })
+            add("NormalMatrix", { Matrix4f(node.world).invert().transpose() })
             add("isBillboard", { node.isBillboard.toInt() })
 
             sceneUBOs.add(node)
@@ -2561,8 +2589,8 @@ open class OpenGLRenderer(hub: Hub,
         lastResizeTimer = Timer()
         lastResizeTimer.schedule(object : TimerTask() {
             override fun run() {
-                val surfaceScale = hub?.get<Settings>()?.get("Renderer.SurfaceScale", GLVector(1.0f, 1.0f))
-                    ?: GLVector(1.0f, 1.0f)
+                val surfaceScale = hub?.get<Settings>()?.get("Renderer.SurfaceScale", Vector2f(1.0f, 1.0f))
+                    ?: Vector2f(1.0f, 1.0f)
 
                 val panel = embedIn
 

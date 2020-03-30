@@ -1,6 +1,6 @@
 package graphics.scenery.tests.examples.basic
 
-import cleargl.GLVector
+import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.OpenVRHMD
@@ -8,6 +8,7 @@ import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.controls.TrackerRole
 import graphics.scenery.controls.behaviours.ControllerDrag
 import graphics.scenery.numerics.Random
+import graphics.scenery.utils.extensions.times
 import graphics.scenery.volumes.Volume
 import org.junit.Test
 import org.scijava.Context
@@ -54,16 +55,16 @@ class ReaderExample : SceneryBase("ReaderExample", 1280, 720) {
 
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
 
-        val b = Box(GLVector(50.0f, 0.2f, 50.0f))
-        b.position = GLVector(0.0f, -1.0f, 0.0f)
-        b.material.diffuse = GLVector(0.1f, 0.1f, 0.1f)
+        val b = Box(Vector3f(50.0f, 0.2f, 50.0f))
+        b.position = Vector3f(0.0f, -1.0f, 0.0f)
+        b.material.diffuse = Vector3f(0.1f, 0.1f, 0.1f)
         scene.addChild(b)
 
         val tetrahedron = listOf(
-            GLVector(1.0f, 0f, -1.0f/Math.sqrt(2.0).toFloat()),
-            GLVector(-1.0f,0f,-1.0f/Math.sqrt(2.0).toFloat()),
-            GLVector(0.0f,1.0f,1.0f/Math.sqrt(2.0).toFloat()),
-            GLVector(0.0f,-1.0f,1.0f/Math.sqrt(2.0).toFloat()))
+            Vector3f(1.0f, 0f, -1.0f/Math.sqrt(2.0).toFloat()),
+            Vector3f(-1.0f,0f,-1.0f/Math.sqrt(2.0).toFloat()),
+            Vector3f(0.0f,1.0f,1.0f/Math.sqrt(2.0).toFloat()),
+            Vector3f(0.0f,-1.0f,1.0f/Math.sqrt(2.0).toFloat()))
 
         val lights = (0 until 4).map { PointLight(radius = 50.0f) }
 
@@ -103,14 +104,14 @@ class ReaderExample : SceneryBase("ReaderExample", 1280, 720) {
 
         tetrahedron.mapIndexed { i, position ->
             lights[i].position = position * 5.0f
-            lights[i].emissionColor = Random.randomVectorFromRange(3, 0.8f, 1.0f)
+            lights[i].emissionColor = Random.random3DVectorFromRange(0.8f, 1.0f)
             lights[i].intensity = 0.5f
             scene.addChild(lights[i])
         }
 
         with(cam) {
-            position = GLVector(0.0f, 0.0f, 5.0f)
-            perspectiveCamera(50.0f, windowWidth.toFloat(), windowHeight.toFloat())
+            position = Vector3f(0.0f, 0.0f, 5.0f)
+            perspectiveCamera(50.0f, windowWidth, windowHeight)
             active = true
 
             scene.addChild(this)
@@ -121,7 +122,7 @@ class ReaderExample : SceneryBase("ReaderExample", 1280, 720) {
                 Thread.sleep(200)
             }
 
-            loadedObject.putAbove(GLVector(0.0f, -0.3f, 0.0f))
+            loadedObject.putAbove(Vector3f(0.0f, -0.3f, 0.0f))
 
             hmd?.events?.onDeviceConnect?.add { hmd, device, timestamp ->
                 if(device.type == TrackedDeviceType.Controller) {
@@ -178,7 +179,7 @@ class ReaderExample : SceneryBase("ReaderExample", 1280, 720) {
                 cam.showMessage("Speed: ${String.format("%.2f", (1000f/delay.toFloat()))} vol/s")
             } else {
                 val scale = minOf(loadedObject.scale.x() * 1.2f, 3.0f)
-                loadedObject.scale = GLVector.getOneVector(3) * scale
+                loadedObject.scale = Vector3f(1.0f) * scale
             }
         }
 
@@ -191,7 +192,7 @@ class ReaderExample : SceneryBase("ReaderExample", 1280, 720) {
                 cam.showMessage("Speed: ${String.format("%.2f", (1000f/delay.toFloat()))} vol/s")
             } else {
                 val scale = maxOf(loadedObject.scale.x() / 1.2f, 0.1f)
-                loadedObject.scale = GLVector.getOneVector(3) * scale
+                loadedObject.scale = Vector3f(1.0f) * scale
             }
         }
 
@@ -254,7 +255,7 @@ class ReaderExample : SceneryBase("ReaderExample", 1280, 720) {
             "raw" -> (loadedObject as? Volume)?.readFromRaw(file)
             "obj", "stl" -> {
                 loadedObject = Mesh().readFrom(file.toFile().absolutePath)
-                loadedObject.centerOn(GLVector.getNullVector(3))
+                loadedObject.centerOn(Vector3f(0.0f))
                 loadedObject.fitInto(6.0f, scaleUp = false)
             }
         }

@@ -1,6 +1,9 @@
 package graphics.scenery
 
-import cleargl.GLVector
+import graphics.scenery.utils.extensions.minus
+import graphics.scenery.utils.extensions.plus
+import graphics.scenery.utils.extensions.times
+import org.joml.Vector3f
 import java.lang.Math.max
 import java.lang.Math.min
 
@@ -10,22 +13,22 @@ import java.lang.Math.min
  * @property[min] The x/y/z minima for the bounding box.
  * @property[max] The x/y/z maxima for the bounding box.
  */
-open class OrientedBoundingBox(val n: Node, val min: GLVector, val max: GLVector) {
+open class OrientedBoundingBox(val n: Node, val min: Vector3f, val max: Vector3f) {
     /**
      * Bounding sphere class, a bounding sphere is defined by an origin and a radius,
      * to enclose all of the Node's geometry.
      */
-    data class BoundingSphere(val origin: GLVector, val radius: Float)
+    data class BoundingSphere(val origin: Vector3f, val radius: Float)
 
     /**
      * Alternative [OrientedBoundingBox] constructor taking the [min] and [max] as a series of floats.
      */
-    constructor(n: Node, xMin: Float, yMin: Float, zMin: Float, xMax: Float, yMax: Float, zMax: Float) : this(n, GLVector(xMin, yMin, zMin), GLVector(xMax, yMax, zMax))
+    constructor(n: Node, xMin: Float, yMin: Float, zMin: Float, xMax: Float, yMax: Float, zMax: Float) : this(n, Vector3f(xMin, yMin, zMin), Vector3f(xMax, yMax, zMax))
 
     /**
      * Alternative [OrientedBoundingBox] constructor, taking a 6-element float array for [min] and [max].
      */
-    constructor(n: Node, boundingBox: FloatArray) : this(n, GLVector(boundingBox[0], boundingBox[2], boundingBox[4]), GLVector(boundingBox[1], boundingBox[3], boundingBox[5]))
+    constructor(n: Node, boundingBox: FloatArray) : this(n, Vector3f(boundingBox[0], boundingBox[2], boundingBox[4]), Vector3f(boundingBox[1], boundingBox[3], boundingBox[5]))
 
     /**
      * Returns the maximum bounding sphere of this bounding box.
@@ -40,7 +43,7 @@ open class OrientedBoundingBox(val n: Node, val min: GLVector, val max: GLVector
 
         val origin = worldMin + (worldMax - worldMin) * 0.5f
 
-        val radius = (worldMax - origin).magnitude()
+        val radius = (worldMax - origin).length()
 
         return BoundingSphere(origin, radius)
     }
@@ -50,7 +53,7 @@ open class OrientedBoundingBox(val n: Node, val min: GLVector, val max: GLVector
      * true if the bounding boxes do intersect.
      */
     fun intersects(other: OrientedBoundingBox): Boolean {
-        return other.getBoundingSphere().radius + getBoundingSphere().radius > (other.getBoundingSphere().origin - getBoundingSphere().origin).magnitude()
+        return other.getBoundingSphere().radius + getBoundingSphere().radius > (other.getBoundingSphere().origin - getBoundingSphere().origin).length()
     }
 
     /**

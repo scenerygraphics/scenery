@@ -1,6 +1,6 @@
 package graphics.scenery
 
-import cleargl.GLVector
+import org.joml.Vector3f
 import graphics.scenery.Material.CullingMode.*
 import graphics.scenery.textures.Texture
 import java.io.Serializable
@@ -28,11 +28,11 @@ open class Material : Serializable {
     /** Name of the material. */
     var name: String = "Material"
     /** Diffuse color of the material. */
-    var diffuse: GLVector = GLVector(0.9f, 0.5f, 0.5f)
+    var diffuse: Vector3f = Vector3f(0.9f, 0.5f, 0.5f)
     /** Specular color of the material. */
-    var specular: GLVector = GLVector(0.5f, 0.5f, 0.5f)
+    var specular: Vector3f = Vector3f(0.5f, 0.5f, 0.5f)
     /** Ambient color of the material. */
-    var ambient: GLVector = GLVector(0.5f, 0.5f, 0.5f)
+    var ambient: Vector3f = Vector3f(0.5f, 0.5f, 0.5f)
     /** Specular exponent */
     var roughness: Float = 1.0f
     /** Metallicity, 0.0 is non-metal, 1.0 is full metal */

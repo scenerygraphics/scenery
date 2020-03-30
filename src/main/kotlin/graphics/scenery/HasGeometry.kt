@@ -1,19 +1,10 @@
 package graphics.scenery
 
-import cleargl.GLVector
-import gnu.trove.map.hash.THashMap
-import gnu.trove.set.hash.TLinkedHashSet
-import graphics.scenery.utils.LazyLogger
-import graphics.scenery.utils.SystemHelpers
-import org.lwjgl.system.MemoryUtil.memAlloc
-import java.io.BufferedInputStream
-import java.io.File
+import graphics.scenery.utils.extensions.minus
+import org.joml.Vector3f
 import java.io.Serializable
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
-import java.nio.file.Files
 import java.util.*
 
 /**
@@ -49,19 +40,19 @@ interface HasGeometry : Serializable {
         val normals = ArrayList<Float>()
 
         while (i < vertexBufferView.limit() - 1) {
-            val v1 = GLVector(vertexBufferView[i], vertexBufferView[i + 1], vertexBufferView[i + 2])
+            val v1 = Vector3f(vertexBufferView[i], vertexBufferView[i + 1], vertexBufferView[i + 2])
             i += 3
 
-            val v2 = GLVector(vertexBufferView[i], vertexBufferView[i + 1], vertexBufferView[i + 2])
+            val v2 = Vector3f(vertexBufferView[i], vertexBufferView[i + 1], vertexBufferView[i + 2])
             i += 3
 
-            val v3 = GLVector(vertexBufferView[i], vertexBufferView[i + 1], vertexBufferView[i + 2])
+            val v3 = Vector3f(vertexBufferView[i], vertexBufferView[i + 1], vertexBufferView[i + 2])
             i += 3
 
             val a = v2 - v1
             val b = v3 - v1
 
-            val n = a.cross(b).normalized
+            val n = a.cross(b).normalize()
 
             normals.add(n.x())
             normals.add(n.y())

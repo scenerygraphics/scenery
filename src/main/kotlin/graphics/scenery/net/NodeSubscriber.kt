@@ -1,7 +1,7 @@
 package graphics.scenery.net
 
-import cleargl.GLMatrix
-import cleargl.GLVector
+import org.joml.Matrix4f
+import org.joml.Vector3f
 import com.esotericsoftware.kryo.Kryo
 import com.esotericsoftware.kryo.io.Input
 import com.jogamp.opengl.math.Quaternion
@@ -34,8 +34,8 @@ class NodeSubscriber(override var hub: Hub?, val address: String = "udp://localh
         subscriber.subscribe(ZMQ.SUBSCRIPTION_ALL)
         kryo.isRegistrationRequired = false
 
-        kryo.register(GLMatrix::class.java)
-        kryo.register(GLVector::class.java)
+        kryo.register(Matrix4f::class.java)
+        kryo.register(Vector3f::class.java)
         kryo.register(Node::class.java)
         kryo.register(Camera::class.java)
         kryo.register(DetachedHeadCamera::class.java)

@@ -1,12 +1,12 @@
 package graphics.scenery.backends
 
-import cleargl.GLVector
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import graphics.scenery.Blending
 import graphics.scenery.utils.JsonDeserialisers
+import org.joml.Vector4f
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.util.*
@@ -111,7 +111,7 @@ class RenderConfigReader {
         @JsonDeserialize(using = JsonDeserialisers.FloatPairDeserializer::class) var viewportSize: Pair<Float, Float> = Pair(1.0f, 1.0f),
         @JsonDeserialize(using = JsonDeserialisers.FloatPairDeserializer::class) var viewportOffset: Pair<Float, Float> = Pair(0.0f, 0.0f),
         @JsonDeserialize(using = JsonDeserialisers.FloatPairDeserializer::class) var scissor: Pair<Float, Float> = Pair(1.0f, 1.0f),
-        @JsonDeserialize(using = JsonDeserialisers.VectorDeserializer::class) var clearColor: GLVector = GLVector(0.0f, 0.0f, 0.0f, 0.0f),
+        @JsonDeserialize(using = JsonDeserialisers.VectorDeserializer::class) var clearColor: Vector4f = Vector4f(0.0f, 0.0f, 0.0f, 0.0f),
         var depthClearValue: Float = 1.0f,
         @JsonDeserialize(using = JsonDeserialisers.VREyeDeserializer::class) var eye: Int = -1
     )

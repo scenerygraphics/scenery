@@ -1,6 +1,8 @@
 package graphics.scenery
 
-import cleargl.GLVector
+import graphics.scenery.utils.extensions.*
+import org.joml.Vector3f
+import org.joml.Vector4f
 import java.util.*
 
 /**
@@ -21,7 +23,7 @@ open class BoundingGrid : Mesh("Bounding Grid") {
 
     /** Grid color for the bounding grid. */
     @ShaderProperty
-    var gridColor: GLVector = GLVector(1.0f, 1.0f, 1.0f)
+    var gridColor: Vector3f = Vector3f(1.0f, 1.0f, 1.0f)
 
     /** Number of lines per grid axis. */
     @ShaderProperty
@@ -76,10 +78,10 @@ open class BoundingGrid : Mesh("Bounding Grid") {
 
         labels.forEach { s, fontBoard ->
             fontBoard.text = s
-            fontBoard.fontColor = GLVector(1.0f, 1.0f, 1.0f)
-            fontBoard.backgroundColor = GLVector(0.0f, 0.0f, 0.0f)
+            fontBoard.fontColor = Vector4f(1.0f, 1.0f, 1.0f, 1.0f)
+            fontBoard.backgroundColor = Vector4f(0.0f, 0.0f, 0.0f, 1.0f)
             fontBoard.transparent = 1
-            fontBoard.scale = GLVector(0.3f, 0.3f, 0.3f)
+            fontBoard.scale = Vector3f(0.3f, 0.3f, 0.3f)
 
             this.addChild(fontBoard)
         }
@@ -106,7 +108,7 @@ open class BoundingGrid : Mesh("Bounding Grid") {
             var max = maxBoundingBox.max
 
             if(node.material.blending.transparent) {
-                val slack = GLVector(slack, slack, slack)
+                val slack = Vector3f(slack, slack, slack)
                 min = min - slack
                 max = max + slack
             }
@@ -127,10 +129,10 @@ open class BoundingGrid : Mesh("Bounding Grid") {
 
             boundingBox?.let { bb ->
                 // label coordinates are relative to the bounding box
-                labels["0"]?.position = bb.min - GLVector(0.1f, 0.0f, 0.0f)
-                labels["x"]?.position = GLVector(2.0f * bb.max.x() + 0.1f, 0.01f, 0.01f) - center
-                labels["y"]?.position = GLVector(-0.1f, 2.0f * bb.max.y(), 0.01f) - center
-                labels["z"]?.position = GLVector(-0.1f, 0.01f, 2.0f * bb.max.z()) - center
+                labels["0"]?.position = bb.min - Vector3f(0.1f, 0.0f, 0.0f)
+                labels["x"]?.position = Vector3f(2.0f * bb.max.x() + 0.1f, 0.01f, 0.01f) - center
+                labels["y"]?.position = Vector3f(-0.1f, 2.0f * bb.max.y(), 0.01f) - center
+                labels["z"]?.position = Vector3f(-0.1f, 0.01f, 2.0f * bb.max.z()) - center
 
                 this.needsUpdate = true
                 this.needsUpdateWorld = true

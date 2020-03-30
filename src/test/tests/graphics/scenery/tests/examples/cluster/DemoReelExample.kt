@@ -1,6 +1,6 @@
 package graphics.scenery.tests.examples.cluster
 
-import cleargl.GLVector
+import org.joml.Vector3f
 import coremem.enums.NativeTypeEnum
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
@@ -8,6 +8,7 @@ import graphics.scenery.controls.InputHandler
 import graphics.scenery.controls.TrackedStereoGlasses
 import graphics.scenery.net.NodePublisher
 import graphics.scenery.net.NodeSubscriber
+import graphics.scenery.utils.extensions.times
 import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.Volume
 import org.junit.Test
@@ -47,9 +48,9 @@ class DemoReelExample: SceneryBase("Demo Reel") {
 
         cam = DetachedHeadCamera(hmd)
         with(cam) {
-//            position = GLVector(0.0f, -1.3190879f, 0.8841703f)
-            position = GLVector(0.0f, 0.0f, 55.0f)
-            perspectiveCamera(50.0f, 1.0f*windowWidth, 1.0f*windowHeight, 0.02f, 500.0f)
+//            position = Vector3f(0.0f, -1.3190879f, 0.8841703f)
+            position = Vector3f(0.0f, 0.0f, 55.0f)
+            perspectiveCamera(50.0f, windowWidth, windowHeight, 0.02f, 500.0f)
             active = true
             disableCulling = true
 
@@ -58,11 +59,11 @@ class DemoReelExample: SceneryBase("Demo Reel") {
 
         // box setup
 
-        val shell = Box(GLVector(120.0f, 120.0f, 120.0f), insideNormals = true)
+        val shell = Box(Vector3f(120.0f, 120.0f, 120.0f), insideNormals = true)
         shell.material.cullingMode = Material.CullingMode.Front
-        shell.material.diffuse = GLVector(0.0f, 0.0f, 0.0f)
-        shell.material.specular = GLVector.getNullVector(3)
-        shell.material.ambient = GLVector.getNullVector(3)
+        shell.material.diffuse = Vector3f(0.0f, 0.0f, 0.0f)
+        shell.material.specular = Vector3f(0.0f)
+        shell.material.ambient = Vector3f(0.0f)
         scene.addChild(shell)
 
         // lighting setup
@@ -72,14 +73,14 @@ class DemoReelExample: SceneryBase("Demo Reel") {
         }
 
         val tetrahedron = listOf(
-            GLVector(1.0f, 0f, -1.0f/Math.sqrt(2.0).toFloat()),
-            GLVector(-1.0f,0f,-1.0f/Math.sqrt(2.0).toFloat()),
-            GLVector(0.0f,1.0f,1.0f/Math.sqrt(2.0).toFloat()),
-            GLVector(0.0f,-1.0f,1.0f/Math.sqrt(2.0).toFloat()))
+            Vector3f(1.0f, 0f, -1.0f/Math.sqrt(2.0).toFloat()),
+            Vector3f(-1.0f,0f,-1.0f/Math.sqrt(2.0).toFloat()),
+            Vector3f(0.0f,1.0f,1.0f/Math.sqrt(2.0).toFloat()),
+            Vector3f(0.0f,-1.0f,1.0f/Math.sqrt(2.0).toFloat()))
 
         tetrahedron.mapIndexed { i, position ->
             lights[i].position = position * 50.0f
-            lights[i].emissionColor = GLVector(1.0f, 0.5f,0.3f) //Random.randomVectorFromRange(3, 0.2f, 0.8f)
+            lights[i].emissionColor = Vector3f(1.0f, 0.5f,0.3f) //Random.random3DVectorFromRange(0.2f, 0.8f)
             lights[i].intensity = 200.2f
             scene.addChild(lights[i])
         }
@@ -103,7 +104,7 @@ class DemoReelExample: SceneryBase("Demo Reel") {
         scene.addChild(histoneScene)
 
         val drosophilaVolume = Volume()
-        drosophilaVolume.rotation.rotateByAngleX(1.57f)
+        drosophilaVolume.rotation.rotateX(1.57f)
         drosophilaVolume.renderingMethod = 2
         drosophilaVolume.transferFunction = TransferFunction.ramp(0.1f, 1.0f)
         drosophilaVolume.deallocationThreshold = 50000
@@ -120,25 +121,25 @@ class DemoReelExample: SceneryBase("Demo Reel") {
         val bile = Mesh()
         val canaliculi = Mesh()
         canaliculi.readFrom("$driveLetter:/ssd-backup-inauguration/meshes/bile-canaliculi.obj")
-        canaliculi.scale = GLVector(0.1f, 0.1f, 0.1f)
-        canaliculi.position = GLVector(-80.0f, -60.0f, 10.0f)
-        canaliculi.material.diffuse = GLVector(0.5f, 0.7f, 0.1f)
+        canaliculi.scale = Vector3f(0.1f, 0.1f, 0.1f)
+        canaliculi.position = Vector3f(-80.0f, -60.0f, 10.0f)
+        canaliculi.material.diffuse = Vector3f(0.5f, 0.7f, 0.1f)
         bile.addChild(canaliculi)
 
         val nuclei = Mesh()
         nuclei.readFrom("$driveLetter:/ssd-backup-inauguration/meshes/bile-nuclei.obj")
-        nuclei.scale = GLVector(0.1f, 0.1f, 0.1f)
-        nuclei.position = GLVector(-80.0f, -60.0f, 10.0f)
-        nuclei.material.diffuse = GLVector(0.8f, 0.8f, 0.8f)
+        nuclei.scale = Vector3f(0.1f, 0.1f, 0.1f)
+        nuclei.position = Vector3f(-80.0f, -60.0f, 10.0f)
+        nuclei.material.diffuse = Vector3f(0.8f, 0.8f, 0.8f)
         bile.addChild(nuclei)
 
         val sinusoidal = Mesh()
         sinusoidal.readFrom("$driveLetter:/ssd-backup-inauguration/meshes/bile-sinus.obj")
-        sinusoidal.scale = GLVector(0.1f, 0.1f, 0.1f)
-        sinusoidal.position = GLVector(-80.0f, -60.0f, 10.0f)
-        sinusoidal.material.ambient = GLVector(0.1f, 0.0f, 0.0f)
-        sinusoidal.material.diffuse = GLVector(0.4f, 0.0f, 0.02f)
-        sinusoidal.material.specular = GLVector(0.05f, 0f, 0f)
+        sinusoidal.scale = Vector3f(0.1f, 0.1f, 0.1f)
+        sinusoidal.position = Vector3f(-80.0f, -60.0f, 10.0f)
+        sinusoidal.material.ambient = Vector3f(0.1f, 0.0f, 0.0f)
+        sinusoidal.material.diffuse = Vector3f(0.4f, 0.0f, 0.02f)
+        sinusoidal.material.specular = Vector3f(0.05f, 0f, 0f)
         bile.addChild(sinusoidal)
         bileScene.addChild(bile)
         scene.addChild(bileScene)
@@ -197,7 +198,7 @@ class DemoReelExample: SceneryBase("Demo Reel") {
                                         trangemin = 0.00f
                                         trangemax = 1024.0f
                                         alphaBlending = 0.5f
-                                        scale = GLVector(1.0f, 1.0f, 1.0f)
+                                        scale = Vector3f(1.0f, 1.0f, 1.0f)
                                         stepSize = 0.05f
                                         voxelSizeX = 1.0f
                                         voxelSizeY = 5.0f
@@ -213,7 +214,7 @@ class DemoReelExample: SceneryBase("Demo Reel") {
                                         trangemax = 255.0f
                                         alphaBlending = 0.2f
                                         stepSize = 0.05f
-                                        scale = GLVector(1.0f, 1.0f, 1.0f)
+                                        scale = Vector3f(1.0f, 1.0f, 1.0f)
                                         voxelSizeX = 1.0f
                                         voxelSizeY = 1.0f
                                         voxelSizeZ = 1.0f
@@ -308,7 +309,7 @@ class DemoReelExample: SceneryBase("Demo Reel") {
             histoneScene.hideAll()
             drosophilaScene.hideAll()
 
-            scene.findObserver()?.position = GLVector(0.0f, 0.0f, 3.0f)
+            scene.findObserver()?.position = Vector3f(0.0f, 0.0f, 3.0f)
         }
 
         goto_scene_histone = ClickBehaviour { _, _ ->
@@ -320,14 +321,14 @@ class DemoReelExample: SceneryBase("Demo Reel") {
                 trangemin = 0.5f
                 trangemax = 2500.0f
                 alphaBlending = 0.2f
-                scale = GLVector(1.0f, 1.0f, 1.0f)
+                scale = Vector3f(1.0f, 1.0f, 1.0f)
                 voxelSizeX = 1.0f
                 voxelSizeY = 1.0f
                 voxelSizeZ = 1.0f
             }
 
 
-            scene.findObserver()?.position = GLVector(0.0f, 0.0f, 3.0f)
+            scene.findObserver()?.position = Vector3f(0.0f, 0.0f, 3.0f)
         }
 
         goto_scene_drosophila = ClickBehaviour { _, _ ->
@@ -339,13 +340,13 @@ class DemoReelExample: SceneryBase("Demo Reel") {
                 trangemin = 5.0f
                 trangemax = 800.0f
                 alphaBlending = 0.05f
-                scale = GLVector(1.0f, 1.0f, 1.0f)
+                scale = Vector3f(1.0f, 1.0f, 1.0f)
                 voxelSizeX = 1.0f
                 voxelSizeY = 5.0f
                 voxelSizeZ = 1.0f
             }
 
-            scene.findObserver()?.position = GLVector(0.0f, 0.0f, 4.0f)
+            scene.findObserver()?.position = Vector3f(0.0f, 0.0f, 4.0f)
 
         }
 
@@ -359,14 +360,14 @@ class DemoReelExample: SceneryBase("Demo Reel") {
                 trangemin = 0.00f
                 trangemax = 255.0f
                 alphaBlending = 0.01f
-                scale = GLVector(1.0f, 1.0f, 1.0f)
+                scale = Vector3f(1.0f, 1.0f, 1.0f)
                 voxelSizeX = 1.0f
                 voxelSizeY = 1.0f
                 voxelSizeZ = 5.0f
             }
 
-            //scene.findObserver().position = GLVector(-0.16273244f, -0.85279214f, 1.0995241f)
-            scene.findObserver()?.position = GLVector(0.0f,-1.1f, 2.0f)
+            //scene.findObserver().position = Vector3f(-0.16273244f, -0.85279214f, 1.0995241f)
+            scene.findObserver()?.position = Vector3f(0.0f,-1.1f, 2.0f)
         }
 
         inputHandler.addBehaviour("goto_scene_bile", goto_scene_bile)

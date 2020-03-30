@@ -1,6 +1,6 @@
 package graphics.scenery.tests.examples.stresstests
 
-import cleargl.GLVector
+import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.OpenVRHMD
@@ -27,14 +27,14 @@ class RungholtExample : SceneryBase("RungholtExample", windowWidth = 1280, windo
 
         val cam: Camera = DetachedHeadCamera(hmd)
         with(cam) {
-            perspectiveCamera(50.0f, windowWidth.toFloat(), windowHeight.toFloat(), nearPlaneLocation = 0.5f, farPlaneLocation = 1000.0f)
-            position = GLVector(0.0f, 50.0f, -100.0f)
+            perspectiveCamera(50.0f, windowWidth, windowHeight, nearPlaneLocation = 0.5f, farPlaneLocation = 1000.0f)
+            position = Vector3f(0.0f, 50.0f, -100.0f)
             active = true
             scene.addChild(this)
         }
 
         val boxes = (0..lightCount).map {
-            Box(GLVector(0.5f, 0.5f, 0.5f))
+            Box(Vector3f(0.5f, 0.5f, 0.5f))
         }
 
         val lights = (0..lightCount).map {
@@ -48,7 +48,7 @@ class RungholtExample : SceneryBase("RungholtExample", windowWidth = 1280, windo
         }
 
         lights.map {
-            it.emissionColor = Random.randomVectorFromRange(3, 0.0f, 1.0f)
+            it.emissionColor = Random.random3DVectorFromRange(0.0f, 1.0f)
             it.parent?.material?.diffuse = it.emissionColor
             it.intensity = Random.randomFromRange(0.1f, 10f)
 
@@ -58,8 +58,8 @@ class RungholtExample : SceneryBase("RungholtExample", windowWidth = 1280, windo
         val rungholtMesh = Mesh()
         with(rungholtMesh) {
             readFromOBJ(getDemoFilesPath() + "/rungholt.obj", importMaterials = true)
-            position = GLVector(0.0f, 0.0f, 0.0f)
-            scale = GLVector(1.0f, 1.0f, 1.0f)
+            position = Vector3f(0.0f, 0.0f, 0.0f)
+            scale = Vector3f(1.0f, 1.0f, 1.0f)
             updateWorld(true, true)
             name = "rungholt"
 
@@ -73,7 +73,7 @@ class RungholtExample : SceneryBase("RungholtExample", windowWidth = 1280, windo
                     i, box ->
                     val phi = ticks / 1500.0f % (Math.PI * 2.0f)
 
-                    box.position = GLVector(
+                    box.position = Vector3f(
                         -320.0f + 5.0f * (i + 1),
                         15.0f + i * 0.2f,
                         250.0f * Math.cos(phi + (i * 0.2f)).toFloat())

@@ -1,6 +1,6 @@
 package graphics.scenery.tests.unit
 
-import cleargl.GLVector
+import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.numerics.Random
 import graphics.scenery.utils.LazyLogger
@@ -45,12 +45,12 @@ class CameraTests {
     fun testCanSee() {
         val s = Scene()
         val cam = Camera()
-        cam.perspectiveCamera(50.0f, 1280.0f, 720.0f, 0.01f, 1000.0f)
+        cam.perspectiveCamera(50.0f, 1280, 720, 0.01f, 1000.0f)
         s.addChild(cam)
 
         val boxesInFront = (0 until 10).map {
             val b = Box()
-            b.position = GLVector(0.0f,
+            b.position = Vector3f(0.0f,
                 Random.randomFromRange(-0.5f, 0.5f),
                 Random.randomFromRange(2.0f, 10.0f))
             s.addChild(b)
@@ -59,7 +59,7 @@ class CameraTests {
 
         val boxesBehind = (0 until 10).map {
             val b = Box()
-            b.position = Random.randomVectorFromRange(3, -0.5f, -10.0f)
+            b.position = Random.random3DVectorFromRange(-0.5f, -10.0f)
             s.addChild(b)
             b
         }

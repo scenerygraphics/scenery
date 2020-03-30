@@ -1,7 +1,7 @@
 package graphics.scenery.tests.examples.bdv
 
 import bdv.util.AxisOrder
-import cleargl.GLVector
+import org.joml.Vector3f
 import graphics.scenery.Camera
 import graphics.scenery.DetachedHeadCamera
 import graphics.scenery.PointLight
@@ -31,10 +31,10 @@ class RAIExample: SceneryBase("RAII Rendering example", 1280, 720) {
 
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
-            perspectiveCamera(50.0f, 1.0f*windowWidth, 1.0f*windowHeight)
+            perspectiveCamera(50.0f, windowWidth, windowHeight)
             active = true
 
-            position = GLVector(0.0f, 0.0f, 5.0f)
+            position = Vector3f(0.0f, 0.0f, 5.0f)
             scene.addChild(this)
         }
 
@@ -50,8 +50,8 @@ class RAIExample: SceneryBase("RAII Rendering example", 1280, 720) {
         }
 
         lights.mapIndexed { i, light ->
-            light.position = GLVector(2.0f * i - 4.0f,  i - 1.0f, 0.0f)
-            light.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
+            light.position = Vector3f(2.0f * i - 4.0f,  i - 1.0f, 0.0f)
+            light.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
             light.intensity = 50.0f
             scene.addChild(light)
         }

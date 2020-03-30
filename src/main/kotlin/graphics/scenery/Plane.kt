@@ -1,6 +1,6 @@
 package graphics.scenery
 
-import cleargl.GLVector
+import org.joml.Vector3f
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
 
@@ -10,7 +10,7 @@ import java.nio.IntBuffer
  * @author Ulrik Günther <hello@ulrik.is>
  * @param[sizes] The dimensions of the plane.
  */
-open class Plane(sizes: GLVector) : Mesh(), HasGeometry {
+open class Plane(sizes: Vector3f) : Mesh(), HasGeometry {
     override var vertices: FloatBuffer = FloatBuffer.allocate(0)
     override var normals: FloatBuffer = FloatBuffer.allocate(0)
     override var texcoords: FloatBuffer = FloatBuffer.allocate(0)

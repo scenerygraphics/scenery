@@ -299,9 +299,9 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
         }
 
         val cam = bdvNodes.firstOrNull()?.getScene()?.activeObserver ?: return
-        val viewProjection = cam.projection.clone()
-        viewProjection.mult(cam.getTransformation())
-        val mvp = Matrix4f().set(viewProjection.floatArray)
+        val viewProjection = Matrix4f(cam.projection)
+        viewProjection.mul(cam.getTransformation())
+        val mvp = Matrix4f().set(viewProjection)
 
         // TODO: original might result in NULL, is this intended?
         currentProg.use(context)
@@ -565,7 +565,10 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
 
                         override fun getSourceTransform(): AffineTransform3D {
                             val w = AffineTransform3D()
-                            w.set(*bdvNode.world.transposedFloatArray.map { it.toDouble() }.toDoubleArray())
+                            val arr = FloatArray(16)
+                            Matrix4f(bdvNode.world).transpose().get(arr)
+
+                            w.set(*arr.map { it.toDouble() }.toDoubleArray())
                             return w.concatenate(sourceTransform)
                         }
 
@@ -603,7 +606,10 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
 
                             override fun getSourceTransform(): AffineTransform3D {
                                 val w = AffineTransform3D()
-                                w.set(*bdvNode.world.transposedFloatArray.map { it.toDouble() }.toDoubleArray())
+                                val arr = FloatArray(16)
+                                Matrix4f(bdvNode.world).transpose().get(arr)
+
+                                w.set(*arr.map { it.toDouble() }.toDoubleArray())
                                 return w.concatenate(sourceTransform)
                             }
 
@@ -627,7 +633,10 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
 
                             override fun getSourceTransform(): AffineTransform3D {
                                 val w = AffineTransform3D()
-                                w.set(*bdvNode.world.transposedFloatArray.map { it.toDouble() }.toDoubleArray())
+                                val arr = FloatArray(16)
+                                Matrix4f(bdvNode.world).transpose().get(arr)
+
+                                w.set(*arr.map { it.toDouble() }.toDoubleArray())
                                 return w.concatenate(sourceTransform)
                             }
 

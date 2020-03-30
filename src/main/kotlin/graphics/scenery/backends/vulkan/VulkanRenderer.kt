@@ -1,7 +1,5 @@
 package graphics.scenery.backends.vulkan
 
-import cleargl.GLMatrix
-import cleargl.GLVector
 import com.fasterxml.jackson.module.kotlin.isKotlinClass
 import graphics.scenery.*
 import graphics.scenery.backends.*
@@ -11,6 +9,10 @@ import graphics.scenery.textures.Texture
 import graphics.scenery.textures.UpdatableTexture
 import graphics.scenery.utils.*
 import kotlinx.coroutines.*
+import org.joml.Matrix4f
+import org.joml.Vector2f
+import org.joml.Vector3f
+import org.joml.Vector4f
 import org.lwjgl.PointerBuffer
 import org.lwjgl.glfw.GLFW.glfwInit
 import org.lwjgl.glfw.GLFWVulkan.glfwGetRequiredInstanceExtensions
@@ -196,7 +198,7 @@ open class VulkanRenderer(hub: Hub,
                     vkResetCommandPool(device.vulkanDevice, commandPools.Render, VK_FLAGS_NONE)
 
                     scene.findObserver()?.let { cam ->
-                        cam.perspectiveCamera(cam.fov, window.width.toFloat(), window.height.toFloat(), cam.nearPlaneDistance, cam.farPlaneDistance)
+                        cam.perspectiveCamera(cam.fov, window.width, window.height, cam.nearPlaneDistance, cam.farPlaneDistance)
                     }
 
                     logger.debug("Calling late resize initializers for ${lateResizeInitializers.keys.joinToString(", ")}")
@@ -343,11 +345,11 @@ open class VulkanRenderer(hub: Hub,
     private var flow: List<String> = listOf()
 
     private val vulkanProjectionFix =
-        GLMatrix(floatArrayOf(
+        Matrix4f(
             1.0f,  0.0f, 0.0f, 0.0f,
             0.0f, -1.0f, 0.0f, 0.0f,
             0.0f,  0.0f, 0.5f, 0.0f,
-            0.0f,  0.0f, 0.5f, 1.0f))
+            0.0f,  0.0f, 0.5f, 1.0f)
 
     final override var renderConfigFile: String = ""
         set(config) {
@@ -795,7 +797,7 @@ open class VulkanRenderer(hub: Hub,
         with(matricesUbo) {
             name = "Matrices"
             add("ModelMatrix", { node.world })
-            add("NormalMatrix", { node.world.inverse.transpose() })
+            add("NormalMatrix", { Matrix4f(node.world).invert().transpose() })
             add("isBillboard", { node.isBillboard.toInt() })
 
             createUniformBuffer()
@@ -1188,13 +1190,13 @@ open class VulkanRenderer(hub: Hub,
                 buffers.UBOs)
 
         val lightUbo = VulkanUBO(device)
-        lightUbo.add("ViewMatrix0", { GLMatrix.getIdentity() })
-        lightUbo.add("ViewMatrix1", { GLMatrix.getIdentity() })
-        lightUbo.add("InverseViewMatrix0", { GLMatrix.getIdentity() })
-        lightUbo.add("InverseViewMatrix1", { GLMatrix.getIdentity() })
-        lightUbo.add("ProjectionMatrix", { GLMatrix.getIdentity() })
-        lightUbo.add("InverseProjectionMatrix", { GLMatrix.getIdentity() })
-        lightUbo.add("CamPosition", { GLVector.getNullVector(3) })
+        lightUbo.add("ViewMatrix0", { Matrix4f().identity() })
+        lightUbo.add("ViewMatrix1", { Matrix4f().identity() })
+        lightUbo.add("InverseViewMatrix0", { Matrix4f().identity() })
+        lightUbo.add("InverseViewMatrix1", { Matrix4f().identity() })
+        lightUbo.add("ProjectionMatrix", { Matrix4f().identity() })
+        lightUbo.add("InverseProjectionMatrix", { Matrix4f().identity() })
+        lightUbo.add("CamPosition", { Vector3f(0.0f) })
         lightUbo.createUniformBuffer()
         lightUbo.populate()
 
@@ -1206,11 +1208,11 @@ open class VulkanRenderer(hub: Hub,
 
         val vrUbo = VulkanUBO(device)
 
-        vrUbo.add("projection0", { GLMatrix.getIdentity() } )
-        vrUbo.add("projection1", { GLMatrix.getIdentity() } )
-        vrUbo.add("inverseProjection0", { GLMatrix.getIdentity() } )
-        vrUbo.add("inverseProjection1", { GLMatrix.getIdentity() } )
-        vrUbo.add("headShift", { GLMatrix.getIdentity() })
+        vrUbo.add("projection0", { Matrix4f().identity() } )
+        vrUbo.add("projection1", { Matrix4f().identity() } )
+        vrUbo.add("inverseProjection0", { Matrix4f().identity() } )
+        vrUbo.add("inverseProjection1", { Matrix4f().identity() } )
+        vrUbo.add("headShift", { Matrix4f().identity() })
         vrUbo.add("IPD", { 0.0f })
         vrUbo.add("stereoEnabled", { 0 })
         vrUbo.createUniformBuffer()
@@ -1315,21 +1317,22 @@ open class VulkanRenderer(hub: Hub,
             val value = it.value.invoke()
 
             when (value.javaClass) {
-                GLVector::class.java -> {
-                    val v = value as GLVector
-                    when {
-                        v.toFloatArray().size == 2 -> AttributeInfo(VK_FORMAT_R32G32_SFLOAT, 4 * 2, 1)
-                        v.toFloatArray().size == 4 -> AttributeInfo(VK_FORMAT_R32G32B32A32_SFLOAT, 4 * 4, 1)
-                        else -> {
-                            logger.error("Unsupported vector length for instancing: ${v.toFloatArray().size}")
-                            AttributeInfo(-1, -1, -1)
-                        }
-                    }
+                Vector2f::class.java -> {
+                    val v = value as Vector2f
+                    AttributeInfo(VK_FORMAT_R32G32_SFLOAT, 4 * 2, 1)
+                }
+                Vector3f::class.java -> {
+                    val v = value as Vector2f
+                    AttributeInfo(VK_FORMAT_R32G32B32_SFLOAT, 3 * 4, 1)
+                }
+                Vector4f::class.java -> {
+                    val v = value as Vector2f
+                    AttributeInfo(VK_FORMAT_R32G32B32A32_SFLOAT, 4 * 4, 1)
                 }
 
-                GLMatrix::class.java -> {
-                    val m = value as GLMatrix
-                    AttributeInfo(VK_FORMAT_R32G32B32A32_SFLOAT, 4 * 4, m.floatArray.size / 4)
+                Matrix4f::class.java -> {
+                    val m = value as Matrix4f
+                    AttributeInfo(VK_FORMAT_R32G32B32A32_SFLOAT, 4 * 4, 4 * 4 / 4)
                 }
 
                 else -> {
@@ -1557,7 +1560,7 @@ open class VulkanRenderer(hub: Hub,
                         pass.output.values.first().attachments.values.forEachIndexed { i, att ->
                             when (att.type) {
                                 VulkanFramebuffer.VulkanFramebufferType.COLOR_ATTACHMENT -> {
-                                    clearValues[i].color().float32().put(pass.passConfig.clearColor.toFloatArray())
+                                    pass.passConfig.clearColor.get(clearValues[i].color().float32())
                                 }
                                 VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT -> {
                                     clearValues[i].depthStencil().set(pass.passConfig.depthClearValue, 0)
@@ -3013,9 +3016,9 @@ open class VulkanRenderer(hub: Hub,
         instanceMasters.isNotEmpty()
     }
 
-    fun GLMatrix.applyVulkanCoordinateSystem(): GLMatrix {
-        val m = vulkanProjectionFix.clone()
-        m.mult(this)
+    fun Matrix4f.applyVulkanCoordinateSystem(): Matrix4f {
+        val m = Matrix4f(vulkanProjectionFix)
+        m.mul(this)
 
         return m
     }
@@ -3065,13 +3068,13 @@ open class VulkanRenderer(hub: Hub,
         })
         vrUbo.add("inverseProjection0", {
             (hmd?.getEyeProjection(0, cam.nearPlaneDistance, cam.farPlaneDistance)
-                ?: cam.projection).applyVulkanCoordinateSystem().inverse
+                ?: cam.projection).applyVulkanCoordinateSystem().invert()
         })
         vrUbo.add("inverseProjection1", {
             (hmd?.getEyeProjection(1, cam.nearPlaneDistance, cam.farPlaneDistance)
-                ?: cam.projection).applyVulkanCoordinateSystem().inverse
+                ?: cam.projection).applyVulkanCoordinateSystem().invert()
         })
-        vrUbo.add("headShift", { hmd?.getHeadToEyeTransform(0) ?: GLMatrix.getIdentity() })
+        vrUbo.add("headShift", { hmd?.getHeadToEyeTransform(0) ?: Matrix4f().identity() })
         vrUbo.add("IPD", { hmd?.getIPD() ?: 0.05f })
         vrUbo.add("stereoEnabled", { renderConfig.stereoEnabled.toInt() })
 
@@ -3100,7 +3103,7 @@ open class VulkanRenderer(hub: Hub,
 
 //                node.projection.copyFrom(cam.projection.applyVulkanCoordinateSystem())
 
-                node.view.copyFrom(cam.view)
+                node.view.set(cam.view)
 
                 nodeUpdated = ubo.populate(offset = bufferOffset.toLong())
 
@@ -3134,10 +3137,10 @@ open class VulkanRenderer(hub: Hub,
         val lightUbo = defaultUBOs["LightParameters"]!!
         lightUbo.add("ViewMatrix0", { cam.getTransformationForEye(0) })
         lightUbo.add("ViewMatrix1", { cam.getTransformationForEye(1) })
-        lightUbo.add("InverseViewMatrix0", { cam.getTransformationForEye(0).inverse })
-        lightUbo.add("InverseViewMatrix1", { cam.getTransformationForEye(1).inverse })
+        lightUbo.add("InverseViewMatrix0", { cam.getTransformationForEye(0).invert() })
+        lightUbo.add("InverseViewMatrix1", { cam.getTransformationForEye(1).invert() })
         lightUbo.add("ProjectionMatrix", { cam.projection.applyVulkanCoordinateSystem() })
-        lightUbo.add("InverseProjectionMatrix", { cam.projection.applyVulkanCoordinateSystem().inverse })
+        lightUbo.add("InverseProjectionMatrix", { cam.projection.applyVulkanCoordinateSystem().invert() })
         lightUbo.add("CamPosition", { cam.position })
 
         updated = lightUbo.populate()
