@@ -1,6 +1,6 @@
 package graphics.scenery.backends.vulkan
 
-import cleargl.GLVector
+import org.joml.Vector3f
 import graphics.scenery.GeometryType
 import graphics.scenery.Node
 import graphics.scenery.Settings
@@ -10,6 +10,8 @@ import graphics.scenery.backends.ShaderType
 import graphics.scenery.backends.Shaders
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.RingBuffer
+import org.joml.Vector2f
+import org.joml.Vector4f
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.*
@@ -249,8 +251,14 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
                 @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
                 val value = if (entry.value is String || entry.value is java.lang.String) {
                     val s = entry.value as String
-                    GLVector(*(s.split(",").map { it.trim().trimStart().toFloat() }.toFloatArray()))
-                } else if (entry.value is Double) {
+                    val split = s.split(",").map { it.trim().trimStart().toFloat() }.toFloatArray()
+
+                    when(split.size) {
+                        2 -> Vector2f(split[0], split[1])
+                        3 -> Vector3f(split[0], split[1], split[2])
+                        4 -> Vector4f(split[0], split[1], split[2], split[3])
+                        else -> throw IllegalStateException("Dont know how to handle ${split.size} elements in Shader Parameter split")
+                    }                } else if (entry.value is Double) {
                     (entry.value as Double).toFloat()
                 } else {
                     entry.value

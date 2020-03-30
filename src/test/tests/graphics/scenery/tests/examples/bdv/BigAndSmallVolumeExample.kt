@@ -1,7 +1,7 @@
 package graphics.scenery.tests.examples.bdv
 
 import bdv.spimdata.XmlIoSpimDataMinimal
-import cleargl.GLVector
+import org.joml.Vector3f
 import coremem.enums.NativeTypeEnum
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
@@ -50,10 +50,10 @@ class BigAndSmallVolumeExample: SceneryBase("BDV + SDV Rendering example", 1280,
 
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
-            perspectiveCamera(50.0f, 1.0f*windowWidth, 1.0f*windowHeight)
+            perspectiveCamera(50.0f, windowWidth, windowHeight)
             active = true
 
-//            position = GLVector(170.067406f, -138.45601f, -455.9538f)
+//            position = Vector3f(170.067406f, -138.45601f, -455.9538f)
 //            rotation = Quaternion(-0.05395214f, 0.94574946f, -0.23843345f, 0.21400182f)
 
             scene.addChild(this)
@@ -63,7 +63,7 @@ class BigAndSmallVolumeExample: SceneryBase("BDV + SDV Rendering example", 1280,
         val v = graphics.scenery.volumes.bdv.Volume.fromSpimData(XmlIoSpimDataMinimal().load(files.first()), hub, options)
         v.name = "volume"
 //        v.colormap = "plasma"
-        v.scale = GLVector(0.02f, 0.02f, 0.02f)
+        v.scale = Vector3f(0.02f, 0.02f, 0.02f)
         scene.addChild(v)
 
         volume = v
@@ -73,8 +73,8 @@ class BigAndSmallVolumeExample: SceneryBase("BDV + SDV Rendering example", 1280,
         }
 
         lights.mapIndexed { i, light ->
-            light.position = GLVector(2.0f * i - 4.0f,  i - 1.0f, 0.0f)
-            light.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
+            light.position = Vector3f(2.0f * i - 4.0f,  i - 1.0f, 0.0f)
+            light.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
             light.intensity = 50.0f
             scene.addChild(light)
         }
@@ -85,7 +85,7 @@ class BigAndSmallVolumeExample: SceneryBase("BDV + SDV Rendering example", 1280,
         val volumeBuffer = RingBuffer<ByteBuffer>(2) { MemoryUtil.memAlloc((volumeSize*volumeSize*volumeSize*bitsPerVoxel/8).toInt()) }
 
         val seed = Random.randomFromRange(0.0f, 133333337.0f).toLong()
-        var shift = GLVector.getNullVector(3)
+        var shift = Vector3f(0.0f)
 
         val dataType = if(bitsPerVoxel == 8) {
             NativeTypeEnum.UnsignedByte

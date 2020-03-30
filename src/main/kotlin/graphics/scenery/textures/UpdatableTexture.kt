@@ -1,14 +1,13 @@
 package graphics.scenery.textures
 
-import cleargl.GLTypeEnum
-import cleargl.GLVector
 import net.imglib2.type.numeric.NumericType
 import net.imglib2.type.numeric.integer.UnsignedByteType
+import org.joml.Vector3i
 import org.lwjgl.system.MemoryUtil
 import java.nio.ByteBuffer
 
 class UpdatableTexture(
-    dimensions: GLVector,
+    dimensions: Vector3i,
     channels: Int = 4,
     type: NumericType<*> = UnsignedByteType(),
     contents: ByteBuffer?,

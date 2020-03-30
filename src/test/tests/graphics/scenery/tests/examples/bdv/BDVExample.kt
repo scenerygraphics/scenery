@@ -1,7 +1,7 @@
 package graphics.scenery.tests.examples.bdv
 
 import bdv.spimdata.XmlIoSpimDataMinimal
-import cleargl.GLVector
+import org.joml.Vector3f
 import graphics.scenery.Camera
 import graphics.scenery.DetachedHeadCamera
 import graphics.scenery.PointLight
@@ -54,7 +54,7 @@ class BDVExample: SceneryBase("BDV Rendering example", 1280, 720) {
 
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
-            perspectiveCamera(50.0f, 1.0f*windowWidth, 1.0f*windowHeight)
+            perspectiveCamera(50.0f, windowWidth, windowHeight)
             active = true
 
             scene.addChild(this)
@@ -63,7 +63,7 @@ class BDVExample: SceneryBase("BDV Rendering example", 1280, 720) {
         val options = VolumeViewerOptions().maxCacheSizeInMB(maxCacheSize)
         val v = Volume.fromSpimData(XmlIoSpimDataMinimal().load(files.first()), hub, options)
         v.name = "volume"
-//        v.scale = GLVector(0.02f, 0.02f, 0.02f)
+//        v.scale = Vector3f(0.02f, 0.02f, 0.02f)
         v.updateWorld(true, true)
         v.viewerState.sources.firstOrNull()?.spimSource?.getSource(0, 0)?.let { rai ->
             var h: Any? = null
@@ -91,10 +91,9 @@ class BDVExample: SceneryBase("BDV Rendering example", 1280, 720) {
         }
 
         lights.mapIndexed { i, light ->
-            light.position = GLVector(2.0f * i - 4.0f,  i - 1.0f, 0.0f)
-            light.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
+            light.position = Vector3f(2.0f * i - 4.0f,  i - 1.0f, 0.0f)
+            light.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
             light.intensity = 50.0f
-            light.position.length2()
             scene.addChild(light)
         }
     }

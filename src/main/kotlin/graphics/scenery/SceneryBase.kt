@@ -1,7 +1,7 @@
 package graphics.scenery
 
 import cleargl.ClearGLDefaultEventListener
-import cleargl.GLVector
+import org.joml.Vector3f
 import com.sun.jna.Library
 import com.sun.jna.Native
 import graphics.scenery.backends.Renderer
@@ -372,7 +372,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
         val windowWidth = renderer?.window?.width ?: 512
         val windowHeight = renderer?.window?.height ?: 512
 
-        val target = scene.findObserver()?.target ?: GLVector.getNullVector(3)
+        val target = scene.findObserver()?.target ?: Vector3f(0.0f)
         val inputHandler = (hub.get(SceneryElement.Input) as InputHandler)
         val targetArcball = ArcballCameraControl("mouse_control", { scene.findObserver() }, windowWidth, windowHeight, target)
         val fpsControl = FPSCameraControl("mouse_control", { scene.findObserver() }, windowWidth, windowHeight)

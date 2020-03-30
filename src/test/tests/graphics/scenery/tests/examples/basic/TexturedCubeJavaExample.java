@@ -5,6 +5,7 @@ import graphics.scenery.*;
 import graphics.scenery.backends.Renderer;
 import graphics.scenery.textures.Texture;
 import graphics.scenery.utils.Image;
+import org.joml.Vector3f;
 import org.junit.Test;
 
 /**
@@ -28,25 +29,25 @@ public class TexturedCubeJavaExample {
             getHub().add(SceneryElement.Renderer, getRenderer());
 
             Material boxmaterial = new Material();
-            boxmaterial.setAmbient( new GLVector(1.0f, 0.0f, 0.0f) );
-            boxmaterial.setDiffuse( new GLVector(0.0f, 1.0f, 0.0f) );
-            boxmaterial.setSpecular( new GLVector(1.0f, 1.0f, 1.0f) );
+            boxmaterial.setAmbient( new Vector3f(1.0f, 0.0f, 0.0f) );
+            boxmaterial.setDiffuse( new Vector3f(0.0f, 1.0f, 0.0f) );
+            boxmaterial.setSpecular( new Vector3f(1.0f, 1.0f, 1.0f) );
             boxmaterial.getTextures().put("diffuse", Texture.fromImage(Image.fromResource("textures/helix.png", this.getClass())));
 
-            final Box box = new Box(new GLVector(1.0f, 1.0f, 1.0f), false);
+            final Box box = new Box(new Vector3f(1.0f, 1.0f, 1.0f), false);
             box.setMaterial( boxmaterial );
-            box.setPosition( new GLVector(0.0f, 0.0f, 0.0f) );
+            box.setPosition( new Vector3f(0.0f, 0.0f, 0.0f) );
 
             getScene().addChild(box);
 
             PointLight light = new PointLight(15.0f);
-            light.setPosition(new GLVector(0.0f, 0.0f, 2.0f));
+            light.setPosition(new Vector3f(0.0f, 0.0f, 2.0f));
             light.setIntensity(100.0f);
-            light.setEmissionColor(new GLVector(1.0f, 1.0f, 1.0f));
+            light.setEmissionColor(new Vector3f(1.0f, 1.0f, 1.0f));
             getScene().addChild(light);
 
             Camera cam = new DetachedHeadCamera();
-            cam.setPosition( new GLVector(0.0f, 0.0f, 5.0f) );
+            cam.setPosition( new Vector3f(0.0f, 0.0f, 5.0f) );
             cam.perspectiveCamera(50.0f, getRenderer().getWindow().getWidth(), getRenderer().getWindow().getHeight(), 0.1f, 1000.0f);
             cam.setActive( true );
             getScene().addChild(cam);
@@ -54,7 +55,7 @@ public class TexturedCubeJavaExample {
             Thread rotator = new Thread(){
                 public void run() {
                     while (true) {
-                        box.getRotation().rotateByAngleY(0.01f);
+                        box.getRotation().rotateY(0.01f);
                         box.setNeedsUpdate(true);
 
                         try {

@@ -1,6 +1,6 @@
 package graphics.scenery.tests.unit
 
-import cleargl.GLVector
+import org.joml.Vector3f
 import graphics.scenery.Cone
 import graphics.scenery.Scene
 import graphics.scenery.numerics.Random
@@ -27,7 +27,7 @@ class ConeTests {
         val radius = Random.randomFromRange(0.1f, 5000.0f)
         val height = Random.randomFromRange(0.1f, 5000.0f)
         val segments = kotlin.random.Random.nextInt(1, 5)
-        val axisN = GLVector(0.0f, 1.0f, 0.0f)
+        val axisN = Vector3f(0.0f, 1.0f, 0.0f)
         //TODO: Generalise
 
         val epsilon = 0.0001f

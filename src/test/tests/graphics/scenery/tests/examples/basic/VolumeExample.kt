@@ -1,6 +1,6 @@
 package graphics.scenery.tests.examples.basic
 
-import cleargl.GLVector
+import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.TrackedStereoGlasses
@@ -24,31 +24,31 @@ class VolumeExample: SceneryBase("Volume Rendering example", 1280, 720) {
 
         val cam: Camera = DetachedHeadCamera(hmd)
         with(cam) {
-            position = GLVector(0.0f, 0.5f, 5.0f)
-            perspectiveCamera(50.0f, 1.0f*windowWidth, 1.0f*windowHeight)
+            position = Vector3f(0.0f, 0.5f, 5.0f)
+            perspectiveCamera(50.0f, windowWidth, windowHeight)
             active = true
 
             scene.addChild(this)
         }
 
-        val shell = Box(GLVector(10.0f, 10.0f, 10.0f), insideNormals = true)
+        val shell = Box(Vector3f(10.0f, 10.0f, 10.0f), insideNormals = true)
         shell.material.cullingMode = Material.CullingMode.None
-        shell.material.diffuse = GLVector(0.2f, 0.2f, 0.2f)
-        shell.material.specular = GLVector.getNullVector(3)
-        shell.material.ambient = GLVector.getNullVector(3)
+        shell.material.diffuse = Vector3f(0.2f, 0.2f, 0.2f)
+        shell.material.specular = Vector3f(0.0f)
+        shell.material.ambient = Vector3f(0.0f)
         scene.addChild(shell)
 
         val s = Icosphere(0.5f, 3)
-        s.position = GLVector(2.0f, -1.0f, -2.0f)
-        s.material.diffuse = GLVector(0.0f, 0.0f, 0.0f)
+        s.position = Vector3f(2.0f, -1.0f, -2.0f)
+        s.material.diffuse = Vector3f(0.0f, 0.0f, 0.0f)
         scene.addChild(s)
 
         val volume = Volume()
         volume.name = "volume"
         volume.colormap = "jet"
-        volume.position = GLVector(0.0f, 0.0f, -3.5f)
-        volume.rotation = volume.rotation.rotateByEuler(0.05f, 0.05f, 0.05f)
-        volume.scale = GLVector(20.0f, 20.0f, 20.0f)
+        volume.position = Vector3f(0.0f, 0.0f, -3.5f)
+        volume.rotation = volume.rotation.rotateXYZ(0.05f, 0.05f, 0.05f)
+        volume.scale = Vector3f(20.0f, 20.0f, 20.0f)
         volume.transferFunction = TransferFunction.ramp(0.1f, 0.5f)
         scene.addChild(volume)
 
@@ -57,8 +57,8 @@ class VolumeExample: SceneryBase("Volume Rendering example", 1280, 720) {
         }
 
         lights.mapIndexed { i, light ->
-            light.position = GLVector(2.0f * i - 4.0f,  i - 1.0f, 0.0f)
-            light.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
+            light.position = Vector3f(2.0f * i - 4.0f,  i - 1.0f, 0.0f)
+            light.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
             light.intensity = 0.5f
             scene.addChild(light)
         }
@@ -85,7 +85,7 @@ class VolumeExample: SceneryBase("Volume Rendering example", 1280, 720) {
             logger.info("Got volume!")
 
             while(true) {
-                volume.rotation = volume.rotation.rotateByAngleY(0.003f)
+                volume.rotation = volume.rotation.rotateY(0.003f)
                 Thread.sleep(5)
             }
         }

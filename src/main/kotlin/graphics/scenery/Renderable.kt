@@ -1,8 +1,8 @@
 package graphics.scenery
 
-import cleargl.GLMatrix
-import cleargl.GLVector
-import com.jogamp.opengl.math.Quaternion
+import org.joml.Matrix4f
+import org.joml.Quaternionf
+import org.joml.Vector3f
 import java.util.concurrent.locks.ReentrantLock
 
 /**
@@ -15,36 +15,36 @@ import java.util.concurrent.locks.ReentrantLock
  */
 interface Renderable {
     /** Model matrix **/
-    var model: GLMatrix
+    var model: Matrix4f
     /** Inverse [model] matrix */
-    var imodel: GLMatrix
+    var imodel: Matrix4f
 
     /** World transform matrix */
-    var world: GLMatrix
+    var world: Matrix4f
     /** Inverse of [world] */
-    var iworld: GLMatrix
+    var iworld: Matrix4f
 
     /** View matrix. May be null. */
-    var view: GLMatrix
+    var view: Matrix4f
     /** Inverse of [view] matrix. May be null. */
-    var iview: GLMatrix
+    var iview: Matrix4f
     /** Projection matrix. May be null. */
-    var projection: GLMatrix
+    var projection: Matrix4f
     /** Inverse of [projection]. May be null. */
-    var iprojection: GLMatrix
+    var iprojection: Matrix4f
     /** modelView matrix. May be null. */
-    var modelView: GLMatrix
+    var modelView: Matrix4f
     /** Inverse of [modelView]. May be null. */
-    var imodelView: GLMatrix
+    var imodelView: Matrix4f
     /** ModelViewProjection matrix. May be null. */
-    var mvp: GLMatrix
+    var mvp: Matrix4f
 
     /** World position of the [Renderable] object. */
-    var position: GLVector
+    var position: Vector3f
     /** X/Y/Z scale of the object. */
-    var scale: GLVector
+    var scale: Vector3f
     /** Quaternion defining the rotation of the object in local coordinates. */
-    var rotation: Quaternion
+    var rotation: Quaternionf
 
     /** Whether the object has been initialized. Used by renderers. */
     var initialized: Boolean

@@ -1,11 +1,15 @@
 package graphics.scenery.tests.unit.backends
 
-import cleargl.GLMatrix
-import cleargl.GLVector
+import org.joml.Matrix4f
+import org.joml.Vector3f
 import graphics.scenery.backends.UBO
 import graphics.scenery.numerics.Random
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.VideoEncodingQuality
+import graphics.scenery.utils.extensions.compare
+import graphics.scenery.utils.extensions.plus
+import graphics.scenery.utils.extensions.toFloatArray
+import org.joml.Vector4f
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -38,9 +42,9 @@ class UBOTests {
         // ints are 4 byte-aligned
         ubo.add("member1", { 1337 })
         // 3/4-vectors are 16 byte-aligned
-        ubo.add("member2", { GLVector(1.0f, 2.0f, 3.0f) })
+        ubo.add("member2", { Vector3f(1.0f, 2.0f, 3.0f) })
         // Matrices as arrays of 4-vectors are 16 byte-aligned
-        ubo.add("member3", { GLMatrix.getIdentity() })
+        ubo.add("member3", { Matrix4f().identity() })
 
         ubo.populate(storage)
 
@@ -65,8 +69,8 @@ class UBOTests {
 
         // test getting the values as well
         assertEquals(1337, ubo.get("member1")?.invoke())
-        assertEquals(GLVector(1.0f, 2.0f, 3.0f), ubo.get("member2")?.invoke())
-        assertTrue(GLMatrix.compare(GLMatrix.getIdentity(), ubo.get("member3")?.invoke() as GLMatrix, true))
+        assertEquals(Vector3f(1.0f, 2.0f, 3.0f), ubo.get("member2")?.invoke())
+        assertTrue(Matrix4f().identity().compare(ubo.get("member3")?.invoke() as Matrix4f, true))
     }
 
     /**
@@ -124,7 +128,7 @@ class UBOTests {
         val storage = MemoryUtil.memAlloc(144)
         assertFalse(ubo.populate(storage))
         val storageView = storage.duplicate().order(ByteOrder.LITTLE_ENDIAN)
-        val defaultVector = GLVector(1.0f, 2.0f, 3.0f)
+        val defaultVector = Vector3f(1.0f, 2.0f, 3.0f)
 
         val floatMember = kotlin.random.Random.nextFloat()
         val booleanMember = kotlin.random.Random.nextBoolean()
@@ -132,15 +136,15 @@ class UBOTests {
         val enumMember = VideoEncodingQuality.values().random()
         val doubleMember = kotlin.random.Random.nextDouble()
 
-        val twoVector = Random.randomVectorFromRange(2, 0.0f, 1.0f)
-        val fourVector = Random.randomVectorFromRange(4, 0.0f, 1.0f)
+        val twoVector = Random.random2DVectorFromRange(0.0f, 1.0f)
+        val fourVector = Random.random4DVectorFromRange(0.0f, 1.0f)
 
         // ints are 4 byte-aligned
         ubo.add("member1", { 1337 })
         // 3/4-vectors are 16 byte-aligned
         ubo.add("member2", { defaultVector })
         // Matrices as arrays of 4-vectors are 16 byte-aligned
-        ubo.add("member3", { GLMatrix.getIdentity() })
+        ubo.add("member3", { Matrix4f().identity() })
         // Float member, 4-aligned
         ubo.add("floatMember", { floatMember })
         // Boolean, stored as Int, 4-aligned
@@ -159,7 +163,7 @@ class UBOTests {
         assertEquals(144, ubo.getSize())
         ubo.populate(storage)
 
-        fun verifyData(v: GLVector = defaultVector) {
+        fun verifyData(v: Vector3f = defaultVector) {
             // 1337 is expected at byte 0
             assertEquals(1337, storageView.asIntBuffer().get())
             // 1.0f is expected at byte 16
@@ -210,7 +214,7 @@ class UBOTests {
         }
 
         logger.info("+ Modifying UBO and repopulating ...")
-        val newVector = defaultVector + Random.randomVectorFromRange(3, -1.0f, 1.0f)
+        val newVector = defaultVector + Random.random3DVectorFromRange(-1.0f, 1.0f)
         ubo.add("member2", { newVector })
         storage.flip()
         ubo.populate(storage)
@@ -226,13 +230,13 @@ class UBOTests {
         val ubo = UBO()
         ubo.add("member1", { Random.randomFromRange(0.0f, 1.0f) })
         ubo.add("member2", { Random.randomFromRange(0.0f, 1.0f) })
-        ubo.add("member3", { GLVector.getOneVector(4) })
+        ubo.add("member3", { Vector4f(1.0f) })
 
         ubo.addIfMissing("member1", { 1337 })
         assertNotEquals(1337, ubo.get("member1")?.invoke())
 
-        ubo.addIfMissing("member4", { GLMatrix.getIdentity() })
-        assertTrue(GLMatrix.compare(GLMatrix.getIdentity(), ubo.get("member4")?.invoke() as GLMatrix, false))
+        ubo.addIfMissing("member4", { Matrix4f().identity() })
+        assertTrue(Matrix4f().identity().compare(ubo.get("member4")?.invoke() as Matrix4f, false))
     }
 
     @Test
@@ -242,15 +246,18 @@ class UBOTests {
         ubo.add("member1", { Random.randomFromRange(0.0f, 1.0f) })
         ubo.add("member2", { Random.randomFromRange(0.0f, 1.0f) })
         ubo.add("member3", { Random.randomFromRange(0.0f, 1.0f) })
-        ubo.add("member4", { GLMatrix.getIdentity() })
-        ubo.add("member5", { GLVector.getNullVector(4) })
+        ubo.add("member4", { Matrix4f().identity() })
+        ubo.add("member5", { Vector4f(0.0f) })
 
         val members = ubo.members()
         val membersAndContent = ubo.membersAndContent()
 
         assertEquals("member1, member2, member3, member4, member5", members)
-        assertTrue(membersAndContent.contains("GLMatrix"))
-        assertTrue(membersAndContent.contains("[[0.0, 0.0, 0.0, 0.0]]"))
+        assertTrue(membersAndContent.contains("1.000E+0  0.000E+0  0.000E+0  0.000E+0\n" +
+            " 0.000E+0  1.000E+0  0.000E+0  0.000E+0\n" +
+            " 0.000E+0  0.000E+0  1.000E+0  0.000E+0\n" +
+            " 0.000E+0  0.000E+0  0.000E+0  1.000E+0"))
+        assertTrue(membersAndContent.contains("( 0.000E+0  0.000E+0  0.000E+0  0.000E+0)"))
         assertTrue(membersAndContent.contains("member1"))
         assertTrue(membersAndContent.contains("member2"))
         assertTrue(membersAndContent.contains("member3"))

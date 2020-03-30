@@ -1,6 +1,6 @@
 package graphics.scenery.tests.examples.advanced
 
-import cleargl.GLVector
+import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.TrackedStereoGlasses
@@ -34,18 +34,18 @@ class LocalisationExample : SceneryBase("Localisation Microscopy Rendering examp
 
         val cam: Camera = DetachedHeadCamera(hmd)
         with(cam) {
-            position = GLVector(0.0f, 0.5f, 5.0f)
-            perspectiveCamera(50.0f, 1.0f * windowWidth, 1.0f * windowHeight)
+            position = Vector3f(0.0f, 0.5f, 5.0f)
+            perspectiveCamera(50.0f, windowWidth, windowHeight)
             active = true
 
             scene.addChild(this)
         }
 
-        val shell = Box(GLVector(20.0f, 20.0f, 20.0f), insideNormals = true)
+        val shell = Box(Vector3f(20.0f, 20.0f, 20.0f), insideNormals = true)
         shell.material.cullingMode = Material.CullingMode.Front
-        shell.material.diffuse = GLVector(0.9f, 0.9f, 0.9f)
-        shell.material.specular = GLVector.getNullVector(3)
-        shell.material.ambient = GLVector.getNullVector(3)
+        shell.material.diffuse = Vector3f(0.9f, 0.9f, 0.9f)
+        shell.material.specular = Vector3f(0.0f)
+        shell.material.ambient = Vector3f(0.0f)
         scene.addChild(shell)
 
         if(System.getProperty("datasets") != null) {
@@ -55,14 +55,14 @@ class LocalisationExample : SceneryBase("Localisation Microscopy Rendering examp
 
         // channel colors for red, green, blue
         val channelColors = arrayOf(
-            GLVector(0.1f, 0.8f, 0.0f),
-            GLVector(1.0f, 0.04f, 0.04f),
-            GLVector(0.1f, 0.1f, 0.8f))
+            Vector3f(0.1f, 0.8f, 0.0f),
+            Vector3f(1.0f, 0.04f, 0.04f),
+            Vector3f(0.1f, 0.1f, 0.8f))
 
         val datasets = files.mapIndexed { i, file ->
             val dataset = PointCloud()
             dataset.readFromPALM(file)
-            dataset.material.diffuse = channelColors.getOrElse(i, { Random.randomVectorFromRange(3, 0.1f, 0.9f) })
+            dataset.material.diffuse = channelColors.getOrElse(i, { Random.random3DVectorFromRange(0.1f, 0.9f) })
             dataset.fitInto(5.0f)
             scene.addChild(dataset)
 
@@ -71,7 +71,7 @@ class LocalisationExample : SceneryBase("Localisation Microscopy Rendering examp
 
         val light = PointLight(radius = 40.0f)
         light.intensity = 500.0f
-        light.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
+        light.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
         scene.addChild(light)
 
 

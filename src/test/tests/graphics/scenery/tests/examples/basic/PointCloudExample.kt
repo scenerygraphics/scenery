@@ -1,6 +1,6 @@
 package graphics.scenery.tests.examples.basic
 
-import cleargl.GLVector
+import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
@@ -19,22 +19,22 @@ class PointCloudExample : SceneryBase("PointCloudExample") {
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
         renderer?.pushMode = true
 
-        val hull = Box(GLVector(20.0f, 20.0f, 20.0f), insideNormals = true)
-        hull.material.diffuse = GLVector(0.2f, 0.2f, 0.2f)
+        val hull = Box(Vector3f(20.0f, 20.0f, 20.0f), insideNormals = true)
+        hull.material.diffuse = Vector3f(0.2f, 0.2f, 0.2f)
         hull.material.cullingMode = Material.CullingMode.Front
         scene.addChild(hull)
 
         val lights = Light.createLightTetrahedron<PointLight>(spread = 5.0f, radius = 15.0f)
 
         lights.mapIndexed { i, light ->
-            light.emissionColor = Random.randomVectorFromRange(3, 0.2f, 0.8f)
+            light.emissionColor = Random.random3DVectorFromRange(0.2f, 0.8f)
             light.intensity = 0.5f
             scene.addChild(light)
         }
 
         val cam: Camera = DetachedHeadCamera()
-        cam.position = GLVector(0.0f, 0.0f, 5.0f)
-        cam.perspectiveCamera(50.0f, windowWidth.toFloat(), windowHeight.toFloat())
+        cam.position = Vector3f(0.0f, 0.0f, 5.0f)
+        cam.perspectiveCamera(50.0f, windowWidth, windowHeight)
         cam.active = true
 
         scene.addChild(cam)

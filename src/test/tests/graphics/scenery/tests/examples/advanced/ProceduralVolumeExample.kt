@@ -1,10 +1,11 @@
 package graphics.scenery.tests.examples.advanced
 
-import cleargl.GLVector
+import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
 import graphics.scenery.utils.RingBuffer
+import graphics.scenery.utils.extensions.plus
 import graphics.scenery.volumes.Colormap
 import graphics.scenery.volumes.bdv.Volume
 import net.imglib2.type.numeric.integer.UnsignedByteType
@@ -28,27 +29,27 @@ class ProceduralVolumeExample: SceneryBase("Volume Rendering example", 1280, 720
 
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
-            position = GLVector(0.0f, 0.5f, 5.0f)
-            perspectiveCamera(50.0f, 1.0f*windowWidth, 1.0f*windowHeight)
+            position = Vector3f(0.0f, 0.5f, 5.0f)
+            perspectiveCamera(50.0f, windowWidth, windowHeight)
             active = true
 
             scene.addChild(this)
         }
 
-        val shell = Box(GLVector(10.0f, 10.0f, 10.0f), insideNormals = true)
+        val shell = Box(Vector3f(10.0f, 10.0f, 10.0f), insideNormals = true)
         shell.material.cullingMode = Material.CullingMode.None
-        shell.material.diffuse = GLVector(0.2f, 0.2f, 0.2f)
-        shell.material.specular = GLVector.getNullVector(3)
-        shell.material.ambient = GLVector.getNullVector(3)
-        shell.position = GLVector(0.0f, 4.0f, 0.0f)
+        shell.material.diffuse = Vector3f(0.2f, 0.2f, 0.2f)
+        shell.material.specular = Vector3f(0.0f)
+        shell.material.ambient = Vector3f(0.0f)
+        shell.position = Vector3f(0.0f, 4.0f, 0.0f)
         scene.addChild(shell)
 
         val volumes = LinkedHashMap<String, ByteBuffer>()
         val volume = Volume.fromBuffer(volumes, 128, 128, 128, UnsignedByteType(), hub)
         volume.name = "volume"
-        volume.position = GLVector(0.0f, 0.0f, 0.0f)
+        volume.position = Vector3f(0.0f, 0.0f, 0.0f)
         volume.colormap = Colormap.get("viridis")
-//        volume.scale = GLVector(10.0f, 10.0f, 10.0f)
+//        volume.scale = Vector3f(10.0f, 10.0f, 10.0f)
         with(volume.transferFunction) {
             addControlPoint(0.0f, 0.0f)
             addControlPoint(0.2f, 0.0f)
@@ -65,8 +66,8 @@ class ProceduralVolumeExample: SceneryBase("Volume Rendering example", 1280, 720
         }
 
         lights.mapIndexed { i, light ->
-            light.position = GLVector(2.0f * i - 4.0f,  i - 1.0f, 0.0f)
-            light.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
+            light.position = Vector3f(2.0f * i - 4.0f,  i - 1.0f, 0.0f)
+            light.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
             light.intensity = 0.5f
             scene.addChild(light)
         }
@@ -76,8 +77,8 @@ class ProceduralVolumeExample: SceneryBase("Volume Rendering example", 1280, 720
             val volumeBuffer = RingBuffer<ByteBuffer>(2) { memAlloc((volumeSize*volumeSize*volumeSize*bitsPerVoxel/8).toInt()) }
 
             val seed = Random.randomFromRange(0.0f, 133333337.0f).toLong()
-            var shift = GLVector.getNullVector(3)
-            val shiftDelta = Random.randomVectorFromRange(3, -1.5f, 1.5f)
+            var shift = Vector3f(0.0f)
+            val shiftDelta = Random.random3DVectorFromRange(-1.5f, 1.5f)
 
             var count = 0
             while(running) {

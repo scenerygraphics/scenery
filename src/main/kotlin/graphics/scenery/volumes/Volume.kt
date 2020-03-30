@@ -1,6 +1,6 @@
 package graphics.scenery.volumes
 
-import cleargl.GLVector
+import org.joml.Vector3f
 import coremem.enums.NativeTypeEnum
 import graphics.scenery.*
 import graphics.scenery.numerics.OpenSimplexNoise
@@ -8,6 +8,9 @@ import graphics.scenery.numerics.Random
 import graphics.scenery.textures.Texture
 import graphics.scenery.textures.Texture.RepeatMode
 import graphics.scenery.utils.Image
+import graphics.scenery.utils.extensions.minus
+import graphics.scenery.utils.extensions.plus
+import graphics.scenery.utils.extensions.times
 import graphics.scenery.utils.forEachParallel
 import graphics.scenery.volumes.Volume.Colormap.ColormapBuffer
 import graphics.scenery.volumes.Volume.Colormap.ColormapFile
@@ -17,6 +20,8 @@ import net.imglib2.type.numeric.NumericType
 import net.imglib2.type.numeric.integer.*
 import net.imglib2.type.numeric.real.DoubleType
 import net.imglib2.type.numeric.real.FloatType
+import org.joml.Matrix4f
+import org.joml.Vector3i
 import org.lwjgl.system.MemoryUtil.memAlloc
 import sun.misc.Unsafe
 import java.io.FileInputStream
@@ -268,9 +273,9 @@ open class Volume : Mesh("Volume") {
         @Suppress("SENSELESS_COMPARISON")
         if(position != null && rotation != null && scale != null) {
             val L = localScale() * (1.0f/2.0f)
-            model.setIdentity()
+            model.identity()
             model.translate(this.position.x(), this.position.y(), this.position.z())
-            model.mult(this.rotation)
+            model.mul(Matrix4f().set(this.rotation))
             model.scale(this.scale.x(), this.scale.y(), this.scale.z())
             model.scale(L.x(), L.y(), L.z())
         }
@@ -580,7 +585,7 @@ open class Volume : Mesh("Volume") {
         if(transferFunction.stale) {
             logger.debug("Transfer function is stale, updating")
             material.textures["diffuse"] = Texture(
-                GLVector(transferFunction.textureSize.toFloat(), transferFunction.textureHeight.toFloat(), 1.0f),
+                Vector3i(transferFunction.textureSize, transferFunction.textureHeight, 1),
                 channels = 1, type = FloatType(), contents = transferFunction.serialise(),
                 repeatUVW = RepeatMode.ClampToEdge.all())
 
@@ -612,7 +617,7 @@ open class Volume : Mesh("Volume") {
     protected open fun assignEmptyVolumeTexture() {
         val emptyBuffer = BufferUtils.allocateByteAndPut(byteArrayOf(0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
                                                                      0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0))
-        val dim = GLVector(2.0f, 2.0f, 2.0f)
+        val dim = Vector3i(2, 2, 2)
         val gtv = Texture(dim, 1, UnsignedByteType(), emptyBuffer,
             repeatUVW = RepeatMode.ClampToEdge.all(),
             normalized = true)
@@ -653,7 +658,7 @@ open class Volume : Mesh("Volume") {
         trangemin = min.toFloat()
         trangemax = max.toFloat()
 
-        val dim = GLVector(dimensions[0].toFloat(), dimensions[1].toFloat(), dimensions[2].toFloat())
+        val dim = Vector3i(dimensions[0].toInt(), dimensions[1].toInt(), dimensions[2].toInt())
         val gtv = Texture(dim,
             1, descriptor.dataType.toGLType(), descriptor.data,
             repeatUVW = RepeatMode.ClampToEdge.all(),
@@ -689,8 +694,8 @@ open class Volume : Mesh("Volume") {
     /**
      * Returns the local scaling of the volume.
      */
-    fun localScale(): GLVector {
-        return GLVector(
+    fun localScale(): Vector3f {
+        return Vector3f(
             sizeX * voxelSizeX * pixelToWorldRatio,
             sizeY * voxelSizeY * pixelToWorldRatio,
             sizeZ * voxelSizeZ * pixelToWorldRatio)
@@ -702,8 +707,8 @@ open class Volume : Mesh("Volume") {
      * 1 pixel = 1mm in world units.
      */
     override fun generateBoundingBox(): OrientedBoundingBox? {
-        val min = GLVector(-1.0f, -1.0f, -1.0f)
-        val max = GLVector(1.0f, 1.0f, 1.0f)
+        val min = Vector3f(-1.0f, -1.0f, -1.0f)
+        val max = Vector3f(1.0f, 1.0f, 1.0f)
 
         return OrientedBoundingBox(this, min, max)
     }
@@ -716,7 +721,7 @@ open class Volume : Mesh("Volume") {
      *
      * Returns the sampled value as a [Float], or null in case nothing could be sampled.
      */
-    fun sample(uv: GLVector, interpolate: Boolean = true): Float? {
+    fun sample(uv: Vector3f, interpolate: Boolean = true): Float? {
         val gt = material.textures["VolumeTextures"] ?: return null
 
         val bpp = when(gt.type) {
@@ -736,14 +741,14 @@ open class Volume : Mesh("Volume") {
             return null
         }
 
-        val absoluteCoords = GLVector(uv.x() * gt.dimensions.x(), uv.y() * gt.dimensions.y(), uv.z() * gt.dimensions.z())
+        val absoluteCoords = Vector3f(uv.x() * gt.dimensions.x(), uv.y() * gt.dimensions.y(), uv.z() * gt.dimensions.z())
 //        val index: Int = (floor(gt.dimensions.x() * gt.dimensions.y() * absoluteCoords.z()).toInt()
 //            + floor(gt.dimensions.x() * absoluteCoords.y()).toInt()
 //            + floor(absoluteCoords.x()).toInt())
-        val absoluteCoordsD = GLVector(floor(absoluteCoords.x()), floor(absoluteCoords.y()), floor(absoluteCoords.z()))
+        val absoluteCoordsD = Vector3f(floor(absoluteCoords.x()), floor(absoluteCoords.y()), floor(absoluteCoords.z()))
         val diff = absoluteCoords - absoluteCoordsD
 
-        fun toIndex(absoluteCoords: GLVector): Int = (
+        fun toIndex(absoluteCoords: Vector3f): Int = (
             absoluteCoords.x().roundToInt().dec()
                 + (gt.dimensions.x() * absoluteCoords.y()).roundToInt().dec()
                 + (gt.dimensions.x() * gt.dimensions.y() * absoluteCoords.z()).roundToInt().dec()
@@ -786,10 +791,10 @@ open class Volume : Mesh("Volume") {
         return if(interpolate) {
             val offset = 1.0f
 
-            val d00 = lerp(diff.x(), density(index), density(toIndex(absoluteCoordsD + GLVector(offset, 0.0f, 0.0f))))
-            val d10 = lerp(diff.x(), density(toIndex(absoluteCoordsD + GLVector(0.0f, offset, 0.0f))), density(toIndex(absoluteCoordsD + GLVector(offset, offset, 0.0f))))
-            val d01 = lerp(diff.x(), density(toIndex(absoluteCoordsD + GLVector(0.0f, 0.0f, offset))), density(toIndex(absoluteCoordsD + GLVector(offset, 0.0f, offset))))
-            val d11 = lerp(diff.x(), density(toIndex(absoluteCoordsD + GLVector(0.0f, offset, offset))), density(toIndex(absoluteCoordsD + GLVector(offset, offset, offset))))
+            val d00 = lerp(diff.x(), density(index), density(toIndex(absoluteCoordsD + Vector3f(offset, 0.0f, 0.0f))))
+            val d10 = lerp(diff.x(), density(toIndex(absoluteCoordsD + Vector3f(0.0f, offset, 0.0f))), density(toIndex(absoluteCoordsD + Vector3f(offset, offset, 0.0f))))
+            val d01 = lerp(diff.x(), density(toIndex(absoluteCoordsD + Vector3f(0.0f, 0.0f, offset))), density(toIndex(absoluteCoordsD + Vector3f(offset, 0.0f, offset))))
+            val d11 = lerp(diff.x(), density(toIndex(absoluteCoordsD + Vector3f(0.0f, offset, offset))), density(toIndex(absoluteCoordsD + Vector3f(offset, offset, offset))))
             val d0 = lerp(diff.y(), d00, d10)
             val d1 = lerp(diff.y(), d01, d11)
             lerp(diff.z(), d0, d1)
@@ -809,7 +814,7 @@ open class Volume : Mesh("Volume") {
      * Returns the list of samples (which might include `null` values in case a sample failed),
      * as well as the delta used along the ray, or null if the start/end coordinates are invalid.
      */
-    fun sampleRay(start: GLVector, end: GLVector): Pair<List<Float?>, GLVector>? {
+    fun sampleRay(start: Vector3f, end: Vector3f): Pair<List<Float?>, Vector3f>? {
         val gt = material.textures["VolumeTextures"] ?: return null
 
         if(start.x() < 0.0f || start.x() > 1.0f || start.y() < 0.0f || start.y() > 1.0f || start.z() < 0.0f || start.z() > 1.0f) {
@@ -820,20 +825,23 @@ open class Volume : Mesh("Volume") {
             logger.debug("Invalid UV coords for ray end: {} -- will clamp values to [0.0, 1.0].", end)
         }
 
-        val startClamped = GLVector(
+        val startClamped = Vector3f(
             min(max(start.x(), 0.0f), 1.0f),
             min(max(start.y(), 0.0f), 1.0f),
             min(max(start.z(), 0.0f), 1.0f)
         )
 
-        val endClamped = GLVector(
+        val endClamped = Vector3f(
             min(max(end.x(), 0.0f), 1.0f),
             min(max(end.y(), 0.0f), 1.0f),
             min(max(end.z(), 0.0f), 1.0f)
         )
 
         val direction = (endClamped - startClamped).normalize()
-        val maxSteps = (direction.hadamard(gt.dimensions).magnitude() * 2.0f).roundToInt()
+        val s = Vector3f()
+        val dim = Vector3f(gt.dimensions.x.toFloat(), gt.dimensions.y.toFloat(), gt.dimensions.z.toFloat())
+        direction.mul(dim, s)
+        val maxSteps = (s.length() * 2.0f).roundToInt()
         val delta = direction * (1.0f/maxSteps.toFloat())
 
         return (0 until maxSteps).map {
@@ -877,7 +885,7 @@ open class Volume : Mesh("Volume") {
          */
         @JvmStatic fun generateProceduralVolume(size: Long, radius: Float = 0.0f,
                                      seed: Long = Random.randomFromRange(0.0f, 133333337.0f).toLong(),
-                                     shift: GLVector = GLVector.getNullVector(3),
+                                     shift: Vector3f = Vector3f(0.0f),
                                      intoBuffer: ByteBuffer? = null, use16bit: Boolean = false): ByteBuffer {
             val f = 3.0f / size
             val center = size / 2.0f + 0.5f

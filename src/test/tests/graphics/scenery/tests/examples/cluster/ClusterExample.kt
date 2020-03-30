@@ -1,6 +1,6 @@
 package graphics.scenery.tests.examples.cluster
 
-import cleargl.GLVector
+import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.InputHandler
@@ -32,9 +32,9 @@ class ClusterExample: SceneryBase("Clustered Volume Rendering example") {
 
         val cam: Camera = DetachedHeadCamera(hmd)
         with(cam) {
-            //position = GLVector(.4f, .4f, 1.4f)
-            position = GLVector(.0f, -0.4f, 2.0f)
-            perspectiveCamera(50.0f, 1.0f*windowWidth, 1.0f*windowHeight)
+            //position = Vector3f(.4f, .4f, 1.4f)
+            position = Vector3f(.0f, -0.4f, 2.0f)
+            perspectiveCamera(50.0f, windowWidth, windowHeight)
             active = true
 
             scene.addChild(this)
@@ -42,24 +42,24 @@ class ClusterExample: SceneryBase("Clustered Volume Rendering example") {
 
 //        val bileMesh = Mesh()
 //        bileMesh.readFromRaw("Z:/data/models-inauguration/celegans_epithelium.stl", useMaterial = false)
-//        bileMesh.scale = GLVector(0.01f, 0.01f, 0.01f)
+//        bileMesh.scale = Vector3f(0.01f, 0.01f, 0.01f)
 //        bileMesh.visible = false
 //        scene.addChild(bileMesh)
 //
 //        val vasculature = Mesh()
 //        vasculature.readFromRaw("Z:/data/models-inauguration/Drerio.stl", useMaterial = false)
-//        vasculature.scale = GLVector(0.1f, 0.1f, 0.1f)
+//        vasculature.scale = Vector3f(0.1f, 0.1f, 0.1f)
 //        bileMesh.visible = false
 //        scene.addChild(vasculature)
-        val box = Box(GLVector(2.0f, 2.0f, 2.0f))
-        box.material.diffuse = GLVector(1.0f, 0.0f, 0.0f)
+        val box = Box(Vector3f(2.0f, 2.0f, 2.0f))
+        box.material.diffuse = Vector3f(1.0f, 0.0f, 0.0f)
         //scene.addChild(box)
 
-        val shell = Box(GLVector(120.0f, 120.0f, 120.0f), insideNormals = true)
+        val shell = Box(Vector3f(120.0f, 120.0f, 120.0f), insideNormals = true)
         shell.material.cullingMode = Material.CullingMode.Front
-        shell.material.diffuse = GLVector(0.0f, 0.0f, 0.0f)
-        shell.material.specular = GLVector.getNullVector(3)
-        shell.material.ambient = GLVector.getNullVector(3)
+        shell.material.diffuse = Vector3f(0.0f, 0.0f, 0.0f)
+        shell.material.specular = Vector3f(0.0f)
+        shell.material.ambient = Vector3f(0.0f)
         scene.addChild(shell)
 
         val volume = Volume()
@@ -74,8 +74,8 @@ class ClusterExample: SceneryBase("Clustered Volume Rendering example") {
         }
 
         lights.mapIndexed { i, light ->
-            light.position = GLVector(4.0f * i, 4.0f * i, 4.0f)
-            light.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
+            light.position = Vector3f(4.0f * i, 4.0f * i, 4.0f)
+            light.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
             scene.addChild(light)
         }
 
@@ -124,7 +124,7 @@ class ClusterExample: SceneryBase("Clustered Volume Rendering example") {
                 }
 
 
-                //fvolume.rotation.rotateByAngleY(1.57f)
+                //fvolume.rotation.rotateY(1.57f)
                 //volume.rotation.rotateByAngleZ(1.57f)
 //                volume.rotation.rotateByAngleX(.8f)
 

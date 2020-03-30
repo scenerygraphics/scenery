@@ -1,6 +1,5 @@
 package graphics.scenery.fonts
 
-import cleargl.GLVector
 import graphics.scenery.BufferUtils
 import graphics.scenery.GeometryType
 import graphics.scenery.Hub
@@ -8,6 +7,7 @@ import graphics.scenery.Mesh
 import graphics.scenery.compute.OpenCLContext
 import graphics.scenery.utils.LazyLogger
 import org.jocl.cl_mem
+import org.joml.Vector4f
 import java.awt.Color
 import java.awt.Font
 import java.awt.Graphics2D
@@ -43,7 +43,7 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
     /** Font size for the SDF */
     protected var fontSize: Float = 0f
     /** Texcoord storage for each glyph */
-    protected var glyphTexcoords = HashMap<Char, GLVector>()
+    protected var glyphTexcoords = HashMap<Char, Vector4f>()
 
     /** Font atlas width */
     var atlasWidth = 0
@@ -158,13 +158,13 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
     /**
      * Dumps font metrics given in [fontMap] to a file.
      */
-    fun dumpMetricsToFile(fontMap: LinkedHashMap<Char, Pair<Float, ByteBuffer?>>, glyphTexCoordMap: HashMap<Char, GLVector>) {
+    fun dumpMetricsToFile(fontMap: LinkedHashMap<Char, Pair<Float, ByteBuffer?>>, glyphTexCoordMap: HashMap<Char, Vector4f>) {
         val file = File("$sdfFileName.metrics")
 
         val dump = "##$sdfCacheFormatVersion,$atlasWidth,$atlasHeight\n" + fontMap.entries.joinToString("\n") { entry ->
             val uvs = glyphTexCoordMap[entry.key] ?: throw IllegalStateException("Could not find texture coordinates for ${entry.key}")
 
-            "${entry.key}->${entry.value.first},${uvs.toFloatArray().joinToString(",")}"
+            "${entry.key}->${entry.value.first},${uvs.x},${uvs.y},${uvs.z},${uvs.w}"
         }
 
         file.writeText(dump)
@@ -198,7 +198,7 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
     /**
      * Reads font metrics from a stream given by [stream].
      */
-    protected fun readMetricsFromStream(stream: InputStream, fontMap: LinkedHashMap<Char, Pair<Float, ByteBuffer?>>, glyphMap: HashMap<Char, GLVector>) {
+    protected fun readMetricsFromStream(stream: InputStream, fontMap: LinkedHashMap<Char, Pair<Float, ByteBuffer?>>, glyphMap: HashMap<Char, Vector4f>) {
         stream.bufferedReader().lines().forEach { line ->
             if(line.startsWith("##")) {
                 val info = line.substringAfter("##").split(",")
@@ -224,7 +224,7 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
                 val uv2 = coords[3].toFloat()
                 val uv3 = coords[4].toFloat()
 
-                glyphMap[char] = GLVector(uv0, uv1, uv2, uv3)
+                glyphMap[char] = Vector4f(uv0, uv1, uv2, uv3)
 
                 fontMap[char] = Pair(size, null)
             }
@@ -234,7 +234,7 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
     /**
      * Reads font metrics from a file given by [filename].
      */
-    protected fun readMetricsFromFile(filename: String, fontMap: LinkedHashMap<Char, Pair<Float, ByteBuffer?>>, glyphMap: HashMap<Char, GLVector>) {
+    protected fun readMetricsFromFile(filename: String, fontMap: LinkedHashMap<Char, Pair<Float, ByteBuffer?>>, glyphMap: HashMap<Char, Vector4f>) {
         return readMetricsFromStream(FileInputStream(File(filename)), fontMap, glyphMap)
     }
 
@@ -308,7 +308,7 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
                     val glyphWidth = fontMap.getValue(char).first
 
                     val glyphIndexOnLine = glyph-minGlyphIndex
-                    glyphTexcoords.putIfAbsent(char, GLVector(
+                    glyphTexcoords.putIfAbsent(char, Vector4f(
                             (glyphIndexOnLine*charSize*1.0f+12.0f)/texWidth,
                             (line*charSize*1.0f)/texHeight,
                             (glyphIndexOnLine*charSize*1.0f+12.0f)/texWidth+(glyphWidth*charSize*1.0f)/(1.0f*texWidth),
@@ -370,8 +370,8 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
      * @param[glyph] The char to get the texcoords for.
      * @return The char's texcoords.
      */
-    fun getTexcoordsForGlyph(glyph: Char): GLVector {
-        return glyphTexcoords.getOrDefault(glyph, GLVector(0.0f, 0.0f, 1.0f, 1.0f))
+    fun getTexcoordsForGlyph(glyph: Char): Vector4f {
+        return glyphTexcoords.getOrDefault(glyph, Vector4f(0.0f, 0.0f, 1.0f, 1.0f))
     }
 
     /**

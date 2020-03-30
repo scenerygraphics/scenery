@@ -1,10 +1,12 @@
 package graphics.scenery
 
-import cleargl.GLVector
 import graphics.scenery.backends.Renderer
 import graphics.scenery.fonts.SDFFontAtlas
 import graphics.scenery.textures.Texture
 import graphics.scenery.textures.Texture.RepeatMode
+import org.joml.Vector2i
+import org.joml.Vector3i
+import org.joml.Vector4f
 
 /**
  * TextBoard is a possibly billboarded display of a string of text,
@@ -48,12 +50,12 @@ class TextBoard(font: String = "SourceSansPro-Regular.ttf", override var isBillb
     /** The [ShaderProperty] storing whether the font board should be renderer transparently. */
     @ShaderProperty var transparent: Int = 1
     /** [ShaderProperty] to store the size of the used texture atlas storing the font's signed distance field */
-    @ShaderProperty var atlasSize = GLVector(1024.0f, 1024.0f, 0.0f, 0.0f)
+    @ShaderProperty var atlasSize = Vector2i(1024, 1024)
     /** The [ShaderProperty] storing the font's color. */
-    @ShaderProperty var fontColor: GLVector = GLVector(0.5f, 0.5f, 0.5f, 1.0f)
+    @ShaderProperty var fontColor: Vector4f = Vector4f(0.5f, 0.5f, 0.5f, 1.0f)
     /** The [ShaderProperty] storing the background color of the font board,
      * used only if [transparent] is 0. */
-    @ShaderProperty var backgroundColor: GLVector = GLVector(1.0f, 1.0f, 1.0f, 1.0f)
+    @ShaderProperty var backgroundColor: Vector4f = Vector4f(1.0f, 1.0f, 1.0f, 1.0f)
 
     /** Flag to indicate whether the update routine should be called by the renderer */
     private var needsPreUpdate = true
@@ -91,10 +93,10 @@ class TextBoard(font: String = "SourceSansPro-Regular.ttf", override var isBillb
             normals = m.normals
             indices = m.indices
             texcoords = m.texcoords
-            atlasSize = GLVector(this.atlasWidth.toFloat(), this.atlasHeight.toFloat(), 0.0f, 0.0f)
+            atlasSize = Vector2i(this.atlasWidth, this.atlasHeight)
 
             material.textures["diffuse"] = Texture(
-                GLVector(atlasSize.x(), atlasSize.y(), 1.0f),
+                Vector3i(atlasSize.x(), atlasSize.y(), 1),
                 channels = 1, contents = this.getAtlas(),
                 repeatUVW = RepeatMode.ClampToBorder.all(),
                 normalized = true,

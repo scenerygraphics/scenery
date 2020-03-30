@@ -1,6 +1,6 @@
 package graphics.scenery.tests.examples.basic
 
-import cleargl.GLVector
+import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
@@ -22,21 +22,21 @@ class LineExample : SceneryBase("LineExample") {
     override fun init() {
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
 
-        val hull = Box(GLVector(50.0f, 50.0f, 50.0f), insideNormals = true)
-        hull.material.diffuse = GLVector(0.2f, 0.2f, 0.2f)
+        val hull = Box(Vector3f(50.0f, 50.0f, 50.0f), insideNormals = true)
+        hull.material.diffuse = Vector3f(0.2f, 0.2f, 0.2f)
         hull.material.cullingMode = Material.CullingMode.Front
         scene.addChild(hull)
 
         val line = Line(transparent = false)
-        line.addPoint(GLVector(-5.0f, -5.0f, -5.0f))
-        line.addPoint(GLVector(0.0f, 0.0f, 0.0f))
-        line.addPoint(GLVector(5.0f, 5.0f, 5.0f))
+        line.addPoint(Vector3f(-5.0f, -5.0f, -5.0f))
+        line.addPoint(Vector3f(0.0f, 0.0f, 0.0f))
+        line.addPoint(Vector3f(5.0f, 5.0f, 5.0f))
 
-        line.material.ambient = GLVector(1.0f, 0.0f, 0.0f)
-        line.material.diffuse = GLVector(1.0f, 1.0f, 1.0f)
-        line.material.specular = GLVector(1.0f, 1.0f, 1.0f)
+        line.material.ambient = Vector3f(1.0f, 0.0f, 0.0f)
+        line.material.diffuse = Vector3f(1.0f, 1.0f, 1.0f)
+        line.material.specular = Vector3f(1.0f, 1.0f, 1.0f)
 
-        line.position = GLVector(0.0f, 0.0f, 0.0f)
+        line.position = Vector3f(0.0f, 0.0f, 0.0f)
         line.edgeWidth = 0.02f
 
         scene.addChild(line)
@@ -44,16 +44,16 @@ class LineExample : SceneryBase("LineExample") {
         val lights = (0 until 2).map {
             val l = PointLight(radius = 4.0f)
             l.intensity = 1.0f
-            l.emissionColor = Random.randomVectorFromRange(3, 0.2f, 0.8f)
+            l.emissionColor = Random.random3DVectorFromRange(0.2f, 0.8f)
 
             scene.addChild(l)
             l
         }
 
         val cam: Camera = DetachedHeadCamera()
-        cam.position = GLVector(0.0f, 0.0f, 15.0f)
-        cam.perspectiveCamera(50.0f, windowWidth.toFloat(), windowHeight.toFloat())
-        cam.target = GLVector(0.0f, 0.0f, 0.0f)
+        cam.position = Vector3f(0.0f, 0.0f, 15.0f)
+        cam.perspectiveCamera(50.0f, windowWidth, windowHeight)
+        cam.target = Vector3f(0.0f, 0.0f, 0.0f)
         cam.active = true
 
         scene.addChild(cam)
@@ -62,7 +62,7 @@ class LineExample : SceneryBase("LineExample") {
             while (true) {
                 val t = runtime/100
                 if (lineAnimating) {
-                    line.addPoint(Random.randomVectorFromRange(3, -5.0f, 5.0f))
+                    line.addPoint(Random.random3DVectorFromRange(-5.0f, 5.0f))
                     line.edgeWidth = 0.01f * Math.sin(t * Math.PI / 50).toFloat() + 0.015f
                 }
 
@@ -74,7 +74,7 @@ class LineExample : SceneryBase("LineExample") {
             while(true) {
                 val t = runtime/100
                 lights.forEachIndexed { i, pointLight ->
-                    pointLight.position = GLVector(
+                    pointLight.position = Vector3f(
                         3.0f*Math.sin(2*i*Math.PI/3.0f+t*Math.PI/50).toFloat(),
                         0.0f,
                         -3.0f*Math.cos(2*i*Math.PI/3.0f+t*Math.PI/50).toFloat())

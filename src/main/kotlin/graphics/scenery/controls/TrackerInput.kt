@@ -1,11 +1,11 @@
 package graphics.scenery.controls
 
-import cleargl.GLMatrix
-import cleargl.GLVector
-import com.jogamp.opengl.math.Quaternion
+import org.joml.Matrix4f
+import org.joml.Vector3f
 import graphics.scenery.Camera
 import graphics.scenery.Mesh
 import graphics.scenery.Node
+import org.joml.Quaternionf
 
 
 /**
@@ -34,10 +34,10 @@ enum class TrackerRole {
  * @property[pose] The current pose of the device.
  * @property[timestamp] The latest timestamp with respect to the pose.
  */
-class TrackedDevice(val type: TrackedDeviceType, var name: String, var pose: GLMatrix, var timestamp: Long) {
+class TrackedDevice(val type: TrackedDeviceType, var name: String, var pose: Matrix4f, var timestamp: Long) {
     var metadata: Any? = null
-    var orientation = Quaternion()
-        get(): Quaternion {
+    var orientation = Quaternionf()
+        get(): Quaternionf {
 //            val pose = pose.floatArray
 //
 //            field.w = Math.sqrt(1.0 * Math.max(0.0f, 1.0f + pose[0] + pose[5] + pose[10])).toFloat() / 2.0f
@@ -48,15 +48,14 @@ class TrackedDevice(val type: TrackedDeviceType, var name: String, var pose: GLM
 //            field.x *= Math.signum(field.x * (pose[9] - pose[6]))
 //            field.y *= Math.signum(field.y * (pose[2] - pose[8]))
 //            field.z *= Math.signum(field.z * (pose[4] - pose[1]))
-            field = Quaternion().setFromMatrix(pose.floatArray, 0)
+            field = Quaternionf().setFromUnnormalized(pose)
 
             return field
         }
 
-    var position = GLVector(0.0f, 0.0f, 0.0f)
-        get(): GLVector {
-            val m = pose.floatArray
-            field = GLVector(m[12], m[13], m[14])
+    var position = Vector3f(0.0f, 0.0f, 0.0f)
+        get(): Vector3f {
+            field = Vector3f(pose.get(0, 3), pose.get(1, 3), pose.get(2, 3))
 
             return field
         }
@@ -93,35 +92,35 @@ interface TrackerInput {
     /**
      * Returns the orientation of the HMD
      *
-     * @returns GLMatrix with orientation
+     * @returns Matrix4f with orientation
      */
-    fun getOrientation(): Quaternion
+    fun getOrientation(): Quaternionf
 
     /**
      * Returns the orientation of the given device, or a unit quaternion if the device is not found.
      *
-     * @returns GLMatrix with orientation
+     * @returns Matrix4f with orientation
      */
-    fun getOrientation(id: String): Quaternion
+    fun getOrientation(id: String): Quaternionf
 
     /**
-     * Returns the absolute position as GLVector
+     * Returns the absolute position as Vector3f
      *
-     * @return HMD position as GLVector
+     * @return HMD position as Vector3f
      */
-    fun getPosition(): GLVector
+    fun getPosition(): Vector3f
 
     /**
      * Returns the HMD pose
      *
-     * @return HMD pose as GLMatrix
+     * @return HMD pose as Matrix4f
      */
-    fun getPose(): GLMatrix
+    fun getPose(): Matrix4f
 
     /**
      * Returns a list of poses for the devices [type] given.
      *
-     * @return Pose as GLMatrix
+     * @return Pose as Matrix4f
      */
     fun getPose(type: TrackedDeviceType): List<TrackedDevice>
 
@@ -129,9 +128,9 @@ interface TrackerInput {
      * Returns the HMD pose for a given eye.
      *
      * @param[eye] The eye to return the pose for.
-     * @return HMD pose as GLMatrix
+     * @return HMD pose as Matrix4f
      */
-    fun getPoseForEye(eye: Int): GLMatrix
+    fun getPoseForEye(eye: Int): Matrix4f
 
     /**
      * Check whether the HMD is initialized and working

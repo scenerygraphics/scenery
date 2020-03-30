@@ -249,6 +249,18 @@
         </dependency>
 
         <dependency>
+            <groupId>org.joml</groupId>
+            <artifactId>joml</artifactId>
+            <version>1.9.22</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.github.scenerygraphics</groupId>
+            <artifactId>vector</artifactId>
+            <version>958f2e6</version>
+        </dependency>
+
+        <dependency>
             <groupId>net.clearcontrol</groupId>
             <artifactId>coremem</artifactId>
             <exclusions>

@@ -1,19 +1,19 @@
 package graphics.scenery.volumes.bdv
 
-import cleargl.GLMatrix
-import cleargl.GLVector
 import graphics.scenery.textures.Texture
 import graphics.scenery.textures.Texture.BorderColor
 import graphics.scenery.textures.UpdatableTexture.TextureExtents
 import graphics.scenery.textures.Texture.RepeatMode
 import graphics.scenery.textures.UpdatableTexture.TextureUpdate
 import graphics.scenery.backends.ShaderType
+import graphics.scenery.numerics.Random
 import graphics.scenery.textures.UpdatableTexture
 import graphics.scenery.utils.LazyLogger
 import net.imglib2.type.numeric.NumericType
 import net.imglib2.type.numeric.integer.UnsignedByteType
 import net.imglib2.type.numeric.integer.UnsignedShortType
 import net.imglib2.type.numeric.real.FloatType
+import org.joml.*
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.util.xxhash.XXHash
 import tpietzsch.backend.*
@@ -83,7 +83,7 @@ open class SceneryContext(val node: VolumeManager) : GpuContext {
          * Sets the uniform with [name] to the Integer 2-vector [v0] and [v1].
          */
         override fun setUniform2i(name: String, v0: Int, v1: Int) {
-            node.shaderProperties[name] = GLVector(v0.toFloat(), v1.toFloat())
+            node.shaderProperties[name] = Vector2i(v0, v1)
             modified = true
         }
 
@@ -91,7 +91,7 @@ open class SceneryContext(val node: VolumeManager) : GpuContext {
          * Sets the uniform with [name] to the Integer 3-vector [v0],[v1],[v2].
          */
         override fun setUniform3i(name: String, v0: Int, v1: Int, v2: Int) {
-            node.shaderProperties[name] = GLVector(v0.toFloat(), v1.toFloat(), v2.toFloat())
+            node.shaderProperties[name] = Vector3i(v0, v1, v2)
             modified = true
         }
 
@@ -99,7 +99,7 @@ open class SceneryContext(val node: VolumeManager) : GpuContext {
          * Sets the uniform with [name] to the Integer 4-vector [v0],[v1],[v2],[v3].
          */
         override fun setUniform4i(name: String, v0: Int, v1: Int, v2: Int, v3: Int) {
-            node.shaderProperties[name] = GLVector(v0.toFloat(), v1.toFloat(), v2.toFloat(), v3.toFloat())
+            node.shaderProperties[name] = Vector4i(v0, v1, v2, v3)
             modified = true
         }
 
@@ -115,7 +115,7 @@ open class SceneryContext(val node: VolumeManager) : GpuContext {
          * Sets the uniform with [name] to the Float 2-vector [v0],[v1].
          */
         override fun setUniform2f(name: String, v0: Float, v1: Float) {
-            node.shaderProperties[name] = GLVector(v0, v1)
+            node.shaderProperties[name] = Vector2f(v0, v1)
             modified = true
         }
 
@@ -123,7 +123,7 @@ open class SceneryContext(val node: VolumeManager) : GpuContext {
          * Sets the uniform with [name] to the Float 3-vector [v0],[v1],[v2].
          */
         override fun setUniform3f(name: String, v0: Float, v1: Float, v2: Float) {
-            node.shaderProperties[name] = GLVector(v0, v1, v2)
+            node.shaderProperties[name] = Vector3f(v0, v1, v2)
             modified = true
         }
 
@@ -131,7 +131,7 @@ open class SceneryContext(val node: VolumeManager) : GpuContext {
          * Sets the uniform with [name] to the Float 4-vector [v0],[v1],[v2],[v3].
          */
         override fun setUniform4f(name: String, v0: Float, v1: Float, v2: Float, v3: Float) {
-            node.shaderProperties[name] = GLVector(v0, v1, v2, v3)
+            node.shaderProperties[name] = Vector4f(v0, v1, v2, v3)
             modified = true
         }
 
@@ -139,7 +139,8 @@ open class SceneryContext(val node: VolumeManager) : GpuContext {
          * Sets the uniform with [name] to the Float array given by [value], containing [count] single values.
          */
         override fun setUniform1fv(name: String, count: Int, value: FloatArray) {
-            node.shaderProperties[name] = GLVector(*value)
+            val collection = value.toList().windowed(1, 1).map { it[0] }.toTypedArray()
+            node.shaderProperties[name] = collection
             modified = true
         }
 
@@ -147,7 +148,8 @@ open class SceneryContext(val node: VolumeManager) : GpuContext {
          * Sets the uniform with [name] to the Float array given by [value], containing [count] 2-vectors.
          */
         override fun setUniform2fv(name: String, count: Int, value: FloatArray) {
-            node.shaderProperties[name] = GLVector(*value)
+            val collection = value.toList().windowed(2, 2).map { Vector2f(it[0], it[1]) }.toTypedArray()
+            node.shaderProperties[name] = collection
             modified = true
         }
 
@@ -158,14 +160,11 @@ open class SceneryContext(val node: VolumeManager) : GpuContext {
         override fun setUniform3fv(name: String, count: Int, value: FloatArray) {
             // in UBOs, arrays of vectors need to be padded, such that they start on
             // word boundaries, e.g. a 3-vector needs to start on byte 16.
-            val padded = ArrayList<Float>(4*count)
-            value.asSequence().windowed(3, 3).forEach {
-                padded.addAll(it)
-                padded.add(0.0f)
+            val collection = value.asSequence().windowed(3, 3).map {
+                Vector4f(it[0], it[1], it[2], 0.0f)
             }
 
-            val paddedArray = padded.toFloatArray()
-            node.shaderProperties[name] = GLVector(*paddedArray)
+            node.shaderProperties[name] = collection
             modified = true
         }
 
@@ -179,10 +178,7 @@ open class SceneryContext(val node: VolumeManager) : GpuContext {
                 matrix.flip()
             }
 
-            val array = FloatArray(matrix.remaining())
-            matrix.get(array)
-
-            val m = GLMatrix(array)
+            val m = Matrix4f(matrix)
             if(transpose) {
                 m.transpose()
             }
@@ -201,10 +197,7 @@ open class SceneryContext(val node: VolumeManager) : GpuContext {
                 matrix.flip()
             }
 
-            val array = FloatArray(matrix.remaining())
-            matrix.get(array)
-
-            val m = GLMatrix(array)
+            val m = Matrix4f(matrix)
             if(transpose) {
                 m.transpose()
             }
@@ -283,7 +276,7 @@ open class SceneryContext(val node: VolumeManager) : GpuContext {
 
             logger.debug("Binding and updating cache $texture")
             val gt = UpdatableTexture(
-                GLVector(texture.texWidth().toFloat(), texture.texHeight().toFloat(), texture.texDepth().toFloat()),
+                Vector3i(texture.texWidth(), texture.texHeight(), texture.texDepth()),
                 channels,
                 type,
                 null,
@@ -320,7 +313,7 @@ open class SceneryContext(val node: VolumeManager) : GpuContext {
                     }
 
                     val gt = Texture(
-                        GLVector(texture.texWidth().toFloat(), texture.texHeight().toFloat(), texture.texDepth().toFloat()),
+                        Vector3i(texture.texWidth(), texture.texHeight(), texture.texDepth()),
                         channels,
                         type,
                         contents,
@@ -467,7 +460,7 @@ open class SceneryContext(val node: VolumeManager) : GpuContext {
 
         if(tex.value.reallocate) {
             gt.clearUpdates()
-            gt.dimensions = GLVector(width.toFloat(), height.toFloat(), depth.toFloat())
+            gt.dimensions = Vector3i(width, height, depth)
             gt.contents = null
             gt.normalized = false
 
@@ -543,7 +536,7 @@ open class SceneryContext(val node: VolumeManager) : GpuContext {
 //            logger.info("for $texture: Texname=$texname, gt=$gt")
             if(tex.value.reallocate) {
                 gt.clearUpdates()
-                gt.dimensions = GLVector(width.toFloat(), height.toFloat(), depth.toFloat())
+                gt.dimensions = Vector3i(width, height, depth)
                 gt.contents = null
                 if(texture is LookupTextureARGB) {
                     gt.normalized = false
