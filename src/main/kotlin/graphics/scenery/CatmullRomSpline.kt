@@ -1,6 +1,8 @@
 package graphics.scenery
 
-import cleargl.GLVector
+import graphics.scenery.utils.extensions.plus
+import graphics.scenery.utils.extensions.times
+import org.joml.Vector3f
 import kotlin.math.pow
 
 /**
@@ -12,12 +14,12 @@ import kotlin.math.pow
  * resulting curve for alpha = 0 is a standart Catmull Rom Spline, for alpha = 1 we get
  * a chordal Catmull Rom Spline.
  */
-class CatmullRomSpline(val controlPoints: List<GLVector>, val alpha: Float = 0.5f) {
+class CatmullRomSpline(val controlPoints: List<Vector3f>, val alpha: Float = 0.5f) {
 
     /**
      * Calculates the parameter t; t is an intermediate product for the calculation of the spline
      */
-    private fun getT(ti: Float, Pi: GLVector, Pj: GLVector): Float {
+    private fun getT(ti: Float, Pi: Vector3f, Pj: Vector3f): Float {
         val exp: Float = (alpha*0.5).toFloat()
         return(((Pj.x()-Pi.x()).pow(2) + (Pj.y()-Pi.y()).pow(2)
             + (Pj.z()-Pi.z()).pow(2)).pow(exp) + ti)
@@ -28,9 +30,9 @@ class CatmullRomSpline(val controlPoints: List<GLVector>, val alpha: Float = 0.5
      * to have a smooth curve.
      * [n] is the number of points between the segments
      */
-    private fun CatmulRomSpline(p0: GLVector, p1: GLVector, p2: GLVector, p3: GLVector, n: Int = 100): List<GLVector> {
+    private fun CatmulRomSpline(p0: Vector3f, p1: Vector3f, p2: Vector3f, p3: Vector3f, n: Int = 100): List<Vector3f> {
 
-        val curvePoints = ArrayList<GLVector>(n+1)
+        val curvePoints = ArrayList<Vector3f>(n+1)
 
         val t0 = 0.toFloat()
         val t1 = getT(t0, p0, p1)
@@ -66,8 +68,8 @@ class CatmullRomSpline(val controlPoints: List<GLVector>, val alpha: Float = 0.5
      * Returns the actual curve with all the points.
      * [n] number of points the curve has
      */
-    fun catMullRomChain(n: Int = 100): ArrayList<GLVector> {
-        val chainPoints = ArrayList<GLVector>(controlPoints.size*(n+1))
+    fun catMullRomChain(n: Int = 100): ArrayList<Vector3f> {
+        val chainPoints = ArrayList<Vector3f>(controlPoints.size*(n+1))
         controlPoints.dropLast(3).forEachIndexed {  index, _ ->
             val c = CatmulRomSpline(controlPoints[index], controlPoints[index+1],
                 controlPoints[index+2], controlPoints[index+3], n)
