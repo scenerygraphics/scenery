@@ -1,4 +1,4 @@
-package graphics.scenery.tests.examples.bdv
+package graphics.scenery.tests.examples.volumes
 
 import bdv.spimdata.XmlIoSpimDataMinimal
 import org.joml.Vector3f
@@ -24,7 +24,7 @@ import java.util.*
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class BigAndSmallVolumeExample: SceneryBase("BDV + SDV Rendering example", 1280, 720) {
-    lateinit var volume: graphics.scenery.volumes.bdv.Volume
+    lateinit var volume: Volume
     var currentCacheSize = 1024
 
     override fun init() {
@@ -60,7 +60,7 @@ class BigAndSmallVolumeExample: SceneryBase("BDV + SDV Rendering example", 1280,
         }
 
         val options = VolumeViewerOptions().maxCacheSizeInMB(1024)
-        val v = graphics.scenery.volumes.bdv.Volume.fromSpimData(XmlIoSpimDataMinimal().load(files.first()), hub, options)
+        val v = Volume.fromSpimData(XmlIoSpimDataMinimal().load(files.first()), hub, options)
         v.name = "volume"
 //        v.colormap = "plasma"
         v.scale = Vector3f(0.02f, 0.02f, 0.02f)

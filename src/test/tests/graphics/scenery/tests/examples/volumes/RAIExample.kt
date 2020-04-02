@@ -1,4 +1,4 @@
-package graphics.scenery.tests.examples.bdv
+package graphics.scenery.tests.examples.volumes
 
 import bdv.util.AxisOrder
 import org.joml.Vector3f
@@ -8,7 +8,7 @@ import graphics.scenery.PointLight
 import graphics.scenery.SceneryBase
 import graphics.scenery.backends.Renderer
 import graphics.scenery.volumes.TransferFunction
-import graphics.scenery.volumes.bdv.Volume
+import graphics.scenery.volumes.Volume
 import ij.IJ
 import ij.ImagePlus
 import net.imglib2.img.Img

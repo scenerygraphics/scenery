@@ -412,8 +412,8 @@ open class VulkanRenderer(hub: Hub,
         if (hmd != null) {
             logger.debug("Setting window dimensions to bounds from HMD")
             val bounds = hmd.getRenderTargetSize()
-            window.width = bounds.x().toInt() * 2
-            window.height = bounds.y().toInt()
+            window.width = bounds.x() * 2
+            window.height = bounds.y()
         } else {
             window.width = windowWidth
             window.height = windowHeight
@@ -1050,36 +1050,17 @@ open class VulkanRenderer(hub: Hub,
      */
     protected fun VulkanTexture.canBeReused(other: Texture, miplevels: Int, device: VulkanDevice): Boolean {
         return this.device == device &&
-            this.width == other.dimensions.x().toInt() &&
-            this.height == other.dimensions.y().toInt() &&
-            this.depth == other.dimensions.z().toInt() &&
+            this.width == other.dimensions.x() &&
+            this.height == other.dimensions.y() &&
+            this.depth == other.dimensions.z() &&
             this.mipLevels == miplevels
 
-    }
-
-    /**
-     * Loads a texture given as string in [texture] from the classpath of this Node. Emits an error and falls back
-     * to [fallback] in case the texture cannot be located.
-     */
-    protected fun Node.loadTextureFromJar(texture: String, generateMipmaps: Boolean, fallback: VulkanTexture): VulkanTexture {
-        val f = texture.substringAfterLast("/")
-        val stream = this@loadTextureFromJar.javaClass.getResourceAsStream(f)
-
-        return if (stream == null) {
-            logger.error("Not found: $f for ${this@loadTextureFromJar}")
-            fallback
-        } else {
-            VulkanTexture.loadFromFile(device,
-                commandPools, queue, queue, stream,
-                texture.substringAfterLast("."), true, generateMipmaps)
-        }
     }
 
     /**
      * Loads or reloads the textures for [node], updating it's internal renderer state stored in [s].
      */
     protected fun loadTexturesForNode(node: Node, s: VulkanObjectState): Boolean {
-        val stats = hub?.get(SceneryElement.Statistics) as Statistics?
         val defaultTexture = defaultTextures["DefaultTexture"] ?: throw IllegalStateException("Default fallback texture does not exist.")
         // if a node is not yet initialized, we'll definitely require a new DS
         var reqNewDS = !node.initialized
@@ -1317,23 +1298,10 @@ open class VulkanRenderer(hub: Hub,
             val value = it.value.invoke()
 
             when (value.javaClass) {
-                Vector2f::class.java -> {
-                    val v = value as Vector2f
-                    AttributeInfo(VK_FORMAT_R32G32_SFLOAT, 4 * 2, 1)
-                }
-                Vector3f::class.java -> {
-                    val v = value as Vector2f
-                    AttributeInfo(VK_FORMAT_R32G32B32_SFLOAT, 3 * 4, 1)
-                }
-                Vector4f::class.java -> {
-                    val v = value as Vector2f
-                    AttributeInfo(VK_FORMAT_R32G32B32A32_SFLOAT, 4 * 4, 1)
-                }
-
-                Matrix4f::class.java -> {
-                    val m = value as Matrix4f
-                    AttributeInfo(VK_FORMAT_R32G32B32A32_SFLOAT, 4 * 4, 4 * 4 / 4)
-                }
+                Vector2f::class.java -> AttributeInfo(VK_FORMAT_R32G32_SFLOAT, 4 * 2, 1)
+                Vector3f::class.java -> AttributeInfo(VK_FORMAT_R32G32B32_SFLOAT, 3 * 4, 1)
+                Vector4f::class.java -> AttributeInfo(VK_FORMAT_R32G32B32A32_SFLOAT, 4 * 4, 1)
+                Matrix4f::class.java -> AttributeInfo(VK_FORMAT_R32G32B32A32_SFLOAT, 4 * 4, 4 * 4 / 4)
 
                 else -> {
                     logger.error("Unsupported type for instancing: ${value.javaClass.simpleName}")

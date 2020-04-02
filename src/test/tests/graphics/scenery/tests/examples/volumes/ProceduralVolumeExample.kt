@@ -1,4 +1,4 @@
-package graphics.scenery.tests.examples.advanced
+package graphics.scenery.tests.examples.volumes
 
 import org.joml.Vector3f
 import graphics.scenery.*
@@ -7,7 +7,7 @@ import graphics.scenery.numerics.Random
 import graphics.scenery.utils.RingBuffer
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.volumes.Colormap
-import graphics.scenery.volumes.bdv.Volume
+import graphics.scenery.volumes.Volume
 import net.imglib2.type.numeric.integer.UnsignedByteType
 import org.junit.Test
 import org.lwjgl.system.MemoryUtil.memAlloc

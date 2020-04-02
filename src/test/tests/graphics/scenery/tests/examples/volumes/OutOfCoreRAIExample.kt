@@ -1,4 +1,4 @@
-package graphics.scenery.tests.examples.bdv
+package graphics.scenery.tests.examples.volumes
 
 import bdv.util.AxisOrder
 import bdv.util.volatiles.VolatileViews
@@ -9,15 +9,13 @@ import graphics.scenery.PointLight
 import graphics.scenery.SceneryBase
 import graphics.scenery.backends.Renderer
 import graphics.scenery.volumes.TransferFunction
-import graphics.scenery.volumes.bdv.Volume
+import graphics.scenery.volumes.Volume
 import ij.IJ
 import ij.ImagePlus
 import net.imglib2.RandomAccessibleInterval
-import net.imglib2.Volatile
 import net.imglib2.img.Img
 import net.imglib2.img.display.imagej.ImageJFunctions
 import net.imglib2.type.numeric.integer.UnsignedShortType
-import net.imglib2.util.Util
 import org.janelia.saalfeldlab.n5.GzipCompression
 import org.janelia.saalfeldlab.n5.N5FSReader
 import org.janelia.saalfeldlab.n5.N5FSWriter

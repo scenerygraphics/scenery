@@ -1,6 +1,5 @@
-package graphics.scenery.tests.examples.advanced
+package graphics.scenery.tests.examples.volumes
 
-import cleargl.GLTypeEnum
 import org.joml.Vector3f
 import coremem.enums.NativeTypeEnum
 import graphics.scenery.*
@@ -11,7 +10,9 @@ import graphics.scenery.utils.RingBuffer
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
+import graphics.scenery.volumes.Colormap
 import graphics.scenery.volumes.Volume
+import net.imglib2.type.numeric.integer.UnsignedByteType
 import org.junit.Test
 import org.lwjgl.system.MemoryUtil.memAlloc
 import org.scijava.Context
@@ -20,7 +21,6 @@ import org.scijava.ui.behaviour.ClickBehaviour
 import org.scijava.widget.FileWidget
 import java.io.File
 import java.nio.ByteBuffer
-import java.nio.file.Paths
 import kotlin.concurrent.thread
 
 /**
@@ -31,6 +31,7 @@ import kotlin.concurrent.thread
  */
 class VolumeSamplingExample: SceneryBase("Volume Sampling example", 1280, 720) {
     val bitsPerVoxel = 8
+    val volumeSize = 128
 
     enum class VolumeType { File, Procedural }
 
@@ -108,10 +109,11 @@ class VolumeSamplingExample: SceneryBase("Volume Sampling example", 1280, 720) {
             connector.orientBetweenPoints(p1.position, p2.position, true, true)
         }
 
-        val volume = Volume()
+        val volumes = LinkedHashMap<String, ByteBuffer>()
+        val volume = Volume.fromBuffer(volumes, volumeSize, volumeSize, volumeSize, UnsignedByteType(), hub)
         volume.name = "volume"
         volume.position = Vector3f(0.0f, 0.0f, 0.0f)
-        volume.colormap = "viridis"
+        volume.colormap = Colormap.get("viridis")
         volume.scale = Vector3f(10.0f, 10.0f, 10.0f)
 //        volume.voxelSizeZ = 0.5f
         with(volume.transferFunction) {
@@ -168,12 +170,10 @@ class VolumeSamplingExample: SceneryBase("Volume Sampling example", 1280, 720) {
 
                         logger.debug("Loading volume $newVolume")
                         if (newVolume.toLowerCase().endsWith("raw")) {
-                            volume.readFromRaw(Paths.get(newVolume), autorange = false, cache = true, replace = false)
+                            TODO("Implement reading volumes from raw files")
                         } else {
-                            volume.readFrom(Paths.get(newVolume), replace = false)
+                            TODO("Implemented reading volumes from image files")
                         }
-
-                        volume.trangemax = 1500.0f
                     }
 
                     VolumeType.Procedural ->
@@ -183,10 +183,8 @@ class VolumeSamplingExample: SceneryBase("Volume Sampling example", 1280, 720) {
                             Volume.generateProceduralVolume(volumeSize, 0.05f, seed = seed,
                                 intoBuffer = currentBuffer, shift = shift, use16bit = bitsPerVoxel > 8)
 
-                            volume.readFromBuffer(
-                                "procedural-cloud-${shift.hashCode()}", currentBuffer,
-                                volumeSize, volumeSize, volumeSize, 1.0f, 1.0f, 1.0f,
-                                dataType = dataType, bytesPerVoxel = bitsPerVoxel / 8)
+                            volume.addTimepoint(
+                                "procedural-cloud-${shift.hashCode()}", currentBuffer)
 
                             shift = shift + shiftDelta
                         }
@@ -209,7 +207,11 @@ class VolumeSamplingExample: SceneryBase("Volume Sampling example", 1280, 720) {
                     val diagram = if(connector.getChildrenByName("diagram").isNotEmpty()) {
                         connector.getChildrenByName("diagram").first() as Line
                     } else {
-                        val l = Line(capacity = maxOf(volume.sizeX, volume.sizeY, volume.sizeZ) * 2)
+                        TODO("Implement volume size queries or refactor")
+                        val sizeX = 128
+                        val sizeY = 128
+                        val sizeZ = 128
+                        val l = Line(capacity = maxOf(sizeX, sizeY, sizeZ) * 2)
                         connector.addChild(l)
                         l
                     }
@@ -251,14 +253,14 @@ class VolumeSamplingExample: SceneryBase("Volume Sampling example", 1280, 720) {
         setupCameraModeSwitching()
 
         val toggleRenderingMode = object : ClickBehaviour {
-            var modes = hashMapOf(0 to "Local MIP", 1 to "MIP", 2 to "Alpha Compositing")
-            var currentMode = (scene.find("volume") as? Volume)?.renderingMethod ?: 0
+            var modes = Volume.RenderingMethod.values()
+            var currentMode = (scene.find("volume") as? Volume)!!.renderingMethod
 
             override fun click(x: Int, y: Int) {
-                currentMode = (currentMode + 1) % modes.size
+                currentMode = modes.getOrElse(modes.indexOf(currentMode) + 1 % modes.size) { Volume.RenderingMethod.AlphaBlending }
 
                 (scene.find("volume") as? Volume)?.renderingMethod = currentMode
-                logger.info("Switched volume rendering mode to ${modes[currentMode]} (${(scene.find("volume") as? Volume)?.renderingMethod})")
+                logger.info("Switched volume rendering mode to $currentMode")
             }
         }
 

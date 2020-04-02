@@ -10,11 +10,12 @@ import graphics.scenery.net.NodeSubscriber
 import graphics.scenery.volumes.Volume
 import org.junit.Test
 import org.scijava.ui.behaviour.ClickBehaviour
-import java.io.File
+import java.nio.file.Path
+import java.nio.file.Paths
 import kotlin.concurrent.thread
 
 /**
- * <Description>
+ * Example to demonstrate rendering of volumetric data on a cluster
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
@@ -40,20 +41,8 @@ class ClusterExample: SceneryBase("Clustered Volume Rendering example") {
             scene.addChild(this)
         }
 
-//        val bileMesh = Mesh()
-//        bileMesh.readFromRaw("Z:/data/models-inauguration/celegans_epithelium.stl", useMaterial = false)
-//        bileMesh.scale = Vector3f(0.01f, 0.01f, 0.01f)
-//        bileMesh.visible = false
-//        scene.addChild(bileMesh)
-//
-//        val vasculature = Mesh()
-//        vasculature.readFromRaw("Z:/data/models-inauguration/Drerio.stl", useMaterial = false)
-//        vasculature.scale = Vector3f(0.1f, 0.1f, 0.1f)
-//        bileMesh.visible = false
-//        scene.addChild(vasculature)
         val box = Box(Vector3f(2.0f, 2.0f, 2.0f))
         box.material.diffuse = Vector3f(1.0f, 0.0f, 0.0f)
-        //scene.addChild(box)
 
         val shell = Box(Vector3f(120.0f, 120.0f, 120.0f), insideNormals = true)
         shell.material.cullingMode = Material.CullingMode.Front
@@ -62,42 +51,16 @@ class ClusterExample: SceneryBase("Clustered Volume Rendering example") {
         shell.material.ambient = Vector3f(0.0f)
         scene.addChild(shell)
 
-        val volume = Volume()
+        val folder = Paths.get("M:/CAVE_DATA/histones-isonet/stacks/default/")
+        val volume = Volume.fromPathRaw(folder, hub)
 
         with(volume) {
             volume.visible = true
             scene.addChild(this)
         }
 
-        val lights = (0..3).map {
-            PointLight(radius = 20.0f)
-        }
-
-        lights.mapIndexed { i, light ->
-            light.position = Vector3f(4.0f * i, 4.0f * i, 4.0f)
-            light.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
-            scene.addChild(light)
-        }
-
-        val folder = File("M:/CAVE_DATA/histones-isonet/stacks/default/")
-        //val folder = File("M:/CAVE_DATA/box_test/aniso")
-
-
-        //val folder = File("M:/CAVE_DATA/droso-royer-autopilot-transposed/")
-//        val folder = File("M:/CAVE_DATA/droso-royer-long/stacks/default/")
-//        val folder = File("M:/TestData/")
-        val files = folder.listFiles()
-        val volumes = files.filter { it.isFile && it.name.endsWith("raw") }.map { it.absolutePath }.sorted()
-//
-        volumes.forEach { logger.info("Volume: $it")}
-//
-        var currentVolume = 0
-        fun nextVolume(): String {
-            val v = volumes[currentVolume % volumes.size]
-            currentVolume++
-
-            return v
-        }
+        Light.createLightTetrahedron<PointLight>(spread = 4.0f, radius = 20.0f)
+            .forEach { scene.addChild(it) }
 
         publishedNodes.add(cam)
 //        publishedNodes.add(bileMesh)
@@ -114,8 +77,7 @@ class ClusterExample: SceneryBase("Clustered Volume Rendering example") {
             subscriber?.nodes?.put(13337 + index, node)
         }
 
-        val min_delay = 600
-        //val min_delay = 0
+        val minDelay = 600
 
         if(publisher != null) {
             thread {
@@ -123,49 +85,26 @@ class ClusterExample: SceneryBase("Clustered Volume Rendering example") {
                     Thread.sleep(1000)
                 }
 
-
-                //fvolume.rotation.rotateY(1.57f)
-                //volume.rotation.rotateByAngleZ(1.57f)
-//                volume.rotation.rotateByAngleX(.8f)
-
-
-//                volume.needsUpdate = true
-
-
                 while (true) {
                     val start = System.currentTimeMillis()
 
                     logger.info("Reading next volume...")
-                    volume.currentVolume = nextVolume()
+                    volume.nextTimepoint()
 
-                    val time_to_read  = System.currentTimeMillis()-start
+                    val timeToRead  = System.currentTimeMillis()-start
 
-                    logger.info("took ${time_to_read} ms")
-                    Thread.sleep(Math.max(0,min_delay-time_to_read))
-
-                }
-            }
-
-
-            thread {
-                while (true) {
-//                    volume.rotation.rotateByAngleX(0.001f)
-//                    volume.needsUpdate = true
-
-                    Thread.sleep(20)
+                    logger.info("took ${timeToRead} ms")
+                    Thread.sleep(Math.max(0,minDelay-timeToRead))
                 }
             }
         }
-
     }
 
     override fun inputSetup() {
-        setupCameraModeSwitching(keybinding = "C")
-
         val inputHandler = hub.get(SceneryElement.Input) as InputHandler
 
         val cycleObjects = ClickBehaviour { _, _ ->
-            val currentObject = publishedNodes.find { it.visible == true }
+            val currentObject = publishedNodes.find { it.visible }
             val currentIndex = publishedNodes.indexOf(currentObject)
 
             publishedNodes.forEach { it.visible = false }
