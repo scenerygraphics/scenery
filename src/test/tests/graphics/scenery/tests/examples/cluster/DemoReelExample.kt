@@ -1,21 +1,20 @@
 package graphics.scenery.tests.examples.cluster
 
 import org.joml.Vector3f
-import coremem.enums.NativeTypeEnum
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.InputHandler
 import graphics.scenery.controls.TrackedStereoGlasses
 import graphics.scenery.net.NodePublisher
 import graphics.scenery.net.NodeSubscriber
-import graphics.scenery.utils.extensions.times
+import graphics.scenery.volumes.Colormap
 import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.Volume
 import org.junit.Test
 import org.scijava.ui.behaviour.ClickBehaviour
-import java.io.File
+import java.nio.ByteBuffer
+import java.nio.file.Path
 import java.nio.file.Paths
-import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
 
 /**
@@ -33,10 +32,7 @@ class DemoReelExample: SceneryBase("Demo Reel") {
     var drosophilaScene = Mesh(name = "drosophila")
     var retinaScene = Mesh(name = "retina")
 
-    lateinit var goto_scene_bile: ClickBehaviour
-    lateinit var goto_scene_drosophila: ClickBehaviour
-    lateinit var goto_scene_histone: ClickBehaviour
-    lateinit var goto_scene_retina: ClickBehaviour
+    val scenes = listOf(bileScene, histoneScene, drosophilaScene, retinaScene)
 
     override fun init() {
         logger.warn("*** WARNING - EXPERIMENTAL ***")
@@ -48,7 +44,6 @@ class DemoReelExample: SceneryBase("Demo Reel") {
 
         cam = DetachedHeadCamera(hmd)
         with(cam) {
-//            position = Vector3f(0.0f, -1.3190879f, 0.8841703f)
             position = Vector3f(0.0f, 0.0f, 55.0f)
             perspectiveCamera(50.0f, windowWidth, windowHeight, 0.02f, 500.0f)
             active = true
@@ -58,7 +53,6 @@ class DemoReelExample: SceneryBase("Demo Reel") {
         }
 
         // box setup
-
         val shell = Box(Vector3f(120.0f, 120.0f, 120.0f), insideNormals = true)
         shell.material.cullingMode = Material.CullingMode.Front
         shell.material.diffuse = Vector3f(0.0f, 0.0f, 0.0f)
@@ -66,54 +60,38 @@ class DemoReelExample: SceneryBase("Demo Reel") {
         shell.material.ambient = Vector3f(0.0f)
         scene.addChild(shell)
 
-        // lighting setup
-
-        val lights = (0..4).map {
-            PointLight(150.0f)
-        }
-
-        val tetrahedron = listOf(
-            Vector3f(1.0f, 0f, -1.0f/Math.sqrt(2.0).toFloat()),
-            Vector3f(-1.0f,0f,-1.0f/Math.sqrt(2.0).toFloat()),
-            Vector3f(0.0f,1.0f,1.0f/Math.sqrt(2.0).toFloat()),
-            Vector3f(0.0f,-1.0f,1.0f/Math.sqrt(2.0).toFloat()))
-
-        tetrahedron.mapIndexed { i, position ->
-            lights[i].position = position * 50.0f
-            lights[i].emissionColor = Vector3f(1.0f, 0.5f,0.3f) //Random.random3DVectorFromRange(0.2f, 0.8f)
-            lights[i].intensity = 200.2f
-            scene.addChild(lights[i])
-        }
+        Light.createLightTetrahedron<PointLight>(spread = 50.0f, intensity = 150.0f, radius = 150.0f)
+            .forEach { scene.addChild(it) }
 
         // scene setup
         val driveLetter = System.getProperty("scenery.DriveLetter", "E")
-        val volumes = HashMap<String, List<String>>()
 
-        volumes.put(histoneScene.name, getVolumes("$driveLetter:/ssd-backup-inauguration/CAVE_DATA/histones-isonet/stacks/default/"))
-        volumes.put(retinaScene.name, getVolumes("$driveLetter:/ssd-backup-inauguration/CAVE_DATA/retina_test2/"))
-        volumes.put(drosophilaScene.name, getVolumes("$driveLetter:/ssd-backup-inauguration/CAVE_DATA/droso-royer-autopilot-transposed/"))
-        volumes.put(retinaScene.name, getVolumes("$driveLetter:/ssd-backup-inauguration/CAVE_DATA/retina_test2/"))
-
-        val histoneVolume = Volume()
+        val histoneVolume = Volume.fromPathRaw(
+            Paths.get("$driveLetter:/ssd-backup-inauguration/CAVE_DATA/histones-isonet/stacks/default/"),
+            hub
+        )
         histoneVolume.transferFunction = TransferFunction.ramp(0.1f, 1.0f)
-        histoneVolume.renderingMethod = 2
-        histoneVolume.deallocationThreshold = 50000
-        histoneVolume.colormap = "hot"
+        histoneVolume.colormap = Colormap.get("hot")
         histoneScene.addChild(histoneVolume)
         histoneScene.visible = false
         scene.addChild(histoneScene)
 
-        val drosophilaVolume = Volume()
+        val drosophilaVolume = Volume.fromPathRaw(
+            Paths.get("$driveLetter:/ssd-backup-inauguration/CAVE_DATA/droso-royer-autopilot-transposed/"),
+            hub
+        )
         drosophilaVolume.rotation.rotateX(1.57f)
-        drosophilaVolume.renderingMethod = 2
         drosophilaVolume.transferFunction = TransferFunction.ramp(0.1f, 1.0f)
-        drosophilaVolume.deallocationThreshold = 50000
-        drosophilaVolume.colormap = "hot"
+        drosophilaVolume.colormap = Colormap.get("hot")
         drosophilaScene.addChild(drosophilaVolume)
         drosophilaScene.visible = false
         scene.addChild(drosophilaScene)
 
-        val retinaVolume = Volume()
+        val retinaVolumes = LinkedHashMap<String, ByteBuffer>()
+        val retinaVolume = Volume.fromPathRaw(
+            Paths.get("$driveLetter:/ssd-backup-inauguration/CAVE_DATA/retina_test2/"),
+            hub
+        )
         retinaScene.addChild(retinaVolume)
         retinaScene.visible = false
         scene.addChild(retinaScene)
@@ -166,7 +144,7 @@ class DemoReelExample: SceneryBase("Demo Reel") {
             subscriber?.nodes?.put(13337 + index, node)
         }
 
-        val min_delay = 200
+        val minDelay = 200
 
         logger.info("Publisher is: $publisher")
         if(publisher != null) {
@@ -179,121 +157,30 @@ class DemoReelExample: SceneryBase("Demo Reel") {
                 while (true) {
                     var sleepDuration = 50L
 
-
                     arrayOf(drosophilaScene, histoneScene).forEach {
                         if(it.visible) {
                             logger.info("Reading next volume for ${it.name} ...")
                             val start = System.currentTimeMillis()
 
                             val v = it.children[0]
-                            if(v is Volume && volumes.containsKey(it.name)) {
-                                v.nextVolume(volumes[it.name]!!)
+                            (v as? Volume)?.nextTimepoint()
 
-                                val time_to_read  = System.currentTimeMillis()-start
+                            val timeToRead  = System.currentTimeMillis() - start
 
-                                if(it.name == "drosophila") {
-                                    sleepDuration = Math.max(40,min_delay-time_to_read)
-
-                                    with(v) {
-                                        trangemin = 0.00f
-                                        trangemax = 1024.0f
-                                        alphaBlending = 0.5f
-                                        scale = Vector3f(1.0f, 1.0f, 1.0f)
-                                        stepSize = 0.05f
-                                        voxelSizeX = 1.0f
-                                        voxelSizeY = 5.0f
-                                        voxelSizeZ = 1.0f
-                                    }
-                                }
-
-                                if(it.name == "histone") {
-                                    sleepDuration = Math.max(30,min_delay-time_to_read)
-
-                                    with(v) {
-                                        trangemin = 0.0f
-                                        trangemax = 255.0f
-                                        alphaBlending = 0.2f
-                                        stepSize = 0.05f
-                                        scale = Vector3f(1.0f, 1.0f, 1.0f)
-                                        voxelSizeX = 1.0f
-                                        voxelSizeY = 1.0f
-                                        voxelSizeZ = 1.0f
-                                    }
-                                }
+                            if(it.name == "drosophila") {
+                                sleepDuration = Math.max(40,minDelay-timeToRead)
                             }
 
-
-
+                            if(it.name == "histone") {
+                                sleepDuration = Math.max(30,minDelay-timeToRead)
+                            }
                         }
                     }
 
-//                    logger.info("Sleeping for $sleepDuration")
-                    // sleep if no volume is active
                     Thread.sleep(sleepDuration)
                 }
             }
-
         }
-
-        thread {
-            logger.info("Preloading volumes")
-            volumes["histone"]?.map { histoneVolume.preloadRawFromPath(Paths.get(it), dataType = NativeTypeEnum.UnsignedShort) }
-            volumes["drosophila"]?.map { drosophilaVolume.preloadRawFromPath(Paths.get(it), dataType = NativeTypeEnum.UnsignedShort) }
-        }
-    }
-
-    /**
-     * Returns all the RAW volumes stored in [path] as a list of strings.
-     */
-    fun getVolumes(path: String): List<String> {
-        val folder = File(path)
-        val files = folder.listFiles()
-        val volumes = files.filter { it.isFile && it.name.endsWith("raw") }.map { it.absolutePath }.sorted()
-
-        volumes.forEach { logger.info("Volume: $it")}
-
-        return volumes
-    }
-
-    /**
-     * Switches to the next volume, and returns its name.
-     */
-    fun Volume.nextVolume(volumes: List<String>): String {
-        var curr = if (volumes.indexOf(this.currentVolume) == -1) {
-            0
-        } else {
-            volumes.indexOf(this.currentVolume)
-        }
-
-        if(curr+1 == volumes.size) {
-            curr = 0
-        }
-
-        val v = volumes[curr+1 % volumes.size]
-
-//        if(this.lock.tryLock(2, TimeUnit.MILLISECONDS)) {
-            this.currentVolume = v
-//        } else {
-//            logger.warn("Failed to advance to $v")
-//        }
-
-        return v
-    }
-
-    /**
-     * Shows this [Node] and all children.
-     */
-    fun Node.showAll() {
-        this.children.map { visible = true }
-        this.visible = true
-    }
-
-    /**
-     * Hides this [Node] and all children.
-     */
-    fun Node.hideAll() {
-        this.children.map { visible = false }
-        this.visible = false
     }
 
     /**
@@ -301,79 +188,19 @@ class DemoReelExample: SceneryBase("Demo Reel") {
      * switch scenes.
      */
     override fun inputSetup() {
-        setupCameraModeSwitching(keybinding = "C")
         val inputHandler = (hub.get(SceneryElement.Input) as? InputHandler) ?: return
 
-        goto_scene_bile = ClickBehaviour { _, _ ->
-            bileScene.showAll()
-            histoneScene.hideAll()
-            drosophilaScene.hideAll()
+        fun gotoScene(sceneName: String) = ClickBehaviour { _, _ ->
+            scenes.filter { it.name == sceneName }.forEach { scene -> scene.runRecursive { it.visible = true } }
+            scenes.filter { it.name != sceneName }.forEach { scene -> scene.runRecursive { it.visible = false } }
 
             scene.findObserver()?.position = Vector3f(0.0f, 0.0f, 3.0f)
         }
 
-        goto_scene_histone = ClickBehaviour { _, _ ->
-            bileScene.hideAll()
-            histoneScene.showAll()
-            drosophilaScene.hideAll()
-
-            with(histoneScene.children[0] as Volume) {
-                trangemin = 0.5f
-                trangemax = 2500.0f
-                alphaBlending = 0.2f
-                scale = Vector3f(1.0f, 1.0f, 1.0f)
-                voxelSizeX = 1.0f
-                voxelSizeY = 1.0f
-                voxelSizeZ = 1.0f
-            }
-
-
-            scene.findObserver()?.position = Vector3f(0.0f, 0.0f, 3.0f)
-        }
-
-        goto_scene_drosophila = ClickBehaviour { _, _ ->
-            bileScene.hideAll()
-            histoneScene.hideAll()
-            drosophilaScene.showAll()
-
-            with(drosophilaScene.children[0] as Volume) {
-                trangemin = 5.0f
-                trangemax = 800.0f
-                alphaBlending = 0.05f
-                scale = Vector3f(1.0f, 1.0f, 1.0f)
-                voxelSizeX = 1.0f
-                voxelSizeY = 5.0f
-                voxelSizeZ = 1.0f
-            }
-
-            scene.findObserver()?.position = Vector3f(0.0f, 0.0f, 4.0f)
-
-        }
-
-        goto_scene_retina = ClickBehaviour { _, _ ->
-            bileScene.hideAll()
-            histoneScene.hideAll()
-            drosophilaScene.hideAll()
-            retinaScene.showAll()
-
-            with(retinaScene.children[0] as Volume) {
-                trangemin = 0.00f
-                trangemax = 255.0f
-                alphaBlending = 0.01f
-                scale = Vector3f(1.0f, 1.0f, 1.0f)
-                voxelSizeX = 1.0f
-                voxelSizeY = 1.0f
-                voxelSizeZ = 5.0f
-            }
-
-            //scene.findObserver().position = Vector3f(-0.16273244f, -0.85279214f, 1.0995241f)
-            scene.findObserver()?.position = Vector3f(0.0f,-1.1f, 2.0f)
-        }
-
-        inputHandler.addBehaviour("goto_scene_bile", goto_scene_bile)
-        inputHandler.addBehaviour("goto_scene_histone", goto_scene_histone)
-        inputHandler.addBehaviour("goto_scene_drosophila", goto_scene_drosophila)
-        inputHandler.addBehaviour("goto_scene_retina", goto_scene_retina)
+        inputHandler.addBehaviour("goto_scene_bile", gotoScene("bile"))
+        inputHandler.addBehaviour("goto_scene_histone", gotoScene("histone"))
+        inputHandler.addBehaviour("goto_scene_drosophila", gotoScene("drosophila"))
+        inputHandler.addBehaviour("goto_scene_retina", gotoScene("retina"))
 
 
         inputHandler.addKeyBinding("goto_scene_bile", "shift 1")

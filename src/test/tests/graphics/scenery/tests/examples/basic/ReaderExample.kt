@@ -70,17 +70,8 @@ class ReaderExample : SceneryBase("ReaderExample", 1280, 720) {
 
         loadedObject = if(files.isNotEmpty()) {
             when {
-                files.first().endsWith(".tiff") || files.first().endsWith(".tif") -> {
-                    val v = Volume()
-                    v.readFrom(Paths.get(files.first()))
-
-                    v
-                }
-                files.first().endsWith(".raw") -> {
-                    val v = Volume()
-                    v.readFromRaw(Paths.get(files.first()))
-
-                    v
+                files.first().endsWith(".tiff") || files.first().endsWith(".tif") || files.first().endsWith(".raw")  -> {
+                    Volume.fromPath(Paths.get(files.first()), hub)
                 }
 
                 else -> {
@@ -251,8 +242,6 @@ class ReaderExample : SceneryBase("ReaderExample", 1280, 720) {
 
 
         when(extension) {
-            "tif", "tiff" -> (loadedObject as? Volume)?.readFrom(file)
-            "raw" -> (loadedObject as? Volume)?.readFromRaw(file)
             "obj", "stl" -> {
                 loadedObject = Mesh().readFrom(file.toFile().absolutePath)
                 loadedObject.centerOn(Vector3f(0.0f))

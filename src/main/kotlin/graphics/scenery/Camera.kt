@@ -4,7 +4,7 @@ import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
 import graphics.scenery.utils.extensions.xyz
-import graphics.scenery.volumes.bdv.Volume
+import graphics.scenery.volumes.Volume
 import org.joml.*
 import java.lang.Math
 import java.util.concurrent.atomic.AtomicInteger

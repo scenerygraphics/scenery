@@ -1,13 +1,10 @@
-package graphics.scenery.volumes.bdv
+package graphics.scenery.volumes
 
 import bdv.tools.brightness.ConverterSetup
 import bdv.tools.transformation.TransformedSource
 import bdv.viewer.RequestRepaint
 import bdv.viewer.state.SourceState
 import graphics.scenery.*
-import graphics.scenery.volumes.Colormap
-import graphics.scenery.volumes.TransferFunction
-import net.imglib2.RandomAccessibleInterval
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.numeric.ARGBType
 import net.imglib2.type.numeric.integer.UnsignedByteType
@@ -23,7 +20,10 @@ import tpietzsch.cache.*
 import tpietzsch.example2.MultiVolumeShaderMip
 import tpietzsch.example2.VolumeBlocks
 import tpietzsch.example2.VolumeShaderSignature
-import tpietzsch.multires.*
+import tpietzsch.multires.MultiResolutionStack3D
+import tpietzsch.multires.SimpleStack3D
+import tpietzsch.multires.SourceStacks
+import tpietzsch.multires.Stack3D
 import tpietzsch.shadergen.generate.Segment
 import tpietzsch.shadergen.generate.SegmentTemplate
 import tpietzsch.shadergen.generate.SegmentType
@@ -94,7 +94,7 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
 
     /** Set of [VolumeBlocks]. */
     protected var outOfCoreVolumes = ArrayList<VolumeBlocks>()
-    protected var bdvNodes = ArrayList<graphics.scenery.volumes.bdv.Volume>()
+    protected var bdvNodes = ArrayList<Volume>()
     protected var transferFunctionTextures = HashMap<SourceState<*>, Texture>()
     protected var colorMapTextures = HashMap<SourceState<*>, Texture>()
     /** Stacks loaded from a BigDataViewer XML file. */
@@ -558,33 +558,7 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
                 logger.info("ST is $sourceTransform")
 
                 if(stack is MultiResolutionStack3D) {
-                    val o = object<T> : MultiResolutionStack3D<T> {
-                        override fun getType(): T {
-                            return stack.type as T
-                        }
-
-                        override fun getSourceTransform(): AffineTransform3D {
-                            val w = AffineTransform3D()
-                            val arr = FloatArray(16)
-                            Matrix4f(bdvNode.world).transpose().get(arr)
-
-                            w.set(*arr.map { it.toDouble() }.toDoubleArray())
-                            return w.concatenate(sourceTransform)
-                        }
-
-                        override fun resolutions(): List<ResolutionLevel3D<T>> {
-                            return stack.resolutions() as List<ResolutionLevel3D<T>>
-                        }
-
-                        override fun equals(other: Any?): Boolean {
-                            return stack == other
-                        }
-
-                        override fun hashCode(): Int {
-                            return stack.hashCode()
-                        }
-                    }
-
+                    val o = TransformedMultiResolutionStack3D(stack, bdvNode, sourceTransform)
                     val tf = transferFunctionTextures.getOrPut(bdvNode.viewerState.sources[i], { bdvNode.transferFunction.toTexture() })
                     val colormap = colorMapTextures.getOrPut(bdvNode.viewerState.sources[i], { bdvNode.colormap.toTexture() })
                     renderStacks.add(Triple(o, tf, colormap))
@@ -592,66 +566,16 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
                     val o: SimpleStack3D<*>
                     val ss = source.spimSource as? TransformedSource
                     val wrapped = ss?.wrappedSource
-                    if(wrapped is Volume.BufferDummySource) {
+                    o = if(wrapped is Volume.BufferDummySource) {
                         if(wrapped.timepoints.isEmpty()) {
                             logger.info("Timepoints is empty, skipping node")
                             return@forEach
                         }
 
                         val tp = min(max(0, currentTimepoint), wrapped.timepoints.size-1)
-                        o = object<T> : BufferedSimpleStack3D<T>(wrapped.timepoints.toList()[tp].second, wrapped.sourceType as T, intArrayOf(wrapped.width, wrapped.height, wrapped.depth)) {
-                            override fun getType(): T {
-                                return stack.type as T
-                            }
-
-                            override fun getSourceTransform(): AffineTransform3D {
-                                val w = AffineTransform3D()
-                                val arr = FloatArray(16)
-                                Matrix4f(bdvNode.world).transpose().get(arr)
-
-                                w.set(*arr.map { it.toDouble() }.toDoubleArray())
-                                return w.concatenate(sourceTransform)
-                            }
-
-                            override fun getImage(): RandomAccessibleInterval<T> {
-                                throw UnsupportedOperationException("Cannot get RAI of BufferedSimpleStack3D")
-                            }
-
-                            override fun equals(other: Any?): Boolean {
-                                return stack.hashCode() == other.hashCode()
-                            }
-
-                            override fun hashCode(): Int {
-                                return stack.hashCode()
-                            }
-                        }
+                        TransformedSimpleStack3D(stack, bdvNode, sourceTransform)
                     } else {
-                        o = object<T> : SimpleStack3D<T> {
-                            override fun getType(): T {
-                                return stack.type as T
-                            }
-
-                            override fun getSourceTransform(): AffineTransform3D {
-                                val w = AffineTransform3D()
-                                val arr = FloatArray(16)
-                                Matrix4f(bdvNode.world).transpose().get(arr)
-
-                                w.set(*arr.map { it.toDouble() }.toDoubleArray())
-                                return w.concatenate(sourceTransform)
-                            }
-
-                            override fun getImage(): RandomAccessibleInterval<T> {
-                                return stack.image as RandomAccessibleInterval<T>
-                            }
-
-                            override fun equals(other: Any?): Boolean {
-                                return stack == other
-                            }
-
-                            override fun hashCode(): Int {
-                                return stack.hashCode()
-                            }
-                        }
+                        TransformedSimpleStack3D(stack, bdvNode, sourceTransform)
                     }
 
                     val tf = transferFunctionTextures.getOrPut(bdvNode.viewerState.sources[i], { bdvNode.transferFunction.toTexture() })
@@ -672,7 +596,7 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
      * Adds a new volume [node] to the [VolumeManager]. Will trigger an update of the rendering state,
      * and recreation of the shaders.
      */
-    fun add(node: graphics.scenery.volumes.bdv.Volume) {
+    fun add(node: Volume) {
         logger.info("Adding $node to OOC nodes")
         bdvNodes.add(node)
         updateRenderState()

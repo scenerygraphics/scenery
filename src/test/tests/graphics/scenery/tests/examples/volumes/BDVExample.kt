@@ -1,4 +1,4 @@
-package graphics.scenery.tests.examples.bdv
+package graphics.scenery.tests.examples.volumes
 
 import bdv.spimdata.XmlIoSpimDataMinimal
 import org.joml.Vector3f
@@ -7,8 +7,7 @@ import graphics.scenery.DetachedHeadCamera
 import graphics.scenery.PointLight
 import graphics.scenery.SceneryBase
 import graphics.scenery.backends.Renderer
-import graphics.scenery.volumes.bdv.Volume
-import net.imagej.notebook.chart.Histogram1dToHTMLConverter
+import graphics.scenery.volumes.Volume
 import net.imagej.ops.OpService
 import net.imglib2.histogram.Histogram1d
 import org.junit.Test

@@ -1,4 +1,4 @@
-package graphics.scenery.volumes.bdv
+package graphics.scenery.volumes
 
 import graphics.scenery.utils.LazyLogger
 import net.imglib2.RandomAccessibleInterval

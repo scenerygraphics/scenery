@@ -1,4 +1,4 @@
-package graphics.scenery.volumes.bdv
+package graphics.scenery.volumes
 
 import graphics.scenery.backends.*
 import tpietzsch.shadergen.Shader

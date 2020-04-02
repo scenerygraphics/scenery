@@ -1,6 +1,5 @@
 package graphics.scenery.tests.examples.basic;
 
-import cleargl.GLVector;
 import graphics.scenery.*;
 import graphics.scenery.backends.Renderer;
 import graphics.scenery.textures.Texture;
@@ -52,20 +51,19 @@ public class TexturedCubeJavaExample {
             cam.setActive( true );
             getScene().addChild(cam);
 
-            Thread rotator = new Thread(){
-                public void run() {
-                    while (true) {
-                        box.getRotation().rotateY(0.01f);
-                        box.setNeedsUpdate(true);
+            Thread rotator = new Thread(() -> {
+                while (true) {
+                    box.getRotation().rotateY(0.01f);
+                    box.setNeedsUpdate(true);
 
-                        try {
-                            Thread.sleep(20);
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }
+                    try {
+                        Thread.sleep(20);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
                     }
                 }
-            };
+            });
+
             rotator.start();
         }
     }

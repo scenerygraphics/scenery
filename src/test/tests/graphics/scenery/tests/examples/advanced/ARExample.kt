@@ -8,7 +8,9 @@ import graphics.scenery.controls.Hololens
 import graphics.scenery.numerics.Random
 import graphics.scenery.utils.RingBuffer
 import graphics.scenery.utils.extensions.plus
+import graphics.scenery.volumes.Colormap
 import graphics.scenery.volumes.Volume
+import net.imglib2.type.numeric.integer.UnsignedShortType
 import org.junit.Test
 import org.lwjgl.system.MemoryUtil.memAlloc
 import java.nio.ByteBuffer
@@ -38,9 +40,10 @@ class ARExample: SceneryBase("AR Volume Rendering example", 1280, 720) {
             scene.addChild(this)
         }
 
-        val volume = Volume()
+        val volumes = LinkedHashMap<String, ByteBuffer>()
+        val volume = Volume.fromBuffer(LinkedHashMap(), 64, 64, 64, UnsignedShortType(), hub)
         volume.name = "volume"
-        volume.colormap = "plasma"
+        volume.colormap = Colormap.get("plasma")
         volume.scale = Vector3f(0.02f, 0.02f, 0.02f)
         scene.addChild(volume)
 
@@ -77,10 +80,7 @@ class ARExample: SceneryBase("AR Volume Rendering example", 1280, 720) {
                 Volume.generateProceduralVolume(volumeSize, 0.95f, seed = seed,
                     intoBuffer = currentBuffer, shift = shift, use16bit = bitsPerVoxel > 8)
 
-                volume.readFromBuffer(
-                    "procedural-cloud-${shift.hashCode()}", currentBuffer,
-                    volumeSize, volumeSize, volumeSize, 1.0f, 1.0f, 1.0f,
-                    dataType = dataType, bytesPerVoxel = bitsPerVoxel/8)
+                volume.addTimepoint("procedural-cloud-${shift.hashCode()}", currentBuffer)
 
                 shift = shift + shiftDelta
 

@@ -1,4 +1,4 @@
-package graphics.scenery.volumes.bdv
+package graphics.scenery.volumes
 
 import graphics.scenery.textures.Texture
 import graphics.scenery.textures.Texture.BorderColor
@@ -6,7 +6,6 @@ import graphics.scenery.textures.UpdatableTexture.TextureExtents
 import graphics.scenery.textures.Texture.RepeatMode
 import graphics.scenery.textures.UpdatableTexture.TextureUpdate
 import graphics.scenery.backends.ShaderType
-import graphics.scenery.numerics.Random
 import graphics.scenery.textures.UpdatableTexture
 import graphics.scenery.utils.LazyLogger
 import net.imglib2.type.numeric.NumericType
@@ -25,6 +24,7 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.FloatBuffer
 import java.util.concurrent.ConcurrentHashMap
+import tpietzsch.backend.Texture as BVVTexture
 
 /**
  * Context class for interaction with BigDataViewer-generated shaders.
@@ -46,10 +46,10 @@ open class SceneryContext(val node: VolumeManager) : GpuContext {
     /** Hashmap for references to the currently bound LUTs/texture atlases. */
     protected var currentlyBoundLuts = ConcurrentHashMap<String, Texture>()
     /** Hashmap for storing associations between [Texture] objects, texture slots and uniform names. */
-    protected var bindings = ConcurrentHashMap<tpietzsch.backend.Texture, BindingState>()
+    protected var bindings = ConcurrentHashMap<BVVTexture, BindingState>()
 
     /** Storage for deferred bindings, where the association between uniform and texture unit is not known upfront. */
-    protected var deferredBindings = ConcurrentHashMap<tpietzsch.backend.Texture, (String) -> Unit>()
+    protected var deferredBindings = ConcurrentHashMap<BVVTexture, (String) -> Unit>()
 
     protected var samplerKeys = listOf("volumeCache", "lutSampler", "volume_", "transferFunction_", "colorMap_")
 
@@ -250,22 +250,22 @@ open class SceneryContext(val node: VolumeManager) : GpuContext {
      * @param texture texture to bind
      * @return id of previously bound texture
      */
-    override fun bindTexture(texture: tpietzsch.backend.Texture): Int {
+    override fun bindTexture(texture: BVVTexture): Int {
         logger.debug("Binding $texture and updating GT")
         val (channels, type: NumericType<*>, normalized) = when(texture.texInternalFormat()) {
-            tpietzsch.backend.Texture.InternalFormat.R8 -> Triple(1, UnsignedByteType(), true)
-            tpietzsch.backend.Texture.InternalFormat.R16 -> Triple(1, UnsignedShortType(), true)
-            tpietzsch.backend.Texture.InternalFormat.RGBA8 -> Triple(4, UnsignedByteType(), true)
-            tpietzsch.backend.Texture.InternalFormat.RGBA8UI -> Triple(4, UnsignedByteType(), false)
-            tpietzsch.backend.Texture.InternalFormat.FLOAT32 -> Triple(1, FloatType(), false)
-            tpietzsch.backend.Texture.InternalFormat.UNKNOWN -> TODO()
+            BVVTexture.InternalFormat.R8 -> Triple(1, UnsignedByteType(), true)
+            BVVTexture.InternalFormat.R16 -> Triple(1, UnsignedShortType(), true)
+            BVVTexture.InternalFormat.RGBA8 -> Triple(4, UnsignedByteType(), true)
+            BVVTexture.InternalFormat.RGBA8UI -> Triple(4, UnsignedByteType(), false)
+            BVVTexture.InternalFormat.FLOAT32 -> Triple(1, FloatType(), false)
+            BVVTexture.InternalFormat.UNKNOWN -> TODO()
             else -> throw UnsupportedOperationException("Unknown internal format ${texture.texInternalFormat()}")
         } as Triple<Int, NumericType<*>, Boolean>
 
         val repeat = when(texture.texWrap()) {
-            tpietzsch.backend.Texture.Wrap.CLAMP_TO_BORDER_ZERO -> RepeatMode.ClampToBorder
-            tpietzsch.backend.Texture.Wrap.CLAMP_TO_EDGE -> RepeatMode.ClampToEdge
-            tpietzsch.backend.Texture.Wrap.REPEAT -> RepeatMode.Repeat
+            BVVTexture.Wrap.CLAMP_TO_BORDER_ZERO -> RepeatMode.ClampToBorder
+            BVVTexture.Wrap.CLAMP_TO_EDGE -> RepeatMode.ClampToEdge
+            BVVTexture.Wrap.REPEAT -> RepeatMode.Repeat
             else -> throw UnsupportedOperationException("Unknown wrapping mode: ${texture.texWrap()}")
         }
 
@@ -312,7 +312,7 @@ open class SceneryContext(val node: VolumeManager) : GpuContext {
                         else -> Texture.FilteringMode.Linear
                     }
 
-                    val gt = Texture(
+                    val gt = UpdatableTexture(
                         Vector3i(texture.texWidth(), texture.texHeight(), texture.texDepth()),
                         channels,
                         type,
@@ -349,7 +349,7 @@ open class SceneryContext(val node: VolumeManager) : GpuContext {
      * to be compatible with the OpenGL binding model.
      */
     fun runDeferredBindings() {
-        val removals = ArrayList<tpietzsch.backend.Texture>(deferredBindings.size)
+        val removals = ArrayList<BVVTexture>(deferredBindings.size)
 
         logger.debug("Running deferred bindings, got ${deferredBindings.size}")
         deferredBindings.forEach { texture, func ->
@@ -378,7 +378,7 @@ open class SceneryContext(val node: VolumeManager) : GpuContext {
      * @param texture texture to bind
      * @param unit texture unit to bind to
      */
-    override fun bindTexture(texture: tpietzsch.backend.Texture?, unit: Int) {
+    override fun bindTexture(texture: BVVTexture?, unit: Int) {
         logger.debug("Binding $texture to $unit")
         if(texture != null) {
             val binding = bindings[texture]
@@ -421,7 +421,7 @@ open class SceneryContext(val node: VolumeManager) : GpuContext {
     /**
      * Marks a given [texture] for reallocation.
      */
-    override fun delete(texture: tpietzsch.backend.Texture) {
+    override fun delete(texture: BVVTexture) {
         logger.debug("Marking $texture for reallocation")
         bindings[texture]?.reallocate = true
     }
@@ -514,12 +514,12 @@ open class SceneryContext(val node: VolumeManager) : GpuContext {
         if(pixels is ByteBuffer) {
             val p = pixels.duplicate().order(ByteOrder.LITTLE_ENDIAN)
             val allocationSize = width * height * depth * when(texture.texInternalFormat()) {
-                tpietzsch.backend.Texture.InternalFormat.R8 -> 1
-                tpietzsch.backend.Texture.InternalFormat.R16 -> 2
-                tpietzsch.backend.Texture.InternalFormat.RGBA8 -> 4
-                tpietzsch.backend.Texture.InternalFormat.RGBA8UI -> 4
-                tpietzsch.backend.Texture.InternalFormat.FLOAT32 -> 4
-                tpietzsch.backend.Texture.InternalFormat.UNKNOWN -> {
+                BVVTexture.InternalFormat.R8 -> 1
+                BVVTexture.InternalFormat.R16 -> 2
+                BVVTexture.InternalFormat.RGBA8 -> 4
+                BVVTexture.InternalFormat.RGBA8UI -> 4
+                BVVTexture.InternalFormat.FLOAT32 -> 4
+                BVVTexture.InternalFormat.UNKNOWN -> {
                     logger.error("Don't know how to determine texture size of $texture, assuming 1 byte, 1 channel.")
                     1
                 }

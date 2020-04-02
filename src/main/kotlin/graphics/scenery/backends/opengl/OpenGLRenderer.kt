@@ -27,7 +27,6 @@ import java.awt.BorderLayout
 import java.awt.Dimension
 import java.awt.image.DataBufferInt
 import java.io.File
-import java.io.FileNotFoundException
 import java.io.FileOutputStream
 import java.lang.Math
 import java.lang.reflect.Field
@@ -66,7 +65,7 @@ import kotlin.reflect.full.memberProperties
  * @param[scene] The [Scene] instance to initialize first.
  * @param[width] Horizontal window size.
  * @param[height] Vertical window size.
- * @param[embedIn] An optional [SceneryFXPanel] in which to embed the renderer instance.
+ * @param[embedIn] An optional [SceneryPanel] in which to embed the renderer instance.
  * @param[renderConfigFile] The file to create a [RenderConfigReader.RenderConfig] from.
  *
  * @author Ulrik Günther <hello@ulrik.is>
@@ -362,8 +361,8 @@ open class OpenGLRenderer(hub: Hub,
 
         val hmd = hub.getWorkingHMDDisplay()
         if (settings.get("vr.Active") && hmd != null) {
-            this.window.width = hmd.getRenderTargetSize().x().toInt() * 2
-            this.window.height = hmd.getRenderTargetSize().y().toInt()
+            this.window.width = hmd.getRenderTargetSize().x() * 2
+            this.window.height = hmd.getRenderTargetSize().y()
         }
 
         if (embedIn != null || embedInDrawable != null) {
@@ -590,7 +589,6 @@ open class OpenGLRenderer(hub: Hub,
 
     private fun getSupersamplingFactor(window: ClearGLWindow?): Float {
         val supersamplingFactor = if(settings.get<Float>("Renderer.SupersamplingFactor").toInt() == 1) {
-            val window = cglWindow
             if(window != null && ClearGLWindow.isRetina(window.gl)) {
                 logger.debug("Setting Renderer.SupersamplingFactor to 0.5, as we are rendering on a retina display.")
                 settings.set("Renderer.SupersamplingFactor", 0.5f)
@@ -1435,7 +1433,7 @@ open class OpenGLRenderer(hub: Hub,
             var location = locationBase
             var baseOffset = 0L
             val stride = parentNode.instances.first().instancedProperties.map {
-                var res = it.value.invoke()
+                val res = it.value.invoke()
                 ubo.getSizeAndAlignment(res).first
             }.sum()
 
@@ -2243,7 +2241,7 @@ open class OpenGLRenderer(hub: Hub,
      *
      * If the [Node] implements [HasGeometry], it's geometry is also initialized by this function.
      *
-     * @param[node]: The [Node] to initialise.
+     * @param[n]: The [Node] to initialise.
      * @return True if the initialisation went alright, False if it failed.
      */
     @Synchronized fun initializeNode(n: Node): Boolean {
@@ -2414,12 +2412,30 @@ open class OpenGLRenderer(hub: Hub,
      * [other]. Returns false otherwise.
      */
     protected fun GLTexture.canBeReused(other: Texture, miplevels: Int): Boolean {
-        return this.width == other.dimensions.x().toInt() &&
-            this.height == other.dimensions.y().toInt() &&
-            this.depth == other.dimensions.z().toInt() &&
-            this.nativeType == other.type
+        return this.width == other.dimensions.x() &&
+            this.height == other.dimensions.y() &&
+            this.depth == other.dimensions.z() &&
+            this.nativeType.equivalentTo(other.type)
     }
 
+    private fun GLTypeEnum.equivalentTo(type: NumericType<*>): Boolean {
+        return when {
+            this == GLTypeEnum.UnsignedByte && type is UnsignedByteType -> true
+            this == GLTypeEnum.Byte && type is ByteType -> true
+
+            this == GLTypeEnum.UnsignedShort && type is UnsignedShortType -> true
+            this == GLTypeEnum.Short && type is ShortType -> true
+
+            this == GLTypeEnum.UnsignedInt && type is UnsignedIntType -> true
+            this == GLTypeEnum.Int && type is IntType -> true
+
+            this == GLTypeEnum.Float && type is FloatType -> true
+            this == GLTypeEnum.Double && type is DoubleType -> true
+            else -> false
+        }
+    }
+
+    @Suppress("unused")
     private fun dumpTextureToFile(gl: GL4, name: String, texture: GLTexture) {
         val filename = "${name}_${Date().toInstant().epochSecond}.raw"
         val bytes = texture.width*texture.height*texture.depth*texture.channels*texture.bitsPerChannel/8
@@ -2448,7 +2464,7 @@ open class OpenGLRenderer(hub: Hub,
         }
     }
 
-    private fun BorderColor.toOpenGL(type: NumericType<*>): FloatArray {
+    private fun BorderColor.toOpenGL(): FloatArray {
         return when(this) {
             BorderColor.TransparentBlack -> floatArrayOf(0.0f, 0.0f, 0.0f, 0.0f)
             BorderColor.OpaqueBlack -> floatArrayOf(0.0f, 0.0f, 0.0f, 1.0f)
@@ -2471,8 +2487,7 @@ open class OpenGLRenderer(hub: Hub,
     }
 
     /**
-     * Loads textures for a [Node]. The textures either come from a [Material.transferTextures] buffer,
-     * or from a file. This is indicated by stating fromBuffer:bufferName in the textures hash map.
+     * Loads textures for a [Node]. The textures are loaded from a [Material.textures].
      *
      * @param[node] The [Node] to load textures for.
      * @param[s] The [Node]'s [OpenGLObjectState]
@@ -2488,7 +2503,7 @@ open class OpenGLRenderer(hub: Hub,
                 logger.debug("Dims of $texture: ${texture.dimensions}, mipmaps=$generateMipmaps")
 
                 val mm = generateMipmaps or texture.mipmap
-                val miplevels = if (mm && texture.dimensions.z().toInt() == 1) {
+                val miplevels = if (mm && texture.dimensions.z() == 1) {
                     1 + floor(ln(max(texture.dimensions.x() * 1.0, texture.dimensions.y() * 1.0)) / ln(2.0)).toInt()
                 } else {
                     1
@@ -2499,9 +2514,9 @@ open class OpenGLRenderer(hub: Hub,
                     existingTexture
                 } else {
                     GLTexture(gl, texture.type.toOpenGL(), texture.channels,
-                        texture.dimensions.x().toInt(),
-                        texture.dimensions.y().toInt(),
-                        texture.dimensions.z().toInt() ?: 1,
+                        texture.dimensions.x(),
+                        texture.dimensions.y(),
+                        texture.dimensions.z() ?: 1,
                         texture.minFilter == Texture.FilteringMode.Linear,
                         miplevels, 32,
                         texture.normalized, renderConfig.sRGB)
@@ -2515,7 +2530,7 @@ open class OpenGLRenderer(hub: Hub,
                 t.setRepeatModeT(texture.repeatUVW.second.toOpenGL())
                 t.setRepeatModeR(texture.repeatUVW.third.toOpenGL())
 
-                t.setTextureBorderColor(texture.borderColor.toOpenGL(texture.type))
+                t.setTextureBorderColor(texture.borderColor.toOpenGL())
 
                 val unpackAlignment = intArrayOf(0)
                 gl.glGetIntegerv(GL4.GL_UNPACK_ALIGNMENT, unpackAlignment, 0)
@@ -2523,7 +2538,7 @@ open class OpenGLRenderer(hub: Hub,
                 // textures might have very uneven dimensions, so we adjust GL_UNPACK_ALIGNMENT here correspondingly
                 // in case the byte count of the texture is not divisible by it.
                 if (contentsNew != null && texture is UpdatableTexture && !texture.hasConsumableUpdates()) {
-                    if (contentsNew.remaining() % unpackAlignment[0] == 0 && texture.dimensions.x().toInt() % unpackAlignment[0] == 0) {
+                    if (contentsNew.remaining() % unpackAlignment[0] == 0 && texture.dimensions.x() % unpackAlignment[0] == 0) {
                         t.copyFrom(contentsNew)
                     } else {
                         gl.glPixelStorei(GL4.GL_UNPACK_ALIGNMENT, 1)

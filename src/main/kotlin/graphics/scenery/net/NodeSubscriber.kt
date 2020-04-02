@@ -15,7 +15,6 @@ import org.zeromq.ZContext
 import org.zeromq.ZMQ
 import java.io.ByteArrayInputStream
 import java.io.StreamCorruptedException
-import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 
 
@@ -83,32 +82,7 @@ class NodeSubscriber(override var hub: Hub?, val address: String = "udp://localh
                         node.visible = o.visible
 
                         if (o is Volume && node is Volume && node.initialized) {
-                            if (node.currentVolume != o.currentVolume) {
-                                node.currentVolume = o.currentVolume
-
-                                node.trangemin = o.trangemin
-                                node.trangemax = o.trangemax
-
-                                node.boxMin_x = o.boxMin_x
-                                node.boxMin_y = o.boxMin_y
-                                node.boxMin_z = o.boxMin_z
-
-                                node.boxMax_x = o.boxMax_x
-                                node.boxMax_y = o.boxMax_y
-                                node.boxMax_z = o.boxMax_z
-
-                                node.stepSize = o.stepSize
-                                node.alphaBlending = o.alphaBlending
-                                node.gamma = o.gamma
-
-                                node.voxelSizeX = o.voxelSizeX
-                                node.voxelSizeY = o.voxelSizeY
-                                node.voxelSizeZ = o.voxelSizeZ
-
-                                node.sizeX = o.sizeX
-                                node.sizeY = o.sizeY
-                                node.sizeZ = o.sizeZ
-                            }
+                            TODO("Reimplement changes for synchronising volumes")
                         }
 
                         if(o is PointLight && node is PointLight) {
