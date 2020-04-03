@@ -253,8 +253,7 @@ class ReaderExample : SceneryBase("ReaderExample", 1280, 720) {
             "tif", "tiff" -> (loadedObject as? Volume)?.readFrom(file)
             "raw" -> (loadedObject as? Volume)?.readFromRaw(file)
             "obj", "stl" -> {
-                loadedObject = Mesh()
-                (loadedObject as? HasGeometry)?.readFrom(file.toFile().absolutePath)
+                loadedObject = Mesh().readFrom(file.toFile().absolutePath)
                 loadedObject.centerOn(GLVector.getNullVector(3))
                 loadedObject.fitInto(6.0f, scaleUp = false)
             }

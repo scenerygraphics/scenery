@@ -61,18 +61,23 @@ interface ExtractsNatives {
      * @param[paths] A list of JAR paths to extract natives from.
      * @param[replace] Whether or not the java.library.path should be replaced.
      */
-    fun extractLibrariesFromJar(paths: List<String>, replace: Boolean = false) {
+    fun extractLibrariesFromJar(paths: List<String>, replace: Boolean = false, load: Boolean = false): String {
         // FIXME: Kotlin bug, revert to LazyLogger as soon as https://youtrack.jetbrains.com/issue/KT-19690 is fixed.
         // val logger by LazyLogger()
         val logger = LoggerFactory.getLogger(this.javaClass.simpleName)
 
-        val lp = System.getProperty("java.library.path")
         val tmpDir = Files.createTempDirectory("scenery-natives-tmp").toFile()
         val lock = File(tmpDir, ".lock")
         lock.createNewFile()
         lock.deleteOnExit()
 
         cleanTempFiles()
+        val files = ArrayList<String>()
+
+        val nativeLibraryExtensions = hashMapOf(
+            Platform.WINDOWS to listOf("dll"),
+            Platform.LINUX to listOf("so"),
+            Platform.MACOS to listOf("dylib", "jnilib"))
 
         logger.debug("Got back ${paths.joinToString(", ")}")
         paths.filter { it.toLowerCase().endsWith("jar") }.forEach {
@@ -83,7 +88,11 @@ interface ExtractsNatives {
 
             while (enumEntries.hasMoreElements()) {
                 val file = enumEntries.nextElement()
-                val f = File(tmpDir.absolutePath + File.separator + file.getName())
+                if(file.getName().substringAfterLast(".") !in nativeLibraryExtensions[getPlatform()]!!) {
+                    continue
+                }
+                files.add(tmpDir.absolutePath + File.separator + file.getName())
+                val f = File(files.last())
 
                 // create directory, if needed
                 if (file.isDirectory()) {
@@ -112,19 +121,14 @@ interface ExtractsNatives {
             }
         }
 
-        if (replace) {
-            System.setProperty("java.library.path", paths.joinToString(File.pathSeparator))
-        } else {
-            val newPath = "${lp}${File.pathSeparator}${tmpDir.absolutePath}"
-            logger.debug("New java.library.path is $newPath")
-            System.setProperty("java.library.path", newPath)
+        if(load) {
+            files.forEach { lib ->
+                logger.debug("Loading native library $lib")
+                System.load(lib)
+            }
         }
 
-        val fieldSysPath = ClassLoader::class.java.getDeclaredField("sys_paths")
-        fieldSysPath.setAccessible(true)
-        fieldSysPath.set(null, null)
-
-        logger.debug("java.library.path is now ${System.getProperty("java.library.path")}")
+        return tmpDir.absolutePath
     }
 
     /**

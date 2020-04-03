@@ -266,7 +266,7 @@ open class BDVVolume(bdvXMLFile: String = "", val options: VolumeViewerOptions) 
         }
 
         val progvol = MultiVolumeShaderMip(VolumeShaderSignature(signatures), true, 1.0,
-            MultiVolumeShaderMip::class.java,
+            BDVVolume::class.java,
             "BDVVolume.vert",
             "BDVVolume.frag",
             "MaxDepth.frag",
