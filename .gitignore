@@ -39,3 +39,6 @@ log.txt
 
 # ExampleRunner logs
 ExampleRunner-*/
+
+# Dependency jars
+mpi.jar
