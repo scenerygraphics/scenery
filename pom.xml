@@ -534,6 +534,8 @@
             <groupId>org.openmpi</groupId>
             <artifactId>openmpi</artifactId>
             <version>4.0.0</version>
+            <scope>system</scope>
+            <systemPath>${basedir}/mpi.jar</systemPath>
         </dependency>
     </dependencies>
 
