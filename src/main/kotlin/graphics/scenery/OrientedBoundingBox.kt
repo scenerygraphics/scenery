@@ -94,4 +94,11 @@ open class OrientedBoundingBox(val n: Node, val min: GLVector, val max: GLVector
     fun asWorld(): OrientedBoundingBox {
         return OrientedBoundingBox(n, n.worldPosition(min), n.worldPosition(max))
     }
+
+    /**
+     * Return an [OrientedBoundingBox] with min/max translated by offset vector.
+     */
+    fun translate(offset: GLVector): OrientedBoundingBox {
+        return OrientedBoundingBox(n, min + offset, max + offset)
+    }
 }
