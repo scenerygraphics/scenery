@@ -38,7 +38,7 @@ class ProceduralVolumeExample: SceneryBase("Volume Rendering example", 1280, 720
 
         val shell = Box(Vector3f(10.0f, 10.0f, 10.0f), insideNormals = true)
         shell.material.cullingMode = Material.CullingMode.None
-        shell.material.diffuse = Vector3f(0.2f, 0.2f, 0.2f)
+        shell.material.diffuse = Vector3f(0.1f, 0.1f, 0.1f)
         shell.material.specular = Vector3f(0.0f)
         shell.material.ambient = Vector3f(0.0f)
         shell.position = Vector3f(0.0f, 4.0f, 0.0f)
@@ -48,8 +48,9 @@ class ProceduralVolumeExample: SceneryBase("Volume Rendering example", 1280, 720
         val volume = Volume.fromBuffer(volumes, 128, 128, 128, UnsignedByteType(), hub)
         volume.name = "volume"
         volume.position = Vector3f(0.0f, 0.0f, 0.0f)
-        volume.colormap = Colormap.get("viridis")
-//        volume.scale = Vector3f(10.0f, 10.0f, 10.0f)
+        volume.colormap = Colormap.get("hot")
+        volume.pixelToWorldRatio = 0.03f
+
         with(volume.transferFunction) {
             addControlPoint(0.0f, 0.0f)
             addControlPoint(0.2f, 0.0f)
@@ -68,7 +69,7 @@ class ProceduralVolumeExample: SceneryBase("Volume Rendering example", 1280, 720
         lights.mapIndexed { i, light ->
             light.position = Vector3f(2.0f * i - 4.0f,  i - 1.0f, 0.0f)
             light.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
-            light.intensity = 0.5f
+            light.intensity = 0.2f
             scene.addChild(light)
         }
 
@@ -97,7 +98,7 @@ class ProceduralVolumeExample: SceneryBase("Volume Rendering example", 1280, 720
                     count++
                 }
 
-                Thread.sleep(200)
+                Thread.sleep(50)
             }
         }
     }
