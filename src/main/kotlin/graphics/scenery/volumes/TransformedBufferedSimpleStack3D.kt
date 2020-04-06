@@ -5,15 +5,16 @@ import net.imglib2.RandomAccessibleInterval
 import net.imglib2.realtransform.AffineTransform3D
 import org.joml.Matrix4f
 import tpietzsch.multires.SimpleStack3D
+import java.nio.ByteBuffer
 
 /**
- * Class for wrapping [SimpleStack3D] [stack]s with custom transformations
+ * Class for wrapping [BufferedSimpleStack3D] [stack]s with custom transformations
  * governed by [node] and [actualSourceTransform].
  *
  * @author Ulrik Guenther <hello@ulrik.is>
  */
 
-class TransformedSimpleStack3D<T>(val stack: SimpleStack3D<T>, val node: Node, val actualSourceTransform: AffineTransform3D) : SimpleStack3D<T> {
+class TransformedBufferedSimpleStack3D<T>(val stack: SimpleStack3D<T>, backingBuffer: ByteBuffer, dimensions: IntArray, val node: Node, val actualSourceTransform: AffineTransform3D) : BufferedSimpleStack3D<T>(backingBuffer, stack.type, dimensions) {
     override fun getType(): T {
         return stack.type as T
     }
@@ -28,7 +29,7 @@ class TransformedSimpleStack3D<T>(val stack: SimpleStack3D<T>, val node: Node, v
     }
 
     override fun getImage(): RandomAccessibleInterval<T> {
-        return stack.image as RandomAccessibleInterval<T>
+        throw UnsupportedOperationException("Cannot get RAI of BufferedSimpleStack3D")
     }
 
     override fun equals(other: Any?): Boolean {
