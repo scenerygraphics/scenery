@@ -522,7 +522,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
         }
 
         return children
-            .filter { it !is BoundingGrid  }.map { it.getMaximumBoundingBox() }
+            .filter { it !is BoundingGrid  }.map { it.getMaximumBoundingBox().translate(it.position) }
             .fold(boundingBox ?: OrientedBoundingBox(this, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f), { lhs, rhs -> lhs.expand(lhs, rhs) })
     }
 
