@@ -729,6 +729,10 @@ open class VulkanRenderer(hub: Hub,
      * Initialises a given [Node] with the metadata required by the [VulkanRenderer].
      */
     fun initializeNode(n: Node): Boolean {
+        if(n !is HasGeometry) {
+            return false
+        }
+
         val node = if(n is DelegatesRendering) {
             val delegate = n.delegate ?: return false
 
