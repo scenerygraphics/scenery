@@ -139,8 +139,7 @@ open class SceneryContext(val node: VolumeManager) : GpuContext {
          * Sets the uniform with [name] to the Float array given by [value], containing [count] single values.
          */
         override fun setUniform1fv(name: String, count: Int, value: FloatArray) {
-            val collection = value.toList().windowed(1, 1).map { it[0] }.toTypedArray()
-            node.shaderProperties[name] = collection
+            node.shaderProperties[name] = value
             modified = true
         }
 
@@ -148,8 +147,7 @@ open class SceneryContext(val node: VolumeManager) : GpuContext {
          * Sets the uniform with [name] to the Float array given by [value], containing [count] 2-vectors.
          */
         override fun setUniform2fv(name: String, count: Int, value: FloatArray) {
-            val collection = value.toList().windowed(2, 2).map { Vector2f(it[0], it[1]) }.toTypedArray()
-            node.shaderProperties[name] = collection
+            node.shaderProperties[name] = value
             modified = true
         }
 
@@ -160,11 +158,13 @@ open class SceneryContext(val node: VolumeManager) : GpuContext {
         override fun setUniform3fv(name: String, count: Int, value: FloatArray) {
             // in UBOs, arrays of vectors need to be padded, such that they start on
             // word boundaries, e.g. a 3-vector needs to start on byte 16.
-            val collection = value.asSequence().windowed(3, 3).map {
-                Vector4f(it[0], it[1], it[2], 0.0f)
+            val padded = ArrayList<Float>(4*count)
+            value.asSequence().windowed(3, 3).forEach {
+                padded.addAll(it)
+                padded.add(0.0f)
             }
 
-            node.shaderProperties[name] = collection
+            node.shaderProperties[name] = padded.toFloatArray()
             modified = true
         }
 
