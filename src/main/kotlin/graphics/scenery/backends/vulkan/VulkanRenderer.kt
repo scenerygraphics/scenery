@@ -280,7 +280,8 @@ open class VulkanRenderer(hub: Hub,
     var imageBuffer: ByteBuffer? = null
     var encoder: H264Encoder? = null
     private var movieFilename = ""
-    var recordMovie: Boolean = false
+    private var recordMovie: Boolean = false
+    private var recordMovieOverwrite: Boolean = false
     override var pushMode: Boolean = false
 
     private var firstWaitSemaphore: LongBuffer = memAllocLong(1)
@@ -1638,6 +1639,7 @@ open class VulkanRenderer(hub: Hub,
             encoder = null
 
             recordMovie = false
+            recordMovieOverwrite = overwrite
         } else {
             movieFilename = filename
             recordMovie = true
@@ -1710,7 +1712,7 @@ open class VulkanRenderer(hub: Hub,
                         File(System.getProperty("user.home"), "Desktop" + File.separator + "$applicationName - ${SystemHelpers.formatDateTime()}.mp4")
                     } else {
                         File(movieFilename)
-                    }, false)
+                    }, recordMovieOverwrite)
 
                     encoder = H264Encoder(
                         (window.width * settings.get<Float>("Renderer.SupersamplingFactor")).toInt(),
