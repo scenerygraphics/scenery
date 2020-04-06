@@ -108,7 +108,7 @@ open class VulkanTexture(val device: VulkanDevice,
          * within a given [commandBuffer].
          */
         fun copyFrom(commandBuffer: VkCommandBuffer, buffer: VulkanBuffer, updates: List<TextureUpdate>, bufferOffset: Long = 0) {
-            logger.info("Got ${updates.size} texture updates for $this")
+            logger.debug("Got {} texture updates for {}", updates.size, this)
             with(commandBuffer) {
                 val bufferImageCopy = VkBufferImageCopy.calloc(1)
                 var offset = bufferOffset
@@ -343,7 +343,7 @@ open class VulkanTexture(val device: VulkanDevice,
             }
         }
 
-        logger.info("Updating $this with $mipLevels miplevels")
+        logger.debug("Updating {} with {} miplevels", this, mipLevels)
         if (mipLevels == 1) {
             with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
                 if(!initialised) {
@@ -386,7 +386,7 @@ open class VulkanTexture(val device: VulkanDevice,
                         sourceBuffer.capacity().toLong()
                     }
 
-                    logger.info("${this@VulkanTexture} has ${(genericTexture as? UpdatableTexture)?.updates?.size} consumeable updates")
+                    logger.debug("{} has {} consumeable updates", this@VulkanTexture, (genericTexture as? UpdatableTexture)?.updates?.size)
 
                     if(tmpBuffer == null || (tmpBuffer?.size ?: 0) < requiredCapacity) {
                         logger.debug("(${this@VulkanTexture}) Reallocating tmp buffer, old size=${tmpBuffer?.size} new size = ${requiredCapacity.toFloat()/1024.0f/1024.0f} MiB")
