@@ -424,4 +424,23 @@ class NodeTests {
         assertEquals(totalNodes, Node.discover(s, { it.visible == true }).size,
             "Total number of nodes seen should be $totalNodes, but is ")
     }
+
+    /**
+     * Tests bounding box for nodes with children
+     */
+    @Test
+    fun testMaximumBoundingBox() {
+        val s = Scene()
+        val parent = Group()
+        parent.position = GLVector(100f, 100f, 100f)
+        ( 0 until 2).forEach {i ->
+            val sphere = Sphere(5f, 3)
+            sphere.position = GLVector(-100f * ( i % 2 ), 0f, i.toFloat())
+            parent.addChild(sphere)
+        }
+
+        val boundingSphere = parent.getMaximumBoundingBox().getBoundingSphere()
+
+        assertEquals("Bounding sphere radius should be " + boundingSphere.radius + ", but is ", boundingSphere.radius, 53.662083f, 0.001f)
+    }
 }
