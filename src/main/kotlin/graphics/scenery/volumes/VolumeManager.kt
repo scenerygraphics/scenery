@@ -183,10 +183,10 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
     private fun needAtLeastNumVolumes(n: Int) {
         val outOfCoreVolumeCount = renderStacks.count { it.first is MultiResolutionStack3D }
         val regularVolumeCount = renderStacks.count { it.first is SimpleStack3D }
-        logger.info("$currentVolumeCount -> ooc:$outOfCoreVolumeCount reg:$regularVolumeCount")
+        logger.debug("$currentVolumeCount -> ooc:$outOfCoreVolumeCount reg:$regularVolumeCount")
 
         if(currentVolumeCount.first == outOfCoreVolumeCount && currentVolumeCount.second == regularVolumeCount) {
-            logger.info("Not updating shader, current one compatible with ooc:$outOfCoreVolumeCount reg:$regularVolumeCount")
+            logger.debug("Not updating shader, current one compatible with ooc:$outOfCoreVolumeCount reg:$regularVolumeCount")
             return
         }
 
@@ -555,7 +555,6 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
 
                 val sourceTransform = AffineTransform3D()
                 source.spimSource.getSourceTransform(currentTimepoint, 0, sourceTransform)
-                logger.info("ST is $sourceTransform")
 
                 if(stack is MultiResolutionStack3D) {
                     val o = TransformedMultiResolutionStack3D(stack, bdvNode, sourceTransform)
@@ -573,7 +572,13 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
                         }
 
                         val tp = min(max(0, currentTimepoint), wrapped.timepoints.size-1)
-                        TransformedSimpleStack3D(stack, bdvNode, sourceTransform)
+                        TransformedBufferedSimpleStack3D(
+                            stack,
+                            wrapped.timepoints.toList()[tp].second,
+                            intArrayOf(wrapped.width, wrapped.height, wrapped.depth),
+                            bdvNode,
+                            sourceTransform
+                        )
                     } else {
                         TransformedSimpleStack3D(stack, bdvNode, sourceTransform)
                     }
@@ -608,6 +613,7 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
      * will trigger an update of the rendering state, and potentially creation of new shaders.
      */
     fun notifyUpdate(node: Node) {
+        logger.debug("Received update from {}", node)
         renderStateUpdated = true
         updateRenderState()
         needAtLeastNumVolumes(renderStacks.size)

@@ -63,7 +63,7 @@ open class SceneryStackManager: SimpleStackManager {
             val existing = texturesU8[stack]
             if (existing == null) {
                 texture = VolumeTextureU8()
-                logger.info("U8 texture does not exist, creating new one ($texture)")
+                logger.debug("U8 texture does not exist, creating new one ($texture)")
                 if (stack is BufferedSimpleStack3D) {
                     texture.init(stack.dimensions)
                 } else {
@@ -96,7 +96,7 @@ open class SceneryStackManager: SimpleStackManager {
             val existing = texturesU16[stack]
             if (existing == null) {
                 texture = VolumeTextureU16()
-                logger.info("U16 texture does not exist, creating new one ($texture)")
+                logger.debug("U16 texture does not exist, creating new one ($texture)")
                 if (stack is BufferedSimpleStack3D) {
                     texture.init(stack.dimensions)
                 } else {
@@ -124,7 +124,7 @@ open class SceneryStackManager: SimpleStackManager {
 
                 if(stack is BufferedSimpleStack3D) {
                     stack.stale = uploaded.getOrDefault(texture, false)
-                    logger.info("$stack.stale = ${stack.stale}")
+                    logger.debug("$stack.stale = ${stack.stale}")
                 }
             }
         } else {
@@ -162,7 +162,7 @@ open class SceneryStackManager: SimpleStackManager {
 
         if (type is UnsignedByteType && !(tex8 == null || uploaded.getOrDefault(tex8, false))) {
             return if (stack is BufferedSimpleStack3D) {
-                logger.info("Uploading U8 buffered texture")
+                logger.debug("Uploading U8 buffered texture")
                 val tex = tex8 ?: VolumeTextureU8()
                 tex.init(stack.dimensions)
                 tex.upload(context, stack.buffer)
@@ -182,7 +182,7 @@ open class SceneryStackManager: SimpleStackManager {
 
         if (type is UnsignedShortType && !(tex16 == null || uploaded.getOrDefault(tex16, false))) {
             return if (stack is BufferedSimpleStack3D) {
-                logger.info("Uploading U16 buffered texture")
+                logger.debug("Uploading U16 buffered texture")
                 val tex = tex16 ?: VolumeTextureU16()
                 tex.init(stack.dimensions)
                 tex.upload(context, stack.buffer)
