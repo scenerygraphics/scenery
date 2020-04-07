@@ -36,8 +36,6 @@ import java.util.function.BiConsumer
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.system.measureTimeMillis
-import kotlin.time.ExperimentalTime
-import kotlin.time.measureTime
 
 class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, RequestRepaint {
     /** How many elements does a vertex store? */
@@ -81,8 +79,6 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
     /** BDV shader context for this volume */
     var context = SceneryContext(this)
         protected set
-    var maxTimepoint: Int = 0
-        protected set
     /** Texture cache. */
     protected var textureCache: TextureCache
     /** PBO chain for temporary data storage. */
@@ -103,7 +99,6 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
     private val cacheSpec = CacheSpec(Texture.InternalFormat.R16, intArrayOf(32, 32, 32))
 
     private val renderStacks = ArrayList<Triple<Stack3D<*>, Texture, Texture>>()
-    private val simpleRenderStacks = ArrayList<SimpleStack3D<VolatileUnsignedShortType>>()
 
     private val stackManager = SceneryStackManager()
 
@@ -114,7 +109,6 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
     protected var prog = ArrayList<MultiVolumeShaderMip>()
     protected var progvol: MultiVolumeShaderMip? = null
     protected var renderStateUpdated = true
-    protected var cacheSizeUpdated = false
 
     protected var currentVolumeCount: Pair<Int, Int>
 
@@ -286,19 +280,18 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
      * Updates the currently-used set of blocks using [context] to
      * facilitate the updates on the GPU.
      */
-    @UseExperimental(ExperimentalTime::class)
-    protected fun updateBlocks(context: SceneryContext) {
+    protected fun updateBlocks(context: SceneryContext): Boolean {
         val currentProg = progvol
         if(currentProg == null) {
             logger.info("Not updating blocks, no prog")
-            return
+            return false
         }
 
         bdvNodes.forEach { bdvNode ->
             bdvNode.prepareNextFrame()
         }
 
-        val cam = bdvNodes.firstOrNull()?.getScene()?.activeObserver ?: return
+        val cam = bdvNodes.firstOrNull()?.getScene()?.activeObserver ?: return false
         val mvp = Matrix4f(cam.projection).mul(cam.getTransformation())
 
         // TODO: original might result in NULL, is this intended?
@@ -340,10 +333,7 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
             }
         }
 
-//        logger.info("Task creation took $taskCreationDuration ms")
-//        logger.info("Fill Task creation took $fillTasksDuration ms")
-
-        val duration = measureTime {
+        val durationFillTaskProcessing = measureTimeMillis {
             val fillTasks = ArrayList<FillTask>()
             fillTasksPerVolume.forEach {
                 fillTasks.addAll(it.tasks)
@@ -357,10 +347,8 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
             ProcessFillTasks.parallel(textureCache, pboChain, context, forkJoinPool, fillTasks)
         }
 
-//        logger.info("Processing fill tasks took ${duration.inMilliseconds}")
-
+        var repaint = false
         val durationLutUpdate = measureTimeMillis {
-            var repaint = false
             for (i in 0 until renderStacks.size) {
                 val stack = renderStacks[i]
                 if (stack.first is MultiResolutionStack3D) {
@@ -375,8 +363,6 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
                 }
             }
         }
-
-//        logger.info("Updating LUTs took ${durationLutUpdate} ms")
 
         var minWorldVoxelSize = Double.POSITIVE_INFINITY
         val ready = readyToRender()
@@ -424,8 +410,10 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
             currentProg.setUniforms(context)
             currentProg.bindSamplers(context)
         }
-//        logger.info("Binding took $durationBinding ms")
-//        logger.info("Done updating blocks with minVoxelSize=$minWorldVoxelSize")
+
+        logger.debug("Task creation: {}ms, Fill task creation: {}ms, Fill task processing: {}ms, LUT update: {}ms, Bindings: {}ms", taskCreationDuration, fillTasksDuration, durationFillTaskProcessing, durationLutUpdate, durationBinding)
+        // TODO: check if repaint can be made sufficient for triggering rendering
+        return true
     }
 
     class SimpleTexture2D(
@@ -444,11 +432,6 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
         override fun texHeight(): Int = height
         override fun texDepth(): Int = 1
         override fun texInternalFormat(): Texture.InternalFormat = format
-
-        fun upload(context: GpuContext) {
-            context.delete(this)
-            context.texSubImage3D(this, 0, 0, 0, texWidth(), texHeight(), texDepth(), data)
-        }
     }
 
     private fun TransferFunction.toTexture(): Texture3D {
@@ -510,10 +493,11 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
             renderStateUpdated = false
         }
 
+        var repaint = false
         val blockUpdateDuration = measureTimeMillis {
-            if (freezeRequiredBlocks == false) {
+            if (!freezeRequiredBlocks) {
                 try {
-                    updateBlocks(context)
+                    repaint = updateBlocks(context)
                 } catch (e: RuntimeException) {
                     logger.warn("Probably ran out of data, corrupt BDV file? $e")
                     e.printStackTrace()
@@ -521,16 +505,18 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
             }
         }
 
-//        logger.info("Block updates took $blockUpdateDuration ms")
+        logger.debug("Block updates took {}ms", blockUpdateDuration)
 
         context.runDeferredBindings()
-        context.runTextureUpdates()
+        if(repaint) {
+            context.runTextureUpdates()
+        }
 
         return readyToRender()
     }
 
     /**
-     * Updates the current stack given a set of [stacks] to [currentTimepoint].
+     * Updates the current rendering state.
      */
     protected fun updateRenderState() {
         // check if synchronized block is necessary here
