@@ -53,16 +53,16 @@ class OutOfCoreRAIExample: SceneryBase("Out-of-core RAI Rendering example", 1280
         val n5path = Files.createTempDirectory("scenery-t1-head-n5")
         val n5 = N5FSWriter(n5path.toString())
         N5Utils.save(img, n5, datasetName, intArrayOf(img.dimension(0).toInt(), img.dimension(1).toInt(), img.dimension(2).toInt()), GzipCompression())
-        logger.info("Image written to n5 file at ${n5path.toString()}")
+        logger.info("Image written to n5 file at $n5path")
 
         val ooc: RandomAccessibleInterval<UnsignedShortType> = N5Utils.openVolatile(N5FSReader(n5path.toString()), datasetName)
-        logger.info("Image read from n5 file at ${n5path.toString()}")
+        logger.info("Image read from n5 file at $n5path")
 
         val wrapped = VolatileViews.wrapAsVolatile(ooc)
 
         volume = Volume.fromRAII(wrapped as RandomAccessibleInterval<UnsignedShortType>, UnsignedShortType(), AxisOrder.DEFAULT, "T1 head OOC", hub, VolumeViewerOptions())
         volume.transferFunction = TransferFunction.ramp(0.001f, 0.8f)
-        volume.transferFunction.addControlPoint(0.1f, 0.8f)
+        volume.transferFunction.addControlPoint(0.01f, 0.5f)
         volume.scale = Vector3f(5.0f, 5.0f, 15.0f)
         scene.addChild(volume)
 

@@ -381,12 +381,12 @@ open class VulkanTexture(val device: VulkanDevice,
                 } else {
                     val genericTexture = gt
                     val requiredCapacity = if(genericTexture is UpdatableTexture && genericTexture.hasConsumableUpdates()) {
-                        genericTexture.updates.map { if(!it.consumed) { it.contents.remaining() } else { 0 } }.sum().toLong()
+                        genericTexture.getConsumableUpdates().map { it.contents.remaining() }.sum().toLong()
                     } else {
                         sourceBuffer.capacity().toLong()
                     }
 
-                    logger.debug("{} has {} consumeable updates", this@VulkanTexture, (genericTexture as? UpdatableTexture)?.updates?.size)
+                    logger.debug("{} has {} consumeable updates", this@VulkanTexture, (genericTexture as? UpdatableTexture)?.getConsumableUpdates()?.size)
 
                     if(tmpBuffer == null || (tmpBuffer?.size ?: 0) < requiredCapacity) {
                         logger.debug("(${this@VulkanTexture}) Reallocating tmp buffer, old size=${tmpBuffer?.size} new size = ${requiredCapacity.toFloat()/1024.0f/1024.0f} MiB")
@@ -415,11 +415,10 @@ open class VulkanTexture(val device: VulkanDevice,
 
                         if(genericTexture is UpdatableTexture) {
                             if(genericTexture.hasConsumableUpdates()) {
-                                val updates = genericTexture.updates.filter { !it.consumed }
-                                val contents = updates.map { it.contents }
+                                val contents = genericTexture.getConsumableUpdates().map { it.contents }
 
                                 buffer.copyFrom(contents, keepMapped = true)
-                                image.copyFrom(this, buffer, updates)
+                                image.copyFrom(this, buffer, genericTexture.getConsumableUpdates())
 
                                 genericTexture.clearConsumedUpdates()
                             } else {

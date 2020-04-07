@@ -3,6 +3,7 @@ package graphics.scenery
 import org.joml.Vector3f
 import graphics.scenery.Material.CullingMode.*
 import graphics.scenery.textures.Texture
+import graphics.scenery.utils.TimestampedConcurrentHashMap
 import java.io.Serializable
 import java.util.concurrent.ConcurrentHashMap
 
@@ -44,16 +45,13 @@ open class Material : Serializable {
     /** Hash map storing the type and origin of the material's textures. Key is the
      * type, e.g. ("diffuse", "normal", "displacement"...), value can be a file path or
      * via "fromBuffer:[transferTextureName], a named [Texture] in [transferTextures]. */
-    @Volatile var textures: ConcurrentHashMap<String, Texture> = ConcurrentHashMap()
+    @Volatile var textures: TimestampedConcurrentHashMap<String, Texture> = TimestampedConcurrentHashMap()
 
     /** Culling mode of the material. @see[CullingMode] */
     var cullingMode: CullingMode = CullingMode.Back
 
     /** depth testing mode for this material */
     var depthTest: DepthTest = DepthTest.LessEqual
-
-    /** Flag to check whether the [transferTextures] need reloading */
-    var needsTextureReload: Boolean = false
 
     /** Flag to make the object wireframe */
     var wireframe: Boolean = false

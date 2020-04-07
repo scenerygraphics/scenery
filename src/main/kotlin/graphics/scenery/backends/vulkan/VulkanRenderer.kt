@@ -1070,13 +1070,15 @@ open class VulkanRenderer(hub: Hub,
         // if a node is not yet initialized, we'll definitely require a new DS
         var reqNewDS = !node.initialized
 
-        node.material.textures.forEach { (type, texture) ->
+        val last = s.texturesLastSeen
+        val now = System.nanoTime()
+        node.material.textures.forEachChanged(last) { (type, texture) ->
             val slot = VulkanObjectState.textureTypeToSlot(type)
             val generateMipmaps = Texture.mipmappedObjectTextures.contains(type)
 
             logger.debug("${node.name} will have $type texture from $texture in slot $slot")
 
-            if (!textureCache.containsKey(texture) || node.material.needsTextureReload) {
+            if (!textureCache.containsKey(texture)) {
                 try {
                     logger.trace("Loading texture $texture for ${node.name}")
 
@@ -1119,6 +1121,8 @@ open class VulkanRenderer(hub: Hub,
                 s.textures[type] = textureCache[texture]!!
             }
         }
+
+        s.texturesLastSeen = now
 
         Texture.objectTextures.forEach {
             if (!s.textures.containsKey(it)) {
@@ -1838,6 +1842,7 @@ open class VulkanRenderer(hub: Hub,
     }
 
     private var currentFrame = 0
+    private var currentNow = 0L
 
     /**
      * This function renders the scene
@@ -1952,21 +1957,17 @@ open class VulkanRenderer(hub: Hub,
                     }
 
                     val material = it.material
-                    if (material.needsTextureReload) {
-                        logger.trace("Force command buffer re-recording, as reloading textures for ${it.name}")
-                        val reloadTime = measureTimeMillis {
-                            val reload = loadTexturesForNode(it, metadata)
+                    val reloadTime = measureTimeMillis {
+                        val reload = loadTexturesForNode(it, metadata)
 
-                            it.material.needsTextureReload = false
-
-                            if (reload) {
-                                rerecordingCauses.add(it.name)
-                                forceRerecording = true
-                            }
+                        if (reload) {
+                            logger.trace("Force command buffer re-recording, as reloading textures for ${it.name}")
+                            rerecordingCauses.add(it.name)
+                            forceRerecording = true
                         }
-
-                        logger.info("Updating textures for ${node.name} took $reloadTime ms")
                     }
+
+                    logger.debug("Updating textures for {} took {}ms", node.name, reloadTime)
 
                     if (material.materialHashCode() != metadata.materialHashCode || (material is ShaderMaterial && material.shaders.stale)) {
                         logger.trace("Force command buffer re-recording, as blending options for ${it.name} have changed")
@@ -2116,6 +2117,7 @@ open class VulkanRenderer(hub: Hub,
         profiler?.end()
 
         currentFrame = (currentFrame + 1) % swapchain.images.size
+        currentNow = System.nanoTime()
     }
 
     private fun updateTimings() {

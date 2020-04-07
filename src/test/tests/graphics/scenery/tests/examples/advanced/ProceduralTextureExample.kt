@@ -75,7 +75,6 @@ class ProceduralTextureExample : SceneryBase("ProceduralTextureExample") {
                             Vector3i(imageSizeX, imageSizeY, 1),
                             channels = imageChannels, contents = textureBuffer,
                             type = UnsignedByteType()))
-                    box.material.needsTextureReload = true
 
 
                     box.lock.unlock()
@@ -102,8 +101,8 @@ class ProceduralTextureExample : SceneryBase("ProceduralTextureExample") {
             val x = it % width
             val y = it / height
 
-            val g = (255*Math.sin(0.1*x + 0.1*y + tick/10.0f)).toByte()
-            val m = (Math.sin(tick/100.0) * g).toByte()
+            val g = (255*Math.sin(0.1*x + 0.1*y + tick/10.0f)).toInt().toByte()
+            val m = (Math.sin(tick/100.0) * g).toInt().toByte()
             rgba[0] = g
             rgba[1] = m
             rgba[2] = m

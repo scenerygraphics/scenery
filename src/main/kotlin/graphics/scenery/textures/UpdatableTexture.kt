@@ -25,11 +25,20 @@ class UpdatableTexture(
     data class TextureUpdate(val extents: TextureExtents, val contents: ByteBuffer, var consumed: Boolean = false, var deallocate: Boolean = false)
 
     /** List of [TextureUpdate]s for the currently active texture. */
-    var updates: ArrayList<TextureUpdate> = ArrayList()
+    private var updates: ArrayList<TextureUpdate> = ArrayList()
+
+    fun addUpdate(update: TextureUpdate) {
+        updates.add(update)
+        updated = System.nanoTime()
+    }
 
     /** Returns true if the generic texture does have any non-consumed updates */
     fun hasConsumableUpdates(): Boolean {
         return updates.any { !it.consumed }
+    }
+
+    fun getConsumableUpdates(): List<TextureUpdate> {
+        return updates.filter { !it.consumed }
     }
 
     /** Clears all consumed updates */
