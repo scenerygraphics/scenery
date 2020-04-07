@@ -295,9 +295,9 @@ open class SceneryContext(val node: VolumeManager) : GpuContext {
             logger.debug("lutName is $lutName for $texture")
 
             val db = { lut: String ->
-                if (!(node.material.textures.get(lut) != null
-                    && currentlyBoundLuts.get(lut) != null
-                    && node.material.textures.get(lut) == currentlyBoundLuts[lut])) {
+                if (!(node.material.textures[lut] != null
+                    && currentlyBoundLuts[lut] != null
+                    && node.material.textures[lut] == currentlyBoundLuts[lut])) {
                     val contents = when(texture) {
                         is LookupTextureARGB -> null
                         is VolumeManager.SimpleTexture2D -> texture.data
@@ -321,7 +321,7 @@ open class SceneryContext(val node: VolumeManager) : GpuContext {
                         minFilter = filterLinear,
                         maxFilter = filterLinear)
 
-                    node.material.textures.put(lut, gt)
+                    node.material.textures[lut] = gt
 
                     currentlyBoundLuts[lut] = gt
                 }
@@ -363,6 +363,7 @@ open class SceneryContext(val node: VolumeManager) : GpuContext {
         removals.forEach { deferredBindings.remove(it) }
     }
 
+    @Suppress("unused")
     fun clearBindings() {
         val caches = bindings.filter { it is TextureCache }
         caches.map { bindings.remove(it.key) }
