@@ -524,6 +524,7 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
 //        logger.info("Block updates took $blockUpdateDuration ms")
 
         context.runDeferredBindings()
+        context.runTextureUpdates()
 
         return readyToRender()
     }

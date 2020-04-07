@@ -69,7 +69,7 @@ open class SceneryContext(val node: VolumeManager) : GpuContext {
             if(samplerKeys.any { name.startsWith(it) }) {
                 val binding = bindings.entries.find { it.value.binding == v0 }
                 if(binding != null) {
-                    bindings[binding.key] = BindingState(v0, name)
+                    bindings[binding.key] = BindingState(v0, name, binding.value.reallocate)
                 } else {
                     logger.warn("Binding for $name slot $v0 not found.")
                 }
@@ -260,7 +260,7 @@ open class SceneryContext(val node: VolumeManager) : GpuContext {
             BVVTexture.InternalFormat.FLOAT32 -> Triple(1, FloatType(), false)
             BVVTexture.InternalFormat.UNKNOWN -> TODO()
             else -> throw UnsupportedOperationException("Unknown internal format ${texture.texInternalFormat()}")
-        } as Triple<Int, NumericType<*>, Boolean>
+        }
 
         val repeat = when(texture.texWrap()) {
             BVVTexture.Wrap.CLAMP_TO_BORDER_ZERO -> RepeatMode.ClampToBorder
@@ -378,10 +378,16 @@ open class SceneryContext(val node: VolumeManager) : GpuContext {
         if(texture != null) {
             val binding = bindings[texture]
             if(binding != null) {
-                bindings[texture] = BindingState(unit, binding.uniformName)
+                bindings[texture] = BindingState(unit, binding.uniformName, binding.reallocate)
             } else {
-                val previousName = bindings.filter { it.value.binding == unit }.entries.firstOrNull()?.value?.uniformName
+                val prev = bindings.filter { it.value.binding == unit }.entries.firstOrNull()?.value
+                val previousName = prev?.uniformName
+                val previousReallocate = prev?.reallocate
+
                 bindings[texture] = BindingState(unit, previousName)
+                if(previousReallocate != null) {
+                    bindings[texture]?.reallocate = previousReallocate
+                }
             }
         }
     }
@@ -420,8 +426,59 @@ open class SceneryContext(val node: VolumeManager) : GpuContext {
         bindings[texture]?.reallocate = true
     }
 
-    var cachedPBOUpdates = ConcurrentHashMap<Texture3D, MutableList<PBOUpdate>>()
-    var cachedBufferUpdates = ConcurrentHashMap<Texture3D, MutableList<BufferedUpdate>>()
+    private data class SubImageUpdate(val xoffset: Int, val yoffset: Int, val zoffset: Int, val width: Int, val height: Int, val depth: Int, val contents: ByteBuffer, val reallocate: Boolean = false)
+    private var cachedUpdates = ConcurrentHashMap<BVVTexture, MutableList<SubImageUpdate>>()
+
+    private data class UpdateParameters(val xoffset: Int, val yoffset: Int, val zoffset: Int, val width: Int, val height: Int, val depth: Int, val hash: Int)
+    private val lastUpdates = ConcurrentHashMap<Texture3D, UpdateParameters>()
+
+    /**
+     * Runs all cached texture updates gathered from [texSubImage3D].
+     */
+    fun runTextureUpdates() {
+        cachedUpdates.forEach { (t, updates) ->
+            val texture = bindings[t]
+            val name = texture?.uniformName
+
+            if(texture != null && name != null) {
+                val gt = node.material.textures[name] as? UpdatableTexture ?: throw IllegalStateException("Texture for $name is null or not updateable")
+
+                updates.forEach { update ->
+                    if (texture.reallocate) {
+                        val newDimensions = Vector3i(update.width, update.height, update.depth)
+                        val dimensionsChanged = Vector3i(newDimensions).sub(gt.dimensions).length() > 0.0001f
+
+                        if(dimensionsChanged) {
+                            logger.info("Reallocating for size change ${gt.dimensions} -> $newDimensions")
+                            gt.clearUpdates()
+                            gt.dimensions = newDimensions
+                            gt.contents = null
+
+                            if (t is LookupTextureARGB) {
+                                gt.normalized = false
+                            }
+
+                            node.material.textures[name] = gt
+                        }
+
+                        val textureUpdate = TextureUpdate(
+                            TextureExtents(update.xoffset, update.yoffset, update.zoffset, update.width, update.height, update.depth),
+                            update.contents, deallocate = true)
+                        gt.addUpdate(textureUpdate)
+
+                        texture.reallocate = false
+                    } else {
+                        val textureUpdate = TextureUpdate(
+                            TextureExtents(update.xoffset, update.yoffset, update.zoffset, update.width, update.height, update.depth),
+                            update.contents, deallocate = true)
+
+                        gt.addUpdate(textureUpdate)
+                    }
+                }
+                updates.clear()
+            }
+        }
+    }
 
     /**
      * Updates the memory allocated to [texture] with the contents of the staging buffer [pbo].
@@ -431,67 +488,18 @@ open class SceneryContext(val node: VolumeManager) : GpuContext {
      */
     override fun texSubImage3D(pbo: StagingBuffer, texture: Texture3D, xoffset: Int, yoffset: Int, zoffset: Int, width: Int, height: Int, depth: Int, pixels_buffer_offset: Long) {
         logger.info("Updating 3D texture via PBO from $texture: dx=$xoffset dy=$yoffset dz=$zoffset w=$width h=$height d=$depth offset=$pixels_buffer_offset")
-        val tex = bindings.entries.find { it.key == texture }
-        if(tex == null) {
-            if(node.readyToRender()) {
-                logger.warn("No binding found for $texture (PBO)")
-            }
-
-            val pboUpdate = PBOUpdate(xoffset, yoffset, zoffset, width, height, depth, pixels_buffer_offset, pbo)
-            cachedPBOUpdates.getOrPut(texture, { ArrayList() }).add(pboUpdate)
-            return
-        }
-        val texname = tex.value.uniformName
-
-        if(texname == null) {
-            logger.warn("Binding not initialiased for $texture")
-            return
-        }
-
-        val updates = ArrayList<PBOUpdate>(cachedPBOUpdates[texture]?.size ?: 0)
-        cachedPBOUpdates[texture]?.forEach { updates.add(it) }
-        cachedPBOUpdates[texture]?.clear()
-
-        logger.debug("Running ${updates.size} cached PBO updates")
-        updates.forEach { update -> texSubImage3D(update.pbo, texture, update.xoffset, update.yoffset, update.zoffset, update.width, update.height, update.depth, update.offset) }
 
         val tmpStorage = (map(pbo) as ByteBuffer).duplicate().order(ByteOrder.LITTLE_ENDIAN)
         tmpStorage.position(pixels_buffer_offset.toInt())
 
-        val tmp = MemoryUtil.memAlloc(width*height*depth*2)
-        tmpStorage.limit(tmpStorage.position() + width*height*depth*2)
+        val tmp = MemoryUtil.memAlloc(width*height*depth*texture.texInternalFormat().bytesPerElement)
+        tmpStorage.limit(tmpStorage.position() + width*height*depth*texture.texInternalFormat().bytesPerElement)
         tmp.put(tmpStorage)
         tmp.flip()
 
-        val gt = node.material.textures[texname] as? UpdatableTexture ?: throw IllegalStateException("Texture for $texname is null or not updatable")
-
-        if(tex.value.reallocate) {
-            logger.info("Clearing updates")
-            gt.clearUpdates()
-            gt.dimensions = Vector3i(width, height, depth)
-            gt.contents = null
-            gt.normalized = false
-
-            val update = TextureUpdate(
-                TextureExtents(xoffset, yoffset, zoffset, width, height, depth),
-                tmp, deallocate = true)
-            gt.addUpdate(update)
-        } else {
-            logger.info("Added one update from PBO")
-            val update = TextureUpdate(
-                TextureExtents(xoffset, yoffset, zoffset, width, height, depth),
-                tmp, deallocate = true)
-
-            gt.addUpdate(update)
-        }
-
-        node.material.textures[texname] = gt
+        val update = SubImageUpdate(xoffset, yoffset, zoffset, width, height, depth, tmp)
+        cachedUpdates.getOrPut(texture, { ArrayList(10) }).add(update)
     }
-
-    data class UpdateParameters(val xoffset: Int, val yoffset: Int, val zoffset: Int, val width: Int, val height: Int, val depth: Int, val hash: Int)
-    data class BufferedUpdate(val xoffset: Int, val yoffset: Int, val zoffset: Int, val width: Int, val height: Int, val depth: Int, val buffer: ByteBuffer)
-    data class PBOUpdate(val xoffset: Int, val yoffset: Int, val zoffset: Int, val width: Int, val height: Int, val depth: Int, val offset: Long, val pbo: StagingBuffer)
-    val lastUpdates = ConcurrentHashMap<Texture3D, UpdateParameters>()
 
     /**
      * Updates the memory allocated to [texture] with the contents of [pixels].
@@ -509,76 +517,16 @@ open class SceneryContext(val node: VolumeManager) : GpuContext {
             return
         }
 
-        logger.debug("Updating 3D texture via Texture3D from $texture: dx=$xoffset dy=$yoffset dz=$zoffset w=$width h=$height d=$depth")
-
-        val tex = bindings.entries.find { it.key == texture }
-        if(tex == null) {
-            if(node.readyToRender()) {
-                logger.warn("No binding found for $texture/${texture.hashCode()} (Texture3D). Bindings exist for ${bindings.keys.joinToString { it.toString() }}.")
-            }
-            val bufferUpdate = BufferedUpdate(xoffset, yoffset, zoffset, width, height, depth, pixels)
-            cachedBufferUpdates.getOrPut(texture, { ArrayList() }).add(bufferUpdate)
-            return
-        }
-        val texname = tex.value.uniformName
-
-        if(texname == null) {
-            logger.warn("Binding not initialised for $texture.")
-            return
-        }
-
-        val updates = ArrayList<BufferedUpdate>(cachedBufferUpdates[texture]?.size ?: 0)
-        cachedBufferUpdates[texture]?.forEach { updates.add(it) }
-        cachedBufferUpdates[texture]?.clear()
-
-        logger.debug("Running ${updates.size} cached Buffer updates")
-        updates.forEach { update -> texSubImage3D(texture, update.xoffset, update.yoffset, update.zoffset, update.width, update.height, update.depth, update.buffer) }
+        logger.info("Updating 3D texture via Texture3D from $texture: dx=$xoffset dy=$yoffset dz=$zoffset w=$width h=$height d=$depth")
 
         val p = pixels.duplicate().order(ByteOrder.LITTLE_ENDIAN)
-        val allocationSize = width * height * depth * when(texture.texInternalFormat()) {
-            BVVTexture.InternalFormat.R8 -> 1
-            BVVTexture.InternalFormat.R16 -> 2
-            BVVTexture.InternalFormat.RGBA8 -> 4
-            BVVTexture.InternalFormat.RGBA8UI -> 4
-            BVVTexture.InternalFormat.FLOAT32 -> 4
-            BVVTexture.InternalFormat.UNKNOWN -> {
-                logger.error("Don't know how to determine texture size of $texture, assuming 1 byte, 1 channel.")
-                1
-            }
-        }
+        val allocationSize = width * height * depth * texture.texInternalFormat().bytesPerElement
         val tmp = MemoryUtil.memAlloc(allocationSize)
         p.limit(p.position() + allocationSize)
         MemoryUtil.memCopy(p, tmp)
-//            tmp.put(p)
-//            tmp.flip()
-
-        // TODO: add support for different data types
-        val gt = node.material.textures[texname] as? UpdatableTexture ?: throw IllegalStateException("Texture for $texname is null or not updateable")
-
-//            logger.info("for $texture: Texname=$texname, gt=$gt")
-        if(tex.value.reallocate) {
-            gt.clearUpdates()
-            gt.dimensions = Vector3i(width, height, depth)
-            gt.contents = null
-            if(texture is LookupTextureARGB) {
-                gt.normalized = false
-            }
-
-            val update = TextureUpdate(
-                TextureExtents(xoffset, yoffset, zoffset, width, height, depth),
-                tmp, deallocate = true)
-            gt.addUpdate(update)
-            tex.value.reallocate = false
-        } else {
-            val update = TextureUpdate(
-                TextureExtents(xoffset, yoffset, zoffset, width, height, depth),
-                tmp, deallocate = true)
-
-            gt.addUpdate(update)
-        }
-
-        node.material.textures[texname] = gt
 
         lastUpdates[texture] = params
+        val update = SubImageUpdate(xoffset, yoffset, zoffset, width, height, depth, tmp)
+        cachedUpdates.getOrPut(texture, { ArrayList(10) }).add(update)
     }
 }
