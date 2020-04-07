@@ -7,6 +7,8 @@ import graphics.scenery.DetachedHeadCamera
 import graphics.scenery.PointLight
 import graphics.scenery.SceneryBase
 import graphics.scenery.backends.Renderer
+import graphics.scenery.volumes.Colormap
+import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.Volume
 import net.imagej.ops.OpService
 import net.imglib2.histogram.Histogram1d
@@ -62,8 +64,8 @@ class BDVExample: SceneryBase("BDV Rendering example", 1280, 720) {
         val options = VolumeViewerOptions().maxCacheSizeInMB(maxCacheSize)
         val v = Volume.fromSpimData(XmlIoSpimDataMinimal().load(files.first()), hub, options)
         v.name = "volume"
-//        v.scale = Vector3f(0.02f, 0.02f, 0.02f)
-        v.updateWorld(true, true)
+        v.colormap = Colormap.get("hot")
+        v.transferFunction = TransferFunction.ramp(0.02f, 0.4f)
         v.viewerState.sources.firstOrNull()?.spimSource?.getSource(0, 0)?.let { rai ->
             var h: Any? = null
             val duration = measureTimeMillis {
