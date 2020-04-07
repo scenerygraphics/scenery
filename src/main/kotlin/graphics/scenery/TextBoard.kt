@@ -102,7 +102,6 @@ class TextBoard(font: String = "SourceSansPro-Regular.ttf", override var isBillb
                 normalized = true,
                 mipmap = true)
 
-            material.needsTextureReload = true
             needsPreUpdate = false
         }
     }

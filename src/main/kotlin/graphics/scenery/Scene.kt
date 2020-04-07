@@ -227,7 +227,6 @@ open class Scene : Node("RootNode") {
             m.diffuse = Vector3f(1.0f, 0.0f, 0.0f)
             m.specular = Vector3f(0.0f, 0.0f, 0.0f)
             m.ambient = Vector3f(0.0f, 0.0f, 0.0f)
-            m.needsTextureReload = true
 
             matches.firstOrNull()?.let {
                 it.node.material = m

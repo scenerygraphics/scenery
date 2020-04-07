@@ -3,6 +3,7 @@ package graphics.scenery.textures
 import cleargl.GLTypeEnum
 import org.joml.Vector3f
 import graphics.scenery.utils.Image
+import graphics.scenery.utils.Timestamped
 import net.imglib2.type.numeric.NumericType
 import net.imglib2.type.numeric.integer.UnsignedByteType
 import org.joml.Vector3i
@@ -38,7 +39,7 @@ open class Texture @JvmOverloads constructor(
         var maxFilter: FilteringMode = FilteringMode.Linear
 
 
-) : Serializable {
+) : Serializable, Timestamped {
     /**
      * Enum class defining available texture repeat modes.
      */
@@ -90,4 +91,13 @@ open class Texture @JvmOverloads constructor(
                 4, UnsignedByteType(), image.contents, repeatUVW, borderColor, normalized, mipmap)
         }
     }
+
+    /** When the object was created. */
+    override var created: Long = System.nanoTime()
+
+    /** When the object was last modified. */
+    override var updated: Long = System.nanoTime()
+
+    /** When the object was added to a collection. */
+    override var added: Long = System.nanoTime()
 }

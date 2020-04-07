@@ -70,6 +70,9 @@ open class VulkanObjectState : NodeMetadata {
     /** Skip for rendering if this is set. */
     var preDrawSkip = false
 
+    /** Last reload time for textures */
+    var texturesLastSeen = 0L
+
     /**
      * Creates or updates the [textureDescriptorSets] describing the textures used. Will cover all the renderpasses
      * given in [passes]. The set will reside on [device] and the descriptor set layout(s) determined from the renderpass.

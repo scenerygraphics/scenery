@@ -175,8 +175,8 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
         progvol?.setUniforms(context)
 
         getScene()?.activeObserver?.let { cam ->
-            progvol?.setViewportWidth(cam.width.toInt())
-            progvol?.setEffectiveViewportSize(cam.width.toInt(), cam.height.toInt())
+            progvol?.setViewportWidth(cam.width)
+            progvol?.setEffectiveViewportSize(cam.width, cam.height)
         }
     }
 
@@ -299,9 +299,7 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
         }
 
         val cam = bdvNodes.firstOrNull()?.getScene()?.activeObserver ?: return
-        val viewProjection = Matrix4f(cam.projection)
-        viewProjection.mul(cam.getTransformation())
-        val mvp = Matrix4f().set(viewProjection)
+        val mvp = Matrix4f(cam.projection).mul(cam.getTransformation())
 
         // TODO: original might result in NULL, is this intended?
         currentProg.use(context)
@@ -316,7 +314,7 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
                 if (stack !is MultiResolutionStack3D) continue
                 val volume = outOfCoreVolumes[i]
 
-                volume.init(stack, cam.width.toInt(), mvp)
+                volume.init(stack, cam.width, mvp)
 
                 val tasks = volume.fillTasks
                 numTasks += tasks.size
@@ -418,8 +416,8 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
                     }
                 }
 
-            currentProg.setViewportWidth(cam.width.toInt())
-            currentProg.setEffectiveViewportSize(cam.width.toInt(), cam.height.toInt())
+            currentProg.setViewportWidth(cam.width)
+            currentProg.setEffectiveViewportSize(cam.width, cam.height)
             currentProg.setDegrade(farPlaneDegradation)
             currentProg.setProjectionViewMatrix(mvp, maxAllowedStepInVoxels * minWorldVoxelSize)
             currentProg.use(context)
