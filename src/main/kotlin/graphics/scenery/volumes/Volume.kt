@@ -7,7 +7,6 @@ import bdv.spimdata.SpimDataMinimal
 import bdv.spimdata.WrapBasicImgLoader
 import bdv.spimdata.XmlIoSpimDataMinimal
 import bdv.tools.brightness.ConverterSetup
-import bdv.tools.transformation.TransformedSource
 import bdv.util.AxisOrder
 import bdv.util.AxisOrder.DEFAULT
 import bdv.util.RandomAccessibleIntervalSource
@@ -15,17 +14,14 @@ import bdv.util.RandomAccessibleIntervalSource4D
 import bdv.util.volatiles.VolatileView
 import bdv.util.volatiles.VolatileViewData
 import bdv.viewer.DisplayMode
-import bdv.viewer.Interpolation
 import bdv.viewer.Source
 import bdv.viewer.SourceAndConverter
 import bdv.viewer.state.ViewerState
-import coremem.enums.NativeTypeEnum
 import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.numerics.OpenSimplexNoise
 import graphics.scenery.numerics.Random
 import graphics.scenery.utils.LazyLogger
-import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.times
 import graphics.scenery.utils.forEachParallel
 import graphics.scenery.volumes.Volume.VolumeDataSource.SpimDataMinimalSource
@@ -35,17 +31,13 @@ import mpicbg.spim.data.generic.sequence.AbstractSequenceDescription
 import mpicbg.spim.data.sequence.FinalVoxelDimensions
 import mpicbg.spim.data.sequence.VoxelDimensions
 import net.imglib2.RandomAccessibleInterval
-import net.imglib2.RealRandomAccessible
 import net.imglib2.Volatile
 import net.imglib2.realtransform.AffineTransform3D
-import net.imglib2.type.Type
 import net.imglib2.type.numeric.ARGBType
 import net.imglib2.type.numeric.NumericType
-import net.imglib2.type.numeric.RealType
 import net.imglib2.type.numeric.integer.*
 import net.imglib2.type.numeric.real.FloatType
 import org.joml.Matrix4f
-import org.joml.Vector2f
 import org.joml.Vector3i
 import org.lwjgl.system.MemoryUtil
 import tpietzsch.example2.VolumeViewerOptions
@@ -57,11 +49,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
-import kotlin.concurrent.thread
-import kotlin.math.abs
-import kotlin.math.max
-import kotlin.math.min
-import kotlin.math.sqrt
+import kotlin.math.*
 import kotlin.streams.toList
 
 open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOptions, val hub: Hub) : DelegatesRendering(), HasGeometry {
@@ -81,7 +69,7 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
     override var indices : IntBuffer = IntBuffer.allocate(0)
 
     val converterSetups = ArrayList<ConverterSetup>()
-    open val maxTimepoint: Int
+    var maxTimepoint: Int
     val viewerState: ViewerState
 
     /** The transfer function to use for the volume. Flat by default. */
@@ -129,54 +117,14 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
         AlphaBlending
     }
 
-    class BufferDummySource<T: NumericType<T>>(val timepoints: LinkedHashMap<String, ByteBuffer>,
-                                               val width: Int,
-                                               val height: Int,
-                                               val depth: Int,
-                               val dimensions: VoxelDimensions,
-                               val sourceName: String,
-                               val sourceType: T): Source<T> {
-        override fun isPresent(t: Int): Boolean {
-            return t in 0 .. timepoints.size
-        }
-
-        override fun getNumMipmapLevels(): Int {
-            return 1
-        }
-
-        override fun getInterpolatedSource(t: Int, level: Int, method: Interpolation?): RealRandomAccessible<T> {
-            TODO("Can't get interpolated source for BufferDummySource")
-        }
-
-        override fun getSourceTransform(t: Int, level: Int, transform: AffineTransform3D?) {
-            transform?.set(AffineTransform3D())
-        }
-
-        override fun getVoxelDimensions(): VoxelDimensions {
-            return dimensions
-        }
-
-        override fun getSource(t: Int, level: Int): RandomAccessibleInterval<T> {
-            TODO("Can't get source for BufferDummySource")
-        }
-
-        override fun getName(): String {
-            return sourceName
-        }
-
-        override fun getType(): T {
-            return sourceType
-        }
-    }
-
     init {
         when(dataSource) {
             is SpimDataMinimalSource -> {
                 val spimData = dataSource.spimData
 
                 val seq: AbstractSequenceDescription<*, *, *> = spimData.sequenceDescription
-                maxTimepoint = seq.getTimePoints().size() - 1
-                cacheControls?.addCacheControl((seq.getImgLoader() as ViewerImgLoader).cacheControl)
+                maxTimepoint = seq.timePoints.size() - 1
+                cacheControls.addCacheControl((seq.imgLoader as ViewerImgLoader).cacheControl)
 
                 // wraps legacy image formats (e.g., TIFF) if referenced in BDV XML
                 WrapBasicImgLoader.wrapImgLoaderIfNecessary(spimData)
@@ -194,7 +142,7 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
             is VolumeDataSource.RAISource<*> -> {
                 maxTimepoint = dataSource.numTimepoints
                 viewerState = ViewerState(dataSource.sources, maxTimepoint)
-                converterSetups.addAll( dataSource.converterSetups );
+                converterSetups.addAll( dataSource.converterSetups )
             }
         }
 
@@ -236,7 +184,7 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
     }
 
     fun prepareNextFrame() {
-        cacheControls?.prepareNextFrame()
+        cacheControls.prepareNextFrame()
     }
 
     /**
@@ -286,91 +234,8 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
      *
      * Returns the sampled value as a [Float], or null in case nothing could be sampled.
      */
-    fun sample(uv: Vector2f, interpolate: Boolean = true): Float? {
+    open fun sample(uv: Vector3f, interpolate: Boolean = true): Float? {
         return null
-        /*
-        val gt = material.transferTextures["VolumeTextures"] ?: return null
-
-        val bpp = when(gt.type) {
-            GLTypeEnum.Byte -> 1
-            GLTypeEnum.UnsignedByte -> 1
-            GLTypeEnum.Short -> 2
-            GLTypeEnum.UnsignedShort -> 2
-            GLTypeEnum.Int -> 4
-            GLTypeEnum.UnsignedInt -> 4
-            GLTypeEnum.Float -> 4
-            GLTypeEnum.Double -> 8
-        }
-
-        if(uv.x() < 0.0f || uv.x() > 1.0f || uv.y() < 0.0f || uv.y() > 1.0f || uv.z() < 0.0f || uv.z() > 1.0f) {
-            logger.debug("Invalid UV coords for volume access: $uv")
-            return null
-        }
-
-        val absoluteCoords = GLVector(uv.x() * gt.dimensions.x(), uv.y() * gt.dimensions.y(), uv.z() * gt.dimensions.z())
-//        val index: Int = (floor(gt.dimensions.x() * gt.dimensions.y() * absoluteCoords.z()).toInt()
-//            + floor(gt.dimensions.x() * absoluteCoords.y()).toInt()
-//            + floor(absoluteCoords.x()).toInt())
-        val absoluteCoordsD = GLVector(floor(absoluteCoords.x()), floor(absoluteCoords.y()), floor(absoluteCoords.z()))
-        val diff = absoluteCoords - absoluteCoordsD
-
-        fun toIndex(absoluteCoords: GLVector): Int = (
-            absoluteCoords.x().roundToInt().dec()
-                + (gt.dimensions.x() * absoluteCoords.y()).roundToInt().dec()
-                + (gt.dimensions.x() * gt.dimensions.y() * absoluteCoords.z()).roundToInt().dec()
-            )
-
-        val index = toIndex(absoluteCoordsD)
-
-        val contents = gt.contents
-        if(contents == null) {
-            logger.error("Volume contents are empty for sampling at $uv")
-            return null
-        }
-
-        if(contents.limit() < index*bpp) {
-            logger.debug("Absolute index ${index*bpp} for data type ${gt.type} from $uv exceeds data buffer limit of ${contents.limit()} (capacity=${contents.capacity()}), coords=$absoluteCoords/${gt.dimensions}")
-            return 0.0f
-        }
-
-
-        fun density(index:Int): Float {
-            if(index*bpp >= contents.limit()) {
-                return 0.0f
-            }
-
-            val s = when(gt.type) {
-                GLTypeEnum.Byte -> contents.get(index).toFloat()
-                GLTypeEnum.UnsignedByte -> contents.get(index).toUByte().toFloat()
-                GLTypeEnum.Short -> contents.asShortBuffer().get(index).toFloat()
-                GLTypeEnum.UnsignedShort -> contents.asShortBuffer().get(index).toUShort().toFloat()
-                GLTypeEnum.Int -> contents.asIntBuffer().get(index).toFloat()
-                GLTypeEnum.UnsignedInt -> contents.asIntBuffer().get(index).toUInt().toFloat()
-                GLTypeEnum.Float -> contents.asFloatBuffer().get(index)
-                GLTypeEnum.Double -> contents.asDoubleBuffer().get(index).toFloat()
-            }
-
-            return transferFunction.evaluate(s/trangemax)
-        }
-
-        return if(interpolate) {
-            val offset = 1.0f
-
-            val d00 = lerp(diff.x(), density(index), density(toIndex(absoluteCoordsD + GLVector(offset, 0.0f, 0.0f))))
-            val d10 = lerp(diff.x(), density(toIndex(absoluteCoordsD + GLVector(0.0f, offset, 0.0f))), density(toIndex(absoluteCoordsD + GLVector(offset, offset, 0.0f))))
-            val d01 = lerp(diff.x(), density(toIndex(absoluteCoordsD + GLVector(0.0f, 0.0f, offset))), density(toIndex(absoluteCoordsD + GLVector(offset, 0.0f, offset))))
-            val d11 = lerp(diff.x(), density(toIndex(absoluteCoordsD + GLVector(0.0f, offset, offset))), density(toIndex(absoluteCoordsD + GLVector(offset, offset, offset))))
-            val d0 = lerp(diff.y(), d00, d10)
-            val d1 = lerp(diff.y(), d01, d11)
-            lerp(diff.z(), d0, d1)
-        } else {
-            density(index)
-        }
-         */
-    }
-
-    private inline fun lerp(t: Float, v0: Float, v1: Float): Float {
-        return (1.0f - t) * v0 + t * v1
     }
 
     /**
@@ -380,156 +245,8 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
      * Returns the list of samples (which might include `null` values in case a sample failed),
      * as well as the delta used along the ray, or null if the start/end coordinates are invalid.
      */
-    fun sampleRay(start: Vector3f, end: Vector3f): Pair<List<Float?>, Vector3f>? {
+    open fun sampleRay(start: Vector3f, end: Vector3f): Pair<List<Float?>, Vector3f>? {
         return null
-        /*
-        val gt = material.transferTextures["VolumeTextures"] ?: return null
-
-        if(start.x() < 0.0f || start.x() > 1.0f || start.y() < 0.0f || start.y() > 1.0f || start.z() < 0.0f || start.z() > 1.0f) {
-            logger.debug("Invalid UV coords for ray start: {} -- will clamp values to [0.0, 1.0].", start)
-        }
-
-        if(end.x() < 0.0f || end.x() > 1.0f || end.y() < 0.0f || end.y() > 1.0f || end.z() < 0.0f || end.z() > 1.0f) {
-            logger.debug("Invalid UV coords for ray end: {} -- will clamp values to [0.0, 1.0].", end)
-        }
-
-        val startClamped = GLVector(
-            min(max(start.x(), 0.0f), 1.0f),
-            min(max(start.y(), 0.0f), 1.0f),
-            min(max(start.z(), 0.0f), 1.0f)
-        )
-
-        val endClamped = GLVector(
-            min(max(end.x(), 0.0f), 1.0f),
-            min(max(end.y(), 0.0f), 1.0f),
-            min(max(end.z(), 0.0f), 1.0f)
-        )
-
-        val direction = (endClamped - startClamped).normalize()
-        val maxSteps = (direction.hadamard(gt.dimensions).magnitude() * 2.0f).roundToInt()
-        val delta = direction * (1.0f/maxSteps.toFloat())
-
-        return (0 until maxSteps).map {
-            sample(startClamped + (delta * it.toFloat()))
-        } to delta
-         */
-    }
-
-
-    class RAIVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewerOptions, hub: Hub): Volume(ds, options, hub) {
-        init {
-            if(ds.cacheControl != null) {
-                logger.info("Adding cache control")
-                cacheControls?.addCacheControl(ds.cacheControl)
-            }
-        }
-
-        override fun localScale(): Vector3f {
-            var size = Vector3f(1.0f, 1.0f, 1.0f)
-            val source = ds.sources.firstOrNull()
-
-            if(source != null) {
-                val s = source.spimSource.getSource(0, 0)
-                val min = Vector3f(s.min(0).toFloat(), s.min(1).toFloat(), s.min(2).toFloat())
-                val max = Vector3f(s.max(0).toFloat(), s.max(1).toFloat(), s.max(2).toFloat())
-                size = max - min
-            }
-            logger.info("Sizes are $size")
-
-            return Vector3f(
-                size.x() * pixelToWorldRatio / 10.0f,
-                size.y() * pixelToWorldRatio / 10.0f,
-                size.z() * pixelToWorldRatio / 10.0f
-            )
-        }
-
-        override fun composeModel() {
-            logger.info("Composing model for $this")
-            @Suppress("SENSELESS_COMPARISON")
-            if(position != null && rotation != null && scale != null) {
-                val L = localScale()
-                logger.info("Local scale is $L")
-                val Lh = L * (1.0f/2.0f)
-                model.identity()
-                model.translate(this.position.x(), this.position.y(), this.position.z())
-                model.mul(Matrix4f().set(this.rotation))
-                model.scale(this.scale.x(), this.scale.y(), this.scale.z())
-                model.scale(Lh.x(), Lh.y(), Lh.z())
-                model.translate(-L.x()/pixelToWorldRatio*5.0f, -L.y()/pixelToWorldRatio*5.0f, -L.z()/pixelToWorldRatio*5.0f)
-            }
-        }
-    }
-
-    /**
-     * Convenience class to handle buffer-based volumes. Data descriptor is stored in [ds], similar
-     * to [VolumeDataSource.RAISource], with [options] and a required [hub].
-     */
-    class BufferedVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewerOptions, hub: Hub): Volume(ds, options, hub) {
-        init {
-            logger.debug("Data source is $ds")
-        }
-
-        /**
-         * Access all the timepoints this volume has attached.
-         */
-        @Suppress("UNNECESSARY_SAFE_CALL")
-        var timepoints: LinkedHashMap<String, ByteBuffer>?
-            get() = ((ds?.sources?.firstOrNull()?.spimSource as? TransformedSource)?.wrappedSource as? BufferDummySource)?.timepoints
-            set(value) {}
-
-        /**
-         * Returns the maximum timepoint.
-         */
-        override var maxTimepoint: Int
-            get() = (timepoints?.size) ?: 0
-            set(value) {}
-
-        /**
-         * Adds a new timepoint with a given [name], with data stored in [buffer].
-         */
-        fun addTimepoint(name: String, buffer: ByteBuffer) {
-            timepoints?.put(name, buffer)
-            volumeManager.notifyUpdate(this)
-        }
-
-        /**
-         * Removes the timepoint with the given [name].
-         */
-        fun removeTimepoint(name: String): Boolean {
-            val result = timepoints?.remove(name)
-            return result != null
-        }
-
-        /**
-         * Purges the first [count] timepoints, while always leaving [leave] timepoints
-         * in the list.
-         */
-        fun purgeFirst(count: Int, leave: Int = 0) {
-            val elements = if(timepoints?.size ?: 0 - count < leave) {
-                0
-            } else {
-                max(1, count - leave)
-            }
-
-            val keys = timepoints?.keys?.take(elements)
-            keys?.forEach { removeTimepoint(it) }
-        }
-
-        /**
-         * Purges the last [count] timepoints, while always leaving [leave] timepoints
-         * in the list.
-         */
-        fun purgeLast(count: Int, leave: Int = 0) {
-            val elements = if(timepoints?.size ?: 0 - count < leave) {
-                0
-            } else {
-                max(1, count - leave)
-            }
-
-            val n = timepoints?.size ?: 0 - elements
-            val keys = timepoints?.keys?.drop(n)
-            keys?.forEach { removeTimepoint(it) }
-        }
     }
 
     companion object {
@@ -588,7 +305,7 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
             val cacheControl = if (img is VolatileView<*, *>) {
                 logger.info("Got a nice volatile view!")
                 val viewData: VolatileViewData<T, Volatile<T>> = (img as VolatileView<T, Volatile<T>>).volatileViewData
-                viewData.getCacheControl()
+                viewData.cacheControl
             } else {
                 null
             }
@@ -611,7 +328,7 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
             val converterSetups: ArrayList<ConverterSetup> = ArrayList()
             val sources: ArrayList<SourceAndConverter<T>> = ArrayList()
 
-            val s = BufferDummySource(volumes, width, height, depth, FinalVoxelDimensions(voxelUnit, *(voxelDimensions.map { it.toDouble() }.toDoubleArray())), "", type)
+            val s = BufferSource(volumes, width, height, depth, FinalVoxelDimensions(voxelUnit, *(voxelDimensions.map { it.toDouble() }.toDoubleArray())), "", type)
             val source: SourceAndConverter<T> = BigDataViewer.wrapWithTransformedSource(
                     SourceAndConverter<T>(s, BigDataViewer.createConverterToARGB(type)))
            converterSetups.add(BigDataViewer.createConverterSetup(source, setupId.getAndIncrement()))
@@ -660,9 +377,9 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
                     val d = sqrt(dx * dx + dy * dy + dz * dz) / size
 
                     val result = if(radius > Math.ulp(1.0f)) {
-                        if(d - offset < radius) { ((d-offset)*range).toShort() } else { 0 }
+                        if(d - offset < radius) { ((d-offset)*range).toInt().toShort() } else { 0 }
                     } else {
-                        ((d - offset) * range).toShort()
+                        ((d - offset) * range).toInt().toShort()
                     }
 
                     if(use16bit) {
@@ -679,7 +396,7 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
         /**
          * Reads a volume from the given [file].
          */
-        @JvmStatic @JvmOverloads  fun  fromPath(file: Path, hub: Hub): BufferedVolume {
+        @JvmStatic fun fromPath(file: Path, hub: Hub): BufferedVolume {
             if(file.normalize().toString().endsWith("raw")) {
                 return fromPathRaw(file, hub)
             }
@@ -746,11 +463,9 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
         }
 
         /**
-         * Reads raw volumetric data from a [file]. If [autorange] is set, the transfer function range
-         * will be determined automatically, if [cache] is true, the volume's data will be stored in [volumes] for
-         * future use. If [replace] is set, the current volumes' buffer will be replace and marked for deallocation.
+         * Reads raw volumetric data from a [file].
          *
-         * Returns the new volumes' id.
+         * Returns the new volume.
          */
         @JvmStatic fun fromPathRaw(file: Path, hub: Hub): BufferedVolume {
             val infoFile: Path
