@@ -13,7 +13,6 @@ import net.imglib2.type.volatiles.VolatileARGBType
 import net.imglib2.type.volatiles.VolatileUnsignedByteType
 import net.imglib2.type.volatiles.VolatileUnsignedShortType
 import org.joml.Matrix4f
-import tpietzsch.backend.GpuContext
 import tpietzsch.backend.Texture
 import tpietzsch.backend.Texture3D
 import tpietzsch.cache.*
@@ -550,7 +549,7 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
                     val o: SimpleStack3D<*>
                     val ss = source.spimSource as? TransformedSource
                     val wrapped = ss?.wrappedSource
-                    o = if(wrapped is Volume.BufferDummySource) {
+                    o = if(wrapped is BufferSource) {
                         if(wrapped.timepoints.isEmpty()) {
                             logger.info("Timepoints is empty, skipping node")
                             return@forEach
