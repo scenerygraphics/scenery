@@ -1,5 +1,8 @@
 language: java
 
+git:
+  depth: false
+
 env:
   global:
     - secure: "V1+7pbeeI3RU86O+y7nsHB78w7SmCOlCMr8/O1hsEn9OywwyAxFCXU5/0q2dewsOBCOKyLOnnC24Etx3MDBUq7f6iw5zXwXbfx9HZ5Tj+mMYeS4z+AYdrPB73OScFo83AdZF/kNd+CA3+Vu0hSv/yXHGW+7G74OrWcx4OtTsKcFdSbk8/IyVae2Q+GuNJetvIWp9sz+mBZh1oHvHmGCug5B0qPwTMEBwial1IalwN4xB4mZFnulIB7qEYpo47cXjcFNXN3unPBTAzBFrTD/bK9UJRJn1XByUgpkfjGU06Kp6qZYl9sllGV9mYuYdj4VbeLx0osy4XVnjqn8Dt8rL0G8GZQf2C3VPNzTikgLjh4RaPQH4+DhPbZlMGF8mEyjVUgu51iLjGGLkdD8YljrB9gPUJuo3dCjLWdp3mN44nw5Sr7BJ5nBjy2/Hy2zJibRzG305exZ0uynq6Tl4MAgRKmj4TODCJnta1HaElApBNmdRAIPjHMq4QDskPyUpaPXG/PCrOXHlOtf68aLngQ90ZVHjrXZL3GOF6tsQk/noZWDNUZQ3ZmeuoCy+4y2h+WmUesNLfOhoThbFWvi/iUsNvUMLHyJlL+hKH3iYIW8W6aX2Y+HH4Aqa41k7lzfvZBLtwEqDXDRMywsZAlNC9NrX/pgqm4Nt/pSo4zYsfx3xrfM="
@@ -8,14 +11,13 @@ env:
     - secure: "ULDh14+tt6dSgVXFRxrLNGdS46Np+dmGjaVdBrLClMWrir+3RieiXYEN0u25xWSHMom6pgROT3uw15+TZb7IfveeHaflDrww/1Cuikde0SFco7eHGBL+OgispDTncWQgGWqM3wb6Iwn6koeXutl4Enn0u21RcaVthDn1h79KDPhpI24OyqyYZ5P+8zJ0MUe4IvfuvbtocFhxEvSJXOLR4y0CHakF3+MqdP8rFXUde05kxQ++XcvyyvbY+gKPZoI+sWn0CLtsGW3gIKucfhdC4btU5VFF3SdkzYGQ8i4BvgyAJwdhvTVbNVin/lY9o36iG3KlzQlzSbG67FwmGWYRHJHHliRQNvDPzAAEZarvoA9fvYZ8ERMEqXaRZVl/smzeOmJHYBIzVyACFRxSRK55QO6IKDGrysOGzsjiHNFWXYTDgnLvLQRrFKi3DQ4grz0A/uIpdwHci5nTnyoJ+rsVbeXwv1IQNkEPcCjEp52l5OwAJ7oAkb4S6rGlS3Eeop2/MINL4d8COz3P5HBaGG4btxgnCWxGmSaSXBYcregfJ1pi4Yans8UgUb2gD/966+IVGUR+u4yUXwV4cyEJo44iUNIwo8MGHxKS+AEUUc8VpdazUxhxcBx5OKSS9oKy3EAwOy77xrWyQAVhZnelYKEn1BlwuRaKzrz64X4m40CzpFw="
     - secure: "Auf8QuEupXTJIvNIhe+nrlzgMTkNrcwU8X4VRBaDYlEvxhZ0USBQvcYfBBRigoyJXdGhF+Ny+NGtzXy40Q33oaa9+pa1Ju/H5Iy9m4PGnX3n/Qug3vSuzt/jXqYIOGROec7/3EZ5iWVyQ7EbbtPHT894uLx2mWv9Mb1BEhVIs4D/SV+KsMbOwPCRkRCMPISXxx4ue/bpeiMA5Pz/9p13ixeNImIZ9Nn52i0krhGpQdhGV73cAmHiPhoHLHOSRej7pQe1JTSppGzVCYOQysBBZTk5kA/avPBrKciMNa+JjFLXR8B8/LM9JtsRSEVU0963u4zx/0DzFS985OTt1TY9iZKMvlOPeos+9Cnxk378gmYcHAQRdOra0/zuDXlkQ5xj/Ar9Os4M9Zd9wn8lXFBDsNDeLtqZfq0vkJynvdoBt5Ah38tM/ytzdj4d4RbB62Lia1Qd7cnpWNEjShm2pMFRCwfkMTxxaE4Iac8sZMnOggaNLeXoFjJC1p/cnsXRYR1N5uqIjd78ON5ZT8J8WFjflRf2g5EpN3I8rW9rOJrcHpU+qTVc2scL5Z5QVCVDyhwwtcWOIIfXmBx/gjvgF4Pasy6ugH8VZp5SejdSG5ySfDimz9VkYMpKvYagj4brsV741Sqofacb8unlrs4kUC2mgX8AK5RcLH3MQChfmP5t6AE="
 
-matrix:
+jobs:
   include:
     - os: linux
       dist: bionic
       jdk: openjdk8
       services:
         - xvfb
-      sudo: false
     - os: osx
       osx_image: xcode9.3
 
