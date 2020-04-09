@@ -921,10 +921,6 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
         TODO("Not yet implemented")
     }
 
-    fun getPosition(): RealLocalizable? {
-        return null
-    }
-
     companion object NodeHelpers {
         /**
          * Depth-first search for elements in a Scene.
