@@ -496,10 +496,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
         val direction = p2 - p1
         val length = direction.length()
 
-        this.rotation = this.rotation
-            .lookAlong(direction.normalize(),
-                Vector3f(0.0f, 1.0f, 0.0f))
-            .rotationX(PI.toFloat()/2.0f)
+        this.rotation = Quaternionf().rotationTo(Vector3f(0.0f, 1.0f, 0.0f), direction.normalize())
         if(rescale) {
             this.scale = Vector3f(1.0f, length, 1.0f)
         }
