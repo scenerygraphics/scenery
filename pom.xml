@@ -131,7 +131,7 @@
         <kotlinx-coroutines-core.version>1.3.5-1.4-M1</kotlinx-coroutines-core.version>
         <kryo.version>4.0.2</kryo.version>
         <lwjgl.version>3.2.3</lwjgl.version>
-        <lwjgl3-awt.version>45a85af</lwjgl3-awt.version>
+        <lwjgl3-awt.version>0.1.7</lwjgl3-awt.version>
         <msgpack-core.version>0.8.16</msgpack-core.version>
         <reflections.version>0.9.11</reflections.version>
         <script-editor.version>0.5.3</script-editor.version>
@@ -558,7 +558,7 @@
         </dependency>
 
         <dependency>
-            <groupId>com.github.lwjglx</groupId>
+            <groupId>org.lwjglx</groupId>
             <artifactId>lwjgl3-awt</artifactId>
             <version>${lwjgl3-awt.version}</version>
         </dependency>
