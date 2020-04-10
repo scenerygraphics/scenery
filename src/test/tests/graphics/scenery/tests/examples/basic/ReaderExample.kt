@@ -18,6 +18,7 @@ import org.scijava.widget.FileWidget
 import java.nio.file.Files
 import java.nio.file.Paths
 import kotlin.concurrent.thread
+import kotlin.math.sqrt
 import kotlin.streams.toList
 
 /**
@@ -54,6 +55,7 @@ class ReaderExample : SceneryBase("ReaderExample", 1280, 720) {
         }
 
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
+        renderer?.pushMode = true
 
         val b = Box(Vector3f(50.0f, 0.2f, 50.0f))
         b.position = Vector3f(0.0f, -1.0f, 0.0f)
@@ -61,10 +63,10 @@ class ReaderExample : SceneryBase("ReaderExample", 1280, 720) {
         scene.addChild(b)
 
         val tetrahedron = listOf(
-            Vector3f(1.0f, 0f, -1.0f/Math.sqrt(2.0).toFloat()),
-            Vector3f(-1.0f,0f,-1.0f/Math.sqrt(2.0).toFloat()),
-            Vector3f(0.0f,1.0f,1.0f/Math.sqrt(2.0).toFloat()),
-            Vector3f(0.0f,-1.0f,1.0f/Math.sqrt(2.0).toFloat()))
+            Vector3f(1.0f, 0f, -1.0f/ sqrt(2.0).toFloat()),
+            Vector3f(-1.0f,0f,-1.0f/ sqrt(2.0).toFloat()),
+            Vector3f(0.0f,1.0f,1.0f/ sqrt(2.0).toFloat()),
+            Vector3f(0.0f,-1.0f,1.0f/ sqrt(2.0).toFloat()))
 
         val lights = (0 until 4).map { PointLight(radius = 50.0f) }
 
@@ -220,7 +222,7 @@ class ReaderExample : SceneryBase("ReaderExample", 1280, 720) {
      * Loads the next dataset with the same extension from the directory the current
      * dataset resides in. If [forward] is true, the direction is forward, otherwise backwards.
      */
-    fun loadNext(forward: Boolean = true) {
+    private fun loadNext(forward: Boolean = true) {
         val name = loadedFilename ?: return
         val extension = name.substringAfterLast(".").toLowerCase()
         val current = Paths.get(name)
