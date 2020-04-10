@@ -27,7 +27,7 @@ import kotlin.streams.toList
  */
 class ReaderExample : SceneryBase("ReaderExample", 1280, 720) {
     var hmd: OpenVRHMD? = null
-    lateinit var loadedFilename: String
+    var loadedFilename: String? = null
     lateinit var loadedObject: Node
 
     var playing = false
@@ -39,7 +39,7 @@ class ReaderExample : SceneryBase("ReaderExample", 1280, 720) {
         val c = Context()
         val ui = c.getService(UIService::class.java)
         val file = ui.chooseFile(null, FileWidget.OPEN_STYLE)
-        files.add(file.absolutePath)
+        file?.let { files.add(it.absolutePath) }
 
         val cam = DetachedHeadCamera()
         hmd = try {
@@ -82,10 +82,11 @@ class ReaderExample : SceneryBase("ReaderExample", 1280, 720) {
                 }
             }
         } else {
-            throw IllegalStateException("No file selected")
+            logger.warn("No file selected, returning empty node.")
+            Node("empty")
         }
 
-        loadedFilename = files.first()
+        loadedFilename = files.firstOrNull()
         loadedObject.fitInto(6.0f, scaleUp = false)
 
         scene.addChild(loadedObject)
@@ -220,8 +221,9 @@ class ReaderExample : SceneryBase("ReaderExample", 1280, 720) {
      * dataset resides in. If [forward] is true, the direction is forward, otherwise backwards.
      */
     fun loadNext(forward: Boolean = true) {
-        val extension = loadedFilename.substringAfterLast(".").toLowerCase()
-        val current = Paths.get(loadedFilename)
+        val name = loadedFilename ?: return
+        val extension = name.substringAfterLast(".").toLowerCase()
+        val current = Paths.get(name)
 
         val direction = if(forward) {
             1
@@ -238,7 +240,7 @@ class ReaderExample : SceneryBase("ReaderExample", 1280, 720) {
         } else {
             (currentIndex + direction) % files.size
         }
-        val file = files.get(newIndex)
+        val file = files[newIndex]
 
 
         when(extension) {
