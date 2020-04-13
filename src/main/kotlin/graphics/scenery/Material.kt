@@ -66,9 +66,13 @@ open class Material : Serializable {
         @JvmStatic fun DefaultMaterial(): Material = Material()
     }
 
+    /**
+     * Returns a hash of the material, with properties relevant for
+     * presentation taken into account. Does not include [textures], as
+     * these are timetamped now.
+     */
     fun materialHashCode() : Int {
         var result = blending.hashCode()
-        result = 31 * result + textures.hashCode()
         result = 31 * result + cullingMode.hashCode()
         result = 31 * result + depthTest.hashCode()
         result = 31 * result + wireframe.hashCode()
