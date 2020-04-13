@@ -1970,9 +1970,8 @@ open class VulkanRenderer(hub: Hub,
                     logger.debug("Updating textures for {} took {}ms", node.name, reloadTime)
 
                     if (material.materialHashCode() != metadata.materialHashCode || (material is ShaderMaterial && material.shaders.stale)) {
-                        logger.trace("Force command buffer re-recording, as blending options for ${it.name} have changed")
                         val reloaded = initializeCustomShadersForNode(it)
-                        logger.debug("Material is stale, re-recording, reloaded=$reloaded")
+                        logger.debug("{}: Material is stale, re-recording, reloaded={}", node.name, reloaded)
                         metadata.materialHashCode = it.material.materialHashCode()
 
                         // if we reloaded the node's shaders, we might need to recreate its texture descriptor sets
@@ -2822,6 +2821,11 @@ open class VulkanRenderer(hub: Hub,
                     }
 
                     ds
+                }
+
+                if(sets.any { it is DescriptorSet.DynamicSet && it.offset == BUFFER_OFFSET_UNINTIALISED }) {
+                    logger.error("${node.name} has uninitialised UBO offset, skipping for rendering")
+                    return@drawLoop
                 }
 
                 if(logger.isDebugEnabled) {
