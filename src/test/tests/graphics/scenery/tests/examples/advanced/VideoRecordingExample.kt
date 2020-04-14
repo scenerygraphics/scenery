@@ -25,7 +25,7 @@ class VideoRecordingExample: SceneryBase("VideoRecordingExample") {
         val box = Box(Vector3f(1.0f, 1.0f, 1.0f))
         with(box) {
             box.name = "le box du win"
-            box.material.textures["diffuse"] = Texture.fromImage(Image.fromResource("textures/helix.png", this::class.java))
+            box.material.textures["diffuse"] = Texture.fromImage(Image.fromResource("textures/helix.png", TexturedCubeExample::class.java))
             scene.addChild(this)
         }
 
