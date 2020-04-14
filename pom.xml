@@ -115,7 +115,7 @@
         <bigvolumeviewer.version>0.1.8-SNAPSHOT</bigvolumeviewer.version>
         <cleargl.version>2.2.10</cleargl.version>
         <coremem.version>0.4.6</coremem.version>
-        <ffmpeg.version>4.1-1.4.4</ffmpeg.version>
+        <ffmpeg.version>4.2.1-1.5.2</ffmpeg.version>
         <gluegen-rt.version>${gluegen-rt-main.version}</gluegen-rt.version>
         <jackson-databind.version>2.9.10.1</jackson-databind.version>
         <jackson-dataformat-msgpack.version>0.8.16</jackson-dataformat-msgpack.version>
@@ -512,30 +512,24 @@
         </dependency>
 
         <dependency>
-            <groupId>org.bytedeco.javacpp-presets</groupId>
+            <groupId>org.bytedeco</groupId>
             <artifactId>ffmpeg</artifactId>
             <version>${ffmpeg.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.bytedeco.javacpp-presets</groupId>
-            <artifactId>ffmpeg</artifactId>
-            <version>${ffmpeg.version}</version>
-            <classifier>linux-x86</classifier>
-        </dependency>
-        <dependency>
-            <groupId>org.bytedeco.javacpp-presets</groupId>
+            <groupId>org.bytedeco</groupId>
             <artifactId>ffmpeg</artifactId>
             <version>${ffmpeg.version}</version>
             <classifier>linux-x86_64</classifier>
         </dependency>
         <dependency>
-            <groupId>org.bytedeco.javacpp-presets</groupId>
+            <groupId>org.bytedeco</groupId>
             <artifactId>ffmpeg</artifactId>
             <version>${ffmpeg.version}</version>
             <classifier>macosx-x86_64</classifier>
         </dependency>
         <dependency>
-            <groupId>org.bytedeco.javacpp-presets</groupId>
+            <groupId>org.bytedeco</groupId>
             <artifactId>ffmpeg</artifactId>
             <version>${ffmpeg.version}</version>
             <classifier>windows-x86_64</classifier>
