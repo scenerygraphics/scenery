@@ -12,7 +12,6 @@ import org.lwjgl.system.MemoryStack.stackPush
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.MemoryUtil.memFree
 import org.lwjgl.vulkan.*
-import org.lwjgl.vulkan.KHRGetSurfaceCapabilities2.*
 import org.lwjgl.vulkan.KHRSurface.vkDestroySurfaceKHR
 import org.lwjgl.vulkan.KHRSwapchain.VK_ERROR_OUT_OF_DATE_KHR
 import org.lwjgl.vulkan.KHRSwapchain.vkAcquireNextImageKHR
@@ -62,7 +61,7 @@ open class VulkanSwapchain(open val device: VulkanDevice,
     /** Surface of the window to render into. */
     open var surface: Long = 0
     /** [SceneryWindow] instance we are using. */
-    lateinit var window: SceneryWindow
+    open lateinit var window: SceneryWindow
     /** Callback to use upon window resizing. */
     lateinit var windowSizeCallback: GLFWWindowSizeCallback
 
