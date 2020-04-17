@@ -24,6 +24,7 @@ import kotlin.math.roundToInt
  */
 class BufferedVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewerOptions, hub: Hub): Volume(ds, options, hub) {
     init {
+        name = "Volume (Buffer source)"
         logger.debug("Data source is $ds")
     }
 

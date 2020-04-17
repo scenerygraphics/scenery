@@ -9,9 +9,10 @@ import tpietzsch.example2.VolumeViewerOptions
 
 class RAIVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewerOptions, hub: Hub): Volume(ds, options, hub) {
     init {
+        name = "Volume (RAI source)"
         if(ds.cacheControl != null) {
             logger.info("Adding cache control")
-            cacheControls?.addCacheControl(ds.cacheControl)
+            cacheControls.addCacheControl(ds.cacheControl)
         }
     }
 
