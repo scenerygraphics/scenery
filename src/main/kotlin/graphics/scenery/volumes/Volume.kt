@@ -118,6 +118,8 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
     }
 
     init {
+        name = "Volume"
+
         when(dataSource) {
             is SpimDataMinimalSource -> {
                 val spimData = dataSource.spimData
@@ -303,7 +305,30 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
             }
 
             val cacheControl = if (img is VolatileView<*, *>) {
-                logger.info("Got a nice volatile view!")
+                val viewData: VolatileViewData<T, Volatile<T>> = (img as VolatileView<T, Volatile<T>>).volatileViewData
+                viewData.cacheControl
+            } else {
+                null
+            }
+
+            val ds = VolumeDataSource.RAISource<T>(type, sources, converterSetups, numTimepoints, cacheControl)
+            return RAIVolume(ds, options, hub)
+        }
+
+        @JvmStatic @JvmOverloads fun <T: NumericType<T>> fromSourceAndConverter(
+            source: SourceAndConverter<T>,
+            type: T,
+            name: String,
+            hub: Hub,
+            options: VolumeViewerOptions = VolumeViewerOptions()
+        ): Volume {
+            val converterSetups: ArrayList<ConverterSetup> = ArrayList()
+            val sources = arrayListOf(source)
+            val numTimepoints = 1
+
+            val img = source.spimSource.getSource(0, 0)
+
+            val cacheControl = if (img is VolatileView<*, *>) {
                 val viewData: VolatileViewData<T, Volatile<T>> = (img as VolatileView<T, Volatile<T>>).volatileViewData
                 viewData.cacheControl
             } else {
