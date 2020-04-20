@@ -522,6 +522,8 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
      */
     fun getReadPosition() = commandBufferBacking.currentReadPosition - 1
 
+    fun getWritePosition() = commandBufferBacking.currentWritePosition - 1
+
     /**
      * Returns the active [VulkanPipeline] for [forNode], if it has a preferred pipeline,
      * or the default one if not.
