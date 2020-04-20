@@ -2,8 +2,9 @@ package graphics.scenery
 
 enum class State {
     Created,
-    Uninitialized,
-    Initializing,
+    Uninitialised,
+    Initialising,
+    Initialised,
     Ready,
     Updating,
     Updated,
