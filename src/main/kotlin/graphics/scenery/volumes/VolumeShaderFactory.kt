@@ -172,6 +172,7 @@ open class VolumeShaderFactory : Shaders.ShaderFactory() {
 
         val convertedSamplers = samplers.mapIndexed { i, sampler ->
             "layout(set = ${descriptorSetOffset + 1 + i}, binding = 0) $sampler"
+//            "layout(set = ${descriptorSetOffset + 1}, binding = $i) $sampler"
         }
 
         val fullUniforms = uniforms.union(predefinedUniforms).sorted().toList()

@@ -30,6 +30,7 @@ import java.nio.ByteBuffer
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
 import java.util.*
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.ForkJoinPool
 import java.util.function.BiConsumer
 import kotlin.math.max
@@ -79,9 +80,9 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
     var context = SceneryContext(this)
         protected set
     /** Texture cache. */
-    protected var textureCache: TextureCache
+    @Volatile protected var textureCache: TextureCache
     /** PBO chain for temporary data storage. */
-    protected var pboChain: PboChain
+    @Volatile protected var pboChain: PboChain
 
     /** Flexible [ShaderProperty] storage */
     @ShaderProperty
@@ -89,15 +90,20 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
 
     /** Set of [VolumeBlocks]. */
     protected var outOfCoreVolumes = ArrayList<VolumeBlocks>()
-    protected var bdvNodes = ArrayList<Volume>()
+    protected var nodes = ArrayList<Volume>()
     protected var transferFunctionTextures = HashMap<SourceState<*>, Texture>()
     protected var colorMapTextures = HashMap<SourceState<*>, Texture>()
-    /** Stacks loaded from a BigDataViewer XML file. */
-    val renderConverters = ArrayList<ConverterSetup>()
     /** Cache specification. */
     private val cacheSpec = CacheSpec(Texture.InternalFormat.R16, intArrayOf(32, 32, 32))
 
-    private val renderStacks = ArrayList<Triple<Stack3D<*>, Texture, Texture>>()
+    private val renderStacksStates = CopyOnWriteArrayList<StackState>()
+
+    private data class StackState(
+        val stack: Stack3D<*>,
+        val transferFunction: Texture,
+        val colorMap: Texture,
+        val converterSetup: ConverterSetup
+    )
 
     private val stackManager = SceneryStackManager()
 
@@ -137,8 +143,8 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
         pboChain = PboChain(5, 100, textureCache)
 
         updateRenderState()
-        needAtLeastNumVolumes(renderStacks.size)
-        logger.info("renderStacks.size=${renderStacks.size}")
+        needAtLeastNumVolumes(renderStacksStates.size)
+        logger.info("renderStacks.size=${renderStacksStates.size}")
 
         logger.info("Progs: ${prog.size}")
         // TODO: this might result in NULL program, is this intended?
@@ -174,8 +180,8 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
     }
 
     private fun needAtLeastNumVolumes(n: Int) {
-        val outOfCoreVolumeCount = renderStacks.count { it.first is MultiResolutionStack3D }
-        val regularVolumeCount = renderStacks.count { it.first is SimpleStack3D }
+        val outOfCoreVolumeCount = renderStacksStates.count { it.stack is MultiResolutionStack3D }
+        val regularVolumeCount = renderStacksStates.count { it.stack is SimpleStack3D }
         logger.debug("$currentVolumeCount -> ooc:$outOfCoreVolumeCount reg:$regularVolumeCount")
 
         if(currentVolumeCount.first == outOfCoreVolumeCount && currentVolumeCount.second == regularVolumeCount) {
@@ -187,8 +193,8 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
             outOfCoreVolumes.add(VolumeBlocks(textureCache))
         }
 
-        val signatures = renderStacks.map {
-            val dataType = when(it.first.type) {
+        val signatures = renderStacksStates.map {
+            val dataType = when(it.stack.type) {
                 is VolatileUnsignedByteType,
                 is UnsignedByteType -> VolumeShaderSignature.PixelType.UBYTE
 
@@ -197,10 +203,10 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
 
                 is VolatileARGBType,
                 is ARGBType -> VolumeShaderSignature.PixelType.ARGB
-                else -> throw IllegalStateException("Unknown volume type ${it.first.type.javaClass}")
+                else -> throw IllegalStateException("Unknown volume type ${it.stack.type.javaClass}")
             }
 
-            val volumeType = when(it.first) {
+            val volumeType = when(it.stack) {
                 is SimpleStack3D -> SourceStacks.SourceStackType.SIMPLE
                 is MultiResolutionStack3D -> SourceStacks.SourceStackType.MULTIRESOLUTION
                 else -> SourceStacks.SourceStackType.UNDEFINED
@@ -240,8 +246,8 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
 
         val additionalBindings = BiConsumer { _: Map<SegmentType, SegmentTemplate>, instances: Map<SegmentType, Segment> ->
             logger.debug("Connecting additional bindings")
-            instances.get(SegmentType.SampleMultiresolutionVolume)?.bind("convert", instances.get(SegmentType.Convert))
-            instances.get(SegmentType.SampleVolume)?.bind("convert", instances.get(SegmentType.Convert))
+            instances[SegmentType.SampleMultiresolutionVolume]?.bind("convert", instances[SegmentType.Convert])
+            instances[SegmentType.SampleVolume]?.bind("convert", instances[SegmentType.Convert])
         }
 
         val newProgvol = MultiVolumeShaderMip(VolumeShaderSignature(signatures),
@@ -286,11 +292,11 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
             return false
         }
 
-        bdvNodes.forEach { bdvNode ->
+        nodes.forEach { bdvNode ->
             bdvNode.prepareNextFrame()
         }
 
-        val cam = bdvNodes.firstOrNull()?.getScene()?.activeObserver ?: return false
+        val cam = nodes.firstOrNull()?.getScene()?.activeObserver ?: return false
         val mvp = Matrix4f(cam.projection).mul(cam.getTransformation())
 
         // TODO: original might result in NULL, is this intended?
@@ -301,16 +307,16 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
         val fillTasksPerVolume = ArrayList<VolumeAndTasks>()
 
         val taskCreationDuration = measureTimeMillis {
-            for (i in 0 until renderStacks.size) {
-                val stack = renderStacks[i].first
-                if (stack !is MultiResolutionStack3D) continue
-                val volume = outOfCoreVolumes[i]
+            renderStacksStates.forEachIndexed { i , state ->
+                if (state.stack is MultiResolutionStack3D) {
+                    val volume = outOfCoreVolumes[i]
 
-                volume.init(stack, cam.width, mvp)
+                    volume.init(state.stack, cam.width, mvp)
 
-                val tasks = volume.fillTasks
-                numTasks += tasks.size
-                fillTasksPerVolume.add(VolumeAndTasks(tasks, volume, stack.resolutions().size - 1))
+                    val tasks = volume.fillTasks
+                    numTasks += tasks.size
+                    fillTasksPerVolume.add(VolumeAndTasks(tasks, volume, state.stack.resolutions().size - 1))
+                }
             }
         }
 
@@ -348,9 +354,8 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
 
         var repaint = false
         val durationLutUpdate = measureTimeMillis {
-            for (i in 0 until renderStacks.size) {
-                val stack = renderStacks[i]
-                if (stack.first is MultiResolutionStack3D) {
+            renderStacksStates.forEachIndexed { i, state ->
+                if (state.stack is MultiResolutionStack3D) {
                     val volumeBlocks = outOfCoreVolumes[i]
                     val timestamp = textureCache.nextTimestamp()
                     val complete = volumeBlocks.makeLut(timestamp)
@@ -367,35 +372,29 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
         val ready = readyToRender()
 
         val durationBinding = measureTimeMillis {
-            renderStacks
+            renderStacksStates
                 // sort by classname, so we get MultiResolutionStack3Ds first,
                 // then simple stacks
                 .sortedBy { it.javaClass.simpleName }
-                .forEachIndexed { i, stack ->
-                    val s = stack.first
-                    if (s is MultiResolutionStack3D) {
-                        currentProg.setConverter(i, renderConverters.get(i))
-                        currentProg.setCustomSampler(i, "transferFunction", stack.second)
-                        currentProg.setCustomSampler(i, "colorMap", stack.third)
-                        context.bindTexture(stack.second)
-                        context.bindTexture(stack.third)
+                .forEachIndexed { i, state ->
+                    val s = state.stack
+                    currentProg.setConverter(i, state.converterSetup)
+                    currentProg.setCustomSampler(i, "transferFunction", state.transferFunction)
+                    currentProg.setCustomSampler(i, "colorMap", state.colorMap)
+                    context.bindTexture(state.transferFunction)
+                    context.bindTexture(state.colorMap)
 
-                        currentProg.setVolume(i, outOfCoreVolumes.get(i))
-                        minWorldVoxelSize = min(minWorldVoxelSize, outOfCoreVolumes.get(i).baseLevelVoxelSizeInWorldCoordinates)
+                    if (s is MultiResolutionStack3D) {
+                        currentProg.setVolume(i, outOfCoreVolumes[i])
+                        minWorldVoxelSize = min(minWorldVoxelSize, outOfCoreVolumes[i].baseLevelVoxelSizeInWorldCoordinates)
                     }
 
                     if (s is SimpleStack3D) {
                         val volume = stackManager.getSimpleVolume(context, s)
-                        currentProg.setConverter(i, renderConverters.get(i))
-                        currentProg.setCustomSampler(i, "transferFunction", stack.second)
-                        currentProg.setCustomSampler(i, "colorMap", stack.third)
-                        context.bindTexture(stack.second)
-                        context.bindTexture(stack.third)
-
                         currentProg.setVolume(i, volume)
                         context.bindTexture(volume.volumeTexture)
                         if (ready) {
-                            stackManager.upload(context, s)
+                            stackManager.upload(context, s, volume.volumeTexture)
                         }
                         minWorldVoxelSize = min(minWorldVoxelSize, volume.voxelSizeInWorldCoordinates)
                     }
@@ -447,8 +446,8 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
     }
 
     fun readyToRender(): Boolean {
-        val multiResCount = renderStacks.count { it.first is MultiResolutionStack3D }
-        val regularCount = renderStacks.count { it.first is SimpleStack3D }
+        val multiResCount = renderStacksStates.count { it.stack is MultiResolutionStack3D }
+        val regularCount = renderStacksStates.count { it.stack is SimpleStack3D }
 
         val multiResMatch = material.textures.count { it.key.startsWith("volumeCache") } == 1
             && material.textures.count { it.key.startsWith("lutSampler_") }  == multiResCount
@@ -477,9 +476,10 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
      * Updates texture cache and used blocks.
      */
     override fun preDraw(): Boolean {
+        logger.debug("Running predraw")
         context.bindTexture(textureCache)
 
-        if(bdvNodes.any { it.transferFunction.stale }) {
+        if(nodes.any { it.transferFunction.stale }) {
             transferFunctionTextures.clear()
             val keys = material.textures.filter { it.key.startsWith("transferFunction") }.keys
             keys.forEach { material.textures.remove(it) }
@@ -488,15 +488,15 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
 
         if(renderStateUpdated) {
             updateRenderState()
-            needAtLeastNumVolumes(renderStacks.size)
+            needAtLeastNumVolumes(renderStacksStates.size)
             renderStateUpdated = false
         }
 
-        var repaint = false
+        var repaint = true
         val blockUpdateDuration = measureTimeMillis {
             if (!freezeRequiredBlocks) {
                 try {
-                    repaint = updateBlocks(context)
+                    updateBlocks(context)
                 } catch (e: RuntimeException) {
                     logger.warn("Probably ran out of data, corrupt BDV file? $e")
                     e.printStackTrace()
@@ -518,22 +518,14 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
      * Updates the current rendering state.
      */
     protected fun updateRenderState() {
-        // check if synchronized block is necessary here
-//        logger.info("Updating state for ${bdvNodes.size} BDV nodes")
-        renderStacks.clear()
-        renderConverters.clear()
+        val stacks = ArrayList<StackState>(renderStacksStates.size)
 
-        bdvNodes.forEach { bdvNode ->
+        nodes.forEach { bdvNode ->
             val visibleSourceIndices = bdvNode.viewerState.visibleSourceIndices
             val currentTimepoint = bdvNode.viewerState.currentTimepoint
 
-            logger.debug("Visible: at t=$currentTimepoint: ${visibleSourceIndices.joinToString(", ")}")
+            logger.info("Visible: at t=$currentTimepoint: ${visibleSourceIndices.joinToString(", ")}")
             for (i in visibleSourceIndices) {
-//                val stack = stacks.getStack(
-//                    stacks.timepointId(currentTimepoint),
-//                    stacks.setupId(i),
-//                    true) as MultiResolutionStack3D<VolatileUnsignedShortType>
-
                 val source = bdvNode.viewerState.sources[i]
                 val stack = SourceStacks.getStack3D(source.spimSource, currentTimepoint)// as MultiResolutionStack3D<*>
 
@@ -544,7 +536,7 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
                     val o = TransformedMultiResolutionStack3D(stack, bdvNode, sourceTransform)
                     val tf = transferFunctionTextures.getOrPut(bdvNode.viewerState.sources[i], { bdvNode.transferFunction.toTexture() })
                     val colormap = colorMapTextures.getOrPut(bdvNode.viewerState.sources[i], { bdvNode.colormap.toTexture() })
-                    renderStacks.add(Triple(o, tf, colormap))
+                    stacks.add(StackState(o, tf, colormap, bdvNode.converterSetups[i]))
                 } else if(stack is SimpleStack3D) {
                     val o: SimpleStack3D<*>
                     val ss = source.spimSource as? TransformedSource
@@ -570,14 +562,15 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
                     val tf = transferFunctionTextures.getOrPut(bdvNode.viewerState.sources[i], { bdvNode.transferFunction.toTexture() })
                     val colormap = colorMapTextures.getOrPut(bdvNode.viewerState.sources[i], { bdvNode.colormap.toTexture() })
                     logger.debug("TF for ${bdvNode.viewerState.sources[i]} is $tf")
-                    renderStacks.add(Triple(o, tf, colormap))
+                    stacks.add(StackState(o, tf, colormap, bdvNode.converterSetups[i]))
                 }
 
-                val converter = bdvNode.converterSetups[i]
-                converter.setViewer(this)
-                renderConverters.add(converter)
+                bdvNode.converterSetups[i].setViewer(this)
             }
         }
+
+        renderStacksStates.clear()
+        renderStacksStates.addAll(stacks)
     }
 
 
@@ -587,9 +580,9 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
      */
     fun add(node: Volume) {
         logger.info("Adding $node to OOC nodes")
-        bdvNodes.add(node)
+        nodes.add(node)
         updateRenderState()
-        needAtLeastNumVolumes(renderStacks.size)
+        needAtLeastNumVolumes(renderStacksStates.size)
     }
 
     /**
@@ -600,7 +593,7 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
         logger.debug("Received update from {}", node)
         renderStateUpdated = true
         updateRenderState()
-        needAtLeastNumVolumes(renderStacks.size)
+        needAtLeastNumVolumes(renderStacksStates.size)
     }
 
     /**
@@ -608,6 +601,28 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
      */
     override fun requestRepaint() {
         renderStateUpdated = true
+    }
+
+    fun recreateCache(newMaxSize: Int) {
+        logger.warn("Recreating cache, new size: $newMaxSize MB ")
+        val cacheGridDimensions = TextureCache.findSuitableGridSize(cacheSpec, newMaxSize)
+
+        textureCache = TextureCache(cacheGridDimensions, cacheSpec)
+
+        pboChain = PboChain(5, 100, textureCache)
+
+        prog.clear()
+//        updateRenderState()
+//        needAtLeastNumVolumes(renderStacks.size)
+        preDraw()
+    }
+
+    fun removeCachedColormapFor(node: Volume) {
+        node.viewerState.sources.forEach { source ->
+            colorMapTextures.remove(source)
+        }
+
+        context.clearLUTs()
     }
 
     /** Companion object for Volume */
