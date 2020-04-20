@@ -19,9 +19,9 @@ import kotlin.collections.HashMap
 
 open class SceneryStackManager: SimpleStackManager {
     private val logger by LazyLogger()
-    private val texturesU8 : HashMap<SimpleStack3D<*>, VolumeTextureU8> = HashMap()
-    private val texturesU16 : HashMap<SimpleStack3D<*>, VolumeTextureU16> = HashMap()
-    private val texturesRGBA8 : HashMap<SimpleStack3D<*>, VolumeTextureRGBA8> = HashMap()
+    private val texturesU8 : HashMap<Int, VolumeTextureU8> = HashMap()
+    private val texturesU16 : HashMap<Int, VolumeTextureU16> = HashMap()
+    private val texturesRGBA8 : HashMap<Int, VolumeTextureRGBA8> = HashMap()
 
     private val timestamps : HashMap<Texture3D, Int> = HashMap()
     private val uploaded = HashMap<Texture3D, Boolean>()
@@ -60,22 +60,26 @@ open class SceneryStackManager: SimpleStackManager {
 //        logger.info("Existing textures: ${texturesU8.keys.joinToString { "$it (${it.hashCode().toString()})" }}")
 //        logger.info("Getting volume for stack $stack/${stack.hashCode()}")
         if (stack.type is UnsignedByteType) {
-            val existing = texturesU8[stack]
+            val existing = texturesU8[stack.hashCode()]
             if (existing == null) {
                 texture = VolumeTextureU8()
-                logger.debug("U8 texture does not exist, creating new one ($texture)")
+                logger.info("U8 texture does not exist, creating new one ($texture)")
                 if (stack is BufferedSimpleStack3D) {
                     texture.init(stack.dimensions)
                 } else {
                     texture.init(Intervals.dimensionsAsIntArray(stack.image))
                 }
+
                 if(context.contextReadyForUpload()) {
-                    upload(context, stack)
-                    uploaded.put(texture, true)
+                    logger.debug("Context is ready for upload")
+                    upload(context, stack, texture)
+                    uploaded[texture] = true
                 } else {
-                    uploaded.put(texture, false)
+                    logger.debug("Context not ready for upload, deferring.")
+                    uploaded[texture] = false
                 }
-                texturesU8[stack] = texture
+
+                texturesU8[stack.hashCode()] = texture
             } else {
                 texture = existing
 
@@ -84,8 +88,8 @@ open class SceneryStackManager: SimpleStackManager {
                 }
 
                 if(context.contextReadyForUpload() && uploaded.getOrDefault(texture, false)) {
-                    upload(context, stack)
-                    uploaded.put(texture, true)
+                    upload(context, stack, texture)
+                    uploaded[texture] = true
                 }
 
                 if(stack is BufferedSimpleStack3D) {
@@ -93,7 +97,7 @@ open class SceneryStackManager: SimpleStackManager {
                 }
             }
         } else if (stack.type is UnsignedShortType) {
-            val existing = texturesU16[stack]
+            val existing = texturesU16[stack.hashCode()]
             if (existing == null) {
                 texture = VolumeTextureU16()
                 logger.debug("U16 texture does not exist, creating new one ($texture)")
@@ -103,12 +107,12 @@ open class SceneryStackManager: SimpleStackManager {
                     texture.init(Intervals.dimensionsAsIntArray(stack.image))
                 }
                 if(context.contextReadyForUpload()) {
-                    upload(context, stack)
-                    uploaded.put(texture, true)
+                    upload(context, stack, texture)
+                    uploaded[texture] = true
                 } else {
-                    uploaded.put(texture, false)
+                    uploaded[texture] = false
                 }
-                texturesU16[stack] = texture
+                texturesU16[stack.hashCode()] = texture
 
             } else {
                 texture = existing
@@ -118,7 +122,7 @@ open class SceneryStackManager: SimpleStackManager {
                 }
 
                 if(context.contextReadyForUpload() && uploaded.getOrDefault(texture, false)) {
-                    upload(context, stack)
+                    upload(context, stack, texture)
                     uploaded[texture] = true
                 }
 
@@ -132,6 +136,7 @@ open class SceneryStackManager: SimpleStackManager {
         }
 
         timestamps[texture] = currentTimestamp
+        logger.debug("Returning texture $texture from getSimpleStack")
         return SimpleVolume(texture, stack.sourceTransform, sourceMin, sourceMax)
     }
 
@@ -148,72 +153,61 @@ open class SceneryStackManager: SimpleStackManager {
      * @return True, if data was uploaded. False, if not.
      */
     @Suppress("UNCHECKED_CAST", "USELESS_ELVIS")
-    fun upload(context : GpuContext, stack : SimpleStack3D<*>) : Boolean {
+    fun upload(context : GpuContext, stack : SimpleStack3D<*>, texture: Texture3D) : Boolean {
         if(context is SceneryContext && !context.contextReadyForUpload()) {
             return false
         }
 
-        val tex8 = texturesU8[stack]
-        val tex16 = texturesU16[stack]
-        val texARGB = texturesRGBA8[stack]
-
         val type = stack.type
-//        logger.info("$stack, $type -> $tex8, $tex16, $texARGB, ${uploaded.getOrDefault(tex8 as? Texture3D, false)}")
+//        logger.debug("Upload: $stack, $type -> 8:$tex8, 16:$tex16, ARGB:$texARGB, uploaded:${uploaded.getOrDefault(tex8 as? Texture3D, false)}")
+        val hasBeenUploaded = uploaded.getOrDefault(texture, false)
 
-        if (type is UnsignedByteType && !(tex8 == null || uploaded.getOrDefault(tex8, false))) {
-            return if (stack is BufferedSimpleStack3D) {
-                logger.debug("Uploading U8 buffered texture")
-                val tex = tex8 ?: VolumeTextureU8()
-                tex.init(stack.dimensions)
-                tex.upload(context, stack.buffer)
-                timestamps[tex] = currentTimestamp
-                texturesU8[stack] = tex
-                uploaded[tex] = true
-                true
-            } else {
-                logger.debug("Uploading U8 RAII texture")
-                val tex = uploadToTextureU8(context, stack.image as RandomAccessibleInterval<UnsignedByteType>, tex8)
-                timestamps[tex] = currentTimestamp
-                texturesU8[stack] = tex
-                uploaded[tex] = true
-                true
+        if(hasBeenUploaded) {
+            return false
+        }
+
+        when {
+            type is UnsignedByteType && texture is VolumeTextureU8 -> {
+                if (stack is BufferedSimpleStack3D) {
+                    logger.debug("Uploading U8 buffered texture")
+                    texture.init(stack.dimensions)
+                    texture.upload(context, stack.buffer)
+                } else {
+                    logger.debug("Uploading U8 RAII texture")
+                    uploadToTextureU8(context, stack.image as RandomAccessibleInterval<UnsignedByteType>, texture)
+                }
+
+                texturesU8[stack.hashCode()] = texture
+            }
+
+            type is UnsignedShortType && texture is VolumeTextureU16 -> {
+                if (stack is BufferedSimpleStack3D) {
+                    logger.debug("Uploading U16 buffered texture")
+                    texture.init(stack.dimensions)
+                    texture.upload(context, stack.buffer)
+                } else {
+                    logger.debug("Uploading U16 RAII texture")
+                    uploadToTextureU16(context, stack.image as RandomAccessibleInterval<UnsignedShortType>, texture)
+                }
+
+                texturesU16[stack.hashCode()] = texture
+            }
+
+            type is ARGBType && texture is VolumeTextureRGBA8 -> {
+                if (stack is BufferedSimpleStack3D) {
+                    TODO("Not implemented upload for buffered ARGB textures yet")
+                } else {
+                    uploadToTextureRGBA8(context, stack.image as RandomAccessibleInterval<ARGBType>, texture)
+                }
+
+                texturesRGBA8[stack.hashCode()] = texture
             }
         }
 
-        if (type is UnsignedShortType && !(tex16 == null || uploaded.getOrDefault(tex16, false))) {
-            return if (stack is BufferedSimpleStack3D) {
-                logger.debug("Uploading U16 buffered texture")
-                val tex = tex16 ?: VolumeTextureU16()
-                tex.init(stack.dimensions)
-                tex.upload(context, stack.buffer)
-                timestamps[tex] = currentTimestamp
-                texturesU16[stack] = tex
-                uploaded[tex] = true
-                true
-            } else {
-                logger.debug("Uploading U16 RAII texture")
-                val tex = uploadToTextureU16(context, stack.image as RandomAccessibleInterval<UnsignedShortType>, tex16)
-                timestamps[tex] = currentTimestamp
-                texturesU16[stack] = tex
-                uploaded[tex] = true
-                true
-            }
-        }
+        uploaded[texture] = true
+        timestamps[texture] = currentTimestamp
 
-        if (type is ARGBType && !(texARGB == null || uploaded.getOrDefault(texARGB, false))) {
-            return if (stack is BufferedSimpleStack3D) {
-                TODO("Not implemented upload for buffered ARGB textures yet")
-                true
-            } else {
-                val tex = uploadToTextureRGBA8(context, stack.image as RandomAccessibleInterval<ARGBType>, texARGB)
-                timestamps[tex] = currentTimestamp
-                texturesRGBA8[stack] = tex
-                uploaded[tex] = true
-                true
-            }
-        }
-
-        return false
+        return true
     }
 
     /**
@@ -246,15 +240,7 @@ open class SceneryStackManager: SimpleStackManager {
         timestamps.clear()
     }
 
-    private fun uploadToTextureU16(context : GpuContext, rai : RandomAccessibleInterval<UnsignedShortType>, t: VolumeTextureU16? = null) : VolumeTextureU16 {
-        val texture = if(t == null) {
-            val vt = VolumeTextureU16()
-            vt.init(Intervals.dimensionsAsIntArray(rai))
-            vt
-        } else {
-            t
-        }
-
+    private fun uploadToTextureU16(context : GpuContext, rai : RandomAccessibleInterval<UnsignedShortType>, texture: VolumeTextureU16) : VolumeTextureU16 {
         val numBytes = (2 * Intervals.numElements(rai)).toInt()
         val data = ByteBuffer.allocateDirect(numBytes) // allocate a bit more than needed...
         data.order(ByteOrder.nativeOrder())
@@ -273,15 +259,7 @@ open class SceneryStackManager: SimpleStackManager {
             sdata.put(i++, cursor.next().short)
     }
 
-    private fun uploadToTextureU8(context : GpuContext, rai : RandomAccessibleInterval<UnsignedByteType>, t: VolumeTextureU8? = null) : VolumeTextureU8 {
-        val texture = if(t == null) {
-            val vt = VolumeTextureU8()
-            vt.init(Intervals.dimensionsAsIntArray(rai))
-            vt
-        } else {
-            t
-        }
-
+    private fun uploadToTextureU8(context : GpuContext, rai : RandomAccessibleInterval<UnsignedByteType>, texture: VolumeTextureU8) : VolumeTextureU8 {
         val numBytes = Intervals.numElements(rai).toInt()
         val data = ByteBuffer.allocateDirect(numBytes) // allocate a bit more than needed...
         data.order(ByteOrder.nativeOrder())
@@ -299,15 +277,7 @@ open class SceneryStackManager: SimpleStackManager {
             buffer.put(i++, cursor.next().byte)
     }
 
-    private fun uploadToTextureRGBA8(context : GpuContext, rai : RandomAccessibleInterval<ARGBType>, t: VolumeTextureRGBA8? = null) : VolumeTextureRGBA8 {
-        val texture = if(t == null) {
-            val vt = VolumeTextureRGBA8()
-            vt.init(Intervals.dimensionsAsIntArray(rai))
-            vt
-        } else {
-            t
-        }
-
+    private fun uploadToTextureRGBA8(context : GpuContext, rai : RandomAccessibleInterval<ARGBType>, texture: VolumeTextureRGBA8) : VolumeTextureRGBA8 {
         val numBytes = (4 * Intervals.numElements(rai)).toInt()
         val data = ByteBuffer.allocateDirect(numBytes) // allocate a bit more than needed...
         data.order(ByteOrder.nativeOrder())
