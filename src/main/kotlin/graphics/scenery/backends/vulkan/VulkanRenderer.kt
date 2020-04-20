@@ -295,7 +295,7 @@ open class VulkanRenderer(hub: Hub,
     protected var validation = java.lang.Boolean.parseBoolean(System.getProperty("scenery.VulkanRenderer.EnableValidations", "false"))
     protected val strictValidation = getStrictValidation()
     protected val wantsOpenGLSwapchain = java.lang.Boolean.parseBoolean(System.getProperty("scenery.VulkanRenderer.UseOpenGLSwapchain", "false"))
-    protected val defaultValidationLayers = arrayOf("VK_LAYER_LUNARG_standard_validation")
+    protected val defaultValidationLayers = arrayOf("VK_LAYER_KHRONOS_validation")
 
     protected var instance: VkInstance
     protected var device: VulkanDevice
@@ -1065,14 +1065,16 @@ open class VulkanRenderer(hub: Hub,
     /**
      * Loads or reloads the textures for [node], updating it's internal renderer state stored in [s].
      */
-    protected fun loadTexturesForNode(node: Node, s: VulkanObjectState): Boolean {
+    protected fun loadTexturesForNode(node: Node, s: VulkanObjectState): Pair<Boolean, Boolean> {
         val defaultTexture = defaultTextures["DefaultTexture"] ?: throw IllegalStateException("Default fallback texture does not exist.")
         // if a node is not yet initialized, we'll definitely require a new DS
-        var reqNewDS = !node.initialized
+        var descriptorUpdated = !node.initialized
+        var contentUpdated = false
 
         val last = s.texturesLastSeen
         val now = System.nanoTime()
         node.material.textures.forEachChanged(last) { (type, texture) ->
+            contentUpdated = true
             val slot = VulkanObjectState.textureTypeToSlot(type)
             val generateMipmaps = Texture.mipmappedObjectTextures.contains(type)
 
@@ -1080,7 +1082,7 @@ open class VulkanRenderer(hub: Hub,
 
             if (!textureCache.containsKey(texture)) {
                 try {
-                    logger.trace("Loading texture $texture for ${node.name}")
+                    logger.info("Loading texture $texture for ${node.name}")
 
                     val gt = texture
 
@@ -1094,7 +1096,7 @@ open class VulkanRenderer(hub: Hub,
                     val t: VulkanTexture = if (existingTexture != null && existingTexture.canBeReused(gt, miplevels, device)) {
                         existingTexture
                     } else {
-                        reqNewDS = true
+                        descriptorUpdated = true
                         VulkanTexture(device, commandPools, queue, queue, gt, miplevels)
                     }
 
@@ -1106,7 +1108,7 @@ open class VulkanRenderer(hub: Hub,
                         t.copyFrom(ByteBuffer.allocate(0))
                     }
 
-                    if(reqNewDS) {
+                    if(descriptorUpdated) {
                         t.createSampler(gt)
                     }
                     val vkTexture = t
@@ -1131,13 +1133,13 @@ open class VulkanRenderer(hub: Hub,
             }
         }
 
-        if(reqNewDS) {
+        if(descriptorUpdated) {
             s.texturesToDescriptorSets(device,
                 renderpasses.filter { it.value.passConfig.type != RenderConfigReader.RenderpassType.quad },
                 descriptorPool)
         }
 
-        return reqNewDS
+        return contentUpdated to descriptorUpdated
     }
 
     protected fun prepareDefaultDescriptorSetLayouts(device: VulkanDevice): ConcurrentHashMap<String, Long> {
@@ -1748,8 +1750,12 @@ open class VulkanRenderer(hub: Hub,
                     val image = swapchain.images[pass.getReadPosition()]
 
                     VulkanTexture.transitionLayout(image,
-                        VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-                        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                        from = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                        to = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                        srcStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                        srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                        dstStage = VK_PIPELINE_STAGE_HOST_BIT,
+                        dstAccessMask = VK_ACCESS_HOST_READ_BIT,
                         commandBuffer = this)
 
                     vkCmdCopyImageToBuffer(this, image,
@@ -1758,8 +1764,12 @@ open class VulkanRenderer(hub: Hub,
                         regions)
 
                     VulkanTexture.transitionLayout(image,
-                        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                        VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                        from = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                        to = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                        srcStage = VK_PIPELINE_STAGE_HOST_BIT,
+                        srcAccessMask = VK_ACCESS_HOST_READ_BIT,
+                        dstStage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+                        dstAccessMask = 0,
                         commandBuffer = this)
 
                     endCommandBuffer(this@VulkanRenderer.device, commandPools.Render, queue,
@@ -1907,6 +1917,8 @@ open class VulkanRenderer(hub: Hub,
 
         profiler?.begin("Renderer.PreDraw")
         // here we discover the objects in the scene that could be relevant for the scene
+        var texturesUpdated: Boolean by StickyBoolean(false)
+
         if (renderpasses.filter { it.value.passConfig.type != RenderConfigReader.RenderpassType.quad }.any()) {
             sceneNodes.forEach { node ->
                 val it = if(node is DelegatesRendering) {
@@ -1958,9 +1970,11 @@ open class VulkanRenderer(hub: Hub,
 
                     val material = it.material
                     val reloadTime = measureTimeMillis {
-                        val reload = loadTexturesForNode(it, metadata)
+                        val (texturesUpdatedForNode, descriptorUpdated) = loadTexturesForNode(it, metadata)
 
-                        if (reload) {
+                        texturesUpdated = texturesUpdatedForNode
+
+                        if (descriptorUpdated) {
                             logger.trace("Force command buffer re-recording, as reloading textures for ${it.name}")
                             rerecordingCauses.add(it.name)
                             forceRerecording = true
@@ -2003,8 +2017,8 @@ open class VulkanRenderer(hub: Hub,
         profiler?.begin("Renderer.BeginFrame")
         val presentedFrames = swapchain.presentedFrames()
         // return if neither UBOs were updated, nor the scene was modified
-        if (pushMode && !swapchainChanged && !ubosUpdated && !forceRerecording && !screenshotRequested && totalFrames > 3 && presentedFrames > 3) {
-            logger.trace("UBOs have not been updated, returning (pushMode={}, swapchainChanged={}, ubosUpdated={}, forceRerecording={}, screenshotRequested={})", pushMode, swapchainChanged, ubosUpdated, forceRerecording, totalFrames)
+        if (pushMode && !swapchainChanged && !ubosUpdated && !forceRerecording && !screenshotRequested && !texturesUpdated && totalFrames > 3 && presentedFrames > 3) {
+            logger.trace("UBOs have not been updated, returning (pushMode={}, swapchainChanged={}, ubosUpdated={}, texturesUpdated={}, forceRerecording={}, screenshotRequested={})", pushMode, swapchainChanged, ubosUpdated, texturesUpdated, forceRerecording, totalFrames)
             delay(2)
 
             return@runBlocking
@@ -2054,11 +2068,11 @@ open class VulkanRenderer(hub: Hub,
 
             si.sType(VK_STRUCTURE_TYPE_SUBMIT_INFO)
                 .pNext(NULL)
-                .waitSemaphoreCount(0)
+                .waitSemaphoreCount(1)
                 .pWaitDstStageMask(target.waitStages)
                 .pCommandBuffers(target.submitCommandBuffers)
-//                .pSignalSemaphores(target.signalSemaphores)
-//                .pWaitSemaphores(target.waitSemaphores)
+                .pSignalSemaphores(target.signalSemaphores)
+                .pWaitSemaphores(target.waitSemaphores)
 
             if(swapchainRecreator.mustRecreate) {
                 return@runBlocking
@@ -2067,7 +2081,7 @@ open class VulkanRenderer(hub: Hub,
             VU.run("Submit pass $t render queue", { vkQueueSubmit(queue, si, commandBuffer.getFence() )})
 
             commandBuffer.submitted = true
-//            firstWaitSemaphore.put(0, target.semaphore)
+            firstWaitSemaphore.put(0, target.semaphore)
             waitSemaphore = target.semaphore
 
             profiler?.end()
@@ -2104,7 +2118,7 @@ open class VulkanRenderer(hub: Hub,
         viewportPass.updateShaderParameters()
 
         ph.commandBuffers.put(0, viewportCommandBuffer.commandBuffer!!)
-        ph.waitStages.put(0, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT)
+        ph.waitStages.put(0, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT or VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT or VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT)
         ph.signalSemaphore.put(0, semaphores.getValue(StandardSemaphores.RenderComplete)[currentFrame])
         ph.waitSemaphore.put(0, firstWaitSemaphore.get(0))
         profiler?.end()
@@ -2588,6 +2602,7 @@ open class VulkanRenderer(hub: Hub,
             if(pass.passConfig.blitInputs) {
                 stackPush().use { stack ->
                     val imageBlit = VkImageBlit.callocStack(1, stack)
+                    val region = VkImageCopy.callocStack(1, stack)
 
                     for((name, input) in pass.inputs) {
                         val attachmentList = if(name.contains(".")) {
@@ -2625,9 +2640,11 @@ open class VulkanRenderer(hub: Hub,
                                 VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT -> VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
                             }
 
-                            val outputDstStage = when(outputAttachment.type) {
-                                VulkanFramebuffer.VulkanFramebufferType.COLOR_ATTACHMENT -> VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
-                                VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT -> VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT
+                            val (outputDstStage, outputDstAccessMask) = when(outputAttachment.type) {
+                                VulkanFramebuffer.VulkanFramebufferType.COLOR_ATTACHMENT ->
+                                    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT to VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT
+                                VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT ->
+                                    VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT or VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT to VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT
                             }
 
                             val offsetX = (input.width * pass.passConfig.viewportOffset.first).toInt()
@@ -2655,48 +2672,73 @@ open class VulkanRenderer(hub: Hub,
 
                             // transition source attachment
                             VulkanTexture.transitionLayout(inputAttachment.image,
-                                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                                VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                                from = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                                to = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                                srcStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                                srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                                dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                dstAccessMask = VK_ACCESS_MEMORY_WRITE_BIT,
                                 subresourceRange = subresourceRange,
                                 commandBuffer = transitionBuffer,
-                                srcStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-                                dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT
                             )
 
                             // transition destination attachment
                             VulkanTexture.transitionLayout(outputAttachment.image,
-                                inputAspectType,
-                                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                from = inputAspectType,
+                                to = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                srcStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                                srcAccessMask = 0,
+                                dstStage = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT
+                                    or VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
+                                dstAccessMask = 0,
                                 subresourceRange = subresourceRange,
-                                commandBuffer = transitionBuffer,
-                                srcStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-                                dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT
+                                commandBuffer = transitionBuffer
                             )
 
-                            vkCmdBlitImage(this@with,
-                                inputAttachment.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                                outputAttachment.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                imageBlit, VK_FILTER_NEAREST
-                            )
+                            if(inputAttachment.compatibleWith(input, outputAttachment, pass.getOutput())) {
+                                logger.debug("Using vkCmdCopyImage instead of blit because of compatible framebuffers between {} and {}", name, pass.name)
+                                region.srcOffset().set(offsetX, offsetY, 0)
+                                region.dstOffset().set(offsetX, offsetY, 0)
+                                region.extent().set(sizeX, sizeY, 1)
+                                region.srcSubresource().set(type, 0, 0, 1)
+                                region.dstSubresource().set(type, 0, 0, 1)
+
+                                vkCmdCopyImage(this@with,
+                                    inputAttachment.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                                    outputAttachment.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                    region
+                                )
+                            } else {
+                                vkCmdBlitImage(this@with,
+                                    inputAttachment.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                                    outputAttachment.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                    imageBlit, VK_FILTER_NEAREST
+                                )
+                            }
+
 
                             // transition destination attachment back to attachment
                             VulkanTexture.transitionLayout(outputAttachment.image,
-                                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                outputAspectDstType,
+                                from = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                to = outputAspectDstType,
+                                srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT,
+                                dstStage = outputDstStage,
+                                dstAccessMask = outputDstAccessMask,
                                 subresourceRange = subresourceRange,
                                 commandBuffer = transitionBuffer,
-                                srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
-                                dstStage = outputDstStage
                             )
 
                             // transition source attachment back to shader read-only
                             VulkanTexture.transitionLayout(inputAttachment.image,
-                                VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                                outputAspectSrcType,
-                                subresourceRange = subresourceRange,
-                                commandBuffer = transitionBuffer,
+                                from = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                                to = outputAspectSrcType,
                                 srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
-                                dstStage = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT
+                                dstStage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+                                srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT,
+                                dstAccessMask = 0,
+                                subresourceRange = subresourceRange,
+                                commandBuffer = transitionBuffer
                             )
 
                         }
