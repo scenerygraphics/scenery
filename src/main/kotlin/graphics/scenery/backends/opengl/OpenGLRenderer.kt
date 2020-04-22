@@ -620,13 +620,23 @@ open class OpenGLRenderer(hub: Hub,
         val supersamplingFactor = getSupersamplingFactor(cglWindow)
 
         scene.findObserver()?.let { cam ->
-            cam.perspectiveCamera(
-                cam.fov,
-                (windowWidth * supersamplingFactor).roundToInt(),
-                (windowHeight * supersamplingFactor).roundToInt(),
-                cam.nearPlaneDistance,
-                cam.farPlaneDistance
-            )
+            when(cam.projectionType) {
+                Camera.ProjectionType.Perspective -> cam.perspectiveCamera(
+                    cam.fov,
+                    (windowWidth * supersamplingFactor).roundToInt(),
+                    (windowHeight * supersamplingFactor).roundToInt(),
+                    cam.nearPlaneDistance,
+                    cam.farPlaneDistance
+                )
+
+                Camera.ProjectionType.Orthographic -> cam.orthographicCamera(
+                    cam.fov,
+                    (windowWidth * supersamplingFactor).roundToInt(),
+                    (windowHeight * supersamplingFactor).roundToInt(),
+                    cam.nearPlaneDistance,
+                    cam.farPlaneDistance
+                )
+            }
         }
 
         settings.set("Renderer.displayWidth", (windowWidth * supersamplingFactor).toInt())
@@ -1601,7 +1611,7 @@ open class OpenGLRenderer(hub: Hub,
         val sceneObjects = currentSceneNodes
 
         val startUboUpdate = System.nanoTime()
-        val updated = updateDefaultUBOs(cam)
+        val ubosUpdated = updateDefaultUBOs(cam)
         stats?.add("OpenGLRenderer.updateUBOs", System.nanoTime() - startUboUpdate)
 
         var sceneUpdated = true
@@ -1616,7 +1626,10 @@ open class OpenGLRenderer(hub: Hub,
         val instancesUpdated = updateInstanceBuffers(sceneObjects)
         stats?.add("OpenGLRenderer.updateInstanceBuffers", System.nanoTime() - startInstanceUpdate)
 
-        if(pushMode && !updated && !sceneUpdated && !screenshotRequested && !instancesUpdated) {
+//        if(pushMode) {
+//            logger.info("Push mode: ubosUpdated={} sceneUpdated={} screenshotRequested={} instancesUpdated={}", ubosUpdated, sceneUpdated, screenshotRequested, instancesUpdated)
+//        }
+        if(pushMode && !ubosUpdated && !sceneUpdated && !screenshotRequested && !recordMovie && !instancesUpdated) {
             if(updateLatch == null) {
                 updateLatch = CountDownLatch(2)
             }
@@ -1641,7 +1654,7 @@ open class OpenGLRenderer(hub: Hub,
             }
         }
 
-        if(updated || sceneUpdated || screenshotRequested) {
+        if(ubosUpdated || sceneUpdated || screenshotRequested || recordMovie) {
             updateLatch = null
         }
 
