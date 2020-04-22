@@ -198,7 +198,12 @@ open class VulkanRenderer(hub: Hub,
                     vkResetCommandPool(device.vulkanDevice, commandPools.Render, VK_FLAGS_NONE)
 
                     scene.findObserver()?.let { cam ->
-                        cam.perspectiveCamera(cam.fov, window.width, window.height, cam.nearPlaneDistance, cam.farPlaneDistance)
+                        when(cam.projectionType) {
+                            Camera.ProjectionType.Orthographic ->
+                                cam.orthographicCamera(cam.fov, window.width, window.height, cam.nearPlaneDistance, cam.farPlaneDistance)
+                            Camera.ProjectionType.Perspective ->
+                                cam.perspectiveCamera(cam.fov, window.width, window.height, cam.nearPlaneDistance, cam.farPlaneDistance)
+                        }
                     }
 
                     logger.debug("Calling late resize initializers for ${lateResizeInitializers.keys.joinToString(", ")}")
@@ -2017,7 +2022,7 @@ open class VulkanRenderer(hub: Hub,
         profiler?.begin("Renderer.BeginFrame")
         val presentedFrames = swapchain.presentedFrames()
         // return if neither UBOs were updated, nor the scene was modified
-        if (pushMode && !swapchainChanged && !ubosUpdated && !forceRerecording && !screenshotRequested && !texturesUpdated && totalFrames > 3 && presentedFrames > 3) {
+        if (pushMode && !swapchainChanged && !ubosUpdated && !forceRerecording && !screenshotRequested && !recordMovie && !texturesUpdated && totalFrames > 3 && presentedFrames > 3) {
             logger.trace("UBOs have not been updated, returning (pushMode={}, swapchainChanged={}, ubosUpdated={}, texturesUpdated={}, forceRerecording={}, screenshotRequested={})", pushMode, swapchainChanged, ubosUpdated, texturesUpdated, forceRerecording, totalFrames)
             delay(2)
 
