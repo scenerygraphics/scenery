@@ -26,7 +26,6 @@ class PowerplantExample : SceneryBase("PowerplantExample", windowWidth = 1280, w
         with(cam) {
             position = Vector3f(0.0f, 0.0f, 0.0f)
             perspectiveCamera(50.0f, windowWidth, windowHeight, nearPlaneLocation = 0.5f, farPlaneLocation = 1000.0f)
-            active = true
 
             scene.addChild(this)
         }

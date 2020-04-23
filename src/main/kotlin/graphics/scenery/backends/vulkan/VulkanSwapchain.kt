@@ -184,19 +184,19 @@ open class VulkanSwapchain(open val device: VulkanDevice,
             val preferredSwapchainPresentMode = if(vsync) {
                 KHRSurface.VK_PRESENT_MODE_FIFO_KHR
             } else {
-                KHRSurface.VK_PRESENT_MODE_MAILBOX_KHR
+                KHRSurface.VK_PRESENT_MODE_IMMEDIATE_KHR
             }
 
             val swapchainPresentMode = findBestPresentMode(presentModes,
                 preferredSwapchainPresentMode)
-
-            logger.debug("Selected present mode: ${swapchainModeToName(swapchainPresentMode)}")
 
             // Determine the number of images
             var desiredNumberOfSwapchainImages = surfCaps.minImageCount()
             if (surfCaps.maxImageCount() in 1 until desiredNumberOfSwapchainImages) {
                 desiredNumberOfSwapchainImages = surfCaps.maxImageCount()
             }
+
+            logger.info("Selected present mode: ${swapchainModeToName(swapchainPresentMode)} with $desiredNumberOfSwapchainImages images")
 
             val currentWidth = surfCaps.currentExtent().width()
             val currentHeight = surfCaps.currentExtent().height()

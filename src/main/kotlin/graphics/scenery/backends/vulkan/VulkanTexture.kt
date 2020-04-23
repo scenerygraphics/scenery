@@ -784,7 +784,7 @@ open class VulkanTexture(val device: VulkanDevice,
         /**
          * Transitions Vulkan image layouts, with [srcAccessMask] and [dstAccessMask] explicitly specified.
          */
-        fun transitionLayout(image: Long, oldLayout: Int, newLayout: Int, mipLevels: Int = 1,
+        fun transitionLayout(image: Long, from: Int, to: Int, mipLevels: Int = 1,
                              subresourceRange: VkImageSubresourceRange? = null,
                              srcStage: Int = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, dstStage: Int = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
                              srcAccessMask: Int, dstAccessMask: Int,
@@ -793,8 +793,8 @@ open class VulkanTexture(val device: VulkanDevice,
                 val barrier = VkImageMemoryBarrier.callocStack(1, stack)
                     .sType(VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER)
                     .pNext(NULL)
-                    .oldLayout(oldLayout)
-                    .newLayout(newLayout)
+                    .oldLayout(from)
+                    .newLayout(to)
                     .srcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
                     .dstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
                     .srcAccessMask(srcAccessMask)
@@ -812,7 +812,7 @@ open class VulkanTexture(val device: VulkanDevice,
                     barrier.subresourceRange(subresourceRange)
                 }
 
-                logger.trace("Transition: {} -> {} with srcAccessMark={}, dstAccessMask={}, srcStage={}, dstStage={}", oldLayout, newLayout, barrier.srcAccessMask(), barrier.dstAccessMask(), srcStage, dstStage)
+                logger.trace("Transition: {} -> {} with srcAccessMark={}, dstAccessMask={}, srcStage={}, dstStage={}", from, to, barrier.srcAccessMask(), barrier.dstAccessMask(), srcStage, dstStage)
 
                 vkCmdPipelineBarrier(
                     commandBuffer,

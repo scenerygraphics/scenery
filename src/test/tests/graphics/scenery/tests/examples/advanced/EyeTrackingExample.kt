@@ -35,7 +35,6 @@ class EyeTrackingExample: SceneryBase("Eye Tracking Example", windowWidth = 1280
         with(cam) {
             position = Vector3f(0.0f, 0.2f, 5.0f)
             perspectiveCamera(50.0f, windowWidth, windowHeight, 0.05f, 100.0f)
-            active = true
 
             scene.addChild(this)
         }

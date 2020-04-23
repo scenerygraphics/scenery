@@ -106,7 +106,6 @@ class ReaderExample : SceneryBase("ReaderExample", 1280, 720) {
         with(cam) {
             position = Vector3f(0.0f, 0.0f, 5.0f)
             perspectiveCamera(50.0f, windowWidth, windowHeight)
-            active = true
 
             scene.addChild(this)
         }

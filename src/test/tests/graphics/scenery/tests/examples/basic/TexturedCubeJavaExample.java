@@ -48,7 +48,6 @@ public class TexturedCubeJavaExample {
             Camera cam = new DetachedHeadCamera();
             cam.setPosition( new Vector3f(0.0f, 0.0f, 5.0f) );
             cam.perspectiveCamera(50.0f, getRenderer().getWindow().getWidth(), getRenderer().getWindow().getHeight(), 0.1f, 1000.0f);
-            cam.setActive( true );
             getScene().addChild(cam);
 
             Thread rotator = new Thread(() -> {
