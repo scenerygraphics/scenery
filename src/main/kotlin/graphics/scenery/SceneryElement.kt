@@ -29,5 +29,7 @@ enum class SceneryElement {
     /** Element for publishing Node updates */
     NodePublisher,
     /** Element for a REPL */
-    REPL
+    REPL,
+    /** AssetManager */
+    AssetManager
 }

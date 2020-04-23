@@ -1,13 +1,13 @@
-package graphics.scenery.tests.examples.bdv
+package graphics.scenery.tests.examples.volumes
 
-import cleargl.GLVector
+import bdv.spimdata.XmlIoSpimDataMinimal
+import org.joml.Vector3f
 import coremem.enums.NativeTypeEnum
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
 import graphics.scenery.utils.RingBuffer
 import graphics.scenery.volumes.Volume
-import graphics.scenery.volumes.bdv.BDVVolume
 import org.junit.Test
 import org.lwjgl.system.MemoryUtil
 import org.scijava.Context
@@ -17,7 +17,6 @@ import org.scijava.widget.FileWidget
 import tpietzsch.example2.VolumeViewerOptions
 import java.nio.ByteBuffer
 import java.util.*
-import kotlin.math.max
 
 /**
  * BDV Rendering Example
@@ -25,7 +24,7 @@ import kotlin.math.max
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class BigAndSmallVolumeExample: SceneryBase("BDV + SDV Rendering example", 1280, 720) {
-    lateinit var volume: BDVVolume
+    lateinit var volume: Volume
     var currentCacheSize = 1024
 
     override fun init() {
@@ -51,20 +50,19 @@ class BigAndSmallVolumeExample: SceneryBase("BDV + SDV Rendering example", 1280,
 
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
-            perspectiveCamera(50.0f, 1.0f*windowWidth, 1.0f*windowHeight)
-            active = true
+            perspectiveCamera(50.0f, windowWidth, windowHeight)
 
-//            position = GLVector(170.067406f, -138.45601f, -455.9538f)
+//            position = Vector3f(170.067406f, -138.45601f, -455.9538f)
 //            rotation = Quaternion(-0.05395214f, 0.94574946f, -0.23843345f, 0.21400182f)
 
             scene.addChild(this)
         }
 
         val options = VolumeViewerOptions().maxCacheSizeInMB(1024)
-        val v = BDVVolume(files.first(), options)
+        val v = Volume.fromSpimData(XmlIoSpimDataMinimal().load(files.first()), hub, options)
         v.name = "volume"
-        v.colormap = "plasma"
-        v.scale = GLVector(0.02f, 0.02f, 0.02f)
+//        v.colormap = "plasma"
+        v.scale = Vector3f(0.02f, 0.02f, 0.02f)
         scene.addChild(v)
 
         volume = v
@@ -74,8 +72,8 @@ class BigAndSmallVolumeExample: SceneryBase("BDV + SDV Rendering example", 1280,
         }
 
         lights.mapIndexed { i, light ->
-            light.position = GLVector(2.0f * i - 4.0f,  i - 1.0f, 0.0f)
-            light.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
+            light.position = Vector3f(2.0f * i - 4.0f,  i - 1.0f, 0.0f)
+            light.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
             light.intensity = 50.0f
             scene.addChild(light)
         }
@@ -86,7 +84,7 @@ class BigAndSmallVolumeExample: SceneryBase("BDV + SDV Rendering example", 1280,
         val volumeBuffer = RingBuffer<ByteBuffer>(2) { MemoryUtil.memAlloc((volumeSize*volumeSize*volumeSize*bitsPerVoxel/8).toInt()) }
 
         val seed = Random.randomFromRange(0.0f, 133333337.0f).toLong()
-        var shift = GLVector.getNullVector(3)
+        var shift = Vector3f(0.0f)
 
         val dataType = if(bitsPerVoxel == 8) {
             NativeTypeEnum.UnsignedByte
@@ -99,34 +97,27 @@ class BigAndSmallVolumeExample: SceneryBase("BDV + SDV Rendering example", 1280,
         Volume.generateProceduralVolume(volumeSize, 0.35f, seed = seed,
             intoBuffer = currentBuffer, shift = shift, use16bit = bitsPerVoxel > 8)
 
+        // TODO: Bring this back
+        /*
         volume.readFromBuffer(
             "procedural-cloud-${shift.hashCode()}", currentBuffer,
             volumeSize, volumeSize, volumeSize, 1.0f, 1.0f, 1.0f,
             dataType = dataType, bytesPerVoxel = bitsPerVoxel / 8, assign = false)
+         */
     }
 
     override fun inputSetup() {
         setupCameraModeSwitching()
 
-        val nextTimePoint = ClickBehaviour { _, _ -> volume?.nextTimepoint() }
-        val prevTimePoint = ClickBehaviour { _, _ -> volume?.previousTimepoint() }
+        val nextTimePoint = ClickBehaviour { _, _ -> volume.nextTimepoint() }
+        val prevTimePoint = ClickBehaviour { _, _ -> volume.previousTimepoint() }
         val tenTimePointsForward = ClickBehaviour { _, _ ->
-            val current = volume?.currentTimepoint ?: 0
-            volume?.goToTimePoint(current + 10)
+            val current = volume.currentTimepoint ?: 0
+            volume.goToTimePoint(current + 10)
         }
         val tenTimePointsBack = ClickBehaviour { _, _ ->
             val current = volume?.currentTimepoint ?: 0
-            volume?.goToTimePoint(current - 10)
-        }
-        val moreCache = ClickBehaviour { _, _ ->
-            currentCacheSize *= 2
-            logger.info("Enlarging cache size to $currentCacheSize MB")
-            volume?.resizeCache(currentCacheSize)
-        }
-        val lessCache = ClickBehaviour { _, _ ->
-            currentCacheSize = max(currentCacheSize / 2, 256)
-            logger.info("Cutting cache size to $currentCacheSize MB")
-            volume?.resizeCache(max(currentCacheSize / 2, 256))
+            volume.goToTimePoint(current - 10)
         }
 
         inputHandler?.addBehaviour("prev_timepoint", prevTimePoint)
@@ -140,12 +131,6 @@ class BigAndSmallVolumeExample: SceneryBase("BDV + SDV Rendering example", 1280,
 
         inputHandler?.addBehaviour("10_next_timepoint", tenTimePointsForward)
         inputHandler?.addKeyBinding("10_next_timepoint", "shift L")
-
-        inputHandler?.addBehaviour("more_cache", moreCache)
-        inputHandler?.addKeyBinding("more_cache", "9")
-
-        inputHandler?.addBehaviour("less_cache", lessCache)
-        inputHandler?.addKeyBinding("less_cache", "0")
     }
 
     @Test override fun main() {

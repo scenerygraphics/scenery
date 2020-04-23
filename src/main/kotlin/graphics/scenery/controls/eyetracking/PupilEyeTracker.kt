@@ -1,6 +1,5 @@
 package graphics.scenery.controls.eyetracking
 
-import cleargl.GLVector
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.databind.DeserializationContext
 import com.fasterxml.jackson.databind.KeyDeserializer
@@ -11,7 +10,10 @@ import graphics.scenery.Camera
 import graphics.scenery.Node
 import graphics.scenery.backends.Display
 import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.extensions.plus
+import graphics.scenery.utils.extensions.times
 import kotlinx.coroutines.*
+import org.joml.Vector3f
 import org.msgpack.jackson.dataformat.MessagePackFactory
 import org.zeromq.ZContext
 import org.zeromq.ZMQ
@@ -19,9 +21,6 @@ import org.zeromq.ZMsg
 import org.zeromq.ZPoller
 import java.io.Serializable
 import java.util.*
-import kotlin.math.PI
-import kotlin.math.cos
-import kotlin.math.sin
 
 /**
  * Support class for Pupil Labs eye trackers -- pupil-labs.com
@@ -68,29 +67,29 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
 
 
         /** Returns the normalized gaze position. */
-        fun normalizedPosition() = this.norm_pos.toGLVector()
+        fun normalizedPosition() = this.norm_pos.toVector3f()
         /** Returns the point the user is gazing at. */
-        fun gazePoint() = gaze_point_3d.toGLVector()
+        fun gazePoint() = gaze_point_3d.toVector3f()
 
         /** Returns the center of the left eye. */
         @Suppress("unused")
-        fun leftEyeCenter() = eye_centers_3d?.getOrDefault(0, floatArrayOf(0.0f, 0.0f, 0.0f)).toGLVector()
+        fun leftEyeCenter() = eye_centers_3d?.getOrDefault(0, floatArrayOf(0.0f, 0.0f, 0.0f)).toVector3f()
         /** Returns the center of the right eye. */
         @Suppress("unused")
-        fun rightEyeCenter() = eye_centers_3d?.getOrDefault(1, floatArrayOf(0.0f, 0.0f, 0.0f)).toGLVector()
+        fun rightEyeCenter() = eye_centers_3d?.getOrDefault(1, floatArrayOf(0.0f, 0.0f, 0.0f)).toVector3f()
 
         /** Returns the normal orientation of the left eye. */
         @Suppress("unused")
-        fun leftGazeNormal() = gaze_normals_3d?.getOrDefault(0, floatArrayOf(0.0f, 0.0f, 0.0f)).toGLVector()
+        fun leftGazeNormal() = gaze_normals_3d?.getOrDefault(0, floatArrayOf(0.0f, 0.0f, 0.0f)).toVector3f()
         /** Returns the normal orientation of the right eye. */
         @Suppress("unused")
-        fun rightGazeNormal() = gaze_normals_3d?.getOrDefault(1, floatArrayOf(0.0f, 0.0f, 0.0f)).toGLVector()
+        fun rightGazeNormal() = gaze_normals_3d?.getOrDefault(1, floatArrayOf(0.0f, 0.0f, 0.0f)).toVector3f()
 
-        private fun FloatArray?.toGLVector(): GLVector {
+        private fun FloatArray?.toVector3f(): Vector3f {
             return if(this != null) {
-                GLVector(this[0], this[1], this.getOrElse(2, { 0.0f }))
+                Vector3f(this[0], this[1], this.getOrElse(2, { 0.0f }))
             } else {
-                GLVector(0.0f, 0.0f, 0.0f)
+                Vector3f(0.0f, 0.0f, 0.0f)
             }
         }
 
@@ -244,21 +243,21 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
 //                                            logger.info("Received binocular gaze")
 
                                             val p = g.gaze_point_3d ?: floatArrayOf(0.0f, 0.0f, 0.0f)
-                                            var vp = GLVector(p[0], p[1], p[2])
+                                            var vp = Vector3f(p[0], p[1], p[2])
 
-//                                            if(vp.times(GLVector(0.0f, 0.0f, -1.0f)) >= PI/2.0f) {
+//                                            if(vp.times(Vector3f(0.0f, 0.0f, -1.0f)) >= PI/2.0f) {
 //                                                logger.info("Inverting gaze direction")
 //                                                vp *= (-1.0f)
 //                                            }
 
-                                            vp *= (1.0f/pupilToSceneryRatio)
+                                            vp = vp * (1.0f/pupilToSceneryRatio)
 
                                             val ng = Gaze(
                                                 g.confidence,
                                                 g.timestamp,
                                                 2,
                                                 g.norm_pos,
-                                                vp.toFloatArray(),
+                                                floatArrayOf(vp.x, vp.y, vp.z),
                                                 g.eye_centers_3d,
                                                 g.gaze_normals_3d
                                             )
@@ -274,7 +273,7 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
                                             }
 
                                             val p = g.gaze_point_3d ?: floatArrayOf(0.0f, 0.0f, 0.0f)
-                                            var vp = GLVector(p[0], p[1], p[2])
+                                            var vp = Vector3f(p[0], p[1], p[2])
 
                                             vp *= (1.0f/pupilToSceneryRatio)
 
@@ -283,7 +282,7 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
                                                 g.timestamp,
                                                 msgType.substringAfterLast("d.").replace(".", "").toInt(),
                                                 g.norm_pos,
-                                                vp.toFloatArray(),
+                                                floatArrayOf(vp.x, vp.y, vp.z),
                                                 g.eye_centers_3d,
                                                 g.gaze_normals_3d
                                             )
@@ -416,12 +415,12 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
                     "args" to emptyMap<String, Any>()
                 ))
 
-                val shiftLeftEye = GLVector(
+                val shiftLeftEye = Vector3f(
                     hmd.getHeadToEyeTransform(0)[3, 0],
                     hmd.getHeadToEyeTransform(0)[3, 1],
                     hmd.getHeadToEyeTransform(0)[3, 2]) * 1000.0f
 
-                val shiftRightEye = GLVector(
+                val shiftRightEye = Vector3f(
                     hmd.getHeadToEyeTransform(1)[3, 0],
                     hmd.getHeadToEyeTransform(1)[3, 1],
                     hmd.getHeadToEyeTransform(1)[3, 2]) * 1000.0f
@@ -432,8 +431,8 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
                     "subject" to "calibration.should_start",
                     "hmd_video_frame_size" to listOf(hmd.getRenderTargetSize().x().toInt(), hmd.getRenderTargetSize().y().toInt()),
                     "outlier_threshold" to 35,
-                    "translation_eye0" to shiftLeftEye.toFloatArray(),
-                    "translation_eye1" to shiftRightEye.toFloatArray()
+                    "translation_eye0" to floatArrayOf(shiftLeftEye.x, shiftLeftEye.y, shiftLeftEye.z),
+                    "translation_eye1" to floatArrayOf(shiftRightEye.x, shiftRightEye.y, shiftRightEye.z)
                 ))
             }
         }
@@ -462,24 +461,25 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
 
             positionList.map { normalizedScreenPos ->
                 logger.info("Subject looking at ${normalizedScreenPos.local}/${normalizedScreenPos.world}")
-                val position = normalizedScreenPos.world.clone()
+                val position = Vector3f(normalizedScreenPos.world)
 
                 val calibrationPosition = if(calibrationType == CalibrationType.ScreenSpace) {
                     calibrationTarget?.position = position + cam.forward * 0.15f
-                    normalizedScreenPos.local.toFloatArray()
+                    val l = normalizedScreenPos.local
+                    floatArrayOf(l.x, l.y, l.z)
                 } else {
                     calibrationTarget?.position = position
-                    val p = normalizedScreenPos.local.clone() * pupilToSceneryRatio
-                    p.set(0, p.get(0) * 1.0f)
-                    p.set(1, p.get(1) * -1.0f * cam.aspectRatio())
-                    p.set(2, p.get(2) * 1.0f)
-                    p.toFloatArray()
+                    val p = Vector3f(normalizedScreenPos.local) * pupilToSceneryRatio
+                    p.x = p.get(0) * 1.0f
+                    p.y = p.get(1) * -1.0f * cam.aspectRatio()
+                    p.z = p.get(2) * 1.0f
+                    floatArrayOf(p.x, p.y, p.z)
                 }
 
                 if(normalizedScreenPos.local.x() == 0.5f && normalizedScreenPos.local.y() == 0.5f) {
-                    calibrationTarget?.material?.diffuse = GLVector(1.0f, 1.0f, 0.0f)
+                    calibrationTarget?.material?.diffuse = Vector3f(1.0f, 1.0f, 0.0f)
                 } else {
-                    calibrationTarget?.material?.diffuse = GLVector(1.0f, 1.0f, 1.0f)
+                    calibrationTarget?.material?.diffuse = Vector3f(1.0f, 1.0f, 1.0f)
                 }
 
                 (0 until samplesPerPoint).forEach {

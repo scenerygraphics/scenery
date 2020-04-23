@@ -1,12 +1,15 @@
 package graphics.scenery.controls.behaviours
 
-import cleargl.GLVector
+import org.joml.Vector3f
 import com.jogamp.opengl.math.Quaternion
 import graphics.scenery.Node
 import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.controls.TrackerInput
 import graphics.scenery.controls.TrackerRole
 import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.extensions.minus
+import graphics.scenery.utils.extensions.plus
+import org.joml.Quaternionf
 import org.scijava.ui.behaviour.ClickBehaviour
 
 /**
@@ -22,8 +25,8 @@ open class ControllerDrag(val handedness: TrackerRole,
                           val trackRotation: Boolean = false,
                           val draggedObjectFinder: () -> Node?): ClickBehaviour {
     private val logger by LazyLogger()
-    protected var lastPosition: GLVector? = null
-    protected var lastRotation: Quaternion? = null
+    protected var lastPosition: Vector3f? = null
+    protected var lastRotation: Quaternionf? = null
     // half a second of timeout
     var timeout = 500
 
@@ -43,8 +46,8 @@ open class ControllerDrag(val handedness: TrackerRole,
 
         val pose = hmd.getPose(TrackedDeviceType.Controller).find { it.role == handedness } ?: return
         val last = lastPosition
-        val current = pose.position.clone()
-        val currentRotation = Quaternion(pose.orientation)
+        val current = Vector3f(pose.position)
+        val currentRotation = Quaternionf(pose.orientation)
 
         if(last != null) {
             val node = draggedObjectFinder.invoke() ?: return

@@ -1,10 +1,11 @@
 package graphics.scenery.backends.vulkan
 
-import graphics.scenery.GenericTexture
+import graphics.scenery.textures.Texture
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.*
 import graphics.scenery.NodeMetadata
 import graphics.scenery.backends.RenderConfigReader
+import graphics.scenery.backends.RendererFlags
 import graphics.scenery.utils.LazyLogger
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
@@ -65,6 +66,13 @@ open class VulkanObjectState : NodeMetadata {
     /** Whether the node is rendered as instanced */
     var instanced = false
 
+    var flags = EnumSet.noneOf(RendererFlags::class.java)
+    /** Skip for rendering if this is set. */
+    var preDrawSkip = false
+
+    /** Last reload time for textures */
+    var texturesLastSeen = 0L
+
     /**
      * Creates or updates the [textureDescriptorSets] describing the textures used. Will cover all the renderpasses
      * given in [passes]. The set will reside on [device] and the descriptor set layout(s) determined from the renderpass.
@@ -75,7 +83,7 @@ open class VulkanObjectState : NodeMetadata {
             if(pass.recreated > descriptorSetsRecreated) {
                 textureDescriptorSets.clear()
             }
-            val textures = textures.entries.groupBy { GenericTexture.objectTextures.contains(it.key) }
+            val textures = textures.entries.groupBy { Texture.objectTextures.contains(it.key) }
             val objectTextures = textures[true]
             val others = textures[false]
 
@@ -84,7 +92,7 @@ open class VulkanObjectState : NodeMetadata {
                 textureDescriptorSets[pass.passConfig.type.name to "ObjectTextures"] = createOrUpdateTextureDescriptorSet(
                     "ObjectTextures",
                     pass.passConfig.type.name,
-                    GenericTexture.objectTextures.map { ot -> objectTextures.first { it.key == ot } },
+                    Texture.objectTextures.map { ot -> objectTextures.first { it.key == ot } },
                     descriptorSetLayoutObjectTextures,
                     device,
                     descriptorPool)

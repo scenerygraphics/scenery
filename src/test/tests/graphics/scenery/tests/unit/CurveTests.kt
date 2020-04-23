@@ -1,10 +1,10 @@
 package graphics.scenery.tests.unit
 
-import cleargl.GLVector
 import graphics.scenery.numerics.Random
 import graphics.scenery.CatmullRomSpline
 import graphics.scenery.Curve
 import graphics.scenery.utils.LazyLogger
+import org.joml.Vector3f
 import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFails
@@ -24,20 +24,20 @@ class CurveTests {
     @Test
     fun testCurve() {
         logger.info("This is the test for the Curve.")
-        val point1 = Random.randomVectorFromRange(3, -30f, -10f)
-        val point2 = Random.randomVectorFromRange(3, -9f, 20f)
-        val point3 = Random.randomVectorFromRange(3, 21f, 30f)
-        val point4 = Random.randomVectorFromRange(3, 31f, 100f)
+        val point1 = Random.random3DVectorFromRange(-30f, -10f)
+        val point2 = Random.random3DVectorFromRange(-9f, 20f)
+        val point3 = Random.random3DVectorFromRange(21f, 30f)
+        val point4 = Random.random3DVectorFromRange(31f, 100f)
 
         val controlPoints = arrayListOf(point1, point2, point3, point4)
 
         val curve = CatmullRomSpline(controlPoints)
 
-        fun triangle(): ArrayList<GLVector> {
-            val list = ArrayList<GLVector>()
-            list.add(GLVector(0.3f, 0.3f, 0f))
-            list.add(GLVector(0.3f, -0.3f, 0f))
-            list.add(GLVector(-0.3f, -0.3f, 0f))
+        fun triangle(): ArrayList<Vector3f> {
+            val list = ArrayList<Vector3f>()
+            list.add(Vector3f(0.3f, 0.3f, 0f))
+            list.add(Vector3f(0.3f, -0.3f, 0f))
+            list.add(Vector3f(-0.3f, -0.3f, 0f))
             return list
         }
 
@@ -45,13 +45,17 @@ class CurveTests {
         val frenetFrames = geometry.computeFrenetFrames(geometry.getCurve())
 
         assertEquals(curve.catMullRomChain(), geometry.getCurve())
-        assertNotNull(frenetFrames.forEach { it.normal })
-        assertNotNull(frenetFrames.forEach{ it.bitangent })
-        assertEquals(frenetFrames.filter { it.bitangent?.length2()!! < 1.001f && it.bitangent?.length2()!! > 0.999f },
+
+        frenetFrames.forEach {
+            assertNotNull(it.normal)
+            assertNotNull(it.bitangent)
+        }
+
+        assertEquals(frenetFrames.filter { it.bitangent?.length()!! < 1.001f && it.bitangent?.length()!! > 0.999f },
                 frenetFrames)
-        assertEquals(frenetFrames.filter { it.normal?.length2()!! < 1.001f && it.normal?.length2()!! > 0.999f },
+        assertEquals(frenetFrames.filter { it.normal?.length()!! < 1.001f && it.normal?.length()!! > 0.999f },
                 frenetFrames)
-        assertEquals(frenetFrames.filter { it.tangent.length2() < 1.001f && it.tangent.length2() > 0.999f },
+        assertEquals(frenetFrames.filter { it.tangent.length() < 1.001f && it.tangent.length() > 0.999f },
                 frenetFrames)
     }
 
@@ -61,10 +65,10 @@ class CurveTests {
     @Test
     fun testDrawSpline() {
         logger.info("This is the test for the CurveGeometry.")
-        val point1 = Random.randomVectorFromRange(3, -30f, -10f)
-        val point2 = Random.randomVectorFromRange(3, -9f, 20f)
-        val point3 = Random.randomVectorFromRange(3, 21f, 30f)
-        val point4 = Random.randomVectorFromRange(3, 31f, 100f)
+        val point1 = Random.random3DVectorFromRange(-30f, -10f)
+        val point2 = Random.random3DVectorFromRange(-9f, 20f)
+        val point3 = Random.random3DVectorFromRange(21f, 30f)
+        val point4 = Random.random3DVectorFromRange(31f, 100f)
 
         val controlPoints = arrayListOf(point1, point2, point3, point4)
 
@@ -76,16 +80,16 @@ class CurveTests {
         the triangles only works if the number of points of the baseShape is constant
         over the curve: the function should throw an error.
          */
-        fun triangleFalse(): ArrayList<GLVector> {
+        fun triangleFalse(): ArrayList<Vector3f> {
             val i = Random.randomFromRange(0.99f, 1.1f)
-            val list = ArrayList<GLVector>()
-            list.add(GLVector(0.3f, 0.3f, 0f))
-            list.add(GLVector(0.3f, -0.3f, 0f))
-            list.add(GLVector(-0.3f, -0.3f, 0f))
+            val list = ArrayList<Vector3f>()
+            list.add(Vector3f(0.3f, 0.3f, 0f))
+            list.add(Vector3f(0.3f, -0.3f, 0f))
+            list.add(Vector3f(-0.3f, -0.3f, 0f))
             return if(i >= 1 ) {
                 list
             } else {
-                list.add(GLVector(0f, 0f, 0f))
+                list.add(Vector3f(0f, 0f, 0f))
                 list
             }
         }

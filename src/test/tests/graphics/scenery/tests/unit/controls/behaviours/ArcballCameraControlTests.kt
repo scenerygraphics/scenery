@@ -1,6 +1,6 @@
 package graphics.scenery.tests.unit.controls.behaviours
 
-import cleargl.GLVector
+import org.joml.Vector3f
 import graphics.scenery.Camera
 import graphics.scenery.DetachedHeadCamera
 import graphics.scenery.Hub
@@ -9,6 +9,7 @@ import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.controls.behaviours.ArcballCameraControl
 import graphics.scenery.tests.unit.backends.FauxRenderer
 import graphics.scenery.utils.LazyLogger
+import org.junit.Assert
 import org.junit.Test
 import java.io.FileWriter
 import java.io.PrintWriter
@@ -34,7 +35,7 @@ class ArcballCameraControlTests {
 
         val window: SceneryWindow = renderer.window
 
-        val target = scene.findObserver()?.target ?: GLVector.getNullVector(3)
+        val target = scene.findObserver()?.target ?: Vector3f(0.0f)
 
         val arcballCameraControl = ArcballCameraControl("TestController", { scene.findObserver() }, 512, 512, target)
         return arcballCameraControl
@@ -45,9 +46,8 @@ class ArcballCameraControlTests {
 
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
-            position = GLVector(0.0f, 0.0f, 5.0f)
-            perspectiveCamera(50.0f, 512.0f, 512.0f)
-            active = true
+            position = Vector3f(0.0f, 0.0f, 5.0f)
+            perspectiveCamera(50.0f, 512, 512)
             scene.addChild(this)
         }
 
@@ -117,9 +117,8 @@ class ArcballCameraControlTests {
 
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
-            position = GLVector(0.0f, 0.0f, 5.0f)
-            perspectiveCamera(50.0f, 512.0f, 512.0f)
-            active = true
+            position = Vector3f(0.0f, 0.0f, 5.0f)
+            perspectiveCamera(50.0f, 512, 512)
             scene.addChild(this)
         }
 
@@ -138,14 +137,14 @@ class ArcballCameraControlTests {
             if(numbers[0].toInt() == seqLength) {
                 arcballCameraControl.end(numbers[1].toInt(), numbers[2].toInt())
             }
-            assertEquals(numbers[3], cam.rotation.x, "Computed camera rotation is incorrect")
-            assertEquals(numbers[4], cam.rotation.y, "Computed camera rotation is incorrect")
-            assertEquals(numbers[5], cam.rotation.z, "Computed camera rotation is incorrect")
-            assertEquals(numbers[6], cam.rotation.w, "Computed camera rotation is incorrect")
 
-            assertEquals(numbers[7], cam.position.x(), "Computed camera position is incorrect")
-            assertEquals(numbers[8], cam.position.y(), "Computed camera position is incorrect")
-            assertEquals(numbers[9], cam.position.z(), "Computed camera position is incorrect")
+            Assert.assertEquals("Computed camera rotation is incorrect", numbers[3], cam.rotation.x, 0.00001f)
+            Assert.assertEquals("Computed camera rotation is incorrect", numbers[4], cam.rotation.y, 0.00001f)
+            Assert.assertEquals("Computed camera rotation is incorrect", numbers[5], cam.rotation.z, 0.00001f)
+            Assert.assertEquals("Computed camera rotation is incorrect", numbers[6], cam.rotation.w, 0.00001f)
+            Assert.assertEquals("Computed camera rotation is incorrect", numbers[7], cam.position.x(), 0.00001f)
+            Assert.assertEquals("Computed camera rotation is incorrect", numbers[8], cam.position.y(), 0.00001f)
+            Assert.assertEquals("Computed camera rotation is incorrect", numbers[9], cam.position.z(), 0.00001f)
         }
     }
 }

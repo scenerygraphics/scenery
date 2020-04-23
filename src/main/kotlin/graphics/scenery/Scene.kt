@@ -1,7 +1,9 @@
 package graphics.scenery
 
-import cleargl.GLVector
+import org.joml.Vector3f
 import graphics.scenery.utils.MaybeIntersects
+import graphics.scenery.utils.extensions.plus
+import graphics.scenery.utils.extensions.times
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
@@ -55,7 +57,7 @@ open class Scene : Node("RootNode") {
      */
     fun findObserver(): Camera? {
         return if(activeObserver == null) {
-            val observers = discover(this, { n -> n.nodeType == "Camera" && (n as Camera?)?.active == true }, useDiscoveryBarriers = true)
+            val observers = discover(this, { n -> n is Camera}, useDiscoveryBarriers = true)
 
             activeObserver = observers.firstOrNull() as Camera?
             activeObserver
@@ -181,7 +183,7 @@ open class Scene : Node("RootNode") {
     /**
      * Data class for raycast results, including all matches, and the ray's origin and direction.
      */
-    data class RaycastResult(val matches: List<RaycastMatch>, val initialPosition: GLVector, val initialDirection: GLVector)
+    data class RaycastResult(val matches: List<RaycastMatch>, val initialPosition: Vector3f, val initialDirection: Vector3f)
 
     /**
      * Performs a raycast to discover objects in this [Scene] that would be intersected
@@ -189,17 +191,17 @@ open class Scene : Node("RootNode") {
      * be given a list of classes as [ignoredObjects], which will then be ignored for
      * the raycast. If [debug] is true, a set of spheres is placed along the cast ray.
      */
-    @JvmOverloads fun raycast(position: GLVector, direction: GLVector,
+    @JvmOverloads fun raycast(position: Vector3f, direction: Vector3f,
                               ignoredObjects: List<Class<*>>,
                               debug: Boolean = false): RaycastResult {
         if (debug) {
             val indicatorMaterial = Material()
-            indicatorMaterial.diffuse = GLVector(1.0f, 0.2f, 0.2f)
-            indicatorMaterial.specular = GLVector(1.0f, 0.2f, 0.2f)
-            indicatorMaterial.ambient = GLVector(0.0f, 0.0f, 0.0f)
+            indicatorMaterial.diffuse = Vector3f(1.0f, 0.2f, 0.2f)
+            indicatorMaterial.specular = Vector3f(1.0f, 0.2f, 0.2f)
+            indicatorMaterial.ambient = Vector3f(0.0f, 0.0f, 0.0f)
 
             for(it in 5..50) {
-                val s = Box(GLVector(0.08f, 0.08f, 0.08f))
+                val s = Box(Vector3f(0.08f, 0.08f, 0.08f))
                 s.material = indicatorMaterial
                 s.position = position + direction * it.toFloat()
                 this.addChild(s)
@@ -222,10 +224,9 @@ open class Scene : Node("RootNode") {
             logger.info(matches.joinToString(", ") { "${it.node.name} at distance ${it.distance}" })
 
             val m = Material()
-            m.diffuse = GLVector(1.0f, 0.0f, 0.0f)
-            m.specular = GLVector(0.0f, 0.0f, 0.0f)
-            m.ambient = GLVector(0.0f, 0.0f, 0.0f)
-            m.needsTextureReload = true
+            m.diffuse = Vector3f(1.0f, 0.0f, 0.0f)
+            m.specular = Vector3f(0.0f, 0.0f, 0.0f)
+            m.ambient = Vector3f(0.0f, 0.0f, 0.0f)
 
             matches.firstOrNull()?.let {
                 it.node.material = m

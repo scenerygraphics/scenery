@@ -1,6 +1,6 @@
 package graphics.scenery.tests.examples.basic
 
-import cleargl.GLVector
+import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.OpenVRHMD
@@ -8,6 +8,7 @@ import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.controls.TrackerRole
 import graphics.scenery.controls.behaviours.ControllerDrag
 import graphics.scenery.numerics.Random
+import graphics.scenery.utils.extensions.times
 import graphics.scenery.volumes.Volume
 import org.junit.Test
 import org.scijava.Context
@@ -17,6 +18,7 @@ import org.scijava.widget.FileWidget
 import java.nio.file.Files
 import java.nio.file.Paths
 import kotlin.concurrent.thread
+import kotlin.math.sqrt
 import kotlin.streams.toList
 
 /**
@@ -26,7 +28,7 @@ import kotlin.streams.toList
  */
 class ReaderExample : SceneryBase("ReaderExample", 1280, 720) {
     var hmd: OpenVRHMD? = null
-    lateinit var loadedFilename: String
+    var loadedFilename: String? = null
     lateinit var loadedObject: Node
 
     var playing = false
@@ -38,7 +40,7 @@ class ReaderExample : SceneryBase("ReaderExample", 1280, 720) {
         val c = Context()
         val ui = c.getService(UIService::class.java)
         val file = ui.chooseFile(null, FileWidget.OPEN_STYLE)
-        files.add(file.absolutePath)
+        file?.let { files.add(it.absolutePath) }
 
         val cam = DetachedHeadCamera()
         hmd = try {
@@ -53,33 +55,25 @@ class ReaderExample : SceneryBase("ReaderExample", 1280, 720) {
         }
 
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
+        renderer?.pushMode = true
 
-        val b = Box(GLVector(50.0f, 0.2f, 50.0f))
-        b.position = GLVector(0.0f, -1.0f, 0.0f)
-        b.material.diffuse = GLVector(0.1f, 0.1f, 0.1f)
+        val b = Box(Vector3f(50.0f, 0.2f, 50.0f))
+        b.position = Vector3f(0.0f, -1.0f, 0.0f)
+        b.material.diffuse = Vector3f(0.1f, 0.1f, 0.1f)
         scene.addChild(b)
 
         val tetrahedron = listOf(
-            GLVector(1.0f, 0f, -1.0f/Math.sqrt(2.0).toFloat()),
-            GLVector(-1.0f,0f,-1.0f/Math.sqrt(2.0).toFloat()),
-            GLVector(0.0f,1.0f,1.0f/Math.sqrt(2.0).toFloat()),
-            GLVector(0.0f,-1.0f,1.0f/Math.sqrt(2.0).toFloat()))
+            Vector3f(1.0f, 0f, -1.0f/ sqrt(2.0).toFloat()),
+            Vector3f(-1.0f,0f,-1.0f/ sqrt(2.0).toFloat()),
+            Vector3f(0.0f,1.0f,1.0f/ sqrt(2.0).toFloat()),
+            Vector3f(0.0f,-1.0f,1.0f/ sqrt(2.0).toFloat()))
 
         val lights = (0 until 4).map { PointLight(radius = 50.0f) }
 
         loadedObject = if(files.isNotEmpty()) {
             when {
-                files.first().endsWith(".tiff") || files.first().endsWith(".tif") -> {
-                    val v = Volume()
-                    v.readFrom(Paths.get(files.first()))
-
-                    v
-                }
-                files.first().endsWith(".raw") -> {
-                    val v = Volume()
-                    v.readFromRaw(Paths.get(files.first()))
-
-                    v
+                files.first().endsWith(".tiff") || files.first().endsWith(".tif") || files.first().endsWith(".raw")  -> {
+                    Volume.fromPath(Paths.get(files.first()), hub)
                 }
 
                 else -> {
@@ -90,10 +84,11 @@ class ReaderExample : SceneryBase("ReaderExample", 1280, 720) {
                 }
             }
         } else {
-            throw IllegalStateException("No file selected")
+            logger.warn("No file selected, returning empty node.")
+            Node("empty")
         }
 
-        loadedFilename = files.first()
+        loadedFilename = files.firstOrNull()
         loadedObject.fitInto(6.0f, scaleUp = false)
 
         scene.addChild(loadedObject)
@@ -103,15 +98,14 @@ class ReaderExample : SceneryBase("ReaderExample", 1280, 720) {
 
         tetrahedron.mapIndexed { i, position ->
             lights[i].position = position * 5.0f
-            lights[i].emissionColor = Random.randomVectorFromRange(3, 0.8f, 1.0f)
+            lights[i].emissionColor = Random.random3DVectorFromRange(0.8f, 1.0f)
             lights[i].intensity = 0.5f
             scene.addChild(lights[i])
         }
 
         with(cam) {
-            position = GLVector(0.0f, 0.0f, 5.0f)
-            perspectiveCamera(50.0f, windowWidth.toFloat(), windowHeight.toFloat())
-            active = true
+            position = Vector3f(0.0f, 0.0f, 5.0f)
+            perspectiveCamera(50.0f, windowWidth, windowHeight)
 
             scene.addChild(this)
         }
@@ -121,7 +115,7 @@ class ReaderExample : SceneryBase("ReaderExample", 1280, 720) {
                 Thread.sleep(200)
             }
 
-            loadedObject.putAbove(GLVector(0.0f, -0.3f, 0.0f))
+            loadedObject.putAbove(Vector3f(0.0f, -0.3f, 0.0f))
 
             hmd?.events?.onDeviceConnect?.add { hmd, device, timestamp ->
                 if(device.type == TrackedDeviceType.Controller) {
@@ -178,7 +172,7 @@ class ReaderExample : SceneryBase("ReaderExample", 1280, 720) {
                 cam.showMessage("Speed: ${String.format("%.2f", (1000f/delay.toFloat()))} vol/s")
             } else {
                 val scale = minOf(loadedObject.scale.x() * 1.2f, 3.0f)
-                loadedObject.scale = GLVector.getOneVector(3) * scale
+                loadedObject.scale = Vector3f(1.0f) * scale
             }
         }
 
@@ -191,7 +185,7 @@ class ReaderExample : SceneryBase("ReaderExample", 1280, 720) {
                 cam.showMessage("Speed: ${String.format("%.2f", (1000f/delay.toFloat()))} vol/s")
             } else {
                 val scale = maxOf(loadedObject.scale.x() / 1.2f, 0.1f)
-                loadedObject.scale = GLVector.getOneVector(3) * scale
+                loadedObject.scale = Vector3f(1.0f) * scale
             }
         }
 
@@ -227,9 +221,10 @@ class ReaderExample : SceneryBase("ReaderExample", 1280, 720) {
      * Loads the next dataset with the same extension from the directory the current
      * dataset resides in. If [forward] is true, the direction is forward, otherwise backwards.
      */
-    fun loadNext(forward: Boolean = true) {
-        val extension = loadedFilename.substringAfterLast(".").toLowerCase()
-        val current = Paths.get(loadedFilename)
+    private fun loadNext(forward: Boolean = true) {
+        val name = loadedFilename ?: return
+        val extension = name.substringAfterLast(".").toLowerCase()
+        val current = Paths.get(name)
 
         val direction = if(forward) {
             1
@@ -246,15 +241,13 @@ class ReaderExample : SceneryBase("ReaderExample", 1280, 720) {
         } else {
             (currentIndex + direction) % files.size
         }
-        val file = files.get(newIndex)
+        val file = files[newIndex]
 
 
         when(extension) {
-            "tif", "tiff" -> (loadedObject as? Volume)?.readFrom(file)
-            "raw" -> (loadedObject as? Volume)?.readFromRaw(file)
             "obj", "stl" -> {
                 loadedObject = Mesh().readFrom(file.toFile().absolutePath)
-                loadedObject.centerOn(GLVector.getNullVector(3))
+                loadedObject.centerOn(Vector3f(0.0f))
                 loadedObject.fitInto(6.0f, scaleUp = false)
             }
         }

@@ -2,6 +2,7 @@ package graphics.scenery.tests.unit.numerics
 
 import graphics.scenery.numerics.Random
 import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.extensions.toFloatArray
 import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -27,30 +28,60 @@ class RandomTests {
     }
 
     @Test
-    fun testRandomVectorFromRange() {
+    fun testRandom2DVectorFromRange() {
         logger.info("Testing generation random vectors from range ...")
         val min = kotlin.random.Random.nextDouble(0.0, 0.9).toFloat()
         val max = kotlin.random.Random.nextDouble(min.toDouble(), 1.0).toFloat()
 
         val vectors = (0 until 32).map {
-            val dimension = kotlin.random.Random.nextInt(1, 10)
-            val v = Random.randomVectorFromRange(dimension, min, max)
-
-            dimension to v
+            Random.random2DVectorFromRange(min, max)
         }
 
         vectors.forEach { v ->
-            assertEquals(v.first, v.second.dimension, "Vector should have dimension ${v.first}, but has ${v.second.dimension}")
-            assertTrue(v.second.toFloatArray().all { it >= min }, "Random value was expected to be larger than $min, but is smaller")
-            assertTrue(v.second.toFloatArray().all { it <= max }, "Random value was expected to be smaller than $max, but is larger")
+            assertTrue(v.toFloatArray().all { it >= min }, "Random value was expected to be larger than $min, but is smaller")
+            assertTrue(v.toFloatArray().all { it <= max }, "Random value was expected to be smaller than $max, but is larger")
         }
     }
+
+    @Test
+    fun testRandom3DVectorFromRange() {
+        logger.info("Testing generation random vectors from range ...")
+        val min = kotlin.random.Random.nextDouble(0.0, 0.9).toFloat()
+        val max = kotlin.random.Random.nextDouble(min.toDouble(), 1.0).toFloat()
+
+        val vectors = (0 until 32).map {
+            Random.random3DVectorFromRange(min, max)
+        }
+
+        vectors.forEach { v ->
+            assertTrue(v.toFloatArray().all { it >= min }, "Random value was expected to be larger than $min, but is smaller")
+            assertTrue(v.toFloatArray().all { it <= max }, "Random value was expected to be smaller than $max, but is larger")
+        }
+    }
+
+    @Test
+    fun testRandom4DVectorFromRange() {
+        logger.info("Testing generation random vectors from range ...")
+        val min = kotlin.random.Random.nextDouble(0.0, 0.9).toFloat()
+        val max = kotlin.random.Random.nextDouble(min.toDouble(), 1.0).toFloat()
+
+        val vectors = (0 until 32).map {
+            Random.random4DVectorFromRange(min, max)
+        }
+
+        vectors.forEach { v ->
+            assertTrue(v.toFloatArray().all { it >= min }, "Random value was expected to be larger than $min, but is smaller")
+            assertTrue(v.toFloatArray().all { it <= max }, "Random value was expected to be smaller than $max, but is larger")
+        }
+    }
+
+
 
     @Test
     fun testRandomQuaternion() {
         logger.info("Testing random quaternion generation ...")
         val q = Random.randomQuaternion()
 
-        assertTrue(q.magnitude() in (1.0f - 0.0001f)..(1.0f + 0.0001f), "Quaternion should be normalized")
+        assertTrue(q.lengthSquared() in (1.0f - 0.0001f)..(1.0f + 0.0001f), "Quaternion should be normalized")
     }
 }

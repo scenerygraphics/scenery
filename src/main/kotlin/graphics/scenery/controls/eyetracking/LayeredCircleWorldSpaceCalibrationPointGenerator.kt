@@ -1,6 +1,6 @@
 package graphics.scenery.controls.eyetracking
 
-import cleargl.GLVector
+import org.joml.Vector3f
 import graphics.scenery.Camera
 import kotlin.math.PI
 import kotlin.math.cos
@@ -36,9 +36,9 @@ class LayeredCircleWorldSpaceCalibrationPointGenerator(val layerCount: Int = 3, 
         val (radius, z) = radiiAndDistances.getOrDefault(layer, RadiusDistance(0.5f, 1.0f))
 
         val v = if (index < 3) {
-            GLVector(origin, origin, z)
+            Vector3f(origin, origin, z)
         } else {
-            GLVector(
+            Vector3f(
                 origin + radius * cos(2 * PI.toFloat() * index.toFloat() / pointsPerCircle),
                 origin + radius * sin(2 * PI.toFloat() * index.toFloat() / pointsPerCircle),
                 z

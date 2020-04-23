@@ -1,9 +1,8 @@
 package graphics.scenery.backends
 
-import cleargl.GLMatrix
-import cleargl.GLVector
+import org.joml.Matrix4f
 import graphics.scenery.backends.vulkan.VulkanDevice
-import org.lwjgl.vulkan.VkDevice
+import org.joml.Vector2i
 import org.lwjgl.vulkan.VkInstance
 import org.lwjgl.vulkan.VkPhysicalDevice
 import org.lwjgl.vulkan.VkQueue
@@ -18,9 +17,9 @@ interface Display {
      * Returns the per-eye projection matrix
      *
      * @param[eye] The index of the eye
-     * @return GLMatrix containing the per-eye projection matrix
+     * @return Matrix4f containing the per-eye projection matrix
      */
-    fun getEyeProjection(eye: Int, nearPlane: Float = 1.0f, farPlane: Float = 1000.0f): GLMatrix
+    fun getEyeProjection(eye: Int, nearPlane: Float = 1.0f, farPlane: Float = 1000.0f): Matrix4f
 
     /**
      * Returns the inter-pupillary distance (IPD)
@@ -66,7 +65,7 @@ interface Display {
      *
      * @return Render target size as 2D vector
      */
-    fun getRenderTargetSize(): GLVector
+    fun getRenderTargetSize(): Vector2i
 
     /**
      * Check whether the HMD is initialized and working
@@ -105,7 +104,7 @@ interface Display {
      * Returns the per-eye transform that moves from head to eye
      *
      * @param[eye] The eye index
-     * @return GLMatrix containing the transform
+     * @return Matrix4f containing the transform
      */
-    fun getHeadToEyeTransform(eye: Int): GLMatrix
+    fun getHeadToEyeTransform(eye: Int): Matrix4f
 }

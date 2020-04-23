@@ -1,12 +1,14 @@
 package graphics.scenery.controls
 
-import cleargl.GLMatrix
-import cleargl.GLVector
+import org.joml.Matrix4f
+import org.joml.Vector3f
 import com.jogamp.opengl.math.Quaternion
 import graphics.scenery.Camera
 import graphics.scenery.Mesh
 import graphics.scenery.Node
 import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.extensions.times
+import org.joml.Quaternionf
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import vrpn.Loader
@@ -37,9 +39,9 @@ class VRPNTrackerInput(trackerAddress: String = "device@locahost:5500") : Tracke
 
     var listener: TrackerRemoteListener? = null
 
-    var cachedOrientation: Quaternion = Quaternion(0.0f, 0.0f, 0.0f, 1.0f)
+    var cachedOrientation: Quaternionf = Quaternionf(0.0f, 0.0f, 0.0f, 1.0f)
 
-    var cachedPosition: GLVector = GLVector(0.0f, 1.5f, 1.5f)
+    var cachedPosition: Vector3f = Vector3f(0.0f, 1.5f, 1.5f)
 
     var stats = Timer()
     var vrpnMsgCount = 0L
@@ -81,43 +83,43 @@ class VRPNTrackerInput(trackerAddress: String = "device@locahost:5500") : Tracke
     /**
      * Returns the orientation of the HMD
      *
-     * @returns GLMatrix with orientation
+     * @returns Matrix4f with orientation
      */
-    override fun getOrientation(): Quaternion {
+    override fun getOrientation(): Quaternionf {
         return cachedOrientation
     }
 
     /**
      * Returns the orientation of the given device, or a unit quaternion if the device is not found.
      *
-     * @returns GLMatrix with orientation
+     * @returns Matrix4f with orientation
      */
-    override fun getOrientation(id: String): Quaternion {
+    override fun getOrientation(id: String): Quaternionf {
         return cachedOrientation
     }
 
     /**
-     * Returns the absolute position as GLVector
+     * Returns the absolute position as Vector3f
      *
-     * @return HMD position as GLVector
+     * @return HMD position as Vector3f
      */
-    override fun getPosition(): GLVector {
+    override fun getPosition(): Vector3f {
         return cachedPosition
     }
 
     /**
      * Returns the HMD pose
      *
-     * @return HMD pose as GLMatrix
+     * @return HMD pose as Matrix4f
      */
-    override fun getPose(): GLMatrix {
-        return GLMatrix.fromQuaternion(cachedOrientation)
+    override fun getPose(): Matrix4f {
+        return Matrix4f().set(cachedOrientation)
     }
 
     /**
      * Returns a list of poses for the devices [type] given.
      *
-     * @return Pose as GLMatrix
+     * @return Pose as Matrix4f
      */
     override fun getPose(type: TrackedDeviceType): List<TrackedDevice> {
         return listOf(TrackedDevice(TrackedDeviceType.HMD, "VRPN", getPose(), System.nanoTime()))
@@ -126,9 +128,9 @@ class VRPNTrackerInput(trackerAddress: String = "device@locahost:5500") : Tracke
     /**
      * Returns the HMD pose per eye
      *
-     * @return HMD pose as GLMatrix
+     * @return HMD pose as Matrix4f
      */
-    override fun getPoseForEye(eye: Int): GLMatrix {
+    override fun getPoseForEye(eye: Int): Matrix4f {
         return this.getPose()
     }
 
@@ -148,7 +150,7 @@ class VRPNTrackerInput(trackerAddress: String = "device@locahost:5500") : Tracke
         listener?.let {
 
             it.lastTrackerUpdate?.let {
-                cachedPosition = GLVector(it.pos[0].toFloat(), it.pos[1].toFloat(), -it.pos[2].toFloat())*positionScaling
+                cachedPosition = Vector3f(it.pos[0].toFloat(), it.pos[1].toFloat(), -it.pos[2].toFloat()) * positionScaling
 //                val newOrientation = Quaternion(
 //                   it.quat[0].toFloat(),
 //                   -it.quat[2].toFloat(),

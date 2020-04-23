@@ -1,6 +1,6 @@
 package graphics.scenery.backends.vulkan
 
-import cleargl.GLVector
+import org.joml.Vector3f
 import graphics.scenery.GeometryType
 import graphics.scenery.Node
 import graphics.scenery.Settings
@@ -10,6 +10,8 @@ import graphics.scenery.backends.ShaderType
 import graphics.scenery.backends.Shaders
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.RingBuffer
+import org.joml.Vector2f
+import org.joml.Vector4f
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.*
@@ -31,7 +33,8 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
                        val device: VulkanDevice,
                        val descriptorPool: Long,
                        val pipelineCache: Long,
-                       val vertexDescriptors: ConcurrentHashMap<VulkanRenderer.VertexDataKinds, VulkanRenderer.VertexDescription>): AutoCloseable {
+                       val vertexDescriptors: ConcurrentHashMap<VulkanRenderer.VertexDataKinds, VulkanRenderer.VertexDescription>,
+                       val ringBufferSize: Int = 2): AutoCloseable {
 
     protected val logger by LazyLogger()
 
@@ -84,7 +87,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
             commandBufferBacking.put(b)
         }
 
-    private var commandBufferBacking = RingBuffer(size = 3,
+    private var commandBufferBacking = RingBuffer(size = ringBufferSize,
         default = { VulkanCommandBuffer(device, null, true) })
 
     /** This renderpasses' semaphore */
@@ -248,8 +251,14 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
                 @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
                 val value = if (entry.value is String || entry.value is java.lang.String) {
                     val s = entry.value as String
-                    GLVector(*(s.split(",").map { it.trim().trimStart().toFloat() }.toFloatArray()))
-                } else if (entry.value is Double) {
+                    val split = s.split(",").map { it.trim().trimStart().toFloat() }.toFloatArray()
+
+                    when(split.size) {
+                        2 -> Vector2f(split[0], split[1])
+                        3 -> Vector3f(split[0], split[1], split[2])
+                        4 -> Vector4f(split[0], split[1], split[2], split[3])
+                        else -> throw IllegalStateException("Dont know how to handle ${split.size} elements in Shader Parameter split")
+                    }                } else if (entry.value is Double) {
                     (entry.value as Double).toFloat()
                 } else {
                     entry.value
@@ -379,11 +388,10 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
     fun initializePipeline(pipelineName: String = "default", shaders: List<VulkanShaderModule>,
                            vertexInputType: VulkanRenderer.VertexDescription = vertexDescriptors.getValue(VulkanRenderer.VertexDataKinds.PositionNormalTexcoord),
                            settings: (VulkanPipeline) -> Any = {}) {
-        val p = VulkanPipeline(device, pipelineCache)
-
         val reqDescriptorLayouts = ArrayList<Long>()
 
         val framebuffer = output.values.first()
+        val p = VulkanPipeline(device, this, framebuffer.renderPass.get(0), pipelineCache)
 
         p.addShaderStages(shaders)
 
@@ -411,7 +419,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
         p.colorBlendState.pAttachments()?.free()
         p.colorBlendState
             .sType(VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO)
-            .pNext(MemoryUtil.NULL)
+            .pNext(NULL)
             .pAttachments(blendMasks)
 
         p.depthStencilState
@@ -439,7 +447,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
                 p.rasterizationState.cullMode(VK_CULL_MODE_FRONT_BIT)
                 p.rasterizationState.frontFace(VK_FRONT_FACE_COUNTER_CLOCKWISE)
 
-                p.createPipelines(this, framebuffer.renderPass.get(0),
+                p.createPipelines(
                     vertexDescriptors.getValue(VulkanRenderer.VertexDataKinds.None).state,
                     descriptorSetLayouts = reqDescriptorLayouts,
                     onlyForTopology = GeometryType.TRIANGLES)
@@ -447,7 +455,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
 
             RenderConfigReader.RenderpassType.geometry,
             RenderConfigReader.RenderpassType.lights -> {
-                p.createPipelines(this, framebuffer.renderPass.get(0),
+                p.createPipelines(
                     vertexInputType.state,
                     descriptorSetLayouts = reqDescriptorLayouts)
             }
@@ -513,6 +521,8 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
      * to determine the most currently rendered swapchain image for a viewport pass.
      */
     fun getReadPosition() = commandBufferBacking.currentReadPosition - 1
+
+    fun getWritePosition() = commandBufferBacking.currentWritePosition - 1
 
     /**
      * Returns the active [VulkanPipeline] for [forNode], if it has a preferred pipeline,

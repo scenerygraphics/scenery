@@ -1,6 +1,6 @@
 package graphics.scenery.tests.examples.stresstests
 
-import cleargl.GLVector
+import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
@@ -24,15 +24,14 @@ class PowerplantExample : SceneryBase("PowerplantExample", windowWidth = 1280, w
 
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
-            position = GLVector(0.0f, 0.0f, 0.0f)
-            perspectiveCamera(50.0f, windowWidth.toFloat(), windowHeight.toFloat(), nearPlaneLocation = 0.5f, farPlaneLocation = 1000.0f)
-            active = true
+            position = Vector3f(0.0f, 0.0f, 0.0f)
+            perspectiveCamera(50.0f, windowWidth, windowHeight, nearPlaneLocation = 0.5f, farPlaneLocation = 1000.0f)
 
             scene.addChild(this)
         }
 
         val boxes = (0..lightCount).map {
-            Box(GLVector(0.5f, 0.5f, 0.5f))
+            Box(Vector3f(0.5f, 0.5f, 0.5f))
         }
 
         val lights = (0..lightCount).map {
@@ -46,7 +45,7 @@ class PowerplantExample : SceneryBase("PowerplantExample", windowWidth = 1280, w
         }
 
         lights.map {
-            it.emissionColor = Random.randomVectorFromRange(3, 0.0f, 1.0f)
+            it.emissionColor = Random.random3DVectorFromRange(0.0f, 1.0f)
             it.parent?.material?.diffuse = it.emissionColor
             it.intensity = Random.randomFromRange(0.01f, 10f)
 
@@ -56,8 +55,8 @@ class PowerplantExample : SceneryBase("PowerplantExample", windowWidth = 1280, w
         val plant = Mesh()
         with(plant) {
             readFromOBJ(getDemoFilesPath() + "/powerplant.obj", importMaterials = true)
-            position = GLVector(0.0f, 0.0f, 0.0f)
-            scale = GLVector(0.001f, 0.001f, 0.001f)
+            position = Vector3f(0.0f, 0.0f, 0.0f)
+            scale = Vector3f(0.001f, 0.001f, 0.001f)
             material = Material()
             updateWorld(true, true)
             name = "rungholt"
@@ -72,7 +71,7 @@ class PowerplantExample : SceneryBase("PowerplantExample", windowWidth = 1280, w
                     i, box ->
                     val phi = Math.PI * 2.0f * ticks / 2500.0f
 
-                    box.position = GLVector(
+                    box.position = Vector3f(
                         -128.0f + 18.0f * (i + 1),
                         5.0f + i * 5.0f,
                         (i + 1) * 50 * Math.cos(phi + (i * 0.2f)).toFloat())
