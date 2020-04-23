@@ -81,6 +81,9 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
     /** Pixel-to-world scaling ratio. Default: 1 px = 1mm in world space*/
     var pixelToWorldRatio = 0.001f
 
+    /** What to use as the volume's origin, scenery's default is [Origin.Center], BVV's default is [Origin.FrontBottomLeft]. **/
+    var origin = Origin.Center
+
     /** Rendering method */
     var renderingMethod = RenderingMethod.AlphaBlending
         set(value) {
@@ -216,15 +219,15 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
      * into account.
      */
     override fun composeModel() {
-        logger.info("Composing model for $this")
         @Suppress("SENSELESS_COMPARISON")
         if(position != null && rotation != null && scale != null) {
-            val L = localScale() * (1.0f/2.0f)
-            model.identity()
-            model.translate(this.position.x(), this.position.y(), this.position.z())
+            model.translation(position)
             model.mul(Matrix4f().set(this.rotation))
-            model.scale(this.scale.x(), this.scale.y(), this.scale.z())
-            model.scale(L.x(), L.y(), L.z())
+            if(origin == Origin.Center) {
+                model.translate(-2.0f, -2.0f, -2.0f)
+            }
+            model.scale(scale)
+            model.scale(localScale())
         }
     }
 
@@ -472,11 +475,11 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
             val volumeFiles: List<Path>
             
             if(Files.isDirectory(file)) {
-                volumeFiles = Files.list(file).filter { it.endsWith(".raw") && Files.isRegularFile(it) && Files.isReadable(it) }.toList()
-                infoFile = file.resolveSibling("stacks.info")
+                volumeFiles = Files.list(file).filter { it.toString().endsWith(".raw") && Files.isRegularFile(it) && Files.isReadable(it) }.toList()
+                infoFile = file.resolve("stacks.info")
             } else {
                 volumeFiles = listOf(file)
-                infoFile = file.resolve("stacks.info")
+                infoFile = file.resolveSibling("stacks.info")
             }
 
             val lines = Files.lines(infoFile).toList()
@@ -484,17 +487,18 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
             logger.debug("reading stacks.info (${lines.joinToString()}) (${lines.size} lines)")
             val dimensions = Vector3i(lines.get(0).split(",").map { it.toInt() }.toIntArray())
             logger.debug("setting dim to ${dimensions.x}/${dimensions.y}/${dimensions.z}")
+            logger.debug("Got ${volumeFiles.size} volumes")
 
             val volumes = LinkedHashMap(volumeFiles.map { v ->
-                val id = file.fileName.toString()
+                val id = v.fileName.toString()
                 val buffer: ByteBuffer by lazy {
 
                     logger.debug("Loading $id from disk")
                     val buffer = ByteArray(1024 * 1024)
-                    val stream = FileInputStream(file.toFile())
+                    val stream = FileInputStream(v.toFile())
                     val imageData: ByteBuffer = MemoryUtil.memAlloc((2 * dimensions.x * dimensions.y * dimensions.z))
 
-                    logger.debug("${file.fileName}: Allocated ${imageData.capacity()} bytes for UINT16 image of $dimensions")
+                    logger.debug("${v.fileName}: Allocated ${imageData.capacity()} bytes for UINT16 image of $dimensions")
 
                     val start = System.nanoTime()
                     var bytesRead = stream.read(buffer, 0, buffer.size)
