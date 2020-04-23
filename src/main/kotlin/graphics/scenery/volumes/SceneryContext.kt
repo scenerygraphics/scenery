@@ -535,11 +535,11 @@ open class SceneryContext(val node: VolumeManager) : GpuContext {
 
         val params = UpdateParameters(xoffset, yoffset, zoffset, width, height, depth, XXHash.XXH32(pixels, 42))
         if(lastUpdates[texture] == params) {
-            logger.info("Updates already seen, skipping")
+            logger.debug("Updates already seen, skipping")
             return
         }
 
-        logger.info("Updating 3D texture via Texture3D from $texture: dx=$xoffset dy=$yoffset dz=$zoffset w=$width h=$height d=$depth")
+        logger.debug("Updating 3D texture via Texture3D from $texture: dx=$xoffset dy=$yoffset dz=$zoffset w=$width h=$height d=$depth")
 
         val p = pixels.duplicate().order(ByteOrder.LITTLE_ENDIAN)
         val allocationSize = width * height * depth * texture.texInternalFormat().bytesPerElement
