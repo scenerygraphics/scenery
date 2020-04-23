@@ -44,7 +44,7 @@ class ArcballExample : SceneryBase("ArcballExample") {
             material.ambient = Vector3f(1.0f, 0.0f, 0.0f)
             material.diffuse = Vector3f(0.0f, 1.0f, 0.0f)
             material.specular = Vector3f(1.0f, 1.0f, 1.0f)
-            material.textures["diffuse"] = Texture.fromImage(Image.fromResource("textures/helix.png", this::class.java))
+            material.textures["diffuse"] = Texture.fromImage(Image.fromResource("textures/helix.png", TexturedCubeExample::class.java))
 
             scene.addChild(this)
         }
