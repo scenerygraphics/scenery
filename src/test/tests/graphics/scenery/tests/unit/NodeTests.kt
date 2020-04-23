@@ -436,10 +436,10 @@ class NodeTests {
     fun testMaximumBoundingBox() {
         val s = Scene()
         val parent = Group()
-        parent.position = GLVector(100f, 100f, 100f)
+        parent.position = Vector3f(100f, 100f, 100f)
         ( 0 until 2).forEach {i ->
             val sphere = Sphere(5f, 3)
-            sphere.position = GLVector(-100f * ( i % 2 ), 0f, i.toFloat())
+            sphere.position = Vector3f(-100f * ( i % 2 ), 0f, i.toFloat())
             parent.addChild(sphere)
         }
 
