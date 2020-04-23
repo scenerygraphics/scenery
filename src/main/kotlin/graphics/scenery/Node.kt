@@ -150,11 +150,11 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
     val instances = CopyOnWriteArrayList<Node>()
 
     @Suppress("UNUSED_PARAMETER")
-    protected fun <R> propertyChanged(property: KProperty<*>, old: R, new: R) {
+    protected fun <R> propertyChanged(property: KProperty<*>, old: R, new: R, custom: String = "") {
         if(property.name == "rotation"
             || property.name == "position"
             || property.name  == "scale"
-            || property.name == "renderScale") {
+            || property.name == custom) {
             needsUpdate = true
             needsUpdateWorld = true
         }
