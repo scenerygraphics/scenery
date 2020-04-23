@@ -151,11 +151,13 @@ class Line @JvmOverloads constructor(var capacity: Int = 50, transparent: Boolea
         vertices.position(vertices.limit())
         vertices.limit(vertices.limit() + points.size * 3)
         points.forEach { v -> v.get(vertices) }
+        vertices.position(vertices.limit())
         vertices.flip()
 
         normals.position(normals.limit())
         normals.limit(normals.limit() + points.size * 3)
         points.forEach { v -> v.get(normals) }
+        normals.position(normals.limit())
         normals.flip()
 
         texcoords.position(texcoords.limit())
@@ -164,6 +166,7 @@ class Line @JvmOverloads constructor(var capacity: Int = 50, transparent: Boolea
             texcoords.put(0.0f)
             texcoords.put(0.0f)
         }
+        texcoords.position(texcoords.limit())
         texcoords.flip()
 
         dirty = true
