@@ -3,6 +3,7 @@ package graphics.scenery.volumes
 import bdv.tools.brightness.ConverterSetup
 import bdv.tools.transformation.TransformedSource
 import bdv.viewer.RequestRepaint
+import bdv.viewer.Source
 import bdv.viewer.state.SourceState
 import graphics.scenery.*
 import net.imglib2.realtransform.AffineTransform3D
@@ -30,6 +31,7 @@ import java.nio.ByteBuffer
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
 import java.util.*
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.ForkJoinPool
 import java.util.function.BiConsumer
 import kotlin.math.max
@@ -97,7 +99,7 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
     /** Cache specification. */
     private val cacheSpec = CacheSpec(Texture.InternalFormat.R16, intArrayOf(32, 32, 32))
 
-    private val renderStacks = ArrayList<Triple<Stack3D<*>, Texture, Texture>>()
+    private val renderStacks = CopyOnWriteArrayList<Triple<Stack3D<*>, Texture, Texture>>()
 
     private val stackManager = SceneryStackManager()
 
@@ -203,7 +205,10 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
             val volumeType = when(it.first) {
                 is SimpleStack3D -> SourceStacks.SourceStackType.SIMPLE
                 is MultiResolutionStack3D -> SourceStacks.SourceStackType.MULTIRESOLUTION
-                else -> SourceStacks.SourceStackType.UNDEFINED
+                else -> {
+                    logger.warn("Can't infer stack type for ${it.first.javaClass.simpleName}")
+                    SourceStacks.SourceStackType.UNDEFINED
+                }
             }
 
             VolumeShaderSignature.VolumeSignature(volumeType, dataType)
@@ -529,13 +534,12 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
 
             logger.debug("Visible: at t=$currentTimepoint: ${visibleSourceIndices.joinToString(", ")}")
             for (i in visibleSourceIndices) {
-//                val stack = stacks.getStack(
-//                    stacks.timepointId(currentTimepoint),
-//                    stacks.setupId(i),
-//                    true) as MultiResolutionStack3D<VolatileUnsignedShortType>
 
                 val source = bdvNode.viewerState.sources[i]
-                val stack = SourceStacks.getStack3D(source.spimSource, currentTimepoint)// as MultiResolutionStack3D<*>
+                if(bdvNode is BufferedVolume) {
+                    SourceStacks.setSourceStackType(source.spimSource, SourceStacks.SourceStackType.SIMPLE)
+                }
+                val stack = SourceStacks.getStack3D(source.spimSource, currentTimepoint)
 
                 val sourceTransform = AffineTransform3D()
                 source.spimSource.getSourceTransform(currentTimepoint, 0, sourceTransform)
