@@ -177,7 +177,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
                     Thread.sleep(2)
                 }
             }
-        } else {
+        } else if(master) {
             thread {
                 val address = settings.get("NodePublisher.ListenAddress", "tcp://127.0.0.1:6666")
                 val p = NodePublisher(hub, address)

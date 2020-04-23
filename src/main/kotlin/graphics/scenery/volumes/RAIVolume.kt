@@ -1,6 +1,7 @@
 package graphics.scenery.volumes
 
 import graphics.scenery.Hub
+import graphics.scenery.OrientedBoundingBox
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.times
 import org.joml.Matrix4f
@@ -9,10 +10,19 @@ import tpietzsch.example2.VolumeViewerOptions
 
 class RAIVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewerOptions, hub: Hub): Volume(ds, options, hub) {
     init {
+        name = "Volume (RAI source)"
         if(ds.cacheControl != null) {
             logger.info("Adding cache control")
-            cacheControls?.addCacheControl(ds.cacheControl)
+            cacheControls.addCacheControl(ds.cacheControl)
         }
+
+        maxTimepoint = ds.numTimepoints
+
+        boundingBox = generateBoundingBox()
+    }
+
+    override fun generateBoundingBox(): OrientedBoundingBox? {
+        return OrientedBoundingBox(this, Vector3f(0.0f, 0.0f, 0.0f), Vector3f(1.0f, 1.0f, 1.0f))
     }
 
     override fun localScale(): Vector3f {

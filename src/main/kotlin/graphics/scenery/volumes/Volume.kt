@@ -77,6 +77,10 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
 
     /** The color map for the volume. */
     var colormap: Colormap = Colormap.get("viridis")
+        set(m) {
+            field = m
+            volumeManager.removeCachedColormapFor(this)
+        }
 
     /** Pixel-to-world scaling ratio. Default: 1 px = 1mm in world space*/
     var pixelToWorldRatio = 0.001f
@@ -121,6 +125,8 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
     }
 
     init {
+        name = "Volume"
+
         when(dataSource) {
             is SpimDataMinimalSource -> {
                 val spimData = dataSource.spimData
@@ -176,7 +182,7 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
     /** Goes to the [timepoint] given, returning the number of the updated timepoint. */
     open fun goToTimePoint(timepoint: Int): Int {
         val current = viewerState.currentTimepoint
-        viewerState.currentTimepoint = min(max(timepoint, 0), maxTimepoint)
+        viewerState.currentTimepoint = min(max(timepoint, 0), maxTimepoint - 1)
         logger.info("Going to timepoint ${viewerState.currentTimepoint} of $maxTimepoint")
 
         if(current != viewerState.currentTimepoint) {
@@ -277,7 +283,7 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
             return Volume(ds, options, hub)
         }
 
-        @JvmStatic @JvmOverloads fun <T: NumericType<T>> fromRAII(
+        @JvmStatic @JvmOverloads fun <T: NumericType<T>> fromRAI(
             img: RandomAccessibleInterval<T>,
             type: T,
             axisOrder: AxisOrder = DEFAULT,
@@ -306,7 +312,30 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
             }
 
             val cacheControl = if (img is VolatileView<*, *>) {
-                logger.info("Got a nice volatile view!")
+                val viewData: VolatileViewData<T, Volatile<T>> = (img as VolatileView<T, Volatile<T>>).volatileViewData
+                viewData.cacheControl
+            } else {
+                null
+            }
+
+            val ds = VolumeDataSource.RAISource<T>(type, sources, converterSetups, numTimepoints, cacheControl)
+            return RAIVolume(ds, options, hub)
+        }
+
+        @JvmStatic @JvmOverloads fun <T: NumericType<T>> fromSourceAndConverter(
+            source: SourceAndConverter<T>,
+            type: T,
+            name: String,
+            hub: Hub,
+            options: VolumeViewerOptions = VolumeViewerOptions()
+        ): Volume {
+            val converterSetups: ArrayList<ConverterSetup> = ArrayList()
+            val sources = arrayListOf(source)
+            val numTimepoints = 1
+
+            val img = source.spimSource.getSource(0, 0)
+
+            val cacheControl = if (img is VolatileView<*, *>) {
                 val viewData: VolatileViewData<T, Volatile<T>> = (img as VolatileView<T, Volatile<T>>).volatileViewData
                 viewData.cacheControl
             } else {

@@ -46,7 +46,6 @@ class GamepadCameraControlTests {
         with(cam) {
             position = Vector3f(0.0f, 0.0f, 5.0f)
             perspectiveCamera(50.0f, 512, 512)
-            active = true
             scene.addChild(this)
         }
 
@@ -95,7 +94,6 @@ class GamepadCameraControlTests {
         with(cam) {
             position = Vector3f(0.0f, 0.0f, 5.0f)
             perspectiveCamera(50.0f, 512, 512)
-            active = true
             scene.addChild(this)
         }
 

@@ -76,7 +76,6 @@ class CycleRenderQualityExample: SceneryBase("CycleRenderQualityExample", window
         with(cam) {
             position = Vector3f(0.0f, 0.2f, 12.0f)
             perspectiveCamera(50.0f, windowWidth, windowHeight)
-            active = true
 
             scene.addChild(this)
         }

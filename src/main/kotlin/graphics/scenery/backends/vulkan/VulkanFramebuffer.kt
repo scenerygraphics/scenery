@@ -463,20 +463,23 @@ open class VulkanFramebuffer(protected val device: VulkanDevice,
         dependencyChain[0]
             .srcSubpass(VK_SUBPASS_EXTERNAL)
             .dstSubpass(0)
-            .srcStageMask(VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT)
-            .dstStageMask(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT)
-            .srcAccessMask(VK_ACCESS_MEMORY_READ_BIT)
-            .dstAccessMask(VK_ACCESS_COLOR_ATTACHMENT_READ_BIT or VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
-            .dependencyFlags(VK_DEPENDENCY_BY_REGION_BIT)
+            .srcStageMask(VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT or VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT or VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT)
+            .srcAccessMask(0)
+            .dstStageMask(VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT)
+            .dstAccessMask(VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT)
 
         dependencyChain[1]
             .srcSubpass(0)
             .dstSubpass(VK_SUBPASS_EXTERNAL)
-            .srcStageMask(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT)
-            .dstStageMask(VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT)
-            .srcAccessMask(VK_ACCESS_COLOR_ATTACHMENT_READ_BIT or VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
-            .dstAccessMask(VK_ACCESS_MEMORY_READ_BIT)
-            .dependencyFlags(VK_DEPENDENCY_BY_REGION_BIT)
+            .srcStageMask(VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT or VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT)
+            .srcAccessMask(VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT or VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT or VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT or VK_ACCESS_COLOR_ATTACHMENT_READ_BIT)
+            .dstStageMask(VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT)
+            .dstAccessMask(VK_ACCESS_SHADER_READ_BIT)
+
+        if(!attachments.any { it.value.fromSwapchain }) {
+            dependencyChain[0].dependencyFlags(VK_DEPENDENCY_BY_REGION_BIT)
+            dependencyChain[1].dependencyFlags(VK_DEPENDENCY_BY_REGION_BIT)
+        }
 
         val attachmentDescs = getAttachmentDescBuffer()
         val renderPassInfo = VkRenderPassCreateInfo.calloc()

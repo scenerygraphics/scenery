@@ -25,7 +25,6 @@ class VertexUpdateExample : SceneryBase("VertexUpdateExample") {
         with(cam) {
             position = Vector3f(0.0f, 0.0f, 5.0f)
             perspectiveCamera(70.0f, windowWidth, windowHeight, 1.0f, 1000.0f)
-            active = true
             scene.addChild(this)
         }
 

@@ -46,7 +46,6 @@ class DemoReelExample: SceneryBase("Demo Reel") {
         with(cam) {
             position = Vector3f(0.0f, 0.0f, 55.0f)
             perspectiveCamera(50.0f, windowWidth, windowHeight, 0.02f, 500.0f)
-            active = true
             disableCulling = true
 
             scene.addChild(this)

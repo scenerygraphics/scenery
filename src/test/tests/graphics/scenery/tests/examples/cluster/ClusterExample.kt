@@ -36,7 +36,6 @@ class ClusterExample: SceneryBase("Clustered Volume Rendering example") {
             //position = Vector3f(.4f, .4f, 1.4f)
             position = Vector3f(.0f, -0.4f, 2.0f)
             perspectiveCamera(50.0f, windowWidth, windowHeight)
-            active = true
 
             scene.addChild(this)
         }

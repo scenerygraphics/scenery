@@ -25,7 +25,6 @@ class FontRenderingExample: SceneryBase("FontRenderingExample", windowWidth = 12
         with(cam) {
             position = Vector3f(3.3f, 0.0f, 4.0f)
             perspectiveCamera(70.0f, windowWidth, windowHeight, 1.0f, 1000.0f)
-            active = true
 
             scene.addChild(this)
         }

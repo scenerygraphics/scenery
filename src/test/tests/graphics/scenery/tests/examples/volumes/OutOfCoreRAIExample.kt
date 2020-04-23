@@ -40,7 +40,6 @@ class OutOfCoreRAIExample: SceneryBase("Out-of-core RAI Rendering example", 1280
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
             perspectiveCamera(50.0f, windowWidth, windowHeight)
-            active = true
 
             position = Vector3f(0.0f, 0.0f, 10.0f)
             scene.addChild(this)
@@ -60,7 +59,7 @@ class OutOfCoreRAIExample: SceneryBase("Out-of-core RAI Rendering example", 1280
 
         val wrapped = VolatileViews.wrapAsVolatile(ooc)
 
-        volume = Volume.fromRAII(wrapped as RandomAccessibleInterval<UnsignedShortType>, UnsignedShortType(), AxisOrder.DEFAULT, "T1 head OOC", hub, VolumeViewerOptions())
+        volume = Volume.fromRAI(wrapped as RandomAccessibleInterval<UnsignedShortType>, UnsignedShortType(), AxisOrder.DEFAULT, "T1 head OOC", hub, VolumeViewerOptions())
         volume.transferFunction = TransferFunction.ramp(0.001f, 0.8f)
         volume.transferFunction.addControlPoint(0.01f, 0.5f)
         volume.scale = Vector3f(5.0f, 5.0f, 15.0f)

@@ -32,7 +32,6 @@ class RAIExample: SceneryBase("RAII Rendering example", 1280, 720) {
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
             perspectiveCamera(50.0f, windowWidth, windowHeight)
-            active = true
 
             position = Vector3f(0.0f, 0.0f, 5.0f)
             scene.addChild(this)
@@ -41,7 +40,7 @@ class RAIExample: SceneryBase("RAII Rendering example", 1280, 720) {
         val imp: ImagePlus = IJ.openImage("https://imagej.nih.gov/ij/images/t1-head.zip")
         val img: Img<UnsignedShortType> = ImageJFunctions.wrapShort(imp)
 
-        volume = Volume.fromRAII(img, UnsignedShortType(), AxisOrder.DEFAULT, "T1 head", hub, VolumeViewerOptions())
+        volume = Volume.fromRAI(img, UnsignedShortType(), AxisOrder.DEFAULT, "T1 head", hub, VolumeViewerOptions())
         volume.transferFunction = TransferFunction.ramp(0.001f, 0.5f)
         scene.addChild(volume)
 
