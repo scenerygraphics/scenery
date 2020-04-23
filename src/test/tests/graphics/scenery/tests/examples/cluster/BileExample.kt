@@ -31,7 +31,6 @@ class BileExample: SceneryBase("Bile Canaliculi example") {
         with(cam) {
             position = Vector3f(.0f, -0.4f, 5.0f)
             perspectiveCamera(50.0f, windowWidth, windowHeight)
-            active = true
 
             scene.addChild(this)
         }

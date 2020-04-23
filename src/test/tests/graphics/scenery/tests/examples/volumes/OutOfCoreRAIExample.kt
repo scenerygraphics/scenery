@@ -40,7 +40,6 @@ class OutOfCoreRAIExample: SceneryBase("Out-of-core RAI Rendering example", 1280
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
             perspectiveCamera(50.0f, windowWidth, windowHeight)
-            active = true
 
             position = Vector3f(0.0f, 0.0f, 10.0f)
             scene.addChild(this)

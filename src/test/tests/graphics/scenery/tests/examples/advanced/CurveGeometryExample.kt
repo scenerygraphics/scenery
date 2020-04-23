@@ -80,7 +80,6 @@ class CurveBaseShapeTest: SceneryBase("CurveGeometryBaseShapeTest", windowWidth 
         with(cam) {
             position = Vector3f(0.0f, 0.2f, 12.0f)
             perspectiveCamera(25.0f, windowWidth, windowHeight)
-            active = true
 
             scene.addChild(this)
         }

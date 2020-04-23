@@ -26,7 +26,6 @@ class BloodCellsExample : SceneryBase("BloodCellsExample", windowWidth = 1280, w
         val cam: Camera = DetachedHeadCamera()
         cam.position = Vector3f(0.0f, 20.0f, -20.0f)
         cam.perspectiveCamera(50.0f, windowWidth, windowHeight, 2.0f, 5000.0f)
-        cam.active = true
 
         scene.addChild(cam)
 

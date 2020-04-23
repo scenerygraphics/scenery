@@ -51,7 +51,6 @@ class BigAndSmallVolumeExample: SceneryBase("BDV + SDV Rendering example", 1280,
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
             perspectiveCamera(50.0f, windowWidth, windowHeight)
-            active = true
 
 //            position = Vector3f(170.067406f, -138.45601f, -455.9538f)
 //            rotation = Quaternion(-0.05395214f, 0.94574946f, -0.23843345f, 0.21400182f)

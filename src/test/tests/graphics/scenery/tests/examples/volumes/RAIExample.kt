@@ -32,7 +32,6 @@ class RAIExample: SceneryBase("RAII Rendering example", 1280, 720) {
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
             perspectiveCamera(50.0f, windowWidth, windowHeight)
-            active = true
 
             position = Vector3f(0.0f, 0.0f, 5.0f)
             scene.addChild(this)
