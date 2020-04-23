@@ -1087,7 +1087,7 @@ open class VulkanRenderer(hub: Hub,
 
             if (!textureCache.containsKey(texture)) {
                 try {
-                    logger.info("Loading texture $texture for ${node.name}")
+                    logger.debug("Loading texture $texture for ${node.name}")
 
                     val gt = texture
 
