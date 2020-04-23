@@ -1,6 +1,7 @@
 package graphics.scenery
 
-import cleargl.GLVector
+import graphics.scenery.utils.extensions.*
+import org.joml.Vector3f
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
 import kotlin.jvm.JvmOverloads
@@ -11,7 +12,7 @@ import kotlin.jvm.JvmOverloads
  * @author Ulrik Günther <hello@ulrik.is>
  * @property[sizes] The x/y/z sizes of the box
  */
-open class Box @JvmOverloads constructor(val sizes: GLVector = GLVector(1.0f, 1.0f, 1.0f), val insideNormals: Boolean = false) : Mesh("box"), HasGeometry {
+open class Box @JvmOverloads constructor(val sizes: Vector3f = Vector3f(1.0f, 1.0f, 1.0f), val insideNormals: Boolean = false) : Mesh("box"), HasGeometry {
     override var vertices: FloatBuffer = BufferUtils.allocateFloat(0)
     override var normals: FloatBuffer = BufferUtils.allocateFloat(0)
     override var texcoords: FloatBuffer = BufferUtils.allocateFloat(0)
@@ -148,12 +149,12 @@ open class Box @JvmOverloads constructor(val sizes: GLVector = GLVector(1.0f, 1.
          * Creates a box with a hull of size [outerSize] and a wall thickness given in [wallThickness].
          * Returns a container node containing both.
          */
-        @JvmStatic fun hulledBox(outerSize: GLVector = GLVector(1.0f, 1.0f, 1.0f), wallThickness: Float = 0.05f): Node {
+        @JvmStatic fun hulledBox(outerSize: Vector3f = Vector3f(1.0f, 1.0f, 1.0f), wallThickness: Float = 0.05f): Node {
             val container = Mesh()
             val outer = Box(outerSize, insideNormals = false)
             container.addChild(outer)
 
-            val innerSize = outerSize - GLVector.getOneVector(3) * wallThickness * 0.5f
+            val innerSize = outerSize - Vector3f(1.0f, 1.0f, 1.0f) * wallThickness * 0.5f
             val inner = Box(innerSize, insideNormals = true)
             inner.material.cullingMode = Material.CullingMode.Front
             container.addChild(inner)

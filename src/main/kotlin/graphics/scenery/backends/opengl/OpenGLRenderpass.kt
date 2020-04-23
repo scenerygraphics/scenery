@@ -1,11 +1,13 @@
 package graphics.scenery.backends.opengl
 
 import cleargl.GLFramebuffer
-import cleargl.GLVector
+import org.joml.Vector3f
 import graphics.scenery.Settings
 import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.StickyBoolean
+import org.joml.Vector2f
+import org.joml.Vector4f
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -33,7 +35,7 @@ class OpenGLRenderpass(var passName: String = "", var passConfig: RenderConfigRe
     /** Class to store viewport information, [area], and minimal/maximal depth coordinates ([minDepth] and [maxDepth]). */
     data class Viewport(var area: Rect2D = Rect2D(), var minDepth: Float = 0.0f, var maxDepth: Float = 1.0f)
     /** Class to store clear values for color targets ([clearColor]) and depth targets ([clearDepth]) */
-    data class ClearValue(var clearColor: GLVector = GLVector(0.0f, 0.0f, 0.0f, 1.0f), var clearDepth: Float = 0.0f)
+    data class ClearValue(var clearColor: Vector4f = Vector4f(0.0f, 0.0f, 0.0f, 1.0f), var clearDepth: Float = 0.0f)
 
     /**
      * OpenGL metadata class, storing [scissor] areas, [renderArea]s, [clearValues], [viewports], and
@@ -61,7 +63,13 @@ class OpenGLRenderpass(var passName: String = "", var passConfig: RenderConfigRe
                 @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
                 val value = if (entry.value is String || entry.value is java.lang.String) {
                     val s = entry.value as String
-                    GLVector(*(s.split(",").map { it.trim().trimStart().toFloat() }.toFloatArray()))
+                    val split = s.split(",").map { it.trim().trimStart().toFloat() }.toFloatArray()
+                    when(split.size) {
+                        2 -> Vector2f(split[0], split[1])
+                        3 -> Vector3f(split[0], split[1], split[2])
+                        4 -> Vector4f(split[0], split[1], split[2], split[3])
+                        else -> throw IllegalStateException("Dont know how to handle ${split.size} elements in Shader Parameter split")
+                    }
                 } else if (entry.value is Double) {
                     (entry.value as Double).toFloat()
                 } else {

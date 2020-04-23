@@ -1,12 +1,11 @@
 package graphics.scenery.controls
 
-import cleargl.GLMatrix
-import cleargl.GLVector
-import com.jogamp.opengl.math.Quaternion
 import graphics.scenery.*
 import graphics.scenery.backends.Display
 import graphics.scenery.backends.vulkan.VulkanDevice
 import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.extensions.plus
+import org.joml.*
 import org.lwjgl.vulkan.VkInstance
 import org.lwjgl.vulkan.VkPhysicalDevice
 import org.lwjgl.vulkan.VkQueue
@@ -22,23 +21,23 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
     override var hub: Hub? = null
 
     var vrpnTracker = VRPNTrackerInput(address)
-    var currentOrientation = GLMatrix()
+    var currentOrientation = Matrix4f()
     var ipd = -0.065f
 
     var config: ScreenConfig.Config = ScreenConfig.loadFromFile(screenConfig)
     var screen: ScreenConfig.SingleScreenConfig? = null
 
-    private var rotation: Quaternion
+    private var rotation: Quaternionf
 
     override var events = TrackerInputEventHandlers()
 
     init {
         logger.info("My screen is ${ScreenConfig.getScreen(config)}")
         screen = ScreenConfig.getScreen(config)
-        rotation = Quaternion().setIdentity()
+        rotation = Quaternionf()
 
         screen?.let {
-            rotation = Quaternion().setFromMatrix(it.getTransform().transposedFloatArray, 0).normalize()
+            rotation = Quaternionf().setFromUnnormalized(it.getTransform()).normalize()
         }
     }
 
@@ -46,9 +45,9 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
      * Returns the per-eye projection matrix
      *
      * @param[eye] The index of the eye
-     * @return GLMatrix containing the per-eye projection matrix
+     * @return Matrix4f containing the per-eye projection matrix
      */
-    override fun getEyeProjection(eye: Int, nearPlane: Float, farPlane: Float): GLMatrix {
+    override fun getEyeProjection(eye: Int, nearPlane: Float, farPlane: Float): Matrix4f {
         screen?.let { screen ->
             val eyeShift = if (eye == 0) {
                 -ipd / 2.0f
@@ -56,10 +55,10 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
                 ipd / 2.0f
             }
 
-            val position = getPosition() + GLVector(eyeShift, 0.0f, 0.0f)
-            val position4 = GLVector(position.x(), position.y(), position.z(), 1.0f)
+            val position = getPosition() + Vector3f(eyeShift, 0.0f, 0.0f)
+            val position4 = Vector4f(position.x(), position.y(), position.z(), 1.0f)
 
-            val result = screen.getTransform().mult(position4)
+            val result = screen.getTransform().transform(position4)
 
             val left = -result.x()
             val right = screen.width - result.x()
@@ -75,13 +74,13 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
 
             //logger.info(eye.toString() + ", " + screen.width + "/" + screen.height + " => " + near + " -> " + left + "/" + right + "/" + bottom + "/" + top + ", s=" + scaledNear)
 
-            val projection = GLMatrix().setFrustumMatrix(left * scaledNear, right * scaledNear, bottom * scaledNear, top * scaledNear, near * scaledNear, farPlane)
-            projection.mult(rotation)
+            val projection = Matrix4f().frustum(left * scaledNear, right * scaledNear, bottom * scaledNear, top * scaledNear, near * scaledNear, farPlane)
+            projection.mul(Matrix4f().set(rotation))
             return projection
         }
 
         logger.warn("No screen configuration found, ")
-        return GLMatrix.getIdentity()
+        return Matrix4f().identity()
     }
 
     /**
@@ -115,9 +114,9 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
     /**
      * Returns the orientation of the HMD
      *
-     * @returns GLMatrix with orientation
+     * @returns Matrix4f with orientation
      */
-    override fun getOrientation(): Quaternion = vrpnTracker.getOrientation()
+    override fun getOrientation(): Quaternionf = vrpnTracker.getOrientation()
 
     /**
      * Submit a Vulkan texture handle to the compositor
@@ -138,23 +137,23 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
     /**
      * Returns the orientation of the given device, or a unit quaternion if the device is not found.
      *
-     * @returns GLMatrix with orientation
+     * @returns Matrix4f with orientation
      */
-    override fun getOrientation(id: String): Quaternion = vrpnTracker.getOrientation()
+    override fun getOrientation(id: String): Quaternionf = vrpnTracker.getOrientation()
 
     /**
-     * Returns the absolute position as GLVector
+     * Returns the absolute position as Vector3f
      *
-     * @return HMD position as GLVector
+     * @return HMD position as Vector3f
      */
-    override fun getPosition(): GLVector {
+    override fun getPosition(): Vector3f {
         if(System.getProperty("scenery.FakeVRPN", "false").toBoolean()) {
-//            val pos = GLVector(
+//            val pos = Vector3f(
 //                1.92f * Math.sin(System.nanoTime()/10e9 % (2.0*Math.PI)).toFloat(),
 //                1.5f,
 //                -1.92f * Math.cos(System.nanoTime()/10e9 % (2.0*Math.PI)).toFloat())
 
-            val pos = GLVector(0.0f, 1.7f, 0.0f)
+            val pos = Vector3f(0.0f, 1.7f, 0.0f)
             logger.info("Using fake position: $pos")
             return pos
         }
@@ -167,21 +166,21 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
      *
      * @return Render target size as 2D vector
      */
-    override fun getRenderTargetSize(): GLVector {
-        return GLVector(config.screenWidth * 2.0f, config.screenHeight * 1.0f)
+    override fun getRenderTargetSize(): Vector2i {
+        return Vector2i(config.screenWidth * 2, config.screenHeight * 1)
     }
 
     /**
      * Returns the HMD pose
      *
-     * @return HMD pose as GLMatrix
+     * @return HMD pose as Matrix4f
      */
-    override fun getPose(): GLMatrix {
+    override fun getPose(): Matrix4f {
         @Suppress("UNUSED_VARIABLE")
         val trackerOrientation = vrpnTracker.getOrientation()
         val trackerPos = vrpnTracker.getPosition()
 
-        currentOrientation.setIdentity()
+        currentOrientation.identity()
         currentOrientation.translate(-trackerPos.x(), -trackerPos.y(), trackerPos.z())
 
         return currentOrientation
@@ -190,11 +189,11 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
     /**
      * Returns the HMD pose per eye
      *
-     * @return HMD pose as GLMatrix
+     * @return HMD pose as Matrix4f
      */
-    override fun getPoseForEye(eye: Int): GLMatrix {
-        val p = this.getPose()
-        p.mult(getHeadToEyeTransform(eye))
+    override fun getPoseForEye(eye: Int): Matrix4f {
+        val p = Matrix4f(this.getPose())
+        p.mul(getHeadToEyeTransform(eye))
 
         return p
     }
@@ -202,7 +201,7 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
     /**
      * Returns a list of poses for the devices [type] given.
      *
-     * @return Pose as GLMatrix
+     * @return Pose as Matrix4f
      */
     override fun getPose(type: TrackedDeviceType): List<TrackedDevice> {
         return listOf(TrackedDevice(TrackedDeviceType.HMD, "StereoGlasses", getPose(), System.nanoTime()))
@@ -252,10 +251,10 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
      * Returns the per-eye transform that moves from head to eye
      *
      * @param[eye] The eye index
-     * @return GLMatrix containing the transform
+     * @return Matrix4f containing the transform
      */
-    override fun getHeadToEyeTransform(eye: Int): GLMatrix {
-        val shift = GLMatrix.getIdentity()
+    override fun getHeadToEyeTransform(eye: Int): Matrix4f {
+        val shift = Matrix4f().identity()
         if(eye == 0) {
             shift.translate(-0.025f, 0.0f, 0.0f)
         } else {

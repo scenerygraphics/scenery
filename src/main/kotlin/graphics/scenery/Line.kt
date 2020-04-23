@@ -1,7 +1,8 @@
 package graphics.scenery
 
-import cleargl.GLVector
+import org.joml.Vector3f
 import graphics.scenery.backends.ShaderType
+import org.joml.Vector4f
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
 
@@ -35,15 +36,15 @@ class Line @JvmOverloads constructor(var capacity: Int = 50, transparent: Boolea
 
     /** Shader property for the line's starting segment color. Consumed by the renderer. */
     @ShaderProperty
-    var startColor = GLVector(0.0f, 1.0f, 0.0f, 1.0f)
+    var startColor = Vector4f(0.0f, 1.0f, 0.0f, 1.0f)
 
     /** Shader property for the line's color. Consumed by the renderer. */
     @ShaderProperty
-    var lineColor = GLVector(1.0f, 1.0f, 1.0f, 1.0f)
+    var lineColor = Vector4f(1.0f, 1.0f, 1.0f, 1.0f)
 
     /** Shader property for the line's end segment color. Consumed by the renderer. */
     @ShaderProperty
-    var endColor = GLVector(0.7f, 0.5f, 0.5f, 1.0f)
+    var endColor = Vector4f(0.7f, 0.5f, 0.5f, 1.0f)
 
     /** Shader property for the line's cap length (start and end caps). Consumed by the renderer. */
     @ShaderProperty
@@ -117,12 +118,7 @@ class Line @JvmOverloads constructor(var capacity: Int = 50, transparent: Boolea
      *
      * @param points     The vector containing the points
      */
-    fun addPoints(vararg points: GLVector) {
-        if(points.any { it.dimension != 3 }) {
-            logger.error("Cannot add position with dimension other than 3 to line.")
-            return
-        }
-
+    fun addPoints(vararg points: Vector3f) {
         if(vertices.limit() + 3 * points.size >= vertices.capacity()) {
             val newVertices = BufferUtils.allocateFloat(vertices.capacity() + points.size * 3 + 3 * capacity)
             vertices.position(0)
@@ -154,12 +150,14 @@ class Line @JvmOverloads constructor(var capacity: Int = 50, transparent: Boolea
 
         vertices.position(vertices.limit())
         vertices.limit(vertices.limit() + points.size * 3)
-        points.forEach { v -> vertices.put(v.toFloatArray()) }
+        points.forEach { v -> v.get(vertices) }
+        vertices.position(vertices.limit())
         vertices.flip()
 
         normals.position(normals.limit())
         normals.limit(normals.limit() + points.size * 3)
-        points.forEach { v -> normals.put(v.toFloatArray()) }
+        points.forEach { v -> v.get(normals) }
+        normals.position(normals.limit())
         normals.flip()
 
         texcoords.position(texcoords.limit())
@@ -168,6 +166,7 @@ class Line @JvmOverloads constructor(var capacity: Int = 50, transparent: Boolea
             texcoords.put(0.0f)
             texcoords.put(0.0f)
         }
+        texcoords.position(texcoords.limit())
         texcoords.flip()
 
         dirty = true
@@ -181,16 +180,16 @@ class Line @JvmOverloads constructor(var capacity: Int = 50, transparent: Boolea
      *
      * @param points     The vector containing the position of the point.
      */
-    fun addPoint(point: GLVector) {
+    fun addPoint(point: Vector3f) {
         addPoints(point)
     }
 
     /**
      * Convenience function to add a list of vectors to the line.
      *
-     * @param points A list of GLVectors
+     * @param points A list of Vector3fs
      */
-    fun addPoints(points: List<GLVector>) {
+    fun addPoints(points: List<Vector3f>) {
         addPoints(*points.toTypedArray())
     }
 

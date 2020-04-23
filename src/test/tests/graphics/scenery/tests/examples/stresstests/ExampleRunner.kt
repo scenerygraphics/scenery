@@ -35,7 +35,13 @@ class ExampleRunner {
             "ReaderExample",
             "BDVExample",
             "BigAndSmallVolumeExample",
-            "VolumeSamplingExample")
+            "FlybrainOutOfCoreExample",
+            "RAIExample",
+            "OutOfCoreRAIExample",
+            "VolumeSamplingExample",
+            "SwingTexturedCubeExample",
+            "VideoRecordingExample"
+        )
 
         // find all basic and advanced examples, exclude blacklist
         val examples = reflections

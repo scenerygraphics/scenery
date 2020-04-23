@@ -6,6 +6,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import graphics.scenery.CatmullRomSpline
 import graphics.scenery.numerics.Random
+import graphics.scenery.utils.extensions.minus
 
 /**
  * This is the test class for the [CatmullRomSpline]
@@ -21,10 +22,10 @@ class CatmullRomSplineTests {
     @Test
     fun testLength() {
         logger.info("This is the test for the Length of the chain.")
-        val point1 = Random.randomVectorFromRange(3, -30f, -10f)
-        val point2 = Random.randomVectorFromRange(3, -9f, 20f)
-        val point3 = Random.randomVectorFromRange(3, 21f, 30f)
-        val point4 = Random.randomVectorFromRange(3, 31f, 100f)
+        val point1 = Random.random3DVectorFromRange(-30f, -10f)
+        val point2 = Random.random3DVectorFromRange(-9f, 20f)
+        val point3 = Random.random3DVectorFromRange(21f, 30f)
+        val point4 = Random.random3DVectorFromRange(31f, 100f)
 
         val controlPoints = arrayListOf(point1, point2, point3, point4)
 
@@ -43,19 +44,19 @@ class CatmullRomSplineTests {
     @Test
     fun testChain() {
         logger.info("This is the test for the Length of the chain.")
-        val point1 = Random.randomVectorFromRange(3, -30f, -10f)
-        val point2 = Random.randomVectorFromRange(3, -9f, 20f)
-        val point3 = Random.randomVectorFromRange(3, 21f, 30f)
-        val point4 = Random.randomVectorFromRange(3, 31f, 100f)
+        val point1 = Random.random3DVectorFromRange(-30f, -10f)
+        val point2 = Random.random3DVectorFromRange(-9f, 20f)
+        val point3 = Random.random3DVectorFromRange(21f, 30f)
+        val point4 = Random.random3DVectorFromRange(31f, 100f)
 
         val controlPoints = arrayListOf(point1, point2, point3, point4)
 
         val curve = CatmullRomSpline(controlPoints)
         val chain = curve.catMullRomChain()
         val i = Random.randomFromRange(1f, 98f).toInt()
-        val distance = chain[i].minus(chain[i+1]).length2()
+        val distance = chain[i].minus(chain[i+1]).length()
         val distanceDifferences = chain.windowed(2, 1) {
-            it[0].minus(it[1]).length2().minus(distance) }.toList()
+            it[0].minus(it[1]).length().minus(distance) }.toList()
         println(distanceDifferences)
         assertTrue { distanceDifferences.filter { it < 0.1 } == distanceDifferences }
     }

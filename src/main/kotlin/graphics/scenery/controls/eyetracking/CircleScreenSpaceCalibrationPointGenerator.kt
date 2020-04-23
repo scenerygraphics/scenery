@@ -1,7 +1,8 @@
 package graphics.scenery.controls.eyetracking
 
-import cleargl.GLVector
 import graphics.scenery.Camera
+import org.joml.Vector2f
+import org.joml.Vector3f
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
@@ -21,12 +22,13 @@ class CircleScreenSpaceCalibrationPointGenerator : CalibrationPointGenerator {
         val radius = 0.3f
 
         val v = if(index == 0) {
-            GLVector(origin, origin)
+            Vector3f(origin, origin, 0.0f)
         } else {
-            GLVector(
+            Vector3f(
                 origin + radius * cos(2 * PI.toFloat() * index.toFloat()/totalPointCount),
-                origin + radius * sin(2 * PI.toFloat() * index.toFloat()/totalPointCount))
+                origin + radius * sin(2 * PI.toFloat() * index.toFloat()/totalPointCount),
+                0.0f)
         }
-        return CalibrationPointGenerator.CalibrationPoint(v, cam.viewportToWorld(GLVector(v.x()*2.0f-1.0f, v.y()*2.0f-1.0f), offset = 0.5f))
+        return CalibrationPointGenerator.CalibrationPoint(v, cam.viewportToWorld(Vector2f(v.x()*2.0f-1.0f, v.y()*2.0f-1.0f), offset = 0.5f))
     }
 }

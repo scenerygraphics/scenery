@@ -1,8 +1,9 @@
 package graphics.scenery.tests.examples.basic
 
-import cleargl.GLVector
+import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
+import org.joml.Vector4f
 import org.junit.Test
 import kotlin.concurrent.thread
 
@@ -16,21 +17,20 @@ class FontRenderingExample: SceneryBase("FontRenderingExample", windowWidth = 12
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
 
         val light = PointLight(radius = 20.0f)
-        light.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
+        light.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
         light.intensity = 1000.0f
         scene.addChild(light)
 
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
-            position = GLVector(3.3f, 0.0f, 4.0f)
-            perspectiveCamera(70.0f, windowWidth*1.0f, windowHeight*1.0f, 1.0f, 1000.0f)
-            active = true
+            position = Vector3f(3.3f, 0.0f, 4.0f)
+            perspectiveCamera(70.0f, windowWidth, windowHeight, 1.0f, 1000.0f)
 
             scene.addChild(this)
         }
 
-        val box = Box(GLVector(10.0f, 10.0f, 10.0f), insideNormals = true)
-        box.material.diffuse = GLVector(1.0f, 1.0f, 1.0f)
+        val box = Box(Vector3f(10.0f, 10.0f, 10.0f), insideNormals = true)
+        box.material.diffuse = Vector3f(1.0f, 1.0f, 1.0f)
         box.material.cullingMode = Material.CullingMode.Front
         scene.addChild(box)
 
@@ -38,10 +38,10 @@ class FontRenderingExample: SceneryBase("FontRenderingExample", windowWidth = 12
         board.text = "hello world"
         board.name = "TextBoard"
         board.transparent = 0
-        board.fontColor = GLVector(0.0f, 0.0f, 0.0f)
-        board.backgroundColor = GLVector(100.0f, 100.0f, 0.0f)
-        board.position = GLVector(-4.0f, 0.0f, -4.9f)
-        board.scale = GLVector(2.0f, 2.0f, 2.0f)
+        board.fontColor = Vector4f(0.0f, 0.0f, 0.0f, 1.0f)
+        board.backgroundColor = Vector4f(100.0f, 100.0f, 0.0f, 1.0f)
+        board.position = Vector3f(-4.0f, 0.0f, -4.9f)
+        board.scale = Vector3f(2.0f, 2.0f, 2.0f)
 
         scene.addChild(board)
 

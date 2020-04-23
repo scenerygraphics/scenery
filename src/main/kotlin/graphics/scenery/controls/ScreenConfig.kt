@@ -1,16 +1,14 @@
 package graphics.scenery.controls
 
-import cleargl.GLMatrix
-import cleargl.GLVector
-import com.fasterxml.jackson.core.JsonParser
-import com.fasterxml.jackson.databind.DeserializationContext
-import com.fasterxml.jackson.databind.JsonDeserializer
+import org.joml.Matrix4f
+import org.joml.Vector3f
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import graphics.scenery.utils.JsonDeserialisers
 import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.extensions.minus
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.util.*
@@ -42,17 +40,17 @@ class ScreenConfig {
 
         /** Lower left screen corner, in meters */
         @JsonDeserialize(using = JsonDeserialisers.VectorDeserializer::class)
-        var lowerLeft: GLVector = GLVector(0.0f, 0.0f, 0.0f),
+        var lowerLeft: Vector3f = Vector3f(0.0f, 0.0f, 0.0f),
 
         /** Lower right screen corner, in meters */
         @JsonDeserialize(using = JsonDeserialisers.VectorDeserializer::class)
-        var lowerRight: GLVector = GLVector(0.0f, 0.0f, 0.0f),
+        var lowerRight: Vector3f = Vector3f(0.0f, 0.0f, 0.0f),
 
         /** Upper left screen corner, in meters */
         @JsonDeserialize(using = JsonDeserialisers.VectorDeserializer::class)
-        var upperLeft: GLVector = GLVector(0.0f, 0.0f, 0.0f)
+        var upperLeft: Vector3f = Vector3f(0.0f, 0.0f, 0.0f)
     ) {
-        private var screenTransform: GLMatrix
+        private var screenTransform: Matrix4f
 
         /** Calculated width of the screen, in meters */
         var width = 0.0f
@@ -63,23 +61,23 @@ class ScreenConfig {
             private set
 
         init {
-            var vr = lowerRight.minus(lowerLeft)
-            val vu = upperLeft.minus(lowerLeft)
+            var vr = lowerRight - lowerLeft
+            val vu = upperLeft - lowerLeft
             val vn = vr.cross(vu)
 
-            width = vr.magnitude()
-            height = vu.magnitude()
+            width = vr.length()
+            height = vu.length()
 
             vu.normalize()
             vn.normalize()
 
             vr = vu.cross(vn).normalize()
 
-            screenTransform = GLMatrix(floatArrayOf(
+            screenTransform = Matrix4f(
                 vr.x(), vr.y(), vr.z(), 0.0f,
                 vu.x(), vu.y(), vu.z(), 0.0f,
                 vn.x(), vn.y(), vn.z(), 0.0f,
-                lowerLeft.x(), lowerLeft.y(), lowerLeft.z(), 1.0f))
+                lowerLeft.x(), lowerLeft.y(), lowerLeft.z(), 1.0f)
 
             logger.debug("Screen {}: {} {} {} {}x{}", match, lowerLeft, lowerRight, upperLeft, width, height)
 
@@ -87,7 +85,7 @@ class ScreenConfig {
         }
 
         /** Returns the frustum transform for this screen */
-        fun getTransform(): GLMatrix = screenTransform
+        fun getTransform(): Matrix4f = screenTransform
     }
 
     /**

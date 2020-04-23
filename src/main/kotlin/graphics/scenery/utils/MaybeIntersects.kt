@@ -1,6 +1,6 @@
 package graphics.scenery.utils
 
-import cleargl.GLVector
+import org.joml.Vector3f
 
 /**
  * Sealed class to represent intersection states:
@@ -21,8 +21,8 @@ sealed class MaybeIntersects(val intersects: Boolean) {
      * [relativeEntry] and [relativeExit] points.
      */
     class Intersection(val distance: Float,
-                       val entry: GLVector,
-                       val exit: GLVector,
-                       val relativeEntry: GLVector,
-                       val relativeExit: GLVector) : MaybeIntersects(true)
+                       val entry: Vector3f,
+                       val exit: Vector3f,
+                       val relativeEntry: Vector3f,
+                       val relativeExit: Vector3f) : MaybeIntersects(true)
 }

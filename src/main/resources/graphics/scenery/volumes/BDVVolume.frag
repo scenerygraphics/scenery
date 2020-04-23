@@ -64,8 +64,8 @@ void intersectBox( vec3 r_o, vec3 r_d, vec3 boxmin, vec3 boxmax, out float tnear
 }
 
 // ---------------------
-// $insert{SampleVolume}
 // $insert{Convert}
+// $insert{SampleVolume}
 // ---------------------
 
 void main()
