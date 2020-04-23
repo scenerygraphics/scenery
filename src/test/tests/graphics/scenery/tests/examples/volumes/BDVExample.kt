@@ -56,7 +56,6 @@ class BDVExample: SceneryBase("BDV Rendering example", 1280, 720) {
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
             perspectiveCamera(50.0f, windowWidth, windowHeight)
-            active = true
 
             scene.addChild(this)
         }

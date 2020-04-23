@@ -28,7 +28,6 @@ class ArcballExample : SceneryBase("ArcballExample") {
 
             targeted = true
             target = Vector3f(0.0f, 0.0f, 0.0f)
-            active = true
 
             scene.addChild(this)
         }

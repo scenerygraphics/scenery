@@ -57,7 +57,7 @@ open class Scene : Node("RootNode") {
      */
     fun findObserver(): Camera? {
         return if(activeObserver == null) {
-            val observers = discover(this, { n -> n.nodeType == "Camera" && (n as Camera?)?.active == true }, useDiscoveryBarriers = true)
+            val observers = discover(this, { n -> n is Camera}, useDiscoveryBarriers = true)
 
             activeObserver = observers.firstOrNull() as Camera?
             activeObserver

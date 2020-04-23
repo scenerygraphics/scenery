@@ -35,7 +35,6 @@ class PointCloudExample : SceneryBase("PointCloudExample") {
         val cam: Camera = DetachedHeadCamera()
         cam.position = Vector3f(0.0f, 0.0f, 5.0f)
         cam.perspectiveCamera(50.0f, windowWidth, windowHeight)
-        cam.active = true
 
         scene.addChild(cam)
 

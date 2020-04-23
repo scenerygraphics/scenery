@@ -20,7 +20,6 @@ class MultiBoxInstancedExample : SceneryBase("MultiBoxInstancedExample") {
         with(cam) {
             position = Vector3f(10.0f, 10.0f, 10.0f)
             perspectiveCamera(60.0f, windowWidth, windowHeight, 1.0f, 1000.0f)
-            active = true
 
             scene.addChild(this)
         }

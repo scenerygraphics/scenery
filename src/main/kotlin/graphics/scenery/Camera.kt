@@ -30,8 +30,6 @@ open class Camera : Node("Camera") {
 
     /** Is the camera targeted? */
     var targeted = false
-    /** Is this camera active? Setting one camera active will deactivate the others */
-    var active = false
 
     /** Target, used if [targeted] is true */
     var target: Vector3f = Vector3f(0.0f, 0.0f, 0.0f)

@@ -36,7 +36,6 @@ class LocalisationExample : SceneryBase("Localisation Microscopy Rendering examp
         with(cam) {
             position = Vector3f(0.0f, 0.5f, 5.0f)
             perspectiveCamera(50.0f, windowWidth, windowHeight)
-            active = true
 
             scene.addChild(this)
         }

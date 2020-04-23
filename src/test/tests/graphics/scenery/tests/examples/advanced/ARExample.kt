@@ -35,7 +35,6 @@ class ARExample: SceneryBase("AR Volume Rendering example", 1280, 720) {
         with(cam) {
             position = Vector3f(-0.2f, 0.0f, 1.0f)
             perspectiveCamera(50.0f, windowWidth, windowHeight)
-            active = true
 
             scene.addChild(this)
         }
