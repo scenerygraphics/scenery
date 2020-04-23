@@ -50,6 +50,7 @@ import java.nio.file.Path
 import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.*
+import kotlin.properties.Delegates
 import kotlin.streams.toList
 
 open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOptions, val hub: Hub) : DelegatesRendering(), HasGeometry {
@@ -83,7 +84,7 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
         }
 
     /** Pixel-to-world scaling ratio. Default: 1 px = 1mm in world space*/
-    var pixelToWorldRatio = 0.001f
+    var pixelToWorldRatio: Float by Delegates.observable(0.001f) { property, old, new -> propertyChanged(property, old, new, "pixelToWorldRatio") }
 
     /** What to use as the volume's origin, scenery's default is [Origin.Center], BVV's default is [Origin.FrontBottomLeft]. **/
     var origin = Origin.Center
