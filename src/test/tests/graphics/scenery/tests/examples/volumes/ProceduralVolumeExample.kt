@@ -81,7 +81,7 @@ class ProceduralVolumeExample: SceneryBase("Volume Rendering example", 1280, 720
             val shiftDelta = Random.random3DVectorFromRange(-1.5f, 1.5f)
 
             var count = 0
-            while(running) {
+            while(running && !shouldClose) {
                 if(volume.metadata["animating"] == true) {
                     val currentBuffer = volumeBuffer.get()
 
