@@ -22,7 +22,6 @@ import graphics.scenery.*
 import graphics.scenery.numerics.OpenSimplexNoise
 import graphics.scenery.numerics.Random
 import graphics.scenery.utils.LazyLogger
-import graphics.scenery.utils.extensions.times
 import graphics.scenery.utils.forEachParallel
 import graphics.scenery.volumes.Volume.VolumeDataSource.SpimDataMinimalSource
 import io.scif.SCIFIO
@@ -492,7 +491,16 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
             val volumes = LinkedHashMap<String, ByteBuffer>()
             volumes[id] = imageData
             // TODO: Kotlin compiler issue, see https://youtrack.jetbrains.com/issue/KT-37955
-            return fromBuffer(volumes, dims.x, dims.y, dims.z, UnsignedByteType(), hub)
+            return when(type) {
+                is ByteType -> fromBuffer(volumes, dims.x, dims.y, dims.z, ByteType(), hub)
+                is UnsignedByteType -> fromBuffer(volumes, dims.x, dims.y, dims.z, UnsignedByteType(), hub)
+                is ShortType -> fromBuffer(volumes, dims.x, dims.y, dims.z, ShortType(), hub)
+                is UnsignedShortType -> fromBuffer(volumes, dims.x, dims.y, dims.z, UnsignedShortType(), hub)
+                is IntType -> fromBuffer(volumes, dims.x, dims.y, dims.z, IntType(), hub)
+                is UnsignedIntType -> fromBuffer(volumes, dims.x, dims.y, dims.z, UnsignedIntType(), hub)
+                is FloatType -> fromBuffer(volumes, dims.x, dims.y, dims.z, FloatType(), hub)
+                else -> throw UnsupportedOperationException("Image type ${type.javaClass.simpleName} not supported for volume data.")
+            }
         }
 
         /**
@@ -501,6 +509,7 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
          * Returns the new volume.
          */
         @JvmStatic fun fromPathRaw(file: Path, hub: Hub): BufferedVolume {
+            
             val infoFile: Path
             val volumeFiles: List<Path>
             
