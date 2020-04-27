@@ -12,7 +12,7 @@ import kotlin.jvm.JvmOverloads
  * @author Ulrik Günther <hello@ulrik.is>
  * @property[sizes] The x/y/z sizes of the box
  */
-open class Box @JvmOverloads constructor(val sizes: Vector3f = Vector3f(1.0f, 1.0f, 1.0f), val insideNormals: Boolean = false) : Mesh("box"), HasGeometry {
+open class Box @JvmOverloads constructor(val sizes: Vector3f = Vector3f(1.0f, 1.0f, 1.0f), val insideNormals: Boolean = false) : Mesh("box") {
     override var vertices: FloatBuffer = BufferUtils.allocateFloat(0)
     override var normals: FloatBuffer = BufferUtils.allocateFloat(0)
     override var texcoords: FloatBuffer = BufferUtils.allocateFloat(0)
