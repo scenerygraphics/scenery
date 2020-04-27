@@ -164,11 +164,9 @@ open class OpenGLRenderer(hub: Hub,
     private var renderpasses = LinkedHashMap<String, OpenGLRenderpass>()
     private var flow: List<String>
 
-    private var firstCall = true
-    private lateinit var sendReq: Request
     val windowSize = 700
-    var imageBuf: ByteBuffer = MemoryUtil.memAlloc(windowSize * windowSize * 7)
-//    var imageBuf: ByteBuffer = ByteBuffer.allocateDirect(windowSize * windowSize * 7)
+//    var imageBuf: ByteBuffer = MemoryUtil.memAlloc(windowSize * windowSize * 7)
+    var imageBuf: ByteBuffer = ByteBuffer.allocateDirect(windowSize * windowSize * 7)
 
 
     /**
@@ -1551,6 +1549,8 @@ open class OpenGLRenderer(hub: Hub,
         renderCalled = true
     }
 
+    private external fun sendImage(image: ByteBuffer)
+
     @Synchronized fun renderInternal() = runBlocking {
         if(!initialized || !renderCalled) {
             return@runBlocking
@@ -2168,54 +2168,46 @@ open class OpenGLRenderer(hub: Hub,
         }
 
         if (parallelRenderingMode && joglDrawable != null) {
-            if(MPI.COMM_WORLD.rank != 0) {
 
-                if(!firstCall) {
-                    sendReq.waitFor()
+            val readBufferUtil = GLReadBufferUtil(false, false)
+            readBufferUtil.readPixels(gl, true)
+            val image = readBufferUtil.textureData.buffer as ByteBuffer
+            val imageSize = image.remaining()
+
+            // switch to depth buffer
+            val fbWithDepth = renderpasses.entries
+                .first { it.value.output.any { it.value.hasDepthAttachment() }}
+                .value.output.entries
+                .first { it.value.hasDepthAttachment() }
+
+            gl.glBindFramebuffer(GL.GL_READ_FRAMEBUFFER, fbWithDepth.value.id)
+
+            val depth = BufferUtils.allocateByte(windowSize * windowSize * 4)
+            gl.glReadPixels(0, 0, windowSize, windowSize, GL4.GL_DEPTH_COMPONENT, GL4.GL_FLOAT, depth)
+
+            val array = ByteArray(image.remaining() + depth.remaining())
+            image.get(array, 0, image.remaining()).flip()
+            depth.get(array, image.remaining(), depth.remaining())
+            imageBuf.position(0)
+
+            imageBuf.put(array)
+            if (imageSize == windowSize * windowSize * 3) {
+                try {
+                    println("Kotlin sending image to cpp")
+                    sendImage(imageBuf)
+                } catch(e: Exception) {
+                    e.printStackTrace()
                 }
 
-                firstCall = false
-                val readBufferUtil = GLReadBufferUtil(false, false)
-                readBufferUtil.readPixels(gl, true)
-                val image = readBufferUtil.textureData.buffer as ByteBuffer
-                val imageSize = image.remaining()
-
-                // switch to depth buffer
-                val fbWithDepth = renderpasses.entries
-                    .first { it.value.output.any { it.value.hasDepthAttachment() }}
-                    .value.output.entries
-                    .first { it.value.hasDepthAttachment() }
-
-                gl.glBindFramebuffer(GL.GL_READ_FRAMEBUFFER, fbWithDepth.value.id)
-
-                val depth = BufferUtils.allocateByte(windowSize * windowSize * 4)
-                gl.glReadPixels(0, 0, windowSize, windowSize, GL4.GL_DEPTH_COMPONENT, GL4.GL_FLOAT, depth)
-
-                val array = ByteArray(image.remaining() + depth.remaining())
-                image.get(array, 0, image.remaining()).flip()
-                depth.get(array, image.remaining(), depth.remaining())
-                imageBuf.position(0)
-
-                imageBuf.put(array)
-                if (imageSize == windowSize * windowSize * 3) {
-                    try {
-                        sendReq = MPI.COMM_WORLD.iSend(imageBuf, imageBuf.limit(), MPI.BYTE, 0, 0)
-                    }
-                    catch(e: MPIException)
-                    {
-                        logger.info("Exceptioon in MPI Isend")
-                        e.printStackTrace()
-                    }
-
-                } else {
-                    logger.info("The image size is: $imageSize")
-                }
-
-                // switch back to viewport
-                gl.glBindFramebuffer(GL.GL_READ_FRAMEBUFFER, 0)
-                gl.glBindFramebuffer(GL.GL_DRAW_FRAMEBUFFER, 0)
-
+            } else {
+                logger.info("The image size is: $imageSize")
             }
+
+            // switch back to viewport
+            gl.glBindFramebuffer(GL.GL_READ_FRAMEBUFFER, 0)
+            gl.glBindFramebuffer(GL.GL_DRAW_FRAMEBUFFER, 0)
+
+
         }
 
         stats?.add("Renderer.${flow.last()}.renderTiming", System.nanoTime() - startPass)
