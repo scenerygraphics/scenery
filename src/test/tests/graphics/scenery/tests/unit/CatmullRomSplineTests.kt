@@ -1,17 +1,15 @@
 package graphics.scenery.tests.unit
 
-import cleargl.GLVector
 import graphics.scenery.utils.LazyLogger
 import org.junit.Test
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import graphics.scenery.CatmullRomSpline
 import graphics.scenery.numerics.Random
-<<<<<<< HEAD
+import org.joml.Vector3f
+import kotlin.collections.ArrayList
 import kotlin.math.roundToInt
-=======
-import kotlin.math.roundToInt
->>>>>>> Extended the UniformBSplineTests, CurveTests, and CatmullRomSplineTests. Also implemented some Exceptions for empty controlpoints in UniformBSpline.
+
 
 /**
  * This is the test class for the [CatmullRomSpline]
@@ -59,13 +57,9 @@ class CatmullRomSplineTests {
         val curve = CatmullRomSpline(controlPoints)
         val chain = curve.splinePoints()
         val i = Random.randomFromRange(1f, 98f).toInt()
-        val distance = chain[i].minus(chain[i+1]).length()
+        val distance = chain[i].distance(chain[i+1])
         val distanceDifferences = chain.windowed(2, 1) {
-<<<<<<< HEAD
-            it[0].minus(it[1]).length2().minus(distance) }.toList()
-=======
-            it[0].minus(it[1]).length2().minus(distance) }.toList()
->>>>>>> Added UniformBSplineTests and documentation for the Spline.
+            it[0].distance(it[1]).minus(distance) }.toList()
         assertTrue { distanceDifferences.filter { it < 0.1 } == distanceDifferences }
     }
 
@@ -76,22 +70,22 @@ class CatmullRomSplineTests {
     @Test
     fun invalidControlPoints() {
         logger.info("Tests CatmullRomSpline with invalid control points.")
-        val samePointList = ArrayList<GLVector>(10)
-        val point = GLVector(1f, 1f, 1f)
+        val samePointList = ArrayList<Vector3f>(10)
+        val point = Vector3f(1f, 1f, 1f)
         for(i in 0..9) {
             samePointList.add(point)
         }
         val samePointSpline = CatmullRomSpline(samePointList)
         assertTrue(samePointSpline.splinePoints().isEmpty())
 
-        val emptyList = ArrayList<GLVector>()
+        val emptyList = ArrayList<Vector3f>()
         val emptySpline = CatmullRomSpline(emptyList)
         assertTrue(emptySpline.splinePoints().isEmpty())
 
-        val notEnoughList = ArrayList<GLVector>()
+        val notEnoughList = ArrayList<Vector3f>()
         val j = Random.randomFromRange(1f, 2f).roundToInt()
         for(i in 0..j) {
-            val vector = Random.randomVectorFromRange(3, 0f, 5f)
+            val vector = Random.random3DVectorFromRange(0f, 5f)
             notEnoughList.add(vector)
         }
         val notEnoughSpline = CatmullRomSpline(notEnoughList)

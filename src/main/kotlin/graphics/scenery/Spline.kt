@@ -1,6 +1,6 @@
 package graphics.scenery
 
-import cleargl.GLVector
+import org.joml.Vector3f
 
 /**
  * This is the abstract class for all the spline classes currently existing. It takes a list
@@ -9,9 +9,9 @@ import cleargl.GLVector
  *
  * @author Justin Bürger <burger@mpi-cbg.de>
  */
-abstract class Spline(open val controlPoints: List<GLVector>, open val n: Int) {
+abstract class Spline(open val controlPoints: List<Vector3f>, open val n: Int) {
     /**
      * Returns all the points the spline has.
      */
-    abstract fun splinePoints(): ArrayList<GLVector>
+    abstract fun splinePoints(): ArrayList<Vector3f>
 }

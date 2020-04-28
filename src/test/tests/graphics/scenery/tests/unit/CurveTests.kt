@@ -45,22 +45,10 @@ class CurveTests {
 
         val geometry = Curve(curve) { triangle() }
         val frenetFrames = geometry.computeFrenetFrames(geometry.getCurve())
-
-<<<<<<< HEAD
-        assertEquals(curve.catMullRomChain(), geometry.getCurve())
-
-        frenetFrames.forEach {
-            assertNotNull(it.normal)
-            assertNotNull(it.bitangent)
-        }
-
-        assertEquals(frenetFrames.filter { it.bitangent?.length()!! < 1.001f && it.bitangent?.length()!! > 0.999f },
-=======
         assertEquals(curve.splinePoints(), geometry.getCurve())
         assertNotNull(frenetFrames.forEach { it.normal })
         assertNotNull(frenetFrames.forEach{ it.bitangent })
-        assertEquals(frenetFrames.filter { it.bitangent?.length2()!! < 1.001f && it.bitangent?.length2()!! > 0.999f },
->>>>>>> Refactored the necessary filenames and functions so that the Spline class works as intended.
+        assertEquals(frenetFrames.filter { it.bitangent?.length()!! < 1.001f && it.bitangent?.length()!! > 0.999f },
                 frenetFrames)
         assertEquals(frenetFrames.filter { it.normal?.length()!! < 1.001f && it.normal?.length()!! > 0.999f },
                 frenetFrames)
@@ -112,13 +100,13 @@ class CurveTests {
     @Test
     fun testEmptySpline() {
         logger.info("Tests the curve with an empty spline")
-        val emptyList = ArrayList<GLVector>()
+        val emptyList = ArrayList<Vector3f>()
         val spline = UniformBSpline(emptyList)
-        fun triangle(): ArrayList<GLVector> {
-            val list = ArrayList<GLVector>()
-            list.add(GLVector(0.3f, 0.3f, 0f))
-            list.add(GLVector(0.3f, -0.3f, 0f))
-            list.add(GLVector(-0.3f, -0.3f, 0f))
+        fun triangle(): ArrayList<Vector3f> {
+            val list = ArrayList<Vector3f>()
+            list.add(Vector3f(0.3f, 0.3f, 0f))
+            list.add(Vector3f(0.3f, -0.3f, 0f))
+            list.add(Vector3f(-0.3f, -0.3f, 0f))
             return list
         }
         val emptyFloatBuffer = BufferUtils.createFloatBuffer(0)

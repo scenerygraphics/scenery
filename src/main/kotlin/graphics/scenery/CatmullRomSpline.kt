@@ -3,7 +3,6 @@ package graphics.scenery
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
 import org.joml.Vector3f
-import java.util.*
 import kotlin.collections.ArrayList
 import kotlin.math.pow
 
@@ -16,11 +15,7 @@ import kotlin.math.pow
  * resulting curve for alpha = 0 is a standart Catmull Rom Spline, for alpha = 1 we get
  * a chordal Catmull Rom Spline.
  */
-<<<<<<< HEAD
 class CatmullRomSpline(override val controlPoints: List<Vector3f>, override val n: Int = 100, val alpha: Float = 0.5f): Spline(controlPoints, n) {
-=======
-class CatmullRomSpline(override val controlPoints: List<Vector3f>, override val n: Int = 100, val alpha: Float = 0.5f): Spline(controlPoints, n) {
->>>>>>> Added the abstract class Spline; added UniformBSpline; made CatmullRomSpline implement Spline
 
     /**
      * Calculates the parameter t; t is an intermediate product for the calculation of the spline
@@ -74,13 +69,8 @@ class CatmullRomSpline(override val controlPoints: List<Vector3f>, override val 
      * Returns the actual curve with all the points.
      * [n] number of points the curve has
      */
-<<<<<<< HEAD
     override fun splinePoints(): ArrayList<Vector3f> {
         val chainPoints = ArrayList<Vector3f>(controlPoints.size*(n+1))
-=======
-    override fun splinePoints(): ArrayList<Vector3f> {
-        val chainPoints = ArrayList<Vector3f>(controlPoints.size*(n+1))
->>>>>>> Added the abstract class Spline; added UniformBSpline; made CatmullRomSpline implement Spline
         controlPoints.dropLast(3).forEachIndexed {  index, _ ->
             val c = CatmulRomSpline(controlPoints[index], controlPoints[index+1],
                 controlPoints[index+2], controlPoints[index+3], n)

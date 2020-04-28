@@ -2,6 +2,11 @@ package graphics.scenery
 
 import cleargl.GLMatrix
 import cleargl.GLVector
+import graphics.scenery.utils.extensions.xyz
+import org.joml.Matrix4d
+import org.joml.Matrix4f
+import org.joml.Vector3f
+import org.joml.Vector4f
 import org.lwjgl.opengl.GL
 import java.lang.IllegalArgumentException
 
@@ -18,12 +23,12 @@ import java.lang.IllegalArgumentException
  *
  * @author Justin Bürger <burger@mpi-cbg.de>
  */
-class UniformBSpline(override val controlPoints: ArrayList<GLVector>, override val n: Int = 100): Spline(controlPoints, n) {
+class UniformBSpline(override val controlPoints: ArrayList<Vector3f>, override val n: Int = 100): Spline(controlPoints, n) {
 
     /**
      * This is a list of the equidistant parameters at which the curve is calculated.
      */
-    private val tList = ArrayList<GLVector>(n+1)
+    private val tList = ArrayList<Vector4f>(n+1)
 
     /**
      * Computes the actual tList.
@@ -31,7 +36,7 @@ class UniformBSpline(override val controlPoints: ArrayList<GLVector>, override v
     private fun calculateT() {
         for(i in 0..n) {
             val t = i/n.toFloat()
-            val tVector = GLVector((1-t)*(1-t)*(1-t)/6,
+            val tVector = Vector4f((1-t)*(1-t)*(1-t)/6,
                     (3*t*t*t - 6*t*t +4)/6,
                     (-3*t*t*t + 3*t*t + 3*t +1)/6,
                     t*t*t/6)
@@ -42,7 +47,7 @@ class UniformBSpline(override val controlPoints: ArrayList<GLVector>, override v
     /**
      * Returns the [n]*(numberOf([controlPoints])-3)+1 curve points the B-Spline has.
      */
-    override fun splinePoints(): ArrayList<GLVector> {
+    override fun splinePoints(): ArrayList<Vector3f> {
         //checks if the controlpoints contain only a list of the same vectors
         if(controlPoints.toSet().size == 1) {
             throw IllegalArgumentException("The UniformBSpline got a list of the same points.")
@@ -53,7 +58,7 @@ class UniformBSpline(override val controlPoints: ArrayList<GLVector>, override v
         }
         else {
             calculateT()
-            val curvePoints = ArrayList<GLVector>((controlPoints.size - 3) * n + 1)
+            val curvePoints = ArrayList<Vector3f>((controlPoints.size - 3) * n + 1)
             controlPoints.dropLast(3).forEachIndexed { index, _ ->
                 val spline = partialSpline(controlPoints[index], controlPoints[index + 1],
                     controlPoints[index + 2], controlPoints[index + 3])
@@ -66,15 +71,16 @@ class UniformBSpline(override val controlPoints: ArrayList<GLVector>, override v
     /**
      * Calculates the partial Spline of four consecutive points.
      */
-    private fun partialSpline(p1: GLVector, p2: GLVector, p3: GLVector, p4: GLVector): ArrayList<GLVector> {
-        val pointMatrix = GLMatrix(floatArrayOf(
+    private fun partialSpline(p1: Vector3f, p2: Vector3f, p3: Vector3f, p4: Vector3f): ArrayList<Vector3f> {
+        val pointMatrix = Matrix4f(
                 p1.x(), p2.x(), p3.x(), p4.x(),
                 p1.y(), p2.y(), p3.y(), p4.y(),
                 p1.z(), p2.z(), p3.z(), p4.z(),
-                0f, 0f, 0f, 0f)).transpose()
-        val partialSpline = ArrayList<GLVector>(n)
+                0f, 0f, 0f, 0f).transpose()
+        val partialSpline = ArrayList<Vector3f>(n)
         tList.forEach {
-            partialSpline.add(pointMatrix.mult(it).xyz())
+            val transformVec = pointMatrix.transform(it)
+            partialSpline.add(transformVec.xyz())
         }
         return(partialSpline)
     }
