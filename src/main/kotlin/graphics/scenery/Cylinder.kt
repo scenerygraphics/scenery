@@ -14,9 +14,9 @@ import kotlin.math.PI
  * @param[segments] Number of segments in latitude and longitude.
  */
 
-class Cylinder(var radius: Float, var height: Float, var segments: Int) : Node("cylinder"), HasGeometry {
-    override val vertexSize = 3
-    override val texcoordSize = 2
+class Cylinder(var radius: Float, var height: Float, var segments: Int) : Mesh("cylinder") {
+    override var vertexSize = 3
+    override var texcoordSize = 2
     override var geometryType = GeometryType.TRIANGLE_STRIP
 
     override var vertices: FloatBuffer = BufferUtils.allocateFloat(0)

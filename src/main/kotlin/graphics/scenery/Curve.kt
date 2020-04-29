@@ -17,9 +17,9 @@ import kotlin.math.acos
  * The number n corresponds to the number of segments you wish to have between you control points.
  * @author  Justin Buerger <burger@mpi-cbg.de>
  */
-class Curve(curve: CatmullRomSpline, baseShape: () -> ArrayList<Vector3f>): Node("CurveGeometry"), HasGeometry {
-    override val vertexSize = 3
-    override val texcoordSize = 2
+class Curve(curve: CatmullRomSpline, baseShape: () -> ArrayList<Vector3f>): Mesh("CurveGeometry") {
+    override var vertexSize = 3
+    override var texcoordSize = 2
     override var geometryType = GeometryType.TRIANGLES
 
     override var vertices: FloatBuffer = BufferUtils.allocateFloat(0)

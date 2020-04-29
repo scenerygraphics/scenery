@@ -14,9 +14,9 @@ import kotlin.math.*
  * @param[radius] The radius of the sphere
  * @param[segments] Number of segments in latitude and longitude.
  */
-open class Sphere(val radius: Float, val segments: Int) : Node("sphere"), HasGeometry {
-    override val vertexSize = 3
-    override val texcoordSize = 2
+open class Sphere(val radius: Float, val segments: Int) : Mesh("sphere") {
+    override var vertexSize = 3
+    override var texcoordSize = 2
     override var geometryType = GeometryType.TRIANGLES
 
     final override var vertices: FloatBuffer = BufferUtils.allocateFloat(0)

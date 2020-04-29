@@ -23,9 +23,9 @@ import kotlin.math.sin
  * @param[segments] Number of segments in latitude and longitude.
  */
 
-class Cone(val radius: Float, val height: Float, val segments: Int, axis: Vector3f = Vector3f(0.0f, 1.0f, 0.0f)) : Node("cone"), HasGeometry {
-    override val vertexSize = 3
-    override val texcoordSize = 2
+class Cone(val radius: Float, val height: Float, val segments: Int, axis: Vector3f = Vector3f(0.0f, 1.0f, 0.0f)) : Mesh("cone") {
+    override var vertexSize = 3
+    override var texcoordSize = 2
     override var geometryType = GeometryType.TRIANGLES
 
     override var vertices: FloatBuffer = BufferUtils.allocateFloat(2 * 3 * segments * 3)
