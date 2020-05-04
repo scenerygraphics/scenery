@@ -54,7 +54,7 @@ class RAIVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewerOpti
         return Vector3f(
                 size.x() * pixelToWorldRatio / 10.0f,
                 size.y() * pixelToWorldRatio / 10.0f,
-                2.0f * size.z() * pixelToWorldRatio / 10.0f
+                size.z() * pixelToWorldRatio / 10.0f
         )
     }
 
