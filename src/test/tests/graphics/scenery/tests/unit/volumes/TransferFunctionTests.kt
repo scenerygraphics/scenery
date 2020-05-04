@@ -77,7 +77,7 @@ class TransferFunctionTests {
 
     @Test
     fun testTransferFunctionEvaluation() {
-        val tf = TransferFunction.ramp(0.3f, 0.5f)
+        val tf = TransferFunction.ramp(0.3f, 0.5f, 1.0f)
 
         val epsilon = 0.0001f
         assertEquals(0.0f, tf.evaluate(0.0f), epsilon)
