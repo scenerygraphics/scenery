@@ -23,7 +23,20 @@ class RAIVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewerOpti
     }
 
     override fun generateBoundingBox(): OrientedBoundingBox? {
-        return OrientedBoundingBox(this, Vector3f(0.0f, 0.0f, 0.0f), Vector3f(1.0f, 1.0f, 1.0f))
+        val source = ds.sources.firstOrNull()
+
+        val sizes = if(source != null) {
+            val s = source.spimSource.getSource(0, 0)
+            val min = Vector3f(s.min(0).toFloat(), s.min(1).toFloat(), s.min(2).toFloat())
+            val max = Vector3f(s.max(0).toFloat(), s.max(1).toFloat(), s.max(2).toFloat())
+            max - min
+        } else {
+            Vector3f(1.0f, 1.0f, 1.0f)
+        }
+
+        return OrientedBoundingBox(this,
+            Vector3f(-0.0f, -0.0f, -0.0f),
+            sizes)
     }
 
     override fun localScale(): Vector3f {
