@@ -13,25 +13,13 @@ import java.nio.file.Files
  * @author Ulrik Günther <hello@ulrik.is>
  */
 open class PointCloud(var pointRadius: Float = 1.0f, override var name: String = "PointCloud") : Mesh(name) {
-    /** Array for the stored localisations. */
-    override var vertices: FloatBuffer = FloatBuffer.allocate(0)
-    /** Normal buffer, here (ab)used to store size and sigmas. */
-    override var normals: FloatBuffer = FloatBuffer.allocate(0)
-    /** Texcoords buffer, unused at the moment. */
-    override var texcoords: FloatBuffer = FloatBuffer.allocate(0)
-    /** Indices, not used for PointClouds. */
-    override var indices: IntBuffer = IntBuffer.allocate(0)
-
-    /** Vertex size, 3 in our case. */
-    override var vertexSize = 3
-    /** Texcoord size, 2 in our case. */
-    override var texcoordSize = 2
-    /** [PointCloud]s are rendered as point geometry. */
-    override var geometryType = GeometryType.POINTS
     /** [PointClouds] do not get billboarded. */
     override var isBillboard = false
 
     init {
+        /** [PointCloud]s are rendered as point geometry. */
+        geometryType = GeometryType.POINTS
+
         // we are going to use shader files whose name is derived from the class name.
         // -> PointCloud.vert, PointCloud.frag
         material = ShaderMaterial.fromClass(this::class.java)
