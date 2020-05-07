@@ -345,7 +345,6 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
                     boundingBoxCoords[5] = maxOf(boundingBoxCoords[5], vertex[2])
                 }
 
-
                 logger.debug("$name: Calculated bounding box with ${boundingBoxCoords.joinToString(", ")}")
                 return OrientedBoundingBox(this, Vector3f(boundingBoxCoords[0], boundingBoxCoords[2], boundingBoxCoords[4]),
                     Vector3f(boundingBoxCoords[1], boundingBoxCoords[3], boundingBoxCoords[5]))
