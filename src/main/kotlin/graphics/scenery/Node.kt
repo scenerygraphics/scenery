@@ -345,6 +345,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
                     boundingBoxCoords[5] = maxOf(boundingBoxCoords[5], vertex[2])
                 }
 
+
                 logger.debug("$name: Calculated bounding box with ${boundingBoxCoords.joinToString(", ")}")
                 return OrientedBoundingBox(this, Vector3f(boundingBoxCoords[0], boundingBoxCoords[2], boundingBoxCoords[4]),
                     Vector3f(boundingBoxCoords[1], boundingBoxCoords[3], boundingBoxCoords[5]))
@@ -639,7 +640,9 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
      * receives current position
      */
     override fun localize(position: FloatArray?) {
-        TODO("Not yet implemented")
+        position?.set(0, this.position.x())
+        position?.set(1, this.position.y())
+        position?.set(2, this.position.z())
     }
 
     /**
@@ -649,7 +652,9 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
      * receives current position
      */
     override fun localize(position: DoubleArray?) {
-        TODO("Not yet implemented")
+        position?.set(0, this.position.x().toDouble())
+        position?.set(1, this.position.y().toDouble())
+        position?.set(2, this.position.z().toDouble())
     }
 
     /**
@@ -660,7 +665,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
      * @return dimension of current position
      */
     override fun getFloatPosition(d: Int): Float {
-        TODO("Not yet implemented")
+        return this.position[d]
     }
 
     override fun toString(): String {
@@ -674,7 +679,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
      * dimension
      */
     override fun bck(d: Int) {
-        TODO("Not yet implemented")
+        move(-1, d)
     }
 
     /**
@@ -684,7 +689,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
      * @param d
      */
     override fun move(distance: Float, d: Int) {
-        TODO("Not yet implemented")
+        setPosition( getFloatPosition(d) + distance, d )
     }
 
     /**
@@ -694,7 +699,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
      * @param d
      */
     override fun move(distance: Double, d: Int) {
-        TODO("Not yet implemented")
+        setPosition( getDoublePosition(d) + distance, d )
     }
 
     /**
@@ -706,7 +711,9 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
      * be  [.numDimensions]
      */
     override fun move(distance: RealLocalizable?) {
-        TODO("Not yet implemented")
+        distance?.getDoublePosition(0)?.let { move(it, 0) }
+        distance?.getDoublePosition(1)?.let { move(it, 1) }
+        distance?.getDoublePosition(2)?.let { move(it, 2) }
     }
 
     /**
@@ -717,7 +724,9 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
      * length must be  [.numDimensions]
      */
     override fun move(distance: FloatArray?) {
-        TODO("Not yet implemented")
+        distance?.get(0)?.let { move(it, 0 ) }
+        distance?.get(1)?.let { move(it, 1 ) }
+        distance?.get(2)?.let { move(it, 2 ) }
     }
 
     /**
@@ -728,7 +737,9 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
      * length must be  [.numDimensions]
      */
     override fun move(distance: DoubleArray?) {
-        TODO("Not yet implemented")
+        distance?.get(0)?.let { move(it, 0 ) }
+        distance?.get(1)?.let { move(it, 1 ) }
+        distance?.get(2)?.let { move(it, 2 ) }
     }
 
     /**
@@ -740,7 +751,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
      * dimension
      */
     override fun move(distance: Int, d: Int) {
-        TODO("Not yet implemented")
+        move( distance.toLong(), d )
     }
 
     /**
@@ -752,7 +763,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
      * dimension
      */
     override fun move(distance: Long, d: Int) {
-        TODO("Not yet implemented")
+        this.position = this.position + Vector3f().setComponent(d, distance.toFloat())
     }
 
     /**
@@ -764,7 +775,9 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
      *  [.numDimensions]
      */
     override fun move(distance: Localizable?) {
-        TODO("Not yet implemented")
+        distance?.getDoublePosition(0)?.let { move(it, 0) }
+        distance?.getDoublePosition(1)?.let { move(it, 1) }
+        distance?.getDoublePosition(2)?.let { move(it, 2) }
     }
 
     /**
@@ -775,7 +788,9 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
      * relative offset, length must be  [.numDimensions]
      */
     override fun move(distance: IntArray?) {
-        TODO("Not yet implemented")
+        distance?.get(0)?.let { move(it, 0 ) }
+        distance?.get(1)?.let { move(it, 1 ) }
+        distance?.get(2)?.let { move(it, 2 ) }
     }
 
     /**
@@ -786,12 +801,14 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
      * relative offset, length must be  [.numDimensions]
      */
     override fun move(distance: LongArray?) {
-        TODO("Not yet implemented")
+        distance?.get(0)?.let { move(it, 0 ) }
+        distance?.get(1)?.let { move(it, 1 ) }
+        distance?.get(2)?.let { move(it, 2 ) }
     }
 
     /** Gets the space's number of dimensions.  */
     override fun numDimensions(): Int {
-        TODO("Not yet implemented")
+        return 3
     }
 
     /**
@@ -801,7 +818,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
      * dimension
      */
     override fun fwd(d: Int) {
-        TODO("Not yet implemented")
+        move( 1, d)
     }
 
     /**
@@ -812,11 +829,13 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
      * @return dimension of current position
      */
     override fun getDoublePosition(d: Int): Double {
-        TODO("Not yet implemented")
+        return this.position[d].toDouble()
     }
 
     override fun setPosition(pos: RealLocalizable) {
-
+        position.setComponent( 0, pos.getFloatPosition(0) )
+        position.setComponent( 1, pos.getFloatPosition(1) )
+        position.setComponent( 2, pos.getFloatPosition(2) )
     }
 
     /**
@@ -826,8 +845,10 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
      * absolute position, length must be
      * [.numDimensions]
      */
-    override fun setPosition(position: FloatArray?) {
-        TODO("Not yet implemented")
+    override fun setPosition(pos: FloatArray?) {
+        pos?.get(0)?.let { setPosition(it, 0 ) }
+        pos?.get(1)?.let { setPosition(it, 1 ) }
+        pos?.get(2)?.let { setPosition(it, 2 ) }
     }
 
     /**
@@ -837,8 +858,10 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
      * absolute position, length must be
      * [.numDimensions]
      */
-    override fun setPosition(position: DoubleArray?) {
-        TODO("Not yet implemented")
+    override fun setPosition(pos: DoubleArray?) {
+        pos?.get(0)?.let { setPosition(it, 0 ) }
+        pos?.get(1)?.let { setPosition(it, 1 ) }
+        pos?.get(2)?.let { setPosition(it, 2 ) }
     }
 
     /**
@@ -847,8 +870,8 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
      * @param position
      * @param d
      */
-    override fun setPosition(position: Float, d: Int) {
-        TODO("Not yet implemented")
+    override fun setPosition(pos: Float, d: Int) {
+        position.setComponent( d, pos )
     }
 
     /**
@@ -857,8 +880,8 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
      * @param position
      * @param d
      */
-    override fun setPosition(position: Double, d: Int) {
-        TODO("Not yet implemented")
+    override fun setPosition(pos: Double, d: Int) {
+        setPosition( pos.toFloat(), d )
     }
 
     /**
@@ -868,8 +891,10 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
      * absolute position, [Localizable.numDimensions] must be
      *  [.numDimensions]
      */
-    override fun setPosition(position: Localizable?) {
-        TODO("Not yet implemented")
+    override fun setPosition(pos: Localizable?) {
+        pos?.getIntPosition(0)?.let { setPosition(it, 0 ) }
+        pos?.getIntPosition(1)?.let { setPosition(it, 1 ) }
+        pos?.getIntPosition(2)?.let { setPosition(it, 2 ) }
     }
 
     /**
@@ -879,8 +904,10 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
      * absolute position, length must be
      * [.numDimensions]
      */
-    override fun setPosition(position: IntArray?) {
-        TODO("Not yet implemented")
+    override fun setPosition(pos: IntArray?) {
+        pos?.get(0)?.let { setPosition(it, 0) }
+        pos?.get(1)?.let { setPosition(it, 1) }
+        pos?.get(2)?.let { setPosition(it, 2) }
     }
 
     /**
@@ -890,8 +917,10 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
      * absolute position, length must be
      * [.numDimensions]
      */
-    override fun setPosition(position: LongArray?) {
-        TODO("Not yet implemented")
+    override fun setPosition(pos: LongArray?) {
+        pos?.get(0)?.let { setPosition(it, 0) }
+        pos?.get(1)?.let { setPosition(it, 1) }
+        pos?.get(2)?.let { setPosition(it, 2) }
     }
 
     /**
@@ -903,7 +932,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
      * dimension
      */
     override fun setPosition(position: Int, d: Int) {
-        TODO("Not yet implemented")
+        setPosition(position.toLong(), d)
     }
 
     /**
@@ -915,7 +944,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
      * dimension
      */
     override fun setPosition(position: Long, d: Int) {
-        TODO("Not yet implemented")
+        setPosition(position.toFloat(), d)
     }
 
     companion object NodeHelpers {

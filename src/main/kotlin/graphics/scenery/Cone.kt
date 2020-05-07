@@ -24,18 +24,13 @@ import kotlin.math.sin
  */
 
 class Cone(val radius: Float, val height: Float, val segments: Int, axis: Vector3f = Vector3f(0.0f, 1.0f, 0.0f)) : Mesh("cone") {
-    override var vertexSize = 3
-    override var texcoordSize = 2
-    override var geometryType = GeometryType.TRIANGLES
-
-    override var vertices: FloatBuffer = BufferUtils.allocateFloat(2 * 3 * segments * 3)
-    override var normals: FloatBuffer = BufferUtils.allocateFloat(2 * 3 * segments * 3)
-    override var texcoords: FloatBuffer = BufferUtils.allocateFloat(2 * 2 * segments * 3)
-    override var indices: IntBuffer = BufferUtils.allocateInt(0)
-
     val axis = axis.normalize()
 
     init {
+        vertices = BufferUtils.allocateFloat(2 * 3 * segments * 3)
+        normals = BufferUtils.allocateFloat(2 * 3 * segments * 3)
+        texcoords = BufferUtils.allocateFloat(2 * 2 * segments * 3)
+
         val vbuffer = ArrayList<Vector3f>(segments * segments * 2 * 3)
         val nbuffer = ArrayList<Vector3f>(segments * segments * 2 * 3)
         val tbuffer = ArrayList<Vector2f>(segments * segments * 2 * 2)
