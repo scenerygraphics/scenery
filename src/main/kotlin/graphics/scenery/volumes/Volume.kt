@@ -1,714 +1,241 @@
 package graphics.scenery.volumes
 
-import cleargl.GLTypeEnum
-import cleargl.GLVector
-import coremem.enums.NativeTypeEnum
+import bdv.BigDataViewer
+import bdv.ViewerImgLoader
+import bdv.cache.CacheControl
+import bdv.spimdata.SpimDataMinimal
+import bdv.spimdata.WrapBasicImgLoader
+import bdv.spimdata.XmlIoSpimDataMinimal
+import bdv.tools.brightness.ConverterSetup
+import bdv.util.AxisOrder
+import bdv.util.AxisOrder.DEFAULT
+import bdv.util.RandomAccessibleIntervalSource
+import bdv.util.RandomAccessibleIntervalSource4D
+import bdv.util.volatiles.VolatileView
+import bdv.util.volatiles.VolatileViewData
+import bdv.viewer.DisplayMode
+import bdv.viewer.Source
+import bdv.viewer.SourceAndConverter
+import bdv.viewer.state.ViewerState
+import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.numerics.OpenSimplexNoise
 import graphics.scenery.numerics.Random
+import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.forEachParallel
-import graphics.scenery.volumes.Volume.Colormap.ColormapBuffer
-import graphics.scenery.volumes.Volume.Colormap.ColormapFile
+import graphics.scenery.volumes.Volume.VolumeDataSource.SpimDataMinimalSource
 import io.scif.SCIFIO
 import io.scif.util.FormatTools
-import org.lwjgl.system.MemoryUtil.memAlloc
-import sun.misc.Unsafe
+import mpicbg.spim.data.generic.sequence.AbstractSequenceDescription
+import mpicbg.spim.data.sequence.FinalVoxelDimensions
+import mpicbg.spim.data.sequence.VoxelDimensions
+import net.imglib2.RandomAccessibleInterval
+import net.imglib2.Volatile
+import net.imglib2.realtransform.AffineTransform3D
+import net.imglib2.type.numeric.ARGBType
+import net.imglib2.type.numeric.NumericType
+import net.imglib2.type.numeric.integer.*
+import net.imglib2.type.numeric.real.FloatType
+import org.joml.Matrix4f
+import org.joml.Vector3i
+import org.lwjgl.system.MemoryUtil
+import tpietzsch.example2.VolumeViewerOptions
 import java.io.FileInputStream
 import java.nio.ByteBuffer
+import java.nio.FloatBuffer
+import java.nio.IntBuffer
 import java.nio.file.Files
 import java.nio.file.Path
-import java.nio.file.Paths
 import java.util.*
-import java.util.concurrent.ConcurrentHashMap
-import kotlin.concurrent.thread
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.*
 import kotlin.properties.Delegates
-import kotlin.reflect.KProperty
 import kotlin.streams.toList
 
+open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOptions, val hub: Hub) : DelegatesRendering(), HasGeometry {
+    /** How many elements does a vertex store? */
+    override val vertexSize : Int = 3
+    /** How many elements does a texture coordinate store? */
+    override val texcoordSize : Int = 2
+    /** The [GeometryType] of the [Node] */
+    override var geometryType : GeometryType = GeometryType.TRIANGLES
+    /** Array of the vertices. This buffer is _required_, but may empty. */
+    override var vertices : FloatBuffer = FloatBuffer.allocate(0)
+    /** Array of the normals. This buffer is _required_, and may _only_ be empty if [vertices] is empty as well. */
+    override var normals : FloatBuffer = FloatBuffer.allocate(0)
+    /** Array of the texture coordinates. Texture coordinates are optional. */
+    override var texcoords : FloatBuffer = FloatBuffer.allocate(0)
+    /** Array of the indices to create an indexed mesh. Optional, but advisable to use to minimize the number of submitted vertices. */
+    override var indices : IntBuffer = IntBuffer.allocate(0)
 
-
-/**
- * Volume Rendering Node for scenery.
- *
- * @author Ulrik Günther <hello@ulrik.is>
- * @author Martin Weigert <mweigert@mpi-cbg.de>
- */
-@Suppress("unused")
-open class Volume : Mesh("Volume") {
-    data class VolumeDescriptor(val path: Path?,
-                                val width: Long,
-                                val height: Long,
-                                val depth: Long,
-                                val dataType: NativeTypeEnum,
-                                val bytesPerVoxel: Int,
-                                val data: ByteBuffer)
-
-    /**
-     * Histogram class.
-     */
-    class Histogram<T : Comparable<T>>(histogramSize: Int) {
-        /** Bin storage for the histogram. */
-        val bins: HashMap<T, Long> = HashMap(histogramSize)
-
-        /** Adds a new value, putting it in the corresponding bin. */
-        fun add(value: T) {
-            bins[value] = (bins[value] ?: 0L) + 1L
-        }
-
-        /** Returns the minimum value contained in the histogram. */
-        fun min(): T = bins.keys.minBy { it } ?: (0 as T)
-        /** Returns the maximum value contained in the histogram. */
-        fun max(): T = bins.keys.maxBy { it } ?: (0 as T)
-    }
-
-    val boxwidth = 1.0f
-
-    /** Whether to allow setting the transfer range or not */
-    var lockTransferRange = false
-
-    /** Flexible [ShaderProperty] storage */
-    @ShaderProperty var shaderProperties = hashMapOf<String, Any>()
-
-    /**
-     *  The rendering method used in the shader, can be
-     *
-     *  0 -- Local Maximum Intensity Projection
-     *  1 -- Maximum Intensity Projection
-     *  2 -- Alpha compositing
-     */
-    @ShaderProperty var renderingMethod: Int = 2
-
-    /** Transfer function minimum */
-    @ShaderProperty var trangemin = 0.00f
-        set(value) {
-            if(!lockTransferRange) {
-                field = value
-            }
-        }
-
-    /** Transfer function maximum */
-    @ShaderProperty var trangemax = 1.0f
-        set(value) {
-            if(!lockTransferRange) {
-                field = value
-            }
-        }
-
-    /** Bounding box minimum in x direction */
-    @ShaderProperty var boxMin_x = -boxwidth
-    /** Bounding box minimum in y direction */
-    @ShaderProperty var boxMin_y = -boxwidth
-    /** Bounding box minimum in z direction */
-    @ShaderProperty var boxMin_z = -boxwidth
-
-    /** Bounding box maximum in x direction */
-    @ShaderProperty var boxMax_x = boxwidth
-    /** Bounding box maximum in y direction */
-    @ShaderProperty var boxMax_y = boxwidth
-    /** Bounding box maximum in z direction */
-    @ShaderProperty var boxMax_z = boxwidth
-
-    /** Maximum steps to take along a single ray through the volume */
-    @ShaderProperty var stepSize = 0.01f
-    /** Alpha blending factor */
-    @ShaderProperty var alphaBlending = 1.0f
-    /** Gamma exponent */
-    @ShaderProperty var gamma = 1.0f
-
-    /** Volume size in voxels along x direction */
-    @ShaderProperty var sizeX by Delegates.observable(256) { property, old, new -> volumePropertyChanged(property, old, new) }
-    /** Volume size in voxels along y direction */
-    @ShaderProperty var sizeY by Delegates.observable(256) { property, old, new -> volumePropertyChanged(property, old, new) }
-    /** Volume size in voxels along z direction */
-    @ShaderProperty var sizeZ by Delegates.observable(256) { property, old, new -> volumePropertyChanged(property, old, new) }
-
-    /** Voxel size in x direction */
-    @ShaderProperty var voxelSizeX by Delegates.observable(1.0f) { property, old, new -> volumePropertyChanged(property, old, new) }
-    /** Voxel size in y direction */
-    @ShaderProperty var voxelSizeY by Delegates.observable(1.0f) { property, old, new -> volumePropertyChanged(property, old, new) }
-    /** Voxel size in z direction */
-    @ShaderProperty var voxelSizeZ by Delegates.observable(1.0f) { property, old, new -> volumePropertyChanged(property, old, new) }
-
-    @ShaderProperty protected var dataRangeMin: Int = 0
-    @ShaderProperty protected var dataRangeMax: Int = 255
-
-    @ShaderProperty var kernelSize: Float = 0.01f
-    @ShaderProperty var maxOcclusionDistance: Float = 0.01f
-    @ShaderProperty var occlusionSteps: Int = 0
-
-    @ShaderProperty var time: Float = System.nanoTime().toFloat()
-
-    /** Scale factor for voxel-to-world scaling. By default, one pixel/voxel equals 1mm in world space. */
-    var pixelToWorldRatio = 0.001f
+    val converterSetups = ArrayList<ConverterSetup>()
+    var maxTimepoint: Int
+    val viewerState: ViewerState
 
     /** The transfer function to use for the volume. Flat by default. */
-    var transferFunction: TransferFunction = TransferFunction.flat(1.0f)
+    var transferFunction: TransferFunction = TransferFunction.flat(0.5f)
 
-    /**
-     * Regenerates the [boundingBox] in case any relevant properties have changed.
-     */
-    protected fun <R> volumePropertyChanged(property: KProperty<*>, old: R, new: R) {
-        boundingBox = generateBoundingBox()
-        needsUpdate = true
-        needsUpdateWorld = true
-    }
-
-    /**
-     * Color map class to contain lookup tables.
-     * These can be file-based ([ColormapFile]), or buffer-based ([ColormapBuffer]).
-     */
-    sealed class Colormap {
-        /**
-         * File-based color map.
-         */
-        class ColormapFile(val filename: String) : Colormap()
-
-        /**
-         * Buffer-based color map.
-         */
-        class ColormapBuffer(val texture: GenericTexture) : Colormap()
-    }
-
-    /** Stores the available colormaps for transfer functions */
-    var colormaps = HashMap<String, Colormap>()
-
-    /** The active colormap, setting this will automatically update the color map texture */
-    var colormap: String = "viridis"
-        set(name) {
-            colormaps[name]?.let { cm ->
-                field = name
-                when (cm) {
-                    is ColormapFile -> {
-                        this@Volume.material.textures["normal"] = cm.filename
-                    }
-
-                    is ColormapBuffer -> {
-                        this@Volume.material.transferTextures["colormap"] = cm.texture
-                        this@Volume.material.textures["normal"] = "fromBuffer:colormap"
-                    }
-                }
-
-                this@Volume.material.needsTextureReload = true
-                return
-            }
-
-            logger.error("Could not find colormap '$name'.")
+    /** The color map for the volume. */
+    var colormap: Colormap = Colormap.get("viridis")
+        set(m) {
+            field = m
+            volumeManager.removeCachedColormapFor(this)
         }
 
-    /** Temporary storage for volume data */
-    @Transient protected val volumes = ConcurrentHashMap<String, VolumeDescriptor>()
+    /** Pixel-to-world scaling ratio. Default: 1 px = 1mm in world space*/
+    var pixelToWorldRatio: Float by Delegates.observable(0.001f) { property, old, new -> propertyChanged(property, old, new, "pixelToWorldRatio") }
 
-    /** Stores the current volume's name. Can be set to the path of a new volume */
-    var currentVolume: String = ""
+    /** What to use as the volume's origin, scenery's default is [Origin.Center], BVV's default is [Origin.FrontBottomLeft]. **/
+    var origin = Origin.Center
+
+    /** Rendering method */
+    var renderingMethod = RenderingMethod.AlphaBlending
         set(value) {
             field = value
-            if (value != "") {
-                readFromRaw(Paths.get(field), true)
+            volumeManager.renderingMethod = value
+        }
+
+    val volumeManager: VolumeManager
+
+    // TODO IS THIS REQUIRED??
+    var cacheControls = CacheControl.CacheControls()
+
+    /** Current timepoint. */
+    var currentTimepoint: Int
+        get() { return viewerState.currentTimepoint }
+        set(value) {viewerState.currentTimepoint = value}
+
+    sealed class VolumeDataSource {
+        class SpimDataMinimalSource(val spimData : SpimDataMinimal) : VolumeDataSource()
+        class RAISource<T: NumericType<T>>(
+            val type: NumericType<T>,
+            val sources: List<SourceAndConverter<T>>,
+            val converterSetups: ArrayList<ConverterSetup>,
+            val numTimepoints: Int,
+            val cacheControl: CacheControl? = null) : VolumeDataSource()
+    }
+
+    /**
+     * Enum class for selecting a rendering method.
+     */
+    enum class RenderingMethod {
+        MaxProjection,
+        MinProjection,
+        AlphaBlending
+    }
+
+    init {
+        name = "Volume"
+
+        when(dataSource) {
+            is SpimDataMinimalSource -> {
+                val spimData = dataSource.spimData
+
+                val seq: AbstractSequenceDescription<*, *, *> = spimData.sequenceDescription
+                maxTimepoint = seq.timePoints.size() - 1
+                cacheControls.addCacheControl((seq.imgLoader as ViewerImgLoader).cacheControl)
+
+                // wraps legacy image formats (e.g., TIFF) if referenced in BDV XML
+                WrapBasicImgLoader.wrapImgLoaderIfNecessary(spimData)
+
+                val sources = ArrayList<SourceAndConverter<*>>()
+                // initialises setups and converters for all channels, and creates source.
+                // These are then stored in [converterSetups] and [sources_].
+                BigDataViewer.initSetups(spimData, converterSetups, sources)
+
+                viewerState = ViewerState(sources, maxTimepoint)
+
+                WrapBasicImgLoader.removeWrapperIfPresent(spimData)
+            }
+
+            is VolumeDataSource.RAISource<*> -> {
+                maxTimepoint = dataSource.numTimepoints
+                viewerState = ViewerState(dataSource.sources, maxTimepoint)
+                converterSetups.addAll( dataSource.converterSetups )
             }
         }
 
-    init {
-        // fake geometry
-        this.vertices = BufferUtils.allocateFloatAndPut(
-            floatArrayOf(
-                -1.0f, -1.0f, 0.0f,
-                1.0f, -1.0f, 0.0f,
-                1.0f, 1.0f, 0.0f,
-                -1.0f, 1.0f, 0.0f))
+        viewerState.sources.forEach { s -> s.isActive = true }
+        viewerState.displayMode = DisplayMode.FUSED
 
-        this.normals = BufferUtils.allocateFloatAndPut(
-            floatArrayOf(
-                1.0f, 0.0f, 0.0f,
-                0.0f, 1.0f, 0.0f,
-                0.0f, 0.0f, 1.0f,
-                0.0f, 0.0f, 1.0f))
+        converterSetups.forEach {
+            it.color = ARGBType(Int.MAX_VALUE)
+        }
 
-        this.texcoords = BufferUtils.allocateFloatAndPut(
-            floatArrayOf(
-                0.0f, 0.0f,
-                1.0f, 0.0f,
-                1.0f, 1.0f,
-                0.0f, 1.0f))
-
-        this.indices = BufferUtils.allocateIntAndPut(
-            intArrayOf(0, 1, 2, 0, 2, 3))
-
-        this.geometryType = GeometryType.TRIANGLES
-        this.vertexSize = 3
-        this.texcoordSize = 2
-
-        material = ShaderMaterial.fromClass(Volume::class.java)
-
-        material.cullingMode = Material.CullingMode.None
-        material.blending.transparent = true
-        material.blending.sourceColorBlendFactor = Blending.BlendFactor.One
-        material.blending.destinationColorBlendFactor = Blending.BlendFactor.OneMinusSrcAlpha
-        material.blending.sourceAlphaBlendFactor = Blending.BlendFactor.One
-        material.blending.destinationAlphaBlendFactor = Blending.BlendFactor.OneMinusSrcAlpha
-        material.blending.colorBlending = Blending.BlendOp.add
-        material.blending.alphaBlending = Blending.BlendOp.add
-
-        colormaps["grays"] = ColormapFile(Volume::class.java.getResource("colormap-grays.png").file)
-        colormaps["hot"] = ColormapFile(Volume::class.java.getResource("colormap-hot.png").file)
-        colormaps["jet"] = ColormapFile(Volume::class.java.getResource("colormap-jet.png").file)
-        colormaps["plasma"] = ColormapFile(Volume::class.java.getResource("colormap-plasma.png").file)
-        colormaps["viridis"] = ColormapFile(Volume::class.java.getResource("colormap-viridis.png").file)
-
-        assignEmptyVolumeTexture()
+        volumeManager = hub.get<VolumeManager>() ?: hub.add(VolumeManager(hub))
+        volumeManager.add(this)
+        delegate = volumeManager
     }
 
+    /**
+     * Goes to the next available timepoint, returning the number of the updated timepoint.
+     */
+    fun nextTimepoint(): Int {
+        return goToTimePoint(viewerState.currentTimepoint + 1)
+    }
+
+    /** Goes to the previous available timepoint, returning the number of the updated timepoint. */
+    fun previousTimepoint(): Int {
+        return goToTimePoint(viewerState.currentTimepoint - 1)
+    }
+
+    /** Goes to the [timepoint] given, returning the number of the updated timepoint. */
+    open fun goToTimePoint(timepoint: Int): Int {
+        val current = viewerState.currentTimepoint
+        viewerState.currentTimepoint = min(max(timepoint, 0), maxTimepoint - 1)
+        logger.info("Going to timepoint ${viewerState.currentTimepoint} of $maxTimepoint")
+
+        if(current != viewerState.currentTimepoint) {
+            volumeManager.notifyUpdate(this)
+        }
+
+        return viewerState.currentTimepoint
+    }
+
+    fun prepareNextFrame() {
+        cacheControls.prepareNextFrame()
+    }
+
+    /**
+     * Returns the local scaling of the volume, taking voxel size and [pixelToWorldRatio] into account.
+     */
+    open fun localScale(): Vector3f {
+        // we are using the first visible source here, which might of course change.
+        // TODO: Figure out a better way to do this. It might be an issue for multi-view datasets.
+        var voxelSizes: VoxelDimensions = FinalVoxelDimensions("um", 1.0, 1.0, 1.0)
+
+        val index = viewerState.visibleSourceIndices.firstOrNull()
+        if(index != null) {
+            val source = viewerState.sources[index]
+            voxelSizes = source.spimSource.voxelDimensions ?: voxelSizes
+        }
+
+        return Vector3f(
+//            voxelSizes.dimension(0).toFloat() * pixelToWorldRatio,
+//            voxelSizes.dimension(1).toFloat() * pixelToWorldRatio,
+//            voxelSizes.dimension(2).toFloat() * pixelToWorldRatio
+            pixelToWorldRatio,
+            pixelToWorldRatio,
+            pixelToWorldRatio
+        )
+    }
+
+    /**
+     * Composes the world matrix for this volume node, taken voxel size and [pixelToWorldRatio]
+     * into account.
+     */
     override fun composeModel() {
         @Suppress("SENSELESS_COMPARISON")
         if(position != null && rotation != null && scale != null) {
-            val L = localScale() * (1.0f/2.0f)
-            model.setIdentity()
-            model.translate(this.position.x(), this.position.y(), this.position.z())
-            model.mult(this.rotation)
-            model.scale(this.renderScale, this.renderScale, this. renderScale)
-            model.scale(this.scale.x(), this.scale.y(), this.scale.z())
-            model.scale(L.x(), L.y(), L.z())
-        }
-    }
-
-    /**
-     * Preloads all volumes found in the path indicated by [file].
-     * The folder is assumed to contain a `stacks.info` file containing volume metadata.
-     */
-    @JvmOverloads fun preloadRawFromPath(file: Path, dataType: NativeTypeEnum = NativeTypeEnum.UnsignedByte) {
-        val id = file.fileName.toString()
-
-        val infoFile = file.resolveSibling("stacks" + ".info")
-
-        val lines = Files.lines(infoFile).toList()
-
-        logger.debug("reading stacks.info (${lines.joinToString()}) (${lines.size} lines)")
-        val dimensions = lines.get(0).split(",").map { it.toLong() }.toTypedArray()
-
-
-        sizeX = dimensions[0].toInt()
-        sizeY = dimensions[1].toInt()
-        sizeZ = dimensions[2].toInt()
-
-        logger.debug("setting voxelsize to $voxelSizeX x $voxelSizeY x $voxelSizeZ")
-        logger.debug("setting min max to ${this.trangemin}, ${this.trangemax} ")
-        logger.debug("setting alpha blending to ${this.alphaBlending}")
-        logger.debug("setting dim to $sizeX, $sizeY, $sizeZ")
-
-
-        if (volumes.containsKey(id)) {
-            logger.debug("$id is already in cache")
-        } else {
-            logger.debug("Preloading $id from disk")
-            val buffer = ByteArray(1024 * 1024)
-            val stream = FileInputStream(file.toFile())
-            val imageData: ByteBuffer = memAlloc((2 * dimensions[0] * dimensions[1] * dimensions[2]).toInt())
-
-            logger.debug("${file.fileName}: Allocated ${imageData.capacity()} bytes for UINT16 image of ${dimensions.joinToString("x")}")
-
-            val start = System.nanoTime()
-            var bytesRead = stream.read(buffer, 0, buffer.size)
-            while (bytesRead > -1) {
-                imageData.put(buffer, 0, bytesRead)
-                bytesRead = stream.read(buffer, 0, buffer.size)
+            model.translation(position)
+            model.mul(Matrix4f().set(this.rotation))
+            if(origin == Origin.Center) {
+                model.translate(-2.0f, -2.0f, -2.0f)
             }
-            val duration = (System.nanoTime() - start) / 10e5
-            logger.debug("Reading took $duration ms")
-
-            imageData.flip()
-
-//            if (replace) {
-//                volumes.clear()
-//            }
-
-            val descriptor = VolumeDescriptor(
-                file,
-                dimensions[0], dimensions[1], dimensions[2],
-                dataType, dataType.bytesPerVoxel(), data = imageData
-            )
-
-            volumes.put(id, descriptor)
+            model.scale(scale)
+            model.scale(localScale())
         }
     }
-
-    private fun NativeTypeEnum.bytesPerVoxel(): Int {
-        return when(this) {
-            NativeTypeEnum.Byte -> 1
-            NativeTypeEnum.UnsignedByte -> 1
-            NativeTypeEnum.Short -> 2
-            NativeTypeEnum.UnsignedShort -> 2
-            NativeTypeEnum.Int -> 4
-            NativeTypeEnum.UnsignedInt -> 4
-            NativeTypeEnum.Long -> 8
-            NativeTypeEnum.UnsignedLong -> 8
-            NativeTypeEnum.HalfFloat -> 2
-            NativeTypeEnum.Float -> 4
-            NativeTypeEnum.Double -> 8
-        }
-    }
-
-    /**
-     * Reads volumetric data from a [buffer]. The volume will be given the name [id], and the
-     * [buffer] is assumed to contain [x]*[y]*[z]*[bytesPerVoxel] bytes and be of the type
-     * [dataType]. For anisotropic volumes, [voxelX], [voxelY] and [voxelZ] can be set appropriately.
-     */
-    @JvmOverloads fun readFromBuffer(id: String, buffer: ByteBuffer,
-                       x: Long, y: Long, z: Long,
-                       voxelX: Float, voxelY: Float, voxelZ: Float,
-                       dataType: NativeTypeEnum = NativeTypeEnum.UnsignedInt, bytesPerVoxel: Int = 2,
-                       allowDeallocation: Boolean = false, assign: Boolean = true) {
-        sizeX = x.toInt()
-        sizeY = y.toInt()
-        sizeZ = z.toInt()
-
-        val vol = if (volumes.containsKey(id)) {
-            volumes.get(id)
-        } else {
-            val descriptor = VolumeDescriptor(
-                null,
-                x, y, z, dataType, bytesPerVoxel,
-                buffer
-            )
-
-            volumes.put(id, descriptor)
-            descriptor
-        }
-
-        if (vol != null && assign) {
-            assignVolumeTexture( longArrayOf( x, y, z ), vol, allowDeallocation)
-        }
-    }
-
-    // Endianness conversion via Unsafe
-    // by Peter Lawrey, https://stackoverflow.com/a/21089527/2129040
-    private fun swapEndianUnsafe(bytes: ByteArray): ByteArray {
-        assert(bytes.size % 4 == 0)
-        var i = 0
-        while (i < bytes.size) {
-            UNSAFE.putInt(bytes, 1L*BYTES_OFFSET + i, Integer.reverseBytes(UNSAFE.getInt(bytes, 1L*BYTES_OFFSET + i)))
-            i += 4
-        }
-
-        return bytes
-    }
-
-    /**
-     * Reads volumetric data from a [file] using scifio, and if [replace] is true, will
-     * replace the current volumes' buffer and mark it for deallocation.
-     */
-    fun readFrom(file: Path, replace: Boolean = false): String {
-        if(file.normalize().toString().endsWith("raw")) {
-            return readFromRaw(file, replace)
-        }
-        val id = file.fileName.toString()
-
-        val v = volumes[id]
-        val vol = if (v != null) {
-            logger.debug("Getting $id from cache")
-            v
-        } else {
-            val reader = scifio.initializer().initializeReader(file.normalize().toString())
-
-            with(reader.openPlane(0, 0)) {
-                sizeX = lengths[0].toInt()
-                sizeY = lengths[1].toInt()
-                sizeZ = reader.getPlaneCount(0).toInt()
-            }
-
-            val bytesPerVoxel = reader.openPlane(0, 0).imageMetadata.bitsPerPixel/8
-            reader.openPlane(0, 0).imageMetadata.pixelType
-
-            val dataType = when(reader.openPlane(0, 0).imageMetadata.pixelType) {
-                FormatTools.INT8 -> NativeTypeEnum.Byte
-                FormatTools.INT16 -> NativeTypeEnum.Short
-                FormatTools.INT32 -> NativeTypeEnum.Int
-
-                FormatTools.UINT8 -> NativeTypeEnum.UnsignedByte
-                FormatTools.UINT16 -> NativeTypeEnum.UnsignedShort
-                FormatTools.UINT32 -> NativeTypeEnum.UnsignedInt
-
-                FormatTools.FLOAT -> NativeTypeEnum.Float
-                else -> {
-                    logger.error("Unknown scif.io pixel type ${reader.openPlane(0, 0).imageMetadata.pixelType}, assuming unsigned byte.")
-                    NativeTypeEnum.UnsignedByte
-                }
-            }
-
-            logger.debug("Loading $id from disk")
-            val imageData: ByteBuffer = memAlloc((bytesPerVoxel * sizeX * sizeY * sizeZ))
-
-            logger.debug("${file.fileName}: Allocated ${imageData.capacity()} bytes for $dataType ${8*bytesPerVoxel}bit image of $sizeX/$sizeY/$sizeZ")
-
-            val start = System.nanoTime()
-
-//            if(reader.openPlane(0, 0).imageMetadata.isLittleEndian) {
-                logger.debug("Volume is little endian")
-                (0 until reader.getPlaneCount(0)).forEach { plane ->
-                    imageData.put(reader.openPlane(0, plane).bytes)
-                }
-//            } else {
-//                logger.info("Volume is big endian")
-//                (0 until reader.getPlaneCount(0)).forEach { plane ->
-//                    imageData.put(swapEndianUnsafe(reader.openPlane(0, plane).bytes))
-//                }
-//            }
-
-            val duration = (System.nanoTime() - start) / 10e5
-            logger.debug("Reading took $duration ms")
-
-            imageData.flip()
-
-            val descriptor = VolumeDescriptor(
-                file,
-                sizeX.toLong(), sizeY.toLong(), sizeZ.toLong(),
-                dataType, bytesPerVoxel, data = imageData
-            )
-
-//            thread {
-//                val histogram = Histogram<Int>(65536)
-//                val buf = imageData.asShortBuffer()
-//                while (buf.hasRemaining()) {
-//                    histogram.add(buf.get().toInt() + Short.MAX_VALUE + 1)
-//                }
-//
-//                logger.info("Min/max of $id: ${histogram.min()}/${histogram.max()} in ${histogram.bins.size} bins")
-//
-//                this.trangemin = histogram.min().toFloat()
-//                this.trangemax = histogram.max().toFloat()
-//            }
-
-            volumes.put(id, descriptor)
-            descriptor
-        }
-
-        assignVolumeTexture(longArrayOf(sizeX.toLong(), sizeY.toLong(), sizeZ.toLong()), vol, replace)
-
-        return id
-    }
-
-    /**
-     * Reads raw volumetric data from a [file]. If [autorange] is set, the transfer function range
-     * will be determined automatically, if [cache] is true, the volume's data will be stored in [volumes] for
-     * future use. If [replace] is set, the current volumes' buffer will be replace and marked for deallocation.
-     *
-     * Returns the new volumes' id.
-     */
-    fun readFromRaw(file: Path, replace: Boolean = false, autorange: Boolean = true, cache: Boolean = true): String {
-        val infoFile = file.resolveSibling("stacks" + ".info")
-
-        val lines = Files.lines(infoFile).toList()
-
-        logger.debug("reading stacks.info (${lines.joinToString()}) (${lines.size} lines)")
-        val dimensions = lines.get(0).split(",").map { it.toLong() }.toTypedArray()
-        logger.debug("setting dim to ${dimensions.joinToString()}")
-
-        sizeX = dimensions[0].toInt()
-        sizeY = dimensions[1].toInt()
-        sizeZ = dimensions[2].toInt()
-
-        logger.debug("setting voxelsize to $voxelSizeX x $voxelSizeY x $voxelSizeZ")
-        logger.debug("setting min max to $trangemin, $trangemax ")
-        logger.debug("setting alpha blending to $alphaBlending")
-        logger.debug("setting dim to $sizeX, $sizeY, $sizeZ")
-
-        val id = file.fileName.toString()
-
-        val v = volumes[id]
-        val vol = if (v != null && cache) {
-            logger.debug("Getting $id from cache")
-            v
-        } else {
-            logger.debug("Loading $id from disk")
-            val buffer = ByteArray(1024 * 1024)
-            val stream = FileInputStream(file.toFile())
-            val imageData: ByteBuffer = memAlloc((2 * dimensions[0] * dimensions[1] * dimensions[2]).toInt())
-
-            logger.debug("${file.fileName}: Allocated ${imageData.capacity()} bytes for UINT16 image of ${dimensions.joinToString("x")}")
-
-            val start = System.nanoTime()
-            var bytesRead = stream.read(buffer, 0, buffer.size)
-            while (bytesRead > -1) {
-                imageData.put(buffer, 0, bytesRead)
-                bytesRead = stream.read(buffer, 0, buffer.size)
-            }
-            val duration = (System.nanoTime() - start) / 10e5
-            logger.debug("Reading took $duration ms")
-
-            imageData.flip()
-
-            val descriptor = VolumeDescriptor(
-                file,
-                dimensions[0], dimensions[1], dimensions[2],
-                NativeTypeEnum.UnsignedShort, 2, data = imageData
-            )
-
-            if(autorange) {
-                thread {
-                    val histogram = Histogram<Int>(65536)
-                    val buf = imageData.asShortBuffer()
-                    while (buf.hasRemaining()) {
-                        histogram.add(buf.get().toInt() + Short.MAX_VALUE + 1)
-                    }
-
-                    logger.info("Min/max of $id: ${histogram.min()}/${histogram.max()} in ${histogram.bins.size} bins")
-
-                    this.trangemin = histogram.min().toFloat()
-                    this.trangemax = histogram.max().toFloat()
-                }
-            }
-
-            if(cache) {
-                volumes.put(id, descriptor)
-            }
-
-            descriptor
-        }
-
-        assignVolumeTexture(dimensions.toLongArray(), vol, replace)
-
-        return id
-    }
-
-    var assignment: (() -> Unit)? = null
-
-    override fun preDraw() {
-        if(transferFunction.stale) {
-            logger.debug("Transfer function is stale, updating")
-            material.transferTextures["transferFunction"] = GenericTexture(
-                "transferFunction", GLVector(transferFunction.textureSize.toFloat(), transferFunction.textureHeight.toFloat(), 1.0f),
-                channels = 1, type = GLTypeEnum.Float, contents = transferFunction.serialise(),
-                repeatS = TextureRepeatMode.ClampToEdge, repeatT = TextureRepeatMode.ClampToEdge, repeatU = TextureRepeatMode.ClampToEdge)
-
-            material.textures["diffuse"] = "fromBuffer:transferFunction"
-            material.needsTextureReload = true
-
-            time = System.nanoTime().toFloat()
-        }
-
-        assignment?.invoke()
-    }
-
-    protected fun NativeTypeEnum.toGLType() =
-        when (this) {
-            NativeTypeEnum.UnsignedInt -> GLTypeEnum.UnsignedInt
-            NativeTypeEnum.Byte -> GLTypeEnum.Byte
-            NativeTypeEnum.UnsignedByte -> GLTypeEnum.UnsignedByte
-            NativeTypeEnum.Short -> GLTypeEnum.Short
-            NativeTypeEnum.UnsignedShort -> GLTypeEnum.UnsignedShort
-            NativeTypeEnum.Int -> GLTypeEnum.Int
-            NativeTypeEnum.Long -> TODO()
-            NativeTypeEnum.UnsignedLong -> TODO()
-            NativeTypeEnum.HalfFloat -> TODO()
-            NativeTypeEnum.Float -> GLTypeEnum.Float
-            NativeTypeEnum.Double -> TODO()
-        }
-
-    protected open fun assignEmptyVolumeTexture() {
-        val emptyBuffer = BufferUtils.allocateByteAndPut(byteArrayOf(0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-                                                                     0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0))
-        val dim = GLVector(2.0f, 2.0f, 2.0f)
-        val gtv = GenericTexture("empty-volume", dim, 1, GLTypeEnum.UnsignedByte, emptyBuffer,
-            repeatS = TextureRepeatMode.ClampToEdge,
-            repeatT = TextureRepeatMode.ClampToEdge,
-            repeatU = TextureRepeatMode.ClampToEdge,
-            normalized = true)
-
-        material.transferTextures.put("empty-volume", gtv)
-        material.textures.put("VolumeTextures", "fromBuffer:empty-volume")
-
-        colormap = "viridis"
-    }
-
-    @Transient private val deallocations = ArrayDeque<ByteBuffer>()
-    var deallocationThreshold = 50000
-
-    protected open fun assignVolumeTexture(dimensions: LongArray, descriptor: VolumeDescriptor, replace: Boolean) {
-//        while(deallocations.size > deallocationThreshold) {
-//            val last = deallocations.pollLast()
-//            logger.debug("Time series: deallocating $last from ${deallocations.map { it.hashCode() }.joinToString(", ")}")
-//            logger.trace("Address is ${MemoryUtil.memAddress(last).toHexString()}")
-//        }
-
-        val (min: Int, max: Int) = when(descriptor.dataType) {
-             NativeTypeEnum.Byte -> 0 to 255
-             NativeTypeEnum.UnsignedByte -> 0 to 255
-             NativeTypeEnum.Short -> 0 to 65536
-             NativeTypeEnum.UnsignedShort -> 0 to 65536
-             NativeTypeEnum.Int -> 0 to Integer.MAX_VALUE
-             NativeTypeEnum.UnsignedInt -> 0 to Integer.MAX_VALUE
-             NativeTypeEnum.HalfFloat -> 0 to Float.MAX_VALUE.toInt()
-             NativeTypeEnum.Float -> 0 to Float.MAX_VALUE.toInt()
-
-             NativeTypeEnum.Long,
-             NativeTypeEnum.UnsignedLong,
-             NativeTypeEnum.Double -> throw UnsupportedOperationException("64bit volumes are not supported")
-        }
-
-        dataRangeMin = min
-        dataRangeMax = max
-
-        trangemin = min.toFloat()
-        trangemax = max.toFloat()
-
-        val dim = GLVector(dimensions[0].toFloat(), dimensions[1].toFloat(), dimensions[2].toFloat())
-        val gtv = GenericTexture("VolumeTextures", dim,
-            1, descriptor.dataType.toGLType(), descriptor.data,
-            repeatS = TextureRepeatMode.ClampToEdge,
-            repeatT = TextureRepeatMode.ClampToEdge,
-            repeatU = TextureRepeatMode.ClampToEdge,
-            normalized = true)
-
-        boundingBox = generateBoundingBox()
-
-        logger.debug("$name: Assigning volume texture")
-        this.material.transferTextures.put("VolumeTextures", gtv)?.let {
-            if (replace && it.name != "empty-volume" && !deallocations.contains(it.contents)) {
-                deallocations.add(it.contents)
-            }
-        }
-
-        this.material.textures.put("VolumeTextures", "fromBuffer:VolumeTextures")
-        this.material.needsTextureReload = true
-    }
-
-    /**
-     * Sets the volume's transfer function range to [min] and [max].
-     * Optionally, the range can be locked by setting [lock].
-     */
-    fun setTransfer(min: Float, max: Float, lock: Boolean = true) {
-        lockTransferRange = false
-        trangemin = min
-        trangemax = max
-
-        if(lock) {
-            lockTransferRange = true
-        }
-    }
-
-
-    /**
-     * Returns the local scaling of the volume.
-     */
-    fun localScale(): GLVector {
-        return GLVector(
-            sizeX * voxelSizeX * pixelToWorldRatio,
-            sizeY * voxelSizeY * pixelToWorldRatio,
-            sizeZ * voxelSizeZ * pixelToWorldRatio)
-    }
-
-    /**
-     * Creates this volume's [Node.OrientedBoundingBox], giving 2cm slack around the edges.
-     * The volume's bounding box is calculated from voxel and physical size such that
-     * 1 pixel = 1mm in world units.
-     */
-    override fun generateBoundingBox(): OrientedBoundingBox? {
-        val min = GLVector(-1.0f, -1.0f, -1.0f)
-        val max = GLVector(1.0f, 1.0f, 1.0f)
-
-        return OrientedBoundingBox(this, min, max)
-    }
-
-    private fun Float.floorToInt() = floor(this).toInt()
 
     /**
      * Samples a point from the currently used volume, [uv] is the texture coordinate of the volume, [0.0, 1.0] for
@@ -716,88 +243,8 @@ open class Volume : Mesh("Volume") {
      *
      * Returns the sampled value as a [Float], or null in case nothing could be sampled.
      */
-    fun sample(uv: GLVector, interpolate: Boolean = true): Float? {
-        val gt = material.transferTextures["VolumeTextures"] ?: return null
-
-        val bpp = when(gt.type) {
-            GLTypeEnum.Byte -> 1
-            GLTypeEnum.UnsignedByte -> 1
-            GLTypeEnum.Short -> 2
-            GLTypeEnum.UnsignedShort -> 2
-            GLTypeEnum.Int -> 4
-            GLTypeEnum.UnsignedInt -> 4
-            GLTypeEnum.Float -> 4
-            GLTypeEnum.Double -> 8
-        }
-
-        if(uv.x() < 0.0f || uv.x() > 1.0f || uv.y() < 0.0f || uv.y() > 1.0f || uv.z() < 0.0f || uv.z() > 1.0f) {
-            logger.debug("Invalid UV coords for volume access: $uv")
-            return null
-        }
-
-        val absoluteCoords = GLVector(uv.x() * gt.dimensions.x(), uv.y() * gt.dimensions.y(), uv.z() * gt.dimensions.z())
-//        val index: Int = (floor(gt.dimensions.x() * gt.dimensions.y() * absoluteCoords.z()).toInt()
-//            + floor(gt.dimensions.x() * absoluteCoords.y()).toInt()
-//            + floor(absoluteCoords.x()).toInt())
-        val absoluteCoordsD = GLVector(floor(absoluteCoords.x()), floor(absoluteCoords.y()), floor(absoluteCoords.z()))
-        val diff = absoluteCoords - absoluteCoordsD
-
-        fun toIndex(absoluteCoords: GLVector): Int = (
-            absoluteCoords.x().roundToInt().dec()
-                + (gt.dimensions.x() * absoluteCoords.y()).roundToInt().dec()
-                + (gt.dimensions.x() * gt.dimensions.y() * absoluteCoords.z()).roundToInt().dec()
-            )
-
-        val index = toIndex(absoluteCoordsD)
-
-        val contents = gt.contents
-        if(contents == null) {
-            logger.error("Volume contents are empty for sampling at $uv")
-            return null
-        }
-
-        if(contents.limit() < index*bpp) {
-            logger.debug("Absolute index ${index*bpp} for data type ${gt.type} from $uv exceeds data buffer limit of ${contents.limit()} (capacity=${contents.capacity()}), coords=$absoluteCoords/${gt.dimensions}")
-            return 0.0f
-        }
-
-
-        fun density(index:Int): Float {
-            if(index*bpp >= contents.limit()) {
-                return 0.0f
-            }
-
-            val s = when(gt.type) {
-                GLTypeEnum.Byte -> contents.get(index).toFloat()
-                GLTypeEnum.UnsignedByte -> contents.get(index).toUByte().toFloat()
-                GLTypeEnum.Short -> contents.asShortBuffer().get(index).toFloat()
-                GLTypeEnum.UnsignedShort -> contents.asShortBuffer().get(index).toUShort().toFloat()
-                GLTypeEnum.Int -> contents.asIntBuffer().get(index).toFloat()
-                GLTypeEnum.UnsignedInt -> contents.asIntBuffer().get(index).toUInt().toFloat()
-                GLTypeEnum.Float -> contents.asFloatBuffer().get(index)
-                GLTypeEnum.Double -> contents.asDoubleBuffer().get(index).toFloat()
-            }
-
-            return transferFunction.evaluate(s/trangemax)
-        }
-
-        return if(interpolate) {
-            val offset = 1.0f
-
-            val d00 = lerp(diff.x(), density(index), density(toIndex(absoluteCoordsD + GLVector(offset, 0.0f, 0.0f))))
-            val d10 = lerp(diff.x(), density(toIndex(absoluteCoordsD + GLVector(0.0f, offset, 0.0f))), density(toIndex(absoluteCoordsD + GLVector(offset, offset, 0.0f))))
-            val d01 = lerp(diff.x(), density(toIndex(absoluteCoordsD + GLVector(0.0f, 0.0f, offset))), density(toIndex(absoluteCoordsD + GLVector(offset, 0.0f, offset))))
-            val d11 = lerp(diff.x(), density(toIndex(absoluteCoordsD + GLVector(0.0f, offset, offset))), density(toIndex(absoluteCoordsD + GLVector(offset, offset, offset))))
-            val d0 = lerp(diff.y(), d00, d10)
-            val d1 = lerp(diff.y(), d01, d11)
-            lerp(diff.z(), d0, d1)
-        } else {
-            density(index)
-        }
-    }
-
-    private inline fun lerp(t: Float, v0: Float, v1: Float): Float {
-        return (1.0f - t) * v0 + t * v1
+    open fun sample(uv: Vector3f, interpolate: Boolean = true): Float? {
+        return null
     }
 
     /**
@@ -807,57 +254,120 @@ open class Volume : Mesh("Volume") {
      * Returns the list of samples (which might include `null` values in case a sample failed),
      * as well as the delta used along the ray, or null if the start/end coordinates are invalid.
      */
-    fun sampleRay(start: GLVector, end: GLVector): Pair<List<Float?>, GLVector>? {
-        val gt = material.transferTextures["VolumeTextures"] ?: return null
-
-        if(start.x() < 0.0f || start.x() > 1.0f || start.y() < 0.0f || start.y() > 1.0f || start.z() < 0.0f || start.z() > 1.0f) {
-            logger.debug("Invalid UV coords for ray start: {} -- will clamp values to [0.0, 1.0].", start)
-        }
-
-        if(end.x() < 0.0f || end.x() > 1.0f || end.y() < 0.0f || end.y() > 1.0f || end.z() < 0.0f || end.z() > 1.0f) {
-            logger.debug("Invalid UV coords for ray end: {} -- will clamp values to [0.0, 1.0].", end)
-        }
-
-        val startClamped = GLVector(
-            min(max(start.x(), 0.0f), 1.0f),
-            min(max(start.y(), 0.0f), 1.0f),
-            min(max(start.z(), 0.0f), 1.0f)
-        )
-
-        val endClamped = GLVector(
-            min(max(end.x(), 0.0f), 1.0f),
-            min(max(end.y(), 0.0f), 1.0f),
-            min(max(end.z(), 0.0f), 1.0f)
-        )
-
-        val direction = (endClamped - startClamped).normalize()
-        val maxSteps = (direction.hadamard(gt.dimensions).magnitude() * 2.0f).roundToInt()
-        val delta = direction * (1.0f/maxSteps.toFloat())
-
-        return (0 until maxSteps).map {
-            sample(startClamped + (delta * it.toFloat()))
-        } to delta
+    open fun sampleRay(start: Vector3f, end: Vector3f): Pair<List<Float?>, Vector3f>? {
+        return null
     }
 
-    /**
-     * Volume node companion object for static functions.
-     */
     companion object {
+        val setupId = AtomicInteger(0)
         val scifio: SCIFIO = SCIFIO()
-        val UNSAFE: Unsafe
-        val BYTES_OFFSET: Int
+        
+        private val logger by LazyLogger()
 
-        init {
-            try {
-                val theUnsafe = Unsafe::class.java.getDeclaredField("theUnsafe")
-                theUnsafe.isAccessible = true
-                UNSAFE = theUnsafe.get(null) as Unsafe
-                BYTES_OFFSET = UNSAFE.arrayBaseOffset(ByteArray::class.java)
+        @JvmStatic @JvmOverloads fun fromSpimData(
+            spimData: SpimDataMinimal,
+            hub : Hub,
+            options : VolumeViewerOptions = VolumeViewerOptions()
+        ): Volume {
+            val ds = SpimDataMinimalSource(spimData)
+            return Volume(ds, options, hub)
+        }
 
-            } catch (e: Exception) {
-                throw AssertionError(e)
+        @JvmStatic @JvmOverloads fun fromXML(
+            path: String,
+            hub: Hub,
+            options : VolumeViewerOptions = VolumeViewerOptions()
+        ): Volume {
+            val spimData = XmlIoSpimDataMinimal().load(path)
+            val ds = SpimDataMinimalSource(spimData)
+            return Volume(ds, options, hub)
+        }
+
+        @JvmStatic @JvmOverloads fun <T: NumericType<T>> fromRAI(
+            img: RandomAccessibleInterval<T>,
+            type: T,
+            axisOrder: AxisOrder = DEFAULT,
+            name: String,
+            hub: Hub,
+            options: VolumeViewerOptions = VolumeViewerOptions()
+        ): Volume {
+            val converterSetups: ArrayList<ConverterSetup> = ArrayList()
+            val stacks: ArrayList<RandomAccessibleInterval<T>> = AxisOrder.splitInputStackIntoSourceStacks(img, AxisOrder.getAxisOrder(axisOrder, img, false))
+            val sourceTransform = AffineTransform3D()
+            val sources: ArrayList<SourceAndConverter<T>> = ArrayList()
+
+            var numTimepoints = 1
+            for (stack in stacks) {
+                val s: Source<T>
+                if (stack.numDimensions() > 3) {
+                    numTimepoints = stack.max(3).toInt() + 1
+                    s = RandomAccessibleIntervalSource4D<T>(stack, type, sourceTransform, name)
+                } else {
+                    s = RandomAccessibleIntervalSource<T>(stack, type, sourceTransform, name)
+                }
+                val source: SourceAndConverter<T> = BigDataViewer.wrapWithTransformedSource(
+                    SourceAndConverter<T>(s, BigDataViewer.createConverterToARGB(type)))
+                converterSetups.add(BigDataViewer.createConverterSetup(source, setupId.getAndIncrement()))
+                sources.add(source)
             }
 
+            val cacheControl = if (img is VolatileView<*, *>) {
+                val viewData: VolatileViewData<T, Volatile<T>> = (img as VolatileView<T, Volatile<T>>).volatileViewData
+                viewData.cacheControl
+            } else {
+                null
+            }
+
+            val ds = VolumeDataSource.RAISource<T>(type, sources, converterSetups, numTimepoints, cacheControl)
+            return RAIVolume(ds, options, hub)
+        }
+
+        @JvmStatic @JvmOverloads fun <T: NumericType<T>> fromSourceAndConverter(
+            source: SourceAndConverter<T>,
+            type: T,
+            name: String,
+            hub: Hub,
+            options: VolumeViewerOptions = VolumeViewerOptions()
+        ): Volume {
+            val converterSetups: ArrayList<ConverterSetup> = ArrayList()
+            val sources = arrayListOf(source)
+            val numTimepoints = 1
+
+            val img = source.spimSource.getSource(0, 0)
+
+            val cacheControl = if (img is VolatileView<*, *>) {
+                val viewData: VolatileViewData<T, Volatile<T>> = (img as VolatileView<T, Volatile<T>>).volatileViewData
+                viewData.cacheControl
+            } else {
+                null
+            }
+
+            val ds = VolumeDataSource.RAISource<T>(type, sources, converterSetups, numTimepoints, cacheControl)
+            return RAIVolume(ds, options, hub)
+        }
+
+        @JvmStatic @JvmOverloads fun <T: NumericType<T>> fromBuffer(
+            volumes: LinkedHashMap<String, ByteBuffer>,
+            width: Int,
+            height: Int,
+            depth: Int,
+            type: T,
+            hub: Hub,
+            voxelDimensions: FloatArray = floatArrayOf(1.0f, 1.0f, 1.0f),
+            voxelUnit: String = "um",
+            options: VolumeViewerOptions = VolumeViewerOptions()
+        ): BufferedVolume {
+            val converterSetups: ArrayList<ConverterSetup> = ArrayList()
+            val sources: ArrayList<SourceAndConverter<T>> = ArrayList()
+
+            val s = BufferSource(volumes, width, height, depth, FinalVoxelDimensions(voxelUnit, *(voxelDimensions.map { it.toDouble() }.toDoubleArray())), "", type)
+            val source: SourceAndConverter<T> = BigDataViewer.wrapWithTransformedSource(
+                    SourceAndConverter<T>(s, BigDataViewer.createConverterToARGB(type)))
+           converterSetups.add(BigDataViewer.createConverterSetup(source, setupId.getAndIncrement()))
+           sources.add(source)
+
+            val ds = VolumeDataSource.RAISource<T>(type, sources, converterSetups, volumes.size)
+            return BufferedVolume(ds, options, hub)
         }
 
         /**
@@ -870,9 +380,9 @@ open class Volume : Mesh("Volume") {
          * Returns the newly-allocated [ByteBuffer], or the one given in [intoBuffer], set to position 0.
          */
         @JvmStatic fun generateProceduralVolume(size: Long, radius: Float = 0.0f,
-                                     seed: Long = Random.randomFromRange(0.0f, 133333337.0f).toLong(),
-                                     shift: GLVector = GLVector.getNullVector(3),
-                                     intoBuffer: ByteBuffer? = null, use16bit: Boolean = false): ByteBuffer {
+                                                seed: Long = Random.randomFromRange(0.0f, 133333337.0f).toLong(),
+                                                shift: Vector3f = Vector3f(0.0f),
+                                                intoBuffer: ByteBuffer? = null, use16bit: Boolean = false): ByteBuffer {
             val f = 3.0f / size
             val center = size / 2.0f + 0.5f
             val noise = OpenSimplexNoise(seed)
@@ -883,7 +393,7 @@ open class Volume : Mesh("Volume") {
             }
             val byteSize = (size*size*size*bytesPerVoxel).toInt()
 
-            val buffer = intoBuffer ?: memAlloc(byteSize * bytesPerVoxel)
+            val buffer = intoBuffer ?: MemoryUtil.memAlloc(byteSize * bytesPerVoxel)
 
             (0 until byteSize/bytesPerVoxel).chunked(byteSize/4).forEachParallel { subList ->
                 subList.forEach {
@@ -899,9 +409,9 @@ open class Volume : Mesh("Volume") {
                     val d = sqrt(dx * dx + dy * dy + dz * dz) / size
 
                     val result = if(radius > Math.ulp(1.0f)) {
-                        if(d - offset < radius) { ((d-offset)*range).toShort() } else { 0 }
+                        if(d - offset < radius) { ((d-offset)*range).toInt().toShort() } else { 0 }
                     } else {
-                        ((d - offset) * range).toShort()
+                        ((d - offset) * range).toInt().toShort()
                     }
 
                     if(use16bit) {
@@ -913,6 +423,139 @@ open class Volume : Mesh("Volume") {
             }
 
             return buffer
+        }
+
+        /**
+         * Reads a volume from the given [file].
+         */
+        @JvmStatic fun fromPath(file: Path, hub: Hub): BufferedVolume {
+            if(file.normalize().toString().endsWith("raw")) {
+                return fromPathRaw(file, hub)
+            }
+
+            val id = file.fileName.toString()
+
+            val reader = scifio.initializer().initializeReader(file.normalize().toString())
+
+            val dims = Vector3i()
+            with(reader.openPlane(0, 0)) {
+                dims.x = lengths[0].toInt()
+                dims.y = lengths[1].toInt()
+                dims.z = reader.getPlaneCount(0).toInt()
+            }
+
+            val bytesPerVoxel = reader.openPlane(0, 0).imageMetadata.bitsPerPixel/8
+            reader.openPlane(0, 0).imageMetadata.pixelType
+
+            val type: NumericType<*> = when(reader.openPlane(0, 0).imageMetadata.pixelType) {
+                FormatTools.INT8 -> ByteType()
+                FormatTools.INT16 -> ShortType()
+                FormatTools.INT32 -> IntType()
+
+                FormatTools.UINT8 -> UnsignedByteType()
+                FormatTools.UINT16 -> UnsignedShortType()
+                FormatTools.UINT32 -> UnsignedIntType()
+
+                FormatTools.FLOAT -> FloatType()
+
+                else -> {
+                    logger.error("Unknown scif.io pixel type ${reader.openPlane(0, 0).imageMetadata.pixelType}, assuming unsigned byte.")
+                    UnsignedByteType()
+                }
+            }
+
+            logger.debug("Loading $id from disk")
+            val imageData: ByteBuffer = MemoryUtil.memAlloc((bytesPerVoxel * dims.x * dims.y * dims.z))
+
+            logger.debug("${file.fileName}: Allocated ${imageData.capacity()} bytes for $type ${8*bytesPerVoxel}bit image of $dims")
+
+            val start = System.nanoTime()
+
+//            if(reader.openPlane(0, 0).imageMetadata.isLittleEndian) {
+            logger.debug("Volume is little endian")
+            (0 until reader.getPlaneCount(0)).forEach { plane ->
+                imageData.put(reader.openPlane(0, plane).bytes)
+            }
+//            } else {
+//                logger.info("Volume is big endian")
+//                (0 until reader.getPlaneCount(0)).forEach { plane ->
+//                    imageData.put(swapEndianUnsafe(reader.openPlane(0, plane).bytes))
+//                }
+//            }
+
+            val duration = (System.nanoTime() - start) / 10e5
+            logger.debug("Reading took $duration ms")
+
+            imageData.flip()
+
+            val volumes = LinkedHashMap<String, ByteBuffer>()
+            volumes[id] = imageData
+            // TODO: Kotlin compiler issue, see https://youtrack.jetbrains.com/issue/KT-37955
+            return when(type) {
+                is ByteType -> fromBuffer(volumes, dims.x, dims.y, dims.z, ByteType(), hub)
+                is UnsignedByteType -> fromBuffer(volumes, dims.x, dims.y, dims.z, UnsignedByteType(), hub)
+                is ShortType -> fromBuffer(volumes, dims.x, dims.y, dims.z, ShortType(), hub)
+                is UnsignedShortType -> fromBuffer(volumes, dims.x, dims.y, dims.z, UnsignedShortType(), hub)
+                is IntType -> fromBuffer(volumes, dims.x, dims.y, dims.z, IntType(), hub)
+                is UnsignedIntType -> fromBuffer(volumes, dims.x, dims.y, dims.z, UnsignedIntType(), hub)
+                is FloatType -> fromBuffer(volumes, dims.x, dims.y, dims.z, FloatType(), hub)
+                else -> throw UnsupportedOperationException("Image type ${type.javaClass.simpleName} not supported for volume data.")
+            }
+        }
+
+        /**
+         * Reads raw volumetric data from a [file].
+         *
+         * Returns the new volume.
+         */
+        @JvmStatic fun fromPathRaw(file: Path, hub: Hub): BufferedVolume {
+            
+            val infoFile: Path
+            val volumeFiles: List<Path>
+            
+            if(Files.isDirectory(file)) {
+                volumeFiles = Files.list(file).filter { it.toString().endsWith(".raw") && Files.isRegularFile(it) && Files.isReadable(it) }.toList()
+                infoFile = file.resolve("stacks.info")
+            } else {
+                volumeFiles = listOf(file)
+                infoFile = file.resolveSibling("stacks.info")
+            }
+
+            val lines = Files.lines(infoFile).toList()
+
+            logger.debug("reading stacks.info (${lines.joinToString()}) (${lines.size} lines)")
+            val dimensions = Vector3i(lines.get(0).split(",").map { it.toInt() }.toIntArray())
+            logger.debug("setting dim to ${dimensions.x}/${dimensions.y}/${dimensions.z}")
+            logger.debug("Got ${volumeFiles.size} volumes")
+
+            val volumes = LinkedHashMap(volumeFiles.map { v ->
+                val id = v.fileName.toString()
+                val buffer: ByteBuffer by lazy {
+
+                    logger.debug("Loading $id from disk")
+                    val buffer = ByteArray(1024 * 1024)
+                    val stream = FileInputStream(v.toFile())
+                    val imageData: ByteBuffer = MemoryUtil.memAlloc((2 * dimensions.x * dimensions.y * dimensions.z))
+
+                    logger.debug("${v.fileName}: Allocated ${imageData.capacity()} bytes for UINT16 image of $dimensions")
+
+                    val start = System.nanoTime()
+                    var bytesRead = stream.read(buffer, 0, buffer.size)
+                    while (bytesRead > -1) {
+                        imageData.put(buffer, 0, bytesRead)
+                        bytesRead = stream.read(buffer, 0, buffer.size)
+                    }
+                    val duration = (System.nanoTime() - start) / 10e5
+                    logger.debug("Reading took $duration ms")
+
+                    imageData.flip()
+                    imageData
+                }
+
+                id to buffer
+            }.toMap())
+
+            return fromBuffer(volumes, dimensions.x, dimensions.y, dimensions.z, UnsignedShortType(), hub)
         }
     }
 }

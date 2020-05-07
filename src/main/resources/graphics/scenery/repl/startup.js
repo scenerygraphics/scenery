@@ -7,9 +7,10 @@ importPackage(Packages.graphics.scenery.controls);
 importPackage(Packages.graphics.scenery.net);
 importPackage(Packages.graphics.scenery.fonts);
 importPackage(Packages.graphics.scenery.compute);
+importPackage(Packages.graphics.scenery.numerics);
 importPackage(Packages.graphics.scenery.utils);
 importPackage(Packages.graphics.scenery.volumes);
-importPackage(Packages.cleargl);
+importPackage(Packages.org.joml);
 
 // for threading
 importClass(Packages.java.lang.Thread);

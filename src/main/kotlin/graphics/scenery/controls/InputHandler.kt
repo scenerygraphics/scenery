@@ -52,7 +52,7 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?, for
     init {
         if(forceHandler != null) {
             handler = forceHandler.getConstructor(Hub::class.java)?.newInstance(hub) as? MouseAndKeyHandlerBase
-            handler?.attach(window, inputMap, behaviourMap)
+            handler?.attach(hub, window, inputMap, behaviourMap)
         } else {
             when (window) {
                 is SceneryWindow.UninitializedWindow -> {
@@ -69,7 +69,7 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?, for
                     logger.debug("Found potential input handlers: ${handlers.joinToString { "${it.simpleName} -> ${it.getAnnotation(CanHandleInputFor::class.java).windowTypes.joinToString()}" }}")
                     val candidate = handlers.find { it.getAnnotation(CanHandleInputFor::class.java).windowTypes.contains(window::class) }
                     handler = candidate?.getConstructor(Hub::class.java)?.newInstance(hub) as MouseAndKeyHandlerBase?
-                    handler?.attach(window, inputMap, behaviourMap)
+                    handler?.attach(hub, window, inputMap, behaviourMap)
                 }
             }
         }

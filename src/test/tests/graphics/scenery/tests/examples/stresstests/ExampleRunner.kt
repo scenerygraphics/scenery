@@ -35,7 +35,13 @@ class ExampleRunner {
             "ReaderExample",
             "BDVExample",
             "BigAndSmallVolumeExample",
-            "VolumeSamplingExample")
+            "FlybrainOutOfCoreExample",
+            "RAIExample",
+            "OutOfCoreRAIExample",
+            "VolumeSamplingExample",
+            "SwingTexturedCubeExample",
+            "VideoRecordingExample"
+        )
 
         blacklist.addAll(System.getProperty("scenery.ExampleRunner.Blacklist", "").split(","))
 

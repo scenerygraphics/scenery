@@ -1,7 +1,7 @@
 package graphics.scenery.controls.behaviours
 
-import com.jogamp.opengl.math.Quaternion
 import graphics.scenery.Camera
+import org.joml.Quaternionf
 import org.scijava.ui.behaviour.DragBehaviour
 import java.util.function.Supplier
 import kotlin.reflect.KProperty
@@ -96,12 +96,10 @@ open class FPSCameraControl(private val name: String, private val n: () -> Camer
         val frameYaw = xoffset
         val framePitch = yoffset
 
-        val yawQ = Quaternion().setFromEuler(0.0f, frameYaw/180.0f*Math.PI.toFloat(), 0.0f)
-        val pitchQ = Quaternion().setFromEuler(framePitch/180.0f*Math.PI.toFloat(), 0.0f, 0.0f)
-        node?.rotation = pitchQ.mult(node?.rotation).mult(yawQ).normalize()
+        val yawQ = Quaternionf().rotateXYZ(0.0f, frameYaw/180.0f*Math.PI.toFloat(), 0.0f)
+        val pitchQ = Quaternionf().rotateXYZ(framePitch/180.0f*Math.PI.toFloat(), 0.0f, 0.0f)
+        node?.rotation = pitchQ.mul(node?.rotation).mul(yawQ).normalize()
 
         node?.lock?.unlock()
     }
-
-
 }

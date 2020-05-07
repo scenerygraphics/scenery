@@ -1,4 +1,4 @@
-package graphics.scenery.volumes.bdv
+package graphics.scenery.volumes
 
 import graphics.scenery.backends.*
 import tpietzsch.shadergen.Shader
@@ -29,12 +29,12 @@ open class VolumeShaderFactory : Shaders.ShaderFactory() {
             }
 
             val (code, uniforms) = convertToSceneryConventions(codeBefore)
-            logger.info("New code for ${it.key}: $code")
+            logger.debug("New code for ${it.key}: $code")
 
             shaders[it.key] = Triple(it.value, code, uniforms)
         }
 
-        logger.info("Shaders marked as stale")
+        logger.debug("Shaders marked as stale")
         stale = true
     }
 
@@ -172,6 +172,7 @@ open class VolumeShaderFactory : Shaders.ShaderFactory() {
 
         val convertedSamplers = samplers.mapIndexed { i, sampler ->
             "layout(set = ${descriptorSetOffset + 1 + i}, binding = 0) $sampler"
+//            "layout(set = ${descriptorSetOffset + 1}, binding = $i) $sampler"
         }
 
         val fullUniforms = uniforms.union(predefinedUniforms).sorted().toList()

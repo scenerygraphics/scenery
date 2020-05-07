@@ -1,6 +1,6 @@
 package graphics.scenery
 
-import cleargl.GLVector
+import org.joml.Vector3f
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
 import java.util.*
@@ -14,16 +14,7 @@ import kotlin.math.PI
  * @param[segments] Number of segments in latitude and longitude.
  */
 
-class Cylinder(var radius: Float, var height: Float, var segments: Int) : Node("cylinder"), HasGeometry {
-    override val vertexSize = 3
-    override val texcoordSize = 2
-    override var geometryType = GeometryType.TRIANGLE_STRIP
-
-    override var vertices: FloatBuffer = BufferUtils.allocateFloat(0)
-    override var normals: FloatBuffer = BufferUtils.allocateFloat(0)
-    override var texcoords: FloatBuffer = BufferUtils.allocateFloat(0)
-    override var indices: IntBuffer = BufferUtils.allocateInt(0)
-
+class Cylinder(var radius: Float, var height: Float, var segments: Int) : Mesh("cylinder") {
     init {
         var vbuffer = ArrayList<Float>(segments * segments * 2 * 3)
         var nbuffer = ArrayList<Float>(segments * segments * 2 * 3)
@@ -77,7 +68,7 @@ class Cylinder(var radius: Float, var height: Float, var segments: Int) : Node("
     }
 
     companion object {
-        @JvmStatic fun betweenPoints(p1: GLVector, p2: GLVector, radius: Float = 0.02f, height: Float = 1.0f, segments: Int = 16): Cylinder {
+        @JvmStatic fun betweenPoints(p1: Vector3f, p2: Vector3f, radius: Float = 0.02f, height: Float = 1.0f, segments: Int = 16): Cylinder {
             val cylinder = Cylinder(radius, height, segments)
             cylinder.orientBetweenPoints(p1, p2, rescale = true, reposition = true)
             return cylinder

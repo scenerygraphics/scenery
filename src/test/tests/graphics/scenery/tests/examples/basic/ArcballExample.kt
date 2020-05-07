@@ -1,9 +1,11 @@
 package graphics.scenery.tests.examples.basic
 
-import cleargl.GLVector
+import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
+import graphics.scenery.textures.Texture
+import graphics.scenery.utils.Image
 import org.junit.Test
 import org.scijava.ui.behaviour.ClickBehaviour
 import kotlin.concurrent.thread
@@ -21,12 +23,11 @@ class ArcballExample : SceneryBase("ArcballExample") {
 
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
-            position = GLVector(0.0f, 0.0f, 2.5f)
-            perspectiveCamera(70.0f, windowWidth.toFloat(), windowHeight.toFloat())
+            position = Vector3f(0.0f, 0.0f, 2.5f)
+            perspectiveCamera(70.0f, windowWidth, windowHeight)
 
             targeted = true
-            target = GLVector(0.0f, 0.0f, 0.0f)
-            active = true
+            target = Vector3f(0.0f, 0.0f, 0.0f)
 
             scene.addChild(this)
         }
@@ -35,15 +36,15 @@ class ArcballExample : SceneryBase("ArcballExample") {
         camlight.intensity = 100.0f
         cam.addChild(camlight)
 
-        val box = Box(GLVector(1.0f, 1.0f, 1.0f))
+        val box = Box(Vector3f(1.0f, 1.0f, 1.0f))
 
         with(box) {
-            box.position = GLVector(0.0f, 0.0f, 0.0f)
+            box.position = Vector3f(0.0f, 0.0f, 0.0f)
 
-            material.ambient = GLVector(1.0f, 0.0f, 0.0f)
-            material.diffuse = GLVector(0.0f, 1.0f, 0.0f)
-            material.specular = GLVector(1.0f, 1.0f, 1.0f)
-            material.textures.put("diffuse", TexturedCubeExample::class.java.getResource("textures/helix.png").file)
+            material.ambient = Vector3f(1.0f, 0.0f, 0.0f)
+            material.diffuse = Vector3f(0.0f, 1.0f, 0.0f)
+            material.specular = Vector3f(1.0f, 1.0f, 1.0f)
+            material.textures["diffuse"] = Texture.fromImage(Image.fromResource("textures/helix.png", TexturedCubeExample::class.java))
 
             scene.addChild(this)
         }
@@ -51,8 +52,8 @@ class ArcballExample : SceneryBase("ArcballExample") {
         val lights = (0..2).map {
             PointLight(radius = 15.0f)
         }.map { light ->
-            light.position = Random.randomVectorFromRange(3, -3.0f, 3.0f)
-            light.emissionColor = Random.randomVectorFromRange(3, 0.2f, 0.8f)
+            light.position = Random.random3DVectorFromRange(-3.0f, 3.0f)
+            light.emissionColor = Random.random3DVectorFromRange(0.2f, 0.8f)
             light.intensity = Random.randomFromRange(0.1f, 0.8f)
             light
         }
@@ -61,7 +62,7 @@ class ArcballExample : SceneryBase("ArcballExample") {
 
         thread {
             while (true) {
-                box.rotation.rotateByAngleY(0.01f)
+                box.rotation.rotateY(0.01f)
                 box.needsUpdate = true
 
                 Thread.sleep(20)

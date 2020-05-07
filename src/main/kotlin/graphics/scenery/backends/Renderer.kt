@@ -1,10 +1,7 @@
 package graphics.scenery.backends
 
 import com.jogamp.opengl.GLAutoDrawable
-import graphics.scenery.Hub
-import graphics.scenery.Hubable
-import graphics.scenery.Scene
-import graphics.scenery.Settings
+import graphics.scenery.*
 import graphics.scenery.backends.opengl.OpenGLRenderer
 import graphics.scenery.backends.vulkan.VulkanRenderer
 import graphics.scenery.utils.ExtractsNatives
@@ -28,7 +25,7 @@ abstract class Renderer : Hubable {
     /**
      * Renders the scene
      */
-    abstract fun render()
+    abstract fun render(activeCamera: Camera, sceneNodes: List<Node>)
 
     /** Signals whether the current renderer should stop working and close all open windows. */
     abstract var shouldClose: Boolean
