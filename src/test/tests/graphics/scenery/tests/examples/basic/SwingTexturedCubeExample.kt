@@ -1,8 +1,10 @@
 package graphics.scenery.tests.examples.basic
 
-import cleargl.GLVector
+import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
+import graphics.scenery.textures.Texture
+import graphics.scenery.utils.Image
 import graphics.scenery.utils.SceneryJPanel
 import org.junit.Test
 import java.awt.BorderLayout
@@ -31,13 +33,13 @@ class SwingTexturedCubeExample : SceneryBase("SwingTexturedCubeExample", windowW
 
         val boxmaterial = Material()
         with(boxmaterial) {
-            ambient = GLVector(1.0f, 0.0f, 0.0f)
-            diffuse = GLVector(0.0f, 1.0f, 0.0f)
-            specular = GLVector(1.0f, 1.0f, 1.0f)
-            textures.put("diffuse", TexturedCubeExample::class.java.getResource("textures/helix.png").file)
+            ambient = Vector3f(1.0f, 0.0f, 0.0f)
+            diffuse = Vector3f(0.0f, 1.0f, 0.0f)
+            specular = Vector3f(1.0f, 1.0f, 1.0f)
+            textures["diffuse"] = Texture.fromImage(Image.fromResource("textures/helix.png", this::class.java))
         }
 
-        val box = Box(GLVector(1.0f, 1.0f, 1.0f))
+        val box = Box(Vector3f(1.0f, 1.0f, 1.0f))
         box.name = "le box du win"
 
         with(box) {
@@ -46,23 +48,22 @@ class SwingTexturedCubeExample : SceneryBase("SwingTexturedCubeExample", windowW
         }
 
         val light = PointLight(radius = 15.0f)
-        light.position = GLVector(0.0f, 0.0f, 2.0f)
+        light.position = Vector3f(0.0f, 0.0f, 2.0f)
         light.intensity = 5.0f
-        light.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
+        light.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
         scene.addChild(light)
 
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
-            position = GLVector(0.0f, 0.0f, 5.0f)
-            perspectiveCamera(50.0f, 512.0f, 512.0f)
-            active = true
+            position = Vector3f(0.0f, 0.0f, 5.0f)
+            perspectiveCamera(50.0f, 512, 512)
 
             scene.addChild(this)
         }
 
         thread {
             while (true) {
-                box.rotation.rotateByAngleY(0.01f)
+                box.rotation.rotateY(0.01f)
                 box.needsUpdate = true
 
                 Thread.sleep(20)

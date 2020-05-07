@@ -1,13 +1,15 @@
 package graphics.scenery.controls
 
-import cleargl.GLMatrix
-import cleargl.GLVector
+import org.joml.Matrix4f
+import org.joml.Vector3f
 import com.jogamp.opengl.math.Quaternion
 import graphics.scenery.*
 import graphics.scenery.backends.Display
 import graphics.scenery.backends.vulkan.*
 import graphics.scenery.utils.LazyLogger
 import kotlinx.coroutines.*
+import org.joml.Quaternionf
+import org.joml.Vector2i
 import org.lwjgl.system.MemoryStack
 import org.lwjgl.system.MemoryUtil.memAllocInt
 import org.lwjgl.system.MemoryUtil.memAllocLong
@@ -26,6 +28,7 @@ import java.math.BigInteger
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.*
+import kotlin.math.PI
 
 /**
  * Hololens HMD class
@@ -38,13 +41,13 @@ class Hololens: TrackerInput, Display, Hubable {
 
     private val logger by LazyLogger()
 
-    private val identityQuat = Quaternion().setIdentity()
-    private val nullVector = GLVector.getNullVector(3)
+    private val identityQuat = Quaternionf()
+    private val nullVector = Vector3f(0.0f)
 
-    private val hololensDisplaySize = GLVector(1280.0f, 720.0f)
+    private val hololensDisplaySize = Vector2i(1280, 720)
     private val headToEyeTransforms = arrayOf(
-        GLMatrix.getIdentity().translate(-0.033f, 0.0f, 0.0f),
-        GLMatrix.getIdentity().translate(0.033f, 0.0f, 0.0f))
+        Matrix4f().identity().translate(-0.033f, 0.0f, 0.0f),
+        Matrix4f().identity().translate(0.033f, 0.0f, 0.0f))
     // BGR is native surface format and saves unnecessary conversions
     private val textureFormat = VK_FORMAT_B8G8R8A8_SRGB
 
@@ -64,13 +67,13 @@ class Hololens: TrackerInput, Display, Hubable {
     private val memoryHandleBuffer = memAllocLong(1)
     private val acquireTimeout = memAllocInt(1).put(0, 1)
 
-    private var leftProjection: GLMatrix? = null
-    private var rightProjection: GLMatrix? = null
+    private var leftProjection: Matrix4f? = null
+    private var rightProjection: Matrix4f? = null
 
-    private var poseLeftDeque = ArrayDeque<GLMatrix>(3)
-    private var poseRightDeque = ArrayDeque<GLMatrix>(3)
-    private var poseLeft: GLMatrix = GLMatrix.getIdentity()
-    private var poseRight: GLMatrix = GLMatrix.getIdentity()
+    private var poseLeftDeque = ArrayDeque<Matrix4f>(3)
+    private var poseRightDeque = ArrayDeque<Matrix4f>(3)
+    private var poseLeft: Matrix4f = Matrix4f().identity()
+    private var poseRight: Matrix4f = Matrix4f().identity()
 
     override var events = TrackerInputEventHandlers()
 
@@ -81,9 +84,9 @@ class Hololens: TrackerInput, Display, Hubable {
     /**
      * Returns the orientation of the HMD
      *
-     * @returns GLMatrix with orientation
+     * @returns Matrix4f with orientation
      */
-    override fun getOrientation(): Quaternion {
+    override fun getOrientation(): Quaternionf {
         // TODO: Return actual Hololens orientation
         return identityQuat
     }
@@ -91,19 +94,19 @@ class Hololens: TrackerInput, Display, Hubable {
     /**
      * Returns the orientation of the given device, or a unit quaternion if the device is not found.
      *
-     * @returns GLMatrix with orientation
+     * @returns Matrix4f with orientation
      */
-    override fun getOrientation(id: String): Quaternion {
+    override fun getOrientation(id: String): Quaternionf {
         // TODO: Return actual Hololens orientation
         return identityQuat
     }
 
     /**
-     * Returns the absolute position as GLVector
+     * Returns the absolute position as Vector3f
      *
-     * @return HMD position as GLVector
+     * @return HMD position as Vector3f
      */
-    override fun getPosition(): GLVector {
+    override fun getPosition(): Vector3f {
         // TODO: Return actual Hololens position
         return nullVector
     }
@@ -111,9 +114,9 @@ class Hololens: TrackerInput, Display, Hubable {
     /**
      * Returns the HMD pose
      *
-     * @return HMD pose as GLMatrix
+     * @return HMD pose as Matrix4f
      */
-    override fun getPose(): GLMatrix {
+    override fun getPose(): Matrix4f {
         // TODO: Return actual Hololens pose
         return poseLeft
     }
@@ -146,17 +149,17 @@ class Hololens: TrackerInput, Display, Hubable {
      * Returns the per-eye projection matrix
      *
      * @param[eye] The index of the eye
-     * @return GLMatrix containing the per-eye projection matrix
+     * @return Matrix4f containing the per-eye projection matrix
      */
-    override fun getEyeProjection(eye: Int, nearPlane: Float, farPlane: Float): GLMatrix {
+    override fun getEyeProjection(eye: Int, nearPlane: Float, farPlane: Float): Matrix4f {
         return when(eye) {
-            0 -> leftProjection ?: GLMatrix().setPerspectiveProjectionMatrix(50.0f, 1.0f, nearPlane, farPlane)
-            1 -> rightProjection ?: GLMatrix().setPerspectiveProjectionMatrix(50.0f, 1.0f, nearPlane, farPlane)
-            else -> { logger.error("3rd eye, wtf?"); GLMatrix.getIdentity() }
+            0 -> leftProjection ?: Matrix4f().perspective(50.0f * PI.toFloat()/180.0f, 1.0f, nearPlane, farPlane)
+            1 -> rightProjection ?: Matrix4f().perspective(50.0f * PI.toFloat()/180.0f, 1.0f, nearPlane, farPlane)
+            else -> { logger.error("3rd eye, wtf?"); Matrix4f().identity() }
         }
     }
 
-    override fun getPoseForEye(eye: Int): GLMatrix {
+    override fun getPoseForEye(eye: Int): Matrix4f {
         return when(eye) {
             0 -> poseLeft
             else -> poseRight
@@ -166,7 +169,7 @@ class Hololens: TrackerInput, Display, Hubable {
     /**
      * Returns a list of poses for the devices [type] given.
      *
-     * @return Pose as GLMatrix
+     * @return Pose as Matrix4f
      */
     override fun getPose(type: TrackedDeviceType): List<TrackedDevice> {
         // TODO: Improve this
@@ -378,7 +381,7 @@ class Hololens: TrackerInput, Display, Hubable {
      */
     override fun submitToCompositorVulkan(width: Int, height: Int, format: Int, instance: VkInstance, device: VulkanDevice, queue: VkQueue, image: Long) {
         if(hololensCommandPool == -1L) {
-            hololensCommandPool = device.createCommandPool(device.queueIndices.graphicsQueue)
+            hololensCommandPool = device.createCommandPool(device.queues.graphicsQueue.first)
         }
 
         if(leftProjection == null) {
@@ -386,8 +389,7 @@ class Hololens: TrackerInput, Display, Hubable {
             val matrixData = zmqSocket.recv()
             assert(matrixData.size == 64)
 
-            leftProjection = GLMatrix.getIdentity()
-            ByteBuffer.wrap(matrixData).order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer().get(leftProjection!!.floatArray)
+            leftProjection = Matrix4f(ByteBuffer.wrap(matrixData).order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer())
             logger.info("Hololens left projection: $leftProjection")
         }
 
@@ -396,8 +398,7 @@ class Hololens: TrackerInput, Display, Hubable {
             val matrixData = zmqSocket.recv()
             assert(matrixData.size == 64)
 
-            rightProjection = GLMatrix.getIdentity()
-            ByteBuffer.wrap(matrixData).order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer().get(rightProjection!!.floatArray)
+            rightProjection = Matrix4f(ByteBuffer.wrap(matrixData).order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer())
             logger.info("Hololens right projection: $rightProjection")
         }
 
@@ -542,7 +543,7 @@ class Hololens: TrackerInput, Display, Hubable {
      *
      * @return Render target size as 2D vector
      */
-    override fun getRenderTargetSize(): GLVector {
+    override fun getRenderTargetSize(): Vector2i {
         return hololensDisplaySize
     }
 
@@ -567,9 +568,9 @@ class Hololens: TrackerInput, Display, Hubable {
      * Returns the per-eye transform that moves from head to eye
      *
      * @param[eye] The eye index
-     * @return GLMatrix containing the transform
+     * @return Matrix4f containing the transform
      */
-    override fun getHeadToEyeTransform(eye: Int): GLMatrix {
+    override fun getHeadToEyeTransform(eye: Int): Matrix4f {
         return headToEyeTransforms[eye]
     }
 
@@ -602,16 +603,14 @@ class Hololens: TrackerInput, Display, Hubable {
                                     val matrixData = msg.pop().data
                                     assert(matrixData.size == 128)
 
-                                    val pl = FloatArray(16)
-                                    val pr = FloatArray(16)
-
                                     val b0 = ByteBuffer.wrap(matrixData).order(ByteOrder.LITTLE_ENDIAN).limit(16 * 4) as ByteBuffer
-                                    b0.asFloatBuffer().get(pl)
+                                    val left = Matrix4f(b0.asFloatBuffer())
 
-                                    (b0.position(16 * 4).limit(16 * 8) as ByteBuffer).asFloatBuffer().get(pr)
+                                    val b1 = (b0.position(16 * 4).limit(16 * 8) as ByteBuffer).asFloatBuffer()
+                                    val right = Matrix4f(b1)
 
-                                    poseLeftDeque.push(GLMatrix(pl))
-                                    poseRightDeque.push(GLMatrix(pr))
+                                    poseLeftDeque.push(left)
+                                    poseRightDeque.push(right)
                                 }
                             }
 

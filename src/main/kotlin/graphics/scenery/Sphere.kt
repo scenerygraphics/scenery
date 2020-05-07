@@ -1,6 +1,7 @@
 package graphics.scenery
 
-import cleargl.GLVector
+import org.joml.Vector2f
+import org.joml.Vector3f
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
 import java.util.*
@@ -13,16 +14,7 @@ import kotlin.math.*
  * @param[radius] The radius of the sphere
  * @param[segments] Number of segments in latitude and longitude.
  */
-open class Sphere(val radius: Float, val segments: Int) : Node("sphere"), HasGeometry {
-    override val vertexSize = 3
-    override val texcoordSize = 2
-    override var geometryType = GeometryType.TRIANGLES
-
-    final override var vertices: FloatBuffer = BufferUtils.allocateFloat(0)
-    final override var normals: FloatBuffer = BufferUtils.allocateFloat(0)
-    final override var texcoords: FloatBuffer = BufferUtils.allocateFloat(0)
-    final override var indices: IntBuffer = BufferUtils.allocateInt(0)
-
+open class Sphere(val radius: Float, val segments: Int) : Mesh("sphere") {
     init {
         val vbuffer = ArrayList<Float>(segments*segments*2*3)
         val nbuffer = ArrayList<Float>(segments*segments*2*3)
@@ -41,10 +33,10 @@ open class Sphere(val radius: Float, val segments: Int) : Node("sphere"), HasGeo
                 val v11 = vertexOnSphere(radius, theta1, phi1)
                 val v10 = vertexOnSphere(radius, theta1, phi0)
 
-                val n00 = GLVector(v00[0], v00[1], v00[2]).normalize().toFloatArray().toTypedArray()
-                val n01 = GLVector(v01[0], v01[1], v01[2]).normalize().toFloatArray().toTypedArray()
-                val n11 = GLVector(v11[0], v11[1], v11[2]).normalize().toFloatArray().toTypedArray()
-                val n10 = GLVector(v10[0], v10[1], v10[2]).normalize().toFloatArray().toTypedArray()
+                val n00 = Vector3f(v00[0], v00[1], v00[2]).normalize()
+                val n01 = Vector3f(v01[0], v01[1], v01[2]).normalize()
+                val n11 = Vector3f(v11[0], v11[1], v11[2]).normalize()
+                val n10 = Vector3f(v10[0], v10[1], v10[2]).normalize()
 
                 val uv00 = uvOnSphere(n00)
                 val uv01 = uvOnSphere(n01)
@@ -123,7 +115,7 @@ open class Sphere(val radius: Float, val segments: Int) : Node("sphere"), HasGeo
      *
      * @return Vertex on a sphere, in cartesian coordinates
      */
-    private fun vertexOnSphere(radius: Float, theta: Float, phi: Float) = arrayOf(
+    private fun vertexOnSphere(radius: Float, theta: Float, phi: Float) = Vector3f(
         radius * sin(theta) * cos(phi),
         radius * sin(theta) * sin(phi),
         radius * cos(theta)
@@ -137,8 +129,19 @@ open class Sphere(val radius: Float, val segments: Int) : Node("sphere"), HasGeo
      *
      * @return UV coordinates in [0.0, 1.0] range.
      */
-    private fun uvOnSphere(normal: Array<Float>) = arrayOf(
+    private fun uvOnSphere(normal: Vector3f) = Vector2f(
         atan2(normal[2], normal[0]) / (2.0f*PI.toFloat()) + 0.5f,
         0.5f + asin(normal[1])/PI.toFloat()
     )
+
+    private fun ArrayList<Float>.addAll(elements: Vector3f) {
+        this.add(elements.x)
+        this.add(elements.y)
+        this.add(elements.z)
+    }
+
+    private fun ArrayList<Float>.addAll(elements: Vector2f) {
+        this.add(elements.x)
+        this.add(elements.y)
+    }
 }

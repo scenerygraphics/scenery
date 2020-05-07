@@ -1,13 +1,18 @@
 package graphics.scenery
 
-import cleargl.GLVector
+import org.joml.Vector3f
 import gnu.trove.map.hash.THashMap
 import gnu.trove.set.hash.TLinkedHashSet
+import graphics.scenery.textures.Texture
+import graphics.scenery.utils.Image
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.SystemHelpers
+import graphics.scenery.utils.extensions.minus
+import graphics.scenery.utils.extensions.times
 import org.lwjgl.system.MemoryUtil
 import java.io.BufferedInputStream
 import java.io.File
+import java.io.FileInputStream
 import java.io.FileNotFoundException
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -27,20 +32,20 @@ import java.util.HashMap
  */
 open class Mesh(override var name: String = "Mesh") : Node(name), HasGeometry {
     /** Vertex storage array. Also see [HasGeometry] */
-    @Transient override var vertices: FloatBuffer = BufferUtils.allocateFloat(0)
+    @Transient final override var vertices: FloatBuffer = BufferUtils.allocateFloat(0)
     /** Normal storage array. Also see [HasGeometry] */
-    @Transient override var normals: FloatBuffer = BufferUtils.allocateFloat(0)
+    @Transient final override var normals: FloatBuffer = BufferUtils.allocateFloat(0)
     /** Texcoord storage array. Also see [HasGeometry] */
-    @Transient override var texcoords: FloatBuffer = BufferUtils.allocateFloat(0)
+    @Transient final override var texcoords: FloatBuffer = BufferUtils.allocateFloat(0)
     /** Index storage array. Also see [HasGeometry] */
-    @Transient override var indices: IntBuffer = BufferUtils.allocateInt(0)
+    @Transient final override var indices: IntBuffer = BufferUtils.allocateInt(0)
 
     /** Vertex element size. Also see [HasGeometry] */
-    override var vertexSize = 3;
+    final override var vertexSize = 3
     /** Texcoord element size. Also see [HasGeometry] */
-    override var texcoordSize = 2;
+    final override var texcoordSize = 2
     /** Geometry type of the Mesh. Also see [HasGeometry] and [GeometryType] */
-    override var geometryType = GeometryType.TRIANGLES
+    final override var geometryType = GeometryType.TRIANGLES
 
     /**
      * Reads geometry from a file given by [filename]. The extension of [filename] will determine
@@ -98,7 +103,7 @@ open class Mesh(override var name: String = "Mesh") : Node(name), HasGeometry {
             if(material == null) {
                 logger.warn("No current material, but trying to set texture $slot to $file. Broken material file?")
             } else {
-                material.textures[slot] = file
+                material.textures[slot] = Texture.fromImage(Image.fromStream(FileInputStream(file), file.substringAfterLast(".")))
             }
         }
 
@@ -122,9 +127,9 @@ open class Mesh(override var name: String = "Mesh") : Node(name), HasGeometry {
                         materials[tokens[1]] = m
                         currentMaterial = m
                     }
-                    "Ka" -> currentMaterial?.ambient = GLVector(tokens[1].toFloat(), tokens[2].toFloat(), tokens[3].toFloat())
-                    "Kd" -> currentMaterial?.diffuse = GLVector(tokens[1].toFloat(), tokens[2].toFloat(), tokens[3].toFloat())
-                    "Ks" -> currentMaterial?.specular = GLVector(tokens[1].toFloat(), tokens[2].toFloat(), tokens[3].toFloat())
+                    "Ka" -> currentMaterial?.ambient = Vector3f(tokens[1].toFloat(), tokens[2].toFloat(), tokens[3].toFloat())
+                    "Kd" -> currentMaterial?.diffuse = Vector3f(tokens[1].toFloat(), tokens[2].toFloat(), tokens[3].toFloat())
+                    "Ks" -> currentMaterial?.specular = Vector3f(tokens[1].toFloat(), tokens[2].toFloat(), tokens[3].toFloat())
                     "d" -> currentMaterial?.blending?.opacity = tokens[1].toFloat()
                     "Tr" -> currentMaterial?.blending?.opacity = 1.0f - tokens[1].toFloat()
                     "illum" -> {
@@ -254,31 +259,23 @@ open class Mesh(override var name: String = "Mesh") : Node(name), HasGeometry {
         fun calculateNormals(vertexBuffer: FloatBuffer, normalBuffer: FloatBuffer) {
             var i = 0
             while (i < vertexBuffer.limit() - 1) {
-                val v1 = GLVector(vertexBuffer[i], vertexBuffer[i + 1], vertexBuffer[i + 2])
+                val v1 = Vector3f(vertexBuffer[i], vertexBuffer[i + 1], vertexBuffer[i + 2])
                 i += 3
 
-                val v2 = GLVector(vertexBuffer[i], vertexBuffer[i + 1], vertexBuffer[i + 2])
+                val v2 = Vector3f(vertexBuffer[i], vertexBuffer[i + 1], vertexBuffer[i + 2])
                 i += 3
 
-                val v3 = GLVector(vertexBuffer[i], vertexBuffer[i + 1], vertexBuffer[i + 2])
+                val v3 = Vector3f(vertexBuffer[i], vertexBuffer[i + 1], vertexBuffer[i + 2])
                 i += 3
 
                 val a = v2 - v1
                 val b = v3 - v1
 
-                val n = a.cross(b).normalized * normalSign
+                val n = a.cross(b).normalize() * normalSign
 
-                normalBuffer.put(n.x())
-                normalBuffer.put(n.y())
-                normalBuffer.put(n.z())
-
-                normalBuffer.put(n.x())
-                normalBuffer.put(n.y())
-                normalBuffer.put(n.z())
-
-                normalBuffer.put(n.x())
-                normalBuffer.put(n.y())
-                normalBuffer.put(n.z())
+                n.get(normalBuffer)
+                n.get(normalBuffer)
+                n.get(normalBuffer)
             }
         }
 
@@ -814,19 +811,19 @@ open class Mesh(override var name: String = "Mesh") : Node(name), HasGeometry {
 
             var i = 0
             while (i < vbuffer.size) {
-                val v1 = GLVector(vbuffer[i], vbuffer[i + 1], vbuffer[i + 2])
+                val v1 = Vector3f(vbuffer[i], vbuffer[i + 1], vbuffer[i + 2])
                 i += 3
 
-                val v2 = GLVector(vbuffer[i], vbuffer[i + 1], vbuffer[i + 2])
+                val v2 = Vector3f(vbuffer[i], vbuffer[i + 1], vbuffer[i + 2])
                 i += 3
 
-                val v3 = GLVector(vbuffer[i], vbuffer[i + 1], vbuffer[i + 2])
+                val v3 = Vector3f(vbuffer[i], vbuffer[i + 1], vbuffer[i + 2])
                 i += 3
 
                 val a = v2 - v1
                 val b = v3 - v1
 
-                val n = a.cross(b).normalized
+                val n = a.cross(b).normalize()
 
                 for (v in 1..3) {
                     nbuffer.add(n.x())

@@ -184,12 +184,15 @@ open class TransferFunction(val name: String = "") {
             return tf
         }
 
-        /** Returns a ramp transfer function, transferring nothing before [offset] (0.0f by default), and everything at the top. */
-        @JvmStatic @JvmOverloads fun ramp(offset: Float = 0.0f, rampMax: Float = 1.0f): TransferFunction {
+        /** Returns a ramp transfer function, transferring nothing before [offset] (0.0f by default),
+         * and everything after a distance of [offset] + [distance]. If this sum exceeds 1.0f, then
+         * 1.0f (the maximum value) is taken.
+         */
+        @JvmStatic @JvmOverloads fun ramp(offset: Float = 0.0f, rampMax: Float = 1.0f, distance: Float = 0.1f): TransferFunction {
             val tf = TransferFunction()
             tf.addControlPoint(0.0f, 0.0f)
             tf.addControlPoint(offset, 0.0f)
-            tf.addControlPoint(1.0f, rampMax)
+            tf.addControlPoint(minOf(offset + distance, 1.0f), rampMax)
 
             return tf
         }

@@ -1,9 +1,9 @@
 package graphics.scenery.controls.behaviours
 
-import com.jogamp.opengl.math.Quaternion
 import graphics.scenery.Camera
 import graphics.scenery.utils.LazyLogger
 import net.java.games.input.Component
+import org.joml.Quaternionf
 import java.util.function.Supplier
 import kotlin.reflect.KProperty
 
@@ -107,7 +107,7 @@ open class GamepadCameraControl(private val name: String,
             pitch = -89.0f
         }
 
-//        val forward = GLVector(
+//        val forward = Vector3f(
 //                Math.cos(Math.toRadians(yaw.toDouble())).toFloat() * Math.cos(Math.toRadians(pitch.toDouble())).toFloat(),
 //                Math.sin(Math.toRadians(pitch.toDouble())).toFloat(),
 //                Math.sin(Math.toRadians(yaw.toDouble())).toFloat() * Math.cos(Math.toRadians(pitch.toDouble())).toFloat())
@@ -115,9 +115,9 @@ open class GamepadCameraControl(private val name: String,
 //        node?.forward = forward.normalized
         logger.trace("Pitch={} Yaw={}", pitch, yaw)
 
-        val yawQ = Quaternion().setFromEuler(0.0f, yaw, 0.0f)
-        val pitchQ = Quaternion().setFromEuler(pitch, 0.0f, 0.0f)
+        val yawQ = Quaternionf().rotateXYZ(0.0f, yaw, 0.0f)
+        val pitchQ = Quaternionf().rotateXYZ(pitch, 0.0f, 0.0f)
 
-        n.rotation = pitchQ.mult(n.rotation).mult(yawQ).normalize()
+        n.rotation = pitchQ.mul(n.rotation).mul(yawQ).normalize()
     }
 }

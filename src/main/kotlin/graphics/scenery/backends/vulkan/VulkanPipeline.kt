@@ -14,7 +14,7 @@ import kotlin.collections.LinkedHashMap
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class VulkanPipeline(val device: VulkanDevice, val pipelineCache: Long? = null): AutoCloseable {
+class VulkanPipeline(val device: VulkanDevice, val renderpass: VulkanRenderpass, val vulkanRenderpass: Long, val pipelineCache: Long? = null): AutoCloseable {
     private val logger by LazyLogger()
 
     var pipeline = HashMap<GeometryType, VulkanRenderer.Pipeline>()
@@ -98,7 +98,7 @@ class VulkanPipeline(val device: VulkanDevice, val pipelineCache: Long? = null):
         }
     }
 
-    fun createPipelines(renderpass: VulkanRenderpass, vulkanRenderpass: Long, vi: VkPipelineVertexInputStateCreateInfo,
+    fun createPipelines(vi: VkPipelineVertexInputStateCreateInfo,
                         descriptorSetLayouts: List<Long>, onlyForTopology: GeometryType? = null) {
         val setLayouts = memAllocLong(descriptorSetLayouts.size).put(descriptorSetLayouts.toLongArray())
         setLayouts.flip()
@@ -173,7 +173,8 @@ class VulkanPipeline(val device: VulkanDevice, val pipelineCache: Long? = null):
         if(onlyForTopology == null) {
             // create pipelines for other topologies as well
             GeometryType.values().forEach { topology ->
-                if (topology == GeometryType.TRIANGLES) { return@forEach
+                if (topology == GeometryType.TRIANGLES) {
+                    return@forEach
                 }
 
                 inputAssemblyState.topology(topology.asVulkanTopology()).pNext(NULL)

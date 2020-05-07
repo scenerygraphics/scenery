@@ -1,6 +1,10 @@
 package graphics.scenery
 
-import cleargl.GLVector
+import graphics.scenery.utils.extensions.minus
+import graphics.scenery.utils.extensions.plus
+import graphics.scenery.utils.extensions.times
+import org.joml.Vector2f
+import org.joml.Vector3f
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
 import java.util.*
@@ -19,22 +23,17 @@ import kotlin.math.sin
  * @param[segments] Number of segments in latitude and longitude.
  */
 
-class Cone(val radius: Float, val height: Float, val segments: Int, axis: GLVector = GLVector(0.0f, 1.0f, 0.0f)) : Node("cone"), HasGeometry {
-    override val vertexSize = 3
-    override val texcoordSize = 2
-    override var geometryType = GeometryType.TRIANGLES
-
-    override var vertices: FloatBuffer = BufferUtils.allocateFloat(2 * 3 * segments * 3)
-    override var normals: FloatBuffer = BufferUtils.allocateFloat(2 * 3 * segments * 3)
-    override var texcoords: FloatBuffer = BufferUtils.allocateFloat(2 * 2 * segments * 3)
-    override var indices: IntBuffer = BufferUtils.allocateInt(0)
-
-    val axis = axis.normalized
+class Cone(val radius: Float, val height: Float, val segments: Int, axis: Vector3f = Vector3f(0.0f, 1.0f, 0.0f)) : Mesh("cone") {
+    val axis = axis.normalize()
 
     init {
-        val vbuffer = ArrayList<GLVector>(segments * segments * 2 * 3)
-        val nbuffer = ArrayList<GLVector>(segments * segments * 2 * 3)
-        val tbuffer = ArrayList<GLVector>(segments * segments * 2 * 2)
+        vertices = BufferUtils.allocateFloat(2 * 3 * segments * 3)
+        normals = BufferUtils.allocateFloat(2 * 3 * segments * 3)
+        texcoords = BufferUtils.allocateFloat(2 * 2 * segments * 3)
+
+        val vbuffer = ArrayList<Vector3f>(segments * segments * 2 * 3)
+        val nbuffer = ArrayList<Vector3f>(segments * segments * 2 * 3)
+        val tbuffer = ArrayList<Vector2f>(segments * segments * 2 * 2)
 
         val apex = axis * height
         val center = apex - axis * height
@@ -61,7 +60,7 @@ class Cone(val radius: Float, val height: Float, val segments: Int, axis: GLVect
             vbuffer.add(center)
             vbuffer.add(v1)
 
-            val normalSide = (apex - v2).cross(v2 - v1).normalized
+            val normalSide = (apex - v2).cross(v2 - v1).normalize()
             val normalBottom = axis * (-1.0f)
             nbuffer.add(normalSide)
             nbuffer.add(normalSide)
@@ -71,18 +70,18 @@ class Cone(val radius: Float, val height: Float, val segments: Int, axis: GLVect
             nbuffer.add(normalBottom)
             nbuffer.add(normalBottom)
 
-            tbuffer.add(GLVector(cos(rad) * 0.5f + 0.5f, sin(rad) * 0.5f + 0.5f))
-            tbuffer.add(GLVector(0.5f, 0.5f))
-            tbuffer.add(GLVector(cos(rad2) * 0.5f + 0.5f, sin(rad2) * 0.5f + 0.5f))
+            tbuffer.add(Vector2f(cos(rad) * 0.5f + 0.5f, sin(rad) * 0.5f + 0.5f))
+            tbuffer.add(Vector2f(0.5f, 0.5f))
+            tbuffer.add(Vector2f(cos(rad2) * 0.5f + 0.5f, sin(rad2) * 0.5f + 0.5f))
 
-            tbuffer.add(GLVector(cos(rad2) * 0.5f + 0.5f, sin(rad2) * 0.5f + 0.5f))
-            tbuffer.add(GLVector(0.5f, 0.5f))
-            tbuffer.add(GLVector(cos(rad) * 0.5f + 0.5f, sin(rad) * 0.5f + 0.5f))
+            tbuffer.add(Vector2f(cos(rad2) * 0.5f + 0.5f, sin(rad2) * 0.5f + 0.5f))
+            tbuffer.add(Vector2f(0.5f, 0.5f))
+            tbuffer.add(Vector2f(cos(rad) * 0.5f + 0.5f, sin(rad) * 0.5f + 0.5f))
         }
 
-        vbuffer.forEach { v -> vertices.put(v.toFloatArray()) }
-        nbuffer.forEach { n -> normals.put(n.toFloatArray()) }
-        tbuffer.forEach { uv -> texcoords.put(uv.toFloatArray()) }
+        vbuffer.forEach { v -> v.get(vertices).position(vertices.position() + 3) }
+        nbuffer.forEach { n -> n.get(normals).position(normals.position() + 3) }
+        tbuffer.forEach { uv -> uv.get(texcoords).position(texcoords.position() + 2) }
 
         vertices.flip()
         normals.flip()
@@ -91,17 +90,17 @@ class Cone(val radius: Float, val height: Float, val segments: Int, axis: GLVect
         boundingBox = generateBoundingBox()
     }
 
-    fun perp(v: GLVector): GLVector {
+    fun perp(v: Vector3f): Vector3f {
         var min = v.x()
-        var cardinalAxis = GLVector(1.0f, 0.0f, 0.0f)
+        var cardinalAxis = Vector3f(1.0f, 0.0f, 0.0f)
 
         if(abs(v.y()) < min) {
             min = abs(v.y())
-            cardinalAxis = GLVector(0.0f, 1.0f, 0.0f)
+            cardinalAxis = Vector3f(0.0f, 1.0f, 0.0f)
         }
 
         if(abs(v.z()) < min) {
-            cardinalAxis = GLVector(0.0f, 0.0f, 1.0f)
+            cardinalAxis = Vector3f(0.0f, 0.0f, 1.0f)
         }
 
         return cardinalAxis

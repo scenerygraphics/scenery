@@ -2,6 +2,7 @@ package graphics.scenery.controls
 
 import gnu.trove.map.hash.TIntLongHashMap
 import gnu.trove.set.hash.TIntHashSet
+import graphics.scenery.Hub
 import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.controls.behaviours.GamepadBehaviour
 import graphics.scenery.utils.ExtractsNatives
@@ -140,7 +141,8 @@ open class MouseAndKeyHandlerBase : ControllerListener, ExtractsNatives {
 
         try {
             logger.debug("Native JARs for JInput: ${getNativeJars("jinput-platform").joinToString(", ")}")
-            extractLibrariesFromJar(getNativeJars("jinput-platform", hint = ExtractsNatives.getPlatform().getPlatformJinputLibraryName()))
+            val path = extractLibrariesFromJar(getNativeJars("jinput-platform", hint = ExtractsNatives.getPlatform().getPlatformJinputLibraryName()), load = false)
+            System.setProperty("net.java.games.input.librarypath", path)
 
             ControllerEnvironment.getDefaultEnvironment().controllers.forEach {
                 if (it.type == Controller.Type.STICK || it.type == Controller.Type.GAMEPAD) {
@@ -331,7 +333,7 @@ open class MouseAndKeyHandlerBase : ControllerListener, ExtractsNatives {
      * Attaches this handler to a given [window], with input bindings and behaviours given in [inputMap] and
      * [behaviourMap]. MouseAndKeyHandlerBase itself cannot be attached to any windows.
      */
-    open fun attach(window: SceneryWindow, inputMap: InputTriggerMap, behaviourMap: BehaviourMap): MouseAndKeyHandlerBase {
+    open fun attach(hub: Hub?, window: SceneryWindow, inputMap: InputTriggerMap, behaviourMap: BehaviourMap): MouseAndKeyHandlerBase {
         throw UnsupportedOperationException("MouseAndKeyHandlerBase cannot be attached to a window.")
     }
 
