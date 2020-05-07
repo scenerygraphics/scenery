@@ -9,6 +9,7 @@ import graphics.scenery.numerics.Random
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.extensions.compare
 import graphics.scenery.utils.extensions.toFloatArray
+import net.imglib2.RealPoint
 import org.joml.Quaternionf
 import org.junit.Assert.*
 import org.junit.Test
@@ -446,5 +447,41 @@ class NodeTests {
         val boundingSphere = parent.getMaximumBoundingBox().getBoundingSphere()
 
         assertEquals("Bounding sphere radius should be " + boundingSphere.radius + ", but is ", boundingSphere.radius, 53.662083f, 0.001f)
+    }
+
+    /**
+     * Tests imglib2 method implementations
+     */
+    @Test
+    fun testImglib2Implementations() {
+        val n = Node("testnode")
+
+        assertEquals( 3, n.numDimensions() )
+
+        n.position = Vector3f(0f, 17f, 0f)
+        assertEquals( 17f, n.getFloatPosition(1), 0.01f)
+
+        n.position = Vector3f(0f, 17f, 0f)
+        n.move( -1, 1 )
+        assertEquals( 16f, n.position.y(), 0.01f)
+
+        n.position = Vector3f(0f, 17f, 0f)
+        n.move(RealPoint(0.0, -1.0, 0.0))
+        assertEquals( 16f, n.position.y(), 0.01f)
+
+        n.position = Vector3f(0f, 17f, 0f)
+        n.fwd(0)
+        assertEquals( 1f, n.position.x(), 0.01f)
+
+        n.position = Vector3f(0f, 17f, 0f)
+        n.setPosition(doubleArrayOf(17.0, 23.0, -19.0))
+        assertEquals( 17.0f, n.position.x(), 0.01f)
+        assertEquals( 23.0f, n.position.y(), 0.01f)
+        assertEquals( -19.0f, n.position.z(), 0.01f)
+
+        val pos = FloatArray(3)
+        n.position = Vector3f(0f, 17f, 0f)
+        n.localize(pos)
+        assertEquals( 17f, pos[1], 0.01f)
     }
 }

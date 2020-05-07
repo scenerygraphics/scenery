@@ -15,15 +15,6 @@ import kotlin.math.PI
  */
 
 class Cylinder(var radius: Float, var height: Float, var segments: Int) : Mesh("cylinder") {
-    override var vertexSize = 3
-    override var texcoordSize = 2
-    override var geometryType = GeometryType.TRIANGLE_STRIP
-
-    override var vertices: FloatBuffer = BufferUtils.allocateFloat(0)
-    override var normals: FloatBuffer = BufferUtils.allocateFloat(0)
-    override var texcoords: FloatBuffer = BufferUtils.allocateFloat(0)
-    override var indices: IntBuffer = BufferUtils.allocateInt(0)
-
     init {
         var vbuffer = ArrayList<Float>(segments * segments * 2 * 3)
         var nbuffer = ArrayList<Float>(segments * segments * 2 * 3)

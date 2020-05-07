@@ -15,15 +15,6 @@ import kotlin.math.*
  * @param[segments] Number of segments in latitude and longitude.
  */
 open class Sphere(val radius: Float, val segments: Int) : Mesh("sphere") {
-    override var vertexSize = 3
-    override var texcoordSize = 2
-    override var geometryType = GeometryType.TRIANGLES
-
-    final override var vertices: FloatBuffer = BufferUtils.allocateFloat(0)
-    final override var normals: FloatBuffer = BufferUtils.allocateFloat(0)
-    final override var texcoords: FloatBuffer = BufferUtils.allocateFloat(0)
-    final override var indices: IntBuffer = BufferUtils.allocateInt(0)
-
     init {
         val vbuffer = ArrayList<Float>(segments*segments*2*3)
         val nbuffer = ArrayList<Float>(segments*segments*2*3)
