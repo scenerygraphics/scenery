@@ -60,7 +60,7 @@ class CatmullRomSplineTests {
         val distance = chain[i].distance(chain[i+1])
         val distanceDifferences = chain.windowed(2, 1) {
             it[0].distance(it[1]).minus(distance) }.toList()
-        assertTrue { distanceDifferences.filter { it < 0.1 } == distanceDifferences }
+        assertTrue { distanceDifferences.filter { it < 0.5 } == distanceDifferences }
     }
 
     /**
