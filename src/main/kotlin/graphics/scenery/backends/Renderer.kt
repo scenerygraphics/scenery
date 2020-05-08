@@ -246,7 +246,7 @@ abstract class Renderer : Hubable {
                     try {
                         VulkanRenderer(hub, applicationName, scene, windowWidth, windowHeight, embedIn, config)
                     } catch (e: Exception) {
-                        logger.warn("Vulkan unavailable (${e.cause}, ${e.message}), falling back to OpenGL.")
+                        logger.warn("Vulkan unavailable ($e, ${e.cause}, ${e.message}), falling back to OpenGL.")
                         logger.debug("Full exception: $e")
                         if(logger.isDebugEnabled) {
                             e.printStackTrace()

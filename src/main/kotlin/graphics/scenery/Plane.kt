@@ -10,16 +10,7 @@ import java.nio.IntBuffer
  * @author Ulrik Günther <hello@ulrik.is>
  * @param[sizes] The dimensions of the plane.
  */
-open class Plane(sizes: Vector3f) : Mesh(), HasGeometry {
-    override var vertices: FloatBuffer = FloatBuffer.allocate(0)
-    override var normals: FloatBuffer = FloatBuffer.allocate(0)
-    override var texcoords: FloatBuffer = FloatBuffer.allocate(0)
-    override var indices: IntBuffer = IntBuffer.allocate(0)
-
-    override var vertexSize = 3;
-    override var texcoordSize = 2;
-    override var geometryType = GeometryType.TRIANGLES;
-
+open class Plane(sizes: Vector3f) : Mesh() {
     init {
         this.scale = sizes
         this.name = "plane"
