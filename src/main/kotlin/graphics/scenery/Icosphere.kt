@@ -17,16 +17,7 @@ import kotlin.math.*
  * @param[radius] The radius of the sphere
  * @param[subdivisions] Number of subdivisions of the base icosahedron
  */
-open class Icosphere(val radius: Float, val subdivisions: Int) : Node("Icosphere"), HasGeometry {
-    override val vertexSize = 3
-    override val texcoordSize = 2
-    override var geometryType = GeometryType.TRIANGLES
-
-    override var vertices: FloatBuffer = BufferUtils.allocateFloat(0)
-    override var normals: FloatBuffer = BufferUtils.allocateFloat(0)
-    override var texcoords: FloatBuffer = BufferUtils.allocateFloat(0)
-    override var indices: IntBuffer = BufferUtils.allocateInt(0)
-
+open class Icosphere(val radius: Float, val subdivisions: Int) : Mesh("Icosphere") {
     fun MutableList<Vector3f>.addVertex(vararg v: Float) {
         this.add(Vector3f(v))
     }

@@ -32,20 +32,20 @@ import java.util.HashMap
  */
 open class Mesh(override var name: String = "Mesh") : Node(name), HasGeometry {
     /** Vertex storage array. Also see [HasGeometry] */
-    @Transient override var vertices: FloatBuffer = BufferUtils.allocateFloat(0)
+    @Transient final override var vertices: FloatBuffer = BufferUtils.allocateFloat(0)
     /** Normal storage array. Also see [HasGeometry] */
-    @Transient override var normals: FloatBuffer = BufferUtils.allocateFloat(0)
+    @Transient final override var normals: FloatBuffer = BufferUtils.allocateFloat(0)
     /** Texcoord storage array. Also see [HasGeometry] */
-    @Transient override var texcoords: FloatBuffer = BufferUtils.allocateFloat(0)
+    @Transient final override var texcoords: FloatBuffer = BufferUtils.allocateFloat(0)
     /** Index storage array. Also see [HasGeometry] */
-    @Transient override var indices: IntBuffer = BufferUtils.allocateInt(0)
+    @Transient final override var indices: IntBuffer = BufferUtils.allocateInt(0)
 
     /** Vertex element size. Also see [HasGeometry] */
-    override var vertexSize = 3;
+    final override var vertexSize = 3
     /** Texcoord element size. Also see [HasGeometry] */
-    override var texcoordSize = 2;
+    final override var texcoordSize = 2
     /** Geometry type of the Mesh. Also see [HasGeometry] and [GeometryType] */
-    override var geometryType = GeometryType.TRIANGLES
+    final override var geometryType = GeometryType.TRIANGLES
 
     /**
      * Reads geometry from a file given by [filename]. The extension of [filename] will determine

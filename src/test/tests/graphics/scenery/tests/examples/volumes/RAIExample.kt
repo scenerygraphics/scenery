@@ -1,11 +1,8 @@
 package graphics.scenery.tests.examples.volumes
 
 import bdv.util.AxisOrder
+import graphics.scenery.*
 import org.joml.Vector3f
-import graphics.scenery.Camera
-import graphics.scenery.DetachedHeadCamera
-import graphics.scenery.PointLight
-import graphics.scenery.SceneryBase
 import graphics.scenery.backends.Renderer
 import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.Volume
@@ -23,7 +20,7 @@ import tpietzsch.example2.VolumeViewerOptions
  * @author Ulrik Günther <hello@ulrik.is>
  * @author Tobias Pietzsch <pietzsch@mpi-cbg.de>
  */
-class RAIExample: SceneryBase("RAII Rendering example", 1280, 720) {
+class RAIExample: SceneryBase("RAI Rendering example", 1280, 720) {
     lateinit var volume: Volume
 
     override fun init() {
@@ -41,19 +38,26 @@ class RAIExample: SceneryBase("RAII Rendering example", 1280, 720) {
         val img: Img<UnsignedShortType> = ImageJFunctions.wrapShort(imp)
 
         volume = Volume.fromRAI(img, UnsignedShortType(), AxisOrder.DEFAULT, "T1 head", hub, VolumeViewerOptions())
-        volume.transferFunction = TransferFunction.ramp(0.001f, 0.5f)
+        volume.transferFunction = TransferFunction.ramp(0.001f, 0.5f, 0.3f)
         scene.addChild(volume)
 
-        val lights = (0 until 3).map {
-            PointLight(radius = 15.0f)
-        }
+        val shell = Box(Vector3f(10.0f, 10.0f, 10.0f), insideNormals = true)
+        shell.material.cullingMode = Material.CullingMode.None
+        shell.material.diffuse = Vector3f(0.2f, 0.2f, 0.2f)
+        shell.material.specular = Vector3f(0.0f)
+        shell.material.ambient = Vector3f(0.0f)
+        scene.addChild(shell)
 
-        lights.mapIndexed { i, light ->
-            light.position = Vector3f(2.0f * i - 4.0f,  i - 1.0f, 0.0f)
-            light.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
-            light.intensity = 50.0f
-            scene.addChild(light)
-        }
+        Light.createLightTetrahedron<PointLight>(spread = 4.0f, radius = 15.0f, intensity = 0.5f)
+            .forEach { scene.addChild(it) }
+
+        val origin = Box(Vector3f(0.1f, 0.1f, 0.1f))
+        origin.material.diffuse = Vector3f(0.8f, 0.0f, 0.0f)
+        scene.addChild(origin)
+    }
+
+    override fun inputSetup() {
+        setupCameraModeSwitching()
     }
 
     @Test override fun main() {

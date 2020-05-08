@@ -27,22 +27,7 @@ import java.nio.IntBuffer
  *
  * @author Vladimir Ulman <ulman@mpi-cbg.de>
  */
-class Arrow(var vector: Vector3f = Vector3f(0.0f)) : Node("Arrow"), HasGeometry {
-    /** Size of one vertex (e.g. 3 in 3D) */
-    override val vertexSize: Int = 3
-    /** Size of one texcoord (e.g. 2 in 3D) */
-    override val texcoordSize: Int = 2
-    /** Geometry type -- Default for Line is [GeometryType.LINE] */
-    override var geometryType: GeometryType = GeometryType.LINE_STRIP_ADJACENCY
-    /** Vertex buffer */
-    override var vertices: FloatBuffer = BufferUtils.allocateFloat(30)
-    /** Normal buffer */
-    override var normals: FloatBuffer = BufferUtils.allocateFloat(30)
-    /** Texcoord buffer */
-    override var texcoords: FloatBuffer = BufferUtils.allocateFloat(20)
-    /** Index buffer */
-    override var indices: IntBuffer = IntBuffer.wrap(intArrayOf())
-
+class Arrow(var vector: Vector3f = Vector3f(0.0f)) : Mesh("Arrow") {
     /** Shader property for the line's starting segment color. Consumed by the renderer. */
     @ShaderProperty
     var startColor = Vector4f(0.0f, 1.0f, 0.0f, 1.0f)
@@ -72,6 +57,17 @@ class Arrow(var vector: Vector3f = Vector3f(0.0f)) : Node("Arrow"), HasGeometry 
     private val zeroGLvec = Vector3f(0.0f, 0.0f, 0.0f)
 
     init {
+        /** Geometry type -- Default for Line is [GeometryType.LINE] */
+        geometryType = GeometryType.LINE_STRIP_ADJACENCY
+        /** Vertex buffer */
+        vertices = BufferUtils.allocateFloat(30)
+        /** Normal buffer */
+        normals = BufferUtils.allocateFloat(30)
+        /** Texcoord buffer */
+        texcoords = BufferUtils.allocateFloat(20)
+        /** Index buffer */
+        indices = IntBuffer.wrap(intArrayOf())
+
         material = ShaderMaterial.fromClass(Line::class.java, listOf(ShaderType.VertexShader, ShaderType.GeometryShader, ShaderType.FragmentShader))
         material.cullingMode = Material.CullingMode.None
 
