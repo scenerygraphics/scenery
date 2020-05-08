@@ -1,13 +1,9 @@
 package graphics.scenery
 
-import cleargl.GLMatrix
-import cleargl.GLVector
 import graphics.scenery.utils.extensions.xyz
-import org.joml.Matrix4d
 import org.joml.Matrix4f
 import org.joml.Vector3f
 import org.joml.Vector4f
-import org.lwjgl.opengl.GL
 import java.lang.IllegalArgumentException
 
 /**
@@ -73,13 +69,14 @@ class UniformBSpline(override val controlPoints: ArrayList<Vector3f>, override v
      */
     private fun partialSpline(p1: Vector3f, p2: Vector3f, p3: Vector3f, p4: Vector3f): ArrayList<Vector3f> {
         val pointMatrix = Matrix4f(
-                p1.x(), p2.x(), p3.x(), p4.x(),
-                p1.y(), p2.y(), p3.y(), p4.y(),
-                p1.z(), p2.z(), p3.z(), p4.z(),
-                0f, 0f, 0f, 0f).transpose()
+                p1.x(), p1.y(), p1.z(), 0f,
+                p2.x(), p2.y(), p2.z(), 0f,
+                p3.x(), p3.y(), p3.z(), 0f,
+                p4.x(), p4.y(), p4.z(), 0f)
         val partialSpline = ArrayList<Vector3f>(n)
         tList.forEach {
-            val transformVec = pointMatrix.transform(it)
+            val vec = Vector4f(it)
+            val transformVec = pointMatrix.transform(vec)
             partialSpline.add(transformVec.xyz())
         }
         return(partialSpline)

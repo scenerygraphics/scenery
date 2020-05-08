@@ -1,9 +1,9 @@
 package graphics.scenery.tests.unit
 
-import cleargl.GLVector
 import graphics.scenery.UniformBSpline
 import graphics.scenery.numerics.Random
 import graphics.scenery.utils.LazyLogger
+import org.joml.Vector3f
 import org.junit.Test
 import kotlin.math.roundToInt
 import kotlin.test.assertEquals
@@ -25,10 +25,10 @@ class UniformBSplineTests {
     @Test
     fun testLength() {
         logger.info("This is the test for the length of the chain.")
-        val point1 = Random.randomVectorFromRange(3, -30f, -10f)
-        val point2 = Random.randomVectorFromRange(3, -9f, 20f)
-        val point3 = Random.randomVectorFromRange(3, 21f, 30f)
-        val point4 = Random.randomVectorFromRange(3, 31f, 100f)
+        val point1 = Random.random3DVectorFromRange(-30f, -10f)
+        val point2 = Random.random3DVectorFromRange(-9f, 20f)
+        val point3 = Random.random3DVectorFromRange(21f, 30f)
+        val point4 = Random.random3DVectorFromRange(31f, 100f)
 
         val controlPoints = arrayListOf(point1, point2, point3, point4)
 
@@ -45,19 +45,19 @@ class UniformBSplineTests {
     @Test
     fun testChain() {
         logger.info("This is the test for the Length of the chain.")
-        val point1 = Random.randomVectorFromRange(3, -30f, -10f)
-        val point2 = Random.randomVectorFromRange(3, -9f, 20f)
-        val point3 = Random.randomVectorFromRange(3, 21f, 30f)
-        val point4 = Random.randomVectorFromRange(3, 31f, 100f)
+        val point1 = Random.random3DVectorFromRange(-30f, -10f)
+        val point2 = Random.random3DVectorFromRange(-9f, 20f)
+        val point3 = Random.random3DVectorFromRange(21f, 30f)
+        val point4 = Random.random3DVectorFromRange(31f, 100f)
 
         val controlPoints = arrayListOf(point1, point2, point3, point4)
 
         val curve = UniformBSpline(controlPoints)
         val chain = curve.splinePoints()
         val i = Random.randomFromRange(1f, 99f).toInt()
-        val distance = chain[i].minus(chain[i+1]).length2()
+        val distance = chain[i].distance(chain[i+1])
         val distanceDifferences = chain.windowed(2, 1) {
-            it[0].minus(it[1]).length2().minus(distance) }.toList()
+            it[0].distance(it[1]).minus(distance) }.toList()
         println(distanceDifferences)
         assertTrue { distanceDifferences.filter { it < 0.5 } == distanceDifferences }
     }
@@ -69,22 +69,22 @@ class UniformBSplineTests {
     @Test
     fun invalidControlPoints() {
         logger.info("Tests Uniform BSpline with invalid control points.")
-        val samePointList = ArrayList<GLVector>(10)
-        val point = GLVector(1f, 1f, 1f)
+        val samePointList = ArrayList<Vector3f>(10)
+        val point = Vector3f(1f, 1f, 1f)
         for(i in 0..9) {
             samePointList.add(point)
         }
         val samePointSpline = UniformBSpline(samePointList)
         assertFails{ samePointSpline.splinePoints() }
 
-        val emptyList = ArrayList<GLVector>()
+        val emptyList = ArrayList<Vector3f>()
         val emptySpline = UniformBSpline(emptyList)
         assertTrue(emptySpline.splinePoints().isEmpty())
 
-        val notEnoughList = ArrayList<GLVector>()
+        val notEnoughList = ArrayList<Vector3f>()
         val j = Random.randomFromRange(1f, 2f).roundToInt()
         for(i in 0..j) {
-            val vector = Random.randomVectorFromRange(3, 0f, 5f)
+            val vector = Random.random3DVectorFromRange(0f, 5f)
             notEnoughList.add(vector)
         }
         val notEnoughSpline = UniformBSpline(notEnoughList)

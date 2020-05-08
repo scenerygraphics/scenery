@@ -3,10 +3,7 @@ package graphics.scenery
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.toFloatArray
 import graphics.scenery.utils.extensions.xyz
-import org.joml.AxisAngle4f
-import org.joml.Matrix4f
-import org.joml.Vector3f
-import org.joml.Vector4f
+import org.joml.*
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
 import kotlin.math.acos
@@ -40,15 +37,13 @@ class Curve(curve: Spline, baseShape: () -> ArrayList<Vector3f>): Node("CurveGeo
     init {
         val bases = computeFrenetFrames(chain).map { (t, n, b, tr) ->
             if(n != null && b != null) {
-                val inverseMatrix = Matrix4f(
-                    n.x(), b.x(), t.x(), 0f,
-                    n.y(), b.y(), t.y(), 0f,
-                    n.z(), b.z(), t.z(), 0f,
-                    0f, 0f, 0f, 1f).invert()
+                val inverseMatrix = Matrix4f(n.x(), b.x(), t.x(), 0f,
+                                             n.y(), b.y(), t.y(), 0f,
+                                             n.z(), b.z(), t.z(), 0f,
+                                            0f, 0f ,0f ,1f).invert()
                 val nn = Vector3f(inverseMatrix[0, 0], inverseMatrix[1, 0], inverseMatrix[2, 0]).normalize()
-                val nb = Vector3f(inverseMatrix[0, 1],inverseMatrix[1, 1], inverseMatrix[2, 1]).normalize()
-                val nt = Vector3f(inverseMatrix[0, 2], inverseMatrix[1, 2], inverseMatrix[2, 2]).normalize()
-
+                val nb = Vector3f(inverseMatrix[0, 1],inverseMatrix[1, 1], inverseMatrix[1, 2]).normalize()
+                val nt = Vector3f(inverseMatrix[0, 2], inverseMatrix[2, 1], inverseMatrix[2, 2]).normalize()
                 Matrix4f(
                     nn.x(), nb.x(), nt.x(), 0f,
                     nn.y(), nb.y(), nt.y(), 0f,
@@ -59,12 +54,9 @@ class Curve(curve: Spline, baseShape: () -> ArrayList<Vector3f>): Node("CurveGeo
                 throw IllegalStateException("Tangent and normal must not be null!")
             }
         }
-
         val curveGeometry = bases.map { basis: Matrix4f ->
             baseShape.invoke().map { v ->
-                val vector4D = Vector4f(v.x(), v.y(), v.z(), 1f)
-                val vector = basis.transform(vector4D)
-                vector.xyz()
+                basis.transformPosition(v)
             }
         }
 
@@ -102,17 +94,17 @@ class Curve(curve: Spline, baseShape: () -> ArrayList<Vector3f>): Node("CurveGeo
      * coordinate system which represents the form of the curve. For details concerning the
      * calculation see: http://www.cs.indiana.edu/pub/techreports/TR425.pdf
      */
-    fun computeFrenetFrames(curv: ArrayList<Vector3f>): List<FrenetFrame> {
+    fun computeFrenetFrames(curve: ArrayList<Vector3f>): List<FrenetFrame> {
 
-        val frenetFrameList = ArrayList<FrenetFrame>(curv.size)
+        val frenetFrameList = ArrayList<FrenetFrame>(curve.size)
 
-        if(curv.isEmpty()) {
+        if(curve.isEmpty()) {
             return frenetFrameList
         }
 
         //adds all the tangent vectors
-        curv.forEachIndexed { index, _ ->
-            val frenetFrame = FrenetFrame(getTangent(index), null, null, curv[index])
+        curve.forEachIndexed { index, _ ->
+            val frenetFrame = FrenetFrame(getTangent(index), null, null, curve[index])
             frenetFrameList.add(frenetFrame)
         }
 
@@ -130,7 +122,7 @@ class Curve(curve: Spline, baseShape: () -> ArrayList<Vector3f>): Node("CurveGeo
         frenetFrameList[0].bitangent = Vector3f(frenetFrameList[0].tangent).cross(normal).normalize()
 
         frenetFrameList.windowed(2,1).forEach { (firstFrame, secondFrame) ->
-            val b = Vector3f(firstFrame.tangent).cross(secondFrame.tangent).normalize()
+            val b = Vector3f(firstFrame.tangent).cross(secondFrame.tangent)
             //if there is no substantial difference between two tangent vectors, the frenet frame need not to change
             if (b.length() < 0.0001f) {
                 secondFrame.normal = firstFrame.normal
@@ -140,14 +132,15 @@ class Curve(curve: Spline, baseShape: () -> ArrayList<Vector3f>): Node("CurveGeo
 
                 val theta = acos(firstFrame.tangent.dot(secondFrame.tangent))
                 if (normal != null && firstNormal != null) {
-                    val rotationMatrix = Matrix4f().rotation(AxisAngle4f(theta, firstNormal))
+                    val rotationMatrix = Matrix4f().rotate(AxisAngle4f(theta, firstNormal))
                     val normal4D = Vector4f(firstNormal.x(), firstNormal.y(), firstNormal.z(), 1f)
                     secondFrame.normal = rotationMatrix.transform(normal4D).xyz().normalize()
                 }
                 else {
                     throw IllegalStateException("Normals must not be null!")
                 }
-                secondFrame.bitangent = secondFrame.tangent.cross(secondFrame.normal).normalize()
+                val secondFrameTangent = Vector3f(secondFrame.tangent)
+                secondFrame.bitangent = secondFrameTangent.cross(secondFrame.normal).normalize()
             }
         }
         return frenetFrameList.filterNot { it.bitangent!!.toFloatArray().all { value -> value.isNaN() } &&
