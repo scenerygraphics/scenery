@@ -4,8 +4,6 @@ import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.toFloatArray
 import graphics.scenery.utils.extensions.xyz
 import org.joml.*
-import java.nio.FloatBuffer
-import java.nio.IntBuffer
 import kotlin.math.acos
 
 /**
@@ -15,15 +13,6 @@ import kotlin.math.acos
  * @author  Justin Buerger <burger@mpi-cbg.de>
  */
 class Curve(curve: Spline, baseShape: () -> ArrayList<Vector3f>): Mesh("CurveGeometry"), HasGeometry {
-    override val vertexSize = 3
-    override val texcoordSize = 2
-    override var geometryType = GeometryType.TRIANGLES
-
-    override var vertices: FloatBuffer = BufferUtils.allocateFloat(0)
-    override var normals: FloatBuffer = BufferUtils.allocateFloat(0)
-    override var texcoords: FloatBuffer = BufferUtils.allocateFloat(0)
-    override var indices: IntBuffer = BufferUtils.allocateInt(0)
-
     private val chain = curve.splinePoints()
 
     /**
