@@ -15,7 +15,7 @@ import kotlin.math.pow
  * resulting curve for alpha = 0 is a standart Catmull Rom Spline, for alpha = 1 we get
  * a chordal Catmull Rom Spline.
  */
-class CatmullRomSpline(override val controlPoints: List<Vector3f>, override val n: Int = 100, val alpha: Float = 0.5f): Spline(controlPoints, n) {
+class CatmullRomSpline(val controlPoints: List<Vector3f>, val n: Int = 100, val alpha: Float = 0.5f): Spline {
 
     /**
      * Calculates the parameter t; t is an intermediate product for the calculation of the spline

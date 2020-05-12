@@ -24,7 +24,7 @@ class Curve(curve: Spline, baseShape: () -> ArrayList<Vector3f>): Mesh("CurveGeo
      * can very well vary in thickness.
      */
     init {
-        val bases = computeFrenetFrames(chain).map { (t, n, b, tr) ->
+        val bases = computeFrenetFrames(chain as ArrayList<Vector3f>).map { (t, n, b, tr) ->
             if(n != null && b != null) {
                 val inverseMatrix = Matrix4f(n.x(), b.x(), t.x(), 0f,
                                              n.y(), b.y(), t.y(), 0f,
@@ -177,7 +177,7 @@ class Curve(curve: Spline, baseShape: () -> ArrayList<Vector3f>): Mesh("CurveGeo
     /**
      * Getter for the curve.
      */
-    fun getCurve(): ArrayList<Vector3f> {
+    fun getCurve(): List<Vector3f> {
         return chain
     }
 }
