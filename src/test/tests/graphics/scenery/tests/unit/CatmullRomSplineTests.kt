@@ -60,7 +60,13 @@ class CatmullRomSplineTests {
         val distance = chain[i].distance(chain[i+1])
         val distanceDifferences = chain.windowed(2, 1) {
             it[0].distance(it[1]).minus(distance) }.toList()
-        assertTrue { distanceDifferences.filter { it < 1 } == distanceDifferences }
+        /* The spline is drawn between point2 and point3. The biggest possible difference
+         * between these points is roughly 70 units. We also have to take into account the rounding of the
+         * spline. A conservative estimate, given the ranges, would be that of a half circle. That gives us
+         * a curve length of totally 70*Pi/2 = 110 units. Our spline consist of 100 points, therefore, the
+         * distance between spline points should not be bigger than 1,1 units.
+         */
+        assertTrue { distanceDifferences.filter { it < 1.1 } == distanceDifferences }
     }
 
     /**
@@ -90,5 +96,30 @@ class CatmullRomSplineTests {
         }
         val notEnoughSpline = CatmullRomSpline(notEnoughList)
         assertTrue(notEnoughSpline.splinePoints().isEmpty())
+    }
+
+    /**
+     * Since the ranges between points are somewhat arbitrary – due to the fact, that the
+     * spline was originally developed to visualize proteins (which are stored in 3D coordinates
+     * in the same order of magnitude). Hence, this test verifies if the calculation is still
+     * correct for bigger values.
+     */
+    @Test
+    fun testLengthBigRanges() {
+        logger.info("This is the test for the Length of the chain.")
+        val point1 = Random.random3DVectorFromRange(-300f, -100f)
+        val point2 = Random.random3DVectorFromRange(-90f, 20f)
+        val point3 = Random.random3DVectorFromRange(210f, 300f)
+        val point4 = Random.random3DVectorFromRange(310f, 1000f)
+
+        val controlPoints = arrayListOf(point1, point2, point3, point4)
+
+        val curve = CatmullRomSpline(controlPoints)
+        assertNotNull(curve)
+        /*
+        The computation of the Catmull Rom Spline delivers an additional point if the
+        distance between the point1 and point2 is small relative to point2 and point3
+         */
+        assertTrue(curve.splinePoints().size == 100 || curve.splinePoints().size == 101)
     }
 }
