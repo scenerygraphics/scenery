@@ -36,6 +36,8 @@ scenery-nvidia:
     - nvidia-smi
     - tar cvjf results.tar.bz2 screenshots/
     - ARGOS_COMMIT=$CI_COMMIT_SHA ARGOS_BRANCH=$CI_COMMIT_REF_NAME ./node_modules/argos-cli/bin/argos upload screenshots/ --token $ARGOS_TOKEN || true
+    - mvn -B jacoco:report
+    - bash <(curl -s https://codecov.io/bash) -c -F integrationtests || true
   tags:
     - cuda
     - intel
