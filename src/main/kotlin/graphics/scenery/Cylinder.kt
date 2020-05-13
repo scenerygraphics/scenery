@@ -1,10 +1,11 @@
 package graphics.scenery
 
 import org.joml.Vector3f
-import java.nio.FloatBuffer
-import java.nio.IntBuffer
 import java.util.*
 import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
+import kotlin.math.sqrt
 
 /**
  * Constructs a cylinder with the given [radius] and number of [segments].
@@ -16,20 +17,22 @@ import kotlin.math.PI
 
 class Cylinder(var radius: Float, var height: Float, var segments: Int) : Mesh("cylinder") {
     init {
-        var vbuffer = ArrayList<Float>(segments * segments * 2 * 3)
-        var nbuffer = ArrayList<Float>(segments * segments * 2 * 3)
-        var tbuffer = ArrayList<Float>(segments * segments * 2 * 2)
+        geometryType = GeometryType.TRIANGLE_STRIP
 
-        val delta = 2.0f * Math.PI.toFloat() / segments.toFloat()
-        val c = Math.cos(delta * 1.0).toFloat()
-        val s = Math.sin(delta * 1.0).toFloat()
+        val vbuffer = ArrayList<Float>(segments * segments * 2 * 3)
+        val nbuffer = ArrayList<Float>(segments * segments * 2 * 3)
+        val tbuffer = ArrayList<Float>(segments * segments * 2 * 2)
+
+        val delta = 2.0f * PI.toFloat() / segments.toFloat()
+        val c = cos(delta * 1.0).toFloat()
+        val s = sin(delta * 1.0).toFloat()
 
         var x2 = radius
         var z2 = 0.0f
 
         for (i: Int in 0..segments) {
             val texcoord = i / segments.toFloat()
-            val normal = 1.0f / Math.sqrt(x2 * x2 * 1.0 + z2 * z2 * 1.0).toFloat()
+            val normal = 1.0f / sqrt(x2 * x2 * 1.0 + z2 * z2 * 1.0).toFloat()
             val xn = x2 * normal
             val zn = z2 * normal
 
