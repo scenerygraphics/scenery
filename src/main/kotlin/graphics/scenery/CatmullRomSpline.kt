@@ -79,4 +79,8 @@ class CatmullRomSpline(val controlPoints: List<Vector3f>, val n: Int = 100, val 
         return chainPoints
     }
 
+    override fun controlPoints(): List<Vector3f> {
+        return controlPoints
+    }
+
 }

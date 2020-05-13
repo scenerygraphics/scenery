@@ -81,4 +81,8 @@ class UniformBSpline(val controlPoints: ArrayList<Vector3f>, val n: Int = 100): 
         }
         return(partialSpline)
     }
+
+    override fun controlPoints(): List<Vector3f> {
+        return  controlPoints
+    }
 }
