@@ -177,7 +177,7 @@ class Curve(curve: Spline, baseShape: () -> ArrayList<Vector3f>): Mesh("CurveGeo
     /**
      * Getter for the curve.
      */
-    fun getCurve(): List<Vector3f> {
-        return chain
+    fun getCurve(): ArrayList<Vector3f> {
+        return chain as ArrayList<Vector3f>
     }
 }

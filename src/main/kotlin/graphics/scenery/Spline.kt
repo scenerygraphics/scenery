@@ -11,5 +11,5 @@ interface Spline {
     /**
      * Returns all the points the spline has.
      */
-    abstract fun splinePoints(): List<Vector3f>
+    fun splinePoints(): List<Vector3f>
 }
