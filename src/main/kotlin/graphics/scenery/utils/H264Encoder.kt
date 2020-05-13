@@ -125,6 +125,7 @@ class H264Encoder(val frameWidth: Int, val frameHeight: Int, filename: String, v
     private var finished: Boolean = false
     private var frameQueue = ConcurrentLinkedQueue<QueuedFrame>()
     private val emptyScalingParams = DoublePointer()
+    @Volatile private var error = 0
 
     sealed class QueuedFrame {
         class Frame(val data: ByteBuffer, val timestamp: Long): QueuedFrame()
@@ -149,9 +150,10 @@ class H264Encoder(val frameWidth: Int, val frameHeight: Int, filename: String, v
                 "mp4" to av_guess_format("mp4", null, null)
             }
 
-            var ret = avformat_alloc_output_context2(outputContext, fileFormat.second, fileFormat.first, outputFile)
-            if (ret < 0) {
-                logger.error("Could not allocate output context: $ret")
+            error = avformat_alloc_output_context2(outputContext, fileFormat.second, fileFormat.first, outputFile)
+            if (error < 0) {
+                logger.error("Could not allocate output context: $error")
+                return@launch
             }
 
             outputContext.video_codec_id(format.toCodecId())
@@ -213,9 +215,9 @@ class H264Encoder(val frameWidth: Int, val frameHeight: Int, filename: String, v
 
                     context = it.third.invoke(context) ?: return@mapNotNull null
 
-                    ret = avcodec_open2(context, codec, AVDictionary())
-                    if (ret < 0) {
-                        logger.debug("Could not open codec ${it.first}: ${ffmpegErrorString(ret)}")
+                    val codecOpenError = avcodec_open2(context, codec, AVDictionary())
+                    if (codecOpenError < 0) {
+                        logger.debug("Could not open codec ${it.first}: ${ffmpegErrorString(codecOpenError)}")
                         null
                     } else {
                         Triple<String, AVCodec, AVCodecContext>(it.first, codec, context)
@@ -223,7 +225,8 @@ class H264Encoder(val frameWidth: Int, val frameHeight: Int, filename: String, v
                 }
 
             if(encoders.isEmpty()) {
-                logger.error("Not supported $format encoders found.")
+                logger.error("No supported $format encoders found.")
+                error = -1
                 return@launch
             } else {
                 logger.info("Supported $format encoders: ${encoders.joinToString { it.first }}")
@@ -265,25 +268,28 @@ class H264Encoder(val frameWidth: Int, val frameHeight: Int, filename: String, v
 
             outputContext.streams(0, stream)
 
-            ret = avcodec_parameters_from_context(stream.codecpar(), codecContext)
-            if (ret < 0) {
+            error = avcodec_parameters_from_context(stream.codecpar(), codecContext)
+            if (error < 0) {
                 logger.error("Could not get codec parameters")
+                return@launch
             }
 
-            ret = av_frame_get_buffer(frame, 32)
-            if (ret < 0) {
+            error = av_frame_get_buffer(frame, 32)
+            if (error < 0) {
                 logger.error("Could not allocate frame data")
+                return@launch
             }
 
             av_dump_format(outputContext, 0, outputFile, 1)
 
             if (outputContext.oformat().flags() and AVFMT_NOFILE == 0) {
                 val pb = AVIOContext(null)
-                ret = avio_open(pb, outputFile, AVIO_FLAG_WRITE)
+                error = avio_open(pb, outputFile, AVIO_FLAG_WRITE)
                 outputContext.pb(pb)
 
-                if (ret < 0) {
-                    logger.error("Failed to open output file $outputFile: $ret")
+                if (error < 0) {
+                    logger.error("Failed to open output file $outputFile: ${ffmpegErrorString(error)}")
+                    return@launch
                 }
             } else {
                 logger.debug("Not opening file as not required by outputContext")
@@ -302,10 +308,11 @@ class H264Encoder(val frameWidth: Int, val frameHeight: Int, filename: String, v
 //            }
 //        }
 
-            ret = avformat_write_header(outputContext, AVDictionary())
+            error = avformat_write_header(outputContext, AVDictionary())
 
-            if (ret < 0) {
-                logger.error("Failed to write header: ${ffmpegErrorString(ret)}")
+            if (error < 0) {
+                logger.error("Failed to write header: ${ffmpegErrorString(error)}")
+                return@launch
             }
 
             ready = true
@@ -320,7 +327,7 @@ class H264Encoder(val frameWidth: Int, val frameHeight: Int, filename: String, v
                     // encoding step for each frame we received data
                     is QueuedFrame.Frame -> {
                         if(frameQueue.lastOrNull() is QueuedFrame.FinalFrame && frameQueue.size % 50 == 0) {
-                            logger.info("${frameQueue.size} frames (${frameQueue.map { if(it is QueuedFrame.Frame) { it.data.remaining() } else { 0 }}.sum()/1024/1024} MBytes) left to encode.")
+                            logger.info("${frameQueue.size} frames (${frameQueue.map { if(it is QueuedFrame.Frame) { it.data.remaining()*1L } else { 0L }}.sum()/1024L/1024L} MBytes) left to encode.")
                         }
 
                         encode(currentFrame)
@@ -347,8 +354,12 @@ class H264Encoder(val frameWidth: Int, val frameHeight: Int, filename: String, v
             }
         }
 
-        while(!ready) {
+        while(!ready && error >= 0) {
             Thread.sleep(5)
+        }
+
+        if(error < 0) {
+            logger.error("Not recording, error occured during initialisation: ${ffmpegErrorString(error)}")
         }
 
         startTimestamp = System.nanoTime()
@@ -360,6 +371,10 @@ class H264Encoder(val frameWidth: Int, val frameHeight: Int, filename: String, v
     protected var lastPts = 0L
 
     @JvmOverloads fun encodeFrame(data: ByteBuffer?, flip: Boolean = false) {
+        if(!ready && error < 0) {
+            return
+        }
+
         GlobalScope.launch {
             if(start == 0L) {
                 start = System.currentTimeMillis()
