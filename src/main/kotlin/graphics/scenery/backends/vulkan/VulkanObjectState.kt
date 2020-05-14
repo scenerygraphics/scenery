@@ -127,6 +127,14 @@ open class VulkanObjectState : NodeMetadata {
     }
 
     private fun createOrUpdateTextureDescriptorSet(name: String, passName: String, textures: List<MutableMap.MutableEntry<String, VulkanTexture>>, descriptorSetLayout: Long, device: VulkanDevice, descriptorPool: Long): Long {
+        val cacheKey = TextureKey(device.vulkanDevice, descriptorSetLayout, textures)
+
+        val existing = cache[cacheKey]
+
+        if(existing != null) {
+            return existing
+        }
+
         val descriptorSet: Long = textureDescriptorSets.getOrPut(passName to name) {
             val pDescriptorSetLayout = memAllocLong(1)
             pDescriptorSetLayout.put(0, descriptorSetLayout)
@@ -173,6 +181,7 @@ open class VulkanObjectState : NodeMetadata {
         d.forEach { it.free() }
 
         logger.debug("Creating texture descriptor for $name in pass $passName {} set with 1 bindings, DSL={}", descriptorSet.toHexString(), descriptorSetLayout.toHexString())
+        cache[cacheKey] = descriptorSet
         return descriptorSet
     }
 
@@ -197,11 +206,15 @@ open class VulkanObjectState : NodeMetadata {
         return set
     }
 
+    data class TextureKey(val device: VkDevice, val dsl: Long, val textures: List<MutableMap.MutableEntry<String, VulkanTexture>>)
+
     /**
      * Utility class for [VulkanObjectState].
      */
     companion object {
         protected val logger by LazyLogger()
+
+        protected val cache = HashMap<TextureKey, Long>()
 
         /**
          * Returns the array index of a texture [type].
