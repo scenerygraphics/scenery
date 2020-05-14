@@ -9,11 +9,11 @@ import org.joml.Vector3f
 import org.junit.Test
 
 /**
- * Just a quick example of the curve with a triangle as a baseShape.
+ * Just a quick example of a CatmullRomSpline with a triangle as a baseShape.
  *
  * @author Justin Bürger
  */
-class CurveBaseShapeTest: SceneryBase("CurveGeometryBaseShapeTest", windowWidth = 1280, windowHeight = 720) {
+class CurveCatmullRomExample: SceneryBase("CurveCatmullRomExample", windowWidth = 1280, windowHeight = 720) {
 
     override fun init() {
 
