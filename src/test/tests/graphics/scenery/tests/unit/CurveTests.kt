@@ -3,9 +3,11 @@ package graphics.scenery.tests.unit
 import graphics.scenery.numerics.Random
 import graphics.scenery.CatmullRomSpline
 import graphics.scenery.Curve
+import graphics.scenery.UniformBSpline
 import graphics.scenery.utils.LazyLogger
 import org.joml.Vector3f
 import org.junit.Test
+import org.lwjgl.BufferUtils
 import kotlin.test.assertEquals
 import kotlin.test.assertFails
 import kotlin.test.assertNotNull
@@ -43,14 +45,9 @@ class CurveTests {
 
         val geometry = Curve(curve) { triangle() }
         val frenetFrames = geometry.computeFrenetFrames(geometry.getCurve())
-
-        assertEquals(curve.catMullRomChain(), geometry.getCurve())
-
-        frenetFrames.forEach {
-            assertNotNull(it.normal)
-            assertNotNull(it.bitangent)
-        }
-
+        assertEquals(curve.splinePoints(), geometry.getCurve())
+        assertNotNull(frenetFrames.forEach { it.normal })
+        assertNotNull(frenetFrames.forEach{ it.bitangent })
         assertEquals(frenetFrames.filter { it.bitangent?.length()!! < 1.001f && it.bitangent?.length()!! > 0.999f },
                 frenetFrames)
         assertEquals(frenetFrames.filter { it.normal?.length()!! < 1.001f && it.normal?.length()!! > 0.999f },
@@ -97,4 +94,23 @@ class CurveTests {
         assertFails {  Curve(curve) { triangleFalse() } }
     }
 
+    /**
+     * Tests if the curve works properly even with an empty spline.
+     */
+    @Test
+    fun testEmptySpline() {
+        logger.info("Tests the curve with an empty spline")
+        val emptyList = ArrayList<Vector3f>()
+        val spline = UniformBSpline(emptyList)
+        fun triangle(): ArrayList<Vector3f> {
+            val list = ArrayList<Vector3f>()
+            list.add(Vector3f(0.3f, 0.3f, 0f))
+            list.add(Vector3f(0.3f, -0.3f, 0f))
+            list.add(Vector3f(-0.3f, -0.3f, 0f))
+            return list
+        }
+        val emptyFloatBuffer = BufferUtils.createFloatBuffer(0)
+        val curve = Curve(spline) { triangle() }
+        assertEquals(curve.vertices, emptyFloatBuffer)
+    }
 }
