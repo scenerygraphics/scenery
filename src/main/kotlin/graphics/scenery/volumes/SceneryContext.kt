@@ -270,7 +270,7 @@ open class SceneryContext(val node: VolumeManager) : GpuContext {
             BVVTexture.InternalFormat.R16 -> Triple(1, UnsignedShortType(), true)
             BVVTexture.InternalFormat.RGBA8 -> Triple(4, UnsignedByteType(), true)
             BVVTexture.InternalFormat.RGBA8UI -> Triple(4, UnsignedByteType(), false)
-            BVVTexture.InternalFormat.FLOAT32 -> Triple(1, FloatType(), false)
+            BVVTexture.InternalFormat.R32F -> Triple(1, FloatType(), false)
             BVVTexture.InternalFormat.UNKNOWN -> TODO()
             else -> throw UnsupportedOperationException("Unknown internal format ${texture.texInternalFormat()}")
         }
