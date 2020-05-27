@@ -379,8 +379,8 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
                 .forEachIndexed { i, state ->
                     val s = state.stack
                     currentProg.setConverter(i, state.converterSetup)
-                    currentProg.setCustomSampler(i, "transferFunction", state.transferFunction)
-                    currentProg.setCustomSampler(i, "colorMap", state.colorMap)
+                    currentProg.registerCustomSampler(i, "transferFunction", state.transferFunction)
+                    currentProg.registerCustomSampler(i, "colorMap", state.colorMap)
                     context.bindTexture(state.transferFunction)
                     context.bindTexture(state.colorMap)
 
@@ -435,7 +435,7 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
     private fun TransferFunction.toTexture(): Texture3D {
         val data = this.serialise()
         return SimpleTexture2D(data, textureSize, textureHeight,
-            Texture.InternalFormat.FLOAT32, Texture.Wrap.CLAMP_TO_EDGE,
+            Texture.InternalFormat.R32F, Texture.Wrap.CLAMP_TO_EDGE,
             Texture.MinFilter.LINEAR, Texture.MagFilter.LINEAR)
     }
 

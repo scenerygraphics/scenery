@@ -111,8 +111,8 @@
         <dokka.version>0.10.0</dokka.version>
         <dokka.skip>true</dokka.skip>
 
-        <bigdataviewer-core.version>7.0.0</bigdataviewer-core.version>
-        <bigvolumeviewer.version>0.1.8-SNAPSHOT</bigvolumeviewer.version>
+        <bigdataviewer-core.version>9.0.2</bigdataviewer-core.version>
+        <bigvolumeviewer.version>0.1.8</bigvolumeviewer.version>
         <cleargl.version>2.2.10</cleargl.version>
         <coremem.version>0.4.6</coremem.version>
         <ffmpeg.version>4.2.1-1.5.2</ffmpeg.version>
@@ -542,13 +542,9 @@
         </dependency>
 
         <dependency>
-            <!-- TODO: Revert back when https://github.com/tpietzsch/jogl-minimal/pull/10 is merged-->
-<!--                <groupId>sc.fiji</groupId>-->
-<!--                <artifactId>bigvolumeviewer</artifactId>-->
-<!--                <version>${bigvolumeviewer.version}</version>-->
-            <groupId>com.github.skalarproduktraum</groupId>
-            <artifactId>jogl-minimal</artifactId>
-            <version>992c9ad</version>
+            <groupId>sc.fiji</groupId>
+            <artifactId>bigvolumeviewer</artifactId>
+            <version>${bigvolumeviewer.version}</version>
         </dependency>
 
         <dependency>
