@@ -39,6 +39,8 @@ import net.imglib2.type.numeric.real.FloatType
 import org.joml.Matrix4f
 import org.joml.Vector3i
 import org.lwjgl.system.MemoryUtil
+import org.scijava.io.location.FileLocation
+import org.scijava.io.location.Location
 import tpietzsch.example2.VolumeViewerOptions
 import java.io.FileInputStream
 import java.nio.ByteBuffer
@@ -435,7 +437,7 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
 
             val id = file.fileName.toString()
 
-            val reader = scifio.initializer().initializeReader(file.normalize().toString())
+            val reader = scifio.initializer().initializeReader(FileLocation(file.toFile()))
 
             val dims = Vector3i()
             with(reader.openPlane(0, 0)) {
