@@ -329,7 +329,7 @@ class SwingMouseAndKeyHandler(var hub: Hub? = null) : MouseAndKeyHandlerBase(), 
         keypressManager: KeyPressedManager,
         focus: Runnable) {
         this.keypressManager = keypressManager
-        this.receiver = KeyPressedReceiver { mask, doubleClick, pressedKeys ->
+        this.receiver = KeyPressedReceiver { _, mask, doubleClick, pressedKeys ->
             if (this@SwingMouseAndKeyHandler.handleKeyPressed(mask, doubleClick, pressedKeys, true))
                 focus.run()
             this@SwingMouseAndKeyHandler.handleKeyPressed(mask, doubleClick, pressedKeys, false)
