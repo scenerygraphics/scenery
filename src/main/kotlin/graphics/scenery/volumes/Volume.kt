@@ -39,6 +39,8 @@ import net.imglib2.type.numeric.real.FloatType
 import org.joml.Matrix4f
 import org.joml.Vector3i
 import org.lwjgl.system.MemoryUtil
+import org.scijava.io.location.FileLocation
+import org.scijava.io.location.Location
 import tpietzsch.example2.VolumeViewerOptions
 import java.io.FileInputStream
 import java.nio.ByteBuffer
@@ -150,7 +152,9 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
 
             is VolumeDataSource.RAISource<*> -> {
                 maxTimepoint = dataSource.numTimepoints
-                viewerState = ViewerState(dataSource.sources, maxTimepoint)
+                // FIXME: bigdataviewer-core > 9.0.0 doesn't enjoy having 0 timepoints anymore :-(
+                // We tell it here to have a least one, so far no ill side effects from that
+                viewerState = ViewerState(dataSource.sources, max(1, maxTimepoint))
                 converterSetups.addAll( dataSource.converterSetups )
             }
         }
@@ -435,7 +439,7 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
 
             val id = file.fileName.toString()
 
-            val reader = scifio.initializer().initializeReader(file.normalize().toString())
+            val reader = scifio.initializer().initializeReader(FileLocation(file.toFile()))
 
             val dims = Vector3i()
             with(reader.openPlane(0, 0)) {
