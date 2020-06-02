@@ -469,7 +469,7 @@ open class SceneryContext(val node: VolumeManager) : GpuContext {
                         val dimensionsChanged = Vector3i(newDimensions).sub(gt.dimensions).length() > 0.0001f
 
                         if(dimensionsChanged) {
-                            logger.info("Reallocating for size change ${gt.dimensions} -> $newDimensions")
+                            logger.debug("Reallocating for size change ${gt.dimensions} -> $newDimensions")
                             gt.clearUpdates()
                             gt.dimensions = newDimensions
                             gt.contents = null
@@ -509,7 +509,12 @@ open class SceneryContext(val node: VolumeManager) : GpuContext {
      * set in addition.
      */
     override fun texSubImage3D(pbo: StagingBuffer, texture: Texture3D, xoffset: Int, yoffset: Int, zoffset: Int, width: Int, height: Int, depth: Int, pixels_buffer_offset: Long) {
-        logger.info("Updating 3D texture via PBO from $texture: dx=$xoffset dy=$yoffset dz=$zoffset w=$width h=$height d=$depth offset=$pixels_buffer_offset")
+        logger.debug("Updating 3D texture via PBO from {}: dx={} dy={} dz={} w={} h={} d={} offset={}",
+            texture,
+            xoffset, yoffset, zoffset,
+            width, height, depth,
+            pixels_buffer_offset
+        )
 
         val tmpStorage = (map(pbo) as ByteBuffer).duplicate().order(ByteOrder.LITTLE_ENDIAN)
         tmpStorage.position(pixels_buffer_offset.toInt())
@@ -539,7 +544,11 @@ open class SceneryContext(val node: VolumeManager) : GpuContext {
             return
         }
 
-        logger.debug("Updating 3D texture via Texture3D from $texture: dx=$xoffset dy=$yoffset dz=$zoffset w=$width h=$height d=$depth")
+        logger.debug("Updating 3D texture via Texture3D from {}: dx={} dy={} dz={} w={} h={} d={}",
+            texture,
+            xoffset, yoffset, zoffset,
+            width, height, depth
+        )
 
         val p = pixels.duplicate().order(ByteOrder.LITTLE_ENDIAN)
         val allocationSize = width * height * depth * texture.texInternalFormat().bytesPerElement

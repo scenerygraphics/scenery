@@ -25,7 +25,7 @@ class REPL @JvmOverloads constructor(override var hub : Hub?, scijavaContext: Co
     /** Code to evaluate upon launch. */
     protected var startupScriptCode: String = ""
     /** A startup script to evaluate upon launch. */
-    protected var startupScript = "startup.js"
+    protected var startupScript = "startup.py"
     /** The [startupScript] will be searched for in the resources of this class. */
     protected var startupScriptClass: Class<*> = REPL::class.java
 
@@ -79,8 +79,7 @@ class REPL @JvmOverloads constructor(override var hub : Hub?, scijavaContext: Co
      * Launches the REPL and evaluates any set startup code.
      */
     fun start() {
-        // waiting for scijava/scijava-ui-swing#22
-        interpreterWindow.repl.lang("JavaScript")
+        interpreterWindow.repl.lang("Python")
         interpreterWindow.repl.interpreter.eval(startupScriptCode)
     }
 
