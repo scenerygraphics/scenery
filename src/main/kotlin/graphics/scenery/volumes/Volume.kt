@@ -152,7 +152,9 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
 
             is VolumeDataSource.RAISource<*> -> {
                 maxTimepoint = dataSource.numTimepoints
-                viewerState = ViewerState(dataSource.sources, maxTimepoint)
+                // FIXME: bigdataviewer-core > 9.0.0 doesn't enjoy having 0 timepoints anymore :-(
+                // We tell it here to have a least one, so far no ill side effects from that
+                viewerState = ViewerState(dataSource.sources, max(1, maxTimepoint))
                 converterSetups.addAll( dataSource.converterSetups )
             }
         }
