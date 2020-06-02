@@ -10,8 +10,7 @@ import org.junit.Test
 import org.reflections.Reflections
 import java.nio.file.Files
 import java.nio.file.Paths
-import java.util.concurrent.Executors
-import java.util.concurrent.Future
+import java.util.concurrent.*
 
 /**
  * Experimental test runner that saves screenshots of all discovered tests.
@@ -21,11 +20,56 @@ import java.util.concurrent.Future
 class ExampleRunner {
     val logger by LazyLogger()
 
+    private var failure = false
+
+    private inner class LoggingThreadPoolExecutor(
+        corePoolSize: Int,
+        maximumPoolSize: Int,
+        keepAliveTime: Long,
+        unit: TimeUnit,
+        workQueue: BlockingQueue<Runnable>,
+    ): ThreadPoolExecutor(
+        corePoolSize,
+        maximumPoolSize,
+        keepAliveTime,
+        unit,
+        workQueue
+    ) {
+        override fun afterExecute(r: Runnable, t: Throwable?) {
+            var throwable: Throwable? = t
+            super.afterExecute(r, t)
+
+            if (throwable != null && r is Future<*> && (r as Future<*>).isDone) {
+                try {
+                    val result = (r as Future<*>).get()
+                } catch (ce: CancellationException) {
+                    throwable = ce
+                } catch (ee: ExecutionException) {
+                    throwable = ee.cause
+                } catch (ie: InterruptedException) {
+                    Thread.currentThread().interrupt()
+                }
+            }
+
+            if(throwable != null) {
+                logger.error("Exception in thread: $throwable")
+                failure = true
+            }
+        }
+    }
+
+
+    /**
+     * Runs all examples in the class path and bails out on the first exception encountered.
+     * Examples are run using both renderers and stereo and non-stereo render paths. Examples
+     * are run in random order.
+     */
     @Test fun runAllExamples() {
         val reflections = Reflections("graphics.scenery.tests")
 
         // blacklist contains examples that require user interaction or additional devices
-        val blacklist = mutableListOf("LocalisationExample",
+        val blacklist = mutableListOf(
+            "LocalisationExample",
             "SwingTexturedCubeExample",
             "TexturedCubeJavaApplication",
             "XwingLiverExample",
@@ -35,9 +79,6 @@ class ExampleRunner {
             "ReaderExample",
             "BDVExample",
             "BigAndSmallVolumeExample",
-            "FlybrainOutOfCoreExample",
-            "RAIExample",
-            "OutOfCoreRAIExample",
             "VolumeSamplingExample",
             "SwingTexturedCubeExample",
             "VideoRecordingExample"
@@ -56,7 +97,9 @@ class ExampleRunner {
             ExtractsNatives.Platform.WINDOWS,
             ExtractsNatives.Platform.LINUX -> listOf("VulkanRenderer", "OpenGLRenderer")
             ExtractsNatives.Platform.MACOS -> listOf("OpenGLRenderer")
-            ExtractsNatives.Platform.UNKNOWN -> { logger.error("Don't know what to do on this platform, sorry."); return }
+            ExtractsNatives.Platform.UNKNOWN -> {
+                logger.error("Don't know what to do on this platform, sorry."); return
+            }
         }
 
         val configurations = listOf("DeferredShading.yml", "DeferredShadingStereo.yml")
@@ -71,7 +114,14 @@ class ExampleRunner {
 
             configurations.shuffled().forEach { config ->
                 System.setProperty("scenery.Renderer.Config", config)
-                val executor = Executors.newSingleThreadExecutor()
+                val executor = LoggingThreadPoolExecutor(
+                    1,
+                    1,
+                    0L,
+                    TimeUnit.MILLISECONDS,
+                    LinkedBlockingQueue<Runnable>()
+                )
+
                 val rendererDirectory = "$directoryName/$renderer-${config.substringBefore(".")}"
                 Files.createDirectory(Paths.get(rendererDirectory))
 
@@ -114,7 +164,7 @@ class ExampleRunner {
                             it.invoke()
                         }
 
-                        while (instance.running) {
+                        while (instance.running && !future.isCancelled && !failure) {
                             Thread.sleep(200)
                         }
 
@@ -124,6 +174,11 @@ class ExampleRunner {
                     }
 
                     logger.info("${example.simpleName} closed ($renderer ran ${i + 1}/${examples.size} so far).")
+
+                    if(failure) {
+                        logger.warn("ExampleRunner aborted due to exceptions in tests.")
+                        return
+                    }
                 }
             }
         }
