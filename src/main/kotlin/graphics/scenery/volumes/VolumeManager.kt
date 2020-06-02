@@ -321,17 +321,18 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
         }
 
         val fillTasksDuration = measureTimeMillis {
-            while (numTasks > textureCache.maxNumTiles) {
-                fillTasksPerVolume.sortedByDescending { it.numTasks() }
-                    .forEach {
-                        val baseLevel = it.volume.baseLevel
-                        if (baseLevel < it.maxLevel) {
-                            numTasks -= it.numTasks()
-                            it.tasks.clear()
-                            it.tasks.addAll(it.volume.fillTasks)
+            taskLoop@ while (numTasks > textureCache.maxNumTiles) {
+                fillTasksPerVolume.sortByDescending { it.numTasks() }
+                    for(vat in fillTasksPerVolume) {
+                        val baseLevel = vat.volume.baseLevel
+                        if (baseLevel < vat.maxLevel) {
+                            vat.volume.baseLevel = baseLevel + 1
+                            numTasks -= vat.numTasks()
+                            vat.tasks.clear()
+                            vat.tasks.addAll(vat.volume.fillTasks)
+                            numTasks += vat.numTasks()
 
-                            // TODO: Ask Tobi -- potentially solved
-                            return@forEach
+                            continue@taskLoop
                         }
                     }
                 break
