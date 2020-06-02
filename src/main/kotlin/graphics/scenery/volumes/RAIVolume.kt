@@ -13,7 +13,7 @@ class RAIVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewerOpti
     init {
         name = "Volume (RAI source)"
         if(ds.cacheControl != null) {
-            logger.info("Adding cache control")
+            logger.debug("Adding cache control")
             cacheControls.addCacheControl(ds.cacheControl)
         }
 
@@ -49,7 +49,7 @@ class RAIVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewerOpti
             val max = Vector3f(s.max(0).toFloat(), s.max(1).toFloat(), s.max(2).toFloat())
             size = max - min
         }
-        logger.info("Sizes are $size")
+        logger.debug("Sizes are $size")
 
         return Vector3f(
                 size.x() * pixelToWorldRatio / 10.0f,
