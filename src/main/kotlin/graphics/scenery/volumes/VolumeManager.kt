@@ -144,9 +144,8 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
 
         updateRenderState()
         needAtLeastNumVolumes(renderStacksStates.size)
-        logger.info("renderStacks.size=${renderStacksStates.size}")
+        logger.debug("renderStacks.size=${renderStacksStates.size}, progs=${prog.size}")
 
-        logger.info("Progs: ${prog.size}")
         // TODO: this might result in NULL program, is this intended?
         progvol = prog.lastOrNull()
 
@@ -168,7 +167,7 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
     }
 
     private fun updateProgram() {
-        logger.info("Updating effective shader program to $progvol")
+        logger.debug("Updating effective shader program to $progvol")
         progvol?.setTextureCache(textureCache)
         progvol?.use(context)
         progvol?.setUniforms(context)
@@ -258,7 +257,7 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
 
         newProgvol.setTextureCache(textureCache)
         newProgvol.setDepthTextureName("InputZBuffer")
-        logger.info("Using program for $outOfCoreVolumeCount out-of-core volumes and $regularVolumeCount regular volumes")
+        logger.debug("Using program for $outOfCoreVolumeCount out-of-core volumes and $regularVolumeCount regular volumes")
         prog.add(newProgvol)
 
         val oldKeys = this.material.textures.keys()
@@ -271,7 +270,7 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
         currentVolumeCount = outOfCoreVolumeCount to regularVolumeCount
 
         if(prog.size > 0) {
-            logger.info("We have ${prog.size} shaders ready")
+            logger.debug("We have ${prog.size} shaders ready")
             progvol = prog.last()
 
             updateProgram()
@@ -525,7 +524,7 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
             val visibleSourceIndices = bdvNode.viewerState.visibleSourceIndices
             val currentTimepoint = bdvNode.viewerState.currentTimepoint
 
-            logger.info("Visible: at t=$currentTimepoint: ${visibleSourceIndices.joinToString(", ")}")
+            logger.debug("Visible: at t=$currentTimepoint: ${visibleSourceIndices.joinToString(", ")}")
             for (i in visibleSourceIndices) {
                 val source = bdvNode.viewerState.sources[i]
                 if(bdvNode is BufferedVolume) {
@@ -583,7 +582,7 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
      * and recreation of the shaders.
      */
     fun add(node: Volume) {
-        logger.info("Adding $node to OOC nodes")
+        logger.debug("Adding $node to OOC nodes")
         nodes.add(node)
         updateRenderState()
         needAtLeastNumVolumes(renderStacksStates.size)
