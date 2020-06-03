@@ -1,7 +1,7 @@
 # scenery REPL python init file
+from graphics.scenery.volumes import TransferFunction, Colormap, Volume
 from org.joml import *
 from graphics.scenery import *
-from graphics.scenery.volumes import TransferFunction, Colormap, Volume
 from graphics.scenery.utils import *
 from graphics.scenery.net import *
 from graphics.scenery.compute import *
@@ -23,13 +23,14 @@ renderer = locate("Renderer")
 stats = locate("Statistics")
 hub = locate("Hub")
 settings = locate("Settings")
-base = hub.getApplication()
+if hub != None:
+    base = hub.getApplication()
 
 # and say hello :-)
 print("\n\n")
 print("this is scenery.")
 print("Standard library imported.\n")
-print("Try scene.addChild(a = new Box(new GLVector(4.0, 4.0, 4.0)))")
+print("Try scene.addChild(a = Box(Vector3f(1.0, 1.0, 1.0)))")
 print("------------------------------------------------------------")
 print("")
 print("")
