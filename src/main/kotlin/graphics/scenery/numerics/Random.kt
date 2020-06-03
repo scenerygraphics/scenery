@@ -5,6 +5,7 @@ import com.jogamp.opengl.math.Quaternion
 import org.joml.Quaternionf
 import org.joml.Vector2f
 import org.joml.Vector4f
+import kotlin.random.Random
 
 /**
  * Helper class to generate random numbers.
@@ -13,11 +14,17 @@ import org.joml.Vector4f
  */
 class Random {
     companion object {
+        /** Seed to use for random number generation */
+        var seed = System.getProperty("scenery.RandomSeed")?.toLong() ?: Random.nextLong()
+
+        /** Random number generator instance */
+        var rng = Random(seed)
+
         /**
          * Returns a random float from the range [min]-[max].
          */
         @JvmStatic
-        fun randomFromRange(min: Float, max: Float): Float = (max - min)*Math.random().toFloat() + min
+        fun randomFromRange(min: Float, max: Float): Float = (max - min) * rng.nextFloat() + min
 
         /**
          * Returns a random [Vector2f], where all elements are in the
