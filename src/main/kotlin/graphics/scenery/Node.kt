@@ -256,8 +256,10 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
     @Synchronized fun updateWorld(recursive: Boolean, force: Boolean = false) {
         update.forEach { it.invoke() }
 
-        if ((needsUpdate or force) && wantsComposeModel) {
-            this.composeModel()
+        if ((needsUpdate or force)) {
+            if(wantsComposeModel) {
+                this.composeModel()
+            }
 
             needsUpdate = false
             needsUpdateWorld = true
