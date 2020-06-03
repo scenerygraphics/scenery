@@ -282,11 +282,14 @@ open class VulkanRenderer(hub: Hub,
     private var screenshotOverwriteExisting = false
     private var screenshotFilename = ""
     var screenshotBuffer: VulkanBuffer? = null
+    var depthBuffer: VulkanBuffer? = null
     var imageBuffer: ByteBuffer? = null
+    var depthBuf: ByteBuffer? = null
     var encoder: H264Encoder? = null
     private var movieFilename = ""
     var recordMovie: Boolean = false
     override var pushMode: Boolean = false
+    private var parallelRenderingMode = false
 
     private var firstWaitSemaphore: LongBuffer = memAllocLong(1)
 
@@ -1672,7 +1675,10 @@ open class VulkanRenderer(hub: Hub,
         }
     }
 
+    private external fun sendImage(image: ByteBuffer)
+
     private fun submitFrame(queue: VkQueue, pass: VulkanRenderpass, commandBuffer: VulkanCommandBuffer, present: PresentHelpers) {
+        logger.info("In submitFrame function")
         if(swapchainRecreator.mustRecreate) {
             return
         }
@@ -1705,7 +1711,8 @@ open class VulkanRenderer(hub: Hub,
                 swapchain.images[pass.getReadPosition()])
         }
 
-        if (recordMovie || screenshotRequested || imageRequests.isNotEmpty()) {
+        if (parallelRenderingMode || recordMovie || screenshotRequested || imageRequests.isNotEmpty()) {
+            logger.info("In the first condition")
             val request = try {
                 imageRequests.poll()
             } catch(e: NoSuchElementException) {
@@ -1764,6 +1771,7 @@ open class VulkanRenderer(hub: Hub,
                         .imageSubresource(subresource)
 
                     val image = swapchain.images[pass.getReadPosition()]
+                    swapchain.images
 
                     VulkanTexture.transitionLayout(image,
                         VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
@@ -1784,7 +1792,7 @@ open class VulkanRenderer(hub: Hub,
                         flush = true, dealloc = true)
                 }
 
-                if(screenshotRequested || request != null) {
+                if(screenshotRequested || request != null || parallelRenderingMode) {
                     sb.copyTo(imageBuffer!!)
                 }
 
@@ -1792,7 +1800,7 @@ open class VulkanRenderer(hub: Hub,
                     encoder?.encodeFrame(sb.mapIfUnmapped().getByteBuffer(imageByteSize.toInt()))
                 }
 
-                if((screenshotRequested || request != null) && !recordMovie) {
+                if((screenshotRequested || request != null) && !(recordMovie || parallelRenderingMode)) {
                     sb.close()
                     screenshotBuffer = null
                 }
@@ -1853,6 +1861,115 @@ open class VulkanRenderer(hub: Hub,
             }
         }
 
+        if(parallelRenderingMode) {
+            logger.info("Image to be sent will be compiled")
+            val windowSize = 700
+            var imageBuf: ByteBuffer = ByteBuffer.allocateDirect(windowSize * windowSize * 7)
+
+            imageBuffer?.let{ ib->
+                val imageArray = ByteArray(ib.remaining())
+                ib.get(imageArray)
+                val shifted = ByteArray(windowSize * windowSize * 3)
+                ib.flip()
+
+                // swizzle BGRA -> RGB
+                var skip = 0
+                for (i in 0 until shifted.size step 3) {
+                    shifted[i] = imageArray[i + 3 + skip]
+                    shifted[i + 1] = imageArray[i + 2 + skip]
+                    shifted[i + 2] = imageArray[i + 1 + skip]
+                    skip += 1 // skip the alpha channel of imageArray in every iteration
+                }
+
+                val image = BufferedImage(window.width, window.height, BufferedImage.TYPE_4BYTE_ABGR)
+                val imgData = (image.raster.dataBuffer as DataBufferByte).data
+                System.arraycopy(shifted, 0, imgData, 0, shifted.size)
+            }
+
+
+            imageBuf.put(imageBuffer)
+
+            val depthByteSize = windowSize * windowSize * 4L
+            if(depthBuffer == null || depthBuffer?.size != depthByteSize) {
+                logger.debug("Reallocating depth vulkan buffer")
+                depthBuffer = VulkanBuffer(device, depthByteSize,
+                    VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+                    wantAligned = true)
+            }
+
+            if(depthBuf == null || depthBuf?.capacity() != depthByteSize.toInt()) {
+                logger.debug("Reallocating depth byte buffer")
+                depthBuf = ByteBuffer.allocateDirect(depthByteSize.toInt())
+            }
+
+            val fbWithDepth = renderpasses.entries
+                .first { it.value.output.any { it.value.depthAttachmentCount() > 0 }} // find the first render pass which has a framebuffer containing depth attachment(s)
+                .value.output.entries // for this render pass
+                .first { it.value.depthAttachmentCount() > 0 } // find the first framebuffer with depth attachment(s)
+
+            // now we have the framebuffer and need to recover the depth attachment from it
+
+            var found = false
+
+            fbWithDepth.value.attachments.forEach {
+                if(found) {
+                    return@forEach
+                }
+
+                if(it.value.type == VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT) {
+                    found = true
+                    val depthImage = it.value.image
+
+                    with(VU.newCommandBuffer(device, commandPools.Render, autostart = true)) {
+                        val subresource = VkImageSubresourceLayers.calloc()
+                            .aspectMask(VK_IMAGE_ASPECT_DEPTH_BIT)
+                            .mipLevel(0)
+                            .baseArrayLayer(0)
+                            .layerCount(1)
+
+                        val regions = VkBufferImageCopy.calloc(1)
+                            .bufferRowLength(0)
+                            .bufferImageHeight(0)
+                            .imageOffset(VkOffset3D.calloc().set(0, 0, 0))
+                            .imageExtent(VkExtent3D.calloc().set(windowSize, windowSize, 1))
+                            .imageSubresource(subresource)
+
+                        VulkanTexture.transitionLayout(depthImage,
+                            VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                            commandBuffer = this)
+
+                        vkCmdCopyImageToBuffer(this, depthImage,
+                            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                            depthBuffer!!.vulkanBuffer,
+                            regions)
+
+                        VulkanTexture.transitionLayout(depthImage,
+                            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                            VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                            commandBuffer = this)
+
+                        endCommandBuffer(this@VulkanRenderer.device, commandPools.Render, queue,
+                            flush = true, dealloc = true)
+                    }
+
+                    depthBuffer!!.copyTo(depthBuf!!)
+                    imageBuf.put(depthBuf)
+                    println("Yay")
+                }
+                // we have the depth attachment
+            }
+
+
+            try {
+                logger.info("Sending image")
+                sendImage(imageBuf)
+            } catch(e: Exception) {
+                e.printStackTrace()
+            }
+        }
+
         val presentDuration = System.nanoTime() - startPresent
         stats?.add("Renderer.viewportSubmitAndPresent", presentDuration)
 
@@ -1863,6 +1980,7 @@ open class VulkanRenderer(hub: Hub,
      * This function renders the scene
      */
     override fun render() = runBlocking {
+        logger.info("Rendering now!")
         val profiler = hub?.get<Profiler>()
 //        profiler?.begin("Renderer.Housekeeping")
         val swapchainChanged = pollEvents()
@@ -1927,6 +2045,7 @@ open class VulkanRenderer(hub: Hub,
         val rerecordingCauses = ArrayList<String>(20)
 
         profiler?.begin("Renderer.PreDraw")
+        logger.info("Beginning Pre Draw!")
         // here we discover the objects in the scene that could be relevant for the scene
         if (renderpasses.filter { it.value.passConfig.type != RenderConfigReader.RenderpassType.quad }.any()) {
             sceneObjects.await().forEach {
@@ -2012,6 +2131,7 @@ open class VulkanRenderer(hub: Hub,
         profiler?.end()
 
         profiler?.begin("Renderer.BeginFrame")
+        logger.info("Beginning Frame!")
         val presentedFrames = swapchain.presentedFrames()
         // return if neither UBOs were updated, nor the scene was modified
         if (pushMode && !swapchainChanged && !ubosUpdated && !forceRerecording && !screenshotRequested && totalFrames > 3 && presentedFrames > 3) {
@@ -2127,6 +2247,7 @@ open class VulkanRenderer(hub: Hub,
         profiler?.end()
 
         profiler?.begin("Renderer.SubmitFrame")
+        logger.info("Beginning Submit Frame!")
         submitFrame(queue, viewportPass, viewportCommandBuffer, ph)
 
         updateTimings()
@@ -3135,7 +3256,7 @@ open class VulkanRenderer(hub: Hub,
     }
 
     override fun activateParallelRendering() {
-        TODO("not implemented")
+        parallelRenderingMode = true
     }
 
     fun Int.toggle(): Int {
