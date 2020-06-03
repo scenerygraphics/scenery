@@ -1,9 +1,7 @@
 # scenery REPL python init file
 from org.joml import *
 from graphics.scenery import *
-from graphics.scenery.volumes import *
-from graphics.scenery.volumes import TransferFunction
-from graphics.scenery.volumes import Colormap
+from graphics.scenery.volumes import TransferFunction, Colormap, Volume
 from graphics.scenery.utils import *
 from graphics.scenery.net import *
 from graphics.scenery.compute import *
