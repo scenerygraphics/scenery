@@ -1,7 +1,11 @@
 package graphics.scenery
 
-import cleargl.GLVector
 import graphics.scenery.backends.ShaderType
+import graphics.scenery.utils.extensions.minus
+import graphics.scenery.utils.extensions.plus
+import graphics.scenery.utils.extensions.times
+import org.joml.Vector3f
+import org.joml.Vector4f
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
 
@@ -23,33 +27,18 @@ import java.nio.IntBuffer
  *
  * @author Vladimir Ulman <ulman@mpi-cbg.de>
  */
-class Arrow(var vector: GLVector = GLVector(0f,3)) : Node("Arrow"), HasGeometry {
-    /** Size of one vertex (e.g. 3 in 3D) */
-    override val vertexSize: Int = 3
-    /** Size of one texcoord (e.g. 2 in 3D) */
-    override val texcoordSize: Int = 2
-    /** Geometry type -- Default for Line is [GeometryType.LINE] */
-    override var geometryType: GeometryType = GeometryType.LINE_STRIP_ADJACENCY
-    /** Vertex buffer */
-    override var vertices: FloatBuffer = BufferUtils.allocateFloat(30)
-    /** Normal buffer */
-    override var normals: FloatBuffer = BufferUtils.allocateFloat(30)
-    /** Texcoord buffer */
-    override var texcoords: FloatBuffer = BufferUtils.allocateFloat(20)
-    /** Index buffer */
-    override var indices: IntBuffer = IntBuffer.wrap(intArrayOf())
-
+class Arrow(var vector: Vector3f = Vector3f(0.0f)) : Mesh("Arrow") {
     /** Shader property for the line's starting segment color. Consumed by the renderer. */
     @ShaderProperty
-    var startColor = GLVector(0.0f, 1.0f, 0.0f, 1.0f)
+    var startColor = Vector4f(0.0f, 1.0f, 0.0f, 1.0f)
 
     /** Shader property for the line's color. Consumed by the renderer. */
     @ShaderProperty
-    var lineColor = GLVector(1.0f, 1.0f, 1.0f, 1.0f)
+    var lineColor = Vector4f(1.0f, 1.0f, 1.0f, 1.0f)
 
     /** Shader property for the line's end segment color. Consumed by the renderer. */
     @ShaderProperty
-    var endColor = GLVector(0.7f, 0.5f, 0.5f, 1.0f)
+    var endColor = Vector4f(0.7f, 0.5f, 0.5f, 1.0f)
 
     /** Shader property for the line's cap length (start and end caps). Consumed by the renderer. */
     @ShaderProperty
@@ -65,9 +54,20 @@ class Arrow(var vector: GLVector = GLVector(0f,3)) : Node("Arrow"), HasGeometry 
     var edgeWidth = 2.0f
 
     //shortcut to null vector... to prevent from creating it anew with every call to reshape()
-    private val zeroGLvec = GLVector(0.0f, 0.0f, 0.0f)
+    private val zeroGLvec = Vector3f(0.0f, 0.0f, 0.0f)
 
     init {
+        /** Geometry type -- Default for Line is [GeometryType.LINE] */
+        geometryType = GeometryType.LINE_STRIP_ADJACENCY
+        /** Vertex buffer */
+        vertices = BufferUtils.allocateFloat(30)
+        /** Normal buffer */
+        normals = BufferUtils.allocateFloat(30)
+        /** Texcoord buffer */
+        texcoords = BufferUtils.allocateFloat(20)
+        /** Index buffer */
+        indices = IntBuffer.wrap(intArrayOf())
+
         material = ShaderMaterial.fromClass(Line::class.java, listOf(ShaderType.VertexShader, ShaderType.GeometryShader, ShaderType.FragmentShader))
         material.cullingMode = Material.CullingMode.None
 
@@ -79,7 +79,7 @@ class Arrow(var vector: GLVector = GLVector(0f,3)) : Node("Arrow"), HasGeometry 
      *
      * @param vector The vector defining the shape of the arrow
      */
-    fun reshape(vector: GLVector) {
+    fun reshape(vector: Vector3f) {
         //init the data structures
         clearPoints()
 
@@ -95,18 +95,18 @@ class Arrow(var vector: GLVector = GLVector(0f,3)) : Node("Arrow"), HasGeometry 
         var base = if (vector.x() == 0.0f && vector.y() == 0.0f) {
             //the input 'vector' must be parallel to the z-axis,
             //we can use this particular 'base' then
-            GLVector(0.0f, 1.0f, 0.0f)
+            Vector3f(0.0f, 1.0f, 0.0f)
         }
         else {
             //vector 'base' is perpendicular to the input 'vector'
-            GLVector(-vector.y(), vector.x(), 0.0f).normalize()
+            Vector3f(-vector.y(), vector.x(), 0.0f).normalize()
         }
 
         //the width of the "arrow head" triangle
-        val v = 0.1f * vector.magnitude()
+        val v = 0.1f * vector.length()
 
         //the first triangle:
-        base = base.times(v)
+        base = base * v
         addPoint(vector.times(0.8f).plus(base))
         addPoint(vector.times(0.8f).minus(base))
         addPoint(vector)
@@ -122,15 +122,17 @@ class Arrow(var vector: GLVector = GLVector(0f,3)) : Node("Arrow"), HasGeometry 
         addPoint(vector)
     }
 
-    private fun addPoint(p: GLVector) {
+    private fun addPoint(p: Vector3f) {
         vertices.position(vertices.limit())
         vertices.limit(vertices.limit() + 3)
-        vertices.put(p.toFloatArray())
+        p.get(vertices)
+        vertices.position(vertices.position() + 3)
         vertices.flip()
 
         normals.position(normals.limit())
         normals.limit(normals.limit() + 3)
-        normals.put(p.toFloatArray())
+        p.get(normals)
+        normals.position(normals.position() + 3)
         normals.flip()
 
         texcoords.position(texcoords.limit())

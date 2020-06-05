@@ -2,8 +2,10 @@ package graphics.scenery.repl
 
 import graphics.scenery.Hub
 import graphics.scenery.Hubable
+import net.imagej.lut.LUTService
 import org.scijava.Context
 import org.scijava.`object`.ObjectService
+import org.scijava.script.ScriptREPL
 import org.scijava.ui.swing.script.InterpreterWindow
 import java.util.*
 
@@ -20,21 +22,33 @@ class REPL @JvmOverloads constructor(override var hub : Hub?, scijavaContext: Co
     /** SciJava context for the REPL */
     protected var context: Context
     /** SciJava interpreter window, handles input and output. */
-    protected var interpreterWindow: InterpreterWindow
+    protected var interpreterWindow: InterpreterWindow? = null
+    /** SciJava REPL **/
+    protected var repl: ScriptREPL? = null
     /** Code to evaluate upon launch. */
     protected var startupScriptCode: String = ""
     /** A startup script to evaluate upon launch. */
-    protected var startupScript = "startup.js"
+    protected var startupScript = "startup.py"
     /** The [startupScript] will be searched for in the resources of this class. */
     protected var startupScriptClass: Class<*> = REPL::class.java
 
     init {
         hub?.add(this)
-        context = scijavaContext ?: Context()
-        interpreterWindow = InterpreterWindow(context)
-        interpreterWindow.isVisible = false
+        val headless = (System.getProperty("scenery.Headless", "false")?.toBoolean() ?: false) || (System.getProperty("java.awt.headless", "false")?.toBoolean() ?: false)
 
-        startupScriptCode = Scanner(startupScriptClass.getResourceAsStream(startupScript), "UTF-8").useDelimiter("\\A").next()
+        context = scijavaContext ?: Context(ObjectService::class.java, LUTService::class.java)
+
+        if(!headless) {
+            interpreterWindow = InterpreterWindow(context)
+            interpreterWindow?.isVisible = false
+            repl = interpreterWindow?.repl
+        } else {
+            repl = ScriptREPL(context, System.out)
+            repl?.lang("Python")
+            repl?.initialize()
+        }
+
+        setStartupScript(startupScript, startupScriptClass)
         accessibleObjects.forEach { context.getService(ObjectService::class.java).addObject(it) }
     }
 
@@ -64,23 +78,22 @@ class REPL @JvmOverloads constructor(override var hub : Hub?, scijavaContext: Co
      * Shows the interpreter window
      */
     fun showConsoleWindow() {
-        interpreterWindow.isVisible = true
+        interpreterWindow?.isVisible = true
     }
 
     /**
      * Hides the interpreter window
      */
     fun hideConsoleWindow() {
-        interpreterWindow.isVisible = false
+        interpreterWindow?.isVisible = false
     }
 
     /**
      * Launches the REPL and evaluates any set startup code.
      */
     fun start() {
-        // waiting for scijava/scijava-ui-swing#22
-        interpreterWindow.repl.lang("JavaScript")
-        interpreterWindow.repl.interpreter.eval(startupScriptCode)
+        repl?.lang("Python")
+        eval(startupScriptCode)
     }
 
     /**
@@ -88,7 +101,7 @@ class REPL @JvmOverloads constructor(override var hub : Hub?, scijavaContext: Co
      *
      * @param[code] The code to evaluate.
      */
-    fun eval(code: String) {
-        interpreterWindow.repl.interpreter.eval(code)
+    fun eval(code: String): Any? {
+        return repl?.interpreter?.eval(code)
     }
 }

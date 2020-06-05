@@ -124,7 +124,7 @@ class OpenVRHMDTests {
 
         hmd.update()
         val o = hmd.getOrientation()
-        assertFalse(o.isIdentity, "HMD orientation should not be identity.")
+        assertFalse(!(o.x == 0.0f && o.y == 0.0f && o.z == 0.0f && o.w == 1.0f), "HMD orientation should not be identity.")
     }
 
     /**

@@ -1,12 +1,17 @@
-package graphics.scenery.tests.examples.bdv
+package graphics.scenery.tests.examples.volumes
 
-import cleargl.GLVector
+import bdv.spimdata.XmlIoSpimDataMinimal
+import org.joml.Vector3f
 import graphics.scenery.Camera
 import graphics.scenery.DetachedHeadCamera
 import graphics.scenery.PointLight
 import graphics.scenery.SceneryBase
 import graphics.scenery.backends.Renderer
-import graphics.scenery.volumes.bdv.BDVVolume
+import graphics.scenery.volumes.Colormap
+import graphics.scenery.volumes.TransferFunction
+import graphics.scenery.volumes.Volume
+import net.imagej.ops.OpService
+import net.imglib2.histogram.Histogram1d
 import org.junit.Test
 import org.scijava.Context
 import org.scijava.ui.UIService
@@ -14,7 +19,8 @@ import org.scijava.ui.behaviour.ClickBehaviour
 import org.scijava.widget.FileWidget
 import tpietzsch.example2.VolumeViewerOptions
 import java.util.*
-import kotlin.math.max
+import kotlin.math.roundToInt
+import kotlin.system.measureTimeMillis
 
 /**
  * BDV Rendering Example
@@ -22,8 +28,11 @@ import kotlin.math.max
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class BDVExample: SceneryBase("BDV Rendering example", 1280, 720) {
-    var volume: BDVVolume? = null
-    var currentCacheSize = 1024
+    var volume: Volume? = null
+    var maxCacheSize = 512
+    val context = Context(UIService::class.java, OpService::class.java)
+    val ui = context.getService(UIService::class.java)
+    val ops = context.getService(OpService::class.java)
 
     override fun init() {
         val files = ArrayList<String>()
@@ -32,8 +41,6 @@ class BDVExample: SceneryBase("BDV Rendering example", 1280, 720) {
         if(fileFromProperty != null) {
             files.add(fileFromProperty)
         } else {
-            val c = Context()
-            val ui = c.getService(UIService::class.java)
             val file = ui.chooseFile(null, FileWidget.OPEN_STYLE)
             files.add(file.absolutePath)
         }
@@ -48,20 +55,33 @@ class BDVExample: SceneryBase("BDV Rendering example", 1280, 720) {
 
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
-            perspectiveCamera(50.0f, 1.0f*windowWidth, 1.0f*windowHeight)
-            active = true
-
-//            position = GLVector(170.067406f, -138.45601f, -455.9538f)
-//            rotation = Quaternion(-0.05395214f, 0.94574946f, -0.23843345f, 0.21400182f)
+            perspectiveCamera(50.0f, windowWidth, windowHeight)
 
             scene.addChild(this)
         }
 
-        val options = VolumeViewerOptions().maxCacheSizeInMB(1024)
-        val v = BDVVolume(files.first(), options)
+        val options = VolumeViewerOptions().maxCacheSizeInMB(maxCacheSize)
+        val v = Volume.fromSpimData(XmlIoSpimDataMinimal().load(files.first()), hub, options)
         v.name = "volume"
-        v.colormap = "plasma"
-        v.scale = GLVector(0.02f, 0.02f, 0.02f)
+        v.colormap = Colormap.get("hot")
+        v.transferFunction = TransferFunction.ramp(0.02f, 0.4f)
+        v.viewerState.sources.firstOrNull()?.spimSource?.getSource(0, 0)?.let { rai ->
+            var h: Any? = null
+            val duration = measureTimeMillis {
+                h = ops.run("image.histogram", rai, 1024)
+            }
+
+            val histogram = h as? Histogram1d<*> ?: return@let
+            logger.info("Got histogram $histogram for t=0 l=0 in $duration ms")
+
+            logger.info("min: ${histogram.min()} max: ${histogram.max()} bins: ${histogram.binCount} DFD: ${histogram.dfd().modePositions().firstOrNull()?.joinToString(",")}")
+            histogram.forEachIndexed { index, longType ->
+                val relativeCount = (longType.get().toFloat()/histogram.totalCount().toFloat()) * histogram.binCount
+                val bar = "*".repeat(relativeCount.roundToInt())
+                val position = (index.toFloat()/histogram.binCount.toFloat())*(65536.0f/histogram.binCount.toFloat())
+               logger.info("%.3f: $bar".format(position))
+            }
+        }
         scene.addChild(v)
 
         volume = v
@@ -71,8 +91,8 @@ class BDVExample: SceneryBase("BDV Rendering example", 1280, 720) {
         }
 
         lights.mapIndexed { i, light ->
-            light.position = GLVector(2.0f * i - 4.0f,  i - 1.0f, 0.0f)
-            light.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
+            light.position = Vector3f(2.0f * i - 4.0f,  i - 1.0f, 0.0f)
+            light.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
             light.intensity = 50.0f
             scene.addChild(light)
         }
@@ -91,16 +111,6 @@ class BDVExample: SceneryBase("BDV Rendering example", 1280, 720) {
             val current = volume?.currentTimepoint ?: 0
             volume?.goToTimePoint(current - 10)
         }
-        val moreCache = ClickBehaviour { _, _ ->
-            currentCacheSize *= 2
-            logger.info("Enlarging cache size to $currentCacheSize MB")
-            volume?.resizeCache(currentCacheSize)
-        }
-        val lessCache = ClickBehaviour { _, _ ->
-            currentCacheSize = max(currentCacheSize / 2, 256)
-            logger.info("Cutting cache size to $currentCacheSize MB")
-            volume?.resizeCache(max(currentCacheSize / 2, 256))
-        }
 
         inputHandler?.addBehaviour("prev_timepoint", prevTimePoint)
         inputHandler?.addKeyBinding("prev_timepoint", "H")
@@ -113,12 +123,6 @@ class BDVExample: SceneryBase("BDV Rendering example", 1280, 720) {
 
         inputHandler?.addBehaviour("10_next_timepoint", tenTimePointsForward)
         inputHandler?.addKeyBinding("10_next_timepoint", "shift L")
-
-        inputHandler?.addBehaviour("more_cache", moreCache)
-        inputHandler?.addKeyBinding("more_cache", "9")
-
-        inputHandler?.addBehaviour("less_cache", lessCache)
-        inputHandler?.addKeyBinding("less_cache", "0")
     }
 
     @Test override fun main() {

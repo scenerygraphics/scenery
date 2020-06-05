@@ -1,6 +1,6 @@
 package graphics.scenery.tests.examples.advanced
 
-import cleargl.GLVector
+import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
@@ -18,9 +18,8 @@ class MultiBoxInstancedExample : SceneryBase("MultiBoxInstancedExample") {
 
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
-            position = GLVector(10.0f, 10.0f, 10.0f)
-            perspectiveCamera(60.0f, 1.0f * windowWidth, 1.0f * windowHeight, 1.0f, 1000.0f)
-            active = true
+            position = Vector3f(10.0f, 10.0f, 10.0f)
+            perspectiveCamera(60.0f, windowWidth, windowHeight, 1.0f, 1000.0f)
 
             scene.addChild(this)
         }
@@ -30,13 +29,13 @@ class MultiBoxInstancedExample : SceneryBase("MultiBoxInstancedExample") {
 
         val container = Mesh()
 
-        val b = Box(GLVector(0.7f, 0.7f, 0.7f))
+        val b = Box(Vector3f(0.7f, 0.7f, 0.7f))
         b.name = "boxmaster"
         b.instancedProperties.put("ModelMatrix", { b.model })
         b.material = ShaderMaterial.fromFiles("DefaultDeferredInstanced.vert", "DefaultDeferred.frag")
-        b.material.diffuse = GLVector(1.0f, 1.0f, 1.0f)
-        b.material.ambient = GLVector(1.0f, 1.0f, 1.0f)
-        b.material.specular = GLVector(1.0f, 1.0f, 1.0f)
+        b.material.diffuse = Vector3f(1.0f, 1.0f, 1.0f)
+        b.material.ambient = Vector3f(1.0f, 1.0f, 1.0f)
+        b.material.specular = Vector3f(1.0f, 1.0f, 1.0f)
         b.material.metallic = 0.0f
         b.material.roughness = 1.0f
 
@@ -53,7 +52,7 @@ class MultiBoxInstancedExample : SceneryBase("MultiBoxInstancedExample") {
             val j: Double = (it / boundaryWidth).rem(boundaryHeight)
             val i: Double = it / (boundaryWidth * boundaryHeight)
 
-            inst.position = GLVector(Math.floor(i).toFloat(), Math.floor(j).toFloat(), Math.floor(k).toFloat())
+            inst.position = Vector3f(Math.floor(i).toFloat(), Math.floor(j).toFloat(), Math.floor(k).toFloat())
 
             b.instances.add(inst)
             inst.parent = container
@@ -63,34 +62,34 @@ class MultiBoxInstancedExample : SceneryBase("MultiBoxInstancedExample") {
         val lights = (0..20).map {
             PointLight(radius = 250.0f)
         }.map {
-            it.position = Random.randomVectorFromRange(3, -100.0f, 100.0f)
-            it.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
+            it.position = Random.random3DVectorFromRange(-100.0f, 100.0f)
+            it.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
             it.intensity = Random.randomFromRange(0.1f, 0.5f)
 
             scene.addChild(it)
             it
         }
 
-        val hullbox = Box(GLVector(100.0f, 100.0f, 100.0f))
-        hullbox.position = GLVector(0.0f, 0.0f, 0.0f)
+        val hullbox = Box(Vector3f(100.0f, 100.0f, 100.0f))
+        hullbox.position = Vector3f(0.0f, 0.0f, 0.0f)
         hullbox.name = "hullbox"
-        hullbox.material.ambient = GLVector(0.6f, 0.6f, 0.6f)
-        hullbox.material.diffuse = GLVector(0.4f, 0.4f, 0.4f)
-        hullbox.material.specular = GLVector(0.0f, 0.0f, 0.0f)
+        hullbox.material.ambient = Vector3f(0.6f, 0.6f, 0.6f)
+        hullbox.material.diffuse = Vector3f(0.4f, 0.4f, 0.4f)
+        hullbox.material.specular = Vector3f(0.0f, 0.0f, 0.0f)
         hullbox.material.cullingMode = Material.CullingMode.Front
 
         scene.addChild(hullbox)
 
         thread {
             while (running) {
-                container.rotation.rotateByEuler(0.001f, 0.001f, 0.0f)
+                container.rotation.rotateXYZ(0.001f, 0.001f, 0.0f)
                 container.needsUpdateWorld = true
                 container.needsUpdate = true
                 container.updateWorld(true, false)
 
                 val inst = Mesh()
                 inst.instancedProperties["ModelMatrix"] = { inst.world }
-                inst.position = Random.randomVectorFromRange(3, -40.0f, 40.0f)
+                inst.position = Random.random3DVectorFromRange(-40.0f, 40.0f)
                 inst.parent = container
                 b.instances.add(inst)
                 b.instances.removeAt(kotlin.random.Random.nextInt(b.instances.size - 1))

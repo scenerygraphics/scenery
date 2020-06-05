@@ -12,7 +12,6 @@ import org.lwjgl.system.MemoryStack.stackPush
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.MemoryUtil.memFree
 import org.lwjgl.vulkan.*
-import org.lwjgl.vulkan.KHRGetSurfaceCapabilities2.*
 import org.lwjgl.vulkan.KHRSurface.vkDestroySurfaceKHR
 import org.lwjgl.vulkan.KHRSwapchain.VK_ERROR_OUT_OF_DATE_KHR
 import org.lwjgl.vulkan.KHRSwapchain.vkAcquireNextImageKHR
@@ -62,7 +61,7 @@ open class VulkanSwapchain(open val device: VulkanDevice,
     /** Surface of the window to render into. */
     open var surface: Long = 0
     /** [SceneryWindow] instance we are using. */
-    lateinit var window: SceneryWindow
+    open lateinit var window: SceneryWindow
     /** Callback to use upon window resizing. */
     lateinit var windowSizeCallback: GLFWWindowSizeCallback
 
@@ -185,19 +184,19 @@ open class VulkanSwapchain(open val device: VulkanDevice,
             val preferredSwapchainPresentMode = if(vsync) {
                 KHRSurface.VK_PRESENT_MODE_FIFO_KHR
             } else {
-                KHRSurface.VK_PRESENT_MODE_MAILBOX_KHR
+                KHRSurface.VK_PRESENT_MODE_IMMEDIATE_KHR
             }
 
             val swapchainPresentMode = findBestPresentMode(presentModes,
                 preferredSwapchainPresentMode)
-
-            logger.debug("Selected present mode: ${swapchainModeToName(swapchainPresentMode)}")
 
             // Determine the number of images
             var desiredNumberOfSwapchainImages = surfCaps.minImageCount()
             if (surfCaps.maxImageCount() in 1 until desiredNumberOfSwapchainImages) {
                 desiredNumberOfSwapchainImages = surfCaps.maxImageCount()
             }
+
+            logger.info("Selected present mode: ${swapchainModeToName(swapchainPresentMode)} with $desiredNumberOfSwapchainImages images")
 
             val currentWidth = surfCaps.currentExtent().width()
             val currentHeight = surfCaps.currentExtent().height()
@@ -451,7 +450,7 @@ open class VulkanSwapchain(open val device: VulkanDevice,
     override fun next(timeout: Long, signalSemaphore: Long): Boolean {
         // wait for the present queue to become idle - by doing this here
         // we avoid stalling the GPU and gain a few FPS
-        VK10.vkQueueWaitIdle(presentQueue)
+        // VK10.vkQueueWaitIdle(presentQueue)
 
         val err = vkAcquireNextImageKHR(device.vulkanDevice, handle, timeout,
             signalSemaphore,

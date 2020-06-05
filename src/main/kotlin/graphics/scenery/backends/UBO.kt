@@ -4,6 +4,7 @@ import cleargl.GLMatrix
 import cleargl.GLVector
 import gnu.trove.map.hash.TIntObjectHashMap
 import graphics.scenery.utils.LazyLogger
+import org.joml.*
 import org.lwjgl.system.MemoryUtil
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -44,14 +45,17 @@ open class UBO {
     @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
     protected fun sizeOf(element: Any): Int {
         return when(element) {
-            is GLVector -> element.toFloatArray().size
-            is GLMatrix -> element.floatArray.size
+            is Vector2f, is Vector2i -> 2
+            is Vector3f, is Vector3i -> 3
+            is Vector4f, is Vector4i -> 4
+            is Matrix4f -> 4 * 4
             is Float, is java.lang.Float -> 4
             is Double, is java.lang.Double -> 8
             is Int, is Integer -> 4
             is Short, is java.lang.Short  -> 2
             is Boolean, is java.lang.Boolean -> 4
             is Enum<*> -> 4
+            is FloatArray -> element.size * 4
             else -> { logger.error("Don't know how to determine size of $element"); 0 }
         }
     }
@@ -70,6 +74,18 @@ open class UBO {
             is Short, is java.lang.Short  -> 5
             is Boolean, is java.lang.Boolean -> 6
             is Enum<*> -> 7
+
+            is Vector2f -> 8
+            is Vector3f -> 9
+            is Vector4f -> 10
+
+            is Vector2i -> 11
+            is Vector3i -> 12
+            is Vector4i -> 13
+
+            is Matrix4f -> 14
+
+            is FloatArray -> 15
             else -> { logger.error("Don't know how to determine object ID of $this/${this.javaClass.simpleName}"); -1 }
         }
     }
@@ -87,19 +103,12 @@ open class UBO {
             return alignments.get(key)
         } else {
             val sa = when (element) {
-                is GLMatrix -> Pair(element.floatArray.size * 4, 4 * 4)
+                is Matrix4f -> Pair(4 * 4 * 4, 4 * 4)
 
-                is GLVector -> {
-                    val size = element.toFloatArray().size
-                    val alignment = when (size) {
-                        2 -> 2
-                        3 -> 4
-                        4 -> 4
-                        else -> 4
-                    }
+                is Vector2f, is Vector2i -> Pair(2*4, 2*4)
+                is Vector3f, is Vector3i -> Pair(3*4, 4*4)
+                is Vector4f, is Vector4i -> Pair(4*4, 4*4)
 
-                    Pair(size * 4, alignment * 4)
-                }
                 is Float -> Pair(4, 4)
                 is Double -> Pair(8, 8)
                 is Integer -> Pair(4, 4)
@@ -107,6 +116,8 @@ open class UBO {
                 is Short -> Pair(2, 2)
                 is Boolean -> Pair(4, 4)
                 is Enum<*> -> Pair(4, 4)
+
+                is FloatArray -> Pair(4*element.size, 4*4)
 
                 else -> {
                     logger.error("Unknown VulkanUBO member type: ${element.javaClass.simpleName}")
@@ -217,8 +228,16 @@ open class UBO {
             }
 
             when (value) {
-                is GLMatrix -> value.push(data)
-                is GLVector -> value.push(data)
+                is Matrix4f -> value.get(data)
+
+                is Vector2i -> value.get(data)
+                is Vector3i -> value.get(data)
+                is Vector4i -> value.get(data)
+
+                is Vector2f -> value.get(data)
+                is Vector3f -> value.get(data)
+                is Vector4f -> value.get(data)
+
                 is Float -> data.asFloatBuffer().put(0, value)
                 is Double -> data.asDoubleBuffer().put(0, value)
                 is Integer -> data.asIntBuffer().put(0, value.toInt())
@@ -226,6 +245,8 @@ open class UBO {
                 is Short -> data.asShortBuffer().put(0, value)
                 is Boolean -> data.asIntBuffer().put(0, value.toInt())
                 is Enum<*> -> data.asIntBuffer().put(0, value.ordinal)
+
+                is FloatArray -> data.asFloatBuffer().put(value)
             }
 
             data.position(pos + size)

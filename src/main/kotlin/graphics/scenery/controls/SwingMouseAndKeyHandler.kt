@@ -29,12 +29,13 @@
  */
 package graphics.scenery.controls
 
-import cleargl.GLVector
+import org.joml.Vector3f
 import com.jogamp.newt.awt.NewtCanvasAWT
 import gnu.trove.set.TIntSet
 import graphics.scenery.Hub
 import graphics.scenery.Settings
 import graphics.scenery.backends.SceneryWindow
+import org.joml.Vector2f
 import org.scijava.ui.behaviour.*
 import org.scijava.ui.behaviour.KeyPressedManager.KeyPressedReceiver
 import java.awt.Component
@@ -162,7 +163,7 @@ class SwingMouseAndKeyHandler(var hub: Hub? = null) : MouseAndKeyHandlerBase(), 
 
 
     override fun mouseDragged(e: MouseEvent) {
-        val surfaceScale = hub?.get<Settings>()?.get("Renderer.SurfaceScale", GLVector(1.0f, 1.0f)) ?: GLVector(1.0f, 1.0f)
+        val surfaceScale = hub?.get<Settings>()?.get("Renderer.SurfaceScale", Vector2f(1.0f, 1.0f)) ?: Vector2f(1.0f, 1.0f)
 
         logger.trace( "MouseAndKeyHandler.mouseDragged()" );
         //		logger.trace( e );
@@ -176,7 +177,7 @@ class SwingMouseAndKeyHandler(var hub: Hub? = null) : MouseAndKeyHandlerBase(), 
     }
 
     override fun mouseMoved(e: MouseEvent) {
-        val surfaceScale = hub?.get<Settings>()?.get("Renderer.SurfaceScale", GLVector(1.0f, 1.0f)) ?: GLVector(1.0f, 1.0f)
+        val surfaceScale = hub?.get<Settings>()?.get("Renderer.SurfaceScale", Vector2f(1.0f, 1.0f)) ?: Vector2f(1.0f, 1.0f)
 
         logger.trace( "MouseAndKeyHandler.mouseMoved()" );
         update()
@@ -189,7 +190,7 @@ class SwingMouseAndKeyHandler(var hub: Hub? = null) : MouseAndKeyHandlerBase(), 
     }
 
     override fun mouseWheelMoved(e: MouseWheelEvent) {
-        val surfaceScale = hub?.get<Settings>()?.get("Renderer.SurfaceScale", GLVector(1.0f, 1.0f)) ?: GLVector(1.0f, 1.0f)
+        val surfaceScale = hub?.get<Settings>()?.get("Renderer.SurfaceScale", Vector2f(1.0f, 1.0f)) ?: Vector2f(1.0f, 1.0f)
 
         logger.trace( "MouseAndKeyHandler.mouseWheelMoved()" );
         //		logger.trace( e );
@@ -218,7 +219,7 @@ class SwingMouseAndKeyHandler(var hub: Hub? = null) : MouseAndKeyHandlerBase(), 
     }
 
     override fun mouseClicked(e: MouseEvent) {
-        val surfaceScale = hub?.get<Settings>()?.get("Renderer.SurfaceScale", GLVector(1.0f, 1.0f)) ?: GLVector(1.0f, 1.0f)
+        val surfaceScale = hub?.get<Settings>()?.get("Renderer.SurfaceScale", Vector2f(1.0f, 1.0f)) ?: Vector2f(1.0f, 1.0f)
         logger.trace( "MouseAndKeyHandler.mouseClicked()" );
         //		logger.trace( e );
         update()
@@ -236,7 +237,7 @@ class SwingMouseAndKeyHandler(var hub: Hub? = null) : MouseAndKeyHandlerBase(), 
     }
 
     override fun mousePressed(e: MouseEvent) {
-        val surfaceScale = hub?.get<Settings>()?.get("Renderer.SurfaceScale", GLVector(1.0f, 1.0f)) ?: GLVector(1.0f, 1.0f)
+        val surfaceScale = hub?.get<Settings>()?.get("Renderer.SurfaceScale", Vector2f(1.0f, 1.0f)) ?: Vector2f(1.0f, 1.0f)
         logger.trace( "MouseAndKeyHandler.mousePressed()" )
         //		logger.trace( e );
         update()
@@ -254,7 +255,7 @@ class SwingMouseAndKeyHandler(var hub: Hub? = null) : MouseAndKeyHandlerBase(), 
     }
 
     override fun mouseReleased(e: MouseEvent) {
-        val surfaceScale = hub?.get<Settings>()?.get("Renderer.SurfaceScale", GLVector(1.0f, 1.0f)) ?: GLVector(1.0f, 1.0f)
+        val surfaceScale = hub?.get<Settings>()?.get("Renderer.SurfaceScale", Vector2f(1.0f, 1.0f)) ?: Vector2f(1.0f, 1.0f)
         logger.trace( "MouseAndKeyHandler.mouseReleased()" )
         //		logger.trace( e );
         update()
@@ -328,7 +329,7 @@ class SwingMouseAndKeyHandler(var hub: Hub? = null) : MouseAndKeyHandlerBase(), 
         keypressManager: KeyPressedManager,
         focus: Runnable) {
         this.keypressManager = keypressManager
-        this.receiver = KeyPressedReceiver { mask, doubleClick, pressedKeys ->
+        this.receiver = KeyPressedReceiver { _, mask, doubleClick, pressedKeys ->
             if (this@SwingMouseAndKeyHandler.handleKeyPressed(mask, doubleClick, pressedKeys, true))
                 focus.run()
             this@SwingMouseAndKeyHandler.handleKeyPressed(mask, doubleClick, pressedKeys, false)

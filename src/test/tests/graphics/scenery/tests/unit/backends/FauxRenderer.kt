@@ -1,8 +1,6 @@
 package graphics.scenery.tests.unit.backends
 
-import graphics.scenery.Hub
-import graphics.scenery.Scene
-import graphics.scenery.Settings
+import graphics.scenery.*
 import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.backends.Renderer
 import graphics.scenery.backends.SceneryWindow
@@ -28,7 +26,7 @@ class FauxRenderer(override var hub: Hub?, var scene: Scene, preparedWindow: Sce
     /**
      * Renders the scene
      */
-    override fun render() {
+    override fun render(activeCamera: Camera, sceneNodes: List<Node>) {
         logger.info("Rendering")
     }
 

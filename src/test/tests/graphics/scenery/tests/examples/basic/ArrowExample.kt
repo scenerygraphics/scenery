@@ -1,8 +1,9 @@
 package graphics.scenery.tests.examples.basic
 
-import cleargl.GLVector
+import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
+import graphics.scenery.utils.extensions.minus
 import org.junit.Test
 import kotlin.concurrent.thread
 import kotlin.math.PI
@@ -31,8 +32,8 @@ class ArrowExample : SceneryBase("ArrowExample") {
 
     private fun setupScene() {
         //boundaries of our world
-        val hull = Box(GLVector(50.0f, 50.0f, 50.0f), insideNormals = true)
-        hull.material.diffuse = GLVector(0.2f, 0.2f, 0.2f)
+        val hull = Box(Vector3f(50.0f, 50.0f, 50.0f), insideNormals = true)
+        hull.material.diffuse = Vector3f(0.2f, 0.2f, 0.2f)
         hull.material.cullingMode = Material.CullingMode.Front
         scene.addChild(hull)
 
@@ -42,20 +43,19 @@ class ArrowExample : SceneryBase("ArrowExample") {
         {
             val l = PointLight(radius = 200.0f)
             l.intensity = 5.0f
-            l.emissionColor = GLVector(1.0f,3)
+            l.emissionColor = Vector3f(1.0f)
 
             scene.addChild(l)
             pl = pl.plus(l)
         }
-        pl[0].position = GLVector(0f,10f,0f)
-        pl[1].position = GLVector(0f,-10f,0f)
-        pl[2].position = GLVector(-10f,0f,0f)
-        pl[3].position = GLVector(10f,0f,0f)
+        pl[0].position = Vector3f(0f,10f,0f)
+        pl[1].position = Vector3f(0f,-10f,0f)
+        pl[2].position = Vector3f(-10f,0f,0f)
+        pl[3].position = Vector3f(10f,0f,0f)
 
         val cam: Camera = DetachedHeadCamera()
-        cam.position = GLVector(0.0f, 0.0f, 15.0f)
-        cam.perspectiveCamera(50.0f, windowWidth.toFloat(), windowHeight.toFloat())
-        cam.active = true
+        cam.position = Vector3f(0.0f, 0.0f, 15.0f)
+        cam.perspectiveCamera(50.0f, windowWidth, windowHeight)
         scene.addChild(cam)
     }
 
@@ -63,19 +63,19 @@ class ArrowExample : SceneryBase("ArrowExample") {
     private fun useScene() {
         //we shall have faint and bright vectors...
         val matBright = Material()
-        matBright.diffuse  = GLVector(0.0f, 1.0f, 0.0f)
-        matBright.ambient  = GLVector(1.0f, 1.0f, 1.0f)
-        matBright.specular = GLVector(1.0f, 1.0f, 1.0f)
+        matBright.diffuse  = Vector3f(0.0f, 1.0f, 0.0f)
+        matBright.ambient  = Vector3f(1.0f, 1.0f, 1.0f)
+        matBright.specular = Vector3f(1.0f, 1.0f, 1.0f)
         matBright.cullingMode = Material.CullingMode.None
 
         val matFaint = Material()
-        matFaint.diffuse  = GLVector(0.0f, 0.6f, 0.6f)
-        matFaint.ambient  = GLVector(1.0f, 1.0f, 1.0f)
-        matFaint.specular = GLVector(1.0f, 1.0f, 1.0f)
+        matFaint.diffuse  = Vector3f(0.0f, 0.6f, 0.6f)
+        matFaint.ambient  = Vector3f(1.0f, 1.0f, 1.0f)
+        matFaint.specular = Vector3f(1.0f, 1.0f, 1.0f)
         matFaint.cullingMode = Material.CullingMode.None
 
         //... arranged along a circle
-        val circleCentre = GLVector(0.0f,3)
+        val circleCentre = Vector3f(0.0f)
         val circleRadius = 6.0f
 
         val arrowsInCircle = 30
@@ -83,17 +83,17 @@ class ArrowExample : SceneryBase("ArrowExample") {
 
         //create the circle of vectors
         var al = emptyArray<Arrow>()
-        var lastPos = GLVector(circleRadius,0f,0f)
-        var currPos : GLVector
+        var lastPos = Vector3f(circleRadius,0f,0f)
+        var currPos : Vector3f
         for (i in 1..arrowsInCircle)
         {
             val curAng = (i*2.0f* PI/arrowsInCircle).toFloat()
-            currPos = GLVector(circleRadius*cos(curAng) +circleCentre.x(),
+            currPos = Vector3f(circleRadius*cos(curAng) +circleCentre.x(),
                                circleRadius*sin(curAng) +circleCentre.y(),
                                circleCentre.z())
 
             // ========= this is how you create an Arrow =========
-            val a = Arrow(currPos.minus(lastPos))  //shape of the vector itself
+            val a = Arrow(currPos - lastPos)  //shape of the vector itself
             a.position = lastPos                   //position/base of the vector
             a.material = matFaint                  //usual stuff follows...
             a.edgeWidth = 0.5f

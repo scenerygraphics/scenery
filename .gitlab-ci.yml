@@ -1,0 +1,76 @@
+cache:
+  paths:
+    - maven.repository/
+ 
+variables:
+  MAVEN_OPTS: "-Dmaven.repo.local=maven.repository -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=WARN -Xmx4g -Dorg.lwjgl.util.Debug=true -Dorg.lwjgl.util.DebugLoader=true"
+  JAVA_HOME: "/usr/lib/jvm/java-8-openjdk-amd64"
+ 
+.base-job: &base-job
+  before_script:
+    # Installs Maven, Vulkan development libraries, etc.
+    - apt-get update -qq --force-yes > /dev/null
+    - apt-get install -qq -y --allow-downgrades --allow-remove-essential --allow-change-held-packages unzip wget git maven openjdk-8-jdk-headless libvulkan1 libvulkan-dev vulkan-utils ocl-icd-opencl-dev clinfo curl > /dev/null
+    - curl -sL https://deb.nodesource.com/setup_13.x | bash -
+    - apt-get install -qq --force-yes nodejs
+    - npm install --save argos-cli
+    - mkdir -p /etc/OpenCL/vendors && echo "libnvidia-opencl.so.1" > /etc/OpenCL/vendors/nvidia.icd
+    # Output Vulkan driver information, but do not fail in case of non-zero
+    # return (happens e.g. if $DISPLAY is not set)
+    - vulkaninfo || true
+    - clinfo || true
+    - wget -q https://ulrik.is/scenery-demo-models.zip
+    - unzip -q scenery-demo-models.zip
+  script:
+    - mvn -B -Pintegration-tests package test -Dscenery.Renderer=VulkanRenderer -Dscenery.LogLevel=info -Dscenery.ExampleRunner.OutputDir=screenshots
+  artifacts:
+    when: always
+    expire_in: 48h
+    paths:
+      - results.tar.bz2
+
+scenery-nvidia:
+  image: nvidia/vulkan:1.1.121-cuda-10.1-alpha
+  <<: *base-job
+  after_script:
+    - nvidia-smi
+    - tar cvjf results.tar.bz2 screenshots/
+    - ARGOS_COMMIT=$CI_COMMIT_SHA ARGOS_BRANCH=$CI_COMMIT_REF_NAME ./node_modules/argos-cli/bin/argos upload screenshots/ --token $ARGOS_TOKEN || true
+    - mvn -B jacoco:report
+    - bash <(curl -s https://codecov.io/bash) -c -F integrationtests || true
+  tags:
+    - cuda
+    - intel
+
+#scenery-amd:
+#  image: rocm/rocm-terminal
+#  <<: *base-job
+#  variables:
+#    SUDO: "sudo"
+#    GPURUN: "sudo su -m - rocm-user -c"
+#  before_script:
+#    # The rocm docker container requires the user to be in the video group which
+#    # can usually be set via docker's --group-add option. GitLab-Runner currently
+#    # has no known option for doing that. Therefore, it manually has to happen in
+#    # the job description. 
+#    - $SUDO usermod -a -G video rocm-user
+#    # Installs Maven, Vulkan development libraries, etc.
+#    - $SUDO apt-get -qq --force-yes update > /dev/null
+#    - $SUDO apt-get install -qq --force-yes unzip kmod wget git maven openjdk-8-jdk libvulkan1 libvulkan-dev vulkan-utils > /dev/null
+#    # Installs the AMD GPUopen Vulkan driver
+#    - wget https://github.com/GPUOpen-Drivers/AMDVLK/releases/download/v-2019.Q3.6/amdvlk_2019.Q3.6_amd64.deb
+#    - $SUDO dpkg -i amdvlk_2019.Q3.6_amd64.deb
+#    - $SUDO apt-get -f install
+#    - $SUDO lsmod
+#    # Output Vulkan driver information, but do not fail in case of non-zero
+#    # return (happens e.g. if $DISPLAY is not set)
+#    - vulkaninfo || true
+#    - wget -q https://ulrik.is/scenery-demo-models.zip
+#    - unzip -q scenery-demo-models.zip
+#  after_script:
+#    - rocm-smi
+#  tags:
+#    - amd
+#    - rocm
+#
+#

@@ -1,6 +1,8 @@
 package graphics.scenery.controls.behaviours
 
 import graphics.scenery.Camera
+import graphics.scenery.utils.extensions.plus
+import graphics.scenery.utils.extensions.times
 import net.java.games.input.Component
 import kotlin.reflect.KProperty
 
@@ -54,7 +56,7 @@ open class GamepadMovementControl(private val name: String,
                     cam.position = cam.position + cam.forward * -1.0f * value * speedMultiplier
                 }
                 Component.Identifier.Axis.X -> {
-                    cam.position = cam.position + cam.forward.cross(cam.up).normalized * value * speedMultiplier
+                    cam.position = cam.position + cam.forward.cross(cam.up).normalize() * value * speedMultiplier
                 }
             }
         }

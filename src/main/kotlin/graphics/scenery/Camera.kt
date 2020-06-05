@@ -1,9 +1,12 @@
 package graphics.scenery
 
-import cleargl.GLMatrix
-import cleargl.GLVector
-import com.jogamp.opengl.math.Quaternion
-import graphics.scenery.volumes.bdv.BDVVolume
+import graphics.scenery.utils.extensions.minus
+import graphics.scenery.utils.extensions.plus
+import graphics.scenery.utils.extensions.times
+import graphics.scenery.utils.extensions.xyz
+import graphics.scenery.volumes.Volume
+import org.joml.*
+import java.lang.Math
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.concurrent.thread
 import kotlin.math.PI
@@ -27,17 +30,15 @@ open class Camera : Node("Camera") {
 
     /** Is the camera targeted? */
     var targeted = false
-    /** Is this camera active? Setting one camera active will deactivate the others */
-    var active = false
 
     /** Target, used if [targeted] is true */
-    var target: GLVector = GLVector(0.0f, 0.0f, 0.0f)
+    var target: Vector3f = Vector3f(0.0f, 0.0f, 0.0f)
     /** Forward vector of the camera, used if not targeted */
-    var forward: GLVector = GLVector(0.0f, 0.0f, 1.0f)
+    var forward: Vector3f = Vector3f(0.0f, 0.0f, 1.0f)
     /** Up vector of the camera, used if not targeted */
-    var up: GLVector = GLVector(0.0f, 1.0f, 0.0f)
+    var up: Vector3f = Vector3f(0.0f, 1.0f, 0.0f)
     /** Right vector of the camera */
-    var right: GLVector = GLVector(1.0f, 0.0f, 0.0f)
+    var right: Vector3f = Vector3f(1.0f, 0.0f, 0.0f)
     /** FOV of the camera **/
     open var fov: Float = 70.0f
     /** Z buffer near plane */
@@ -49,11 +50,11 @@ open class Camera : Node("Camera") {
     /** Projection the camera uses */
     var projectionType: ProjectionType = ProjectionType.Undefined
     /** Width of the projection */
-    open var width: Float = 0.0f
+    open var width: Int = 0
     /** Height of the projection */
-    open var height: Float = 0.0f
+    open var height: Int = 0
     /** View-space coordinate system e.g. for frustum culling. */
-    var viewSpaceTripod: Camera.Tripod
+    var viewSpaceTripod: Tripod
         protected set
     /** Disables culling for this camera. */
     var disableCulling: Boolean = false
@@ -61,12 +62,12 @@ open class Camera : Node("Camera") {
     /** View matrix of the camera. Setting the view matrix will re-set the forward
      *  vector of the camera according to the given matrix.
      */
-    override var view: GLMatrix = GLMatrix.getIdentity()
+    override var view: Matrix4f = Matrix4f().identity()
         set(m) {
             m.let {
-                this.forward = GLVector(m.get(0, 2), m.get(1, 2), m.get(2, 2)).normalize() * -1.0f
-                this.right = GLVector(m.get(0, 0), m.get(1, 0), m.get(2, 0)).normalize()
-                this.up = GLVector(m.get(0, 1), m.get(1, 1), m.get(2, 1)).normalize()
+                this.right = Vector3f(m.get(0, 0), m.get(1, 0), m.get(2, 0)).normalize()
+                this.up = Vector3f(m.get(0, 1), m.get(1, 1), m.get(2, 1)).normalize()
+                this.forward = Vector3f(m.get(0, 2), m.get(1, 2), m.get(2, 2)).normalize() * -1.0f
 
                 this.viewSpaceTripod = cameraTripod()
 
@@ -81,12 +82,12 @@ open class Camera : Node("Camera") {
         }
 
     /** Rotation of the camera. The rotation is applied after the view matrix */
-    override var rotation: Quaternion = Quaternion(0.0f, 0.0f, 0.0f, 1.0f)
+    override var rotation: Quaternionf = Quaternionf(0.0f, 0.0f, 0.0f, 1.0f)
         set(q) {
             q.let {
                 field = q
-                val m = GLMatrix.fromQuaternion(q)
-                this.forward = GLVector(m.get(0, 2), m.get(1, 2), m.get(2, 2)).normalize() * -1.0f
+                val m = Matrix4f().set(q)
+                this.forward = Vector3f(m.get(0, 2), m.get(1, 2), m.get(2, 2)).normalize() * -1.0f
                 this.viewSpaceTripod = cameraTripod()
 
                 this.needsUpdate = true
@@ -103,7 +104,7 @@ open class Camera : Node("Camera") {
     /**
      * Class to contain local coordinate systems with [x], [y], and [z] axis.
      */
-    data class Tripod(val x: GLVector, val y: GLVector, val z: GLVector)
+    data class Tripod(val x: Vector3f, val y: Vector3f, val z: Vector3f)
 
     /**
      * Returns the current aspect ratio
@@ -130,7 +131,7 @@ open class Camera : Node("Camera") {
     /**
      * Create a perspective projection camera
      */
-    fun perspectiveCamera(fov: Float, width: Float, height: Float, nearPlaneLocation: Float = 0.1f, farPlaneLocation: Float = 1000.0f) {
+    fun perspectiveCamera(fov: Float, width: Int, height: Int, nearPlaneLocation: Float = 0.1f, farPlaneLocation: Float = 1000.0f) {
         this.nearPlaneDistance = nearPlaneLocation
         this.farPlaneDistance = farPlaneLocation
         this.fov = fov
@@ -138,9 +139,9 @@ open class Camera : Node("Camera") {
         this.width = width
         this.height = height
 
-        this.projection = GLMatrix().setPerspectiveProjectionMatrix(
+        this.projection = Matrix4f().perspective(
             this.fov / 180.0f * Math.PI.toFloat(),
-            width / height,
+            width.toFloat() / height.toFloat(),
             this.nearPlaneDistance,
             this.farPlaneDistance
         )
@@ -149,11 +150,26 @@ open class Camera : Node("Camera") {
     }
 
     /**
+     * Create a orthographic projection camera.
+     */
+    fun orthographicCamera(fov: Float, width: Int, height: Int, nearPlaneLocation: Float = 0.1f, farPlaneLocation: Float = 1000.0f) {
+        this.nearPlaneDistance = nearPlaneLocation
+        this.farPlaneDistance = farPlaneLocation
+        this.fov = fov
+
+        this.width = width
+        this.height = height
+
+        this.projection = Matrix4f().orthoSymmetric(width.toFloat(), height.toFloat(), nearPlaneLocation, farPlaneLocation)
+        this.projectionType = ProjectionType.Orthographic
+    }
+
+    /**
      * Returns this camera's transformation matrix.
      */
-    open fun getTransformation(): GLMatrix {
-        val tr = GLMatrix.getTranslation(this.position * (-1.0f)).transpose()
-        val r = GLMatrix.fromQuaternion(this.rotation)
+    open fun getTransformation(): Matrix4f {
+        val tr = Matrix4f().translate(this.position * (-1.0f))
+        val r = Matrix4f().set(this.rotation)
 
         return r * tr
     }
@@ -162,9 +178,9 @@ open class Camera : Node("Camera") {
      * Returns this camera's transformation matrix, including a
      * [preRotation] that is applied before the camera's transformation.
      */
-    open fun getTransformation(preRotation: Quaternion): GLMatrix {
-        val tr = GLMatrix.getTranslation(this.position * (-1.0f)).transpose()
-        val r = GLMatrix.fromQuaternion(preRotation.mult(this.rotation))
+    open fun getTransformation(preRotation: Quaternionf): Matrix4f {
+        val tr = Matrix4f().translate(this.position * (-1.0f))
+        val r = Matrix4f().set(preRotation * this.rotation)
 
         return r * tr
     }
@@ -172,90 +188,47 @@ open class Camera : Node("Camera") {
     /**
      * Returns this camera's transformation for eye with index [eye].
      */
-    open fun getTransformationForEye(eye: Int): GLMatrix {
-        val tr = GLMatrix.getTranslation(this.position * (-1.0f)).transpose()
-        val r = GLMatrix.fromQuaternion(this.rotation)
+    open fun getTransformationForEye(eye: Int): Matrix4f {
+        val tr = Matrix4f().translate(this.position * (-1.0f))
+        val r = Matrix4f().set(this.rotation)
 
         return r * tr
     }
 
     /**
-     * Multiplies this matrix with [GLMatrix] [rhs].
-     */
-    infix operator fun GLMatrix.times(rhs: GLMatrix): GLMatrix {
-        val m = this.clone()
-        m.mult(rhs)
-
-        return m
-    }
-
-    /**
-     * Transforms a 3D/4D vector from view space to world coordinates.
+     * Transforms a 3D vector from view space to world coordinates.
      *
      * @param v - The vector to be transformed into world space.
-     * @return GLVector - [v] transformed into world space.
+     * @return Vector3f - [v] transformed into world space.
      */
-    fun viewToWorld(v: GLVector): GLVector =
-        this.view.inverse.mult(if(v.dimension == 3) {
-            GLVector(v.x(), v.y(), v.z(), 1.0f)
-        } else {
-            v
-        })
+    fun viewToWorld(v: Vector3f): Vector4f =
+        Matrix4f(this.view).invert().transform(Vector4f(v.x(), v.y(), v.z(), 1.0f))
+
+    /**
+     * Transforms a 4D vector from view space to world coordinates.
+     *
+     * @param v - The vector to be transformed into world space.
+     * @return Vector3f - [v] transformed into world space.
+     */
+    fun viewToWorld(v: Vector4f): Vector4f =
+        Matrix4f(this.view).invert().transform(v)
+
 
     /**
      * Transforms a 2D/3D [vector] from NDC coordinates to world coordinates.
      * If the vector is 2D, [nearPlaneDistance] is assumed for the Z value, otherwise
      * the Z value from the vector is taken.
      */
-    @JvmOverloads fun viewportToWorld(vector: GLVector, offset: Float = 0.01f, normalized: Boolean = false): GLVector {
-        val pv = projection.clone()
-        pv.mult(getTransformation())
-        val ipv = pv.inverse
+    @JvmOverloads fun viewportToWorld(vector: Vector2f, offset: Float = 0.01f, normalized: Boolean = false): Vector3f {
+        val pv = Matrix4f(projection)
+        pv.mul(getTransformation())
+        val ipv = Matrix4f(pv).invert()
 
-        var worldSpace = ipv.mult(when (vector.dimension) {
-            1 -> GLVector(vector.x(), 1.0f, 0.0f, 1.0f)
-            2 -> GLVector(vector.x(), vector.y(), 0.0f, 1.0f)
-            3 -> GLVector(vector.x(), vector.y(), vector.z(), 1.0f)
-            else -> vector
-        })
+        var worldSpace = ipv.transform(Vector4f(vector.x(), vector.y(), 0.0f, 1.0f))
 
         worldSpace = worldSpace.times(1.0f/worldSpace.w())
 //        worldSpace.set(2, offset)
         return worldSpace.xyz()
-        /*
-        var x = vector.x()
-        var y = vector.y()
-
-        if(normalized) {
-            x *= width
-            y *= height
-        }
-
-        val pos = if(this is DetachedHeadCamera) {
-            position + headPosition
-        } else {
-            position
-        }
-
-        val view = (target - pos).normalize()
-        var h = view.cross(up).normalize()
-        var v = h.cross(view)
-
-        val fov = fov * Math.PI / 180.0f
-        val lengthV = Math.tan(fov / 2.0).toFloat() * nearPlaneDistance
-        val lengthH = lengthV * (width / height)
-
-        v *= lengthV
-        h *= lengthH
-
-        val posX = (x - width / 2.0f) / (width / 2.0f)
-        val posY = -1.0f * (y - height / 2.0f) / (height / 2.0f)
-
-        val worldPos = pos + view * nearPlaneDistance + h * posX + v * posY
-        val worldDir = (worldPos - pos).normalized
-
-        return worldPos + worldDir * offset
-        */
     }
 
     /**
@@ -266,21 +239,21 @@ open class Camera : Node("Camera") {
                                                        ignoredObjects: List<Class<*>> = emptyList(),
                                                        debug: Boolean = false): Scene.RaycastResult {
         val view = (target - position).normalize()
-        var h = view.cross(up).normalize()
-        var v = h.cross(view)
+        var h = Vector3f(view).cross(up).normalize()
+        var v = Vector3f(h).cross(view)
 
         val fov = fov * Math.PI / 180.0f
-        val lengthV = Math.tan(fov / 2.0).toFloat() * nearPlaneDistance
+        val lengthV = tan(fov / 2.0).toFloat() * nearPlaneDistance
         val lengthH = lengthV * (width / height)
 
-        v *= lengthV
-        h *= lengthH
+        v = v * lengthV
+        h = h * lengthH
 
         val posX = (x - width / 2.0f) / (width / 2.0f)
         val posY = -1.0f * (y - height / 2.0f) / (height / 2.0f)
 
         val worldPos = position + view * nearPlaneDistance + h * posX + v * posY
-        val worldDir = (worldPos - position).normalized
+        val worldDir = (worldPos - position).normalize()
 
         val scene = getScene()
         if(scene == null) {
@@ -309,7 +282,7 @@ open class Camera : Node("Camera") {
      */
     fun canSee(node: Node): Boolean {
         // TODO: Figure out how to efficiently cull instances
-        if(disableCulling || node.instances.size > 0 || node is BDVVolume || node is TextBoard || true) {
+        if(disableCulling || node.instances.size > 0 || node is Volume || node is TextBoard || true) {
             return true
         }
 
@@ -324,13 +297,13 @@ open class Camera : Node("Camera") {
         var result = true
 
         // check whether the sphere is within the Z bounds
-        val az = v.times(z)
+        val az = v.dot(z)
         if(az > farPlaneDistance + bs.radius || az < nearPlaneDistance - bs.radius) {
             return false
         }
 
         // check whether the sphere is within the height of the frustum
-        val ay = v.times(y)
+        val ay = v.dot(y)
         val d = sphereY * bs.radius
         val dzy = az * tanFov
         if(ay > dzy + d || ay < -dzy - d) {
@@ -338,7 +311,7 @@ open class Camera : Node("Camera") {
         }
 
         // check whether the sphere is within the width of the frustum
-        val ax = v.times(x)
+        val ax = v.dot(x)
         val dzx = az * tanFov * aspectRatio()
         val dx = sphereX * bs.radius
         if(ax > dzx + dx || ax < -dzx - dx) {
@@ -365,9 +338,9 @@ open class Camera : Node("Camera") {
      * Returns the view-space coordinate system of the camera as [Tripod].
      */
     fun cameraTripod(): Tripod {
-        val z = forward.clone()
-        val x = z.cross(up.clone()).normalized
-        val y = x.cross(z).normalized
+        val z = Vector3f(forward)
+        val x = Vector3f(z).cross(up).normalize()
+        val y = Vector3f(x).cross(z).normalize()
 
         return Tripod(x, y, z)
     }
@@ -378,13 +351,13 @@ open class Camera : Node("Camera") {
      *
      * It will be shown for [duration] milliseconds, with a default of 3000.
      */
-    @JvmOverloads fun showMessage(message: String, distance: Float = 0.75f, size: Float = 0.05f, messageColor: GLVector = GLVector.getOneVector(3), backgroundColor: GLVector = GLVector.getNullVector(3), duration: Int = 3000) {
+    @JvmOverloads fun showMessage(message: String, distance: Float = 0.75f, size: Float = 0.05f, messageColor: Vector4f = Vector4f(1.0f), backgroundColor: Vector4f = Vector4f(0.0f), duration: Int = 3000) {
         val tb = TextBoard()
         tb.fontColor = messageColor
         tb.backgroundColor = backgroundColor
         tb.text = message
-        tb.scale = GLVector(size, size, size)
-        tb.position = GLVector(0.0f, 0.0f, -1.0f * distance)
+        tb.scale = Vector3f(size, size, size)
+        tb.position = Vector3f(0.0f, 0.0f, -1.0f * distance)
 
         val messages = metadata.getOrPut("messages", { mutableListOf<Node>() }) as? MutableList<Node>
         messages?.forEach { this.removeChild(it) }
@@ -402,11 +375,12 @@ open class Camera : Node("Camera") {
     }
 
     override fun composeModel() {
-        model = getTransformation().inverse
+        model = getTransformation().invert()
     }
 
     companion object {
         protected val counter = AtomicInteger(0)
     }
 }
+
 
