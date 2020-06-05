@@ -114,7 +114,6 @@
         <bigdataviewer-core.version>9.0.2</bigdataviewer-core.version>
         <bigvolumeviewer.version>0.1.8</bigvolumeviewer.version>
         <cleargl.version>2.2.10</cleargl.version>
-        <coremem.version>0.4.6</coremem.version>
         <ffmpeg.version>4.2.1-1.5.2</ffmpeg.version>
         <gluegen-rt.version>${gluegen-rt-main.version}</gluegen-rt.version>
         <jackson-databind.version>2.9.10.1</jackson-databind.version>
@@ -258,17 +257,6 @@
             <groupId>com.github.scenerygraphics</groupId>
             <artifactId>vector</artifactId>
             <version>958f2e6</version>
-        </dependency>
-
-        <dependency>
-            <groupId>net.clearcontrol</groupId>
-            <artifactId>coremem</artifactId>
-            <exclusions>
-                <exclusion>
-                    <groupId>com.google.android.tools</groupId>
-                    <artifactId>dx</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
 
         <dependency>

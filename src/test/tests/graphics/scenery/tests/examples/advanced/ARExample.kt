@@ -1,7 +1,6 @@
 package graphics.scenery.tests.examples.advanced
 
 import org.joml.Vector3f
-import coremem.enums.NativeTypeEnum
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.Hololens
@@ -66,12 +65,6 @@ class ARExample: SceneryBase("AR Volume Rendering example", 1280, 720) {
             val seed = Random.randomFromRange(0.0f, 133333337.0f).toLong()
             var shift = Vector3f(0.0f)
             val shiftDelta = Random.random3DVectorFromRange(-0.5f, 0.5f)
-
-            val dataType = if(bitsPerVoxel == 8) {
-                NativeTypeEnum.UnsignedByte
-            } else {
-                NativeTypeEnum.UnsignedShort
-            }
 
             while(true) {
                 val currentBuffer = volumeBuffer.get()
