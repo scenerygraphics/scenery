@@ -144,6 +144,17 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
      *
      */
     open suspend fun sceneryMain() {
+        System.setProperty("org.slf4j.simpleLogger.defaultLogLevel", System.getProperty("scenery.LogLevel", "info"))
+
+        System.getProperties().forEach { prop ->
+            val name = prop.key as? String ?: return@forEach
+            val value = prop.value as? String ?: return@forEach
+
+            if(name.startsWith("scenery.LogLevel.")) {
+                System.setProperty("org.slf4j.simpleLogger.log.${name.substringAfter("scenery.LogLevel.")}", value)
+            }
+        }
+
         hub.addApplication(this)
         logger.info("Started application as PID ${getProcessID()}")
         running = true
