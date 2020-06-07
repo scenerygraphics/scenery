@@ -145,7 +145,8 @@ open class ArcballCameraControl(private val name: String, private val n: () -> C
 
             distance = (target.invoke() - node.position).length()
             node.target = target.invoke()
-            node.rotation = pitchQ.mul(node.rotation).mul(yawQ).normalize()
+            node.rotation = pitchQ.mul(node.rotation).normalize()
+            node.rotation =   yawQ.mul(node.rotation).normalize()
             node.position = target.invoke() + node.forward * distance * (-1.0f)
 
             node.lock.unlock()
