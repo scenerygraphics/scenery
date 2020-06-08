@@ -187,10 +187,11 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, sp: 
                     spec.binding = minOf(spec.binding, compiler.getDecoration(res.id, Decoration.DecorationBinding))
                 }
             } else {
-                logger.debug("Adding inputs UBO, ${res.name}/$name, set=$setId, type=${type.basetype}, a=$arraySize, type=$samplerType, dim=$samplerDim")
+                val bindingId = compiler.getDecoration(res.id, Decoration.DecorationBinding)
+                logger.debug("Adding inputs UBO, ${res.name}/$name, set=$setId, binding=$bindingId, type=${type.basetype}, a=$arraySize, type=$samplerType, dim=$samplerDim")
                 uboSpecs[name] = UBOSpec(name,
                     set = setId,
-                    binding = compiler.getDecoration(res.id, Decoration.DecorationBinding),
+                    binding = bindingId,
                     type = when(samplerDim) {
                         0 -> UBOSpecType.SampledImage1D
                         1 -> UBOSpecType.SampledImage2D
