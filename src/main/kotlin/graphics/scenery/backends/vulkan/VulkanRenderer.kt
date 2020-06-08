@@ -1034,6 +1034,7 @@ open class VulkanRenderer(hub: Hub,
                     if(reloaded) {
                         node.rendererMetadata()?.texturesToDescriptorSets(device,
                             renderpasses.filter { pass -> pass.value.passConfig.type != RenderConfigReader.RenderpassType.quad },
+                            node,
                             descriptorPool)
                     }
                 }
@@ -1155,6 +1156,7 @@ open class VulkanRenderer(hub: Hub,
         if(descriptorUpdated) {
             s.texturesToDescriptorSets(device,
                 renderpasses.filter { it.value.passConfig.type != RenderConfigReader.RenderpassType.quad },
+                node,
                 descriptorPool)
         }
 
@@ -2127,6 +2129,7 @@ open class VulkanRenderer(hub: Hub,
                         if(reloaded) {
                             it.rendererMetadata()?.texturesToDescriptorSets(device,
                                 renderpasses.filter { pass -> pass.value.passConfig.type != RenderConfigReader.RenderpassType.quad },
+                                it,
                                 descriptorPool)
                         }
 
@@ -3000,7 +3003,7 @@ open class VulkanRenderer(hub: Hub,
                     }
 
                     ds
-                }
+                }.distinctBy { it.id }
 
                 if(sets.any { it is DescriptorSet.DynamicSet && it.offset == BUFFER_OFFSET_UNINTIALISED }) {
                     logger.error("${node.name} has uninitialised UBO offset, skipping for rendering")
