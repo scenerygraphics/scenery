@@ -546,13 +546,13 @@
             <version>${lwjgl3-awt.version}</version>
         </dependency>
 
-        <dependency>
-            <groupId>org.openmpi</groupId>
-            <artifactId>openmpi</artifactId>
-            <version>4.0.0</version>
-            <scope>system</scope>
-            <systemPath>${basedir}/mpi.jar</systemPath>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>org.openmpi</groupId>-->
+<!--            <artifactId>openmpi</artifactId>-->
+<!--            <version>4.0.0</version>-->
+<!--            <scope>system</scope>-->
+<!--            <systemPath>${basedir}/mpi.jar</systemPath>-->
+<!--        </dependency>-->
 
         <dependency>
             <groupId>net.imagej</groupId>
