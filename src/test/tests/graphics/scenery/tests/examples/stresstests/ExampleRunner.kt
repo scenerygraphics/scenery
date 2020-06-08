@@ -11,16 +11,24 @@ import org.reflections.Reflections
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.util.concurrent.*
+import kotlin.test.assertFalse
+import kotlin.time.Duration
+import kotlin.time.ExperimentalTime
+import kotlin.time.milliseconds
+import kotlin.time.minutes
 
 /**
  * Experimental test runner that saves screenshots of all discovered tests.
  *
  * @author Ulrik Guenther <hello@ulrik.is>
  */
+@ExperimentalTime
 class ExampleRunner {
     val logger by LazyLogger()
 
     private var failure = false
+
+    private var maxRuntimePerTest = System.getProperty("scenery.ExampleRunner.maxRuntimePerTest", "5").toInt().minutes
 
     private inner class LoggingThreadPoolExecutor(
         corePoolSize: Int,
@@ -108,6 +116,7 @@ class ExampleRunner {
         Files.createDirectory(Paths.get(directoryName))
 
         logger.info("ExampleRunner: Running ${examples.size} examples with ${configurations.size} configurations. Memory: ${Runtime.getRuntime().freeMemory().toFloat()/1024.0f/1024.0f}M/${Runtime.getRuntime().totalMemory().toFloat()/1024.0f/1024.0f}/${Runtime.getRuntime().maxMemory().toFloat()/1024.0f/1024.0f}M (free/total/max) available.")
+        System.setProperty("scenery.RandomSeed", "31337")
 
         renderers.shuffled().forEach { renderer ->
             System.setProperty("scenery.Renderer", renderer)
@@ -126,6 +135,8 @@ class ExampleRunner {
                 Files.createDirectory(Paths.get(rendererDirectory))
 
                 examples.shuffled().forEachIndexed { i, example ->
+                    var runtime = 0.milliseconds
+
                     logger.info("Running ${example.simpleName} with $renderer ($i/${examples.size}) ...")
                     logger.info("Memory: ${Runtime.getRuntime().freeMemory().toFloat()/1024.0f/1024.0f}M/${Runtime.getRuntime().totalMemory().toFloat()/1024.0f/1024.0f}/${Runtime.getRuntime().maxMemory().toFloat()/1024.0f/1024.0f}M (free/total/max) available.")
 
@@ -165,6 +176,13 @@ class ExampleRunner {
                         }
 
                         while (instance.running && !future.isCancelled && !failure) {
+                            if(runtime > maxRuntimePerTest) {
+                                future.cancel(true)
+                                logger.error("Maximum runtime of $maxRuntimePerTest exceeded, aborting test run.")
+                                failure = true
+                            }
+
+                            runtime += 200.milliseconds
                             Thread.sleep(200)
                         }
 
@@ -175,10 +193,7 @@ class ExampleRunner {
 
                     logger.info("${example.simpleName} closed ($renderer ran ${i + 1}/${examples.size} so far).")
 
-                    if(failure) {
-                        logger.warn("ExampleRunner aborted due to exceptions in tests.")
-                        return
-                    }
+                    assertFalse(failure, "ExampleRunner aborted due to exceptions in tests or exceeding maximum per-test runtime of $maxRuntimePerTest.")
                 }
             }
         }
