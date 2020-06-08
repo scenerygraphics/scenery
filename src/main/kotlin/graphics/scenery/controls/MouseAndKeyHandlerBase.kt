@@ -140,8 +140,9 @@ open class MouseAndKeyHandlerBase : ControllerListener, ExtractsNatives {
         }
 
         try {
-            logger.debug("Native JARs for JInput: ${getNativeJars("jinput-platform").joinToString(", ")}")
-            val path = extractLibrariesFromJar(getNativeJars("jinput-platform", hint = ExtractsNatives.getPlatform().getPlatformJinputLibraryName()), load = false)
+            val platformJars = getNativeJars("jinput-platform", hint = ExtractsNatives.getPlatform().getPlatformJinputLibraryName())
+            logger.debug("Native JARs for JInput: ${platformJars.joinToString(", ")}")
+            val path = extractLibrariesFromJar(platformJars, load = false)
             System.setProperty("net.java.games.input.librarypath", path)
 
             ControllerEnvironment.getDefaultEnvironment().controllers.forEach {
