@@ -6,7 +6,7 @@ import java.io.FileOutputStream
 import java.nio.file.Files
 import java.util.jar.JarFile
 import java.io.ByteArrayOutputStream
-
+import java.io.IOException
 
 
 /**
@@ -20,20 +20,20 @@ interface ExtractsNatives {
     }
 
     companion object {
-    /**
-     * Returns the platform based on the os.name system property.
-     */
-    fun getPlatform(): Platform {
-        val os = System.getProperty("os.name").toLowerCase()
+        /**
+         * Returns the platform based on the os.name system property.
+         */
+        @JvmStatic fun getPlatform(): Platform {
+            val os = System.getProperty("os.name").toLowerCase()
 
-        when {
-            os.contains("win") -> return Platform.WINDOWS
-            os.contains("linux") -> return Platform.LINUX
-            os.contains("mac") -> return Platform.MACOS
-            else -> return Platform.UNKNOWN
+            return when {
+                os.contains("win") -> Platform.WINDOWS
+                os.contains("linux") -> Platform.LINUX
+                os.contains("mac") -> Platform.MACOS
+                else -> Platform.UNKNOWN
+            }
+
         }
-
-    }
     }
 
     /**
@@ -115,6 +115,15 @@ interface ExtractsNatives {
                 baos.flush()
                 fos.write(baos.toByteArray())
 
+                if(getPlatform() == Platform.MACOS && file.name.substringAfterLast(".") == "jnilib") {
+                    logger.debug("macOS: Making dylib copy of jnilib file for compatibility")
+                    try {
+                        f.copyTo(File(tmpDir.absolutePath + File.separator + file.name.substringBeforeLast(".") + ".dylib"), false)
+                    } catch (e: IOException) {
+                        logger.warn("Failed to create copy of ${file.name} to ${file.name.substringBeforeLast(".")}.dylib")
+                    }
+                }
+
                 fos.close()
                 baos.close()
                 ins.close()
@@ -142,7 +151,7 @@ interface ExtractsNatives {
         val res = Thread.currentThread().contextClassLoader.getResource(hint)
 
         if (res == null) {
-            LoggerFactory.getLogger(this.javaClass.simpleName).error("Could not find JAR matching \"" + searchName + "\" with native libraries.")
+            LoggerFactory.getLogger(this.javaClass.simpleName).error("Could not find JAR matching \"" + searchName + "\" with native libraries (${getPlatform()}, $hint).")
             return listOf()
         }
 
