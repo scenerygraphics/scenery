@@ -5,7 +5,7 @@
     <parent>
         <groupId>org.scijava</groupId>
         <artifactId>pom-scijava</artifactId>
-        <version>29.0.0-beta-1</version>
+        <version>29.0.0-beta-2</version>
     </parent>
 
     <groupId>graphics.scenery</groupId>
@@ -111,7 +111,7 @@
         <dokka.version>0.10.1</dokka.version>
         <dokka.skip>true</dokka.skip>
 
-        <bigdataviewer-core.version>9.0.2</bigdataviewer-core.version>
+        <bigdataviewer-core.version>9.0.5</bigdataviewer-core.version>
         <bigvolumeviewer.version>0.1.8</bigvolumeviewer.version>
         <cleargl.version>2.2.10</cleargl.version>
         <ffmpeg.version>4.2.1-1.5.2</ffmpeg.version>
@@ -133,7 +133,7 @@
         <lwjgl3-awt.version>0.1.7</lwjgl3-awt.version>
         <msgpack-core.version>0.8.16</msgpack-core.version>
         <reflections.version>0.9.11</reflections.version>
-        <script-editor.version>0.5.3</script-editor.version>
+        <script-editor.version>0.5.6</script-editor.version>
         <slf4j.version>1.7.25</slf4j.version>
         <spirvcrossj.version>0.7.0-1.1.106.0</spirvcrossj.version>
         <trove4j.version>3.0.3</trove4j.version>
