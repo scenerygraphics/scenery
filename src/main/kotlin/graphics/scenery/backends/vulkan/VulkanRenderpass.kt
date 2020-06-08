@@ -20,6 +20,8 @@ import java.nio.IntBuffer
 import java.nio.LongBuffer
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.time.ExperimentalTime
+import kotlin.time.measureTimedValue
 
 /**
  * Class to encapsulate a Vulkan renderpass with [name] and associated [RenderConfigReader.RenderConfig] [config].
@@ -213,7 +215,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
             val spec = shaderModules.flatMap { it.uboSpecs.entries }.firstOrNull { entry ->
                 entry.component2().members.count() == descriptorNum
                 && entry.component1().startsWith("Inputs")
-                && searchKeys.map { entry.component2().members.containsKey("Input$it") }.all { it == true }
+                && searchKeys.map { entry.component2().members.containsKey("Input$it") }.all { it }
             }
 
             if(spec != null) {
@@ -330,6 +332,22 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
 
         // returns a ordered list of the members of the ShaderProperties struct
         return dsl
+    }
+
+    fun getDescriptorSetLayoutForTexture(name: String, node: Node): Pair<Long, List<VulkanShaderModule.UBOSpec>>? {
+        logger.debug("Looking for texture name $name in descriptor specs")
+        val set = getActivePipeline(node).descriptorSpecs.entries
+            .groupBy { it.value.set }
+            .toSortedMap()
+            .filter { it.value.any { spec -> spec.value.name == name } }
+            .entries.firstOrNull()?.value?.sortedBy { it.value.binding }?.map { it.value }?.toList()
+
+        val key = set?.firstOrNull()?.name?: return null
+        val dsl = descriptorSetLayouts[key] ?: return null
+
+        logger.debug("Found DSL key: $key")
+
+        return dsl to set
     }
 
     /**

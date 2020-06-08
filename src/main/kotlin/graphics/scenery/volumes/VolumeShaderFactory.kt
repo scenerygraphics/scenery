@@ -170,10 +170,13 @@ open class VolumeShaderFactory : Shaders.ShaderFactory() {
             }
         }
 
-        val convertedSamplers = samplers.mapIndexed { i, sampler ->
-            "layout(set = ${descriptorSetOffset + 1 + i}, binding = 0) $sampler"
-//            "layout(set = ${descriptorSetOffset + 1}, binding = $i) $sampler"
-        }
+        val inputsAndSamplers = samplers.partition { it.contains(" Input") }
+        val convertedSamplers =
+            inputsAndSamplers.first.mapIndexed { i, sampler ->
+                "layout(set = ${descriptorSetOffset + 1 + i}, binding = 0) $sampler"
+            } + inputsAndSamplers.second.mapIndexed { i, sampler ->
+                "layout(set = ${descriptorSetOffset + 1 + inputsAndSamplers.first.size}, binding = $i) $sampler"
+            }
 
         val fullUniforms = uniforms.union(predefinedUniforms).sorted().toList()
         logger.debug("Adding ${uniforms.size} to uniforms struct (${fullUniforms.joinToString(", ")})")
