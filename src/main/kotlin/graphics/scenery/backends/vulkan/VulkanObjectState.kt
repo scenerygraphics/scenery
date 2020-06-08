@@ -130,8 +130,6 @@ open class VulkanObjectState : NodeMetadata {
 
                     val (ds, duration) = measureTimedValue { createOrUpdateTextureDescriptorSet(firstTextureName, passName, texturesForSet, dsl, device, descriptorPool) }
 
-                    logger.info("$passName: Creating DS for textures: ${texturesForSet.joinToString { it.key }}, took ${duration.inMilliseconds}")
-
                     texturesForSet.forEach { (textureName, _) ->
                         textureDescriptorSets[pass.passConfig.type.name to textureName] = ds
                     }
@@ -139,7 +137,7 @@ open class VulkanObjectState : NodeMetadata {
             }
         }
 
-        logger.info("DS update took ${updateDuration.inMilliseconds} ms")
+        logger.trace("DS update took {} ms", updateDuration.inMilliseconds)
     }
 
     fun clearTextureDescriptorSets() {
