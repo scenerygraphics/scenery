@@ -111,41 +111,25 @@
         <dokka.version>0.10.1</dokka.version>
         <dokka.skip>true</dokka.skip>
 
-        <bigdataviewer-core.version>9.0.5</bigdataviewer-core.version>
         <bigvolumeviewer.version>0.1.8</bigvolumeviewer.version>
-        <cleargl.version>2.2.10</cleargl.version>
         <ffmpeg.version>4.2.1-1.5.2</ffmpeg.version>
-        <gluegen-rt.version>${gluegen-rt-main.version}</gluegen-rt.version>
-        <jackson-databind.version>2.9.10.1</jackson-databind.version>
-        <jackson-dataformat-msgpack.version>0.8.16</jackson-dataformat-msgpack.version>
-        <jackson-dataformat-yaml.version>2.9.9</jackson-dataformat-yaml.version>
-        <jackson-module-kotlin.version>2.9.9</jackson-module-kotlin.version>
+        <jackson-dataformat-msgpack.version>0.8.20</jackson-dataformat-msgpack.version>
         <jeromq.version>0.4.3</jeromq.version>
         <jinput.version>2.0.9</jinput.version>
-        <jna-platform.version>4.5.2</jna-platform.version>
-        <jna.version>4.5.2</jna.version>
         <jocl.version>2.0.1</jocl.version>
-        <jogl-all.version>${jogl.version}</jogl-all.version>
         <jvrpn.version>1.1.0</jvrpn.version>
         <kotlinx-coroutines-core.version>1.3.7-1.4-M2</kotlinx-coroutines-core.version>
         <kryo.version>4.0.2</kryo.version>
         <lwjgl.version>3.2.3</lwjgl.version>
         <lwjgl3-awt.version>0.1.7</lwjgl3-awt.version>
-        <msgpack-core.version>0.8.16</msgpack-core.version>
+        <msgpack-core.version>0.8.20</msgpack-core.version>
         <reflections.version>0.9.11</reflections.version>
-        <script-editor.version>0.5.6</script-editor.version>
-        <slf4j.version>1.7.25</slf4j.version>
         <spirvcrossj.version>0.7.0-1.1.106.0</spirvcrossj.version>
-        <trove4j.version>3.0.3</trove4j.version>
 
         <lwjgl.natives>natives-${scijava.platform.family.long}</lwjgl.natives>
 
         <license.licenseName>lgpl_v3</license.licenseName>
         <license.copyrightOwners>the scenery development team</license.copyrightOwners>
-
-        <!-- TODO: Remove after https://github.com/tpietzsch/jogl-minimal/pull/9 is merged
-             and duplicate classes are cleaned up -->
-        <enforcer.skip>True</enforcer.skip>
     </properties>
 
     <dependencies>
@@ -168,60 +152,60 @@
         <dependency>
             <groupId>org.jogamp.gluegen</groupId>
             <artifactId>gluegen-rt</artifactId>
-            <version>${gluegen-rt.version}</version>
+            <version>${gluegen-rt-main.version}</version>
         </dependency>
         <dependency>
             <groupId>org.jogamp.gluegen</groupId>
             <artifactId>gluegen-rt</artifactId>
-            <version>${gluegen-rt.version}</version>
+            <version>${gluegen-rt-main.version}</version>
             <classifier>natives-linux-amd64</classifier>
         </dependency>
         <dependency>
             <groupId>org.jogamp.gluegen</groupId>
             <artifactId>gluegen-rt</artifactId>
-            <version>${gluegen-rt.version}</version>
+            <version>${gluegen-rt-main.version}</version>
             <classifier>natives-linux-i586</classifier>
         </dependency>
         <dependency>
             <groupId>org.jogamp.gluegen</groupId>
             <artifactId>gluegen-rt</artifactId>
-            <version>${gluegen-rt.version}</version>
+            <version>${gluegen-rt-main.version}</version>
             <classifier>natives-macosx-universal</classifier>
         </dependency>
         <dependency>
             <groupId>org.jogamp.gluegen</groupId>
             <artifactId>gluegen-rt</artifactId>
-            <version>${gluegen-rt.version}</version>
+            <version>${gluegen-rt-main.version}</version>
             <classifier>natives-windows-amd64</classifier>
         </dependency>
 
         <dependency>
             <groupId>org.jogamp.jogl</groupId>
             <artifactId>jogl-all</artifactId>
-            <version>${jogl-all.version}</version>
+            <version>${jogl.version}</version>
         </dependency>
         <dependency>
             <groupId>org.jogamp.jogl</groupId>
             <artifactId>jogl-all</artifactId>
-            <version>${jogl-all.version}</version>
+            <version>${jogl.version}</version>
             <classifier>natives-linux-amd64</classifier>
         </dependency>
         <dependency>
             <groupId>org.jogamp.jogl</groupId>
             <artifactId>jogl-all</artifactId>
-            <version>${jogl-all.version}</version>
+            <version>${jogl.version}</version>
             <classifier>natives-linux-i586</classifier>
         </dependency>
         <dependency>
             <groupId>org.jogamp.jogl</groupId>
             <artifactId>jogl-all</artifactId>
-            <version>${jogl-all.version}</version>
+            <version>${jogl.version}</version>
             <classifier>natives-macosx-universal</classifier>
         </dependency>
         <dependency>
             <groupId>org.jogamp.jogl</groupId>
             <artifactId>jogl-all</artifactId>
-            <version>${jogl-all.version}</version>
+            <version>${jogl.version}</version>
             <classifier>natives-windows-amd64</classifier>
         </dependency>
 
@@ -310,7 +294,7 @@
         <dependency>
             <groupId>net.java.dev.jna</groupId>
             <artifactId>jna-platform</artifactId>
-            <version>${jna-platform.version}</version>
+            <version>${jna.version}</version>
         </dependency>
 
         <dependency>
@@ -428,13 +412,13 @@
         <dependency>
             <groupId>com.fasterxml.jackson.module</groupId>
             <artifactId>jackson-module-kotlin</artifactId>
-            <version>${jackson-module-kotlin.version}</version>
+            <version>${jackson-databind.version}</version>
         </dependency>
 
         <dependency>
             <groupId>com.fasterxml.jackson.dataformat</groupId>
             <artifactId>jackson-dataformat-yaml</artifactId>
-            <version>${jackson-dataformat-yaml.version}</version>
+            <version>${jackson-databind.version}</version>
         </dependency>
 
         <!-- jackson dependencies end -->
