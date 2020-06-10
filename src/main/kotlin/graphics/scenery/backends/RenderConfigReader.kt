@@ -120,7 +120,7 @@ class RenderConfigReader {
     enum class RenderingQuality { Low, Medium, High, Ultra }
 
     /** Renderpass types */
-    enum class RenderpassType { geometry, quad, lights }
+    enum class RenderpassType { geometry, quad, lights, compute }
 
     /** Render ordering */
     enum class RenderOrder { DontCare, BackToFront, FrontToBack }

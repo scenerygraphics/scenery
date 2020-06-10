@@ -12,7 +12,6 @@ import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.RingBuffer
 import org.joml.Vector2f
 import org.joml.Vector4f
-import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.*
@@ -20,8 +19,6 @@ import java.nio.IntBuffer
 import java.nio.LongBuffer
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
-import kotlin.time.ExperimentalTime
-import kotlin.time.measureTimedValue
 
 /**
  * Class to encapsulate a Vulkan renderpass with [name] and associated [RenderConfigReader.RenderConfig] [config].
@@ -477,6 +474,12 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
                     vertexInputType.state,
                     descriptorSetLayouts = reqDescriptorLayouts)
             }
+
+            RenderConfigReader.RenderpassType.compute -> {
+                p.createPipelines(vertexInputType.state,
+                descriptorSetLayouts = reqDescriptorLayouts,
+                type = VulkanPipeline.PipelineType.Compute)
+            }
         }
 
         logger.debug("Prepared pipeline $pipelineName for $name")
@@ -490,16 +493,35 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
             when {
                 spec.name == "Matrices" ->
                     listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1))
+
                 spec.name == "MaterialProperties" ->
                     listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1))
+
                 spec.name.startsWith("Input") ->
                     spec.members.map { Pair(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1) }.toList()
+
                 spec.name == "ShaderParameters" ->
                     listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1))
+
                 spec.name == "ShaderProperties" ->
                     listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1))
-                spec.type != VulkanShaderModule.UBOSpecType.UniformBuffer ->
+
+                spec.type == VulkanShaderModule.UBOSpecType.StorageBuffer ->
+                    listOf(Pair(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, spec.size))
+
+                spec.type == VulkanShaderModule.UBOSpecType.StorageBufferDynamic ->
+                    listOf(Pair(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, spec.size))
+
+                spec.type == VulkanShaderModule.UBOSpecType.Image1D
+                    || spec.type == VulkanShaderModule.UBOSpecType.Image2D
+                    || spec.type == VulkanShaderModule.UBOSpecType.Image3D ->
+                    listOf(Pair(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, spec.size))
+
+                spec.type == VulkanShaderModule.UBOSpecType.SampledImage1D
+                    || spec.type == VulkanShaderModule.UBOSpecType.SampledImage2D
+                    || spec.type == VulkanShaderModule.UBOSpecType.SampledImage3D ->
                     listOf(Pair(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, spec.size))
+
                 else ->
                     listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1))
             }
