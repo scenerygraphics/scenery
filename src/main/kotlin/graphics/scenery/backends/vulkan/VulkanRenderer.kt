@@ -2074,6 +2074,7 @@ open class VulkanRenderer(hub: Hub,
                 RenderConfigReader.RenderpassType.geometry -> recordSceneRenderCommands(target, commandBuffer, sceneNodes, { it !is Light }, forceRerecording)
                 RenderConfigReader.RenderpassType.lights -> recordSceneRenderCommands(target, commandBuffer, sceneNodes, { it is Light }, forceRerecording)
                 RenderConfigReader.RenderpassType.quad -> recordPostprocessRenderCommands(target, commandBuffer)
+                RenderConfigReader.RenderpassType.compute -> recordComputeRenderCommands(target, commandBuffer)
             }
 
             stats?.add("VulkanRenderer.$t.recordCmdBuffer", System.nanoTime() - start)
@@ -2122,6 +2123,7 @@ open class VulkanRenderer(hub: Hub,
             RenderConfigReader.RenderpassType.geometry -> recordSceneRenderCommands(viewportPass, viewportCommandBuffer, sceneNodes, { it !is Light }, forceRerecording)
             RenderConfigReader.RenderpassType.lights -> recordSceneRenderCommands(viewportPass, viewportCommandBuffer, sceneNodes, { it is Light })
             RenderConfigReader.RenderpassType.quad -> recordPostprocessRenderCommands(viewportPass, viewportCommandBuffer)
+            RenderConfigReader.RenderpassType.compute -> recordComputeRenderCommands(viewportPass, viewportCommandBuffer)
         }
 
         stats?.add("VulkanRenderer.${viewportPass.name}.recordCmdBuffer", System.nanoTime() - start)
@@ -3041,6 +3043,46 @@ open class VulkanRenderer(hub: Hub,
         this.uboOffsets.flip()
 
         return requiredDynamicOffsets
+    }
+
+    data class ComputePassMetadata(val groupCountX: Int, val groupCountY: Int, val groupCountZ: Int)
+    private fun recordComputeRenderCommands(pass: VulkanRenderpass, commandBuffer: VulkanCommandBuffer) {
+        with(commandBuffer.prepareAndStartRecording(commandPools.Compute)) {
+            val metadata = ComputePassMetadata(pass.getOutput().width/16, pass.getOutput().height/16, 1)
+
+            val pipeline = pass.getDefaultPipeline()
+            val vulkanPipeline = pipeline.getPipelineForGeometryType(GeometryType.TRIANGLES)
+
+            if (pass.vulkanMetadata.descriptorSets.capacity() != pipeline.descriptorSpecs.count()) {
+                memFree(pass.vulkanMetadata.descriptorSets)
+                pass.vulkanMetadata.descriptorSets = memAllocLong(pipeline.descriptorSpecs.count())
+            }
+
+            // allocate more vertexBufferOffsets than needed, set limit lateron
+            pass.vulkanMetadata.uboOffsets.position(0)
+            pass.vulkanMetadata.uboOffsets.limit(16)
+            (0..15).forEach { pass.vulkanMetadata.uboOffsets.put(it, 0) }
+
+            vkCmdBindPipeline(this, VK_PIPELINE_BIND_POINT_COMPUTE, vulkanPipeline.pipeline)
+            // set the required descriptor sets for this render pass
+            pass.vulkanMetadata.setRequiredDescriptorSetsPostprocess(pass, pipeline)
+
+            if(pipeline.pushConstantSpecs.containsKey("currentEye")) {
+                vkCmdPushConstants(this, vulkanPipeline.layout, VK_SHADER_STAGE_ALL, 0, pass.vulkanMetadata.eye)
+            }
+
+            if(pass.vulkanMetadata.descriptorSets.limit() > 0) {
+                logger.debug("Binding ${pass.vulkanMetadata.descriptorSets.limit()} descriptor sets with ${pass.vulkanMetadata.uboOffsets.limit()} required offsets")
+                vkCmdBindDescriptorSets(this, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                    vulkanPipeline.layout, 0, pass.vulkanMetadata.descriptorSets, pass.vulkanMetadata.uboOffsets)
+            }
+
+            vkCmdDispatch(this,
+                metadata.groupCountX, metadata.groupCountY, metadata.groupCountZ)
+
+            commandBuffer.stale = false
+            commandBuffer.endCommandBuffer()
+        }
     }
 
     private fun updateInstanceBuffers(sceneObjects: List<Node>) = runBlocking {
