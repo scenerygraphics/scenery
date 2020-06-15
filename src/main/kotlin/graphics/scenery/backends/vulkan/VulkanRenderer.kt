@@ -1680,7 +1680,6 @@ open class VulkanRenderer(hub: Hub,
     private external fun sendImage(image: ByteBuffer)
 
     private fun submitFrame(queue: VkQueue, pass: VulkanRenderpass, commandBuffer: VulkanCommandBuffer, present: PresentHelpers) {
-        logger.info("In submitFrame function")
         if(swapchainRecreator.mustRecreate) {
             return
         }
@@ -1714,7 +1713,6 @@ open class VulkanRenderer(hub: Hub,
         }
 
         if (parallelRenderingMode || recordMovie || screenshotRequested || imageRequests.isNotEmpty()) {
-            logger.info("In the first condition")
             val request = try {
                 imageRequests.poll()
             } catch(e: NoSuchElementException) {
@@ -1872,7 +1870,6 @@ open class VulkanRenderer(hub: Hub,
         }
 
         if(parallelRenderingMode) {
-            logger.info("Image to be sent will be compiled")
             val windowSize = 700
 //            var imageBuf: ByteBuffer = ByteBuffer.allocateDirect(windowSize * windowSize * 7)
             var imageWithDepthBuf: ByteBuffer = memAlloc(windowSize * windowSize * 7)
@@ -1938,13 +1935,11 @@ open class VulkanRenderer(hub: Hub,
                     val depthImage = it.value.image
 
                     with(VU.newCommandBuffer(device, commandPools.Render, autostart = true)) {
-                        logger.info("here1")
                         val subresource = VkImageSubresourceLayers.calloc()
                             .aspectMask(VK_IMAGE_ASPECT_DEPTH_BIT)
                             .mipLevel(0)
                             .baseArrayLayer(0)
                             .layerCount(1)
-                        logger.info("here2")
 
                         val regions = VkBufferImageCopy.calloc(1)
                             .bufferRowLength(0)
@@ -1952,7 +1947,6 @@ open class VulkanRenderer(hub: Hub,
                             .imageOffset(VkOffset3D.calloc().set(0, 0, 0))
                             .imageExtent(VkExtent3D.calloc().set(windowSize, windowSize, 1))
                             .imageSubresource(subresource)
-                        logger.info("here3")
 
                         VulkanTexture.transitionLayout(depthImage,
                             from = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
@@ -1962,12 +1956,12 @@ open class VulkanRenderer(hub: Hub,
                             dstStage = VK_PIPELINE_STAGE_HOST_BIT,
                             dstAccessMask = VK_ACCESS_HOST_READ_BIT,
                             commandBuffer = this)
-                        logger.info("here4")
+
                         vkCmdCopyImageToBuffer(this, depthImage,
                             VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                             depthBuffer!!.vulkanBuffer,
                             regions)
-                        logger.info("here5")
+
                         VulkanTexture.transitionLayout(depthImage,
                             from = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                             to = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
@@ -1976,30 +1970,26 @@ open class VulkanRenderer(hub: Hub,
                             dstStage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
                             dstAccessMask = 0,
                             commandBuffer = this)
-                        logger.info("here6")
+
                         endCommandBuffer(this@VulkanRenderer.device, commandPools.Render, queue,
                             flush = true, dealloc = true)
                     }
                     if (depthBuffer != null) {
                         depthBuffer!!.copyTo(depthBuf!!)
-                        logger.info("DepthBuffer has been copied")
+                        logger.debug("DepthBuffer has been copied")
 
                     }
                     else {
-                        logger.info("depthbuffer is null")
+                        logger.warn("Retrieved depth buffer is null")
                     }
-                    logger.info("DepthBuf capacity is: ${depthBuf?.capacity()} and limit is: ${depthBuf?.limit()} and position is: ${depthBuf?.position()}")
-                    logger.info("imageWithDepthBuf capacity is: ${imageWithDepthBuf.capacity()} and limit is: ${imageWithDepthBuf.limit()} and position is: ${imageWithDepthBuf?.position()}")
                     imageWithDepthBuf.put(depthBuf)
-                    logger.info("Depth buffer has been put into the bytebuffer")
-                    logger.info("Yay")
                 }
                 // we have the depth attachment
             }
 
 
             try {
-                logger.info("Sending image")
+//                logger.info("Sending image")
                 sendImage(imageWithDepthBuf)
             } catch(e: Exception) {
                 e.printStackTrace()
@@ -2019,7 +2009,6 @@ open class VulkanRenderer(hub: Hub,
      * This function renders the scene
      */
     override fun render(activeCamera: Camera, sceneNodes: List<Node>) = runBlocking {
-        logger.info("Rendering now!")
         val profiler = hub?.get<Profiler>()
 //        profiler?.begin("Renderer.Housekeeping")
         val swapchainChanged = pollEvents()
@@ -2078,7 +2067,6 @@ open class VulkanRenderer(hub: Hub,
         val rerecordingCauses = ArrayList<String>(20)
 
         profiler?.begin("Renderer.PreDraw")
-        logger.info("Beginning Pre Draw!")
         // here we discover the objects in the scene that could be relevant for the scene
         var texturesUpdated: Boolean by StickyBoolean(false)
 
@@ -2179,7 +2167,6 @@ open class VulkanRenderer(hub: Hub,
         profiler?.end()
 
         profiler?.begin("Renderer.BeginFrame")
-        logger.info("Beginning Frame!")
         val presentedFrames = swapchain.presentedFrames()
         // return if neither UBOs were updated, nor the scene was modified
         if (pushMode && !swapchainChanged && !ubosUpdated && !forceRerecording && !screenshotRequested && !recordMovie && !texturesUpdated && totalFrames > 3 && presentedFrames > 3) {
@@ -2289,7 +2276,6 @@ open class VulkanRenderer(hub: Hub,
         profiler?.end()
 
         profiler?.begin("Renderer.SubmitFrame")
-        logger.info("Beginning Submit Frame!")
         submitFrame(queue, viewportPass, viewportCommandBuffer, ph)
 
         updateTimings()
