@@ -40,6 +40,9 @@ open class FPSCameraControl(private val name: String, private val n: () -> Camer
         node?.targeted = false
     }
 
+    /** multiplier for mouse movement */
+    var mouseSpeedMultiplier = 0.1f
+
     /**
      * FPS-style camera control, supplying a Camera via a Java [Supplier] lambda.
      */
@@ -84,14 +87,11 @@ open class FPSCameraControl(private val name: String, private val n: () -> Camer
             return
         }
 
-        var xoffset: Float = (x - lastX).toFloat()
-        var yoffset: Float = (y - lastY).toFloat()
+        var xoffset: Float = (x - lastX).toFloat() * mouseSpeedMultiplier
+        var yoffset: Float = (y - lastY).toFloat() * mouseSpeedMultiplier
 
         lastX = x
         lastY = y
-
-        xoffset *= 0.1f
-        yoffset *= 0.1f
 
         val frameYaw = xoffset
         val framePitch = yoffset
