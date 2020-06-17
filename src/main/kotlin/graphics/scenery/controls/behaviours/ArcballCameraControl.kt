@@ -161,10 +161,11 @@ open class ArcballCameraControl(private val name: String, private val n: () -> C
      * @param[y] unused
      */
     override fun scroll(wheelRotation: Double, isHorizontal: Boolean, x: Int, y: Int) {
-        if (isHorizontal) {
+        if (isHorizontal || node == null) {
             return
         }
 
+        distance = (target.invoke() - node!!.position).length()
         distance += wheelRotation.toFloat() * scrollSpeedMultiplier
 
         if (distance >= maximumDistance) distance = maximumDistance
