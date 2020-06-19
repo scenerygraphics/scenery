@@ -1,6 +1,6 @@
 name: Deferred Shading
 description: Deferred Shading, with HDR postprocessing and FXAA
-sRGB: true
+sRGB: false
 
 rendertargets:
   GeometryBuffer:
@@ -28,6 +28,9 @@ rendertargets:
       Color: RGBA_Float16
       Depth: Depth32
   FXAABuffer:
+    attachments:
+      Color: RGBA_UInt8
+  ComputeBuffer:
     attachments:
       Color: RGBA_UInt8
 
@@ -148,6 +151,13 @@ renderpasses:
       Global.displayHeight: 0
     inputs:
       - FXAABuffer
+    output: ComputeBuffer
+  DummyCompute:
+    type: compute
+    shaders:
+      - "ComputePassthrough.comp.spv"
+    inputs:
+      - ComputeBuffer
     output: Viewport
 
 qualitySettings:
