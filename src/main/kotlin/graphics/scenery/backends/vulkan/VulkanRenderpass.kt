@@ -22,15 +22,13 @@ import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Class to encapsulate a Vulkan renderpass with [name] and associated [RenderConfigReader.RenderConfig] [config].
- * The renderpass will be created on [device], with descriptors being allocated from [descriptorPool].
- * A [pipelineCache] can be used for performance gains. The available vertex descriptors need to be handed
+ * The renderpass will be created on [device]. A [pipelineCache] can be used for performance gains. The available vertex descriptors need to be handed
  * over in [vertexDescriptors].
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
 open class VulkanRenderpass(val name: String, var config: RenderConfigReader.RenderConfig,
                        val device: VulkanDevice,
-                       val descriptorPool: Long,
                        val pipelineCache: Long,
                        val vertexDescriptors: ConcurrentHashMap<VulkanRenderer.VertexDataKinds, VulkanRenderer.VertexDescription>,
                        val ringBufferSize: Int = 2): AutoCloseable {
@@ -172,7 +170,13 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
     fun initializeInputAttachmentDescriptorSetLayouts(shaderModules: List<VulkanShaderModule>) {
         var input = 0
         logger.debug("Renderpass $name has inputs ${inputs.keys.joinToString(", ")}")
-        inputs.entries.reversed().forEach { inputFramebuffer ->
+        val relevantFramebuffers = if(passConfig.type == RenderConfigReader.RenderpassType.compute) {
+            inputs.entries + output.entries
+        } else {
+            inputs.entries
+        }
+
+        relevantFramebuffers.reversed().forEach { inputFramebuffer ->
             // we need to discern here whether the entire framebuffer is the input, or
             // only a part of it (indicated by a dot in the name)
             val descriptorNum = if(inputFramebuffer.key.contains(".")) {
@@ -185,43 +189,63 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
             val dsl = VU.createDescriptorSetLayout(device,
                 descriptorNum = descriptorNum,
                 descriptorCount = 1,
-                type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
+                type = if(passConfig.type == RenderConfigReader.RenderpassType.compute) {
+                    VK_DESCRIPTOR_TYPE_STORAGE_IMAGE
+                } else {
+                    VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
+                }
             )
 
             val ds = if(inputFramebuffer.key.contains(".")) {
                 val targetName = inputFramebuffer.key.substringBefore(".")
                 val attachmentName = inputFramebuffer.key.substringAfter(".")
+                val attachment = inputFramebuffer.value.attachments[attachmentName] ?: throw IllegalStateException("Framebuffer $inputFramebuffer does not contain attachment $attachmentName")
 
-                val rendertarget = config.rendertargets[targetName] ?: throw IllegalStateException("Rendertargets do not contain required target ${inputFramebuffer.key}")
+                config.rendertargets[targetName] ?: throw IllegalStateException("Rendertargets do not contain required target ${inputFramebuffer.key}")
 
-                VU.createRenderTargetDescriptorSet(device, descriptorPool, dsl,
-                    rendertarget.attachments,
-                    inputFramebuffer.value, attachmentName)
+                device.createRenderTargetDescriptorSet(dsl,
+                    inputFramebuffer.value,
+                    onlyFor = listOf(attachment),
+                    imageLoadStore = passConfig.type == RenderConfigReader.RenderpassType.compute)
             } else {
-                inputFramebuffer.value.outputDescriptorSet
+                if(passConfig.type == RenderConfigReader.RenderpassType.compute) {
+                    inputFramebuffer.value.imageLoadStoreDescriptorSet
+                } else {
+                    inputFramebuffer.value.outputDescriptorSet
+                }
             }
 
-            val searchKeys = if(inputFramebuffer.key.contains(".")) {
-                listOf(inputFramebuffer.key.substringAfter("."))
-            } else {
-                config.rendertargets[inputFramebuffer.key]?.attachments?.keys ?: throw IllegalStateException("Rendertargets do not contain required target ${inputFramebuffer.key}")
+            logger.debug("$name: descriptor set for $inputFramebuffer.key is $ds")
+
+            val searchKeys = when {
+                inputFramebuffer.key.startsWith("Viewport") -> {
+                    listOf("Viewport")
+                }
+                inputFramebuffer.key.contains(".") -> {
+                    listOf(inputFramebuffer.key.substringAfter("."))
+                }
+                else -> {
+                    config.rendertargets[inputFramebuffer.key]?.attachments?.keys ?: throw IllegalStateException("$name: Rendertargets do not contain required target ${inputFramebuffer.key}")
+                }
             }
 
-            logger.debug("Search keys for input attachments: ${searchKeys.joinToString(",")}")
+            logger.debug("$name: Search keys for input attachments: ${searchKeys.joinToString(",")}, descriptorNum=$descriptorNum")
 
-            val spec = shaderModules.flatMap { it.uboSpecs.entries }.firstOrNull { entry ->
-                entry.component2().members.count() == descriptorNum
-                && entry.component1().startsWith("Inputs")
-                && searchKeys.map { entry.component2().members.containsKey("Input$it") }.all { it }
-            }
+            val spec = shaderModules
+                .flatMap { it.uboSpecs.entries }
+                .firstOrNull { entry ->
+                    entry.component2().members.count() == descriptorNum
+                        && (entry.component1().startsWith("Inputs") || entry.component1().startsWith("Output"))
+                        && searchKeys.map { logger.debug("Looking for Input$it or Output$it"); entry.component2().members.containsKey("Input$it") || entry.component2().members.containsKey("Output$it")   }.all { it }
+                }
 
             if(spec != null) {
                 val inputKey = "input-${this.name}-${spec.value.set}"
 
-                logger.debug("${this.name}: Creating input descriptor set for ${inputFramebuffer.key}, $inputKey")
+                logger.debug("$name: Creating input descriptor set for ${inputFramebuffer.key}, $inputKey")
                 descriptorSetLayouts.put(inputKey, dsl)?.let {
                     oldDSL ->
-                    logger.debug("Removing old DSL for $inputKey, $oldDSL.")
+                    logger.debug("$name: Removing old DSL for $inputKey, $oldDSL.")
                     vkDestroyDescriptorSetLayout(device.vulkanDevice, oldDSL, null)
                 }
                 descriptorSets.put(inputKey, ds)
@@ -286,11 +310,11 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
             // create descriptor set layout
 //            val dsl = VU.createDescriptorSetLayout(device,
 //                VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, 1)
-            val dsl = VU.createDescriptorSetLayout(device,
+            val dsl = device.createDescriptorSetLayout(
                 listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1)),
                 0, VK_SHADER_STAGE_ALL)
 
-            val ds = VU.createDescriptorSet(device, descriptorPool, dsl,
+            val ds = device.createDescriptorSet(dsl,
             1, ubo.descriptor, type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
 
             // populate descriptor set

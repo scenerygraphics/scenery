@@ -68,6 +68,7 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, sp: 
     private data class ShaderSignature(val device: VulkanDevice, val p: ShaderPackage)
 
     init {
+        logger.debug("Processing shader package with code=${sp.codePath}, spirv=${sp.spirvPath} and main entry point $entryPoint")
         signature = ShaderSignature(device, sp)
 
         if(sp.spirv == null) {
@@ -227,7 +228,7 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, sp: 
             val imageDim = type.image.dim
             val imageDataType = type.image.format
 
-            val name = if(res.name.startsWith("Input")) {
+            val name = if(res.name.startsWith("Input") || res.name.startsWith("Output")) {
                 if(!inputSets.contains(setId)) {
                     inputSets.add(setId)
                 }
@@ -238,14 +239,14 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, sp: 
             }
 
             if(uboSpecs.containsKey(name)) {
-                logger.debug("Adding inputs member ${res.name}/$name type=${type.basetype}, a=$arraySize, type=$imageType, dim=$imageDim")
+                logger.debug("Adding image load/store member ${res.name}/$name type=${type.basetype}, a=$arraySize, type=$imageType, dim=$imageDim")
                 uboSpecs[name]?.let { spec ->
                     spec.members[res.name] = UBOMemberSpec(res.name, spec.members.size.toLong(), 0L, 0L)
                     spec.binding = minOf(spec.binding, compiler.getDecoration(res.id, Decoration.DecorationBinding))
                 }
             } else {
                 val bindingId = compiler.getDecoration(res.id, Decoration.DecorationBinding)
-                logger.debug("Adding inputs UBO, ${res.name}/$name, set=$setId, binding=$bindingId, type=${type.basetype}, a=$arraySize, type=$imageType, dim=$imageDim")
+                logger.debug("Adding image load/store UBO, ${res.name}/$name, set=$setId, binding=$bindingId, type=${type.basetype}, a=$arraySize, type=$imageType, dim=$imageDim")
                 uboSpecs[name] = UBOSpec(name,
                     set = setId,
                     binding = bindingId,
