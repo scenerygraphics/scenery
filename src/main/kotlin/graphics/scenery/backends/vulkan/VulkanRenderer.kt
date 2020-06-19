@@ -317,7 +317,6 @@ open class VulkanRenderer(hub: Hub,
     // Create static Vulkan resources
     protected var queue: VkQueue
     protected var transferQueue: VkQueue
-    protected var descriptorPool: Long
 
     protected var swapchain: Swapchain
     protected var ph = PresentHelpers()
@@ -379,9 +378,6 @@ open class VulkanRenderer(hub: Hub,
 
     companion object {
         private const val VK_FLAGS_NONE: Int = 0
-        private const val MAX_TEXTURES = 2048 * 16
-        private const val MAX_UBOS = 2048
-        private const val MAX_INPUT_ATTACHMENTS = 32
         private const val UINT64_MAX: Long = -1L
 
         private const val MATERIAL_HAS_DIFFUSE = 0x0001
@@ -589,15 +585,13 @@ open class VulkanRenderer(hub: Hub,
         logger.debug("Created swapchain")
         vertexDescriptors = prepareStandardVertexDescriptors()
         logger.debug("Created vertex descriptors")
-        descriptorPool = createDescriptorPool(device)
-        logger.debug("Created descriptor pool")
 
         descriptorSetLayouts = prepareDefaultDescriptorSetLayouts(device)
         logger.debug("Prepared default DSLs")
         buffers = prepareDefaultBuffers(device)
         logger.debug("Prepared default buffers")
 
-        prepareDescriptorSets(device, descriptorPool)
+        prepareDescriptorSets(device)
         logger.debug("Prepared default descriptor sets")
         prepareDefaultTextures(device)
         logger.debug("Prepared default textures")
@@ -816,13 +810,13 @@ open class VulkanRenderer(hub: Hub,
         s = createVertexBuffers(device, node, s)
 
         val matricesDescriptorSet = getDescriptorCache().getOrPut("Matrices") {
-            VU.createDescriptorSetDynamic(device, descriptorPool,
+            device.createDescriptorSetDynamic(
                 descriptorSetLayouts["Matrices"]!!, 1,
                 buffers.UBOs)
         }
 
         val materialPropertiesDescriptorSet = getDescriptorCache().getOrPut("MaterialProperties") {
-            VU.createDescriptorSetDynamic(device, descriptorPool,
+            device.createDescriptorSetDynamic(
                 descriptorSetLayouts["MaterialProperties"]!!, 1,
                 buffers.UBOs)
         }
@@ -911,7 +905,7 @@ open class VulkanRenderer(hub: Hub,
                         dsl = pass.value.initializeShaderPropertyDescriptorSetLayout()
                     }
 
-                val descriptorSet = VU.createDescriptorSetDynamic(device, descriptorPool, dsl,
+                val descriptorSet = device.createDescriptorSetDynamic(dsl,
                     1, buffers.ShaderProperties)
 
                 s.requiredDescriptorSets["ShaderProperties"] = descriptorSet
@@ -1044,8 +1038,7 @@ open class VulkanRenderer(hub: Hub,
                     if(reloaded) {
                         node.rendererMetadata()?.texturesToDescriptorSets(device,
                             renderpasses.filter { pass -> pass.value.passConfig.type != RenderConfigReader.RenderpassType.quad },
-                            node,
-                            descriptorPool)
+                            node)
                     }
                 }
             }
@@ -1166,8 +1159,7 @@ open class VulkanRenderer(hub: Hub,
         if(descriptorUpdated) {
             s.texturesToDescriptorSets(device,
                 renderpasses.filter { it.value.passConfig.type != RenderConfigReader.RenderpassType.quad },
-                node,
-                descriptorPool)
+                node)
         }
 
         return contentUpdated to descriptorUpdated
@@ -1176,26 +1168,22 @@ open class VulkanRenderer(hub: Hub,
     protected fun prepareDefaultDescriptorSetLayouts(device: VulkanDevice): ConcurrentHashMap<String, Long> {
         val m = ConcurrentHashMap<String, Long>()
 
-        m["Matrices"] = VU.createDescriptorSetLayout(
-            device,
+        m["Matrices"] = device.createDescriptorSetLayout(
             listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1)),
             0,
             VK_SHADER_STAGE_ALL)
 
-        m["MaterialProperties"] = VU.createDescriptorSetLayout(
-            device,
+        m["MaterialProperties"] = device.createDescriptorSetLayout(
             listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1)),
             0,
             VK_SHADER_STAGE_ALL)
 
-        m["LightParameters"] = VU.createDescriptorSetLayout(
-            device,
+        m["LightParameters"] = device.createDescriptorSetLayout(
             listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1)),
             0,
             VK_SHADER_STAGE_ALL)
 
-        m["VRParameters"] = VU.createDescriptorSetLayout(
-            device,
+        m["VRParameters"] = device.createDescriptorSetLayout(
             listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1)),
             0,
             VK_SHADER_STAGE_ALL)
@@ -1203,12 +1191,12 @@ open class VulkanRenderer(hub: Hub,
         return m
     }
 
-    protected fun prepareDescriptorSets(device: VulkanDevice, descriptorPool: Long) {
-        this.descriptorSets["Matrices"] = VU.createDescriptorSetDynamic(device, descriptorPool,
+    protected fun prepareDescriptorSets(device: VulkanDevice) {
+        this.descriptorSets["Matrices"] = device.createDescriptorSetDynamic(
                 descriptorSetLayouts["Matrices"]!!, 1,
                 buffers.UBOs)
 
-        this.descriptorSets["MaterialProperties"] = VU.createDescriptorSetDynamic(device, descriptorPool,
+        this.descriptorSets["MaterialProperties"] = device.createDescriptorSetDynamic(
                 descriptorSetLayouts["MaterialProperties"]!!, 1,
                 buffers.UBOs)
 
@@ -1225,7 +1213,7 @@ open class VulkanRenderer(hub: Hub,
 
         defaultUBOs["LightParameters"] = lightUbo
 
-        this.descriptorSets["LightParameters"] = VU.createDescriptorSet(device, descriptorPool,
+        this.descriptorSets["LightParameters"] = device.createDescriptorSet(
                 descriptorSetLayouts["LightParameters"]!!, 1,
                 lightUbo.descriptor)
 
@@ -1243,7 +1231,7 @@ open class VulkanRenderer(hub: Hub,
 
         defaultUBOs["VRParameters"] = vrUbo
 
-        this.descriptorSets["VRParameters"] = VU.createDescriptorSet(device, descriptorPool,
+        this.descriptorSets["VRParameters"] = device.createDescriptorSet(
                 descriptorSetLayouts["VRParameters"]!!, 1,
                 vrUbo.descriptor)
     }
@@ -1436,47 +1424,9 @@ open class VulkanRenderer(hub: Hub,
         flow = renderConfig.createRenderpassFlow()
         logger.debug("Renderpasses to be run: ${flow.joinToString(", ")}")
 
-        descriptorSetLayouts
-            .filter { it.key.startsWith("outputs-") }
-            .map {
-                logger.debug("Marking RT DSL ${it.value.toHexString()} for deletion")
-                vkDestroyDescriptorSetLayout(device.vulkanDevice, it.value, null)
-                it.key
-            }
-            .map {
-                descriptorSetLayouts.remove(it)
-            }
-
-        renderConfig.renderpasses.filter { it.value.inputs != null }
-            .flatMap { rp ->
-                rp.value.inputs!!
-            }
-            .map {
-                renderConfig.rendertargets.let { rts ->
-                    val name = if (it.contains(".")) {
-                        it.substringBefore(".")
-                    } else {
-                        it
-                    }
-
-                    name to rts[name]!!
-                }
-            }
-            .map { rt ->
-                if(!descriptorSetLayouts.containsKey("outputs-${rt.first}")) {
-                    logger.debug("Creating output descriptor set for ${rt.first}")
-                    // create descriptor set layout that matches the render target
-                    descriptorSetLayouts["outputs-${rt.first}"] = VU.createDescriptorSetLayout(device,
-                        descriptorNum = rt.second.attachments.count(),
-                        descriptorCount = 1,
-                        type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
-                    )
-                }
-            }
-
         config.createRenderpassFlow().map { passName ->
             val passConfig = config.renderpasses.getValue(passName)
-            val pass = VulkanRenderpass(passName, config, device, descriptorPool, pipelineCache, vertexDescriptors, swapchain.images.size)
+            val pass = VulkanRenderpass(passName, config, device, pipelineCache, vertexDescriptors, swapchain.images.size)
 
             var width = windowWidth
             var height = windowHeight
@@ -1529,8 +1479,6 @@ open class VulkanRenderer(hub: Hub,
                         }
 
                         framebuffer.createRenderpassAndFramebuffer()
-                        framebuffer.outputDescriptorSet = VU.createRenderTargetDescriptorSet(this@VulkanRenderer.device,
-                            descriptorPool, descriptorSetLayouts["outputs-${rt.key}"]!!, rt.value.attachments, framebuffer)
 
                         pass.output[rt.key] = framebuffer
                         framebuffers.put(rt.key, framebuffer)
@@ -2023,8 +1971,7 @@ open class VulkanRenderer(hub: Hub,
                         if(reloaded) {
                             it.rendererMetadata()?.texturesToDescriptorSets(device,
                                 renderpasses.filter { pass -> pass.value.passConfig.type != RenderConfigReader.RenderpassType.quad },
-                                it,
-                                descriptorPool)
+                                it)
                         }
 
                         rerecordingCauses.add(it.name)
@@ -2469,42 +2416,6 @@ open class VulkanRenderer(hub: Hub,
         state.instanceCount = index.get()//instances.size
 
         return state
-    }
-
-    private fun createDescriptorPool(device: VulkanDevice): Long {
-        return stackPush().use { stack ->
-            // We need to tell the API the number of max. requested descriptors per type
-            val typeCounts = VkDescriptorPoolSize.callocStack(4, stack)
-            typeCounts[0]
-                .type(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
-                .descriptorCount(MAX_TEXTURES)
-
-            typeCounts[1]
-                .type(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC)
-                .descriptorCount(MAX_UBOS)
-
-            typeCounts[2]
-                .type(VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT)
-                .descriptorCount(MAX_INPUT_ATTACHMENTS)
-
-            typeCounts[3]
-                .type(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
-                .descriptorCount(MAX_UBOS)
-
-            // Create the global descriptor pool
-            // All descriptors used in this example are allocated from this pool
-            val descriptorPoolInfo = VkDescriptorPoolCreateInfo.callocStack(stack)
-                .sType(VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO)
-                .pNext(NULL)
-                .pPoolSizes(typeCounts)
-                .maxSets(MAX_TEXTURES + MAX_UBOS + MAX_INPUT_ATTACHMENTS + MAX_UBOS)// Set the max. number of sets that can be requested
-                .flags(VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT)
-
-            val descriptorPool = VU.getLong("vkCreateDescriptorPool",
-                { vkCreateDescriptorPool(device.vulkanDevice, descriptorPoolInfo, null, this) }, {})
-
-            descriptorPool
-        }
     }
 
     private fun prepareDefaultBuffers(device: VulkanDevice): DefaultBuffers {
@@ -3045,7 +2956,7 @@ open class VulkanRenderer(hub: Hub,
             }
 
             if (set != null) {
-                logger.trace("Adding DS#{} for {} to required pipeline DSs", i, dsName)
+                logger.debug("${pass.name}: Adding DS#{} for {} to required pipeline DSs ($set)", i, dsName, set)
                 this.descriptorSets.put(i, set)
             } else {
                 logger.error("DS for {} not found!", dsName)
@@ -3085,8 +2996,8 @@ open class VulkanRenderer(hub: Hub,
             }
 
             if(pass.vulkanMetadata.descriptorSets.limit() > 0) {
-                logger.debug("Binding ${pass.vulkanMetadata.descriptorSets.limit()} descriptor sets with ${pass.vulkanMetadata.uboOffsets.limit()} required offsets")
-                vkCmdBindDescriptorSets(this, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                logger.debug("${pass.name}: Binding ${pass.vulkanMetadata.descriptorSets.limit()} descriptor sets with ${pass.vulkanMetadata.uboOffsets.limit()} required offsets")
+                vkCmdBindDescriptorSets(this, VK_PIPELINE_BIND_POINT_COMPUTE,
                     vulkanPipeline.layout, 0, pass.vulkanMetadata.descriptorSets, pass.vulkanMetadata.uboOffsets)
             }
 
@@ -3339,7 +3250,6 @@ open class VulkanRenderer(hub: Hub,
 
         logger.debug("Closing descriptor sets and pools...")
         descriptorSetLayouts.forEach { vkDestroyDescriptorSetLayout(device.vulkanDevice, it.value, null) }
-        vkDestroyDescriptorPool(device.vulkanDevice, descriptorPool, null)
 
         logger.debug("Closing command buffers...")
         ph.commandBuffers.free()
