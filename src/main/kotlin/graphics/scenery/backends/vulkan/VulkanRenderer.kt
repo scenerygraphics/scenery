@@ -8,6 +8,7 @@ import graphics.scenery.spirvcrossj.libspirvcrossj
 import graphics.scenery.textures.Texture
 import graphics.scenery.textures.UpdatableTexture
 import graphics.scenery.utils.*
+import io.github.classgraph.ClassGraph
 import kotlinx.coroutines.*
 import org.joml.Matrix4f
 import org.joml.Vector2f
@@ -54,6 +55,8 @@ import kotlin.math.ln
 import kotlin.math.min
 import kotlin.reflect.full.*
 import kotlin.system.measureTimeMillis
+import kotlin.time.ExperimentalTime
+import kotlin.time.measureTimedValue
 
 
 /**
@@ -70,6 +73,7 @@ import kotlin.system.measureTimeMillis
  * @author Ulrik Günther <hello@ulrik.is>
  */
 
+@OptIn(ExperimentalTime::class)
 @Suppress("MemberVisibilityCanBePrivate")
 open class VulkanRenderer(hub: Hub,
                           applicationName: String,
@@ -502,7 +506,16 @@ open class VulkanRenderer(hub: Hub,
         }
 
         // get available swapchains, but remove default swapchain, will always be there as fallback
-        val swapchains = Reflections("graphics.scenery.backends.vulkan").getSubTypesOf(Swapchain::class.java).filter { it.isKotlinClass() && it.kotlin.companionObject != null && it.simpleName != "VulkanSwapchain" }
+        val start = System.nanoTime()
+        val swapchains = ClassGraph()
+                .acceptPackages("graphics.scenery.backends.vulkan")
+                .enableClassInfo()
+                .scan()
+                .getSubclasses("graphics.scenery.backends.vulkan.Swapchain")
+                .filter { cls -> cls.simpleName != "VulkanSwapchain" }
+                .loadClasses()
+        val duration = System.nanoTime() - start
+        logger.info("Finding swapchains took ${duration/10e6} ms")
 
         logger.debug("Available special-purpose swapchains are: ${swapchains.joinToString { it.simpleName }}")
         val selectedSwapchain = swapchains.firstOrNull { (it.kotlin.companionObjectInstance as SwapchainParameters).usageCondition.invoke(embedIn) }
