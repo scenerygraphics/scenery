@@ -128,15 +128,15 @@ open class ArcballCameraControl(private val name: String, private val n: () -> C
             }
 
             var xoffset: Float = (x - lastX).toFloat()
-            var yoffset: Float = (lastY - y).toFloat()
+            var yoffset: Float = (y - lastY).toFloat()
 
             lastX = x
             lastY = y
 
             xoffset *= mouseSpeedMultiplier
-            yoffset *= -mouseSpeedMultiplier
+            yoffset *= mouseSpeedMultiplier
 
-            val frameYaw = (xoffset) / 180.0f * Math.PI.toFloat()
+            val frameYaw = xoffset / 180.0f * Math.PI.toFloat()
             val framePitch = yoffset / 180.0f * Math.PI.toFloat()
 
             // first calculate the total rotation quaternion to be applied to the camera
