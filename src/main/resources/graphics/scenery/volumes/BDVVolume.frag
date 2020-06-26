@@ -63,6 +63,17 @@ void intersectBox( vec3 r_o, vec3 r_d, vec3 boxmin, vec3 boxmax, out float tnear
 	tfar = min( min( tmax.x, tmax.y ), min( tmax.x, tmax.z ) );
 }
 
+//float adjustOpacity(float a, float modifiedStepLength) {
+//	return 1.0 - pow((1.0 - a), modifiedStepLength);
+//}
+//
+//float diffPremultiplied(vec4 a, vec4 b) {
+//	a.rgb = a.rgb * a.a;
+//	b.rgb = b.rgb * b.a;
+//
+//	return length(a.rgb-b.rgb);
+//}
+
 // ---------------------
 // $insert{Convert}
 // $insert{SampleVolume}
@@ -108,19 +119,39 @@ void main()
 
 	// -------------------------------------------------------
 
+//	int maxSupersegments = 32;
+//	float minOpacity = 0.0002; //If alpha is less than this, the sample is considered transparent and not included in generated supersegments
+//	int supersegmentNum = 0;
 
 	if ( tnear < tfar )
 	{
+
 		vec4 fb = wback - wfront;
 		int numSteps =
 		( fwnw > 0.00001 )
 		? int ( log( ( tfar * fwnw + nw ) / ( tnear * fwnw + nw ) ) / log ( 1 + fwnw ) )
 		: int ( trunc( ( tfar - tnear ) / nw + 1 ) );
 
+////		int cnt = 0;
+//		bool supersegmentIsOpen = false;
+//		float supSegStartPoint = 0.0;
+//		float supSegEndPoint = 0.0;
+//		bool lastSample = false;
+//		bool transparentSample = false;
+
 		float step = tnear;
 		vec4 v = vec4( 0 );
+//		vec4 curV = vec4( 0 );
 		for ( int i = 0; i < numSteps; ++i, step += nw + step * fwnw )
 		{
+//			if(i==(numSteps-1)) {
+//				lastSample = true;
+//			}
+//
+//			if(supersegmentNum == maxSupersegments - 1) {
+//				lastSupersegment = true;
+//			}
+
 			vec4 wpos = mix( wfront, wback, step );
 
 			// $insert{Accumulate}
