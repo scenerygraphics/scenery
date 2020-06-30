@@ -36,6 +36,7 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, sp: 
     var shaderModule: Long
     var uboSpecs = LinkedHashMap<String, UBOSpec>()
     var pushConstantSpecs = LinkedHashMap<String, PushConstantSpec>()
+    val type: ShaderType = sp.type
     private var deallocated: Boolean = false
     private var signature: ShaderSignature
 
@@ -228,15 +229,16 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, sp: 
             val imageDim = type.image.dim
             val imageDataType = type.image.format
 
-            val name = if(res.name.startsWith("Input") || res.name.startsWith("Output")) {
-                if(!inputSets.contains(setId)) {
-                    inputSets.add(setId)
-                }
-
-                "Inputs-$setId"
-            } else {
-                res.name
-            }
+//            val name = if(res.name.startsWith("Input") || res.name.startsWith("Output")) {
+//                if(!inputSets.contains(setId)) {
+//                    inputSets.add(setId)
+//                }
+//
+//                "Inputs-$setId"
+//            } else {
+//                res.name
+//            }
+            val name = res.name
 
             if(uboSpecs.containsKey(name)) {
                 logger.debug("Adding image load/store member ${res.name}/$name type=${type.basetype}, a=$arraySize, type=$imageType, dim=$imageDim")

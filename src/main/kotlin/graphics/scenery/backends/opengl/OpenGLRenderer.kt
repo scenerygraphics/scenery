@@ -649,7 +649,7 @@ open class OpenGLRenderer(hub: Hub,
             var width = windowWidth
             var height = windowHeight
 
-            config.rendertargets.filter { it.key == passConfig.output }.map { rt ->
+            config.rendertargets.filter { it.key == passConfig.output.name }.map { rt ->
                 width = (supersamplingFactor * windowWidth * rt.value.size.first).toInt()
                 height = (supersamplingFactor * windowHeight * rt.value.size.second).toInt()
                 logger.info("Creating render framebuffer ${rt.key} for pass $passName (${width}x$height)")
@@ -692,7 +692,7 @@ open class OpenGLRenderer(hub: Hub,
                 }
             }
 
-            if(passConfig.output == "Viewport") {
+            if(passConfig.output.name == "Viewport") {
                 width = (supersamplingFactor * windowWidth).toInt()
                 height = (supersamplingFactor * windowHeight).toInt()
                 logger.info("Creating render framebuffer Viewport for pass $passName (${width}x$height)")
@@ -741,8 +741,8 @@ open class OpenGLRenderer(hub: Hub,
             val passConfig = config.renderpasses.getValue(pass.key)
 
             passConfig.inputs?.forEach { inputTarget ->
-                val targetName = if(inputTarget.contains(".")) {
-                    inputTarget.substringBefore(".")
+                val targetName = if(inputTarget.name.contains(".")) {
+                    inputTarget.name.substringBefore(".")
                 } else {
                     inputTarget
                 }
@@ -751,7 +751,7 @@ open class OpenGLRenderer(hub: Hub,
                     it.value.output.keys.contains(targetName)
                 }.forEach {
                     val output = it.value.output[targetName] ?: throw IllegalStateException("Output for $targetName not found in configuration")
-                    pass.value.inputs[inputTarget] = output
+                    pass.value.inputs[inputTarget.name] = output
                 }
             }
 

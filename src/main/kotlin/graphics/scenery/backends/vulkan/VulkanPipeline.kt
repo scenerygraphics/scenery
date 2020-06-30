@@ -16,6 +16,7 @@ import kotlin.collections.LinkedHashMap
  */
 class VulkanPipeline(val device: VulkanDevice, val renderpass: VulkanRenderpass, val vulkanRenderpass: Long, val pipelineCache: Long? = null): AutoCloseable {
     private val logger by LazyLogger()
+    var type: PipelineType = PipelineType.Graphics
 
     enum class PipelineType { Graphics, Compute }
 
@@ -200,7 +201,9 @@ class VulkanPipeline(val device: VulkanDevice, val renderpass: VulkanRenderpass,
         val vkp = VulkanRenderer.Pipeline()
         vkp.layout = layout
         vkp.pipeline = p
+        vkp.type = type
 
+        this.type = type
         this.pipeline[GeometryType.TRIANGLES] = vkp
 
         logger.debug("Pipeline needs descriptor sets ${descriptorSpecs.keys.joinToString(", ")}")
@@ -232,7 +235,7 @@ class VulkanPipeline(val device: VulkanDevice, val renderpass: VulkanRenderpass,
             }
         }
 
-        logger.debug("Created $this for renderpass ${renderpass.name} ($vulkanRenderpass) with pipeline layout $layout (${if(onlyForTopology == null) { "Derivatives:" + this.pipeline.keys.joinToString(", ")} else { "no derivatives, only ${this.pipeline.keys.first()}" }})")
+        logger.debug("Created $this for renderpass ${renderpass.name} (${vulkanRenderpass.toHexString()}) with pipeline layout ${layout.toHexString()} (${if(onlyForTopology == null) { "Derivatives:" + this.pipeline.keys.joinToString(", ")} else { "no derivatives, only ${this.pipeline.keys.first()}" }})")
 
         pipelineCreateInfo.free()
         stages.free()
