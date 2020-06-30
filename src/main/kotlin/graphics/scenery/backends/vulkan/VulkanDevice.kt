@@ -1,9 +1,7 @@
 package graphics.scenery.backends.vulkan
 
 import graphics.scenery.backends.vulkan.VulkanDevice.DescriptorPool.Companion.maxSets
-import graphics.scenery.backends.vulkan.VulkanDevice.DescriptorPool.Companion.maxTextures
 import graphics.scenery.utils.LazyLogger
-import org.lwjgl.system.MemoryStack.create
 import org.lwjgl.system.MemoryStack.stackPush
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.MemoryUtil.memUTF8
@@ -340,7 +338,7 @@ open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysical
                 .sType(VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO)
                 .pNext(MemoryUtil.NULL)
                 .pPoolSizes(typeCounts)
-                .maxSets(DescriptorPool.maxSets)// Set the max. number of sets that can be requested
+                .maxSets(maxSets)// Set the max. number of sets that can be requested
                 .flags(VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT)
 
             val handle = VU.getLong("vkCreateDescriptorPool",
@@ -362,7 +360,42 @@ open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysical
         val pool = findAvailableDescriptorPool()
         pool.free -= 1
 
-        return VU.createDescriptorSet(this, pool.handle, descriptorSetLayout, bindingCount, ubo, type)
+        logger.debug("Creating descriptor set with $bindingCount bindings, DSL=$descriptorSetLayout")
+        return stackPush().use { stack ->
+            val pDescriptorSetLayout = stack.callocLong(1).put(0, descriptorSetLayout)
+
+            val allocInfo = VkDescriptorSetAllocateInfo.callocStack(stack)
+                .sType(VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO)
+                .pNext(MemoryUtil.NULL)
+                .descriptorPool(findAvailableDescriptorPool().handle)
+                .pSetLayouts(pDescriptorSetLayout)
+
+            val descriptorSet = VU.getLong("createDescriptorSet",
+                { vkAllocateDescriptorSets(vulkanDevice, allocInfo, this) }, {})
+
+            val d =
+                VkDescriptorBufferInfo.callocStack(1, stack)
+                    .buffer(ubo.buffer)
+                    .range(ubo.range)
+                    .offset(ubo.offset)
+
+            val writeDescriptorSet = VkWriteDescriptorSet.callocStack(bindingCount, stack)
+
+            (0 until bindingCount).forEach { i ->
+                writeDescriptorSet[i]
+                    .sType(VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET)
+                    .pNext(MemoryUtil.NULL)
+                    .dstSet(descriptorSet)
+                    .dstBinding(i)
+                    .pBufferInfo(d)
+                    .descriptorType(type)
+                    .descriptorCount(1)
+            }
+
+            vkUpdateDescriptorSets(vulkanDevice, writeDescriptorSet, null)
+
+            descriptorSet
+        }
     }
 
     /**
@@ -376,7 +409,43 @@ open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysical
         val pool = findAvailableDescriptorPool()
         pool.free -= 1
 
-        return VU.createDescriptorSetDynamic(this, pool.handle, descriptorSetLayout, bindingCount, buffer)
+        logger.debug("Creating dynamic descriptor set with $bindingCount bindings, DSL=${descriptorSetLayout.toHexString()}")
+
+        return stackPush().use { stack ->
+            val pDescriptorSetLayout = stack.callocLong(1).put(0, descriptorSetLayout)
+
+            val allocInfo = VkDescriptorSetAllocateInfo.callocStack()
+                .sType(VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO)
+                .pNext(MemoryUtil.NULL)
+                .descriptorPool(findAvailableDescriptorPool().handle)
+                .pSetLayouts(pDescriptorSetLayout)
+
+            val descriptorSet = VU.getLong("createDescriptorSet",
+                { vkAllocateDescriptorSets(vulkanDevice, allocInfo, this) }, {})
+
+            val d = VkDescriptorBufferInfo.callocStack(1, stack)
+                .buffer(buffer.vulkanBuffer)
+                .range(2048)
+                .offset(0L)
+
+            val writeDescriptorSet = VkWriteDescriptorSet.callocStack(bindingCount, stack)
+
+            (0 until bindingCount).forEach { i ->
+                writeDescriptorSet[i]
+                    .sType(VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET)
+                    .pNext(MemoryUtil.NULL)
+                    .dstSet(descriptorSet)
+                    .dstBinding(i)
+                    .dstArrayElement(0)
+                    .pBufferInfo(d)
+                    .descriptorType(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC)
+                    .descriptorCount(1)
+            }
+
+            vkUpdateDescriptorSets(vulkanDevice, writeDescriptorSet, null)
+
+            descriptorSet
+        }
     }
 
     /**
@@ -385,7 +454,30 @@ open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysical
      * The shader stages to which the DSL should be visible can be set via [shaderStages].
      */
     fun createDescriptorSetLayout(types: List<Pair<Int, Int>>, binding: Int = 0, shaderStages: Int): Long {
-        return VU.createDescriptorSetLayout(this, types, binding, shaderStages)
+        return stackPush().use { stack ->
+            val layoutBinding = VkDescriptorSetLayoutBinding.callocStack(types.size, stack)
+
+            types.forEachIndexed { i, (type, count) ->
+                layoutBinding[i]
+                    .binding(i + binding)
+                    .descriptorType(type)
+                    .descriptorCount(count)
+                    .stageFlags(shaderStages)
+                    .pImmutableSamplers(null)
+            }
+
+            val descriptorLayout = VkDescriptorSetLayoutCreateInfo.callocStack(stack)
+                .sType(VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO)
+                .pNext(MemoryUtil.NULL)
+                .pBindings(layoutBinding)
+
+            val descriptorSetLayout = VU.getLong("vkCreateDescriptorSetLayout",
+                { vkCreateDescriptorSetLayout(vulkanDevice, descriptorLayout, null, this) }, {})
+
+            logger.debug("Created DSL ${descriptorSetLayout.toHexString()} with ${types.size} descriptors.")
+
+            descriptorSetLayout
+        }
     }
 
     /**
@@ -394,11 +486,37 @@ open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysical
      * customized,  as well as the shader stages to which the DSL should be visible ([shaderStages]).
      */
     fun createDescriptorSetLayout(type: Int = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, binding: Int = 0, descriptorNum: Int = 1, descriptorCount: Int = 1, shaderStages: Int = VK_SHADER_STAGE_ALL): Long {
-        return VU.createDescriptorSetLayout(this, type, binding, descriptorNum, descriptorCount, shaderStages)
+        return stackPush().use { stack ->
+            val layoutBinding = VkDescriptorSetLayoutBinding.callocStack(descriptorNum, stack)
+            (binding until descriptorNum).forEach { i ->
+                layoutBinding[i]
+                    .binding(i)
+                    .descriptorType(type)
+                    .descriptorCount(descriptorCount)
+                    .stageFlags(shaderStages)
+                    .pImmutableSamplers(null)
+            }
+
+            val descriptorLayout = VkDescriptorSetLayoutCreateInfo.callocStack(stack)
+                .sType(VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO)
+                .pNext(MemoryUtil.NULL)
+                .pBindings(layoutBinding)
+
+            val descriptorSetLayout = VU.getLong("vkCreateDescriptorSetLayout",
+                { vkCreateDescriptorSetLayout(vulkanDevice, descriptorLayout, null, this) }, {})
+
+            logger.debug("Created DSL ${descriptorSetLayout.toHexString()} with $descriptorNum descriptors with $descriptorCount elements.")
+
+            descriptorSetLayout
+        }
     }
 
     /**
-     * Creates a new descriptor set for a render [target] given.
+     * Creates and returns a new descriptor set for a framebuffer given as [target]. The set will be
+     * allocated on this device, from the first available descriptor ppol, and conforms to an
+     * existing descriptor set layout [descriptorSetLayout]. Additional
+     * metadata about the framebuffer needs to be given via [rt], and a subset of the framebuffer can
+     * be selected by setting [onlyFor] to the respective name of the attachment.
      */
     fun createRenderTargetDescriptorSet(
         descriptorSetLayout: Long,
@@ -409,7 +527,52 @@ open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysical
         val pool = findAvailableDescriptorPool()
         pool.free -= 1
 
-        return VU.createRenderTargetDescriptorSet(this, pool.handle, descriptorSetLayout, target, imageLoadStore, onlyFor)
+        return stackPush().use { stack ->
+            val (type, layout) = if(!imageLoadStore) {
+                VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER to VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+            } else {
+                VK_DESCRIPTOR_TYPE_STORAGE_IMAGE to VK_IMAGE_LAYOUT_GENERAL
+            }
+
+            val pDescriptorSetLayout = stack.callocLong(1).put(0, descriptorSetLayout)
+
+            val allocInfo = VkDescriptorSetAllocateInfo.callocStack(stack)
+                .sType(VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO)
+                .pNext(MemoryUtil.NULL)
+                .descriptorPool(findAvailableDescriptorPool().handle)
+                .pSetLayouts(pDescriptorSetLayout)
+
+            val descriptorSet = VU.getLong("createDescriptorSet",
+                { vkAllocateDescriptorSets(vulkanDevice, allocInfo, this) }, {})
+
+            val targets = onlyFor ?: target.attachments.values.toList()
+
+            val writeDescriptorSet = VkWriteDescriptorSet.callocStack(targets.size, stack)
+
+            targets.forEachIndexed { i, attachment ->
+                val d = VkDescriptorImageInfo.callocStack(1, stack)
+
+                d
+                    .imageView(attachment.imageView.get(0))
+                    .sampler(target.framebufferSampler.get(0))
+                    .imageLayout(layout)
+
+                writeDescriptorSet[i]
+                    .sType(VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET)
+                    .pNext(MemoryUtil.NULL)
+                    .dstSet(descriptorSet)
+                    .dstBinding(i)
+                    .dstArrayElement(0)
+                    .pImageInfo(d)
+                    .descriptorType(type)
+                    .descriptorCount(1)
+            }
+
+            vkUpdateDescriptorSets(vulkanDevice, writeDescriptorSet, null)
+
+            logger.debug("Creating framebuffer attachment descriptor $descriptorSet set with ${if(onlyFor != null) { 1 } else { target.attachments.size }} bindings, DSL=$descriptorSetLayout")
+            descriptorSet
+        }
     }
 
     /**
@@ -531,7 +694,10 @@ open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysical
                 for (i in 0 until physicalDeviceCount) {
                     val device = VkPhysicalDevice(physicalDevices.get(i), instance)
                     val properties: VkPhysicalDeviceProperties = VkPhysicalDeviceProperties.calloc()
+                    vkGetPhysicalDeviceProperties(device, properties)
+
                     val apiVersion = with(decodeDriverVersion(properties.apiVersion())) { this.first to this.second }
+
 
                     val formatRanges = (0 .. apiVersion.second).mapNotNull { minor -> supportedFormatRanges[1 to minor] }
 

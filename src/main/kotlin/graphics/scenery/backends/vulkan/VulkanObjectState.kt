@@ -94,11 +94,13 @@ open class VulkanObjectState : NodeMetadata {
                     textureDescriptorSets.clear()
                 }
 
+                logger.info("For node $node oj=${objectTextures?.joinToString(",")}")
                 val descriptorSetLayoutObjectTextures = pass.descriptorSetLayouts["ObjectTextures"]
-                if (descriptorSetLayoutObjectTextures != null && objectTextures != null) {
+                if (descriptorSetLayoutObjectTextures != null && objectTextures != null && objectTextures.isNotEmpty()) {
                     textureDescriptorSets[pass.passConfig.type.name to "ObjectTextures"] = createOrUpdateTextureDescriptorSet(
                         "ObjectTextures",
-                        pass.passConfig.type.name,
+                        node,
+                        pass,
                         Texture.objectTextures.map { ot -> objectTextures.first { it.key == ot } },
                         descriptorSetLayoutObjectTextures,
                         device)
@@ -127,7 +129,7 @@ open class VulkanObjectState : NodeMetadata {
                     val firstTextureName = textureNames.first()
                     val texturesForSet = textureNames.mapNotNull { t -> others.firstOrNull() { it.key == t } }
 
-                    val (ds, duration) = measureTimedValue { createOrUpdateTextureDescriptorSet(firstTextureName, passName, texturesForSet, dsl, device) }
+                    val ds = createOrUpdateTextureDescriptorSet(firstTextureName, node, pass, texturesForSet, dsl, device)
 
                     texturesForSet.forEach { (textureName, _) ->
                         textureDescriptorSets[pass.passConfig.type.name to textureName] = ds
@@ -143,8 +145,10 @@ open class VulkanObjectState : NodeMetadata {
         textureDescriptorSets.clear()
     }
 
-    private fun createOrUpdateTextureDescriptorSet(name: String, passName: String, textures: List<MutableMap.MutableEntry<String, VulkanTexture>>, descriptorSetLayout: Long, device: VulkanDevice): Long {
+    private fun createOrUpdateTextureDescriptorSet(name: String, node: Node, pass: VulkanRenderpass, textures: List<MutableMap.MutableEntry<String, VulkanTexture>>, descriptorSetLayout: Long, device: VulkanDevice): Long {
         val cacheKey = TextureKey(device.vulkanDevice, descriptorSetLayout, textures)
+        val passName = pass.passConfig.type.name
+        val pipeline = pass.getActivePipeline(node)
 
         val existing = cache[cacheKey]
 
@@ -178,10 +182,16 @@ open class VulkanObjectState : NodeMetadata {
         var i = 0
 
         textures.forEach { texture ->
+            val (type, layout) = if(pipeline.type == VulkanPipeline.PipelineType.Compute && texture.value.usage.contains(Texture.UsageType.LoadStoreImage)) {
+                VK10.VK_DESCRIPTOR_TYPE_STORAGE_IMAGE to VK10.VK_IMAGE_LAYOUT_GENERAL
+            } else {
+                VK10.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER to VK10.VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+            }
+
             d[i]
                 .imageView(texture.value.image.view)
                 .sampler(texture.value.image.sampler)
-                .imageLayout(VK10.VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+                .imageLayout(layout)
 
             wd[i]
                 .sType(VK10.VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET)
@@ -190,7 +200,7 @@ open class VulkanObjectState : NodeMetadata {
                 .dstBinding(0)
                 .dstArrayElement(i)
                 .pImageInfo(d[i])
-                .descriptorType(VK10.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
+                .descriptorType(type)
                 .descriptorCount(1)
 
             i++

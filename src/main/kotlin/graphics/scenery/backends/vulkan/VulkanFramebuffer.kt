@@ -157,7 +157,7 @@ open class VulkanFramebuffer(protected val device: VulkanDevice,
      *
      * This function also creates the necessary images, memory allocs, and image views.
      */
-    protected fun createAttachment(format: Int, usage: Int, attachmentWidth: Int = width, attachmentHeight: Int = height): VulkanFramebufferAttachment {
+    protected fun createAttachment(format: Int, usage: Int, attachmentWidth: Int = width, attachmentHeight: Int = height, name: String = ""): VulkanFramebufferAttachment {
         val a = VulkanFramebufferAttachment()
         var aspectMask: Int = 0
         var imageLayout: Int = 0
@@ -256,6 +256,8 @@ open class VulkanFramebuffer(protected val device: VulkanDevice,
             onlyFor = listOf(a)
         )
 
+        logger.debug("Created sampling DSL ${a.descriptorSetLayout.toHexString()} and DS ${a.descriptorSet.toHexString()} for attachment $name")
+
         if(loadStoreSupported) {
             val dsl = device.createDescriptorSetLayout(
                 descriptorNum = 1,
@@ -270,6 +272,8 @@ open class VulkanFramebuffer(protected val device: VulkanDevice,
                 onlyFor = listOf(a),
                 imageLoadStore = true
             )
+
+            logger.debug("Created load/store DSL ${a.loadStoreDescriptorSetLayout?.toHexString()} and DS ${a.loadStoreDescriptorSet?.toHexString()} for attachment $name")
         }
 
         return a
@@ -280,7 +284,7 @@ open class VulkanFramebuffer(protected val device: VulkanDevice,
      * dimensions [attachmentWidth] x [attachmentHeight].
      */
     private fun createAndAddDepthStencilAttachmentInternal(name: String, format: Int, attachmentWidth: Int, attachmentHeight: Int) {
-        val att = createAttachment(format, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, attachmentWidth, attachmentHeight)
+        val att = createAttachment(format, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, attachmentWidth, attachmentHeight, name)
 
         val (loadOp, stencilLoadOp) = if(!shouldClear) {
             VK_ATTACHMENT_LOAD_OP_DONT_CARE to VK_ATTACHMENT_LOAD_OP_LOAD
@@ -309,7 +313,7 @@ open class VulkanFramebuffer(protected val device: VulkanDevice,
      * dimensions [attachmentWidth] x [attachmentHeight].
      */
     private fun createAndAddColorAttachmentInternal(name: String, format: Int, attachmentWidth: Int, attachmentHeight: Int) {
-        val att = createAttachment(format, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, attachmentWidth, attachmentHeight)
+        val att = createAttachment(format, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, attachmentWidth, attachmentHeight, name)
 
         val (loadOp, stencilLoadOp) = if(!shouldClear) {
             VK_ATTACHMENT_LOAD_OP_LOAD to VK_ATTACHMENT_LOAD_OP_LOAD
@@ -489,6 +493,9 @@ open class VulkanFramebuffer(protected val device: VulkanDevice,
             onlyFor = listOf(att)
         )
 
+        logger.debug("Created sampling DSL ${att.loadStoreDescriptorSetLayout?.toHexString()} and DS ${att.loadStoreDescriptorSet?.toHexString()} for attachment $name")
+
+
         if(loadStoreSupported) {
             val dsl = device.createDescriptorSetLayout(
                 descriptorNum = 1,
@@ -503,6 +510,8 @@ open class VulkanFramebuffer(protected val device: VulkanDevice,
                 onlyFor = listOf(att),
                 imageLoadStore = true
             )
+
+            logger.debug("Created load/store DSL ${att.loadStoreDescriptorSetLayout?.toHexString()} and DS ${att.loadStoreDescriptorSet?.toHexString()} for attachment $name")
         }
 
         return this
@@ -625,6 +634,8 @@ open class VulkanFramebuffer(protected val device: VulkanDevice,
             this
         )
 
+        logger.debug("Created sampling DSL ${outputDescriptorSetLayout.toHexString()} and DS ${outputDescriptorSet.toHexString()} for framebuffer")
+
         imageLoadStoreDescriptorSetLayout = device.createDescriptorSetLayout(
             descriptorNum = attachments.count { it.value.loadStoreDescriptorSet != null },
             descriptorCount = 1,
@@ -637,6 +648,9 @@ open class VulkanFramebuffer(protected val device: VulkanDevice,
             imageLoadStore = true,
             onlyFor = attachments.values.filter { it.loadStoreDescriptorSet != null }
         )
+
+        logger.debug("Created load/store DSL ${imageLoadStoreDescriptorSetLayout.toHexString()} and DS ${imageLoadStoreDescriptorSet.toHexString()} for framebuffer")
+
 
         renderPassInfo.free()
         subpass.free()
