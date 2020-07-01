@@ -1,6 +1,5 @@
 package graphics.scenery
 
-import graphics.scenery.backends.ShaderNotFoundException
 import graphics.scenery.backends.ShaderType
 import graphics.scenery.backends.Shaders
 
@@ -16,14 +15,7 @@ class ShaderMaterial(var shaders: Shaders) : Material() {
     /**
      * Returns true if the current material is only use for compute
      */
-    fun isCompute(): Boolean {
-        try {
-            shaders.get(Shaders.ShaderTarget.Vulkan, ShaderType.ComputeShader)
-        } catch(snf: ShaderNotFoundException) {
-            return false
-        }
-        return true
-    }
+    fun isCompute(): Boolean = shaders.type.contains(ShaderType.ComputeShader)
 
     /** Factory functions for ShaderMaterial */
     companion object {
