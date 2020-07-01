@@ -14,6 +14,7 @@ import java.util.concurrent.ConcurrentHashMap
 sealed class Shaders {
     val logger by LazyLogger()
     var stale: Boolean = false
+    val type: HashSet<ShaderType> = hashSetOf()
 
     /**
      * Enum to indicate whether a shader will target Vulkan or OpenGL.
@@ -44,6 +45,20 @@ sealed class Shaders {
      */
     open class ShadersFromFiles(val shaders: Array<String>,
                            val clazz: Class<*> = Renderer::class.java) : Shaders() {
+        init {
+            type.addAll(shaders.map {
+                val extension = it.toLowerCase().substringBeforeLast(".spv").substringAfterLast(".").trim()
+                when(extension) {
+                    "vert" -> ShaderType.VertexShader
+                    "frag" -> ShaderType.FragmentShader
+                    "comp" -> ShaderType.ComputeShader
+                    "tesc" -> ShaderType.TessellationControlShader
+                    "tese" -> ShaderType.TessellationEvaluationShader
+                    "geom" -> ShaderType.GeometryShader
+                    else -> throw IllegalArgumentException(".$extension is not a valid shader file extension")
+                }
+            })
+        }
 
         /**
          * Returns a [ShaderPackage] targeting [target] (OpenGL or Vulkan), containing
@@ -116,7 +131,11 @@ sealed class Shaders {
         ShadersFromFiles(
             shaderTypes
                 .map { it.toExtension() }.toTypedArray()
-                .map { "${clazz.simpleName}$it" }.toTypedArray(), clazz)
+                .map { "${clazz.simpleName}$it" }.toTypedArray(), clazz) {
+        init {
+            type.addAll(shaderTypes)
+        }
+    }
 
     /**
      * Abstract functions all shader providers will have to implement, for returning
