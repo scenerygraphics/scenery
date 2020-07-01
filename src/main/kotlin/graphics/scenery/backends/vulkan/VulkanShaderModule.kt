@@ -36,6 +36,7 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, sp: 
     var shaderModule: Long
     var uboSpecs = LinkedHashMap<String, UBOSpec>()
     var pushConstantSpecs = LinkedHashMap<String, PushConstantSpec>()
+    val type: ShaderType = sp.type
     private var deallocated: Boolean = false
     private var signature: ShaderSignature
 
@@ -46,7 +47,12 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, sp: 
     data class UBOMemberSpec(val name: String, val index: Long, val offset: Long, val range: Long)
 
     /** Types an UBO can have */
-    enum class UBOSpecType { UniformBuffer, SampledImage1D, SampledImage2D, SampledImage3D }
+    enum class UBOSpecType {
+        UniformBuffer,
+        SampledImage1D, SampledImage2D, SampledImage3D,
+        Image1D, Image2D, Image3D,
+        StorageBuffer, StorageBufferDynamic
+    }
 
     /**
      * Specification of an UBO, storing [name], descriptor [set], [binding], [type], and a set of [members].
@@ -63,6 +69,7 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, sp: 
     private data class ShaderSignature(val device: VulkanDevice, val p: ShaderPackage)
 
     init {
+        logger.debug("Processing shader package with code=${sp.codePath}, spirv=${sp.spirvPath} and main entry point $entryPoint")
         signature = ShaderSignature(device, sp)
 
         if(sp.spirv == null) {
@@ -197,6 +204,59 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, sp: 
                         1 -> UBOSpecType.SampledImage2D
                         2 -> UBOSpecType.SampledImage3D
                         else -> throw IllegalArgumentException("samplerDim cannot be $samplerDim.")
+                    },
+                    members = LinkedHashMap(),
+                    size = arraySize)
+
+                if(name.startsWith("Inputs")) {
+                    uboSpecs[name]?.members?.put(res.name, UBOMemberSpec(res.name, 0L, 0L, 0L))
+                }
+            }
+        }
+
+        (0 until compiler.shaderResources.storageImages.capacity()).forEach { imageId ->
+            val res = compiler.shaderResources.storageImages.get(imageId)
+            val setId = compiler.getDecoration(res.id, Decoration.DecorationDescriptorSet)
+            val type = compiler.getType(res.typeId)
+
+            val arraySize = if(type.array.capacity() > 0) {
+                type.array.get(0).toInt()
+            } else {
+                1
+            }
+
+            val imageType = type.image.type
+            val imageDim = type.image.dim
+            val imageDataType = type.image.format
+
+//            val name = if(res.name.startsWith("Input") || res.name.startsWith("Output")) {
+//                if(!inputSets.contains(setId)) {
+//                    inputSets.add(setId)
+//                }
+//
+//                "Inputs-$setId"
+//            } else {
+//                res.name
+//            }
+            val name = res.name
+
+            if(uboSpecs.containsKey(name)) {
+                logger.debug("Adding image load/store member ${res.name}/$name type=${type.basetype}, a=$arraySize, type=$imageType, dim=$imageDim")
+                uboSpecs[name]?.let { spec ->
+                    spec.members[res.name] = UBOMemberSpec(res.name, spec.members.size.toLong(), 0L, 0L)
+                    spec.binding = minOf(spec.binding, compiler.getDecoration(res.id, Decoration.DecorationBinding))
+                }
+            } else {
+                val bindingId = compiler.getDecoration(res.id, Decoration.DecorationBinding)
+                logger.debug("Adding image load/store UBO, ${res.name}/$name, set=$setId, binding=$bindingId, type=${type.basetype}, a=$arraySize, type=$imageType, dim=$imageDim")
+                uboSpecs[name] = UBOSpec(name,
+                    set = setId,
+                    binding = bindingId,
+                    type = when(imageDim) {
+                        0 -> UBOSpecType.Image1D
+                        1 -> UBOSpecType.Image2D
+                        2 -> UBOSpecType.Image3D
+                        else -> throw IllegalArgumentException("samplerDim cannot be $imageDim.")
                     },
                     members = LinkedHashMap(),
                     size = arraySize)

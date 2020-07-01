@@ -146,7 +146,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
     open suspend fun sceneryMain() {
         System.setProperty("org.slf4j.simpleLogger.defaultLogLevel", System.getProperty("scenery.LogLevel", "info"))
 
-        System.getProperties().forEach { prop ->
+        System.getProperties().map { it }.forEach { prop ->
             val name = prop.key as? String ?: return@forEach
             val value = prop.value as? String ?: return@forEach
 

@@ -40,7 +40,8 @@ open class VulkanTexture(val device: VulkanDevice,
                     val commandPools: VulkanRenderer.CommandPools, val queue: VkQueue, val transferQueue: VkQueue,
                     val width: Int, val height: Int, val depth: Int = 1,
                     val format: Int = VK_FORMAT_R8G8B8_SRGB, var mipLevels: Int = 1,
-                    val minFilterLinear: Boolean = true, val maxFilterLinear: Boolean = true) : AutoCloseable {
+                    val minFilterLinear: Boolean = true, val maxFilterLinear: Boolean = true,
+                    val usage: HashSet<Texture.UsageType> = hashSetOf(Texture.UsageType.Texture)) : AutoCloseable {
     //protected val logger by LazyLogger()
 
     private var initialised: Boolean = false
@@ -195,8 +196,13 @@ open class VulkanTexture(val device: VulkanDevice,
                 mipLevels = 1)
         }
 
+        var usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT or VK_IMAGE_USAGE_SAMPLED_BIT or VK_IMAGE_USAGE_TRANSFER_SRC_BIT
+        if(device.formatFeatureSupported(format, VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT, optimalTiling = true)) {
+            usage = usage or VK_IMAGE_USAGE_STORAGE_BIT
+        }
+
         image = createImage(width, height, depth,
-            format, VK_IMAGE_USAGE_TRANSFER_DST_BIT or VK_IMAGE_USAGE_SAMPLED_BIT or VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+            format, usage,
             VK_IMAGE_TILING_OPTIMAL, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
             mipLevels)
 
@@ -223,7 +229,7 @@ open class VulkanTexture(val device: VulkanDevice,
         texture.dimensions.y().toInt(),
         texture.dimensions.z()?.toInt() ?: 1,
         texture.toVulkanFormat(),
-        mipLevels, texture.minFilter == Texture.FilteringMode.Linear, texture.maxFilter == Texture.FilteringMode.Linear) {
+        mipLevels, texture.minFilter == Texture.FilteringMode.Linear, texture.maxFilter == Texture.FilteringMode.Linear, usage = texture.usageType) {
         gt = texture
     }
 

@@ -12,7 +12,6 @@ import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.RingBuffer
 import org.joml.Vector2f
 import org.joml.Vector4f
-import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.*
@@ -20,20 +19,16 @@ import java.nio.IntBuffer
 import java.nio.LongBuffer
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
-import kotlin.time.ExperimentalTime
-import kotlin.time.measureTimedValue
 
 /**
  * Class to encapsulate a Vulkan renderpass with [name] and associated [RenderConfigReader.RenderConfig] [config].
- * The renderpass will be created on [device], with descriptors being allocated from [descriptorPool].
- * A [pipelineCache] can be used for performance gains. The available vertex descriptors need to be handed
+ * The renderpass will be created on [device]. A [pipelineCache] can be used for performance gains. The available vertex descriptors need to be handed
  * over in [vertexDescriptors].
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
 open class VulkanRenderpass(val name: String, var config: RenderConfigReader.RenderConfig,
                        val device: VulkanDevice,
-                       val descriptorPool: Long,
                        val pipelineCache: Long,
                        val vertexDescriptors: ConcurrentHashMap<VulkanRenderer.VertexDataKinds, VulkanRenderer.VertexDescription>,
                        val ringBufferSize: Int = 2): AutoCloseable {
@@ -175,7 +170,13 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
     fun initializeInputAttachmentDescriptorSetLayouts(shaderModules: List<VulkanShaderModule>) {
         var input = 0
         logger.debug("Renderpass $name has inputs ${inputs.keys.joinToString(", ")}")
-        inputs.entries.reversed().forEach { inputFramebuffer ->
+        val relevantFramebuffers = if(passConfig.type == RenderConfigReader.RenderpassType.compute) {
+            inputs.entries + output.entries
+        } else {
+            inputs.entries
+        }
+
+        relevantFramebuffers.reversed().forEach { inputFramebuffer ->
             // we need to discern here whether the entire framebuffer is the input, or
             // only a part of it (indicated by a dot in the name)
             val descriptorNum = if(inputFramebuffer.key.contains(".")) {
@@ -184,53 +185,73 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
                 inputFramebuffer.value.attachments.count()
             }
 
-            // create descriptor set layout that matches the render target
-            val dsl = VU.createDescriptorSetLayout(device,
-                descriptorNum = descriptorNum,
-                descriptorCount = 1,
-                type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
-            )
-
-            val ds = if(inputFramebuffer.key.contains(".")) {
+            val (dsl, ds) = if(inputFramebuffer.key.contains(".")) {
                 val targetName = inputFramebuffer.key.substringBefore(".")
                 val attachmentName = inputFramebuffer.key.substringAfter(".")
+                val attachment = inputFramebuffer.value.attachments[attachmentName] ?: throw IllegalStateException("Framebuffer $inputFramebuffer does not contain attachment $attachmentName")
 
-                val rendertarget = config.rendertargets[targetName] ?: throw IllegalStateException("Rendertargets do not contain required target ${inputFramebuffer.key}")
+                config.rendertargets[targetName] ?: throw IllegalStateException("Rendertargets do not contain required target ${inputFramebuffer.key}")
 
-                VU.createRenderTargetDescriptorSet(device, descriptorPool, dsl,
-                    rendertarget.attachments,
-                    inputFramebuffer.value, attachmentName)
+                attachment.descriptorSet
+
+                when(passConfig.type) {
+                    RenderConfigReader.RenderpassType.geometry,
+                    RenderConfigReader.RenderpassType.quad,
+                    RenderConfigReader.RenderpassType.lights -> attachment.descriptorSetLayout to attachment.descriptorSet
+                    RenderConfigReader.RenderpassType.compute -> attachment.loadStoreDescriptorSetLayout!! to attachment.loadStoreDescriptorSet!!
+                }
             } else {
-                inputFramebuffer.value.outputDescriptorSet
+                if(passConfig.type == RenderConfigReader.RenderpassType.compute) {
+                    inputFramebuffer.value.imageLoadStoreDescriptorSetLayout to inputFramebuffer.value.imageLoadStoreDescriptorSet
+                } else {
+                    inputFramebuffer.value.outputDescriptorSetLayout to inputFramebuffer.value.outputDescriptorSet
+                }
             }
 
-            val searchKeys = if(inputFramebuffer.key.contains(".")) {
-                listOf(inputFramebuffer.key.substringAfter("."))
-            } else {
-                config.rendertargets[inputFramebuffer.key]?.attachments?.keys ?: throw IllegalStateException("Rendertargets do not contain required target ${inputFramebuffer.key}")
+            logger.debug("$name: descriptor set for $inputFramebuffer.key is ${ds.toHexString()}")
+
+            val searchKeys = when {
+                inputFramebuffer.key.startsWith("Viewport") -> {
+                    listOf("Viewport")
+                }
+                inputFramebuffer.key.contains(".") -> {
+                    listOf(inputFramebuffer.key.substringAfter("."))
+                }
+                else -> {
+                    config.rendertargets[inputFramebuffer.key]?.attachments?.keys ?: throw IllegalStateException("$name: Rendertargets do not contain required target ${inputFramebuffer.key}")
+                }
             }
 
-            logger.debug("Search keys for input attachments: ${searchKeys.joinToString(",")}")
+            logger.debug("$name: Search keys for input attachments: ${searchKeys.joinToString(",")}, descriptorNum=$descriptorNum")
 
-            val spec = shaderModules.flatMap { it.uboSpecs.entries }.firstOrNull { entry ->
-                entry.component2().members.count() == descriptorNum
-                && entry.component1().startsWith("Inputs")
-                && searchKeys.map { entry.component2().members.containsKey("Input$it") }.all { it }
-            }
+            val nameInShader = passConfig.inputs?.firstOrNull { it.name == inputFramebuffer.key }?.shaderInput ?: if(passConfig.output.name == inputFramebuffer.key) { passConfig.output.shaderInput } else { null }
+            logger.debug("$name: Name declared in shader is: $nameInShader")
+
+            val spec = shaderModules
+                .flatMap { it.uboSpecs.entries }
+                .firstOrNull { entry ->
+                    entry.component2().members.count() == descriptorNum
+                        && (entry.component1().startsWith("Inputs") || entry.component1().startsWith("Output") || entry.component1() == nameInShader)
+                        && searchKeys
+                        .map { logger.debug("Looking for Input$it or Output$it");
+                            entry.component2().members.containsKey("Input$it")
+                                || entry.component2().members.containsKey("Output$it")
+                                || entry.component2().members.containsKey(nameInShader) }.all { it }
+                }
 
             if(spec != null) {
                 val inputKey = "input-${this.name}-${spec.value.set}"
 
-                logger.debug("${this.name}: Creating input descriptor set for ${inputFramebuffer.key}, $inputKey")
-                descriptorSetLayouts.put(inputKey, dsl)?.let {
+                logger.debug("$name: Creating input descriptor set for ${inputFramebuffer.key}, $inputKey")
+                descriptorSetLayouts.put(inputKey, dsl)/*?.let {
                     oldDSL ->
-                    logger.debug("Removing old DSL for $inputKey, $oldDSL.")
+                    logger.debug("$name: Removing old DSL for $inputKey, $oldDSL.")
                     vkDestroyDescriptorSetLayout(device.vulkanDevice, oldDSL, null)
-                }
+                }*/
                 descriptorSets.put(inputKey, ds)
                 input++
             } else {
-                vkDestroyDescriptorSetLayout(device.vulkanDevice, dsl, null)
+//                vkDestroyDescriptorSetLayout(device.vulkanDevice, dsl, null)
                 logger.debug("$name: Shader does not use input of ${inputFramebuffer.key}. Check if your shader should be doing that.")
             }
         }
@@ -289,11 +310,11 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
             // create descriptor set layout
 //            val dsl = VU.createDescriptorSetLayout(device,
 //                VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, 1)
-            val dsl = VU.createDescriptorSetLayout(device,
+            val dsl = device.createDescriptorSetLayout(
                 listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1)),
                 0, VK_SHADER_STAGE_ALL)
 
-            val ds = VU.createDescriptorSet(device, descriptorPool, dsl,
+            val ds = device.createDescriptorSet(dsl,
             1, ubo.descriptor, type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
 
             // populate descriptor set
@@ -314,10 +335,10 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
         // this creates a shader property UBO for items marked @ShaderProperty in node
         val alreadyCreated = descriptorSetLayouts.containsKey("ShaderProperties-$name")
 
-        val dsl = if(!alreadyCreated) {
+        // returns a ordered list of the members of the ShaderProperties struct
+        return if(!alreadyCreated) {
             // create descriptor set layout
-            val dsl = VU.createDescriptorSetLayout(
-                device,
+            val dsl = device.createDescriptorSetLayout(
                 listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1)),
                 binding = 0, shaderStages = VK_SHADER_STAGE_ALL)
 
@@ -329,9 +350,6 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
                 throw IllegalStateException("ShaderProperties-$name does not exist in descriptor set layouts for $this.")
             }
         }
-
-        // returns a ordered list of the members of the ShaderProperties struct
-        return dsl
     }
 
     fun getDescriptorSetLayoutForTexture(name: String, node: Node): Pair<Long, List<VulkanShaderModule.UBOSpec>>? {
@@ -447,21 +465,22 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
         p.descriptorSpecs.entries
             .groupBy { it.value.set }
             .toSortedMap()
-            .forEach { setId, group ->
-                logger.debug("${this.name}: Initialising DSL for set $setId with ${group.sortedBy { it.value.binding }.joinToString(", ") { "${it.value.name} (${it.value.set}/${it.value.binding})" }}")
+            .forEach { (setId, group) ->
+                logger.debug("${this.name}: Initialising DSL for set $setId with ${group.sortedBy { it.value.binding }.joinToString(", ") { "${it.value.name} (${it.value.set}/${it.value.binding})" }} (${group.size} members)")
                 reqDescriptorLayouts.add(initializeDescriptorSetLayoutForSpecs(setId, group.sortedBy { it.value.binding }))
             }
 
         settings.invoke(p)
 
         if(logger.isDebugEnabled) {
-            logger.debug("DS are: ${p.descriptorSpecs.entries.sortedBy { it.value.binding }.sortedBy { it.value.set }.joinToString { "${it.key} (set=${it.value.set}, binding=${it.value.binding})" } }")
+            logger.debug("DS are: ${p.descriptorSpecs.entries.sortedBy { it.value.binding }.sortedBy { it.value.set }.joinToString { "${it.key} (set=${it.value.set}, binding=${it.value.binding}, type=${it.value.type})" } }")
         }
 
         logger.debug("Required DSLs: ${reqDescriptorLayouts.joinToString { it.toHexString() } }")
 
-        when(passConfig.type) {
-            RenderConfigReader.RenderpassType.quad -> {
+        when {
+            (passConfig.type == RenderConfigReader.RenderpassType.quad)
+                && shaders.first().type != ShaderType.ComputeShader -> {
                 p.rasterizationState.cullMode(VK_CULL_MODE_FRONT_BIT)
                 p.rasterizationState.frontFace(VK_FRONT_FACE_COUNTER_CLOCKWISE)
 
@@ -471,11 +490,19 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
                     onlyForTopology = GeometryType.TRIANGLES)
             }
 
-            RenderConfigReader.RenderpassType.geometry,
-            RenderConfigReader.RenderpassType.lights -> {
+            (passConfig.type == RenderConfigReader.RenderpassType.geometry
+                || passConfig.type == RenderConfigReader.RenderpassType.lights)
+                && shaders.first().type != ShaderType.ComputeShader -> {
                 p.createPipelines(
                     vertexInputType.state,
                     descriptorSetLayouts = reqDescriptorLayouts)
+            }
+
+            passConfig.type == RenderConfigReader.RenderpassType.compute
+                || shaders.first().type == ShaderType.ComputeShader -> {
+                p.createPipelines(vertexInputType.state,
+                descriptorSetLayouts = reqDescriptorLayouts,
+                type = VulkanPipeline.PipelineType.Compute)
             }
         }
 
@@ -487,33 +514,81 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
     private fun initializeDescriptorSetLayoutForSpecs(setId: Long, specs: List<MutableMap.MutableEntry<String, VulkanShaderModule.UBOSpec>>): Long {
         val contents = specs.map { s ->
             val spec = s.value
+            logger.debug("$name: Looking at ${spec.name} with size ${spec.size} and ${spec.members.size} members")
+
             when {
                 spec.name == "Matrices" ->
                     listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1))
+
                 spec.name == "MaterialProperties" ->
                     listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1))
-                spec.name.startsWith("Input") ->
-                    spec.members.map { Pair(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1) }.toList()
+
+                spec.name.startsWith("Input")
+                    && (spec.type == VulkanShaderModule.UBOSpecType.SampledImage1D
+                    || spec.type == VulkanShaderModule.UBOSpecType.SampledImage2D
+                    || spec.type == VulkanShaderModule.UBOSpecType.SampledImage3D) ->
+                    if(spec.members.isNotEmpty()) {
+                        spec.members.map { Pair(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1) }.toList()
+                    } else {
+                        listOf(Pair(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, maxOf(1, spec.size)))
+                    }
+
+                spec.name.startsWith("Input")
+                    && (spec.type == VulkanShaderModule.UBOSpecType.Image1D
+                    || spec.type == VulkanShaderModule.UBOSpecType.Image2D
+                    || spec.type == VulkanShaderModule.UBOSpecType.Image3D) ->
+                    if(spec.members.isNotEmpty()) {
+                        spec.members.map { Pair(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1) }.toList()
+                    } else {
+                        listOf(Pair(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, maxOf(1, spec.size)))
+                    }
+
+                spec.name.startsWith("Output")
+                    && (spec.type == VulkanShaderModule.UBOSpecType.Image1D
+                    || spec.type == VulkanShaderModule.UBOSpecType.Image2D
+                    || spec.type == VulkanShaderModule.UBOSpecType.Image3D) ->
+                    if(spec.members.isNotEmpty()) {
+                        spec.members.map { Pair(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1) }.toList()
+                    } else {
+                        listOf(Pair(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, maxOf(1, spec.size)))
+                    }
+
                 spec.name == "ShaderParameters" ->
                     listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1))
+
                 spec.name == "ShaderProperties" ->
                     listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1))
-                spec.type != VulkanShaderModule.UBOSpecType.UniformBuffer ->
-                    listOf(Pair(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, spec.size))
+
+                spec.type == VulkanShaderModule.UBOSpecType.StorageBuffer ->
+                    listOf(Pair(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, spec.size))
+
+                spec.type == VulkanShaderModule.UBOSpecType.StorageBufferDynamic ->
+                    listOf(Pair(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, spec.size))
+
+                spec.type == VulkanShaderModule.UBOSpecType.Image1D
+                    || spec.type == VulkanShaderModule.UBOSpecType.Image2D
+                    || spec.type == VulkanShaderModule.UBOSpecType.Image3D ->
+                    listOf(Pair(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, maxOf(1, spec.size)))
+
+                spec.type == VulkanShaderModule.UBOSpecType.SampledImage1D
+                    || spec.type == VulkanShaderModule.UBOSpecType.SampledImage2D
+                    || spec.type == VulkanShaderModule.UBOSpecType.SampledImage3D ->
+                    listOf(Pair(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, maxOf(1, spec.size)))
+
                 else ->
                     listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1))
             }
         }.flatten()
 
-        logger.debug("Initialiasing DSL for ${specs.first().value.name}, set=$setId, type=${contents.first().first}")
-
-        val dsl = VU.createDescriptorSetLayout(device, contents, 0, shaderStages = VK_SHADER_STAGE_ALL)
+        val dsl = device.createDescriptorSetLayout(contents, 0, shaderStages = VK_SHADER_STAGE_ALL)
         // destroy descriptor set layout if there was a previously associated one,
         // and add the new one
         descriptorSetLayouts.put(specs.first().value.name, dsl)?.let { dslOld ->
             // TODO: Figure out whether they should actually be deleted, or just marked for garbage collection
             oldDescriptorSetLayouts.add(specs.first().value.name to dslOld)
         }
+
+        logger.debug("$name: Initialiased DSL ${dsl.toHexString()} for ${specs.firstOrNull()?.value?.name}, set=$setId, type=${contents.firstOrNull()?.first}")
 
         return dsl
     }
