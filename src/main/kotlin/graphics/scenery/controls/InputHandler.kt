@@ -186,7 +186,8 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?, for
         behaviourMap.put("gamepad_camera_control", GamepadCameraControl("gamepad_camera_control", listOf(Component.Identifier.Axis.Z, Component.Identifier.Axis.RZ), { scene.findObserver() }, window.width, window.height))
         behaviourMap.put("gamepad_movement_control", GamepadMovementControl("gamepad_movement_control", listOf(Component.Identifier.Axis.X, Component.Identifier.Axis.Y), { scene.findObserver() }))
 
-        behaviourMap.put("select_command", SelectCommand("select_command", renderer, scene, { scene.findObserver() }))
+        //unused until some reasonable action (to the selection) would be provided
+        //behaviourMap.put("select_command", SelectCommand("select_command", renderer, scene, { scene.findObserver() }))
 
         behaviourMap.put("move_forward", MovementCommand("move_forward", "forward", { scene.findObserver() }, slowMovementSpeed))
         behaviourMap.put("move_back", MovementCommand("move_back", "back", { scene.findObserver() }, slowMovementSpeed))
@@ -215,7 +216,7 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?, for
         adder.put("gamepad_movement_control")
         adder.put("gamepad_camera_control")
 
-        adder.put("select_command", "double-click button1")
+        //adder.put("select_command", "double-click button1")
 
         adder.put("move_forward", "W")
         adder.put("move_left", "A")
