@@ -158,7 +158,7 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?, for
                     "- !mapping" + "\n" +
                     "  action: mouse_control" + "\n" +
                     "  contexts: [all]" + "\n" +
-                    "  triggers: [button1, G]" + "\n" +
+                    "  triggers: [button1, M]" + "\n" +
                     "- !mapping" + "\n" +
                     "  action: gamepad_movement_control" + "\n" +
                     "  contexts: [all]" + "\n" +
@@ -166,7 +166,7 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?, for
                     "- !mapping" + "\n" +
                     "  action: gamepad_camera_control" + "\n" +
                     "  contexts: [all]" + "\n" +
-                    "  triggers: [P]" + "\n" +
+                    "  triggers: [G]" + "\n" +
                     "- !mapping" + "\n" +
                     "  action: scroll1" + "\n" +
                     "  contexts: [all]" + "\n" +
