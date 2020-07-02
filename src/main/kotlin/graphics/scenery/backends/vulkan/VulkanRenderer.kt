@@ -508,7 +508,7 @@ open class VulkanRenderer(hub: Hub,
                 .acceptPackages("graphics.scenery.backends.vulkan")
                 .enableClassInfo()
                 .scan()
-                .getSubclasses("graphics.scenery.backends.vulkan.Swapchain")
+                .getClassesImplementing("graphics.scenery.backends.vulkan.Swapchain")
                 .filter { cls -> cls.simpleName != "VulkanSwapchain" }
                 .loadClasses()
         val duration = System.nanoTime() - start
