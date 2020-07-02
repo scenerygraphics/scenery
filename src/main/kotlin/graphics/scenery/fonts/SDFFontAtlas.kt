@@ -6,6 +6,7 @@ import graphics.scenery.Hub
 import graphics.scenery.Mesh
 import graphics.scenery.compute.OpenCLContext
 import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.SystemHelpers
 import org.jocl.cl_mem
 import org.joml.Vector4f
 import java.awt.Color
@@ -59,6 +60,7 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
 
     init {
         fontSize = distanceFieldSize*0.65f
+        Files.createDirectories(Paths.get(cacheDir))
 
         try {
             if(!cache) {
@@ -129,33 +131,11 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
 
                 fontAtlasBacking = toFontAtlas(fontMap, distanceFieldSize)
                 if (cache) {
-                    dumpToFile(fontAtlasBacking)
+                    SystemHelpers.dumpToFile(fontAtlasBacking, "$cacheDir/SDFFontAtlas-$sdfCacheFormatVersion-$fontName.sdf")
                     dumpMetricsToFile(fontMap, glyphTexcoords)
                 }
             }
         }
-    }
-
-    /**
-     * Dumps a given byte buffer to a file. Useful for debugging the SDF
-     *
-     * @param[buf] The ByteBuffer to dump.
-     */
-    fun dumpToFile(buf: ByteBuffer) {
-        try {
-            Files.createDirectories(Paths.get(cacheDir))
-
-            val file = File("$cacheDir/SDFFontAtlas-$sdfCacheFormatVersion-$fontName.sdf")
-            val channel = FileOutputStream(file, false).channel
-            channel.write(buf)
-            channel.close()
-
-            buf.flip()
-        } catch (e: Exception) {
-            logger.error("Unable to dump " + this.fontName)
-            e.printStackTrace()
-        }
-
     }
 
     /**
