@@ -469,14 +469,14 @@ open class VulkanRenderer(hub: Hub,
                     "no error"
                 }
                 
-                throw RuntimeException("Failed to initialize GLFW: $description ($error)")
+                throw RendererUnavailableException("Failed to initialize GLFW: $description ($error)")
             }
             if (!glfwVulkanSupported()) {
-                throw UnsupportedOperationException("Failed to find Vulkan loader. Is Vulkan supported by your GPU and do you have the most recent graphics drivers installed?")
+                throw RendererUnavailableException("Failed to find Vulkan loader. Is Vulkan supported by your GPU and do you have the most recent graphics drivers installed?")
             }
 
             /* Look for instance extensions */
-            val requiredExtensions = glfwGetRequiredInstanceExtensions() ?: throw RuntimeException("Failed to find list of required Vulkan extensions")
+            val requiredExtensions = glfwGetRequiredInstanceExtensions() ?: throw RendererUnavailableException("Failed to find list of required Vulkan extensions")
             createInstance(requiredExtensions, validation)
         }
 
@@ -2164,7 +2164,7 @@ open class VulkanRenderer(hub: Hub,
                 Platform.get() === Platform.WINDOWS -> stack.UTF8(VK_KHR_WIN32_SURFACE_EXTENSION_NAME)
                 Platform.get() === Platform.LINUX -> stack.UTF8(VK_KHR_XLIB_SURFACE_EXTENSION_NAME)
                 Platform.get() === Platform.MACOSX -> stack.UTF8(VK_MVK_MACOS_SURFACE_EXTENSION_NAME)
-                else -> throw UnsupportedOperationException("Vulkan is not supported on ${Platform.get()}")
+                else -> throw RendererUnavailableException("Vulkan is not supported on ${Platform.get()}")
             }
 
             enabledExtensionNames.put(platformSurfaceExtension)
@@ -2213,7 +2213,7 @@ open class VulkanRenderer(hub: Hub,
             memFree(pCallback)
             dbgCreateInfo.free()
             if (err != VK_SUCCESS) {
-                throw RuntimeException("Failed to create VkInstance: " + VU.translate(err))
+                throw RuntimeException("Failed to create VkInstance with debugging enabled: " + VU.translate(err))
             }
 
             callbackHandle
