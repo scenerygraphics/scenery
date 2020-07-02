@@ -41,10 +41,7 @@ import java.nio.ByteOrder
 import java.nio.IntBuffer
 import java.nio.LongBuffer
 import java.util.*
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.ExecutorService
-import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.*
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.locks.ReentrantLock
 import javax.imageio.ImageIO
@@ -1102,7 +1099,7 @@ open class VulkanRenderer(hub: Hub,
             val slot = VulkanObjectState.textureTypeToSlot(type)
             val generateMipmaps = Texture.mipmappedObjectTextures.contains(type)
 
-            logger.info("${node.name} will have $type texture from $texture in slot $slot")
+            logger.debug("${node.name} will have $type texture from $texture in slot $slot")
 
             if (!textureCache.containsKey(texture)) {
                 try {
@@ -1642,7 +1639,7 @@ open class VulkanRenderer(hub: Hub,
         }
     }
 
-    private fun submitFrame(queue: VkQueue, pass: VulkanRenderpass, commandBuffer: VulkanCommandBuffer, present: PresentHelpers) {
+    private suspend fun submitFrame(queue: VkQueue, pass: VulkanRenderpass, commandBuffer: VulkanCommandBuffer, present: PresentHelpers) {
         if(swapchainRecreator.mustRecreate) {
             return
         }
@@ -1673,6 +1670,30 @@ open class VulkanRenderer(hub: Hub,
                 swapchain.format,
                 instance, device, queue,
                 swapchain.images[pass.getReadPosition()])
+        }
+
+        if(textureRequests.isNotEmpty()) {
+            val request = try {
+                logger.info("Polling requests")
+                textureRequests.poll()
+            } catch(e: NoSuchElementException) {
+                null
+            }
+
+            request?.let { req ->
+                logger.info("Working on texture request for texture ${req.first}")
+                val buffer = req.first.contents ?: return@let
+                val ref = VulkanTexture.getReference(req.first)
+
+                if(ref != null) {
+                    ref.copyTo(buffer)
+                    req.second.send(req.first)
+                    req.second.close()
+                    logger.info("Sent updated texture")
+                } else {
+                    logger.info("Texture not accessible")
+                }
+            }
         }
 
         if (recordMovie || screenshotRequested || imageRequests.isNotEmpty()) {
