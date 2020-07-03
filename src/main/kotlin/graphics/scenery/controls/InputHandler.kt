@@ -76,7 +76,9 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?, for
                         .loadClasses()
                     val duration = System.nanoTime() - start
 
-                    logger.info("Found potential input handlers (${duration/10e6} ms): ${handlers.joinToString { "${it.simpleName} -> ${it.getAnnotation(CanHandleInputFor::class.java).windowTypes.joinToString()}" }}")
+                    if(logger.isDebugEnabled) {
+                        logger.debug("Found potential input handlers (${duration / 10e6} ms): ${handlers.joinToString { "${it.simpleName} -> ${it.getAnnotation(CanHandleInputFor::class.java).windowTypes.joinToString()}" }}")
+                    }
                     val candidate = handlers.find { it.getAnnotation(CanHandleInputFor::class.java).windowTypes.contains(window::class) }
                     handler = candidate?.getConstructor(Hub::class.java)?.newInstance(hub) as MouseAndKeyHandlerBase?
                     handler?.attach(hub, window, inputMap, behaviourMap)
