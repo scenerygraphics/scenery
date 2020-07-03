@@ -6,6 +6,7 @@ import graphics.scenery.backends.ShaderType
 import graphics.scenery.backends.Shaders
 import graphics.scenery.spirvcrossj.CompilerGLSL
 import graphics.scenery.spirvcrossj.Decoration
+import graphics.scenery.spirvcrossj.ExecutionMode
 import graphics.scenery.utils.LazyLogger
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.VK10.*
@@ -37,6 +38,7 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, sp: 
     var uboSpecs = LinkedHashMap<String, UBOSpec>()
     var pushConstantSpecs = LinkedHashMap<String, PushConstantSpec>()
     val type: ShaderType = sp.type
+    val localSize: Triple<Int, Int, Int>
     private var deallocated: Boolean = false
     private var signature: ShaderSignature
 
@@ -82,6 +84,15 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, sp: 
 
         val uniformBuffers = compiler.shaderResources.uniformBuffers
         val pushConstants = compiler.shaderResources.pushConstantBuffers
+
+
+        val x = compiler.getExecutionModeArgument(ExecutionMode.ExecutionModeLocalSize, 0).toInt()
+        val y = compiler.getExecutionModeArgument(ExecutionMode.ExecutionModeLocalSize, 1).toInt()
+        val z = compiler.getExecutionModeArgument(ExecutionMode.ExecutionModeLocalSize, 2).toInt()
+
+        logger.debug("Local size: $x $y $z")
+
+        localSize = Triple(x, y, z)
 
         for(i in 0 until uniformBuffers.capacity()) {
             val res = uniformBuffers.get(i)

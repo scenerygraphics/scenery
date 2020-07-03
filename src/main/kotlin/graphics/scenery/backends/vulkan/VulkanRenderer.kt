@@ -1,8 +1,9 @@
 package graphics.scenery.backends.vulkan
 
-import com.fasterxml.jackson.module.kotlin.isKotlinClass
 import graphics.scenery.*
 import graphics.scenery.backends.*
+import graphics.scenery.compute.ComputeMetadata
+import graphics.scenery.compute.InvocationType
 import graphics.scenery.spirvcrossj.Loader
 import graphics.scenery.spirvcrossj.libspirvcrossj
 import graphics.scenery.textures.Texture
@@ -32,7 +33,6 @@ import org.lwjgl.vulkan.KHRWin32Surface.VK_KHR_WIN32_SURFACE_EXTENSION_NAME
 import org.lwjgl.vulkan.KHRXlibSurface.VK_KHR_XLIB_SURFACE_EXTENSION_NAME
 import org.lwjgl.vulkan.MVKMacosSurface.VK_MVK_MACOS_SURFACE_EXTENSION_NAME
 import org.lwjgl.vulkan.VK10.*
-import org.reflections.Reflections
 import java.awt.image.BufferedImage
 import java.awt.image.DataBufferByte
 import java.io.File
@@ -53,7 +53,6 @@ import kotlin.math.min
 import kotlin.reflect.full.*
 import kotlin.system.measureTimeMillis
 import kotlin.time.ExperimentalTime
-import kotlin.time.measureTimedValue
 
 
 /**
@@ -2721,7 +2720,7 @@ open class VulkanRenderer(hub: Hub,
             computeNodesGraphicsNodes.first.forEach computeLoop@ { node ->
                 val s = node.rendererMetadata() ?: return@computeLoop
 
-                val metadata = ComputePassMetadata(pass.getOutput().width/16, pass.getOutput().height/16, 1)
+                val metadata = node.metadata["ComputeMetadata"] as? ComputeMetadata ?: ComputeMetadata(pass.getOutput().width)
 
                 val pipeline = pass.getActivePipeline(node)
                 val vulkanPipeline = pipeline.getPipelineForGeometryType(GeometryType.TRIANGLES)
@@ -2734,7 +2733,7 @@ open class VulkanRenderer(hub: Hub,
                 val specs = pipeline.orderedDescriptorSpecs()
                 val (sets, skip) = setRequiredDescriptorSetsForNode(pass, node, s, specs)
 
-                if(skip) {
+                if(skip || metadata.active == false) {
                     return@computeLoop
                 }
 
@@ -2763,6 +2762,12 @@ open class VulkanRenderer(hub: Hub,
                 val loadStoreTextures =
                 node.material.textures
                     .filter { it.value.usageType.contains(Texture.UsageType.LoadStoreImage)}
+
+                val localSizes = pipeline.shaderStages.first().localSize
+
+                if(localSizes.first == 0 || localSizes.second == 0 || localSizes.third == 0) {
+                    logger.error("${node.name}: Compute local sizes $localSizes must not be zero, setting to 1.")
+                }
 
                 loadStoreTextures
                     .forEach { (name, _) ->
@@ -2793,7 +2798,9 @@ open class VulkanRenderer(hub: Hub,
                 }
 
                 vkCmdDispatch(this,
-                    metadata.groupCountX, metadata.groupCountY, metadata.groupCountZ)
+                    metadata.workSizes.x()/maxOf(localSizes.first, 1),
+                    metadata.workSizes.y()/maxOf(localSizes.second, 1),
+                    metadata.workSizes.z()/maxOf(localSizes.third, 1))
 
                 loadStoreTextures.forEach { (name, _) ->
                     val texture = s.textures[name] ?: return@computeLoop
@@ -2806,6 +2813,14 @@ open class VulkanRenderer(hub: Hub,
                         dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
                         commandBuffer = this)
 
+                }
+
+                if(metadata.invocationType == InvocationType.Triggered && metadata.active) {
+                    metadata.active = false
+                }
+
+                if(metadata.invocationType == InvocationType.Once) {
+                    metadata.active = false
                 }
             }
 
@@ -3096,10 +3111,9 @@ open class VulkanRenderer(hub: Hub,
         return requiredDynamicOffsets
     }
 
-    data class ComputePassMetadata(val groupCountX: Int, val groupCountY: Int, val groupCountZ: Int)
     private fun recordComputeRenderCommands(pass: VulkanRenderpass, commandBuffer: VulkanCommandBuffer) {
         with(commandBuffer.prepareAndStartRecording(commandPools.Compute)) {
-            val metadata = ComputePassMetadata(pass.getOutput().width/16, pass.getOutput().height/16, 1)
+            val metadata = ComputeMetadata(pass.getOutput().width)
 
             val pipeline = pass.getDefaultPipeline()
             val vulkanPipeline = pipeline.getPipelineForGeometryType(GeometryType.TRIANGLES)
@@ -3128,8 +3142,16 @@ open class VulkanRenderer(hub: Hub,
                     vulkanPipeline.layout, 0, pass.vulkanMetadata.descriptorSets, pass.vulkanMetadata.uboOffsets)
             }
 
+            val localSizes = pipeline.shaderStages.first().localSize
+
+            if(localSizes.first == 0 || localSizes.second == 0 || localSizes.third == 0) {
+                logger.error("${pass.name}: Compute local sizes $localSizes must not be zero, setting to 1.")
+            }
+
             vkCmdDispatch(this,
-                metadata.groupCountX, metadata.groupCountY, metadata.groupCountZ)
+                metadata.workSizes.x()/maxOf(localSizes.first, 1),
+                metadata.workSizes.y()maxOf(localSizes.second, 1),
+                metadata.workSizes.z()/maxOf(localSizes.third, 1))
 
             commandBuffer.stale = false
             commandBuffer.endCommandBuffer()
