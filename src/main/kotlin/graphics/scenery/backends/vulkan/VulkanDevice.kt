@@ -208,7 +208,7 @@ open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysical
     fun formatFeatureSupported(format: Int, feature: Int, optimalTiling: Boolean): Boolean {
         val properties = deviceData.formats[format] ?: return false
 
-        return if(optimalTiling) {
+        return if(!optimalTiling) {
             properties.linearTilingFeatures() and feature != 0
         } else {
             properties.optimalTilingFeatures() and feature != 0
@@ -315,7 +315,7 @@ open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysical
 
         return stackPush().use { stack ->
             // We need to tell the API the number of max. requested descriptors per type
-            val typeCounts = VkDescriptorPoolSize.callocStack(4, stack)
+            val typeCounts = VkDescriptorPoolSize.callocStack(5, stack)
             typeCounts[0]
                 .type(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
                 .descriptorCount(DescriptorPool.maxTextures)
@@ -331,6 +331,10 @@ open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysical
             typeCounts[3]
                 .type(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
                 .descriptorCount(DescriptorPool.maxUBOs)
+
+            typeCounts[4]
+                .type(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE)
+                .descriptorCount(DescriptorPool.maxTextures)
 
             // Create the global descriptor pool
             // All descriptors used in this example are allocated from this pool
