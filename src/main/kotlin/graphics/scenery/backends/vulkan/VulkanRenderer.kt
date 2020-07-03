@@ -11,10 +11,7 @@ import graphics.scenery.textures.UpdatableTexture
 import graphics.scenery.utils.*
 import io.github.classgraph.ClassGraph
 import kotlinx.coroutines.*
-import org.joml.Matrix4f
-import org.joml.Vector2f
-import org.joml.Vector3f
-import org.joml.Vector4f
+import org.joml.*
 import org.lwjgl.PointerBuffer
 import org.lwjgl.glfw.GLFW.glfwGetError
 import org.lwjgl.glfw.GLFW.glfwInit
@@ -2720,7 +2717,7 @@ open class VulkanRenderer(hub: Hub,
             computeNodesGraphicsNodes.first.forEach computeLoop@ { node ->
                 val s = node.rendererMetadata() ?: return@computeLoop
 
-                val metadata = node.metadata["ComputeMetadata"] as? ComputeMetadata ?: ComputeMetadata(pass.getOutput().width)
+                val metadata = node.metadata["ComputeMetadata"] as? ComputeMetadata ?: ComputeMetadata(Vector3i(pass.getOutput().width, pass.getOutput().height, 1))
 
                 val pipeline = pass.getActivePipeline(node)
                 val vulkanPipeline = pipeline.getPipelineForGeometryType(GeometryType.TRIANGLES)
@@ -3113,7 +3110,7 @@ open class VulkanRenderer(hub: Hub,
 
     private fun recordComputeRenderCommands(pass: VulkanRenderpass, commandBuffer: VulkanCommandBuffer) {
         with(commandBuffer.prepareAndStartRecording(commandPools.Compute)) {
-            val metadata = ComputeMetadata(pass.getOutput().width)
+            val metadata = ComputeMetadata(Vector3i(pass.getOutput().width, pass.getOutput().height, 1))
 
             val pipeline = pass.getDefaultPipeline()
             val vulkanPipeline = pipeline.getPipelineForGeometryType(GeometryType.TRIANGLES)
@@ -3150,7 +3147,7 @@ open class VulkanRenderer(hub: Hub,
 
             vkCmdDispatch(this,
                 metadata.workSizes.x()/maxOf(localSizes.first, 1),
-                metadata.workSizes.y()maxOf(localSizes.second, 1),
+                metadata.workSizes.y()/maxOf(localSizes.second, 1),
                 metadata.workSizes.z()/maxOf(localSizes.third, 1))
 
             commandBuffer.stale = false
