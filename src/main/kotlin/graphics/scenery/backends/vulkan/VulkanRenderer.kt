@@ -505,7 +505,7 @@ open class VulkanRenderer(hub: Hub,
                 .filter { cls -> cls.simpleName != "VulkanSwapchain" }
                 .loadClasses()
         val duration = System.nanoTime() - start
-        logger.info("Finding swapchains took ${duration/10e6} ms")
+        logger.debug("Finding swapchains took ${duration/10e6} ms")
 
         logger.debug("Available special-purpose swapchains are: ${swapchains.joinToString { it.simpleName }}")
         val selectedSwapchain = swapchains.firstOrNull { (it.kotlin.companionObjectInstance as SwapchainParameters).usageCondition.invoke(embedIn) }
@@ -1096,42 +1096,39 @@ open class VulkanRenderer(hub: Hub,
 
             if (!textureCache.containsKey(texture)) {
                 try {
-                    logger.info("Loading texture $texture for ${node.name}")
+                    logger.debug("Loading texture {} for {}", texture, node.name)
 
-                    val gt = texture
-
-                    val miplevels = if (generateMipmaps && gt.mipmap) {
-                        floor(ln(min(gt.dimensions.x() * 1.0, gt.dimensions.y() * 1.0)) / ln(2.0)).toInt()
+                    val miplevels = if (generateMipmaps && texture.mipmap) {
+                        floor(ln(min(texture.dimensions.x() * 1.0, texture.dimensions.y() * 1.0)) / ln(2.0)).toInt()
                     } else {
                         1
                     }
 
                     val existingTexture = s.textures[type]
-                    val t: VulkanTexture = if (existingTexture != null && existingTexture.canBeReused(gt, miplevels, device)) {
+                    val t: VulkanTexture = if (existingTexture != null && existingTexture.canBeReused(texture, miplevels, device)) {
                         existingTexture
                     } else {
                         descriptorUpdated = true
-                        VulkanTexture(device, commandPools, queue, queue, gt, miplevels)
+                        VulkanTexture(device, commandPools, queue, queue, texture, miplevels)
                     }
 
-                    gt.contents?.let { contents ->
+                    texture.contents?.let { contents ->
                         t.copyFrom(contents.duplicate())
                     }
 
-                    if (gt is UpdatableTexture && gt.hasConsumableUpdates()) {
+                    if (texture is UpdatableTexture && texture.hasConsumableUpdates()) {
                         t.copyFrom(ByteBuffer.allocate(0))
                     }
 
                     if(descriptorUpdated) {
-                        t.createSampler(gt)
+                        t.createSampler(texture)
                     }
-                    val vkTexture = t
 
                     // add new texture to texture list and cache, and close old texture
-                    s.textures[type] = vkTexture
+                    s.textures[type] = t
 
                     if(texture !is UpdatableTexture) {
-                        textureCache[texture] = vkTexture
+                        textureCache[texture] = t
                     }
                 } catch (e: Exception) {
                     logger.warn("Could not load texture for ${node.name}: $e")
