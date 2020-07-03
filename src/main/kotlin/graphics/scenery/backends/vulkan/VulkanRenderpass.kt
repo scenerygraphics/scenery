@@ -422,7 +422,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
      * The pipeline settings are customizable using the lambda [settings].
      */
     fun initializePipeline(pipelineName: String = "default", shaders: List<VulkanShaderModule>,
-                           vertexInputType: VulkanRenderer.VertexDescription = vertexDescriptors.getValue(VulkanRenderer.VertexDataKinds.PositionNormalTexcoord),
+                           vertexInputType: VulkanRenderer.VertexDescription? = vertexDescriptors.getValue(VulkanRenderer.VertexDataKinds.PositionNormalTexcoord),
                            settings: (VulkanPipeline) -> Any = {}) {
         val reqDescriptorLayouts = ArrayList<Long>()
 
@@ -479,30 +479,31 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
         logger.debug("Required DSLs: ${reqDescriptorLayouts.joinToString { it.toHexString() } }")
 
         when {
-            (passConfig.type == RenderConfigReader.RenderpassType.quad)
+            (passConfig.type == RenderConfigReader.RenderpassType.quad && vertexInputType != null)
                 && shaders.first().type != ShaderType.ComputeShader -> {
                 p.rasterizationState.cullMode(VK_CULL_MODE_FRONT_BIT)
                 p.rasterizationState.frontFace(VK_FRONT_FACE_COUNTER_CLOCKWISE)
 
                 p.createPipelines(
-                    vertexDescriptors.getValue(VulkanRenderer.VertexDataKinds.None).state,
+                    vi = vertexDescriptors.getValue(VulkanRenderer.VertexDataKinds.None).state,
                     descriptorSetLayouts = reqDescriptorLayouts,
                     onlyForTopology = GeometryType.TRIANGLES)
             }
 
             (passConfig.type == RenderConfigReader.RenderpassType.geometry
                 || passConfig.type == RenderConfigReader.RenderpassType.lights)
-                && shaders.first().type != ShaderType.ComputeShader -> {
+                && shaders.first().type != ShaderType.ComputeShader && vertexInputType != null -> {
                 p.createPipelines(
-                    vertexInputType.state,
+                    vi = vertexInputType.state,
                     descriptorSetLayouts = reqDescriptorLayouts)
             }
 
             passConfig.type == RenderConfigReader.RenderpassType.compute
                 || shaders.first().type == ShaderType.ComputeShader -> {
-                p.createPipelines(vertexInputType.state,
-                descriptorSetLayouts = reqDescriptorLayouts,
-                type = VulkanPipeline.PipelineType.Compute)
+                p.createPipelines(
+                    descriptorSetLayouts = reqDescriptorLayouts,
+                    type = VulkanPipeline.PipelineType.Compute,
+                    vi = null)
             }
         }
 

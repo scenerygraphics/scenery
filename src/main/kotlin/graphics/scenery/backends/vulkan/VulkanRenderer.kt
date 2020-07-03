@@ -1,8 +1,9 @@
 package graphics.scenery.backends.vulkan
 
-import com.fasterxml.jackson.module.kotlin.isKotlinClass
 import graphics.scenery.*
 import graphics.scenery.backends.*
+import graphics.scenery.compute.ComputeMetadata
+import graphics.scenery.compute.InvocationType
 import graphics.scenery.spirvcrossj.Loader
 import graphics.scenery.spirvcrossj.libspirvcrossj
 import graphics.scenery.textures.Texture
@@ -10,10 +11,7 @@ import graphics.scenery.textures.UpdatableTexture
 import graphics.scenery.utils.*
 import io.github.classgraph.ClassGraph
 import kotlinx.coroutines.*
-import org.joml.Matrix4f
-import org.joml.Vector2f
-import org.joml.Vector3f
-import org.joml.Vector4f
+import org.joml.*
 import org.lwjgl.PointerBuffer
 import org.lwjgl.glfw.GLFW.glfwGetError
 import org.lwjgl.glfw.GLFW.glfwInit
@@ -32,7 +30,6 @@ import org.lwjgl.vulkan.KHRWin32Surface.VK_KHR_WIN32_SURFACE_EXTENSION_NAME
 import org.lwjgl.vulkan.KHRXlibSurface.VK_KHR_XLIB_SURFACE_EXTENSION_NAME
 import org.lwjgl.vulkan.MVKMacosSurface.VK_MVK_MACOS_SURFACE_EXTENSION_NAME
 import org.lwjgl.vulkan.VK10.*
-import org.reflections.Reflections
 import java.awt.image.BufferedImage
 import java.awt.image.DataBufferByte
 import java.io.File
@@ -53,7 +50,6 @@ import kotlin.math.min
 import kotlin.reflect.full.*
 import kotlin.system.measureTimeMillis
 import kotlin.time.ExperimentalTime
-import kotlin.time.measureTimedValue
 
 
 /**
@@ -512,7 +508,7 @@ open class VulkanRenderer(hub: Hub,
                 .filter { cls -> cls.simpleName != "VulkanSwapchain" }
                 .loadClasses()
         val duration = System.nanoTime() - start
-        logger.info("Finding swapchains took ${duration/10e6} ms")
+        logger.debug("Finding swapchains took ${duration/10e6} ms")
 
         logger.debug("Available special-purpose swapchains are: ${swapchains.joinToString { it.simpleName }}")
         val selectedSwapchain = swapchains.firstOrNull { (it.kotlin.companionObjectInstance as SwapchainParameters).usageCondition.invoke(embedIn) }
@@ -692,7 +688,7 @@ open class VulkanRenderer(hub: Hub,
     override fun initializeScene() {
         logger.info("Scene initialization started.")
 
-        this.scene.discover(this.scene, { it is HasGeometry && it !is Light })
+        this.scene.discover(this.scene, { it !is Light })
 //            .parallelMap(numThreads = System.getProperty("scenery.MaxInitThreads", "1").toInt()) { node ->
             .map { node ->
                 // skip initialization for nodes that are only instance slaves
@@ -753,10 +749,6 @@ open class VulkanRenderer(hub: Hub,
      * Initialises a given [Node] with the metadata required by the [VulkanRenderer].
      */
     fun initializeNode(n: Node): Boolean {
-        if(n !is HasGeometry) {
-            return false
-        }
-
         val node = if(n is DelegatesRendering) {
             val delegate = n.delegate ?: return false
 
@@ -782,33 +774,34 @@ open class VulkanRenderer(hub: Hub,
 
         s.flags.add(RendererFlags.Seen)
 
-        logger.debug("Initializing ${node.name} (${(node as HasGeometry).vertices.remaining() / node.vertexSize} vertices/${node.indices.remaining()} indices)")
+        if(n is HasGeometry) {
+            logger.debug("Initializing geometry for ${node.name} (${(node as HasGeometry).vertices.remaining() / node.vertexSize} vertices/${node.indices.remaining()} indices)")
+            // determine vertex input type
+            s.vertexInputType = when {
+                node.vertices.remaining() > 0 && node.normals.remaining() > 0 && node.texcoords.remaining() > 0 -> VertexDataKinds.PositionNormalTexcoord
+                node.vertices.remaining() > 0 && node.normals.remaining() > 0 && node.texcoords.remaining() == 0 -> VertexDataKinds.PositionNormal
+                node.vertices.remaining() > 0 && node.normals.remaining() == 0 && node.texcoords.remaining() > 0 -> VertexDataKinds.PositionTexcoords
+                else -> VertexDataKinds.PositionNormalTexcoord
+            }
 
-        // determine vertex input type
-        s.vertexInputType = when {
-            node.vertices.remaining() > 0 && node.normals.remaining() > 0 && node.texcoords.remaining() > 0 -> VertexDataKinds.PositionNormalTexcoord
-            node.vertices.remaining() > 0 && node.normals.remaining() > 0 && node.texcoords.remaining() == 0 -> VertexDataKinds.PositionNormal
-            node.vertices.remaining() > 0 && node.normals.remaining() == 0 && node.texcoords.remaining() > 0 -> VertexDataKinds.PositionTexcoords
-            else -> VertexDataKinds.PositionNormalTexcoord
+            // create custom vertex description if necessary, else use one of the defaults
+            s.vertexDescription = if (node.instances.size > 0 || node.instancedProperties.size > 0) {
+                updateInstanceBuffer(device, node, s)
+                // TODO: Rewrite shader in case it does not conform to coord/normal/texcoord vertex description
+                s.vertexInputType = VertexDataKinds.PositionNormalTexcoord
+                s.instanced = true
+                vertexDescriptionFromInstancedNode(node, vertexDescriptors.getValue(VertexDataKinds.PositionNormalTexcoord))
+            } else {
+                s.instanced = false
+                s.vertexBuffers["instance"]?.close()
+                s.vertexBuffers.remove("instance")
+                s.vertexBuffers["instanceStaging"]?.close()
+                s.vertexBuffers.remove("instanceStaging")
+                vertexDescriptors.getValue(s.vertexInputType)
+            }
+
+            s = createVertexBuffers(device, node, s)
         }
-
-        // create custom vertex description if necessary, else use one of the defaults
-        s.vertexDescription = if (node.instances.size > 0 || node.instancedProperties.size > 0) {
-            updateInstanceBuffer(device, node, s)
-            // TODO: Rewrite shader in case it does not conform to coord/normal/texcoord vertex description
-            s.vertexInputType = VertexDataKinds.PositionNormalTexcoord
-            s.instanced = true
-            vertexDescriptionFromInstancedNode(node, vertexDescriptors.getValue(VertexDataKinds.PositionNormalTexcoord))
-        } else {
-            s.instanced = false
-            s.vertexBuffers["instance"]?.close()
-            s.vertexBuffers.remove("instance")
-            s.vertexBuffers["instanceStaging"]?.close()
-            s.vertexBuffers.remove("instanceStaging")
-            vertexDescriptors.getValue(s.vertexInputType)
-        }
-
-        s = createVertexBuffers(device, node, s)
 
         val matricesDescriptorSet = getDescriptorCache().getOrPut("Matrices") {
             device.createDescriptorSetDynamic(
@@ -1004,7 +997,7 @@ open class VulkanRenderer(hub: Hub,
                                 }
                             }
                         },
-                        vertexInputType = s.vertexDescription!!)
+                        vertexInputType = s.vertexDescription)
                 }
 
 
@@ -1106,42 +1099,39 @@ open class VulkanRenderer(hub: Hub,
 
             if (!textureCache.containsKey(texture)) {
                 try {
-                    logger.info("Loading texture $texture for ${node.name}")
+                    logger.debug("Loading texture {} for {}", texture, node.name)
 
-                    val gt = texture
-
-                    val miplevels = if (generateMipmaps && gt.mipmap) {
-                        floor(ln(min(gt.dimensions.x() * 1.0, gt.dimensions.y() * 1.0)) / ln(2.0)).toInt()
+                    val miplevels = if (generateMipmaps && texture.mipmap) {
+                        floor(ln(min(texture.dimensions.x() * 1.0, texture.dimensions.y() * 1.0)) / ln(2.0)).toInt()
                     } else {
                         1
                     }
 
                     val existingTexture = s.textures[type]
-                    val t: VulkanTexture = if (existingTexture != null && existingTexture.canBeReused(gt, miplevels, device)) {
+                    val t: VulkanTexture = if (existingTexture != null && existingTexture.canBeReused(texture, miplevels, device)) {
                         existingTexture
                     } else {
                         descriptorUpdated = true
-                        VulkanTexture(device, commandPools, queue, queue, gt, miplevels)
+                        VulkanTexture(device, commandPools, queue, queue, texture, miplevels)
                     }
 
-                    gt.contents?.let { contents ->
+                    texture.contents?.let { contents ->
                         t.copyFrom(contents.duplicate())
                     }
 
-                    if (gt is UpdatableTexture && gt.hasConsumableUpdates()) {
+                    if (texture is UpdatableTexture && texture.hasConsumableUpdates()) {
                         t.copyFrom(ByteBuffer.allocate(0))
                     }
 
                     if(descriptorUpdated) {
-                        t.createSampler(gt)
+                        t.createSampler(texture)
                     }
-                    val vkTexture = t
 
                     // add new texture to texture list and cache, and close old texture
-                    s.textures[type] = vkTexture
+                    s.textures[type] = t
 
                     if(texture !is UpdatableTexture) {
-                        textureCache[texture] = vkTexture
+                        textureCache[texture] = t
                     }
                 } catch (e: Exception) {
                     logger.warn("Could not load texture for ${node.name}: $e")
@@ -2857,7 +2847,7 @@ open class VulkanRenderer(hub: Hub,
             computeNodesGraphicsNodes.first.forEach computeLoop@ { node ->
                 val s = node.rendererMetadata() ?: return@computeLoop
 
-                val metadata = ComputePassMetadata(pass.getOutput().width/16, pass.getOutput().height/16, 1)
+                val metadata = node.metadata["ComputeMetadata"] as? ComputeMetadata ?: ComputeMetadata(Vector3i(pass.getOutput().width, pass.getOutput().height, 1))
 
                 val pipeline = pass.getActivePipeline(node)
                 val vulkanPipeline = pipeline.getPipelineForGeometryType(GeometryType.TRIANGLES)
@@ -2870,7 +2860,7 @@ open class VulkanRenderer(hub: Hub,
                 val specs = pipeline.orderedDescriptorSpecs()
                 val (sets, skip) = setRequiredDescriptorSetsForNode(pass, node, s, specs)
 
-                if(skip) {
+                if(skip || metadata.active == false) {
                     return@computeLoop
                 }
 
@@ -2899,6 +2889,12 @@ open class VulkanRenderer(hub: Hub,
                 val loadStoreTextures =
                 node.material.textures
                     .filter { it.value.usageType.contains(Texture.UsageType.LoadStoreImage)}
+
+                val localSizes = pipeline.shaderStages.first().localSize
+
+                if(localSizes.first == 0 || localSizes.second == 0 || localSizes.third == 0) {
+                    logger.error("${node.name}: Compute local sizes $localSizes must not be zero, setting to 1.")
+                }
 
                 loadStoreTextures
                     .forEach { (name, _) ->
@@ -2929,7 +2925,9 @@ open class VulkanRenderer(hub: Hub,
                 }
 
                 vkCmdDispatch(this,
-                    metadata.groupCountX, metadata.groupCountY, metadata.groupCountZ)
+                    metadata.workSizes.x()/maxOf(localSizes.first, 1),
+                    metadata.workSizes.y()/maxOf(localSizes.second, 1),
+                    metadata.workSizes.z()/maxOf(localSizes.third, 1))
 
                 loadStoreTextures.forEach { (name, _) ->
                     val texture = s.textures[name] ?: return@computeLoop
@@ -2942,6 +2940,14 @@ open class VulkanRenderer(hub: Hub,
                         dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
                         commandBuffer = this)
 
+                }
+
+                if(metadata.invocationType == InvocationType.Triggered && metadata.active) {
+                    metadata.active = false
+                }
+
+                if(metadata.invocationType == InvocationType.Once) {
+                    metadata.active = false
                 }
             }
 
@@ -3232,10 +3238,9 @@ open class VulkanRenderer(hub: Hub,
         return requiredDynamicOffsets
     }
 
-    data class ComputePassMetadata(val groupCountX: Int, val groupCountY: Int, val groupCountZ: Int)
     private fun recordComputeRenderCommands(pass: VulkanRenderpass, commandBuffer: VulkanCommandBuffer) {
         with(commandBuffer.prepareAndStartRecording(commandPools.Compute)) {
-            val metadata = ComputePassMetadata(pass.getOutput().width/16, pass.getOutput().height/16, 1)
+            val metadata = ComputeMetadata(Vector3i(pass.getOutput().width, pass.getOutput().height, 1))
 
             val pipeline = pass.getDefaultPipeline()
             val vulkanPipeline = pipeline.getPipelineForGeometryType(GeometryType.TRIANGLES)
@@ -3264,8 +3269,16 @@ open class VulkanRenderer(hub: Hub,
                     vulkanPipeline.layout, 0, pass.vulkanMetadata.descriptorSets, pass.vulkanMetadata.uboOffsets)
             }
 
+            val localSizes = pipeline.shaderStages.first().localSize
+
+            if(localSizes.first == 0 || localSizes.second == 0 || localSizes.third == 0) {
+                logger.error("${pass.name}: Compute local sizes $localSizes must not be zero, setting to 1.")
+            }
+
             vkCmdDispatch(this,
-                metadata.groupCountX, metadata.groupCountY, metadata.groupCountZ)
+                metadata.workSizes.x()/maxOf(localSizes.first, 1),
+                metadata.workSizes.y()/maxOf(localSizes.second, 1),
+                metadata.workSizes.z()/maxOf(localSizes.third, 1))
 
             commandBuffer.stale = false
             commandBuffer.endCommandBuffer()

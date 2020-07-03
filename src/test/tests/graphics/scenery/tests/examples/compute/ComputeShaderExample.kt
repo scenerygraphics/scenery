@@ -4,19 +4,18 @@ import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.backends.Shaders
+import graphics.scenery.compute.ComputeMetadata
+import graphics.scenery.compute.InvocationType
 import graphics.scenery.tests.examples.basic.TexturedCubeExample
-import graphics.scenery.tests.examples.basic.TexturedCubeJavaExample
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.Image
 import graphics.scenery.utils.SystemHelpers
 import kotlinx.coroutines.*
-import kotlinx.coroutines.selects.select
+import org.joml.Vector3i
 import org.junit.Test
 import org.lwjgl.system.MemoryUtil
 import org.scijava.ui.behaviour.ClickBehaviour
-import java.util.concurrent.Executors
 import kotlin.concurrent.thread
-import kotlin.coroutines.CoroutineContext
 
 /**
  * Example showing simple image processing with compute shaders.
@@ -32,11 +31,16 @@ class ComputeShaderExample : SceneryBase("ComputeShaderExample") {
         val helix = Texture.fromImage(Image.fromResource("textures/helix.png", TexturedCubeExample::class.java), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
         val buffer = MemoryUtil.memCalloc(helix.dimensions.x * helix.dimensions.y * helix.dimensions.z * 4)
 
-        val compute = Box()
+        val compute = Node()
         compute.name = "compute node"
         compute.material = ShaderMaterial(Shaders.ShadersFromFiles(arrayOf("BGRAMosaic.comp"), this::class.java))
         compute.material.textures["OutputViewport"] = Texture.fromImage(Image(buffer, helix.dimensions.x, helix.dimensions.y, helix.dimensions.z), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
         compute.material.textures["InputColor"] = helix
+        compute.metadata["ComputeMetadata"] = ComputeMetadata(
+            workSizes = Vector3i(512, 512, 1),
+            invocationType = InvocationType.Once
+        )
+
         scene.addChild(compute)
 
         val box = Box(Vector3f(1.0f, 1.0f, 1.0f))
