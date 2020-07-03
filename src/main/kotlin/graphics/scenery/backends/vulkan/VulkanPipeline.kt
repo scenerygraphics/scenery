@@ -113,10 +113,10 @@ class VulkanPipeline(val device: VulkanDevice, val renderpass: VulkanRenderpass,
      * [getPipelineForGeometryType].
      */
     fun createPipelines(
-        vi: VkPipelineVertexInputStateCreateInfo,
         descriptorSetLayouts: List<Long>,
-        onlyForTopology: GeometryType? = null,
-        type: PipelineType = PipelineType.Graphics
+        type: PipelineType = PipelineType.Graphics,
+        vi: VkPipelineVertexInputStateCreateInfo?,
+        onlyForTopology: GeometryType? = null
     ) {
         val setLayouts = memAllocLong(descriptorSetLayouts.size).put(descriptorSetLayouts.toLongArray())
         setLayouts.flip()

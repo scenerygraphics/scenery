@@ -689,7 +689,7 @@ open class VulkanRenderer(hub: Hub,
     override fun initializeScene() {
         logger.info("Scene initialization started.")
 
-        this.scene.discover(this.scene, { it is HasGeometry && it !is Light })
+        this.scene.discover(this.scene, { it !is Light })
 //            .parallelMap(numThreads = System.getProperty("scenery.MaxInitThreads", "1").toInt()) { node ->
             .map { node ->
                 // skip initialization for nodes that are only instance slaves
@@ -750,10 +750,6 @@ open class VulkanRenderer(hub: Hub,
      * Initialises a given [Node] with the metadata required by the [VulkanRenderer].
      */
     fun initializeNode(n: Node): Boolean {
-        if(n !is HasGeometry) {
-            return false
-        }
-
         val node = if(n is DelegatesRendering) {
             val delegate = n.delegate ?: return false
 
@@ -779,33 +775,34 @@ open class VulkanRenderer(hub: Hub,
 
         s.flags.add(RendererFlags.Seen)
 
-        logger.debug("Initializing ${node.name} (${(node as HasGeometry).vertices.remaining() / node.vertexSize} vertices/${node.indices.remaining()} indices)")
+        if(n is HasGeometry) {
+            logger.debug("Initializing geometry for ${node.name} (${(node as HasGeometry).vertices.remaining() / node.vertexSize} vertices/${node.indices.remaining()} indices)")
+            // determine vertex input type
+            s.vertexInputType = when {
+                node.vertices.remaining() > 0 && node.normals.remaining() > 0 && node.texcoords.remaining() > 0 -> VertexDataKinds.PositionNormalTexcoord
+                node.vertices.remaining() > 0 && node.normals.remaining() > 0 && node.texcoords.remaining() == 0 -> VertexDataKinds.PositionNormal
+                node.vertices.remaining() > 0 && node.normals.remaining() == 0 && node.texcoords.remaining() > 0 -> VertexDataKinds.PositionTexcoords
+                else -> VertexDataKinds.PositionNormalTexcoord
+            }
 
-        // determine vertex input type
-        s.vertexInputType = when {
-            node.vertices.remaining() > 0 && node.normals.remaining() > 0 && node.texcoords.remaining() > 0 -> VertexDataKinds.PositionNormalTexcoord
-            node.vertices.remaining() > 0 && node.normals.remaining() > 0 && node.texcoords.remaining() == 0 -> VertexDataKinds.PositionNormal
-            node.vertices.remaining() > 0 && node.normals.remaining() == 0 && node.texcoords.remaining() > 0 -> VertexDataKinds.PositionTexcoords
-            else -> VertexDataKinds.PositionNormalTexcoord
+            // create custom vertex description if necessary, else use one of the defaults
+            s.vertexDescription = if (node.instances.size > 0 || node.instancedProperties.size > 0) {
+                updateInstanceBuffer(device, node, s)
+                // TODO: Rewrite shader in case it does not conform to coord/normal/texcoord vertex description
+                s.vertexInputType = VertexDataKinds.PositionNormalTexcoord
+                s.instanced = true
+                vertexDescriptionFromInstancedNode(node, vertexDescriptors.getValue(VertexDataKinds.PositionNormalTexcoord))
+            } else {
+                s.instanced = false
+                s.vertexBuffers["instance"]?.close()
+                s.vertexBuffers.remove("instance")
+                s.vertexBuffers["instanceStaging"]?.close()
+                s.vertexBuffers.remove("instanceStaging")
+                vertexDescriptors.getValue(s.vertexInputType)
+            }
+
+            s = createVertexBuffers(device, node, s)
         }
-
-        // create custom vertex description if necessary, else use one of the defaults
-        s.vertexDescription = if (node.instances.size > 0 || node.instancedProperties.size > 0) {
-            updateInstanceBuffer(device, node, s)
-            // TODO: Rewrite shader in case it does not conform to coord/normal/texcoord vertex description
-            s.vertexInputType = VertexDataKinds.PositionNormalTexcoord
-            s.instanced = true
-            vertexDescriptionFromInstancedNode(node, vertexDescriptors.getValue(VertexDataKinds.PositionNormalTexcoord))
-        } else {
-            s.instanced = false
-            s.vertexBuffers["instance"]?.close()
-            s.vertexBuffers.remove("instance")
-            s.vertexBuffers["instanceStaging"]?.close()
-            s.vertexBuffers.remove("instanceStaging")
-            vertexDescriptors.getValue(s.vertexInputType)
-        }
-
-        s = createVertexBuffers(device, node, s)
 
         val matricesDescriptorSet = getDescriptorCache().getOrPut("Matrices") {
             device.createDescriptorSetDynamic(
@@ -1001,7 +998,7 @@ open class VulkanRenderer(hub: Hub,
                                 }
                             }
                         },
-                        vertexInputType = s.vertexDescription!!)
+                        vertexInputType = s.vertexDescription)
                 }
 
 
