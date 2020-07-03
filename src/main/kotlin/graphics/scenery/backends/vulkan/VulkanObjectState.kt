@@ -94,7 +94,6 @@ open class VulkanObjectState : NodeMetadata {
                     textureDescriptorSets.clear()
                 }
 
-                logger.info("For node $node oj=${objectTextures?.joinToString(",")}")
                 val descriptorSetLayoutObjectTextures = pass.descriptorSetLayouts["ObjectTextures"]
                 if (descriptorSetLayoutObjectTextures != null && objectTextures != null && objectTextures.isNotEmpty()) {
                     textureDescriptorSets[pass.passConfig.type.name to "ObjectTextures"] = createOrUpdateTextureDescriptorSet(

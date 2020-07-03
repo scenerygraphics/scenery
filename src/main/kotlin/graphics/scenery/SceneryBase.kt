@@ -17,10 +17,7 @@ import graphics.scenery.utils.RemoteryProfiler
 import graphics.scenery.utils.Renderdoc
 import graphics.scenery.utils.SceneryPanel
 import graphics.scenery.utils.Statistics
-import kotlinx.coroutines.Deferred
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.async
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.*
 import org.lwjgl.system.Platform
 import org.scijava.Context
 import org.scijava.ui.behaviour.ClickBehaviour
@@ -242,7 +239,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
             }
         }
 
-        val statsRequested = java.lang.Boolean.parseBoolean(System.getProperty("scenery.PrintStatistics", "false"))
+        val statsRequested = parseBoolean(System.getProperty("scenery.PrintStatistics", "false"))
 
         // setup additional key bindings, if requested by the user
         inputSetup()

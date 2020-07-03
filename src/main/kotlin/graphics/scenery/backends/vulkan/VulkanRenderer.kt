@@ -41,10 +41,7 @@ import java.nio.ByteOrder
 import java.nio.IntBuffer
 import java.nio.LongBuffer
 import java.util.*
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.ExecutorService
-import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.*
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.locks.ReentrantLock
 import javax.imageio.ImageIO
@@ -472,14 +469,14 @@ open class VulkanRenderer(hub: Hub,
                     "no error"
                 }
                 
-                throw RuntimeException("Failed to initialize GLFW: $description ($error)")
+                throw RendererUnavailableException("Failed to initialize GLFW: $description ($error)")
             }
             if (!glfwVulkanSupported()) {
-                throw UnsupportedOperationException("Failed to find Vulkan loader. Is Vulkan supported by your GPU and do you have the most recent graphics drivers installed?")
+                throw RendererUnavailableException("Failed to find Vulkan loader. Is Vulkan supported by your GPU and do you have the most recent graphics drivers installed?")
             }
 
             /* Look for instance extensions */
-            val requiredExtensions = glfwGetRequiredInstanceExtensions() ?: throw RuntimeException("Failed to find list of required Vulkan extensions")
+            val requiredExtensions = glfwGetRequiredInstanceExtensions() ?: throw RendererUnavailableException("Failed to find list of required Vulkan extensions")
             createInstance(requiredExtensions, validation)
         }
 
@@ -511,7 +508,7 @@ open class VulkanRenderer(hub: Hub,
                 .acceptPackages("graphics.scenery.backends.vulkan")
                 .enableClassInfo()
                 .scan()
-                .getSubclasses("graphics.scenery.backends.vulkan.Swapchain")
+                .getClassesImplementing("graphics.scenery.backends.vulkan.Swapchain")
                 .filter { cls -> cls.simpleName != "VulkanSwapchain" }
                 .loadClasses()
         val duration = System.nanoTime() - start
@@ -1105,7 +1102,7 @@ open class VulkanRenderer(hub: Hub,
             val slot = VulkanObjectState.textureTypeToSlot(type)
             val generateMipmaps = Texture.mipmappedObjectTextures.contains(type)
 
-            logger.info("${node.name} will have $type texture from $texture in slot $slot")
+            logger.debug("${node.name} will have $type texture from $texture in slot $slot")
 
             if (!textureCache.containsKey(texture)) {
                 try {
@@ -1647,7 +1644,7 @@ open class VulkanRenderer(hub: Hub,
 
     private external fun sendImage(image: ByteBuffer)
 
-    private fun submitFrame(queue: VkQueue, pass: VulkanRenderpass, commandBuffer: VulkanCommandBuffer, present: PresentHelpers) {
+    private suspend fun submitFrame(queue: VkQueue, pass: VulkanRenderpass, commandBuffer: VulkanCommandBuffer, present: PresentHelpers) {
         if(swapchainRecreator.mustRecreate) {
             return
         }
@@ -1678,6 +1675,30 @@ open class VulkanRenderer(hub: Hub,
                 swapchain.format,
                 instance, device, queue,
                 swapchain.images[pass.getReadPosition()])
+        }
+
+        if(textureRequests.isNotEmpty()) {
+            val request = try {
+                logger.info("Polling requests")
+                textureRequests.poll()
+            } catch(e: NoSuchElementException) {
+                null
+            }
+
+            request?.let { req ->
+                logger.info("Working on texture request for texture ${req.first}")
+                val buffer = req.first.contents ?: return@let
+                val ref = VulkanTexture.getReference(req.first)
+
+                if(ref != null) {
+                    ref.copyTo(buffer)
+                    req.second.send(req.first)
+                    req.second.close()
+                    logger.info("Sent updated texture")
+                } else {
+                    logger.info("Texture not accessible")
+                }
+            }
         }
 
         if (parallelRenderingMode || recordMovie || screenshotRequested || imageRequests.isNotEmpty()) {
@@ -2297,7 +2318,7 @@ open class VulkanRenderer(hub: Hub,
                 Platform.get() === Platform.WINDOWS -> stack.UTF8(VK_KHR_WIN32_SURFACE_EXTENSION_NAME)
                 Platform.get() === Platform.LINUX -> stack.UTF8(VK_KHR_XLIB_SURFACE_EXTENSION_NAME)
                 Platform.get() === Platform.MACOSX -> stack.UTF8(VK_MVK_MACOS_SURFACE_EXTENSION_NAME)
-                else -> throw UnsupportedOperationException("Vulkan is not supported on ${Platform.get()}")
+                else -> throw RendererUnavailableException("Vulkan is not supported on ${Platform.get()}")
             }
 
             enabledExtensionNames.put(platformSurfaceExtension)
@@ -2346,7 +2367,7 @@ open class VulkanRenderer(hub: Hub,
             memFree(pCallback)
             dbgCreateInfo.free()
             if (err != VK_SUCCESS) {
-                throw RuntimeException("Failed to create VkInstance: " + VU.translate(err))
+                throw RuntimeException("Failed to create VkInstance with debugging enabled: " + VU.translate(err))
             }
 
             callbackHandle
