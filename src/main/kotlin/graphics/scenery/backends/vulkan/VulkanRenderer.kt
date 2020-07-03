@@ -2860,7 +2860,7 @@ open class VulkanRenderer(hub: Hub,
                 val specs = pipeline.orderedDescriptorSpecs()
                 val (sets, skip) = setRequiredDescriptorSetsForNode(pass, node, s, specs)
 
-                if(skip || metadata.active == false) {
+                if(skip || !metadata.active) {
                     return@computeLoop
                 }
 
@@ -2911,8 +2911,6 @@ open class VulkanRenderer(hub: Hub,
                 }
 
                 vkCmdBindPipeline(this, VK_PIPELINE_BIND_POINT_COMPUTE, vulkanPipeline.pipeline)
-                // set the required descriptor sets for this render pass
-                pass.vulkanMetadata.setRequiredDescriptorSetsPostprocess(pass, pipeline)
 
                 if(pipeline.pushConstantSpecs.containsKey("currentEye")) {
                     vkCmdPushConstants(this, vulkanPipeline.layout, VK_SHADER_STAGE_ALL, 0, pass.vulkanMetadata.eye)
