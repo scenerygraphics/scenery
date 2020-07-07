@@ -119,7 +119,9 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?, for
      */
     fun addKeyBinding(behaviourName: String, vararg keys: String) {
         keys.forEach { key ->
-            config.inputTriggerAdder(inputMap, "all").put(behaviourName, key)
+            val trigger = InputTrigger.getFromString( key )
+            inputMap.put( trigger, behaviourName )
+            config.add( trigger, behaviourName, "all" )
         }
     }
 
@@ -138,7 +140,6 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?, for
      *
      * @return Map of all currently configured key bindings.
      */
-    @Suppress("unused")
     fun getAllBindings(): Map<InputTrigger, Set<String>> {
         return inputMap.allBindings
     }
@@ -148,9 +149,11 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?, for
      *
      * @param[behaviourName] The behaviour to remove the key binding for.
      */
-    @Suppress("unused")
     fun removeKeyBinding(behaviourName: String) {
-        config.inputTriggerAdder(inputMap, "all").put(behaviourName)
+        config.getInputs( behaviourName, "all" ).forEach { inputTrigger ->
+            inputMap.remove( inputTrigger, behaviourName )
+            config.remove( inputTrigger, behaviourName, "all" )
+        }
     }
 
     /**
