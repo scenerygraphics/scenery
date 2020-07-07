@@ -103,6 +103,15 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?, for
     }
 
     /**
+     * Returns *a copy of* the behaviours currently
+     * registered with this {@link InputHandler}.
+     */
+    fun getAllBehaviours(): Set<String> {
+        return behaviourMap.keys()
+        //NB: behaviourMap.keys() returns a copy of its keys
+    }
+
+    /**
      * Adds a key binding for a given behaviour
      *
      * @param[behaviourName] The behaviour to add a key binding for
@@ -115,7 +124,17 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?, for
     }
 
     /**
-     * Returns all the currently set key bindings
+     * Returns *a copy of* all keys {@link InputTrigger}s associated
+     * with the given behaviour
+     */
+    fun getKeyBindings(behaviourName: String): Set<InputTrigger> {
+        return config.getInputs( behaviourName, "all" )
+        //NB: this assumes that 'config' and 'inputMap' are well synchronized,
+        //    otherwise we would have to read 'inputMap' and build the set ourselves
+    }
+
+    /**
+     * Returns *a copy of* all the currently set key bindings
      *
      * @return Map of all currently configured key bindings.
      */
