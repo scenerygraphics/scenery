@@ -13,11 +13,14 @@ import org.scijava.ui.behaviour.BehaviourMap
 import org.scijava.ui.behaviour.InputTrigger
 import org.scijava.ui.behaviour.InputTriggerMap
 import org.scijava.ui.behaviour.io.InputTriggerConfig
+import org.scijava.ui.behaviour.io.gui.CommandDescriptionBuilder
+import org.scijava.ui.behaviour.io.gui.VisualEditorPanel
 import org.scijava.ui.behaviour.io.yaml.YamlConfigIO
 import java.io.FileNotFoundException
 import java.io.FileReader
 import java.io.Reader
 import java.io.StringReader
+import javax.swing.JFrame
 
 /**
  * Input orchestrator for ClearGL windows
@@ -244,5 +247,24 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?, for
     override fun close() {
         logger.debug("Closing InputHandler")
         handler?.close()
+    }
+
+    fun openKeybindingsGuiEditor( editorTitle : String = "scenery's Key bindings editor" ): VisualEditorPanel {
+        //setup content for the Visual Editor
+        val cdb = CommandDescriptionBuilder()
+        behaviourMap.keys().forEach { b -> cdb.addCommand(b,"all","") }
+        val editorPanel = VisualEditorPanel(config, cdb.get())
+
+        //show the Editor
+        val frame = JFrame(editorTitle)
+        frame.contentPane.add(editorPanel)
+        frame.pack()
+        frame.isVisible = true
+
+        //process "Apply" button of the editor
+        editorPanel.addConfigCommittedListener { config.resetThisMapFor( inputMap, "all" ) }
+
+        //return reference on the Editor, so that users can hook own extra stuff
+        return editorPanel
     }
 }
