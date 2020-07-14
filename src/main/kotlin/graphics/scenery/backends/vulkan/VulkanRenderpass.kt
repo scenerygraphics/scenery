@@ -208,7 +208,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
                 }
             }
 
-            logger.debug("$name: descriptor set for $inputFramebuffer.key is ${ds.toHexString()}")
+            logger.debug("$name: descriptor set for ${inputFramebuffer.key} is ${ds.toHexString()}")
 
             val searchKeys = when {
                 inputFramebuffer.key.startsWith("Viewport") -> {
@@ -224,31 +224,38 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
 
             logger.debug("$name: Search keys for input attachments: ${searchKeys.joinToString(",")}, descriptorNum=$descriptorNum")
 
-            val nameInShader = passConfig.inputs?.firstOrNull { it.name == inputFramebuffer.key }?.shaderInput ?: if(passConfig.output.name == inputFramebuffer.key) { passConfig.output.shaderInput } else { null }
-            logger.debug("$name: Name declared in shader is: $nameInShader")
+            logger.info("${passConfig.output.name}, ${inputFramebuffer.key}")
+            val nameInShader = passConfig.inputs?.firstOrNull { it.name == inputFramebuffer.key }?.shaderInput ?: if(passConfig.output.name == inputFramebuffer.key.substringBeforeLast("-")) { passConfig.output.shaderInput } else { null }
+            logger.debug("$name: Name declared in shader is: $nameInShader, descriptorNum=$descriptorNum")
 
             val spec = shaderModules
                 .flatMap { it.uboSpecs.entries }
                 .firstOrNull { entry ->
-                    entry.component2().members.count() == descriptorNum
-                        && (entry.component1().startsWith("Inputs") || entry.component1().startsWith("Output") || entry.component1() == nameInShader)
-                        && searchKeys
-                        .map { logger.debug("Looking for Input$it or Output$it");
+                    logger.debug("Entry name: ${entry.component1()}, size=${entry.component2().members.count()}")
+                    (entry.component2().members.count() == descriptorNum
+                        && (entry.component1().startsWith("Inputs") || entry.component1().startsWith("Output"))
+                        && searchKeys.map {
+                            logger.debug("Looking for Input$it or Output$it")
                             entry.component2().members.containsKey("Input$it")
                                 || entry.component2().members.containsKey("Output$it")
-                                || entry.component2().members.containsKey(nameInShader) }.all { it }
+                                || entry.component2().members.containsKey(nameInShader)
+                        }.all { it }) || (entry.component1() == nameInShader && entry.component2().members.count() == 0)
                 }
 
             if(spec != null) {
                 val inputKey = "input-${this.name}-${spec.value.set}"
 
-                logger.debug("$name: Creating input descriptor set for ${inputFramebuffer.key}, $inputKey")
-                descriptorSetLayouts.put(inputKey, dsl)/*?.let {
+                logger.debug("$name: Creating input descriptor set for ${inputFramebuffer.key}, $inputKey ($nameInShader)")
+                descriptorSetLayouts[inputKey] = dsl/*?.let {
                     oldDSL ->
                     logger.debug("$name: Removing old DSL for $inputKey, $oldDSL.")
                     vkDestroyDescriptorSetLayout(device.vulkanDevice, oldDSL, null)
                 }*/
-                descriptorSets.put(inputKey, ds)
+                descriptorSets[inputKey] = ds
+                if(nameInShader != null) {
+                    descriptorSetLayouts[nameInShader] = dsl
+                    descriptorSets[nameInShader] = ds
+                }
                 input++
             } else {
 //                vkDestroyDescriptorSetLayout(device.vulkanDevice, dsl, null)
@@ -288,12 +295,13 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
                 }
 
                 val settingsKey = when {
+                    entry.key.startsWith("System") -> "System.${entry.key.substringAfter("System.")}"
                     entry.key.startsWith("Global") -> "Renderer.${entry.key.substringAfter("Global.")}"
                     entry.key.startsWith("Pass") -> "Renderer.$name.${entry.key.substringAfter("Pass.")}"
                     else -> "Renderer.$name.${entry.key}"
                 }
 
-                if(!entry.key.startsWith("Global.") && !entry.key.startsWith("Pass.")) {
+                if (!entry.key.startsWith("Global") && !entry.key.startsWith("Pass.") && !entry.key.startsWith("System.")) {
                     settings.setIfUnset(settingsKey, value)
                 }
 
