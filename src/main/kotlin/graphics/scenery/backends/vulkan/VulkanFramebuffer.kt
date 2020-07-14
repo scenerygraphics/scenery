@@ -493,7 +493,7 @@ open class VulkanFramebuffer(protected val device: VulkanDevice,
             onlyFor = listOf(att)
         )
 
-        logger.debug("Created sampling DSL ${att.loadStoreDescriptorSetLayout?.toHexString()} and DS ${att.loadStoreDescriptorSet?.toHexString()} for attachment $name")
+        logger.debug("Created sampling DSL ${att.descriptorSetLayout.toHexString()} and DS ${att.descriptorSet.toHexString()} for attachment $name")
 
 
         if(loadStoreSupported) {
@@ -512,6 +512,8 @@ open class VulkanFramebuffer(protected val device: VulkanDevice,
             )
 
             logger.debug("Created load/store DSL ${att.loadStoreDescriptorSetLayout?.toHexString()} and DS ${att.loadStoreDescriptorSet?.toHexString()} for attachment $name")
+        } else {
+            logger.debug("Not creating load/store DSL/DS for attachment $name due to lack of feature support for format ${att.desc.format()}")
         }
 
         return this
