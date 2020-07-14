@@ -2759,10 +2759,6 @@ open class VulkanRenderer(hub: Hub,
 
                 val localSizes = pipeline.shaderStages.first().localSize
 
-                if(localSizes.first == 0 || localSizes.second == 0 || localSizes.third == 0) {
-                    logger.error("${node.name}: Compute local sizes $localSizes must not be zero, setting to 1.")
-                }
-
                 loadStoreTextures
                     .forEach { (name, _) ->
                     val texture = s.textures[name] ?: return@computeLoop
@@ -2789,10 +2785,19 @@ open class VulkanRenderer(hub: Hub,
                         vulkanPipeline.layout, 0, pass.vulkanMetadata.descriptorSets, pass.vulkanMetadata.uboOffsets)
                 }
 
-                vkCmdDispatch(this,
-                    metadata.workSizes.x()/maxOf(localSizes.first, 1),
-                    metadata.workSizes.y()/maxOf(localSizes.second, 1),
-                    metadata.workSizes.z()/maxOf(localSizes.third, 1))
+                val maxGroupSize = intArrayOf(1, 1, 1)
+                commandBuffer.device.deviceData.properties.limits().maxComputeWorkGroupSize().get(maxGroupSize)
+
+                val groupSize = intArrayOf(
+                    minOf(metadata.workSizes.x()/localSizes.first, maxGroupSize[0]),
+                    minOf(metadata.workSizes.y()/localSizes.second, maxGroupSize[1]),
+                    minOf(metadata.workSizes.z()/localSizes.third,maxGroupSize[2]))
+
+                if(groupSize.zip(localSizes.toList()).any { it.first > it.second }) {
+                    logger.warn("Group sizes $groupSize exceeds device maximum of $localSizes, using device maximum.")
+                }
+
+                vkCmdDispatch(this, groupSize[0], groupSize[1], groupSize[2])
 
                 loadStoreTextures.forEach { (name, _) ->
                     val texture = s.textures[name] ?: return@computeLoop

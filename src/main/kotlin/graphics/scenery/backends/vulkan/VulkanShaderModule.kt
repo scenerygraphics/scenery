@@ -85,14 +85,17 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, sp: 
         val uniformBuffers = compiler.shaderResources.uniformBuffers
         val pushConstants = compiler.shaderResources.pushConstantBuffers
 
-
         val x = compiler.getExecutionModeArgument(ExecutionMode.ExecutionModeLocalSize, 0).toInt()
         val y = compiler.getExecutionModeArgument(ExecutionMode.ExecutionModeLocalSize, 1).toInt()
         val z = compiler.getExecutionModeArgument(ExecutionMode.ExecutionModeLocalSize, 2).toInt()
 
         logger.debug("Local size: $x $y $z")
 
-        localSize = Triple(x, y, z)
+        if((x == 0 || y == 0 || y == 0) && type == ShaderType.ComputeShader) {
+            logger.error("Compute local sizes $x, $y, $z must not be zero, setting to 1.")
+        }
+
+        localSize = Triple(maxOf(x, 1), maxOf(y, 1), maxOf(z, 1))
 
         for(i in 0 until uniformBuffers.capacity()) {
             val res = uniformBuffers.get(i)
