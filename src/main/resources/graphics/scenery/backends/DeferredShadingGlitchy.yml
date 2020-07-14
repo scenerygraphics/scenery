@@ -1,5 +1,5 @@
-name: Deferred Shading
-description: Deferred Shading, with HDR postprocessing and FXAA
+name: Glitchy Deferred Shading
+description: Deferred Shading, with a glitch
 sRGB: false
 
 rendertargets:
@@ -128,12 +128,22 @@ renderpasses:
       - "HDR.frag.spv"
     inputs:
       - HDRBuffer.Color
-    output: FXAABuffer
+    output: ComputeBuffer
     parameters:
       TonemappingOperator: 0
       Gamma: 1.8
       Exposure: 1.0
       WhitePoint: 11.2
+  DummyCompute:
+    type: compute
+    shaders:
+      - "ComputeShuffleInputs.comp.spv"
+    inputs:
+      - ComputeBuffer as InFirstColor
+      - GeometryBuffer.NormalsMaterial as InSecondColor
+    output: FXAABuffer as OutViewport
+    parameters:
+      System.Runtime: 0.0
   FXAA:
     type: quad
     shaders:
@@ -151,13 +161,6 @@ renderpasses:
       Global.displayHeight: 0
     inputs:
       - FXAABuffer
-    output: ComputeBuffer
-  DummyCompute:
-    type: compute
-    shaders:
-      - "ComputePassthrough.comp.spv"
-    inputs:
-      - ComputeBuffer
     output: Viewport
 
 qualitySettings:
