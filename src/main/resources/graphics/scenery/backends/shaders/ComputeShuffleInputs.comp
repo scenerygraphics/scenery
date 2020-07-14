@@ -1,0 +1,27 @@
+#version 450
+
+layout (local_size_x = 16, local_size_y = 16) in;
+layout (set = 0, binding = 0, rgba8) uniform readonly image2D InFirstColor;
+layout (set = 1, binding = 0, rgba8) uniform readonly image2D InSecondColor;
+layout (set = 2, binding = 0, rgba8) uniform image2D OutViewport;
+
+layout(set = 3, binding = 0, std140) uniform ShaderParameters {
+    float Runtime;
+} params;
+
+float random (vec2 st) {
+    return fract(sin(dot(st.xy,
+    vec2(12.9898,78.233)))*
+    43758.5453123);
+}
+
+void main() {
+    vec4 color1 = imageLoad(InFirstColor, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y)).rgba;
+    vec4 color2 = imageLoad(InSecondColor, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y)).rgba;
+
+    if(random(floor(gl_GlobalInvocationID.xy/512.0*20.0)*(floor(params.Runtime/300.0))) > 0.5) {
+        imageStore(OutViewport, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), color1.bgra);
+    } else {
+        imageStore(OutViewport, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), color2.rgba);
+    }
+}
