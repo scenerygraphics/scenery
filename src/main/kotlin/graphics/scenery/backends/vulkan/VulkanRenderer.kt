@@ -2052,7 +2052,7 @@ open class VulkanRenderer(hub: Hub,
                 RenderConfigReader.RenderpassType.geometry -> recordSceneRenderCommands(target, commandBuffer, sceneNodes, { it !is Light }, forceRerecording)
                 RenderConfigReader.RenderpassType.lights -> recordSceneRenderCommands(target, commandBuffer, sceneNodes, { it is Light }, forceRerecording)
                 RenderConfigReader.RenderpassType.quad -> recordPostprocessRenderCommands(target, commandBuffer)
-                RenderConfigReader.RenderpassType.compute -> recordComputeRenderCommands(target, commandBuffer)
+                RenderConfigReader.RenderpassType.compute -> recordComputePassRenderCommands(target, commandBuffer)
             }
 
             stats?.add("VulkanRenderer.$t.recordCmdBuffer", System.nanoTime() - start)
@@ -2101,7 +2101,7 @@ open class VulkanRenderer(hub: Hub,
             RenderConfigReader.RenderpassType.geometry -> recordSceneRenderCommands(viewportPass, viewportCommandBuffer, sceneNodes, { it !is Light }, forceRerecording)
             RenderConfigReader.RenderpassType.lights -> recordSceneRenderCommands(viewportPass, viewportCommandBuffer, sceneNodes, { it is Light })
             RenderConfigReader.RenderpassType.quad -> recordPostprocessRenderCommands(viewportPass, viewportCommandBuffer)
-            RenderConfigReader.RenderpassType.compute -> recordComputeRenderCommands(viewportPass, viewportCommandBuffer)
+            RenderConfigReader.RenderpassType.compute -> recordComputePassRenderCommands(viewportPass, viewportCommandBuffer)
         }
 
         stats?.add("VulkanRenderer.${viewportPass.name}.recordCmdBuffer", System.nanoTime() - start)
@@ -3108,7 +3108,7 @@ open class VulkanRenderer(hub: Hub,
         return requiredDynamicOffsets
     }
 
-    private fun recordComputeRenderCommands(pass: VulkanRenderpass, commandBuffer: VulkanCommandBuffer) {
+    private fun recordComputePassRenderCommands(pass: VulkanRenderpass, commandBuffer: VulkanCommandBuffer) {
         with(commandBuffer.prepareAndStartRecording(commandPools.Compute)) {
             val metadata = ComputeMetadata(Vector3i(pass.getOutput().width, pass.getOutput().height, 1))
 
@@ -3145,10 +3145,60 @@ open class VulkanRenderer(hub: Hub,
                 logger.error("${pass.name}: Compute local sizes $localSizes must not be zero, setting to 1.")
             }
 
+            val loadStoreAttachments = hashMapOf(false to pass.inputs, true to pass.output)
+
+
+            loadStoreAttachments
+                .forEach { (isOutput, fb) ->
+                    val originalLayout = if(isOutput && pass.isViewportRenderpass) {
+                        VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+                    } else {
+                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+                    }
+
+                    fb.values
+                        .flatMap { it.attachments.values }
+                        .filter { it.type != VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT}
+                        .forEach { att ->
+                        VulkanTexture.transitionLayout(att.image,
+                            from = originalLayout,
+                            to = VK_IMAGE_LAYOUT_GENERAL,
+                            srcStage = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,
+                            srcAccessMask = VK_ACCESS_SHADER_READ_BIT,
+                            dstStage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                            dstAccessMask = VK_ACCESS_SHADER_WRITE_BIT,
+                            commandBuffer = this)
+                    }
+                }
+
             vkCmdDispatch(this,
                 metadata.workSizes.x()/maxOf(localSizes.first, 1),
                 metadata.workSizes.y()/maxOf(localSizes.second, 1),
                 metadata.workSizes.z()/maxOf(localSizes.third, 1))
+
+            loadStoreAttachments
+                .forEach { (isOutput, fb) ->
+                    val originalLayout = if(isOutput && pass.isViewportRenderpass) {
+                        VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+                    } else {
+                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+                    }
+
+                    fb.values
+                        .flatMap { it.attachments.values }
+                        .filter { it.type != VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT}
+                        .forEach { att ->
+
+                    VulkanTexture.transitionLayout(att.image,
+                            from = VK_IMAGE_LAYOUT_GENERAL,
+                            to = originalLayout,
+                            srcStage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                            srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT,
+                            dstStage = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,
+                            dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
+                            commandBuffer = this)
+                    }
+                }
 
             commandBuffer.stale = false
             commandBuffer.endCommandBuffer()
