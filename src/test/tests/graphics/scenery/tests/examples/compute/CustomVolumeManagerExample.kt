@@ -45,7 +45,7 @@ class CustomVolumeManagerExample : SceneryBase("CustomVolumeManagerExample") {
             ))
 
         val outputBuffer = MemoryUtil.memCalloc(1280*720*4)
-        val outputTexture = Texture.fromImage(Image(outputBuffer, 1280, 720))
+        val outputTexture = Texture.fromImage(Image(outputBuffer, 1280, 720), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
         volumeManager.material.textures["OutputRender"] = outputTexture
 
         hub.add(volumeManager)
