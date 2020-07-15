@@ -1,7 +1,9 @@
 package graphics.scenery
 
-import cleargl.GLVector
+import org.joml.Vector3f
+import org.joml.Vector4f
 import graphics.scenery.backends.ShaderType
+import graphics.scenery.utils.extensions.toFloatArray
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
 
@@ -30,15 +32,15 @@ class LinePair @JvmOverloads constructor(var capacity: Int = 50, transparent: Bo
 
     /** Shader property for the line's starting segment color. Consumed by the renderer. */
     @ShaderProperty
-    var startColor = GLVector(0.0f, 1.0f, 0.0f, 1.0f)
+    var startColor = Vector4f(0.0f, 1.0f, 0.0f, 1.0f)
 
     /** Shader property for the line's color. Consumed by the renderer. */
     @ShaderProperty
-    var lineColor = GLVector(1.0f, 1.0f, 1.0f, 1.0f)
+    var lineColor = Vector4f(1.0f, 1.0f, 1.0f, 1.0f)
 
     /** Shader property for the line's end segment color. Consumed by the renderer. */
     @ShaderProperty
-    var endColor = GLVector(0.7f, 0.5f, 0.5f, 1.0f)
+    var endColor = Vector4f(0.7f, 0.5f, 0.5f, 1.0f)
 
     /** Shader property for the line's cap length (start and end caps). Consumed by the renderer. */
     @ShaderProperty
@@ -113,7 +115,7 @@ class LinePair @JvmOverloads constructor(var capacity: Int = 50, transparent: Bo
      * @param points1 Original points
      * @param points2 Bundled points
      */
-    fun addPointPairs(points1: Array<GLVector>, points2: Array<GLVector>) {
+    fun addPointPairs(points1: Array<Vector3f>, points2: Array<Vector3f>) {
         if(vertices.limit() + 3 * points1.size >= vertices.capacity()) {
             val newVertices = BufferUtils.allocateFloat(vertices.capacity() + points1.size * 3 + 3 * capacity)
             vertices.position(0)
@@ -144,12 +146,18 @@ class LinePair @JvmOverloads constructor(var capacity: Int = 50, transparent: Bo
 
         vertices.position(vertices.limit())
         vertices.limit(vertices.limit() + points1.size * 3)
-        points1.forEach { v -> vertices.put(v.toFloatArray()) }
+        points1.forEach { v ->
+            v.get(vertices)
+            vertices.position(vertices.position() + 3)
+        }
         vertices.flip()
 
         normals.position(normals.limit())
         normals.limit(normals.limit() + points2.size * 3)
-        points2.forEach { v -> normals.put(v.toFloatArray()) }
+        points2.forEach { v ->
+            v.get(normals)
+            normals.position(normals.position() + 3)
+        }
         normals.flip()
 
         texcoords.position(texcoords.limit())
