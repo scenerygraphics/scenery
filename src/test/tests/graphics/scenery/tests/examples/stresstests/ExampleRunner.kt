@@ -12,7 +12,6 @@ import java.nio.file.Files
 import java.nio.file.Paths
 import java.util.concurrent.*
 import kotlin.test.assertFalse
-import kotlin.time.Duration
 import kotlin.time.ExperimentalTime
 import kotlin.time.milliseconds
 import kotlin.time.minutes
@@ -76,7 +75,7 @@ class ExampleRunner {
         val reflections = Reflections("graphics.scenery.tests")
 
         // blacklist contains examples that require user interaction or additional devices
-        val blacklist = mutableListOf(
+        val blocklist = mutableListOf(
             "LocalisationExample",
             "SwingTexturedCubeExample",
             "TexturedCubeJavaApplication",
@@ -92,13 +91,15 @@ class ExampleRunner {
             "VideoRecordingExample"
         )
 
-        blacklist.addAll(System.getProperty("scenery.ExampleRunner.Blacklist", "").split(","))
+        blocklist.addAll(System.getProperty("scenery.ExampleRunner.Blocklist", "").split(","))
+        val allowedTests = System.getProperty("scenery.ExampleRunner.AllowedTests")?.split(",")
 
         // find all basic and advanced examples, exclude blacklist
         val examples = reflections
             .getSubTypesOf(SceneryBase::class.java)
             .filter { !it.canonicalName.contains("stresstests") && !it.canonicalName.contains("cluster") }
-            .filter { !blacklist.contains(it.simpleName) }
+            .filter { !blocklist.contains(it.simpleName) }.toMutableList()
+            .filter { allowedTests?.contains(it.simpleName) ?: true }
 
         val rendererProperty = System.getProperty("scenery.Renderer")
         val renderers = rendererProperty?.split(",") ?: when(ExtractsNatives.getPlatform()) {
