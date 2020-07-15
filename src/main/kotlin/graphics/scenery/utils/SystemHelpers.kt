@@ -231,8 +231,8 @@ class SystemHelpers {
          * Returns a string in the format yyyy-MM-dd HH.mm.ss from the [date] given.
          * [date] defaults to the current date.
          */
-        fun formatDateTime(date: Date = Date()): String {
-            return SimpleDateFormat("yyyy-MM-dd HH.mm.ss").format(date)
+        @JvmOverloads fun formatDateTime(date: Date = Date(), delimiter: String = " "): String {
+            return SimpleDateFormat("yyyy-MM-dd${delimiter}HH.mm.ss").format(date)
         }
     }
 }

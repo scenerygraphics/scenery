@@ -1,12 +1,18 @@
 package graphics.scenery.backends.vulkan
 
-import graphics.scenery.GenericTexture
+import graphics.scenery.Node
+import graphics.scenery.textures.Texture
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.*
 import graphics.scenery.NodeMetadata
+import graphics.scenery.backends.RenderConfigReader
+import graphics.scenery.backends.RendererFlags
 import graphics.scenery.utils.LazyLogger
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.time.ExperimentalTime
+import kotlin.time.measureTime
+import kotlin.time.measureTimedValue
 
 /**
  * Vulkan Object State class. Saves texture, UBO, pipeline and vertex buffer state.
@@ -64,49 +70,74 @@ open class VulkanObjectState : NodeMetadata {
     /** Whether the node is rendered as instanced */
     var instanced = false
 
+    var flags = EnumSet.noneOf(RendererFlags::class.java)
+    /** Skip for rendering if this is set. */
+    var preDrawSkip = false
+
+    /** Last reload time for textures */
+    var texturesLastSeen = 0L
+
     /**
      * Creates or updates the [textureDescriptorSets] describing the textures used. Will cover all the renderpasses
      * given in [passes]. The set will reside on [device] and the descriptor set layout(s) determined from the renderpass.
      * The set will be allocated from [descriptorPool].
      */
-    fun texturesToDescriptorSets(device: VulkanDevice, passes: Map<String, VulkanRenderpass>, descriptorPool: Long) {
-        passes.forEach { (passName, pass) ->
-            if(pass.recreated > descriptorSetsRecreated) {
-                textureDescriptorSets.clear()
-            }
-            val textures = textures.entries.groupBy { GenericTexture.objectTextures.contains(it.key) }
+    @OptIn(ExperimentalTime::class)
+    fun texturesToDescriptorSets(device: VulkanDevice, passes: Map<String, VulkanRenderpass>, node: Node, descriptorPool: Long) {
+        val updateDuration = measureTime {
+            val textures = textures.entries.groupBy { Texture.objectTextures.contains(it.key) }
             val objectTextures = textures[true]
             val others = textures[false]
 
-            val descriptorSetLayoutObjectTextures = pass.descriptorSetLayouts["ObjectTextures"]
-            if(descriptorSetLayoutObjectTextures != null && objectTextures != null) {
-                textureDescriptorSets[pass.passConfig.type.name to "ObjectTextures"] = createOrUpdateTextureDescriptorSet(
-                    "ObjectTextures",
-                    pass.passConfig.type.name,
-                    GenericTexture.objectTextures.map { ot -> objectTextures.first { it.key == ot } },
-                    descriptorSetLayoutObjectTextures,
-                    device,
-                    descriptorPool)
-            } else {
-                logger.warn("$this: DSL for ObjectTextures not found for pass $passName")
-            }
+            passes.forEach { (passName, pass) ->
+                if (pass.recreated > descriptorSetsRecreated) {
+                    textureDescriptorSets.clear()
+                }
 
-            others?.forEach { texture ->
-                logger.trace("Pass descriptor sets are {}", pass.descriptorSetLayouts.keys.joinToString(","))
-                val dsl = pass.descriptorSetLayouts[texture.key]
-                if (dsl != null) {
-                    textureDescriptorSets[pass.passConfig.type.name to texture.key] = createOrUpdateTextureDescriptorSet(
-                        texture.key,
+                val descriptorSetLayoutObjectTextures = pass.descriptorSetLayouts["ObjectTextures"]
+                if (descriptorSetLayoutObjectTextures != null && objectTextures != null) {
+                    textureDescriptorSets[pass.passConfig.type.name to "ObjectTextures"] = createOrUpdateTextureDescriptorSet(
+                        "ObjectTextures",
                         pass.passConfig.type.name,
-                        listOf(texture),
-                        dsl,
+                        Texture.objectTextures.map { ot -> objectTextures.first { it.key == ot } },
+                        descriptorSetLayoutObjectTextures,
                         device,
                         descriptorPool)
                 } else {
-                    logger.warn("$this: DSL for ${texture.key} not found for pass $passName")
+                    if (pass.passConfig.type == RenderConfigReader.RenderpassType.geometry) {
+                        logger.warn("$this: DSL for ObjectTextures not found for pass $passName")
+                    } else {
+                        logger.debug("$this: DSL for ObjectTextures not found for pass $passName")
+                    }
+                }
+
+                if (logger.isTraceEnabled) {
+                    logger.trace("Pass descriptor sets are {}", pass.descriptorSetLayouts.keys.joinToString(","))
+                }
+
+                others?.mapNotNull { texture ->
+                    pass.getDescriptorSetLayoutForTexture(texture.key, node)
+                }?.groupBy {
+                    it.first
+                }?.forEach {
+                    val dsl = it.key
+                    val textureNames = it.value.first().second
+                        .sortedBy { spec -> spec.binding }
+                        .map { spec -> spec.name }
+
+                    val firstTextureName = textureNames.first()
+                    val texturesForSet = textureNames.mapNotNull { t -> others.firstOrNull() { it.key == t } }
+
+                    val (ds, duration) = measureTimedValue { createOrUpdateTextureDescriptorSet(firstTextureName, passName, texturesForSet, dsl, device, descriptorPool) }
+
+                    texturesForSet.forEach { (textureName, _) ->
+                        textureDescriptorSets[pass.passConfig.type.name to textureName] = ds
+                    }
                 }
             }
         }
+
+        logger.trace("DS update took {} ms", updateDuration.inMilliseconds)
     }
 
     fun clearTextureDescriptorSets() {
@@ -114,6 +145,14 @@ open class VulkanObjectState : NodeMetadata {
     }
 
     private fun createOrUpdateTextureDescriptorSet(name: String, passName: String, textures: List<MutableMap.MutableEntry<String, VulkanTexture>>, descriptorSetLayout: Long, device: VulkanDevice, descriptorPool: Long): Long {
+        val cacheKey = TextureKey(device.vulkanDevice, descriptorSetLayout, textures)
+
+        val existing = cache[cacheKey]
+
+        if(existing != null) {
+            return existing
+        }
+
         val descriptorSet: Long = textureDescriptorSets.getOrPut(passName to name) {
             val pDescriptorSetLayout = memAllocLong(1)
             pDescriptorSetLayout.put(0, descriptorSetLayout)
@@ -160,6 +199,7 @@ open class VulkanObjectState : NodeMetadata {
         d.forEach { it.free() }
 
         logger.debug("Creating texture descriptor for $name in pass $passName {} set with 1 bindings, DSL={}", descriptorSet.toHexString(), descriptorSetLayout.toHexString())
+        cache[cacheKey] = descriptorSet
         return descriptorSet
     }
 
@@ -184,11 +224,15 @@ open class VulkanObjectState : NodeMetadata {
         return set
     }
 
+    data class TextureKey(val device: VkDevice, val dsl: Long, val textures: List<MutableMap.MutableEntry<String, VulkanTexture>>)
+
     /**
      * Utility class for [VulkanObjectState].
      */
     companion object {
         protected val logger by LazyLogger()
+
+        protected val cache = HashMap<TextureKey, Long>()
 
         /**
          * Returns the array index of a texture [type].

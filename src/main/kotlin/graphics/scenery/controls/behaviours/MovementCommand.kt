@@ -3,6 +3,9 @@ package graphics.scenery.controls.behaviours
 import graphics.scenery.Camera
 import graphics.scenery.Node
 import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.extensions.minus
+import graphics.scenery.utils.extensions.plus
+import graphics.scenery.utils.extensions.times
 import org.scijava.ui.behaviour.ClickBehaviour
 import org.slf4j.Logger
 import kotlin.reflect.KProperty
@@ -62,8 +65,8 @@ open class MovementCommand(private val name: String, private val direction: Stri
                 when (direction) {
                     "forward" -> node.position = node.position + axisProvider.forward * speed * axisProvider.deltaT
                     "back" -> node.position = node.position - axisProvider.forward * speed * axisProvider.deltaT
-                    "left" -> node.position = node.position - axisProvider.forward.cross(axisProvider.up).normalized * speed * axisProvider.deltaT
-                    "right" -> node.position = node.position + axisProvider.forward.cross(axisProvider.up).normalized * speed * axisProvider.deltaT
+                    "left" -> node.position = node.position - axisProvider.forward.cross(axisProvider.up).normalize() * speed * axisProvider.deltaT
+                    "right" -> node.position = node.position + axisProvider.forward.cross(axisProvider.up).normalize() * speed * axisProvider.deltaT
                     "up" -> node.position = node.position + axisProvider.up * speed * axisProvider.deltaT
                     "down" -> node.position = node.position + axisProvider.up * -1.0f * speed * axisProvider.deltaT
                 }

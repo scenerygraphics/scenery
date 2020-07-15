@@ -1,11 +1,10 @@
 package graphics.scenery
 
 import cleargl.ClearGLDefaultEventListener
-import cleargl.GLVector
+import org.joml.Vector3f
 import com.sun.jna.Library
 import com.sun.jna.Native
 import graphics.scenery.backends.Renderer
-import graphics.scenery.backends.opengl.OpenGLRenderer
 import graphics.scenery.controls.InputHandler
 import graphics.scenery.controls.behaviours.ArcballCameraControl
 import graphics.scenery.controls.behaviours.FPSCameraControl
@@ -13,9 +12,15 @@ import graphics.scenery.net.NodePublisher
 import graphics.scenery.net.NodeSubscriber
 import graphics.scenery.repl.REPL
 import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.Profiler
+import graphics.scenery.utils.RemoteryProfiler
 import graphics.scenery.utils.Renderdoc
 import graphics.scenery.utils.SceneryPanel
 import graphics.scenery.utils.Statistics
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.async
+import kotlinx.coroutines.runBlocking
 import org.lwjgl.system.Platform
 import org.scijava.Context
 import org.scijava.ui.behaviour.ClickBehaviour
@@ -138,10 +143,25 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
      * based on the [applicationName], from the file `~/.[applicationName].bindings
      *
      */
-    open fun main() {
+    open suspend fun sceneryMain() {
+        System.setProperty("org.slf4j.simpleLogger.defaultLogLevel", System.getProperty("scenery.LogLevel", "info"))
+
+        System.getProperties().forEach { prop ->
+            val name = prop.key as? String ?: return@forEach
+            val value = prop.value as? String ?: return@forEach
+
+            if(name.startsWith("scenery.LogLevel.")) {
+                System.setProperty("org.slf4j.simpleLogger.log.${name.substringAfter("scenery.LogLevel.")}", value)
+            }
+        }
+
         hub.addApplication(this)
         logger.info("Started application as PID ${getProcessID()}")
         running = true
+
+        if(parseBoolean(System.getProperty("scenery.Profiler", "false"))) {
+            hub.add(RemoteryProfiler(hub))
+        }
 
         val headless = parseBoolean(System.getProperty("scenery.Headless", "false"))
         val renderdoc = if(System.getProperty("scenery.AttachRenderdoc")?.toBoolean() == true) {
@@ -168,7 +188,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
                     Thread.sleep(2)
                 }
             }
-        } else {
+        } else if(master) {
             thread {
                 val address = settings.get("NodePublisher.ListenAddress", "tcp://127.0.0.1:6666")
                 val p = NodePublisher(hub, address)
@@ -192,7 +212,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
 
         settings.set("System.PID", getProcessID())
 
-        if (wantREPL && !headless) {
+        if (wantREPL) {
             repl = REPL(hub, scijavaContext, scene, stats, hub)
             repl?.addAccessibleObject(settings)
         }
@@ -235,16 +255,35 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
         val frameTimes = ArrayDeque<Float>(16)
         val frameTimeKeepCount = 16
 
+        val profiler = hub.get<Profiler>()
+
+        var sceneObjects: Deferred<List<Node>> = GlobalScope.async {
+            scene.discover(scene, { n ->
+                    n.visible && n.state == State.Ready
+            }, useDiscoveryBarriers = true)
+                .map { it.updateWorld(recursive = true, force = false); it }
+        }
+
         while (!shouldClose || gracePeriod > 0) {
             runtime = (System.nanoTime() - startTime) / 1000000f
             settings.set("System.Runtime", runtime)
 
+            val activeCamera = scene.findObserver() ?: continue
+
+            profiler?.begin("Render")
             if (renderer?.managesRenderLoop != false) {
-                renderer?.render()
+                renderer?.render(activeCamera, sceneObjects.await())
                 Thread.sleep(1)
             } else {
-                stats.addTimed("render") { renderer?.render() ?: 0.0f }
+                stats.addTimed("render") { renderer?.render(activeCamera, sceneObjects.await()) ?: 0.0f }
             }
+            sceneObjects = GlobalScope.async {
+                scene.discover(scene, { n ->
+                        n.visible && n.state == State.Ready
+                }, useDiscoveryBarriers = true)
+                    .map { it.updateWorld(recursive = true, force = false); it }
+            }
+            profiler?.end()
 
             // only run loop if we are either in standalone mode, or master
             // for details about the interpolation code, see
@@ -295,7 +334,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
             val r = registerNewRenderer
             if(r != null) {
                 if(renderer?.managesRenderLoop == false) {
-                    renderer?.render()
+                    renderer?.render(activeCamera, sceneObjects.await())
                 }
 
                 when (r.rendererType) {
@@ -327,8 +366,10 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
 
         running = false
         inputHandler?.close()
-        renderer?.close()
         renderdoc?.close()
+
+        hub.get<Profiler>()?.close()
+        hub.get<Statistics>()?.close()
     }
 
     /**
@@ -340,7 +381,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
         val windowWidth = renderer?.window?.width ?: 512
         val windowHeight = renderer?.window?.height ?: 512
 
-        val target = scene.findObserver()?.target ?: GLVector.getNullVector(3)
+        val target = scene.findObserver()?.target ?: Vector3f(0.0f)
         val inputHandler = (hub.get(SceneryElement.Input) as InputHandler)
         val targetArcball = ArcballCameraControl("mouse_control", { scene.findObserver() }, windowWidth, windowHeight, target)
         val fpsControl = FPSCameraControl("mouse_control", { scene.findObserver() }, windowWidth, windowHeight)
@@ -375,10 +416,17 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
     /**
      * Sets the shouldClose flag on renderer, causing it to shut down and thereby ending the main loop.
      */
-    fun close() {
+    open fun close() {
         shouldClose = true
-        gracePeriod = 10
+        gracePeriod = 60
         renderer?.close()
+
+        while(gracePeriod > 0 || renderer?.initialized == true) {
+            logger.debug("Waiting for grace period to go to 0, current=$gracePeriod")
+            Thread.sleep(100)
+        }
+
+        renderer = null
 
         (hub.get(SceneryElement.NodePublisher) as? NodePublisher)?.close()
         (hub.get(SceneryElement.NodeSubscriber) as? NodeSubscriber)?.close()
@@ -440,6 +488,10 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
         if(wait) {
             latch?.await()
         }
+    }
+
+    open fun main() {
+        runBlocking { sceneryMain() }
     }
 
     fun waitForSceneInitialisation() {

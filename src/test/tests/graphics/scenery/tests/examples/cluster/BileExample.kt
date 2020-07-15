@@ -1,11 +1,12 @@
 package graphics.scenery.tests.examples.cluster
 
-import cleargl.GLVector
+import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.TrackedStereoGlasses
 import graphics.scenery.net.NodePublisher
 import graphics.scenery.net.NodeSubscriber
+import graphics.scenery.utils.extensions.times
 import org.junit.Test
 
 /**
@@ -28,18 +29,17 @@ class BileExample: SceneryBase("Bile Canaliculi example") {
 
         val cam: Camera = DetachedHeadCamera(hmd)
         with(cam) {
-            position = GLVector(.0f, -0.4f, 5.0f)
-            perspectiveCamera(50.0f, 1.0f*windowWidth, 1.0f*windowHeight)
-            active = true
+            position = Vector3f(.0f, -0.4f, 5.0f)
+            perspectiveCamera(50.0f, windowWidth, windowHeight)
 
             scene.addChild(this)
         }
 
-        val shell = Box(GLVector(120.0f, 120.0f, 120.0f), insideNormals = true)
+        val shell = Box(Vector3f(120.0f, 120.0f, 120.0f), insideNormals = true)
         shell.material.cullingMode = Material.CullingMode.Front
-        shell.material.diffuse = GLVector(0.0f, 0.0f, 0.0f)
-        shell.material.specular = GLVector.getNullVector(3)
-        shell.material.ambient = GLVector.getNullVector(3)
+        shell.material.diffuse = Vector3f(0.0f, 0.0f, 0.0f)
+        shell.material.specular = Vector3f(0.0f)
+        shell.material.ambient = Vector3f(0.0f)
         scene.addChild(shell)
 
         val lights = (0..4).map {
@@ -47,24 +47,24 @@ class BileExample: SceneryBase("Bile Canaliculi example") {
         }
 
         val tetrahedron = listOf(
-            GLVector(1.0f, 0f, -1.0f/Math.sqrt(2.0).toFloat()),
-            GLVector(-1.0f,0f,-1.0f/Math.sqrt(2.0).toFloat()),
-            GLVector(0.0f,1.0f,1.0f/Math.sqrt(2.0).toFloat()),
-            GLVector(0.0f,-1.0f,1.0f/Math.sqrt(2.0).toFloat()))
+            Vector3f(1.0f, 0f, -1.0f/Math.sqrt(2.0).toFloat()),
+            Vector3f(-1.0f,0f,-1.0f/Math.sqrt(2.0).toFloat()),
+            Vector3f(0.0f,1.0f,1.0f/Math.sqrt(2.0).toFloat()),
+            Vector3f(0.0f,-1.0f,1.0f/Math.sqrt(2.0).toFloat()))
 
         tetrahedron.mapIndexed { i, position ->
             lights[i].position = position * 50.0f
-            lights[i].emissionColor = GLVector(1.0f, 0.5f,0.3f)//Random.randomVectorFromRange(3, 0.2f, 0.8f)
+            lights[i].emissionColor = Vector3f(1.0f, 0.5f,0.3f)//Random.random3DVectorFromRange(0.2f, 0.8f)
             lights[i].intensity = 200.2f
             scene.addChild(lights[i])
         }
 
         val bile = Mesh()
         bile.readFrom("M:/meshes/adult_mouse_bile_canaliculi_network_2.stl")
-        bile.scale = GLVector(0.1f, 0.1f, 0.1f)
-        bile.position = GLVector(-600.0f, -800.0f, -20.0f)
-        bile.material.diffuse = GLVector(0.8f, 0.5f, 0.5f)
-        bile.material.specular = GLVector(1.0f, 1.0f, 1.0f)
+        bile.scale = Vector3f(0.1f, 0.1f, 0.1f)
+        bile.position = Vector3f(-600.0f, -800.0f, -20.0f)
+        bile.material.diffuse = Vector3f(0.8f, 0.5f, 0.5f)
+        bile.material.specular = Vector3f(1.0f, 1.0f, 1.0f)
         bile.material.roughness = 0.5f
         scene.addChild(bile)
 

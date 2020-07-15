@@ -108,13 +108,13 @@ Add scenery and ClearGL to your project's `pom.xml`:
   <dependency>
     <groupId>graphics.scenery</groupId>
     <artifactId>scenery</artifactId>
-    <version>0.7.0-beta-6</version>
+    <version>0.7.0-beta-7</version>
   </dependency>
 
   <dependency>
     <groupId>net.clearvolume</groupId>
     <artifactId>cleargl</artifactId>
-    <version>2.2.8</version>
+    <version>2.2.9</version>
   </dependency>
 </dependencies>
 ```
@@ -138,7 +138,7 @@ You can then use any commit from the repository as scenery version, e.g.:
 <dependency>
   <groupId>graphics.scenery</groupId>
   <artifactId>scenery</artifactId>
-  <version>b9e43697b0</version>
+  <version>ff4c8ddd</version>
 </dependency>
 ```
 
@@ -149,8 +149,8 @@ Add scenery and ClearGL to your project's `build.gradle`:
 
 ```groovy
 compile group: 'graphics.scenery', name: 'scenery', version:
-'0.7.0-beta-6'
-compile group: 'net.clearvolume', name: 'cleargl', version: '2.2.8'
+'0.7.0-beta-7'
+compile group: 'net.clearvolume', name: 'cleargl', version: '2.2.9'
 ```
 
 #### Non-release builds / jitpack
@@ -170,7 +170,7 @@ You can then use any commit from the repository as scenery version, e.g.:
 
 ```groovy
 dependencies {
-  implementation 'com.github.scenerygraphics:scenery:b9e43697b0'
+  implementation 'com.github.scenerygraphics:scenery:ff4c8ddd'
 }
 ```
 
@@ -196,12 +196,16 @@ scenery has been tested with a number of different systems and GPUs. If you have
 | AMD Radeon R9 390 (Hawaii Pro) | ✅ | ✅ | ⬜ | ⬜ | ⬜ |
 | AMD Radeon R9 Nano (Fiji XT) | ✅ | ✅ | ⬜ | ⬜ | ⬜ |
 | AMD Radeon R9 M370X (Strato Pro) | ⬜ | ⬜ | ⬜ | ⬜ | ✅ |
+| AMD Radeon RX 5700 XT (Navi 10) | ✅ | ✅ | ⬜ | ⬜	 | ⬜	 |
 | AMD FirePro W9100 (Hawaii XT) | ✅ | ✅ | ⬜ | ⬜ | ⬜ |
 | Intel HD Graphics 4400 (Haswell) | ✅ | 🚫 | ✅ | ✅ | ⬜ |
 | Intel HD Graphics 5500 (Broadwell) | ⬜ | 🚫 | ✅ | ⬜ | ⬜ |
+| Intel Iris Plus Graphics (Ice Lake) | ✅ | ✅ | ⬜ | ⬜ | ⬜ |
+| Nvidia GeForce RTX 2080 Ti (Turing) | ✅ | ✅ | ⬜ | ⬜	 | ⬜	 |
+| Nvidia GeForce RTX 2070 (Turing) | ✅ | ✅ | ⬜ | ⬜	 | ⬜	 |
 | Nvidia Geforce Titan X (Maxwell) | ✅ | ✅ | ✅ | ✅ | ⬜	 |
 | Nvidia Titan Xp (Pascal) | ✅ | ✅ | ⬜ | ⬜	 | ⬜	 |
-| Nvidia Geforce 1080 Ti (Pascal) | ✅ | ✅ | ✅ | ✅| ⬜	 |
+| Nvidia Geforce 1080 Ti (Pascal) | ✅ | ✅ | ✅ | ✅ | ⬜	 |
 | Nvidia Geforce 1070 (Pascal) | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Nvidia Geforce 960 (Maxwell) | ✅ | ✅ | ⬜ | ⬜ | ⬜ |
 | Nvidia Quadro K6000 (Kepler) | ✅ | ✅ | ⬜ | ⬜ | ⬜ |

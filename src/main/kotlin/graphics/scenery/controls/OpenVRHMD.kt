@@ -1,14 +1,11 @@
 package graphics.scenery.controls
 
-import cleargl.GLMatrix
-import cleargl.GLVector
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.KotlinModule
-import com.jogamp.opengl.math.Quaternion
 import graphics.scenery.*
 import graphics.scenery.backends.Display
 import graphics.scenery.backends.vulkan.VU
@@ -19,6 +16,7 @@ import graphics.scenery.utils.JsonDeserialisers
 import graphics.scenery.utils.LazyLogger
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
+import org.joml.*
 import org.lwjgl.openvr.*
 import org.lwjgl.openvr.VR.*
 import org.lwjgl.openvr.VRCompositor.*
@@ -42,7 +40,6 @@ import java.nio.LongBuffer
 import java.nio.charset.Charset
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.TimeUnit
 import kotlin.math.absoluteValue
 
 /**
@@ -73,9 +70,9 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
     /** Storage for the poses of all tracked devices. */
     protected var trackedDevices = ConcurrentHashMap<String, TrackedDevice>()
     /** Cache for per-eye projection matrices */
-    protected var eyeProjectionCache: ArrayList<GLMatrix?> = ArrayList()
+    protected var eyeProjectionCache: ArrayList<Matrix4f?> = ArrayList()
     /** Cache for head-to-eye transform matrices */
-    protected var eyeTransformCache: ArrayList<GLMatrix?> = ArrayList()
+    protected var eyeTransformCache: ArrayList<Matrix4f?> = ArrayList()
 
     /** When did the last vsync occur? */
     protected val lastVsync: FloatBuffer = memAllocFloat(1)
@@ -119,6 +116,11 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
 
     override var events = TrackerInputEventHandlers()
 
+    /** Set of keys that are allowed to be repeated. */
+    val allowRepeats = HashSet<Pair<OpenVRButton, TrackerRole>>(5, 0.8f)
+    protected val keysDown = HashSet<Pair<OpenVRButton, TrackerRole>>(5, 0.8f)
+
+
     protected data class CompositeModel(
         val thumbnail: String,
         val components: Map<String, CompositeModelComponents>
@@ -136,22 +138,22 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
         @JsonProperty("controller_axis") val controllerAxis: Int,
         @JsonProperty("component_path") val componentPath: String?,
         @JsonProperty("pressed_path") val pressedPath: String?,
-        @JsonDeserialize(using = JsonDeserialisers.VectorDeserializer::class) val center: GLVector = GLVector(0.0f, 0.0f, 0.0f),
-        @JsonProperty("rotate_xyz") @JsonDeserialize(using = JsonDeserialisers.VectorDeserializer::class) val rotation: GLVector = GLVector(0.0f, 0.0f, 0.0f),
-        @JsonProperty("press_rotation_x") @JsonDeserialize(using = JsonDeserialisers.VectorDeserializer::class) val pressRotationX: GLVector = GLVector(0.0f, 0.0f),
-        @JsonProperty("press_rotation_y") @JsonDeserialize(using = JsonDeserialisers.VectorDeserializer::class) val pressRotationY: GLVector = GLVector(0.0f, 0.0f),
-        @JsonProperty("press_translate") @JsonDeserialize(using = JsonDeserialisers.VectorDeserializer::class) val pressTranslate: GLVector = GLVector(0.0f, 0.0f, 0.0f),
-        @JsonProperty("press_translate_x") @JsonDeserialize(using = JsonDeserialisers.VectorDeserializer::class) val pressTranslateX: GLVector = GLVector(0.0f, 0.0f, 0.0f),
-        @JsonProperty("press_translate_y") @JsonDeserialize(using = JsonDeserialisers.VectorDeserializer::class) val pressTranslateY: GLVector = GLVector(0.0f, 0.0f, 0.0f),
-        @JsonProperty("pivot") @JsonDeserialize(using = JsonDeserialisers.VectorDeserializer::class) val pivot: GLVector = GLVector(0.0f, 0.0f, 0.0f),
-        @JsonProperty("value_mapping") @JsonDeserialize(using = JsonDeserialisers.VectorDeserializer::class) val valueMapping: GLVector = GLVector(0.0f, 0.0f),
-        @JsonDeserialize(using = JsonDeserialisers.VectorDeserializer::class) val axis: GLVector = GLVector(1.0f, 0.0f, 0.0f),
+        @JsonDeserialize(using = JsonDeserialisers.VectorDeserializer::class) val center: Vector3f = Vector3f(0.0f, 0.0f, 0.0f),
+        @JsonProperty("rotate_xyz") @JsonDeserialize(using = JsonDeserialisers.VectorDeserializer::class) val rotation: Vector3f = Vector3f(0.0f, 0.0f, 0.0f),
+        @JsonProperty("press_rotation_x") @JsonDeserialize(using = JsonDeserialisers.VectorDeserializer::class) val pressRotationX: Vector2f = Vector2f(0.0f, 0.0f),
+        @JsonProperty("press_rotation_y") @JsonDeserialize(using = JsonDeserialisers.VectorDeserializer::class) val pressRotationY: Vector2f = Vector2f(0.0f, 0.0f),
+        @JsonProperty("press_translate") @JsonDeserialize(using = JsonDeserialisers.VectorDeserializer::class) val pressTranslate: Vector3f = Vector3f(0.0f, 0.0f, 0.0f),
+        @JsonProperty("press_translate_x") @JsonDeserialize(using = JsonDeserialisers.VectorDeserializer::class) val pressTranslateX: Vector3f = Vector3f(0.0f, 0.0f, 0.0f),
+        @JsonProperty("press_translate_y") @JsonDeserialize(using = JsonDeserialisers.VectorDeserializer::class) val pressTranslateY: Vector3f = Vector3f(0.0f, 0.0f, 0.0f),
+        @JsonProperty("pivot") @JsonDeserialize(using = JsonDeserialisers.VectorDeserializer::class) val pivot: Vector3f = Vector3f(0.0f, 0.0f, 0.0f),
+        @JsonProperty("value_mapping") @JsonDeserialize(using = JsonDeserialisers.VectorDeserializer::class) val valueMapping: Vector2f = Vector2f(0.0f, 0.0f),
+        @JsonDeserialize(using = JsonDeserialisers.VectorDeserializer::class) val axis: Vector3f = Vector3f(1.0f, 0.0f, 0.0f),
         @JsonProperty("controller_button") val controllerButton: Int
     )
 
     data class CompositeModelTransform(
-        @JsonDeserialize(using = JsonDeserialisers.VectorDeserializer::class) val origin: GLVector,
-        @JsonProperty("rotate_xyz") @JsonDeserialize(using = JsonDeserialisers.VectorDeserializer::class) val rotation: GLVector
+        @JsonDeserialize(using = JsonDeserialisers.VectorDeserializer::class) val origin: Vector3f,
+        @JsonProperty("rotate_xyz") @JsonDeserialize(using = JsonDeserialisers.VectorDeserializer::class) val rotation: Vector3f
     )
 
     init {
@@ -279,19 +281,19 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
      *
      * @return Render target size as 2D vector
      */
-    final override fun getRenderTargetSize(): GLVector {
+    final override fun getRenderTargetSize(): Vector2i {
             val x = memAllocInt(1)
             val y = memAllocInt(1)
 
             VRSystem_GetRecommendedRenderTargetSize(x, y)
 
-        val width = x.get(0).toFloat()
-        val height = y.get(0).toFloat()
+        val width = x.get(0)
+        val height = y.get(0)
 
         memFree(x)
         memFree(y)
 
-        return GLVector(width, height)
+        return Vector2i(width, height)
     }
 
     /**
@@ -317,14 +319,14 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
      * Returns the per-eye projection matrix
      *
      * @param[eye] The index of the eye
-     * @return GLMatrix containing the per-eye projection matrix
+     * @return Matrix4f containing the per-eye projection matrix
      */
-    @Synchronized override fun getEyeProjection(eye: Int, nearPlane: Float, farPlane: Float): GLMatrix {
+    @Synchronized override fun getEyeProjection(eye: Int, nearPlane: Float, farPlane: Float): Matrix4f {
         if (eyeProjectionCache[eye] == null) {
             val projection = HmdMatrix44.calloc()
             VRSystem_GetProjectionMatrix(eye, nearPlane, farPlane, projection)
 
-            eyeProjectionCache[eye] = projection.toGLMatrix().transpose()
+            eyeProjectionCache[eye] = projection.toMatrix4f().transpose()
         }
 
         return eyeProjectionCache[eye] ?: throw IllegalStateException("No cached projection for eye $eye found.")
@@ -334,9 +336,9 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
      * Returns the per-eye transform that moves from head to eye
      *
      * @param[eye] The eye index
-     * @return GLMatrix containing the transform
+     * @return Matrix4f containing the transform
      */
-    @Synchronized override fun getHeadToEyeTransform(eye: Int): GLMatrix {
+    @Synchronized override fun getHeadToEyeTransform(eye: Int): Matrix4f {
         if (eyeTransformCache[eye] == null) {
             val transform = HmdMatrix34.calloc()
             VRSystem_GetEyeToHeadTransform(eye, transform)
@@ -347,15 +349,17 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
             // the right eye. The developers claim this is for reprojection to work correctly. See also
             // https://github.com/LibreVR/Revive/issues/893
             if(manufacturer.contains("WindowsMR")) {
-                eyeTransformCache[eye] = transform.toGLMatrix()
+                eyeTransformCache[eye] = transform.toMatrix4f()
             } else {
-                eyeTransformCache[eye] = transform.toGLMatrix()
+                eyeTransformCache[eye] = transform.toMatrix4f()
             }
 
             logger.trace("Head-to-eye #{}: {}", eye, eyeTransformCache[eye].toString())
         }
 
-        return eyeTransformCache[eye] ?: throw IllegalStateException("No cached eye transform for eye $eye found.")
+        val current = eyeTransformCache[eye] ?: throw IllegalStateException("No cached eye transform for eye $eye found.")
+
+        return Matrix4f(current)
     }
 
     /**
@@ -375,52 +379,33 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
     /**
      * Returns the orientation of the HMD
      *
-     * @returns GLMatrix with orientation
+     * @returns Matrix4f with orientation
      */
-    override fun getOrientation(): Quaternion {
-        val q = Quaternion()
-        val pose = getPose().transposedFloatArray
-
-        q.w = Math.sqrt(1.0 * Math.max(0.0f, 1.0f + pose[0] + pose[5] + pose[10])).toFloat() / 2.0f
-        q.x = Math.sqrt(1.0 * Math.max(0.0f, 1.0f + pose[0] - pose[5] - pose[10])).toFloat() / 2.0f
-        q.y = Math.sqrt(1.0 * Math.max(0.0f, 1.0f - pose[0] + pose[5] - pose[10])).toFloat() / 2.0f
-        q.z = Math.sqrt(1.0 * Math.max(0.0f, 1.0f - pose[0] - pose[5] + pose[10])).toFloat() / 2.0f
-
-        q.x *= Math.signum(q.x * (pose[9] - pose[6]))
-        q.y *= Math.signum(q.y * (pose[2] - pose[8]))
-        q.z *= Math.signum(q.z * (pose[4] - pose[1]))
+    override fun getOrientation(): Quaternionf {
+        val q = Quaternionf().setFromUnnormalized(getPose())
 
         return q
     }
 
-    override fun getOrientation(id: String): Quaternion {
+    override fun getOrientation(id: String): Quaternionf {
         val device = trackedDevices.get(id)
-        val q = Quaternion()
+        val q = Quaternionf()
 
         if (device != null) {
-            val pose = device.pose.floatArray
-
-            q.w = Math.sqrt(1.0 * Math.max(0.0f, 1.0f + pose[0] + pose[5] + pose[10])).toFloat() / 2.0f
-            q.x = Math.sqrt(1.0 * Math.max(0.0f, 1.0f + pose[0] - pose[5] - pose[10])).toFloat() / 2.0f
-            q.y = Math.sqrt(1.0 * Math.max(0.0f, 1.0f - pose[0] + pose[5] - pose[10])).toFloat() / 2.0f
-            q.z = Math.sqrt(1.0 * Math.max(0.0f, 1.0f - pose[0] - pose[5] + pose[10])).toFloat() / 2.0f
-
-            q.x *= Math.signum(q.x * (pose[9] - pose[6]))
-            q.y *= Math.signum(q.y * (pose[2] - pose[8]))
-            q.z *= Math.signum(q.z * (pose[4] - pose[1]))
+            q.setFromUnnormalized(device.pose)
         }
 
         return q
     }
 
     /**
-     * Returns the absolute position as GLVector
+     * Returns the absolute position as Vector3f
      *
-     * @return HMD position as GLVector
+     * @return HMD position as Vector3f
      */
-    override fun getPosition(): GLVector {
-        val m = getPose().floatArray
-        return GLVector(-1.0f * m[12], -1.0f * m[13], -1.0f * m[14])
+    override fun getPosition(): Vector3f {
+        val m = getPose()
+        return Vector3f(-1.0f * m.get(0, 3), -1.0f * m.get(1, 3), -1.0f * m.get(2, 3))
     }
 
     /**
@@ -458,7 +443,7 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
                     val timestamp = System.nanoTime()
                     val deviceName = "$type-$device"
                     val deviceModelPath = getStringProperty(device, ETrackedDeviceProperty_Prop_RenderModelName_String)
-                    val td = TrackedDevice(type, deviceName, GLMatrix.getIdentity(), timestamp = timestamp)
+                    val td = TrackedDevice(type, deviceName, Matrix4f().identity(), timestamp = timestamp)
                     td.modelPath = deviceModelPath
 
                     val role = VRSystem_GetControllerRoleForTrackedDeviceIndex(device)
@@ -490,6 +475,14 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
                         d.metadata = VRControllerState.calloc()
                     }
 
+                    // role might change during use
+                    val role = VRSystem_GetControllerRoleForTrackedDeviceIndex(device)
+                    d.role = when(role) {
+                        1 -> TrackerRole.LeftHand
+                        2 -> TrackerRole.RightHand
+                        else -> TrackerRole.Invalid
+                    }
+
                     val state = d.metadata as? VRControllerState
                     if(state != null) {
                         VRSystem_GetControllerState(device, state)
@@ -510,7 +503,7 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
 
                 val pose = hmdTrackedDevicePoses.get(device).mDeviceToAbsoluteTracking()
 
-                d.pose = pose.toGLMatrix()
+                d.pose = pose.toMatrix4f()
                 d.timestamp = System.nanoTime()
 
                 if (type == TrackedDeviceType.HMD) {
@@ -535,6 +528,7 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
                     logger.debug("Button pressed: $this on $role")
                     val keyEvent = it.toKeyEvent(role)
                     inputHandler.keyPressed(keyEvent.first)
+                    keysDown.add(it to role)
                 }
             }
 
@@ -545,6 +539,7 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
                     logger.debug("Button unpressed: $this on $role")
                     val keyEvent = it.toKeyEvent(role)
                     inputHandler.keyReleased(keyEvent.second)
+                    keysDown.remove(it to role)
                 }
             }
 
@@ -558,6 +553,12 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
         }
         event.free()
 
+        keysDown.forEach {
+            if(it in allowRepeats) {
+                val e = it.first.toKeyEvent(it.second)
+                inputHandler.keyPressed(e.first)
+            }
+        }
         readyForSubmission = true
     }
 
@@ -568,7 +569,11 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
         Down(EVRButtonId_k_EButton_DPad_Down),
         Menu(EVRButtonId_k_EButton_ApplicationMenu),
         Side(EVRButtonId_k_EButton_Grip),
-        Trigger(EVRButtonId_k_EButton_SteamVR_Trigger)
+        Trigger(EVRButtonId_k_EButton_SteamVR_Trigger),
+    }
+
+    fun OpenVRButton.toKey(hand: TrackerRole): String {
+        return this.toAWTKeyCode(hand).code.toString(16)
     }
 
     data class AWTKey(val code: Int, val modifiers: Int = 0, var time: Long = System.nanoTime(), val char: Char = KeyEvent.CHAR_UNDEFINED)
@@ -591,17 +596,17 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
             this == OpenVRButton.Right && role == TrackerRole.LeftHand  -> AWTKey(KeyEvent.VK_L)
             this == OpenVRButton.Up  && role == TrackerRole.LeftHand  -> AWTKey(KeyEvent.VK_K)
             this == OpenVRButton.Down && role == TrackerRole.LeftHand  -> AWTKey(KeyEvent.VK_J)
-            this == OpenVRButton.Menu && role == TrackerRole.LeftHand -> AWTKey(KeyEvent.VK_M, modifiers)
-            this == OpenVRButton.Trigger && role == TrackerRole.LeftHand -> AWTKey(KeyEvent.VK_T, modifiers)
-            this == OpenVRButton.Side && role == TrackerRole.LeftHand -> AWTKey(KeyEvent.VK_X, modifiers)
+            this == OpenVRButton.Menu && role == TrackerRole.LeftHand -> AWTKey(KeyEvent.VK_M)
+            this == OpenVRButton.Trigger && role == TrackerRole.LeftHand -> AWTKey(KeyEvent.VK_T)
+            this == OpenVRButton.Side && role == TrackerRole.LeftHand -> AWTKey(KeyEvent.VK_X)
 
             this == OpenVRButton.Left && role != TrackerRole.LeftHand -> AWTKey(KeyEvent.VK_A)
             this == OpenVRButton.Right && role != TrackerRole.LeftHand -> AWTKey(KeyEvent.VK_D)
             this == OpenVRButton.Up  && role != TrackerRole.LeftHand -> AWTKey(KeyEvent.VK_W)
             this == OpenVRButton.Down && role != TrackerRole.LeftHand -> AWTKey(KeyEvent.VK_S)
-            this == OpenVRButton.Menu && role != TrackerRole.LeftHand -> AWTKey(KeyEvent.VK_N, modifiers)
-            this == OpenVRButton.Trigger && role != TrackerRole.LeftHand -> AWTKey(KeyEvent.VK_U, modifiers)
-            this == OpenVRButton.Side && role != TrackerRole.LeftHand -> AWTKey(KeyEvent.VK_Y, modifiers)
+            this == OpenVRButton.Menu && role != TrackerRole.LeftHand -> AWTKey(KeyEvent.VK_N)
+            this == OpenVRButton.Trigger && role != TrackerRole.LeftHand -> AWTKey(KeyEvent.VK_U)
+            this == OpenVRButton.Side && role != TrackerRole.LeftHand -> AWTKey(KeyEvent.VK_Y)
 
             else -> {
                 logger.warn("Unknown key: $this for role $role")
@@ -671,7 +676,6 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
     override fun submitToCompositorVulkan(width: Int, height: Int, format: Int,
                                           instance: VkInstance, device: VulkanDevice,
                                           queue: VkQueue, image: Long) {
-        VRCompositor_WaitGetPoses(hmdTrackedDevicePoses, gamePoses)
         update()
         if (disableSubmission || !readyForSubmission) {
             return
@@ -684,7 +688,7 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
                 .m_pPhysicalDevice(device.physicalDevice.address())
                 .m_pDevice(device.vulkanDevice.address())
                 .m_pQueue(queue.address())
-                .m_nQueueFamilyIndex(device.queueIndices.graphicsQueue)
+                .m_nQueueFamilyIndex(device.queues.graphicsQueue.first)
                 .m_nWidth(width)
                 .m_nHeight(height)
                 .m_nFormat(format)
@@ -698,7 +702,7 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
             readyForSubmission = false
 
             if(commandPool == -1L) {
-                commandPool = device.createCommandPool(device.queueIndices.graphicsQueue)
+                commandPool = device.createCommandPool(device.queues.graphicsQueue.first)
             }
 
             val subresourceRange = VkImageSubresourceRange.callocStack(stack)
@@ -721,27 +725,22 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
                     dstStage = VK10.VK_PIPELINE_STAGE_TRANSFER_BIT
                 )
 
-                endCommandBuffer(device, commandPool, queue, true, true)
-            }
+                logger.trace("Submitting left...")
+                val boundsLeft = VRTextureBounds.callocStack(stack).set(0.0f, 0.0f, 0.5f, 1.0f)
+                val errorLeft = VRCompositor_Submit(EVREye_Eye_Left, texture, boundsLeft, EVRSubmitFlags_Submit_Default)
 
-            logger.trace("Submitting left...")
-            val boundsLeft = VRTextureBounds.callocStack(stack).set(0.0f, 0.0f, 0.5f, 1.0f)
-            val errorLeft = VRCompositor_Submit(EVREye_Eye_Left, texture, boundsLeft, EVRSubmitFlags_Submit_Default)
+                logger.trace("Submitting right...")
+                val boundsRight = VRTextureBounds.callocStack(stack).set(0.5f, 0.0f, 1.0f, 1.0f)
+                val errorRight = VRCompositor_Submit(EVREye_Eye_Right, texture, boundsRight, EVRSubmitFlags_Submit_Default)
 
-            logger.trace("Submitting right...")
-            val boundsRight = VRTextureBounds.callocStack(stack).set(0.5f, 0.0f, 1.0f, 1.0f)
-            val errorRight = VRCompositor_Submit(EVREye_Eye_Right, texture, boundsRight, EVRSubmitFlags_Submit_Default)
+                // NOTE: Here, an "unsupported texture type" error can be thrown if the required Vulkan
+                // device or instance extensions have not been loaded -- even if the texture has the correct
+                // format. The solution is to reinitialize the renderer then, in order to pick up these extensions.
+                if (errorLeft != EVRCompositorError_VRCompositorError_None
+                    || errorRight != EVRCompositorError_VRCompositorError_None) {
+                    logger.error("Compositor error: ${translateError(errorLeft)} ($errorLeft)/${translateError(errorRight)} ($errorRight)")
+                }
 
-            // NOTE: Here, an "unsupported texture type" error can be thrown if the required Vulkan
-            // device or instance extensions have not been loaded -- even if the texture has the correct
-            // format. The solution is to reinitialize the renderer then, in order to pick up these extensions.
-            if (errorLeft != EVRCompositorError_VRCompositorError_None
-                || errorRight != EVRCompositorError_VRCompositorError_None) {
-                logger.error("Compositor error: ${translateError(errorLeft)} ($errorLeft)/${translateError(errorRight)} ($errorRight)")
-            }
-
-            // transition texture back to VK_IMAGE_LAYOUT_PRESENT_SRC_KHR.
-            with(VU.newCommandBuffer(device, commandPool, autostart = true)) {
                 // transition source attachment
                 VulkanTexture.transitionLayout(image,
                     VK10.VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
@@ -755,6 +754,7 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
                 endCommandBuffer(device, commandPool, queue, true, true)
             }
         }
+        VRCompositor_WaitGetPoses(hmdTrackedDevicePoses, gamePoses)
     }
 
     private fun translateError(error: Int): String {
@@ -860,23 +860,23 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
     /**
      * Returns the HMD pose
      *
-     * @return HMD pose as GLMatrix
+     * @return HMD pose as Matrix4f
      */
-    override fun getPose(): GLMatrix {
-        return this.trackedDevices.values.firstOrNull { it.type == TrackedDeviceType.HMD }?.pose ?: GLMatrix.getIdentity()
+    override fun getPose(): Matrix4f {
+        return this.trackedDevices.values.firstOrNull { it.type == TrackedDeviceType.HMD }?.pose ?: Matrix4f().identity()
     }
 
     /**
      * Returns the HMD pose for a given eye.
      *
      * @param[eye] The eye to return the pose for.
-     * @return HMD pose as GLMatrix
+     * @return HMD pose as Matrix4f
      */
-    override fun getPoseForEye(eye: Int): GLMatrix {
+    override fun getPoseForEye(eye: Int): Matrix4f {
         val p = this.getPose()
-        val e = this.getHeadToEyeTransform(eye).inverse
+        val e = this.getHeadToEyeTransform(eye).invert()
 
-        e.mult(p)
+        e.mul(p)
 
         return e
     }
@@ -885,39 +885,36 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
      * Returns the HMD pose
      *
      * @param[type] Type of the tracked device to get the pose for
-     * @return HMD pose as GLMatrix
+     * @return HMD pose as Matrix4f
      */
     override fun getPose(type: TrackedDeviceType): List<TrackedDevice> {
         return this.trackedDevices.values.filter { it.type == type }
     }
 
     /**
-     * Extension function to convert from HmdMatric34_t to GLMatrix
+     * Extension function to convert from HmdMatric34_t to Matrix4f
      *
-     * @return 4x4 GLMatrix created from the original matrix
+     * @return 4x4 Matrix4f created from the original matrix
      */
-    fun HmdMatrix34.toGLMatrix(): GLMatrix {
+    fun HmdMatrix34.toMatrix4f(): Matrix4f {
         val m = FloatArray(12)
         this.m().get(m)
 
-        return GLMatrix(floatArrayOf(
+        return Matrix4f(
             m[0], m[4], m[8], 0.0f,
             m[1], m[5], m[9], 0.0f,
             m[2], m[6], m[10], 0.0f,
             m[3], m[7], m[11], 1.0f
-        ))
+        )
     }
 
     /**
-     * Extension function to convert a HmdMatrix44_t to a GLMatrix
+     * Extension function to convert a HmdMatrix44_t to a Matrix4f
      *
-     * @return 4x4 GLMatrix created from the original matrix
+     * @return 4x4 Matrix4f created from the original matrix
      */
-    fun HmdMatrix44.toGLMatrix(): GLMatrix {
-        val m = FloatArray(16)
-        this.m().get(m)
-
-        return GLMatrix(m)
+    fun HmdMatrix44.toMatrix4f(): Matrix4f {
+        return Matrix4f(this.m())
     }
 
     private fun loadMeshFromModelPath(type: TrackedDeviceType, path: String, mesh: Mesh): Mesh {
@@ -959,9 +956,9 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
                 mesh.readFrom(path)
 
                 if (type == TrackedDeviceType.Controller) {
-                    mesh.material.diffuse = GLVector(0.1f, 0.1f, 0.1f)
+                    mesh.material.diffuse = Vector3f(0.1f, 0.1f, 0.1f)
                     mesh.children.forEach { c ->
-                        c.material.diffuse = GLVector(0.1f, 0.1f, 0.1f)
+                        c.material.diffuse = Vector3f(0.1f, 0.1f, 0.1f)
                     }
                 }
             }
@@ -1071,14 +1068,17 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
         }
 
         logger.info("Adding child $node to $camera")
-        camera?.addChild(node)
+        camera?.getScene()?.addChild(node)
 
         node.update.add {
             this.getPose(TrackedDeviceType.Controller).firstOrNull { it.name == device.name }?.let { controller ->
 
                 node.wantsComposeModel = false
-                node.model.setIdentity()
-                node.model.mult(controller.pose.invert())
+                node.model.identity()
+                camera?.let {
+                    node.model.translate(it.position)
+                }
+                node.model.mul(controller.pose)
 
 //                logger.info("Updating pose of $controller, ${node.model}")
 

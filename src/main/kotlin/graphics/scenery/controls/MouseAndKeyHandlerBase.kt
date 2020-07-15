@@ -2,6 +2,7 @@ package graphics.scenery.controls
 
 import gnu.trove.map.hash.TIntLongHashMap
 import gnu.trove.set.hash.TIntHashSet
+import graphics.scenery.Hub
 import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.controls.behaviours.GamepadBehaviour
 import graphics.scenery.utils.ExtractsNatives
@@ -43,6 +44,8 @@ open class MouseAndKeyHandlerBase : ControllerListener, ExtractsNatives {
     private val gamepads = CopyOnWriteArrayList<BehaviourEntry<GamepadBehaviour>>()
     private val CONTROLLER_HEARTBEAT = 5L
     private val CONTROLLER_DOWN_THRESHOLD = 0.95f
+
+    protected var shouldClose = false
 
     /**
      * Managing internal behaviour lists.
@@ -138,7 +141,8 @@ open class MouseAndKeyHandlerBase : ControllerListener, ExtractsNatives {
 
         try {
             logger.debug("Native JARs for JInput: ${getNativeJars("jinput-platform").joinToString(", ")}")
-            extractLibrariesFromJar(getNativeJars("jinput-platform", hint = ExtractsNatives.getPlatform().getPlatformJinputLibraryName()))
+            val path = extractLibrariesFromJar(getNativeJars("jinput-platform", hint = ExtractsNatives.getPlatform().getPlatformJinputLibraryName()), load = false)
+            System.setProperty("net.java.games.input.librarypath", path)
 
             ControllerEnvironment.getDefaultEnvironment().controllers.forEach {
                 if (it.type == Controller.Type.STICK || it.type == Controller.Type.GAMEPAD) {
@@ -155,7 +159,7 @@ open class MouseAndKeyHandlerBase : ControllerListener, ExtractsNatives {
             var queue: EventQueue
             val event = Event()
 
-            while (true) {
+            while (!shouldClose) {
                 controller?.let { c ->
                     c.poll()
 
@@ -325,7 +329,22 @@ open class MouseAndKeyHandlerBase : ControllerListener, ExtractsNatives {
         }
     }
 
-    open fun attach(window: SceneryWindow, inputMap: InputTriggerMap, behaviourMap: BehaviourMap): MouseAndKeyHandlerBase {
+    /**
+     * Attaches this handler to a given [window], with input bindings and behaviours given in [inputMap] and
+     * [behaviourMap]. MouseAndKeyHandlerBase itself cannot be attached to any windows.
+     */
+    open fun attach(hub: Hub?, window: SceneryWindow, inputMap: InputTriggerMap, behaviourMap: BehaviourMap): MouseAndKeyHandlerBase {
         throw UnsupportedOperationException("MouseAndKeyHandlerBase cannot be attached to a window.")
+    }
+
+    /**
+     * Closes this instance of MouseAndKeyHandlerBase.
+     * This function needs to be called as super.close() by derived classes in order to clean up gamepad handling logic.
+     */
+    open fun close() {
+        shouldClose = true
+        controllerThread?.join()
+        controllerThread = null
+        logger.debug("MouseAndKeyHandlerBase closed.")
     }
 }

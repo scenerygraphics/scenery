@@ -20,7 +20,7 @@ class BoxTests {
     fun testCreation() {
         logger.info("Testing Box creating and bounding box calculation ...")
         val s = Scene()
-        val size = Random.randomVectorFromRange(3, 0.1f, 500.0f)
+        val size = Random.random3DVectorFromRange(0.1f, 500.0f)
         val epsilon = 0.0001f
         val b = Box(size)
         s.addChild(b)

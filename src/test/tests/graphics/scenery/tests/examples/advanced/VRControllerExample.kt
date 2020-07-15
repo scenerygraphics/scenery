@@ -1,6 +1,6 @@
 package graphics.scenery.tests.examples.advanced
 
-import cleargl.GLVector
+import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.OpenVRHMD
@@ -32,34 +32,33 @@ class VRControllerExample : SceneryBase(VRControllerExample::class.java.simpleNa
         renderer?.toggleVR()
 
         val cam: Camera = DetachedHeadCamera(hmd)
-        cam.position = GLVector(0.0f, 0.0f, 0.0f)
+        cam.position = Vector3f(0.0f, 0.0f, 0.0f)
 
-        cam.perspectiveCamera(50.0f, windowWidth.toFloat(), windowHeight.toFloat())
-        cam.active = true
+        cam.perspectiveCamera(50.0f, windowWidth, windowHeight)
 
         scene.addChild(cam)
 
         val b = (0..10).map {
-            val obj = Box(GLVector(0.1f, 0.1f, 0.1f))
-            obj.position = GLVector(-1.0f + (it + 1) * 0.2f, 1.0f, -0.5f)
+            val obj = Box(Vector3f(0.1f, 0.1f, 0.1f))
+            obj.position = Vector3f(-1.0f + (it + 1) * 0.2f, 1.0f, -0.5f)
             scene.addChild(obj)
             obj
         }
 
         (0..10).map {
             val light = PointLight(radius = 15.0f)
-            light.emissionColor = Random.randomVectorFromRange(3, 0.0f, 1.0f)
-            light.position = Random.randomVectorFromRange(3, -5.0f, 5.0f)
+            light.emissionColor = Random.random3DVectorFromRange(0.0f, 1.0f)
+            light.position = Random.random3DVectorFromRange(-5.0f, 5.0f)
             light.intensity = 1.0f
 
             light
         }.forEach { scene.addChild(it) }
 
-        val hullbox = Box(GLVector(20.0f, 20.0f, 20.0f), insideNormals = true)
+        val hullbox = Box(Vector3f(20.0f, 20.0f, 20.0f), insideNormals = true)
         val hullboxMaterial = Material()
-        hullboxMaterial.ambient = GLVector(0.6f, 0.6f, 0.6f)
-        hullboxMaterial.diffuse = GLVector(0.4f, 0.4f, 0.4f)
-        hullboxMaterial.specular = GLVector(0.0f, 0.0f, 0.0f)
+        hullboxMaterial.ambient = Vector3f(0.6f, 0.6f, 0.6f)
+        hullboxMaterial.diffuse = Vector3f(0.4f, 0.4f, 0.4f)
+        hullboxMaterial.specular = Vector3f(0.0f, 0.0f, 0.0f)
         hullboxMaterial.cullingMode = Material.CullingMode.Front
         hullbox.material = hullboxMaterial
 

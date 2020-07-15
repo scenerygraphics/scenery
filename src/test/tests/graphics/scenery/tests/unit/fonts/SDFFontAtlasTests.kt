@@ -19,6 +19,7 @@ class SDFFontAtlasTests {
      * Companion object for checking OpenCL availability.
      */
     companion object {
+        val logger by LazyLogger()
         @JvmStatic @BeforeClass
         fun checkOpenCLAvailability() {
             val hasOpenCL: Boolean
@@ -27,8 +28,10 @@ class SDFFontAtlasTests {
                 OpenCLContext(hub)
                 true
             } catch (e: UnsatisfiedLinkError) {
+                logger.warn("Disabled OpenCL because of UnsatisfiedLinkError ($e)")
                 false
             } catch (e: Exception) {
+                logger.warn("Disabled OpenCL because of Exception ($e)")
                 false
             }
 
