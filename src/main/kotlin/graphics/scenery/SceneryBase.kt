@@ -5,6 +5,7 @@ import org.joml.Vector3f
 import com.sun.jna.Library
 import com.sun.jna.Native
 import graphics.scenery.backends.Renderer
+import graphics.scenery.compute.OpenCLContext
 import graphics.scenery.controls.InputHandler
 import graphics.scenery.controls.behaviours.ArcballCameraControl
 import graphics.scenery.controls.behaviours.FPSCameraControl
@@ -430,6 +431,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
 
         (hub.get(SceneryElement.NodePublisher) as? NodePublisher)?.close()
         (hub.get(SceneryElement.NodeSubscriber) as? NodeSubscriber)?.close()
+        (hub.get(SceneryElement.OpenCLContext) as? OpenCLContext)?.close()
     }
 
     /**
