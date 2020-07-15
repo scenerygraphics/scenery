@@ -26,9 +26,10 @@ import kotlin.time.minutes
 class ExampleRunner {
     val logger by LazyLogger()
 
-    private var failure = false
+    @Volatile private var failure = false
 
     private var maxRuntimePerTest = System.getProperty("scenery.ExampleRunner.maxRuntimePerTest", "5").toInt().minutes
+    @Volatile private var runtime = 0.milliseconds
 
     private inner class LoggingThreadPoolExecutor(
         corePoolSize: Int,
@@ -66,6 +67,17 @@ class ExampleRunner {
         }
     }
 
+    private fun Future<*>.waitCheckRuntimeAndFailIfExceeded(sleepDuration: Long = 200L) {
+        if(runtime > maxRuntimePerTest) {
+            this.cancel(true)
+
+            logger.error("Maximum runtime of $maxRuntimePerTest exceeded, aborting test run.")
+            failure = true
+        }
+
+        runtime += sleepDuration.milliseconds
+        Thread.sleep(sleepDuration)
+    }
 
     /**
      * Runs all examples in the class path and bails out on the first exception encountered.
@@ -135,7 +147,7 @@ class ExampleRunner {
                 Files.createDirectory(Paths.get(rendererDirectory))
 
                 examples.shuffled().forEachIndexed { i, example ->
-                    var runtime = 0.milliseconds
+                    runtime = 0.milliseconds
 
                     logger.info("Running ${example.simpleName} with $renderer ($i/${examples.size}) ...")
                     logger.info("Memory: ${Runtime.getRuntime().freeMemory().toFloat()/1024.0f/1024.0f}M/${Runtime.getRuntime().totalMemory().toFloat()/1024.0f/1024.0f}/${Runtime.getRuntime().maxMemory().toFloat()/1024.0f/1024.0f}M (free/total/max) available.")
@@ -163,7 +175,7 @@ class ExampleRunner {
                         val r = (instance.hub.get(SceneryElement.Renderer) as Renderer)
 
                         while(!r.firstImageReady) {
-                            Thread.sleep(200)
+                            future.waitCheckRuntimeAndFailIfExceeded()
                         }
 
                         r.screenshot("$rendererDirectory/${example.simpleName}.png")
@@ -176,14 +188,7 @@ class ExampleRunner {
                         }
 
                         while (instance.running && !future.isCancelled && !failure) {
-                            if(runtime > maxRuntimePerTest) {
-                                future.cancel(true)
-                                logger.error("Maximum runtime of $maxRuntimePerTest exceeded, aborting test run.")
-                                failure = true
-                            }
-
-                            runtime += 200.milliseconds
-                            Thread.sleep(200)
+                            future.waitCheckRuntimeAndFailIfExceeded()
                         }
 
                         future.get()

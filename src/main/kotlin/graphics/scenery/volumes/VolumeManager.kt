@@ -37,7 +37,17 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.system.measureTimeMillis
 
-class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, RequestRepaint {
+/**
+ * Class to handle rendering of multiple, arbitrary aligned, potentially multiresolution volumes.
+ *
+ * @author Ulrik Guenther <hello@ulrik.is>, Tobias Pietzsch <tpietzsch@mpi-cbg.de>
+ */
+class VolumeManager(
+    override var hub: Hub?,
+    val useCompute: Boolean = false,
+    val customSegments: Map<SegmentType, SegmentTemplate>? = null,
+    val customBindings: BiConsumer<Map<SegmentType, SegmentTemplate>, Map<SegmentType, Segment>>? = null
+) : Node(), Hubable, HasGeometry, RequestRepaint {
     /** How many elements does a vertex store? */
     override val vertexSize : Int = 3
     /** How many elements does a texture coordinate store? */
@@ -77,7 +87,7 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
      */
 
     /** BDV shader context for this volume */
-    var context = SceneryContext(this)
+    var context = SceneryContext(this, useCompute)
         protected set
     /** Texture cache. */
     @Volatile protected var textureCache: TextureCache
@@ -243,11 +253,14 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
             "AccumulateSimpleVolume.frag",
             "vis", "sampleVolume", "convert")
 
-        val additionalBindings = BiConsumer { _: Map<SegmentType, SegmentTemplate>, instances: Map<SegmentType, Segment> ->
-            logger.debug("Connecting additional bindings")
-            instances[SegmentType.SampleMultiresolutionVolume]?.bind("convert", instances[SegmentType.Convert])
-            instances[SegmentType.SampleVolume]?.bind("convert", instances[SegmentType.Convert])
-        }
+        customSegments?.forEach { type, segment -> segments[type] = segment }
+
+        val additionalBindings = customBindings
+                ?: BiConsumer { _: Map<SegmentType, SegmentTemplate>, instances: Map<SegmentType, Segment> ->
+                    logger.debug("Connecting additional bindings")
+                    instances[SegmentType.SampleMultiresolutionVolume]?.bind("convert", instances[SegmentType.Convert])
+                    instances[SegmentType.SampleVolume]?.bind("convert", instances[SegmentType.Convert])
+                }
 
         val newProgvol = MultiVolumeShaderMip(VolumeShaderSignature(signatures),
             true, farPlaneDegradation,

@@ -4,10 +4,13 @@ import com.jogamp.opengl.GLAutoDrawable
 import graphics.scenery.*
 import graphics.scenery.backends.opengl.OpenGLRenderer
 import graphics.scenery.backends.vulkan.VulkanRenderer
+import graphics.scenery.textures.Texture
 import graphics.scenery.utils.ExtractsNatives
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.SceneryPanel
 import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.selects.select
 import java.util.concurrent.ConcurrentLinkedQueue
 
 /**
@@ -171,8 +174,26 @@ abstract class Renderer : Hubable {
         return settings
     }
 
-    @Volatile var imageRequests = ConcurrentLinkedQueue<RenderedImage>()
+    @Volatile protected var textureRequests = ConcurrentLinkedQueue<Pair<Texture, Channel<Texture>>>()
 
+    /**
+     * Requests the renderer to update [texture]'s contents from the GPU. [onReceive] is executed
+     * on receiving the data.
+     */
+    fun requestTexture(texture: Texture, onReceive: (Texture) -> Unit): Deferred<Unit> = GlobalScope.async {
+        val channel = Channel<Texture>(capacity = Channel.CONFLATED)
+        textureRequests.add(texture to channel)
+
+        select<Unit> {
+            channel.onReceive { onReceive.invoke(it) }
+        }
+    }
+
+    @Volatile protected var imageRequests = ConcurrentLinkedQueue<RenderedImage>()
+
+    /**
+     * Requests a screenshot from the renderer, stored as [RenderedImage].
+     */
     fun requestScreenshot(): RenderedImage  = runBlocking {
         val reactivatePushMode = if(pushMode) {
             pushMode = false
@@ -245,17 +266,17 @@ abstract class Renderer : Hubable {
                 if (preference == "VulkanRenderer" && embedInDrawable == null) {
                     try {
                         VulkanRenderer(hub, applicationName, scene, windowWidth, windowHeight, embedIn, config)
-                    } catch (e: Exception) {
+                    } catch (e: RendererUnavailableException) {
                         logger.warn("Vulkan unavailable ($e, ${e.cause}, ${e.message}), falling back to OpenGL.")
                         logger.debug("Full exception: $e")
-                        if(logger.isDebugEnabled) {
+                        if(logger.isDebugEnabled || System.getenv("CI") != null) {
                             e.printStackTrace()
                         }
                         OpenGLRenderer(hub, applicationName, scene, windowWidth, windowHeight, config, embedIn, embedInDrawable)
-                    } catch (e: Error) {
+                    } catch (e: UnsatisfiedLinkError) {
                         logger.warn("Vulkan unavailable (${e.cause}, ${e.message}), Vulkan runtime not installed. Falling back to OpenGL.")
                         logger.debug("Full exception: $e")
-                        if(logger.isDebugEnabled) {
+                        if(logger.isDebugEnabled || System.getenv("CI") != null) {
                             e.printStackTrace()
                         }
                         OpenGLRenderer(hub, applicationName, scene, windowWidth, windowHeight, config, embedIn, embedInDrawable)
@@ -265,9 +286,7 @@ abstract class Renderer : Hubable {
                 }
             } catch (e: Exception) {
                 logger.error("Could not instantiate renderer. Is your graphics card working properly and do you have the most recent drivers installed?")
-                if(logger.isDebugEnabled) {
-                    e.printStackTrace()
-                }
+                e.printStackTrace()
                 throw e
             }
         }

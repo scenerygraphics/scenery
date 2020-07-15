@@ -1,7 +1,6 @@
 package graphics.scenery.textures
 
 import cleargl.GLTypeEnum
-import org.joml.Vector3f
 import graphics.scenery.utils.Image
 import graphics.scenery.utils.Timestamped
 import net.imglib2.type.numeric.NumericType
@@ -36,7 +35,9 @@ open class Texture @JvmOverloads constructor(
         /** Linear or nearest neighbor filtering for scaling down. */
         var minFilter: FilteringMode = FilteringMode.Linear,
         /** Linear or nearest neighbor filtering for scaling up. */
-        var maxFilter: FilteringMode = FilteringMode.Linear
+        var maxFilter: FilteringMode = FilteringMode.Linear,
+        /** Usage type */
+        val usageType: HashSet<UsageType> = hashSetOf(UsageType.Texture)
 
 
 ) : Serializable, Timestamped {
@@ -71,6 +72,11 @@ open class Texture @JvmOverloads constructor(
         Linear
     }
 
+    enum class UsageType {
+        Texture,
+        LoadStoreImage
+    }
+
     /** Companion object of [Texture], containing mainly constant defines */
     companion object {
         /** The textures to be contained in the ObjectTextures texture array */
@@ -85,10 +91,11 @@ open class Texture @JvmOverloads constructor(
             normalized: Boolean = true,
             mipmap: Boolean = true,
             minFilter: FilteringMode = FilteringMode.Linear,
-            maxFilter: FilteringMode = FilteringMode.Linear
+            maxFilter: FilteringMode = FilteringMode.Linear,
+            usage: HashSet<UsageType> = hashSetOf(UsageType.Texture)
         ): Texture {
-            return Texture(Vector3i(image.width, image.height, 1),
-                4, UnsignedByteType(), image.contents, repeatUVW, borderColor, normalized, mipmap)
+            return Texture(Vector3i(image.width, image.height, image.depth),
+                4, UnsignedByteType(), image.contents, repeatUVW, borderColor, normalized, mipmap, usageType = usage)
         }
     }
 
