@@ -2,6 +2,7 @@ package graphics.scenery
 
 import org.joml.Vector3f
 import graphics.scenery.backends.ShaderType
+import graphics.scenery.numerics.Random
 import org.joml.Vector4f
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
@@ -204,5 +205,29 @@ class Line @JvmOverloads constructor(var capacity: Int = 50, transparent: Boolea
         vertices.limit(0)
         normals.limit(0)
         texcoords.limit(0)
+    }
+
+    companion object {
+        /**
+         * Creates a set of lines with a specified number of points per line. The distance between points
+         * can be set by [step] and the overall scale can be defined by [scale].
+         * Note, the lines are generated with an additional random offset between them (to make the data
+         * a bit less uniform).
+         * @param numLines Number of lines to be generated
+         * @param numPositions Number of positions to be generated per line
+         * @param step The distance between two positions (i.e. to make a line longer)
+         * @param scale The overall scale of the whole line set
+         * @return An array of Line objects
+         */
+        @JvmStatic fun createLines(numLines: Int, numPositions: Int, step: Float, scale: Float): List<Line> {
+            return (0 until numLines).map { i ->
+                val line = Line()
+                val randOffset = Random.randomFromRange(0.0f, 2.0f) - (numLines / 2).toFloat()
+                for (j in -numPositions / 2 until numPositions / 2) {
+                    line.addPoint(Vector3f(scale * (randOffset + i.toFloat()), scale * step * j.toFloat(), -100.0f))
+                }
+                line
+            }
+        }
     }
 }
