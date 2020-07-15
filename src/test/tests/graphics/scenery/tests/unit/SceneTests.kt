@@ -1,6 +1,6 @@
 package graphics.scenery.tests.unit
 
-import cleargl.GLVector
+import org.joml.Vector3f
 import graphics.scenery.Box
 import graphics.scenery.Node
 import graphics.scenery.Scene
@@ -28,7 +28,7 @@ class SceneTests {
         (0 until count).map {
             Box()
         }.forEachIndexed { i, n ->
-            n.position = GLVector(
+            n.position = Vector3f(
                 Random.randomFromRange(-0.4f, 0.4f),
                 Random.randomFromRange(-0.4f, 0.4f),
                 -1.0f + i * (-1.5f))
@@ -38,11 +38,11 @@ class SceneTests {
         scene.updateWorld(true)
 
         val results = scene.raycast(
-            position = GLVector.getNullVector(3),
-            direction = GLVector(0.0f, 0.0f, -1.0f),
+            position = Vector3f(0.0f),
+            direction = Vector3f(0.0f, 0.0f, -1.0f),
             ignoredObjects = emptyList())
 
-        assertEquals(count, results.size, "Raycast should have hit $count objects")
+        assertEquals(count, results.matches.size, "Raycast should have hit $count objects")
     }
 
     @Test

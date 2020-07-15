@@ -1,11 +1,16 @@
 package graphics.scenery.tests.unit
 
-import cleargl.GLMatrix
-import cleargl.GLVector
+import cleargl.GLMatrix.compare
+import org.joml.Matrix4f
+import org.joml.Vector3f
 import com.jogamp.opengl.math.Quaternion
 import graphics.scenery.*
 import graphics.scenery.numerics.Random
 import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.extensions.compare
+import graphics.scenery.utils.extensions.toFloatArray
+import net.imglib2.RealPoint
+import org.joml.Quaternionf
 import org.junit.Assert.*
 import org.junit.Test
 import java.util.concurrent.ThreadLocalRandom
@@ -36,10 +41,10 @@ class NodeTests {
         scene.addChild(childOne)
         childOne.addChild(subChild)
 
-        childOne.position = GLVector(1.0f, 1.0f, 1.0f)
-        subChild.position = GLVector(-1.0f, -1.0f, -1.0f)
-        subChild.scale = GLVector(2.0f, 1.0f, 1.0f)
-        subChild.rotation = Quaternion().setFromEuler(0.5f, 0.5f, 0.5f)
+        childOne.position = Vector3f(1.0f, 1.0f, 1.0f)
+        subChild.position = Vector3f(-1.0f, -1.0f, -1.0f)
+        subChild.scale = Vector3f(2.0f, 1.0f, 1.0f)
+        subChild.rotation = Quaternionf().rotateXYZ(0.5f, 0.5f, 0.5f)
 
         logger.info("childOne:\n${childOne.world}")
         logger.info("subChild:\n${subChild.world}")
@@ -52,15 +57,15 @@ class NodeTests {
         logger.info("childOne:\n${childOne.world}")
         logger.info("subChild:\n${subChild.world}")
 
-        val expectedResult = GLMatrix.getIdentity()
+        val expectedResult = Matrix4f().identity()
         expectedResult.translate(1.0f, 1.0f, 1.0f)
         expectedResult.translate(-1.0f, -1.0f, -1.0f)
-        expectedResult.rotEuler(0.5, 0.5, 0.5)
+        expectedResult.rotateXYZ(0.5f, 0.5f, 0.5f)
         expectedResult.scale(2.0f, 1.0f, 1.0f)
 
         logger.info(expectedResult.toString())
 
-        assertTrue(GLMatrix.compare(expectedResult, subChild.world, true), "Expected transforms to be equal")
+        assertTrue(expectedResult.compare(subChild.world, true), "Expected transforms to be equal")
     }
 
     private fun addSiblings(toNode: Node, maxSiblings: Int, currentLevel: Int, maxLevels: Int): Int {
@@ -73,8 +78,8 @@ class NodeTests {
             }
 
             val n = Node("Sibling#$it/$currentLevel/$maxLevels")
-            n.position = Random.randomVectorFromRange(3, -100.0f, 100.0f)
-            n.scale = Random.randomVectorFromRange(3, 0.1f, 10.0f)
+            n.position = Random.random3DVectorFromRange(-100.0f, 100.0f)
+            n.scale = Random.random3DVectorFromRange(0.1f, 10.0f)
             n.rotation = Random.randomQuaternion()
 
             toNode.addChild(n)
@@ -150,8 +155,8 @@ class NodeTests {
     fun testBoundingBoxGeneration() {
         val m = Mesh()
 
-        val expectedMin = GLVector(-1.0f, -2.0f, -3.0f)
-        val expectedMax = GLVector(4.0f, 5.0f, 6.0f)
+        val expectedMin = Vector3f(-1.0f, -2.0f, -3.0f)
+        val expectedMax = Vector3f(4.0f, 5.0f, 6.0f)
 
         m.vertices = BufferUtils.allocateFloatAndPut(
             floatArrayOf(
@@ -179,10 +184,10 @@ class NodeTests {
         empty.boundingBox = empty.generateBoundingBox()
         assertArrayEquals("Expected empty bounding box",
             empty.boundingBox!!.min.toFloatArray().toTypedArray(),
-            GLVector(0.0f, 0.0f, 0.0f).toFloatArray().toTypedArray())
+            Vector3f(0.0f, 0.0f, 0.0f).toFloatArray().toTypedArray())
         assertArrayEquals("Expected empty bounding box",
             empty.boundingBox!!.max.toFloatArray().toTypedArray(),
-            GLVector(0.0f, 0.0f, 0.0f).toFloatArray().toTypedArray())
+            Vector3f(0.0f, 0.0f, 0.0f).toFloatArray().toTypedArray())
 
         empty.addChild(m)
         empty.boundingBox = empty.generateBoundingBox()
@@ -205,8 +210,8 @@ class NodeTests {
                 1.0f, 1.0f, 1.0f))
         m.boundingBox = m.generateBoundingBox()
 
-        val expectedCenter = GLVector(1.0f, 1.0f, 1.0f, 0.0f)
-        val center = m.centerOn(GLVector(0.0f, 0.0f, 0.0f))
+        val expectedCenter = Vector3f(1.0f, 1.0f, 1.0f)
+        val center = m.centerOn(Vector3f(0.0f, 0.0f, 0.0f))
         logger.info("Centering on $center, expected=$expectedCenter")
 
         assertArrayEquals("Centering on $center",
@@ -225,7 +230,7 @@ class NodeTests {
                 1.0f, 2.0f, 4.0f))
         m.boundingBox = m.generateBoundingBox()
         val scaling = m.fitInto(0.5f)
-        val expectedScaling = GLVector(0.0625f, 0.0625f, 0.0625f)
+        val expectedScaling = Vector3f(0.0625f, 0.0625f, 0.0625f)
 
         logger.info("Applied scaling: $scaling, expected=$expectedScaling")
 
@@ -260,7 +265,7 @@ class NodeTests {
         assertTrue(node.needsUpdate, "Expected node to need update after creation")
         assertTrue(node.needsUpdateWorld, "Expected node to need world update after creation")
 
-        node.position = Random.randomVectorFromRange(3, -100.0f, 100.0f)
+        node.position = Random.random3DVectorFromRange(-100.0f, 100.0f)
         assertTrue(node.needsUpdate, "Expected node to need update after position change")
         assertTrue(node.needsUpdateWorld, "Expected node to need world update after position change")
 
@@ -282,7 +287,7 @@ class NodeTests {
         assertTrue(node.needsUpdate, "Expected node to need update after creation")
         assertTrue(node.needsUpdateWorld, "Expected node to need world update after creation")
 
-        node.scale = Random.randomVectorFromRange(3, 0.0f, 1.0f)
+        node.scale = Random.random3DVectorFromRange(0.0f, 1.0f)
         assertTrue(node.needsUpdate, "Expected node to need update after position change")
         assertTrue(node.needsUpdateWorld, "Expected node to need world update after position change")
 
@@ -423,5 +428,60 @@ class NodeTests {
 
         assertEquals(totalNodes, Node.discover(s, { it.visible == true }).size,
             "Total number of nodes seen should be $totalNodes, but is ")
+    }
+
+    /**
+     * Tests bounding box for nodes with children
+     */
+    @Test
+    fun testMaximumBoundingBox() {
+        val s = Scene()
+        val parent = Group()
+        parent.position = Vector3f(100f, 100f, 100f)
+        ( 0 until 2).forEach {i ->
+            val sphere = Sphere(5f, 3)
+            sphere.position = Vector3f(-100f * ( i % 2 ), 0f, i.toFloat())
+            parent.addChild(sphere)
+        }
+
+        val boundingSphere = parent.getMaximumBoundingBox().getBoundingSphere()
+
+        assertEquals("Bounding sphere radius should be " + boundingSphere.radius + ", but is ", boundingSphere.radius, 53.662083f, 0.001f)
+    }
+
+    /**
+     * Tests imglib2 method implementations
+     */
+    @Test
+    fun testImglib2Implementations() {
+        val n = Node("testnode")
+
+        assertEquals( 3, n.numDimensions() )
+
+        n.position = Vector3f(0f, 17f, 0f)
+        assertEquals( 17f, n.getFloatPosition(1), 0.01f)
+
+        n.position = Vector3f(0f, 17f, 0f)
+        n.move( -1, 1 )
+        assertEquals( 16f, n.position.y(), 0.01f)
+
+        n.position = Vector3f(0f, 17f, 0f)
+        n.move(RealPoint(0.0, -1.0, 0.0))
+        assertEquals( 16f, n.position.y(), 0.01f)
+
+        n.position = Vector3f(0f, 17f, 0f)
+        n.fwd(0)
+        assertEquals( 1f, n.position.x(), 0.01f)
+
+        n.position = Vector3f(0f, 17f, 0f)
+        n.setPosition(doubleArrayOf(17.0, 23.0, -19.0))
+        assertEquals( 17.0f, n.position.x(), 0.01f)
+        assertEquals( 23.0f, n.position.y(), 0.01f)
+        assertEquals( -19.0f, n.position.z(), 0.01f)
+
+        val pos = FloatArray(3)
+        n.position = Vector3f(0f, 17f, 0f)
+        n.localize(pos)
+        assertEquals( 17f, pos[1], 0.01f)
     }
 }

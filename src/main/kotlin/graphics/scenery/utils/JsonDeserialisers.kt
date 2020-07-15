@@ -1,10 +1,12 @@
 package graphics.scenery.utils
 
-import cleargl.GLVector
+import org.joml.Vector3f
 import com.fasterxml.jackson.core.JsonParser
 import com.fasterxml.jackson.core.JsonToken
 import com.fasterxml.jackson.databind.DeserializationContext
 import com.fasterxml.jackson.databind.JsonDeserializer
+import org.joml.Vector2f
+import org.joml.Vector4f
 
 /**
  * A collection of deserialisers to use with Jackson.
@@ -26,8 +28,8 @@ class JsonDeserialisers {
     /**
      * Deserialiser for vectors of various lengths, separated by commas.
      */
-    class VectorDeserializer : JsonDeserializer<GLVector>() {
-        override fun deserialize(p: JsonParser, ctxt: DeserializationContext?): GLVector {
+    class VectorDeserializer : JsonDeserializer<Any>() {
+        override fun deserialize(p: JsonParser, ctxt: DeserializationContext?): Any {
             val text = if(p.currentToken == JsonToken.START_ARRAY) {
                 var token = p.nextToken()
                 var result = ""
@@ -45,7 +47,12 @@ class JsonDeserialisers {
 
             val floats = text.split(",").map { it.trim().trimStart().toFloat() }.toFloatArray()
 
-            return GLVector(*floats)
+            return when(floats.size) {
+                2 -> Vector2f(floats[0], floats[1])
+                3 -> Vector3f(floats[0], floats[1], floats[2])
+                4 -> Vector4f(floats[0], floats[1], floats[2], floats[3])
+                else -> throw IllegalStateException("Don't know how to deserialise a vector of dimension ${floats.size}")
+            }
         }
     }
 

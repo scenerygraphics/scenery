@@ -1,6 +1,8 @@
 package graphics.scenery
 
-import cleargl.GLVector
+import graphics.scenery.utils.extensions.xyz
+import org.joml.Vector3f
+import org.joml.Vector4f
 
 /**
  * Point light class.
@@ -19,7 +21,7 @@ class PointLight(radius: Float = 5.0f) : Light("PointLight") {
 
     /** The emission color of the point light. Setting it will also affect the accompanying Box' color. */
     @ShaderProperty
-    override var emissionColor: GLVector = GLVector(1.0f, 1.0f, 1.0f)
+    override var emissionColor: Vector3f = Vector3f(1.0f, 1.0f, 1.0f)
 
     @ShaderProperty
     override val lightType: LightType = LightType.PointLight
@@ -46,11 +48,11 @@ class PointLight(radius: Float = 5.0f) : Light("PointLight") {
 
     @Suppress("unused") // will be serialised into ShaderProperty buffer
     @ShaderProperty val worldPosition
-        get(): GLVector =
+        get(): Vector3f =
             if(this.parent != null && this.parent !is Scene) {
-                this.world.mult(GLVector(position.x(), position.y(), position.z(), 1.0f))
+                this.world.transform(Vector4f(position.x(), position.y(), position.z(), 1.0f)).xyz()
             } else {
-                GLVector(position.x(), position.y(), position.z(), 1.0f)
+                Vector3f(position.x(), position.y(), position.z())
             }
 
     @Suppress("unused") // will be serialised into ShaderProperty buffer

@@ -1,5 +1,6 @@
 package graphics.scenery
 
+import org.joml.Vector3f
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
 import java.nio.file.FileSystems
@@ -11,26 +12,14 @@ import java.nio.file.Files
  * @author Kyle Harrington <kharrington@uidaho.edu>
  * @author Ulrik Günther <hello@ulrik.is>
  */
-open class PointCloud(var pointRadius: Float = 1.0f, override var name: String = "PointCloud") : Node(name), HasGeometry {
-    /** Array for the stored localisations. */
-    override var vertices: FloatBuffer = FloatBuffer.allocate(0)
-    /** Normal buffer, here (ab)used to store size and sigmas. */
-    override var normals: FloatBuffer = FloatBuffer.allocate(0)
-    /** Texcoords buffer, unused at the moment. */
-    override var texcoords: FloatBuffer = FloatBuffer.allocate(0)
-    /** Indices, not used for PointClouds. */
-    override var indices: IntBuffer = IntBuffer.allocate(0)
-
-    /** Vertex size, 3 in our case. */
-    override var vertexSize = 3
-    /** Texcoord size, 2 in our case. */
-    override var texcoordSize = 2
-    /** [PointCloud]s are rendered as point geometry. */
-    override var geometryType = GeometryType.POINTS
+open class PointCloud(var pointRadius: Float = 1.0f, override var name: String = "PointCloud") : Mesh(name) {
     /** [PointClouds] do not get billboarded. */
     override var isBillboard = false
 
     init {
+        /** [PointCloud]s are rendered as point geometry. */
+        geometryType = GeometryType.POINTS
+
         // we are going to use shader files whose name is derived from the class name.
         // -> PointCloud.vert, PointCloud.frag
         material = ShaderMaterial.fromClass(this::class.java)
@@ -117,5 +106,39 @@ open class PointCloud(var pointRadius: Float = 1.0f, override var name: String =
         this.texcoords.flip()
 
         boundingBox = OrientedBoundingBox(this, boundingBoxCoords)
+    }
+
+    /**
+     * Sets the [color] for all vertices.
+     */
+    fun setColor(color: Vector3f) {
+        val colorBuffer = FloatBuffer.allocate(vertices.capacity())
+        while(colorBuffer.hasRemaining()) {
+            color.get(colorBuffer)
+        }
+    }
+
+    companion object {
+        /**
+         * Creates a point cloud from an [array] of floats.
+         */
+        fun fromArray(array: FloatArray): PointCloud {
+            val p = PointCloud()
+            p.vertices = FloatBuffer.wrap(array)
+            p.setupPointCloud()
+
+            return p
+        }
+
+        /**
+         * Creates a point cloud from a [buffer] of floats.
+         */
+        fun fromBuffer(buffer: FloatBuffer): PointCloud {
+            val p = PointCloud()
+            p.vertices = buffer.duplicate()
+            p.setupPointCloud()
+
+            return p
+        }
     }
 }

@@ -1,6 +1,6 @@
 package graphics.scenery
 
-import cleargl.GLVector
+import org.joml.Vector3f
 
 /**
  * Skybox class. Sets a [ShaderMaterial] using a shader that will always cause
@@ -10,7 +10,7 @@ import cleargl.GLVector
  * @author Ulrik Günther <hello@ulrik.is>
  * @constructor Creates a [Box] with the magic skybox shader as material.
  */
-open class Skybox : Box(GLVector(50.0f, 50.0f, 50.0f)) {
+open class Skybox : Box(Vector3f(50.0f, 50.0f, 50.0f)) {
     init {
         material = ShaderMaterial.fromFiles("Skybox.vert", "DefaultDeferred.frag")
     }

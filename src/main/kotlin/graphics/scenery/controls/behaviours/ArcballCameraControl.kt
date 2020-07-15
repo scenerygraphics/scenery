@@ -1,8 +1,11 @@
 package graphics.scenery.controls.behaviours
 
-import cleargl.GLVector
-import com.jogamp.opengl.math.Quaternion
+import org.joml.Vector3f
 import graphics.scenery.Camera
+import graphics.scenery.utils.extensions.minus
+import graphics.scenery.utils.extensions.plus
+import graphics.scenery.utils.extensions.times
+import org.joml.Quaternionf
 import org.scijava.ui.behaviour.DragBehaviour
 import org.scijava.ui.behaviour.ScrollBehaviour
 import java.util.function.Supplier
@@ -22,10 +25,10 @@ import kotlin.reflect.KProperty
  * @property[node] The node this behaviour controls
  * @property[w] Window width
  * @property[h] Window height
- * @property[target] [GLVector]-supplying with the look-at target of the arcball
+ * @property[target] [Vector3f]-supplying with the look-at target of the arcball
  * @constructor Creates a new ArcballCameraControl behaviour
  */
-open class ArcballCameraControl(private val name: String, private val n: () -> Camera?, private val w: Int, private val h: Int, var target: () -> GLVector) : DragBehaviour, ScrollBehaviour {
+open class ArcballCameraControl(private val name: String, private val n: () -> Camera?, private val w: Int, private val h: Int, var target: () -> Vector3f) : DragBehaviour, ScrollBehaviour {
     private var lastX = w / 2
     private var lastY = h / 2
     private var firstEntered = true
@@ -67,21 +70,21 @@ open class ArcballCameraControl(private val name: String, private val n: () -> C
      * Arcball camera control, supplying a Camera via a Java [Supplier] lambda.
      */
     @Suppress("unused")
-    constructor(name: String, n: Supplier<Camera?>, w: Int, h: Int, target: Supplier<GLVector>) : this(name, { n.get() }, w, h, { target.get() })
+    constructor(name: String, n: Supplier<Camera?>, w: Int, h: Int, target: Supplier<Vector3f>) : this(name, { n.get() }, w, h, { target.get() })
 
     /**
      * Arcball camera control, supplying a Camera via a Java [Supplier] lambda.
-     * In this version, [target] is a static [GLVector].
+     * In this version, [target] is a static [Vector3f].
      */
     @Suppress("unused")
-    constructor(name: String, n: () -> Camera?, w: Int, h: Int, target: GLVector) : this(name, n, w, h, { target })
+    constructor(name: String, n: () -> Camera?, w: Int, h: Int, target: Vector3f) : this(name, n, w, h, { target })
 
     /**
      * Arcball camera control, supplying a Camera via a Java [Supplier] lambda.
-     * In this version, [target] is a static [GLVector].
+     * In this version, [target] is a static [Vector3f].
      */
     @Suppress("unused")
-    constructor(name: String, n: Supplier<Camera?>, w: Int, h: Int, target: GLVector) : this(name, { n.get() }, w, h, { target })
+    constructor(name: String, n: Supplier<Camera?>, w: Int, h: Int, target: Vector3f) : this(name, { n.get() }, w, h, { target })
 
     /**
      * This function is called upon mouse down and initialises the camera control
@@ -137,12 +140,12 @@ open class ArcballCameraControl(private val name: String, private val n: () -> C
             val framePitch = yoffset / 180.0f * Math.PI.toFloat()
 
             // first calculate the total rotation quaternion to be applied to the camera
-            val yawQ = Quaternion().setFromEuler(0.0f, frameYaw, 0.0f)
-            val pitchQ = Quaternion().setFromEuler(framePitch, 0.0f, 0.0f)
+            val yawQ = Quaternionf().rotateXYZ(0.0f, frameYaw, 0.0f)
+            val pitchQ = Quaternionf().rotateXYZ(framePitch, 0.0f, 0.0f)
 
-            distance = (target.invoke() - node.position).magnitude()
+            distance = (target.invoke() - node.position).length()
             node.target = target.invoke()
-            node.rotation = pitchQ.mult(node.rotation).mult(yawQ).normalize()
+            node.rotation = pitchQ.mul(node.rotation).mul(yawQ).normalize()
             node.position = target.invoke() + node.forward * distance * (-1.0f)
 
             node.lock.unlock()

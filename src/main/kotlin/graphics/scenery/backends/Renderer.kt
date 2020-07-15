@@ -1,19 +1,13 @@
 package graphics.scenery.backends
 
 import com.jogamp.opengl.GLAutoDrawable
-import graphics.scenery.Hub
-import graphics.scenery.Hubable
-import graphics.scenery.Scene
-import graphics.scenery.Settings
+import graphics.scenery.*
 import graphics.scenery.backends.opengl.OpenGLRenderer
 import graphics.scenery.backends.vulkan.VulkanRenderer
 import graphics.scenery.utils.ExtractsNatives
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.SceneryPanel
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.async
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.*
 import java.util.concurrent.ConcurrentLinkedQueue
 
 /**
@@ -31,7 +25,7 @@ abstract class Renderer : Hubable {
     /**
      * Renders the scene
      */
-    abstract fun render()
+    abstract fun render(activeCamera: Camera, sceneNodes: List<Node>)
 
     /** Signals whether the current renderer should stop working and close all open windows. */
     abstract var shouldClose: Boolean
@@ -252,7 +246,7 @@ abstract class Renderer : Hubable {
                     try {
                         VulkanRenderer(hub, applicationName, scene, windowWidth, windowHeight, embedIn, config)
                     } catch (e: Exception) {
-                        logger.warn("Vulkan unavailable (${e.cause}, ${e.message}), falling back to OpenGL.")
+                        logger.warn("Vulkan unavailable ($e, ${e.cause}, ${e.message}), falling back to OpenGL.")
                         logger.debug("Full exception: $e")
                         if(logger.isDebugEnabled) {
                             e.printStackTrace()

@@ -1,5 +1,168 @@
 # CHANGELOG
 
+# scenery 0.7.0-beta-7 to HEAD
+
+## Highlights
+
+* Switches volume rendering completely to BigDataViewer/BigVolumeViewer-based architecture. Thanks to @tpietzsch! (**BREAKING CHANGE**)
+* Move from GLVector/GLMatrix to JOML's Matrix and Vector implementations (**BREAKING CHANGE**)
+* H264Encoder: Add support for QuickSync and (preliminary) AMD AMF, support H265/HEVC as additional format
+* Revamp texturing system -- (**BREAKING CHANGE**)
+  - renames GenericTexture to Texture
+  - removes Material.transferTextures, all textures are now stored in Material.textures
+  - extends Texture and Image with convenience functions to create them from files and streams
+  - remove Material.needsTextureReload, make Textures timestamped (**BREAKING CHANGE**)
+* Adds Spline base class and CatmullRomSpline implementation. Thanks to @Domino2357!
+* SceneryBase: Move responsibility for scene discovery and update to SceneryBase, and handle that asynchronously (**BREAKING CHANGE**)
+* VulkanRenderer/OpenGLRenderer: Add support for DelegatesRendering to delegate rendering to another Node
+* Introduce Profiler interface, together with support for the Remotery remote profiler
+
+
+## Additions and Changes
+
+* Camera: remove Camera.active flag, that is now solely handled by Scene.activeObserver (**BREAKING CHANGE**)
+* VulkanRenderer: Enable more flexible use of descriptors sets for textures, e.g. allow grouping of textures into sets instead of using one set per-texture
+* SceneryBase/LazyLogger: Set log level only on startup and allow per-class log levels via system properties
+* REPL: Add tests and enable headless usage
+* REPL: Change default REPL language to Python and add startup script
+* Volume: Account for API changes in scifio
+* SwingMouseAndKeyHandler: Account for API changes in ui-behaviour
+* Added the abstract class Spline; added UniformBSpline; made CatmullRomSpline implement Spline, together with tests
+* Mesh: Make multiple fields of Mesh final, remove counterparts from subtypes
+* Node: Add imglib2 methods
+* TransferFunction: Add distance parameter to TransferFunction.ramp()
+* Node/HasGeometry: Change parent class of multiple Nodes from (Node, HasGeometry) to Mesh
+* OpenGLRenderer/VulkanRenderer: Add support for ortho camera projection, disable push mode when video is recording
+* SceneryBase: Only open NodePublisher if requested
+* Volume: Bring back original volume origin, but make adjustable with origin property to accomodate for BVV convention if necessary
+* Volume: Give Volumes a proper node name and add fromSourceAndConverter factory method
+* SwingSwapchain: Refactor and inherit more code from VulkanSwapchain
+* VulkanUBO/VulkanRenderer: Initialise buffer offsets with magic value and log error if unchanged
+* Volume: Factor out BufferSource, BufferedVolume and RAIVolume
+* SceneryContext: Refactor texture updates
+* UBO: Add support for FloatArray shader properties
+* VulkanRenderer: Improve timing and syncronisation code, reduce semaphore usage
+* Volume/VolumeManager: Improve support for CachedCellImgs
+* Node/Renderable: Remove deprecated renderScale property
+* Add RendererFlags class and use in VulkanRenderer for skipping just-initialised nodes for rendering
+* Volume: Add support for ByteBuffer-based volumes
+* Volume: Add @JvmStatic and @JvmOverloads for factory methods
+* VolumeManager: Make far plane step size degredation accessible
+* Node: Let preDraw() return a boolean to indicate whether drawing may proceed or not
+* SDFFontAtlas: Catch UnsatisfiedLinkError when initialising OpenCL
+* Mesh: Move readFrom() methods from HasGeometry to Mesh, and let them return Meshes (**BREAKING CHANGE**)
+* VulkanRenderer: Do not re-bind pipelines unless necessary
+* VulkanRenderer: Improve cleanup code
+* RenderConfigReader: Store passes as LinkedHashMap
+* SceneryBase: Don't try to close renderer on loop end, but only on close
+* OpenGLRenderer: Refactor window closing/disposal
+* OpenVRHMD: Update tracker roles on each update
+* REPL: Load numerics package in startup script
+* PupilEyeTracker: Add support for world-space calibration, add calibration status callback, handle monocular gaze tracking
+* PupilEyeTracker: Factor out calibration point generators and move to own package
+* OpenVRHMD: Attach controller objects to scene and transform with camera if camera is available
+* Camera: Attach TextBoards to Camera object in showMessage()
+* Camera: Adhere to the same transformation properties as other nodes in order to be able to attach children to cameras
+
+## Fixes
+
+* Node: Propagate transform changes to children if Node has wantsComposeModel set to false. Fixes #313.
+* VolumeManager: Fix loading blocks when cache is overflowing
+* Volume: When initialising ViewerState for a RAISource, assume at least one timepoint because of change in bigdataviewer-core > 9.0.0
+* VulkanObjectState: Cache texture descriptor sets (#312)
+* H264Encoder: Fail gracefully if errors are encountered during initialisation (#310)
+* Line: Fix issue where buffers would not be extended properly
+* VulkanRenderer: Fix blitting and screen capture transitions, render in push mode when textures were updated
+* VulkanRenderer: Don't ignore overwrite argument in recordMovie(). Fixes #302.
+* Node: Fix maximum bounding box for Node's with children
+* SceneryBase: Also update scene nodes which are not HasGeometry
+* Update default vertex shaders to write gl_PointSize
+* Volume: Fix off-by-one error when reading timepoints from SpimData multiresolution stacks
+* ExtractsNatives/MouseAndKeyHandlerBase: Remove sys_paths magic and use System.load() instead
+* Image: Catch appropriate exceptions when reading images
+* VulkanDevice/VulkanRenderer: Match scenery.Renderer.Device against the full string scenery prints, and not just against the device name
+* SwingMouseAndKeyHandler: Take surface scales into consideration for mouse events when running on JDK9+
+* InputHandler: Correctly hand over Hub to all input handlers
+* SwingMouseAndKeyHandler: Take the Renderer's supersampling factor into consideration for mouse events
+* VulkanRenderer: Use correct transitions between renderpasses
+* DetachedHeadCamera: Check HMD availability before trying to get properties from it
+* VulkanDevice: Assure number of queues created does not exceed device limits
+* OpenGLRenderer: Check for image data being present before saving screenshot
+* VulkanRenderer: Do not try to free DirectByteBuffer allocated for error messages from GLFW
+* VulkanRenderer: Don't initialise GLFW when running headless, more logging in case GLFW fails
+
+## Tests and Examples
+
+* ExampleRunner: Add per-test runtime constraint of 5 minutes per test, adjustable via system property `scenery.ExampleRunner.maxRuntimePerTest`
+* ExampleRunner: Prevent silent exceptions and fail on first exception encountered, remove OOC examples from blacklist
+* Adds FlybrainOutOfCoreExample
+* Adds OutOfCoreRAIExample
+* CI: Report coverage from Gitlab integration tests as well
+* ProceduralVolumeExample: Stop updating volume on close request
+* ArcballExample: Fix wrong class name in texture loading
+* VideoRecordingExample: Fix texture loading issue
+* Appveyor CI: Disable shallow cloning
+* Travis CI: Disable shallow cloning and update config
+* CI: Add Gitlab CI for visual regression testing using Argos CI on Nvidia GPUs
+* SDFFontAtlasTests: Warn if OpenCL is disable due to an error
+* ExampleRunner: Enable blacklisting via system property (scenery.ExampleRunner.Blacklist)
+* SwingTexturedCubeExample: Clean up correctly by closing window
+
+## Documentation 
+
+* the main documentation page for scenery and sciview is now [docs.scenery.graphics](https://docs.scenery.graphics)! Contributions are highly welcome!
+* PupilEyeTracker: Add documentation for subscribeFrames() and unsubscribeFrames()
+* LayeredCircleWorldSpaceCalibrationPointGenerator: Add documentation
+
+## Dependency Updates
+
+* bumps bigdataviewer-core to 9.0.5
+* bumps scijava parent POM to 29.0.0-beta-2
+* bumps script-editor to 0.5.6
+* removes dependency on coremem
+* bumps Kotlin to 1.4-M2
+* bumps dokka to 0.10.1
+* bumps kotlinx-coroutines to 1.3.7-1.4-M2
+* bumps bigvolumeviewer to 0.1.8
+* bumps ffmpeg to 4.2.1-1.5.2
+* bumps lwjgl3-awt to 0.1.7
+* bumps spirvcrossj to 0.7.0-1.1.106
+* bumps ClearGL version to 2.2.10
+* bumps jacoco to 0.8.5
+* adds dependency on N5
+* adds ImageJ to test dependencies
+
+# scenery-0.7.0-beta-6 to scenery-0.7.0-beta-7
+
+## Additions and Changes
+
+* RaycastResult: include world direction and world position of the initial ray into RaycastResult and extends SelectCommand to also hand over the click x/y to the function called on the matched object(s) (**BREAKING CHANGE**)
+* Camera: add showMessage method to show text to the user
+* VulkanSwapchain: print names of supported swapchain modes
+* OpenVRHMD: add support for key repeats
+* OpenVRHMD: only use a single command buffer for Vulkan image submission
+* Add ControllerDrag behaviour for 3D dragging and rotational movements
+
+## Fixes
+
+* H264Encoder: Write global headers to improve video compatibility with e.g. QuickTime
+* OpenGLRenderer/VulkanRenderer: Take supersampling factors correctly into account when recording video (#279)
+* Blending/TextBoard: Fix wrong source blending factor
+* Icosphere: Fix UV coordinate generation and texture seams
+
+## Tests and Examples
+
+* ReaderExample: make more flexible, allow cycling through files in the same folder that have the same extension as the loaded dataset
+* Camera: Add tests for Camera.canSee() and Camera.showMessage()
+
+## Dependency Updates
+
+* remove dependencies on native artifacts of platforms that are not supported by scenery (scenery support Windows, Linux, and macOS on 64bit machines)
+* bumps Kotlin to 1.3.60
+* bumps kotlinx-coroutines to 1.3.2
+* bumps dokka to 0.10.0
+* bumps ClearGL to 2.2.9
+
 # scenery-0.7.0-beta-5 to scenery-0.7.0-beta-6
 
 ## Additions and Changes

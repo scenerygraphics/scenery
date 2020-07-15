@@ -1,6 +1,7 @@
 package graphics.scenery.backends.vulkan
 
 import graphics.scenery.utils.LazyLogger
+import org.lwjgl.system.MemoryStack.stackPush
 import org.lwjgl.vulkan.*
 import java.util.*
 import org.lwjgl.vulkan.VK10.*
@@ -93,6 +94,14 @@ open class VulkanFramebuffer(protected val device: VulkanDevice,
             memFree(memory)
 
             desc.free()
+        }
+
+        fun compatibleWith(thisFramebuffer: VulkanFramebuffer, other: VulkanFramebufferAttachment, otherFramebuffer: VulkanFramebuffer): Boolean {
+            return (this.format == other.format
+                && this.type == other.type
+                && thisFramebuffer.width == otherFramebuffer.width
+                && thisFramebuffer.height == otherFramebuffer.height
+                && thisFramebuffer.sRGB == otherFramebuffer.sRGB)
         }
     }
 
@@ -203,7 +212,7 @@ open class VulkanFramebuffer(protected val device: VulkanDevice,
             VK_ATTACHMENT_LOAD_OP_CLEAR to VK_ATTACHMENT_LOAD_OP_CLEAR
         }
 
-        val initialImageLayout = VK_IMAGE_LAYOUT_UNDEFINED
+        val initialImageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
 
         att.desc.samples(VK_SAMPLE_COUNT_1_BIT)
             .loadOp(loadOp)
@@ -235,7 +244,7 @@ open class VulkanFramebuffer(protected val device: VulkanDevice,
         val initialImageLayout = if(!shouldClear) {
             VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
         } else {
-            VK_IMAGE_LAYOUT_UNDEFINED
+            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
         }
 
         att.desc.samples(VK_SAMPLE_COUNT_1_BIT)
@@ -454,20 +463,23 @@ open class VulkanFramebuffer(protected val device: VulkanDevice,
         dependencyChain[0]
             .srcSubpass(VK_SUBPASS_EXTERNAL)
             .dstSubpass(0)
-            .srcStageMask(VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT)
-            .dstStageMask(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT)
-            .srcAccessMask(VK_ACCESS_MEMORY_READ_BIT)
-            .dstAccessMask(VK_ACCESS_COLOR_ATTACHMENT_READ_BIT or VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
-            .dependencyFlags(VK_DEPENDENCY_BY_REGION_BIT)
+            .srcStageMask(VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT or VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT or VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT)
+            .srcAccessMask(0)
+            .dstStageMask(VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT)
+            .dstAccessMask(VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT)
 
         dependencyChain[1]
             .srcSubpass(0)
             .dstSubpass(VK_SUBPASS_EXTERNAL)
-            .srcStageMask(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT)
-            .dstStageMask(VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT)
-            .srcAccessMask(VK_ACCESS_COLOR_ATTACHMENT_READ_BIT or VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
-            .dstAccessMask(VK_ACCESS_MEMORY_READ_BIT)
-            .dependencyFlags(VK_DEPENDENCY_BY_REGION_BIT)
+            .srcStageMask(VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT or VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT)
+            .srcAccessMask(VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT or VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT or VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT or VK_ACCESS_COLOR_ATTACHMENT_READ_BIT)
+            .dstStageMask(VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT)
+            .dstAccessMask(VK_ACCESS_SHADER_READ_BIT)
+
+        if(!attachments.any { it.value.fromSwapchain }) {
+            dependencyChain[0].dependencyFlags(VK_DEPENDENCY_BY_REGION_BIT)
+            dependencyChain[1].dependencyFlags(VK_DEPENDENCY_BY_REGION_BIT)
+        }
 
         val attachmentDescs = getAttachmentDescBuffer()
         val renderPassInfo = VkRenderPassCreateInfo.calloc()

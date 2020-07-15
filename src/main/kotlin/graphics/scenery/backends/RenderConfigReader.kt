@@ -1,15 +1,16 @@
 package graphics.scenery.backends
 
-import cleargl.GLVector
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import graphics.scenery.Blending
 import graphics.scenery.utils.JsonDeserialisers
+import org.joml.Vector4f
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.util.*
+import kotlin.collections.LinkedHashMap
 
 
 /**
@@ -44,14 +45,18 @@ fun RenderConfigReader.RenderConfig.createRenderpassFlow(): List<String> {
     dag.add(start.key)
 
     while(inputs != null) {
-        passes.filter { inputs!!.map { input -> input.substringBefore(".") }.contains(it.value.output) }.entries.forEach {
-            inputs = it.value.inputs
+        passes.filter {
+            inputs!!
+                .map { input -> input.substringBefore(".") }
+                .contains(it.value.output)
+        }.forEach {
+                inputs = it.value.inputs
 
-            dag.add(it.key.substringBefore("."))
+                dag.add(it.key.substringBefore("."))
         }
     }
 
-    return dag.reversed().toSet().toList()
+    return dag.reversed().distinct().toList()
 }
 
 /**
@@ -71,7 +76,7 @@ class RenderConfigReader {
         var description: String?,
         var stereoEnabled: Boolean = false,
         var rendertargets: Map<String, RendertargetConfig> = emptyMap(),
-        var renderpasses: Map<String, RenderpassConfig>,
+        var renderpasses: LinkedHashMap<String, RenderpassConfig>,
         var qualitySettings: Map<RenderingQuality, Map<String, Any>> = emptyMap())
 
     /**
@@ -106,7 +111,7 @@ class RenderConfigReader {
         @JsonDeserialize(using = JsonDeserialisers.FloatPairDeserializer::class) var viewportSize: Pair<Float, Float> = Pair(1.0f, 1.0f),
         @JsonDeserialize(using = JsonDeserialisers.FloatPairDeserializer::class) var viewportOffset: Pair<Float, Float> = Pair(0.0f, 0.0f),
         @JsonDeserialize(using = JsonDeserialisers.FloatPairDeserializer::class) var scissor: Pair<Float, Float> = Pair(1.0f, 1.0f),
-        @JsonDeserialize(using = JsonDeserialisers.VectorDeserializer::class) var clearColor: GLVector = GLVector(0.0f, 0.0f, 0.0f, 0.0f),
+        @JsonDeserialize(using = JsonDeserialisers.VectorDeserializer::class) var clearColor: Vector4f = Vector4f(0.0f, 0.0f, 0.0f, 0.0f),
         var depthClearValue: Float = 1.0f,
         @JsonDeserialize(using = JsonDeserialisers.VREyeDeserializer::class) var eye: Int = -1
     )

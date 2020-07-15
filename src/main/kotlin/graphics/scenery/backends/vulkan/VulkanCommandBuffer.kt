@@ -4,6 +4,7 @@ import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.VK10.*
 import org.lwjgl.vulkan.VkCommandBuffer
 import org.lwjgl.vulkan.VkFenceCreateInfo
+import org.lwjgl.vulkan.VkQueryPoolCreateInfo
 import java.nio.LongBuffer
 
 /**
@@ -23,7 +24,22 @@ class VulkanCommandBuffer(val device: VulkanDevice, var commandBuffer: VkCommand
     /** Whether this command buffer has already been submitted to a queue. */
     var submitted = false
 
+    private var timestampQueryPool = -1L
+    private var timingArray = longArrayOf(0, 0)
+    var runtime = 0.0f
+        private set
+
     init {
+        val queryPoolCreateInfo = VkQueryPoolCreateInfo.calloc()
+            .sType(VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO)
+            .pNext(NULL)
+            .queryType(VK_QUERY_TYPE_TIMESTAMP)
+            .queryCount(2)
+
+        timestampQueryPool = VU.getLong("Create timestamp query pool",
+            { vkCreateQueryPool(device.vulkanDevice, queryPoolCreateInfo, null, this) },
+            { queryPoolCreateInfo.free() })
+
         if(fenced) {
             addFence()
         }
@@ -53,6 +69,20 @@ class VulkanCommandBuffer(val device: VulkanDevice, var commandBuffer: VkCommand
         if(fenced && fenceInitialized) {
             VU.getLong("Waiting for fence",
                 { vkWaitForFences(device.vulkanDevice, fence, true, timeout ?: -1L) }, {})
+
+            VU.run("getting query pool results",
+                { vkGetQueryPoolResults(
+                    device.vulkanDevice,
+                    timestampQueryPool,
+                    0,
+                    2,
+                    timingArray,
+                    0,
+                    VK_QUERY_RESULT_64_BIT
+                )})
+
+            val validBits = device.queues.graphicsQueue.second.timestampValidBits()
+            runtime = (keepBits(timingArray[1], validBits) - keepBits(timingArray[0], validBits)).toFloat() / 1e6f * device.deviceData.properties.limits().timestampPeriod()
         }
     }
 
@@ -85,6 +115,11 @@ class VulkanCommandBuffer(val device: VulkanDevice, var commandBuffer: VkCommand
             vkDestroyFence(device.vulkanDevice, fence.get(0), null)
         }
 
+        if(timestampQueryPool != -1L) {
+            vkDestroyQueryPool(device.vulkanDevice, timestampQueryPool, null)
+            timestampQueryPool = -1L
+        }
+
         memFree(fence)
     }
 
@@ -103,6 +138,27 @@ class VulkanCommandBuffer(val device: VulkanDevice, var commandBuffer: VkCommand
         vkResetCommandBuffer(cmd, 0)
         VU.beginCommandBuffer(cmd)
 
+        vkCmdResetQueryPool(cmd, timestampQueryPool, 0, 2)
+        vkCmdWriteTimestamp(cmd, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+            timestampQueryPool, 0)
+
         return cmd
+    }
+
+    fun endCommandBuffer() {
+        commandBuffer?.let { cmd ->
+            vkCmdWriteTimestamp(cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                timestampQueryPool, 1)
+            if (vkEndCommandBuffer(cmd) != VK_SUCCESS) {
+                throw AssertionError("Failed to end command buffer $this")
+            }
+        }
+    }
+
+    private fun keepBits(value: Long, validBits: Int): Long {
+        val result = value
+        result.ushr(64 - validBits)
+        result.shl(64 - validBits)
+        return result
     }
 }

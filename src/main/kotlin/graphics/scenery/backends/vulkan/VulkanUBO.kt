@@ -7,6 +7,9 @@ import org.lwjgl.vulkan.VK10.*
 import java.nio.ByteBuffer
 import java.nio.IntBuffer
 
+/** Magic value to use for unintialised buffer offsets. */
+const val BUFFER_OFFSET_UNINTIALISED = -1337
+
 /**
  * UBO class for Vulkan, providing specific functionality, such as buffer making and UBO buffer creation.
  *
@@ -17,7 +20,7 @@ open class VulkanUBO(val device: VulkanDevice, var backingBuffer: VulkanBuffer? 
     var descriptor = UBODescriptor()
         private set
     /** Offsets for this UBO, with respect to the backing buffer. */
-    var offsets: IntBuffer = memAllocInt(1).put(0, 0)
+    var offsets: IntBuffer = memAllocInt(1).put(0, BUFFER_OFFSET_UNINTIALISED)
     private var closed = false
     private var ownedBackingBuffer: VulkanBuffer? = null
     private var stagingMemory: ByteBuffer? = null

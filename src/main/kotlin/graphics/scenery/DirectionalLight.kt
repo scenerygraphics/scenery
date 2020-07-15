@@ -1,6 +1,6 @@
 package graphics.scenery
 
-import cleargl.GLVector
+import org.joml.Vector3f
 
 /**
  * Point light class.
@@ -11,14 +11,14 @@ import cleargl.GLVector
  * @author Ulrik Günther <hello@ulrik.is>
  * @constructor Creates a PointLight with default settings, e.g. white emission color.
  */
-class DirectionalLight(var direction: GLVector = GLVector(0.0f, 1.0f, 0.0f)) : Light("DirectionalLight") {
+class DirectionalLight(var direction: Vector3f = Vector3f(0.0f, 1.0f, 0.0f)) : Light("DirectionalLight") {
     /** The intensity of the point light. Bound to [0.0, 1.0] if using non-HDR rendering. */
     @ShaderProperty
     override var intensity: Float = 1.0f
 
     /** The emission color of the point light. Setting it will also affect the accompanying Box' color. */
     @ShaderProperty
-    override var emissionColor: GLVector = GLVector(1.0f, 1.0f, 1.0f)
+    override var emissionColor: Vector3f = Vector3f(1.0f, 1.0f, 1.0f)
 
     /** Type of the light, can be DirectionalLight or PointLight */
     @ShaderProperty

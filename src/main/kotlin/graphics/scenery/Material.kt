@@ -1,7 +1,9 @@
 package graphics.scenery
 
-import cleargl.GLVector
+import org.joml.Vector3f
 import graphics.scenery.Material.CullingMode.*
+import graphics.scenery.textures.Texture
+import graphics.scenery.utils.TimestampedConcurrentHashMap
 import java.io.Serializable
 import java.util.concurrent.ConcurrentHashMap
 
@@ -27,11 +29,11 @@ open class Material : Serializable {
     /** Name of the material. */
     var name: String = "Material"
     /** Diffuse color of the material. */
-    var diffuse: GLVector = GLVector(0.9f, 0.5f, 0.5f)
+    var diffuse: Vector3f = Vector3f(0.9f, 0.5f, 0.5f)
     /** Specular color of the material. */
-    var specular: GLVector = GLVector(0.5f, 0.5f, 0.5f)
+    var specular: Vector3f = Vector3f(0.5f, 0.5f, 0.5f)
     /** Ambient color of the material. */
-    var ambient: GLVector = GLVector(0.5f, 0.5f, 0.5f)
+    var ambient: Vector3f = Vector3f(0.5f, 0.5f, 0.5f)
     /** Specular exponent */
     var roughness: Float = 1.0f
     /** Metallicity, 0.0 is non-metal, 1.0 is full metal */
@@ -42,20 +44,14 @@ open class Material : Serializable {
 
     /** Hash map storing the type and origin of the material's textures. Key is the
      * type, e.g. ("diffuse", "normal", "displacement"...), value can be a file path or
-     * via "fromBuffer:[transferTextureName], a named [GenericTexture] in [transferTextures]. */
-    @Volatile var textures: ConcurrentHashMap<String, String> = ConcurrentHashMap()
-    /** Storage for textures to be transfered to a concrete texture by the renderer. [GenericTexture]
-     * stores the data and settings of the texture, a renderer will consume them later. */
-    @Volatile var transferTextures: ConcurrentHashMap<String, GenericTexture> = ConcurrentHashMap()
+     * via "fromBuffer:[transferTextureName], a named [Texture] in [transferTextures]. */
+    @Volatile var textures: TimestampedConcurrentHashMap<String, Texture> = TimestampedConcurrentHashMap()
 
     /** Culling mode of the material. @see[CullingMode] */
     var cullingMode: CullingMode = CullingMode.Back
 
     /** depth testing mode for this material */
     var depthTest: DepthTest = DepthTest.LessEqual
-
-    /** Flag to check whether the [transferTextures] need reloading */
-    var needsTextureReload: Boolean = false
 
     /** Flag to make the object wireframe */
     var wireframe: Boolean = false
@@ -70,9 +66,13 @@ open class Material : Serializable {
         @JvmStatic fun DefaultMaterial(): Material = Material()
     }
 
+    /**
+     * Returns a hash of the material, with properties relevant for
+     * presentation taken into account. Does not include [textures], as
+     * these are timetamped now.
+     */
     fun materialHashCode() : Int {
         var result = blending.hashCode()
-        result = 31 * result + textures.hashCode()
         result = 31 * result + cullingMode.hashCode()
         result = 31 * result + depthTest.hashCode()
         result = 31 * result + wireframe.hashCode()

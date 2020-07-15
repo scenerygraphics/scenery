@@ -1,13 +1,15 @@
 package graphics.scenery.tests.examples.advanced
 
-import cleargl.GLVector
-import coremem.enums.NativeTypeEnum
+import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.Hololens
 import graphics.scenery.numerics.Random
 import graphics.scenery.utils.RingBuffer
+import graphics.scenery.utils.extensions.plus
+import graphics.scenery.volumes.Colormap
 import graphics.scenery.volumes.Volume
+import net.imglib2.type.numeric.integer.UnsignedShortType
 import org.junit.Test
 import org.lwjgl.system.MemoryUtil.memAlloc
 import java.nio.ByteBuffer
@@ -30,17 +32,17 @@ class ARExample: SceneryBase("AR Volume Rendering example", 1280, 720) {
 
         val cam: Camera = DetachedHeadCamera(hololens)
         with(cam) {
-            position = GLVector(-0.2f, 0.0f, 1.0f)
-            perspectiveCamera(50.0f, 1.0f*windowWidth, 1.0f*windowHeight)
-            active = true
+            position = Vector3f(-0.2f, 0.0f, 1.0f)
+            perspectiveCamera(50.0f, windowWidth, windowHeight)
 
             scene.addChild(this)
         }
 
-        val volume = Volume()
+        val volumes = LinkedHashMap<String, ByteBuffer>()
+        val volume = Volume.fromBuffer(LinkedHashMap(), 64, 64, 64, UnsignedShortType(), hub)
         volume.name = "volume"
-        volume.colormap = "plasma"
-        volume.scale = GLVector(0.02f, 0.02f, 0.02f)
+        volume.colormap = Colormap.get("plasma")
+        volume.scale = Vector3f(0.02f, 0.02f, 0.02f)
         scene.addChild(volume)
 
         val lights = (0 until 3).map {
@@ -48,8 +50,8 @@ class ARExample: SceneryBase("AR Volume Rendering example", 1280, 720) {
         }
 
         lights.mapIndexed { i, light ->
-            light.position = GLVector(2.0f * i - 4.0f,  i - 1.0f, 0.0f)
-            light.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
+            light.position = Vector3f(2.0f * i - 4.0f,  i - 1.0f, 0.0f)
+            light.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
             light.intensity = 50.0f
             scene.addChild(light)
         }
@@ -61,14 +63,8 @@ class ARExample: SceneryBase("AR Volume Rendering example", 1280, 720) {
             val volumeBuffer = RingBuffer<ByteBuffer>(2) { memAlloc((volumeSize*volumeSize*volumeSize*bitsPerVoxel/8).toInt()) }
 
             val seed = Random.randomFromRange(0.0f, 133333337.0f).toLong()
-            var shift = GLVector.getNullVector(3)
-            val shiftDelta = Random.randomVectorFromRange(3, -0.5f, 0.5f)
-
-            val dataType = if(bitsPerVoxel == 8) {
-                NativeTypeEnum.UnsignedByte
-            } else {
-                NativeTypeEnum.UnsignedShort
-            }
+            var shift = Vector3f(0.0f)
+            val shiftDelta = Random.random3DVectorFromRange(-0.5f, 0.5f)
 
             while(true) {
                 val currentBuffer = volumeBuffer.get()
@@ -76,10 +72,7 @@ class ARExample: SceneryBase("AR Volume Rendering example", 1280, 720) {
                 Volume.generateProceduralVolume(volumeSize, 0.95f, seed = seed,
                     intoBuffer = currentBuffer, shift = shift, use16bit = bitsPerVoxel > 8)
 
-                volume.readFromBuffer(
-                    "procedural-cloud-${shift.hashCode()}", currentBuffer,
-                    volumeSize, volumeSize, volumeSize, 1.0f, 1.0f, 1.0f,
-                    dataType = dataType, bytesPerVoxel = bitsPerVoxel/8)
+                volume.addTimepoint("procedural-cloud-${shift.hashCode()}", currentBuffer)
 
                 shift = shift + shiftDelta
 
@@ -89,7 +82,7 @@ class ARExample: SceneryBase("AR Volume Rendering example", 1280, 720) {
 
         thread {
             while(true) {
-//                volume.rotation = volume.rotation.rotateByAngleY(0.005f)
+//                volume.rotation = volume.rotation.rotateY(0.005f)
 
                 Thread.sleep(15)
             }

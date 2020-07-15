@@ -1,6 +1,6 @@
 package graphics.scenery.tests.examples.basic
 
-import cleargl.GLVector
+import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import org.junit.Test
@@ -17,17 +17,17 @@ class IntersectionExample: SceneryBase("IntersectionExample") {
 
         val boxmaterial = Material()
         with(boxmaterial) {
-            ambient = GLVector(1.0f, 0.0f, 0.0f)
-            diffuse = GLVector(0.0f, 1.0f, 0.0f)
-            specular = GLVector(1.0f, 1.0f, 1.0f)
+            ambient = Vector3f(1.0f, 0.0f, 0.0f)
+            diffuse = Vector3f(0.0f, 1.0f, 0.0f)
+            specular = Vector3f(1.0f, 1.0f, 1.0f)
             roughness = 0.3f
             metallic = 1.0f
         }
 
-        val box = Box(GLVector(1.0f, 1.0f, 1.0f))
+        val box = Box(Vector3f(1.0f, 1.0f, 1.0f))
         box.name = "le box du win"
 
-        val box2 = Box(GLVector(1.0f, 1.0f, 1.0f))
+        val box2 = Box(Vector3f(1.0f, 1.0f, 1.0f))
 
         with(box) {
             box.material = boxmaterial
@@ -35,21 +35,20 @@ class IntersectionExample: SceneryBase("IntersectionExample") {
         }
 
         with(box2) {
-            position = GLVector(-1.5f, 0.0f, 0.0f)
+            position = Vector3f(-1.5f, 0.0f, 0.0f)
             box.material = boxmaterial
             scene.addChild(this)
         }
         val light = PointLight(radius = 15.0f)
-        light.position = GLVector(0.0f, 0.0f, 2.0f)
+        light.position = Vector3f(0.0f, 0.0f, 2.0f)
         light.intensity = 100.0f
-        light.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
+        light.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
         scene.addChild(light)
 
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
-            position = GLVector(0.0f, 0.0f, 5.0f)
-            perspectiveCamera(50.0f, 512.0f, 512.0f)
-            active = true
+            position = Vector3f(0.0f, 0.0f, 5.0f)
+            perspectiveCamera(50.0f, 512, 512)
 
             scene.addChild(this)
         }
@@ -57,9 +56,9 @@ class IntersectionExample: SceneryBase("IntersectionExample") {
         thread {
             while (true) {
                 if (box.intersects(box2)) {
-                    box.material.diffuse = GLVector(1.0f, 0.0f, 0.0f)
+                    box.material.diffuse = Vector3f(1.0f, 0.0f, 0.0f)
                 } else {
-                    box.material.diffuse = GLVector(0.0f, 1.0f, 0.0f)
+                    box.material.diffuse = Vector3f(0.0f, 1.0f, 0.0f)
                 }
 
                 Thread.sleep(20)

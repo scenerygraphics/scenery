@@ -53,6 +53,8 @@ class OpenGLObjectState : NodeMetadata {
     var vertexBuffers = HashMap<String, ByteBuffer>()
     /** Hash code for the currently used material */
     var materialHash: Int = -1
+    /** Last reload time for textures */
+    var texturesLastSeen = 0L
 
     init {
         consumers.add("OpenGLRenderer")
