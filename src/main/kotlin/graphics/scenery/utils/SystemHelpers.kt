@@ -1,10 +1,12 @@
 package graphics.scenery.utils
 
 import java.io.File
+import java.io.FileOutputStream
 import java.lang.reflect.InvocationTargetException
 import java.net.URI
 import java.net.URL
 import java.net.URLEncoder
+import java.nio.ByteBuffer
 import java.nio.file.*
 import java.text.SimpleDateFormat
 import java.time.Instant
@@ -233,6 +235,26 @@ class SystemHelpers {
          */
         @JvmOverloads fun formatDateTime(date: Date = Date(), delimiter: String = " "): String {
             return SimpleDateFormat("yyyy-MM-dd${delimiter}HH.mm.ss").format(date)
+        }
+
+        /**
+         * Dumps a given byte buffer to a file, with the given [filename].
+         *
+         * @param[buf] The ByteBuffer to dump.
+         */
+        fun dumpToFile(buf: ByteBuffer, filename: String) {
+            try {
+                val file = File(filename)
+                val channel = FileOutputStream(file, false).channel
+                channel.write(buf)
+                channel.close()
+
+                buf.flip()
+            } catch (e: Exception) {
+                logger.error("Unable to dump byte buffer to $filename")
+                e.printStackTrace()
+            }
+
         }
     }
 }
