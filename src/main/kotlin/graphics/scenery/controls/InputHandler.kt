@@ -16,6 +16,7 @@ import org.scijava.ui.behaviour.io.InputTriggerConfig
 import org.scijava.ui.behaviour.io.gui.CommandDescriptionBuilder
 import org.scijava.ui.behaviour.io.gui.VisualEditorPanel
 import org.scijava.ui.behaviour.io.yaml.YamlConfigIO
+import org.scijava.ui.behaviour.util.Behaviours
 import java.io.FileNotFoundException
 import java.io.FileReader
 import java.io.Reader
@@ -284,7 +285,9 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?, for
         frame.isVisible = true
 
         //process "Apply" button of the editor
-        editorPanel.addConfigCommittedListener { config.resetThisMapFor( inputMap, "all" ) }
+        editorPanel.addConfigCommittedListener {
+            Behaviours(inputMap,behaviourMap,config,"all").updateKeyConfig(config)
+        }
 
         //return reference on the Editor, so that users can hook own extra stuff
         return editorPanel
