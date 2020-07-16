@@ -18,10 +18,7 @@ import graphics.scenery.utils.RemoteryProfiler
 import graphics.scenery.utils.Renderdoc
 import graphics.scenery.utils.SceneryPanel
 import graphics.scenery.utils.Statistics
-import kotlinx.coroutines.Deferred
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.async
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.*
 import org.lwjgl.system.Platform
 import org.scijava.Context
 import org.scijava.ui.behaviour.ClickBehaviour
@@ -59,7 +56,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
     protected var repl: REPL? = null
     /** Frame number for counting FPS */
     protected var ticks = 0L
-    /** The Deferred Lighting Renderer for the application, see [OpenGLRenderer] */
+    /** The default renderer for this application, see [Renderer] */
     protected var renderer: Renderer? = null
     /** The Hub used by the application, see [Hub] */
     var hub: Hub = Hub()
@@ -78,7 +75,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
     protected var registerNewRenderer: NewRendererParameters? = null
 
     /** Logger for this application, will be instantiated upon first use. */
-    protected val logger by LazyLogger()
+    protected val logger by LazyLogger(System.getProperty("scenery.LogLevel", "info"))
 
     /** An optional update function to call during the main loop. */
     var updateFunction: (() -> Any)? = null
@@ -221,7 +218,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
 
         // wait for renderer
         while(renderer?.initialized == false) {
-            Thread.sleep(100)
+            delay(100)
         }
 
         loadInputHandler(renderer)
@@ -240,7 +237,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
             }
         }
 
-        val statsRequested = java.lang.Boolean.parseBoolean(System.getProperty("scenery.PrintStatistics", "false"))
+        val statsRequested = parseBoolean(System.getProperty("scenery.PrintStatistics", "false"))
 
         // setup additional key bindings, if requested by the user
         inputSetup()
@@ -272,7 +269,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
             profiler?.begin("Render")
             if (renderer?.managesRenderLoop != false) {
                 renderer?.render(activeCamera, sceneObjects.await())
-                Thread.sleep(1)
+                delay(1)
             } else {
                 stats.addTimed("render") { renderer?.render(activeCamera, sceneObjects.await()) ?: 0.0f }
             }
@@ -501,7 +498,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
     }
 
     companion object {
-        private val logger by LazyLogger()
+        private val logger by LazyLogger(System.getProperty("scenery.LogLevel", "info"))
         private var xinitThreadsCalled: Boolean = false
 
         /**
