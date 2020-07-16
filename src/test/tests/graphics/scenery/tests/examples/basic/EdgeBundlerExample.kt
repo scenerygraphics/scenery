@@ -23,8 +23,7 @@ class EdgeBundlerExample : SceneryBase("EdgeBundlerExample") {
         initScene()
 
         // Look how many clusters were created, use this information for colormap
-        val numClusters = eb.paramNumberOfClusters
-        val colorMap = getRandomColors(numClusters)
+        val colorMap = getRandomColors(eb.numberOfClusters)
         renderLinePairs(eb.getLinePairs(), eb.getClusterOfTracks(), colorMap)
     }
 
