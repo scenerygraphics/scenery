@@ -20,7 +20,7 @@ import javax.imageio.ImageIO
  *
  * @author Ulrik Guenther <hello@ulrik.is>
  */
-open class Image(val contents: ByteBuffer, val width: Int, val height: Int) {
+open class Image(val contents: ByteBuffer, val width: Int, val height: Int, val depth: Int = 1) {
 
     companion object {
         protected val logger by LazyLogger()

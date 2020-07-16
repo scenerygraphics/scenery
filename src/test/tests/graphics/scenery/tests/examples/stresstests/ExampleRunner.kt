@@ -13,7 +13,6 @@ import java.nio.file.Files
 import java.nio.file.Paths
 import kotlin.system.exitProcess
 import kotlin.test.assertFalse
-import kotlin.test.assertNull
 import kotlin.time.ExperimentalTime
 import kotlin.time.milliseconds
 import kotlin.time.minutes
@@ -31,6 +30,7 @@ class ExampleRunner {
     @Volatile private var failure = false
 
     private var maxRuntimePerTest = System.getProperty("scenery.ExampleRunner.maxRuntimePerTest", "5").toInt().minutes
+    @Volatile private var runtime = 0.milliseconds
 
     /**
      * Runs all examples in the class path and bails out on the first exception encountered.
@@ -95,7 +95,7 @@ class ExampleRunner {
                 Files.createDirectory(Paths.get(rendererDirectory))
 
                 examples.shuffled().forEachIndexed { i, example ->
-                    var runtime = 0.milliseconds
+                    runtime = 0.milliseconds
 
                     logger.info("Running ${example.simpleName} with $renderer ($i/${examples.size}) ...")
                     logger.info("Memory: ${Runtime.getRuntime().freeMemory().toFloat()/1024.0f/1024.0f}M/${Runtime.getRuntime().totalMemory().toFloat()/1024.0f/1024.0f}/${Runtime.getRuntime().maxMemory().toFloat()/1024.0f/1024.0f}M (free/total/max) available.")
@@ -143,7 +143,7 @@ class ExampleRunner {
                         }
 
                         while (instance.running && !failure) {
-                            if(runtime > maxRuntimePerTest) {
+                            if (runtime > maxRuntimePerTest) {
                                 exampleRunnable.cancelAndJoin()
                                 logger.error("Maximum runtime of $maxRuntimePerTest exceeded, aborting test run.")
                                 failure = true

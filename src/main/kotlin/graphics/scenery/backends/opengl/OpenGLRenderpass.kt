@@ -77,12 +77,13 @@ class OpenGLRenderpass(var passName: String = "", var passConfig: RenderConfigRe
                 }
 
                 val settingsKey = when {
+                    entry.key.startsWith("System") -> "System.${entry.key.substringAfter("System.")}"
                     entry.key.startsWith("Global") -> "Renderer.${entry.key.substringAfter("Global.")}"
                     entry.key.startsWith("Pass") -> "Renderer.$passName.${entry.key.substringAfter("Pass.")}"
                     else -> "Renderer.$passName.${entry.key}"
                 }
 
-                if (!entry.key.startsWith("Global") && !entry.key.startsWith("Pass.")) {
+                if (!entry.key.startsWith("Global") && !entry.key.startsWith("Pass.") && !entry.key.startsWith("System.")) {
                     settings.setIfUnset(settingsKey, value)
                 }
 

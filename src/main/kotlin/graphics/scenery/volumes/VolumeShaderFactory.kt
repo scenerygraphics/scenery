@@ -2,6 +2,7 @@ package graphics.scenery.volumes
 
 import graphics.scenery.backends.*
 import tpietzsch.shadergen.Shader
+import kotlin.IllegalStateException
 import kotlin.math.max
 
 /**
@@ -9,33 +10,51 @@ import kotlin.math.max
  *
  * @author Ulrik Guenther <hello@ulrik.is>
  */
-open class VolumeShaderFactory : Shaders.ShaderFactory() {
-    val shaders = HashMap<ShaderType, Triple<Shader, String, List<String>>>()
-    val preprocessorStatements = ArrayList<String>()
+open class VolumeShaderFactory(val compute: Boolean = false) : Shaders.ShaderFactory() {
+    protected val shaders = HashMap<ShaderType, Triple<Shader, String, List<String>>>()
+    protected val preprocessorStatements = ArrayList<String>()
 
     /**
      * Updates the current set of shaders with a new set given in [newShaders].
      */
     fun updateShaders(newShaders: HashMap<ShaderType, Shader>) {
+
         newShaders.forEach {
+            var key = it.key
             val codeBefore = when(it.key) {
                 ShaderType.VertexShader -> String(it.value.vertexShaderCode)
-                ShaderType.FragmentShader -> String(it.value.fragmentShaderCode)
+                ShaderType.FragmentShader -> if(compute) {
+                    key = ShaderType.ComputeShader
+                    String(it.value.fragmentShaderCode)
+                } else {
+                    String(it.value.fragmentShaderCode)
+                }
 
                 ShaderType.TessellationControlShader -> TODO()
                 ShaderType.TessellationEvaluationShader -> TODO()
                 ShaderType.GeometryShader -> TODO()
-                ShaderType.ComputeShader -> TODO()
+                ShaderType.ComputeShader -> if(compute) {
+                    String(it.value.fragmentShaderCode)
+                } else {
+                    throw IllegalStateException("Cannot create compute shader code when in regular mode")
+                }
             }
 
             val (code, uniforms) = convertToSceneryConventions(codeBefore)
-            logger.debug("New code for ${it.key}: $code")
+            logger.debug("New code for $key (compute=$compute): $code")
 
-            shaders[it.key] = Triple(it.value, code, uniforms)
+            if(compute && key != ShaderType.ComputeShader) {
+                return@forEach
+            }
+            shaders[key] = Triple(it.value, code, uniforms)
         }
 
         logger.debug("Shaders marked as stale")
         stale = true
+    }
+
+    private fun convertToCompute(inputFragmentCode: String): String {
+        return inputFragmentCode
     }
 
     /**
@@ -51,7 +70,11 @@ open class VolumeShaderFactory : Shaders.ShaderFactory() {
             ShaderType.TessellationControlShader -> TODO()
             ShaderType.TessellationEvaluationShader -> TODO()
             ShaderType.GeometryShader -> TODO()
-            ShaderType.ComputeShader -> TODO()
+            ShaderType.ComputeShader -> if(compute) {
+                String(shader.first.fragmentShaderCode)
+            } else {
+                TODO()
+            }
         }
 
         val unifiedUniforms = shaders.map { it.value.third }.flatten().toList()

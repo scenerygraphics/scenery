@@ -223,7 +223,7 @@ open class VulkanSwapchain(open val device: VulkanDevice,
                 .minImageCount(desiredNumberOfSwapchainImages)
                 .imageFormat(colorFormatAndSpace.colorFormat)
                 .imageColorSpace(colorFormatAndSpace.colorSpace)
-                .imageUsage(VK10.VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT or VK10.VK_IMAGE_USAGE_TRANSFER_SRC_BIT)
+                .imageUsage(VK10.VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT or VK10.VK_IMAGE_USAGE_TRANSFER_SRC_BIT or VK10.VK_IMAGE_USAGE_SAMPLED_BIT)
                 .preTransform(preTransform)
                 .imageArrayLayers(1)
                 .imageSharingMode(VK10.VK_SHARING_MODE_EXCLUSIVE)

@@ -6,6 +6,7 @@ import graphics.scenery.backends.Renderer
 import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.controls.behaviours.*
 import graphics.scenery.utils.LazyLogger
+import io.github.classgraph.ClassGraph
 import net.java.games.input.Component
 import org.reflections.Reflections
 import org.scijava.ui.behaviour.Behaviour
@@ -65,8 +66,19 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?, for
                 }
 
                 else -> {
-                    val handlers = Reflections("graphics.scenery.controls").getTypesAnnotatedWith(CanHandleInputFor::class.java)
-                    logger.debug("Found potential input handlers: ${handlers.joinToString { "${it.simpleName} -> ${it.getAnnotation(CanHandleInputFor::class.java).windowTypes.joinToString()}" }}")
+                    val start = System.nanoTime()
+                    val handlers = ClassGraph()
+                        .acceptPackages("graphics.scenery.controls")
+                        .enableClassInfo()
+                        .enableAnnotationInfo()
+                        .scan()
+                        .getClassesWithAnnotation("graphics.scenery.controls.CanHandleInputFor")
+                        .loadClasses()
+                    val duration = System.nanoTime() - start
+
+                    if(logger.isDebugEnabled) {
+                        logger.debug("Found potential input handlers (${duration / 10e6} ms): ${handlers.joinToString { "${it.simpleName} -> ${it.getAnnotation(CanHandleInputFor::class.java).windowTypes.joinToString()}" }}")
+                    }
                     val candidate = handlers.find { it.getAnnotation(CanHandleInputFor::class.java).windowTypes.contains(window::class) }
                     handler = candidate?.getConstructor(Hub::class.java)?.newInstance(hub) as MouseAndKeyHandlerBase?
                     handler?.attach(hub, window, inputMap, behaviourMap)
