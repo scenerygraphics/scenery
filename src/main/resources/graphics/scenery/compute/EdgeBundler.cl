@@ -275,17 +275,18 @@ __kernel void edgeBundling(
         __global const float4* points,
         __global float4* pointsResult,
         __global const int* pointToTrackIndices,
-        __global const float* magnetRadius,
-        __global const float* stepsize,
-        __global const float* angleMin,
-        __global const float* angleStick,
-        __global const int* offset,
-        __global const int* bundleEndPoints
+        const int pointSize,
+        const float magnetRadius,
+        const float stepsize,
+        const float angleMin,
+        const float angleStick,
+        const int offset,
+        const int bundleEndPoints
          )
 {
     // Orientation phase - who am I, to which clusters do I belong,
     // who are my colleagues?
-    int pointId = get_global_id(0) + *offset;
+    int pointId = get_global_id(0) + offset;
     int trackId = pointToTrackIndices[pointId];
     int clusterId = clusterInverse[trackId];
     int trackStart = trackStarts[trackId];
@@ -294,8 +295,9 @@ __kernel void edgeBundling(
     int clusterStart = clusterStarts[clusterId];
     int clusterLength = clusterLengths[clusterId];
 
+//    printf("%d->%d\n", pointId, trackId);
     // If we should ignore start/end points and we are on such a point, just stop (nothing to do here)
-    if(*bundleEndPoints == 0 && (pointId == trackStart || pointId == trackEnd))
+    if(bundleEndPoints == 0 && (pointId == trackStart || pointId == trackEnd))
     {
         pointsResult[pointId] = points[pointId];
         return;
@@ -336,8 +338,8 @@ __kernel void edgeBundling(
                        points,
                        myPosition,
                        direction,
-                       *angleStick,
-                       *magnetRadius
+                       angleStick,
+                       magnetRadius
                       );
 
     /*
@@ -369,10 +371,12 @@ __kernel void edgeBundling(
 
 
     float4 resultPoint = { 0., 0., 0., 0. };
-    resultPoint.x = myPosition.x + *stepsize * force.x;
-    resultPoint.y = myPosition.y + *stepsize * force.y;
-    resultPoint.z = myPosition.z + *stepsize * force.z;
-    pointsResult[pointId] = resultPoint;
+    resultPoint.x = myPosition.x + stepsize * force.x;
+    resultPoint.y = myPosition.y + stepsize * force.y;
+    resultPoint.z = myPosition.z + stepsize * force.z;
+    if(pointId < pointSize) {
+        pointsResult[pointId] = resultPoint;
+    }
 
 
     /*
@@ -399,16 +403,16 @@ float4 smoothPosition(
         int begin,
         int trackLength,
         int myIndex,
-        __global const int* radius,
-        __global const float* intensity
+        const int radius,
+        const float intensity
        )
 {
     float4 reference = points[myIndex];
 
     // get index of first and last index used for smoothing
     int end = begin + trackLength - 1;
-    int first = myIndex - *radius;
-    int last = myIndex + *radius;
+    int first = myIndex - radius;
+    int last = myIndex + radius;
     first = max(begin, first);
     last = min(end, last);
 
@@ -421,9 +425,9 @@ float4 smoothPosition(
         result.z += points[i].z / (last - first + 1);
     }
 
-    result.x = result.x * *intensity + reference.x * (1. - *intensity);
-    result.y = result.y * *intensity + reference.y * (1. - *intensity);
-    result.z = result.z * *intensity + reference.z * (1. - *intensity);
+    result.x = result.x * intensity + reference.x * (1. - intensity);
+    result.y = result.y * intensity + reference.y * (1. - intensity);
+    result.z = result.z * intensity + reference.z * (1. - intensity);
 
     return result;
 }
@@ -436,20 +440,21 @@ __kernel void smooth(
         __global const float4* points,
         __global float4* pointsResult,
         __global const int* pointToTrackIndices,
-        __global const int* radius,
-        __global const float* intensity,
-        __global const int* offset
+        const int pointSize,
+        const int radius,
+        const float intensity,
+        const int offset
         )
 {
     // If smoothing is (practically) disabled, leave
-    if(*radius == 0 || *intensity <= 0.0)
+    if(radius == 0 || intensity <= 0.0)
     {
         return;
     }
 
     // Orientation phase - who am I, to which clusters do I belong,
     // who are my colleagues?
-    int pointId = get_global_id(0) + *offset;
+    int pointId = get_global_id(0) + offset;
     int trackId = pointToTrackIndices[pointId];
     int trackStart = trackStarts[trackId];
     int trackLength = trackLengths[trackId];
@@ -462,6 +467,8 @@ __kernel void smooth(
 
     // Smooth pointwise
     float4 resultPoint = smoothPosition(points, trackStart, trackLength, pointId, radius, intensity);
-    pointsResult[pointId] = resultPoint;
+    if(pointId < pointSize) {
+        pointsResult[pointId] = resultPoint;
+    }
 
 }

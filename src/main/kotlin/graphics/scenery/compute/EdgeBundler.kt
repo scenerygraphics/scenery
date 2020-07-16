@@ -19,7 +19,9 @@ import kotlin.math.max
  * Represents a 3D coordinated and optional attributes (e.g. a measured signal, time, ...)
  * TODO: so far the attributes are not used, but for future releases it would be possible to pass them as vertex
  * attributes and use them for color mapping
+ *
  * @author Johannes Waschke <jowaschke@cbs.mpg.de>
+ *
  * @property x Spatial position, x coordinate
  * @property y Spatial position, y coordinate
  * @property z Spatial position, z coordinate
@@ -90,6 +92,11 @@ class PointWithMeta(var x: Float = 0.0f, var y: Float = 0.0f, var z: Float = 0.0
 
 /**
  * Class to prepare data, perform edge bundling in OpenCL, deliver the results
+ *
+ * Important are especially
+ * - [numberOfClusters]. The more clusters, the lower is the (quadratic) runtime per "data piece".
+ * - [bundlingRadius]. The distance in which magnetic forces work. Should be something like 3% of the data width
+ *
  * @author Johannes Waschke <jowaschke@cbs.mpg.de>
  */
 class EdgeBundler(override var hub: Hub?): Hubable {
@@ -145,37 +152,34 @@ class EdgeBundler(override var hub: Hub?): Hubable {
     private var oclClusterStarts = arrayListOf<Int>()
     private var oclClusterLengths = arrayListOf<Int>()
 
-    // Anything to be set up by user. Important are especially
-    // - paramNumberOfClusters. The more clusters, the lower is the (quadratic) runtime per "data piece".
-    // - paramBundlingRadius. The distance in which magnetic forces work. Should be something like 3% of the data width
     /** Length of streamlines for edge bundling (and the result) */
-    var paramResampleTo = 30
+    var resampleTo = 30
     /** Number of clusters during edge bundling. More are quicker. */
-    var paramNumberOfClusters = 1
+    var numberOfClusters = 1
     /** Length of the reference track for edge bundling. */
-    var paramClusteringTrackSize = 6
+    var clusteringTrackSize = 6
     /** Iterations for defining the clusters. */
-    var paramClusteringIterations = 20
+    var clusteringIterations = 20
     /** Iterations for edge bundling. Each iteration includes one smoothing step! Hence, for more iterations, reduce smoothing. */
-    var paramBundlingIterations = 10
+    var bundlingIterations = 10
     /** Radius in which magnet forces apply. Should be something link 2% of data space width */
-    var paramBundlingRadius: Float = 10.0f
+    var bundlingRadius: Float = 10.0f
     /** Length of "magnet step". Just 1.0 is fine. Small steps require more iterations, larger might step too far. */
-    var paramBundlingStepsize: Float = 1.0f
+    var bundlingStepsize: Float = 1.0f
     /** TODO currently unused; it's a curvature threshold, but likely not really helpful */
-    var paramBundlingAngleMin: Float = 0.0f           
+    var bundlingAngleMin: Float = 0.0f
     /** Defines how much non-parallel tracks stick together. */
-    var paramBundlingAngleStick: Float = 0.8f
+    var bundlingAngleStick: Float = 0.8f
     /** Divides the calculation into pieces of this size */
-    var paramBundlingChunkSize: Int = 10000
+    var bundlingChunkSize: Int = 10000
     /** 1 If lines should be bundled up to the last point; 0 if endpoints should stay at original position */
-    var paramBundlingIncludeEndpoints: Int = 0
+    var bundlingIncludeEndpoints: Int = 0
     /** Number of neighbors being considered by the smoothing window */
-    var paramBundlingSmoothingRadius: Int = 1
+    var bundlingSmoothingRadius: Int = 1
     /** Degree how much to mix the smoothed result with the unsmooth data (1 = full smooth), 0.5 = 50:50) */
-    var paramBundlingSmoothingIntensity: Float = 0.5f 
+    var bundlingSmoothingIntensity: Float = 0.5f
     /** Opacity of the lines while rendering */
-    var paramAlpha: Float = 0.01f                      
+    var paramAlpha: Float = 0.01f
 
     /**
      * Create a basic, empty line with the opacity defined by [paramAlpha] and a color from the [colorMap], depending
@@ -226,7 +230,7 @@ class EdgeBundler(override var hub: Hub?): Hubable {
      * @param elementsPerCalculation Number of elements that OpenCL should handle at once
      */
     fun setChunkSize(elementsPerCalculation:Int) {
-        paramBundlingChunkSize = elementsPerCalculation
+        bundlingChunkSize = elementsPerCalculation
     }
 
     /**
@@ -258,8 +262,10 @@ class EdgeBundler(override var hub: Hub?): Hubable {
             val verticesBundled = Array<Vector3f>(trackSetBundled[t].size) { i ->
                 Vector3f(trackSetBundled[t][i].x, trackSetBundled[t][i].y, trackSetBundled[t][i].z)}
             lines[t].addPointPairs(verticesOriginal, verticesBundled)
-            for(i in trackSetBundled[t].indices) {
-                logger.debug("Line $i: ${(trackSetBundled[t][i].x - trackSetOriginal[t][i].x)}")
+            if(logger.isDebugEnabled) {
+                for (i in trackSetBundled[t].indices) {
+                    logger.debug("Line $i: ${(trackSetBundled[t][i].x - trackSetOriginal[t][i].x)}")
+                }
             }
         }
         return lines
@@ -272,9 +278,9 @@ class EdgeBundler(override var hub: Hub?): Hubable {
      * The results are stored in the members of this class (and can be overwritten afterwards, if needed)
      */
     fun estimateGoodParameters() {
-        paramBundlingRadius = max(maxX - minX, max(maxY - minY, maxZ - minZ)) * 0.03f // 3% of data dimension
-        paramNumberOfClusters = ceil(trackSetBundled.size.toFloat() / 500.0f).toInt() // an average of 500 lines per cluster
-        logger.debug("Divide the data into " + paramNumberOfClusters.toString() + " clusters, magnetic forces over a distance of " + paramBundlingRadius)
+        bundlingRadius = max(maxX - minX, max(maxY - minY, maxZ - minZ)) * 0.03f // 3% of data dimension
+        numberOfClusters = ceil(trackSetBundled.size.toFloat() / 500.0f).toInt() // an average of 500 lines per cluster
+        logger.debug("Divide the data into $numberOfClusters clusters, magnetic forces over a distance of $bundlingRadius")
     }
 
     /**
@@ -386,14 +392,14 @@ class EdgeBundler(override var hub: Hub?): Hubable {
     }
 
     /**
-     * Create work packages according to the chosen [paramBundlingChunkSize]. For 25.000 tracks and a chunk size of
+     * Create work packages according to the chosen [bundlingChunkSize]. For 25.000 tracks and a chunk size of
      * 10.000 this function would return [10.000, 10.000, 5.000].
      * @return An array of numbers saying how many elements should be handled in each OpenCL call
      */
     private fun getChunkSizes(): Array<Int> {
-        val num: Int = oclPoints.size / paramBundlingChunkSize
-        val remainder: Int =  oclPoints.size % paramBundlingChunkSize
-        val chunkSizes: Array<Int> = Array(num + 1) { _ -> paramBundlingChunkSize}
+        val num: Int = oclPoints.size / bundlingChunkSize
+        val remainder: Int =  oclPoints.size % bundlingChunkSize
+        val chunkSizes: Array<Int> = Array(num + 1) { _ -> bundlingChunkSize}
         chunkSizes[num] = remainder
         return chunkSizes
     }
@@ -417,23 +423,8 @@ class EdgeBundler(override var hub: Hub?): Hubable {
     }
 
     /**
-     * Helper to update the offset with a new integer value
-     * @param openCLContext The OpenCL context
-     * @param memObject The memory object holding the offset value
-     * @param offset The new offset value
-     */
-    private fun writeOffsetHelper(openCLContext: OpenCLContext,
-                                  memObject: cl_mem,
-                                  offset: Int) {
-        val offsetBuffer = createIntBuffer(arrayListOf(offset))
-        offsetBuffer.rewind()
-        openCLContext.writeBuffer(offsetBuffer, memObject)
-        offsetBuffer.rewind()
-    }
-
-    /**
      * The whole OpenCL-pipeline. Converting the data, create buffers, perform the calculation multiple times (according
-     * to [paramBundlingIterations], and splitted into chunks according to [paramBundlingChunkSize]). For each
+     * to [bundlingIterations], and splitted into chunks according to [bundlingChunkSize]). For each
      * iteration, edge bundling is performed first and smoothing is performed afterwards.
      * @return True if everythin went well, false if note
      */
@@ -466,30 +457,23 @@ class EdgeBundler(override var hub: Hub?): Hubable {
             val clusterLengths: cl_mem = ocl.wrapInput(createIntBuffer(oclClusterLengths), true)
             val clusterIndices: cl_mem = ocl.wrapInput(createIntBuffer(oclClusterIndices), true)
             val clusterInverse: cl_mem = ocl.wrapInput(createIntBuffer(oclClusterInverse), true)
-            val magnetRadius: cl_mem = ocl.wrapInput(createFloatBuffer(arrayListOf(paramBundlingRadius)), true)
-            val stepsize: cl_mem = ocl.wrapInput(createFloatBuffer(arrayListOf(paramBundlingStepsize)), true)
-            val angleMin: cl_mem = ocl.wrapInput(createFloatBuffer(arrayListOf(paramBundlingAngleMin)), true)
-            val angleStick: cl_mem = ocl.wrapInput(createFloatBuffer(arrayListOf(paramBundlingAngleStick)), true)
-            val offset: cl_mem = ocl.wrapInput(createIntBuffer(arrayListOf(5)), true)
-            val bundleEndPoints: cl_mem = ocl.wrapInput(createIntBuffer(arrayListOf(paramBundlingIncludeEndpoints)), true)
-            val radius: cl_mem = ocl.wrapInput(createIntBuffer(arrayListOf(paramBundlingSmoothingRadius)), true)
-            val intensity: cl_mem = ocl.wrapInput(createFloatBuffer(arrayListOf(paramBundlingSmoothingIntensity)), true)
 
             // Get kernels for edge bundling and smoothing
             ocl.loadKernel(EdgeBundler::class.java.getResource("EdgeBundler.cl"), "edgeBundling")
             ocl.loadKernel(EdgeBundler::class.java.getResource("EdgeBundler.cl"), "smooth")
             val chunkSizes = getChunkSizes()
 
-            logger.info("Starting OpenCL edge bundling of " + oclPoints.size + " points (" + trackSetBundled.size + " tracks)")
+            logger.info("Starting OpenCL edge bundling of ${oclPoints.size} points (${trackSetBundled.size} tracks)")
 
+            val pointSize = oclPoints.size/4
             var statusCounter = 0
-            val totalCounter = 2 * paramBundlingIterations * chunkSizes.size
-            for(i in 0 until paramBundlingIterations) {
-                chunkSizes.forEachIndexed { j, chunk ->
-                    // Current status; Will be called paramBundlingIterations * chunksizes.size times
-                    statusPrint(++statusCounter, totalCounter)
-                    writeOffsetHelper(ocl, offset, j * paramBundlingChunkSize)
-                    ocl.runKernel("edgeBundling", chunk,
+            val totalCounter = 2 * bundlingIterations * chunkSizes.size
+            for(i in 0 until bundlingIterations) {
+                for(c in chunkSizes.indices) {
+                    statusPrint(++statusCounter, totalCounter) // Current status; Will be called paramBundlingIterations * chunksizes.size times
+
+                    val offset = c * bundlingChunkSize
+                    ocl.runKernel("edgeBundling", chunkSizes[c],
                         trackStarts,
                         trackLengths,
                         clusterStarts,
@@ -499,38 +483,37 @@ class EdgeBundler(override var hub: Hub?): Hubable {
                         points,
                         pointsResult,
                         pointToTrackIndices,
-                        magnetRadius,
-                        stepsize,
-                        angleMin,
-                        angleStick,
+                        pointSize,
+                        bundlingRadius,
+                        bundlingStepsize,
+                        bundlingAngleMin,
+                        bundlingAngleStick,
                         offset,
-                        bundleEndPoints)
+                        bundlingIncludeEndpoints)
                 }
-                logger.debug("Copying results...")
                 copyResultHelper(ocl, pointsResult, points, oclPointsInAndOut)
 
-                logger.debug("Smoothing...")
-                chunkSizes.forEachIndexed { j, chunk ->
+                for(c in chunkSizes.indices) {
                     statusPrint(++statusCounter, totalCounter)
-                    writeOffsetHelper(ocl, offset, j * paramBundlingChunkSize)
+                    val offset = c * bundlingChunkSize
 
-                    ocl.runKernel("smooth", chunk,
+                    ocl.runKernel("smooth", chunkSizes[c],
                         trackStarts,
                         trackLengths,
                         points,
                         pointsResult,
                         pointToTrackIndices,
-                        radius,
-                        intensity,
+                        pointSize,
+                        bundlingSmoothingRadius,
+                        bundlingSmoothingIntensity,
                         offset)
                 }
-                logger.debug("Copying results...")
                 copyResultHelper(ocl, pointsResult, points, oclPointsInAndOut)
             }
             if(logger.isDebugEnabled) {
                 printFloatBuffer(oclPointsInAndOut)
             }
-            processOpenClResult(oclPointsInAndOut)
+            processOpenCLResult(oclPointsInAndOut)
             logger.info("Finished OpenCL edge bundling.")
         }
         return true
@@ -539,7 +522,7 @@ class EdgeBundler(override var hub: Hub?): Hubable {
     /**
      * Read the data from the (flat) buffer and write it into an array of arrays of points.
      */
-    private fun processOpenClResult(buffer: FloatBuffer) {
+    private fun processOpenCLResult(buffer: FloatBuffer) {
         val b = buffer.duplicate()
         b.rewind()
         var posCounter = 0
@@ -608,8 +591,8 @@ class EdgeBundler(override var hub: Hub?): Hubable {
             }
         }
         this.trackSetBundled = Array(trackSetTemp.size) {i -> trackSetTemp[i]}
-        this.trackSetBundled = resampleTracks(trackSetBundled, paramResampleTo)
-        this.trackSetOriginal = resampleTracks(trackSetBundled, paramResampleTo) // TODO I don't know a good way for deep copy
+        this.trackSetBundled = resampleTracks(trackSetBundled, resampleTo)
+        this.trackSetOriginal = resampleTracks(trackSetBundled, resampleTo) // TODO I don't know a good way for deep copy
     }
 
     /**
@@ -636,8 +619,8 @@ class EdgeBundler(override var hub: Hub?): Hubable {
         }
 
         this.trackSetBundled = Array(trackSetTemp.size) {i -> trackSetTemp[i]}
-        this.trackSetBundled = resampleTracks(trackSetBundled, paramResampleTo)
-        this.trackSetOriginal = resampleTracks(trackSetBundled, paramResampleTo) // TODO I don't know a good way for deep copy
+        this.trackSetBundled = resampleTracks(trackSetBundled, resampleTo)
+        this.trackSetOriginal = resampleTracks(trackSetBundled, resampleTo) // TODO I don't know a good way for deep copy
     }
 
     /**
@@ -691,7 +674,7 @@ class EdgeBundler(override var hub: Hub?): Hubable {
     }
 
     /**
-     * Calculates a set of averaged tracks (each of size [paramClusteringTrackSize]), used for track comparison in
+     * Calculates a set of averaged tracks (each of size [clusteringTrackSize]), used for track comparison in
      * Quickbundles.
      * Provide [clustersReverse] array filled with |[tracks]| times 0 to average all tracks (= provide one big cluster)
      * @param tracks The set of tracks that should be averaged
@@ -704,14 +687,14 @@ class EdgeBundler(override var hub: Hub?): Hubable {
         // positions, so far, are 0/0/0. Furthermore, we create a counter. With the counter we can update a mean track
         // without calculating the mean based on all tracks, but just by adding 1/nth of the next track. This allows
         // clustering in linear time (Quickbundles, Garyfallidis 2012)
-        val meanTracks: Array<Array<PointWithMeta>> = Array(paramNumberOfClusters, {Array(paramClusteringTrackSize, { PointWithMeta() })})
-        val meanTrackCounter: Array<Int> = Array(paramNumberOfClusters, {0})
+        val meanTracks: Array<Array<PointWithMeta>> = Array(numberOfClusters, {Array(clusteringTrackSize, { PointWithMeta() })})
+        val meanTrackCounter: Array<Int> = Array(numberOfClusters, {0})
 
         // Now add all the tracks to the mean track of their respective cluster
         for(i in tracks.indices) {
             meanTrackCounter[clustersReverse[i]] += 1
             val ratio = 1.0f / meanTrackCounter[clustersReverse[i]].toInt()
-            for(j in 0 until paramClusteringTrackSize) {
+            for(j in 0 until clusteringTrackSize) {
                 meanTracks[clustersReverse[i]][j] = meanTracks[clustersReverse[i]][j] * (1.0f - ratio) + tracks[i][j] * ratio
             }
         }
@@ -740,9 +723,11 @@ class EdgeBundler(override var hub: Hub?): Hubable {
      * @param printEveryN If not updates should be printed only after n performed operations, set it here
      */
     private fun statusPrint(i: Int, total: Int, printEveryN: Int = 1) {
-        if(i % printEveryN == 0) {
-            //print("*")
-            logger.debug("$i of $total")
+        if(logger.isDebugEnabled) {
+            if (i % printEveryN == 0) {
+                //print("*")
+                logger.debug("$i of $total")
+            }
         }
     }
 
@@ -755,28 +740,28 @@ class EdgeBundler(override var hub: Hub?): Hubable {
         logger.debug("Starting quickbundles")
 
         // First prepare a (random) starting state
-        val smallTracks: Array<Array<PointWithMeta>> = Array(trackSetBundled.size) {Array(paramClusteringTrackSize) { PointWithMeta(0.0f, 0.0f, 0.0f) }}
+        val smallTracks: Array<Array<PointWithMeta>> = Array(trackSetBundled.size) {Array(clusteringTrackSize) { PointWithMeta(0.0f, 0.0f, 0.0f) }}
         val clustersReverse: Array<Int> = Array(trackSetBundled.size) {0}
         for(i in trackSetBundled.indices) {
-            smallTracks[i] = resampleTrack(trackSetBundled[i], paramClusteringTrackSize)
+            smallTracks[i] = resampleTrack(trackSetBundled[i], clusteringTrackSize)
         }
-        val clusters: Array<ArrayList<Int>> = Array(paramNumberOfClusters) {ArrayList<Int>()}
-        for(i in 0 until paramNumberOfClusters) {
+        val clusters: Array<ArrayList<Int>> = Array(numberOfClusters) {ArrayList<Int>()}
+        for(i in 0 until numberOfClusters) {
             clusters[i] = ArrayList<Int>()
         }
 
         for(i in smallTracks.indices) {
-            val randomCluster = (0 until paramNumberOfClusters).random()
+            val randomCluster = (0 until numberOfClusters).random()
             clusters[randomCluster].add(i)
             clustersReverse[i] = randomCluster
         }
         var meanTracks = calculateMeanTracks(smallTracks, clustersReverse)
 
         // Now do the actual clustering
-        for(i in 0 until paramClusteringIterations) {
-            statusPrint(i, oclPoints.size * paramClusteringIterations)
+        for(i in 0 until clusteringIterations) {
+            statusPrint(i, oclPoints.size * clusteringIterations)
             // Make current mapping empty
-            for(j in 0 until paramNumberOfClusters) {
+            for(j in 0 until numberOfClusters) {
                 clusters[j] = ArrayList<Int>()
             }
 
@@ -784,7 +769,7 @@ class EdgeBundler(override var hub: Hub?): Hubable {
             for(t in smallTracks.indices) {
                 var lowestDistance: Float = MAX_VALUE
                 var bestIndex = -1
-                for(c in 0 until paramNumberOfClusters) {
+                for(c in 0 until numberOfClusters) {
                     val dist = distanceBetweenTracks(smallTracks[t], meanTracks[c])
                     if(dist < lowestDistance) {
                         lowestDistance = dist
