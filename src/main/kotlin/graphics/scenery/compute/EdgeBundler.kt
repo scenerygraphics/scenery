@@ -272,6 +272,11 @@ class EdgeBundler(override var hub: Hub?): Hubable {
     }
 
     /**
+     * Convenience function to return both line pairs and clusters.
+     */
+    fun getLinePairsAndClusters() = getLinePairs().zip(getClusterOfTracks())
+
+    /**
      * Some parameters must be set up according to data properties. We try some basic guessing here.
      * This basically calculates some percent of the maximum width of the data's bounding box for bundling radius.
      * The number of clusters is simply chosen to have an average of 500 items per cluster.
