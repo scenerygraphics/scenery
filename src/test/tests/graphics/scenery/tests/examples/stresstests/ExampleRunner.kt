@@ -14,7 +14,6 @@ import java.nio.file.Paths
 import kotlin.system.exitProcess
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
-import kotlin.test.fail
 import kotlin.time.ExperimentalTime
 import kotlin.time.milliseconds
 import kotlin.time.minutes
@@ -144,7 +143,6 @@ class ExampleRunner {
                         }
 
                         while (instance.running && !failure) {
-                            logger.info("Instance is running")
                             if(runtime > maxRuntimePerTest) {
                                 exampleRunnable.cancelAndJoin()
                                 logger.error("Maximum runtime of $maxRuntimePerTest exceeded, aborting test run.")
