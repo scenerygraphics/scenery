@@ -106,8 +106,8 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?, for
      * Returns *a copy of* the behaviours currently
      * registered with this {@link InputHandler}.
      */
-    fun getAllBehaviours(): Set<String> {
-        return behaviourMap.keys()
+    fun getAllBehaviours(): List<String> {
+        return behaviourMap.keys().sorted()
         //NB: behaviourMap.keys() returns a copy of its keys
     }
 
