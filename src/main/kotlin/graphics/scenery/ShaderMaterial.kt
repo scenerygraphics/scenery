@@ -11,6 +11,12 @@ import graphics.scenery.backends.Shaders
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class ShaderMaterial(var shaders: Shaders) : Material() {
+
+    /**
+     * Returns true if the current material is only use for compute
+     */
+    fun isCompute(): Boolean = shaders.type.contains(ShaderType.ComputeShader)
+
     /** Factory functions for ShaderMaterial */
     companion object {
 

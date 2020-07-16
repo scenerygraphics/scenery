@@ -25,6 +25,7 @@ import java.nio.ByteBuffer
 import java.nio.file.Files
 import java.nio.file.Paths
 import kotlin.math.max
+import kotlin.math.roundToLong
 import kotlin.streams.toList
 
 /**
@@ -40,7 +41,8 @@ open class VulkanTexture(val device: VulkanDevice,
                     val commandPools: VulkanRenderer.CommandPools, val queue: VkQueue, val transferQueue: VkQueue,
                     val width: Int, val height: Int, val depth: Int = 1,
                     val format: Int = VK_FORMAT_R8G8B8_SRGB, var mipLevels: Int = 1,
-                    val minFilterLinear: Boolean = true, val maxFilterLinear: Boolean = true) : AutoCloseable {
+                    val minFilterLinear: Boolean = true, val maxFilterLinear: Boolean = true,
+                    val usage: HashSet<Texture.UsageType> = hashSetOf(Texture.UsageType.Texture)) : AutoCloseable {
     //protected val logger by LazyLogger()
 
     private var initialised: Boolean = false
@@ -195,8 +197,13 @@ open class VulkanTexture(val device: VulkanDevice,
                 mipLevels = 1)
         }
 
+        var usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT or VK_IMAGE_USAGE_SAMPLED_BIT or VK_IMAGE_USAGE_TRANSFER_SRC_BIT
+        if(device.formatFeatureSupported(format, VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT, optimalTiling = true)) {
+            usage = usage or VK_IMAGE_USAGE_STORAGE_BIT
+        }
+
         image = createImage(width, height, depth,
-            format, VK_IMAGE_USAGE_TRANSFER_DST_BIT or VK_IMAGE_USAGE_SAMPLED_BIT or VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+            format, usage,
             VK_IMAGE_TILING_OPTIMAL, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
             mipLevels)
 
@@ -207,12 +214,13 @@ open class VulkanTexture(val device: VulkanDevice,
         if (image.view == -1L) {
             image.view = createImageView(image, format)
         }
+
+        gt?.let { cache.put(it, this) }
     }
 
     /**
      * Alternative constructor to create a [VulkanTexture] from a [Texture].
      */
-    @Suppress("USELESS_ELVIS", "UNNECESSARY_SAFE_CALL")
     constructor(device: VulkanDevice,
                 commandPools: VulkanRenderer.CommandPools, queue: VkQueue, transferQueue: VkQueue,
                 texture: Texture, mipLevels: Int = 1) : this(device,
@@ -221,10 +229,11 @@ open class VulkanTexture(val device: VulkanDevice,
         transferQueue,
         texture.dimensions.x().toInt(),
         texture.dimensions.y().toInt(),
-        texture.dimensions.z()?.toInt() ?: 1,
+        texture.dimensions.z().toInt(),
         texture.toVulkanFormat(),
-        mipLevels, texture.minFilter == Texture.FilteringMode.Linear, texture.maxFilter == Texture.FilteringMode.Linear) {
+        mipLevels, texture.minFilter == Texture.FilteringMode.Linear, texture.maxFilter == Texture.FilteringMode.Linear, usage = texture.usageType) {
         gt = texture
+        gt?.let { cache.put(it, this) }
     }
 
     /**
@@ -393,14 +402,14 @@ open class VulkanTexture(val device: VulkanDevice,
                         tmpBuffer?.close()
                         // reserve a bit more space if the texture is small, to avoid reallocations
                         val reservedSize = if(requiredCapacity < 1024*1024*8) {
-                            Math.round(requiredCapacity.toDouble() * 1.33)
+                            (requiredCapacity * 1.33).roundToLong()
                         } else {
                             requiredCapacity
                         }
 
                         tmpBuffer = VulkanBuffer(this@VulkanTexture.device,
                             max(reservedSize, 1024*1024),
-                            VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                            VK_BUFFER_USAGE_TRANSFER_SRC_BIT or VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
                             wantAligned = false)
                     }
@@ -426,6 +435,7 @@ open class VulkanTexture(val device: VulkanDevice,
                                 image.copyFrom(this, buffer)
                             }
                         } else {
+                            buffer.copyFrom(sourceBuffer)
                             image.copyFrom(this, buffer)
                         }
 
@@ -555,6 +565,65 @@ open class VulkanTexture(val device: VulkanDevice,
     }
 
     /**
+     * Copies the first layer, first mipmap of the texture to [buffer].
+     */
+    fun copyTo(buffer: ByteBuffer) {
+        if(tmpBuffer == null || (tmpBuffer != null && tmpBuffer?.size!! < image.maxSize)) {
+            tmpBuffer?.close()
+            tmpBuffer = VulkanBuffer(this@VulkanTexture.device,
+                image.maxSize,
+                VK_BUFFER_USAGE_TRANSFER_SRC_BIT or VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                wantAligned = false)
+        }
+
+        tmpBuffer?.let { b ->
+            with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
+                transitionLayout(image.image,
+                    VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, 1,
+                    srcStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                    dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                    commandBuffer = this)
+
+                val type = VK_IMAGE_ASPECT_COLOR_BIT
+
+                val subresource = VkImageSubresourceLayers.calloc()
+                    .aspectMask(type)
+                    .mipLevel(0)
+                    .baseArrayLayer(0)
+                    .layerCount(1)
+
+                val regions = VkBufferImageCopy.calloc(1)
+                    .bufferRowLength(0)
+                    .bufferImageHeight(0)
+                    .imageOffset(VkOffset3D.calloc().set(0, 0, 0))
+                    .imageExtent(VkExtent3D.calloc().set(width, height, depth))
+                    .imageSubresource(subresource)
+
+                vkCmdCopyImageToBuffer(
+                    this,
+                    image.image,
+                    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                    b.vulkanBuffer,
+                    regions
+                )
+
+                transitionLayout(image.image,
+                    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                    VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 1,
+                    srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                    dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                    commandBuffer = this)
+
+                endCommandBuffer(this@VulkanTexture.device, commandPools.Standard, transferQueue, flush = true, dealloc = true, block = true)
+            }
+
+            b.copyTo(buffer)
+        }
+    }
+
+    /**
      * Creates a Vulkan image view with [format] for an [image].
      */
     fun createImageView(image: VulkanImage, format: Int): Long {
@@ -657,12 +726,58 @@ open class VulkanTexture(val device: VulkanDevice,
         return sampler
     }
 
+    override fun toString(): String {
+        return "VulkanTexture on $device (${this.image.image.toHexString()}, ${width}x${height}x$depth, format=${this.format}, mipLevels=${mipLevels}, gt=${this.gt != null} minFilter=${this.minFilterLinear} maxFilter=${this.maxFilterLinear})"
+    }
+
+    /**
+     * Deallocates and destroys this [VulkanTexture] instance, freeing all memory
+     * related to it.
+     */
+    override fun close() {
+        gt?.let { cache.remove(it) }
+
+        if (image.view != -1L) {
+            vkDestroyImageView(device.vulkanDevice, image.view, null)
+            image.view = -1L
+        }
+
+        if (image.image != -1L) {
+            vkDestroyImage(device.vulkanDevice, image.image, null)
+            image.image = -1L
+        }
+
+        if (image.sampler != -1L) {
+            vkDestroySampler(device.vulkanDevice, image.sampler, null)
+            image.sampler = -1L
+        }
+
+        if (image.memory != -1L) {
+            vkFreeMemory(device.vulkanDevice, image.memory, null)
+            image.memory = -1L
+        }
+
+        if (stagingImage.image != -1L) {
+            vkDestroyImage(device.vulkanDevice, stagingImage.image, null)
+            stagingImage.image = -1L
+        }
+
+        if (stagingImage.memory != -1L) {
+            vkFreeMemory(device.vulkanDevice, stagingImage.memory, null)
+            stagingImage.memory = -1L
+        }
+
+        tmpBuffer?.close()
+    }
+
 
     /**
      * Utility methods for [VulkanTexture].
      */
     companion object {
         @JvmStatic private val logger by LazyLogger()
+
+        private val cache = HashMap<Texture, VulkanTexture>()
 
         private val StandardAlphaColorModel = ComponentColorModel(
             ColorSpace.getInstance(ColorSpace.CS_sRGB),
@@ -679,6 +794,10 @@ open class VulkanTexture(val device: VulkanDevice,
             false,
             ComponentColorModel.OPAQUE,
             DataBuffer.TYPE_BYTE)
+
+        fun getReference(texture: Texture): VulkanTexture? {
+            return cache.get(texture)
+        }
 
         /**
          * Loads a texture from a file given by [filename], and allocates the [VulkanTexture] on [device].
@@ -1022,48 +1141,4 @@ open class VulkanTexture(val device: VulkanDevice,
             return format
         }
     }
-
-    override fun toString(): String {
-        return "VulkanTexture on $device (${this.image.image.toHexString()}, ${width}x${height}x$depth, format=${this.format}, mipLevels=${mipLevels}, gt=${this.gt != null} minFilter=${this.minFilterLinear} maxFilter=${this.maxFilterLinear})"
-    }
-
-    /**
-     * Deallocates and destroys this [VulkanTexture] instance, freeing all memory
-     * related to it.
-     */
-    override fun close() {
-        if (image.view != -1L) {
-            vkDestroyImageView(device.vulkanDevice, image.view, null)
-            image.view = -1L
-        }
-
-        if (image.image != -1L) {
-            vkDestroyImage(device.vulkanDevice, image.image, null)
-            image.image = -1L
-        }
-
-        if (image.sampler != -1L) {
-            vkDestroySampler(device.vulkanDevice, image.sampler, null)
-            image.sampler = -1L
-        }
-
-        if (image.memory != -1L) {
-            vkFreeMemory(device.vulkanDevice, image.memory, null)
-            image.memory = -1L
-        }
-
-        if (stagingImage.image != -1L) {
-            vkDestroyImage(device.vulkanDevice, stagingImage.image, null)
-            stagingImage.image = -1L
-        }
-
-        if (stagingImage.memory != -1L) {
-            vkFreeMemory(device.vulkanDevice, stagingImage.memory, null)
-            stagingImage.memory = -1L
-        }
-
-        tmpBuffer?.close()
-    }
-
-
 }

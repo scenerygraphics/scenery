@@ -6,6 +6,7 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import graphics.scenery.Blending
 import graphics.scenery.utils.JsonDeserialisers
+import graphics.scenery.utils.LazyLogger
 import org.joml.Vector4f
 import java.nio.file.Files
 import java.nio.file.Paths
@@ -18,7 +19,7 @@ import kotlin.collections.LinkedHashMap
  */
 @Suppress("unused")
 fun RenderConfigReader.RenderConfig.getOutputOfPass(passname: String): String? {
-    return renderpasses[passname]?.output
+    return renderpasses[passname]?.output?.name
 }
 
 /**
@@ -27,7 +28,7 @@ fun RenderConfigReader.RenderConfig.getOutputOfPass(passname: String): String? {
 @Suppress("unused")
 fun RenderConfigReader.RenderConfig.getInputsOfTarget(targetName: String): Set<String> {
     return rendertargets.filter {
-        it.key == renderpasses.filter { p -> p.value.output == targetName }.keys.first()
+        it.key == renderpasses.filter { p -> p.value.output.name == targetName }.keys.first()
     }.keys
 }
 
@@ -36,19 +37,25 @@ fun RenderConfigReader.RenderConfig.getInputsOfTarget(targetName: String): Set<S
  * it as a [List] of Strings.
  */
 fun RenderConfigReader.RenderConfig.createRenderpassFlow(): List<String> {
+    val logger by LazyLogger()
     val passes = renderpasses
     val dag = ArrayList<String>()
 
     // find first
-    val start = passes.filter { it.value.output == "Viewport" }.entries.first()
-    var inputs: List<String>? = start.value.inputs
+    val start = passes.filter { it.value.output.name == "Viewport" }.entries.first()
+
+    if(start.value.type == RenderConfigReader.RenderpassType.compute) {
+        logger.warn("A compute pass is used as a viewport pass. Due to format feature restrictions, this is not recommended and might fail.")
+    }
+
+    var inputs: List<RenderConfigReader.RendertargetBinding>? = start.value.inputs
     dag.add(start.key)
 
     while(inputs != null) {
         passes.filter {
             inputs!!
-                .map { input -> input.substringBefore(".") }
-                .contains(it.value.output)
+                .map { input -> input.name.substringBefore(".") }
+                .contains(it.value.output.name)
         }.forEach {
                 inputs = it.value.inputs
 
@@ -87,6 +94,11 @@ class RenderConfigReader {
         val attachments: Map<String, TargetFormat> = emptyMap()
     )
 
+    data class RendertargetBinding(
+        val name: String,
+        val shaderInput: String
+    )
+
     /**
      * Configuration for a single render pass
      */
@@ -105,22 +117,39 @@ class RenderConfigReader {
         var srcAlphaBlendFactor: Blending.BlendFactor = Blending.BlendFactor.SrcAlpha,
         var dstAlphaBlendFactor: Blending.BlendFactor = Blending.BlendFactor.OneMinusSrcAlpha,
         var shaders: List<String>,
-        var inputs: List<String>?,
-        var output: String,
+
+        @JsonDeserialize(contentUsing = JsonDeserialisers.BindingDeserializer::class)
+        var inputs: List<RendertargetBinding>?,
+
+        @JsonDeserialize(using = JsonDeserialisers.BindingDeserializer::class)
+        var output: RendertargetBinding,
+
         var parameters: Map<String, Any>?,
-        @JsonDeserialize(using = JsonDeserialisers.FloatPairDeserializer::class) var viewportSize: Pair<Float, Float> = Pair(1.0f, 1.0f),
-        @JsonDeserialize(using = JsonDeserialisers.FloatPairDeserializer::class) var viewportOffset: Pair<Float, Float> = Pair(0.0f, 0.0f),
-        @JsonDeserialize(using = JsonDeserialisers.FloatPairDeserializer::class) var scissor: Pair<Float, Float> = Pair(1.0f, 1.0f),
-        @JsonDeserialize(using = JsonDeserialisers.VectorDeserializer::class) var clearColor: Vector4f = Vector4f(0.0f, 0.0f, 0.0f, 0.0f),
+
+        @JsonDeserialize(using = JsonDeserialisers.FloatPairDeserializer::class)
+        var viewportSize: Pair<Float, Float> = Pair(1.0f, 1.0f),
+
+        @JsonDeserialize(using = JsonDeserialisers.FloatPairDeserializer::class)
+        var viewportOffset: Pair<Float, Float> = Pair(0.0f, 0.0f),
+
+        @JsonDeserialize(using = JsonDeserialisers.FloatPairDeserializer::class)
+        var scissor: Pair<Float, Float> = Pair(1.0f, 1.0f),
+
+        @JsonDeserialize(using = JsonDeserialisers.VectorDeserializer::class)
+        var clearColor: Vector4f = Vector4f(0.0f, 0.0f, 0.0f, 0.0f),
+
         var depthClearValue: Float = 1.0f,
-        @JsonDeserialize(using = JsonDeserialisers.VREyeDeserializer::class) var eye: Int = -1
+
+
+        @JsonDeserialize(using = JsonDeserialisers.VREyeDeserializer::class)
+        var eye: Int = -1
     )
 
     /** Rendering quality enums */
     enum class RenderingQuality { Low, Medium, High, Ultra }
 
     /** Renderpass types */
-    enum class RenderpassType { geometry, quad, lights }
+    enum class RenderpassType { geometry, quad, lights, compute }
 
     /** Render ordering */
     enum class RenderOrder { DontCare, BackToFront, FrontToBack }

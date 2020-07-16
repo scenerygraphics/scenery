@@ -5,6 +5,7 @@ import com.fasterxml.jackson.core.JsonParser
 import com.fasterxml.jackson.core.JsonToken
 import com.fasterxml.jackson.databind.DeserializationContext
 import com.fasterxml.jackson.databind.JsonDeserializer
+import graphics.scenery.backends.RenderConfigReader
 import org.joml.Vector2f
 import org.joml.Vector4f
 
@@ -65,6 +66,20 @@ class JsonDeserialisers {
                 "LeftEye" -> 0
                 "RightEye" -> 1
                 else -> -1
+            }
+        }
+    }
+
+    /**
+     * Deserializer for input/output bindings
+     */
+    class BindingDeserializer : JsonDeserializer<RenderConfigReader.RendertargetBinding>() {
+        override fun deserialize(p: JsonParser, ctxt: DeserializationContext?): RenderConfigReader.RendertargetBinding {
+            val tokens = p.text.split(" as ").map { it.trim() }
+            return when(tokens.size) {
+                1 -> RenderConfigReader.RendertargetBinding(tokens[0], tokens[0])
+                2 -> RenderConfigReader.RendertargetBinding(tokens[0], tokens[1])
+                else -> throw IllegalStateException("Could not parse ${p.text} into rendertarget binding. Format required: 'renderTargetName as nameInShader'")
             }
         }
     }
