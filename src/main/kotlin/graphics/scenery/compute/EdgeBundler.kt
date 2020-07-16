@@ -480,15 +480,16 @@ class EdgeBundler(override var hub: Hub?): Hubable {
             ocl.loadKernel(EdgeBundler::class.java.getResource("EdgeBundler.cl"), "smooth")
             val chunkSizes = getChunkSizes()
 
-            logger.debug("Starting OpenCL edge bundling of " + oclPoints.size + " points (" + trackSetBundled.size + " tracks)")
+            logger.info("Starting OpenCL edge bundling of " + oclPoints.size + " points (" + trackSetBundled.size + " tracks)")
 
             var statusCounter = 0
             val totalCounter = 2 * paramBundlingIterations * chunkSizes.size
             for(i in 0 until paramBundlingIterations) {
-                for(c in chunkSizes.indices) {
-                    statusPrint(++statusCounter, totalCounter) // Current status; Will be called paramBundlingIterations * chunksizes.size times
-                    writeOffsetHelper(ocl, offset, c * paramBundlingChunkSize)
-                    ocl.runKernel("edgeBundling", chunkSizes[c],
+                chunkSizes.forEachIndexed { j, chunk ->
+                    // Current status; Will be called paramBundlingIterations * chunksizes.size times
+                    statusPrint(++statusCounter, totalCounter)
+                    writeOffsetHelper(ocl, offset, j * paramBundlingChunkSize)
+                    ocl.runKernel("edgeBundling", chunk,
                         trackStarts,
                         trackLengths,
                         clusterStarts,
@@ -505,13 +506,15 @@ class EdgeBundler(override var hub: Hub?): Hubable {
                         offset,
                         bundleEndPoints)
                 }
+                logger.debug("Copying results...")
                 copyResultHelper(ocl, pointsResult, points, oclPointsInAndOut)
 
-                for(c in chunkSizes.indices) {
+                logger.debug("Smoothing...")
+                chunkSizes.forEachIndexed { j, chunk ->
                     statusPrint(++statusCounter, totalCounter)
-                    writeOffsetHelper(ocl, offset, c * paramBundlingChunkSize)
+                    writeOffsetHelper(ocl, offset, j * paramBundlingChunkSize)
 
-                    ocl.runKernel("smooth", chunkSizes[c],
+                    ocl.runKernel("smooth", chunk,
                         trackStarts,
                         trackLengths,
                         points,
@@ -521,6 +524,7 @@ class EdgeBundler(override var hub: Hub?): Hubable {
                         intensity,
                         offset)
                 }
+                logger.debug("Copying results...")
                 copyResultHelper(ocl, pointsResult, points, oclPointsInAndOut)
             }
             if(logger.isDebugEnabled) {
