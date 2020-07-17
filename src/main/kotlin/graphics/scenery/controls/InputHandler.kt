@@ -285,9 +285,10 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?, for
         frame.isVisible = true
 
         //process "Apply" button of the editor
-        editorPanel.addConfigCommittedListener {
-            Behaviours(inputMap,behaviourMap,config,"all").updateKeyConfig(config)
-        }
+        editorPanel.configCommittedListeners().add(
+            VisualEditorPanel.ConfigChangeListener {
+                Behaviours(inputMap,behaviourMap,config,"all").updateKeyConfig(config)
+            } )
 
         //return reference on the Editor, so that users can hook own extra stuff
         return editorPanel
