@@ -6,13 +6,13 @@ import graphics.scenery.backends.Renderer
 import graphics.scenery.utils.ExtractsNatives
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.SystemHelpers
+import kotlinx.coroutines.*
 import org.junit.Test
 import org.reflections.Reflections
 import java.nio.file.Files
 import java.nio.file.Paths
-import java.util.concurrent.*
+import kotlin.system.exitProcess
 import kotlin.test.assertFalse
-import kotlin.time.Duration
 import kotlin.time.ExperimentalTime
 import kotlin.time.milliseconds
 import kotlin.time.minutes
@@ -22,6 +22,7 @@ import kotlin.time.minutes
  *
  * @author Ulrik Guenther <hello@ulrik.is>
  */
+@ExperimentalCoroutinesApi
 @ExperimentalTime
 class ExampleRunner {
     val logger by LazyLogger()
@@ -31,64 +32,16 @@ class ExampleRunner {
     private var maxRuntimePerTest = System.getProperty("scenery.ExampleRunner.maxRuntimePerTest", "5").toInt().minutes
     @Volatile private var runtime = 0.milliseconds
 
-    private inner class LoggingThreadPoolExecutor(
-        corePoolSize: Int,
-        maximumPoolSize: Int,
-        keepAliveTime: Long,
-        unit: TimeUnit,
-        workQueue: BlockingQueue<Runnable>,
-    ): ThreadPoolExecutor(
-        corePoolSize,
-        maximumPoolSize,
-        keepAliveTime,
-        unit,
-        workQueue
-    ) {
-        override fun afterExecute(r: Runnable, t: Throwable?) {
-            var throwable: Throwable? = t
-            super.afterExecute(r, t)
-
-            if (throwable != null && r is Future<*> && (r as Future<*>).isDone) {
-                try {
-                    val result = (r as Future<*>).get()
-                } catch (ce: CancellationException) {
-                    throwable = ce
-                } catch (ee: ExecutionException) {
-                    throwable = ee.cause
-                } catch (ie: InterruptedException) {
-                    Thread.currentThread().interrupt()
-                }
-            }
-
-            if(throwable != null) {
-                logger.error("Exception in thread: $throwable")
-                failure = true
-            }
-        }
-    }
-
-    private fun Future<*>.waitCheckRuntimeAndFailIfExceeded(sleepDuration: Long = 200L) {
-        if(runtime > maxRuntimePerTest) {
-            this.cancel(true)
-
-            logger.error("Maximum runtime of $maxRuntimePerTest exceeded, aborting test run.")
-            failure = true
-        }
-
-        runtime += sleepDuration.milliseconds
-        Thread.sleep(sleepDuration)
-    }
-
     /**
      * Runs all examples in the class path and bails out on the first exception encountered.
      * Examples are run using both renderers and stereo and non-stereo render paths. Examples
      * are run in random order.
      */
-    @Test fun runAllExamples() {
+    @Test fun runAllExamples() = runBlocking {
         val reflections = Reflections("graphics.scenery.tests")
 
         // blacklist contains examples that require user interaction or additional devices
-        val blacklist = mutableListOf(
+        val blocklist = mutableListOf(
             "LocalisationExample",
             "SwingTexturedCubeExample",
             "TexturedCubeJavaApplication",
@@ -104,13 +57,15 @@ class ExampleRunner {
             "VideoRecordingExample"
         )
 
-        blacklist.addAll(System.getProperty("scenery.ExampleRunner.Blacklist", "").split(","))
+        blocklist.addAll(System.getProperty("scenery.ExampleRunner.Blocklist", "").split(","))
+        val allowedTests = System.getProperty("scenery.ExampleRunner.AllowedTests")?.split(",")
 
         // find all basic and advanced examples, exclude blacklist
         val examples = reflections
             .getSubTypesOf(SceneryBase::class.java)
             .filter { !it.canonicalName.contains("stresstests") && !it.canonicalName.contains("cluster") }
-            .filter { !blacklist.contains(it.simpleName) }
+            .filter { !blocklist.contains(it.simpleName) }.toMutableList()
+            .filter { allowedTests?.contains(it.simpleName) ?: true }
 
         val rendererProperty = System.getProperty("scenery.Renderer")
         val renderers = rendererProperty?.split(",") ?: when(ExtractsNatives.getPlatform()) {
@@ -118,7 +73,7 @@ class ExampleRunner {
             ExtractsNatives.Platform.LINUX -> listOf("VulkanRenderer", "OpenGLRenderer")
             ExtractsNatives.Platform.MACOS -> listOf("OpenGLRenderer")
             ExtractsNatives.Platform.UNKNOWN -> {
-                logger.error("Don't know what to do on this platform, sorry."); return
+                logger.error("Don't know what to do on this platform, sorry."); return@runBlocking
             }
         }
 
@@ -135,13 +90,6 @@ class ExampleRunner {
 
             configurations.shuffled().forEach { config ->
                 System.setProperty("scenery.Renderer.Config", config)
-                val executor = LoggingThreadPoolExecutor(
-                    1,
-                    1,
-                    0L,
-                    TimeUnit.MILLISECONDS,
-                    LinkedBlockingQueue<Runnable>()
-                )
 
                 val rendererDirectory = "$directoryName/$renderer-${config.substringBefore(".")}"
                 Files.createDirectory(Paths.get(rendererDirectory))
@@ -157,25 +105,32 @@ class ExampleRunner {
                     }
 
                     val instance = example.getConstructor().newInstance()
-                    val future: Future<*>
+                    var exampleRunnable: Job? = null
 
                     try {
-                        val exampleRunnable = Runnable {
+                        val handler = CoroutineExceptionHandler { _, e ->
+                            logger.error("${example.simpleName}: Received exception $e")
+                            logger.error("Stack trace: ${e.stackTraceToString()}")
+
+                            failure = true
+                            // we fail very hard here to prevent process clogging the CI
+                            exitProcess(-1)
+                        }
+
+                        exampleRunnable = GlobalScope.launch(handler) {
                             instance.assertions[SceneryBase.AssertionCheckPoint.BeforeStart]?.forEach {
                                 it.invoke()
                             }
                             instance.main()
                         }
 
-                        future = executor.submit(exampleRunnable)
-
                         while (!instance.running || !instance.sceneInitialized() || instance.hub.get(SceneryElement.Renderer) == null) {
-                            Thread.sleep(200)
+                            delay(200)
                         }
                         val r = (instance.hub.get(SceneryElement.Renderer) as Renderer)
 
                         while(!r.firstImageReady) {
-                            future.waitCheckRuntimeAndFailIfExceeded()
+                            delay(200)
                         }
 
                         r.screenshot("$rendererDirectory/${example.simpleName}.png")
@@ -187,11 +142,22 @@ class ExampleRunner {
                             it.invoke()
                         }
 
-                        while (instance.running && !future.isCancelled && !failure) {
-                            future.waitCheckRuntimeAndFailIfExceeded()
+                        while (instance.running && !failure) {
+                            if (runtime > maxRuntimePerTest) {
+                                exampleRunnable.cancelAndJoin()
+                                logger.error("Maximum runtime of $maxRuntimePerTest exceeded, aborting test run.")
+                                failure = true
+                            }
+
+                            runtime += 200.milliseconds
+                            delay(200)
                         }
 
-                        future.get()
+                        if(failure) {
+                            exampleRunnable.cancelAndJoin()
+                        } else {
+                            exampleRunnable.join()
+                        }
                     } catch (e: ThreadDeath) {
                         logger.info("JOGL threw ThreadDeath")
                     }
