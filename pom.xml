@@ -110,6 +110,8 @@
         <dokka.version>0.10.1</dokka.version>
         <dokka.skip>true</dokka.skip>
 
+        <ui-behaviour.version>2.0.2</ui-behaviour.version>
+
         <bigvolumeviewer.version>0.1.8</bigvolumeviewer.version>
         <ffmpeg.version>4.2.1-1.5.2</ffmpeg.version>
         <jackson-dataformat-msgpack.version>0.8.20</jackson-dataformat-msgpack.version>
