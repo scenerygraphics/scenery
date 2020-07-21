@@ -15,14 +15,15 @@ import kotlin.reflect.KProperty
  * Targeted ArcBall control
  *
  * This Behaviour provides ArcBall control for scenery, with a customizable target. If you
- * activate this behaviour, it'll use the current camera distance to the target as initial distance.
+ * activate this behaviour or switch target, it'll be operating the camera from the current
+ * distance to the current target.
  *
  * The Targeted ArcBall also provides [minimumDistance] and [maximumDistance] to clamp the distance
  * to the target to this range.
  *
  * @author Ulrik Günther <hello@ulrik.is>
  * @property[name] The name of the behaviour
- * @property[node] The node this behaviour controls
+ * @property[camNode] The node this behaviour controls
  * @property[w] Window width
  * @property[h] Window height
  * @property[target] [Vector3f]-supplying with the look-at target of the arcball
@@ -34,7 +35,7 @@ open class ArcballCameraControl(private val name: String, private val n: () -> C
     private var firstEntered = true
 
     /** The [graphics.scenery.Node] this behaviour class controls */
-    protected var node: Camera? by CameraDelegate()
+    protected var camNode: Camera? by CameraDelegate()
 
     /** Camera delegate class, converting lambdas to Cameras. */
     protected inner class CameraDelegate {
@@ -54,7 +55,7 @@ open class ArcballCameraControl(private val name: String, private val n: () -> C
         set(value) {
             field = value
 
-            node?.let { node -> node.position = target.invoke() + node.forward * value * (-1.0f) }
+            camNode?.let { camNode -> camNode.position = target.invoke() + camNode.forward * value * (-1.0f) }
         }
 
     /** multiplier for zooming in and out */
@@ -100,8 +101,8 @@ open class ArcballCameraControl(private val name: String, private val n: () -> C
             firstEntered = false
         }
 
-        node?.targeted = true
-        node?.target = target.invoke()
+        camNode?.targeted = true
+        camNode?.target = target.invoke()
     }
 
     /**
@@ -122,8 +123,8 @@ open class ArcballCameraControl(private val name: String, private val n: () -> C
      * @param[y] y position in window
      */
     override fun drag(x: Int, y: Int) {
-        node?.let { node ->
-            if (!node.lock.tryLock()) {
+        camNode?.let { camNode ->
+            if (!camNode.lock.tryLock()) {
                 return
             }
 
@@ -143,12 +144,12 @@ open class ArcballCameraControl(private val name: String, private val n: () -> C
             val yawQ = Quaternionf().rotateXYZ(0.0f, frameYaw, 0.0f)
             val pitchQ = Quaternionf().rotateXYZ(framePitch, 0.0f, 0.0f)
 
-            distance = (target.invoke() - node.position).length()
-            node.target = target.invoke()
-            node.rotation = pitchQ.mul(node.rotation).mul(yawQ).normalize()
-            node.position = target.invoke() + node.forward * distance * (-1.0f)
+            distance = (target.invoke() - camNode.position).length()
+            camNode.target = target.invoke()
+            camNode.rotation = pitchQ.mul(camNode.rotation).mul(yawQ).normalize()
+            camNode.position = target.invoke() + camNode.forward * distance * (-1.0f)
 
-            node.lock.unlock()
+            camNode.lock.unlock()
         }
     }
 
@@ -163,17 +164,17 @@ open class ArcballCameraControl(private val name: String, private val n: () -> C
      * @param[y] unused
      */
     override fun scroll(wheelRotation: Double, isHorizontal: Boolean, x: Int, y: Int) {
-        if (isHorizontal || node == null) {
+        if (isHorizontal || camNode == null) {
             return
         }
 
-        distance = (target.invoke() - node!!.position).length()
+        distance = (target.invoke() - camNode!!.position).length()
         distance += wheelRotation.toFloat() * scrollSpeedMultiplier
 
         if (distance >= maximumDistance) distance = maximumDistance
         if (distance <= minimumDistance) distance = minimumDistance
 
-        node?.let { node -> node.position = target.invoke() + node.forward * distance * (-1.0f) }
+        camNode?.let { camNode -> camNode.position = target.invoke() + camNode.forward * distance * (-1.0f) }
     }
 
 }
