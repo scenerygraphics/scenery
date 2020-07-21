@@ -1,7 +1,9 @@
 package graphics.scenery.controls.behaviours
 
+import com.jogamp.opengl.math.FloatUtil.sqrt
 import org.joml.Vector3f
 import graphics.scenery.Camera
+import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
@@ -9,6 +11,7 @@ import org.joml.Quaternionf
 import org.scijava.ui.behaviour.DragBehaviour
 import org.scijava.ui.behaviour.ScrollBehaviour
 import java.util.function.Supplier
+import kotlin.math.abs
 import kotlin.reflect.KProperty
 
 /**
@@ -29,6 +32,7 @@ import kotlin.reflect.KProperty
  * @constructor Creates a new ArcballCameraControl behaviour
  */
 open class ArcballCameraControl(private val name: String, private val n: () -> Camera?, private val w: Int, private val h: Int, var target: () -> Vector3f) : DragBehaviour, ScrollBehaviour {
+    private val logger by LazyLogger()
     private var lastX = w / 2
     private var lastY = h / 2
     private var firstEntered = true
@@ -60,7 +64,7 @@ open class ArcballCameraControl(private val name: String, private val n: () -> C
     /** multiplier for zooming in and out */
     var scrollSpeedMultiplier = 0.005f
     /** multiplier for mouse movement */
-    var mouseSpeedMultiplier = 0.1f
+    var mouseSpeedMultiplier = 1.0f
     /** minimum distance value to target */
     var minimumDistance = 0.0001f
     /** maximum distance value to target */
@@ -127,28 +131,68 @@ open class ArcballCameraControl(private val name: String, private val n: () -> C
                 return
             }
 
-            var xoffset: Float = (x - lastX).toFloat()
-            var yoffset: Float = (lastY - y).toFloat()
+            val xoffset: Float = (x - lastX).toFloat()
+            val yoffset: Float = (lastY - y).toFloat()
+
+            val axis = if(abs(xoffset) > abs(yoffset)) {
+                Vector3f(0.0f, 1.0f, 0.0f)
+            } else {
+                Vector3f(1.0f, 0.0f, 0.0f)
+            }
+
+            val speed = 1.5f * mouseSpeedMultiplier
+            val p1 = xyToPoint((lastX.toFloat()-w/2.0f)/(w*speed), -(lastY.toFloat()-h/2.0f)/(h*speed), axis)
+            val p2 = xyToPoint((x.toFloat()-w/2.0f)/(w*speed), -(y.toFloat()-h/2.0f)/(h*speed), axis)
 
             lastX = x
             lastY = y
 
-            xoffset *= mouseSpeedMultiplier
-            yoffset *= -mouseSpeedMultiplier
-
-            val frameYaw = (xoffset) / 180.0f * Math.PI.toFloat()
-            val framePitch = yoffset / 180.0f * Math.PI.toFloat()
-
-            // first calculate the total rotation quaternion to be applied to the camera
-            val yawQ = Quaternionf().rotateXYZ(0.0f, frameYaw, 0.0f)
-            val pitchQ = Quaternionf().rotateXYZ(framePitch, 0.0f, 0.0f)
+            val dot = p1.dot(p2)
+            val tmp = p1.cross(p2)
+            val q = Quaternionf(tmp.x, tmp.y, tmp.z, dot)
 
             distance = (target.invoke() - node.position).length()
             node.target = target.invoke()
-            node.rotation = pitchQ.mul(node.rotation).mul(yawQ).normalize()
+            node.rotation = q.mul(node.rotation)
             node.position = target.invoke() + node.forward * distance * (-1.0f)
 
             node.lock.unlock()
+        }
+    }
+
+    private fun xyToPoint(x: Float, y: Float, axis: Vector3f): Vector3f {
+        val p = Vector3f(x.toFloat(), y.toFloat(), 0.0f)
+        val r = p.x*p.x + p.y*p.y
+
+        if(r > 1.0f) {
+            val s = 1.0f/sqrt(r)
+            p.mul(s)
+        } else {
+            p.set(p.x, p.y, sqrt(1.0f - r))
+        }
+
+        val dot = p.dot(axis)
+        val proj = p - Vector3f(axis).mul(dot)
+        val norm = proj.length()
+
+        return when {
+            norm > 0.0f -> {
+                logger.info("Positive norm!")
+                var s = 1.0f/norm
+                if(proj.z < 0.0f) {
+                    s *= -1.0f
+                }
+
+                Vector3f(proj).mul(s)
+            }
+            axis.z == 1.0f -> {
+                logger.info("Z axis!")
+                Vector3f(1.0f, 0.0f, 0.0f)
+            }
+            else -> {
+                logger.info("Other case!")
+                Vector3f(-axis.x, axis.y, 0.0f).normalize()
+            }
         }
     }
 
