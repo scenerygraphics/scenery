@@ -59,15 +59,6 @@ class ArcballExample : SceneryBase("ArcballExample") {
         }
 
         lights.forEach(scene::addChild)
-
-        thread {
-            while (true) {
-                box.rotation.rotateY(0.01f)
-                box.needsUpdate = true
-
-                Thread.sleep(20)
-            }
-        }
     }
 
     override fun inputSetup() {
