@@ -7,7 +7,9 @@ import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
+import org.joml.Matrix4f
 import org.joml.Quaternionf
+import org.joml.Vector2f
 import org.scijava.ui.behaviour.DragBehaviour
 import org.scijava.ui.behaviour.ScrollBehaviour
 import java.util.function.Supplier
@@ -64,7 +66,7 @@ open class ArcballCameraControl(private val name: String, private val n: () -> C
     /** multiplier for zooming in and out */
     var scrollSpeedMultiplier = 0.005f
     /** multiplier for mouse movement */
-    var mouseSpeedMultiplier = 1.0f
+    var mouseSpeedMultiplier = 0.1f
     /** minimum distance value to target */
     var minimumDistance = 0.0001f
     /** maximum distance value to target */
@@ -131,30 +133,51 @@ open class ArcballCameraControl(private val name: String, private val n: () -> C
                 return
             }
 
-            val xoffset: Float = (x - lastX).toFloat()
-            val yoffset: Float = (lastY - y).toFloat()
+            var xoffset: Float = (x - lastX).toFloat()
+            var yoffset: Float = (lastY - y).toFloat()
 
-            val axis = if(abs(xoffset) > abs(yoffset)) {
-                Vector3f(0.0f, 1.0f, 0.0f)
+            if (false) {
+                val axis = if (abs(xoffset) > abs(yoffset)) {
+                    Vector3f(0.0f, 1.0f, 0.0f)
+                } else {
+                    Vector3f(1.0f, 0.0f, 0.0f)
+                }
+
+                val speed = 1.5f * mouseSpeedMultiplier
+                val p1 = xyToPoint(-(lastX.toFloat() - w / 2.0f) / (w * speed), (lastY.toFloat() - h / 2.0f) / (h * speed), axis)
+                val p2 = xyToPoint(-(x.toFloat() - w / 2.0f) / (w * speed), (y.toFloat() - h / 2.0f) / (h * speed), axis)
+
+                lastX = x
+                lastY = y
+
+                val dot = p1.dot(p2)
+                val tmp = p1.cross(p2)
+                val q = Quaternionf(tmp.x, tmp.y, tmp.z, dot)
+
+                distance = (target.invoke() - node.position).length()
+                node.target = target.invoke()
+                node.rotation = q.conjugate().mul(node.rotation).normalize()
+                node.position = target.invoke() + node.forward * distance * (-1.0f)
             } else {
-                Vector3f(1.0f, 0.0f, 0.0f)
+                xoffset *= mouseSpeedMultiplier
+                yoffset *= -mouseSpeedMultiplier
+
+                lastX = x
+                lastY = y
+
+                val frameYaw = (xoffset) / 180.0f * Math.PI.toFloat()
+                val framePitch = yoffset / 180.0f * Math.PI.toFloat()
+
+                // first calculate the total rotation quaternion to be applied to the camera
+                val yawQ = Quaternionf().rotateXYZ(0.0f, frameYaw, 0.0f).normalize()
+                val pitchQ = Quaternionf().rotateXYZ(framePitch, 0.0f, 0.0f).normalize()
+
+                distance = (target.invoke() - node.position).length()
+                node.target = target.invoke()
+                node.rotation = pitchQ.mul(node.rotation).mul(yawQ).normalize()
+                node.position = target.invoke() + node.forward * distance * (-1.0f)
             }
 
-            val speed = 1.5f * mouseSpeedMultiplier
-            val p1 = xyToPoint((lastX.toFloat()-w/2.0f)/(w*speed), -(lastY.toFloat()-h/2.0f)/(h*speed), axis)
-            val p2 = xyToPoint((x.toFloat()-w/2.0f)/(w*speed), -(y.toFloat()-h/2.0f)/(h*speed), axis)
-
-            lastX = x
-            lastY = y
-
-            val dot = p1.dot(p2)
-            val tmp = p1.cross(p2)
-            val q = Quaternionf(tmp.x, tmp.y, tmp.z, dot)
-
-            distance = (target.invoke() - node.position).length()
-            node.target = target.invoke()
-            node.rotation = q.mul(node.rotation)
-            node.position = target.invoke() + node.forward * distance * (-1.0f)
 
             node.lock.unlock()
         }
