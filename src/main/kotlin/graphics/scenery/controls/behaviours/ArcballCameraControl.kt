@@ -133,89 +133,25 @@ open class ArcballCameraControl(private val name: String, private val n: () -> C
                 return
             }
 
-            var xoffset: Float = (x - lastX).toFloat()
-            var yoffset: Float = (lastY - y).toFloat()
+            val xoffset: Float = (x - lastX).toFloat() * mouseSpeedMultiplier
+            val yoffset: Float = (lastY - y).toFloat() * mouseSpeedMultiplier
 
-            if (false) {
-                val axis = if (abs(xoffset) > abs(yoffset)) {
-                    Vector3f(0.0f, 1.0f, 0.0f)
-                } else {
-                    Vector3f(1.0f, 0.0f, 0.0f)
-                }
+            lastX = x
+            lastY = y
 
-                val speed = 1.5f * mouseSpeedMultiplier
-                val p1 = xyToPoint(-(lastX.toFloat() - w / 2.0f) / (w * speed), (lastY.toFloat() - h / 2.0f) / (h * speed), axis)
-                val p2 = xyToPoint(-(x.toFloat() - w / 2.0f) / (w * speed), (y.toFloat() - h / 2.0f) / (h * speed), axis)
+            val frameYaw = (xoffset) / 180.0f * Math.PI.toFloat()
+            val framePitch = yoffset / 180.0f * Math.PI.toFloat()
 
-                lastX = x
-                lastY = y
+            // first calculate the total rotation quaternion to be applied to the camera
+            val yawQ = Quaternionf().rotateXYZ(0.0f, frameYaw, 0.0f).normalize()
+            val pitchQ = Quaternionf().rotateXYZ(framePitch, 0.0f, 0.0f).normalize()
 
-                val dot = p1.dot(p2)
-                val tmp = p1.cross(p2)
-                val q = Quaternionf(tmp.x, tmp.y, tmp.z, dot)
-
-                distance = (target.invoke() - node.position).length()
-                node.target = target.invoke()
-                node.rotation = q.conjugate().mul(node.rotation).normalize()
-                node.position = target.invoke() + node.forward * distance * (-1.0f)
-            } else {
-                xoffset *= mouseSpeedMultiplier
-                yoffset *= -mouseSpeedMultiplier
-
-                lastX = x
-                lastY = y
-
-                val frameYaw = (xoffset) / 180.0f * Math.PI.toFloat()
-                val framePitch = yoffset / 180.0f * Math.PI.toFloat()
-
-                // first calculate the total rotation quaternion to be applied to the camera
-                val yawQ = Quaternionf().rotateXYZ(0.0f, frameYaw, 0.0f).normalize()
-                val pitchQ = Quaternionf().rotateXYZ(framePitch, 0.0f, 0.0f).normalize()
-
-                distance = (target.invoke() - node.position).length()
-                node.target = target.invoke()
-                node.rotation = pitchQ.mul(node.rotation).mul(yawQ).normalize()
-                node.position = target.invoke() + node.forward * distance * (-1.0f)
-            }
-
+            distance = (target.invoke() - node.position).length()
+            node.target = target.invoke()
+            node.rotation = pitchQ.mul(node.rotation).mul(yawQ).normalize()
+            node.position = target.invoke() + node.forward * distance * (-1.0f)
 
             node.lock.unlock()
-        }
-    }
-
-    private fun xyToPoint(x: Float, y: Float, axis: Vector3f): Vector3f {
-        val p = Vector3f(x.toFloat(), y.toFloat(), 0.0f)
-        val r = p.x*p.x + p.y*p.y
-
-        if(r > 1.0f) {
-            val s = 1.0f/sqrt(r)
-            p.mul(s)
-        } else {
-            p.set(p.x, p.y, sqrt(1.0f - r))
-        }
-
-        val dot = p.dot(axis)
-        val proj = p - Vector3f(axis).mul(dot)
-        val norm = proj.length()
-
-        return when {
-            norm > 0.0f -> {
-                logger.info("Positive norm!")
-                var s = 1.0f/norm
-                if(proj.z < 0.0f) {
-                    s *= -1.0f
-                }
-
-                Vector3f(proj).mul(s)
-            }
-            axis.z == 1.0f -> {
-                logger.info("Z axis!")
-                Vector3f(1.0f, 0.0f, 0.0f)
-            }
-            else -> {
-                logger.info("Other case!")
-                Vector3f(-axis.x, axis.y, 0.0f).normalize()
-            }
         }
     }
 
