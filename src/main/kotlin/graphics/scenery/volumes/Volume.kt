@@ -54,7 +54,7 @@ import kotlin.math.*
 import kotlin.properties.Delegates
 import kotlin.streams.toList
 
-open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOptions, val hub: Hub) : DelegatesRendering(), HasGeometry {
+open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOptions, val hub: Hub) : DelegatesRendering(), HasGeometry, DisableFrustumCulling {
     /** How many elements does a vertex store? */
     override val vertexSize : Int = 3
     /** How many elements does a texture coordinate store? */
