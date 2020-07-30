@@ -5,7 +5,7 @@
     <parent>
         <groupId>org.scijava</groupId>
         <artifactId>pom-scijava</artifactId>
-        <version>29.0.0-beta-3</version>
+        <version>29.0.0</version>
     </parent>
 
     <groupId>graphics.scenery</groupId>
@@ -104,7 +104,7 @@
         <package-name>graphics.scenery</package-name>
 
         <javac.target>1.8</javac.target>
-        <kotlin.version>1.4-M3</kotlin.version>
+        <kotlin.version>1.4.0-rc</kotlin.version>
         <kotlin.compiler.jvmTarget>1.8</kotlin.compiler.jvmTarget>
         <kotlin.compiler.incremental>true</kotlin.compiler.incremental>
         <dokka.version>0.10.1</dokka.version>
@@ -113,13 +113,14 @@
         <ui-behaviour.version>2.0.2</ui-behaviour.version>
 
         <bigvolumeviewer.version>0.1.8</bigvolumeviewer.version>
+        <bigdataviewer-core.version>8.0.0</bigdataviewer-core.version>
         <ffmpeg.version>4.2.1-1.5.2</ffmpeg.version>
         <jackson-dataformat-msgpack.version>0.8.20</jackson-dataformat-msgpack.version>
         <jeromq.version>0.4.3</jeromq.version>
         <jinput.version>2.0.9</jinput.version>
         <jocl.version>2.0.2</jocl.version>
         <jvrpn.version>1.1.0</jvrpn.version>
-        <kotlinx-coroutines-core.version>1.3.7-1.4-M3</kotlinx-coroutines-core.version>
+        <kotlinx-coroutines-core.version>1.3.8-1.4.0-rc</kotlinx-coroutines-core.version>
         <kryo.version>4.0.2</kryo.version>
         <lwjgl.version>3.2.3</lwjgl.version>
         <lwjgl3-awt.version>0.1.7</lwjgl3-awt.version>
