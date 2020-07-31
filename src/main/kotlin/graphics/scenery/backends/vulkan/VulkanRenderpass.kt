@@ -53,6 +53,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
     var descriptorSetLayouts = LinkedHashMap<String, Long>()
         protected set
     protected var oldDescriptorSetLayouts = ArrayList<Pair<String, Long>>()
+    protected var ownDescriptorSetLayouts = HashSet<Long>()
 
     /** Semaphores this renderpass is going to wait on when executed */
     var waitSemaphores = memAllocLong(1)
@@ -224,7 +225,6 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
 
             logger.debug("$name: Search keys for input attachments: ${searchKeys.joinToString(",")}, descriptorNum=$descriptorNum")
 
-            logger.info("${passConfig.output.name}, ${inputFramebuffer.key}")
             val nameInShader = passConfig.inputs?.firstOrNull { it.name == inputFramebuffer.key }?.shaderInput ?: if(passConfig.output.name == inputFramebuffer.key.substringBeforeLast("-")) { passConfig.output.shaderInput } else { null }
             logger.debug("$name: Name declared in shader is: $nameInShader, descriptorNum=$descriptorNum")
 
@@ -333,6 +333,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
 
             logger.debug("Created DSL $dsl for $name, VulkanUBO has ${params.count()} members")
             descriptorSetLayouts.putIfAbsent("ShaderParameters-$name", dsl)
+            ownDescriptorSetLayouts.add(dsl)
         }
     }
 
@@ -352,6 +353,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
 
             logger.debug("Created Shader Property DSL ${dsl.toHexString()} for $name")
             descriptorSetLayouts.putIfAbsent("ShaderProperties-$name", dsl)
+            ownDescriptorSetLayouts.add(dsl)
             dsl
         } else {
             descriptorSetLayouts.getOrElse("ShaderProperties-$name") {
@@ -656,25 +658,27 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
         output.forEach { it.value.close() }
         pipelines.forEach { it.value.close() }
         UBOs.forEach { it.value.close() }
-        descriptorSetLayouts.forEach {
-            logger.trace("Destroying DSL ${it.value.toHexString()}")
-            vkDestroyDescriptorSetLayout(device.vulkanDevice, it.value, null)
+        ownDescriptorSetLayouts.forEach {
+            logger.debug("Destroying DSL ${it.toHexString()}")
+            vkDestroyDescriptorSetLayout(device.vulkanDevice, it, null)
         }
         descriptorSetLayouts.clear()
         oldDescriptorSetLayouts.forEach {
-            logger.trace("Destroying GC'd DSL ${it.first} ${it.second.toHexString()}")
+            logger.debug("Destroying GC'd DSL ${it.first} ${it.second.toHexString()}")
             vkDestroyDescriptorSetLayout(device.vulkanDevice, it.second, null)
         }
         oldDescriptorSetLayouts.clear()
 
         vulkanMetadata.close()
 
+        logger.debug("Closing command buffer backings")
         for(i in 1..commandBufferBacking.size) {
             commandBufferBacking.get().close()
         }
 
         commandBufferBacking.reset()
 
+        logger.debug("Destroying semaphores")
         if(semaphore != -1L) {
             vkDestroySemaphore(device.vulkanDevice, semaphore, null)
             memFree(waitSemaphores)

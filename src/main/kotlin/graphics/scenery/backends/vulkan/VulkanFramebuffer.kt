@@ -100,8 +100,14 @@ open class VulkanFramebuffer(protected val device: VulkanDevice,
          * Closes the attachment, freeing its resources.
          */
         override fun close() {
-            vkDestroyDescriptorSetLayout(device.vulkanDevice, descriptorSet, null)
-            loadStoreDescriptorSetLayout?.let { vkDestroyDescriptorSetLayout(device.vulkanDevice, it, null) }
+            if(descriptorSetLayout != -1L) {
+                vkDestroyDescriptorSetLayout(device.vulkanDevice, descriptorSetLayout, null)
+            }
+            loadStoreDescriptorSetLayout?.let {
+                if (loadStoreDescriptorSetLayout != -1L) {
+                    vkDestroyDescriptorSetLayout(device.vulkanDevice, it, null)
+                }
+            }
 
             vkDestroyImageView(device.vulkanDevice, imageView.get(0), null)
             memFree(imageView)
