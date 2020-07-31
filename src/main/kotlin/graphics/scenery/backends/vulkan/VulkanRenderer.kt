@@ -684,6 +684,7 @@ open class VulkanRenderer(hub: Hub,
      */
     override fun initializeScene() {
         logger.info("Scene initialization started.")
+        val start = System.nanoTime()
 
         this.scene.discover(this.scene, { it !is Light })
 //            .parallelMap(numThreads = System.getProperty("scenery.MaxInitThreads", "1").toInt()) { node ->
@@ -695,7 +696,7 @@ open class VulkanRenderer(hub: Hub,
             }
 
         scene.initialized = true
-        logger.info("Scene initialization complete.")
+        logger.info("Scene initialization complete, took ${(System.nanoTime() - start)/10e6} ms.")
     }
 
     fun Boolean.toInt(): Int {
