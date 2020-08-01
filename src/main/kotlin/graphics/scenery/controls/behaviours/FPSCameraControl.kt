@@ -19,7 +19,6 @@ import kotlin.reflect.KProperty
 open class FPSCameraControl(private val name: String, private val n: () -> Camera?, private val w: Int, private val h: Int) : DragBehaviour {
     private var lastX = w / 2
     private var lastY = h / 2
-    private var firstEntered = true
 
     /** The [graphics.scenery.Node] this behaviour class controls */
     protected var node: Camera? by CameraDelegate()
@@ -58,11 +57,8 @@ open class FPSCameraControl(private val name: String, private val n: () -> Camer
      */
     override fun init(x: Int, y: Int) {
         node?.targeted = false
-        if (firstEntered) {
-            lastX = x
-            lastY = y
-            firstEntered = false
-        }
+        lastX = x
+        lastY = y
     }
 
     /**
@@ -72,7 +68,6 @@ open class FPSCameraControl(private val name: String, private val n: () -> Camer
      * @param[y] y position in window
      */
     override fun end(x: Int, y: Int) {
-        firstEntered = true
     }
 
     /**
