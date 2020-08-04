@@ -113,7 +113,7 @@
         <ui-behaviour.version>2.0.2</ui-behaviour.version>
 
         <bigvolumeviewer.version>0.1.8</bigvolumeviewer.version>
-        <bigdataviewer.version>8.0.0</bigdataviewer.version>
+        <bigdataviewer-core.version>8.0.0</bigdataviewer-core.version>
         <ffmpeg.version>4.2.1-1.5.2</ffmpeg.version>
         <jackson-dataformat-msgpack.version>0.8.20</jackson-dataformat-msgpack.version>
         <jeromq.version>0.4.3</jeromq.version>
