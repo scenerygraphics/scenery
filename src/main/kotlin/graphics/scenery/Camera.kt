@@ -213,6 +213,9 @@ open class Camera : Node("Camera") {
     fun viewToWorld(v: Vector4f): Vector4f =
         Matrix4f(this.view).invert().transform(v)
 
+    fun viewportToView(vector: Vector2f): Vector3f {
+        return Matrix4f(projection).invert().transform(Vector4f(vector.x, vector.y, 0.0f, 1.0f)).xyz()
+    }
 
     /**
      * Transforms a 2D/3D [vector] from NDC coordinates to world coordinates.
@@ -282,7 +285,7 @@ open class Camera : Node("Camera") {
      */
     fun canSee(node: Node): Boolean {
         // TODO: Figure out how to efficiently cull instances
-        if(disableCulling || node.instances.size > 0 || node is Volume || node is TextBoard) {
+        if(disableCulling || node.instances.size > 0 || node is DisableFrustumCulling) {
             return true
         }
 

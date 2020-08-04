@@ -18,7 +18,7 @@ import org.joml.Vector4f
  *
  * @constructor Returns a TextBoard instance, with [fontFamily] and a declared [ShaderMaterial]
  */
-class TextBoard(font: String = "SourceSansPro-Regular.ttf", override var isBillboard: Boolean = false) : Mesh() {
+class TextBoard(font: String = "SourceSansPro-Regular.ttf", override var isBillboard: Boolean = false) : Mesh(), DisableFrustumCulling {
 
     /** The text displayed on this font board */
     var text: String = ""
