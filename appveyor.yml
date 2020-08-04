@@ -22,8 +22,8 @@ test_script:
 on_success: 
   - cmd: | 
       mvn -B jacoco:report
-      curl -s https://codecov.io/bash > codecov.sh
-      bash "./codecov.sh" -c -F unittests -f target/site/jacoco/jacoco.xml
+      curl -s https://codecov.io/bash > codecov.sh & exit 0
+      bash "./codecov.sh" -c -F unittests -f target/site/jacoco/jacoco.xml & exit 0
 cache:
   - C:\maven
   - C:\Users\appveyor\.m2 -> pom.xml
