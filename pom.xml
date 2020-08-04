@@ -107,7 +107,7 @@
         <kotlin.version>1.4.0-rc</kotlin.version>
         <kotlin.compiler.jvmTarget>1.8</kotlin.compiler.jvmTarget>
         <kotlin.compiler.incremental>true</kotlin.compiler.incremental>
-        <dokka.version>0.10.1</dokka.version>
+        <dokka.version>1.4.0-rc</dokka.version>
         <dokka.skip>true</dokka.skip>
 
         <ui-behaviour.version>2.0.2</ui-behaviour.version>
