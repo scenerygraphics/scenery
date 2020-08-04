@@ -1,19 +1,15 @@
 package graphics.scenery.controls.behaviours
 
 import com.jogamp.opengl.math.FloatUtil.sqrt
-import org.joml.Vector3f
 import graphics.scenery.Camera
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
-import org.joml.Matrix4f
-import org.joml.Quaternionf
-import org.joml.Vector2f
+import org.joml.*
 import org.scijava.ui.behaviour.DragBehaviour
 import org.scijava.ui.behaviour.ScrollBehaviour
 import java.util.function.Supplier
-import kotlin.math.abs
 import kotlin.reflect.KProperty
 
 /**
@@ -33,7 +29,7 @@ import kotlin.reflect.KProperty
  * @property[target] [Vector3f]-supplying with the look-at target of the arcball
  * @constructor Creates a new ArcballCameraControl behaviour
  */
-open class ArcballCameraControl(private val name: String, private val n: () -> Camera?, private val w: Int, private val h: Int, var target: () -> Vector3f) : DragBehaviour, ScrollBehaviour {
+open class RollingBallCameraControl(private val name: String, private val n: () -> Camera?, private val w: Int, private val h: Int, var target: () -> Vector3f) : DragBehaviour, ScrollBehaviour {
     private val logger by LazyLogger()
     private var lastX = w / 2
     private var lastY = h / 2
@@ -66,7 +62,7 @@ open class ArcballCameraControl(private val name: String, private val n: () -> C
     /** multiplier for zooming in and out */
     var scrollSpeedMultiplier = 0.005f
     /** multiplier for mouse movement */
-    var mouseSpeedMultiplier = 0.1f
+    var mouseSpeedMultiplier = 1.0f
     /** minimum distance value to target */
     var minimumDistance = 0.0001f
     /** maximum distance value to target */
@@ -133,22 +129,60 @@ open class ArcballCameraControl(private val name: String, private val n: () -> C
                 return
             }
 
-            val xoffset: Float = (x - lastX).toFloat() * mouseSpeedMultiplier
-            val yoffset: Float = (lastY - y).toFloat() * mouseSpeedMultiplier
+            val R = 1.0f
+            val dx: Float = (x - lastX).toFloat()/w
+            val dy: Float = (lastY - y).toFloat()/h
 
             lastX = x
             lastY = y
 
-            val frameYaw = (xoffset) / 180.0f * Math.PI.toFloat()
-            val framePitch = yoffset / 180.0f * Math.PI.toFloat()
+            val dr = sqrt(dx*dx + dy*dy)
+            val cosTheta = R/sqrt(R*R + dr*dr)
+            val sinTheta = dr/sqrt(R*R + dr*dr)
 
-            // first calculate the total rotation quaternion to be applied to the camera
-            val yawQ = Quaternionf().rotateXYZ(0.0f, frameYaw, 0.0f).normalize()
-            val pitchQ = Quaternionf().rotateXYZ(framePitch, 0.0f, 0.0f).normalize()
+            val m = Matrix3f(
+                cosTheta + (dx/dr)*(dx/dr)*(1.0f - cosTheta), -(dx/dr)*(dy/dr)*(1.0f-cosTheta), (dx/dr)*sinTheta,
+                -(dx/dr)*(dy/dr)*(1-cosTheta), cosTheta + (dx/dr)*(dx/dr)*(1-cosTheta), (dy/dr) * sinTheta,
+                -(dx/dr)*sinTheta, -(dy/dr)*sinTheta, cosTheta
+            )
+
+            val tr = m.m00 + m.m11 + m.m22
+
+            val q = with(m) {
+                if (tr > 0) {
+                    val s = sqrt(tr + 1.0f) * 2; // S=4*qw
+                    Quaternionf(
+                        (m21 - m12) / s,
+                        (m02 - m20) / s,
+                        (m10 - m01) / s,
+                        0.25f * s)
+                } else if ((m.m00 > m.m11) && (m00 > m22)) {
+                    val s = sqrt (1.0f + m00 - m11 - m22) * 2; // S=4*qx
+                    Quaternionf(
+                        0.25f * s,
+                        (m01 + m10) / s,
+                        (m02 + m20) / s,
+                        (m21 - m12) / s)
+                } else if (m11 > m22) {
+                    val s = sqrt (1.0f + m11 - m00 - m22) * 2; // S=4*qy
+                    Quaternionf(
+                        (m01 + m10) / s,
+                        0.25f * s,
+                        (m12 + m21) / s,
+                        (m02 - m20) / s)
+                } else {
+                    val s = sqrt (1.0f + m22 - m00 - m11) * 2; // S=4*qz
+                    Quaternionf(
+                        (m02 + m20) / s,
+                        (m12 + m21) / s,
+                        0.25f * s,
+                        (m10 - m01) / s)
+                }
+            }
 
             distance = (target.invoke() - node.position).length()
             node.target = target.invoke()
-            node.rotation = pitchQ.mul(node.rotation).mul(yawQ).normalize()
+            node.rotation = q.mul(node.rotation)
             node.position = target.invoke() + node.forward * distance * (-1.0f)
 
             node.lock.unlock()
