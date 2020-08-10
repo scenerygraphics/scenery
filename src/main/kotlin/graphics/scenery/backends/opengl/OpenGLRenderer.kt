@@ -744,7 +744,7 @@ open class OpenGLRenderer(hub: Hub,
                 val targetName = if(inputTarget.name.contains(".")) {
                     inputTarget.name.substringBefore(".")
                 } else {
-                    inputTarget
+                    inputTarget.name
                 }
 
                 passes.filter {
