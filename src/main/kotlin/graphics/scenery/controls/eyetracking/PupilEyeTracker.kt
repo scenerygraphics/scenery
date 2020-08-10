@@ -181,8 +181,6 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
                 val poller = ZPoller(zmqContext)
                 poller.register(socket, ZMQ.Poller.POLLIN)
 
-                var gazeMode = 0
-
                 try {
                     socket.connect("tcp://$host:$subscriptionPort")
                     socket.subscribe(topic)

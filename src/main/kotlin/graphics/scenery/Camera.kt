@@ -213,6 +213,9 @@ open class Camera : Node("Camera") {
     fun viewToWorld(v: Vector4f): Vector4f =
         Matrix4f(this.view).invert().transform(v)
 
+    /**
+     * Transforms a 2D [vector] in screen space to view space and returns this 3D vector.
+     */
     fun viewportToView(vector: Vector2f): Vector3f {
         return Matrix4f(projection).invert().transform(Vector4f(vector.x, vector.y, 0.0f, 1.0f)).xyz()
     }
@@ -222,7 +225,7 @@ open class Camera : Node("Camera") {
      * If the vector is 2D, [nearPlaneDistance] is assumed for the Z value, otherwise
      * the Z value from the vector is taken.
      */
-    @JvmOverloads fun viewportToWorld(vector: Vector2f, offset: Float = 0.01f, normalized: Boolean = false): Vector3f {
+    fun viewportToWorld(vector: Vector2f): Vector3f {
         val pv = Matrix4f(projection)
         pv.mul(getTransformation())
         val ipv = Matrix4f(pv).invert()
@@ -362,7 +365,8 @@ open class Camera : Node("Camera") {
         tb.scale = Vector3f(size, size, size)
         tb.position = Vector3f(0.0f, 0.0f, -1.0f * distance)
 
-        val messages = metadata.getOrPut("messages", { mutableListOf<Node>() }) as? MutableList<Node>
+        @Suppress("UNCHECKED_CAST")
+        val messages = metadata.getOrPut("messages", { mutableListOf<Node>() }) as? MutableList<Node>?
         messages?.forEach { this.removeChild(it) }
         messages?.clear()
 

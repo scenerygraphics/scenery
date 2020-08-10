@@ -142,7 +142,7 @@ class EyeTrackingExample: SceneryBase("Eye Tracking Example", windowWidth = 1280
                                     Vector2f(
                                         gaze.normalizedPosition().x() * 2.0f - 1.0f,
                                         gaze.normalizedPosition().y() * 2.0f - 1.0f),
-                                    offset = 0.5f) + cam.forward * 0.15f
+                                    ) + cam.forward * 0.15f
                             }
                         }
 

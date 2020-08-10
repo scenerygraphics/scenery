@@ -365,16 +365,18 @@ class VolumeManager(
             ProcessFillTasks.parallel(textureCache, pboChain, context, forkJoinPool, fillTasks)
         }
 
-        var repaint = false
+        // TODO: is repaint necessary?
+        // var repaint = false
         val durationLutUpdate = measureTimeMillis {
             renderStacksStates.forEachIndexed { i, state ->
                 if (state.stack is MultiResolutionStack3D) {
                     val volumeBlocks = outOfCoreVolumes[i]
                     val timestamp = textureCache.nextTimestamp()
-                    val complete = volumeBlocks.makeLut(timestamp)
-                    if (!complete) {
-                        repaint = true
-                    }
+                    volumeBlocks.makeLut(timestamp)
+                    //val complete = volumeBlocks.makeLut(timestamp)
+                    // if (!complete) {
+                    //    repaint = true
+                    // }
                     context.bindTexture(volumeBlocks.lookupTexture)
                     volumeBlocks.lookupTexture.upload(context)
                 }
