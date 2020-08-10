@@ -99,6 +99,7 @@ class FlybrainOutOfCoreExample: SceneryBase("Flybrain RAI Rendering example", 12
         brain.converterSetups.first().setDisplayRange(0.0, 255.0)
         brain.position = Vector3f(-3.0f, 3.0f, 0.0f)
 
+        @Suppress("UNCHECKED_CAST")
         val gaussDiff = Volume.fromRAI(
             VolatileViews.wrapAsVolatile(diff) as RandomAccessibleInterval<VolatileUnsignedShortType>,
             VolatileUnsignedShortType(),
@@ -109,6 +110,7 @@ class FlybrainOutOfCoreExample: SceneryBase("Flybrain RAI Rendering example", 12
         gaussDiff.converterSetups.first().setDisplayRange(0.0, 255.0)
         gaussDiff.position = Vector3f(3.0f, 3.0f, 0.0f)
 
+        @Suppress("UNCHECKED_CAST")
         val brainGauss1 = Volume.fromRAI(
             VolatileViews.wrapAsVolatile(gauss1) as RandomAccessibleInterval<VolatileUnsignedShortType>,
             VolatileUnsignedShortType(),
@@ -119,6 +121,7 @@ class FlybrainOutOfCoreExample: SceneryBase("Flybrain RAI Rendering example", 12
         brainGauss1.converterSetups.first().setDisplayRange(0.0, 60.0)
         brainGauss1.position = Vector3f(-3.0f, -3.0f, 0.0f)
 
+        @Suppress("UNCHECKED_CAST")
         val brainGauss2 = Volume.fromRAI(
             VolatileViews.wrapAsVolatile(gauss2) as RandomAccessibleInterval<VolatileUnsignedShortType>,
             VolatileUnsignedShortType(),

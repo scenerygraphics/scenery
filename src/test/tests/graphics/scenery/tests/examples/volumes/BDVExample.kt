@@ -66,7 +66,7 @@ class BDVExample: SceneryBase("BDV Rendering example", 1280, 720) {
         v.colormap = Colormap.get("hot")
         v.transferFunction = TransferFunction.ramp(0.02f, 0.4f)
         v.viewerState.sources.firstOrNull()?.spimSource?.getSource(0, 0)?.let { rai ->
-            var h: Any? = null
+            var h: Any?
             val duration = measureTimeMillis {
                 h = ops.run("image.histogram", rai, 1024)
             }

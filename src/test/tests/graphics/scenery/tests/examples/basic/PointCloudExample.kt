@@ -26,7 +26,7 @@ class PointCloudExample : SceneryBase("PointCloudExample") {
 
         val lights = Light.createLightTetrahedron<PointLight>(spread = 5.0f, radius = 15.0f)
 
-        lights.mapIndexed { i, light ->
+        lights.forEach { light ->
             light.emissionColor = Random.random3DVectorFromRange(0.2f, 0.8f)
             light.intensity = 0.5f
             scene.addChild(light)

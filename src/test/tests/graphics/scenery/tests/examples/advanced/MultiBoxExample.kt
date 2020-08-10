@@ -52,10 +52,10 @@ class MultiBoxExample : SceneryBase("MultiBoxExample") {
             it.position = Random.random3DVectorFromRange(-100.0f, 100.0f)
             it.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
             it.intensity = Random.randomFromRange(0.1f, 0.5f)
-
-            scene.addChild(it)
             it
         }
+
+        lights.forEach { scene.addChild(it) }
 
         val hullbox = Box(Vector3f(100.0f, 100.0f, 100.0f), insideNormals = true)
         with(hullbox) {

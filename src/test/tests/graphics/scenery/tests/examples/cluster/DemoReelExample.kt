@@ -86,7 +86,6 @@ class DemoReelExample: SceneryBase("Demo Reel") {
         drosophilaScene.visible = false
         scene.addChild(drosophilaScene)
 
-        val retinaVolumes = LinkedHashMap<String, ByteBuffer>()
         val retinaVolume = Volume.fromPathRaw(
             Paths.get("$driveLetter:/ssd-backup-inauguration/CAVE_DATA/retina_test2/"),
             hub
