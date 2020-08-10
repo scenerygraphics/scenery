@@ -72,6 +72,6 @@ interface Swapchain : AutoCloseable {
 
     companion object: SwapchainParameters {
         override var headless: Boolean = false
-        override var usageCondition = { p: SceneryPanel? -> true }
+        override var usageCondition = { _: SceneryPanel? -> true }
     }
 }

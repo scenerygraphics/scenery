@@ -608,7 +608,7 @@ class EdgeBundler(override var hub: Hub?): Hubable {
     private fun loadTrajectoriesFromLines(lines: List<Line>) {
         val trackSetTemp: ArrayList<Array<PointWithMeta>> = ArrayList()
         lines.forEach { line ->
-            val track = Array<PointWithMeta>(line.vertices.limit() / 3) { i -> PointWithMeta()}
+            val track = Array<PointWithMeta>(line.vertices.limit() / 3) { _ -> PointWithMeta()}
             line.vertices.rewind()
             var i = 0
             while(line.vertices.hasRemaining()) {

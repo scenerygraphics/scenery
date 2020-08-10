@@ -124,7 +124,7 @@ class VulkanPipeline(val device: VulkanDevice, val renderpass: VulkanRenderpass,
         val pushConstantRanges = if(pushConstantSpecs.size > 0) {
             val pcr = VkPushConstantRange.calloc(pushConstantSpecs.size)
             pushConstantSpecs.entries.forEachIndexed { i, p ->
-                val offset = p.value.members.map { it.value.offset }.min() ?: 0L
+                val offset = p.value.members.map { it.value.offset }.minOrNull() ?: 0L
                 val size = p.value.members.map { it.value.range }.sum()
 
                 logger.debug("Push constant: id $i name=${p.key} offset=$offset size=$size")

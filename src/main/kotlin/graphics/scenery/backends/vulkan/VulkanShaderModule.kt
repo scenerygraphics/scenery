@@ -241,7 +241,6 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, sp: 
 
             val imageType = type.image.type
             val imageDim = type.image.dim
-            val imageDataType = type.image.format
 
 //            val name = if(res.name.startsWith("Input") || res.name.startsWith("Output")) {
 //                if(!inputSets.contains(setId)) {
