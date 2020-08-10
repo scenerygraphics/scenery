@@ -2543,11 +2543,15 @@ open class OpenGLRenderer(hub: Hub,
 
             t.setTextureBorderColor(texture.borderColor.toOpenGL())
 
+            // textures might have very uneven dimensions, so we adjust GL_UNPACK_ALIGNMENT here correspondingly
+            // in case the byte count of the texture is not divisible by it.
             val unpackAlignment = intArrayOf(0)
             gl.glGetIntegerv(GL4.GL_UNPACK_ALIGNMENT, unpackAlignment, 0)
 
-            // textures might have very uneven dimensions, so we adjust GL_UNPACK_ALIGNMENT here correspondingly
-            // in case the byte count of the texture is not divisible by it.
+            texture.contents?.let { contents ->
+                t.copyFrom(contents.duplicate())
+            }
+
             if (contentsNew != null && texture is UpdatableTexture && !texture.hasConsumableUpdates()) {
                 if (contentsNew.remaining() % unpackAlignment[0] == 0 && texture.dimensions.x() % unpackAlignment[0] == 0) {
                     t.copyFrom(contentsNew)
