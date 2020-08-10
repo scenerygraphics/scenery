@@ -22,7 +22,8 @@ class OpenSimplexNoiseTests {
     fun test1DNoise() {
         logger.info("Testing 1D OpenSimplex noise...")
 
-        val noise = OpenSimplexNoise(Random.nextLong())
+        // TODO: Add sample-based test for 1D noise
+        OpenSimplexNoise(Random.nextLong())
     }
 
     @Test

@@ -28,12 +28,10 @@ class ArcballCameraControlTests {
     private val seqLength = 100
 
     private fun prepareArcballCameraControl(scene: Scene) : ArcballCameraControl {
-        var hub: Hub = Hub()
+        val hub: Hub = Hub()
 
         val renderer = FauxRenderer(hub, scene)
         hub.add(renderer)
-
-        val window: SceneryWindow = renderer.window
 
         val target = scene.findObserver()?.target ?: Vector3f(0.0f)
 

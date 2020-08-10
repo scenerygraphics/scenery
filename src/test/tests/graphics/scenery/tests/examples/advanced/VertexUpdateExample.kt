@@ -46,11 +46,12 @@ class VertexUpdateExample : SceneryBase("VertexUpdateExample") {
             light.position = Vector3f(2.0f * i - 2.0f, 2.0f * i - 2.0f, 2.0f * i - 2.0f)
             light.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
             light.intensity = 150f * (i + 1)
-            scene.addChild(light)
             light
         }
 
-        var bb = BoundingGrid()
+        lights.forEach { scene.addChild(it) }
+
+        val bb = BoundingGrid()
         bb.node = sphere
 
         var ticks = 0

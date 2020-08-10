@@ -105,7 +105,7 @@ class ExampleRunner {
                     }
 
                     val instance = example.getConstructor().newInstance()
-                    var exampleRunnable: Job? = null
+                    val exampleRunnable: Job?
 
                     try {
                         val handler = CoroutineExceptionHandler { _, e ->

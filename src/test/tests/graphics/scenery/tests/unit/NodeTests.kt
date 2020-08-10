@@ -435,7 +435,6 @@ class NodeTests {
      */
     @Test
     fun testMaximumBoundingBox() {
-        val s = Scene()
         val parent = Group()
         parent.position = Vector3f(100f, 100f, 100f)
         ( 0 until 2).forEach {i ->
