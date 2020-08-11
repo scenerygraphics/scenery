@@ -76,6 +76,7 @@ class ComputeShaderExample : SceneryBase("ComputeShaderExample") {
         }
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     override fun inputSetup() {
         super.inputSetup()
 
@@ -96,6 +97,7 @@ class ComputeShaderExample : SceneryBase("ComputeShaderExample") {
                 }
 
             }
+            result.getCompleted()
 
         })
         inputHandler?.addKeyBinding("save_texture", "E")

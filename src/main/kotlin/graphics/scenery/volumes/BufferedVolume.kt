@@ -31,10 +31,9 @@ class BufferedVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewe
     /**
      * Access all the timepoints this volume has attached.
      */
-    @Suppress("UNNECESSARY_SAFE_CALL")
-    var timepoints: LinkedHashMap<String, ByteBuffer>?
+    @Suppress("UNNECESSARY_SAFE_CALL", "UNUSED_PARAMETER")
+    val timepoints: LinkedHashMap<String, ByteBuffer>?
         get() = ((ds?.sources?.firstOrNull()?.spimSource as? TransformedSource)?.wrappedSource as? BufferSource)?.timepoints
-        set(value) {}
 
     /**
      * Adds a new timepoint with a given [name], with data stored in [buffer].
@@ -91,7 +90,7 @@ class BufferedVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewe
      *
      * Returns the sampled value as a [Float], or null in case nothing could be sampled.
      */
-    @ExperimentalUnsignedTypes
+    @OptIn(ExperimentalUnsignedTypes::class)
     override fun sample(uv: Vector3f, interpolate: Boolean): Float? {
         val texture = timepoints?.entries?.last() ?: throw IllegalStateException("Could not find timepoint")
         val source = (ds.sources.first().spimSource as? BufferSource) ?: throw IllegalStateException("No source found")

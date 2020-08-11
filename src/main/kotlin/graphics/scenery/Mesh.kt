@@ -64,10 +64,7 @@ open class Mesh(override var name: String = "Mesh") : Node(name), HasGeometry {
      * Materials will be used, if present and [useMaterial] is true.
      */
     fun readFrom(filename: String, useMaterial: Boolean = true): Mesh {
-        val logger by LazyLogger()
-        val ext = filename.substringAfterLast(".").toLowerCase()
-
-        return when (ext) {
+        return when (val ext = filename.substringAfterLast(".").toLowerCase()) {
             "obj" -> readFromOBJ(filename, useMaterial)
             "stl" -> readFromSTL(filename)
             else -> {
@@ -524,20 +521,7 @@ open class Mesh(override var name: String = "Mesh") : Node(name), HasGeometry {
                         indexCount += targetObject.indices.limit()
 
                         // add new child mesh
-                        if (this is Mesh) {
-                            val child = Mesh()
-                            child.name = tokens.substringAfter(" ").trim().trimEnd()
-                            name = tokens.substringAfter(" ").trim().trimEnd()
-                            if (!importMaterials) {
-                                child.material = Material()
-                            }
-
-                            (targetObject as? Mesh)?.boundingBox = OrientedBoundingBox(this, boundingBox)
-                            boundingBox = floatArrayOf(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f)
-
-                            this.addChild(child)
-                            targetObject = child
-                        } else if (this is PointCloud) {
+                        if (this is PointCloud) {
                             val child = PointCloud()
                             child.name = tokens.substringAfter(" ").trim().trimEnd()
                             name = tokens.substringAfter(" ").trim().trimEnd()
@@ -546,6 +530,19 @@ open class Mesh(override var name: String = "Mesh") : Node(name), HasGeometry {
                             }
 
                             (targetObject as? PointCloud)?.boundingBox = OrientedBoundingBox(this, boundingBox)
+                            boundingBox = floatArrayOf(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f)
+
+                            this.addChild(child)
+                            targetObject = child
+                        } else {
+                            val child = Mesh()
+                            child.name = tokens.substringAfter(" ").trim().trimEnd()
+                            name = tokens.substringAfter(" ").trim().trimEnd()
+                            if (!importMaterials) {
+                                child.material = Material()
+                            }
+
+                            (targetObject as? Mesh)?.boundingBox = OrientedBoundingBox(this, boundingBox)
                             boundingBox = floatArrayOf(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f)
 
                             this.addChild(child)
@@ -587,10 +584,10 @@ open class Mesh(override var name: String = "Mesh") : Node(name), HasGeometry {
         uvCount += targetObject.texcoords.limit()
         indexCount += targetObject.indices.limit()
 
-        if (this is Mesh) {
-            (targetObject as? Mesh)?.boundingBox = OrientedBoundingBox(this, boundingBox)
-        } else if (this is PointCloud) {
+        if (this is PointCloud) {
             (targetObject as? PointCloud)?.boundingBox = OrientedBoundingBox(this, boundingBox)
+        } else {
+            (targetObject as? Mesh)?.boundingBox = OrientedBoundingBox(this, boundingBox)
         }
 
         logger.info("Read ${vertexCount / vertexSize}/${normalCount / vertexSize}/${uvCount / texcoordSize}/$indexCount v/n/uv/i of model $name in ${(end - start) / 1e6} ms")
@@ -842,10 +839,8 @@ open class Mesh(override var name: String = "Mesh") : Node(name), HasGeometry {
         texcoords = BufferUtils.allocateFloat(0)
         indices = BufferUtils.allocateInt(0)
 
-        if (this is Mesh) {
-            logger.info("Bounding box of $name is ${boundingBox.joinToString(",")}")
-            this.boundingBox = OrientedBoundingBox(this, boundingBox)
-        }
+        logger.info("Bounding box of $name is ${boundingBox.joinToString(",")}")
+        this.boundingBox = OrientedBoundingBox(this, boundingBox)
 
         return this
     }

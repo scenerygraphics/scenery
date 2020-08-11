@@ -232,7 +232,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
                 Thread.sleep(100)
             }
 
-            if (!parseBoolean(System.getProperty("scenery.Headless", "false"))) {
+            if (!headless) {
                 repl?.showConsoleWindow()
             }
         }

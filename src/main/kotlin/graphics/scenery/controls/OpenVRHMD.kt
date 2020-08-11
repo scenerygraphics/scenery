@@ -585,12 +585,6 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
     }
 
     private fun OpenVRButton.toAWTKeyCode(role: TrackerRole = TrackerRole.LeftHand): AWTKey {
-        val modifiers = when(role) {
-            TrackerRole.LeftHand -> KeyEvent.SHIFT_DOWN_MASK
-            TrackerRole.RightHand -> 0
-            else -> 0
-        }
-
         return when {
             this == OpenVRButton.Left && role == TrackerRole.LeftHand -> AWTKey(KeyEvent.VK_H)
             this == OpenVRButton.Right && role == TrackerRole.LeftHand  -> AWTKey(KeyEvent.VK_L)

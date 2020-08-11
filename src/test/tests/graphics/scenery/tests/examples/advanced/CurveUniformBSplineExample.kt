@@ -65,9 +65,10 @@ class CurveUniformBSplineExample: SceneryBase("CurveUniformBSplineExample", wind
             l.emissionColor = Random.random3DVectorFromRange(0.2f, 0.8f)
             l.intensity = Random.randomFromRange(0.2f, 0.8f)
 
-            lightbox.addChild(l)
             l
         }
+
+        lights.forEach { lightbox.addChild(it) }
 
         val stageLight = PointLight(radius = 10.0f)
         stageLight.name = "StageLight"
