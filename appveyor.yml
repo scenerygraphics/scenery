@@ -1,6 +1,7 @@
 version: '1.0.0-SNAPSHOT.b{build}'
 skip_tags: true
 environment:
+  MAVEN_OPTS: -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn
   matrix:
     - JAVA_HOME: C:\Program Files\Java\jdk1.8.0
 install:
