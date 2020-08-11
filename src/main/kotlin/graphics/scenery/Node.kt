@@ -412,6 +412,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
         } else {
             mappedProperties.isAccessible = true
 
+            @Suppress("UNCHECKED_CAST")
             val map = mappedProperties.get(this) as? HashMap<String, Any>
             if (map == null) {
                 logger.warn("$this: $name not found in shaderProperties hash map")
@@ -474,17 +475,16 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
      * @return Vector3f - containing the applied scaling
      */
     fun fitInto(sideLength: Float, scaleUp: Boolean = false): Vector3f {
-        val min = getMaximumBoundingBox().min.xyzw() ?: return Vector3f(0.0f)
-        val max = getMaximumBoundingBox().max.xyzw() ?: return Vector3f(0.0f)
+        val min = getMaximumBoundingBox().min.xyzw()
+        val max = getMaximumBoundingBox().max.xyzw()
 
-        (max - min).max()?.let { maxDimension ->
-            val scaling = sideLength/maxDimension
+        val maxDimension = (max - min).max()
+        val scaling = sideLength/maxDimension
 
-            if((scaleUp && scaling > 1.0f) || scaling <= 1.0f) {
-                this.scale = Vector3f(scaling, scaling, scaling)
-            } else {
-                this.scale = Vector3f(1.0f, 1.0f, 1.0f)
-            }
+        if((scaleUp && scaling > 1.0f) || scaling <= 1.0f) {
+            this.scale = Vector3f(scaling, scaling, scaling)
+        } else {
+            this.scale = Vector3f(1.0f, 1.0f, 1.0f)
         }
 
         return this.scale
@@ -670,7 +670,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
     }
 
     override fun toString(): String {
-        return "$name(${javaClass?.simpleName})"
+        return "$name(${javaClass.simpleName})"
     }
 
     /**

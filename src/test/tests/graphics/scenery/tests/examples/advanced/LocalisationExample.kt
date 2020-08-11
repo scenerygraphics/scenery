@@ -25,10 +25,10 @@ class LocalisationExample : SceneryBase("Localisation Microscopy Rendering examp
 
         val c = Context()
         val ui = c.getService(UIService::class.java)
-        val file = ui.chooseFiles(null, emptyList(),
+        val chosenFile = ui.chooseFiles(null, emptyList(),
             { it.isFile && (it.name.endsWith(".csv") || it.name.endsWith(".tsv") || it.name.endsWith(".xls")) },
             FileWidget.OPEN_STYLE)
-        file.forEach { files.add(it.absolutePath) }
+        chosenFile.forEach { files.add(it.absolutePath) }
 
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
 
@@ -58,14 +58,14 @@ class LocalisationExample : SceneryBase("Localisation Microscopy Rendering examp
             Vector3f(1.0f, 0.04f, 0.04f),
             Vector3f(0.1f, 0.1f, 0.8f))
 
-        val datasets = files.mapIndexed { i, file ->
+        files.mapIndexed { i, file ->
             val dataset = PointCloud()
             dataset.readFromPALM(file)
             dataset.material.diffuse = channelColors.getOrElse(i, { Random.random3DVectorFromRange(0.1f, 0.9f) })
             dataset.fitInto(5.0f)
-            scene.addChild(dataset)
-
             dataset
+        }.forEach {
+            scene.addChild(it)
         }
 
         val light = PointLight(radius = 40.0f)

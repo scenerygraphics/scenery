@@ -38,7 +38,6 @@ class ARExample: SceneryBase("AR Volume Rendering example", 1280, 720) {
             scene.addChild(this)
         }
 
-        val volumes = LinkedHashMap<String, ByteBuffer>()
         val volume = Volume.fromBuffer(LinkedHashMap(), 64, 64, 64, UnsignedShortType(), hub)
         volume.name = "volume"
         volume.colormap = Colormap.get("plasma")

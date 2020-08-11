@@ -30,6 +30,8 @@ class LogbackUtils {
             val logLevelUpper = logLevel?.toUpperCase() ?: "OFF"
 
             try {
+                // TODO: Check deprecation warning again, esp with respect to JPMS
+                @Suppress("DEPRECATION")
                 val logbackPackage = Package.getPackage(LOGBACK_CLASSIC)
                 if (logbackPackage == null) {
                     logger.info("Logback is not in the classpath!")

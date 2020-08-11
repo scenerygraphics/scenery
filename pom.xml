@@ -620,6 +620,11 @@
                                 <source>target/generated-sources/kapt</source>
                                 <source>target/generated-sources/kaptKotlin</source>
                             </sourceDirs>
+                            <jvmTarget>${kotlin.compiler.jvmTarget}</jvmTarget>
+                            <args>
+                                <arg>-Werror</arg>
+                                <arg>-Xopt-in=kotlin.RequiresOptIn</arg>
+                            </args>
                         </configuration>
                     </execution>
                     <execution>
@@ -634,7 +639,11 @@
                     </execution>
                 </executions>
                 <configuration>
-                    <jvmTarget>1.8</jvmTarget>
+                    <jvmTarget>${kotlin.compiler.jvmTarget}</jvmTarget>
+                    <args>
+                        <arg>-Werror</arg>
+                        <arg>-Xopt-in=kotlin.RequiresOptIn</arg>
+                    </args>
                 </configuration>
             </plugin>
 

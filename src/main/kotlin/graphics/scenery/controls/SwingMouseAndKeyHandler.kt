@@ -46,8 +46,11 @@ import java.util.*
 /**
  * Input handling class for Swing-based windows
  *
+ * TODO: Includes a bit of old AWT code, e.g. for getModifiers. Needs to be replaced with newer getModifiersEx() code, and Suppress removed.
+ *
  * @author Ulrik Günther <hello@ulrik.is>
 */
+@Suppress("DEPRECATION")
 @CanHandleInputFor([SceneryWindow.SwingWindow::class])
 class SwingMouseAndKeyHandler(var hub: Hub? = null) : MouseAndKeyHandlerBase(), KeyListener, MouseListener, MouseWheelListener, MouseMotionListener, FocusListener {
 

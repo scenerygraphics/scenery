@@ -35,10 +35,10 @@ class Statistics(override var hub: Hub?) : Hubable {
         fun avg(): Float = data.sum() / data.size
 
         /** Returns the minimum of the [data] or 0.0f if empty */
-        fun min(): Float = data.min() ?: 0.0f
+        fun min(): Float = data.minOrNull() ?: 0.0f
 
         /** Returns the maximum of the [data] or 0.0f if empty */
-        fun max(): Float = data.max() ?: 0.0f
+        fun max(): Float = data.maxOrNull() ?: 0.0f
 
         /** Returns the standard deviation of the [data] or 0.0f if empty */
         fun stddev(): Float = if (data.size == 0) {
@@ -112,7 +112,7 @@ class Statistics(override var hub: Hub?) : Hubable {
 
     /** Returns all collected stats as string */
     override fun toString(): String {
-        val longestKey: Int = stats.keys().asSequence().map { it.length }.max() ?: 1
+        val longestKey: Int = stats.keys().asSequence().map { it.length }.maxOrNull() ?: 1
         return "Statistics - avg/min/max/stddev/last\n" + stats.toSortedMap().map {
             String.format("%-${longestKey}s", it.key) + " - ${it.value}"
         }.joinToString("\n")

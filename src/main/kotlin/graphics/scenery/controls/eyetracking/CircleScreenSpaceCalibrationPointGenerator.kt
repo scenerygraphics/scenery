@@ -29,6 +29,6 @@ class CircleScreenSpaceCalibrationPointGenerator : CalibrationPointGenerator {
                 origin + radius * sin(2 * PI.toFloat() * index.toFloat()/totalPointCount),
                 0.0f)
         }
-        return CalibrationPointGenerator.CalibrationPoint(v, cam.viewportToWorld(Vector2f(v.x()*2.0f-1.0f, v.y()*2.0f-1.0f), offset = 0.5f))
+        return CalibrationPointGenerator.CalibrationPoint(v, cam.viewportToWorld(Vector2f(v.x()*2.0f-1.0f, v.y()*2.0f-1.0f)))
     }
 }

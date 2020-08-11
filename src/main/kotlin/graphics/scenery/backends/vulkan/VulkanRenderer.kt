@@ -200,8 +200,14 @@ open class VulkanRenderer(hub: Hub,
                         when(cam.projectionType) {
                             Camera.ProjectionType.Orthographic ->
                                 cam.orthographicCamera(cam.fov, window.width, window.height, cam.nearPlaneDistance, cam.farPlaneDistance)
+
                             Camera.ProjectionType.Perspective ->
                                 cam.perspectiveCamera(cam.fov, window.width, window.height, cam.nearPlaneDistance, cam.farPlaneDistance)
+
+                            Camera.ProjectionType.Undefined -> {
+                                logger.warn("Camera ${cam.name} has undefined projection type, using default perspective projection")
+                                cam.perspectiveCamera(cam.fov, window.width, window.height, cam.nearPlaneDistance, cam.farPlaneDistance)
+                            }
                         }
                     }
 
@@ -2033,7 +2039,7 @@ open class VulkanRenderer(hub: Hub,
 
         profiler?.end()
 
-        flow.take(flow.size - 1).forEachIndexed { i, t ->
+        flow.take(flow.size - 1).forEach { t ->
             profiler?.begin("Renderer.$t")
             logger.trace("Running pass {}", t)
             val target = renderpasses[t]!!

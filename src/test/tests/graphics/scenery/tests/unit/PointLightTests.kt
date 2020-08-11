@@ -14,7 +14,6 @@ import kotlin.test.assertEquals
 class PointLightTests {
     @Test
     fun testCreation() {
-        val s = Scene()
         val size = Random.randomFromRange(1.0f, 500.0f)
         val pl = PointLight(size)
 
