@@ -491,7 +491,7 @@ void main()
 	float Depth = texture(InputZBuffer, textureCoord).r;
 
     vec3 FragPos = worldFromDepth(Depth, uv, invProjection, invView);
-    vec4 ambientOcclusion = texture(InputOcclusion, textureCoord).rgba;
+    vec4 ambientOcclusion = texture(InputOcclusion, textureCoord).rrrr;
 
     vec3 cameraPosition = invView[3].xyz;
 
@@ -601,7 +601,7 @@ void main()
         } if(debugLights == 4) {
             lighting = diffuse * lightAttenuation;
         } if(debugLights == 5) {
-            lighting = ambientOcclusion.rgb;
+            lighting = ambientOcclusion.rrr;
         } if(debugLights == 6) {
             lighting = vec3(lightOcclusion);
         } if(debugLights == 7) {
