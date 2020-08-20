@@ -150,10 +150,12 @@ open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysical
             }
             ppEnabledLayerNames.flip()
 
+            // all enabled features here have >99% availability according to http://vulkan.gpuinfo.org/listfeatures.php
             val enabledFeatures = VkPhysicalDeviceFeatures.callocStack(stack)
                 .samplerAnisotropy(true)
                 .largePoints(true)
                 .geometryShader(true)
+                .fillModeNonSolid(true)
 
             val deviceCreateInfo = VkDeviceCreateInfo.callocStack(stack)
                 .sType(VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO)
