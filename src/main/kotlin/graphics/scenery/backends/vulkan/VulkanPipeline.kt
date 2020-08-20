@@ -1,6 +1,7 @@
 package graphics.scenery.backends.vulkan
 
 import graphics.scenery.GeometryType
+import graphics.scenery.backends.ShaderConsistencyException
 import graphics.scenery.utils.LazyLogger
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.*
@@ -102,6 +103,13 @@ class VulkanPipeline(val device: VulkanDevice, val renderpass: VulkanRenderpass,
             it.pushConstantSpecs.forEach { name, pushConstant ->
                 pushConstantSpecs[name]?.members?.putAll(pushConstant.members) ?: pushConstantSpecs.put(name, pushConstant)
             }
+        }
+
+        val usedDescriptorSetCount = descriptorSpecs.map { it.value.set }.distinct().size - 1
+        val maxDescriptorSetNumber = (descriptorSpecs.map { it.value.set }.maxOrNull() ?: 0L).toInt()
+
+        if(usedDescriptorSetCount != maxDescriptorSetNumber) {
+            throw ShaderConsistencyException("Shader contains non-consecutive number of descriptor sets! Look for layout(set = $maxDescriptorSetNumber, binding = ...) in the shader code of ${shaderModules.flatMap { listOf(it.sp.codePath, it.sp.spirvPath) }.filterNotNull().joinToString(", ") } and check if all set numbers before $maxDescriptorSetNumber are actually used ($maxDescriptorSetNumber is the maximum set declared, but only $usedDescriptorSetCount sets are used).")
         }
     }
 
