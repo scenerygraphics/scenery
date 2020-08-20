@@ -1985,7 +1985,9 @@ open class VulkanRenderer(hub: Hub,
                         }
                     }
 
-                    logger.debug("Updating textures for {} took {}ms", node.name, reloadTime)
+                    if(texturesUpdated) {
+                        logger.debug("Updating textures for {} took {}ms", node.name, reloadTime)
+                    }
 
                     if (material.materialHashCode() != metadata.materialHashCode || (material is ShaderMaterial && material.shaders.stale)) {
                         val reloaded = initializeCustomShadersForNode(it)
