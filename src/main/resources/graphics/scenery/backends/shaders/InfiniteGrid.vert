@@ -27,11 +27,11 @@ layout(set = 1, binding = 0) uniform LightParameters {
     vec3 CamPosition;
 };
 
-layout(set = 2, binding = 0) uniform Matrices {
-    mat4 ModelMatrix;
-    mat4 NormalMatrix;
-    int isBillboard;
-} ubo;
+//layout(set = 2, binding = 0) uniform Matrices {
+//    mat4 ModelMatrix;
+//    mat4 NormalMatrix;
+//    int isBillboard;
+//} ubo;
 
 
 layout(push_constant) uniform currentEye_t {

@@ -15,7 +15,7 @@ class InfinitePlane : Mesh("InfinitePlane"), DisableFrustumCulling {
 
      /* Base line width for the grid. */
     @ShaderProperty
-    var baseLineWidth = 1.0f
+    var baseLineWidth = 0.65f
 
     /** [Type] of the plane, can be a normal grid, a blueprint grid, or a checkerboard. */
     @ShaderProperty

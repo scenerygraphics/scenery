@@ -9,7 +9,7 @@ layout(location = 0) in VertexData {
 
 layout(location = 0) out vec4 FragColor;
 
-layout(set = 3, binding = 0) uniform ShaderProperties {
+layout(set = 2, binding = 0) uniform ShaderProperties {
     float baseLineWidth;
     int type;
 };
