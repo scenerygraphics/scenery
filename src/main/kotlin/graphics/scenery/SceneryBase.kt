@@ -5,6 +5,7 @@ import org.joml.Vector3f
 import com.sun.jna.Library
 import com.sun.jna.Native
 import graphics.scenery.backends.Renderer
+import graphics.scenery.compute.OpenCLContext
 import graphics.scenery.controls.InputHandler
 import graphics.scenery.controls.behaviours.ArcballCameraControl
 import graphics.scenery.controls.behaviours.FPSCameraControl
@@ -55,7 +56,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
     protected var repl: REPL? = null
     /** Frame number for counting FPS */
     protected var ticks = 0L
-    /** The Deferred Lighting Renderer for the application, see [OpenGLRenderer] */
+    /** The default renderer for this application, see [Renderer] */
     protected var renderer: Renderer? = null
     /** The Hub used by the application, see [Hub] */
     var hub: Hub = Hub()
@@ -74,7 +75,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
     protected var registerNewRenderer: NewRendererParameters? = null
 
     /** Logger for this application, will be instantiated upon first use. */
-    protected val logger by LazyLogger()
+    protected val logger by LazyLogger(System.getProperty("scenery.LogLevel", "info"))
 
     /** An optional update function to call during the main loop. */
     var updateFunction: (() -> Any)? = null
@@ -141,9 +142,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
      *
      */
     open suspend fun sceneryMain() {
-        System.setProperty("org.slf4j.simpleLogger.defaultLogLevel", System.getProperty("scenery.LogLevel", "info"))
-
-        System.getProperties().map { it }.forEach { prop ->
+        System.getProperties().forEach { prop ->
             val name = prop.key as? String ?: return@forEach
             val value = prop.value as? String ?: return@forEach
 
@@ -220,7 +219,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
 
         // wait for renderer
         while(renderer?.initialized == false) {
-            Thread.sleep(100)
+            delay(100)
         }
 
         loadInputHandler(renderer)
@@ -234,7 +233,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
                 Thread.sleep(100)
             }
 
-            if (!parseBoolean(System.getProperty("scenery.Headless", "false"))) {
+            if (!headless) {
                 repl?.showConsoleWindow()
             }
         }
@@ -271,7 +270,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
             profiler?.begin("Render")
             if (renderer?.managesRenderLoop != false) {
                 renderer?.render(activeCamera, sceneObjects.await())
-                Thread.sleep(1)
+                delay(1)
             } else {
                 stats.addTimed("render") { renderer?.render(activeCamera, sceneObjects.await()) ?: 0.0f }
             }
@@ -428,6 +427,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
 
         (hub.get(SceneryElement.NodePublisher) as? NodePublisher)?.close()
         (hub.get(SceneryElement.NodeSubscriber) as? NodeSubscriber)?.close()
+        (hub.get(SceneryElement.OpenCLContext) as? OpenCLContext)?.close()
     }
 
     /**
@@ -499,7 +499,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
     }
 
     companion object {
-        private val logger by LazyLogger()
+        private val logger by LazyLogger(System.getProperty("scenery.LogLevel", "info"))
         private var xinitThreadsCalled: Boolean = false
 
         /**

@@ -31,7 +31,7 @@ import java.util.concurrent.ConcurrentHashMap
  * @author Ulrik Günther <hello@ulrik.is>
  */
 
-open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, sp: ShaderPackage) {
+open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, val sp: ShaderPackage) {
     protected val logger by LazyLogger()
     var shader: VkPipelineShaderStageCreateInfo
     var shaderModule: Long
@@ -85,14 +85,17 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, sp: 
         val uniformBuffers = compiler.shaderResources.uniformBuffers
         val pushConstants = compiler.shaderResources.pushConstantBuffers
 
-
         val x = compiler.getExecutionModeArgument(ExecutionMode.ExecutionModeLocalSize, 0).toInt()
         val y = compiler.getExecutionModeArgument(ExecutionMode.ExecutionModeLocalSize, 1).toInt()
         val z = compiler.getExecutionModeArgument(ExecutionMode.ExecutionModeLocalSize, 2).toInt()
 
         logger.debug("Local size: $x $y $z")
 
-        localSize = Triple(x, y, z)
+        if((x == 0 || y == 0 || y == 0) && type == ShaderType.ComputeShader) {
+            logger.error("Compute local sizes $x, $y, $z must not be zero, setting to 1.")
+        }
+
+        localSize = Triple(maxOf(x, 1), maxOf(y, 1), maxOf(z, 1))
 
         for(i in 0 until uniformBuffers.capacity()) {
             val res = uniformBuffers.get(i)
@@ -238,7 +241,6 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, sp: 
 
             val imageType = type.image.type
             val imageDim = type.image.dim
-            val imageDataType = type.image.format
 
 //            val name = if(res.name.startsWith("Input") || res.name.startsWith("Output")) {
 //                if(!inputSets.contains(setId)) {

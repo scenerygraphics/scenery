@@ -205,30 +205,21 @@ open class VulkanBuffer(val device: VulkanDevice, var size: Long,
     }
 
     /**
-     * Copies data into the Vulkan buffer from a list of [chunks]. A [dstOffset] can
-     * be given, defining the start position in the buffer.
+     * Copies data into the Vulkan buffer from a list of [chunks].
      */
-    fun copyFrom(chunks: List<ByteBuffer>, dstOffset: Long = 0, keepMapped: Boolean = false) {
-        MemoryStack.stackPush().use { stack ->
-            resizeLazy()
+    fun copyFrom(chunks: List<ByteBuffer>, keepMapped: Boolean = false) {
+        resizeLazy()
 
-            val dstSize = if (dstOffset > 0) {
-                size - dstOffset
-            } else {
-                size
-            }
+        var currentOffset = 0
 
-            var currentOffset = 0
-
-            val dest = mapIfUnmapped()
-            chunks.forEach { chunk ->
-                val chunkSize = chunk.remaining()
-                memCopy(memAddress(chunk), dest.get(0) + currentOffset, chunk.remaining().toLong())
-                currentOffset += chunkSize
-            }
-            if(!keepMapped) {
-                vkUnmapMemory(device.vulkanDevice, memory)
-            }
+        val dest = mapIfUnmapped()
+        chunks.forEach { chunk ->
+            val chunkSize = chunk.remaining()
+            memCopy(memAddress(chunk), dest.get(0) + currentOffset, chunk.remaining().toLong())
+            currentOffset += chunkSize
+        }
+        if(!keepMapped) {
+            vkUnmapMemory(device.vulkanDevice, memory)
         }
     }
 

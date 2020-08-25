@@ -54,7 +54,7 @@ import kotlin.math.*
 import kotlin.properties.Delegates
 import kotlin.streams.toList
 
-open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOptions, val hub: Hub) : DelegatesRendering(), HasGeometry {
+open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOptions, val hub: Hub) : DelegatesRendering(), HasGeometry, DisableFrustumCulling {
     /** How many elements does a vertex store? */
     override val vertexSize : Int = 3
     /** How many elements does a texture coordinate store? */
@@ -206,13 +206,14 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
     open fun localScale(): Vector3f {
         // we are using the first visible source here, which might of course change.
         // TODO: Figure out a better way to do this. It might be an issue for multi-view datasets.
-        var voxelSizes: VoxelDimensions = FinalVoxelDimensions("um", 1.0, 1.0, 1.0)
 
-        val index = viewerState.visibleSourceIndices.firstOrNull()
-        if(index != null) {
-            val source = viewerState.sources[index]
-            voxelSizes = source.spimSource.voxelDimensions ?: voxelSizes
-        }
+        // TODO: are the voxel sizes determined here really not used?
+        // val index = viewerState.visibleSourceIndices.firstOrNull()
+        // var voxelSizes: VoxelDimensions = FinalVoxelDimensions("um", 1.0, 1.0, 1.0)
+//        if(index != null) {
+//            val source = viewerState.sources[index]
+//            voxelSizes = source.spimSource.voxelDimensions ?: voxelSizes
+//        }
 
         return Vector3f(
 //            voxelSizes.dimension(0).toFloat() * pixelToWorldRatio,
@@ -315,6 +316,7 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
                 sources.add(source)
             }
 
+            @Suppress("UNCHECKED_CAST")
             val cacheControl = if (img is VolatileView<*, *>) {
                 val viewData: VolatileViewData<T, Volatile<T>> = (img as VolatileView<T, Volatile<T>>).volatileViewData
                 viewData.cacheControl
@@ -339,6 +341,7 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
 
             val img = source.spimSource.getSource(0, 0)
 
+            @Suppress("UNCHECKED_CAST")
             val cacheControl = if (img is VolatileView<*, *>) {
                 val viewData: VolatileViewData<T, Volatile<T>> = (img as VolatileView<T, Volatile<T>>).volatileViewData
                 viewData.cacheControl
@@ -347,7 +350,10 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
             }
 
             val ds = VolumeDataSource.RAISource<T>(type, sources, converterSetups, numTimepoints, cacheControl)
-            return RAIVolume(ds, options, hub)
+            val volume = RAIVolume(ds, options, hub)
+            volume.name = name
+
+            return volume
         }
 
         @JvmStatic @JvmOverloads fun <T: NumericType<T>> fromBuffer(

@@ -200,12 +200,12 @@ class VolumeSamplingExample: SceneryBase("Volume Sampling example", 1280, 720) {
                         connector.getChildrenByName("diagram").first() as Line
                     } else {
                         TODO("Implement volume size queries or refactor")
-                        val sizeX = 128
-                        val sizeY = 128
-                        val sizeZ = 128
-                        val l = Line(capacity = maxOf(sizeX, sizeY, sizeZ) * 2)
-                        connector.addChild(l)
-                        l
+//                        val sizeX = 128
+//                        val sizeY = 128
+//                        val sizeZ = 128
+//                        val l = Line(capacity = maxOf(sizeX, sizeY, sizeZ) * 2)
+//                        connector.addChild(l)
+//                        l
                     }
 
                     diagram.clearPoints()

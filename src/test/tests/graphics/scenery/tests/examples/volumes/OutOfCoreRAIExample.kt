@@ -61,6 +61,7 @@ class OutOfCoreRAIExample: SceneryBase("Out-of-core RAI Rendering example", 1280
 
         // When loading datasets with multiple resolution levels, it's important to use Volatile types
         // here, such as VolatileUnsignedShortType, otherwise loading volume blocks will not work correctly.
+        @Suppress("UNCHECKED_CAST")
         volume = Volume.fromRAI(
             wrapped as RandomAccessibleInterval<VolatileUnsignedShortType>,
             VolatileUnsignedShortType(),

@@ -200,8 +200,14 @@ open class VulkanRenderer(hub: Hub,
                         when(cam.projectionType) {
                             Camera.ProjectionType.Orthographic ->
                                 cam.orthographicCamera(cam.fov, window.width, window.height, cam.nearPlaneDistance, cam.farPlaneDistance)
+
                             Camera.ProjectionType.Perspective ->
                                 cam.perspectiveCamera(cam.fov, window.width, window.height, cam.nearPlaneDistance, cam.farPlaneDistance)
+
+                            Camera.ProjectionType.Undefined -> {
+                                logger.warn("Camera ${cam.name} has undefined projection type, using default perspective projection")
+                                cam.perspectiveCamera(cam.fov, window.width, window.height, cam.nearPlaneDistance, cam.farPlaneDistance)
+                            }
                         }
                     }
 
@@ -687,6 +693,7 @@ open class VulkanRenderer(hub: Hub,
      */
     override fun initializeScene() {
         logger.info("Scene initialization started.")
+        val start = System.nanoTime()
 
         this.scene.discover(this.scene, { it !is Light })
 //            .parallelMap(numThreads = System.getProperty("scenery.MaxInitThreads", "1").toInt()) { node ->
@@ -698,7 +705,7 @@ open class VulkanRenderer(hub: Hub,
             }
 
         scene.initialized = true
-        logger.info("Scene initialization complete.")
+        logger.info("Scene initialization complete, took ${(System.nanoTime() - start)/10e6} ms.")
     }
 
     fun Boolean.toInt(): Int {
@@ -2111,7 +2118,9 @@ open class VulkanRenderer(hub: Hub,
                         }
                     }
 
-                    logger.debug("Updating textures for {} took {}ms", node.name, reloadTime)
+                    if(texturesUpdated) {
+                        logger.debug("Updating textures for {} took {}ms", node.name, reloadTime)
+                    }
 
                     if (material.materialHashCode() != metadata.materialHashCode || (material is ShaderMaterial && material.shaders.stale)) {
                         val reloaded = initializeCustomShadersForNode(it)
@@ -2165,7 +2174,7 @@ open class VulkanRenderer(hub: Hub,
 
         profiler?.end()
 
-        flow.take(flow.size - 1).forEachIndexed { i, t ->
+        flow.take(flow.size - 1).forEach { t ->
             profiler?.begin("Renderer.$t")
             logger.trace("Running pass {}", t)
             val target = renderpasses[t]!!
@@ -2185,7 +2194,7 @@ open class VulkanRenderer(hub: Hub,
                 RenderConfigReader.RenderpassType.geometry -> recordSceneRenderCommands(target, commandBuffer, sceneNodes, { it !is Light }, forceRerecording)
                 RenderConfigReader.RenderpassType.lights -> recordSceneRenderCommands(target, commandBuffer, sceneNodes, { it is Light }, forceRerecording)
                 RenderConfigReader.RenderpassType.quad -> recordPostprocessRenderCommands(target, commandBuffer)
-                RenderConfigReader.RenderpassType.compute -> recordComputeRenderCommands(target, commandBuffer)
+                RenderConfigReader.RenderpassType.compute -> recordComputePassRenderCommands(target, commandBuffer)
             }
 
             stats?.add("VulkanRenderer.$t.recordCmdBuffer", System.nanoTime() - start)
@@ -2234,7 +2243,7 @@ open class VulkanRenderer(hub: Hub,
             RenderConfigReader.RenderpassType.geometry -> recordSceneRenderCommands(viewportPass, viewportCommandBuffer, sceneNodes, { it !is Light }, forceRerecording)
             RenderConfigReader.RenderpassType.lights -> recordSceneRenderCommands(viewportPass, viewportCommandBuffer, sceneNodes, { it is Light })
             RenderConfigReader.RenderpassType.quad -> recordPostprocessRenderCommands(viewportPass, viewportCommandBuffer)
-            RenderConfigReader.RenderpassType.compute -> recordComputeRenderCommands(viewportPass, viewportCommandBuffer)
+            RenderConfigReader.RenderpassType.compute -> recordComputePassRenderCommands(viewportPass, viewportCommandBuffer)
         }
 
         stats?.add("VulkanRenderer.${viewportPass.name}.recordCmdBuffer", System.nanoTime() - start)
@@ -2892,10 +2901,6 @@ open class VulkanRenderer(hub: Hub,
 
                 val localSizes = pipeline.shaderStages.first().localSize
 
-                if(localSizes.first == 0 || localSizes.second == 0 || localSizes.third == 0) {
-                    logger.error("${node.name}: Compute local sizes $localSizes must not be zero, setting to 1.")
-                }
-
                 loadStoreTextures
                     .forEach { (name, _) ->
                     val texture = s.textures[name] ?: return@computeLoop
@@ -2922,10 +2927,19 @@ open class VulkanRenderer(hub: Hub,
                         vulkanPipeline.layout, 0, pass.vulkanMetadata.descriptorSets, pass.vulkanMetadata.uboOffsets)
                 }
 
-                vkCmdDispatch(this,
-                    metadata.workSizes.x()/maxOf(localSizes.first, 1),
-                    metadata.workSizes.y()/maxOf(localSizes.second, 1),
-                    metadata.workSizes.z()/maxOf(localSizes.third, 1))
+                val maxGroupSize = intArrayOf(1, 1, 1)
+                commandBuffer.device.deviceData.properties.limits().maxComputeWorkGroupSize().get(maxGroupSize)
+
+                val groupSize = intArrayOf(
+                    minOf(metadata.workSizes.x()/localSizes.first, maxGroupSize[0]),
+                    minOf(metadata.workSizes.y()/localSizes.second, maxGroupSize[1]),
+                    minOf(metadata.workSizes.z()/localSizes.third,maxGroupSize[2]))
+
+                if(groupSize.zip(localSizes.toList()).any { it.first > it.second }) {
+                    logger.warn("Group sizes $groupSize exceeds device maximum of $localSizes, using device maximum.")
+                }
+
+                vkCmdDispatch(this, groupSize[0], groupSize[1], groupSize[2])
 
                 loadStoreTextures.forEach { (name, _) ->
                     val texture = s.textures[name] ?: return@computeLoop
@@ -3236,7 +3250,7 @@ open class VulkanRenderer(hub: Hub,
         return requiredDynamicOffsets
     }
 
-    private fun recordComputeRenderCommands(pass: VulkanRenderpass, commandBuffer: VulkanCommandBuffer) {
+    private fun recordComputePassRenderCommands(pass: VulkanRenderpass, commandBuffer: VulkanCommandBuffer) {
         with(commandBuffer.prepareAndStartRecording(commandPools.Compute)) {
             val metadata = ComputeMetadata(Vector3i(pass.getOutput().width, pass.getOutput().height, 1))
 
@@ -3273,10 +3287,60 @@ open class VulkanRenderer(hub: Hub,
                 logger.error("${pass.name}: Compute local sizes $localSizes must not be zero, setting to 1.")
             }
 
+            val loadStoreAttachments = hashMapOf(false to pass.inputs, true to pass.output)
+
+
+            loadStoreAttachments
+                .forEach { (isOutput, fb) ->
+                    val originalLayout = if(isOutput && pass.isViewportRenderpass) {
+                        VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+                    } else {
+                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+                    }
+
+                    fb.values
+                        .flatMap { it.attachments.values }
+                        .filter { it.type != VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT}
+                        .forEach { att ->
+                        VulkanTexture.transitionLayout(att.image,
+                            from = originalLayout,
+                            to = VK_IMAGE_LAYOUT_GENERAL,
+                            srcStage = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,
+                            srcAccessMask = VK_ACCESS_SHADER_READ_BIT,
+                            dstStage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                            dstAccessMask = VK_ACCESS_SHADER_WRITE_BIT,
+                            commandBuffer = this)
+                    }
+                }
+
             vkCmdDispatch(this,
                 metadata.workSizes.x()/maxOf(localSizes.first, 1),
                 metadata.workSizes.y()/maxOf(localSizes.second, 1),
                 metadata.workSizes.z()/maxOf(localSizes.third, 1))
+
+            loadStoreAttachments
+                .forEach { (isOutput, fb) ->
+                    val originalLayout = if(isOutput && pass.isViewportRenderpass) {
+                        VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+                    } else {
+                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+                    }
+
+                    fb.values
+                        .flatMap { it.attachments.values }
+                        .filter { it.type != VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT}
+                        .forEach { att ->
+
+                    VulkanTexture.transitionLayout(att.image,
+                            from = VK_IMAGE_LAYOUT_GENERAL,
+                            to = originalLayout,
+                            srcStage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                            srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT,
+                            dstStage = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,
+                            dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
+                            commandBuffer = this)
+                    }
+                }
 
             commandBuffer.stale = false
             commandBuffer.endCommandBuffer()

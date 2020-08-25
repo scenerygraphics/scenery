@@ -23,15 +23,17 @@ class SceneryJPanel : JPanel(), SceneryPanel {
 
     private val logger by LazyLogger()
 
-    /** Width of the panel. */
+    /** Width of the panel, cannot be reset. */
+    @Suppress("UNUSED_PARAMETER")
     override var panelWidth: Int
         get() = super.getWidth()
         set(value) {}
 
-    /** Height of the panel. */
+    /** Height of the panel, cannot be reset. */
+    @Suppress("UNUSED_PARAMETER")
     override var panelHeight: Int
         get() = super.getHeight()
-        set(value) {}
+        set(value) { }
 
     /** Embedded component that receives the actual rendering, e.g. via a native surface. */
     var component: Component? = null

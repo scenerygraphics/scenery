@@ -29,6 +29,7 @@ class SystemHelpers {
          * @param[key] The name of the environment variable
          * @param[value] The value of the environment variable. Null to unset.
          */
+        @Suppress("DEPRECATION")
         fun <K, V> setEnvironmentVariable(key: String, value: String?) {
             try {
                 /// we obtain the actual environment

@@ -21,11 +21,11 @@ import java.util.concurrent.ConcurrentHashMap
  * @author Ulrik Günther <hello@ulrik.is>
  */
 
-class OpenCLContext(override var hub: Hub?, devicePreference: String = System.getProperty("scenery.OpenCLDevice", "0,0")) : Hubable {
+class OpenCLContext(override var hub: Hub?, devicePreference: String = System.getProperty("scenery.OpenCLDevice", "0,0")) : Hubable, AutoCloseable {
     private val logger by LazyLogger()
 
     var device: cl_device_id
-    var kernels = ConcurrentHashMap<String, cl_kernel>()
+    private var kernels = ConcurrentHashMap<String, cl_kernel>()
     var context: cl_context
     var queue: cl_command_queue
 
@@ -35,7 +35,7 @@ class OpenCLContext(override var hub: Hub?, devicePreference: String = System.ge
         val platformPref = devicePreference.substringBefore(",").toInt()
         val devicePref = devicePreference.substringAfter(",").toInt()
 
-        val deviceType = CL_DEVICE_TYPE_GPU
+        val deviceType = CL_DEVICE_TYPE_ALL
         // Enable exceptions and subsequently omit error checks in this sample
         setExceptionsEnabled(true)
 
@@ -55,12 +55,12 @@ class OpenCLContext(override var hub: Hub?, devicePreference: String = System.ge
         }, { cl_device_id() })
         device = devices[devicePref]
 
-		logger.info("Selected device: ${getString(device, CL_DEVICE_NAME)} running ${getString(device, CL_DEVICE_VERSION)}")
+        logger.info("Selected device: ${getString(device, CL_DEVICE_NAME)} running ${getString(device, CL_DEVICE_VERSION)}")
 
         // Create a context for the selected device
         context = clCreateContext(
-                contextProperties, 1, arrayOf(device),
-                null, null, null)
+            contextProperties, 1, arrayOf(device),
+            null, null, null)
 
         // Create a command-queue for the selected device
         @Suppress("DEPRECATION")
@@ -71,7 +71,7 @@ class OpenCLContext(override var hub: Hub?, devicePreference: String = System.ge
      * Returns the device info for [device], specifically the parameter
      * named [paramName].
      */
-    fun getString(device: cl_device_id, paramName: Int): String
+    private fun getString(device: cl_device_id, paramName: Int): String
     {
         // Obtain the length of the string that will be queried
         val size = LongArray(1)
@@ -100,7 +100,9 @@ class OpenCLContext(override var hub: Hub?, devicePreference: String = System.ge
 
             // Create the kernel
             val kernel = clCreateKernel(program, name, null)
-            kernels.put(name, kernel)
+            kernels[name] = kernel
+
+            clReleaseProgram(program)
         }
 
         return this
@@ -128,7 +130,8 @@ class OpenCLContext(override var hub: Hub?, devicePreference: String = System.ge
     /**
      * Returns the OpenCL size of different JVM objects as Long.
      */
-    protected fun getSizeof(obj: Any): Long {
+    @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
+    private fun getSizeof(obj: Any): Long {
         return when(obj) {
             is Float -> Sizeof.cl_float
             is Int -> Sizeof.cl_int
@@ -156,7 +159,7 @@ class OpenCLContext(override var hub: Hub?, devicePreference: String = System.ge
     /**
      * Sets arguments for a specific OpenCL kernel.
      */
-    protected fun cl_kernel.setArgs(vararg arguments: Any) {
+    private fun cl_kernel.setArgs(vararg arguments: Any) {
         arguments.forEachIndexed { i, arg ->
             when (arg) {
                 is NativePointerObject -> clSetKernelArg(this,
@@ -206,7 +209,7 @@ class OpenCLContext(override var hub: Hub?, devicePreference: String = System.ge
 
         // Execute the kernel
         clEnqueueNDRangeKernel(this.queue, k, 1, null,
-                global_work_size, local_work_size, 0, null, null)
+            global_work_size, local_work_size, 0, null, null)
 
     }
 
@@ -242,6 +245,23 @@ class OpenCLContext(override var hub: Hub?, devicePreference: String = System.ge
         clEnqueueReadBuffer(queue, memory, CL_TRUE, 0, target.remaining() * getSizeof(target), p, 0, null, null)
     }
 
+    /**
+     * Writes from [localData] to OpenCL memory specified by [memory].
+     */
+    fun writeBuffer(localData: Buffer, memory: cl_mem) {
+        val p = Pointer.to(localData)
+        clEnqueueWriteBuffer(queue, memory, CL_TRUE, 0, localData.remaining() * getSizeof(localData), p, 0, null, null)
+    }
+
+    /**
+     * Closes the context.
+     */
+    override fun close() {
+        kernels.forEach { clReleaseKernel(it.value) }
+        kernels.clear()
+        clReleaseDevice(device)
+        clReleaseContext(context)
+    }
 
     /**
      * Convenience utils for [OpenCLContext].

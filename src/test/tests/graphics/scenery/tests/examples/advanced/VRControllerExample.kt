@@ -38,12 +38,13 @@ class VRControllerExample : SceneryBase(VRControllerExample::class.java.simpleNa
 
         scene.addChild(cam)
 
-        val b = (0..10).map {
+        val boxes = (0..10).map {
             val obj = Box(Vector3f(0.1f, 0.1f, 0.1f))
             obj.position = Vector3f(-1.0f + (it + 1) * 0.2f, 1.0f, -0.5f)
-            scene.addChild(obj)
             obj
         }
+
+        boxes.forEach { scene.addChild(it) }
 
         (0..10).map {
             val light = PointLight(radius = 15.0f)

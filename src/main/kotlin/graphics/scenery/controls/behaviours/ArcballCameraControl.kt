@@ -1,14 +1,19 @@
 package graphics.scenery.controls.behaviours
 
+import com.jogamp.opengl.math.FloatUtil.sqrt
 import org.joml.Vector3f
 import graphics.scenery.Camera
+import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
+import org.joml.Matrix4f
 import org.joml.Quaternionf
+import org.joml.Vector2f
 import org.scijava.ui.behaviour.DragBehaviour
 import org.scijava.ui.behaviour.ScrollBehaviour
 import java.util.function.Supplier
+import kotlin.math.abs
 import kotlin.reflect.KProperty
 
 /**
@@ -29,6 +34,7 @@ import kotlin.reflect.KProperty
  * @constructor Creates a new ArcballCameraControl behaviour
  */
 open class ArcballCameraControl(private val name: String, private val n: () -> Camera?, private val w: Int, private val h: Int, var target: () -> Vector3f) : DragBehaviour, ScrollBehaviour {
+    private val logger by LazyLogger()
     private var lastX = w / 2
     private var lastY = h / 2
     private var firstEntered = true
@@ -127,21 +133,18 @@ open class ArcballCameraControl(private val name: String, private val n: () -> C
                 return
             }
 
-            var xoffset: Float = (x - lastX).toFloat()
-            var yoffset: Float = (lastY - y).toFloat()
+            val xoffset: Float = (x - lastX).toFloat() * mouseSpeedMultiplier
+            val yoffset: Float = (lastY - y).toFloat() * mouseSpeedMultiplier
 
             lastX = x
             lastY = y
-
-            xoffset *= mouseSpeedMultiplier
-            yoffset *= -mouseSpeedMultiplier
 
             val frameYaw = (xoffset) / 180.0f * Math.PI.toFloat()
             val framePitch = yoffset / 180.0f * Math.PI.toFloat()
 
             // first calculate the total rotation quaternion to be applied to the camera
-            val yawQ = Quaternionf().rotateXYZ(0.0f, frameYaw, 0.0f)
-            val pitchQ = Quaternionf().rotateXYZ(framePitch, 0.0f, 0.0f)
+            val yawQ = Quaternionf().rotateXYZ(0.0f, frameYaw, 0.0f).normalize()
+            val pitchQ = Quaternionf().rotateXYZ(framePitch, 0.0f, 0.0f).normalize()
 
             distance = (target.invoke() - node.position).length()
             node.target = target.invoke()

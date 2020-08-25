@@ -105,11 +105,11 @@ class BigAndSmallVolumeExample: SceneryBase("BDV + SDV Rendering example", 1280,
         val nextTimePoint = ClickBehaviour { _, _ -> volume.nextTimepoint() }
         val prevTimePoint = ClickBehaviour { _, _ -> volume.previousTimepoint() }
         val tenTimePointsForward = ClickBehaviour { _, _ ->
-            val current = volume.currentTimepoint ?: 0
+            val current = volume.currentTimepoint
             volume.goToTimePoint(current + 10)
         }
         val tenTimePointsBack = ClickBehaviour { _, _ ->
-            val current = volume?.currentTimepoint ?: 0
+            val current = volume.currentTimepoint
             volume.goToTimePoint(current - 10)
         }
 

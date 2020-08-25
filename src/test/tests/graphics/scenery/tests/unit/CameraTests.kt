@@ -21,6 +21,7 @@ class CameraTests {
      * that to become part of the scene graph, and being removed
      * from it again after a given duration.
      */
+    @Suppress("UNCHECKED_CAST")
     @Test
     fun testShowMessage() {
         val duration = 400
@@ -34,7 +35,7 @@ class CameraTests {
         Thread.sleep(2L * duration)
 
         assertTrue("TextBoard was removed from scene after showing duration") { cam.children.size == 0 }
-        assertTrue("Messages metadata object contains no more entries") { (cam.metadata.get("messages") as MutableList<Node>).isEmpty() }
+        assertTrue("Messages metadata object contains no more entries") { (cam.metadata["messages"] as MutableList<Node>).isEmpty() }
     }
 
     /**

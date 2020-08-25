@@ -56,11 +56,7 @@ class Hub(val name: String = "default") {
             else -> SceneryElement.Custom
         }
 
-        return if(type != null) {
-            add(type, obj)
-        } else {
-            obj
-        }
+        return add(type, obj)
     }
 
     /**
@@ -113,6 +109,7 @@ class Hub(val name: String = "default") {
      */
     fun <T: Hubable> get(type: SceneryElement): T? {
         return if(elements.containsKey(type)) {
+            @Suppress("UNCHECKED_CAST")
             elements[type] as? T
         } else {
             null

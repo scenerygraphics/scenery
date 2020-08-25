@@ -109,6 +109,10 @@ sealed class Shaders {
             return p
         }
 
+        override fun toString(): String {
+            return "ShadersFromFiles: ${shaders.joinToString(",")}"
+        }
+
 
         /**
          * Data class for storing pairs of paths to SPIRV and to code path files

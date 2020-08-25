@@ -1,6 +1,7 @@
 version: '1.0.0-SNAPSHOT.b{build}'
 skip_tags: true
 environment:
+  MAVEN_OPTS: -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn
   matrix:
     - JAVA_HOME: C:\Program Files\Java\jdk1.8.0
 install:
@@ -22,8 +23,8 @@ test_script:
 on_success: 
   - cmd: | 
       mvn -B jacoco:report
-      curl -s https://codecov.io/bash > codecov.sh
-      bash "./codecov.sh" -c -F unittests -f target/site/jacoco/jacoco.xml
+      curl -s https://codecov.io/bash > codecov.sh & exit 0
+      bash "./codecov.sh" -c -F unittests -f target/site/jacoco/jacoco.xml & exit 0
 cache:
   - C:\maven
   - C:\Users\appveyor\.m2 -> pom.xml

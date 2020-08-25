@@ -6,6 +6,7 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import graphics.scenery.Blending
 import graphics.scenery.utils.JsonDeserialisers
+import graphics.scenery.utils.LazyLogger
 import org.joml.Vector4f
 import java.nio.file.Files
 import java.nio.file.Paths
@@ -36,11 +37,17 @@ fun RenderConfigReader.RenderConfig.getInputsOfTarget(targetName: String): Set<S
  * it as a [List] of Strings.
  */
 fun RenderConfigReader.RenderConfig.createRenderpassFlow(): List<String> {
+    val logger by LazyLogger()
     val passes = renderpasses
     val dag = ArrayList<String>()
 
     // find first
     val start = passes.filter { it.value.output.name == "Viewport" }.entries.first()
+
+    if(start.value.type == RenderConfigReader.RenderpassType.compute) {
+        logger.warn("A compute pass is used as a viewport pass. Due to format feature restrictions, this is not recommended and might fail.")
+    }
+
     var inputs: List<RenderConfigReader.RendertargetBinding>? = start.value.inputs
     dag.add(start.key)
 

@@ -647,6 +647,17 @@ open class OpenGLRenderer(hub: Hub,
                     cam.nearPlaneDistance,
                     cam.farPlaneDistance
                 )
+
+                Camera.ProjectionType.Undefined -> {
+                    logger.warn("Camera ${cam.name} has undefined projection type, using default perspective projection")
+                    cam.perspectiveCamera(
+                        cam.fov,
+                        (windowWidth * supersamplingFactor).roundToInt(),
+                        (windowHeight * supersamplingFactor).roundToInt(),
+                        cam.nearPlaneDistance,
+                        cam.farPlaneDistance
+                    )
+                }
             }
         }
 
@@ -755,7 +766,7 @@ open class OpenGLRenderer(hub: Hub,
                 val targetName = if(inputTarget.name.contains(".")) {
                     inputTarget.name.substringBefore(".")
                 } else {
-                    inputTarget
+                    inputTarget.name
                 }
 
                 passes.filter {
@@ -809,7 +820,6 @@ open class OpenGLRenderer(hub: Hub,
         this.joglDrawable = pDrawable
 
         if (mustRecreateFramebuffers) {
-            val surfaceScale = hub?.get<Settings>()?.get("Renderer.SurfaceScale", Vector2f(1.0f, 1.0f)) ?: Vector2f(1.0f, 1.0f)
             logger.info("Recreating framebuffers (${window.width}x${window.height})")
 
             // FIXME: This needs to be done here in order to be able to run on HiDPI screens correctly
@@ -1079,6 +1089,7 @@ open class OpenGLRenderer(hub: Hub,
         }
     }
 
+    @Suppress("UNUSED_VALUE")
     @Synchronized protected fun updateDefaultUBOs(cam: Camera): Boolean {
         // sticky boolean
         var updated: Boolean by StickyBoolean(initial = false)
@@ -1906,7 +1917,7 @@ open class OpenGLRenderer(hub: Hub,
                     others?.forEach { texture ->
                         @Suppress("SENSELESS_COMPARISON")
                         if(texture.value != null) {
-                            val minIndex = unboundSamplers.min() ?: maxSamplerIndex
+                            val minIndex = unboundSamplers.minOrNull() ?: maxSamplerIndex
                             gl.glActiveTexture(GL4.GL_TEXTURE0 + minIndex)
 
                             val target = if (texture.value.depth > 1) {
@@ -2116,7 +2127,7 @@ open class OpenGLRenderer(hub: Hub,
                 gl.glGenBuffers(pboCount, pbos, 0)
 
                 pbos.forEachIndexed { index, pbo ->
-                    gl.glBindBuffer(GL4.GL_PIXEL_PACK_BUFFER, pbos[index])
+                    gl.glBindBuffer(GL4.GL_PIXEL_PACK_BUFFER, pbo)
                     gl.glBufferData(GL4.GL_PIXEL_PACK_BUFFER, w * h * 4L, null, GL4.GL_STREAM_READ)
 
                     if(pboBuffers[index] != null) {
@@ -2475,7 +2486,7 @@ open class OpenGLRenderer(hub: Hub,
      * Returns true if the current [GLTexture] can be reused to store the information in the [Texture]
      * [other]. Returns false otherwise.
      */
-    protected fun GLTexture.canBeReused(other: Texture, miplevels: Int): Boolean {
+    protected fun GLTexture.canBeReused(other: Texture): Boolean {
         return this.width == other.dimensions.x() &&
             this.height == other.dimensions.y() &&
             this.depth == other.dimensions.z() &&
@@ -2577,7 +2588,7 @@ open class OpenGLRenderer(hub: Hub,
             }
 
             val existingTexture = s.textures[type]
-            val t = if(existingTexture != null && existingTexture.canBeReused(texture, miplevels)) {
+            val t = if(existingTexture != null && existingTexture.canBeReused(texture)) {
                 existingTexture
             } else {
                 GLTexture(gl, texture.type.toOpenGL(), texture.channels,
@@ -2599,11 +2610,15 @@ open class OpenGLRenderer(hub: Hub,
 
             t.setTextureBorderColor(texture.borderColor.toOpenGL())
 
+            // textures might have very uneven dimensions, so we adjust GL_UNPACK_ALIGNMENT here correspondingly
+            // in case the byte count of the texture is not divisible by it.
             val unpackAlignment = intArrayOf(0)
             gl.glGetIntegerv(GL4.GL_UNPACK_ALIGNMENT, unpackAlignment, 0)
 
-            // textures might have very uneven dimensions, so we adjust GL_UNPACK_ALIGNMENT here correspondingly
-            // in case the byte count of the texture is not divisible by it.
+            texture.contents?.let { contents ->
+                t.copyFrom(contents.duplicate())
+            }
+
             if (contentsNew != null && texture is UpdatableTexture && !texture.hasConsumableUpdates()) {
                 if (contentsNew.remaining() % unpackAlignment[0] == 0 && texture.dimensions.x() % unpackAlignment[0] == 0) {
                     t.copyFrom(contentsNew)
@@ -3077,6 +3092,7 @@ open class OpenGLRenderer(hub: Hub,
             renderConfig.qualitySettings[quality]?.forEach { setting ->
                 if(setting.key.endsWith(".shaders") && setting.value is List<*>) {
                     val pass = setting.key.substringBeforeLast(".shaders")
+                    @Suppress("UNCHECKED_CAST")
                     val shaders = setting.value as? List<String> ?: return@forEach
 
                     renderConfig.renderpasses[pass]?.shaders = shaders

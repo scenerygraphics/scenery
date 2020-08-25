@@ -14,11 +14,15 @@ import org.scijava.ui.behaviour.BehaviourMap
 import org.scijava.ui.behaviour.InputTrigger
 import org.scijava.ui.behaviour.InputTriggerMap
 import org.scijava.ui.behaviour.io.InputTriggerConfig
+import org.scijava.ui.behaviour.io.gui.CommandDescriptionBuilder
+import org.scijava.ui.behaviour.io.gui.VisualEditorPanel
 import org.scijava.ui.behaviour.io.yaml.YamlConfigIO
+import org.scijava.ui.behaviour.util.Behaviours
 import java.io.FileNotFoundException
 import java.io.FileReader
 import java.io.Reader
 import java.io.StringReader
+import javax.swing.JFrame
 
 /**
  * Input orchestrator for ClearGL windows
@@ -112,6 +116,15 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?, for
     }
 
     /**
+     * Returns *a copy of* the behaviours currently
+     * registered with this {@link InputHandler}.
+     */
+    fun getAllBehaviours(): List<String> {
+        return behaviourMap.keys().sorted()
+        //NB: behaviourMap.keys() returns a copy of its keys
+    }
+
+    /**
      * Adds a key binding for a given behaviour
      *
      * @param[behaviourName] The behaviour to add a key binding for
@@ -119,16 +132,27 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?, for
      */
     fun addKeyBinding(behaviourName: String, vararg keys: String) {
         keys.forEach { key ->
-            config.inputTriggerAdder(inputMap, "all").put(behaviourName, key)
+            val trigger = InputTrigger.getFromString( key )
+            inputMap.put( trigger, behaviourName )
+            config.add( trigger, behaviourName, "all" )
         }
     }
 
     /**
-     * Returns all the currently set key bindings
+     * Returns *a copy of* all keys {@link InputTrigger}s associated
+     * with the given behaviour
+     */
+    fun getKeyBindings(behaviourName: String): Set<InputTrigger> {
+        return config.getInputs( behaviourName, "all" )
+        //NB: this assumes that 'config' and 'inputMap' are well synchronized,
+        //    otherwise we would have to read 'inputMap' and build the set ourselves
+    }
+
+    /**
+     * Returns *a copy of* all the currently set key bindings
      *
      * @return Map of all currently configured key bindings.
      */
-    @Suppress("unused")
     fun getAllBindings(): Map<InputTrigger, Set<String>> {
         return inputMap.allBindings
     }
@@ -138,9 +162,11 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?, for
      *
      * @param[behaviourName] The behaviour to remove the key binding for.
      */
-    @Suppress("unused")
     fun removeKeyBinding(behaviourName: String) {
-        config.inputTriggerAdder(inputMap, "all").put(behaviourName)
+        config.getInputs( behaviourName, "all" ).forEach { inputTrigger ->
+            inputMap.remove( inputTrigger, behaviourName )
+            config.remove( inputTrigger, behaviourName, "all" )
+        }
     }
 
     /**
@@ -170,7 +196,7 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?, for
                     "- !mapping" + "\n" +
                     "  action: mouse_control" + "\n" +
                     "  contexts: [all]" + "\n" +
-                    "  triggers: [button1, G]" + "\n" +
+                    "  triggers: [button1, M]" + "\n" +
                     "- !mapping" + "\n" +
                     "  action: gamepad_movement_control" + "\n" +
                     "  contexts: [all]" + "\n" +
@@ -178,7 +204,7 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?, for
                     "- !mapping" + "\n" +
                     "  action: gamepad_camera_control" + "\n" +
                     "  contexts: [all]" + "\n" +
-                    "  triggers: [P]" + "\n" +
+                    "  triggers: [G]" + "\n" +
                     "- !mapping" + "\n" +
                     "  action: scroll1" + "\n" +
                     "  contexts: [all]" + "\n" +
@@ -198,7 +224,8 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?, for
         behaviourMap.put("gamepad_camera_control", GamepadCameraControl("gamepad_camera_control", listOf(Component.Identifier.Axis.Z, Component.Identifier.Axis.RZ), { scene.findObserver() }, window.width, window.height))
         behaviourMap.put("gamepad_movement_control", GamepadMovementControl("gamepad_movement_control", listOf(Component.Identifier.Axis.X, Component.Identifier.Axis.Y), { scene.findObserver() }))
 
-        behaviourMap.put("select_command", SelectCommand("select_command", renderer, scene, { scene.findObserver() }))
+        //unused until some reasonable action (to the selection) would be provided
+        //behaviourMap.put("select_command", SelectCommand("select_command", renderer, scene, { scene.findObserver() }))
 
         behaviourMap.put("move_forward", MovementCommand("move_forward", "forward", { scene.findObserver() }, slowMovementSpeed))
         behaviourMap.put("move_back", MovementCommand("move_back", "back", { scene.findObserver() }, slowMovementSpeed))
@@ -227,7 +254,7 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?, for
         adder.put("gamepad_movement_control")
         adder.put("gamepad_camera_control")
 
-        adder.put("select_command", "double-click button1")
+        //adder.put("select_command", "double-click button1")
 
         adder.put("move_forward", "W")
         adder.put("move_left", "A")
@@ -255,5 +282,27 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?, for
     override fun close() {
         logger.debug("Closing InputHandler")
         handler?.close()
+    }
+
+    fun openKeybindingsGuiEditor( editorTitle : String = "scenery's Key bindings editor" ): VisualEditorPanel {
+        //setup content for the Visual Editor
+        val cdb = CommandDescriptionBuilder()
+        behaviourMap.keys().forEach { b -> cdb.addCommand(b,"all","") }
+        val editorPanel = VisualEditorPanel(config, cdb.get())
+
+        //show the Editor
+        val frame = JFrame(editorTitle)
+        frame.contentPane.add(editorPanel)
+        frame.pack()
+        frame.isVisible = true
+
+        //process "Apply" button of the editor
+        editorPanel.configCommittedListeners().add(
+            VisualEditorPanel.ConfigChangeListener {
+                Behaviours(inputMap,behaviourMap,config,"all").updateKeyConfig(config)
+            } )
+
+        //return reference on the Editor, so that users can hook own extra stuff
+        return editorPanel
     }
 }

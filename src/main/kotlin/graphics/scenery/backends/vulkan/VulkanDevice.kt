@@ -150,10 +150,12 @@ open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysical
             }
             ppEnabledLayerNames.flip()
 
+            // all enabled features here have >99% availability according to http://vulkan.gpuinfo.org/listfeatures.php
             val enabledFeatures = VkPhysicalDeviceFeatures.callocStack(stack)
                 .samplerAnisotropy(true)
                 .largePoints(true)
                 .geometryShader(true)
+                .fillModeNonSolid(true)
 
             val deviceCreateInfo = VkDeviceCreateInfo.callocStack(stack)
                 .sType(VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO)
@@ -676,93 +678,91 @@ open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysical
                                           additionalExtensions: (VkPhysicalDevice) -> Array<String> = { arrayOf() },
                                           validationLayers: Array<String> = arrayOf(),
                                           headless: Boolean = false): VulkanDevice {
-            return stackPush().use { stack ->
 
-                val physicalDeviceCount = VU.getInt("Enumerate physical devices") {
-                    vkEnumeratePhysicalDevices(instance, this, null)
-                }
-
-                if (physicalDeviceCount < 1) {
-                    throw IllegalStateException("No Vulkan-compatible devices found!")
-                }
-
-                val physicalDevices = VU.getPointers("Getting Vulkan physical devices", physicalDeviceCount) {
-                    vkEnumeratePhysicalDevices(instance, intArrayOf(physicalDeviceCount), this)
-                }
-
-                var devicePreference = 0
-
-                logger.info("Physical devices: ")
-                val deviceList = ArrayList<DeviceData>(10)
-
-                for (i in 0 until physicalDeviceCount) {
-                    val device = VkPhysicalDevice(physicalDevices.get(i), instance)
-                    val properties: VkPhysicalDeviceProperties = VkPhysicalDeviceProperties.calloc()
-                    vkGetPhysicalDeviceProperties(device, properties)
-
-                    val apiVersion = with(decodeDriverVersion(properties.apiVersion())) { this.first to this.second }
-
-
-                    val formatRanges = (0 .. apiVersion.second).mapNotNull { minor -> supportedFormatRanges[1 to minor] }
-
-                    val formats = formatRanges.flatMap { range ->
-                        range.map { format ->
-                            val formatProperties = VkFormatProperties.calloc()
-
-                            vkGetPhysicalDeviceFormatProperties(device, format, formatProperties)
-
-                            format to formatProperties
-                        }
-                    }.toMap()
-
-                    val deviceData = DeviceData(
-                        vendor = vendorToString(properties.vendorID()),
-                        name = properties.deviceNameString(),
-                        driverVersion = driverVersionToString(properties.driverVersion()),
-                        apiVersion = driverVersionToString(properties.apiVersion()),
-                        type = toDeviceType(properties.deviceType()),
-                        properties = properties,
-                        formats = formats)
-
-                    if(physicalDeviceFilter.invoke(i, deviceData)) {
-                        logger.debug("Device filter matches device $i, $deviceData")
-                        devicePreference = i
-                    }
-
-                    deviceList.add(deviceData)
-                }
-
-                deviceList.forEachIndexed { i, device ->
-                    val selected = if (devicePreference == i) {
-                        "(selected)"
-                    } else {
-                        device.properties.free()
-                        ""
-                    }
-
-                    logger.info("  $i: ${device.toFullString()} $selected")
-                }
-
-                val selectedDevice = physicalDevices.get(devicePreference)
-                val selectedDeviceData = deviceList[devicePreference]
-
-                if(System.getProperty("scenery.DisableDeviceWorkarounds", "false")?.toBoolean() != true) {
-                    deviceWorkarounds.forEach {
-                        if (it.filter.invoke(selectedDeviceData)) {
-                            logger.warn("Workaround activated: ${it.description}")
-                            it.workaround.invoke(selectedDeviceData)
-                        }
-                    }
-                } else {
-                    logger.warn("Device-specific workarounds disabled upon request, expect weird things to happen.")
-                }
-
-                val physicalDevice = VkPhysicalDevice(selectedDevice, instance)
-
-                physicalDevices.free()
-
-                VulkanDevice(instance, physicalDevice, selectedDeviceData, additionalExtensions, validationLayers, headless)
+            val physicalDeviceCount = VU.getInt("Enumerate physical devices") {
+                vkEnumeratePhysicalDevices(instance, this, null)
             }
+
+            if (physicalDeviceCount < 1) {
+                throw IllegalStateException("No Vulkan-compatible devices found!")
+            }
+
+            val physicalDevices = VU.getPointers("Getting Vulkan physical devices", physicalDeviceCount) {
+                vkEnumeratePhysicalDevices(instance, intArrayOf(physicalDeviceCount), this)
+            }
+
+            var devicePreference = 0
+
+            logger.info("Physical devices: ")
+            val deviceList = ArrayList<DeviceData>(10)
+
+            for (i in 0 until physicalDeviceCount) {
+                val device = VkPhysicalDevice(physicalDevices.get(i), instance)
+                val properties: VkPhysicalDeviceProperties = VkPhysicalDeviceProperties.calloc()
+                vkGetPhysicalDeviceProperties(device, properties)
+
+                val apiVersion = with(decodeDriverVersion(properties.apiVersion())) { this.first to this.second }
+
+
+                val formatRanges = (0 .. apiVersion.second).mapNotNull { minor -> supportedFormatRanges[1 to minor] }
+
+                val formats = formatRanges.flatMap { range ->
+                    range.map { format ->
+                        val formatProperties = VkFormatProperties.calloc()
+
+                        vkGetPhysicalDeviceFormatProperties(device, format, formatProperties)
+
+                        format to formatProperties
+                    }
+                }.toMap()
+
+                val deviceData = DeviceData(
+                    vendor = vendorToString(properties.vendorID()),
+                    name = properties.deviceNameString(),
+                    driverVersion = driverVersionToString(properties.driverVersion()),
+                    apiVersion = driverVersionToString(properties.apiVersion()),
+                    type = toDeviceType(properties.deviceType()),
+                    properties = properties,
+                    formats = formats)
+
+                if(physicalDeviceFilter.invoke(i, deviceData)) {
+                    logger.debug("Device filter matches device $i, $deviceData")
+                    devicePreference = i
+                }
+
+                deviceList.add(deviceData)
+            }
+
+            deviceList.forEachIndexed { i, device ->
+                val selected = if (devicePreference == i) {
+                    "(selected)"
+                } else {
+                    device.properties.free()
+                    ""
+                }
+
+                logger.info("  $i: ${device.toFullString()} $selected")
+            }
+
+            val selectedDevice = physicalDevices.get(devicePreference)
+            val selectedDeviceData = deviceList[devicePreference]
+
+            if(System.getProperty("scenery.DisableDeviceWorkarounds", "false")?.toBoolean() != true) {
+                deviceWorkarounds.forEach {
+                    if (it.filter.invoke(selectedDeviceData)) {
+                        logger.warn("Workaround activated: ${it.description}")
+                        it.workaround.invoke(selectedDeviceData)
+                    }
+                }
+            } else {
+                logger.warn("Device-specific workarounds disabled upon request, expect weird things to happen.")
+            }
+
+            val physicalDevice = VkPhysicalDevice(selectedDevice, instance)
+
+            physicalDevices.free()
+
+            return VulkanDevice(instance, physicalDevice, selectedDeviceData, additionalExtensions, validationLayers, headless)
         }
     }
 }

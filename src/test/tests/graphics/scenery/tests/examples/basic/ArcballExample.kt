@@ -33,7 +33,7 @@ class ArcballExample : SceneryBase("ArcballExample") {
         }
 
         val camlight = PointLight(3.0f)
-        camlight.intensity = 100.0f
+        camlight.intensity = 5.0f
         cam.addChild(camlight)
 
         val box = Box(Vector3f(1.0f, 1.0f, 1.0f))
@@ -58,16 +58,12 @@ class ArcballExample : SceneryBase("ArcballExample") {
             light
         }
 
+        val floor = Box(Vector3f(500.0f, 0.05f, 500.0f))
+        floor.position = Vector3f(0.0f, -1.0f, 0.0f)
+        floor.material.diffuse = Vector3f(1.0f, 1.0f, 1.0f)
+        scene.addChild(floor)
+
         lights.forEach(scene::addChild)
-
-        thread {
-            while (true) {
-                box.rotation.rotateY(0.01f)
-                box.needsUpdate = true
-
-                Thread.sleep(20)
-            }
-        }
     }
 
     override fun inputSetup() {
