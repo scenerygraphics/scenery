@@ -1656,7 +1656,7 @@ open class VulkanRenderer(hub: Hub,
 
         val startPresent = System.nanoTime()
         commandBuffer.submitted = true
-        swapchain.present(ph.signalSemaphore)
+        swapchain.present(present.signalSemaphore)
 
         swapchain.postPresent(pass.getReadPosition())
 
@@ -2041,7 +2041,7 @@ open class VulkanRenderer(hub: Hub,
 
         profiler?.end()
 
-        flow.take(flow.size - 1).forEach { t ->
+        flow.take(flow.size - 1).forEachIndexed { i, t ->
             profiler?.begin("Renderer.$t")
             logger.trace("Running pass {}", t)
             val target = renderpasses[t]!!
@@ -2091,6 +2091,12 @@ open class VulkanRenderer(hub: Hub,
             firstWaitSemaphore.put(0, target.semaphore)
             waitSemaphore = target.semaphore
 
+            val pauseAtPass = settings.get("PauseAtPassIndex", 0)
+            if(i == (flow.size - 1 - pauseAtPass)) {
+                logger.info("vkQueueWaitIdle run at pass $i/$t")
+                vkQueueWaitIdle(queue)
+            }
+
             profiler?.end()
         }
 
@@ -2126,7 +2132,7 @@ open class VulkanRenderer(hub: Hub,
         viewportPass.updateShaderParameters()
 
         ph.commandBuffers.put(0, viewportCommandBuffer.commandBuffer!!)
-        ph.waitStages.put(0, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT or VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT or VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT)
+        ph.waitStages.put(0, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT)
         ph.signalSemaphore.put(0, semaphores.getValue(StandardSemaphores.RenderComplete)[currentFrame])
         ph.waitSemaphore.put(0, firstWaitSemaphore.get(0))
         profiler?.end()
@@ -2649,22 +2655,23 @@ open class VulkanRenderer(hub: Hub,
                                 srcStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
                                 srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
                                 dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
-                                dstAccessMask = VK_ACCESS_MEMORY_WRITE_BIT,
+                                dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT,
                                 subresourceRange = subresourceRange,
                                 commandBuffer = transitionBuffer,
+                                dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT
                             )
 
                             // transition destination attachment
                             VulkanTexture.transitionLayout(outputAttachment.image,
                                 from = inputAspectType,
                                 to = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                srcStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-                                srcAccessMask = 0,
-                                dstStage = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT
-                                    or VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
-                                dstAccessMask = 0,
+                                srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+                                dstStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                                dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
                                 subresourceRange = subresourceRange,
-                                commandBuffer = transitionBuffer
+                                commandBuffer = transitionBuffer,
+                                dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT
                             )
 
                             if(inputAttachment.compatibleWith(input, outputAttachment, pass.getOutput())) {
@@ -2694,23 +2701,25 @@ open class VulkanRenderer(hub: Hub,
                                 from = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                                 to = outputAspectDstType,
                                 srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
-                                srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT,
+                                srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
                                 dstStage = outputDstStage,
                                 dstAccessMask = outputDstAccessMask,
                                 subresourceRange = subresourceRange,
                                 commandBuffer = transitionBuffer,
-                            )
+                                dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT
+                                )
 
                             // transition source attachment back to shader read-only
                             VulkanTexture.transitionLayout(inputAttachment.image,
                                 from = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                                 to = outputAspectSrcType,
                                 srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
-                                dstStage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+                                dstStage = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,
                                 srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT,
-                                dstAccessMask = 0,
+                                dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
                                 subresourceRange = subresourceRange,
-                                commandBuffer = transitionBuffer
+                                commandBuffer = transitionBuffer,
+                                dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT
                             )
 
                         }
@@ -2754,7 +2763,7 @@ open class VulkanRenderer(hub: Hub,
 
                 pass.vulkanMetadata.uboOffsets.position(0)
                 pass.vulkanMetadata.uboOffsets.limit(pass.vulkanMetadata.uboOffsets.capacity())
-                pass.vulkanMetadata.uboOffsets.put(sets.filter { it is DescriptorSet.DynamicSet }.map { (it as DescriptorSet.DynamicSet).offset }.toIntArray())
+                pass.vulkanMetadata.uboOffsets.put(sets.filterIsInstance<DescriptorSet.DynamicSet>().map { it.offset }.toIntArray())
                 pass.vulkanMetadata.uboOffsets.flip()
 
                 // allocate more vertexBufferOffsets than needed, set limit lateron
