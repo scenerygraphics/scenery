@@ -6,6 +6,7 @@ import graphics.scenery.backends.Renderer
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.Image
 import org.junit.Test
+import java.net.InetAddress
 import kotlin.concurrent.thread
 
 /**
@@ -16,7 +17,9 @@ import kotlin.concurrent.thread
 class TexturedCubeExample : SceneryBase("TexturedCubeExample") {
     override fun init() {
         renderer = hub.add(SceneryElement.Renderer,
-            Renderer.createRenderer(hub, applicationName, scene, 512, 512))
+            Renderer.createRenderer(hub, applicationName, scene, 700, 700))
+
+        renderer?.recordMovie("")
 
         val box = Box(Vector3f(1.0f, 1.0f, 1.0f))
         box.name = "le box du win"
@@ -50,6 +53,9 @@ class TexturedCubeExample : SceneryBase("TexturedCubeExample") {
     }
 
     @Test override fun main() {
+//        settings.set("VideoEncoder.Format", "HEVC")
+        settings.set("VideoEncoder.StreamVideo", true)
+        settings.set("H264Encoder.StreamingAddress", "udp://${InetAddress.getLocalHost().hostAddress}:3337")
         super.main()
     }
 }
