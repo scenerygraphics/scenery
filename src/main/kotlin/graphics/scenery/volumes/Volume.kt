@@ -22,13 +22,11 @@ import graphics.scenery.*
 import graphics.scenery.numerics.OpenSimplexNoise
 import graphics.scenery.numerics.Random
 import graphics.scenery.utils.LazyLogger
-import graphics.scenery.utils.forEachParallel
 import graphics.scenery.volumes.Volume.VolumeDataSource.SpimDataMinimalSource
 import io.scif.SCIFIO
 import io.scif.util.FormatTools
 import mpicbg.spim.data.generic.sequence.AbstractSequenceDescription
 import mpicbg.spim.data.sequence.FinalVoxelDimensions
-import mpicbg.spim.data.sequence.VoxelDimensions
 import net.imglib2.RandomAccessibleInterval
 import net.imglib2.Volatile
 import net.imglib2.realtransform.AffineTransform3D
@@ -40,7 +38,6 @@ import org.joml.Matrix4f
 import org.joml.Vector3i
 import org.lwjgl.system.MemoryUtil
 import org.scijava.io.location.FileLocation
-import org.scijava.io.location.Location
 import tpietzsch.example2.VolumeViewerOptions
 import java.io.FileInputStream
 import java.nio.ByteBuffer
@@ -49,6 +46,7 @@ import java.nio.IntBuffer
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.*
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.*
 import kotlin.properties.Delegates
@@ -71,7 +69,7 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
     override var indices : IntBuffer = IntBuffer.allocate(0)
 
     val converterSetups = ArrayList<ConverterSetup>()
-    var maxTimepoint: Int
+    var timepointCount: Int
     val viewerState: ViewerState
 
     /** The transfer function to use for the volume. Flat by default. */
@@ -134,7 +132,7 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
                 val spimData = dataSource.spimData
 
                 val seq: AbstractSequenceDescription<*, *, *> = spimData.sequenceDescription
-                maxTimepoint = seq.timePoints.size() - 1
+                timepointCount = seq.timePoints.size() - 1
                 cacheControls.addCacheControl((seq.imgLoader as ViewerImgLoader).cacheControl)
 
                 // wraps legacy image formats (e.g., TIFF) if referenced in BDV XML
@@ -145,16 +143,16 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
                 // These are then stored in [converterSetups] and [sources_].
                 BigDataViewer.initSetups(spimData, converterSetups, sources)
 
-                viewerState = ViewerState(sources, maxTimepoint)
+                viewerState = ViewerState(sources, timepointCount)
 
                 WrapBasicImgLoader.removeWrapperIfPresent(spimData)
             }
 
             is VolumeDataSource.RAISource<*> -> {
-                maxTimepoint = dataSource.numTimepoints
+                timepointCount = dataSource.numTimepoints
                 // FIXME: bigdataviewer-core > 9.0.0 doesn't enjoy having 0 timepoints anymore :-(
                 // We tell it here to have a least one, so far no ill side effects from that
-                viewerState = ViewerState(dataSource.sources, max(1, maxTimepoint))
+                viewerState = ViewerState(dataSource.sources, max(1, timepointCount))
                 converterSetups.addAll( dataSource.converterSetups )
             }
         }
@@ -175,25 +173,44 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
      * Goes to the next available timepoint, returning the number of the updated timepoint.
      */
     fun nextTimepoint(): Int {
-        return goToTimePoint(viewerState.currentTimepoint + 1)
+        return goToTimepoint(viewerState.currentTimepoint + 1)
     }
 
     /** Goes to the previous available timepoint, returning the number of the updated timepoint. */
     fun previousTimepoint(): Int {
-        return goToTimePoint(viewerState.currentTimepoint - 1)
+        return goToTimepoint(viewerState.currentTimepoint - 1)
     }
 
     /** Goes to the [timepoint] given, returning the number of the updated timepoint. */
-    open fun goToTimePoint(timepoint: Int): Int {
+    open fun goToTimepoint(timepoint: Int): Int {
+        val tp = if(timepoint == -1) {
+            timepointCount
+        } else {
+            timepoint
+        }
         val current = viewerState.currentTimepoint
-        viewerState.currentTimepoint = min(max(timepoint, 0), maxTimepoint - 1)
-        logger.info("Going to timepoint ${viewerState.currentTimepoint} of $maxTimepoint")
+        viewerState.currentTimepoint = min(max(tp, 0), timepointCount - 1)
+        logger.debug("Going to timepoint ${viewerState.currentTimepoint+1} of $timepointCount")
 
         if(current != viewerState.currentTimepoint) {
             volumeManager.notifyUpdate(this)
         }
 
         return viewerState.currentTimepoint
+    }
+
+    /**
+     * Goes to the last timepoint.
+     */
+    open fun goToLastTimepoint(): Int {
+        return goToTimepoint(-1)
+    }
+
+    /**
+     * Goes to the first timepoint.
+     */
+    open fun goToFirstTimepoint(): Int {
+        return goToTimepoint(0)
     }
 
     fun prepareNextFrame() {
@@ -356,8 +373,28 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
             return volume
         }
 
+        @Deprecated("Please use the version that takes List<Timepoint> as input instead of this one.")
         @JvmStatic @JvmOverloads fun <T: NumericType<T>> fromBuffer(
             volumes: LinkedHashMap<String, ByteBuffer>,
+            width: Int,
+            height: Int,
+            depth: Int,
+            type: T,
+            hub: Hub,
+            voxelDimensions: FloatArray = floatArrayOf(1.0f, 1.0f, 1.0f),
+            voxelUnit: String = "um",
+            options: VolumeViewerOptions = VolumeViewerOptions()
+        ): BufferedVolume {
+            val list = CopyOnWriteArrayList<BufferedVolume.Timepoint>()
+            volumes.forEach {
+                list.add(BufferedVolume.Timepoint(it.key, it.value))
+            }
+
+            return fromBuffer(list, width, height, depth, type, hub, voxelDimensions, voxelUnit, options)
+        }
+
+        @JvmStatic @JvmOverloads fun <T: NumericType<T>> fromBuffer(
+            volumes: List<BufferedVolume.Timepoint>,
             width: Int,
             height: Int,
             depth: Int,
@@ -370,7 +407,8 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
             val converterSetups: ArrayList<ConverterSetup> = ArrayList()
             val sources: ArrayList<SourceAndConverter<T>> = ArrayList()
 
-            val s = BufferSource(volumes, width, height, depth, FinalVoxelDimensions(voxelUnit, *(voxelDimensions.map { it.toDouble() }.toDoubleArray())), "", type)
+            val timepoints = CopyOnWriteArrayList<BufferedVolume.Timepoint>(volumes)
+            val s = BufferSource(timepoints, width, height, depth, FinalVoxelDimensions(voxelUnit, *(voxelDimensions.map { it.toDouble() }.toDoubleArray())), "", type)
             val source: SourceAndConverter<T> = BigDataViewer.wrapWithTransformedSource(
                     SourceAndConverter<T>(s, BigDataViewer.createConverterToARGB(type)))
            converterSetups.add(BigDataViewer.createConverterSetup(source, setupId.getAndIncrement()))
@@ -405,8 +443,9 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
 
             val buffer = intoBuffer ?: MemoryUtil.memAlloc(byteSize * bytesPerVoxel)
 
-            (0 until byteSize/bytesPerVoxel).chunked(byteSize/4).forEachParallel { subList ->
-                subList.forEach {
+//            (0 until byteSize/bytesPerVoxel).chunked(byteSize/4).forEachParallel { subList ->
+            (0 until byteSize/bytesPerVoxel).forEach {
+//                subList.forEach {
                     val x = it.rem(size)
                     val y = (it / size).rem(size)
                     val z = it / (size * size)
@@ -429,7 +468,7 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
                     } else {
                         buffer.put(it, result.toByte())
                     }
-                }
+//                }
             }
 
             return buffer
@@ -498,8 +537,8 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
 
             imageData.flip()
 
-            val volumes = LinkedHashMap<String, ByteBuffer>()
-            volumes[id] = imageData
+            val volumes = CopyOnWriteArrayList<BufferedVolume.Timepoint>()
+            volumes.add(BufferedVolume.Timepoint(id, imageData))
             // TODO: Kotlin compiler issue, see https://youtrack.jetbrains.com/issue/KT-37955
             return when(type) {
                 is ByteType -> fromBuffer(volumes, dims.x, dims.y, dims.z, ByteType(), hub)
@@ -538,7 +577,8 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
             logger.debug("setting dim to ${dimensions.x}/${dimensions.y}/${dimensions.z}")
             logger.debug("Got ${volumeFiles.size} volumes")
 
-            val volumes = LinkedHashMap(volumeFiles.map { v ->
+            val volumes = CopyOnWriteArrayList<BufferedVolume.Timepoint>()
+            volumeFiles.forEach { v ->
                 val id = v.fileName.toString()
                 val buffer: ByteBuffer by lazy {
 
@@ -562,8 +602,8 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
                     imageData
                 }
 
-                id to buffer
-            }.toMap())
+                volumes.add(BufferedVolume.Timepoint(id, buffer))
+            }
 
             return fromBuffer(volumes, dimensions.x, dimensions.y, dimensions.z, UnsignedShortType(), hub)
         }
