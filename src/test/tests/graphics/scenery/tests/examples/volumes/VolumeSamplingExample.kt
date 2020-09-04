@@ -107,8 +107,7 @@ class VolumeSamplingExample: SceneryBase("Volume Sampling example", 1280, 720) {
             connector.orientBetweenPoints(p1.position, p2.position, true, true)
         }
 
-        val volumes = LinkedHashMap<String, ByteBuffer>()
-        val volume = Volume.fromBuffer(volumes, volumeSize, volumeSize, volumeSize, UnsignedByteType(), hub)
+        val volume = Volume.fromBuffer(emptyList(), volumeSize, volumeSize, volumeSize, UnsignedByteType(), hub)
         volume.name = "volume"
         volume.position = Vector3f(0.0f, 0.0f, 0.0f)
         volume.colormap = Colormap.get("viridis")
