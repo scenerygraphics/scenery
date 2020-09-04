@@ -23,6 +23,7 @@ import kotlin.concurrent.thread
  */
 class ProceduralVolumeExample: SceneryBase("Volume Rendering example", 1280, 720) {
     val bitsPerVoxel = 8
+    val volumeSize = 48L
 
     override fun init() {
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
@@ -43,8 +44,7 @@ class ProceduralVolumeExample: SceneryBase("Volume Rendering example", 1280, 720
         shell.position = Vector3f(0.0f, 4.0f, 0.0f)
         scene.addChild(shell)
 
-        val volumes = LinkedHashMap<String, ByteBuffer>()
-        val volume = Volume.fromBuffer(volumes, 128, 128, 128, UnsignedByteType(), hub)
+        val volume = Volume.fromBuffer(emptyList(), volumeSize.toInt(), volumeSize.toInt(), volumeSize.toInt(), UnsignedByteType(), hub)
         volume.name = "volume"
         volume.position = Vector3f(0.0f, 0.0f, 0.0f)
         volume.colormap = Colormap.get("hot")
@@ -73,7 +73,6 @@ class ProceduralVolumeExample: SceneryBase("Volume Rendering example", 1280, 720
         }
 
         thread {
-            val volumeSize = 128L
             val volumeBuffer = RingBuffer<ByteBuffer>(2) { memAlloc((volumeSize*volumeSize*volumeSize*bitsPerVoxel/8).toInt()) }
 
             val seed = Random.randomFromRange(0.0f, 133333337.0f).toLong()
@@ -89,15 +88,15 @@ class ProceduralVolumeExample: SceneryBase("Volume Rendering example", 1280, 720
                         intoBuffer = currentBuffer, shift = shift, use16bit = bitsPerVoxel > 8)
 
                     volume.addTimepoint("t-${count}", currentBuffer)
-                    volume.goToTimePoint(volumes.size-1)
+                    volume.goToLastTimepoint()
 
                     volume.purgeFirst(10, 10)
 
-                    shift = shift + shiftDelta
+                    shift += shiftDelta
                     count++
                 }
 
-                Thread.sleep(50)
+                Thread.sleep(kotlin.random.Random.nextLong(10L, 200L))
             }
         }
     }
