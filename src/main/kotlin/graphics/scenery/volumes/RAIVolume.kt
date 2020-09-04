@@ -17,7 +17,7 @@ class RAIVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewerOpti
             cacheControls.addCacheControl(ds.cacheControl)
         }
 
-        maxTimepoint = ds.numTimepoints
+        timepointCount = ds.numTimepoints
 
         boundingBox = generateBoundingBox()
     }
