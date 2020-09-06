@@ -100,7 +100,7 @@ class VolumeManager(
 
     /** Set of [VolumeBlocks]. */
     protected var outOfCoreVolumes = ArrayList<VolumeBlocks>()
-    protected var nodes = ArrayList<Volume>()
+    protected var nodes = CopyOnWriteArrayList<Volume>()
     protected var transferFunctionTextures = HashMap<SourceState<*>, Texture>()
     protected var colorMapTextures = HashMap<SourceState<*>, Texture>()
     /** Cache specification. */
@@ -130,7 +130,7 @@ class VolumeManager(
     /** Sets the maximum allowed step size in voxels. */
     var maxAllowedStepInVoxels = 1.0
     /** Numeric factor by which the step size may degrade on the far plane. */
-    var farPlaneDegradation = 5.0
+    var farPlaneDegradation = 2.0
 
     // TODO: What happens when changing this? And should it change the mode for the current node only
     // or for all VolumeManager-managed nodes?
@@ -297,7 +297,7 @@ class VolumeManager(
      * Updates the currently-used set of blocks using [context] to
      * facilitate the updates on the GPU.
      */
-    protected fun updateBlocks(context: SceneryContext): Boolean {
+    @Synchronized protected fun updateBlocks(context: SceneryContext): Boolean {
         val currentProg = progvol
         if(currentProg == null) {
             logger.info("Not updating blocks, no prog")
@@ -532,7 +532,7 @@ class VolumeManager(
     /**
      * Updates the current rendering state.
      */
-    protected fun updateRenderState() {
+    @Synchronized protected fun updateRenderState() {
         val stacks = ArrayList<StackState>(renderStacksStates.size)
 
         nodes.forEach { bdvNode ->
@@ -559,16 +559,18 @@ class VolumeManager(
                     val o: SimpleStack3D<*>
                     val ss = source.spimSource as? TransformedSource
                     val wrapped = ss?.wrappedSource
+
                     o = if(wrapped is BufferSource) {
-                        if(wrapped.timepoints.isEmpty()) {
+                        val timepoints = wrapped.timepoints
+                        if(timepoints.isEmpty()) {
                             logger.info("Timepoints is empty, skipping node")
                             return@forEach
                         }
 
-                        val tp = min(max(0, currentTimepoint), wrapped.timepoints.size-1)
+                        val tp = min(max(0, currentTimepoint), timepoints.size-1)
                         TransformedBufferedSimpleStack3D(
                             stack,
-                            wrapped.timepoints.toList()[tp].second,
+                            timepoints[tp].contents,
                             intArrayOf(wrapped.width, wrapped.height, wrapped.depth),
                             bdvNode,
                             sourceTransform
@@ -596,7 +598,7 @@ class VolumeManager(
      * Adds a new volume [node] to the [VolumeManager]. Will trigger an update of the rendering state,
      * and recreation of the shaders.
      */
-    fun add(node: Volume) {
+    @Synchronized fun add(node: Volume) {
         logger.debug("Adding $node to OOC nodes")
         nodes.add(node)
         updateRenderState()
@@ -607,7 +609,7 @@ class VolumeManager(
      * Notifies the [VolumeManager] of any updates coming from [node],
      * will trigger an update of the rendering state, and potentially creation of new shaders.
      */
-    fun notifyUpdate(node: Node) {
+    @Synchronized fun notifyUpdate(node: Node) {
         logger.debug("Received update from {}", node)
         renderStateUpdated = true
         updateRenderState()

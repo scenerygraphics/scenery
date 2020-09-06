@@ -13,6 +13,7 @@ import net.imglib2.type.numeric.integer.UnsignedShortType
 import org.junit.Test
 import org.lwjgl.system.MemoryUtil.memAlloc
 import java.nio.ByteBuffer
+import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.concurrent.thread
 
 /**
@@ -38,7 +39,7 @@ class ARExample: SceneryBase("AR Volume Rendering example", 1280, 720) {
             scene.addChild(this)
         }
 
-        val volume = Volume.fromBuffer(LinkedHashMap(), 64, 64, 64, UnsignedShortType(), hub)
+        val volume = Volume.fromBuffer(emptyList(), 64, 64, 64, UnsignedShortType(), hub)
         volume.name = "volume"
         volume.colormap = Colormap.get("plasma")
         volume.scale = Vector3f(0.02f, 0.02f, 0.02f)
