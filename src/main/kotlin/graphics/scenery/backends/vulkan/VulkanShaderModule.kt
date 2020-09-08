@@ -323,6 +323,8 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, val 
             .map { it.key to it.value }
         uboSpecs.clear()
         sortedSpecs.forEach { uboSpecs[it.first] = it.second }
+
+        logger.debug("Created Vulkan Shader Module ${this.shaderModule.toHexString()}")
     }
 
     protected fun ShaderType.toVulkanShaderStage() = when(this) {
