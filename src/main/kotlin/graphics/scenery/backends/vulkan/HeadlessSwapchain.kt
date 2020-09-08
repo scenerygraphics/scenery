@@ -159,7 +159,7 @@ open class HeadlessSwapchain(device: VulkanDevice,
      * optionally waiting for a [timeout] before failing. Returns true if the swapchain needs to be
      * recreated and false if not.
      */
-    override fun next(timeout: Long, signalSemaphore: Long): Boolean {
+    override fun next(timeout: Long, signalSemaphore: Long): Int {
         MemoryStack.stackPush().use { stack ->
             VK10.vkQueueWaitIdle(presentQueue)
 
@@ -174,7 +174,7 @@ open class HeadlessSwapchain(device: VulkanDevice,
             currentImage = ++currentImage % images.size
         }
 
-        return false
+        return currentImage
     }
 
     /**

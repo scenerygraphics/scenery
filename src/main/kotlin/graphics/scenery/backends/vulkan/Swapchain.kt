@@ -46,7 +46,7 @@ interface Swapchain : AutoCloseable {
      * optionally waiting for a [timeout] before failing. Returns true if the swapchain needs to be
      * recreated and false if not.
      */
-    fun next(timeout: Long = -1L, signalSemaphore: Long = 0L): Boolean
+    fun next(timeout: Long = -1L, signalSemaphore: Long = 0L): Int
 
     /**
      * Closes this swapchain.
