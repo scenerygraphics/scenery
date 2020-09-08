@@ -2664,7 +2664,7 @@ open class VulkanRenderer(hub: Hub,
                             input.attachments
                         }
 
-                        for((attname, inputAttachment) in attachmentList) {
+                        for((_, inputAttachment) in attachmentList) {
                             val type = when(inputAttachment.type) {
                                 VulkanFramebuffer.VulkanFramebufferType.COLOR_ATTACHMENT -> VK_IMAGE_ASPECT_COLOR_BIT
                                 VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT -> VK_IMAGE_ASPECT_DEPTH_BIT
@@ -3563,7 +3563,7 @@ open class VulkanRenderer(hub: Hub,
         vkDestroyPipelineCache(device.vulkanDevice, pipelineCache, null)
 
         if (validation && debugCallbackHandle != -1L) {
-            vkDestroyDebugReportCallbackEXT(instance, debugCallbackHandle, null)
+            vkDestroyDebugUtilsMessengerEXT(instance, debugCallbackHandle, null)
         }
 
         debugCallback.free()
