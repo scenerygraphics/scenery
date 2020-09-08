@@ -191,7 +191,7 @@ open class VulkanSwapchain(open val device: VulkanDevice,
                 preferredSwapchainPresentMode)
 
             // Determine the number of images
-            var desiredNumberOfSwapchainImages = surfCaps.minImageCount()
+            var desiredNumberOfSwapchainImages = 3//surfCaps.minImageCount()
             if (surfCaps.maxImageCount() in 1 until desiredNumberOfSwapchainImages) {
                 desiredNumberOfSwapchainImages = surfCaps.maxImageCount()
             }
@@ -447,22 +447,21 @@ open class VulkanSwapchain(open val device: VulkanDevice,
     /**
      * Acquires the next swapchain image.
      */
-    override fun next(timeout: Long, signalSemaphore: Long): Boolean {
+    override fun next(timeout: Long, signalSemaphore: Long): Int {
         // wait for the present queue to become idle - by doing this here
         // we avoid stalling the GPU and gain a few FPS
-        // VK10.vkQueueWaitIdle(presentQueue)
 
         val err = vkAcquireNextImageKHR(device.vulkanDevice, handle, timeout,
             signalSemaphore,
             VK10.VK_NULL_HANDLE, swapchainImage)
 
         if (err == KHRSwapchain.VK_ERROR_OUT_OF_DATE_KHR || err == KHRSwapchain.VK_SUBOPTIMAL_KHR) {
-            return true
+            return -1
         } else if (err != VK10.VK_SUCCESS) {
             throw AssertionError("Failed to acquire next swapchain image: " + VU.translate(err))
         }
 
-        return false
+        return swapchainImage.get(0)
     }
 
     /**
