@@ -6,6 +6,8 @@ import org.lwjgl.system.MemoryStack.stackPush
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.MemoryUtil.memUTF8
 import org.lwjgl.vulkan.*
+import org.lwjgl.vulkan.EXTDebugUtils.VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT
+import org.lwjgl.vulkan.EXTDebugUtils.vkSetDebugUtilsObjectNameEXT
 import org.lwjgl.vulkan.VK10.*
 import org.lwjgl.vulkan.VK11.VK_FORMAT_G16_B16_R16_3PLANE_444_UNORM
 import org.lwjgl.vulkan.VK11.VK_FORMAT_G8B8G8R8_422_UNORM
@@ -18,7 +20,15 @@ typealias QueueIndexWithProperties = Pair<Int, VkQueueFamilyProperties>
  *
  * @author Ulrik Guenther <hello@ulrik.is>
  */
-open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysicalDevice, val deviceData: DeviceData, extensionsQuery: (VkPhysicalDevice) -> Array<String> = { arrayOf() }, validationLayers: Array<String> = arrayOf(), headless: Boolean = false) {
+open class VulkanDevice(
+    val instance: VkInstance,
+    val physicalDevice: VkPhysicalDevice,
+    val deviceData: DeviceData,
+    extensionsQuery: (VkPhysicalDevice) -> Array<String> = { arrayOf() },
+    validationLayers: Array<String> = arrayOf(),
+    val headless: Boolean = false,
+    val debugEnabled: Boolean = false
+) {
 
     protected val logger by LazyLogger()
     /** Stores available memory types on the device. */
@@ -150,12 +160,16 @@ open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysical
             }
             ppEnabledLayerNames.flip()
 
+
             // all enabled features here have >99% availability according to http://vulkan.gpuinfo.org/listfeatures.php
             val enabledFeatures = VkPhysicalDeviceFeatures.callocStack(stack)
-                .samplerAnisotropy(true)
-                .largePoints(true)
-                .geometryShader(true)
-                .fillModeNonSolid(true)
+            vkGetPhysicalDeviceFeatures(physicalDevice, enabledFeatures)
+            if(!enabledFeatures.samplerAnisotropy()
+                || !enabledFeatures.largePoints()
+                || !enabledFeatures.geometryShader()
+                || !enabledFeatures.fillModeNonSolid()) {
+                throw IllegalStateException("Device does not support required features.")
+            }
 
             val deviceCreateInfo = VkDeviceCreateInfo.callocStack(stack)
                 .sType(VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO)
@@ -534,7 +548,7 @@ open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysical
         pool.free -= 1
 
         return stackPush().use { stack ->
-            val (type, layout) = if(!imageLoadStore) {
+            val (type, layout) = if (!imageLoadStore) {
                 VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER to VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
             } else {
                 VK_DESCRIPTOR_TYPE_STORAGE_IMAGE to VK_IMAGE_LAYOUT_GENERAL
@@ -576,7 +590,13 @@ open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysical
 
             vkUpdateDescriptorSets(vulkanDevice, writeDescriptorSet, null)
 
-            logger.debug("Creating framebuffer attachment descriptor $descriptorSet set with ${if(onlyFor != null) { 1 } else { target.attachments.size }} bindings, DSL=$descriptorSetLayout")
+            logger.debug("Creating framebuffer attachment descriptor $descriptorSet set with ${
+                if (onlyFor != null) {
+                    1
+                } else {
+                    target.attachments.size
+                }
+            } bindings, DSL=$descriptorSetLayout")
             descriptorSet
         }
     }
@@ -595,6 +615,84 @@ open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysical
             descriptorPools.first { it.free >= requiredSets }
         } else {
             available
+        }
+    }
+
+    /* Translated from
+    public static final int VK_OBJECT_TYPE_UNKNOWN = 0;
+    public static final int VK_OBJECT_TYPE_INSTANCE = 1;
+    public static final int VK_OBJECT_TYPE_PHYSICAL_DEVICE = 2;
+    public static final int VK_OBJECT_TYPE_DEVICE = 3;
+    public static final int VK_OBJECT_TYPE_QUEUE = 4;
+    public static final int VK_OBJECT_TYPE_SEMAPHORE = 5;
+    public static final int VK_OBJECT_TYPE_COMMAND_BUFFER = 6;
+    public static final int VK_OBJECT_TYPE_FENCE = 7;
+    public static final int VK_OBJECT_TYPE_DEVICE_MEMORY = 8;
+    public static final int VK_OBJECT_TYPE_BUFFER = 9;
+    public static final int VK_OBJECT_TYPE_IMAGE = 10;
+    public static final int VK_OBJECT_TYPE_EVENT = 11;
+    public static final int VK_OBJECT_TYPE_QUERY_POOL = 12;
+    public static final int VK_OBJECT_TYPE_BUFFER_VIEW = 13;
+    public static final int VK_OBJECT_TYPE_IMAGE_VIEW = 14;
+    public static final int VK_OBJECT_TYPE_SHADER_MODULE = 15;
+    public static final int VK_OBJECT_TYPE_PIPELINE_CACHE = 16;
+    public static final int VK_OBJECT_TYPE_PIPELINE_LAYOUT = 17;
+    public static final int VK_OBJECT_TYPE_RENDER_PASS = 18;
+    public static final int VK_OBJECT_TYPE_PIPELINE = 19;
+    public static final int VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT = 20;
+    public static final int VK_OBJECT_TYPE_SAMPLER = 21;
+    public static final int VK_OBJECT_TYPE_DESCRIPTOR_POOL = 22;
+    public static final int VK_OBJECT_TYPE_DESCRIPTOR_SET = 23;
+    public static final int VK_OBJECT_TYPE_FRAMEBUFFER = 24;
+    public static final int VK_OBJECT_TYPE_COMMAND_POOL = 25;
+     */
+    enum class VulkanObjectType {
+        Unknown,
+        Instance,
+        PhysicalDevice,
+        Device,
+        Queue,
+        Semaphore,
+        CommandBuffer,
+        Fence,
+        DeviceMemory,
+        Buffer,
+        Image,
+        Event,
+        QueryPool,
+        BufferView,
+        ImageView,
+        ShaderModule,
+        PipelineCache,
+        PipelineLayout,
+        RenderPass,
+        Pipeline,
+        DescriptorSetLayout,
+        Sampler,
+        DescriptorPool,
+        DescriptorSet,
+        Framebuffer,
+        CommandPool
+
+    }
+
+    fun tag(obj: Long, type: VulkanObjectType, name: String) {
+        if(!debugEnabled) {
+            return
+        }
+
+        stackPush().use { stack ->
+            val nameInfo = VkDebugUtilsObjectNameInfoEXT.callocStack(stack)
+            val nameBuffer = stack.UTF8(name)
+
+            nameInfo.sType(VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT)
+                .objectHandle(obj)
+                .objectType(type.ordinal)
+                .pObjectName(nameBuffer)
+
+            vkSetDebugUtilsObjectNameEXT(this.vulkanDevice,
+                nameInfo
+            )
         }
     }
 
@@ -662,8 +760,8 @@ open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysical
          * Ranges are additive!
          */
         private val supportedFormatRanges = hashMapOf(
-            (1 to 0) to (VK_FORMAT_UNDEFINED .. VK_FORMAT_ASTC_12x12_SRGB_BLOCK),
-            (1 to 1) to (VK_FORMAT_G8B8G8R8_422_UNORM .. VK_FORMAT_G16_B16_R16_3PLANE_444_UNORM)
+            (1 to 0) to (VK_FORMAT_UNDEFINED..VK_FORMAT_ASTC_12x12_SRGB_BLOCK),
+            (1 to 1) to (VK_FORMAT_G8B8G8R8_422_UNORM..VK_FORMAT_G16_B16_R16_3PLANE_444_UNORM)
         )
 
         private fun driverVersionToString(version: Int) =
@@ -677,7 +775,7 @@ open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysical
         @JvmStatic fun fromPhysicalDevice(instance: VkInstance, physicalDeviceFilter: (Int, DeviceData) -> Boolean,
                                           additionalExtensions: (VkPhysicalDevice) -> Array<String> = { arrayOf() },
                                           validationLayers: Array<String> = arrayOf(),
-                                          headless: Boolean = false): VulkanDevice {
+                                          headless: Boolean = false, debugEnabled: Boolean = false): VulkanDevice {
 
             val physicalDeviceCount = VU.getInt("Enumerate physical devices") {
                 vkEnumeratePhysicalDevices(instance, this, null)
@@ -762,7 +860,7 @@ open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysical
 
             physicalDevices.free()
 
-            return VulkanDevice(instance, physicalDevice, selectedDeviceData, additionalExtensions, validationLayers, headless)
+            return VulkanDevice(instance, physicalDevice, selectedDeviceData, additionalExtensions, validationLayers, headless, debugEnabled)
         }
     }
 }
