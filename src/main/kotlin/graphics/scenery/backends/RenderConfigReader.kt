@@ -66,6 +66,8 @@ fun RenderConfigReader.RenderConfig.createRenderpassFlow(): List<String> {
     return dag.reversed().distinct().toList()
 }
 
+
+
 /**
  * Class to ingest rendering configuration files.
  *
@@ -103,7 +105,7 @@ class RenderConfigReader {
      * Configuration for a single render pass
      */
     data class RenderpassConfig(
-        var type: RenderpassType,
+        var type: RenderpassType = RenderpassType.geometry,
         var blitInputs: Boolean = false,
         var renderTransparent: Boolean = false,
         var depthTestEnabled: Boolean = true,
@@ -116,15 +118,15 @@ class RenderConfigReader {
         var dstColorBlendFactor: Blending.BlendFactor = Blending.BlendFactor.OneMinusSrcAlpha,
         var srcAlphaBlendFactor: Blending.BlendFactor = Blending.BlendFactor.SrcAlpha,
         var dstAlphaBlendFactor: Blending.BlendFactor = Blending.BlendFactor.OneMinusSrcAlpha,
-        var shaders: List<String>,
+        var shaders: List<String> = listOf(),
 
         @JsonDeserialize(contentUsing = JsonDeserialisers.BindingDeserializer::class)
-        var inputs: List<RendertargetBinding>?,
+        var inputs: List<RendertargetBinding>? = null,
 
         @JsonDeserialize(using = JsonDeserialisers.BindingDeserializer::class)
-        var output: RendertargetBinding,
+        var output: RendertargetBinding = RendertargetBinding("Viewport", "FragColor"),
 
-        var parameters: Map<String, Any>?,
+        var parameters: MutableMap<String, Any> = hashMapOf(),
 
         @JsonDeserialize(using = JsonDeserialisers.FloatPairDeserializer::class)
         var viewportSize: Pair<Float, Float> = Pair(1.0f, 1.0f),
