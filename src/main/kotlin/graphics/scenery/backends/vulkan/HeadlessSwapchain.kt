@@ -121,7 +121,7 @@ open class HeadlessSwapchain(device: VulkanDevice,
             val t = VulkanTexture(device, commandPools, queue, queue, window.width, window.height, 1,
                 format, 1)
             val image = t.createImage(window.width, window.height, 1, format,
-                VK10.VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT or VK10.VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+                VK10.VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT or VK10.VK_IMAGE_USAGE_TRANSFER_SRC_BIT or VK10.VK_IMAGE_USAGE_SAMPLED_BIT,
                 VK10.VK_IMAGE_TILING_OPTIMAL, VK10.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 1)
             t to image
         }
