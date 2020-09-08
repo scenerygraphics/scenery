@@ -1,6 +1,6 @@
 name: Deferred Shading
 description: Deferred Shading, with HDR postprocessing and FXAA
-sRGB: true
+sRGB: false
 
 rendertargets:
   GeometryBuffer:
