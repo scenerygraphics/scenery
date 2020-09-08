@@ -2,6 +2,7 @@ package graphics.scenery.backends.vulkan
 
 import graphics.scenery.*
 import graphics.scenery.backends.*
+import graphics.scenery.backends.vulkan.VulkanDevice.VulkanObjectType.*
 import graphics.scenery.compute.ComputeMetadata
 import graphics.scenery.compute.InvocationType
 import graphics.scenery.spirvcrossj.Loader
@@ -24,6 +25,7 @@ import org.lwjgl.system.Platform
 import org.lwjgl.system.jemalloc.JEmalloc.*
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.EXTDebugReport.*
+import org.lwjgl.vulkan.EXTDebugUtils.*
 import org.lwjgl.vulkan.KHRSurface.VK_KHR_SURFACE_EXTENSION_NAME
 import org.lwjgl.vulkan.KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
 import org.lwjgl.vulkan.KHRWin32Surface.VK_KHR_WIN32_SURFACE_EXTENSION_NAME
@@ -228,6 +230,51 @@ open class VulkanRenderer(hub: Hub,
         }
     }
 
+    var debugCallbackUtils = callback@ { severity: Int, type: Int, callbackDataPointer: Long, _: Long ->
+        val dbg = if (type and VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT == VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT) {
+            " (performance)"
+        } else if(type and VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT == VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT) {
+            " (validation)"
+        } else {
+            ""
+        }
+
+        val callbackData = VkDebugUtilsMessengerCallbackDataEXT.create(callbackDataPointer)
+        val obj = callbackData.pMessageIdNameString()
+        val message = callbackData.pMessageString()
+        val objectType = 0
+
+        when (severity) {
+            VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT ->
+                logger.error("!! $obj($objectType) Validation$dbg: $message")
+            VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT ->
+                logger.warn("!! $obj($objectType) Validation$dbg: $message")
+            VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT ->
+                logger.info("!! $obj($objectType) Validation$dbg: $message")
+            else -> logger.info("!! $obj($objectType) Validation (unknown message type)$dbg: $message")
+        }
+
+        // trigger exception and delay if strictValidation is activated in general, or only for specific object types
+        if(strictValidation.first && strictValidation.second.isEmpty() ||
+            strictValidation.first && strictValidation.second.contains(objectType)) {
+            if(severity < VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) {
+                return@callback VK_FALSE
+            }
+            // set 15s of delay until the next frame is rendered if a validation error happens
+            renderDelay = System.getProperty("scenery.VulkanRenderer.DefaultRenderDelay", "1500").toLong()
+
+            try {
+                throw VulkanValidationLayerException("Vulkan validation layer exception, see validation layer error messages above. To disable these exceptions, set scenery.VulkanRenderer.StrictValidation=false. Stack trace:")
+            } catch (e: VulkanValidationLayerException) {
+                logger.error(e.message)
+                e.printStackTrace()
+            }
+        }
+
+        // return false here, otherwise the application would quit upon encountering a validation error.
+        return@callback VK_FALSE
+    }
+
     /** Debug callback to be used upon encountering validation messages or errors */
     var debugCallback = object : VkDebugReportCallbackEXT() {
         override operator fun invoke(flags: Int, objectType: Int, obj: Long, location: Long, messageCode: Int, pLayerPrefix: Long, pMessage: Long, pUserData: Long): Int {
@@ -253,6 +300,9 @@ open class VulkanRenderer(hub: Hub,
             // trigger exception and delay if strictValidation is activated in general, or only for specific object types
             if(strictValidation.first && strictValidation.second.isEmpty() ||
                 strictValidation.first && strictValidation.second.contains(objectType)) {
+                if(!(flags and VK_DEBUG_REPORT_ERROR_BIT_EXT == VK_DEBUG_REPORT_ERROR_BIT_EXT)) {
+                    return VK_FALSE
+                }
                 // set 15s of delay until the next frame is rendered if a validation error happens
                 renderDelay = System.getProperty("scenery.VulkanRenderer.DefaultRenderDelay", "1500").toLong()
 
@@ -478,12 +528,12 @@ open class VulkanRenderer(hub: Hub,
         }
 
         debugCallbackHandle = if(validation) {
-            setupDebugging(instance,
-                VK_DEBUG_REPORT_WARNING_BIT_EXT
-                    or VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT
-                    or VK_DEBUG_REPORT_ERROR_BIT_EXT
-                    or VK_DEBUG_REPORT_WARNING_BIT_EXT,
-                debugCallback)
+            setupDebuggingDebugUtils(instance,
+                VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT
+                    or VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT
+                    or VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT
+                    or VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT,
+                debugCallbackUtils)
         } else {
             -1L
         }
@@ -519,7 +569,9 @@ open class VulkanRenderer(hub: Hub,
             physicalDeviceFilter = { _, device -> "${device.vendor} ${device.name}".contains(System.getProperty("scenery.Renderer.Device", "DOES_NOT_EXIST"))},
             additionalExtensions = { physicalDevice -> hub.getWorkingHMDDisplay()?.getVulkanDeviceExtensions(physicalDevice)?.toTypedArray() ?: arrayOf() },
             validationLayers = requestedValidationLayers,
-            headless = headless)
+            headless = headless,
+            debugEnabled = validation
+        )
 
         logger.debug("Device creation done")
 
@@ -1478,6 +1530,7 @@ open class VulkanRenderer(hub: Hub,
                         }
 
                         framebuffer.createRenderpassAndFramebuffer()
+                        this@VulkanRenderer.device.tag(framebuffer.framebuffer.get(0), Framebuffer, "Framebuffer for ${rt.key}")
 
                         pass.output[rt.key] = framebuffer
                         framebuffers.put(rt.key, framebuffer)
@@ -1504,6 +1557,7 @@ open class VulkanRenderer(hub: Hub,
                         fb.addSwapchainAttachment("swapchain-$i", swapchain, i)
                         fb.addDepthBuffer("swapchain-$i-depth", 32)
                         fb.createRenderpassAndFramebuffer()
+                        this@VulkanRenderer.device.tag(fb.framebuffer.get(0), Framebuffer, "Framebuffer for swapchain image $i")
 
                         pass.output["Viewport-$i"] = fb
                     }
@@ -2166,7 +2220,7 @@ open class VulkanRenderer(hub: Hub,
             hub?.getWorkingHMDDisplay()?.getVulkanInstanceExtensions()?.forEach { additionalExts.add(it) }
 
             if(enableValidations) {
-                additionalExts.add(VK_EXT_DEBUG_REPORT_EXTENSION_NAME)
+                additionalExts.add(VK_EXT_DEBUG_UTILS_EXTENSION_NAME)
             }
 
             val utf8Exts = additionalExts.map { stack.UTF8(it) }
@@ -2218,7 +2272,33 @@ open class VulkanRenderer(hub: Hub,
     }
 
     @Suppress("SameParameterValue")
-    private fun setupDebugging(instance: VkInstance, flags: Int, callback: VkDebugReportCallbackEXT): Long {
+    private fun setupDebuggingDebugUtils(instance: VkInstance, severity: Int, callback: (Int, Int, Long, Long) -> Int): Long {
+        val messengerCreateInfo = VkDebugUtilsMessengerCreateInfoEXT.calloc()
+            .sType(VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT)
+            .pfnUserCallback(callback)
+            .messageType(VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT
+                or VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT
+                or VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT)
+            .messageSeverity(severity)
+            .flags(0)
+
+        return try {
+            val messenger = VU.getLong("Create debug messenger", { vkCreateDebugUtilsMessengerEXT(instance,
+                messengerCreateInfo,
+                null,
+                this
+            )}, {})
+
+           messenger
+        } catch(e: NullPointerException) {
+            logger.warn("Caught NPE on creating debug callback, is extension $VK_EXT_DEBUG_UTILS_EXTENSION_NAME available?")
+            -1
+        }
+    }
+
+
+    @Suppress("SameParameterValue")
+    private fun setupDebuggingDebugReport(instance: VkInstance, flags: Int, callback: VkDebugReportCallbackEXT): Long {
         val dbgCreateInfo = VkDebugReportCallbackCreateInfoEXT.calloc()
             .sType(VK_STRUCTURE_TYPE_DEBUG_REPORT_CALLBACK_CREATE_INFO_EXT)
             .pNext(NULL)
@@ -2239,7 +2319,7 @@ open class VulkanRenderer(hub: Hub,
 
             callbackHandle
         } catch(e: NullPointerException) {
-            logger.warn("Caught NPE on creating debug callback, is extension $VK_EXT_DEBUG_REPORT_EXTENSION_NAME available?")
+            logger.warn("Caught NPE on creating debug callback, is extension ${VK_EXT_DEBUG_REPORT_EXTENSION_NAME} available?")
             -1
         }
     }
