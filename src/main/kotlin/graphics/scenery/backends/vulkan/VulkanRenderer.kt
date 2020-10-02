@@ -83,10 +83,11 @@ open class VulkanRenderer(hub: Hub,
     // helper classes
     data class PresentHelpers(
         var signalSemaphore: LongBuffer = memAllocLong(1),
-        var waitSemaphore: LongBuffer = memAllocLong(1),
+        var waitSemaphore: LongBuffer = memAllocLong(2),
         var commandBuffers: PointerBuffer = memAllocPointer(1),
-        var waitStages: IntBuffer = memAllocInt(1),
-        var submitInfo: VkSubmitInfo = VkSubmitInfo.calloc()
+        var waitStages: IntBuffer = memAllocInt(2),
+        var submitInfo: VkSubmitInfo = VkSubmitInfo.calloc(),
+        var imageUsageFence: Long = -1L
     )
 
     enum class VertexDataKinds {
@@ -1669,15 +1670,18 @@ open class VulkanRenderer(hub: Hub,
         return false
     }
 
-    private fun beginFrame() {
+    private fun beginFrame(): Pair<Long, Long>? {
         previousFrame = currentFrame
-        currentFrame = swapchain.next(timeout = UINT64_MAX,
-            signalSemaphore = semaphores.getValue(StandardSemaphores.ImageAvailable)[previousFrame])
-        if(currentFrame < 0) {
+        val semaphoreAndFence= swapchain.next(timeout = UINT64_MAX)
+        if(semaphoreAndFence == null) {
             swapchainRecreator.mustRecreate = true
+            return null
         }
         //logger.info("Prev: $previousFrame, Current: $currentFrame, will signal ${semaphores.getValue(StandardSemaphores.ImageAvailable)[previousFrame].toHexString()}")
+        return semaphoreAndFence
     }
+
+    var presentationFence = -1L
 
     @Suppress("unused")
     override fun recordMovie(filename: String, overwrite: Boolean) {
@@ -1702,7 +1706,7 @@ open class VulkanRenderer(hub: Hub,
         present.submitInfo
             .sType(VK_STRUCTURE_TYPE_SUBMIT_INFO)
             .pNext(NULL)
-            .waitSemaphoreCount(1)
+            .waitSemaphoreCount(present.waitSemaphore.capacity())
             .pWaitSemaphores(present.waitSemaphore)
             .pWaitDstStageMask(present.waitStages)
             .pCommandBuffers(present.commandBuffers)
@@ -1710,12 +1714,16 @@ open class VulkanRenderer(hub: Hub,
 
         val q = (swapchain as? VulkanSwapchain)?.presentQueue ?: queue
         // Submit to the graphics queue
-        VU.run("Submit viewport render queue", { vkQueueSubmit(q, present.submitInfo, commandBuffer.getFence()) })
+//        vkResetFences(device.vulkanDevice, swapchain.currentFence)
+        VU.run("Submit viewport render queue", { vkQueueSubmit(q, present.submitInfo, swapchain.currentFence) })
 
         val startPresent = System.nanoTime()
         commandBuffer.submitted = true
         swapchain.present(waitForSemaphores = present.signalSemaphore)
 
+        vkWaitForFences(device.vulkanDevice, swapchain.currentFence, true, -1L)
+        vkResetFences(device.vulkanDevice, swapchain.currentFence)
+        presentationFence = swapchain.currentFence
         swapchain.postPresent(pass.getReadPosition())
 
         // submit to OpenVR if attached
@@ -2089,11 +2097,10 @@ open class VulkanRenderer(hub: Hub,
             return@runBlocking
         }
 
-        beginFrame()
-
         val submitInfo = VkSubmitInfo.calloc(flow.size-1)
 
-        var waitSemaphore = semaphores.getValue(StandardSemaphores.ImageAvailable)[previousFrame]
+        val (_, fence) = beginFrame() ?: return@runBlocking
+        var waitSemaphore = -1L
 
         profiler?.end()
 
@@ -2133,11 +2140,16 @@ open class VulkanRenderer(hub: Hub,
 
             si.sType(VK_STRUCTURE_TYPE_SUBMIT_INFO)
                 .pNext(NULL)
-                .waitSemaphoreCount(1)
+                .waitSemaphoreCount(0)
                 .pWaitDstStageMask(target.waitStages)
                 .pCommandBuffers(target.submitCommandBuffers)
                 .pSignalSemaphores(target.signalSemaphores)
-                .pWaitSemaphores(target.waitSemaphores)
+
+            if(waitSemaphore != -1L) {
+                si
+                    .waitSemaphoreCount(1)
+                    .pWaitSemaphores(target.waitSemaphores)
+            }
 
             if(swapchainRecreator.mustRecreate) {
                 return@runBlocking
@@ -2162,13 +2174,13 @@ open class VulkanRenderer(hub: Hub,
 
         val start = System.nanoTime()
 
-        if(viewportCommandBuffer.submitted) {
+        /*if(viewportCommandBuffer.submitted) {
             viewportCommandBuffer.waitForFence()
             viewportCommandBuffer.submitted = false
             viewportCommandBuffer.resetFence()
 
             stats?.add("Renderer.${viewportPass.name}.gpuTiming", viewportCommandBuffer.runtime)
-        }
+        }*/
 
         when (viewportPass.passConfig.type) {
             RenderConfigReader.RenderpassType.geometry -> recordSceneRenderCommands(viewportPass, viewportCommandBuffer, sceneNodes, { it !is Light }, forceRerecording)
@@ -2183,11 +2195,16 @@ open class VulkanRenderer(hub: Hub,
 
         ph.commandBuffers.put(0, viewportCommandBuffer.commandBuffer!!)
         ph.waitStages.put(0, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT or VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT)
+        ph.waitStages.put(1, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT or VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT)
         ph.signalSemaphore.put(0, semaphores.getValue(StandardSemaphores.RenderComplete)[currentFrame])
         ph.waitSemaphore.put(0, waitSemaphore)
+        ph.waitSemaphore.put(1, swapchain.imageAvailableSemaphore)
         profiler?.end()
 
         profiler?.begin("Renderer.SubmitFrame")
+        vkWaitForFences(device.vulkanDevice, fence, true, -1L)
+        vkResetFences(device.vulkanDevice, fence)
+
         submitFrame(queue, viewportPass, viewportCommandBuffer, ph)
 
         updateTimings()
