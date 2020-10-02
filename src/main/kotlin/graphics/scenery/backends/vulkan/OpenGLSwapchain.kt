@@ -69,6 +69,12 @@ class OpenGLSwapchain(val device: VulkanDevice,
     var lastResize = -1L
     private val WINDOW_RESIZE_TIMEOUT = 200 * 10e6
 
+    override val imageAvailableSemaphore: Long
+        get() = TODO("Not yet implemented")
+
+    override val currentFence: Long
+        get() = TODO("Not yet implemented")
+
     /**
      * Creates a window for this swapchain, and initialiases [win] as [SceneryWindow.GLFWWindow].
      * Needs to be handed a [VulkanRenderer.SwapchainRecreator].
@@ -347,9 +353,10 @@ class OpenGLSwapchain(val device: VulkanDevice,
     /**
      * Proceeds to the next swapchain image.
      */
-    override fun next(timeout: Long, signalSemaphore: Long): Int {
-        NVDrawVulkanImage.glSignalVkSemaphoreNV(signalSemaphore)
-        return (presentedFrames % 2).toInt()
+    override fun next(timeout: Long): Pair<Long, Long>? {
+        TODO("Make this work again")
+//        NVDrawVulkanImage.glSignalVkSemaphoreNV(-1L)
+//        return (presentedFrames % 2) to -1L//.toInt()
     }
 
     /**

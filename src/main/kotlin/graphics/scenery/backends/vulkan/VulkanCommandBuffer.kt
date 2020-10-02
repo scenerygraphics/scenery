@@ -1,11 +1,8 @@
 package graphics.scenery.backends.vulkan
 
 import org.lwjgl.system.MemoryUtil.*
+import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.*
-import org.lwjgl.vulkan.VkCommandBuffer
-import org.lwjgl.vulkan.VkFenceCreateInfo
-import org.lwjgl.vulkan.VkMemoryBarrier
-import org.lwjgl.vulkan.VkQueryPoolCreateInfo
 import java.nio.LongBuffer
 
 /**
