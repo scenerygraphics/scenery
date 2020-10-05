@@ -20,13 +20,16 @@ import org.lwjgl.opengl.GL30.*
 import org.lwjgl.opengl.GLXNVSwapGroup
 import org.lwjgl.opengl.NVDrawVulkanImage
 import org.lwjgl.opengl.WGLNVSwapGroup
+import org.lwjgl.system.MemoryStack
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.MemoryUtil.NULL
 import org.lwjgl.system.MemoryUtil.memAllocInt
 import org.lwjgl.system.Platform
 import org.lwjgl.vulkan.VK10
 import org.lwjgl.vulkan.VK10.*
+import org.lwjgl.vulkan.VkFenceCreateInfo
 import org.lwjgl.vulkan.VkQueue
+import org.lwjgl.vulkan.VkSemaphoreCreateInfo
 import java.nio.LongBuffer
 
 /**
@@ -35,45 +38,30 @@ import java.nio.LongBuffer
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class OpenGLSwapchain(val device: VulkanDevice,
-                      val queue: VkQueue,
-                      val commandPools: VulkanRenderer.CommandPools,
-                      val renderConfig: RenderConfigReader.RenderConfig,
-                      val useSRGB: Boolean = true,
+class OpenGLSwapchain(device: VulkanDevice,
+                      queue: VkQueue,
+                      commandPools: VulkanRenderer.CommandPools,
+                      renderConfig: RenderConfigReader.RenderConfig,
+                      useSRGB: Boolean = true,
                       val useFramelock: Boolean = System.getProperty("scenery.Renderer.Framelock", "false")?.toBoolean() ?: false,
-                      val bufferCount: Int = 2) : Swapchain {
-    private val logger by LazyLogger()
-
+                      val bufferCount: Int = 2) : VulkanSwapchain(device, queue, commandPools, renderConfig, useSRGB) {
     /** Swapchain handle. */
     override var handle: Long = 0L
     /** Array for rendered images. */
     override var images: LongArray = LongArray(0)
     /** Array for image views. */
     override var imageViews: LongArray = LongArray(0)
-    /** Number of frames presented with this swapchain. */
-    protected var presentedFrames = 0L
 
     /** Color format of the images. */
     override var format: Int = 0
 
     /** Window instance to use. */
-    lateinit var window: SceneryWindow.GLFWWindow
+    lateinit override var window: SceneryWindow//.GLFWWindow
 
     /** List of supported OpenGL extensions. */
     val supportedExtensions = ArrayList<String>()
 
-    /** Window size callback to use. */
-    lateinit var windowSizeCallback: GLFWWindowSizeCallback
-
-    /** Time of the last resize event in ns. */
-    var lastResize = -1L
     private val WINDOW_RESIZE_TIMEOUT = 200 * 10e6
-
-    override val imageAvailableSemaphore: Long
-        get() = TODO("Not yet implemented")
-
-    override val currentFence: Long
-        get() = TODO("Not yet implemented")
 
     /**
      * Creates a window for this swapchain, and initialiases [win] as [SceneryWindow.GLFWWindow].
@@ -133,6 +121,12 @@ class OpenGLSwapchain(val device: VulkanDevice,
      * GL_NV_draw_vulkan_image extension, which it requires.
      */
     override fun create(oldSwapchain: Swapchain?): Swapchain {
+        val window = this.window
+
+        if(window !is SceneryWindow.GLFWWindow) {
+            throw IllegalStateException("Cannot use a window of type ${window.javaClass.simpleName}")
+        }
+
         presentedFrames = 0
         glfwMakeContextCurrent(window.window)
         GL.createCapabilities()
@@ -169,6 +163,14 @@ class OpenGLSwapchain(val device: VulkanDevice,
 
         logger.info("Creating backing images with ${windowWidth}x${window.height}")
 
+        val semaphoreCreateInfo = VkSemaphoreCreateInfo.calloc()
+            .sType(VK10.VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO)
+
+        val fenceCreateInfo = VkFenceCreateInfo.calloc()
+            .sType(VK10.VK_STRUCTURE_TYPE_FENCE_CREATE_INFO)
+
+        presentQueue = VU.createDeviceQueue(device, device.queues.graphicsQueue.first)
+
         val imgs = (0 until bufferCount).map {
             with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
 
@@ -186,6 +188,12 @@ class OpenGLSwapchain(val device: VulkanDevice,
                     commandBuffer = this)
 
                 val view = t.createImageView(image, format)
+
+                imageAvailableSemaphores.add(VU.getLong("image available semaphore", { VK10.vkCreateSemaphore(this@OpenGLSwapchain.device.vulkanDevice, semaphoreCreateInfo, null, this) }, {}))
+                imageRenderedSemaphores.add(VU.getLong("image ready semaphore", { VK10.vkCreateSemaphore(this@OpenGLSwapchain.device.vulkanDevice, semaphoreCreateInfo, null, this) }, {}))
+                fences.add(VU.getLong("Swapchain image fence", { VK10.vkCreateFence(this@OpenGLSwapchain.device.vulkanDevice, fenceCreateInfo, null, this) }, {}))
+                imageUseFences.add(VU.getLong("Swapchain image usage fence", { VK10.vkCreateFence(this@OpenGLSwapchain.device.vulkanDevice, fenceCreateInfo, null, this) }, {}))
+                inFlight.add(null)
 
                 endCommandBuffer(this@OpenGLSwapchain.device, commandPools.Standard, queue, flush = true, dealloc = true)
                 Pair(image.image, view)
@@ -206,6 +214,9 @@ class OpenGLSwapchain(val device: VulkanDevice,
             enableFramelock()
         }
 
+        fenceCreateInfo.free()
+        semaphoreCreateInfo.free()
+
         return this
     }
 
@@ -214,6 +225,12 @@ class OpenGLSwapchain(val device: VulkanDevice,
      * Works only if the WGL_NV_swap_group (Windows) or GLX_NV_swap_group extension is supported.
      */
     fun enableFramelock(): Boolean {
+        val window = this.window
+
+        if(window !is SceneryWindow.GLFWWindow) {
+            throw IllegalStateException("Cannot use a window of type ${window.javaClass.simpleName}")
+        }
+
         if (!supportedExtensions.contains("WGL_NV_swap_group") && !supportedExtensions.contains("GLX_NV_swap_group")) {
             logger.warn("Framelock requested, but not supported on this hardware.")
             // TODO: Figure out why K6000 does not report WGL_NV_swap_group correctly.
@@ -250,11 +267,11 @@ class OpenGLSwapchain(val device: VulkanDevice,
 
             Platform.LINUX -> {
                 val display = glfwGetX11Display()
-                val window = glfwGetGLXWindow(window.window)
+                val glxWindow = glfwGetGLXWindow(window.window)
 
                 GLXNVSwapGroup.glXQueryMaxSwapGroupsNV(display, 0, maxGroups, maxBarriers)
 
-                if (GLXNVSwapGroup.glXJoinSwapGroupNV(display, window, swapGroup)) {
+                if (GLXNVSwapGroup.glXJoinSwapGroupNV(display, glxWindow, swapGroup)) {
                     logger.error("Failed to bind to swap group $swapGroup")
                     return false
                 }
@@ -280,6 +297,12 @@ class OpenGLSwapchain(val device: VulkanDevice,
      */
     @Suppress("unused")
     fun disableFramelock() {
+        val window = this.window
+
+        if(window !is SceneryWindow.GLFWWindow) {
+            throw IllegalStateException("Cannot use a window of type ${window.javaClass.simpleName}")
+        }
+
         if (!supportedExtensions.contains("WGL_NV_swap_group")) {
             logger.warn("Framelock requested, but not supported on this hardware.")
             return
@@ -296,9 +319,9 @@ class OpenGLSwapchain(val device: VulkanDevice,
 
             Platform.LINUX -> {
                 val display = glfwGetX11Display()
-                val window = glfwGetGLXWindow(window.window)
+                val glxWindow = glfwGetGLXWindow(window.window)
 
-                GLXNVSwapGroup.glXJoinSwapGroupNV(display, window, 0)
+                GLXNVSwapGroup.glXJoinSwapGroupNV(display, glxWindow, 0)
             }
 
             else -> logger.error("Hardware Framelock not supported on this platform.")
@@ -311,6 +334,12 @@ class OpenGLSwapchain(val device: VulkanDevice,
      * OpenGL context.
      */
     override fun present(waitForSemaphores: LongBuffer?) {
+        val window = this.window
+
+        if(window !is SceneryWindow.GLFWWindow) {
+            throw IllegalStateException("Cannot use a window of type ${window.javaClass.simpleName}")
+        }
+
         glDisable(GL_DEPTH_TEST)
 
         waitForSemaphores?.let { NVDrawVulkanImage.glWaitVkSemaphoreNV(waitForSemaphores.get(0)) }
@@ -348,21 +377,40 @@ class OpenGLSwapchain(val device: VulkanDevice,
      * Post-present routine, does nothing in this case.
      */
     override fun postPresent(image: Int) {
+        currentImage = (currentImage + 1) % images.size
     }
 
     /**
      * Proceeds to the next swapchain image.
      */
     override fun next(timeout: Long): Pair<Long, Long>? {
-        TODO("Make this work again")
 //        NVDrawVulkanImage.glSignalVkSemaphoreNV(-1L)
 //        return (presentedFrames % 2) to -1L//.toInt()
+        MemoryStack.stackPush().use { stack ->
+            VK10.vkQueueWaitIdle(queue)
+
+            val signal = stack.mallocLong(1)
+            signal.put(0, imageAvailableSemaphores[currentImage])
+
+            with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
+                endCommandBuffer(this@OpenGLSwapchain.device, commandPools.Standard, queue,
+                    flush = true, dealloc = true, fence = imageUseFences[currentImage], signalSemaphores = signal)
+            }
+        }
+
+        return imageAvailableSemaphores[currentImage] to imageUseFences[currentImage]
     }
 
     /**
      * Toggles fullscreen.
      */
     override fun toggleFullscreen(hub: Hub, swapchainRecreator: VulkanRenderer.SwapchainRecreator) {
+        val window = this.window
+
+        if(window !is SceneryWindow.GLFWWindow) {
+            throw IllegalStateException("Cannot use a window of type ${window.javaClass.simpleName}")
+        }
+
         if (window.isFullscreen) {
             glfwSetWindowMonitor(window.window,
                 NULL,
@@ -426,8 +474,15 @@ class OpenGLSwapchain(val device: VulkanDevice,
      * Closes the swapchain, freeing all of its resources.
      */
     override fun close() {
-        imageViews.forEach { vkDestroyImageView(device.vulkanDevice, it, null) }
-        images.forEach { vkDestroyImage(device.vulkanDevice, it, null) }
+        val window = this.window
+
+        if(window !is SceneryWindow.GLFWWindow) {
+            throw IllegalStateException("Cannot use a window of type ${window.javaClass.simpleName}")
+        }
+
+        vkQueueWaitIdle(queue)
+
+        closeSyncPrimitives()
 
         windowSizeCallback.close()
         glfwDestroyWindow(window.window)

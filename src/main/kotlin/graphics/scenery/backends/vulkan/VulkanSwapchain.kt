@@ -78,6 +78,23 @@ open class VulkanSwapchain(open val device: VulkanDevice,
     protected var inFlight = ArrayList<Long?>()
     protected var imageUseFences = ArrayList<Long>()
 
+    /** Current swapchain image in use */
+    var currentImage = 0
+        protected set
+
+    /** Returns the currently-used semaphore to indicate image availability. */
+    override val imageAvailableSemaphore: Long
+        get() {
+            return imageAvailableSemaphores[currentImage]
+        }
+
+    /** Returns the currently-used fence. */
+    override val currentFence: Long
+        get() {
+            return fences[currentImage]
+        }
+
+
     /**
      * Data class for summarising [colorFormat] and [colorSpace] information.
      */
@@ -455,17 +472,6 @@ open class VulkanSwapchain(open val device: VulkanDevice,
         presentedFrames++
     }
 
-    var currentImage = 0
-
-    override val imageAvailableSemaphore: Long
-        get() {
-            return imageAvailableSemaphores[currentImage]
-        }
-
-    override val currentFence: Long
-        get() {
-            return fences[currentImage]
-        }
 
     /**
      * To be called after presenting, will deallocate retired swapchains.
@@ -577,6 +583,22 @@ open class VulkanSwapchain(open val device: VulkanDevice,
      */
     override fun presentedFrames(): Long {
         return presentedFrames
+    }
+
+    /**
+     * Closes associated semaphores and fences.
+     */
+    protected fun closeSyncPrimitives() {
+        imageAvailableSemaphores.forEach { VK10.vkDestroySemaphore(device.vulkanDevice, it, null) }
+        imageAvailableSemaphores.clear()
+        imageRenderedSemaphores.forEach { VK10.vkDestroySemaphore(device.vulkanDevice, it, null) }
+        imageRenderedSemaphores.clear()
+
+        fences.forEach { VK10.vkDestroyFence(device.vulkanDevice, it, null) }
+        fences.clear()
+
+        imageUseFences.forEach { VK10.vkDestroyFence(device.vulkanDevice, it, null) }
+        imageUseFences.clear()
     }
 
     /**
