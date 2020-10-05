@@ -907,7 +907,7 @@ open class VulkanTexture(val device: VulkanDevice,
                              subresourceRange: VkImageSubresourceRange? = null,
                              srcStage: Int = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, dstStage: Int = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
                              srcAccessMask: Int, dstAccessMask: Int,
-                             commandBuffer: VkCommandBuffer) {
+                             commandBuffer: VkCommandBuffer, dependencyFlags: Int = 0, memoryBarrier: Boolean = false) {
             stackPush().use { stack ->
                 val barrier = VkImageMemoryBarrier.callocStack(1, stack)
                     .sType(VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER)
@@ -933,12 +933,21 @@ open class VulkanTexture(val device: VulkanDevice,
 
                 logger.trace("Transition: {} -> {} with srcAccessMark={}, dstAccessMask={}, srcStage={}, dstStage={}", from, to, barrier.srcAccessMask(), barrier.dstAccessMask(), srcStage, dstStage)
 
+                val memoryBarriers = if(memoryBarrier) {
+                    VkMemoryBarrier.callocStack(1, stack)
+                        .sType(VK_STRUCTURE_TYPE_MEMORY_BARRIER)
+                        .srcAccessMask(srcAccessMask)
+                        .dstAccessMask(dstAccessMask)
+                } else {
+                    null
+                }
+
                 vkCmdPipelineBarrier(
                     commandBuffer,
                     srcStage,
                     dstStage,
-                    0,
-                    null,
+                    dependencyFlags,
+                    memoryBarriers,
                     null,
                     barrier
                 )

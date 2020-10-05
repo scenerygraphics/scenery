@@ -9,8 +9,9 @@ import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.numeric.NumericType
 import java.nio.ByteBuffer
 import java.util.LinkedHashMap
+import java.util.concurrent.CopyOnWriteArrayList
 
-class BufferSource<T: NumericType<T>>(val timepoints: LinkedHashMap<String, ByteBuffer>,
+class BufferSource<T: NumericType<T>>(val timepoints: CopyOnWriteArrayList<BufferedVolume.Timepoint>,
                                       val width: Int,
                                       val height: Int,
                                       val depth: Int,

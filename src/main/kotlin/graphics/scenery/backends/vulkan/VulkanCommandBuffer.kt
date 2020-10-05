@@ -1,10 +1,8 @@
 package graphics.scenery.backends.vulkan
 
 import org.lwjgl.system.MemoryUtil.*
+import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.*
-import org.lwjgl.vulkan.VkCommandBuffer
-import org.lwjgl.vulkan.VkFenceCreateInfo
-import org.lwjgl.vulkan.VkQueryPoolCreateInfo
 import java.nio.LongBuffer
 
 /**
@@ -127,10 +125,10 @@ class VulkanCommandBuffer(val device: VulkanDevice, var commandBuffer: VkCommand
      * Prepares this command buffer for recording, either initialising or
      * resetting the associated Vulkan command buffer. Recording will take place in command pool [pool].
      */
-    fun prepareAndStartRecording(pool: Long): VkCommandBuffer {
+    fun prepareAndStartRecording(pool: Long, level: Int = VK_COMMAND_BUFFER_LEVEL_PRIMARY): VkCommandBuffer {
         // start command buffer recording
         if (commandBuffer == null) {
-            commandBuffer = VU.newCommandBuffer(device, pool, autostart = true)
+            commandBuffer = VU.newCommandBuffer(device, pool, autostart = true, level = level)
         }
 
         val cmd = commandBuffer ?: throw IllegalStateException("Command buffer cannot be null for recording")
@@ -143,6 +141,53 @@ class VulkanCommandBuffer(val device: VulkanDevice, var commandBuffer: VkCommand
             timestampQueryPool, 0)
 
         return cmd
+    }
+    
+    fun insertFullPipelineBarrier() {
+        val cmd = this.commandBuffer ?: return
+
+        val memoryBarrier = VkMemoryBarrier.calloc(1)
+        memoryBarrier[0]
+            .sType(VK_STRUCTURE_TYPE_MEMORY_BARRIER)
+            .srcAccessMask(VK_ACCESS_INDIRECT_COMMAND_READ_BIT or
+                VK_ACCESS_INDEX_READ_BIT or
+                VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT or
+                VK_ACCESS_UNIFORM_READ_BIT or
+                VK_ACCESS_INPUT_ATTACHMENT_READ_BIT or
+                VK_ACCESS_SHADER_READ_BIT or
+                VK_ACCESS_SHADER_WRITE_BIT or
+                VK_ACCESS_COLOR_ATTACHMENT_READ_BIT or
+                VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT or
+                VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT or
+                VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT or
+                VK_ACCESS_TRANSFER_READ_BIT or
+                VK_ACCESS_TRANSFER_WRITE_BIT or
+                VK_ACCESS_HOST_READ_BIT or
+                VK_ACCESS_HOST_WRITE_BIT)
+            .dstAccessMask(VK_ACCESS_INDIRECT_COMMAND_READ_BIT or
+                VK_ACCESS_INDEX_READ_BIT or
+                VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT or
+                VK_ACCESS_UNIFORM_READ_BIT or
+                VK_ACCESS_INPUT_ATTACHMENT_READ_BIT or
+                VK_ACCESS_SHADER_READ_BIT or
+                VK_ACCESS_SHADER_WRITE_BIT or
+                VK_ACCESS_COLOR_ATTACHMENT_READ_BIT or
+                VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT or
+                VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT or
+                VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT or
+                VK_ACCESS_TRANSFER_READ_BIT or
+                VK_ACCESS_TRANSFER_WRITE_BIT or
+                VK_ACCESS_HOST_READ_BIT or
+                VK_ACCESS_HOST_WRITE_BIT)
+
+        vkCmdPipelineBarrier(cmd,
+            VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, // srcStageMask
+            VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, // dstStageMask
+            0,
+            memoryBarrier,                     // pMemoryBarriers
+            null,
+            null)
+        memoryBarrier.free()
     }
 
     fun endCommandBuffer() {

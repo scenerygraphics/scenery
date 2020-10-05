@@ -10,9 +10,10 @@ import net.imglib2.type.numeric.real.DoubleType
 import net.imglib2.type.numeric.real.FloatType
 import org.joml.Vector3f
 import org.joml.Vector3i
+import org.lwjgl.system.MemoryUtil
 import tpietzsch.example2.VolumeViewerOptions
 import java.nio.ByteBuffer
-import java.util.LinkedHashMap
+import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.min
@@ -28,28 +29,35 @@ class BufferedVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewe
         logger.debug("Data source is $ds")
     }
 
+    data class Timepoint(val name: String, val contents: ByteBuffer)
+
     /**
      * Access all the timepoints this volume has attached.
      */
     @Suppress("UNNECESSARY_SAFE_CALL", "UNUSED_PARAMETER")
-    val timepoints: LinkedHashMap<String, ByteBuffer>?
+    val timepoints: CopyOnWriteArrayList<Timepoint>?
         get() = ((ds?.sources?.firstOrNull()?.spimSource as? TransformedSource)?.wrappedSource as? BufferSource)?.timepoints
 
     /**
      * Adds a new timepoint with a given [name], with data stored in [buffer].
      */
     fun addTimepoint(name: String, buffer: ByteBuffer) {
-        timepoints?.put(name, buffer)
-        maxTimepoint = timepoints?.size ?: 0
+        timepoints?.removeIf { it.name == name }
+        timepoints?.add(Timepoint(name, buffer))
+        timepointCount = timepoints?.size ?: 0
         volumeManager.notifyUpdate(this)
     }
 
     /**
      * Removes the timepoint with the given [name].
      */
-    fun removeTimepoint(name: String): Boolean {
-        val result = timepoints?.remove(name)
-        maxTimepoint = timepoints?.size ?: 0
+    @JvmOverloads fun removeTimepoint(name: String, deallocate: Boolean = false): Boolean {
+        val tp = timepoints?.find { it.name == name }
+        val result = timepoints?.removeIf { it.name == name }
+        if(deallocate) {
+            tp?.contents?.let { MemoryUtil.memFree(it) }
+        }
+        timepointCount = timepoints?.size ?: 0
         return result != null
     }
 
@@ -57,22 +65,26 @@ class BufferedVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewe
      * Purges the first [count] timepoints, while always leaving [leave] timepoints
      * in the list.
      */
-    fun purgeFirst(count: Int, leave: Int = 0) {
+    @JvmOverloads fun purgeFirst(count: Int, leave: Int = 0, deallocate: Boolean = false) {
         val elements = if(timepoints?.size ?: 0 - count < leave) {
             0
         } else {
             max(1, count - leave)
         }
 
-        val keys = timepoints?.keys?.take(elements)
-        keys?.forEach { removeTimepoint(it) }
+        repeat(elements) {
+            val tp = timepoints?.removeAt(0)
+            if(deallocate && tp != null) {
+                MemoryUtil.memFree(tp.contents)
+            }
+        }
     }
 
     /**
      * Purges the last [count] timepoints, while always leaving [leave] timepoints
      * in the list.
      */
-    fun purgeLast(count: Int, leave: Int = 0) {
+    @JvmOverloads fun purgeLast(count: Int, leave: Int = 0, deallocate: Boolean = false) {
         val elements = if(timepoints?.size ?: 0 - count < leave) {
             0
         } else {
@@ -80,8 +92,12 @@ class BufferedVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewe
         }
 
         val n = timepoints?.size ?: 0 - elements
-        val keys = timepoints?.keys?.drop(n)
-        keys?.forEach { removeTimepoint(it) }
+        repeat(n) {
+            val tp = timepoints?.removeLast()
+            if(deallocate && tp != null) {
+                MemoryUtil.memFree(tp.contents)
+            }
+        }
     }
 
     /**
@@ -92,7 +108,7 @@ class BufferedVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewe
      */
     @OptIn(ExperimentalUnsignedTypes::class)
     override fun sample(uv: Vector3f, interpolate: Boolean): Float? {
-        val texture = timepoints?.entries?.last() ?: throw IllegalStateException("Could not find timepoint")
+        val texture = timepoints?.lastOrNull() ?: throw IllegalStateException("Could not find timepoint")
         val source = (ds.sources.first().spimSource as? BufferSource) ?: throw IllegalStateException("No source found")
         val dimensions = Vector3i(source.width, source.height, source.depth)
 
@@ -125,7 +141,7 @@ class BufferedVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewe
 
         val index = toIndex(absoluteCoordsD)
 
-        val contents = texture.value
+        val contents = texture.contents
 
         if(contents.limit() < index*bpp) {
             logger.debug("Absolute index ${index*bpp} for data type ${ds.type.javaClass.simpleName} from $uv exceeds data buffer limit of ${contents.limit()} (capacity=${contents.capacity()}), coords=$absoluteCoords/${dimensions}")

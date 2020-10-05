@@ -1,7 +1,7 @@
 name: Deferred Shading, Stereo
 description: OpenGL/Vulkan shader pipeline implementing deferred shading, with stereo rendering
 stereoEnabled: true
-sRGB: true
+sRGB: false
 
 rendertargets:
   GeometryBuffer:

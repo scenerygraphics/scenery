@@ -54,47 +54,45 @@ class OpenGLRenderpass(var passName: String = "", var passConfig: RenderConfigRe
      * into [backingBuffer].
      */
     fun initializeShaderParameters(settings: Settings, backingBuffer: OpenGLRenderer.OpenGLBuffer) {
-        passConfig.parameters?.let { params ->
-            val ubo = OpenGLUBO(backingBuffer)
+        val ubo = OpenGLUBO(backingBuffer)
 
-            ubo.name = "ShaderParameters-$passName"
-            params.forEach { entry ->
-                // Entry could be created in Java, so we check for both Java and Kotlin strings
-                @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
-                val value = if (entry.value is String || entry.value is java.lang.String) {
-                    val s = entry.value as String
-                    val split = s.split(",").map { it.trim().trimStart().toFloat() }.toFloatArray()
-                    when(split.size) {
-                        2 -> Vector2f(split[0], split[1])
-                        3 -> Vector3f(split[0], split[1], split[2])
-                        4 -> Vector4f(split[0], split[1], split[2], split[3])
-                        else -> throw IllegalStateException("Dont know how to handle ${split.size} elements in Shader Parameter split")
-                    }
-                } else if (entry.value is Double) {
-                    (entry.value as Double).toFloat()
-                } else {
-                    entry.value
+        ubo.name = "ShaderParameters-$passName"
+        passConfig.parameters.forEach { entry ->
+            // Entry could be created in Java, so we check for both Java and Kotlin strings
+            @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
+            val value = if (entry.value is String || entry.value is java.lang.String) {
+                val s = entry.value as String
+                val split = s.split(",").map { it.trim().trimStart().toFloat() }.toFloatArray()
+                when(split.size) {
+                    2 -> Vector2f(split[0], split[1])
+                    3 -> Vector3f(split[0], split[1], split[2])
+                    4 -> Vector4f(split[0], split[1], split[2], split[3])
+                    else -> throw IllegalStateException("Dont know how to handle ${split.size} elements in Shader Parameter split")
                 }
-
-                val settingsKey = when {
-                    entry.key.startsWith("System") -> "System.${entry.key.substringAfter("System.")}"
-                    entry.key.startsWith("Global") -> "Renderer.${entry.key.substringAfter("Global.")}"
-                    entry.key.startsWith("Pass") -> "Renderer.$passName.${entry.key.substringAfter("Pass.")}"
-                    else -> "Renderer.$passName.${entry.key}"
-                }
-
-                if (!entry.key.startsWith("Global") && !entry.key.startsWith("Pass.") && !entry.key.startsWith("System.")) {
-                    settings.setIfUnset(settingsKey, value)
-                }
-
-                ubo.add(entry.key, { settings.get(settingsKey) })
+            } else if (entry.value is Double) {
+                (entry.value as Double).toFloat()
+            } else {
+                entry.value
             }
 
-            ubo.setOffsetFromBackingBuffer()
-            ubo.populate()
+            val settingsKey = when {
+                entry.key.startsWith("System") -> "System.${entry.key.substringAfter("System.")}"
+                entry.key.startsWith("Global") -> "Renderer.${entry.key.substringAfter("Global.")}"
+                entry.key.startsWith("Pass") -> "Renderer.$passName.${entry.key.substringAfter("Pass.")}"
+                else -> "Renderer.$passName.${entry.key}"
+            }
 
-            UBOs.put(ubo.name, ubo)
+            if (!entry.key.startsWith("Global") && !entry.key.startsWith("Pass.") && !entry.key.startsWith("System.")) {
+                settings.setIfUnset(settingsKey, value)
+            }
+
+            ubo.add(entry.key, { settings.get(settingsKey) })
         }
+
+        ubo.setOffsetFromBackingBuffer()
+        ubo.populate()
+
+        UBOs.put(ubo.name, ubo)
     }
 
     /**

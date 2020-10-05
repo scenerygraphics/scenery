@@ -158,13 +158,21 @@ open class SceneryContext(val node: VolumeManager, val useCompute: Boolean = fal
         override fun setUniform3fv(name: String, count: Int, value: FloatArray) {
             // in UBOs, arrays of vectors need to be padded, such that they start on
             // word boundaries, e.g. a 3-vector needs to start on byte 16.
-            val padded = ArrayList<Float>(4*count)
-            value.asSequence().windowed(3, 3).forEach {
-                padded.addAll(it)
-                padded.add(0.0f)
+            val padded = FloatArray(4*count)
+            var j = 0
+            for(i in 0 until count) {
+                padded[j] = value[3*i]
+                padded[j+1] = value[3*i+1]
+                padded[j+2] = value[3*i+2]
+                padded[j+3] = 0.0f
+                j += 4
             }
+//            value.asSequence().windowed(3, 3).forEach {
+//                padded.addAll(it)
+//                padded.add(0.0f)
+//            }
 
-            node.shaderProperties[name] = padded.toFloatArray()
+            node.shaderProperties[name] = padded
             modified = true
         }
 
