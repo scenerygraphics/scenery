@@ -175,10 +175,10 @@ open class HeadlessSwapchain(device: VulkanDevice,
      * recreated and false if not.
      */
     override fun next(timeout: Long): Pair<Long, Long>? {
-        MemoryStack.stackPush().use { _ ->
+        MemoryStack.stackPush().use { stack ->
             VK10.vkQueueWaitIdle(presentQueue)
 
-            val signal = MemoryUtil.memAllocLong(1)
+            val signal = stack.mallocLong(1)
             signal.put(0, imageAvailableSemaphores[currentImage])
 
             with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
@@ -301,16 +301,7 @@ open class HeadlessSwapchain(device: VulkanDevice,
         MemoryUtil.memFree(swapchainPointer)
         MemoryUtil.memFree(imageBuffer)
 
-        imageAvailableSemaphores.forEach { VK10.vkDestroySemaphore(device.vulkanDevice, it, null) }
-        imageAvailableSemaphores.clear()
-        imageRenderedSemaphores.forEach { VK10.vkDestroySemaphore(device.vulkanDevice, it, null) }
-        imageRenderedSemaphores.clear()
-
-        fences.forEach { VK10.vkDestroyFence(device.vulkanDevice, it, null) }
-        fences.clear()
-
-        imageUseFences.forEach { VK10.vkDestroyFence(device.vulkanDevice, it, null) }
-        imageUseFences.clear()
+        closeSyncPrimitives()
 
         sharingBuffer.close()
     }
