@@ -77,6 +77,7 @@ mat4 mv;
     Vertex.TexCoord = vertexTexCoord;
     Vertex.FragPosition = vec3(iModelMatrix * vec4(vertexPosition, 1.0));
 
+	gl_PointSize = 1.0;
 	gl_Position = nMVP * vec4(vertexPosition, 1.0);
 }
 

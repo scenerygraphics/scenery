@@ -105,7 +105,7 @@ class VulkanPipeline(val device: VulkanDevice, val renderpass: VulkanRenderpass,
             }
         }
 
-        val usedDescriptorSetCount = descriptorSpecs.map { it.value.set }.distinct().size - 1
+        val usedDescriptorSetCount = if(descriptorSpecs.isEmpty()) { 0 } else { descriptorSpecs.map { it.value.set }.distinct().size - 1 }
         val maxDescriptorSetNumber = (descriptorSpecs.map { it.value.set }.maxOrNull() ?: 0L).toInt()
 
         if(usedDescriptorSetCount != maxDescriptorSetNumber) {

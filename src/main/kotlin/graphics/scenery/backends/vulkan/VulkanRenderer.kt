@@ -2,6 +2,7 @@ package graphics.scenery.backends.vulkan
 
 import graphics.scenery.*
 import graphics.scenery.backends.*
+import graphics.scenery.backends.vulkan.VulkanDevice.VulkanObjectType.*
 import graphics.scenery.compute.ComputeMetadata
 import graphics.scenery.compute.InvocationType
 import graphics.scenery.spirvcrossj.Loader
@@ -24,6 +25,7 @@ import org.lwjgl.system.Platform
 import org.lwjgl.system.jemalloc.JEmalloc.*
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.EXTDebugReport.*
+import org.lwjgl.vulkan.EXTDebugUtils.*
 import org.lwjgl.vulkan.KHRSurface.VK_KHR_SURFACE_EXTENSION_NAME
 import org.lwjgl.vulkan.KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
 import org.lwjgl.vulkan.KHRWin32Surface.VK_KHR_WIN32_SURFACE_EXTENSION_NAME
@@ -81,10 +83,11 @@ open class VulkanRenderer(hub: Hub,
     // helper classes
     data class PresentHelpers(
         var signalSemaphore: LongBuffer = memAllocLong(1),
-        var waitSemaphore: LongBuffer = memAllocLong(1),
+        var waitSemaphore: LongBuffer = memAllocLong(2),
         var commandBuffers: PointerBuffer = memAllocPointer(1),
-        var waitStages: IntBuffer = memAllocInt(1),
-        var submitInfo: VkSubmitInfo = VkSubmitInfo.calloc()
+        var waitStages: IntBuffer = memAllocInt(2),
+        var submitInfo: VkSubmitInfo = VkSubmitInfo.calloc(),
+        var imageUsageFence: Long = -1L
     )
 
     enum class VertexDataKinds {
@@ -228,6 +231,51 @@ open class VulkanRenderer(hub: Hub,
         }
     }
 
+    var debugCallbackUtils = callback@ { severity: Int, type: Int, callbackDataPointer: Long, _: Long ->
+        val dbg = if (type and VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT == VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT) {
+            " (performance)"
+        } else if(type and VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT == VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT) {
+            " (validation)"
+        } else {
+            ""
+        }
+
+        val callbackData = VkDebugUtilsMessengerCallbackDataEXT.create(callbackDataPointer)
+        val obj = callbackData.pMessageIdNameString()
+        val message = callbackData.pMessageString()
+        val objectType = 0
+
+        when (severity) {
+            VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT ->
+                logger.error("!! $obj($objectType) Validation$dbg: $message")
+            VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT ->
+                logger.warn("!! $obj($objectType) Validation$dbg: $message")
+            VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT ->
+                logger.info("!! $obj($objectType) Validation$dbg: $message")
+            else -> logger.info("!! $obj($objectType) Validation (unknown message type)$dbg: $message")
+        }
+
+        // trigger exception and delay if strictValidation is activated in general, or only for specific object types
+        if(strictValidation.first && strictValidation.second.isEmpty() ||
+            strictValidation.first && strictValidation.second.contains(objectType)) {
+            if(severity < VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) {
+                return@callback VK_FALSE
+            }
+            // set 15s of delay until the next frame is rendered if a validation error happens
+            renderDelay = System.getProperty("scenery.VulkanRenderer.DefaultRenderDelay", "1500").toLong()
+
+            try {
+                throw VulkanValidationLayerException("Vulkan validation layer exception, see validation layer error messages above. To disable these exceptions, set scenery.VulkanRenderer.StrictValidation=false. Stack trace:")
+            } catch (e: VulkanValidationLayerException) {
+                logger.error(e.message)
+                e.printStackTrace()
+            }
+        }
+
+        // return false here, otherwise the application would quit upon encountering a validation error.
+        return@callback VK_FALSE
+    }
+
     /** Debug callback to be used upon encountering validation messages or errors */
     var debugCallback = object : VkDebugReportCallbackEXT() {
         override operator fun invoke(flags: Int, objectType: Int, obj: Long, location: Long, messageCode: Int, pLayerPrefix: Long, pMessage: Long, pUserData: Long): Int {
@@ -253,6 +301,9 @@ open class VulkanRenderer(hub: Hub,
             // trigger exception and delay if strictValidation is activated in general, or only for specific object types
             if(strictValidation.first && strictValidation.second.isEmpty() ||
                 strictValidation.first && strictValidation.second.contains(objectType)) {
+                if(!(flags and VK_DEBUG_REPORT_ERROR_BIT_EXT == VK_DEBUG_REPORT_ERROR_BIT_EXT)) {
+                    return VK_FALSE
+                }
                 // set 15s of delay until the next frame is rendered if a validation error happens
                 renderDelay = System.getProperty("scenery.VulkanRenderer.DefaultRenderDelay", "1500").toLong()
 
@@ -293,8 +344,6 @@ open class VulkanRenderer(hub: Hub,
     private var recordMovie: Boolean = false
     private var recordMovieOverwrite: Boolean = false
     override var pushMode: Boolean = false
-
-    private var firstWaitSemaphore: LongBuffer = memAllocLong(1)
 
     var scene: Scene = Scene()
     protected var sceneArray: HashSet<Node> = HashSet(256)
@@ -480,12 +529,12 @@ open class VulkanRenderer(hub: Hub,
         }
 
         debugCallbackHandle = if(validation) {
-            setupDebugging(instance,
-                VK_DEBUG_REPORT_WARNING_BIT_EXT
-                    or VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT
-                    or VK_DEBUG_REPORT_ERROR_BIT_EXT
-                    or VK_DEBUG_REPORT_WARNING_BIT_EXT,
-                debugCallback)
+            setupDebuggingDebugUtils(instance,
+                VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT
+                    or VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT
+                    or VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT
+                    or VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT,
+                debugCallbackUtils)
         } else {
             -1L
         }
@@ -521,7 +570,9 @@ open class VulkanRenderer(hub: Hub,
             physicalDeviceFilter = { _, device -> "${device.vendor} ${device.name}".contains(System.getProperty("scenery.Renderer.Device", "DOES_NOT_EXIST"))},
             additionalExtensions = { physicalDevice -> hub.getWorkingHMDDisplay()?.getVulkanDeviceExtensions(physicalDevice)?.toTypedArray() ?: arrayOf() },
             validationLayers = requestedValidationLayers,
-            headless = headless)
+            headless = headless,
+            debugEnabled = validation
+        )
 
         logger.debug("Device creation done")
 
@@ -1480,6 +1531,7 @@ open class VulkanRenderer(hub: Hub,
                         }
 
                         framebuffer.createRenderpassAndFramebuffer()
+                        this@VulkanRenderer.device.tag(framebuffer.framebuffer.get(0), Framebuffer, "Framebuffer for ${rt.key}")
 
                         pass.output[rt.key] = framebuffer
                         framebuffers.put(rt.key, framebuffer)
@@ -1506,6 +1558,7 @@ open class VulkanRenderer(hub: Hub,
                         fb.addSwapchainAttachment("swapchain-$i", swapchain, i)
                         fb.addDepthBuffer("swapchain-$i-depth", 32)
                         fb.createRenderpassAndFramebuffer()
+                        this@VulkanRenderer.device.tag(fb.framebuffer.get(0), Framebuffer, "Framebuffer for swapchain image $i")
 
                         pass.output["Viewport-$i"] = fb
                     }
@@ -1617,10 +1670,18 @@ open class VulkanRenderer(hub: Hub,
         return false
     }
 
-    private fun beginFrame() {
-        swapchainRecreator.mustRecreate = swapchain.next(timeout = UINT64_MAX,
-            signalSemaphore = semaphores.getValue(StandardSemaphores.PresentComplete)[currentFrame])
+    private fun beginFrame(): Pair<Long, Long>? {
+        previousFrame = currentFrame
+        val semaphoreAndFence= swapchain.next(timeout = UINT64_MAX)
+        if(semaphoreAndFence == null) {
+            swapchainRecreator.mustRecreate = true
+            return null
+        }
+        //logger.info("Prev: $previousFrame, Current: $currentFrame, will signal ${semaphores.getValue(StandardSemaphores.ImageAvailable)[previousFrame].toHexString()}")
+        return semaphoreAndFence
     }
+
+    var presentationFence = -1L
 
     @Suppress("unused")
     override fun recordMovie(filename: String, overwrite: Boolean) {
@@ -1645,19 +1706,24 @@ open class VulkanRenderer(hub: Hub,
         present.submitInfo
             .sType(VK_STRUCTURE_TYPE_SUBMIT_INFO)
             .pNext(NULL)
-            .waitSemaphoreCount(1)
+            .waitSemaphoreCount(present.waitSemaphore.capacity())
             .pWaitSemaphores(present.waitSemaphore)
             .pWaitDstStageMask(present.waitStages)
             .pCommandBuffers(present.commandBuffers)
             .pSignalSemaphores(present.signalSemaphore)
 
+        val q = (swapchain as? VulkanSwapchain)?.presentQueue ?: queue
         // Submit to the graphics queue
-        VU.run("Submit viewport render queue", { vkQueueSubmit(queue, present.submitInfo, commandBuffer.getFence()) })
+//        vkResetFences(device.vulkanDevice, swapchain.currentFence)
+        VU.run("Submit viewport render queue", { vkQueueSubmit(q, present.submitInfo, swapchain.currentFence) })
 
         val startPresent = System.nanoTime()
         commandBuffer.submitted = true
-        swapchain.present(ph.signalSemaphore)
+        swapchain.present(waitForSemaphores = present.signalSemaphore)
 
+        vkWaitForFences(device.vulkanDevice, swapchain.currentFence, true, -1L)
+        vkResetFences(device.vulkanDevice, swapchain.currentFence)
+        presentationFence = swapchain.currentFence
         swapchain.postPresent(pass.getReadPosition())
 
         // submit to OpenVR if attached
@@ -1856,6 +1922,7 @@ open class VulkanRenderer(hub: Hub,
     }
 
     private var currentFrame = 0
+    private var previousFrame = 0
     private var currentNow = 0L
 
     /**
@@ -2030,18 +2097,15 @@ open class VulkanRenderer(hub: Hub,
             return@runBlocking
         }
 
-        beginFrame()
+        val submitInfo = VkSubmitInfo.calloc(flow.size-1)
 
-        // firstWaitSemaphore is now the RenderComplete semaphore of the previous pass
-        firstWaitSemaphore.put(0, semaphores.getValue(StandardSemaphores.PresentComplete)[currentFrame])
-
-        val si = VkSubmitInfo.calloc()
-
-        var waitSemaphore = semaphores.getValue(StandardSemaphores.PresentComplete)[currentFrame]
+        val (_, fence) = beginFrame() ?: return@runBlocking
+        var waitSemaphore = -1L
 
         profiler?.end()
 
-        flow.take(flow.size - 1).forEach { t ->
+        flow.take(flow.size - 1).forEachIndexed { i, t ->
+            val si = submitInfo[i]
             profiler?.begin("Renderer.$t")
             logger.trace("Running pass {}", t)
             val target = renderpasses[t]!!
@@ -2068,43 +2132,55 @@ open class VulkanRenderer(hub: Hub,
 
             target.updateShaderParameters()
 
+            val targetSemaphore = target.semaphore
             target.submitCommandBuffers.put(0, commandBuffer.commandBuffer!!)
-            target.signalSemaphores.put(0, target.semaphore)
+            target.signalSemaphores.put(0, targetSemaphore)
             target.waitSemaphores.put(0, waitSemaphore)
-            target.waitStages.put(0, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT)
+            target.waitStages.put(0, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT or VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT)
 
             si.sType(VK_STRUCTURE_TYPE_SUBMIT_INFO)
                 .pNext(NULL)
-                .waitSemaphoreCount(1)
+                .waitSemaphoreCount(0)
                 .pWaitDstStageMask(target.waitStages)
                 .pCommandBuffers(target.submitCommandBuffers)
                 .pSignalSemaphores(target.signalSemaphores)
-                .pWaitSemaphores(target.waitSemaphores)
+
+            if(waitSemaphore != -1L) {
+                si
+                    .waitSemaphoreCount(1)
+                    .pWaitSemaphores(target.waitSemaphores)
+            }
 
             if(swapchainRecreator.mustRecreate) {
                 return@runBlocking
             }
 
+//            logger.info("Submitting pass $t waiting on semaphore ${target.waitSemaphores.get(0).toHexString()}")
             VU.run("Submit pass $t render queue", { vkQueueSubmit(queue, si, commandBuffer.getFence() )})
 
             commandBuffer.submitted = true
-            firstWaitSemaphore.put(0, target.semaphore)
-            waitSemaphore = target.semaphore
+            waitSemaphore = targetSemaphore
 
             profiler?.end()
         }
 
-        si.free()
+        submitInfo.free()
 
         profiler?.begin("Renderer.${renderpasses.keys.last()}")
         val viewportPass = renderpasses.values.last()
         val viewportCommandBuffer = viewportPass.commandBuffer
-//        if(viewportCommandBuffer.submitted) {
-//            viewportCommandBuffer.waitForFence()
-//        }
+
         logger.trace("Running viewport pass {}", renderpasses.keys.last())
 
         val start = System.nanoTime()
+
+        /*if(viewportCommandBuffer.submitted) {
+            viewportCommandBuffer.waitForFence()
+            viewportCommandBuffer.submitted = false
+            viewportCommandBuffer.resetFence()
+
+            stats?.add("Renderer.${viewportPass.name}.gpuTiming", viewportCommandBuffer.runtime)
+        }*/
 
         when (viewportPass.passConfig.type) {
             RenderConfigReader.RenderpassType.geometry -> recordSceneRenderCommands(viewportPass, viewportCommandBuffer, sceneNodes, { it !is Light }, forceRerecording)
@@ -2115,29 +2191,25 @@ open class VulkanRenderer(hub: Hub,
 
         stats?.add("VulkanRenderer.${viewportPass.name}.recordCmdBuffer", System.nanoTime() - start)
 
-        if(viewportCommandBuffer.submitted) {
-            viewportCommandBuffer.waitForFence()
-            viewportCommandBuffer.submitted = false
-            viewportCommandBuffer.resetFence()
-
-            stats?.add("Renderer.${viewportPass.name}.gpuTiming", viewportCommandBuffer.runtime)
-        }
-
         viewportPass.updateShaderParameters()
 
         ph.commandBuffers.put(0, viewportCommandBuffer.commandBuffer!!)
-        ph.waitStages.put(0, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT or VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT or VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT)
+        ph.waitStages.put(0, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT or VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT)
+        ph.waitStages.put(1, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT or VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT)
         ph.signalSemaphore.put(0, semaphores.getValue(StandardSemaphores.RenderComplete)[currentFrame])
-        ph.waitSemaphore.put(0, firstWaitSemaphore.get(0))
+        ph.waitSemaphore.put(0, waitSemaphore)
+        ph.waitSemaphore.put(1, swapchain.imageAvailableSemaphore)
         profiler?.end()
 
         profiler?.begin("Renderer.SubmitFrame")
+        vkWaitForFences(device.vulkanDevice, fence, true, -1L)
+        vkResetFences(device.vulkanDevice, fence)
+
         submitFrame(queue, viewportPass, viewportCommandBuffer, ph)
 
         updateTimings()
         profiler?.end()
 
-        currentFrame = (currentFrame + 1) % swapchain.images.size
         currentNow = System.nanoTime()
     }
 
@@ -2165,7 +2237,7 @@ open class VulkanRenderer(hub: Hub,
             hub?.getWorkingHMDDisplay()?.getVulkanInstanceExtensions()?.forEach { additionalExts.add(it) }
 
             if(enableValidations) {
-                additionalExts.add(VK_EXT_DEBUG_REPORT_EXTENSION_NAME)
+                additionalExts.add(VK_EXT_DEBUG_UTILS_EXTENSION_NAME)
             }
 
             val utf8Exts = additionalExts.map { stack.UTF8(it) }
@@ -2217,7 +2289,33 @@ open class VulkanRenderer(hub: Hub,
     }
 
     @Suppress("SameParameterValue")
-    private fun setupDebugging(instance: VkInstance, flags: Int, callback: VkDebugReportCallbackEXT): Long {
+    private fun setupDebuggingDebugUtils(instance: VkInstance, severity: Int, callback: (Int, Int, Long, Long) -> Int): Long {
+        val messengerCreateInfo = VkDebugUtilsMessengerCreateInfoEXT.calloc()
+            .sType(VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT)
+            .pfnUserCallback(callback)
+            .messageType(VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT
+                or VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT
+                or VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT)
+            .messageSeverity(severity)
+            .flags(0)
+
+        return try {
+            val messenger = VU.getLong("Create debug messenger", { vkCreateDebugUtilsMessengerEXT(instance,
+                messengerCreateInfo,
+                null,
+                this
+            )}, {})
+
+           messenger
+        } catch(e: NullPointerException) {
+            logger.warn("Caught NPE on creating debug callback, is extension $VK_EXT_DEBUG_UTILS_EXTENSION_NAME available?")
+            -1
+        }
+    }
+
+
+    @Suppress("SameParameterValue")
+    private fun setupDebuggingDebugReport(instance: VkInstance, flags: Int, callback: VkDebugReportCallbackEXT): Long {
         val dbgCreateInfo = VkDebugReportCallbackCreateInfoEXT.calloc()
             .sType(VK_STRUCTURE_TYPE_DEBUG_REPORT_CALLBACK_CREATE_INFO_EXT)
             .pNext(NULL)
@@ -2238,7 +2336,7 @@ open class VulkanRenderer(hub: Hub,
 
             callbackHandle
         } catch(e: NullPointerException) {
-            logger.warn("Caught NPE on creating debug callback, is extension $VK_EXT_DEBUG_REPORT_EXTENSION_NAME available?")
+            logger.warn("Caught NPE on creating debug callback, is extension ${VK_EXT_DEBUG_REPORT_EXTENSION_NAME} available?")
             -1
         }
     }
@@ -2576,15 +2674,14 @@ open class VulkanRenderer(hub: Hub,
                     val imageBlit = VkImageBlit.callocStack(1, stack)
                     val region = VkImageCopy.callocStack(1, stack)
 
-                    for((name, input) in pass.inputs) {
-                        val attachmentList = if(name.contains(".")) {
+                    for ((name, input) in pass.inputs) {
+                        val attachmentList = if (name.contains(".")) {
                             input.attachments.filter { it.key == name.substringAfter(".") }
                         } else {
                             input.attachments
                         }
 
                         for((_, inputAttachment) in attachmentList) {
-
                             val type = when(inputAttachment.type) {
                                 VulkanFramebuffer.VulkanFramebufferType.COLOR_ATTACHMENT -> VK_IMAGE_ASPECT_COLOR_BIT
                                 VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT -> VK_IMAGE_ASPECT_DEPTH_BIT
@@ -2592,38 +2689,38 @@ open class VulkanRenderer(hub: Hub,
 
                             // return to use() if no output with the correct attachment type is found
                             val outputAttachment = pass.getOutput().attachments.values.find { it.type == inputAttachment.type }
-                            if(outputAttachment == null) {
+                            if (outputAttachment == null) {
                                 logger.warn("Didn't find matching attachment for $name of type ${inputAttachment.type}")
                                 return@use
                             }
 
-                            val outputAspectSrcType = when(outputAttachment.type) {
+                            val outputAspectSrcType = when (outputAttachment.type) {
                                 VulkanFramebuffer.VulkanFramebufferType.COLOR_ATTACHMENT -> VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
                                 VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT -> VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
                             }
 
-                            val outputAspectDstType = when(outputAttachment.type) {
+                            val outputAspectDstType = when (outputAttachment.type) {
                                 VulkanFramebuffer.VulkanFramebufferType.COLOR_ATTACHMENT -> VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
-                                VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT -> VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+                                VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT -> VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
                             }
 
-                            val inputAspectType = when(inputAttachment.type) {
+                            val inputAspectType = when (inputAttachment.type) {
                                 VulkanFramebuffer.VulkanFramebufferType.COLOR_ATTACHMENT -> VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
                                 VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT -> VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
                             }
 
                             val (outputDstStage, outputDstAccessMask) = when(outputAttachment.type) {
                                 VulkanFramebuffer.VulkanFramebufferType.COLOR_ATTACHMENT ->
-                                    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT to VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT
+                                    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT to VK_ACCESS_COLOR_ATTACHMENT_READ_BIT
                                 VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT ->
-                                    VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT or VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT to VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT
+                                    VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT or VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT or VK_PIPELINE_STAGE_VERTEX_SHADER_BIT to VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT
                             }
 
                             val offsetX = (input.width * pass.passConfig.viewportOffset.first).toInt()
                             val offsetY = (input.height * pass.passConfig.viewportOffset.second).toInt()
 
-                            val sizeX = offsetX + (input.width * pass.passConfig.viewportSize.first).toInt()
-                            val sizeY = offsetY + (input.height * pass.passConfig.viewportSize.second).toInt()
+                            val sizeX = (input.width * pass.passConfig.viewportSize.first).toInt()
+                            val sizeY = (input.height * pass.passConfig.viewportSize.second).toInt()
 
                             imageBlit.srcSubresource().set(type, 0, 0, 1)
                             imageBlit.srcOffsets(0).set(offsetX, offsetY, 0)
@@ -2632,8 +2729,6 @@ open class VulkanRenderer(hub: Hub,
                             imageBlit.dstSubresource().set(type, 0, 0, 1)
                             imageBlit.dstOffsets(0).set(offsetX, offsetY, 0)
                             imageBlit.dstOffsets(1).set(sizeX, sizeY, 1)
-
-                            val transitionBuffer = this@with
 
                             val subresourceRange = VkImageSubresourceRange.callocStack(stack)
                                 .aspectMask(type)
@@ -2646,12 +2741,12 @@ open class VulkanRenderer(hub: Hub,
                             VulkanTexture.transitionLayout(inputAttachment.image,
                                 from = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                                 to = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                                srcStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-                                srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                                srcStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                                srcAccessMask = 0,
                                 dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
-                                dstAccessMask = VK_ACCESS_MEMORY_WRITE_BIT,
+                                dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT or VK_ACCESS_MEMORY_READ_BIT,
                                 subresourceRange = subresourceRange,
-                                commandBuffer = transitionBuffer,
+                                commandBuffer = this
                             )
 
                             // transition destination attachment
@@ -2660,14 +2755,13 @@ open class VulkanRenderer(hub: Hub,
                                 to = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                                 srcStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
                                 srcAccessMask = 0,
-                                dstStage = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT
-                                    or VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
-                                dstAccessMask = 0,
+                                dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT or VK_ACCESS_MEMORY_WRITE_BIT,
                                 subresourceRange = subresourceRange,
-                                commandBuffer = transitionBuffer
+                                commandBuffer = this
                             )
 
-                            if(inputAttachment.compatibleWith(input, outputAttachment, pass.getOutput())) {
+                            if (inputAttachment.compatibleWith(input, outputAttachment, pass.getOutput())) {
                                 logger.debug("Using vkCmdCopyImage instead of blit because of compatible framebuffers between {} and {}", name, pass.name)
                                 region.srcOffset().set(offsetX, offsetY, 0)
                                 region.dstOffset().set(offsetX, offsetY, 0)
@@ -2675,13 +2769,13 @@ open class VulkanRenderer(hub: Hub,
                                 region.srcSubresource().set(type, 0, 0, 1)
                                 region.dstSubresource().set(type, 0, 0, 1)
 
-                                vkCmdCopyImage(this@with,
+                                vkCmdCopyImage(this,
                                     inputAttachment.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                                     outputAttachment.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                                     region
                                 )
                             } else {
-                                vkCmdBlitImage(this@with,
+                                vkCmdBlitImage(this,
                                     inputAttachment.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                                     outputAttachment.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                                     imageBlit, VK_FILTER_NEAREST
@@ -2694,11 +2788,11 @@ open class VulkanRenderer(hub: Hub,
                                 from = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                                 to = outputAspectDstType,
                                 srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
-                                srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT,
+                                srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT or VK_ACCESS_MEMORY_WRITE_BIT,
                                 dstStage = outputDstStage,
                                 dstAccessMask = outputDstAccessMask,
                                 subresourceRange = subresourceRange,
-                                commandBuffer = transitionBuffer,
+                                commandBuffer = this,
                             )
 
                             // transition source attachment back to shader read-only
@@ -2706,13 +2800,12 @@ open class VulkanRenderer(hub: Hub,
                                 from = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                                 to = outputAspectSrcType,
                                 srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
-                                dstStage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-                                srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT,
-                                dstAccessMask = 0,
+                                dstStage = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,
+                                srcAccessMask = 0,
+                                dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
                                 subresourceRange = subresourceRange,
-                                commandBuffer = transitionBuffer
+                                commandBuffer = this,
                             )
-
                         }
                     }
                 }
@@ -2754,7 +2847,7 @@ open class VulkanRenderer(hub: Hub,
 
                 pass.vulkanMetadata.uboOffsets.position(0)
                 pass.vulkanMetadata.uboOffsets.limit(pass.vulkanMetadata.uboOffsets.capacity())
-                pass.vulkanMetadata.uboOffsets.put(sets.filter { it is DescriptorSet.DynamicSet }.map { (it as DescriptorSet.DynamicSet).offset }.toIntArray())
+                pass.vulkanMetadata.uboOffsets.put(sets.filterIsInstance<DescriptorSet.DynamicSet>().map { it.offset }.toIntArray())
                 pass.vulkanMetadata.uboOffsets.flip()
 
                 // allocate more vertexBufferOffsets than needed, set limit lateron
@@ -3464,7 +3557,6 @@ open class VulkanRenderer(hub: Hub,
 
         semaphores.forEach { it.value.forEach { semaphore -> vkDestroySemaphore(device.vulkanDevice, semaphore, null) } }
 
-        memFree(firstWaitSemaphore)
         semaphoreCreateInfo.free()
 
         logger.debug("Closing swapchain...")
@@ -3488,7 +3580,7 @@ open class VulkanRenderer(hub: Hub,
         vkDestroyPipelineCache(device.vulkanDevice, pipelineCache, null)
 
         if (validation && debugCallbackHandle != -1L) {
-            vkDestroyDebugReportCallbackEXT(instance, debugCallbackHandle, null)
+            vkDestroyDebugUtilsMessengerEXT(instance, debugCallbackHandle, null)
         }
 
         debugCallback.free()

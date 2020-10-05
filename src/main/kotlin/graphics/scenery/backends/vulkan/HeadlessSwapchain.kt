@@ -8,6 +8,7 @@ import graphics.scenery.utils.SceneryPanel
 import org.lwjgl.system.MemoryStack
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.vulkan.*
+import org.lwjgl.vulkan.VK10.vkQueueWaitIdle
 import java.nio.ByteBuffer
 import java.nio.LongBuffer
 
@@ -34,9 +35,6 @@ open class HeadlessSwapchain(device: VulkanDevice,
     protected lateinit var vulkanSwapchainRecreator: VulkanRenderer.SwapchainRecreator
 
     protected val WINDOW_RESIZE_TIMEOUT = 600 * 10e5
-
-    /** State variable for the current swapchain image. */
-    protected var currentImage = 0
 
     /**
      * Special resize handler for HeadlessSwapchain, as resize events
@@ -121,7 +119,7 @@ open class HeadlessSwapchain(device: VulkanDevice,
             val t = VulkanTexture(device, commandPools, queue, queue, window.width, window.height, 1,
                 format, 1)
             val image = t.createImage(window.width, window.height, 1, format,
-                VK10.VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT or VK10.VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+                VK10.VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT or VK10.VK_IMAGE_USAGE_TRANSFER_SRC_BIT or VK10.VK_IMAGE_USAGE_SAMPLED_BIT,
                 VK10.VK_IMAGE_TILING_OPTIMAL, VK10.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 1)
             t to image
         }
@@ -133,6 +131,20 @@ open class HeadlessSwapchain(device: VulkanDevice,
         imageViews = textureImages.map {
             it.first.createImageView(it.second, format)
         }.toLongArray()
+
+        val semaphoreCreateInfo = VkSemaphoreCreateInfo.calloc()
+            .sType(VK10.VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO)
+
+        val fenceCreateInfo = VkFenceCreateInfo.calloc()
+            .sType(VK10.VK_STRUCTURE_TYPE_FENCE_CREATE_INFO)
+
+        images.forEach { _ ->
+            imageAvailableSemaphores.add(VU.getLong("image available semaphore", { VK10.vkCreateSemaphore(this@HeadlessSwapchain.device.vulkanDevice, semaphoreCreateInfo, null, this) }, {}))
+            imageRenderedSemaphores.add(VU.getLong("image ready semaphore", { VK10.vkCreateSemaphore(this@HeadlessSwapchain.device.vulkanDevice, semaphoreCreateInfo, null, this) }, {}))
+            fences.add(VU.getLong("Swapchain image fence", { VK10.vkCreateFence(this@HeadlessSwapchain.device.vulkanDevice, fenceCreateInfo, null, this) }, {}))
+            imageUseFences.add(VU.getLong("Swapchain image usage fence", { VK10.vkCreateFence(this@HeadlessSwapchain.device.vulkanDevice, fenceCreateInfo, null, this) }, {}))
+            inFlight.add(null)
+        }
 
         logger.info("Created ${images.size} swapchain images")
 
@@ -151,6 +163,9 @@ open class HeadlessSwapchain(device: VulkanDevice,
 
         initialized = true
 
+        fenceCreateInfo.free()
+        semaphoreCreateInfo.free()
+
         return this
     }
 
@@ -159,22 +174,20 @@ open class HeadlessSwapchain(device: VulkanDevice,
      * optionally waiting for a [timeout] before failing. Returns true if the swapchain needs to be
      * recreated and false if not.
      */
-    override fun next(timeout: Long, signalSemaphore: Long): Boolean {
-        MemoryStack.stackPush().use { stack ->
+    override fun next(timeout: Long): Pair<Long, Long>? {
+        MemoryStack.stackPush().use { _ ->
             VK10.vkQueueWaitIdle(presentQueue)
 
-            val signal = stack.callocLong(1)
-            signal.put(0, signalSemaphore)
+            val signal = MemoryUtil.memAllocLong(1)
+            signal.put(0, imageAvailableSemaphores[currentImage])
 
             with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
-                endCommandBuffer(this@HeadlessSwapchain.device, commandPools.Standard, presentQueue, signalSemaphores = signal,
-                    flush = true, dealloc = true)
+                endCommandBuffer(this@HeadlessSwapchain.device, commandPools.Standard, presentQueue,
+                    flush = true, dealloc = true, fence = imageUseFences[currentImage], signalSemaphores = signal)
             }
-
-            currentImage = ++currentImage % images.size
         }
 
-        return false
+        return imageAvailableSemaphores[currentImage] to imageUseFences[currentImage]
     }
 
     /**
@@ -249,6 +262,7 @@ open class HeadlessSwapchain(device: VulkanDevice,
         VK10.vkQueueWaitIdle(queue)
 
         resizeHandler.queryResize()
+        currentImage = (currentImage + 1) % images.size
     }
 
     /**
@@ -280,11 +294,23 @@ open class HeadlessSwapchain(device: VulkanDevice,
      * Closes the swapchain, deallocating all resources.
      */
     override fun close() {
+        vkQueueWaitIdle(queue)
         presentInfo.free()
 
         MemoryUtil.memFree(swapchainImage)
         MemoryUtil.memFree(swapchainPointer)
         MemoryUtil.memFree(imageBuffer)
+
+        imageAvailableSemaphores.forEach { VK10.vkDestroySemaphore(device.vulkanDevice, it, null) }
+        imageAvailableSemaphores.clear()
+        imageRenderedSemaphores.forEach { VK10.vkDestroySemaphore(device.vulkanDevice, it, null) }
+        imageRenderedSemaphores.clear()
+
+        fences.forEach { VK10.vkDestroyFence(device.vulkanDevice, it, null) }
+        fences.clear()
+
+        imageUseFences.forEach { VK10.vkDestroyFence(device.vulkanDevice, it, null) }
+        imageUseFences.clear()
 
         sharingBuffer.close()
     }

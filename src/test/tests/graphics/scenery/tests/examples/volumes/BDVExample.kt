@@ -105,11 +105,11 @@ class BDVExample: SceneryBase("BDV Rendering example", 1280, 720) {
         val prevTimePoint = ClickBehaviour { _, _ -> volume?.previousTimepoint() }
         val tenTimePointsForward = ClickBehaviour { _, _ ->
             val current = volume?.currentTimepoint ?: 0
-            volume?.goToTimePoint(current + 10)
+            volume?.goToTimepoint(current + 10)
         }
         val tenTimePointsBack = ClickBehaviour { _, _ ->
             val current = volume?.currentTimepoint ?: 0
-            volume?.goToTimePoint(current - 10)
+            volume?.goToTimepoint(current - 10)
         }
 
         inputHandler?.addBehaviour("prev_timepoint", prevTimePoint)

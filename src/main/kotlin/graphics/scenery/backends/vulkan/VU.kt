@@ -62,7 +62,7 @@ fun VkCommandBuffer.endCommandBuffer(device: VulkanDevice, commandPool: Long,
                                      submitInfoPNext: Pointer? = null,
                                      signalSemaphores: LongBuffer? = null, waitSemaphores: LongBuffer? = null,
                                      waitDstStageMask: IntBuffer? = null,
-                                     block: Boolean = true) {
+                                     block: Boolean = true, fence: Long? = null) {
     if (this.address() == NULL) {
         return
     }
@@ -72,7 +72,7 @@ fun VkCommandBuffer.endCommandBuffer(device: VulkanDevice, commandPool: Long,
     }
 
     if (flush && queue != null) {
-        this.submit(queue, submitInfoPNext, waitSemaphores = waitSemaphores, signalSemaphores = signalSemaphores, waitDstStageMask = waitDstStageMask, block = block)
+        this.submit(queue, submitInfoPNext, waitSemaphores = waitSemaphores, signalSemaphores = signalSemaphores, waitDstStageMask = waitDstStageMask, block = block, fence = fence)
     }
 
     if (dealloc) {
@@ -89,7 +89,7 @@ fun VkCommandBuffer.endCommandBuffer(device: VulkanDevice, commandPool: Long,
 fun VkCommandBuffer.submit(queue: VkQueue, submitInfoPNext: Pointer? = null,
                            signalSemaphores: LongBuffer? = null, waitSemaphores: LongBuffer? = null,
                            waitDstStageMask: IntBuffer? = null,
-                           block: Boolean = true) {
+                           block: Boolean = true, fence: Long? = null) {
     stackPush().use { stack ->
         val submitInfo = VkSubmitInfo.callocStack(1, stack)
         val commandBuffers = stack.callocPointer(1).put(0, this)
@@ -109,10 +109,10 @@ fun VkCommandBuffer.submit(queue: VkQueue, submitInfoPNext: Pointer? = null,
             }
 
             if(block) {
-                vkQueueSubmit(queue, submitInfo, VK_NULL_HANDLE)
+                vkQueueSubmit(queue, submitInfo, fence ?: VK_NULL_HANDLE)
                 vkQueueWaitIdle(queue)
             } else {
-                vkQueueSubmit(queue, submitInfo, VK_NULL_HANDLE)
+                vkQueueSubmit(queue, submitInfo, fence ?: VK_NULL_HANDLE)
             }
         }, { })
     }
