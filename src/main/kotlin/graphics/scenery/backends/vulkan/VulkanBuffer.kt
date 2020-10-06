@@ -314,7 +314,9 @@ open class VulkanBuffer(val device: VulkanDevice, var size: Long,
             return
         }
 
-        logger.trace("Closing buffer $this (${vulkanBuffer.toHexString()}, mem=${memory.toHexString()}...")
+        if(logger.isDebugEnabled) {
+            logger.debug("Closing buffer $this (${vulkanBuffer.toHexString()}, mem=${memory.toHexString()}) of size ${String.format("%.2f", size.toFloat() / 1024.0f / 1024.0f)}M...")
+        }
 
         if(mapped) {
             unmap()
