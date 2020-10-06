@@ -165,6 +165,8 @@ class ExampleRunner {
                     logger.info("${example.simpleName} closed ($renderer ran ${i + 1}/${examples.size} so far).")
 
                     assertFalse(failure, "ExampleRunner aborted due to exceptions in tests or exceeding maximum per-test runtime of $maxRuntimePerTest.")
+
+                    System.gc()
                 }
             }
         }
