@@ -7,6 +7,7 @@ layout(location = 0) out VertexData {
 	vec2 textureCoord;
 	mat4 inverseProjection;
 	mat4 inverseView;
+	mat4 MVP;
 } Vertex;
 
 layout(set = 0, binding = 0) uniform VRParameters {
@@ -43,6 +44,7 @@ void main()
 	Vertex.inverseProjection = (vrParameters.stereoEnabled ^ 1) * InverseProjectionMatrix + (vrParameters.stereoEnabled * vrParameters.inverseProjectionMatrices[currentEye.eye]);
 	Vertex.inverseView = inverse(view);
 
+    Vertex.MVP = projectionMatrix * view;
 	Vertex.textureCoord = vertexTexCoord;
 	gl_Position = vec4(vertexPosition, 1.0f);
 	gl_PointSize = 1.0;
