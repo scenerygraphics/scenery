@@ -1,6 +1,7 @@
 package graphics.scenery.compute
 
 import graphics.scenery.utils.LazyLogger
+import net.imglib2.RandomAccessible
 import net.imglib2.RandomAccessibleInterval
 import net.imglib2.algorithm.neighborhood.Shape
 import net.imglib2.algorithm.stats.Max
@@ -20,11 +21,14 @@ import kotlin.math.ln
 object EntropyFilter {
     val logger by LazyLogger()
     fun <T: RealType<T>, U: RealType<U>> entropy(
-        source: RandomAccessibleInterval<T>,
+        source: RandomAccessible<T>,
         target: RandomAccessibleInterval<U>,
         shape: Shape,
         maxBins: Long = 1024L) {
-        val iterable = Views.iterable(source)
+
+        val sourceInterval = Views.interval(source, target)
+
+        val iterable = Views.iterable(sourceInterval)
 
         val min = Min.findMin(iterable).get().realDouble
         val max = Max.findMax(iterable).get().realDouble
@@ -63,4 +67,6 @@ object EntropyFilter {
             targetAccess.get().setReal(entropy)
         }
     }
+
+
 }

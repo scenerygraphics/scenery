@@ -16,7 +16,7 @@ import net.imglib2.util.Intervals
 import net.imglib2.view.Views
 import org.junit.Test
 
-class EntropyFilterTests {
+object EntropyFilterTests {
     private val logger by LazyLogger()
 
     @Test
@@ -24,21 +24,27 @@ class EntropyFilterTests {
         logger.info("Downloading flybrain stack ...")
         val imp = IJ.openImage("https://imagej.nih.gov/ij/images/flybrain.zip")
         val flybrain: RandomAccessibleInterval<ARGBType> = ImageJFunctions.wrapRGBA(imp)
+
+        val flybrainCrop: RandomAccessibleInterval<ARGBType> = Views.interval(flybrain, longArrayOf(0, 0, 0), longArrayOf(32, 32, 23))
+
         logger.info("Done.")
 
         val type = UnsignedShortType()
 
         // extract the red channel
-        val red = Converters.convert(flybrain, { i: ARGBType, o: UnsignedShortType -> o.set(ARGBType.red(i.get())) }, type)
+        val red = Converters.convert(flybrainCrop, { i: ARGBType, o: UnsignedShortType -> o.set(ARGBType.red(i.get())) }, type)
         val source: RandomAccessible<UnsignedShortType> = Views.extendBorder(red)
 
         val copy = ArrayImgs.floats(*red.dimensionsAsLongArray())
 
         val shape = HyperSphereShape(10)
-       EntropyFilter.entropy(
-                source as RandomAccessibleInterval<UnsignedShortType>,
+        EntropyFilter.entropy(
+                source,
                 copy as RandomAccessibleInterval<FloatType>,
                 shape
             )
+
+        ImageJFunctions.show(flybrainCrop, "original crop")
+        ImageJFunctions.show(copy)
     }
 }
