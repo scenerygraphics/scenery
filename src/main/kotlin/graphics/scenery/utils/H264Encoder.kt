@@ -53,7 +53,8 @@ import kotlin.math.roundToLong
  * @author Ulrik Günther <hello@ulrik.is>
  */
 
-class H264Encoder(val frameWidth: Int, val frameHeight: Int, filename: String, val fps: Int = 60, override var hub: Hub? = null): Hubable {
+class H264Encoder(val frameWidth: Int, val frameHeight: Int, filename: String, val fps: Int = 60, override var hub: Hub? = null, val networked:Boolean = false,
+                  val streamingAddress: String = "udp://${InetAddress.getLocalHost().hostAddress}:3337"): Hubable {
     protected val logger by LazyLogger()
     protected lateinit var frame: AVFrame
     protected lateinit var tmpframe: AVFrame
@@ -74,11 +75,11 @@ class H264Encoder(val frameWidth: Int, val frameHeight: Int, filename: String, v
 
     val format = VideoFormat.valueOf(hub?.get<Settings>(SceneryElement.Settings)?.get("VideoEncoder.Format", "H264") ?: "H264")
     val quality = VideoEncodingQuality.valueOf(hub?.get<Settings>(SceneryElement.Settings)?.get("VideoEncoder.Quality", "Medium") ?: "Medium")
-    val networked = hub?.get<Settings>(SceneryElement.Settings)?.get("VideoEncoder.StreamVideo", false) ?: false
+//    val networked = hub?.get<Settings>(SceneryElement.Settings)?.get("VideoEncoder.StreamVideo", false) ?: false
     val bitrate = hub?.get<Settings>(SceneryElement.Settings)?.get("VideoEncoder.Bitrate", 10000000) ?: 10000000
 
-    val streamingAddress = hub?.get<Settings>(SceneryElement.Settings)?.get("VideoEncoder.StreamingAddress", "udp://${InetAddress.getLocalHost().hostAddress}:3337")
-        ?: "udp://${InetAddress.getLocalHost().hostAddress}:3337"
+//    val streamingAddress = hub?.get<Settings>(SceneryElement.Settings)?.get("VideoEncoder.StreamingAddress", "udp://${InetAddress.getLocalHost().hostAddress}:3337")
+//        ?: "udp://${InetAddress.getLocalHost().hostAddress}:3337"
     val disableHWAcceleration = hub?.get<Settings>(SceneryElement.Settings)?.get("VideoEncoder.DisableHWEncoding", false)
 
     enum class VideoFormat {
@@ -428,7 +429,7 @@ class H264Encoder(val frameWidth: Int, val frameHeight: Int, filename: String, v
 
         if(scalingContext == null) {
             scalingContext = swscale.sws_getContext(
-                frameWidth, frameHeight, AV_PIX_FMT_BGRA,
+                frameWidth, frameHeight, AV_PIX_FMT_RGBA,
                 actualFrameWidth, actualFrameHeight, codecContext.pix_fmt(), swscale.SWS_BICUBIC,
                 null, null, emptyScalingParams)
         }
