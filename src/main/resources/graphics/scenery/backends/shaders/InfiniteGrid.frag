@@ -100,7 +100,7 @@ void main() {
 //    float spotlight = 1.0;
 
     FragColor = color * spotlight;
-//    if(FragColor.a == 0.0) {
-//        discard;
-//    }
+    if(FragColor.a == 0.0) {
+        discard;
+    }
 }
