@@ -31,7 +31,7 @@ open class SwingSwapchain(override val device: VulkanDevice,
                           override val commandPools: VulkanRenderer.CommandPools,
                           override val renderConfig: RenderConfigReader.RenderConfig,
                           override val useSRGB: Boolean = true,
-                          override val vsync: Boolean = false,
+                          override val vsync: Boolean = true,
                           override val undecorated: Boolean = false) : VulkanSwapchain(device, queue, commandPools, renderConfig, useSRGB, vsync, undecorated) {
 
     private val WINDOW_RESIZE_TIMEOUT: Long = 500_000_000
