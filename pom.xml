@@ -563,6 +563,23 @@
             <groupId>org.janelia.saalfeldlab</groupId>
             <artifactId>n5-imglib2</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.biojava</groupId>
+            <artifactId>biojava-core</artifactId>
+            <version>5.3.0</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.biojava</groupId>
+            <artifactId>biojava-structure</artifactId>
+            <version>5.3.0</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.biojava</groupId>
+            <artifactId>biojava-modfinder</artifactId>
+            <version>5.3.0</version>
+        </dependency>
     </dependencies>
 
     <repositories>
@@ -573,6 +590,12 @@
         <repository>
             <id>jitpack.io</id>
             <url>https://jitpack.io</url>
+        </repository>
+
+        <repository>
+            <id>biojava-maven-repo</id>
+            <name>BioJava repository</name>
+            <url>http://www.biojava.org/download/maven/</url>
         </repository>
     </repositories>
 
