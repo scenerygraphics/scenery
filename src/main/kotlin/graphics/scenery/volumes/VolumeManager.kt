@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION")
+
 package graphics.scenery.volumes
 
 import bdv.tools.brightness.ConverterSetup
@@ -42,6 +44,7 @@ import kotlin.system.measureTimeMillis
  *
  * @author Ulrik Guenther <hello@ulrik.is>, Tobias Pietzsch <tpietzsch@mpi-cbg.de>
  */
+@Suppress("DEPRECATION")
 class VolumeManager(
     override var hub: Hub?,
     val useCompute: Boolean = false,
