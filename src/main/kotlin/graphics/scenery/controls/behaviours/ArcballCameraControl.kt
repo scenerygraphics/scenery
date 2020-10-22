@@ -37,7 +37,6 @@ open class ArcballCameraControl(private val name: String, private val n: () -> C
     private val logger by LazyLogger()
     private var lastX = w / 2
     private var lastY = h / 2
-    private var firstEntered = true
 
     /** The [graphics.scenery.Node] this behaviour class controls */
     protected var node: Camera? by CameraDelegate()
@@ -100,11 +99,8 @@ open class ArcballCameraControl(private val name: String, private val n: () -> C
      * @param[y] y position in window
      */
     override fun init(x: Int, y: Int) {
-        if (firstEntered) {
-            lastX = x
-            lastY = y
-            firstEntered = false
-        }
+        lastX = x
+        lastY = y
 
         node?.targeted = true
         node?.target = target.invoke()
@@ -117,7 +113,6 @@ open class ArcballCameraControl(private val name: String, private val n: () -> C
      * @param[y] y position in window
      */
     override fun end(x: Int, y: Int) {
-        firstEntered = true
     }
 
     /**
@@ -166,10 +161,11 @@ open class ArcballCameraControl(private val name: String, private val n: () -> C
      * @param[y] unused
      */
     override fun scroll(wheelRotation: Double, isHorizontal: Boolean, x: Int, y: Int) {
-        if (isHorizontal) {
+        if (isHorizontal || node == null) {
             return
         }
 
+        distance = (target.invoke() - node!!.position).length()
         distance += wheelRotation.toFloat() * scrollSpeedMultiplier
 
         if (distance >= maximumDistance) distance = maximumDistance
