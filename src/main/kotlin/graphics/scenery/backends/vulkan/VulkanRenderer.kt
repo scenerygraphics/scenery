@@ -50,6 +50,7 @@ import kotlin.math.min
 import kotlin.reflect.full.*
 import kotlin.system.measureTimeMillis
 import kotlin.time.ExperimentalTime
+import java.lang.System.currentTimeMillis
 
 
 /**
@@ -1097,15 +1098,15 @@ open class VulkanRenderer(hub: Hub,
 
         val last = s.texturesLastSeen
         val now = System.nanoTime()
+//        val nowmillis = System.currentTimeMillis()
         node.material.textures.forEachChanged(last) { (type, texture) ->
             contentUpdated = true
-            val slot = VulkanObjectState.textureTypeToSlot(type)
+//            val slot = VulkanObjectState.textureTypeToSlot(type)
             val generateMipmaps = Texture.mipmappedObjectTextures.contains(type)
-
-            logger.debug("${node.name} will have $type texture from $texture in slot $slot")
 
             if (!textureCache.containsKey(texture)) {
                 try {
+//                    Thread.sleep(50)
                     logger.debug("Loading texture {} for {}", texture, node.name)
 
                     val miplevels = if (generateMipmaps && texture.mipmap) {
@@ -1149,6 +1150,15 @@ open class VulkanRenderer(hub: Hub,
         }
 
         s.texturesLastSeen = now
+        val finish = System.nanoTime()
+//        val finishmillis = System.currentTimeMillis()
+        if((finish.toFloat()-now.toFloat())/1000000.0f > 1.0f) {
+            logger.warn("For node ${node.name}, load textures took: ${(finish.toDouble()-now.toDouble())/1000000.0}")
+//            logger.warn("In nanoseconds: ${(finish.toDouble()-now.toDouble())}")
+//            logger.warn("The absolute values are: now: $now and finish: $finish")
+//            logger.warn("Using currentTimeMillis: ${(finishmillis.toDouble()-nowmillis.toDouble())}")
+
+        }
 
         val isCompute = node.material is ShaderMaterial && ((node.material as? ShaderMaterial)?.isCompute() ?: false)
         if(!isCompute) {
@@ -1674,7 +1684,8 @@ open class VulkanRenderer(hub: Hub,
                 swapchain.images[pass.getReadPosition()])
         }
 
-        if(textureRequests.isNotEmpty()) {
+        //replace with while
+        while(textureRequests.isNotEmpty()) {
             val request = try {
                 logger.info("Polling requests")
                 textureRequests.poll()
@@ -1688,15 +1699,19 @@ open class VulkanRenderer(hub: Hub,
                 val ref = VulkanTexture.getReference(req.first)
 
                 if(ref != null) {
+                    val start = System.nanoTime()
                     ref.copyTo(buffer)
+                    val end = System.nanoTime()
                     req.second.send(req.first)
                     req.second.close()
                     logger.info("Sent updated texture")
+                    logger.warn("The request textures of size ${request.first.contents?.remaining()?.toFloat()?.div((1024f*1024f))} took: ${(end.toDouble()-start.toDouble())/1000000.0}")
                 } else {
                     logger.info("Texture not accessible")
                 }
             }
         }
+
 
         if (parallelRenderingMode || recordMovie || screenshotRequested || imageRequests.isNotEmpty()) {
             val request = try {
