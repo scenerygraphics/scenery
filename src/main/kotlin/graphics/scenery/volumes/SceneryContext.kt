@@ -497,14 +497,14 @@ open class SceneryContext(val node: VolumeManager, val useCompute: Boolean = fal
 
                         val textureUpdate = TextureUpdate(
                             TextureExtents(update.xoffset, update.yoffset, update.zoffset, update.width, update.height, update.depth),
-                            update.contents, deallocate = true)
+                            update.contents, deallocate = false)
                         gt.addUpdate(textureUpdate)
 
                         texture.reallocate = false
                     } else {
                         val textureUpdate = TextureUpdate(
                             TextureExtents(update.xoffset, update.yoffset, update.zoffset, update.width, update.height, update.depth),
-                            update.contents, deallocate = true)
+                            update.contents, deallocate = false)
 
                         gt.addUpdate(textureUpdate)
                     }
@@ -565,13 +565,13 @@ open class SceneryContext(val node: VolumeManager, val useCompute: Boolean = fal
         )
 
         val p = pixels.duplicate().order(ByteOrder.LITTLE_ENDIAN)
-        val allocationSize = width * height * depth * texture.texInternalFormat().bytesPerElement
-        val tmp = MemoryUtil.memAlloc(allocationSize)
-        p.limit(p.position() + allocationSize)
-        MemoryUtil.memCopy(p, tmp)
+//        val allocationSize = width * height * depth * texture.texInternalFormat().bytesPerElement
+//        val tmp = MemoryUtil.memAlloc(allocationSize)
+//        p.limit(p.position() + allocationSize)
+//        MemoryUtil.memCopy(p, tmp)
 
         lastUpdates[texture] = params
-        val update = SubImageUpdate(xoffset, yoffset, zoffset, width, height, depth, tmp)
+        val update = SubImageUpdate(xoffset, yoffset, zoffset, width, height, depth, p)
         cachedUpdates.getOrPut(texture, { ArrayList(10) }).add(update)
     }
 
