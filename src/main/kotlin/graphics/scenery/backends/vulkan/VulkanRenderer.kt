@@ -1152,7 +1152,7 @@ open class VulkanRenderer(hub: Hub,
         s.texturesLastSeen = now
         val finish = System.nanoTime()
 //        val finishmillis = System.currentTimeMillis()
-        if((finish.toFloat()-now.toFloat())/1000000.0f > 1.0f) {
+        if((finish.toDouble()-now.toDouble())/1000000.0 > 1.0) {
             logger.warn("For node ${node.name}, load textures took: ${(finish.toDouble()-now.toDouble())/1000000.0}")
 //            logger.warn("In nanoseconds: ${(finish.toDouble()-now.toDouble())}")
 //            logger.warn("The absolute values are: now: $now and finish: $finish")
