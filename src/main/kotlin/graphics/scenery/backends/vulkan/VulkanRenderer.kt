@@ -2887,19 +2887,22 @@ open class VulkanRenderer(hub: Hub,
                         vulkanPipeline.layout, 0, pass.vulkanMetadata.descriptorSets, pass.vulkanMetadata.uboOffsets)
                 }
 
-                val maxGroupSize = intArrayOf(1, 1, 1)
-                commandBuffer.device.deviceData.properties.limits().maxComputeWorkGroupSize().get(maxGroupSize)
+                val maxGroupCount = intArrayOf(1, 1, 1)
+                commandBuffer.device.deviceData.properties.limits().maxComputeWorkGroupCount().get(maxGroupCount)
 
-                val groupSize = intArrayOf(
-                    minOf(metadata.workSizes.x()/localSizes.first, maxGroupSize[0]),
-                    minOf(metadata.workSizes.y()/localSizes.second, maxGroupSize[1]),
-                    minOf(metadata.workSizes.z()/localSizes.third,maxGroupSize[2]))
+                val groupCount = intArrayOf(
+                    metadata.workSizes.x()/localSizes.first,
+                    metadata.workSizes.y()/localSizes.second,
+                    metadata.workSizes.z()/localSizes.third)
 
-                if(groupSize.zip(localSizes.toList()).any { it.first > it.second }) {
-                    logger.warn("Group sizes $groupSize exceeds device maximum of $localSizes, using device maximum.")
+                groupCount.forEachIndexed { i, gc ->
+                    if(gc > maxGroupCount[i]) {
+                        logger.warn("Group count {} exceeds device maximum of {}, using device maximum.", gc, maxGroupCount[i])
+                        groupCount[i] = maxGroupCount[i]
+                    }
                 }
 
-                vkCmdDispatch(this, groupSize[0], groupSize[1], groupSize[2])
+                vkCmdDispatch(this, groupCount[0], groupCount[1], groupCount[2])
 
                 loadStoreTextures.forEach { (name, _) ->
                     val texture = s.textures[name] ?: return@computeLoop
