@@ -58,6 +58,7 @@ class BufferedVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewe
             tp?.contents?.let { MemoryUtil.memFree(it) }
         }
         timepointCount = timepoints?.size ?: 0
+        volumeManager.notifyUpdate(this)
         return result != null
     }
 
