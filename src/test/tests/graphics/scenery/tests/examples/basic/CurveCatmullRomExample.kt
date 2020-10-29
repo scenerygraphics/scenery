@@ -68,6 +68,7 @@ class CurveCatmullRomExample: SceneryBase("CurveCatmullRomExample", windowWidth 
             lightbox.addChild(l)
             l
         }
+        lights.forEach { scene.addChild(it) }
 
         val stageLight = PointLight(radius = 10.0f)
         stageLight.name = "StageLight"
