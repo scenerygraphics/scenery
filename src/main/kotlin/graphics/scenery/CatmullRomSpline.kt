@@ -18,7 +18,7 @@ import kotlin.math.pow
  *
  * @author  Justin Buerger <burger@mpi-cbg.de>
  */
-class CatmullRomSpline(private val controlPoints: List<Vector3f>, val n: Int = 100, val alpha: Float = 0.5f,
+class CatmullRomSpline(private val controlPoints: List<Vector3f>, private val n: Int = 100, private val alpha: Float = 0.5f,
                        private val addRandomLastAndFirstPoint: Boolean = false): Spline {
 
     /**
@@ -35,7 +35,7 @@ class CatmullRomSpline(private val controlPoints: List<Vector3f>, val n: Int = 1
      * to have a smooth curve.
      * [n] is the number of points between the segments
      */
-    private fun catmulRomSpline(p0: Vector3f, p1: Vector3f, p2: Vector3f, p3: Vector3f, n: Int = 100): List<Vector3f> {
+    private fun catmullRomSpline(p0: Vector3f, p1: Vector3f, p2: Vector3f, p3: Vector3f, n: Int = 100): List<Vector3f> {
 
         val curvePoints = ArrayList<Vector3f>(n+1)
 
@@ -82,7 +82,7 @@ class CatmullRomSpline(private val controlPoints: List<Vector3f>, val n: Int = 1
         }
         val chainPoints = ArrayList<Vector3f>(controlPoints.size*(n+1))
         controlPoints.dropLast(3).forEachIndexed {  index, _ ->
-            val c = catmulRomSpline(controlPoints[index], controlPoints[index+1],
+            val c = catmullRomSpline(controlPoints[index], controlPoints[index+1],
                     controlPoints[index+2], controlPoints[index+3], n)
             chainPoints.addAll(c)
         }
