@@ -1,6 +1,6 @@
 package graphics.scenery
 
-import org.joml.*
+import org.joml.Vector3f
 
 /**
  * This class is a dummy spline in case one has all the points of a spline and wants to use them in
