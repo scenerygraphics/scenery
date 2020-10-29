@@ -1,7 +1,7 @@
 package graphics.scenery
 
-import com.jogamp.opengl.math.FloatUtil
 import org.joml.Vector3f
+import kotlin.math.sqrt
 
 /**
  * Axis class to calculate the axis of a helix and store it as a mathematical line.
@@ -55,7 +55,7 @@ class Axis(positions: List<Vector3f?>) {
                 val sumXLength = transPoints.fold(0f) { acc, next -> acc + next.first.x() * next.second.length() }
                 val sumYLength = transPoints.fold(0f) { acc, next -> acc + next.first.y() * next.second.length() }
                 val sumZLength = transPoints.fold(0f) { acc, next -> acc + next.first.z() * next.second.length() }
-                val abs = FloatUtil.sqrt(sumXLength * sumXLength + sumYLength * sumYLength + sumZLength * sumZLength)
+                val abs = sqrt(sumXLength * sumXLength + sumYLength * sumYLength + sumZLength * sumZLength)
                 val direction = Vector3f(sumXLength / abs, sumYLength / abs, sumZLength / abs)
                 return MathLine(direction, centroid)
             }
