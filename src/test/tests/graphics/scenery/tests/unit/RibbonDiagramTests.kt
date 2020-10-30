@@ -74,9 +74,9 @@ class RibbonDiagramTests {
         val scRibbon = RibbonDiagram(saccharomycesCerevisiae)
         assertEquals(scRibbon.children.size, 63)
 
-        val covid19 = Protein.fromID("6zxn")
+        val covid19 = Protein.fromID("6tr3")
         val covidRibbon = RibbonDiagram(covid19)
-        assertEquals(covidRibbon.children.size, 6)
+        assertEquals(covidRibbon.children.size, 1)
 
         val aspirin = Protein.fromID("6mqf")
         val aspirinRibbon = RibbonDiagram(aspirin)
@@ -231,7 +231,7 @@ class RibbonDiagramTests {
         val p42 = Protein.fromID("6v7z")
         val r42 = RibbonDiagram(p42)
         assertNotNull(r42)
-        val p43 = Protein.fromID("6zxn")
+        val p43 = Protein.fromID("6tr3")
         val r43 = RibbonDiagram(p43)
         assertNotNull(r43)
         val p44 = Protein.fromID("4grw")
