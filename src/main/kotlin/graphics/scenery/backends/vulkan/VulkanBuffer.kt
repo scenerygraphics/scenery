@@ -227,11 +227,8 @@ open class VulkanBuffer(val device: VulkanDevice, var size: Long,
      * Copies the contents of the device buffer to [dest].
      */
     fun copyTo(dest: ByteBuffer) {
-        val src = memAllocPointer(1)
-        vkMapMemory(device.vulkanDevice, memory, bufferOffset, size, 0, src)
+        val src = mapIfUnmapped()
         memCopy(src.get(0), memAddress(dest), dest.remaining().toLong())
-        vkUnmapMemory(device.vulkanDevice, memory)
-        memFree(src)
     }
 
     /**
