@@ -202,6 +202,7 @@ scenery has been tested with a number of different systems and GPUs. If you have
 | Intel HD Graphics 5500 (Broadwell) | ⬜ | 🚫 | ✅ | ⬜ | ⬜ |
 | Intel HD Graphics 530 (Skylake) | ⬜ | ⬜ | ✅ | ✅ | ⬜ |
 | Intel Iris Plus Graphics (Ice Lake) | ✅ | ✅ | ⬜ | ⬜ | ⬜ |
+| Nvidia Geforce GTX 1650 Max-Q (Turing)  | ✅ | ✅ | ⬜ | ⬜	 | ⬜	 |
 | Nvidia GeForce RTX 2080 Ti (Turing) | ✅ | ✅ | ⬜ | ⬜	 | ⬜	 |
 | Nvidia GeForce RTX 2070 (Turing) | ✅ | ✅ | ⬜ | ⬜	 | ⬜	 |
 | Nvidia Geforce Titan X (Maxwell) | ✅ | ✅ | ✅ | ✅ | ⬜	 |
