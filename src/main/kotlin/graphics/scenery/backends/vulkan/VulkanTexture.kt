@@ -568,59 +568,72 @@ open class VulkanTexture(val device: VulkanDevice,
      * Copies the first layer, first mipmap of the texture to [buffer].
      */
     fun copyTo(buffer: ByteBuffer) {
-        if(tmpBuffer == null || (tmpBuffer != null && tmpBuffer?.size!! < image.maxSize)) {
-            tmpBuffer?.close()
-            tmpBuffer = VulkanBuffer(this@VulkanTexture.device,
-                image.maxSize,
-                VK_BUFFER_USAGE_TRANSFER_SRC_BIT or VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                wantAligned = false)
-        }
-
-        tmpBuffer?.let { b ->
-            with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
-                transitionLayout(image.image,
-                    VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, 1,
-                    srcStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-                    dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
-                    commandBuffer = this)
-
-                val type = VK_IMAGE_ASPECT_COLOR_BIT
-
-                val subresource = VkImageSubresourceLayers.calloc()
-                    .aspectMask(type)
-                    .mipLevel(0)
-                    .baseArrayLayer(0)
-                    .layerCount(1)
-
-                val regions = VkBufferImageCopy.calloc(1)
-                    .bufferRowLength(0)
-                    .bufferImageHeight(0)
-                    .imageOffset(VkOffset3D.calloc().set(0, 0, 0))
-                    .imageExtent(VkExtent3D.calloc().set(width, height, depth))
-                    .imageSubresource(subresource)
-
-                vkCmdCopyImageToBuffer(
-                    this,
-                    image.image,
-                    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                    b.vulkanBuffer,
-                    regions
-                )
-
-                transitionLayout(image.image,
-                    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                    VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 1,
-                    srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
-                    dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-                    commandBuffer = this)
-
-                endCommandBuffer(this@VulkanTexture.device, commandPools.Standard, transferQueue, flush = true, dealloc = true, block = true)
+        stackPush().use { stack ->
+            if (tmpBuffer == null || (tmpBuffer != null && tmpBuffer?.size!! < image.maxSize)) {
+                tmpBuffer?.close()
+                logger.warn("Reallocating temporary buffer")
+                tmpBuffer = VulkanBuffer(this@VulkanTexture.device,
+                    image.maxSize,
+                    VK_BUFFER_USAGE_TRANSFER_SRC_BIT or VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                    wantAligned = false)
             }
 
-            b.copyTo(buffer)
+            tmpBuffer?.let { b ->
+                var start = System.nanoTime()
+                with(VU.newCommandBuffer(device, commandPools.Render, autostart = true)) {
+                    transitionLayout(image.image,
+                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, 1,
+                        srcStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                        dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                        commandBuffer = this)
+
+                    val type = VK_IMAGE_ASPECT_COLOR_BIT
+
+                    val subresource = VkImageSubresourceLayers.callocStack(stack)
+                        .aspectMask(type)
+                        .mipLevel(0)
+                        .baseArrayLayer(0)
+                        .layerCount(1)
+
+                    val regions = VkBufferImageCopy.callocStack(1, stack)
+                        .bufferRowLength(0)
+                        .bufferImageHeight(0)
+                        .imageOffset(VkOffset3D.callocStack(stack).set(0, 0, 0))
+                        .imageExtent(VkExtent3D.callocStack(stack).set(width, height, depth))
+                        .imageSubresource(subresource)
+
+                    vkCmdCopyImageToBuffer(
+                        this,
+                        image.image,
+                        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                        b.vulkanBuffer,
+                        regions
+                    )
+
+                    transitionLayout(image.image,
+                        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 1,
+                        srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                        dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                        commandBuffer = this)
+
+                    endCommandBuffer(this@VulkanTexture.device, commandPools.Standard, transferQueue, flush = true, dealloc = true, block = true)
+                }
+
+                var end = System.nanoTime()
+
+                logger.warn("In VulkanTextures, the with block took: ${(end.toDouble() - start.toDouble()) / 1000000.0}")
+
+                start = System.nanoTime()
+                b.copyTo(buffer)
+                end = System.nanoTime()
+
+                logger.warn("In VulkanTextures, the b.copyto took: ${(end.toDouble() - start.toDouble()) / 1000000.0}")
+            }
         }
+
     }
 
     /**
