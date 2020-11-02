@@ -11,6 +11,7 @@ import graphics.scenery.textures.UpdatableTexture
 import graphics.scenery.utils.*
 import io.github.classgraph.ClassGraph
 import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.Channel
 import org.joml.*
 import org.lwjgl.PointerBuffer
 import org.lwjgl.glfw.GLFW.glfwGetError
@@ -51,6 +52,8 @@ import kotlin.reflect.full.*
 import kotlin.system.measureTimeMillis
 import kotlin.time.ExperimentalTime
 import java.lang.System.currentTimeMillis
+import kotlin.NoSuchElementException
+import kotlin.collections.ArrayList
 
 
 /**
@@ -391,15 +394,22 @@ open class VulkanRenderer(hub: Hub,
         private const val MATERIAL_HAS_ALPHAMASK = 0x0010
 
         init {
+            logger.info("Going to load natives")
             Loader.loadNatives()
+            logger.info("Natives 1")
+
             libspirvcrossj.initializeProcess()
+            logger.info("Natives 2")
 
             Runtime.getRuntime().addShutdownHook(object: Thread() {
                 override fun run() {
+                    logger.info("Finalizing libsprirvc...")
                     logger.debug("Finalizing libspirvcrossj")
                     libspirvcrossj.finalizeProcess()
+                    logger.info("Finalized libsprirvc...")
                 }
             })
+            logger.info("finishing native init")
         }
 
         fun getStrictValidation(): Pair<Boolean, List<Int>> {
@@ -417,7 +427,10 @@ open class VulkanRenderer(hub: Hub,
     }
 
     init {
+        logger.info("In VRenderer init")
         this.hub = hub
+
+        logger.info("Renderer 1")
 
         val hmd = hub.getWorkingHMDDisplay()
         if (hmd != null) {
@@ -429,11 +442,13 @@ open class VulkanRenderer(hub: Hub,
             window.width = windowWidth
             window.height = windowHeight
         }
+        logger.info("Renderer 2")
 
         this.applicationName = applicationName
         this.scene = scene
 
         this.settings = loadDefaultRendererSettings((hub.get(SceneryElement.Settings) as Settings))
+        logger.info("Renderer 3")
 
         logger.debug("Loading rendering config from $renderConfigFile")
         this.renderConfigFile = renderConfigFile
@@ -446,6 +461,8 @@ open class VulkanRenderer(hub: Hub,
             validation = false
         }
 
+        logger.info("Renderer 4")
+
         // explicitly create VK, to make GLFW pick up MoltenVK on OS X
         if(ExtractsNatives.getPlatform() == ExtractsNatives.Platform.MACOS) {
             try {
@@ -456,6 +473,7 @@ open class VulkanRenderer(hub: Hub,
             }
         }
 
+        logger.info("Renderer 5")
 
         // Create the Vulkan instance
         instance = if(embedIn != null || System.getProperty("scenery.Headless")?.toBoolean() == true) {
@@ -483,6 +501,8 @@ open class VulkanRenderer(hub: Hub,
             createInstance(requiredExtensions, validation)
         }
 
+        logger.info("Renderer 6")
+
         debugCallbackHandle = if(validation) {
             setupDebugging(instance,
                 VK_DEBUG_REPORT_WARNING_BIT_EXT
@@ -494,6 +514,8 @@ open class VulkanRenderer(hub: Hub,
             -1L
         }
 
+        logger.info("Renderer 7")
+
         val requestedValidationLayers = if(validation) {
             if(wantsOpenGLSwapchain) {
                 logger.warn("Requested OpenGL swapchain, validation layers disabled.")
@@ -504,6 +526,8 @@ open class VulkanRenderer(hub: Hub,
         } else {
             emptyArray()
         }
+
+        logger.info("Renderer 7")
 
         // get available swapchains, but remove default swapchain, will always be there as fallback
         val start = System.nanoTime()
@@ -1651,6 +1675,8 @@ open class VulkanRenderer(hub: Hub,
 
     private external fun sendImage(image: ByteBuffer)
 
+    val postRenderLambdas = ArrayList<()->Pair<Texture, AtomicInteger>>()
+
     private suspend fun submitFrame(queue: VkQueue, pass: VulkanRenderpass, commandBuffer: VulkanCommandBuffer, present: PresentHelpers) {
         if(swapchainRecreator.mustRecreate) {
             return
@@ -1684,18 +1710,19 @@ open class VulkanRenderer(hub: Hub,
                 swapchain.images[pass.getReadPosition()])
         }
 
-        //replace with while
-        while(textureRequests.isNotEmpty()) {
-            val request = try {
-                logger.info("Polling requests")
-                textureRequests.poll()
-            } catch(e: NoSuchElementException) {
-                null
-            }
+        val currentRequests = ArrayList<Pair<Texture, Channel<Texture>>>()
 
-            request?.let { req ->
+        while(textureRequests.isNotEmpty()) {
+            try {
+                currentRequests.add(textureRequests.poll())
+            } catch (e: NoSuchElementException) {
+            }
+        }
+        //replace with while
+
+        currentRequests.forEach { req ->
                 logger.info("Working on texture request for texture ${req.first}")
-                val buffer = req.first.contents ?: return@let
+                val buffer = req.first.contents ?: return@forEach
                 val ref = VulkanTexture.getReference(req.first)
 
                 if(ref != null) {
@@ -1705,10 +1732,28 @@ open class VulkanRenderer(hub: Hub,
                     req.second.send(req.first)
                     req.second.close()
                     logger.info("Sent updated texture")
-                    logger.warn("The request textures of size ${request.first.contents?.remaining()?.toFloat()?.div((1024f*1024f))} took: ${(end.toDouble()-start.toDouble())/1000000.0}")
+                    logger.warn("The request textures of size ${req.first.contents?.remaining()?.toFloat()?.div((1024f*1024f))} took: ${(end.toDouble()-start.toDouble())/1000000.0}")
                 } else {
                     logger.info("Texture not accessible")
                 }
+        }
+
+        postRenderLambdas.forEach { l ->
+            val (texture, indicator) = l.invoke()
+            val ref = VulkanTexture.getReference(texture)
+            val buffer = texture.contents ?: return@forEach
+
+            if(ref != null) {
+                val start = System.nanoTime()
+                ref.copyTo(buffer)
+                val end = System.nanoTime()
+//                req.second.send(req.first)
+//                req.second.close()
+                logger.info("Sent updated texture")
+                logger.warn("The request textures of size ${texture.contents?.remaining()?.toFloat()?.div((1024f*1024f))} took: ${(end.toDouble()-start.toDouble())/1000000.0}")
+                indicator.incrementAndGet()
+            } else {
+                logger.info("Texture not accessible")
             }
         }
 
