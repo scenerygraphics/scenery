@@ -65,10 +65,10 @@ open class MovementCommand(private val name: String, private val direction: Stri
                 when (direction) {
                     "forward" -> node.position = node.position + axisProvider.forward * speed * axisProvider.deltaT
                     "back" -> node.position = node.position - axisProvider.forward * speed * axisProvider.deltaT
-                    "left" -> node.position = node.position - axisProvider.forward.cross(axisProvider.up).normalize() * speed * axisProvider.deltaT
-                    "right" -> node.position = node.position + axisProvider.forward.cross(axisProvider.up).normalize() * speed * axisProvider.deltaT
+                    "left" -> node.position = node.position - axisProvider.right * speed * axisProvider.deltaT
+                    "right" -> node.position = node.position + axisProvider.right * speed * axisProvider.deltaT
                     "up" -> node.position = node.position + axisProvider.up * speed * axisProvider.deltaT
-                    "down" -> node.position = node.position + axisProvider.up * -1.0f * speed * axisProvider.deltaT
+                    "down" -> node.position = node.position - axisProvider.up * speed * axisProvider.deltaT
                 }
 
                 node.lock.unlock()

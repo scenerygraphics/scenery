@@ -89,8 +89,21 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
         default = { VulkanCommandBuffer(device, null, true) })
 
     /** This renderpasses' semaphore */
-    var semaphore = -1L
-        protected set
+    var semaphore: Long
+        get() {
+            return semaphoreBacking.get()
+        }
+
+    private var semaphoreBacking = RingBuffer(size = ringBufferSize,
+        default = {
+            val semaphoreCreateInfo = VkSemaphoreCreateInfo.calloc()
+            .sType(VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO)
+            .pNext(NULL)
+            .flags(0)
+
+            VU.getLong("vkCreateSemaphore",
+                { vkCreateSemaphore(device.vulkanDevice, semaphoreCreateInfo, null, this) }, {})
+        })
 
     /** This renderpasses' [RenderConfigReader.RenderpassConfig]. */
     var passConfig: RenderConfigReader.RenderpassConfig = config.renderpasses.getValue(name)
@@ -268,73 +281,74 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
      * Initialiases descriptor set layours associated with this passes' shader parameters.
      */
     fun initializeShaderParameterDescriptorSetLayouts(settings: Settings) {
+        if(passConfig.parameters.isEmpty()) {
+            return
+        }
         // renderpasses might have parameters set up in their YAML config. These get translated to
         // descriptor layouts, UBOs and descriptor sets
-        passConfig.parameters?.let { params ->
-            logger.debug("Creating VulkanUBO for $name")
-            // create UBO
-            val ubo = VulkanUBO(device)
+        logger.debug("Creating VulkanUBO for $name")
+        // create UBO
+        val ubo = VulkanUBO(device)
 
-            ubo.name = "ShaderParameters-$name"
-            params.forEach { entry ->
-                // Entry could be created in Java, so we check for both Java and Kotlin strings
-                @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
-                val value = if (entry.value is String || entry.value is java.lang.String) {
-                    val s = entry.value as String
-                    val split = s.split(",").map { it.trim().trimStart().toFloat() }.toFloatArray()
+        ubo.name = "ShaderParameters-$name"
+        passConfig.parameters.forEach { entry ->
+            // Entry could be created in Java, so we check for both Java and Kotlin strings
+            @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
+            val value = if (entry.value is String || entry.value is java.lang.String) {
+                val s = entry.value as String
+                val split = s.split(",").map { it.trim().trimStart().toFloat() }.toFloatArray()
 
-                    when(split.size) {
-                        2 -> Vector2f(split[0], split[1])
-                        3 -> Vector3f(split[0], split[1], split[2])
-                        4 -> Vector4f(split[0], split[1], split[2], split[3])
-                        else -> throw IllegalStateException("Dont know how to handle ${split.size} elements in Shader Parameter split")
-                    }                } else if (entry.value is Double) {
-                    (entry.value as Double).toFloat()
-                } else {
-                    entry.value
-                }
-
-                val settingsKey = when {
-                    entry.key.startsWith("System") -> "System.${entry.key.substringAfter("System.")}"
-                    entry.key.startsWith("Global") -> "Renderer.${entry.key.substringAfter("Global.")}"
-                    entry.key.startsWith("Pass") -> "Renderer.$name.${entry.key.substringAfter("Pass.")}"
-                    else -> "Renderer.$name.${entry.key}"
-                }
-
-                if (!entry.key.startsWith("Global") && !entry.key.startsWith("Pass.") && !entry.key.startsWith("System.")) {
-                    settings.setIfUnset(settingsKey, value)
-                }
-
-                ubo.add(entry.key, { settings.get(settingsKey) })
+                when(split.size) {
+                    2 -> Vector2f(split[0], split[1])
+                    3 -> Vector3f(split[0], split[1], split[2])
+                    4 -> Vector4f(split[0], split[1], split[2], split[3])
+                    else -> throw IllegalStateException("Dont know how to handle ${split.size} elements in Shader Parameter split")
+                }                } else if (entry.value is Double) {
+                (entry.value as Double).toFloat()
+            } else {
+                entry.value
             }
 
-            if(logger.isDebugEnabled) {
-                logger.debug("Members are: {}", ubo.membersAndContent())
-                logger.debug("Allocating VulkanUBO memory now, space needed: {}", ubo.getSize())
+            val settingsKey = when {
+                entry.key.startsWith("System") -> "System.${entry.key.substringAfter("System.")}"
+                entry.key.startsWith("Global") -> "Renderer.${entry.key.substringAfter("Global.")}"
+                entry.key.startsWith("Pass") -> "Renderer.$name.${entry.key.substringAfter("Pass.")}"
+                else -> "Renderer.$name.${entry.key}"
             }
 
-            ubo.createUniformBuffer()
+            if (!entry.key.startsWith("Global") && !entry.key.startsWith("Pass.") && !entry.key.startsWith("System.")) {
+                settings.setIfUnset(settingsKey, value)
+            }
 
-            // create descriptor set layout
+            ubo.add(entry.key, { settings.get(settingsKey) })
+        }
+
+        if(logger.isDebugEnabled) {
+            logger.debug("Members are: {}", ubo.membersAndContent())
+            logger.debug("Allocating VulkanUBO memory now, space needed: {}", ubo.getSize())
+        }
+
+        ubo.createUniformBuffer()
+
+        // create descriptor set layout
 //            val dsl = VU.createDescriptorSetLayout(device,
 //                VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, 1)
-            val dsl = device.createDescriptorSetLayout(
-                listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1)),
-                0, VK_SHADER_STAGE_ALL)
+        val dsl = device.createDescriptorSetLayout(
+            listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1)),
+            0, VK_SHADER_STAGE_ALL)
 
-            val ds = device.createDescriptorSet(dsl,
+        val ds = device.createDescriptorSet(dsl,
             1, ubo.descriptor, type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
 
-            // populate descriptor set
-            ubo.populate()
+        // populate descriptor set
+        ubo.populate()
 
-            UBOs.put("ShaderParameters-$name", ubo)
-            descriptorSets.put("ShaderParameters-$name", ds)
+        UBOs.put("ShaderParameters-$name", ubo)
+        descriptorSets.put("ShaderParameters-$name", ds)
 
-            logger.debug("Created DSL $dsl for $name, VulkanUBO has ${params.count()} members")
-            descriptorSetLayouts.putIfAbsent("ShaderParameters-$name", dsl)
-            ownDescriptorSetLayouts.add(dsl)
-        }
+        logger.debug("Created DSL $dsl for $name, VulkanUBO has ${passConfig.parameters.count()} members")
+        descriptorSetLayouts.putIfAbsent("ShaderParameters-$name", dsl)
+        ownDescriptorSetLayouts.add(dsl)
     }
 
     /**

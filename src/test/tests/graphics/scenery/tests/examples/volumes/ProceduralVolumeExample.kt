@@ -9,6 +9,7 @@ import graphics.scenery.utils.extensions.plus
 import graphics.scenery.volumes.Colormap
 import graphics.scenery.volumes.Volume
 import net.imglib2.type.numeric.integer.UnsignedByteType
+import net.imglib2.type.numeric.integer.UnsignedShortType
 import org.junit.Test
 import org.lwjgl.system.MemoryUtil.memAlloc
 import org.scijava.ui.behaviour.ClickBehaviour
@@ -21,9 +22,9 @@ import kotlin.concurrent.thread
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class ProceduralVolumeExample: SceneryBase("Volume Rendering example", 1280, 720) {
+class ProceduralVolumeExample: SceneryBase("Procedural Volume Rendering Example", 1280, 720) {
     val bitsPerVoxel = 8
-    val volumeSize = 48L
+    val volumeSize = 128L
 
     override fun init() {
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
@@ -44,7 +45,12 @@ class ProceduralVolumeExample: SceneryBase("Volume Rendering example", 1280, 720
         shell.position = Vector3f(0.0f, 4.0f, 0.0f)
         scene.addChild(shell)
 
-        val volume = Volume.fromBuffer(emptyList(), volumeSize.toInt(), volumeSize.toInt(), volumeSize.toInt(), UnsignedByteType(), hub)
+        val volume = if(bitsPerVoxel == 8) {
+            Volume.fromBuffer(emptyList(), volumeSize.toInt(), volumeSize.toInt(), volumeSize.toInt(), UnsignedByteType(), hub)
+        } else {
+            Volume.fromBuffer(emptyList(), volumeSize.toInt(), volumeSize.toInt(), volumeSize.toInt(), UnsignedShortType(), hub)
+        }
+
         volume.name = "volume"
         volume.position = Vector3f(0.0f, 0.0f, 0.0f)
         volume.colormap = Colormap.get("hot")
@@ -84,13 +90,13 @@ class ProceduralVolumeExample: SceneryBase("Volume Rendering example", 1280, 720
                 if(volume.metadata["animating"] == true) {
                     val currentBuffer = volumeBuffer.get()
 
-                    graphics.scenery.volumes.Volume.generateProceduralVolume(volumeSize, 0.35f, seed = seed,
+                    Volume.generateProceduralVolume(volumeSize, 0.35f, seed = seed,
                         intoBuffer = currentBuffer, shift = shift, use16bit = bitsPerVoxel > 8)
 
-                    volume.addTimepoint("t-${count}", currentBuffer)
-                    volume.goToLastTimepoint()
+                        volume.addTimepoint("t-${count}", currentBuffer)
+                        volume.goToLastTimepoint()
 
-                    volume.purgeFirst(10, 10)
+                        volume.purgeFirst(10, 10)
 
                     shift += shiftDelta
                     count++

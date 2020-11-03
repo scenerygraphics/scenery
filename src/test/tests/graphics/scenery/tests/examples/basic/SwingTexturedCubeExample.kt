@@ -36,7 +36,7 @@ class SwingTexturedCubeExample : SceneryBase("SwingTexturedCubeExample", windowW
             ambient = Vector3f(1.0f, 0.0f, 0.0f)
             diffuse = Vector3f(0.0f, 1.0f, 0.0f)
             specular = Vector3f(1.0f, 1.0f, 1.0f)
-            textures["diffuse"] = Texture.fromImage(Image.fromResource("textures/helix.png", this::class.java))
+            textures["diffuse"] = Texture.fromImage(Image.fromResource("textures/helix.png", TexturedCubeExample::class.java))
         }
 
         val box = Box(Vector3f(1.0f, 1.0f, 1.0f))

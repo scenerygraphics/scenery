@@ -15,6 +15,7 @@ import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.KHRSurface.vkDestroySurfaceKHR
 import org.lwjgl.vulkan.KHRSwapchain.VK_ERROR_OUT_OF_DATE_KHR
 import org.lwjgl.vulkan.KHRSwapchain.vkAcquireNextImageKHR
+import org.lwjgl.vulkan.VK10.*
 import java.nio.IntBuffer
 import java.nio.LongBuffer
 import java.util.*
@@ -70,6 +71,29 @@ open class VulkanSwapchain(open val device: VulkanDevice,
     private val WINDOW_RESIZE_TIMEOUT = 200 * 10e6
 
     private val retiredSwapchains: Queue<Pair<VulkanDevice, Long>> = ArrayDeque()
+
+    protected var imageAvailableSemaphores = ArrayList<Long>()
+    protected var imageRenderedSemaphores = ArrayList<Long>()
+    protected var fences = ArrayList<Long>()
+    protected var inFlight = ArrayList<Long?>()
+    protected var imageUseFences = ArrayList<Long>()
+
+    /** Current swapchain image in use */
+    var currentImage = 0
+        protected set
+
+    /** Returns the currently-used semaphore to indicate image availability. */
+    override val imageAvailableSemaphore: Long
+        get() {
+            return imageAvailableSemaphores[currentImage]
+        }
+
+    /** Returns the currently-used fence. */
+    override val currentFence: Long
+        get() {
+            return fences[currentImage]
+        }
+
 
     /**
      * Data class for summarising [colorFormat] and [colorSpace] information.
@@ -191,7 +215,7 @@ open class VulkanSwapchain(open val device: VulkanDevice,
                 preferredSwapchainPresentMode)
 
             // Determine the number of images
-            var desiredNumberOfSwapchainImages = surfCaps.minImageCount()
+            var desiredNumberOfSwapchainImages = 3//surfCaps.minImageCount()
             if (surfCaps.maxImageCount() in 1 until desiredNumberOfSwapchainImages) {
                 desiredNumberOfSwapchainImages = surfCaps.maxImageCount()
             }
@@ -280,6 +304,12 @@ open class VulkanSwapchain(open val device: VulkanDevice,
                 .baseArrayLayer(0)
                 .layerCount(1)
 
+            val semaphoreCreateInfo = VkSemaphoreCreateInfo.calloc()
+                .sType(VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO)
+
+            val fenceCreateInfo = VkFenceCreateInfo.calloc()
+                .sType(VK_STRUCTURE_TYPE_FENCE_CREATE_INFO)
+
             with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
                 for (i in 0 until imageCount.get(0)) {
                     images[i] = swapchainImages.get(i)
@@ -292,6 +322,12 @@ open class VulkanSwapchain(open val device: VulkanDevice,
 
                     imageViews[i] = VU.getLong("create image view",
                         { VK10.vkCreateImageView(this@VulkanSwapchain.device.vulkanDevice, colorAttachmentView, null, this) }, {})
+
+                    imageAvailableSemaphores.add(VU.getLong("image available semaphore", { vkCreateSemaphore(this@VulkanSwapchain.device.vulkanDevice, semaphoreCreateInfo, null, this) }, {}))
+                    imageRenderedSemaphores.add(VU.getLong("image ready semaphore", { vkCreateSemaphore(this@VulkanSwapchain.device.vulkanDevice, semaphoreCreateInfo, null, this) }, {}))
+                    fences.add(VU.getLong("Swapchain image fence", { vkCreateFence(this@VulkanSwapchain.device.vulkanDevice, fenceCreateInfo, null, this)}, {}))
+                    imageUseFences.add(VU.getLong("Swapchain image usage fence", { vkCreateFence(this@VulkanSwapchain.device.vulkanDevice, fenceCreateInfo, null, this)}, {}))
+                    inFlight.add(null)
                 }
 
                 endCommandBuffer(this@VulkanSwapchain.device, commandPools.Standard, queue,
@@ -302,6 +338,7 @@ open class VulkanSwapchain(open val device: VulkanDevice,
             this.imageViews = imageViews
             this.format = colorFormatAndSpace.colorFormat
 
+            semaphoreCreateInfo.free()
             memFree(swapchainImages)
             memFree(imageCount)
             memFree(presentModeCount)
@@ -424,6 +461,8 @@ open class VulkanSwapchain(open val device: VulkanDevice,
 
         waitForSemaphores?.let { presentInfo.pWaitSemaphores(it) }
 
+//        logger.info("Presenting to image ${swapchainImage.get(0)}")
+
         // here we accept the VK_ERROR_OUT_OF_DATE_KHR error code, which
         // seems to spuriously occur on Linux upon resizing.
         VU.run("Presenting swapchain image",
@@ -432,6 +471,7 @@ open class VulkanSwapchain(open val device: VulkanDevice,
 
         presentedFrames++
     }
+
 
     /**
      * To be called after presenting, will deallocate retired swapchains.
@@ -442,27 +482,39 @@ open class VulkanSwapchain(open val device: VulkanDevice,
                 KHRSwapchain.vkDestroySwapchainKHR(it.first.vulkanDevice, it.second, null)
             }
         }
+
+        currentImage = (currentImage + 1) % images.size
     }
 
     /**
      * Acquires the next swapchain image.
      */
-    override fun next(timeout: Long, signalSemaphore: Long): Boolean {
-        // wait for the present queue to become idle - by doing this here
-        // we avoid stalling the GPU and gain a few FPS
-        // VK10.vkQueueWaitIdle(presentQueue)
-
+    override fun next(timeout: Long): Pair<Long, Long>? {
+//        logger.info("Acquiring next image with semaphore ${imageAvailableSemaphores[currentImage].toHexString()}, currentImage=$currentImage")
         val err = vkAcquireNextImageKHR(device.vulkanDevice, handle, timeout,
-            signalSemaphore,
-            VK10.VK_NULL_HANDLE, swapchainImage)
+            imageAvailableSemaphores[currentImage],
+            imageUseFences[currentImage], swapchainImage)
 
+//        logger.info("Acquired image ${swapchainImage.get(0)}")
         if (err == KHRSwapchain.VK_ERROR_OUT_OF_DATE_KHR || err == KHRSwapchain.VK_SUBOPTIMAL_KHR) {
-            return true
+            return null
         } else if (err != VK10.VK_SUCCESS) {
             throw AssertionError("Failed to acquire next swapchain image: " + VU.translate(err))
         }
 
-        return false
+        val imageIndex = swapchainImage.get(0)
+        // wait for the present queue to become idle - by doing this here
+        // we avoid stalling the GPU and gain a few FPS
+//        val fence = inFlight[imageIndex]
+//        if(fence != null) {
+//            logger.info("Waiting on fence ${fence.toHexString()} for image $imageIndex")
+//            vkWaitForFences(device.vulkanDevice, fence, true, -1L)
+//            vkResetFences(device.vulkanDevice, fence)
+//        }
+
+        inFlight[imageIndex] = fences[currentImage]
+
+        return imageAvailableSemaphores[currentImage] to imageUseFences[currentImage]//swapchainImage.get(0)
     }
 
     /**
@@ -534,12 +586,42 @@ open class VulkanSwapchain(open val device: VulkanDevice,
     }
 
     /**
+     * Closes associated semaphores and fences.
+     */
+    protected fun closeSyncPrimitives() {
+        imageAvailableSemaphores.forEach { VK10.vkDestroySemaphore(device.vulkanDevice, it, null) }
+        imageAvailableSemaphores.clear()
+        imageRenderedSemaphores.forEach { VK10.vkDestroySemaphore(device.vulkanDevice, it, null) }
+        imageRenderedSemaphores.clear()
+
+        fences.forEach { VK10.vkDestroyFence(device.vulkanDevice, it, null) }
+        fences.clear()
+
+        imageUseFences.forEach { VK10.vkDestroyFence(device.vulkanDevice, it, null) }
+        imageUseFences.clear()
+    }
+
+    /**
      * Closes the swapchain, deallocating all of its resources.
      */
     override fun close() {
+        vkQueueWaitIdle(presentQueue)
+        vkQueueWaitIdle(queue)
+
         logger.debug("Closing swapchain $this")
         KHRSwapchain.vkDestroySwapchainKHR(device.vulkanDevice, handle, null)
         vkDestroySurfaceKHR(device.instance, surface, null)
+
+        imageAvailableSemaphores.forEach { vkDestroySemaphore(device.vulkanDevice, it, null) }
+        imageAvailableSemaphores.clear()
+        imageRenderedSemaphores.forEach { vkDestroySemaphore(device.vulkanDevice, it, null) }
+        imageRenderedSemaphores.clear()
+
+        fences.forEach { vkDestroyFence(device.vulkanDevice, it, null) }
+        fences.clear()
+
+        imageUseFences.forEach { vkDestroyFence(device.vulkanDevice, it, null) }
+        imageUseFences.clear()
 
         presentInfo.free()
         MemoryUtil.memFree(swapchainImage)

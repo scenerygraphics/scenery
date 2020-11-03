@@ -323,6 +323,16 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, val 
             .map { it.key to it.value }
         uboSpecs.clear()
         sortedSpecs.forEach { uboSpecs[it.first] = it.second }
+
+        val tag = if(sp.codePath == null && sp.spirvPath == null) {
+            "(procedurally generated shader)"
+        } else {
+            "${sp.codePath}/${sp.spirvPath}"
+        }
+
+        device.tag(this.shaderModule, VulkanDevice.VulkanObjectType.ShaderModule, "Shader Module for $tag")
+
+        logger.debug("Created Vulkan Shader Module ${this.shaderModule.toHexString()}")
     }
 
     protected fun ShaderType.toVulkanShaderStage() = when(this) {

@@ -13,6 +13,7 @@ import kotlin.test.assertTrue
  * Tests for the [Cone] primitive.
  *
  * @author Aryaman Gupta <aryaman1994@gmail.com>
+ * @author Ulrik Guenther <hello@ulrik.is>
  */
 class ConeTests {
     private val logger by LazyLogger()
@@ -42,8 +43,10 @@ class ConeTests {
 
         val d = -1 * ((bb.min.x() * axisN.x()) + (bb.min.y() * axisN.y()) + (bb.min.z() * axisN.z()))
         val expHeight = ((bb.max.x() * axisN.x()) + (bb.max.y() * axisN.y()) + (bb.max.z() * axisN.z())) + d
-        //TODO: Add test for radius
 
-        assertTrue { expHeight <= height + epsilon }
+        assertTrue("Height is wrong") { expHeight <= height + epsilon && expHeight >= height - epsilon }
+
+        val expRadius = bb.max.x() - bb.min.x()
+        assertTrue("Radius is wrong") { expRadius <= radius * 2.0f + epsilon && expRadius >= radius * 2.0f - epsilon}
     }
 }

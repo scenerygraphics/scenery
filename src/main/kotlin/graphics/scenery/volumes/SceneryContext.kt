@@ -24,6 +24,9 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.FloatBuffer
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.time.ExperimentalTime
+import kotlin.time.measureTime
+import kotlin.time.measureTimedValue
 import tpietzsch.backend.Texture as BVVTexture
 
 /**
@@ -462,7 +465,7 @@ open class SceneryContext(val node: VolumeManager, val useCompute: Boolean = fal
     private data class SubImageUpdate(val xoffset: Int, val yoffset: Int, val zoffset: Int, val width: Int, val height: Int, val depth: Int, val contents: ByteBuffer, val reallocate: Boolean = false)
     private var cachedUpdates = ConcurrentHashMap<BVVTexture, MutableList<SubImageUpdate>>()
 
-    private data class UpdateParameters(val xoffset: Int, val yoffset: Int, val zoffset: Int, val width: Int, val height: Int, val depth: Int, val hash: Int)
+    private data class UpdateParameters(val xoffset: Int, val yoffset: Int, val zoffset: Int, val width: Int, val height: Int, val depth: Int, val hash: Long)
     private val lastUpdates = ConcurrentHashMap<Texture3D, UpdateParameters>()
 
     /**
@@ -547,18 +550,22 @@ open class SceneryContext(val node: VolumeManager, val useCompute: Boolean = fal
      * This function updates only the part of the texture at the offsets [xoffset], [yoffset], [zoffset], with the given
      * [width], [height], and [depth].
      */
+    @OptIn(ExperimentalTime::class)
     override fun texSubImage3D(texture: Texture3D, xoffset: Int, yoffset: Int, zoffset: Int, width: Int, height: Int, depth: Int, pixels: Buffer) {
         if(pixels !is ByteBuffer) {
             return
         }
 
-        val params = UpdateParameters(xoffset, yoffset, zoffset, width, height, depth, XXHash.XXH32(pixels, 42))
-        if(lastUpdates[texture] == params) {
-            logger.debug("Updates already seen, skipping")
-            return
-        }
+//        val (params, duration) = measureTimedValue {
+//            UpdateParameters(xoffset, yoffset, zoffset, width, height, depth, XXHash.XXH3_64bits(pixels))
+//        }
 
-        logger.debug("Updating 3D texture via Texture3D from {}: dx={} dy={} dz={} w={} h={} d={}",
+//        if (lastUpdates[texture] == params) {
+//            logger.debug("Updates already seen, skipping")
+//            return
+//        }
+
+        logger.info("Updating 3D texture via Texture3D, hash took  from {}: dx={} dy={} dz={} w={} h={} d={}",
             texture,
             xoffset, yoffset, zoffset,
             width, height, depth
@@ -566,11 +573,11 @@ open class SceneryContext(val node: VolumeManager, val useCompute: Boolean = fal
 
         val p = pixels.duplicate().order(ByteOrder.LITTLE_ENDIAN)
 //        val allocationSize = width * height * depth * texture.texInternalFormat().bytesPerElement
-//        val tmp = MemoryUtil.memAlloc(allocationSize)
+//        val tmp = //MemoryUtil.memAlloc(allocationSize)
 //        p.limit(p.position() + allocationSize)
 //        MemoryUtil.memCopy(p, tmp)
 
-        lastUpdates[texture] = params
+//        lastUpdates[texture] = params
         val update = SubImageUpdate(xoffset, yoffset, zoffset, width, height, depth, p)
         cachedUpdates.getOrPut(texture, { ArrayList(10) }).add(update)
     }

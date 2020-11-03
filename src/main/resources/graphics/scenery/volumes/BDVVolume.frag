@@ -20,6 +20,7 @@ layout(location = 0) in VertexData {
 	vec2 textureCoord;
 	mat4 inverseProjection;
 	mat4 inverseView;
+	mat4 MVP;
 } Vertex;
 
 layout(set = 0, binding = 0) uniform VRParameters {
@@ -101,6 +102,9 @@ void main()
 	vec4 wback = ipv * back;
 	wback *= 1 / wback.w;
 
+	vec4 direc = Vertex.inverseView * normalize(wback-wfront);
+	direc.w = 0.0f;
+
 	// -- bounding box intersection for all volumes ----------
 	float tnear = 1, tfar = 0, tmax = getMaxDepth( depthUV );
 	float n, f;
@@ -122,6 +126,25 @@ void main()
 //	int maxSupersegments = 32;
 //	float minOpacity = 0.0002; //If alpha is less than this, the sample is considered transparent and not included in generated supersegments
 //	int supersegmentNum = 0;
+
+	vec4 startNDC = Vertex.MVP * vec4(wfront.xyz + tnear * direc.xyz, 1.0);
+	startNDC *= 1.0/startNDC.w;
+
+	#ifndef OPENGL
+	float currentSceneDepth = texture(InputZBuffer, depthUV).r;
+	#else
+	float currentSceneDepth = texture(InputZBuffer, depthUV).r * 2.0 - 1.0;
+	#endif
+
+//	if(startNDC.z > currentSceneDepth && tnear > 0.0f) {
+//		// for debugging, green = occluded by existing scene geometry
+//		// otherwise, we just put a transparent black
+//		FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+////		gl_FragDepth = currentSceneDepth;
+//		return;
+//	}
+//
+	gl_FragDepth = startNDC.z;
 
 	if ( tnear < tfar )
 	{
@@ -165,8 +188,15 @@ void main()
 			}
 			*/
 		}
+        v.xyz = pow(v.xyz, vec3(1/2.2));
 		FragColor = v;
+
+		if(v.w < 0.001f) {
+			gl_FragDepth = texture(InputZBuffer, depthUV).r;
+		}
 	}
-	else
-	FragColor = vec4( 0, 0, 0, 0 );
+	else {
+		FragColor = vec4(0, 0, 0, 0);
+		gl_FragDepth = texture(InputZBuffer, depthUV).r;
+	}
 }

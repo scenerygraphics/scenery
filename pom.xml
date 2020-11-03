@@ -5,7 +5,7 @@
     <parent>
         <groupId>org.scijava</groupId>
         <artifactId>pom-scijava</artifactId>
-        <version>29.2.0</version>
+        <version>29.2.1</version>
     </parent>
 
     <groupId>graphics.scenery</groupId>
@@ -104,16 +104,15 @@
         <package-name>graphics.scenery</package-name>
 
         <javac.target>1.8</javac.target>
-        <kotlin.version>1.4.0</kotlin.version>
+        <kotlin.version>1.4.10</kotlin.version>
         <kotlin.compiler.jvmTarget>1.8</kotlin.compiler.jvmTarget>
         <kotlin.compiler.incremental>true</kotlin.compiler.incremental>
-        <dokka.version>1.4.0-rc</dokka.version>
+        <dokka.version>1.4.10</dokka.version>
         <dokka.skip>true</dokka.skip>
 
         <ui-behaviour.version>2.0.2</ui-behaviour.version>
 
         <bigvolumeviewer.version>0.1.8</bigvolumeviewer.version>
-        <bigdataviewer-core.version>8.0.0</bigdataviewer-core.version>
         <ffmpeg.version>4.2.1-1.5.2</ffmpeg.version>
         <jackson-dataformat-msgpack.version>0.8.20</jackson-dataformat-msgpack.version>
         <jeromq.version>0.4.3</jeromq.version>
@@ -128,7 +127,7 @@
         <classgraph.version>4.8.86</classgraph.version>
         <spirvcrossj.version>0.7.0-1.1.106.0</spirvcrossj.version>
 
-        <jacoco-maven-plugin.version>0.8.5</jacoco-maven-plugin.version>
+        <jacoco-maven-plugin.version>0.8.6</jacoco-maven-plugin.version>
 
         <lwjgl.natives>natives-${scijava.platform.family.long}</lwjgl.natives>
 
@@ -582,30 +581,16 @@
             <id>jitpack.io</id>
             <url>https://jitpack.io</url>
         </repository>
-        <repository>
-            <releases>
-                <enabled>true</enabled>
-            </releases>
-            <snapshots>
-                <enabled>false</enabled>
-            </snapshots>
-            <id>bintray.kotlin.eap</id>
-            <name>Bintray Kotlin EAP Repository</name>
-            <url>https://dl.bintray.com/kotlin/kotlin-eap</url>
-        </repository>
     </repositories>
 
     <pluginRepositories>
         <pluginRepository>
-            <releases>
-                <enabled>true</enabled>
-            </releases>
             <snapshots>
                 <enabled>false</enabled>
             </snapshots>
-            <id>bintray.kotlin.eap</id>
-            <name>Bintray Kotlin EAP Repository</name>
-            <url>https://dl.bintray.com/kotlin/kotlin-eap</url>
+            <id>bintray-kotlin-dokka</id>
+            <name>bintray-plugins</name>
+            <url>https://dl.bintray.com/kotlin/dokka</url>
         </pluginRepository>
     </pluginRepositories>
 
@@ -669,7 +654,6 @@
                     </execution>
                 </executions>
                 <configuration>
-                    <outputFormat>javadoc</outputFormat>
                     <outputDir>target/javadoc</outputDir>
                     <jdkVersion>8</jdkVersion>
                     <sourceLinks>

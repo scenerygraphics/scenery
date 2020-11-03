@@ -1,6 +1,7 @@
 package graphics.scenery
 
 import graphics.scenery.utils.extensions.*
+import graphics.scenery.volumes.Volume
 import org.joml.Vector3f
 import org.joml.Vector4f
 import java.util.*
@@ -37,8 +38,8 @@ open class BoundingGrid : Mesh("Bounding Grid") {
     @ShaderProperty
     var ticksOnly: Int = 1
 
-    /** Slack around transparent objects, 10mm in world space by default. */
-    var slack = 0.01f
+    /** Slack around transparent objects, 2% by default. */
+    var slack = 0.02f
 
     /** The [Node] this bounding grid is attached to. Set to null to remove. */
     var node: Node? = null
@@ -91,7 +92,7 @@ open class BoundingGrid : Mesh("Bounding Grid") {
         super.preDraw()
 
         if(node?.getMaximumBoundingBox()?.hashCode() != nodeBoundingBoxHash) {
-            logger.debug("Updating bounding box (${node?.getMaximumBoundingBox()?.hashCode()} vs $nodeBoundingBoxHash")
+            logger.info("Updating bounding box (${node?.getMaximumBoundingBox()?.hashCode()} vs $nodeBoundingBoxHash")
             node = node
         }
 
@@ -107,10 +108,10 @@ open class BoundingGrid : Mesh("Bounding Grid") {
             var min = maxBoundingBox.min
             var max = maxBoundingBox.max
 
-            if(node.material.blending.transparent) {
-                val slack = Vector3f(slack, slack, slack)
-                min = min - slack
-                max = max + slack
+            logger.info("Node ${node.name} is transparent: ${node.material.blending.transparent}")
+            if(node.material.blending.transparent || (node is DelegatesRendering && node.delegate?.material?.blending?.transparent == true)) {
+                min = min * (1.0f + slack)
+                max = max * (1.0f + slack)
             }
 
             val b = Box(max - min)

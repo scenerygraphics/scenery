@@ -24,7 +24,7 @@ import kotlin.math.sin
  */
 
 class Cone(val radius: Float, val height: Float, val segments: Int, axis: Vector3f = Vector3f(0.0f, 1.0f, 0.0f)) : Mesh("cone") {
-    val axis = axis.normalize()
+    val axis: Vector3f = Vector3f(axis).normalize()
 
     init {
         vertices = BufferUtils.allocateFloat(2 * 3 * segments * 3)
@@ -39,7 +39,7 @@ class Cone(val radius: Float, val height: Float, val segments: Int, axis: Vector
         val center = apex - axis * height
 
         val e0 = perp(axis)
-        val e1 = e0.cross(axis)
+        val e1 = Vector3f(e0).cross(axis)
 
         // cone is split into [segments] sections
         val delta = 2.0f/segments * PI.toFloat()
