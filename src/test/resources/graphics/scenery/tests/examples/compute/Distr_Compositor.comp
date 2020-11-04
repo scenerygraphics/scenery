@@ -1,0 +1,102 @@
+#version 450
+
+layout (local_size_x = 15, local_size_y = 15, local_size_z = 1) in;
+layout (set = 0, binding = 0, rgba8) uniform readonly image3D VDIsColor;
+layout (set = 1, binding = 0, rgba8) uniform image2D AlphaComposited; //TODO: put loadstore
+
+vec2 decode(vec4 c){
+    vec2 v = vec2(0.);
+
+    int ir = int(c.r*255.);
+    int ig = int(c.g*255.);
+    int irg = ir*256 + ig;
+    v.x = float(irg) / 256.;
+
+    int ib = int(c.b*255.);
+    int ia = int(c.a*255.);
+    int iba = ib*256 + ia;
+    v.y = float(iba) / 256.;
+
+    v -= 128.;
+    return v;
+}
+
+const vec4 bitEnc = vec4(1.,255.,65025.,16581375.);
+const vec4 bitDec = 1./bitEnc;
+float DecodeFloatRGBA (vec4 v) {
+    return dot(v, bitDec);
+}
+
+float adjustOpacity(float a, float modifiedStepLength) {
+    return 1.0 - pow((1.0 - a), modifiedStepLength);
+}
+
+void main() {
+    ivec3 imageCoords  = imageSize(VDIsColor);
+    int numInputSupersegments = 1;
+
+    int frontSupersegment[50]; // which supersegment of this pixel are we currently looking at, for each process
+
+    ivec2 opImageCoords  = imageSize(AlphaComposited);
+    int numOutputSupersegments = 1;
+
+    int numProcesses = opImageCoords.r / opImageCoords.g; //TODO: generalize for non square images
+
+    for (int i = 0; i<numProcesses; i++) {
+        frontSupersegment[i] = 0;
+    }
+
+    vec4 startDepth;
+    vec4 endDepth;
+    vec4 colour;
+
+    float lowDepth;
+    int lowIndex;
+
+    vec4 compositedColor = vec4(0);
+
+    for(int i = 0; i<numProcesses; i++) {
+
+        startDepth = vec4(0);
+        endDepth = vec4(0);
+        colour = vec4(0);
+        lowDepth = 200.0;
+        lowIndex = -1;
+
+        for (int j = 0; j < numProcesses; j++) {
+            if(frontSupersegment[j] >= numInputSupersegments) {
+                continue;
+            }
+
+            vec4 curStartDepthRGBA = imageLoad(VDIsColor, ivec3(frontSupersegment[j] * 3 + 1, gl_GlobalInvocationID.x, j * opImageCoords.g + gl_GlobalInvocationID.y)).rgba;
+            float curStartDepth = DecodeFloatRGBA(curStartDepthRGBA);
+
+            if(curStartDepth < lowDepth && curStartDepth != 0) {
+                lowDepth = curStartDepth;
+                lowIndex = j;
+                startDepth = curStartDepthRGBA;
+                endDepth = imageLoad(VDIsColor, ivec3(frontSupersegment[j] * 3 + 2, gl_GlobalInvocationID.x, j * opImageCoords.g + gl_GlobalInvocationID.y)).rgba;
+                colour = imageLoad(VDIsColor, ivec3(frontSupersegment[j] * 3, gl_GlobalInvocationID.x, j * opImageCoords.g + gl_GlobalInvocationID.y)).rgba;
+            }
+        }
+
+        float seglen = DecodeFloatRGBA(endDepth) - DecodeFloatRGBA(startDepth);
+        //        float recovered_a = adjustOpacity(colour.a, seglen);
+        //        float recovered_a = colour.a;
+        //
+        //
+        //        colour.rgb = colour.rgb * recovered_a;
+        //        colour.a = recovered_a;
+
+        compositedColor.rgb = compositedColor.rgb + (1.0f - compositedColor.a) * colour.rgb * colour.a;
+        compositedColor.a = compositedColor.a + (1.0f - compositedColor.a) * colour.a;
+
+        if(lowIndex != -1) {
+            frontSupersegment[lowIndex]++;
+        }
+
+    }
+
+    //    vec4 compositedColor = vec4(0, 1, 0, 1);
+    imageStore(AlphaComposited, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), compositedColor);
+}
