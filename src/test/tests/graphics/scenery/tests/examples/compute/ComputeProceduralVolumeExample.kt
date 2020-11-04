@@ -147,13 +147,15 @@ class ComputeProceduralVolumeExample: SceneryBase("Volume Rendering example", 12
         }
 
     }
+    var shift = Vector3f(0.0f)
 
     fun updateVolumes(){
         logger.info("Trying to generate data")
         val volumeBuffer = RingBuffer<ByteBuffer>(2) { memAlloc((volumeSize*volumeSize*volumeSize*bitsPerVoxel/8).toInt()) }
 
         val seed = Random.randomFromRange(0.0f, 133333337.0f).toLong()
-        var shift = Vector3f(0.0f)
+        val shiftDelta = Random.random3DVectorFromRange(-1.5f, 1.5f)
+        shift += shiftDelta
 
         val currentBuffer = volumeBuffer.get()
 
@@ -191,7 +193,7 @@ class ComputeProceduralVolumeExample: SceneryBase("Volume Rendering example", 12
         while (true) {
 
 //            subVDIColorBuffer = null
-            if (cnt == 0) {
+            if (cnt % 1000 == 0 || cnt == 0) {
                 tGPU.start = System.nanoTime()
                 updateVolumes()
                 tGPU.end = System.nanoTime()
@@ -252,7 +254,7 @@ class ComputeProceduralVolumeExample: SceneryBase("Volume Rendering example", 12
             if(cnt != 0 && cnt % 100 == 0) {
 
                 logger.info("Dumping to file")
-                SystemHelpers.dumpToFile(subVDIColorBuffer!!, "$cnt:textureSubCol.raw")
+                SystemHelpers.dumpToFile(subVDIColorBuffer!!, "$cnt-textureSubCol.raw")
                 logger.info("File dumped")
 
 
