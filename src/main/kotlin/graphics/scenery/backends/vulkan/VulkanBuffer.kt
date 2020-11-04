@@ -240,9 +240,10 @@ open class VulkanBuffer(val device: VulkanDevice, var size: Long,
         }
 
         val start = System.nanoTime()
-        nmemcpy(src.get(0), memAddress(dest), dest.remaining().toLong())
+        val bytes = dest.remaining().toLong()
+        nmemcpy(memAddress(dest), src.get(0), bytes)
         val duration = System.nanoTime() - start
-        logger.info("Actual copy took ${duration/10e6} ms")
+        logger.info("Actual copy took ${duration/10e6} ms, copied $bytes bytes")
     }
 
     /**
