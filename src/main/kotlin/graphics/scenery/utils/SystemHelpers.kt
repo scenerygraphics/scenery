@@ -7,6 +7,7 @@ import java.net.URI
 import java.net.URL
 import java.net.URLEncoder
 import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import java.nio.file.*
 import java.text.SimpleDateFormat
 import java.time.Instant
@@ -245,12 +246,11 @@ class SystemHelpers {
          */
         fun dumpToFile(buf: ByteBuffer, filename: String) {
             try {
+                val b = buf.duplicate().order(ByteOrder.LITTLE_ENDIAN)
                 val file = File(filename)
                 val channel = FileOutputStream(file, false).channel
-                channel.write(buf)
+                channel.write(b)
                 channel.close()
-
-                buf.flip()
             } catch (e: Exception) {
                 logger.error("Unable to dump byte buffer to $filename")
                 e.printStackTrace()
