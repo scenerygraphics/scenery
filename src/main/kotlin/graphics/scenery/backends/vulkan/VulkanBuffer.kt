@@ -5,12 +5,16 @@ import org.lwjgl.PointerBuffer
 import org.lwjgl.system.MemoryStack
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.MemoryUtil.*
+import org.lwjgl.system.libc.LibCString.memcpy
+import org.lwjgl.system.libc.LibCString.nmemcpy
 import org.lwjgl.vulkan.VK10.*
 import org.lwjgl.vulkan.VkBufferCreateInfo
 import org.lwjgl.vulkan.VkMemoryAllocateInfo
 import org.lwjgl.vulkan.VkMemoryRequirements
 import java.nio.ByteBuffer
 import kotlin.math.roundToInt
+import kotlin.system.measureTimeMillis
+import kotlin.time.measureTimedValue
 
 /**
  * Vulkan buffer class, creates a buffer residing on [device], with a [size] and a defined [usage].
@@ -227,8 +231,18 @@ open class VulkanBuffer(val device: VulkanDevice, var size: Long,
      * Copies the contents of the device buffer to [dest].
      */
     fun copyTo(dest: ByteBuffer) {
-        val src = mapIfUnmapped()
-        memCopy(src.get(0), memAddress(dest), dest.remaining().toLong())
+        val pointer = currentPointer
+        val src = if(!mapped || pointer == null) {
+            logger.info("Remapping buffer")
+            map()
+        } else {
+           pointer
+        }
+
+        val start = System.nanoTime()
+        nmemcpy(src.get(0), memAddress(dest), dest.remaining().toLong())
+        val duration = System.nanoTime() - start
+        logger.info("Actual copy took ${duration/10e6} ms")
     }
 
     /**
