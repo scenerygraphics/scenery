@@ -1,8 +1,9 @@
 #version 450
 
 layout (local_size_x = 15, local_size_y = 15, local_size_z = 1) in;
-layout (set = 0, binding = 0, rgba8) uniform readonly image3D VDIsColor;
-layout (set = 1, binding = 0, rgba8) uniform image2D AlphaComposited; //TODO: put loadstore
+layout (set = 0, binding = 0, rgba8) uniform readonly image2D VDIsColor;
+layout (set = 1, binding = 0, rgba8) uniform readonly image2D VDIsDepth;
+layout (set = 2, binding = 0, rgba8) uniform image2D AlphaComposited; //TODO: put loadstore
 
 vec2 decode(vec4 c){
     vec2 v = vec2(0.);
@@ -32,7 +33,6 @@ float adjustOpacity(float a, float modifiedStepLength) {
 }
 
 void main() {
-    ivec3 imageCoords  = imageSize(VDIsColor);
     int numInputSupersegments = 1;
 
     int frontSupersegment[50]; // which supersegment of this pixel are we currently looking at, for each process
@@ -58,7 +58,6 @@ void main() {
     for(int i = 0; i<numProcesses; i++) {
 
         startDepth = vec4(0);
-        endDepth = vec4(0);
         colour = vec4(0);
         lowDepth = 200.0;
         lowIndex = -1;
@@ -68,25 +67,16 @@ void main() {
                 continue;
             }
 
-            vec4 curStartDepthRGBA = imageLoad(VDIsColor, ivec3(frontSupersegment[j] * 3 + 1, gl_GlobalInvocationID.x, j * opImageCoords.g + gl_GlobalInvocationID.y)).rgba;
+            vec4 curStartDepthRGBA = imageLoad(VDIsDepth, ivec2(gl_GlobalInvocationID.x, j * opImageCoords.g + gl_GlobalInvocationID.y)).rgba;
             float curStartDepth = DecodeFloatRGBA(curStartDepthRGBA);
 
             if(curStartDepth < lowDepth && curStartDepth != 0) {
                 lowDepth = curStartDepth;
                 lowIndex = j;
                 startDepth = curStartDepthRGBA;
-                endDepth = imageLoad(VDIsColor, ivec3(frontSupersegment[j] * 3 + 2, gl_GlobalInvocationID.x, j * opImageCoords.g + gl_GlobalInvocationID.y)).rgba;
-                colour = imageLoad(VDIsColor, ivec3(frontSupersegment[j] * 3, gl_GlobalInvocationID.x, j * opImageCoords.g + gl_GlobalInvocationID.y)).rgba;
+                colour = imageLoad(VDIsColor, ivec2(gl_GlobalInvocationID.x, j * opImageCoords.g + gl_GlobalInvocationID.y)).rgba;
             }
         }
-
-        float seglen = DecodeFloatRGBA(endDepth) - DecodeFloatRGBA(startDepth);
-        //        float recovered_a = adjustOpacity(colour.a, seglen);
-        //        float recovered_a = colour.a;
-        //
-        //
-        //        colour.rgb = colour.rgb * recovered_a;
-        //        colour.a = recovered_a;
 
         compositedColor.rgb = compositedColor.rgb + (1.0f - compositedColor.a) * colour.rgb * colour.a;
         compositedColor.a = compositedColor.a + (1.0f - compositedColor.a) * colour.a;

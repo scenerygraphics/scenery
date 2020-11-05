@@ -21,6 +21,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import net.imglib2.type.numeric.integer.UnsignedByteType
 import net.imglib2.type.numeric.integer.UnsignedShortType
+import org.joml.Vector2i
 import org.joml.Vector3i
 import org.junit.Test
 import org.lwjgl.system.MemoryUtil
@@ -82,9 +83,12 @@ class RenderAndComposite: SceneryBase("Volume Rendering example", 1200, 1200, wa
 
         logger.info("Init 2")
 
-        val outputSubColorBuffer = MemoryUtil.memCalloc(windowHeight*windowWidth*4*2)
-        val outputSubVDIColor = Texture.fromImage(Image(outputSubColorBuffer, 2, windowHeight, windowWidth), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
+        val outputSubColorBuffer = MemoryUtil.memCalloc(windowHeight*windowWidth*4)
+        val outputSubDepthBuffer = MemoryUtil.memCalloc(windowHeight*windowWidth*4)
+        val outputSubVDIColor = Texture.fromImage(Image(outputSubColorBuffer,  windowHeight, windowWidth), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
+        val outputSubVDIDepth = Texture.fromImage(Image(outputSubDepthBuffer,  windowHeight, windowWidth), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
         volumeManager.material.textures["OutputSubVDIColor"] = outputSubVDIColor
+        volumeManager.material.textures["OutputSubVDIDepth"] = outputSubVDIDepth
         hub.add(volumeManager)
 
         logger.info("Init 3")
@@ -192,6 +196,7 @@ class RenderAndComposite: SceneryBase("Volume Rendering example", 1200, 1200, wa
     @ExperimentalCoroutinesApi
     fun getImages() {
         var subVDIColorBuffer: ByteBuffer?
+        var subVDIDepthBuffer: ByteBuffer?
         var compositedVDIColorBuffer: ByteBuffer?
 
         while (renderer?.firstImageReady == false) {
@@ -208,6 +213,7 @@ class RenderAndComposite: SceneryBase("Volume Rendering example", 1200, 1200, wa
         var cnt = 0
 
         val subVDIColor = volumeManager.material.textures["OutputSubVDIColor"]!!
+        val subVDIDepth = volumeManager.material.textures["OutputSubVDIDepth"]!!
 
         val compositedColor = compute.material.textures["AlphaComposited"]!!
 
@@ -215,9 +221,14 @@ class RenderAndComposite: SceneryBase("Volume Rendering example", 1200, 1200, wa
 
 //        val r = renderer
         val subvdi = AtomicInteger(0)
+        val subdepth = AtomicInteger(0)
 
         (renderer as? VulkanRenderer)?.postRenderLambdas?.add {
             subVDIColor to subvdi
+        }
+
+        (renderer as? VulkanRenderer)?.postRenderLambdas?.add {
+            subVDIDepth to subdepth
         }
 
         (renderer as? VulkanRenderer)?.postRenderLambdas?.add {
@@ -251,6 +262,8 @@ class RenderAndComposite: SceneryBase("Volume Rendering example", 1200, 1200, wa
             prevAtomic = subvdi.get()
 
             subVDIColorBuffer = subVDIColor.contents
+            subVDIDepthBuffer = subVDIDepth.contents
+
             compositedVDIColorBuffer = compositedColor.contents
 
 
@@ -283,7 +296,8 @@ class RenderAndComposite: SceneryBase("Volume Rendering example", 1200, 1200, wa
                 imgFetchTime += tRend.end - tRend.start
             }
 
-            compute.material.textures["VDIsColor"] = Texture(Vector3i(2, windowHeight, windowWidth), 4, contents = subVDIColorBuffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
+            compute.material.textures["VDIsColor"] = Texture(Vector3i(windowHeight, windowWidth, 1), 4, contents = subVDIColorBuffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
+            compute.material.textures["VDIsDepth"] = Texture(Vector3i(windowHeight, windowWidth, 1), 4, contents = subVDIDepthBuffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
 
 //            Thread.sleep(50)
 

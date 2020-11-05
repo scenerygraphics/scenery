@@ -38,7 +38,8 @@ layout(push_constant) uniform currentEye_t {
 
 layout(local_size_x = 15, local_size_y = 15) in;
 layout(set = 2, binding = 0) uniform sampler3D volumeCache;
-layout(set = 3, binding = 0, rgba8) uniform image3D OutputSubVDIColor;
+layout(set = 3, binding = 0, rgba8) uniform image2D OutputSubVDIColor;
+layout(set = 4, binding = 0, rgba8) uniform image2D OutputSubVDIDepth;
 #pragma scenery endverbatim
 
 // intersect ray with a box
@@ -90,10 +91,9 @@ void main()
     //	vec2 fragCoord = (vrParameters.stereoEnabled ^ 1) * gl_FragCoord.xy + vrParameters.stereoEnabled * vec2((gl_FragCoord.x/2.0 + currentEye.eye * gl_FragCoord.x/2.0), gl_FragCoord.y);
     //	vec2 viewportSizeActual = (vrParameters.stereoEnabled ^ 1) * viewportSize + vrParameters.stereoEnabled * vec2(viewportSize.x/2.0, viewportSize.y);
     //	vec2 uv = 2 * ( gl_FragCoord.xy + dsp ) / viewportSizeActual - 1;
-    ivec3 imageCoords  = imageSize(OutputSubVDIColor);
-    float newSupSegThresh = 0.00000001;
+    ivec2 imageCoords  = imageSize(OutputSubVDIColor);
 
-    vec2 texcoord = gl_GlobalInvocationID.xy/vec2(imageCoords.b, imageCoords.g);
+    vec2 texcoord = gl_GlobalInvocationID.xy/vec2(imageCoords.r, imageCoords.g);
     vec2 uv = texcoord * 2.0 - vec2(1.0);
     vec2 depthUV = (vrParameters.stereoEnabled ^ 1) * texcoord + vrParameters.stereoEnabled * vec2((texcoord.x/2.0 + currentEye.eye * 0.5), texcoord.y);
     depthUV = depthUV * 2.0 - vec2(1.0);
@@ -153,11 +153,11 @@ void main()
         }
         vec4 encodedDepthStart;
         encodedDepthStart = EncodeFloatRGBA(tnear);
-        imageStore(OutputSubVDIColor, ivec3(0, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x), v);
-        imageStore(OutputSubVDIColor, ivec3(1, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x), encodedDepthStart);
+        imageStore(OutputSubVDIColor, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), v);
+        imageStore(OutputSubVDIDepth, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), encodedDepthStart);
     } else {
-        imageStore(OutputSubVDIColor, ivec3(0, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x), vec4(0));
-        imageStore(OutputSubVDIColor, ivec3(1, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x), vec4(0));
+        imageStore(OutputSubVDIColor, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), vec4(0));
+        imageStore(OutputSubVDIDepth, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), vec4(0));
     }
 
 }
