@@ -44,7 +44,7 @@ class SponzaExample : SceneryBase("SponzaExample", windowWidth = 1280, windowHei
 
             val light = PointLight(radius = Random.randomFromRange(5.5f, 50.0f))
             light.emissionColor = it.material.diffuse
-            light.intensity = Random.randomFromRange(0.1f, 0.5f)
+            light.intensity = Random.randomFromRange(0.5f, 2.5f)
 
             it.addChild(light)
 
@@ -54,7 +54,7 @@ class SponzaExample : SceneryBase("SponzaExample", windowWidth = 1280, windowHei
 
         val mesh = Mesh()
         with(mesh) {
-            readFromOBJ(getDemoFilesPath() + "/sponza.obj", importMaterials = false)
+            readFromOBJ(getDemoFilesPath() + "/sponza.obj", importMaterials = true)
             rotation.rotateY(Math.PI.toFloat() / 2.0f)
             scale = Vector3f(0.01f, 0.01f, 0.01f)
             name = "Sponza Mesh"
