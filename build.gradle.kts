@@ -1,5 +1,4 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
-import java.util.regex.Pattern
 
 plugins {
     java
@@ -63,7 +62,8 @@ dependencies {
     implementation("org.reflections:reflections:0.9.12")
     implementation("io.github.classgraph:classgraph:4.8.86")
     implementation("sc.fiji:bigvolumeviewer:0.1.8")
-    implementation("org.lwjglx:lwjgl3-awt:0.1.7")
+//    implementation("org.lwjglx:lwjgl3-awt:0.1.7")
+    implementation("com.github.LWJGLX:lwjgl3-awt:cfd741a6")
     sci("org.janelia.saalfeldlab:n5")
     sci("org.janelia.saalfeldlab:n5-imglib2")
 
