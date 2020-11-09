@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION")
+
 package graphics.scenery.volumes
 
 import bdv.BigDataViewer
@@ -52,6 +54,7 @@ import kotlin.math.*
 import kotlin.properties.Delegates
 import kotlin.streams.toList
 
+@Suppress("DEPRECATION")
 open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOptions, val hub: Hub) : DelegatesRendering(), HasGeometry, DisableFrustumCulling {
     /** How many elements does a vertex store? */
     override val vertexSize : Int = 3

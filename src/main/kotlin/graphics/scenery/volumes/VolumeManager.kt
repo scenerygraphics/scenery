@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION")
+
 package graphics.scenery.volumes
 
 import bdv.tools.brightness.ConverterSetup
@@ -42,6 +44,7 @@ import kotlin.system.measureTimeMillis
  *
  * @author Ulrik Guenther <hello@ulrik.is>, Tobias Pietzsch <tpietzsch@mpi-cbg.de>
  */
+@Suppress("DEPRECATION")
 class VolumeManager(
     override var hub: Hub?,
     val useCompute: Boolean = false,
@@ -112,7 +115,8 @@ class VolumeManager(
         val stack: Stack3D<*>,
         val transferFunction: Texture,
         val colorMap: Texture,
-        val converterSetup: ConverterSetup
+        val converterSetup: ConverterSetup,
+        val node: Volume
     )
 
     private val stackManager = SceneryStackManager()
@@ -408,8 +412,10 @@ class VolumeManager(
                         val volume = stackManager.getSimpleVolume(context, s)
                         currentProg.setVolume(i, volume)
                         context.bindTexture(volume.volumeTexture)
-                        if (ready) {
+                        if (ready && state.node in updated) {
+                            stackManager.clearReferences(volume.volumeTexture)
                             stackManager.upload(context, s, volume.volumeTexture)
+                            updated.remove(state.node)
                         }
                         minWorldVoxelSize = min(minWorldVoxelSize, volume.voxelSizeInWorldCoordinates)
                     }
@@ -554,7 +560,7 @@ class VolumeManager(
                     val o = TransformedMultiResolutionStack3D(stack, bdvNode, sourceTransform)
                     val tf = transferFunctionTextures.getOrPut(bdvNode.viewerState.sources[i], { bdvNode.transferFunction.toTexture() })
                     val colormap = colorMapTextures.getOrPut(bdvNode.viewerState.sources[i], { bdvNode.colormap.toTexture() })
-                    stacks.add(StackState(o, tf, colormap, bdvNode.converterSetups[i]))
+                    stacks.add(StackState(o, tf, colormap, bdvNode.converterSetups[i], bdvNode))
                 } else if(stack is SimpleStack3D) {
                     val o: SimpleStack3D<*>
                     val ss = source.spimSource as? TransformedSource
@@ -582,7 +588,7 @@ class VolumeManager(
                     val tf = transferFunctionTextures.getOrPut(bdvNode.viewerState.sources[i], { bdvNode.transferFunction.toTexture() })
                     val colormap = colorMapTextures.getOrPut(bdvNode.viewerState.sources[i], { bdvNode.colormap.toTexture() })
                     logger.debug("TF for ${bdvNode.viewerState.sources[i]} is $tf")
-                    stacks.add(StackState(o, tf, colormap, bdvNode.converterSetups[i]))
+                    stacks.add(StackState(o, tf, colormap, bdvNode.converterSetups[i], bdvNode))
                 }
 
                 bdvNode.converterSetups[i].setViewer(this)
@@ -601,16 +607,19 @@ class VolumeManager(
     @Synchronized fun add(node: Volume) {
         logger.debug("Adding $node to OOC nodes")
         nodes.add(node)
+        updated.add(node)
         updateRenderState()
         needAtLeastNumVolumes(renderStacksStates.size)
     }
 
+    protected val updated = HashSet<Volume>()
     /**
      * Notifies the [VolumeManager] of any updates coming from [node],
      * will trigger an update of the rendering state, and potentially creation of new shaders.
      */
-    @Synchronized fun notifyUpdate(node: Node) {
+    @Synchronized fun notifyUpdate(node: Volume) {
         logger.debug("Received update from {}", node)
+        updated.add(node)
         renderStateUpdated = true
         updateRenderState()
         needAtLeastNumVolumes(renderStacksStates.size)

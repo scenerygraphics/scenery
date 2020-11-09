@@ -430,10 +430,12 @@ open class VulkanTexture(val device: VulkanDevice,
                                 image.copyFrom(this, buffer, genericTexture.getConsumableUpdates())
 
                                 genericTexture.clearConsumedUpdates()
-                            } else {
+                            } /*else {
+                                // TODO: Semantics, do we want UpdateableTextures to be only
+                                // updateable via updates, or shall they read from buffer on first init?
                                 buffer.copyFrom(sourceBuffer)
                                 image.copyFrom(this, buffer)
-                            }
+                            }*/
                         } else {
                             buffer.copyFrom(sourceBuffer)
                             image.copyFrom(this, buffer)
