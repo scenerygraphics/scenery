@@ -2,7 +2,6 @@
 plugins {
     `maven-publish`
 }
-//apply plugin: 'maven-publish'
 
 val sceneryName = "scenery"
 val sceneryUrl = "http://scenery.graphics"
@@ -94,5 +93,3 @@ publishing {
         }
     }
 }
-
-val ciao = 2
