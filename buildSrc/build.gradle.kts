@@ -5,6 +5,3 @@ plugins {
 repositories {
     mavenCentral()
 }
-
-val ciao2 = 3
-
