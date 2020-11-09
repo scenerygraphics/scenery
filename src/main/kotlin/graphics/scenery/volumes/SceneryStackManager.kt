@@ -159,7 +159,6 @@ open class SceneryStackManager: SimpleStackManager {
         }
 
         val type = stack.type
-//        logger.debug("Upload: $stack, $type -> 8:$tex8, 16:$tex16, ARGB:$texARGB, uploaded:${uploaded.getOrDefault(tex8 as? Texture3D, false)}")
         val hasBeenUploaded = uploaded.getOrDefault(texture, false)
 
         if(hasBeenUploaded) {
@@ -302,5 +301,10 @@ open class SceneryStackManager: SimpleStackManager {
         val g = argb shr 8 and 0xff
         val b = argb and 0xff
         return a shl 24 or (b shl 16) or (g shl 8) or r
+    }
+
+    fun clearReferences(t: Texture3D) {
+        uploaded.remove(t)
+        timestamps.remove(t)
     }
 }
