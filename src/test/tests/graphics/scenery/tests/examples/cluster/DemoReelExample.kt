@@ -8,6 +8,7 @@ import graphics.scenery.controls.TrackedStereoGlasses
 import graphics.scenery.mesh.Box
 import graphics.scenery.mesh.Light
 import graphics.scenery.mesh.Mesh
+import graphics.scenery.mesh.MeshImporter
 import graphics.scenery.net.NodePublisher
 import graphics.scenery.net.NodeSubscriber
 import graphics.scenery.volumes.Colormap
@@ -96,27 +97,27 @@ class DemoReelExample: SceneryBase("Demo Reel") {
         scene.addChild(retinaScene)
 
         val bile = Mesh()
-        val canaliculi = Mesh()
-        canaliculi.readFrom("$driveLetter:/ssd-backup-inauguration/meshes/bile-canaliculi.obj")
-        canaliculi.scale = Vector3f(0.1f, 0.1f, 0.1f)
-        canaliculi.position = Vector3f(-80.0f, -60.0f, 10.0f)
-        canaliculi.material.diffuse = Vector3f(0.5f, 0.7f, 0.1f)
+        val canaliculi = MeshImporter.readFrom("$driveLetter:/ssd-backup-inauguration/meshes/bile-canaliculi.obj").apply {
+            scale = Vector3f(0.1f, 0.1f, 0.1f)
+            position = Vector3f(-80.0f, -60.0f, 10.0f)
+            material.diffuse = Vector3f(0.5f, 0.7f, 0.1f)
+        }
         bile.addChild(canaliculi)
 
-        val nuclei = Mesh()
-        nuclei.readFrom("$driveLetter:/ssd-backup-inauguration/meshes/bile-nuclei.obj")
-        nuclei.scale = Vector3f(0.1f, 0.1f, 0.1f)
-        nuclei.position = Vector3f(-80.0f, -60.0f, 10.0f)
-        nuclei.material.diffuse = Vector3f(0.8f, 0.8f, 0.8f)
+        val nuclei = MeshImporter.readFrom("$driveLetter:/ssd-backup-inauguration/meshes/bile-nuclei.obj").apply {
+            scale = Vector3f(0.1f, 0.1f, 0.1f)
+            position = Vector3f(-80.0f, -60.0f, 10.0f)
+            material.diffuse = Vector3f(0.8f, 0.8f, 0.8f)
+        }
         bile.addChild(nuclei)
 
-        val sinusoidal = Mesh()
-        sinusoidal.readFrom("$driveLetter:/ssd-backup-inauguration/meshes/bile-sinus.obj")
-        sinusoidal.scale = Vector3f(0.1f, 0.1f, 0.1f)
-        sinusoidal.position = Vector3f(-80.0f, -60.0f, 10.0f)
-        sinusoidal.material.ambient = Vector3f(0.1f, 0.0f, 0.0f)
-        sinusoidal.material.diffuse = Vector3f(0.4f, 0.0f, 0.02f)
-        sinusoidal.material.specular = Vector3f(0.05f, 0f, 0f)
+        val sinusoidal = MeshImporter.readFrom("$driveLetter:/ssd-backup-inauguration/meshes/bile-sinus.obj").apply {
+            scale = Vector3f(0.1f, 0.1f, 0.1f)
+            position = Vector3f(-80.0f, -60.0f, 10.0f)
+            material.ambient = Vector3f(0.1f, 0.0f, 0.0f)
+            material.diffuse = Vector3f(0.4f, 0.0f, 0.02f)
+            material.specular = Vector3f(0.05f, 0f, 0f)
+        }
         bile.addChild(sinusoidal)
         bileScene.addChild(bile)
         scene.addChild(bileScene)
