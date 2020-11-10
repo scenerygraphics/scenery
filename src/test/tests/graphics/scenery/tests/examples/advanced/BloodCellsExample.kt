@@ -2,6 +2,8 @@ package graphics.scenery.tests.examples.advanced
 
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
+import graphics.scenery.mesh.Box
+import graphics.scenery.mesh.Mesh
 import graphics.scenery.numerics.Random
 import graphics.scenery.utils.extensions.minus
 import org.joml.Vector3f

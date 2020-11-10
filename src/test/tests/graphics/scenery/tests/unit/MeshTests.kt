@@ -1,6 +1,6 @@
 package graphics.scenery.tests.unit
 
-import graphics.scenery.Mesh
+import graphics.scenery.mesh.Mesh
 import graphics.scenery.utils.LazyLogger
 import org.junit.Test
 import kotlin.test.assertEquals

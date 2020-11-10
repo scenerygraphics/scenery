@@ -3,6 +3,9 @@ package graphics.scenery.tests.examples.basic
 import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
+import graphics.scenery.mesh.Box
+import graphics.scenery.mesh.Mesh
+import graphics.scenery.mesh.TextBoard
 import graphics.scenery.numerics.Random
 import org.joml.Vector4f
 import org.junit.Test

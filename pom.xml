@@ -563,16 +563,10 @@
             <artifactId>n5-imglib2</artifactId>
         </dependency>
 
-<!--        <dependency>-->
-<!--            <groupId>com.github.kotlin-graphics</groupId>-->
-<!--            <artifactId>assimp</artifactId>-->
-<!--            <version>347ec4ea</version>-->
-<!--        </dependency>-->
         <dependency>
-            <groupId>com.twelvemonkeys.imageio</groupId>
-            <artifactId>imageio</artifactId>
-            <version>3.5</version>
-            <classifier>pom</classifier>
+            <groupId>com.github.kotlin-graphics</groupId>
+            <artifactId>assimp</artifactId>
+            <version>a936c79c</version>
         </dependency>
 
     </dependencies>
