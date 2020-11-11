@@ -1,9 +1,9 @@
 package graphics.scenery.tests.unit
 
-import graphics.scenery.UniformBSpline
+import org.joml.*
 import graphics.scenery.numerics.Random
+import graphics.scenery.*
 import graphics.scenery.utils.LazyLogger
-import org.joml.Vector3f
 import org.junit.Test
 import kotlin.math.roundToInt
 import kotlin.test.assertEquals
@@ -14,7 +14,7 @@ import kotlin.test.assertTrue
 /**
  * This is the test for the [UniformBSpline].
  *
- * @author Justin Bürger
+ * @author  Justin Buerger <burger@mpi-cbg.de>
  */
 class UniformBSplineTests {
     private val logger by LazyLogger()
@@ -45,10 +45,10 @@ class UniformBSplineTests {
     @Test
     fun testChain() {
         logger.info("This is the test for the Length of the chain.")
-        val point1 = Random.random3DVectorFromRange(-30f, -10f)
-        val point2 = Random.random3DVectorFromRange(-9f, 20f)
-        val point3 = Random.random3DVectorFromRange(21f, 30f)
-        val point4 = Random.random3DVectorFromRange(31f, 100f)
+        val point1 = Random.random3DVectorFromRange( -30f, -10f)
+        val point2 = Random.random3DVectorFromRange( -9f, 20f)
+        val point3 = Random.random3DVectorFromRange( 21f, 30f)
+        val point4 = Random.random3DVectorFromRange( 31f, 100f)
 
         val controlPoints = arrayListOf(point1, point2, point3, point4)
 
@@ -58,7 +58,6 @@ class UniformBSplineTests {
         val distance = chain[i].distance(chain[i+1])
         val distanceDifferences = chain.windowed(2, 1) {
             it[0].distance(it[1]).minus(distance) }.toList()
-        println(distanceDifferences)
         assertTrue { distanceDifferences.filter { it < 0.5 } == distanceDifferences }
     }
 
@@ -84,7 +83,7 @@ class UniformBSplineTests {
         val notEnoughList = ArrayList<Vector3f>()
         val j = Random.randomFromRange(1f, 2f).roundToInt()
         for(i in 0..j) {
-            val vector = Random.random3DVectorFromRange(0f, 5f)
+            val vector = Random.random3DVectorFromRange( 0f, 5f)
             notEnoughList.add(vector)
         }
         val notEnoughSpline = UniformBSpline(notEnoughList)
