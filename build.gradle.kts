@@ -38,7 +38,7 @@ dependencies {
     sci("net.sf.trove4j:trove4j")
     sci("net.java.dev.jna:jna")
     sci("net.java.dev.jna:jna-platform:\$jna")
-    sci("org.jocl:jocl:2.0.2")
+    implementation("org.jocl:jocl:2.0.2")
     implementation(platform("org.lwjgl:lwjgl-bom:3.2.3"))
     listOf("", "-glfw", "-jemalloc", "-vulkan", "-opengl", "-openvr", "-xxhash", "-remotery").forEach {
         implementation("org.lwjgl:lwjgl$it")
