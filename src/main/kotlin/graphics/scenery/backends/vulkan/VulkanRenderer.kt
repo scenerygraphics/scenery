@@ -2592,6 +2592,8 @@ open class VulkanRenderer(hub: Hub,
 
         val renderOrderList = ArrayList<Node>(pass.vulkanMetadata.renderLists[commandBuffer]?.size ?: 512)
 
+        var needsOrderSort = false
+
         // here we discover all the nodes which are relevant for this pass,
         // e.g. which have the same transparency settings as the pass,
         // and filter according to any custom filters applicable to this pass
@@ -2618,6 +2620,10 @@ open class VulkanRenderer(hub: Hub,
                 return@forEach
             }
 
+            if(n is RenderingOrder) {
+                needsOrderSort = true
+            }
+
             n.rendererMetadata()?.let {
                 if (!((pass.passConfig.renderOpaque && n.material.blending.transparent && pass.passConfig.renderOpaque != pass.passConfig.renderTransparent) ||
                         (pass.passConfig.renderTransparent && !n.material.blending.transparent && pass.passConfig.renderOpaque != pass.passConfig.renderTransparent))) {
@@ -2628,6 +2634,9 @@ open class VulkanRenderer(hub: Hub,
             }
         }
 
+        if(needsOrderSort) {
+            renderOrderList.sortBy { (it as? RenderingOrder)?.renderingOrder }
+        }
         // if the pass' metadata does not contain a command buffer,
         // OR the cached command buffer does not contain the same nodes in the same order,
         // OR re-recording is forced due to node changes, the buffer will be re-recorded.
