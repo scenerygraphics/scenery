@@ -7,7 +7,7 @@ import graphics.scenery.backends.Shaders
  *
  * @author Ulrik Guenther <hello@ulrik.is>
  */
-class InfinitePlane : Mesh("InfinitePlane"), DisableFrustumCulling {
+class InfinitePlane : Mesh("InfinitePlane"), DisableFrustumCulling, RenderingOrder {
     /**
      * Enum class to define the grid type.
      */
@@ -20,6 +20,9 @@ class InfinitePlane : Mesh("InfinitePlane"), DisableFrustumCulling {
     /** [Type] of the plane, can be a normal grid, a blueprint grid, or a checkerboard. */
     @ShaderProperty
     var type = Type.Grid
+
+    /** Infinite planes need to be rendered last */
+    override var renderingOrder = Int.MAX_VALUE
 
     init {
         vertices = BufferUtils.allocateFloatAndPut(FloatArray(6*3))
