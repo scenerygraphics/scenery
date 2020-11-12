@@ -176,14 +176,15 @@ gradle-app.setting
 
 # End of https://www.toptal.com/developers/gitignore/api/java,gradle,intellij,kotlin,maven
 
+# https://docs.gradle.com/enterprise/maven-extension/
 .mvn/.gradle-enterprise
 
 # original .gitignore, commented out duplicates and wrong exclusions
 
 # Binary files
 bin/
-#build/
-#target/
+#build/ duplicate
+#target/ duplicate
 
 # Eclipse projects & settings
 .project
@@ -191,15 +192,15 @@ bin/
 .settings/*
 
 # local gradle files and settings
-#.gradle
+#.gradle duplicate
 #gradle.properties Wrong?
 
 # IntelliJ project files -- create by `gradle idea` - do not commit!
 #.idea Wrong?
-#*.ipr
-#*.iws
-#*.iml
-#*.class
+#*.ipr duplicate
+#*.iws duplicate
+#*.iml duplicate
+#*.class duplicate
 
 # Vulkan Validation Layers
 VkLayer_*.json
@@ -210,9 +211,9 @@ VkLayer_*.dylib
 # log files and metadata
 Thumbs.db
 .DS_Store
-#hs_err_pid*
+#hs_err_pid* duplicate
 log.txt
-#*.log
+#*.log duplicate
 *.log.xz
 *.log.gz
 
