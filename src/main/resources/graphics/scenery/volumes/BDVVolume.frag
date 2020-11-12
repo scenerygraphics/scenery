@@ -113,14 +113,14 @@ void main()
 	// -------------------------------------------------------
 
 
-	vec4 startNDC = Vertex.MVP * vec4(wfront.xyz + tnear * direc.xyz, 1.0);
+	vec4 startNDC = Vertex.MVP * vec4(wfront.xyz, 1.0);
 	startNDC *= 1.0/startNDC.w;
 
-	#ifndef OPENGL
+#ifndef OPENGL
 	float currentSceneDepth = texture(InputZBuffer, depthUV).r;
-	#else
+#else
 	float currentSceneDepth = texture(InputZBuffer, depthUV).r * 2.0 - 1.0;
-	#endif
+#endif
 
 //	if(startNDC.z > currentSceneDepth && tnear > 0.0f) {
 //		// for debugging, green = occluded by existing scene geometry
@@ -130,7 +130,7 @@ void main()
 //		return;
 //	}
 //
-	gl_FragDepth = startNDC.z;
+	gl_FragDepth = startNDC.w;
 
 	if ( tnear < tfar )
 	{

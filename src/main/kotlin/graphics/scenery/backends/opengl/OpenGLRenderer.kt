@@ -1769,10 +1769,12 @@ open class OpenGLRenderer(hub: Hub,
                 }
 
                 val actualObjects = if(pass.passConfig.type == RenderConfigReader.RenderpassType.geometry) {
-                    sceneObjects.filter { it !is Light }
+                    sceneObjects.filter { it !is Light }.toMutableList()
                 } else {
-                    sceneObjects.filter { it is Light }
+                    sceneObjects.filter { it is Light }.toMutableList()
                 }
+
+                actualObjects.sortBy { (it as? RenderingOrder)?.renderingOrder }
 
                 var currentShader: OpenGLShaderProgram? = null
 
