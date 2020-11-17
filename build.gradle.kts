@@ -32,9 +32,10 @@ dependencies {
     sci("org.joml:joml")
     sci("com.github.scenerygraphics:vector:958f2e6")
     sci("net.java.jinput:jinput:2.0.9", native = "natives-all")
-    listOf("scijava-common", "script-editor", "ui-behaviour", "scripting-javascript", "scripting-jython").forEach {
+    listOf("scijava-common", "script-editor", /*"ui-behaviour", overwrite! */ "scripting-javascript", "scripting-jython").forEach {
         sci("org.scijava:$it")
     }
+    sci("org.scijava:ui-behaviour:2.0.2")
     sci("net.sf.trove4j:trove4j")
     sci("net.java.dev.jna:jna")
     sci("net.java.dev.jna:jna-platform:\$jna")
