@@ -67,7 +67,7 @@ dependencies {
     implementation("com.github.LWJGLX:lwjgl3-awt:cfd741a6")
     sci("org.janelia.saalfeldlab:n5")
     sci("org.janelia.saalfeldlab:n5-imglib2")
-    implementation("com.github.kotlin-graphics:assimp:25c68811")
+//    implementation("com.github.kotlin-graphics:assimp:25c68811")
 
     testSci("junit:junit")
     testSci("org.slf4j:slf4j-simple")
