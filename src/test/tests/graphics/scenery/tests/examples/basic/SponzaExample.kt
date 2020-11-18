@@ -8,6 +8,7 @@ import org.joml.Vector4f
 import org.junit.Test
 import org.scijava.ui.behaviour.ClickBehaviour
 import kotlin.concurrent.thread
+import kotlin.math.cos
 
 /**
  * Demo loading the Sponza Model, demonstrating multiple moving lights
@@ -31,8 +32,8 @@ class SponzaExample : SceneryBase("SponzaExample", windowWidth = 1280, windowHei
             scene.addChild(this)
         }
 
-        val lights = (0 until 1).map {
-            Box(Vector3f(0.1f, 0.1f, 0.1f))
+        val lights = (0 until 128).map {
+            Icosphere(0.1f, 1)
         }.map {
             it.position = Vector3f(
                 Random.randomFromRange(-6.0f, 6.0f),
@@ -42,7 +43,7 @@ class SponzaExample : SceneryBase("SponzaExample", windowWidth = 1280, windowHei
 
             it.material.diffuse = Random.random3DVectorFromRange(0.1f, 0.9f)
 
-            val light = PointLight(radius = Random.randomFromRange(5.5f, 50.0f))
+            val light = PointLight(radius = Random.randomFromRange(1.0f, 8.0f))
             light.emissionColor = it.material.diffuse
             light.intensity = Random.randomFromRange(0.1f, 0.5f)
 
@@ -54,7 +55,7 @@ class SponzaExample : SceneryBase("SponzaExample", windowWidth = 1280, windowHei
 
         val mesh = Mesh()
         with(mesh) {
-            readFromOBJ(getDemoFilesPath() + "/sponza.obj", importMaterials = false)
+            readFromOBJ(getDemoFilesPath() + "/sponza.obj", importMaterials = true)
             rotation.rotateY(Math.PI.toFloat() / 2.0f)
             scale = Vector3f(0.01f, 0.01f, 0.01f)
             name = "Sponza Mesh"
@@ -72,19 +73,19 @@ class SponzaExample : SceneryBase("SponzaExample", windowWidth = 1280, windowHei
 
         thread {
             var ticks = 0L
-            while (true) {
-                if(movingLights) {
+
+            while(running) {
+                if (movingLights) {
                     lights.mapIndexed { i, light ->
                         val phi = (Math.PI * 2.0f * ticks / 1000.0f) % (Math.PI * 2.0f)
 
                         light.position = Vector3f(
                             light.position.x(),
-                            5.0f * Math.cos(phi + (i * 0.5f)).toFloat() + 5.2f,
+                            5.0f * cos(phi + (i * 0.5f)).toFloat() + 5.2f,
                             light.position.z())
 
                         light.children.forEach { it.needsUpdateWorld = true }
                     }
-
                     ticks++
                 }
 

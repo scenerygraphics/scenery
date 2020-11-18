@@ -35,6 +35,8 @@ import org.lwjgl.vulkan.VK10.*
 import java.awt.image.BufferedImage
 import java.awt.image.DataBufferByte
 import java.io.File
+import java.lang.ref.PhantomReference
+import java.lang.ref.ReferenceQueue
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.IntBuffer
@@ -385,7 +387,7 @@ open class VulkanRenderer(hub: Hub,
                               var ShaderProperties: VulkanBuffer)
     protected var buffers: DefaultBuffers
     protected var defaultUBOs = ConcurrentHashMap<String, VulkanUBO>()
-    protected var textureCache = ConcurrentHashMap<Texture, VulkanTexture>()
+    protected var textureCache = ConcurrentHashMap<Texture, PhantomReference<VulkanTexture>>()
     protected var defaultTextures = ConcurrentHashMap<String, VulkanTexture>()
     protected var descriptorSetLayouts = ConcurrentHashMap<String, Long>()
     protected var descriptorSets = ConcurrentHashMap<String, Long>()
@@ -402,6 +404,8 @@ open class VulkanRenderer(hub: Hub,
 
     private var renderConfig: RenderConfigReader.RenderConfig
     private var flow: List<String> = listOf()
+
+    private val textureResourceQueue = ReferenceQueue<VulkanTexture>()
 
     private val vulkanProjectionFix =
         Matrix4f(
@@ -705,8 +709,26 @@ open class VulkanRenderer(hub: Hub,
 
         geometryPool = VulkanBufferPool(device, usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT or VK_BUFFER_USAGE_INDEX_BUFFER_BIT or VK_BUFFER_USAGE_TRANSFER_DST_BIT)
 
+        registerResourceFinalizers()
+
         initialized = true
         logger.info("Renderer initialisation complete.")
+    }
+
+    fun registerResourceFinalizers() {
+        GPUResourceFinalizer.registerFinalizer(VulkanTexture::class.java) { resource ->
+            (resource as? VulkanTexture)?.close()
+        }
+
+        GPUResourceFinalizer.registerFinalizer(VulkanBuffer::class.java) { resource ->
+            (resource as? VulkanBuffer)?.let {
+                if(it.suballocation != null) {
+                    it.suballocation?.free = true
+                } else {
+                    it.close()
+                }
+            }
+        }
     }
 
     // source: http://stackoverflow.com/questions/34697828/parallel-operations-on-kotlin-collections
@@ -1152,7 +1174,7 @@ open class VulkanRenderer(hub: Hub,
 
             logger.debug("${node.name} will have $type texture from $texture in slot $slot")
 
-            if (!textureCache.containsKey(texture)) {
+            if (!textureCache.containsKey(texture) || texture is UpdatableTexture) {
                 try {
                     logger.debug("Loading texture {} for {}", texture, node.name)
 
@@ -1185,14 +1207,12 @@ open class VulkanRenderer(hub: Hub,
                     // add new texture to texture list and cache, and close old texture
                     s.textures[type] = t
 
-                    if(texture !is UpdatableTexture) {
-                        textureCache[texture] = t
-                    }
+                    textureCache[texture] = GPUResourceFinalizer(t, VulkanTexture::class.java, textureResourceQueue)
                 } catch (e: Exception) {
                     logger.warn("Could not load texture for ${node.name}: $e")
                 }
             } else {
-                s.textures[type] = textureCache[texture]!!
+                s.textures[type] = (textureCache[texture] as GPUResourceFinalizer<VulkanTexture>).resource
             }
         }
 
@@ -1917,6 +1937,13 @@ open class VulkanRenderer(hub: Hub,
 
         val presentDuration = System.nanoTime() - startPresent
         stats?.add("Renderer.viewportSubmitAndPresent", presentDuration)
+
+        var reference = textureResourceQueue.poll()
+        while(reference != null) {
+            (reference as? GPUResourceFinalizer<*>)?.finalizeResources()
+            reference.clear()
+            reference = textureResourceQueue.poll()
+        }
 
         firstImageReady = true
     }
@@ -3524,7 +3551,7 @@ open class VulkanRenderer(hub: Hub,
         logger.debug("Cleaning texture cache...")
         textureCache.forEach {
             logger.debug("Cleaning ${it.key}...")
-            it.value.close()
+            (it.value as? GPUResourceFinalizer<*>)?.finalizeResources()
         }
 
         logger.debug("Closing nodes...")
