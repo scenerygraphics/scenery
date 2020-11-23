@@ -565,7 +565,7 @@ open class SceneryContext(val node: VolumeManager, val useCompute: Boolean = fal
 //            return
 //        }
 
-        logger.info("Updating 3D texture via Texture3D, hash took  from {}: dx={} dy={} dz={} w={} h={} d={}",
+        logger.debug("Updating 3D texture via Texture3D, hash took  from {}: dx={} dy={} dz={} w={} h={} d={}",
             texture,
             xoffset, yoffset, zoffset,
             width, height, depth
