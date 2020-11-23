@@ -1,5 +1,7 @@
 package graphics.scenery.mesh
 
+import assimp.AiMesh
+import assimp.AiNode
 import assimp.AiScene
 import assimp.Importer
 import gnu.trove.map.hash.THashMap
@@ -11,6 +13,9 @@ import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.SystemHelpers
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.times
+import kool.FloatBuffer
+import kool.IntBuffer
+import kool.set
 import org.joml.Vector3f
 import org.lwjgl.system.MemoryUtil
 import java.io.BufferedInputStream
@@ -33,17 +38,40 @@ object MeshImporter {
      * Materials will be used, if present and [useMaterial] is true.
      */
     fun readFrom(filename: String, useMaterial: Boolean = true, mesh: Mesh = Mesh()): Mesh {
-        return when (val ext = filename.substringAfterLast(".").toLowerCase()) {
-            "obj" -> readFromOBJ(filename, useMaterial, mesh)
-            "stl" -> readFromSTL(filename, mesh)
-            else -> throw UnsupportedOperationException("Unknown file format .$ext for file $filename.")
+        val aiScene = Importer().readFile(filename) ?: error("Assimp failed to read the mesh")
+        loadAiNode(aiScene, aiScene.rootNode, mesh)
+        return mesh
+    }
+    
+    fun loadAiNode(aiScene: AiScene, aiNode: AiNode, mesh: Mesh) {
+        mesh.name = aiNode.name
+        aiNode.meshes.firstOrNull()?.let {
+            loadAiMesh(aiScene.meshes[it], mesh)
+        }
+        for (aiChild in aiNode.children) {
+            val child = Mesh()
+            mesh.addChild(child)
+            loadAiNode(aiScene, aiChild, child)
         }
     }
 
-//    fun readWithAssimp(filename: String): Mesh {
-//        val scene = Importer().readFile("test/resources/models/OBJ/box.obj")
-//
-//    }
+    fun loadAiMesh(aiMesh: AiMesh, mesh: Mesh) {
+        val vtSize = mesh.vertexSize
+        val tcSize = mesh.texcoordSize
+        val fcSize = 3
+        mesh.vertices = FloatBuffer(aiMesh.numVertices * vtSize) {
+            aiMesh.vertices[it / vtSize][it % vtSize]
+        }
+        mesh.normals = FloatBuffer(aiMesh.numVertices * vtSize) {
+            aiMesh.normals[it / vtSize][it % vtSize]
+        }
+        mesh.texcoords = FloatBuffer(aiMesh.numVertices * tcSize) {
+            aiMesh.textureCoords[0][it / vtSize][it % tcSize]
+        }
+        mesh.indices = IntBuffer(aiMesh.numFaces * fcSize) {
+            aiMesh.faces[it / vtSize][it % fcSize]
+        }
+    }
 
     /**
      * Read the [Node]'s geometry from an OBJ file, including materials

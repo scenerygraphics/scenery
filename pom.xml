@@ -568,6 +568,17 @@
             <artifactId>assimp</artifactId>
             <version>a936c79c</version>
         </dependency>
+        <dependency>
+            <groupId>com.github.kotlin-graphics</groupId>
+            <artifactId>kool</artifactId>
+            <version>f91acd54</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.github.kotlin-graphics</groupId>
+            <artifactId>glm</artifactId>
+            <version>127c7b85</version>
+        </dependency>
 
     </dependencies>
 
