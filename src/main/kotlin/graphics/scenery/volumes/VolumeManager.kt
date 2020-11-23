@@ -652,6 +652,7 @@ class VolumeManager(
         }
 
         context.clearLUTs()
+        renderStateUpdated = true
     }
 
     /** Companion object for Volume */
