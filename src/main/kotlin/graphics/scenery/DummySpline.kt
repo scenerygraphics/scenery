@@ -8,7 +8,7 @@ import org.joml.Vector3f
  *
  * @author  Justin Buerger <burger@mpi-cbg.de>
  */
-class DummySpline(private val controlPoints: ArrayList<Vector3f>): Spline {
+class DummySpline(private val controlPoints: ArrayList<Vector3f>, val sectionVerticesCount: Int): Spline {
 
     /**
      * Simply returns the control points as the spline points.
@@ -22,6 +22,6 @@ class DummySpline(private val controlPoints: ArrayList<Vector3f>): Spline {
     }
 
     override fun verticesCountPerSection(): Int {
-        return controlPoints.size
+        return sectionVerticesCount
     }
 }
