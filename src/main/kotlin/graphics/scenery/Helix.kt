@@ -20,8 +20,11 @@ class Helix (private val axis: MathLine, val spline: Spline, baseShape: () -> Li
     init {
         val sectionVerticesCount = spline.verticesCountPerSection()
         val verticesList = calculateVertices()
-        //algorithms from the curve class, see Curve (line 219-322)
-        verticesList.windowed(sectionVerticesCount, sectionVerticesCount-1) { section ->
+        val remainder = verticesList.size%sectionVerticesCount
+        val n = (verticesList.size-remainder)/sectionVerticesCount
+        val add = remainder/n
+        verticesList.windowed(sectionVerticesCount + add, sectionVerticesCount+ add-1, true) {
+            section ->
             val i = when {
                 section.contains(verticesList.first()) -> {
                     0
@@ -33,9 +36,7 @@ class Helix (private val axis: MathLine, val spline: Spline, baseShape: () -> Li
                     2
                 }
             }
-            val helixSectionVertices = Curve.calculateTriangles(section, i)
-            val partialHelix = Curve.PartialCurve(helixSectionVertices)
-            this.addChild(partialHelix)
+            this.addChild(calcMesh(section, i))
         }
     }
 
@@ -85,14 +86,24 @@ class Helix (private val axis: MathLine, val spline: Spline, baseShape: () -> Li
             val zAxis = Vector3f()
             inversionMatrix.getColumn(2, zAxis).normalize()
             val transformMatrix = Matrix4f(xAxis.x(), yAxis.x(), zAxis.x(), 0f,
-                    xAxis.y(), yAxis.y(), zAxis.y(), 0f,
-                    xAxis.z(), yAxis.z(), zAxis.z(), 0f,
-                    point.x(), point.y(), point.z(), 1f)
+                xAxis.y(), yAxis.y(), zAxis.y(), 0f,
+                xAxis.z(), yAxis.z(), zAxis.z(), 0f,
+                point.x(), point.y(), point.z(), 1f)
             verticesList.add(shape.map { shapePoint ->
                 val transformedPoint = Vector3f()
                 transformMatrix.transformPosition(shapePoint, transformedPoint)
             })
         }
         return verticesList
+    }
+
+    private fun calcMesh(section: List<List<Vector3f>>, i: Int): Mesh {
+        //algorithms from the curve class, see Curve (line 219-322)
+        val helixSectionVertices = Curve.calculateTriangles(section, i)
+        val partialHelix = Curve.PartialCurve(helixSectionVertices)
+        //add a dummy so that the helix children match the iteration depth of the curve
+        val dummyMesh = Mesh("dummy")
+        dummyMesh.addChild(partialHelix)
+        return dummyMesh
     }
 }
