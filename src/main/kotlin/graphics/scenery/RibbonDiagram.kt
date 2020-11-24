@@ -92,7 +92,12 @@ class RibbonDiagram(val protein: Protein, private val displaySS: Boolean = false
         chainList.forEach { aminoList ->
             val guidePointList = calculateGuidePoints(aminoList, secStruc)
             val spline = ribbonSpline(guidePointList)
-            this.addChild(subShapes(guidePointList, spline))
+            val subProtein = subShapes(guidePointList, spline)
+            if(!displaySS) {
+                val rainbow = Rainbow()
+                rainbow.colorVector(subProtein)
+            }
+            this.addChild(subProtein)
         }
     }
 
