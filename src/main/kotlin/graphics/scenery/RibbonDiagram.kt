@@ -92,7 +92,12 @@ class RibbonDiagram(val protein: Protein, private val displaySS: Boolean = false
         chainList.forEach { aminoList ->
             val guidePointList = calculateGuidePoints(aminoList, secStruc)
             val spline = ribbonSpline(guidePointList)
-            this.addChild(subShapes(guidePointList, spline))
+            val subProtein = subShapes(guidePointList, spline)
+            if(!displaySS) {
+                val rainbow = Rainbow()
+                rainbow.colorVector(subProtein)
+            }
+            this.addChild(subProtein)
         }
     }
 
@@ -183,7 +188,7 @@ class RibbonDiagram(val protein: Protein, private val displaySS: Boolean = false
                         }
                     }
                     val axisLine = MathLine(axis.direction, axis.position)
-                    val helixCurve = Helix(axisLine, DummySpline(subSpline)) { rectangle }
+                    val helixCurve = Helix(axisLine, DummySpline(subSpline, sectionVerticesCount)) { rectangle }
                     if(displaySS) { alphas.addChild(helixCurve) }
                     else { subParent.addChild(helixCurve) }
                 }
@@ -208,7 +213,7 @@ class RibbonDiagram(val protein: Protein, private val displaySS: Boolean = false
                                 Vector3f(-x, -y, 0f),
                                 Vector3f(x, -y, 0f)))
                     }
-                    val betaCurve = Curve(DummySpline(subSpline)) { baseShape(ssSubList) }
+                    val betaCurve = Curve(DummySpline(subSpline, sectionVerticesCount)) { baseShape(ssSubList) }
                     if(displaySS) { betas.addChild(betaCurve) }
                     else { subParent.addChild(betaCurve) }
                 }
@@ -223,7 +228,7 @@ class RibbonDiagram(val protein: Protein, private val displaySS: Boolean = false
                             }
                         }
                     }
-                    val coilCurve = Curve(DummySpline(subSpline)) { baseShape(ssSubList) }
+                    val coilCurve = Curve(DummySpline(subSpline, sectionVerticesCount)) { baseShape(ssSubList) }
                     if(displaySS) { coils.addChild(coilCurve) }
                     else { subParent.addChild(coilCurve) }
                 }
@@ -289,7 +294,7 @@ class RibbonDiagram(val protein: Protein, private val displaySS: Boolean = false
             splinePoint.mul(0.5f)
             finalSpline.add(splinePoint)
         }
-        return DummySpline(finalSpline)
+        return DummySpline(finalSpline, sectionVerticesCount)
     }
 
     companion object GuidePointCalculation {
