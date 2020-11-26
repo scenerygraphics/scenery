@@ -1642,7 +1642,7 @@ open class OpenGLRenderer(hub: Hub,
 //        }
         if(pushMode && !ubosUpdated && !sceneUpdated && !screenshotRequested && !recordMovie && !instancesUpdated) {
             if(updateLatch == null) {
-                updateLatch = CountDownLatch(2)
+                updateLatch = CountDownLatch(4)
             }
 
             logger.trace("UBOs have not been updated, returning ({})", updateLatch?.count)
