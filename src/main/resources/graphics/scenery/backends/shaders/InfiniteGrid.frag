@@ -83,7 +83,11 @@ vec4 blueprint(vec2 R, float scale, float lineWidth) {
 void main() {
     float t = -Vertex.nearPosition.y / (Vertex.farPosition.y - Vertex.nearPosition.y);
     vec3 R = Vertex.nearPosition + t * (Vertex.farPosition - Vertex.nearPosition);
+#ifndef OPENGL
     gl_FragDepth = computeDepth(R);
+#else
+    gl_FragDepth = (computeDepth(R)+1.0f)/2.0f;
+#endif
     vec4 color = vec4(0.0);
 
     if(type == 0) {
