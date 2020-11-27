@@ -3053,6 +3053,14 @@ open class VulkanRenderer(hub: Hub,
                 }
                 vkCmdBindVertexBuffers(this, 0, pass.vulkanMetadata.vertexBuffers, pass.vulkanMetadata.vertexBufferOffsets)
 
+                if(node is RenderScissored) {
+                    val scissor = VkRect2D.calloc(1)
+                    scissor[0].offset().set(node.offset.x, node.offset.y)
+                    scissor[0].extent().set(node.extent.x, node.extent.y)
+                    vkCmdSetScissor(this, 0, scissor)
+                    scissor.free()
+                }
+
                 logger.debug("${pass.name}: now drawing {}, {} DS bound, {} textures, {} vertices, {} indices, {} instances", node.name, pass.vulkanMetadata.descriptorSets.limit(), s.textures.count(), s.vertexCount, s.indexCount, s.instanceCount)
 
                 if (s.isIndexed) {

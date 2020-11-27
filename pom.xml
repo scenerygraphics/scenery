@@ -633,6 +633,12 @@
             <version>${kotlin.version}</version>
             <scope>test</scope>
         </dependency>
+
+        <dependency>
+            <groupId>com.github.kotlin-graphics</groupId>
+            <artifactId>imgui</artifactId>
+            <version>b130a50bf3</version>
+        </dependency>
     </dependencies>
 
     <repositories>
