@@ -10,7 +10,7 @@ import org.junit.Test
  *
  * @author Justin Buerger <burger@mpi-cbg.de>
  */
-class CreationExample: SceneryBase("CreationSketch", wantREPL = true) {
+class MeshAddingExample: SceneryBase("CreationSketch", wantREPL = true) {
     override fun init() {
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, 512, 512))
 
