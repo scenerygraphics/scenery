@@ -38,7 +38,6 @@ class RulerExample: SceneryBase("RulerSketch", wantREPL = true) {
 
     override fun inputSetup() {
         super.inputSetup()
-        val sphere = Icosphere(0.25f, 6)
         inputHandler?.addBehaviour("ruler", Ruler("create", { scene.findObserver() }, scene))
         inputHandler?.addKeyBinding("ruler", "R")
     }
