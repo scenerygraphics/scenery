@@ -221,8 +221,8 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?, for
      * Create behaviours and input mappings.
      */
         behaviourMap.put("mouse_control", FPSCameraControl("mouse_control", { scene.findObserver() }, window.width, window.height))
-        behaviourMap.put("gamepad_camera_control", GamepadCameraControl("gamepad_camera_control", listOf(Component.Identifier.Axis.Z, Component.Identifier.Axis.RZ), { scene.findObserver() }, window.width, window.height))
-        behaviourMap.put("gamepad_movement_control", GamepadMovementControl("gamepad_movement_control", listOf(Component.Identifier.Axis.X, Component.Identifier.Axis.Y), { scene.findObserver() }))
+        behaviourMap.put("gamepad_camera_control", GamepadCameraControl("gamepad_camera_control", listOf(Component.Identifier.Axis.Z, Component.Identifier.Axis.RZ)) { scene.findObserver() })
+        behaviourMap.put("gamepad_movement_control", GamepadMovementControl("gamepad_movement_control", listOf(Component.Identifier.Axis.X, Component.Identifier.Axis.Y)) { scene.findObserver() })
 
         //unused until some reasonable action (to the selection) would be provided
         //behaviourMap.put("select_command", SelectCommand("select_command", renderer, scene, { scene.findObserver() }))

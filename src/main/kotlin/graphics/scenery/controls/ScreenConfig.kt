@@ -63,7 +63,7 @@ class ScreenConfig {
         init {
             var vr = lowerRight - lowerLeft
             val vu = upperLeft - lowerLeft
-            val vn = vr.cross(vu)
+            val vn = Vector3f(vr).cross(vu)
 
             width = vr.length()
             height = vu.length()
@@ -71,7 +71,7 @@ class ScreenConfig {
             vu.normalize()
             vn.normalize()
 
-            vr = vu.cross(vn).normalize()
+            vr = Vector3f(vu).cross(vn).normalize()
 
             screenTransform = Matrix4f(
                 vr.x(), vr.y(), vr.z(), 0.0f,
