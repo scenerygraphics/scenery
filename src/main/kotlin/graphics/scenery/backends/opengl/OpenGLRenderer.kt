@@ -1138,6 +1138,8 @@ open class OpenGLRenderer(hub: Hub,
                 return@forEach
             }
 
+            preDrawAndUpdateGeometryForNode(node)
+
             var bufferOffset = ubo.advanceBackingBuffer()
             ubo.offset = bufferOffset
             node.view.set(cam.view)
@@ -1856,7 +1858,6 @@ open class OpenGLRenderer(hub: Hub,
 
                     val s = getOpenGLObjectStateFromNode(n)
 
-                    preDrawAndUpdateGeometryForNode(n)
 
                     val shader = s.shader ?: pass.defaultShader!!
 
