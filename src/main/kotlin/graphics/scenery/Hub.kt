@@ -162,9 +162,12 @@ class Hub(val name: String = "default") {
      */
     @Suppress("unused")
     fun elementsAsString(): String {
-        println(elements.entries.size)
-        return elements.entries.joinToString("\n") {
-            " * ${it.key}=${it.value}"
+        return "Hub (${elements.size}): " + elements.entries.joinToString(",") {
+            "${it.key}=${it.value}"
         }
+    }
+
+    override fun toString(): String {
+        return elementsAsString()
     }
 }
