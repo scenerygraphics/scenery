@@ -39,7 +39,7 @@ class MeshAddingExample: SceneryBase("CreationSketch", wantREPL = true) {
 
         val sphere = Icosphere(0.1f, 6)
         renderer?.let { r ->
-            inputHandler?.addBehaviour("create", CreateCommandScreen("create", r, scene,
+            inputHandler?.addBehaviour("create", CreateCommand("create", r, scene,
                 { scene.findObserver() }) { sphere })
             inputHandler?.addKeyBinding("create", "R")
         }
