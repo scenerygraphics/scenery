@@ -23,6 +23,7 @@ import net.imglib2.type.numeric.real.DoubleType
 import net.imglib2.type.numeric.real.FloatType
 import org.joml.*
 import org.lwjgl.system.MemoryUtil
+import org.lwjgl.system.Platform
 import java.awt.BorderLayout
 import java.awt.Dimension
 import java.awt.image.DataBufferInt
@@ -812,7 +813,8 @@ open class OpenGLRenderer(hub: Hub,
             logger.info("Recreating framebuffers (${window.width}x${window.height})")
 
             // FIXME: This needs to be done here in order to be able to run on HiDPI screens correctly
-            if(embedIn != null) {
+            // FIXME: On macOS, this _must_ not be called, otherwise JOGL bails out, on Windows, it needs to be called.
+            if(embedIn != null && Platform.get() != Platform.MACOSX) {
                 cglWindow?.newtCanvasAWT?.setBounds(0, 0, window.width, window.height)
             }
 
