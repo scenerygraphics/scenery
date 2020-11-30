@@ -3175,7 +3175,7 @@ open class VulkanRenderer(hub: Hub,
             }
 
             if(ds is DescriptorSet.DynamicSet && ds.offset == BUFFER_OFFSET_UNINTIALISED ) {
-                logger.error("${node.name} has uninitialised UBO offset, skipping for rendering")
+                logger.info("${node.name} has uninitialised UBO offset, skipping for rendering")
                 skip = true
             }
 
