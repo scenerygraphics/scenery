@@ -525,7 +525,11 @@ open class SceneryContext(val node: VolumeManager, val useCompute: Boolean = fal
                 }
                 updates.clear()
             } else {
-                logger.error("Don't know how to update $t/$texture/$name")
+                if(t is TextureCache) {
+                    logger.debug("Don't know how to update $t/$texture/$name")
+                } else {
+                    logger.error("Don't know how to update $t/$texture/$name")
+                }
             }
         }
     }
