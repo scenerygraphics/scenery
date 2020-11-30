@@ -109,7 +109,9 @@ class RibbonDiagram(val protein: Protein, private val displaySS: Boolean = false
 
         val subParent = Mesh("SubProtein")
 
-        val splinePoints = spline.splinePoints()
+        val centroid = Axis.LeastSquares.getCentroid(spline.splinePoints())
+
+        val splinePoints = spline.splinePoints().map{ it.sub(centroid) }
 
         val rectangle = ArrayList<Vector3f>(4)
         rectangle.add(Vector3f(0.9f, 0f, 0f))
