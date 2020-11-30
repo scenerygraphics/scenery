@@ -59,6 +59,11 @@ class Hub(val name: String = "default") {
         return add(type, obj)
     }
 
+    fun <T: Hubable> remove(obj: T) {
+        val objs = elements.filter { it.value == obj }.keys
+        objs.forEach { k -> elements.remove(k) }
+    }
+
     /**
      * Adds a given [SceneryBase] instance to this Hub.
      *
