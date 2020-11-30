@@ -5,7 +5,7 @@ const float PI = 3.14159265358979323846264;
 const int NUM_OBJECT_TEXTURES = 6;
 
 layout(location = 0) in VertexData {
-    vec3 Position;
+    vec4 Position;
     vec3 Normal;
     vec2 TexCoord;
     vec3 FragPosition;
