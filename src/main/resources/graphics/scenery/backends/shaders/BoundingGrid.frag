@@ -22,7 +22,7 @@ struct MaterialInfo {
 };
 
 layout(location = 0) in VertexData {
-    vec3 Position;
+    vec4 Position;
     vec3 Normal;
     vec2 TexCoord;
     vec3 FragPosition;
