@@ -98,7 +98,7 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
             volumeManager.renderingMethod = value
         }
 
-    val volumeManager: VolumeManager
+    var volumeManager: VolumeManager
 
     // TODO IS THIS REQUIRED??
     var cacheControls = CacheControl.CacheControls()
@@ -180,6 +180,7 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
         volumes.forEach {
             volumeManager.add(it)
             it.delegate = volumeManager
+            it.volumeManager = volumeManager
         }
         delegate = volumeManager
     }

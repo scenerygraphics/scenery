@@ -648,6 +648,23 @@ class VolumeManager(
         needAtLeastNumVolumes(renderStacksStates.size)
     }
 
+    @Synchronized fun remove(node: Volume) {
+        logger.debug("Removing $node to OOC nodes")
+        node.delegate = null
+        nodes.remove(node)
+
+        val volumes = nodes.toMutableList()
+        hub?.get<VolumeManager>()?.let { hub?.remove(it) }
+
+        val vm = VolumeManager(hub, useCompute)
+        volumes.forEach {
+            vm.add(it)
+            it.delegate = vm
+        }
+
+        hub?.add(vm)
+    }
+
     protected val updated = HashSet<Volume>()
     /**
      * Notifies the [VolumeManager] of any updates coming from [node],
