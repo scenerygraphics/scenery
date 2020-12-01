@@ -114,7 +114,6 @@ void main()
 
 
 	vec4 startNDC = Vertex.MVP * vec4(wfront.xyz, 1.0);
-	startNDC *= 1.0/startNDC.w;
 
 #ifndef OPENGL
 	float currentSceneDepth = texture(InputZBuffer, depthUV).r;
@@ -122,14 +121,6 @@ void main()
 	float currentSceneDepth = texture(InputZBuffer, depthUV).r * 2.0 - 1.0;
 #endif
 
-//	if(startNDC.z > currentSceneDepth && tnear > 0.0f) {
-//		// for debugging, green = occluded by existing scene geometry
-//		// otherwise, we just put a transparent black
-//		FragColor = vec4(1.0, 0.0, 0.0, 1.0);
-////		gl_FragDepth = currentSceneDepth;
-//		return;
-//	}
-//
 	gl_FragDepth = startNDC.w;
 
 	if ( tnear < tfar )
@@ -161,11 +152,10 @@ void main()
 		FragColor = v;
 
 		if(v.w < 0.001f) {
-			gl_FragDepth = texture(InputZBuffer, depthUV).r;
+            discard;
 		}
 	}
 	else {
-		FragColor = vec4(0, 0, 0, 0);
-		gl_FragDepth = texture(InputZBuffer, depthUV).r;
+        discard;
 	}
 }
