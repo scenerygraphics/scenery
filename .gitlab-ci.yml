@@ -1,12 +1,24 @@
 cache:
   paths:
     - maven.repository/
+    - models/
  
 variables:
   MAVEN_OPTS: "-Dmaven.repo.local=maven.repository -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=WARN -Xmx4g -Dorg.lwjgl.util.Debug=true -Dorg.lwjgl.util.DebugLoader=true"
   JAVA_HOME: "/usr/lib/jvm/java-8-openjdk-amd64"
  
-.base-job: &base-job
+# simple unit tests without requiring GPUs
+unit-tests-no-gpu:
+  image: ubuntu:bionic
+  before_script:
+    - apt-get update -qq --force-yes > /dev/null
+    - apt-get install -qq -y --allow-downgrades --allow-remove-essential --allow-change-held-packages unzip wget git maven openjdk-8-jdk-headless curl > /dev/null
+    - if [ -d "$DIRECTORY" ]; then wget -q https://ulrik.is/scenery-demo-models.zip && unzip -q scenery-demo-models.zip; fi
+  script:
+    - mvn -B package test
+
+# base job for running with GPUs
+.base-job-gpu: &base-job-gpu
   before_script:
     # Installs Maven, Vulkan development libraries, etc.
     - apt-get update -qq --force-yes > /dev/null
@@ -31,7 +43,7 @@ variables:
 
 scenery-nvidia:
   image: nvidia/vulkan:1.1.121-cuda-10.1-alpha
-  <<: *base-job
+  <<: *base-job-gpu
   after_script:
     - nvidia-smi
     - tar cvjf results.tar.bz2 screenshots/
