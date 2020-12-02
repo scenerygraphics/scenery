@@ -2,17 +2,21 @@ cache:
   paths:
     - maven.repository/
     - models/
+    - pdb-cache/
  
 variables:
   MAVEN_OPTS: "-Dmaven.repo.local=maven.repository -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=WARN -Xmx4g -Dorg.lwjgl.util.Debug=true -Dorg.lwjgl.util.DebugLoader=true"
   JAVA_HOME: "/usr/lib/jvm/java-8-openjdk-amd64"
+  PDB_CACHE_DIR: "./pdb-store/cache"
+  PDB_DIR: "./pdb-store"
  
 # simple unit tests without requiring GPUs
 unit-tests-no-gpu:
   image: ubuntu:bionic
   before_script:
+    - mkdir -p ./pdb-store/cache
     - apt-get update -qq --force-yes > /dev/null
-    - apt-get install -qq -y --allow-downgrades --allow-remove-essential --allow-change-held-packages unzip wget git maven openjdk-8-jdk-headless curl > /dev/null
+    - apt-get install -qq -y --allow-downgrades --allow-remove-essential --allow-change-held-packages unzip wget git maven openjdk-8-jdk-headless curl libgl1-mesa-glx > /dev/null
     - if [ -d "$DIRECTORY" ]; then wget -q https://ulrik.is/scenery-demo-models.zip && unzip -q scenery-demo-models.zip; fi
   script:
     - mvn -B package test
@@ -20,6 +24,7 @@ unit-tests-no-gpu:
 # base job for running with GPUs
 .base-job-gpu: &base-job-gpu
   before_script:
+    - mkdir -p ./pdb-store/cache
     # Installs Maven, Vulkan development libraries, etc.
     - apt-get update -qq --force-yes > /dev/null
     - apt-get install -qq -y --allow-downgrades --allow-remove-essential --allow-change-held-packages unzip wget git maven openjdk-8-jdk-headless libvulkan1 libvulkan-dev vulkan-utils ocl-icd-opencl-dev clinfo curl > /dev/null
