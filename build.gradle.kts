@@ -12,7 +12,7 @@ plugins {
     //    idea
 }
 
-val ktVersion ="1.4.10"
+val ktVersion = "1.4.10"
 
 repositories {
     mavenCentral()
@@ -95,13 +95,43 @@ dependencies {
 }
 
 tasks {
-
     withType<KotlinCompile>().all {
         kotlinOptions {
             jvmTarget = "11"
             freeCompilerArgs += listOf("-Xinline-classes", "-Xopt-in=kotlin.RequiresOptIn")
         }
         sourceCompatibility = "11"
+    }
+    // https://docs.gradle.org/current/userguide/java_testing.html#test_filtering
+    test {
+        addTestListener(object : TestListener {
+            override fun beforeSuite(suite: TestDescriptor?) {
+//                TODO("Not yet implemented")
+            }
+
+            override fun afterSuite(suite: TestDescriptor?, result: TestResult?) {
+//                TODO("Not yet implemented")
+            }
+
+            override fun beforeTest(testDescriptor: TestDescriptor?) {
+                println("Running test: $testDescriptor")
+            }
+
+            override fun afterTest(testDescriptor: TestDescriptor?, result: TestResult?) {
+//                TODO("Not yet implemented")
+            }
+        })
+        // apparently `testLotsOfProteins` needs also a lot of heap..
+        maxHeapSize = "1G"
+//        beforeTest { descriptor: TestDescriptor? ->
+//            logger.lifecycle("Running test: " + descriptor)
+//        }
+        filter { excludeTestsMatching("ExampleRunner") }
+    }
+    register("testMeAll", Test::class) {
+        filter {
+            includeTestsMatching("ExampleRunner")
+        }
     }
 }
 
