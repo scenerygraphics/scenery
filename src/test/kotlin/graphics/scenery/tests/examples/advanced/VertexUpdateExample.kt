@@ -3,11 +3,9 @@ package graphics.scenery.tests.examples.advanced
 import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
-import org.junit.Test
 import java.nio.FloatBuffer
 import java.util.*
 import kotlin.concurrent.thread
-import kotlin.concurrent.withLock
 
 /**
  * <Description>
@@ -119,7 +117,10 @@ class VertexUpdateExample : SceneryBase("VertexUpdateExample") {
         }
     }
 
-    @Test override fun main() {
-        super.main()
+    companion object {
+        @JvmStatic
+        fun main(args: Array<String>) {
+            VertexUpdateExample().main()
+        }
     }
 }

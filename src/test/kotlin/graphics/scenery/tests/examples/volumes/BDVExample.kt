@@ -12,7 +12,6 @@ import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.Volume
 import net.imagej.ops.OpService
 import net.imglib2.histogram.Histogram1d
-import org.junit.Test
 import org.scijava.Context
 import org.scijava.ui.UIService
 import org.scijava.ui.behaviour.ClickBehaviour
@@ -125,7 +124,10 @@ class BDVExample: SceneryBase("BDV Rendering example", 1280, 720) {
         inputHandler?.addKeyBinding("10_next_timepoint", "shift L")
     }
 
-    @Test override fun main() {
-        super.main()
+    companion object {
+        @JvmStatic
+        fun main(args: Array<String>) {
+            BDVExample().main()
+        }
     }
 }

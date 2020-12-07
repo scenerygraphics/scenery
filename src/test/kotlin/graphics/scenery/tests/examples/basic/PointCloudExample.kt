@@ -4,7 +4,6 @@ import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
-import org.junit.Test
 
 /**
  * Simple example to demonstrate the drawing of a 3D point cloud.
@@ -60,7 +59,10 @@ class PointCloudExample : SceneryBase("PointCloudExample") {
         setupCameraModeSwitching(keybinding = "C")
     }
 
-    @Test override fun main() {
-        super.main()
+    companion object {
+        @JvmStatic
+        fun main(args: Array<String>) {
+            PointCloudExample().main()
+        }
     }
 }

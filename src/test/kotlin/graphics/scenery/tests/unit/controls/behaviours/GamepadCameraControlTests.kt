@@ -16,7 +16,6 @@ import org.junit.Test
 import java.io.FileWriter
 import java.io.PrintWriter
 import java.util.zip.GZIPInputStream
-import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 
 /**
@@ -28,15 +27,12 @@ class GamepadCameraControlTests {
     private val logger by LazyLogger()
 
     private fun prepareGamepadCameraControl(scene: Scene) : GamepadCameraControl {
-        var hub: Hub = Hub()
+        val hub: Hub = Hub()
 
         val renderer = FauxRenderer(hub, scene)
         hub.add(renderer)
 
-        val window: SceneryWindow = renderer.window
-
-        val gamepadCameraControl = GamepadCameraControl("TestController", listOf(Component.Identifier.Axis.X, Component.Identifier.Axis.Y), { scene.findObserver() }, window.width, window.height)
-        return gamepadCameraControl
+        return GamepadCameraControl("TestController", listOf(Component.Identifier.Axis.X, Component.Identifier.Axis.Y)) { scene.findObserver() }
     }
 
     private fun prepareTestFile() {

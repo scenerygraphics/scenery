@@ -103,7 +103,8 @@ class VolumeManager(
 
     /** Set of [VolumeBlocks]. */
     protected var outOfCoreVolumes = ArrayList<VolumeBlocks>()
-    protected var nodes = CopyOnWriteArrayList<Volume>()
+    var nodes = CopyOnWriteArrayList<Volume>()
+        protected set
     protected var transferFunctionTextures = HashMap<SourceState<*>, Texture>()
     protected var colorMapTextures = HashMap<SourceState<*>, Texture>()
     /** Cache specification. */
@@ -164,8 +165,15 @@ class VolumeManager(
         progvol = prog.lastOrNull()
 
         if(progvol != null) {
-            updateProgram()
+            updateProgram(context)
         }
+
+        preDraw()
+    }
+
+    @Synchronized private fun recreateMaterial(context: SceneryContext) {
+        shaderProperties.clear()
+        material.textures.clear()
 
         material = ShaderMaterial(context.factory)
         material.cullingMode = Material.CullingMode.None
@@ -176,23 +184,30 @@ class VolumeManager(
         material.blending.destinationAlphaBlendFactor = Blending.BlendFactor.OneMinusSrcAlpha
         material.blending.colorBlending = Blending.BlendOp.add
         material.blending.alphaBlending = Blending.BlendOp.add
-
-        preDraw()
     }
 
-    private fun updateProgram() {
+    @Synchronized private fun updateProgram(context: SceneryContext) {
         logger.debug("Updating effective shader program to $progvol")
+        recreateMaterial(context)
+
         progvol?.setTextureCache(textureCache)
         progvol?.use(context)
         progvol?.setUniforms(context)
+//        progvol?.bindSamplers(context)
 
         getScene()?.activeObserver?.let { cam ->
             progvol?.setViewportWidth(cam.width)
             progvol?.setEffectiveViewportSize(cam.width, cam.height)
         }
+
+//        context.clearBindings()
+        renderStateUpdated = true
+
+        context.uniformSetter.modified = true
+        updateBlocks(context)
     }
 
-    private fun needAtLeastNumVolumes(n: Int) {
+    @Synchronized private fun needAtLeastNumVolumes(n: Int) {
         val outOfCoreVolumeCount = renderStacksStates.count { it.stack is MultiResolutionStack3D }
         val regularVolumeCount = renderStacksStates.count { it.stack is SimpleStack3D }
         logger.debug("$currentVolumeCount -> ooc:$outOfCoreVolumeCount reg:$regularVolumeCount")
@@ -277,23 +292,37 @@ class VolumeManager(
         logger.debug("Using program for $outOfCoreVolumeCount out-of-core volumes and $regularVolumeCount regular volumes")
         prog.add(newProgvol)
 
-        val oldKeys = this.material.textures.keys()
-            .asSequence()
-            .filter { it.endsWith("_") }
-        oldKeys.map {
-            this.material.textures.remove(it)
-        }
+//        context.clearBindings()
 
         currentVolumeCount = outOfCoreVolumeCount to regularVolumeCount
 
         if(prog.size > 0) {
             logger.debug("We have ${prog.size} shaders ready")
-            progvol = prog.last()
+            progvol = newProgvol//prog.last()
 
-            updateProgram()
+//            context.clearBindings()
+            context = SceneryContext(this, useCompute)
+            updateProgram(context)
             state = State.Ready
         } else {
             state = State.Created
+        }
+    }
+
+    private fun clearKeysAndTextures() {
+        val oldKeys = this.material.textures.keys()
+            .asSequence()
+            .filter { it.contains("_") }
+        logger.info("Removing texture keys ${oldKeys.joinToString(",")}")
+        oldKeys.map {
+            this.material.textures.remove(it)
+        }
+
+        val oldProps = this.shaderProperties.keys
+            .filter { it.contains("_x_") }
+        logger.info("Removing shader props ${oldProps.joinToString(",")}")
+        oldProps.map {
+            this.shaderProperties.remove(it)
         }
     }
 
@@ -471,16 +500,23 @@ class VolumeManager(
         val regularCount = renderStacksStates.count { it.stack is SimpleStack3D }
 
         val multiResMatch = material.textures.count { it.key.startsWith("volumeCache") } == 1
-            && material.textures.count { it.key.startsWith("lutSampler_") }  == multiResCount
-        val regularMatch = material.textures.count { it.key.startsWith("volume_") } == regularCount
+            && material.textures.count { it.key.startsWith("lutSampler_") }  >= multiResCount
+        val regularMatch = material.textures.count { it.key.startsWith("volume_") } >= regularCount
+        val counts = listOf("sourcemax", "offset", "scale", "im", ).map { key -> key to shaderProperties.keys.count { it.contains("${key}_x_") }}
 
-//        logger.info("ReadyToRender: $multiResCount->$multiResMatch/$regularCount->$regularMatch (${shaderProperties.keys.joinToString(",")})")
 //        if(multiResMatch && regularMatch) {
 //            state = State.Ready
 //        } else {
 //            state = State.
 //        }
-        return multiResMatch && regularMatch
+        val ready = multiResMatch && regularMatch && (regularCount > 0 || multiResCount > 0) && counts.all { it.second == multiResCount + regularCount }
+        if(!ready) {
+            logger.debug("ReadyToRender: $multiResCount->$multiResMatch/$regularCount->$regularMatch\n " +
+                " * ShaderProperties: ${shaderProperties.keys.joinToString(",")}\n " +
+                " * Textures: ${material.textures.keys.joinToString(",")}\n " +
+                " * Counts: ${counts.joinToString(",") { "${it.first}=${it.second}" }}")
+        }
+        return ready
     }
 
     internal class VolumeAndTasks(tasks: List<FillTask>, val volume: VolumeBlocks, val maxLevel: Int) {
@@ -612,6 +648,23 @@ class VolumeManager(
         needAtLeastNumVolumes(renderStacksStates.size)
     }
 
+    @Synchronized fun remove(node: Volume) {
+        logger.debug("Removing $node to OOC nodes")
+        node.delegate = null
+        nodes.remove(node)
+
+        val volumes = nodes.toMutableList()
+        hub?.get<VolumeManager>()?.let { hub?.remove(it) }
+
+        val vm = VolumeManager(hub, useCompute)
+        volumes.forEach {
+            vm.add(it)
+            it.delegate = vm
+        }
+
+        hub?.add(vm)
+    }
+
     protected val updated = HashSet<Volume>()
     /**
      * Notifies the [VolumeManager] of any updates coming from [node],
@@ -652,6 +705,7 @@ class VolumeManager(
         }
 
         context.clearLUTs()
+        renderStateUpdated = true
     }
 
     /** Companion object for Volume */

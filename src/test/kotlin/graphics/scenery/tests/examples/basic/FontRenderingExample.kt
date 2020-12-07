@@ -4,7 +4,6 @@ import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import org.joml.Vector4f
-import org.junit.Test
 import kotlin.concurrent.thread
 
 /**
@@ -62,7 +61,10 @@ class FontRenderingExample: SceneryBase("FontRenderingExample", windowWidth = 12
         }
     }
 
-    @Test override fun main() {
-        super.main()
+    companion object {
+        @JvmStatic
+        fun main(args: Array<String>) {
+            FontRenderingExample().main()
+        }
     }
 }

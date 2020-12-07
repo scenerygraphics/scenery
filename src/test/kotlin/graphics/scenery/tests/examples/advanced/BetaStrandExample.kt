@@ -1,23 +1,17 @@
 package graphics.scenery.tests.examples.advanced
 
-import graphics.scenery.UniformBSpline
-import cleargl.GLVector
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
-import graphics.scenery.Curve
 import org.joml.Vector3f
 
-import org.junit.Test
-import java.util.*
-import kotlin.collections.ArrayList
-
 /**
- * Just a quick example of the UniformBSpline with a triangle as a baseShape.
+ * Example of a beta strand visualized with an arrow.
  *
- * @author Justin Bürger
+ * @author  Justin Buerger <burger@mpi-cbg.de>
  */
-class CurveUniformBSplineExample: SceneryBase("CurveUniformBSplineExample", windowWidth = 1280, windowHeight = 720) {
+class BetaStrandExample: SceneryBase("BetaStrandExample", windowWidth = 1280, windowHeight = 720) {
+
 
     override fun init() {
 
@@ -35,16 +29,34 @@ class CurveUniformBSplineExample: SceneryBase("CurveUniformBSplineExample", wind
         points.add(Vector3f(0f, 0f, 0f))
         points.add(Vector3f(2f, 1f, 0f))
 
-        fun triangle(): ArrayList<Vector3f> {
-            val list = ArrayList<Vector3f>()
-            list.add(Vector3f(0.3f, 0.3f, 0f))
-            list.add(Vector3f(0.3f, -0.3f, 0f))
-            list.add(Vector3f(-0.3f, -0.3f, 0f))
-            return list
+        fun betaStrand(splineVerticesCount: Int): ArrayList<ArrayList<Vector3f>> {
+            val shapeList = ArrayList<ArrayList<Vector3f>>(splineVerticesCount)
+            val seventyeightPercent = (splineVerticesCount*0.78).toInt()
+            for (i in 0 until seventyeightPercent) {
+                val list = ArrayList<Vector3f>()
+                list.add(Vector3f(0.08f, 0.3f, 0f))
+                list.add(Vector3f(-0.08f, 0.3f, 0f))
+                list.add(Vector3f(-0.08f, -0.3f, 0f))
+                list.add(Vector3f(0.08f, -0.3f, 0f))
+                shapeList.add(list)
+            }
+            val twentytwoPercent = splineVerticesCount-seventyeightPercent
+            for(i in twentytwoPercent downTo 1) {
+                val y = 0.65f*i/twentytwoPercent
+                val x = 0.08f
+                val arrowHeadList = ArrayList<Vector3f>(twentytwoPercent)
+                arrowHeadList.add(Vector3f(x, y, 0f))
+                arrowHeadList.add(Vector3f(-x, y, 0f))
+                arrowHeadList.add(Vector3f(-x, -y, 0f))
+                arrowHeadList.add(Vector3f(x, -y, 0f))
+                shapeList.add(arrowHeadList)
+            }
+            return shapeList
         }
 
-        val bSpline = UniformBSpline(points)
-        val geo = Curve(bSpline) { triangle() }
+        val catmullRom = CatmullRomSpline(points, 30)
+        val splineSize = catmullRom.splinePoints().size
+        val geo = Curve(catmullRom) { betaStrand(splineSize) }
 
         scene.addChild(geo)
 
@@ -58,13 +70,14 @@ class CurveUniformBSplineExample: SceneryBase("CurveUniformBSplineExample", wind
         val lights = (0 until 8).map {
             val l = PointLight(radius = 20.0f)
             l.position = Vector3f(
-                Random.randomFromRange(-rowSize / 2.0f, rowSize / 2.0f),
-                Random.randomFromRange(-rowSize / 2.0f, rowSize / 2.0f),
-                Random.randomFromRange(1.0f, 5.0f)
+                    Random.randomFromRange(-rowSize / 2.0f, rowSize / 2.0f),
+                    Random.randomFromRange(-rowSize / 2.0f, rowSize / 2.0f),
+                    Random.randomFromRange(1.0f, 5.0f)
             )
             l.emissionColor = Random.random3DVectorFromRange(0.2f, 0.8f)
             l.intensity = Random.randomFromRange(0.2f, 0.8f)
 
+            lightbox.addChild(l)
             l
         }
 
@@ -82,13 +95,9 @@ class CurveUniformBSplineExample: SceneryBase("CurveUniformBSplineExample", wind
         cameraLight.intensity = 0.8f
 
         val cam: Camera = DetachedHeadCamera()
-        with(cam) {
-            position = Vector3f(0.0f, 0.2f, 12.0f)
-            perspectiveCamera(25.0f, windowWidth, windowHeight)
-
-            scene.addChild(this)
-        }
-
+        cam.position = Vector3f(0.0f, 0.0f, 15.0f)
+        cam.perspectiveCamera(50.0f, windowWidth, windowHeight)
+        scene.addChild(cam)
         cam.addChild(cameraLight)
 
     }
@@ -98,9 +107,10 @@ class CurveUniformBSplineExample: SceneryBase("CurveUniformBSplineExample", wind
         setupCameraModeSwitching()
     }
 
-    @Test
-    override fun main() {
-        super.main()
+    companion object {
+        @JvmStatic
+        fun main(args: Array<String>) {
+            BetaStrandExample().main()
+        }
     }
 }
-
