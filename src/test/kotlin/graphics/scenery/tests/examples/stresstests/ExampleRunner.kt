@@ -44,7 +44,7 @@ class ExampleRunner {
         val blocklist = mutableListOf(
             "LocalisationExample",
             "SwingTexturedCubeExample",
-            "TexturedCubeJavaApplication",
+            "TexturedCubeJavaExample",
             "XwingLiverExample",
             "VRControllerExample",
             "EyeTrackingExample",
