@@ -5,7 +5,7 @@ cache:
     - pdb-cache/
  
 variables:
-  MAVEN_OPTS: "-Dmaven.repo.local=maven.repository -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=WARN -Xmx4g -Dorg.lwjgl.util.Debug=true -Dorg.lwjgl.util.DebugLoader=true"
+  MAVEN_OPTS: "-Dmaven.repo.local=maven.repository -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=WARN -Xmx4g"
   JAVA_HOME: "/usr/lib/jvm/java-8-openjdk-amd64"
   PDB_CACHE_DIR: "./pdb-store/cache"
   PDB_DIR: "./pdb-store"
@@ -16,8 +16,9 @@ unit-tests-no-gpu:
   before_script:
     - mkdir -p ./pdb-store/cache
     - apt-get update -qq --force-yes > /dev/null
-    - apt-get install -qq -y --allow-downgrades --allow-remove-essential --allow-change-held-packages unzip wget git maven openjdk-8-jdk-headless curl libgl1-mesa-glx > /dev/null
+    - apt-get install -qq -y --allow-downgrades --allow-remove-essential --allow-change-held-packages unzip wget git maven openjdk-8-jdk-headless curl libgl1-mesa-glx sudo sed > /dev/null
     - if [ -d "$DIRECTORY" ]; then wget -q https://ulrik.is/scenery-demo-models.zip && unzip -q scenery-demo-models.zip; fi
+    - sudo sed -i -e '/^assistive_technologies=/s/^/#/' /etc/java-*-openjdk/accessibility.properties
   script:
     - mvn -B package test
 
