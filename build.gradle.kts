@@ -1,12 +1,18 @@
+import org.gradle.kotlin.dsl.implementation
+import org.gradle.kotlin.dsl.runtimeOnly
+import org.gradle.kotlin.dsl.testImplementation
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import scenery.*
 
 plugins {
     java
     kotlin("jvm") version "1.4.10"
-    publish
+    scenery.publish
     id("org.jetbrains.dokka") version "1.4.10" //    id("com.github.johnrengelman.shadow") version "6.0.0"
     //    idea
 }
+
+val ktVersion ="1.4.10"
 
 repositories {
     mavenCentral()
@@ -63,11 +69,20 @@ dependencies {
     implementation("org.reflections:reflections:0.9.12")
     implementation("io.github.classgraph:classgraph:4.8.86")
     implementation("sc.fiji:bigvolumeviewer:0.1.8")
-//    implementation("org.lwjglx:lwjgl3-awt:0.1.7")
+    //    implementation("org.lwjglx:lwjgl3-awt:0.1.7")
     implementation("com.github.LWJGLX:lwjgl3-awt:cfd741a6")
     sci("org.janelia.saalfeldlab:n5")
     sci("org.janelia.saalfeldlab:n5-imglib2")
-//    implementation("com.github.kotlin-graphics:assimp:25c68811")
+    listOf("core", "structure", "modfinder").forEach {
+        sci("org.biojava:biojava-$it:5.3.0") {
+            exclude("org.slf4j", "slf4j-api")
+            exclude("org.slf4j", "slf4j-simple")
+            exclude("org.apache.logging.log4j", "log4j-slf4j-impl")
+        }
+    }
+    implementation("org.jetbrains.kotlin:kotlin-scripting-jsr223:${ktVersion}")
+    implementation("org.jetbrains.kotlin:kotlin-test:${ktVersion}")
+    //    implementation("com.github.kotlin-graphics:assimp:25c68811")
 
     testSci("junit:junit")
     testSci("org.slf4j:slf4j-simple")
