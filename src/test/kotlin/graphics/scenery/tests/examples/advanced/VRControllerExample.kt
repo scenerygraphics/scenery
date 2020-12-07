@@ -6,7 +6,6 @@ import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.numerics.Random
-import org.junit.Test
 import kotlin.concurrent.thread
 
 /**
@@ -79,8 +78,11 @@ class VRControllerExample : SceneryBase(VRControllerExample::class.java.simpleNa
         }
     }
 
-    @Test override fun main() {
-        super.main()
+    companion object {
+        @JvmStatic
+        fun main(args: Array<String>) {
+            VRControllerExample().main()
+        }
     }
 
 }

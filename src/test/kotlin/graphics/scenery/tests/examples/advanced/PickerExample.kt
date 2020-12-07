@@ -6,7 +6,6 @@ import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.behaviours.SelectCommand
 import graphics.scenery.numerics.Random
 import graphics.scenery.utils.extensions.plus
-import org.junit.Test
 import kotlin.concurrent.thread
 
 /**
@@ -67,7 +66,10 @@ class PickerExample: SceneryBase("PickerExample", wantREPL = true) {
         }
     }
 
-    @Test override fun main() {
-        super.main()
+    companion object {
+        @JvmStatic
+        fun main(args: Array<String>) {
+            PickerExample().main()
+        }
     }
 }

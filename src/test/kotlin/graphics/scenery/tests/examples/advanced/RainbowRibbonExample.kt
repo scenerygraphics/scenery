@@ -6,7 +6,6 @@ import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
 import graphics.scenery.Protein
 import graphics.scenery.RibbonDiagram
-import org.junit.Test
 
 /**
  * This is an example for the default visualization of a ribbon diagram. There is a color vector implemented so that
@@ -77,8 +76,10 @@ class RainbowRibbonExample: SceneryBase("RainbowRibbon", windowWidth = 1280, win
         setupCameraModeSwitching()
     }
 
-    @Test
-    override fun main() {
-        super.main()
+    companion object {
+        @JvmStatic
+        fun main(args: Array<String>) {
+            RainbowRibbonExample().main()
+        }
     }
 }

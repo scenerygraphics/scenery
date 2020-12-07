@@ -6,7 +6,6 @@ import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
 import graphics.scenery.utils.extensions.minus
-import org.junit.Test
 import kotlin.concurrent.thread
 import kotlin.math.floor
 
@@ -100,7 +99,10 @@ class CycleRenderQualityExample: SceneryBase("CycleRenderQualityExample", window
         setupCameraModeSwitching()
     }
 
-    @Test override fun main() {
-        super.main()
+    companion object {
+        @JvmStatic
+        fun main(args: Array<String>) {
+            CycleRenderQualityExample().main()
+        }
     }
 }

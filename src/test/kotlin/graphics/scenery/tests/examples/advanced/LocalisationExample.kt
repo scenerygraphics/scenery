@@ -5,7 +5,6 @@ import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.TrackedStereoGlasses
 import graphics.scenery.numerics.Random
-import org.junit.Test
 import org.scijava.Context
 import org.scijava.ui.UIService
 import org.scijava.widget.FileWidget
@@ -80,7 +79,10 @@ class LocalisationExample : SceneryBase("Localisation Microscopy Rendering examp
         setupCameraModeSwitching()
     }
 
-    @Test override fun main() {
-        super.main()
+    companion object {
+        @JvmStatic
+        fun main(args: Array<String>) {
+            LocalisationExample().main()
+        }
     }
 }
