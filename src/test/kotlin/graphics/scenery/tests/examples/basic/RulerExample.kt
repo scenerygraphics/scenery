@@ -4,7 +4,6 @@ import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.Ruler
 import org.joml.Vector3f
-import org.junit.Test
 
 /**
  * Sketch that shows how the ruler works. Run, press R (and hold it) then you can create a line on a Mouse-click, and
@@ -42,9 +41,11 @@ class RulerExample: SceneryBase("RulerSketch", wantREPL = true) {
         inputHandler?.addKeyBinding("ruler", "R")
     }
 
-    @Test
-    override fun main() {
-        super.main()
+    companion object {
+        @JvmStatic
+        fun main(args: Array<String>) {
+            RulerExample().main()
+        }
     }
 }
 

@@ -3,7 +3,6 @@ package graphics.scenery.tests.examples.basic
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import org.joml.Vector3f
-import org.junit.Test
 
 /**
  * Sketch for Node-Creation on-click. Press R to create a node at your mouse position.
@@ -45,8 +44,10 @@ class MeshAddingExample: SceneryBase("CreationSketch", wantREPL = true) {
         }
     }
 
-    @Test
-    override fun main() {
-        super.main()
+    companion object {
+        @JvmStatic
+        fun main(args: Array<String>) {
+            MeshAddingExample().main()
+        }
     }
 }

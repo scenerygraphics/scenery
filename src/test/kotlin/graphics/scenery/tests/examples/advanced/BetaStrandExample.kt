@@ -4,7 +4,6 @@ import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
 import org.joml.Vector3f
-import org.junit.Test
 
 /**
  * Example of a beta strand visualized with an arrow.
@@ -108,8 +107,10 @@ class BetaStrandExample: SceneryBase("BetaStrandExample", windowWidth = 1280, wi
         setupCameraModeSwitching()
     }
 
-    @Test
-    override fun main() {
-        super.main()
+    companion object {
+        @JvmStatic
+        fun main(args: Array<String>) {
+            BetaStrandExample().main()
+        }
     }
 }

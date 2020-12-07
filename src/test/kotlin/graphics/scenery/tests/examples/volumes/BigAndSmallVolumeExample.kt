@@ -7,7 +7,6 @@ import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
 import graphics.scenery.utils.RingBuffer
 import graphics.scenery.volumes.Volume
-import org.junit.Test
 import org.lwjgl.system.MemoryUtil
 import org.scijava.Context
 import org.scijava.ui.UIService
@@ -126,7 +125,10 @@ class BigAndSmallVolumeExample: SceneryBase("BDV + SDV Rendering example", 1280,
         inputHandler?.addKeyBinding("10_next_timepoint", "shift L")
     }
 
-    @Test override fun main() {
-        super.main()
+    companion object {
+        @JvmStatic
+        fun main(args: Array<String>) {
+            BigAndSmallVolumeExample().main()
+        }
     }
 }

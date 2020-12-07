@@ -4,7 +4,6 @@ import org.joml.*
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
-import org.junit.Test
 
 /**
  * Example for the ribbon visualization. In this example each secondary structure (bends, helices and sheets) gets
@@ -111,8 +110,10 @@ class RibbonExampleSecondaryStructures: SceneryBase("FlatRibbonSketch", windowWi
         setupCameraModeSwitching()
     }
 
-    @Test
-    override fun main() {
-        super.main()
+    companion object {
+        @JvmStatic
+        fun main(args: Array<String>) {
+            RibbonExampleSecondaryStructures().main()
+        }
     }
 }

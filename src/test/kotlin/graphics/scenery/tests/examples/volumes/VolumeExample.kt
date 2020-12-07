@@ -7,8 +7,6 @@ import graphics.scenery.volumes.Colormap
 import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.Volume
 import org.joml.Vector3f
-import org.junit.Test
-import java.nio.file.Path
 import java.nio.file.Paths
 import kotlin.concurrent.thread
 
@@ -75,7 +73,10 @@ class VolumeExample: SceneryBase("Volume Rendering example", 1280, 720) {
         setupCameraModeSwitching()
     }
 
-    @Test override fun main() {
-        super.main()
+    companion object {
+        @JvmStatic
+        fun main(args: Array<String>) {
+            VolumeExample().main()
+        }
     }
 }

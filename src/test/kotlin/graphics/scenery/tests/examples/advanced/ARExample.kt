@@ -10,10 +10,8 @@ import graphics.scenery.utils.extensions.plus
 import graphics.scenery.volumes.Colormap
 import graphics.scenery.volumes.Volume
 import net.imglib2.type.numeric.integer.UnsignedShortType
-import org.junit.Test
 import org.lwjgl.system.MemoryUtil.memAlloc
 import java.nio.ByteBuffer
-import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.concurrent.thread
 
 /**
@@ -93,7 +91,10 @@ class ARExample: SceneryBase("AR Volume Rendering example", 1280, 720) {
         setupCameraModeSwitching()
     }
 
-    @Test override fun main() {
-        super.main()
+    companion object {
+        @JvmStatic
+        fun main(args: Array<String>) {
+            ARExample().main()
+        }
     }
 }

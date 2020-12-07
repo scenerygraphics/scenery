@@ -6,7 +6,6 @@ import graphics.scenery.backends.Renderer
 import graphics.scenery.textures.Texture
 import net.imglib2.type.numeric.integer.UnsignedByteType
 import org.joml.Vector3i
-import org.junit.Test
 import java.nio.ByteBuffer
 import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
@@ -110,8 +109,11 @@ class ProceduralTextureExample : SceneryBase("ProceduralTextureExample") {
         }
     }
 
-    @Test override fun main() {
-        super.main()
+    companion object {
+        @JvmStatic
+        fun main(args: Array<String>) {
+            ProceduralTextureExample().main()
+        }
     }
 }
 

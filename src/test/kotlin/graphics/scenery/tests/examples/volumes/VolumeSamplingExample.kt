@@ -12,7 +12,6 @@ import graphics.scenery.utils.extensions.times
 import graphics.scenery.volumes.Colormap
 import graphics.scenery.volumes.Volume
 import net.imglib2.type.numeric.integer.UnsignedByteType
-import org.junit.Test
 import org.lwjgl.system.MemoryUtil.memAlloc
 import org.scijava.Context
 import org.scijava.ui.UIService
@@ -266,7 +265,10 @@ class VolumeSamplingExample: SceneryBase("Volume Sampling example", 1280, 720) {
         inputHandler?.addKeyBinding("toggle_playing", "G")
     }
 
-    @Test override fun main() {
-        super.main()
+    companion object {
+        @JvmStatic
+        fun main(args: Array<String>) {
+            VolumeSamplingExample().main()
+        }
     }
 }

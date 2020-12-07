@@ -11,7 +11,6 @@ import ij.ImagePlus
 import net.imglib2.img.Img
 import net.imglib2.img.display.imagej.ImageJFunctions
 import net.imglib2.type.numeric.integer.UnsignedShortType
-import org.junit.Test
 import tpietzsch.example2.VolumeViewerOptions
 
 /**
@@ -60,7 +59,10 @@ class RAIExample: SceneryBase("RAI Rendering example", 1280, 720) {
         setupCameraModeSwitching()
     }
 
-    @Test override fun main() {
-        super.main()
+    companion object {
+        @JvmStatic
+        fun main(args: Array<String>) {
+            RAIExample().main()
+        }
     }
 }
