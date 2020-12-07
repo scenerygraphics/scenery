@@ -23,6 +23,7 @@ import net.imglib2.type.numeric.real.DoubleType
 import net.imglib2.type.numeric.real.FloatType
 import org.joml.*
 import org.lwjgl.system.MemoryUtil
+import org.lwjgl.system.Platform
 import java.awt.BorderLayout
 import java.awt.Dimension
 import java.awt.image.DataBufferInt
@@ -812,7 +813,8 @@ open class OpenGLRenderer(hub: Hub,
             logger.info("Recreating framebuffers (${window.width}x${window.height})")
 
             // FIXME: This needs to be done here in order to be able to run on HiDPI screens correctly
-            if(embedIn != null) {
+            // FIXME: On macOS, this _must_ not be called, otherwise JOGL bails out, on Windows, it needs to be called.
+            if(embedIn != null && Platform.get() != Platform.MACOSX) {
                 cglWindow?.newtCanvasAWT?.setBounds(0, 0, window.width, window.height)
             }
 
@@ -1135,6 +1137,8 @@ open class OpenGLRenderer(hub: Hub,
                 logger.warn("Matrices UBO for ${node.name} does not exist or does not have a backing buffer")
                 return@forEach
             }
+
+            preDrawAndUpdateGeometryForNode(node)
 
             var bufferOffset = ubo.advanceBackingBuffer()
             ubo.offset = bufferOffset
@@ -1642,7 +1646,7 @@ open class OpenGLRenderer(hub: Hub,
 //        }
         if(pushMode && !ubosUpdated && !sceneUpdated && !screenshotRequested && !recordMovie && !instancesUpdated) {
             if(updateLatch == null) {
-                updateLatch = CountDownLatch(2)
+                updateLatch = CountDownLatch(4)
             }
 
             logger.trace("UBOs have not been updated, returning ({})", updateLatch?.count)
@@ -1769,10 +1773,12 @@ open class OpenGLRenderer(hub: Hub,
                 }
 
                 val actualObjects = if(pass.passConfig.type == RenderConfigReader.RenderpassType.geometry) {
-                    sceneObjects.filter { it !is Light }
+                    sceneObjects.filter { it !is Light }.toMutableList()
                 } else {
-                    sceneObjects.filter { it is Light }
+                    sceneObjects.filter { it is Light }.toMutableList()
                 }
+
+                actualObjects.sortBy { (it as? RenderingOrder)?.renderingOrder }
 
                 var currentShader: OpenGLShaderProgram? = null
 
@@ -1852,7 +1858,6 @@ open class OpenGLRenderer(hub: Hub,
 
                     val s = getOpenGLObjectStateFromNode(n)
 
-                    preDrawAndUpdateGeometryForNode(n)
 
                     val shader = s.shader ?: pass.defaultShader!!
 

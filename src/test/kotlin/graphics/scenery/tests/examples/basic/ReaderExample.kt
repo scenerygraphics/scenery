@@ -10,7 +10,6 @@ import graphics.scenery.controls.behaviours.ControllerDrag
 import graphics.scenery.numerics.Random
 import graphics.scenery.utils.extensions.times
 import graphics.scenery.volumes.Volume
-import org.junit.Test
 import org.scijava.Context
 import org.scijava.ui.UIService
 import org.scijava.ui.behaviour.ClickBehaviour
@@ -255,7 +254,10 @@ class ReaderExample : SceneryBase("ReaderExample", 1280, 720) {
         loadedFilename = file.toFile().absolutePath
     }
 
-    @Test override fun main() {
-        super.main()
+    companion object {
+        @JvmStatic
+        fun main(args: Array<String>) {
+            ReaderExample().main()
+        }
     }
 }

@@ -5,7 +5,6 @@ import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.compute.EdgeBundler
 import graphics.scenery.numerics.Random
-import org.junit.Test
 import kotlin.concurrent.thread
 import kotlin.math.PI
 import kotlin.math.cos
@@ -82,7 +81,10 @@ class EdgeBundlerExample : SceneryBase("EdgeBundlerExample") {
         }
     }
 
-    @Test override fun main() {
-        super.main()
+    companion object {
+        @JvmStatic
+        fun main(args: Array<String>) {
+            EdgeBundlerExample().main()
+        }
     }
 }

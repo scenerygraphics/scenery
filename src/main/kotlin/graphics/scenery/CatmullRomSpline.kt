@@ -1,5 +1,6 @@
 package graphics.scenery
 
+import graphics.scenery.numerics.Random
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
 import org.joml.Vector3f
@@ -14,8 +15,11 @@ import kotlin.math.pow
  * [alpha] determines the kind of Catmull Rom Spline, set in range of 0..1, the
  * resulting curve for alpha = 0 is a standart Catmull Rom Spline, for alpha = 1 we get
  * a chordal Catmull Rom Spline.
+ *
+ * @author  Justin Buerger <burger@mpi-cbg.de>
  */
-class CatmullRomSpline(protected val controlPoints: List<Vector3f>, val n: Int = 100, val alpha: Float = 0.5f): Spline {
+class CatmullRomSpline(private val controlPoints: List<Vector3f>, private val n: Int = 100, private val alpha: Float = 0.5f,
+                       private val addRandomLastAndFirstPoint: Boolean = false): Spline {
 
     /**
      * Calculates the parameter t; t is an intermediate product for the calculation of the spline
@@ -23,7 +27,7 @@ class CatmullRomSpline(protected val controlPoints: List<Vector3f>, val n: Int =
     private fun getT(ti: Float, Pi: Vector3f, Pj: Vector3f): Float {
         val exp: Float = (alpha*0.5).toFloat()
         return(((Pj.x()-Pi.x()).pow(2) + (Pj.y()-Pi.y()).pow(2)
-            + (Pj.z()-Pi.z()).pow(2)).pow(exp) + ti)
+                + (Pj.z()-Pi.z()).pow(2)).pow(exp) + ti)
     }
 
     /*
@@ -31,7 +35,7 @@ class CatmullRomSpline(protected val controlPoints: List<Vector3f>, val n: Int =
      * to have a smooth curve.
      * [n] is the number of points between the segments
      */
-    private fun CatmulRomSpline(p0: Vector3f, p1: Vector3f, p2: Vector3f, p3: Vector3f, n: Int = 100): List<Vector3f> {
+    private fun catmullRomSpline(p0: Vector3f, p1: Vector3f, p2: Vector3f, p3: Vector3f, n: Int = 100): List<Vector3f> {
 
         val curvePoints = ArrayList<Vector3f>(n+1)
 
@@ -58,7 +62,7 @@ class CatmullRomSpline(protected val controlPoints: List<Vector3f>, val n: Int =
             }
             else {
                 throw IllegalArgumentException("The intermediate products of the calculations must not be equal!" +
-                    "Otherwise we devide by zero.")
+                        "Otherwise we devide by zero.")
             }
         }
 
@@ -70,17 +74,38 @@ class CatmullRomSpline(protected val controlPoints: List<Vector3f>, val n: Int =
      * [n] number of points the curve has
      */
     override fun splinePoints(): ArrayList<Vector3f> {
+        if(addRandomLastAndFirstPoint) {
+            val firstPoint = controlPoints.first().randomFromVector()
+            val lastPoint = controlPoints.last().randomFromVector()
+            controlPoints[0].add(firstPoint)
+            controlPoints[controlPoints.lastIndex].add(lastPoint)
+        }
         val chainPoints = ArrayList<Vector3f>(controlPoints.size*(n+1))
         controlPoints.dropLast(3).forEachIndexed {  index, _ ->
-            val c = CatmulRomSpline(controlPoints[index], controlPoints[index+1],
-                controlPoints[index+2], controlPoints[index+3], n)
+            val c = catmullRomSpline(controlPoints[index], controlPoints[index+1],
+                    controlPoints[index+2], controlPoints[index+3], n)
             chainPoints.addAll(c)
         }
         return chainPoints
     }
 
+    /**
+     * Extension Function to make Dummy Points not too far away from the original points - the spline
+     * doesn't include the first and the last controlpoint.
+     */
+    private fun Vector3f.randomFromVector(): Vector3f {
+        val distance = controlPoints.first().distance(controlPoints[1])/10
+        return Vector3f(Random.randomFromRange(this.x() - distance, this.x() + distance),
+                Random.randomFromRange(this.y() - distance, this.y() + distance),
+                Random.randomFromRange(this.z() - distance, this.z() + distance))
+    }
+
     override fun controlPoints(): List<Vector3f> {
         return controlPoints
+    }
+
+    override fun verticesCountPerSection(): Int {
+        return n
     }
 
 }

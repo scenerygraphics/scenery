@@ -61,7 +61,7 @@ open class SceneryContext(val node: VolumeManager, val useCompute: Boolean = fal
      * Uniform setter class
      */
     inner class SceneryUniformSetter: SetUniforms {
-        private var modified: Boolean = false
+        var modified: Boolean = false
         override fun shouldSet(modified: Boolean): Boolean = modified
 
         /**
@@ -300,11 +300,11 @@ open class SceneryContext(val node: VolumeManager, val useCompute: Boolean = fal
         }
 
         if (texture is TextureCache) {
-            if(currentlyBoundCache != null && node.material.textures.get("volumeCache") == currentlyBoundCache && dimensionsMatch(texture, node.material.textures["volumeCache"])) {
+            if(currentlyBoundCache != null && node.material.textures["volumeCache"] == currentlyBoundCache && dimensionsMatch(texture, node.material.textures["volumeCache"])) {
                 return 0
             }
 
-            logger.warn("Binding and updating cache $texture")
+//            logger.warn("Binding and updating cache $texture")
             val gt = UpdatableTexture(
                 Vector3i(texture.texWidth(), texture.texHeight(), texture.texDepth()),
                 channels,
@@ -382,7 +382,7 @@ open class SceneryContext(val node: VolumeManager, val useCompute: Boolean = fal
         val removals = ArrayList<BVVTexture>(deferredBindings.size)
 
         logger.debug("Running deferred bindings, got ${deferredBindings.size}")
-        deferredBindings.forEach { texture, func ->
+        deferredBindings.forEach { (texture, func) ->
             val binding = bindings[texture]
             val samplerName = binding?.uniformName
             if(binding != null && samplerName != null) {
@@ -396,13 +396,24 @@ open class SceneryContext(val node: VolumeManager, val useCompute: Boolean = fal
         }
 
         removals.forEach { deferredBindings.remove(it) }
+//        val currentBindings = bindings.values.mapNotNull { it.uniformName }
+//        logger.info("Current bindings are: ${currentBindings.joinToString(",")}")
+//        val missingKeys = node.material.textures.filterKeys { it !in currentBindings }
+//        missingKeys.forEach { (k, _) -> if(k.contains("_x_")) node.material.textures.remove(k) }
     }
 
     @Suppress("unused")
-    fun clearBindings() {
+    fun clearCacheBindings() {
         val caches = bindings.filter { it is TextureCache }
         caches.map { bindings.remove(it.key) }
         currentlyBoundCache = null
+    }
+
+    fun clearBindings() {
+        currentlyBoundTextures.clear()
+        deferredBindings.clear()
+        bindings.clear()
+        cachedUpdates.clear()
     }
 
     /**
@@ -410,7 +421,7 @@ open class SceneryContext(val node: VolumeManager, val useCompute: Boolean = fal
      * @param unit texture unit to bind to
      */
     override fun bindTexture(texture: BVVTexture?, unit: Int) {
-        logger.debug("Binding $texture to $unit")
+        logger.debug("Binding $texture to unit $unit")
         if(texture != null) {
             val binding = bindings[texture]
             if(binding != null) {
@@ -514,7 +525,11 @@ open class SceneryContext(val node: VolumeManager, val useCompute: Boolean = fal
                 }
                 updates.clear()
             } else {
-                logger.error("Don't know how to update $t/$texture/$name")
+                if(t is TextureCache) {
+                    logger.debug("Don't know how to update $t/$texture/$name")
+                } else {
+                    logger.error("Don't know how to update $t/$texture/$name")
+                }
             }
         }
     }
@@ -565,7 +580,7 @@ open class SceneryContext(val node: VolumeManager, val useCompute: Boolean = fal
 //            return
 //        }
 
-        logger.info("Updating 3D texture via Texture3D, hash took  from {}: dx={} dy={} dz={} w={} h={} d={}",
+        logger.debug("Updating 3D texture via Texture3D, hash took  from {}: dx={} dy={} dz={} w={} h={} d={}",
             texture,
             xoffset, yoffset, zoffset,
             width, height, depth

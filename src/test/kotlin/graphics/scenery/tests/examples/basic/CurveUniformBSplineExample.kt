@@ -1,19 +1,16 @@
-package graphics.scenery.tests.examples.advanced
+package graphics.scenery.tests.examples.basic
 
+import org.joml.*
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
-import graphics.scenery.CatmullRomSpline
-import org.joml.Vector3f
-
-import org.junit.Test
 
 /**
- * Just a quick example of a CatmullRomSpline with a triangle as a baseShape.
+ * Just a quick example a UniformBSpline with a triangle as a baseShape.
  *
- * @author Justin Bürger
+ * @author  Justin Buerger <burger@mpi-cbg.de>
  */
-class CurveCatmullRomExample: SceneryBase("CurveCatmullRomExample", windowWidth = 1280, windowHeight = 720) {
+class CurveUniformBSplineExample: SceneryBase("CurveUniformBSplineExample", windowWidth = 1280, windowHeight = 720) {
 
     override fun init() {
 
@@ -31,16 +28,21 @@ class CurveCatmullRomExample: SceneryBase("CurveCatmullRomExample", windowWidth 
         points.add(Vector3f(0f, 0f, 0f))
         points.add(Vector3f(2f, 1f, 0f))
 
-        fun triangle(): ArrayList<Vector3f> {
-            val list = ArrayList<Vector3f>()
-            list.add(Vector3f(0.3f, 0.3f, 0f))
-            list.add(Vector3f(0.3f, -0.3f, 0f))
-            list.add(Vector3f(-0.3f, -0.3f, 0f))
-            return list
+        fun triangle(splineVerticesCount: Int): ArrayList<ArrayList<Vector3f>> {
+            val shapeList = ArrayList<ArrayList<Vector3f>>(splineVerticesCount)
+            for (i in 0 until splineVerticesCount) {
+                val list = ArrayList<Vector3f>()
+                list.add(Vector3f(0.15f, 0.15f, 0f))
+                list.add(Vector3f(0.15f, -0.15f, 0f))
+                list.add(Vector3f(-0.15f, -0.15f, 0f))
+                shapeList.add(list)
+            }
+            return shapeList
         }
 
-        val catmullRom = CatmullRomSpline(points)
-        val geo = Curve(catmullRom) { triangle() }
+        val bSpline = UniformBSpline(points)
+        val splineSize = bSpline.splinePoints().size
+        val geo = Curve(bSpline) { triangle(splineSize) }
 
         scene.addChild(geo)
 
@@ -58,13 +60,13 @@ class CurveCatmullRomExample: SceneryBase("CurveCatmullRomExample", windowWidth 
                     Random.randomFromRange(-rowSize / 2.0f, rowSize / 2.0f),
                     Random.randomFromRange(1.0f, 5.0f)
             )
-            l.emissionColor = Random.random3DVectorFromRange(0.2f, 0.8f)
+            l.emissionColor = Random.random3DVectorFromRange( 0.2f, 0.8f)
             l.intensity = Random.randomFromRange(0.2f, 0.8f)
 
+            lightbox.addChild(l)
             l
         }
-
-        lights.forEach { lightbox.addChild(it) }
+        lights.forEach { scene.addChild(it) }
 
         val stageLight = PointLight(radius = 10.0f)
         stageLight.name = "StageLight"
@@ -78,12 +80,9 @@ class CurveCatmullRomExample: SceneryBase("CurveCatmullRomExample", windowWidth 
         cameraLight.intensity = 0.8f
 
         val cam: Camera = DetachedHeadCamera()
-        with(cam) {
-            position = Vector3f(0.0f, 0.2f, 12.0f)
-            perspectiveCamera(25.0f, windowWidth, windowHeight)
-
-            scene.addChild(this)
-        }
+        cam.position = Vector3f(0.0f, 0.0f, 15.0f)
+        cam.perspectiveCamera(50.0f, windowWidth, windowHeight)
+        scene.addChild(cam)
 
         cam.addChild(cameraLight)
 
@@ -94,8 +93,10 @@ class CurveCatmullRomExample: SceneryBase("CurveCatmullRomExample", windowWidth 
         setupCameraModeSwitching()
     }
 
-    @Test
-    override fun main() {
-        super.main()
+    companion object {
+        @JvmStatic
+        fun main(args: Array<String>) {
+            CurveUniformBSplineExample().main()
+        }
     }
 }

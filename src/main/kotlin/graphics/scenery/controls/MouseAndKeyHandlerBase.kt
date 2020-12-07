@@ -5,12 +5,14 @@ import gnu.trove.set.hash.TIntHashSet
 import graphics.scenery.Hub
 import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.controls.behaviours.GamepadBehaviour
+import graphics.scenery.controls.behaviours.GamepadClickBehaviour
 import graphics.scenery.utils.ExtractsNatives
 import graphics.scenery.utils.ExtractsNatives.Platform.*
 import graphics.scenery.utils.LazyLogger
 import net.java.games.input.*
 import org.scijava.ui.behaviour.*
 import java.awt.Toolkit
+import java.awt.event.KeyEvent
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
@@ -41,7 +43,7 @@ open class MouseAndKeyHandlerBase : ControllerListener, ExtractsNatives {
 
     private var controllerThread: Thread? = null
     private var controllerAxisDown: ConcurrentHashMap<Component.Identifier, Float> = ConcurrentHashMap()
-    private val gamepads = CopyOnWriteArrayList<BehaviourEntry<GamepadBehaviour>>()
+    private val gamepads = CopyOnWriteArrayList<BehaviourEntry<Behaviour>>()
     private val CONTROLLER_HEARTBEAT = 5L
     private val CONTROLLER_DOWN_THRESHOLD = 0.95f
 
@@ -173,9 +175,12 @@ open class MouseAndKeyHandlerBase : ControllerListener, ExtractsNatives {
 
                 gamepads.forEach { gamepad ->
                     for (it in controllerAxisDown) {
-                        if (Math.abs(it.value) > 0.02f && gamepad.behaviour.axis.contains(it.key)) {
-                            logger.trace("Triggering ${it.key} because axis is down (${it.value})")
-                            gamepad.behaviour.axisEvent(it.key, it.value)
+                        val b = gamepad.behaviour
+                        if (b is GamepadBehaviour) {
+                            if (Math.abs(it.value) > 0.02f && b.axis.contains(it.key)) {
+                                logger.info("Triggering ${it.key} because axis is down (${it.value})")
+                                b.axisEvent(it.key, it.value)
+                            }
                         }
                     }
                 }
@@ -276,7 +281,7 @@ open class MouseAndKeyHandlerBase : ControllerListener, ExtractsNatives {
                     scrolls.add(scrollEntry)
                 }
 
-                if (behaviour is GamepadBehaviour) {
+                if (behaviour is GamepadBehaviour || behaviour is GamepadClickBehaviour) {
                     val gamepadEntry = BehaviourEntry(buttons, behaviour)
                     gamepads.add(gamepadEntry)
                 }
@@ -309,6 +314,21 @@ open class MouseAndKeyHandlerBase : ControllerListener, ExtractsNatives {
         }
     }
 
+    private fun controllerButtonToKeyCode(id: Component.Identifier): Int? {
+        return when(id.name) {
+            "0" -> KeyEvent.VK_0
+            "1" -> KeyEvent.VK_1
+            "2" -> KeyEvent.VK_2
+            "3" -> KeyEvent.VK_3
+            "4" -> KeyEvent.VK_4
+            "5" -> KeyEvent.VK_5
+            "6" -> KeyEvent.VK_6
+            else -> null
+        }
+    }
+
+    private val pressedGamepadKeys = TIntHashSet()
+
     /**
      * Called when a controller event is fired. This will update the currently down
      * buttons/axis on the controller.
@@ -324,8 +344,29 @@ open class MouseAndKeyHandlerBase : ControllerListener, ExtractsNatives {
                 controllerAxisDown.put(event.component.identifier, event.component.pollData)
             }
 
-            if (gamepad.behaviour.axis.contains(event.component.identifier)) {
-                gamepad.behaviour.axisEvent(event.component.identifier, event.component.pollData)
+            val button = controllerButtonToKeyCode(event.component.identifier)
+            if(!event.component.isAnalog && button != null) {
+                if(event.value < 0.1f) {
+                    pressedGamepadKeys.remove(button)
+                }
+                if(event.value > 0.9f) {
+                    pressedGamepadKeys.add(button)
+                }
+            }
+
+            val b = gamepad.behaviour
+            when(b) {
+                is GamepadBehaviour -> {
+                    if (b.axis.contains(event.component.identifier)) {
+                        b.axisEvent(event.component.identifier, event.component.pollData)
+                    }
+                }
+
+                is GamepadClickBehaviour -> {
+                    if(gamepad.buttons.matches(0, pressedGamepadKeys)) {
+                        b.click(0, 0)
+                    }
+                }
             }
         }
     }

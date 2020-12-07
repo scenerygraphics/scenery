@@ -21,4 +21,9 @@ interface Spline {
      * points.
      */
     fun splinePoints(): List<Vector3f>
+
+    /**
+     * Returns the number of points the spline contains in each section.
+     */
+    fun verticesCountPerSection(): Int
 }

@@ -10,7 +10,6 @@ import graphics.scenery.numerics.Random
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
 import org.joml.Vector2f
-import org.junit.Test
 import org.scijava.ui.behaviour.ClickBehaviour
 import kotlin.concurrent.thread
 
@@ -96,8 +95,11 @@ class EyeTrackingExample: SceneryBase("Eye Tracking Example", windowWidth = 1280
         setupCalibration()
     }
 
-    @Test override fun main() {
-        super.main()
+    companion object {
+        @JvmStatic
+        fun main(args: Array<String>) {
+            EyeTrackingExample().main()
+        }
     }
 
     private fun setupCalibration() {

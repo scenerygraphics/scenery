@@ -3,7 +3,6 @@ package graphics.scenery.tests.examples.basic
 import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
-import org.junit.Test
 import kotlin.concurrent.thread
 
 /**
@@ -71,8 +70,10 @@ class IntersectionExample: SceneryBase("IntersectionExample") {
         setupCameraModeSwitching()
     }
 
-    @Test
-    override fun main() {
-        super.main()
+    companion object {
+        @JvmStatic
+        fun main(args: Array<String>) {
+            IntersectionExample().main()
+        }
     }
 }

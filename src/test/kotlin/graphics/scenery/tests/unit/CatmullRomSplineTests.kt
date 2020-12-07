@@ -1,34 +1,33 @@
 package graphics.scenery.tests.unit
 
-import graphics.scenery.utils.LazyLogger
-import org.junit.Test
-import kotlin.test.assertNotNull
-import kotlin.test.assertTrue
 import graphics.scenery.CatmullRomSpline
 import graphics.scenery.numerics.Random
+import graphics.scenery.utils.LazyLogger
 import org.joml.Vector3f
-import kotlin.collections.ArrayList
+import org.junit.Test
 import kotlin.math.roundToInt
-
+import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 
 /**
  * This is the test class for the [CatmullRomSpline]
  *
- *@author Justin Bürger
+ * @author  Justin Buerger <burger@mpi-cbg.de>
  */
 class CatmullRomSplineTests {
     private val logger by LazyLogger()
 
     /**
-     * Tests if the curve object has actually the number of points defined in the class.
+     * Tests if the Catmull Rom Spline object has actually the number of points defined in the class.
      */
     @Test
     fun testLength() {
-        logger.info("This is the test for the Length of the chain.")
-        val point1 = Random.random3DVectorFromRange(-30f, -10f)
-        val point2 = Random.random3DVectorFromRange(-9f, 20f)
-        val point3 = Random.random3DVectorFromRange(21f, 30f)
-        val point4 = Random.random3DVectorFromRange(31f, 100f)
+        logger.info("This is the test for the length of the chain.")
+        val point1 = Random.random3DVectorFromRange( -30f, -10f)
+        val point2 = Random.random3DVectorFromRange( -9f, 20f)
+        val point3 = Random.random3DVectorFromRange( 21f, 30f)
+        val point4 = Random.random3DVectorFromRange( 31f, 100f)
 
         val controlPoints = arrayListOf(point1, point2, point3, point4)
 
@@ -47,10 +46,10 @@ class CatmullRomSplineTests {
     @Test
     fun testChain() {
         logger.info("This is the test for the Length of the chain.")
-        val point1 = Random.random3DVectorFromRange(-30f, -10f)
-        val point2 = Random.random3DVectorFromRange(-9f, 20f)
-        val point3 = Random.random3DVectorFromRange(21f, 30f)
-        val point4 = Random.random3DVectorFromRange(31f, 100f)
+        val point1 = Random.random3DVectorFromRange( -30f, -10f)
+        val point2 = Random.random3DVectorFromRange( -9f, 20f)
+        val point3 = Random.random3DVectorFromRange( 21f, 30f)
+        val point4 = Random.random3DVectorFromRange( 31f, 100f)
 
         val controlPoints = arrayListOf(point1, point2, point3, point4)
 
@@ -60,13 +59,8 @@ class CatmullRomSplineTests {
         val distance = chain[i].distance(chain[i+1])
         val distanceDifferences = chain.windowed(2, 1) {
             it[0].distance(it[1]).minus(distance) }.toList()
-        /* The spline is drawn between point2 and point3. The biggest possible difference
-         * between these points is roughly 70 units. We also have to take into account the rounding of the
-         * spline. A conservative estimate, given the ranges, would be that of a half circle. That gives us
-         * a curve length of totally 70*Pi/2 = 110 units. Our spline consist of 100 points, therefore, the
-         * distance between spline points should not be bigger than 1,1 units.
-         */
-        assertTrue { distanceDifferences.filter { it < 1.1 } == distanceDifferences }
+        val filterdistances = distanceDifferences.filter { it < 1f }
+        assertEquals(filterdistances, distanceDifferences)
     }
 
     /**
@@ -91,35 +85,10 @@ class CatmullRomSplineTests {
         val notEnoughList = ArrayList<Vector3f>()
         val j = Random.randomFromRange(1f, 2f).roundToInt()
         for(i in 0..j) {
-            val vector = Random.random3DVectorFromRange(0f, 5f)
+            val vector = Random.random3DVectorFromRange( 0f, 5f)
             notEnoughList.add(vector)
         }
         val notEnoughSpline = CatmullRomSpline(notEnoughList)
         assertTrue(notEnoughSpline.splinePoints().isEmpty())
-    }
-
-    /**
-     * Since the ranges between points are somewhat arbitrary – due to the fact, that the
-     * spline was originally developed to visualize proteins (which are stored in 3D coordinates
-     * in the same order of magnitude). Hence, this test verifies if the calculation is still
-     * correct for bigger values.
-     */
-    @Test
-    fun testLengthBigRanges() {
-        logger.info("This is the test for the Length of the chain.")
-        val point1 = Random.random3DVectorFromRange(-300f, -100f)
-        val point2 = Random.random3DVectorFromRange(-90f, 20f)
-        val point3 = Random.random3DVectorFromRange(210f, 300f)
-        val point4 = Random.random3DVectorFromRange(310f, 1000f)
-
-        val controlPoints = arrayListOf(point1, point2, point3, point4)
-
-        val curve = CatmullRomSpline(controlPoints)
-        assertNotNull(curve)
-        /*
-        The computation of the Catmull Rom Spline delivers an additional point if the
-        distance between the point1 and point2 is small relative to point2 and point3
-         */
-        assertTrue(curve.splinePoints().size == 100 || curve.splinePoints().size == 101)
     }
 }

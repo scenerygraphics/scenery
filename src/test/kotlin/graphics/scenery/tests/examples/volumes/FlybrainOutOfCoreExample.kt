@@ -27,7 +27,6 @@ import net.imglib2.type.numeric.integer.UnsignedShortType
 import net.imglib2.type.volatiles.VolatileUnsignedShortType
 import net.imglib2.util.Intervals
 import net.imglib2.view.Views
-import org.junit.Test
 
 
 /**
@@ -149,7 +148,10 @@ class FlybrainOutOfCoreExample: SceneryBase("Flybrain RAI Rendering example", 12
         }
     }
 
-    @Test override fun main() {
-        super.main()
+    companion object {
+        @JvmStatic
+        fun main(args: Array<String>) {
+            FlybrainOutOfCoreExample().main()
+        }
     }
 }

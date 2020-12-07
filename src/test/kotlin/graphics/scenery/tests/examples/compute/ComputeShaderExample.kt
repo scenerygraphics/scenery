@@ -12,7 +12,6 @@ import graphics.scenery.utils.Image
 import graphics.scenery.utils.SystemHelpers
 import kotlinx.coroutines.*
 import org.joml.Vector3i
-import org.junit.Test
 import org.lwjgl.system.MemoryUtil
 import org.scijava.ui.behaviour.ClickBehaviour
 import kotlin.concurrent.thread
@@ -103,7 +102,10 @@ class ComputeShaderExample : SceneryBase("ComputeShaderExample") {
         inputHandler?.addKeyBinding("save_texture", "E")
     }
 
-    @Test override fun main() {
-        super.main()
+    companion object {
+        @JvmStatic
+        fun main(args: Array<String>) {
+            ComputeShaderExample().main()
+        }
     }
 }
