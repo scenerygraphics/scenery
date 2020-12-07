@@ -6,7 +6,6 @@ import graphics.scenery.backends.Renderer
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.Image
 import graphics.scenery.utils.SceneryJPanel
-import org.junit.Test
 import java.awt.BorderLayout
 import javax.swing.JFrame
 import kotlin.concurrent.thread
@@ -82,7 +81,10 @@ class SwingTexturedCubeExample : SceneryBase("SwingTexturedCubeExample", windowW
         super.close()
     }
 
-    @Test override fun main() {
-        super.main()
+    companion object {
+        @JvmStatic
+        fun main(args: Array<String>) {
+            SwingTexturedCubeExample().main()
+        }
     }
 }

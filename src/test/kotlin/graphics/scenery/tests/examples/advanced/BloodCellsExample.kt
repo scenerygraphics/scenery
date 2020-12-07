@@ -5,7 +5,6 @@ import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
 import graphics.scenery.utils.extensions.minus
 import org.joml.Vector3f
-import org.junit.Test
 import kotlin.concurrent.thread
 import kotlin.math.cos
 import kotlin.math.sin
@@ -142,7 +141,10 @@ class BloodCellsExample : SceneryBase("BloodCellsExample", windowWidth = 1280, w
         }
     }
 
-    @Test override fun main() {
-        super.main()
+    companion object {
+        @JvmStatic
+        fun main(args: Array<String>) {
+            BloodCellsExample().main()
+        }
     }
 }

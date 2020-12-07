@@ -4,7 +4,6 @@ import graphics.scenery.*
 import org.joml.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
-import org.junit.Test
 
 /**
  * This is an example of how to set up a helix.
@@ -90,8 +89,10 @@ class HelixExample: SceneryBase("FlatRibbonSketch", windowWidth = 1280, windowHe
         setupCameraModeSwitching()
     }
 
-    @Test
-    override fun main() {
-        super.main()
+    companion object {
+        @JvmStatic
+        fun main(args: Array<String>) {
+            HelixExample().main()
+        }
     }
 }

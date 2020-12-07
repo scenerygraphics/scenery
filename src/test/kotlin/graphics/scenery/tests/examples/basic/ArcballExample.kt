@@ -6,9 +6,7 @@ import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.Image
-import org.junit.Test
 import org.scijava.ui.behaviour.ClickBehaviour
-import kotlin.concurrent.thread
 
 /**
  * This example demonstrates how to use the TargetArcBallBehaviour and how
@@ -73,7 +71,10 @@ class ArcballExample : SceneryBase("ArcballExample") {
         (inputHandler?.getBehaviour("toggle_control_mode") as ClickBehaviour).click(0, 0)
     }
 
-    @Test override fun main() {
-        super.main()
+    companion object {
+        @JvmStatic
+        fun main(args: Array<String>) {
+            ArcballExample().main()
+        }
     }
 }

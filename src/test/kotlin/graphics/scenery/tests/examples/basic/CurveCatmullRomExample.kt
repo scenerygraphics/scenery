@@ -5,8 +5,6 @@ import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
 
-import org.junit.Test
-
 /**
  * Just a quick example of a CatmullRomSpline with a triangle as a baseShape.
  *
@@ -94,8 +92,10 @@ class CurveCatmullRomExample: SceneryBase("CurveCatmullRomExample", windowWidth 
         setupCameraModeSwitching()
     }
 
-    @Test
-    override fun main() {
-        super.main()
+    companion object {
+        @JvmStatic
+        fun main(args: Array<String>) {
+            CurveCatmullRomExample().main()
+        }
     }
 }
