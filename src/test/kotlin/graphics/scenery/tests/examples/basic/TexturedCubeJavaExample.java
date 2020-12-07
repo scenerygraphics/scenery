@@ -11,11 +11,12 @@ import org.joml.Vector3f;
  */
 class TexturedCubeJavaExample extends SceneryBase {
     public static void main(String[] args) {
-       new TexturedCubeJavaExample("TexturedCubeJavaApplication", 512, 512);
+       final SceneryBase app = new TexturedCubeJavaExample();
+       app.main();
     }
 
-    public TexturedCubeJavaExample(String applicationName, int windowWidth, int windowHeight) {
-        super(applicationName, windowWidth, windowHeight, true);
+    public TexturedCubeJavaExample() {
+        super("TexturedCubeJavaExample", 512, 512, true);
     }
 
     public void init() {
@@ -37,7 +38,7 @@ class TexturedCubeJavaExample extends SceneryBase {
 
         PointLight light = new PointLight(15.0f);
         light.setPosition(new Vector3f(0.0f, 0.0f, 2.0f));
-        light.setIntensity(100.0f);
+        light.setIntensity(5.0f);
         light.setEmissionColor(new Vector3f(1.0f, 1.0f, 1.0f));
         getScene().addChild(light);
 
