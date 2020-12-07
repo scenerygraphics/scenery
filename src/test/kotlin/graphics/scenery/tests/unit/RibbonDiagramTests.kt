@@ -70,9 +70,11 @@ class RibbonDiagramTests {
         val insectWingRibbon = RibbonDiagram(insectWing)
         assertEquals(insectWingRibbon.children.size, 36)
 
+        /*
         val saccharomycesCerevisiae = Protein.fromID("6zqd")
         val scRibbon = RibbonDiagram(saccharomycesCerevisiae)
         assertEquals(scRibbon.children.size, 63)
+        */
 
         /*
         val covid19 = Protein.fromID("6zcz")
