@@ -1,3 +1,8 @@
+package scenery
+
+import gradle.kotlin.dsl.accessors._e98ba513b34f86980a981ef4cafb3d49.publishing
+import org.gradle.kotlin.dsl.`maven-publish`
+
 // configuration of the Maven artifacts
 plugins {
     `maven-publish`
