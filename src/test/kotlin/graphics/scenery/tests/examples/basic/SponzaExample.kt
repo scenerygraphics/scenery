@@ -5,7 +5,6 @@ import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
 import org.joml.Vector4f
-import org.junit.Test
 import org.scijava.ui.behaviour.ClickBehaviour
 import kotlin.concurrent.thread
 
@@ -100,7 +99,10 @@ class SponzaExample : SceneryBase("SponzaExample", windowWidth = 1280, windowHei
         inputHandler?.addKeyBinding("toggle_light_movement", "T")
     }
 
-    @Test override fun main() {
-        super.main()
+    companion object {
+        @JvmStatic
+        fun main(args: Array<String>) {
+            SponzaExample().main()
+        }
     }
 }

@@ -10,10 +10,7 @@ import graphics.scenery.net.NodeSubscriber
 import graphics.scenery.volumes.Colormap
 import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.Volume
-import org.junit.Test
 import org.scijava.ui.behaviour.ClickBehaviour
-import java.nio.ByteBuffer
-import java.nio.file.Path
 import java.nio.file.Paths
 import kotlin.concurrent.thread
 
@@ -207,7 +204,10 @@ class DemoReelExample: SceneryBase("Demo Reel") {
         inputHandler.addKeyBinding("goto_scene_retina", "shift 4")
     }
 
-    @Test override fun main() {
-        super.main()
+    companion object {
+        @JvmStatic
+        fun main(args: Array<String>) {
+            DemoReelExample().main()
+        }
     }
 }

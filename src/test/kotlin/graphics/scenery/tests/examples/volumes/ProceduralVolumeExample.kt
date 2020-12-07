@@ -10,7 +10,6 @@ import graphics.scenery.volumes.Colormap
 import graphics.scenery.volumes.Volume
 import net.imglib2.type.numeric.integer.UnsignedByteType
 import net.imglib2.type.numeric.integer.UnsignedShortType
-import org.junit.Test
 import org.lwjgl.system.MemoryUtil.memAlloc
 import org.scijava.ui.behaviour.ClickBehaviour
 import java.nio.ByteBuffer
@@ -126,7 +125,10 @@ class ProceduralVolumeExample: SceneryBase("Procedural Volume Rendering Example"
         inputHandler?.addKeyBinding("toggle_rendering_mode", "M")
     }
 
-    @Test override fun main() {
-        super.main()
+    companion object {
+        @JvmStatic
+        fun main(args: Array<String>) {
+            ProceduralVolumeExample().main()
+        }
     }
 }

@@ -7,7 +7,6 @@ import graphics.scenery.numerics.Random
 import graphics.scenery.utils.extensions.plus
 import org.joml.Vector3f
 import org.joml.Vector4f
-import org.junit.Test
 import kotlin.concurrent.thread
 
 /**
@@ -96,9 +95,11 @@ class DistanceMeasurement: SceneryBase("RulerPick", wantREPL = true) {
         }
     }
 
-    @Test
-    override fun main() {
-        super.main()
+    companion object {
+        @JvmStatic
+        fun main(args: Array<String>) {
+            DistanceMeasurement().main()
+        }
     }
 }
 

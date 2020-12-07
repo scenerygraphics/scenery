@@ -5,7 +5,6 @@ import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
 import graphics.scenery.utils.extensions.minus
-import org.junit.Test
 import kotlin.math.floor
 
 /**
@@ -87,7 +86,10 @@ class PBLExample: SceneryBase("PBLExample", windowWidth = 1280, windowHeight = 7
         setupCameraModeSwitching()
     }
 
-    @Test override fun main() {
-        super.main()
+    companion object {
+        @JvmStatic
+        fun main(args: Array<String>) {
+            PBLExample().main()
+        }
     }
 }

@@ -4,7 +4,6 @@ import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.utils.extensions.minus
-import org.junit.Test
 import kotlin.concurrent.thread
 import kotlin.math.PI
 import kotlin.math.cos
@@ -128,7 +127,10 @@ class ArrowExample : SceneryBase("ArrowExample") {
         setupCameraModeSwitching(keybinding = "C")
     }
 
-    @Test override fun main() {
-        super.main()
+    companion object {
+        @JvmStatic
+        fun main(args: Array<String>) {
+            ArrowExample().main()
+        }
     }
 }

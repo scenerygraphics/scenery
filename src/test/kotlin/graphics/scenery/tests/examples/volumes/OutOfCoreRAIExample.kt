@@ -21,7 +21,6 @@ import org.janelia.saalfeldlab.n5.GzipCompression
 import org.janelia.saalfeldlab.n5.N5FSReader
 import org.janelia.saalfeldlab.n5.N5FSWriter
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils
-import org.junit.Test
 import tpietzsch.example2.VolumeViewerOptions
 import java.nio.file.Files
 
@@ -87,7 +86,10 @@ class OutOfCoreRAIExample: SceneryBase("Out-of-core RAI Rendering example", 1280
         }
     }
 
-    @Test override fun main() {
-        super.main()
+    companion object {
+        @JvmStatic
+        fun main(args: Array<String>) {
+            OutOfCoreRAIExample().main()
+        }
     }
 }
