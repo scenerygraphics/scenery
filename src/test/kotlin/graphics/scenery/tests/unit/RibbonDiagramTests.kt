@@ -106,33 +106,19 @@ class RibbonDiagramTests {
             "4giz", "3l2j", "4odq", "6slm", "2qho", "1zr0", "2ake", "2wx1",
             "2mue", "2m0j", "1q5w", "3gj8", "3sui", "6pby", "2m0k", "1r4a",
             "3fub", "6uku", "6v92", "2l2i", "1pyo", "4lcd", "6p9x", "6uun",
-            "6v80", "6v7z", "6tr3", "4grw", "3mc5", "3mbw", "4tkw", "4u0i",
-            "3mas", "6znn", "1ctp", "3j92", "3jak", "1nb5", "3lk3", "1mdu",
-            "3eks", "2ebv", "4gbj", "6v4e", "6v4h", "4m8n", "4ia1", "3ei2",
-            "2rh1", "6ps3", "3v2y", "4pla", "3eml", "2seb", "2qej", "1d5m",
-            "2wy8", "4idj", "2vr3", "2win", "6urh", "3ua7", "3mrn", "4z0x",
-            "2rhk", "6pdx", "6urm", "2x4q", "1r0n", "2ff6", "4i7b", "3bs5",
-            "5chl", "5f84", "4uuz", "4v98", "4wsi", "4u68", "4aa1", "5jvs",
-            "6hom", "4xib", "4u0q", "6phf", "4v3e", "5bk0", "3tie", "6kh8",
-            "6l4v", "6l4x", "5qti", "5qtb", "6la6", "5d8v", "1ejg", "5nw3",
-            "1ucs", "2vb1", "1us0", "2dsx", "1yk4", "3a38", "1gwe", "4zm7",
-            "6s2m", "5xsg", "2h5c", "1nwz", "2vxn", "2pwa", "6mz2", "2jfr",
-            "1ssx", "3x2l", "4y9w", "6tgu", "4ua9", "2o7a", "1p9g", "6eio",
-            "1xvo", "4lau", "4pss", "2pf8", "6q00", "6jgi", "6un0", "2fma",
-            "2f01", "1m40", "1pjx", "1pq5", "3qpa", "3pyp", "4i8k", "4pth",
-            "3u7t", "4igs", "4ayo", "3o4p", "5jqf", "4laz", "4xxg", "4o8h",
-            "5emb", "5vle", "5vxt", "5yok", "5rdh", "6etl", "5lp9", "6aiq",
-            "6air", "1x8p", "1mc2", "6kl1", "6q01", "5mnn", "2pya", "4uaa",
-            "1g6x", "6s2s", "2ddx", "3wdn", "3zsj", "5avd", "4tkb", "5mng",
-            "1muw", "4qxi", "1dy5", "4i8l", "4i8j", "4k8m", "5akr", "5dj7",
-            "4tkj", "4tjz", "5o99", "2p74", "3klr", "3fil", "4f1v", "3wvm",
-            "3zoj", "5xuf")
+            "6v80", "6v7z", "4grw", "3mc5", "3mbw", "4tkw", "4u0i", "3mas",
+            "6znn", "1ctp", "3j92", "3jak", "1nb5", "3lk3", "1mdu", "3eks",
+            "2ebv", "4gbj", "6v4e", "6v4h", "4m8n", "4ia1", "3ei2", "2rh1",
+            "6ps3", "3v2y", "4pla", "3eml", "2seb", "2qej", "1d5m", "2wy8",
+            "4idj", "2vr3", "2win", "6urh", "3ua7", "3mrn", "4z0x", "2rhk",
+            "6pdx", "6urm", "2x4q", "1r0n", "2ff6", "4i7b", "3bs5", "5chl",
+            "5f84", "4uuz", "4v98", "4wsi", "4u68", "4aa1", "5jvs", "6hom",
+            "4xib", "4u0q", "6phf")
 
-        proteins.forEach { pdbId ->
+        proteins.shuffled().forEach { pdbId ->
             val protein = Protein.fromID(pdbId)
             logger.info("Testing ${protein.structure.name} ...")
-            var ribbon: RibbonDiagram = RibbonDiagram(protein)
-            assertNotNull(ribbon)
+            RibbonDiagram(protein)
         }
 
     }
