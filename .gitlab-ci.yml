@@ -40,7 +40,7 @@ unit-tests-no-gpu:
     - clinfo || true
     - if [ ! -d "$MODEL_DIR" ]; then wget -q https://ulrik.is/scenery-demo-models.zip && unzip -q scenery-demo-models.zip; fi
   script:
-    - mvn -B -Pintegration-tests package test -Dscenery.Renderer=VulkanRenderer -Dscenery.LogLevel=info -Dscenery.ExampleRunner.OutputDir=screenshots
+    - mvn -B -Pintegration-tests test -Dscenery.Renderer=VulkanRenderer -Dscenery.LogLevel=info -Dscenery.ExampleRunner.OutputDir=screenshots
   artifacts:
     when: always
     expire_in: 48h
