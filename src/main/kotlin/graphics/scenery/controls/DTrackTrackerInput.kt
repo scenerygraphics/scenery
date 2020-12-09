@@ -7,6 +7,7 @@ import graphics.scenery.Node
 import graphics.scenery.utils.LazyLogger
 import kotlinx.coroutines.*
 import org.joml.*
+import java.net.InetAddress
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -15,7 +16,7 @@ import java.util.concurrent.ConcurrentHashMap
  * @author Ulrik Guenther <hello@ulrik.is>
  */
 class DTrackTrackerInput(val host: String = "localhost", val port: Int = 5000, var defaultBodyId: Int = 0): TrackerInput {
-    private var sdk: DTrackSDK = DTrackSDK(host, port)
+    private var sdk: DTrackSDK = DTrackSDK(InetAddress.getByName(host), port)
     private val logger by LazyLogger()
 
     var numBodies: Int = 0
@@ -67,14 +68,14 @@ class DTrackTrackerInput(val host: String = "localhost", val port: Int = 5000, v
                         val state = bodyState.getOrPut(bodyId, {
                             DTrackBodyState(
                                 quality,
-                                Vector3f(loc[0].toFloat(), loc[1].toFloat(), loc[2].toFloat()),
+                                Vector3f(-loc[0].toFloat(), loc[2].toFloat(), -loc[1].toFloat())/1000.0f,
                                 Quaternionf().setFromUnnormalized(rotToMatrix3f(rotation))
                             )
                         })
 
                         state.quality = quality
                         state.rotation.setFromUnnormalized(rotToMatrix3f(rotation))
-                        state.position.set(loc[0].toFloat(), loc[1].toFloat(), loc[2].toFloat())
+                        state.position.set(-loc[0].toFloat()/1000.0f, loc[1].toFloat()/1000.0f, -loc[2].toFloat()/1000.0f)
                     }
                 }
             }
