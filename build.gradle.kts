@@ -8,8 +8,7 @@ plugins {
     java
     kotlin("jvm") version "1.4.10"
     scenery.publish
-    id("org.jetbrains.dokka") version "1.4.10" //    id("com.github.johnrengelman.shadow") version "6.0.0"
-    //    idea
+    id("org.jetbrains.dokka") version "1.4.10"
 }
 
 val ktVersion = "1.4.10"
