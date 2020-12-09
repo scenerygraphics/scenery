@@ -20,7 +20,7 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
     private val logger by LazyLogger()
     override var hub: Hub? = null
 
-    var vrpnTracker = VRPNTrackerInput(address)
+    var tracker = initializeTracker(address)
     var currentOrientation = Matrix4f()
     var ipd = -0.065f
 
@@ -38,6 +38,26 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
 
         screen?.let {
             rotation = Quaternionf().setFromUnnormalized(it.getTransform()).normalize()
+        }
+    }
+
+    private fun initializeTracker(address: String): TrackerInput {
+        return when {
+            address.startsWith("DTrack:") -> {
+                val host = address.substringAfter("@").substringBeforeLast(":")
+                val device = address.substringAfter("DTrack:").substringBefore("@").toIntOrNull() ?: 0
+                val port = address.substringAfterLast(":").toIntOrNull() ?: 5000
+
+                DTrackTrackerInput(host, port, device)
+            }
+
+            address.startsWith("VRPN:") -> {
+                VRPNTrackerInput(address.substringAfter("VRPN:"))
+            }
+
+            else -> {
+                VRPNTrackerInput(address)
+            }
         }
     }
 
@@ -116,7 +136,7 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
      *
      * @returns Matrix4f with orientation
      */
-    override fun getOrientation(): Quaternionf = vrpnTracker.getOrientation()
+    override fun getOrientation(): Quaternionf = tracker.getOrientation()
 
     /**
      * Submit a Vulkan texture handle to the compositor
@@ -139,7 +159,7 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
      *
      * @returns Matrix4f with orientation
      */
-    override fun getOrientation(id: String): Quaternionf = vrpnTracker.getOrientation()
+    override fun getOrientation(id: String): Quaternionf = tracker.getOrientation()
 
     /**
      * Returns the absolute position as Vector3f
@@ -158,7 +178,7 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
             return pos
         }
 
-        return vrpnTracker.getPosition()
+        return tracker.getPosition()
     }
 
     /**
@@ -177,8 +197,8 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
      */
     override fun getPose(): Matrix4f {
         @Suppress("UNUSED_VARIABLE")
-        val trackerOrientation = vrpnTracker.getOrientation()
-        val trackerPos = vrpnTracker.getPosition()
+        val trackerOrientation = tracker.getOrientation()
+        val trackerPos = tracker.getPosition()
 
         currentOrientation.identity()
         currentOrientation.translate(-trackerPos.x(), -trackerPos.y(), trackerPos.z())
@@ -217,14 +237,14 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
             return true
         }
 
-        return vrpnTracker.initializedAndWorking()
+        return tracker.initializedAndWorking()
     }
 
     /**
      * update state
      */
     override fun update() {
-        vrpnTracker.update()
+        tracker.update()
     }
 
     override fun getVulkanInstanceExtensions(): List<String> = emptyList()
