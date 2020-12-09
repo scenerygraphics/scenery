@@ -6,27 +6,29 @@ import org.gradle.kotlin.dsl.`maven-publish`
 // configuration of the Maven artifacts
 plugins {
     `maven-publish`
+//    id("org.jetbrains.dokka")
 }
 
-val sceneryName = "scenery"
 val sceneryUrl = "http://scenery.graphics"
 
 publishing {
     publications {
         create<MavenPublication>("maven") {
             groupId = "graphics.scenery"
-            artifactId = sceneryName
-            version = "0.7.0-beta-8-SNAPSHOT"
+            artifactId = rootProject.name
+            version = rootProject.version.toString()
 
             from(components["java"])
 
+            // TODO, resolved dependencies versions? https://docs.gradle.org/current/userguide/publishing_maven.html#publishing_maven:resolved_dependencies
+
             pom {
-                name.set(sceneryName)
-                description.set("flexible scenegraphing and rendering for scientific visualisation")
+                name.set(rootProject.name)
+                description.set(rootProject.description)
                 url.set(sceneryUrl)
                 properties.set(mapOf("inceptionYear" to "2016"))
                 organization {
-                    name.set(sceneryName)
+                    name.set(rootProject.name)
                     url.set(sceneryUrl)
                 }
                 licenses {
@@ -98,3 +100,27 @@ publishing {
         }
     }
 }
+
+//val dokkaJavadocJar by tasks.register<Jar>("dokkaJavadocJar") {
+//    dependsOn(tasks.dokkaJavadoc)
+//    from(tasks.dokkaJavadoc.get().outputDirectory.get())
+//    archiveClassifier.set("javadoc")
+//}
+//
+//val dokkaHtmlJar by tasks.register<Jar>("dokkaHtmlJar") {
+//    dependsOn(tasks.dokkaHtml)
+//    from(tasks.dokkaHtml.get().outputDirectory.get())
+//    archiveClassifier.set("html-doc")
+//}
+//
+//val sourceJar = task("sourceJar", Jar::class) {
+//    dependsOn(tasks.classes)
+//    archiveClassifier.set("sources")
+//    from(sourceSets.main.get().allSource)
+//}
+//
+//artifacts {
+//    archives(dokkaJavadocJar)
+//    archives(dokkaHtmlJar)
+//    archives(sourceJar)
+//}
