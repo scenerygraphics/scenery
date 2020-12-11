@@ -8,6 +8,7 @@ plugins {
     java
     kotlin("jvm") version "1.4.10"
     scenery.publish
+    scenery.sign
     id("org.jetbrains.dokka") version "1.4.10"
 }
 

@@ -1,7 +1,8 @@
 package scenery
 
-import gradle.kotlin.dsl.accessors._e98ba513b34f86980a981ef4cafb3d49.publishing
-import org.gradle.kotlin.dsl.`maven-publish`
+//import gradle.kotlin.dsl.accessors._e98ba513b34f86980a981ef4cafb3d49.publishing
+//import org.gradle.kotlin.dsl.`maven-publish`
+import java.net.URI
 
 // configuration of the Maven artifacts
 plugins {
@@ -96,7 +97,26 @@ publishing {
 //                        <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
 //                    </repository>
                 }
+                artifact("sourceJar")
+                artifact("dokkaJavadocJar")
+                artifact("dokkaHtmlJar")
             }
+        }
+    }
+
+    repositories {
+        maven {
+            /*
+                gradle.properties:
+                    repoUser=[your nexus user]
+                    repoPassword=[your nexus password]
+             */
+            credentials {
+                username = "Ulrik" // project.repoUser
+                password = "rekt" // project.repoPassword
+            }
+            // http://[your nexus ip]:[your nexus port]/repository/maven-releases/
+            url = URI("lookingForBigSalaries.anyone?/inb4.youGuysHaveSalaries.png")
         }
     }
 }
