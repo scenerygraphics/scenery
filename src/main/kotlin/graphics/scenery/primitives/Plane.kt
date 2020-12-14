@@ -1,8 +1,8 @@
-package graphics.scenery
+package graphics.scenery.primitives
 
+import graphics.scenery.BufferUtils
+import graphics.scenery.geometry.Mesh
 import org.joml.Vector3f
-import java.nio.FloatBuffer
-import java.nio.IntBuffer
 
 /**
  * Constructs a plane with the dimensions given in [sizes].
@@ -18,30 +18,30 @@ open class Plane(sizes: Vector3f) : Mesh() {
         val side2 = side / 2.0f
 
         vertices = BufferUtils.allocateFloatAndPut(floatArrayOf(
-                // Front
-                -side2, -side2, side2,
-                side2, -side2, side2,
-                side2,  side2, side2,
-                -side2,  side2, side2
+            // Front
+            -side2, -side2, side2,
+            side2, -side2, side2,
+            side2, side2, side2,
+            -side2, side2, side2
         ))
 
         normals = BufferUtils.allocateFloatAndPut(floatArrayOf(
-                // Front
-                0.0f, 0.0f, 1.0f,
-                0.0f, 0.0f, 1.0f,
-                0.0f, 0.0f, 1.0f,
-                0.0f, 0.0f, 1.0f
+            // Front
+            0.0f, 0.0f, 1.0f,
+            0.0f, 0.0f, 1.0f,
+            0.0f, 0.0f, 1.0f,
+            0.0f, 0.0f, 1.0f
         ))
 
         indices = BufferUtils.allocateIntAndPut(intArrayOf(
-                0,1,2,0,2,3
+            0, 1, 2, 0, 2, 3
         ))
 
         texcoords = BufferUtils.allocateFloatAndPut(floatArrayOf(
-                0.0f, 0.0f,
-                1.0f, 0.0f,
-                1.0f, 1.0f,
-                0.0f, 1.0f
+            0.0f, 0.0f,
+            1.0f, 0.0f,
+            1.0f, 1.0f,
+            0.0f, 1.0f
         ))
 
         boundingBox = generateBoundingBox()

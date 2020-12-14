@@ -1,5 +1,6 @@
-package graphics.scenery
+package graphics.scenery.primitives
 
+import graphics.scenery.ShaderMaterial
 import org.joml.Vector3f
 
 /**

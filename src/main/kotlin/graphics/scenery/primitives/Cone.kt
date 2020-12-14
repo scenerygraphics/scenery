@@ -1,12 +1,12 @@
-package graphics.scenery
+package graphics.scenery.primitives
 
+import graphics.scenery.BufferUtils
+import graphics.scenery.geometry.Mesh
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
 import org.joml.Vector2f
 import org.joml.Vector3f
-import java.nio.FloatBuffer
-import java.nio.IntBuffer
 import java.util.*
 import kotlin.math.PI
 import kotlin.math.abs

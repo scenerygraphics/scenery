@@ -1,9 +1,11 @@
-package graphics.scenery
+package graphics.scenery.primitives
 
+import graphics.scenery.*
 import org.joml.Vector3f
 import org.joml.Vector4f
 import graphics.scenery.backends.ShaderType
-import graphics.scenery.utils.extensions.toFloatArray
+import graphics.scenery.geometry.GeometryType
+import graphics.scenery.geometry.HasGeometry
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
 
@@ -15,11 +17,11 @@ class LinePair @JvmOverloads constructor(var capacity: Int = 50, transparent: Bo
     /** Geometry type -- Default for Line is [GeometryType.LINE] */
     override var geometryType: GeometryType = GeometryType.LINE_STRIP_ADJACENCY
     /** Vertex buffer */
-    override var vertices: FloatBuffer = BufferUtils.allocateFloat(3*capacity)
+    override var vertices: FloatBuffer = BufferUtils.allocateFloat(3 * capacity)
     /** Normal buffer */
-    override var normals: FloatBuffer = BufferUtils.allocateFloat(3*capacity)
+    override var normals: FloatBuffer = BufferUtils.allocateFloat(3 * capacity)
     /** Texcoord buffer */
-    override var texcoords: FloatBuffer = BufferUtils.allocateFloat(2*capacity)
+    override var texcoords: FloatBuffer = BufferUtils.allocateFloat(2 * capacity)
     /** Index buffer */
     override var indices: IntBuffer = IntBuffer.wrap(intArrayOf())
 

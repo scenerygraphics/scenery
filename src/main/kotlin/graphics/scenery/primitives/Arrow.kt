@@ -1,12 +1,14 @@
-package graphics.scenery
+package graphics.scenery.primitives
 
+import graphics.scenery.*
 import graphics.scenery.backends.ShaderType
+import graphics.scenery.geometry.GeometryType
+import graphics.scenery.geometry.Mesh
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
 import org.joml.Vector3f
 import org.joml.Vector4f
-import java.nio.FloatBuffer
 import java.nio.IntBuffer
 
 /**
