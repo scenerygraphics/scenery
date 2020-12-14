@@ -1,8 +1,8 @@
-package graphics.scenery
+package graphics.scenery.controls.behaviours
 
 import graphics.scenery.Camera
-import graphics.scenery.Mesh
 import graphics.scenery.Scene
+import graphics.scenery.geometry.Mesh
 import graphics.scenery.backends.Renderer
 import graphics.scenery.utils.LazyLogger
 import org.joml.Vector2f
@@ -16,10 +16,10 @@ import kotlin.reflect.KProperty
  * @author Justin Buerger <burger@mpi-cbg.de>
  */
 open class CreateCommand constructor(protected val name: String,
-                                           protected val renderer: Renderer,
-                                           protected val scene: Scene,
-                                           protected val camera: () -> Camera?,
-                                           meshLambda: () -> Mesh) : ClickBehaviour {
+                                     protected val renderer: Renderer,
+                                     protected val scene: Scene,
+                                     protected val camera: () -> Camera?,
+                                     meshLambda: () -> Mesh) : ClickBehaviour {
     protected val logger by LazyLogger()
 
     protected val cam: Camera? by CameraDelegate()
