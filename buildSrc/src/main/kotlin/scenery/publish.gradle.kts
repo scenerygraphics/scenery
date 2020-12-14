@@ -105,17 +105,18 @@ publishing {
 
     repositories {
         maven {
-            /*
-                gradle.properties:
-                    repoUser=[your nexus user]
-                    repoPassword=[your nexus password]
-             */
-            credentials {
-                username = "Ulrik" // project.repoUser
-                password = "rekt" // project.repoPassword
+            name = "sonatype"
+            credentials(PasswordCredentials::class)
+
+            val releaseRepo = "https://oss.sonatype.org/service/local/staging/deploy/maven2/"
+            val snapshotRepo = "https://oss.sonatype.org/content/repositories/snapshots/"
+
+            url = if(!rootProject.version.toString().endsWith("SNAPSHOT")) {
+                URI(releaseRepo)
+            } else {
+                URI(snapshotRepo)
             }
-            // http://[your nexus ip]:[your nexus port]/repository/maven-releases/
-            url = URI("lookingForBigSalaries.anyone?/inb4.youGuysHaveSalaries.png")
+//            url = URI("https://oss.sonatype.org/service/local/staging/deploy/maven2")
         }
     }
 }
