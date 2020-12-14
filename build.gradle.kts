@@ -23,7 +23,6 @@ repositories {
 }
 
 dependencies {
-
     implementation(kotlin("stdlib-jdk8"))
     implementation(kotlin("reflect"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.4.0-M1")
@@ -153,4 +152,9 @@ artifacts {
     archives(dokkaJavadocJar)
     archives(dokkaHtmlJar)
     archives(sourceJar)
+}
+
+java {
+    withJavadocJar()
+    withSourcesJar()
 }

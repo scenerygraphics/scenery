@@ -97,8 +97,8 @@ publishing {
 //                        <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
 //                    </repository>
                 }
-                artifact("${rootProject.name}-${rootProject.version}-sources.jar")
-                artifact("${rootProject.name}-${rootProject.version}-javadoc.jar")
+//                artifact("${rootProject.name}-${rootProject.version}-sources.jar")
+//                artifact("${rootProject.name}-${rootProject.version}-javadoc.jar")
             }
         }
     }
