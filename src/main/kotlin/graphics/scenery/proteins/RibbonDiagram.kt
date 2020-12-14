@@ -1,5 +1,6 @@
-package graphics.scenery
+package graphics.scenery.proteins
 
+import graphics.scenery.*
 import org.joml.*
 import graphics.scenery.numerics.Random
 import org.biojava.nbio.structure.Atom
