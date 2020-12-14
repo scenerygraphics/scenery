@@ -2,6 +2,7 @@ package scenery
 
 plugins {
     signing
+    publishing
 }
 
 // https://docs.gradle.org/current/userguide/signing_plugin.html#sec:signatory_credentials
@@ -12,6 +13,3 @@ signing {
     sign(publishing.publications["maven"])
     sign(configurations.archives.get())
 }
-
-val Project.publishing: PublishingExtension get() =
-    (this as ExtensionAware).extensions.getByName("publishing") as PublishingExtension
