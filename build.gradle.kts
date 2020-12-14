@@ -119,6 +119,15 @@ tasks {
     jar {
         archiveVersion.set(rootProject.version.toString())
     }
+    dokkaHtml {
+        dokkaSourceSets.configureEach {
+            sourceLink {
+                localDirectory.set(file("src/main/kotlin"))
+                remoteUrl.set(URL("https://github.com/scenerygraphics/scenery/tree/master/src/main/kotlin"))
+                remoteLineSuffix.set("#L")
+            }
+        }
+    }
 }
 
 val dokkaJavadocJar by tasks.register<Jar>("dokkaJavadocJar") {
