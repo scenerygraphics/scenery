@@ -1,18 +1,14 @@
 package scenery
 
 import org.gradle.api.Action
-import org.gradle.api.artifacts.ConfigurablePublishArtifact
-import org.gradle.api.artifacts.Dependency
-import org.gradle.api.artifacts.DependencyConstraint
-import org.gradle.api.artifacts.ExternalModuleDependency
-import org.gradle.api.artifacts.ModuleDependency
-import org.gradle.api.artifacts.PublishArtifact
+import org.gradle.api.artifacts.*
 import org.gradle.api.artifacts.dsl.ArtifactHandler
 import org.gradle.api.artifacts.dsl.DependencyConstraintHandler
 import org.gradle.api.artifacts.dsl.DependencyHandler
-
-import org.gradle.kotlin.dsl.*
-import org.gradle.kotlin.dsl.accessors.runtime.*
+import org.gradle.kotlin.dsl.accessors.runtime.addDependencyTo
+import org.gradle.kotlin.dsl.accessors.runtime.addExternalModuleDependencyTo
+import org.gradle.kotlin.dsl.add
+import org.gradle.kotlin.dsl.create
 
 
 /**
@@ -35,12 +31,9 @@ fun DependencyHandler.runtimeOnly(dependencyNotation: Any): Dependency? =
  *
  * @see [DependencyHandler.add]
  */
-fun DependencyHandler.runtimeOnly(
-        dependencyNotation: String,
-        dependencyConfiguration: Action<ExternalModuleDependency>
-): ExternalModuleDependency = addDependencyTo(
-        this, "runtimeOnly", dependencyNotation, dependencyConfiguration
-) as ExternalModuleDependency
+fun DependencyHandler.runtimeOnly(dependencyNotation: String,
+                                  dependencyConfiguration: Action<ExternalModuleDependency>): ExternalModuleDependency =
+        addDependencyTo(this, "runtimeOnly", dependencyNotation, dependencyConfiguration)
 
 /**
  * Adds a dependency to the 'runtimeOnly' configuration.
@@ -57,17 +50,14 @@ fun DependencyHandler.runtimeOnly(
  * @see [DependencyHandler.create]
  * @see [DependencyHandler.add]
  */
-fun DependencyHandler.runtimeOnly(
-        group: String,
-        name: String,
-        version: String? = null,
-        configuration: String? = null,
-        classifier: String? = null,
-        ext: String? = null,
-        dependencyConfiguration: Action<ExternalModuleDependency>? = null
-): ExternalModuleDependency = addExternalModuleDependencyTo(
-        this, "runtimeOnly", group, name, version, configuration, classifier, ext, dependencyConfiguration
-)
+fun DependencyHandler.runtimeOnly(group: String,
+                                  name: String,
+                                  version: String? = null,
+                                  configuration: String? = null,
+                                  classifier: String? = null,
+                                  ext: String? = null,
+                                  dependencyConfiguration: Action<ExternalModuleDependency>? = null): ExternalModuleDependency =
+        addExternalModuleDependencyTo(this, "runtimeOnly", group, name, version, configuration, classifier, ext, dependencyConfiguration)
 
 /**
  * Adds a dependency to the 'runtimeOnly' configuration.
@@ -78,10 +68,9 @@ fun DependencyHandler.runtimeOnly(
  *
  * @see [DependencyHandler.add]
  */
-fun <T : ModuleDependency> DependencyHandler.runtimeOnly(
-        dependency: T,
-        dependencyConfiguration: T.() -> Unit
-): T = add("runtimeOnly", dependency, dependencyConfiguration)
+fun <T : ModuleDependency> DependencyHandler.runtimeOnly(dependency: T,
+                                                         dependencyConfiguration: T.() -> Unit): T =
+        add("runtimeOnly", dependency, dependencyConfiguration)
 
 /**
  * Adds a dependency constraint to the 'runtimeOnly' configuration.
@@ -128,9 +117,8 @@ fun ArtifactHandler.runtimeOnly(artifactNotation: Any): PublishArtifact =
  *
  * @see [ArtifactHandler.add]
  */
-fun ArtifactHandler.runtimeOnly(
-        artifactNotation: Any,
-        configureAction:  ConfigurablePublishArtifact.() -> Unit): PublishArtifact =
+fun ArtifactHandler.runtimeOnly(artifactNotation: Any,
+                                configureAction: ConfigurablePublishArtifact.() -> Unit): PublishArtifact =
         add("runtimeOnly", artifactNotation, configureAction)
 
 
