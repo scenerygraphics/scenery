@@ -95,9 +95,6 @@ dependencies {
 }
 
 
-//val sceneryName: String by project
-//println("s: $sceneryName")
-
 tasks {
     withType<KotlinCompile>().all {
         kotlinOptions {
@@ -122,4 +119,28 @@ tasks {
     jar {
         archiveVersion.set(rootProject.version.toString())
     }
+}
+
+val dokkaJavadocJar by tasks.register<Jar>("dokkaJavadocJar") {
+    dependsOn(tasks.dokkaJavadoc)
+    from(tasks.dokkaJavadoc.get().outputDirectory.get())
+    archiveClassifier.set("javadoc")
+}
+
+val dokkaHtmlJar by tasks.register<Jar>("dokkaHtmlJar") {
+    dependsOn(tasks.dokkaHtml)
+    from(tasks.dokkaHtml.get().outputDirectory.get())
+    archiveClassifier.set("html-doc")
+}
+
+val sourceJar = task("sourceJar", Jar::class) {
+    dependsOn(tasks.classes)
+    archiveClassifier.set("sources")
+    from(sourceSets.main.get().allSource)
+}
+
+artifacts {
+    archives(dokkaJavadocJar)
+    archives(dokkaHtmlJar)
+    archives(sourceJar)
 }
