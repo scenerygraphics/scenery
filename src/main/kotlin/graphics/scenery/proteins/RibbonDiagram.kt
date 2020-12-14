@@ -1,6 +1,6 @@
 package graphics.scenery.proteins
 
-import graphics.scenery.*
+import graphics.scenery.geometry.*
 import org.joml.*
 import graphics.scenery.numerics.Random
 import org.biojava.nbio.structure.Atom
@@ -110,7 +110,7 @@ class RibbonDiagram(val protein: Protein, private val displaySS: Boolean = false
 
         val subParent = Mesh("SubProtein")
 
-        val centroid = Axis.LeastSquares.getCentroid(spline.splinePoints())
+        val centroid = Axis.getCentroid(spline.splinePoints())
 
         val splinePoints = spline.splinePoints().map{ it.sub(centroid) }
 
