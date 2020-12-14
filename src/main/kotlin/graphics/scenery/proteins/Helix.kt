@@ -1,7 +1,8 @@
 package graphics.scenery.proteins
 
-import graphics.scenery.Curve
-import graphics.scenery.Spline
+import graphics.scenery.geometry.Curve
+import graphics.scenery.geometry.Mesh
+import graphics.scenery.geometry.Spline
 import org.joml.*
 
 /**
