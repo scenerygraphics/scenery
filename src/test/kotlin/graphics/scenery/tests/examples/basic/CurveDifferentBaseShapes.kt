@@ -3,7 +3,10 @@ package graphics.scenery.tests.examples.basic
 import org.joml.*
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
+import graphics.scenery.geometry.Curve
+import graphics.scenery.geometry.UniformBSpline
 import graphics.scenery.numerics.Random
+import graphics.scenery.primitives.Box
 
 /**
  * Example of a curve with different baseShapes.

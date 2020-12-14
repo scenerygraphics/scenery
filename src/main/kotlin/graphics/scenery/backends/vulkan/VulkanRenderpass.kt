@@ -1,7 +1,7 @@
 package graphics.scenery.backends.vulkan
 
 import org.joml.Vector3f
-import graphics.scenery.GeometryType
+import graphics.scenery.geometry.GeometryType
 import graphics.scenery.Node
 import graphics.scenery.Settings
 import graphics.scenery.backends.RenderConfigReader

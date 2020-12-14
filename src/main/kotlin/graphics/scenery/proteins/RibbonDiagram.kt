@@ -1,5 +1,6 @@
 package graphics.scenery.proteins
 
+import graphics.scenery.Mesh
 import graphics.scenery.geometry.*
 import org.joml.*
 import graphics.scenery.numerics.Random

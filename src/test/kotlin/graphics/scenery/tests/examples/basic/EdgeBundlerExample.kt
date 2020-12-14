@@ -5,6 +5,9 @@ import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.compute.EdgeBundler
 import graphics.scenery.numerics.Random
+import graphics.scenery.primitives.Box
+import graphics.scenery.primitives.Line
+import graphics.scenery.primitives.LinePair
 import kotlin.concurrent.thread
 import kotlin.math.PI
 import kotlin.math.cos

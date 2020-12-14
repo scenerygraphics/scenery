@@ -4,7 +4,7 @@ import graphics.scenery.BufferUtils
 import graphics.scenery.OrientedBoundingBox
 import graphics.scenery.ShaderMaterial
 import graphics.scenery.geometry.GeometryType
-import graphics.scenery.geometry.Mesh
+import graphics.scenery.Mesh
 import org.joml.Vector3f
 import java.nio.FloatBuffer
 import java.nio.file.FileSystems

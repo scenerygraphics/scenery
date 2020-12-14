@@ -21,6 +21,8 @@ import bdv.viewer.SourceAndConverter
 import bdv.viewer.state.ViewerState
 import org.joml.Vector3f
 import graphics.scenery.*
+import graphics.scenery.geometry.GeometryType
+import graphics.scenery.geometry.HasGeometry
 import graphics.scenery.numerics.OpenSimplexNoise
 import graphics.scenery.numerics.Random
 import graphics.scenery.utils.LazyLogger

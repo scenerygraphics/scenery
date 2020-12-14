@@ -1,6 +1,6 @@
 package graphics.scenery.controls.behaviours
 
-import graphics.scenery.BoundingGrid
+import graphics.scenery.geometry.BoundingGrid
 import graphics.scenery.Camera
 import graphics.scenery.Scene
 import graphics.scenery.backends.Renderer

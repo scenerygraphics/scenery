@@ -2,7 +2,9 @@ package graphics.scenery.tests.examples.advanced
 
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
+import graphics.scenery.Mesh
 import graphics.scenery.numerics.Random
+import graphics.scenery.primitives.Box
 import graphics.scenery.utils.extensions.minus
 import org.joml.Vector3f
 import kotlin.concurrent.thread

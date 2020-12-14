@@ -3,7 +3,12 @@ package graphics.scenery.tests.examples.volumes
 import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
+import graphics.scenery.geometry.BoundingGrid
 import graphics.scenery.numerics.Random
+import graphics.scenery.primitives.Box
+import graphics.scenery.primitives.Cylinder
+import graphics.scenery.primitives.Icosphere
+import graphics.scenery.primitives.Line
 import graphics.scenery.utils.MaybeIntersects
 import graphics.scenery.utils.RingBuffer
 import graphics.scenery.utils.extensions.minus

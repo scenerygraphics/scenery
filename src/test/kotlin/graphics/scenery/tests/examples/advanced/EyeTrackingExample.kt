@@ -7,6 +7,8 @@ import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.controls.eyetracking.PupilEyeTracker
 import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.numerics.Random
+import graphics.scenery.primitives.Box
+import graphics.scenery.primitives.Icosphere
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
 import org.joml.Vector2f

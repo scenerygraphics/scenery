@@ -4,8 +4,9 @@ import org.joml.*
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
-import graphics.scenery.Protein
-import graphics.scenery.RibbonDiagram
+import graphics.scenery.primitives.Box
+import graphics.scenery.proteins.Protein
+import graphics.scenery.proteins.RibbonDiagram
 
 /**
  * This is an example for the default visualization of a ribbon diagram. There is a color vector implemented so that

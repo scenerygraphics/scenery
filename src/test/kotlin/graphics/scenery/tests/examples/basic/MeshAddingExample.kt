@@ -2,6 +2,9 @@ package graphics.scenery.tests.examples.basic
 
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
+import graphics.scenery.controls.behaviours.CreateCommand
+import graphics.scenery.primitives.Box
+import graphics.scenery.primitives.Icosphere
 import org.joml.Vector3f
 
 /**

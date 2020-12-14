@@ -1,6 +1,6 @@
 package graphics.scenery.tests.unit
 
-import graphics.scenery.Icosphere
+import graphics.scenery.primitives.Icosphere
 import graphics.scenery.Scene
 import graphics.scenery.numerics.Random
 import graphics.scenery.utils.LazyLogger
