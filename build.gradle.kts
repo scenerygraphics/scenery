@@ -3,6 +3,7 @@ import org.gradle.kotlin.dsl.runtimeOnly
 import org.gradle.kotlin.dsl.testImplementation
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import scenery.*
+import java.net.URL
 
 plugins {
     java
