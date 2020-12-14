@@ -1,18 +1,14 @@
 package scenery
 
 import org.gradle.api.Action
-import org.gradle.api.artifacts.ConfigurablePublishArtifact
-import org.gradle.api.artifacts.Dependency
-import org.gradle.api.artifacts.DependencyConstraint
-import org.gradle.api.artifacts.ExternalModuleDependency
-import org.gradle.api.artifacts.ModuleDependency
-import org.gradle.api.artifacts.PublishArtifact
+import org.gradle.api.artifacts.*
 import org.gradle.api.artifacts.dsl.ArtifactHandler
 import org.gradle.api.artifacts.dsl.DependencyConstraintHandler
 import org.gradle.api.artifacts.dsl.DependencyHandler
-
-import org.gradle.kotlin.dsl.*
-import org.gradle.kotlin.dsl.accessors.runtime.*
+import org.gradle.kotlin.dsl.accessors.runtime.addDependencyTo
+import org.gradle.kotlin.dsl.accessors.runtime.addExternalModuleDependencyTo
+import org.gradle.kotlin.dsl.add
+import org.gradle.kotlin.dsl.create
 
 
 /**
@@ -35,12 +31,9 @@ fun DependencyHandler.implementation(dependencyNotation: Any): Dependency? =
  *
  * @see [DependencyHandler.add]
  */
-fun DependencyHandler.implementation(
-        dependencyNotation: String,
-        dependencyConfiguration: Action<ExternalModuleDependency>
-): ExternalModuleDependency = addDependencyTo(
-        this, "implementation", dependencyNotation, dependencyConfiguration
-) as ExternalModuleDependency
+fun DependencyHandler.implementation(dependencyNotation: String,
+                                     dependencyConfiguration: Action<ExternalModuleDependency>): ExternalModuleDependency =
+        addDependencyTo(this, "implementation", dependencyNotation, dependencyConfiguration)
 
 /**
  * Adds a dependency to the 'implementation' configuration.
@@ -57,17 +50,14 @@ fun DependencyHandler.implementation(
  * @see [DependencyHandler.create]
  * @see [DependencyHandler.add]
  */
-fun DependencyHandler.implementation(
-        group: String,
-        name: String,
-        version: String? = null,
-        configuration: String? = null,
-        classifier: String? = null,
-        ext: String? = null,
-        dependencyConfiguration: Action<ExternalModuleDependency>? = null
-): ExternalModuleDependency = addExternalModuleDependencyTo(
-        this, "implementation", group, name, version, configuration, classifier, ext, dependencyConfiguration
-)
+fun DependencyHandler.implementation(group: String,
+                                     name: String,
+                                     version: String? = null,
+                                     configuration: String? = null,
+                                     classifier: String? = null,
+                                     ext: String? = null,
+                                     dependencyConfiguration: Action<ExternalModuleDependency>? = null): ExternalModuleDependency =
+        addExternalModuleDependencyTo(this, "implementation", group, name, version, configuration, classifier, ext, dependencyConfiguration)
 
 /**
  * Adds a dependency to the 'implementation' configuration.
@@ -78,10 +68,9 @@ fun DependencyHandler.implementation(
  *
  * @see [DependencyHandler.add]
  */
-fun <T : ModuleDependency> DependencyHandler.implementation(
-        dependency: T,
-        dependencyConfiguration: T.() -> Unit
-): T = add("implementation", dependency, dependencyConfiguration)
+fun <T : ModuleDependency> DependencyHandler.implementation(dependency: T,
+                                                            dependencyConfiguration: T.() -> Unit): T =
+        add("implementation", dependency, dependencyConfiguration)
 
 /**
  * Adds a dependency constraint to the 'implementation' configuration.
@@ -128,9 +117,8 @@ fun ArtifactHandler.implementation(artifactNotation: Any): PublishArtifact =
  *
  * @see [ArtifactHandler.add]
  */
-fun ArtifactHandler.implementation(
-        artifactNotation: Any,
-        configureAction:  ConfigurablePublishArtifact.() -> Unit): PublishArtifact =
+fun ArtifactHandler.implementation(artifactNotation: Any,
+                                   configureAction: ConfigurablePublishArtifact.() -> Unit): PublishArtifact =
         add("implementation", artifactNotation, configureAction)
 
 
