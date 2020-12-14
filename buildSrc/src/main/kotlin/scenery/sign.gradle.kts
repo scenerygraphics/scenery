@@ -1,7 +1,5 @@
 package scenery
 
-import gradle.kotlin.dsl.accessors._e98ba513b34f86980a981ef4cafb3d49.publishing
-
 plugins {
     signing
 }
@@ -14,3 +12,6 @@ signing {
     sign(publishing.publications["maven"])
     sign(configurations.archives.get())
 }
+
+val Project.publishing: PublishingExtension get() =
+    (this as ExtensionAware).extensions.getByName("publishing") as PublishingExtension
