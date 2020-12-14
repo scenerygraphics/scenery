@@ -1,8 +1,7 @@
-package graphics.scenery
+package graphics.scenery.geometry
 
 import graphics.scenery.BufferUtils
-import graphics.scenery.HasGeometry
-import graphics.scenery.Mesh
+import graphics.scenery.Spline
 import graphics.scenery.utils.extensions.toFloatArray
 import org.joml.*
 import kotlin.Float.Companion.MIN_VALUE

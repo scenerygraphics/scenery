@@ -1,5 +1,6 @@
-package graphics.scenery
+package graphics.scenery.geometry
 
+import graphics.scenery.BufferUtils
 import graphics.scenery.utils.extensions.minus
 import org.joml.Vector3f
 import java.io.Serializable

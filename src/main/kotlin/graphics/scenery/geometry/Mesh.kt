@@ -1,8 +1,9 @@
-package graphics.scenery
+package graphics.scenery.geometry
 
 import org.joml.Vector3f
 import gnu.trove.map.hash.THashMap
 import gnu.trove.set.hash.TLinkedHashSet
+import graphics.scenery.*
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.Image
 import graphics.scenery.utils.LazyLogger

@@ -1,5 +1,6 @@
-package graphics.scenery
+package graphics.scenery.geometry
 
+import graphics.scenery.Spline
 import graphics.scenery.utils.extensions.xyz
 import org.joml.Matrix4f
 import org.joml.Vector3f

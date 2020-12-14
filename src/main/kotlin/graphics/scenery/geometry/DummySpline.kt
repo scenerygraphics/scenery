@@ -1,5 +1,6 @@
-package graphics.scenery
+package graphics.scenery.geometry
 
+import graphics.scenery.Spline
 import org.joml.Vector3f
 
 /**
