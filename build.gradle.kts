@@ -49,23 +49,32 @@ dependencies {
     implementation(platform("org.lwjgl:lwjgl-bom:3.2.3"))
     listOf("", "-glfw", "-jemalloc", "-vulkan", "-opengl", "-openvr", "-xxhash", "-remotery").forEach {
         implementation("org.lwjgl:lwjgl$it")
-        if (it != "-vulkan")
-            runtimeOnly("org.lwjgl", "lwjgl$it", classifier = lwjglNatives)
+        if (it != "-vulkan") {
+            runtimeOnly("org.lwjgl", "lwjgl$it", classifier = "natives-windows") // this is crap, but will be polished
+            runtimeOnly("org.lwjgl", "lwjgl$it", classifier = "natives-linux")
+            runtimeOnly("org.lwjgl", "lwjgl$it", classifier = "natives-macos")
+        }
     }
     sciJava("com.fasterxml.jackson.core:jackson-databind")
     sciJava("com.fasterxml.jackson.module:jackson-module-kotlin:\$jackson")
     sciJava("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:\$jackson")
     implementation("graphics.scenery:spirvcrossj:0.7.0-1.1.106.0")
-    runtimeOnly("graphics.scenery", "spirvcrossj", classifier = lwjglNatives)
+    runtimeOnly("graphics.scenery", "spirvcrossj", classifier = "natives-windows") // "
+    runtimeOnly("graphics.scenery", "spirvcrossj", classifier = "natives-linux")
+    runtimeOnly("graphics.scenery", "spirvcrossj", classifier = "natives-macos")
     implementation("org.zeromq:jeromq:0.4.3")
     implementation("com.esotericsoftware:kryo:4.0.2")
     implementation("org.msgpack:msgpack-core:0.8.20")
     implementation("org.msgpack:jackson-dataformat-msgpack:0.8.20")
     implementation("graphics.scenery:jvrpn:1.1.0")
-    runtimeOnly("graphics.scenery", "jvrpn", classifier = lwjglNatives)
+    runtimeOnly("graphics.scenery", "jvrpn", classifier = "natives-windows") // "
+    runtimeOnly("graphics.scenery", "jvrpn", classifier = "natives-linux")
+    runtimeOnly("graphics.scenery", "jvrpn", classifier = "natives-macos")
     sciJava("io.scif:scifio")
     implementation("org.bytedeco:ffmpeg:4.2.1-1.5.2")
-    runtimeOnly("org.bytedeco", "ffmpeg", classifier = ffmpegNatives)
+    runtimeOnly("org.bytedeco", "ffmpeg", classifier = "windows-x86_64") // "
+    runtimeOnly("org.bytedeco", "ffmpeg", classifier = "linux-x86_64")
+    runtimeOnly("org.bytedeco", "ffmpeg", classifier = "macosx-x86_64")
     implementation("org.reflections:reflections:0.9.12")
     implementation("io.github.classgraph:classgraph:4.8.86")
     implementation("sc.fiji:bigvolumeviewer:0.1.8")
@@ -80,8 +89,8 @@ dependencies {
             exclude("org.apache.logging.log4j", "log4j-slf4j-impl")
         }
     }
-    implementation("org.jetbrains.kotlin:kotlin-scripting-jsr223:${ktVersion}")
-    implementation("org.jetbrains.kotlin:kotlin-test:${ktVersion}")
+    implementation("org.jetbrains.kotlin:kotlin-scripting-jsr223:$ktVersion")
+    implementation("org.jetbrains.kotlin:kotlin-test:$ktVersion")
     //    implementation("com.github.kotlin-graphics:assimp:25c68811")
 
     testSciJava("junit:junit")
