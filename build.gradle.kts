@@ -31,8 +31,10 @@ dependencies {
     //    implementation(platform("org.scijava:pom-scijava-base:11.2.0"))
     //    components.all<Rule>()
 
-    sciJava("org.jogamp.gluegen:gluegen-rt", joglNative)
-    sciJava("org.jogamp.jogl:jogl-all", joglNative)
+    listOf("windows-amd64", "linux-i586", "linux-amd64", "macosx-universal").forEach {
+        sciJava("org.jogamp.gluegen:gluegen-rt", "natives-$it") // this is crap, but will be polished eventually
+        sciJava("org.jogamp.jogl:jogl-all", "natives-$it")
+    }
     sciJava("org.slf4j:slf4j-api")
     sciJava("net.clearvolume:cleargl")
     sciJava("org.joml:joml")
@@ -47,34 +49,34 @@ dependencies {
     sciJava("net.java.dev.jna:jna-platform:\$jna")
     implementation("org.jocl:jocl:2.0.2")
     implementation(platform("org.lwjgl:lwjgl-bom:3.2.3"))
+    fun runtimeOnlylwjglNatives(group: String, name: String) {
+        listOf("windows", "linux", "macos").forEach {
+            runtimeOnly(group, name, classifier = "natives-$it") // "
+        }
+    }
     listOf("", "-glfw", "-jemalloc", "-vulkan", "-opengl", "-openvr", "-xxhash", "-remotery").forEach {
         implementation("org.lwjgl:lwjgl$it")
-        if (it != "-vulkan") {
-            runtimeOnly("org.lwjgl", "lwjgl$it", classifier = "natives-windows") // this is crap, but will be polished
-            runtimeOnly("org.lwjgl", "lwjgl$it", classifier = "natives-linux")
-            runtimeOnly("org.lwjgl", "lwjgl$it", classifier = "natives-macos")
-        }
+        if (it != "-vulkan")
+            runtimeOnlylwjglNatives("org.lwjgl", "lwjgl$it") // "
     }
     sciJava("com.fasterxml.jackson.core:jackson-databind")
     sciJava("com.fasterxml.jackson.module:jackson-module-kotlin:\$jackson")
     sciJava("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:\$jackson")
     implementation("graphics.scenery:spirvcrossj:0.7.0-1.1.106.0")
-    runtimeOnly("graphics.scenery", "spirvcrossj", classifier = "natives-windows") // "
-    runtimeOnly("graphics.scenery", "spirvcrossj", classifier = "natives-linux")
-    runtimeOnly("graphics.scenery", "spirvcrossj", classifier = "natives-macos")
+    runtimeOnlylwjglNatives("graphics.scenery", "spirvcrossj") // "
     implementation("org.zeromq:jeromq:0.4.3")
     implementation("com.esotericsoftware:kryo:4.0.2")
     implementation("org.msgpack:msgpack-core:0.8.20")
     implementation("org.msgpack:jackson-dataformat-msgpack:0.8.20")
     implementation("graphics.scenery:jvrpn:1.1.0")
-    runtimeOnly("graphics.scenery", "jvrpn", classifier = "natives-windows") // "
+    runtimeOnlylwjglNatives("graphics.scenery", "jvrpn") // "
     runtimeOnly("graphics.scenery", "jvrpn", classifier = "natives-linux")
     runtimeOnly("graphics.scenery", "jvrpn", classifier = "natives-macos")
     sciJava("io.scif:scifio")
     implementation("org.bytedeco:ffmpeg:4.2.1-1.5.2")
-    runtimeOnly("org.bytedeco", "ffmpeg", classifier = "windows-x86_64") // "
-    runtimeOnly("org.bytedeco", "ffmpeg", classifier = "linux-x86_64")
-    runtimeOnly("org.bytedeco", "ffmpeg", classifier = "macosx-x86_64")
+    listOf("windows", "linux", "macosx").forEach {
+        runtimeOnly("org.bytedeco", "ffmpeg", classifier = "$it-x86_64") // "
+    }
     implementation("org.reflections:reflections:0.9.12")
     implementation("io.github.classgraph:classgraph:4.8.86")
     implementation("sc.fiji:bigvolumeviewer:0.1.8")
