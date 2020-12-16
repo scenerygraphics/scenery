@@ -26,10 +26,7 @@ import org.lwjgl.system.MemoryStack.stackPush
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.VK_IMAGE_ASPECT_COLOR_BIT
-import org.scijava.ui.behaviour.Behaviour
-import org.scijava.ui.behaviour.BehaviourMap
-import org.scijava.ui.behaviour.InputTriggerMap
-import org.scijava.ui.behaviour.MouseAndKeyHandler
+import org.scijava.ui.behaviour.*
 import org.scijava.ui.behaviour.io.InputTriggerConfig
 import java.awt.Component
 import java.awt.event.KeyEvent
@@ -107,7 +104,7 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
     protected val inputMap = InputTriggerMap()
     protected val behaviourMap = BehaviourMap()
 
-    var manufacturer: String = ""
+    var manufacturer: Manufacturer = Manufacturer.Other
         private set
     var trackingSystemName: String = ""
         private set
@@ -119,6 +116,13 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
     /** Set of keys that are allowed to be repeated. */
     val allowRepeats = HashSet<Pair<OpenVRButton, TrackerRole>>(5, 0.8f)
     protected val keysDown = HashSet<Pair<OpenVRButton, TrackerRole>>(5, 0.8f)
+
+    enum class Manufacturer {
+        HTC,
+        Oculus,
+        WindowsMR,
+        Other
+    }
 
 
     protected data class CompositeModel(
@@ -156,7 +160,14 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
         @JsonProperty("rotate_xyz") @JsonDeserialize(using = JsonDeserialisers.VectorDeserializer::class) val rotation: Vector3f
     )
 
+    val eventTypes: Map<Int, String> = VR::class.java.declaredFields
+        .filter { it.name.startsWith("EVREventType_VREvent_")}
+        .map { it.getInt(null) to it.name.substringAfter("EVREventType_VREvent_") }
+        .toMap()
+
     init {
+        logger.debug("Registered ${eventTypes.size} event types")
+
         inputHandler.setBehaviourMap(behaviourMap)
         inputHandler.setInputMap(inputMap)
 
@@ -197,7 +208,13 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
                 eyeTransformCache.add(null)
                 eyeTransformCache.add(null)
 
-                manufacturer = getStringProperty(k_unTrackedDeviceIndex_Hmd, ETrackedDeviceProperty_Prop_ManufacturerName_String)
+                val m = getStringProperty(k_unTrackedDeviceIndex_Hmd, ETrackedDeviceProperty_Prop_ManufacturerName_String)
+                manufacturer = when {
+                    m.contains("HTC") -> Manufacturer.HTC
+                    m.contains("WindowsMR") -> Manufacturer.WindowsMR
+                    m.contains("Oculus") -> Manufacturer.Oculus
+                    else -> Manufacturer.Other
+                }
                 trackingSystemName = getStringProperty(k_unTrackedDeviceIndex_Hmd, ETrackedDeviceProperty_Prop_TrackingSystemName_String)
                 val driverVersion = getStringProperty(k_unTrackedDeviceIndex_Hmd, ETrackedDeviceProperty_Prop_DriverVersion_String)
 
@@ -210,6 +227,8 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
             initialized = false
         }
     }
+
+    private fun idToEventType(id: Int): String = eventTypes.getOrDefault(id, "Unknown event($id)")
 
     /**
      * Initialises the OpenVR compositor
@@ -348,7 +367,7 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
             // pose contains the identity for the left eye, and the full IPD/shift transformation for
             // the right eye. The developers claim this is for reprojection to work correctly. See also
             // https://github.com/LibreVR/Revive/issues/893
-            if(manufacturer.contains("WindowsMR")) {
+            if(manufacturer == Manufacturer.WindowsMR) {
                 eyeTransformCache[eye] = transform.toMatrix4f()
             } else {
                 eyeTransformCache[eye] = transform.toMatrix4f()
@@ -487,15 +506,20 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
                     if(state != null) {
                         VRSystem_GetControllerState(device, state)
 
+                        logger.trace("Axis of {}: {} {}, button {}", d.role, state.rAxis(0).x(), state.rAxis(0).y(), state.ulButtonPressed())
 
                         when {
-                            (state.rAxis(0).x() > 0.5f && state.rAxis(0).y().absoluteValue < 0.5f && (state.ulButtonPressed() and (1L shl EVRButtonId_k_EButton_SteamVR_Touchpad) != 0L)) -> OpenVRButton.Right.toKeyEvent(d.role)
-                            (state.rAxis(0).x() < -0.5f && state.rAxis(0).y().absoluteValue < 0.5f && (state.ulButtonPressed() and (1L shl EVRButtonId_k_EButton_SteamVR_Touchpad) != 0L)) -> OpenVRButton.Left.toKeyEvent(d.role)
-                            (state.rAxis(0).y() > 0.5f && state.rAxis(0).x().absoluteValue < 0.5f && (state.ulButtonPressed() and (1L shl EVRButtonId_k_EButton_SteamVR_Touchpad) != 0L)) -> OpenVRButton.Up.toKeyEvent(d.role)
-                            (state.rAxis(0).y() < -0.5f && state.rAxis(0).x().absoluteValue < 0.5f && (state.ulButtonPressed() and (1L shl EVRButtonId_k_EButton_SteamVR_Touchpad) != 0L)) -> OpenVRButton.Down.toKeyEvent(d.role)
+                            (state.rAxis(0).x() > 0.5f && state.rAxis(0).y().absoluteValue < 0.5f && state.isDPadAction()) -> OpenVRButton.Right.toKeyEvent(d.role)
+                            (state.rAxis(0).x() < -0.5f && state.rAxis(0).y().absoluteValue < 0.5f && state.isDPadAction()) -> OpenVRButton.Left.toKeyEvent(d.role)
+                            (state.rAxis(0).y() > 0.5f && state.rAxis(0).x().absoluteValue < 0.5f && state.isDPadAction()) -> OpenVRButton.Up.toKeyEvent(d.role)
+                            (state.rAxis(0).y() < -0.5f && state.rAxis(0).x().absoluteValue < 0.5f && state.isDPadAction()) -> OpenVRButton.Down.toKeyEvent(d.role)
                             else -> null
                         }?.let { event ->
+                            logger.debug("Pressing {}/{} on {}", KeyEvent.getKeyText(event.first.keyCode), KeyEvent.getKeyText(event.second.keyCode), d.role)
+
+                            GlobalKeyEventDispatcher.getInstance().dispatchKeyEvent(event.first)
                             inputHandler.keyPressed(event.first)
+                            GlobalKeyEventDispatcher.getInstance().dispatchKeyEvent(event.second)
                             inputHandler.keyReleased(event.second)
                         }
                     }
@@ -505,6 +529,8 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
 
                 d.pose = pose.toMatrix4f()
                 d.timestamp = System.nanoTime()
+                d.velocity = hmdTrackedDevicePoses.get(device).vVelocity().toVector3f()
+                d.angularVelocity = hmdTrackedDevicePoses.get(device).vAngularVelocity().toVector3f()
 
                 if (type == TrackedDeviceType.HMD) {
                     d.pose.invert()
@@ -521,14 +547,18 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
                 else -> TrackerRole.Invalid
             }
 
+            logger.debug("Event ${idToEventType(event.eventType())} for role $role")
+
             if(event.eventType() == EVREventType_VREvent_ButtonPress) {
                 val button = event.data().controller().button()
 
                 OpenVRButton.values().find { it.internalId == button }?.let {
-                    logger.debug("Button pressed: $this on $role")
+                    logger.debug("Button pressed: $it on $role")
                     val keyEvent = it.toKeyEvent(role)
+                    GlobalKeyEventDispatcher.getInstance().dispatchKeyEvent(keyEvent.first)
                     inputHandler.keyPressed(keyEvent.first)
                     keysDown.add(it to role)
+                    GlobalKeyEventDispatcher.getInstance().dispatchKeyEvent(keyEvent.second)
                 }
             }
 
@@ -536,8 +566,9 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
                 val button = event.data().controller().button()
 
                 OpenVRButton.values().find { it.internalId == button }?.let {
-                    logger.debug("Button unpressed: $this on $role")
+                    logger.debug("Button unpressed: $it on $role")
                     val keyEvent = it.toKeyEvent(role)
+                    GlobalKeyEventDispatcher.getInstance().dispatchKeyEvent(keyEvent.second)
                     inputHandler.keyReleased(keyEvent.second)
                     keysDown.remove(it to role)
                 }
@@ -562,52 +593,16 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
         readyForSubmission = true
     }
 
-    enum class OpenVRButton(val internalId: Int) {
-        Left(EVRButtonId_k_EButton_DPad_Left),
-        Right(EVRButtonId_k_EButton_DPad_Right),
-        Up(EVRButtonId_k_EButton_DPad_Up),
-        Down(EVRButtonId_k_EButton_DPad_Down),
-        Menu(EVRButtonId_k_EButton_ApplicationMenu),
-        Side(EVRButtonId_k_EButton_Grip),
-        Trigger(EVRButtonId_k_EButton_SteamVR_Trigger),
-    }
-
-    fun OpenVRButton.toKey(hand: TrackerRole): String {
-        return this.toAWTKeyCode(hand).code.toString(16)
-    }
-
-    data class AWTKey(val code: Int, val modifiers: Int = 0, var time: Long = System.nanoTime(), val char: Char = KeyEvent.CHAR_UNDEFINED)
-
-    private fun OpenVRButton.toKeyEvent(role: TrackerRole): Pair<KeyEvent, KeyEvent> {
-        val keycode = this.toAWTKeyCode(role)
-        return KeyEvent(object: Component() {}, KeyEvent.KEY_PRESSED, System.nanoTime(), 0, keycode.code, keycode.char) to
-            KeyEvent(object: Component() {}, KeyEvent.KEY_RELEASED, System.nanoTime() + 10e5.toLong(), 0, keycode.code, keycode.char)
-    }
-
-    private fun OpenVRButton.toAWTKeyCode(role: TrackerRole = TrackerRole.LeftHand): AWTKey {
-        return when {
-            this == OpenVRButton.Left && role == TrackerRole.LeftHand -> AWTKey(KeyEvent.VK_H)
-            this == OpenVRButton.Right && role == TrackerRole.LeftHand  -> AWTKey(KeyEvent.VK_L)
-            this == OpenVRButton.Up  && role == TrackerRole.LeftHand  -> AWTKey(KeyEvent.VK_K)
-            this == OpenVRButton.Down && role == TrackerRole.LeftHand  -> AWTKey(KeyEvent.VK_J)
-            this == OpenVRButton.Menu && role == TrackerRole.LeftHand -> AWTKey(KeyEvent.VK_M)
-            this == OpenVRButton.Trigger && role == TrackerRole.LeftHand -> AWTKey(KeyEvent.VK_T)
-            this == OpenVRButton.Side && role == TrackerRole.LeftHand -> AWTKey(KeyEvent.VK_X)
-
-            this == OpenVRButton.Left && role != TrackerRole.LeftHand -> AWTKey(KeyEvent.VK_A)
-            this == OpenVRButton.Right && role != TrackerRole.LeftHand -> AWTKey(KeyEvent.VK_D)
-            this == OpenVRButton.Up  && role != TrackerRole.LeftHand -> AWTKey(KeyEvent.VK_W)
-            this == OpenVRButton.Down && role != TrackerRole.LeftHand -> AWTKey(KeyEvent.VK_S)
-            this == OpenVRButton.Menu && role != TrackerRole.LeftHand -> AWTKey(KeyEvent.VK_N)
-            this == OpenVRButton.Trigger && role != TrackerRole.LeftHand -> AWTKey(KeyEvent.VK_U)
-            this == OpenVRButton.Side && role != TrackerRole.LeftHand -> AWTKey(KeyEvent.VK_Y)
-
-            else -> {
-                logger.warn("Unknown key: $this for role $role")
-                AWTKey(KeyEvent.VK_ESCAPE)
-            }
+    private fun VRControllerState.isDPadAction(): Boolean {
+        return if(manufacturer == Manufacturer.HTC) {
+            (this.ulButtonPressed() and (1L shl EVRButtonId_k_EButton_SteamVR_Touchpad) != 0L)
+        } else {
+            true
         }
     }
+
+
+    data class AWTKey(val code: Int, val modifiers: Int = 0, var time: Long = System.nanoTime(), val char: Char = KeyEvent.CHAR_UNDEFINED, val string: String = KeyEvent.getKeyText(code))
 
     /**
      * Query the HMD whether a compositor is used or the renderer should take
@@ -751,34 +746,6 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
         VRCompositor_WaitGetPoses(hmdTrackedDevicePoses, gamePoses)
     }
 
-    private fun translateError(error: Int): String {
-        return when (error) {
-            EVRCompositorError_VRCompositorError_None ->
-                "No error"
-            EVRCompositorError_VRCompositorError_RequestFailed ->
-                "Request failed"
-            EVRCompositorError_VRCompositorError_IncompatibleVersion ->
-                "Incompatible API version"
-            EVRCompositorError_VRCompositorError_DoNotHaveFocus ->
-                "Compositor does not have focus"
-            EVRCompositorError_VRCompositorError_InvalidTexture ->
-                "Invalid texture"
-            EVRCompositorError_VRCompositorError_IsNotSceneApplication ->
-                "Not scene application"
-            EVRCompositorError_VRCompositorError_TextureIsOnWrongDevice ->
-                "Texture is on wrong device"
-            EVRCompositorError_VRCompositorError_TextureUsesUnsupportedFormat ->
-                "Texture uses unsupported format"
-            EVRCompositorError_VRCompositorError_SharedTexturesNotSupported ->
-                "Shared textures are not supported"
-            EVRCompositorError_VRCompositorError_IndexOutOfRange ->
-                "Index out of range"
-            EVRCompositorError_VRCompositorError_AlreadySubmitted ->
-                "Already submitted"
-            else ->
-                "Unknown error"
-        }
-    }
 
     /**
      * Returns a [List] of Vulkan instance extensions required by the device.
@@ -1067,6 +1034,7 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
         node.update.add {
             this.getPose(TrackedDeviceType.Controller).firstOrNull { it.name == device.name }?.let { controller ->
 
+                node.metadata["TrackedDevice"] = controller
                 node.wantsComposeModel = false
                 node.model.identity()
                 camera?.let {
@@ -1113,6 +1081,10 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
         }
     }
 
+    fun addKeyBinding(behaviourName: String, hand: TrackerRole, button: OpenVRButton) {
+        config.inputTriggerAdder(inputMap, "all").put(behaviourName, keyBinding(hand, button))
+    }
+
     /**
      * Removes a key binding for a given behaviour
      *
@@ -1130,5 +1102,147 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
      */
     fun getBehaviour(behaviourName: String): Behaviour? {
         return behaviourMap.get(behaviourName)
+    }
+
+    /**
+     * Class to represent all buttons supported by OpenVR.
+     */
+    enum class OpenVRButton(val internalId: Int) {
+        Left(EVRButtonId_k_EButton_DPad_Left),
+        Right(EVRButtonId_k_EButton_DPad_Right),
+        Up(EVRButtonId_k_EButton_DPad_Up),
+        Down(EVRButtonId_k_EButton_DPad_Down),
+        Menu(EVRButtonId_k_EButton_ApplicationMenu),
+        Side(EVRButtonId_k_EButton_Grip),
+        Trigger(EVRButtonId_k_EButton_SteamVR_Trigger),
+        A(EVRButtonId_k_EButton_A),
+        System(EVRButtonId_k_EButton_System),
+        Touchpad(EVRButtonId_k_EButton_SteamVR_Touchpad),
+        IndexJoystick(EVRButtonId_k_EButton_IndexController_JoyStick),
+        IndexA(EVRButtonId_k_EButton_IndexController_A),
+        IndexB(EVRButtonId_k_EButton_IndexController_B),
+        ProximitySensor(EVRButtonId_k_EButton_ProximitySensor),
+        Axis0(EVRButtonId_k_EButton_Axis0),
+        Axis1(EVRButtonId_k_EButton_Axis1),
+        Axis2(EVRButtonId_k_EButton_Axis2),
+        Axis3(EVRButtonId_k_EButton_Axis3),
+        Axis4(EVRButtonId_k_EButton_Axis4),
+        DashboardBack(EVRButtonId_k_EButton_Dashboard_Back)
+    }
+
+    companion object {
+        private val logger by LazyLogger()
+
+        protected val keyMap: HashMap<Pair<TrackerRole, OpenVRButton>, AWTKey> = hashMapOf(
+            (TrackerRole.LeftHand to OpenVRButton.Left) to AWTKey(KeyEvent.VK_H),
+            (TrackerRole.LeftHand to OpenVRButton.Right) to AWTKey(KeyEvent.VK_L),
+            (TrackerRole.LeftHand to OpenVRButton.Up) to AWTKey(KeyEvent.VK_K),
+            (TrackerRole.LeftHand to OpenVRButton.Down) to AWTKey(KeyEvent.VK_J),
+            (TrackerRole.LeftHand to OpenVRButton.Menu) to AWTKey(KeyEvent.VK_M),
+            (TrackerRole.LeftHand to OpenVRButton.Trigger) to AWTKey(KeyEvent.VK_T),
+            (TrackerRole.LeftHand to OpenVRButton.Side) to AWTKey(KeyEvent.VK_X),
+
+            (TrackerRole.LeftHand to OpenVRButton.A) to AWTKey(KeyEvent.VK_Q),
+            (TrackerRole.LeftHand to OpenVRButton.System) to AWTKey(KeyEvent.VK_E),
+            (TrackerRole.LeftHand to OpenVRButton.Touchpad) to AWTKey(KeyEvent.VK_R),
+            (TrackerRole.LeftHand to OpenVRButton.IndexJoystick) to AWTKey(KeyEvent.VK_Z),
+            (TrackerRole.LeftHand to OpenVRButton.IndexA) to AWTKey(KeyEvent.VK_I),
+            (TrackerRole.LeftHand to OpenVRButton.IndexB) to AWTKey(KeyEvent.VK_O),
+            (TrackerRole.LeftHand to OpenVRButton.ProximitySensor) to AWTKey(KeyEvent.VK_P),
+            (TrackerRole.LeftHand to OpenVRButton.Axis0) to AWTKey(KeyEvent.VK_F),
+            (TrackerRole.LeftHand to OpenVRButton.Axis1) to AWTKey(KeyEvent.VK_G),
+            (TrackerRole.LeftHand to OpenVRButton.Axis2) to AWTKey(KeyEvent.VK_C),
+            (TrackerRole.LeftHand to OpenVRButton.Axis3) to AWTKey(KeyEvent.VK_V),
+            (TrackerRole.LeftHand to OpenVRButton.Axis4) to AWTKey(KeyEvent.VK_B),
+            (TrackerRole.LeftHand to OpenVRButton.DashboardBack) to AWTKey(KeyEvent.VK_0),
+
+            (TrackerRole.RightHand to OpenVRButton.Left) to AWTKey(KeyEvent.VK_A),
+            (TrackerRole.RightHand to OpenVRButton.Right) to AWTKey(KeyEvent.VK_D),
+            (TrackerRole.RightHand to OpenVRButton.Up ) to AWTKey(KeyEvent.VK_W),
+            (TrackerRole.RightHand to OpenVRButton.Down) to AWTKey(KeyEvent.VK_S),
+            (TrackerRole.RightHand to OpenVRButton.Menu) to AWTKey(KeyEvent.VK_N),
+            (TrackerRole.RightHand to OpenVRButton.Trigger) to AWTKey(KeyEvent.VK_U),
+            (TrackerRole.RightHand to OpenVRButton.Side) to AWTKey(KeyEvent.VK_Y),
+            
+            (TrackerRole.RightHand to OpenVRButton.A) to AWTKey(KeyEvent.VK_1),
+            (TrackerRole.RightHand to OpenVRButton.System) to AWTKey(KeyEvent.VK_2),
+            (TrackerRole.RightHand to OpenVRButton.Touchpad) to AWTKey(KeyEvent.VK_3),
+            (TrackerRole.RightHand to OpenVRButton.IndexJoystick) to AWTKey(KeyEvent.VK_4),
+            (TrackerRole.RightHand to OpenVRButton.IndexA) to AWTKey(KeyEvent.VK_5),
+            (TrackerRole.RightHand to OpenVRButton.IndexB) to AWTKey(KeyEvent.VK_6),
+            (TrackerRole.RightHand to OpenVRButton.ProximitySensor) to AWTKey(KeyEvent.VK_7),
+            (TrackerRole.RightHand to OpenVRButton.Axis0) to AWTKey(KeyEvent.VK_8),
+            (TrackerRole.RightHand to OpenVRButton.Axis1) to AWTKey(KeyEvent.VK_9),
+            (TrackerRole.RightHand to OpenVRButton.Axis2) to AWTKey(KeyEvent.VK_COMMA),
+            (TrackerRole.RightHand to OpenVRButton.Axis3) to AWTKey(KeyEvent.VK_COLON),
+            (TrackerRole.RightHand to OpenVRButton.Axis4) to AWTKey(KeyEvent.VK_PLUS),
+            (TrackerRole.RightHand to OpenVRButton.DashboardBack) to AWTKey(KeyEvent.VK_MINUS),
+
+            // proximity sensor for the headset, doesn't have a handedness
+            (TrackerRole.Invalid to OpenVRButton.ProximitySensor) to AWTKey(KeyEvent.VK_SPACE)
+        )
+
+        /**
+         * Returns the key string mapped to [button] on [hand].
+         */
+        @JvmStatic fun keyBinding(hand: TrackerRole, button: OpenVRButton): String {
+            val binding = keyMap[hand to button]
+
+            if(binding == null) {
+                throw UnsupportedOperationException("Key $button on $hand not found.")
+            } else {
+                logger.debug("Binding for $button on $hand is ${binding.string}")
+                return binding.string
+            }
+        }
+
+        private fun translateError(error: Int): String {
+            return when (error) {
+                EVRCompositorError_VRCompositorError_None ->
+                    "No error"
+                EVRCompositorError_VRCompositorError_RequestFailed ->
+                    "Request failed"
+                EVRCompositorError_VRCompositorError_IncompatibleVersion ->
+                    "Incompatible API version"
+                EVRCompositorError_VRCompositorError_DoNotHaveFocus ->
+                    "Compositor does not have focus"
+                EVRCompositorError_VRCompositorError_InvalidTexture ->
+                    "Invalid texture"
+                EVRCompositorError_VRCompositorError_IsNotSceneApplication ->
+                    "Not scene application"
+                EVRCompositorError_VRCompositorError_TextureIsOnWrongDevice ->
+                    "Texture is on wrong device"
+                EVRCompositorError_VRCompositorError_TextureUsesUnsupportedFormat ->
+                    "Texture uses unsupported format"
+                EVRCompositorError_VRCompositorError_SharedTexturesNotSupported ->
+                    "Shared textures are not supported"
+                EVRCompositorError_VRCompositorError_IndexOutOfRange ->
+                    "Index out of range"
+                EVRCompositorError_VRCompositorError_AlreadySubmitted ->
+                    "Already submitted"
+                else ->
+                    "Unknown error"
+            }
+        }
+
+        private fun OpenVRButton.toKeyEvent(role: TrackerRole): Pair<KeyEvent, KeyEvent> {
+            val keycode = this.toAWTKeyCode(role)
+            return KeyEvent(object: Component() {}, KeyEvent.KEY_PRESSED, System.nanoTime(), 0, keycode.code, keycode.char) to
+                KeyEvent(object: Component() {}, KeyEvent.KEY_RELEASED, System.nanoTime() + 10e5.toLong(), 0, keycode.code, keycode.char)
+        }
+
+        private fun OpenVRButton.toAWTKeyCode(role: TrackerRole = TrackerRole.LeftHand): AWTKey {
+            val key = keyMap[role to this]
+            return if(key != null) {
+                key
+            } else {
+                logger.warn("Unknown key: $this for role $role")
+                AWTKey(KeyEvent.VK_ESCAPE)
+            }
+        }
+
+        private fun HmdVector3.toVector3f(): Vector3f {
+            return Vector3f(this.v())
+        }
     }
 }
