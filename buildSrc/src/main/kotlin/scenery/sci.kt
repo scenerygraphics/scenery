@@ -3,8 +3,6 @@ package scenery
 import org.gradle.api.Action
 import org.gradle.api.artifacts.ExternalModuleDependency
 import org.gradle.kotlin.dsl.DependencyHandlerScope
-import org.gradle.nativeplatform.platform.internal.DefaultNativePlatform
-import java.net.URL
 import java.util.regex.Pattern
 
 /**
@@ -12,8 +10,8 @@ import java.util.regex.Pattern
  * net.java.dev.jna:jna
  * net.java.dev.jna:jna-platform:${jna}
  */
-fun DependencyHandlerScope.sci(dep_: String, native: String? = null, test: Boolean = false,
-                               config: Action<ExternalModuleDependency>? = null) {
+fun DependencyHandlerScope.sciJava(dep_: String, native: String? = null, test: Boolean = false,
+                                   config: Action<ExternalModuleDependency>? = null) {
     var dep = "$prefix$dep_"
     val println = false //dep.startsWith("net.imagej:imagej-mesh")
     //    println("sci($dep)")
@@ -71,11 +69,11 @@ fun DependencyHandlerScope.sci(dep_: String, native: String? = null, test: Boole
         }
     }
     if (native != null)
-        sciRuntimeOnly(dep, native, test, config)
+        sciJavaRuntimeOnly(dep, native, test, config)
 }
 
-fun DependencyHandlerScope.sciRuntimeOnly(dep_: String, classifier: String? = null, test: Boolean = false,
-                                          config: Action<ExternalModuleDependency>? = null) {
+fun DependencyHandlerScope.sciJavaRuntimeOnly(dep_: String, classifier: String? = null, test: Boolean = false,
+                                              config: Action<ExternalModuleDependency>? = null) {
     val dep = "$prefix$dep_"
     val group = dep.substringBefore(':')
     val name = dep.substringAfter(':')
@@ -89,8 +87,8 @@ fun DependencyHandlerScope.sciRuntimeOnly(dep_: String, classifier: String? = nu
     }
 }
 
-fun DependencyHandlerScope.testSci(dep: String, native: String? = null, config: Action<ExternalModuleDependency>? = null) =
-        sci(dep, native, test = true, config = config)
+fun DependencyHandlerScope.testSciJava(dep: String, native: String? = null, config: Action<ExternalModuleDependency>? = null) =
+        sciJava(dep, native, test = true, config = config)
 
 val String.version: String
     get() {
