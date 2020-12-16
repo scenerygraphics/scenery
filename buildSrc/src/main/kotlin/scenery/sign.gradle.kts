@@ -10,6 +10,8 @@ plugins {
 
 signing {
     setRequired({ project.hasProperty("release") })
+    useGpgCmd()
     sign(publishing.publications["maven"])
     sign(configurations.archives.get())
 }
+
