@@ -469,6 +469,42 @@ open class VulkanDevice(
     }
 
     /**
+     * Updates an existing [descriptorSet] to use a [newBuffer] for backing.
+     */
+    fun updateBufferForDescriptorSetDynamic(
+        descriptorSet: Long,
+        bindingCount: Int,
+        newBuffer: VulkanBuffer
+    ): Long {
+        logger.debug("Updating dynamic descriptor set {} with {} bindings, to use backing buffer {}}", descriptorSet.toHexString(), bindingCount, newBuffer.vulkanBuffer.toHexString())
+
+        return stackPush().use { stack ->
+            val d = VkDescriptorBufferInfo.callocStack(1, stack)
+                .buffer(newBuffer.vulkanBuffer)
+                .range(2048)
+                .offset(0L)
+
+            val writeDescriptorSet = VkWriteDescriptorSet.callocStack(bindingCount, stack)
+
+            (0 until bindingCount).forEach { i ->
+                writeDescriptorSet[i]
+                    .sType(VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET)
+                    .pNext(MemoryUtil.NULL)
+                    .dstSet(descriptorSet)
+                    .dstBinding(i)
+                    .dstArrayElement(0)
+                    .pBufferInfo(d)
+                    .descriptorType(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC)
+                    .descriptorCount(1)
+            }
+
+            vkUpdateDescriptorSets(vulkanDevice, writeDescriptorSet, null)
+
+            descriptorSet
+        }
+    }
+
+    /**
      * Creates and returns a new descriptor set layout on this device with the members declared in [types], which is
      * a [List] of a Pair of a type, associated with a count (e.g. Dynamic UBO to 1). The base binding can be set with [binding].
      * The shader stages to which the DSL should be visible can be set via [shaderStages].
