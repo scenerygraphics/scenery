@@ -377,6 +377,7 @@ open class VulkanRenderer(hub: Hub,
     protected var vertexDescriptors = ConcurrentHashMap<VertexDataKinds, VertexDescription>()
     protected var sceneUBOs = ArrayList<Node>()
     protected var geometryPool: VulkanBufferPool
+    protected var stagingPool: VulkanBufferPool
     protected var semaphores = ConcurrentHashMap<StandardSemaphores, Array<Long>>()
 
     data class DefaultBuffers(var UBOs: VulkanBuffer,
@@ -703,7 +704,17 @@ open class VulkanRenderer(hub: Hub,
             toggleFullscreen = true
         }
 
-        geometryPool = VulkanBufferPool(device, usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT or VK_BUFFER_USAGE_INDEX_BUFFER_BIT or VK_BUFFER_USAGE_TRANSFER_DST_BIT)
+        geometryPool = VulkanBufferPool(
+            device,
+            usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT or VK_BUFFER_USAGE_INDEX_BUFFER_BIT or VK_BUFFER_USAGE_TRANSFER_DST_BIT
+        )
+
+        stagingPool = VulkanBufferPool(
+            device,
+            usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+            properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+            bufferSize = 64*1024*1024
+        )
 
         initialized = true
         logger.info("Renderer initialisation complete.")
@@ -859,15 +870,15 @@ open class VulkanRenderer(hub: Hub,
         }
 
         val matricesDescriptorSet = getDescriptorCache().getOrPut("Matrices") {
-            device.createDescriptorSetDynamic(
+            SimpleTimestamped(device.createDescriptorSetDynamic(
                 descriptorSetLayouts["Matrices"]!!, 1,
-                buffers.UBOs)
+                buffers.UBOs))
         }
 
         val materialPropertiesDescriptorSet = getDescriptorCache().getOrPut("MaterialProperties") {
-            device.createDescriptorSetDynamic(
+            SimpleTimestamped(device.createDescriptorSetDynamic(
                 descriptorSetLayouts["MaterialProperties"]!!, 1,
-                buffers.UBOs)
+                buffers.UBOs))
         }
 
         val matricesUbo = VulkanUBO(device, backingBuffer = buffers.UBOs)
@@ -880,7 +891,7 @@ open class VulkanRenderer(hub: Hub,
             createUniformBuffer()
             sceneUBOs.add(node)
 
-            s.UBOs.put(name, matricesDescriptorSet to this)
+            s.UBOs.put(name, matricesDescriptorSet.contents to this)
         }
 
         try {
@@ -910,7 +921,7 @@ open class VulkanRenderer(hub: Hub,
             add("Opacity", { node.material.blending.opacity })
 
             createUniformBuffer()
-            s.UBOs.put("MaterialProperties", materialPropertiesDescriptorSet to this)
+            s.UBOs.put("MaterialProperties", materialPropertiesDescriptorSet.contents to this)
         }
 
         s.initialized = true
@@ -2097,6 +2108,13 @@ open class VulkanRenderer(hub: Hub,
             return@runBlocking
         }
 
+        getDescriptorCache().forEachChanged(buffers.UBOs.updated) {
+            if(it.value.updated < buffers.UBOs.updated) {
+                logger.debug("Canceling current frame, UBO backing buffers updated.")
+                return@runBlocking
+            }
+        }
+
         val submitInfo = VkSubmitInfo.calloc(flow.size-1)
 
         val (_, fence) = beginFrame() ?: return@runBlocking
@@ -2408,11 +2426,7 @@ open class VulkanRenderer(hub: Hub,
 
         logger.trace("Strided buffer is now at {} bytes", stridedBuffer.remaining())
 
-        val stagingBuffer = VulkanBuffer(device,
-            fullAllocationBytes * 1L,
-            VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-            wantAligned = false)
+        val stagingBuffer = stagingPool.createBuffer(fullAllocationBytes.toInt())
 
         stagingBuffer.copyFrom(stridedBuffer)
 
@@ -2547,13 +2561,13 @@ open class VulkanRenderer(hub: Hub,
         logger.debug("Creating buffers")
         return DefaultBuffers(
             UBOs = VulkanBuffer(device,
-                512 * 1024 * 10,
+                5 * 1024 * 1024,
                 VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
                 wantAligned = true),
 
             LightParameters = VulkanBuffer(device,
-                512 * 1024 * 10,
+                5 * 1024 * 1024,
                 VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
                 wantAligned = true),
@@ -2565,7 +2579,7 @@ open class VulkanRenderer(hub: Hub,
                 wantAligned = true),
 
             ShaderProperties = VulkanBuffer(device,
-                1024 * 1024,
+                4 * 1024 * 1024,
                 VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
                 wantAligned = true))
@@ -3348,11 +3362,11 @@ open class VulkanRenderer(hub: Hub,
         }
     }
 
-    private fun getDescriptorCache(): ConcurrentHashMap<String, Long> {
+    private fun getDescriptorCache(): TimestampedConcurrentHashMap<String, SimpleTimestamped<Long>> {
         @Suppress("UNCHECKED_CAST")
         return scene.metadata.getOrPut("DescriptorCache") {
-            ConcurrentHashMap<String, Long>()
-        } as? ConcurrentHashMap<String, Long> ?: throw IllegalStateException("Could not retrieve descriptor cache from scene")
+            TimestampedConcurrentHashMap<String, SimpleTimestamped<Long>>()
+        } as? TimestampedConcurrentHashMap<String, SimpleTimestamped<Long>> ?: throw IllegalStateException("Could not retrieve descriptor cache from scene")
     }
 
     private fun updateDefaultUBOs(device: VulkanDevice, cam: Camera): Boolean = runBlocking {
@@ -3369,6 +3383,15 @@ open class VulkanRenderer(hub: Hub,
         }
 
         val hmd = hub?.getWorkingHMDDisplay()?.wantsVR()
+
+        val now = System.nanoTime()
+        getDescriptorCache().forEachChanged(now = buffers.UBOs.updated) {
+            if(it.value.updated < buffers.UBOs.updated) {
+                logger.debug("Updating descriptor set for ${it.key} as the backing buffer has changed")
+                VU.updateDynamicDescriptorSetBuffer(device, it.value.contents, 1, buffers.UBOs)
+                it.value.updated = now
+            }
+        }
 
         cam.view = cam.getTransformation()
 //        cam.updateWorld(true, false)
@@ -3547,6 +3570,7 @@ open class VulkanRenderer(hub: Hub,
 
         logger.debug("Closing memory pools ...")
         geometryPool.close()
+        stagingPool.close()
 
         logger.debug("Closing vertex descriptors ...")
         vertexDescriptors.forEach {
