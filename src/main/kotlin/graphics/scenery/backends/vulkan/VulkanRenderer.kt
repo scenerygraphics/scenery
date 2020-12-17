@@ -3,12 +3,9 @@ package graphics.scenery.backends.vulkan
 import graphics.scenery.*
 import graphics.scenery.backends.*
 import graphics.scenery.backends.vulkan.VulkanDevice.VulkanObjectType.*
-import graphics.scenery.compute.ComputeMetadata
-import graphics.scenery.compute.InvocationType
 import graphics.scenery.spirvcrossj.Loader
 import graphics.scenery.spirvcrossj.libspirvcrossj
 import graphics.scenery.textures.Texture
-import graphics.scenery.textures.UpdatableTexture
 import graphics.scenery.utils.*
 import io.github.classgraph.ClassGraph
 import kotlinx.coroutines.*
@@ -36,19 +33,14 @@ import java.awt.image.BufferedImage
 import java.awt.image.DataBufferByte
 import java.io.File
 import java.nio.ByteBuffer
-import java.nio.ByteOrder
 import java.nio.IntBuffer
 import java.nio.LongBuffer
 import java.util.*
 import java.util.concurrent.*
-import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.locks.ReentrantLock
 import javax.imageio.ImageIO
 import kotlin.concurrent.thread
 import kotlin.concurrent.withLock
-import kotlin.math.floor
-import kotlin.math.ln
-import kotlin.math.min
 import kotlin.reflect.full.*
 import kotlin.system.measureTimeMillis
 import kotlin.time.ExperimentalTime
@@ -778,7 +770,7 @@ open class VulkanRenderer(hub: Hub,
     fun updateNodeGeometry(node: Node) {
         if (node is HasGeometry && node.vertices.remaining() > 0) {
             node.rendererMetadata()?.let { s ->
-                createVertexBuffers(device, node, s)
+                VulkanNodeHelpers.createVertexBuffers(device, node, s, stagingPool, geometryPool, commandPools, queue)
             }
         }
     }
@@ -852,7 +844,7 @@ open class VulkanRenderer(hub: Hub,
 
             // create custom vertex description if necessary, else use one of the defaults
             s.vertexDescription = if (node.instances.size > 0 || node.instancedProperties.size > 0) {
-                updateInstanceBuffer(device, node, s)
+                VulkanNodeHelpers.updateInstanceBuffer(device, node, s, commandPools, queue)
                 // TODO: Rewrite shader in case it does not conform to coord/normal/texcoord vertex description
                 s.vertexInputType = VertexDataKinds.PositionNormalTexcoord
                 s.instanced = true
@@ -866,7 +858,7 @@ open class VulkanRenderer(hub: Hub,
                 vertexDescriptors.getValue(s.vertexInputType)
             }
 
-            s = createVertexBuffers(device, node, s)
+            s = VulkanNodeHelpers.createVertexBuffers(device, node, s, stagingPool, geometryPool, commandPools, queue)
         }
 
         val matricesDescriptorSet = getDescriptorCache().getOrPut("Matrices") {
@@ -895,7 +887,7 @@ open class VulkanRenderer(hub: Hub,
         }
 
         try {
-            initializeCustomShadersForNode(node)
+            VulkanNodeHelpers.initializeCustomShadersForNode(device, node, true, renderpasses, lateResizeInitializers, buffers)
         } catch (e: ShaderCompilationException) {
             logger.error("Compilation of custom shader failed: ${e.message}")
             logger.error("Node ${node.name} will use default shader for render pass.")
@@ -905,7 +897,12 @@ open class VulkanRenderer(hub: Hub,
             }
         }
 
-        loadTexturesForNode(node, s)
+        val (_, descriptorUpdated) = VulkanNodeHelpers.loadTexturesForNode(device, node, s, defaultTextures, textureCache, commandPools, queue)
+        if(descriptorUpdated) {
+            s.texturesToDescriptorSets(device,
+                renderpasses.filter { it.value.passConfig.type != RenderConfigReader.RenderpassType.quad },
+                node)
+        }
 
         s.materialHashCode = node.material.materialHashCode()
 
@@ -932,186 +929,6 @@ open class VulkanRenderer(hub: Hub,
         return true
     }
 
-    private fun initializeCustomShadersForNode(node: Node, addInitializer: Boolean = true): Boolean {
-
-        if(!(node.material.blending.transparent || node.material is ShaderMaterial || node.material.cullingMode != Material.CullingMode.Back || node.material.wireframe)) {
-            logger.debug("Using default renderpass material for ${node.name}")
-            renderpasses
-                .filter { it.value.passConfig.type == RenderConfigReader.RenderpassType.geometry || it.value.passConfig.type == RenderConfigReader.RenderpassType.lights }
-                .forEach {
-                    it.value.removePipeline(node)
-                }
-
-            lateResizeInitializers.remove(node)
-            return false
-        }
-
-        if(addInitializer) {
-            lateResizeInitializers.remove(node)
-        }
-
-        node.rendererMetadata()?.let { s ->
-
-//            node.javaClass.kotlin.memberProperties.filter { it.findAnnotation<ShaderProperty>() != null }.forEach { logger.info("${node.name}.${it.name} is ShaderProperty!") }
-            val needsShaderPropertyUBO = if (node.javaClass.kotlin.memberProperties.filter { it.findAnnotation<ShaderProperty>() != null }.count() > 0) {
-                var dsl = 0L
-
-                renderpasses.filter {
-                    (it.value.passConfig.type == RenderConfigReader.RenderpassType.geometry || it.value.passConfig.type == RenderConfigReader.RenderpassType.lights)
-                        && it.value.passConfig.renderTransparent == node.material.blending.transparent
-                }
-                    .map { pass ->
-                        logger.debug("Initializing shader properties for ${node.name}")
-                        dsl = pass.value.initializeShaderPropertyDescriptorSetLayout()
-                    }
-
-                val descriptorSet = device.createDescriptorSetDynamic(dsl,
-                    1, buffers.ShaderProperties)
-
-                s.requiredDescriptorSets["ShaderProperties"] = descriptorSet
-                true
-            } else {
-                false
-            }
-
-
-            renderpasses.filter { it.value.passConfig.type == RenderConfigReader.RenderpassType.geometry || it.value.passConfig.type == RenderConfigReader.RenderpassType.lights }
-                .map { pass ->
-                    val shaders = when {
-                        node.material is ShaderMaterial -> {
-                            logger.debug("Initializing preferred pipeline for ${node.name} from ShaderMaterial")
-                            (node.material as ShaderMaterial).shaders
-                        }
-
-//                        pass.value.passConfig.renderTransparent == node.material.blending.transparent -> {
-//                            logger.debug("Initializing classname-derived preferred pipeline for ${node.name}")
-//                            val shaders = node.findExistingShaders()
-//
-//                            if(shaders.isEmpty()) {
-//                                throw ShaderCompilationException("No shaders found for ${node.name}")
-//                            }
-//
-//                            shaders
-//                        }
-
-                        else -> {
-                            logger.debug("Initializing pass-default shader preferred pipeline for ${node.name}")
-                            Shaders.ShadersFromFiles(pass.value.passConfig.shaders.map { "shaders/$it" }.toTypedArray())
-                        }
-                    }
-
-                    logger.debug("Shaders are: $shaders")
-
-                    val shaderModules = ShaderType.values().mapNotNull { type ->
-                        try {
-                            VulkanShaderModule.getFromCacheOrCreate(device, "main", shaders.get(Shaders.ShaderTarget.Vulkan, type))
-                        } catch (e: ShaderNotFoundException) {
-                            null
-                        } catch (e: ShaderConsistencyException) {
-                            logger.warn("${e.message} - Falling back to default shader.")
-                            if(logger.isDebugEnabled) {
-                                e.printStackTrace()
-                            }
-                            return false
-                        }
-                    }
-
-                    pass.value.initializeInputAttachmentDescriptorSetLayouts(shaderModules)
-                    pass.value.initializePipeline("preferred-${node.uuid}",
-                        shaderModules, settings = { pipeline ->
-                            when(node.material.cullingMode) {
-                                Material.CullingMode.None -> pipeline.rasterizationState.cullMode(VK_CULL_MODE_NONE)
-                                Material.CullingMode.Front -> pipeline.rasterizationState.cullMode(VK_CULL_MODE_FRONT_BIT)
-                                Material.CullingMode.Back -> pipeline.rasterizationState.cullMode(VK_CULL_MODE_BACK_BIT)
-                                Material.CullingMode.FrontAndBack -> pipeline.rasterizationState.cullMode(VK_CULL_MODE_FRONT_AND_BACK)
-                            }
-
-                            when(node.material.depthTest) {
-                                Material.DepthTest.Equal -> pipeline.depthStencilState.depthCompareOp(VK_COMPARE_OP_EQUAL)
-                                Material.DepthTest.Less -> pipeline.depthStencilState.depthCompareOp(VK_COMPARE_OP_LESS)
-                                Material.DepthTest.Greater -> pipeline.depthStencilState.depthCompareOp(VK_COMPARE_OP_GREATER)
-                                Material.DepthTest.LessEqual -> pipeline.depthStencilState.depthCompareOp(VK_COMPARE_OP_LESS_OR_EQUAL)
-                                Material.DepthTest.GreaterEqual -> pipeline.depthStencilState.depthCompareOp(VK_COMPARE_OP_GREATER_OR_EQUAL)
-                                Material.DepthTest.Always -> pipeline.depthStencilState.depthCompareOp(VK_COMPARE_OP_ALWAYS)
-                                Material.DepthTest.Never -> pipeline.depthStencilState.depthCompareOp(VK_COMPARE_OP_NEVER)
-                            }
-
-                            if(node.material.wireframe) {
-                                pipeline.rasterizationState.polygonMode(VK_POLYGON_MODE_LINE)
-                            } else {
-                                pipeline.rasterizationState.polygonMode(VK_POLYGON_MODE_FILL)
-                            }
-
-                            if(node.material.blending.transparent) {
-                                with(node.material.blending) {
-                                    val blendStates = pipeline.colorBlendState.pAttachments()
-                                    for (attachment in 0 until (blendStates?.capacity() ?: 0)) {
-                                        val state = blendStates?.get(attachment)
-
-                                        @Suppress("SENSELESS_COMPARISON", "IfThenToSafeAccess")
-                                        if (state != null) {
-                                            state.blendEnable(true)
-                                                .colorBlendOp(colorBlending.toVulkan())
-                                                .srcColorBlendFactor(sourceColorBlendFactor.toVulkan())
-                                                .dstColorBlendFactor(destinationColorBlendFactor.toVulkan())
-                                                .alphaBlendOp(alphaBlending.toVulkan())
-                                                .srcAlphaBlendFactor(sourceAlphaBlendFactor.toVulkan())
-                                                .dstAlphaBlendFactor(destinationAlphaBlendFactor.toVulkan())
-                                                .colorWriteMask(VK_COLOR_COMPONENT_R_BIT or VK_COLOR_COMPONENT_G_BIT or VK_COLOR_COMPONENT_B_BIT or VK_COLOR_COMPONENT_A_BIT)
-                                        }
-                                    }
-                                }
-                            }
-                        },
-                        vertexInputType = s.vertexDescription)
-                }
-
-
-            if (needsShaderPropertyUBO) {
-                renderpasses.filter {
-                    (it.value.passConfig.type == RenderConfigReader.RenderpassType.geometry || it.value.passConfig.type == RenderConfigReader.RenderpassType.lights) &&
-                        it.value.passConfig.renderTransparent == node.material.blending.transparent
-                }.forEach { pass ->
-                        logger.debug("Initializing shader properties for ${node.name} in pass ${pass.key}")
-                        val order = pass.value.getShaderPropertyOrder(node)
-
-                        val shaderPropertyUbo = VulkanUBO(device, backingBuffer = buffers.ShaderProperties)
-                        with(shaderPropertyUbo) {
-                            name = "ShaderProperties"
-
-                            order.forEach { name, offset ->
-                                // TODO: See whether returning 0 on non-found shader property has ill side effects
-                                add(name, { node.getShaderProperty(name) ?: 0 }, offset)
-                            }
-
-                            this.createUniformBuffer()
-                            s.UBOs.put("${pass.key}-ShaderProperties", s.requiredDescriptorSets["ShaderProperties"]!! to this)
-                        }
-                    }
-
-            }
-
-            if(addInitializer) {
-                lateResizeInitializers[node] = {
-                    val reloaded = initializeCustomShadersForNode(node, addInitializer = false)
-
-                    if(reloaded) {
-                        node.rendererMetadata()?.texturesToDescriptorSets(device,
-                            renderpasses.filter { pass -> pass.value.passConfig.type != RenderConfigReader.RenderpassType.quad },
-                            node)
-                    }
-                }
-            }
-
-//             TODO: Figure out if this can be avoided for the BDV integration
-             s.clearTextureDescriptorSets()
-
-            return true
-        }
-
-        return false
-    }
-
     fun destroyNode(node: Node) {
         logger.trace("Destroying node ${node.name}...")
         if (!node.metadata.containsKey("VulkanRenderer")) {
@@ -1130,102 +947,6 @@ open class VulkanRenderer(hub: Hub,
         }
 
         node.metadata.remove("VulkanRenderer")
-    }
-
-    /**
-     * Returns true if the current VulkanTexture can be reused to store the information in the [Texture]
-     * [other]. Returns false otherwise.
-     */
-    protected fun VulkanTexture.canBeReused(other: Texture, miplevels: Int, device: VulkanDevice): Boolean {
-        return this.device == device &&
-            this.width == other.dimensions.x() &&
-            this.height == other.dimensions.y() &&
-            this.depth == other.dimensions.z() &&
-            this.mipLevels == miplevels
-
-    }
-
-    /**
-     * Loads or reloads the textures for [node], updating it's internal renderer state stored in [s].
-     */
-    protected fun loadTexturesForNode(node: Node, s: VulkanObjectState): Pair<Boolean, Boolean> {
-        val defaultTexture = defaultTextures["DefaultTexture"] ?: throw IllegalStateException("Default fallback texture does not exist.")
-        // if a node is not yet initialized, we'll definitely require a new DS
-        var descriptorUpdated = !node.initialized
-        var contentUpdated = false
-
-        val last = s.texturesLastSeen
-        val now = System.nanoTime()
-        node.material.textures.forEachChanged(last) { (type, texture) ->
-            contentUpdated = true
-            val slot = VulkanObjectState.textureTypeToSlot(type)
-            val generateMipmaps = Texture.mipmappedObjectTextures.contains(type)
-
-            logger.debug("${node.name} will have $type texture from $texture in slot $slot")
-
-            if (!textureCache.containsKey(texture)) {
-                try {
-                    logger.debug("Loading texture {} for {}", texture, node.name)
-
-                    val miplevels = if (generateMipmaps && texture.mipmap) {
-                        floor(ln(min(texture.dimensions.x() * 1.0, texture.dimensions.y() * 1.0)) / ln(2.0)).toInt()
-                    } else {
-                        1
-                    }
-
-                    val existingTexture = s.textures[type]
-                    val t: VulkanTexture = if (existingTexture != null && existingTexture.canBeReused(texture, miplevels, device)) {
-                        existingTexture
-                    } else {
-                        descriptorUpdated = true
-                        VulkanTexture(device, commandPools, queue, queue, texture, miplevels)
-                    }
-
-                    texture.contents?.let { contents ->
-                        t.copyFrom(contents.duplicate())
-                    }
-
-                    if (texture is UpdatableTexture && texture.hasConsumableUpdates()) {
-                        t.copyFrom(ByteBuffer.allocate(0))
-                    }
-
-                    if(descriptorUpdated) {
-                        t.createSampler(texture)
-                    }
-
-                    // add new texture to texture list and cache, and close old texture
-                    s.textures[type] = t
-
-                    if(texture !is UpdatableTexture) {
-                        textureCache[texture] = t
-                    }
-                } catch (e: Exception) {
-                    logger.warn("Could not load texture for ${node.name}: $e")
-                }
-            } else {
-                s.textures[type] = textureCache[texture]!!
-            }
-        }
-
-        s.texturesLastSeen = now
-
-        val isCompute = node.material is ShaderMaterial && ((node.material as? ShaderMaterial)?.isCompute() ?: false)
-        if(!isCompute) {
-            Texture.objectTextures.forEach {
-                if (!s.textures.containsKey(it)) {
-                    s.textures.putIfAbsent(it, defaultTexture)
-                    s.defaultTexturesFor.add(it)
-                }
-            }
-        }
-
-        if(descriptorUpdated) {
-            s.texturesToDescriptorSets(device,
-                renderpasses.filter { it.value.passConfig.type != RenderConfigReader.RenderpassType.quad },
-                node)
-        }
-
-        return contentUpdated to descriptorUpdated
     }
 
     protected fun prepareDefaultDescriptorSetLayouts(device: VulkanDevice): ConcurrentHashMap<String, Long> {
@@ -2052,15 +1773,18 @@ open class VulkanRenderer(hub: Hub,
 
                     val material = it.material
                     val reloadTime = measureTimeMillis {
-                        val (texturesUpdatedForNode, descriptorUpdated) = loadTexturesForNode(it, metadata)
+                        val (texturesUpdatedForNode, descriptorUpdated) = VulkanNodeHelpers.loadTexturesForNode(device, it, metadata, defaultTextures, textureCache, commandPools, queue)
+                        if(descriptorUpdated) {
+                            metadata.texturesToDescriptorSets(device,
+                                renderpasses.filter { it.value.passConfig.type != RenderConfigReader.RenderpassType.quad },
+                                it)
 
-                        texturesUpdated = texturesUpdatedForNode
-
-                        if (descriptorUpdated) {
                             logger.trace("Force command buffer re-recording, as reloading textures for ${it.name}")
                             rerecordingCauses.add(it.name)
                             forceRerecording = true
                         }
+
+                        texturesUpdated = texturesUpdatedForNode
                     }
 
                     if(texturesUpdated) {
@@ -2068,7 +1792,7 @@ open class VulkanRenderer(hub: Hub,
                     }
 
                     if (material.materialHashCode() != metadata.materialHashCode || (material is ShaderMaterial && material.shaders.stale)) {
-                        val reloaded = initializeCustomShadersForNode(it)
+                        val reloaded = VulkanNodeHelpers.initializeCustomShadersForNode(device, it, true, renderpasses, lateResizeInitializers, buffers)
                         logger.debug("{}: Material is stale, re-recording, reloaded={}", node.name, reloaded)
                         metadata.materialHashCode = it.material.materialHashCode()
 
@@ -2140,10 +1864,10 @@ open class VulkanRenderer(hub: Hub,
             val start = System.nanoTime()
 
             when (target.passConfig.type) {
-                RenderConfigReader.RenderpassType.geometry -> recordSceneRenderCommands(target, commandBuffer, sceneNodes, { it !is Light }, forceRerecording)
-                RenderConfigReader.RenderpassType.lights -> recordSceneRenderCommands(target, commandBuffer, sceneNodes, { it is Light }, forceRerecording)
-                RenderConfigReader.RenderpassType.quad -> recordPostprocessRenderCommands(target, commandBuffer)
-                RenderConfigReader.RenderpassType.compute -> recordComputePassRenderCommands(target, commandBuffer)
+                RenderConfigReader.RenderpassType.geometry -> VulkanScenePass.record(hub!!, target, commandBuffer, commandPools, descriptorSets, renderConfig, renderpasses, sceneNodes, { it !is Light }, forceRerecording)
+                RenderConfigReader.RenderpassType.lights -> VulkanScenePass.record(hub!!, target, commandBuffer, commandPools, descriptorSets, renderConfig, renderpasses, sceneNodes, { it is Light }, forceRerecording)
+                RenderConfigReader.RenderpassType.quad -> VulkanPostprocessPass.record(target, commandBuffer, commandPools, sceneUBOs, descriptorSets)
+                RenderConfigReader.RenderpassType.compute -> VulkanComputePass.record(target, commandBuffer, commandPools, sceneUBOs, descriptorSets)
             }
 
             stats?.add("VulkanRenderer.$t.recordCmdBuffer", System.nanoTime() - start)
@@ -2201,10 +1925,10 @@ open class VulkanRenderer(hub: Hub,
         }*/
 
         when (viewportPass.passConfig.type) {
-            RenderConfigReader.RenderpassType.geometry -> recordSceneRenderCommands(viewportPass, viewportCommandBuffer, sceneNodes, { it !is Light }, forceRerecording)
-            RenderConfigReader.RenderpassType.lights -> recordSceneRenderCommands(viewportPass, viewportCommandBuffer, sceneNodes, { it is Light })
-            RenderConfigReader.RenderpassType.quad -> recordPostprocessRenderCommands(viewportPass, viewportCommandBuffer)
-            RenderConfigReader.RenderpassType.compute -> recordComputePassRenderCommands(viewportPass, viewportCommandBuffer)
+            RenderConfigReader.RenderpassType.geometry -> VulkanScenePass.record(hub!!, viewportPass, viewportCommandBuffer, commandPools, descriptorSets, renderConfig, renderpasses, sceneNodes, { it !is Light }, forceRerecording)
+            RenderConfigReader.RenderpassType.lights -> VulkanScenePass.record(hub!!, viewportPass, viewportCommandBuffer, commandPools, descriptorSets, renderConfig, renderpasses, sceneNodes, { it is Light }, forceRerecording)
+            RenderConfigReader.RenderpassType.quad -> VulkanPostprocessPass.record(viewportPass, viewportCommandBuffer, commandPools, sceneUBOs, descriptorSets)
+            RenderConfigReader.RenderpassType.compute -> VulkanComputePass.record(viewportPass, viewportCommandBuffer, commandPools, sceneUBOs, descriptorSets)
         }
 
         stats?.add("VulkanRenderer.${viewportPass.name}.recordCmdBuffer", System.nanoTime() - start)
@@ -2332,7 +2056,7 @@ open class VulkanRenderer(hub: Hub,
     }
 
 
-    @Suppress("SameParameterValue")
+    @Suppress("SameParameterValue", "unused")
     private fun setupDebuggingDebugReport(instance: VkInstance, flags: Int, callback: VkDebugReportCallbackEXT): Long {
         val dbgCreateInfo = VkDebugReportCallbackCreateInfoEXT.calloc()
             .sType(VK_STRUCTURE_TYPE_DEBUG_REPORT_CALLBACK_CREATE_INFO_EXT)
@@ -2357,204 +2081,6 @@ open class VulkanRenderer(hub: Hub,
             logger.warn("Caught NPE on creating debug callback, is extension ${VK_EXT_DEBUG_REPORT_EXTENSION_NAME} available?")
             -1
         }
-    }
-
-    private fun createVertexBuffers(device: VulkanDevice, node: Node, state: VulkanObjectState): VulkanObjectState {
-        val n = node as HasGeometry
-        val vertices = n.vertices.duplicate()
-        val normals = n.normals.duplicate()
-        var texcoords = n.texcoords.duplicate()
-        val indices = n.indices.duplicate()
-
-        if(vertices.remaining() == 0) {
-            return state
-        }
-
-        if (texcoords.remaining() == 0 && node.instances.size > 0) {
-            val buffer = je_calloc(1, 4L * vertices.remaining() / n.vertexSize * n.texcoordSize)
-
-            if(buffer == null) {
-                logger.error("Could not allocate texcoords buffer with ${4L * vertices.remaining() / n.vertexSize * n.texcoordSize} bytes for ${node.name}")
-                return state
-            } else {
-                n.texcoords = buffer.asFloatBuffer()
-                texcoords = n.texcoords.asReadOnlyBuffer()
-            }
-        }
-
-        val vertexAllocationBytes: Long = 4L * (vertices.remaining() + normals.remaining() + texcoords.remaining())
-        val indexAllocationBytes: Long = 4L * indices.remaining()
-        val fullAllocationBytes: Long = vertexAllocationBytes + indexAllocationBytes
-
-        val stridedBuffer = je_malloc(fullAllocationBytes)
-
-        if(stridedBuffer == null) {
-            logger.error("Allocation failed, skipping vertex buffer creation for ${node.name}.")
-            return state
-        }
-
-        val fb = stridedBuffer.asFloatBuffer()
-        val ib = stridedBuffer.asIntBuffer()
-
-        state.vertexCount = vertices.remaining() / n.vertexSize
-        logger.trace("${node.name} has ${vertices.remaining()} floats and ${texcoords.remaining() / n.texcoordSize} remaining")
-
-        for (index in 0 until vertices.remaining() step 3) {
-            fb.put(vertices.get())
-            fb.put(vertices.get())
-            fb.put(vertices.get())
-
-            fb.put(normals.get())
-            fb.put(normals.get())
-            fb.put(normals.get())
-
-            if (texcoords.remaining() > 0) {
-                fb.put(texcoords.get())
-                fb.put(texcoords.get())
-            }
-        }
-
-        logger.trace("Adding {} bytes to strided buffer", indices.remaining() * 4)
-        if (indices.remaining() > 0) {
-            state.isIndexed = true
-            ib.position(vertexAllocationBytes.toInt() / 4)
-
-            for (index in 0 until indices.remaining()) {
-                ib.put(indices.get())
-            }
-        }
-
-        logger.trace("Strided buffer is now at {} bytes", stridedBuffer.remaining())
-
-        val stagingBuffer = stagingPool.createBuffer(fullAllocationBytes.toInt())
-
-        stagingBuffer.copyFrom(stridedBuffer)
-
-        val vertexIndexBuffer = state.vertexBuffers["vertex+index"]
-        val vertexBuffer = if(vertexIndexBuffer != null && vertexIndexBuffer.size >= fullAllocationBytes) {
-            logger.debug("Reusing existing vertex+index buffer for {} update", node.name)
-            vertexIndexBuffer
-        } else {
-            logger.debug("Creating new vertex+index buffer for {} with {} bytes", node.name, fullAllocationBytes)
-            geometryPool.createBuffer(fullAllocationBytes.toInt())
-        }
-
-        logger.debug("Using VulkanBuffer {} for vertex+index storage, offset={}", vertexBuffer.vulkanBuffer.toHexString(), vertexBuffer.bufferOffset)
-
-        logger.debug("Initiating copy with 0->${vertexBuffer.bufferOffset}, size=$fullAllocationBytes")
-        val copyRegion = VkBufferCopy.calloc(1)
-            .srcOffset(0)
-            .dstOffset(vertexBuffer.bufferOffset)
-            .size(fullAllocationBytes * 1L)
-
-        with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
-            vkCmdCopyBuffer(this,
-                stagingBuffer.vulkanBuffer,
-                vertexBuffer.vulkanBuffer,
-                copyRegion)
-            this.endCommandBuffer(device, commandPools.Standard, queue, flush = true, dealloc = true)
-        }
-
-        copyRegion.free()
-
-        state.vertexBuffers.put("vertex+index", vertexBuffer)?.run {
-            // check if vertex buffer has been replaced, if yes, close the old one
-            if(this != vertexBuffer) { close() }
-        }
-        state.indexOffset = vertexBuffer.bufferOffset + vertexAllocationBytes
-        state.indexCount = n.indices.remaining()
-
-        je_free(stridedBuffer)
-        stagingBuffer.close()
-
-        return state
-    }
-
-    private fun updateInstanceBuffer(device: VulkanDevice, parentNode: Node, state: VulkanObjectState): VulkanObjectState {
-        logger.trace("Updating instance buffer for ${parentNode.name}")
-
-        // parentNode.instances is a CopyOnWrite array list, and here we keep a reference to the original.
-        // If it changes in the meantime, no problemo.
-        val instances = parentNode.instances
-
-        if (instances.isEmpty()) {
-            logger.debug("$parentNode has no child instances attached, returning.")
-            return state
-        }
-
-        // first we create a fake UBO to gauge the size of the needed properties
-        val ubo = VulkanUBO(device)
-        ubo.fromInstance(instances.first())
-
-        val instanceBufferSize = ubo.getSize() * instances.size
-
-        val instanceStagingBuffer = state.vertexBuffers["instanceStaging"]
-        val stagingBuffer = if(instanceStagingBuffer != null && instanceStagingBuffer.size >= instanceBufferSize) {
-            instanceStagingBuffer
-        } else {
-            logger.debug("Creating new staging buffer")
-            val buffer = VulkanBuffer(device,
-                (1.2 * instanceBufferSize).toLong(),
-                VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-                wantAligned = true)
-
-            state.vertexBuffers["instanceStaging"] = buffer
-            buffer
-        }
-
-        ubo.updateBackingBuffer(stagingBuffer)
-        ubo.createUniformBuffer()
-
-        val index = AtomicInteger(0)
-        instances.parallelStream().forEach { node ->
-            if(node.visible) {
-                node.updateWorld(true, false)
-
-                stagingBuffer.stagingBuffer.duplicate().order(ByteOrder.LITTLE_ENDIAN).run {
-                    ubo.populateParallel(this, offset = index.getAndIncrement() * ubo.getSize() * 1L, elements = node.instancedProperties)
-                }
-            }
-        }
-
-        stagingBuffer.stagingBuffer.position(stagingBuffer.stagingBuffer.limit())
-        stagingBuffer.copyFromStagingBuffer()
-
-        val existingInstanceBuffer = state.vertexBuffers["instance"]
-        val instanceBuffer = if (existingInstanceBuffer != null
-            && existingInstanceBuffer.size >= instanceBufferSize
-            && existingInstanceBuffer.size < 1.5*instanceBufferSize) {
-            existingInstanceBuffer
-        } else {
-            logger.debug("Instance buffer for ${parentNode.name} needs to be reallocated due to insufficient size ($instanceBufferSize vs ${state.vertexBuffers["instance"]?.size ?: "<not allocated yet>"})")
-            state.vertexBuffers["instance"]?.close()
-
-            val buffer = VulkanBuffer(device,
-                instanceBufferSize * 1L,
-                VK_BUFFER_USAGE_VERTEX_BUFFER_BIT or VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                wantAligned = true)
-
-            state.vertexBuffers["instance"] = buffer
-            buffer
-        }
-
-        with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
-            val copyRegion = VkBufferCopy.calloc(1)
-                .size(instanceBufferSize * 1L)
-
-            vkCmdCopyBuffer(this,
-                stagingBuffer.vulkanBuffer,
-                instanceBuffer.vulkanBuffer,
-                copyRegion)
-
-            copyRegion.free()
-            this.endCommandBuffer(device, commandPools.Standard, queue, flush = true, dealloc = true)
-        }
-
-        state.instanceCount = index.get()//instances.size
-
-        return state
     }
 
     private fun prepareDefaultBuffers(device: VulkanDevice): DefaultBuffers {
@@ -2589,750 +2115,6 @@ open class VulkanRenderer(hub: Hub,
         return this.metadata["VulkanRenderer"] as? VulkanObjectState
     }
 
-    private fun recordSceneRenderCommands(pass: VulkanRenderpass,
-                                          commandBuffer: VulkanCommandBuffer, sceneObjects: List<Node>,
-                                          customNodeFilter: ((Node) -> Boolean)? = null, forceRerecording: Boolean = false) = runBlocking {
-        val target = pass.getOutput()
-
-        logger.trace("Initialising recording of scene command buffer for {}/{} ({} attachments)", pass.name, target, target.attachments.count())
-
-        pass.vulkanMetadata.renderPassBeginInfo
-            .sType(VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO)
-            .pNext(NULL)
-            .renderPass(target.renderPass.get(0))
-            .framebuffer(target.framebuffer.get(0))
-            .renderArea(pass.vulkanMetadata.renderArea)
-            .pClearValues(pass.vulkanMetadata.clearValues)
-
-        val renderOrderList = ArrayList<Node>(pass.vulkanMetadata.renderLists[commandBuffer]?.size ?: 512)
-
-        var needsOrderSort = false
-
-        // here we discover all the nodes which are relevant for this pass,
-        // e.g. which have the same transparency settings as the pass,
-        // and filter according to any custom filters applicable to this pass
-        // (e.g. to discern geometry from lighting passes)
-        val seenDelegates = ArrayList<Node>(5)
-        sceneObjects.filter { customNodeFilter?.invoke(it) ?: true }.forEach { node ->
-            val n = if(node is DelegatesRendering) {
-                val delegate = node.delegate
-                if(node.delegationType == DelegationType.OncePerDelegate && delegate != null) {
-                    if(delegate in seenDelegates) {
-                        return@forEach
-                    } else {
-                        seenDelegates.add(delegate)
-                        delegate
-                    }
-                } else {
-                    node.delegate ?: return@forEach
-                }
-            } else {
-                node
-            }
-
-            if(n.state != State.Ready || n.rendererMetadata()?.preDrawSkip == true) {
-                return@forEach
-            }
-
-            if(n is RenderingOrder) {
-                needsOrderSort = true
-            }
-
-            n.rendererMetadata()?.let {
-                if (!((pass.passConfig.renderOpaque && n.material.blending.transparent && pass.passConfig.renderOpaque != pass.passConfig.renderTransparent) ||
-                        (pass.passConfig.renderTransparent && !n.material.blending.transparent && pass.passConfig.renderOpaque != pass.passConfig.renderTransparent))) {
-                    renderOrderList.add(n)
-                } else {
-                    return@let
-                }
-            }
-        }
-
-        if(needsOrderSort) {
-            renderOrderList.sortBy { (it as? RenderingOrder)?.renderingOrder }
-        }
-        // if the pass' metadata does not contain a command buffer,
-        // OR the cached command buffer does not contain the same nodes in the same order,
-        // OR re-recording is forced due to node changes, the buffer will be re-recorded.
-        // Furthermore, all sibling command buffers for this pass will be marked stale, thus
-        // also forcing their re-recording.
-        if(!pass.vulkanMetadata.renderLists.containsKey(commandBuffer)
-            || !renderOrderList.toTypedArray().contentDeepEquals(pass.vulkanMetadata.renderLists.getValue(commandBuffer))
-            || forceRerecording) {
-
-            pass.vulkanMetadata.renderLists[commandBuffer] = renderOrderList.toTypedArray()
-            pass.vulkanMetadata.renderLists.keys.forEach { it.stale = true }
-
-            // if we are in a VR pass, invalidate passes for both eyes to prevent one of them housing stale data
-            if(renderConfig.stereoEnabled && (pass.name.contains("Left") || pass.name.contains("Right"))) {
-                val passLeft = if(pass.name.contains("Left")) {
-                    pass.name
-                } else {
-                    pass.name.substringBefore("Right") + "Left"
-                }
-
-                val passRight = if(pass.name.contains("Right")) {
-                    pass.name
-                } else {
-                    pass.name.substringBefore("Left") + "Right"
-                }
-
-                renderpasses[passLeft]?.vulkanMetadata?.renderLists?.keys?.forEach { it.stale = true }
-                renderpasses[passRight]?.vulkanMetadata?.renderLists?.keys?.forEach { it.stale = true }
-            }
-        }
-
-        // If the command buffer is not stale, though, we keep the cached one and return. This
-        // can buy quite a bit of performance.
-        if(!commandBuffer.stale && commandBuffer.commandBuffer != null) {
-            return@runBlocking
-        }
-
-        logger.debug("Recording scene command buffer $commandBuffer for pass ${pass.name}...")
-
-        // command buffer cannot be null here anymore, otherwise this is clearly in error
-        with(commandBuffer.prepareAndStartRecording(commandPools.Render)) {
-            if(pass.passConfig.blitInputs) {
-                stackPush().use { stack ->
-                    val imageBlit = VkImageBlit.callocStack(1, stack)
-                    val region = VkImageCopy.callocStack(1, stack)
-
-                    for ((name, input) in pass.inputs) {
-                        val attachmentList = if (name.contains(".")) {
-                            input.attachments.filter { it.key == name.substringAfter(".") }
-                        } else {
-                            input.attachments
-                        }
-
-                        for((_, inputAttachment) in attachmentList) {
-                            val type = when(inputAttachment.type) {
-                                VulkanFramebuffer.VulkanFramebufferType.COLOR_ATTACHMENT -> VK_IMAGE_ASPECT_COLOR_BIT
-                                VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT -> VK_IMAGE_ASPECT_DEPTH_BIT
-                            }
-
-                            // return to use() if no output with the correct attachment type is found
-                            val outputAttachment = pass.getOutput().attachments.values.find { it.type == inputAttachment.type }
-                            if (outputAttachment == null) {
-                                logger.warn("Didn't find matching attachment for $name of type ${inputAttachment.type}")
-                                return@use
-                            }
-
-                            val outputAspectSrcType = when (outputAttachment.type) {
-                                VulkanFramebuffer.VulkanFramebufferType.COLOR_ATTACHMENT -> VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-                                VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT -> VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-                            }
-
-                            val outputAspectDstType = when (outputAttachment.type) {
-                                VulkanFramebuffer.VulkanFramebufferType.COLOR_ATTACHMENT -> VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
-                                VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT -> VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
-                            }
-
-                            val inputAspectType = when (inputAttachment.type) {
-                                VulkanFramebuffer.VulkanFramebufferType.COLOR_ATTACHMENT -> VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-                                VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT -> VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-                            }
-
-                            val (outputDstStage, outputDstAccessMask) = when(outputAttachment.type) {
-                                VulkanFramebuffer.VulkanFramebufferType.COLOR_ATTACHMENT ->
-                                    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT to VK_ACCESS_COLOR_ATTACHMENT_READ_BIT
-                                VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT ->
-                                    VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT or VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT or VK_PIPELINE_STAGE_VERTEX_SHADER_BIT to VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT
-                            }
-
-                            val offsetX = (input.width * pass.passConfig.viewportOffset.first).toInt()
-                            val offsetY = (input.height * pass.passConfig.viewportOffset.second).toInt()
-
-                            val sizeX = (input.width * pass.passConfig.viewportSize.first).toInt()
-                            val sizeY = (input.height * pass.passConfig.viewportSize.second).toInt()
-
-                            imageBlit.srcSubresource().set(type, 0, 0, 1)
-                            imageBlit.srcOffsets(0).set(offsetX, offsetY, 0)
-                            imageBlit.srcOffsets(1).set(sizeX, sizeY, 1)
-
-                            imageBlit.dstSubresource().set(type, 0, 0, 1)
-                            imageBlit.dstOffsets(0).set(offsetX, offsetY, 0)
-                            imageBlit.dstOffsets(1).set(sizeX, sizeY, 1)
-
-                            val subresourceRange = VkImageSubresourceRange.callocStack(stack)
-                                .aspectMask(type)
-                                .baseMipLevel(0)
-                                .levelCount(1)
-                                .baseArrayLayer(0)
-                                .layerCount(1)
-
-                            // transition source attachment
-                            VulkanTexture.transitionLayout(inputAttachment.image,
-                                from = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                                to = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                                srcStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-                                srcAccessMask = 0,
-                                dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
-                                dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT or VK_ACCESS_MEMORY_READ_BIT,
-                                subresourceRange = subresourceRange,
-                                commandBuffer = this
-                            )
-
-                            // transition destination attachment
-                            VulkanTexture.transitionLayout(outputAttachment.image,
-                                from = inputAspectType,
-                                to = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                srcStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-                                srcAccessMask = 0,
-                                dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
-                                dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT or VK_ACCESS_MEMORY_WRITE_BIT,
-                                subresourceRange = subresourceRange,
-                                commandBuffer = this
-                            )
-
-                            if (inputAttachment.compatibleWith(input, outputAttachment, pass.getOutput())) {
-                                logger.debug("Using vkCmdCopyImage instead of blit because of compatible framebuffers between {} and {}", name, pass.name)
-                                region.srcOffset().set(offsetX, offsetY, 0)
-                                region.dstOffset().set(offsetX, offsetY, 0)
-                                region.extent().set(sizeX, sizeY, 1)
-                                region.srcSubresource().set(type, 0, 0, 1)
-                                region.dstSubresource().set(type, 0, 0, 1)
-
-                                vkCmdCopyImage(this,
-                                    inputAttachment.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                                    outputAttachment.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                    region
-                                )
-                            } else {
-                                vkCmdBlitImage(this,
-                                    inputAttachment.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                                    outputAttachment.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                    imageBlit, VK_FILTER_NEAREST
-                                )
-                            }
-
-
-                            // transition destination attachment back to attachment
-                            VulkanTexture.transitionLayout(outputAttachment.image,
-                                from = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                to = outputAspectDstType,
-                                srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
-                                srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT or VK_ACCESS_MEMORY_WRITE_BIT,
-                                dstStage = outputDstStage,
-                                dstAccessMask = outputDstAccessMask,
-                                subresourceRange = subresourceRange,
-                                commandBuffer = this,
-                            )
-
-                            // transition source attachment back to shader read-only
-                            VulkanTexture.transitionLayout(inputAttachment.image,
-                                from = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                                to = outputAspectSrcType,
-                                srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
-                                dstStage = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,
-                                srcAccessMask = 0,
-                                dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
-                                subresourceRange = subresourceRange,
-                                commandBuffer = this,
-                            )
-                        }
-                    }
-                }
-            }
-
-            val computeNodesGraphicsNodes = renderOrderList.partition { pass.getActivePipeline(it).type == VulkanPipeline.PipelineType.Compute }
-
-            computeNodesGraphicsNodes.first.forEach computeLoop@ { node ->
-                val s = node.rendererMetadata() ?: return@computeLoop
-
-                val metadata = node.metadata["ComputeMetadata"] as? ComputeMetadata ?: ComputeMetadata(Vector3i(pass.getOutput().width, pass.getOutput().height, 1))
-
-                val pipeline = pass.getActivePipeline(node)
-                val vulkanPipeline = pipeline.getPipelineForGeometryType(GeometryType.TRIANGLES)
-
-                if (pass.vulkanMetadata.descriptorSets.capacity() != pipeline.descriptorSpecs.count()) {
-                    memFree(pass.vulkanMetadata.descriptorSets)
-                    pass.vulkanMetadata.descriptorSets = memAllocLong(pipeline.descriptorSpecs.count())
-                }
-
-                val specs = pipeline.orderedDescriptorSpecs()
-                val (sets, skip) = setRequiredDescriptorSetsForNode(pass, node, s, specs)
-
-                if(skip || !metadata.active) {
-                    return@computeLoop
-                }
-
-                val requiredSets = sets.filter { it !is DescriptorSet.None }.map { it.id }.toLongArray()
-                if(pass.vulkanMetadata.descriptorSets.capacity() < requiredSets.size) {
-                    logger.debug("Reallocating descriptor set storage")
-                    memFree(pass.vulkanMetadata.descriptorSets)
-                    pass.vulkanMetadata.descriptorSets = memAllocLong(requiredSets.size)
-                }
-
-                pass.vulkanMetadata.descriptorSets.position(0)
-                pass.vulkanMetadata.descriptorSets.limit(pass.vulkanMetadata.descriptorSets.capacity())
-                pass.vulkanMetadata.descriptorSets.put(requiredSets)
-                pass.vulkanMetadata.descriptorSets.flip()
-
-                pass.vulkanMetadata.uboOffsets.position(0)
-                pass.vulkanMetadata.uboOffsets.limit(pass.vulkanMetadata.uboOffsets.capacity())
-                pass.vulkanMetadata.uboOffsets.put(sets.filterIsInstance<DescriptorSet.DynamicSet>().map { it.offset }.toIntArray())
-                pass.vulkanMetadata.uboOffsets.flip()
-
-                // allocate more vertexBufferOffsets than needed, set limit lateron
-//                pass.vulkanMetadata.uboOffsets.position(0)
-//                pass.vulkanMetadata.uboOffsets.limit(16)
-//                (0..15).forEach { pass.vulkanMetadata.uboOffsets.put(it, 0) }
-
-                val loadStoreTextures =
-                node.material.textures
-                    .filter { it.value.usageType.contains(Texture.UsageType.LoadStoreImage)}
-
-                val localSizes = pipeline.shaderStages.first().localSize
-
-                loadStoreTextures
-                    .forEach { (name, _) ->
-                    val texture = s.textures[name] ?: return@computeLoop
-                    VulkanTexture.transitionLayout(texture.image.image,
-                        from = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                        to = VK_IMAGE_LAYOUT_GENERAL,
-                        srcStage = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,
-                        srcAccessMask = VK_ACCESS_SHADER_READ_BIT,
-                        dstStage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-                        dstAccessMask = VK_ACCESS_SHADER_WRITE_BIT,
-                        commandBuffer = this)
-
-                }
-
-                vkCmdBindPipeline(this, VK_PIPELINE_BIND_POINT_COMPUTE, vulkanPipeline.pipeline)
-
-                if(pipeline.pushConstantSpecs.containsKey("currentEye")) {
-                    vkCmdPushConstants(this, vulkanPipeline.layout, VK_SHADER_STAGE_ALL, 0, pass.vulkanMetadata.eye)
-                }
-
-                if(pass.vulkanMetadata.descriptorSets.limit() > 0) {
-                    logger.debug("${pass.name}: Binding ${pass.vulkanMetadata.descriptorSets.limit()} descriptor sets with ${pass.vulkanMetadata.uboOffsets.limit()} required offsets")
-                    vkCmdBindDescriptorSets(this, VK_PIPELINE_BIND_POINT_COMPUTE,
-                        vulkanPipeline.layout, 0, pass.vulkanMetadata.descriptorSets, pass.vulkanMetadata.uboOffsets)
-                }
-
-                val maxGroupCount = intArrayOf(1, 1, 1)
-                commandBuffer.device.deviceData.properties.limits().maxComputeWorkGroupCount().get(maxGroupCount)
-
-                val groupCount = intArrayOf(
-                    metadata.workSizes.x()/localSizes.first,
-                    metadata.workSizes.y()/localSizes.second,
-                    metadata.workSizes.z()/localSizes.third)
-
-                groupCount.forEachIndexed { i, gc ->
-                    if(gc > maxGroupCount[i]) {
-                        logger.warn("Group count {} exceeds device maximum of {}, using device maximum.", gc, maxGroupCount[i])
-                        groupCount[i] = maxGroupCount[i]
-                    }
-                }
-
-                vkCmdDispatch(this, groupCount[0], groupCount[1], groupCount[2])
-
-                loadStoreTextures.forEach { (name, _) ->
-                    val texture = s.textures[name] ?: return@computeLoop
-                    VulkanTexture.transitionLayout(texture.image.image,
-                        from = VK_IMAGE_LAYOUT_GENERAL,
-                        to = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                        srcStage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-                        srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT,
-                        dstStage = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,
-                        dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
-                        commandBuffer = this)
-
-                }
-
-                if(metadata.invocationType == InvocationType.Triggered && metadata.active) {
-                    metadata.active = false
-                }
-
-                if(metadata.invocationType == InvocationType.Once) {
-                    metadata.active = false
-                }
-            }
-
-            vkCmdBeginRenderPass(this, pass.vulkanMetadata.renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE)
-
-            vkCmdSetViewport(this, 0, pass.vulkanMetadata.viewport)
-            vkCmdSetScissor(this, 0, pass.vulkanMetadata.scissor)
-
-            // allocate more vertexBufferOffsets than needed, set limit lateron
-            pass.vulkanMetadata.uboOffsets.limit(16)
-            (0 until pass.vulkanMetadata.uboOffsets.limit()).forEach { pass.vulkanMetadata.uboOffsets.put(it, 0) }
-
-            var previousPipeline: Pipeline? = null
-            computeNodesGraphicsNodes.second.forEach drawLoop@ { node ->
-                val s = node.rendererMetadata() ?: return@drawLoop
-
-                // nodes that just have been initialised will also be skipped
-                if(!s.flags.contains(RendererFlags.Updated)) {
-                    return@drawLoop
-                }
-
-                // instanced nodes will not be drawn directly, but only the master node.
-                // nodes with no vertices will also not be drawn.
-                if(s.vertexCount == 0) {
-                    return@drawLoop
-                }
-
-                // return if we are on a opaque pass, but the node requires transparency.
-                if(pass.passConfig.renderOpaque && node.material.blending.transparent && pass.passConfig.renderOpaque != pass.passConfig.renderTransparent) {
-                    return@drawLoop
-                }
-
-                // return if we are on a transparency pass, but the node is only opaque.
-                if(pass.passConfig.renderTransparent && !node.material.blending.transparent && pass.passConfig.renderOpaque != pass.passConfig.renderTransparent) {
-                    return@drawLoop
-                }
-
-                val vertexIndexBuffer = s.vertexBuffers["vertex+index"]
-                val instanceBuffer = s.vertexBuffers["instance"]
-
-                if(vertexIndexBuffer == null) {
-                    logger.error("Vertex+Index buffer not initialiazed")
-                    return@drawLoop
-                }
-
-                logger.trace("{} - Rendering {}, vertex+index buffer={}...", pass.name, node.name, vertexIndexBuffer.vulkanBuffer.toHexString())
-//                if(rerecordingCauses.contains(node.name)) {
-//                    logger.debug("Using pipeline ${pass.getActivePipeline(node)} for re-recording")
-//                }
-                val p = pass.getActivePipeline(node)
-                val pipeline = p.getPipelineForGeometryType((node as HasGeometry).geometryType)
-                val specs = p.orderedDescriptorSpecs()
-
-                if(pipeline != previousPipeline) {
-                    vkCmdBindPipeline(this, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.pipeline)
-                    previousPipeline = pipeline
-                }
-
-                if(logger.isTraceEnabled) {
-                    logger.trace("node {} has: {} / pipeline needs: {}", node.name, s.UBOs.keys.joinToString(", "), specs.joinToString { it.key })
-                }
-
-                pass.vulkanMetadata.descriptorSets.rewind()
-                pass.vulkanMetadata.uboOffsets.rewind()
-
-                pass.vulkanMetadata.vertexBufferOffsets.put(0, vertexIndexBuffer.bufferOffset)
-                pass.vulkanMetadata.vertexBuffers.put(0, vertexIndexBuffer.vulkanBuffer)
-
-                pass.vulkanMetadata.vertexBufferOffsets.limit(1)
-                pass.vulkanMetadata.vertexBuffers.limit(1)
-
-                if(node.instancedProperties.size > 0) {
-                    if (node.instances.size > 0 && instanceBuffer != null) {
-                        pass.vulkanMetadata.vertexBuffers.limit(2)
-                        pass.vulkanMetadata.vertexBufferOffsets.limit(2)
-
-                        pass.vulkanMetadata.vertexBufferOffsets.put(1, 0)
-                        pass.vulkanMetadata.vertexBuffers.put(1, instanceBuffer.vulkanBuffer)
-                    } else {
-                        return@drawLoop
-                    }
-                }
-
-                val (sets, skip) = setRequiredDescriptorSetsForNode(pass, node, s, specs)
-
-                if(skip) {
-                    return@drawLoop
-                }
-
-                if(logger.isDebugEnabled) {
-                    logger.debug("${node.name} requires DS ${specs.joinToString { "${it.key}, " }}")
-                }
-
-                val requiredSets = sets.filter { it !is DescriptorSet.None }.map { it.id }.toLongArray()
-                if(pass.vulkanMetadata.descriptorSets.capacity() < requiredSets.size) {
-                    logger.debug("Reallocating descriptor set storage")
-                    memFree(pass.vulkanMetadata.descriptorSets)
-                    pass.vulkanMetadata.descriptorSets = memAllocLong(requiredSets.size)
-                }
-
-                pass.vulkanMetadata.descriptorSets.position(0)
-                pass.vulkanMetadata.descriptorSets.limit(pass.vulkanMetadata.descriptorSets.capacity())
-                pass.vulkanMetadata.descriptorSets.put(requiredSets)
-                pass.vulkanMetadata.descriptorSets.flip()
-
-                pass.vulkanMetadata.uboOffsets.position(0)
-                pass.vulkanMetadata.uboOffsets.limit(pass.vulkanMetadata.uboOffsets.capacity())
-                pass.vulkanMetadata.uboOffsets.put(sets.filter { it is DescriptorSet.DynamicSet }.map { (it as DescriptorSet.DynamicSet).offset }.toIntArray())
-                pass.vulkanMetadata.uboOffsets.flip()
-
-                if(p.pushConstantSpecs.containsKey("currentEye")) {
-                    vkCmdPushConstants(this, pipeline.layout, VK_SHADER_STAGE_ALL, 0, pass.vulkanMetadata.eye)
-                }
-
-                vkCmdBindPipeline(this, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.pipeline)
-                if(pass.vulkanMetadata.descriptorSets.limit() > 0) {
-                    vkCmdBindDescriptorSets(this, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                        pipeline.layout, 0, pass.vulkanMetadata.descriptorSets, pass.vulkanMetadata.uboOffsets)
-                }
-                vkCmdBindVertexBuffers(this, 0, pass.vulkanMetadata.vertexBuffers, pass.vulkanMetadata.vertexBufferOffsets)
-
-                logger.debug("${pass.name}: now drawing {}, {} DS bound, {} textures, {} vertices, {} indices, {} instances", node.name, pass.vulkanMetadata.descriptorSets.limit(), s.textures.count(), s.vertexCount, s.indexCount, s.instanceCount)
-
-                if (s.isIndexed) {
-                    vkCmdBindIndexBuffer(this, pass.vulkanMetadata.vertexBuffers.get(0), s.indexOffset, VK_INDEX_TYPE_UINT32)
-                    vkCmdDrawIndexed(this, s.indexCount, s.instanceCount, 0, 0, 0)
-                } else {
-                    vkCmdDraw(this, s.vertexCount, s.instanceCount, 0, 0)
-                }
-            }
-
-            vkCmdEndRenderPass(this)
-
-            // finish command buffer recording by marking this buffer non-stale
-            commandBuffer.stale = false
-            commandBuffer.endCommandBuffer()
-        }
-    }
-
-    private fun recordPostprocessRenderCommands(pass: VulkanRenderpass, commandBuffer: VulkanCommandBuffer) {
-        val target = pass.getOutput()
-
-        logger.trace("Creating postprocessing command buffer for {}/{} ({} attachments)", pass.name, target, target.attachments.count())
-
-        pass.vulkanMetadata.renderPassBeginInfo
-            .sType(VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO)
-            .pNext(NULL)
-            .renderPass(target.renderPass.get(0))
-            .framebuffer(target.framebuffer.get(0))
-            .renderArea(pass.vulkanMetadata.renderArea)
-            .pClearValues(pass.vulkanMetadata.clearValues)
-
-        if(!commandBuffer.stale) {
-            return
-        }
-
-        // prepare command buffer and start recording
-        with(commandBuffer.prepareAndStartRecording(commandPools.Render)) {
-            vkCmdBeginRenderPass(this, pass.vulkanMetadata.renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE)
-
-            vkCmdSetViewport(this, 0, pass.vulkanMetadata.viewport)
-            vkCmdSetScissor(this, 0, pass.vulkanMetadata.scissor)
-
-            val pipeline = pass.getDefaultPipeline()
-            val vulkanPipeline = pipeline.getPipelineForGeometryType(GeometryType.TRIANGLES)
-
-            if (pass.vulkanMetadata.descriptorSets.capacity() != pipeline.descriptorSpecs.count()) {
-                memFree(pass.vulkanMetadata.descriptorSets)
-                pass.vulkanMetadata.descriptorSets = memAllocLong(pipeline.descriptorSpecs.count())
-            }
-
-            // allocate more vertexBufferOffsets than needed, set limit lateron
-            pass.vulkanMetadata.uboOffsets.position(0)
-            pass.vulkanMetadata.uboOffsets.limit(16)
-            (0..15).forEach { pass.vulkanMetadata.uboOffsets.put(it, 0) }
-
-            if (logger.isDebugEnabled) {
-                logger.debug("${pass.name}: descriptor sets are {}", pass.descriptorSets.keys.joinToString(", "))
-                logger.debug("pipeline provides {}", pipeline.descriptorSpecs.keys.joinToString(", "))
-            }
-
-            // set the required descriptor sets for this render pass
-            pass.vulkanMetadata.setRequiredDescriptorSetsPostprocess(pass, pipeline)
-
-            if(pipeline.pushConstantSpecs.containsKey("currentEye")) {
-                vkCmdPushConstants(this, vulkanPipeline.layout, VK_SHADER_STAGE_ALL, 0, pass.vulkanMetadata.eye)
-            }
-
-            vkCmdBindPipeline(this, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkanPipeline.pipeline)
-            if(pass.vulkanMetadata.descriptorSets.limit() > 0) {
-                logger.debug("Binding ${pass.vulkanMetadata.descriptorSets.limit()} descriptor sets with ${pass.vulkanMetadata.uboOffsets.limit()} required offsets")
-                vkCmdBindDescriptorSets(this, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                    vulkanPipeline.layout, 0, pass.vulkanMetadata.descriptorSets, pass.vulkanMetadata.uboOffsets)
-            }
-
-            vkCmdDraw(this, 3, 1, 0, 0)
-
-            vkCmdEndRenderPass(this)
-
-            commandBuffer.stale = false
-            commandBuffer.endCommandBuffer()
-        }
-    }
-
-    private fun setRequiredDescriptorSetsForNode(pass: VulkanRenderpass, node: Node, s: VulkanObjectState, specs: List<MutableMap.MutableEntry<String, VulkanShaderModule.UBOSpec>>): Pair<List<DescriptorSet>, Boolean> {
-        var skip = false
-        return specs.mapNotNull { (name, _) ->
-            val ds = when {
-                name == "VRParameters" -> {
-                    DescriptorSet.setOrNull(descriptorSets["VRParameters"], setName = "VRParameters")
-                }
-
-                name == "LightParameters" -> {
-                    DescriptorSet.setOrNull(descriptorSets["LightParameters"], setName = "LightParameters")
-                }
-
-                name.startsWith("Inputs") -> {
-                    DescriptorSet.setOrNull(pass.descriptorSets["input-${pass.name}-${name.substringAfter("-")}"], setName = "Inputs")
-                }
-
-                name == "ShaderParameters" -> {
-                    DescriptorSet.setOrNull(pass.descriptorSets["ShaderParameters-${pass.name}"], setName = "ShaderParameters")
-                }
-
-                else -> {
-                    when {
-                        s.UBOs.containsKey(name) ->
-                            DescriptorSet.DynamicSet(s.UBOs.getValue(name).first, offset = s.UBOs.getValue(name).second.offsets.get(0), setName = name)
-                        s.UBOs.containsKey("${pass.name}-$name") ->
-                            DescriptorSet.DynamicSet(s.UBOs.getValue("${pass.name}-$name").first, offset = s.UBOs.getValue("${pass.name}-$name").second.offsets.get(0), setName = name)
-                        s.getTextureDescriptorSet(pass.passConfig.type.name, name) != null ->
-                            DescriptorSet.setOrNull(s.getTextureDescriptorSet(pass.passConfig.type.name, name), name)
-                        else -> DescriptorSet.None
-                    }
-                }
-            }
-
-            if(ds == null || ds == DescriptorSet.None) {
-                logger.error("Internal consistency error for node ${node.name}: Descriptor set $name not found in renderpass ${pass.name}, skipping node for rendering.")
-                skip = true
-            }
-
-            if(ds is DescriptorSet.DynamicSet && ds.offset == BUFFER_OFFSET_UNINTIALISED ) {
-                logger.info("${node.name} has uninitialised UBO offset, skipping for rendering")
-                skip = true
-            }
-
-            ds
-        }.distinctBy { it.id } to skip
-    }
-
-    private fun VulkanRenderpass.VulkanMetadata.setRequiredDescriptorSetsPostprocess(pass: VulkanRenderpass, pipeline: VulkanPipeline): Int {
-        var requiredDynamicOffsets = 0
-        logger.trace("Ubo position: {}", this.uboOffsets.position())
-
-        pipeline.descriptorSpecs.entries.sortedBy { it.value.set }.forEachIndexed { i, (name, spec) ->
-            logger.trace("Looking at {}, set={}, binding={}...", name, spec.set, spec.binding)
-            val dsName = when {
-                name.startsWith("ShaderParameters") -> "ShaderParameters-${pass.name}"
-                name.startsWith("Inputs") -> "input-${pass.name}-${spec.set}"
-                name.startsWith("Matrices") -> {
-                    val offsets = sceneUBOs.first().rendererMetadata()!!.UBOs["Matrices"]!!.second.offsets
-                    this.uboOffsets.put(offsets)
-                    requiredDynamicOffsets += 3
-
-                    "Matrices"
-                }
-                else -> name
-            }
-
-            val set = if (dsName == "Matrices" || dsName == "LightParameters" || dsName == "VRParameters") {
-                this@VulkanRenderer.descriptorSets[dsName]
-            } else {
-                pass.descriptorSets[dsName]
-            }
-
-            if (set != null) {
-                logger.debug("${pass.name}: Adding DS#{} for {} to required pipeline DSs ($set)", i, dsName, set)
-                this.descriptorSets.put(i, set)
-            } else {
-                logger.error("DS for {} not found! Available from pass are: {}", dsName, pass.descriptorSets.keys().toList().joinToString(","))
-            }
-        }
-
-        logger.trace("{}: Requires {} dynamic offsets", pass.name, requiredDynamicOffsets)
-        this.uboOffsets.flip()
-
-        return requiredDynamicOffsets
-    }
-
-    private fun recordComputePassRenderCommands(pass: VulkanRenderpass, commandBuffer: VulkanCommandBuffer) {
-        with(commandBuffer.prepareAndStartRecording(commandPools.Compute)) {
-            val metadata = ComputeMetadata(Vector3i(pass.getOutput().width, pass.getOutput().height, 1))
-
-            val pipeline = pass.getDefaultPipeline()
-            val vulkanPipeline = pipeline.getPipelineForGeometryType(GeometryType.TRIANGLES)
-
-            if (pass.vulkanMetadata.descriptorSets.capacity() != pipeline.descriptorSpecs.count()) {
-                memFree(pass.vulkanMetadata.descriptorSets)
-                pass.vulkanMetadata.descriptorSets = memAllocLong(pipeline.descriptorSpecs.count())
-            }
-
-            // allocate more vertexBufferOffsets than needed, set limit lateron
-            pass.vulkanMetadata.uboOffsets.position(0)
-            pass.vulkanMetadata.uboOffsets.limit(16)
-            (0..15).forEach { pass.vulkanMetadata.uboOffsets.put(it, 0) }
-
-            vkCmdBindPipeline(this, VK_PIPELINE_BIND_POINT_COMPUTE, vulkanPipeline.pipeline)
-            // set the required descriptor sets for this render pass
-            pass.vulkanMetadata.setRequiredDescriptorSetsPostprocess(pass, pipeline)
-
-            if(pipeline.pushConstantSpecs.containsKey("currentEye")) {
-                vkCmdPushConstants(this, vulkanPipeline.layout, VK_SHADER_STAGE_ALL, 0, pass.vulkanMetadata.eye)
-            }
-
-            if(pass.vulkanMetadata.descriptorSets.limit() > 0) {
-                logger.debug("${pass.name}: Binding ${pass.vulkanMetadata.descriptorSets.limit()} descriptor sets with ${pass.vulkanMetadata.uboOffsets.limit()} required offsets")
-                vkCmdBindDescriptorSets(this, VK_PIPELINE_BIND_POINT_COMPUTE,
-                    vulkanPipeline.layout, 0, pass.vulkanMetadata.descriptorSets, pass.vulkanMetadata.uboOffsets)
-            }
-
-            val localSizes = pipeline.shaderStages.first().localSize
-
-            if(localSizes.first == 0 || localSizes.second == 0 || localSizes.third == 0) {
-                logger.error("${pass.name}: Compute local sizes $localSizes must not be zero, setting to 1.")
-            }
-
-            val loadStoreAttachments = hashMapOf(false to pass.inputs, true to pass.output)
-
-
-            loadStoreAttachments
-                .forEach { (isOutput, fb) ->
-                    val originalLayout = if(isOutput && pass.isViewportRenderpass) {
-                        VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
-                    } else {
-                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-                    }
-
-                    fb.values
-                        .flatMap { it.attachments.values }
-                        .filter { it.type != VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT}
-                        .forEach { att ->
-                        VulkanTexture.transitionLayout(att.image,
-                            from = originalLayout,
-                            to = VK_IMAGE_LAYOUT_GENERAL,
-                            srcStage = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,
-                            srcAccessMask = VK_ACCESS_SHADER_READ_BIT,
-                            dstStage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-                            dstAccessMask = VK_ACCESS_SHADER_WRITE_BIT,
-                            commandBuffer = this)
-                    }
-                }
-
-            vkCmdDispatch(this,
-                metadata.workSizes.x()/maxOf(localSizes.first, 1),
-                metadata.workSizes.y()/maxOf(localSizes.second, 1),
-                metadata.workSizes.z()/maxOf(localSizes.third, 1))
-
-            loadStoreAttachments
-                .forEach { (isOutput, fb) ->
-                    val originalLayout = if(isOutput && pass.isViewportRenderpass) {
-                        VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
-                    } else {
-                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-                    }
-
-                    fb.values
-                        .flatMap { it.attachments.values }
-                        .filter { it.type != VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT}
-                        .forEach { att ->
-
-                    VulkanTexture.transitionLayout(att.image,
-                            from = VK_IMAGE_LAYOUT_GENERAL,
-                            to = originalLayout,
-                            srcStage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-                            srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT,
-                            dstStage = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,
-                            dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
-                            commandBuffer = this)
-                    }
-                }
-
-            commandBuffer.stale = false
-            commandBuffer.endCommandBuffer()
-        }
-    }
-
     private fun updateInstanceBuffers(sceneObjects: List<Node>) = runBlocking {
         val instanceMasters = sceneObjects.filter { it.instances.size > 0 }
 
@@ -3340,7 +2122,7 @@ open class VulkanRenderer(hub: Hub,
             val metadata = parent.rendererMetadata()
 
             if(metadata != null && metadata.initialized) {
-                updateInstanceBuffer(device, parent, parent.rendererMetadata()!!)
+                VulkanNodeHelpers.updateInstanceBuffer(device, parent, parent.rendererMetadata()!!, commandPools, queue)
             }
         }
 
