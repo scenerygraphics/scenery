@@ -30,7 +30,7 @@ class SponzaExample : SceneryBase("SponzaExample", windowWidth = 1280, windowHei
             scene.addChild(this)
         }
 
-        val lights = (0 until 1).map {
+        val lights = (0 until 128).map {
             Box(Vector3f(0.1f, 0.1f, 0.1f))
         }.map {
             it.position = Vector3f(
@@ -41,7 +41,7 @@ class SponzaExample : SceneryBase("SponzaExample", windowWidth = 1280, windowHei
 
             it.material.diffuse = Random.random3DVectorFromRange(0.1f, 0.9f)
 
-            val light = PointLight(radius = Random.randomFromRange(5.5f, 50.0f))
+            val light = PointLight(radius = Random.randomFromRange(0.5f, 4.0f))
             light.emissionColor = it.material.diffuse
             light.intensity = Random.randomFromRange(0.1f, 0.5f)
 
@@ -53,7 +53,7 @@ class SponzaExample : SceneryBase("SponzaExample", windowWidth = 1280, windowHei
 
         val mesh = Mesh()
         with(mesh) {
-            readFromOBJ(getDemoFilesPath() + "/sponza.obj", importMaterials = false)
+            readFromOBJ(getDemoFilesPath() + "/sponza.obj", importMaterials = true)
             rotation.rotateY(Math.PI.toFloat() / 2.0f)
             scale = Vector3f(0.01f, 0.01f, 0.01f)
             name = "Sponza Mesh"
