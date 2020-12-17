@@ -2,7 +2,6 @@ package graphics.scenery.backends.vulkan
 
 import graphics.scenery.utils.LazyLogger
 import org.lwjgl.PointerBuffer
-import org.lwjgl.system.MemoryStack
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.VK10.*
@@ -10,6 +9,7 @@ import org.lwjgl.vulkan.VkBufferCreateInfo
 import org.lwjgl.vulkan.VkMemoryAllocateInfo
 import org.lwjgl.vulkan.VkMemoryRequirements
 import java.nio.ByteBuffer
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.roundToInt
 
 /**
@@ -43,6 +43,10 @@ open class VulkanBuffer(val device: VulkanDevice, var size: Long,
     var bufferOffset: Long = 0
         private set
 
+    /** Last time buffer parameters, such as size, or id have changed */
+    var updated: Long = 0
+        private set
+
     private var mapped = false
     private var bufferReallocNeeded: Boolean = false
 
@@ -66,6 +70,9 @@ open class VulkanBuffer(val device: VulkanDevice, var size: Long,
                 this.alignment = sa.buffer.alignment
 
                 this.bufferOffset = sa.offset.toLong()
+                this.updated = System.nanoTime()
+
+                logger.trace("Created suballocated Vulkan Buffer {} with memory {} of size={} bytes",  this.vulkanBuffer.toHexString(), this.memory.toHexString(), this.allocatedSize)
             }
         }
     }
@@ -115,7 +122,9 @@ open class VulkanBuffer(val device: VulkanDevice, var size: Long,
         MemoryUtil.memFree(memTypeIndex)
         MemoryUtil.memFree(memory)
 
-        logger.debug("Created Vulkan Buffer ${buffer.toHexString()} with memory ${r.memory.toHexString()}")
+        val count = totalBuffers.incrementAndGet()
+        logger.trace("Created {}{}Vulkan Buffer {} with memory {} of size={} bytes, total buffers: {}", if(suballocation != null) { "suballocated "} else {" "}, if(wantAligned) { "aligned " } else {" "}, buffer.toHexString(), r.memory.toHexString(), actualSize, count)
+        this.updated = System.nanoTime()
 
         return r
     }
@@ -129,7 +138,7 @@ open class VulkanBuffer(val device: VulkanDevice, var size: Long,
             unmap()
         }
 
-        logger.debug("Before resize: ${stagingBuffer.remaining()} ${stagingBuffer.capacity()}")
+        logger.trace("Querying buffer resize for ${vulkanBuffer.toHexString()}, $size to $newSize bytes")
         stagingBuffer = MemoryUtil.memRealloc(stagingBuffer, newSize) ?: throw IllegalStateException("Could not resize buffer")
         size = newSize.toLong()
         bufferReallocNeeded = true
@@ -153,6 +162,7 @@ open class VulkanBuffer(val device: VulkanDevice, var size: Long,
         this.vulkanBuffer = b.buffer
         this.allocatedSize = b.size
         this.alignment = b.alignment
+        logger.trace("Buffer resized for {}, allocated size: {}", vulkanBuffer.toHexString(), allocatedSize)
 
         bufferReallocNeeded = false
     }
@@ -237,12 +247,14 @@ open class VulkanBuffer(val device: VulkanDevice, var size: Long,
     fun map(): PointerBuffer {
         resizeLazy()
 
-        val dest = memAllocPointer(1)
-        vkMapMemory(device.vulkanDevice, memory, bufferOffset, size, 0, dest)
+        if(!mapped) {
+            val dest = memAllocPointer(1)
+            vkMapMemory(device.vulkanDevice, memory, bufferOffset, size, 0, dest)
+            currentPointer = dest
+            mapped = true
+        }
 
-        currentPointer = dest
-        mapped = true
-        return dest
+        return currentPointer!!
     }
 
     /**
@@ -264,8 +276,10 @@ open class VulkanBuffer(val device: VulkanDevice, var size: Long,
      * Unmaps this buffer.
      */
     fun unmap() {
-        mapped = false
-        vkUnmapMemory(device.vulkanDevice, memory)
+        if(mapped) {
+            mapped = false
+            vkUnmapMemory(device.vulkanDevice, memory)
+        }
     }
 
     /**
@@ -306,16 +320,18 @@ open class VulkanBuffer(val device: VulkanDevice, var size: Long,
         }
 
         if(suballocation != null) {
-            logger.debug("Marking suballocation as free")
+            logger.trace("Marking suballocation as free")
             suballocation?.free = true
             return
         }
 
-        logger.trace("Closing buffer $this (${vulkanBuffer.toHexString()}, mem=${memory.toHexString()}...")
+        val count = totalBuffers.getAndDecrement()
 
         if(mapped) {
             unmap()
         }
+
+        logger.trace("Closed buffer {} ({}, mem={}, total buffers: {}", this, vulkanBuffer.toHexString(), memory.toHexString(), count)
 
         memFree(stagingBuffer)
 
@@ -330,6 +346,8 @@ open class VulkanBuffer(val device: VulkanDevice, var size: Long,
      * Factory methods for [VulkanBuffer].
      */
     companion object {
+        protected val totalBuffers = AtomicInteger(0)
+
         /**
          * Creates a new VulkanBuffer of [size] that has it's memory managed by a [VulkanBufferPool]
          * given by [pool].
