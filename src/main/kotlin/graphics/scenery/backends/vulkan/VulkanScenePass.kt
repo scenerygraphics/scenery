@@ -13,10 +13,7 @@ import kotlinx.coroutines.runBlocking
 import org.joml.Vector3i
 import org.lwjgl.system.MemoryStack
 import org.lwjgl.system.MemoryUtil
-import org.lwjgl.vulkan.VK10
-import org.lwjgl.vulkan.VkImageBlit
-import org.lwjgl.vulkan.VkImageCopy
-import org.lwjgl.vulkan.VkImageSubresourceRange
+import org.lwjgl.vulkan.*
 import java.util.ArrayList
 
 /**
@@ -149,144 +146,8 @@ object VulkanScenePass {
         // command buffer cannot be null here anymore, otherwise this is clearly in error
         with(commandBuffer.prepareAndStartRecording(commandPools.Render)) {
             if(pass.passConfig.blitInputs) {
-                MemoryStack.stackPush().use { stack ->
-                    val imageBlit = VkImageBlit.callocStack(1, stack)
-                    val region = VkImageCopy.callocStack(1, stack)
-
-                    for ((name, input) in pass.inputs) {
-                        val attachmentList = if (name.contains(".")) {
-                            input.attachments.filter { it.key == name.substringAfter(".") }
-                        } else {
-                            input.attachments
-                        }
-
-                        for((_, inputAttachment) in attachmentList) {
-                            val type = when(inputAttachment.type) {
-                                VulkanFramebuffer.VulkanFramebufferType.COLOR_ATTACHMENT -> VK10.VK_IMAGE_ASPECT_COLOR_BIT
-                                VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT -> VK10.VK_IMAGE_ASPECT_DEPTH_BIT
-                            }
-
-                            // return to use() if no output with the correct attachment type is found
-                            val outputAttachment = pass.getOutput().attachments.values.find { it.type == inputAttachment.type }
-                            if (outputAttachment == null) {
-                                logger.warn("Didn't find matching attachment for $name of type ${inputAttachment.type}")
-                                return@use
-                            }
-
-                            val outputAspectSrcType = when (outputAttachment.type) {
-                                VulkanFramebuffer.VulkanFramebufferType.COLOR_ATTACHMENT -> VK10.VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-                                VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT -> VK10.VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-                            }
-
-                            val outputAspectDstType = when (outputAttachment.type) {
-                                VulkanFramebuffer.VulkanFramebufferType.COLOR_ATTACHMENT -> VK10.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
-                                VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT -> VK10.VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
-                            }
-
-                            val inputAspectType = when (inputAttachment.type) {
-                                VulkanFramebuffer.VulkanFramebufferType.COLOR_ATTACHMENT -> VK10.VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-                                VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT -> VK10.VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-                            }
-
-                            val (outputDstStage, outputDstAccessMask) = when(outputAttachment.type) {
-                                VulkanFramebuffer.VulkanFramebufferType.COLOR_ATTACHMENT ->
-                                    VK10.VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT to VK10.VK_ACCESS_COLOR_ATTACHMENT_READ_BIT
-                                VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT ->
-                                    VK10.VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT or VK10.VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT or VK10.VK_PIPELINE_STAGE_VERTEX_SHADER_BIT to VK10.VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT
-                            }
-
-                            val offsetX = (input.width * pass.passConfig.viewportOffset.first).toInt()
-                            val offsetY = (input.height * pass.passConfig.viewportOffset.second).toInt()
-
-                            val sizeX = (input.width * pass.passConfig.viewportSize.first).toInt()
-                            val sizeY = (input.height * pass.passConfig.viewportSize.second).toInt()
-
-                            imageBlit.srcSubresource().set(type, 0, 0, 1)
-                            imageBlit.srcOffsets(0).set(offsetX, offsetY, 0)
-                            imageBlit.srcOffsets(1).set(sizeX, sizeY, 1)
-
-                            imageBlit.dstSubresource().set(type, 0, 0, 1)
-                            imageBlit.dstOffsets(0).set(offsetX, offsetY, 0)
-                            imageBlit.dstOffsets(1).set(sizeX, sizeY, 1)
-
-                            val subresourceRange = VkImageSubresourceRange.callocStack(stack)
-                                .aspectMask(type)
-                                .baseMipLevel(0)
-                                .levelCount(1)
-                                .baseArrayLayer(0)
-                                .layerCount(1)
-
-                            // transition source attachment
-                            VulkanTexture.transitionLayout(inputAttachment.image,
-                                from = VK10.VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                                to = VK10.VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                                srcStage = VK10.VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-                                srcAccessMask = 0,
-                                dstStage = VK10.VK_PIPELINE_STAGE_TRANSFER_BIT,
-                                dstAccessMask = VK10.VK_ACCESS_TRANSFER_READ_BIT or VK10.VK_ACCESS_MEMORY_READ_BIT,
-                                subresourceRange = subresourceRange,
-                                commandBuffer = this
-                            )
-
-                            // transition destination attachment
-                            VulkanTexture.transitionLayout(outputAttachment.image,
-                                from = inputAspectType,
-                                to = VK10.VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                srcStage = VK10.VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-                                srcAccessMask = 0,
-                                dstStage = VK10.VK_PIPELINE_STAGE_TRANSFER_BIT,
-                                dstAccessMask = VK10.VK_ACCESS_TRANSFER_WRITE_BIT or VK10.VK_ACCESS_MEMORY_WRITE_BIT,
-                                subresourceRange = subresourceRange,
-                                commandBuffer = this
-                            )
-
-                            if (inputAttachment.compatibleWith(input, outputAttachment, pass.getOutput())) {
-                                logger.debug("Using vkCmdCopyImage instead of blit because of compatible framebuffers between {} and {}", name, pass.name)
-                                region.srcOffset().set(offsetX, offsetY, 0)
-                                region.dstOffset().set(offsetX, offsetY, 0)
-                                region.extent().set(sizeX, sizeY, 1)
-                                region.srcSubresource().set(type, 0, 0, 1)
-                                region.dstSubresource().set(type, 0, 0, 1)
-
-                                VK10.vkCmdCopyImage(this,
-                                    inputAttachment.image, VK10.VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                                    outputAttachment.image, VK10.VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                    region
-                                )
-                            } else {
-                                VK10.vkCmdBlitImage(this,
-                                    inputAttachment.image, VK10.VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                                    outputAttachment.image, VK10.VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                    imageBlit, VK10.VK_FILTER_NEAREST
-                                )
-                            }
-
-
-                            // transition destination attachment back to attachment
-                            VulkanTexture.transitionLayout(outputAttachment.image,
-                                from = VK10.VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                to = outputAspectDstType,
-                                srcStage = VK10.VK_PIPELINE_STAGE_TRANSFER_BIT,
-                                srcAccessMask = VK10.VK_ACCESS_TRANSFER_WRITE_BIT or VK10.VK_ACCESS_MEMORY_WRITE_BIT,
-                                dstStage = outputDstStage,
-                                dstAccessMask = outputDstAccessMask,
-                                subresourceRange = subresourceRange,
-                                commandBuffer = this,
-                            )
-
-                            // transition source attachment back to shader read-only
-                            VulkanTexture.transitionLayout(inputAttachment.image,
-                                from = VK10.VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                                to = outputAspectSrcType,
-                                srcStage = VK10.VK_PIPELINE_STAGE_TRANSFER_BIT,
-                                dstStage = VK10.VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,
-                                srcAccessMask = 0,
-                                dstAccessMask = VK10.VK_ACCESS_SHADER_READ_BIT,
-                                subresourceRange = subresourceRange,
-                                commandBuffer = this,
-                            )
-                        }
-                    }
+                for ((name, input) in pass.inputs) {
+                    this.blitInputsForPass(pass, name, input)
                 }
             }
 
@@ -547,6 +408,151 @@ object VulkanScenePass {
             // finish command buffer recording by marking this buffer non-stale
             commandBuffer.stale = false
             commandBuffer.endCommandBuffer()
+        }
+    }
+
+    /**
+     * Blits [input] with [name] into the current [pass]' framebuffer.
+     */
+    private fun VkCommandBuffer.blitInputsForPass(pass: VulkanRenderpass, name: String, input: VulkanFramebuffer) {
+        MemoryStack.stackPush().use { stack ->
+            val imageBlit = VkImageBlit.callocStack(1, stack)
+            val region = VkImageCopy.callocStack(1, stack)
+
+            val attachmentList = if (name.contains(".")) {
+                input.attachments.filter { it.key == name.substringAfter(".") }
+            } else {
+                input.attachments
+            }
+
+            for ((_, inputAttachment) in attachmentList) {
+                val type = when (inputAttachment.type) {
+                    VulkanFramebuffer.VulkanFramebufferType.COLOR_ATTACHMENT -> VK10.VK_IMAGE_ASPECT_COLOR_BIT
+                    VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT -> VK10.VK_IMAGE_ASPECT_DEPTH_BIT
+                }
+
+                // return to use() if no output with the correct attachment type is found
+                val outputAttachment = pass.getOutput().attachments.values.find { it.type == inputAttachment.type }
+                if (outputAttachment == null) {
+                    logger.warn("Didn't find matching attachment for $name of type ${inputAttachment.type}")
+                    return@use
+                }
+
+                val outputAspectSrcType = when (outputAttachment.type) {
+                    VulkanFramebuffer.VulkanFramebufferType.COLOR_ATTACHMENT -> VK10.VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+                    VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT -> VK10.VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+                }
+
+                val outputAspectDstType = when (outputAttachment.type) {
+                    VulkanFramebuffer.VulkanFramebufferType.COLOR_ATTACHMENT -> VK10.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+                    VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT -> VK10.VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+                }
+
+                val inputAspectType = when (inputAttachment.type) {
+                    VulkanFramebuffer.VulkanFramebufferType.COLOR_ATTACHMENT -> VK10.VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+                    VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT -> VK10.VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+                }
+
+                val (outputDstStage, outputDstAccessMask) = when (outputAttachment.type) {
+                    VulkanFramebuffer.VulkanFramebufferType.COLOR_ATTACHMENT ->
+                        VK10.VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT to VK10.VK_ACCESS_COLOR_ATTACHMENT_READ_BIT
+                    VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT ->
+                        VK10.VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT or VK10.VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT or VK10.VK_PIPELINE_STAGE_VERTEX_SHADER_BIT to VK10.VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT
+                }
+
+                val offsetX = (input.width * pass.passConfig.viewportOffset.first).toInt()
+                val offsetY = (input.height * pass.passConfig.viewportOffset.second).toInt()
+
+                val sizeX = (input.width * pass.passConfig.viewportSize.first).toInt()
+                val sizeY = (input.height * pass.passConfig.viewportSize.second).toInt()
+
+                imageBlit.srcSubresource().set(type, 0, 0, 1)
+                imageBlit.srcOffsets(0).set(offsetX, offsetY, 0)
+                imageBlit.srcOffsets(1).set(sizeX, sizeY, 1)
+
+                imageBlit.dstSubresource().set(type, 0, 0, 1)
+                imageBlit.dstOffsets(0).set(offsetX, offsetY, 0)
+                imageBlit.dstOffsets(1).set(sizeX, sizeY, 1)
+
+                val subresourceRange = VkImageSubresourceRange.callocStack(stack)
+                    .aspectMask(type)
+                    .baseMipLevel(0)
+                    .levelCount(1)
+                    .baseArrayLayer(0)
+                    .layerCount(1)
+
+                // transition source attachment
+                VulkanTexture.transitionLayout(inputAttachment.image,
+                    from = VK10.VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                    to = VK10.VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                    srcStage = VK10.VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                    srcAccessMask = 0,
+                    dstStage = VK10.VK_PIPELINE_STAGE_TRANSFER_BIT,
+                    dstAccessMask = VK10.VK_ACCESS_TRANSFER_READ_BIT or VK10.VK_ACCESS_MEMORY_READ_BIT,
+                    subresourceRange = subresourceRange,
+                    commandBuffer = this
+                )
+
+                // transition destination attachment
+                VulkanTexture.transitionLayout(outputAttachment.image,
+                    from = inputAspectType,
+                    to = VK10.VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                    srcStage = VK10.VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                    srcAccessMask = 0,
+                    dstStage = VK10.VK_PIPELINE_STAGE_TRANSFER_BIT,
+                    dstAccessMask = VK10.VK_ACCESS_TRANSFER_WRITE_BIT or VK10.VK_ACCESS_MEMORY_WRITE_BIT,
+                    subresourceRange = subresourceRange,
+                    commandBuffer = this
+                )
+
+                if (inputAttachment.compatibleWith(input, outputAttachment, pass.getOutput())) {
+                    logger.debug("Using vkCmdCopyImage instead of blit because of compatible framebuffers between {} and {}", name, pass.name)
+                    region.srcOffset().set(offsetX, offsetY, 0)
+                    region.dstOffset().set(offsetX, offsetY, 0)
+                    region.extent().set(sizeX, sizeY, 1)
+                    region.srcSubresource().set(type, 0, 0, 1)
+                    region.dstSubresource().set(type, 0, 0, 1)
+
+                    VK10.vkCmdCopyImage(this,
+                        inputAttachment.image, VK10.VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                        outputAttachment.image, VK10.VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                        region
+                    )
+                } else {
+                    VK10.vkCmdBlitImage(this,
+                        inputAttachment.image, VK10.VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                        outputAttachment.image, VK10.VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                        imageBlit, VK10.VK_FILTER_NEAREST
+                    )
+                }
+
+
+                // transition destination attachment back to attachment
+                VulkanTexture.transitionLayout(
+                    outputAttachment.image,
+                    from = VK10.VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                    to = outputAspectDstType,
+                    srcStage = VK10.VK_PIPELINE_STAGE_TRANSFER_BIT,
+                    srcAccessMask = VK10.VK_ACCESS_TRANSFER_WRITE_BIT or VK10.VK_ACCESS_MEMORY_WRITE_BIT,
+                    dstStage = outputDstStage,
+                    dstAccessMask = outputDstAccessMask,
+                    subresourceRange = subresourceRange,
+                    commandBuffer = this,
+                )
+
+                // transition source attachment back to shader read-only
+                VulkanTexture.transitionLayout(
+                    inputAttachment.image,
+                    from = VK10.VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                    to = outputAspectSrcType,
+                    srcStage = VK10.VK_PIPELINE_STAGE_TRANSFER_BIT,
+                    dstStage = VK10.VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,
+                    srcAccessMask = 0,
+                    dstAccessMask = VK10.VK_ACCESS_SHADER_READ_BIT,
+                    subresourceRange = subresourceRange,
+                    commandBuffer = this,
+                )
+            }
         }
     }
 
