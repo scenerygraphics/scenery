@@ -147,7 +147,9 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
             val value = prop.value as? String ?: return@forEach
 
             if(name.startsWith("scenery.LogLevel.")) {
-                System.setProperty("org.slf4j.simpleLogger.log.${name.substringAfter("scenery.LogLevel.")}", value)
+                val className = name.substringAfter("scenery.LogLevel.")
+                logger.info("Setting logging level of class $className to $value")
+                System.setProperty("org.slf4j.simpleLogger.log.${className}", value)
             }
         }
 

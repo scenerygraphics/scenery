@@ -8,6 +8,4 @@ interface Timestamped {
     var created: Long
     /** When the object was last modified. */
     var updated: Long
-    /** When the object was added to a collection. */
-    var added: Long
 }
