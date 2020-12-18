@@ -1645,6 +1645,18 @@ open class VulkanRenderer(hub: Hub,
         }
         profiler?.end()
 
+        getDescriptorCache().forEachChanged(buffers.UBOs.updated) {
+            if(it.value.updated < buffers.UBOs.updated) {
+                logger.debug("Canceling current frame, UBO backing buffers updated.")
+
+                renderpasses.forEach { (_, pass) ->
+                    pass.invalidateCommandBuffers()
+                }
+
+                return@runBlocking
+            }
+        }
+
         profiler?.begin("Renderer.BeginFrame")
         val presentedFrames = swapchain.presentedFrames()
         // return if neither UBOs were updated, nor the scene was modified
@@ -1653,13 +1665,6 @@ open class VulkanRenderer(hub: Hub,
             delay(2)
 
             return@runBlocking
-        }
-
-        getDescriptorCache().forEachChanged(buffers.UBOs.updated) {
-            if(it.value.updated < buffers.UBOs.updated) {
-                logger.debug("Canceling current frame, UBO backing buffers updated.")
-                return@runBlocking
-            }
         }
 
         val submitInfo = VkSubmitInfo.calloc(flow.size-1)

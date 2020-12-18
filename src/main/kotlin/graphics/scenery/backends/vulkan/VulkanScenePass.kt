@@ -114,7 +114,7 @@ object VulkanScenePass {
             || forceRerecording) {
 
             pass.vulkanMetadata.renderLists[commandBuffer] = renderOrderList.toTypedArray()
-            pass.vulkanMetadata.renderLists.keys.forEach { it.stale = true }
+            pass.invalidateCommandBuffers()
 
             // if we are in a VR pass, invalidate passes for both eyes to prevent one of them housing stale data
             if(renderConfig.stereoEnabled && (pass.name.contains("Left") || pass.name.contains("Right"))) {
@@ -130,8 +130,8 @@ object VulkanScenePass {
                     pass.name.substringBefore("Left") + "Right"
                 }
 
-                renderpasses[passLeft]?.vulkanMetadata?.renderLists?.keys?.forEach { it.stale = true }
-                renderpasses[passRight]?.vulkanMetadata?.renderLists?.keys?.forEach { it.stale = true }
+                renderpasses[passLeft]?.invalidateCommandBuffers()
+                renderpasses[passRight]?.invalidateCommandBuffers()
             }
         }
 
