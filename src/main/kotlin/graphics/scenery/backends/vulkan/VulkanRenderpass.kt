@@ -534,6 +534,13 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
         pipelines.put(pipelineName, p)?.close()
     }
 
+    /**
+     * Invalides all command buffers of this renderpass.
+     */
+    fun invalidateCommandBuffers() {
+        vulkanMetadata.renderLists.keys.forEach { it.stale = true }
+    }
+
     private fun initializeDescriptorSetLayoutForSpecs(setId: Long, specs: List<MutableMap.MutableEntry<String, VulkanShaderModule.UBOSpec>>): Long {
         val contents = specs.map { s ->
             val spec = s.value
