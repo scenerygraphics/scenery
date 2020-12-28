@@ -21,6 +21,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import net.imglib2.type.numeric.integer.UnsignedByteType
 import net.imglib2.type.numeric.integer.UnsignedShortType
+import org.joml.Quaternionf
 import org.joml.Vector2i
 import org.joml.Vector3i
 import org.junit.Test
@@ -114,6 +115,10 @@ class RenderAndComposite: SceneryBase("Volume Rendering example", 1200, 1200, wa
             scene.addChild(this)
         }
 
+        cam.position = Vector3f(3.213f, 8.264E-1f, -9.844E-1f)
+
+        cam.rotation = Quaternionf(3.049E-2,  9.596E-1, -1.144E-1, -2.553E-1)
+
         val shell = Box(Vector3f(10.0f, 10.0f, 10.0f), insideNormals = true)
         shell.material.cullingMode = Material.CullingMode.None
         shell.material.diffuse = Vector3f(0.1f, 0.1f, 0.1f)
@@ -126,7 +131,7 @@ class RenderAndComposite: SceneryBase("Volume Rendering example", 1200, 1200, wa
         volume.name = "volume"
         volume.position = Vector3f(0.0f, 0.0f, 0.0f)
         volume.colormap = Colormap.get("hot")
-        volume.pixelToWorldRatio = 0.008f
+        volume.pixelToWorldRatio = 0.0036f
 
         logger.info("Init 4")
 
