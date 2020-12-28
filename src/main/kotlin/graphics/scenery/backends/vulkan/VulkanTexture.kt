@@ -633,11 +633,11 @@ open class VulkanTexture(val device: VulkanDevice,
                         to = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                         srcStage = VK_PIPELINE_STAGE_HOST_BIT,
                         srcAccessMask = VK_ACCESS_HOST_READ_BIT,
-                        dstStage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-                        dstAccessMask = 0,
+                        dstStage = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,
+                        dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
                         commandBuffer = this)
 
-                    endCommandBuffer(this@VulkanTexture.device, commandPools.Standard, transferQueue, flush = true, dealloc = true, block = true)
+                    endCommandBuffer(this@VulkanTexture.device, commandPools.Transfer, transferQueue, flush = true, dealloc = true, block = true)
                 }
 
                 var end = System.nanoTime()
