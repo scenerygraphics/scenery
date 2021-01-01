@@ -6,16 +6,19 @@ import java.util.concurrent.CopyOnWriteArrayList
 
 
 /** Default [VulkanBufferPool] backing store size. */
-const val basicBufferSize: Long = 1024*1024*32
+const val basicBufferSize: Long = 1024*1024*128
 
 /**
  * Represents a pool of [VulkanBuffer]s, from which [VulkanSuballocation]s can be made.
  * Each buffer pool resides on a [device] and has specific [usage] flags, e.g. for vertex
  * or texture storage.
  */
-class VulkanBufferPool(val device: VulkanDevice,
-                       val usage: Int = VK10.VK_BUFFER_USAGE_VERTEX_BUFFER_BIT or VK10.VK_BUFFER_USAGE_INDEX_BUFFER_BIT or VK10.VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                       val bufferSize: Long = basicBufferSize) {
+class VulkanBufferPool(
+    val device: VulkanDevice,
+    val usage: Int = VK10.VK_BUFFER_USAGE_VERTEX_BUFFER_BIT or VK10.VK_BUFFER_USAGE_INDEX_BUFFER_BIT or VK10.VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+    val bufferSize: Long = basicBufferSize,
+    val properties: Int = VK10.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+) {
 
     private val logger by LazyLogger()
     protected val backingStore = CopyOnWriteArrayList<VulkanBufferAllocation>()
@@ -40,7 +43,7 @@ class VulkanBufferPool(val device: VulkanDevice,
                 bufferSize *= 4
             }
 
-            val vb = VulkanBuffer(device, bufferSize, usage, VK10.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, true)
+            val vb = VulkanBuffer(device, bufferSize, usage, properties, true)
             val alloc = VulkanBufferAllocation(usage, vb.allocatedSize, vb, vb.alignment.toInt())
             backingStore.add(alloc)
             logger.trace("Added new buffer of size {} to backing store", bufferSize)

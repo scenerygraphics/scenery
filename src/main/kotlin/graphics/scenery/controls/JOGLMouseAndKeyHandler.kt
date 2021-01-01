@@ -184,9 +184,9 @@ open class JOGLMouseAndKeyHandler(var hub: Hub?) : MouseAndKeyHandlerBase(), Mou
             .filter { it.buttons.matches(mask, pressedKeys) }
             .forEach {
                 if(isHorizontal) {
-                    it.behaviour.scroll(wheelRotation[0].toDouble()*scrollSpeedMultiplier, isHorizontal, x, y)
-                } else {
                     it.behaviour.scroll(wheelRotation[1].toDouble()*scrollSpeedMultiplier, isHorizontal, x, y)
+                } else {
+                    it.behaviour.scroll(wheelRotation[0].toDouble()*scrollSpeedMultiplier, isHorizontal, x, y)
                 }
             }
     }

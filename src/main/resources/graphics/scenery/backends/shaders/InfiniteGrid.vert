@@ -60,7 +60,11 @@ void main() {
 
     vec3 p = gridPlane[gl_VertexIndex];
 
+#ifndef OPENGL
     Vertex.nearPosition = unprojectPoint(vec3(p.x, p.y, 0.0), inverseView, inverseProjection);
+#else
+    Vertex.nearPosition = unprojectPoint(vec3(p.x, p.y, -1.0), inverseView, inverseProjection);
+#endif
     Vertex.farPosition = unprojectPoint(vec3(p.x, p.y, 1.0), inverseView, inverseProjection);
     Vertex.pv = projectionMatrix * view;
 

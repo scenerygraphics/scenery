@@ -8,20 +8,18 @@ import graphics.scenery.controls.behaviours.*
 import graphics.scenery.utils.LazyLogger
 import io.github.classgraph.ClassGraph
 import net.java.games.input.Component
-import org.reflections.Reflections
 import org.scijava.ui.behaviour.Behaviour
 import org.scijava.ui.behaviour.BehaviourMap
 import org.scijava.ui.behaviour.InputTrigger
 import org.scijava.ui.behaviour.InputTriggerMap
 import org.scijava.ui.behaviour.io.InputTriggerConfig
+import org.scijava.ui.behaviour.io.InputTriggerDescription
+import org.scijava.ui.behaviour.io.InputTriggerDescriptionsBuilder
 import org.scijava.ui.behaviour.io.gui.CommandDescriptionBuilder
 import org.scijava.ui.behaviour.io.gui.VisualEditorPanel
 import org.scijava.ui.behaviour.io.yaml.YamlConfigIO
 import org.scijava.ui.behaviour.util.Behaviours
-import java.io.FileNotFoundException
-import java.io.FileReader
-import java.io.Reader
-import java.io.StringReader
+import java.io.*
 import javax.swing.JFrame
 
 /**
@@ -37,17 +35,22 @@ import javax.swing.JFrame
 class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?, forceHandler: Class<*>? = null) : Hubable, AutoCloseable {
     /** logger for the InputHandler **/
     internal val logger by LazyLogger()
+
     /** ui-behaviour input trigger map, stores what actions (key presses, etc) trigger which actions. */
     internal val inputMap = InputTriggerMap()
+
     /** ui-behaviour behaviour map, stores the available behaviours */
     internal val behaviourMap = BehaviourMap()
+
     /** JOGL-flavoured ui-behaviour MouseAndKeyHandlerBase */
     internal val handler: MouseAndKeyHandlerBase?
 
     /** Scene the input handler refers to */
     internal val scene: Scene
+
     /** Renderer the input handler uses */
     internal val renderer: Renderer
+
     /** window the input handler receives input events from */
     internal val window: SceneryWindow = renderer.window
 
@@ -55,7 +58,7 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?, for
     internal var config: InputTriggerConfig = InputTriggerConfig()
 
     init {
-        if(forceHandler != null) {
+        if (forceHandler != null) {
             handler = forceHandler.getConstructor(Hub::class.java)?.newInstance(hub) as? MouseAndKeyHandlerBase
             handler?.attach(hub, window, inputMap, behaviourMap)
         } else {
@@ -80,7 +83,7 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?, for
                         .loadClasses()
                     val duration = System.nanoTime() - start
 
-                    if(logger.isDebugEnabled) {
+                    if (logger.isDebugEnabled) {
                         logger.debug("Found potential input handlers (${duration / 10e6} ms): ${handlers.joinToString { "${it.simpleName} -> ${it.getAnnotation(CanHandleInputFor::class.java).windowTypes.joinToString()}" }}")
                     }
                     val candidate = handlers.find { it.getAnnotation(CanHandleInputFor::class.java).windowTypes.contains(window::class) }
@@ -132,9 +135,9 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?, for
      */
     fun addKeyBinding(behaviourName: String, vararg keys: String) {
         keys.forEach { key ->
-            val trigger = InputTrigger.getFromString( key )
-            inputMap.put( trigger, behaviourName )
-            config.add( trigger, behaviourName, "all" )
+            val trigger = InputTrigger.getFromString(key)
+            inputMap.put(trigger, behaviourName)
+            config.add(trigger, behaviourName, "all")
         }
     }
 
@@ -143,7 +146,7 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?, for
      * with the given behaviour
      */
     fun getKeyBindings(behaviourName: String): Set<InputTrigger> {
-        return config.getInputs( behaviourName, "all" )
+        return config.getInputs(behaviourName, "all")
         //NB: this assumes that 'config' and 'inputMap' are well synchronized,
         //    otherwise we would have to read 'inputMap' and build the set ourselves
     }
@@ -163,9 +166,9 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?, for
      * @param[behaviourName] The behaviour to remove the key binding for.
      */
     fun removeKeyBinding(behaviourName: String) {
-        config.getInputs( behaviourName, "all" ).forEach { inputTrigger ->
-            inputMap.remove( inputTrigger, behaviourName )
-            config.remove( inputTrigger, behaviourName, "all" )
+        config.getInputs(behaviourName, "all").forEach { inputTrigger ->
+            inputMap.remove(inputTrigger, behaviourName)
+            config.remove(inputTrigger, behaviourName, "all")
         }
     }
 
@@ -193,23 +196,23 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?, for
         } catch (e: FileNotFoundException) {
             logger.info("No custom key configuration found, using default keybindings.")
             reader = StringReader("---\n" +
-                    "- !mapping" + "\n" +
-                    "  action: mouse_control" + "\n" +
-                    "  contexts: [all]" + "\n" +
-                    "  triggers: [button1, M]" + "\n" +
-                    "- !mapping" + "\n" +
-                    "  action: gamepad_movement_control" + "\n" +
-                    "  contexts: [all]" + "\n" +
-                    "  triggers: [button1]" + "\n" +
-                    "- !mapping" + "\n" +
-                    "  action: gamepad_camera_control" + "\n" +
-                    "  contexts: [all]" + "\n" +
-                    "  triggers: [G]" + "\n" +
-                    "- !mapping" + "\n" +
-                    "  action: scroll1" + "\n" +
-                    "  contexts: [all]" + "\n" +
-                    "  triggers: [scroll]" + "\n" +
-                    "")
+                "- !mapping" + "\n" +
+                "  action: mouse_control" + "\n" +
+                "  contexts: [all]" + "\n" +
+                "  triggers: [button1, M]" + "\n" +
+                "- !mapping" + "\n" +
+                "  action: gamepad_movement_control" + "\n" +
+                "  contexts: [all]" + "\n" +
+                "  triggers: [button1]" + "\n" +
+                "- !mapping" + "\n" +
+                "  action: gamepad_camera_control" + "\n" +
+                "  contexts: [all]" + "\n" +
+                "  triggers: [G]" + "\n" +
+                "- !mapping" + "\n" +
+                "  action: scroll1" + "\n" +
+                "  contexts: [all]" + "\n" +
+                "  triggers: [scroll]" + "\n" +
+                "")
         }
 
         config = InputTriggerConfig(YamlConfigIO.read(reader))
@@ -221,8 +224,8 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?, for
      * Create behaviours and input mappings.
      */
         behaviourMap.put("mouse_control", FPSCameraControl("mouse_control", { scene.findObserver() }, window.width, window.height))
-        behaviourMap.put("gamepad_camera_control", GamepadCameraControl("gamepad_camera_control", listOf(Component.Identifier.Axis.Z, Component.Identifier.Axis.RZ), { scene.findObserver() }, window.width, window.height))
-        behaviourMap.put("gamepad_movement_control", GamepadMovementControl("gamepad_movement_control", listOf(Component.Identifier.Axis.X, Component.Identifier.Axis.Y), { scene.findObserver() }))
+        behaviourMap.put("gamepad_camera_control", GamepadCameraControl("gamepad_camera_control", listOf(Component.Identifier.Axis.Z, Component.Identifier.Axis.RZ)) { scene.findObserver() })
+        behaviourMap.put("gamepad_movement_control", GamepadMovementControl("gamepad_movement_control", listOf(Component.Identifier.Axis.X, Component.Identifier.Axis.Y)) { scene.findObserver() })
 
         //unused until some reasonable action (to the selection) would be provided
         //behaviourMap.put("select_command", SelectCommand("select_command", renderer, scene, { scene.findObserver() }))
@@ -284,10 +287,43 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?, for
         handler?.close()
     }
 
-    fun openKeybindingsGuiEditor( editorTitle : String = "scenery's Key bindings editor" ): VisualEditorPanel {
+    /**
+     * Returns a list of [InputTriggerDescription] for the current input handler.
+     * Used for serialisation.
+     */
+    fun getDescriptions(context: String): MutableList<InputTriggerDescription>? {
+        val builder = InputTriggerDescriptionsBuilder()
+
+        builder.addMap(inputMap, context)
+//        builder.addMap(viewerFrame.getTriggerbindings().getConcatenatedInputTriggerMap(), context)
+
+        return builder.descriptions
+    }
+
+    /**
+     * Reads keybindings from a [file], overwriting the current ones.
+     */
+    fun readFromFile(file: File) {
+        try {
+            val reader = FileReader(file)
+            config.set(InputTriggerConfig(YamlConfigIO.read(reader)))
+
+            logger.info("Read input configuration from $file")
+        } catch (e: IOException) {
+            logger.error("Could not read input config from $file: $e")
+        }
+    }
+
+    /**
+     * Opens a key binding editor panel with [editorTitle] as title.
+     *
+     * If the configuration is updated, keybindings from a given [context]
+     * are written to a file with a given [filename] in the user's home directory.
+     */
+    @JvmOverloads fun openKeybindingsGuiEditor(editorTitle: String = "scenery's Key bindings editor", filename: String, context: String = "all"): VisualEditorPanel {
         //setup content for the Visual Editor
         val cdb = CommandDescriptionBuilder()
-        behaviourMap.keys().forEach { b -> cdb.addCommand(b,"all","") }
+        behaviourMap.keys().forEach { b -> cdb.addCommand(b, context, "") }
         val editorPanel = VisualEditorPanel(config, cdb.get())
 
         //show the Editor
@@ -299,8 +335,17 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?, for
         //process "Apply" button of the editor
         editorPanel.configCommittedListeners().add(
             VisualEditorPanel.ConfigChangeListener {
-                Behaviours(inputMap,behaviourMap,config,"all").updateKeyConfig(config)
-            } )
+                Behaviours(inputMap, behaviourMap, config, "all").updateKeyConfig(config)
+
+                val outputFile = File(System.getProperty("user.home")).resolve(filename)
+                try {
+                    val writer = FileWriter(outputFile)
+                    YamlConfigIO.write(getDescriptions(context), writer)
+                    writer.close()
+                } catch (e: IOException) {
+                    logger.error("Could not write key bindings to $outputFile: $e")
+                }
+            })
 
         //return reference on the Editor, so that users can hook own extra stuff
         return editorPanel
