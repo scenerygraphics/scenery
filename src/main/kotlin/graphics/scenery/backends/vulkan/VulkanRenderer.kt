@@ -46,6 +46,7 @@ import kotlin.reflect.full.*
 import kotlin.system.measureTimeMillis
 import kotlin.time.ExperimentalTime
 import java.lang.System.currentTimeMillis
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.NoSuchElementException
 import kotlin.collections.ArrayList
 
@@ -967,111 +968,6 @@ open class VulkanRenderer(hub: Hub,
         }
 
         node.metadata.remove("VulkanRenderer")
-    }
-
-    /**
-     * Returns true if the current VulkanTexture can be reused to store the information in the [Texture]
-     * [other]. Returns false otherwise.
-     */
-    protected fun VulkanTexture.canBeReused(other: Texture, miplevels: Int, device: VulkanDevice): Boolean {
-        return this.device == device &&
-            this.width == other.dimensions.x() &&
-            this.height == other.dimensions.y() &&
-            this.depth == other.dimensions.z() &&
-            this.mipLevels == miplevels
-
-    }
-
-    /**
-     * Loads or reloads the textures for [node], updating it's internal renderer state stored in [s].
-     */
-    protected fun loadTexturesForNode(node: Node, s: VulkanObjectState): Pair<Boolean, Boolean> {
-        val defaultTexture = defaultTextures["DefaultTexture"] ?: throw IllegalStateException("Default fallback texture does not exist.")
-        // if a node is not yet initialized, we'll definitely require a new DS
-        var descriptorUpdated = !node.initialized
-        var contentUpdated = false
-
-        val last = s.texturesLastSeen
-        val now = System.nanoTime()
-//        val nowmillis = System.currentTimeMillis()
-        node.material.textures.forEachChanged(last) { (type, texture) ->
-            contentUpdated = true
-//            val slot = VulkanObjectState.textureTypeToSlot(type)
-            val generateMipmaps = Texture.mipmappedObjectTextures.contains(type)
-
-            if (!textureCache.containsKey(texture)) {
-                try can
-//                    Thread.sleep(50)
-                    logger.debug("Loading texture {} for {}", texture, node.name)
-
-                    val miplevels = if (generateMipmaps && texture.mipmap) {
-                        floor(ln(min(texture.dimensions.x() * 1.0, texture.dimensions.y() * 1.0)) / ln(2.0)).toInt()
-                    } else {
-                        1
-                    }
-
-                    val existingTexture = s.textures[type]
-                    val t: VulkanTexture = if (existingTexture != null && existingTexture.canBeReused(texture, miplevels, device)) {
-                        existingTexture
-                    } else {
-                        descriptorUpdated = true
-                        VulkanTexture(device, commandPools, queue, queue, texture, miplevels)
-                    }
-
-                    texture.contents?.let { contents ->
-                        t.copyFrom(contents.duplicate())
-                    }
-
-                    if (texture is UpdatableTexture && texture.hasConsumableUpdates()) {
-                        t.copyFrom(ByteBuffer.allocate(0))
-                    }
-
-                    if(descriptorUpdated) {
-                        t.createSampler(texture)
-                    }
-
-                    // add new texture to texture list and cache, and close old texture
-                    s.textures[type] = t
-
-                    if(texture !is UpdatableTexture) {
-                        textureCache[texture] = t
-                    }
-                } catch (e: Exception) {
-                    logger.warn("Could not load texture for ${node.name}: $e")
-                }
-            } else {
-                s.textures[type] = textureCache[texture]!!
-            }
-        }
-
-        s.texturesLastSeen = now
-        val finish = System.nanoTime()
-//        val finishmillis = System.currentTimeMillis()
-        if((finish.toDouble()-now.toDouble())/1000000.0 > 1.0) {
-            logger.warn("For node ${node.name}, load textures took: ${(finish.toDouble()-now.toDouble())/1000000.0}")
-//            logger.warn("In nanoseconds: ${(finish.toDouble()-now.toDouble())}")
-//            logger.warn("The absolute values are: now: $now and finish: $finish")
-//            logger.warn("Using currentTimeMillis: ${(finishmillis.toDouble()-nowmillis.toDouble())}")
-
-        }
-
-        val isCompute = node.material is ShaderMaterial && ((node.material as? ShaderMaterial)?.isCompute() ?: false)
-        if(!isCompute) {
-            Texture.objectTextures.forEach {
-                if (!s.textures.containsKey(it)) {
-                    s.textures.putIfAbsent(it, defaultTexture)
-                    s.defaultTexturesFor.add(it)
-                }
-            }
-        }
-
-        if(descriptorUpdated) {
-            s.texturesToDescriptorSets(device,
-                renderpasses.filter { it.value.passConfig.type != RenderConfigReader.RenderpassType.quad },
-                node)
-        }
-
-        return contentUpdated to descriptorUpdated
     }
 
     protected fun prepareDefaultDescriptorSetLayouts(device: VulkanDevice): ConcurrentHashMap<String, Long> {
