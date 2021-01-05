@@ -4,16 +4,45 @@ import graphics.scenery.utils.Image
 import graphics.scenery.utils.LazyLogger
 import net.imagej.lut.LUTService
 import net.imglib2.display.ColorTable
+import org.joml.Vector4f
 import org.scijava.plugin.Parameter
 import java.io.FileNotFoundException
 import java.io.IOException
 import java.io.InputStream
 import java.nio.ByteBuffer
+import kotlin.math.ceil
+import kotlin.math.floor
+import kotlin.math.roundToInt
 
 /**
  * Class for holding RGBA colormaps for volumes
  */
 class Colormap(val buffer: ByteBuffer, val width: Int, val height: Int) {
+
+    /**
+     * Returns the value of the colormap, sampled at [position].
+     */
+    @OptIn(ExperimentalUnsignedTypes::class)
+    fun sample(position: Float): Vector4f {
+        val bufferPosition: Float = position.coerceIn(0.0f, 1.0f) * width
+        val previous = floor(bufferPosition).roundToInt()
+        val next = ceil(bufferPosition).roundToInt()
+
+        val globalOffset = width * 4 * height / 2
+        val previousColor = globalOffset + previous * 4
+        val nextColor = globalOffset + next * 4
+
+        val b = buffer.duplicate()
+        val color = ByteArray(8)
+        b.position(previousColor).get(color, 0, 4)
+        b.position(nextColor).get(color, 4, 4)
+        val ub = color.toUByteArray()
+
+        val c1 = Vector4f(ub[0].toFloat()/255.0f, ub[1].toFloat()/255.0f, ub[2].toFloat()/255.0f, ub[3].toFloat()/255.0f)
+        val c2 = Vector4f(ub[4].toFloat()/255.0f, ub[5].toFloat()/255.0f, ub[6].toFloat()/255.0f, ub[7].toFloat()/255.0f)
+
+        return c1.lerp(c2, bufferPosition - previous.toFloat())
+    }
 
     companion object {
         val logger by LazyLogger()
