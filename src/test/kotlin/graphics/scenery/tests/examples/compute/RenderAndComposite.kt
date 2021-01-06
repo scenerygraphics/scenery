@@ -5,6 +5,7 @@ import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.backends.Shaders
 import graphics.scenery.backends.vulkan.VulkanRenderer
+import graphics.scenery.backends.vulkan.VulkanTexture
 import graphics.scenery.compute.ComputeMetadata
 import graphics.scenery.numerics.Random
 import graphics.scenery.textures.Texture
@@ -243,6 +244,15 @@ class RenderAndComposite: SceneryBase("Volume Rendering example", 1200, 1200, wa
         var prevAtomic = subvdi.get()
 
         while (true) {
+
+            val temp = VulkanTexture.getReference(volumeManager.material.textures["OutputSubVDIColor"]!!)
+
+            if(temp == null) {
+                logger.info("Yes it is indeed null")
+            }
+            else {
+                logger.info("No, it is not null")
+            }
 
 //            subVDIColorBuffer = null
             if (cnt % 1000 == 0) {
