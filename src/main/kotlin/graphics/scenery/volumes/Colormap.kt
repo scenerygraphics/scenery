@@ -34,7 +34,9 @@ class Colormap(val buffer: ByteBuffer, val width: Int, val height: Int) {
 
         val b = buffer.duplicate()
         val color = ByteArray(8)
+        @Suppress("USELESS_CAST")
         (b.position(previousColor) as? ByteBuffer)?.get(color, 0, 4)
+        @Suppress("USELESS_CAST")
         (b.position(nextColor) as? ByteBuffer)?.get(color, 4, 4)
         val ub = color.toUByteArray()
 
