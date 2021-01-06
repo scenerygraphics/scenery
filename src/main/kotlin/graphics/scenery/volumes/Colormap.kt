@@ -34,8 +34,8 @@ class Colormap(val buffer: ByteBuffer, val width: Int, val height: Int) {
 
         val b = buffer.duplicate()
         val color = ByteArray(8)
-        b.position(previousColor).get(color, 0, 4)
-        b.position(nextColor).get(color, 4, 4)
+        (b.position(previousColor) as? ByteBuffer)?.get(color, 0, 4)
+        (b.position(nextColor) as? ByteBuffer)?.get(color, 4, 4)
         val ub = color.toUByteArray()
 
         val c1 = Vector4f(ub[0].toFloat()/255.0f, ub[1].toFloat()/255.0f, ub[2].toFloat()/255.0f, ub[3].toFloat()/255.0f)
