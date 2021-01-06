@@ -359,16 +359,10 @@ class RenderAndComposite: SceneryBase("Volume Rendering example", 1200, 1200, wa
         inputHandler?.addKeyBinding("toggle_rendering_mode", "M")
     }
 
-    @Test override fun main() {
-
-//        var i = 0
-//
-//        while (i<15) {
-//            logger.info("In main")
-//            Thread.sleep(2000)
-//            i++
-//        }
-
-        super.main()
+    companion object {
+        @JvmStatic
+        fun main(args: Array<String>) {
+            RenderAndComposite().main()
+        }
     }
 }
