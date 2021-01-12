@@ -768,8 +768,6 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
                 endCommandBuffer(device, commandPool, queue, true, true)
             }
         }
-
-        VRCompositor_PostPresentHandoff()
     }
 
     fun vibrate(controller: TrackedDevice, duration: Int = 1000) {
