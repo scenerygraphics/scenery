@@ -168,7 +168,8 @@ object VulkanNodeHelpers {
             return state
         }
 
-        if(parentNode.metadata["stopInstanceUpdate"] == true) {
+        val maxUpdates = parentNode.metadata["MaxInstanceUpdateCount"] as? AtomicInteger
+        if(maxUpdates?.get() ?: 1 < 1) {
             logger.debug("Instances updates blocked for ${parentNode.name}, returning")
             return state
         }
@@ -245,6 +246,7 @@ object VulkanNodeHelpers {
 
         state.instanceCount = index.get()//instances.size
 
+        maxUpdates?.decrementAndGet()
         return state
     }
 
