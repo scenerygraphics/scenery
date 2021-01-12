@@ -168,6 +168,11 @@ object VulkanNodeHelpers {
             return state
         }
 
+        if(parentNode.metadata["stopInstanceUpdate"] == true) {
+            logger.debug("Instances updates blocked for ${parentNode.name}, returning")
+            return state
+        }
+
         // first we create a fake UBO to gauge the size of the needed properties
         val ubo = VulkanUBO(device)
         ubo.fromInstance(instances.first())
