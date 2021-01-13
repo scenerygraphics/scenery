@@ -11,6 +11,7 @@ plugins {
     scenery.publish
     scenery.sign
     id("org.jetbrains.dokka") version "1.4.10"
+    jacoco
 }
 
 val ktVersion = "1.4.10"
@@ -168,4 +169,9 @@ artifacts {
 java {
     withJavadocJar()
     withSourcesJar()
+}
+
+jacocoTestReport.reports {
+    xml.enabled true
+    html.enabled false
 }
