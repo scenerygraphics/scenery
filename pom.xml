@@ -104,13 +104,13 @@
         <package-name>graphics.scenery</package-name>
 
         <javac.target>1.8</javac.target>
-        <kotlin.version>1.4.20</kotlin.version>
+        <kotlin.version>1.4.21</kotlin.version>
         <kotlin.compiler.jvmTarget>1.8</kotlin.compiler.jvmTarget>
         <kotlin.compiler.incremental>true</kotlin.compiler.incremental>
         <dokka.version>1.4.10.2</dokka.version>
         <dokka.skip>true</dokka.skip>
 
-        <ui-behaviour.version>2.0.2</ui-behaviour.version>
+        <ui-behaviour.version>2.0.3</ui-behaviour.version>
 
         <bigvolumeviewer.version>0.1.8</bigvolumeviewer.version>
         <ffmpeg.version>4.2.1-1.5.2</ffmpeg.version>
