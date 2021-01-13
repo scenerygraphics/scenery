@@ -140,6 +140,13 @@ tasks {
             }
         }
     }
+
+    jacocoTestReport {
+        reports {
+            xml.isEnabled = true
+            html.isEnabled = false
+        }
+    }
 }
 
 val dokkaJavadocJar by tasks.register<Jar>("dokkaJavadocJar") {
@@ -169,9 +176,4 @@ artifacts {
 java {
     withJavadocJar()
     withSourcesJar()
-}
-
-jacocoTestReport.reports {
-    xml.enabled true
-    html.enabled false
 }
