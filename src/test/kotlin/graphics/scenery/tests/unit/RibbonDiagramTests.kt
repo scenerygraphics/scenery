@@ -115,7 +115,7 @@ class RibbonDiagramTests {
             "5f84", "4uuz", "4v98", "4wsi", "4u68", "4aa1", "5jvs", "6hom",
             "4xib", "4u0q", "6phf")
 
-        proteins.shuffled().forEach { pdbId ->
+        proteins.shuffled().drop(80).forEach { pdbId ->
             val protein = Protein.fromID(pdbId)
             logger.info("Testing ${protein.structure.name} ...")
             RibbonDiagram(protein)
