@@ -134,7 +134,4 @@ open class Texture @JvmOverloads constructor(
 
     /** When the object was last modified. */
     override var updated: Long = System.nanoTime()
-
-    /** When the object was added to a collection. */
-    override var added: Long = System.nanoTime()
 }

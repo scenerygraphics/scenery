@@ -5,10 +5,12 @@ import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
 import graphics.scenery.utils.extensions.minus
+import graphics.scenery.utils.extensions.xyz
+import graphics.scenery.volumes.Colormap
 import kotlin.math.floor
 
 /**
- * <Description>
+ * Demo showing PBL material properties.
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
@@ -16,8 +18,9 @@ class PBLExample: SceneryBase("PBLExample", windowWidth = 1280, windowHeight = 7
     override fun init() {
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
 
+        val colormap = Colormap.get("jet")
         val rowSize = 10f
-        val spheres = (0 until 100).map {
+        val spheres = (0 until (rowSize*rowSize).toInt()).map {
             val s = Icosphere(0.4f, 2)
             s.position = Vector3f(
                 floor(it / rowSize),
@@ -29,7 +32,7 @@ class PBLExample: SceneryBase("PBLExample", windowWidth = 1280, windowHeight = 7
                 0.0f)
             s.material.roughness = (it / rowSize)/rowSize
             s.material.metallic = (it % rowSize.toInt())/rowSize
-            s.material.diffuse = Vector3f(1.0f, 0.0f, 0.0f)
+            s.material.diffuse = colormap.sample(it/(rowSize*rowSize)).xyz()
 
             s
         }
