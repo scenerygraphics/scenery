@@ -120,8 +120,9 @@ tasks {
         // apparently `testLotsOfProteins` needs also a lot of heap..
         maxHeapSize = "1G"
         // [Debug] before running every test, prints out its name
-//        beforeTest(closureOf<TestDescriptor?> { logger.lifecycle("Running test: $this") })
+        //        beforeTest(closureOf<TestDescriptor?> { logger.lifecycle("Running test: $this") })
         filter { excludeTestsMatching("ExampleRunner") }
+        finalizedBy(jacocoTestReport) // report is always generated after tests run
     }
     register("testMeAll", Test::class) {
         filter {
@@ -144,8 +145,12 @@ tasks {
     jacocoTestReport {
         reports {
             xml.isEnabled = true
-            html.isEnabled = false
+            html.apply {
+                isEnabled = false
+                destination = file("$buildDir/jacocoHtml")
+            }
         }
+        dependsOn(test) // tests are required to run before generating the report
     }
 }
 
