@@ -134,7 +134,7 @@ tasks {
         archiveVersion.set(rootProject.version.toString())
     }
     dokkaHtml {
-//        onlyIf { !(System.getenv("TRAVIS")?.toBoolean() == true && Os.isFamily(Os.FAMILY_MAC)) }
+        onlyIf { !(System.getenv("TRAVIS")?.toBoolean() == true && Os.isFamily(Os.FAMILY_MAC)) }
         dokkaSourceSets.configureEach {
             sourceLink {
                 localDirectory.set(file("src/main/kotlin"))
@@ -143,16 +143,14 @@ tasks {
             }
         }
     }
-//    dokkaJavadoc {
-//        onlyIf { !(System.getenv("TRAVIS")?.toBoolean() == true && Os.isFamily(Os.FAMILY_MAC)) }
-//    }
+    dokkaJavadoc { onlyIf { !(System.getenv("TRAVIS")?.toBoolean() == true && Os.isFamily(Os.FAMILY_MAC)) } }
 
     jacocoTestReport {
         reports {
             xml.isEnabled = true
             html.apply {
                 isEnabled = false
-//                destination = file("$buildDir/jacocoHtml")
+                //                destination = file("$buildDir/jacocoHtml")
             }
         }
         dependsOn(test) // tests are required to run before generating the report
