@@ -10,28 +10,29 @@ environment:
 install:
   - ps: |
       Add-Type -AssemblyName System.IO.Compression.FileSystem
-      if (!(Test-Path -Path "C:\maven" )) {
-        (new-object System.Net.WebClient).DownloadFile('https://repo1.maven.org/maven2/org/apache/maven/apache-maven/3.5.4/apache-maven-3.5.4-bin.zip', 'C:\maven-bin.zip')
-        [System.IO.Compression.ZipFile]::ExtractToDirectory("C:\maven-bin.zip", "C:\maven")
-      }
-  - cmd: SET PATH=C:\Program Files\Git\usr\bin;C:\maven\apache-maven-3.3.9\bin;%JAVA_HOME%\bin;%PATH%
-  - cmd: SET MAVEN_OPTS=-Xmx2g
+#      if (!(Test-Path -Path "C:\maven" )) {
+#        (new-object System.Net.WebClient).DownloadFile('https://repo1.maven.org/maven2/org/apache/maven/apache-maven/3.5.4/apache-maven-3.5.4-bin.zip', 'C:\maven-bin.zip')
+#        [System.IO.Compression.ZipFile]::ExtractToDirectory("C:\maven-bin.zip", "C:\maven")
+#      }
+#  - cmd: SET PATH=C:\Program Files\Git\usr\bin;C:\maven\apache-maven-3.3.9\bin;%JAVA_HOME%\bin;%PATH%
+  - cmd: SET PATH=C:\Program Files\Git\usr\bin;%JAVA_HOME%\bin;%PATH%
+#  - cmd: SET MAVEN_OPTS=-Xmx2g
   - cmd: SET JAVA_OPTS=-Xmx2g
-  - cmd: mvn --version
+#  - cmd: mvn --version
   - cmd: java -version
 
 build_script:
-  - mvn clean package -B -Dmaven.test.skip=true
+  - gradlew.bat assemble -PjvmTarget=1.8 -PsourceCompatibility=1.8
 
 test_script:
-  - mvn -B verify
+  - gradlew.bat check -PjvmTarget=1.8 -PsourceCompatibility=1.8
 
 on_success:
-  - cmd: | 
-      mvn -B jacoco:report
+  - cmd: |
       curl -s https://codecov.io/bash > codecov.sh & exit 0
-      bash "./codecov.sh" -c -F unittests -f target/site/jacoco/jacoco.xml & exit 0
+      bash "./codecov.sh" -c -F unittests -f build/reports/jacoco/test/jacocoTestReport.xml & exit 0
 
 cache:
-  - C:\maven
-  - C:\Users\appveyor\.m2 -> pom.xml
+#  - C:\maven
+#  - C:\Users\appveyor\.m2 -> pom.xml
+  - C:\Users\appveyor\.gradle
