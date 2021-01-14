@@ -143,6 +143,9 @@ tasks {
             }
         }
     }
+    dokkaJavadoc {
+        onlyIf { !(System.getenv("TRAVIS")?.toBoolean() == true && Os.isFamily(Os.FAMILY_MAC)) }
+    }
 
     jacocoTestReport {
         reports {
