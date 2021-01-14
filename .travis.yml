@@ -52,8 +52,8 @@ before_script:
 
 script:
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then echo $DISPLAY; fi
-  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then gradle build -PjvmTarget=1.8 -PsourceCompatibility=1.8 -Djava.awt.headless=false; fi
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then gradle build -PjvmTarget=1.8 -PsourceCompatibility=1.8; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then ./gradlew build -PjvmTarget=1.8 -PsourceCompatibility=1.8 -Djava.awt.headless=false; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then ./gradlew build -PjvmTarget=1.8 -PsourceCompatibility=1.8; fi
 #  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then mvn -B clean package -Djava.awt.headless=false; fi
 #  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then mvn -B clean package; fi
   - ./gradlew check
