@@ -59,8 +59,6 @@ script:
 
 # deploy on success, but only if we are on master
 after_success:
-    - ./gradlew jacocoTestReport
-    - mvn -B jacoco:report; fi
     - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then export LATEST_VERSION="$(curl -Ls https://api.bintray.com/packages/codacy/Binaries/codacy-coverage-reporter/versions/_latest | jq -r .name)"; fi
     - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then curl -Ls -o codacy-coverage-reporter "https://dl.bintray.com/codacy/Binaries/${LATEST_VERSION}/codacy-coverage-reporter-linux"; fi
     - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then chmod +x codacy-coverage-reporter; fi
