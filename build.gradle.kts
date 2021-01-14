@@ -110,10 +110,10 @@ dependencies {
 tasks {
     withType<KotlinCompile>().all {
         kotlinOptions {
-            jvmTarget = "11"
+            jvmTarget = "1.8"
             freeCompilerArgs += listOf("-Xinline-classes", "-Xopt-in=kotlin.RequiresOptIn")
         }
-        sourceCompatibility = "11"
+        sourceCompatibility = "1.8"
     }
     // https://docs.gradle.org/current/userguide/java_testing.html#test_filtering
     test {
