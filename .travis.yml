@@ -57,7 +57,7 @@ script:
 #  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then mvn -B clean package -Djava.awt.headless=false; fi
 #  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then mvn -B clean package; fi
 #  - ./gradlew check // redundant, build will execute tests anyway
-  - ./gradlew codeCoverageReport
+  - ./gradlew jacocoTestReport
 
 # deploy on success, but only if we are on master
 after_success:
