@@ -134,7 +134,7 @@ tasks {
         archiveVersion.set(rootProject.version.toString())
     }
     dokkaHtml {
-        println("project.properties.contains(\"TRAVIS\"):${project.properties.contains("TRAVIS")}")
+        println("project.properties.contains(\"TRAVIS\"):${System.getenv("TRAVIS")}")
         println("Os.isFamily(Os.FAMILY_MAC):${Os.isFamily(Os.FAMILY_MAC)}")
         onlyIf { !(project.properties.contains("TRAVIS") && Os.isFamily(Os.FAMILY_MAC)) }
         dokkaSourceSets.configureEach {
