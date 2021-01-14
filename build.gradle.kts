@@ -1,3 +1,4 @@
+import org.apache.tools.ant.taskdefs.condition.Os
 import org.gradle.kotlin.dsl.implementation
 import org.gradle.kotlin.dsl.runtimeOnly
 import org.gradle.kotlin.dsl.testImplementation
@@ -133,6 +134,7 @@ tasks {
         archiveVersion.set(rootProject.version.toString())
     }
     dokkaHtml {
+        onlyIf { !(project.properties.contains("TRAVIS") && Os.isFamily(Os.FAMILY_MAC)) }
         dokkaSourceSets.configureEach {
             sourceLink {
                 localDirectory.set(file("src/main/kotlin"))
