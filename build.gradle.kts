@@ -134,7 +134,7 @@ tasks {
         archiveVersion.set(rootProject.version.toString())
     }
     dokkaHtml {
-        onlyIf { !(System.getenv("TRAVIS")?.toBoolean() == true && Os.isFamily(Os.FAMILY_MAC)) }
+//        onlyIf { !(System.getenv("TRAVIS")?.toBoolean() == true && Os.isFamily(Os.FAMILY_MAC)) }
         dokkaSourceSets.configureEach {
             sourceLink {
                 localDirectory.set(file("src/main/kotlin"))
@@ -143,9 +143,9 @@ tasks {
             }
         }
     }
-    dokkaJavadoc {
-        onlyIf { !(System.getenv("TRAVIS")?.toBoolean() == true && Os.isFamily(Os.FAMILY_MAC)) }
-    }
+//    dokkaJavadoc {
+//        onlyIf { !(System.getenv("TRAVIS")?.toBoolean() == true && Os.isFamily(Os.FAMILY_MAC)) }
+//    }
 
     jacocoTestReport {
         reports {
