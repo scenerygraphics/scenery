@@ -147,7 +147,7 @@ tasks {
             xml.isEnabled = true
             html.apply {
                 isEnabled = false
-                destination = file("$buildDir/jacocoHtml")
+//                destination = file("$buildDir/jacocoHtml")
             }
         }
         dependsOn(test) // tests are required to run before generating the report
