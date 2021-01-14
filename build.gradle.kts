@@ -107,6 +107,7 @@ dependencies {
     //    testImplementation("io.kotest:kotest-assertions-core-jvm:${findProperty("kotestVersion")}")
 }
 
+val isCI = System.getenv("TRAVIS")?.toBoolean() == true || System.getenv("APPVEYOR")?.toBoolean() == true
 
 tasks {
     withType<KotlinCompile>().all {
@@ -133,17 +134,16 @@ tasks {
     jar {
         archiveVersion.set(rootProject.version.toString())
     }
-    dokkaHtml {
-        onlyIf { !(System.getenv("TRAVIS")?.toBoolean() == true && Os.isFamily(Os.FAMILY_MAC)) }
-        dokkaSourceSets.configureEach {
-            sourceLink {
-                localDirectory.set(file("src/main/kotlin"))
-                remoteUrl.set(URL("https://github.com/scenerygraphics/scenery/tree/master/src/main/kotlin"))
-                remoteLineSuffix.set("#L")
+    if (!isCI)
+        dokkaHtml {
+            dokkaSourceSets.configureEach {
+                sourceLink {
+                    localDirectory.set(file("src/main/kotlin"))
+                    remoteUrl.set(URL("https://github.com/scenerygraphics/scenery/tree/master/src/main/kotlin"))
+                    remoteLineSuffix.set("#L")
+                }
             }
         }
-    }
-    dokkaJavadoc { onlyIf { !(System.getenv("TRAVIS")?.toBoolean() == true && Os.isFamily(Os.FAMILY_MAC)) } }
 
     jacocoTestReport {
         reports {
@@ -157,31 +157,33 @@ tasks {
     }
 }
 
-val dokkaJavadocJar by tasks.register<Jar>("dokkaJavadocJar") {
-    dependsOn(tasks.dokkaJavadoc)
-    from(tasks.dokkaJavadoc.get().outputDirectory.get())
-    archiveClassifier.set("javadoc")
-}
+if (!isCI) {
+    val dokkaJavadocJar by tasks.register<Jar>("dokkaJavadocJar") {
+        dependsOn(tasks.dokkaJavadoc)
+        from(tasks.dokkaJavadoc.get().outputDirectory.get())
+        archiveClassifier.set("javadoc")
+    }
 
-val dokkaHtmlJar by tasks.register<Jar>("dokkaHtmlJar") {
-    dependsOn(tasks.dokkaHtml)
-    from(tasks.dokkaHtml.get().outputDirectory.get())
-    archiveClassifier.set("html-doc")
-}
+    val dokkaHtmlJar by tasks.register<Jar>("dokkaHtmlJar") {
+        dependsOn(tasks.dokkaHtml)
+        from(tasks.dokkaHtml.get().outputDirectory.get())
+        archiveClassifier.set("html-doc")
+    }
 
-val sourceJar = task("sourceJar", Jar::class) {
-    dependsOn(tasks.classes)
-    archiveClassifier.set("sources")
-    from(sourceSets.main.get().allSource)
-}
+    val sourceJar = task("sourceJar", Jar::class) {
+        dependsOn(tasks.classes)
+        archiveClassifier.set("sources")
+        from(sourceSets.main.get().allSource)
+    }
 
-artifacts {
-    archives(dokkaJavadocJar)
-    archives(dokkaHtmlJar)
-    archives(sourceJar)
-}
+    artifacts {
+        archives(dokkaJavadocJar)
+        archives(dokkaHtmlJar)
+        archives(sourceJar)
+    }
 
-java {
-    withJavadocJar()
-    withSourcesJar()
+    java {
+        withJavadocJar()
+        withSourcesJar()
+    }
 }
