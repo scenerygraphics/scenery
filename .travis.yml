@@ -50,10 +50,12 @@ install: skip #true
 before_script:
   - chmod +x gradlew
 
+parameters:
+
 script:
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then echo $DISPLAY; fi
-  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then ./gradlew build -PjvmTarget=1.8 -PsourceCompatibility=1.8 -Djava.awt.headless=false; fi
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then ./gradlew build -PjvmTarget=1.8 -PsourceCompatibility=1.8; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then ./gradlew build -x dokkaHtml -x dokkaHtmlJar -x dokkaJavadoc -x dokkaJavadocJar -x sourceJar -x javadocJar -x sourcesJar -PjvmTarget=1.8 -PsourceCompatibility=1.8 -Djava.awt.headless=false; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then ./gradlew build -x dokkaHtml -x dokkaHtmlJar -x dokkaJavadoc -x dokkaJavadocJar -x sourceJar -x javadocJar -x sourcesJar -PjvmTarget=1.8 -PsourceCompatibility=1.8; fi
 #  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then mvn -B clean package -Djava.awt.headless=false; fi
 #  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then mvn -B clean package; fi
 
