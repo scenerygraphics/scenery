@@ -48,7 +48,7 @@ unit-tests-no-gpu:
     - clinfo || true
     - if [ ! -d "$MODEL_DIR" ]; then wget -q https://ulrik.is/scenery-demo-models.zip && unzip -q scenery-demo-models.zip; fi
   script:
-    - mvn -B -Pintegration-tests test -Dscenery.Renderer=VulkanRenderer -Dscenery.LogLevel=info -Dscenery.ExampleRunner.OutputDir=screenshots
+    - ./gradlew build -x dokkaHtml -x dokkaHtmlJar -x dokkaJavadoc -x dokkaJavadocJar -x sourceJar -x javadocJar -x sourcesJar -PjvmTarget=1.8 -PsourceCompatibility=1.8 -Pgpu=true integration-tests -Dscenery.Renderer=VulkanRenderer -Dscenery.LogLevel=info -Dscenery.ExampleRunner.OutputDir=screenshots
   artifacts:
     when: always
     expire_in: 48h
