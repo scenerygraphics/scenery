@@ -3,14 +3,14 @@ cache:
     - maven.repository/
     - models/
     - pdb-store/
- 
+
 variables:
-  MAVEN_OPTS: "-Dmaven.repo.local=maven.repository -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=WARN -Xmx4g"
+  #  MAVEN_OPTS: "-Dmaven.repo.local=maven.repository -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=WARN -Xmx4g"
   JAVA_HOME: "/usr/lib/jvm/java-8-openjdk-amd64"
   PDB_CACHE_DIR: "./pdb-store/cache"
   PDB_DIR: "./pdb-store"
   MODEL_DIR: "./models"
- 
+
 # simple unit tests without requiring GPUs
 unit-tests-no-gpu:
   image: ubuntu:bionic
@@ -21,7 +21,14 @@ unit-tests-no-gpu:
     - if [ ! -d "$MODEL_DIR" ]; then wget -q https://ulrik.is/scenery-demo-models.zip && unzip -q scenery-demo-models.zip; fi
     - sudo sed -i -e '/^assistive_technologies=/s/^/#/' /etc/java-*-openjdk/accessibility.properties
   script:
-    - mvn -B package test
+    - ./gradlew build -x dokkaHtml -x dokkaHtmlJar -x dokkaJavadoc -x dokkaJavadocJar -x sourceJar -x javadocJar -x sourcesJar -PjvmTarget=1.8 -PsourceCompatibility=1.8
+  after_script:
+    - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then export LATEST_VERSION="$(curl -Ls https://api.bintray.com/packages/codacy/Binaries/codacy-coverage-reporter/versions/_latest | jq -r .name)"; fi
+    - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then curl -Ls -o codacy-coverage-reporter "https://dl.bintray.com/codacy/Binaries/${LATEST_VERSION}/codacy-coverage-reporter-linux"; fi
+    - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then chmod +x codacy-coverage-reporter; fi
+    - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then ./codacy-coverage-reporter report -l Kotlin -r build/reports/jacoco/test/jacocoTestReport.xml; fi
+    - bash <(curl -s https://codecov.io/bash) -c -F unittests || true
+
 
 # base job for running with GPUs
 .base-job-gpu: &base-job-gpu
