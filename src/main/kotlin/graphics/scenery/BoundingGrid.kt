@@ -1,6 +1,7 @@
-package graphics.scenery.geometry
+package graphics.scenery
 
 import graphics.scenery.*
+import graphics.scenery.geometry.Mesh
 import graphics.scenery.primitives.Box
 import graphics.scenery.primitives.TextBoard
 import graphics.scenery.utils.extensions.*

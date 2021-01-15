@@ -12,7 +12,7 @@ import graphics.scenery.backends.vulkan.VU
 import graphics.scenery.backends.vulkan.VulkanDevice
 import graphics.scenery.backends.vulkan.VulkanTexture
 import graphics.scenery.backends.vulkan.endCommandBuffer
-import graphics.scenery.Mesh
+import graphics.scenery.geometry.Mesh
 import graphics.scenery.utils.JsonDeserialisers
 import graphics.scenery.utils.LazyLogger
 import kotlinx.coroutines.GlobalScope

@@ -2,7 +2,7 @@ package graphics.scenery.primitives
 
 import graphics.scenery.*
 import graphics.scenery.backends.Shaders
-import graphics.scenery.Mesh
+import graphics.scenery.geometry.Mesh
 
 /**
  * Class for rendering infinite planes.

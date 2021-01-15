@@ -1,7 +1,6 @@
 package graphics.scenery
 
 import graphics.scenery.backends.Renderer
-import graphics.scenery.geometry.BoundingGrid
 import graphics.scenery.geometry.HasGeometry
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.MaybeIntersects

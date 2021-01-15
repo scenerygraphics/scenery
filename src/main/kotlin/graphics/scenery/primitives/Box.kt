@@ -4,7 +4,7 @@ import graphics.scenery.BufferUtils
 import graphics.scenery.Material
 import graphics.scenery.Node
 import graphics.scenery.OrientedBoundingBox
-import graphics.scenery.Mesh
+import graphics.scenery.geometry.Mesh
 import graphics.scenery.utils.extensions.*
 import org.joml.Vector3f
 import kotlin.jvm.JvmOverloads

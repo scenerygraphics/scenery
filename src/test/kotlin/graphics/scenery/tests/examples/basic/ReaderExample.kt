@@ -7,8 +7,8 @@ import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.controls.TrackerRole
 import graphics.scenery.controls.behaviours.ControllerDrag
-import graphics.scenery.geometry.BoundingGrid
-import graphics.scenery.Mesh
+import graphics.scenery.BoundingGrid
+import graphics.scenery.geometry.Mesh
 import graphics.scenery.numerics.Random
 import graphics.scenery.primitives.Box
 import graphics.scenery.utils.extensions.times

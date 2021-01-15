@@ -3,7 +3,7 @@ package graphics.scenery.tests.unit
 import org.joml.Matrix4f
 import org.joml.Vector3f
 import graphics.scenery.*
-import graphics.scenery.Mesh
+import graphics.scenery.geometry.Mesh
 import graphics.scenery.numerics.Random
 import graphics.scenery.primitives.Sphere
 import graphics.scenery.utils.LazyLogger

@@ -4,7 +4,7 @@ import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.OpenVRHMD
-import graphics.scenery.Mesh
+import graphics.scenery.geometry.Mesh
 import graphics.scenery.numerics.Random
 import graphics.scenery.primitives.Box
 import kotlin.concurrent.thread

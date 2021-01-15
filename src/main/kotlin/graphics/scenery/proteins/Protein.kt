@@ -1,6 +1,6 @@
 package graphics.scenery.proteins
 
-import graphics.scenery.Mesh
+import graphics.scenery.geometry.Mesh
 import org.biojava.nbio.structure.*
 import org.biojava.nbio.structure.io.PDBFileReader
 import java.io.FileNotFoundException
