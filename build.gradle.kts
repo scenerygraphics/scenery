@@ -121,13 +121,13 @@ tasks {
         maxHeapSize = "1G"
         // [Debug] before running every test, prints out its name
         //        beforeTest(closureOf<TestDescriptor?> { logger.lifecycle("Running test: $this") })
-        filter { excludeTestsMatching("ExampleRunner") }
+        val gpuPresent = project.properties["gpu"]?.toString()?.toBoolean() == true
+        if (!gpuPresent)
+            filter { excludeTestsMatching("ExampleRunner") }
         finalizedBy(jacocoTestReport) // report is always generated after tests run
     }
-    register("testMeAll", Test::class) {
-        filter {
-            includeTestsMatching("ExampleRunner")
-        }
+    register("testMeAll", Test::class) { // lets take this for comfortability in local development
+        filter { includeTestsMatching("ExampleRunner") }
     }
     jar {
         archiveVersion.set(rootProject.version.toString())
