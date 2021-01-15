@@ -122,6 +122,7 @@ tasks {
         // [Debug] before running every test, prints out its name
         //        beforeTest(closureOf<TestDescriptor?> { logger.lifecycle("Running test: $this") })
         val gpuPresent = project.properties["gpu"]?.toString()?.toBoolean() == true
+        println("gpuPresent=$gpuPresent")
         if (!gpuPresent)
             filter { excludeTestsMatching("ExampleRunner") }
         finalizedBy(jacocoTestReport) // report is always generated after tests run
