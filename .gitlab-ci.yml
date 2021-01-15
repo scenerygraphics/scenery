@@ -47,6 +47,7 @@ unit-tests-no-gpu:
     - vulkaninfo || true
     - clinfo || true
     - if [ ! -d "$MODEL_DIR" ]; then wget -q https://ulrik.is/scenery-demo-models.zip && unzip -q scenery-demo-models.zip; fi
+    - chmod +x gradlew
   script:
     - ./gradlew build -x dokkaHtml -x dokkaHtmlJar -x dokkaJavadoc -x dokkaJavadocJar -x sourceJar -x javadocJar -x sourcesJar -PjvmTarget=1.8 -PsourceCompatibility=1.8 -Pgpu=true integration-tests -Dscenery.Renderer=VulkanRenderer -Dscenery.LogLevel=info -Dscenery.ExampleRunner.OutputDir=screenshots
   artifacts:
