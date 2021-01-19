@@ -1,5 +1,6 @@
 package graphics.scenery
 
+import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.extensions.xyz
 import org.joml.Matrix4f
 import org.joml.Vector3f
@@ -21,6 +22,7 @@ import java.lang.IllegalArgumentException
  */
 class UniformBSpline(protected val controlPoints: ArrayList<Vector3f>, val n: Int = 100): Spline {
 
+    private val logger by LazyLogger()
     /**
      * This is a list of the equidistant parameters at which the curve is calculated.
      */
@@ -48,7 +50,7 @@ class UniformBSpline(protected val controlPoints: ArrayList<Vector3f>, val n: In
             throw IllegalArgumentException("The UniformBSpline got a list of the same points.")
         }
         return if(controlPoints.size < 4) {
-            println("The list of controlPoints provided for the Uniform BSpline is empty or has less than four points.")
+            logger.info("The list of controlPoints provided for the Uniform BSpline is empty or has less than four points.")
             ArrayList()
         }
         else {

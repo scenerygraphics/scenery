@@ -1,5 +1,6 @@
 package graphics.scenery
 
+import graphics.scenery.utils.LazyLogger
 import org.biojava.nbio.structure.*
 import org.biojava.nbio.structure.io.PDBFileReader
 import java.io.FileNotFoundException
@@ -15,19 +16,22 @@ import java.nio.file.InvalidPathException
 class Protein(val structure: Structure): Mesh("Protein") {
 
     companion object MyProtein {
+        private val proteinLogger by LazyLogger()
 
         fun fromID(id: String): Protein {
                 //print("Please enter the PDB-ID: ")
                 //val id = readLine()
             try { StructureIO.getStructure(id) }
             catch (struc: IOException) {
-                print("Something went wrong in the loading process, " +
-                        "maybe a typo in the pdb entry or you chose a deprecated one?")
-                struc.printStackTrace()
+                proteinLogger.info("Something went wrong during the loading process of the pdb file, " +
+                        "maybe a typo in the pdb entry or you chose a deprecated one?" +
+                    "Here is the trace: \n" +
+                struc.printStackTrace())
             }
             catch(struc: StructureException) {
-                print("Something went wrong with the loading.")
-                struc.printStackTrace()
+                proteinLogger.info("Something went wrong during the loading of the pdb file."+
+                "Here is the trace: \n" +
+                struc.printStackTrace())
             }
             finally {
                 val struc = StructureIO.getStructure(id)
@@ -42,14 +46,15 @@ class Protein(val structure: Structure): Mesh("Protein") {
             //val readPath = readLine()
             try { reader.getStructure(path) }
             catch (struc: InvalidPathException) {
-                print("Path was invalid, maybe this helps: ${struc.reason} " +
+                proteinLogger.info("Path was invalid, maybe this helps: ${struc.reason} " +
                     "or the index: ${struc.index}")
             }
             catch(struc: FileNotFoundException) {
-                print("The File is not in the directory")
+                proteinLogger.info("The pdb file is not in the directory")
             }
             catch(struc: Exception) {
-                print("Something went wrong, sorry!")
+                proteinLogger.info("Something about the pdb file is wrong. This is not an invalid path problem nor is" +
+                    "it a file-not-found-problem.")
             }
 
             finally {
