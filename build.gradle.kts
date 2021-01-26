@@ -1,4 +1,3 @@
-import org.apache.tools.ant.taskdefs.condition.Os
 import org.gradle.kotlin.dsl.implementation
 import org.gradle.kotlin.dsl.runtimeOnly
 import org.gradle.kotlin.dsl.testImplementation
@@ -68,7 +67,7 @@ dependencies {
     implementation("graphics.scenery:spirvcrossj:0.7.0-1.1.106.0")
     runtimeOnlylwjglNatives("graphics.scenery", "spirvcrossj") // "
     implementation("org.zeromq:jeromq:0.4.3")
-    implementation("com.esotericsoftware:kryo:4.0.2")
+    implementation("com.esotericsoftware:kryo:5.0.3")
     implementation("org.msgpack:msgpack-core:0.8.20")
     implementation("org.msgpack:jackson-dataformat-msgpack:0.8.20")
     implementation("graphics.scenery:jvrpn:1.1.0")
@@ -94,7 +93,7 @@ dependencies {
             exclude("org.apache.logging.log4j", "log4j-slf4j-impl")
         }
     }
-    implementation("org.jetbrains.kotlin:kotlin-scripting-jsr223:$ktVersion")
+    implementation("org.jetbrains.kotlin:kotlin-scripting-jsr223:1.4.21")
     implementation("org.jetbrains.kotlin:kotlin-test:$ktVersion")
     //    implementation("com.github.kotlin-graphics:assimp:25c68811")
 
@@ -110,11 +109,13 @@ dependencies {
 
 tasks {
     withType<KotlinCompile>().all {
+        val version = System.getProperty("java.version").substringBefore('.').toInt()
+        val default = if(version == 1) "1.8" else "$version"
         kotlinOptions {
-            jvmTarget = project.properties["jvmTarget"]?.toString() ?: "11"
+            jvmTarget = project.properties["jvmTarget"]?.toString() ?: default
             freeCompilerArgs += listOf("-Xinline-classes", "-Xopt-in=kotlin.RequiresOptIn")
         }
-        sourceCompatibility = project.properties["sourceCompatibility"]?.toString() ?: "11"
+        sourceCompatibility = project.properties["sourceCompatibility"]?.toString() ?: default
     }
     // https://docs.gradle.org/current/userguide/java_testing.html#test_filtering
     test {
