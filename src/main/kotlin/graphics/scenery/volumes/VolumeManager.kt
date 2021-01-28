@@ -171,11 +171,24 @@ class VolumeManager(
         preDraw()
     }
 
-    @Synchronized private fun recreateMaterial(context: SceneryContext) {
-        shaderProperties.clear()
-        material.textures.clear()
+    fun moveCustomTextures(newVolumeManager: VolumeManager) {
+        clearKeysAndTextures()
+        material.textures.forEach {
+            if(it.key != "volumeCache") {
+                logger.info("Moving texture ${it.key} to new volume manager")
+                newVolumeManager.material.textures[it.key] = it.value
+            }
+        }
+    }
 
+    @Synchronized private fun recreateMaterial(context: SceneryContext) {
+        //shaderProperties.clear()
+        //volumeManagerTextureKeys().forEach { material.textures.remove(it) }
+        clearKeysAndTextures()
+
+        val oldCustomTextures = material.textures
         material = ShaderMaterial(context.factory)
+        material.textures.putAll(oldCustomTextures)
         material.cullingMode = Material.CullingMode.None
         material.blending.transparent = true
         material.blending.sourceColorBlendFactor = Blending.BlendFactor.One
