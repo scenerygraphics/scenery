@@ -4,6 +4,7 @@ import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.backends.vulkan.VulkanRenderer
+import graphics.scenery.backends.vulkan.VulkanTexture
 import graphics.scenery.numerics.Random
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.Image
@@ -37,7 +38,7 @@ import kotlin.concurrent.thread
  */
 class ComputeProceduralVolumeExample: SceneryBase("Volume Rendering example", 1200, 1200, wantREPL = false) {
     val bitsPerVoxel = 16
-    val volumeSize = 512L
+    val volumeSize = 51L
 
     lateinit var volumeManager: VolumeManager
     lateinit var volume: BufferedVolume
@@ -132,13 +133,13 @@ class ComputeProceduralVolumeExample: SceneryBase("Volume Rendering example", 12
             scene.addChild(light)
         }
 
-//        val box = Box(Vector3f(1.0f, 1.0f, 1.0f))
-//        box.name = "le box du win"
-//        box.material.textures["diffuse"] = outputTexture
-//        box.material.metallic = 0.0f
-//        box.material.roughness = 1.0f
+        val box = Box(Vector3f(1.0f, 1.0f, 1.0f))
+        box.name = "le box du win"
+        box.material.textures["diffuse"] = outputTexture
+        box.material.metallic = 0.0f
+        box.material.roughness = 1.0f
 
-//        scene.addChild(box)
+        scene.addChild(box)
 
         logger.info("Init 6")
 
@@ -180,6 +181,15 @@ class ComputeProceduralVolumeExample: SceneryBase("Volume Rendering example", 12
         var cnt = 0
 
         val subVDIColor = volumeManager.material.textures["OutputRender"]!!
+
+        val temp = VulkanTexture.getReference(volumeManager.material.textures["OutputRender"]!!)
+
+        if(temp == null) {
+            logger.info("Yes it is indeed null")
+        }
+        else {
+            logger.info("No, it is not null")
+        }
 
 //        val r = renderer
         val subvdi = AtomicInteger(0)
