@@ -111,11 +111,8 @@ publishing {
             val releaseRepo = "https://oss.sonatype.org/service/local/staging/deploy/maven2/"
             val snapshotRepo = "https://oss.sonatype.org/content/repositories/snapshots/"
 
-            url = if(!rootProject.version.toString().endsWith("SNAPSHOT")) {
-                URI(releaseRepo)
-            } else {
-                URI(snapshotRepo)
-            }
+            val snapshot = rootProject.version.toString().endsWith("SNAPSHOT")
+            url = URI(if (snapshot) snapshotRepo else releaseRepo)
             //            url = URI("https://oss.sonatype.org/service/local/staging/deploy/maven2")
         }
     }
