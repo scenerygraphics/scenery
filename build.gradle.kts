@@ -10,7 +10,6 @@ plugins {
     kotlin("jvm") version "1.4.10"
     scenery.publish
     scenery.sign
-    scenery.genExamples
     id("org.jetbrains.dokka") version "1.4.20"
     jacoco
 }
@@ -185,4 +184,10 @@ artifacts {
 java {
     withJavadocJar()
     withSourcesJar()
+}
+
+// Jitpack
+publishing.publications.register("mavenJava", MavenPublication::class) {
+    from(components["java"])
+    artifact(sourceJar)
 }
