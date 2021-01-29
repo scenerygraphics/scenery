@@ -50,6 +50,7 @@ dependencies {
     sciJava("net.java.dev.jna:jna-platform:\$jna")
     implementation("org.jocl:jocl:2.0.2")
     implementation(platform("org.lwjgl:lwjgl-bom:3.2.3"))
+    runtimeOnly(platform("org.lwjgl:lwjgl-bom:3.2.3"))
     fun runtimeOnlylwjglNatives(group: String, name: String) {
         listOf("windows", "linux", "macos").forEach {
             runtimeOnly(group, name, classifier = "natives-$it") // "
