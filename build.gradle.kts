@@ -185,9 +185,3 @@ java {
     withJavadocJar()
     withSourcesJar()
 }
-
-// Jitpack
-publishing.publications.register("mavenJava", MavenPublication::class) {
-    from(components["java"])
-    artifact(sourceJar)
-}
