@@ -3,16 +3,21 @@ import org.gradle.kotlin.dsl.runtimeOnly
 import org.gradle.kotlin.dsl.testImplementation
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import scenery.*
+import sciJava.*
 import java.net.URL
 
 plugins {
+    val ktVersion = "1.4.20"
     java
-    kotlin("jvm") version "1.4.10"
+    kotlin("jvm") version ktVersion
     scenery.publish
     scenery.sign
-    id("org.jetbrains.dokka") version "1.4.20"
+    id("com.github.elect86.sciJava") version "0.0.3"
+    id("org.jetbrains.dokka") version ktVersion
     jacoco
 }
+
+sciJava.debug = true
 
 val ktVersion = "1.4.10"
 
@@ -22,6 +27,24 @@ repositories {
     maven("https://jitpack.io")
     maven("https://maven.scijava.org/content/groups/public")
 }
+
+"kotlin"("1.4.21")
+"ui-behaviour"("2.0.3")
+"bigvolumeviewer"("0.1.8")
+"ffmpeg"("4.2.1-1.5.2")
+"jackson-dataformat-msgpack"("0.8.20")
+"jeromq"("0.4.3")
+"jinput"("2.0.9")
+"jocl"("2.0.2")
+"jvrpn"("1.2.0")
+"kotlinx-coroutines-core"("1.3.9")
+"kryo"("5.0.3")
+"lwjgl"("3.2.3")
+"lwjgl3-awt"("0.1.7")
+"msgpack-core"("0.8.20")
+"classgraph"("4.8.86")
+"spirvcrossj"("0.7.0-1.1.106.0")
+"reflections"("0.9.12")
 
 dependencies {
     implementation(kotlin("stdlib-jdk8"))
@@ -38,19 +61,16 @@ dependencies {
     }
     sciJava("org.slf4j:slf4j-api")
     sciJava("net.clearvolume:cleargl")
-    sciJava("org.joml:joml")
+    sciJava("org.joml")
     sciJava("com.github.scenerygraphics:vector:958f2e6")
-    sciJava("net.java.jinput:jinput:2.0.9", native = "natives-all")
-    listOf("scijava-common", "script-editor", /*"ui-behaviour", overwrite! */ "scripting-javascript", "scripting-jython").forEach {
-        sciJava("org.scijava:$it")
-    }
-    sciJava("org.scijava:ui-behaviour:2.0.2")
-    sciJava("net.sf.trove4j:trove4j")
-    sciJava("net.java.dev.jna:jna")
-    sciJava("net.java.dev.jna:jna-platform:\$jna")
-    implementation("org.jocl:jocl:2.0.2")
+    sciJava("net.java.jinput:jinput", native = "natives-all")
+    sciJava("org.scijava"["scijava-common", "script-editor", "ui-behaviour", "scripting-javascript", "scripting-jython"])
+    sciJava("net.sf.trove4j")
+    sciJava("net.java.dev.jna")
+    sciJava("net.java.dev.jna:jna-platform")
+    sciJava("org.jocl")
     implementation(platform("org.lwjgl:lwjgl-bom:3.2.3"))
-    runtimeOnly(platform("org.lwjgl:lwjgl-bom:3.2.3"))
+//    runtimeOnly(platform("org.lwjgl:lwjgl-bom:3.2.3"))
     fun runtimeOnlylwjglNatives(group: String, name: String) {
         listOf("windows", "linux", "macos").forEach {
             runtimeOnly(group, name, classifier = "natives-$it") // "
@@ -62,30 +82,29 @@ dependencies {
             runtimeOnlylwjglNatives("org.lwjgl", "lwjgl$it") // "
     }
     sciJava("com.fasterxml.jackson.core:jackson-databind")
-    sciJava("com.fasterxml.jackson.module:jackson-module-kotlin:\$jackson")
-    sciJava("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:\$jackson")
-    implementation("graphics.scenery:spirvcrossj:0.7.0-1.1.106.0")
+    sciJava("com.fasterxml.jackson.module:jackson-module-kotlin:\$jackson-databind")
+    sciJava("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:\$jackson-databind")
+    sciJava("graphics.scenery:spirvcrossj")
     runtimeOnlylwjglNatives("graphics.scenery", "spirvcrossj") // "
-    implementation("org.zeromq:jeromq:0.4.3")
-    implementation("com.esotericsoftware:kryo:5.0.3")
-    implementation("org.msgpack:msgpack-core:0.8.20")
-    implementation("org.msgpack:jackson-dataformat-msgpack:0.8.20")
-    implementation("graphics.scenery:jvrpn:1.1.0")
+    sciJava("org.zeromq:jeromq")
+    sciJava("com.esotericsoftware:kryo")
+    sciJava("org.msgpack:msgpack-core")
+    sciJava("org.msgpack:jackson-dataformat-msgpack")
+    sciJava("graphics.scenery:jvrpn")
     runtimeOnlylwjglNatives("graphics.scenery", "jvrpn") // "
-    runtimeOnly("graphics.scenery", "jvrpn", classifier = "natives-linux")
-    runtimeOnly("graphics.scenery", "jvrpn", classifier = "natives-macos")
+//    runtimeOnly("graphics.scenery", "jvrpn", classifier = "natives-linux")
+//    runtimeOnly("graphics.scenery", "jvrpn", classifier = "natives-macos")
     sciJava("io.scif:scifio")
-    implementation("org.bytedeco:ffmpeg:4.2.1-1.5.2")
+    sciJava("org.bytedeco:ffmpeg")
     listOf("windows", "linux", "macosx").forEach {
         runtimeOnly("org.bytedeco", "ffmpeg", classifier = "$it-x86_64") // "
     }
-    implementation("org.reflections:reflections:0.9.12")
-    implementation("io.github.classgraph:classgraph:4.8.86")
-    implementation("sc.fiji:bigvolumeviewer:0.1.8")
-    //    implementation("org.lwjglx:lwjgl3-awt:0.1.7")
+    sciJava("org.reflections")
+    sciJava("io.github.classgraph")
+    sciJava("sc.fiji:bigvolumeviewer")
+//    sciJava("org.lwjglx:lwjgl3-awt")
     implementation("com.github.LWJGLX:lwjgl3-awt:cfd741a6")
-    sciJava("org.janelia.saalfeldlab:n5")
-    sciJava("org.janelia.saalfeldlab:n5-imglib2")
+    sciJava("org.janelia.saalfeldlab:n5"["", "-imglib2"])
     listOf("core", "structure", "modfinder").forEach {
         sciJava("org.biojava:biojava-$it:5.3.0") {
             exclude("org.slf4j", "slf4j-api")
@@ -94,13 +113,13 @@ dependencies {
         }
     }
     implementation("org.jetbrains.kotlin:kotlin-scripting-jsr223:1.4.21")
-    implementation("org.jetbrains.kotlin:kotlin-test:$ktVersion")
+    sciJava("org.jetbrains.kotlin:kotlin-test:\$kotlin")
     //    implementation("com.github.kotlin-graphics:assimp:25c68811")
 
     testSciJava("junit:junit")
     testSciJava("org.slf4j:slf4j-simple")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit")
-    testSciJava("net.imagej:imagej")
+    testSciJava("net.imagej")
     testSciJava("net.imagej:ij")
     testSciJava("net.imglib2:imglib2-ij")
     //    testImplementation("io.kotest:kotest-runner-junit5-jvm:${findProperty("kotestVersion")}")
@@ -124,7 +143,7 @@ tasks {
         // [Debug] before running every test, prints out its name
         //        beforeTest(closureOf<TestDescriptor?> { logger.lifecycle("Running test: $this") })
         val gpuPresent = project.properties["gpu"]?.toString()?.toBoolean() == true
-        println("gpuPresent=$gpuPresent")
+//        println("gpuPresent=$gpuPresent")
         if (!gpuPresent)
             filter { excludeTestsMatching("ExampleRunner") }
         finalizedBy(jacocoTestReport) // report is always generated after tests run
