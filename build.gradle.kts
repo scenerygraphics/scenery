@@ -1,9 +1,8 @@
-import org.gradle.kotlin.dsl.implementation
-import org.gradle.kotlin.dsl.runtimeOnly
-import org.gradle.kotlin.dsl.testImplementation
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
-import scenery.*
-import sciJava.*
+import sciJava.get
+import sciJava.invoke
+import sciJava.sciJava
+import sciJava.testSciJava
 import java.net.URL
 
 plugins {
@@ -17,7 +16,7 @@ plugins {
     jacoco
 }
 
-sciJava.debug = true
+//sciJava.debug = true
 
 val ktVersion = "1.4.10"
 
@@ -70,7 +69,7 @@ dependencies {
     sciJava("net.java.dev.jna:jna-platform")
     sciJava("org.jocl")
     implementation(platform("org.lwjgl:lwjgl-bom:3.2.3"))
-//    runtimeOnly(platform("org.lwjgl:lwjgl-bom:3.2.3"))
+    //    runtimeOnly(platform("org.lwjgl:lwjgl-bom:3.2.3"))
     fun runtimeOnlylwjglNatives(group: String, name: String) {
         listOf("windows", "linux", "macos").forEach {
             runtimeOnly(group, name, classifier = "natives-$it") // "
@@ -92,8 +91,8 @@ dependencies {
     sciJava("org.msgpack:jackson-dataformat-msgpack")
     sciJava("graphics.scenery:jvrpn")
     runtimeOnlylwjglNatives("graphics.scenery", "jvrpn") // "
-//    runtimeOnly("graphics.scenery", "jvrpn", classifier = "natives-linux")
-//    runtimeOnly("graphics.scenery", "jvrpn", classifier = "natives-macos")
+    //    runtimeOnly("graphics.scenery", "jvrpn", classifier = "natives-linux")
+    //    runtimeOnly("graphics.scenery", "jvrpn", classifier = "natives-macos")
     sciJava("io.scif:scifio")
     sciJava("org.bytedeco:ffmpeg")
     listOf("windows", "linux", "macosx").forEach {
@@ -102,7 +101,7 @@ dependencies {
     sciJava("org.reflections")
     sciJava("io.github.classgraph")
     sciJava("sc.fiji:bigvolumeviewer")
-//    sciJava("org.lwjglx:lwjgl3-awt")
+    //    sciJava("org.lwjglx:lwjgl3-awt")
     implementation("com.github.LWJGLX:lwjgl3-awt:cfd741a6")
     sciJava("org.janelia.saalfeldlab:n5"["", "-imglib2"])
     listOf("core", "structure", "modfinder").forEach {
@@ -129,7 +128,7 @@ dependencies {
 tasks {
     withType<KotlinCompile>().all {
         val version = System.getProperty("java.version").substringBefore('.').toInt()
-        val default = if(version == 1) "1.8" else "$version"
+        val default = if (version == 1) "1.8" else "$version"
         kotlinOptions {
             jvmTarget = project.properties["jvmTarget"]?.toString() ?: default
             freeCompilerArgs += listOf("-Xinline-classes", "-Xopt-in=kotlin.RequiresOptIn")
@@ -143,7 +142,7 @@ tasks {
         // [Debug] before running every test, prints out its name
         //        beforeTest(closureOf<TestDescriptor?> { logger.lifecycle("Running test: $this") })
         val gpuPresent = project.properties["gpu"]?.toString()?.toBoolean() == true
-//        println("gpuPresent=$gpuPresent")
+        //        println("gpuPresent=$gpuPresent")
         if (!gpuPresent)
             filter { excludeTestsMatching("ExampleRunner") }
         finalizedBy(jacocoTestReport) // report is always generated after tests run
@@ -177,11 +176,11 @@ tasks {
     }
 }
 
-val dokkaJavadocJar by tasks.register<Jar>("dokkaJavadocJar") {
-    dependsOn(tasks.dokkaJavadoc)
-    from(tasks.dokkaJavadoc.get().outputDirectory.get())
-    archiveClassifier.set("javadoc")
-}
+//val dokkaJavadocJar by tasks.register<Jar>("dokkaJavadocJar") {
+//    dependsOn(tasks.dokkaJavadoc)
+//    from(tasks.dokkaJavadoc.get().outputDirectory.get())
+//    archiveClassifier.set("javadoc")
+//}
 
 val dokkaHtmlJar by tasks.register<Jar>("dokkaHtmlJar") {
     dependsOn(tasks.dokkaHtml)
@@ -189,16 +188,9 @@ val dokkaHtmlJar by tasks.register<Jar>("dokkaHtmlJar") {
     archiveClassifier.set("html-doc")
 }
 
-val sourceJar = task("sourceJar", Jar::class) {
-    dependsOn(tasks.classes)
-    archiveClassifier.set("sources")
-    from(sourceSets.main.get().allSource)
-}
-
 artifacts {
-    archives(dokkaJavadocJar)
+//    archives(dokkaJavadocJar)
     archives(dokkaHtmlJar)
-    archives(sourceJar)
 }
 
 java {
