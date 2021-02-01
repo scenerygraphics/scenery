@@ -11,7 +11,7 @@ plugins {
     kotlin("jvm") version ktVersion
     scenery.publish
     scenery.sign
-    id("com.github.elect86.sciJava") version "0.0.3"
+    id("com.github.elect86.sciJava") version "0.0.4"
     id("org.jetbrains.dokka") version ktVersion
     jacoco
 }
