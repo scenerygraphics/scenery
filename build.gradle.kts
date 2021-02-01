@@ -136,7 +136,7 @@ tasks {
     // https://docs.gradle.org/current/userguide/java_testing.html#test_filtering
     test {
         // apparently `testLotsOfProteins` needs also a lot of heap..
-        maxHeapSize = "1G"
+        maxHeapSize = "8G"
         // [Debug] before running every test, prints out its name
         //        beforeTest(closureOf<TestDescriptor?> { logger.lifecycle("Running test: $this") })
         val gpuPresent = project.properties["gpu"]?.toString()?.toBoolean() == true
@@ -145,7 +145,9 @@ tasks {
             filter { excludeTestsMatching("ExampleRunner") }
         finalizedBy(jacocoTestReport) // report is always generated after tests run
     }
-    register("testMeAll", Test::class) { // lets take this for comfortability in local development
+    register("testGpu", Test::class) { // lets take this for comfortability in local development
+        maxHeapSize = "8G"
+        group = "verification"
         filter { includeTestsMatching("ExampleRunner") }
     }
     jar {
