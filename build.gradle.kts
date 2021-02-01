@@ -176,12 +176,6 @@ tasks {
     }
 }
 
-//val dokkaJavadocJar by tasks.register<Jar>("dokkaJavadocJar") {
-//    dependsOn(tasks.dokkaJavadoc)
-//    from(tasks.dokkaJavadoc.get().outputDirectory.get())
-//    archiveClassifier.set("javadoc")
-//}
-
 val dokkaHtmlJar by tasks.register<Jar>("dokkaHtmlJar") {
     dependsOn(tasks.dokkaHtml)
     from(tasks.dokkaHtml.get().outputDirectory.get())
@@ -189,7 +183,6 @@ val dokkaHtmlJar by tasks.register<Jar>("dokkaHtmlJar") {
 }
 
 artifacts {
-//    archives(dokkaJavadocJar)
     archives(dokkaHtmlJar)
 }
 
