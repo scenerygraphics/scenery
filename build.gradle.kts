@@ -70,11 +70,6 @@ dependencies {
     sciJava("org.jocl")
     implementation(platform("org.lwjgl:lwjgl-bom:3.2.3"))
     //    runtimeOnly(platform("org.lwjgl:lwjgl-bom:3.2.3"))
-    fun runtimeOnlylwjglNatives(group: String, name: String) {
-        listOf("windows", "linux", "macos").forEach {
-            runtimeOnly(group, name, classifier = "natives-$it") // "
-        }
-    }
     listOf("", "-glfw", "-jemalloc", "-vulkan", "-opengl", "-openvr", "-xxhash", "-remotery").forEach {
         implementation("org.lwjgl:lwjgl$it")
         if (it != "-vulkan")
@@ -124,6 +119,9 @@ dependencies {
     //    testImplementation("io.kotest:kotest-runner-junit5-jvm:${findProperty("kotestVersion")}")
     //    testImplementation("io.kotest:kotest-assertions-core-jvm:${findProperty("kotestVersion")}")
 }
+
+fun DependencyHandlerScope.runtimeOnlylwjglNatives(group: String, name: String) =
+        listOf("windows", "linux", "macos").forEach { runtimeOnly(group, name, classifier = "natives-$it") }
 
 tasks {
     withType<KotlinCompile>().all {
