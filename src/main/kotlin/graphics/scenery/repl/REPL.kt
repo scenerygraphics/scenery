@@ -104,4 +104,12 @@ class REPL @JvmOverloads constructor(override var hub : Hub?, scijavaContext: Co
     fun eval(code: String): Any? {
         return repl?.interpreter?.eval(code)
     }
+
+    /**
+     * Closes the REPL instance.
+     */
+    fun close() {
+        interpreterWindow?.isVisible = false
+        interpreterWindow?.dispose()
+    }
 }
