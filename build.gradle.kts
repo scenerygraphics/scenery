@@ -46,6 +46,7 @@ repositories {
 "reflections"("0.9.12")
 
 dependencies {
+    implementation(platform(kotlin("bom")))
     implementation(kotlin("stdlib-jdk8"))
     implementation(kotlin("reflect"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.4.0-M1")
@@ -102,12 +103,12 @@ dependencies {
         }
     }
     implementation("org.jetbrains.kotlin:kotlin-scripting-jsr223:1.4.21")
-    sciJava("org.jetbrains.kotlin:kotlin-test:\$kotlin")
+    testImplementation(kotlin("test"))
+    testImplementation(kotlin("test-junit"))
     //    implementation("com.github.kotlin-graphics:assimp:25c68811")
 
     testSciJava("junit:junit")
     testSciJava("org.slf4j:slf4j-simple")
-    testImplementation("org.jetbrains.kotlin:kotlin-test-junit")
     testSciJava("net.imagej")
     testSciJava("net.imagej:ij")
     testSciJava("net.imglib2:imglib2-ij")
@@ -173,6 +174,12 @@ tasks {
     }
 }
 
+val dokkaJavadocJar by tasks.register<Jar>("dokkaJavadocJar") {
+    dependsOn(tasks.dokkaJavadoc)
+    from(tasks.dokkaJavadoc.get().outputDirectory.get())
+    archiveClassifier.set("javadoc")
+}
+
 val dokkaHtmlJar by tasks.register<Jar>("dokkaHtmlJar") {
     dependsOn(tasks.dokkaHtml)
     from(tasks.dokkaHtml.get().outputDirectory.get())
@@ -180,10 +187,8 @@ val dokkaHtmlJar by tasks.register<Jar>("dokkaHtmlJar") {
 }
 
 artifacts {
+    archives(dokkaJavadocJar)
     archives(dokkaHtmlJar)
 }
 
-java {
-    withJavadocJar()
-    withSourcesJar()
-}
+java.withSourcesJar()
