@@ -2,7 +2,10 @@ package graphics.scenery.tests.unit.backends
 
 import graphics.scenery.backends.*
 import graphics.scenery.spirvcrossj.Loader
+import graphics.scenery.spirvcrossj.libspirvcrossj
 import graphics.scenery.utils.LazyLogger
+import org.junit.AfterClass
+import org.junit.BeforeClass
 import org.junit.Test
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
@@ -13,11 +16,22 @@ import kotlin.test.assertNotNull
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class ShadersTests {
-    private val logger by LazyLogger()
 
     companion object {
-        init {
+        private val logger by LazyLogger()
+
+        @BeforeClass @JvmStatic
+        fun loadNatives() {
+            logger.info("Loading spirvcrossj natives")
             Loader.loadNatives()
+            logger.info("Initializing spirvcrossj")
+            libspirvcrossj.initializeProcess()
+        }
+
+        @AfterClass @JvmStatic
+        fun teardownNatives() {
+            logger.info("Finalizing spirvcrossj")
+            libspirvcrossj.finalizeProcess()
         }
     }
 
