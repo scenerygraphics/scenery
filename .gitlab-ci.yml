@@ -23,7 +23,6 @@ unit-tests-no-gpu:
     - if [ ! -d "$MODEL_DIR" ]; then wget -q https://ulrik.is/scenery-demo-models.zip && unzip -q scenery-demo-models.zip; fi
     - sudo sed -i -e '/^assistive_technologies=/s/^/#/' /etc/java-*-openjdk/accessibility.properties
     - chmod +x gradlew
-    - export GRADLE_USER_HOME=`pwd`/.gradle # for caching
   script:
     - ./gradlew build -x dokkaHtml -x dokkaHtmlJar -PjvmTarget=1.8 -PsourceCompatibility=1.8
   after_script:
