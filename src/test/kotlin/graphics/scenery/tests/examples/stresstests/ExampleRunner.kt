@@ -114,7 +114,7 @@ class ExampleRunner {
 
                             failure = true
                             // we fail very hard here to prevent process clogging the CI
-                            exitProcess(-1)
+                            throw e
                         }
 
                         exampleRunnable = GlobalScope.launch(handler) {
