@@ -141,8 +141,12 @@ tasks {
         //        beforeTest(closureOf<TestDescriptor?> { logger.lifecycle("Running test: $this") })
         val gpuPresent = project.properties["gpu"]?.toString()?.toBoolean() == true
         //        println("gpuPresent=$gpuPresent")
-        if (!gpuPresent)
+        if (!gpuPresent) {
             filter { excludeTestsMatching("ExampleRunner") }
+        } else {
+            systemProperty("scenery.Renderer", "VulkanRenderer")
+            systemProperty("scenery.ExampleRunner.OutputDir", "screenshots")
+        }
         finalizedBy(jacocoTestReport) // report is always generated after tests run
     }
     register("testGpu", Test::class) { // lets take this for comfortability in local development
