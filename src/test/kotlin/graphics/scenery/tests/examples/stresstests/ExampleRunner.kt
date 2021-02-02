@@ -54,7 +54,9 @@ class ExampleRunner {
             "BigAndSmallVolumeExample",
             "VolumeSamplingExample",
             "SwingTexturedCubeExample",
-            "VideoRecordingExample"
+            "VideoRecordingExample",
+            // TODO: this has a bug apparently coming from BVV
+            "FlybrainOutOfCoreExample"
         )
 
         blocklist.addAll(System.getProperty("scenery.ExampleRunner.Blocklist", "").split(","))
