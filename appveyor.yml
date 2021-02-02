@@ -22,10 +22,10 @@ install:
   - cmd: java -version
 
 build_script:
-  - gradlew.bat assemble -x dokkaHtml -x dokkaHtmlJar -PjvmTarget=1.8 -PsourceCompatibility=1.8
+  - gradlew.bat assemble -x dokkaHtml -x dokkaHtmlJar -x javadoc -x dokkaJavadocJar -PjvmTarget=1.8 -PsourceCompatibility=1.8
 
 test_script:
-  - gradlew.bat check -x dokkaHtml -x dokkaHtmlJar -PjvmTarget=1.8 -PsourceCompatibility=1.8
+  - gradlew.bat check -x dokkaHtml -x dokkaHtmlJar -x javadoc -x dokkaJavadocJar -PjvmTarget=1.8 -PsourceCompatibility=1.8
 
 on_success:
   - cmd: |
