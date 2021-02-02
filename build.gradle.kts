@@ -50,10 +50,6 @@ dependencies {
     implementation(kotlin("reflect"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.4.0-M1")
 
-    //    implementation(platform("org.scijava:pom-scijava:29.2.1"))
-    //    implementation(platform("org.scijava:pom-scijava-base:11.2.0"))
-    //    components.all<Rule>()
-
     listOf("windows-amd64", "linux-i586", "linux-amd64", "macosx-universal").forEach {
         sciJava("org.jogamp.gluegen:gluegen-rt", "natives-$it") // this is crap, but will be polished eventually
         sciJava("org.jogamp.jogl:jogl-all", "natives-$it")
@@ -69,7 +65,6 @@ dependencies {
     sciJava("net.java.dev.jna:jna-platform")
     sciJava("org.jocl")
     implementation(platform("org.lwjgl:lwjgl-bom:3.2.3"))
-    //    runtimeOnly(platform("org.lwjgl:lwjgl-bom:3.2.3"))
     listOf("", "-glfw", "-jemalloc", "-vulkan", "-opengl", "-openvr", "-xxhash", "-remotery").forEach {
         implementation("org.lwjgl:lwjgl$it")
         if (it != "-vulkan")
@@ -116,8 +111,6 @@ dependencies {
     testSciJava("net.imagej")
     testSciJava("net.imagej:ij")
     testSciJava("net.imglib2:imglib2-ij")
-    //    testImplementation("io.kotest:kotest-runner-junit5-jvm:${findProperty("kotestVersion")}")
-    //    testImplementation("io.kotest:kotest-assertions-core-jvm:${findProperty("kotestVersion")}")
 }
 
 fun DependencyHandlerScope.runtimeOnlylwjglNatives(group: String, name: String) =
