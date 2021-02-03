@@ -17,9 +17,15 @@ import kotlin.test.assertNotNull
  */
 class ShadersTests {
 
+    /**
+     * Helper class for setup and teardown routines to be run before and after the tests in this class.
+     */
     companion object {
         private val logger by LazyLogger()
 
+        /**
+         * Loads spirvcrossj's native libraries and initializes glslang/spirvcross for this thread.
+         */
         @BeforeClass @JvmStatic
         fun loadNatives() {
             logger.info("Loading spirvcrossj natives")
@@ -28,6 +34,9 @@ class ShadersTests {
             libspirvcrossj.initializeProcess()
         }
 
+        /**
+         * Finalizes this process for the usage of spirvcrossj.
+         */
         @AfterClass @JvmStatic
         fun teardownNatives() {
             logger.info("Finalizing spirvcrossj")
@@ -35,6 +44,9 @@ class ShadersTests {
         }
     }
 
+    /**
+     * Tests correct behaviour in the case a requested shader type is not found in a [Shaders] package.
+     */
     @Test
     fun testShadersNotFound() {
         logger.info("Testing behaviours for missing shaders ...")
@@ -58,6 +70,10 @@ class ShadersTests {
         }
     }
 
+    /**
+     * Tests vertex and fragment shader compilation on the example of the standard rendering pipeline's
+     * default vertex and fragment shaders.
+     */
     @Test
     fun testShaderCompilation() {
         logger.info("Testing shader compilation ...")
