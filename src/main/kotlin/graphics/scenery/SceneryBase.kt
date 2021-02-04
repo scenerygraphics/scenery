@@ -181,10 +181,11 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
                     subscriber.nodes.put(index, node)
                 }
 
-                while (running) {
+                while (running && !shouldClose) {
                     subscriber.process()
                     Thread.sleep(2)
                 }
+                logger.debug("Closing subscriber")
             }
         } else if(master) {
             thread {
@@ -198,10 +199,11 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
                         p.nodes.put(index, node)
                 }
 
-                while (running) {
+                while (running && !shouldClose) {
                     p.publish()
                     Thread.sleep(2)
                 }
+                logger.debug("Closing publisher")
             }
         }
 
@@ -368,6 +370,8 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
 
         hub.get<Profiler>()?.close()
         hub.get<Statistics>()?.close()
+
+        hub.get<REPL>()?.close()
     }
 
     /**
