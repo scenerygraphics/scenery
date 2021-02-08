@@ -1,5 +1,7 @@
 package graphics.scenery
 
+import graphics.scenery.geometry.Curve
+import graphics.scenery.geometry.Spline
 import graphics.scenery.proteins.MathLine
 import org.joml.*
 

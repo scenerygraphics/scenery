@@ -2,6 +2,7 @@ package graphics.scenery.backends.vulkan
 
 import graphics.scenery.*
 import graphics.scenery.backends.*
+import graphics.scenery.geometry.HasGeometry
 import graphics.scenery.textures.Texture
 import graphics.scenery.textures.UpdatableTexture
 import graphics.scenery.utils.LazyLogger

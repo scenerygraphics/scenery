@@ -1,4 +1,4 @@
-package graphics.scenery
+package graphics.scenery.geometry
 
 import graphics.scenery.utils.extensions.xyz
 import org.joml.Matrix4f

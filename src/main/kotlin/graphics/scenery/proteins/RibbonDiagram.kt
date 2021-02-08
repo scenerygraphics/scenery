@@ -1,11 +1,12 @@
 package graphics.scenery.proteins
 
 import graphics.scenery.*
+import graphics.scenery.geometry.Curve
+import graphics.scenery.geometry.DummySpline
+import graphics.scenery.geometry.Spline
+import graphics.scenery.geometry.UniformBSpline
 import org.joml.*
 import graphics.scenery.numerics.Random
-import graphics.scenery.proteins.Axis
-import graphics.scenery.proteins.MathLine
-import graphics.scenery.proteins.Protein
 import org.biojava.nbio.structure.Atom
 import org.biojava.nbio.structure.Group
 import org.biojava.nbio.structure.secstruc.SecStrucCalc
