@@ -1,11 +1,10 @@
 package graphics.scenery.tests.unit
 
-import cleargl.GLMatrix.compare
 import org.joml.Matrix4f
 import org.joml.Vector3f
-import com.jogamp.opengl.math.Quaternion
 import graphics.scenery.*
 import graphics.scenery.numerics.Random
+import graphics.scenery.primitives.Mesh
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.extensions.compare
 import graphics.scenery.utils.extensions.toFloatArray

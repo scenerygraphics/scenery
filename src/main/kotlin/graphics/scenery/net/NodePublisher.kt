@@ -7,6 +7,10 @@ import com.esotericsoftware.kryo.io.Output
 import com.jogamp.opengl.math.Quaternion
 import graphics.scenery.*
 import graphics.scenery.geometry.GeometryType
+import graphics.scenery.primitives.Arrow
+import graphics.scenery.primitives.Cylinder
+import graphics.scenery.primitives.Line
+import graphics.scenery.primitives.Mesh
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.Statistics
 import graphics.scenery.volumes.TransferFunction

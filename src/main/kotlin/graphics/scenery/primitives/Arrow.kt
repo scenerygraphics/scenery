@@ -1,5 +1,6 @@
-package graphics.scenery
+package graphics.scenery.primitives
 
+import graphics.scenery.*
 import graphics.scenery.backends.ShaderType
 import graphics.scenery.geometry.GeometryType
 import graphics.scenery.utils.extensions.minus
@@ -69,7 +70,10 @@ class Arrow(var vector: Vector3f = Vector3f(0.0f)) : Mesh("Arrow") {
         /** Index buffer */
         indices = IntBuffer.wrap(intArrayOf())
 
-        material = ShaderMaterial.fromClass(Line::class.java, listOf(ShaderType.VertexShader, ShaderType.GeometryShader, ShaderType.FragmentShader))
+        material = ShaderMaterial.fromClass(
+            Line::class.java,
+            listOf(ShaderType.VertexShader, ShaderType.GeometryShader, ShaderType.FragmentShader)
+        )
         material.cullingMode = Material.CullingMode.None
 
         reshape(vector)

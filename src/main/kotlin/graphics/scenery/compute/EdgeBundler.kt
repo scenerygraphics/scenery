@@ -2,6 +2,8 @@ package graphics.scenery.compute
 
 import org.joml.Vector3f
 import graphics.scenery.*
+import graphics.scenery.primitives.Line
+import graphics.scenery.primitives.LinePair
 import graphics.scenery.utils.LazyLogger
 import org.jocl.cl_mem
 import java.io.File
@@ -238,7 +240,7 @@ class EdgeBundler(override var hub: Hub?): Hubable {
      * @return The bundled lines
      */
     fun getLines(): Array<Line> {
-        val lines = Array<Line>(trackSetBundled.size) {Line()}
+        val lines = Array<Line>(trackSetBundled.size) { Line() }
         for(t in trackSetBundled.indices) {
             // The next lines show the "boring" way [for the smarter one, see below]:
             lines[t] = makeLine(t)
@@ -253,7 +255,7 @@ class EdgeBundler(override var hub: Hub?): Hubable {
      * @return The array of LinePairs
      */
     fun getLinePairs(): Array<LinePair> {
-        val lines = Array<LinePair>(trackSetBundled.size) {LinePair()}
+        val lines = Array<LinePair>(trackSetBundled.size) { LinePair() }
         for(t in trackSetBundled.indices) {
             // The next lines show the "boring" way [for the smarter one, see below]:
             lines[t] = makeLinePair(t)

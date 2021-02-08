@@ -1,5 +1,7 @@
 package graphics.scenery
 
+import graphics.scenery.primitives.Line
+import graphics.scenery.primitives.TextBoard
 import graphics.scenery.utils.LazyLogger
 import org.joml.Vector2f
 import org.joml.Vector3f

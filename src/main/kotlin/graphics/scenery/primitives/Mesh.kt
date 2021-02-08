@@ -1,8 +1,9 @@
-package graphics.scenery
+package graphics.scenery.primitives
 
 import org.joml.Vector3f
 import gnu.trove.map.hash.THashMap
 import gnu.trove.set.hash.TLinkedHashSet
+import graphics.scenery.*
 import graphics.scenery.geometry.GeometryType
 import graphics.scenery.geometry.HasGeometry
 import graphics.scenery.textures.Texture
