@@ -87,7 +87,7 @@ class VideoDecodingExample : SceneryBase("VideoDecodingExample", 600, 600, wantR
         // add assertions, these only get called when the example is called
         // as part of scenery's integration tests
         assertions[AssertionCheckPoint.AfterClose]?.add {
-            assertTrue ( cnt == 2963, "All frames of the video were read and decoded" )
+            assertTrue ( cnt == 105, "All frames of the video were read and decoded" )
         }
 
         super.main()
