@@ -1,4 +1,4 @@
-package graphics.scenery
+package graphics.scenery.proteins
 
 import org.joml.Vector3f
 import kotlin.math.sqrt

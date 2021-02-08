@@ -2,6 +2,7 @@ package graphics.scenery.tests.unit
 
 import graphics.scenery.numerics.Random
 import graphics.scenery.*
+import graphics.scenery.proteins.MathLine
 import graphics.scenery.utils.LazyLogger
 import org.joml.Vector3f
 import org.junit.Test
