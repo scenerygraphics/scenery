@@ -11,6 +11,10 @@ import kotlin.math.absoluteValue
  */
 class VolumeMeasurer {
     val logger by LazyLogger()
+
+    /**
+     * calculates the volume of a given [mesh] and returns its volume with double precision
+     */
     fun calculateVolume(mesh: Mesh): Double {
         val vertices = mesh.vertices
         val vertexBuffer = vertices.asReadOnlyBuffer()
