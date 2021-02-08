@@ -1,4 +1,4 @@
-package graphics.scenery
+package graphics.scenery.proteins
 
 import graphics.scenery.utils.LazyLogger
 import org.joml.Vector3f

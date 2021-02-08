@@ -1,6 +1,8 @@
 package graphics.scenery.tests.unit
 
 import graphics.scenery.*
+import graphics.scenery.proteins.Protein
+import graphics.scenery.proteins.RibbonDiagram
 import graphics.scenery.utils.LazyLogger
 import org.biojava.nbio.structure.Group
 import org.biojava.nbio.structure.secstruc.SecStrucElement
@@ -8,7 +10,6 @@ import org.junit.Test
 import kotlin.reflect.full.declaredMemberFunctions
 import kotlin.reflect.jvm.isAccessible
 import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
 
 /**
  * This is the test for the RibbonCalculation, i.e. the pdb-support.

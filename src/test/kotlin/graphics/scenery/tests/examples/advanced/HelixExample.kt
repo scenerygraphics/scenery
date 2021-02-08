@@ -4,6 +4,7 @@ import graphics.scenery.*
 import org.joml.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
+import graphics.scenery.proteins.MathLine
 
 /**
  * This is an example of how to set up a helix.

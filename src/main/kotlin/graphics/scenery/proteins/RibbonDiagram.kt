@@ -1,7 +1,11 @@
-package graphics.scenery
+package graphics.scenery.proteins
 
+import graphics.scenery.*
 import org.joml.*
 import graphics.scenery.numerics.Random
+import graphics.scenery.proteins.Axis
+import graphics.scenery.proteins.MathLine
+import graphics.scenery.proteins.Protein
 import org.biojava.nbio.structure.Atom
 import org.biojava.nbio.structure.Group
 import org.biojava.nbio.structure.secstruc.SecStrucCalc
@@ -384,7 +388,8 @@ class RibbonDiagram(val protein: Protein, private val displaySS: Boolean = false
                     }
                 }
                 guidePointsWithoutDummy.add(i, GuidePoint(finalPoint, cVec, dVec, offset, widthFactor,
-                        aminoList[i], aminoList[i + 1], SecStrucType.bend, 0))
+                        aminoList[i], aminoList[i + 1], SecStrucType.bend, 0)
+                )
             }
 
             guidePointsWithoutDummy.forEachIndexed { index, guide ->
@@ -441,27 +446,35 @@ class RibbonDiagram(val protein: Protein, private val displaySS: Boolean = false
                 guidePointsWithoutDummy[i].ssLength++
             }
             val dummyVecBeg = caBegin.randomFromVector()
-            guidePoints.add(GuidePoint(dummyVecBeg, guidePointsWithoutDummy[0].cVec, guidePointsWithoutDummy[0].dVec,
+            guidePoints.add(
+                GuidePoint(dummyVecBeg, guidePointsWithoutDummy[0].cVec, guidePointsWithoutDummy[0].dVec,
                     guidePointsWithoutDummy[0].offset, guidePointsWithoutDummy[0].widthFactor, aminoList[0], aminoList[0],
-                    SecStrucType.bend, 0))
-            guidePoints.add(GuidePoint(caBegin, guidePointsWithoutDummy[0].cVec, guidePointsWithoutDummy[0].dVec,
+                    SecStrucType.bend, 0)
+            )
+            guidePoints.add(
+                GuidePoint(caBegin, guidePointsWithoutDummy[0].cVec, guidePointsWithoutDummy[0].dVec,
                     guidePointsWithoutDummy[0].offset, guidePointsWithoutDummy[0].widthFactor, aminoList[0], aminoList[0],
-                    SecStrucType.bend, 0))
+                    SecStrucType.bend, 0)
+            )
             //add all guide points from the previous calculation
             guidePoints.addAll(guidePointsWithoutDummy)
             //add dummy points at the end
             val caEnd = aminoList.last().getAtom("CA").getVector()
-            guidePoints.add(GuidePoint(caEnd,
+            guidePoints.add(
+                GuidePoint(caEnd,
                     guidePointsWithoutDummy.last().cVec, guidePointsWithoutDummy.last().dVec,
                     guidePointsWithoutDummy.last().offset, guidePointsWithoutDummy.last().widthFactor,
                     aminoList.last(), aminoList.last(), SecStrucType.bend,
-                    guidePointsWithoutDummy.last().ssLength))
+                    guidePointsWithoutDummy.last().ssLength)
+            )
             val dummyVecEnd = caEnd.randomFromVector()
-            guidePoints.add(GuidePoint(dummyVecEnd,
+            guidePoints.add(
+                GuidePoint(dummyVecEnd,
                     guidePointsWithoutDummy.last().cVec, guidePointsWithoutDummy.last().dVec,
                     guidePointsWithoutDummy.last().offset, guidePointsWithoutDummy.last().widthFactor,
                     aminoList.last(), aminoList.last(), SecStrucType.bend,
-                    0))
+                    0)
+            )
 
             return untwistRibbon(guidePoints)
         }
