@@ -1,6 +1,6 @@
 package graphics.scenery.tests.unit
 
-import graphics.scenery.*
+import graphics.scenery.geometry.DummySpline
 import graphics.scenery.proteins.Protein
 import graphics.scenery.proteins.RibbonDiagram
 import graphics.scenery.utils.LazyLogger

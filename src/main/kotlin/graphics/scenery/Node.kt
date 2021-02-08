@@ -1,6 +1,7 @@
 package graphics.scenery
 
 import graphics.scenery.backends.Renderer
+import graphics.scenery.geometry.HasGeometry
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.MaybeIntersects
 import graphics.scenery.utils.extensions.*
@@ -21,7 +22,6 @@ import java.util.concurrent.locks.ReentrantLock
 import java.util.function.Consumer
 import kotlin.collections.ArrayList
 import kotlin.collections.HashMap
-import kotlin.math.PI
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.properties.Delegates
