@@ -1,5 +1,6 @@
 package graphics.scenery
 
+import graphics.scenery.proteins.MathLine
 import org.joml.*
 
 /**
