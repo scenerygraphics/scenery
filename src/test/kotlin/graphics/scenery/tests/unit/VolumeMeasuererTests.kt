@@ -13,12 +13,19 @@ import kotlin.test.assertEquals
  */
 class VolumeMeasurerTests {
 
+    /**
+     * Tests the volume of a sphere against a precalculated volume
+     */
     @Test
     fun testVolumeSphere() {
         val s = Icosphere(2f, 2)
         val volume = VolumeMeasurer().calculateVolume(s)
         assertEquals(volume, 32.376359045505524)
     }
+
+    /**
+     * Tests the volume of a cylinder against a precalculated volume
+     */
     @Test
     fun testVolumeCylinder() {
         val c = Cylinder(2f, 10f, 5)
