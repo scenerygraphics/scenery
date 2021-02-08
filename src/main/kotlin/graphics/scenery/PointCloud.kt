@@ -1,8 +1,8 @@
 package graphics.scenery
 
+import graphics.scenery.geometry.GeometryType
 import org.joml.Vector3f
 import java.nio.FloatBuffer
-import java.nio.IntBuffer
 import java.nio.file.FileSystems
 import java.nio.file.Files
 

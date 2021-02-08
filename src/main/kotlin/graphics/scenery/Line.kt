@@ -2,6 +2,8 @@ package graphics.scenery
 
 import org.joml.Vector3f
 import graphics.scenery.backends.ShaderType
+import graphics.scenery.geometry.GeometryType
+import graphics.scenery.geometry.HasGeometry
 import graphics.scenery.numerics.Random
 import org.joml.Vector4f
 import java.nio.FloatBuffer
@@ -12,7 +14,8 @@ import java.nio.IntBuffer
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class Line @JvmOverloads constructor(var capacity: Int = 50, transparent: Boolean = false, val simple: Boolean = false) : Node("Line"), HasGeometry {
+class Line @JvmOverloads constructor(var capacity: Int = 50, transparent: Boolean = false, val simple: Boolean = false) : Node("Line"),
+    HasGeometry {
     /** Size of one vertex (e.g. 3 in 3D) */
     override val vertexSize: Int = 3
     /** Size of one texcoord (e.g. 2 in 3D) */

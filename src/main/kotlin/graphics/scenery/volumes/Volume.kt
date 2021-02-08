@@ -21,6 +21,8 @@ import bdv.viewer.SourceAndConverter
 import bdv.viewer.state.ViewerState
 import org.joml.Vector3f
 import graphics.scenery.*
+import graphics.scenery.geometry.GeometryType
+import graphics.scenery.geometry.HasGeometry
 import graphics.scenery.numerics.OpenSimplexNoise
 import graphics.scenery.numerics.Random
 import graphics.scenery.utils.LazyLogger
@@ -55,7 +57,8 @@ import kotlin.properties.Delegates
 import kotlin.streams.toList
 
 @Suppress("DEPRECATION")
-open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOptions, val hub: Hub) : DelegatesRendering(), HasGeometry, DisableFrustumCulling {
+open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOptions, val hub: Hub) : DelegatesRendering(),
+    HasGeometry, DisableFrustumCulling {
     /** How many elements does a vertex store? */
     override val vertexSize : Int = 3
     /** How many elements does a texture coordinate store? */
