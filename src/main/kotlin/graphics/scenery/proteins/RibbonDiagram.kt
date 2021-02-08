@@ -431,6 +431,7 @@ class RibbonDiagram(val protein: Protein, private val displaySS: Boolean = false
             if (guidePointsWithoutDummy[1].widthFactor != 0f && guidePointsWithoutDummy[2].widthFactor != 0f &&
                     guidePointsWithoutDummy[3].widthFactor != 0f) {
                 guidePointsWithoutDummy[0].widthFactor = guidePointsWithoutDummy[1].widthFactor
+                guidePointsWithoutDummy[0].type = guidePointsWithoutDummy[1].type
             }
             //if there is a width factor is still assigned at the and, also assign it to the last point
             if (guidePointsWithoutDummy.dropLast(1).last().widthFactor != 0f &&
