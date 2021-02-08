@@ -2,6 +2,7 @@ package graphics.scenery.tests.examples.basic
 
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
+import graphics.scenery.controls.behaviours.CreateCommand
 import org.joml.Vector3f
 
 /**
