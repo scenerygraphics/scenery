@@ -4,6 +4,8 @@ import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
+import graphics.scenery.primitives.Mesh
+import graphics.scenery.primitives.TextBoard
 import org.joml.Vector4f
 import org.scijava.ui.behaviour.ClickBehaviour
 import kotlin.concurrent.thread

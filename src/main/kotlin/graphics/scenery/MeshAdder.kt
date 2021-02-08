@@ -1,6 +1,7 @@
 package graphics.scenery
 
 import graphics.scenery.backends.Renderer
+import graphics.scenery.primitives.Mesh
 import graphics.scenery.utils.LazyLogger
 import org.joml.Vector2f
 import org.joml.Vector3f
@@ -16,7 +17,8 @@ open class MeshAdder constructor(protected val name: String,
                                            protected val renderer: Renderer,
                                            protected val scene: Scene,
                                            protected val camera: () -> Camera?,
-                                           meshLambda: () -> Mesh) : ClickBehaviour {
+                                           meshLambda: () -> Mesh
+) : ClickBehaviour {
     protected val logger by LazyLogger()
 
     protected val cam: Camera? by CameraDelegate()

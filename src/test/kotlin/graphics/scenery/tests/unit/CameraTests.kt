@@ -3,6 +3,7 @@ package graphics.scenery.tests.unit
 import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.numerics.Random
+import graphics.scenery.primitives.TextBoard
 import graphics.scenery.utils.LazyLogger
 import org.junit.Test
 import kotlin.test.assertFalse

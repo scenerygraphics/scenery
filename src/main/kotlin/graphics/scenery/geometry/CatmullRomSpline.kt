@@ -1,6 +1,5 @@
 package graphics.scenery.geometry
 
-import graphics.scenery.geometry.Spline
 import graphics.scenery.numerics.Random
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.extensions.plus
