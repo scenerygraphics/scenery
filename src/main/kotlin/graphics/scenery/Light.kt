@@ -1,6 +1,5 @@
 package graphics.scenery
 
-import graphics.scenery.primitives.Mesh
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
 import org.joml.Vector3f

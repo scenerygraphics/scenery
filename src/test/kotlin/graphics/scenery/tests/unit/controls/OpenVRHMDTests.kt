@@ -1,6 +1,6 @@
 package graphics.scenery.tests.unit.controls
 
-import graphics.scenery.primitives.Mesh
+import graphics.scenery.Mesh
 import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.utils.LazyLogger

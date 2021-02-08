@@ -4,7 +4,7 @@ import org.joml.Matrix4f
 import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.numerics.Random
-import graphics.scenery.primitives.Mesh
+import graphics.scenery.Mesh
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.extensions.compare
 import graphics.scenery.utils.extensions.toFloatArray

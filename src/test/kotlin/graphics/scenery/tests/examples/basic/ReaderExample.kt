@@ -8,7 +8,7 @@ import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.controls.TrackerRole
 import graphics.scenery.controls.behaviours.ControllerDrag
 import graphics.scenery.numerics.Random
-import graphics.scenery.primitives.Mesh
+import graphics.scenery.Mesh
 import graphics.scenery.utils.extensions.times
 import graphics.scenery.volumes.Volume
 import org.scijava.Context

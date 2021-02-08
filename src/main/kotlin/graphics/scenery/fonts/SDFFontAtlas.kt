@@ -3,7 +3,7 @@ package graphics.scenery.fonts
 import graphics.scenery.BufferUtils
 import graphics.scenery.geometry.GeometryType
 import graphics.scenery.Hub
-import graphics.scenery.primitives.Mesh
+import graphics.scenery.Mesh
 import graphics.scenery.compute.OpenCLContext
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.SystemHelpers
