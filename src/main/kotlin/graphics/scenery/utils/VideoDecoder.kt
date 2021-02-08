@@ -1,8 +1,5 @@
 package graphics.scenery.utils
 
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.launch
 import org.bytedeco.ffmpeg.avcodec.AVPacket
 import org.bytedeco.ffmpeg.avformat.AVFormatContext
 import org.bytedeco.ffmpeg.avutil.AVFrame
@@ -14,8 +11,7 @@ import org.bytedeco.ffmpeg.swscale.SwsContext
 import org.bytedeco.javacpp.BytePointer
 import org.bytedeco.javacpp.DoublePointer
 import org.bytedeco.javacpp.PointerPointer
-import java.util.concurrent.ConcurrentLinkedQueue
-import kotlin.system.exitProcess
+import kotlin.concurrent.thread
 
 /**
  * H264 decoder class
@@ -24,8 +20,7 @@ import kotlin.system.exitProcess
  *
  * Source for ffmpeg-based video decoding: https://github.com/bytedeco/javacpp-presets/blob/master/ffmpeg/samples/ReadFewFrame.java
  *
- * @param[filename] The file name under which the movie is saved. TODO In case the system property `scenery.StreamVideo` is true,
- *      the frames are streamed via UDP multicast on the local IP, on port 3337 as MPEG transport stream.
+ * @param[filename] The file name under which the movie is saved.
  *
  * @author Aryaman Gupta <argupta@mpi-cbg.de>
  */
@@ -40,21 +35,19 @@ class VideoDecoder(val filename: String) {
     private var swsCtx: SwsContext? = null
     private val pFrameRGB = av_frame_alloc()
     private val frm = av_frame_alloc()
-    private var ret2 = -1
 
-    var nextFrameExists = false
+    var nextFrameExists = true
     var videoWidth: Int = 0
     var videoHeight: Int = 0
 
-    private val encodingThread: Job
     private var ready: Boolean = false
     @Volatile private var error = false
     @Volatile private var eVal = 0
-    @Volatile private var ret = 0
+    private var ret = 0
 
     init {
 
-        encodingThread = GlobalScope.launch {
+        thread {
             if (logger.isDebugEnabled) {
                 av_log_set_level(AV_LOG_TRACE)
             } else {
@@ -68,17 +61,18 @@ class VideoDecoder(val filename: String) {
                 eVal = ret
                 logger.error("Open video file $videoPath failed. Error code: $eVal")
                 error = true
-                return@launch
+                return@thread
             } else {
                 logger.debug("Video found and opened")
             }
 
             ret = avformat_find_stream_info(formatContext, null as PointerPointer<*>?)
+
             if (ret < 0) {
                 eVal = ret
                 logger.error("Could not find stream information. Error code: $eVal")
                 error = true
-                return@launch
+                return@thread
             }
 
             av_dump_format(formatContext, 0, videoPath, 0)
@@ -91,10 +85,11 @@ class VideoDecoder(val filename: String) {
                 }
                 i++
             }
+
             if (vidStreamIdx == -1) {
                 logger.error("Cannot find video stream")
                 error = true
-                return@launch
+                return@thread
             } else {
                 logger.debug(
                     "Video stream %d with resolution %dx%d\n", vidStreamIdx,
@@ -108,28 +103,28 @@ class VideoDecoder(val filename: String) {
                 eVal = ret
                 logger.error("Could not fill codec context. Error code: $eVal")
                 error = true
-                return@launch
+                return@thread
             }
 
             val codec = avcodec_find_decoder(codecCtx.codec_id())
             if (codec == null) {
                 logger.error("Unsupported codec for video file")
                 error = true
-                return@launch
+                return@thread
             }
+
             ret = avcodec_open2(codecCtx, codec, null as PointerPointer<*>?)
             if (ret < 0) {
                 eVal = ret
                 logger.error("Can not open codec. Error code: $eVal")
                 error = true
-                return@launch
+                return@thread
             }
 
-            // Allocate an AVFrame structure
             if (pFrameRGB == null) {
                 logger.error("Could not allocate AVFrame structure")
                 error = true
-                return@launch
+                return@thread
             }
 
             // Determine required buffer size and allocate buffer
@@ -156,7 +151,7 @@ class VideoDecoder(val filename: String) {
             if (swsCtx == null) {
                 logger.error("Can not use sws")
                 error = true
-                return@launch
+                return@thread
             }
 
             av_image_fill_arrays(
@@ -164,16 +159,9 @@ class VideoDecoder(val filename: String) {
                 buffer, AV_PIX_FMT_RGBA, codecCtx.width(), codecCtx.height(), 1
             )
 
-            if(av_read_frame(formatContext, pkt) >= 0) {
-                nextFrameExists = true
-            } else {
-                logger.error("Error occurred while reading frames from video. Perhaps the video file is empty?")
-                error = true
-                return@launch
-            }
-
             ready = true
         }
+
         while(!ready && !error) {
             Thread.sleep(5)
         }
@@ -188,47 +176,57 @@ class VideoDecoder(val filename: String) {
 
     fun decodeFrame(): ByteArray? {
 
+        var finalize = false
+
+        if(av_read_frame(formatContext, pkt) < 0) {
+            // if the video has no more frames, finalize the objects used for decoding
+
+            finalize = true
+            nextFrameExists = false
+        }
+
         if (pkt.stream_index() == vidStreamIdx) {
             ret = avcodec_send_packet(codecCtx, pkt)
             if(ret < 0) {
                 logger.debug("Error sending frame data to decoder. Error code: $ret")
                 logger.debug("Error is: ${ffmpegErrorString(ret)}")
-                return null
             }
             ret = avcodec_receive_frame(codecCtx, frm)
             if(ret < 0) {
                 logger.debug("Error receiving data from decoder. Error code: $ret.")
                 logger.debug("Error is: ${ffmpegErrorString(ret)}")
-                return null
             }
         }
 
-        sws_scale(
-            swsCtx,
-            frm.data(),
-            frm.linesize(),
-            0,
-            codecCtx.height(),
-            pFrameRGB.data(),
-            pFrameRGB.linesize()
-        )
+        val image : ByteArray? = if(ret >= 0) {
+            // if there were no errors while decoding, then scale and fetch the image
+            sws_scale(
+                swsCtx,
+                frm.data(),
+                frm.linesize(),
+                0,
+                codecCtx.height(),
+                pFrameRGB.data(),
+                pFrameRGB.linesize()
+            )
+            getImage(pFrameRGB, codecCtx.width(), codecCtx.height())
+        } else {
+            // if error had occurred while decoding
+            null
+        }
 
         av_packet_unref(pkt)
 
-        val image =  getImage(pFrameRGB, codecCtx.width(), codecCtx.height())
-
-        if(av_read_frame(formatContext, pkt) < 0) {
-            // if the video has no more frames, finalize the objects used for decoding
+        if(finalize) {
             av_frame_free(frm)
             avcodec_close(codecCtx)
             avcodec_free_context(codecCtx)
             avformat_close_input(formatContext)
 
-            nextFrameExists = false
+            logger.debug("Finished decoding the movie")
         }
 
         return image
-
     }
 
     private fun getImage(pFrame: AVFrame, width: Int, height: Int) : ByteArray {
