@@ -5,6 +5,7 @@ import org.joml.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.geometry.CatmullRomSpline
 import graphics.scenery.numerics.Random
+import graphics.scenery.proteins.Helix
 import graphics.scenery.proteins.MathLine
 
 /**
