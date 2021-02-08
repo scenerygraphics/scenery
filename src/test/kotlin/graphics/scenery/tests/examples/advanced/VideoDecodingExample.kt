@@ -12,15 +12,18 @@ import org.joml.Vector3f
 import org.joml.Vector3i
 import java.nio.ByteBuffer
 import kotlin.concurrent.thread
+import kotlin.test.assertTrue
 
 /**
- * Example to show programmatic video decoding.
+ * Example to show programmatic video decoding. It also demonstrates how the [FullscreenObject] class and its associated shaders may
+ * be used to display an image in full screen.
  *
  * @author Aryaman Gupta <argupta@mpi-cbg.de>
  */
 class VideoDecodingExample : SceneryBase("VideoDecodingExample", 600, 600, wantREPL = false) {
 
     var buffer: ByteBuffer = ByteBuffer.allocateDirect(0)
+    var cnt: Int = 0
 
     override fun init () {
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
@@ -42,24 +45,26 @@ class VideoDecodingExample : SceneryBase("VideoDecodingExample", 600, 600, wantR
 
         settings.set("Renderer.HDR.Exposure", 0.05f)
 
-        val videoDecoder = VideoDecoder("/home/aryaman/Desktop/ViC_movie_600.mp4")
+        val videoDecoder = VideoDecoder("./src/test/resources/graphics/scenery/tests/examples/advanced/SampleVideo.mp4")
         logger.info("video decoder object created")
         thread {
             while (!sceneInitialized()) {
                 Thread.sleep(200)
             }
 
-            var cnt = 0
+            cnt = 1
 
             while (videoDecoder.nextFrameExists) {
-                val image = videoDecoder.decodeFrame()
-                // the decoded image is returned as a ByteArray, and can now be processed. Here, it is simply displayed in fullscreen
+                val image = videoDecoder.decodeFrame()  /* the decoded image is returned as a ByteArray, and can now be processed.
+                                                        Here, it is simply displayed in fullscreen */
 
-                if(image != null) {
+                if(image != null) { // image can be null, e.g. when the decoder encounters invalid information between frames
                     drawFrame(image, videoDecoder.videoWidth, videoDecoder.videoHeight, plane, cnt)
+                    cnt++
                 }
-                cnt++
             }
+            cnt -= 1
+            logger.info("Done decoding and displaying $cnt frames.")
         }
     }
 
@@ -76,6 +81,16 @@ class VideoDecodingExample : SceneryBase("VideoDecodingExample", 600, 600, wantR
         }
 
         plane.material.textures["diffuse"] = Texture(Vector3i(width, height, 1), 4, contents = buffer, mipmap = true)
+    }
+
+    override fun main() {
+        // add assertions, these only get called when the example is called
+        // as part of scenery's integration tests
+        assertions[AssertionCheckPoint.AfterClose]?.add {
+            assertTrue ( cnt == 2963, "All frames of the video were read and decoded" )
+        }
+
+        super.main()
     }
 
     companion object {
