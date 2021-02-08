@@ -1,7 +1,7 @@
 package graphics.scenery.tests.unit
 
 import graphics.scenery.primitives.Mesh
-import graphics.scenery.Rainbow
+import graphics.scenery.proteins.Rainbow
 import org.joml.Vector3f
 import org.junit.Test
 import kotlin.test.assertEquals
