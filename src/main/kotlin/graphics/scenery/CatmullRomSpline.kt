@@ -1,6 +1,7 @@
 package graphics.scenery
 
 import graphics.scenery.numerics.Random
+import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
 import org.joml.Vector3f
@@ -21,6 +22,8 @@ import kotlin.math.pow
 class CatmullRomSpline(private val controlPoints: List<Vector3f>, private val n: Int = 100, private val alpha: Float = 0.5f,
                        private val addRandomLastAndFirstPoint: Boolean = false): Spline {
 
+    private val logger by LazyLogger()
+
     /**
      * Calculates the parameter t; t is an intermediate product for the calculation of the spline
      */
@@ -37,36 +40,43 @@ class CatmullRomSpline(private val controlPoints: List<Vector3f>, private val n:
      */
     private fun catmullRomSpline(p0: Vector3f, p1: Vector3f, p2: Vector3f, p3: Vector3f, n: Int = 100): List<Vector3f> {
 
-        val curvePoints = ArrayList<Vector3f>(n+1)
-
-        val t0 = 0.toFloat()
-        val t1 = getT(t0, p0, p1)
-        val t2 = getT(t1, p1, p2)
-        val t3 = getT(t2, p2, p3)
-
-        var t = t1
-        while(t<t2) {
-            //The t's must not be equal, otherwise we divide by zero
-            if(t1 != t0 && t2 != t1 && t2 != t0 && t3 != t1 && t3 != t2) {
-                val a1 = p0.times((t1 - t) / (t1 - t0)) + p1.times((t - t0) / (t1 - t0))
-                val a2 = p1.times((t2 - t) / (t2 - t1)) + p2.times((t - t1) / (t2 - t1))
-                val a3 = p2.times((t3 - t) / (t3 - t2)) + p3.times((t - t2) / (t3 - t2))
-
-                val b1 = a1.times((t2 - t) / (t2 - t0)) + a2.times((t - t0) / (t2 - t0))
-                val b2 = a2.times((t3 - t) / (t3 - t1)) + a3.times((t - t1) / (t3 - t1))
-
-                val c = b1.times((t2 - t) / (t2 - t1)) + b2.times((t - t1) / (t2 - t1))
-                curvePoints.add(c)
-
-                t += ((t2 - t1) / n)
-            }
-            else {
-                throw IllegalArgumentException("The intermediate products of the calculations must not be equal!" +
-                        "Otherwise we devide by zero.")
-            }
+        return if(controlPoints.size < 4) {
+            logger.warn("The list of controlPoints provided for the Uniform BSpline is empty or has less than four points.")
+            ArrayList()
         }
+        else {
+            val curvePoints = ArrayList<Vector3f>(n + 1)
 
-        return curvePoints
+            val t0 = 0.toFloat()
+            val t1 = getT(t0, p0, p1)
+            val t2 = getT(t1, p1, p2)
+            val t3 = getT(t2, p2, p3)
+
+            var t = t1
+            while (t < t2) {
+                //The t's must not be equal, otherwise we divide by zero
+                if (t1 != t0 && t2 != t1 && t2 != t0 && t3 != t1 && t3 != t2) {
+                    val a1 = p0.times((t1 - t) / (t1 - t0)) + p1.times((t - t0) / (t1 - t0))
+                    val a2 = p1.times((t2 - t) / (t2 - t1)) + p2.times((t - t1) / (t2 - t1))
+                    val a3 = p2.times((t3 - t) / (t3 - t2)) + p3.times((t - t2) / (t3 - t2))
+
+                    val b1 = a1.times((t2 - t) / (t2 - t0)) + a2.times((t - t0) / (t2 - t0))
+                    val b2 = a2.times((t3 - t) / (t3 - t1)) + a3.times((t - t1) / (t3 - t1))
+
+                    val c = b1.times((t2 - t) / (t2 - t1)) + b2.times((t - t1) / (t2 - t1))
+                    curvePoints.add(c)
+
+                    t += ((t2 - t1) / n)
+                } else {
+                    throw IllegalArgumentException(
+                        "The intermediate products of the calculations must not be equal!" +
+                            "Otherwise we devide by zero."
+                    )
+                }
+            }
+
+            return curvePoints
+        }
     }
 
     /**

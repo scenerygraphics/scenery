@@ -23,13 +23,13 @@ class Protein(val structure: Structure): Mesh("Protein") {
                 //val id = readLine()
             try { StructureIO.getStructure(id) }
             catch (struc: IOException) {
-                proteinLogger.info("Something went wrong during the loading process of the pdb file, " +
+                proteinLogger.error("Something went wrong during the loading process of the pdb file, " +
                         "maybe a typo in the pdb entry or you chose a deprecated one?" +
                     "Here is the trace: \n" +
                 struc.printStackTrace())
             }
             catch(struc: StructureException) {
-                proteinLogger.info("Something went wrong during the loading of the pdb file."+
+                proteinLogger.error("Something went wrong during the loading of the pdb file."+
                 "Here is the trace: \n" +
                 struc.printStackTrace())
             }
@@ -50,10 +50,10 @@ class Protein(val structure: Structure): Mesh("Protein") {
                     "or the index: ${struc.index}")
             }
             catch(struc: FileNotFoundException) {
-                proteinLogger.info("The pdb file is not in the directory")
+                proteinLogger.error("The pdb file is not in the directory")
             }
             catch(struc: Exception) {
-                proteinLogger.info("Something about the pdb file is wrong. This is not an invalid path problem nor is" +
+                proteinLogger.error("Something about the pdb file is wrong. This is not an invalid path problem nor is" +
                     "it a file-not-found-problem.")
             }
 

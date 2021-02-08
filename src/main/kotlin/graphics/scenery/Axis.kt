@@ -22,7 +22,7 @@ class Axis(positions: List<Vector3f?>) {
             position.set(line.position)
         }
         else {
-            logger.info("Please provide at least four points for the axis calculation.")
+            logger.warn("Please provide at least four points for the axis calculation.")
         }
     }
 
@@ -93,7 +93,7 @@ class Axis(positions: List<Vector3f?>) {
             return axis
         }
         else {
-            logger.info("Whoops, your ca-atoms in the axis calculation become null.")
+            logger.error("Whoops, your ca-atoms in the axis calculation become null.")
             return ArrayList()
         }
     }

@@ -50,7 +50,7 @@ class UniformBSpline(protected val controlPoints: ArrayList<Vector3f>, val n: In
             throw IllegalArgumentException("The UniformBSpline got a list of the same points.")
         }
         return if(controlPoints.size < 4) {
-            logger.info("The list of controlPoints provided for the Uniform BSpline is empty or has less than four points.")
+            logger.warn("The list of controlPoints provided for the Uniform BSpline is empty or has less than four points.")
             ArrayList()
         }
         else {
