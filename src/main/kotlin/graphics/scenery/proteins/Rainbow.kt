@@ -1,5 +1,6 @@
-package graphics.scenery
+package graphics.scenery.proteins
 
+import graphics.scenery.Node
 import org.joml.Vector3f
 
 /**
