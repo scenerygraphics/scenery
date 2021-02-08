@@ -1,5 +1,7 @@
-package graphics.scenery
+package graphics.scenery.controls.behaviours
 
+import graphics.scenery.Camera
+import graphics.scenery.Scene
 import graphics.scenery.primitives.Line
 import graphics.scenery.primitives.TextBoard
 import graphics.scenery.utils.LazyLogger
