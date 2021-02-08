@@ -1,9 +1,8 @@
 package graphics.scenery
 
+import graphics.scenery.primitives.Mesh
 import graphics.scenery.utils.extensions.*
 import org.joml.Vector3f
-import java.nio.FloatBuffer
-import java.nio.IntBuffer
 import kotlin.jvm.JvmOverloads
 
 /**

@@ -1,14 +1,21 @@
-package graphics.scenery
+package graphics.scenery.primitives
 
+import graphics.scenery.*
 import org.joml.Vector3f
-import org.joml.Vector4f
 import graphics.scenery.backends.ShaderType
 import graphics.scenery.geometry.GeometryType
 import graphics.scenery.geometry.HasGeometry
+import graphics.scenery.numerics.Random
+import org.joml.Vector4f
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
 
-class LinePair @JvmOverloads constructor(var capacity: Int = 50, transparent: Boolean = false, val simple: Boolean = false) : Node("Line"),
+/**
+ * Class for creating 3D lines, derived from [Node] and using [HasGeometry]
+ *
+ * @author Ulrik Günther <hello@ulrik.is>
+ */
+class Line @JvmOverloads constructor(var capacity: Int = 50, transparent: Boolean = false, val simple: Boolean = false) : Node("Line"),
     HasGeometry {
     /** Size of one vertex (e.g. 3 in 3D) */
     override val vertexSize: Int = 3
@@ -17,11 +24,11 @@ class LinePair @JvmOverloads constructor(var capacity: Int = 50, transparent: Bo
     /** Geometry type -- Default for Line is [GeometryType.LINE] */
     override var geometryType: GeometryType = GeometryType.LINE_STRIP_ADJACENCY
     /** Vertex buffer */
-    override var vertices: FloatBuffer = BufferUtils.allocateFloat(3*capacity)
+    override var vertices: FloatBuffer = BufferUtils.allocateFloat(3 * capacity)
     /** Normal buffer */
-    override var normals: FloatBuffer = BufferUtils.allocateFloat(3*capacity)
+    override var normals: FloatBuffer = BufferUtils.allocateFloat(3 * capacity)
     /** Texcoord buffer */
-    override var texcoords: FloatBuffer = BufferUtils.allocateFloat(2*capacity)
+    override var texcoords: FloatBuffer = BufferUtils.allocateFloat(2 * capacity)
     /** Index buffer */
     override var indices: IntBuffer = IntBuffer.wrap(intArrayOf())
 
@@ -57,10 +64,6 @@ class LinePair @JvmOverloads constructor(var capacity: Int = 50, transparent: Bo
     @ShaderProperty
     var edgeWidth = 2.0f
 
-    /** Shader property for the interpolation state. */
-    @ShaderProperty
-    var interpolationState = 0.5f
-
     init {
         if(simple) {
             geometryType = GeometryType.LINE
@@ -84,7 +87,8 @@ class LinePair @JvmOverloads constructor(var capacity: Int = 50, transparent: Bo
             val newMaterial = ShaderMaterial.fromFiles(
                 "${this::class.java.simpleName}.vert",
                 "${this::class.java.simpleName}.geom",
-                "${this::class.java.simpleName}Forward.frag")
+                "${this::class.java.simpleName}Forward.frag"
+            )
 
             newMaterial.blending.opacity = 1.0f
             newMaterial.blending.setOverlayBlending()
@@ -96,8 +100,10 @@ class LinePair @JvmOverloads constructor(var capacity: Int = 50, transparent: Bo
 
             material = newMaterial
         } else {
-            val newMaterial = ShaderMaterial.fromClass(this::class.java,
-                listOf(ShaderType.VertexShader, ShaderType.GeometryShader, ShaderType.FragmentShader))
+            val newMaterial = ShaderMaterial.fromClass(
+                this::class.java,
+                listOf(ShaderType.VertexShader, ShaderType.GeometryShader, ShaderType.FragmentShader)
+            )
 
             newMaterial.diffuse = material.diffuse
             newMaterial.specular = material.specular
@@ -113,13 +119,16 @@ class LinePair @JvmOverloads constructor(var capacity: Int = 50, transparent: Bo
     }
 
     /**
-     * Adds new positions to the line, plus their bundled "partner". They are currently stored in the normals array.
-     * @param points1 Original points
-     * @param points2 Bundled points
+     * Adds points to the line.
+     * If the line's vertex buffer cannot store all o the points,
+     * a copy of it will be created that can store the additional points, plus
+     * double it's initial capacity.
+     *
+     * @param points     The vector containing the points
      */
-    fun addPointPairs(points1: Array<Vector3f>, points2: Array<Vector3f>) {
-        if(vertices.limit() + 3 * points1.size >= vertices.capacity()) {
-            val newVertices = BufferUtils.allocateFloat(vertices.capacity() + points1.size * 3 + 3 * capacity)
+    fun addPoints(vararg points: Vector3f) {
+        if(vertices.limit() + 3 * points.size >= vertices.capacity()) {
+            val newVertices = BufferUtils.allocateFloat(vertices.capacity() + points.size * 3 + 3 * capacity)
             vertices.position(0)
             vertices.limit(vertices.capacity())
             newVertices.put(vertices)
@@ -127,7 +136,7 @@ class LinePair @JvmOverloads constructor(var capacity: Int = 50, transparent: Bo
 
             vertices = newVertices
 
-            val newNormals = BufferUtils.allocateFloat(vertices.capacity() + points2.size * 3 + 3 * capacity)
+            val newNormals = BufferUtils.allocateFloat(vertices.capacity() + points.size * 3 + 3 * capacity)
             normals.position(0)
             normals.limit(normals.capacity())
             newNormals.put(normals)
@@ -135,7 +144,8 @@ class LinePair @JvmOverloads constructor(var capacity: Int = 50, transparent: Bo
 
             normals = newNormals
 
-            val newTexcoords = BufferUtils.allocateFloat(vertices.capacity() + points1.size * 2 + 2 * capacity)
+
+            val newTexcoords = BufferUtils.allocateFloat(vertices.capacity() + points.size * 2 + 2 * capacity)
             texcoords.position(0)
             texcoords.limit(texcoords.capacity())
             newTexcoords.put(texcoords)
@@ -147,27 +157,24 @@ class LinePair @JvmOverloads constructor(var capacity: Int = 50, transparent: Bo
         }
 
         vertices.position(vertices.limit())
-        vertices.limit(vertices.limit() + points1.size * 3)
-        points1.forEach { v ->
-            v.get(vertices)
-            vertices.position(vertices.position() + 3)
-        }
+        vertices.limit(vertices.limit() + points.size * 3)
+        points.forEach { v -> v.get(vertices) }
+        vertices.position(vertices.limit())
         vertices.flip()
 
         normals.position(normals.limit())
-        normals.limit(normals.limit() + points2.size * 3)
-        points2.forEach { v ->
-            v.get(normals)
-            normals.position(normals.position() + 3)
-        }
+        normals.limit(normals.limit() + points.size * 3)
+        points.forEach { v -> v.get(normals) }
+        normals.position(normals.limit())
         normals.flip()
 
         texcoords.position(texcoords.limit())
-        texcoords.limit(texcoords.limit() + points1.size * 2)
-        points1.forEach { _ ->
+        texcoords.limit(texcoords.limit() + points.size * 2)
+        points.forEach { _ ->
             texcoords.put(0.0f)
             texcoords.put(0.0f)
         }
+        texcoords.position(texcoords.limit())
         texcoords.flip()
 
         dirty = true
@@ -176,4 +183,58 @@ class LinePair @JvmOverloads constructor(var capacity: Int = 50, transparent: Bo
         boundingBox = generateBoundingBox()
     }
 
+    /**
+     * Add a point to the line.
+     *
+     * @param points     The vector containing the position of the point.
+     */
+    fun addPoint(point: Vector3f) {
+        addPoints(point)
+    }
+
+    /**
+     * Convenience function to add a list of vectors to the line.
+     *
+     * @param points A list of Vector3fs
+     */
+    fun addPoints(points: List<Vector3f>) {
+        addPoints(*points.toTypedArray())
+    }
+
+    /**
+     * Fully clears the line.
+     */
+    fun clearPoints() {
+        vertices.clear()
+        normals.clear()
+        texcoords.clear()
+
+        vertices.limit(0)
+        normals.limit(0)
+        texcoords.limit(0)
+    }
+
+    companion object {
+        /**
+         * Creates a set of lines with a specified number of points per line. The distance between points
+         * can be set by [step] and the overall scale can be defined by [scale].
+         * Note, the lines are generated with an additional random offset between them (to make the data
+         * a bit less uniform).
+         * @param numLines Number of lines to be generated
+         * @param numPositions Number of positions to be generated per line
+         * @param step The distance between two positions (i.e. to make a line longer)
+         * @param scale The overall scale of the whole line set
+         * @return An array of Line objects
+         */
+        @JvmStatic fun createLines(numLines: Int, numPositions: Int, step: Float, scale: Float): List<Line> {
+            return (0 until numLines).map { i ->
+                val line = Line()
+                val randOffset = Random.randomFromRange(0.0f, 2.0f) - (numLines / 2).toFloat()
+                for (j in -numPositions / 2 until numPositions / 2) {
+                    line.addPoint(Vector3f(scale * (randOffset + i.toFloat()), scale * step * j.toFloat(), -100.0f))
+                }
+                line
+            }
+        }
+    }
 }

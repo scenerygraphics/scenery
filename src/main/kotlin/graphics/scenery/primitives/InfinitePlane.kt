@@ -1,5 +1,6 @@
-package graphics.scenery
+package graphics.scenery.primitives
 
+import graphics.scenery.*
 import graphics.scenery.backends.Shaders
 
 /**
@@ -25,9 +26,9 @@ class InfinitePlane : Mesh("InfinitePlane"), DisableFrustumCulling, RenderingOrd
     override var renderingOrder = Int.MAX_VALUE
 
     init {
-        vertices = BufferUtils.allocateFloatAndPut(FloatArray(6*3))
-        normals = BufferUtils.allocateFloatAndPut(FloatArray(6*3))
-        texcoords = BufferUtils.allocateFloatAndPut(FloatArray(6*2))
+        vertices = BufferUtils.allocateFloatAndPut(FloatArray(6 * 3))
+        normals = BufferUtils.allocateFloatAndPut(FloatArray(6 * 3))
+        texcoords = BufferUtils.allocateFloatAndPut(FloatArray(6 * 2))
 
         material = ShaderMaterial(Shaders.ShadersFromFiles(arrayOf("InfiniteGrid.vert", "InfiniteGrid.frag")))
         material.blending.transparent = true
