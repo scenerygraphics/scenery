@@ -1,6 +1,5 @@
 package graphics.scenery
 
-import graphics.scenery.primitives.Mesh
 import org.joml.Vector2f
 import org.joml.Vector3f
 import java.util.*

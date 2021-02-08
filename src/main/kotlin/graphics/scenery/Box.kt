@@ -1,6 +1,5 @@
 package graphics.scenery
 
-import graphics.scenery.primitives.Mesh
 import graphics.scenery.utils.extensions.*
 import org.joml.Vector3f
 import kotlin.jvm.JvmOverloads
