@@ -101,6 +101,13 @@ class VolumeManager(
     @ShaderProperty
     var shaderProperties = hashMapOf<String, Any>()
 
+    /** TODO document slice property **/
+    var slice: Float = 1f
+        set(value) {
+            field = value
+            shaderProperties["slice"] = value
+        }
+
     /** Set of [VolumeBlocks]. */
     protected var outOfCoreVolumes = ArrayList<VolumeBlocks>()
     var nodes = CopyOnWriteArrayList<Volume>()
@@ -161,7 +168,6 @@ class VolumeManager(
         needAtLeastNumVolumes(renderStacksStates.size)
         logger.debug("renderStacks.size=${renderStacksStates.size}, progs=${prog.size}")
 
-        // TODO: this might result in NULL program, is this intended?
         progvol = prog.lastOrNull()
 
         if(progvol != null) {
@@ -194,6 +200,9 @@ class VolumeManager(
         progvol?.use(context)
         progvol?.setUniforms(context)
 //        progvol?.bindSamplers(context)
+
+        // shaderProperties get cleared in recreateMaterial
+        shaderProperties["slice"] = slice
 
         getScene()?.activeObserver?.let { cam ->
             progvol?.setViewportWidth(cam.width)

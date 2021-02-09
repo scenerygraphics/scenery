@@ -11,10 +11,15 @@ void intersectBoundingBox( vec4 wfront, vec4 wback, out float tnear, out float t
 uniform sampler3D volume;
 uniform sampler2D transferFunction;
 uniform sampler2D colorMap;
+uniform float slice;
 
 vec4 sampleVolume( vec4 wpos )
 {
     vec3 pos = (im * wpos).xyz + 0.5;
+
+    if (pos.y < sourcemax.y * slice){
+        return vec4(0);
+    }
 
     float rawsample = convert(texture( volume, pos / textureSize( volume, 0 ) ).r);
     float tf = texture(transferFunction, vec2(rawsample + 0.001f, 0.5f)).r;
