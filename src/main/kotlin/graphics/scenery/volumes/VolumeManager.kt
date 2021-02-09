@@ -15,6 +15,7 @@ import net.imglib2.type.volatiles.VolatileARGBType
 import net.imglib2.type.volatiles.VolatileUnsignedByteType
 import net.imglib2.type.volatiles.VolatileUnsignedShortType
 import org.joml.Matrix4f
+import org.joml.Vector4f
 import tpietzsch.backend.Texture
 import tpietzsch.backend.Texture3D
 import tpietzsch.cache.*
@@ -101,11 +102,11 @@ class VolumeManager(
     @ShaderProperty
     var shaderProperties = hashMapOf<String, Any>()
 
-    /** TODO document slice property **/
-    var slice: Float = 1f
+    /** Plane for slicing the volume**/
+    var slicingPlane = Vector4f(1f,0f,0f,1f)
         set(value) {
             field = value
-            shaderProperties["slice"] = value
+            shaderProperties["slicingPlane"] = value
         }
 
     /** Set of [VolumeBlocks]. */
@@ -195,14 +196,14 @@ class VolumeManager(
     @Synchronized private fun updateProgram(context: SceneryContext) {
         logger.debug("Updating effective shader program to $progvol")
         recreateMaterial(context)
+        // shaderProperties get cleared in recreateMaterial. Calling the setter again to write it to shaderProperties again
+        slicingPlane = slicingPlane
 
         progvol?.setTextureCache(textureCache)
         progvol?.use(context)
         progvol?.setUniforms(context)
 //        progvol?.bindSamplers(context)
 
-        // shaderProperties get cleared in recreateMaterial
-        shaderProperties["slice"] = slice
 
         getScene()?.activeObserver?.let { cam ->
             progvol?.setViewportWidth(cam.width)
