@@ -11,13 +11,15 @@ void intersectBoundingBox( vec4 wfront, vec4 wback, out float tnear, out float t
 uniform sampler3D volume;
 uniform sampler2D transferFunction;
 uniform sampler2D colorMap;
-uniform float slice;
+uniform vec4 slicingPlane;
 
 vec4 sampleVolume( vec4 wpos )
 {
     vec3 pos = (im * wpos).xyz + 0.5;
 
-    if (pos.y < sourcemax.y * slice){
+    vec3 posN = pos / sourcemax;
+    float dv = slicingPlane.x * posN.x + slicingPlane.y * posN.y + slicingPlane.z * posN.z;
+    if (dv > slicingPlane.w){
         return vec4(0);
     }
 
