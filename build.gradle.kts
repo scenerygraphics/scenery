@@ -6,19 +6,21 @@ import sciJava.testSciJava
 import java.net.URL
 
 plugins {
-    val ktVersion = "1.4.20"
+    val ktVersion = "1.4.30"
+    val dokkaVersion = "1.4.20"
     java
     kotlin("jvm") version ktVersion
+    kotlin("plugin.serialization") version ktVersion
     scenery.publish
     scenery.sign
     id("com.github.elect86.sciJava") version "0.0.4"
-    id("org.jetbrains.dokka") version ktVersion
+    id("org.jetbrains.dokka") version dokkaVersion
     jacoco
 }
 
 //sciJava.debug = true
 
-val ktVersion = "1.4.10"
+val ktVersion = "1.4.30"
 
 repositories {
     mavenCentral()
@@ -27,7 +29,7 @@ repositories {
     maven("https://maven.scijava.org/content/groups/public")
 }
 
-"kotlin"("1.4.21")
+"kotlin"(ktVersion)
 "ui-behaviour"("2.0.3")
 "bigvolumeviewer"("0.1.8")
 "ffmpeg"("4.2.1-1.5.2")
@@ -50,6 +52,8 @@ dependencies {
     implementation(kotlin("stdlib-jdk8"))
     implementation(kotlin("reflect"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.4.0-M1")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.1.0-RC")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-protobuf:1.1.0-RC")
 
     listOf("windows-amd64", "linux-i586", "linux-amd64", "macosx-universal").forEach {
         sciJava("org.jogamp.gluegen:gluegen-rt", "natives-$it") // this is crap, but will be polished eventually
