@@ -18,6 +18,7 @@ import java.nio.ByteOrder
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
+@kotlinx.serialization.Serializable
 open class Texture @JvmOverloads constructor(
     /** Dimensions of the texture in pixels */
     var dimensions: Vector3i,

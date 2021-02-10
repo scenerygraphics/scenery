@@ -1,5 +1,8 @@
 package graphics.scenery
 
+import com.esotericsoftware.kryo.Kryo
+import com.esotericsoftware.kryo.io.Input
+import com.esotericsoftware.kryo.io.Output
 import org.joml.Vector3f
 import graphics.scenery.utils.MaybeIntersects
 import graphics.scenery.utils.extensions.plus
@@ -8,10 +11,15 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.Contextual
+import kotlinx.serialization.Serializable
+import java.io.FileInputStream
+import java.io.FileOutputStream
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.collections.ArrayList
+import kotlin.system.measureTimeMillis
 
 /**
  * Scene class. A Scene is a special kind of [Node] that can only exist once per graph,
@@ -19,19 +27,20 @@ import kotlin.collections.ArrayList
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
+@Serializable
 open class Scene : Node("RootNode") {
 
     /** Temporary storage of the active observer ([Camera]) of the Scene. */
     var activeObserver: Camera? = null
 
-    internal var sceneSize: AtomicLong = AtomicLong(0L)
+    @Contextual internal var sceneSize: AtomicLong = AtomicLong(0L)
 
     /** Callbacks to be called when a child is added to the scene */
-    var onChildrenAdded = ConcurrentHashMap<String, (Node, Node) -> Unit>()
+    @Contextual var onChildrenAdded = ConcurrentHashMap<String, (Node, Node) -> Unit>()
     /** Callbacks to be called when a child is removed from the scene */
-    var onChildrenRemoved = ConcurrentHashMap<String, (Node, Node) -> Unit>()
+    @Contextual var onChildrenRemoved = ConcurrentHashMap<String, (Node, Node) -> Unit>()
     /** Callbacks to be called when a child is removed from the scene */
-    var onNodePropertiesChanged = ConcurrentHashMap<String, (Node) -> Unit>()
+    @Contextual var onNodePropertiesChanged = ConcurrentHashMap<String, (Node) -> Unit>()
 
     /**
      * Adds a [Node] to the Scene, at the position given by [parent]
@@ -234,5 +243,34 @@ open class Scene : Node("RootNode") {
         }
 
         return RaycastResult(matches, position, direction)
+    }
+
+    fun export(filename: String) {
+        var size = 0L
+        val duration = measureTimeMillis {
+            val kryo = Kryo()
+            kryo.isRegistrationRequired = false
+            kryo.references = true
+
+            val output = Output(FileOutputStream(filename))
+            kryo.writeObject(output, this)
+            size = output.total()
+            output.close()
+
+        }
+
+        logger.info("Written scene to $filename (${size/1024.0f/1024.0f} MiB) in ${duration}ms")
+    }
+
+    companion object {
+        @JvmStatic
+        fun import(filename: String): Scene {
+            val kryo = Kryo()
+            kryo.isRegistrationRequired = false
+            kryo.references = true
+
+            val input = Input(FileInputStream(filename))
+            return kryo.readObject(input, Scene::class.java)
+        }
     }
 }
