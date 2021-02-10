@@ -6,6 +6,7 @@ import graphics.scenery.utils.MaybeIntersects
 import graphics.scenery.utils.extensions.*
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
+import kotlinx.serialization.Contextual
 import net.imglib2.Localizable
 import net.imglib2.RealLocalizable
 import net.imglib2.RealPositionable
@@ -39,15 +40,16 @@ import kotlin.reflect.jvm.isAccessible
  *  for model, view, projection, etc.
  * @property[name] The name of the [Node]
  */
+@kotlinx.serialization.Serializable
 open class Node(open var name: String = "Node") : Renderable, Serializable, RealLocalizable, RealPositionable {
     protected val logger by LazyLogger()
 
     /** Unique ID of the Node */
-    var uuid: UUID = UUID.randomUUID()
+    @Contextual var uuid: UUID = UUID.randomUUID()
         private set
     /** Hash map used for storing metadata for the Node. [Renderer] implementations use
      * it to e.g. store renderer-specific state. */
-    @Transient var metadata: HashMap<String, Any> = HashMap()
+    @kotlinx.serialization.Transient var metadata: HashMap<String, @Contextual Any> = HashMap()
 
     /** Material of the Node */
     final override var material: Material = Material.DefaultMaterial()
@@ -64,9 +66,9 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
             field = v
         }
     /** instanced properties */
-    var instancedProperties = LinkedHashMap<String, () -> Any>()
+    @Contextual var instancedProperties = LinkedHashMap<String, () -> @kotlinx.serialization.Contextual Any>()
     /** The Node's lock. */
-    override var lock: ReentrantLock = ReentrantLock()
+    @kotlinx.serialization.Transient override var lock: ReentrantLock = ReentrantLock()
 
     /** bounding box **/
     var boundingBox: OrientedBoundingBox? = null
@@ -124,9 +126,9 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
     override var rotation: Quaternionf by Delegates.observable(Quaternionf(0.0f, 0.0f, 0.0f, 1.0f)) { property, old, new -> propertyChanged(property, old, new) }
 
     /** Children of the Node. */
-    @Transient var children: CopyOnWriteArrayList<Node>
+    @Contextual var children: CopyOnWriteArrayList<Node>
     /** Other nodes that have linked transforms. */
-    @Transient var linkedNodes: CopyOnWriteArrayList<Node>
+    @Contextual var linkedNodes: CopyOnWriteArrayList<Node>
     /** Parent node of this node. */
     var parent: Node? = null
 
@@ -147,7 +149,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
 
     var discoveryBarrier = false
 
-    val instances = CopyOnWriteArrayList<Node>()
+    @Contextual val instances = CopyOnWriteArrayList<Node>()
 
     @Suppress("UNUSED_PARAMETER")
     protected fun <R> propertyChanged(property: KProperty<*>, old: R, new: R, custom: String = "") {
@@ -357,7 +359,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
         }
     }
 
-    @Transient private val shaderPropertyFieldCache = HashMap<String, KProperty1<Node, *>>()
+    @kotlinx.serialization.Transient private val shaderPropertyFieldCache = HashMap<String, KProperty1<Node, *>>()
     /**
      * Returns the [ShaderProperty] given by [name], if it exists and is declared by
      * this class or a subclass inheriting from [Node]. Returns null if the [name] can

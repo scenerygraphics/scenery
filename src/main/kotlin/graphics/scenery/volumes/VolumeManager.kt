@@ -396,6 +396,7 @@ class VolumeManager(
             }
 
             ProcessFillTasks.parallel(textureCache, pboChain, context, forkJoinPool, fillTasks)
+//            ProcessFillTasks.sequential(textureCache, pboChain, context, fillTasks)
         }
 
         // TODO: is repaint necessary?
@@ -711,6 +712,6 @@ class VolumeManager(
     /** Companion object for Volume */
     companion object {
         /** Static [ForkJoinPool] for fill task submission. */
-        protected val forkJoinPool: ForkJoinPool = ForkJoinPool(max(1, Runtime.getRuntime().availableProcessors()/2))
+        protected val forkJoinPool: ForkJoinPool = ForkJoinPool(max(1, Runtime.getRuntime().availableProcessors()))
     }
 }
