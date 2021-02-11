@@ -5,8 +5,6 @@ import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
 
-import org.junit.Test
-
 /**
  * Example of a curve with different baseShapes.
  *
@@ -115,8 +113,10 @@ class CurveDifferentBaseShapes: SceneryBase("CurveDifferentBaseShapes", windowWi
         setupCameraModeSwitching()
     }
 
-    @Test
-    override fun main() {
-        super.main()
+    companion object {
+        @JvmStatic
+        fun main(args: Array<String>) {
+            CurveDifferentBaseShapes().main()
+        }
     }
 }

@@ -7,7 +7,6 @@ import graphics.scenery.numerics.Random
 import graphics.scenery.tests.examples.basic.TexturedCubeExample
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.Image
-import org.junit.Test
 import java.io.File
 import kotlin.concurrent.thread
 import kotlin.test.assertTrue
@@ -64,7 +63,7 @@ class VideoRecordingExample: SceneryBase("VideoRecordingExample") {
         }
     }
 
-    @Test override fun main() {
+    override fun main() {
         // add assertions, these only get called when the example is called
         // as part of scenery's integration tests
         assertions[AssertionCheckPoint.AfterClose]?.add {
@@ -79,5 +78,12 @@ class VideoRecordingExample: SceneryBase("VideoRecordingExample") {
         }
 
         super.main()
+    }
+
+    companion object {
+        @JvmStatic
+        fun main(args: Array<String>) {
+            VideoRecordingExample().main()
+        }
     }
 }

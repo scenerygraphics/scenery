@@ -98,7 +98,7 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
             volumeManager.renderingMethod = value
         }
 
-    val volumeManager: VolumeManager
+    var volumeManager: VolumeManager
 
     // TODO IS THIS REQUIRED??
     var cacheControls = CacheControl.CacheControls()
@@ -167,8 +167,21 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
             it.color = ARGBType(Int.MAX_VALUE)
         }
 
-        volumeManager = hub.get<VolumeManager>() ?: hub.add(VolumeManager(hub))
+        val vm = hub.get<VolumeManager>()
+        val volumes = ArrayList<Volume>(10)
+
+        if(vm != null) {
+            volumes.addAll(vm.nodes)
+            hub.remove(vm)
+        }
+
+        volumeManager = hub.add(VolumeManager(hub))
         volumeManager.add(this)
+        volumes.forEach {
+            volumeManager.add(it)
+            it.delegate = volumeManager
+            it.volumeManager = volumeManager
+        }
         delegate = volumeManager
     }
 

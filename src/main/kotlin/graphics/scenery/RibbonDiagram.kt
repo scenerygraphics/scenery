@@ -63,6 +63,7 @@ class RibbonDiagram(val protein: Protein, private val displaySS: Boolean = false
      *[sectionVerticesCount] Specifies how fine grained the geometry along the backbone
      * will be. Please note that the calculation could take much longer if this parameter is too
      * big, especially for large proteins.
+     * [chainList} filtered list of the chains to be used
      */
     private val structure = protein.structure
     private val chains = structure.chains
@@ -73,6 +74,8 @@ class RibbonDiagram(val protein: Protein, private val displaySS: Boolean = false
     private val chainList =  ArrayList<List<Group>>(groups.size)
     private val sectionVerticesCount = 10
     private val secStruc = dssp()
+    //calculate the centroid of the protein
+    private val centroid = Axis.getCentroid(groups.flatMap { it.atoms }.filter{it.name == "CA"}.map{it.getVector()})
 
     /**
      * Returns the final Ribbon Diagram
@@ -89,6 +92,7 @@ class RibbonDiagram(val protein: Protein, private val displaySS: Boolean = false
                 chainList.add(aminoList)
             }
         }
+
         chainList.forEach { aminoList ->
             val guidePointList = calculateGuidePoints(aminoList, secStruc)
             val spline = ribbonSpline(guidePointList)
@@ -109,7 +113,7 @@ class RibbonDiagram(val protein: Protein, private val displaySS: Boolean = false
 
         val subParent = Mesh("SubProtein")
 
-        val splinePoints = spline.splinePoints()
+        val splinePoints = spline.splinePoints().map{ it.sub(centroid) }
 
         val rectangle = ArrayList<Vector3f>(4)
         rectangle.add(Vector3f(0.9f, 0f, 0f))

@@ -8,9 +8,7 @@ import graphics.scenery.controls.TrackedStereoGlasses
 import graphics.scenery.net.NodePublisher
 import graphics.scenery.net.NodeSubscriber
 import graphics.scenery.volumes.Volume
-import org.junit.Test
 import org.scijava.ui.behaviour.ClickBehaviour
-import java.nio.file.Path
 import java.nio.file.Paths
 import kotlin.concurrent.thread
 
@@ -117,7 +115,10 @@ class ClusterExample: SceneryBase("Clustered Volume Rendering example") {
         inputHandler.addKeyBinding("cycle_objects", "N")
     }
 
-    @Test override fun main() {
-        super.main()
+    companion object {
+        @JvmStatic
+        fun main(args: Array<String>) {
+            ClusterExample().main()
+        }
     }
 }

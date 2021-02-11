@@ -8,6 +8,7 @@ import org.scijava.`object`.ObjectService
 import org.scijava.script.ScriptREPL
 import org.scijava.ui.swing.script.InterpreterWindow
 import java.util.*
+import javax.swing.SwingUtilities
 
 /**
  * Constructs a read-eval-print loop (REPL) to interactive manipulate scenery's
@@ -31,10 +32,12 @@ class REPL @JvmOverloads constructor(override var hub : Hub?, scijavaContext: Co
     protected var startupScript = "startup.py"
     /** The [startupScript] will be searched for in the resources of this class. */
     protected var startupScriptClass: Class<*> = REPL::class.java
+    /** Whether we are running headless or not */
+    protected val headless = (System.getProperty("scenery.Headless", "false")?.toBoolean() ?: false) || (System.getProperty("java.awt.headless", "false")?.toBoolean() ?: false)
+
 
     init {
         hub?.add(this)
-        val headless = (System.getProperty("scenery.Headless", "false")?.toBoolean() ?: false) || (System.getProperty("java.awt.headless", "false")?.toBoolean() ?: false)
 
         context = scijavaContext ?: Context(ObjectService::class.java, LUTService::class.java)
 
@@ -103,5 +106,17 @@ class REPL @JvmOverloads constructor(override var hub : Hub?, scijavaContext: Co
      */
     fun eval(code: String): Any? {
         return repl?.interpreter?.eval(code)
+    }
+
+    /**
+     * Closes the REPL instance.
+     */
+    fun close() {
+        if(!headless) {
+            SwingUtilities.invokeAndWait {
+                interpreterWindow?.isVisible = false
+                interpreterWindow?.dispose()
+            }
+        }
     }
 }

@@ -33,8 +33,10 @@ enum class TrackerRole {
  * @property[name] A name for the device.
  * @property[pose] The current pose of the device.
  * @property[timestamp] The latest timestamp with respect to the pose.
+ * @property[velocity] The (optional) velocity of the device.
+ * @property[angularVelocity] The (optional) angular velocity of the device.
  */
-class TrackedDevice(val type: TrackedDeviceType, var name: String, var pose: Matrix4f, var timestamp: Long) {
+class TrackedDevice(val type: TrackedDeviceType, var name: String, var pose: Matrix4f, var timestamp: Long, var velocity: Vector3f? = null, var angularVelocity: Vector3f? = null) {
     var metadata: Any? = null
     var orientation = Quaternionf()
         get(): Quaternionf {

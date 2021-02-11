@@ -54,7 +54,7 @@ class NodeSubscriber(override var hub: Hub?, val address: String = "udp://localh
         kryo.register(FloatArray::class.java)
         kryo.register(GeometryType::class.java)
 
-        kryo.instantiatorStrategy = Kryo.DefaultInstantiatorStrategy(StdInstantiatorStrategy())
+        kryo.instantiatorStrategy = StdInstantiatorStrategy()
     }
 
     fun process() {
@@ -90,12 +90,21 @@ class NodeSubscriber(override var hub: Hub?, val address: String = "udp://localh
                             node.lightRadius = o.lightRadius
                         }
 
+                        if(o is BoundingGrid && node is BoundingGrid) {
+                            node.gridColor = o.gridColor
+                            node.lineWidth = o.lineWidth
+                            node.numLines = o.numLines
+                            node.ticksOnly = o.ticksOnly
+                        }
+
                         input.close()
                         bin.close()
                     }
                 }
             } catch(e: StreamCorruptedException) {
                 logger.warn("Corrupted stream")
+            } catch(e: NullPointerException) {
+                logger.warn("NPE while receiving payload: $e")
             }
 
             hub?.get<Statistics>(SceneryElement.Statistics)?.add("Deserialise", duration.toFloat())

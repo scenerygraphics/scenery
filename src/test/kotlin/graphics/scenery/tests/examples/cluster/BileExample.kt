@@ -7,7 +7,6 @@ import graphics.scenery.controls.TrackedStereoGlasses
 import graphics.scenery.net.NodePublisher
 import graphics.scenery.net.NodeSubscriber
 import graphics.scenery.utils.extensions.times
-import org.junit.Test
 
 /**
  * <Description>
@@ -83,7 +82,10 @@ class BileExample: SceneryBase("Bile Canaliculi example") {
         }
     }
 
-    @Test override fun main() {
-        super.main()
+    companion object {
+        @JvmStatic
+        fun main(args: Array<String>) {
+            BileExample().main()
+        }
     }
 }

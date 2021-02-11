@@ -5,7 +5,6 @@ import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.Image
-import org.junit.Test
 import kotlin.concurrent.thread
 
 /**
@@ -49,7 +48,11 @@ class TexturedCubeExample : SceneryBase("TexturedCubeExample") {
         }
     }
 
-    @Test override fun main() {
-        super.main()
+    companion object {
+        @JvmStatic
+        fun main(args: Array<String>) {
+            TexturedCubeExample().main()
+        }
     }
 }
+

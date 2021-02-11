@@ -64,7 +64,7 @@ class Axis(positions: List<Vector3f?>) {
         /**
          * Returns the centroid of a given list of points.
          */
-        private fun getCentroid(list: List<Vector3f>): Vector3f {
+         fun getCentroid(list: List<Vector3f>): Vector3f {
             return Vector3f(list.fold(0f) { acc, next -> acc + next.x() } / list.size,
                     list.fold(0f) { acc, next -> acc + next.y() } / list.size,
                     list.fold(0f) { acc, next -> acc + next.z() } / list.size)

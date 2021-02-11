@@ -44,6 +44,9 @@ class NvidiaGPUStats: GPUStats {
     val gpuUsages = IntArray(NVAPI_MAX_USAGES_PER_GPU, { 0 })
     val memoryInfo = IntArray(8, { 0 })
 
+    private var failedTimesUsage = 0
+    private var failedTimesMemory = 0
+
     init {
         NVAPI_Initialize = Function.getFunction(Pointer(NVAPI.instance.nvapi_QueryInterface(nvapi_initialize_pointer)))
         NVAPI_EnumPhysicalGPUs = Function.getFunction(Pointer(NVAPI.instance.nvapi_QueryInterface(nvapi_enum_physical_gpus_pointer)))
@@ -61,16 +64,16 @@ class NvidiaGPUStats: GPUStats {
 
         NVAPI_EnumPhysicalGPUs.invokeInt(arrayOf(gpuHandles, gpuCount))
 
-        utilisations.put("GPU", 0f)
-        utilisations.put("Framebuffer", 0f)
-        utilisations.put("Video Engine", 0f)
-        utilisations.put("Bus", 0f)
+        utilisations["GPU"] = 0f
+        utilisations["Framebuffer"] = 0f
+        utilisations["Video Engine"] = 0f
+        utilisations["Bus"] = 0f
 
-        utilisations.put("TotalVideoMemory", 0f)
-        utilisations.put("AvailableVideoMemory", 0f)
-        utilisations.put("SystemVideoMemory", 0f)
-        utilisations.put("SharedSystemMemory", 0f)
-        utilisations.put("AvailableDedicatedVideoMemory", 0f)
+        utilisations["TotalVideoMemory"] = 0f
+        utilisations["AvailableVideoMemory"] = 0f
+        utilisations["SystemVideoMemory"] = 0f
+        utilisations["SharedSystemMemory"] = 0f
+        utilisations["AvailableDedicatedVideoMemory"] = 0f
     }
 
     private fun makeStructVersion(sizeOfStruct: Int, version: Int): Int {
@@ -78,27 +81,35 @@ class NvidiaGPUStats: GPUStats {
     }
 
     override fun update(gpuIndex: Int) {
-        var result = NVAPI_GPUGetUsages.invokeInt(arrayOf(gpuHandles[gpuIndex], gpuUsages))
+        if(failedTimesUsage <= 3) {
+            val result = NVAPI_GPUGetUsages.invokeInt(arrayOf(gpuHandles[gpuIndex], gpuUsages))
 
-        if(result == 0) {
-            utilisations.put("GPU", gpuUsages[3].toFloat()/100.0f)
-            utilisations.put("Framebuffer", gpuUsages[4].toFloat()/100.0f)
-            utilisations.put("Video Engine", gpuUsages[5].toFloat()/100.0f)
-            utilisations.put("Bus", gpuUsages[6].toFloat()/100.0f)
-        } else {
-            logger.error("Failed to get GPU usage for $gpuIndex ($result)")
+            if (result == 0) {
+                utilisations["GPU"] = gpuUsages[3].toFloat() / 100.0f
+                utilisations["Framebuffer"] = gpuUsages[4].toFloat() / 100.0f
+                utilisations["Video Engine"] = gpuUsages[5].toFloat() / 100.0f
+                utilisations["Bus"] = gpuUsages[6].toFloat() / 100.0f
+                failedTimesUsage = 0
+            } else {
+                failedTimesUsage++
+                logger.warn("Failed to get GPU usage for $gpuIndex ($result)")
+            }
         }
 
-        result = NVAPI_GetMemoryInfo.invokeInt(arrayOf(gpuHandles[gpuIndex], memoryInfo))
+        if(failedTimesMemory <= 3) {
+            val result = NVAPI_GetMemoryInfo.invokeInt(arrayOf(gpuHandles[gpuIndex], memoryInfo))
 
-        if(result == 0) {
-            utilisations.put("TotalVideoMemory", memoryInfo[1].toFloat()/1024.0f)
-            utilisations.put("AvailableVideoMemory", memoryInfo[2].toFloat()/1024.0f)
-            utilisations.put("SystemVideoMemory", memoryInfo[3].toFloat()/1024.0f)
-            utilisations.put("SharedSystemMemory", memoryInfo[4].toFloat()/1024.0f)
-            utilisations.put("AvailableDedicatedVideoMemory", memoryInfo[5].toFloat()/1024.0f)
-        } else {
-            logger.error("Failed to get GPU memory usage for $gpuIndex ($result)")
+            if (result == 0) {
+                utilisations["TotalVideoMemory"] = memoryInfo[1].toFloat() / 1024.0f
+                utilisations["AvailableVideoMemory"] = memoryInfo[2].toFloat() / 1024.0f
+                utilisations["SystemVideoMemory"] = memoryInfo[3].toFloat() / 1024.0f
+                utilisations["SharedSystemMemory"] = memoryInfo[4].toFloat() / 1024.0f
+                utilisations["AvailableDedicatedVideoMemory"] = memoryInfo[5].toFloat() / 1024.0f
+                failedTimesMemory = 0
+            } else {
+                failedTimesMemory++
+                logger.warn("Failed to get GPU memory usage for $gpuIndex ($result)")
+            }
         }
     }
 

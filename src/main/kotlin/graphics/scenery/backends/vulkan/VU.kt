@@ -27,7 +27,7 @@ import java.nio.LongBuffer
  * @returns The long value as hex string.
  */
 fun Long.toHexString(): String {
-    return String.format("0x%X", this)
+    return String.format("0x%X", this).toLowerCase()
 }
 
 /**
@@ -36,7 +36,7 @@ fun Long.toHexString(): String {
  * @returns The BigInteger value as hex string.
  */
 fun BigInteger.toHexString(): String {
-    return "0x${this.toString(16)}"
+    return "0x${this.toString(16)}".toLowerCase()
 }
 
 /**
