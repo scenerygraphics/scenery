@@ -3,14 +3,14 @@ cache:
     - maven.repository/
     - models/
     - pdb-store/
- 
+
 variables:
   MAVEN_OPTS: "-Dmaven.repo.local=maven.repository -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=WARN -Xmx4g"
   JAVA_HOME: "/usr/lib/jvm/java-8-openjdk-amd64"
   PDB_CACHE_DIR: "./pdb-store/cache"
   PDB_DIR: "./pdb-store"
   MODEL_DIR: "./models"
- 
+
 # simple unit tests without requiring GPUs
 unit-tests-no-gpu:
   image: ubuntu:bionic

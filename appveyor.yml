@@ -20,8 +20,8 @@ build_script:
   - mvn clean package -B -Dmaven.test.skip=true
 test_script:
   - mvn -B verify
-on_success: 
-  - cmd: | 
+on_success:
+  - cmd: |
       mvn -B jacoco:report
       curl -s https://codecov.io/bash > codecov.sh & exit 0
       bash "./codecov.sh" -c -F unittests -f target/site/jacoco/jacoco.xml & exit 0

@@ -68,6 +68,7 @@ open class Mesh(override var name: String = "Mesh") : Node(name), HasGeometry {
             "obj" -> readFromOBJ(filename, useMaterial)
             "stl" -> readFromSTL(filename)
             else -> {
+                // read with assimp
                 throw UnsupportedOperationException("Unknown file format .$ext for file $filename.")
             }
         }

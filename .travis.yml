@@ -31,17 +31,17 @@ before_install:
 
 install: true
 
-script: 
+script:
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then echo $DISPLAY; fi
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then mvn -B clean package -Djava.awt.headless=false; fi
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then mvn -B clean package; fi
 
 # deploy on success, but only if we are on master
 after_success:
-    - test $TRAVIS_PULL_REQUEST == "false" && test $TRAVIS_BRANCH == "master" && mvn -B deploy --settings settings.xml
-    - mvn -B jacoco:report; fi
-    - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then export LATEST_VERSION="$(curl -Ls https://api.bintray.com/packages/codacy/Binaries/codacy-coverage-reporter/versions/_latest | jq -r .name)"; fi
-    - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then curl -Ls -o codacy-coverage-reporter "https://dl.bintray.com/codacy/Binaries/${LATEST_VERSION}/codacy-coverage-reporter-linux"; fi
-    - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then chmod +x codacy-coverage-reporter; fi
-    - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then ./codacy-coverage-reporter report -l Kotlin -r target/site/jacoco/jacoco.xml; fi
-    - bash <(curl -s https://codecov.io/bash) -c -F unittests
+  - test $TRAVIS_PULL_REQUEST == "false" && test $TRAVIS_BRANCH == "master" && mvn -B deploy --settings settings.xml
+  - mvn -B jacoco:report; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then export LATEST_VERSION="$(curl -Ls https://api.bintray.com/packages/codacy/Binaries/codacy-coverage-reporter/versions/_latest | jq -r .name)"; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then curl -Ls -o codacy-coverage-reporter "https://dl.bintray.com/codacy/Binaries/${LATEST_VERSION}/codacy-coverage-reporter-linux"; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then chmod +x codacy-coverage-reporter; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then ./codacy-coverage-reporter report -l Kotlin -r target/site/jacoco/jacoco.xml; fi
+  - bash <(curl -s https://codecov.io/bash) -c -F unittests
