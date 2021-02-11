@@ -17,10 +17,19 @@ uniform sampler2D colorMap;
 uniform vec3 blockScales[ NUM_BLOCK_SCALES ];
 uniform vec3 lutSize;
 uniform vec3 lutOffset;
+uniform vec4 slicingPlane;
 
 vec4 sampleVolume( vec4 wpos, sampler3D volumeCache, vec3 cacheSize, vec3 blockSize, vec3 paddedBlockSize, vec3 padOffset )
 {
     vec3 pos = (im * wpos).xyz + 0.5;
+
+    // normalize position and compare to slicing plane
+    vec3 posN = pos / sourcemax;
+    float dv = slicingPlane.x * posN.x + slicingPlane.y * posN.y + slicingPlane.z * posN.z;
+    if (dv > slicingPlane.w){
+        return vec4(0);
+    }
+
     vec3 q = floor( pos / blockSize ) - lutOffset + 0.5;
 
     uvec4 lutv = texture( lutSampler, q / lutSize );

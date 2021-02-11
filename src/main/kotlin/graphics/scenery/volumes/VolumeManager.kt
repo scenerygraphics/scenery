@@ -102,7 +102,7 @@ class VolumeManager(
     @ShaderProperty
     var shaderProperties = hashMapOf<String, Any>()
 
-    /** Plane for slicing the volume**/
+    /** Plane for slicing the volumes**/
     var slicingPlane = Vector4f(1f,0f,0f,1f)
         set(value) {
             field = value

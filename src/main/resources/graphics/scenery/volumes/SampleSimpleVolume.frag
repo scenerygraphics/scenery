@@ -17,6 +17,7 @@ vec4 sampleVolume( vec4 wpos )
 {
     vec3 pos = (im * wpos).xyz + 0.5;
 
+    // normalize position and compare to slicing plane
     vec3 posN = pos / sourcemax;
     float dv = slicingPlane.x * posN.x + slicingPlane.y * posN.y + slicingPlane.z * posN.z;
     if (dv > slicingPlane.w){
