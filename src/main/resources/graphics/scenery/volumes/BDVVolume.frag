@@ -137,6 +137,12 @@ void main()
 		{
 			vec4 wpos = mix( wfront, wback, step );
 
+			// compare position to slicing plane
+			float dv = slicingPlane.x * wpos.x + slicingPlane.y * wpos.y + slicingPlane.z * wpos.z;
+			if (dv > slicingPlane.w){
+				continue;
+			}
+
 			// $insert{Accumulate}
 			/*
 			inserts something like the following (keys: vis,blockTexture,convert)
