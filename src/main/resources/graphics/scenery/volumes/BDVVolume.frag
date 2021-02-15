@@ -138,8 +138,9 @@ void main()
 			vec4 wpos = mix( wfront, wback, step );
 
 			// compare position to slicing plane
+			// negative w inverts the comparision
 			float dv = slicingPlane.x * wpos.x + slicingPlane.y * wpos.y + slicingPlane.z * wpos.z;
-			if (dv > slicingPlane.w){
+			if ((slicingPlane.w >= 0 && dv > slicingPlane.w) || (slicingPlane.w < 0 && dv < abs(slicingPlane.w))){
 				continue;
 			}
 

@@ -7,6 +7,8 @@ import bdv.tools.transformation.TransformedSource
 import bdv.viewer.RequestRepaint
 import bdv.viewer.state.SourceState
 import graphics.scenery.*
+import graphics.scenery.utils.extensions.minus
+import graphics.scenery.utils.extensions.times
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.numeric.ARGBType
 import net.imglib2.type.numeric.integer.UnsignedByteType
@@ -15,6 +17,7 @@ import net.imglib2.type.volatiles.VolatileARGBType
 import net.imglib2.type.volatiles.VolatileUnsignedByteType
 import net.imglib2.type.volatiles.VolatileUnsignedShortType
 import org.joml.Matrix4f
+import org.joml.Vector3f
 import org.joml.Vector4f
 import tpietzsch.backend.Texture
 import tpietzsch.backend.Texture3D
@@ -102,6 +105,25 @@ class VolumeManager(
     @ShaderProperty
     var shaderProperties = hashMapOf<String, Any>()
 
+    fun setSlicingPlane(slicingPlane: Node) {
+        //TODO document
+        slicingPlane.postUpdate.add{
+            val pn = slicingPlane.rotation.transform(Vector3f(0f,1f,0f))
+            val p0 = slicingPlane.worldPosition()
+
+            val p = Vector3f(0f,0f,0f)
+            val projectedNull = p - (pn.dot(p - p0)) * pn
+
+            val dot = pn.dot(projectedNull)
+
+            this.slicingPlane =
+                if (projectedNull.equals(0f,0f,0f))
+                    Vector4f(pn, 0f)
+                else
+                    Vector4f(projectedNull, projectedNull.lengthSquared() * if (dot < 0 ) -1 else 1)
+        }
+    }
+
     /** Plane for slicing the volumes**/
     var slicingPlane = Vector4f(0f,0f,0f,0f)
         set(value) {
@@ -153,6 +175,7 @@ class VolumeManager(
         state = State.Created
         name = "VolumeManager"
         // fake geometry
+
 
         this.geometryType = GeometryType.TRIANGLES
 
