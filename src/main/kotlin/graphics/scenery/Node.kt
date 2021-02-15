@@ -87,6 +87,9 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
     /** Node update routine, called before updateWorld */
     var update: ArrayList<() -> Unit> = ArrayList()
 
+    /** Node update routine, called after updateWorld */
+    var postUpdate: ArrayList<() -> Unit> = ArrayList()
+
     /** World transform matrix. Will create inverse [iworld] upon modification. */
     override var world: Matrix4f by Delegates.observable(Matrix4f().identity()) { property, old, new -> propertyChanged(property, old, new) }
     /** Inverse [world] transform matrix. */
@@ -229,7 +232,6 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
     open fun draw() {
 
     }
-
     internal open fun preUpdate(renderer: Renderer, hub: Hub?) {
 
     }
@@ -285,6 +287,8 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
         if(needsUpdateWorld) {
             needsUpdateWorld = false
         }
+
+        postUpdate.forEach { it.invoke() }
     }
 
     /**
