@@ -2,8 +2,8 @@ package graphics.scenery.controls.behaviours
 
 import graphics.scenery.Camera
 import graphics.scenery.Scene
-import graphics.scenery.backends.Renderer
 import graphics.scenery.Mesh
+import graphics.scenery.backends.Renderer
 import graphics.scenery.utils.LazyLogger
 import org.joml.Vector2f
 import org.joml.Vector3f
