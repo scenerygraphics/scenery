@@ -2,7 +2,7 @@ package graphics.scenery.tests.examples.basic
 
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
-import graphics.scenery.controls.behaviours.CreateCommand
+import graphics.scenery.controls.behaviours.MeshAdder
 import org.joml.Vector3f
 
 /**
@@ -39,7 +39,7 @@ class MeshAddingExample: SceneryBase("CreationSketch", wantREPL = true) {
 
         val sphere = Icosphere(0.1f, 6)
         renderer?.let { r ->
-            inputHandler?.addBehaviour("create", CreateCommand("create", r, scene,
+            inputHandler?.addBehaviour("create", MeshAdder("create", r, scene,
                 { scene.findObserver() }) { sphere })
             inputHandler?.addKeyBinding("create", "R")
         }
