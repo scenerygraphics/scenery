@@ -4,6 +4,9 @@ import bdv.util.AxisOrder
 import graphics.scenery.*
 import org.joml.Vector3f
 import graphics.scenery.backends.Renderer
+import graphics.scenery.utils.extensions.minus
+import graphics.scenery.utils.extensions.plus
+import graphics.scenery.utils.extensions.times
 import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.Volume
 import ij.IJ
@@ -11,7 +14,10 @@ import ij.ImagePlus
 import net.imglib2.img.Img
 import net.imglib2.img.display.imagej.ImageJFunctions
 import net.imglib2.type.numeric.integer.UnsignedShortType
+import org.joml.Quaternionf
 import tpietzsch.example2.VolumeViewerOptions
+import kotlin.concurrent.thread
+import kotlin.random.Random
 
 /**
  * BDV Rendering Example loading a RAII
@@ -41,16 +47,15 @@ class SlicingExample: SceneryBase("Volume Slicing example", 1280, 720) {
         volume.transferFunction = TransferFunction.ramp(0.001f, 0.5f, 0.3f)
         scene.addChild(volume)
 
-        slicingPlane = Box(Vector3f(1f,0.1f,1f))
+        slicingPlane = Box(Vector3f(1f,0.01f,1f))
         slicingPlane.material.diffuse = Vector3f(0.0f, 0.8f, 0.0f)
         scene.addChild(slicingPlane)
         volume.volumeManager.setSlicingPlane(slicingPlane)
+
         val nose = Box(Vector3f(0.1f, 0.1f, 0.1f))
         nose.material.diffuse = Vector3f(0.8f, 0.0f, 0.0f)
-        nose.position = Vector3f(0f,0.1f,0f)
+        nose.position = Vector3f(0f,0.05f,0f)
         slicingPlane.addChild(nose)
-
-        //TODO auto move slicing plane
 
         val shell = Box(Vector3f(10.0f, 10.0f, 10.0f), insideNormals = true)
         shell.material.cullingMode = Material.CullingMode.None
@@ -65,6 +70,30 @@ class SlicingExample: SceneryBase("Volume Slicing example", 1280, 720) {
         val origin = Box(Vector3f(0.1f, 0.1f, 0.1f))
         origin.material.diffuse = Vector3f(0.8f, 0.0f, 0.0f)
         scene.addChild(origin)
+
+
+        thread {
+            while (running) {
+
+                val moveDir = getRandomVector() - slicingPlane.position
+                val rotationStart = Quaternionf(slicingPlane.rotation)
+                val rotationTarget = Quaternionf().lookAlong(getRandomVector(), getRandomVector())
+                val startTime = System.currentTimeMillis()
+
+                while (startTime + 5000 > System.currentTimeMillis()) {
+                    val relDelta = (System.currentTimeMillis() - startTime) / 5000f
+
+                    val scaledMov = moveDir * (20f/5000f)
+                    slicingPlane.position = slicingPlane.position + scaledMov
+
+                     rotationStart.nlerp(rotationTarget,relDelta,slicingPlane.rotation)
+
+                    slicingPlane.needsUpdate = true
+
+                    Thread.sleep(20)
+                }
+            }
+        }
     }
 
     override fun inputSetup() {
@@ -76,5 +105,7 @@ class SlicingExample: SceneryBase("Volume Slicing example", 1280, 720) {
         fun main(args: Array<String>) {
             SlicingExample().main()
         }
+
+        fun getRandomVector() = Vector3f(Random.nextFloat()*2-1,Random.nextFloat()*2-1,Random.nextFloat()*2-1)
     }
 }
