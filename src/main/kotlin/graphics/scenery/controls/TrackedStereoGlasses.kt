@@ -29,6 +29,8 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
 
     private var rotation: Quaternionf
 
+    private var fakeTrackerInput = false
+
     override var events = TrackerInputEventHandlers()
 
     init {
@@ -43,6 +45,11 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
 
     private fun initializeTracker(address: String): TrackerInput {
         return when {
+            address.startsWith("fake:") -> {
+                fakeTrackerInput = true
+                VRPNTrackerInput()
+            }
+
             address.startsWith("DTrack:") -> {
                 val host = address.substringAfter("@").substringBeforeLast(":")
                 val device = address.substringAfter("DTrack:").substringBefore("@").toIntOrNull() ?: 0
@@ -167,14 +174,13 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
      * @return HMD position as Vector3f
      */
     override fun getPosition(): Vector3f {
-        if(System.getProperty("scenery.FakeVRPN", "false").toBoolean()) {
+        if(fakeTrackerInput) {
 //            val pos = Vector3f(
 //                1.92f * Math.sin(System.nanoTime()/10e9 % (2.0*Math.PI)).toFloat(),
 //                1.5f,
 //                -1.92f * Math.cos(System.nanoTime()/10e9 % (2.0*Math.PI)).toFloat())
 
             val pos = Vector3f(0.0f, 1.7f, 0.0f)
-            logger.info("Using fake position: $pos")
             return pos
         }
 
@@ -233,7 +239,7 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
      * @return True if HMD is initialised correctly and working properly
      */
     override fun initializedAndWorking(): Boolean {
-        if(System.getProperty("scenery.FakeVRPN", "false").toBoolean()) {
+        if(fakeTrackerInput) {
             return true
         }
 
