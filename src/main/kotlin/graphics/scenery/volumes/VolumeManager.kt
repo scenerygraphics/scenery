@@ -342,7 +342,16 @@ class VolumeManager(
         }
 
         val cam = nodes.firstOrNull()?.getScene()?.activeObserver ?: return false
-        val mvp = Matrix4f(cam.projection).mul(cam.getTransformation())
+        val settings = hub?.get<Settings>() ?: return false
+
+        val hmd = hub?.getWorkingHMDDisplay()?.wantsVR(settings)
+        val mvp = if(hmd != null) {
+            Matrix4f(hmd.getEyeProjection(0, cam.nearPlaneDistance, cam.farPlaneDistance))
+                .mul(cam.getTransformation())
+        } else {
+            Matrix4f(cam.projection)
+                .mul(cam.getTransformation())
+        }
 
         // TODO: original might result in NULL, is this intended?
         currentProg.use(context)
