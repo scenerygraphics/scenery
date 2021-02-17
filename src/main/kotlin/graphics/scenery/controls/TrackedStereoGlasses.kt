@@ -22,7 +22,7 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
 
     var tracker = initializeTracker(address)
     var currentOrientation = Matrix4f()
-    var ipd = -0.065f
+    var ipd = 0.062f
 
     var config: ScreenConfig.Config = ScreenConfig.loadFromFile(screenConfig)
     var screen: ScreenConfig.SingleScreenConfig? = null
@@ -282,9 +282,9 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
     override fun getHeadToEyeTransform(eye: Int): Matrix4f {
         val shift = Matrix4f().identity()
         if(eye == 0) {
-            shift.translate(-0.025f, 0.0f, 0.0f)
+            shift.translate(ipd/2.0f, 0.0f, 0.0f)
         } else {
-            shift.translate(0.025f, 0.0f, 0.0f)
+            shift.translate(-ipd/2.0f, 0.0f, 0.0f)
         }
 
         return shift
