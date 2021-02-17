@@ -65,9 +65,9 @@ class DTrackTrackerInput(val host: String = "localhost", val port: Int = 5000, v
                         val loc = sdk.getBody(bodyId).loc
                         val rotation = sdk.getBody(bodyId).rot
 
-                        val x = -loc[0].toFloat()/1000.0f
+                        val x = loc[0].toFloat()/1000.0f
                         val y = loc[2].toFloat()/1000.0f
-                        val z = -loc[1].toFloat()/1000.0f
+                        val z = loc[1].toFloat()/1000.0f
 
                         val state = bodyState.getOrPut(bodyId, {
                             DTrackBodyState(
