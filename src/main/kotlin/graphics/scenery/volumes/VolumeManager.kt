@@ -106,21 +106,21 @@ class VolumeManager(
     var shaderProperties = hashMapOf<String, Any>()
 
     fun setSlicingPlane(slicingPlane: Node) {
-        //TODO document
         slicingPlane.postUpdate.add{
             val pn = slicingPlane.rotation.transform(Vector3f(0f,1f,0f))
             val p0 = slicingPlane.worldPosition()
 
-            val p = Vector3f(0f,0f,0f)
-            val projectedNull = p - (pn.dot(p - p0)) * pn
-
-            val dot = pn.dot(projectedNull)
+            val nul = Vector3f(0f)
+            val projectedNull = nul - (pn.dot(nul - p0)) * pn
 
             this.slicingPlane =
+                // If the origin is within the slicing plane use the normal of the plane with a w value of 0 instead
                 if (projectedNull.equals(0f,0f,0f))
                     Vector4f(pn, 0f)
                 else
-                    Vector4f(projectedNull, projectedNull.lengthSquared() * if (dot < 0 ) -1 else 1)
+                    // Negative w values invert the slicing decision in the shader.
+                    // This is for cases where the slicing plane is "upside-down".
+                    Vector4f(projectedNull, projectedNull.lengthSquared() * if (pn.dot(projectedNull) < 0 ) -1 else 1)
         }
     }
 
