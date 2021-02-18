@@ -7,6 +7,7 @@ import graphics.scenery.backends.Renderer
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
+import graphics.scenery.volumes.SlicingPlane
 import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.Volume
 import ij.IJ
@@ -50,7 +51,11 @@ class SlicingExample: SceneryBase("Volume Slicing example", 1280, 720) {
         slicingPlane = Box(Vector3f(1f,0.01f,1f))
         slicingPlane.material.diffuse = Vector3f(0.0f, 0.8f, 0.0f)
         scene.addChild(slicingPlane)
-        volume.volumeManager.setSlicingPlane(slicingPlane)
+
+        val slicingPlaneFunctionality = SlicingPlane()
+        slicingPlane.addChild(slicingPlaneFunctionality)
+        //TODO will break if volumemanager is recreated
+        slicingPlaneFunctionality.slicedVolumes += volume.volumeManager
 
         val nose = Box(Vector3f(0.1f, 0.1f, 0.1f))
         nose.material.diffuse = Vector3f(0.8f, 0.0f, 0.0f)
