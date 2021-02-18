@@ -9,6 +9,7 @@ import bdv.viewer.state.SourceState
 import graphics.scenery.*
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.times
+import graphics.scenery.utils.extensions.xyz
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.numeric.ARGBType
 import net.imglib2.type.numeric.integer.UnsignedByteType
@@ -104,25 +105,6 @@ class VolumeManager(
     /** Flexible [ShaderProperty] storage */
     @ShaderProperty
     var shaderProperties = hashMapOf<String, Any>()
-
-    fun setSlicingPlane(slicingPlane: Node) {
-        slicingPlane.postUpdate.add{
-            val pn = slicingPlane.rotation.transform(Vector3f(0f,1f,0f))
-            val p0 = slicingPlane.worldPosition()
-
-            val nul = Vector3f(0f)
-            val projectedNull = nul - (pn.dot(nul - p0)) * pn
-
-            this.slicingPlane =
-                // If the origin is within the slicing plane use the normal of the plane with a w value of 0 instead
-                if (projectedNull.equals(0f,0f,0f))
-                    Vector4f(pn, 0f)
-                else
-                    // Negative w values invert the slicing decision in the shader.
-                    // This is for cases where the slicing plane is "upside-down".
-                    Vector4f(projectedNull, projectedNull.lengthSquared() * if (pn.dot(projectedNull) < 0 ) -1 else 1)
-        }
-    }
 
     /** Plane for slicing the volumes**/
     var slicingPlane = Vector4f(0f,0f,0f,0f)
