@@ -106,12 +106,28 @@ class VolumeManager(
     @ShaderProperty
     var shaderProperties = hashMapOf<String, Any>()
 
-    /** Plane for slicing the volumes**/
-    var slicingPlane = Vector4f(0f,0f,0f,0f)
+    /** Plane equations for slicing planes mapped to slicing node of origin */
+    var slicingPlaneEquations = mapOf<SlicingPlane,Vector4f>()
         set(value) {
-            field = value
-            shaderProperties["slicingPlane"] = value
+            val arrayElements = 5
+            if (value.size > arrayElements )
+                logger.warn("More than $arrayElements slicing planes for ${this.name} set. Ignoring additional planes.")
+             else
+                field = value
+
+            val fa = FloatArray(4 * arrayElements)
+
+            field.entries.forEachIndexed { i, entry ->
+                fa[0+i*4] = entry.value.x
+                fa[1+i*4] = entry.value.y
+                fa[2+i*4] = entry.value.z
+                fa[3+i*4] = entry.value.w
+            }
+
+            shaderProperties["slicingPlanes"] = fa
         }
+
+
 
     /** Set of [VolumeBlocks]. */
     protected var outOfCoreVolumes = ArrayList<VolumeBlocks>()
@@ -202,7 +218,7 @@ class VolumeManager(
         logger.debug("Updating effective shader program to $progvol")
         recreateMaterial(context)
         // shaderProperties get cleared in recreateMaterial. Calling the setter again to write it to shaderProperties again
-        slicingPlane = slicingPlane
+        slicingPlaneEquations = slicingPlaneEquations
 
         progvol?.setTextureCache(textureCache)
         progvol?.use(context)

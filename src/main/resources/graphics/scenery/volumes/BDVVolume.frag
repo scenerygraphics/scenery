@@ -6,6 +6,8 @@ uniform float nw;
 
 uniform sampler3D volumeCache;
 
+uniform vec4 slicingPlanes[5];
+
 // -- comes from CacheSpec -----
 uniform vec3 blockSize;
 uniform vec3 paddedBlockSize;
@@ -137,10 +139,18 @@ void main()
 		{
 			vec4 wpos = mix( wfront, wback, step );
 
-			// compare position to slicing plane
-			// negative w inverts the comparision
-			float dv = slicingPlane.x * wpos.x + slicingPlane.y * wpos.y + slicingPlane.z * wpos.z;
-			if ((slicingPlane.w >= 0 && dv > slicingPlane.w) || (slicingPlane.w < 0 && dv < abs(slicingPlane.w))){
+			bool sliced = false;
+			for(int i = 0; i < 5; i++){
+				vec4 slicingPlane = slicingPlanes[i];
+				// compare position to slicing plane
+				// negative w inverts the comparision
+				float dv = slicingPlane.x * wpos.x + slicingPlane.y * wpos.y + slicingPlane.z * wpos.z;
+				if ((slicingPlane.w >= 0 && dv > slicingPlane.w) || (slicingPlane.w < 0 && dv < abs(slicingPlane.w))){
+					sliced = true;
+					break;
+				}
+			}
+			if(sliced){
 				continue;
 			}
 
