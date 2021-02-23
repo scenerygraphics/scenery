@@ -23,9 +23,9 @@ import kotlin.concurrent.thread
 import kotlin.random.Random
 
 /**
- * Volume Slicing Example using the BDV Rendering Example loading a RAII
+ * Volume Slicing Example using the "BDV Rendering Example loading a RAII"
  *
- * Press "R" to add a moving slicing Plane and "T" to remove one.
+ * Press "R" to add a moving slicing plane and "T" to remove one.
  *
  * @author  Jan Tiemann <j.tiemann@hzdr.de>
  */
@@ -67,6 +67,7 @@ class SlicingExample : SceneryBase("Volume Slicing example", 1280, 720) {
         origin.material.diffuse = Vector3f(0.8f, 0.0f, 0.0f)
         scene.addChild(origin)
 
+        addAnimatedSlicingPlane()
 
         thread {
             while (running) {
