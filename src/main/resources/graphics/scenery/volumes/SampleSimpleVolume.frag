@@ -11,7 +11,6 @@ void intersectBoundingBox( vec4 wfront, vec4 wback, out float tnear, out float t
 uniform sampler3D volume;
 uniform sampler2D transferFunction;
 uniform sampler2D colorMap;
-uniform vec4 slicingPlane;
 
 vec4 sampleVolume( vec4 wpos )
 {
