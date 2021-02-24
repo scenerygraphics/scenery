@@ -4,7 +4,6 @@ import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
 import graphics.scenery.utils.extensions.xyz
-import graphics.scenery.volumes.Volume
 import org.joml.*
 import java.lang.Math
 import java.util.concurrent.atomic.AtomicInteger
@@ -244,6 +243,21 @@ open class Camera : Node("Camera") {
     @JvmOverloads fun getNodesForScreenSpacePosition(x: Int, y: Int,
                                                        ignoredObjects: List<Class<*>> = emptyList(),
                                                        debug: Boolean = false): Scene.RaycastResult {
+        val (worldPos, worldDir) = screenPointToRay(x, y)
+
+        val scene = getScene()
+        if(scene == null) {
+            logger.warn("No scene found for $this, returning empty list for raycast.")
+            return Scene.RaycastResult(emptyList(), worldPos, worldDir)
+        }
+
+        return scene.raycast(worldPos, worldDir, ignoredObjects, debug)
+    }
+
+    /**
+     * Returns (worldPos, worldDir)
+     */
+    fun screenPointToRay(x: Int, y: Int): Pair<Vector3f, Vector3f> {
         val view = (target - position).normalize()
         var h = Vector3f(view).cross(up).normalize()
         var v = Vector3f(h).cross(view)
@@ -260,14 +274,7 @@ open class Camera : Node("Camera") {
 
         val worldPos = position + view * nearPlaneDistance + h * posX + v * posY
         val worldDir = (worldPos - position).normalize()
-
-        val scene = getScene()
-        if(scene == null) {
-            logger.warn("No scene found for $this, returning empty list for raycast.")
-            return Scene.RaycastResult(emptyList(), worldPos, worldDir)
-        }
-
-        return scene.raycast(worldPos, worldDir, ignoredObjects, debug)
+        return Pair(worldPos, worldDir)
     }
 
     /**
