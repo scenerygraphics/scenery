@@ -81,14 +81,14 @@ object VulkanNodeHelpers {
         state.vertexCount = vertices.remaining() / n.vertexSize
         logger.trace("${node.name} has ${vertices.remaining()} floats and ${texcoords.remaining() / n.texcoordSize} remaining")
 
-        for (index in 0 until vertices.remaining() step 3) {
-            fb.put(vertices.get())
-            fb.put(vertices.get())
-            fb.put(vertices.get())
+        for (index in 0 until vertices.remaining() step node.vertexSize) {
+            for(j in 0 until node.vertexSize) {
+                fb.put(vertices.get())
+            }
 
-            fb.put(normals.get())
-            fb.put(normals.get())
-            fb.put(normals.get())
+            for(j in 0 until node.vertexSize) {
+                fb.put(normals.get())
+            }
 
             if (texcoords.remaining() > 0) {
                 fb.put(texcoords.get())

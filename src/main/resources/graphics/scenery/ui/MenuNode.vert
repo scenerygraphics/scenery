@@ -1,12 +1,15 @@
 #version 450 core
 #extension GL_ARB_separate_shader_objects: enable
 
-layout(location = 0) in vec3 vertexPosition;
-layout(location = 1) in vec3 vertexNormal;
+layout(location = 0) in vec2 vertexPosition;
+layout(location = 1) in vec2 vertexNormal;
 layout(location = 2) in vec2 vertexTexCoord;
 
-out gl_PerVertex { vec4 gl_Position; };
-layout(location = 0) out struct { vec4 Color; vec2 UV; } Out;
+//out gl_PerVertex { vec4 gl_Position; };
+layout(location = 0) out VertexData {
+    vec4 Color;
+    vec2 UV;
+} Vertex;
 
 layout(set = 0, binding = 0) uniform ShaderProperties {
     vec2 uScale;
@@ -19,7 +22,7 @@ layout(push_constant) uniform currentEye_t {
 
 void main()
 {
-    Out.Color = aColor;
-    Out.UV = aUV;
-    gl_Position = vec4(aPos * pc.uScale + pc.uTranslate, 0, 1);
+    Vertex.Color = vec4(1.0);
+    Vertex.UV = vertexTexCoord;
+    gl_Position = vec4(vertexPosition * uScale + uTranslate, 0, 1);
 }

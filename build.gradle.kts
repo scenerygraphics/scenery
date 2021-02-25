@@ -44,6 +44,7 @@ repositories {
 "reflections"("0.9.12")
 
 dependencies {
+
     implementation(platform(kotlin("bom")))
     implementation(kotlin("stdlib-jdk8"))
     implementation(kotlin("reflect"))
@@ -64,7 +65,7 @@ dependencies {
     sciJava("net.java.dev.jna:jna-platform")
     sciJava("org.jocl")
     implementation(platform("org.lwjgl:lwjgl-bom:3.2.3"))
-    listOf("", "-glfw", "-jemalloc", "-vulkan", "-opengl", "-openvr", "-xxhash", "-remotery").forEach {
+    listOf("", "-glfw", "-jemalloc", "-vulkan", "-opengl", "-openvr", "-xxhash", "-remotery", "-stb").forEach {
         implementation("org.lwjgl:lwjgl$it")
         if (it != "-vulkan")
             runtimeOnlylwjglNatives("org.lwjgl", "lwjgl$it") // "
@@ -110,10 +111,15 @@ dependencies {
     testSciJava("net.imagej")
     testSciJava("net.imagej:ij")
     testSciJava("net.imglib2:imglib2-ij")
+
+    listOf("gl", "glfw", "core", "vk").forEach {
+        implementation("com.github.kotlin-graphics.imgui:$it:4c02b4e1")
+    }
+    implementation("com.github.kotlin-graphics:kool:f91acd54")
 }
 
 fun DependencyHandlerScope.runtimeOnlylwjglNatives(group: String, name: String) =
-        listOf("windows", "linux", "macos").forEach { runtimeOnly(group, name, classifier = "natives-$it") }
+    listOf("windows", "linux", "macos").forEach { runtimeOnly(group, name, classifier = "natives-$it") }
 
 tasks {
     withType<KotlinCompile>().all {
