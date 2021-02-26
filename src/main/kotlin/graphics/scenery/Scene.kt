@@ -3,6 +3,7 @@ package graphics.scenery
 import com.esotericsoftware.kryo.Kryo
 import com.esotericsoftware.kryo.io.Input
 import com.esotericsoftware.kryo.io.Output
+import de.javakaffee.kryoserializers.UUIDSerializer
 import org.joml.Vector3f
 import graphics.scenery.utils.MaybeIntersects
 import graphics.scenery.utils.extensions.plus
@@ -248,6 +249,7 @@ open class Scene : Node("RootNode") {
             val kryo = Kryo()
             kryo.isRegistrationRequired = false
             kryo.references = true
+            kryo.register(UUID::class.java, UUIDSerializer())
 
             val output = Output(FileOutputStream(filename))
             kryo.writeObject(output, this)
@@ -265,6 +267,7 @@ open class Scene : Node("RootNode") {
             val kryo = Kryo()
             kryo.isRegistrationRequired = false
             kryo.references = true
+            kryo.register(UUID::class.java, UUIDSerializer())
 
             val input = Input(FileInputStream(filename))
             return kryo.readObject(input, Scene::class.java)
