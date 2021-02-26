@@ -11,8 +11,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import kotlinx.serialization.Contextual
-import kotlinx.serialization.Serializable
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.util.*
@@ -27,20 +25,19 @@ import kotlin.system.measureTimeMillis
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-@Serializable
 open class Scene : Node("RootNode") {
 
     /** Temporary storage of the active observer ([Camera]) of the Scene. */
     var activeObserver: Camera? = null
 
-    @Contextual internal var sceneSize: AtomicLong = AtomicLong(0L)
+    internal var sceneSize: AtomicLong = AtomicLong(0L)
 
     /** Callbacks to be called when a child is added to the scene */
-    @Contextual var onChildrenAdded = ConcurrentHashMap<String, (Node, Node) -> Unit>()
+    var onChildrenAdded = ConcurrentHashMap<String, (Node, Node) -> Unit>()
     /** Callbacks to be called when a child is removed from the scene */
-    @Contextual var onChildrenRemoved = ConcurrentHashMap<String, (Node, Node) -> Unit>()
+    var onChildrenRemoved = ConcurrentHashMap<String, (Node, Node) -> Unit>()
     /** Callbacks to be called when a child is removed from the scene */
-    @Contextual var onNodePropertiesChanged = ConcurrentHashMap<String, (Node) -> Unit>()
+    var onNodePropertiesChanged = ConcurrentHashMap<String, (Node) -> Unit>()
 
     /**
      * Adds a [Node] to the Scene, at the position given by [parent]

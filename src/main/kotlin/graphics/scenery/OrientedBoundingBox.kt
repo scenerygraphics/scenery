@@ -3,8 +3,6 @@ package graphics.scenery
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
-import kotlinx.serialization.Contextual
-import kotlinx.serialization.Serializable
 import org.joml.Vector3f
 import java.lang.Math.max
 import java.lang.Math.min
@@ -15,8 +13,7 @@ import java.lang.Math.min
  * @property[min] The x/y/z minima for the bounding box.
  * @property[max] The x/y/z maxima for the bounding box.
  */
-@Serializable
-open class OrientedBoundingBox(val n: Node, @Contextual val min: Vector3f, @Contextual val max: Vector3f) {
+open class OrientedBoundingBox(val n: Node, val min: Vector3f, val max: Vector3f) {
     /**
      * Bounding sphere class, a bounding sphere is defined by an origin and a radius,
      * to enclose all of the Node's geometry.

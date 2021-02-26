@@ -10,7 +10,6 @@ plugins {
     val dokkaVersion = "1.4.20"
     java
     kotlin("jvm") version ktVersion
-    kotlin("plugin.serialization") version ktVersion
     scenery.publish
     scenery.sign
     id("com.github.elect86.sciJava") version "0.0.4"
@@ -52,8 +51,6 @@ dependencies {
     implementation(kotlin("stdlib-jdk8"))
     implementation(kotlin("reflect"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.4.0-M1")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.1.0-RC")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-protobuf:1.1.0-RC")
 
     listOf("windows-amd64", "linux-i586", "linux-amd64", "macosx-universal").forEach {
         sciJava("org.jogamp.gluegen:gluegen-rt", "natives-$it") // this is crap, but will be polished eventually
@@ -82,6 +79,7 @@ dependencies {
     runtimeOnlylwjglNatives("graphics.scenery", "spirvcrossj") // "
     sciJava("org.zeromq:jeromq")
     sciJava("com.esotericsoftware:kryo")
+    implementation("de.javakaffee:kryo-serializers:0.45")
     sciJava("org.msgpack:msgpack-core")
     sciJava("org.msgpack:jackson-dataformat-msgpack")
     sciJava("graphics.scenery:jvrpn")
