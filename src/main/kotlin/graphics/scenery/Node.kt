@@ -91,7 +91,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
     override var world: Matrix4f by Delegates.observable(Matrix4f().identity()) { property, old, new -> propertyChanged(property, old, new) }
     /** Inverse [world] transform matrix. */
     override var iworld: Matrix4f by Delegates.observable(Matrix4f().identity()) { property, old, new -> propertyChanged(property, old, new) }
-    /** Model transform matrix. Will create inverse [imodel] upon modification. */
+    /** Local model transform matrix. Will create inverse [imodel] upon modification. */
     override var model: Matrix4f by Delegates.observable(Matrix4f().identity()) { property, old, new -> propertyChanged(property, old, new) }
     /** Inverse [world] transform matrix. */
     override var imodel: Matrix4f by Delegates.observable(Matrix4f().identity()) { property, old, new -> propertyChanged(property, old, new) }
@@ -114,13 +114,13 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
     /** ModelViewProjection matrix. */
     override var mvp: Matrix4f by Delegates.observable(Matrix4f().identity()) { property, old, new -> propertyChanged(property, old, new) }
 
-    /** World position of the Node. Setting will trigger [world] update. */
+    /** Local position of the Node, used to construct [model] matrix. Setting will trigger [model] and [world] update. */
     override var position: Vector3f by Delegates.observable(Vector3f(0.0f, 0.0f, 0.0f)) { property, old, new -> propertyChanged(property, old, new) }
 
-    /** x/y/z scale of the Node. Setting will trigger [world] update. */
+    /** x/y/z scale of the Node, used to construct [model]. Setting will trigger [model] and [world] update. */
     override var scale: Vector3f by Delegates.observable(Vector3f(1.0f, 1.0f, 1.0f)) { property, old, new -> propertyChanged(property, old, new) }
 
-    /** Rotation of the Node. Setting will trigger [world] update. */
+    /** Rotation of the Node, used to construct [model]. Setting will trigger [model] and [world] update. */
     override var rotation: Quaternionf by Delegates.observable(Quaternionf(0.0f, 0.0f, 0.0f, 1.0f)) { property, old, new -> propertyChanged(property, old, new) }
 
     /** Children of the Node. */
