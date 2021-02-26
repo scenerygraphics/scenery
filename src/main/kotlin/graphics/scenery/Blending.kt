@@ -1,14 +1,11 @@
 package graphics.scenery
 
-import kotlinx.serialization.Serializable
-
 /**
  * Class providing different blend modes, transparency and blend factor settings.
  * Blending options are modeled after the standard OpenGL and Vulkan blending modes.
  *
  * @author Ulrik Guenther <hello@ulrik.is>
  */
-@Serializable
 data class Blending(
     /** Turns on and off transparency. */
     var transparent: Boolean = false,

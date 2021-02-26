@@ -5,8 +5,6 @@ import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
 import graphics.scenery.utils.extensions.xyz
 import graphics.scenery.volumes.Volume
-import kotlinx.serialization.Contextual
-import kotlinx.serialization.Serializable
 import org.joml.*
 import java.lang.Math
 import java.util.concurrent.atomic.AtomicInteger
@@ -23,7 +21,6 @@ import kotlin.math.tan
  * @constructor Creates a new camera with default position and right-handed
  *  coordinate system.
  */
-@Serializable
 open class Camera : Node("Camera") {
 
     /** Enum class for camera projection types */
@@ -35,13 +32,13 @@ open class Camera : Node("Camera") {
     var targeted = false
 
     /** Target, used if [targeted] is true */
-    @Contextual var target: Vector3f = Vector3f(0.0f, 0.0f, 0.0f)
+    var target: Vector3f = Vector3f(0.0f, 0.0f, 0.0f)
     /** Forward vector of the camera, used if not targeted */
-    @Contextual var forward: Vector3f = Vector3f(0.0f, 0.0f, 1.0f)
+    var forward: Vector3f = Vector3f(0.0f, 0.0f, 1.0f)
     /** Up vector of the camera, used if not targeted */
-    @Contextual var up: Vector3f = Vector3f(0.0f, 1.0f, 0.0f)
+    var up: Vector3f = Vector3f(0.0f, 1.0f, 0.0f)
     /** Right vector of the camera */
-    @Contextual var right: Vector3f = Vector3f(1.0f, 0.0f, 0.0f)
+    var right: Vector3f = Vector3f(1.0f, 0.0f, 0.0f)
     /** FOV of the camera **/
     open var fov: Float = 70.0f
     /** Z buffer near plane */
@@ -65,7 +62,7 @@ open class Camera : Node("Camera") {
     /** View matrix of the camera. Setting the view matrix will re-set the forward
      *  vector of the camera according to the given matrix.
      */
-    @Contextual override var view: Matrix4f = Matrix4f().identity()
+    override var view: Matrix4f = Matrix4f().identity()
         set(m) {
             m.let {
                 this.right = Vector3f(m.get(0, 0), m.get(1, 0), m.get(2, 0)).normalize()
@@ -85,7 +82,7 @@ open class Camera : Node("Camera") {
         }
 
     /** Rotation of the camera. The rotation is applied after the view matrix */
-    @Contextual override var rotation: Quaternionf = Quaternionf(0.0f, 0.0f, 0.0f, 1.0f)
+    override var rotation: Quaternionf = Quaternionf(0.0f, 0.0f, 0.0f, 1.0f)
         set(q) {
             q.let {
                 field = q
@@ -107,7 +104,7 @@ open class Camera : Node("Camera") {
     /**
      * Class to contain local coordinate systems with [x], [y], and [z] axis.
      */
-    @Serializable data class Tripod(@Contextual val x: Vector3f, @Contextual val y: Vector3f, @Contextual val z: Vector3f)
+    data class Tripod(val x: Vector3f = Vector3f(1.0f, 0.0f, 0.0f), val y: Vector3f = Vector3f(0.0f, 1.0f, 0.0f), val z: Vector3f = Vector3f(0.0f, 0.0f, 1.0f))
 
     /**
      * Returns the current aspect ratio
