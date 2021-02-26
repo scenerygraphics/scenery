@@ -21,7 +21,6 @@ import java.util.concurrent.locks.ReentrantLock
 import java.util.function.Consumer
 import kotlin.collections.ArrayList
 import kotlin.collections.HashMap
-import kotlin.math.PI
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.properties.Delegates
@@ -94,8 +93,8 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
     /** Inverse [world] transform matrix. */
     @delegate:Transient
     override var iworld: Matrix4f by Delegates.observable(Matrix4f().identity()) { property, old, new -> propertyChanged(property, old, new) }
-    /** Model transform matrix. Will create inverse [imodel] upon modification. */
     @delegate:Transient
+    /** Local model transform matrix. Will create inverse [imodel] upon modification. */
     override var model: Matrix4f by Delegates.observable(Matrix4f().identity()) { property, old, new -> propertyChanged(property, old, new) }
     /** Inverse [world] transform matrix. */
     @delegate:Transient
@@ -134,7 +133,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
     @delegate:Transient
     override var scale: Vector3f by Delegates.observable(Vector3f(1.0f, 1.0f, 1.0f)) { property, old, new -> propertyChanged(property, old, new) }
 
-    /** Rotation of the Node. Setting will trigger [world] update. */
+    /** Rotation of the Node, used to construct [model]. Setting will trigger [model] and [world] update. */
     @delegate:Transient
     override var rotation: Quaternionf by Delegates.observable(Quaternionf(0.0f, 0.0f, 0.0f, 1.0f)) { property, old, new -> propertyChanged(property, old, new) }
 

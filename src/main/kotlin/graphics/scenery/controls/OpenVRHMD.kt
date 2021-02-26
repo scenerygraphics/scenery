@@ -226,6 +226,14 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
             logger.error(e.message + "\n" + e.stackTrace.joinToString("\n"))
             initialized = false
         }
+
+
+        // Having vsync enabled might lead to wrong prediction and "swimming"
+        // artifacts.
+        hub?.get<Settings>()?.let { settings ->
+            logger.info("Disabling vsync, as frame swap governed by compositor.")
+            settings.set("Renderer.DisableVsync", true)
+        }
     }
 
     private fun idToEventType(id: Int): String = eventTypes.getOrDefault(id, "Unknown event($id)")
