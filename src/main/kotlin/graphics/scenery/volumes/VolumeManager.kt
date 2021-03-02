@@ -109,7 +109,7 @@ class VolumeManager(
     /** Plane equations for slicing planes mapped to slicing node of origin */
     var slicingPlaneEquations = mapOf<SlicingPlane,Vector4f>()
         set(value) {
-            val arrayElements = 5
+            val arrayElements = 10
             if (value.size > arrayElements )
                 logger.warn("More than $arrayElements slicing planes for ${this.name} set. Ignoring additional planes.")
              else
