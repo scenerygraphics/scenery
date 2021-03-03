@@ -13,7 +13,7 @@ import org.joml.Vector3f
 import org.scijava.ui.behaviour.ClickBehaviour
 import tpietzsch.example2.VolumeViewerOptions
 import kotlin.concurrent.thread
-import kotlin.random.Random
+import graphics.scenery.numerics.Random
 
 /**
  * Volume Slicing Example using the "BDV Rendering Example loading a RAII"
@@ -38,15 +38,17 @@ class SlicingExample : SceneryBase("Volume Slicing example", 1280, 720) {
             scene.addChild(this)
         }
 
-        val file = "/home/random/Development/scenery/data/bdv test/export.xml"
+        val file = "export.xml"
         val options = VolumeViewerOptions().maxCacheSizeInMB(512)
         
         // slicing works with this line
-//        for(i in 0..4) {
+        for(i in 0..4) {
         // slicing does not work with this line
-        for(i in 0..5) {
+//        for(i in 0..5) {
             volume = Volume.fromSpimData(XmlIoSpimDataMinimal().load(file), hub, options)
-            volume.scale = Vector3f(10f, 10f, 10f)
+            volume.scale = Vector3f(Random.randomFromRange(5.0f, 25.0f))
+            volume.rotation = Random.randomQuaternion()
+            volume.transferFunction.addControlPoint(0.0f, 0.0f)
             scene.addChild(volume)
         }
 
@@ -75,9 +77,9 @@ class SlicingExample : SceneryBase("Volume Slicing example", 1280, 720) {
     }
 
     class Animator(val node: Node) {
-        private var moveDir = getRandomVector() - node.position
+        private var moveDir = Random.random3DVectorFromRange(-1.0f, 1.0f) - node.position
         private var rotationStart = Quaternionf(node.rotation)
-        private var rotationTarget = Quaternionf().lookAlong(getRandomVector(), getRandomVector())
+        private var rotationTarget = Random.randomQuaternion()
         private var startTime = System.currentTimeMillis()
 
         fun animate() {
@@ -91,9 +93,9 @@ class SlicingExample : SceneryBase("Volume Slicing example", 1280, 720) {
             node.needsUpdate = true
 
             if (startTime + 5000 < System.currentTimeMillis()) {
-                moveDir = getRandomVector() - node.position
+                moveDir = Random.random3DVectorFromRange(-1.0f, 1.0f) - node.position
                 rotationStart = Quaternionf(node.rotation)
-                rotationTarget = Quaternionf().lookAlong(getRandomVector(), getRandomVector())
+                rotationTarget = Random.randomQuaternion()
                 startTime = System.currentTimeMillis()
             }
         }
@@ -149,10 +151,5 @@ class SlicingExample : SceneryBase("Volume Slicing example", 1280, 720) {
         fun main(args: Array<String>) {
             SlicingExample().main()
         }
-
-        private fun getRandomVector() =
-            Vector3f(Random.nextFloat() * 2 - 1, Random.nextFloat() * 2 - 1, Random.nextFloat() * 2 - 1)
-
-
     }
 }
