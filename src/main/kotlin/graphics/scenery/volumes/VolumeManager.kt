@@ -18,6 +18,7 @@ import net.imglib2.type.volatiles.VolatileARGBType
 import net.imglib2.type.volatiles.VolatileUnsignedByteType
 import net.imglib2.type.volatiles.VolatileUnsignedShortType
 import org.joml.Matrix4f
+import org.joml.Vector2f
 import org.joml.Vector3f
 import org.joml.Vector4f
 import tpietzsch.backend.Texture
@@ -127,6 +128,9 @@ class VolumeManager(
             shaderProperties["slicingPlanes"] = fa
         }
 
+    /** Attenuation of the slicing planes, values > 0.99f will result in a cut. */
+    var slicingAttenuation = 0.0f
+
 
 
     /** Set of [VolumeBlocks]. */
@@ -196,11 +200,16 @@ class VolumeManager(
             updateProgram(context)
         }
 
+        shaderProperties["slicingPlanes"] = FloatArray(4 * 16)
         preDraw()
     }
 
     @Synchronized private fun recreateMaterial(context: SceneryContext) {
         shaderProperties.clear()
+        shaderProperties["slicingPlanes"] = FloatArray(4*16)
+        shaderProperties["transform"] = Matrix4f()
+        shaderProperties["viewportSize"] = Vector2f()
+        shaderProperties["dsp"] = Vector2f()
         material.textures.clear()
 
         material = ShaderMaterial(context.factory)
@@ -598,6 +607,7 @@ class VolumeManager(
         if(repaint) {
             context.runTextureUpdates()
         }
+        shaderProperties["slicingAttenuation"] = slicingAttenuation
 
         return readyToRender()
     }
