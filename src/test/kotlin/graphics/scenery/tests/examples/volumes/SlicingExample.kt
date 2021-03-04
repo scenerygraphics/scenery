@@ -1,13 +1,20 @@
 package graphics.scenery.tests.examples.volumes
 
-import bdv.spimdata.XmlIoSpimDataMinimal
+import bdv.util.AxisOrder
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
+import graphics.scenery.controls.InputHandler
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
 import graphics.scenery.volumes.SlicingPlane
+import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.Volume
+import ij.IJ
+import ij.ImagePlus
+import net.imglib2.img.Img
+import net.imglib2.img.display.imagej.ImageJFunctions
+import net.imglib2.type.numeric.integer.UnsignedShortType
 import org.joml.Quaternionf
 import org.joml.Vector3f
 import org.scijava.ui.behaviour.ClickBehaviour
@@ -38,19 +45,13 @@ class SlicingExample : SceneryBase("Volume Slicing example", 1280, 720) {
             scene.addChild(this)
         }
 
-        val file = "export.xml"
-        val options = VolumeViewerOptions().maxCacheSizeInMB(512)
-        
-        // slicing works with this line
-        for(i in 0..4) {
-        // slicing does not work with this line
-//        for(i in 0..5) {
-            volume = Volume.fromSpimData(XmlIoSpimDataMinimal().load(file), hub, options)
-            volume.scale = Vector3f(Random.randomFromRange(5.0f, 25.0f))
-            volume.rotation = Random.randomQuaternion()
-            volume.transferFunction.addControlPoint(0.0f, 0.0f)
-            scene.addChild(volume)
-        }
+        val imp: ImagePlus = IJ.openImage("https://imagej.nih.gov/ij/images/t1-head.zip")
+        val img: Img<UnsignedShortType> = ImageJFunctions.wrapShort(imp)
+
+        volume = Volume.fromRAI(img, UnsignedShortType(), AxisOrder.DEFAULT, "T1 head", hub, VolumeViewerOptions())
+        volume.transferFunction = TransferFunction.ramp(0.001f, 0.5f, 0.3f)
+        scene.addChild(volume)
+
 
         val shell = Box(Vector3f(10.0f, 10.0f, 10.0f), insideNormals = true)
         shell.material.cullingMode = Material.CullingMode.None
