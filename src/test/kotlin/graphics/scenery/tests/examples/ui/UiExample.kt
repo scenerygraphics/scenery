@@ -17,9 +17,10 @@ import kotlin.concurrent.thread
 class UiExample : SceneryBase("TexturedCubeExample") {
 
     override fun init() {
-        renderer = hub.add(SceneryElement.Renderer, Renderer.createRenderer(hub, applicationName, scene, 512, 512))
+        renderer = hub.add(SceneryElement.Renderer, Renderer.createRenderer(hub, applicationName, scene,
+                                                                            1280, 720))
 
-        val menu = Menu()
+        val menu = Menu(hub)
         scene.addChild(menu)
 
         val box = Box(Vector3f(1.0f, 1.0f, 1.0f))

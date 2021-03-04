@@ -1,25 +1,31 @@
 package graphics.scenery.ui
 
 import glm_.L
+import glm_.f
 import glm_.i
 import glm_.vec2.Vec2
 import glm_.vec2.Vec2i
 import glm_.vec4.Vec4
+import graphics.scenery.Hub
 import graphics.scenery.Mesh
 import graphics.scenery.ShaderMaterial
+import graphics.scenery.backends.Renderer
 import graphics.scenery.backends.ShaderType
 import graphics.scenery.textures.Texture
 import org.joml.Vector2f
 import org.joml.Vector2i
 import imgui.ImGui
 import imgui.classes.Context
+import imgui.impl.time
 import imgui.internal.DrawVert
 import kool.*
 import org.joml.Vector3i
 import org.lwjgl.system.MemoryUtil.*
+import uno.glfw.GlfwWindow
+import uno.glfw.glfw
 import java.nio.ByteBuffer
 
-class Menu : Mesh("Menu") {
+class Menu(val hub: Hub) : Mesh("Menu") {
 
     protected var fontMap: Texture
     var showDemoWindow = true
@@ -36,6 +42,8 @@ class Menu : Mesh("Menu") {
     var vtx = ByteBuffer(1024)
     var idx = IntBuffer(256)
 
+    val renderer = hub.get<Renderer>()!!
+
     override fun preDraw(): Boolean {
         //        if(!stale) {
         //            return true
@@ -43,7 +51,28 @@ class Menu : Mesh("Menu") {
 
         val start = System.nanoTime()
         // setup time step and input states
-        //        implGlfw.newFrame()
+//        implGlfw.newFrame()
+        run {
+            assert(ImGui.io.fonts.isBuilt) { "Font atlas not built! It is generally built by the renderer back-end. Missing call to renderer _NewFrame() function? e.g. ImGui_ImplOpenGL3_NewFrame()." }
+
+            // Setup display size (every frame to accommodate for window resizing)
+            val size = Vec2i(renderer.window.width, renderer.window.height)
+            val displaySize = size //window.framebufferSize TODO
+            ImGui.io.displaySize put size//(vrTexSize ?: window.size)
+            if (size allGreaterThan 0)
+                ImGui.io.displayFramebufferScale put (displaySize / size)
+
+            // Setup time step
+            val currentTime = glfw.time
+            ImGui.io.deltaTime = if (time > 0) (currentTime - time).f else 1f / 60f
+            time = currentTime
+
+//            updateMousePosAndButtons()
+//            updateMouseCursor()
+
+            // Update game controllers (if enabled and available)
+//            updateGamepads()
+        }
         ImGui.run {
             newFrame()
             logger.info("In ImGui")
