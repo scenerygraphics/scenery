@@ -7,9 +7,6 @@ import bdv.tools.transformation.TransformedSource
 import bdv.viewer.RequestRepaint
 import bdv.viewer.state.SourceState
 import graphics.scenery.*
-import graphics.scenery.utils.extensions.minus
-import graphics.scenery.utils.extensions.times
-import graphics.scenery.utils.extensions.xyz
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.numeric.ARGBType
 import net.imglib2.type.numeric.integer.UnsignedByteType
@@ -19,8 +16,6 @@ import net.imglib2.type.volatiles.VolatileUnsignedByteType
 import net.imglib2.type.volatiles.VolatileUnsignedShortType
 import org.joml.Matrix4f
 import org.joml.Vector2f
-import org.joml.Vector3f
-import org.joml.Vector4f
 import tpietzsch.backend.Texture
 import tpietzsch.backend.Texture3D
 import tpietzsch.cache.*
@@ -107,32 +102,6 @@ class VolumeManager(
     @ShaderProperty
     var shaderProperties = hashMapOf<String, Any>()
 
-    /** Plane equations for slicing planes mapped to slicing node of origin */
-    var slicingPlaneEquations = mapOf<SlicingPlane,Vector4f>()
-        set(value) {
-            val arrayElements = 10
-            if (value.size > arrayElements )
-                logger.warn("More than $arrayElements slicing planes for ${this.name} set. Ignoring additional planes.")
-             else
-                field = value
-
-            val fa = FloatArray(4 * arrayElements)
-
-            field.entries.forEachIndexed { i, entry ->
-                fa[0+i*4] = entry.value.x
-                fa[1+i*4] = entry.value.y
-                fa[2+i*4] = entry.value.z
-                fa[3+i*4] = entry.value.w
-            }
-
-            shaderProperties["slicingPlanes"] = fa
-        }
-
-    /** Attenuation of the slicing planes, values > 0.99f will result in a cut. */
-    var slicingAttenuation = 0.0f
-
-
-
     /** Set of [VolumeBlocks]. */
     protected var outOfCoreVolumes = ArrayList<VolumeBlocks>()
     var nodes = CopyOnWriteArrayList<Volume>()
@@ -200,13 +169,11 @@ class VolumeManager(
             updateProgram(context)
         }
 
-        shaderProperties["slicingPlanes"] = FloatArray(4 * 16)
         preDraw()
     }
 
     @Synchronized private fun recreateMaterial(context: SceneryContext) {
         shaderProperties.clear()
-        shaderProperties["slicingPlanes"] = FloatArray(4*16)
         shaderProperties["transform"] = Matrix4f()
         shaderProperties["viewportSize"] = Vector2f()
         shaderProperties["dsp"] = Vector2f()
@@ -226,8 +193,6 @@ class VolumeManager(
     @Synchronized private fun updateProgram(context: SceneryContext) {
         logger.debug("Updating effective shader program to $progvol")
         recreateMaterial(context)
-        // shaderProperties get cleared in recreateMaterial. Calling the setter again to write it to shaderProperties again
-        slicingPlaneEquations = slicingPlaneEquations
 
         progvol?.setTextureCache(textureCache)
         progvol?.use(context)
@@ -297,11 +262,11 @@ class VolumeManager(
         segments[SegmentType.SampleMultiresolutionVolume] = SegmentTemplate(
             "SampleBlockVolume.frag",
             "im", "sourcemin", "sourcemax", "intersectBoundingBox",
-            "lutSampler", "transferFunction", "colorMap", "blockScales", "lutSize", "lutOffset", "sampleVolume", "convert")
+            "lutSampler", "transferFunction", "colorMap", "blockScales", "lutSize", "lutOffset", "sampleVolume", "convert","slicingPlanes")
         segments[SegmentType.SampleVolume] = SegmentTemplate(
             "SampleSimpleVolume.frag",
             "im", "sourcemax", "intersectBoundingBox",
-            "volume", "transferFunction", "colorMap", "sampleVolume", "convert")
+            "volume", "transferFunction", "colorMap", "sampleVolume", "convert","slicingPlanes")
         segments[SegmentType.Convert] = SegmentTemplate(
             "Converter.frag",
             "convert", "offset", "scale")
@@ -469,6 +434,8 @@ class VolumeManager(
                     currentProg.setConverter(i, state.converterSetup)
                     currentProg.registerCustomSampler(i, "transferFunction", state.transferFunction)
                     currentProg.registerCustomSampler(i, "colorMap", state.colorMap)
+                    currentProg.setCustomFloatArrayUniformForVolume(i,"slicingPlanes",4,state.node.slicingArray())
+
                     context.bindTexture(state.transferFunction)
                     context.bindTexture(state.colorMap)
 
@@ -607,7 +574,6 @@ class VolumeManager(
         if(repaint) {
             context.runTextureUpdates()
         }
-        shaderProperties["slicingAttenuation"] = slicingAttenuation
 
         return readyToRender()
     }

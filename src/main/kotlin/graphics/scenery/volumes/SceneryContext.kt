@@ -106,6 +106,22 @@ open class SceneryContext(val node: VolumeManager, val useCompute: Boolean = fal
             modified = true
         }
 
+        override fun setUniform1iv(name: String?, count: Int, value: IntArray?) {
+            TODO("Not yet implemented")
+        }
+
+        override fun setUniform2iv(name: String?, count: Int, value: IntArray?) {
+            TODO("Not yet implemented")
+        }
+
+        override fun setUniform3iv(name: String?, count: Int, value: IntArray?) {
+            TODO("Not yet implemented")
+        }
+
+        override fun setUniform4iv(name: String?, count: Int, value: IntArray?) {
+            TODO("Not yet implemented")
+        }
+
         /**
          * Sets the uniform with [name] to the Float [v0].
          */
@@ -176,6 +192,14 @@ open class SceneryContext(val node: VolumeManager, val useCompute: Boolean = fal
 //            }
 
             node.shaderProperties[name] = padded
+            modified = true
+        }
+
+        /**
+         * Sets the uniform with [name] to the Float array given by [value], containing [count] 4-vectors.
+         */
+        override fun setUniform4fv(name: String, count: Int, value: FloatArray) {
+            node.shaderProperties[name] = value
             modified = true
         }
 

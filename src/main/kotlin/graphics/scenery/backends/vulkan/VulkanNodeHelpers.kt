@@ -457,7 +457,7 @@ object VulkanNodeHelpers {
                                 dsl,
                                 1,
                                 buffers.ShaderProperties,
-                                size = result.range
+                                size = maxOf(result.range, 2048)
                             )
                         s.requiredDescriptorSets["ShaderProperties"] = ds
                         s.UBOs["${pass.key}-ShaderProperties"] = ds to this
