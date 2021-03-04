@@ -10,9 +10,8 @@ import org.joml.Vector4f
 /**
  * Non-geometry node to handle slicing plane behavior
  */
-class SlicingPlane(override var name: String = "Slicing Plane") : Node() {
-    // TODO this has to become List<Volume> once the custom shader uniforms are implemented
-    private var slicedVolumes = listOf<VolumeManager>()
+class SlicingPlane(override var name: String = "Slicing Plane") : Node(name) {
+    private var slicedVolumes = listOf<Volume>()
 
     init {
         postUpdate.add {
@@ -21,8 +20,8 @@ class SlicingPlane(override var name: String = "Slicing Plane") : Node() {
                 return@add
             }
             // calculate closest point to origin in plane and use it as base for the plane equation
-            val pn = world.transform(Vector4f(0f, 1f, 0f, 0f)).xyz()
-            val p0 = worldPosition()
+            val pn = world.transform(Vector4f(0f, 1f, 0f, 0f)).xyz().normalize()
+            val p0 = worldPosition(Vector3f(0f))
 
             val nul = Vector3f(0f)
             val projectedNull = nul - (pn.dot(nul - p0)) * pn
@@ -40,14 +39,13 @@ class SlicingPlane(override var name: String = "Slicing Plane") : Node() {
         }
     }
 
-    fun addTargetVolume(volume: VolumeManager) {
+    fun addTargetVolume(volume: Volume) {
         slicedVolumes = slicedVolumes + volume
     }
 
-    fun removeTargetVolume(volume: VolumeManager) {
+    fun removeTargetVolume(volume: Volume) {
         slicedVolumes = slicedVolumes - volume
         volume.slicingPlaneEquations = volume.slicingPlaneEquations.minus(this)
     }
-
-
+    
 }

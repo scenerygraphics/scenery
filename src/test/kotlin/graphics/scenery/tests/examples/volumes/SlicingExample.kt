@@ -3,7 +3,6 @@ package graphics.scenery.tests.examples.volumes
 import bdv.util.AxisOrder
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
-import graphics.scenery.controls.InputHandler
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
@@ -31,7 +30,10 @@ import graphics.scenery.numerics.Random
  */
 class SlicingExample : SceneryBase("Volume Slicing example", 1280, 720) {
     lateinit var volume: Volume
+    lateinit var volume2: Volume
     var slicingPlanes = mapOf<SlicingPlane,Animator>()
+    val additionalVolumes = true
+    var additionalAnimators = emptyList<Animator>()
 
 
     override fun init() {
@@ -51,6 +53,31 @@ class SlicingExample : SceneryBase("Volume Slicing example", 1280, 720) {
         volume = Volume.fromRAI(img, UnsignedShortType(), AxisOrder.DEFAULT, "T1 head", hub, VolumeViewerOptions())
         volume.transferFunction = TransferFunction.ramp(0.001f, 0.5f, 0.3f)
         scene.addChild(volume)
+
+        if (additionalVolumes) {
+            fun addAdditionalVolume(base: Vector3f) {
+                val vol2Pivot = Node()
+                scene.addChild(vol2Pivot)
+                vol2Pivot.position = vol2Pivot.position + base
+                vol2Pivot.scale = Vector3f(0.5f)
+
+                volume2 =
+                    Volume.fromRAI(img, UnsignedShortType(), AxisOrder.DEFAULT, "T1 head", hub, VolumeViewerOptions())
+                volume2.transferFunction = TransferFunction.ramp(0.001f, 0.5f, 0.3f)
+                vol2Pivot.addChild(volume2)
+
+                val slicingPlane2 = createSlicingPlane()
+                scene.removeChild(slicingPlane2)
+                vol2Pivot.addChild(slicingPlane2)
+                slicingPlane2.addTargetVolume(volume2)
+                val animator2 = Animator(slicingPlane2)
+                additionalAnimators = additionalAnimators + animator2
+            }
+            addAdditionalVolume(Vector3f(2f,2f,-2f))
+            addAdditionalVolume(Vector3f(-2f,2f,-2f))
+            addAdditionalVolume(Vector3f(2f,-2f,-2f))
+            addAdditionalVolume(Vector3f(-2f,-2f,-2f))
+        }
 
 
         val shell = Box(Vector3f(10.0f, 10.0f, 10.0f), insideNormals = true)
@@ -72,6 +99,7 @@ class SlicingExample : SceneryBase("Volume Slicing example", 1280, 720) {
         thread {
             while (running) {
                 slicingPlanes.entries.forEach { it.value.animate() }
+                additionalAnimators.forEach { it.animate() }
                 Thread.sleep(20)
             }
         }
@@ -105,7 +133,7 @@ class SlicingExample : SceneryBase("Volume Slicing example", 1280, 720) {
     private fun addAnimatedSlicingPlane(){
 
         val slicingPlane = createSlicingPlane()
-        slicingPlane.addTargetVolume(volume.volumeManager)
+        slicingPlane.addTargetVolume(volume)
         val animator = Animator(slicingPlane)
 
         slicingPlanes = slicingPlanes + (slicingPlane to animator)
@@ -116,7 +144,7 @@ class SlicingExample : SceneryBase("Volume Slicing example", 1280, 720) {
             return
         val (plane,_) = slicingPlanes.entries.first()
         scene.removeChild(plane)
-        plane.removeTargetVolume(volume.volumeManager)
+        plane.removeTargetVolume(volume)
         slicingPlanes = slicingPlanes.toMutableMap().let { it.remove(plane); it}
     }
 
@@ -124,6 +152,8 @@ class SlicingExample : SceneryBase("Volume Slicing example", 1280, 720) {
 
         val slicingPlaneFunctionality = SlicingPlane()
         scene.addChild(slicingPlaneFunctionality)
+        //scene.addChild(slicingPlaneFunctionality)
+        slicingPlaneFunctionality.position -= Vector3f(0.5f)
 
         val slicingPlaneVisual: Node
         slicingPlaneVisual = Box(Vector3f(1f, 0.01f, 1f))

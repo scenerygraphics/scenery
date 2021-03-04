@@ -38,6 +38,7 @@ import net.imglib2.type.numeric.integer.*
 import net.imglib2.type.numeric.real.FloatType
 import org.joml.Matrix4f
 import org.joml.Vector3i
+import org.joml.Vector4f
 import org.lwjgl.system.MemoryUtil
 import org.scijava.io.location.FileLocation
 import tpietzsch.example2.VolumeViewerOptions
@@ -97,6 +98,9 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
             field = value
             volumeManager.renderingMethod = value
         }
+
+    /** Plane equations for slicing planes mapped to origin */
+    var slicingPlaneEquations = mapOf<SlicingPlane, Vector4f>()
 
     var volumeManager: VolumeManager
 
@@ -183,6 +187,23 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
             it.volumeManager = volumeManager
         }
         delegate = volumeManager
+    }
+
+    fun slicingArray(): FloatArray {
+        val arrayElements = 16
+        if (slicingPlaneEquations.size > arrayElements )
+            logger.warn("More than $arrayElements slicing planes for ${this.name} set. Ignoring additional planes.")
+
+        val fa = FloatArray(4 * arrayElements)
+
+        slicingPlaneEquations.entries.take(arrayElements).forEachIndexed { i, entry ->
+            fa[0+i*4] = entry.value.x
+            fa[1+i*4] = entry.value.y
+            fa[2+i*4] = entry.value.z
+            fa[3+i*4] = entry.value.w
+        }
+
+        return fa
     }
 
     /**
