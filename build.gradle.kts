@@ -107,6 +107,11 @@ dependencies {
     testImplementation(kotlin("test-junit"))
     //    implementation("com.github.kotlin-graphics:assimp:25c68811")
 
+    listOf("gl", "glfw", "core", "vk").forEach {
+        implementation("com.github.kotlin-graphics.imgui:$it:4c02b4e1")
+    }
+    implementation("com.github.kotlin-graphics:kool:f91acd54")
+
     testSciJava("junit:junit")
     testSciJava("org.slf4j:slf4j-simple")
     testSciJava("net.imagej")
@@ -153,6 +158,7 @@ tasks {
     }
 
     dokkaHtml {
+        enabled = false
         dokkaSourceSets.configureEach {
             sourceLink {
                 localDirectory.set(file("src/main/kotlin"))
@@ -161,6 +167,8 @@ tasks {
             }
         }
     }
+
+    dokkaJavadoc { enabled = false }
 
     jacocoTestReport {
         reports {
@@ -175,12 +183,14 @@ tasks {
 }
 
 val dokkaJavadocJar by tasks.register<Jar>("dokkaJavadocJar") {
+    enabled = false
     dependsOn(tasks.dokkaJavadoc)
     from(tasks.dokkaJavadoc.get().outputDirectory.get())
     archiveClassifier.set("javadoc")
 }
 
 val dokkaHtmlJar by tasks.register<Jar>("dokkaHtmlJar") {
+    enabled = false
     dependsOn(tasks.dokkaHtml)
     from(tasks.dokkaHtml.get().outputDirectory.get())
     archiveClassifier.set("html-doc")

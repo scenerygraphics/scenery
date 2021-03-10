@@ -7,6 +7,8 @@ import graphics.scenery.spirvcrossj.Loader
 import graphics.scenery.spirvcrossj.libspirvcrossj
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.*
+import imgui.impl.GlfwClientApi
+import imgui.impl.clientApi
 import io.github.classgraph.ClassGraph
 import kotlinx.coroutines.*
 import org.joml.*
@@ -44,6 +46,8 @@ import kotlin.concurrent.withLock
 import kotlin.reflect.full.*
 import kotlin.system.measureTimeMillis
 import kotlin.time.ExperimentalTime
+import imgui.impl.glfw.ImplGlfw
+import uno.glfw.GlfwWindow
 
 
 /**
@@ -305,7 +309,6 @@ open class VulkanRenderer(hub: Hub,
     }
 
     // helper classes end
-
 
 
     final override var hub: Hub? = null
@@ -617,6 +620,11 @@ open class VulkanRenderer(hub: Hub,
             embedIn(embedIn)
             window = createWindow(window, swapchainRecreator)
         }
+
+        // [imgui]
+//        val wnd = window as SceneryWindow.GLFWWindow
+//        ImplGlfw(GlfwWindow.from(wnd.window), installCallbacks = true)
+//        clientApi = GlfwClientApi.Vulkan
 
         logger.debug("Created swapchain")
         vertexDescriptors = prepareStandardVertexDescriptors()

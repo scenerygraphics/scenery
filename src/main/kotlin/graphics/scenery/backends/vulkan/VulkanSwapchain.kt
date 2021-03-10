@@ -106,6 +106,7 @@ open class VulkanSwapchain(open val device: VulkanDevice,
      * Returns the initialised [SceneryWindow].
      */
     override fun createWindow(win: SceneryWindow, swapchainRecreator: VulkanRenderer.SwapchainRecreator): SceneryWindow {
+
         glfwDefaultWindowHints()
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API)
 
