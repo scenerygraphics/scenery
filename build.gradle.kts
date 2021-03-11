@@ -18,8 +18,6 @@ plugins {
 
 //sciJava.debug = true
 
-val ktVersion = "1.4.10"
-
 repositories {
     mavenCentral()
     jcenter()
