@@ -52,7 +52,7 @@ open class Mesh(override var name: String = "Mesh") : Node(name), HasGeometry {
     data class Scissor(val extent: Vector2i, val offset: Vector2i)
     data class DrawState(val count: Int, val indexOffset: Int, val vertexOffset: Int, val scissor: Scissor? = null)
 
-    var splitDrawCalls = CopyOnWriteArrayList<DrawState>()
+    val splitDrawCalls = CopyOnWriteArrayList<DrawState>()
 
     /**
      * Reads geometry from a file given by [filename]. The extension of [filename] will determine

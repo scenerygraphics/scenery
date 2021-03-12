@@ -2,8 +2,8 @@
 #extension GL_ARB_separate_shader_objects: enable
 
 layout(location = 0) in vec2 vertexPosition;
-layout(location = 1) in vec2 vertexNormal;
-layout(location = 2) in vec2 vertexTexCoord;
+layout(location = 1) in vec2 vertexTexCoord;
+layout(location = 2) in vec4 color;
 
 //out gl_PerVertex { vec4 gl_Position; };
 layout(location = 0) out VertexData {
@@ -22,7 +22,7 @@ layout(push_constant) uniform currentEye_t {
 
 void main()
 {
-    Vertex.Color = vec4(1.0);
+    Vertex.Color = color;
     Vertex.UV = vertexTexCoord;
     gl_Position = vec4(vertexPosition * uScale + uTranslate, 0, 1);
 }

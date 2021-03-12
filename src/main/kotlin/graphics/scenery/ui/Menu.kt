@@ -7,6 +7,7 @@ import glm_.vec2.Vec2
 import glm_.vec2.Vec2i
 import glm_.vec4.Vec4
 import graphics.scenery.Hub
+import graphics.scenery.Material
 import graphics.scenery.Mesh
 import graphics.scenery.ShaderMaterial
 import graphics.scenery.backends.Renderer
@@ -43,6 +44,7 @@ class Menu(val hub: Hub) : Mesh("Menu") {
     var idx = IntBuffer(256)
 
     val renderer = hub.get<Renderer>()!!
+    val menus = mutableMapOf<String, MenuNode>() // TODO switch to Int key
 
     override fun preDraw(): Boolean {
         //        if(!stale) {
@@ -51,14 +53,14 @@ class Menu(val hub: Hub) : Mesh("Menu") {
 
         val start = System.nanoTime()
         // setup time step and input states
-//        implGlfw.newFrame()
+        //        implGlfw.newFrame()
         run {
             assert(ImGui.io.fonts.isBuilt) { "Font atlas not built! It is generally built by the renderer back-end. Missing call to renderer _NewFrame() function? e.g. ImGui_ImplOpenGL3_NewFrame()." }
 
             // Setup display size (every frame to accommodate for window resizing)
             val size = Vec2i(renderer.window.width, renderer.window.height)
             val displaySize = size //window.framebufferSize TODO
-            ImGui.io.displaySize put size//(vrTexSize ?: window.size)
+            ImGui.io.displaySize put size //(vrTexSize ?: window.size)
             if (size allGreaterThan 0)
                 ImGui.io.displayFramebufferScale put (displaySize / size)
 
@@ -67,15 +69,15 @@ class Menu(val hub: Hub) : Mesh("Menu") {
             ImGui.io.deltaTime = if (time > 0) (currentTime - time).f else 1f / 60f
             time = currentTime
 
-//            updateMousePosAndButtons()
-//            updateMouseCursor()
+            //            updateMousePosAndButtons()
+            //            updateMouseCursor()
 
             // Update game controllers (if enabled and available)
-//            updateGamepads()
+            //            updateGamepads()
         }
         ImGui.run {
             newFrame()
-            logger.info("In ImGui")
+            //            logger.info("In ImGui")
 
             // 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
             if (showDemoWindow)
@@ -96,12 +98,13 @@ class Menu(val hub: Hub) : Mesh("Menu") {
         val scale = Vector2f(2f / drawData.displaySize.x, 2f / drawData.displaySize.y)
         val translate = Vector2f(-1f - drawData.displayPos.x * scale[0], -1f - drawData.displayPos.y * scale[1])
 
-        this.children.clear()
-        logger.info("Got ${drawData.cmdLists.size} draw cmd lists")
+        //        logger.info("Got ${drawData.cmdLists.size} draw cmd lists")
 
         val DrawVertSize = Vec2.size * 2 + Int.SIZE_BYTES
         val vertexSize = drawData.totalVtxCount * DrawVertSize
         val indexSize = drawData.totalIdxCount
+
+        //        println("vertexSize: $vertexSize, indexSize: $indexSize")
 
         if (vertexSize > vtx.cap) {
             vtx.free()
@@ -114,12 +117,36 @@ class Menu(val hub: Hub) : Mesh("Menu") {
         var vtxPtr = vtx.adr
         var idxPtr = idx.adr
 
+        //        run {
+        //            val i = 0
+        //            val o = DrawVertSize * i
+        //            println("DrawVert[$i] { pos(${vtx.getFloat(o)}, ${vtx.getFloat(o + Float.BYTES)}, " +
+        //                            "uv(${vtx.getFloat(o + Vec2.size)}, ${vtx.getFloat(o + Vec2.size + Float.BYTES)} " +
+        //                            "col(${vtx.getInt(o + Vec2.size * 2)}")
+        //        }
+
+        // retain our still existing menus
+        menus.entries.retainAll { (k, _) -> drawData.cmdLists.any { it._ownerName == k } }
+
+        var globalVtxOffset = 0
+        var globalIdxOffset = 0
         drawData.cmdLists.forEach { drawList ->
-            val node = MenuNode()
-            node.material = ShaderMaterial.fromClass(
-                MenuNode::class.java,
-                listOf(ShaderType.VertexShader, ShaderType.FragmentShader)
-            )
+            val node = menus.getOrPut(drawList._ownerName) {
+                logger.info("Adding new node for ${drawList._ownerName}")
+                MenuNode(drawList._ownerName).also {
+                    it.vertexSize = 2
+                    it.material = ShaderMaterial.fromClass(MenuNode::class.java, listOf(ShaderType.VertexShader, ShaderType.FragmentShader))
+                    it.material.textures["sTexture"] = fontMap
+                    it.material.blending.transparent = true
+                    it.material.blending.setOverlayBlending()
+                    it.material.cullingMode = Material.CullingMode.None
+                    it.material.depthTest = Material.DepthTest.Always
+
+                    this.addChild(it)
+                }
+            }
+
+            node.splitDrawCalls.clear()
 
             val clipOff = drawData.displayPos         // (0,0) unless using multi-viewports
             val clipScale = drawData.framebufferScale // (1,1) unless using retina display which are often (2,2)
@@ -136,12 +163,15 @@ class Menu(val hub: Hub) : Mesh("Menu") {
                     // Apply scissor/clipping rectangle
                     node.uScale = scale
                     node.uTranslate = translate
-                    node.extent = Vector2i((clipRect.z - clipRect.x).i, (clipRect.w - clipRect.y).i)
-                    node.offset = Vector2i(clipRect.x.i, clipRect.y.i)
+                    val extent = Vector2i((clipRect.z - clipRect.x).i, (clipRect.w - clipRect.y).i)
+                    val offset = Vector2i(clipRect.x.i, clipRect.y.i)
+                    val scissor = Scissor(extent, offset)
+
+                    node.splitDrawCalls += DrawState(cmd.elemCount, cmd.idxOffset + globalIdxOffset, cmd.vtxOffset + globalVtxOffset, scissor)
                 }
             }
-
-            node.vertexSize = 2
+            globalIdxOffset += drawList.idxBuffer.rem
+            globalVtxOffset += drawList.vtxBuffer.rem
 
             memCopy(drawList.vtxBuffer.data.adr, vtxPtr, drawList.vtxBuffer.size * DrawVertSize.L)
             memCopy(memAddress(drawList.idxBuffer), idxPtr, drawList.idxBuffer.remaining() * Integer.BYTES.L)
@@ -149,14 +179,18 @@ class Menu(val hub: Hub) : Mesh("Menu") {
             idxPtr += drawList.idxBuffer.remaining() * Integer.BYTES
 
             node.vertices = vtx.asFloatBuffer()
-            node.normals = node.vertices // TODO change me
+            //node.normals = node.vertices // TODO change me
             node.indices = idx
 
-            node.material.textures["sTexture"] = fontMap
-            this.addChild(node)
+//            node.dirty = true
+
+
         }
-        val duration = System.nanoTime() - start
-        logger.info("Imgui serialisation took ${duration / 10e6}ms")
+        //        println("vtx:$vtx")
+        //        println("idx:$idx")
+        //        val duration = System.nanoTime() - start
+        //        logger.info("Imgui serialisation took ${duration / 10e6}ms")
+        //logger.info("menu children: ${this.children.joinToString { "${it.name}, ${(it as? MenuNode)?.vertices?.remaining()}, ${(it as? MenuNode)?.splitDrawCalls?.size}" }}")
         return true
     }
 }
