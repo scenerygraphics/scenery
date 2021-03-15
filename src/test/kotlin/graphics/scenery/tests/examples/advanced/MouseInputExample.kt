@@ -3,6 +3,7 @@ package graphics.scenery.tests.examples.advanced
 import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
+import graphics.scenery.controls.behaviours.MouseDragSphere
 import graphics.scenery.controls.behaviours.SelectCommand
 import graphics.scenery.numerics.Random
 import graphics.scenery.utils.extensions.plus
@@ -12,9 +13,12 @@ import kotlin.concurrent.thread
  * Test for [SelectCommand], produces a lot of (clickable) spheres, that
  * wiggle when selected by double-click.
  *
+ * Drag nodes roughly along a sphere around the camera by pressing "R" and moving the mouse.
+ *
  * @author Ulrik Günther <hello@ulrik.is>
+ * @author Jan Tiemann
  */
-class PickerExample: SceneryBase("PickerExample", wantREPL = true) {
+class MouseInputExample: SceneryBase("MouseInputExample", wantREPL = true) {
     override fun init() {
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, 512, 512))
 
@@ -59,17 +63,26 @@ class PickerExample: SceneryBase("PickerExample", wantREPL = true) {
             }
         }
 
+        val settings = hub.get<Settings>()
+
         renderer?.let { r ->
             inputHandler?.addBehaviour("select", SelectCommand("select", r, scene,
                 { scene.findObserver() }, action = wiggle, debugRaycast = false))
             inputHandler?.addKeyBinding("select", "double-click button1")
+
+            inputHandler?.addBehaviour(
+                "dragObject", MouseDragSphere("dragObject",
+                    { scene.findObserver() }, debugRaycast = false
+                )
+            )
+            inputHandler?.addKeyBinding("dragObject", "R")
         }
     }
 
     companion object {
         @JvmStatic
         fun main(args: Array<String>) {
-            PickerExample().main()
+            MouseInputExample().main()
         }
     }
 }
