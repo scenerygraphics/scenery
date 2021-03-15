@@ -1,31 +1,42 @@
 package graphics.scenery.tests.examples.advanced
 
-import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
+import graphics.scenery.controls.behaviours.MouseDragPlane
 import graphics.scenery.controls.behaviours.MouseDragSphere
+import graphics.scenery.controls.behaviours.MouseRotate
 import graphics.scenery.controls.behaviours.SelectCommand
 import graphics.scenery.numerics.Random
 import graphics.scenery.utils.extensions.plus
+import org.joml.Vector3f
 import kotlin.concurrent.thread
 
 /**
  * Test for [SelectCommand], produces a lot of (clickable) spheres, that
  * wiggle when selected by double-click.
  *
- * Drag nodes roughly along a sphere around the camera by pressing "R" and moving the mouse.
+ * Drag nodes along a sphere around the camera by holding "1" and moving the mouse.
+ * Drag nodes along a plane parallel to the view plane by holding "2" and moving the mouse.
+ * Rotate nodes by holding "3" and moving the mouse.
  *
  * @author Ulrik Günther <hello@ulrik.is>
  * @author Jan Tiemann
  */
-class MouseInputExample: SceneryBase("MouseInputExample", wantREPL = true) {
+class MouseInputExample : SceneryBase("MouseInputExample", wantREPL = true) {
     override fun init() {
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, 512, 512))
 
-        for(i in 0 until 200) {
-            val s = Icosphere(Random.randomFromRange(0.04f, 0.2f), 2)
-            s.position = Random.random3DVectorFromRange(-5.0f, 5.0f)
-            scene.addChild(s)
+        for (i in 0 until 200) {
+            if (i % 2 == 0) {
+                val s = Icosphere(Random.randomFromRange(0.04f, 0.2f), 2)
+                s.position = Random.random3DVectorFromRange(-5.0f, 5.0f)
+                scene.addChild(s)
+            } else {
+                val box = Box(Random.random3DVectorFromRange(0.04f, 0.2f), insideNormals = true)
+                box.material.diffuse = Vector3f(0f, 1.0f, 1.0f)
+                box.position = Random.random3DVectorFromRange(-5.0f, 5.0f)
+                scene.addChild(box)
+            }
         }
 
         val box = Box(Vector3f(10.0f, 10.0f, 10.0f), insideNormals = true)
@@ -55,7 +66,7 @@ class MouseInputExample: SceneryBase("MouseInputExample", wantREPL = true) {
             result.matches.firstOrNull()?.let { nearest ->
                 val originalPosition = Vector3f(nearest.node.position)
                 thread {
-                    for(i in 0 until 200) {
+                    for (i in 0 until 200) {
                         nearest.node.position = originalPosition + Random.random3DVectorFromRange(-0.05f, 0.05f)
                         Thread.sleep(2)
                     }
@@ -63,20 +74,40 @@ class MouseInputExample: SceneryBase("MouseInputExample", wantREPL = true) {
             }
         }
 
-        val settings = hub.get<Settings>()
-
         renderer?.let { r ->
-            inputHandler?.addBehaviour("select", SelectCommand("select", r, scene,
-                { scene.findObserver() }, action = wiggle, debugRaycast = false))
-            inputHandler?.addKeyBinding("select", "double-click button1")
-
             inputHandler?.addBehaviour(
-                "dragObject", MouseDragSphere("dragObject",
-                    { scene.findObserver() }, debugRaycast = false
+                "select", SelectCommand(
+                    "select", r, scene,
+                    { scene.findObserver() }, action = wiggle, debugRaycast = false
                 )
             )
-            inputHandler?.addKeyBinding("dragObject", "R")
+            inputHandler?.addKeyBinding("select", "double-click button1")
         }
+
+        inputHandler?.addBehaviour(
+            "sphereDragObject", MouseDragSphere(
+                "sphereDragObject",
+                { scene.findObserver() }, debugRaycast = false
+            )
+        )
+        inputHandler?.addKeyBinding("sphereDragObject", "1")
+
+        inputHandler?.addBehaviour(
+            "planeDragObject", MouseDragPlane(
+                "planeDragObject",
+                { scene.findObserver() }, debugRaycast = false
+            )
+        )
+        inputHandler?.addKeyBinding("planeDragObject", "2")
+
+        inputHandler?.addBehaviour(
+            "rotateObject", MouseRotate(
+                "rotateObject",
+                { scene.findObserver() }, debugRaycast = false
+            )
+        )
+        inputHandler?.addKeyBinding("rotateObject", "3")
+
     }
 
     companion object {
