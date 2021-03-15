@@ -255,10 +255,13 @@ open class Camera : Node("Camera") {
     }
 
     /**
+     * Returns the starting position and direction of a ray starting at the the screen space position
+     * indicated by [x] and [y] targeting away from the camera.
+     *
      * Returns (worldPos, worldDir)
      */
     fun screenPointToRay(x: Int, y: Int): Pair<Vector3f, Vector3f> {
-        val view = (target - position).normalize()
+        val view = (if (targeted) target - position else  forward).normalize()
         var h = Vector3f(view).cross(up).normalize()
         var v = Vector3f(h).cross(view)
 
@@ -266,8 +269,8 @@ open class Camera : Node("Camera") {
         val lengthV = tan(fov / 2.0).toFloat() * nearPlaneDistance
         val lengthH = lengthV * (width / height)
 
-        v = v * lengthV
-        h = h * lengthH
+        v *= lengthV
+        h *= lengthH
 
         val posX = (x - width / 2.0f) / (width / 2.0f)
         val posY = -1.0f * (y - height / 2.0f) / (height / 2.0f)
