@@ -1,9 +1,11 @@
 package graphics.scenery.ui
 
 import glm_.L
+import glm_.b
 import glm_.f
 import glm_.i
 import glm_.vec2.Vec2
+import glm_.vec2.Vec2d
 import glm_.vec2.Vec2i
 import glm_.vec4.Vec4
 import graphics.scenery.Hub
@@ -11,18 +13,30 @@ import graphics.scenery.Material
 import graphics.scenery.Mesh
 import graphics.scenery.ShaderMaterial
 import graphics.scenery.backends.Renderer
+import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.backends.ShaderType
+import graphics.scenery.controls.GLFWMouseAndKeyHandler
+import graphics.scenery.controls.InputHandler
 import graphics.scenery.textures.Texture
+import imgui.*
 import org.joml.Vector2f
 import org.joml.Vector2i
-import imgui.ImGui
 import imgui.classes.Context
+import imgui.font.Font
+import imgui.font.FontConfig
+import imgui.font.glyphRanges
+import imgui.font.proggyCleanTtfCompressedDataBase85
+import imgui.impl.mouseCursors
+import imgui.impl.mouseJustPressed
 import imgui.impl.time
 import imgui.internal.DrawVert
 import kool.*
 import org.joml.Vector3i
+import org.lwjgl.glfw.GLFW
 import org.lwjgl.system.MemoryUtil.*
+import uno.glfw.GlfwCursor
 import uno.glfw.GlfwWindow
+import uno.glfw.Joystick
 import uno.glfw.glfw
 import java.nio.ByteBuffer
 
@@ -31,6 +45,17 @@ class Menu(val hub: Hub) : Mesh("Menu") {
     protected var fontMap: Texture
     var showDemoWindow = true
     val ctx = Context()
+    val dpi = 2
+
+    val vrTexSize: Vec2i? = null
+
+    /** for passing inputs in vr */
+    var vrCursorPos: Vec2? = null
+
+    // 1f unless you use any scaling != 100%, 125% corresponds to 1.25f
+    val scaleFont = 1.25f
+    // this must come before retrieving the texture (which comes right after, in the init)
+    val font = ImGui.io.fonts.addFontFromFileTTF("graphics/scenery/ui/ProggyClean.ttf", 16f * scaleFont)!!
 
     init {
         // Setup Dear ImGui context
@@ -44,44 +69,33 @@ class Menu(val hub: Hub) : Mesh("Menu") {
     var idx = IntBuffer(256)
 
     val renderer = hub.get<Renderer>()!!
+    val input by lazy { hub.get<InputHandler>()!!.handler!! as GLFWMouseAndKeyHandler }
+    val window by lazy { GlfwWindow.from((hub.get<Renderer>()!!.window as SceneryWindow.GLFWWindow).window) }
     val menus = mutableMapOf<String, MenuNode>() // TODO switch to Int key
+
+
+    var init = false
 
     override fun preDraw(): Boolean {
         //        if(!stale) {
         //            return true
         //        }
 
-        val start = System.nanoTime()
         // setup time step and input states
-        //        implGlfw.newFrame()
-        run {
-            assert(ImGui.io.fonts.isBuilt) { "Font atlas not built! It is generally built by the renderer back-end. Missing call to renderer _NewFrame() function? e.g. ImGui_ImplOpenGL3_NewFrame()." }
+        implGlfwNewFrame()
 
-            // Setup display size (every frame to accommodate for window resizing)
-            val size = Vec2i(renderer.window.width, renderer.window.height)
-            val displaySize = size //window.framebufferSize TODO
-            ImGui.io.displaySize put size //(vrTexSize ?: window.size)
-            if (size allGreaterThan 0)
-                ImGui.io.displayFramebufferScale put (displaySize / size)
-
-            // Setup time step
-            val currentTime = glfw.time
-            ImGui.io.deltaTime = if (time > 0) (currentTime - time).f else 1f / 60f
-            time = currentTime
-
-            //            updateMousePosAndButtons()
-            //            updateMouseCursor()
-
-            // Update game controllers (if enabled and available)
-            //            updateGamepads()
-        }
         ImGui.run {
             newFrame()
             //            logger.info("In ImGui")
+//            if (init)
+                pushFont(this@Menu.font)
 
             // 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
             if (showDemoWindow)
                 showDemoWindow(::showDemoWindow)
+
+//            if (init)
+                popFont()
         }
 
         // Rendering
@@ -182,7 +196,7 @@ class Menu(val hub: Hub) : Mesh("Menu") {
             //node.normals = node.vertices // TODO change me
             node.indices = idx
 
-//            node.dirty = true
+            //            node.dirty = true
 
 
         }
@@ -192,5 +206,115 @@ class Menu(val hub: Hub) : Mesh("Menu") {
         //        logger.info("Imgui serialisation took ${duration / 10e6}ms")
         //logger.info("menu children: ${this.children.joinToString { "${it.name}, ${(it as? MenuNode)?.vertices?.remaining()}, ${(it as? MenuNode)?.splitDrawCalls?.size}" }}")
         return true
+    }
+
+    fun implGlfwNewFrame() {
+
+        assert(ImGui.io.fonts.isBuilt) { "Font atlas not built! It is generally built by the renderer back-end. Missing call to renderer _NewFrame() function? e.g. ImGui_ImplOpenGL3_NewFrame()." }
+
+        // Setup display size (every frame to accommodate for window resizing)
+        val size = window.size
+        val displaySize = window.framebufferSize
+        ImGui.io.displaySize put (vrTexSize ?: size)
+        if (size allGreaterThan 0)
+            ImGui.io.displayFramebufferScale put (displaySize / size)
+
+        // Setup time step
+        val currentTime = glfw.time
+        ImGui.io.deltaTime = if (time > 0) (currentTime - time).f else 1f / 60f
+        time = currentTime
+
+        updateMousePosAndButtons()
+        updateMouseCursor()
+
+        // Update game controllers (if enabled and available)
+        updateGamepads()
+    }
+
+    private fun updateMousePosAndButtons() {
+
+        // Update buttons
+        repeat(ImGui.io.mouseDown.size) {
+            /*  If a mouse press event came, always pass it as "mouse held this frame", so we don't miss click-release
+                events that are shorter than 1 frame.   */
+            ImGui.io.mouseDown[it] = mouseJustPressed[it] || input.getMouseButton(it) == GLFW.GLFW_PRESS
+            mouseJustPressed[it] = false
+        }
+
+        // Update mouse position
+        val mousePosBackup = Vec2d(ImGui.io.mousePos)
+        ImGui.io.mousePos put -Float.MAX_VALUE
+        if (window.isFocused)
+            if (ImGui.io.wantSetMousePos)
+                window.cursorPos = mousePosBackup
+            else
+                ImGui.io.mousePos put (vrCursorPos ?: window.cursorPos)
+        else
+            vrCursorPos?.let(ImGui.io.mousePos::put) // window is usually unfocused in vr
+    }
+
+    private fun updateMouseCursor() {
+
+        if (ImGui.io.configFlags has ConfigFlag.NoMouseCursorChange || window.cursorMode == GlfwWindow.CursorMode.disabled)
+            return
+
+        val imguiCursor = ImGui.mouseCursor
+        if (imguiCursor == MouseCursor.None || ImGui.io.mouseDrawCursor)
+        // Hide OS mouse cursor if imgui is drawing it or if it wants no cursor
+            window.cursorMode = GlfwWindow.CursorMode.hidden
+        else {
+            // Show OS mouse cursor
+            // FIXME-PLATFORM: Unfocused windows seems to fail changing the mouse cursor with GLFW 3.2, but 3.3 works here.
+            window.cursor = GlfwCursor(mouseCursors[imguiCursor.i].takeIf { it != NULL }
+                                           ?: mouseCursors[MouseCursor.Arrow.i])
+            window.cursorMode = GlfwWindow.CursorMode.normal
+        }
+    }
+
+    fun updateGamepads() {
+
+        ImGui.io.navInputs.fill(0f)
+        if (ImGui.io.configFlags has ConfigFlag.NavEnableGamepad) {
+            // Update gamepad inputs
+            val buttons = Joystick._1.buttons ?: ByteBuffer.allocate(0)
+            val buttonsCount = buttons.lim
+            val axes = Joystick._1.axes ?: java.nio.FloatBuffer.allocate(0)
+            val axesCount = axes.lim
+
+            fun mapButton(nav: NavInput, button: Int) {
+                if (buttonsCount > button && buttons[button] == GLFW.GLFW_PRESS.b)
+                    ImGui.io.navInputs[nav] = 1f
+            }
+
+            fun mapAnalog(nav: NavInput, axis: Int, v0: Float, v1: Float) {
+                var v = if (axesCount > axis) axes[axis] else v0
+                v = (v - v0) / (v1 - v0)
+                if (v > 1f) v = 1f
+                if (ImGui.io.navInputs[nav] < v)
+                    ImGui.io.navInputs[nav] = v
+            }
+
+            mapButton(NavInput.Activate, 0)     // Cross / A
+            mapButton(NavInput.Cancel, 1)     // Circle / B
+            mapButton(NavInput.Menu, 2)     // Square / X
+            mapButton(NavInput.Input, 3)     // Triangle / Y
+            mapButton(NavInput.DpadLeft, 13)    // D-Pad Left
+            mapButton(NavInput.DpadRight, 11)    // D-Pad Right
+            mapButton(NavInput.DpadUp, 10)    // D-Pad Up
+            mapButton(NavInput.DpadDown, 12)    // D-Pad Down
+            mapButton(NavInput.FocusPrev, 4)     // L1 / LB
+            mapButton(NavInput.FocusNext, 5)     // R1 / RB
+            mapButton(NavInput.TweakSlow, 4)     // L1 / LB
+            mapButton(NavInput.TweakFast, 5)     // R1 / RB
+            mapAnalog(NavInput.LStickLeft, 0, -0.3f, -0.9f)
+            mapAnalog(NavInput.LStickRight, 0, +0.3f, +0.9f)
+            mapAnalog(NavInput.LStickUp, 1, +0.3f, +0.9f)
+            mapAnalog(NavInput.LStickDown, 1, -0.3f, -0.9f)
+
+            ImGui.io.backendFlags = when {
+                axesCount > 0 && buttonsCount > 0 -> ImGui.io.backendFlags or BackendFlag.HasGamepad
+                else -> ImGui.io.backendFlags wo BackendFlag.HasGamepad
+            }
+        }
     }
 }

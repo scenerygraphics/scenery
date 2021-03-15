@@ -3,6 +3,7 @@ package graphics.scenery.tests.examples.ui
 import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
+import graphics.scenery.repl.REPL
 import graphics.scenery.tests.examples.basic.TexturedCubeExample
 import graphics.scenery.textures.Texture
 import graphics.scenery.ui.Menu
@@ -18,7 +19,7 @@ class UiExample : SceneryBase("TexturedCubeExample") {
 
     override fun init() {
         renderer = hub.add(SceneryElement.Renderer, Renderer.createRenderer(hub, applicationName, scene,
-                                                                            1280, 720))
+                                                                            2560, 1440))
 
         val menu = Menu(hub)
         scene.addChild(menu)

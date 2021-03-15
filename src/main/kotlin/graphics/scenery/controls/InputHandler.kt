@@ -32,7 +32,7 @@ import javax.swing.JFrame
  * @property[hub] [Hub] for handoing communication
  * @constructor Creates a default behaviour list and input map, also reads the configuration from a file.
  */
-class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?, forceHandler: Class<*>? = null) : Hubable, AutoCloseable {
+open class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?, forceHandler: Class<*>? = null) : Hubable, AutoCloseable {
     /** logger for the InputHandler **/
     internal val logger by LazyLogger()
 
