@@ -22,14 +22,10 @@ import imgui.*
 import org.joml.Vector2f
 import org.joml.Vector2i
 import imgui.classes.Context
-import imgui.font.Font
-import imgui.font.FontConfig
-import imgui.font.glyphRanges
-import imgui.font.proggyCleanTtfCompressedDataBase85
+import imgui.impl.glfw.ImplGlfw
 import imgui.impl.mouseCursors
 import imgui.impl.mouseJustPressed
 import imgui.impl.time
-import imgui.internal.DrawVert
 import kool.*
 import org.joml.Vector3i
 import org.lwjgl.glfw.GLFW
@@ -42,10 +38,11 @@ import java.nio.ByteBuffer
 
 class Menu(val hub: Hub) : Mesh("Menu") {
 
-    protected var fontMap: Texture
     var showDemoWindow = true
+
+
+    // Setup Dear ImGui context
     val ctx = Context()
-    val dpi = 2
 
     val vrTexSize: Vec2i? = null
 
@@ -54,15 +51,12 @@ class Menu(val hub: Hub) : Mesh("Menu") {
 
     // 1f unless you use any scaling != 100%, 125% corresponds to 1.25f
     val scaleFont = 1.25f
+
     // this must come before retrieving the texture (which comes right after, in the init)
     val font = ImGui.io.fonts.addFontFromFileTTF("graphics/scenery/ui/ProggyClean.ttf", 16f * scaleFont)!!
 
-    init {
-        // Setup Dear ImGui context
-
-        // do imgui setup
-        val (pixels, size, _) = ImGui.io.fonts.getTexDataAsRGBA32()
-        fontMap = Texture(dimensions = Vector3i(size.x, size.y, 1), contents = pixels)
+    val fontMap: Texture = ImGui.io.fonts.getTexDataAsRGBA32().let { (pixels, size, _) ->
+        Texture(dimensions = Vector3i(size.x, size.y, 1), contents = pixels)
     }
 
     var vtx = ByteBuffer(1024)
@@ -73,8 +67,8 @@ class Menu(val hub: Hub) : Mesh("Menu") {
     val window by lazy { GlfwWindow.from((hub.get<Renderer>()!!.window as SceneryWindow.GLFWWindow).window) }
     val menus = mutableMapOf<String, MenuNode>() // TODO switch to Int key
 
-
-    var init = false
+    // Setup Platform/Renderer bindings
+    val implGlfw = ImplGlfw(window, true, vrTexSize)
 
     override fun preDraw(): Boolean {
         //        if(!stale) {
@@ -82,21 +76,33 @@ class Menu(val hub: Hub) : Mesh("Menu") {
         //        }
 
         // setup time step and input states
-        implGlfwNewFrame()
+        //        implGlfwNewFrame()
+        implGlfw.newFrame()
 
         ImGui.run {
+
             newFrame()
             //            logger.info("In ImGui")
-//            if (init)
-                pushFont(this@Menu.font)
+            //            if (init)
+            pushFont(this@Menu.font)
 
             // 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
             if (showDemoWindow)
                 showDemoWindow(::showDemoWindow)
 
-//            if (init)
-                popFont()
+            //            if (init)
+            popFont()
         }
+
+        ImGui.io.mouseDown.forEach {
+            if (it)
+                println("mouse button $it down")
+        }
+
+        return renderImgui()
+    }
+
+    fun renderImgui(): Boolean {
 
         // Rendering
         ImGui.render()

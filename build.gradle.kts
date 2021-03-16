@@ -113,7 +113,7 @@ dependencies {
     testSciJava("net.imglib2:imglib2-ij")
 
     listOf("gl", "glfw", "core", "vk").forEach {
-        implementation("com.github.kotlin-graphics.imgui:$it:4c02b4e1")
+        implementation("com.github.kotlin-graphics.imgui:$it:0e63e2f5")
     }
     implementation("com.github.kotlin-graphics:kool:f91acd54")
 }
