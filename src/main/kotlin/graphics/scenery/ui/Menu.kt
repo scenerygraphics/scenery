@@ -35,6 +35,10 @@ import uno.glfw.GlfwWindow
 import uno.glfw.Joystick
 import uno.glfw.glfw
 import java.nio.ByteBuffer
+import imgui.ImGui.menuItem
+import imgui.ImGui.separator
+import imgui.dsl.mainMenuBar
+import imgui.dsl.menu
 
 class Menu(val hub: Hub) : Mesh("Menu") {
 
@@ -87,8 +91,20 @@ class Menu(val hub: Hub) : Mesh("Menu") {
             pushFont(this@Menu.font)
 
             // 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
-            if (showDemoWindow)
-                showDemoWindow(::showDemoWindow)
+            //            if (showDemoWindow)
+            //                showDemoWindow(::showDemoWindow)
+
+            mainMenuBar {
+                menu("File") { /*MenuFile()*/ }
+                menu("Edit") {
+                    menuItem("Undo", "CTRL+Z")
+                    menuItem("Redo", "CTRL+Y", false, false) // Disabled item
+                    separator()
+                    menuItem("Cut", "CTRL+X")
+                    menuItem("Copy", "CTRL+C")
+                    menuItem("Paste", "CTRL+V")
+                }
+            }
 
             //            if (init)
             popFont()
