@@ -1,6 +1,5 @@
 package graphics.scenery.tests.examples.cluster
 
-import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.InputHandler
@@ -8,9 +7,9 @@ import graphics.scenery.controls.TrackedStereoGlasses
 import graphics.scenery.net.NodePublisher
 import graphics.scenery.net.NodeSubscriber
 import graphics.scenery.volumes.Volume
+import org.joml.Vector3f
 import org.scijava.ui.behaviour.ClickBehaviour
 import java.nio.file.Paths
-import kotlin.concurrent.thread
 
 /**
  * Example to demonstrate rendering of volumetric data on a cluster
@@ -77,7 +76,7 @@ class ClusterExample: SceneryBase("Clustered Volume Rendering example") {
         val minDelay = 600
 
         if(publisher != null) {
-            thread {
+            animate {
                 while (!scene.initialized) {
                     Thread.sleep(1000)
                 }

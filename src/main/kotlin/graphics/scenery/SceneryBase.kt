@@ -131,6 +131,27 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
     }
 
     /**
+     * Function to run a block in a loop in a daemon thread.
+     */
+    protected fun animate(block: () -> Unit) {
+        thread(isDaemon = true) {
+            block()
+        }
+    }
+
+    /**
+     * Function to run a block in a loop in a daemon thread.
+     */
+    protected fun animateLoop(sleepMillis: Long, block: () -> Unit) {
+        thread(isDaemon = true) {
+            while (running) {
+                block()
+                Thread.sleep(sleepMillis)
+            }
+        }
+    }
+
+    /**
      * Main routine for [SceneryBase]
      *
      * This routine will construct a internal [ClearGLDefaultEventListener], and initialize
