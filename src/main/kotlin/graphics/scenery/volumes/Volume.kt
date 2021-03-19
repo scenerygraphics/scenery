@@ -189,14 +189,16 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
         delegate = volumeManager
     }
 
+    /**
+     * Returns array of slicing plane equations for planes assigned to this volume.
+     */
     fun slicingArray(): FloatArray {
-        val arrayElements = 16
-        if (slicingPlaneEquations.size > arrayElements )
-            logger.warn("More than $arrayElements slicing planes for ${this.name} set. Ignoring additional planes.")
+        if (slicingPlaneEquations.size > MAX_SUPPORTED_SLICING_PLANES)
+            logger.warn("More than ${MAX_SUPPORTED_SLICING_PLANES} slicing planes for ${this.name} set. Ignoring additional planes.")
 
-        val fa = FloatArray(4 * arrayElements)
+        val fa = FloatArray(4 * MAX_SUPPORTED_SLICING_PLANES)
 
-        slicingPlaneEquations.entries.take(arrayElements).forEachIndexed { i, entry ->
+        slicingPlaneEquations.entries.take(MAX_SUPPORTED_SLICING_PLANES).forEachIndexed { i, entry ->
             fa[0+i*4] = entry.value.x
             fa[1+i*4] = entry.value.y
             fa[2+i*4] = entry.value.z
@@ -644,5 +646,8 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
 
             return fromBuffer(volumes, dimensions.x, dimensions.y, dimensions.z, UnsignedShortType(), hub)
         }
+
+        /** Amount of supported slicing planes per volume, see also sampling shader segments */
+        private const val MAX_SUPPORTED_SLICING_PLANES = 16
     }
 }
