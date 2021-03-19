@@ -113,7 +113,7 @@ dependencies {
 }
 
 fun DependencyHandlerScope.runtimeOnlylwjglNatives(group: String, name: String) =
-        listOf("windows", "linux", "macos").forEach { runtimeOnly(group, name, classifier = "natives-$it") }
+    listOf("windows", "linux", "macos").forEach { runtimeOnly(group, name, classifier = "natives-$it") }
 
 tasks {
     withType<KotlinCompile>().all {
@@ -148,6 +148,22 @@ tasks {
     }
     jar {
         archiveVersion.set(rootProject.version.toString())
+        manifest.attributes["Implementation-Build"] = run { // retrieve the git commit hash
+            val gitFolder = "$projectDir/.git/"
+            val digit = 6
+            /*  '.git/HEAD' contains either
+             *      in case of detached head: the currently checked out commit hash
+             *      otherwise: a reference to a file containing the current commit hash     */
+            val head = file(gitFolder + "HEAD").readText().split(":") // .git/HEAD
+            val isCommit = head.size == 1 // e5a7c79edabbf7dd39888442df081b1c9d8e88fd
+            // def isRef = head.length > 1     // ref: refs/heads/master
+
+            when {
+                isCommit -> head[0].trim().take(digit) // e5a7c79edabb
+                else -> file(gitFolder + head[1].trim()) /* .git/refs/heads/master */
+                    .readText().trim().take(digit)
+            }
+        }
     }
 
     dokkaHtml {
