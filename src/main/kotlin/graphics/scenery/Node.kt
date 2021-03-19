@@ -232,6 +232,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
     open fun draw() {
 
     }
+
     internal open fun preUpdate(renderer: Renderer, hub: Hub?) {
 
     }
