@@ -89,7 +89,7 @@ dependencies {
     }
     sciJava("org.reflections")
     sciJava("io.github.classgraph")
-    //TODO revert to offical BVV
+    //TODO revert to official BVV
     implementation("sc.fiji:bigdataviewer-core:10.1.1-SNAPSHOT")
     implementation("sc.fiji:bigdataviewer-vistools:1.0.0-beta-26-SNAPSHOT")
     implementation("com.github.skalarproduktraum:jogl-minimal:1c86442")
