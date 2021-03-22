@@ -23,7 +23,7 @@ import kotlin.test.assertTrue
 class VideoDecodingExample : SceneryBase("VideoDecodingExample", 600, 600, wantREPL = false) {
 
     var buffer: ByteBuffer = ByteBuffer.allocateDirect(0)
-    var cnt: Int = 0
+    var decodedFrameCount: Int = 0
 
     override fun init () {
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
@@ -45,26 +45,26 @@ class VideoDecodingExample : SceneryBase("VideoDecodingExample", 600, 600, wantR
 
         settings.set("Renderer.HDR.Exposure", 0.05f)
 
-        val videoDecoder = VideoDecoder("./src/test/resources/graphics/scenery/tests/examples/advanced/SampleVideo.mp4")
+        val videoDecoder = VideoDecoder(this::class.java.getResource("SampleVideo.mp4").path)
         logger.info("video decoder object created")
         thread {
             while (!sceneInitialized()) {
                 Thread.sleep(200)
             }
 
-            cnt = 1
+            decodedFrameCount = 1
 
             while (videoDecoder.nextFrameExists) {
                 val image = videoDecoder.decodeFrame()  /* the decoded image is returned as a ByteArray, and can now be processed.
                                                         Here, it is simply displayed in fullscreen */
 
                 if(image != null) { // image can be null, e.g. when the decoder encounters invalid information between frames
-                    drawFrame(image, videoDecoder.videoWidth, videoDecoder.videoHeight, plane, cnt)
-                    cnt++
+                    drawFrame(image, videoDecoder.videoWidth, videoDecoder.videoHeight, plane, decodedFrameCount)
+                    decodedFrameCount++
                 }
             }
-            cnt -= 1
-            logger.info("Done decoding and displaying $cnt frames.")
+            decodedFrameCount -= 1
+            logger.info("Done decoding and displaying $decodedFrameCount frames.")
         }
     }
 
@@ -87,7 +87,7 @@ class VideoDecodingExample : SceneryBase("VideoDecodingExample", 600, 600, wantR
         // add assertions, these only get called when the example is called
         // as part of scenery's integration tests
         assertions[AssertionCheckPoint.AfterClose]?.add {
-            assertTrue ( cnt == 105, "All frames of the video were read and decoded" )
+            assertTrue ( decodedFrameCount == 105, "All frames of the video were read and decoded" )
         }
 
         super.main()
