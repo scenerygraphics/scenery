@@ -23,7 +23,7 @@ import kotlin.concurrent.thread
  * Drag nodes along a plane parallel to the view plane by holding "2" and moving the mouse.
  * Rotate nodes by holding "3" and moving the mouse.
  *
- * The green sphere is an example of hoe to restrict dragging.
+ * The green sphere is an example of how to restrict dragging.
  *
  * @author Ulrik Günther <hello@ulrik.is>
  * @author Jan Tiemann
