@@ -7,8 +7,12 @@ import graphics.scenery.controls.behaviours.MouseDragSphere
 import graphics.scenery.controls.behaviours.MouseRotate
 import graphics.scenery.controls.behaviours.SelectCommand
 import graphics.scenery.numerics.Random
+import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plus
+import graphics.scenery.utils.extensions.times
+import graphics.scenery.utils.extensions.xyz
 import org.joml.Vector3f
+import org.joml.Vector4f
 import kotlin.concurrent.thread
 
 /**
@@ -18,6 +22,8 @@ import kotlin.concurrent.thread
  * Drag nodes along a sphere around the camera by holding "1" and moving the mouse.
  * Drag nodes along a plane parallel to the view plane by holding "2" and moving the mouse.
  * Rotate nodes by holding "3" and moving the mouse.
+ *
+ * The green sphere is an example of hoe to restrict dragging.
  *
  * @author Ulrik Günther <hello@ulrik.is>
  * @author Jan Tiemann
@@ -43,6 +49,37 @@ class MouseInputExample : SceneryBase("MouseInputExample", wantREPL = true) {
         box.material.diffuse = Vector3f(1.0f, 1.0f, 1.0f)
         box.material.cullingMode = Material.CullingMode.Front
         scene.addChild(box)
+
+        val restrictedDragSphere = Icosphere(Random.randomFromRange(0.04f, 0.2f), 2)
+        restrictedDragSphere.material.diffuse = Vector3f(0f, 1.0f, 0f)
+        scene.addChild(restrictedDragSphere)
+
+        restrictedDragSphere.update.add {
+            val it = restrictedDragSphere
+            val a = Vector3f(-1f,0f,0f)
+            val b = Vector3f(1f,0f,0f)
+
+            val p = it.position
+
+            val ab = b - a
+            val ap = p - a
+
+            val dot = ap.dot(ab)
+
+            if (dot <= 0){
+                it.position = a
+                return@add
+            }
+
+            val pDotDir = ab * (dot / ab.lengthSquared())
+
+            if (pDotDir.lengthSquared() > ab.lengthSquared()){
+                it.position = b
+            } else {
+                it.position = a + pDotDir
+            }
+        }
+
 
         val light = PointLight(radius = 15.0f)
         light.position = Vector3f(0.0f, 0.0f, 2.0f)
