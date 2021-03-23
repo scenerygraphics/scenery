@@ -50,10 +50,6 @@ layout(push_constant) uniform currentEye_t {
     int eye;
 } currentEye;
 
-float max3 (vec3 v) {
-    return max (max (v.x, v.y), v.z);
-}
-
 void main()
 {
     mat4 mv;
