@@ -17,29 +17,15 @@ import kotlin.reflect.KProperty
  */
 open class MouseDragSphere(
     protected val name: String,
-    protected val camera: () -> Camera?,
+    camera: () -> Camera?,
     protected var debugRaycast: Boolean = false,
     var ignoredObjects: List<Class<*>> = listOf<Class<*>>(BoundingGrid::class.java)
-) : DragBehaviour {
+) : DragBehaviour, WithCameraDelegateBase(camera) {
 
     protected val logger by LazyLogger()
-    protected val cam: Camera? by CameraDelegate()
 
     protected var currentNode: Node? = null
     protected var distance: Float = 0f
-
-    /** Camera delegate class, converting lambdas to Cameras. */
-    protected inner class CameraDelegate {
-        /** Returns the [graphics.scenery.Camera] resulting from the evaluation of [camera] */
-        operator fun getValue(thisRef: Any?, property: KProperty<*>): Camera? {
-            return camera.invoke()
-        }
-
-        /** Setting the value is not supported */
-        operator fun setValue(thisRef: Any?, property: KProperty<*>, value: Camera?) {
-            throw UnsupportedOperationException()
-        }
-    }
 
     override fun init(x: Int, y: Int) {
         cam?.let { cam ->

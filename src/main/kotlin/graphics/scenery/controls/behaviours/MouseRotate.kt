@@ -16,33 +16,19 @@ import kotlin.reflect.KProperty
  */
 open class MouseRotate(
     protected val name: String,
-    protected val camera: () -> Camera?,
+    camera: () -> Camera?,
     protected val alternativeTargetNode: (() -> Node?)? = null,
     protected var debugRaycast: Boolean = false,
     protected var ignoredObjects: List<Class<*>> = listOf<Class<*>>(BoundingGrid::class.java),
     protected val mouseSpeed: () -> Float = { 0.25f }
-) : DragBehaviour {
+) : DragBehaviour, WithCameraDelegateBase(camera) {
 
     protected val logger by LazyLogger()
-    protected val cam: Camera? by CameraDelegate()
 
     protected var currentNode: Node? = null
     private var lastX = 0
     private var lastY = 0
 
-
-    /** Camera delegate class, converting lambdas to Cameras. */
-    protected inner class CameraDelegate {
-        /** Returns the [graphics.scenery.Camera] resulting from the evaluation of [camera] */
-        operator fun getValue(thisRef: Any?, property: KProperty<*>): Camera? {
-            return camera.invoke()
-        }
-
-        /** Setting the value is not supported */
-        operator fun setValue(thisRef: Any?, property: KProperty<*>, value: Camera?) {
-            throw UnsupportedOperationException()
-        }
-    }
 
     /**
      * This function is called upon mouse down and initializes the camera control
