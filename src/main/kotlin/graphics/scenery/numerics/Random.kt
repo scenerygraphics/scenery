@@ -5,6 +5,7 @@ import com.jogamp.opengl.math.Quaternion
 import org.joml.Quaternionf
 import org.joml.Vector2f
 import org.joml.Vector4f
+import kotlin.math.PI
 import kotlin.random.Random
 
 /**
@@ -67,8 +68,8 @@ class Random {
          */
         @JvmStatic
         fun randomQuaternion(): Quaternionf {
-            val values = (0..2).map { randomFromRange(0.0f, 1.0f) }
-            return Quaternionf().rotateXYZ(values[0], values[1], values[2])
+            val values = (0..2).map { randomFromRange(-PI.toFloat()/2.0f, PI.toFloat()/2.0f) }
+            return Quaternionf().rotateXYZ(values[0], values[1], values[2]).normalize()
         }
     }
 }
