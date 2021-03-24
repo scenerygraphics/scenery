@@ -63,6 +63,7 @@ class OrthoViewExample : SceneryBase("Ortho View example", 1280, 720) {
         volume.transferFunction = TransferFunction.ramp(0.001f, 0.5f, 0.3f)
         scene.addChild(volume)
         volume.scale = Vector3f(1f,1f,1.5f)
+        volume.cropInsteadOfSlice = false
 
         val sliceXY = SlicingPlane()
         val sliceXZ = SlicingPlane()

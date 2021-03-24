@@ -299,12 +299,14 @@ class VolumeManager(
             "lutOffset",
             "sampleVolume",
             "convert",
-            "slicingPlanes"
+            "slicingPlanes",
+            "cropInsteadOfSlice"
         )
         segments[SegmentType.SampleVolume] = SegmentTemplate(
             "SampleSimpleVolume.frag",
             "im", "sourcemax", "intersectBoundingBox",
-            "volume", "transferFunction", "colorMap", "sampleVolume", "convert", "slicingPlanes"
+            "volume", "transferFunction", "colorMap", "sampleVolume", "convert", "slicingPlanes",
+            "cropInsteadOfSlice"
         )
         segments[SegmentType.Convert] = SegmentTemplate(
             "Converter.frag",
@@ -480,6 +482,8 @@ class VolumeManager(
                     currentProg.registerCustomSampler(i, "transferFunction", state.transferFunction)
                     currentProg.registerCustomSampler(i, "colorMap", state.colorMap)
                     currentProg.setCustomFloatArrayUniformForVolume(i, "slicingPlanes", 4, state.node.slicingArray())
+                    // bool uniforms are not supported using int instead
+                    currentProg.setCustomUniformForVolume(i, "cropInsteadOfSlice", if (state.node.cropInsteadOfSlice) 1 else 0)
 
                     context.bindTexture(state.transferFunction)
                     context.bindTexture(state.colorMap)
@@ -580,10 +584,11 @@ class VolumeManager(
         val ready =
             multiResMatch && regularMatch && (regularCount > 0 || multiResCount > 0) && counts.all { it.second == multiResCount + regularCount }
         if (!ready) {
-            logger.debug("ReadyToRender: $multiResCount->$multiResMatch/$regularCount->$regularMatch\n " +
-                " * ShaderProperties: ${shaderProperties.keys.joinToString(",")}\n " +
-                " * Textures: ${material.textures.keys.joinToString(",")}\n " +
-                " * Counts: ${counts.joinToString(",") { "${it.first}=${it.second}" }}"
+            logger.debug(
+                "ReadyToRender: $multiResCount->$multiResMatch/$regularCount->$regularMatch\n " +
+                    " * ShaderProperties: ${shaderProperties.keys.joinToString(",")}\n " +
+                    " * Textures: ${material.textures.keys.joinToString(",")}\n " +
+                    " * Counts: ${counts.joinToString(",") { "${it.first}=${it.second}" }}"
             )
         }
         return ready

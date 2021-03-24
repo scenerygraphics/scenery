@@ -102,6 +102,9 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
     /** Plane equations for slicing planes mapped to origin */
     var slicingPlaneEquations = mapOf<SlicingPlane, Vector4f>()
 
+    /** Slicing planes crop this volume stead of slicing it */
+    var cropInsteadOfSlice = true
+
     var volumeManager: VolumeManager
 
     // TODO IS THIS REQUIRED??
