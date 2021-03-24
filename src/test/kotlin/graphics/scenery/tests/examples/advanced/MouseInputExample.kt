@@ -6,6 +6,7 @@ import graphics.scenery.controls.behaviours.MouseDragPlane
 import graphics.scenery.controls.behaviours.MouseDragSphere
 import graphics.scenery.controls.behaviours.MouseRotate
 import graphics.scenery.controls.behaviours.SelectCommand
+import graphics.scenery.effectors.LineRestrictionEffector
 import graphics.scenery.numerics.Random
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plus
@@ -54,32 +55,7 @@ class MouseInputExample : SceneryBase("MouseInputExample", wantREPL = true) {
         restrictedDragSphere.material.diffuse = Vector3f(0f, 1.0f, 0f)
         scene.addChild(restrictedDragSphere)
 
-        restrictedDragSphere.update.add {
-            val it = restrictedDragSphere
-            val a = Vector3f(-1f,0f,0f)
-            val b = Vector3f(1f,0f,0f)
-
-            val p = it.position
-
-            val ab = b - a
-            val ap = p - a
-
-            val dot = ap.dot(ab)
-
-            if (dot <= 0){
-                it.position = a
-                return@add
-            }
-
-            val pDotDir = ab * (dot / ab.lengthSquared())
-
-            if (pDotDir.lengthSquared() > ab.lengthSquared()){
-                it.position = b
-            } else {
-                it.position = a + pDotDir
-            }
-        }
-
+        LineRestrictionEffector(restrictedDragSphere,{Vector3f(-1f,0f,0f)},{Vector3f(1f,0f,0f)})
 
         val light = PointLight(radius = 15.0f)
         light.position = Vector3f(0.0f, 0.0f, 2.0f)
