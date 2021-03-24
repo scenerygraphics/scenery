@@ -1,7 +1,7 @@
 uniform mat4 im;
 uniform vec3 sourcemax;
 uniform vec4 slicingPlanes[16];
-//uniform bool cropInsteadOfSliceInsteadOfSlice;
+uniform int cropInsteadOfSlice; // bool uniforms are not supported using int instead
 
 void intersectBoundingBox( vec4 wfront, vec4 wback, out float tnear, out float tfar )
 {
@@ -16,14 +16,13 @@ uniform sampler2D colorMap;
 
 vec4 sampleVolume( vec4 wpos )
 {
-    bool cropInsteadOfSlice = false;
-
-    bool cut = !cropInsteadOfSlice;
+    bool cropping = cropInsteadOfSlice != 0;
+    bool cut = !cropping;
     for(int i = 0; i < 16; i++){
         vec4 slicingPlane = slicingPlanes[i];
         float dv = slicingPlane.x * wpos.x + slicingPlane.y * wpos.y + slicingPlane.z * wpos.z;
 
-        if (cropInsteadOfSlice){
+        if (cropping){
             // compare position to slicing plane
             // negative w inverts the comparision
             if ((slicingPlane.w >= 0 && dv > slicingPlane.w) || (slicingPlane.w < 0 && dv < abs(slicingPlane.w))){
@@ -49,7 +48,7 @@ vec4 sampleVolume( vec4 wpos )
     float tf = texture(transferFunction, vec2(rawsample + 0.001f, 0.5f)).r;
     vec3 cmapplied = texture(colorMap, vec2(rawsample + 0.001f, 0.5f)).rgb;
 
-    if (cropInsteadOfSlice){
+    if (cropping){
         return vec4(cmapplied, tf);
     } else {
         return vec4(cmapplied*tf,1);
