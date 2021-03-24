@@ -2670,10 +2670,7 @@ open class OpenGLRenderer(hub: Hub,
         gl.glBufferData(GL4.GL_ARRAY_BUFFER,
             (pVertexBuffer.remaining() * (java.lang.Float.SIZE / java.lang.Byte.SIZE)).toLong(),
             pVertexBuffer,
-            if (s.isDynamic)
-                GL4.GL_DYNAMIC_DRAW
-            else
-                GL4.GL_DYNAMIC_DRAW)
+            GL4.GL_DYNAMIC_DRAW)
 
         gl.glVertexAttribPointer(0,
             node.vertexSize,
@@ -2734,10 +2731,7 @@ open class OpenGLRenderer(hub: Hub,
             gl.glBufferData(GL4.GL_ARRAY_BUFFER,
                 (pNormalBuffer.remaining() * (java.lang.Float.SIZE / java.lang.Byte.SIZE)).toLong(),
                 pNormalBuffer,
-                if (s.isDynamic)
-                    GL4.GL_DYNAMIC_DRAW
-                else
-                    GL4.GL_STATIC_DRAW)
+                GL4.GL_DYNAMIC_DRAW)
 
             gl.glVertexAttribPointer(1,
                 node.vertexSize,
@@ -2767,10 +2761,7 @@ open class OpenGLRenderer(hub: Hub,
         gl.glBufferData(GL4.GL_ARRAY_BUFFER,
             (pNormalBuffer.remaining() * (java.lang.Float.SIZE / java.lang.Byte.SIZE)).toLong(),
             pNormalBuffer,
-            if (s.isDynamic)
-                GL4.GL_DYNAMIC_DRAW
-            else
-                GL4.GL_STATIC_DRAW)
+            GL4.GL_DYNAMIC_DRAW)
 
         gl.glVertexAttribPointer(1,
             node.vertexSize,
@@ -2799,10 +2790,7 @@ open class OpenGLRenderer(hub: Hub,
         gl.glBufferData(GL4.GL_ARRAY_BUFFER,
             (pTextureCoordsBuffer.remaining() * (java.lang.Float.SIZE / java.lang.Byte.SIZE)).toLong(),
             pTextureCoordsBuffer,
-            if (s.isDynamic)
-                GL4.GL_DYNAMIC_DRAW
-            else
-                GL4.GL_DYNAMIC_DRAW)
+            GL4.GL_DYNAMIC_DRAW)
 
         gl.glVertexAttribPointer(2,
             node.texcoordSize,
@@ -2832,10 +2820,7 @@ open class OpenGLRenderer(hub: Hub,
         gl.glBufferData(GL4.GL_ARRAY_BUFFER,
             (pTextureCoordsBuffer.remaining() * (java.lang.Float.SIZE / java.lang.Byte.SIZE)).toLong(),
             pTextureCoordsBuffer,
-            if (s.isDynamic)
-                GL4.GL_DYNAMIC_DRAW
-            else
-                GL4.GL_STATIC_DRAW)
+            GL4.GL_DYNAMIC_DRAW)
 
         gl.glVertexAttribPointer(2,
             node.texcoordSize,
@@ -2865,10 +2850,7 @@ open class OpenGLRenderer(hub: Hub,
         gl.glBufferData(GL4.GL_ELEMENT_ARRAY_BUFFER,
             (pIndexBuffer.remaining() * (Integer.SIZE / java.lang.Byte.SIZE)).toLong(),
             pIndexBuffer,
-            if (s.isDynamic)
-                GL4.GL_DYNAMIC_DRAW
-            else
-                GL4.GL_DYNAMIC_DRAW)
+            GL4.GL_DYNAMIC_DRAW)
 
         gl.glBindVertexArray(0)
         gl.glBindBuffer(GL4.GL_ELEMENT_ARRAY_BUFFER, 0)
@@ -2891,10 +2873,7 @@ open class OpenGLRenderer(hub: Hub,
         gl.glBufferData(GL4.GL_ELEMENT_ARRAY_BUFFER,
             (pIndexBuffer.remaining() * (Integer.SIZE / java.lang.Byte.SIZE)).toLong(),
             pIndexBuffer,
-            if (s.isDynamic)
-                GL4.GL_DYNAMIC_DRAW
-            else
-                GL4.GL_DYNAMIC_DRAW)
+            GL4.GL_DYNAMIC_DRAW)
 
         gl.glBindVertexArray(0)
         gl.glBindBuffer(GL4.GL_ELEMENT_ARRAY_BUFFER, 0)
