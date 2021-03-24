@@ -2658,29 +2658,7 @@ open class OpenGLRenderer(hub: Hub,
      * @param[node] The [Node] to create the VAO/VBO for.
      */
     fun setVerticesAndCreateBufferForNode(node: Node) {
-        val s = getOpenGLObjectStateFromNode(node)
-        val pVertexBuffer: FloatBuffer = (node as HasGeometry).vertices.duplicate()
-
-        s.mStoredPrimitiveCount = pVertexBuffer.remaining() / node.vertexSize
-
-        gl.glBindVertexArray(s.mVertexArrayObject[0])
-        gl.glBindBuffer(GL4.GL_ARRAY_BUFFER, s.mVertexBuffers[0])
-
-        gl.glEnableVertexAttribArray(0)
-        gl.glBufferData(GL4.GL_ARRAY_BUFFER,
-            (pVertexBuffer.remaining() * (java.lang.Float.SIZE / java.lang.Byte.SIZE)).toLong(),
-            pVertexBuffer,
-            GL4.GL_DYNAMIC_DRAW)
-
-        gl.glVertexAttribPointer(0,
-            node.vertexSize,
-            GL4.GL_FLOAT,
-            false,
-            0,
-            0)
-
-        gl.glBindVertexArray(0)
-        gl.glBindBuffer(GL4.GL_ARRAY_BUFFER, 0)
+        updateVertices(node)
     }
 
     /**
