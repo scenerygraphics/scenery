@@ -2780,27 +2780,7 @@ open class OpenGLRenderer(hub: Hub,
      * @param[node] The [Node] to create the texcoord VBO for.
      */
     fun setTextureCoordsAndCreateBufferForNode(node: Node) {
-        val s = getOpenGLObjectStateFromNode(node)
-        val pTextureCoordsBuffer: FloatBuffer = (node as HasGeometry).texcoords.duplicate()
-
-        gl.glBindVertexArray(s.mVertexArrayObject[0])
-        gl.glBindBuffer(GL4.GL_ARRAY_BUFFER, s.mVertexBuffers[2])
-
-        gl.glEnableVertexAttribArray(2)
-        gl.glBufferData(GL4.GL_ARRAY_BUFFER,
-            (pTextureCoordsBuffer.remaining() * (java.lang.Float.SIZE / java.lang.Byte.SIZE)).toLong(),
-            pTextureCoordsBuffer,
-            GL4.GL_DYNAMIC_DRAW)
-
-        gl.glVertexAttribPointer(2,
-            node.texcoordSize,
-            GL4.GL_FLOAT,
-            false,
-            0,
-            0)
-
-        gl.glBindVertexArray(0)
-        gl.glBindBuffer(GL4.GL_ARRAY_BUFFER, 0)
+        updateTextureCoords(node)
     }
 
     /**
