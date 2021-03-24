@@ -27,7 +27,7 @@ repositories {
 
 "kotlin"("1.4.21")
 "ui-behaviour"("2.0.3")
-"bigvolumeviewer"("0.1.8")
+"bigvolumeviewer"("0.1.9")
 "ffmpeg"("4.2.1-1.5.2")
 "jackson-dataformat-msgpack"("0.8.20")
 "jeromq"("0.4.3")
@@ -89,7 +89,11 @@ dependencies {
     }
     sciJava("org.reflections")
     sciJava("io.github.classgraph")
-    sciJava("sc.fiji:bigvolumeviewer")
+    //TODO revert to official BVV
+    implementation("sc.fiji:bigdataviewer-core:10.1.1-SNAPSHOT")
+    implementation("sc.fiji:bigdataviewer-vistools:1.0.0-beta-26-SNAPSHOT")
+    implementation("com.github.skalarproduktraum:jogl-minimal:1c86442")
+    //sciJava("sc.fiji:bigvolumeviewer")
     //    sciJava("org.lwjglx:lwjgl3-awt")
     implementation("com.github.LWJGLX:lwjgl3-awt:cfd741a6")
     sciJava("org.janelia.saalfeldlab:n5"["", "-imglib2"])
@@ -157,12 +161,11 @@ tasks {
             val head = file(gitFolder + "HEAD").readText().split(":") // .git/HEAD
             val isCommit = head.size == 1 // e5a7c79edabbf7dd39888442df081b1c9d8e88fd
             // def isRef = head.length > 1     // ref: refs/heads/master
-
             when {
-                isCommit -> head[0].trim().take(digit) // e5a7c79edabb
+                isCommit -> head[0] // e5a7c79edabb
                 else -> file(gitFolder + head[1].trim()) /* .git/refs/heads/master */
-                    .readText().trim().take(digit)
-            }
+                    .readText()
+            }.trim().take(digit)
         }
     }
 
