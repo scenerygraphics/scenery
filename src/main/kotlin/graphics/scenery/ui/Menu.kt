@@ -39,6 +39,7 @@ import imgui.ImGui.menuItem
 import imgui.ImGui.separator
 import imgui.dsl.mainMenuBar
 import imgui.dsl.menu
+import kool.lib.fill
 
 class Menu(val hub: Hub) : Mesh("Menu") {
 
@@ -152,6 +153,9 @@ class Menu(val hub: Hub) : Mesh("Menu") {
         //                            "uv(${vtx.getFloat(o + Vec2.size)}, ${vtx.getFloat(o + Vec2.size + Float.BYTES)} " +
         //                            "col(${vtx.getInt(o + Vec2.size * 2)}")
         //        }
+
+        vtx.fill(0)
+        idx.fill(0)
 
         // retain our still existing menus
         menus.entries.retainAll { (k, _) -> drawData.cmdLists.any { it._ownerName == k } }
