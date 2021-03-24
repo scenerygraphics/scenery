@@ -179,7 +179,15 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
             hub.remove(vm)
         }
 
-        volumeManager = hub.add(VolumeManager(hub))
+        volumeManager = if(vm != null) {
+            hub.add(VolumeManager(hub, vm.useCompute, vm.customSegments, vm.customBindings))
+        } else {
+            hub.add(VolumeManager(hub))
+        }
+        vm?.customTextures?.forEach {
+            volumeManager.customTextures.add(it)
+            volumeManager.material.textures[it] = vm.material.textures[it]!!
+        }
         volumeManager.add(this)
         volumes.forEach {
             volumeManager.add(it)
