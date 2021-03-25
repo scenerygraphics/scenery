@@ -4,10 +4,11 @@ import graphics.scenery.BoundingGrid
 import graphics.scenery.Camera
 import graphics.scenery.Node
 import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
+import org.joml.Vector3f
 import org.scijava.ui.behaviour.DragBehaviour
-import kotlin.reflect.KProperty
 
 /**
  * Drag nodes roughly along a sphere around the camera by mouse.
@@ -25,14 +26,18 @@ open class MouseDragSphere(
     protected val logger by LazyLogger()
 
     protected var currentNode: Node? = null
+    protected var currentHit: Vector3f = Vector3f()
     protected var distance: Float = 0f
 
     override fun init(x: Int, y: Int) {
         cam?.let { cam ->
             val matches = cam.getNodesForScreenSpacePosition(x, y, ignoredObjects, debugRaycast)
             currentNode = matches.matches.firstOrNull()?.node
+            distance = matches.matches.firstOrNull()?.distance ?: 0f//currentNode?.position?.distance(cam.position) ?: 0f
 
-            distance = currentNode?.position?.distance(cam.position) ?: 0f
+            val (rayStart, rayDir) = cam.screenPointToRay(x, y)
+            rayDir.normalize()
+            currentHit = rayStart + rayDir * distance
         }
     }
 
@@ -40,12 +45,17 @@ open class MouseDragSphere(
         if (distance <= 0)
             return
 
-        cam?.let {
-            val (rayStart, rayDir) = it.screenPointToRay(x, y)
-            rayDir.normalize()
-            val newPos = rayStart + rayDir * distance
+        cam?.let { cam ->
+            currentNode?.let {
+                val (rayStart, rayDir) = cam.screenPointToRay(x, y)
+                rayDir.normalize()
+                val newHit = rayStart + rayDir * distance
 
-            currentNode?.position = newPos
+                val newPos = it.position + newHit - currentHit
+
+                currentNode?.position = newPos
+                currentHit = newHit
+            }
         }
     }
 

@@ -51,6 +51,11 @@ class MouseInputExample : SceneryBase("MouseInputExample", wantREPL = true) {
         box.material.cullingMode = Material.CullingMode.Front
         scene.addChild(box)
 
+        val largePlate = Box(Vector3f(7.0f, 1.0f, 8.0f))
+        largePlate.material.diffuse = Vector3f(0.0f, 1.0f, 0.5f)
+        largePlate.position = Vector3f(0f,-4.0f,0f)
+        scene.addChild(largePlate)
+
         val restrictedDragSphere = Icosphere(Random.randomFromRange(0.04f, 0.2f), 2)
         restrictedDragSphere.material.diffuse = Vector3f(0f, 1.0f, 0f)
         scene.addChild(restrictedDragSphere)
