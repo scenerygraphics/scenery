@@ -53,7 +53,8 @@ import kotlin.math.roundToLong
  * @author Ulrik Günther <hello@ulrik.is>
  */
 
-class H264Encoder(val frameWidth: Int, val frameHeight: Int, filename: String, val fps: Int = 60, override var hub: Hub? = null): Hubable {
+class H264Encoder(val frameWidth: Int, val frameHeight: Int, filename: String, val fps: Int = 60, override var hub: Hub? = null, val networked: Boolean = false,
+                  val streamingAddress: String = "udp://${InetAddress.getLocalHost().hostAddress}:3337"): Hubable {
     protected val logger by LazyLogger()
     protected lateinit var frame: AVFrame
     protected lateinit var tmpframe: AVFrame
@@ -74,11 +75,8 @@ class H264Encoder(val frameWidth: Int, val frameHeight: Int, filename: String, v
 
     val format = VideoFormat.valueOf(hub?.get<Settings>(SceneryElement.Settings)?.get("VideoEncoder.Format", "H264") ?: "H264")
     val quality = VideoEncodingQuality.valueOf(hub?.get<Settings>(SceneryElement.Settings)?.get("VideoEncoder.Quality", "Medium") ?: "Medium")
-    val networked = hub?.get<Settings>(SceneryElement.Settings)?.get("VideoEncoder.StreamVideo", false) ?: false
     val bitrate = hub?.get<Settings>(SceneryElement.Settings)?.get("VideoEncoder.Bitrate", 10000000) ?: 10000000
 
-    val streamingAddress = hub?.get<Settings>(SceneryElement.Settings)?.get("VideoEncoder.StreamingAddress", "udp://${InetAddress.getLocalHost().hostAddress}:3337")
-        ?: "udp://${InetAddress.getLocalHost().hostAddress}:3337"
     val disableHWAcceleration = hub?.get<Settings>(SceneryElement.Settings)?.get("VideoEncoder.DisableHWEncoding", false)
 
     enum class VideoFormat {
@@ -152,7 +150,7 @@ class H264Encoder(val frameWidth: Int, val frameHeight: Int, filename: String, v
 
             error = avformat_alloc_output_context2(outputContext, fileFormat.second, fileFormat.first, outputFile)
             if (error < 0) {
-                logger.error("Could not allocate output context: $error")
+                logger.error("Could not allocate output context: ${ffmpegErrorString(error)}")
                 return@launch
             }
 
@@ -173,7 +171,7 @@ class H264Encoder(val frameWidth: Int, val frameHeight: Int, filename: String, v
                     val create = av_hwdevice_ctx_create(device, AV_HWDEVICE_TYPE_QSV, "", AVDictionary(), 0)
 
                     if(create < 0) {
-                        logger.error("Could not open QSV device ($create)")
+                        logger.error("Could not open QSV device: ${ffmpegErrorString(create)}")
                         null
                     } else {
                         context.pix_fmt(AV_PIX_FMT_NV12)
@@ -270,13 +268,13 @@ class H264Encoder(val frameWidth: Int, val frameHeight: Int, filename: String, v
 
             error = avcodec_parameters_from_context(stream.codecpar(), codecContext)
             if (error < 0) {
-                logger.error("Could not get codec parameters")
+                logger.error("Could not get codec parameters: ${ffmpegErrorString(error)}")
                 return@launch
             }
 
             error = av_frame_get_buffer(frame, 32)
             if (error < 0) {
-                logger.error("Could not allocate frame data")
+                logger.error("Could not allocate frame data: ${ffmpegErrorString(error)}")
                 return@launch
             }
 
