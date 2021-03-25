@@ -58,7 +58,7 @@ class Menu(val hub: Hub) : Mesh("Menu") {
     val scaleFont = 1.25f
 
     // this must come before retrieving the texture (which comes right after, in the init)
-//    val font = ImGui.io.fonts.addFontFromFileTTF("graphics/scenery/ui/ProggyClean.ttf", 16f * scaleFont)!!
+    val font = ImGui.io.fonts.addFontFromFileTTF("graphics/scenery/ui/ProggyClean.ttf", 16f * scaleFont)!!
 
     val fontMap: Texture = ImGui.io.fonts.getTexDataAsRGBA32().let { (pixels, size, _) ->
         Texture(dimensions = Vector3i(size.x, size.y, 1), contents = pixels)
@@ -89,18 +89,14 @@ class Menu(val hub: Hub) : Mesh("Menu") {
             newFrame()
             //            logger.info("In ImGui")
             //            if (init)
-//            pushFont(this@Menu.font)
+            pushFont(this@Menu.font)
 
             // 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
             if (showDemoWindow)
                 showDemoWindow(::showDemoWindow)
 
-            mainMenuBar {
-                menu("File") { /*MenuFile()*/ }
-            }
-
             //            if (init)
-//            popFont()
+            popFont()
         }
 
         ImGui.io.mouseDown.forEach {
