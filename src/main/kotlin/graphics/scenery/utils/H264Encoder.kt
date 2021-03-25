@@ -150,7 +150,7 @@ class H264Encoder(val frameWidth: Int, val frameHeight: Int, filename: String, v
 
             error = avformat_alloc_output_context2(outputContext, fileFormat.second, fileFormat.first, outputFile)
             if (error < 0) {
-                logger.error("Could not allocate output context: $error")
+                logger.error("Could not allocate output context: ${ffmpegErrorString(error)}")
                 return@launch
             }
 
@@ -171,7 +171,7 @@ class H264Encoder(val frameWidth: Int, val frameHeight: Int, filename: String, v
                     val create = av_hwdevice_ctx_create(device, AV_HWDEVICE_TYPE_QSV, "", AVDictionary(), 0)
 
                     if(create < 0) {
-                        logger.error("Could not open QSV device ($create)")
+                        logger.error("Could not open QSV device: ${ffmpegErrorString(create)}")
                         null
                     } else {
                         context.pix_fmt(AV_PIX_FMT_NV12)
@@ -268,13 +268,13 @@ class H264Encoder(val frameWidth: Int, val frameHeight: Int, filename: String, v
 
             error = avcodec_parameters_from_context(stream.codecpar(), codecContext)
             if (error < 0) {
-                logger.error("Could not get codec parameters")
+                logger.error("Could not get codec parameters: ${ffmpegErrorString(error)}")
                 return@launch
             }
 
             error = av_frame_get_buffer(frame, 32)
             if (error < 0) {
-                logger.error("Could not allocate frame data")
+                logger.error("Could not allocate frame data: ${ffmpegErrorString(error)}")
                 return@launch
             }
 
