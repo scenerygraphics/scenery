@@ -3,23 +3,19 @@ package graphics.scenery.tests.examples.volumes
 import bdv.util.AxisOrder
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
+import graphics.scenery.controls.behaviours.MouseDragSphere
+import graphics.scenery.effectors.LineRestrictionEffector
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
-import graphics.scenery.volumes.SlicingPlane
-import graphics.scenery.volumes.TransferFunction
-import graphics.scenery.volumes.Volume
 import ij.IJ
 import ij.ImagePlus
 import net.imglib2.img.Img
 import net.imglib2.img.display.imagej.ImageJFunctions
 import net.imglib2.type.numeric.integer.UnsignedShortType
-import org.joml.Quaternionf
 import org.joml.Vector3f
-import org.scijava.ui.behaviour.ClickBehaviour
 import tpietzsch.example2.VolumeViewerOptions
-import kotlin.concurrent.thread
-import graphics.scenery.numerics.Random
+import graphics.scenery.volumes.*
 
 /**
  * Volume Ortho View Example using the "BDV Rendering Example loading a RAII"
@@ -28,7 +24,7 @@ import graphics.scenery.numerics.Random
  */
 class OrthoViewExample : SceneryBase("Ortho View example", 1280, 720) {
     lateinit var volume: Volume
-
+    lateinit var planeXZ: Box
 
     override fun init() {
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
@@ -37,7 +33,7 @@ class OrthoViewExample : SceneryBase("Ortho View example", 1280, 720) {
         with(cam) {
             perspectiveCamera(50.0f, windowWidth, windowHeight)
 
-            position = Vector3f(0.0f, 0.0f, 5.0f)
+            position = Vector3f(0.0f, 2.0f, 5.0f)
             scene.addChild(this)
         }
 
@@ -62,27 +58,75 @@ class OrthoViewExample : SceneryBase("Ortho View example", 1280, 720) {
         volume = Volume.fromRAI(img, UnsignedShortType(), AxisOrder.DEFAULT, "T1 head", hub, VolumeViewerOptions())
         volume.transferFunction = TransferFunction.ramp(0.001f, 0.5f, 0.3f)
         scene.addChild(volume)
-        volume.scale = Vector3f(1f,1f,1.5f)
         volume.cropInsteadOfSlice = false
 
-        val sliceXY = SlicingPlane()
+        val bGrid = BoundingGrid()
+        bGrid.node = volume
+        volume.addChild(bGrid)
+
         val sliceXZ = SlicingPlane()
-        sliceXZ.rotation = sliceXZ.rotation.rotateX((Math.PI/2).toFloat())
+        val sliceXY = SlicingPlane()
         val sliceYZ = SlicingPlane()
+
+        sliceXY.rotation = sliceXY.rotation.rotateX((Math.PI/2).toFloat())
         sliceYZ.rotation = sliceYZ.rotation.rotateZ((Math.PI/2).toFloat())
 
-        scene.addChild(sliceXY)
-        scene.addChild(sliceXZ)
-        scene.addChild(sliceYZ)
-
-        sliceXY.addTargetVolume(volume)
         sliceXZ.addTargetVolume(volume)
+        sliceXY.addTargetVolume(volume)
         sliceYZ.addTargetVolume(volume)
+
+        volume.boundingBox?.let { boundingBox ->
+
+            val center = (boundingBox.max - boundingBox.min)*0.5f
+            planeXZ = Box(Vector3f(boundingBox.max.x,1f,boundingBox.max.z ))
+            planeXZ.position = center
+            // make transparent
+            planeXZ.material.blending.setOverlayBlending()
+            planeXZ.material.blending.transparent = true
+            planeXZ.material.blending.opacity = 0f
+            //planeXZ.material.wireframe = true
+
+            planeXZ.addChild(sliceXZ)
+            volume.addChild(planeXZ)
+
+            val yTop = Node()
+            yTop.position = Vector3f(center.x, boundingBox.max.y, center.z)
+            volume.addChild(yTop)
+
+            val yBottom = Node()
+            yBottom.position = Vector3f(center.x, boundingBox.min.y, center.z)
+            volume.addChild(yBottom)
+
+            LineRestrictionEffector(planeXZ,{yTop.position},{yBottom.position})
+
+
+
+        }
+
+
+
+
+
+        /*
+        scene.addChild(sliceXZ)
+        scene.addChild(sliceXY)
+        scene.addChild(sliceYZ)
+        */
 
     }
 
     override fun inputSetup() {
         setupCameraModeSwitching()
+
+        inputHandler?.addBehaviour(
+            "sphereDragObject", MouseDragSphere(
+                "sphereDragObject",
+                { scene.findObserver() },
+                debugRaycast = false,
+                ignoredObjects = listOf<Class<*>>(BoundingGrid::class.java, VolumeManager::class.java, Volume::class.java)
+            )
+        )
+        inputHandler?.addKeyBinding("sphereDragObject", "1")
 
     }
 
