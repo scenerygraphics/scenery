@@ -53,6 +53,8 @@ class RAIExample: SceneryBase("RAI Rendering example", 1280, 720) {
         val origin = Box(Vector3f(0.1f, 0.1f, 0.1f))
         origin.material.diffuse = Vector3f(0.8f, 0.0f, 0.0f)
         scene.addChild(origin)
+
+        scene.export("rai.scenery")
     }
 
     override fun inputSetup() {

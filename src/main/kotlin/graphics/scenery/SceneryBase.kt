@@ -51,7 +51,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
                        val scijavaContext: Context? = null) {
 
     /** The scene used by the renderer in the application */
-    protected val scene: Scene = Scene()
+    protected var scene: Scene = Scene()
     /** REPL for the application, can be initialised in the [init] function */
     protected var repl: REPL? = null
     /** Frame number for counting FPS */
