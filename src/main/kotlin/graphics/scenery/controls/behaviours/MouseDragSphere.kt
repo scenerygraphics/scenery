@@ -51,7 +51,9 @@ open class MouseDragSphere(
                 rayDir.normalize()
                 val newHit = rayStart + rayDir * distance
 
-                val newPos = it.position + newHit - currentHit
+                val movement = newHit - currentHit
+
+                val newPos = it.position + movement / it.worldScale()
 
                 currentNode?.position = newPos
                 currentHit = newHit
