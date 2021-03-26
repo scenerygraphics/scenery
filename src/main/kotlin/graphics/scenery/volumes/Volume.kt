@@ -56,7 +56,7 @@ import kotlin.properties.Delegates
 import kotlin.streams.toList
 
 @Suppress("DEPRECATION")
-open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOptions, val hub: Hub) : DelegatesRendering(), HasGeometry, DisableFrustumCulling {
+open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOptions, @Transient val hub: Hub) : DelegatesRendering(), HasGeometry, DisableFrustumCulling {
     /** How many elements does a vertex store? */
     override val vertexSize : Int = 3
     /** How many elements does a texture coordinate store? */
@@ -102,7 +102,11 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
     /** Plane equations for slicing planes mapped to origin */
     var slicingPlaneEquations = mapOf<SlicingPlane, Vector4f>()
 
+    @Transient
     var volumeManager: VolumeManager
+
+    @Transient
+    override var delegate: Node? = null
 
     // TODO IS THIS REQUIRED??
     var cacheControls = CacheControl.CacheControls()

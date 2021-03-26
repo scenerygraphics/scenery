@@ -11,7 +11,7 @@ import java.util.concurrent.ConcurrentHashMap
  *
  * @author Ulrik Guenther <hello@ulrik.is>
  */
-sealed class Shaders {
+sealed class Shaders() {
     val logger by LazyLogger()
     var stale: Boolean = false
     val type: HashSet<ShaderType> = hashSetOf()
