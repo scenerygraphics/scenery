@@ -1,14 +1,25 @@
 package graphics.scenery.volumes
 
+import graphics.scenery.BoundingGrid
 import graphics.scenery.Box
 import graphics.scenery.Node
+import graphics.scenery.controls.InputHandler
+import graphics.scenery.controls.behaviours.MouseDragSphere
 import graphics.scenery.effectors.LineRestrictionEffector
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.times
 import org.joml.Vector3f
 
+/**
+ * Creates three orthogonal, movable slicing planes through the volume.
+ * Attention! For movable planes a behavior like in [InputHandler.addOrthoViewDragBehavior] is needed.
+ *
+ * To remove call [SlicingPlane.removeTargetVolume] on the leaf nodes and set
+ * [Volume.cropInsteadOfSlice] to true
+ */
 fun createOrthoView(volume: Volume) {
     volume.cropInsteadOfSlice = false
+
     val sliceXZ = SlicingPlane()
     val sliceXY = SlicingPlane()
     val sliceYZ = SlicingPlane()
@@ -79,4 +90,23 @@ fun createOrthoView(volume: Volume) {
         LineRestrictionEffector(planeYZ, { xTop.position }, { xBottom.position })
 
     }
+}
+
+/**
+ * Adds a [MouseDragSphere] behavior which ignores the appropriate classes to move the ortho view slices correctly.
+ */
+fun InputHandler.addOrthoViewDragBehavior(key: String) {
+    addBehaviour(
+        "sphereDragObject", MouseDragSphere(
+            "sphereDragObject",
+            { this.scene.findObserver() },
+            debugRaycast = false,
+            ignoredObjects = listOf<Class<*>>(
+                BoundingGrid::class.java,
+                VolumeManager::class.java,
+                Volume::class.java
+            )
+        )
+    )
+    addKeyBinding("sphereDragObject", key)
 }
