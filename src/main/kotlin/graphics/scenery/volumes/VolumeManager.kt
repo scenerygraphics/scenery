@@ -300,13 +300,13 @@ class VolumeManager(
             "sampleVolume",
             "convert",
             "slicingPlanes",
-            "cropInsteadOfSlice"
+            "slicingMode"
         )
         segments[SegmentType.SampleVolume] = SegmentTemplate(
             "SampleSimpleVolume.frag",
             "im", "sourcemax", "intersectBoundingBox",
             "volume", "transferFunction", "colorMap", "sampleVolume", "convert", "slicingPlanes",
-            "cropInsteadOfSlice"
+            "slicingMode"
         )
         segments[SegmentType.Convert] = SegmentTemplate(
             "Converter.frag",
@@ -482,8 +482,7 @@ class VolumeManager(
                     currentProg.registerCustomSampler(i, "transferFunction", state.transferFunction)
                     currentProg.registerCustomSampler(i, "colorMap", state.colorMap)
                     currentProg.setCustomFloatArrayUniformForVolume(i, "slicingPlanes", 4, state.node.slicingArray())
-                    // bool uniforms are not supported using int instead
-                    currentProg.setCustomUniformForVolume(i, "cropInsteadOfSlice", if (state.node.cropInsteadOfSlice) 1 else 0)
+                    currentProg.setCustomUniformForVolume(i, "slicingMode", state.node.slicingMode.id)
 
                     context.bindTexture(state.transferFunction)
                     context.bindTexture(state.colorMap)

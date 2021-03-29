@@ -14,11 +14,11 @@ import org.joml.Vector3f
  * Creates three orthogonal, movable slicing planes through the volume.
  * Attention! For movable planes a behavior like in [InputHandler.addOrthoViewDragBehavior] is needed.
  *
- * To remove call [SlicingPlane.removeTargetVolume] on the leaf nodes and set
- * [Volume.cropInsteadOfSlice] to true
+ * To remove call [SlicingPlane.removeTargetVolume] on the leaf nodes and
+ * [Volume.slicingMode] should be set to [Volume.SlicingMode.NONE]
  */
 fun createOrthoView(volume: Volume) {
-    volume.cropInsteadOfSlice = false
+    volume.slicingMode = Volume.SlicingMode.SLICING
 
     val sliceXZ = SlicingPlane()
     val sliceXY = SlicingPlane()

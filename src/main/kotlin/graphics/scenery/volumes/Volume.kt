@@ -102,8 +102,22 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
     /** Plane equations for slicing planes mapped to origin */
     var slicingPlaneEquations = mapOf<SlicingPlane, Vector4f>()
 
-    /** Slicing planes crop this volume stead of slicing it */
-    var cropInsteadOfSlice = true
+    /** Modes how assigned slicing planes interact with the volume */
+    var slicingMode = SlicingMode.NONE
+
+    enum class SlicingMode(val id: Int){
+        // Volume is rendered as it is
+        NONE(0),
+        // Volume is cut along the assigned slicing plane and the lower half is rendered.
+        // For multiple slicing planes the inner hull is rendered.
+        CROPPING(1),
+        // Only a slice around the slicing planes is rendered with no transparency.
+        SLICING(2),
+        // The slice around the slicing planes is rendered with no transparency
+        // while also the cropping rule applies for the rest of the volume.
+        BOTH(3)
+
+    }
 
     var volumeManager: VolumeManager
 

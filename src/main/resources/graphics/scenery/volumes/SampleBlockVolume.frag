@@ -4,7 +4,7 @@ uniform mat4 im;
 uniform vec3 sourcemin;
 uniform vec3 sourcemax;
 uniform vec4 slicingPlanes[16];
-uniform int cropInsteadOfSlice; // bool uniforms are not supported using int instead
+uniform int slicingMode;
 
 void intersectBoundingBox( vec4 wfront, vec4 wback, out float tnear, out float tfar )
 {
@@ -22,29 +22,27 @@ uniform vec3 lutOffset;
 
 vec4 sampleVolume( vec4 wpos, sampler3D volumeCache, vec3 cacheSize, vec3 blockSize, vec3 paddedBlockSize, vec3 padOffset )
 {
-    bool cropping = cropInsteadOfSlice != 0;
-    bool cut = !cropping;
+    bool cropping = slicingMode == 1 || slicingMode == 3;
+    bool slicing = slicingMode == 2 || slicingMode == 3;
+
+    bool isCropped = false;
+    bool isInSlice = false;
+
     for(int i = 0; i < 16; i++){
         vec4 slicingPlane = slicingPlanes[i];
         float dv = slicingPlane.x * wpos.x + slicingPlane.y * wpos.y + slicingPlane.z * wpos.z;
 
-        if (cropping){
-            // compare position to slicing plane
-            // negative w inverts the comparision
-            if ((slicingPlane.w >= 0 && dv > slicingPlane.w) || (slicingPlane.w < 0 && dv < abs(slicingPlane.w))){
-                cut = true;
-                break;
-            }
-        } else {
-            float dist = abs(dv - abs(slicingPlane.w)) / length(slicingPlane.xyz);
-            if (dist < 0.02f){
-                cut = false;
-                break;
-            }
-        }
+        // compare position to slicing plane
+        // negative w inverts the comparision
+        isCropped = isCropped || (slicingPlane.w >= 0 && dv > slicingPlane.w) || (slicingPlane.w < 0 && dv < abs(slicingPlane.w));
+
+        float dist = abs(dv - abs(slicingPlane.w)) / length(slicingPlane.xyz);
+        isInSlice = isInSlice || dist < 0.02f;
     }
 
-    if (cut){
+    if (   (!cropping && slicing && !isInSlice)
+        || ( cropping && !slicing && isCropped)
+        || ( cropping && slicing && !(!isCropped || isInSlice ))){
         return vec4(0);
     }
 
@@ -63,9 +61,6 @@ vec4 sampleVolume( vec4 wpos, sampler3D volumeCache, vec3 cacheSize, vec3 blockS
     float tf = texture(transferFunction, vec2(rawsample + 0.001f, 0.5f)).r;
     vec3 cmapplied = tf * texture(colorMap, vec2(rawsample + 0.001f, 0.5f)).rgb;
 
-    if (cropping){
-        return vec4(cmapplied, tf);
-    } else {
-        return vec4(cmapplied*tf,1);
-    }
+    int intransparent = int( slicing && isInSlice) ;
+    return vec4(cmapplied*tf,1) * intransparent + vec4(cmapplied, tf) * (1-intransparent);
 }
