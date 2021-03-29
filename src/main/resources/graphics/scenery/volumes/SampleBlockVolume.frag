@@ -4,6 +4,7 @@ uniform mat4 im;
 uniform vec3 sourcemin;
 uniform vec3 sourcemax;
 uniform vec4 slicingPlanes[16];
+uniform int cropInsteadOfSlice; // bool uniforms are not supported using int instead
 
 void intersectBoundingBox( vec4 wfront, vec4 wback, out float tnear, out float tfar )
 {
@@ -21,19 +22,29 @@ uniform vec3 lutOffset;
 
 vec4 sampleVolume( vec4 wpos, sampler3D volumeCache, vec3 cacheSize, vec3 blockSize, vec3 paddedBlockSize, vec3 padOffset )
 {
-    bool sliced = false;
+    bool cropping = cropInsteadOfSlice != 0;
+    bool cut = !cropping;
     for(int i = 0; i < 16; i++){
         vec4 slicingPlane = slicingPlanes[i];
-        // compare position to slicing plane
-        // negative w inverts the comparision
         float dv = slicingPlane.x * wpos.x + slicingPlane.y * wpos.y + slicingPlane.z * wpos.z;
-        if ((slicingPlane.w >= 0 && dv > slicingPlane.w) || (slicingPlane.w < 0 && dv < abs(slicingPlane.w))){
-            sliced = true;
-            break;
+
+        if (cropping){
+            // compare position to slicing plane
+            // negative w inverts the comparision
+            if ((slicingPlane.w >= 0 && dv > slicingPlane.w) || (slicingPlane.w < 0 && dv < abs(slicingPlane.w))){
+                cut = true;
+                break;
+            }
+        } else {
+            float dist = abs(dv - abs(slicingPlane.w)) / length(slicingPlane.xyz);
+            if (dist < 0.02f){
+                cut = false;
+                break;
+            }
         }
     }
 
-    if (sliced){
+    if (cut){
         return vec4(0);
     }
 
@@ -51,5 +62,10 @@ vec4 sampleVolume( vec4 wpos, sampler3D volumeCache, vec3 cacheSize, vec3 blockS
     float rawsample = convert(texture( volumeCache, c0 / cacheSize ).r);
     float tf = texture(transferFunction, vec2(rawsample + 0.001f, 0.5f)).r;
     vec3 cmapplied = tf * texture(colorMap, vec2(rawsample + 0.001f, 0.5f)).rgb;
-    return vec4(cmapplied, tf);
+
+    if (cropping){
+        return vec4(cmapplied, tf);
+    } else {
+        return vec4(cmapplied*tf,1);
+    }
 }
