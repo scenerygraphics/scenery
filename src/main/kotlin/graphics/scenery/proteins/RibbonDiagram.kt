@@ -2,6 +2,7 @@ package graphics.scenery.proteins
 
 import graphics.scenery.*
 import graphics.scenery.geometry.Curve
+import graphics.scenery.geometry.DummySpline
 import graphics.scenery.geometry.Spline
 import graphics.scenery.geometry.UniformBSpline
 import org.joml.*
