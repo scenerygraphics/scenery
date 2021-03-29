@@ -3,11 +3,9 @@ package graphics.scenery.tests.examples.volumes
 import bdv.util.AxisOrder
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
+import graphics.scenery.controls.InputHandler
 import graphics.scenery.controls.behaviours.MouseDragSphere
-import graphics.scenery.volumes.TransferFunction
-import graphics.scenery.volumes.Volume
-import graphics.scenery.volumes.VolumeManager
-import graphics.scenery.volumes.createOrthoView
+import graphics.scenery.volumes.*
 import ij.IJ
 import ij.ImagePlus
 import net.imglib2.img.Img
@@ -67,19 +65,7 @@ class OrthoViewExample : SceneryBase("Ortho View example", 1280, 720) {
     override fun inputSetup() {
         setupCameraModeSwitching()
 
-        inputHandler?.addBehaviour(
-            "sphereDragObject", MouseDragSphere(
-                "sphereDragObject",
-                { scene.findObserver() },
-                debugRaycast = false,
-                ignoredObjects = listOf<Class<*>>(
-                    BoundingGrid::class.java,
-                    VolumeManager::class.java,
-                    Volume::class.java
-                )
-            )
-        )
-        inputHandler?.addKeyBinding("sphereDragObject", "1")
+        inputHandler?.addOrthoViewDragBehavior("1")
 
     }
 
