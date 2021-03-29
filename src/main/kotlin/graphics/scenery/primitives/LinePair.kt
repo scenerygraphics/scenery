@@ -1,13 +1,14 @@
-package graphics.scenery
+package graphics.scenery.primitives
 
+import graphics.scenery.*
 import org.joml.Vector3f
 import org.joml.Vector4f
 import graphics.scenery.backends.ShaderType
-import graphics.scenery.utils.extensions.toFloatArray
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
 
-class LinePair @JvmOverloads constructor(var capacity: Int = 50, transparent: Boolean = false, val simple: Boolean = false) : Node("Line"), HasGeometry {
+class LinePair @JvmOverloads constructor(var capacity: Int = 50, transparent: Boolean = false, val simple: Boolean = false) : Node("Line"),
+    HasGeometry {
     /** Size of one vertex (e.g. 3 in 3D) */
     override val vertexSize: Int = 3
     /** Size of one texcoord (e.g. 2 in 3D) */
@@ -15,11 +16,11 @@ class LinePair @JvmOverloads constructor(var capacity: Int = 50, transparent: Bo
     /** Geometry type -- Default for Line is [GeometryType.LINE] */
     override var geometryType: GeometryType = GeometryType.LINE_STRIP_ADJACENCY
     /** Vertex buffer */
-    override var vertices: FloatBuffer = BufferUtils.allocateFloat(3*capacity)
+    override var vertices: FloatBuffer = BufferUtils.allocateFloat(3 * capacity)
     /** Normal buffer */
-    override var normals: FloatBuffer = BufferUtils.allocateFloat(3*capacity)
+    override var normals: FloatBuffer = BufferUtils.allocateFloat(3 * capacity)
     /** Texcoord buffer */
-    override var texcoords: FloatBuffer = BufferUtils.allocateFloat(2*capacity)
+    override var texcoords: FloatBuffer = BufferUtils.allocateFloat(2 * capacity)
     /** Index buffer */
     override var indices: IntBuffer = IntBuffer.wrap(intArrayOf())
 
@@ -82,7 +83,8 @@ class LinePair @JvmOverloads constructor(var capacity: Int = 50, transparent: Bo
             val newMaterial = ShaderMaterial.fromFiles(
                 "${this::class.java.simpleName}.vert",
                 "${this::class.java.simpleName}.geom",
-                "${this::class.java.simpleName}Forward.frag")
+                "${this::class.java.simpleName}Forward.frag"
+            )
 
             newMaterial.blending.opacity = 1.0f
             newMaterial.blending.setOverlayBlending()
@@ -94,8 +96,10 @@ class LinePair @JvmOverloads constructor(var capacity: Int = 50, transparent: Bo
 
             material = newMaterial
         } else {
-            val newMaterial = ShaderMaterial.fromClass(this::class.java,
-                listOf(ShaderType.VertexShader, ShaderType.GeometryShader, ShaderType.FragmentShader))
+            val newMaterial = ShaderMaterial.fromClass(
+                this::class.java,
+                listOf(ShaderType.VertexShader, ShaderType.GeometryShader, ShaderType.FragmentShader)
+            )
 
             newMaterial.diffuse = material.diffuse
             newMaterial.specular = material.specular
