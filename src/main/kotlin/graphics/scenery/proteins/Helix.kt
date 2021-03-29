@@ -1,5 +1,8 @@
-package graphics.scenery
+package graphics.scenery.proteins
 
+import graphics.scenery.Curve
+import graphics.scenery.Mesh
+import graphics.scenery.Spline
 import org.joml.*
 
 /**
