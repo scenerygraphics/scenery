@@ -104,7 +104,7 @@ class RibbonDiagramTests {
         val proteins = listOf(
             "6l69", "3mbw", "4u1a", "5m9m", "6mzl", "6mp5", "2qd4", "6pe9",
             "1ydk", "2rma", "3mdc", "2kne", "4tn7", "3mao", "5m8s", "6v2e",
-            "4giz", "3l2j", "4odq", "6slm", "2qho", "1zr0", "2ake", "2wx1",
+            "4giz", "3l2j", "4odq", "6s03", "2qho", "1zr0", "2ake", "2wx1",
             "2mue", "2m0j", "1q5w", "3gj8", "3sui", "6pby", "2m0k", "1r4a",
             "3fub", "6uku", "6v92", "2l2i", "1pyo", "4lcd", "6p9x", "6uun",
             "6v80", "6v7z", "4grw", "3mc5", "3mbw", "4tkw", "4u0i", "3mas",
