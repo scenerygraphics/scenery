@@ -4,6 +4,9 @@ import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.behaviours.SelectCommand
 import graphics.scenery.numerics.Random
+import graphics.scenery.primitives.Icosphere
+import graphics.scenery.primitives.Line
+import graphics.scenery.primitives.TextBoard
 import graphics.scenery.utils.extensions.plus
 import org.joml.Vector3f
 import org.joml.Vector4f

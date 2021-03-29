@@ -5,6 +5,7 @@ import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.behaviours.SelectCommand
 import graphics.scenery.numerics.Random
+import graphics.scenery.primitives.Icosphere
 import graphics.scenery.utils.extensions.plus
 import kotlin.concurrent.thread
 

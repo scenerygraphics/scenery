@@ -3,6 +3,7 @@ package graphics.scenery.tests.examples.advanced
 import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
+import graphics.scenery.primitives.Sphere
 import java.nio.FloatBuffer
 import java.util.*
 import kotlin.concurrent.thread

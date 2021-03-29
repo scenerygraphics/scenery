@@ -6,6 +6,8 @@ import graphics.scenery.backends.RendererFlags
 import graphics.scenery.backends.vulkan.VulkanNodeHelpers.rendererMetadata
 import graphics.scenery.compute.ComputeMetadata
 import graphics.scenery.compute.InvocationType
+import graphics.scenery.geometry.GeometryType
+import graphics.scenery.geometry.HasGeometry
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.Statistics

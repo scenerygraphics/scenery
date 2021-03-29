@@ -1,6 +1,9 @@
 package graphics.scenery.proteins
 
 import graphics.scenery.*
+import graphics.scenery.geometry.Curve
+import graphics.scenery.geometry.Spline
+import graphics.scenery.geometry.UniformBSpline
 import org.joml.*
 import graphics.scenery.numerics.Random
 import org.biojava.nbio.structure.Atom

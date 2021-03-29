@@ -1,6 +1,6 @@
 package graphics.scenery.backends.vulkan
 
-import graphics.scenery.GeometryType
+import graphics.scenery.geometry.GeometryType
 import graphics.scenery.Node
 import graphics.scenery.backends.vulkan.VulkanNodeHelpers.rendererMetadata
 import graphics.scenery.utils.LazyLogger

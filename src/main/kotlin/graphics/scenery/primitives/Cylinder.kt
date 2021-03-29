@@ -1,7 +1,7 @@
 package graphics.scenery.primitives
 
 import graphics.scenery.BufferUtils
-import graphics.scenery.GeometryType
+import graphics.scenery.geometry.GeometryType
 import graphics.scenery.Mesh
 import org.joml.Vector3f
 import java.util.*

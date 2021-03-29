@@ -3,6 +3,7 @@ package graphics.scenery.tests.examples.basic
 import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
+import graphics.scenery.primitives.TextBoard
 import org.joml.Vector4f
 import kotlin.concurrent.thread
 

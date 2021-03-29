@@ -2,6 +2,7 @@ package graphics.scenery.primitives
 
 import graphics.scenery.*
 import graphics.scenery.backends.ShaderType
+import graphics.scenery.geometry.GeometryType
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times

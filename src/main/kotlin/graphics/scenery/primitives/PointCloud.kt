@@ -1,6 +1,7 @@
 package graphics.scenery.primitives
 
 import graphics.scenery.*
+import graphics.scenery.geometry.GeometryType
 import org.joml.Vector3f
 import java.nio.FloatBuffer
 import java.nio.file.FileSystems
