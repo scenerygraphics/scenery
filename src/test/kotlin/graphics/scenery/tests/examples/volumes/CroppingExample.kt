@@ -26,6 +26,8 @@ import graphics.scenery.numerics.Random
  *
  * Press "R" to add a moving slicing plane and "T" to remove one.
  *
+ * The four volumes in the background present the different slicingModes.
+ *
  * @author  Jan Tiemann <j.tiemann@hzdr.de>
  */
 class CroppingExample : SceneryBase("Volume Cropping example", 1280, 720) {
@@ -69,10 +71,11 @@ class CroppingExample : SceneryBase("Volume Cropping example", 1280, 720) {
         volume.transferFunction = TransferFunction.ramp(0.001f, 0.5f, 0.3f)
         scene.addChild(volume)
 
+        volume.slicingMode = Volume.SlicingMode.CROPPING
         addAnimatedSlicingPlane()
 
         if (additionalVolumes) {
-            fun addAdditionalVolume(base: Vector3f) {
+            fun addAdditionalVolume(base: Vector3f): Volume {
                 val vol2Pivot = Node()
                 scene.addChild(vol2Pivot)
                 vol2Pivot.position = vol2Pivot.position + base
@@ -89,10 +92,12 @@ class CroppingExample : SceneryBase("Volume Cropping example", 1280, 720) {
                 slicingPlane2.addTargetVolume(volume2)
                 val animator2 = Animator(slicingPlane2)
                 additionalAnimators = additionalAnimators + animator2
+
+                return volume2
             }
-            addAdditionalVolume(Vector3f(2f,2f,-2f))
-            addAdditionalVolume(Vector3f(-2f,2f,-2f))
-            addAdditionalVolume(Vector3f(2f,-2f,-2f))
+            addAdditionalVolume(Vector3f(2f,2f,-2f)).slicingMode = Volume.SlicingMode.SLICING
+            addAdditionalVolume(Vector3f(-2f,2f,-2f)).slicingMode = Volume.SlicingMode.CROPPING
+            addAdditionalVolume(Vector3f(2f,-2f,-2f)).slicingMode = Volume.SlicingMode.BOTH
             addAdditionalVolume(Vector3f(-2f,-2f,-2f))
         }
 
