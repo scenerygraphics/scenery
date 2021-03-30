@@ -23,11 +23,11 @@ class RainbowRibbonExample: SceneryBase("RainbowRibbon", windowWidth = 1280, win
 
         val rowSize = 20f
 
-        val protein = Protein.fromID("6jmd")
+        val protein = Protein.fromID("6slm")
 
         val ribbon = RibbonDiagram(protein)
 
-        scene.addChild(ribbon)
+        //scene.addChild(ribbon)
 
         val lightbox = Box(Vector3f(500.0f, 500.0f, 500.0f), insideNormals = true)
         lightbox.name = "Lightbox"
