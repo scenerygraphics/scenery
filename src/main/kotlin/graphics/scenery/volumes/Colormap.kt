@@ -4,12 +4,14 @@ import graphics.scenery.utils.Image
 import graphics.scenery.utils.LazyLogger
 import net.imagej.lut.LUTService
 import net.imglib2.display.ColorTable
+import org.joml.Vector3f
 import org.joml.Vector4f
 import org.scijava.plugin.Parameter
 import java.io.FileNotFoundException
 import java.io.IOException
 import java.io.InputStream
 import java.nio.ByteBuffer
+import java.util.*
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.roundToInt
@@ -98,6 +100,29 @@ class Colormap(val buffer: ByteBuffer, val width: Int, val height: Int) {
 
             logger.info("Using ImageJ colormap $colorTable with size ${colorTable.length}x$copies")
             return fromBuffer(byteBuffer, colorTable.length, copies)
+        }
+
+        /**
+         * Creates a color map from an imglib2 [ColorTable].
+         */
+        @JvmStatic fun fromColor(color: Vector4f): Colormap {
+            val copies = 16
+            val width = 256
+            val byteBuffer = ByteBuffer.allocateDirect(
+                4 * width * copies) // Num bytes * num components * color map length * height of color map texture
+            val tmp = ByteArray(4 * width)
+            for(i in 0 until width) {
+                tmp[4 * i + 0] = (256-color[0]*i).toByte()
+                tmp[4 * i + 1] = (256-color[1]*i).toByte()
+                tmp[4 * i + 2] = (256-color[2]*i).toByte()
+                tmp[4 * i + 3] = 255.toByte()
+            }
+            for (i in 0 until copies) {
+                byteBuffer.put(tmp)
+            }
+            byteBuffer.flip()
+
+            return fromBuffer(byteBuffer, width, copies)
         }
 
         /**

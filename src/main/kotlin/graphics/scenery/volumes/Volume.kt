@@ -38,6 +38,7 @@ import net.imglib2.type.numeric.integer.*
 import net.imglib2.type.numeric.real.FloatType
 import org.joml.Matrix4f
 import org.joml.Vector3i
+import org.joml.Vector4f
 import org.lwjgl.system.MemoryUtil
 import org.scijava.io.location.FileLocation
 import tpietzsch.example2.VolumeViewerOptions
@@ -97,6 +98,9 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
             field = value
             volumeManager.renderingMethod = value
         }
+
+    /** Plane equations for slicing planes mapped to origin */
+    var slicingPlaneEquations = mapOf<SlicingPlane, Vector4f>()
 
     var volumeManager: VolumeManager
 
@@ -188,6 +192,25 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
             it.volumeManager = volumeManager
         }
         delegate = volumeManager
+    }
+
+    /**
+     * Returns array of slicing plane equations for planes assigned to this volume.
+     */
+    fun slicingArray(): FloatArray {
+        if (slicingPlaneEquations.size > MAX_SUPPORTED_SLICING_PLANES)
+            logger.warn("More than ${MAX_SUPPORTED_SLICING_PLANES} slicing planes for ${this.name} set. Ignoring additional planes.")
+
+        val fa = FloatArray(4 * MAX_SUPPORTED_SLICING_PLANES)
+
+        slicingPlaneEquations.entries.take(MAX_SUPPORTED_SLICING_PLANES).forEachIndexed { i, entry ->
+            fa[0+i*4] = entry.value.x
+            fa[1+i*4] = entry.value.y
+            fa[2+i*4] = entry.value.z
+            fa[3+i*4] = entry.value.w
+        }
+
+        return fa
     }
 
     /**
@@ -628,5 +651,8 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
 
             return fromBuffer(volumes, dimensions.x, dimensions.y, dimensions.z, UnsignedShortType(), hub)
         }
+
+        /** Amount of supported slicing planes per volume, see also sampling shader segments */
+        private const val MAX_SUPPORTED_SLICING_PLANES = 16
     }
 }
