@@ -189,6 +189,11 @@ tasks {
         }
         dependsOn(test) // tests are required to run before generating the report
     }
+
+    register("run", JavaExec::class.java) {
+        classpath = sourceSets.test.get().runtimeClasspath
+        main = project.property("example").toString()
+    }
 }
 
 val dokkaJavadocJar by tasks.register<Jar>("dokkaJavadocJar") {
