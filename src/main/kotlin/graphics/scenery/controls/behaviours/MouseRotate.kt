@@ -76,5 +76,6 @@ open class MouseRotate(
     }
 
     override fun end(x: Int, y: Int) {
+        // intentionally empty. A new click will overwrite the running variables.
     }
 }
