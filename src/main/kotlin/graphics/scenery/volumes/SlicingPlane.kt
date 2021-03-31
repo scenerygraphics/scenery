@@ -8,7 +8,8 @@ import org.joml.Vector3f
 import org.joml.Vector4f
 
 /**
- * Non-geometry node to handle slicing plane behavior
+ * Non-geometry node to handle slicing plane behavior.
+ * Default position is the XZ-plane through the origin.
  */
 class SlicingPlane(override var name: String = "Slicing Plane") : Node(name) {
     private var slicedVolumes = listOf<Volume>()
