@@ -101,6 +101,7 @@ open class MouseDragPlane(
     }
 
     override fun end(x: Int, y: Int) {
+        // intentionally empty. A new click will overwrite the running variables.
     }
 
     override fun scroll(wheelRotation: Double, isHorizontal: Boolean, x: Int, y: Int) {
