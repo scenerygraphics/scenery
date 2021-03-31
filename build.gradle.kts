@@ -190,7 +190,7 @@ tasks {
         dependsOn(test) // tests are required to run before generating the report
     }
 
-    register("run", JavaExec::class.java) {
+    register<JavaExec>("run") {
         classpath = sourceSets.test.get().runtimeClasspath
         main = project.property("example").toString()
     }
