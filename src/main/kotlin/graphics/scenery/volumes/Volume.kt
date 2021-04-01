@@ -174,18 +174,13 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
         val vm = hub.get<VolumeManager>()
         val volumes = ArrayList<Volume>(10)
 
-        volumeManager = if(vm != null) {
+        if(vm != null) {
             volumes.addAll(vm.nodes)
             hub.remove(vm)
-
-            VolumeManager(hub, vm.useCompute, vm.customSegments)
-        } else {
-            VolumeManager(hub)
         }
 
-        hub.add(volumeManager)
+        volumeManager = hub.add(VolumeManager(hub))
         volumeManager.add(this)
-        vm?.moveCustomTextures(volumeManager)
         volumes.forEach {
             volumeManager.add(it)
             it.delegate = volumeManager
