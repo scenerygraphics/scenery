@@ -1,6 +1,5 @@
 package graphics.scenery.proteins
 
-
 import graphics.scenery.utils.LazyLogger
 import org.biojava.nbio.structure.*
 import org.biojava.nbio.structure.io.PDBFileReader
