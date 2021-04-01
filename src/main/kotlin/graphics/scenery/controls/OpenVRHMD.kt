@@ -227,6 +227,14 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
             logger.error(e.message + "\n" + e.stackTrace.joinToString("\n"))
             initialized = false
         }
+
+
+        // Having vsync enabled might lead to wrong prediction and "swimming"
+        // artifacts.
+        hub?.get<Settings>()?.let { settings ->
+            logger.info("Disabling vsync, as frame swap governed by compositor.")
+            settings.set("Renderer.DisableVsync", true)
+        }
     }
 
     private fun idToEventType(id: Int): String = eventTypes.getOrDefault(id, "Unknown event($id)")
@@ -363,16 +371,7 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
             val transform = HmdMatrix34.calloc()
             VRSystem_GetEyeToHeadTransform(eye, transform)
 
-            // Windows Mixed Reality headsets handle transforms slightly different:
-            // the general device pose contains the pose of the left eye, while then the eye-to-head
-            // pose contains the identity for the left eye, and the full IPD/shift transformation for
-            // the right eye. The developers claim this is for reprojection to work correctly. See also
-            // https://github.com/LibreVR/Revive/issues/893
-            if(manufacturer == Manufacturer.WindowsMR) {
-                eyeTransformCache[eye] = transform.toMatrix4f()
-            } else {
-                eyeTransformCache[eye] = transform.toMatrix4f()
-            }
+            eyeTransformCache[eye] = transform.toMatrix4f()
 
             logger.trace("Head-to-eye #{}: {}", eye, eyeTransformCache[eye].toString())
         }

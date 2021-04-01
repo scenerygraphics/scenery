@@ -54,7 +54,9 @@ class ExampleRunner {
             "BigAndSmallVolumeExample",
             "VolumeSamplingExample",
             "SwingTexturedCubeExample",
-            "VideoRecordingExample"
+            "VideoRecordingExample",
+            // TODO: this has a bug apparently coming from BVV
+            "FlybrainOutOfCoreExample"
         )
 
         blocklist.addAll(System.getProperty("scenery.ExampleRunner.Blocklist", "").split(","))
@@ -114,7 +116,7 @@ class ExampleRunner {
 
                             failure = true
                             // we fail very hard here to prevent process clogging the CI
-                            exitProcess(-1)
+                            throw e
                         }
 
                         exampleRunnable = GlobalScope.launch(handler) {
