@@ -66,7 +66,7 @@ tasks {
         println(example)
         val file = sourceSets.test.get().allSource.files.first { "class $example" in it.readText() }
         println(file)
-        main = file.path.substringAfter("kotlin/").replace('/', '.').substringBefore(".kt")
+        main = file.path.substringAfter("kotlin${File.separatorChar}").replace(File.separatorChar, '.').substringBefore(".kt")
         println(main)
         val props = System.getProperties().filter { (k, _) -> k.toString().startsWith("scenery.") }
         allJvmArgs = allJvmArgs + props.flatMap { (k, v) -> listOf("-D$k=$v") }
