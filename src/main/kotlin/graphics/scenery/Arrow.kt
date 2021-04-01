@@ -13,13 +13,14 @@ import java.nio.IntBuffer
  * Class for creating 3D arrows, derived from [Node] and using [HasGeometry].
  * The arrow is defined with [vector] having the vector's foot/start as the
  * reference coordinate (arrow's foot will appear at the coordinate given to setPosition()).
- *
+ *```
  *   /|\
  *  / | \
  * /--+--\
  *    |
  *    |
  *    |
+ * ```
  * The arrow is created as the main segment (drawn vertically bottom to up),
  * then 3 segments to build a triangle and then another triangle perpendicular
  * to the former one; altogehter 7 segments drawn sequentially.

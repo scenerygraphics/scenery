@@ -358,30 +358,6 @@ object VulkanNodeHelpers {
         }
 
         node.rendererMetadata()?.let { s ->
-
-//            node.javaClass.kotlin.memberProperties.filter { it.findAnnotation<ShaderProperty>() != null }.forEach { logger.info("${node.name}.${it.name} is ShaderProperty!") }
-            val needsShaderPropertyUBO = if (node.javaClass.kotlin.memberProperties.filter { it.findAnnotation<ShaderProperty>() != null }.count() > 0) {
-                var dsl = 0L
-
-                renderpasses.filter {
-                    (it.value.passConfig.type == RenderConfigReader.RenderpassType.geometry || it.value.passConfig.type == RenderConfigReader.RenderpassType.lights)
-                        && it.value.passConfig.renderTransparent == node.material.blending.transparent
-                }
-                    .map { pass ->
-                        logger.debug("Initializing shader properties for ${node.name}")
-                        dsl = pass.value.initializeShaderPropertyDescriptorSetLayout()
-                    }
-
-                val descriptorSet = device.createDescriptorSetDynamic(dsl,
-                    1, buffers.ShaderProperties)
-
-                s.requiredDescriptorSets["ShaderProperties"] = descriptorSet
-                true
-            } else {
-                false
-            }
-
-
             renderpasses.filter { it.value.passConfig.type == RenderConfigReader.RenderpassType.geometry || it.value.passConfig.type == RenderConfigReader.RenderpassType.lights }
                 .map { pass ->
                     val shaders = when {
@@ -389,17 +365,6 @@ object VulkanNodeHelpers {
                             logger.debug("Initializing preferred pipeline for ${node.name} from ShaderMaterial")
                             (node.material as ShaderMaterial).shaders
                         }
-
-//                        pass.value.passConfig.renderTransparent == node.material.blending.transparent -> {
-//                            logger.debug("Initializing classname-derived preferred pipeline for ${node.name}")
-//                            val shaders = node.findExistingShaders()
-//
-//                            if(shaders.isEmpty()) {
-//                                throw ShaderCompilationException("No shaders found for ${node.name}")
-//                            }
-//
-//                            shaders
-//                        }
 
                         else -> {
                             logger.debug("Initializing pass-default shader preferred pipeline for ${node.name}")
@@ -474,11 +439,13 @@ object VulkanNodeHelpers {
                 }
 
 
-            if (needsShaderPropertyUBO) {
+            if (node.needsShaderPropertyUBO()) {
                 renderpasses.filter {
                     (it.value.passConfig.type == RenderConfigReader.RenderpassType.geometry || it.value.passConfig.type == RenderConfigReader.RenderpassType.lights) &&
                         it.value.passConfig.renderTransparent == node.material.blending.transparent
                 }.forEach { pass ->
+                    val dsl = pass.value.initializeShaderPropertyDescriptorSetLayout()
+
                     logger.debug("Initializing shader properties for ${node.name} in pass ${pass.key}")
                     val order = pass.value.getShaderPropertyOrder(node)
 
@@ -486,13 +453,21 @@ object VulkanNodeHelpers {
                     with(shaderPropertyUbo) {
                         name = "ShaderProperties"
 
-                        order.forEach { name, offset ->
+                        order.forEach { (name, offset) ->
                             // TODO: See whether returning 0 on non-found shader property has ill side effects
                             add(name, { node.getShaderProperty(name) ?: 0 }, offset)
                         }
 
-                        this.createUniformBuffer()
-                        s.UBOs.put("${pass.key}-ShaderProperties", s.requiredDescriptorSets["ShaderProperties"]!! to this)
+                        val result = this.createUniformBuffer()
+
+                        val ds = device.createDescriptorSetDynamic(
+                                dsl,
+                                1,
+                                buffers.ShaderProperties,
+                                size = maxOf(result.range, 2048)
+                            )
+                        s.requiredDescriptorSets["ShaderProperties"] = ds
+                        s.UBOs["${pass.key}-ShaderProperties"] = ds to this
                     }
                 }
 
@@ -519,6 +494,12 @@ object VulkanNodeHelpers {
         return false
     }
 
+    private fun Node.needsShaderPropertyUBO(): Boolean = this
+        .javaClass
+        .kotlin
+        .memberProperties
+        .filter { it.findAnnotation<ShaderProperty>() != null }
+        .count() > 0
 
     /**
      * Returns true if the current VulkanTexture can be reused to store the information in the [Texture]

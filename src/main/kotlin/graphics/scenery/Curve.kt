@@ -36,7 +36,7 @@ class Curve(spline: Spline, private val firstPerpendicularVector: Vector3f = Vec
      */
     init {
         if (chain.isEmpty()) {
-            println("The spline provided for the Curve is empty.")
+            logger.warn("The spline provided for the Curve is empty.")
         }
         val bases = computeFrenetFrames(chain as ArrayList<Vector3f>).map { (t, n, b, tr) ->
             val inverseMatrix = Matrix3f(b.x(), n.x(), t.x(),

@@ -54,7 +54,7 @@ class NodeSubscriber(override var hub: Hub?, val address: String = "udp://localh
         kryo.register(FloatArray::class.java)
         kryo.register(GeometryType::class.java)
 
-        kryo.instantiatorStrategy = Kryo.DefaultInstantiatorStrategy(StdInstantiatorStrategy())
+        kryo.instantiatorStrategy = StdInstantiatorStrategy()
     }
 
     fun process() {

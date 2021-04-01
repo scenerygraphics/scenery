@@ -416,18 +416,10 @@ open class VulkanSwapchain(open val device: VulkanDevice,
             VU.run("Query device physical surface formats",
                 { KHRSurface.vkGetPhysicalDeviceSurfaceFormatsKHR(device.physicalDevice, surface, formatCount, surfFormats) })
 
-            val colorFormat = if (formatCount.get(0) == 1 && surfFormats.get(0).format() == VK10.VK_FORMAT_UNDEFINED) {
-                if (useSRGB) {
-                    VK10.VK_FORMAT_B8G8R8A8_SRGB
-                } else {
-                    VK10.VK_FORMAT_B8G8R8A8_UNORM
-                }
+            val colorFormat = if (useSRGB) {
+                VK10.VK_FORMAT_B8G8R8A8_SRGB
             } else {
-                if (useSRGB) {
-                    VK10.VK_FORMAT_B8G8R8A8_SRGB
-                } else {
-                    VK10.VK_FORMAT_B8G8R8A8_UNORM
-                }
+                VK10.VK_FORMAT_B8G8R8A8_UNORM
             }
 
             val colorSpace = if (useSRGB) {
