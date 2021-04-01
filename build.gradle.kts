@@ -9,6 +9,8 @@ plugins {
     val ktVersion = "1.4.20"
     java
     kotlin("jvm") version ktVersion
+    scenery.base
+//    scenery.docs
     scenery.publish
     scenery.sign
     id("com.github.elect86.sciJava") version "0.0.4"
@@ -17,8 +19,6 @@ plugins {
 }
 
 //sciJava.debug = true
-
-val ktVersion = "1.4.10"
 
 repositories {
     mavenCentral()
@@ -29,7 +29,7 @@ repositories {
 
 "kotlin"("1.4.21")
 "ui-behaviour"("2.0.3")
-"bigvolumeviewer"("0.1.8")
+"bigvolumeviewer"("0.1.9")
 "ffmpeg"("4.2.1-1.5.2")
 "jackson-dataformat-msgpack"("0.8.20")
 "jeromq"("0.4.3")
@@ -91,7 +91,11 @@ dependencies {
     }
     sciJava("org.reflections")
     sciJava("io.github.classgraph")
-    sciJava("sc.fiji:bigvolumeviewer")
+    //TODO revert to official BVV
+    implementation("sc.fiji:bigdataviewer-core:10.1.1-SNAPSHOT")
+    implementation("sc.fiji:bigdataviewer-vistools:1.0.0-beta-26-SNAPSHOT")
+    implementation("com.github.skalarproduktraum:jogl-minimal:1c86442")
+    //sciJava("sc.fiji:bigvolumeviewer")
     //    sciJava("org.lwjglx:lwjgl3-awt")
     implementation("com.github.LWJGLX:lwjgl3-awt:cfd741a6")
     sciJava("org.janelia.saalfeldlab:n5"["", "-imglib2"])
@@ -115,9 +119,10 @@ dependencies {
 }
 
 fun DependencyHandlerScope.runtimeOnlylwjglNatives(group: String, name: String) =
-        listOf("windows", "linux", "macos").forEach { runtimeOnly(group, name, classifier = "natives-$it") }
+    listOf("windows", "linux", "macos").forEach { runtimeOnly(group, name, classifier = "natives-$it") }
 
 tasks {
+
     withType<KotlinCompile>().all {
         val version = System.getProperty("java.version").substringBefore('.').toInt()
         val default = if (version == 1) "1.8" else "$version"
@@ -126,30 +131,6 @@ tasks {
             freeCompilerArgs += listOf("-Xinline-classes", "-Xopt-in=kotlin.RequiresOptIn")
         }
         sourceCompatibility = project.properties["sourceCompatibility"]?.toString() ?: default
-    }
-    // https://docs.gradle.org/current/userguide/java_testing.html#test_filtering
-    test {
-        // apparently `testLotsOfProteins` needs also a lot of heap..
-        maxHeapSize = "8G"
-        // [Debug] before running every test, prints out its name
-        //        beforeTest(closureOf<TestDescriptor?> { logger.lifecycle("Running test: $this") })
-        val gpuPresent = project.properties["gpu"]?.toString()?.toBoolean() == true
-        //        println("gpuPresent=$gpuPresent")
-        if (!gpuPresent) {
-            filter { excludeTestsMatching("ExampleRunner") }
-        } else {
-            systemProperty("scenery.Renderer", "VulkanRenderer")
-            systemProperty("scenery.ExampleRunner.OutputDir", "screenshots")
-        }
-        finalizedBy(jacocoTestReport) // report is always generated after tests run
-    }
-    register("testGpu", Test::class) { // lets take this for comfortability in local development
-        maxHeapSize = "8G"
-        group = "verification"
-        filter { includeTestsMatching("ExampleRunner") }
-    }
-    jar {
-        archiveVersion.set(rootProject.version.toString())
     }
 
     dokkaHtml {
@@ -160,17 +141,6 @@ tasks {
                 remoteLineSuffix.set("#L")
             }
         }
-    }
-
-    jacocoTestReport {
-        reports {
-            xml.isEnabled = true
-            html.apply {
-                isEnabled = false
-                //                destination = file("$buildDir/jacocoHtml")
-            }
-        }
-        dependsOn(test) // tests are required to run before generating the report
     }
 }
 

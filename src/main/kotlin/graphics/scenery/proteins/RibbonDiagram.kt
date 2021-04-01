@@ -154,7 +154,7 @@ class RibbonDiagram(val protein: Protein, private val displaySS: Boolean = false
         have a spline for the whole backbone. We take the points belonging to this section and put them into a new
         spline ("subSpline"). Now, an instance of the curve class is created, with the base shapes and the subSpline as
         properties. When displaySS is true this curve gets its parent, depending of course on its secondary structure
-        type. In the end it would satisfy this tree structure:
+        type. In the end, it would satisfy this tree structure:
                                                 PDB (protein)
                                                | | ...  |
                                               /  | ...   \
@@ -431,7 +431,6 @@ class RibbonDiagram(val protein: Protein, private val displaySS: Boolean = false
             if (guidePointsWithoutDummy[1].widthFactor != 0f && guidePointsWithoutDummy[2].widthFactor != 0f &&
                     guidePointsWithoutDummy[3].widthFactor != 0f) {
                 guidePointsWithoutDummy[0].widthFactor = guidePointsWithoutDummy[1].widthFactor
-                guidePointsWithoutDummy[0].type = guidePointsWithoutDummy[1].type
             }
             //if there is a width factor is still assigned at the and, also assign it to the last point
             if (guidePointsWithoutDummy.dropLast(1).last().widthFactor != 0f &&
