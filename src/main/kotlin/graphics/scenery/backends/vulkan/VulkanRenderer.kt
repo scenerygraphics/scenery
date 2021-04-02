@@ -1358,6 +1358,21 @@ open class VulkanRenderer(hub: Hub,
             }
         }
 
+        persistentTextureRequests.forEach{ (texture, indicator) ->
+            val ref = VulkanTexture.getReference(texture)
+            val buffer = texture.contents ?: return@forEach
+
+            if(ref != null) {
+                val start = System.nanoTime()
+                ref.copyTo(buffer)
+                val end = System.nanoTime()
+                logger.debug("The request textures of size ${texture.contents?.remaining()?.toFloat()?.div((1024f*1024f))} took: ${(end.toDouble()-start.toDouble())/1000000.0}")
+                indicator.incrementAndGet()
+            } else {
+                logger.error("In persistent texture requests: Texture not accessible")
+            }
+        }
+
         if (recordMovie || screenshotRequested || imageRequests.isNotEmpty()) {
             val request = try {
                 imageRequests.poll()
