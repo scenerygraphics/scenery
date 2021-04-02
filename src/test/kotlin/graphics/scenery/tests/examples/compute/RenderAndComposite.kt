@@ -85,6 +85,9 @@ class RenderAndComposite: SceneryBase("Volume Rendering example", 1200, 1200, wa
 
         logger.info("Init 2")
 
+        volumeManager.customTextures.add("OutputSubVDIColor");
+        volumeManager.customTextures.add("OutputSubVDIDepth");
+
         val outputSubColorBuffer = MemoryUtil.memCalloc(windowHeight*windowWidth*4)
         val outputSubDepthBuffer = MemoryUtil.memCalloc(windowHeight*windowWidth*4)
         val outputSubVDIColor = Texture.fromImage(Image(outputSubColorBuffer,  windowHeight, windowWidth), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
