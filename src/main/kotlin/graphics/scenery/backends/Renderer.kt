@@ -11,6 +11,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.selects.select
 import org.lwjgl.system.Platform
 import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Renderer interface. Defines the minimal set of functions a renderer has to implement.
@@ -174,6 +175,7 @@ abstract class Renderer : Hubable {
     }
 
     @Volatile protected var textureRequests = ConcurrentLinkedQueue<Pair<Texture, Channel<Texture>>>()
+    var persistentTextureRequests = ArrayList<Pair<Texture, AtomicInteger>>()
 
     /**
      * Requests the renderer to update [texture]'s contents from the GPU. [onReceive] is executed
