@@ -14,6 +14,7 @@ import org.joml.Vector3f
 import org.lwjgl.system.Platform
 import org.zeromq.ZContext
 import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Renderer interface. Defines the minimal set of functions a renderer has to implement.
@@ -194,6 +195,7 @@ abstract class Renderer : Hubable {
     }
 
     @Volatile protected var textureRequests = ConcurrentLinkedQueue<Pair<Texture, Channel<Texture>>>()
+    var persistentTextureRequests = ArrayList<Pair<Texture, AtomicInteger>>()
 
     /**
      * A list of user-defined lambdas that will be executed once per iteration of the render loop
