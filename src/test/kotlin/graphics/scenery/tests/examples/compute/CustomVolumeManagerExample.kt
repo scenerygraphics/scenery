@@ -4,8 +4,10 @@ import bdv.util.AxisOrder
 import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
+import graphics.scenery.backends.vulkan.VulkanRenderer
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.Image
+import graphics.scenery.utils.SystemHelpers
 import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.Volume
 import graphics.scenery.volumes.VolumeManager
@@ -18,6 +20,8 @@ import org.lwjgl.system.MemoryUtil
 import tpietzsch.example2.VolumeViewerOptions
 import tpietzsch.shadergen.generate.SegmentTemplate
 import tpietzsch.shadergen.generate.SegmentType
+import java.util.concurrent.atomic.AtomicInteger
+import kotlin.concurrent.thread
 
 /**
  * Example showing using a custom [graphics.scenery.volumes.VolumeManager] with
@@ -73,6 +77,33 @@ class CustomVolumeManagerExample : SceneryBase("CustomVolumeManagerExample") {
             perspectiveCamera(50.0f, 512, 512)
 
             scene.addChild(this)
+        }
+
+        val opTexture = volumeManager.material.textures["OutputRender"]!!
+        val counter = AtomicInteger(0)
+
+        (renderer as? VulkanRenderer)?.postRenderLambdas?.add {
+            logger.info("in the lambda")
+            opTexture to counter
+        }
+
+        thread {
+            var prevAtomic = counter.get()
+
+            while(true) {
+                while (prevAtomic == counter.get()) {
+                    Thread.sleep(5)
+                }
+                logger.info("Previous atomic val was $prevAtomic, new one is ${counter.get()}")
+                prevAtomic = counter.get()
+                if(prevAtomic%100 == 0) {
+                    logger.info("Dumping to file")
+//                SystemHelpers.dumpToFile(subVDIColorBuffer!!, "$cnt-textureSubCol.raw")
+                    SystemHelpers.dumpToFile(opTexture.contents!!, "$prevAtomic-texture.raw")
+                    logger.info("File dumped")
+                }
+            }
+
         }
     }
 
