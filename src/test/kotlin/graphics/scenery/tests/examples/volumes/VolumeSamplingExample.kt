@@ -5,6 +5,7 @@ import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
 import graphics.scenery.primitives.Cylinder
+import graphics.scenery.primitives.Icosphere
 import graphics.scenery.primitives.Line
 import graphics.scenery.utils.MaybeIntersects
 import graphics.scenery.utils.RingBuffer

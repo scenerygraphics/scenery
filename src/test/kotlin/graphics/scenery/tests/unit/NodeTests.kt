@@ -5,6 +5,7 @@ import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.numerics.Random
 import graphics.scenery.Mesh
+import graphics.scenery.primitives.Sphere
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.extensions.compare
 import graphics.scenery.utils.extensions.plus

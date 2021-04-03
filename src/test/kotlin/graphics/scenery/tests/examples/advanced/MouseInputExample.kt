@@ -8,12 +8,9 @@ import graphics.scenery.controls.behaviours.MouseRotate
 import graphics.scenery.controls.behaviours.SelectCommand
 import graphics.scenery.effectors.LineRestrictionEffector
 import graphics.scenery.numerics.Random
-import graphics.scenery.utils.extensions.minus
+import graphics.scenery.primitives.Icosphere
 import graphics.scenery.utils.extensions.plus
-import graphics.scenery.utils.extensions.times
-import graphics.scenery.utils.extensions.xyz
 import org.joml.Vector3f
-import org.joml.Vector4f
 import kotlin.concurrent.thread
 
 /**

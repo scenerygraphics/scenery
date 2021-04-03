@@ -3,6 +3,7 @@ package graphics.scenery.tests.examples.volumes
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.TrackedStereoGlasses
+import graphics.scenery.primitives.Icosphere
 import graphics.scenery.volumes.Colormap
 import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.Volume
