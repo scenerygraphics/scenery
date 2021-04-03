@@ -1,5 +1,6 @@
-package graphics.scenery
+package graphics.scenery.geometry
 
+import graphics.scenery.Mesh
 import graphics.scenery.utils.LazyLogger
 import kotlin.math.absoluteValue
 
