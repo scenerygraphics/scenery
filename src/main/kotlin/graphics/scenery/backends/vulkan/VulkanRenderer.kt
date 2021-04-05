@@ -40,6 +40,7 @@ import java.util.*
 import java.util.concurrent.*
 import java.util.concurrent.locks.ReentrantLock
 import javax.imageio.ImageIO
+import kotlin.collections.ArrayList
 import kotlin.concurrent.thread
 import kotlin.concurrent.withLock
 import kotlin.reflect.full.*
@@ -48,7 +49,6 @@ import kotlin.time.ExperimentalTime
 import java.lang.System.currentTimeMillis
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.NoSuchElementException
-import kotlin.collections.ArrayList
 
 
 /**
@@ -336,6 +336,7 @@ open class VulkanRenderer(hub: Hub,
     private var recordMovieOverwrite: Boolean = false
     override var pushMode: Boolean = false
     private var parallelRenderingMode = false
+    val postRenderLambdas = ArrayList<()->Unit>()
 
     var scene: Scene = Scene()
     protected var sceneArray: HashSet<Node> = HashSet(256)
@@ -388,7 +389,7 @@ open class VulkanRenderer(hub: Hub,
     var fps = 0
         protected set
     protected var frames = 0
-    protected var totalFrames = 0L
+    var totalFrames = 0L
     protected var renderDelay = 0L
     protected var heartbeatTimer = Timer()
     protected var gpuStats: GPUStats? = null
@@ -1263,8 +1264,6 @@ open class VulkanRenderer(hub: Hub,
 
     private external fun sendImage(image: ByteBuffer)
 
-    val postRenderLambdas = ArrayList<()->Pair<Texture, AtomicInteger>>()
-
     private suspend fun submitFrame(queue: VkQueue, pass: VulkanRenderpass, commandBuffer: VulkanCommandBuffer, present: PresentHelpers) {
         if(swapchainRecreator.mustRecreate) {
             return
@@ -1331,8 +1330,7 @@ open class VulkanRenderer(hub: Hub,
                 }
         }
 
-        postRenderLambdas.forEach { l ->
-            val (texture, indicator) = l.invoke()
+        persistentTextureRequests.forEach{ (texture, indicator) ->
             val ref = VulkanTexture.getReference(texture)
             val buffer = texture.contents ?: return@forEach
 
@@ -1340,16 +1338,12 @@ open class VulkanRenderer(hub: Hub,
                 val start = System.nanoTime()
                 ref.copyTo(buffer)
                 val end = System.nanoTime()
-//                req.second.send(req.first)
-//                req.second.close()
-                logger.info("Sent updated texture")
-                logger.info("The request textures of size ${texture.contents?.remaining()?.toFloat()?.div((1024f*1024f))} took: ${(end.toDouble()-start.toDouble())/1000000.0}")
+                logger.debug("The request textures of size ${texture.contents?.remaining()?.toFloat()?.div((1024f*1024f))} took: ${(end.toDouble()-start.toDouble())/1000000.0}")
                 indicator.incrementAndGet()
             } else {
-                logger.info("In postrender lambda: Texture not accessible")
+                logger.error("In persistent texture requests: Texture not accessible")
             }
         }
-
 
         if (parallelRenderingMode || recordMovie || screenshotRequested || imageRequests.isNotEmpty()) {
             val request = try {
@@ -1514,7 +1508,7 @@ open class VulkanRenderer(hub: Hub,
             var imageWithDepthBuf: ByteBuffer = memAlloc(windowSize * windowSize * 7)
 
             val shifted = ByteArray(windowSize * windowSize * 3)
-            imageBuffer?.let{ ib->
+            imageBuffer?.let { ib ->
                 val imageArray = ByteArray(ib.remaining())
                 ib.get(imageArray)
                 ib.flip()
@@ -1541,22 +1535,24 @@ open class VulkanRenderer(hub: Hub,
             imageWithDepthBuf.put(shifted)
 
             val depthByteSize = windowSize * windowSize * 4
-            if(depthBuffer == null || depthBuffer?.size?.toInt() != depthByteSize) {
+            if (depthBuffer == null || depthBuffer?.size?.toInt() != depthByteSize) {
                 logger.debug("Reallocating depth vulkan buffer")
-                depthBuffer = VulkanBuffer(device, depthByteSize.toLong(),
+                depthBuffer = VulkanBuffer(
+                    device, depthByteSize.toLong(),
                     VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-                    wantAligned = true)
+                    wantAligned = true
+                )
             }
 
-            if(depthBuf == null || depthBuf?.capacity() != depthByteSize.toInt()) {
+            if (depthBuf == null || depthBuf?.capacity() != depthByteSize.toInt()) {
                 logger.debug("Reallocating depth byte buffer")
 //                depthBuf = ByteBuffer.allocateDirect(depthByteSize.toInt())
                 depthBuf = memAlloc(depthByteSize)
             }
 
             val fbWithDepth = renderpasses.entries
-                .first { it.value.output.any { it.value.depthAttachmentCount() > 0 }} // find the first render pass which has a framebuffer containing depth attachment(s)
+                .first { it.value.output.any { it.value.depthAttachmentCount() > 0 } } // find the first render pass which has a framebuffer containing depth attachment(s)
                 .value.output.entries // for this render pass
                 .first { it.value.depthAttachmentCount() > 0 } // find the first framebuffer with depth attachment(s)
 
@@ -1565,11 +1561,11 @@ open class VulkanRenderer(hub: Hub,
             var found = false
 
             fbWithDepth.value.attachments.forEach {
-                if(found) {
+                if (found) {
                     return@forEach
                 }
 
-                if(it.value.type == VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT) {
+                if (it.value.type == VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT) {
                     found = true
                     val depthImage = it.value.image
 
@@ -1587,38 +1583,45 @@ open class VulkanRenderer(hub: Hub,
                             .imageExtent(VkExtent3D.calloc().set(windowSize, windowSize, 1))
                             .imageSubresource(subresource)
 
-                        VulkanTexture.transitionLayout(depthImage,
+                        VulkanTexture.transitionLayout(
+                            depthImage,
                             from = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
                             to = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                             srcStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
                             srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
                             dstStage = VK_PIPELINE_STAGE_HOST_BIT,
                             dstAccessMask = VK_ACCESS_HOST_READ_BIT,
-                            commandBuffer = this)
+                            commandBuffer = this
+                        )
 
-                        vkCmdCopyImageToBuffer(this, depthImage,
+                        vkCmdCopyImageToBuffer(
+                            this, depthImage,
                             VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                             depthBuffer!!.vulkanBuffer,
-                            regions)
+                            regions
+                        )
 
-                        VulkanTexture.transitionLayout(depthImage,
+                        VulkanTexture.transitionLayout(
+                            depthImage,
                             from = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                             to = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
                             srcStage = VK_PIPELINE_STAGE_HOST_BIT,
                             srcAccessMask = VK_ACCESS_HOST_READ_BIT,
                             dstStage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
                             dstAccessMask = 0,
-                            commandBuffer = this)
+                            commandBuffer = this
+                        )
 
-                        endCommandBuffer(this@VulkanRenderer.device, commandPools.Render, queue,
-                            flush = true, dealloc = true)
+                        endCommandBuffer(
+                            this@VulkanRenderer.device, commandPools.Render, queue,
+                            flush = true, dealloc = true
+                        )
                     }
                     if (depthBuffer != null) {
                         depthBuffer!!.copyTo(depthBuf!!)
                         logger.debug("DepthBuffer has been copied")
 
-                    }
-                    else {
+                    } else {
                         logger.warn("Retrieved depth buffer is null")
                     }
                     imageWithDepthBuf.put(depthBuf)
@@ -1630,9 +1633,13 @@ open class VulkanRenderer(hub: Hub,
             try {
 //                logger.info("Sending image")
                 sendImage(imageWithDepthBuf)
-            } catch(e: Exception) {
+            } catch (e: Exception) {
                 e.printStackTrace()
             }
+        }
+
+        postRenderLambdas.forEach{
+            it.invoke()
         }
 
         val presentDuration = System.nanoTime() - startPresent
