@@ -424,7 +424,8 @@ open class VulkanDevice(
     fun createDescriptorSetDynamic(
         descriptorSetLayout: Long,
         bindingCount: Int,
-        buffer: VulkanBuffer
+        buffer: VulkanBuffer,
+        size: Long = 2048L
     ): Long {
         val pool = findAvailableDescriptorPool()
         pool.free -= 1
@@ -445,7 +446,7 @@ open class VulkanDevice(
 
             val d = VkDescriptorBufferInfo.callocStack(1, stack)
                 .buffer(buffer.vulkanBuffer)
-                .range(2048)
+                .range(size)
                 .offset(0L)
 
             val writeDescriptorSet = VkWriteDescriptorSet.callocStack(bindingCount, stack)
