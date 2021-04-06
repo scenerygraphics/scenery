@@ -1,5 +1,6 @@
 package graphics.scenery.backends
 
+import graphics.scenery.Settings
 import org.joml.Matrix4f
 import graphics.scenery.backends.vulkan.VulkanDevice
 import org.joml.Vector2i
@@ -107,4 +108,12 @@ interface Display {
      * @return Matrix4f containing the transform
      */
     fun getHeadToEyeTransform(eye: Int): Matrix4f
+
+    fun wantsVR(settings: Settings): Display? {
+        return if (settings.get("vr.Active")) {
+            this
+        } else {
+            null
+        }
+    }
 }

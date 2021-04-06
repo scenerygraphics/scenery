@@ -44,6 +44,7 @@ repositories {
 "classgraph"("4.8.86")
 "spirvcrossj"("0.7.1-1.1.106.0")
 "reflections"("0.9.12")
+"art-dtrack-sdk"("2.6.0")
 
 dependencies {
     implementation(platform(kotlin("bom")))
@@ -107,6 +108,8 @@ dependencies {
         }
     }
     implementation("org.jetbrains.kotlin:kotlin-scripting-jsr223:1.4.21")
+    implementation("graphics.scenery:art-dtrack-sdk:2.6.0")
+
     testImplementation(kotlin("test"))
     testImplementation(kotlin("test-junit"))
     //    implementation("com.github.kotlin-graphics:assimp:25c68811")
