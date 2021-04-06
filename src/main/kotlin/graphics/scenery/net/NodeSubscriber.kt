@@ -57,7 +57,7 @@ class NodeSubscriber(override var hub: Hub?, val address: String = "udp://localh
         kryo.register(RibbonDiagram::class.java)
         kryo.register(Protein::class.java)
 
-        kryo.instantiatorStrategy = Kryo.DefaultInstantiatorStrategy(StdInstantiatorStrategy())
+        kryo.instantiatorStrategy = StdInstantiatorStrategy()
     }
 
     fun process() {
