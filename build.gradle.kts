@@ -42,7 +42,7 @@ repositories {
 "lwjgl3-awt"("0.1.7")
 "msgpack-core"("0.8.20")
 "classgraph"("4.8.86")
-"spirvcrossj"("0.7.0-1.1.106.0")
+"spirvcrossj"("0.7.1-1.1.106.0")
 "reflections"("0.9.12")
 
 dependencies {
