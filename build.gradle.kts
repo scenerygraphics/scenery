@@ -100,7 +100,7 @@ dependencies {
     implementation("com.github.LWJGLX:lwjgl3-awt:cfd741a6")
     sciJava("org.janelia.saalfeldlab:n5"["", "-imglib2"])
     listOf("core", "structure", "modfinder").forEach {
-        sciJava("org.biojava:biojava-$it:5.3.0") {
+        sciJava("org.biojava:biojava-$it:5.4.0") {
             exclude("org.slf4j", "slf4j-api")
             exclude("org.slf4j", "slf4j-simple")
             exclude("org.apache.logging.log4j", "log4j-slf4j-impl")
