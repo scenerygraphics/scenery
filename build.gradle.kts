@@ -67,7 +67,7 @@ dependencies {
     sciJava("org.jocl")
     implementation(platform("org.lwjgl:lwjgl-bom:3.2.3"))
     listOf("", "-glfw", "-jemalloc", "-vulkan", "-opengl", "-openvr", "-xxhash", "-remotery").forEach {
-        implementation("org.lwjgl:lwjgl$it")
+        api("org.lwjgl:lwjgl$it")
         if (it != "-vulkan")
             runtimeOnlylwjglNatives("org.lwjgl", "lwjgl$it") // "
     }
@@ -94,7 +94,7 @@ dependencies {
     //TODO revert to official BVV
     implementation("sc.fiji:bigdataviewer-core:10.1.1-SNAPSHOT")
     implementation("sc.fiji:bigdataviewer-vistools:1.0.0-beta-26-SNAPSHOT")
-    implementation("com.github.skalarproduktraum:jogl-minimal:1c86442")
+    api("com.github.skalarproduktraum:jogl-minimal:1c86442")
     //sciJava("sc.fiji:bigvolumeviewer")
     //    sciJava("org.lwjglx:lwjgl3-awt")
     implementation("com.github.LWJGLX:lwjgl3-awt:cfd741a6")
