@@ -32,6 +32,7 @@ class NodeSubscriber(override var hub: Hub?, val address: String = "udp://localh
         subscriber.connect(address)
         subscriber.subscribe(ZMQ.SUBSCRIPTION_ALL)
         kryo.isRegistrationRequired = false
+        //kryo.references = true
 
         kryo.register(Matrix4f::class.java)
         kryo.register(Vector3f::class.java)
@@ -53,6 +54,8 @@ class NodeSubscriber(override var hub: Hub?, val address: String = "udp://localh
         kryo.register(Line::class.java)
         kryo.register(FloatArray::class.java)
         kryo.register(GeometryType::class.java)
+        kryo.register(RibbonDiagram::class.java)
+        kryo.register(Protein::class.java)
 
         kryo.instantiatorStrategy = StdInstantiatorStrategy()
     }
