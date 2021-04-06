@@ -33,6 +33,9 @@ class Protein(val structure: Structure): Mesh("Protein") {
                 "Here is the trace: \n" +
                 struc.printStackTrace())
             }
+            catch(struc: NullPointerException) {
+                proteinLogger.error("Something is broken in BioJava. You can try to update the version.")
+            }
             finally {
                 val struc = StructureIO.getStructure(id)
                 val protein = Protein(struc)
