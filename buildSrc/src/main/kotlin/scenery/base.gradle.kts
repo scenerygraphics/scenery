@@ -61,11 +61,16 @@ tasks {
 
     register<JavaExec>("run") {
         classpath = sourceSets.test.get().runtimeClasspath
+        println(classpath)
         val example = project.property("example")
+        println(example)
         val file = sourceSets.test.get().allSource.files.first { "class $example" in it.readText() }
-        main = file.path.substringAfter("kotlin/").replace('/', '.').substringBefore(".kt")
+        println(file)
+        main = file.path.substringAfter("kotlin${File.separatorChar}").replace(File.separatorChar, '.').substringBefore(".kt")
+        println(main)
         val props = System.getProperties().filter { (k, _) -> k.toString().startsWith("scenery.") }
         allJvmArgs = allJvmArgs + props.flatMap { (k, v) -> listOf("-D$k=$v") }
+        println(allJvmArgs)
     }
 }
 
