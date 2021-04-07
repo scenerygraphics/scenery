@@ -61,16 +61,18 @@ tasks {
 
     register<JavaExec>("run") {
         classpath = sourceSets.test.get().runtimeClasspath
-        val example = project.property("example")
-        val file = sourceSets.test.get().allSource.files.first { "class $example" in it.readText() }
-        main = file.path.substringAfter("kotlin${File.separatorChar}").replace(File.separatorChar, '.').substringBefore(".kt")
-        val props = System.getProperties().filter { (k, _) -> k.toString().startsWith("scenery.") }
-        allJvmArgs = allJvmArgs + props.flatMap { (k, v) -> listOf("-D$k=$v") } + "-Xmx16g"
-        //        println(classpath)
-        //        println(example)
-        //        println(file)
-        //        println(main)
-        //        println(allJvmArgs)
+        if(project.hasProperty("example")) {
+            val example = project.property("example")
+            val file = sourceSets.test.get().allSource.files.first { "class $example" in it.readText() }
+            main = file.path.substringAfter("kotlin${File.separatorChar}").replace(File.separatorChar, '.').substringBefore(".kt")
+            val props = System.getProperties().filter { (k, _) -> k.toString().startsWith("scenery.") }
+            allJvmArgs = allJvmArgs + props.flatMap { (k, v) -> listOf("-D$k=$v") } + "-Xmx16g"
+            //        println(classpath)
+            //        println(example)
+            //        println(file)
+            //        println(main)
+            //        println(allJvmArgs)
+        }
     }
 }
 
