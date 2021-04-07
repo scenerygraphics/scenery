@@ -1075,20 +1075,12 @@ open class OpenGLRenderer(hub: Hub,
         logger.info("Initialized ${textureCache.size} textures")
     }
 
-    private fun Display.wantsVR(): Display? {
-        return if (settings.get("vr.Active")) {
-            this@wantsVR
-        } else {
-            null
-        }
-    }
-
     @Suppress("UNUSED_VALUE")
     @Synchronized protected fun updateDefaultUBOs(cam: Camera): Boolean {
         // sticky boolean
         var updated: Boolean by StickyBoolean(initial = false)
 
-        val hmd = hub?.getWorkingHMDDisplay()?.wantsVR()
+        val hmd = hub?.getWorkingHMDDisplay()?.wantsVR(settings)
 
         cam.view = cam.getTransformation()
 
@@ -2085,7 +2077,7 @@ open class OpenGLRenderer(hub: Hub,
 
         // submit to OpenVR if attached
         if(hub?.getWorkingHMDDisplay()?.hasCompositor() == true && !mustRecreateFramebuffers) {
-            hub?.getWorkingHMDDisplay()?.wantsVR()?.submitToCompositor(
+            hub?.getWorkingHMDDisplay()?.wantsVR(settings)?.submitToCompositor(
                 viewportPass.output.values.first().getTextureId("Viewport"))
         }
 

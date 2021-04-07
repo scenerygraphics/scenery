@@ -42,8 +42,9 @@ repositories {
 "lwjgl3-awt"("0.1.7")
 "msgpack-core"("0.8.20")
 "classgraph"("4.8.86")
-"spirvcrossj"("0.7.0-1.1.106.0")
+"spirvcrossj"("0.7.1-1.1.106.0")
 "reflections"("0.9.12")
+"art-dtrack-sdk"("2.6.0")
 
 dependencies {
     implementation(platform(kotlin("bom")))
@@ -100,13 +101,15 @@ dependencies {
     implementation("com.github.LWJGLX:lwjgl3-awt:cfd741a6")
     sciJava("org.janelia.saalfeldlab:n5"["", "-imglib2"])
     listOf("core", "structure", "modfinder").forEach {
-        sciJava("org.biojava:biojava-$it:5.3.0") {
+        sciJava("org.biojava:biojava-$it:5.4.0") {
             exclude("org.slf4j", "slf4j-api")
             exclude("org.slf4j", "slf4j-simple")
             exclude("org.apache.logging.log4j", "log4j-slf4j-impl")
         }
     }
     implementation("org.jetbrains.kotlin:kotlin-scripting-jsr223:1.4.21")
+    implementation("graphics.scenery:art-dtrack-sdk:2.6.0")
+
     testImplementation(kotlin("test"))
     testImplementation(kotlin("test-junit"))
     //    implementation("com.github.kotlin-graphics:assimp:25c68811")

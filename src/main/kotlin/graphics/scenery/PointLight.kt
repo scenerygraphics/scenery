@@ -18,7 +18,7 @@ class PointLight(radius: Float = 5.0f) : Light("PointLight") {
     private var proxySphere = Sphere(radius * 1.1f, 10)
     /** The intensity of the point light. Bound to [0.0, 1.0] if using non-HDR rendering. */
     @ShaderProperty
-    override var intensity: Float = 100.0f
+    override var intensity: Float = 1.0f
 
     /** The emission color of the point light. Setting it will also affect the accompanying Box' color. */
     @ShaderProperty

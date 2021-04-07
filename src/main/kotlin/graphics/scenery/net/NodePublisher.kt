@@ -41,6 +41,7 @@ class NodePublisher(override var hub: Hub?, val address: String = "tcp://127.0.0
             publisher.bindToRandomPort(address.substringBeforeLast(":"))
         }
         kryo.isRegistrationRequired = false
+        //kryo.references = true
 
         kryo.register(Matrix4f::class.java)
         kryo.register(Vector3f::class.java)
@@ -62,10 +63,16 @@ class NodePublisher(override var hub: Hub?, val address: String = "tcp://127.0.0
         kryo.register(Line::class.java)
         kryo.register(FloatArray::class.java)
         kryo.register(GeometryType::class.java)
+        kryo.register(RibbonDiagram::class.java)
+        kryo.register(Protein::class.java)
     }
 
     fun publish() {
         nodes.forEach { guid, node ->
+            // TODO: This needs to be removed in order for volume property sync to work, but currently it makes Kryo rather unhappy.
+            if(node is Volume || node is Protein || node is RibbonDiagram) {
+                return@forEach
+            }
             val start = System.nanoTime()
             try {
                 val bos = ByteArrayOutputStream()
