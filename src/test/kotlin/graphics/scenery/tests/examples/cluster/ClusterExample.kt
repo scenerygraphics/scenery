@@ -13,6 +13,8 @@ import graphics.scenery.volumes.Colormap
 import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.Volume
 import org.scijava.ui.behaviour.ClickBehaviour
+import graphics.scenery.primitives.Cone
+import graphics.scenery.primitives.Icosphere
 import java.nio.file.Paths
 import kotlin.concurrent.thread
 import kotlin.math.floor
