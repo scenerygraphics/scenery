@@ -29,7 +29,7 @@ repositories {
 
 "kotlin"("1.4.21")
 "ui-behaviour"("2.0.3")
-"bigvolumeviewer"("0.1.9")
+//"bigvolumeviewer"("0.1.9")
 "ffmpeg"("4.2.1-1.5.2")
 "jackson-dataformat-msgpack"("0.8.20")
 "jeromq"("0.4.3")
