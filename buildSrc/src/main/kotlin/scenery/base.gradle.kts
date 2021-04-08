@@ -61,7 +61,7 @@ tasks {
 
     register<JavaExec>("run") {
         classpath = sourceSets.test.get().runtimeClasspath
-        if(project.hasProperty("example")) {
+        if (project.hasProperty("example")) {
             project.property("example")?.let { example ->
                 val file = sourceSets.test.get().allSource.files.first { "class $example" in it.readText() }
                 main = file.path.substringAfter("kotlin${File.separatorChar}").replace(File.separatorChar, '.').substringBefore(".kt")
@@ -87,8 +87,8 @@ val TaskContainer.jacocoTestReport: TaskProvider<JacocoReport>
 val TaskContainer.test: TaskProvider<Test>
     get() = named<Test>("test")
 
-val Project.sourceSets: SourceSetContainer get() =
-    (this as ExtensionAware).extensions.getByName("sourceSets") as SourceSetContainer
+val Project.sourceSets: SourceSetContainer
+    get() = (this as ExtensionAware).extensions.getByName("sourceSets") as SourceSetContainer
 
 val SourceSetContainer.test: NamedDomainObjectProvider<SourceSet>
     get() = named<SourceSet>("test")
