@@ -13,6 +13,8 @@ import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.Statistics
 import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.Volume
+import graphics.scenery.proteins.Protein
+import graphics.scenery.proteins.RibbonDiagram
 import org.zeromq.ZContext
 import org.zeromq.ZMQ
 import org.zeromq.ZMQException
