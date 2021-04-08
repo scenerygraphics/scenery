@@ -23,8 +23,8 @@ plugins {
 repositories {
     mavenCentral()
     jcenter()
-    maven("https://jitpack.io")
     maven("https://maven.scijava.org/content/groups/public")
+    maven("https://jitpack.io")
 }
 
 "kotlin"("1.4.21")
