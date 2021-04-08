@@ -299,12 +299,14 @@ class VolumeManager(
             "lutOffset",
             "sampleVolume",
             "convert",
-            "slicingPlanes"
+            "slicingPlanes",
+            "slicingMode"
         )
         segments[SegmentType.SampleVolume] = SegmentTemplate(
             "SampleSimpleVolume.frag",
             "im", "sourcemax", "intersectBoundingBox",
-            "volume", "transferFunction", "colorMap", "sampleVolume", "convert", "slicingPlanes"
+            "volume", "transferFunction", "colorMap", "sampleVolume", "convert", "slicingPlanes",
+            "slicingMode"
         )
         segments[SegmentType.Convert] = SegmentTemplate(
             "Converter.frag",
@@ -392,7 +394,16 @@ class VolumeManager(
         }
 
         val cam = nodes.firstOrNull()?.getScene()?.activeObserver ?: return false
-        val mvp = Matrix4f(cam.projection).mul(cam.getTransformation())
+        val settings = hub?.get<Settings>() ?: return false
+
+        val hmd = hub?.getWorkingHMDDisplay()?.wantsVR(settings)
+        val mvp = if(hmd != null) {
+            Matrix4f(hmd.getEyeProjection(0, cam.nearPlaneDistance, cam.farPlaneDistance))
+                .mul(cam.getTransformation())
+        } else {
+            Matrix4f(cam.projection)
+                .mul(cam.getTransformation())
+        }
 
         // TODO: original might result in NULL, is this intended?
         currentProg.use(context)
@@ -481,6 +492,7 @@ class VolumeManager(
                     currentProg.registerCustomSampler(i, "transferFunction", state.transferFunction)
                     currentProg.registerCustomSampler(i, "colorMap", state.colorMap)
                     currentProg.setCustomFloatArrayUniformForVolume(i, "slicingPlanes", 4, state.node.slicingArray())
+                    currentProg.setCustomUniformForVolume(i, "slicingMode", state.node.slicingMode.id)
 
                     context.bindTexture(state.transferFunction)
                     context.bindTexture(state.colorMap)
@@ -581,10 +593,11 @@ class VolumeManager(
         val ready =
             multiResMatch && regularMatch && (regularCount > 0 || multiResCount > 0) && counts.all { it.second == multiResCount + regularCount }
         if (!ready) {
-            logger.debug("ReadyToRender: $multiResCount->$multiResMatch/$regularCount->$regularMatch\n " +
-                " * ShaderProperties: ${shaderProperties.keys.joinToString(",")}\n " +
-                " * Textures: ${material.textures.keys.joinToString(",")}\n " +
-                " * Counts: ${counts.joinToString(",") { "${it.first}=${it.second}" }}"
+            logger.debug(
+                "ReadyToRender: $multiResCount->$multiResMatch/$regularCount->$regularMatch\n " +
+                    " * ShaderProperties: ${shaderProperties.keys.joinToString(",")}\n " +
+                    " * Textures: ${material.textures.keys.joinToString(",")}\n " +
+                    " * Counts: ${counts.joinToString(",") { "${it.first}=${it.second}" }}"
             )
         }
         return ready

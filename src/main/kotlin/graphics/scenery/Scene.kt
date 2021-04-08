@@ -222,7 +222,7 @@ open class Scene : Node("RootNode") {
         }
 
         val matches = this.discover(this, { node ->
-            node.visible && !ignoredObjects.contains(node.javaClass)
+            node.visible && !ignoredObjects.any{it.isAssignableFrom(node.javaClass)}
         }).map {
             Pair(it, it.intersectAABB(position, direction))
         }.filter {

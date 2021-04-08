@@ -23,40 +23,25 @@ import kotlin.reflect.KProperty
  *
  * @author Ulrik Günther <hello@ulrik.is>
  * @property[name] The name of the behaviour
- * @property[node] The node this behaviour controls
+ * @property[cam] The node this behaviour controls
  * @property[w] Window width
  * @property[h] Window height
  * @property[target] [Vector3f]-supplying with the look-at target of the arcball
  * @constructor Creates a new ArcballCameraControl behaviour
  */
-open class RollingBallCameraControl(private val name: String, private val n: () -> Camera?, private val w: Int, private val h: Int, var target: () -> Vector3f) : DragBehaviour, ScrollBehaviour {
+open class RollingBallCameraControl(private val name: String, camera: () -> Camera?, private val w: Int, private val h: Int, var target: () -> Vector3f) : DragBehaviour, ScrollBehaviour,
+    WithCameraDelegateBase(camera) {
     private val logger by LazyLogger()
     private var lastX = w / 2
     private var lastY = h / 2
     private var firstEntered = true
-
-    /** The [graphics.scenery.Node] this behaviour class controls */
-    protected var node: Camera? by CameraDelegate()
-
-    /** Camera delegate class, converting lambdas to Cameras. */
-    protected inner class CameraDelegate {
-        /** Returns the [graphics.scenery.Node] resulting from the evaluation of [n] */
-        operator fun getValue(thisRef: Any?, property: KProperty<*>): Camera? {
-            return n.invoke()
-        }
-
-        /** Setting the value is not supported */
-        operator fun setValue(thisRef: Any?, property: KProperty<*>, value: Camera?) {
-            throw UnsupportedOperationException()
-        }
-    }
 
     /** distance to target */
     var distance: Float = 5.0f
         set(value) {
             field = value
 
-            node?.let { node -> node.position = target.invoke() + node.forward * value * (-1.0f) }
+            cam?.let { node -> node.position = target.invoke() + node.forward * value * (-1.0f) }
         }
 
     /** multiplier for zooming in and out */
@@ -102,8 +87,8 @@ open class RollingBallCameraControl(private val name: String, private val n: () 
             firstEntered = false
         }
 
-        node?.targeted = true
-        node?.target = target.invoke()
+        cam?.targeted = true
+        cam?.target = target.invoke()
     }
 
     /**
@@ -124,7 +109,7 @@ open class RollingBallCameraControl(private val name: String, private val n: () 
      * @param[y] y position in window
      */
     override fun drag(x: Int, y: Int) {
-        node?.let { node ->
+        cam?.let { node ->
             if (!node.lock.tryLock()) {
                 return
             }
@@ -209,7 +194,7 @@ open class RollingBallCameraControl(private val name: String, private val n: () 
         if (distance >= maximumDistance) distance = maximumDistance
         if (distance <= minimumDistance) distance = minimumDistance
 
-        node?.let { node -> node.position = target.invoke() + node.forward * distance * (-1.0f) }
+        cam?.let { node -> node.position = target.invoke() + node.forward * distance * (-1.0f) }
     }
 
 }
