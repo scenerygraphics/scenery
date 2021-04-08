@@ -1,9 +1,5 @@
 package scenery
 
-//import gradle.kotlin.dsl.accessors._e98ba513b34f86980a981ef4cafb3d49.publishing
-//import org.gradle.kotlin.dsl.`maven-publish`
-import java.net.URI
-
 // configuration of the Maven artifacts
 plugins {
     `maven-publish`
@@ -112,7 +108,7 @@ publishing {
             val snapshotRepo = "https://oss.sonatype.org/content/repositories/snapshots/"
 
             val snapshot = rootProject.version.toString().endsWith("SNAPSHOT")
-            url = URI(if (snapshot) snapshotRepo else releaseRepo)
+            url = uri(if (snapshot) snapshotRepo else releaseRepo)
             //            url = URI("https://oss.sonatype.org/service/local/staging/deploy/maven2")
         }
     }
