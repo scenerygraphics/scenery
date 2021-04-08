@@ -5,17 +5,24 @@ import org.joml.Vector3f
 import com.esotericsoftware.kryo.Kryo
 import com.esotericsoftware.kryo.io.Output
 import com.jogamp.opengl.math.Quaternion
+import de.javakaffee.kryoserializers.UUIDSerializer
 import graphics.scenery.*
+import graphics.scenery.serialization.*
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.Statistics
 import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.Volume
+import graphics.scenery.volumes.VolumeManager
+import net.imglib2.img.basictypeaccess.array.ByteArray
 import org.zeromq.ZContext
 import org.zeromq.ZMQ
 import org.zeromq.ZMQException
 import java.io.ByteArrayOutputStream
 import java.io.IOException
+import java.nio.ByteBuffer
+import java.util.*
 import java.util.concurrent.ConcurrentHashMap
+import java.util.zip.Inflater
 
 /**
  * Created by ulrik on 4/4/2017.
@@ -26,7 +33,7 @@ class NodePublisher(override var hub: Hub?, val address: String = "tcp://127.0.0
 
     var nodes: ConcurrentHashMap<Int, Node> = ConcurrentHashMap()
     var publisher: ZMQ.Socket = context.createSocket(ZMQ.PUB)
-    val kryo = Kryo()
+    val kryo = freeze()
     var port: Int
 
     init {
@@ -37,31 +44,6 @@ class NodePublisher(override var hub: Hub?, val address: String = "tcp://127.0.0
             logger.warn("Binding failed, trying random port: $e")
             publisher.bindToRandomPort(address.substringBeforeLast(":"))
         }
-        kryo.isRegistrationRequired = false
-        //kryo.references = true
-
-        kryo.register(Matrix4f::class.java)
-        kryo.register(Vector3f::class.java)
-        kryo.register(Node::class.java)
-        kryo.register(Camera::class.java)
-        kryo.register(DetachedHeadCamera::class.java)
-        kryo.register(Quaternion::class.java)
-        kryo.register(Mesh::class.java)
-        kryo.register(Volume::class.java)
-        kryo.register(OrientedBoundingBox::class.java)
-        kryo.register(TransferFunction::class.java)
-        kryo.register(PointLight::class.java)
-        kryo.register(Light::class.java)
-        kryo.register(Sphere::class.java)
-        kryo.register(Box::class.java)
-        kryo.register(Icosphere::class.java)
-        kryo.register(Cylinder::class.java)
-        kryo.register(Arrow::class.java)
-        kryo.register(Line::class.java)
-        kryo.register(FloatArray::class.java)
-        kryo.register(GeometryType::class.java)
-        kryo.register(RibbonDiagram::class.java)
-        kryo.register(Protein::class.java)
     }
 
     fun publish() {
@@ -99,5 +81,27 @@ class NodePublisher(override var hub: Hub?, val address: String = "tcp://127.0.0
     fun close() {
         context.destroySocket(publisher)
         context.close()
+    }
+
+    companion object {
+        fun freeze(): Kryo {
+            val kryo = Kryo()
+            kryo.isRegistrationRequired = false
+            kryo.references = true
+            kryo.register(UUID::class.java, UUIDSerializer())
+            kryo.register(OrientedBoundingBox::class.java, OrientedBoundingBoxSerializer())
+            kryo.register(Triple::class.java, TripleSerializer())
+            kryo.register(ByteBuffer::class.java, ByteBufferSerializer())
+
+            // A little trick here, because DirectByteBuffer is package-private
+            val tmp = ByteBuffer.allocateDirect(1)
+            kryo.register(tmp.javaClass, ByteBufferSerializer())
+            kryo.register(ByteArray::class.java, Imglib2ByteArraySerializer())
+            kryo.register(ShaderMaterial::class.java, ShaderMaterialSerializer())
+            kryo.register(java.util.zip.Inflater::class.java, IgnoreSerializer<Inflater>())
+            kryo.register(VolumeManager::class.java, IgnoreSerializer<VolumeManager>())
+
+            return kryo
+        }
     }
 }
