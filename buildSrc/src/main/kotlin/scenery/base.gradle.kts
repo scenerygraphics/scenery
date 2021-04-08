@@ -61,16 +61,21 @@ tasks {
 
     register<JavaExec>("run") {
         classpath = sourceSets.test.get().runtimeClasspath
-        println(classpath)
-        val example = project.property("example")
-        println(example)
-        val file = sourceSets.test.get().allSource.files.first { "class $example" in it.readText() }
-        println(file)
-        main = file.path.substringAfter("kotlin${File.separatorChar}").replace(File.separatorChar, '.').substringBefore(".kt")
-        println(main)
-        val props = System.getProperties().filter { (k, _) -> k.toString().startsWith("scenery.") }
-        allJvmArgs = allJvmArgs + props.flatMap { (k, v) -> listOf("-D$k=$v") }
-        println(allJvmArgs)
+        project.property("example")?.let { example ->
+            val file = sourceSets.test.get().allSource.files.first { "class $example" in it.readText() }
+            main = file.path.substringAfter("kotlin${File.separatorChar}").replace(File.separatorChar, '.').substringBefore(".kt")
+            val props = System.getProperties().filter { (k, _) -> k.toString().startsWith("scenery.") }
+
+            val additionalArgs = System.getenv("SCENERY_JVM_ARGS")
+            allJvmArgs = if(additionalArgs != null) {
+                allJvmArgs + props.flatMap { (k, v) -> listOf("-D$k=$v") } + additionalArgs
+            } else {
+                allJvmArgs + props.flatMap { (k, v) -> listOf("-D$k=$v") }
+            }
+
+            println("Will run example $example with classpath $classpath, main=$main")
+            println("JVM arguments passed to example: $allJvmArgs")
+        }
     }
 }
 
