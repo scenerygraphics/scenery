@@ -8,6 +8,9 @@ import graphics.scenery.numerics.Random
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.volumes.Colormap
+import graphics.scenery.primitives.Icosphere
+import graphics.scenery.primitives.TextBoard
+import graphics.scenery.primitives.Plane
 import org.joml.Vector4f
 import org.scijava.Context
 import org.scijava.ui.UIService
