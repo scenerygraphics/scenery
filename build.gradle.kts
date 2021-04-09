@@ -37,7 +37,7 @@ repositories {
 "jocl"("2.0.2")
 "jvrpn"("1.2.0")
 "kotlinx-coroutines-core"("1.3.9")
-"kryo"("5.0.3")
+"kryo"("5.0.4")
 "lwjgl"("3.2.3")
 "lwjgl3-awt"("0.1.7")
 "msgpack-core"("0.8.20")
@@ -145,6 +145,14 @@ tasks {
                 remoteLineSuffix.set("#L")
             }
         }
+    }
+
+    task<Copy>("copyDeps") { from(configurations.default).into("$buildDir/deps") }
+
+    task<Jar>("testJar") {
+        archiveClassifier.set("tests")
+        from(sourceSets.test.get().output)
+        dependsOn("compileKotlin")
     }
 }
 
