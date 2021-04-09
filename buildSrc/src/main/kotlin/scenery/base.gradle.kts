@@ -71,6 +71,15 @@ tasks {
                 classpath = sourceSets.test.get().runtimeClasspath
                 main = className
                 group = "examples.$exampleType"
+
+                val props = System.getProperties().filter { (k, _) -> k.toString().startsWith("scenery.") }
+
+                val additionalArgs = System.getenv("SCENERY_JVM_ARGS")
+                allJvmArgs = if (additionalArgs != null) {
+                    allJvmArgs + props.flatMap { (k, v) -> listOf("-D$k=$v") } + additionalArgs
+                } else {
+                    allJvmArgs + props.flatMap { (k, v) -> listOf("-D$k=$v") }
+                }
             }
         }
 
