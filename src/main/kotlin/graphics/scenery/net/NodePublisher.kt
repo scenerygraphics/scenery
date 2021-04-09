@@ -32,22 +32,18 @@ class NodePublisher(override var hub: Hub?, val address: String = "tcp://127.0.0
     private val logger by LazyLogger()
 
     var nodes: ConcurrentHashMap<Int, Node> = ConcurrentHashMap()
-    var publisher: ZMQ.Socket = context.createSocket(ZMQ.PUB)
+    private var publisher: ZMQ.Socket = context.createSocket(ZMQ.PUB)
     val kryo = freeze()
-    var port: Int
-
-    init {
-        port = try {
-            publisher.bind(address)
-            address.substringAfterLast(":").toInt()
-        } catch (e: ZMQException) {
-            logger.warn("Binding failed, trying random port: $e")
-            publisher.bindToRandomPort(address.substringBeforeLast(":"))
-        }
+    var port: Int = try {
+        publisher.bind(address)
+        address.substringAfterLast(":").toInt()
+    } catch (e: ZMQException) {
+        logger.warn("Binding failed, trying random port: $e")
+        publisher.bindToRandomPort(address.substringBeforeLast(":"))
     }
 
     fun publish() {
-        nodes.forEach { guid, node ->
+        nodes.forEach { (guid, node) ->
             // TODO: This needs to be removed in order for volume property sync to work, but currently it makes Kryo rather unhappy.
             if(node is Volume || node is Protein || node is RibbonDiagram) {
                 return@forEach
@@ -100,6 +96,7 @@ class NodePublisher(override var hub: Hub?, val address: String = "tcp://127.0.0
             kryo.register(ShaderMaterial::class.java, ShaderMaterialSerializer())
             kryo.register(java.util.zip.Inflater::class.java, IgnoreSerializer<Inflater>())
             kryo.register(VolumeManager::class.java, IgnoreSerializer<VolumeManager>())
+            kryo.register(Vector3f::class.java, Vector3fSerializer())
 
             return kryo
         }

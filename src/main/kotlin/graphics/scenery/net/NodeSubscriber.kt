@@ -52,7 +52,7 @@ class NodeSubscriber(override var hub: Hub?, val address: String = "tcp://localh
                         val input = Input(bin)
                         val o = kryo.readClassAndObject(input) as? Node ?: return@let
 
-                        logger.info("Got ${o.position} and ${o.rotation}")
+                        logger.info("Got pos=${o.position}, rotation=${o.rotation}, scale=${o.scale} for ${node.name}")
                         node.position = o.position
                         node.rotation = o.rotation
                         node.scale = o.scale
