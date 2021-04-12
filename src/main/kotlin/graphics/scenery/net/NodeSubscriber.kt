@@ -59,7 +59,7 @@ class NodeSubscriber(override var hub: Hub?, val address: String = "tcp://localh
                         node.visible = o.visible
 
                         if (o is Volume && node is Volume && node.initialized) {
-                            TODO("Reimplement changes for synchronising volumes")
+                            logger.info("Node is volume")
                         }
 
                         if(o is PointLight && node is PointLight) {

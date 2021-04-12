@@ -154,6 +154,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
     }
 
     /** Children of the Node. */
+    @Transient
     var children: CopyOnWriteArrayList<Node>
     /** Other nodes that have linked transforms. */
     var linkedNodes: CopyOnWriteArrayList<Node>

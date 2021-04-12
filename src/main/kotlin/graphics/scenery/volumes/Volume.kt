@@ -83,7 +83,9 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
     var colormap: Colormap = Colormap.get("viridis")
         set(m) {
             field = m
-            volumeManager.removeCachedColormapFor(this)
+            if(::volumeManager.isInitialized) {
+                volumeManager.removeCachedColormapFor(this)
+            }
         }
 
     /** Pixel-to-world scaling ratio. Default: 1 px = 1mm in world space*/
@@ -119,7 +121,7 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
     }
 
     @Transient
-    var volumeManager: VolumeManager
+    lateinit var volumeManager: VolumeManager
 
     @Transient
     override var delegate: Node? = null
@@ -140,6 +142,7 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
             val converterSetups: ArrayList<ConverterSetup>,
             val numTimepoints: Int,
             val cacheControl: CacheControl? = null) : VolumeDataSource()
+        class NullSource(val numTimepoints: Int): VolumeDataSource()
     }
 
     /**
@@ -182,31 +185,38 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
                 viewerState = ViewerState(dataSource.sources, max(1, timepointCount))
                 converterSetups.addAll( dataSource.converterSetups )
             }
+
+            is VolumeDataSource.NullSource -> {
+                viewerState = ViewerState(emptyList(), 1)
+                timepointCount = dataSource.numTimepoints
+            }
         }
 
         viewerState.sources.forEach { s -> s.isActive = true }
         viewerState.displayMode = DisplayMode.FUSED
 
-        converterSetups.forEach {
-            it.color = ARGBType(Int.MAX_VALUE)
-        }
+        if(dataSource !is VolumeDataSource.NullSource) {
+            converterSetups.forEach {
+                it.color = ARGBType(Int.MAX_VALUE)
+            }
 
-        val vm = hub.get<VolumeManager>()
-        val volumes = ArrayList<Volume>(10)
+            val vm = hub.get<VolumeManager>()
+            val volumes = ArrayList<Volume>(10)
 
-        if(vm != null) {
-            volumes.addAll(vm.nodes)
-            hub.remove(vm)
-        }
+            if (vm != null) {
+                volumes.addAll(vm.nodes)
+                hub.remove(vm)
+            }
 
-        volumeManager = hub.add(VolumeManager(hub))
-        volumeManager.add(this)
-        volumes.forEach {
-            volumeManager.add(it)
-            it.delegate = volumeManager
-            it.volumeManager = volumeManager
+            volumeManager = hub.add(VolumeManager(hub))
+            volumeManager.add(this)
+            volumes.forEach {
+                volumeManager.add(it)
+                it.delegate = volumeManager
+                it.volumeManager = volumeManager
+            }
+            delegate = volumeManager
         }
-        delegate = volumeManager
     }
 
     /**
