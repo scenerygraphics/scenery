@@ -11,7 +11,7 @@ class Vector3fSerializer: Serializer<Vector3f>() {
     val logger by LazyLogger()
     override fun write(kryo: Kryo, output: Output, vector: Vector3f) {
         kryo.writeClassAndObject(output, floatArrayOf(vector.x, vector.y, vector.z))
-        logger.info("Serialized ${vector.x}/${vector.y}/${vector.z}")
+//        logger.info("Serialized ${vector.x}/${vector.y}/${vector.z}")
     }
 
     override fun read(kryo: Kryo, input: Input, oobClass: Class<out Vector3f>): Vector3f {
