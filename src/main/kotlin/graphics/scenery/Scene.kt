@@ -5,6 +5,8 @@ import com.esotericsoftware.kryo.io.Input
 import com.esotericsoftware.kryo.io.Output
 import com.esotericsoftware.kryo.util.DefaultInstantiatorStrategy
 import de.javakaffee.kryoserializers.UUIDSerializer
+import graphics.scenery.net.NodePublisher
+import graphics.scenery.net.NodeSubscriber
 import graphics.scenery.serialization.*
 import org.joml.Vector3f
 import graphics.scenery.utils.MaybeIntersects
@@ -262,6 +264,18 @@ open class Scene : Node("RootNode") {
         }
 
         logger.info("Written scene to $filename (${"%.2f".format(size/1024.0f)} KiB) in ${duration}ms")
+    }
+
+    fun publishSubscribe(hub: Hub, filter: (Node) -> Boolean = { true }) {
+        val nodes = discover(this, filter)
+        val pub = hub.get<NodePublisher>()
+        val sub = hub.get<NodeSubscriber>()
+
+        nodes.forEachIndexed { i, node ->
+            pub?.nodes?.put(13337 + i, node)
+            sub?.nodes?.put(13337 + i, node)
+        }
+
     }
 
     companion object {

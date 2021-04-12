@@ -8,6 +8,8 @@ import graphics.scenery.*
 import graphics.scenery.serialization.*
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.Statistics
+import graphics.scenery.volumes.BufferedVolume
+import graphics.scenery.volumes.RAIVolume
 import graphics.scenery.volumes.Volume
 import graphics.scenery.volumes.VolumeManager
 import net.imglib2.img.basictypeaccess.array.ByteArray
@@ -44,7 +46,7 @@ class NodePublisher(override var hub: Hub?, val address: String = "tcp://127.0.0
     fun publish() {
         nodes.forEach { (guid, node) ->
             // TODO: This needs to be removed in order for volume property sync to work, but currently it makes Kryo rather unhappy.
-            if(node is Volume || node is Protein || node is RibbonDiagram) {
+            if(node is Protein || node is RibbonDiagram) {
                 return@forEach
             }
             var payloadSize = 0L
@@ -71,7 +73,7 @@ class NodePublisher(override var hub: Hub?, val address: String = "tcp://127.0.0
 
             val duration = (System.nanoTime() - start).toFloat()
             (hub?.get(SceneryElement.Statistics) as Statistics).add("Serialise.duration", duration)
-            (hub?.get(SceneryElement.Statistics) as Statistics).add("Serialise.payloadSize", payloadSize)
+            (hub?.get(SceneryElement.Statistics) as Statistics).add("Serialise.payloadSize", payloadSize, isTime = false)
         }
 
     }
@@ -101,6 +103,10 @@ class NodePublisher(override var hub: Hub?, val address: String = "tcp://127.0.0
             kryo.register(java.util.zip.Inflater::class.java, IgnoreSerializer<Inflater>())
             kryo.register(VolumeManager::class.java, IgnoreSerializer<VolumeManager>())
             kryo.register(Vector3f::class.java, Vector3fSerializer())
+
+            kryo.register(Volume::class.java, VolumeSerializer())
+            kryo.register(RAIVolume::class.java, VolumeSerializer())
+            kryo.register(BufferedVolume::class.java, VolumeSerializer())
 
             return kryo
         }
