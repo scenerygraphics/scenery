@@ -43,7 +43,7 @@ open class Material {
     /** Hash map storing the type and origin of the material's textures. Key is the
      * type, e.g. ("diffuse", "normal", "displacement"...), value can be a file path or
      * via "fromBuffer:[transferTextureName], a named [Texture] in [transferTextures]. */
-    @Volatile
+    @Volatile @Transient
     var textures: TimestampedConcurrentHashMap<String, Texture> = TimestampedConcurrentHashMap()
 
     /** Culling mode of the material. @see[CullingMode] */
