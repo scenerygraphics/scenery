@@ -58,7 +58,7 @@ dependencies {
     }
     sciJava("org.slf4j:slf4j-api")
     sciJava("net.clearvolume:cleargl")
-    sciJava("org.joml")
+    api("org.joml:joml:${sciJava.versions["joml"]}")
     sciJava("com.github.scenerygraphics:vector:958f2e6")
     sciJava("net.java.jinput:jinput", native = "natives-all")
     sciJava("org.scijava"["scijava-common", "script-editor", "ui-behaviour", "scripting-javascript", "scripting-jython"])
@@ -68,19 +68,22 @@ dependencies {
     sciJava("org.jocl")
     implementation(platform("org.lwjgl:lwjgl-bom:3.2.3"))
     listOf("", "-glfw", "-jemalloc", "-vulkan", "-opengl", "-openvr", "-xxhash", "-remotery").forEach {
-        implementation("org.lwjgl:lwjgl$it")
+        api("org.lwjgl:lwjgl$it")
         if (it != "-vulkan")
             runtimeOnlylwjglNatives("org.lwjgl", "lwjgl$it") // "
     }
-    sciJava("com.fasterxml.jackson.core:jackson-databind")
-    sciJava("com.fasterxml.jackson.module:jackson-module-kotlin:\$jackson-databind")
-    sciJava("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:\$jackson-databind")
-    sciJava("graphics.scenery:spirvcrossj")
+//    sciJava("com.fasterxml.jackson.core:jackson-databind")
+    api("com.fasterxml.jackson.core:jackson-databind:${sciJava.versions["jackson-databind"]}")
+//    sciJava("com.fasterxml.jackson.module:jackson-module-kotlin:\$jackson-databind")
+    api("com.fasterxml.jackson.module:jackson-module-kotlin:${sciJava.versions["jackson-databind"]}")
+//    sciJava("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:\$jackson-databind")
+    api("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:${sciJava.versions["jackson-databind"]}")
+    api("graphics.scenery:spirvcrossj:0.7.1-1.1.106.0")
     runtimeOnlylwjglNatives("graphics.scenery", "spirvcrossj") // "
-    sciJava("org.zeromq:jeromq")
+    api("org.zeromq:jeromq:${sciJava.versions["jeromq"]}")
     sciJava("com.esotericsoftware:kryo")
-    sciJava("org.msgpack:msgpack-core")
-    sciJava("org.msgpack:jackson-dataformat-msgpack")
+    api("org.msgpack:msgpack-core:${sciJava.versions["msgpack-core"]}")
+    api("org.msgpack:jackson-dataformat-msgpack:${sciJava.versions["jackson-dataformat-msgpack"]}")
     sciJava("graphics.scenery:jvrpn")
     runtimeOnlylwjglNatives("graphics.scenery", "jvrpn") // "
     //    runtimeOnly("graphics.scenery", "jvrpn", classifier = "natives-linux")
@@ -93,9 +96,9 @@ dependencies {
     sciJava("org.reflections")
     sciJava("io.github.classgraph")
     //TODO revert to official BVV
-    implementation("sc.fiji:bigdataviewer-core:10.1.1-SNAPSHOT")
-    implementation("sc.fiji:bigdataviewer-vistools:1.0.0-beta-26-SNAPSHOT")
-    implementation("com.github.skalarproduktraum:jogl-minimal:1c86442")
+    api("sc.fiji:bigdataviewer-core:10.1.1-SNAPSHOT")
+    api("sc.fiji:bigdataviewer-vistools:1.0.0-beta-26-SNAPSHOT")
+    api("com.github.skalarproduktraum:jogl-minimal:1c86442")
     //sciJava("sc.fiji:bigvolumeviewer")
     //    sciJava("org.lwjglx:lwjgl3-awt")
     implementation("com.github.LWJGLX:lwjgl3-awt:cfd741a6")
@@ -129,6 +132,8 @@ tasks {
     withType<KotlinCompile>().all {
         val version = System.getProperty("java.version").substringBefore('.').toInt()
         val default = if (version == 1) "1.8" else "$version"
+        println("scenery version is: $version ")
+        println(System.getProperty("java.version"))
         kotlinOptions {
             jvmTarget = project.properties["jvmTarget"]?.toString() ?: default
             freeCompilerArgs += listOf("-Xinline-classes", "-Xopt-in=kotlin.RequiresOptIn")
