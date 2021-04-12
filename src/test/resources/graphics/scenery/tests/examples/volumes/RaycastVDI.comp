@@ -1,0 +1,204 @@
+//uniform vec2 viewportSize;
+//uniform vec2 dsp;
+//uniform float fwnw;
+//uniform float nw;
+
+// -- comes from CacheSpec -----
+//uniform vec3 blockSize;
+//uniform vec3 paddedBlockSize;
+//uniform vec3 cachePadOffset;
+
+// -- comes from TextureCache --
+//uniform vec3 cacheSize; // TODO: get from texture!?
+//uniform mat4 transform;
+
+//#pragma scenery verbatim
+//layout(set = 0, binding = 0) uniform VRParameters {
+//    mat4 projectionMatrices[2];
+//    mat4 inverseProjectionMatrices[2];
+//    mat4 headShift;
+//    float IPD;
+//    int stereoEnabled;
+//} vrParameters;
+//
+//const int MAX_NUM_LIGHTS = 1024;
+//
+//layout(set = 1, binding = 0) uniform LightParameters {
+//    mat4 ViewMatrices[2];
+//    mat4 InverseViewMatrices[2];
+//    mat4 ProjectionMatrix;
+//    mat4 InverseProjectionMatrix;
+//    vec3 CamPosition;
+//};
+//
+//layout(push_constant) uniform currentEye_t {
+//    int eye;
+//} currentEye;
+
+layout (local_size_x = 15, local_size_y = 15) in;
+layout(set = 0, binding = 0, rgba8) uniform readonly image3D InputVDI;
+layout(set = 1, binding = 0, rgba8) uniform image2D OutputViewport;
+
+vec2 decode(vec4 c){
+    vec2 v = vec2(0.);
+
+    int ir = int(c.r*255.);
+    int ig = int(c.g*255.);
+    int irg = ir*256 + ig;
+    v.x = float(irg) / 256.;
+
+    int ib = int(c.b*255.);
+    int ia = int(c.a*255.);
+    int iba = ib*256 + ia;
+    v.y = float(iba) / 256.;
+
+    v -= 128.;
+    return v;
+}
+
+const vec4 bitEnc = vec4(1.,255.,65025.,16581375.);
+const vec4 bitDec = 1./bitEnc;
+float DecodeFloatRGBA (vec4 v) {
+    return dot(v, bitDec);
+}
+
+float adjustOpacity(float a, float modifiedStepLength) {
+    return 1.0 - pow((1.0 - a), modifiedStepLength);
+}
+
+//float getMaxDepth( vec2 uv )
+//{
+//    return tw( texture( InputZBuffer, ( uv + 1 ) / 2 ).x );
+//    //#ifndef OPENGL
+//    //    float currentSceneDepth = texture(InputZBuffer, uv).r;
+//    //#else
+//    //    float currentSceneDepth = texture(InputZBuffer, uv).r * 2.0 - 1.0;
+//    //#endif
+//    //	return tw(currentSceneDepth);
+//}
+
+// intersect ray with a box
+// http://www.siggraph.org/education/materials/HyperGraph/raytrace/rtinter3.htm
+void intersectBox( vec3 r_o, vec3 r_d, vec3 boxmin, vec3 boxmax, out float tnear, out float tfar )
+{
+    // compute intersection of ray with all six bbox planes
+    vec3 invR = 1 / r_d; // TODO: shouldn't r_d be a unit vector? And what if any component is 0?
+    vec3 tbot = invR * ( boxmin - r_o );
+    vec3 ttop = invR * ( boxmax - r_o );
+
+    // re-order intersections to find smallest and largest on each axis
+    vec3 tmin = min(ttop, tbot);
+    vec3 tmax = max(ttop, tbot);
+
+    // find the largest tmin and the smallest tmax
+    tnear = max( max( tmin.x, tmin.y ), max( tmin.x, tmin.z ) );
+    tfar = min( min( tmax.x, tmax.y ), min( tmax.x, tmax.z ) );
+}
+
+// ---------------------
+// $insert{Convert}
+// $insert{SampleVolume}
+// ---------------------
+
+void main()
+{
+
+    ivec2 imageCoords  = imageSize(OutputViewport);
+    int imgWidth = imageCoords.x;
+    int imgHeight = imageCoords.y;
+
+    int numSupersegments = imageSize(InputVDI).r;
+    vec4 v = vec4(0);
+
+//    mat4 ipv = InverseViewMatrices[0] * InverseProjectionMatrix;
+
+    mat4 ViewOriginal = mat4(-8.678E-1,  1.038E-4, -4.969E-1,  2.299E+0,
+    1.169E-1,  9.720E-1, -2.040E-1, -1.380E+0,
+    4.830E-1, -2.351E-1, -8.435E-1, -2.188E+0,
+    0.000E+0,  0.000E+0,  0.000E+0,  1.000E+0);
+
+    mat4 ProjectionOriginal = mat4(2.145E+0, 0.000E+0, 0.000E+0, 0.000E+0,
+    0.000E+0,  2.145E+0,  0.000E+0,  0.000E+0,
+    0.000E+0,  0.000E+0, -1.000E+0, -2.000E-1,
+    0.000E+0,  0.000E+0, -1.000E+0,  0.000E+0);
+
+    mat4 ipv = inverse(ViewOriginal) * inverse(ProjectionOriginal);
+
+    mat4 vp_orig = ViewOriginal * ProjectionOriginal;
+    mat4 ivp_orig = inverse(ViewOriginal) * inverse(ProjectionOriginal);
+
+    vec2 texcoord = gl_GlobalInvocationID.xy/vec2(imgWidth, imgHeight);
+    vec2 uv = texcoord * 2.0 - vec2(1.0);
+//    vec2 depthUV = (vrParameters.stereoEnabled ^ 1) * texcoord + vrParameters.stereoEnabled * vec2((texcoord.x/2.0 + currentEye.eye * 0.5), texcoord.y);
+//    depthUV = depthUV * 2.0 - vec2(1.0);
+
+    // NDC of frag on near and far plane
+    vec4 front = vec4( uv, -1, 1 );
+    vec4 back = vec4( uv, 1, 1 );
+
+    // calculate eye ray in world space
+    vec4 wfront = ipv * front;
+    wfront *= 1 / wfront.w;
+    vec4 wback = ipv * back;
+    wback *= 1 / wback.w;
+
+    // -- bounding box intersection for all volumes ----------
+    float tnear = 1, tfar = 0, tmax = 0; //getMaxDepth( depthUV );
+    float n, f;
+
+    //
+//    bool vis_x_6_x_ = false;
+    bool vis_x_6_x_ = true;
+//    intersectBoundingBox( wfront, wback, n, f );
+//    f = min( tmax, f );
+//    if ( n < f )
+//    {
+//        tnear = min( tnear, max( 0, n ) );
+//        tfar = max( tfar, f );
+//        vis_x_6_x_ = true;
+//    }
+
+    tnear = 0;
+    tfar = 1;
+    //
+
+    // -------------------------------------------------------
+
+    if ( tnear < tfar )
+    {
+        vec4 fb = wback - wfront;
+//        int numSteps =
+//        ( fwnw > 0.00001 )
+//        ? int ( log( ( tfar * fwnw + nw ) / ( tnear * fwnw + nw ) ) / log ( 1 + fwnw ) )
+//        : int ( trunc( ( tfar - tnear ) / nw + 1 ) );
+
+        float step = tnear;
+        vec4 v = vec4( 0 );
+
+        int numSteps = 10000;
+        float dist = (tfar - tnear) / 10000.0;
+        int prevX = -1, prevY = -1, depth = -1;
+        bool firstSample = true;
+        vec4 start_sample = vec4(-1);
+        float supseg_start = 0, supseg_end = 0;
+        float depthStart = 0, depthEnd = 0;
+        vec4 supseg_col = vec4(0);
+        for ( int i = 0; i < numSteps; ++i, step += dist )
+        {
+            vec4 wpos = mix( wfront, wback, step );
+
+            // $insert{Accumulate}
+            /*
+            inserts something like the following (keys: vis,blockTexture,convert)
+
+            if (vis)
+            {
+                float x = blockTexture(wpos, volumeCache, cacheSize, blockSize, paddedBlockSize, cachePadOffset);
+                v = max(v, convert(x));
+            }
+            */
+        }
+    }
+
+    imageStore(OutputViewport, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), v);
+}
