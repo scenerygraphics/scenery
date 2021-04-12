@@ -129,16 +129,29 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
     override var mvp: Matrix4f by Delegates.observable(Matrix4f().identity()) { property, old, new -> propertyChanged(property, old, new) }
 
     /** World position of the Node. Setting will trigger [world] update. */
-    @delegate:Transient
-    override var position: Vector3f by Delegates.observable(Vector3f(0.0f, 0.0f, 0.0f)) { property, old, new -> propertyChanged(property, old, new) }
+//    @delegate:Transient
+    override var position: Vector3f = Vector3f(0.0f) //by Delegates.observable(Vector3f(0.0f, 0.0f, 0.0f)) { property, old, new -> propertyChanged(property, old, new) }
+        set(value) {
+            field = value
+            needsUpdate = true
+            needsUpdateWorld = true
+        }
 
     /** x/y/z scale of the Node. Setting will trigger [world] update. */
-    @delegate:Transient
-    override var scale: Vector3f by Delegates.observable(Vector3f(1.0f, 1.0f, 1.0f)) { property, old, new -> propertyChanged(property, old, new) }
+    override var scale: Vector3f = Vector3f(1.0f)//by Delegates.observable(Vector3f(1.0f, 1.0f, 1.0f)) { property, old, new -> propertyChanged(property, old, new) }
+        set(value) {
+            field = value
+            needsUpdate = true
+            needsUpdateWorld = true
+        }
 
     /** Rotation of the Node, used to construct [model]. Setting will trigger [model] and [world] update. */
-    @delegate:Transient
-    override var rotation: Quaternionf by Delegates.observable(Quaternionf(0.0f, 0.0f, 0.0f, 1.0f)) { property, old, new -> propertyChanged(property, old, new) }
+    override var rotation: Quaternionf = Quaternionf()//by Delegates.observable(Quaternionf(0.0f, 0.0f, 0.0f, 1.0f)) { property, old, new -> propertyChanged(property, old, new) }
+    set(value) {
+        field = value
+        needsUpdate = true
+        needsUpdateWorld = true
+    }
 
     /** Children of the Node. */
     var children: CopyOnWriteArrayList<Node>
