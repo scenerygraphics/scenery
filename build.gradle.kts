@@ -37,7 +37,7 @@ repositories {
 "jocl"("2.0.2")
 "jvrpn"("1.2.0")
 "kotlinx-coroutines-core"("1.3.9")
-"kryo"("5.0.4")
+"kryo"("5.1.0")
 "lwjgl"("3.2.3")
 "lwjgl3-awt"("0.1.7")
 "msgpack-core"("0.8.20")
