@@ -1,19 +1,18 @@
 package graphics.scenery.net
 
-import org.joml.Matrix4f
-import org.joml.Vector3f
 import com.esotericsoftware.kryo.Kryo
 import com.esotericsoftware.kryo.io.Output
-import com.jogamp.opengl.math.Quaternion
+import com.esotericsoftware.kryo.util.DefaultInstantiatorStrategy
 import de.javakaffee.kryoserializers.UUIDSerializer
 import graphics.scenery.*
 import graphics.scenery.serialization.*
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.Statistics
-import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.Volume
 import graphics.scenery.volumes.VolumeManager
 import net.imglib2.img.basictypeaccess.array.ByteArray
+import org.joml.Vector3f
+import org.objenesis.strategy.StdInstantiatorStrategy
 import org.zeromq.ZContext
 import org.zeromq.ZMQ
 import org.zeromq.ZMQException
@@ -48,6 +47,7 @@ class NodePublisher(override var hub: Hub?, val address: String = "tcp://127.0.0
             if(node is Volume || node is Protein || node is RibbonDiagram) {
                 return@forEach
             }
+            var payloadSize = 0L
             val start = System.nanoTime()
             try {
                 val bos = ByteArrayOutputStream()
@@ -55,10 +55,11 @@ class NodePublisher(override var hub: Hub?, val address: String = "tcp://127.0.0
                 kryo.writeClassAndObject(output, node)
                 output.flush()
 
+                val payload = bos.toByteArray()
                 publisher.sendMore(guid.toString())
-                publisher.send(bos.toByteArray())
+                publisher.send(payload)
                 Thread.sleep(1)
-//                logger.info("Sending ${node.name} with length ${payload.size}")
+                payloadSize = payload.size.toLong()
 
                 output.close()
                 bos.close()
@@ -69,7 +70,8 @@ class NodePublisher(override var hub: Hub?, val address: String = "tcp://127.0.0
             }
 
             val duration = (System.nanoTime() - start).toFloat()
-            (hub?.get(SceneryElement.Statistics) as Statistics).add("Serialise", duration)
+            (hub?.get(SceneryElement.Statistics) as Statistics).add("Serialise.duration", duration)
+            (hub?.get(SceneryElement.Statistics) as Statistics).add("Serialise.payloadSize", payloadSize)
         }
 
     }
@@ -82,8 +84,10 @@ class NodePublisher(override var hub: Hub?, val address: String = "tcp://127.0.0
     companion object {
         fun freeze(): Kryo {
             val kryo = Kryo()
+            kryo.instantiatorStrategy = DefaultInstantiatorStrategy(StdInstantiatorStrategy())
             kryo.isRegistrationRequired = false
             kryo.references = true
+            kryo.setCopyReferences(true)
             kryo.register(UUID::class.java, UUIDSerializer())
             kryo.register(OrientedBoundingBox::class.java, OrientedBoundingBoxSerializer())
             kryo.register(Triple::class.java, TripleSerializer())
