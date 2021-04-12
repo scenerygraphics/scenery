@@ -9,6 +9,8 @@ plugins {
     val ktVersion = "1.4.20"
     java
     kotlin("jvm") version ktVersion
+    scenery.base
+//    scenery.docs
     scenery.publish
     scenery.sign
     id("com.github.elect86.sciJava") version "0.0.4"
@@ -27,7 +29,7 @@ repositories {
 
 "kotlin"("1.4.21")
 "ui-behaviour"("2.0.3")
-"bigvolumeviewer"("0.1.9")
+//"bigvolumeviewer"("0.1.9")
 "ffmpeg"("4.2.1-1.5.2")
 "jackson-dataformat-msgpack"("0.8.20")
 "jeromq"("0.4.3")
@@ -40,8 +42,9 @@ repositories {
 "lwjgl3-awt"("0.1.7")
 "msgpack-core"("0.8.20")
 "classgraph"("4.8.86")
-"spirvcrossj"("0.7.0-1.1.106.0")
+"spirvcrossj"("0.7.1-1.1.106.0")
 "reflections"("0.9.12")
+"art-dtrack-sdk"("2.6.0")
 
 dependencies {
     implementation(platform(kotlin("bom")))
@@ -98,13 +101,15 @@ dependencies {
     implementation("com.github.LWJGLX:lwjgl3-awt:cfd741a6")
     sciJava("org.janelia.saalfeldlab:n5"["", "-imglib2"])
     listOf("core", "structure", "modfinder").forEach {
-        sciJava("org.biojava:biojava-$it:5.3.0") {
+        sciJava("org.biojava:biojava-$it:5.4.0") {
             exclude("org.slf4j", "slf4j-api")
             exclude("org.slf4j", "slf4j-simple")
             exclude("org.apache.logging.log4j", "log4j-slf4j-impl")
         }
     }
     implementation("org.jetbrains.kotlin:kotlin-scripting-jsr223:1.4.21")
+    implementation("graphics.scenery:art-dtrack-sdk:2.6.0")
+
     testImplementation(kotlin("test"))
     testImplementation(kotlin("test-junit"))
     //    implementation("com.github.kotlin-graphics:assimp:25c68811")
@@ -120,6 +125,7 @@ fun DependencyHandlerScope.runtimeOnlylwjglNatives(group: String, name: String) 
     listOf("windows", "linux", "macos").forEach { runtimeOnly(group, name, classifier = "natives-$it") }
 
 tasks {
+
     withType<KotlinCompile>().all {
         val version = System.getProperty("java.version").substringBefore('.').toInt()
         val default = if (version == 1) "1.8" else "$version"
@@ -128,45 +134,6 @@ tasks {
             freeCompilerArgs += listOf("-Xinline-classes", "-Xopt-in=kotlin.RequiresOptIn")
         }
         sourceCompatibility = project.properties["sourceCompatibility"]?.toString() ?: default
-    }
-    // https://docs.gradle.org/current/userguide/java_testing.html#test_filtering
-    test {
-        // apparently `testLotsOfProteins` needs also a lot of heap..
-        maxHeapSize = "8G"
-        // [Debug] before running every test, prints out its name
-        //        beforeTest(closureOf<TestDescriptor?> { logger.lifecycle("Running test: $this") })
-        val gpuPresent = project.properties["gpu"]?.toString()?.toBoolean() == true
-        //        println("gpuPresent=$gpuPresent")
-        if (!gpuPresent) {
-            filter { excludeTestsMatching("ExampleRunner") }
-        } else {
-            systemProperty("scenery.Renderer", "VulkanRenderer")
-            systemProperty("scenery.ExampleRunner.OutputDir", "screenshots")
-        }
-        finalizedBy(jacocoTestReport) // report is always generated after tests run
-    }
-    register("testGpu", Test::class) { // lets take this for comfortability in local development
-        maxHeapSize = "8G"
-        group = "verification"
-        filter { includeTestsMatching("ExampleRunner") }
-    }
-    jar {
-        archiveVersion.set(rootProject.version.toString())
-        manifest.attributes["Implementation-Build"] = run { // retrieve the git commit hash
-            val gitFolder = "$projectDir/.git/"
-            val digit = 6
-            /*  '.git/HEAD' contains either
-             *      in case of detached head: the currently checked out commit hash
-             *      otherwise: a reference to a file containing the current commit hash     */
-            val head = file(gitFolder + "HEAD").readText().split(":") // .git/HEAD
-            val isCommit = head.size == 1 // e5a7c79edabbf7dd39888442df081b1c9d8e88fd
-            // def isRef = head.length > 1     // ref: refs/heads/master
-            when {
-                isCommit -> head[0] // e5a7c79edabb
-                else -> file(gitFolder + head[1].trim()) /* .git/refs/heads/master */
-                    .readText()
-            }.trim().take(digit)
-        }
     }
 
     dokkaHtml {
@@ -177,17 +144,6 @@ tasks {
                 remoteLineSuffix.set("#L")
             }
         }
-    }
-
-    jacocoTestReport {
-        reports {
-            xml.isEnabled = true
-            html.apply {
-                isEnabled = false
-                //                destination = file("$buildDir/jacocoHtml")
-            }
-        }
-        dependsOn(test) // tests are required to run before generating the report
     }
 }
 
