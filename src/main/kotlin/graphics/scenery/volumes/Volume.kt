@@ -86,6 +86,7 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
             if(::volumeManager.isInitialized) {
                 volumeManager.removeCachedColormapFor(this)
             }
+            modifiedAt = System.nanoTime()
         }
 
     /** Pixel-to-world scaling ratio. Default: 1 px = 1mm in world space*/
@@ -130,9 +131,13 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
     var cacheControls = CacheControl.CacheControls()
 
     /** Current timepoint. */
-    var currentTimepoint: Int
+    var currentTimepoint: Int = 0
         get() { return viewerState.currentTimepoint }
-        set(value) {viewerState.currentTimepoint = value}
+        set(value) {
+            viewerState.currentTimepoint = value
+            modifiedAt = System.nanoTime()
+            field = value
+        }
 
     sealed class VolumeDataSource {
         class SpimDataMinimalSource(val spimData : SpimDataMinimal) : VolumeDataSource()
@@ -187,7 +192,7 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
             }
 
             is VolumeDataSource.NullSource -> {
-                viewerState = ViewerState(emptyList(), 1)
+                viewerState = ViewerState(emptyList(), dataSource.numTimepoints)
                 timepointCount = dataSource.numTimepoints
             }
         }
@@ -258,13 +263,14 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
             timepoint
         }
         val current = viewerState.currentTimepoint
-        viewerState.currentTimepoint = min(max(tp, 0), timepointCount - 1)
+        currentTimepoint = min(max(tp, 0), timepointCount - 1)
         logger.debug("Going to timepoint ${viewerState.currentTimepoint+1} of $timepointCount")
 
         if(current != viewerState.currentTimepoint) {
             volumeManager.notifyUpdate(this)
         }
 
+        modifiedAt = System.nanoTime()
         return viewerState.currentTimepoint
     }
 
