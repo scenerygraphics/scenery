@@ -94,11 +94,6 @@ class MenuMesh(val hub: Hub) : Mesh("Menu") {
             }
         }
 
-        ImGui.io.mouseDown.forEach {
-            if (it)
-                println("mouse button $it down")
-        }
-
         return renderImgui()
     }
 
