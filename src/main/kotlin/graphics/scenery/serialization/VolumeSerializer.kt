@@ -31,9 +31,10 @@ class VolumeSerializer: Serializer<Volume>() {
         kryo.writeClassAndObject(output, volume.rotation)
         kryo.writeClassAndObject(output, volume.scale)
         kryo.writeClassAndObject(output, volume.transferFunction)
-//        kryo.writeClassAndObject(output, volume.colormap)
+        kryo.writeClassAndObject(output, volume.colormap)
         kryo.writeObject(output, volume.pixelToWorldRatio)
         kryo.writeObject(output, volume.currentTimepoint)
+        logger.info("TP=${volume.currentTimepoint}")
     }
 
     /** Reads bytes and returns a new object of the specified concrete type.
@@ -53,17 +54,20 @@ class VolumeSerializer: Serializer<Volume>() {
         val rotation = kryo.readClassAndObject(input) as Quaternionf
         val scale = kryo.readClassAndObject(input) as Vector3f
         val tf = kryo.readClassAndObject(input) as TransferFunction
-//        val colormap = kryo.readClassAndObject(input) as Colormap
+        val colormap = kryo.readClassAndObject(input) as Colormap
         val pixelToWorldRatio = kryo.readObject(input, Float::class.java)
-        val timepoints = kryo.readObject(input, Int::class.java)
+        val timepoint = kryo.readObject(input, Int::class.java)
 
-        val vol = Volume(Volume.VolumeDataSource.NullSource(timepoints), VolumeViewerOptions(), Hub())
+        logger.info("TP=$timepoint")
+
+        val vol = Volume(Volume.VolumeDataSource.NullSource(timepoint+1), VolumeViewerOptions(), Hub())
         vol.transferFunction = tf
-//        vol.colormap = colormap
+        vol.colormap = colormap
         vol.pixelToWorldRatio = pixelToWorldRatio
         vol.position = position
         vol.scale = scale
         vol.rotation = rotation
+        vol.currentTimepoint = timepoint
 
         return vol
     }
