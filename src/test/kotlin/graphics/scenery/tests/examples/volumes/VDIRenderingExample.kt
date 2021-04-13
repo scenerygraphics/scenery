@@ -42,10 +42,10 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 600, 600, wantREPL = fa
 
         val numSupersegments = 40
 
-        val buff: ByteArray = File("/home/aryaman/Repositories/openfpm_pdata/example/Grid/3_gray_scott_3d/size:1Final_VDICol250.raw").readBytes()
+        val buff: ByteArray = File("/home/aryaman/Repositories/openfpm_pdata/example/Grid/3_gray_scott_3d/size:1Final_VDICol100.raw").readBytes()
 
         val opBuffer = MemoryUtil.memCalloc(windowWidth * windowHeight * 4)
-        val bufferVDI = MemoryUtil.memCalloc(3 * windowWidth * windowHeight * numSupersegments * 4 * 2)
+        val bufferVDI = MemoryUtil.memCalloc(3 * windowWidth * windowHeight * numSupersegments * 4)
 
         logger.info("Actual size is: ${buff.size}")
 
@@ -55,7 +55,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 600, 600, wantREPL = fa
         compute.name = "compute node"
         compute.material = ShaderMaterial(Shaders.ShadersFromFiles(arrayOf("RaycastVDI.comp"), this::class.java))
         compute.material.textures["OutputViewport"] = Texture.fromImage(Image(opBuffer, windowWidth, windowHeight), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
-        compute.material.textures["InputVDI"] = Texture(Vector3i(3*numSupersegments, 2*windowHeight, windowWidth), 4, contents = bufferVDI, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
+        compute.material.textures["InputVDI"] = Texture(Vector3i(3*numSupersegments, windowHeight, windowWidth), 4, contents = bufferVDI, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
         compute.metadata["ComputeMetadata"] = ComputeMetadata(
             workSizes = Vector3i(windowWidth, windowHeight, 1),
             invocationType = InvocationType.Once
