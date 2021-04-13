@@ -19,14 +19,15 @@ import graphics.scenery.controls.GLFWMouseAndKeyHandler
 import graphics.scenery.controls.InputHandler
 import graphics.scenery.textures.Texture
 import imgui.*
-import org.joml.Vector2f
-import org.joml.Vector2i
 import imgui.classes.Context
 import imgui.impl.glfw.ImplGlfw
 import imgui.impl.mouseCursors
 import imgui.impl.mouseJustPressed
 import imgui.impl.time
 import kool.*
+import kool.lib.fill
+import org.joml.Vector2f
+import org.joml.Vector2i
 import org.joml.Vector3i
 import org.lwjgl.glfw.GLFW
 import org.lwjgl.system.MemoryUtil.*
@@ -35,16 +36,10 @@ import uno.glfw.GlfwWindow
 import uno.glfw.Joystick
 import uno.glfw.glfw
 import java.nio.ByteBuffer
-import imgui.ImGui.menuItem
-import imgui.ImGui.separator
-import imgui.dsl.mainMenuBar
-import imgui.dsl.menu
-import kool.lib.fill
 
-class Menu(val hub: Hub) : Mesh("Menu") {
+class MenuMesh(val hub: Hub) : Mesh("Menu") {
 
-    var showDemoWindow = true
-
+    var showDemoWindow = false
 
     // Setup Dear ImGui context
     val ctx = Context()
@@ -87,16 +82,16 @@ class Menu(val hub: Hub) : Mesh("Menu") {
         ImGui.run {
 
             newFrame()
-            //            logger.info("In ImGui")
-            //            if (init)
-            pushFont(this@Menu.font)
 
-            // 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
-            if (showDemoWindow)
-                showDemoWindow(::showDemoWindow)
+            dsl.withFont(this@MenuMesh.font) {
 
-            //            if (init)
-            popFont()
+                // 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
+                if (showDemoWindow)
+                    showDemoWindow(::showDemoWindow)
+
+                menu(getScene()!!)
+
+            }
         }
 
         ImGui.io.mouseDown.forEach {

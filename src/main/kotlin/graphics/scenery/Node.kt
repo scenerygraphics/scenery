@@ -45,26 +45,33 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
     /** Unique ID of the Node */
     var uuid: UUID = UUID.randomUUID()
         private set
+
     /** Hash map used for storing metadata for the Node. [Renderer] implementations use
      * it to e.g. store renderer-specific state. */
     @Transient var metadata: HashMap<String, Any> = HashMap()
 
     /** Material of the Node */
     final override var material: Material = Material.DefaultMaterial()
+
     /** Initialisation flag. */
     override var initialized: Boolean = false
+
     /** State of the Node **/
-    override var state : State = State.Ready
+    override var state: State = State.Ready
+
     /** Whether the Node is dirty and needs updating. */
     override var dirty: Boolean = true
+
     /** Flag to set whether the Node is visible or not, recursively affects children. */
     override var visible: Boolean = true
         set(v) {
             children.forEach { it.visible = v }
             field = v
         }
+
     /** instanced properties */
     var instancedProperties = LinkedHashMap<String, () -> Any>()
+
     /** The Node's lock. */
     override var lock: ReentrantLock = ReentrantLock()
 
@@ -89,25 +96,31 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
 
     /** World transform matrix. Will create inverse [iworld] upon modification. */
     override var world: Matrix4f by Delegates.observable(Matrix4f().identity()) { property, old, new -> propertyChanged(property, old, new) }
+
     /** Inverse [world] transform matrix. */
     override var iworld: Matrix4f by Delegates.observable(Matrix4f().identity()) { property, old, new -> propertyChanged(property, old, new) }
+
     /** Model transform matrix. Will create inverse [imodel] upon modification. */
     override var model: Matrix4f by Delegates.observable(Matrix4f().identity()) { property, old, new -> propertyChanged(property, old, new) }
+
     /** Inverse [world] transform matrix. */
     override var imodel: Matrix4f by Delegates.observable(Matrix4f().identity()) { property, old, new -> propertyChanged(property, old, new) }
 
     /** View matrix. Will create inverse [iview] upon modification. */
     override var view: Matrix4f by Delegates.observable(Matrix4f().identity()) { property, old, new -> propertyChanged(property, old, new) }
+
     /** Inverse [view] matrix. */
     override var iview: Matrix4f by Delegates.observable(Matrix4f().identity()) { property, old, new -> propertyChanged(property, old, new) }
 
     /** Projection matrix. Will create inverse [iprojection] upon modification. */
     override var projection: Matrix4f by Delegates.observable(Matrix4f().identity()) { property, old, new -> propertyChanged(property, old, new) }
+
     /** Inverse [projection] transform matrix. */
     override var iprojection: Matrix4f by Delegates.observable(Matrix4f().identity()) { property, old, new -> propertyChanged(property, old, new) }
 
     /** ModelView matrix. Will create inverse [imodelView] upon modification. */
     override var modelView: Matrix4f by Delegates.observable(Matrix4f().identity()) { property, old, new -> propertyChanged(property, old, new) }
+
     /** Inverse [modelView] transform matrix. */
     override var imodelView: Matrix4f by Delegates.observable(Matrix4f().identity()) { property, old, new -> propertyChanged(property, old, new) }
 
@@ -125,8 +138,10 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
 
     /** Children of the Node. */
     @Transient var children: CopyOnWriteArrayList<Node>
+
     /** Other nodes that have linked transforms. */
     @Transient var linkedNodes: CopyOnWriteArrayList<Node>
+
     /** Parent node of this node. */
     var parent: Node? = null
 
@@ -135,13 +150,16 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
 
     /** Creation timestamp of the node. */
     var createdAt: Long = 0
+
     /** Modification timestamp of the node. */
     var modifiedAt: Long = 0
 
     /** Stores whether the [model] matrix needs an update. */
     var wantsComposeModel = true
+
     /** Stores whether the [model] matrix needs an update. */
     var needsUpdate = true
+
     /** Stores whether the [world] matrix needs an update. */
     var needsUpdateWorld = true
 
@@ -151,9 +169,9 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
 
     @Suppress("UNUSED_PARAMETER")
     protected fun <R> propertyChanged(property: KProperty<*>, old: R, new: R, custom: String = "") {
-        if(property.name == "rotation"
+        if (property.name == "rotation"
             || property.name == "position"
-            || property.name  == "scale"
+            || property.name == "scale"
             || property.name == custom) {
             needsUpdate = true
             needsUpdateWorld = true
@@ -179,7 +197,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
 
         val scene = this.getScene() ?: return
         scene.sceneSize.incrementAndGet()
-        if(scene.onChildrenAdded.isNotEmpty()) {
+        if (scene.onChildrenAdded.isNotEmpty()) {
             GlobalScope.launch {
                 scene.onChildrenAdded.forEach { it.value.invoke(this@Node, child) }
             }
@@ -257,7 +275,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
         update.forEach { it.invoke() }
 
         if ((needsUpdate or force)) {
-            if(wantsComposeModel) {
+            if (wantsComposeModel) {
                 this.composeModel()
             }
 
@@ -282,7 +300,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
             this.linkedNodes.forEach { it.updateWorld(true, needsUpdateWorld) }
         }
 
-        if(needsUpdateWorld) {
+        if (needsUpdateWorld) {
             needsUpdateWorld = false
         }
     }
@@ -293,7 +311,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
      */
     open fun composeModel() {
         @Suppress("SENSELESS_COMPARISON")
-        if(position != null && rotation != null && scale != null) {
+        if (position != null && rotation != null && scale != null) {
             model.translationRotateScale(
                 Vector3f(position.x(), position.y(), position.z()),
                 this.rotation,
@@ -312,12 +330,12 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
             val boundingBoxCoords = floatArrayOf(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f)
 
             if (vertexBufferView.capacity() == 0 || vertexBufferView.remaining() == 0) {
-                boundingBox = if(!children.none()) {
+                boundingBox = if (!children.none()) {
                     getMaximumBoundingBox()
                 } else {
                     logger.warn("$name: Zero vertices currently, returning empty bounding box")
-                    OrientedBoundingBox(this,0.0f, 0.0f, 0.0f,
-                        0.0f, 0.0f, 0.0f)
+                    OrientedBoundingBox(this, 0.0f, 0.0f, 0.0f,
+                                        0.0f, 0.0f, 0.0f)
                 }
 
                 return boundingBox
@@ -335,7 +353,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
                 boundingBoxCoords[4] = vertex[2]
                 boundingBoxCoords[5] = vertex[2]
 
-                while(vertexBufferView.remaining() >= 3) {
+                while (vertexBufferView.remaining() >= 3) {
                     vertexBufferView.get(vertex)
 
                     boundingBoxCoords[0] = minOf(boundingBoxCoords[0], vertex[0])
@@ -349,7 +367,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
 
                 logger.debug("$name: Calculated bounding box with ${boundingBoxCoords.joinToString(", ")}")
                 return OrientedBoundingBox(this, Vector3f(boundingBoxCoords[0], boundingBoxCoords[2], boundingBoxCoords[4]),
-                    Vector3f(boundingBoxCoords[1], boundingBoxCoords[3], boundingBoxCoords[5]))
+                                           Vector3f(boundingBoxCoords[1], boundingBoxCoords[3], boundingBoxCoords[5]))
             }
         } else {
             logger.warn("$name: Assuming 3rd party BB generation")
@@ -358,6 +376,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
     }
 
     @Transient private val shaderPropertyFieldCache = HashMap<String, KProperty1<Node, *>>()
+
     /**
      * Returns the [ShaderProperty] given by [name], if it exists and is declared by
      * this class or a subclass inheriting from [Node]. Returns null if the [name] can
@@ -397,7 +416,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
             .filter { it.findAnnotation<ShaderProperty>() != null }
             .forEach {
                 it.isAccessible = true
-                if(logger.isTraceEnabled) {
+                if (logger.isTraceEnabled) {
                     logger.trace("ShaderProperty of ${this@Node.name}: ${it.name} ${it.get(this)?.javaClass}")
                 }
             }
@@ -429,12 +448,8 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
      * Will return null in case the Node is not attached to a [Scene] yet.
      */
     fun getScene(): Scene? {
-        var p: Node? = this
-        while(p !is Scene && p != null) {
-            p = p.parent
-        }
-
-        return p as? Scene
+        tailrec fun Node.scene() : Scene? = this as? Scene ?: parent?.scene()
+        return scene()
     }
 
     /**
@@ -479,9 +494,9 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
         val max = getMaximumBoundingBox().max.xyzw()
 
         val maxDimension = (max - min).max()
-        val scaling = sideLength/maxDimension
+        val scaling = sideLength / maxDimension
 
-        if((scaleUp && scaling > 1.0f) || scaling <= 1.0f) {
+        if ((scaleUp && scaling > 1.0f) || scaling <= 1.0f) {
             this.scale = Vector3f(scaling, scaling, scaling)
         } else {
             this.scale = Vector3f(1.0f, 1.0f, 1.0f)
@@ -499,11 +514,11 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
         val length = direction.length()
 
         this.rotation = Quaternionf().rotationTo(Vector3f(0.0f, 1.0f, 0.0f), direction.normalize())
-        if(rescale) {
+        if (rescale) {
             this.scale = Vector3f(1.0f, length, 1.0f)
         }
 
-        if(reposition) {
+        if (reposition) {
             this.position = Vector3f(p1)
         }
 
@@ -514,16 +529,16 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
      * Returns the maximum [OrientedBoundingBox] of this [Node] and all its children.
      */
     fun getMaximumBoundingBox(): OrientedBoundingBox {
-        if(boundingBox == null && children.size == 0) {
-            return OrientedBoundingBox(this,0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f)
+        if (boundingBox == null && children.size == 0) {
+            return OrientedBoundingBox(this, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f)
         }
 
-        if(children.none { it !is BoundingGrid }) {
-            return OrientedBoundingBox(this,boundingBox?.min ?: Vector3f(0.0f, 0.0f, 0.0f), boundingBox?.max ?: Vector3f(0.0f, 0.0f, 0.0f))
+        if (children.none { it !is BoundingGrid }) {
+            return OrientedBoundingBox(this, boundingBox?.min ?: Vector3f(0.0f, 0.0f, 0.0f), boundingBox?.max ?: Vector3f(0.0f, 0.0f, 0.0f))
         }
 
         return children
-            .filter { it !is BoundingGrid  }.map { it.getMaximumBoundingBox().translate(it.position) }
+            .filter { it !is BoundingGrid }.map { it.getMaximumBoundingBox().translate(it.position) }
             .fold(boundingBox ?: OrientedBoundingBox(this, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f), { lhs, rhs -> lhs.expand(lhs, rhs) })
     }
 
@@ -547,7 +562,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
      */
     fun worldPosition(v: Vector3f? = null): Vector3f {
         val target = v ?: position
-        return if(parent is Scene && v == null) {
+        return if (parent is Scene && v == null) {
             Vector3f(target)
         } else {
             world.transform(Vector4f().set(target, 1.0f)).xyz()
@@ -593,7 +608,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
         val max = world.transform(bbmax)
 
         // skip if inside the bounding box
-        if(origin.isInside(min.xyz(), max.xyz())) {
+        if (origin.isInside(min.xyz(), max.xyz())) {
             return MaybeIntersects.NoIntersection()
         }
 
@@ -630,8 +645,8 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
 
     private fun Vector3f.isInside(min: Vector3f, max: Vector3f): Boolean {
         return this.x() > min.x() && this.x() < max.x()
-            && this.y() > min.y() && this.y() < max.y()
-            && this.z() > min.z() && this.z() < max.z()
+                && this.y() > min.y() && this.y() < max.y()
+                && this.z() > min.z() && this.z() < max.z()
     }
 
     /**
@@ -690,7 +705,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
      * @param d
      */
     override fun move(distance: Float, d: Int) {
-        setPosition( getFloatPosition(d) + distance, d )
+        setPosition(getFloatPosition(d) + distance, d)
     }
 
     /**
@@ -700,7 +715,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
      * @param d
      */
     override fun move(distance: Double, d: Int) {
-        setPosition( getDoublePosition(d) + distance, d )
+        setPosition(getDoublePosition(d) + distance, d)
     }
 
     /**
@@ -725,9 +740,9 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
      * length must be  [.numDimensions]
      */
     override fun move(distance: FloatArray?) {
-        distance?.get(0)?.let { move(it, 0 ) }
-        distance?.get(1)?.let { move(it, 1 ) }
-        distance?.get(2)?.let { move(it, 2 ) }
+        distance?.get(0)?.let { move(it, 0) }
+        distance?.get(1)?.let { move(it, 1) }
+        distance?.get(2)?.let { move(it, 2) }
     }
 
     /**
@@ -738,9 +753,9 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
      * length must be  [.numDimensions]
      */
     override fun move(distance: DoubleArray?) {
-        distance?.get(0)?.let { move(it, 0 ) }
-        distance?.get(1)?.let { move(it, 1 ) }
-        distance?.get(2)?.let { move(it, 2 ) }
+        distance?.get(0)?.let { move(it, 0) }
+        distance?.get(1)?.let { move(it, 1) }
+        distance?.get(2)?.let { move(it, 2) }
     }
 
     /**
@@ -752,7 +767,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
      * dimension
      */
     override fun move(distance: Int, d: Int) {
-        move( distance.toLong(), d )
+        move(distance.toLong(), d)
     }
 
     /**
@@ -789,9 +804,9 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
      * relative offset, length must be  [.numDimensions]
      */
     override fun move(distance: IntArray?) {
-        distance?.get(0)?.let { move(it, 0 ) }
-        distance?.get(1)?.let { move(it, 1 ) }
-        distance?.get(2)?.let { move(it, 2 ) }
+        distance?.get(0)?.let { move(it, 0) }
+        distance?.get(1)?.let { move(it, 1) }
+        distance?.get(2)?.let { move(it, 2) }
     }
 
     /**
@@ -802,9 +817,9 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
      * relative offset, length must be  [.numDimensions]
      */
     override fun move(distance: LongArray?) {
-        distance?.get(0)?.let { move(it, 0 ) }
-        distance?.get(1)?.let { move(it, 1 ) }
-        distance?.get(2)?.let { move(it, 2 ) }
+        distance?.get(0)?.let { move(it, 0) }
+        distance?.get(1)?.let { move(it, 1) }
+        distance?.get(2)?.let { move(it, 2) }
     }
 
     /** Gets the space's number of dimensions.  */
@@ -819,7 +834,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
      * dimension
      */
     override fun fwd(d: Int) {
-        move( 1, d)
+        move(1, d)
     }
 
     /**
@@ -834,9 +849,9 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
     }
 
     override fun setPosition(pos: RealLocalizable) {
-        position.setComponent( 0, pos.getFloatPosition(0) )
-        position.setComponent( 1, pos.getFloatPosition(1) )
-        position.setComponent( 2, pos.getFloatPosition(2) )
+        position.setComponent(0, pos.getFloatPosition(0))
+        position.setComponent(1, pos.getFloatPosition(1))
+        position.setComponent(2, pos.getFloatPosition(2))
     }
 
     /**
@@ -847,9 +862,9 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
      * [.numDimensions]
      */
     override fun setPosition(pos: FloatArray?) {
-        pos?.get(0)?.let { setPosition(it, 0 ) }
-        pos?.get(1)?.let { setPosition(it, 1 ) }
-        pos?.get(2)?.let { setPosition(it, 2 ) }
+        pos?.get(0)?.let { setPosition(it, 0) }
+        pos?.get(1)?.let { setPosition(it, 1) }
+        pos?.get(2)?.let { setPosition(it, 2) }
     }
 
     /**
@@ -860,9 +875,9 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
      * [.numDimensions]
      */
     override fun setPosition(pos: DoubleArray?) {
-        pos?.get(0)?.let { setPosition(it, 0 ) }
-        pos?.get(1)?.let { setPosition(it, 1 ) }
-        pos?.get(2)?.let { setPosition(it, 2 ) }
+        pos?.get(0)?.let { setPosition(it, 0) }
+        pos?.get(1)?.let { setPosition(it, 1) }
+        pos?.get(2)?.let { setPosition(it, 2) }
     }
 
     /**
@@ -872,7 +887,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
      * @param d
      */
     override fun setPosition(pos: Float, d: Int) {
-        position.setComponent( d, pos )
+        position.setComponent(d, pos)
     }
 
     /**
@@ -882,7 +897,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
      * @param d
      */
     override fun setPosition(pos: Double, d: Int) {
-        setPosition( pos.toFloat(), d )
+        setPosition(pos.toFloat(), d)
     }
 
     /**
@@ -893,9 +908,9 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
      *  [.numDimensions]
      */
     override fun setPosition(pos: Localizable?) {
-        pos?.getIntPosition(0)?.let { setPosition(it, 0 ) }
-        pos?.getIntPosition(1)?.let { setPosition(it, 1 ) }
-        pos?.getIntPosition(2)?.let { setPosition(it, 2 ) }
+        pos?.getIntPosition(0)?.let { setPosition(it, 0) }
+        pos?.getIntPosition(1)?.let { setPosition(it, 1) }
+        pos?.getIntPosition(2)?.let { setPosition(it, 2) }
     }
 
     /**

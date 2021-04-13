@@ -101,7 +101,7 @@ object VulkanNodeHelpers {
             val count = vertices.remaining()
             fb.put(vertices)
             state.vertexCount = count / 5
-            logger.info("Creating vertex buffer for Menu node, ${state.vertexCount} vertices, type=${state.vertexInputType}")
+//            logger.info("Creating vertex buffer for Menu node, ${state.vertexCount} vertices, type=${state.vertexInputType}")
         }
 
         logger.trace("Adding {} bytes to strided buffer", indices.remaining() * 4)

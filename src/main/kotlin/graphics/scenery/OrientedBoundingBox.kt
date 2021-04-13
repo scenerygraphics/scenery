@@ -78,6 +78,8 @@ open class OrientedBoundingBox(val n: Node, val min: Vector3f, val max: Vector3f
         return true
     }
 
+    override fun toString() = "min (${min.x}, ${min.y}), max (${max.x}, ${max.y})"
+
     /**
      * Return an [OrientedBoundingBox] that covers both [lhs] and [rhs].
      */

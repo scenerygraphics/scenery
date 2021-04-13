@@ -3,10 +3,9 @@ package graphics.scenery.tests.examples.ui
 import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
-import graphics.scenery.repl.REPL
 import graphics.scenery.tests.examples.basic.TexturedCubeExample
 import graphics.scenery.textures.Texture
-import graphics.scenery.ui.Menu
+import graphics.scenery.ui.MenuMesh
 import graphics.scenery.utils.Image
 import kotlin.concurrent.thread
 
@@ -21,7 +20,7 @@ class UiExample : SceneryBase("TexturedCubeExample") {
         renderer = hub.add(SceneryElement.Renderer, Renderer.createRenderer(hub, applicationName, scene,
                                                                             2560, 1440))
 
-        val menu = Menu(hub)
+        val menu = MenuMesh(hub)
         scene.addChild(menu)
 
         val box = Box(Vector3f(1.0f, 1.0f, 1.0f))

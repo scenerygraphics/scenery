@@ -6,7 +6,7 @@ import sciJava.testSciJava
 import java.net.URL
 
 plugins {
-    val ktVersion = "1.4.20"
+    val ktVersion = "1.4.30"
     java
     kotlin("jvm") version ktVersion
     scenery.publish
@@ -23,6 +23,7 @@ repositories {
     jcenter()
     maven("https://jitpack.io")
     maven("https://maven.scijava.org/content/groups/public")
+    maven("https://raw.githubusercontent.com/kotlin-graphics/mary/master")
 }
 
 "kotlin"("1.4.21")
@@ -112,10 +113,12 @@ dependencies {
     testSciJava("net.imagej:ij")
     testSciJava("net.imglib2:imglib2-ij")
 
-    listOf("gl", "glfw", "core", "vk").forEach {
-        implementation("com.github.kotlin-graphics.imgui:$it:0e63e2f5")
+    listOf("core", "glfw", "gl").forEach {
+        implementation("kotlin.graphics:imgui-$it:1.79+04")
     }
-    implementation("com.github.kotlin-graphics:kool:f91acd54")
+    implementation("kotlin.graphics:glm:0.9.9.1-3+23")
+    implementation("kotlin.graphics:kool:0.9.0+23")
+    implementation("kotlin.graphics:uno-core:0.7.9+35")
 }
 
 fun DependencyHandlerScope.runtimeOnlylwjglNatives(group: String, name: String) =
