@@ -188,6 +188,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
                 logger.debug("Closing subscriber")
             }
         } else if(master) {
+            applicationName += " [MASTER]"
             thread {
                 val address = settings.get("NodePublisher.ListenAddress", "tcp://127.0.0.1:6666")
                 val p = NodePublisher(hub, address)
@@ -236,7 +237,9 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
                 Thread.sleep(100)
             }
 
-            if (!headless) {
+            val isClient = !master && masterAddress != null
+            if (!headless && !isClient) {
+                logger.info("client: $isClient, showing REPL window")
                 repl?.showConsoleWindow()
             }
         }
