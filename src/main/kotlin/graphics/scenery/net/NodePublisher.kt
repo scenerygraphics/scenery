@@ -8,10 +8,7 @@ import graphics.scenery.*
 import graphics.scenery.serialization.*
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.Statistics
-import graphics.scenery.volumes.BufferedVolume
-import graphics.scenery.volumes.RAIVolume
-import graphics.scenery.volumes.Volume
-import graphics.scenery.volumes.VolumeManager
+import graphics.scenery.volumes.*
 import net.imglib2.img.basictypeaccess.array.ByteArray
 import org.joml.Vector3f
 import org.objenesis.strategy.StdInstantiatorStrategy
@@ -33,6 +30,7 @@ class NodePublisher(override var hub: Hub?, val address: String = "tcp://127.0.0
     private val logger by LazyLogger()
 
     var nodes: ConcurrentHashMap<Int, Node> = ConcurrentHashMap()
+    private var publishedAt = ConcurrentHashMap<Int, Long>()
     private var publisher: ZMQ.Socket = context.createSocket(ZMQ.PUB)
     val kryo = freeze()
     var port: Int = try {
@@ -45,12 +43,14 @@ class NodePublisher(override var hub: Hub?, val address: String = "tcp://127.0.0
 
     fun publish() {
         nodes.forEach { (guid, node) ->
-            // TODO: This needs to be removed in order for volume property sync to work, but currently it makes Kryo rather unhappy.
-            if(node is Protein || node is RibbonDiagram) {
+            val lastSeen = publishedAt[guid] ?: 0L
+            if(lastSeen >= node.modifiedAt) {
                 return@forEach
             }
+
             var payloadSize = 0L
             val start = System.nanoTime()
+            publishedAt[guid] = start
             try {
                 val bos = ByteArrayOutputStream()
                 val output = Output(bos)

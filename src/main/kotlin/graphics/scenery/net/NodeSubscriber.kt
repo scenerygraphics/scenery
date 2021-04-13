@@ -52,14 +52,20 @@ class NodeSubscriber(override var hub: Hub?, val address: String = "tcp://localh
                         val input = Input(bin)
                         val o = kryo.readClassAndObject(input) as? Node ?: return@let
 
-                        //logger.info("Got pos=${o.position}, rotation=${o.rotation}, scale=${o.scale} for ${node.name}")
                         node.position = o.position
                         node.rotation = o.rotation
                         node.scale = o.scale
                         node.visible = o.visible
 
-                        if (o is Volume && node is Volume && node.initialized) {
-                            logger.info("Node is volume")
+                        node.material.diffuse = o.material.diffuse
+                        node.material.blending = o.material.blending
+
+                        if (Volume::class.java.isAssignableFrom(o.javaClass) && Volume::class.java.isAssignableFrom(node.javaClass)) {
+                            (node as Volume).colormap = (o as Volume).colormap
+                            node.transferFunction = o.transferFunction
+                            if(node.currentTimepoint != o.currentTimepoint) {
+                                node.goToTimepoint(o.currentTimepoint)
+                            }
                         }
 
                         if(o is PointLight && node is PointLight) {
