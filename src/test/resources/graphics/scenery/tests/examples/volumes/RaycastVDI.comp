@@ -107,8 +107,7 @@ void main()
     int imgWidth = imageCoords.x;
     int imgHeight = imageCoords.y;
 
-    int numSupersegments = imageSize(InputVDI).r;
-    vec4 v = vec4(0);
+    int numSupersegments = imageSize(InputVDI).r/3;
 
 //    mat4 ipv = InverseViewMatrices[0] * InverseProjectionMatrix;
 
@@ -124,7 +123,7 @@ void main()
 
     mat4 ipv = inverse(ViewOriginal) * inverse(ProjectionOriginal);
 
-    mat4 vp_orig = ViewOriginal * ProjectionOriginal;
+    mat4 pv_orig = ProjectionOriginal * ViewOriginal;
     mat4 ivp_orig = inverse(ViewOriginal) * inverse(ProjectionOriginal);
 
     vec2 texcoord = gl_GlobalInvocationID.xy/vec2(imgWidth, imgHeight);
@@ -163,7 +162,7 @@ void main()
     //
 
     // -------------------------------------------------------
-
+    vec4 v = vec4(0);
     if ( tnear < tfar )
     {
         vec4 fb = wback - wfront;
@@ -173,10 +172,9 @@ void main()
 //        : int ( trunc( ( tfar - tnear ) / nw + 1 ) );
 
         float step = tnear;
-        vec4 v = vec4( 0 );
 
-        int numSteps = 10000;
-        float dist = (tfar - tnear) / 10000.0;
+        int numSteps = 1000;
+        float dist = (tfar - tnear) / float(numSteps);
         int prevX = -1, prevY = -1, depth = -1;
         bool firstSample = true;
         vec4 start_sample = vec4(-1);
@@ -187,18 +185,123 @@ void main()
         {
             vec4 wpos = mix( wfront, wback, step );
 
-            // $insert{Accumulate}
-            /*
-            inserts something like the following (keys: vis,blockTexture,convert)
+            //For this sample point, calculate ray number from original VDI
+            vec4 NDC_orig = pv_orig * wpos;
+            NDC_orig *= 1/NDC_orig.w; //TODO: check
 
-            if (vis)
+            if(NDC_orig.x < -1 || NDC_orig.x > 1 || NDC_orig.y < -1 || NDC_orig.y > 1)
             {
-                float x = blockTexture(wpos, volumeCache, cacheSize, blockSize, paddedBlockSize, cachePadOffset);
-                v = max(v, convert(x));
+                v = vec4(1, 0, 0, 1);
+                continue; // This ray misses the VDI
             }
-            */
+
+            vec2 tex_orig = (NDC_orig.xy + 1) / 2.0;
+
+            ivec2 invoc_orig;
+            invoc_orig.x = int(round(tex_orig.x * imgWidth)); //TODO: verify that this is correct
+            invoc_orig.y = int(round(tex_orig.y * imgHeight)); //TODO: verify that this is correct
+//
+//            v.r = invoc_orig.x/600.0;
+//            v.g = invoc_orig.y/600.0;
+//            v.b = 0;
+//            v.a = 1;
+
+            //Now we know which supersegment list to search
+
+            vec4 wfront_orig = ivp_orig * vec4(NDC_orig.xy, -1, 1);
+            wfront_orig *= 1/wfront_orig.w;
+            vec4 wback_orig = ivp_orig * vec4(NDC_orig.xy, 1, 1);
+            wback_orig *= 1/wback_orig.w;
+
+            vec4 direction_orig = (wback_orig - wfront_orig)/distance(wfront_orig, wback_orig);
+            vec4 vector_sample = wpos - wfront_orig;
+            float dist_to_orig = dot(vector_sample, direction_orig);
+
+            bool supseg_found = false;
+
+            int j= 0;
+            for(j = 0; j < numSupersegments; j++)
+            {
+                //Find which supersegment along this ray
+                supseg_found = false;
+                vec4 d = imageLoad(InputVDI, ivec3(j*3 + 1, invoc_orig.y, invoc_orig.x)); //Start point of this supersegment
+                vec4 dNext = imageLoad(InputVDI, ivec3(j*3 + 2, invoc_orig.y, invoc_orig.x)); //End point of this supersegment
+                depthStart = DecodeFloatRGBA(d);
+
+                if(j!=0 && depthStart == 0.0) {
+                    break; // there are no more supersegments in this list, so break
+                }
+
+                depthEnd = DecodeFloatRGBA(dNext);
+                if(j==0 && depthEnd == 0.0) {
+                    v = vec4(0, 1, 0, 1);
+                    break;
+                }
+
+//                supseg_col = imageLoad(InputVDI, ivec3(j*3, invoc_orig.y, invoc_orig.x));
+//
+//                float alpha = supseg_col.a;
+//                v.rgb = v.rgb + (1-v.a) * supseg_col.rgb * alpha;
+//                v.a = v.a + (1-v.a) * alpha;
+
+                if(dist_to_orig >= depthStart && dist_to_orig <= depthEnd)
+                {
+                    // We have found the supersegment
+                    supseg_found = true;
+                    break;
+                } else if (dist_to_orig < depthStart) {
+                    break;
+                }
+            }
+
+            if(firstSample) {
+                if(supseg_found) {
+                    firstSample = false;
+                    supseg_start = depthStart;
+                    supseg_end = depthEnd;
+                    supseg_col = imageLoad(InputVDI, ivec3(j*3, invoc_orig.y, invoc_orig.x));
+                    start_sample = wpos;
+                    prevX = invoc_orig.x;
+                    prevY = invoc_orig.y;
+                    depth = j;
+                }
+            } else {
+                if(invoc_orig.x == prevX && invoc_orig.y == prevY && j == depth)
+                {
+                    // It's the same supersegment as before
+                    continue;
+                } else {
+                    // a supersegment was in progress and has ended
+                    float length_in_supseg = distance(wpos, start_sample);
+
+//                    float alpha = supseg_col.a;//
+                    float alpha = adjustOpacity(supseg_col.a, (length_in_supseg/distance(supseg_start, supseg_end)));
+//                    float alpha = adjustOpacity(supseg_col.a, 0.8);
+                    v.rgb = v.rgb + (1-v.a) * supseg_col.rgb * alpha;
+                    v.a = v.a + (1-v.a) * alpha;
+//                    float temp = (length_in_supseg/distance(supseg_start, supseg_end));
+//                    v = vec4(temp, temp, temp, 1);
+                    if(supseg_found) {
+                        firstSample = false;
+                        supseg_start = depthStart;
+                        supseg_end = depthEnd;
+                        supseg_col = imageLoad(InputVDI, ivec3(j*3, invoc_orig.y, invoc_orig.x));
+                        start_sample = wpos;
+                        prevX = invoc_orig.x;
+                        prevY = invoc_orig.y;
+                        depth = j;
+                    } else {
+                        firstSample = true;
+                    }
+                }
+            }
         }
     }
+
+//    v.r = gl_GlobalInvocationID.x/600.0;
+//    v.g = gl_GlobalInvocationID.y/600.0;
+//    v.b = 0;
+//    v.a = 1;
 
     imageStore(OutputViewport, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), v);
 }
