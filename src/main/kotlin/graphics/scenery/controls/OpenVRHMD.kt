@@ -14,6 +14,7 @@ import graphics.scenery.backends.vulkan.VulkanTexture
 import graphics.scenery.backends.vulkan.endCommandBuffer
 import graphics.scenery.utils.JsonDeserialisers
 import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.Statistics
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import org.joml.*
@@ -226,6 +227,14 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
             logger.error(e.message + "\n" + e.stackTrace.joinToString("\n"))
             initialized = false
         }
+
+
+        // Having vsync enabled might lead to wrong prediction and "swimming"
+        // artifacts.
+        hub?.get<Settings>()?.let { settings ->
+            logger.info("Disabling vsync, as frame swap governed by compositor.")
+            settings.set("Renderer.DisableVsync", true)
+        }
     }
 
     private fun idToEventType(id: Int): String = eventTypes.getOrDefault(id, "Unknown event($id)")
@@ -362,16 +371,7 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
             val transform = HmdMatrix34.calloc()
             VRSystem_GetEyeToHeadTransform(eye, transform)
 
-            // Windows Mixed Reality headsets handle transforms slightly different:
-            // the general device pose contains the pose of the left eye, while then the eye-to-head
-            // pose contains the identity for the left eye, and the full IPD/shift transformation for
-            // the right eye. The developers claim this is for reprojection to work correctly. See also
-            // https://github.com/LibreVR/Revive/issues/893
-            if(manufacturer == Manufacturer.WindowsMR) {
-                eyeTransformCache[eye] = transform.toMatrix4f()
-            } else {
-                eyeTransformCache[eye] = transform.toMatrix4f()
-            }
+            eyeTransformCache[eye] = transform.toMatrix4f()
 
             logger.trace("Head-to-eye #{}: {}", eye, eyeTransformCache[eye].toString())
         }
@@ -443,8 +443,7 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
             val isValid = hmdTrackedDevicePoses.get(device).bPoseIsValid()
 
             if (isValid) {
-                val trackedDevice = VRSystem_GetTrackedDeviceClass(device)
-                val type = when (trackedDevice) {
+                val type = when (VRSystem_GetTrackedDeviceClass(device)) {
                     ETrackedDeviceClass_TrackedDeviceClass_Controller -> TrackedDeviceType.Controller
                     ETrackedDeviceClass_TrackedDeviceClass_HMD -> TrackedDeviceType.HMD
                     ETrackedDeviceClass_TrackedDeviceClass_TrackingReference -> TrackedDeviceType.BaseStation
@@ -590,6 +589,29 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
                 inputHandler.keyPressed(e.first)
             }
         }
+
+        hub?.get<Statistics>()?.let { stats ->
+            val timing = CompositorFrameTiming.calloc(1)
+            if(VRCompositor_GetFrameTiming(timing)) {
+                stats.add("OpenVR.NumFramePresents", timing.m_nNumFramePresents(), false)
+                stats.add("OpenVR.NumFrameMisPresents", timing.m_nNumMisPresented(), false)
+                stats.add("OpenVR.NumDroppedFrames", timing.m_nNumDroppedFrames(), false)
+
+                stats.add("OpenVR.SystemTimeInSeconds", timing.m_flSystemTimeInSeconds())
+                stats.add("OpenVR.PreSubmitGPUTime", timing.m_flPreSubmitGpuMs())
+                stats.add("OpenVR.PostSubmitGPUTime", timing.m_flPostSubmitGpuMs())
+                stats.add("OpenVR.TotalRenderGPUTime", timing.m_flTotalRenderGpuMs())
+                stats.add("OpenVR.CompositorRenderGPUTime", timing.m_flCompositorRenderGpuMs())
+                stats.add("OpenVR.CompositorRenderCPUTime", timing.m_flCompositorRenderCpuMs())
+                stats.add("OpenVR.FrameInterval", timing.m_flClientFrameIntervalMs())
+                stats.add("OpenVR.TimeCPUBlockedForPresent", timing.m_flPresentCallCpuMs())
+                stats.add("OpenVR.TimeCPUWaitForPresent", timing.m_flWaitForPresentCpuMs())
+                stats.add("OpenVR.TimeSpentForSubmit", timing.m_flSubmitFrameMs())
+            }
+
+            timing.free()
+        }
+
         readyForSubmission = true
     }
 
@@ -665,6 +687,8 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
     override fun submitToCompositorVulkan(width: Int, height: Int, format: Int,
                                           instance: VkInstance, device: VulkanDevice,
                                           queue: VkQueue, image: Long) {
+        VRCompositor_WaitGetPoses(hmdTrackedDevicePoses, gamePoses)
+
         update()
         if (disableSubmission || !readyForSubmission) {
             return
@@ -743,7 +767,11 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
                 endCommandBuffer(device, commandPool, queue, true, true)
             }
         }
-        VRCompositor_WaitGetPoses(hmdTrackedDevicePoses, gamePoses)
+    }
+
+    fun vibrate(controller: TrackedDevice, duration: Int = 1000) {
+        val id = controller.name.substringAfterLast("-").toInt()
+        VRSystem_TriggerHapticPulse(id, 0, duration.toShort())
     }
 
 

@@ -5,6 +5,7 @@ import graphics.scenery.*
 import graphics.scenery.numerics.Random
 import graphics.scenery.utils.LazyLogger
 import org.junit.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -69,5 +70,43 @@ class CameraTests {
 
         assertTrue { boxesInFront.all { cam.canSee(it) } }
         assertFalse { boxesBehind.all { cam.canSee(it) } }
+    }
+
+    @Test
+    fun testPickFromScreenPos() {
+        val s = Scene()
+        val cam = Camera()
+        cam.perspectiveCamera(50.0f, 1280, 720, 0.01f, 1000.0f)
+        s.addChild(cam)
+
+        (0 until 10).map {
+            val b = Box()
+            b.position = Vector3f(0.0f,
+                0f,
+                Random.randomFromRange(2.0f, 10.0f))
+            s.addChild(b)
+            b
+        }
+
+        s.updateWorld(true, true)
+        val results = cam.getNodesForScreenSpacePosition(1280/2,720/2)
+        assertEquals(10,results.matches.size)
+    }
+
+    @Test
+    fun testCastRayFromScreenPos() {
+        val s = Scene()
+        val cam = Camera()
+        cam.perspectiveCamera(50.0f, 1280, 720, 0.01f, 1000.0f)
+        s.addChild(cam)
+
+        cam.position = Vector3f(0f)
+        cam.rotation.lookAlong(Vector3f(0f,0f,1f),Vector3f(0f,1f,0f))
+
+        val (pos,dir) = cam.screenPointToRay(1280/2,720/2)
+
+        assertEquals(Vector3f(0f,0f,0.01f),pos, "ray start position")
+        assertEquals(Vector3f(0f,0f,1f),dir, "ray direction")
+
     }
 }

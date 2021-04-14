@@ -20,14 +20,16 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
     private val logger by LazyLogger()
     override var hub: Hub? = null
 
-    var vrpnTracker = VRPNTrackerInput(address)
+    var tracker = initializeTracker(address)
     var currentOrientation = Matrix4f()
-    var ipd = -0.065f
+    var ipd = 0.062f
 
     var config: ScreenConfig.Config = ScreenConfig.loadFromFile(screenConfig)
     var screen: ScreenConfig.SingleScreenConfig? = null
 
     private var rotation: Quaternionf
+
+    private var fakeTrackerInput = false
 
     override var events = TrackerInputEventHandlers()
 
@@ -37,7 +39,32 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
         rotation = Quaternionf()
 
         screen?.let {
-            rotation = Quaternionf().setFromUnnormalized(it.getTransform()).normalize()
+            rotation = Quaternionf().setFromUnnormalized(Matrix4f(it.getTransform()).transpose()).normalize()
+        }
+    }
+
+    private fun initializeTracker(address: String): TrackerInput {
+        return when {
+            address.startsWith("fake:") -> {
+                fakeTrackerInput = true
+                VRPNTrackerInput()
+            }
+
+            address.startsWith("DTrack:") -> {
+                val host = address.substringAfter("@").substringBeforeLast(":")
+                val device = address.substringAfter("DTrack:").substringBefore("@").toIntOrNull() ?: 0
+                val port = address.substringAfterLast(":").toIntOrNull() ?: 5000
+
+                DTrackTrackerInput(host, port, device)
+            }
+
+            address.startsWith("VRPN:") -> {
+                VRPNTrackerInput(address.substringAfter("VRPN:"))
+            }
+
+            else -> {
+                VRPNTrackerInput(address)
+            }
         }
     }
 
@@ -116,7 +143,7 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
      *
      * @returns Matrix4f with orientation
      */
-    override fun getOrientation(): Quaternionf = vrpnTracker.getOrientation()
+    override fun getOrientation(): Quaternionf = tracker.getOrientation()
 
     /**
      * Submit a Vulkan texture handle to the compositor
@@ -139,7 +166,7 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
      *
      * @returns Matrix4f with orientation
      */
-    override fun getOrientation(id: String): Quaternionf = vrpnTracker.getOrientation()
+    override fun getOrientation(id: String): Quaternionf = tracker.getOrientation()
 
     /**
      * Returns the absolute position as Vector3f
@@ -147,18 +174,17 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
      * @return HMD position as Vector3f
      */
     override fun getPosition(): Vector3f {
-        if(System.getProperty("scenery.FakeVRPN", "false").toBoolean()) {
+        if(fakeTrackerInput) {
 //            val pos = Vector3f(
 //                1.92f * Math.sin(System.nanoTime()/10e9 % (2.0*Math.PI)).toFloat(),
 //                1.5f,
 //                -1.92f * Math.cos(System.nanoTime()/10e9 % (2.0*Math.PI)).toFloat())
 
             val pos = Vector3f(0.0f, 1.7f, 0.0f)
-            logger.info("Using fake position: $pos")
             return pos
         }
 
-        return vrpnTracker.getPosition()
+        return tracker.getPosition()
     }
 
     /**
@@ -177,8 +203,8 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
      */
     override fun getPose(): Matrix4f {
         @Suppress("UNUSED_VARIABLE")
-        val trackerOrientation = vrpnTracker.getOrientation()
-        val trackerPos = vrpnTracker.getPosition()
+        val trackerOrientation = tracker.getOrientation()
+        val trackerPos = tracker.getPosition()
 
         currentOrientation.identity()
         currentOrientation.translate(-trackerPos.x(), -trackerPos.y(), trackerPos.z())
@@ -213,18 +239,18 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
      * @return True if HMD is initialised correctly and working properly
      */
     override fun initializedAndWorking(): Boolean {
-        if(System.getProperty("scenery.FakeVRPN", "false").toBoolean()) {
+        if(fakeTrackerInput) {
             return true
         }
 
-        return vrpnTracker.initializedAndWorking()
+        return tracker.initializedAndWorking()
     }
 
     /**
      * update state
      */
     override fun update() {
-        vrpnTracker.update()
+        tracker.update()
     }
 
     override fun getVulkanInstanceExtensions(): List<String> = emptyList()
@@ -256,9 +282,9 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
     override fun getHeadToEyeTransform(eye: Int): Matrix4f {
         val shift = Matrix4f().identity()
         if(eye == 0) {
-            shift.translate(-0.025f, 0.0f, 0.0f)
+            shift.translate(ipd/2.0f, 0.0f, 0.0f)
         } else {
-            shift.translate(0.025f, 0.0f, 0.0f)
+            shift.translate(-ipd/2.0f, 0.0f, 0.0f)
         }
 
         return shift
