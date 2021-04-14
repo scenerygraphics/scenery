@@ -147,7 +147,10 @@ tasks {
         }
     }
 
-    task<Copy>("copyDeps") { from(configurations.default).into("$buildDir/deps") }
+    task<Copy>("copyDeps") {
+        from(configurations.runtimeClasspath).into("$buildDir/deps")
+        from(configurations.testRuntimeClasspath).into("$buildDir/deps")
+    }
 
     task<Jar>("testJar") {
         archiveClassifier.set("tests")
