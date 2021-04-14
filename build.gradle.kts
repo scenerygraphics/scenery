@@ -59,7 +59,6 @@ dependencies {
     sciJava("org.slf4j:slf4j-api")
     sciJava("net.clearvolume:cleargl")
     sciJava("org.joml")
-    sciJava("com.github.scenerygraphics:vector:958f2e6")
     sciJava("net.java.jinput:jinput", native = "natives-all")
     sciJava("org.scijava"["scijava-common", "script-editor", "ui-behaviour", "scripting-javascript", "scripting-jython"])
     sciJava("net.sf.trove4j")
