@@ -12,14 +12,10 @@ import kotlin.concurrent.thread
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class TexturedCubeExample : SceneryBase("TexturedCubeExample") {
+class TexturedCubeExample : SceneryBase("TexturedCubeExample", wantREPL = System.getProperty("scenery.master", "false").toBoolean()) {
     override fun init() {
-        scene = Scene.import("rai.scenery")
-
         renderer = hub.add(SceneryElement.Renderer,
             Renderer.createRenderer(hub, applicationName, scene, 512, 512))
-
-        return
 
         val box = Box(Vector3f(1.0f, 1.0f, 1.0f))
         box.name = "le box du win"
