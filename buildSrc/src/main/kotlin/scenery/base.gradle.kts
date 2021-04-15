@@ -59,9 +59,24 @@ tasks {
         dependsOn(test) // tests are required to run before generating the report
     }
 
+    // This registers gradle tasks for all examples
+    sourceSets.test.get().allSource.files
+        .filter { it.name.endsWith("Example.kt") }
+        .map { it.path.substringAfter("kotlin${File.separatorChar}").replace(File.separatorChar, '.').substringBefore(".kt") }
+        .forEach { className ->
+            val exampleName = className.substringAfterLast(".")
+            val exampleType = className.substringBeforeLast(".").substringAfterLast(".")
+
+            register<JavaExec>(name = className.substringAfterLast(".")) {
+                classpath = sourceSets.test.get().runtimeClasspath
+                main = className
+                group = "examples.$exampleType"
+            }
+        }
+
     register<JavaExec>("run") {
         classpath = sourceSets.test.get().runtimeClasspath
-        if(project.hasProperty("example")) {
+        if (project.hasProperty("example")) {
             project.property("example")?.let { example ->
                 val file = sourceSets.test.get().allSource.files.first { "class $example" in it.readText() }
                 main = file.path.substringAfter("kotlin${File.separatorChar}").replace(File.separatorChar, '.').substringBefore(".kt")
@@ -87,8 +102,8 @@ val TaskContainer.jacocoTestReport: TaskProvider<JacocoReport>
 val TaskContainer.test: TaskProvider<Test>
     get() = named<Test>("test")
 
-val Project.sourceSets: SourceSetContainer get() =
-    (this as ExtensionAware).extensions.getByName("sourceSets") as SourceSetContainer
+val Project.sourceSets: SourceSetContainer
+    get() = (this as ExtensionAware).extensions.getByName("sourceSets") as SourceSetContainer
 
 val SourceSetContainer.test: NamedDomainObjectProvider<SourceSet>
     get() = named<SourceSet>("test")
