@@ -62,9 +62,7 @@ class MenuMesh(val hub: Hub) : Mesh("Menu") {
     var vtx = ByteBuffer(1024)
     var idx = IntBuffer(256)
 
-    val renderer = hub.get<Renderer>()!!
-    val input by lazy { hub.get<InputHandler>()!!.handler!! as GLFWMouseAndKeyHandler }
-    val window by lazy { GlfwWindow.from((hub.get<Renderer>()!!.window as SceneryWindow.GLFWWindow).window) }
+    val window = GlfwWindow.from((hub.get<Renderer>()!!.window as SceneryWindow.GLFWWindow).window)
     val menus = mutableMapOf<String, MenuNode>() // TODO switch to Int key
 
     // Setup Platform/Renderer bindings
