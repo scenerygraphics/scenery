@@ -18,6 +18,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.logging.Level
 import kotlin.concurrent.thread
+import kotlin.math.abs
 
 /**
  * Base class for MouseAndKeyHandlers
@@ -177,8 +178,8 @@ open class MouseAndKeyHandlerBase : ControllerListener, ExtractsNatives {
                     for (it in controllerAxisDown) {
                         val b = gamepad.behaviour
                         if (b is GamepadBehaviour) {
-                            if (Math.abs(it.value) > 0.02f && b.axis.contains(it.key)) {
-                                logger.info("Triggering ${it.key} because axis is down (${it.value})")
+                            if (abs(it.value) > 0.02f && b.axis.contains(it.key)) {
+                                logger.trace("Triggering ${it.key} because axis is down (${it.value})")
                                 b.axisEvent(it.key, it.value)
                             }
                         }
@@ -336,12 +337,13 @@ open class MouseAndKeyHandlerBase : ControllerListener, ExtractsNatives {
      * @param[event] The incoming controller event
      */
     fun controllerEvent(event: Event) {
+        logger.trace("Event: $event/identifier=${event.component.identifier}")
         for (gamepad in gamepads) {
-            if (event.component.isAnalog && Math.abs(event.component.pollData) < CONTROLLER_DOWN_THRESHOLD) {
+            if (event.component.isAnalog && abs(event.component.pollData) < CONTROLLER_DOWN_THRESHOLD) {
                 logger.trace("${event.component.identifier} over threshold, removing")
-                controllerAxisDown.put(event.component.identifier, 0.0f)
+                controllerAxisDown[event.component.identifier] = 0.0f
             } else {
-                controllerAxisDown.put(event.component.identifier, event.component.pollData)
+                controllerAxisDown[event.component.identifier] = event.component.pollData
             }
 
             val button = controllerButtonToKeyCode(event.component.identifier)
