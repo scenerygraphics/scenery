@@ -1,26 +1,22 @@
 package graphics.scenery.controls.behaviours
 
-import graphics.scenery.Camera
 import graphics.scenery.Node
 import graphics.scenery.utils.LazyLogger
 import net.java.games.input.Component
 import org.joml.Quaternionf
-import java.util.function.Supplier
 import kotlin.reflect.KProperty
 
 /**
  * Implementation of GamepadBehaviour for Camera Control
  *
  * @author Ulrik Günther <hello@ulrik.is>
- * @property[name] Name of the behaviour
  * @property[axis] List of axis that are assigned to this behaviour
- * @property[node] The camera to control
- * @property[w] The window width
- * @property[h] The window height
+ * @property[node] The node to control
+ * @property[sensitivity] A multiplier applied to axis inputs.
  */
-open class GamepadCameraControl(private val name: String,
-                           override val axis: List<Component.Identifier.Axis>,
-                           private val n: () -> Node?) : GamepadBehaviour {
+open class GamepadRotationControl(override val axis: List<Component.Identifier>,
+                                  var sensitivity: Float = 1.0f,
+                                  private val n: () -> Node?) : GamepadBehaviour {
     private var lastX: Float = 0.0f
     private var lastY: Float = 0.0f
     private var firstEntered = true
@@ -89,8 +85,8 @@ open class GamepadCameraControl(private val name: String,
         lastX = x
         lastY = y
 
-        xoffset *= 60f
-        yoffset *= 60f
+        xoffset *= sensitivity
+        yoffset *= sensitivity
 
         yaw += xoffset
         pitch += yoffset
