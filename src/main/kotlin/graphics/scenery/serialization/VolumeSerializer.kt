@@ -34,7 +34,6 @@ class VolumeSerializer: Serializer<Volume>() {
         kryo.writeClassAndObject(output, volume.colormap)
         kryo.writeObject(output, volume.pixelToWorldRatio)
         kryo.writeObject(output, volume.currentTimepoint)
-        logger.info("TP=${volume.currentTimepoint}")
     }
 
     /** Reads bytes and returns a new object of the specified concrete type.
