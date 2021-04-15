@@ -13,11 +13,10 @@ import kotlin.reflect.KProperty
  * Implementation of GamepadBehaviour for Camera Movement Control
  *
  * @author Ulrik Günther <hello@ulrik.is>
- * @property[name] Name of the behaviour
  * @property[axis] List of axis that are assigned to this behaviour
  * @property[cam] The camera to control
  */
-open class GamepadMovementControl(private val name: String,
+open class GamepadMovementControl(
                              override val axis: List<Component.Identifier>,
                              private val camera: () -> Node?) : GamepadBehaviour {
     /** Speed multiplier for camera movement */
