@@ -350,4 +350,15 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?, for
         //return reference on the Editor, so that users can hook own extra stuff
         return editorPanel
     }
+
+    operator fun plusAssign(behaviourAndBinding: Pair<String, Pair<String, Behaviour>>) {
+        addBehaviour(behaviourAndBinding.first, behaviourAndBinding.second.second)
+        addKeyBinding(behaviourAndBinding.first, behaviourAndBinding.second.first)
+    }
+
+    operator fun minusAssign(name: String) {
+        removeBehaviour(name)
+        removeKeyBinding(name)
+    }
+
 }
