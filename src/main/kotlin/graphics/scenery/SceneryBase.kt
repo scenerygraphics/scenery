@@ -21,6 +21,7 @@ import graphics.scenery.utils.Statistics
 import kotlinx.coroutines.*
 import org.lwjgl.system.Platform
 import org.scijava.Context
+import org.scijava.ui.behaviour.Behaviour
 import org.scijava.ui.behaviour.ClickBehaviour
 import java.lang.Boolean.parseBoolean
 import java.lang.management.ManagementFactory
@@ -239,7 +240,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
 
             val isClient = !master && masterAddress != null
             if (!headless && !isClient) {
-                logger.info("client: $isClient, showing REPL window")
+                logger.debug("Client: $isClient, showing REPL window")
                 repl?.showConsoleWindow()
             }
         }
@@ -504,6 +505,14 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
         while(!sceneInitialized()) {
             Thread.sleep(200)
         }
+    }
+
+    infix fun Behaviour.called(name: String): Pair<String, Behaviour> {
+        return name to this
+    }
+
+    infix fun Pair<String, Behaviour>.boundTo(key: String): Pair<String, Pair<String, Behaviour>> {
+        return key to this
     }
 
     companion object {
