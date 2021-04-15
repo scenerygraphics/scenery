@@ -2,42 +2,52 @@
 //uniform vec2 dsp;
 //uniform float fwnw;
 //uniform float nw;
-
-// -- comes from CacheSpec -----
+//
+//uniform sampler3D volumeCache;
+//
+//// -- comes from CacheSpec -----
 //uniform vec3 blockSize;
 //uniform vec3 paddedBlockSize;
 //uniform vec3 cachePadOffset;
-
-// -- comes from TextureCache --
+//
+//// -- comes from TextureCache --
 //uniform vec3 cacheSize; // TODO: get from texture!?
 //uniform mat4 transform;
 
-//#pragma scenery verbatim
-//layout(set = 0, binding = 0) uniform VRParameters {
-//    mat4 projectionMatrices[2];
-//    mat4 inverseProjectionMatrices[2];
-//    mat4 headShift;
-//    float IPD;
-//    int stereoEnabled;
-//} vrParameters;
-//
-//const int MAX_NUM_LIGHTS = 1024;
-//
-//layout(set = 1, binding = 0) uniform LightParameters {
-//    mat4 ViewMatrices[2];
-//    mat4 InverseViewMatrices[2];
-//    mat4 ProjectionMatrix;
-//    mat4 InverseProjectionMatrix;
-//    vec3 CamPosition;
-//};
-//
-//layout(push_constant) uniform currentEye_t {
-//    int eye;
-//} currentEye;
+#pragma scenery verbatim
+layout(set = 0, binding = 0) uniform VRParameters {
+    mat4 projectionMatrices[2];
+    mat4 inverseProjectionMatrices[2];
+    mat4 headShift;
+    float IPD;
+    int stereoEnabled;
+} vrParameters;
+
+const int MAX_NUM_LIGHTS = 1024;
+
+layout(set = 1, binding = 0) uniform LightParameters {
+    mat4 ViewMatrices[2];
+    mat4 InverseViewMatrices[2];
+    mat4 ProjectionMatrix;
+    mat4 InverseProjectionMatrix;
+    vec3 CamPosition;
+};
+
+layout(push_constant) uniform currentEye_t {
+    int eye;
+} currentEye;
 
 layout (local_size_x = 15, local_size_y = 15) in;
-layout(set = 0, binding = 0, rgba8) uniform readonly image3D InputVDI;
-layout(set = 1, binding = 0, rgba8) uniform image2D OutputViewport;
+layout(set = 2, binding = 0, rgba8) uniform readonly image3D InputVDI;
+layout(set = 3, binding = 0, rgba8) uniform image2D OutputViewport;
+#pragma scenery endverbatim
+
+mat4 im_x_9_x_ = mat4(50.0, 0.0, 0.0, 0.0,
+                0.0, 50.0, 0.0, 0.0,
+                0.0, 0.0, 50.0, 0.0,
+                1.0, 1.0, 1.0, 1.0);
+
+vec3 sourcemax_x_10_x_ = vec3(131.0, 131.0, 131.0);
 
 vec2 decode(vec4 c){
     vec2 v = vec2(0.);
@@ -65,6 +75,8 @@ float DecodeFloatRGBA (vec4 v) {
 float adjustOpacity(float a, float modifiedStepLength) {
     return 1.0 - pow((1.0 - a), modifiedStepLength);
 }
+
+int cnt = 0;
 
 //float getMaxDepth( vec2 uv )
 //{
@@ -95,6 +107,13 @@ void intersectBox( vec3 r_o, vec3 r_d, vec3 boxmin, vec3 boxmax, out float tnear
     tfar = min( min( tmax.x, tmax.y ), min( tmax.x, tmax.z ) );
 }
 
+void intersectBoundingBox_x_11_x_( vec4 wfront, vec4 wback, out float tnear, out float tfar )
+{
+    vec4 mfront = im_x_9_x_ * wfront;
+    vec4 mback = im_x_9_x_ * wback;
+    intersectBox( mfront.xyz, (mback - mfront).xyz, vec3( 0, 0, 0 ), sourcemax_x_10_x_, tnear, tfar );
+}
+
 // ---------------------
 // $insert{Convert}
 // $insert{SampleVolume}
@@ -109,27 +128,48 @@ void main()
 
     int numSupersegments = imageSize(InputVDI).r/3;
 
-//    mat4 ipv = InverseViewMatrices[0] * InverseProjectionMatrix;
+    mat4 ipv = InverseViewMatrices[0] * InverseProjectionMatrix;
 
     mat4 ViewOriginal = mat4(-8.678E-1,  1.038E-4, -4.969E-1,  2.299E+0,
     1.169E-1,  9.720E-1, -2.040E-1, -1.380E+0,
     4.830E-1, -2.351E-1, -8.435E-1, -2.188E+0,
+    0.000E+0,  0.000E+0, 0.000E+0,  1.000E+0);
+    ViewOriginal = transpose(ViewOriginal);
+
+    mat4 invViewOriginal = mat4(-8.678E-1,  1.169E-1,  4.830E-1,  3.213E+0,
+    1.038E-4,  9.720E-1, -2.351E-1,  8.264E-1,
+    -4.969E-1, -2.040E-1, -8.435E-1, -9.845E-1,
     0.000E+0,  0.000E+0,  0.000E+0,  1.000E+0);
+    invViewOriginal = transpose(invViewOriginal);
 
-    mat4 ProjectionOriginal = mat4(2.145E+0, 0.000E+0, 0.000E+0, 0.000E+0,
-    0.000E+0,  2.145E+0,  0.000E+0,  0.000E+0,
-    0.000E+0,  0.000E+0, -1.000E+0, -2.000E-1,
+    mat4 ProjectionOriginal = mat4(2.145E+0,  0.000E+0,  0.000E+0,  0.000E+0,
+    0.000E+0, -2.145E+0,  0.000E+0,  0.000E+0,
+    0.000E+0,  0.000E+0, -1.000E+0, -1.000E-1,
     0.000E+0,  0.000E+0, -1.000E+0,  0.000E+0);
+    ProjectionOriginal = transpose(ProjectionOriginal);
 
-    mat4 ipv = inverse(ViewOriginal) * inverse(ProjectionOriginal);
+    mat4 invProjectionOriginal = mat4(4.663E-1,  0.000E+0,  0.000E+0, -0.000E+0,
+    0.000E+0, -4.663E-1,  0.000E+0,  0.000E+0,
+    0.000E+0, -0.000E+0,  0.000E+0, -1.000E+0,
+    0.000E+0,  0.000E+0, -9.999E+0,  1.000E+1);
+    invProjectionOriginal = transpose(invProjectionOriginal);
+
+//    if(cnt == 0) {
+//        ViewOriginal = ViewMatrices[0];
+//        ProjectionOriginal = ProjectionMatrix;
+//        cnt++;
+//    }
+
+//    ipv = inverse(ViewOriginal) * inverse(ProjectionOriginal);
 
     mat4 pv_orig = ProjectionOriginal * ViewOriginal;
-    mat4 ivp_orig = inverse(ViewOriginal) * inverse(ProjectionOriginal);
+//    mat4 ivp_orig = inverse(ViewOriginal) * inverse(ProjectionOriginal);
+    mat4 ivp_orig = invViewOriginal * invProjectionOriginal;
 
-    vec2 texcoord = gl_GlobalInvocationID.xy/vec2(imgWidth, imgHeight);
+    vec2 texcoord = gl_GlobalInvocationID.xy/vec2(600, 600);
     vec2 uv = texcoord * 2.0 - vec2(1.0);
-//    vec2 depthUV = (vrParameters.stereoEnabled ^ 1) * texcoord + vrParameters.stereoEnabled * vec2((texcoord.x/2.0 + currentEye.eye * 0.5), texcoord.y);
-//    depthUV = depthUV * 2.0 - vec2(1.0);
+    vec2 depthUV = (vrParameters.stereoEnabled ^ 1) * texcoord + vrParameters.stereoEnabled * vec2((texcoord.x/2.0 + currentEye.eye * 0.5), texcoord.y);
+    depthUV = depthUV * 2.0 - vec2(1.0);
 
     // NDC of frag on near and far plane
     vec4 front = vec4( uv, -1, 1 );
@@ -146,19 +186,16 @@ void main()
     float n, f;
 
     //
-//    bool vis_x_6_x_ = false;
-    bool vis_x_6_x_ = true;
-//    intersectBoundingBox( wfront, wback, n, f );
+    bool vis = false;
+//    bool vis_x_6_x_ = true;
+    intersectBoundingBox_x_11_x_( wfront, wback, n, f );
 //    f = min( tmax, f );
-//    if ( n < f )
-//    {
-//        tnear = min( tnear, max( 0, n ) );
-//        tfar = max( tfar, f );
-//        vis_x_6_x_ = true;
-//    }
-
-    tnear = 0;
-    tfar = 1;
+    if ( n < f )
+    {
+        tnear = min( tnear, max( 0, n ) );
+        tfar = max( tfar, f );
+        vis = true;
+    }
     //
 
     // -------------------------------------------------------
@@ -173,7 +210,7 @@ void main()
 
         float step = tnear;
 
-        int numSteps = 1000;
+        int numSteps = 100;
         float dist = (tfar - tnear) / float(numSteps);
         int prevX = -1, prevY = -1, depth = -1;
         bool firstSample = true;
@@ -198,8 +235,8 @@ void main()
             vec2 tex_orig = (NDC_orig.xy + 1) / 2.0;
 
             ivec2 invoc_orig;
-            invoc_orig.x = int(round(tex_orig.x * imgWidth)); //TODO: verify that this is correct
-            invoc_orig.y = int(round(tex_orig.y * imgHeight)); //TODO: verify that this is correct
+            invoc_orig.x = int(round(tex_orig.x * 600)); //TODO: verify that this is correct
+            invoc_orig.y = int(round(tex_orig.y * 600)); //TODO: verify that this is correct
 //
 //            v.r = invoc_orig.x/600.0;
 //            v.g = invoc_orig.y/600.0;
@@ -216,6 +253,7 @@ void main()
             vec4 direction_orig = (wback_orig - wfront_orig)/distance(wfront_orig, wback_orig);
             vec4 vector_sample = wpos - wfront_orig;
             float dist_to_orig = dot(vector_sample, direction_orig);
+            dist_to_orig = dist_to_orig/distance(wfront_orig, wback_orig);
 
             bool supseg_found = false;
 
@@ -224,16 +262,16 @@ void main()
             {
                 //Find which supersegment along this ray
                 supseg_found = false;
+//                vec4 d = vec4(0.2);
+//                vec4 dNext = vec4(0.5);
                 vec4 d = imageLoad(InputVDI, ivec3(j*3 + 1, invoc_orig.y, invoc_orig.x)); //Start point of this supersegment
-                vec4 dNext = imageLoad(InputVDI, ivec3(j*3 + 2, invoc_orig.y, invoc_orig.x)); //End point of this supersegment
                 depthStart = DecodeFloatRGBA(d);
 
                 if(j!=0 && depthStart == 0.0) {
                     break; // there are no more supersegments in this list, so break
                 }
 
-                depthEnd = DecodeFloatRGBA(dNext);
-                if(j==0 && depthEnd == 0.0) {
+                if(j==0 && depthStart == 0.0) {
                     v = vec4(0, 1, 0, 1);
                     break;
                 }
@@ -244,13 +282,17 @@ void main()
 //                v.rgb = v.rgb + (1-v.a) * supseg_col.rgb * alpha;
 //                v.a = v.a + (1-v.a) * alpha;
 
-                if(dist_to_orig >= depthStart && dist_to_orig <= depthEnd)
+                if(dist_to_orig >= depthStart)
                 {
-                    // We have found the supersegment
-                    supseg_found = true;
-                    break;
-                } else if (dist_to_orig < depthStart) {
-                    break;
+                    vec4 dNext = imageLoad(InputVDI, ivec3(j*3 + 2, invoc_orig.y, invoc_orig.x)); //End point of this supersegment
+                    depthEnd = DecodeFloatRGBA(dNext);
+                    if(dist_to_orig <= depthEnd) {
+                        // We have found the supersegment
+                        supseg_found = true;
+                        break;
+                    }
+                } else {
+                    break; // this supersegment is already further from wfront than this sample point, so no point checking subsequent ones
                 }
             }
 
@@ -296,12 +338,18 @@ void main()
                 }
             }
         }
+    } else {
+        v = vec4(1, 0, 1, 1);
     }
 
 //    v.r = gl_GlobalInvocationID.x/600.0;
 //    v.g = gl_GlobalInvocationID.y/600.0;
 //    v.b = 0;
 //    v.a = 1;
+
+//    if(ViewOriginal == ViewMatrices[0]) {
+//        v = vec4(0, 0, 1, 1);
+//    }
 
     imageStore(OutputViewport, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), v);
 }
