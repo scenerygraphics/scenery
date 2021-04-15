@@ -43,7 +43,7 @@ open class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?
     internal val behaviourMap = BehaviourMap()
 
     /** JOGL-flavoured ui-behaviour MouseAndKeyHandlerBase */
-    internal val handler: MouseAndKeyHandlerBase?
+    val handler: MouseAndKeyHandlerBase?
 
     /** Scene the input handler refers to */
     internal val scene: Scene
