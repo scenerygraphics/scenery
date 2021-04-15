@@ -27,11 +27,6 @@ build_script:
 test_script:
   - gradlew.bat check -x dokkaHtml -x dokkaHtmlJar -x javadoc -x dokkaJavadocJar -PjvmTarget=1.8 -PsourceCompatibility=1.8
 
-on_success:
-  - cmd: |
-      curl -s https://codecov.io/bash > codecov.sh & exit 0
-      bash "./codecov.sh" -c -F unittests -f build/reports/jacoco/test/jacocoTestReport.xml & exit 0
-
 cache:
   #  - C:\maven
   #  - C:\Users\appveyor\.m2 -> pom.xml
