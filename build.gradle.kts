@@ -1,5 +1,7 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import scenery.implementation
 import sciJava.*
+import sciJava.dsl.runtimeOnly
 import java.net.URL
 
 plugins {
@@ -7,7 +9,7 @@ plugins {
     java
     kotlin("jvm") version ktVersion
     scenery.base
-//    scenery.docs
+    //    scenery.docs
     scenery.publish
     scenery.sign
     id("com.github.elect86.sciJava") version "0.0.4"
@@ -20,22 +22,14 @@ plugins {
 repositories {
     mavenCentral()
     jcenter()
-    maven("https://jitpack.io")
     maven("https://maven.scijava.org/content/groups/public")
+    maven("https://raw.githubusercontent.com/kotlin-graphics/mary/master")
+    maven("https://jitpack.io")
 }
 
-"kotlin"("1.4.21")
 "ui-behaviour"("2.0.3")
 //"bigvolumeviewer"("0.1.9")
-"ffmpeg"("4.2.1-1.5.2")
-"jackson-dataformat-msgpack"("0.8.20")
-"jeromq"("0.4.3")
-"jinput"("2.0.9")
-"jocl"("2.0.2")
-"jvrpn"("1.2.0")
 "kotlinx-coroutines-core"("1.3.9")
-"kryo"("5.0.3")
-"lwjgl"("3.2.3")
 "lwjgl3-awt"("0.1.7")
 "msgpack-core"("0.8.20")
 "classgraph"("4.8.86")
@@ -44,51 +38,45 @@ repositories {
 "art-dtrack-sdk"("2.6.0")
 
 dependencies {
+
+    implementation(platform("sciJava:platform:30.0.0+6"))
+
     implementation(platform(kotlin("bom")))
     implementation(kotlin("stdlib-jdk8"))
     implementation(kotlin("reflect"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.4.0-M1")
 
-    listOf("windows-amd64", "linux-i586", "linux-amd64", "macosx-universal").forEach {
-        sciJava("org.jogamp.gluegen:gluegen-rt:2.3.2", "natives-$it") // this is crap, but will be polished eventually
-        sciJava("org.jogamp.jogl:jogl-all:2.3.2", "natives-$it")
-    }
-    sciJava("org.slf4j:slf4j-api")
-    sciJava("net.clearvolume:cleargl")
-    sciJava("org.joml")
-    sciJava("com.github.scenerygraphics:vector:958f2e6")
+    implementation(jogamp.gluegen, joglNative)
+    implementation(jogamp.jogl, joglNative)
+    implementation(slf4j.api)
+    implementation(misc.cleargl)
+    implementation(misc.joml)
     sciJava("net.java.jinput:jinput:2.0.9", native = "natives-all")
-    sciJava("org.scijava"["scijava-common", "script-editor", "ui-behaviour", "scripting-javascript", "scripting-jython"])
-    sciJava("net.sf.trove4j")
-    sciJava("net.java.dev.jna")
-    sciJava("net.java.dev.jna:jna-platform")
-    sciJava("org.jocl")
+    implementation("org.jocl:jocl:2.0.2")
+    implementation(sciJava.common)
+    implementation(sciJava.scriptEditor)
+    implementation(sciJava.uiBehaviour)
+    implementation(sciJava.scriptingJavascript)
+    implementation(sciJava.scriptingJython)
+    implementation(misc.trove)
+    implementation(jna.bundles.all)
     implementation(platform("org.lwjgl:lwjgl-bom:3.2.3"))
     listOf("", "-glfw", "-jemalloc", "-vulkan", "-opengl", "-openvr", "-xxhash", "-remotery").forEach {
         implementation("org.lwjgl:lwjgl$it")
         if (it != "-vulkan")
             runtimeOnlylwjglNatives("org.lwjgl", "lwjgl$it", version = versions["lwjgl"]) // "
     }
-    sciJava("com.fasterxml.jackson.core:jackson-databind")
-    sciJava("com.fasterxml.jackson.module:jackson-module-kotlin:\$jackson-databind")
-    sciJava("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:\$jackson-databind")
-    sciJava("graphics.scenery:spirvcrossj")
-    runtimeOnlylwjglNatives("graphics.scenery", "spirvcrossj", version = versions["spirvcrossj"]) // "
-    sciJava("org.zeromq:jeromq")
-    sciJava("com.esotericsoftware:kryo")
-    sciJava("org.msgpack:msgpack-core")
-    sciJava("org.msgpack:jackson-dataformat-msgpack")
-    sciJava("graphics.scenery:jvrpn")
-    runtimeOnlylwjglNatives("graphics.scenery", "jvrpn", version = versions["jvrpn"]) // "
-    //    runtimeOnly("graphics.scenery", "jvrpn", classifier = "natives-linux")
-    //    runtimeOnly("graphics.scenery", "jvrpn", classifier = "natives-macos")
-    sciJava("io.scif:scifio")
-    sciJava("org.bytedeco:ffmpeg")
-    listOf("windows", "linux", "macosx").forEach {
-        runtimeOnly("org.bytedeco", "ffmpeg", classifier = "$it-x86_64", version = versions["ffmpeg"]) // "
-    }
-    sciJava("org.reflections")
-    sciJava("io.github.classgraph")
+    implementation(jackson.bundles.all)
+    implementation("graphics.scenery:spirvcrossj:0.7.1-1.1.106.0", lwjglNatives)
+    implementation("org.zeromq:jeromq:0.4.3")
+    implementation("com.esotericsoftware:kryo:5.0.3")
+    implementation("org.msgpack:msgpack-core:0.8.20")
+    implementation("org.msgpack:jackson-dataformat-msgpack:0.8.20")
+    implementation("graphics.scenery:jvrpn:1.2.0", lwjglNatives)
+    implementation(scifio.scifio)
+    implementation("org.bytedeco:ffmpeg:4.2.1-1.5.2", ffmpegNatives)
+    implementation("org.reflections:reflections:0.9.12")
+    implementation("io.github.classgraph:classgraph:4.8.86")
     //TODO revert to official BVV
     api("sc.fiji:bigdataviewer-core:10.1.1-SNAPSHOT")
     api("sc.fiji:bigdataviewer-vistools:1.0.0-beta-26-SNAPSHOT")
@@ -96,7 +84,8 @@ dependencies {
     //sciJava("sc.fiji:bigvolumeviewer")
     //    sciJava("org.lwjglx:lwjgl3-awt")
     implementation("com.github.LWJGLX:lwjgl3-awt:cfd741a6")
-    sciJava("org.janelia.saalfeldlab:n5"["", "-imglib2"])
+    implementation(n5.core)
+    implementation(n5.imglib2)
     listOf("core", "structure", "modfinder").forEach {
         sciJava("org.biojava:biojava-$it:5.4.0") {
             exclude("org.slf4j", "slf4j-api")
@@ -111,11 +100,11 @@ dependencies {
     testImplementation(kotlin("test-junit"))
     //    implementation("com.github.kotlin-graphics:assimp:25c68811")
 
-    testSciJava("junit:junit")
-    testSciJava("org.slf4j:slf4j-simple")
-    testSciJava("net.imagej")
-    testSciJava("net.imagej:ij")
-    testSciJava("net.imglib2:imglib2-ij")
+    testImplementation(misc.junit4)
+    testImplementation(slf4j.simple)
+    testImplementation(imagej.core)
+    testImplementation(imagej.ij)
+    testImplementation(imgLib2.ij)
 }
 
 fun DependencyHandlerScope.runtimeOnlylwjglNatives(group: String, name: String, version: String? = null) =
