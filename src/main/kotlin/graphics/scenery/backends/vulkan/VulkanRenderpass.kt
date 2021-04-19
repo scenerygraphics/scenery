@@ -819,12 +819,8 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
                     if (passConfig.output.name == "Viewport") {
                         // create viewport renderpass with swapchain image-derived framebuffer
                         pass.isViewportRenderpass = true
-                        width = if(config.stereoEnabled) {
-                            windowWidth// * 2
-                        } else {
-                            windowWidth
-                        }
 
+                        width = windowWidth
                         height = windowHeight
 
                         swapchain.images.forEachIndexed { i, _ ->

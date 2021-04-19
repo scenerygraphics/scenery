@@ -7,6 +7,7 @@ import graphics.scenery.numerics.Random
 import graphics.scenery.Mesh
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.extensions.compare
+import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.toFloatArray
 import net.imglib2.RealPoint
 import org.joml.Quaternionf
@@ -65,6 +66,60 @@ class NodeTests {
         logger.info(expectedResult.toString())
 
         assertTrue(expectedResult.compare(subChild.world, true), "Expected transforms to be equal")
+    }
+
+    @Test
+    fun originParentPositionTransformation(){
+        val scene = Scene()
+
+        val parent = Node()
+        scene.addChild(parent)
+        val child = Node()
+        parent.addChild(child)
+        child.position += Vector3f(0.5f)
+        child.updateWorld(true,false)
+
+        assertEquals(Vector3f(),parent.position)
+        assertEquals(Vector3f(),parent.worldPosition())
+        assertEquals(Vector3f(0.5f),child.position)
+        assertEquals(Vector3f(0.5f),child.worldPosition(Vector3f(0f)))
+    }
+
+    @Test
+    fun nonOriginParentPositionTransformation(){
+        val scene = Scene()
+
+        val parent = Node()
+        parent.position += Vector3f(0.5f)
+        scene.addChild(parent)
+        val child = Node()
+        parent.addChild(child)
+        child.position += Vector3f(0.5f)
+        parent.updateWorld(true,false)
+
+        assertEquals(Vector3f(0.5f),parent.position)
+        assertEquals(Vector3f(0.5f),parent.worldPosition())
+        assertEquals(Vector3f(0.5f),child.position)
+        assertEquals(Vector3f(1f),child.worldPosition(Vector3f(0f)))
+    }
+
+    @Test
+    fun scaledParentPositionTransformation(){
+        val scene = Scene()
+
+        val parent = Node()
+        //parent.position += Vector3f(0.5f)
+        parent.scale = Vector3f(0.5f)
+        scene.addChild(parent)
+        val child = Node()
+        parent.addChild(child)
+        child.position += Vector3f(1f)
+        parent.updateWorld(true,false)
+
+        assertEquals(Vector3f(0f),parent.position)
+        assertEquals(Vector3f(0f),parent.worldPosition())
+        assertEquals(Vector3f(1f),child.position)
+        assertEquals(Vector3f(0.5f),child.worldPosition(Vector3f(0f)))
     }
 
     private fun addSiblings(toNode: Node, maxSiblings: Int, currentLevel: Int, maxLevels: Int): Int {

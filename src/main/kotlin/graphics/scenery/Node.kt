@@ -87,11 +87,14 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
     /** Node update routine, called before updateWorld */
     var update: ArrayList<() -> Unit> = ArrayList()
 
+    /** Node update routine, called after updateWorld */
+    var postUpdate: ArrayList<() -> Unit> = ArrayList()
+
     /** World transform matrix. Will create inverse [iworld] upon modification. */
     override var world: Matrix4f by Delegates.observable(Matrix4f().identity()) { property, old, new -> propertyChanged(property, old, new) }
     /** Inverse [world] transform matrix. */
     override var iworld: Matrix4f by Delegates.observable(Matrix4f().identity()) { property, old, new -> propertyChanged(property, old, new) }
-    /** Model transform matrix. Will create inverse [imodel] upon modification. */
+    /** Local model transform matrix. Will create inverse [imodel] upon modification. */
     override var model: Matrix4f by Delegates.observable(Matrix4f().identity()) { property, old, new -> propertyChanged(property, old, new) }
     /** Inverse [world] transform matrix. */
     override var imodel: Matrix4f by Delegates.observable(Matrix4f().identity()) { property, old, new -> propertyChanged(property, old, new) }
@@ -114,13 +117,13 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
     /** ModelViewProjection matrix. */
     override var mvp: Matrix4f by Delegates.observable(Matrix4f().identity()) { property, old, new -> propertyChanged(property, old, new) }
 
-    /** World position of the Node. Setting will trigger [world] update. */
+    /** Local position of the Node, used to construct [model] matrix. Setting will trigger [model] and [world] update. */
     override var position: Vector3f by Delegates.observable(Vector3f(0.0f, 0.0f, 0.0f)) { property, old, new -> propertyChanged(property, old, new) }
 
-    /** x/y/z scale of the Node. Setting will trigger [world] update. */
+    /** x/y/z scale of the Node, used to construct [model]. Setting will trigger [model] and [world] update. */
     override var scale: Vector3f by Delegates.observable(Vector3f(1.0f, 1.0f, 1.0f)) { property, old, new -> propertyChanged(property, old, new) }
 
-    /** Rotation of the Node. Setting will trigger [world] update. */
+    /** Rotation of the Node, used to construct [model]. Setting will trigger [model] and [world] update. */
     override var rotation: Quaternionf by Delegates.observable(Quaternionf(0.0f, 0.0f, 0.0f, 1.0f)) { property, old, new -> propertyChanged(property, old, new) }
 
     /** Children of the Node. */
@@ -285,6 +288,8 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
         if(needsUpdateWorld) {
             needsUpdateWorld = false
         }
+
+        postUpdate.forEach { it.invoke() }
     }
 
     /**
@@ -552,6 +557,22 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
         } else {
             world.transform(Vector4f().set(target, 1.0f)).xyz()
         }
+    }
+
+    /**
+     * Extracts the scaling component from the world matrix.
+     *
+     * Is not correct for world matrices with shear!
+     *
+     * @return world scale
+     */
+    fun worldScale(): Vector3f {
+        val wm = world
+        val sx = Vector3f(wm[0,0],wm[0,1],wm[0,2]).length()
+        val sy = Vector3f(wm[1,0],wm[1,1],wm[1,2]).length()
+        val sz = Vector3f(wm[2,0],wm[2,1],wm[2,2]).length()
+
+        return Vector3f(sx,sy,sz)
     }
 
     /**

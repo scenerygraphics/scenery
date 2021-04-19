@@ -244,22 +244,7 @@ open class Camera : Node("Camera") {
     @JvmOverloads fun getNodesForScreenSpacePosition(x: Int, y: Int,
                                                        ignoredObjects: List<Class<*>> = emptyList(),
                                                        debug: Boolean = false): Scene.RaycastResult {
-        val view = (target - position).normalize()
-        var h = Vector3f(view).cross(up).normalize()
-        var v = Vector3f(h).cross(view)
-
-        val fov = fov * Math.PI / 180.0f
-        val lengthV = tan(fov / 2.0).toFloat() * nearPlaneDistance
-        val lengthH = lengthV * (width / height)
-
-        v = v * lengthV
-        h = h * lengthH
-
-        val posX = (x - width / 2.0f) / (width / 2.0f)
-        val posY = -1.0f * (y - height / 2.0f) / (height / 2.0f)
-
-        val worldPos = position + view * nearPlaneDistance + h * posX + v * posY
-        val worldDir = (worldPos - position).normalize()
+        val (worldPos, worldDir) = screenPointToRay(x, y)
 
         val scene = getScene()
         if(scene == null) {
@@ -268,6 +253,32 @@ open class Camera : Node("Camera") {
         }
 
         return scene.raycast(worldPos, worldDir, ignoredObjects, debug)
+    }
+
+    /**
+     * Returns the starting position and direction of a ray starting at the the screen space position
+     * indicated by [x] and [y] targeting away from the camera.
+     *
+     * Returns (worldPos, worldDir)
+     */
+    fun screenPointToRay(x: Int, y: Int): Pair<Vector3f, Vector3f> {
+        val view = (if (targeted) target - position else  forward).normalize()
+        var h = Vector3f(view).cross(up).normalize()
+        var v = Vector3f(h).cross(view)
+
+        val fov = fov * Math.PI / 180.0f
+        val lengthV = tan(fov / 2.0).toFloat() * nearPlaneDistance
+        val lengthH = lengthV * (width / height)
+
+        v *= lengthV
+        h *= lengthH
+
+        val posX = (x - width / 2.0f) / (width / 2.0f)
+        val posY = -1.0f * (y - height / 2.0f) / (height / 2.0f)
+
+        val worldPos = position + view * nearPlaneDistance + h * posX + v * posY
+        val worldDir = (worldPos - position).normalize()
+        return Pair(worldPos, worldDir)
     }
 
     /**

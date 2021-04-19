@@ -1,5 +1,6 @@
 package graphics.scenery.proteins
 
+import graphics.scenery.utils.LazyLogger
 import org.joml.Vector3f
 import kotlin.math.sqrt
 
@@ -12,6 +13,7 @@ import kotlin.math.sqrt
 class Axis(positions: List<Vector3f?>) {
     val direction = Vector3f()
     val position = Vector3f()
+    private val logger by LazyLogger()
     init {
         if(positions.size >= 4) {
             val axisPoints = calculateAxisPoints(positions)
@@ -20,7 +22,7 @@ class Axis(positions: List<Vector3f?>) {
             position.set(line.position)
         }
         else {
-            println("Please provide at least four points for the axis calculation.")
+            logger.warn("Please provide at least four points for the axis calculation.")
         }
     }
 
@@ -91,7 +93,7 @@ class Axis(positions: List<Vector3f?>) {
             return axis
         }
         else {
-            println("Whoops, your ca-atoms in the axis calculation become null.")
+            logger.error("Whoops, your ca-atoms in the axis calculation become null.")
             return ArrayList()
         }
     }
@@ -120,7 +122,7 @@ class Axis(positions: List<Vector3f?>) {
             return Pair(head, tail)
         }
         else {
-            println("Whoops, your ca-atoms in the axis calculation become null.")
+            logger.info("Whoops, your ca-atoms in the axis calculation become null.")
             return Pair(Vector3f(), Vector3f())
         }
     }
