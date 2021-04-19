@@ -73,6 +73,7 @@ float DecodeFloatRGBA (vec4 v) {
 }
 
 float adjustOpacity(float a, float modifiedStepLength) {
+    modifiedStepLength = max(1.0, modifiedStepLength);
     return 1.0 - pow((1.0 - a), modifiedStepLength);
 }
 
@@ -114,6 +115,69 @@ void intersectBoundingBox_x_11_x_( vec4 wfront, vec4 wback, out float tnear, out
     intersectBox( mfront.xyz, (mback - mfront).xyz, vec3( 0, 0, 0 ), sourcemax_x_10_x_, tnear, tfar );
 }
 
+void binSearch(int rayX, int rayY, int start, int limit, float dist_to_orig, out float depthStart, out float depthEnd, out int index, out bool supseg_found) {
+
+    supseg_found = false;
+    int low = start;
+    int high = limit;
+
+    while(low <= high) {
+        index = (low + high)/2;
+        vec4 d = imageLoad(InputVDI, ivec3(index*3 + 1, rayY, rayX)); //Start point of mid supersegment
+        depthStart = DecodeFloatRGBA(d);
+
+        if(index != 0 && depthStart == 0.0) {
+            //this supersegment has not been filled
+            high = index - 1;
+            continue;
+        }
+
+        if(depthStart > dist_to_orig) { //this supersegment is ahead of the sample point
+            high = index - 1;
+        } else {
+            vec4 dNext = imageLoad(InputVDI, ivec3(index*3 + 2, rayY, rayX)); //End point of this supersegment
+            depthEnd = DecodeFloatRGBA(dNext);
+            if(dist_to_orig <= depthEnd) {
+                // this is the supersegment
+                supseg_found = true;
+                break;
+            } else {
+                low = index+1;
+            }
+        }
+    }
+}
+
+void linSearch(int rayX, int rayY, int start, int limit, float dist_to_orig, out float depthStart, out float depthEnd, out int index, out bool supseg_found) {
+
+    supseg_found = false;
+
+    for(index = start; index < limit; index++) {
+        //Find which supersegment along this ray
+
+        vec4 d = imageLoad(InputVDI, ivec3(index*3 + 1, rayY, rayX)); //Start point of this supersegment
+        depthStart = DecodeFloatRGBA(d);
+
+        if(index!=0 && depthStart == 0.0) {
+            break; // there are no more supersegments in this list, so break
+        }
+
+//d
+        if(dist_to_orig >= depthStart)
+        {
+            vec4 dNext = imageLoad(InputVDI, ivec3(index*3 + 2, rayY, rayX)); //End point of this supersegment
+            depthEnd = DecodeFloatRGBA(dNext);
+            if(dist_to_orig <= depthEnd) {
+                // We have found the supersegment
+                supseg_found = true;
+                break;
+            }
+        } else {
+            break; // this supersegment is already further from wfront than this sample point, so no point checking subsequent ones
+        }
+    }
+}
+
 // ---------------------
 // $insert{Convert}
 // $insert{SampleVolume}
@@ -127,6 +191,7 @@ void main()
     int imgHeight = imageCoords.y;
 
     int numSupersegments = imageSize(InputVDI).r/3;
+    numSupersegments = 20;
 
     mat4 ipv = InverseViewMatrices[0] * InverseProjectionMatrix;
 
@@ -153,12 +218,6 @@ void main()
     0.000E+0, -0.000E+0,  0.000E+0, -1.000E+0,
     0.000E+0,  0.000E+0, -9.999E+0,  1.000E+1);
     invProjectionOriginal = transpose(invProjectionOriginal);
-
-//    if(cnt == 0) {
-//        ViewOriginal = ViewMatrices[0];
-//        ProjectionOriginal = ProjectionMatrix;
-//        cnt++;
-//    }
 
 //    ipv = inverse(ViewOriginal) * inverse(ProjectionOriginal);
 
@@ -210,7 +269,7 @@ void main()
 
         float step = tnear;
 
-        int numSteps = 100;
+        int numSteps = 250;
         float dist = (tfar - tnear) / float(numSteps);
         int prevX = -1, prevY = -1, depth = -1;
         bool firstSample = true;
@@ -228,7 +287,7 @@ void main()
 
             if(NDC_orig.x < -1 || NDC_orig.x > 1 || NDC_orig.y < -1 || NDC_orig.y > 1)
             {
-                v = vec4(1, 0, 0, 1);
+//                v = vec4(1, 0, 0, 1);
                 continue; // This ray misses the VDI
             }
 
@@ -245,6 +304,12 @@ void main()
 
             //Now we know which supersegment list to search
 
+            vec4 check = imageLoad(InputVDI, ivec3(2, invoc_orig.x, invoc_orig.y));
+            if(DecodeFloatRGBA(check) == 0) {
+                //the first supersegment is empty, so empty list
+                break;
+            }
+
             vec4 wfront_orig = ivp_orig * vec4(NDC_orig.xy, -1, 1);
             wfront_orig *= 1/wfront_orig.w;
             vec4 wback_orig = ivp_orig * vec4(NDC_orig.xy, 1, 1);
@@ -255,45 +320,23 @@ void main()
             float dist_to_orig = dot(vector_sample, direction_orig);
             dist_to_orig = dist_to_orig/distance(wfront_orig, wback_orig);
 
+            bool dotPositive;
+            float dotViewRays = dot((wfront - wback), (wfront_orig - wback_orig));
+            if(dotViewRays > 0) {
+                dotPositive = true;
+            } else {
+                dotPositive = false;
+            }
+
             bool supseg_found = false;
 
-            int j= 0;
-            for(j = 0; j < numSupersegments; j++)
-            {
-                //Find which supersegment along this ray
-                supseg_found = false;
-//                vec4 d = vec4(0.2);
-//                vec4 dNext = vec4(0.5);
-                vec4 d = imageLoad(InputVDI, ivec3(j*3 + 1, invoc_orig.y, invoc_orig.x)); //Start point of this supersegment
-                depthStart = DecodeFloatRGBA(d);
-
-                if(j!=0 && depthStart == 0.0) {
-                    break; // there are no more supersegments in this list, so break
+            int j, start = 0;
+            if(depth != -1 && invoc_orig.x == prevX && invoc_orig.y == prevY) {
+                if(dotPositive) {
+                    linSearch(invoc_orig.x, invoc_orig.y, depth, numSupersegments, dist_to_orig, depthStart, depthEnd, j, supseg_found);
                 }
-
-                if(j==0 && depthStart == 0.0) {
-                    v = vec4(0, 1, 0, 1);
-                    break;
-                }
-
-//                supseg_col = imageLoad(InputVDI, ivec3(j*3, invoc_orig.y, invoc_orig.x));
-//
-//                float alpha = supseg_col.a;
-//                v.rgb = v.rgb + (1-v.a) * supseg_col.rgb * alpha;
-//                v.a = v.a + (1-v.a) * alpha;
-
-                if(dist_to_orig >= depthStart)
-                {
-                    vec4 dNext = imageLoad(InputVDI, ivec3(j*3 + 2, invoc_orig.y, invoc_orig.x)); //End point of this supersegment
-                    depthEnd = DecodeFloatRGBA(dNext);
-                    if(dist_to_orig <= depthEnd) {
-                        // We have found the supersegment
-                        supseg_found = true;
-                        break;
-                    }
-                } else {
-                    break; // this supersegment is already further from wfront than this sample point, so no point checking subsequent ones
-                }
+            } else {
+                binSearch(invoc_orig.x, invoc_orig.y, start, numSupersegments, dist_to_orig, depthStart, depthEnd, j, supseg_found);
             }
 
             if(firstSample) {
@@ -308,7 +351,7 @@ void main()
                     depth = j;
                 }
             } else {
-                if(invoc_orig.x == prevX && invoc_orig.y == prevY && j == depth)
+                if(invoc_orig.x == prevX && invoc_orig.y == prevY && j == depth && supseg_found)
                 {
                     // It's the same supersegment as before
                     continue;
@@ -316,13 +359,9 @@ void main()
                     // a supersegment was in progress and has ended
                     float length_in_supseg = distance(wpos, start_sample);
 
-//                    float alpha = supseg_col.a;//
                     float alpha = adjustOpacity(supseg_col.a, (length_in_supseg/distance(supseg_start, supseg_end)));
-//                    float alpha = adjustOpacity(supseg_col.a, 0.8);
                     v.rgb = v.rgb + (1-v.a) * supseg_col.rgb * alpha;
                     v.a = v.a + (1-v.a) * alpha;
-//                    float temp = (length_in_supseg/distance(supseg_start, supseg_end));
-//                    v = vec4(temp, temp, temp, 1);
                     if(supseg_found) {
                         firstSample = false;
                         supseg_start = depthStart;
@@ -338,18 +377,7 @@ void main()
                 }
             }
         }
-    } else {
-        v = vec4(1, 0, 1, 1);
     }
-
-//    v.r = gl_GlobalInvocationID.x/600.0;
-//    v.g = gl_GlobalInvocationID.y/600.0;
-//    v.b = 0;
-//    v.a = 1;
-
-//    if(ViewOriginal == ViewMatrices[0]) {
-//        v = vec4(0, 0, 1, 1);
-//    }
 
     imageStore(OutputViewport, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), v);
 }
