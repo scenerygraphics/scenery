@@ -1,7 +1,8 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import scenery.ffmpegNatives
 import scenery.implementation
-import sciJava.*
-import sciJava.dsl.runtimeOnly
+import scenery.joglNatives
+import scenery.lwjglNatives
 import java.net.URL
 
 plugins {
@@ -12,12 +13,9 @@ plugins {
     //    scenery.docs
     scenery.publish
     scenery.sign
-    id("com.github.elect86.sciJava") version "0.0.4"
     id("org.jetbrains.dokka") version ktVersion
     jacoco
 }
-
-//sciJava.debug = true
 
 repositories {
     mavenCentral()
@@ -26,16 +24,6 @@ repositories {
     maven("https://raw.githubusercontent.com/kotlin-graphics/mary/master")
     maven("https://jitpack.io")
 }
-
-"ui-behaviour"("2.0.3")
-//"bigvolumeviewer"("0.1.9")
-"kotlinx-coroutines-core"("1.3.9")
-"lwjgl3-awt"("0.1.7")
-"msgpack-core"("0.8.20")
-"classgraph"("4.8.86")
-"spirvcrossj"("0.7.1-1.1.106.0")
-"reflections"("0.9.12")
-"art-dtrack-sdk"("2.6.0")
 
 dependencies {
 
@@ -46,12 +34,12 @@ dependencies {
     implementation(kotlin("reflect"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.4.0-M1")
 
-    implementation(jogamp.gluegen, joglNative)
-    implementation(jogamp.jogl, joglNative)
+    implementation(jogamp.gluegen, joglNatives)
+    implementation(jogamp.jogl, joglNatives)
     implementation(slf4j.api)
     implementation(misc.cleargl)
     implementation(misc.joml)
-    sciJava("net.java.jinput:jinput:2.0.9", native = "natives-all")
+    implementation("net.java.jinput:jinput:2.0.9", "natives-all")
     implementation("org.jocl:jocl:2.0.2")
     implementation(sciJava.common)
     implementation(sciJava.scriptEditor)
@@ -62,9 +50,10 @@ dependencies {
     implementation(jna.bundles.all)
     implementation(platform("org.lwjgl:lwjgl-bom:3.2.3"))
     listOf("", "-glfw", "-jemalloc", "-vulkan", "-opengl", "-openvr", "-xxhash", "-remotery").forEach {
-        implementation("org.lwjgl:lwjgl$it")
-        if (it != "-vulkan")
-            runtimeOnlylwjglNatives("org.lwjgl", "lwjgl$it", version = versions["lwjgl"]) // "
+        if (it == "-vulkan")
+            implementation("org.lwjgl:lwjgl$it")
+        else
+            implementation("org.lwjgl:lwjgl$it", lwjglNatives)
     }
     implementation(jackson.bundles.all)
     implementation("graphics.scenery:spirvcrossj:0.7.1-1.1.106.0", lwjglNatives)
@@ -87,7 +76,7 @@ dependencies {
     implementation(n5.core)
     implementation(n5.imglib2)
     listOf("core", "structure", "modfinder").forEach {
-        sciJava("org.biojava:biojava-$it:5.4.0") {
+        implementation("org.biojava:biojava-$it:5.4.0") {
             exclude("org.slf4j", "slf4j-api")
             exclude("org.slf4j", "slf4j-simple")
             exclude("org.apache.logging.log4j", "log4j-slf4j-impl")
@@ -106,9 +95,6 @@ dependencies {
     testImplementation(imagej.ij)
     testImplementation(imgLib2.ij)
 }
-
-fun DependencyHandlerScope.runtimeOnlylwjglNatives(group: String, name: String, version: String? = null) =
-    listOf("windows", "linux", "macos").forEach { runtimeOnly(group, name, classifier = "natives-$it", version = version) }
 
 tasks {
 
