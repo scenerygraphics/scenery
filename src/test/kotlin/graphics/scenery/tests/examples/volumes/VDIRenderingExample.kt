@@ -32,7 +32,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 600, 600, wantREPL = fa
         val cam = DetachedHeadCamera()
         with(cam) {
             position = Vector3f(-4.365f, 0.38f, 0.62f)
-            perspectiveCamera(50.0f, windowWidth, windowHeight)
+            perspectiveCamera(50.0f, 600, 600)
 
             scene.addChild(this)
         }
@@ -42,7 +42,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 600, 600, wantREPL = fa
 
         val numSupersegments = 40
 
-        val buff: ByteArray = File("/home/aryaman/Repositories/openfpm_pdata/example/Grid/3_gray_scott_3d/size:1Final_VDICol100.raw").readBytes()
+        val buff: ByteArray = File("/home/aryaman/Repositories/openfpm_pdata/example/Grid/3_gray_scott_3d/size:1Final_VDICol200.raw").readBytes()
 
         val opBuffer = MemoryUtil.memCalloc(windowWidth * windowHeight * 4)
         val bufferVDI = MemoryUtil.memCalloc(3 * windowWidth * windowHeight * numSupersegments * 4)
@@ -58,7 +58,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 600, 600, wantREPL = fa
         compute.material.textures["InputVDI"] = Texture(Vector3i(3*numSupersegments, windowHeight, windowWidth), 4, contents = bufferVDI, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
         compute.metadata["ComputeMetadata"] = ComputeMetadata(
             workSizes = Vector3i(windowWidth, windowHeight, 1),
-            invocationType = InvocationType.Once
+            invocationType = InvocationType.Permanent
         )
 
         scene.addChild(compute)
@@ -66,18 +66,22 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 600, 600, wantREPL = fa
         val plane = FullscreenObject()
         scene.addChild(plane)
         plane.material.textures["diffuse"] = compute.material.textures["OutputViewport"]!!
-//    thread {
-//        while(true) {
+        thread {
+//            while(true) {
 //
-//            logger.info(cam.view.toString())
+//                logger.info(cam.view.toString())
 //
-//            logger.info("The projection matrix is:")
+//                logger.info("The projection matrix is:")
 //
-//            logger.info(cam.projection.toString())
-//            Thread.sleep(2000)
-//        }
-//
-//    }
+//                logger.info(cam.projection.toString())
+//                Thread.sleep(2000)
+//            }
+//            Thread.sleep(10000)
+//            cam.position = Vector3f(3.213f, 8.264E-1f, -9.844E-1f)
+//            cam.rotation = Quaternionf(3.049E-2, 9.596E-1, -1.144E-1, -2.553E-1)
+//            Thread.sleep(40000)
+//            renderer?.shouldClose = true
+        }
 
     }
 
