@@ -16,6 +16,7 @@ import ij.ImagePlus
 import net.imglib2.img.Img
 import net.imglib2.img.display.imagej.ImageJFunctions
 import net.imglib2.type.numeric.integer.UnsignedShortType
+import org.joml.Quaternionf
 import org.lwjgl.system.MemoryUtil
 import tpietzsch.example2.VolumeViewerOptions
 import tpietzsch.shadergen.generate.SegmentTemplate
@@ -57,11 +58,8 @@ class CustomVolumeManagerExample : SceneryBase("CustomVolumeManagerExample") {
         volume.transferFunction = TransferFunction.ramp(0.001f, 0.5f, 0.3f)
         scene.addChild(volume)
 
-        val box = Box(Vector3f(1.0f, 1.0f, 1.0f))
-        box.name = "le box du win"
+        val box = FullscreenObject()
         box.material.textures["diffuse"] = outputTexture
-        box.material.metallic = 0.0f
-        box.material.roughness = 1.0f
 
         scene.addChild(box)
 
@@ -77,33 +75,6 @@ class CustomVolumeManagerExample : SceneryBase("CustomVolumeManagerExample") {
             perspectiveCamera(50.0f, 512, 512)
 
             scene.addChild(this)
-        }
-
-        val opTexture = volumeManager.material.textures["OutputRender"]!!
-        val counter = AtomicInteger(0)
-
-        (renderer as? VulkanRenderer)?.postRenderLambdas?.add {
-            logger.info("in the lambda")
-            opTexture to counter
-        }
-
-        thread {
-            var prevAtomic = counter.get()
-
-            while(true) {
-                while (prevAtomic == counter.get()) {
-                    Thread.sleep(5)
-                }
-                logger.info("Previous atomic val was $prevAtomic, new one is ${counter.get()}")
-                prevAtomic = counter.get()
-                if(prevAtomic%100 == 0) {
-                    logger.info("Dumping to file")
-//                SystemHelpers.dumpToFile(subVDIColorBuffer!!, "$cnt-textureSubCol.raw")
-                    SystemHelpers.dumpToFile(opTexture.contents!!, "$prevAtomic-texture.raw")
-                    logger.info("File dumped")
-                }
-            }
-
         }
     }
 
