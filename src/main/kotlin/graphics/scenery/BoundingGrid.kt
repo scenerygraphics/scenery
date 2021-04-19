@@ -44,19 +44,8 @@ open class BoundingGrid : Mesh("Bounding Grid") {
     /** The [Node] this bounding grid is attached to. Set to null to remove. */
     var node: Node? = null
         set(value) {
-            if(value == null) {
-                field?.removeChild(this)
-                field?.updateWorld(true)
-
-                field = value
-            } else {
-                field = value
-                node?.removeChild(this)
-                updateFromNode()
-                value.addChild(this)
-
-                value.updateWorld(true)
-            }
+            updateNode(value, field)
+            field = value
         }
 
     /** Stores the hash of the [node]'s bounding box to keep an eye on it. */
@@ -88,12 +77,24 @@ open class BoundingGrid : Mesh("Bounding Grid") {
         }
     }
 
+    private fun updateNode(oldNode: Node?, newNode: Node?) {
+        if(newNode == null) {
+            newNode?.removeChild(this)
+            newNode?.updateWorld(true)
+        } else {
+            oldNode?.removeChild(this)
+            updateFromNode()
+            newNode.addChild(this)
+            newNode.updateWorld(true)
+        }
+    }
+
     override fun preDraw(): Boolean {
         super.preDraw()
 
         if(node?.getMaximumBoundingBox()?.hashCode() != nodeBoundingBoxHash) {
             logger.info("Updating bounding box (${node?.getMaximumBoundingBox()?.hashCode()} vs $nodeBoundingBoxHash")
-            node = node
+            updateNode(node, node)
         }
 
         return true

@@ -1284,7 +1284,7 @@ open class VulkanRenderer(hub: Hub,
 
         // submit to OpenVR if attached
         if(hub?.getWorkingHMDDisplay()?.hasCompositor() == true) {
-            hub?.getWorkingHMDDisplay()?.wantsVR()?.submitToCompositorVulkan(
+            hub?.getWorkingHMDDisplay()?.wantsVR(settings)?.submitToCompositorVulkan(
                 window.width, window.height,
                 swapchain.format,
                 instance, device, queue,
@@ -1965,13 +1965,6 @@ open class VulkanRenderer(hub: Hub,
         return m
     }
 
-    private fun Display.wantsVR(): Display? {
-        return if (settings.get("vr.Active")) {
-            this@wantsVR
-        } else {
-            null
-        }
-    }
 
     private fun getDescriptorCache(): TimestampedConcurrentHashMap<String, SimpleTimestamped<Long>> {
         @Suppress("UNCHECKED_CAST")
@@ -1993,7 +1986,7 @@ open class VulkanRenderer(hub: Hub,
             return@runBlocking false
         }
 
-        val hmd = hub?.getWorkingHMDDisplay()?.wantsVR()
+        val hmd = hub?.getWorkingHMDDisplay()?.wantsVR(settings)
 
         val now = System.nanoTime()
         getDescriptorCache().forEachChanged(now = buffers.UBOs.updated) {

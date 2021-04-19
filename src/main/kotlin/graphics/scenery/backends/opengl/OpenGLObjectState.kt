@@ -32,8 +32,6 @@ class OpenGLObjectState : NodeMetadata {
     /** Index buffer storage. */
     val mIndexBuffer = IntArray(1)
 
-    /** Whether the object is dynamic, e.g. has its vertices regularly updated. */
-    var isDynamic = true
     /** Whether the object has been initialised yet. */
     var initialized: Boolean = false
 
