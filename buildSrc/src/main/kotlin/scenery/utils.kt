@@ -5,6 +5,8 @@ import org.gradle.api.provider.Provider
 import org.gradle.kotlin.dsl.DependencyHandlerScope
 import org.gradle.kotlin.dsl.accessors.runtime.addExternalModuleDependencyTo
 
+// this is the same in both scenery and sciview
+
 fun DependencyHandlerScope.implementation(dep: Provider<MinimalExternalModuleDependency>, native: String) = dep.get().apply {
     add("implementation", this)
     addExternalModuleDependencyTo(this@implementation, "runtimeOnly",
