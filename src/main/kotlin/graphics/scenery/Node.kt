@@ -3,6 +3,7 @@ package graphics.scenery
 import graphics.scenery.backends.Renderer
 import graphics.scenery.geometry.HasGeometry
 import graphics.scenery.utils.LazyLogger
+import graphics.scenery.geometry.GeometryType
 import graphics.scenery.utils.MaybeIntersects
 import graphics.scenery.utils.extensions.*
 import kotlinx.coroutines.GlobalScope
