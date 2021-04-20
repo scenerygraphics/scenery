@@ -438,6 +438,8 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
             return
         }
 
+        VRCompositor_WaitGetPoses(hmdTrackedDevicePoses, gamePoses)
+
         for (device in (0 until k_unMaxTrackedDeviceCount)) {
             val isValid = hmdTrackedDevicePoses.get(device).bPoseIsValid()
 
@@ -664,7 +666,7 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
     override fun submitToCompositorVulkan(width: Int, height: Int, format: Int,
                                           instance: VkInstance, device: VulkanDevice,
                                           queue: VkQueue, image: Long) {
-        update()
+//        update()
         if (disableSubmission || !readyForSubmission) {
             return
         }
@@ -742,7 +744,6 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
                 endCommandBuffer(device, commandPool, queue, true, true)
             }
         }
-        VRCompositor_WaitGetPoses(hmdTrackedDevicePoses, gamePoses)
     }
 
 
