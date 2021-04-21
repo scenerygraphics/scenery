@@ -37,6 +37,7 @@ import java.nio.IntBuffer
 import java.nio.LongBuffer
 import java.util.*
 import java.util.concurrent.*
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.locks.ReentrantLock
 import javax.imageio.ImageIO
 import javax.swing.JFrame
@@ -330,7 +331,8 @@ open class VulkanRenderer(hub: Hub,
     private var recordMovie: Boolean = false
     private var recordMovieOverwrite: Boolean = false
     override var pushMode: Boolean = false
-    val postRenderLambdas = ArrayList<()->Unit>()
+
+    val persistentTextureRequests = ArrayList<Pair<Texture, AtomicInteger>>()
 
     var scene: Scene = Scene()
     protected var sceneArray: HashSet<Node> = HashSet(256)
@@ -381,7 +383,6 @@ open class VulkanRenderer(hub: Hub,
     var fps = 0
         protected set
     protected var frames = 0
-    var totalFrames = 0L
     protected var renderDelay = 0L
     protected var heartbeatTimer = Timer()
     protected var gpuStats: GPUStats? = null
@@ -1358,7 +1359,7 @@ open class VulkanRenderer(hub: Hub,
             }
         }
 
-        persistentTextureRequests.forEach{ (texture, indicator) ->
+        persistentTextureRequests.forEach { (texture, indicator) ->
             val ref = VulkanTexture.getReference(texture)
             val buffer = texture.contents ?: return@forEach
 
@@ -1534,7 +1535,7 @@ open class VulkanRenderer(hub: Hub,
             hub?.getWorkingHMDDisplay()?.wantsVR(settings)?.update()
         }
 
-        postRenderLambdas.forEach{
+        postRenderLambdas.forEach {
             it.invoke()
         }
 
