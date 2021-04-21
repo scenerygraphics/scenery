@@ -49,6 +49,8 @@ repositories {
 
 dependencies {
 
+    implementation(platform(project(":platform")))
+
     implementation(platform(kotlin("bom")))
     implementation(kotlin("stdlib-jdk8"))
     implementation(kotlin("reflect"))
