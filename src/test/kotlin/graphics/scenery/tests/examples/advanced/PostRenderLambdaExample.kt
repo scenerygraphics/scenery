@@ -2,7 +2,6 @@ package graphics.scenery.tests.examples.advanced
 
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
-import graphics.scenery.backends.vulkan.VulkanRenderer
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.Image
 import org.joml.Vector3f
@@ -29,30 +28,27 @@ class PostRenderLambdaExample : SceneryBase("PosRenderLambdaExample") {
 
         val box = Box(Vector3f(1.0f, 1.0f, 1.0f))
         box.name = "le box du win"
-        box.material.textures["diffuse"] = Texture.fromImage(Image.fromResource("textures/helix.png", this::class.java))
-        box.material.metallic = 0.3f
-        box.material.roughness = 0.9f
+        box.material().textures["diffuse"] = Texture.fromImage(Image.fromResource("textures/helix.png", this::class.java))
+        box.material().metallic = 0.3f
+        box.material().roughness = 0.9f
         scene.addChild(box)
 
         val light = PointLight(radius = 15.0f)
-        light.position = Vector3f(0.0f, 0.0f, 2.0f)
+        light.spatial().position = Vector3f(0.0f, 0.0f, 2.0f)
         light.intensity = 5.0f
         light.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
         scene.addChild(light)
 
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
-            position = Vector3f(0.0f, 0.0f, 5.0f)
+            spatial().position = Vector3f(0.0f, 0.0f, 5.0f)
             perspectiveCamera(50.0f, 512, 512)
 
             scene.addChild(this)
         }
 
-        logger.info("Initial rot: ${box.rotation}")
-
-        (renderer as? VulkanRenderer)?.postRenderLambdas?.add {
-            box.rotation.rotateY(quantumOfRotation)
-            box.needsUpdate = true
+        renderer?.postRenderLambdas?.add {
+            box.spatial().rotation = box.spatial().rotation.rotateY(quantumOfRotation)
         }
 
         thread {
@@ -65,8 +61,8 @@ class PostRenderLambdaExample : SceneryBase("PosRenderLambdaExample") {
             renderer?.close()
             Thread.sleep(200) //give some time for the renderer to close
 
-            box.rotation.getEulerAnglesXYZ(boxRotation)
-            totalFrames = (renderer as? VulkanRenderer)?.totalFrames!!
+            box.spatial().rotation.getEulerAnglesXYZ(boxRotation)
+            totalFrames = renderer?.totalFrames!!
         }
     }
 
@@ -78,12 +74,12 @@ class PostRenderLambdaExample : SceneryBase("PosRenderLambdaExample") {
 
             var cnt = 0
             while(cnt<totalFrames) {
-                testBox.rotation.rotateY(quantumOfRotation)
+                testBox.spatial().rotation.rotateY(quantumOfRotation)
                 cnt++
             }
 
             val test = Vector3f(-1.0f)
-            testBox.rotation.getEulerAnglesXYZ(test)
+            testBox.spatial().rotation.getEulerAnglesXYZ(test)
 
             assertEquals ( test.y, boxRotation.y, "Rotation of box was applied once per render frame" )
         }
