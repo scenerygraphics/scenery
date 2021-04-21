@@ -14,6 +14,7 @@ plugins {
     scenery.publish
     scenery.sign
     id("org.jetbrains.dokka") version ktVersion
+    id("sciJava.platform") version "30.0.0+7"
     jacoco
 }
 
@@ -27,7 +28,7 @@ repositories {
 
 dependencies {
 
-    implementation(platform("sciJava:platform:30.0.0+6"))
+//    implementation(platform("sciJava:platform:30.0.0+6"))
 
     implementation(platform(kotlin("bom")))
     implementation(kotlin("stdlib-jdk8"))
