@@ -91,7 +91,7 @@ class PersistentTextureRequestsExample : SceneryBase("PersistentTextureRequestsE
 
             var prevCounter = 0
 
-            renderer?.persistentTextureRequests?.add(opTexture to counter)
+            (renderer as? VulkanRenderer)?.persistentTextureRequests?.add(opTexture to counter)
 
             // this is the loop where you may do your tasks that are asynchronous to rendering
             while (renderer?.shouldClose == false) {
