@@ -49,7 +49,8 @@ repositories {
 
 dependencies {
 
-    implementation(platform(project(":platform")))
+//    implementation(platform(project(":platform")))
+    implementation(platform("sciJava:platform:30.0.0+6"))
 
     implementation(platform(kotlin("bom")))
     implementation(kotlin("stdlib-jdk8"))
