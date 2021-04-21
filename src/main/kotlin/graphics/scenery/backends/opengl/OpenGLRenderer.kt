@@ -2221,6 +2221,10 @@ open class OpenGLRenderer(hub: Hub,
             screenshotRequested = false
         }
 
+        postRenderLambdas.forEach {
+            it.invoke()
+        }
+
         stats?.add("Renderer.${flow.last()}.renderTiming", System.nanoTime() - startPass)
 
         updateLatch?.countDown()
