@@ -3,7 +3,7 @@ import sciJava.*
 import java.net.URL
 
 plugins {
-    val ktVersion = "1.4.20"
+    val ktVersion = "1.4.32"
     java
     kotlin("jvm") version ktVersion
     scenery.base
@@ -11,8 +11,13 @@ plugins {
     scenery.publish
     scenery.sign
     id("com.github.elect86.sciJava") version "0.0.4"
-    id("org.jetbrains.dokka") version ktVersion
+    id("org.jetbrains.dokka") version "1.4.30"
+    id("org.sonarqube") version "3.1.1"
     jacoco
+}
+
+tasks.withType(org.jetbrains.kotlin.gradle.dsl.KotlinJvmCompile::class) {
+    kotlinOptions.useIR = true
 }
 
 //sciJava.debug = true
@@ -24,7 +29,7 @@ repositories {
     maven("https://maven.scijava.org/content/groups/public")
 }
 
-"kotlin"("1.4.21")
+"kotlin"("1.4.32")
 "ui-behaviour"("2.0.3")
 //"bigvolumeviewer"("0.1.9")
 "ffmpeg"("4.2.1-1.5.2")
@@ -162,3 +167,16 @@ artifacts {
 }
 
 java.withSourcesJar()
+
+sonarqube {
+    properties {
+        property("sonar.projectKey", "scenerygraphics_scenery")
+        property("sonar.organization", "scenerygraphics-1")
+        property("sonar.host.url", "https://sonarcloud.io")
+        property("sonar.coverage.jacoco.xmlReportPaths", "build/reports/jacoco/test/jacocoTestReport.xml")
+    }
+}
+
+plugins.withType<JacocoPlugin>() {
+    tasks["test"].finalizedBy("jacocoTestReport")
+}
