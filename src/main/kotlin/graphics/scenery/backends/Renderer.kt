@@ -42,6 +42,10 @@ abstract class Renderer : Hubable {
     abstract var firstImageReady: Boolean
         protected set
 
+    /** The total number of frames rendered so far. */
+    var totalFrames = 0L
+        protected set
+
     /** [Settings] instance the renderer is using. */
     abstract var settings: Settings
 
@@ -176,7 +180,11 @@ abstract class Renderer : Hubable {
     }
 
     @Volatile protected var textureRequests = ConcurrentLinkedQueue<Pair<Texture, Channel<Texture>>>()
-    var persistentTextureRequests = ArrayList<Pair<Texture, AtomicInteger>>()
+
+    /**
+     * A list of user-defined lambdas that will be executed once per iteration of the render loop
+     */
+    val postRenderLambdas = ArrayList<()->Unit>()
 
     /**
      * Requests the renderer to update [texture]'s contents from the GPU. [onReceive] is executed
