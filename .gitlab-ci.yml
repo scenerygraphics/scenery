@@ -12,6 +12,7 @@ variables:
   PDB_DIR: "./pdb-store"
   MODEL_DIR: "./models"
   GRADLE_USER_HOME: "./.gradle-user-home"
+  GIT_DEPTH: 0
 
 # simple unit tests without requiring GPUs
 unit-tests-no-gpu:
