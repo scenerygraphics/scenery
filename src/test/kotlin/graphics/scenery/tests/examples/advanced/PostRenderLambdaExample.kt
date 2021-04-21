@@ -2,9 +2,6 @@ package graphics.scenery.tests.examples.advanced
 
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
-import graphics.scenery.backends.vulkan.VulkanRenderer
-import graphics.scenery.textures.Texture
-import graphics.scenery.utils.Image
 import org.joml.Vector3f
 import kotlin.concurrent.thread
 import kotlin.test.assertEquals
@@ -47,7 +44,7 @@ class PostRenderLambdaExample : SceneryBase("PosRenderLambdaExample") {
             scene.addChild(this)
         }
 
-        (renderer as? VulkanRenderer)?.postRenderLambdas?.add {
+        renderer?.postRenderLambdas?.add {
             box.rotation.rotateY(quantumOfRotation)
             box.needsUpdate = true
         }
@@ -63,7 +60,7 @@ class PostRenderLambdaExample : SceneryBase("PosRenderLambdaExample") {
             Thread.sleep(200) //give some time for the renderer to close
 
             box.rotation.getEulerAnglesXYZ(boxRotation)
-            totalFrames = (renderer as? VulkanRenderer)?.totalFrames!!
+            totalFrames = renderer?.totalFrames!!
         }
     }
 
