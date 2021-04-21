@@ -14,8 +14,8 @@ rootProject.name = "scenery"
 
 gradle.rootProject {
     group = "graphics.scenery"
-    version = "0.7.0-beta-8-SNAPSHOT-001+1"
+    version = "0.7.0-beta-8-SNAPSHOT-001+2"
     description = "flexible scenegraphing and rendering for scientific visualisation"
 }
 
-//include("platform")
+include("platform")
