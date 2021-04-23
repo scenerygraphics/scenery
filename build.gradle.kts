@@ -100,6 +100,9 @@ dependencies {
     testImplementation(imgLib2.ij)
 }
 
+val isRelease: Boolean
+    get() = System.getProperty("release") == "true"
+
 tasks {
 
     withType<KotlinCompile>().all {
@@ -113,6 +116,7 @@ tasks {
     }
 
     dokkaHtml {
+        enabled = isRelease
         dokkaSourceSets.configureEach {
             sourceLink {
                 localDirectory.set(file("src/main/kotlin"))
@@ -136,8 +140,10 @@ val dokkaHtmlJar by tasks.register<Jar>("dokkaHtmlJar") {
 }
 
 artifacts {
-    archives(dokkaJavadocJar)
-    archives(dokkaHtmlJar)
+    if(isRelease) {
+        archives(dokkaJavadocJar)
+        archives(dokkaHtmlJar)
+    }
 }
 
 java.withSourcesJar()
