@@ -2,10 +2,12 @@ package graphics.scenery.tests.examples.cluster
 
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
+import graphics.scenery.controls.GamepadButton
 import graphics.scenery.controls.InputHandler
 import graphics.scenery.controls.TrackedStereoGlasses
 import graphics.scenery.controls.behaviours.GamepadRotationControl
 import graphics.scenery.controls.behaviours.GamepadClickBehaviour
+import graphics.scenery.controls.behaviours.GamepadMovementControl
 import net.java.games.input.Component
 import org.joml.Vector3f
 
@@ -106,17 +108,21 @@ class ProteinComparisonExample: SceneryBase("Protein Comparison Example") {
         // on the gamepad.
         inputHandler += (toggleProteins
             called "toggle_proteins"
-            boundTo "1")
+            boundTo GamepadButton.Button1)
 
         // removes the default second-stick camera look-around for the gamepad
         inputHandler -= "gamepad_camera_control"
         // adds a new behaviour for rotating the [activeProtein], RX and RY are the rotation
         // axis on the Xbox Wireless controller. For other controllers, different axis may
         // have to be used. Gamepad movement and rotation behaviours are always active,
-        // the key binding is only added for compatibility reasons.
-        inputHandler += (GamepadRotationControl(listOf(Component.Identifier.Axis.RX, Component.Identifier.Axis.RY), 0.03f) { activeProtein }
+        // hence the [GamepadButton.AlwaysActive] key binding.
+        inputHandler += (GamepadRotationControl(listOf(Component.Identifier.Axis.RY, Component.Identifier.Axis.RX), 1.0f) { activeProtein }
             called "protein_rotation"
-            boundTo "B")
+            boundTo GamepadButton.AlwaysActive)
+
+        inputHandler += (GamepadMovementControl(listOf(Component.Identifier.Axis.Z)) { cam }
+            called "vertical_movement"
+            boundTo GamepadButton.AlwaysActive)
     }
 
     companion object {
