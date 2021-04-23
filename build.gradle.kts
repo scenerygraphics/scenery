@@ -16,7 +16,8 @@ plugins {
     id("org.jetbrains.dokka") version "1.4.30"
 //    id("sciJava.platform") version "30.0.0+7"
     jacoco
-    id("sciJava-platform")
+//    id("sciJava-platform")
+    id("platform") version "30.0.0+10"
 //    id("foo")
 }
 
