@@ -2,6 +2,7 @@ package graphics.scenery.volumes
 
 import bdv.tools.transformation.TransformedSource
 import graphics.scenery.Hub
+import graphics.scenery.OrientedBoundingBox
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
@@ -27,6 +28,24 @@ class BufferedVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewe
     init {
         name = "Volume (Buffer source)"
         logger.debug("Data source is $ds")
+
+        boundingBox = generateBoundingBox()
+    }
+
+    override fun generateBoundingBox(): OrientedBoundingBox {
+        val source = (ds.sources[0].spimSource as TransformedSource).wrappedSource as? BufferSource<*>
+
+        val sizes = if(source != null) {
+            val min = Vector3f(0.0f)
+            val max = Vector3f(source.width.toFloat(), source.height.toFloat(), source.depth.toFloat())
+            max - min
+        } else {
+            Vector3f(1.0f, 1.0f, 1.0f)
+        }
+
+        return OrientedBoundingBox(this,
+            Vector3f(-0.0f, -0.0f, -0.0f),
+            sizes)
     }
 
     data class Timepoint(val name: String, val contents: ByteBuffer)
