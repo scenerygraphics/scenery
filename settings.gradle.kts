@@ -1,4 +1,15 @@
 
+enableFeaturePreview("VERSION_CATALOGS")
+
+dependencyResolutionManagement {
+    versionCatalogs {
+        create("libs") {
+            version("bb", "3.2.1")
+            alias("foo").to("group:artifact:0.0.1")
+        }
+    }
+}
+
 pluginManagement {
     repositories {
         gradlePluginPortal()
@@ -37,6 +48,8 @@ rootProject.name = "scenery"
 
 gradle.rootProject {
     group = "graphics.scenery"
-    version = "0.7.0-beta-8-SNAPSHOT-00"
+    version = "0.7.0-beta-8-SNAPSHOT-00+0"
     description = "flexible scenegraphing and rendering for scientific visualisation"
 }
+
+includeBuild("platform")

@@ -6,16 +6,18 @@ import scenery.lwjglNatives
 import java.net.URL
 
 plugins {
-    val ktVersion = "1.4.20"
+    val ktVersion = "1.4.31"
     java
     kotlin("jvm") version ktVersion
     scenery.base
     //    scenery.docs
     scenery.publish
     scenery.sign
-    id("org.jetbrains.dokka") version ktVersion
-    id("sciJava.platform") version "30.0.0+7"
+    id("org.jetbrains.dokka") version "1.4.30"
+//    id("sciJava.platform") version "30.0.0+7"
     jacoco
+    id("sciJava-platform")
+//    id("foo")
 }
 
 repositories {
@@ -25,7 +27,8 @@ repositories {
     maven("https://raw.githubusercontent.com/kotlin-graphics/mary/master")
     maven("https://jitpack.io")
 }
-
+//println("from main build script: ${libs.versions.bb.get()}")
+println("from main build script: ${sciJava.common.get()}")
 dependencies {
 
 //    implementation(platform("sciJava:platform:30.0.0+6"))
