@@ -107,9 +107,20 @@ class PersistentTextureRequestsExample : SceneryBase("PersistentTextureRequestsE
                 if (buffer != null && prevCounter == 100) {
                     SystemHelpers.dumpToFile(buffer, "texture-${SystemHelpers.formatDateTime(delimiter = "_")}.raw")
                 }
-
             }
-            totalFrames = (renderer as VulkanRenderer).totalFrames
+        }
+
+        thread {
+            while (renderer?.firstImageReady == false) {
+                Thread.sleep(5)
+            }
+
+            Thread.sleep(1000) //give some time for the rendering to take place
+
+            renderer?.close()
+            Thread.sleep(200) //give some time for the renderer to close
+
+            totalFrames = renderer?.totalFrames!!
         }
     }
 
