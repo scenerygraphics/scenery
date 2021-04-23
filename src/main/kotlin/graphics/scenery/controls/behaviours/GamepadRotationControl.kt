@@ -1,9 +1,13 @@
 package graphics.scenery.controls.behaviours
 
+import graphics.scenery.Camera
 import graphics.scenery.Node
 import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.extensions.plus
 import net.java.games.input.Component
 import org.joml.Quaternionf
+import org.joml.Vector3f
+import kotlin.math.abs
 import kotlin.reflect.KProperty
 
 /**
@@ -43,7 +47,7 @@ open class GamepadRotationControl(override val axis: List<Component.Identifier>,
     private var yaw: Float = 0.0f
 
     /** Threshold below which the behaviour will not trigger */
-    var threshold = 0.1f
+    var threshold = 0.05f
 
     /**
      * This function is trigger upon arrival of an axis event that
@@ -58,7 +62,7 @@ open class GamepadRotationControl(override val axis: List<Component.Identifier>,
     override fun axisEvent(axis: Component.Identifier, value: Float) {
         val n = node ?: return
 
-        if(Math.abs(value) < threshold) {
+        if(abs(value) < threshold) {
             return
         }
         
@@ -79,36 +83,37 @@ open class GamepadRotationControl(override val axis: List<Component.Identifier>,
             firstEntered = false
         }
 
-        var xoffset: Float = (x - lastX)
-        var yoffset: Float = (lastY - y)
+        val xoffset: Float = x * sensitivity
+        val yoffset: Float = y * sensitivity
 
         lastX = x
         lastY = y
 
-        xoffset *= sensitivity
-        yoffset *= sensitivity
-
         yaw += xoffset
         pitch += yoffset
 
-        if (pitch > 89.0f) {
-            pitch = 89.0f
+        val frameYaw = xoffset / 180.0f * Math.PI.toFloat()
+        val framePitch = yoffset / 180.0f * Math.PI.toFloat()
+        logger.trace("Pitch={} Yaw={}", framePitch, frameYaw)
+
+        if(n is Camera) {
+            if (pitch > 89.0f) {
+                pitch = 89.0f
+            }
+            if (pitch < -89.0f) {
+                pitch = -89.0f
+            }
+
+            val yawQ = Quaternionf().rotateXYZ(0.0f, frameYaw, 0.0f)
+            val pitchQ = Quaternionf().rotateXYZ(framePitch, 0.0f, 0.0f)
+
+            n.rotation = pitchQ.mul(n.rotation).mul(yawQ).normalize()
+        } else {
+            if(axis != this.axis.first()) {
+                n.rotation = n.rotation.rotateLocalY(framePitch).normalize()
+            } else {
+                n.rotation = n.rotation.rotateLocalX(frameYaw).normalize()
+            }
         }
-        if (pitch < -89.0f) {
-            pitch = -89.0f
-        }
-
-//        val forward = Vector3f(
-//                Math.cos(Math.toRadians(yaw.toDouble())).toFloat() * Math.cos(Math.toRadians(pitch.toDouble())).toFloat(),
-//                Math.sin(Math.toRadians(pitch.toDouble())).toFloat(),
-//                Math.sin(Math.toRadians(yaw.toDouble())).toFloat() * Math.cos(Math.toRadians(pitch.toDouble())).toFloat())
-
-//        node?.forward = forward.normalized
-        logger.trace("Pitch={} Yaw={}", pitch, yaw)
-
-        val yawQ = Quaternionf().rotateXYZ(0.0f, yaw, 0.0f)
-        val pitchQ = Quaternionf().rotateXYZ(pitch, 0.0f, 0.0f)
-
-        n.rotation = pitchQ.mul(n.rotation).mul(yawQ).normalize()
     }
 }
