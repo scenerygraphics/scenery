@@ -6,6 +6,7 @@ import com.sun.jna.Library
 import com.sun.jna.Native
 import graphics.scenery.backends.Renderer
 import graphics.scenery.compute.OpenCLContext
+import graphics.scenery.controls.GamepadButton
 import graphics.scenery.controls.InputHandler
 import graphics.scenery.controls.behaviours.ArcballCameraControl
 import graphics.scenery.controls.behaviours.FPSCameraControl
@@ -511,8 +512,22 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
         return name to this
     }
 
-    infix fun Pair<String, Behaviour>.boundTo(key: String): Pair<String, Pair<String, Behaviour>> {
-        return key to this
+    infix fun Pair<String, Behaviour>.boundTo(key: String): InputHandler.NamedBehaviourWithKeyBinding {
+        return InputHandler.NamedBehaviourWithKeyBinding(this.first, this.second, key)
+    }
+
+    infix fun Pair<String, Behaviour>.boundTo(key: GamepadButton): InputHandler.NamedBehaviourWithKeyBinding {
+        val button = when {
+            key.ordinal <= GamepadButton.Button8.ordinal -> key.ordinal.toString()
+            key.ordinal == GamepadButton.PovUp.ordinal -> "NUMPAD8"
+            key.ordinal == GamepadButton.PovRight.ordinal -> "NUMPAD6"
+            key.ordinal == GamepadButton.PovDown.ordinal -> "NUMPAD2"
+            key.ordinal == GamepadButton.PovLeft.ordinal -> "NUMPAD4"
+            key.ordinal == GamepadButton.AlwaysActive.ordinal -> "F24"
+            else -> throw IllegalStateException("Don't know how to translate gamepad button with ordinal ${key.ordinal} to key code.")
+        }
+
+        return InputHandler.NamedBehaviourWithKeyBinding(this.first, this.second, button)
     }
 
     companion object {
