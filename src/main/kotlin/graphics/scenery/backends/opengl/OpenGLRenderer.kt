@@ -2222,6 +2222,7 @@ open class OpenGLRenderer(hub: Hub,
         updateLatch?.countDown()
         firstImageReady = true
         frames++
+        totalFrames++
         framesPerSec++
     }
 
