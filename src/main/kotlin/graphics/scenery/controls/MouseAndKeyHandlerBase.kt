@@ -46,7 +46,7 @@ open class MouseAndKeyHandlerBase : ControllerListener, ExtractsNatives {
     private var controllerAxisDown: ConcurrentHashMap<Component.Identifier, Float> = ConcurrentHashMap()
     private val gamepads = CopyOnWriteArrayList<BehaviourEntry<Behaviour>>()
     private val CONTROLLER_HEARTBEAT = 5L
-    private val CONTROLLER_DOWN_THRESHOLD = 0.95f
+    private val CONTROLLER_DOWN_THRESHOLD = 0.5f
 
     protected var shouldClose = false
 
@@ -315,15 +315,27 @@ open class MouseAndKeyHandlerBase : ControllerListener, ExtractsNatives {
         }
     }
 
-    private fun controllerButtonToKeyCode(id: Component.Identifier): Int? {
+    private fun controllerButtonToKeyCode(id: Component.Identifier, value: Float): Int? {
         return when(id.name) {
-            "0" -> KeyEvent.VK_0
-            "1" -> KeyEvent.VK_1
-            "2" -> KeyEvent.VK_2
-            "3" -> KeyEvent.VK_3
-            "4" -> KeyEvent.VK_4
-            "5" -> KeyEvent.VK_5
-            "6" -> KeyEvent.VK_6
+            GamepadButton.Button0.ordinal.toString() -> KeyEvent.VK_0
+            GamepadButton.Button1.ordinal.toString()-> KeyEvent.VK_1
+            GamepadButton.Button2.ordinal.toString() -> KeyEvent.VK_2
+            GamepadButton.Button3.ordinal.toString() -> KeyEvent.VK_3
+            GamepadButton.Button4.ordinal.toString() -> KeyEvent.VK_4
+            GamepadButton.Button5.ordinal.toString() -> KeyEvent.VK_5
+            GamepadButton.Button6.ordinal.toString() -> KeyEvent.VK_6
+            GamepadButton.Button7.ordinal.toString() -> KeyEvent.VK_7
+            GamepadButton.Button8.ordinal.toString() -> KeyEvent.VK_8
+
+            "pov" -> {
+                when (value) {
+                    0.25f -> KeyEvent.VK_NUMPAD8
+                    0.5f -> KeyEvent.VK_NUMPAD6
+                    0.75f -> KeyEvent.VK_NUMPAD2
+                    1.0f -> KeyEvent.VK_NUMPAD4
+                    else -> null
+                }
+            }
             else -> null
         }
     }
@@ -339,25 +351,41 @@ open class MouseAndKeyHandlerBase : ControllerListener, ExtractsNatives {
     fun controllerEvent(event: Event) {
         logger.trace("Event: $event/identifier=${event.component.identifier}")
         for (gamepad in gamepads) {
-            if (event.component.isAnalog && abs(event.component.pollData) < CONTROLLER_DOWN_THRESHOLD) {
-                logger.trace("${event.component.identifier} over threshold, removing")
-                controllerAxisDown[event.component.identifier] = 0.0f
+            if (event.component.isAnalog) {
+                if (abs(event.component.pollData) < CONTROLLER_DOWN_THRESHOLD) {
+                    logger.trace("${event.component.identifier} over threshold, removing")
+                    controllerAxisDown[event.component.identifier] = 0.0f
+                } else {
+                    controllerAxisDown[event.component.identifier] = event.component.pollData
+                }
             } else {
-                controllerAxisDown[event.component.identifier] = event.component.pollData
+                val button = controllerButtonToKeyCode(event.component.identifier, event.value)
+
+                if (event.component.identifier != Component.Identifier.Axis.POV && button != null) {
+                    if (event.value < 0.1f) {
+                        pressedGamepadKeys.remove(button)
+                    }
+                    if (event.value > 0.9f) {
+                        pressedGamepadKeys.add(button)
+                    }
+                } else {
+                    if(button == null) {
+                        listOf(0.25f, 0.5f, 0.75f, 1.0f).forEach { value ->
+                            controllerButtonToKeyCode(Component.Identifier.Axis.POV, value)?.let {
+                                pressedGamepadKeys.remove(it)
+                            }
+                        }
+                    } else {
+                        if (event.value > 0.05f) {
+                            pressedGamepadKeys.add(button)
+                        } else {
+                            pressedGamepadKeys.remove(button)
+                        }
+                    }
+                }
             }
 
-            val button = controllerButtonToKeyCode(event.component.identifier)
-            if(!event.component.isAnalog && button != null) {
-                if(event.value < 0.1f) {
-                    pressedGamepadKeys.remove(button)
-                }
-                if(event.value > 0.9f) {
-                    pressedGamepadKeys.add(button)
-                }
-            }
-
-            val b = gamepad.behaviour
-            when(b) {
+            when(val b = gamepad.behaviour) {
                 is GamepadBehaviour -> {
                     if (b.axis.contains(event.component.identifier)) {
                         b.axisEvent(event.component.identifier, event.component.pollData)
