@@ -15,8 +15,7 @@ plugins {
     scenery.sign
     id("org.jetbrains.dokka") version "1.4.30"
     jacoco
-    id("platform") version "30.0.0+10"
-    //    id("sciJava.platform") version "30.0.0+7"
+    id("sciJava.platform") version "30.0.0+11"
 }
 
 repositories {
