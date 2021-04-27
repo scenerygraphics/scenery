@@ -8,7 +8,6 @@ import com.sun.jna.platform.win32.WinDef
 import graphics.scenery.Hub
 import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.backends.SceneryWindow
-import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.SceneryPanel
 import org.lwjgl.glfw.GLFW.*
 import org.lwjgl.glfw.GLFWNativeGLX.glfwGetGLXWindow
@@ -194,8 +193,8 @@ class OpenGLSwapchain(device: VulkanDevice,
 
                 val view = t.createImageView(image, format)
 
-                imageAvailableSemaphores.add(VU.getLong("image available semaphore", { VK10.vkCreateSemaphore(this@OpenGLSwapchain.device.vulkanDevice, semaphoreCreateInfo, null, this) }, {}))
-                imageRenderedSemaphores.add(VU.getLong("image ready semaphore", { VK10.vkCreateSemaphore(this@OpenGLSwapchain.device.vulkanDevice, semaphoreCreateInfo, null, this) }, {}))
+                imageAvailableSemaphores.add(this@OpenGLSwapchain.device.createSemaphore())
+                imageRenderedSemaphores.add(this@OpenGLSwapchain.device.createSemaphore())
                 fences.add(VU.getLong("Swapchain image fence", { VK10.vkCreateFence(this@OpenGLSwapchain.device.vulkanDevice, fenceCreateInfo, null, this) }, {}))
                 imageUseFences.add(VU.getLong("Swapchain image usage fence", { VK10.vkCreateFence(this@OpenGLSwapchain.device.vulkanDevice, fenceCreateInfo, null, this) }, {}))
                 inFlight.add(null)

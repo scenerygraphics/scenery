@@ -177,7 +177,7 @@ open class VulkanRenderer(hub: Hub,
                     flow = flowAndPasses.first
                     flowAndPasses.second.forEach { (k, v) -> renderpasses.put(k, v) }
 
-                    semaphores.forEach { it.value.forEach { semaphore -> vkDestroySemaphore(device.vulkanDevice, semaphore, null) } }
+                    semaphores.forEach { it.value.forEach { semaphore -> device.removeSemaphore(semaphore) }}
                     semaphores = prepareStandardSemaphores(device)
 
                     // Create render command buffers
@@ -344,8 +344,6 @@ open class VulkanRenderer(hub: Hub,
     protected var device: VulkanDevice
 
     protected var debugCallbackHandle: Long = -1L
-
-    protected var semaphoreCreateInfo: VkSemaphoreCreateInfo
 
     // Create static Vulkan resources
     protected var queue: VkQueue
@@ -675,12 +673,6 @@ open class VulkanRenderer(hub: Hub,
             }
         }, 0, 1000)
 
-        // Info struct to create a semaphore
-        semaphoreCreateInfo = VkSemaphoreCreateInfo.calloc()
-            .sType(VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO)
-            .pNext(NULL)
-            .flags(0)
-
         lastTime = System.nanoTime()
         time = 0.0f
 
@@ -921,7 +913,7 @@ open class VulkanRenderer(hub: Hub,
         return true
     }
 
-    fun destroyNode(node: Node) {
+    protected fun destroyNode(node: Node, onShutdown: Boolean = false) {
         logger.trace("Destroying node ${node.name}...")
         if (!node.metadata.containsKey("VulkanRenderer")) {
             return
@@ -936,6 +928,10 @@ open class VulkanRenderer(hub: Hub,
             node.rendererMetadata()?.vertexBuffers?.forEach {
                 it.value.close()
             }
+        }
+
+        if(onShutdown) {
+            node.rendererMetadata()?.textures?.forEach { it.value.close() }
         }
 
         node.metadata.remove("VulkanRenderer")
@@ -1198,8 +1194,7 @@ open class VulkanRenderer(hub: Hub,
 
         StandardSemaphores.values().forEach {
             map[it] = swapchain.images.map { i ->
-                VU.getLong("Semaphore for $i",
-                    { vkCreateSemaphore(device.vulkanDevice, semaphoreCreateInfo, null, this) }, {})
+                device.createSemaphore()
             }.toTypedArray()
         }
 
@@ -2147,18 +2142,18 @@ open class VulkanRenderer(hub: Hub,
         logger.info("Renderer teardown started.")
         vkQueueWaitIdle(queue)
 
+        logger.debug("Closing nodes...")
+        scene.discover(scene, { true }).forEach {
+            destroyNode(it, onShutdown = true)
+        }
+        scene.metadata.remove("DescriptorCache")
+        scene.initialized = false
+
         logger.debug("Cleaning texture cache...")
         textureCache.forEach {
             logger.debug("Cleaning ${it.key}...")
             it.value.close()
         }
-
-        logger.debug("Closing nodes...")
-        scene.discover(scene, { true }).forEach {
-            destroyNode(it)
-        }
-        scene.metadata.remove("DescriptorCache")
-        scene.initialized = false
 
         logger.debug("Closing buffers...")
         buffers.LightParameters.close()
@@ -2186,7 +2181,7 @@ open class VulkanRenderer(hub: Hub,
         }
 
         logger.debug("Closing descriptor sets and pools...")
-        descriptorSetLayouts.forEach { vkDestroyDescriptorSetLayout(device.vulkanDevice, it.value, null) }
+//        descriptorSetLayouts.forEach { vkDestroyDescriptorSetLayout(device.vulkanDevice, it.value, null) }
 
         logger.debug("Closing command buffers...")
         ph.commandBuffers.free()
@@ -2194,9 +2189,7 @@ open class VulkanRenderer(hub: Hub,
         memFree(ph.waitSemaphore)
         memFree(ph.waitStages)
 
-        semaphores.forEach { it.value.forEach { semaphore -> vkDestroySemaphore(device.vulkanDevice, semaphore, null) } }
-
-        semaphoreCreateInfo.free()
+        semaphores.forEach { it.value.forEach { semaphore -> device.removeSemaphore(semaphore) }}
 
         logger.debug("Closing swapchain...")
 
