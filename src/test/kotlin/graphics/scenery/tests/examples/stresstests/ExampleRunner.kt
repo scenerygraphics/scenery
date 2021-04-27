@@ -116,6 +116,8 @@ class ExampleRunner {
 
                             failure = true
                             // we fail very hard here to prevent process clogging the CI
+                            GlobalScope.cancel("ExampleRunner aborted due to exceptions in tests or exceeding maximum per-test runtime of $maxRuntimePerTest.")
+
                             assertFalse(failure, "ExampleRunner aborted due to exceptions in tests or exceeding maximum per-test runtime of $maxRuntimePerTest.")
                         }
 
