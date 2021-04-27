@@ -52,7 +52,7 @@ dependencies {
     implementation(platform(kotlin("bom")))
     implementation(kotlin("stdlib-jdk8"))
     implementation(kotlin("reflect"))
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.4.0-M1")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.4.3")
 
     listOf("windows-amd64", "linux-i586", "linux-amd64", "macosx-universal").forEach {
         sciJava("org.jogamp.gluegen:gluegen-rt:2.3.2", "natives-$it") // this is crap, but will be polished eventually
