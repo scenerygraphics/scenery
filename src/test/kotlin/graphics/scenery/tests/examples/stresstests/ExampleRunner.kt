@@ -107,7 +107,7 @@ class ExampleRunner {
                     }
 
                     val instance = example.getConstructor().newInstance()
-                    val exampleRunnable: Job?
+                    var exampleRunnable: Job? = null
 
                     try {
                         val handler = CoroutineExceptionHandler { _, e ->
@@ -116,7 +116,7 @@ class ExampleRunner {
 
                             failure = true
                             // we fail very hard here to prevent process clogging the CI
-                            throw e
+                            assertFalse(failure, "ExampleRunner aborted due to exceptions in tests or exceeding maximum per-test runtime of $maxRuntimePerTest.")
                         }
 
                         exampleRunnable = GlobalScope.launch(handler) {
