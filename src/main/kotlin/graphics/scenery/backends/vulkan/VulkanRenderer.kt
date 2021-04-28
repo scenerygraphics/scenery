@@ -7,6 +7,7 @@ import graphics.scenery.spirvcrossj.Loader
 import graphics.scenery.spirvcrossj.libspirvcrossj
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.*
+import graphics.scenery.volumes.VolumeManager
 import io.github.classgraph.ClassGraph
 import kotlinx.coroutines.*
 import org.joml.*
@@ -2146,6 +2147,13 @@ open class VulkanRenderer(hub: Hub,
         scene.discover(scene, { true }).forEach {
             destroyNode(it, onShutdown = true)
         }
+
+        // The hub might contain elements that are both in the scene graph,
+        // and in the hub, e.g. a VolumeManager. We clean them here as well.
+        hub?.find { it is Node }?.forEach { (_, node) ->
+            (node as? Node)?.let { destroyNode(it, onShutdown = true) }
+        }
+
         scene.metadata.remove("DescriptorCache")
         scene.initialized = false
 
