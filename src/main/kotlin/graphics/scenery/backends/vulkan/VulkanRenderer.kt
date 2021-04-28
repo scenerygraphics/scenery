@@ -489,7 +489,7 @@ open class VulkanRenderer(hub: Hub,
         // Create the Vulkan instance
         instance = if(embedIn != null || System.getProperty("scenery.Headless")?.toBoolean() == true) {
             logger.debug("Running embedded or headless, skipping GLFW initialisation.")
-            createInstance(null, validation)
+            createInstance(null, validation, headless = true)
         } else {
             if (!glfwInit()) {
                 val buffer = PointerBuffer.allocateDirect(255)
