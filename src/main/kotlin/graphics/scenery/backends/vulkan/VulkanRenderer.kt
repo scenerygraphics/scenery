@@ -1791,7 +1791,7 @@ open class VulkanRenderer(hub: Hub,
         totalFrames++
     }
 
-    private fun createInstance(requiredExtensions: PointerBuffer? = null, enableValidations: Boolean = false): VkInstance {
+    private fun createInstance(requiredExtensions: PointerBuffer? = null, enableValidations: Boolean = false, headless: Boolean = false): VkInstance {
         return stackPush().use { stack ->
             val appInfo = VkApplicationInfo.callocStack(stack)
                 .sType(VK_STRUCTURE_TYPE_APPLICATION_INFO)
@@ -1812,21 +1812,27 @@ open class VulkanRenderer(hub: Hub,
 
             // allocate enough pointers for already pre-required extensions, plus HMD-required extensions, plus the debug extension
             val size = requiredExtensions?.remaining() ?: 0
-            val enabledExtensionNames = stack.callocPointer(size + additionalExts.size + 2)
+
+            val enabledExtensionNames = if(!headless) {
+                val buffer = stack.callocPointer(size + additionalExts.size + 2)
+                val platformSurfaceExtension = when {
+                    Platform.get() === Platform.WINDOWS -> stack.UTF8(VK_KHR_WIN32_SURFACE_EXTENSION_NAME)
+                    Platform.get() === Platform.LINUX -> stack.UTF8(VK_KHR_XLIB_SURFACE_EXTENSION_NAME)
+                    Platform.get() === Platform.MACOSX -> stack.UTF8(VK_MVK_MACOS_SURFACE_EXTENSION_NAME)
+                    else -> throw RendererUnavailableException("Vulkan is not supported on ${Platform.get()}")
+                }
+
+                buffer.put(platformSurfaceExtension)
+                buffer.put(stack.UTF8(VK_KHR_SURFACE_EXTENSION_NAME))
+                buffer
+            } else {
+                stack.callocPointer(size + additionalExts.size)
+            }
 
             if(requiredExtensions != null) {
                 enabledExtensionNames.put(requiredExtensions)
             }
 
-            val platformSurfaceExtension = when {
-                Platform.get() === Platform.WINDOWS -> stack.UTF8(VK_KHR_WIN32_SURFACE_EXTENSION_NAME)
-                Platform.get() === Platform.LINUX -> stack.UTF8(VK_KHR_XLIB_SURFACE_EXTENSION_NAME)
-                Platform.get() === Platform.MACOSX -> stack.UTF8(VK_MVK_MACOS_SURFACE_EXTENSION_NAME)
-                else -> throw RendererUnavailableException("Vulkan is not supported on ${Platform.get()}")
-            }
-
-            enabledExtensionNames.put(platformSurfaceExtension)
-            enabledExtensionNames.put(stack.UTF8(VK_KHR_SURFACE_EXTENSION_NAME))
             utf8Exts.forEach { enabledExtensionNames.put(it) }
             enabledExtensionNames.flip()
 
@@ -1846,6 +1852,15 @@ open class VulkanRenderer(hub: Hub,
                 .pApplicationInfo(appInfo)
                 .ppEnabledExtensionNames(enabledExtensionNames)
                 .ppEnabledLayerNames(enabledLayerNames)
+
+            val extensions = (0 until enabledExtensionNames.remaining()).map {
+                memUTF8(enabledExtensionNames.get(it))
+            }
+            val layers = (0 until enabledLayerNames.remaining()).map {
+                memUTF8(enabledLayerNames.get(it))
+            }
+
+            logger.info("Creating Vulkan instance with extensions ${extensions.joinToString(",")} and layers ${layers.joinToString(",")}")
 
             val instance = VU.getPointer("Creating Vulkan instance",
                 { vkCreateInstance(createInfo, null, this) }, {})
