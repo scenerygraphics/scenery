@@ -601,8 +601,6 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
     }
 
 
-    data class AWTKey(val code: Int, val modifiers: Int = 0, var time: Long = System.nanoTime(), val char: Char = KeyEvent.CHAR_UNDEFINED, val string: String = KeyEvent.getKeyText(code))
-
     /**
      * Query the HMD whether a compositor is used or the renderer should take
      * care of displaying on the HMD on its own.
