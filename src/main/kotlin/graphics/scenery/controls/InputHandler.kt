@@ -350,16 +350,17 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?, for
         //return reference on the Editor, so that users can hook own extra stuff
         return editorPanel
     }
-
-    operator fun plusAssign(behaviourAndBinding: Pair<String, Pair<String, Behaviour>>) {
-        logger.info("binding ${behaviourAndBinding.first} key ${behaviourAndBinding.second.first}")
-        addBehaviour(behaviourAndBinding.second.first, behaviourAndBinding.second.second)
-        addKeyBinding(behaviourAndBinding.second.first, behaviourAndBinding.first)
+    
+    operator fun plusAssign(behaviourAndBinding: NamedBehaviourWithKeyBinding) {
+        addBehaviour(behaviourAndBinding.name, behaviourAndBinding.behaviour)
+        addKeyBinding(behaviourAndBinding.name, behaviourAndBinding.key)
     }
 
     operator fun minusAssign(name: String) {
         removeBehaviour(name)
         removeKeyBinding(name)
     }
+
+    data class NamedBehaviourWithKeyBinding(val name: String, val behaviour: Behaviour, val key: String)
 
 }
