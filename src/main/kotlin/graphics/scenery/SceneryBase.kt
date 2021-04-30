@@ -6,6 +6,7 @@ import com.sun.jna.Library
 import com.sun.jna.Native
 import graphics.scenery.backends.Renderer
 import graphics.scenery.compute.OpenCLContext
+import graphics.scenery.controls.DTrackButton
 import graphics.scenery.controls.GamepadButton
 import graphics.scenery.controls.InputHandler
 import graphics.scenery.controls.behaviours.ArcballCameraControl
@@ -525,6 +526,17 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
             key.ordinal == GamepadButton.PovLeft.ordinal -> "NUMPAD4"
             key.ordinal == GamepadButton.AlwaysActive.ordinal -> "F24"
             else -> throw IllegalStateException("Don't know how to translate gamepad button with ordinal ${key.ordinal} to key code.")
+        }
+
+        return InputHandler.NamedBehaviourWithKeyBinding(this.first, this.second, button)
+    }
+
+    infix fun Pair<String, Behaviour>.boundTo(key: DTrackButton): InputHandler.NamedBehaviourWithKeyBinding {
+        val button = when(key) {
+            DTrackButton.Trigger -> "0"
+            DTrackButton.Left -> "3"
+            DTrackButton.Center -> "2"
+            DTrackButton.Right -> "1"
         }
 
         return InputHandler.NamedBehaviourWithKeyBinding(this.first, this.second, button)
