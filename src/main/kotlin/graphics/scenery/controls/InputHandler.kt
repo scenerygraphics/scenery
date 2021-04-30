@@ -352,8 +352,9 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?, for
     }
 
     operator fun plusAssign(behaviourAndBinding: Pair<String, Pair<String, Behaviour>>) {
-        addBehaviour(behaviourAndBinding.first, behaviourAndBinding.second.second)
-        addKeyBinding(behaviourAndBinding.first, behaviourAndBinding.second.first)
+        logger.info("binding ${behaviourAndBinding.first} key ${behaviourAndBinding.second.first}")
+        addBehaviour(behaviourAndBinding.second.first, behaviourAndBinding.second.second)
+        addKeyBinding(behaviourAndBinding.second.first, behaviourAndBinding.first)
     }
 
     operator fun minusAssign(name: String) {
