@@ -28,7 +28,7 @@ class RAIVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewerOpti
         boundingBox = generateBoundingBox()
     }
 
-    override fun generateBoundingBox(): OrientedBoundingBox? {
+    override fun generateBoundingBox(): OrientedBoundingBox {
         val source = ds.sources.firstOrNull()
 
         val sizes = if(source != null) {
