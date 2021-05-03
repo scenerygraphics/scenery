@@ -59,7 +59,6 @@ open class PeriodicTable {
                     2 -> color.z = colorValue
                 }
             }
-            print(color)
             val element = ChemicalElement(
             pureStringElement.cell[0].toInt(),
             pureStringElement.cell[1],
