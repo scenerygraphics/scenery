@@ -10,12 +10,12 @@ plugins {
     java
     kotlin("jvm") version ktVersion
     scenery.base
-    //    scenery.docs
+//    scenery.docs
     scenery.publish
     scenery.sign
     id("org.jetbrains.dokka") version "1.4.30"
     jacoco
-    id("sciJava.platform") version "30.0.0+11"
+    id("sciJava.platform") version "30.0.0+11" // workaround for jitpack issue
 }
 
 repositories {
@@ -28,6 +28,8 @@ repositories {
 
 dependencies {
 
+    // we cant use a platform because of a jitpack issue, we apply the dependencies constraints via
+    // the sciJava.platform plugin above in the `plugins {}` scope
 //    implementation(platform("sciJava:platform:30.0.0+6"))
 
     implementation(platform(kotlin("bom")))
