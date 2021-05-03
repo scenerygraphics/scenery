@@ -15,7 +15,7 @@ plugins {
     scenery.sign
     id("org.jetbrains.dokka") version "1.4.30"
     jacoco
-    id("sciJava.platform") version "30.0.0+11" // workaround for jitpack issue
+    id("sciJava.platform") version "30.0.0+13" // workaround for jitpack issue
 }
 
 repositories {
@@ -65,7 +65,7 @@ dependencies {
     implementation("org.msgpack:msgpack-core:0.8.20")
     implementation("org.msgpack:jackson-dataformat-msgpack:0.8.20")
     implementation("graphics.scenery:jvrpn:1.2.0", lwjglNatives)
-    implementation(scifio.scifio)
+    implementation(scifio.core)
     implementation("org.bytedeco:ffmpeg:4.2.1-1.5.2", ffmpegNatives)
     implementation("org.reflections:reflections:0.9.12")
     implementation("io.github.classgraph:classgraph:4.8.86")

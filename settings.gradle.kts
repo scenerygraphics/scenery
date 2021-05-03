@@ -6,8 +6,10 @@ pluginManagement {
     }
 }
 
+enableFeaturePreview("VERSION_CATALOGS")
+
 plugins {
-    id("sciJava.catalogs") version "30.0.0+57"
+    id("sciJava.catalogs") version "30.0.0+63"
 }
 
 rootProject.name = "scenery"
