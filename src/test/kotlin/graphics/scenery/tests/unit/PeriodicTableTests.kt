@@ -57,4 +57,14 @@ class PeriodicTableTests {
         assertEquals(defaultHydrogen1.atomicMass, hydrogen.atomicMass)
         assertEquals(defaultHydrogen2.atomicMass, hydrogen.atomicMass)
     }
+
+    /**
+     * Tests if Plutonium is found by its symbol
+     */
+    @Test
+    fun findPlutoniumBySymbol() {
+        val table = PeriodicTable()
+        val plutonium = table.findBySymbol("Pu")
+        assertEquals(plutonium.atomicNumber, 94)
+    }
 }
