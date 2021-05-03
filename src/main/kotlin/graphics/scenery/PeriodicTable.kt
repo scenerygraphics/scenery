@@ -64,12 +64,17 @@ open class PeriodicTable {
     }
 
     fun findElementByNumber(elementNumber: Int): ChemicalElement {
-        return if(elementNumber >= 1 && elementNumber <= elementList.size) {
-            elementList[elementNumber - 1]
-        } else {
-            logger.warn("The requested element number is not in the periodic table. " +
+        return when {
+            elementNumber < 1 -> {
+                logger.warn("The requested elementNumber is zero or negative." +
+                " You will receive hydrogen as a default.")
+                elementList[0] }
+            elementNumber > elementList.size+1 -> {
+                logger.warn("The requested element number is not in the periodic table. " +
                     "You will receive hydrogen as a default")
-            elementList[0]
+                elementList[0]
+            }
+            else -> { elementList[elementNumber - 1] }
         }
     }
 }
