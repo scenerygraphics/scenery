@@ -64,7 +64,7 @@ class PeriodicTableTests {
     @Test
     fun findPlutoniumBySymbol() {
         val table = PeriodicTable()
-        val plutonium = table.findBySymbol("Pu")
+        val plutonium = table.findElementBySymbol("Pu")
         assertEquals(plutonium.atomicNumber, 94)
     }
 }
