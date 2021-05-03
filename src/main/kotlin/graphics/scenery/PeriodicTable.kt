@@ -8,11 +8,24 @@ import java.io.FileReader
 import kotlin.collections.ArrayList
 
 /**
- *
+ * Class to parse the periodic table generously provided by PubChem as a json-file (https://pubchem.ncbi.nlm.nih.gov/periodic-table/).
+ * We store all elements as a [ChemicalElement] and put them into the [elementList].
  */
 open class PeriodicTable {
 
-    //data-classes to store the JsonProperties
+    /*
+    data-classes to store the JsonProperties
+    The json file has the following format:
+    {Table: {
+        Columns: {
+            Column: [ "Here are the names of all the parameters" ]
+            }
+        Row: [
+            { Cell: [ "Here is the information about the first element stored" ] },
+            { Cell: [ Here is the information about the second element stored" ] }, ... ]
+        }
+     }
+     */
     data class ChemCell(@JsonProperty("Cell") val cell: ArrayList<String>)
     data class ChemColumn(@JsonProperty("Column") val column: ArrayList<String>)
     data class ChemTable(@JsonProperty("Columns") val columns: ChemColumn,@JsonProperty("Row") val row: ArrayList<ChemCell>)
@@ -22,12 +35,18 @@ open class PeriodicTable {
     private val logger by LazyLogger()
 
     init {
+        //parsing the json file
         val mapper = jacksonObjectMapper()
         val file = FileReader("src/main/resources/graphics/scenery/proteins/PubChemElements_all.json").readText()
         val periodicTable = mapper.readValue(file, PeriodicTableau::class.java)
+
+        //extracting the information in the right data format
         extractDataTypes(periodicTable)
     }
 
+    /**
+     * Takes the element information stored as Strings, converts it to the right format, afterwards, adding it to the list
+     */
     private fun extractDataTypes(periodicTable: PeriodicTableau) {
         periodicTable.table.row.forEach { pureStringElement ->
             //color is saved in Hex-Format in Json file and needs a bit more work
@@ -63,6 +82,9 @@ open class PeriodicTable {
         }
     }
 
+    /**
+     * Finds an element by its elementNumber which corresponds to the index in the list plus one
+     */
     fun findElementByNumber(elementNumber: Int): ChemicalElement {
         return when {
             elementNumber < 1 -> {
