@@ -69,7 +69,7 @@ open class PeriodicTable {
                 logger.warn("The requested elementNumber is zero or negative." +
                 " You will receive hydrogen as a default.")
                 elementList[0] }
-            elementNumber > elementList.size+1 -> {
+            elementNumber > elementList.size -> {
                 logger.warn("The requested element number is not in the periodic table. " +
                     "You will receive hydrogen as a default")
                 elementList[0]
