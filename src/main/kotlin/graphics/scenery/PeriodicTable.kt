@@ -99,4 +99,13 @@ open class PeriodicTable {
             else -> { elementList[elementNumber - 1] }
         }
     }
+
+    /**
+     * Finds an element by its symbol.
+     */
+    fun findElementBySymbol(elementSymbol: String): ChemicalElement {
+        elementList.forEach { if(it.symbol == elementSymbol) {return it} }
+        logger.warn("Symbol was not found in the list, the function will return hydrogen instead")
+        return elementList[0]
+    }
 }
