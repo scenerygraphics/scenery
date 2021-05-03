@@ -52,13 +52,14 @@ open class PeriodicTable {
             //color is saved in Hex-Format in Json file and needs a bit more work
             val color = Vector3f()
             pureStringElement.cell[4].chunked(2).forEachIndexed { index, co ->
-                val colorValue = co.toInt(16).toFloat()
+                val colorValue = co.toInt(16).toFloat()/255f
                 when (index) {
                     0 -> color.x = colorValue
                     1 -> color.y = colorValue
                     2 -> color.z = colorValue
                 }
             }
+            print(color)
             val element = ChemicalElement(
             pureStringElement.cell[0].toInt(),
             pureStringElement.cell[1],
