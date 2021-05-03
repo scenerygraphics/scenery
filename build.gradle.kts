@@ -15,7 +15,7 @@ plugins {
     scenery.sign
     id("org.jetbrains.dokka") version "1.4.30"
     jacoco
-    id("sciJava.platform") version "30.0.0+13" // workaround for jitpack issue
+    id("sciJava.platform") version "30.0.0+14" // workaround for jitpack issue
 }
 
 repositories {
