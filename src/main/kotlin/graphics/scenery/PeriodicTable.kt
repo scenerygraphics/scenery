@@ -5,16 +5,12 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import graphics.scenery.utils.LazyLogger
 import org.joml.Vector3f
 import java.io.FileReader
-import java.nio.file.Files
-import java.nio.file.Path
-import java.nio.file.Paths
-import java.util.*
 import kotlin.collections.ArrayList
 
 /**
  *
  */
-class PeriodicTable {
+open class PeriodicTable {
 
     //data-classes to store the JsonProperties
     data class ChemCell(@JsonProperty("Cell") val cell: ArrayList<String>)
@@ -22,7 +18,7 @@ class PeriodicTable {
     data class ChemTable(@JsonProperty("Columns") val columns: ChemColumn,@JsonProperty("Row") val row: ArrayList<ChemCell>)
     data class PeriodicTableau(@JsonProperty("Table") val table: ChemTable)
 
-    private val elementList = ArrayList<ChemicalElement>()
+    val elementList = ArrayList<ChemicalElement>()
     private val logger by LazyLogger()
 
     init {
@@ -36,7 +32,7 @@ class PeriodicTable {
         periodicTable.table.row.forEach { pureStringElement ->
             //color is saved in Hex-Format in Json file and needs a bit more work
             val color = Vector3f()
-            val colorString = pureStringElement.cell[4].chunked(2).forEachIndexed { index, co ->
+            pureStringElement.cell[4].chunked(2).forEachIndexed { index, co ->
                 val colorValue = co.toInt(16).toFloat()
                 when (index) {
                     0 -> color.x = colorValue
