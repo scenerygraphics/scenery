@@ -30,8 +30,8 @@ class InstanceCreatorStressTestExample {
                 .ppEnabledLayerNames(null)
 
             val instance = memAllocPointer(1)
-            vkCreateInstance(createInfo, null, instance)
-            println("$it: Created instance ${instance.get(0)}")
+            val error = vkCreateInstance(createInfo, null, instance)
+            println("$it: Created instance ${instance.get(0)}, return = $error")
 
             val vkInstance = VkInstance(instance.get(0), createInfo)
 
