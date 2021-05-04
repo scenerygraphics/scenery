@@ -18,7 +18,7 @@ fun DependencyHandlerScope.implementation(dep: String, native: String) {
     add("implementation", dep)
     val split = dep.split(':')
     addExternalModuleDependencyTo(this@implementation, "runtimeOnly",
-                                  split[0], split[1], split.getOrNull(3), null,
+                                  split[0], split[1], split.getOrNull(2), null,
                                   native, null, null)
 }
 
@@ -35,7 +35,7 @@ fun DependencyHandlerScope.implementation(dep: String, natives: Array<String>) {
     val split = dep.split(':')
     for (native in natives)
         addExternalModuleDependencyTo(this@implementation, "runtimeOnly",
-                                      split[0], split[1], split.getOrNull(3), null,
+                                      split[0], split[1], split.getOrNull(2), null,
                                       native, null, null)
 }
 
