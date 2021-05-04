@@ -31,12 +31,12 @@ class InstanceCreatorStressTestExample {
 
             val instance = memAllocPointer(1)
             val error = vkCreateInstance(createInfo, null, instance)
-            println("$it: Created instance ${instance.get(0)}, return = $error")
+            println("$it: Created instance ${instance.get(0)} with API version ${applicationInfo.apiVersion()}, engine version ${applicationInfo.engineVersion()}, return = $error")
 
             if(error != 0) {
                 return@repeat
             }
-            
+
             val vkInstance = VkInstance(instance.get(0), createInfo)
 
             Thread.sleep(Random.randomFromRange(50.0f, 500.0f).roundToLong())
@@ -48,6 +48,7 @@ class InstanceCreatorStressTestExample {
             memFree(engineName)
             createInfo.free()
             applicationInfo.free()
+            instance.free()
         }
     }
 
