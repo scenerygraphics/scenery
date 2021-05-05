@@ -1,8 +1,6 @@
+import org.gradle.kotlin.dsl.api
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
-import scenery.ffmpegNatives
-import scenery.implementation
-import scenery.joglNatives
-import scenery.lwjglNatives
+import scenery.*
 import java.net.URL
 
 plugins {
@@ -31,6 +29,7 @@ dependencies {
     // we cant use a platform because of a jitpack issue, we apply the dependencies constraints via
     // the sciJava.platform plugin above in the `plugins {}` scope
 //    implementation(platform("sciJava:platform:30.0.0+6"))
+//    implementation(platform("org.scijava:pom-scijava:30.0.0"))
 
     implementation(platform(kotlin("bom")))
     implementation(kotlin("stdlib-jdk8"))
@@ -51,12 +50,12 @@ dependencies {
     implementation(sciJava.scriptingJython)
     implementation(misc.trove)
     implementation(jna.bundles.all)
-    implementation(platform("org.lwjgl:lwjgl-bom:3.2.3"))
+    api(platform("org.lwjgl:lwjgl-bom:3.2.3"))
     listOf("", "-glfw", "-jemalloc", "-vulkan", "-opengl", "-openvr", "-xxhash", "-remotery").forEach {
         if (it == "-vulkan")
-            implementation("org.lwjgl:lwjgl$it")
+            api("org.lwjgl:lwjgl$it")
         else
-            implementation("org.lwjgl:lwjgl$it", lwjglNatives)
+            api("org.lwjgl:lwjgl$it", lwjglNatives)
     }
     implementation(jackson.bundles.all)
     implementation("graphics.scenery:spirvcrossj:0.7.1-1.1.106.0", lwjglNatives)

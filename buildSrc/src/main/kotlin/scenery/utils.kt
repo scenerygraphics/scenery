@@ -39,6 +39,38 @@ fun DependencyHandlerScope.implementation(dep: String, natives: Array<String>) {
                                       native, null, null)
 }
 
+fun DependencyHandlerScope.api(dep: Provider<MinimalExternalModuleDependency>, native: String) = dep.get().apply {
+    add("api", this)
+    addExternalModuleDependencyTo(this@api, "runtimeOnly",
+                                  module.group, module.name, versionConstraint.displayName, null,
+                                  native, null, null)
+}
+
+fun DependencyHandlerScope.api(dep: String, native: String) {
+    add("api", dep)
+    val split = dep.split(':')
+    addExternalModuleDependencyTo(this@api, "runtimeOnly",
+                                  split[0], split[1], split.getOrNull(2), null,
+                                  native, null, null)
+}
+
+fun DependencyHandlerScope.api(dep: Provider<MinimalExternalModuleDependency>, natives: Array<String>) = dep.get().apply {
+    add("api", this)
+    for (native in natives)
+        addExternalModuleDependencyTo(this@api, "runtimeOnly",
+                                      module.group, module.name, versionConstraint.displayName, null,
+                                      native, null, null)
+}
+
+fun DependencyHandlerScope.api(dep: String, natives: Array<String>) {
+    add("api", dep)
+    val split = dep.split(':')
+    for (native in natives)
+        addExternalModuleDependencyTo(this@api, "runtimeOnly",
+                                      split[0], split[1], split.getOrNull(2), null,
+                                      native, null, null)
+}
+
 val joglNatives = arrayOf("natives-windows-amd64", "natives-linux-i586", "natives-linux-amd64", "natives-macosx-universal")
 val lwjglNatives = arrayOf("natives-windows", "natives-linux", "natives-macos")
 val ffmpegNatives = arrayOf("windows-x86_64", "linux-x86_64", "macosx-x86_64")
