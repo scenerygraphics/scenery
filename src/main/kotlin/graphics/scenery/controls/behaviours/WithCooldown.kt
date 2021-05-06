@@ -30,6 +30,10 @@ open class WithCooldown(val obj: Any, cooldown: Duration, block: () -> Any) {
     }
 }
 
+/**
+ * Invokes this [ClickBehaviour] once, and only again after the given
+ * [cooldown] period has passed. Use in [ClickBehaviour.click].
+ */
 @OptIn(ExperimentalTime::class)
 fun ClickBehaviour.withCooldown(cooldown: Duration, block: () -> Any) {
     WithCooldown(this, cooldown, block)
