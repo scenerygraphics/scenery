@@ -18,6 +18,8 @@ import kotlin.reflect.KProperty
  */
 open class GamepadMovementControl(
                              override val axis: List<Component.Identifier>,
+                             var invertX: Boolean = false,
+                             var invertY: Boolean = false,
                              private val camera: () -> Node?) : GamepadBehaviour {
     /** Speed multiplier for camera movement */
     var speedMultiplier = 0.04f
@@ -25,6 +27,9 @@ open class GamepadMovementControl(
     var threshold = 0.05f
 
     private val cam: Node? by NodeDelegate()
+
+    private var inversionFactorX = 1.0f
+    private var inversionFactorY = 1.0f
 
     protected inner class NodeDelegate {
         /** Returns the [graphics.scenery.Camera] resulting from the evaluation of [camera] */
@@ -53,13 +58,25 @@ open class GamepadMovementControl(
                 return
             }
 
+            inversionFactorX = if(invertX) {
+                -1.0f
+            } else {
+                1.0f
+            }
+
+            inversionFactorY = if(invertY) {
+                -1.0f
+            } else {
+                1.0f
+            }
+
             if(cam is Camera) {
                 when (axis) {
-                    Component.Identifier.Axis.Y -> {
-                        cam.position = cam.position + cam.forward * -1.0f * value * speedMultiplier
-                    }
                     Component.Identifier.Axis.X -> {
-                        cam.position = cam.position + Vector3f(cam.forward).cross(cam.up).normalize() * value * speedMultiplier
+                        cam.position = cam.position + Vector3f(cam.forward).cross(cam.up).normalize() * value * speedMultiplier * inversionFactorX
+                    }
+                    Component.Identifier.Axis.Y -> {
+                        cam.position = cam.position + cam.forward * -1.0f * value * speedMultiplier * inversionFactorY
                     }
                     Component.Identifier.Axis.Z -> {
                         cam.position = cam.position + cam.up * value * speedMultiplier
@@ -67,11 +84,11 @@ open class GamepadMovementControl(
                 }
             } else {
                 when (axis) {
-                    Component.Identifier.Axis.Y -> {
-                        cam.position = cam.position + Vector3f(0.0f, 0.0f, -1.0f) * -1.0f * value * speedMultiplier
-                    }
                     Component.Identifier.Axis.X -> {
-                        cam.position = cam.position + Vector3f(1.0f, 0.0f, 0.0f) * value * speedMultiplier
+                        cam.position = cam.position + Vector3f(1.0f, 0.0f, 0.0f) * value * speedMultiplier * inversionFactorX
+                    }
+                    Component.Identifier.Axis.Y -> {
+                        cam.position = cam.position + Vector3f(0.0f, 0.0f, -1.0f) * -1.0f * value * speedMultiplier * inversionFactorY
                     }
                     Component.Identifier.Axis.Z -> {
                         cam.position = cam.position + Vector3f(0.0f, 1.0f, 0.0f) * value * speedMultiplier
