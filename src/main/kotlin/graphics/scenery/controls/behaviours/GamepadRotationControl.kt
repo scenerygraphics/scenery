@@ -20,6 +20,8 @@ import kotlin.reflect.KProperty
  */
 open class GamepadRotationControl(override val axis: List<Component.Identifier>,
                                   var sensitivity: Float = 1.0f,
+                                  var invertX: Boolean = false,
+                                  var invertY: Boolean = false,
                                   private val n: () -> Node?) : GamepadBehaviour {
     private var lastX: Float = 0.0f
     private var lastY: Float = 0.0f
@@ -49,6 +51,9 @@ open class GamepadRotationControl(override val axis: List<Component.Identifier>,
     /** Threshold below which the behaviour will not trigger */
     var threshold = 0.05f
 
+    private var inversionFactorX = 1.0f
+    private var inversionFactorY = 1.0f
+
     /**
      * This function is trigger upon arrival of an axis event that
      * concerns this behaviour. It takes the event's value, as well as the
@@ -64,6 +69,18 @@ open class GamepadRotationControl(override val axis: List<Component.Identifier>,
 
         if(abs(value) < threshold) {
             return
+        }
+
+        inversionFactorX = if(invertX) {
+            -1.0f
+        } else {
+            1.0f
+        }
+
+        inversionFactorY = if(invertY) {
+            -1.0f
+        } else {
+            1.0f
         }
         
         val x: Float
@@ -83,8 +100,8 @@ open class GamepadRotationControl(override val axis: List<Component.Identifier>,
             firstEntered = false
         }
 
-        val xoffset: Float = x * sensitivity
-        val yoffset: Float = y * sensitivity
+        val xoffset: Float = x * sensitivity * inversionFactorX
+        val yoffset: Float = y * sensitivity * inversionFactorY
 
         lastX = x
         lastY = y
