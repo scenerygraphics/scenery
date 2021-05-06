@@ -15,7 +15,7 @@ import kotlin.time.ExperimentalTime
  * @author Ulrik Guenther <hello@ulrik.is>
  */
 @OptIn(ExperimentalTime::class)
-open class WithCooldown(val obj: Any, cooldown: Duration, block: () -> Any) {
+open class WithCooldown(val obj: Any, cooldown: Duration, block: () -> Unit) {
     companion object {
         protected val invocations = HashSet<Any>()
     }
@@ -35,6 +35,6 @@ open class WithCooldown(val obj: Any, cooldown: Duration, block: () -> Any) {
  * [cooldown] period has passed. Use in [ClickBehaviour.click].
  */
 @OptIn(ExperimentalTime::class)
-fun ClickBehaviour.withCooldown(cooldown: Duration, block: () -> Any) {
+fun ClickBehaviour.withCooldown(cooldown: Duration, block: () -> Unit) {
     WithCooldown(this, cooldown, block)
 }
