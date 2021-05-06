@@ -4,12 +4,14 @@ import graphics.scenery.utils.Image
 import graphics.scenery.utils.LazyLogger
 import net.imagej.lut.LUTService
 import net.imglib2.display.ColorTable
+import org.joml.Vector3f
 import org.joml.Vector4f
 import org.scijava.plugin.Parameter
 import java.io.FileNotFoundException
 import java.io.IOException
 import java.io.InputStream
 import java.nio.ByteBuffer
+import java.util.*
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.roundToInt
@@ -40,8 +42,8 @@ class Colormap(val buffer: ByteBuffer, val width: Int, val height: Int) {
         (b.position(nextColor) as? ByteBuffer)?.get(color, 4, 4)
         val ub = color.toUByteArray()
 
-        val c1 = Vector4f(ub[0].toFloat()/255.0f, ub[1].toFloat()/255.0f, ub[2].toFloat()/255.0f, ub[3].toFloat()/255.0f)
-        val c2 = Vector4f(ub[4].toFloat()/255.0f, ub[5].toFloat()/255.0f, ub[6].toFloat()/255.0f, ub[7].toFloat()/255.0f)
+        val c1 = Vector4f(ub[0].toFloat() / 255.0f, ub[1].toFloat() / 255.0f, ub[2].toFloat() / 255.0f, ub[3].toFloat() / 255.0f)
+        val c2 = Vector4f(ub[4].toFloat() / 255.0f, ub[5].toFloat() / 255.0f, ub[6].toFloat() / 255.0f, ub[7].toFloat() / 255.0f)
 
         return c1.lerp(c2, bufferPosition - previous.toFloat())
     }
@@ -101,6 +103,29 @@ class Colormap(val buffer: ByteBuffer, val width: Int, val height: Int) {
         }
 
         /**
+         * Creates a color map from an imglib2 [ColorTable].
+         */
+        @JvmStatic fun fromColor(color: Vector4f): Colormap {
+            val copies = 16
+            val width = 256
+            val byteBuffer = ByteBuffer.allocateDirect(
+                4 * width * copies) // Num bytes * num components * color map length * height of color map texture
+            val tmp = ByteArray(4 * width)
+            for (i in 0 until width) {
+                tmp[4 * i + 0] = (256 - color[0] * i).toInt().toByte()
+                tmp[4 * i + 1] = (256 - color[1] * i).toInt().toByte()
+                tmp[4 * i + 2] = (256 - color[2] * i).toInt().toByte()
+                tmp[4 * i + 3] = 255.toByte()
+            }
+            for (i in 0 until copies) {
+                byteBuffer.put(tmp)
+            }
+            byteBuffer.flip()
+
+            return fromBuffer(byteBuffer, width, copies)
+        }
+
+        /**
          * Tries to load a colormap from a file. Available colormaps can be queried with [list].
          */
         @JvmStatic fun get(name: String): Colormap {
@@ -112,7 +137,7 @@ class Colormap(val buffer: ByteBuffer, val width: Int, val height: Int) {
                 } ?: throw IOException("Color map $name not found in ImageJ colormaps")
 
                 return fromColorTable(colorTable)
-            } catch(e: IOException) {
+            } catch (e: IOException) {
                 logger.debug("LUT $name not found as ImageJ colormap, trying stream")
                 logger.info("Using colormap $name from stream")
                 val resource = this::class.java.getResourceAsStream("colormap-$name.png")

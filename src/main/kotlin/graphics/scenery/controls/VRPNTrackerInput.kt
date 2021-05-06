@@ -22,7 +22,7 @@ import java.util.*
 * @author Ulrik Günther <hello@ulrik.is>
 */
 
-class VRPNTrackerInput(trackerAddress: String = "device@locahost:5500") : TrackerInput {
+class VRPNTrackerInput(trackerAddress: String = "device@localhost:5500") : TrackerInput {
     private val logger by LazyLogger()
 
     var tracker: TrackerRemote? = null

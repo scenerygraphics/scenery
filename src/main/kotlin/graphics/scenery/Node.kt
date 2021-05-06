@@ -87,6 +87,9 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
     /** Node update routine, called before updateWorld */
     var update: ArrayList<() -> Unit> = ArrayList()
 
+    /** Node update routine, called after updateWorld */
+    var postUpdate: ArrayList<() -> Unit> = ArrayList()
+
     /** World transform matrix. Will create inverse [iworld] upon modification. */
     override var world: Matrix4f by Delegates.observable(Matrix4f().identity()) { property, old, new -> propertyChanged(property, old, new) }
     /** Inverse [world] transform matrix. */
@@ -285,6 +288,8 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
         if(needsUpdateWorld) {
             needsUpdateWorld = false
         }
+
+        postUpdate.forEach { it.invoke() }
     }
 
     /**
@@ -552,6 +557,22 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
         } else {
             world.transform(Vector4f().set(target, 1.0f)).xyz()
         }
+    }
+
+    /**
+     * Extracts the scaling component from the world matrix.
+     *
+     * Is not correct for world matrices with shear!
+     *
+     * @return world scale
+     */
+    fun worldScale(): Vector3f {
+        val wm = world
+        val sx = Vector3f(wm[0,0],wm[0,1],wm[0,2]).length()
+        val sy = Vector3f(wm[1,0],wm[1,1],wm[1,2]).length()
+        val sz = Vector3f(wm[2,0],wm[2,1],wm[2,2]).length()
+
+        return Vector3f(sx,sy,sz)
     }
 
     /**

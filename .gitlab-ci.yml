@@ -25,13 +25,6 @@ unit-tests-no-gpu:
     - chmod +x gradlew
   script:
     - ./gradlew build -x dokkaHtml -x dokkaHtmlJar -x javadoc -x dokkaJavadocJar -PjvmTarget=1.8 -PsourceCompatibility=1.8
-  after_script:
-    - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then export LATEST_VERSION="$(curl -Ls https://api.bintray.com/packages/codacy/Binaries/codacy-coverage-reporter/versions/_latest | jq -r .name)"; fi
-    - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then curl -Ls -o codacy-coverage-reporter "https://dl.bintray.com/codacy/Binaries/${LATEST_VERSION}/codacy-coverage-reporter-linux"; fi
-    - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then chmod +x codacy-coverage-reporter; fi
-    - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then ./codacy-coverage-reporter report -l Kotlin -r build/reports/jacoco/test/jacocoTestReport.xml; fi
-    - bash <(curl -s https://codecov.io/bash) -c -F unittests || true
-
 
 # base job for running with GPUs
 .base-job-gpu: &base-job-gpu
@@ -66,7 +59,6 @@ scenery-nvidia:
     - nvidia-smi
     - tar cvjf results.tar.bz2 screenshots/
     - ARGOS_COMMIT=$CI_COMMIT_SHA ARGOS_BRANCH=$CI_COMMIT_REF_NAME ./node_modules/argos-cli/bin/argos upload screenshots/ --token $ARGOS_TOKEN || true
-    - bash <(curl -s https://codecov.io/bash) -c -F integrationtests || true
   tags:
     - cuda
     - intel
