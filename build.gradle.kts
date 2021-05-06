@@ -50,7 +50,7 @@ dependencies {
     implementation(sciJava.scriptingJython)
     implementation(misc.trove)
     implementation(jna.bundles.all)
-    api(platform("org.lwjgl:lwjgl-bom:3.2.3"))
+    implementation(platform("org.lwjgl:lwjgl-bom:3.2.3"))
     listOf("", "-glfw", "-jemalloc", "-vulkan", "-opengl", "-openvr", "-xxhash", "-remotery").forEach {
         if (it == "-vulkan")
             api("org.lwjgl:lwjgl$it")
