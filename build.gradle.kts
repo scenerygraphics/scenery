@@ -53,9 +53,9 @@ dependencies {
     implementation(platform("org.lwjgl:lwjgl-bom:3.2.3"))
     listOf("", "-glfw", "-jemalloc", "-vulkan", "-opengl", "-openvr", "-xxhash", "-remotery").forEach {
         if (it == "-vulkan")
-            implementation("org.lwjgl:lwjgl$it")
+            api("org.lwjgl:lwjgl$it")
         else
-            implementation("org.lwjgl:lwjgl$it", lwjglNatives)
+            api("org.lwjgl:lwjgl$it", lwjglNatives)
     }
     implementation(jackson.bundles.all)
     implementation("graphics.scenery:spirvcrossj:0.7.1-1.1.106.0", lwjglNatives)
