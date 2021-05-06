@@ -8,8 +8,11 @@ import graphics.scenery.controls.TrackedStereoGlasses
 import graphics.scenery.controls.behaviours.GamepadRotationControl
 import graphics.scenery.controls.behaviours.GamepadClickBehaviour
 import graphics.scenery.controls.behaviours.GamepadMovementControl
+import graphics.scenery.controls.behaviours.withCooldown
 import net.java.games.input.Component
 import org.joml.Vector3f
+import kotlin.time.ExperimentalTime
+import kotlin.time.milliseconds
 
 /**
  * Example for visually comparing two proteins. A gamepad can be used for navigation,
@@ -71,36 +74,39 @@ class ProteinComparisonExample: SceneryBase("Protein Comparison Example") {
         activeProtein = protein1
     }
 
+
     /**
      * Standard input setup, plus additional key bindings to
      * switch scenes.
      */
+    @OptIn(ExperimentalTime::class)
     override fun inputSetup() {
         val inputHandler = (hub.get(SceneryElement.Input) as? InputHandler) ?: return
 
         val toggleProteins = object : GamepadClickBehaviour {
             override fun click(p0: Int, p1: Int) {
-                // finds the currently active protein, un-highlights it
-                activeProtein.children.forEach {
-                    if(it is BoundingGrid) {
-                        it.gridColor = Vector3f(0.0f, 0.0f, 0.0f)
+                withCooldown(200.milliseconds) {
+                    // finds the currently active protein, un-highlights it
+                    activeProtein.children.forEach {
+                        if (it is BoundingGrid) {
+                            it.gridColor = Vector3f(0.0f, 0.0f, 0.0f)
+                        }
+                    }
+
+                    // selects the new active protein
+                    activeProtein = if (activeProtein.name == "2zzm") {
+                        scene.find("4yvj") as Mesh
+                    } else {
+                        scene.find("2zzm") as Mesh
+                    }
+
+                    // highlights the newly active protein
+                    activeProtein.children.forEach {
+                        if (it is BoundingGrid) {
+                            it.gridColor = Vector3f(1.0f, 0.0f, 0.0f)
+                        }
                     }
                 }
-
-                // selects the new active protein
-                activeProtein = if(activeProtein.name == "2zzm") {
-                    scene.find("4yvj") as Mesh
-                } else {
-                    scene.find("2zzm") as Mesh
-                }
-
-                // highlights the newly active protein
-                activeProtein.children.forEach {
-                    if(it is BoundingGrid) {
-                        it.gridColor = Vector3f(1.0f, 0.0f, 0.0f)
-                    }
-                }
-
             }
         }
 
