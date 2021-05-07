@@ -13,7 +13,7 @@ plugins {
     scenery.sign
     id("org.jetbrains.dokka") version "1.4.30"
     jacoco
-    id("sciJava.platform") version "30.0.0+14" // workaround for jitpack issue
+    id("sciJava.platform") version "30.0.0+15" // workaround for jitpack issue
 }
 
 repositories {
@@ -53,9 +53,9 @@ dependencies {
     implementation(platform("org.lwjgl:lwjgl-bom:3.2.3"))
     listOf("", "-glfw", "-jemalloc", "-vulkan", "-opengl", "-openvr", "-xxhash", "-remotery").forEach {
         if (it == "-vulkan")
-            api("org.lwjgl:lwjgl$it")
+            implementation("org.lwjgl:lwjgl$it")
         else
-            api("org.lwjgl:lwjgl$it", lwjglNatives)
+            implementation("org.lwjgl:lwjgl$it", lwjglNatives)
     }
     implementation(jackson.bundles.all)
     implementation("graphics.scenery:spirvcrossj:0.7.1-1.1.106.0", lwjglNatives)
