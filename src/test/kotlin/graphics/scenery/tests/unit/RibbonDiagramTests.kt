@@ -129,7 +129,7 @@ class RibbonDiagramTests {
     fun testMaxBoundingBox() {
         val protein = Protein.fromID("2zzw")
         val ribbon = RibbonDiagram(protein)
-        assertNotNull(ribbon.getMaximumBoundingBox().max)
+        assertNotNull(ribbon.getMaximumBoundingBox().min)
         assertNotNull(ribbon.getMaximumBoundingBox().max)
         assertEquals(ribbon.getMaximumBoundingBox().n, ribbon)
     }
