@@ -318,6 +318,7 @@ class Curve(spline: Spline, private val firstPerpendicularVector: Vector3f = Vec
             vertices.flip()
             texcoords = BufferUtils.allocateFloat(verticesVectors.size * 2)
             recalculateNormals()
+            position = Axis.getCentroid(verticesVectors)
         }
     }
 
