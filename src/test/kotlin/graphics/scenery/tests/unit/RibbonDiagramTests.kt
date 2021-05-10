@@ -4,10 +4,12 @@ import graphics.scenery.*
 import graphics.scenery.utils.LazyLogger
 import org.biojava.nbio.structure.Group
 import org.biojava.nbio.structure.secstruc.SecStrucElement
+import org.joml.Vector3f
 import org.junit.Test
 import kotlin.reflect.full.declaredMemberFunctions
 import kotlin.reflect.jvm.isAccessible
 import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
 
 /**
@@ -129,8 +131,8 @@ class RibbonDiagramTests {
     fun testMaxBoundingBox() {
         val protein = Protein.fromID("2zzw")
         val ribbon = RibbonDiagram(protein)
-        assertNotNull(ribbon.getMaximumBoundingBox().min)
-        assertNotNull(ribbon.getMaximumBoundingBox().max)
+        assertNotEquals(ribbon.getMaximumBoundingBox().min, Vector3f(0f, 0f, 0f))
+        assertNotEquals(ribbon.getMaximumBoundingBox().max, Vector3f(0f, 0f, 0f))
         assertEquals(ribbon.getMaximumBoundingBox().n, ribbon)
     }
 
