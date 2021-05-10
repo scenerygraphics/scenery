@@ -120,7 +120,18 @@ class RibbonDiagramTests {
             logger.info("Testing ${protein.structure.name} ...")
             RibbonDiagram(protein)
         }
+    }
 
+    /**
+     * Verifies that a BoundingBox for a ribbon can be created.
+     */
+    @Test
+    fun testMaxBoundingBox() {
+        val protein = Protein.fromID("2zzw")
+        val ribbon = RibbonDiagram(protein)
+        assertNotNull(ribbon.getMaximumBoundingBox().max)
+        assertNotNull(ribbon.getMaximumBoundingBox().max)
+        assertEquals(ribbon.getMaximumBoundingBox().n, ribbon)
     }
 
 }
