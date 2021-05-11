@@ -22,6 +22,12 @@ repositories {
     jcenter()
     maven("https://jitpack.io")
     maven("https://maven.scijava.org/content/groups/public")
+    // the following are staging repositories for spirvcrossj, remove when 0.8.0 is released.
+    maven {
+        url = uri("https://oss.sonatype.org/content/repositories/graphicsscenery-1209")
+        artifactUrls("https://oss.sonatype.org/content/repositories/graphicsscenery-1210")
+        artifactUrls("https://oss.sonatype.org/content/repositories/graphicsscenery-1211")
+    }
 }
 
 "kotlin"("1.4.21")
@@ -39,7 +45,7 @@ repositories {
 "lwjgl3-awt"("0.1.7")
 "msgpack-core"("0.8.20")
 "classgraph"("4.8.86")
-"spirvcrossj"("0.7.1-1.1.106.0")
+"spirvcrossj"("0.8.0-1.1.106.0")
 "reflections"("0.9.12")
 "art-dtrack-sdk"("2.6.0")
 
