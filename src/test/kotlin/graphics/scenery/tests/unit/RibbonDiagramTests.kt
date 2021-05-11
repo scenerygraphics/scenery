@@ -11,6 +11,7 @@ import kotlin.reflect.jvm.isAccessible
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 
 /**
  * This is the test for the RibbonCalculation, i.e. the pdb-support.
@@ -129,11 +130,38 @@ class RibbonDiagramTests {
      */
     @Test
     fun testMaxBoundingBox() {
+        //test min max don't become the null vector
         val protein = Protein.fromID("2zzw")
         val ribbon = RibbonDiagram(protein)
-        assertNotEquals(ribbon.getMaximumBoundingBox().min, Vector3f(0f, 0f, 0f))
-        assertNotEquals(ribbon.getMaximumBoundingBox().max, Vector3f(0f, 0f, 0f))
-        assertEquals(ribbon.getMaximumBoundingBox().n, ribbon)
+        val bb = ribbon.getMaximumBoundingBox()
+        assertNotEquals(bb.min, Vector3f(0f, 0f, 0f))
+        assertNotEquals(bb.max, Vector3f(0f, 0f, 0f))
+        assertEquals(bb.n, ribbon)
+
+
+        // check if the right BoundingBoc is created
+        val protein2 = Protein.fromID("5m9m")
+        val ribbon2 = RibbonDiagram(protein2)
+        val bb2 = ribbon2.getMaximumBoundingBox()
+        //We use ranges because the first and last guidePoint are created nondeterministically- but in the guaranteed range
+        assertTrue { 22.2 < bb2.max.x && 22.3 > bb2.max.x  }
+        assertTrue { 33.6 < bb2.max.y && 33.7 > bb2.max.y  }
+        assertTrue { 37.3 < bb2.max.z && 37.4 > bb2.max.z  }
+        assertTrue { -31.1 < bb2.min.x && -31.0 > bb2.min.x  }
+        assertTrue { -27.9 < bb2.min.y && -27.8 > bb2.min.y  }
+        assertTrue { -36.2 < bb2.min.z && -36.1 > bb2.min.z  }
+
+
+        // check once more the validity of the BoundingBox
+        val protein3 = Protein.fromID("2vr3")
+        val ribbon3 = RibbonDiagram(protein3)
+        val bb3 = ribbon3.getMaximumBoundingBox()
+        assertTrue { 22.2 < bb3.max.x && 22.3 > bb3.max.x  }
+        assertTrue { 32.2 < bb3.max.y && 32.3 > bb3.max.y  }
+        assertTrue { 45.9 < bb3.max.z && 46.0 > bb3.max.z  }
+        assertTrue { -19.7 < bb3.min.x && -19.6 > bb3.min.x  }
+        assertTrue { -28.1 < bb3.min.y && -28.0 > bb3.min.y  }
+        assertTrue { -45.1 < bb3.min.z && -45.0 > bb3.min.z  }
     }
 
 }
