@@ -26,7 +26,7 @@ class Curve(spline: Spline, private val firstPerpendicularVector: Vector3f = Vec
     private val chain = spline.splinePoints()
     private val sectionVertices = spline.verticesCountPerSection()
     private val countList = ArrayList<Int>(50).toMutableList()
-
+    val frenetFrames = computeFrenetFrames(chain as ArrayList<Vector3f>)
     /*
      * This function renders the spline.
      * [baseShape] It takes a lambda as a parameter, which is the shape of the
@@ -38,10 +38,10 @@ class Curve(spline: Spline, private val firstPerpendicularVector: Vector3f = Vec
         if (chain.isEmpty()) {
             logger.warn("The spline provided for the Curve is empty.")
         }
-        val bases = computeFrenetFrames(chain as ArrayList<Vector3f>).map { (t, n, b, tr) ->
+        val bases = frenetFrames.map { (t, n, b, tr) ->
             val inverseMatrix = Matrix3f(b.x(), n.x(), t.x(),
-                    b.y(), n.y(), t.y(),
-                    b.z(), n.z(), t.z()).invert()
+                b.y(), n.y(), t.y(),
+                b.z(), n.z(), t.z()).invert()
             val nb = Vector3f()
             inverseMatrix.getColumn(0, nb).normalize()
             val nn = Vector3f()
@@ -49,10 +49,10 @@ class Curve(spline: Spline, private val firstPerpendicularVector: Vector3f = Vec
             val nt = Vector3f()
             inverseMatrix.getColumn(2, nt).normalize()
             Matrix4f(
-                    nb.x(), nn.x(), nt.x(), 0f,
-                    nb.y(), nn.y(), nt.y(), 0f,
-                    nb.z(), nn.z(), nt.z(), 0f,
-                    tr.x(), tr.y(), tr.z(), 1f)
+                nb.x(), nn.x(), nt.x(), 0f,
+                nb.y(), nn.y(), nt.y(), 0f,
+                nb.z(), nn.z(), nt.z(), 0f,
+                tr.x(), tr.y(), tr.z(), 1f)
         }
         val baseShapes = baseShape.invoke()
 
