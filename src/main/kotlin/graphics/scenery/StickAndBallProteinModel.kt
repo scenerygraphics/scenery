@@ -11,9 +11,10 @@ import org.biojava.nbio.structure.*
  *
  * @author  Justin Buerger <burger@mpi-cbg.de>
  */
-class StickAndBallProteinModell(protein: Protein, spaceFilling: Boolean = false): Mesh("PrimaryStructure") {
+class StickAndBallProteinModell(protein: Protein, spaceFilling: Boolean = false,
+                                displayExternalMolecules: Boolean = false): Mesh("PrimaryStructure") {
     val structure = protein.structure
-    val periodicTable = PeriodicTable()
+    private val periodicTable = PeriodicTable()
 
     init {
 
@@ -42,7 +43,12 @@ class StickAndBallProteinModell(protein: Protein, spaceFilling: Boolean = false)
             atomMasters[it] = s
         }
 
-        atoms.forEach {
+        atoms.filter {
+            if(displayExternalMolecules) {
+                true
+            }
+            else { it.group.hasAminoAtoms() }
+        }.forEach {
             val element = periodicTable.findElementByNumber(it.element.atomicNumber)
             val s = Node()
             s.position = (Vector3f(it.x.toFloat(), it.y.toFloat(), it.z.toFloat()))
