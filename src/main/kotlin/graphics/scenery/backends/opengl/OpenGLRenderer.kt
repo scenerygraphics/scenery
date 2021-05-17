@@ -1394,6 +1394,12 @@ open class OpenGLRenderer(hub: Hub,
             return state
         }
 
+        val maxUpdates = parentNode.metadata["MaxInstanceUpdateCount"] as? AtomicInteger
+        if(maxUpdates?.get() ?: 1 < 1) {
+            logger.debug("Instances updates blocked for ${parentNode.name}, returning")
+            return state
+        }
+
         // first we create a fake UBO to gauge the size of the needed properties
         val ubo = OpenGLUBO()
         ubo.fromInstance(instances.first())
@@ -1532,6 +1538,7 @@ open class OpenGLRenderer(hub: Hub,
         state.instanceCount = index.get()
         logger.trace("Updated instance buffer, {parentNode.name} has {} instances.", parentNode.name, state.instanceCount)
 
+        maxUpdates?.decrementAndGet()
         return state
     }
 
