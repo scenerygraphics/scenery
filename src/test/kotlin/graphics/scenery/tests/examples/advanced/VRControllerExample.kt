@@ -53,14 +53,11 @@ class VRControllerExample : SceneryBase(VRControllerExample::class.java.simpleNa
 
         boxes.forEach { scene.addChild(it) }
 
-        (0..5).map {
-            val light = PointLight(radius = 15.0f)
-            light.emissionColor = Random.random3DVectorFromRange(0.0f, 1.0f)
-            light.position = Random.random3DVectorFromRange(-5.0f, 5.0f)
-            light.intensity = 1.0f
-
-            light
-        }.forEach { scene.addChild(it) }
+        val lights = Light.createLightTetrahedron<PointLight>(spread = 5.0f, radius = 8.0f)
+        lights.forEach {
+            it.emissionColor = Random.random3DVectorFromRange(0.0f, 1.0f)
+            scene.addChild(it)
+        }
 
         hullbox = Box(Vector3f(20.0f, 20.0f, 20.0f), insideNormals = true)
         val hullboxMaterial = Material()
@@ -94,6 +91,8 @@ class VRControllerExample : SceneryBase(VRControllerExample::class.java.simpleNa
                             boxes.filter { box -> controller.children.first().intersects(box) }.forEach { box ->
                                 box.material.diffuse = Vector3f(1.0f, 0.0f, 0.0f)
                                 box.position = (device.velocity ?: Vector3f(0.0f)) * 0.05f + box.position
+
+                                (hmd as? OpenVRHMD)?.vibrate(device)
                             }
                         }
                     }
