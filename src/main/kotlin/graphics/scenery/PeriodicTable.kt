@@ -8,7 +8,10 @@ import java.io.FileReader
 import kotlin.collections.ArrayList
 
 /**
- * Class to parse the periodic table generously provided by PubChem as a json-file (https://pubchem.ncbi.nlm.nih.gov/periodic-table/).
+ * Class to parse the periodic table generously provided by PubChem as a json-file
+ * (Kim S, Chen J, Cheng T, et al. PubChem in 2021: new data content and improved web interfaces.
+ * Nucleic Acids Res. 2021;49(D1):D1388–D1395. doi:10.1093/nar/gkaa971,
+ * https://pubchem.ncbi.nlm.nih.gov/periodic-table/).
  * We store all elements as a [ChemicalElement] and put them into the [elementList].
  */
 open class PeriodicTable {
@@ -37,7 +40,7 @@ open class PeriodicTable {
     init {
         //parsing the json file
         val mapper = jacksonObjectMapper()
-        val file = FileReader("src/main/resources/graphics/scenery/proteins/PubChemElements_all.json").readText()
+        val file = this::class.java.getResource("src/main/resources/graphics/scenery/proteins/PubChemElements_all.json").readText()
         val periodicTable = mapper.readValue(file, PeriodicTableau::class.java)
 
         //extracting the information in the right data format
@@ -60,23 +63,23 @@ open class PeriodicTable {
                 }
             }
             val element = ChemicalElement(
-            pureStringElement.cell[0].toInt(),
-            pureStringElement.cell[1],
-            pureStringElement.cell[2],
-            pureStringElement.cell[3].toFloat(),
+            atomicNumber = pureStringElement.cell[0].toInt(),
+            symbol = pureStringElement.cell[1],
+            name = pureStringElement.cell[2],
+            atomicMass = pureStringElement.cell[3].toFloat(),
             color,
-            pureStringElement.cell[5],
-            pureStringElement.cell[6].toFloatOrNull(),
-            pureStringElement.cell[7].toFloatOrNull(),
-            pureStringElement.cell[8].toFloatOrNull(),
-            pureStringElement.cell[9].toFloatOrNull(),
-            pureStringElement.cell[10],
-            pureStringElement.cell[11],
-            pureStringElement.cell[12].toFloatOrNull(),
-            pureStringElement.cell[13].toFloatOrNull(),
-            pureStringElement.cell[14].toFloatOrNull(),
-            pureStringElement.cell[15],
-            pureStringElement.cell[16]
+            electronConfiguration = pureStringElement.cell[5],
+            electroNegativity = pureStringElement.cell[6].toFloatOrNull(),
+            atomicRadius = pureStringElement.cell[7].toFloatOrNull(),
+            ionizationEnergy = pureStringElement.cell[8].toFloatOrNull(),
+            electronAffinity = pureStringElement.cell[9].toFloatOrNull(),
+            oxidationStates = pureStringElement.cell[10],
+            standardState = pureStringElement.cell[11],
+            meltingPoint = pureStringElement.cell[12].toFloatOrNull(),
+            boilingPoint = pureStringElement.cell[13].toFloatOrNull(),
+            density = pureStringElement.cell[14].toFloatOrNull(),
+            groupBlock = pureStringElement.cell[15],
+            yearDiscovered = pureStringElement.cell[16]
             )
             elementList.add(element)
         }
