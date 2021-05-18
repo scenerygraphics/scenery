@@ -69,8 +69,8 @@ dependencies {
     implementation("org.reflections:reflections:0.9.12")
     implementation("io.github.classgraph:classgraph:4.8.86")
     //TODO revert to official BVV
-    api("sc.fiji:bigdataviewer-core:10.1.1-SNAPSHOT")
-    api("sc.fiji:bigdataviewer-vistools:1.0.0-beta-26-SNAPSHOT")
+//    api("sc.fiji:bigdataviewer-core:10.1.1-SNAPSHOT")
+//    api("sc.fiji:bigdataviewer-vistools:1.0.0-beta-26-SNAPSHOT")
     api("com.github.skalarproduktraum:jogl-minimal:1c86442")
     //sciJava("sc.fiji:bigvolumeviewer")
     //    sciJava("org.lwjglx:lwjgl3-awt")
