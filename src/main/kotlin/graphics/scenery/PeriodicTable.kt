@@ -79,7 +79,7 @@ open class PeriodicTable {
             boilingPoint = pureStringElement.cell[13].toFloatOrNull(),
             density = pureStringElement.cell[14].toFloatOrNull(),
             groupBlock = pureStringElement.cell[15],
-            yearDiscovered = pureStringElement.cell[16]
+            yearDiscovered = pureStringElement.cell[16].toInt()
             )
             elementList.add(element)
         }
