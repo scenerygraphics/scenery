@@ -19,7 +19,7 @@ class RibbonExampleSecondaryStructures: SceneryBase("FlatRibbonSketch", windowWi
 
         val rowSize = 10f
 
-        val protein = Protein.fromID("2zzt")
+        val protein = Protein.fromID("6e6o")
 
         val ribbon = RibbonDiagram(protein, displaySS = true)
 

@@ -19,7 +19,7 @@ class SpaceFillingExample: SceneryBase("SpaceFillingDiagram", windowWidth = 1280
 
         val protein = Protein.fromID("2zzm")
 
-        val spaceFillingDiagram = StickAndBallProteinModell(protein, true)
+        val spaceFillingDiagram = StickAndBallProteinModel(protein, true)
 
         scene.addChild(spaceFillingDiagram)
 
