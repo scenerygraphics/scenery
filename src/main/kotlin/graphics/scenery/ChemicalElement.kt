@@ -4,7 +4,7 @@ import org.joml.Vector3f
 
 /**
  * Basic data class to store chemical elements.
- * Some parameters are nullable because we do not have the data on those elements yet.
+ * Some parameters are nullable because we do not have the data on the last elements yet.
  *
  * @author Justin Buerger <burger@mpi-cbg.de>
  */
