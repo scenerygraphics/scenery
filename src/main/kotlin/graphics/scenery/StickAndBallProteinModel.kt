@@ -11,10 +11,10 @@ import org.biojava.nbio.structure.*
  *
  * @author  Justin Buerger <burger@mpi-cbg.de>
  */
-class StickAndBallProteinModell(protein: Protein, spaceFilling: Boolean = false,
-                                displayExternalMolecules: Boolean = false): Mesh("PrimaryStructure") {
+class StickAndBallProteinModel(protein: Protein, spaceFilling: Boolean = false,
+                               displayExternalMolecules: Boolean = false): Mesh("PrimaryStructure") {
     val structure = protein.structure
-    private val periodicTable = PeriodicTable()
+    companion object PerTab private val periodicTable = PeriodicTable()
 
     init {
 
