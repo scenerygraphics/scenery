@@ -1,19 +1,20 @@
 package graphics.scenery
 
+import kotlinx.coroutines.delay
 import org.joml.Vector3f
 import org.scijava.ui.behaviour.ClickBehaviour
 
 class Rollercoaster(ribbonDiagram: RibbonDiagram, val camera: () -> Camera?): ClickBehaviour {
-    data class CameraPoint(val point: Vector3f, val tangent: Vector3f)
     val subproteins = ribbonDiagram.children
-    val listOfCameraPoints = ArrayList<CameraPoint>(subproteins.size*100)
+    val listOfCameraPoints = ArrayList<Curve.FrenetFrame>(subproteins.size*100)
+    var i = 0
 
     init {
         ribbonDiagram.children.forEach { subprotein ->
             subprotein.children.forEach{ residue ->
                 if(residue is Curve) {
                     residue.frenetFrames.forEach { frame ->
-                        listOfCameraPoints.add(CameraPoint(frame.translation, frame.tangent))
+                        listOfCameraPoints.add(frame)
                     }
                 }
 
@@ -22,13 +23,17 @@ class Rollercoaster(ribbonDiagram: RibbonDiagram, val camera: () -> Camera?): Cl
     }
 
     override fun click(x: Int, y: Int) {
-        print("herewego")
-        listOfCameraPoints.forEach {
+        if(i <= listOfCameraPoints.lastIndex) {
+            val it = listOfCameraPoints[i]
             val cam = camera.invoke()
-            cam!!.position = it.point
-            cam!!.forward = it.tangent
-            //using 25 fps or, the reverse, 40 ms per frame
-            Thread.sleep(40)
+            if (cam != null) {
+                cam.rotation.lookAlong(it.tangent, it.normal)
+                cam.position = (it.translation)
+                cam.updateWorld(true)
+            }
+            i++
         }
+        else {return }
+        //using 25 fps or, the reverse, 40 ms per frame
     }
 }
