@@ -4,7 +4,7 @@ import scenery.*
 import java.net.URL
 
 plugins {
-    val ktVersion = "1.4.31"
+    val ktVersion = "1.5.0"
     java
     kotlin("jvm") version ktVersion
     scenery.base
@@ -34,7 +34,7 @@ dependencies {
     implementation(platform(kotlin("bom")))
     implementation(kotlin("stdlib-jdk8"))
     implementation(kotlin("reflect"))
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.4.0-M1")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.5.0")
 
     implementation(jogamp.gluegen, joglNatives)
     implementation(jogamp.jogl, joglNatives)
@@ -58,12 +58,12 @@ dependencies {
             api("org.lwjgl:lwjgl$it", lwjglNatives)
     }
     implementation(jackson.bundles.all)
-    implementation("graphics.scenery:spirvcrossj:0.7.1-1.1.106.0", lwjglNatives)
+    api("graphics.scenery:spirvcrossj:0.8.0-1.1.106.0", lwjglNatives)
     implementation("org.zeromq:jeromq:0.4.3")
     implementation("com.esotericsoftware:kryo:5.0.3")
     implementation("org.msgpack:msgpack-core:0.8.20")
     implementation("org.msgpack:jackson-dataformat-msgpack:0.8.20")
-    implementation("graphics.scenery:jvrpn:1.2.0", lwjglNatives)
+    api("graphics.scenery:jvrpn:1.2.0", lwjglNatives)
     implementation(scifio.core)
     implementation("org.bytedeco:ffmpeg:4.2.1-1.5.2", ffmpegNatives)
     implementation("org.reflections:reflections:0.9.12")
