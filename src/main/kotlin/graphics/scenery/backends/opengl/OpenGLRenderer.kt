@@ -1072,20 +1072,12 @@ open class OpenGLRenderer(hub: Hub,
         logger.info("Initialized ${textureCache.size} textures")
     }
 
-    private fun Display.wantsVR(): Display? {
-        return if (settings.get("vr.Active")) {
-            this@wantsVR
-        } else {
-            null
-        }
-    }
-
     @Suppress("UNUSED_VALUE")
     @Synchronized protected fun updateDefaultUBOs(cam: Camera): Boolean {
         // sticky boolean
         var updated: Boolean by StickyBoolean(initial = false)
 
-        val hmd = hub?.getWorkingHMDDisplay()?.wantsVR()
+        val hmd = hub?.getWorkingHMDDisplay()?.wantsVR(settings)
 
         cam.view = cam.getTransformation()
 
@@ -1402,6 +1394,12 @@ open class OpenGLRenderer(hub: Hub,
             return state
         }
 
+        val maxUpdates = parentNode.metadata["MaxInstanceUpdateCount"] as? AtomicInteger
+        if(maxUpdates?.get() ?: 1 < 1) {
+            logger.debug("Instances updates blocked for ${parentNode.name}, returning")
+            return state
+        }
+
         // first we create a fake UBO to gauge the size of the needed properties
         val ubo = OpenGLUBO()
         ubo.fromInstance(instances.first())
@@ -1540,6 +1538,7 @@ open class OpenGLRenderer(hub: Hub,
         state.instanceCount = index.get()
         logger.trace("Updated instance buffer, {parentNode.name} has {} instances.", parentNode.name, state.instanceCount)
 
+        maxUpdates?.decrementAndGet()
         return state
     }
 
@@ -2082,7 +2081,7 @@ open class OpenGLRenderer(hub: Hub,
 
         // submit to OpenVR if attached
         if(hub?.getWorkingHMDDisplay()?.hasCompositor() == true && !mustRecreateFramebuffers) {
-            hub?.getWorkingHMDDisplay()?.wantsVR()?.submitToCompositor(
+            hub?.getWorkingHMDDisplay()?.wantsVR(settings)?.submitToCompositor(
                 viewportPass.output.values.first().getTextureId("Viewport"))
         }
 

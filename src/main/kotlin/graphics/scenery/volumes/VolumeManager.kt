@@ -161,11 +161,15 @@ class VolumeManager(
     // or for all VolumeManager-managed nodes?
     var renderingMethod = Volume.RenderingMethod.AlphaBlending
 
+    /** List of custom-created textures not to be cleared automatically */
+    var customTextures = arrayListOf<String>()
+
     init {
         state = State.Created
         name = "VolumeManager"
         // fake geometry
 
+        logger.info("Created new volume manager with compute=$useCompute, segments=$customSegments, bindings=$customBindings")
 
         this.geometryType = GeometryType.TRIANGLES
 
@@ -198,9 +202,16 @@ class VolumeManager(
         shaderProperties["transform"] = Matrix4f()
         shaderProperties["viewportSize"] = Vector2f()
         shaderProperties["dsp"] = Vector2f()
-        material.textures.clear()
+        val oldKeys = material.textures.filter { it.key !in customTextures }.keys
+        val texturesToKeep = material.textures.filter { it.key in customTextures }
+        oldKeys.forEach {
+            material.textures.remove(it)
+        }
 
         material = ShaderMaterial(context.factory)
+        texturesToKeep.forEach { (k, v) ->
+            material.textures[k] = v
+        }
         material.cullingMode = Material.CullingMode.None
         material.blending.transparent = true
         material.blending.sourceColorBlendFactor = Blending.BlendFactor.One
@@ -360,23 +371,6 @@ class VolumeManager(
         }
     }
 
-    private fun clearKeysAndTextures() {
-        val oldKeys = this.material.textures.keys()
-            .asSequence()
-            .filter { it.contains("_") }
-        logger.info("Removing texture keys ${oldKeys.joinToString(",")}")
-        oldKeys.map {
-            this.material.textures.remove(it)
-        }
-
-        val oldProps = this.shaderProperties.keys
-            .filter { it.contains("_x_") }
-        logger.info("Removing shader props ${oldProps.joinToString(",")}")
-        oldProps.map {
-            this.shaderProperties.remove(it)
-        }
-    }
-
     /**
      * Updates the currently-used set of blocks using [context] to
      * facilitate the updates on the GPU.
@@ -394,7 +388,16 @@ class VolumeManager(
         }
 
         val cam = nodes.firstOrNull()?.getScene()?.activeObserver ?: return false
-        val mvp = Matrix4f(cam.projection).mul(cam.getTransformation())
+        val settings = hub?.get<Settings>() ?: return false
+
+        val hmd = hub?.getWorkingHMDDisplay()?.wantsVR(settings)
+        val mvp = if(hmd != null) {
+            Matrix4f(hmd.getEyeProjection(0, cam.nearPlaneDistance, cam.farPlaneDistance))
+                .mul(cam.getTransformation())
+        } else {
+            Matrix4f(cam.projection)
+                .mul(cam.getTransformation())
+        }
 
         // TODO: original might result in NULL, is this intended?
         currentProg.use(context)
@@ -737,9 +740,16 @@ class VolumeManager(
         nodes.remove(node)
 
         val volumes = nodes.toMutableList()
-        hub?.get<VolumeManager>()?.let { hub?.remove(it) }
+        val current = hub?.get<VolumeManager>()
+        if(current != null) {
+            hub?.remove(current)
+        }
 
-        val vm = VolumeManager(hub, useCompute)
+        val vm = VolumeManager(hub, useCompute, current?.customSegments, current?.customBindings)
+        current?.customTextures?.forEach {
+            vm.customTextures.add(it)
+            vm.material.textures[it] = current.material.textures[it]!!
+        }
         volumes.forEach {
             vm.add(it)
             it.delegate = vm

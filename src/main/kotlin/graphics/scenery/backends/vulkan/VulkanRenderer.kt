@@ -1272,6 +1272,15 @@ open class VulkanRenderer(hub: Hub,
 //        vkResetFences(device.vulkanDevice, swapchain.currentFence)
         VU.run("Submit viewport render queue", { vkQueueSubmit(q, present.submitInfo, swapchain.currentFence) })
 
+        // submit to OpenVR if attached
+        if(hub?.getWorkingHMDDisplay()?.hasCompositor() == true) {
+            hub?.getWorkingHMDDisplay()?.wantsVR(settings)?.submitToCompositorVulkan(
+                window.width, window.height,
+                swapchain.format,
+                instance, device, queue,
+                swapchain.images[pass.getReadPosition()])
+        }
+
         val startPresent = System.nanoTime()
         commandBuffer.submitted = true
         swapchain.present(waitForSemaphores = present.signalSemaphore)
@@ -1280,15 +1289,6 @@ open class VulkanRenderer(hub: Hub,
         vkResetFences(device.vulkanDevice, swapchain.currentFence)
         presentationFence = swapchain.currentFence
         swapchain.postPresent(pass.getReadPosition())
-
-        // submit to OpenVR if attached
-        if(hub?.getWorkingHMDDisplay()?.hasCompositor() == true) {
-            hub?.getWorkingHMDDisplay()?.wantsVR()?.submitToCompositorVulkan(
-                window.width, window.height,
-                swapchain.format,
-                instance, device, queue,
-                swapchain.images[pass.getReadPosition()])
-        }
 
         if(textureRequests.isNotEmpty()) {
             val request = try {
@@ -1468,6 +1468,10 @@ open class VulkanRenderer(hub: Hub,
                 screenshotOverwriteExisting = false
                 screenshotRequested = false
             }
+        }
+
+        if(hub?.getWorkingHMDDisplay()?.hasCompositor() == true) {
+            hub?.getWorkingHMDDisplay()?.wantsVR(settings)?.update()
         }
 
         val presentDuration = System.nanoTime() - startPresent
@@ -1964,13 +1968,6 @@ open class VulkanRenderer(hub: Hub,
         return m
     }
 
-    private fun Display.wantsVR(): Display? {
-        return if (settings.get("vr.Active")) {
-            this@wantsVR
-        } else {
-            null
-        }
-    }
 
     private fun getDescriptorCache(): TimestampedConcurrentHashMap<String, SimpleTimestamped<Long>> {
         @Suppress("UNCHECKED_CAST")
@@ -1992,7 +1989,7 @@ open class VulkanRenderer(hub: Hub,
             return@runBlocking false
         }
 
-        val hmd = hub?.getWorkingHMDDisplay()?.wantsVR()
+        val hmd = hub?.getWorkingHMDDisplay()?.wantsVR(settings)
 
         val now = System.nanoTime()
         getDescriptorCache().forEachChanged(now = buffers.UBOs.updated) {
