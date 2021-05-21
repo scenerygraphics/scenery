@@ -940,8 +940,8 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
                 }
             }
 
-            mesh.name.toLowerCase().endsWith("stl") ||
-                mesh.name.toLowerCase().endsWith("obj") -> {
+            mesh.name.lowercase().endsWith("stl") ||
+                mesh.name.lowercase().endsWith("obj") -> {
                 mesh.readFrom(path)
 
                 if (type == TrackedDeviceType.Controller) {

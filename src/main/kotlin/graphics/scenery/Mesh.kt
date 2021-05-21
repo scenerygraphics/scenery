@@ -64,7 +64,7 @@ open class Mesh(override var name: String = "Mesh") : Node(name), HasGeometry {
      * Materials will be used, if present and [useMaterial] is true.
      */
     fun readFrom(filename: String, useMaterial: Boolean = true): Mesh {
-        return when (val ext = filename.substringAfterLast(".").toLowerCase()) {
+        return when (val ext = filename.substringAfterLast(".").lowercase()) {
             "obj" -> readFromOBJ(filename, useMaterial)
             "stl" -> readFromSTL(filename)
             else -> {

@@ -561,7 +561,7 @@ open class VulkanRenderer(hub: Hub,
 
         logger.debug("Device creation done")
 
-        if(device.deviceData.vendor.toLowerCase().contains("nvidia") && ExtractsNatives.getPlatform() == ExtractsNatives.Platform.WINDOWS) {
+        if(device.deviceData.vendor.lowercase().contains("nvidia") && ExtractsNatives.getPlatform() == ExtractsNatives.Platform.WINDOWS) {
             try {
                 gpuStats = NvidiaGPUStats()
             } catch(e: NullPointerException) {
@@ -2122,7 +2122,7 @@ open class VulkanRenderer(hub: Hub,
     @Suppress("UNUSED")
     fun toggleDebug() {
         settings.getAllSettings().forEach {
-            if (it.toLowerCase().contains("debug")) {
+            if (it.lowercase().contains("debug")) {
                 try {
                     val property = settings.get<Int>(it).toggle()
                     settings.set(it, property)

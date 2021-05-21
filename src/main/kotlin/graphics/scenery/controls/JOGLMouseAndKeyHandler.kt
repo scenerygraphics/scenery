@@ -25,11 +25,11 @@ open class JOGLMouseAndKeyHandler(var hub: Hub?) : MouseAndKeyHandlerBase(), Mou
     private var scrollSpeedMultiplier = 1.0f
 
     init {
-        os = if(System.getProperty("os.name").toLowerCase().indexOf("windows") != -1) {
+        os = if(System.getProperty("os.name").lowercase().indexOf("windows") != -1) {
             "windows"
-        } else if(System.getProperty("os.name").toLowerCase().indexOf("mac") != -1) {
+        } else if(System.getProperty("os.name").lowercase().indexOf("mac") != -1) {
             "mac"
-        } else if(System.getProperty("os.name").toLowerCase().indexOf("linux") != -1) {
+        } else if(System.getProperty("os.name").lowercase().indexOf("linux") != -1) {
             "linux"
         } else {
             "unknown"

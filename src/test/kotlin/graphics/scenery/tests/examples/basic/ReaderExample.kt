@@ -222,7 +222,7 @@ class ReaderExample : SceneryBase("ReaderExample", 1280, 720) {
      */
     private fun loadNext(forward: Boolean = true) {
         val name = loadedFilename ?: return
-        val extension = name.substringAfterLast(".").toLowerCase()
+        val extension = name.substringAfterLast(".").lowercase()
         val current = Paths.get(name)
 
         val direction = if(forward) {
