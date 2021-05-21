@@ -42,14 +42,14 @@ open class DefaultNode(override var name: String = "Node") : Node {
     override var boundingBox: OrientedBoundingBox? = null
     override val logger by LazyLogger()
 
-    private val properties = DefaultAttributesMap()
+    private val attributes = DefaultAttributesMap()
 
     private var uuid: UUID = UUID.randomUUID()
     override fun getUuid(): UUID {
         return uuid
     }
 
-    override fun getAttributes() = properties
+    override fun getAttributes() = attributes
 
     override fun addChild(child: Node) {
         child.parent = this
