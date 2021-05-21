@@ -85,7 +85,7 @@ dependencies {
             exclude("org.apache.logging.log4j", "log4j-slf4j-impl")
         }
     }
-    implementation("org.jetbrains.kotlin:kotlin-scripting-jsr223:1.4.21")
+    implementation("org.jetbrains.kotlin:kotlin-scripting-jsr223:1.5.0")
     implementation("graphics.scenery:art-dtrack-sdk:2.6.0")
 
     testImplementation(kotlin("test"))
@@ -143,6 +143,10 @@ artifacts {
         archives(dokkaJavadocJar)
         archives(dokkaHtmlJar)
     }
+}
+
+jacoco {
+    toolVersion = "0.8.7"
 }
 
 java.withSourcesJar()
