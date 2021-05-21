@@ -1,5 +1,7 @@
 package graphics.scenery
 
+import graphics.scenery.geometry.GeometryType
+
 /**
  *
  *

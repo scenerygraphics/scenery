@@ -1,5 +1,6 @@
 package graphics.scenery
 
+import graphics.scenery.geometry.GeometryType
 import org.joml.Vector3f
 
 /**

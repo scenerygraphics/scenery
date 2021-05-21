@@ -1,4 +1,4 @@
-package graphics.scenery
+package graphics.scenery.geometry
 
 import graphics.scenery.numerics.Random
 import graphics.scenery.utils.LazyLogger

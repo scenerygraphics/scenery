@@ -8,6 +8,7 @@ import graphics.scenery.controls.TrackedStereoGlasses
 import graphics.scenery.net.NodePublisher
 import graphics.scenery.net.NodeSubscriber
 import graphics.scenery.numerics.Random
+import graphics.scenery.primitives.Cone
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.volumes.Colormap
 import graphics.scenery.volumes.TransferFunction

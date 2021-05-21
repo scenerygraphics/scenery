@@ -1,4 +1,4 @@
-package graphics.scenery
+package graphics.scenery.geometry
 
 /**
  * Enum class storing the geometry type, e.g. of a [Node]

@@ -7,6 +7,8 @@ import bdv.tools.transformation.TransformedSource
 import bdv.viewer.RequestRepaint
 import bdv.viewer.state.SourceState
 import graphics.scenery.*
+import graphics.scenery.geometry.GeometryType
+import graphics.scenery.geometry.HasGeometry
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.numeric.ARGBType
 import net.imglib2.type.numeric.integer.UnsignedByteType

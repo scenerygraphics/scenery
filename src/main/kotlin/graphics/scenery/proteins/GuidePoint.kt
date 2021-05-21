@@ -1,4 +1,4 @@
-package graphics.scenery
+package graphics.scenery.proteins
 
 import org.biojava.nbio.structure.Group
 import org.biojava.nbio.structure.secstruc.SecStrucType

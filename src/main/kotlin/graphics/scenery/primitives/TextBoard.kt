@@ -1,5 +1,6 @@
-package graphics.scenery
+package graphics.scenery.primitives
 
+import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.fonts.SDFFontAtlas
 import graphics.scenery.textures.Texture
@@ -18,7 +19,8 @@ import org.joml.Vector4f
  *
  * @constructor Returns a TextBoard instance, with [fontFamily] and a declared [ShaderMaterial]
  */
-class TextBoard(font: String = "SourceSansPro-Regular.ttf", override var isBillboard: Boolean = false) : Mesh(), DisableFrustumCulling {
+class TextBoard(font: String = "SourceSansPro-Regular.ttf", override var isBillboard: Boolean = false) : Mesh(),
+    DisableFrustumCulling {
 
     /** The text displayed on this font board */
     var text: String = ""
@@ -48,14 +50,18 @@ class TextBoard(font: String = "SourceSansPro-Regular.ttf", override var isBillb
         }
 
     /** The [ShaderProperty] storing whether the font board should be renderer transparently. */
-    @ShaderProperty var transparent: Int = 1
+    @ShaderProperty
+    var transparent: Int = 1
     /** [ShaderProperty] to store the size of the used texture atlas storing the font's signed distance field */
-    @ShaderProperty var atlasSize = Vector2i(1024, 1024)
+    @ShaderProperty
+    var atlasSize = Vector2i(1024, 1024)
     /** The [ShaderProperty] storing the font's color. */
-    @ShaderProperty var fontColor: Vector4f = Vector4f(0.5f, 0.5f, 0.5f, 1.0f)
+    @ShaderProperty
+    var fontColor: Vector4f = Vector4f(0.5f, 0.5f, 0.5f, 1.0f)
     /** The [ShaderProperty] storing the background color of the font board,
      * used only if [transparent] is 0. */
-    @ShaderProperty var backgroundColor: Vector4f = Vector4f(1.0f, 1.0f, 1.0f, 1.0f)
+    @ShaderProperty
+    var backgroundColor: Vector4f = Vector4f(1.0f, 1.0f, 1.0f, 1.0f)
 
     /** Flag to indicate whether the update routine should be called by the renderer */
     private var needsPreUpdate = true

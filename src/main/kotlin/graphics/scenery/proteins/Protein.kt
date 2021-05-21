@@ -1,11 +1,17 @@
-package graphics.scenery
+package graphics.scenery.proteins
 
+import graphics.scenery.Mesh
+import graphics.scenery.proteins.Protein.MyProtein.fromFile
+import graphics.scenery.proteins.Protein.MyProtein.fromID
 import graphics.scenery.utils.LazyLogger
-import org.biojava.nbio.structure.*
+import org.biojava.nbio.structure.Structure
+import org.biojava.nbio.structure.StructureException
+import org.biojava.nbio.structure.StructureIO
 import org.biojava.nbio.structure.io.PDBFileReader
 import java.io.FileNotFoundException
 import java.io.IOException
 import java.nio.file.InvalidPathException
+
 /**
  * Constructs a protein from a pdb-file.
  * @author  Justin Buerger <burger@mpi-cbg.de>

@@ -4,6 +4,8 @@ import org.joml.*
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
+import graphics.scenery.proteins.Protein
+import graphics.scenery.proteins.RibbonDiagram
 
 /**
  * Example for the ribbon visualization. In this example each secondary structure (bends, helices and sheets) gets

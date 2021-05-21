@@ -3,6 +3,7 @@ package graphics.scenery.backends.vulkan
 import graphics.scenery.*
 import graphics.scenery.backends.*
 import graphics.scenery.backends.vulkan.VulkanDevice.VulkanObjectType.*
+import graphics.scenery.geometry.HasGeometry
 import graphics.scenery.spirvcrossj.Loader
 import graphics.scenery.spirvcrossj.libspirvcrossj
 import graphics.scenery.textures.Texture

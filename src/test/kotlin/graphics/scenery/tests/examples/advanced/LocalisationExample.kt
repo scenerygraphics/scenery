@@ -5,6 +5,7 @@ import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.TrackedStereoGlasses
 import graphics.scenery.numerics.Random
+import graphics.scenery.primitives.PointCloud
 import org.scijava.Context
 import org.scijava.ui.UIService
 import org.scijava.widget.FileWidget

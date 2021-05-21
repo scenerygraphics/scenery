@@ -1,5 +1,6 @@
 package graphics.scenery
 
+import graphics.scenery.geometry.GeometryType
 import graphics.scenery.utils.LazyLogger
 import kotlin.math.absoluteValue
 

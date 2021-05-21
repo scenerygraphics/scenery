@@ -3,10 +3,7 @@ package graphics.scenery
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
-import org.joml.Vector2f
 import org.joml.Vector3f
-import java.nio.FloatBuffer
-import java.nio.IntBuffer
 import java.util.*
 import kotlin.math.*
 
