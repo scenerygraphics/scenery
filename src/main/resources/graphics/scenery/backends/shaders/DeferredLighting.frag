@@ -232,6 +232,7 @@ bool traceScreenSpaceRay1
     float2          csZBufferSize,
     float           csZThickness,
     const in bool   csZBufferIsHyperbolic,
+    float3          clipInfo,
     float           nearPlaneZ,
     float			stride,
     float           jitterFraction,
@@ -367,7 +368,7 @@ bool traceScreenSpaceRay1
         // UNUSED
         if (csZBufferIsHyperbolic) {
 //            sceneZMax = reconstructCSZ(sceneZMax, clipInfo);
-			sceneZMax = viewFromDepth(sceneZMax, hitPixel/vec2(displayWidth, displayHeight), invProjection).z;
+			sceneZMax = viewFromDepth(sceneZMax, hitPixel, invProjection).z;
         }
     } // pixel on ray
 
@@ -422,7 +423,7 @@ bool traceScreenSpaceRay1
 
             if (csZBufferIsHyperbolic) {
 //                sceneZMax = reconstructCSZ(sceneZMax, clipInfo);
-                sceneZMax = viewFromDepth(sceneZMax, hitPixel/vec2(displayWidth, displayHeight), invProjection).z;
+                sceneZMax = viewFromDepth(sceneZMax, hitPixel, invProjection).z;
             }
         }
 
@@ -461,31 +462,18 @@ bool traceScreenSpaceRay1
 
 void main()
 {
-	mat4 viewMatrix = (vrParameters.stereoEnabled ^ 1) * ViewMatrices[0] + (vrParameters.stereoEnabled * ViewMatrices[currentEye.eye]);
+	/*mat4 viewMatrix = (vrParameters.stereoEnabled ^ 1) * ViewMatrices[0] + (vrParameters.stereoEnabled * ViewMatrices[currentEye.eye]);
     mat4 mv = viewMatrix * ubo.ModelMatrix;
     float halfW = displayWidth/2.0f;
     float halfH = displayHeight/2.0f;
-    mat4 projfix = mat4(
-    1.0f, 0.0, 0.0, 0.0f,
-    0.0f, -1.0f, 0.0f, 0.0f,
-    0.0f, 0.0f, 0.5f, 0.5f,
-    0.0f, 0.0f, 0.0f, 1.0f
-    );
-
     mat4 toPixel = mat4(
-        halfW, 0.0f, 0.0f, halfW*2.0f,
-        0, -halfH, 0.0f, halfH*2.0f,
+        halfW, 0.0f, 0.0f, halfW,
+        0, -halfH, 0.0f, halfH,
         0.0f, 0.0f, 1.0f, 0.0f,
-        0.0f, 0.0f, 0.0f, 1.0f) * projfix;
-//    mat4 toPixel = inverse(mat4(
-//        1.0f/displayWidth, 0.0f, 0.0f, -1.0f,
-//        0, 1.0f/displayHeight, 0.0f, -1.0f,
-//        0.0f, 0.0f, 1.0f, 0.0f,
-//        0.0f, 0.0f, 0.0f, 1.0f));
+        0.0f, 0.0f, 0.0f, 1.0f);
 
-
-    mat4 projectionMatrix = (vrParameters.stereoEnabled ^ 1) * ProjectionMatrix + vrParameters.stereoEnabled * vrParameters.projectionMatrices[currentEye.eye];
-	mat4 mvp = projectionMatrix*mv;
+	mat4 projectionMatrix = (vrParameters.stereoEnabled ^ 1) * ProjectionMatrix + vrParameters.stereoEnabled * vrParameters.projectionMatrices[currentEye.eye];
+	mat4 mvp = projectionMatrix*mv;*/
 
     vec2 textureCoord = gl_FragCoord.xy/vec2(displayWidth, displayHeight);
 	vec2 uv = (vrParameters.stereoEnabled ^ 1) * textureCoord + vrParameters.stereoEnabled * vec2((textureCoord.x - 0.5 * currentEye.eye) * 2.0, textureCoord.y);
@@ -531,7 +519,7 @@ void main()
 
 	if(debugLights == 1) {
         FragColor = vec4(N, 1.0);
-//        return;
+        return;
 	}
 
 	if(debugLights == 2) {
@@ -647,24 +635,25 @@ void main()
 //        }
 //    }
 
-
+/*
 	vec2 hit;
 	vec3 point;
 	vec3 debugColor;
 	int layer;
-	vec3 vsPos = viewFromDepth(Depth, textureCoord, invProjection);
+	vec3 vsPos = viewFromDepth(Depth, textureCoord);
+//	vsPos = vsPos/vsPos.w;
 
-	vec4 vsL = normalize(viewMatrix*vec4(L, 1.0f));
-//	vsL = vsL/vsL.w;
+	vec4 vsL = viewMatrix*vec4(L, 1.0f);
+	vsL = vsL/vsL.w;
 
     bool intersect = traceScreenSpaceRay1(vsPos.xyz, -1.0f * vsL.xyz,
-        projectionMatrix*toPixel, invProjection, InputZBuffer,
+        projectionMatrix, invProjection, InputZBuffer,
         vec2(displayWidth, displayHeight),
-        50.0, true, -0.1f, 1.0f, 0.1f, 10.0, 50.0,
+        0.1, true, vec3(0.0f), -0.1f, 1.0f, 3.0, 10.0, 20.0,
         hit, layer, point, debugColor);
 
 	if(intersect) {
-        lighting = vec3(0.0f);
+        lighting *= 0.1;
     }
 
 
@@ -672,6 +661,7 @@ void main()
 		lighting = vsPos.xyz;
 //		lighting = debugColor;
 	}
+	*/
 
     FragColor = vec4(lighting, 1.0);
     gl_FragDepth = Depth;
