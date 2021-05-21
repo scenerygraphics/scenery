@@ -1,5 +1,9 @@
 package graphics.scenery
 
+import graphics.scenery.attribute.material.DefaultMaterial
+import graphics.scenery.attribute.renderable.HasRenderable
+import graphics.scenery.attribute.material.HasMaterial
+import graphics.scenery.attribute.spatial.HasSpatial
 import org.joml.Vector3f
 import graphics.scenery.utils.MaybeIntersects
 import graphics.scenery.utils.extensions.plus
@@ -11,7 +15,9 @@ import kotlinx.coroutines.runBlocking
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
+import java.util.stream.Stream
 import kotlin.collections.ArrayList
+import kotlin.streams.asSequence
 
 /**
  * Scene class. A Scene is a special kind of [Node] that can only exist once per graph,
@@ -19,7 +25,7 @@ import kotlin.collections.ArrayList
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-open class Scene : Node("RootNode") {
+open class Scene : DefaultNode("RootNode"), HasRenderable, HasMaterial, HasSpatial {
 
     /** Temporary storage of the active observer ([Camera]) of the Scene. */
     var activeObserver: Camera? = null
@@ -32,6 +38,12 @@ open class Scene : Node("RootNode") {
     var onChildrenRemoved = ConcurrentHashMap<String, (Node, Node) -> Unit>()
     /** Callbacks to be called when a child is removed from the scene */
     var onNodePropertiesChanged = ConcurrentHashMap<String, (Node) -> Unit>()
+
+    init {
+        addRenderable()
+        addMaterial()
+        addSpatial()
+    }
 
     /**
      * Adds a [Node] to the Scene, at the position given by [parent]
@@ -195,15 +207,17 @@ open class Scene : Node("RootNode") {
                               ignoredObjects: List<Class<*>>,
                               debug: Boolean = false): RaycastResult {
         if (debug) {
-            val indicatorMaterial = Material()
+            val indicatorMaterial = DefaultMaterial()
             indicatorMaterial.diffuse = Vector3f(1.0f, 0.2f, 0.2f)
             indicatorMaterial.specular = Vector3f(1.0f, 0.2f, 0.2f)
             indicatorMaterial.ambient = Vector3f(0.0f, 0.0f, 0.0f)
 
             for(it in 5..50) {
                 val s = Box(Vector3f(0.08f, 0.08f, 0.08f))
-                s.material = indicatorMaterial
-                s.position = position + direction * it.toFloat()
+                s.setMaterial(indicatorMaterial)
+                s.spatial {
+                    this.position = position + direction * it.toFloat()
+                }
                 this.addChild(s)
             }
         }
@@ -223,13 +237,13 @@ open class Scene : Node("RootNode") {
         if (debug) {
             logger.info(matches.joinToString(", ") { "${it.node.name} at distance ${it.distance}" })
 
-            val m = Material()
+            val m = DefaultMaterial()
             m.diffuse = Vector3f(1.0f, 0.0f, 0.0f)
             m.specular = Vector3f(0.0f, 0.0f, 0.0f)
             m.ambient = Vector3f(0.0f, 0.0f, 0.0f)
 
             matches.firstOrNull()?.let {
-                it.node.material = m
+                it.node.setMaterial(m)
             }
         }
 
