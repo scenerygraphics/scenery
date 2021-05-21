@@ -224,8 +224,15 @@ open class Scene : DefaultNode("RootNode"), HasRenderable, HasMaterial, HasSpati
 
         val matches = this.discover(this, { node ->
             node.visible && !ignoredObjects.any{it.isAssignableFrom(node.javaClass)}
-        }).map {
-            Pair(it, it.intersectAABB(position, direction))
+        }).flatMap { (
+            if (it is InstancedNode)
+                Stream.concat(Stream.of(it as Node), it.instances.map { instanceNode -> instanceNode as Node }.stream())
+            else
+                Stream.of(it)).asSequence()
+        }.map {
+            Pair(it, it.spatialOrNull()?.intersectAABB(position, direction))
+        }.filter {
+            it.first !is InstancedNode
         }.filter {
             it.second is MaybeIntersects.Intersection && (it.second as MaybeIntersects.Intersection).distance > 0.0f
         }.map {
