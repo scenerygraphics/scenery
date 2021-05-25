@@ -198,7 +198,7 @@ open class OpenGLShaderModule(gl: GL4, entryPoint: String, sp: ShaderPackage) {
             logger.warn("Shader compilation log:")
             logger.warn(this.shader.shaderInfoLog)
 
-            if(this.shader.shaderInfoLog.toLowerCase().contains("error")) {
+            if(this.shader.shaderInfoLog.lowercase().contains("error")) {
                 logger.error("Shader code follows:")
                 logger.error("--------------------\n$source")
             }
