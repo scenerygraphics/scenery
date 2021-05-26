@@ -439,6 +439,8 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
             return
         }
 
+        VRCompositor_WaitGetPoses(hmdTrackedDevicePoses, gamePoses)
+
         for (device in (0 until k_unMaxTrackedDeviceCount)) {
             val isValid = hmdTrackedDevicePoses.get(device).bPoseIsValid()
 
@@ -687,9 +689,7 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
     override fun submitToCompositorVulkan(width: Int, height: Int, format: Int,
                                           instance: VkInstance, device: VulkanDevice,
                                           queue: VkQueue, image: Long) {
-        VRCompositor_WaitGetPoses(hmdTrackedDevicePoses, gamePoses)
-
-        update()
+//        update()
         if (disableSubmission || !readyForSubmission) {
             return
         }
@@ -940,8 +940,8 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
                 }
             }
 
-            mesh.name.toLowerCase().endsWith("stl") ||
-                mesh.name.toLowerCase().endsWith("obj") -> {
+            mesh.name.lowercase().endsWith("stl") ||
+                mesh.name.lowercase().endsWith("obj") -> {
                 mesh.readFrom(path)
 
                 if (type == TrackedDeviceType.Controller) {

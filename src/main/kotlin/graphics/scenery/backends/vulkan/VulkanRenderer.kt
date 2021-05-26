@@ -567,7 +567,7 @@ open class VulkanRenderer(hub: Hub,
 
         logger.debug("Device creation done")
 
-        if(device.deviceData.vendor.toLowerCase().contains("nvidia") && ExtractsNatives.getPlatform() == ExtractsNatives.Platform.WINDOWS) {
+        if(device.deviceData.vendor.lowercase().contains("nvidia") && ExtractsNatives.getPlatform() == ExtractsNatives.Platform.WINDOWS) {
             try {
                 gpuStats = NvidiaGPUStats()
             } catch(e: NullPointerException) {
@@ -1377,15 +1377,6 @@ open class VulkanRenderer(hub: Hub,
 //        vkResetFences(device.vulkanDevice, swapchain.currentFence)
         VU.run("Submit viewport render queue", { vkQueueSubmit(q, present.submitInfo, swapchain.currentFence) })
 
-        val startPresent = System.nanoTime()
-        commandBuffer.submitted = true
-        swapchain.present(waitForSemaphores = present.signalSemaphore)
-
-        vkWaitForFences(device.vulkanDevice, swapchain.currentFence, true, -1L)
-        vkResetFences(device.vulkanDevice, swapchain.currentFence)
-        presentationFence = swapchain.currentFence
-        swapchain.postPresent(pass.getReadPosition())
-
         // submit to OpenVR if attached
         if(hub?.getWorkingHMDDisplay()?.hasCompositor() == true) {
             hub?.getWorkingHMDDisplay()?.wantsVR(settings)?.submitToCompositorVulkan(
@@ -1394,6 +1385,15 @@ open class VulkanRenderer(hub: Hub,
                 instance, device, queue,
                 swapchain.images[pass.getReadPosition()])
         }
+
+        val startPresent = System.nanoTime()
+        commandBuffer.submitted = true
+        swapchain.present(waitForSemaphores = present.signalSemaphore)
+
+        vkWaitForFences(device.vulkanDevice, swapchain.currentFence, true, -1L)
+        vkResetFences(device.vulkanDevice, swapchain.currentFence)
+        presentationFence = swapchain.currentFence
+        swapchain.postPresent(pass.getReadPosition())
 
         if(textureRequests.isNotEmpty()) {
             val request = try {
@@ -1573,6 +1573,10 @@ open class VulkanRenderer(hub: Hub,
                 screenshotOverwriteExisting = false
                 screenshotRequested = false
             }
+        }
+
+        if(hub?.getWorkingHMDDisplay()?.hasCompositor() == true) {
+            hub?.getWorkingHMDDisplay()?.wantsVR(settings)?.update()
         }
 
         val presentDuration = System.nanoTime() - startPresent
@@ -2223,7 +2227,7 @@ open class VulkanRenderer(hub: Hub,
     @Suppress("UNUSED")
     fun toggleDebug() {
         settings.getAllSettings().forEach {
-            if (it.toLowerCase().contains("debug")) {
+            if (it.lowercase().contains("debug")) {
                 try {
                     val property = settings.get<Int>(it).toggle()
                     settings.set(it, property)

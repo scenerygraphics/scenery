@@ -47,7 +47,7 @@ sealed class Shaders {
                            val clazz: Class<*> = Renderer::class.java) : Shaders() {
         init {
             type.addAll(shaders.map {
-                val extension = it.toLowerCase().substringBeforeLast(".spv").substringAfterLast(".").trim()
+                val extension = it.lowercase().substringBeforeLast(".spv").substringAfterLast(".").trim()
                 when(extension) {
                     "vert" -> ShaderType.VertexShader
                     "frag" -> ShaderType.FragmentShader

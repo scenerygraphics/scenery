@@ -129,11 +129,11 @@ open class GLFWMouseAndKeyHandler(var hub: Hub?) : MouseAndKeyHandlerBase(), Aut
     }
 
     init {
-        os = if (System.getProperty("os.name").toLowerCase().indexOf("windows") != -1) {
+        os = if (System.getProperty("os.name").lowercase().indexOf("windows") != -1) {
             "windows"
-        } else if (System.getProperty("os.name").toLowerCase().indexOf("mac") != -1) {
+        } else if (System.getProperty("os.name").lowercase().indexOf("mac") != -1) {
             "mac"
-        } else if (System.getProperty("os.name").toLowerCase().indexOf("linux") != -1) {
+        } else if (System.getProperty("os.name").lowercase().indexOf("linux") != -1) {
             "linux"
         } else {
             "unknown"
