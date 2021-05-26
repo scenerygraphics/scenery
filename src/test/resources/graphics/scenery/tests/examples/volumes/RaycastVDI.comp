@@ -1,3 +1,10 @@
+#version 450
+#define USE_PRINTF 1
+
+#if USE_PRINTF
+#extension GL_EXT_debug_printf : enable
+#endif
+
 //uniform vec2 viewportSize;
 //uniform vec2 dsp;
 //uniform float fwnw;
@@ -193,7 +200,7 @@ void main()
     int numSupersegments = imageSize(InputVDI).r/3;
     numSupersegments = 20;
 
-    mat4 ipv = InverseViewMatrices[0] * InverseProjectionMatrix;
+    highp mat4 ipv = InverseViewMatrices[0] * InverseProjectionMatrix;
 
     mat4 ViewOriginal = mat4(-8.678E-1,  1.038E-4, -4.969E-1,  2.299E+0,
     1.169E-1,  9.720E-1, -2.040E-1, -1.380E+0,
@@ -221,7 +228,7 @@ void main()
 
 //    ipv = inverse(ViewOriginal) * inverse(ProjectionOriginal);
 
-    mat4 pv_orig = ProjectionOriginal * ViewOriginal;
+    highp mat4 pv_orig = ProjectionOriginal * ViewOriginal;
 //    mat4 ivp_orig = inverse(ViewOriginal) * inverse(ProjectionOriginal);
     mat4 ivp_orig = invViewOriginal * invProjectionOriginal;
 
@@ -231,14 +238,19 @@ void main()
     depthUV = depthUV * 2.0 - vec2(1.0);
 
     // NDC of frag on near and far plane
-    vec4 front = vec4( uv, -1, 1 );
+    highp vec4 front = vec4( uv, -1, 1 );
     vec4 back = vec4( uv, 1, 1 );
 
     // calculate eye ray in world space
-    vec4 wfront = ipv * front;
-    wfront *= 1 / wfront.w;
+    highp vec4 wfront = ipv * front;
+    wfront *= 1.0 / wfront.w;
     vec4 wback = ipv * back;
     wback *= 1 / wback.w;
+
+    highp vec4 front_orig = pv_orig * wfront; // start point of ray in NDC coordinates of original viewpoint
+    front_orig *= 1.0 / front_orig.w;
+    vec4 back_orig = pv_orig * wback; // end point of ray in NDC coordinates of original viewpoint
+    back_orig *= 1 / back_orig.w;
 
     // -- bounding box intersection for all volumes ----------
     float tnear = 1, tfar = 0, tmax = 0; //getMaxDepth( depthUV );
@@ -248,6 +260,8 @@ void main()
     bool vis = false;
 //    bool vis_x_6_x_ = true;
     intersectBoundingBox_x_11_x_( wfront, wback, n, f );
+//    tnear = 0;
+//    tfar = 1;
 //    f = min( tmax, f );
     if ( n < f )
     {
@@ -271,24 +285,42 @@ void main()
 
         int numSteps = 250;
         float dist = (tfar - tnear) / float(numSteps);
+        dist = dist/10.;
         int prevX = -1, prevY = -1, depth = -1;
         bool firstSample = true;
         vec4 start_sample = vec4(-1);
         float supseg_start = 0, supseg_end = 0;
         float depthStart = 0, depthEnd = 0;
         vec4 supseg_col = vec4(0);
-        for ( int i = 0; i < numSteps; ++i, step += dist )
+        int i;
+        for ( i = 0; i < numSteps; ++i, step += dist )
         {
+            if(i>45) break;
+            if(step > tfar) {
+                #if USE_PRINTF
+                if(gl_GlobalInvocationID.xy == vec2(300, 300)) {
+                    debugPrintfEXT("Breaking out because ray has been traversed. Number of steps: %d", i);
+                }
+                #endif
+                break;
+            }
+
             vec4 wpos = mix( wfront, wback, step );
+            if(wfront.x == wback.x) {
+                v = vec4(1);
+                break;
+            }
+//            v = wpos;
 
             //For this sample point, calculate ray number from original VDI
             vec4 NDC_orig = pv_orig * wpos;
+            vec4 beforePers = NDC_orig;
             NDC_orig *= 1/NDC_orig.w; //TODO: check
 
-            if(NDC_orig.x < -1 || NDC_orig.x > 1 || NDC_orig.y < -1 || NDC_orig.y > 1)
+            if(NDC_orig.x < -1 || NDC_orig.x > 1 || NDC_orig.y < -1 || NDC_orig.y > 1 || NDC_orig.z < -1 || NDC_orig.z > 1)
             {
 //                v = vec4(1, 0, 0, 1);
-                continue; // This ray misses the VDI
+                continue; // This sample point is not in the original viewport and therefore cannot be in the VDI, continue onto the next sample point
             }
 
             vec2 tex_orig = (NDC_orig.xy + 1) / 2.0;
@@ -296,11 +328,53 @@ void main()
             ivec2 invoc_orig;
             invoc_orig.x = int(round(tex_orig.x * 600)); //TODO: verify that this is correct
             invoc_orig.y = int(round(tex_orig.y * 600)); //TODO: verify that this is correct
+
+//            if(i == 10) {
+//                v = wpos;
+//                break;
+//            }
+//            v.r = i/100.0;
+
+//            if(gl_GlobalInvocationID.xy == vec2(1, 1)) {
+//                debugPrintfEXT("wfront is: %f %f %f %f", wfront.r, wfront.g, wfront.b, wfront.a);
+//                debugPrintfEXT("wback is: %f %f %f %f", wback.r, wback.g, wback.b, wback.a);
+//                debugPrintfEXT("wpos is: %f %f %f %f", wpos.r, wpos.g, wpos.b, wpos.a);
+//                debugPrintfEXT("invoc orig is: %d %d", invoc_orig);
+//                debugPrintfEXT("NDC orig before perspective is: %f %f %f %f", beforePers);
+//                debugPrintfEXT("NDC orig is: %f %f %f %f", NDC_orig);
 //
+//                debugPrintfEXT("Projection original first row is: %f %f %f %f", ProjectionOriginal[0]);
+//                debugPrintfEXT("Projection original second row is: %f %f %f %f", ProjectionOriginal[1]);
+//                debugPrintfEXT("Projection original third row is: %f %f %f %f", ProjectionOriginal[2]);
+//                debugPrintfEXT("Projection original fourth row is: %f %f %f %f", ProjectionOriginal[3]);
+//
+//                debugPrintfEXT("View original first row is: %f %f %f %f", ViewOriginal[0]);
+//                debugPrintfEXT("View original second row is: %f %f %f %f", ViewOriginal[1]);
+//                debugPrintfEXT("View original third row is: %f %f %f %f", ViewOriginal[2]);
+//                debugPrintfEXT("View original fourth row is: %f %f %f %f", ViewOriginal[3]);
+//
+//                pv_orig = mat4(0);
+//                pv_orig = ProjectionOriginal * ViewOriginal;
+////                pv_orig[0][2] = 0;
+//
+//                debugPrintfEXT("PV orig first row is: %f %f %f %f", pv_orig[0]);
+//                debugPrintfEXT("PV orig second row is: %f %f %f %f", pv_orig[1]);
+//                debugPrintfEXT("PV orig third row is: %f %f %f %f", pv_orig[2]);
+//                debugPrintfEXT("PV orig fourth row is: %f %f %f %f", pv_orig[3]);
+//
+//
+//            }
+
+//            v.r = tex_orig.x;
 //            v.r = invoc_orig.x/600.0;
 //            v.g = invoc_orig.y/600.0;
+//            v.g = tex_orig.y;
 //            v.b = 0;
 //            v.a = 1;
+//
+////            v = wpos;
+////            v= NDC_orig;
+//            break;
 
             //Now we know which supersegment list to search
 
@@ -349,6 +423,101 @@ void main()
                     prevX = invoc_orig.x;
                     prevY = invoc_orig.y;
                     depth = j;
+
+                    vec2 low_ = invoc_orig - 0.5;
+                    vec2 high_ = invoc_orig + 0.5;
+
+                    vec2 tex_min = low_/vec2(600, 600);
+                    vec2 tex_max = high_/vec2(600, 600);
+
+                    vec2 uv_min = tex_min * 2.0 - vec2(1.0);
+                    vec2 uv_max = tex_max * 2.0 - vec2(1.0);
+
+                    vec4 a = mix(wfront_orig, wback_orig, supseg_start);
+                    vec4 b = mix(wfront_orig, wback_orig, supseg_end);
+
+                    vec4 a_ = pv_orig * a;
+                    a_ *= 1 / a_.w;
+                    vec4 b_ = pv_orig * b;
+                    b_ *= 1 / b_.w;
+
+                    float start_depth = mix(vec3(uv_min, -1), vec3(uv_min, 1), supseg_start).z;
+                    float end_depth = mix(vec3(uv_max, -1), vec3(uv_max, 1), supseg_end).z;
+
+                    float p1, p2;
+                    front_orig = vec4(0, 0, -1, 1);
+//                    intersectBox( front_orig.xyz, vec3(0.0001, 0.0001, 2), vec3( uv_min, a_.z ),
+//                        vec3( uv_max, b_.z ), p1, p2 );
+
+                    intersectBox( front_orig.xyz, (back_orig - front_orig).xyz, vec3( uv_min, a_.z ),
+                        vec3( uv_max, b_.z ), p1, p2 );
+
+                    //step along the ray in NDC space till the end of the supersegment
+//                    vec4 end_point = vec4(front_orig.xyz + vec3(0.0001, 0.0001, 2)*p2, 1);
+                    vec4 end_point = vec4(front_orig.xyz + (back_orig - front_orig).xyz*p2, 1);
+
+
+
+//                    vec4 next_pos = mix(front_orig, back_orig, p2);
+//                    next_pos *= 1/next_pos.w;
+
+//                    vec4 wpos_next = ivp_orig * next_pos;
+//                    wpos_next *= 1 / wpos_next.w;
+
+                    vec4 wpos_next = ivp_orig * end_point;
+                    wpos_next *= 1 / wpos_next.w;
+
+                    float length_in_supseg = distance(wpos_next, wpos)/distance(wfront, wback);
+
+                    float temp = supseg_end - supseg_start;
+
+                    float step_temp = step + temp;
+
+                    vec4 wnext_temp = mix(wfront, wback, step_temp);
+
+//                    vec4 ndc_next_temp = pv_orig * wnext_temp;
+//                    ndc_next_temp *= 1 / ndc_next_temp.w;
+
+//                    vec4 wnext_again = ivp_orig * ndc_next_temp;
+//                    wnext_again *= 1 / wnext_again.w;
+//
+//                    vec4 ndc_front_temp = pv_orig * wfront;
+//                    ndc_front_temp *= 1 / ndc_front_temp.w;
+//
+//                    vec4 ndc_back_temp = pv_orig * wback;
+//                    ndc_back_temp *= 1 / ndc_back_temp.w;
+//
+//                    mat4 tempMat = pv_orig * ivp_orig;
+
+
+                    #if USE_PRINTF
+                    if(gl_GlobalInvocationID.xy == vec2(300, 300)) {
+                        debugPrintfEXT("Calculated length is: %f while actual length is %f", length_in_supseg, temp);
+//                        debugPrintfEXT("Next pos in original NDC: (%f, %f, %f) and near and far are %f and %f", next_pos.xyz, p1, p2);
+//                        debugPrintfEXT("Actual next pt in original NDC should be: (%f, %f, %f), because step length was %f", ndc_next_temp.xyz, step_temp);
+//                        debugPrintfEXT("wfront is: (%f, %f, %f, %f), wback is: (%f, %f, %f, %f) and wnext is: (%f, %f, %f, %f)", wfront, wback, wnext_temp);
+//                        debugPrintfEXT("NDC front recalculated is: (%f, %f, %f) and back is (%f, %f, %f)", ndc_front_temp.xyz, ndc_back_temp.xyz);
+//                        debugPrintfEXT("WNext Again is: (%f, %f, %f)", wnext_again.xyz);
+//                        debugPrintfEXT("a_ is: (%f, %f, %f)", a_.xyz);
+//                        debugPrintfEXT("b_ is: (%f, %f, %f)", b_.xyz);
+
+                        debugPrintfEXT("Calculated next pos is: (%f, %f, %f)", wpos_next.xyz);
+                        debugPrintfEXT("Actual next pos is: (%f, %f, %f)", wnext_temp.xyz);
+
+
+//
+//                        debugPrintfEXT("End points of supersegment are: %f and %f . In NDC, they are %f and %f", supseg_start, supseg_end, start_depth, end_depth);
+//                        debugPrintfEXT("Ray origin is: (%f, %f, %f) and ray direction is (%f, %f, %f)", front_orig.xyz, (back_orig - front_orig).xyz);
+//                        debugPrintfEXT("Box min point is: (%f, %f, %f) and max point is (%f, %f, %f)",
+//                                vec3( uv_min, start_depth ),
+//                                vec3( uv_max, end_depth ));
+
+
+
+                    }
+                    #endif
+
+                    step += length_in_supseg;
                 }
             } else {
                 if(invoc_orig.x == prevX && invoc_orig.y == prevY && j == depth && supseg_found)
@@ -371,12 +540,22 @@ void main()
                         prevX = invoc_orig.x;
                         prevY = invoc_orig.y;
                         depth = j;
+
+                        float length_in_supseg = supseg_end - supseg_start;
+                        step += length_in_supseg;
                     } else {
                         firstSample = true;
+//                        step += dist;
                     }
                 }
             }
         }
+        #if USE_PRINTF
+        if(gl_GlobalInvocationID.xy == vec2(300, 300)) {
+            debugPrintfEXT("Number of steps taken is: %d", i);
+        }
+        #endif
+
     }
 
     imageStore(OutputViewport, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), v);
