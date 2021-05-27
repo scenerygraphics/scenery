@@ -27,6 +27,7 @@ import org.scijava.ui.behaviour.Behaviour
 import org.scijava.ui.behaviour.ClickBehaviour
 import java.lang.Boolean.parseBoolean
 import java.lang.management.ManagementFactory
+import java.net.URL
 import java.nio.file.Paths
 import java.util.*
 import java.util.concurrent.CountDownLatch
@@ -592,6 +593,15 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
                 logger.debug("Running XInitThreads")
                 XLib.INSTANCE.XInitThreads()
                 xinitThreadsCalled = true
+            }
+        }
+
+        @JvmStatic fun URL.sanitizedPath(): String {
+            // cuts off the initial / on Windows
+            return if(Platform.get() == Platform.WINDOWS) {
+                this.path.substringAfter("/")
+            } else {
+                this.path
             }
         }
     }

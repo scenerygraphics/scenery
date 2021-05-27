@@ -14,6 +14,7 @@ import graphics.scenery.backends.vulkan.VulkanTexture
 import graphics.scenery.backends.vulkan.endCommandBuffer
 import graphics.scenery.utils.JsonDeserialisers
 import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.Statistics
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import org.joml.*
@@ -438,12 +439,13 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
             return
         }
 
+        VRCompositor_WaitGetPoses(hmdTrackedDevicePoses, gamePoses)
+
         for (device in (0 until k_unMaxTrackedDeviceCount)) {
             val isValid = hmdTrackedDevicePoses.get(device).bPoseIsValid()
 
             if (isValid) {
-                val trackedDevice = VRSystem_GetTrackedDeviceClass(device)
-                val type = when (trackedDevice) {
+                val type = when (VRSystem_GetTrackedDeviceClass(device)) {
                     ETrackedDeviceClass_TrackedDeviceClass_Controller -> TrackedDeviceType.Controller
                     ETrackedDeviceClass_TrackedDeviceClass_HMD -> TrackedDeviceType.HMD
                     ETrackedDeviceClass_TrackedDeviceClass_TrackingReference -> TrackedDeviceType.BaseStation
@@ -589,6 +591,29 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
                 inputHandler.keyPressed(e.first)
             }
         }
+
+        hub?.get<Statistics>()?.let { stats ->
+            val timing = CompositorFrameTiming.calloc(1)
+            if(VRCompositor_GetFrameTiming(timing)) {
+                stats.add("OpenVR.NumFramePresents", timing.m_nNumFramePresents(), false)
+                stats.add("OpenVR.NumFrameMisPresents", timing.m_nNumMisPresented(), false)
+                stats.add("OpenVR.NumDroppedFrames", timing.m_nNumDroppedFrames(), false)
+
+                stats.add("OpenVR.SystemTimeInSeconds", timing.m_flSystemTimeInSeconds())
+                stats.add("OpenVR.PreSubmitGPUTime", timing.m_flPreSubmitGpuMs())
+                stats.add("OpenVR.PostSubmitGPUTime", timing.m_flPostSubmitGpuMs())
+                stats.add("OpenVR.TotalRenderGPUTime", timing.m_flTotalRenderGpuMs())
+                stats.add("OpenVR.CompositorRenderGPUTime", timing.m_flCompositorRenderGpuMs())
+                stats.add("OpenVR.CompositorRenderCPUTime", timing.m_flCompositorRenderCpuMs())
+                stats.add("OpenVR.FrameInterval", timing.m_flClientFrameIntervalMs())
+                stats.add("OpenVR.TimeCPUBlockedForPresent", timing.m_flPresentCallCpuMs())
+                stats.add("OpenVR.TimeCPUWaitForPresent", timing.m_flWaitForPresentCpuMs())
+                stats.add("OpenVR.TimeSpentForSubmit", timing.m_flSubmitFrameMs())
+            }
+
+            timing.free()
+        }
+
         readyForSubmission = true
     }
 
@@ -662,7 +687,7 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
     override fun submitToCompositorVulkan(width: Int, height: Int, format: Int,
                                           instance: VkInstance, device: VulkanDevice,
                                           queue: VkQueue, image: Long) {
-        update()
+//        update()
         if (disableSubmission || !readyForSubmission) {
             return
         }
@@ -740,7 +765,11 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
                 endCommandBuffer(device, commandPool, queue, true, true)
             }
         }
-        VRCompositor_WaitGetPoses(hmdTrackedDevicePoses, gamePoses)
+    }
+
+    fun vibrate(controller: TrackedDevice, duration: Int = 1000) {
+        val id = controller.name.substringAfterLast("-").toInt()
+        VRSystem_TriggerHapticPulse(id, 0, duration.toShort())
     }
 
 
@@ -909,8 +938,8 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
                 }
             }
 
-            mesh.name.toLowerCase().endsWith("stl") ||
-                mesh.name.toLowerCase().endsWith("obj") -> {
+            mesh.name.lowercase().endsWith("stl") ||
+                mesh.name.lowercase().endsWith("obj") -> {
                 mesh.readFrom(path)
 
                 if (type == TrackedDeviceType.Controller) {

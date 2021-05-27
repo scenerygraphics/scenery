@@ -114,7 +114,7 @@ class ScreenConfig {
         @JvmStatic fun getScreen(config: Config): SingleScreenConfig? {
             for ((_, screen) in config.screens) {
                 if (screen.match.type == ScreenMatcherType.Hostname) {
-                    if (getHostname().toLowerCase() == screen.match.value) {
+                    if (getHostname().lowercase() == screen.match.value) {
                         return screen
                     }
                 }

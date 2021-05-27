@@ -162,7 +162,7 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
     init {
         name = "Volume"
 
-        when(dataSource) {
+        when (dataSource) {
             is SpimDataMinimalSource -> {
                 val spimData = dataSource.spimData
 
@@ -188,7 +188,7 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
                 // FIXME: bigdataviewer-core > 9.0.0 doesn't enjoy having 0 timepoints anymore :-(
                 // We tell it here to have a least one, so far no ill side effects from that
                 viewerState = ViewerState(dataSource.sources, max(1, timepointCount))
-                converterSetups.addAll( dataSource.converterSetups )
+                converterSetups.addAll(dataSource.converterSetups)
             }
 
             is VolumeDataSource.NullSource -> {
@@ -200,7 +200,7 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
         viewerState.sources.forEach { s -> s.isActive = true }
         viewerState.displayMode = DisplayMode.FUSED
 
-        if(dataSource !is VolumeDataSource.NullSource) {
+        if (dataSource !is VolumeDataSource.NullSource) {
             converterSetups.forEach {
                 it.color = ARGBType(Int.MAX_VALUE)
             }
@@ -213,7 +213,15 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
                 hub.remove(vm)
             }
 
-            volumeManager = hub.add(VolumeManager(hub))
+            volumeManager = if (vm != null) {
+                hub.add(VolumeManager(hub, vm.useCompute, vm.customSegments, vm.customBindings))
+            } else {
+                hub.add(VolumeManager(hub))
+            }
+            vm?.customTextures?.forEach {
+                volumeManager.customTextures.add(it)
+                volumeManager.material.textures[it] = vm.material.textures[it]!!
+            }
             volumeManager.add(this)
             volumes.forEach {
                 volumeManager.add(it)

@@ -27,7 +27,7 @@ class LogbackUtils {
          */
         @JvmStatic fun setLogLevel(name: String?, logLevel: String?): Boolean {
             var loggerName = name
-            val logLevelUpper = logLevel?.toUpperCase() ?: "OFF"
+            val logLevelUpper = logLevel?.uppercase() ?: "OFF"
 
             try {
                 // TODO: Check deprecation warning again, esp with respect to JPMS
