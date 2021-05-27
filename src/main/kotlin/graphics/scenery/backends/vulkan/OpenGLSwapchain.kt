@@ -8,7 +8,6 @@ import com.sun.jna.platform.win32.WinDef
 import graphics.scenery.Hub
 import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.backends.SceneryWindow
-import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.SceneryPanel
 import org.lwjgl.PointerBuffer
 import org.lwjgl.glfw.GLFW.*
@@ -450,8 +449,8 @@ class OpenGLSwapchain(device: VulkanDevice,
             val hmd = hub.getWorkingHMDDisplay()
 
             if (hmd != null) {
-                window.width = hmd.getRenderTargetSize().x().toInt() / 2
-                window.height = hmd.getRenderTargetSize().y().toInt()
+                window.width = hmd.getRenderTargetSize().x() / 2
+                window.height = hmd.getRenderTargetSize().y()
                 logger.info("Set fullscreen window dimensions to ${window.width}x${window.height}")
             }
 

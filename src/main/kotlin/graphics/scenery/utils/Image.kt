@@ -53,7 +53,7 @@ open class Image(val contents: ByteBuffer, val width: Int, val height: Int, val 
             val pixels: IntArray
             val buffer: ByteArray
 
-            if (extension.toLowerCase().endsWith("tga")) {
+            if (extension.lowercase().endsWith("tga")) {
                 try {
                     val reader = BufferedInputStream(stream)
                     buffer = ByteArray(stream.available())
@@ -103,7 +103,7 @@ open class Image(val contents: ByteBuffer, val width: Int, val height: Int, val 
          * [path] is expected to end in an extension (e.g., ".png"), such that the file type can be determined.
          */
         @JvmStatic fun fromResource(path: String, baseClass: Class<*>): Image {
-            return fromStream(baseClass.getResourceAsStream(path), path.substringAfterLast(".").toLowerCase())
+            return fromStream(baseClass.getResourceAsStream(path), path.substringAfterLast(".").lowercase())
         }
 
         /**
