@@ -25,7 +25,6 @@ repositories {
 }
 
 dependencies {
-
     // we cant use a platform because of a jitpack issue, we apply the dependencies constraints via
     // the sciJava.platform plugin above in the `plugins {}` scope
 //    implementation(platform("sciJava:platform:30.0.0+6"))
@@ -150,3 +149,11 @@ jacoco {
 }
 
 java.withSourcesJar()
+
+// disable Gradle metadata file creation on Jitpack, as jitpack modifies
+// the metadata file, resulting in broken metadata with missing native dependencies.
+if(System.getenv("JITPACK") != null) {
+    tasks.withType<GenerateModuleMetadata> {
+        enabled = false
+    }
+}
