@@ -21,6 +21,10 @@ import kotlin.math.roundToInt
  */
 class Colormap(val buffer: ByteBuffer, val width: Int, val height: Int) {
 
+    private constructor() : this(ByteBuffer.allocate(0), 0, 0) {
+
+    }
+
     /**
      * Returns the value of the colormap, sampled at [position].
      */
@@ -73,7 +77,7 @@ class Colormap(val buffer: ByteBuffer, val width: Int, val height: Int) {
          */
         @JvmStatic fun fromStream(stream: InputStream, extension: String): Colormap {
             val image = Image.fromStream(stream, extension)
-            logger.info("Read image from $stream with ${image.contents.remaining()} bytes, size=${image.width}x${image.height}")
+            logger.debug("Read image from $stream with ${image.contents.remaining()} bytes, size=${image.width}x${image.height}")
             return Colormap(image.contents, image.width, image.height)
         }
 
@@ -98,7 +102,7 @@ class Colormap(val buffer: ByteBuffer, val width: Int, val height: Int) {
             }
             byteBuffer.flip()
 
-            logger.info("Using ImageJ colormap $colorTable with size ${colorTable.length}x$copies")
+            logger.debug("Using ImageJ colormap $colorTable with size ${colorTable.length}x$copies")
             return fromBuffer(byteBuffer, colorTable.length, copies)
         }
 
@@ -139,7 +143,7 @@ class Colormap(val buffer: ByteBuffer, val width: Int, val height: Int) {
                 return fromColorTable(colorTable)
             } catch (e: IOException) {
                 logger.debug("LUT $name not found as ImageJ colormap, trying stream")
-                logger.info("Using colormap $name from stream")
+                logger.debug("Using colormap $name from stream")
                 val resource = this::class.java.getResourceAsStream("colormap-$name.png")
                     ?: throw FileNotFoundException("Could not find color map for name $name (colormap-$name.png)")
 

@@ -3,24 +3,26 @@ package graphics.scenery.controls.behaviours
 import graphics.scenery.Camera
 import graphics.scenery.Node
 import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.extensions.plus
 import net.java.games.input.Component
 import org.joml.Quaternionf
-import java.util.function.Supplier
+import org.joml.Vector3f
+import kotlin.math.abs
 import kotlin.reflect.KProperty
 
 /**
  * Implementation of GamepadBehaviour for Camera Control
  *
  * @author Ulrik Günther <hello@ulrik.is>
- * @property[name] Name of the behaviour
  * @property[axis] List of axis that are assigned to this behaviour
- * @property[node] The camera to control
- * @property[w] The window width
- * @property[h] The window height
+ * @property[node] The node to control
+ * @property[sensitivity] A multiplier applied to axis inputs.
  */
-open class GamepadCameraControl(private val name: String,
-                           override val axis: List<Component.Identifier.Axis>,
-                           private val n: () -> Node?) : GamepadBehaviour {
+open class GamepadRotationControl(override val axis: List<Component.Identifier>,
+                                  var sensitivity: Float = 1.0f,
+                                  var invertX: Boolean = false,
+                                  var invertY: Boolean = false,
+                                  private val n: () -> Node?) : GamepadBehaviour {
     private var lastX: Float = 0.0f
     private var lastY: Float = 0.0f
     private var firstEntered = true
@@ -47,7 +49,10 @@ open class GamepadCameraControl(private val name: String,
     private var yaw: Float = 0.0f
 
     /** Threshold below which the behaviour will not trigger */
-    var threshold = 0.1f
+    var threshold = 0.05f
+
+    private var inversionFactorX = 1.0f
+    private var inversionFactorY = 1.0f
 
     /**
      * This function is trigger upon arrival of an axis event that
@@ -62,8 +67,20 @@ open class GamepadCameraControl(private val name: String,
     override fun axisEvent(axis: Component.Identifier, value: Float) {
         val n = node ?: return
 
-        if(Math.abs(value) < threshold) {
+        if(abs(value) < threshold) {
             return
+        }
+
+        inversionFactorX = if(invertX) {
+            -1.0f
+        } else {
+            1.0f
+        }
+
+        inversionFactorY = if(invertY) {
+            -1.0f
+        } else {
+            1.0f
         }
         
         val x: Float
@@ -83,36 +100,37 @@ open class GamepadCameraControl(private val name: String,
             firstEntered = false
         }
 
-        var xoffset: Float = (x - lastX)
-        var yoffset: Float = (lastY - y)
+        val xoffset: Float = x * sensitivity * inversionFactorX
+        val yoffset: Float = y * sensitivity * inversionFactorY
 
         lastX = x
         lastY = y
 
-        xoffset *= 60f
-        yoffset *= 60f
-
         yaw += xoffset
         pitch += yoffset
 
-        if (pitch > 89.0f) {
-            pitch = 89.0f
+        val frameYaw = xoffset / 180.0f * Math.PI.toFloat()
+        val framePitch = yoffset / 180.0f * Math.PI.toFloat()
+        logger.trace("Pitch={} Yaw={}", framePitch, frameYaw)
+
+        if(n is Camera) {
+            if (pitch > 89.0f) {
+                pitch = 89.0f
+            }
+            if (pitch < -89.0f) {
+                pitch = -89.0f
+            }
+
+            val yawQ = Quaternionf().rotateXYZ(0.0f, frameYaw, 0.0f)
+            val pitchQ = Quaternionf().rotateXYZ(framePitch, 0.0f, 0.0f)
+
+            n.rotation = pitchQ.mul(n.rotation).mul(yawQ).normalize()
+        } else {
+            if(axis != this.axis.first()) {
+                n.rotation = n.rotation.rotateLocalY(framePitch).normalize()
+            } else {
+                n.rotation = n.rotation.rotateLocalX(frameYaw).normalize()
+            }
         }
-        if (pitch < -89.0f) {
-            pitch = -89.0f
-        }
-
-//        val forward = Vector3f(
-//                Math.cos(Math.toRadians(yaw.toDouble())).toFloat() * Math.cos(Math.toRadians(pitch.toDouble())).toFloat(),
-//                Math.sin(Math.toRadians(pitch.toDouble())).toFloat(),
-//                Math.sin(Math.toRadians(yaw.toDouble())).toFloat() * Math.cos(Math.toRadians(pitch.toDouble())).toFloat())
-
-//        node?.forward = forward.normalized
-        logger.trace("Pitch={} Yaw={}", pitch, yaw)
-
-        val yawQ = Quaternionf().rotateXYZ(0.0f, yaw, 0.0f)
-        val pitchQ = Quaternionf().rotateXYZ(pitch, 0.0f, 0.0f)
-
-        n.rotation = pitchQ.mul(n.rotation).mul(yawQ).normalize()
     }
 }

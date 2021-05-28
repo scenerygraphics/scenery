@@ -446,6 +446,10 @@ open class VulkanRenderer(hub: Hub,
         }
     }
 
+    fun getCurrentScene(): Scene {
+        return scene
+    }
+
     init {
         this.hub = hub
 
