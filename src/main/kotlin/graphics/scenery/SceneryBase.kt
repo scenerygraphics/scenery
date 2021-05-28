@@ -6,6 +6,8 @@ import com.sun.jna.Library
 import com.sun.jna.Native
 import graphics.scenery.backends.Renderer
 import graphics.scenery.compute.OpenCLContext
+import graphics.scenery.controls.DTrackButton
+import graphics.scenery.controls.GamepadButton
 import graphics.scenery.controls.InputHandler
 import graphics.scenery.controls.behaviours.ArcballCameraControl
 import graphics.scenery.controls.behaviours.FPSCameraControl
@@ -21,6 +23,7 @@ import graphics.scenery.utils.Statistics
 import kotlinx.coroutines.*
 import org.lwjgl.system.Platform
 import org.scijava.Context
+import org.scijava.ui.behaviour.Behaviour
 import org.scijava.ui.behaviour.ClickBehaviour
 import java.lang.Boolean.parseBoolean
 import java.lang.management.ManagementFactory
@@ -52,7 +55,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
                        val scijavaContext: Context? = null) {
 
     /** The scene used by the renderer in the application */
-    protected val scene: Scene = Scene()
+    protected var scene: Scene = Scene()
     /** REPL for the application, can be initialised in the [init] function */
     protected var repl: REPL? = null
     /** Frame number for counting FPS */
@@ -189,6 +192,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
                 logger.debug("Closing subscriber")
             }
         } else if(master) {
+            applicationName += " [MASTER]"
             thread {
                 val address = settings.get("NodePublisher.ListenAddress", "tcp://127.0.0.1:6666")
                 val p = NodePublisher(hub, address)
@@ -237,7 +241,9 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
                 Thread.sleep(100)
             }
 
-            if (!headless) {
+            val isClient = !master && masterAddress != null
+            if (!headless && !isClient) {
+                logger.debug("Client: $isClient, showing REPL window")
                 repl?.showConsoleWindow()
             }
         }
@@ -502,6 +508,39 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
         while(!sceneInitialized()) {
             Thread.sleep(200)
         }
+    }
+
+    infix fun Behaviour.called(name: String): Pair<String, Behaviour> {
+        return name to this
+    }
+
+    infix fun Pair<String, Behaviour>.boundTo(key: String): InputHandler.NamedBehaviourWithKeyBinding {
+        return InputHandler.NamedBehaviourWithKeyBinding(this.first, this.second, key)
+    }
+
+    infix fun Pair<String, Behaviour>.boundTo(key: GamepadButton): InputHandler.NamedBehaviourWithKeyBinding {
+        val button = when {
+            key.ordinal <= GamepadButton.Button8.ordinal -> key.ordinal.toString()
+            key.ordinal == GamepadButton.PovUp.ordinal -> "NUMPAD8"
+            key.ordinal == GamepadButton.PovRight.ordinal -> "NUMPAD6"
+            key.ordinal == GamepadButton.PovDown.ordinal -> "NUMPAD2"
+            key.ordinal == GamepadButton.PovLeft.ordinal -> "NUMPAD4"
+            key.ordinal == GamepadButton.AlwaysActive.ordinal -> "F24"
+            else -> throw IllegalStateException("Don't know how to translate gamepad button with ordinal ${key.ordinal} to key code.")
+        }
+
+        return InputHandler.NamedBehaviourWithKeyBinding(this.first, this.second, button)
+    }
+
+    infix fun Pair<String, Behaviour>.boundTo(key: DTrackButton): InputHandler.NamedBehaviourWithKeyBinding {
+        val button = when(key) {
+            DTrackButton.Trigger -> "0"
+            DTrackButton.Left -> "3"
+            DTrackButton.Center -> "2"
+            DTrackButton.Right -> "1"
+        }
+
+        return InputHandler.NamedBehaviourWithKeyBinding(this.first, this.second, button)
     }
 
     companion object {

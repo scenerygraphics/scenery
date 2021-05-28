@@ -10,11 +10,10 @@ import java.lang.reflect.InvocationTargetException
  * by the press of a button.
  *
  * @author Ulrik Günther <hello@ulrik.is>
- * @property[name] The name of the behaviour.
  * @property[receiver] The receiving object
  * @property[method] The name of the method to invoke
  */
-class ToggleCommand(private val name: String, private val receiver: Any, private val method: String) : ClickBehaviour {
+class ToggleCommand(private val receiver: Any, private val method: String) : ClickBehaviour {
 
     private val logger by LazyLogger()
 

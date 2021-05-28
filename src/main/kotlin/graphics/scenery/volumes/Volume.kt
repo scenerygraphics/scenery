@@ -56,7 +56,7 @@ import kotlin.properties.Delegates
 import kotlin.streams.toList
 
 @Suppress("DEPRECATION")
-open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOptions, val hub: Hub) : DelegatesRendering(), HasGeometry, DisableFrustumCulling {
+open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOptions, @Transient val hub: Hub) : DelegatesRendering(), HasGeometry, DisableFrustumCulling {
     /** How many elements does a vertex store? */
     override val vertexSize : Int = 3
     /** How many elements does a texture coordinate store? */
@@ -83,7 +83,10 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
     var colormap: Colormap = Colormap.get("viridis")
         set(m) {
             field = m
-            volumeManager.removeCachedColormapFor(this)
+            if(::volumeManager.isInitialized) {
+                volumeManager.removeCachedColormapFor(this)
+            }
+            modifiedAt = System.nanoTime()
         }
 
     /** Pixel-to-world scaling ratio. Default: 1 px = 1mm in world space*/
@@ -118,15 +121,23 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
         Both(3)
     }
 
-    var volumeManager: VolumeManager
+    @Transient
+    lateinit var volumeManager: VolumeManager
+
+    @Transient
+    override var delegate: Node? = null
 
     // TODO IS THIS REQUIRED??
     var cacheControls = CacheControl.CacheControls()
 
     /** Current timepoint. */
-    var currentTimepoint: Int
+    var currentTimepoint: Int = 0
         get() { return viewerState.currentTimepoint }
-        set(value) {viewerState.currentTimepoint = value}
+        set(value) {
+            viewerState.currentTimepoint = value
+            modifiedAt = System.nanoTime()
+            field = value
+        }
 
     sealed class VolumeDataSource {
         class SpimDataMinimalSource(val spimData : SpimDataMinimal) : VolumeDataSource()
@@ -136,6 +147,7 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
             val converterSetups: ArrayList<ConverterSetup>,
             val numTimepoints: Int,
             val cacheControl: CacheControl? = null) : VolumeDataSource()
+        class NullSource(val numTimepoints: Int): VolumeDataSource()
     }
 
     /**
@@ -150,7 +162,7 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
     init {
         name = "Volume"
 
-        when(dataSource) {
+        when (dataSource) {
             is SpimDataMinimalSource -> {
                 val spimData = dataSource.spimData
 
@@ -176,41 +188,48 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
                 // FIXME: bigdataviewer-core > 9.0.0 doesn't enjoy having 0 timepoints anymore :-(
                 // We tell it here to have a least one, so far no ill side effects from that
                 viewerState = ViewerState(dataSource.sources, max(1, timepointCount))
-                converterSetups.addAll( dataSource.converterSetups )
+                converterSetups.addAll(dataSource.converterSetups)
+            }
+
+            is VolumeDataSource.NullSource -> {
+                viewerState = ViewerState(emptyList(), dataSource.numTimepoints)
+                timepointCount = dataSource.numTimepoints
             }
         }
 
         viewerState.sources.forEach { s -> s.isActive = true }
         viewerState.displayMode = DisplayMode.FUSED
 
-        converterSetups.forEach {
-            it.color = ARGBType(Int.MAX_VALUE)
-        }
+        if (dataSource !is VolumeDataSource.NullSource) {
+            converterSetups.forEach {
+                it.color = ARGBType(Int.MAX_VALUE)
+            }
 
-        val vm = hub.get<VolumeManager>()
-        val volumes = ArrayList<Volume>(10)
+            val vm = hub.get<VolumeManager>()
+            val volumes = ArrayList<Volume>(10)
 
-        if(vm != null) {
-            volumes.addAll(vm.nodes)
-            hub.remove(vm)
-        }
+            if (vm != null) {
+                volumes.addAll(vm.nodes)
+                hub.remove(vm)
+            }
 
-        volumeManager = if(vm != null) {
-            hub.add(VolumeManager(hub, vm.useCompute, vm.customSegments, vm.customBindings))
-        } else {
-            hub.add(VolumeManager(hub))
+            volumeManager = if (vm != null) {
+                hub.add(VolumeManager(hub, vm.useCompute, vm.customSegments, vm.customBindings))
+            } else {
+                hub.add(VolumeManager(hub))
+            }
+            vm?.customTextures?.forEach {
+                volumeManager.customTextures.add(it)
+                volumeManager.material.textures[it] = vm.material.textures[it]!!
+            }
+            volumeManager.add(this)
+            volumes.forEach {
+                volumeManager.add(it)
+                it.delegate = volumeManager
+                it.volumeManager = volumeManager
+            }
+            delegate = volumeManager
         }
-        vm?.customTextures?.forEach {
-            volumeManager.customTextures.add(it)
-            volumeManager.material.textures[it] = vm.material.textures[it]!!
-        }
-        volumeManager.add(this)
-        volumes.forEach {
-            volumeManager.add(it)
-            it.delegate = volumeManager
-            it.volumeManager = volumeManager
-        }
-        delegate = volumeManager
     }
 
     /**
@@ -252,13 +271,14 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
             timepoint
         }
         val current = viewerState.currentTimepoint
-        viewerState.currentTimepoint = min(max(tp, 0), timepointCount - 1)
+        currentTimepoint = min(max(tp, 0), timepointCount - 1)
         logger.debug("Going to timepoint ${viewerState.currentTimepoint+1} of $timepointCount")
 
         if(current != viewerState.currentTimepoint) {
             volumeManager.notifyUpdate(this)
         }
 
+        modifiedAt = System.nanoTime()
         return viewerState.currentTimepoint
     }
 
