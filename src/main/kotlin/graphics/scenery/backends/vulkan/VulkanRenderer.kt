@@ -1421,6 +1421,7 @@ open class VulkanRenderer(hub: Hub,
 
             if(screenshotRequested || request != null) {
                 val writeToFile = screenshotRequested
+                val overwrite = screenshotOverwriteExisting
                 // reorder bytes for screenshot in a separate thread
                 thread {
                     imageBuffer?.let { ib ->
@@ -1429,7 +1430,7 @@ open class VulkanRenderer(hub: Hub,
                                 File(System.getProperty("user.home"), "Desktop" + File.separator + "$applicationName - ${SystemHelpers.formatDateTime()}.png")
                             } else {
                                 File(screenshotFilename)
-                            }, screenshotOverwriteExisting)
+                            }, overwrite)
                             file.createNewFile()
                             ib.rewind()
 
