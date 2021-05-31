@@ -4,7 +4,7 @@ import kotlinx.coroutines.delay
 import org.joml.Vector3f
 import org.scijava.ui.behaviour.ClickBehaviour
 
-class Rollercoaster(ribbonDiagram: RibbonDiagram, val camera: () -> Camera?): ClickBehaviour {
+class Rollercoaster(ribbonDiagram: RibbonDiagram, val camera: () -> Camera?): ClickBehaviour, Mesh() {
     val subproteins = ribbonDiagram.children
     val listOfCameraPoints = ArrayList<Curve.FrenetFrame>(subproteins.size*100)
     var i = 0
@@ -27,13 +27,14 @@ class Rollercoaster(ribbonDiagram: RibbonDiagram, val camera: () -> Camera?): Cl
             val it = listOfCameraPoints[i]
             val cam = camera.invoke()
             if (cam != null) {
-                cam.rotation.lookAlong(it.tangent, it.normal)
+                val lookAlong = it.tangent
+                cam.rotation.lookAlong(lookAlong.mul(1f), it.binormal)
                 cam.position = (it.translation)
                 cam.updateWorld(true)
             }
             i++
         }
-        else {return }
+        else { return }
         //using 25 fps or, the reverse, 40 ms per frame
     }
 }
