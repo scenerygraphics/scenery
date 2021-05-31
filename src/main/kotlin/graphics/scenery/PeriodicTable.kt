@@ -40,7 +40,7 @@ open class PeriodicTable {
     init {
         //parsing the json file
         val mapper = jacksonObjectMapper()
-        val file = this::class.java.getResource("src/main/resources/graphics/scenery/proteins/PubChemElements_all.json").readText()
+        val file = this::class.java.getResource("PubChemElements_all.json").readText()
         val periodicTable = mapper.readValue(file, PeriodicTableau::class.java)
 
         //extracting the information in the right data format
