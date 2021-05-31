@@ -6,11 +6,30 @@ import graphics.scenery.numerics.Random
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plus
 import org.joml.Vector3f
+import org.scijava.ui.behaviour.ClickBehaviour
 
 class ProteinRollercoasterExample: SceneryBase("RollerCoaster", wantREPL = true, windowWidth = 1280, windowHeight = 720) {
     private val protein = Protein.fromID("2zzm")
     private val ribbon = RibbonDiagram(protein)
+    val points = arrayListOf(
+        Vector3f(-8f, -9f, -9f), Vector3f(-7f, -5f, -7f), Vector3f(-5f, -5f, -5f), Vector3f(-4f, -2f, -3f),
+        Vector3f(-2f, -3f, -4f), Vector3f(-1f, -1f, -1f), Vector3f(0f, 0f, 0f), Vector3f(2f, 1f, 0f))
 
+    private fun triangle(splineVerticesCount: Int): ArrayList<ArrayList<Vector3f>> {
+        val shapeList = ArrayList<ArrayList<Vector3f>>(splineVerticesCount)
+        for (i in 0 until splineVerticesCount) {
+            val list = ArrayList<Vector3f>()
+            list.add(Vector3f(0.03f, 0.03f, 0f))
+            list.add(Vector3f(0.03f, -0.03f, 0f))
+            list.add(Vector3f(-0.03f, -0.03f, 0f))
+            shapeList.add(list)
+        }
+        return shapeList
+    }
+
+    val catmullRom = CatmullRomSpline(points)
+    val splineSize = catmullRom.splinePoints().size
+    val geo = Curve(catmullRom) { triangle(splineSize) }
 
     override fun init() {
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
@@ -23,9 +42,6 @@ class ProteinRollercoasterExample: SceneryBase("RollerCoaster", wantREPL = true,
         matFaint.specular = Vector3f(1.0f, 1.0f, 1.0f)
         matFaint.cullingMode = Material.CullingMode.None
 
-        val protein = Protein.fromID("6e60")
-
-        val ribbon = RibbonDiagram(protein)
 
         /*
         ribbon.children.forEach { subprotein ->
@@ -58,6 +74,29 @@ class ProteinRollercoasterExample: SceneryBase("RollerCoaster", wantREPL = true,
          */
 
         //scene.addChild(ribbon)
+
+
+
+        geo.frenetFrames.forEachIndexed{ index, frame ->
+            if(index%5 == 0) {
+                val binoArrow = Arrow(frame.binormal.normalize() - Vector3f(0f, 0f, 0f))
+                binoArrow.position = frame.translation
+                binoArrow.edgeWidth = 0.5f
+                binoArrow.material = matFaint
+                val noArrow = Arrow(frame.normal.normalize() - Vector3f(0f, 0f, 0f))
+                noArrow.position = frame.translation
+                noArrow.edgeWidth = 0.5f
+                noArrow.material = matFaint
+                val taArrow = Arrow(frame.tangent.normalize()  - Vector3f(0f, 0f, 0f))
+                taArrow.position = frame.translation
+                taArrow.edgeWidth = 0.5f
+                taArrow.material = matFaint
+                scene.addChild(binoArrow)
+                scene.addChild(noArrow)
+                scene.addChild(taArrow)
+            }
+        }
+        scene.addChild(geo)
 
         val lightbox = Box(Vector3f(500.0f, 500.0f, 500.0f), insideNormals = true)
         lightbox.name = "Lightbox"
@@ -94,30 +133,18 @@ class ProteinRollercoasterExample: SceneryBase("RollerCoaster", wantREPL = true,
         cameraLight.intensity = 0.8f
 
         val cam: Camera = DetachedHeadCamera()
+        cam.name = "camera"
         cam.position = Vector3f(0.0f, 0.0f, 15.0f)
         cam.perspectiveCamera(50.0f, windowWidth, windowHeight)
         scene.addChild(cam)
 
         cam.addChild(cameraLight)
-
-        val vec1 = Vector3f(3f, 0f, 3f)
-        val vec2 = Vector3f(-4f, 0f, 4f)
-        val arrow1 = Arrow(vec1 - Vector3f(0f, 0f, 0f))
-        arrow1.edgeWidth = 1f
-        arrow1.material = matFaint
-        val arrow2 = Arrow(vec2 - Vector3f(0f, 0f, 0f))
-        arrow2.edgeWidth = 0.5f
-        arrow2.material = matFaint
-        cam.rotation.lookAlong(vec1.normalize(), vec2.normalize())
-        cam.position = vec1
-        scene.addChild(arrow1)
-        scene.addChild(arrow2)
     }
 
     override fun inputSetup() {
         super.inputSetup()
-        //inputHandler?.addBehaviour("rollercoaster", Rollercoaster(ribbon) { scene.activeObserver })
-        //inputHandler?.addKeyBinding("rollercoaster", "E")
+        inputHandler?.addBehaviour("rollercoaster", CurveCoaster(geo) {scene.activeObserver} )
+        inputHandler?.addKeyBinding("rollercoaster", "E")
     }
 
     companion object {
