@@ -1,8 +1,5 @@
 package graphics.scenery
 
-import graphics.scenery.BufferUtils
-import graphics.scenery.HasGeometry
-import graphics.scenery.Mesh
 import graphics.scenery.utils.extensions.toFloatArray
 import org.joml.*
 import kotlin.Float.Companion.MIN_VALUE
@@ -38,22 +35,7 @@ class Curve(spline: Spline, private val firstPerpendicularVector: Vector3f = Vec
         if (chain.isEmpty()) {
             logger.warn("The spline provided for the Curve is empty.")
         }
-        val bases = frenetFrames.map { (t, n, b, tr) ->
-            val inverseMatrix = Matrix3f(b.x(), n.x(), t.x(),
-                b.y(), n.y(), t.y(),
-                b.z(), n.z(), t.z()).invert()
-            val nb = Vector3f()
-            inverseMatrix.getColumn(0, nb).normalize()
-            val nn = Vector3f()
-            inverseMatrix.getColumn(1, nn).normalize()
-            val nt = Vector3f()
-            inverseMatrix.getColumn(2, nt).normalize()
-            Matrix4f(
-                nb.x(), nn.x(), nt.x(), 0f,
-                nb.y(), nn.y(), nt.y(), 0f,
-                nb.z(), nn.z(), nt.z(), 0f,
-                tr.x(), tr.y(), tr.z(), 1f)
-        }
+        val bases = calcBases()
         val baseShapes = baseShape.invoke()
 
         var partialCurveSize = 1
@@ -322,10 +304,26 @@ class Curve(spline: Spline, private val firstPerpendicularVector: Vector3f = Vec
     }
 
     /**
-     * Getter for the curve.
+     * Calculates the bases
      */
-    fun getCurve(): ArrayList<Vector3f> {
-        return chain as ArrayList<Vector3f>
+    fun calcBases(): List<Matrix4f> {
+        val bases = frenetFrames.map { (t, n, b, tr) ->
+            val inverseMatrix = Matrix3f(b.x(), n.x(), t.x(),
+                b.y(), n.y(), t.y(),
+                b.z(), n.z(), t.z()).invert()
+            val nb = Vector3f()
+            inverseMatrix.getColumn(0, nb).normalize()
+            val nn = Vector3f()
+            inverseMatrix.getColumn(1, nn).normalize()
+            val nt = Vector3f()
+            inverseMatrix.getColumn(2, nt).normalize()
+            Matrix4f(
+                nb.x(), nn.x(), nt.x(), 0f,
+                nb.y(), nn.y(), nt.y(), 0f,
+                nb.z(), nn.z(), nt.z(), 0f,
+                tr.x(), tr.y(), tr.z(), 1f)
+        }
+        return bases
     }
 
 }
