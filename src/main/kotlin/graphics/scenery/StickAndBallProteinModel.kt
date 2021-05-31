@@ -1,7 +1,7 @@
 package graphics.scenery
 
 import org.joml.*
-import graphics.scenery.*
+import graphics.scenery.proteins.PeriodicTable
 import org.biojava.nbio.structure.*
 
 /**

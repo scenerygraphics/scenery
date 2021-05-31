@@ -1,10 +1,10 @@
-package graphics.scenery
+package graphics.scenery.proteins
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import graphics.scenery.ChemicalElement
 import graphics.scenery.utils.LazyLogger
 import org.joml.Vector3f
-import java.io.FileReader
 import kotlin.collections.ArrayList
 
 /**
@@ -31,7 +31,7 @@ open class PeriodicTable {
      */
     data class ChemCell(@JsonProperty("Cell") val cell: ArrayList<String>)
     data class ChemColumn(@JsonProperty("Column") val column: ArrayList<String>)
-    data class ChemTable(@JsonProperty("Columns") val columns: ChemColumn,@JsonProperty("Row") val row: ArrayList<ChemCell>)
+    data class ChemTable(@JsonProperty("Columns") val columns: ChemColumn, @JsonProperty("Row") val row: ArrayList<ChemCell>)
     data class PeriodicTableau(@JsonProperty("Table") val table: ChemTable)
 
     val elementList = ArrayList<ChemicalElement>()
