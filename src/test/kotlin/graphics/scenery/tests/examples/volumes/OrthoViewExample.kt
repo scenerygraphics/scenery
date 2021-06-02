@@ -61,14 +61,12 @@ class OrthoViewExample : SceneryBase("Ortho View example", 1280, 720) {
         bGrid.node = volume
         volume.addChild(bGrid)
 
-        createOrthoView(volume)
+        createOrthoView(volume,"1")
     }
 
     override fun inputSetup() {
         setupCameraModeSwitching()
-
-        inputHandler?.addOrthoViewDragBehavior("1")
-
+        //inputHandler?.addOrthoViewDragBehavior("2")
     }
 
     companion object {

@@ -8,16 +8,22 @@ import graphics.scenery.controls.behaviours.MouseDragSphere
 import graphics.scenery.effectors.LineRestrictionEffector
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.times
+import kotlinx.coroutines.*
 import org.joml.Vector3f
+import java.lang.Thread.sleep
+import kotlin.concurrent.thread
 
 /**
  * Creates three orthogonal, movable slicing planes through the volume.
  * Attention! For movable planes a behavior like in [InputHandler.addOrthoViewDragBehavior] is needed.
+ * If [key] is set it will be added automatically if there is no other orthoPlane drag behavior already.
  *
  * To remove call [SlicingPlane.removeTargetVolume] on the leaf nodes and
  * [Volume.slicingMode] should be set to [Volume.SlicingMode.None]
+ *
+ * @param key The input key for optional plane movement behavior. See Input Docs for format.
  */
-fun createOrthoView(volume: Volume) {
+fun createOrthoView(volume: Volume, key: String? = null) {
     volume.slicingMode = Volume.SlicingMode.Slicing
 
     val sliceXZ = SlicingPlane()
@@ -97,12 +103,36 @@ fun createOrthoView(volume: Volume) {
         LineRestrictionEffector(planeYZ, { xTop.spatial().position }, { xBottom.spatial().position })
 
     }
+
+    key?.let {
+        GlobalScope.launch {
+            var inputHandler = volume.hub.get<InputHandler>()
+            var count = 0
+            while (inputHandler == null) {
+                delay(1000L)
+                inputHandler = volume.hub.get<InputHandler>()
+                if (count++ > 60) {
+                    volume.logger.warn("Could not find input handler to attach orthoPlane drag behavior to.")
+                    break
+                }
+            }
+            inputHandler?.let {
+                if (inputHandler.getBehaviour("dragOrthoPlane") == null) {
+                    inputHandler.addOrthoViewDragBehavior(key)
+                }
+            }
+
+        }
+    }
 }
 
+/**
+ * Attribute class to tag othoplanes
+ */
 class OrthoPlane
 
 /**
- * Adds a [MouseDragSphere] behavior which ignores the appropriate classes to move the ortho view slices correctly.
+ * Adds a [MouseDragSphere] behavior ortho view slices.
  */
 fun InputHandler.addOrthoViewDragBehavior(key: String) {
     addBehaviour(
