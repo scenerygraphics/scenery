@@ -43,6 +43,11 @@ fun createOrthoView(volume: Volume) {
         planeXY.spatial().position = center
         planeYZ.spatial().position = center
 
+        planeXZ.addAttribute(OrthoPlane::class.java, OrthoPlane())
+        planeXY.addAttribute(OrthoPlane::class.java, OrthoPlane())
+        planeYZ.addAttribute(OrthoPlane::class.java, OrthoPlane())
+
+
         // make transparent
         planeXZ.material {
             blending.setOverlayBlending()
@@ -94,21 +99,19 @@ fun createOrthoView(volume: Volume) {
     }
 }
 
+class OrthoPlane
+
 /**
  * Adds a [MouseDragSphere] behavior which ignores the appropriate classes to move the ortho view slices correctly.
  */
 fun InputHandler.addOrthoViewDragBehavior(key: String) {
     addBehaviour(
-        "sphereDragObject", MouseDragSphere(
-            "sphereDragObject",
+        "dragOrthoPlane", MouseDragSphere(
+            "dragOrthoPlane",
             { this.scene.findObserver() },
             debugRaycast = false,
-            ignoredObjects = listOf<Class<*>>(
-                BoundingGrid::class.java,
-                VolumeManager::class.java,
-                Volume::class.java
-            )
+            filter = { it.getAttributeOrNull(OrthoPlane::class.java) != null }
         )
     )
-    addKeyBinding("sphereDragObject", key)
+    addKeyBinding("dragOrthoPlane", key)
 }
