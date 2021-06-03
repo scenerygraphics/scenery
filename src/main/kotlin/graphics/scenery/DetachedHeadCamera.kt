@@ -107,9 +107,11 @@ class DetachedHeadCamera(@Transient var tracker: TrackerInput? = null) : Camera(
     }
 
     /** Position of the user's head */
+    @delegate:Transient
     val headPosition: Vector3f by HeadPositionDelegate()
 
     /** Orientation of the user's head */
+    @delegate:Transient
     val headOrientation: Quaternionf by HeadOrientationDelegate()
 
     init {

@@ -456,6 +456,10 @@ open class VulkanRenderer(hub: Hub,
         }
     }
 
+    fun getCurrentScene(): Scene {
+        return scene
+    }
+
     init {
         this.hub = hub
 
@@ -571,7 +575,7 @@ open class VulkanRenderer(hub: Hub,
 
         logger.debug("Device creation done")
 
-        if(device.deviceData.vendor.toLowerCase().contains("nvidia") && ExtractsNatives.getPlatform() == ExtractsNatives.Platform.WINDOWS) {
+        if(device.deviceData.vendor.lowercase().contains("nvidia") && ExtractsNatives.getPlatform() == ExtractsNatives.Platform.WINDOWS) {
             try {
                 gpuStats = NvidiaGPUStats()
             } catch(e: NullPointerException) {
@@ -1284,15 +1288,6 @@ open class VulkanRenderer(hub: Hub,
 //        vkResetFences(device.vulkanDevice, swapchain.currentFence)
         VU.run("Submit viewport render queue", { vkQueueSubmit(q, present.submitInfo, swapchain.currentFence) })
 
-        val startPresent = System.nanoTime()
-        commandBuffer.submitted = true
-        swapchain.present(waitForSemaphores = present.signalSemaphore)
-
-        vkWaitForFences(device.vulkanDevice, swapchain.currentFence, true, -1L)
-        vkResetFences(device.vulkanDevice, swapchain.currentFence)
-        presentationFence = swapchain.currentFence
-        swapchain.postPresent(pass.getReadPosition())
-
         // submit to OpenVR if attached
         if(hub?.getWorkingHMDDisplay()?.hasCompositor() == true) {
             hub?.getWorkingHMDDisplay()?.wantsVR(settings)?.submitToCompositorVulkan(
@@ -1302,32 +1297,37 @@ open class VulkanRenderer(hub: Hub,
                 swapchain.images[pass.getReadPosition()])
         }
 
-        val currentRequests = ArrayList<Pair<Texture, Channel<Texture>>>()
+        val startPresent = System.nanoTime()
+        commandBuffer.submitted = true
+        swapchain.present(waitForSemaphores = present.signalSemaphore)
 
-        while(textureRequests.isNotEmpty()) {
-            try {
-                currentRequests.add(textureRequests.poll())
-            } catch (e: NoSuchElementException) {
+        vkWaitForFences(device.vulkanDevice, swapchain.currentFence, true, -1L)
+        vkResetFences(device.vulkanDevice, swapchain.currentFence)
+        presentationFence = swapchain.currentFence
+        swapchain.postPresent(pass.getReadPosition())
+
+        if(textureRequests.isNotEmpty()) {
+            val request = try {
+                logger.info("Polling requests")
+                textureRequests.poll()
+            } catch(e: NoSuchElementException) {
+                null
             }
-        }
-        //replace with while
 
-        currentRequests.forEach { req ->
+            request?.let { req ->
                 logger.info("Working on texture request for texture ${req.first}")
-                val buffer = req.first.contents ?: return@forEach
+                val buffer = req.first.contents ?: return@let
                 val ref = VulkanTexture.getReference(req.first)
 
                 if(ref != null) {
-                    val start = System.nanoTime()
                     ref.copyTo(buffer)
-                    val end = System.nanoTime()
                     req.second.send(req.first)
                     req.second.close()
                     logger.info("Sent updated texture")
-                    logger.info("The request textures of size ${req.first.contents?.remaining()?.toFloat()?.div((1024f*1024f))} took: ${(end.toDouble()-start.toDouble())/1000000.0}")
                 } else {
                     logger.info("Texture not accessible")
                 }
+            }
         }
 
         persistentTextureRequests.forEach{ (texture, indicator) ->
@@ -1449,6 +1449,7 @@ open class VulkanRenderer(hub: Hub,
 
             if(screenshotRequested || request != null) {
                 val writeToFile = screenshotRequested
+                val overwrite = screenshotOverwriteExisting
                 // reorder bytes for screenshot in a separate thread
                 thread {
                     imageBuffer?.let { ib ->
@@ -1457,7 +1458,7 @@ open class VulkanRenderer(hub: Hub,
                                 File(System.getProperty("user.home"), "Desktop" + File.separator + "$applicationName - ${SystemHelpers.formatDateTime()}.png")
                             } else {
                                 File(screenshotFilename)
-                            }, screenshotOverwriteExisting)
+                            }, overwrite)
                             file.createNewFile()
                             ib.rewind()
 
@@ -1638,8 +1639,12 @@ open class VulkanRenderer(hub: Hub,
             }
         }
 
-        postRenderLambdas.forEach{
+        postRenderLambdas.forEach {
             it.invoke()
+        }
+
+        if(hub?.getWorkingHMDDisplay()?.hasCompositor() == true) {
+            hub?.getWorkingHMDDisplay()?.wantsVR(settings)?.update()
         }
 
         val presentDuration = System.nanoTime() - startPresent
@@ -2294,7 +2299,7 @@ open class VulkanRenderer(hub: Hub,
     @Suppress("UNUSED")
     fun toggleDebug() {
         settings.getAllSettings().forEach {
-            if (it.toLowerCase().contains("debug")) {
+            if (it.lowercase().contains("debug")) {
                 try {
                     val property = settings.get<Int>(it).toggle()
                     settings.set(it, property)

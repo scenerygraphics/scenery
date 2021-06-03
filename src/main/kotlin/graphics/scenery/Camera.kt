@@ -103,7 +103,7 @@ open class Camera : Node("Camera") {
     /**
      * Class to contain local coordinate systems with [x], [y], and [z] axis.
      */
-    data class Tripod(val x: Vector3f, val y: Vector3f, val z: Vector3f)
+    data class Tripod(val x: Vector3f = Vector3f(1.0f, 0.0f, 0.0f), val y: Vector3f = Vector3f(0.0f, 1.0f, 0.0f), val z: Vector3f = Vector3f(0.0f, 0.0f, 1.0f))
 
     /**
      * Returns the current aspect ratio

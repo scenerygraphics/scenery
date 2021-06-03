@@ -21,6 +21,10 @@ import kotlin.math.roundToInt
  */
 class Colormap(val buffer: ByteBuffer, val width: Int, val height: Int) {
 
+    private constructor() : this(ByteBuffer.allocate(0), 0, 0) {
+
+    }
+
     /**
      * Returns the value of the colormap, sampled at [position].
      */
@@ -42,8 +46,8 @@ class Colormap(val buffer: ByteBuffer, val width: Int, val height: Int) {
         (b.position(nextColor) as? ByteBuffer)?.get(color, 4, 4)
         val ub = color.toUByteArray()
 
-        val c1 = Vector4f(ub[0].toFloat()/255.0f, ub[1].toFloat()/255.0f, ub[2].toFloat()/255.0f, ub[3].toFloat()/255.0f)
-        val c2 = Vector4f(ub[4].toFloat()/255.0f, ub[5].toFloat()/255.0f, ub[6].toFloat()/255.0f, ub[7].toFloat()/255.0f)
+        val c1 = Vector4f(ub[0].toFloat() / 255.0f, ub[1].toFloat() / 255.0f, ub[2].toFloat() / 255.0f, ub[3].toFloat() / 255.0f)
+        val c2 = Vector4f(ub[4].toFloat() / 255.0f, ub[5].toFloat() / 255.0f, ub[6].toFloat() / 255.0f, ub[7].toFloat() / 255.0f)
 
         return c1.lerp(c2, bufferPosition - previous.toFloat())
     }
@@ -73,7 +77,7 @@ class Colormap(val buffer: ByteBuffer, val width: Int, val height: Int) {
          */
         @JvmStatic fun fromStream(stream: InputStream, extension: String): Colormap {
             val image = Image.fromStream(stream, extension)
-            logger.info("Read image from $stream with ${image.contents.remaining()} bytes, size=${image.width}x${image.height}")
+            logger.debug("Read image from $stream with ${image.contents.remaining()} bytes, size=${image.width}x${image.height}")
             return Colormap(image.contents, image.width, image.height)
         }
 
@@ -98,7 +102,7 @@ class Colormap(val buffer: ByteBuffer, val width: Int, val height: Int) {
             }
             byteBuffer.flip()
 
-            logger.info("Using ImageJ colormap $colorTable with size ${colorTable.length}x$copies")
+            logger.debug("Using ImageJ colormap $colorTable with size ${colorTable.length}x$copies")
             return fromBuffer(byteBuffer, colorTable.length, copies)
         }
 
@@ -111,10 +115,10 @@ class Colormap(val buffer: ByteBuffer, val width: Int, val height: Int) {
             val byteBuffer = ByteBuffer.allocateDirect(
                 4 * width * copies) // Num bytes * num components * color map length * height of color map texture
             val tmp = ByteArray(4 * width)
-            for(i in 0 until width) {
-                tmp[4 * i + 0] = (256-color[0]*i).toByte()
-                tmp[4 * i + 1] = (256-color[1]*i).toByte()
-                tmp[4 * i + 2] = (256-color[2]*i).toByte()
+            for (i in 0 until width) {
+                tmp[4 * i + 0] = (256 - color[0] * i).toInt().toByte()
+                tmp[4 * i + 1] = (256 - color[1] * i).toInt().toByte()
+                tmp[4 * i + 2] = (256 - color[2] * i).toInt().toByte()
                 tmp[4 * i + 3] = 255.toByte()
             }
             for (i in 0 until copies) {
@@ -137,9 +141,9 @@ class Colormap(val buffer: ByteBuffer, val width: Int, val height: Int) {
                 } ?: throw IOException("Color map $name not found in ImageJ colormaps")
 
                 return fromColorTable(colorTable)
-            } catch(e: IOException) {
+            } catch (e: IOException) {
                 logger.debug("LUT $name not found as ImageJ colormap, trying stream")
-                logger.info("Using colormap $name from stream")
+                logger.debug("Using colormap $name from stream")
                 val resource = this::class.java.getResourceAsStream("colormap-$name.png")
                     ?: throw FileNotFoundException("Could not find color map for name $name (colormap-$name.png)")
 

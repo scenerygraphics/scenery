@@ -5,11 +5,10 @@ plugins {
 
 repositories {
     mavenCentral()
-    jcenter() // or maven(url="https://dl.bintray.com/kotlin/dokka")
+//    jcenter() // or maven(url="https://dl.bintray.com/kotlin/dokka")
 }
 
-dependencies {
-//    implementation("org.jetbrains.kotlin:kotlin-gradle-plugin")
-//    implementation("org.jetbrains.dokka:dokka-gradle-plugin:1.4.20")
-//    implementation("org.jetbrains.dokka:dokka-core:1.4.20")
-}
+//, imagej, imgLib2, scifio, fiji, bigDataViewer, trakEM2, n5, boneJ, ome, omero,
+//groovy, apache, batik, commons, eclipseCollections, eclipseSwt, googleCloud, jackson,
+//jetty, jGraphT, jna, jogamp, kotlib, logBack, migLayout, rSyntaxTextArea, slf4j,
+//snakeYAML, tensorFlow, junit5, jmh, misc
