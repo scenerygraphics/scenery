@@ -4,6 +4,7 @@ import graphics.scenery.*
 import org.joml.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
+import graphics.scenery.utils.extensions.minus
 
 /**
  * This is an example of how to set up a helix.
@@ -39,8 +40,29 @@ class HelixExample: SceneryBase("FlatRibbonSketch", windowWidth = 1280, windowHe
         }
         val axis = MathLine(Vector3f(0f, 0f, 1f), Vector3f(0f, 0f, 0f))
         val curve = Helix(axis, spline) {baseShape()}
-
         scene.addChild(curve)
+
+        val matFaint = Material()
+        matFaint.diffuse  = Vector3f(0.0f, 0.6f, 0.6f)
+        matFaint.ambient  = Vector3f(1.0f, 1.0f, 1.0f)
+        matFaint.specular = Vector3f(1.0f, 1.0f, 1.0f)
+        matFaint.cullingMode = Material.CullingMode.None
+
+        val arrowX = Arrow(Vector3f(1f, 0f, 0f) - Vector3f())
+        arrowX.edgeWidth = 0.5f
+        arrowX.material = matFaint
+        arrowX.position = Vector3f(0f, 0f, 0f)
+        scene.addChild(arrowX)
+        val arrowY = Arrow(Vector3f(0f, 1f, 0f) - Vector3f())
+        arrowY.edgeWidth = 0.5f
+        arrowY.material = matFaint
+        arrowY.position = Vector3f(0f, 0f, 0f)
+        scene.addChild(arrowY)
+        val arrowZ = Arrow(Vector3f(0f, 0f, 1f) - Vector3f())
+        arrowZ.edgeWidth = 0.5f
+        arrowZ.material = matFaint
+        arrowZ.position = Vector3f(0f, 0f, 0f)
+        scene.addChild(arrowZ)
 
         val lightbox = Box(Vector3f(100.0f, 100.0f, 100.0f), insideNormals = true)
         lightbox.name = "Lightbox"
