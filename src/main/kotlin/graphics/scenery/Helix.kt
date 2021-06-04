@@ -10,14 +10,17 @@ import org.joml.*
  *
  * @author  Justin Buerger <burger@mpi-cbg.de>
  */
-class Helix (private val axis: MathLine, val spline: Spline, baseShape: () -> List<Vector3f>): Mesh("Helix") {
+class Helix (val axis: MathLine, val spline: Spline, baseShape: () -> List<Vector3f>): Mesh("Helix") {
     private val splinePoints = spline.splinePoints()
     private val shape = baseShape.invoke()
-    private val axisVector = axis.direction
-    private val axisPoint = axis.position
+    private val axisVector = Vector3f()
+    private val axisPoint = Vector3f()
 
 
     init {
+        //set axis
+        axisVector.set(axis.direction)
+        axisPoint.set(axis.position)
         val sectionVerticesCount = spline.verticesCountPerSection()
         val verticesList = calculateVertices()
         val remainder = verticesList.size%sectionVerticesCount
