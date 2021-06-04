@@ -9,8 +9,8 @@ import org.joml.Vector3f
 import org.scijava.ui.behaviour.ClickBehaviour
 
 class ProteinRollercoasterExample: SceneryBase("RollerCoaster", wantREPL = true, windowWidth = 1280, windowHeight = 720) {
-    private val protein = Protein.fromID("2zzm")
-    private val ribbon = RibbonDiagram(protein)
+    private val protein = Protein.fromID("3nir")
+    private val ribbon = RibbonDiagram(protein, false, scene)
     val points = arrayListOf(
         Vector3f(-8f, -9f, -9f), Vector3f(-7f, -5f, -7f), Vector3f(-5f, -5f, -5f), Vector3f(-4f, -2f, -3f),
         Vector3f(-2f, -3f, -4f), Vector3f(-1f, -1f, -1f), Vector3f(0f, 0f, 0f), Vector3f(2f, 1f, 0f))
@@ -73,10 +73,22 @@ class ProteinRollercoasterExample: SceneryBase("RollerCoaster", wantREPL = true,
 
          */
 
-        //scene.addChild(ribbon)
+        ribbon.children.forEach{ subProtein ->
+            subProtein.children.forEach{ helix ->
+                if(helix is Helix) {
+                    val arrow = Arrow(helix.axis.direction - Vector3f())
+                    arrow.position = helix.axis.position
+                    arrow.edgeWidth = 0.5f
+                    arrow.material = matFaint
+                    scene.addChild(arrow)
+
+                }
+            }
+        }
+        scene.addChild(ribbon)
 
 
-
+        /*
         geo.frenetFrames.forEachIndexed{ index, frame ->
             if(index%5 == 0) {
                 val binoArrow = Arrow(frame.binormal.normalize() - Vector3f(0f, 0f, 0f))
@@ -97,6 +109,8 @@ class ProteinRollercoasterExample: SceneryBase("RollerCoaster", wantREPL = true,
             }
         }
         scene.addChild(geo)
+
+         */
 
         val lightbox = Box(Vector3f(500.0f, 500.0f, 500.0f), insideNormals = true)
         lightbox.name = "Lightbox"
@@ -121,16 +135,16 @@ class ProteinRollercoasterExample: SceneryBase("RollerCoaster", wantREPL = true,
 
         lights.forEach { lightbox.addChild(it) }
 
-        val stageLight = PointLight(radius = 350.0f)
+        val stageLight = PointLight(radius = 500.0f)
         stageLight.name = "StageLight"
         stageLight.intensity = 0.5f
         stageLight.position = Vector3f(0.0f, 0.0f, 5.0f)
         scene.addChild(stageLight)
 
-        val cameraLight = PointLight(radius = 5.0f)
+        val cameraLight = PointLight(radius = 50.0f)
         cameraLight.name = "CameraLight"
         cameraLight.emissionColor = Vector3f(1.0f, 1.0f, 0.0f)
-        cameraLight.intensity = 0.8f
+        cameraLight.intensity = 2.0f
 
         val cam: Camera = DetachedHeadCamera()
         cam.name = "camera"
@@ -143,7 +157,7 @@ class ProteinRollercoasterExample: SceneryBase("RollerCoaster", wantREPL = true,
 
     override fun inputSetup() {
         super.inputSetup()
-        inputHandler?.addBehaviour("rollercoaster", CurveCoaster(geo) {scene.activeObserver} )
+        inputHandler?.addBehaviour("rollercoaster", Rollercoaster(ribbon) {scene.activeObserver} )
         inputHandler?.addKeyBinding("rollercoaster", "E")
     }
 
