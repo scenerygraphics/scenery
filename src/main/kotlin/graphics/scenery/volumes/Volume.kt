@@ -26,6 +26,7 @@ import graphics.scenery.numerics.Random
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.volumes.Volume.VolumeDataSource.SpimDataMinimalSource
 import io.scif.SCIFIO
+import io.scif.formats.DICOMFormat
 import io.scif.util.FormatTools
 import mpicbg.spim.data.generic.sequence.AbstractSequenceDescription
 import mpicbg.spim.data.sequence.FinalVoxelDimensions
@@ -568,12 +569,18 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
             val id = file.fileName.toString()
 
             val reader = scifio.initializer().initializeReader(FileLocation(file.toFile()))
+            val dicom: Boolean = reader.formatName == "DICOM"
 
             val dims = Vector3i()
             with(reader.openPlane(0, 0)) {
                 dims.x = lengths[0].toInt()
                 dims.y = lengths[1].toInt()
-                dims.z = reader.getPlaneCount(0).toInt()
+                var fileCount = 1
+                if(dicom) {
+                    val pathToParent = file.parent
+                    fileCount = pathToParent.toFile().listFiles()?.size ?: 0
+                }
+                dims.z = fileCount * reader.getPlaneCount(0).toInt()
             }
 
             val bytesPerVoxel = reader.openPlane(0, 0).imageMetadata.bitsPerPixel/8
@@ -604,9 +611,18 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
             val start = System.nanoTime()
 
 //            if(reader.openPlane(0, 0).imageMetadata.isLittleEndian) {
-            logger.debug("Volume is little endian")
-            (0 until reader.getPlaneCount(0)).forEach { plane ->
-                imageData.put(reader.openPlane(0, plane).bytes)
+            val files = file.parent.toFile().listFiles()
+            if(dicom && files != null) {
+                for(fileListElem in files) {
+                    val dicomReader = scifio.initializer().initializeReader(FileLocation(fileListElem))
+                    (0 until dicomReader.getPlaneCount(0)).forEach { plane ->
+                        imageData.put(dicomReader.openPlane(0, plane).bytes)
+                    }
+                }
+            } else {
+                (0 until reader.getPlaneCount(0)).forEach { plane ->
+                    imageData.put(reader.openPlane(0, plane).bytes)
+                }
             }
 //            } else {
 //                logger.info("Volume is big endian")
