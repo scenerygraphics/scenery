@@ -28,6 +28,7 @@ import graphics.scenery.volumes.Volume.VolumeDataSource.SpimDataMinimalSource
 import io.scif.SCIFIO
 import io.scif.formats.DICOMFormat
 import io.scif.util.FormatTools
+import loci.formats.ImageReader
 import mpicbg.spim.data.generic.sequence.AbstractSequenceDescription
 import mpicbg.spim.data.sequence.FinalVoxelDimensions
 import net.imglib2.RandomAccessibleInterval
@@ -571,6 +572,13 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
             val reader = scifio.initializer().initializeReader(FileLocation(file.toFile()))
             val dicom: Boolean = reader.formatName == "DICOM"
 
+            if(dicom) {
+                val dicomMeta = reader.metadata as DICOMFormat.Metadata
+                if(dicomMeta.isJPEG) {
+                    return compressedDICOMfromPath(file, hub)
+                }
+            }
+
             val dims = Vector3i()
             with(reader.openPlane(0, 0)) {
                 dims.x = lengths[0].toInt()
@@ -584,7 +592,6 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
             }
 
             val bytesPerVoxel = reader.openPlane(0, 0).imageMetadata.bitsPerPixel/8
-            reader.openPlane(0, 0).imageMetadata.pixelType
 
             val type: NumericType<*> = when(reader.openPlane(0, 0).imageMetadata.pixelType) {
                 FormatTools.INT8 -> ByteType()
@@ -639,6 +646,62 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
             val volumes = CopyOnWriteArrayList<BufferedVolume.Timepoint>()
             volumes.add(BufferedVolume.Timepoint(id, imageData))
             // TODO: Kotlin compiler issue, see https://youtrack.jetbrains.com/issue/KT-37955
+            return when(type) {
+                is ByteType -> fromBuffer(volumes, dims.x, dims.y, dims.z, ByteType(), hub)
+                is UnsignedByteType -> fromBuffer(volumes, dims.x, dims.y, dims.z, UnsignedByteType(), hub)
+                is ShortType -> fromBuffer(volumes, dims.x, dims.y, dims.z, ShortType(), hub)
+                is UnsignedShortType -> fromBuffer(volumes, dims.x, dims.y, dims.z, UnsignedShortType(), hub)
+                is IntType -> fromBuffer(volumes, dims.x, dims.y, dims.z, IntType(), hub)
+                is UnsignedIntType -> fromBuffer(volumes, dims.x, dims.y, dims.z, UnsignedIntType(), hub)
+                is FloatType -> fromBuffer(volumes, dims.x, dims.y, dims.z, FloatType(), hub)
+                else -> throw UnsupportedOperationException("Image type ${type.javaClass.simpleName} not supported for volume data.")
+            }
+        }
+
+        /**
+         * Reads a volume from the given compressed dicom [file].
+         */
+        @JvmStatic fun compressedDICOMfromPath(file: Path, hub: Hub): BufferedVolume {
+            val id = file.fileName.toString()
+
+            val bioReader = ImageReader()
+            val name = file.toString()
+            bioReader.setId(name)
+
+            val dims = Vector3i()
+            dims.x = bioReader.sizeX
+            dims.y = bioReader.sizeY
+            dims.z = bioReader.imageCount
+
+            val bytesPerVoxel = bioReader.bitsPerPixel/8
+
+            val type: NumericType<*> = when(bioReader.pixelType) {
+                FormatTools.INT8 -> ByteType()
+                FormatTools.INT16 -> ShortType()
+                FormatTools.INT32 -> IntType()
+
+                FormatTools.UINT8 -> UnsignedByteType()
+                FormatTools.UINT16 -> UnsignedShortType()
+                FormatTools.UINT32 -> UnsignedIntType()
+
+                FormatTools.FLOAT -> FloatType()
+
+                else -> {
+                    logger.error("Unknown scif.io pixel type ${bioReader.pixelType}, assuming unsigned byte.")
+                    UnsignedByteType()
+                }
+            }
+
+            val imageData: ByteBuffer = MemoryUtil.memAlloc((bytesPerVoxel * dims.x * dims.y * dims.z))
+
+            (0 until bioReader.imageCount).forEach { image ->
+                imageData.put(bioReader.openBytes(image))
+            }
+
+            imageData.flip()
+
+            val volumes = CopyOnWriteArrayList<BufferedVolume.Timepoint>()
+            volumes.add(BufferedVolume.Timepoint(id, imageData))
             return when(type) {
                 is ByteType -> fromBuffer(volumes, dims.x, dims.y, dims.z, ByteType(), hub)
                 is UnsignedByteType -> fromBuffer(volumes, dims.x, dims.y, dims.z, UnsignedByteType(), hub)
