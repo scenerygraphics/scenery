@@ -319,6 +319,8 @@ class Curve(spline: Spline, private val firstPerpendicularVector: Vector3f = Vec
             texcoords = BufferUtils.allocateFloat(verticesVectors.size * 2)
             recalculateNormals()
             position = Axis.getCentroid(verticesVectors)
+
+            boundingBox = generateBoundingBox()
         }
     }
 
