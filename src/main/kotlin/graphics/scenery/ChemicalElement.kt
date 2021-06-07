@@ -24,5 +24,5 @@ data class ChemicalElement(val atomicNumber: Int,
                            val boilingPoint: Float?,
                            val density: Float?,
                            val groupBlock: String,
-                           val yearDiscovered: Int)
+                           val yearDiscovered: String)
 
