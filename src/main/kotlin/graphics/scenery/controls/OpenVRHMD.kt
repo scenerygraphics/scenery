@@ -31,6 +31,7 @@ import org.scijava.ui.behaviour.*
 import org.scijava.ui.behaviour.io.InputTriggerConfig
 import java.awt.Component
 import java.awt.event.KeyEvent
+import java.awt.event.MouseEvent
 import java.io.File
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
@@ -590,6 +591,17 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
                 inputHandler.keyPressed(e.first)
             }
         }
+
+        if (keysDown.isNotEmpty()) {
+            // do a simulated mouse movement to trigger drag behavior updates
+            inputHandler.mouseMoved(
+                MouseEvent(
+                    object : Component() {}, MouseEvent.MOUSE_CLICKED, System.nanoTime(),
+                    0, 0, 0, 0, 0, 1, false, 0
+                )
+            )
+        }
+
         readyForSubmission = true
     }
 
