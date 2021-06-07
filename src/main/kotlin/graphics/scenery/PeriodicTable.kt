@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import graphics.scenery.utils.LazyLogger
 import org.joml.Vector3f
-import java.io.FileReader
 import kotlin.collections.ArrayList
 
 /**
