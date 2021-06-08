@@ -47,9 +47,7 @@ class Axis(positions: List<Vector3f?>, val scene: Scene? = null) {
                     /*
                  Summarizing the calculation: first all the points are translated so that their centroid is in the
                  origin of the coordinate system. The following sum is calculated:
-                 Sx = Σ x*|v'|
-                 where x is the x component of the original (which means not yet translated) point and v is the
-                 point vector of the translated point. This is done for y and z respectively. This yields a vector
+                 Sx = Σ x were x is the x component of the translated data point. This yields a vector
                  s = (Sx, Sy, Sz)
                  The direction cosine to the x axis is: Sx/|s|, the same applies to the other axes. Conveniently, the
                  vector of all three cosines is the direction vector of the fitted line. The centroid is chosen as the
@@ -120,51 +118,9 @@ class Axis(positions: List<Vector3f?>, val scene: Scene? = null) {
      */
     private fun calculateAxis(foursome: CaFoursome): DirectionAndPointPair {
         if(foursome.ca1 != null && foursome.ca2 != null && foursome.ca3 != null && foursome.ca4 != null) {
-            /*
-            Calculating the direction:
-            take four consecutive points (Ca1-Ca4), calculate the midpoint between ca1 and ca3 as well as between
-            a2 and ca4; the vector between these midpoints is the axis vector.
-             */
-            val midpoint1 = Vector3f()
-            foursome.ca1.add(foursome.ca3, midpoint1).mul(0.5f)
-            val midpoint2 = Vector3f()
-            foursome.ca2.add(foursome.ca4, midpoint2).mul(0.5f)
-            val axis1 = Vector3f()
-            midpoint2.sub(midpoint1, axis1).normalize()
-            /*
-            if(scene != null) {
-                val matFaint = Material()
-                matFaint.diffuse  = Vector3f(0.0f, 0.6f, 0.6f)
-                matFaint.ambient  = Vector3f(1.0f, 1.0f, 1.0f)
-                matFaint.specular = Vector3f(1.0f, 1.0f, 1.0f)
-                matFaint.cullingMode = Material.CullingMode.None
 
-                val arrow = Arrow(axis1)
-                arrow.edgeWidth = 0.5f
-                arrow.material = matFaint
-                arrow.position = midpoint1
-                scene.addChild(arrow)
-
-                val sphere = Icosphere(0.02f, 3)
-                sphere.position = midpoint1
-                scene.addChild(sphere)
-
-                val sphere2 = Icosphere(0.02f, 3)
-                sphere.position = midpoint2
-                scene.addChild(sphere2)
-            }
-
-             */
-            /*
-            val head = Vector3f()
-            axis.mul(2f, head).add(midpoint1, head)
-            val tail = Vector3f()
-            tail.set(midpoint1)
-
-             */
-
-             /* Kahns Method; it does not work. Its very possible that I implemented something wrong, however, I did
-             the math from the Paper and it is not entirely sound. Still might be useful sometime, though.
+             /* Kahns Method delivers a better direction vector, however, the positional vector is not very precise.
+             Therefore, we use the midpoints between ca atoms, see below.
              */
             val p1 = Vector3f()
             p1.set(foursome.ca2)
@@ -198,33 +154,19 @@ class Axis(positions: List<Vector3f?>, val scene: Scene? = null) {
             p2.add((v2.mul(r, h2)), h2)
             val axis = Vector3f()
             h2.sub(h1, axis)
+
             /*
-            if(scene != null) {
-                val matFaint = Material()
-                matFaint.diffuse  = Vector3f(0.0f, 0.6f, 0.6f)
-                matFaint.ambient  = Vector3f(1.0f, 1.0f, 1.0f)
-                matFaint.specular = Vector3f(1.0f, 1.0f, 1.0f)
-                matFaint.cullingMode = Material.CullingMode.None
-
-                val arrow = Arrow(axis)
-                arrow.edgeWidth = 0.5f
-                arrow.material = matFaint
-                arrow.position = h1
-                scene.addChild(arrow)
-
-
-
-                val sphere = Icosphere(0.02f, 3)
-                sphere.position = h1
-                scene.addChild(sphere)
-
-                val sphere2 = Icosphere(0.02f, 3)
-                sphere.position = h2
-                scene.addChild(sphere2)
-            }
-
-
-             */
+           Calculating the positional vector:
+           take four consecutive points (Ca1-Ca4), calculate the midpoint between ca1 and ca3 as well as between
+           a2 and ca4; forming the centroid of all resulting vectors should yield a reasonable approximation of
+           the positional vector.
+            */
+            val midpoint1 = Vector3f()
+            foursome.ca1.add(foursome.ca3, midpoint1).mul(0.5f)
+            val midpoint2 = Vector3f()
+            foursome.ca2.add(foursome.ca4, midpoint2).mul(0.5f)
+            val axis1 = Vector3f()
+            midpoint2.sub(midpoint1, axis1).normalize()
 
 
             return DirectionAndPointPair(h1, h2, midpoint1, midpoint2)
