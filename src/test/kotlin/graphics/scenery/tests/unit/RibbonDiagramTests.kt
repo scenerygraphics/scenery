@@ -152,12 +152,12 @@ class RibbonDiagramTests {
         val ribbon = RibbonDiagram(protein)
         val bb = ribbon.getMaximumBoundingBox()
         //We use ranges because the first and last guidePoint are created nondeterministically- but in the guaranteed range
-        assertTrue { 44.5 < bb.max.x && 44.9 > bb.max.x }
-        assertTrue { 67.2 < bb.max.y && 67.6 > bb.max.y }
-        assertTrue { 74.9 < bb.max.z && 75.3 > bb.max.z }
-        assertTrue { -62.3 < bb.min.x && -61.9 > bb.min.x }
-        assertTrue { -56.2 < bb.min.y &&  -55.8 > bb.min.y }
-        assertTrue { -73.0 < bb.min.z && -72.6 > bb.min.z }
+        assertTrue { 22.2 < bb.max.x && 22.6 > bb.max.x }
+        assertTrue { 33.6 < bb.max.y && 34 > bb.max.y }
+        assertTrue { 37.5 < bb.max.z && 37.9 > bb.max.z }
+        assertTrue { -31.3 < bb.min.x && -29.9 > bb.min.x }
+        assertTrue { -28.3 < bb.min.y &&  -27.9 > bb.min.y }
+        assertTrue { -36.8 < bb.min.z && -36.4 > bb.min.z }
     }
 
     //Inline function for the protein to access residues
