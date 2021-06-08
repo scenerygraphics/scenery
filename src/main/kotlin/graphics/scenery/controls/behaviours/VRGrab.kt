@@ -1,23 +1,22 @@
 package graphics.scenery.controls.behaviours
 
-import graphics.scenery.Hub
 import graphics.scenery.Node
 import graphics.scenery.Scene
-import graphics.scenery.controls.InputHandler
 import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.controls.TrackerRole
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plus
-import graphics.scenery.utils.extensions.plusAssign
+import org.joml.Quaternionf
 import org.joml.Vector3f
 import org.scijava.ui.behaviour.DragBehaviour
-import java.lang.Thread.sleep
-import kotlin.concurrent.thread
 
 
 /**
  * Grab and Drag nodes with a VR controller.
+ *
+ * @param targets Only nodes in this list may be dragged. They must have a [Grabable] attribute.
+ * @param multiTarget If this is true all targets which collide with [controllerHitbox] will be dragged otherwise only one.
  *
  * @author Jan Tiemann
  */
@@ -37,8 +36,14 @@ open class VRGrab(
             selected = selected.take(1)
         }
         selected.forEach {
-            it.ifHasAttribute(Grabable::class.java) {
-                startPos = it.spatialOrNull()?.position ?: Vector3f()
+            it.getAttributeOrNull(Grabable::class.java)?.let { grabable ->
+                it.ifSpatial {
+                    grabable.startPos = position
+
+                    grabable.rotationDiff = Quaternionf()
+                    controllerHitbox.spatialOrNull()?.worldRotation()?.invert(grabable.rotationDiff)
+                    grabable.rotationDiff?.mul(rotation)
+                }
             }
         }
         startPos = controllerHitbox.spatialOrNull()?.worldPosition() ?: Vector3f()
@@ -47,9 +52,18 @@ open class VRGrab(
     override fun drag(x: Int, y: Int) {
         val newPos = controllerHitbox.spatialOrNull()?.worldPosition() ?: Vector3f()
         val diff = newPos - startPos
+
+
         selected.forEach {
             it.ifSpatial {
-                position = it.getAttribute(Grabable::class.java).startPos + diff
+                it.getAttributeOrNull(Grabable::class.java)?.let { grabable ->
+                    position = grabable.startPos + diff
+
+                    if (!grabable.lockRotation) {
+                        rotation = Quaternionf(grabable.rotationDiff)
+                        rotation.premul(controllerHitbox.spatialOrNull()?.worldRotation())
+                    }
+                }
             }
         }
     }
@@ -91,6 +105,7 @@ open class VRGrab(
     }
 }
 
-open class Grabable {
-    var startPos = Vector3f()
+open class Grabable(val lockRotation: Boolean = false) {
+    internal var startPos = Vector3f()
+    internal var rotationDiff: Quaternionf? = null
 }
