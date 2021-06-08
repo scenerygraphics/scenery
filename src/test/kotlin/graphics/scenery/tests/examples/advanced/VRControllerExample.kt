@@ -8,6 +8,8 @@ import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.controls.TrackerRole
 import graphics.scenery.numerics.Random
 import graphics.scenery.attribute.material.Material
+import graphics.scenery.controls.behaviours.Grabable
+import graphics.scenery.controls.behaviours.VRGrab
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
 import org.scijava.ui.behaviour.ClickBehaviour
@@ -35,6 +37,7 @@ class VRControllerExample : SceneryBase(VRControllerExample::class.java.simpleNa
         }
 
         hub.add(SceneryElement.HMDInput, hmd)
+        VRGrab.createAndSet(scene,hmd, listOf(OpenVRHMD.OpenVRButton.Side), listOf(TrackerRole.RightHand))
 
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
         renderer?.toggleVR()
@@ -53,6 +56,7 @@ class VRControllerExample : SceneryBase(VRControllerExample::class.java.simpleNa
             obj.spatial {
                 position = Vector3f(-1.0f + (it + 1) * 0.2f, 1.0f, -0.5f)
             }
+            obj.addAttribute(Grabable::class.java,Grabable())
             obj
         }
 
@@ -102,12 +106,15 @@ class VRControllerExample : SceneryBase(VRControllerExample::class.java.simpleNa
                                 box.ifMaterial {
                                     diffuse = Vector3f(1.0f, 0.0f, 0.0f)
                                 }
-                                box.ifSpatial {
-                                    position = (device.velocity ?: Vector3f(0.0f)) * 0.05f + position
+                                if (device.role == TrackerRole.LeftHand) {
+                                    box.ifSpatial {
+                                        position = (device.velocity ?: Vector3f(0.0f)) * 0.05f + position
+                                    }
                                 }
                             }
                         }
                     }
+
                 }
             }
         }
