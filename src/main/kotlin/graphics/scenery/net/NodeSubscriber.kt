@@ -21,43 +21,16 @@ import java.util.concurrent.ConcurrentHashMap
 /**
  * Created by ulrik on 4/4/2017.
  */
-class NodeSubscriber(override var hub: Hub?, val address: String = "udp://localhost:6666", val context: ZContext = ZContext(4)) : Hubable {
+class NodeSubscriber(override var hub: Hub?, val address: String = "tcp://localhost:6666", val context: ZContext = ZContext(4)) : Hubable {
 
     private val logger by LazyLogger()
     var nodes: ConcurrentHashMap<Int, Node> = ConcurrentHashMap()
     var subscriber: ZMQ.Socket = context.createSocket(ZMQ.SUB)
-    val kryo = Kryo()
+    val kryo = NodePublisher.freeze()
 
     init {
         subscriber.connect(address)
         subscriber.subscribe(ZMQ.SUBSCRIPTION_ALL)
-        kryo.isRegistrationRequired = false
-        //kryo.references = true
-
-        kryo.register(Matrix4f::class.java)
-        kryo.register(Vector3f::class.java)
-        kryo.register(Node::class.java)
-        kryo.register(Camera::class.java)
-        kryo.register(DetachedHeadCamera::class.java)
-        kryo.register(Quaternion::class.java)
-        kryo.register(Mesh::class.java)
-        kryo.register(Volume::class.java)
-        kryo.register(OrientedBoundingBox::class.java)
-        kryo.register(TransferFunction::class.java)
-        kryo.register(PointLight::class.java)
-        kryo.register(Light::class.java)
-        kryo.register(Sphere::class.java)
-        kryo.register(Box::class.java)
-        kryo.register(Icosphere::class.java)
-        kryo.register(Cylinder::class.java)
-        kryo.register(Arrow::class.java)
-        kryo.register(Line::class.java)
-        kryo.register(FloatArray::class.java)
-        kryo.register(GeometryType::class.java)
-        kryo.register(RibbonDiagram::class.java)
-        kryo.register(Protein::class.java)
-
-        kryo.instantiatorStrategy = StdInstantiatorStrategy()
     }
 
     fun process() {
@@ -84,8 +57,15 @@ class NodeSubscriber(override var hub: Hub?, val address: String = "udp://localh
                         node.scale = o.scale
                         node.visible = o.visible
 
-                        if (o is Volume && node is Volume && node.initialized) {
-                            TODO("Reimplement changes for synchronising volumes")
+                        node.material.diffuse = o.material.diffuse
+                        node.material.blending = o.material.blending
+
+                        if (Volume::class.java.isAssignableFrom(o.javaClass) && Volume::class.java.isAssignableFrom(node.javaClass)) {
+                            (node as Volume).colormap = (o as Volume).colormap
+                            node.transferFunction = o.transferFunction
+                            if(node.currentTimepoint != o.currentTimepoint) {
+                                node.goToTimepoint(o.currentTimepoint)
+                            }
                         }
 
                         if(o is PointLight && node is PointLight) {

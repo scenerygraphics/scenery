@@ -575,7 +575,7 @@ class EdgeBundler(override var hub: Hub?): Hubable {
     private fun loadTrajectoriesFromCSV(path: String) {
         val trackSetTemp: ArrayList<Array<PointWithMeta>> = ArrayList()
         File(path).walkBottomUp().forEach {file ->
-            if(file.absoluteFile.extension.toLowerCase() == "csv") {
+            if(file.absoluteFile.extension.lowercase() == "csv") {
                 if (file.absoluteFile.exists()) {
                     val trackTemp = arrayListOf<PointWithMeta>()
                     file.absoluteFile.forEachLine {line ->

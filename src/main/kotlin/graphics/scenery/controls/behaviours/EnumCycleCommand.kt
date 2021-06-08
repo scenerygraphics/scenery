@@ -12,13 +12,11 @@ import java.lang.reflect.InvocationTargetException
  * containing the receiver, method, and current value).
  *
  * @author Ulrik Günther <hello@ulrik.is>
- * @property[name] The name of the behaviour.
  * @property[values] The enum properties to use.
  * @property[receiver] The receiving object.
  * @property[method] The name of the single-parameter method to invoke.
  */
-class EnumCycleCommand<T: Enum<*>>(private val name: String,
-                                   private val enumClass: Class<T>,
+class EnumCycleCommand<T: Enum<*>>(private val enumClass: Class<T>,
                                    private val receiver: Any,
                                    private val method: String) : ClickBehaviour {
 

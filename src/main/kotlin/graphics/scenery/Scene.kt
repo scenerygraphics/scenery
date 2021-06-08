@@ -1,17 +1,32 @@
 package graphics.scenery
 
+import com.esotericsoftware.kryo.Kryo
+import com.esotericsoftware.kryo.io.Input
+import com.esotericsoftware.kryo.io.Output
+import com.esotericsoftware.kryo.util.DefaultInstantiatorStrategy
+import de.javakaffee.kryoserializers.UUIDSerializer
+import graphics.scenery.net.NodePublisher
+import graphics.scenery.net.NodeSubscriber
+import graphics.scenery.serialization.*
 import org.joml.Vector3f
 import graphics.scenery.utils.MaybeIntersects
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
+import graphics.scenery.volumes.VolumeManager
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import net.imglib2.img.basictypeaccess.array.ByteArray
+import org.objenesis.strategy.StdInstantiatorStrategy
+import java.io.FileInputStream
+import java.io.FileOutputStream
+import java.nio.ByteBuffer
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.collections.ArrayList
+import kotlin.system.measureTimeMillis
 
 /**
  * Scene class. A Scene is a special kind of [Node] that can only exist once per graph,
@@ -234,5 +249,63 @@ open class Scene : Node("RootNode") {
         }
 
         return RaycastResult(matches, position, direction)
+    }
+
+    fun export(filename: String) {
+        var size = 0L
+        val duration = measureTimeMillis {
+            val kryo = freeze()
+
+            val output = Output(FileOutputStream(filename))
+            kryo.writeObject(output, this)
+            size = output.total()
+            output.close()
+
+        }
+
+        logger.info("Written scene to $filename (${"%.2f".format(size/1024.0f)} KiB) in ${duration}ms")
+    }
+
+    fun publishSubscribe(hub: Hub, filter: (Node) -> Boolean = { true }) {
+        val nodes = discover(this, filter)
+        val pub = hub.get<NodePublisher>()
+        val sub = hub.get<NodeSubscriber>()
+
+        nodes.forEachIndexed { i, node ->
+            pub?.nodes?.put(13337 + i, node)
+            sub?.nodes?.put(13337 + i, node)
+        }
+
+    }
+
+    companion object {
+        @JvmStatic
+        fun import(filename: String): Scene {
+            val kryo = freeze()
+            val input = Input(FileInputStream(filename))
+            val scene = kryo.readObject(input, Scene::class.java)
+            scene.discover(scene, { true }).forEach { it.initialized = false }
+            scene.initialized = false
+
+            return scene
+        }
+
+        fun freeze(): Kryo {
+            val kryo = Kryo()
+            kryo.isRegistrationRequired = false
+            kryo.references = true
+            kryo.register(UUID::class.java, UUIDSerializer())
+            kryo.register(OrientedBoundingBox::class.java, OrientedBoundingBoxSerializer())
+            kryo.register(Triple::class.java, TripleSerializer())
+            kryo.register(ByteBuffer::class.java, ByteBufferSerializer())
+            val tmp = ByteBuffer.allocateDirect(1)
+            kryo.register(tmp.javaClass, ByteBufferSerializer())
+            kryo.register(ByteArray::class.java, Imglib2ByteArraySerializer())
+            kryo.register(ShaderMaterial::class.java, ShaderMaterialSerializer())
+            kryo.register(java.util.zip.Inflater::class.java, IgnoreSerializer<java.util.zip.Inflater>())
+            kryo.register(VolumeManager::class.java, IgnoreSerializer<VolumeManager>())
+
+            return kryo
+        }
     }
 }

@@ -14,7 +14,7 @@ import kotlin.math.*
  * @param[radius] The radius of the sphere
  * @param[segments] Number of segments in latitude and longitude.
  */
-open class Sphere(val radius: Float, val segments: Int) : Mesh("sphere") {
+open class Sphere(val radius: Float = 1.0f, val segments: Int = 8) : Mesh("sphere") {
     init {
         val vbuffer = ArrayList<Float>(segments*segments*2*3)
         val nbuffer = ArrayList<Float>(segments*segments*2*3)

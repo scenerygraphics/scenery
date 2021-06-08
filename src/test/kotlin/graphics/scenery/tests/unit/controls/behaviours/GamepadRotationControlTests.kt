@@ -5,8 +5,7 @@ import graphics.scenery.Camera
 import graphics.scenery.DetachedHeadCamera
 import graphics.scenery.Hub
 import graphics.scenery.Scene
-import graphics.scenery.backends.SceneryWindow
-import graphics.scenery.controls.behaviours.GamepadCameraControl
+import graphics.scenery.controls.behaviours.GamepadRotationControl
 import graphics.scenery.numerics.Random
 import graphics.scenery.tests.unit.backends.FauxRenderer
 import graphics.scenery.utils.LazyLogger
@@ -19,20 +18,20 @@ import java.util.zip.GZIPInputStream
 import kotlin.test.assertNotNull
 
 /**
- * Tests for [GamepadCameraControl]
+ * Tests for [GamepadRotationControl]
  *
  * @author Aryaman Gupta <aryaman1994@gmail.com>
  */
-class GamepadCameraControlTests {
+class GamepadRotationControlTests {
     private val logger by LazyLogger()
 
-    private fun prepareGamepadCameraControl(scene: Scene) : GamepadCameraControl {
+    private fun prepareGamepadCameraControl(scene: Scene) : GamepadRotationControl {
         val hub: Hub = Hub()
 
         val renderer = FauxRenderer(hub, scene)
         hub.add(renderer)
 
-        return GamepadCameraControl("TestController", listOf(Component.Identifier.Axis.X, Component.Identifier.Axis.Y)) { scene.findObserver() }
+        return GamepadRotationControl(listOf(Component.Identifier.Axis.X, Component.Identifier.Axis.Y)) { scene.findObserver() }
     }
 
     private fun prepareTestFile() {
@@ -67,7 +66,7 @@ class GamepadCameraControlTests {
     }
 
     /**
-     * Tests the initialisation of [GamepadCameraControl].
+     * Tests the initialisation of [GamepadRotationControl].
      */
     @Test
     fun testInitialisation() {
@@ -94,7 +93,7 @@ class GamepadCameraControlTests {
         }
 
         val gamepadCameraControl = prepareGamepadCameraControl(scene)
-        val samplesStream = GZIPInputStream(GamepadCameraControlTests::class.java.getResourceAsStream("cameraRotationSequence.json.gz"))
+        val samplesStream = GZIPInputStream(GamepadRotationControlTests::class.java.getResourceAsStream("cameraRotationSequence.json.gz"))
         samplesStream.reader().readLines().forEach { line ->
             val numbers = line.replace("[", "").replace("]", "").split(",").map { it.toFloat() }
             if(numbers[1].toInt() == 0) {
