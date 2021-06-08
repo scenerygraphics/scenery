@@ -8,8 +8,8 @@ import com.sun.jna.platform.win32.WinDef
 import graphics.scenery.Hub
 import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.backends.SceneryWindow
-import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.SceneryPanel
+import org.lwjgl.PointerBuffer
 import org.lwjgl.glfw.GLFW.*
 import org.lwjgl.glfw.GLFWNativeGLX.glfwGetGLXWindow
 import org.lwjgl.glfw.GLFWNativeWin32.glfwGetWin32Window
@@ -90,8 +90,14 @@ class OpenGLSwapchain(device: VulkanDevice,
             GLFW_FALSE
         })
 
-        window = SceneryWindow.GLFWWindow(glfwCreateWindow(win.width, win.height, "scenery", MemoryUtil.NULL, MemoryUtil.NULL)).apply {
-            glfwSetWindowPos(window, 100, 100)
+        val w = glfwCreateWindow(win.width, win.height, "scenery", MemoryUtil.NULL, MemoryUtil.NULL)
+        if(w == null) {
+            val buffer = PointerBuffer.allocateDirect(255)
+            glfwGetError(buffer)
+            throw IllegalStateException("Window could not be created: ${buffer.stringUTF8}")
+        }
+        window = SceneryWindow.GLFWWindow(w).apply {
+            glfwSetWindowPos(w, 100, 100)
 
             // Handle canvas resize
             windowSizeCallback = object : GLFWWindowSizeCallback() {
@@ -443,8 +449,8 @@ class OpenGLSwapchain(device: VulkanDevice,
             val hmd = hub.getWorkingHMDDisplay()
 
             if (hmd != null) {
-                window.width = hmd.getRenderTargetSize().x().toInt() / 2
-                window.height = hmd.getRenderTargetSize().y().toInt()
+                window.width = hmd.getRenderTargetSize().x() / 2
+                window.height = hmd.getRenderTargetSize().y()
                 logger.info("Set fullscreen window dimensions to ${window.width}x${window.height}")
             }
 

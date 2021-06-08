@@ -24,9 +24,9 @@ class Settings(override var hub: Hub? = null) : Hubable {
             }
 
             val setting = when {
-                value.toLowerCase() == "false" || value.toLowerCase() == "true" -> value.toBoolean()
-                value.toLowerCase().contains("f") && value.toLowerCase().replace("f", "").toFloatOrNull() != null -> value.toLowerCase().replace("f", "").toFloat()
-                value.toLowerCase().contains("l") && value.toLowerCase().replace("l", "").toLongOrNull() != null -> value.toLowerCase().replace("l", "").toLong()
+                value.lowercase() == "false" || value.lowercase() == "true" -> value.toBoolean()
+                value.lowercase().contains("f") && value.lowercase().replace("f", "").toFloatOrNull() != null -> value.lowercase().replace("f", "").toFloat()
+                value.lowercase().contains("l") && value.lowercase().replace("l", "").toLongOrNull() != null -> value.lowercase().replace("l", "").toLong()
                 value.toIntOrNull() != null -> value.toInt()
                 else -> value
             }
@@ -52,11 +52,8 @@ class Settings(override var hub: Hub? = null) : Hubable {
 
         @Suppress("UNCHECKED_CAST")
         val s = settingsStore[name] as? T
-        return if(s != null) {
-            s
-        } else {
-            default ?: throw IllegalStateException("Cast of $name failed, the setting might not exist (current value: $s)")
-        }
+        return s
+            ?: (default ?: throw IllegalStateException("Cast of $name failed, the setting might not exist (current value: $s)"))
     }
 
     /**
@@ -73,11 +70,8 @@ class Settings(override var hub: Hub? = null) : Hubable {
 
         @Suppress("UNCHECKED_CAST")
         val s = settingsStore[name] as? T
-        return if(s != null) {
-            s
-        } else {
-            default ?: throw IllegalStateException("Cast of $name failed, the setting might not exist (current value: $s)")
-        }
+        return s
+            ?: (default ?: throw IllegalStateException("Cast of $name failed, the setting might not exist (current value: $s)"))
     }
 
     /**

@@ -4,15 +4,13 @@ import org.joml.Vector3f
 import graphics.scenery.Material.CullingMode.*
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.TimestampedConcurrentHashMap
-import java.io.Serializable
-import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Material class, storing material colors, textures, opacity properties, etc.
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-open class Material : Serializable {
+open class Material {
 
     /**
      * Culling Mode enum, to determine which faces are culling when assuming CCW order
@@ -45,7 +43,8 @@ open class Material : Serializable {
     /** Hash map storing the type and origin of the material's textures. Key is the
      * type, e.g. ("diffuse", "normal", "displacement"...), value can be a file path or
      * via "fromBuffer:[transferTextureName], a named [Texture] in [transferTextures]. */
-    @Volatile var textures: TimestampedConcurrentHashMap<String, Texture> = TimestampedConcurrentHashMap()
+    @Volatile @Transient
+    var textures: TimestampedConcurrentHashMap<String, Texture> = TimestampedConcurrentHashMap()
 
     /** Culling mode of the material. @see[CullingMode] */
     var cullingMode: CullingMode = CullingMode.Back
