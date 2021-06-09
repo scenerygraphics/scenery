@@ -119,6 +119,8 @@ class Rollercoaster(ribbonDiagram: RibbonDiagram, val camera: () -> Camera?, val
                 camera.rotation = pitchQ.mul(camera.rotation).mul(yawQ).normalize()
                 donePitchAng = angProgress * totalPitchAng
                 doneYawAng = angProgress * totalYawAng
+                val tripod = camera.cameraTripod()
+                cross.updateCoordinateSystem(tripod.x, tripod.y, tripod.z, frame.translation)
                 /*
                 try {
                     Thread.sleep(rotPausePerStep)
@@ -128,8 +130,7 @@ class Rollercoaster(ribbonDiagram: RibbonDiagram, val camera: () -> Camera?, val
                  */
                 ++i
             }
-            val tripod = camera.cameraTripod()
-            cross.updateCoordinateSystem(tripod.x, tripod.y, tripod.z, camera.position)
+
             j++
         }
         else { return }
