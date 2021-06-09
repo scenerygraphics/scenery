@@ -1,14 +1,13 @@
 package graphics.scenery
 
 import graphics.scenery.utils.LazyLogger
-import org.joml.Quaternionf
-import org.joml.Vector2f
-import org.joml.Vector3f
+import org.joml.*
 import org.scijava.ui.behaviour.ClickBehaviour
 import org.slf4j.Logger
+import java.lang.Math
 import kotlin.math.acos
 
-class Rollercoaster(ribbonDiagram: RibbonDiagram, val camera: () -> Camera?): ClickBehaviour {
+class Rollercoaster(ribbonDiagram: RibbonDiagram, val camera: () -> Camera?, val cross: Cross = Cross()): ClickBehaviour {
     private val subproteins = ribbonDiagram.children
     private val listOfCameraFrames = ArrayList<FrenetFrame>(subproteins.size*100)
     private val logger: Logger by LazyLogger()
@@ -129,6 +128,8 @@ class Rollercoaster(ribbonDiagram: RibbonDiagram, val camera: () -> Camera?): Cl
                  */
                 ++i
             }
+            val tripod = camera.cameraTripod()
+            cross.updateCoordinateSystem(tripod.x, tripod.y, tripod.z, camera.position)
             j++
         }
         else { return }
