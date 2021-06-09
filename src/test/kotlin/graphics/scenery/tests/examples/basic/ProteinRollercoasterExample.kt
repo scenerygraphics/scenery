@@ -11,6 +11,7 @@ import org.scijava.ui.behaviour.ClickBehaviour
 class ProteinRollercoasterExample: SceneryBase("RollerCoaster", wantREPL = true, windowWidth = 1280, windowHeight = 720) {
     private val protein = Protein.fromID("3nir")
     private val ribbon = RibbonDiagram(protein, false, scene)
+    private val cross = Cross()
 
     override fun init() {
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
@@ -23,20 +24,8 @@ class ProteinRollercoasterExample: SceneryBase("RollerCoaster", wantREPL = true,
         matFaint.specular = Vector3f(1.0f, 1.0f, 1.0f)
         matFaint.cullingMode = Material.CullingMode.None
 
-
-        ribbon.children.forEach{ subProtein ->
-            subProtein.children.forEach{ helix ->
-                if(helix is Helix) {
-                    val arrow = Arrow(helix.axis.direction - Vector3f())
-                    arrow.position = helix.axis.position
-                    arrow.edgeWidth = 0.5f
-                    arrow.material = matFaint
-                    scene.addChild(arrow)
-
-                }
-            }
-        }
         scene.addChild(ribbon)
+        scene.addChild(cross)
 
 
         val lightbox = Box(Vector3f(500.0f, 500.0f, 500.0f), insideNormals = true)
