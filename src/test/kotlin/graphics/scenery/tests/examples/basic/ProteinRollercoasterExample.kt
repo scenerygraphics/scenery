@@ -73,7 +73,7 @@ class ProteinRollercoasterExample: SceneryBase("RollerCoaster", wantREPL = true,
 
     override fun inputSetup() {
         super.inputSetup()
-        inputHandler?.addBehaviour("rollercoaster", Rollercoaster(ribbon, {scene.activeObserver} ))
+        inputHandler?.addBehaviour("rollercoaster", Rollercoaster(ribbon, {scene.activeObserver}, cross ))
         inputHandler?.addKeyBinding("rollercoaster", "E")
     }
 
