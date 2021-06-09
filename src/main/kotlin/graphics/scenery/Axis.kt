@@ -17,7 +17,6 @@ class Axis(positions: List<Vector3f?>, val scene: Scene? = null) {
     val position = Vector3f()
     private val logger by LazyLogger()
     init {
-        print("here we go, ${positions.size}")
         if(positions.size >= 4) {
             val axisPoints = calculateAxisPoints(positions)
             val line = leastSquare(axisPoints.first, axisPoints.second)

@@ -4,10 +4,10 @@ import org.joml.Matrix3f
 import org.joml.Matrix4f
 import org.joml.Vector3f
 
-class Cross(val orientPoint1: Vector3f = Vector3f(-0.3f, 0f, 0f), val orientPoint2: Vector3f = Vector3f(0f, -0.3f, 0f)): Mesh("Cross") {
-    val sphere = Icosphere(0.3f, 4)
-    val cylinder1 = Cylinder(0.02f, 2f, 4)
-    val cylinder2 = Cylinder(0.02f, 2f, 4)
+class Cross(private val orientPoint1: Vector3f = Vector3f(-0.3f, 0f, 0f), private val orientPoint2: Vector3f = Vector3f(0f, -0.3f, 0f)): Mesh("Cross") {
+    private val sphere = Icosphere(0.3f, 4)
+    private val cylinder1 = Cylinder(0.02f, 2f, 4)
+    private val cylinder2 = Cylinder(0.02f, 2f, 4)
 
     init {
         this.addChild(sphere)
