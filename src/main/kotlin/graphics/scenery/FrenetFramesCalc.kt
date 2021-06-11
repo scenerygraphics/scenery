@@ -1,9 +1,7 @@
 package graphics.scenery
 
 import graphics.scenery.utils.extensions.toFloatArray
-import org.joml.AxisAngle4f
-import org.joml.Quaternionf
-import org.joml.Vector3f
+import org.joml.*
 import kotlin.math.acos
 
 class FrenetFramesCalc(val spline: Spline, private val firstPerpendicularVector: Vector3f = Vector3f()) {
@@ -90,5 +88,28 @@ class FrenetFramesCalc(val spline: Spline, private val firstPerpendicularVector:
         else {
             throw Exception("The spline deosn't provide enough points")
         }
+    }
+
+    /**
+     * Calculates the bases
+     */
+    fun calcBases(frenetFrameList: List<FrenetFrame>): List<Matrix4f> {
+        val bases = frenetFrameList.map { (t, n, b, tr) ->
+            val inverseMatrix = Matrix3f(b.x(), n.x(), t.x(),
+                b.y(), n.y(), t.y(),
+                b.z(), n.z(), t.z()).invert()
+            val nb = Vector3f()
+            inverseMatrix.getColumn(0, nb).normalize()
+            val nn = Vector3f()
+            inverseMatrix.getColumn(1, nn).normalize()
+            val nt = Vector3f()
+            inverseMatrix.getColumn(2, nt).normalize()
+            Matrix4f(
+                nb.x(), nn.x(), nt.x(), 0f,
+                nb.y(), nn.y(), nt.y(), 0f,
+                nb.z(), nn.z(), nt.z(), 0f,
+                tr.x(), tr.y(), tr.z(), 1f)
+        }
+        return bases
     }
 }
