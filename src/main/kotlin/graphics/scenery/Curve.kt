@@ -24,6 +24,7 @@ class Curve(spline: Spline, private val firstPerpendicularVector: Vector3f = Vec
     private val sectionVertices = spline.verticesCountPerSection()
     private val countList = ArrayList<Int>(50).toMutableList()
     val frenetFrames = FrenetFramesCalc(spline, firstPerpendicularVector).computeFrenetFrames()
+    val baseShapes = baseShape.invoke()
     /*
      * This function renders the spline.
      * [baseShape] It takes a lambda as a parameter, which is the shape of the
@@ -36,7 +37,7 @@ class Curve(spline: Spline, private val firstPerpendicularVector: Vector3f = Vec
             logger.warn("The spline provided for the Curve is empty.")
         }
         val bases = calcBases()
-        val baseShapes = baseShape.invoke()
+
 
         var partialCurveSize = 1
         baseShapes.windowed(2, 1) { frame ->
