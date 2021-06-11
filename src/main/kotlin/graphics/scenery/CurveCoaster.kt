@@ -20,8 +20,8 @@ class CurveCoaster(curve: Curve, val camera: () -> Camera?): ClickBehaviour {
             val frame = listOfCameraPoints[j]
             val baseShape = baseShapes[j].sortedBy { it.y }
             val maxYValue = baseShape[0].y
-            val camBaseShapeOffset = getMidPoint(baseShape.filter { it.y == maxYValue })
-            camera.position = frame.translation.add(camBaseShapeOffset, camBaseShapeOffset)
+            val camBaseShapeOffset = Vector3f(frame.translation.x, frame.translation.y + maxYValue + 0.1f, frame.translation.z )
+            camera.position = camBaseShapeOffset
             //desired view direction in world coords
             val worldDirVec = frame.tangent
             if (worldDirVec.lengthSquared() < 0.01) {
@@ -106,20 +106,5 @@ class CurveCoaster(curve: Curve, val camera: () -> Camera?): ClickBehaviour {
         }
         else { return }
         //using 25 fps or, the reverse, 40 ms per frame
-    }
-
-    fun getMidPoint(vecList: List<Vector3f>): Vector3f {
-        if(vecList.size == 1) {
-            return vecList[0]
-        }
-        else {
-            val newMidPoints = ArrayList<Vector3f>(vecList.size -1)
-            vecList.windowed(2, 1) {
-                val midPoint = Vector3f()
-                it[0].add(it[1], midPoint).mul(0.5f)
-                newMidPoints.add(midPoint)
-            }
-            return getMidPoint(newMidPoints)
-        }
     }
 }
