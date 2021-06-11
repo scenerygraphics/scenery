@@ -7,10 +7,13 @@ import org.slf4j.Logger
 import java.lang.Math
 import kotlin.math.acos
 
-class Rollercoaster(ribbonDiagram: RibbonDiagram, val camera: () -> Camera?, val cross: Cross = Cross()): ClickBehaviour {
+class Rollercoaster(ribbonDiagram: RibbonDiagram, val cam: () -> Camera?): ClickBehaviour {
     private val subproteins = ribbonDiagram.children
     private val listOfCameraFrames = ArrayList<FrenetFrame>(subproteins.size*100)
     private val logger: Logger by LazyLogger()
+    val camera: Camera? = cam.invoke()
+
+
 
     init {
         ribbonDiagram.children.forEach { subprotein ->
@@ -37,6 +40,7 @@ class Rollercoaster(ribbonDiagram: RibbonDiagram, val camera: () -> Camera?, val
                     }
                     val newSpline = DummySpline(axisSplineList, 10)
                     listOfCameraFrames.addAll(FrenetFramesCalc(newSpline).computeFrenetFrames())
+
                 }
             }
         }
@@ -44,7 +48,7 @@ class Rollercoaster(ribbonDiagram: RibbonDiagram, val camera: () -> Camera?, val
 
     var j = 0
     override fun click(x: Int, y: Int) {
-        val camera = camera.invoke()
+
         if(j <= listOfCameraFrames.lastIndex && camera != null) {
             val frame = listOfCameraFrames[j]
             camera.position = frame.translation
@@ -119,8 +123,9 @@ class Rollercoaster(ribbonDiagram: RibbonDiagram, val camera: () -> Camera?, val
                 camera.rotation = pitchQ.mul(camera.rotation).mul(yawQ).normalize()
                 donePitchAng = angProgress * totalPitchAng
                 doneYawAng = angProgress * totalYawAng
-                val tripod = camera.cameraTripod()
-                cross.updateCoordinateSystem(tripod.x, tripod.y, tripod.z, frame.translation)
+
+
+
                 /*
                 try {
                     Thread.sleep(rotPausePerStep)
@@ -130,7 +135,6 @@ class Rollercoaster(ribbonDiagram: RibbonDiagram, val camera: () -> Camera?, val
                  */
                 ++i
             }
-
             j++
         }
         else { return }
