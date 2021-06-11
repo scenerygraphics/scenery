@@ -17,11 +17,14 @@ class CurveCoaster(curve: Curve, val camera: () -> Camera?): ClickBehaviour {
     override fun click(x: Int, y: Int) {
         val camera = camera.invoke()
         if(j <= listOfCameraPoints.lastIndex && camera != null) {
+            //change cam position
             val frame = listOfCameraPoints[j]
-            val baseShape = baseShapes[j].sortedBy { it.y }
-            val maxYValue = baseShape[0].y
-            val camBaseShapeOffset = Vector3f(frame.translation.x, frame.translation.y + maxYValue + 0.1f, frame.translation.z )
-            camera.position = camBaseShapeOffset
+            //offset the camera position to not fly through the baseShapes
+            val offset = baseShapes[j].sortedBy { it.y }[0].y + 0.1f
+            val newCamPos = Vector3f(frame.translation.x, frame.translation.y + offset, frame.translation.z )
+            camera.position = newCamPos
+
+            //change cam orientation
             //desired view direction in world coords
             val worldDirVec = frame.tangent
             if (worldDirVec.lengthSquared() < 0.01) {
