@@ -12,7 +12,7 @@ import org.scijava.ui.behaviour.ClickBehaviour
 class ProteinRollercoasterExample: SceneryBase("RollerCoaster", wantREPL = true, windowWidth = 1280, windowHeight = 720) {
     private val protein = Protein.fromID("3nir")
     private val ribbon = RibbonDiagram(protein, false, scene)
-    private val cross = Cross()
+    //private val cross = Cross()
 
     override fun init() {
 
@@ -101,5 +101,3 @@ class ProteinRollercoasterExample: SceneryBase("RollerCoaster", wantREPL = true,
         }
     }
 }
-
-
