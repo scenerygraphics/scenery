@@ -5,6 +5,7 @@ import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plus
+import org.joml.Quaternionf
 import org.joml.Vector3f
 import org.scijava.ui.behaviour.ClickBehaviour
 
@@ -14,19 +15,13 @@ class ProteinRollercoasterExample: SceneryBase("RollerCoaster", wantREPL = true,
     private val cross = Cross()
 
     override fun init() {
+
+
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
 
         val rowSize = 20f
 
-        val matFaint = Material()
-        matFaint.diffuse  = Vector3f(0.0f, 0.6f, 0.6f)
-        matFaint.ambient  = Vector3f(1.0f, 1.0f, 1.0f)
-        matFaint.specular = Vector3f(1.0f, 1.0f, 1.0f)
-        matFaint.cullingMode = Material.CullingMode.None
-
         scene.addChild(ribbon)
-        scene.addChild(cross)
-
 
         val lightbox = Box(Vector3f(500.0f, 500.0f, 500.0f), insideNormals = true)
         lightbox.name = "Lightbox"
@@ -66,15 +61,37 @@ class ProteinRollercoasterExample: SceneryBase("RollerCoaster", wantREPL = true,
         cam.name = "camera"
         cam.position = Vector3f(0.0f, 0.0f, 15.0f)
         cam.perspectiveCamera(50.0f, windowWidth, windowHeight)
+
+
         scene.addChild(cam)
+
+        /*
+        //add a cross to prevent motion sickness
+        cam.addChild(cross)
+        //move the cross
+        val quaternion = Quaternionf()
+        cam.rotation.conjugate(quaternion).transform(cross.position)
+        val forwardTimesTwo = Vector3f()
+        if(cam.targeted) {
+            cross.position.add(cam.target.mul(-1f, forwardTimesTwo))
+        }
+        else {
+            cross.position.add(cam.forward.mul(-1f, forwardTimesTwo))
+        }
+
+         */
+
 
         cam.addChild(cameraLight)
     }
 
     override fun inputSetup() {
         super.inputSetup()
-        inputHandler?.addBehaviour("rollercoaster", Rollercoaster(ribbon, {scene.activeObserver}, cross ))
+        inputHandler?.addBehaviour(
+            "rollercoaster",
+            Rollercoaster(ribbon, { scene.activeObserver }))
         inputHandler?.addKeyBinding("rollercoaster", "E")
+
     }
 
     companion object {
