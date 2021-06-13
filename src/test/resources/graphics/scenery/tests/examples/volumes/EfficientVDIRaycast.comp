@@ -49,10 +49,10 @@ vec3 sourcemax_x_10_x_ = vec3(128.0, 128.0, 128.0);
 //ivec2 debug_pixel = ivec2(275, 700);
 
 // pixel with lists being skipped
-//ivec2 debug_pixel = ivec2(417, 133);
+ivec2 debug_pixel = ivec2(417, 133);
 //ivec2 debug_pixel = ivec2(524, 164);
 //ivec2 debug_pixel = ivec2(415, 131);
-ivec2 debug_pixel = ivec2(448, 127);
+//ivec2 debug_pixel = ivec2(448, 127);
 
 const vec4 bitEnc = vec4(1.,255.,65025.,16581375.);
 const vec4 bitDec = 1./bitEnc;
@@ -180,7 +180,7 @@ void findListNumber(vec4 wpos, out ivec2 listNum, out vec4 NDC_orig) {
     {
         listNum = ivec2(-1, -1);
         NDC_orig = vec4(-1.);
-        return; // This sample point is not in the original viewport and therefore cannot be in the VDI, continue onto the next sample point
+        return; // This sample point is not in the original viewport and therefore cannot be in the VDI
     }
 
     vec2 tex_orig = (NDC_orig.xy + 1) / 2.0;
@@ -245,8 +245,11 @@ void findNextSupersegment(rayProperties newRay, inout float step, float tfar, ou
 
     supseg_found = false;
     ivec2 prevList = ivec2(0);
-
+//    step = 0.;
+//    int cnt = 0;
     while(!supseg_found && step <= tfar) {
+//        cnt++;
+//        if(cnt>3) break;
         vec4 wpos = mix( newRay.wfront, newRay.wback, step );
 
         ivec2 invoc_orig;
@@ -259,8 +262,8 @@ void findNextSupersegment(rayProperties newRay, inout float step, float tfar, ou
         }
         listCoords = invoc_orig;
 //        #if USE_PRINTF
-//        if(gl_GlobalInvocationID.xy == debug_pixel && startPrinting && (listCoords != prevList)) {
-//            debugPrintfEXT("Actual next list found is: (%d, %d)", listCoords);
+//        if(gl_GlobalInvocationID.xy == debug_pixel) {
+//            debugPrintfEXT("Actual next list found is: (%d, %d). Value of step was %f", listCoords, step);
 //        }
 //        #endif
 
@@ -490,7 +493,7 @@ void intersectSupersegment_bruteForce(rayProperties newRay, float step, float tf
 }
 
 void findNextSupersegment_opt(rayProperties newRay, ivec2 nextList, float step, float tfar, out ivec2 listCoords, out float depthStart, out float depthEnd, out int index, out bool supseg_found) {
-    //use brute-force stepping to find the next supersegment
+    //use otimized intersections to find the next supersegment
 
     supseg_found = false;
 
@@ -507,6 +510,7 @@ void findNextSupersegment_opt(rayProperties newRay, ivec2 nextList, float step, 
 
         vec2 tex_orig = nextList/vec2(windowWidth, windowHeight);
         vec2 uv_orig_ray = tex_orig * 2.0 - vec2(1.0);
+        NDC_orig.xy = uv_orig_ray;
 
         listCoords = nextList;
         supersegmentInList(nextList, NDC_orig, wpos, newRay, depthStart, depthEnd, index, supseg_found);
@@ -550,6 +554,8 @@ void findNextSupersegment_opt(rayProperties newRay, ivec2 nextList, float step, 
             vec4 NDC_temp;
 
             findListNumber(wtemp, invoc_temp, NDC_temp);
+
+            NDC_temp.xy = uv_orig_ray;
 
             //TODO: replace by correct calculation of NDC_orig based on scaling of the_list
             supersegmentInList(the_list, NDC_temp, wtemp, newRay, depthStart, depthEnd, index, supseg_found);
@@ -663,7 +669,82 @@ void main() {
     ivec2 listCoords;
     int cnt = 0;
     ivec2 nextList;
-    if(step > tfar) v = vec4(1, 0, 0, 1);
+    if(step > tfar) {
+        v = vec4(1, 0, 0, 1);
+    } else {
+        vec4 wnear = mix(newRay.wfront, newRay.wback, tnear);
+
+        //if this point is within original viewport, then this is the starting point for raycasting
+        //if not, we need to find the first point in this direction that is in the original viewport
+        vec4 ndc_near = pv_orig * wnear;
+        ndc_near *= 1. / ndc_near.w;
+
+        float first_step;
+        ivec2 firstList;
+
+        ivec2 first_intersect;
+        float ds1, de1;
+        int first_ind;
+        bool found_first;
+
+        if(ndc_near.x < -1 || ndc_near.x > 1 || ndc_near.y < -1 || ndc_near.y > 1 || ndc_near.z < -1 || ndc_near.z > 1) {
+            // the point is not in the original viewport
+            #if USE_PRINTF
+            if(gl_GlobalInvocationID.xy == debug_pixel) {
+                debugPrintfEXT("This point is not in the original viewpoort. Step val: %f,  ndc: (%f, %f, %f)", tnear, ndc_near.xyz);
+            }
+            #endif
+
+            vec4 ndc_far = pv_orig * wnear;
+            ndc_far *= 1. / ndc_far.w;
+
+            vec3 rayDirection = (ndc_far - ndc_near).xyz;
+            rayDirection = normalize(rayDirection);
+            float d1, d2;
+            intersectBox( ndc_near.xyz, rayDirection, vec3(-1.), vec3(1.), d1, d2);
+
+            vec4 f_pt = vec4(ndc_near.xyz + rayDirection * d1, 1);
+            vec4 l_pt = vec4(ndc_near.xyz + rayDirection * d2, 1);
+
+            vec4 f_pt_w = ivp_orig * f_pt;
+            f_pt_w *= 1. / f_pt_w.w;
+            vec4 l_pt_w = ivp_orig * l_pt;
+            l_pt_w *= 1. / l_pt_w.w;
+
+            if(distance(f_pt_w, newRay.wfront) > distance(l_pt_w, newRay.wfront)) {
+                first_step = distance(l_pt_w, newRay.wfront) / distance(newRay.wfront, newRay.wback);
+                vec2 tex_orig = (l_pt.xy + 1) / 2.0;
+
+                firstList.x = int(round(tex_orig.x * windowWidth));
+                firstList.y = int(round(tex_orig.y * windowHeight));
+            } else {
+                first_step = distance(f_pt_w, newRay.wfront) / distance(newRay.wfront, newRay.wback);
+                vec2 tex_orig = (front_orig.xy + 1) / 2.0;
+
+                firstList.x = int(round(tex_orig.x * windowWidth));
+                firstList.y = int(round(tex_orig.y * windowHeight));
+            }
+        } else {
+            #if USE_PRINTF
+            if(gl_GlobalInvocationID.xy == debug_pixel) {
+                debugPrintfEXT("This point IS in the original viewpoort. Step val: %f,  ndc: (%f, %f, %f)", tnear, ndc_near.xyz);
+            }
+            #endif
+
+            vec4 ndc;
+            findListNumber(wnear, firstList, ndc);
+            first_step = tnear;
+        }
+        findNextSupersegment_opt(newRay, firstList, first_step, 1., first_intersect, ds1, de1, first_ind, found_first);
+
+        #if USE_PRINTF
+        if(gl_GlobalInvocationID.xy == debug_pixel) {
+//            debugPrintfEXT("Front orig is: (%f, %f, %f) and back_orig is: (%f, %f, %f). F_pt is: (%f, %f, %f) and l_pt is: (%f, %f, %df).", front_orig.xyz, back_orig.xyz, f_pt.xyz, l_pt.xyz);
+            debugPrintfEXT("The first list passed is: (%d, %d)", firstList);
+            debugPrintfEXT("The optimized method found the following first supseg (%d, %d), %d", first_intersect, first_ind);
+        }
+        #endif
+    }
     while ( step < tfar )
     {
         cnt++;
@@ -671,15 +752,25 @@ void main() {
         float step_before = step;
         findNextSupersegment(newRay, step, tfar, listCoords, supseg_start, supseg_end, index, supseg_found);
 
-        #if USE_PRINTF
-        if(gl_GlobalInvocationID.xy == debug_pixel) {
-            debugPrintfEXT("Actual next supseg is: (%d, %d), %d", listCoords, index);
-        }
-        #endif
+//        #if USE_PRINTF
+//        if(gl_GlobalInvocationID.xy == debug_pixel) {
+//            debugPrintfEXT("Actual next supseg is: (%d, %d), %d", listCoords, index);
+//        }
+//        #endif
 
         if(supseg_found == false) {
             break; // there is no supersegment along this ray, so terminate
         }
+
+        if(cnt == 1) {
+            #if USE_PRINTF
+            if(gl_GlobalInvocationID.xy == debug_pixel) {
+                debugPrintfEXT("First supseg. Actual: (%d, %d), %d", listCoords, index);
+            }
+            #endif
+        }
+
+
         if(cnt > 1) {
             ivec2 listTemp;
             float ds, de;
@@ -687,14 +778,14 @@ void main() {
             bool found;
             findNextSupersegment_opt(newRay, nextList, step_before, tfar, listTemp, ds, de, ind, found);
 
-            #if USE_PRINTF
-            if(gl_GlobalInvocationID.xy == debug_pixel) {
-                debugPrintfEXT("Supseg found be optimized approach: (%d, %d), %d", listTemp, ind);
-            }
-//            if(listTemp != listCoords || ind != index) {
-//                debugPrintfEXT("Found differing supersegments. Actual: (%d, %d), %d and optimized: (%d, %d), %d. My invoc is: (%d, %d)", listCoords, index, listTemp, ind, gl_GlobalInvocationID.xy);
+//            #if USE_PRINTF
+//            if(gl_GlobalInvocationID.xy == debug_pixel) {
+//                debugPrintfEXT("Supseg found be optimized approach: (%d, %d), %d", listTemp, ind);
 //            }
-            #endif
+////            if(listTemp != listCoords || ind != index) {
+////                debugPrintfEXT("Found differing supersegments. Actual: (%d, %d), %d and optimized: (%d, %d), %d. My invoc is: (%d, %d)", listCoords, index, listTemp, ind, gl_GlobalInvocationID.xy);
+////            }
+//            #endif
         }
 
         depth = index;
@@ -813,15 +904,15 @@ void main() {
         vec4 NDC_next = pv_orig * wpos_next;
         NDC_next *= 1/NDC_next.w;
 
-        #if USE_PRINTF
-        if(gl_GlobalInvocationID.xy == debug_pixel) {
-//            debugPrintfEXT("Using brute force calculations, wpos: (%f, %f, %f) and in original NDC, that's: (%f, %f, %f)",
-//                wpos_next.xyz, NDC_next.xyz);
-//            debugPrintfEXT("Distance calculated by brute force: %f, optimized: %f. Supseg width: %f and opacity: %f. Supseg number: (%d, %d), %d",
-//                length_in_supseg, length2, (supseg_end - supseg_start), supseg_col.a, listCoords, index);
-//            debugPrintfEXT("Supersegment %d alpha is: (%f)", cnt, supseg_col.a);
-        }
-        #endif
+//        #if USE_PRINTF
+//        if(gl_GlobalInvocationID.xy == debug_pixel) {
+////            debugPrintfEXT("Using brute force calculations, wpos: (%f, %f, %f) and in original NDC, that's: (%f, %f, %f)",
+////                wpos_next.xyz, NDC_next.xyz);
+////            debugPrintfEXT("Distance calculated by brute force: %f, optimized: %f. Supseg width: %f and opacity: %f. Supseg number: (%d, %d), %d",
+////                length_in_supseg, length2, (supseg_end - supseg_start), supseg_col.a, listCoords, index);
+////            debugPrintfEXT("Supersegment %d alpha is: (%f)", cnt, supseg_col.a);
+//        }
+//        #endif
 
         v.rgb = v.rgb + (1-v.a) * supseg_col.rgb * alpha;
         v.a = v.a + (1-v.a) * alpha;
