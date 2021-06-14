@@ -6,6 +6,7 @@ import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.controls.TrackerRole
+import graphics.scenery.controls.behaviours.VRScale
 import graphics.scenery.numerics.Random
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.controls.behaviours.Grabable
@@ -142,8 +143,8 @@ class VRControllerExample : SceneryBase(VRControllerExample::class.java.simpleNa
             boxes.forEach { it.visible = !it.visible }
             logger.info("Boxes visible: ${boxes.first().visible}")
         })
-        // ...and bind that to the side button of the left-hand controller.
-        hmd.addKeyBinding("toggle_boxes", TrackerRole.LeftHand, OpenVRHMD.OpenVRButton.Side)
+        // ...and bind that to the A button of the left-hand controller.
+        hmd.addKeyBinding("toggle_boxes", TrackerRole.RightHand, OpenVRHMD.OpenVRButton.A)
 
         // Finally, add a behaviour to toggle the scene's shell
         hmd.addBehaviour("toggle_shell", ClickBehaviour { _, _ ->
@@ -152,6 +153,10 @@ class VRControllerExample : SceneryBase(VRControllerExample::class.java.simpleNa
         })
         //... and bind that to the A button on the left-hand controller.
         hmd.addKeyBinding("toggle_shell", TrackerRole.LeftHand, OpenVRHMD.OpenVRButton.A)
+
+        VRScale.createAndSet(hmd,OpenVRHMD.OpenVRButton.Side){
+            boxes.first().scale *= Vector3f(it)
+        }
     }
 
     companion object {
