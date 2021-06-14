@@ -7,6 +7,10 @@ import graphics.scenery.Node
 import graphics.scenery.utils.LazyLogger
 import kotlinx.coroutines.*
 import org.joml.*
+import org.scijava.ui.behaviour.*
+import org.scijava.ui.behaviour.io.InputTriggerConfig
+import java.awt.Component
+import java.awt.event.KeyEvent
 import java.net.InetAddress
 import java.util.concurrent.ConcurrentHashMap
 
@@ -15,7 +19,7 @@ import java.util.concurrent.ConcurrentHashMap
  *
  * @author Ulrik Guenther <hello@ulrik.is>
  */
-class DTrackTrackerInput(val host: String = "localhost", val port: Int = 5000, var defaultBodyId: Int = 0): TrackerInput {
+class DTrackTrackerInput(val host: String = "localhost", val port: Int = 5000, var defaultBodyId: String = "body-0"): TrackerInput {
     private var sdk: DTrackSDK = DTrackSDK(InetAddress.getByName(host), port)
     private val logger by LazyLogger()
 
@@ -30,15 +34,27 @@ class DTrackTrackerInput(val host: String = "localhost", val port: Int = 5000, v
 
     protected val listeningJob: Job
 
-    data class DTrackBodyState(var quality: Double, var position: Vector3f, var rotation: Quaternionf)
+    data class DTrackBodyState(var quality: Double,
+                               var position: Vector3f,
+                               var rotation: Quaternionf,
+                               var joystickX: Float? = null,
+                               var joystickY: Float? = null)
 
-    protected var bodyState = ConcurrentHashMap<Int, DTrackBodyState>()
+    protected var bodyState = ConcurrentHashMap<String, DTrackBodyState>()
 
     protected var connected = false
     protected var receivedInput = false
 
+    val inputHandler = MouseAndKeyHandler()
+    protected val config: InputTriggerConfig = InputTriggerConfig()
+    protected val inputMap = InputTriggerMap()
+    protected val behaviourMap = BehaviourMap()
+
     init {
         logger.debug("Connected to $host:$port.")
+
+        inputHandler.setBehaviourMap(behaviourMap)
+        inputHandler.setInputMap(inputMap)
 
         if(!sdk.isDataInterfaceValid) {
             throw IllegalStateException("DTrack initialisation error, could not talk to DTrack on $host, port $port.")
@@ -57,7 +73,7 @@ class DTrackTrackerInput(val host: String = "localhost", val port: Int = 5000, v
         listeningJob = GlobalScope.launch {
             while(true) {
                 if(sdk.receive()) {
-                    logger.debug("Received DTrack frame with {} bodies.", sdk.numBody)
+                    logger.debug("Received DTrack frame with {} bodies and {} flysticks.", sdk.numBody, sdk.numFlystick)
 
                     receivedInput = true
                     for(bodyId in 0 until sdk.numBody) {
@@ -69,7 +85,7 @@ class DTrackTrackerInput(val host: String = "localhost", val port: Int = 5000, v
                         val y = loc[2].toFloat()/1000.0f
                         val z = loc[1].toFloat()/1000.0f
 
-                        val state = bodyState.getOrPut(bodyId, {
+                        val state = bodyState.getOrPut( "body-$bodyId", {
                             DTrackBodyState(
                                 quality,
                                 Vector3f(x, y, z),
@@ -81,9 +97,139 @@ class DTrackTrackerInput(val host: String = "localhost", val port: Int = 5000, v
                         state.rotation.setFromUnnormalized(rotToMatrix3f(rotation))
                         state.position.set(x, y, z)
                     }
+
+                    for(flystickId in 0 until sdk.numFlystick) {
+                        val flystick = sdk.getFlystick(flystickId)
+                        val quality = flystick.quality
+                        val loc = flystick.loc
+                        val rotation = flystick.rot
+
+                        val x = loc[0].toFloat()/1000.0f
+                        val y = loc[2].toFloat()/1000.0f
+                        val z = loc[1].toFloat()/1000.0f
+
+                        val joystickX = flystick.joystick[0].toFloat()
+                        val joystickY = flystick.joystick[1].toFloat()
+
+                        val buttons = flystick.button
+
+                        logger.debug("Button state: {}, joystick: {}, {}", flystick.button.joinToString(","), joystickX, joystickY)
+
+                        val state = bodyState.getOrPut("flystick-$flystickId", {
+                            DTrackBodyState(
+                                quality,
+                                Vector3f(x, y, z),
+                                Quaternionf().setFromUnnormalized(rotToMatrix3f(rotation)),
+                                joystickX,
+                                joystickY
+                            )
+                        })
+
+                        state.quality = quality
+                        state.rotation.setFromUnnormalized(rotToMatrix3f(rotation))
+                        state.position.set(x, y, z)
+
+                        buttons.forEachIndexed { buttonId, buttonState ->
+                            val dtrackButton = when(buttonId) {
+                                0 -> DTrackButton.Trigger
+                                1 -> DTrackButton.Right
+                                2 -> DTrackButton.Center
+                                3 -> DTrackButton.Left
+                                else -> throw IllegalStateException("Unknown button id")
+                            }
+
+                            if(buttonState == 1) {
+                                val event = dtrackButton.toKeyEvent()
+                                GlobalKeyEventDispatcher.getInstance().dispatchKeyEvent(event.first)
+                                inputHandler.keyPressed(event.first)
+                                GlobalKeyEventDispatcher.getInstance().dispatchKeyEvent(event.second)
+                                inputHandler.keyReleased(event.second)
+                            }
+                        }
+                    }
                 }
             }
         }
+    }
+
+
+    /**
+     * Adds a behaviour to the map of behaviours, making them available for key bindings
+     *
+     * @param[behaviourName] The name of the behaviour
+     * @param[behaviour] The behaviour to add.
+     */
+    fun addBehaviour(behaviourName: String, behaviour: Behaviour) {
+        behaviourMap.put(behaviourName, behaviour)
+    }
+
+    /**
+     * Removes a behaviour from the map of behaviours.
+     *
+     * @param[behaviourName] The name of the behaviour to remove.
+     */
+    fun removeBehaviour(behaviourName: String) {
+        behaviourMap.remove(behaviourName)
+    }
+
+    /**
+     * Adds a key binding for a given behaviour
+     *
+     * @param[behaviourName] The behaviour to add a key binding for
+     * @param[keys] Which keys should trigger this behaviour?
+     */
+    fun addKeyBinding(behaviourName: String, vararg keys: String) {
+        keys.forEach { key ->
+            config.inputTriggerAdder(inputMap, "all").put(behaviourName, key)
+        }
+    }
+
+    fun addKeyBinding(behaviourName: String, hand: TrackerRole, button: OpenVRHMD.OpenVRButton) {
+        config.inputTriggerAdder(inputMap, "all").put(behaviourName, OpenVRHMD.keyBinding(hand, button))
+    }
+
+    /**
+     * Removes a key binding for a given behaviour
+     *
+     * @param[behaviourName] The behaviour to remove the key binding for.
+     */
+    @Suppress("unused")
+    fun removeKeyBinding(behaviourName: String) {
+        config.inputTriggerAdder(inputMap, "all").put(behaviourName)
+    }
+
+    /**
+     * Returns the behaviour with the given name, if it exists. Otherwise null is returned.
+     *
+     * @param[behaviourName] The name of the behaviour
+     */
+    fun getBehaviour(behaviourName: String): Behaviour? {
+        return behaviourMap.get(behaviourName)
+    }
+
+    private fun DTrackButton.toKeyEvent(): Pair<KeyEvent, KeyEvent> {
+        val keycode = this.toAWTKeyCode()
+        return KeyEvent(object: Component() {}, KeyEvent.KEY_PRESSED, System.nanoTime(), 0, keycode.code, keycode.char) to
+            KeyEvent(object: Component() {}, KeyEvent.KEY_RELEASED, System.nanoTime() + 10e5.toLong(), 0, keycode.code, keycode.char)
+    }
+
+    private fun DTrackButton.toAWTKeyCode(): AWTKey {
+        return when(this) {
+            DTrackButton.Trigger -> AWTKey(KeyEvent.VK_0)
+            DTrackButton.Left -> AWTKey(KeyEvent.VK_3)
+            DTrackButton.Center -> AWTKey(KeyEvent.VK_2)
+            DTrackButton.Right -> AWTKey(KeyEvent.VK_1)
+        }
+    }
+
+    operator fun plusAssign(behaviourAndBinding: InputHandler.NamedBehaviourWithKeyBinding) {
+        addBehaviour(behaviourAndBinding.name, behaviourAndBinding.behaviour)
+        addKeyBinding(behaviourAndBinding.name, behaviourAndBinding.key)
+    }
+
+    operator fun minusAssign(name: String) {
+        removeBehaviour(name)
+        removeKeyBinding(name)
     }
 
     private fun rotToMatrix3f(input: Array<DoubleArray>): Matrix3f {
@@ -112,7 +258,7 @@ class DTrackTrackerInput(val host: String = "localhost", val port: Int = 5000, v
      * @returns Matrix4f with orientation
      */
     override fun getOrientation(id: String): Quaternionf {
-        return bodyState[id.toInt()]?.rotation ?: Quaternionf()
+        return bodyState[id]?.rotation ?: Quaternionf()
     }
 
     /**

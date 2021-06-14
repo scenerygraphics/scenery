@@ -25,7 +25,6 @@ repositories {
 }
 
 dependencies {
-
     // we cant use a platform because of a jitpack issue, we apply the dependencies constraints via
     // the sciJava.platform plugin above in the `plugins {}` scope
 //    implementation(platform("sciJava:platform:30.0.0+6"))
@@ -60,7 +59,8 @@ dependencies {
     implementation(jackson.bundles.all)
     api("graphics.scenery:spirvcrossj:0.8.0-1.1.106.0", lwjglNatives)
     implementation("org.zeromq:jeromq:0.4.3")
-    implementation("com.esotericsoftware:kryo:5.0.3")
+    implementation("com.esotericsoftware:kryo:5.1.1")
+    implementation("de.javakaffee:kryo-serializers:0.45")
     implementation("org.msgpack:msgpack-core:0.8.20")
     implementation("org.msgpack:jackson-dataformat-msgpack:0.8.20")
     api("graphics.scenery:jvrpn:1.2.0", lwjglNatives)
@@ -157,3 +157,11 @@ jacoco {
 }
 
 java.withSourcesJar()
+
+// disable Gradle metadata file creation on Jitpack, as jitpack modifies
+// the metadata file, resulting in broken metadata with missing native dependencies.
+if(System.getenv("JITPACK") != null) {
+    tasks.withType<GenerateModuleMetadata> {
+        enabled = false
+    }
+}

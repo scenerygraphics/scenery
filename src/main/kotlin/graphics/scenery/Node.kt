@@ -21,7 +21,6 @@ import java.util.concurrent.locks.ReentrantLock
 import java.util.function.Consumer
 import kotlin.collections.ArrayList
 import kotlin.collections.HashMap
-import kotlin.math.PI
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.properties.Delegates
@@ -40,6 +39,7 @@ import kotlin.reflect.jvm.isAccessible
  * @property[name] The name of the [Node]
  */
 open class Node(open var name: String = "Node") : Renderable, Serializable, RealLocalizable, RealPositionable {
+    @delegate:Transient
     protected val logger by LazyLogger()
 
     /** Unique ID of the Node */
@@ -73,7 +73,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
     var instancedProperties = LinkedHashMap<String, () -> Any>()
 
     /** The Node's lock. */
-    override var lock: ReentrantLock = ReentrantLock()
+    @Transient override var lock: ReentrantLock = ReentrantLock()
 
     /** bounding box **/
     var boundingBox: OrientedBoundingBox? = null
@@ -98,53 +98,62 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
     var postUpdate: ArrayList<() -> Unit> = ArrayList()
 
     /** World transform matrix. Will create inverse [iworld] upon modification. */
+    @delegate:Transient
     override var world: Matrix4f by Delegates.observable(Matrix4f().identity()) { property, old, new -> propertyChanged(property, old, new) }
 
     /** Inverse [world] transform matrix. */
+    @delegate:Transient
     override var iworld: Matrix4f by Delegates.observable(Matrix4f().identity()) { property, old, new -> propertyChanged(property, old, new) }
-
+    @delegate:Transient
     /** Local model transform matrix. Will create inverse [imodel] upon modification. */
     override var model: Matrix4f by Delegates.observable(Matrix4f().identity()) { property, old, new -> propertyChanged(property, old, new) }
 
     /** Inverse [world] transform matrix. */
+    @delegate:Transient
     override var imodel: Matrix4f by Delegates.observable(Matrix4f().identity()) { property, old, new -> propertyChanged(property, old, new) }
 
     /** View matrix. Will create inverse [iview] upon modification. */
+    @delegate:Transient
     override var view: Matrix4f by Delegates.observable(Matrix4f().identity()) { property, old, new -> propertyChanged(property, old, new) }
 
     /** Inverse [view] matrix. */
+    @delegate:Transient
     override var iview: Matrix4f by Delegates.observable(Matrix4f().identity()) { property, old, new -> propertyChanged(property, old, new) }
 
     /** Projection matrix. Will create inverse [iprojection] upon modification. */
+    @delegate:Transient
     override var projection: Matrix4f by Delegates.observable(Matrix4f().identity()) { property, old, new -> propertyChanged(property, old, new) }
 
     /** Inverse [projection] transform matrix. */
+    @delegate:Transient
     override var iprojection: Matrix4f by Delegates.observable(Matrix4f().identity()) { property, old, new -> propertyChanged(property, old, new) }
 
     /** ModelView matrix. Will create inverse [imodelView] upon modification. */
+    @delegate:Transient
     override var modelView: Matrix4f by Delegates.observable(Matrix4f().identity()) { property, old, new -> propertyChanged(property, old, new) }
 
     /** Inverse [modelView] transform matrix. */
+    @delegate:Transient
     override var imodelView: Matrix4f by Delegates.observable(Matrix4f().identity()) { property, old, new -> propertyChanged(property, old, new) }
 
     /** ModelViewProjection matrix. */
+    @delegate:Transient
     override var mvp: Matrix4f by Delegates.observable(Matrix4f().identity()) { property, old, new -> propertyChanged(property, old, new) }
 
-    /** Local position of the Node, used to construct [model] matrix. Setting will trigger [model] and [world] update. */
-    override var position: Vector3f by Delegates.observable(Vector3f(0.0f, 0.0f, 0.0f)) { property, old, new -> propertyChanged(property, old, new) }
+    /** World position of the Node. Setting will trigger [world] update. */
+    override var position by Delegates.observable(Vector3f(0.0f, 0.0f, 0.0f)) { property, old, new -> propertyChanged(property, old, new) }
 
-    /** x/y/z scale of the Node, used to construct [model]. Setting will trigger [model] and [world] update. */
-    override var scale: Vector3f by Delegates.observable(Vector3f(1.0f, 1.0f, 1.0f)) { property, old, new -> propertyChanged(property, old, new) }
+    /** x/y/z scale of the Node. Setting will trigger [world] update. */
+    override var scale by Delegates.observable(Vector3f(1.0f, 1.0f, 1.0f)) { property, old, new -> propertyChanged(property, old, new) }
 
     /** Rotation of the Node, used to construct [model]. Setting will trigger [model] and [world] update. */
-    override var rotation: Quaternionf by Delegates.observable(Quaternionf(0.0f, 0.0f, 0.0f, 1.0f)) { property, old, new -> propertyChanged(property, old, new) }
+    override var rotation by Delegates.observable(Quaternionf(0.0f, 0.0f, 0.0f, 1.0f)) { property, old, new -> propertyChanged(property, old, new) }
 
     /** Children of the Node. */
-    @Transient var children: CopyOnWriteArrayList<Node>
-
+    @Transient
+    var children: CopyOnWriteArrayList<Node>
     /** Other nodes that have linked transforms. */
-    @Transient var linkedNodes: CopyOnWriteArrayList<Node>
-
+    var linkedNodes: CopyOnWriteArrayList<Node>
     /** Parent node of this node. */
     var parent: Node? = null
 
@@ -179,6 +188,8 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
             needsUpdate = true
             needsUpdateWorld = true
         }
+
+        modifiedAt = System.nanoTime()
     }
 
     init {
