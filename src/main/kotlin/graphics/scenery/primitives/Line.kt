@@ -54,6 +54,10 @@ class Line @JvmOverloads constructor(var capacity: Int = 50, transparent: Boolea
     var edgeWidth = 2.0f
 
     init {
+        addMaterial {
+            cullingMode = Material.CullingMode.None
+        }
+
         addGeometry {
             if(simple) {
                 geometryType = GeometryType.LINE
@@ -65,10 +69,6 @@ class Line @JvmOverloads constructor(var capacity: Int = 50, transparent: Boolea
             vertices.limit(0)
             normals.limit(0)
             texcoords.limit(0)
-        }
-
-        addMaterial {
-            cullingMode = Material.CullingMode.None
         }
 
         addRenderable()
