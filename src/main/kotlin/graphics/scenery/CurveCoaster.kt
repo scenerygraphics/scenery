@@ -10,7 +10,6 @@ import kotlin.math.acos
 class CurveCoaster(curve: Curve, val camera: () -> Camera?): ClickBehaviour {
     private val listOfCameraPoints = curve.frenetFrames
     private val baseShapes = curve.baseShapes
-    val bases = curve.calcBases()
     var j = 0
     private val logger: Logger by LazyLogger()
 
