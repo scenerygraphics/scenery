@@ -37,8 +37,6 @@ class Curve(spline: Spline, private val firstPerpendicularVector: Vector3f = Vec
             logger.warn("The spline provided for the Curve is empty.")
         }
         val bases = FrenetFramesCalc(spline, firstPerpendicularVector).calcBases(frenetFrames)
-
-
         var partialCurveSize = 1
         baseShapes.windowed(2, 1) { frame ->
             when (frame[0].size) {

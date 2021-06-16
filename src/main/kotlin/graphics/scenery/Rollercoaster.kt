@@ -1,6 +1,7 @@
 package graphics.scenery
 
 import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.extensions.minus
 import org.joml.*
 import org.scijava.ui.behaviour.ClickBehaviour
 import org.slf4j.Logger
@@ -9,10 +10,9 @@ import kotlin.math.acos
 
 class Rollercoaster(ribbonDiagram: RibbonDiagram, val cam: () -> Camera?): ClickBehaviour {
     private val subproteins = ribbonDiagram.children
-    private val listOfCameraFrames = ArrayList<FrenetFrame>(subproteins.size*100)
+    val listOfCameraFrames = ArrayList<FrenetFrame>(subproteins.size*100)
     private val logger: Logger by LazyLogger()
     val camera: Camera? = cam.invoke()
-
 
 
     init {
@@ -34,34 +34,36 @@ class Rollercoaster(ribbonDiagram: RibbonDiagram, val cam: () -> Camera?): Click
                         val predecessor = subprotein.children[index-1]
                         if(predecessor is Helix) {
                             val predecessorSpline = helixSplinePoints(predecessor)
-                            helixSpline.addAll(UniformBSpline(listOf(predecessorSpline.dropLast(10).last(), predecessorSpline.last(), helixSplineUnsmoothed.first(),
-                            helixSplineUnsmoothed.drop(10).first()), 5).splinePoints())
+                            helixSpline.addAll(listOf(predecessorSpline.dropLast(10).last(), predecessorSpline.last(), helixSplineUnsmoothed.first(),
+                            helixSplineUnsmoothed.drop(10).first()))
                         }
                         else if (predecessor is Curve) {
-                            helixSpline.addAll(UniformBSpline(listOf(predecessor.frenetFrames.dropLast(10).last().translation, predecessor.frenetFrames.last().translation,
-                                helixSplineUnsmoothed.first(), helixSplineUnsmoothed.drop(10).first()), 10).splinePoints())
+                            helixSpline.addAll(listOf(predecessor.frenetFrames.dropLast(10).last().translation, predecessor.frenetFrames.last().translation,
+                                helixSplineUnsmoothed.first(), helixSplineUnsmoothed.drop(10).first()))
                         }
                     }
-                    helixSpline.addAll(helixSplineUnsmoothed)
+                    helixSpline.addAll(helixSplineUnsmoothed.filterIndexed { index, _ -> index%10 == 0 })
                     if(index != subprotein.children.lastIndex) {
                         val successor = subprotein.children[index+1]
                         if(successor is Helix) {
                             val succesorSpline = helixSplinePoints(successor)
-                            helixSpline.addAll(CatmullRomSpline(listOf(helixSplineUnsmoothed.dropLast(10).last(), helixSplineUnsmoothed.last(),
-                            succesorSpline.first(), succesorSpline.drop(10).first()), 10).splinePoints())
+                            helixSpline.addAll(listOf(helixSplineUnsmoothed.dropLast(10).last(), helixSplineUnsmoothed.last(),
+                            succesorSpline.first(), succesorSpline.drop(10).first()))
                         }
                         else if (successor is Curve) {
-                            helixSpline.addAll(CatmullRomSpline(listOf(helixSplineUnsmoothed.dropLast(10).last(), helixSplineUnsmoothed.last(),
-                                successor.frenetFrames.first().translation, successor.frenetFrames.drop(10).first().translation), 10).splinePoints())
+                            helixSpline.addAll(listOf(helixSplineUnsmoothed.dropLast(10).last(), helixSplineUnsmoothed.last(),
+                                successor.frenetFrames.first().translation, successor.frenetFrames.drop(10).first().translation))
                         }
                     }
-                    val newSpline = DummySpline(helixSpline, 10)
-                    listOfCameraFrames.addAll(FrenetFramesCalc(newSpline).computeFrenetFrames())
+                    val newSpline = CatmullRomSpline(helixSpline, 10)
+                    val frenetFrames = FrenetFramesCalc(newSpline).computeFrenetFrames()
+                    listOfCameraFrames.addAll(frenetFrames)
                 }
             }
         }
     }
 
+    //TODO move to one rollercoaster class
     var j = 0
     override fun click(x: Int, y: Int) {
 
