@@ -29,6 +29,19 @@ class Rollercoaster(ribbonDiagram: RibbonDiagram, val cam: () -> Camera?): Click
                      */
                     val helixSpline = subCurve.spline
                     val axisSplineList = ArrayList<Vector3f>(helixSpline.splinePoints().size)
+                    // midpoint of the helix since the axis calc does not give a good enough approximation
+                    val midpoint = Vector3f()
+                    val midpointList = ArrayList<Vector3f>(helixSpline.splinePoints().size)
+                    //TODO thats not the midpoint yet!!
+                    if(helixSpline.splinePoints().size < 50) {
+
+                    }
+                    else {
+                        helixSpline.splinePoints().drop(10).dropLast(10).windowed(20, 10) {
+                            midpointList.add(it[0])
+                            midpointList.add(it[19])
+                        }
+                    }
                     val axisPos = subCurve.axis.position
                     val axisDir = subCurve.axis.direction
                     helixSpline.splinePoints().forEach { splinePoint ->
