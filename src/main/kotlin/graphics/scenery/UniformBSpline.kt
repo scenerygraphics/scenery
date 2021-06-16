@@ -20,7 +20,7 @@ import java.lang.IllegalArgumentException
  *
  * @author Justin Bürger <burger@mpi-cbg.de>
  */
-class UniformBSpline(protected val controlPoints: ArrayList<Vector3f>, val n: Int = 100): Spline {
+class UniformBSpline(protected val controlPoints: List<Vector3f>, val n: Int = 100): Spline {
 
     private val logger by LazyLogger()
     /**
