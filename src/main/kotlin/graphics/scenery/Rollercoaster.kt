@@ -17,41 +17,45 @@ class Rollercoaster(ribbonDiagram: RibbonDiagram, val cam: () -> Camera?): Click
 
     init {
         ribbonDiagram.children.forEach { subprotein ->
-            subprotein.children.forEach{ subCurve ->
+            subprotein.children.forEachIndexed{ index, subCurve ->
                 if(subCurve is Curve) {
                     subCurve.frenetFrames.forEach { frame ->
                         listOfCameraFrames.add(frame)
                     }
                 }
+                /*
+                 We don't want to ride along the helix because it could lead to motion sickness
+                */
                 else if (subCurve is Helix) {
-                    /*
-                    We don't want to ride along the helix because it could lead to motion sickness
-                     */
-                    val helixSpline = subCurve.spline
-                    val axisSplineList = ArrayList<Vector3f>(helixSpline.splinePoints().size)
-                    // midpoint of the helix since the axis calc does not give a good enough approximation
-                    val midpoint = Vector3f()
-                    val midpointList = ArrayList<Vector3f>(helixSpline.splinePoints().size)
-                    //TODO thats not the midpoint yet!!
-                    if(helixSpline.splinePoints().size < 50) {
-
-                    }
-                    else {
-                        helixSpline.splinePoints().drop(10).dropLast(10).windowed(20, 10) {
-                            midpointList.add(it[0])
-                            midpointList.add(it[19])
+                    val helixSpline = ArrayList<Vector3f>(subCurve.spline.splinePoints().size)
+                    val helixSplineUnsmoothed = helixSplinePoints(subCurve)
+                    //make the ride smooth- connect helix axis to previous curve
+                    if(index != 0) {
+                        val predecessor = subprotein.children[index-1]
+                        if(predecessor is Helix) {
+                            val predecessorSpline = helixSplinePoints(predecessor)
+                            helixSpline.addAll(UniformBSpline(listOf(predecessorSpline.dropLast(10).last(), predecessorSpline.last(), helixSplineUnsmoothed.first(),
+                            helixSplineUnsmoothed.drop(10).first()), 5).splinePoints())
+                        }
+                        else if (predecessor is Curve) {
+                            helixSpline.addAll(UniformBSpline(listOf(predecessor.frenetFrames.dropLast(10).last().translation, predecessor.frenetFrames.last().translation,
+                                helixSplineUnsmoothed.first(), helixSplineUnsmoothed.drop(10).first()), 10).splinePoints())
                         }
                     }
-                    val axisPos = subCurve.axis.position
-                    val axisDir = subCurve.axis.direction
-                    helixSpline.splinePoints().forEach { splinePoint ->
-                        val newPoint = Vector3f()
-                        val t = (splinePoint.sub(axisPos, newPoint).dot(axisDir))/(axisDir.length()*axisDir.length())
-                        // this is the splinePoint mapped to the axis
-                        axisPos.add(axisDir.mul(t, newPoint), newPoint)
-                        axisSplineList.add(newPoint)
+                    helixSpline.addAll(helixSplineUnsmoothed)
+                    if(index != subprotein.children.lastIndex) {
+                        val successor = subprotein.children[index+1]
+                        if(successor is Helix) {
+                            val succesorSpline = helixSplinePoints(successor)
+                            helixSpline.addAll(CatmullRomSpline(listOf(helixSplineUnsmoothed.dropLast(10).last(), helixSplineUnsmoothed.last(),
+                            succesorSpline.first(), succesorSpline.drop(10).first()), 10).splinePoints())
+                        }
+                        else if (successor is Curve) {
+                            helixSpline.addAll(CatmullRomSpline(listOf(helixSplineUnsmoothed.dropLast(10).last(), helixSplineUnsmoothed.last(),
+                                successor.frenetFrames.first().translation, successor.frenetFrames.drop(10).first().translation), 10).splinePoints())
+                        }
                     }
-                    val newSpline = DummySpline(axisSplineList, 10)
+                    val newSpline = DummySpline(helixSpline, 10)
                     listOfCameraFrames.addAll(FrenetFramesCalc(newSpline).computeFrenetFrames())
                 }
             }
@@ -151,5 +155,21 @@ class Rollercoaster(ribbonDiagram: RibbonDiagram, val cam: () -> Camera?): Click
         }
         else { return }
         //using 25 fps or, the reverse, 40 ms per frame
+    }
+
+    fun helixSplinePoints(helix: Helix): ArrayList<Vector3f> {
+        val helixSpline = helix.spline
+        val axisSplineList = ArrayList<Vector3f>(helixSpline.splinePoints().size)
+        // midpoint of the helix since the axis calc does not give a good enough approximation
+        val axisPos = Axis.getCentroid(helixSpline.splinePoints().drop(10).dropLast(10))
+        val axisDir = helix.axis.direction
+        helixSpline.splinePoints().drop(10).dropLast(10).forEach { splinePoint ->
+            val newPoint = Vector3f()
+            val t = (splinePoint.sub(axisPos, newPoint).dot(axisDir))/(axisDir.length()*axisDir.length())
+            // this is the splinePoint mapped to the axis
+            axisPos.add(axisDir.mul(t, newPoint), newPoint)
+            axisSplineList.add(newPoint)
+        }
+        return axisSplineList
     }
 }
