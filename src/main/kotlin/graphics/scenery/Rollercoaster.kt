@@ -40,7 +40,6 @@ class Rollercoaster(ribbonDiagram: RibbonDiagram, val cam: () -> Camera?): Click
                     }
                     val newSpline = DummySpline(axisSplineList, 10)
                     listOfCameraFrames.addAll(FrenetFramesCalc(newSpline).computeFrenetFrames())
-
                 }
             }
         }

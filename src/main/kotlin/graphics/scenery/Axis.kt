@@ -12,7 +12,7 @@ import kotlin.math.sqrt
  *
  * @author  Justin Buerger <burger@mpi-cbg.de>
  */
-class Axis(positions: List<Vector3f?>, val scene: Scene? = null) {
+class Axis(positions: List<Vector3f?>) {
     val direction = Vector3f()
     val position = Vector3f()
     private val logger by LazyLogger()
