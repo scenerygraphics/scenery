@@ -3,6 +3,7 @@ package graphics.scenery.tests.examples.basic
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
+import graphics.scenery.utils.extensions.minus
 import org.joml.Vector3f
 
 class ProteinRollercoasterExample: SceneryBase("RollerCoaster", wantREPL = true, windowWidth = 1280, windowHeight = 720) {
@@ -83,11 +84,34 @@ class ProteinRollercoasterExample: SceneryBase("RollerCoaster", wantREPL = true,
 
     override fun inputSetup() {
         super.inputSetup()
-        inputHandler?.addBehaviour(
-            "rollercoaster",
-            Rollercoaster(ribbon, { scene.activeObserver }))
+        val rollercoaster = Rollercoaster(ribbon, { scene.activeObserver })
+        inputHandler?.addBehaviour("rollercoaster", rollercoaster)
         inputHandler?.addKeyBinding("rollercoaster", "E")
+        rollercoaster.listOfCameraFrames.forEach {
+            val matFaint = Material()
+            matFaint.diffuse  = Vector3f(0.0f, 0.6f, 0.6f)
+            matFaint.ambient  = Vector3f(1.0f, 1.0f, 1.0f)
+            matFaint.specular = Vector3f(1.0f, 1.0f, 1.0f)
+            matFaint.cullingMode = Material.CullingMode.None
 
+            val arrowX = Arrow(it.binormal - Vector3f())
+            arrowX.edgeWidth = 0.5f
+            arrowX.material = matFaint
+            arrowX.position = it.translation
+            scene.addChild(arrowX)
+
+            val arrowY = Arrow(it.normal - Vector3f())
+            arrowX.edgeWidth = 0.5f
+            arrowX.material = matFaint
+            arrowX.position = it.translation
+            scene.addChild(arrowY)
+
+            val arrowZ = Arrow(it.tangent - Vector3f())
+            arrowX.edgeWidth = 0.5f
+            arrowX.material = matFaint
+            arrowX.position = it.translation
+            scene.addChild(arrowZ)
+        }
     }
 
     companion object {
