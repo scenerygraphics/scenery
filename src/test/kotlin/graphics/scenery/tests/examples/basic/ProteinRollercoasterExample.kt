@@ -3,15 +3,11 @@ package graphics.scenery.tests.examples.basic
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
-import graphics.scenery.utils.extensions.minus
-import graphics.scenery.utils.extensions.plus
-import org.joml.Quaternionf
 import org.joml.Vector3f
-import org.scijava.ui.behaviour.ClickBehaviour
 
 class ProteinRollercoasterExample: SceneryBase("RollerCoaster", wantREPL = true, windowWidth = 1280, windowHeight = 720) {
     private val protein = Protein.fromID("3nir")
-    private val ribbon = RibbonDiagram(protein, false, scene)
+    private val ribbon = RibbonDiagram(protein, false)
     //private val cross = Cross()
 
     override fun init() {
