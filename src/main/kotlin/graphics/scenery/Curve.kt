@@ -22,7 +22,7 @@ class Curve(spline: Spline, private val firstPerpendicularVector: Vector3f = Vec
             baseShape: () -> List<List<Vector3f>>): Mesh("CurveGeometry"), HasGeometry {
     private val chain = spline.splinePoints()
     private val sectionVertices = spline.verticesCountPerSection()
-    private val countList = ArrayList<Int>(50).toMutableList()
+    val countList = ArrayList<Int>(50).toMutableList()
     val frenetFrames = FrenetFramesCalc(spline, firstPerpendicularVector).computeFrenetFrames()
     val baseShapes = baseShape.invoke()
     /*

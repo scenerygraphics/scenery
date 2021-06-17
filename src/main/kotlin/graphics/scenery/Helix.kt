@@ -12,7 +12,7 @@ import org.joml.*
  */
 class Helix (val axis: MathLine, val spline: Spline, baseShape: () -> List<Vector3f>): Mesh("Helix") {
     private val splinePoints = spline.splinePoints()
-    private val shape = baseShape.invoke()
+    val shape = baseShape.invoke()
     private val axisVector = Vector3f()
     private val axisPoint = Vector3f()
 
