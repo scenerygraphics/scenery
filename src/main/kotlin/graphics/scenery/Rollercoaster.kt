@@ -48,12 +48,12 @@ class Rollercoaster(val ribbonDiagram: RibbonDiagram, val cam: () -> Camera?): C
                         val successor = subprotein.children[index+1]
                         if(successor is Helix) {
                             val succesorSpline = helixSplinePoints(successor)
-                            helixSpline.addAll(listOf(helixSplineUnsmoothed.dropLast(1).last(), helixSplineUnsmoothed.last(),
-                            succesorSpline.first(), succesorSpline.drop(1).first()))
+                            helixSpline.addAll(CatmullRomSpline(listOf(helixSplineUnsmoothed.dropLast(1).last(), helixSplineUnsmoothed.last(),
+                            succesorSpline.first(), succesorSpline.drop(1).first()), 6).splinePoints().drop(2).dropLast(2))
                         }
                         else if (successor is Curve) {
-                            helixSpline.addAll(listOf(helixSplineUnsmoothed.dropLast(1).last(), helixSplineUnsmoothed.last(),
-                                successor.frenetFrames.first().translation, successor.frenetFrames.drop(1).first().translation))
+                            helixSpline.addAll(CatmullRomSpline(listOf(helixSplineUnsmoothed.dropLast(1).last(), helixSplineUnsmoothed.last(),
+                                successor.frenetFrames.first().translation, successor.frenetFrames.drop(1).first().translation), 6).splinePoints().drop(2).dropLast(2))
                         }
                     }
                     val newSpline = CatmullRomSpline(helixSpline, 15)
