@@ -152,7 +152,7 @@ class Axis(positions: List<Vector3f?>) {
             val h2 = Vector3f()
             p2.add((v2.mul(r, h2)), h2)
             val axis = Vector3f()
-            h2.sub(h1, axis)
+            h1.sub(h2, axis)
 
             /*
            Calculating the positional vector:
