@@ -19,7 +19,7 @@ class CurveCoaster(curve: Curve, val camera: () -> Camera?): ClickBehaviour {
             //change cam position
             val frame = listOfCameraPoints[j]
             //offset the camera position to not fly through the baseShapes
-            val offset = baseShapes[j].sortedBy { it.y }[0].y + 0.1f
+            val offset = baseShapes[j].sortedByDescending { it.y }[0].y + 0.1f
             val newCamPos = Vector3f(frame.translation.x, frame.translation.y + offset, frame.translation.z )
             camera.position = newCamPos
 
