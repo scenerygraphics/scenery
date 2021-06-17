@@ -77,37 +77,6 @@ class ProteinRollercoasterExample: SceneryBase("RollerCoaster", wantREPL = true,
         }
 
          */
-        val rollercoaster = Rollercoaster(ribbon, { scene.activeObserver })
-        rollercoaster.listOfCameraFrames.forEach {
-            val matFaint = Material()
-            matFaint.diffuse  = Vector3f(0.0f, 0.6f, 0.6f)
-            matFaint.ambient  = Vector3f(1.0f, 1.0f, 1.0f)
-            matFaint.specular = Vector3f(1.0f, 1.0f, 1.0f)
-            matFaint.cullingMode = Material.CullingMode.None
-            /*
-            val arrowX = Arrow(it.binormal - Vector3f())
-            arrowX.edgeWidth = 0.5f
-            arrowX.material = matFaint
-            arrowX.position = it.translation
-            scene.addChild(arrowX)
-
-
-            val arrowY = Arrow(it.normal - Vector3f())
-            arrowY.edgeWidth = 0.5f
-            arrowY.material = matFaint
-            arrowY.position = it.translation
-            scene.addChild(arrowY)
-
-
-             */
-            val arrowZ = Arrow(it.tangent - Vector3f())
-            arrowZ.edgeWidth = 0.5f
-            arrowZ.material = matFaint
-            arrowZ.position = it.translation
-            scene.addChild(arrowZ)
-
-
-        }
         cam.addChild(cameraLight)
     }
 
