@@ -2,13 +2,14 @@ package graphics.scenery
 
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.extensions.minus
+import org.apache.commons.math3.random.UniformRandomGenerator
 import org.joml.*
 import org.scijava.ui.behaviour.ClickBehaviour
 import org.slf4j.Logger
 import java.lang.Math
 import kotlin.math.acos
 
-class Rollercoaster(ribbonDiagram: RibbonDiagram, val cam: () -> Camera?): ClickBehaviour {
+class Rollercoaster(val ribbonDiagram: RibbonDiagram, val cam: () -> Camera?): ClickBehaviour {
     private val subproteins = ribbonDiagram.children
     val listOfCameraFrames = ArrayList<FrenetFrame>(subproteins.size*100)
     private val logger: Logger by LazyLogger()
@@ -34,28 +35,28 @@ class Rollercoaster(ribbonDiagram: RibbonDiagram, val cam: () -> Camera?): Click
                         val predecessor = subprotein.children[index-1]
                         if(predecessor is Helix) {
                             val predecessorSpline = helixSplinePoints(predecessor)
-                            helixSpline.addAll(listOf(predecessorSpline.dropLast(10).last(), predecessorSpline.last(), helixSplineUnsmoothed.first(),
-                            helixSplineUnsmoothed.drop(10).first()))
+                            helixSpline.addAll(CatmullRomSpline(listOf(predecessorSpline.dropLast(1).last(), predecessorSpline.last(), helixSplineUnsmoothed.first(),
+                            helixSplineUnsmoothed.drop(1).first()), 6).splinePoints().drop(2).dropLast(2))
                         }
                         else if (predecessor is Curve) {
-                            helixSpline.addAll(listOf(predecessor.frenetFrames.dropLast(10).last().translation, predecessor.frenetFrames.last().translation,
-                                helixSplineUnsmoothed.first(), helixSplineUnsmoothed.drop(10).first()))
+                            helixSpline.addAll(CatmullRomSpline(listOf(predecessor.frenetFrames.dropLast(1).last().translation, predecessor.frenetFrames.last().translation,
+                                helixSplineUnsmoothed.first(), helixSplineUnsmoothed.drop(1).first()), 6).splinePoints().drop(2).dropLast(2))
                         }
                     }
-                    helixSpline.addAll(helixSplineUnsmoothed.filterIndexed { index, _ -> index%10 == 0 })
+                    helixSpline.addAll(helixSplineUnsmoothed)
                     if(index != subprotein.children.lastIndex) {
                         val successor = subprotein.children[index+1]
                         if(successor is Helix) {
                             val succesorSpline = helixSplinePoints(successor)
-                            helixSpline.addAll(listOf(helixSplineUnsmoothed.dropLast(10).last(), helixSplineUnsmoothed.last(),
-                            succesorSpline.first(), succesorSpline.drop(10).first()))
+                            helixSpline.addAll(listOf(helixSplineUnsmoothed.dropLast(1).last(), helixSplineUnsmoothed.last(),
+                            succesorSpline.first(), succesorSpline.drop(1).first()))
                         }
                         else if (successor is Curve) {
-                            helixSpline.addAll(listOf(helixSplineUnsmoothed.dropLast(10).last(), helixSplineUnsmoothed.last(),
-                                successor.frenetFrames.first().translation, successor.frenetFrames.drop(10).first().translation))
+                            helixSpline.addAll(listOf(helixSplineUnsmoothed.dropLast(1).last(), helixSplineUnsmoothed.last(),
+                                successor.frenetFrames.first().translation, successor.frenetFrames.drop(1).first().translation))
                         }
                     }
-                    val newSpline = CatmullRomSpline(helixSpline, 10)
+                    val newSpline = CatmullRomSpline(helixSpline, 15)
                     val frenetFrames = FrenetFramesCalc(newSpline).computeFrenetFrames()
                     listOfCameraFrames.addAll(frenetFrames)
                 }
@@ -63,7 +64,7 @@ class Rollercoaster(ribbonDiagram: RibbonDiagram, val cam: () -> Camera?): Click
         }
     }
 
-    //TODO move to one rollercoaster class
+    //TODO move to one rollercoaster class or an interface rather
     var j = 0
     override fun click(x: Int, y: Int) {
 
@@ -165,7 +166,7 @@ class Rollercoaster(ribbonDiagram: RibbonDiagram, val cam: () -> Camera?): Click
         // midpoint of the helix since the axis calc does not give a good enough approximation
         val axisPos = Axis.getCentroid(helixSpline.splinePoints().drop(10).dropLast(10))
         val axisDir = helix.axis.direction
-        helixSpline.splinePoints().drop(10).dropLast(10).forEach { splinePoint ->
+        helixSpline.splinePoints().drop(10).dropLast(10).filterIndexed{index, _ -> index%10 == 0}.forEach { splinePoint ->
             val newPoint = Vector3f()
             val t = (splinePoint.sub(axisPos, newPoint).dot(axisDir))/(axisDir.length()*axisDir.length())
             // this is the splinePoint mapped to the axis
