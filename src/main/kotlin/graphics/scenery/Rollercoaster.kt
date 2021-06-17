@@ -11,7 +11,8 @@ import kotlin.math.acos
 
 class Rollercoaster(val ribbonDiagram: RibbonDiagram, val cam: () -> Camera?): ClickBehaviour {
     private val subproteins = ribbonDiagram.children
-    val listOfCameraFrames = ArrayList<FrenetFrame>(subproteins.size*100)
+    private val listOfCameraFrames = ArrayList<FrenetFrame>(subproteins.size*100)
+    private val offsetList = ArrayList<Float>(subproteins.size*100)
     private val logger: Logger by LazyLogger()
     val camera: Camera? = cam.invoke()
 
@@ -22,7 +23,19 @@ class Rollercoaster(val ribbonDiagram: RibbonDiagram, val cam: () -> Camera?): C
                 if(subCurve is Curve) {
                     subCurve.frenetFrames.forEach { frame ->
                         listOfCameraFrames.add(frame)
+                        offsetList.add(0.75f) //offset to not fly through the baseShapes
                     }
+                    /*
+                    sophisticated offset; not practicable though
+                    var i = 0 //count how many baseShapes of one kind there are
+                    subCurve.countList.forEach { count ->
+                        val offset = subCurve.baseShapes[i].sortedByDescending { it.y }[0].y + 0.1f
+                        for (j in 0 until count) {
+                            offsetList.add(offset)
+                        }
+                        i += count
+                    }
+                     */
                 }
                 /*
                  We don't want to ride along the helix because it could lead to motion sickness
@@ -59,6 +72,9 @@ class Rollercoaster(val ribbonDiagram: RibbonDiagram, val cam: () -> Camera?): C
                     val newSpline = CatmullRomSpline(helixSpline, 15)
                     val frenetFrames = FrenetFramesCalc(newSpline).computeFrenetFrames()
                     listOfCameraFrames.addAll(frenetFrames)
+                    for(i in 0 until frenetFrames.size) {
+                        offsetList.add(0f)
+                    }
                 }
             }
         }
@@ -70,7 +86,9 @@ class Rollercoaster(val ribbonDiagram: RibbonDiagram, val cam: () -> Camera?): C
 
         if(j <= listOfCameraFrames.lastIndex && camera != null) {
             val frame = listOfCameraFrames[j]
-            camera.position = frame.translation
+            val offset = offsetList[j]
+            val newCamPos = Vector3f(frame.translation.x, frame.translation.y +offset, frame.translation.z )
+            camera.position = newCamPos
             //desired view direction in world coords
             val worldDirVec = frame.tangent
             if (worldDirVec.lengthSquared() < 0.01) {
