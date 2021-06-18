@@ -24,17 +24,6 @@ class Rollercoaster(val ribbonDiagram: RibbonDiagram, val cam: () -> Camera?): C
                     subCurve.frenetFrames.filterIndexed { index, _ -> index%10 == 1  }.forEach { frame ->
                         controlpoints.add(Vector3f(frame.translation.x, frame.translation.y + 0.7f, frame.translation.z))//offset to not fly through the baseShapes
                     }
-                    /*
-                    sophisticated offset; not practicable though
-                    var i = 0 //count how many baseShapes of one kind there are
-                    subCurve.countList.forEach { count ->
-                        val offset = subCurve.baseShapes[i].sortedByDescending { it.y }[0].y + 0.1f
-                        for (j in 0 until count) {
-                            offsetList.add(offset)
-                        }
-                        i += count
-                    }
-                     */
                 }
                 /*
                  We don't want to ride along the helix because it could lead to motion sickness
