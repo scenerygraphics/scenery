@@ -6,11 +6,9 @@ import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.controls.TrackerRole
-import graphics.scenery.controls.behaviours.VRScale
 import graphics.scenery.numerics.Random
 import graphics.scenery.attribute.material.Material
-import graphics.scenery.controls.behaviours.Grabable
-import graphics.scenery.controls.behaviours.VRGrab
+import graphics.scenery.controls.behaviours.*
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
 import org.scijava.ui.behaviour.ClickBehaviour
@@ -38,7 +36,6 @@ class VRControllerExample : SceneryBase(VRControllerExample::class.java.simpleNa
         }
 
         hub.add(SceneryElement.HMDInput, hmd)
-        VRGrab.createAndSet(scene,hmd, listOf(OpenVRHMD.OpenVRButton.Side), listOf(TrackerRole.RightHand))
 
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
         renderer?.toggleVR()
@@ -58,6 +55,7 @@ class VRControllerExample : SceneryBase(VRControllerExample::class.java.simpleNa
                 position = Vector3f(-1.0f + (it + 1) * 0.2f, 1.0f, -0.5f)
             }
             obj.addAttribute(Grabable::class.java,Grabable())
+            obj.addAttribute(Selectable::class.java,Selectable())
             obj
         }
 
@@ -154,8 +152,11 @@ class VRControllerExample : SceneryBase(VRControllerExample::class.java.simpleNa
         //... and bind that to the A button on the left-hand controller.
         hmd.addKeyBinding("toggle_shell", TrackerRole.LeftHand, OpenVRHMD.OpenVRButton.A)
 
+
+        VRGrab.createAndSet(scene,hmd, listOf(OpenVRHMD.OpenVRButton.Side), listOf(TrackerRole.RightHand))
+        val selectionStorage = VRSelect.createAndSet(scene,hmd, listOf(OpenVRHMD.OpenVRButton.Side), listOf(TrackerRole.LeftHand))
         VRScale.createAndSet(hmd,OpenVRHMD.OpenVRButton.Side){
-            boxes.first().scale *= Vector3f(it)
+            selectionStorage.selected?.ifSpatial { scale *= Vector3f(it)}
         }
     }
 
