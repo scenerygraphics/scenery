@@ -3,7 +3,6 @@ package graphics.scenery.tests.examples.basic
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
-import graphics.scenery.utils.extensions.minus
 import org.joml.Vector3f
 
 class ProteinRollercoasterExample: SceneryBase("RollerCoaster", wantREPL = true, windowWidth = 1280, windowHeight = 720) {
@@ -82,7 +81,7 @@ class ProteinRollercoasterExample: SceneryBase("RollerCoaster", wantREPL = true,
 
     override fun inputSetup() {
         super.inputSetup()
-        val rollercoaster = Rollercoaster(ribbon, { scene.activeObserver })
+        val rollercoaster = ProteinRollercoaster(ribbon, { scene.activeObserver })
         inputHandler?.addBehaviour("rollercoaster", rollercoaster)
         inputHandler?.addKeyBinding("rollercoaster", "E")
 
