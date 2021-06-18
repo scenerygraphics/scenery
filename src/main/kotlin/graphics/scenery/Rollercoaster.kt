@@ -11,6 +11,7 @@ import kotlin.math.acos
 
 class Rollercoaster(val ribbonDiagram: RibbonDiagram, val cam: () -> Camera?): ClickBehaviour {
     private val subproteins = ribbonDiagram.children
+    val controlpoints = ArrayList<Vector3f>(subproteins.size*10)
     private val listOfCameraFrames = ArrayList<FrenetFrame>(subproteins.size*100)
     private val offsetList = ArrayList<Float>(subproteins.size*100)
     private val logger: Logger by LazyLogger()
@@ -21,9 +22,8 @@ class Rollercoaster(val ribbonDiagram: RibbonDiagram, val cam: () -> Camera?): C
         ribbonDiagram.children.forEach { subprotein ->
             subprotein.children.forEachIndexed{ index, subCurve ->
                 if(subCurve is Curve) {
-                    subCurve.frenetFrames.forEach { frame ->
-                        listOfCameraFrames.add(frame)
-                        offsetList.add(0.75f) //offset to not fly through the baseShapes
+                    subCurve.frenetFrames.filterIndexed { index, _ -> index%10 == 1  }.forEach { frame ->
+                        controlpoints.add(Vector3f(frame.translation.x, frame.translation.y + 0.7f, frame.translation.z))//offset to not fly through the baseShapes
                     }
                     /*
                     sophisticated offset; not practicable though
@@ -69,15 +69,11 @@ class Rollercoaster(val ribbonDiagram: RibbonDiagram, val cam: () -> Camera?): C
                                 successor.frenetFrames.first().translation, successor.frenetFrames.drop(1).first().translation), 6).splinePoints().drop(2).dropLast(2))
                         }
                     }
-                    val newSpline = CatmullRomSpline(helixSpline, 15)
-                    val frenetFrames = FrenetFramesCalc(newSpline).computeFrenetFrames()
-                    listOfCameraFrames.addAll(frenetFrames)
-                    for(i in 0 until frenetFrames.size) {
-                        offsetList.add(0f)
-                    }
+                    controlpoints.addAll(helixSplinePoints(subCurve))
                 }
             }
         }
+        listOfCameraFrames.addAll(FrenetFramesCalc(UniformBSpline(controlpoints, 12)).computeFrenetFrames())
     }
 
     //TODO move to one rollercoaster class or an interface rather
@@ -86,9 +82,7 @@ class Rollercoaster(val ribbonDiagram: RibbonDiagram, val cam: () -> Camera?): C
 
         if(j <= listOfCameraFrames.lastIndex && camera != null) {
             val frame = listOfCameraFrames[j]
-            val offset = offsetList[j]
-            val newCamPos = Vector3f(frame.translation.x, frame.translation.y +offset, frame.translation.z )
-            camera.position = newCamPos
+            camera.position = frame.translation
             //desired view direction in world coords
             val worldDirVec = frame.tangent
             if (worldDirVec.lengthSquared() < 0.01) {
@@ -184,7 +178,7 @@ class Rollercoaster(val ribbonDiagram: RibbonDiagram, val cam: () -> Camera?): C
         // midpoint of the helix since the axis calc does not give a good enough approximation
         val axisPos = Axis.getCentroid(helixSpline.splinePoints().drop(10).dropLast(10))
         val axisDir = helix.axis.direction
-        helixSpline.splinePoints().drop(10).dropLast(10).filterIndexed{index, _ -> index%10 == 0}.forEach { splinePoint ->
+        helixSpline.splinePoints().drop(18).dropLast(18).filterIndexed{index, _ -> index%15 == 0}.forEach { splinePoint ->
             val newPoint = Vector3f()
             val t = (splinePoint.sub(axisPos, newPoint).dot(axisDir))/(axisDir.length()*axisDir.length())
             // this is the splinePoint mapped to the axis
