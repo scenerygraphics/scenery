@@ -9,7 +9,7 @@ import org.slf4j.Logger
 import java.lang.Math
 import kotlin.math.acos
 
-class Rollercoaster(val ribbonDiagram: RibbonDiagram, val cam: () -> Camera?): ClickBehaviour {
+class ProteinRollercoaster(val ribbonDiagram: RibbonDiagram, val cam: () -> Camera?): ClickBehaviour {
     private val subproteins = ribbonDiagram.children
     val controlpoints = ArrayList<Vector3f>(subproteins.size*10)
     private val listOfCameraFrames = ArrayList<FrenetFrame>(subproteins.size*100)
@@ -33,13 +33,12 @@ class Rollercoaster(val ribbonDiagram: RibbonDiagram, val cam: () -> Camera?): C
                 }
             }
         }
-        listOfCameraFrames.addAll(FrenetFramesCalc(UniformBSpline(controlpoints, 12)).computeFrenetFrames())
+        listOfCameraFrames.addAll(FrenetFramesCalc(UniformBSpline(controlpoints, 10)).computeFrenetFrames())
     }
 
     //TODO move to one rollercoaster class or an interface rather
     var j = 0
     override fun click(x: Int, y: Int) {
-
         if(j <= listOfCameraFrames.lastIndex && camera != null) {
             val frame = listOfCameraFrames[j]
             camera.position = frame.translation
