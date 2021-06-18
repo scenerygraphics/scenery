@@ -13,7 +13,6 @@ class Rollercoaster(val ribbonDiagram: RibbonDiagram, val cam: () -> Camera?): C
     private val subproteins = ribbonDiagram.children
     val controlpoints = ArrayList<Vector3f>(subproteins.size*10)
     private val listOfCameraFrames = ArrayList<FrenetFrame>(subproteins.size*100)
-    private val offsetList = ArrayList<Float>(subproteins.size*100)
     private val logger: Logger by LazyLogger()
     val camera: Camera? = cam.invoke()
 
@@ -41,34 +40,6 @@ class Rollercoaster(val ribbonDiagram: RibbonDiagram, val cam: () -> Camera?): C
                  We don't want to ride along the helix because it could lead to motion sickness
                 */
                 else if (subCurve is Helix) {
-                    val helixSpline = ArrayList<Vector3f>(subCurve.spline.splinePoints().size)
-                    val helixSplineUnsmoothed = helixSplinePoints(subCurve)
-                    //make the ride smooth- connect helix axis to previous curve
-                    if(index != 0) {
-                        val predecessor = subprotein.children[index-1]
-                        if(predecessor is Helix) {
-                            val predecessorSpline = helixSplinePoints(predecessor)
-                            helixSpline.addAll(CatmullRomSpline(listOf(predecessorSpline.dropLast(1).last(), predecessorSpline.last(), helixSplineUnsmoothed.first(),
-                            helixSplineUnsmoothed.drop(1).first()), 6).splinePoints().drop(2).dropLast(2))
-                        }
-                        else if (predecessor is Curve) {
-                            helixSpline.addAll(CatmullRomSpline(listOf(predecessor.frenetFrames.dropLast(1).last().translation, predecessor.frenetFrames.last().translation,
-                                helixSplineUnsmoothed.first(), helixSplineUnsmoothed.drop(1).first()), 6).splinePoints().drop(2).dropLast(2))
-                        }
-                    }
-                    helixSpline.addAll(helixSplineUnsmoothed)
-                    if(index != subprotein.children.lastIndex) {
-                        val successor = subprotein.children[index+1]
-                        if(successor is Helix) {
-                            val succesorSpline = helixSplinePoints(successor)
-                            helixSpline.addAll(CatmullRomSpline(listOf(helixSplineUnsmoothed.dropLast(1).last(), helixSplineUnsmoothed.last(),
-                            succesorSpline.first(), succesorSpline.drop(1).first()), 6).splinePoints().drop(2).dropLast(2))
-                        }
-                        else if (successor is Curve) {
-                            helixSpline.addAll(CatmullRomSpline(listOf(helixSplineUnsmoothed.dropLast(1).last(), helixSplineUnsmoothed.last(),
-                                successor.frenetFrames.first().translation, successor.frenetFrames.drop(1).first().translation), 6).splinePoints().drop(2).dropLast(2))
-                        }
-                    }
                     controlpoints.addAll(helixSplinePoints(subCurve))
                 }
             }
