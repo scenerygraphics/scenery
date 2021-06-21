@@ -52,7 +52,7 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
 
             address.startsWith("DTrack:") -> {
                 val host = address.substringAfter("@").substringBeforeLast(":")
-                val device = address.substringAfter("DTrack:").substringBefore("@").toIntOrNull() ?: 0
+                val device = address.substringAfter("DTrack:").substringBefore("@")
                 val port = address.substringAfterLast(":").toIntOrNull() ?: 5000
 
                 DTrackTrackerInput(host, port, device)

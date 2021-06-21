@@ -23,4 +23,4 @@ enum class DelegationType {
  *
  * @author Ulrik Guenther <hello@ulrik.is>
  */
-open class DelegatesRendering(val delegationType: DelegationType = DelegationType.OncePerDelegate, var delegate: Node? = null): Node("DelegatesRendering")
+open class DelegatesRendering(val delegationType: DelegationType = DelegationType.OncePerDelegate, open var delegate: Node? = null): Node("DelegatesRendering")

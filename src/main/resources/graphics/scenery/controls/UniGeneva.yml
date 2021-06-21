@@ -1,0 +1,62 @@
+name: CAVE example configuration
+description: Multi-screen configuration, for University of Geneva
+screenWidth: 2560
+screenHeight: 1600
+
+screens:
+  front-left:
+    match:
+      type: Property
+      value: front-left
+    lowerLeft: -3.00, 0.00, 1.65
+#    lowerRight: 0.54, 0.00, 1.65
+    lowerRight: 0.6, 0.00, 1.65
+    upperLeft: -3.00, 2.20, 1.65
+  front-right:
+    match:
+      type: Property
+      value: front-right
+#    lowerLeft: -0.52, 0.00, 1.65
+    lowerLeft: -0.60, 0.00, 1.65
+    lowerRight: 3.00, 0.00, 1.65
+#    upperLeft: -0.52, 2.20, 1.65
+    upperLeft: -0.6, 2.20, 1.65
+  left:
+    match:
+      type: Property
+      value: left
+    lowerLeft: -3.00, 0.00, -1.85
+    lowerRight: -3.00, 0.00, 1.65
+    upperLeft: -3.00, 2.20, -1.85
+  right:
+    match:
+      type: Property
+      value: right
+    lowerLeft: 3.00, 0.00, 1.65
+    lowerRight: 3.00, 0.00, -1.85
+    upperLeft: 3.00, 2.20, 1.65
+  floor-left:
+    match:
+      type: Property
+      value: floor-left
+    lowerLeft: -3.00, 0.00, -0.535
+#    lowerRight: 0.54, 0.00, -0.48
+    lowerRight: 0.6, 0.00, -0.535
+    upperLeft: -3.00, 0.00, 1.65
+  floor-right:
+    match:
+      type: Property
+      value: floor-right
+#    lowerLeft: -0.52, 0.00, -0.48
+    lowerLeft: -0.6, 0.00, -0.535
+    lowerRight: 3.00, 0.00, -0.535
+#    upperLeft: -0.52, 0.00, 1.65
+    upperLeft: -0.6, 0.00, 1.65
+
+# zero to front: 1.65
+# floor left: 3.543
+# floor right: 3.526
+# center to left: 3.00
+# center to right: 3.00
+# height: 2.20
+# widht: 6.00
