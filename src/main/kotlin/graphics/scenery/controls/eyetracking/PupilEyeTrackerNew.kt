@@ -196,7 +196,6 @@ class PupilEyeTrackerNew(val calibrationType: CalibrationType, val host: String 
                         if(poller.isReadable(socket)) {
                             val msg = ZMsg.recvMsg(socket)
                             val msgType = msg.popString()
-//                            logger.info("Received message type $msgType")
 
                             when(msgType) {
                                 "notify.calibration.successful" -> {
@@ -236,13 +235,9 @@ class PupilEyeTrackerNew(val calibrationType: CalibrationType, val host: String 
                                 "gaze.3d.01." -> {
                                     val bytes = msg.pop().data
                                     val g = objectMapper.readValue(bytes, Gaze::class.java)
-//                                    logger.info("Received data: ${String(bytes)}")
-//                                    logger.info("g.confidence: " + g.confidence)
                                     if(g.confidence > gazeConfidenceThreshold) {
 
                                         if(msgType.contains(".01.")) {
-//                                            gazeMode = 1
-//                                            logger.info("Received binocular gaze")
 
                                             val p = g.gaze_point_3d ?: floatArrayOf(0.0f, 0.0f, 0.0f)
                                             var vp = Vector3f(p[0], p[1]*(1.0f), p[2])
@@ -280,7 +275,7 @@ class PupilEyeTrackerNew(val calibrationType: CalibrationType, val host: String 
                                             var vp = Vector3f(p[0], p[1]*(-1.0f), p[2])
 
                                             if(vp.z>= 0.0f) {
-                                                logger.info("Inverting gaze direction")
+//                                                logger.info("Inverting gaze direction")
                                                 vp *= (-1.0f)
                                             }
 

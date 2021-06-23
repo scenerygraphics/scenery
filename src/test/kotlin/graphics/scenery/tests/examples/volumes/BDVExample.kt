@@ -84,7 +84,7 @@ class BDVExample: SceneryBase("BDV Rendering example", 1280, 720) {
         scene.addChild(v)
 
         volume = v
-
+        v
         val lights = (0 until 3).map {
             PointLight(radius = 15.0f)
         }

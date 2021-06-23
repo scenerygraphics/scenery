@@ -150,17 +150,13 @@ class EyeTrackingExample: SceneryBase("Eye Tracking Example", windowWidth = 1280
                                 gaze.confidence > confidenceThreshold -> referenceTarget.material.diffuse = Vector3f(0.0f, 0.5f, 0.5f)
                                 gaze.confidence > 0.95f -> referenceTarget.material.diffuse = Vector3f(0.0f, 1.0f, 0.0f)
                             }
-//                            logger.info("will judge whether the confidence is enough!")
                             if(gaze.confidence > confidenceThreshold) {
                                 val p = Vector3f(gaze.gazeDirection().x* gaze.gazeDistance(),gaze.gazeDirection().y* gaze.gazeDistance(),gaze.gazeDirection().z* gaze.gazeDistance())
-                                logger.info(gaze.gazeDirection().toString())
-                                logger.info(gaze.gazeDistance().toString())
-                                logger.info(gaze.gazePoint().toString())
-//                                logger.info("confidence is enough")
+//                                logger.info(gaze.gazeDirection().toString())
+//                                logger.info(gaze.gazeDistance().toString())
+//                                logger.info(gaze.gazePoint().toString())
                                 referenceTarget.position =p
                                 referenceTarget.visible = true
-                                logger.info(calibrationTarget.position.toString())
-                                logger.info(referenceTarget.position.toString())
                             }
                         }
                     }
