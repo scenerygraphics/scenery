@@ -243,7 +243,7 @@ class PupilEyeTrackerNew(val calibrationType: CalibrationType, val host: String 
                                             var vp = Vector3f(p[0], p[1]*(1.0f), p[2])
 
                                             if(vp.z>= 0.0f) {
-                                                logger.info("Inverting gaze direction")
+//                                                logger.info("Inverting gaze direction")
                                                 vp *= (-1.0f)
                                             }
 
@@ -272,7 +272,7 @@ class PupilEyeTrackerNew(val calibrationType: CalibrationType, val host: String 
                                             }
 
                                             val p = g.gaze_point_3d ?: floatArrayOf(0.0f, 0.0f, 0.0f)
-                                            var vp = Vector3f(p[0], p[1]*(-1.0f), p[2])
+                                            var vp = Vector3f(p[0], p[1]*(1.0f), p[2])
 
                                             if(vp.z>= 0.0f) {
 //                                                logger.info("Inverting gaze direction")
