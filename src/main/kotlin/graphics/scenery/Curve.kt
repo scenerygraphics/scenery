@@ -1,8 +1,5 @@
 package graphics.scenery
 
-import graphics.scenery.BufferUtils
-import graphics.scenery.HasGeometry
-import graphics.scenery.Mesh
 import graphics.scenery.utils.extensions.toFloatArray
 import org.joml.*
 import kotlin.Float.Companion.MIN_VALUE
@@ -23,7 +20,7 @@ import kotlin.math.acos
  */
 class Curve(spline: Spline, private val firstPerpendicularVector: Vector3f = Vector3f(0f, 0f, 0f),
             baseShape: () -> List<List<Vector3f>>): Mesh("CurveGeometry"), HasGeometry {
-    private val chain = spline.splinePoints()
+    val chain = spline.splinePoints()
     private val sectionVertices = spline.verticesCountPerSection()
     private val countList = ArrayList<Int>(50).toMutableList()
 
@@ -111,7 +108,7 @@ class Curve(spline: Spline, private val firstPerpendicularVector: Vector3f = Vec
                 partialCurveGeometry.add(shapeVertexList)
             }
             val remainder = partialCurveGeometry.size%sectionVertices
-            val n = ((partialCurveGeometry.size)/sectionVertices).toInt()
+            val n = ((partialCurveGeometry.size)/sectionVertices)
             val add = if(n == 0) { 1 } else { remainder/n }
             partialCurveGeometry.windowed(sectionVertices + add, sectionVertices-1 + add, true)
             { section ->
@@ -320,13 +317,5 @@ class Curve(spline: Spline, private val firstPerpendicularVector: Vector3f = Vec
             recalculateNormals()
         }
     }
-
-    /**
-     * Getter for the curve.
-     */
-    fun getCurve(): ArrayList<Vector3f> {
-        return chain as ArrayList<Vector3f>
-    }
-
 }
 

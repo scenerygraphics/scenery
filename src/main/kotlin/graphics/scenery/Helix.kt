@@ -11,7 +11,7 @@ import org.joml.*
  * @author  Justin Buerger <burger@mpi-cbg.de>
  */
 class Helix (private val axis: MathLine, val spline: Spline, baseShape: () -> List<Vector3f>): Mesh("Helix") {
-    private val splinePoints = spline.splinePoints()
+    val splinePoints = spline.splinePoints()
     private val shape = baseShape.invoke()
     private val axisVector = axis.direction
     private val axisPoint = axis.position
