@@ -3,7 +3,7 @@ package graphics.scenery
 import kotlin.collections.ArrayList as ArrayList1
 
 /**
- * This is a list of all existing amino acids.
+ * This is a list of all proteinogenic amino acids.
  *
  * @author  Justin Buerger <burger@mpi-cbg.de>
  */
