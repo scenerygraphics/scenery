@@ -9,6 +9,7 @@ import graphics.scenery.controls.TrackerRole
 import graphics.scenery.numerics.Random
 import org.scijava.ui.behaviour.ClickBehaviour
 import kotlin.concurrent.thread
+import kotlin.math.min
 import kotlin.system.exitProcess
 
 /**
@@ -22,8 +23,9 @@ class VRSidecChainsExample : SceneryBase(VRSidecChainsExample::class.java.simple
     private lateinit var hmd: OpenVRHMD
     private lateinit var ribbon: RibbonDiagram
     private lateinit var hullbox: Box
+    private val ribbonSections = ArrayList<Node>()
     private var clickedSideChains = mutableListOf<Boolean>()
-    private val chosenSideChains = mutableListOf<Int>()
+    private val chosenCurveSection = mutableListOf<Int>()
 
     override fun init() {
         hmd = OpenVRHMD(useCompositor = true)
@@ -47,13 +49,14 @@ class VRSidecChainsExample : SceneryBase(VRSidecChainsExample::class.java.simple
 
         val protein = Protein.fromID("3nir")
         ribbon = RibbonDiagram(protein)
-        print(ribbon.protein.structure.chains.flatMap { it.atomGroups }.filter { it.hasAminoAtoms() }.size)
         scene.addChild(ribbon)
-        val ribbonMap =  ribbon.children.flatMap { subProtein -> subProtein.children }.flatMap { curve -> curve.children }.flatMap { subcurve -> subcurve.children }
-        clickedSideChains = ArrayList(ribbonMap.size)
-        ribbonMap.forEachIndexed { index, _ ->
-            clickedSideChains.add(false)
-        }
+        // map of all the curve sections corresponding to amino acids
+        ribbon.children.flatMap { subProtein -> subProtein.children }.forEach { ribbonSections.add(it) }
+        //actual amino acids
+        val residues = ribbon.groups.filter { it.hasAminoAtoms() }
+        //list to check whether an amino acid is already displayed to reverse the action on the second click
+        clickedSideChains = ArrayList(residues.size)
+        residues.forEach { _ -> clickedSideChains.add(false) }
 
         val lights = Light.createLightTetrahedron<PointLight>(spread = 5.0f, radius = 8.0f)
         lights.forEach {
@@ -90,15 +93,15 @@ class VRSidecChainsExample : SceneryBase(VRSidecChainsExample::class.java.simple
                         // an intersection with a box, that box is slightly nudged in the direction
                         // of the controller's velocity.
                         controller.update.add {
-                            chosenSideChains.clear()
+                            chosenCurveSection.clear()
                             ribbon.children.forEach{
                                 rainbow.colorVector(it)
                             }
                             ribbon.children.flatMap { subProtein -> subProtein.children }.flatMap { curve -> curve.children }.flatMap { subcurve -> subcurve.children }
-                                .forEachIndexed { index, subCurve ->
+                                .forEach { subCurve ->
                                     if(controller.children.first().intersects(subCurve)) {
                                         subCurve.material.diffuse = Vector3f(1f, 0f, 0f)
-                                        chosenSideChains.add(index)
+                                        chosenCurveSection.add(ribbonSections.indexOf(subCurve.parent?.parent))
                                     }
                                 }
                         }
@@ -129,9 +132,51 @@ class VRSidecChainsExample : SceneryBase(VRSidecChainsExample::class.java.simple
         }
         // Now we add another behaviour for toggling visibility of the boxes
         hmd.addBehaviour("show_side_chain", ClickBehaviour { _, _ ->
-            chosenSideChains.forEach { sideChainIndex ->
-                print("I have been chosen! ${sideChainIndex}")
-                clickedSideChains[sideChainIndex] = !clickedSideChains[sideChainIndex]}
+            chosenCurveSection.forEach { curveSectionIndex ->
+                val curveSection = ribbonSections[curveSectionIndex]
+                val curveSectionPosition = curveSection.position
+                val residues = ribbon.groups.filter { it.hasAminoAtoms() }
+                val rightResidue = if (ribbonSections.size == residues.size) {
+                    clickedSideChains[curveSectionIndex] = !clickedSideChains[curveSectionIndex]
+                    residues[curveSectionIndex] }
+                /*
+                        very rarely there is a slight difference of one between the number of sections and residues
+                        in this case we choose the residue which is closest to our section
+                     */
+                else {
+                    when {
+                        (curveSectionIndex == 0) -> {
+                            clickedSideChains[curveSectionIndex] = !clickedSideChains[curveSectionIndex]
+                            residues.first()
+                        }
+                        (curveSectionIndex >= residues.lastIndex) -> {
+                            clickedSideChains[curveSectionIndex] = !clickedSideChains[curveSectionIndex]
+                            residues.last()
+                        }
+                        else -> {
+                            val ca1 = residues[curveSectionIndex - 1].getAtom("CA")
+                            val ca1Vec = Vector3f(ca1.x.toFloat(), ca1.y.toFloat(), ca1.z.toFloat())
+                            val ca2 = residues[curveSectionIndex].getAtom("CA")
+                            val ca2Vec = Vector3f(ca2.x.toFloat(), ca2.y.toFloat(), ca2.z.toFloat())
+                            val ca3 = residues[curveSectionIndex].getAtom("CA")
+                            val ca3Vec = Vector3f(ca3.x.toFloat(), ca3.y.toFloat(), ca3.z.toFloat())
+                            if (ca1Vec.sub(curveSectionPosition, ca1Vec).length() <= ca2Vec.sub(curveSectionPosition, ca2Vec).length()
+                                && ca1Vec.sub(curveSectionPosition, ca1Vec).length() <= ca3Vec.sub(curveSectionPosition, ca3Vec).length()) {
+                                    clickedSideChains[curveSectionIndex-1] = !clickedSideChains[curveSectionIndex-1]
+                                    residues[curveSectionIndex - 1]
+                            } else if (ca2Vec.sub(curveSectionPosition, ca2Vec).length() <= ca3Vec.sub(curveSectionPosition, ca3Vec).length()) {
+                                clickedSideChains[curveSectionIndex] = !clickedSideChains[curveSectionIndex]
+                                residues[curveSectionIndex]
+                            } else {
+                                clickedSideChains[curveSectionIndex+1] = !clickedSideChains[curveSectionIndex+1]
+                                residues[curveSectionIndex + 1]
+                            }
+                        }
+                    }
+                }
+            }
+
+
             logger.info("residue chosen: ")
         })
         // ...and bind that to the side button of the left-hand controller.
