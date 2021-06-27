@@ -67,7 +67,7 @@ class RibbonDiagram(val protein: Protein, private val displaySS: Boolean = false
      */
     private val structure = protein.structure
     private val chains = structure.chains
-    private val groups = chains.flatMap { it.atomGroups }
+    val groups = chains.flatMap { it.atomGroups }
     private val widthAlpha = 2.0f
     private val widthBeta = 2.2f
     private val widthCoil = 1.0f
