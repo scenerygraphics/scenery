@@ -1,6 +1,7 @@
 package graphics.scenery
 
 import org.joml.*
+import graphics.scenery.PeriodicTable
 import org.biojava.nbio.structure.*
 
 /**
@@ -13,10 +14,7 @@ import org.biojava.nbio.structure.*
 class StickAndBallProteinModel(protein: Protein, spaceFilling: Boolean = false,
                                displayExternalMolecules: Boolean = false): Mesh("PrimaryStructure") {
     val structure = protein.structure
-    val aminoacids = Mesh("aminoacids")
-    val bondsBetweenAminoAcids = Mesh("aminoadics")
     companion object PerTab { private val periodicTable = PeriodicTable() }
-    data class Residue(val name: String, val index: Int, val bonds: List<Bond>)
 
     init {
 
@@ -68,7 +66,12 @@ class StickAndBallProteinModel(protein: Protein, spaceFilling: Boolean = false,
             .forEach { this.addChild(it.value) }
 
         if (!spaceFilling) {
-            val aabonds = ArrayList<Residue>(atoms.size*10)
+            val c = Cylinder(0.025f, 1.0f, 10)
+            c.material = ShaderMaterial.fromFiles("DefaultDeferredInstanced.vert", "DefaultDeferred.frag")
+            c.instancedProperties["ModelMatrix1"] = { c.model }
+            c.material.diffuse = Vector3f(1.0f, 1.0f, 1.0f)
+
+            val bonds: MutableList<Bond> = atoms.filter { it.bonds != null }.flatMap { it.bonds }.toMutableList()
 
             val aminoList = AminoList()
             val chains = structure.chains
@@ -80,24 +83,21 @@ class StickAndBallProteinModel(protein: Protein, spaceFilling: Boolean = false,
                 //please note that these bonds are not the bonds stored in the pdb-file but the hardcoded bonds from the AminoList
                 val bondList = residue.bonds
                 groups.forEach { group ->
-                    val groupBonds = ArrayList<Bond>(residue.bonds.size)
                     if (group.pdbName == name) {
                         bondList.forEach { triple ->
                             group.atoms.forEach { atom1 ->
                                 group.atoms.forEach { atom2 ->
                                     if ((atom1.name + "'") == triple.first && (atom2.name + "'") == triple.second) {
                                         val bond = BondImpl(atom1, atom2, triple.third)
-                                            groupBonds.add(bond)
+                                        bonds.add(bond)
                                     }
                                 }
                             }
                         }
                     }
-                    aabonds.add(groupBonds)
                 }
             }
 
-            val betweenBonds = ArrayList<Bond>(groups.size)
             //computes the bonds between amino acids
             chains.forEach { chain ->
                 chain.atomGroups.windowed(2, 1) {
@@ -107,41 +107,28 @@ class StickAndBallProteinModel(protein: Protein, spaceFilling: Boolean = false,
                         group2.atoms.forEach { atom2 ->
                             if (atom1.name == "CA" && atom2.name == "N") {
                                 val bond = BondImpl(atom1, atom2, 1)
-                                betweenBonds.add(bond)
+                                bonds.add(bond)
                             }
                         }
                     }
                 }
             }
 
-            aabonds.forEach { groupBonds ->
-                cylinderAndAddToParent(getCylinders(groupBonds), aminoacids)
+            val cylinders = bonds.map {
+                val bond = Mesh()
+                bond.parent = this
+                val atomA = it.atomA
+                val atomB = it.atomB
+                bond.orientBetweenPoints(
+                    Vector3f(atomA.x.toFloat(), atomA.y.toFloat(), atomA.z.toFloat()),
+                    Vector3f(atomB.x.toFloat(), atomB.y.toFloat(), atomB.z.toFloat()), true, true
+                )
+                bond.instancedProperties["ModelMatrix1"] = { bond.model }
+                bond
             }
-            cylinderAndAddToParent(getCylinders(betweenBonds), bondsBetweenAminoAcids)
-        }
-    }
+            c.instances.addAll(cylinders)
 
-    fun getCylinders(bonds: List<Bond>): List<Mesh> {
-        return bonds.map {
-            val bond = Mesh()
-            bond.parent = this
-            val atomA = it.atomA
-            val atomB = it.atomB
-            bond.orientBetweenPoints(
-                Vector3f(atomA.x.toFloat(), atomA.y.toFloat(), atomA.z.toFloat()),
-                Vector3f(atomB.x.toFloat(), atomB.y.toFloat(), atomB.z.toFloat()), true, true
-            )
-            bond.instancedProperties["ModelMatrix1"] = { bond.model }
-            bond
+            this.addChild(c)
         }
-    }
-
-    fun cylinderAndAddToParent(cylinderList: List<Mesh>, parent: Mesh) {
-        val c = Cylinder(0.025f, 1.0f, 10)
-        c.material = ShaderMaterial.fromFiles("DefaultDeferredInstanced.vert", "DefaultDeferred.frag")
-        c.instancedProperties["ModelMatrix1"] = { c.model }
-        c.material.diffuse = Vector3f(1.0f, 1.0f, 1.0f)
-        c.instances.addAll(cylinderList)
-        parent.addChild(c)
     }
 }
