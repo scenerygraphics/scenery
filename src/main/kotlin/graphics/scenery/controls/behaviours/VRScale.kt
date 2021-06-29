@@ -30,7 +30,7 @@ class VRScale(
         }
     }
     override fun drag(x: Int, y: Int) {
-        logger.info("both drag OH:${offhand.pressed} Both:${bothPressed}")
+        logger.debug("both drag OH:${offhand.pressed} Both:${bothPressed}")
         if (offhand.pressed && !bothPressed){
             bothPressed = true
             bothInit()
@@ -55,7 +55,7 @@ class VRScale(
     // --- actual behavior ---
     var lastDistance: Float = 0f
     private fun bothInit() {
-        logger.warn("both init")
+        logger.debug("both init")
         lastDistance = controller.worldPosition()
             .distance(offhand.controller.worldPosition())
     }
@@ -69,7 +69,7 @@ class VRScale(
     }
 
     private fun bothEnd() {
-        logger.warn("both end")
+        logger.debug("both end")
         lastDistance = 0f
     }
 

@@ -2,6 +2,7 @@ package graphics.scenery.controls.behaviours
 
 import graphics.scenery.Node
 import graphics.scenery.Scene
+import graphics.scenery.attribute.spatial.Spatial
 import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.controls.TrackerRole
@@ -27,8 +28,18 @@ open class VRGrab(
     protected val multiTarget: Boolean = false
 ) : DragBehaviour {
 
+    val controllerSpatial: Spatial
+
+    init {
+        controllerSpatial = controllerHitbox.spatialOrNull()
+            ?: throw IllegalArgumentException("controller hitbox needs a spatial attribute")
+    }
+
     var selected = emptyList<Node>()
     var startPos = Vector3f()
+
+    var lastPos = Vector3f()
+    var lastRotation = Quaternionf()
 
     override fun init(x: Int, y: Int) {
         selected = targets().filter { box -> controllerHitbox.spatialOrNull()?.intersects(box) ?: false }
@@ -47,25 +58,43 @@ open class VRGrab(
             }
         }
         startPos = controllerHitbox.spatialOrNull()?.worldPosition() ?: Vector3f()
+        lastPos = controllerSpatial.worldPosition()
+        lastRotation = controllerSpatial.worldRotation()
     }
 
     override fun drag(x: Int, y: Int) {
         val newPos = controllerHitbox.spatialOrNull()?.worldPosition() ?: Vector3f()
-        val diff = newPos - startPos
-
+        val diffTranslation = newPos - lastPos
+        val diffRotation = Quaternionf(controllerSpatial.worldRotation()).mul(lastRotation.conjugate())
 
         selected.forEach {
             it.ifSpatial {
                 it.getAttributeOrNull(Grabable::class.java)?.let { grabable ->
-                    position = grabable.startPos + diff
+
+                    //apply parent world rotation to diff if available
+                    position += it.parent?.spatialOrNull()?.worldRotation()?.let { q -> diffTranslation.rotate(q) }
+                        ?: diffTranslation
 
                     if (!grabable.lockRotation) {
-                        rotation = Quaternionf(grabable.rotationDiff)
-                        rotation.premul(controllerHitbox.spatialOrNull()?.worldRotation())
+                        it.parent?.spatialOrNull()?.let { pSpatial ->
+                            // if there is a parent spatial
+                            // reverse parent rotation, apply diff rotation, apply parent rotation again
+                            val worldRotationCache = pSpatial.worldRotation()
+                            val newRotation = Quaternionf(worldRotationCache)
+                                .mul(diffRotation)
+                                .mul(worldRotationCache.conjugate())
+
+                            rotation.premul(newRotation)
+                        } ?: let {
+                            rotation.premul(diffRotation)
+                        }
                     }
                 }
             }
         }
+
+        lastPos = controllerSpatial.worldPosition()
+        lastRotation = controllerSpatial.worldRotation()
     }
 
     override fun end(x: Int, y: Int) {
@@ -106,6 +135,10 @@ open class VRGrab(
 }
 
 open class Grabable(val lockRotation: Boolean = false) {
+    internal var lastPos = Vector3f()
+    internal var lastRotation = Vector3f()
+
+
     internal var startPos = Vector3f()
     internal var rotationDiff: Quaternionf? = null
 }
