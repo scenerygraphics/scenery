@@ -583,11 +583,9 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
             with(reader.openPlane(0, 0)) {
                 dims.x = lengths[0].toInt()
                 dims.y = lengths[1].toInt()
-                var fileCount = 1
-                if(dicom) {
-                    val pathToParent = file.parent
-                    fileCount = pathToParent.toFile().listFiles()?.size ?: 0
-                }
+                val pathToParent = file.parent
+                val fileCount = pathToParent.toFile().listFiles()?.size ?: 0
+
                 dims.z = fileCount * reader.getPlaneCount(0).toInt()
             }
 
@@ -619,16 +617,12 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
 
 //            if(reader.openPlane(0, 0).imageMetadata.isLittleEndian) {
             val files = file.parent.toFile().listFiles()
-            if(dicom && files != null) {
+            if(files != null) {
                 for(fileListElem in files) {
-                    val dicomReader = scifio.initializer().initializeReader(FileLocation(fileListElem))
-                    (0 until dicomReader.getPlaneCount(0)).forEach { plane ->
-                        imageData.put(dicomReader.openPlane(0, plane).bytes)
+                    val newReader = scifio.initializer().initializeReader(FileLocation(fileListElem))
+                    (0 until newReader.getPlaneCount(0)).forEach { plane ->
+                        imageData.put(newReader.openPlane(0, plane).bytes)
                     }
-                }
-            } else {
-                (0 until reader.getPlaneCount(0)).forEach { plane ->
-                    imageData.put(reader.openPlane(0, plane).bytes)
                 }
             }
 //            } else {
