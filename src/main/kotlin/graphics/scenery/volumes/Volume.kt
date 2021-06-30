@@ -564,66 +564,67 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
             if(file.normalize().toString().endsWith("raw")) {
                 return fromPathRaw(file, hub)
             }
+            val volumeFiles: List<Path>
+            if(Files.isDirectory(file)) {
+                volumeFiles = Files.list(file).filter { it.toString().endsWith(".tif") && Files.isRegularFile(it) && Files.isReadable(it) }.toList()
 
-            val id = file.fileName.toString()
+            } else {
+                volumeFiles = listOf(file)
+            }
 
-            val reader = scifio.initializer().initializeReader(FileLocation(file.toFile()))
-
+            var volumes = CopyOnWriteArrayList<BufferedVolume.Timepoint>()
             val dims = Vector3i()
-            with(reader.openPlane(0, 0)) {
-                dims.x = lengths[0].toInt()
-                dims.y = lengths[1].toInt()
-                dims.z = reader.getPlaneCount(0).toInt()
-            }
 
-            val bytesPerVoxel = reader.openPlane(0, 0).imageMetadata.bitsPerPixel/8
-            reader.openPlane(0, 0).imageMetadata.pixelType
-
-            val type: NumericType<*> = when(reader.openPlane(0, 0).imageMetadata.pixelType) {
-                FormatTools.INT8 -> ByteType()
-                FormatTools.INT16 -> ShortType()
-                FormatTools.INT32 -> IntType()
-
-                FormatTools.UINT8 -> UnsignedByteType()
-                FormatTools.UINT16 -> UnsignedShortType()
-                FormatTools.UINT32 -> UnsignedIntType()
-
-                FormatTools.FLOAT -> FloatType()
-
-                else -> {
-                    logger.error("Unknown scif.io pixel type ${reader.openPlane(0, 0).imageMetadata.pixelType}, assuming unsigned byte.")
-                    UnsignedByteType()
+            var type: NumericType<*> = ByteType()
+            volumeFiles.forEach { v ->
+                val id = v.fileName.toString()
+                System.out.println(v.toFile().toString());
+                val reader = scifio.initializer().initializeReader(FileLocation(v.toFile()))
+                with(reader.openPlane(0, 0)) {
+                    dims.x = lengths[0].toInt()
+                    dims.y = lengths[1].toInt()
+                    dims.z = reader.getPlaneCount(0).toInt()
                 }
+                val bytesPerVoxel = reader.openPlane(0, 0).imageMetadata.bitsPerPixel / 8
+                reader.openPlane(0, 0).imageMetadata.pixelType
+
+                type = when (reader.openPlane(0, 0).imageMetadata.pixelType) {
+                    FormatTools.INT8 -> ByteType()
+                    FormatTools.INT16 -> ShortType()
+                    FormatTools.INT32 -> IntType()
+
+                    FormatTools.UINT8 -> UnsignedByteType()
+                    FormatTools.UINT16 -> UnsignedShortType()
+                    FormatTools.UINT32 -> UnsignedIntType()
+
+                    FormatTools.FLOAT -> FloatType()
+
+                    else -> {
+                        logger.error("Unknown scif.io pixel type ${reader.openPlane(0, 0).imageMetadata.pixelType}, assuming unsigned byte.")
+                        UnsignedByteType()
+                    }
+                }
+
+                logger.debug("Loading $id from disk")
+                val imageData: ByteBuffer = MemoryUtil.memAlloc((bytesPerVoxel * dims.x * dims.y * dims.z))
+
+                logger.debug("${file.fileName}: Allocated ${imageData.capacity()} bytes for $type ${8 * bytesPerVoxel}bit image of $dims")
+
+                val start = System.nanoTime()
+
+                logger.debug("Volume is little endian")
+                (0 until reader.getPlaneCount(0)).forEach { plane ->
+                    imageData.put(reader.openPlane(0, plane).bytes)
+                }
+
+                val duration = (System.nanoTime() - start) / 10e5
+                logger.debug("Reading took $duration ms")
+
+                imageData.flip()
+                volumes.add(BufferedVolume.Timepoint(id, imageData))
             }
 
-            logger.debug("Loading $id from disk")
-            val imageData: ByteBuffer = MemoryUtil.memAlloc((bytesPerVoxel * dims.x * dims.y * dims.z))
-
-            logger.debug("${file.fileName}: Allocated ${imageData.capacity()} bytes for $type ${8*bytesPerVoxel}bit image of $dims")
-
-            val start = System.nanoTime()
-
-//            if(reader.openPlane(0, 0).imageMetadata.isLittleEndian) {
-            logger.debug("Volume is little endian")
-            (0 until reader.getPlaneCount(0)).forEach { plane ->
-                imageData.put(reader.openPlane(0, plane).bytes)
-            }
-//            } else {
-//                logger.info("Volume is big endian")
-//                (0 until reader.getPlaneCount(0)).forEach { plane ->
-//                    imageData.put(swapEndianUnsafe(reader.openPlane(0, plane).bytes))
-//                }
-//            }
-
-            val duration = (System.nanoTime() - start) / 10e5
-            logger.debug("Reading took $duration ms")
-
-            imageData.flip()
-
-            val volumes = CopyOnWriteArrayList<BufferedVolume.Timepoint>()
-            volumes.add(BufferedVolume.Timepoint(id, imageData))
-            // TODO: Kotlin compiler issue, see https://youtrack.jetbrains.com/issue/KT-37955
-            return when(type) {
+            return when (type) {
                 is ByteType -> fromBuffer(volumes, dims.x, dims.y, dims.z, ByteType(), hub)
                 is UnsignedByteType -> fromBuffer(volumes, dims.x, dims.y, dims.z, UnsignedByteType(), hub)
                 is ShortType -> fromBuffer(volumes, dims.x, dims.y, dims.z, ShortType(), hub)
@@ -633,6 +634,7 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
                 is FloatType -> fromBuffer(volumes, dims.x, dims.y, dims.z, FloatType(), hub)
                 else -> throw UnsupportedOperationException("Image type ${type.javaClass.simpleName} not supported for volume data.")
             }
+
         }
 
         /**
