@@ -26,25 +26,6 @@ repositories {
     maven("https://jitpack.io")
 }
 
-"kotlin"("1.4.32")
-"ui-behaviour"("2.0.3")
-//"bigvolumeviewer"("0.1.9")
-"ffmpeg"("4.2.2-1.5.3")
-"jackson-dataformat-msgpack"("0.8.20")
-"jeromq"("0.4.3")
-"jinput"("2.0.9")
-"jocl"("2.0.2")
-"jvrpn"("1.2.0")
-"kotlinx-coroutines-core"("1.3.9")
-"kryo"("5.0.3")
-"lwjgl"("3.2.3")
-"lwjgl3-awt"("0.1.7")
-"msgpack-core"("0.8.20")
-"classgraph"("4.8.86")
-"spirvcrossj"("0.7.1-1.1.106.0")
-"reflections"("0.9.12")
-"art-dtrack-sdk"("2.6.0")
-
 dependencies {
     // we cant use a platform because of a jitpack issue, we apply the dependencies constraints via
     // the sciJava.platform plugin above in the `plugins {}` scope
