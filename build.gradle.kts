@@ -1,9 +1,10 @@
+import org.gradle.kotlin.dsl.api
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
-import sciJava.*
+import scenery.*
 import java.net.URL
 
 plugins {
-    val ktVersion = "1.4.32"
+    val ktVersion = "1.5.0"
     java
     kotlin("jvm") version ktVersion
     scenery.base
@@ -14,19 +15,15 @@ plugins {
     id("org.jetbrains.dokka") version "1.4.30"
     id("org.sonarqube") version "3.1.1"
     jacoco
+    id("sciJava.platform") version "30.0.0+15" // workaround for jitpack issue
 }
-
-tasks.withType(org.jetbrains.kotlin.gradle.dsl.KotlinJvmCompile::class) {
-    kotlinOptions.useIR = true
-}
-
-//sciJava.debug = true
 
 repositories {
     mavenCentral()
     jcenter()
-    maven("https://jitpack.io")
     maven("https://maven.scijava.org/content/groups/public")
+    maven("https://raw.githubusercontent.com/kotlin-graphics/mary/master")
+    maven("https://jitpack.io")
 }
 
 "kotlin"("1.4.32")
@@ -49,81 +46,82 @@ repositories {
 "art-dtrack-sdk"("2.6.0")
 
 dependencies {
+    // we cant use a platform because of a jitpack issue, we apply the dependencies constraints via
+    // the sciJava.platform plugin above in the `plugins {}` scope
+//    implementation(platform("sciJava:platform:30.0.0+6"))
+//    implementation(platform("org.scijava:pom-scijava:30.0.0"))
+
     implementation(platform(kotlin("bom")))
     implementation(kotlin("stdlib-jdk8"))
     implementation(kotlin("reflect"))
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.4.3")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.5.0")
 
-    listOf("windows-amd64", "linux-i586", "linux-amd64", "macosx-universal").forEach {
-        sciJava("org.jogamp.gluegen:gluegen-rt:2.3.2", "natives-$it") // this is crap, but will be polished eventually
-        sciJava("org.jogamp.jogl:jogl-all:2.3.2", "natives-$it")
-    }
-    sciJava("org.slf4j:slf4j-api")
-    sciJava("net.clearvolume:cleargl")
-    sciJava("org.joml")
-    sciJava("net.java.jinput:jinput:2.0.9", native = "natives-all")
-    sciJava("org.scijava"["scijava-common", "script-editor", "ui-behaviour", "scripting-javascript", "scripting-jython"])
-    sciJava("net.sf.trove4j")
-    sciJava("net.java.dev.jna")
-    sciJava("net.java.dev.jna:jna-platform")
-    sciJava("org.jocl")
+    implementation(jogamp.gluegen, joglNatives)
+    implementation(jogamp.jogl, joglNatives)
+    implementation(slf4j.api)
+    implementation(misc.cleargl)
+    implementation(misc.joml)
+    implementation("net.java.jinput:jinput:2.0.9", "natives-all")
+    implementation("org.jocl:jocl:2.0.2")
+    implementation(sciJava.common)
+    implementation(sciJava.scriptEditor)
+    implementation(sciJava.uiBehaviour)
+    implementation(sciJava.scriptingJavascript)
+    implementation(sciJava.scriptingJython)
+    implementation(misc.trove)
+    implementation(jna.bundles.all)
     implementation(platform("org.lwjgl:lwjgl-bom:3.2.3"))
     listOf("", "-glfw", "-jemalloc", "-vulkan", "-opengl", "-openvr", "-xxhash", "-remotery").forEach {
-        implementation("org.lwjgl:lwjgl$it")
-        if (it != "-vulkan")
-            runtimeOnlylwjglNatives("org.lwjgl", "lwjgl$it", version = versions["lwjgl"]) // "
+        if (it == "-vulkan")
+            api("org.lwjgl:lwjgl$it")
+        else
+            api("org.lwjgl:lwjgl$it", lwjglNatives)
     }
-    sciJava("com.fasterxml.jackson.core:jackson-databind")
-    sciJava("com.fasterxml.jackson.module:jackson-module-kotlin:\$jackson-databind")
-    sciJava("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:\$jackson-databind")
-    sciJava("graphics.scenery:spirvcrossj")
-    runtimeOnlylwjglNatives("graphics.scenery", "spirvcrossj", version = versions["spirvcrossj"]) // "
-    sciJava("org.zeromq:jeromq")
-    sciJava("com.esotericsoftware:kryo")
-    sciJava("org.msgpack:msgpack-core")
-    sciJava("org.msgpack:jackson-dataformat-msgpack")
-    sciJava("graphics.scenery:jvrpn")
-    runtimeOnlylwjglNatives("graphics.scenery", "jvrpn", version = versions["jvrpn"]) // "
-    //    runtimeOnly("graphics.scenery", "jvrpn", classifier = "natives-linux")
-    //    runtimeOnly("graphics.scenery", "jvrpn", classifier = "natives-macos")
-    sciJava("io.scif:scifio")
-    sciJava("org.bytedeco:ffmpeg")
-    listOf("windows", "linux", "macosx").forEach {
-        runtimeOnly("org.bytedeco", "ffmpeg", classifier = "$it-x86_64", version = versions["ffmpeg"]) // "
-    }
-    sciJava("org.reflections")
-    sciJava("io.github.classgraph")
+    implementation(jackson.bundles.all)
+    api("graphics.scenery:spirvcrossj:0.8.0-1.1.106.0", lwjglNatives)
+    implementation("org.zeromq:jeromq:0.4.3")
+    implementation("com.esotericsoftware:kryo:5.1.1")
+    implementation("de.javakaffee:kryo-serializers:0.45")
+    implementation("org.msgpack:msgpack-core:0.8.20")
+    implementation("org.msgpack:jackson-dataformat-msgpack:0.8.20")
+    api("graphics.scenery:jvrpn:1.2.0", lwjglNatives)
+    implementation(scifio.core)
+    implementation("org.bytedeco:ffmpeg:4.2.1-1.5.2", ffmpegNatives)
+    implementation("org.reflections:reflections:0.9.12")
+    implementation("io.github.classgraph:classgraph:4.8.86")
+
+    api("sc.fiji:bigdataviewer-core:10.2.0")
+    api("sc.fiji:bigdataviewer-vistools:1.0.0-beta-28")
+
     //TODO revert to official BVV
-    api("sc.fiji:bigdataviewer-core:10.1.1-SNAPSHOT")
-    api("sc.fiji:bigdataviewer-vistools:1.0.0-beta-26-SNAPSHOT")
     api("com.github.skalarproduktraum:jogl-minimal:1c86442")
-    //sciJava("sc.fiji:bigvolumeviewer")
-    //    sciJava("org.lwjglx:lwjgl3-awt")
+
     implementation("com.github.LWJGLX:lwjgl3-awt:cfd741a6")
-    sciJava("org.janelia.saalfeldlab:n5"["", "-imglib2"])
+    implementation(n5.core)
+    implementation(n5.imglib2)
     listOf("core", "structure", "modfinder").forEach {
-        sciJava("org.biojava:biojava-$it:5.4.0") {
+        implementation("org.biojava:biojava-$it:5.4.0") {
             exclude("org.slf4j", "slf4j-api")
             exclude("org.slf4j", "slf4j-simple")
             exclude("org.apache.logging.log4j", "log4j-slf4j-impl")
         }
     }
-    implementation("org.jetbrains.kotlin:kotlin-scripting-jsr223:1.4.21")
+    implementation("org.jetbrains.kotlin:kotlin-scripting-jsr223:1.5.0")
     implementation("graphics.scenery:art-dtrack-sdk:2.6.0")
 
     testImplementation(kotlin("test"))
     testImplementation(kotlin("test-junit"))
     //    implementation("com.github.kotlin-graphics:assimp:25c68811")
 
-    testSciJava("junit:junit")
-    testSciJava("org.slf4j:slf4j-simple")
-    testSciJava("net.imagej")
-    testSciJava("net.imagej:ij")
-    testSciJava("net.imglib2:imglib2-ij")
+    testImplementation(misc.junit4)
+    testImplementation(slf4j.simple)
+    testImplementation(imagej.core)
+    testImplementation(imagej.ij)
+    testImplementation(imgLib2.ij)
 }
 
-fun DependencyHandlerScope.runtimeOnlylwjglNatives(group: String, name: String, version: String? = null) =
-    listOf("windows", "linux", "macos").forEach { runtimeOnly(group, name, classifier = "natives-$it", version = version) }
+val isRelease: Boolean
+    get() = System.getProperty("release") == "true"
 
 tasks {
 
@@ -138,6 +136,7 @@ tasks {
     }
 
     dokkaHtml {
+        enabled = isRelease
         dokkaSourceSets.configureEach {
             sourceLink {
                 localDirectory.set(file("src/main/kotlin"))
@@ -161,8 +160,14 @@ val dokkaHtmlJar by tasks.register<Jar>("dokkaHtmlJar") {
 }
 
 artifacts {
-    archives(dokkaJavadocJar)
-    archives(dokkaHtmlJar)
+    if(isRelease) {
+        archives(dokkaJavadocJar)
+        archives(dokkaHtmlJar)
+    }
+}
+
+jacoco {
+    toolVersion = "0.8.7"
 }
 
 java.withSourcesJar()
@@ -179,3 +184,12 @@ sonarqube {
 plugins.withType<JacocoPlugin>() {
     tasks["test"].finalizedBy("jacocoTestReport")
 }
+
+// disable Gradle metadata file creation on Jitpack, as jitpack modifies
+// the metadata file, resulting in broken metadata with missing native dependencies.
+if(System.getenv("JITPACK") != null) {
+    tasks.withType<GenerateModuleMetadata> {
+        enabled = false
+    }
+}
+

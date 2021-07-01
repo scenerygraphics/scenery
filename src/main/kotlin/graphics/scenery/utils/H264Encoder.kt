@@ -161,11 +161,11 @@ class H264Encoder(val frameWidth: Int, val frameHeight: Int, filename: String, v
             actualFrameHeight = frameHeight.nearestWholeMultipleOf(2)
 
             val encoders = listOf<Triple<String, AVCodec?, (AVCodecContext) -> AVCodecContext?>>(
-                Triple("NVenc", avcodec_find_encoder_by_name("${format.toString().toLowerCase()}_nvenc"), { context -> context }),
+                Triple("NVenc", avcodec_find_encoder_by_name("${format.toString().lowercase()}_nvenc"), { context -> context }),
 
-                Triple("AMD AMF", avcodec_find_encoder_by_name("${format.toString().toLowerCase()}_amf"), { context -> context }),
+                Triple("AMD AMF", avcodec_find_encoder_by_name("${format.toString().lowercase()}_amf"), { context -> context }),
 
-                Triple("Intel Quick Sync Video", avcodec_find_encoder_by_name("${format.toString().toLowerCase()}_qsv"), { context: AVCodecContext ->
+                Triple("Intel Quick Sync Video", avcodec_find_encoder_by_name("${format.toString().lowercase()}_qsv"), { context: AVCodecContext ->
                     logger.debug("Creating QuickSync device")
                     val device = AVBufferRef()
                     val create = av_hwdevice_ctx_create(device, AV_HWDEVICE_TYPE_QSV, "", AVDictionary(), 0)

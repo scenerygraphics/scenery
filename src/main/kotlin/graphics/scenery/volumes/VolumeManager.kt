@@ -161,11 +161,15 @@ class VolumeManager(
     // or for all VolumeManager-managed nodes?
     var renderingMethod = Volume.RenderingMethod.AlphaBlending
 
+    /** List of custom-created textures not to be cleared automatically */
+    var customTextures = arrayListOf<String>()
+
     init {
         state = State.Created
         name = "VolumeManager"
         // fake geometry
 
+        logger.info("Created new volume manager with compute=$useCompute, segments=$customSegments, bindings=$customBindings")
 
         this.geometryType = GeometryType.TRIANGLES
 
@@ -198,9 +202,16 @@ class VolumeManager(
         shaderProperties["transform"] = Matrix4f()
         shaderProperties["viewportSize"] = Vector2f()
         shaderProperties["dsp"] = Vector2f()
-        material.textures.clear()
+        val oldKeys = material.textures.filter { it.key !in customTextures }.keys
+        val texturesToKeep = material.textures.filter { it.key in customTextures }
+        oldKeys.forEach {
+            material.textures.remove(it)
+        }
 
         material = ShaderMaterial(context.factory)
+        texturesToKeep.forEach { (k, v) ->
+            material.textures[k] = v
+        }
         material.cullingMode = Material.CullingMode.None
         material.blending.transparent = true
         material.blending.sourceColorBlendFactor = Blending.BlendFactor.One
@@ -360,23 +371,6 @@ class VolumeManager(
         }
     }
 
-    private fun clearKeysAndTextures() {
-        val oldKeys = this.material.textures.keys()
-            .asSequence()
-            .filter { it.contains("_") }
-        logger.info("Removing texture keys ${oldKeys.joinToString(",")}")
-        oldKeys.map {
-            this.material.textures.remove(it)
-        }
-
-        val oldProps = this.shaderProperties.keys
-            .filter { it.contains("_x_") }
-        logger.info("Removing shader props ${oldProps.joinToString(",")}")
-        oldProps.map {
-            this.shaderProperties.remove(it)
-        }
-    }
-
     /**
      * Updates the currently-used set of blocks using [context] to
      * facilitate the updates on the GPU.
@@ -457,6 +451,7 @@ class VolumeManager(
             }
 
             ProcessFillTasks.parallel(textureCache, pboChain, context, forkJoinPool, fillTasks)
+//            ProcessFillTasks.sequential(textureCache, pboChain, context, fillTasks)
         }
 
         // TODO: is repaint necessary?
@@ -746,9 +741,16 @@ class VolumeManager(
         nodes.remove(node)
 
         val volumes = nodes.toMutableList()
-        hub?.get<VolumeManager>()?.let { hub?.remove(it) }
+        val current = hub?.get<VolumeManager>()
+        if(current != null) {
+            hub?.remove(current)
+        }
 
-        val vm = VolumeManager(hub, useCompute)
+        val vm = VolumeManager(hub, useCompute, current?.customSegments, current?.customBindings)
+        current?.customTextures?.forEach {
+            vm.customTextures.add(it)
+            vm.material.textures[it] = current.material.textures[it]!!
+        }
         volumes.forEach {
             vm.add(it)
             it.delegate = vm
@@ -805,6 +807,6 @@ class VolumeManager(
     /** Companion object for Volume */
     companion object {
         /** Static [ForkJoinPool] for fill task submission. */
-        protected val forkJoinPool: ForkJoinPool = ForkJoinPool(max(1, Runtime.getRuntime().availableProcessors() / 2))
+        protected val forkJoinPool: ForkJoinPool = ForkJoinPool(max(1, Runtime.getRuntime().availableProcessors()))
     }
 }
