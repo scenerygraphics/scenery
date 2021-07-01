@@ -491,9 +491,15 @@ open class VulkanRenderer(hub: Hub,
 
 
         // Create the Vulkan instance
-        instance = if(embedIn != null || System.getProperty("scenery.Headless")?.toBoolean() == true) {
+        val headlessRequested = System.getProperty("scenery.Headless")?.toBoolean() ?: false
+        instance = if(embedIn != null || headlessRequested) {
             logger.debug("Running embedded or headless, skipping GLFW initialisation.")
-            createInstance(null, validation, headless = true)
+            createInstance(
+                null,
+                validation,
+                headless = headlessRequested,
+                embedded = embedIn != null
+            )
         } else {
             if (!glfwInit()) {
                 val buffer = PointerBuffer.allocateDirect(255)
@@ -1800,7 +1806,7 @@ open class VulkanRenderer(hub: Hub,
         totalFrames++
     }
 
-    private fun createInstance(requiredExtensions: PointerBuffer? = null, enableValidations: Boolean = false, headless: Boolean = false): VkInstance {
+    private fun createInstance(requiredExtensions: PointerBuffer? = null, enableValidations: Boolean = false, headless: Boolean = false, embedded: Boolean = false): VkInstance {
         return stackPush().use { stack ->
             val appInfo = VkApplicationInfo.callocStack(stack)
                 .sType(VK_STRUCTURE_TYPE_APPLICATION_INFO)
