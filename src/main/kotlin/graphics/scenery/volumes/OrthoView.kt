@@ -1,3 +1,5 @@
+@file:JvmName("OrthoView")
+
 package graphics.scenery.volumes
 
 import graphics.scenery.BoundingGrid
