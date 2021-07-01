@@ -604,14 +604,5 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
                 xinitThreadsCalled = true
             }
         }
-
-        @JvmStatic fun URL.sanitizedPath(): String {
-            // cuts off the initial / on Windows
-            return if(Platform.get() == Platform.WINDOWS) {
-                this.path.substringAfter("/")
-            } else {
-                this.path
-            }
-        }
     }
 }
