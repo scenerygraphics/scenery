@@ -45,7 +45,11 @@ unit-tests-no-gpu:
     - chmod +x gradlew
     - ./gradlew --stop # stop any deamon https://stackoverflow.com/a/58397542/1047713
   script:
-    - ./gradlew build -S -x dokkaHtml -x dokkaHtmlJar -x javadoc -x dokkaJavadocJar -PjvmTarget=1.8 -PsourceCompatibility=1.8 -Pgpu=true -i
+    # At the moment, we need to run this twice because of a Vulkan instance
+    # teardown bug in the 460.xx series Nvidia drivers that causes the driver
+    # to malfunction after creation of ~30 Vulkan instances.
+    - ./gradlew build -S -x dokkaHtml -x dokkaHtmlJar -x javadoc -x dokkaJavadocJar -PjvmTarget=1.8 -PsourceCompatibility=1.8 -Pgpu=true -Pscenery.ExampleRunner.Configurations=DeferredShading.yml -i
+    - ./gradlew build -S -x dokkaHtml -x dokkaHtmlJar -x javadoc -x dokkaJavadocJar -PjvmTarget=1.8 -PsourceCompatibility=1.8 -Pgpu=true -Pscenery.ExampleRunner.Configurations=DeferredShadingStereo.yml -i
   artifacts:
     when: always
     expire_in: 48h

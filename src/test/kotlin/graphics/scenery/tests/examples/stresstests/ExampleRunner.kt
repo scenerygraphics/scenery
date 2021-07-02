@@ -79,7 +79,7 @@ class ExampleRunner {
             }
         }
 
-        val configurations = listOf("DeferredShading.yml", "DeferredShadingStereo.yml")
+        val configurations = System.getProperty("scenery.ExampleRunner.Configurations")?.split(",") ?: listOf("DeferredShading.yml", "DeferredShadingStereo.yml")
 
         val directoryName = System.getProperty("scenery.ExampleRunner.OutputDir") ?: "ExampleRunner-${SystemHelpers.formatDateTime(delimiter = "_")}"
         Files.createDirectory(Paths.get(directoryName))
