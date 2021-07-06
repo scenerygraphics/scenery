@@ -82,7 +82,6 @@ class ExampleRunner {
         val configurations = System.getProperty("scenery.ExampleRunner.Configurations")?.split(",") ?: listOf("DeferredShading.yml", "DeferredShadingStereo.yml")
 
         val directoryName = System.getProperty("scenery.ExampleRunner.OutputDir") ?: "ExampleRunner-${SystemHelpers.formatDateTime(delimiter = "_")}"
-        Files.createDirectory(Paths.get(directoryName))
 
         logger.info("ExampleRunner: Running ${examples.size} examples with ${configurations.size} configurations. Memory: ${Runtime.getRuntime().freeMemory().toFloat()/1024.0f/1024.0f}M/${Runtime.getRuntime().totalMemory().toFloat()/1024.0f/1024.0f}/${Runtime.getRuntime().maxMemory().toFloat()/1024.0f/1024.0f}M (free/total/max) available.")
         System.setProperty("scenery.RandomSeed", "31337")
@@ -94,7 +93,7 @@ class ExampleRunner {
                 System.setProperty("scenery.Renderer.Config", config)
 
                 val rendererDirectory = "$directoryName/$renderer-${config.substringBefore(".")}"
-                Files.createDirectory(Paths.get(rendererDirectory))
+                Files.createDirectories(Paths.get(rendererDirectory))
 
                 examples.shuffled().forEachIndexed { i, example ->
                     runtime = 0.milliseconds
