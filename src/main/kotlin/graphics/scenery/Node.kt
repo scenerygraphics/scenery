@@ -657,8 +657,8 @@ open class Node(open var name: String = "Node") : Renderable, Serializable, Real
         // we have a match! calculate entry and exit points
         val entry = origin + dir * tmin
         val exit = origin + dir * tmax
-        val localEntry = Matrix4f(world).invert().transform(Vector4f().set(entry, 1.0f))
-        val localExit = Matrix4f(world).invert().transform(Vector4f().set(exit, 1.0f))
+        val localEntry = Matrix4f(world).invert().transform(Vector4f(entry, 1.0f))
+        val localExit = Matrix4f(world).invert().transform(Vector4f(exit, 1.0f))
 
         return MaybeIntersects.Intersection(tmin, entry, exit, localEntry.xyz(), localExit.xyz())
     }
