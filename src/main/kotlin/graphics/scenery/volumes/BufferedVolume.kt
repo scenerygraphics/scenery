@@ -6,6 +6,7 @@ import graphics.scenery.OrientedBoundingBox
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
+import net.imglib2.type.numeric.NumericType
 import net.imglib2.type.numeric.integer.*
 import net.imglib2.type.numeric.real.DoubleType
 import net.imglib2.type.numeric.real.FloatType
@@ -129,9 +130,8 @@ class BufferedVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewe
     @OptIn(ExperimentalUnsignedTypes::class)
     override fun sample(uv: Vector3f, interpolate: Boolean): Float? {
         val texture = timepoints?.lastOrNull() ?: throw IllegalStateException("Could not find timepoint")
-        val source = (ds.sources.firstOrNull()?.spimSource as? TransformedSource)?.wrappedSource as? BufferSource<*> ?: throw IllegalStateException("No source found")
-//        val source = (ds.sources.first().spimSource as? BufferSource) ?: throw IllegalStateException("No source found")
-        val dimensions = Vector3i(source.width, source.height, source.depth)
+        val d = getDimensions()
+        val dimensions = Vector3f(d.x.toFloat(), d.y.toFloat(), d.z.toFloat())
 
         val bpp = when(ds.type) {
             is UnsignedByteType, is ByteType -> 1
@@ -143,7 +143,7 @@ class BufferedVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewe
         }
 
         if(uv.x() < 0.0f || uv.x() > 1.0f || uv.y() < 0.0f || uv.y() > 1.0f || uv.z() < 0.0f || uv.z() > 1.0f) {
-            logger.debug("Invalid UV coords for volume access: $uv")
+            logger.warn("Invalid UV coords for volume access: $uv")
             return null
         }
 
@@ -153,6 +153,8 @@ class BufferedVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewe
 //            + floor(absoluteCoords.x()).toInt())
         val absoluteCoordsD = Vector3f(floor(absoluteCoords.x()), floor(absoluteCoords.y()), floor(absoluteCoords.z()))
         val diff = absoluteCoords - absoluteCoordsD
+
+//        logger.info("Sampling at $uv -> $absoluteCoords -> $absoluteCoordsD")
 
         fun toIndex(absoluteCoords: Vector3f): Int = (
             absoluteCoords.x().roundToInt().dec()
@@ -187,9 +189,8 @@ class BufferedVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewe
                 else -> throw java.lang.IllegalStateException("Can't determine density for ${ds.type.javaClass.simpleName} data")
             }
 
-            // TODO: Correctly query transfer range
-            val trangemax = 65536.0f
-            return transferFunction.evaluate(s/trangemax)
+            val transferRangeMax = ds.converterSetups.firstOrNull()?.displayRangeMax?.toFloat() ?: ds.type.maxValue()
+            return transferFunction.evaluate(s/transferRangeMax)
         }
 
         return if(interpolate) {
@@ -207,6 +208,13 @@ class BufferedVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewe
         }
     }
 
+    private fun NumericType<*>.maxValue(): Float = when(this) {
+        is UnsignedByteType -> 255.0f
+        is UnsignedShortType -> 65536.0f
+        is FloatType -> 1.0f
+        else -> 1.0f
+    }
+
     private fun lerp(t: Float, v0: Float, v1: Float): Float {
         return (1.0f - t) * v0 + t * v1
     }
@@ -218,10 +226,12 @@ class BufferedVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewe
      * Returns the list of samples (which might include `null` values in case a sample failed),
      * as well as the delta used along the ray, or null if the start/end coordinates are invalid.
      */
-    override fun sampleRay(start: Vector3f, end: Vector3f): Pair<List<Float?>, Vector3f>? {
-        val source = (ds.sources.firstOrNull()?.spimSource as? TransformedSource)?.wrappedSource as? BufferSource<*> ?: throw IllegalStateException("No source found")
-//        val source = (ds.sources.first().spimSource as? BufferSource) ?: throw IllegalStateException("No source found")
-        val dimensions = Vector3f(source.width.toFloat(), source.height.toFloat(), source.depth.toFloat())
+    override fun sampleRay(rayStart: Vector3f, rayEnd: Vector3f): Pair<List<Float?>, Vector3f>? {
+        val d = getDimensions()
+        val dimensions = Vector3f(d.x.toFloat(), d.y.toFloat(), d.z.toFloat())
+
+        val start = rayStart/dimensions
+        val end = rayEnd/dimensions
 
         if (start.x() < 0.0f || start.x() > 1.0f || start.y() < 0.0f || start.y() > 1.0f || start.z() < 0.0f || start.z() > 1.0f) {
             logger.debug("Invalid UV coords for ray start: {} -- will clamp values to [0.0, 1.0].", start)
@@ -243,12 +253,20 @@ class BufferedVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewe
                 min(max(end.z(), 0.0f), 1.0f)
         )
 
-        val direction = (endClamped - startClamped).normalize()
+        val direction = (endClamped - startClamped)
         val maxSteps = (Vector3f(direction).mul(dimensions).length() * 2.0f).roundToInt()
         val delta = direction * (1.0f / maxSteps.toFloat())
+
+        logger.info("Sampling from $startClamped to ${startClamped + maxSteps.toFloat() * delta}")
+        direction.normalize()
 
         return (0 until maxSteps).map {
             sample(startClamped + (delta * it.toFloat()))
         } to delta
+    }
+
+    fun getDimensions(): Vector3i {
+        val source = (ds.sources.firstOrNull()?.spimSource as? TransformedSource)?.wrappedSource as? BufferSource<*> ?: throw IllegalStateException("No source found")
+        return Vector3i(source.width, source.height, source.depth)
     }
 }

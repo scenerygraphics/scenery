@@ -9,6 +9,7 @@ import graphics.scenery.utils.extensions.times
 import net.imglib2.type.numeric.integer.UnsignedByteType
 import org.joml.Matrix4f
 import org.joml.Vector3f
+import org.joml.Vector3i
 import tpietzsch.example2.VolumeViewerOptions
 
 class RAIVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewerOptions, hub: Hub): Volume(ds, options, hub) {
@@ -32,10 +33,8 @@ class RAIVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewerOpti
         val source = ds.sources.firstOrNull()
 
         val sizes = if(source != null) {
-            val s = source.spimSource.getSource(0, 0)
-            val min = Vector3f(s.min(0).toFloat(), s.min(1).toFloat(), s.min(2).toFloat())
-            val max = Vector3f(s.max(0).toFloat(), s.max(1).toFloat(), s.max(2).toFloat())
-            max - min
+            val d = getDimensions()
+            Vector3f(d.x.toFloat(), d.y.toFloat(), d.z.toFloat())
         } else {
             Vector3f(1.0f, 1.0f, 1.0f)
         }
@@ -86,5 +85,13 @@ class RAIVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewerOpti
                 model.translate(shift)
             }
         }
+    }
+
+    override fun sampleRay(start: Vector3f, end: Vector3f): Pair<List<Float?>, Vector3f>? {
+        return super.sampleRay(start, end)
+    }
+
+    override fun sample(uv: Vector3f, interpolate: Boolean): Float? {
+        return super.sample(uv, interpolate)
     }
 }

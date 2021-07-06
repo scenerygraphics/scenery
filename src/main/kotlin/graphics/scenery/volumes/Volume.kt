@@ -24,6 +24,7 @@ import graphics.scenery.*
 import graphics.scenery.numerics.OpenSimplexNoise
 import graphics.scenery.numerics.Random
 import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.extensions.minus
 import graphics.scenery.volumes.Volume.VolumeDataSource.SpimDataMinimalSource
 import io.scif.SCIFIO
 import io.scif.util.FormatTools
@@ -361,6 +362,27 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
      */
     open fun sampleRay(start: Vector3f, end: Vector3f): Pair<List<Float?>, Vector3f>? {
         return null
+    }
+
+    open fun getDimensions(timepoint: Int = 0, view: Int = 0, level: Int = 0): Vector3i {
+        return when(dataSource) {
+            is VolumeDataSource.SpimDataMinimalSource -> {
+                val s = viewerState.sources.getOrNull(view)?.spimSource?.getSource(timepoint, level) ?: throw IllegalStateException("No source known for $this, can't determine dimensions.")
+                val min = Vector3i(s.min(0).toInt(), s.min(1).toInt(), s.min(2).toInt())
+                val max = Vector3i(s.max(0).toInt(), s.max(1).toInt(), s.max(2).toInt())
+                max.min(min)
+            }
+            is VolumeDataSource.RAISource<*> -> {
+                val s = dataSource.sources.getOrNull(view)?.spimSource?.getSource(0, 0) ?: throw IllegalStateException("No source known for $this, can't determine dimensions.")
+                val min = Vector3i(s.min(0).toInt(), s.min(1).toInt(), s.min(2).toInt())
+                val max = Vector3i(s.max(0).toInt(), s.max(1).toInt(), s.max(2).toInt())
+                max.min(min)
+            }
+            is VolumeDataSource.NullSource -> {
+                logger.warn("Querying dimensions of NullSource, returning (1,1,1)")
+                Vector3i(1, 1, 1)
+            }
+        }
     }
 
     companion object {
