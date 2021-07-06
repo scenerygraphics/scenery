@@ -2258,8 +2258,12 @@ open class VulkanRenderer(hub: Hub,
         logger.debug("Closing device $device...")
         device.close()
 
-        logger.debug("Closing instance...")
-        vkDestroyInstance(instance, null)
+        if(System.getProperty("scenery.Workarounds.DontCloseVulkanInstances")?.toBoolean() == true) {
+            logger.warn("Not closing Vulkan instances explicitly requested as workaround for Nvidia driver issue.")
+        } else {
+            logger.debug("Closing instance...")
+            vkDestroyInstance(instance, null)
+        }
 
         heartbeatTimer.cancel()
         heartbeatTimer.purge()
