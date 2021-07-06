@@ -12,6 +12,7 @@ import graphics.scenery.utils.extensions.times
 import graphics.scenery.volumes.Colormap
 import graphics.scenery.volumes.Volume
 import net.imglib2.type.numeric.integer.UnsignedByteType
+import net.imglib2.type.numeric.integer.UnsignedShortType
 import org.lwjgl.system.MemoryUtil.memAlloc
 import org.scijava.Context
 import org.scijava.ui.UIService
@@ -19,7 +20,10 @@ import org.scijava.ui.behaviour.ClickBehaviour
 import org.scijava.widget.FileWidget
 import java.io.File
 import java.nio.ByteBuffer
+import java.text.DecimalFormat
+import java.text.NumberFormat
 import kotlin.concurrent.thread
+import kotlin.math.roundToInt
 
 /**
  * Example that renders procedurally generated volumes and samples from it.
@@ -28,7 +32,7 @@ import kotlin.concurrent.thread
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class VolumeSamplingExample: SceneryBase("Volume Sampling example", 1280, 720) {
-    val bitsPerVoxel = 8
+    val bitsPerVoxel = 16
     val volumeSize = 128
 
     enum class VolumeType { File, Procedural }
@@ -49,15 +53,15 @@ class VolumeSamplingExample: SceneryBase("Volume Sampling example", 1280, 720) {
             files.add(fileFromProperty)
             VolumeType.File
         } else {
-            val c = Context()
-            val ui = c.getService(UIService::class.java)
-            val file = ui.chooseFile(null, FileWidget.DIRECTORY_STYLE)
-            if(file != null) {
-                files.add(file.absolutePath)
-                VolumeType.File
-            } else {
+//            val c = Context()
+//            val ui = c.getService(UIService::class.java)
+//            val file = ui.chooseFile(null, FileWidget.DIRECTORY_STYLE)
+//            if(file != null) {
+//                files.add(file.absolutePath)
+//                VolumeType.File
+//            } else {
                 VolumeType.Procedural
-            }
+//            }
         }
 
         if(volumeType == VolumeType.File) {
@@ -84,13 +88,13 @@ class VolumeSamplingExample: SceneryBase("Volume Sampling example", 1280, 720) {
         shell.position = Vector3f(0.0f, 4.0f, 0.0f)
         scene.addChild(shell)
 
-        val p1 = Icosphere(0.2f, 2)
-        p1.position = Vector3f(-0.5f, 0.0f, -2.0f)
+        val p1 = Icosphere(0.1f, 2)
+        p1.position = Vector3f(-2.0f, 0.0f, 0.0f)
         p1.material.diffuse = Vector3f(0.3f, 0.3f, 0.8f)
         scene.addChild(p1)
 
-        val p2 = Icosphere(0.2f, 2)
-        p2.position = Vector3f(0.0f, 0.5f, 2.0f)
+        val p2 = Icosphere(0.1f, 2)
+        p2.position = Vector3f(2.0f, 0.0f, 0.0f)
         p2.material.diffuse = Vector3f(0.3f, 0.8f, 0.3f)
         scene.addChild(p2)
 
@@ -106,9 +110,9 @@ class VolumeSamplingExample: SceneryBase("Volume Sampling example", 1280, 720) {
             connector.orientBetweenPoints(p1.position, p2.position, true, true)
         }
 
-        val volume = Volume.fromBuffer(emptyList(), volumeSize, volumeSize, volumeSize, UnsignedByteType(), hub)
+        val volume = Volume.fromBuffer(emptyList(), volumeSize, volumeSize, volumeSize, UnsignedShortType(), hub)
         volume.name = "volume"
-        volume.position = Vector3f(0.0f, 0.0f, 0.0f)
+        volume.position = Vector3f(1.0f, 1.5f, 1.0f)
         volume.colormap = Colormap.get("viridis")
         volume.scale = Vector3f(10.0f, 10.0f, 10.0f)
 //        volume.voxelSizeZ = 0.5f
@@ -183,9 +187,10 @@ class VolumeSamplingExample: SceneryBase("Volume Sampling example", 1280, 720) {
                 val intersection = volume.intersectAABB(p1.position, (p2.position - p1.position).normalize())
                 if(intersection is MaybeIntersects.Intersection) {
                     val scale = volume.localScale()
-                    val localEntry = (intersection.relativeEntry + Vector3f(1.0f)) * (1.0f/2.0f)
-                    val localExit = (intersection.relativeExit + Vector3f(1.0f)) * (1.0f/2.0f)
-                    logger.info("Ray intersects volume at ${intersection.entry}/${intersection.exit} rel=${localEntry}/${localExit} localScale=$scale")
+                    val localEntry = (intersection.relativeEntry)// + Vector3f(1.0f)) * (1.0f/2.0f)
+                    val localExit = (intersection.relativeExit)// + Vector3f(1.0f)) * (1.0f/2.0f)
+                    val nf = DecimalFormat("0.0000")
+                    logger.info("Ray intersects volume at world=${intersection.entry.toString(nf)}/${intersection.exit.toString(nf)} local=${localEntry.toString(nf)}/${localExit.toString(nf)} localScale=${scale.toString(nf)}")
 
                     val (samples, _) = volume.sampleRay(localEntry, localExit) ?: null to null
                     logger.info("Samples: ${samples?.joinToString(",") ?: "(no samples returned)"}")
@@ -197,13 +202,9 @@ class VolumeSamplingExample: SceneryBase("Volume Sampling example", 1280, 720) {
                     val diagram = if(connector.getChildrenByName("diagram").isNotEmpty()) {
                         connector.getChildrenByName("diagram").first() as Line
                     } else {
-                        TODO("Implement volume size queries or refactor")
-//                        val sizeX = 128
-//                        val sizeY = 128
-//                        val sizeZ = 128
-//                        val l = Line(capacity = maxOf(sizeX, sizeY, sizeZ) * 2)
-//                        connector.addChild(l)
-//                        l
+                        val l = Line(capacity = (volume.getDimensions().length() * 2).roundToInt())
+                        connector.addChild(l)
+                        l
                     }
 
                     diagram.clearPoints()
