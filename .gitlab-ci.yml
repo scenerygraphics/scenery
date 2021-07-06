@@ -54,6 +54,7 @@ unit-tests-no-gpu:
     expire_in: 48h
     paths:
       - results.tar.bz2
+      - "hs_err_*"
 
 scenery-nvidia:
   image: nvidia/vulkan:1.1.121-cuda-10.1-beta.1-ubuntu18.04
