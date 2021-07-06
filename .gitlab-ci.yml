@@ -18,7 +18,7 @@ unit-tests-no-gpu:
   before_script:
     - mkdir -p ./pdb-store/cache
     - apt-get update -qq --force-yes > /dev/null
-    - apt-get install -qq -y --allow-downgrades --allow-remove-essential --allow-change-held-packages unzip wget git openjdk-11-jdk-headless curl libgl1-mesa-glx sudo sed > /dev/null
+    - apt-get install -qq -y --allow-downgrades --allow-remove-essential --allow-change-held-packages unzip wget git curl libgl1-mesa-glx sudo sed > /dev/null
     - if [ ! -d "$MODEL_DIR" ]; then wget -q https://ulrik.is/scenery-demo-models.zip && unzip -q scenery-demo-models.zip; fi
     - sudo sed -i -e '/^assistive_technologies=/s/^/#/' /etc/java-*-openjdk/accessibility.properties
     - chmod +x gradlew
@@ -31,12 +31,8 @@ unit-tests-no-gpu:
     - mkdir -p ./pdb-store/cache
     # Installs Maven, Vulkan development libraries, etc.
     - apt-get update -qq --force-yes > /dev/null
-    - apt-get install -qq -y --allow-downgrades --allow-remove-essential --allow-change-held-packages unzip wget git openjdk-11-jdk-headless libvulkan1 libvulkan-dev vulkan-utils ocl-icd-opencl-dev clinfo curl sudo sed > /dev/null
-    - curl -sL https://deb.nodesource.com/setup_14.x | bash -
-    - apt-get install -qq --force-yes nodejs
-    - npm install --save argos-cli
+    - apt-get install -qq -y curl sudo sed > /dev/null
     - sudo sed -i -e '/^assistive_technologies=/s/^/#/' /etc/java-*-openjdk/accessibility.properties
-    - mkdir -p /etc/OpenCL/vendors && echo "libnvidia-opencl.so.1" > /etc/OpenCL/vendors/nvidia.icd
     # Output Vulkan driver information, but do not fail in case of non-zero
     # return (happens e.g. if $DISPLAY is not set)
     - vulkaninfo || true
@@ -57,7 +53,7 @@ unit-tests-no-gpu:
       - "hs_err_*"
 
 scenery-nvidia:
-  image: nvidia/vulkan:1.1.121-cuda-10.1-beta.1-ubuntu18.04
+  image: scenerygraphics/nvidia-vulkan:1.2.170.0-ubuntu20.04
   <<: *base-job-gpu
   after_script:
     - nvidia-smi
