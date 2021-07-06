@@ -32,7 +32,7 @@ unit-tests-no-gpu:
     - mkdir -p ./pdb-store/cache
     # Installs Maven, Vulkan development libraries, etc.
     - apt-get update -qq --force-yes > /dev/null
-    - apt-get install -qq -y --allow-downgrades --allow-remove-essential --allow-change-held-packages unzip wget git openjdk-8-jdk-headless libvulkan1 libvulkan-dev vulkan-utils ocl-icd-opencl-dev clinfo curl > /dev/null
+    - apt-get install -qq -y --allow-downgrades --allow-remove-essential --allow-change-held-packages unzip wget git openjdk-8-jdk-headless libvulkan1 libvulkan-dev vulkan-utils ocl-icd-opencl-dev clinfo curl sudo sed > /dev/null
     - curl -sL https://deb.nodesource.com/setup_14.x | bash -
     - apt-get install -qq --force-yes nodejs
     - npm install --save argos-cli
