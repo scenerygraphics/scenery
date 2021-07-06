@@ -36,6 +36,7 @@ unit-tests-no-gpu:
     - curl -sL https://deb.nodesource.com/setup_14.x | bash -
     - apt-get install -qq --force-yes nodejs
     - npm install --save argos-cli
+    - sudo sed -i -e '/^assistive_technologies=/s/^/#/' /etc/java-*-openjdk/accessibility.properties
     - mkdir -p /etc/OpenCL/vendors && echo "libnvidia-opencl.so.1" > /etc/OpenCL/vendors/nvidia.icd
     # Output Vulkan driver information, but do not fail in case of non-zero
     # return (happens e.g. if $DISPLAY is not set)
