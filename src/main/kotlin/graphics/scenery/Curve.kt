@@ -63,6 +63,9 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
         }
 
         if(partitionAlongControlpoints) {
+            if(transformedBaseShapes.size < sectionVertices +1) {
+                println(transformedBaseShapes.size)
+            }
             val subShapes = transformedBaseShapes.windowed(sectionVertices+1, sectionVertices+1, true)
             subShapes.forEachIndexed { index, list ->
                 //fill gaps
