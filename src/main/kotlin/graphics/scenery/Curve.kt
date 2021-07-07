@@ -73,10 +73,10 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
                 }
                 val i = when (index) {
                     0 -> {
-                        2
+                        0
                     }
                     subShapes.size - 1 -> {
-                        0
+                        2
                     }
                     else -> {
                         1
@@ -244,7 +244,7 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
             if (curveGeometry.isEmpty()) {
                 return verticesVectors
             }
-            if (addCoverOrTop == 0 || addCoverOrTop == 1) {
+            if (addCoverOrTop == 0) {
                 verticesVectors.addAll(getCoverVertices(curveGeometry[0], true))
             }
             //if none of the lists in the curveGeometry differ in size, distinctBy leaves only one element
@@ -271,7 +271,7 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
             } else {
                 throw IllegalArgumentException("The baseShapes must not differ in size!")
             }
-            if (addCoverOrTop == 0 || addCoverOrTop == 2) {
+            if (addCoverOrTop == 2) {
                 verticesVectors.addAll(getCoverVertices(curveGeometry.last(), false))
             }
             return verticesVectors
