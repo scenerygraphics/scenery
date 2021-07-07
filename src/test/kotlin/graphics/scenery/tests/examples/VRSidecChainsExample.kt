@@ -91,13 +91,12 @@ class VRSidecChainsExample : SceneryBase(VRSidecChainsExample::class.java.simple
                             ribbon.children.forEach{
                                 rainbow.colorVector(it)
                             }
-                            ribbon.children.flatMap { subProtein -> subProtein.children }.flatMap { curve -> curve.children }.flatMap { subCurve -> subCurve.children }
-                                .forEachIndexed { index, subsubCurve ->
-                                    if(controller.children.first().intersects(subsubCurve)) {
-                                        subsubCurve.material.diffuse = Vector3f(1f, 0f, 0f)
-                                        chosenCurveSection.add(index)
-                                    }
+                            ribbon.children.flatMap { subProtein -> subProtein.children }.forEachIndexed { index, subCurve ->
+                                if(controller.children.first().intersects(subCurve)) {
+                                    subCurve.material.diffuse = Vector3f(1f, 0f, 0f)
+                                    chosenCurveSection.add(index)
                                 }
+                            }
                         }
                     }
                 }
