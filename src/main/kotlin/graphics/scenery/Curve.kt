@@ -54,32 +54,32 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
         val baseShapes = baseShape.invoke()
         val transformedBaseShapes = ArrayList<List<Vector3f>>(baseShapes.size)
         baseShapes.forEachIndexed { index, shape ->
-            val tranformedShape = ArrayList<Vector3f>(shape.size)
+            val transformedShape = ArrayList<Vector3f>(shape.size)
             shape.forEach { point ->
                 val transformedPoint = Vector3f()
                 bases[index].transformPosition(point, transformedPoint)
-                tranformedShape.add(transformedPoint)
+                transformedShape.add(transformedPoint)
             }
-            transformedBaseShapes.add(tranformedShape)
+            transformedBaseShapes.add(transformedShape)
         }
 
         if(partitionAlongControlpoints) {
-            val subshapes = transformedBaseShapes.windowed(sectionVertices+1, sectionVertices+1)
-            subshapes.forEachIndexed { index, list ->
+            val subShapes = transformedBaseShapes.windowed(sectionVertices+1, sectionVertices+1)
+            subShapes.forEachIndexed { index, list ->
                 //fill gaps
                 val arrayList = list as ArrayList
-                if(index != subshapes.size -1) {
-                    arrayList.add(arrayList[0])
+                if(index != subShapes.size -1) {
+                    arrayList.add(subShapes[index+1][0])
                 }
                 val i = when (index) {
                     0 -> {
+                        2
+                    }
+                    subShapes.size - 1 -> {
                         0
                     }
-                    subshapes.size - 1 -> {
-                        1
-                    }
                     else -> {
-                        2
+                        1
                     }
                 }
                 val partialCurve = PartialCurve(calculateTriangles(arrayList, i))
@@ -137,9 +137,9 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
                 val i = if (index == 0) {
                     0
                 } else if (index == countList.size - 1) {
-                    1
-                } else {
                     2
+                } else {
+                    1
                 }
                 val partialCurve = PartialCurve(calculateTriangles(partialCurveGeometry, i))
                 this.addChild(partialCurve)
