@@ -192,7 +192,7 @@ class RibbonDiagram(val protein: Protein, private val displaySS: Boolean = false
                         }
                     }
                     val axisLine = MathLine(axis.direction, axis.position)
-                    val helixCurve = Helix(axisLine, DummySpline(subSpline, sectionVerticesCount+1)) { rectangle }
+                    val helixCurve = Helix(axisLine, DummySpline(subSpline, sectionVerticesCount)) { rectangle }
                     if(displaySS) { alphas.addChild(helixCurve) }
                     else { subParent.addChild(helixCurve) }
                 }
@@ -227,7 +227,7 @@ class RibbonDiagram(val protein: Protein, private val displaySS: Boolean = false
                         for (i in 0..sectionVerticesCount) {
                             if (i + (sectionVerticesCount + 1) * j <= helpSpline.lastIndex) {
                                 splineOffset++
-                                subSpline.add(helpSpline[i + (sectionVerticesCount) * j])
+                                subSpline.add(helpSpline[i + (sectionVerticesCount+1) * j])
                                 ssSubList.add(octagon)
                             }
                         }
