@@ -19,35 +19,37 @@ class Helix (private val axis: MathLine, val spline: Spline, baseShape: () -> Li
 
     init {
         val sectionVerticesCount = spline.verticesCountPerSection()
-        val verticesList = calculateVertices()
-        val remainder = verticesList.size%sectionVerticesCount
-        val n = (verticesList.size-remainder)/sectionVerticesCount
-        val add = remainder/n
-        verticesList.windowed(sectionVerticesCount + add+1, sectionVerticesCount+ add+1, true) {
-            section ->
-            val i = when {
-                section.contains(verticesList.first()) -> {
+        val transformedShapes = calculateTransformedShapes()
+        val subShapes = transformedShapes.windowed(sectionVerticesCount +1, sectionVerticesCount+1, true)
+        subShapes.forEachIndexed { index, list ->
+            //fill gaps
+            val arrayList = list as ArrayList
+            if(index != subShapes.size -1) {
+                arrayList.add(subShapes[index+1][0])
+            }
+            val i = when (index) {
+                0 -> {
                     0
                 }
-                section.contains(verticesList.last()) -> {
-                    1
-                }
-                else -> {
+                subShapes.size - 1 -> {
                     2
                 }
+                else -> {
+                    1
+                }
             }
-            this.addChild(calcMesh(section, i))
+            this.addChild(calcMesh(arrayList, i))
         }
     }
 
     /**
      * Transformation of the baseShapes along the spline, aligned with the helix axis.
      */
-    private fun calculateVertices(): ArrayList<List<Vector3f>> {
+    private fun calculateTransformedShapes(): ArrayList<List<Vector3f>> {
         if(axisVector == Vector3f(0f, 0f, 0f)) {
             throw Exception("The direction vector of the axis must no become the null vector.")
         }
-        val verticesList = ArrayList<List<Vector3f>>(splinePoints.size)
+        val transformedShapes = ArrayList<List<Vector3f>>(splinePoints.size)
         splinePoints.forEach { point ->
             /*
             The coordinate systems which walk along the spline are calculated like so:
@@ -89,12 +91,12 @@ class Helix (private val axis: MathLine, val spline: Spline, baseShape: () -> Li
                 xAxis.y(), yAxis.y(), zAxis.y(), 0f,
                 xAxis.z(), yAxis.z(), zAxis.z(), 0f,
                 point.x(), point.y(), point.z(), 1f)
-            verticesList.add(shape.map { shapePoint ->
+            transformedShapes.add(shape.map { shapePoint ->
                 val transformedPoint = Vector3f()
                 transformMatrix.transformPosition(shapePoint, transformedPoint)
             })
         }
-        return verticesList
+        return transformedShapes
     }
 
     private fun calcMesh(section: List<List<Vector3f>>, i: Int): Mesh {
