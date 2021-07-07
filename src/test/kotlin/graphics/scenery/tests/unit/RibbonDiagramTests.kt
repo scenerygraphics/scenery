@@ -126,19 +126,11 @@ class RibbonDiagramTests {
 
     @Test
     fun testSplinePointsToResidueNumber() {
-        val protein = Protein.fromID("4aa1")
+        val protein = Protein.fromID("3nir")
         val ribbon = RibbonDiagram(protein)
-        var pointCount = 0
-        ribbon.children.flatMap { it.children }.forEach {
-            if (it is Curve) {
-                pointCount += it.chain.size
-            }
-            else if (it is Helix) {
-                pointCount += it.splinePoints.size
-            }
-        }
+        val residuesCount = ribbon.children.flatMap { chain -> chain.children }.flatMap { curve -> curve.children}.size
         val allResidues = protein.structure.chains.flatMap { it.atomGroups }.filter { it.hasAminoAtoms() }
-        assertEquals(pointCount/11, allResidues.size)
+        assertEquals(residuesCount, allResidues.size)
     }
 
 }
