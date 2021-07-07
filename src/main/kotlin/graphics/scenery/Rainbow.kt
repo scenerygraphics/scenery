@@ -32,8 +32,8 @@ class Rainbow {
     fun colorVector(subProtein: Node) {
         var childrenSize = 0
         subProtein.children.forEach { ss ->
-            ss.children.forEach { partialCurve ->
-                partialCurve.children.forEach { _ ->
+            ss.children.forEach { curve ->
+                curve.children.forEach { _ ->
                     childrenSize++
                 }
             }
@@ -55,11 +55,12 @@ class Rainbow {
         }
         var listIndex = 0
         subProtein.children.forEach { ss ->
-            ss.children.forEach { partialCurve ->
-                partialCurve.children.forEach {
+            ss.children.forEach { curve ->
+                curve.children.flatMap { subcurve -> subcurve.children }.forEach {
                     it.material.diffuse = colorList[listIndex]
-                    listIndex++
+
                 }
+                listIndex++
             }
         }
 
