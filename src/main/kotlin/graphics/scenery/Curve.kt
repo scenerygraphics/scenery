@@ -6,8 +6,7 @@ import kotlin.Float.Companion.MIN_VALUE
 import kotlin.math.acos
 
 /**
- * Constructs a geometry along the calculates points of a Spline (in this case a Catmull Rom Spline).
- * This class inherits from Node and HasGeometry
+ * Constructs a geometry along the calculates points of a Spline.
  * The number n corresponds to the number of segments you wish to have between your control points.
  * The spline and the baseShape lambda must both have the same number of elements, otherwise, the curve is no
  * longer well defined. Concerning the individual baseShapes, no lines must cross for the body of the curve to
