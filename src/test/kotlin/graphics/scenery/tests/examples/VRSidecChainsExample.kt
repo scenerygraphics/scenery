@@ -23,6 +23,7 @@ class VRSidecChainsExample : SceneryBase(VRSidecChainsExample::class.java.simple
     private lateinit var hmd: OpenVRHMD
     private lateinit var ribbon: RibbonDiagram
     private lateinit var hullbox: Box
+    private lateinit var sideChains: AminoAcidsStickAndBall
     private val ribbonSections = ArrayList<Node>()
     private var clickedSideChains = mutableListOf<Boolean>()
     private val chosenCurveSection = mutableListOf<Int>()
@@ -48,6 +49,7 @@ class VRSidecChainsExample : SceneryBase(VRSidecChainsExample::class.java.simple
         scene.addChild(cam)
 
         val protein = Protein.fromID("3nir")
+        sideChains = AminoAcidsStickAndBall(protein)
         ribbon = RibbonDiagram(protein)
         scene.addChild(ribbon)
         // map of all the curve sections corresponding to amino acids
@@ -137,6 +139,7 @@ class VRSidecChainsExample : SceneryBase(VRSidecChainsExample::class.java.simple
                 val curveSection = ribbonSections[curveSectionIndex]
                 val curveSectionPosition = curveSection.position
                 val residues = ribbon.groups.filter { it.hasAminoAtoms() }
+                var rightIndex = curveSectionIndex
                 val rightResidue = if (ribbonSections.size == residues.size) {
                     clickedSideChains[curveSectionIndex] = !clickedSideChains[curveSectionIndex]
                     residues[curveSectionIndex] }
@@ -163,18 +166,21 @@ class VRSidecChainsExample : SceneryBase(VRSidecChainsExample::class.java.simple
                             val ca3Vec = Vector3f(ca3.x.toFloat(), ca3.y.toFloat(), ca3.z.toFloat())
                             if (ca1Vec.sub(curveSectionPosition, ca1Vec).length() <= ca2Vec.sub(curveSectionPosition, ca2Vec).length()
                                 && ca1Vec.sub(curveSectionPosition, ca1Vec).length() <= ca3Vec.sub(curveSectionPosition, ca3Vec).length()) {
+                                    rightIndex --
                                     clickedSideChains[curveSectionIndex-1] = !clickedSideChains[curveSectionIndex-1]
                                     residues[curveSectionIndex - 1]
                             } else if (ca2Vec.sub(curveSectionPosition, ca2Vec).length() <= ca3Vec.sub(curveSectionPosition, ca3Vec).length()) {
                                 clickedSideChains[curveSectionIndex] = !clickedSideChains[curveSectionIndex]
                                 residues[curveSectionIndex]
                             } else {
+                                rightIndex++
                                 clickedSideChains[curveSectionIndex+1] = !clickedSideChains[curveSectionIndex+1]
                                 residues[curveSectionIndex + 1]
                             }
                         }
                     }
                 }
+                sideChains.children[rightIndex].visible = !sideChains.children[rightIndex].visible
             }
 
 
