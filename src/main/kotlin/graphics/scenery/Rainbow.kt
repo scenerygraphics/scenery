@@ -56,11 +56,11 @@ class Rainbow {
         var listIndex = 0
         subProtein.children.forEach { ss ->
             ss.children.forEach { curve ->
-                curve.children.flatMap { subcurve -> subcurve.children }.forEach {
+                curve.children.forEach { it.children.forEach {
                     it.material.diffuse = colorList[listIndex]
-
+                    listIndex++
                 }
-                listIndex++
+                }
             }
         }
 
