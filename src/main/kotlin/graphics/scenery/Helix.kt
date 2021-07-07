@@ -23,7 +23,7 @@ class Helix (private val axis: MathLine, val spline: Spline, baseShape: () -> Li
         val remainder = verticesList.size%sectionVerticesCount
         val n = (verticesList.size-remainder)/sectionVerticesCount
         val add = remainder/n
-        verticesList.windowed(sectionVerticesCount + add, sectionVerticesCount+ add-1, true) {
+        verticesList.windowed(sectionVerticesCount + add+1, sectionVerticesCount+ add+1, true) {
             section ->
             val i = when {
                 section.contains(verticesList.first()) -> {
@@ -100,10 +100,6 @@ class Helix (private val axis: MathLine, val spline: Spline, baseShape: () -> Li
     private fun calcMesh(section: List<List<Vector3f>>, i: Int): Mesh {
         //algorithms from the curve class, see Curve (line 219-322)
         val helixSectionVertices = Curve.calculateTriangles(section, i)
-        val partialHelix = Curve.PartialCurve(helixSectionVertices)
-        //add a dummy so that the helix children match the iteration depth of the curve
-        val dummyMesh = Mesh("dummy")
-        dummyMesh.addChild(partialHelix)
-        return dummyMesh
+        return Curve.PartialCurve(helixSectionVertices)
     }
 }
