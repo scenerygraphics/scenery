@@ -130,7 +130,8 @@ class VRSidecChainsExample : SceneryBase(VRSidecChainsExample::class.java.simple
                 }
             }
         }
-        // Now we add another behaviour for toggling visibility of the boxes
+
+        //another behaviour to add the sidechains to the scene
         hmd.addBehaviour("show_side_chain", ClickBehaviour { _, _ ->
             chosenCurveSection.forEach { curveSectionIndex ->
                 val curveSection = ribbonSections[curveSectionIndex]
