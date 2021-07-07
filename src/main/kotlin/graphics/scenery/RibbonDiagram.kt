@@ -192,7 +192,10 @@ class RibbonDiagram(val protein: Protein, private val displaySS: Boolean = false
                         }
                     }
                     val axisLine = MathLine(axis.direction, axis.position)
-                    val helixCurve = Helix(axisLine, DummySpline(subSpline, sectionVerticesCount)) { rectangle }
+                    val helixCurve = Mesh("helixCurve")
+                    subSpline.windowed(sectionVerticesCount+1, sectionVerticesCount+1, ) { subsubSpline ->
+                        helixCurve.addChild(Helix(axisLine, DummySpline(subsubSpline, sectionVerticesCount)) { rectangle })
+                    }
                     if(displaySS) { alphas.addChild(helixCurve) }
                     else { subParent.addChild(helixCurve) }
                 }
@@ -217,7 +220,12 @@ class RibbonDiagram(val protein: Protein, private val displaySS: Boolean = false
                                 Vector3f(-x, -y, 0f),
                                 Vector3f(x, -y, 0f)))
                     }
-                    val betaCurve = Curve(DummySpline(subSpline, sectionVerticesCount)) { baseShape(ssSubList) }
+                    val betaCurve = Mesh("betaCurve")
+                    val subsubShapes = baseShape(ssSubList).windowed(sectionVerticesCount +1, sectionVerticesCount+1)
+                    val subsubSplines  = subSpline.windowed(sectionVerticesCount+1, sectionVerticesCount+1,)
+                    subsubSplines.forEachIndexed{ index, subsubSpline ->
+                        betaCurve.addChild(Curve(DummySpline(subsubSpline, sectionVerticesCount)) {subsubShapes[index]})
+                    }
                     if(displaySS) { betas.addChild(betaCurve) }
                     else { subParent.addChild(betaCurve) }
                 }
@@ -232,7 +240,12 @@ class RibbonDiagram(val protein: Protein, private val displaySS: Boolean = false
                             }
                         }
                     }
-                    val coilCurve = Curve(DummySpline(subSpline, sectionVerticesCount)) { baseShape(ssSubList) }
+                    val coilCurve = Mesh("coilCurve")
+                    val subsubShapes = baseShape(ssSubList).windowed(sectionVerticesCount+1, sectionVerticesCount+1,)
+                    val subsubSplines  = subSpline.windowed(sectionVerticesCount+1, sectionVerticesCount+1,)
+                    subsubSplines.forEachIndexed{ index, subsubSpline ->
+                        coilCurve.addChild(Curve(DummySpline(subsubSpline, sectionVerticesCount+1)) {subsubShapes[index]})
+                    }
                     if(displaySS) { coils.addChild(coilCurve) }
                     else { subParent.addChild(coilCurve) }
                 }
@@ -492,7 +505,7 @@ class RibbonDiagram(val protein: Protein, private val displaySS: Boolean = false
          * Extension function to make a Vector out of an atom position. We do not
          * need any information about an atom besides its name and its position.
          */
-        private fun Atom.getVector(): Vector3f {
+        fun Atom.getVector(): Vector3f {
             return Vector3f(this.x.toFloat(), this.y.toFloat(), this.z.toFloat())
         }
 
