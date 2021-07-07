@@ -192,10 +192,7 @@ class RibbonDiagram(val protein: Protein, private val displaySS: Boolean = false
                         }
                     }
                     val axisLine = MathLine(axis.direction, axis.position)
-                    val helixCurve = Mesh("helixCurve")
-                    subSpline.windowed(sectionVerticesCount+1, sectionVerticesCount+1, ) { subsubSpline ->
-                        helixCurve.addChild(Helix(axisLine, DummySpline(subsubSpline, sectionVerticesCount)) { rectangle })
-                    }
+                    val helixCurve = Helix(axisLine, DummySpline(subSpline, sectionVerticesCount+1)) { rectangle }
                     if(displaySS) { alphas.addChild(helixCurve) }
                     else { subParent.addChild(helixCurve) }
                 }
@@ -220,12 +217,7 @@ class RibbonDiagram(val protein: Protein, private val displaySS: Boolean = false
                                 Vector3f(-x, -y, 0f),
                                 Vector3f(x, -y, 0f)))
                     }
-                    val betaCurve = Mesh("betaCurve")
-                    val subsubShapes = baseShape(ssSubList).windowed(sectionVerticesCount +1, sectionVerticesCount+1)
-                    val subsubSplines  = subSpline.windowed(sectionVerticesCount+1, sectionVerticesCount+1,)
-                    subsubSplines.forEachIndexed{ index, subsubSpline ->
-                        betaCurve.addChild(Curve(DummySpline(subsubSpline, sectionVerticesCount)) {subsubShapes[index]})
-                    }
+                    val betaCurve = Curve(DummySpline(subSpline, sectionVerticesCount)) { baseShape(ssSubList) }
                     if(displaySS) { betas.addChild(betaCurve) }
                     else { subParent.addChild(betaCurve) }
                 }
@@ -235,17 +227,12 @@ class RibbonDiagram(val protein: Protein, private val displaySS: Boolean = false
                         for (i in 0..sectionVerticesCount) {
                             if (i + (sectionVerticesCount + 1) * j <= helpSpline.lastIndex) {
                                 splineOffset++
-                                subSpline.add(helpSpline[i + (sectionVerticesCount + 1) * j])
+                                subSpline.add(helpSpline[i + (sectionVerticesCount) * j])
                                 ssSubList.add(octagon)
                             }
                         }
                     }
-                    val coilCurve = Mesh("coilCurve")
-                    val subsubShapes = baseShape(ssSubList).windowed(sectionVerticesCount+1, sectionVerticesCount+1,)
-                    val subsubSplines  = subSpline.windowed(sectionVerticesCount+1, sectionVerticesCount+1,)
-                    subsubSplines.forEachIndexed{ index, subsubSpline ->
-                        coilCurve.addChild(Curve(DummySpline(subsubSpline, sectionVerticesCount+1)) {subsubShapes[index]})
-                    }
+                    val coilCurve = Curve(DummySpline(subSpline, sectionVerticesCount)) { baseShape(ssSubList) }
                     if(displaySS) { coils.addChild(coilCurve) }
                     else { subParent.addChild(coilCurve) }
                 }
