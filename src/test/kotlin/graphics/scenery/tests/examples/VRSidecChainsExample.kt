@@ -24,8 +24,6 @@ class VRSidecChainsExample : SceneryBase(VRSidecChainsExample::class.java.simple
     private lateinit var ribbon: RibbonDiagram
     private lateinit var hullbox: Box
     private lateinit var sideChains: AminoAcidsStickAndBall
-    private val ribbonSections = ArrayList<Node>()
-    private var clickedSideChains = mutableListOf<Boolean>()
     private val chosenCurveSection = mutableListOf<Int>()
 
     override fun init() {
@@ -50,15 +48,9 @@ class VRSidecChainsExample : SceneryBase(VRSidecChainsExample::class.java.simple
 
         val protein = Protein.fromID("3nir")
         sideChains = AminoAcidsStickAndBall(protein)
+        scene.addChild(sideChains)
         ribbon = RibbonDiagram(protein)
         scene.addChild(ribbon)
-        // map of all the curve sections corresponding to amino acids
-        ribbon.children.flatMap { subProtein -> subProtein.children }.forEach { ribbonSections.add(it) }
-        //actual amino acids
-        val residues = ribbon.groups.filter { it.hasAminoAtoms() }
-        //list to check whether an amino acid is already displayed to reverse the action on the second click
-        clickedSideChains = ArrayList(residues.size)
-        residues.forEach { _ -> clickedSideChains.add(false) }
 
         val lights = Light.createLightTetrahedron<PointLight>(spread = 5.0f, radius = 8.0f)
         lights.forEach {
@@ -99,11 +91,11 @@ class VRSidecChainsExample : SceneryBase(VRSidecChainsExample::class.java.simple
                             ribbon.children.forEach{
                                 rainbow.colorVector(it)
                             }
-                            ribbon.children.flatMap { subProtein -> subProtein.children }.flatMap { curve -> curve.children }.flatMap { subcurve -> subcurve.children }
-                                .forEach { subCurve ->
-                                    if(controller.children.first().intersects(subCurve)) {
-                                        subCurve.material.diffuse = Vector3f(1f, 0f, 0f)
-                                        chosenCurveSection.add(ribbonSections.indexOf(subCurve.parent?.parent))
+                            ribbon.children.flatMap { subProtein -> subProtein.children }.flatMap { curve -> curve.children }.flatMap { subCurve -> subCurve.children }
+                                .forEachIndexed { index, subsubCurve ->
+                                    if(controller.children.first().intersects(subsubCurve)) {
+                                        subsubCurve.material.diffuse = Vector3f(1f, 0f, 0f)
+                                        chosenCurveSection.add(index)
                                     }
                                 }
                         }
@@ -132,15 +124,17 @@ class VRSidecChainsExample : SceneryBase(VRSidecChainsExample::class.java.simple
                 }
             }
         }
-
         //another behaviour to add the sidechains to the scene
         hmd.addBehaviour("show_side_chain", ClickBehaviour { _, _ ->
             chosenCurveSection.forEach { curveSectionIndex ->
+                sideChains.children[curveSectionIndex].visible = !sideChains.children[curveSectionIndex].visible
+                logger.info("$curveSectionIndex side chain should be: ${sideChains.children[curveSectionIndex].visible}")
+                /*
                 val curveSection = ribbonSections[curveSectionIndex]
                 val curveSectionPosition = curveSection.position
                 val residues = ribbon.groups.filter { it.hasAminoAtoms() }
                 var rightIndex = curveSectionIndex
-                val rightResidue = if (ribbonSections.size == residues.size) {
+                if (ribbonSections.size == residues.size) {
                     clickedSideChains[curveSectionIndex] = !clickedSideChains[curveSectionIndex]
                     residues[curveSectionIndex] }
                 /*
@@ -180,14 +174,11 @@ class VRSidecChainsExample : SceneryBase(VRSidecChainsExample::class.java.simple
                         }
                     }
                 }
-                sideChains.children[rightIndex].visible = !sideChains.children[rightIndex].visible
+                */
             }
-
-
-            logger.info("residue chosen: ")
         })
-        // ...and bind that to the side button of the left-hand controller.
-        hmd.addKeyBinding("show_side_chain", TrackerRole.LeftHand, OpenVRHMD.OpenVRButton.Trigger)
+        // ...and bind that to the side button of the right-hand controller.
+        hmd.addKeyBinding("show_side_chain", TrackerRole.RightHand, OpenVRHMD.OpenVRButton.Trigger)
     }
 
     companion object {
