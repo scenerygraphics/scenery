@@ -6,6 +6,12 @@ import org.biojava.nbio.structure.BondImpl
 import org.biojava.nbio.structure.Element
 import org.joml.Vector3f
 
+/**
+ * This class allows for rendering of individual amino acids. This is different from a normal ball and stick representation
+ * where we could use instancing for all the bonds and elements.
+ *
+ * @author Justin Buerger <burger@mpi-cbg.de>
+ */
 class AminoAcidsStickAndBall(val protein: Protein, displayExternalMolecules: Boolean = false): Mesh("AminoAcids") {
     val structure = protein.structure
     private val residues = structure.chains.flatMap { it.atomGroups }.filter { it.hasAminoAtoms() }
@@ -17,8 +23,6 @@ class AminoAcidsStickAndBall(val protein: Protein, displayExternalMolecules: Boo
     init {
         residues.forEachIndexed { index, group ->
             val aminoAcidMesh = Mesh("${group.pdbName} at $index")
-
-
             //display all atoms
             val atomMasters = HashMap<Element, Node>()
             group.atoms.distinctBy { it.element }.map { it.element }
