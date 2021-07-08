@@ -16,6 +16,8 @@ import kotlin.math.acos
  * @param [spline] the spline along which the geometry will be rendered
  * @param [baseShape] a lambda which returns all the baseShapes along the curve
  * @param [firstPerpendicularVector] vector to which the first frenet tangent shall be perpendicular to.
+ * @param [partitionAlongControlpoints] flag to indicate that the curve should be divided into subcurves, one for each
+ * controlpoint, note that this option prohibits the use of different baseShapes
  */
 class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private val firstPerpendicularVector: Vector3f = Vector3f(0f, 0f, 0f),
             baseShape: () -> List<List<Vector3f>>): Mesh("CurveGeometry"), HasGeometry {
