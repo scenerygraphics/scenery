@@ -91,7 +91,7 @@ class VRSidecChainsExample : SceneryBase(VRSidecChainsExample::class.java.simple
                             ribbon.children.forEach{
                                 rainbow.colorVector(it)
                             }
-                            ribbon.children.flatMap { subProtein -> subProtein.children }.forEachIndexed { index, subCurve ->
+                            ribbon.children.flatMap { subProtein -> subProtein.children }.flatMap { curve -> curve.children }.forEachIndexed { index, subCurve ->
                                 if(controller.children.first().intersects(subCurve)) {
                                     subCurve.material.diffuse = Vector3f(1f, 0f, 0f)
                                     chosenCurveSection.add(index)
@@ -126,6 +126,7 @@ class VRSidecChainsExample : SceneryBase(VRSidecChainsExample::class.java.simple
         //another behaviour to add the sidechains to the scene
         hmd.addBehaviour("show_side_chain", ClickBehaviour { _, _ ->
             chosenCurveSection.forEach { curveSectionIndex ->
+                //TODO safeguard against the residue count being one off
                 sideChains.children[curveSectionIndex].visible = !sideChains.children[curveSectionIndex].visible
                 logger.info("$curveSectionIndex side chain should be: ${sideChains.children[curveSectionIndex].visible}")
                 /*
