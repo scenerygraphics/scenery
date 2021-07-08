@@ -79,6 +79,8 @@ class AminoAcidsStickAndBall(val protein: Protein, displayExternalMolecules: Boo
                 c.material = ShaderMaterial.fromFiles("DefaultDeferredInstanced.vert", "DefaultDeferred.frag")
                 c.instancedProperties["ModelMatrix1"] = { c.model }
                 c.material.diffuse = Vector3f(1.0f, 1.0f, 1.0f)
+                //stores second bond of double bonds
+                val cylinders2 = ArrayList<Mesh>(bonds.filter { it.bondOrder ==2 }.size)
                 val cylinders = bonds.map {
                     val bond = Mesh()
                     bond.parent = this
@@ -88,11 +90,39 @@ class AminoAcidsStickAndBall(val protein: Protein, displayExternalMolecules: Boo
                     atomA.getVector().sub(centroid, positionA)
                     val positionB = Vector3f()
                     atomB.getVector().sub(centroid, positionB)
-                    bond.orientBetweenPoints(positionA, positionB, true, true)
-                    bond.instancedProperties["ModelMatrix1"] = { bond.model }
+                    //create double bonds
+                    if(it.bondOrder == 2) {
+                        //create vector perpendicular to bond cylinder
+                        val aTob = Vector3f()
+                        positionB.sub(positionA, aTob).normalize()
+                        val perpendicular = Vector3f()
+                        aTob.cross(Vector3f(1f, 0f, 0f), perpendicular).normalize().cross(Vector3f(0f, 1f, 0f)).normalize()
+
+                        //translate both bonds so that the double bond becomes visible
+                        val positionA1 = Vector3f()
+                        positionA.sub(perpendicular.mul(0.05f, positionA1), positionA1)
+                        val positionB1 = Vector3f()
+                        positionB.sub(perpendicular.mul(0.05f, positionB1), positionB1)
+                        bond.orientBetweenPoints(positionA1, positionB1, true, true)
+                        bond.instancedProperties["ModelMatrix1"] = { bond.model }
+                        val bond2 = Mesh()
+                        bond2.parent = this
+                        val positionA2 = Vector3f()
+                        positionA.add(perpendicular.mul(0.05f, positionA2), positionA2)
+                        val positionB2 = Vector3f()
+                        positionB.add(perpendicular.mul(0.05f, positionB2), positionB2)
+                        bond2.orientBetweenPoints(positionA2, positionB2, true, true)
+                        bond2.instancedProperties["ModelMatrix1"] = { bond2.model }
+                        cylinders2.add(bond2)
+                    }
+                    else {
+                        bond.orientBetweenPoints(positionA, positionB, true, true)
+                        bond.instancedProperties["ModelMatrix1"] = { bond.model }
+                    }
                     bond
                 }
                 c.instances.addAll(cylinders)
+                c.instances.addAll(cylinders2)
                 aminoAcidMesh.addChild(c)
             }
             else {
