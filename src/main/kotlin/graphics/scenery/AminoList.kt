@@ -514,6 +514,50 @@ class AminoList: ArrayList1<AminoAcid>(28) {
                 Triple("HN'", "N'", 1)
         ))
 
+        //same as HID: histidine
+        val HIS = AminoAcid("HIS", listOf(
+            Triple("1HD'", "ND1'", 1),
+            Triple("HD1'", "ND1'", 1),
+            Triple("1HE'", "CE1'", 1),
+            Triple("HE1'", "CE1'", 1),
+            Triple("1H'", "N'", 1),
+            Triple("1HT'", "N'", 1),
+            Triple("H1'", "N'", 1),
+            Triple("HT1'", "N'", 1),
+            Triple("2HB'", "CB'", 1),
+            Triple("HB2'", "CB'", 1),
+            Triple("2HD'", "CD2'", 1),
+            Triple("HD2'", "CD2'", 1),
+            Triple("2H'", "N'", 1),
+            Triple("2HT'", "N'", 1),
+            Triple("H2'", "N'", 1),
+            Triple("HT2'", "N'", 1),
+            Triple("1HB'", "CB'", 1),
+            Triple("3HB'", "CB'", 1),
+            Triple("HB1'", "CB'", 1),
+            Triple("HB3'", "CB'", 1),
+            Triple("3H'", "N'", 1),
+            Triple("3HT'", "N'", 1),
+            Triple("H3'", "N'", 1),
+            Triple("HT3'", "N'", 1),
+            Triple("C'", "CA'", 1),
+            Triple("C'", "O'", 2),
+            Triple("C'", "O1'", 2),
+            Triple("C'", "OT1'", 2),
+            Triple("CA'", "CB'", 1),
+            Triple("CA'", "HA'", 1),
+            Triple("CA'", "HA2'", 1),
+            Triple("CA'", "N'", 1),
+            Triple("CB'", "CG'", 1),
+            Triple("CD2'", "CG'", 2),
+            Triple("CD2'", "NE2'", 1),
+            Triple("CE1'", "ND1'", 1),
+            Triple("CE1'", "NE2'", 2),
+            Triple("CG'", "ND1'", 1),
+            Triple("H'", "N'", 1),
+            Triple("HN'", "N'", 1)
+        ))
+
         val HIE = AminoAcid("HIE", listOf(
                 Triple("1HE'", "CE1'", 1),
                 Triple("HE1'", "CE1'", 1),
