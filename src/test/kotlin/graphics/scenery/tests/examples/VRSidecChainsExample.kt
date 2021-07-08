@@ -13,14 +13,14 @@ import kotlin.math.min
 import kotlin.system.exitProcess
 
 /**
- * Example for usage of VR controllers. Demonstrates the use of custom key bindings on the
- * HMD, and the use of intersection testing with scene elements.
+ * Example for displaying sidechains manually.
  *
- * @author Ulrik Günther <hello@ulrik.is>
+ * @author Justin Buerger <burger@mpi-cbg.de>
  */
 class VRSidecChainsExample : SceneryBase(VRSidecChainsExample::class.java.simpleName,
     windowWidth = 1920, windowHeight = 1200) {
     private lateinit var hmd: OpenVRHMD
+    private lateinit var protein: Protein
     private lateinit var ribbon: RibbonDiagram
     private lateinit var hullbox: Box
     private lateinit var sideChains: AminoAcidsStickAndBall
@@ -46,19 +46,24 @@ class VRSidecChainsExample : SceneryBase(VRSidecChainsExample::class.java.simple
 
         scene.addChild(cam)
 
-        val protein = Protein.fromID("3nir")
+        protein = Protein.fromID("3nir")
         sideChains = AminoAcidsStickAndBall(protein)
         scene.addChild(sideChains)
         ribbon = RibbonDiagram(protein)
         scene.addChild(ribbon)
 
-        val lights = Light.createLightTetrahedron<PointLight>(spread = 5.0f, radius = 8.0f)
+        val lights = Light.createLightTetrahedron<PointLight>(spread = 5.0f, radius = 20.0f)
         lights.forEach {
             it.emissionColor = Random.random3DVectorFromRange(0.0f, 1.0f)
             scene.addChild(it)
         }
+        val stageLight = PointLight(radius = 150.0f)
+        stageLight.name = "StageLight"
+        stageLight.intensity = 0.5f
+        stageLight.position = Vector3f(0.0f, 0.0f, 5.0f)
+        scene.addChild(stageLight)
 
-        hullbox = Box(Vector3f(20.0f, 20.0f, 20.0f), insideNormals = true)
+        hullbox = Box(Vector3f(30.0f, 30.0f, 30.0f), insideNormals = true)
         val hullboxMaterial = Material()
         hullboxMaterial.ambient = Vector3f(0.6f, 0.6f, 0.6f)
         hullboxMaterial.diffuse = Vector3f(0.4f, 0.4f, 0.4f)
@@ -125,33 +130,27 @@ class VRSidecChainsExample : SceneryBase(VRSidecChainsExample::class.java.simple
         }
         //another behaviour to add the sidechains to the scene
         hmd.addBehaviour("show_side_chain", ClickBehaviour { _, _ ->
+            val subcurves = ribbon.children.flatMap { subProtein -> subProtein.children }.flatMap { curve -> curve.children }
+            val residues = protein.structure.chains.flatMap { it.atomGroups }.filter { it.hasAminoAtoms() }
             chosenCurveSection.forEach { curveSectionIndex ->
-                //TODO safeguard against the residue count being one off
-                sideChains.children[curveSectionIndex].visible = !sideChains.children[curveSectionIndex].visible
-                logger.info("$curveSectionIndex side chain should be: ${sideChains.children[curveSectionIndex].visible}")
+                if(subcurves.size == residues.size) {
+                    sideChains.children[curveSectionIndex].visible = !sideChains.children[curveSectionIndex].visible
+                    logger.info("$curveSectionIndex side chain should be: ${sideChains.children[curveSectionIndex].visible}")
+                }
                 /*
-                val curveSection = ribbonSections[curveSectionIndex]
-                val curveSectionPosition = curveSection.position
-                val residues = ribbon.groups.filter { it.hasAminoAtoms() }
-                var rightIndex = curveSectionIndex
-                if (ribbonSections.size == residues.size) {
-                    clickedSideChains[curveSectionIndex] = !clickedSideChains[curveSectionIndex]
-                    residues[curveSectionIndex] }
-                /*
-                        very rarely there is a slight difference of one between the number of sections and residues
-                        in this case we choose the residue which is closest to our section
-                     */
+                    very rarely a rounding error occurs between the number of sections and residues (i tested a few pdbs- the difference was never bigger than 1)
+                    in this case we choose the residue which is closest to our section
+                 */
                 else {
                     when {
                         (curveSectionIndex == 0) -> {
-                            clickedSideChains[curveSectionIndex] = !clickedSideChains[curveSectionIndex]
-                            residues.first()
+                            sideChains.children[0].visible = !sideChains.children[0].visible
                         }
-                        (curveSectionIndex >= residues.lastIndex) -> {
-                            clickedSideChains[curveSectionIndex] = !clickedSideChains[curveSectionIndex]
-                            residues.last()
+                        (curveSectionIndex == subcurves.size-1 || curveSectionIndex >= sideChains.children.size-1) -> {
+                            sideChains.children.last().visible = !sideChains.children.last().visible
                         }
                         else -> {
+                            val curveSectionPosition = subcurves[curveSectionIndex].position
                             val ca1 = residues[curveSectionIndex - 1].getAtom("CA")
                             val ca1Vec = Vector3f(ca1.x.toFloat(), ca1.y.toFloat(), ca1.z.toFloat())
                             val ca2 = residues[curveSectionIndex].getAtom("CA")
@@ -160,21 +159,16 @@ class VRSidecChainsExample : SceneryBase(VRSidecChainsExample::class.java.simple
                             val ca3Vec = Vector3f(ca3.x.toFloat(), ca3.y.toFloat(), ca3.z.toFloat())
                             if (ca1Vec.sub(curveSectionPosition, ca1Vec).length() <= ca2Vec.sub(curveSectionPosition, ca2Vec).length()
                                 && ca1Vec.sub(curveSectionPosition, ca1Vec).length() <= ca3Vec.sub(curveSectionPosition, ca3Vec).length()) {
-                                    rightIndex --
-                                    clickedSideChains[curveSectionIndex-1] = !clickedSideChains[curveSectionIndex-1]
-                                    residues[curveSectionIndex - 1]
+                                    sideChains.children[curveSectionIndex-1].visible = !sideChains.children[curveSectionIndex-1].visible
+
                             } else if (ca2Vec.sub(curveSectionPosition, ca2Vec).length() <= ca3Vec.sub(curveSectionPosition, ca3Vec).length()) {
-                                clickedSideChains[curveSectionIndex] = !clickedSideChains[curveSectionIndex]
-                                residues[curveSectionIndex]
+                                sideChains.children[curveSectionIndex].visible = !sideChains.children[curveSectionIndex].visible
                             } else {
-                                rightIndex++
-                                clickedSideChains[curveSectionIndex+1] = !clickedSideChains[curveSectionIndex+1]
-                                residues[curveSectionIndex + 1]
+                                sideChains.children[curveSectionIndex+1].visible = !sideChains.children[curveSectionIndex+1].visible
                             }
                         }
                     }
                 }
-                */
             }
         })
         // ...and bind that to the side button of the right-hand controller.
