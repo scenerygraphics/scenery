@@ -59,39 +59,45 @@ class AminoAcidsStickAndBall(val protein: Protein, displayExternalMolecules: Boo
             atomMasters.filter { it.value.instances.isNotEmpty() }
                 .forEach { aminoAcidMesh.addChild(it.value) }
             //get all bonds
-            val storedAA = aminoList.filter { it.name == group.pdbName }[0]
-            val bonds = ArrayList<Bond>(storedAA.bonds.size)
-            //TODO: reduce complexity, has to be possible
-            storedAA.bonds.forEach { triple ->
-                group.atoms.forEach { atom1 ->
-                    group.atoms.forEach { atom2 ->
-                        if ((atom1.name + "'") == triple.first && (atom2.name + "'") == triple.second) {
-                            val bond = BondImpl(atom1, atom2, triple.third)
-                            bonds.add(bond)
+            val storedAAList = aminoList.filter { it.name == group.pdbName }
+            if(storedAAList.isNotEmpty()) {
+                val storedAA = storedAAList[0]
+                val bonds = ArrayList<Bond>(storedAA.bonds.size)
+                //TODO: reduce complexity, has to be possible
+                storedAA.bonds.forEach { triple ->
+                    group.atoms.forEach { atom1 ->
+                        group.atoms.forEach { atom2 ->
+                            if ((atom1.name + "'") == triple.first && (atom2.name + "'") == triple.second) {
+                                val bond = BondImpl(atom1, atom2, triple.third)
+                                bonds.add(bond)
+                            }
                         }
                     }
                 }
+                //display bonds
+                val c = Cylinder(0.025f, 1.0f, 10)
+                c.material = ShaderMaterial.fromFiles("DefaultDeferredInstanced.vert", "DefaultDeferred.frag")
+                c.instancedProperties["ModelMatrix1"] = { c.model }
+                c.material.diffuse = Vector3f(1.0f, 1.0f, 1.0f)
+                val cylinders = bonds.map {
+                    val bond = Mesh()
+                    bond.parent = this
+                    val atomA = it.atomA
+                    val atomB = it.atomB
+                    val positionA = Vector3f()
+                    atomA.getVector().sub(centroid, positionA)
+                    val positionB = Vector3f()
+                    atomB.getVector().sub(centroid, positionB)
+                    bond.orientBetweenPoints(positionA, positionB, true, true)
+                    bond.instancedProperties["ModelMatrix1"] = { bond.model }
+                    bond
+                }
+                c.instances.addAll(cylinders)
+                aminoAcidMesh.addChild(c)
             }
-            //display bonds
-            val c = Cylinder(0.025f, 1.0f, 10)
-            c.material = ShaderMaterial.fromFiles("DefaultDeferredInstanced.vert", "DefaultDeferred.frag")
-            c.instancedProperties["ModelMatrix1"] = { c.model }
-            c.material.diffuse = Vector3f(1.0f, 1.0f, 1.0f)
-            val cylinders = bonds.map {
-                val bond = Mesh()
-                bond.parent = this
-                val atomA = it.atomA
-                val atomB = it.atomB
-                val positionA = Vector3f()
-                atomA.getVector().sub(centroid, positionA)
-                val positionB = Vector3f()
-                atomB.getVector().sub(centroid, positionB)
-                bond.orientBetweenPoints(positionA, positionB, true, true)
-                bond.instancedProperties["ModelMatrix1"] = { bond.model }
-                bond
+            else {
+                logger.info("This amino acid is not stored: ${group.pdbName}")
             }
-            c.instances.addAll(cylinders)
-            aminoAcidMesh.addChild(c)
             // sidechains for ribbons are not visible by default
             aminoAcidMesh.visible = false
             this.addChild(aminoAcidMesh)
