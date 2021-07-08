@@ -24,7 +24,7 @@ class AminoAcidsStickAndBall(val protein: Protein, displayExternalMolecules: Boo
             group.atoms.distinctBy { it.element }.map { it.element }
                 .forEach {
                     val sceneryElement = periodicTable.findElementByNumber(it.atomicNumber)
-                    val s = Icosphere(0.05f, 2)
+                    val s = Icosphere(0.15f, 2)
                     s.material = ShaderMaterial.fromFiles("DefaultDeferredInstanced.vert", "DefaultDeferred.frag")
                     if (sceneryElement.color != null) {
                         s.material.diffuse = sceneryElement.color
