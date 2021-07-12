@@ -2,17 +2,14 @@ package graphics.scenery.controls.behaviours
 
 import graphics.scenery.Node
 import graphics.scenery.Scene
-import graphics.scenery.attribute.spatial.Spatial
 import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.controls.TrackerRole
-import graphics.scenery.numerics.Random
 import graphics.scenery.primitives.Cylinder
 import graphics.scenery.primitives.LineBetweenNodes
-import graphics.scenery.utils.extensions.plus
+import graphics.scenery.utils.Wiggler
 import org.joml.Vector3f
 import org.scijava.ui.behaviour.DragBehaviour
-import kotlin.concurrent.thread
 import kotlin.math.PI
 
 
@@ -106,29 +103,6 @@ open class VRSelect(
             }
     }
 
-    /**
-     * It wiggles a [Node].
-     */
-    class Wiggler(val target: Spatial) {
-        private var active = true
-
-        init {
-            thread {
-                val originalPosition = target.position
-                while (active) {
-                    target.position =
-                        originalPosition + Random.random3DVectorFromRange(-0.02f, 0.02f)
-                    Thread.sleep(5)
-                }
-                target.position = originalPosition
-            }
-        }
-
-        fun deativate() {
-            active = false
-        }
-    }
-
     class SelectionStorage {
         var selected: Node? = null
     }
@@ -167,7 +141,9 @@ open class VRSelect(
             }
             return selectionStorage
         }
+
     }
+
 }
 
 open class Selectable
