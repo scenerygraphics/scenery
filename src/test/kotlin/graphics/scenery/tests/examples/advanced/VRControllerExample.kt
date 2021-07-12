@@ -1,17 +1,16 @@
 package graphics.scenery.tests.examples.advanced
 
-import org.joml.Vector3f
 import graphics.scenery.*
+import graphics.scenery.attribute.material.Material
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.controls.TrackerRole
-import graphics.scenery.numerics.Random
-import graphics.scenery.attribute.material.Material
 import graphics.scenery.controls.behaviours.*
+import graphics.scenery.numerics.Random
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
-import org.scijava.ui.behaviour.ClickBehaviour
+import org.joml.Vector3f
 import kotlin.concurrent.thread
 import kotlin.system.exitProcess
 
@@ -156,6 +155,7 @@ class VRControllerExample : SceneryBase(VRControllerExample::class.java.simpleNa
             }
         }
 
+        /** example of click input
         // Now we add another behaviour for toggling visibility of the boxes
         hmd.addBehaviour("toggle_boxes", ClickBehaviour { _, _ ->
             boxes.forEach { it.visible = !it.visible }
@@ -163,21 +163,27 @@ class VRControllerExample : SceneryBase(VRControllerExample::class.java.simpleNa
         })
         // ...and bind that to the A button of the left-hand controller.
         hmd.addKeyBinding("toggle_boxes", TrackerRole.RightHand, OpenVRHMD.OpenVRButton.A)
+        */
 
-        // Finally, add a behaviour to toggle the scene's shell
-        hmd.addBehaviour("toggle_shell", ClickBehaviour { _, _ ->
-            hullbox.visible = !hullbox.visible
-            logger.info("Hull visible: ${hullbox.visible}")
-        })
-        //... and bind that to the A button on the left-hand controller.
-        hmd.addKeyBinding("toggle_shell", TrackerRole.LeftHand, OpenVRHMD.OpenVRButton.A)
-
-
-        VRGrab.createAndSet(scene,hmd, listOf(OpenVRHMD.OpenVRButton.Side), listOf(TrackerRole.RightHand))
-        val selectionStorage = VRSelect.createAndSet(scene,hmd, listOf(OpenVRHMD.OpenVRButton.Side), listOf(TrackerRole.LeftHand))
-        VRScale.createAndSet(hmd,OpenVRHMD.OpenVRButton.Side){
-            selectionStorage.selected?.ifSpatial { scale *= Vector3f(it)}
+        VRGrab.createAndSet(scene, hmd, listOf(OpenVRHMD.OpenVRButton.Side), listOf(TrackerRole.RightHand))
+        val selectionStorage =
+            VRSelect.createAndSet(scene, hmd, listOf(OpenVRHMD.OpenVRButton.Side), listOf(TrackerRole.LeftHand))
+        VRScale.createAndSet(hmd, OpenVRHMD.OpenVRButton.Side) {
+            selectionStorage.selected?.ifSpatial { scale *= Vector3f(it) }
         }
+        VRSelectionWheel.createAndSet(scene, hmd, { hmd.getPosition() },
+            listOf(OpenVRHMD.OpenVRButton.A), listOf(TrackerRole.LeftHand),
+            listOf(
+                "Toggle Shell" to {
+                    hullbox.visible = !hullbox.visible
+                    logger.info("Hull visible: ${hullbox.visible}")
+                },
+                "Toggle Boxes" to {
+                    boxes.forEach { it.visible = !it.visible }
+                    logger.info("Boxes visible: ${boxes.first().visible}")
+                },
+                "test" to { print("test") }
+            ))
     }
 
     companion object {
