@@ -426,7 +426,9 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
      */
     override fun getPosition(): Vector3f {
         val m = getPose()
-        return Vector3f(-1.0f * m.get(0, 3), -1.0f * m.get(1, 3), -1.0f * m.get(2, 3))
+        val d = Vector3f(-1.0f * m.get(3, 0), -1.0f * m.get(3, 1), -1.0f * m.get(3, 2))
+        // the position is already rotated by the orientation therefore we need to inverse that the get the absolute position
+        return d.rotate(getOrientation().conjugate())
     }
 
     /**
