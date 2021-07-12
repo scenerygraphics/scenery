@@ -16,8 +16,6 @@ import org.joml.Vector3f
 import org.joml.Vector4f
 import org.scijava.ui.behaviour.DragBehaviour
 
-private typealias Action = Pair<String, () -> Unit>
-
 /**
  * A selection wheel to let the user choose between different actions.
  *
@@ -30,7 +28,7 @@ class VRSelectionWheel(
     val controller: Spatial,
     val scene: Scene,
     val getHmdPos: () -> Vector3f,
-    var actions: List<Action>,
+    var actions: List<Pair<String, () -> Unit>>,
     val cutoff: Float = 0.1f
 ) : DragBehaviour {
     protected val logger by LazyLogger(System.getProperty("scenery.LogLevel", "info"))
@@ -132,7 +130,7 @@ class VRSelectionWheel(
             getHmdPos: () -> Vector3f,
             button: List<OpenVRHMD.OpenVRButton>,
             controllerSide: List<TrackerRole>,
-            actions: List<Action>,
+            actions: List<Pair<String, () -> Unit>>,
         ) {
             hmd.events.onDeviceConnect.add { _, device, _ ->
                 if (device.type == TrackedDeviceType.Controller) {
