@@ -265,7 +265,7 @@ class BufferedVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewe
         } to delta
     }
 
-    fun getDimensions(): Vector3i {
+    override fun getDimensions(timepoint: Int, view: Int, level: Int): Vector3i {
         val source = (ds.sources.firstOrNull()?.spimSource as? TransformedSource)?.wrappedSource as? BufferSource<*> ?: throw IllegalStateException("No source found")
         return Vector3i(source.width, source.height, source.depth)
     }
