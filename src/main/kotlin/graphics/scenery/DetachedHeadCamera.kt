@@ -124,7 +124,7 @@ class DetachedHeadCamera(@Transient var tracker: TrackerInput? = null) : Camera(
                 val tr = Matrix4f().translate(this.position * (-1.0f))
 //        val r = Matrix4f.fromQuaternion(this.rotation)
 //        val hr = Matrix4f.fromQuaternion(this.headOrientation)
-                return tracker?.getWorkingTracker()?.getPose()?.times(tr) ?: Matrix4f().set(spatial().rotation) * tr
+                return tracker?.getWorkingTracker()?.getPose()?.times(tr) ?: Matrix4f().set(this.rotation) * tr
             }
             /**
              * Returns this camera's transformation for eye with index [eye], taking an eventually existing [TrackerInput]
@@ -134,7 +134,7 @@ class DetachedHeadCamera(@Transient var tracker: TrackerInput? = null) : Camera(
                 val tr = Matrix4f().translate(this.position * (-1.0f))
 //        val r = Matrix4f.fromQuaternion(this.rotation)
 //        val hr = Matrix4f.fromQuaternion(this.headOrientation)
-                return tracker?.getWorkingTracker()?.getPoseForEye(eye)?.times(tr) ?: Matrix4f().set(spatial().rotation) * tr
+                return tracker?.getWorkingTracker()?.getPoseForEye(eye)?.times(tr) ?: Matrix4f().set(this.rotation) * tr
             }
             /**
              * Returns this camera's transformation matrix, including a
