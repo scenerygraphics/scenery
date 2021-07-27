@@ -6,6 +6,9 @@ import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.Image
+import graphics.scenery.volumes.Colormap
+import graphics.scenery.volumes.Volume
+import net.imglib2.type.numeric.integer.UnsignedByteType
 import kotlin.concurrent.thread
 
 /**
@@ -20,7 +23,9 @@ class DFTExample : SceneryBase("DFTExample", wantREPL = System.getProperty("scen
             Renderer.createRenderer(hub, applicationName, scene, 512, 512))
         val snapshot = DFTParser()
         snapshot.parseFile("/home/fiedlerl/data/qe_calcs/Fe2/dft/snapshot0/" +
-            "tmp.pp050Fe_snapshot0_ldos.cube")
+            "Fe_snapshot0_dens.cube")
+
+        // Visualize the atoms.
         for(i in 0 until snapshot.numberOfAtoms) {
             val s = Icosphere(1.0f, 4)
             s.position = snapshot.atomicPositions[i]
@@ -28,6 +33,29 @@ class DFTExample : SceneryBase("DFTExample", wantREPL = System.getProperty("scen
             s.material.roughness = 0.9f
             scene.addChild(s)
         }
+
+        // Visualize the density data.
+        val volume = Volume.fromBuffer(emptyList(), snapshot.gridDimensions[0], snapshot.gridDimensions[1],
+                                        snapshot.gridDimensions[2], UnsignedByteType(), hub)
+
+        volume.name = "volume"
+        volume.position = Vector3f(0.0f, 0.0f, 0.0f)
+        volume.colormap = Colormap.get("hot")
+        volume.pixelToWorldRatio = 0.03f
+
+        // Do I need this?
+//        with(volume.transferFunction) {
+//            addControlPoint(0.0f, 0.0f)
+//            addControlPoint(0.2f, 0.0f)
+//            addControlPoint(0.4f, 0.5f)
+//            addControlPoint(0.8f, 0.5f)
+//            addControlPoint(1.0f, 0.0f)
+//        }
+        scene.addChild(volume)
+        val currentBuffer = snapshot.electronicDensityUInt.get()
+        volume.addTimepoint("t-0", currentBuffer)
+        volume.goToLastTimepoint()
+
 
         // One light in every corner.
         val lights = (0 until 8).map {
@@ -52,6 +80,7 @@ class DFTExample : SceneryBase("DFTExample", wantREPL = System.getProperty("scen
 
         thread {
             while (running) {
+
                 Thread.sleep(20)
             }
         }
