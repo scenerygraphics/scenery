@@ -14,7 +14,7 @@ class DFTParser (val fileType: String = "cube"){
     var gridDimensions = IntArray(3) { 0 }
     var atomicPositions = Array(0){ Vector3f()}
     var electronicDensity = Array(0, { Array(0, { FloatArray(0) } ) } )
-    var electronicDensityUInt = RingBuffer<ByteBuffer>(1) { MemoryUtil.memAlloc((0).toInt()) }
+    lateinit var electronicDensityUInt : ByteBuffer
 
     var unitCellOrigin = FloatArray(3) { 0.0f }
     var unitCellDimensions = FloatArray(3) { 0.0f }
@@ -76,7 +76,6 @@ class DFTParser (val fileType: String = "cube"){
                     }
                     // Parsing atomic positions.
                     if (counter < 6+numberOfAtoms){
-                        val x = (line.trim().split("\\s+".toRegex())[2]).toFloat()
                         atomicPositions[counter-6] = Vector3f((line.trim().split("\\s+".toRegex())[2]).toFloat(),
                                                               (line.trim().split("\\s+".toRegex())[3]).toFloat(),
                                                               (line.trim().split("\\s+".toRegex())[4]).toFloat())
@@ -94,13 +93,13 @@ class DFTParser (val fileType: String = "cube"){
                                 minDensity = electronicDensity[xcounter][ycounter][zcounter]
                             }
 
-                            zcounter++
-                            if (zcounter == gridDimensions[2]) {
-                                zcounter = 0
+                            xcounter++
+                            if (xcounter == gridDimensions[2]) {
+                                xcounter = 0
                                 ycounter++
                                 if (ycounter == gridDimensions[1]) {
                                     ycounter = 0
-                                    xcounter++
+                                    zcounter++
                                 }
                             }
                         }
@@ -113,18 +112,20 @@ class DFTParser (val fileType: String = "cube"){
         // This is all very hacky and just for testing purposes.
         counter = 0
 
-        electronicDensityUInt = RingBuffer<ByteBuffer>(1) { MemoryUtil.memAlloc((gridDimensions[0]*
-            gridDimensions[1]*gridDimensions[2]).toInt()) }
+        electronicDensityUInt =  MemoryUtil.memAlloc((gridDimensions[0]*
+            gridDimensions[1]*gridDimensions[2]*2).toInt())
 
         for (x in 0 until gridDimensions[0]){
-            for (y in 0 until gridDimensions[1]-1){
-                for (z in 0 until gridDimensions[2]-1){
-                    val value:Int = (((electronicDensity[x][y][z]-minDensity) / (maxDensity-minDensity))*255.0f).toInt()
-                    electronicDensityUInt.get().put(value.toByte())
+            for (y in 0 until gridDimensions[1]){
+                for (z in 0 until gridDimensions[2]){
+                    val value = (((electronicDensity[x][y][z] - minDensity) / (maxDensity - minDensity)) * 65535.0f).toInt()
+                    electronicDensityUInt.put(value.toByte())
+
                     counter++
                 }
             }
         }
+        electronicDensityUInt.flip()
 
     }
 }
