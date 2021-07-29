@@ -26,11 +26,12 @@ class DFTExample : SceneryBase("DFTExample", wantREPL = System.getProperty("scen
         snapshot.parseFile("/home/fiedlerl/data/qe_calcs/Fe2/dft/snapshot0/" +
             "Fe_snapshot0_dens.cube")
 
-
         // Visualize the atoms.
+        val atomicRadius = 0.5f
         for(i in 0 until snapshot.numberOfAtoms) {
-            val s = Icosphere(1.0f, 4)
-            s.position = snapshot.atomicPositions[i]
+            val s = Icosphere(atomicRadius, 4)
+            // Shift the positions since the positions from the cube file are centers.
+            s.position = snapshot.atomicPositions[i].add(Vector3f(atomicRadius, atomicRadius, atomicRadius))
             s.material.metallic = 0.3f
             s.material.roughness = 0.9f
             scene.addChild(s)
@@ -41,18 +42,11 @@ class DFTExample : SceneryBase("DFTExample", wantREPL = System.getProperty("scen
                                         snapshot.gridDimensions[2], UnsignedByteType(), hub)
 
         volume.name = "volume"
-        volume.position = Vector3f(2.683464f, 2.683464f, 2.683464f)
+        volume.position = Vector3f(snapshot.densityPosition[0], snapshot.densityPosition[1],
+                                   snapshot.densityPosition[2])
         volume.colormap = Colormap.get("viridis")
         volume.pixelToWorldRatio = snapshot.gridSpacings[0]
 
-        // Do I need this?
-//        with(volume.transferFunction) {
-//            addControlPoint(0.0f, 0.01f)
-//            addControlPoint(0.2f, 0.02f)
-//            addControlPoint(0.4f, 0.03f)
-//            addControlPoint(0.8f, 0.04f)
-//            addControlPoint(1.0f, 0.05f)
-//        }
         volume.transferFunction = TransferFunction.ramp(0.0f, 0.3f, 0.5f)
         scene.addChild(volume)
         volume.addTimepoint("t-0", snapshot.electronicDensityUInt)
