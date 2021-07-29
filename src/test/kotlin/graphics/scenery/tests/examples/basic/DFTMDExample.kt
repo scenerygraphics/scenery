@@ -28,10 +28,10 @@ class DFTMDExample : SceneryBase("DFTExample", wantREPL = System.getProperty("sc
             "Fe_snapshot0_dens.cube")
 
         // Scales the DFT coordinates (which are in Bohr units) for a better VR experience.
-        val scalingFactor = 1.0f
+        val scalingFactor = 0.5f
 
         // Visualize the atoms.
-        val atomicRadius = 0.5f
+        val atomicRadius = 0.5f*scalingFactor
         val atoms: Array<Icosphere> = Array<Icosphere>(snapshot.numberOfAtoms) {Icosphere(atomicRadius, 4)}
         for(i in 0 until snapshot.numberOfAtoms) {
             // Shift the positions since the positions from the cube file are centers.
@@ -46,10 +46,13 @@ class DFTMDExample : SceneryBase("DFTExample", wantREPL = System.getProperty("sc
                                         snapshot.gridDimensions[2], UnsignedByteType(), hub)
 
         volume.name = "volume"
-        volume.position = (Vector3f(0.0f,0.0f,0.0f).mul(scalingFactor)).add(
+        // Note: Volumes centered at the origin are currently offset by -2.0 in each direction
+        // (see Volume.kt, line 338), so we're adding 2.0 here.
+        volume.position = (Vector3f(snapshot.unitCellOrigin[0],snapshot.unitCellOrigin[1],
+            snapshot.unitCellOrigin[2]).mul(scalingFactor)).add(
             Vector3f(2.0f, 2.0f, 2.0f))
         volume.colormap = Colormap.get("viridis")
-        volume.pixelToWorldRatio = snapshot.gridSpacings[0]
+        volume.pixelToWorldRatio = snapshot.gridSpacings[0]*scalingFactor
         volume.transferFunction = TransferFunction.ramp(0.0f, 0.3f, 0.5f)
         scene.addChild(volume)
 
@@ -86,7 +89,7 @@ class DFTMDExample : SceneryBase("DFTExample", wantREPL = System.getProperty("sc
                 // Visualize the atoms.
                 for(i in 0 until snapshot.numberOfAtoms) {
                     // Shift the positions since the positions from the cube file are centers.
-                    atoms[i].position = snapshot.atomicPositions[i]
+                    atoms[i].position = (snapshot.atomicPositions[i]).mul(scalingFactor)
                 }
 
                 volume.addTimepoint("t-${count}", snapshot.electronicDensityUInt)
