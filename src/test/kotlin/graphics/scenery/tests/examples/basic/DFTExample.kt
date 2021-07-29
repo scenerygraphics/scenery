@@ -11,6 +11,7 @@ import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.Volume
 import net.imglib2.type.numeric.integer.UnsignedByteType
 import kotlin.concurrent.thread
+import kotlin.math.pow
 
 /**
  * <Description>
@@ -25,27 +26,35 @@ class DFTExample : SceneryBase("DFTExample", wantREPL = System.getProperty("scen
         val snapshot = DFTParser()
         snapshot.parseFile("/home/fiedlerl/data/qe_calcs/Fe2/dft/snapshot0/" +
             "Fe_snapshot0_dens.cube")
+        snapshot.parseFile("/home/fiedlerl/data/qe_calcs/Al36/for_fesl/cubes/" +
+            "Al_dens.cube")
+
+        // Scales the DFT coordinates (which are in Bohr units) for a better VR experience.
+        val scalingFactor = 1.0f
 
         // Visualize the atoms.
-        val atomicRadius = 0.5f
+        val atomicRadius = 0.5f*scalingFactor
         for(i in 0 until snapshot.numberOfAtoms) {
-            val s = Icosphere(atomicRadius, 4)
+            val s = Icosphere(atomicRadius*scalingFactor, 4)
             // Shift the positions since the positions from the cube file are centers.
-            s.position = snapshot.atomicPositions[i].add(Vector3f(atomicRadius, atomicRadius, atomicRadius))
+            s.position = (snapshot.atomicPositions[i].mul(scalingFactor))//.add(Vector3f(atomicRadius, atomicRadius, atomicRadius))
             s.material.metallic = 0.3f
             s.material.roughness = 0.9f
             scene.addChild(s)
         }
 
         // Visualize the density data.
+
         val volume = Volume.fromBuffer(emptyList(), snapshot.gridDimensions[0], snapshot.gridDimensions[1],
                                         snapshot.gridDimensions[2], UnsignedByteType(), hub)
-
         volume.name = "volume"
-        volume.position = Vector3f(snapshot.densityPosition[0], snapshot.densityPosition[1],
-                                   snapshot.densityPosition[2])
+        // Note: Volumes centered at the origin are currently offset by -2.0 in each direction
+        // (see Volume.kt, line 338), so we're adding 2.0 here.
+        volume.position = (Vector3f(0.0f,0.0f,0.0f).mul(scalingFactor)).add(
+                           Vector3f(2.0f, 2.0f, 2.0f))
+
         volume.colormap = Colormap.get("viridis")
-        volume.pixelToWorldRatio = snapshot.gridSpacings[0]
+        volume.pixelToWorldRatio = snapshot.gridSpacings[0]//*scalingFactor
 
         volume.transferFunction = TransferFunction.ramp(0.0f, 0.3f, 0.5f)
         scene.addChild(volume)

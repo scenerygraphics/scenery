@@ -27,12 +27,15 @@ class DFTMDExample : SceneryBase("DFTExample", wantREPL = System.getProperty("sc
         snapshot.parseFile("/home/fiedlerl/data/qe_calcs/Fe2/dft/snapshot0/" +
             "Fe_snapshot0_dens.cube")
 
+        // Scales the DFT coordinates (which are in Bohr units) for a better VR experience.
+        val scalingFactor = 1.0f
+
         // Visualize the atoms.
         val atomicRadius = 0.5f
         val atoms: Array<Icosphere> = Array<Icosphere>(snapshot.numberOfAtoms) {Icosphere(atomicRadius, 4)}
         for(i in 0 until snapshot.numberOfAtoms) {
             // Shift the positions since the positions from the cube file are centers.
-            atoms[i].position = snapshot.atomicPositions[i].add(Vector3f(atomicRadius, atomicRadius, atomicRadius))
+            atoms[i].position = (snapshot.atomicPositions[i]).mul(scalingFactor)
             atoms[i].material.metallic = 0.3f
             atoms[i].material.roughness = 0.9f
             scene.addChild(atoms[i])
@@ -43,8 +46,8 @@ class DFTMDExample : SceneryBase("DFTExample", wantREPL = System.getProperty("sc
                                         snapshot.gridDimensions[2], UnsignedByteType(), hub)
 
         volume.name = "volume"
-        volume.position = Vector3f(snapshot.densityPosition[0], snapshot.densityPosition[1],
-                                   snapshot.densityPosition[2])
+        volume.position = (Vector3f(0.0f,0.0f,0.0f).mul(scalingFactor)).add(
+            Vector3f(2.0f, 2.0f, 2.0f))
         volume.colormap = Colormap.get("viridis")
         volume.pixelToWorldRatio = snapshot.gridSpacings[0]
         volume.transferFunction = TransferFunction.ramp(0.0f, 0.3f, 0.5f)
@@ -77,12 +80,13 @@ class DFTMDExample : SceneryBase("DFTExample", wantREPL = System.getProperty("sc
         var count = 0
         thread {
             while (running) {
+                // Read new MD snapshot.
                 snapshot.parseFile("/home/fiedlerl/data/qe_calcs/Fe2/dft/snapshot${currentSnapshot}/" +
                     "Fe_snapshot${currentSnapshot}_dens.cube")
                 // Visualize the atoms.
                 for(i in 0 until snapshot.numberOfAtoms) {
                     // Shift the positions since the positions from the cube file are centers.
-                    atoms[i].position = snapshot.atomicPositions[i].add(Vector3f(atomicRadius, atomicRadius, atomicRadius))
+                    atoms[i].position = snapshot.atomicPositions[i]
                 }
 
                 volume.addTimepoint("t-${count}", snapshot.electronicDensityUInt)
