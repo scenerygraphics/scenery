@@ -24,8 +24,7 @@ class DFTMDExample : SceneryBase("DFTExample", wantREPL = System.getProperty("sc
         renderer = hub.add(SceneryElement.Renderer,
             Renderer.createRenderer(hub, applicationName, scene, 512, 512))
         val snapshot = DFTParser()
-        snapshot.parseCube("/home/fiedlerl/data/qe_calcs/Fe2/dft/snapshot0/" +
-            "Fe_snapshot0_dens.cube")
+        snapshot.parseCube(getDemoFilesPath() + "/volumes/dft/Fe_snapshot0_dens.cube")
 
         // Scales the DFT coordinates (which are in Bohr units) for a better VR experience.
         val scalingFactor = 0.5f
@@ -84,8 +83,8 @@ class DFTMDExample : SceneryBase("DFTExample", wantREPL = System.getProperty("sc
         thread {
             while (running) {
                 // Read new MD snapshot.
-                snapshot.parseCube("/home/fiedlerl/data/qe_calcs/Fe2/dft/snapshot${currentSnapshot}/" +
-                    "Fe_snapshot${currentSnapshot}_dens.cube")
+                snapshot.parseCube(getDemoFilesPath() + "/volumes/dft/Fe_snapshot${currentSnapshot}_dens.cube")
+
                 // Visualize the atoms.
                 for(i in 0 until snapshot.numberOfAtoms) {
                     // Shift the positions since the positions from the cube file are centers.
