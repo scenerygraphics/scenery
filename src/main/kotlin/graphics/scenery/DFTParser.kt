@@ -15,7 +15,6 @@ class DFTParser (val fileType: String = "cube"){
     var atomicPositions = Array(0){ Vector3f()}
     var electronicDensity = Array(0, { Array(0, { FloatArray(0) } ) } )
     lateinit var electronicDensityUInt : ByteBuffer
-    var densityPosition = FloatArray(3) { 0.0f }
 
     var unitCellOrigin = FloatArray(3) { 0.0f }
     var unitCellDimensions = FloatArray(3) { 0.0f }
@@ -73,11 +72,6 @@ class DFTParser (val fileType: String = "cube"){
                         unitCellDimensions[2] = (gridSpacings[2]*gridDimensions[2])+unitCellOrigin[2]
                         electronicDensity = Array(gridDimensions[0], { Array(gridDimensions[1],
                             { FloatArray(gridDimensions[2]) } ) } )
-                        densityPosition[0] = unitCellDimensions[0] / 2.0f - gridSpacings[0]
-                        densityPosition[1] = unitCellDimensions[1] / 2.0f - gridSpacings[1]
-                        densityPosition[2] = unitCellDimensions[2] / 2.0f - gridSpacings[2]
-
-
                     }
                     // Parsing atomic positions.
                     if (counter < 6+numberOfAtoms){
@@ -99,6 +93,7 @@ class DFTParser (val fileType: String = "cube"){
                             if (electronicDensity[xcounter][ycounter][zcounter] < minDensity) {
                                 minDensity = electronicDensity[xcounter][ycounter][zcounter]
                             }
+
                             zcounter++
                             if (zcounter == gridDimensions[2]) {
                                 zcounter = 0
@@ -124,7 +119,6 @@ class DFTParser (val fileType: String = "cube"){
                 for (x in 0 until gridDimensions[0]){
                     val value = (((electronicDensity[x][y][z] - minDensity) / (maxDensity - minDensity)) * 255.0f).toInt()
                     electronicDensityUInt.put(value.toByte())
-
                     counter++
                 }
             }
