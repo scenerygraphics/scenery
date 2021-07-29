@@ -15,6 +15,7 @@ class DFTParser (val fileType: String = "cube"){
     var atomicPositions = Array(0){ Vector3f()}
     var electronicDensity = Array(0, { Array(0, { FloatArray(0) } ) } )
     lateinit var electronicDensityUInt : ByteBuffer
+    var densityPosition = FloatArray(3) { 0.0f }
 
     var unitCellOrigin = FloatArray(3) { 0.0f }
     var unitCellDimensions = FloatArray(3) { 0.0f }
@@ -72,6 +73,10 @@ class DFTParser (val fileType: String = "cube"){
                         unitCellDimensions[2] = (gridSpacings[2]*gridDimensions[2])+unitCellOrigin[2]
                         electronicDensity = Array(gridDimensions[0], { Array(gridDimensions[1],
                             { FloatArray(gridDimensions[2]) } ) } )
+                        densityPosition[0] = unitCellDimensions[0] / 2.0f - gridSpacings[0]
+                        densityPosition[1] = unitCellDimensions[1] / 2.0f - gridSpacings[1]
+                        densityPosition[2] = unitCellDimensions[2] / 2.0f - gridSpacings[2]
+
 
                     }
                     // Parsing atomic positions.
@@ -82,18 +87,18 @@ class DFTParser (val fileType: String = "cube"){
                     }
 
                     // Parsing volumetric data.
+                    // A possible optimization here would be to read this into a 1D array. We cannot directly
+                    // read it into the byte buffer, because we don't know max/min values a-priori.
                     if (counter >= 6+numberOfAtoms) {
                         for (value in (line.trim().split("\\s+".toRegex()))) {
                             // Cube files should be in Fortran (z-fastest ordering).
                             electronicDensity[xcounter][ycounter][zcounter] = (value).toFloat()
-//                            electronicDensity[xcounter][ycounter][zcounter] = (xcounter*ycounter*zcounter).toFloat()
                             if (electronicDensity[xcounter][ycounter][zcounter] > maxDensity) {
                                 maxDensity = electronicDensity[xcounter][ycounter][zcounter]
                             }
                             if (electronicDensity[xcounter][ycounter][zcounter] < minDensity) {
                                 minDensity = electronicDensity[xcounter][ycounter][zcounter]
                             }
-
                             zcounter++
                             if (zcounter == gridDimensions[2]) {
                                 zcounter = 0
@@ -110,9 +115,7 @@ class DFTParser (val fileType: String = "cube"){
             counter++
         }
         // Converting to byte buffer.
-        // This is all very hacky and just for testing purposes.
         counter = 0
-
         electronicDensityUInt =  MemoryUtil.memAlloc((gridDimensions[0]*
             gridDimensions[1]*gridDimensions[2]*1).toInt())
 
@@ -126,25 +129,6 @@ class DFTParser (val fileType: String = "cube"){
                 }
             }
         }
-//        for (x in 0 until gridDimensions[0]){
-//            for (y in 0 until gridDimensions[1]){
-//                for (z in 0 until gridDimensions[2]){
-//                    val value = ((z.toFloat()/gridDimensions[0].toFloat()) * 255.0f).toInt()
-//                    electronicDensityUInt.put(value.toByte())
-//
-//                    counter++
-//                }
-//            }
-//        }
-//        for (x in 0 until gridDimensions[0]*gridDimensions[1]*gridDimensions[2]){
-//            val value = ((x.toFloat()/(gridDimensions[0]*gridDimensions[1]*gridDimensions[2]).toFloat()) * 255.0f).toInt()
-//            print(x)
-//            print(" ")
-//            print(value)
-//            print("\n")
-//            electronicDensityUInt.put(value.toByte())
-//        }
-
         electronicDensityUInt.flip()
 
     }
