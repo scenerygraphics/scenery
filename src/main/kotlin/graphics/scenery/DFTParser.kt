@@ -5,7 +5,7 @@ import org.lwjgl.system.MemoryUtil
 import java.io.File
 import java.nio.ByteBuffer
 
-class DFTParser (val fileType: String = "cube"){
+class DFTParser (val fileType: String = "cube", val normalizeDensityTo: Float = -1.0f){
     /*
      Properties.
      */
@@ -113,7 +113,9 @@ class DFTParser (val fileType: String = "cube"){
         counter = 0
         electronicDensityUInt =  MemoryUtil.memAlloc((gridDimensions[0]*
             gridDimensions[1]*gridDimensions[2]*1).toInt())
-
+        if (normalizeDensityTo > 0.0f){
+            maxDensity = normalizeDensityTo
+        }
         for (z in 0 until gridDimensions[2]){
             for (y in 0 until gridDimensions[1]){
                 for (x in 0 until gridDimensions[0]){
