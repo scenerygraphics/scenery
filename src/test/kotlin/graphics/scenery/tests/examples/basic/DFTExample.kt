@@ -26,6 +26,7 @@ class DFTExample : SceneryBase("DFTExample", wantREPL = System.getProperty("scen
         snapshot.parseFile("/home/fiedlerl/data/qe_calcs/Fe2/dft/snapshot0/" +
             "Fe_snapshot0_dens.cube")
 
+
         // Visualize the atoms.
         for(i in 0 until snapshot.numberOfAtoms) {
             val s = Icosphere(1.0f, 4)

@@ -86,6 +86,7 @@ class DFTParser (val fileType: String = "cube"){
                         for (value in (line.trim().split("\\s+".toRegex()))) {
                             // Cube files should be in Fortran (z-fastest ordering).
                             electronicDensity[xcounter][ycounter][zcounter] = (value).toFloat()
+//                            electronicDensity[xcounter][ycounter][zcounter] = (xcounter*ycounter*zcounter).toFloat()
                             if (electronicDensity[xcounter][ycounter][zcounter] > maxDensity) {
                                 maxDensity = electronicDensity[xcounter][ycounter][zcounter]
                             }
@@ -93,13 +94,13 @@ class DFTParser (val fileType: String = "cube"){
                                 minDensity = electronicDensity[xcounter][ycounter][zcounter]
                             }
 
-                            xcounter++
-                            if (xcounter == gridDimensions[2]) {
-                                xcounter = 0
+                            zcounter++
+                            if (zcounter == gridDimensions[2]) {
+                                zcounter = 0
                                 ycounter++
                                 if (ycounter == gridDimensions[1]) {
                                     ycounter = 0
-                                    zcounter++
+                                    xcounter++
                                 }
                             }
                         }
@@ -113,18 +114,37 @@ class DFTParser (val fileType: String = "cube"){
         counter = 0
 
         electronicDensityUInt =  MemoryUtil.memAlloc((gridDimensions[0]*
-            gridDimensions[1]*gridDimensions[2]*2).toInt())
+            gridDimensions[1]*gridDimensions[2]*1).toInt())
 
-        for (x in 0 until gridDimensions[0]){
+        for (z in 0 until gridDimensions[2]){
             for (y in 0 until gridDimensions[1]){
-                for (z in 0 until gridDimensions[2]){
-                    val value = (((electronicDensity[x][y][z] - minDensity) / (maxDensity - minDensity)) * 65535.0f).toInt()
+                for (x in 0 until gridDimensions[0]){
+                    val value = (((electronicDensity[x][y][z] - minDensity) / (maxDensity - minDensity)) * 255.0f).toInt()
                     electronicDensityUInt.put(value.toByte())
 
                     counter++
                 }
             }
         }
+//        for (x in 0 until gridDimensions[0]){
+//            for (y in 0 until gridDimensions[1]){
+//                for (z in 0 until gridDimensions[2]){
+//                    val value = ((z.toFloat()/gridDimensions[0].toFloat()) * 255.0f).toInt()
+//                    electronicDensityUInt.put(value.toByte())
+//
+//                    counter++
+//                }
+//            }
+//        }
+//        for (x in 0 until gridDimensions[0]*gridDimensions[1]*gridDimensions[2]){
+//            val value = ((x.toFloat()/(gridDimensions[0]*gridDimensions[1]*gridDimensions[2]).toFloat()) * 255.0f).toInt()
+//            print(x)
+//            print(" ")
+//            print(value)
+//            print("\n")
+//            electronicDensityUInt.put(value.toByte())
+//        }
+
         electronicDensityUInt.flip()
 
     }
