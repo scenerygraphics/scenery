@@ -103,6 +103,8 @@ class TextBoard(font: String = "SourceSansPro-Regular.ttf", override var isBillb
                 mipmap = true)
 
             needsPreUpdate = false
+
+            boundingBox = generateBoundingBox()
         }
     }
 
