@@ -10,6 +10,7 @@ import graphics.scenery.volumes.Colormap
 import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.Volume
 import net.imglib2.type.numeric.integer.UnsignedByteType
+import java.nio.file.Paths
 import kotlin.concurrent.thread
 import kotlin.math.pow
 
@@ -24,10 +25,8 @@ class DFTExample : SceneryBase("DFTExample", wantREPL = System.getProperty("scen
         renderer = hub.add(SceneryElement.Renderer,
             Renderer.createRenderer(hub, applicationName, scene, 512, 512))
         val snapshot = DFTParser()
-        snapshot.parseCube("/home/fiedlerl/data/qe_calcs/Fe2/dft/snapshot0/" +
-            "Fe_snapshot0_dens.cube")
-        snapshot.parseCube("/home/fiedlerl/data/qe_calcs/Al36/for_fesl/cubes/" +
-            "Al_dens.cube")
+
+        snapshot.parseCube(getDemoFilesPath() + "/volumes/dft/Fe_snapshot0_dens.cube")
 
         // Scales the DFT coordinates (which are in Bohr units) for a better VR experience.
         val scalingFactor = 0.5f
