@@ -24,7 +24,7 @@ class DFTMDExample : SceneryBase("DFTExample", wantREPL = System.getProperty("sc
         renderer = hub.add(SceneryElement.Renderer,
             Renderer.createRenderer(hub, applicationName, scene, 512, 512))
         val snapshot = DFTParser()
-        snapshot.parseFile("/home/fiedlerl/data/qe_calcs/Fe2/dft/snapshot0/" +
+        snapshot.parseCube("/home/fiedlerl/data/qe_calcs/Fe2/dft/snapshot0/" +
             "Fe_snapshot0_dens.cube")
 
         // Scales the DFT coordinates (which are in Bohr units) for a better VR experience.
@@ -84,7 +84,7 @@ class DFTMDExample : SceneryBase("DFTExample", wantREPL = System.getProperty("sc
         thread {
             while (running) {
                 // Read new MD snapshot.
-                snapshot.parseFile("/home/fiedlerl/data/qe_calcs/Fe2/dft/snapshot${currentSnapshot}/" +
+                snapshot.parseCube("/home/fiedlerl/data/qe_calcs/Fe2/dft/snapshot${currentSnapshot}/" +
                     "Fe_snapshot${currentSnapshot}_dens.cube")
                 // Visualize the atoms.
                 for(i in 0 until snapshot.numberOfAtoms) {

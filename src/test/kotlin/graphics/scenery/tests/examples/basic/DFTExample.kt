@@ -24,9 +24,9 @@ class DFTExample : SceneryBase("DFTExample", wantREPL = System.getProperty("scen
         renderer = hub.add(SceneryElement.Renderer,
             Renderer.createRenderer(hub, applicationName, scene, 512, 512))
         val snapshot = DFTParser()
-        snapshot.parseFile("/home/fiedlerl/data/qe_calcs/Fe2/dft/snapshot0/" +
+        snapshot.parseCube("/home/fiedlerl/data/qe_calcs/Fe2/dft/snapshot0/" +
             "Fe_snapshot0_dens.cube")
-        snapshot.parseFile("/home/fiedlerl/data/qe_calcs/Al36/for_fesl/cubes/" +
+        snapshot.parseCube("/home/fiedlerl/data/qe_calcs/Al36/for_fesl/cubes/" +
             "Al_dens.cube")
 
         // Scales the DFT coordinates (which are in Bohr units) for a better VR experience.

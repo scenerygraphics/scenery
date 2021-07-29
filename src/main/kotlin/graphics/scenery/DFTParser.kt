@@ -1,45 +1,46 @@
 package graphics.scenery
+import graphics.scenery.repl.REPL
 import graphics.scenery.utils.RingBuffer
 import org.joml.Vector3f
 import org.lwjgl.system.MemoryUtil
 import java.io.File
 import java.nio.ByteBuffer
 
-class DFTParser (val fileType: String = "cube", val normalizeDensityTo: Float = -1.0f){
-    /*
-     Properties.
-     */
-    var numberOfAtoms:Int = 0
-    var gridSpacings = FloatArray(3) { 0.0f }
-    var gridDimensions = IntArray(3) { 0 }
-    var atomicPositions = Array(0){ Vector3f()}
-    var electronicDensity = Array(0, { Array(0, { FloatArray(0) } ) } )
-    lateinit var electronicDensityUInt : ByteBuffer
+/**
+Parses a density functional theory (common simulation method in solid state physics and theoretical chemistry)
+calculation. Can be used to visualize single DFT calculations or DFT-MD (=DFT molecular dynamics simulations).
 
+ * @property[normalizeDensityTo] Defines to which value the density is scaled. This is useful when visualizing more then one DFT calculation at the
+    same time, in order to keep the density visualization consistent. Negative values mean the density is scaled
+    per snapshot. Default is -1.0f.
+ */
+class DFTParser (val normalizeDensityTo: Float = -1.0f){
+    /**  Number of Atoms.*/
+    var numberOfAtoms:Int = 0
+    /** Distance between two grid points in either direction in Bohr.*/
+    var gridSpacings = FloatArray(3) { 0.0f }
+    /** Number of gridpoints in 3D grid.*/
+    var gridDimensions = IntArray(3) { 0 }
+    /** Positions of the atoms in Bohr.*/
+    var atomicPositions = Array(0){ Vector3f()}
+    private var electronicDensity = Array(0, {Array(0, { FloatArray(0) } ) } )
+    /** Electronic density as scaled bytes, in scaled(1/Bohr).*/
+    lateinit var electronicDensityUInt : ByteBuffer
+    /** Origin of the unit cell, usually 0,0,0. */
     var unitCellOrigin = FloatArray(3) { 0.0f }
+    /** Dimensions of the unit cell, in Bohr.*/
     var unitCellDimensions = FloatArray(3) { 0.0f }
 
-    /*
-     Functions.
-     */
-
-    // Parse a file containing visualize-able information about a DFT calculation.
-    fun parseFile(filename: String) {
-        if (this.fileType == "cube") {
-            this.parseCube(filename)
-        }
-    }
-
     // Parse information as .cube file.
-    private fun parseCube(filename: String){
+    fun parseCube(filename: String){
         // Read entire file content
         val cubeFile =  File(filename).bufferedReader().readLines()
         var counter = 0
         var xcounter = 0
         var ycounter = 0
         var zcounter = 0
-        var minDensity:Float = 1000.0f
-        var maxDensity:Float = 0.0f
+        var minDensity = 1000.0f
+        var maxDensity = 0.0f
 
         // Iterate through file. We know what is were with a cube file.
         // 0-1: Comments.
@@ -112,7 +113,7 @@ class DFTParser (val fileType: String = "cube", val normalizeDensityTo: Float = 
         // Converting to byte buffer.
         counter = 0
         electronicDensityUInt =  MemoryUtil.memAlloc((gridDimensions[0]*
-            gridDimensions[1]*gridDimensions[2]*1).toInt())
+            gridDimensions[1]*gridDimensions[2]*1))
         if (normalizeDensityTo > 0.0f){
             maxDensity = normalizeDensityTo
         }
