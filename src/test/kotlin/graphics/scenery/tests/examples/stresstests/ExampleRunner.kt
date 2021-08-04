@@ -56,7 +56,8 @@ class ExampleRunner {
             "SwingTexturedCubeExample",
             "VideoRecordingExample",
             // TODO: this has a bug apparently coming from BVV
-            "FlybrainOutOfCoreExample"
+            "FlybrainOutOfCoreExample",
+            "AttributesExample"
         )
 
         blocklist.addAll(System.getProperty("scenery.ExampleRunner.Blocklist", "").split(","))
