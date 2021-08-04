@@ -10,6 +10,7 @@ import graphics.scenery.attribute.renderable.Renderable
 import graphics.scenery.utils.LazyLogger
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.time.DurationUnit
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTime
 
@@ -136,7 +137,7 @@ open class VulkanObjectState : NodeMetadata {
             }
         }
 
-        logger.trace("DS update took {} ms", updateDuration.inMilliseconds)
+        logger.trace("DS update took {} ms", updateDuration.toDouble(DurationUnit.MILLISECONDS))
     }
 
     fun clearTextureDescriptorSets() {

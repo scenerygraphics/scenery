@@ -170,6 +170,13 @@ object VulkanNodeHelpers {
             return state
         }
 
+        // TODO make maxInstanceUpdateCount property of InstancedNode
+        val maxUpdates = node.metadata["MaxInstanceUpdateCount"] as? AtomicInteger
+        if(maxUpdates?.get() ?: 1 < 1) {
+            logger.debug("Instances updates blocked for ${node.name}, returning")
+            return state
+        }
+
         // first we create a fake UBO to gauge the size of the needed properties
         val ubo = VulkanUBO(device)
         ubo.fromInstance(instances.first())
@@ -242,6 +249,7 @@ object VulkanNodeHelpers {
 
         state.instanceCount = index.get()//instances.size
 
+        maxUpdates?.decrementAndGet()
         return state
     }
 

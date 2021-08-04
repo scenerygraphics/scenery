@@ -140,7 +140,7 @@ open class Box @JvmOverloads constructor(val sizes: Vector3f = Vector3f(1.0f, 1.
          * Creates a box with a hull of size [outerSize] and a wall thickness given in [wallThickness].
          * Returns a container node containing both.
          */
-        @JvmStatic fun hulledBox(outerSize: Vector3f = Vector3f(1.0f, 1.0f, 1.0f), wallThickness: Float = 0.05f): Node {
+        @JvmStatic fun hulledBox(outerSize: Vector3f = Vector3f(1.0f, 1.0f, 1.0f), wallThickness: Float = 0.05f): Mesh {
             val container = Mesh()
             val outer = Box(outerSize, insideNormals = false)
             container.addChild(outer)

@@ -1,22 +1,22 @@
 package graphics.scenery
 
-import org.joml.Vector3f
 import gnu.trove.map.hash.THashMap
 import gnu.trove.set.hash.TLinkedHashSet
-import graphics.scenery.geometry.GeometryType
-import graphics.scenery.primitives.PointCloud
 import graphics.scenery.attribute.geometry.HasGeometry
 import graphics.scenery.attribute.material.DefaultMaterial
 import graphics.scenery.attribute.material.HasMaterial
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.attribute.renderable.HasRenderable
 import graphics.scenery.attribute.spatial.HasSpatial
+import graphics.scenery.geometry.GeometryType
+import graphics.scenery.primitives.PointCloud
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.Image
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.SystemHelpers
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.times
+import org.joml.Vector3f
 import org.lwjgl.system.MemoryUtil
 import java.io.BufferedInputStream
 import java.io.File
@@ -26,8 +26,6 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.FloatBuffer
 import java.nio.file.Files
-import java.util.ArrayList
-import java.util.HashMap
 
 /**
  * Simple Mesh class to store geometry.
@@ -62,7 +60,7 @@ open class Mesh(override var name: String = "Mesh") : DefaultNode(name), HasRend
      * Materials will be used, if present and [useMaterial] is true.
      */
     fun readFrom(filename: String, useMaterial: Boolean = true): Mesh {
-        return when (val ext = filename.substringAfterLast(".").toLowerCase()) {
+        return when (val ext = filename.substringAfterLast(".").lowercase()) {
             "obj" -> readFromOBJ(filename, useMaterial)
             "stl" -> readFromSTL(filename)
             else -> {

@@ -9,13 +9,18 @@ import graphics.scenery.net.NodePublisher
 import graphics.scenery.net.NodeSubscriber
 import graphics.scenery.numerics.Random
 import graphics.scenery.primitives.Cone
+import graphics.scenery.proteins.Protein
+import graphics.scenery.proteins.RibbonDiagram
+import graphics.scenery.utils.Statistics
 import graphics.scenery.utils.extensions.minus
+import graphics.scenery.volumes.BufferedVolume
 import graphics.scenery.volumes.Colormap
 import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.Volume
 import org.scijava.ui.behaviour.ClickBehaviour
 import java.nio.file.Paths
 import kotlin.concurrent.thread
+import kotlin.math.PI
 import kotlin.math.floor
 import kotlin.math.roundToInt
 
@@ -35,7 +40,7 @@ class ClusterExample: SceneryBase("Clustered Volume Rendering example") {
         // in DTrack's Configuration -> Network panel. Use the IP set there for multicast here, and use
         // DTrack's device ID here as well. You will also need to set a screen configuration, have
         // a look at CAVEExample.yml for that.
-        hmd = hub.add(TrackedStereoGlasses("DTrack:0@224.0.1.1:5000", screenConfig = "CAVEExample.yml"))
+        hmd = hub.add(TrackedStereoGlasses("DTrack:0@224.0.1.1:5001", screenConfig = "UniGeneva.yml"))
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, 2560, 1600))
 
         val cam: Camera = DetachedHeadCamera(hmd)
@@ -77,14 +82,68 @@ class ClusterExample: SceneryBase("Clustered Volume Rendering example") {
             s
         }
 
+        val protein = RibbonDiagram(Protein.fromID("4kcp"))
+        protein.spatial {
+            scale = Vector3f(0.02f)
+        }
+       // scene.addChild(protein)
+
+        val basepath = if(System.getProperty("scenery.master").toBoolean()) {
+            // this is the directory on the master
+            //"C:/scenery-base/scenery/models/volumes"
+            "D:/Ulrik Download/"
+        } else {
+            // this is the directory on the rendering nodes
+            //"S:/scenery/models"
+            "D:/Ulrik Download/"
+
+        }
+
+       val volume: BufferedVolume
+       val croc = false
+       if(croc) {
+           volume = Volume.fromPathRaw(Paths.get(basepath + "Croc/104B_08_side1_647_25p.raw"), hub)
+
+           volume.name = "volume"
+           volume.colormap = Colormap.get("viridis") // jet, hot, rainbow, plasma, grays
+           volume.spatial {
+               position = Vector3f(1.0f, 1.0f, 1.0f)
+               scale = Vector3f(1.0f, 1.0f, 1.0f)
+               rotation = rotation.rotationXYZ(PI.toFloat()/2.0f, PI.toFloat()/4.0f,-(PI.toFloat())/4.0f)
+           }
+           volume.ds.converterSetups[0].setDisplayRange(150.0, 4000.0)
+           //volume.ds.converterSetups[0].setDisplayRange(10.0, 6000.0)
+
+           // for drosophila: probably  volume.transferFunction = TransferFunction.ramp(0.001f, 0.5f)
+           volume.transferFunction = TransferFunction.ramp(0.01f, 0.1f)
+           //volume.transferFunction.addControlPoint(0.1f, 0.5f)
+           scene.addChild(volume)
+       } else {
+           volume = Volume.fromPathRaw(Paths.get(basepath + "droso-royer-autopilot-transposed"), hub)
+
+           volume.name = "volume"
+           volume.colormap = Colormap.get("hot") // jet, hot, rainbow, plasma, grays
+           volume.spatial {
+               position = Vector3f(1.0f, 1.0f, 1.0f)
+               scale = Vector3f(5.0f, 25.0f, 5.0f)
+           }
+           volume.ds.converterSetups[0].setDisplayRange(20.0, 500.0)
+           volume.transferFunction = TransferFunction.ramp(0.001f, 0.5f)
+           scene.addChild(volume)
+       }
+
         val lights = Light.createLightTetrahedron<PointLight>(spread = 2.0f, radius = 20.0f)
         lights.forEach { scene.addChild(it) }
         val l = PointLight(5.0f)
         l.spatial().position = Vector3f(0.0f, 2.0f, 2.0f)
         scene.addChild(l)
 
+        publishedNodes.add(cam)
         spheres.forEach { publishedNodes.add(it) }
         lights.forEach { publishedNodes.add(it) }
+        //publishedNodes.add(protein)
+        publishedNodes.add(l)
+        publishedNodes.add(volume)
 
         val publisher = hub.get<NodePublisher>(SceneryElement.NodePublisher)
         val subscriber = hub.get<NodeSubscriber>(SceneryElement.NodeSubscriber)
@@ -93,6 +152,8 @@ class ClusterExample: SceneryBase("Clustered Volume Rendering example") {
             publisher?.nodes?.put(13337 + index, node)
             subscriber?.nodes?.put(13337 + index, node)
         }
+
+        //scene.publishSubscribe(hub, { it != volume })
     }
 
     companion object {

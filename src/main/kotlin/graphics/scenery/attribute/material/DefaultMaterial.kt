@@ -15,7 +15,7 @@ open class DefaultMaterial : Material, Serializable {
     override var roughness: Float = 1.0f
     override var metallic: Float = 0.0f
     override var blending: Blending = Blending()
-    @Volatile override var textures: TimestampedConcurrentHashMap<String, Texture> = TimestampedConcurrentHashMap()
+    @Volatile @Transient override var textures: TimestampedConcurrentHashMap<String, Texture> = TimestampedConcurrentHashMap()
     override var cullingMode: Material.CullingMode = Material.CullingMode.Back
     override var depthTest: Material.DepthTest = Material.DepthTest.LessEqual
     override var wireframe: Boolean = false

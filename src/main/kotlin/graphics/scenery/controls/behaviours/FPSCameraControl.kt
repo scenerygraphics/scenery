@@ -10,13 +10,12 @@ import kotlin.reflect.KProperty
  * FPS-style camera control
  *
  * @author Ulrik Günther <hello@ulrik.is>
- * @property[name] The name of the behaviour
  * @property[node] The node this behaviour controls
  * @property[w] Window width
  * @property[h] Window height
  * @constructor Creates a new FPSCameraControl behaviour
  */
-open class FPSCameraControl(private val name: String, private val n: () -> Camera?, private val w: Int, private val h: Int) : DragBehaviour {
+open class FPSCameraControl(private val n: () -> Camera?, private val w: Int, private val h: Int) : DragBehaviour {
     private var lastX = w / 2
     private var lastY = h / 2
 
@@ -46,7 +45,7 @@ open class FPSCameraControl(private val name: String, private val n: () -> Camer
      * FPS-style camera control, supplying a Camera via a Java [Supplier] lambda.
      */
     @Suppress("unused")
-    constructor(name: String, n: Supplier<Camera?>, w: Int, h: Int) : this(name, { n.get() }, w, h)
+    constructor(name: String, n: Supplier<Camera?>, w: Int, h: Int) : this({ n.get() }, w, h)
 
     /**
      * This function is called upon mouse down and initialises the camera control

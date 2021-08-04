@@ -6,6 +6,7 @@ import graphics.scenery.fonts.SDFFontAtlas
 import graphics.scenery.utils.LazyLogger
 import org.junit.BeforeClass
 import org.junit.Test
+import org.lwjgl.system.Platform
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -22,17 +23,21 @@ class SDFFontAtlasTests {
         val logger by LazyLogger()
         @JvmStatic @BeforeClass
         fun checkOpenCLAvailability() {
-            val hasOpenCL: Boolean
-            hasOpenCL = try {
-                val hub = Hub()
-                OpenCLContext(hub)
-                true
-            } catch (e: UnsatisfiedLinkError) {
-                logger.warn("Disabled OpenCL because of UnsatisfiedLinkError ($e)")
+            val hasOpenCL: Boolean = if (System.getenv("GITHUB_ACTIONS").toBoolean() && Platform.get() == Platform.MACOSX) {
+                logger.warn("Disabled OpenCL because Github Actions on macOS does not support accelerated OpenCL contexts.")
                 false
-            } catch (e: Exception) {
-                logger.warn("Disabled OpenCL because of Exception ($e)")
-                false
+            } else {
+                try {
+                    val hub = Hub()
+                    OpenCLContext(hub)
+                    true
+                } catch (e: UnsatisfiedLinkError) {
+                    logger.warn("Disabled OpenCL because of UnsatisfiedLinkError ($e)")
+                    false
+                } catch (e: Exception) {
+                    logger.warn("Disabled OpenCL because of Exception ($e)")
+                    false
+                }
             }
 
             org.junit.Assume.assumeTrue(hasOpenCL)
