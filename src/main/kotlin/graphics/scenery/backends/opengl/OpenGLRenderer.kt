@@ -530,7 +530,7 @@ open class OpenGLRenderer(hub: Hub,
         val driverVersion = gl.glGetString(GL4.GL_VERSION)
         logger.info("OpenGLRenderer: $width x $height on $driverString, $driverVersion")
 
-        if (driverVersion.toLowerCase().indexOf("nvidia") != -1 && System.getProperty("os.name").toLowerCase().indexOf("windows") != -1) {
+        if (driverVersion.lowercase().indexOf("nvidia") != -1 && System.getProperty("os.name").lowercase().indexOf("windows") != -1) {
             gpuStats = NvidiaGPUStats()
         }
 
@@ -890,7 +890,7 @@ open class OpenGLRenderer(hub: Hub,
      */
     fun textureTypeToUnit(target: OpenGLRenderpass, type: String): Int {
         val offset = if (target.inputs.values.isNotEmpty()) {
-            target.inputs.values.sumBy { it.boundBufferNum }
+            target.inputs.values.sumOf { it.boundBufferNum }
         } else {
             0
         }
@@ -962,7 +962,7 @@ open class OpenGLRenderer(hub: Hub,
     @Suppress("UNUSED")
     fun toggleDebug() {
         settings.getAllSettings().forEach {
-            if (it.toLowerCase().contains("debug")) {
+            if (it.lowercase().contains("debug")) {
                 try {
                     val property = settings.get<Int>(it).toggle()
                     settings.set(it, property)
@@ -1409,6 +1409,12 @@ open class OpenGLRenderer(hub: Hub,
             return state
         }
 
+        val maxUpdates = parentNode.metadata["MaxInstanceUpdateCount"] as? AtomicInteger
+        if(maxUpdates?.get() ?: 1 < 1) {
+            logger.debug("Instances updates blocked for ${parentNode.name}, returning")
+            return state
+        }
+
         // first we create a fake UBO to gauge the size of the needed properties
         val ubo = OpenGLUBO()
         ubo.fromInstance(instances.first())
@@ -1549,6 +1555,7 @@ open class OpenGLRenderer(hub: Hub,
         state.instanceCount = index.get()
         logger.trace("Updated instance buffer, {parentNode.name} has {} instances.", parentNode.name, state.instanceCount)
 
+        maxUpdates?.decrementAndGet()
         return state
     }
 

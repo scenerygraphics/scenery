@@ -66,7 +66,7 @@ class VolumeSamplingExample: SceneryBase("Volume Sampling example", 1280, 720) {
         if(volumeType == VolumeType.File) {
             val folder = File(files.first())
             val stackfiles = folder.listFiles()
-            volumes = stackfiles.filter { it.isFile && it.name.toLowerCase().endsWith("raw") || it.name.substringAfterLast(".").toLowerCase().startsWith("tif") }.map { it.absolutePath }.sorted()
+            volumes = stackfiles.filter { it.isFile && it.name.lowercase().endsWith("raw") || it.name.substringAfterLast(".").lowercase().startsWith("tif") }.map { it.absolutePath }.sorted()
         }
 
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
@@ -170,7 +170,7 @@ class VolumeSamplingExample: SceneryBase("Volume Sampling example", 1280, 720) {
                         }
 
                         logger.debug("Loading volume $newVolume")
-                        if (newVolume.toLowerCase().endsWith("raw")) {
+                        if (newVolume.lowercase().endsWith("raw")) {
                             TODO("Implement reading volumes from raw files")
                         } else {
                             TODO("Implemented reading volumes from image files")

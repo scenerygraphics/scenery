@@ -109,4 +109,8 @@ open class OrientedBoundingBox(val n: Node, val min: Vector3f, val max: Vector3f
     fun translate(offset: Vector3f): OrientedBoundingBox {
         return OrientedBoundingBox(n, min + offset, max + offset)
     }
+
+    override fun toString(): String {
+        return "OrientedBoundingBox(min=$min, max=$max)"
+    }
 }
