@@ -8,6 +8,7 @@ import graphics.scenery.geometry.GeometryType
 import graphics.scenery.attribute.geometry.Geometry
 import graphics.scenery.attribute.geometry.DefaultGeometry
 import graphics.scenery.attribute.geometry.HasGeometry
+import graphics.scenery.attribute.material.HasCustomMaterial
 import graphics.scenery.attribute.material.HasMaterial
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.attribute.renderable.HasRenderable
@@ -16,13 +17,13 @@ import java.nio.FloatBuffer
 import java.nio.IntBuffer
 
 class LinePair @JvmOverloads constructor(var capacity: Int = 50, transparent: Boolean = false, val simple: Boolean = false) : DefaultNode("Line"),
-    HasSpatial, HasRenderable, HasMaterial, HasGeometry {
+    HasSpatial, HasRenderable, HasCustomMaterial<ShaderMaterial>, HasGeometry {
 
     /** Whether the line should be rendered as transparent or not. */
     var transparent: Boolean = transparent
         set(value) {
             field = value
-            activateTransparency(value)
+            createMaterial()
         }
 
     /** Shader property for the line's starting segment color. Consumed by the renderer. */
@@ -60,7 +61,7 @@ class LinePair @JvmOverloads constructor(var capacity: Int = 50, transparent: Bo
                 geometryType = GeometryType.LINE
             } else {
                 geometryType = GeometryType.LINE_STRIP_ADJACENCY
-                activateTransparency(transparent)
+                createMaterial()
             }
 
             vertices.limit(0)
@@ -83,42 +84,6 @@ class LinePair @JvmOverloads constructor(var capacity: Int = 50, transparent: Bo
             override var normals: FloatBuffer = BufferUtils.allocateFloat(3 * capacity)
             override var texcoords: FloatBuffer = BufferUtils.allocateFloat(2 * capacity)
             override var indices: IntBuffer = IntBuffer.wrap(intArrayOf())
-        }
-    }
-
-    protected fun activateTransparency(transparent: Boolean) {
-        if(simple) {
-            return
-        }
-
-        val newMaterial: Material
-
-        if(transparent) {
-            newMaterial = ShaderMaterial.fromFiles(
-                "${this::class.java.simpleName}.vert",
-                "${this::class.java.simpleName}.geom",
-                "${this::class.java.simpleName}Forward.frag"
-            )
-
-            newMaterial.blending.opacity = 1.0f
-            newMaterial.blending.setOverlayBlending()
-        } else {
-            newMaterial = ShaderMaterial.fromClass(
-                this::class.java,
-                listOf(ShaderType.VertexShader, ShaderType.GeometryShader, ShaderType.FragmentShader)
-            )
-        }
-        material {
-            newMaterial.diffuse = diffuse
-            newMaterial.specular = specular
-            newMaterial.ambient = ambient
-            newMaterial.metallic = metallic
-            newMaterial.roughness = roughness
-
-            setMaterial(newMaterial) {
-                blending.transparent = transparent
-                cullingMode = Material.CullingMode.None
-            }
         }
     }
 
@@ -188,4 +153,36 @@ class LinePair @JvmOverloads constructor(var capacity: Int = 50, transparent: Bo
         boundingBox = generateBoundingBox()
     }
 
+    override fun createMaterial(): ShaderMaterial {
+        val newMaterial: ShaderMaterial
+
+        if (transparent) {
+            newMaterial = ShaderMaterial.fromFiles(
+                "${this::class.java.simpleName}.vert",
+                "${this::class.java.simpleName}.geom",
+                "${this::class.java.simpleName}Forward.frag"
+            )
+
+            newMaterial.blending.opacity = 1.0f
+            newMaterial.blending.setOverlayBlending()
+        } else {
+            newMaterial = ShaderMaterial.fromClass(
+                this::class.java,
+                listOf(ShaderType.VertexShader, ShaderType.GeometryShader, ShaderType.FragmentShader)
+            )
+        }
+
+        setMaterial(newMaterial) {
+            newMaterial.diffuse = diffuse
+            newMaterial.specular = specular
+            newMaterial.ambient = ambient
+            newMaterial.metallic = metallic
+            newMaterial.roughness = roughness
+
+            newMaterial.blending.transparent = transparent
+            cullingMode = Material.CullingMode.None
+        }
+
+        return newMaterial
+    }
 }
