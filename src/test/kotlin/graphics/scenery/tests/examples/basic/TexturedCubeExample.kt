@@ -20,7 +20,7 @@ class TexturedCubeExample : SceneryBase("TexturedCubeExample", wantREPL = System
         val box = Box(Vector3f(1.0f, 1.0f, 1.0f))
         box.name = "le box du win"
         box.material {
-            textures["diffuse"] = Texture.fromImage(Image.fromResource("textures/helix.png", this::class.java))
+            textures["diffuse"] = Texture.fromImage(Image.fromResource("textures/helix.png", TexturedCubeExample::class.java))
             metallic = 0.3f
             roughness = 0.9f
         }
