@@ -1,6 +1,5 @@
 package graphics.scenery
 
-import graphics.scenery.attribute.DelegatesProperties
 import graphics.scenery.attribute.DelegationType
 import graphics.scenery.attribute.geometry.DelegatesGeometry
 import graphics.scenery.attribute.geometry.Geometry
@@ -13,7 +12,7 @@ import graphics.scenery.attribute.spatial.HasSpatial
 import org.joml.Matrix4f
 import java.util.concurrent.CopyOnWriteArrayList
 
-open class InstancedNode(template: Node, override var name: String = "InstancedNode") : DefaultNode(name), DelegatesProperties, DelegatesRenderable,
+open class InstancedNode(template: Node, override var name: String = "InstancedNode") : DefaultNode(name), DelegatesRenderable,
     DelegatesGeometry, DelegatesMaterial {
     /** instances */
     val instances = CopyOnWriteArrayList<Instance>()

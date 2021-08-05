@@ -1,8 +1,9 @@
 package graphics.scenery.attribute.geometry
 
 import graphics.scenery.Node
+import graphics.scenery.attribute.HasDelegationType
 
-interface DelegatesGeometry: Node {
+interface DelegatesGeometry: Node, HasDelegationType {
 
     fun getDelegateGeometry(): Geometry?
 

@@ -11,7 +11,7 @@ import graphics.scenery.*
 import graphics.scenery.backends.*
 import graphics.scenery.geometry.GeometryType
 import graphics.scenery.primitives.Plane
-import graphics.scenery.attribute.DelegatesProperties
+import graphics.scenery.attribute.HasDelegationType
 import graphics.scenery.attribute.DelegationType
 import graphics.scenery.attribute.geometry.Geometry
 import graphics.scenery.attribute.material.Material
@@ -1806,7 +1806,7 @@ open class OpenGLRenderer(hub: Hub,
                 actualObjects.forEach renderLoop@ { node ->
                     val renderable = node.renderableOrNull() ?: return@renderLoop
                     val material = node.materialOrNull() ?: return@renderLoop
-                    if(node is DelegatesProperties && node.getDelegationType() == DelegationType.OncePerDelegate) {
+                    if(node is HasDelegationType && node.getDelegationType() == DelegationType.OncePerDelegate) {
                         if(seenDelegates.contains(renderable)) {
                             return@renderLoop
                         } else {
