@@ -747,8 +747,6 @@ class VolumeManager(
     @Synchronized
     fun remove(node: Volume) {
         logger.debug("Removing $node to OOC nodes")
-        node.setDelegateRenderable(null)
-        node.setDelegateGeometry(null)
         nodes.remove(node)
 
         val volumes = nodes.toMutableList()
@@ -764,8 +762,6 @@ class VolumeManager(
         }
         volumes.forEach {
             vm.add(it)
-            it.setDelegateRenderable(vm.renderable())
-            it.setDelegateGeometry(vm.geometry())
         }
 
         hub?.add(vm)
