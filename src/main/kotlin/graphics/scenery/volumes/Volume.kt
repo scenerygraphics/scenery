@@ -76,32 +76,16 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
         return delegationType
     }
 
-    private var delegateRenderable: Renderable? = null
-    private var delegateMaterial: Material? = null
-    private var delegateGeometry: Geometry? = null
-
     override fun getDelegateRenderable(): Renderable? {
-        return delegateRenderable
-    }
-
-    fun setDelegateRenderable(delegate: Renderable?) {
-        delegateRenderable = delegate
+        return volumeManager.renderableOrNull()
     }
 
     override fun getDelegateGeometry(): Geometry? {
-        return delegateGeometry
-    }
-
-    fun setDelegateGeometry(delegate: Geometry?) {
-        delegateGeometry = delegate
+        return volumeManager.geometryOrNull()
     }
 
     override fun getDelegateMaterial(): Material? {
-        return delegateMaterial
-    }
-
-    fun setDelegateMaterial(delegate: Material?) {
-        delegateMaterial = delegate
+        return volumeManager.materialOrNull()
     }
 
     val converterSetups = ArrayList<ConverterSetup>()
@@ -255,14 +239,8 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
             volumeManager.add(this)
             volumes.forEach {
                 volumeManager.add(it)
-                it.delegateRenderable = volumeManager.renderable()
-                it.delegateGeometry = volumeManager.geometry()
-                it.delegateMaterial = volumeManager.material()
                 it.volumeManager = volumeManager
             }
-            delegateRenderable = volumeManager.renderable()
-            delegateGeometry = volumeManager.geometry()
-            delegateMaterial = volumeManager.material()
         }
     }
 
