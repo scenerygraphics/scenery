@@ -7,7 +7,7 @@ import graphics.scenery.backends.vulkan.VulkanNodeHelpers.rendererMetadata
 import graphics.scenery.compute.ComputeMetadata
 import graphics.scenery.compute.InvocationType
 import graphics.scenery.geometry.GeometryType
-import graphics.scenery.attribute.DelegatesProperties
+import graphics.scenery.attribute.HasDelegationType
 import graphics.scenery.attribute.DelegationType
 import graphics.scenery.attribute.renderable.Renderable
 import graphics.scenery.textures.Texture
@@ -70,7 +70,7 @@ object VulkanScenePass {
         sceneObjects.filter { customNodeFilter?.invoke(it) ?: true }.forEach { node ->
             val renderable = node.renderableOrNull() ?: return@forEach
             val material = node.materialOrNull() ?: return@forEach
-            if(node is DelegatesProperties && node.getDelegationType() == DelegationType.OncePerDelegate) {
+            if(node is HasDelegationType && node.getDelegationType() == DelegationType.OncePerDelegate) {
                 if(seenDelegates.contains(renderable)) {
                     return@forEach
                 } else {

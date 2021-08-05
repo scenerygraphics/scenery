@@ -1,8 +1,9 @@
 package graphics.scenery.attribute.spatial
 
 import graphics.scenery.Node
+import graphics.scenery.attribute.HasDelegationType
 
-interface DelegatesSpatial: Node {
+interface DelegatesSpatial: Node, HasDelegationType {
 
     fun getDelegateSpatial(): Spatial?
 

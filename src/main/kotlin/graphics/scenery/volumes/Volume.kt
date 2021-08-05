@@ -23,7 +23,6 @@ import graphics.scenery.DefaultNode
 import graphics.scenery.DisableFrustumCulling
 import graphics.scenery.Hub
 import graphics.scenery.Origin
-import graphics.scenery.attribute.DelegatesProperties
 import graphics.scenery.attribute.DelegationType
 import graphics.scenery.attribute.geometry.DelegatesGeometry
 import graphics.scenery.attribute.geometry.Geometry
@@ -70,7 +69,7 @@ import kotlin.streams.toList
 
 @Suppress("DEPRECATION")
 open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOptions, @Transient val hub: Hub) : DefaultNode("Volume"),
-    DelegatesProperties, DelegatesRenderable, DelegatesGeometry, DelegatesMaterial, DisableFrustumCulling, HasCustomSpatial<Volume.VolumeSpatial> {
+    DelegatesRenderable, DelegatesGeometry, DelegatesMaterial, DisableFrustumCulling, HasCustomSpatial<Volume.VolumeSpatial> {
 
     private val delegationType: DelegationType = DelegationType.OncePerDelegate
     override fun getDelegationType(): DelegationType {

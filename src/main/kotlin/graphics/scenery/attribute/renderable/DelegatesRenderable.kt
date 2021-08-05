@@ -1,6 +1,7 @@
 package graphics.scenery.attribute.renderable
 
 import graphics.scenery.Node
+import graphics.scenery.attribute.HasDelegationType
 
 /**
  * Node type that enables delegation of rendering. For rendering, not the node itself will be drawn,
@@ -9,7 +10,7 @@ import graphics.scenery.Node
  *
  * @author Ulrik Guenther <hello@ulrik.is>
  */
-interface DelegatesRenderable: Node {
+interface DelegatesRenderable: Node, HasDelegationType {
 
     fun getDelegateRenderable(): Renderable?
 
