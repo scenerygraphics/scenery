@@ -3,10 +3,8 @@ package graphics.scenery.controls.behaviours
 import graphics.scenery.Camera
 import graphics.scenery.Node
 import graphics.scenery.utils.LazyLogger
-import graphics.scenery.utils.extensions.plus
 import net.java.games.input.Component
 import org.joml.Quaternionf
-import org.joml.Vector3f
 import kotlin.math.abs
 import kotlin.reflect.KProperty
 
@@ -120,16 +118,20 @@ open class GamepadRotationControl(override val axis: List<Component.Identifier>,
             if (pitch < -89.0f) {
                 pitch = -89.0f
             }
+            n.spatial {
+                val yawQ = Quaternionf().rotateXYZ(0.0f, frameYaw, 0.0f)
+                val pitchQ = Quaternionf().rotateXYZ(framePitch, 0.0f, 0.0f)
 
-            val yawQ = Quaternionf().rotateXYZ(0.0f, frameYaw, 0.0f)
-            val pitchQ = Quaternionf().rotateXYZ(framePitch, 0.0f, 0.0f)
+                rotation = pitchQ.mul(rotation).mul(yawQ).normalize()
+            }
 
-            n.rotation = pitchQ.mul(n.rotation).mul(yawQ).normalize()
         } else {
-            if(axis != this.axis.first()) {
-                n.rotation = n.rotation.rotateLocalY(framePitch).normalize()
-            } else {
-                n.rotation = n.rotation.rotateLocalX(frameYaw).normalize()
+            n.ifSpatial {
+                if(axis != this@GamepadRotationControl.axis.first()) {
+                    rotation = rotation.rotateLocalY(framePitch).normalize()
+                } else {
+                    rotation = rotation.rotateLocalX(frameYaw).normalize()
+                }
             }
         }
     }
