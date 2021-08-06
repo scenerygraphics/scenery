@@ -110,7 +110,7 @@ class CurveDifferentBaseShapes: SceneryBase("CurveDifferentBaseShapes", windowWi
 
         val cam: Camera = DetachedHeadCamera()
         cam.spatial {
-            position = Vector3f(0.0f, 0.0f, 15.0f)
+            position = Vector3f(0.0f, 0.0f, 10.0f)
         }
         cam.perspectiveCamera(50.0f, windowWidth, windowHeight)
         scene.addChild(cam)
