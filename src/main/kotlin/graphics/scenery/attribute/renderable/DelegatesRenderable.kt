@@ -19,12 +19,4 @@ interface DelegatesRenderable: Node, HasDelegationType {
         delegateRenderable?.block()
         return delegateRenderable
     }
-
-    @Throws(IllegalStateException::class)
-    fun renderable(block: Renderable.() -> Unit): Renderable {
-        val delegateRenderable = getDelegateRenderable()
-            ?: throw IllegalStateException(name + ": delegates renderable properties, but the delegate is null")
-        delegateRenderable.block()
-        return delegateRenderable
-    }
 }

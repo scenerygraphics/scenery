@@ -12,12 +12,4 @@ interface DelegatesGeometry: Node, HasDelegationType {
         delegateGeometry?.block()
         return delegateGeometry
     }
-
-    @Throws(IllegalStateException::class)
-    fun geometry(block: Geometry.() -> Unit): Geometry {
-        val delegateGeometry = getDelegateGeometry()
-            ?: throw IllegalStateException(name + ": delegates geometry properties, but the delegate is null")
-        delegateGeometry.block()
-        return delegateGeometry
-    }
 }
