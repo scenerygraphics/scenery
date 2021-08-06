@@ -136,6 +136,7 @@ class ExampleRunner {
                             delay(200)
                         }
 
+                        delay(2000)
                         r.screenshot("$rendererDirectory/${example.simpleName}.png")
                         Thread.sleep(2000)
 
