@@ -4,6 +4,7 @@ import graphics.scenery.DefaultNode
 import graphics.scenery.Node
 import graphics.scenery.attribute.DefaultAttributesMap
 import graphics.scenery.attribute.geometry.DefaultGeometry
+import graphics.scenery.attribute.geometry.DelegatesGeometry
 import graphics.scenery.attribute.geometry.Geometry
 import graphics.scenery.attribute.geometry.HasGeometry
 import graphics.scenery.attribute.material.DefaultMaterial
@@ -11,16 +12,15 @@ import graphics.scenery.attribute.material.DelegatesMaterial
 import graphics.scenery.attribute.material.HasMaterial
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.attribute.renderable.DefaultRenderable
+import graphics.scenery.attribute.renderable.DelegatesRenderable
 import graphics.scenery.attribute.renderable.HasRenderable
 import graphics.scenery.attribute.renderable.Renderable
 import graphics.scenery.attribute.spatial.DefaultSpatial
+import graphics.scenery.attribute.spatial.DelegatesSpatial
 import graphics.scenery.attribute.spatial.HasSpatial
 import graphics.scenery.attribute.spatial.Spatial
 import org.junit.Test
-import kotlin.test.assertFalse
-import kotlin.test.assertNotNull
-import kotlin.test.assertNull
-import kotlin.test.assertTrue
+import kotlin.test.*
 
 class AttributeTests {
 
@@ -164,10 +164,56 @@ class AttributeTests {
     fun testDelegatesMaterial() {
         val node = NodeWithMaterial()
         node.addMaterial()
-        val nodeWithoutMaterial = NodeWithDelegateMaterial()
-        nodeWithoutMaterial.setDelegate(node)
-        assertNotNull(node.materialOrNull())
-        assertNotNull(node.material())
+        val nodeDelegatingMaterial = NodeWithDelegateMaterial()
+        assertNull(nodeDelegatingMaterial.getDelegateMaterial())
+        assertNull(nodeDelegatingMaterial.materialOrNull())
+        assertNull(nodeDelegatingMaterial.ifMaterial{})
+        nodeDelegatingMaterial.setDelegate(node)
+        assertNotNull(nodeDelegatingMaterial.getDelegateMaterial())
+        assertEquals(node.material(), nodeDelegatingMaterial.materialOrNull())
+        assertEquals(node.material(), nodeDelegatingMaterial.ifMaterial{})
+    }
+
+    @Test
+    fun testDelegatesGeometry() {
+        val node = NodeWithGeometry()
+        node.addGeometry()
+        val nodeDelegatingGeometry = NodeWithDelegateGeometry()
+        assertNull(nodeDelegatingGeometry.getDelegateGeometry())
+        assertNull(nodeDelegatingGeometry.geometryOrNull())
+        assertNull(nodeDelegatingGeometry.ifGeometry{})
+        nodeDelegatingGeometry.setDelegate(node)
+        assertNotNull(nodeDelegatingGeometry.getDelegateGeometry())
+        assertEquals(node.geometry(), nodeDelegatingGeometry.geometryOrNull())
+        assertEquals(node.geometry(), nodeDelegatingGeometry.ifGeometry{})
+    }
+
+    @Test
+    fun testDelegatesRenderable() {
+        val node = NodeWithRenderable()
+        node.addRenderable()
+        val nodeDelegatingRenderable = NodeWithDelegateRenderable()
+        assertNull(nodeDelegatingRenderable.getDelegateRenderable())
+        assertNull(nodeDelegatingRenderable.renderableOrNull())
+        assertNull(nodeDelegatingRenderable.ifRenderable{})
+        nodeDelegatingRenderable.setDelegate(node)
+        assertNotNull(nodeDelegatingRenderable.getDelegateRenderable())
+        assertEquals(node.renderable(), nodeDelegatingRenderable.renderableOrNull())
+        assertEquals(node.renderable(), nodeDelegatingRenderable.ifRenderable{})
+    }
+
+    @Test
+    fun testDelegatesSpatial() {
+        val node = NodeWithSpatial()
+        node.addSpatial()
+        val nodeDelegatingSpatial = NodeWithDelegateSpatial()
+        assertNull(nodeDelegatingSpatial.getDelegateSpatial())
+        assertNull(nodeDelegatingSpatial.spatialOrNull())
+        assertNull(nodeDelegatingSpatial.ifSpatial{})
+        nodeDelegatingSpatial.setDelegate(node)
+        assertNotNull(nodeDelegatingSpatial.getDelegateSpatial())
+        assertEquals(node.spatial(), nodeDelegatingSpatial.spatialOrNull())
+        assertEquals(node.spatial(), nodeDelegatingSpatial.ifSpatial{})
     }
 
     internal class NodeWithGeometry : DefaultNode(), HasGeometry
@@ -175,14 +221,37 @@ class AttributeTests {
     internal class NodeWithSpatial : DefaultNode(), HasSpatial
     internal class NodeWithMaterial : DefaultNode(), HasMaterial
 
-    internal class NodeWithDelegateMaterial : DefaultNode(), DelegatesMaterial {
-        private var mydelegate: Node? = null
+    internal open class FakeDelegateClass : DefaultNode() {
+        protected var mydelegate: Node? = null
+        fun setDelegate(node: Node) {
+            mydelegate = node
+        }
+    }
+
+    internal class NodeWithDelegateMaterial : FakeDelegateClass(), DelegatesMaterial {
         override fun getDelegateMaterial(): Material? {
             if(mydelegate != null) return mydelegate!!.materialOrNull()
             else return null
         }
-        fun setDelegate(node: Node) {
-            mydelegate = node
+    }
+
+    internal class NodeWithDelegateGeometry : FakeDelegateClass(), DelegatesGeometry {
+        override fun getDelegateGeometry(): Geometry? {
+            if(mydelegate != null) return mydelegate!!.geometryOrNull()
+            else return null
+        }
+    }
+
+    internal class NodeWithDelegateSpatial : FakeDelegateClass(), DelegatesSpatial {
+        override fun getDelegateSpatial(): Spatial? {
+            if(mydelegate != null) return mydelegate!!.spatialOrNull()
+            else return null
+        }
+    }
+    internal class NodeWithDelegateRenderable : FakeDelegateClass(), DelegatesRenderable {
+        override fun getDelegateRenderable(): Renderable? {
+            if(mydelegate != null) return mydelegate!!.renderableOrNull()
+            else return null
         }
     }
 

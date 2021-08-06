@@ -19,12 +19,4 @@ interface DelegatesMaterial: Node, HasDelegationType {
         delegateMaterial?.block()
         return delegateMaterial
     }
-
-    @Throws(IllegalStateException::class)
-    fun material(block: Material.() -> Unit): Material {
-        val delegateMaterial = getDelegateMaterial()
-            ?: throw IllegalStateException(name + ": delegates material properties, but the delegate is null")
-        delegateMaterial.block()
-        return delegateMaterial
-    }
 }
