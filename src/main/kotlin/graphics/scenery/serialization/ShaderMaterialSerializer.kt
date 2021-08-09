@@ -4,8 +4,8 @@ import com.esotericsoftware.kryo.Kryo
 import com.esotericsoftware.kryo.Serializer
 import com.esotericsoftware.kryo.io.Input
 import com.esotericsoftware.kryo.io.Output
-import graphics.scenery.Material
 import graphics.scenery.ShaderMaterial
+import graphics.scenery.attribute.material.Material
 import graphics.scenery.backends.Shaders
 
 class ShaderMaterialSerializer: Serializer<ShaderMaterial>() {

@@ -1,15 +1,21 @@
 package graphics.scenery.net
 
-import org.joml.Matrix4f
-import org.joml.Vector3f
 import com.esotericsoftware.kryo.Kryo
 import com.esotericsoftware.kryo.io.Input
 import com.jogamp.opengl.math.Quaternion
 import graphics.scenery.*
+import graphics.scenery.geometry.GeometryType
+import graphics.scenery.primitives.Arrow
+import graphics.scenery.primitives.Cylinder
+import graphics.scenery.primitives.Line
+import graphics.scenery.proteins.Protein
+import graphics.scenery.proteins.RibbonDiagram
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.Statistics
 import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.Volume
+import org.joml.Matrix4f
+import org.joml.Vector3f
 import org.objenesis.strategy.StdInstantiatorStrategy
 import org.zeromq.ZContext
 import org.zeromq.ZMQ
@@ -52,13 +58,22 @@ class NodeSubscriber(override var hub: Hub?, val address: String = "tcp://localh
                         val input = Input(bin)
                         val o = kryo.readClassAndObject(input) as? Node ?: return@let
 
-                        node.position = o.position
-                        node.rotation = o.rotation
-                        node.scale = o.scale
+                        val oSpatial = o.spatialOrNull()
+                        if (oSpatial != null) {
+                            node.ifSpatial {
+                                position = oSpatial.position
+                                rotation = oSpatial.rotation
+                                scale = oSpatial.scale
+                            }
+                        }
                         node.visible = o.visible
 
-                        node.material.diffuse = o.material.diffuse
-                        node.material.blending = o.material.blending
+                        node.ifMaterial {
+                            o.materialOrNull()?.let {
+                                diffuse = it.diffuse
+                                blending = it.blending
+                            }
+                        }
 
                         if (Volume::class.java.isAssignableFrom(o.javaClass) && Volume::class.java.isAssignableFrom(node.javaClass)) {
                             (node as Volume).colormap = (o as Volume).colormap
