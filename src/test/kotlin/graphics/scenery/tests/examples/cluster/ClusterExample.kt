@@ -8,6 +8,9 @@ import graphics.scenery.controls.TrackedStereoGlasses
 import graphics.scenery.net.NodePublisher
 import graphics.scenery.net.NodeSubscriber
 import graphics.scenery.numerics.Random
+import graphics.scenery.primitives.Cone
+import graphics.scenery.proteins.Protein
+import graphics.scenery.proteins.RibbonDiagram
 import graphics.scenery.utils.Statistics
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.volumes.BufferedVolume
@@ -43,7 +46,9 @@ class ClusterExample: SceneryBase("Clustered Volume Rendering example") {
         val cam: Camera = DetachedHeadCamera(hmd)
         with(cam) {
             //position = Vector3f(.4f, .4f, 1.4f)
-            position = Vector3f(.0f, 0f, 0f)
+            cam.spatial {
+                position = Vector3f(.0f, 0f, 0f)
+            }
             perspectiveCamera(50.0f, windowWidth, windowHeight)
 
             scene.addChild(this)
@@ -56,25 +61,31 @@ class ClusterExample: SceneryBase("Clustered Volume Rendering example") {
                 it % 3 == 0 -> Cone(0.1f, 0.2f, 10)
                 else -> Icosphere(0.1f, 2)
             }
-            s.position = Vector3f(
-                floor(it / rowSize),
-                (it % rowSize.toInt()).toFloat(),
-                0.0f)
-            s.position = s.position - Vector3f(
-                (rowSize - 1.0f)/4.0f,
-                (rowSize - 1.0f)/4.0f,
-                0.0f)
+            s.spatial {
+                position = Vector3f(
+                    floor(it / rowSize),
+                    (it % rowSize.toInt()).toFloat(),
+                    0.0f)
+                position = position - Vector3f(
+                    (rowSize - 1.0f)/4.0f,
+                    (rowSize - 1.0f)/4.0f,
+                    0.0f)
+            }
 
-            s.material.roughness = (it / rowSize)/rowSize
-            s.material.metallic = (it % rowSize.toInt())/rowSize
-            s.material.diffuse = Random.random3DVectorFromRange(0.5f, 1.0f)
+            s.material {
+                roughness = (it / rowSize)/rowSize
+                metallic = (it % rowSize.toInt())/rowSize
+                diffuse = Random.random3DVectorFromRange(0.5f, 1.0f)
+            }
 
             scene.addChild(s)
             s
         }
 
         val protein = RibbonDiagram(Protein.fromID("4kcp"))
-        protein.scale = Vector3f(0.02f)
+        protein.spatial {
+            scale = Vector3f(0.02f)
+        }
        // scene.addChild(protein)
 
         val basepath = if(System.getProperty("scenery.master").toBoolean()) {
@@ -95,11 +106,11 @@ class ClusterExample: SceneryBase("Clustered Volume Rendering example") {
 
            volume.name = "volume"
            volume.colormap = Colormap.get("viridis") // jet, hot, rainbow, plasma, grays
-           volume.position = Vector3f(1.0f, 1.0f, 1.0f)
-           volume.scale = Vector3f(1.0f, 1.0f, 1.0f)
-           //volume.rotation = volume.rotation.rotationZ(PI.toFloat()/2.0f)
-           //volume.rotation = volume.rotation.rotationX(PI.toFloat())
-           volume.rotation = volume.rotation.rotationXYZ(PI.toFloat()/2.0f, PI.toFloat()/4.0f,-(PI.toFloat())/4.0f)
+           volume.spatial {
+               position = Vector3f(1.0f, 1.0f, 1.0f)
+               scale = Vector3f(1.0f, 1.0f, 1.0f)
+               rotation = rotation.rotationXYZ(PI.toFloat()/2.0f, PI.toFloat()/4.0f,-(PI.toFloat())/4.0f)
+           }
            volume.ds.converterSetups[0].setDisplayRange(150.0, 4000.0)
            //volume.ds.converterSetups[0].setDisplayRange(10.0, 6000.0)
 
@@ -112,8 +123,10 @@ class ClusterExample: SceneryBase("Clustered Volume Rendering example") {
 
            volume.name = "volume"
            volume.colormap = Colormap.get("hot") // jet, hot, rainbow, plasma, grays
-           volume.position = Vector3f(1.0f, 1.0f, 1.0f)
-           volume.scale = Vector3f(5.0f, 25.0f, 5.0f)
+           volume.spatial {
+               position = Vector3f(1.0f, 1.0f, 1.0f)
+               scale = Vector3f(5.0f, 25.0f, 5.0f)
+           }
            volume.ds.converterSetups[0].setDisplayRange(20.0, 500.0)
            volume.transferFunction = TransferFunction.ramp(0.001f, 0.5f)
            scene.addChild(volume)
@@ -122,7 +135,7 @@ class ClusterExample: SceneryBase("Clustered Volume Rendering example") {
         val lights = Light.createLightTetrahedron<PointLight>(spread = 2.0f, radius = 20.0f)
         lights.forEach { scene.addChild(it) }
         val l = PointLight(5.0f)
-        l.position = Vector3f(0.0f, 2.0f, 2.0f)
+        l.spatial().position = Vector3f(0.0f, 2.0f, 2.0f)
         scene.addChild(l)
 
         publishedNodes.add(cam)
