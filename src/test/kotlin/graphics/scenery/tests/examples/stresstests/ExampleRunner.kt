@@ -42,21 +42,22 @@ class ExampleRunner {
 
         // blacklist contains examples that require user interaction or additional devices
         val blocklist = mutableListOf(
-            "LocalisationExample",
+            // these examples don't work in headless mode
             "SwingTexturedCubeExample",
             "TexturedCubeJavaExample",
-            "XwingLiverExample",
+            // these examples need additional hardware
             "VRControllerExample",
             "EyeTrackingExample",
             "ARExample",
+            // these examples require user input and/or files
+            "LocalisationExample",
             "ReaderExample",
             "BDVExample",
             "BigAndSmallVolumeExample",
             "VolumeSamplingExample",
-            "SwingTexturedCubeExample",
             "VideoRecordingExample",
-            // TODO: this has a bug apparently coming from BVV
-            "FlybrainOutOfCoreExample"
+            // these examples don't render anything
+            "AttributesExample"
         )
 
         blocklist.addAll(System.getProperty("scenery.ExampleRunner.Blocklist", "").split(","))
@@ -134,6 +135,7 @@ class ExampleRunner {
                             delay(200)
                         }
 
+                        delay(2000)
                         r.screenshot("$rendererDirectory/${example.simpleName}.png")
                         Thread.sleep(2000)
 
