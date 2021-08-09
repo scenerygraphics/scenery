@@ -2,6 +2,11 @@ package graphics.scenery.backends.vulkan
 
 import graphics.scenery.*
 import org.joml.Vector3f
+import graphics.scenery.geometry.GeometryType
+import graphics.scenery.Node
+import graphics.scenery.attribute.renderable.Renderable
+import graphics.scenery.Settings
+import graphics.scenery.attribute.material.Material
 import graphics.scenery.backends.*
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.RingBuffer
@@ -372,9 +377,9 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
         }
     }
 
-    fun getDescriptorSetLayoutForTexture(name: String, node: Node): Pair<Long, List<VulkanShaderModule.UBOSpec>>? {
+    fun getDescriptorSetLayoutForTexture(name: String, renderable: Renderable): Pair<Long, List<VulkanShaderModule.UBOSpec>>? {
         logger.debug("Looking for texture name $name in descriptor specs")
-        val set = getActivePipeline(node).descriptorSpecs.entries
+        val set = getActivePipeline(renderable).descriptorSpecs.entries
             .groupBy { it.value.set }
             .toSortedMap()
             .filter { it.value.any { spec -> spec.value.name == name } }
@@ -391,10 +396,10 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
     /**
      * Returns the order of shader properties as a map for a given [node] as required by the shader file.
      */
-    fun getShaderPropertyOrder(node: Node): Map<String, Int> {
+    fun getShaderPropertyOrder(renderable: Renderable): Map<String, Int> {
         // this creates a shader property UBO for items marked @ShaderProperty in node
-        logger.debug("specs: ${this.pipelines.getValue("preferred-${node.uuid}").descriptorSpecs}")
-        val shaderPropertiesSpec = this.pipelines.getValue("preferred-${node.uuid}").descriptorSpecs.filter { it.key == "ShaderProperties" }.map { it.value.members }
+        logger.debug("specs: ${this.pipelines.getValue("preferred-${renderable.getUuid()}").descriptorSpecs}")
+        val shaderPropertiesSpec = this.pipelines.getValue("preferred-${renderable.getUuid()}").descriptorSpecs.filter { it.key == "ShaderProperties" }.map { it.value.members }
 
         if(shaderPropertiesSpec.count() == 0) {
             logger.debug("Warning: Shader file uses no declared shader properties, despite the class declaring them.")
@@ -498,7 +503,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
     }
 
     fun registerPipelineForNode(pipeline: VulkanPipeline, node: Node) {
-        pipelines["preferred-${node.uuid}"] = pipeline
+        pipelines["preferred-${node.getUuid()}"] = pipeline
     }
 
     fun initializePipeline(shaderModules: List<VulkanShaderModule>, cullingMode: Material.CullingMode, depthTest: Material.DepthTest, blending: Blending, wireframe: Boolean, vertexDescription: VulkanRenderer.VertexDescription?): VulkanPipeline {
@@ -823,18 +828,18 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
     fun getWritePosition() = commandBufferBacking.currentWritePosition - 1
 
     /**
-     * Returns the active [VulkanPipeline] for [forNode], if it has a preferred pipeline,
+     * Returns the active [VulkanPipeline] for [forRenderable], if it has a preferred pipeline,
      * or the default one if not.
      */
-    fun getActivePipeline(forNode: Node): VulkanPipeline {
-        return pipelines.getOrDefault("preferred-${forNode.uuid}", getDefaultPipeline())
+    fun getActivePipeline(forRenderable: Renderable): VulkanPipeline {
+        return pipelines.getOrDefault("preferred-${forRenderable.getUuid()}", getDefaultPipeline())
     }
 
     /**
-     * Removes any preferred [VulkanPipeline] for the node given in [forNode].
+     * Removes any preferred [VulkanPipeline] for the node given in [forRenderable].
      */
-    fun removePipeline(forNode: Node): Boolean {
-        return pipelines.remove("preferred-${forNode.uuid}") != null
+    fun removePipeline(forRenderable: Renderable): Boolean {
+        return pipelines.remove("preferred-${forRenderable.getUuid()}") != null
     }
 
     /**
