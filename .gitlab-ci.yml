@@ -20,7 +20,6 @@ unit-tests-no-gpu:
     - apt-get update -qq --force-yes > /dev/null
     - apt-get install -qq -y --allow-downgrades --allow-remove-essential --allow-change-held-packages unzip wget git curl libgl1-mesa-glx sudo sed > /dev/null
     - if [ ! -d "$MODEL_DIR" ]; then wget -q https://ulrik.is/scenery-demo-models.zip && unzip -q scenery-demo-models.zip; fi
-    - sudo sed -i -e '/^assistive_technologies=/s/^/#/' /etc/java-*-openjdk/accessibility.properties
     - chmod +x gradlew
   script:
     - ./gradlew build -x dokkaHtml -x dokkaHtmlJar -x javadoc -x dokkaJavadocJar
