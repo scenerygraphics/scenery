@@ -2,7 +2,6 @@ package graphics.scenery.backends.vulkan
 
 import graphics.scenery.*
 import graphics.scenery.backends.*
-import graphics.scenery.backends.vulkan.VulkanDevice.VulkanObjectType.*
 import graphics.scenery.attribute.renderable.Renderable
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.attribute.renderable.DelegatesRenderable
@@ -22,7 +21,6 @@ import org.lwjgl.system.Configuration
 import org.lwjgl.system.MemoryStack.stackPush
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.system.Platform
-import org.lwjgl.system.jemalloc.JEmalloc.*
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.EXTDebugReport.*
 import org.lwjgl.vulkan.EXTDebugUtils.*
@@ -326,7 +324,7 @@ open class VulkanRenderer(hub: Hub,
     private var screenshotFilename = ""
     var screenshotBuffer: VulkanBuffer? = null
     var imageBuffer: ByteBuffer? = null
-    var encoder: H264Encoder? = null
+    var encoder: VideoEncoder? = null
     private var movieFilename = ""
     private var recordMovie: Boolean = false
     private var recordMovieOverwrite: Boolean = false
@@ -1368,7 +1366,7 @@ open class VulkanRenderer(hub: Hub,
                         File(movieFilename)
                     }, recordMovieOverwrite)
 
-                    encoder = H264Encoder(
+                    encoder = VideoEncoder(
                         (window.width * settings.get<Float>("Renderer.SupersamplingFactor")).toInt(),
                         (window.height* settings.get<Float>("Renderer.SupersamplingFactor")).toInt(),
                         file.absolutePath,
