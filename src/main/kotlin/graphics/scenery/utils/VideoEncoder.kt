@@ -26,6 +26,7 @@ import org.bytedeco.ffmpeg.swscale.SwsContext
 import org.bytedeco.javacpp.BytePointer
 import org.bytedeco.javacpp.DoublePointer
 import org.lwjgl.system.MemoryUtil
+import java.io.File
 import java.net.InetAddress
 import java.nio.ByteBuffer
 import java.util.*
@@ -53,8 +54,14 @@ import kotlin.math.roundToLong
  * @author Ulrik Günther <hello@ulrik.is>
  */
 
-class H264Encoder(val frameWidth: Int, val frameHeight: Int, filename: String, val fps: Int = 60, override var hub: Hub? = null, val networked: Boolean = false,
-                  val streamingAddress: String = "udp://${InetAddress.getLocalHost().hostAddress}:3337"): Hubable {
+class VideoEncoder(
+    val frameWidth: Int,
+    val frameHeight: Int,
+    val filename: String,
+    val fps: Int = 60,
+    override var hub: Hub? = null,
+    val networked: Boolean = hub?.get<Settings>()?.get("VideoEncoder.StreamVideo", false) ?: false
+): Hubable {
     protected val logger by LazyLogger()
     protected lateinit var frame: AVFrame
     protected lateinit var tmpframe: AVFrame
@@ -73,11 +80,18 @@ class H264Encoder(val frameWidth: Int, val frameHeight: Int, filename: String, v
     protected var actualFrameHeight: Int = 512
     protected val startTimestamp: Long
 
+    /** Video encoding format, can be H264 or HEVC. */
     val format = VideoFormat.valueOf(hub?.get<Settings>(SceneryElement.Settings)?.get("VideoEncoder.Format", "H264") ?: "H264")
+    /** Quality preset of the encoder, if available. Default is [VideoEncodingQuality.Medium]. */
     val quality = VideoEncodingQuality.valueOf(hub?.get<Settings>(SceneryElement.Settings)?.get("VideoEncoder.Quality", "Medium") ?: "Medium")
-    val bitrate = hub?.get<Settings>(SceneryElement.Settings)?.get("VideoEncoder.Bitrate", 10000000) ?: 10000000
+    /** Bitrate to use for video encoding. Default is 2MBit. */
+    val bitrate = hub?.get<Settings>(SceneryElement.Settings)?.get("VideoEncoder.Bitrate", 2000000) ?: 2000000
 
+    /** Disables hardware accelleration, will always fall back to the (slow) software encoder. If false, NVenc, AMF or QuickSync will be used. */
     val disableHWAcceleration = hub?.get<Settings>(SceneryElement.Settings)?.get("VideoEncoder.DisableHWEncoding", false)
+
+    /** The streaming address to use, if [networked] is true. Defaults to RTP streaming on port 5004, will write out an SDP file to the current working directory. */
+    val streamingAddress = hub?.get<Settings>()?.get("VideoEncoder.StreamingAddress", "rtp://${InetAddress.getLocalHost().hostAddress}:5004") ?: "rtp://${InetAddress.getLocalHost().hostAddress}:5004"
 
     enum class VideoFormat {
         H264,
@@ -143,7 +157,7 @@ class H264Encoder(val frameWidth: Int, val frameHeight: Int, filename: String, v
                 outputFile = streamingAddress
                 logger.info("Using network streaming, serving at $streamingAddress")
 
-                "rtp" to av_guess_format("mpegts", null, null)
+                "rtp" to av_guess_format("rtp", null, null)
             } else {
                 "mp4" to av_guess_format("mp4", null, null)
             }
@@ -165,12 +179,12 @@ class H264Encoder(val frameWidth: Int, val frameHeight: Int, filename: String, v
 
                 Triple("AMD AMF", avcodec_find_encoder_by_name("${format.toString().lowercase()}_amf"), { context -> context }),
 
-                Triple("Intel Quick Sync Video", avcodec_find_encoder_by_name("${format.toString().lowercase()}_qsv"), { context: AVCodecContext ->
+                Triple("Intel Quick Sync Video", avcodec_find_encoder_by_name("${format.toString().lowercase()}_qsv")) { context: AVCodecContext ->
                     logger.debug("Creating QuickSync device")
                     val device = AVBufferRef()
                     val create = av_hwdevice_ctx_create(device, AV_HWDEVICE_TYPE_QSV, "", AVDictionary(), 0)
 
-                    if(create < 0) {
+                    if (create < 0) {
                         logger.error("Could not open QSV device: ${ffmpegErrorString(create)}")
                         null
                     } else {
@@ -179,14 +193,14 @@ class H264Encoder(val frameWidth: Int, val frameHeight: Int, filename: String, v
                         av_opt_set(context.priv_data(), "preset", quality.toFFMPEGPreset(), 0)
                         context
                     }
-                }),
+                },
 
-                Triple("Software encoder", avcodec_find_encoder(outputContext.video_codec_id()), { context ->
+                Triple("Software encoder", avcodec_find_encoder(outputContext.video_codec_id())) { context ->
                     av_opt_set(context.priv_data(), "preset", quality.toFFMPEGPreset(), 0)
                     av_opt_set(context.priv_data(), "tune", "zerolatency", 0)
                     av_opt_set(context.priv_data(), "repeat-headers", "1", 0)
                     context
-                })
+                }
             )
                 .mapNotNull {
                     val codec = it.second ?: return@mapNotNull null
@@ -295,16 +309,16 @@ class H264Encoder(val frameWidth: Int, val frameHeight: Int, filename: String, v
 
             logger.info("Writing movie to $outputFile, ${frameWidth}x$frameHeight, with format ${String(outputContext.oformat().long_name().stringBytes)}, quality $quality, bitrate ${String.format(Locale.US, "%.2f", bitrate/1024.0f/1024.0f)} MBit")
 
-//        Don't use SDP files for the moment
-//        if(networked) {
-//            val buffer = ByteArray(1024, { 0 })
-//            av_sdp_create(outputContext, 1, buffer, buffer.size)
-//
-//            File("$filename.sdp").bufferedWriter().use { out ->
-//                logger.info("SDP size: ${String(buffer).length}")
-//                out.write(String(buffer).substringBefore('\u0000'))
-//            }
-//        }
+            if(networked) {
+                val buffer = ByteArray(1024)
+                av_sdp_create(outputContext, 1, buffer, buffer.size)
+
+                val f = File("scenery-stream.sdp")
+                val writer = f.writer()
+
+                writer.write(String(buffer).substringBefore('\u0000'))
+                writer.close()
+            }
 
             error = avformat_write_header(outputContext, AVDictionary())
 
