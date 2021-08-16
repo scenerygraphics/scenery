@@ -25,7 +25,8 @@ open class VRGrab(
     protected val name: String,
     protected val controllerHitbox: Node,
     protected val targets: () -> List<Node>,
-    protected val multiTarget: Boolean = false
+    protected val multiTarget: Boolean = false,
+    protected val vibrate: (() -> Unit)? = null
 ) : DragBehaviour {
 
     val controllerSpatial: Spatial
@@ -54,6 +55,7 @@ open class VRGrab(
                     grabable.rotationDiff = Quaternionf()
                     controllerHitbox.spatialOrNull()?.worldRotation()?.invert(grabable.rotationDiff)
                     grabable.rotationDiff?.mul(rotation)
+                    vibrate?.let { it() }
                 }
             }
         }
@@ -98,6 +100,9 @@ open class VRGrab(
     }
 
     override fun end(x: Int, y: Int) {
+        if (!selected.isEmpty()){
+            vibrate?.let { it() }
+        }
         selected = emptyList()
     }
 
@@ -120,7 +125,9 @@ open class VRGrab(
                             val grabBehaviour = VRGrab(
                                 name,
                                 controller.children.first(),
-                                { scene.discover(scene, { n -> n.getAttributeOrNull(Grabable::class.java) != null }) })
+                                { scene.discover(scene, { n -> n.getAttributeOrNull(Grabable::class.java) != null }) },
+                                false,
+                                { (hmd as? OpenVRHMD)?.vibrate(device)} )
 
                             hmd.addBehaviour(name, grabBehaviour)
                             button.forEach {
