@@ -16,12 +16,14 @@ import kotlin.system.exitProcess
 
 /**
  * Example for usage of VR controllers. Demonstrates the use of custom key bindings on the
- * HMD, and the use of intersection testing with scene elements.
+ * HMD, the use of intersection testing with scene elements, and more advanced tools.
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class VRControllerExample : SceneryBase(VRControllerExample::class.java.simpleName,
-    windowWidth = 1920, windowHeight = 1200) {
+class VRControllerExample : SceneryBase(
+    VRControllerExample::class.java.simpleName,
+    windowWidth = 1920, windowHeight = 1200
+) {
     private lateinit var hmd: OpenVRHMD
     private lateinit var boxes: List<Node>
     private lateinit var hullbox: Box
@@ -29,7 +31,7 @@ class VRControllerExample : SceneryBase(VRControllerExample::class.java.simpleNa
     override fun init() {
         hmd = OpenVRHMD(useCompositor = true)
 
-        if(!hmd.initializedAndWorking()) {
+        if (!hmd.initializedAndWorking()) {
             logger.error("This demo is intended to show the use of OpenVR controllers, but no OpenVR-compatible HMD could be initialized.")
             exitProcess(1)
         }
@@ -40,9 +42,7 @@ class VRControllerExample : SceneryBase(VRControllerExample::class.java.simpleNa
         renderer?.toggleVR()
 
         val cam: Camera = DetachedHeadCamera(hmd)
-        cam.spatial {
-            position = Vector3f(0.0f, 0.0f, 0.0f)
-        }
+        cam.position = Vector3f(0.0f, 0.0f, 0.0f)
 
         cam.perspectiveCamera(50.0f, windowWidth, windowHeight)
 
@@ -53,33 +53,26 @@ class VRControllerExample : SceneryBase(VRControllerExample::class.java.simpleNa
             obj.spatial {
                 position = Vector3f(-1.0f + (it + 1) * 0.2f, 1.0f, -0.5f)
             }
-            obj.addAttribute(Grabable::class.java,Grabable())
-            obj.addAttribute(Selectable::class.java,Selectable())
+            obj.addAttribute(Grabable::class.java, Grabable())
+            obj.addAttribute(Selectable::class.java, Selectable())
             obj
         }
 
         boxes.forEach { scene.addChild(it) }
 
+        /** Box with rotated parent to debug grabbing
         val pivot = RichNode()
         pivot.spatial().rotation.rotateLocalY(Math.PI.toFloat())
         scene.addChild(pivot)
 
         val longBox = Box(Vector3f(0.1f, 0.2f, 0.1f))
         longBox.spatial {
-            position = Vector3f(-0.5f , 1.0f, 0f)
+            position = Vector3f(-0.5f, 1.0f, 0f)
         }
-        longBox.addAttribute(Grabable::class.java,Grabable())
-        longBox.addAttribute(Selectable::class.java,Selectable())
+        longBox.addAttribute(Grabable::class.java, Grabable())
         pivot.addChild(longBox)
+        */
 
-
-        (0..5).map {
-            val light = PointLight(radius = 15.0f)
-            light.emissionColor = Random.random3DVectorFromRange(0.0f, 1.0f)
-            light.spatial {
-                position = Random.random3DVectorFromRange(-5.0f, 5.0f)
-            }
-            light.intensity = 1.0f
 
         val lights = Light.createLightTetrahedron<PointLight>(spread = 5.0f, radius = 8.0f)
         lights.forEach {
@@ -98,40 +91,45 @@ class VRControllerExample : SceneryBase(VRControllerExample::class.java.simpleNa
         scene.addChild(hullbox)
 
         thread {
-            while(!running) {
+            while (!running) {
                 Thread.sleep(200)
             }
 
             hmd.events.onDeviceConnect.add { hmd, device, timestamp ->
-                if(device.type == TrackedDeviceType.Controller) {
+                if (device.type == TrackedDeviceType.Controller) {
                     logger.info("Got device ${device.name} at $timestamp")
                     device.model?.let { controller ->
                         // This attaches the model of the controller to the controller's transforms
                         // from the OpenVR/SteamVR system.
                         hmd.attachToNode(device, controller, cam)
 
-                        // This update routine is called every time the position of the controller
+                        // This update routine is called every time the position of the left controller
                         // updates, and checks for intersections with any of the boxes. If there is
                         // an intersection with a box, that box is slightly nudged in the direction
                         // of the controller's velocity.
-                        controller.update.add {
-                            boxes.forEach { it.materialOrNull()?.diffuse = Vector3f(0.9f, 0.5f, 0.5f) }
-                            boxes.filter { box -> controller.children.first().spatialOrNull()?.intersects(box) ?: false }.forEach { box ->
-                                box.ifMaterial {
-                                    diffuse = Vector3f(1.0f, 0.0f, 0.0f)
-                                }
-                                if (device.role == TrackerRole.LeftHand) {
-                                    box.ifSpatial {
-                                        position = (device.velocity ?: Vector3f(0.0f)) * 0.05f + position
+                        if (device.role == TrackerRole.LeftHand) {
+                            controller.update.add {
+                                boxes.forEach { it.materialOrNull()?.diffuse = Vector3f(0.9f, 0.5f, 0.5f) }
+                                boxes.filter { box ->
+                                    controller.children.first().spatialOrNull()?.intersects(box) ?: false
+                                }.forEach { box ->
+                                    box.ifMaterial {
+                                        diffuse = Vector3f(1.0f, 0.0f, 0.0f)
                                     }
+                                    if (device.role == TrackerRole.LeftHand) {
+                                        box.ifSpatial {
+                                            position = (device.velocity ?: Vector3f(0.0f)) * 0.05f + position
+                                        }
+                                    }
+                                    (hmd as? OpenVRHMD)?.vibrate(device)
                                 }
-                                (hmd as? OpenVRHMD)?.vibrate(device)
                             }
                         }
                     }
 
                 }
             }
+
         }
     }
 
@@ -158,12 +156,12 @@ class VRControllerExample : SceneryBase(VRControllerExample::class.java.simpleNa
         /** example of click input
         // Now we add another behaviour for toggling visibility of the boxes
         hmd.addBehaviour("toggle_boxes", ClickBehaviour { _, _ ->
-            boxes.forEach { it.visible = !it.visible }
-            logger.info("Boxes visible: ${boxes.first().visible}")
+        boxes.forEach { it.visible = !it.visible }
+        logger.info("Boxes visible: ${boxes.first().visible}")
         })
         // ...and bind that to the A button of the left-hand controller.
         hmd.addKeyBinding("toggle_boxes", TrackerRole.RightHand, OpenVRHMD.OpenVRButton.A)
-        */
+         */
 
         VRGrab.createAndSet(scene, hmd, listOf(OpenVRHMD.OpenVRButton.Side), listOf(TrackerRole.RightHand))
         val selectionStorage =
@@ -185,6 +183,7 @@ class VRControllerExample : SceneryBase(VRControllerExample::class.java.simpleNa
                 "test" to { print("test") }
             ))
     }
+
 
     companion object {
         @JvmStatic
