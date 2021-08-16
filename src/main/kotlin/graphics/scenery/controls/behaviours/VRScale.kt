@@ -21,7 +21,7 @@ class VRScale(
     protected val logger by LazyLogger(System.getProperty("scenery.LogLevel", "info"))
 
     // --- two hand drag behavior ---
-    //TODO fix make order of presses irrelevant
+    //TODO fix make order of presses irrelevant, waits on issue #432
     private var bothPressed = false
     override fun init(x: Int, y: Int) {
         if (offhand.pressed){
@@ -128,7 +128,7 @@ class VRScaleOffhand(val name: String, val controller: Spatial) : DragBehaviour 
     var pressed = false
     protected val logger by LazyLogger(System.getProperty("scenery.LogLevel", "info"))
     override fun init(x: Int, y: Int) {
-        logger.warn("offhand init")
+        //logger.warn("offhand init")
         pressed = true
     }
 
@@ -136,7 +136,7 @@ class VRScaleOffhand(val name: String, val controller: Spatial) : DragBehaviour 
     }
 
     override fun end(x: Int, y: Int) {
-        logger.warn("offhand end")
+        //logger.warn("offhand end")
         pressed = false
     }
 }
