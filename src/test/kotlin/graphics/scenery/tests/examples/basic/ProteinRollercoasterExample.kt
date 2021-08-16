@@ -1,8 +1,11 @@
 package graphics.scenery.tests.examples.basic
 
 import graphics.scenery.*
+import graphics.scenery.attribute.material.Material
 import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
+import graphics.scenery.proteins.Protein
+import graphics.scenery.proteins.RibbonDiagram
 import org.joml.Vector3f
 
 class ProteinRollercoasterExample: SceneryBase("RollerCoaster", wantREPL = true, windowWidth = 1280, windowHeight = 720) {
@@ -21,10 +24,12 @@ class ProteinRollercoasterExample: SceneryBase("RollerCoaster", wantREPL = true,
 
         val lightbox = Box(Vector3f(500.0f, 500.0f, 500.0f), insideNormals = true)
         lightbox.name = "Lightbox"
-        lightbox.material.diffuse = Vector3f(0.1f, 0.1f, 0.1f)
-        lightbox.material.roughness = 1.0f
-        lightbox.material.metallic = 0.0f
-        lightbox.material.cullingMode = Material.CullingMode.None
+        lightbox.material {
+            diffuse = Vector3f(0.1f, 0.1f, 0.1f)
+            roughness = 1.0f
+            metallic = 0.0f
+            cullingMode = Material.CullingMode.None
+        }
         scene.addChild(lightbox)
         val lights = (0 until 8).map {
             val l = PointLight(radius = 80.0f)

@@ -1,4 +1,5 @@
 package graphics.scenery
+import graphics.scenery.geometry.Spline
 import org.joml.Vector3f
 
 class SplineCoaster(spline: Spline, val cam: () -> Camera?, override val listOfCameraFrames: List<FrenetFrame> =

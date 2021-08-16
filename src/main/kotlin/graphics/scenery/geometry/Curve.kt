@@ -1,6 +1,7 @@
 package graphics.scenery.geometry
 
 import graphics.scenery.BufferUtils
+import graphics.scenery.FrenetFramesCalc
 import graphics.scenery.Mesh
 import graphics.scenery.utils.extensions.toFloatArray
 import org.joml.*

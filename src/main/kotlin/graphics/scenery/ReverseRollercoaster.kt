@@ -1,5 +1,6 @@
 package graphics.scenery
 
+import graphics.scenery.geometry.Curve
 import org.scijava.ui.behaviour.ClickBehaviour
 
 /**

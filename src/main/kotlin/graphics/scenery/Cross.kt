@@ -1,5 +1,6 @@
 package graphics.scenery
 
+import graphics.scenery.primitives.Cylinder
 import org.joml.Matrix3f
 import org.joml.Matrix4f
 import org.joml.Vector3f
@@ -11,14 +12,18 @@ class Cross(private val orientPoint1: Vector3f = Vector3f(-0.3f, 0f, 0f), privat
 
     init {
         this.addChild(sphere)
-        sphere.material.diffuse = Vector3f(1f, 0f, 0f)
-        cylinder1.orientBetweenPoints(orientPoint1, Vector3f(0f, 0f, 0f))
-        cylinder1.position = Vector3f(-1f, 0f, 0f)
+        sphere.material().diffuse = Vector3f(1f, 0f, 0f)
+        cylinder1.spatial {
+            orientBetweenPoints(orientPoint1, Vector3f(0f, 0f, 0f))
+            position = Vector3f(-1f, 0f, 0f)
+        }
         this.addChild(cylinder1)
 
 
-        cylinder2.orientBetweenPoints(orientPoint2, Vector3f(0f, 0f, 0f))
-        cylinder2.position = Vector3f(0f, -1f, 0f)
+        cylinder2.spatial {
+            orientBetweenPoints(orientPoint2, Vector3f(0f, 0f, 0f))
+            position = Vector3f(0f, -1f, 0f)
+        }
         this.addChild(cylinder2)
     }
 
@@ -38,12 +43,17 @@ class Cross(private val orientPoint1: Vector3f = Vector3f(-0.3f, 0f, 0f), privat
             nb.z(), nn.z(), nt.z(), 0f,
             translation.x(), translation.y(), translation.z(), 1f
         )
-        cylinder1.orientBetweenPoints(inverseMatrix.transform(orientPoint1), Vector3f())
-        cylinder2.orientBetweenPoints(inverseMatrix.transform(orientPoint2), Vector3f())
         val cylPos = Vector3f()
         translation.add(zAxis.mul(2f, cylPos), cylPos)
-        cylinder1.position = cylPos
-        cylinder2.position = cylPos
-        sphere.position = cylPos
+
+        cylinder1.spatial {
+            orientBetweenPoints(inverseMatrix.transform(orientPoint1), Vector3f())
+            position = cylPos
+        }
+        cylinder2.spatial {
+            orientBetweenPoints(inverseMatrix.transform(orientPoint2), Vector3f())
+            position = cylPos
+        }
+        sphere.spatial { position = cylPos }
     }
 }

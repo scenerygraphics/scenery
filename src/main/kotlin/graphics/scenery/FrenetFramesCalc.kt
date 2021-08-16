@@ -1,5 +1,6 @@
 package graphics.scenery
 
+import graphics.scenery.geometry.Spline
 import graphics.scenery.utils.extensions.toFloatArray
 import org.joml.*
 import kotlin.math.acos

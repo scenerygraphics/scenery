@@ -1,13 +1,14 @@
 package graphics.scenery
 
+import graphics.scenery.geometry.Curve
+import graphics.scenery.geometry.UniformBSpline
+import graphics.scenery.proteins.Axis
+import graphics.scenery.proteins.Helix
+import graphics.scenery.proteins.RibbonDiagram
 import graphics.scenery.utils.LazyLogger
-import graphics.scenery.utils.extensions.minus
-import org.apache.commons.math3.random.UniformRandomGenerator
 import org.joml.*
-import org.scijava.ui.behaviour.ClickBehaviour
 import org.slf4j.Logger
-import java.lang.Math
-import kotlin.math.acos
+
 
 class ProteinRollercoaster(ribbonDiagram: RibbonDiagram, val cam: () -> Camera?): Rollercoaster(cam) {
     private val subproteins = ribbonDiagram.children
@@ -21,7 +22,7 @@ class ProteinRollercoaster(ribbonDiagram: RibbonDiagram, val cam: () -> Camera?)
         ribbonDiagram.children.forEach { subprotein ->
             subprotein.children.forEachIndexed{ index, subCurve ->
                 if(subCurve is Curve) {
-                    subCurve.frenetFrames.filterIndexed { index, _ -> index%10 == 1  }.forEach { frame ->
+                    subCurve.frenetFrames.filterIndexed { index, _ -> index%10 == 1  }.forEachIndexed { _, frame ->
                         controlpoints.add(Vector3f(frame.translation.x, frame.translation.y + 0.7f, frame.translation.z))//offset to not fly through the baseShapes
                     }
                 }

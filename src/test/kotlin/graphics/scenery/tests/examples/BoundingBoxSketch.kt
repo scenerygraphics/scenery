@@ -1,14 +1,13 @@
 package graphics.scenery.tests.examples
 
 import graphics.scenery.*
+import graphics.scenery.attribute.material.DefaultMaterial
+import graphics.scenery.attribute.material.Material
 import graphics.scenery.backends.Renderer
-import graphics.scenery.tests.examples.basic.ArrowExample
+import graphics.scenery.primitives.Arrow
+
 import graphics.scenery.utils.extensions.minus
 import org.joml.Vector3f
-import kotlin.concurrent.thread
-import kotlin.math.PI
-import kotlin.math.cos
-import kotlin.math.sin
 
 class BoundingBoxSketch : SceneryBase("BoundingBoxSketch") {
 
@@ -23,18 +22,18 @@ class BoundingBoxSketch : SceneryBase("BoundingBoxSketch") {
     private fun setupScene() {
         //boundaries of our world
         val hull = Box(Vector3f(50.0f, 50.0f, 50.0f), insideNormals = true)
-        hull.material.diffuse = Vector3f(0.2f, 0.2f, 0.2f)
-        hull.material.cullingMode = Material.CullingMode.Front
+        hull.material().diffuse = Vector3f(0.2f, 0.2f, 0.2f)
+        hull.material().cullingMode = Material.CullingMode.Front
         scene.addChild(hull)
 
         //we shall have faint and bright vectors...
-        val matBright = Material()
+        val matBright = DefaultMaterial()
         matBright.diffuse  = Vector3f(1.0f, 0.0f, 0.0f)
         matBright.ambient  = Vector3f(1.0f, 1.0f, 1.0f)
         matBright.specular = Vector3f(1.0f, 1.0f, 1.0f)
         matBright.cullingMode = Material.CullingMode.None
 
-        val matFaint = Material()
+        val matFaint = DefaultMaterial()
         matFaint.diffuse  = Vector3f(0.0f, 0.6f, 0.6f)
         matFaint.ambient  = Vector3f(1.0f, 1.0f, 1.0f)
         matFaint.specular = Vector3f(1.0f, 1.0f, 1.0f)
@@ -43,13 +42,13 @@ class BoundingBoxSketch : SceneryBase("BoundingBoxSketch") {
         val boundingBox = hull.getMaximumBoundingBox()
         val a = Arrow(boundingBox.max - Vector3f())  //shape of the vector itself
         a.position = Vector3f()                  //position/base of the vector
-        a.material = matFaint                  //usual stuff follows...
+        a.addAttribute(Material::class.java, matFaint)                  //usual stuff follows...
         a.edgeWidth = 0.5f
         scene.addChild(a)
 
         val b = Arrow(boundingBox.min - Vector3f())  //shape of the vector itself
         b.position = Vector3f()                  //position/base of the vector
-        b.material = matBright                  //usual stuff follows...
+        b.addAttribute(Material::class.java, matFaint) //ual stuff follows...
         b.edgeWidth = 0.5f
         scene.addChild(b)
 
