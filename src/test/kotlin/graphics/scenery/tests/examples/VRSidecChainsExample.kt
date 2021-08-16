@@ -46,6 +46,7 @@ class VRSidecChainsExample : SceneryBase(VRSidecChainsExample::class.java.simple
 
         scene.addChild(cam)
 
+        //protein = Protein.fromFile("C:\\Users\\Justin\\Downloads\\7ch1_SLC26A9.pdb")
         protein = Protein.fromID("3nir")
         sideChains = AminoAcidsStickAndBall(protein)
         scene.addChild(sideChains)
@@ -135,7 +136,7 @@ class VRSidecChainsExample : SceneryBase(VRSidecChainsExample::class.java.simple
             chosenCurveSection.forEach { curveSectionIndex ->
                 if(subcurves.size == residues.size) {
                     sideChains.children[curveSectionIndex].visible = !sideChains.children[curveSectionIndex].visible
-                    logger.info("$curveSectionIndex side chain should be: ${sideChains.children[curveSectionIndex].visible}")
+                    logger.info("$curveSectionIndex side chain ${sideChains.children[curveSectionIndex].name} should be: ${sideChains.children[curveSectionIndex].visible}")
                 }
                 /*
                     very rarely a rounding error occurs between the number of sections and residues (i tested a few pdbs- the difference was never bigger than 1)
