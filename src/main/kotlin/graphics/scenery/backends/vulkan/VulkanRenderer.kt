@@ -1357,6 +1357,7 @@ open class VulkanRenderer(hub: Hub,
             if(recordMovie) {
                 if (encoder != null && (encoder?.frameWidth != window.width || encoder?.frameHeight != window.height)) {
                     encoder?.finish()
+                    ndi?.close()
                 }
 
                 if (encoder == null || encoder?.frameWidth != window.width || encoder?.frameHeight != window.height) {
@@ -1371,6 +1372,11 @@ open class VulkanRenderer(hub: Hub,
                         (window.height* settings.get<Float>("Renderer.SupersamplingFactor")).toInt(),
                         file.absolutePath,
                         hub = hub)
+                    ndi = NDIPublisher(
+                        (window.width * settings.get<Float>("Renderer.SupersamplingFactor")).toInt(),
+                        (window.height* settings.get<Float>("Renderer.SupersamplingFactor")).toInt(),
+                        hub = hub
+                    )
                 }
             }
 
@@ -1423,7 +1429,9 @@ open class VulkanRenderer(hub: Hub,
                 }
 
                 if(recordMovie) {
-                    encoder?.encodeFrame(sb.mapIfUnmapped().getByteBuffer(imageByteSize.toInt()))
+                    val buffer = sb.mapIfUnmapped().getByteBuffer(imageByteSize.toInt())
+                    encoder?.encodeFrame(buffer)
+                    ndi?.sendFrame(buffer)
                 }
 
                 if((screenshotRequested || request != null) && !recordMovie) {
@@ -1497,6 +1505,8 @@ open class VulkanRenderer(hub: Hub,
 
         firstImageReady = true
     }
+
+    var ndi: NDIPublisher? = null
 
     private var currentFrame = 0
     private var previousFrame = 0
