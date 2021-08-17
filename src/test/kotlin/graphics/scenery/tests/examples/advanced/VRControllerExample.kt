@@ -42,7 +42,7 @@ class VRControllerExample : SceneryBase(
         renderer?.toggleVR()
 
         val cam: Camera = DetachedHeadCamera(hmd)
-        cam.position = Vector3f(0.0f, 0.0f, 0.0f)
+        cam.spatial().position = Vector3f(0.0f, 0.0f, 0.0f)
 
         cam.perspectiveCamera(50.0f, windowWidth, windowHeight)
 
