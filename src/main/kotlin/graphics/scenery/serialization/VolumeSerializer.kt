@@ -27,9 +27,11 @@ class VolumeSerializer: Serializer<Volume>() {
      * @param volume May be null if [.getAcceptsNull] is true.
      */
     override fun write(kryo: Kryo, output: Output, volume: Volume) {
-        kryo.writeClassAndObject(output, volume.position)
-        kryo.writeClassAndObject(output, volume.rotation)
-        kryo.writeClassAndObject(output, volume.scale)
+        volume.spatial {
+            kryo.writeClassAndObject(output, position)
+            kryo.writeClassAndObject(output, rotation)
+            kryo.writeClassAndObject(output, scale)
+        }
         kryo.writeClassAndObject(output, volume.transferFunction)
         kryo.writeClassAndObject(output, volume.colormap)
         kryo.writeObject(output, volume.pixelToWorldRatio)
@@ -63,9 +65,11 @@ class VolumeSerializer: Serializer<Volume>() {
         vol.transferFunction = tf
         vol.colormap = colormap
         vol.pixelToWorldRatio = pixelToWorldRatio
-        vol.position = position
-        vol.scale = scale
-        vol.rotation = rotation
+        vol.spatial {
+            this.position = position
+            this.scale = scale
+            this.rotation = rotation
+        }
         vol.currentTimepoint = timepoint
 
         return vol
