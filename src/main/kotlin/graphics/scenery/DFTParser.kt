@@ -1,6 +1,4 @@
 package graphics.scenery
-import graphics.scenery.repl.REPL
-import graphics.scenery.utils.RingBuffer
 import org.joml.Vector3f
 import org.lwjgl.system.MemoryUtil
 import java.io.File
@@ -11,25 +9,37 @@ Parses a density functional theory (common simulation method in solid state phys
 calculation. Can be used to visualize single DFT calculations or DFT-MD (=DFT molecular dynamics simulations).
 
  * @property[normalizeDensityTo] Defines to which value the density is scaled. This is useful when visualizing more then one DFT calculation at the
-    same time, in order to keep the density visualization consistent. Negative values mean the density is scaled
-    per snapshot. Default is -1.0f.
+same time, in order to keep the density visualization consistent. Negative values mean the density is scaled
+per snapshot. Default is -1.0f.
  */
-class DFTParser (val normalizeDensityTo: Float = -1.0f){
+class DFTParser (val normalizeDensityTo: Float = -1.0f): AutoCloseable{
     /**  Number of Atoms.*/
-    var numberOfAtoms:Int = 0
+    var numberOfAtoms: Int = 0
     /** Distance between two grid points in either direction in Bohr.*/
-    var gridSpacings = FloatArray(3) { 0.0f }
+    var gridSpacings = floatArrayOf( 0.0f, 0.0f, 0.0f)
     /** Number of gridpoints in 3D grid.*/
-    var gridDimensions = IntArray(3) { 0 }
+    var gridDimensions = intArrayOf( 0, 0, 0 )
     /** Positions of the atoms in Bohr.*/
     var atomicPositions = Array(0){ Vector3f()}
-    private var electronicDensity = Array(0, {Array(0, { FloatArray(0) } ) } )
+    private var electronicDensity = FloatArray(0)
     /** Electronic density as scaled bytes, in scaled(1/Bohr).*/
-    lateinit var electronicDensityUInt : ByteBuffer
+    lateinit var electronicDensityUByte: ByteBuffer
+        protected set
+    private var electronicDensityMemory: Int = -1
     /** Origin of the unit cell, usually 0,0,0. */
-    var unitCellOrigin = FloatArray(3) { 0.0f }
+    var unitCellOrigin = floatArrayOf( 0.0f, 0.0f, 0.0f)
     /** Dimensions of the unit cell, in Bohr.*/
-    var unitCellDimensions = FloatArray(3) { 0.0f }
+    var unitCellDimensions = floatArrayOf( 0.0f, 0.0f, 0.0f)
+
+    /**
+     * Closes this buffer, freeing all allocated resources on host and device.
+     */
+    override fun close() {
+        // Only free memory if we allocated some during parsing.
+        if (electronicDensityMemory > 0){
+            MemoryUtil.memFree(electronicDensityUByte)
+        }
+    }
 
     // Parse information as .cube file.
     fun parseCube(filename: String){
@@ -53,17 +63,19 @@ class DFTParser (val normalizeDensityTo: Float = -1.0f){
             when (counter){
                 0,1 ->{}
                 2 -> {
-                    numberOfAtoms = (line.trim().split("\\s+".toRegex())[0]).toInt()
-                    unitCellOrigin[0] = (line.trim().split("\\s+".toRegex())[1]).toFloat()
-                    unitCellOrigin[1] = (line.trim().split("\\s+".toRegex())[1]).toFloat()
-                    unitCellOrigin[2] = (line.trim().split("\\s+".toRegex())[1]).toFloat()
+                    val lineContent = (line.trim().split("\\s+".toRegex()))
+                    numberOfAtoms = lineContent[0].toInt()
+                    unitCellOrigin[0] = lineContent[1].toFloat()
+                    unitCellOrigin[1] = lineContent[2].toFloat()
+                    unitCellOrigin[2] = lineContent[3].toFloat()
 
                     // Now we know how many atoms we have.
                     atomicPositions = Array(numberOfAtoms){ Vector3f()}
                 }
                 3,4,5 -> {
-                    gridDimensions[counter-3] =  (line.trim().split("\\s+".toRegex())[0]).toInt()
-                    gridSpacings[counter-3] = (line.trim().split("\\s+".toRegex())[counter-2]).toFloat()
+                    val lineContent = (line.trim().split("\\s+".toRegex()))
+                    gridDimensions[counter-3] =  lineContent[0].toInt()
+                    gridSpacings[counter-3] = lineContent[counter-2].toFloat()
                 }
                 else->  {
                     if (counter == 6)
@@ -71,30 +83,31 @@ class DFTParser (val normalizeDensityTo: Float = -1.0f){
                         unitCellDimensions[0] = (gridSpacings[0]*gridDimensions[0])+unitCellOrigin[0]
                         unitCellDimensions[1] = (gridSpacings[1]*gridDimensions[1])+unitCellOrigin[1]
                         unitCellDimensions[2] = (gridSpacings[2]*gridDimensions[2])+unitCellOrigin[2]
-                        electronicDensity = Array(gridDimensions[0], { Array(gridDimensions[1],
-                            { FloatArray(gridDimensions[2]) } ) } )
+                        electronicDensity = FloatArray(gridDimensions[0]*gridDimensions[1]*gridDimensions[2])
                     }
                     // Parsing atomic positions.
                     if (counter < 6+numberOfAtoms){
-                        atomicPositions[counter-6] = Vector3f((line.trim().split("\\s+".toRegex())[2]).toFloat(),
-                                                              (line.trim().split("\\s+".toRegex())[3]).toFloat(),
-                                                              (line.trim().split("\\s+".toRegex())[4]).toFloat())
+                        val lineContent = (line.trim().split("\\s+".toRegex()))
+                        atomicPositions[counter-6] = Vector3f(lineContent[2].toFloat(), lineContent[3].toFloat(),
+                            lineContent[4].toFloat())
                     }
 
                     // Parsing volumetric data.
                     // A possible optimization here would be to read this into a 1D array. We cannot directly
                     // read it into the byte buffer, because we don't know max/min values a-priori.
                     if (counter >= 6+numberOfAtoms) {
-                        for (value in (line.trim().split("\\s+".toRegex()))) {
+                        val lineContent = line.trim().split("\\s+".toRegex())
+                        for (value in lineContent) {
                             // Cube files should be in Fortran (z-fastest ordering).
-                            electronicDensity[xcounter][ycounter][zcounter] = (value).toFloat()
-                            if (electronicDensity[xcounter][ycounter][zcounter] > maxDensity) {
-                                maxDensity = electronicDensity[xcounter][ycounter][zcounter]
+                            // Kotlin is x-fastest ordering, so we have to convert that.
+                            val floatVal = value.toFloat()
+                            electronicDensity[xcounter+ycounter*gridDimensions[0]+zcounter*gridDimensions[1]*gridDimensions[0]] = floatVal
+                            if (floatVal > maxDensity) {
+                                maxDensity = floatVal
                             }
-                            if (electronicDensity[xcounter][ycounter][zcounter] < minDensity) {
-                                minDensity = electronicDensity[xcounter][ycounter][zcounter]
+                            if (floatVal < minDensity) {
+                                minDensity = floatVal
                             }
-
                             zcounter++
                             if (zcounter == gridDimensions[2]) {
                                 zcounter = 0
@@ -112,21 +125,30 @@ class DFTParser (val normalizeDensityTo: Float = -1.0f){
         }
         // Converting to byte buffer.
         counter = 0
-        electronicDensityUInt =  MemoryUtil.memAlloc((gridDimensions[0]*
-            gridDimensions[1]*gridDimensions[2]*1))
         if (normalizeDensityTo > 0.0f){
             maxDensity = normalizeDensityTo
         }
+        // Working on a temporary buffer, in case someone is accessing the buffer while we are still parsing.
+        val tmpElectronicDensityUByte: ByteBuffer =  MemoryUtil.memAlloc((gridDimensions[0]*
+            gridDimensions[1]*gridDimensions[2]*1))
         for (z in 0 until gridDimensions[2]){
             for (y in 0 until gridDimensions[1]){
                 for (x in 0 until gridDimensions[0]){
-                    val value = (((electronicDensity[x][y][z] - minDensity) / (maxDensity - minDensity)) * 255.0f).toInt()
-                    electronicDensityUInt.put(value.toByte())
+                    val value = (((electronicDensity[x+y*gridDimensions[0]+z*gridDimensions[1]*gridDimensions[0]] - minDensity) / (maxDensity - minDensity)) * 255.0f).toInt()
+                    tmpElectronicDensityUByte.put(value.toByte())
                     counter++
                 }
             }
         }
-        electronicDensityUInt.flip()
+        tmpElectronicDensityUByte.flip()
 
+        // Write back into the original buffer.
+        electronicDensityMemory = gridDimensions[0]*
+            gridDimensions[1]*gridDimensions[2]*1
+        electronicDensityUByte =  MemoryUtil.memAlloc((electronicDensityMemory))
+        electronicDensityUByte = tmpElectronicDensityUByte.duplicate()
+
+        // This is no longer needed.
+        MemoryUtil.memFree(tmpElectronicDensityUByte)
     }
 }
