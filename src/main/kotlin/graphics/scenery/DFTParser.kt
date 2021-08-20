@@ -142,6 +142,5 @@ class DFTParser (val normalizeDensityTo: Float = -1.0f): AutoCloseable{
                 }
             }
         }
-        tmpElectronicDensityUByte.flip()
     }
 }
