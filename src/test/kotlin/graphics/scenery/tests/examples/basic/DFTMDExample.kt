@@ -3,6 +3,7 @@ package graphics.scenery.tests.examples.basic
 import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
+import graphics.scenery.utils.extensions.times
 import graphics.scenery.volumes.Colormap
 import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.Volume
@@ -31,7 +32,7 @@ class DFTMDExample : SceneryBase("DFTExample") {
         atoms.zip(snapshot.atomicPositions).forEach {
             with(it.component1()){
                 spatial{
-                    position = it.component2().mul(scalingFactor)
+                    position = scalingFactor * it.component2()
                 }
                 material{
                     metallic = 0.3f
@@ -48,8 +49,8 @@ class DFTMDExample : SceneryBase("DFTExample") {
         volume.name = "volume"
         // Note: Volumes centered at the origin are currently offset by -2.0 in each direction
         // (see Volume.kt, line 338), so we're adding 2.0 here.
-        volume.spatial().position = (Vector3f(snapshot.unitCellOrigin[0],snapshot.unitCellOrigin[1],
-            snapshot.unitCellOrigin[2]).mul(scalingFactor)).add(
+        volume.spatial().position = (scalingFactor * Vector3f(snapshot.unitCellOrigin[0],snapshot.unitCellOrigin[1],
+            snapshot.unitCellOrigin[2])).add(
             Vector3f(2.0f, 2.0f, 2.0f))
         volume.colormap = Colormap.get("viridis")
         volume.pixelToWorldRatio = snapshot.gridSpacings[0]*scalingFactor
@@ -90,12 +91,9 @@ class DFTMDExample : SceneryBase("DFTExample") {
 
                 // Visualize the atoms.
                 atoms.zip(snapshot.atomicPositions).forEach {
-                    it.component1().spatial().position = it.component2().mul(scalingFactor)
+                    it.component1().spatial().position = scalingFactor * it.component2()
 
                 }
-//                for(i in 0 until snapshot.numberOfAtoms) {
-//                    atoms[i].spatial().position = (snapshot.atomicPositions[i]).mul(scalingFactor)
-//                }
 
                 volume.addTimepoint("t-${count}", snapshot.electronicDensityUByte)
                 volume.goToLastTimepoint()
