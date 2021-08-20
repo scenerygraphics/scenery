@@ -129,8 +129,10 @@ class DFTParser (val normalizeDensityTo: Float = -1.0f): AutoCloseable{
             maxDensity = normalizeDensityTo
         }
         // Working on a temporary buffer, in case someone is accessing the buffer while we are still parsing.
-        val tmpElectronicDensityUByte: ByteBuffer =  MemoryUtil.memAlloc((gridDimensions[0]*
-            gridDimensions[1]*gridDimensions[2]*1))
+        electronicDensityMemory = gridDimensions[0]*
+            gridDimensions[1]*gridDimensions[2]*1
+        electronicDensityUByte =  MemoryUtil.memAlloc((electronicDensityMemory))
+        val tmpElectronicDensityUByte: ByteBuffer =  electronicDensityUByte.duplicate()
         for (z in 0 until gridDimensions[2]){
             for (y in 0 until gridDimensions[1]){
                 for (x in 0 until gridDimensions[0]){
@@ -141,14 +143,5 @@ class DFTParser (val normalizeDensityTo: Float = -1.0f): AutoCloseable{
             }
         }
         tmpElectronicDensityUByte.flip()
-
-        // Write back into the original buffer.
-        electronicDensityMemory = gridDimensions[0]*
-            gridDimensions[1]*gridDimensions[2]*1
-        electronicDensityUByte =  MemoryUtil.memAlloc((electronicDensityMemory))
-        electronicDensityUByte = tmpElectronicDensityUByte.duplicate()
-
-        // This is no longer needed.
-        MemoryUtil.memFree(tmpElectronicDensityUByte)
     }
 }
