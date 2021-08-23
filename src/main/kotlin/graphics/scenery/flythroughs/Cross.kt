@@ -1,5 +1,7 @@
-package graphics.scenery
+package graphics.scenery.flythroughs
 
+import graphics.scenery.Icosphere
+import graphics.scenery.Mesh
 import graphics.scenery.primitives.Cylinder
 import org.joml.Matrix3f
 import org.joml.Matrix4f

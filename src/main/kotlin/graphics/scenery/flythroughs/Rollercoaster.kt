@@ -1,5 +1,7 @@
-package graphics.scenery
+package graphics.scenery.flythroughs
 
+import graphics.scenery.Camera
+import graphics.scenery.FrenetFrame
 import graphics.scenery.utils.LazyLogger
 import org.joml.Quaternionf
 import org.joml.Vector2f
@@ -19,12 +21,12 @@ abstract class Rollercoaster(cam: () -> Camera?): ClickBehaviour {
         if(j <= listOfCameraFrames.lastIndex && camera != null) {
             val frame = listOfCameraFrames[j]
             if(offsetList.isEmpty()) {
-                camera.position = frame.translation
+                camera.spatial().position = frame.translation
             }
             else {
                 val offset = offsetList[j].sortedByDescending { it.y }[0].y + 0.1f
                 val newCamPos = Vector3f(frame.translation.x, frame.translation.y + offset, frame.translation.z )
-                camera.position = newCamPos
+                camera.spatial().position = newCamPos
             }
             //desired view direction in world coords
             val worldDirVec = frame.tangent
@@ -94,7 +96,7 @@ abstract class Rollercoaster(cam: () -> Camera?): ClickBehaviour {
                 val pitchQ = Quaternionf().rotateXYZ(-deltaAng, 0f, 0f).normalize()
                 deltaAng = (angProgress * totalYawAng - doneYawAng).toFloat()
                 val yawQ = Quaternionf().rotateXYZ(0f, deltaAng, 0f).normalize()
-                camera.rotation = pitchQ.mul(camera.rotation).mul(yawQ).normalize()
+                camera.spatial().rotation = pitchQ.mul(camera.spatial().rotation).mul(yawQ).normalize()
                 donePitchAng = angProgress * totalPitchAng
                 doneYawAng = angProgress * totalYawAng
 
