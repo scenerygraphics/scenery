@@ -48,7 +48,7 @@ class ReverseCurveCoasterExample: SceneryBase("CurveRollerCoaster", wantREPL = t
         val rowSize = 20f
 
 
-        val lightbox = Box(Vector3f(500.0f, 500.0f, 500.0f), insideNormals = true)
+        val lightbox = Box(Vector3f(30.0f, 30.0f, 30.0f), insideNormals = true)
         lightbox.name = "Lightbox"
         lightbox.material {
             diffuse = Vector3f(0.1f, 0.1f, 0.1f)
