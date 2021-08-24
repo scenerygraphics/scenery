@@ -30,11 +30,14 @@ abstract class Rollercoaster(cam: () -> Camera?): ClickBehaviour {
             }
             //desired view direction in world coords
             val worldDirVec = frame.tangent
+            /*
+            // we probably don't need this
             if (worldDirVec.lengthSquared() < 0.01) {
                 //ill defined task, happens typically when cam is inside the node which we want center on
                 logger.info("Camera is on the spot you want to look at. Please, move the camera away first.")
                 return
             }
+             */
             val camForwardXZ = Vector2f(camera.forward.x, camera.forward.z)
             val wantLookAtXZ = Vector2f(worldDirVec.x, worldDirVec.z)
             var totalYawAng = camForwardXZ.normalize().dot(wantLookAtXZ.normalize()).toDouble()
