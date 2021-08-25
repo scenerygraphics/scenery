@@ -1,5 +1,6 @@
 #version 450
 #define USE_PRINTF 1
+#define NDC 1
 
 #if USE_PRINTF
 #extension GL_EXT_debug_printf : enable
@@ -88,6 +89,9 @@ struct rayProperties {
 mat4 pv_orig, ivp_orig;
 int windowWidth, windowHeight;
 
+rayProperties originalRay; // the ray (i.e. list) from the original VDI that is currently being intersected
+rayProperties newRay; // the ray from the new viewpoint that this kernel invocation is traversing
+
 // intersect ray with a box
 // http://www.siggraph.org/education/materials/HyperGraph/raytrace/rtinter3.htm
 void intersectBox( vec3 r_o, vec3 r_d, vec3 boxmin, vec3 boxmax, out float tnear, out float tfar, out int comp1, out int comp2 )
@@ -165,6 +169,12 @@ void binSearch(int rayX, int rayY, int start, int limit, float dist_to_orig, out
             continue;
         }
 
+//        #if NDC
+//            vec4 wtemp = mix()
+//        #endif
+
+
+
 //        #if USE_PRINTF
 //        if(gl_GlobalInvocationID.xy == debug_pixel) {
 //            debugPrintfEXT("Checking element %d. D_s: %f, d_t_o: %f", index, depthStart, dist_to_orig);
@@ -240,7 +250,7 @@ void findListNumber(vec4 wpos, out ivec2 listNum, out vec4 NDC_orig) {
 
 int prevX = -1, prevY = -1, depth = -1;
 
-void supersegmentInList(ivec2 invoc_orig, vec2 uv_orig_ray, vec4 wpos, vec4 exit_pt, rayProperties newRay, bool optimized, int cnt, out float depthStart, out float depthEnd, out int index, out bool supseg_found) {
+void supersegmentInList(ivec2 invoc_orig, rayProperties originalRay, vec4 wpos, vec4 exit_pt, bool optimized, int cnt, out float depthStart, out float depthEnd, out int index, out bool supseg_found) {
     vec4 check = imageLoad(InputVDI, ivec3(2, invoc_orig.y, invoc_orig.x));
     if(DecodeFloatRGBA(check) == 0) {
         //the first supersegment is empty, so empty list
@@ -255,12 +265,6 @@ void supersegmentInList(ivec2 invoc_orig, vec2 uv_orig_ray, vec4 wpos, vec4 exit
         #endif
         return;
     }
-
-    rayProperties originalRay;
-    originalRay.wfront = ivp_orig * vec4(uv_orig_ray, -1, 1);
-    originalRay.wfront *= 1/originalRay.wfront.w;
-    originalRay.wback = ivp_orig * vec4(uv_orig_ray, 1, 1);
-    originalRay.wback *= 1/originalRay.wback.w;
 
     vec4 direction_orig = (originalRay.wback - originalRay.wfront)/distance(originalRay.wfront, originalRay.wback);
     vec4 vector_sample = wpos - originalRay.wfront;
@@ -341,7 +345,7 @@ float dist;
 
 bool startPrinting = false;
 
-void findNextSupersegment(rayProperties newRay, inout float step, float tfar, out ivec2 listCoords, out float depthStart, out float depthEnd, out int index, out bool supseg_found) {
+void findNextSupersegment_brute(inout float step, float tfar, out ivec2 listCoords, out float depthStart, out float depthEnd, out int index, out bool supseg_found) {
     //use brute-force stepping to find the next supersegment
 
     supseg_found = false;
@@ -370,7 +374,13 @@ void findNextSupersegment(rayProperties newRay, inout float step, float tfar, ou
 
         prevList = listCoords;
 
-        supersegmentInList(invoc_orig, NDC_orig.xy, wpos, vec4(1), newRay, false, 0, depthStart, depthEnd, index, supseg_found);
+        rayProperties originalRay_brute;
+        originalRay_brute.wfront = ivp_orig * vec4(NDC_orig.xy, -1, 1);
+        originalRay_brute.wfront *= 1/originalRay_brute.wfront.w;
+        originalRay_brute.wback = ivp_orig * vec4(NDC_orig.xy, 1, 1);
+        originalRay_brute.wback *= 1/originalRay_brute.wback.w;
+
+        supersegmentInList(invoc_orig, originalRay_brute, wpos, vec4(1), false, 0, depthStart, depthEnd, index, supseg_found);
         step += dist;
     }
 }
@@ -388,7 +398,7 @@ void findNextSupersegment(rayProperties newRay, inout float step, float tfar, ou
  * nextStep -
 */
 
-void intersectSupersegment(rayProperties newRay, ivec2 listCoords, vec4 supseg_start_w, vec4 supseg_end_w, int cnt, float ds, float de, out float length_in_supseg, out ivec2 nextList, out float nextStep) {
+void intersectSupersegment(ivec2 listCoords, vec4 supseg_start_w, vec4 supseg_end_w, int cnt, float ds, float de, out float length_in_supseg, out ivec2 nextList, out float nextStep) {
 //
 
     #if USE_PRINTF
@@ -493,6 +503,15 @@ void intersectSupersegment(rayProperties newRay, ivec2 listCoords, vec4 supseg_s
     float delta = 2. / (max(windowWidth, windowHeight) * 50.);
 //    float delta = 0.001;
 
+//    #if USE_PRINTF
+//    if(gl_GlobalInvocationID.xy == debug_pixel) {
+//        debugPrintfEXT("Ro: (%f %f %f), Rd: (%f %f %f). Bmin: (%f %f %f), Bmax: (%f %f %f). P1: %f, P2: %f. Wspace start_dist: %f, end_dist: %f",
+//            front_orig.xyz, rayDirection, vec3( uv_min, a_.z ), vec3( uv_max, b_.z ), p1, p2, start_dist, end_dist);
+//        debugPrintfEXT("First pt ndc: (%f %f %f), next: (%f %f %f). Ray origin world: (%f, %f, %f), First pt: (%f %f %f), next: (%f %f %f). Comp1: %d, Comp2: %d", start_pt.xyz, end_point.xyz,
+//            newRay.wfront.xyz, wpos_first.xyz, wpos_next.xyz, comp1, comp2);
+//    }
+//    #endif
+
     ivec2 nextCalc = listCoords;
     vec4 next_point;
     if(start_dist > end_dist) {
@@ -506,15 +525,6 @@ void intersectSupersegment(rayProperties newRay, ivec2 listCoords, vec4 supseg_s
 
         if(comp1 == 2) nextCalc.y += 1;
         if(comp1 == -2) nextCalc.y -= 1;
-
-//        #if USE_PRINTF
-//        if(gl_GlobalInvocationID.xy == debug_pixel) {
-//            debugPrintfEXT("Choosing the start point! Ro: (%f %f %f), Rd: (%f %f %f). Bmin: (%f %f %f), Bmax: (%f %f %f). P1: %f, P2: %f. Wspace start_dist: %f, end_dist: %f",
-//                front_orig.xyz, rayDirection, vec3( uv_min, a_.z ), vec3( uv_max, b_.z ), p1, p2, start_dist, end_dist);
-//            debugPrintfEXT("First pt ndc: (%f %f %f), next: (%f %f %f). Ray origin world: (%f, %f, %f), First pt: (%f %f %f), next: (%f %f %f).", start_pt.xyz, end_point.xyz,
-//                newRay.wfront.xyz, wpos_first.xyz, wpos_next.xyz);
-//        }
-//        #endif
 
     } else {
         next_point = vec4(end_point.xyz + rayDirection*delta, 1);
@@ -581,7 +591,7 @@ void intersectSupersegment(rayProperties newRay, ivec2 listCoords, vec4 supseg_s
 //    }
 
     #if USE_PRINTF
-    if(cnt > 2950 && gl_GlobalInvocationID.xy == debug_pixel) {
+    if(listCoords == ivec2(175, 125) && gl_GlobalInvocationID.xy == debug_pixel) {
         debugPrintfEXT("Box min (%f, %f, %f) and max (%f, %f, %f)", box_min, box_max);
         debugPrintfEXT("First int pt (%f, %f, %f), second (%f, %f, %f)", start_pt.xyz, end_point.xyz);
         debugPrintfEXT("Exit point (%f, %f, %f) and next point (%f, %f, %f)", exit_point.xyz, next_point.xyz);
@@ -591,22 +601,22 @@ void intersectSupersegment(rayProperties newRay, ivec2 listCoords, vec4 supseg_s
 
     nextStep = distance(exit_w, newRay.wfront) / distance(newRay.wfront, newRay.wback);
 
-    if(length_in_supseg < 0.00001) {
-        nextStep += 2*dist;
-        ivec2 listNum;
-        vec4 NDC_orig;
-
-        vec4 pos = mix(newRay.wfront, newRay.wback, nextStep);
-        findListNumber(pos, listNum, NDC_orig);
-
-        nextList = listNum;
-        //TODO: update nextPoint
-    }
+//    if(length_in_supseg < 0.00001) {
+//        nextStep += 2*dist;
+//        ivec2 listNum;
+//        vec4 NDC_orig;
+//
+//        vec4 pos = mix(newRay.wfront, newRay.wback, nextStep);
+//        findListNumber(pos, listNum, NDC_orig);
+//
+//        nextList = listNum;
+//        //TODO: update nextPoint
+//    }
 
     float d1 = distance(wpos_first, newRay.wfront) / distance(newRay.wfront, newRay.wback);
     float d2 = distance(wpos_next, newRay.wfront) / distance(newRay.wfront, newRay.wback);
 
-    float t = nextStep + dist;
+    float t = nextStep + 5 * dist;
     vec4 tpos = mix(newRay.wfront, newRay.wback, t);
 
     vec4 t_ndc = pv_orig * tpos;
@@ -616,22 +626,22 @@ void intersectSupersegment(rayProperties newRay, ivec2 listCoords, vec4 supseg_s
     vec2 tex_orig = nextList/vec2(windowWidth, windowHeight);
     vec2 uv_orig_ray = tex_orig * 2.0 - vec2(1.0);
 
-    rayProperties originalRay;
-    originalRay.NDC_front = vec4(uv_orig_ray, -1, 1);
-    originalRay.NDC_back = vec4(uv_orig_ray, 1, 1);
+    rayProperties next_ray;
+    next_ray.NDC_front = vec4(uv_orig_ray, -1, 1);
+    next_ray.NDC_back = vec4(uv_orig_ray, 1, 1);
 
-    originalRay.wfront = ivp_orig * originalRay.NDC_front;
-    originalRay.wfront *= 1./originalRay.wfront.w;
-    originalRay.wback = ivp_orig * originalRay.NDC_back;
-    originalRay.wback *= 1./originalRay.wback.w;
+    next_ray.wfront = ivp_orig * next_ray.NDC_front;
+    next_ray.wfront *= 1./next_ray.wfront.w;
+    next_ray.wback = ivp_orig * next_ray.NDC_back;
+    next_ray.wback *= 1./next_ray.wback.w;
 
-    vec4 direction_orig = (originalRay.wback - originalRay.wfront)/distance(originalRay.wfront, originalRay.wback);
-    vec4 vector_sample = tpos - originalRay.wfront;
+    vec4 direction_orig = (next_ray.wback - next_ray.wfront)/distance(next_ray.wfront, next_ray.wback);
+    vec4 vector_sample = tpos - next_ray.wfront;
     float dist_to_orig = dot(vector_sample, direction_orig);
-    dist_to_orig = dist_to_orig/distance(originalRay.wfront, originalRay.wback);
+    dist_to_orig = dist_to_orig/distance(next_ray.wfront, next_ray.wback);
 
     #if USE_PRINTF
-    if(cnt > 2950 && gl_GlobalInvocationID.xy == debug_pixel) {
+    if(listCoords == ivec2(175, 125) && gl_GlobalInvocationID.xy == debug_pixel) {
         debugPrintfEXT("length in supseg: %f, first dist: %f, next dist: %f", length_in_supseg, d1, d2);
         debugPrintfEXT("Calculated next pos in NDC (%f, %f, %f)", t_ndc.xyz);
         debugPrintfEXT("Dist_to_orig is: %f while start: %f and end: %f", dist_to_orig, ds, de);
@@ -659,7 +669,7 @@ void intersectSupersegment(rayProperties newRay, ivec2 listCoords, vec4 supseg_s
 
 }
 
-void intersectSupersegment_bruteForce(rayProperties newRay, float step, float tfar, ivec2 listCoords, int supseg_num, out float length_in_supseg) {
+void intersectSupersegment_bruteForce(float step, float tfar, ivec2 listCoords, int supseg_num, out float length_in_supseg) {
 
     vec4 startPoint = mix( newRay.wfront, newRay.wback, step );
     bool sameSupersegment = true;
@@ -680,7 +690,14 @@ void intersectSupersegment_bruteForce(rayProperties newRay, float step, float tf
         float depthStart, depthEnd;
         int index;
         bool supseg_found;
-        supersegmentInList(invoc_orig, NDC_orig.xy, wpos, vec4(1), newRay, false, 0, depthStart, depthEnd, index, supseg_found);
+
+        rayProperties originalRay_brute;
+        originalRay_brute.wfront = ivp_orig * vec4(NDC_orig.xy, -1, 1);
+        originalRay_brute.wfront *= 1/originalRay_brute.wfront.w;
+        originalRay_brute.wback = ivp_orig * vec4(NDC_orig.xy, 1, 1);
+        originalRay_brute.wback *= 1/originalRay_brute.wback.w;
+
+        supersegmentInList(invoc_orig, originalRay_brute, wpos, vec4(1), false, 0, depthStart, depthEnd, index, supseg_found);
         if(!supseg_found || (index != supseg_num)){
             sameSupersegment = false;
             break;
@@ -702,7 +719,7 @@ void intersectSupersegment_bruteForce(rayProperties newRay, float step, float tf
 const int maxSteps = 750;
 int totalSteps = 0;
 
-void findNextSupersegment_opt(rayProperties newRay, ivec2 nextList, float step, float tfar, int mainCnt, out ivec2 listCoords, out float depthStart, out float depthEnd, out int index, out bool supseg_found) {
+void findNextSupersegment_opt(ivec2 nextList, float step, float tfar, int mainCnt, out ivec2 listCoords, out float depthStart, out float depthEnd, out int index, out bool supseg_found) {
     //use optimized intersections to find the next supersegment
 
     supseg_found = false;
@@ -745,7 +762,6 @@ void findNextSupersegment_opt(rayProperties newRay, ivec2 nextList, float step, 
 
         //calculate the point at which this ray exits this list
 
-        rayProperties originalRay;
         originalRay.NDC_front = vec4(uv_orig_ray, -1, 1);
         originalRay.NDC_back = vec4(uv_orig_ray, 1, 1);
 
@@ -760,7 +776,15 @@ void findNextSupersegment_opt(rayProperties newRay, ivec2 nextList, float step, 
         float nextStep;
 
         //intersecting a supersegment list
-        intersectSupersegment(newRay, currentList, originalRay.wfront, originalRay.wback, cnt, 0, 0, length, nextList, nextStep);
+        intersectSupersegment(currentList, originalRay.wfront, originalRay.wback, cnt, 0, 0, length, nextList, nextStep);
+
+        if(step > nextStep) {
+            #if USE_PRINTF
+            if(gl_GlobalInvocationID.xy == debug_pixel) {
+                debugPrintfEXT("cnt: %d. step: %f. list: (%d,%d) needs to be skipped", cnt, step, currentList);
+            }
+            #endif
+        }
 
 //        if(step <= nextStep) {
             // make sure that the small step we took along newRay has not landed us outside this supersegment list
@@ -783,7 +807,7 @@ void findNextSupersegment_opt(rayProperties newRay, ivec2 nextList, float step, 
 //        }
 //        #endif
 
-        supersegmentInList(currentList, uv_orig_ray, wpos, w_exit, newRay, true, mainCnt, depthStart, depthEnd, index, supseg_found);
+        supersegmentInList(currentList, originalRay, wpos, w_exit, true, mainCnt, depthStart, depthEnd, index, supseg_found);
 
         #if USE_PRINTF
         if(mainCnt > 2950 && gl_GlobalInvocationID.xy == debug_pixel) {
@@ -792,13 +816,7 @@ void findNextSupersegment_opt(rayProperties newRay, ivec2 nextList, float step, 
         #endif
 
 //        }
-        if(step > nextStep) {
-            #if USE_PRINTF
-            if(gl_GlobalInvocationID.xy == debug_pixel) {
-                debugPrintfEXT("cnt: %d. step: %f. list: (%d,%d) needs to be skipped", cnt, step, currentList);
-            }
-            #endif
-        }
+
 
 //        if(!supseg_found) {
 //            step += dist;
@@ -871,8 +889,6 @@ void main() {
     vec2 uv = texcoord * 2.0 - vec2(1.0);
     vec2 depthUV = (vrParameters.stereoEnabled ^ 1) * texcoord + vrParameters.stereoEnabled * vec2((texcoord.x/2.0 + currentEye.eye * 0.5), texcoord.y);
     depthUV = depthUV * 2.0 - vec2(1.0);
-
-    rayProperties newRay;
 
     // NDC of frag on near and far plane
     newRay.NDC_front = vec4( uv, -1, 1 );
@@ -1023,7 +1039,7 @@ void main() {
             findListNumber(wnear, nextList, ndc);
             step = tnear;
         }
-        findNextSupersegment_opt(newRay, nextList, step, tfar, 0, listCoords, supseg_start, supseg_end, index, supseg_found);
+        findNextSupersegment_opt(nextList, step, tfar, 0, listCoords, supseg_start, supseg_end, index, supseg_found);
 
         #if USE_PRINTF
         if(gl_GlobalInvocationID.xy == debug_pixel) {
@@ -1053,7 +1069,7 @@ void main() {
 
 
 //        if(cnt == 1) {
-//            findNextSupersegment(newRay, step_dbg, tfar, list_dbg, sup_start_dbg, sup_end_dbg, ind_dbg, sup_found_dbg); // the brute force method
+//            findNextSupersegment_brute(step_dbg, tfar, list_dbg, sup_start_dbg, sup_end_dbg, ind_dbg, sup_found_dbg); // the brute force method
 //
 //            #if USE_PRINTF
 //            if(gl_GlobalInvocationID.xy == debug_pixel) {
@@ -1077,17 +1093,16 @@ void main() {
 //            #endif
 //        }
 
-        vec2 tex_orig = listCoords/vec2(windowWidth, windowHeight);
-        vec2 uv_orig_ray = tex_orig * 2.0 - vec2(1.0);
-
-        rayProperties originalRay;
-        originalRay.NDC_front = vec4(uv_orig_ray, -1, 1);
-        originalRay.NDC_back = vec4(uv_orig_ray, 1, 1);
-
-        originalRay.wfront = ivp_orig * originalRay.NDC_front;
-        originalRay.wfront *= 1./originalRay.wfront.w;
-        originalRay.wback = ivp_orig * originalRay.NDC_back;
-        originalRay.wback *= 1./originalRay.wback.w;
+//        vec2 tex_orig = listCoords/vec2(windowWidth, windowHeight);
+//        vec2 uv_orig_ray = tex_orig * 2.0 - vec2(1.0);
+//
+//        originalRay.NDC_front = vec4(uv_orig_ray, -1, 1);
+//        originalRay.NDC_back = vec4(uv_orig_ray, 1, 1);
+//
+//        originalRay.wfront = ivp_orig * originalRay.NDC_front;
+//        originalRay.wfront *= 1./originalRay.wfront.w;
+//        originalRay.wback = ivp_orig * originalRay.NDC_back;
+//        originalRay.wback *= 1./originalRay.wback.w;
 
         vec4 supseg_start_w = mix(originalRay.wfront, originalRay.wback, supseg_start);
         vec4 supseg_end_w = mix(originalRay.wfront, originalRay.wback, supseg_end);
@@ -1100,7 +1115,7 @@ void main() {
 //        }
 //        #endif
 
-        intersectSupersegment(newRay, listCoords, supseg_start_w, supseg_end_w, cnt, supseg_start, supseg_end, length, nextList, nextStep);
+        intersectSupersegment(listCoords, supseg_start_w, supseg_end_w, cnt, supseg_start, supseg_end, length, nextList, nextStep);
 
 //        if(length == 0.) {
 //            continue;
@@ -1138,7 +1153,7 @@ void main() {
 //        bool found_check;
 //        float ds_temp, de_temp;
 //
-//        findNextSupersegment(newRay, tempStep, tempStep, list_check, ds_temp, de_temp, index_check, found_check);
+//        findNextSupersegment_Brute(tempStep, tempStep, list_check, ds_temp, de_temp, index_check, found_check);
 //
 //        if(found_check && (list_check.x == prevX) && (list_check.y == prevY) && (index_check == depth)) {
 //            #if USE_PRINTF
@@ -1232,7 +1247,7 @@ void main() {
 //        ind_dbg = index;
 //
 //        float length_brute = 0.;
-//        intersectSupersegment_bruteForce(newRay, step_dbg, tfar, list_dbg, ind_dbg, length_brute);
+//        intersectSupersegment_bruteForce(step_dbg, tfar, list_dbg, ind_dbg, length_brute);
 //
 //        float len_frac = length_brute / distance(newRay.wfront, newRay.wback);
 //        step_dbg += len_frac;
@@ -1252,7 +1267,7 @@ void main() {
 //            debugPrintfEXT("next list: (%d,%d)", nextList);
 //        }
 //        #endif
-        findNextSupersegment_opt(newRay, nextList, step, tfar, cnt, listCoords, supseg_start, supseg_end, index, supseg_found);
+        findNextSupersegment_opt(nextList, step, tfar, cnt, listCoords, supseg_start, supseg_end, index, supseg_found);
 
         if(supseg_found == false) {
             break; // there is no supersegment along this ray, so terminate
