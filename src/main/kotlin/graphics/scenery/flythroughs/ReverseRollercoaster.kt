@@ -30,18 +30,11 @@ class ReverseRollercoaster(val scene: Scene, val cam: ()->Camera?, val name: Str
         if (i <= frames.lastIndex) {
             val forward = if(camera != null) { Vector3f(camera.forward) } else { logger.warn("Cam is Null!"); Vector3f() }
             val up = if(camera != null) { Vector3f(camera.up) } else { logger.warn("Cam is null"); Vector3f() }
-            //position
-            val newPosition = Vector3f(camera?.spatial()?.position!!)
-            //right before the camera
-            val beforeCam = Vector3f(forward).mul(0.2f)
-            //vector from frame location to position
-            val frame = frames[i]
-            newPosition.add(beforeCam).sub(frame.translation)
+
             //transfer all frenet frame positions
-            frames.forEach { 
-                it.translation.add(newPosition)
+            frames.forEach {
+                //it.translation.add(newPosition)
             }
-            /*
             //debug arrows
             val matFaint = DefaultMaterial()
             matFaint.diffuse  = Vector3f(0.0f, 0.6f, 0.6f)
@@ -51,6 +44,7 @@ class ReverseRollercoaster(val scene: Scene, val cam: ()->Camera?, val name: Str
 
             frames.forEachIndexed { index, it ->
                 if(index%20 == 0) {
+                    /*
                     val arrowX = Arrow(it.binormal - Vector3f())
                     arrowX.edgeWidth = 0.5f
                     arrowX.addAttribute(Material::class.java, matFaint)
@@ -62,34 +56,47 @@ class ReverseRollercoaster(val scene: Scene, val cam: ()->Camera?, val name: Str
                     arrowY.addAttribute(Material::class.java, matFaint)
                     arrowY.spatial().position = it.translation
                     scene.addChild(arrowY)
-
+                     */
                     val arrowZ = Arrow(it.tangent - Vector3f())
                     arrowZ.edgeWidth = 0.5f
                     arrowZ.addAttribute(Material::class.java, matFaint)
                     arrowZ.spatial().position = it.translation
-                    scene.addChild(arrowZ)
+                    //scene.addChild(arrowZ)
                 }
             }
 
-             */
-            //rotation
 
-            /*
+            //rotation
             val tangent = frames[i].tangent
             // euler angles
             val angleX = calcAngle(Vector2f(forward.y, forward.z), Vector2f(tangent.y, tangent.z))
             val angleY = calcAngle(Vector2f(forward.x, forward.z), Vector2f(tangent.x, tangent.z))
             val angleZ = calcAngle(Vector2f(forward.x, forward.y), Vector2f(tangent.x, tangent.y))
-            val curveRotation = Quaternionf().rotateXYZ(angleX, angleY, angleZ).normalize()
+            val curveRotation = Quaternionf().rotateXYZ(angleX, angleY, angleZ).conjugate().normalize()
 
-             */
+            val forwardArrow = Arrow(forward - Vector3f())
+            forwardArrow.edgeWidth = 0.5f
+            forwardArrow.addAttribute(Material::class.java, matFaint)
+            forwardArrow.spatial().position = camera?.spatial()?.position!!
+            //scene.addChild(forwardArrow)
+            /*
             //angle between up and frenetframe binormal
             val rotAngle = calcAngle(Vector2f(up.x, up.y), Vector2f(frames[i].binormal.x, frames[i].binormal.y))
             val curveRotation = Quaternionf().lookAlong(forward, up).normalize() //.rotationZ(rotAngle).normalize()
-
+            */
             scene.children.filter{it.name == name}[0].ifSpatial {
-                position = position.add(newPosition)
-                //rotation = curveRotation
+                rotation = curveRotation
+            }
+            //position
+            val newPosition = Vector3f(camera?.spatial()?.position!!)
+            //right before the camera
+            val beforeCam = Vector3f(forward).mul(0.2f)
+            if(curve is Curve) {
+                val subCurvePosition = Vector3f(curve.children[i].ifSpatial { position }?.position)
+                newPosition.add(beforeCam).sub(Vector3f(subCurvePosition))
+            }
+            scene.children.filter{it.name == name}[0].ifSpatial {
+                position.add(newPosition)
             }
             i += 1
         }
