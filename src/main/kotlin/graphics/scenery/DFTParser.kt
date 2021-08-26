@@ -1,8 +1,10 @@
 package graphics.scenery
 import org.joml.Vector3f
+import org.joml.Vector3i
 import org.lwjgl.system.MemoryUtil
 import java.io.File
 import java.nio.ByteBuffer
+import java.util.*
 
 /**
 Parses a density functional theory (common simulation method in solid state physics and theoretical chemistry)
@@ -16,9 +18,9 @@ class DFTParser (val normalizeDensityTo: Float = -1.0f): AutoCloseable{
     /**  Number of Atoms.*/
     var numberOfAtoms: Int = 0
     /** Distance between two grid points in either direction in Bohr.*/
-    var gridSpacings = floatArrayOf( 0.0f, 0.0f, 0.0f)
+    var gridSpacings = Vector3f( 0.0f, 0.0f, 0.0f)
     /** Number of gridpoints in 3D grid.*/
-    var gridDimensions = intArrayOf( 0, 0, 0 )
+    var gridDimensions = Vector3i( 0, 0, 0)
     /** Positions of the atoms in Bohr.*/
     var atomicPositions = Array(0){ Vector3f()}
     private var electronicDensity = FloatArray(0)
@@ -27,9 +29,9 @@ class DFTParser (val normalizeDensityTo: Float = -1.0f): AutoCloseable{
         protected set
     private var electronicDensityMemory: Int = -1
     /** Origin of the unit cell, usually 0,0,0. */
-    var unitCellOrigin = floatArrayOf( 0.0f, 0.0f, 0.0f)
+    var unitCellOrigin = Vector3f( 0.0f, 0.0f, 0.0f)
     /** Dimensions of the unit cell, in Bohr.*/
-    var unitCellDimensions = floatArrayOf( 0.0f, 0.0f, 0.0f)
+    var unitCellDimensions = Vector3f( 0.0f, 0.0f, 0.0f)
 
     /**
      * Closes this buffer, freeing all allocated resources on host and device.
@@ -65,24 +67,34 @@ class DFTParser (val normalizeDensityTo: Float = -1.0f): AutoCloseable{
                 2 -> {
                     val lineContent = (line.trim().split("\\s+".toRegex()))
                     numberOfAtoms = lineContent[0].toInt()
-                    unitCellOrigin[0] = lineContent[1].toFloat()
-                    unitCellOrigin[1] = lineContent[2].toFloat()
-                    unitCellOrigin[2] = lineContent[3].toFloat()
+                    unitCellOrigin.x = lineContent[1].toFloat()
+                    unitCellOrigin.y = lineContent[2].toFloat()
+                    unitCellOrigin.z = lineContent[3].toFloat()
 
                     // Now we know how many atoms we have.
                     atomicPositions = Array(numberOfAtoms){ Vector3f()}
                 }
-                3,4,5 -> {
+                3 -> {
                     val lineContent = (line.trim().split("\\s+".toRegex()))
-                    gridDimensions[counter-3] =  lineContent[0].toInt()
-                    gridSpacings[counter-3] = lineContent[counter-2].toFloat()
+                    gridDimensions.x =  lineContent[0].toInt()
+                    gridSpacings.x = lineContent[1].toFloat()
+                }
+                4 -> {
+                    val lineContent = (line.trim().split("\\s+".toRegex()))
+                    gridDimensions.y =  lineContent[0].toInt()
+                    gridSpacings.y = lineContent[2].toFloat()
+                }
+                5 -> {
+                    val lineContent = (line.trim().split("\\s+".toRegex()))
+                    gridDimensions.z =  lineContent[0].toInt()
+                    gridSpacings.z = lineContent[3].toFloat()
                 }
                 else->  {
                     if (counter == 6)
                     {
-                        unitCellDimensions[0] = (gridSpacings[0]*gridDimensions[0])+unitCellOrigin[0]
-                        unitCellDimensions[1] = (gridSpacings[1]*gridDimensions[1])+unitCellOrigin[1]
-                        unitCellDimensions[2] = (gridSpacings[2]*gridDimensions[2])+unitCellOrigin[2]
+                        unitCellDimensions.x = (gridSpacings[0]*gridDimensions[0])+unitCellOrigin[0]
+                        unitCellDimensions.y = (gridSpacings[1]*gridDimensions[1])+unitCellOrigin[1]
+                        unitCellDimensions.z = (gridSpacings[2]*gridDimensions[2])+unitCellOrigin[2]
                         electronicDensity = FloatArray(gridDimensions[0]*gridDimensions[1]*gridDimensions[2])
                     }
                     // Parsing atomic positions.

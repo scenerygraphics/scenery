@@ -30,10 +30,10 @@ class DFTExample : SceneryBase("DFTExample") {
         val atoms: Array<Icosphere> = Array<Icosphere>(snapshot.numberOfAtoms) {Icosphere(atomicRadius, 4)}
         atoms.zip(snapshot.atomicPositions).forEach {
             with(it.component1()){
-                spatial{
+                spatial {
                     position = scalingFactor * it.component2()
                 }
-                material{
+                material {
                     metallic = 0.3f
                     roughness = 0.9f
                 }
