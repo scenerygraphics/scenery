@@ -41,6 +41,7 @@ class ReverseRollercoaster(val scene: Scene, val cam: ()->Camera?, val name: Str
             frames.forEach { 
                 it.translation.add(newPosition)
             }
+            /*
             //debug arrows
             val matFaint = DefaultMaterial()
             matFaint.diffuse  = Vector3f(0.0f, 0.6f, 0.6f)
@@ -48,28 +49,33 @@ class ReverseRollercoaster(val scene: Scene, val cam: ()->Camera?, val name: Str
             matFaint.specular = Vector3f(1.0f, 1.0f, 1.0f)
             matFaint.cullingMode = Material.CullingMode.None
 
-            frames.forEach {
-                val arrowX = Arrow(it.binormal - Vector3f())
-                arrowX.edgeWidth = 0.5f
-                arrowX.material {   matFaint }
-                arrowX.spatial().position = it.translation
-                scene.addChild(arrowX)
+            frames.forEachIndexed { index, it ->
+                if(index%20 == 0) {
+                    val arrowX = Arrow(it.binormal - Vector3f())
+                    arrowX.edgeWidth = 0.5f
+                    arrowX.addAttribute(Material::class.java, matFaint)
+                    arrowX.spatial().position = it.translation
+                    scene.addChild(arrowX)
 
-                val arrowY = Arrow(it.normal - Vector3f())
-                arrowX.edgeWidth = 0.5f
-                arrowX.material { matFaint }
-                arrowX.spatial().position = it.translation
-                scene.addChild(arrowY)
+                    val arrowY = Arrow(it.normal - Vector3f())
+                    arrowY.edgeWidth = 0.5f
+                    arrowY.addAttribute(Material::class.java, matFaint)
+                    arrowY.spatial().position = it.translation
+                    scene.addChild(arrowY)
 
-                val arrowZ = Arrow(it.tangent - Vector3f())
-                arrowX.edgeWidth = 0.5f
-                arrowX.material { matFaint }
-                arrowX.spatial().position = it.translation
-                scene.addChild(arrowZ)
+                    val arrowZ = Arrow(it.tangent - Vector3f())
+                    arrowZ.edgeWidth = 0.5f
+                    arrowZ.addAttribute(Material::class.java, matFaint)
+                    arrowZ.spatial().position = it.translation
+                    scene.addChild(arrowZ)
+                }
             }
+
+             */
             //rotation
-            val tangent = frames[i].tangent
+
             /*
+            val tangent = frames[i].tangent
             // euler angles
             val angleX = calcAngle(Vector2f(forward.y, forward.z), Vector2f(tangent.y, tangent.z))
             val angleY = calcAngle(Vector2f(forward.x, forward.z), Vector2f(tangent.x, tangent.z))
@@ -83,7 +89,7 @@ class ReverseRollercoaster(val scene: Scene, val cam: ()->Camera?, val name: Str
 
             scene.children.filter{it.name == name}[0].ifSpatial {
                 position = position.add(newPosition)
-                rotation = curveRotation
+                //rotation = curveRotation
             }
             i += 1
         }
