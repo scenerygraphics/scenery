@@ -6,7 +6,9 @@ import graphics.scenery.Scene
 import graphics.scenery.attribute.material.DefaultMaterial
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.geometry.Curve
+import graphics.scenery.primitives.Arrow
 import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.extensions.minus
 import org.joml.Quaternionf
 import org.joml.Vector2f
 import org.joml.Vector3f
@@ -23,20 +25,6 @@ class ReverseRollercoaster(val scene: Scene, val cam: ()->Camera?, val name: Str
     val camera = cam.invoke()
     val frames = if(curve is Curve) { curve.frenetFrames } else { ArrayList() }
     var i = 0
-    init {
-        val matBright = DefaultMaterial()
-        matBright.diffuse  = Vector3f(0.0f, 1.0f, 0.0f)
-        matBright.ambient  = Vector3f(1.0f, 1.0f, 1.0f)
-        matBright.specular = Vector3f(1.0f, 1.0f, 1.0f)
-        matBright.cullingMode = Material.CullingMode.None
-
-        val matFaint = DefaultMaterial()
-        matFaint.diffuse  = Vector3f(0.0f, 0.6f, 0.6f)
-        matFaint.ambient  = Vector3f(1.0f, 1.0f, 1.0f)
-        matFaint.specular = Vector3f(1.0f, 1.0f, 1.0f)
-        matFaint.cullingMode = Material.CullingMode.None
-
-    }
     
     override fun click(x: Int, y: Int) {
         if (i <= frames.lastIndex) {
@@ -53,6 +41,32 @@ class ReverseRollercoaster(val scene: Scene, val cam: ()->Camera?, val name: Str
             frames.forEach { 
                 it.translation.add(newPosition)
             }
+            //debug arrows
+            val matFaint = DefaultMaterial()
+            matFaint.diffuse  = Vector3f(0.0f, 0.6f, 0.6f)
+            matFaint.ambient  = Vector3f(1.0f, 1.0f, 1.0f)
+            matFaint.specular = Vector3f(1.0f, 1.0f, 1.0f)
+            matFaint.cullingMode = Material.CullingMode.None
+
+            frames.forEach {
+                val arrowX = Arrow(it.binormal - Vector3f())
+                arrowX.edgeWidth = 0.5f
+                arrowX.material {   matFaint }
+                arrowX.spatial().position = it.translation
+                scene.addChild(arrowX)
+
+                val arrowY = Arrow(it.normal - Vector3f())
+                arrowX.edgeWidth = 0.5f
+                arrowX.material { matFaint }
+                arrowX.spatial().position = it.translation
+                scene.addChild(arrowY)
+
+                val arrowZ = Arrow(it.tangent - Vector3f())
+                arrowX.edgeWidth = 0.5f
+                arrowX.material { matFaint }
+                arrowX.spatial().position = it.translation
+                scene.addChild(arrowZ)
+            }
             //rotation
             val tangent = frames[i].tangent
             /*
@@ -63,8 +77,9 @@ class ReverseRollercoaster(val scene: Scene, val cam: ()->Camera?, val name: Str
             val curveRotation = Quaternionf().rotateXYZ(angleX, angleY, angleZ).normalize()
 
              */
-
-            val curveRotation = Quaternionf().lookAlong(forward, up).normalize()
+            //angle between up and frenetframe binormal
+            val rotAngle = calcAngle(Vector2f(up.x, up.y), Vector2f(frames[i].binormal.x, frames[i].binormal.y))
+            val curveRotation = Quaternionf().lookAlong(forward, up).normalize() //.rotationZ(rotAngle).normalize()
 
             scene.children.filter{it.name == name}[0].ifSpatial {
                 position = position.add(newPosition)
@@ -81,9 +96,12 @@ class ReverseRollercoaster(val scene: Scene, val cam: ()->Camera?, val name: Str
         return if(!vec1.x.isNaN() && !vec1.y.isNaN() && !vec2.x.isNaN() && !vec2.y.isNaN()) {
             val cosAngle = vec1.dot(vec2).toDouble()
             var angle = if(cosAngle > 1) { 0.0 } else { acos(cosAngle) }
+            /*
             // negative angle?
-            vec1[vec1.y] = -vec1.x
+            vec1.x = -vec1.x
             if(vec2.dot(vec1) > 0) { angle *= -1.0}
+
+             */
             angle.toFloat()
         } else  {
             0f
