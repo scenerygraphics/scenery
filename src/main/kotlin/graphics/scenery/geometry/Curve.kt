@@ -1,16 +1,13 @@
 package graphics.scenery.geometry
 
 import graphics.scenery.BufferUtils
-import graphics.scenery.FrenetFramesCalc
 import graphics.scenery.Mesh
+import graphics.scenery.attribute.geometry.HasGeometry
 import graphics.scenery.utils.extensions.toFloatArray
 import org.joml.*
-import kotlin.Float.Companion.MIN_VALUE
-import kotlin.math.acos
 
 /**
- * Constructs a geometry along the calculates points of a Spline (in this case a Catmull Rom Spline).
- * This class inherits from Node and HasGeometry
+ * Constructs a geometry along the calculates points of a Spline.
  * The number n corresponds to the number of segments you wish to have between your control points.
  * The spline and the baseShape lambda must both have the same number of elements, otherwise, the curve is no
  * longer well defined. Concerning the individual baseShapes, no lines must cross for the body of the curve to
@@ -20,10 +17,12 @@ import kotlin.math.acos
  * @param [spline] the spline along which the geometry will be rendered
  * @param [baseShape] a lambda which returns all the baseShapes along the curve
  * @param [firstPerpendicularVector] vector to which the first frenet tangent shall be perpendicular to.
+ * @param [partitionAlongControlpoints] flag to indicate that the curve should be divided into subcurves, one for each
+ * controlpoint, note that this option prohibits the use of different baseShapes
  */
-class Curve(spline: Spline, private val firstPerpendicularVector: Vector3f = Vector3f(0f, 0f, 0f),
-            baseShape: () -> List<List<Vector3f>>): Mesh("CurveGeometry") {
-    private val chain = spline.splinePoints()
+class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private val firstPerpendicularVector: Vector3f = Vector3f(0f, 0f, 0f),
+            baseShape: () -> List<List<Vector3f>>): Mesh("CurveGeometry"), HasGeometry {
+    val chain = spline.splinePoints()
     private val sectionVertices = spline.verticesCountPerSection()
     val countList = ArrayList<Int>(50).toMutableList()
     val frenetFrames = FrenetFramesCalc(spline, firstPerpendicularVector).computeFrenetFrames()
@@ -40,84 +39,102 @@ class Curve(spline: Spline, private val firstPerpendicularVector: Vector3f = Vec
             logger.warn("The spline provided for the Curve is empty.")
         }
         val bases = FrenetFramesCalc(spline, firstPerpendicularVector).calcBases(frenetFrames)
-        var partialCurveSize = 1
-        baseShapes.windowed(2, 1) { frame ->
-            when (frame[0].size) {
-                frame[1].size -> {
-                    partialCurveSize++
-                }
-                else -> {
-                    countList.add(partialCurveSize)
-                    partialCurveSize = 1
-                }
+        val baseShapes = baseShape.invoke()
+        val transformedBaseShapes = ArrayList<List<Vector3f>>(baseShapes.size)
+        baseShapes.forEachIndexed { index, shape ->
+            val transformedShape = ArrayList<Vector3f>(shape.size)
+            shape.forEach { point ->
+                val transformedPoint = Vector3f()
+                bases[index].transformPosition(point, transformedPoint)
+                transformedShape.add(transformedPoint)
             }
-        }
-        countList.add(partialCurveSize)
-        var position = 0
-        var lastShapeUnique = false
-        if(countList.last() == 1) {
-            countList.removeAt(countList.lastIndex)
-            lastShapeUnique = true
+            transformedBaseShapes.add(transformedShape)
         }
 
-        countList.forEach {count ->
-            val partialCurve = Mesh("partialCurve")
-            val partialCurveGeometry = ArrayList<ArrayList<Vector3f>>(count)
-            for(j in 0 until count) {
-                val shape = baseShapes[position]
-                val shapeVertexList = ArrayList<Vector3f>(shape.size)
-                shape.forEach {
-                    val vec = Vector3f()
-                    shapeVertexList.add(bases[position].transformPosition(it, vec))
-                }
-                partialCurveGeometry.add(shapeVertexList)
-                position++
+        if(partitionAlongControlpoints) {
+            if(transformedBaseShapes.size < sectionVertices +1) {
+                println(transformedBaseShapes.size)
             }
-            val helpPosition = position
-            //fill the gaps between the different shapes
-            if(helpPosition < bases.lastIndex) {
-                val shape = baseShapes[helpPosition-1]
-                val shapeVertexList = ArrayList<Vector3f>(shape.size)
-                shape.forEach {
-                    val vec = Vector3f()
-                    shapeVertexList.add(bases[helpPosition].transformPosition(it, vec))
+            val subShapes = transformedBaseShapes.windowed(sectionVertices+1, sectionVertices+1, true)
+            subShapes.forEachIndexed { index, list ->
+                //fill gaps
+                val arrayList = list as ArrayList
+                if(index != subShapes.size -1) {
+                    arrayList.add(subShapes[index+1][0])
                 }
-                partialCurveGeometry.add(shapeVertexList)
-            }
-            //edge case: the last shape is different from its predecessor
-            if(lastShapeUnique && helpPosition == bases.lastIndex) {
-                val shape = baseShapes[helpPosition-1]
-                val shapeVertexList = ArrayList<Vector3f>(shape.size)
-                shape.forEach {
-                    val vec = Vector3f()
-                    shapeVertexList.add(bases[helpPosition].transformPosition(it, vec))
-                }
-                partialCurveGeometry.add(shapeVertexList)
-            }
-            val remainder = partialCurveGeometry.size%sectionVertices
-            val n = ((partialCurveGeometry.size)/sectionVertices).toInt()
-            val add = if(n == 0) { 1 } else { remainder/n }
-            partialCurveGeometry.windowed(sectionVertices + add, sectionVertices-1 + add, true)
-            { section ->
-                val i = when {
-                    section.contains(partialCurveGeometry.first()) && section.contains(partialCurveGeometry.last()) -> {
+                val i = when (index) {
+                    0 -> {
                         0
                     }
-                    section.contains(partialCurveGeometry.first()) -> {
-                        1
-                    }
-                    section.contains(partialCurveGeometry.last()) -> {
+                    subShapes.size - 1 -> {
                         2
                     }
                     else -> {
-                        3
+                        1
                     }
                 }
-                val partialCurveSectionVertices = calculateTriangles(section, i)
-                val partialCurveSection = PartialCurve(partialCurveSectionVertices)
-                partialCurve.addChild(partialCurveSection)
+                val partialCurve = PartialCurve(calculateTriangles(arrayList, i))
+                this.addChild(partialCurve)
             }
-            this.addChild(partialCurve)
+        }
+        else {
+            var partialCurveSize = 1
+            baseShapes.windowed(2, 1) { frame ->
+                when (frame[0].size) {
+                    frame[1].size -> {
+                        partialCurveSize++
+                    }
+                    else -> {
+                        countList.add(partialCurveSize)
+                        partialCurveSize = 1
+                    }
+                }
+            }
+            countList.add(partialCurveSize)
+            var position = 0
+            var lastShapeUnique = false
+            if (countList.last() == 1) {
+                countList.removeAt(countList.lastIndex)
+                lastShapeUnique = true
+            }
+
+            countList.forEachIndexed { index, count ->
+                val partialCurveGeometry = ArrayList<List<Vector3f>>(count)
+                for (j in 0 until count) {
+                    partialCurveGeometry.add(transformedBaseShapes[position])
+                    position++
+                }
+                val helpPosition = position
+                //fill the gaps between the different shapes
+                if (helpPosition < bases.lastIndex) {
+                    val shape = baseShapes[helpPosition - 1]
+                    val shapeVertexList = ArrayList<Vector3f>(shape.size)
+                    shape.forEach {
+                        val vec = Vector3f()
+                        shapeVertexList.add(bases[helpPosition].transformPosition(it, vec))
+                    }
+                    partialCurveGeometry.add(shapeVertexList)
+                }
+                //edge case: the last shape is different from its predecessor
+                if (lastShapeUnique && helpPosition == bases.lastIndex) {
+                    val shape = baseShapes[helpPosition - 1]
+                    val shapeVertexList = ArrayList<Vector3f>(shape.size)
+                    shape.forEach {
+                        val vec = Vector3f()
+                        shapeVertexList.add(bases[helpPosition].transformPosition(it, vec))
+                    }
+                    partialCurveGeometry.add(shapeVertexList)
+                }
+                val i = if (index == 0) {
+                    0
+                } else if (index == countList.size - 1) {
+                    2
+                } else {
+                    1
+                }
+                val partialCurve = PartialCurve(calculateTriangles(partialCurveGeometry, i))
+                this.addChild(partialCurve)
+            }
         }
     }
 
@@ -132,7 +149,7 @@ class Curve(spline: Spline, private val firstPerpendicularVector: Vector3f = Vec
             if (curveGeometry.isEmpty()) {
                 return verticesVectors
             }
-            if (addCoverOrTop == 0 || addCoverOrTop == 1) {
+            if (addCoverOrTop == 0) {
                 verticesVectors.addAll(getCoverVertices(curveGeometry[0], true))
             }
             //if none of the lists in the curveGeometry differ in size, distinctBy leaves only one element
@@ -159,7 +176,7 @@ class Curve(spline: Spline, private val firstPerpendicularVector: Vector3f = Vec
             } else {
                 throw IllegalArgumentException("The baseShapes must not differ in size!")
             }
-            if (addCoverOrTop == 0 || addCoverOrTop == 2) {
+            if (addCoverOrTop == 2) {
                 verticesVectors.addAll(getCoverVertices(curveGeometry.last(), false))
             }
             return verticesVectors
@@ -218,7 +235,7 @@ class Curve(spline: Spline, private val firstPerpendicularVector: Vector3f = Vec
                 texcoords = BufferUtils.allocateFloat(verticesVectors.size * 2)
                 recalculateNormals()
             }
+            boundingBox = generateBoundingBox()
         }
     }
 }
-
