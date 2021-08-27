@@ -29,17 +29,14 @@ import org.joml.*
  *                             / ...              / ...                  / ...       \
  *                      splinepoint #1...   splinepoint #1...      splinepoint #1...  splinepoint #j
  */
-class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private val partitionAlongSplinePoints: Boolean = false,  private val firstPerpendicularVector: Vector3f = Vector3f(0f, 0f, 0f),
+class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private val partitionAlongSplinePoints: Boolean = false,
+            private val firstPerpendicularVector: Vector3f = Vector3f(0f, 0f, 0f),
             baseShape: () -> List<List<Vector3f>>): Mesh("CurveGeometry"), HasGeometry {
     val chain = spline.splinePoints()
     private val sectionVertices = spline.verticesCountPerSection()
     val countList = ArrayList<Int>(50).toMutableList()
     val frenetFrames = FrenetFramesCalc(spline, firstPerpendicularVector).computeFrenetFrames()
     val baseShapes = baseShape.invoke()
-
-    // only needed if partitionAlongSplinePoints is true
-    private var coverTopSize = 0
-    private var coverBottomSize = 0
 
     /*
      * This function renders the spline.
@@ -89,14 +86,17 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
                         1
                     }
                 }
-                val triangleVertices = VerticesCalculation().calculateTriangles(arrayList, i)
+                val calculationObject = VerticesCalculation(partitionAlongSplinePoints)
+                val triangleVertices = calculationObject.calculateTriangles(arrayList, i)
+                val coverTopSize = calculationObject.coverTopSize
+                val coverBottomSize = calculationObject.coverBottomSize
                 if(partitionAlongSplinePoints) {
                     //parent for splinepoint-level subcurves
                     val parentSubCurve = Mesh("PartialCurve")
                     //top cover
                     val topCoverVertices = ArrayList<Vector3f>(coverTopSize)
-                    for(i in 0 until coverTopSize) {
-                        topCoverVertices.add(triangleVertices[i])
+                    for(j in 0 until coverTopSize) {
+                        topCoverVertices.add(triangleVertices[j])
                     }
                     parentSubCurve.addChild(PartialCurve(topCoverVertices))
 
@@ -114,8 +114,8 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
 
                     //bottom cover
                     val bottomCoverVertices = ArrayList<Vector3f>(coverBottomSize)
-                    for (j in triangleVertices.lastIndex until triangleVertices.lastIndex - coverBottomSize) {
-                        bottomCoverVertices.add(triangleVertices[j])
+                    for (k in triangleVertices.lastIndex until triangleVertices.lastIndex - coverBottomSize) {
+                        bottomCoverVertices.add(triangleVertices[k])
                     }
                     parentSubCurve.addChild(PartialCurve(bottomCoverVertices.reversed() as ArrayList<Vector3f>))
                 }
@@ -186,7 +186,9 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
         }
     }
 
-    inner class VerticesCalculation {
+    class VerticesCalculation(private val partitionAlongSplinePoints: Boolean = false,) {
+        var coverTopSize: Int = 0
+        var coverBottomSize: Int = 0
         /**
          * This function calculates the triangles for the rendering. It takes as a parameter
          * the [curveGeometry] List which contains all the baseShapes transformed and translated
