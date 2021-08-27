@@ -3,6 +3,7 @@ package graphics.scenery.tests.unit
 import graphics.scenery.geometry.CatmullRomSpline
 import graphics.scenery.geometry.Curve
 import graphics.scenery.utils.LazyLogger
+import junit.framework.Assert.assertEquals
 import org.joml.Vector3f
 import org.junit.Test
 import kotlin.test.assertFails
@@ -41,10 +42,9 @@ class CurveTests {
 
         val catmullRom = CatmullRomSpline(points)
         val splineSize = catmullRom.splinePoints().size
-        //curve is not allowed to be partioned at splinePoint-level if it is not partioned at the controlpoint-level
-        val wrongCurve = Curve(catmullRom, false, true) { triangle(splineSize) }
-        assert(!wrongCurve.geometry().vertices.hasRemaining())
 
+        val rightCurve = Curve(catmullRom, false, true) { triangle(splineSize) }
+        assertEquals(rightCurve.children.size, splineSize)
 
     }
 }
