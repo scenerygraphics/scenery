@@ -5,7 +5,6 @@ import graphics.scenery.Mesh
 import graphics.scenery.attribute.geometry.HasGeometry
 import graphics.scenery.utils.extensions.toFloatArray
 import org.joml.*
-import kotlin.properties.Delegates
 
 /**
  * Constructs a geometry along the calculates points of a Spline.
@@ -90,11 +89,40 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
                         1
                     }
                 }
+                val triangleVertices = VerticesCalculation().calculateTriangles(arrayList, i)
                 if(partitionAlongSplinePoints) {
+                    //parent for splinepoint-level subcurves
+                    val parentSubCurve = Mesh("PartialCurve")
+                    //top cover
+                    val topCoverVertices = ArrayList<Vector3f>(coverTopSize)
+                    for(i in 0 until coverTopSize) {
+                        topCoverVertices.add(triangleVertices[i])
+                    }
+                    parentSubCurve.addChild(PartialCurve(topCoverVertices))
 
+                    // adding triangles
+                    /*
+                    this section of the code is only entered if all shapes are of equal size, hence, we can use the
+                     first element as a reference
+                     */
+                    val shapeSize = baseShapes[0].size
+                    //for each shape point 2 triangles are created and each triangle has 3 points
+                    triangleVertices.drop(coverTopSize).dropLast(coverBottomSize)
+                        .windowed(shapeSize*2*3, shapeSize*2*3) {
+                            parentSubCurve.addChild(PartialCurve(it as ArrayList<Vector3f>))
+                        }
+
+                    //bottom cover
+                    val bottomCoverVertices = ArrayList<Vector3f>(coverBottomSize)
+                    for (j in triangleVertices.lastIndex until triangleVertices.lastIndex - coverBottomSize) {
+                        bottomCoverVertices.add(triangleVertices[j])
+                    }
+                    parentSubCurve.addChild(PartialCurve(bottomCoverVertices.reversed() as ArrayList<Vector3f>))
                 }
-                val partialCurve = PartialCurve(VerticesCalculation().calculateTriangles(arrayList, i))
-                this.addChild(partialCurve)
+                else {
+                    val partialCurve = PartialCurve(triangleVertices)
+                    this.addChild(partialCurve)
+                }
             }
         }
         else {
