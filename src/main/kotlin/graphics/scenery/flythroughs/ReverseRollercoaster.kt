@@ -92,7 +92,7 @@ class ReverseRollercoaster(val scene: Scene, val cam: ()->Camera?, val name: Str
             //right before the camera
             val beforeCam = Vector3f(forward).mul(0.2f)
             if(curve is Curve) {
-                val subCurvePosition = Vector3f(curve.children[i].ifSpatial { position }?.position)
+                val subCurvePosition = Vector3f(curve.children.flatMap{it.children}.dropLast(1)[i].ifSpatial { position }?.position)
                 newPosition.add(beforeCam).sub(Vector3f(subCurvePosition))
             }
             scene.children.filter{it.name == name}[0].ifSpatial {
