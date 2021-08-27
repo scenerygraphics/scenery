@@ -105,11 +105,11 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
                     this section of the code is only entered if all shapes are of equal size, hence, we can use the
                      first element as a reference
                      */
-                    val shapeSize = baseShapes[0].size
+                    val windowSize = (baseShapes.size*baseShapes[0].size*2*3)
                     //for each shape point 2 triangles are created and each triangle has 3 points
                     triangleVertices.drop(coverTopSize).dropLast(coverBottomSize)
-                        .windowed(shapeSize*2*3, shapeSize*2*3) {
-                            parentSubCurve.addChild(PartialCurve(it as ArrayList<Vector3f>))
+                        .windowed(windowSize, windowSize) {
+                            parentSubCurve.addChild(PartialCurve(it))
                         }
 
                     //bottom cover
@@ -117,7 +117,8 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
                     for (k in triangleVertices.lastIndex until triangleVertices.lastIndex - coverBottomSize) {
                         bottomCoverVertices.add(triangleVertices[k])
                     }
-                    parentSubCurve.addChild(PartialCurve(bottomCoverVertices.reversed() as ArrayList<Vector3f>))
+                    parentSubCurve.addChild(PartialCurve(bottomCoverVertices.reversed()))
+                    this.addChild(parentSubCurve)
                 }
                 else {
                     val partialCurve = PartialCurve(triangleVertices)
@@ -285,7 +286,7 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
      * Each child of the curve must be, per definition, another Mesh. Therefore, this class turns a List of
      * vertices into a Mesh.
      */
-    class PartialCurve(verticesVectors: ArrayList<Vector3f>) : Mesh("PartialCurve") {
+    class PartialCurve(verticesVectors: List<Vector3f>) : Mesh("PartialCurve") {
         init {
             geometry {
                 vertices = BufferUtils.allocateFloat(verticesVectors.size * 3)
