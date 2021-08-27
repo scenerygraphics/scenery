@@ -29,7 +29,6 @@ class ReverseRollercoaster(val scene: Scene, val cam: ()->Camera?, val name: Str
     override fun click(x: Int, y: Int) {
         if (i <= frames.lastIndex) {
             val forward = if(camera != null) { Vector3f(camera.forward) } else { logger.warn("Cam is Null!"); Vector3f() }
-            val up = if(camera != null) { Vector3f(camera.up) } else { logger.warn("Cam is null"); Vector3f() }
 
             //rotation
             val tangent = frames[i].tangent
@@ -39,11 +38,6 @@ class ReverseRollercoaster(val scene: Scene, val cam: ()->Camera?, val name: Str
             val angleZ = calcAngle(Vector2f(forward.x, forward.y), Vector2f(tangent.x, tangent.y))
             val curveRotation = Quaternionf().rotateXYZ(angleX, angleY, angleZ).conjugate().normalize()
 
-            /*
-            //angle between up and frenetframe binormal
-            val rotAngle = calcAngle(Vector2f(up.x, up.y), Vector2f(frames[i].binormal.x, frames[i].binormal.y))
-            val curveRotation = Quaternionf().lookAlong(forward, up).normalize() //.rotationZ(rotAngle).normalize()
-            */
             scene.children.filter{it.name == name}[0].ifSpatial {
                 rotation = curveRotation
             }
