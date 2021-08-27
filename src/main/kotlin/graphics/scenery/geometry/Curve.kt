@@ -19,17 +19,10 @@ import org.joml.*
  * @param [firstPerpendicularVector] vector to which the first frenet tangent shall be perpendicular to.
  * @param [partitionAlongControlpoints] flag to indicate that the curve should be divided into subcurves, one for each
  * controlpoint, note that this option prohibits the use of different baseShapes
- * @param [partitionAlongSplinePoints] flag to indicate that the curve is to be further divided, along controlpoints and
- * splinepoints. The resulting tree would look like this:
- *
- *                                          curve
- *                                            |
- *                                          /   \      ...         \
- *                             controlpoint #1  controlpoint #2  ... controlpoint #i
- *                             / ...              / ...                  / ...       \
- *                      splinepoint #1...   splinepoint #1...      splinepoint #1...  splinepoint #j
+ * @param [partitionAlongSplinePoints] flag to indicate that the curve is to be divided at each splinepoint. Please note,
+ * [partitionAlongControlpoints] and [partitionAlongSplinePoints] are mutually exclusive in this class
  */
-class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private val partitionAlongSplinePoints: Boolean = false,
+class Curve(spline: Spline, private val partitionAlongControlpoints: Boolean = true, private val partitionAlongSplinePoints: Boolean = false,
             private val firstPerpendicularVector: Vector3f = Vector3f(0f, 0f, 0f),
             baseShape: () -> List<List<Vector3f>>): Mesh("CurveGeometry"), HasGeometry {
     val chain = spline.splinePoints()
@@ -49,8 +42,8 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
         if (chain.isEmpty()) {
             logger.warn("The spline provided for the Curve is empty.")
         }
-        if (!partitionAlongControlpoints && partitionAlongSplinePoints) {
-            logger.warn("Please partition along controlpoints if you want to partition further along the splinepoints.")
+        if (partitionAlongControlpoints && partitionAlongSplinePoints) {
+            logger.warn("Please partition along controlpoints xor partition further along the splinepoints.")
         }
         val bases = FrenetFramesCalc(spline, firstPerpendicularVector).calcBases(frenetFrames)
         val baseShapes = baseShape.invoke()
@@ -64,11 +57,12 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
             }
             transformedBaseShapes.add(transformedShape)
         }
-        if(partitionAlongControlpoints) {
+        if(partitionAlongControlpoints || partitionAlongSplinePoints) {
             if(transformedBaseShapes.size < sectionVertices +1) {
                 println(transformedBaseShapes.size)
             }
-            val subShapes = transformedBaseShapes.windowed(sectionVertices+1, sectionVertices+1, true)
+            val subShapes = if(partitionAlongControlpoints && !partitionAlongSplinePoints) { transformedBaseShapes.windowed(sectionVertices+1, sectionVertices+1, true) }
+            else { transformedBaseShapes.windowed(2, 1, true) }
             subShapes.forEachIndexed { index, list ->
                 //fill gaps
                 val arrayList = list as ArrayList
@@ -86,44 +80,8 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
                         1
                     }
                 }
-                val calculationObject = VerticesCalculation(partitionAlongSplinePoints)
-                val triangleVertices = calculationObject.calculateTriangles(arrayList, i)
-                val coverTopSize = calculationObject.coverTopSize
-                val coverBottomSize = calculationObject.coverBottomSize
-                if(partitionAlongSplinePoints) {
-                    //parent for splinepoint-level subcurves
-                    val parentSubCurve = Mesh("PartialCurve")
-                    //top cover
-                    val topCoverVertices = ArrayList<Vector3f>(coverTopSize)
-                    for(j in 0 until coverTopSize) {
-                        topCoverVertices.add(triangleVertices[j])
-                    }
-                    parentSubCurve.addChild(PartialCurve(topCoverVertices))
-
-                    // adding triangles
-                    /*
-                    this section of the code is only entered if all shapes are of equal size, hence, we can use the
-                     first element as a reference
-                     */
-                    val windowSize = (baseShapes.size*baseShapes[0].size*2*3)
-                    //for each shape point 2 triangles are created and each triangle has 3 points
-                    triangleVertices.drop(coverTopSize).dropLast(coverBottomSize)
-                        .windowed(windowSize, windowSize) {
-                            parentSubCurve.addChild(PartialCurve(it))
-                        }
-
-                    //bottom cover
-                    val bottomCoverVertices = ArrayList<Vector3f>(coverBottomSize)
-                    for (k in triangleVertices.lastIndex until triangleVertices.lastIndex - coverBottomSize) {
-                        bottomCoverVertices.add(triangleVertices[k])
-                    }
-                    parentSubCurve.addChild(PartialCurve(bottomCoverVertices.reversed()))
-                    this.addChild(parentSubCurve)
-                }
-                else {
-                    val partialCurve = PartialCurve(triangleVertices)
-                    this.addChild(partialCurve)
-                }
+                val partialCurve = PartialCurve(VerticesCalculation().calculateTriangles(arrayList, i))
+                this.addChild(partialCurve)
             }
         }
         else {
