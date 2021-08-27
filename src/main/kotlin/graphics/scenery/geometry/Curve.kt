@@ -5,6 +5,7 @@ import graphics.scenery.Mesh
 import graphics.scenery.attribute.geometry.HasGeometry
 import graphics.scenery.utils.extensions.toFloatArray
 import org.joml.*
+import kotlin.properties.Delegates
 
 /**
  * Constructs a geometry along the calculates points of a Spline.
@@ -19,14 +20,28 @@ import org.joml.*
  * @param [firstPerpendicularVector] vector to which the first frenet tangent shall be perpendicular to.
  * @param [partitionAlongControlpoints] flag to indicate that the curve should be divided into subcurves, one for each
  * controlpoint, note that this option prohibits the use of different baseShapes
+ * @param [partitionAlongSplinePoints] flag to indicate that the curve is to be further divided, along controlpoints and
+ * splinepoints. The resulting tree would look like this:
+ *
+ *                                          curve
+ *                                            |
+ *                                          /   \      ...         \
+ *                             controlpoint #1  controlpoint #2  ... controlpoint #i
+ *                             / ...              / ...                  / ...       \
+ *                      splinepoint #1...   splinepoint #1...      splinepoint #1...  splinepoint #j
  */
-class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private val firstPerpendicularVector: Vector3f = Vector3f(0f, 0f, 0f),
+class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private val partitionAlongSplinePoints: Boolean = false,  private val firstPerpendicularVector: Vector3f = Vector3f(0f, 0f, 0f),
             baseShape: () -> List<List<Vector3f>>): Mesh("CurveGeometry"), HasGeometry {
     val chain = spline.splinePoints()
     private val sectionVertices = spline.verticesCountPerSection()
     val countList = ArrayList<Int>(50).toMutableList()
     val frenetFrames = FrenetFramesCalc(spline, firstPerpendicularVector).computeFrenetFrames()
     val baseShapes = baseShape.invoke()
+
+    // only needed if partitionAlongSplinePoints is true
+    private var coverTopSize = 0
+    private var coverBottomSize = 0
+
     /*
      * This function renders the spline.
      * [baseShape] It takes a lambda as a parameter, which is the shape of the
@@ -37,6 +52,9 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
     init {
         if (chain.isEmpty()) {
             logger.warn("The spline provided for the Curve is empty.")
+        }
+        if (!partitionAlongControlpoints && partitionAlongSplinePoints) {
+            logger.warn("Please partition along controlpoints if you want to partition further along the splinepoints.")
         }
         val bases = FrenetFramesCalc(spline, firstPerpendicularVector).calcBases(frenetFrames)
         val baseShapes = baseShape.invoke()
@@ -50,7 +68,6 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
             }
             transformedBaseShapes.add(transformedShape)
         }
-
         if(partitionAlongControlpoints) {
             if(transformedBaseShapes.size < sectionVertices +1) {
                 println(transformedBaseShapes.size)
@@ -73,7 +90,10 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
                         1
                     }
                 }
-                val partialCurve = PartialCurve(calculateTriangles(arrayList, i))
+                if(partitionAlongSplinePoints) {
+
+                }
+                val partialCurve = PartialCurve(VerticesCalculation().calculateTriangles(arrayList, i))
                 this.addChild(partialCurve)
             }
         }
@@ -132,15 +152,15 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
                 } else {
                     1
                 }
-                val partialCurve = PartialCurve(calculateTriangles(partialCurveGeometry, i))
+                val partialCurve = PartialCurve(VerticesCalculation().calculateTriangles(partialCurveGeometry, i))
                 this.addChild(partialCurve)
             }
         }
     }
 
-    companion object VerticesCalculation {
+    inner class VerticesCalculation {
         /**
-         * This function calculates the triangles for the the rendering. It takes as a parameter
+         * This function calculates the triangles for the rendering. It takes as a parameter
          * the [curveGeometry] List which contains all the baseShapes transformed and translated
          * along the curve.
          */
@@ -216,12 +236,23 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
                 }
                 verticesList.addAll(getCoverVertices(newList, ccw))
             }
+            // size of top/bottom cover is needed to divide the curve children further
+            if (partitionAlongSplinePoints) {
+                //top
+                if(ccw) {
+                    coverTopSize = verticesList.size
+                }
+                //bottom
+                else {
+                    coverBottomSize = verticesList.size
+                }
+            }
             return verticesList
         }
     }
 
     /**
-     * Each children of the curve must be, per definition, another Mesh. Therefore this class turns a List of
+     * Each child of the curve must be, per definition, another Mesh. Therefore, this class turns a List of
      * vertices into a Mesh.
      */
     class PartialCurve(verticesVectors: ArrayList<Vector3f>) : Mesh("PartialCurve") {
