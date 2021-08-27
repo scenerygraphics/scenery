@@ -31,41 +31,6 @@ class ReverseRollercoaster(val scene: Scene, val cam: ()->Camera?, val name: Str
             val forward = if(camera != null) { Vector3f(camera.forward) } else { logger.warn("Cam is Null!"); Vector3f() }
             val up = if(camera != null) { Vector3f(camera.up) } else { logger.warn("Cam is null"); Vector3f() }
 
-            //transfer all frenet frame positions
-            frames.forEach {
-                //it.translation.add(newPosition)
-            }
-            //debug arrows
-            val matFaint = DefaultMaterial()
-            matFaint.diffuse  = Vector3f(0.0f, 0.6f, 0.6f)
-            matFaint.ambient  = Vector3f(1.0f, 1.0f, 1.0f)
-            matFaint.specular = Vector3f(1.0f, 1.0f, 1.0f)
-            matFaint.cullingMode = Material.CullingMode.None
-
-            frames.forEachIndexed { index, it ->
-                if(index%20 == 0) {
-                    /*
-                    val arrowX = Arrow(it.binormal - Vector3f())
-                    arrowX.edgeWidth = 0.5f
-                    arrowX.addAttribute(Material::class.java, matFaint)
-                    arrowX.spatial().position = it.translation
-                    scene.addChild(arrowX)
-
-                    val arrowY = Arrow(it.normal - Vector3f())
-                    arrowY.edgeWidth = 0.5f
-                    arrowY.addAttribute(Material::class.java, matFaint)
-                    arrowY.spatial().position = it.translation
-                    scene.addChild(arrowY)
-                     */
-                    val arrowZ = Arrow(it.tangent - Vector3f())
-                    arrowZ.edgeWidth = 0.5f
-                    arrowZ.addAttribute(Material::class.java, matFaint)
-                    arrowZ.spatial().position = it.translation
-                    //scene.addChild(arrowZ)
-                }
-            }
-
-
             //rotation
             val tangent = frames[i].tangent
             // euler angles
@@ -74,11 +39,6 @@ class ReverseRollercoaster(val scene: Scene, val cam: ()->Camera?, val name: Str
             val angleZ = calcAngle(Vector2f(forward.x, forward.y), Vector2f(tangent.x, tangent.y))
             val curveRotation = Quaternionf().rotateXYZ(angleX, angleY, angleZ).conjugate().normalize()
 
-            val forwardArrow = Arrow(forward - Vector3f())
-            forwardArrow.edgeWidth = 0.5f
-            forwardArrow.addAttribute(Material::class.java, matFaint)
-            forwardArrow.spatial().position = camera?.spatial()?.position!!
-            //scene.addChild(forwardArrow)
             /*
             //angle between up and frenetframe binormal
             val rotAngle = calcAngle(Vector2f(up.x, up.y), Vector2f(frames[i].binormal.x, frames[i].binormal.y))
