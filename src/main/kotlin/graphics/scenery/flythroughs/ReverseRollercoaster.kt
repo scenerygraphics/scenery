@@ -81,15 +81,17 @@ class ReverseRollercoaster(val scene: Scene, val cam: ()->Camera?, val name: Str
             scene.children.filter{it.name == name}[0].ifSpatial {
                 if(i == 0) {
                     //intial position right before the camera
-                    //val beforeCam = Vector3f(forward).mul(0.5f)
-                    //position = (Vector3f(camera?.spatial()?.position!!)).add(beforeCam)
+                    val beforeCam = Vector3f(forward).mul(0.5f)
+                    position = (Vector3f(camera?.spatial()?.position!!)).add(beforeCam)
                 }
                 else {
                     val index = i
                     val frame = frames[index-1]
                     val nextFrame = frames[index]
                     val translation = Vector3f(frame.tangent).mul(-1f).mul(Vector3f(Vector3f(nextFrame.translation).sub(Vector3f(frame.translation))).length())
-                    position = Vector3f(position).add(translation)
+                    val position1 = Vector3f(position).add(translation)
+                    position = position1
+                    scene.children.filter { it.name == "arrows" }[0].ifSpatial { position = position1 }
                 }
             }
             i += 1
