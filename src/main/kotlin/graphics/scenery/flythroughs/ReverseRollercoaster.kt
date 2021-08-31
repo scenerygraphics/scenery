@@ -10,7 +10,6 @@ import graphics.scenery.utils.extensions.minus
 import org.joml.Quaternionf
 import org.joml.Vector2f
 import org.joml.Vector3f
-import org.ojalgo.array.QuaternionArray
 import org.scijava.ui.behaviour.ClickBehaviour
 import kotlin.math.acos
 
@@ -81,15 +80,18 @@ class ReverseRollercoaster(val scene: Scene, val cam: ()->Camera?, val name: Str
             //position
             scene.children.filter{it.name == name}[0].ifSpatial {
                 if(i == 0) {
-                    //intial position right before the camera
-                    val beforeCam = Vector3f(forward).mul(0.5f)
-                    position = (Vector3f(camera?.spatial()?.position!!)).add(beforeCam)
+                    //initial position right before camera
+                    val stretchedForward = Vector3f(forward).mul(0.5f)
+                    val beforeCam = (Vector3f(camera?.spatial()?.position!!)).add(stretchedForward)
+                    val frameToBeforeCam = Vector3f(beforeCam).sub(frames[0].translation)
+                    val initialPosition = Vector3f(position).add(frameToBeforeCam)
+                    position = initialPosition
                 }
                 else {
                     val index = i
                     val frame = frames[index-1]
                     val nextFrame = frames[index]
-                    val translation = Vector3f(frame.tangent).mul(-1f).mul(Vector3f(Vector3f(nextFrame.translation).sub(Vector3f(frame.translation))).length())
+                    val translation = Vector3f(frame.tangent).mul(Vector3f(Vector3f(nextFrame.translation).sub(Vector3f(frame.translation))).length())
                     val position1 = Vector3f(position).add(translation)
                     position = position1
                     scene.children.filter { it.name == "arrows" }[0].ifSpatial { position = position1 }
