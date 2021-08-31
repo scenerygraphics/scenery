@@ -1,8 +1,6 @@
 package graphics.scenery.flythroughs
 
-import graphics.scenery.Camera
-import graphics.scenery.Node
-import graphics.scenery.Scene
+import graphics.scenery.*
 import graphics.scenery.attribute.material.DefaultMaterial
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.geometry.Curve
@@ -24,10 +22,37 @@ class ReverseRollercoaster(val scene: Scene, val cam: ()->Camera?, val name: Str
     val curve: Node = scene.children.filter{it.name == name}[0]
     val camera = cam.invoke()
     val frames = if(curve is Curve) { curve.frenetFrames } else { ArrayList() }
-    val spaceBetweenFrames = ArrayList<Float>(frames.size-1)
+    private val spaceBetweenFrames = ArrayList<Float>(frames.size-1)
 
     var i = 0
     init {
+        val arrows = Mesh("arrows")
+        //debug arrows
+        val matFaint = DefaultMaterial()
+        matFaint.diffuse  = Vector3f(0.0f, 0.6f, 0.6f)
+        matFaint.ambient  = Vector3f(1.0f, 1.0f, 1.0f)
+        matFaint.specular = Vector3f(1.0f, 1.0f, 1.0f)
+        matFaint.cullingMode = Material.CullingMode.None
+        frames.forEachIndexed { index, it ->
+            if(index%20 == 0) {
+                val arrowX = Arrow(it.binormal - Vector3f())
+                arrowX.edgeWidth = 0.5f
+                arrowX.addAttribute(Material::class.java, matFaint)
+                arrowX.spatial().position = it.translation
+                arrows.addChild(arrowX)
+                val arrowY = Arrow(it.normal - Vector3f())
+                arrowY.edgeWidth = 0.5f
+                arrowY.addAttribute(Material::class.java, matFaint)
+                arrowY.spatial().position = it.translation
+                arrows.addChild(arrowY)
+                val arrowZ = Arrow(it.tangent - Vector3f())
+                arrowZ.edgeWidth = 0.5f
+                arrowZ.addAttribute(Material::class.java, matFaint)
+                arrowZ.spatial().position = it.translation
+                arrows.addChild(arrowZ)
+            }
+        }
+        scene.addChild(arrows)
         frames.windowed(2, 1) {
             val frameToFrame = Vector3f()
             it[0].translation.sub(it[1].translation, frameToFrame)
@@ -40,28 +65,31 @@ class ReverseRollercoaster(val scene: Scene, val cam: ()->Camera?, val name: Str
         if (i <= frames.lastIndex) {
             //rotation
             val tangent = frames[i].tangent
+            tangent.mul(-1f)
             // euler angles
             val angleX = calcAngle(Vector2f(forward.y, forward.z), Vector2f(tangent.y, tangent.z))
             val angleY = calcAngle(Vector2f(forward.x, forward.z), Vector2f(tangent.x, tangent.z))
             val angleZ = calcAngle(Vector2f(forward.x, forward.y), Vector2f(tangent.x, tangent.y))
-            val curveRotation = Quaternionf().rotateXYZ(angleX, angleY, angleZ).conjugate().normalize()
+            val curveRotation = Quaternionf().rotateXYZ(angleX, angleY, angleZ).normalize()
+
+
             scene.children.filter{it.name == name}[0].ifSpatial {
                 rotation = curveRotation
             }
-
+            scene.children.filter { it.name == "arrows" }[0].ifSpatial { rotation = curveRotation }
             //position
             scene.children.filter{it.name == name}[0].ifSpatial {
                 if(i == 0) {
                     //intial position right before the camera
-                    val beforeCam = Vector3f(forward).mul(0.5f)
-                    position = (Vector3f(camera?.spatial()?.position!!)).add(beforeCam)
+                    //val beforeCam = Vector3f(forward).mul(0.5f)
+                    //position = (Vector3f(camera?.spatial()?.position!!)).add(beforeCam)
                 }
                 else {
                     val index = i
                     val frame = frames[index-1]
                     val nextFrame = frames[index]
-                    val translation = Vector3f(frame.tangent).mul(Vector3f(Vector3f(nextFrame.translation).sub(Vector3f(frame.translation))).length())
-                    position = position.add(translation)
+                    val translation = Vector3f(frame.tangent).mul(-1f).mul(Vector3f(Vector3f(nextFrame.translation).sub(Vector3f(frame.translation))).length())
+                    position = Vector3f(position).add(translation)
                 }
             }
             i += 1
