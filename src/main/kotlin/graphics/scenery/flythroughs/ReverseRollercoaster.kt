@@ -5,6 +5,7 @@ import graphics.scenery.attribute.material.DefaultMaterial
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.geometry.Curve
 import graphics.scenery.primitives.Arrow
+import graphics.scenery.primitives.Cylinder
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.extensions.minus
 import org.joml.Quaternionf
@@ -82,16 +83,23 @@ class ReverseRollercoaster(val scene: Scene, val cam: ()->Camera?, val name: Str
                 if(i == 0) {
                     //initial position right before camera
                     val stretchedForward = Vector3f(forward).mul(0.5f)
-                    val beforeCam = (Vector3f(camera?.spatial()?.position!!)).add(stretchedForward)
-                    val frameToBeforeCam = Vector3f(beforeCam).sub(frames[0].translation)
+                    val beforeCam = (Vector3f(camera?.spatial()?.position!!)) //.add(stretchedForward)
+                    val frameToBeforeCam = Vector3f(frames[0].translation).sub(beforeCam)
                     val initialPosition = Vector3f(position).add(frameToBeforeCam)
                     position = initialPosition
+                    scene.children.filter { it.name == "arrows" }[0].ifSpatial { position = initialPosition }
+                    //debug arrows
+                    val cylinder = Cylinder(0.05f, beforeCam.length(), 6)
+                    cylinder.spatial().position = beforeCam
+                    cylinder.spatial().orientBetweenPoints(beforeCam, frames[0].translation)
+                    scene.addChild(cylinder)
+
                 }
                 else {
                     val index = i
                     val frame = frames[index-1]
                     val nextFrame = frames[index]
-                    val translation = Vector3f(frame.tangent).mul(Vector3f(Vector3f(nextFrame.translation).sub(Vector3f(frame.translation))).length())
+                    val translation = Vector3f(frame.tangent).mul(-1f).mul(Vector3f(Vector3f(nextFrame.translation).sub(Vector3f(frame.translation))).length())
                     val position1 = Vector3f(position).add(translation)
                     position = position1
                     scene.children.filter { it.name == "arrows" }[0].ifSpatial { position = position1 }
