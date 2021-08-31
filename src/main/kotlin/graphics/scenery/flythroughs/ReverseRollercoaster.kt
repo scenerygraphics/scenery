@@ -65,25 +65,6 @@ class ReverseRollercoaster(val scene: Scene, val cam: ()->Camera?, val name: Str
     override fun click(x: Int, y: Int) {
 
         if (i <= frames.lastIndex) {
-            //position
-            scene.children.filter{it.name == name}[0].ifSpatial {
-                if(i == 0) {
-                    //initial position right before camera
-                    val stretchedForward = Vector3f(forward).mul(0.5f)
-                    val beforeCam = (Vector3f(camera?.spatial()?.position!!)).add(stretchedForward)
-                    val frameToBeforeCam = Vector3f(beforeCam).sub(frames[i].translation)
-                    val initialPosition = Vector3f(position).add(frameToBeforeCam)
-                    //position = initialPosition
-                }
-                else {
-                    val index = i
-                    val frame = frames[index-1]
-                    val nextFrame = frames[index]
-                    val translation = Vector3f(frame.tangent).mul(Vector3f(Vector3f(nextFrame.translation).sub(Vector3f(frame.translation))).length())
-                    val position1 = Vector3f(position).add(translation)
-                    //position = position1
-                }
-            }
             //rotation
             val tangent = frames[i].tangent
             //tangent.mul(-1f)
@@ -97,7 +78,27 @@ class ReverseRollercoaster(val scene: Scene, val cam: ()->Camera?, val name: Str
             scene.children.filter{it.name == name}[0].ifSpatial {
                 rotation = curveRotation
             }
-
+            //position
+            scene.children.filter{it.name == name}[0].ifSpatial {
+                if(i == 0) {
+                    //initial position right before camera
+                    val stretchedForward = Vector3f(forward) //.mul(2f)
+                    val beforeCam = (Vector3f(camera?.spatial()?.position!!)).add(stretchedForward)
+                    val rotatedFramePosition = curveRotation.transform(Vector3f(frames[0].translation))
+                    val frameToBeforeCam = Vector3f(beforeCam).sub(rotatedFramePosition)
+                    val initialPosition = Vector3f(position).add(frameToBeforeCam)
+                    position = initialPosition
+                }
+                else {
+                    val index = i
+                    val frame = frames[index-1]
+                    val nextFrame = frames[index]
+                    val rotatedTangent = curveRotation.transform(Vector3f(frame.tangent))
+                    val translation = Vector3f(rotatedTangent).mul(-1f).mul(Vector3f(Vector3f(nextFrame.translation).sub(Vector3f(frame.translation))).length())
+                    val position1 = Vector3f(position).add(translation)
+                    position = position1
+                }
+            }
             i += 1
         }
     }
