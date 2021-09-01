@@ -5,14 +5,11 @@ import graphics.scenery.attribute.material.DefaultMaterial
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.geometry.Curve
 import graphics.scenery.primitives.Arrow
-import graphics.scenery.primitives.Cylinder
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.extensions.minus
 import org.joml.Quaternionf
-import org.joml.Vector2f
 import org.joml.Vector3f
 import org.scijava.ui.behaviour.ClickBehaviour
-import kotlin.math.acos
 
 /**
  * class that lets a curve or spline object fly in front of the camera from beginning to end
@@ -24,7 +21,7 @@ class ReverseRollercoaster(val scene: Scene, val cam: ()->Camera?, val name: Str
     val frames = if(curve is Curve) { curve.frenetFrames } else { ArrayList() }
     val forward = if(camera != null) { Vector3f(camera.forward) } else { logger.warn("Cam is Null!"); Vector3f() }
     val up = if(camera != null) { Vector3f(camera.up) } else { logger.warn("Cam is Null!"); Vector3f() }
-    private val spaceBetweenFrames = ArrayList<Float>(frames.size-1)
+    var acc = Vector3f()
 
     var i = 0
     init {
@@ -55,11 +52,6 @@ class ReverseRollercoaster(val scene: Scene, val cam: ()->Camera?, val name: Str
             }
         }
         scene.children.filter{it.name == name}[0].addChild(arrows)
-        frames.windowed(2, 1) {
-            val frameToFrame = Vector3f()
-            it[0].translation.sub(it[1].translation, frameToFrame)
-            spaceBetweenFrames.add(frameToFrame.length())
-        }
     }
     
     override fun click(x: Int, y: Int) {
@@ -67,32 +59,35 @@ class ReverseRollercoaster(val scene: Scene, val cam: ()->Camera?, val name: Str
         if (i <= frames.lastIndex) {
             //rotation
             val tangent = frames[i].tangent
+            val binormal = frames[i].binormal
             //tangent.mul(-1f)
-            val curveRotation = Quaternionf().lookAlong(tangent, up).normalize()
+            val curveRotation = Quaternionf().lookAlong(tangent, binormal).normalize()
 
             scene.children.filter{it.name == name}[0].ifSpatial {
                 rotation = curveRotation
             }
             //position
             scene.children.filter{it.name == name}[0].ifSpatial {
-                if(i == 0) {
-                    //initial position right before camera
-                    val stretchedForward = Vector3f(forward) //.mul(2f)
-                    val beforeCam = (Vector3f(camera?.spatial()?.position!!)).add(stretchedForward)
-                    val rotatedFramePosition = curveRotation.transform(Vector3f(frames[0].translation))
-                    val frameToBeforeCam = Vector3f(beforeCam).sub(rotatedFramePosition)
-                    val initialPosition = Vector3f(position).add(frameToBeforeCam)
-                    position = initialPosition
-                }
+
+                //initial position right before camera
+                val stretchedForward = Vector3f(forward) //.mul(2f)
+                val beforeCam = (Vector3f(camera?.spatial()?.position!!)) //.add(stretchedForward)
+                val rotatedFramePosition = curveRotation.transform(Vector3f(frames[i].translation).add(acc))
+                val frameToBeforeCam = Vector3f(beforeCam).sub(rotatedFramePosition)
+                val nextPosition = Vector3f(position).add(frameToBeforeCam)
+                acc = acc.add(frameToBeforeCam)
+                position = nextPosition
+                /*
                 else {
                     val index = i
                     val frame = frames[index-1]
                     val nextFrame = frames[index]
-                    val rotatedTangent = curveRotation.transform(Vector3f(frame.tangent))
-                    val translation = Vector3f(rotatedTangent).mul(-1f).mul(Vector3f(Vector3f(nextFrame.translation).sub(Vector3f(frame.translation))).length())
+                    val translation = Vector3f(rotatedTangents[index-1]).mul(-1f).mul(Vector3f(Vector3f(nextFrame.translation).sub(Vector3f(frame.translation))).length())
                     val position1 = Vector3f(position).add(translation)
                     position = position1
                 }
+
+                 */
             }
             i += 1
         }
