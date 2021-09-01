@@ -68,11 +68,6 @@ class ReverseRollercoaster(val scene: Scene, val cam: ()->Camera?, val name: Str
             //rotation
             val tangent = frames[i].tangent
             //tangent.mul(-1f)
-            // euler angles
-            val angleX = calcAngle(Vector2f(forward.y, forward.z), Vector2f(tangent.y, tangent.z))
-            val angleY = calcAngle(Vector2f(forward.x, forward.z), Vector2f(tangent.x, tangent.z))
-            val angleZ = calcAngle(Vector2f(forward.x, forward.y), Vector2f(tangent.x, tangent.y))
-            //val curveRotation = Quaternionf().rotateXYZ(angleX, angleY, angleZ).normalize()
             val curveRotation = Quaternionf().lookAlong(tangent, up).normalize()
 
             scene.children.filter{it.name == name}[0].ifSpatial {
@@ -100,25 +95,6 @@ class ReverseRollercoaster(val scene: Scene, val cam: ()->Camera?, val name: Str
                 }
             }
             i += 1
-        }
-    }
-
-    private fun calcAngle(vec1: Vector2f, vec2: Vector2f): Float {
-        vec1.normalize()
-        vec2.normalize()
-        // normalize will return NaN if one vector is the null vector
-        return if(!vec1.x.isNaN() && !vec1.y.isNaN() && !vec2.x.isNaN() && !vec2.y.isNaN()) {
-            val cosAngle = vec1.dot(vec2).toDouble()
-            var angle = if(cosAngle > 1) { 0.0 } else { acos(cosAngle) }
-            /*
-            // negative angle?
-            vec1.x = -vec1.x
-            if(vec2.dot(vec1) > 0) { angle *= -1.0}
-
-             */
-            angle.toFloat()
-        } else  {
-            0f
         }
     }
 }
