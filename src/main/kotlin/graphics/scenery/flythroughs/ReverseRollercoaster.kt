@@ -27,36 +27,6 @@ class ReverseRollercoaster(val scene: Scene, val cam: ()->Camera?, val name: Str
     private val beforeCam = (Vector3f(camera?.spatial()?.position!!)) //.add(stretchedForward)
 
     var i = 0
-    init {
-        val arrows = Mesh("arrows")
-        //debug arrows
-        val matFaint = DefaultMaterial()
-        matFaint.diffuse  = Vector3f(0.0f, 0.6f, 0.6f)
-        matFaint.ambient  = Vector3f(1.0f, 1.0f, 1.0f)
-        matFaint.specular = Vector3f(1.0f, 1.0f, 1.0f)
-        matFaint.cullingMode = Material.CullingMode.None
-        frames.forEachIndexed { index, it ->
-            if(index%20 == 0) {
-                val arrowX = Arrow(it.binormal - Vector3f())
-                arrowX.edgeWidth = 0.5f
-                arrowX.addAttribute(Material::class.java, matFaint)
-                arrowX.spatial().position = it.translation
-                arrows.addChild(arrowX)
-                val arrowY = Arrow(it.normal - Vector3f())
-                arrowY.edgeWidth = 0.5f
-                arrowY.addAttribute(Material::class.java, matFaint)
-                arrowY.spatial().position = it.translation
-                arrows.addChild(arrowY)
-                val arrowZ = Arrow(it.tangent - Vector3f())
-                arrowZ.edgeWidth = 0.5f
-                arrowZ.addAttribute(Material::class.java, matFaint)
-                arrowZ.spatial().position = it.translation
-                arrows.addChild(arrowZ)
-            }
-        }
-        //scene.children.filter{it.name == name}[0].addChild(arrows)
-    }
-    
     override fun click(x: Int, y: Int) {
         if (i <= frames.lastIndex) {
             //rotation
@@ -68,18 +38,11 @@ class ReverseRollercoaster(val scene: Scene, val cam: ()->Camera?, val name: Str
             scene.children.filter{it.name == name}[0].ifSpatial {
                 rotation = curveRotation
             }
-
-            frames.forEach {
-                println("before: ${it.translation}")
-                curveRotation.transform(it.translation)
-                println("after: ${it.translation}")
-            }
             //position
             scene.children.filter{it.name == name}[0].ifSpatial {
-                val rotatedFramePosition = frames[i].translation
+                val rotatedFramePosition = curveRotation.transform(frames[i].translation)
                 val frameToBeforeCam = Vector3f(beforeCam).sub(rotatedFramePosition)
-                //println("This is frame befor Camera: $frameToBeforeCam $i")
-                frames.forEach { it.translation.add(frameToBeforeCam) }
+                //println("This is frame before Camera: $frameToBeforeCam $i")
                 val nextPosition = Vector3f(position).add(frameToBeforeCam)
                 //println("This is frame nextposition: $nextPosition $i")
                 position = nextPosition
