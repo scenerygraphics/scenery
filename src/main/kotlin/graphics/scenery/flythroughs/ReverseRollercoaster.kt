@@ -1,12 +1,8 @@
 package graphics.scenery.flythroughs
 
 import graphics.scenery.*
-import graphics.scenery.attribute.material.DefaultMaterial
-import graphics.scenery.attribute.material.Material
 import graphics.scenery.geometry.Curve
-import graphics.scenery.primitives.Arrow
 import graphics.scenery.utils.LazyLogger
-import graphics.scenery.utils.extensions.minus
 import org.joml.Quaternionf
 import org.joml.Vector3f
 import org.scijava.ui.behaviour.ClickBehaviour
@@ -26,6 +22,15 @@ class ReverseRollercoaster(val scene: Scene, val cam: ()->Camera?, val name: Str
     val stretchedForward = Vector3f(forward) //.mul(2f)
     private val beforeCam = (Vector3f(camera?.spatial()?.position!!)) //.add(stretchedForward)
 
+    init {
+        val frameNodesParent = Mesh("FrameNodeParents")
+        frames.forEachIndexed { index, frame ->
+            val frameNode = Mesh("FrameNode $index")
+            frameNode.spatial().position = frame.translation
+            frameNodesParent.addChild(frameNode)
+        }
+        scene.children.filter{it.name == name}[0].addChild(frameNodesParent)
+    }
     var i = 0
     override fun click(x: Int, y: Int) {
         if (i <= frames.lastIndex) {
@@ -40,11 +45,10 @@ class ReverseRollercoaster(val scene: Scene, val cam: ()->Camera?, val name: Str
             }
             //position
             scene.children.filter{it.name == name}[0].ifSpatial {
-                val rotatedFramePosition = curveRotation.transform(frames[i].translation)
-                val frameToBeforeCam = Vector3f(beforeCam).sub(rotatedFramePosition)
-                //println("This is frame before Camera: $frameToBeforeCam $i")
+                val currentFrame = scene.children.filter{it.name == name}[0].
+                    children.filter{it.name == "FrameNodeParents"}[0].children[i]
+                val frameToBeforeCam = Vector3f(beforeCam).sub(currentFrame.ifSpatial { rotation }?.rotation?.transform(Vector3f(currentFrame.ifSpatial { position }?.position)))
                 val nextPosition = Vector3f(position).add(frameToBeforeCam)
-                //println("This is frame nextposition: $nextPosition $i")
                 position = nextPosition
             }
             i += 1
