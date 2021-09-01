@@ -73,16 +73,21 @@ class ReverseRollercoaster(val scene: Scene, val cam: ()->Camera?, val name: Str
                     val rotatedFramePosition = curveRotation.transform(Vector3f(frames[0].translation))
                     val frameToBeforeCam = Vector3f(beforeCam).sub(rotatedFramePosition)
                     val initialPosition = Vector3f(position).add(frameToBeforeCam)
+                    frames.forEach { curveRotation.transform(it.translation)
+                    it.translation.add(frameToBeforeCam)}
                     position = initialPosition
                 }
                 else {
-                    val index = i
-                    val frame = frames[index-1]
-                    val nextFrame = frames[index]
-                    val rotatedTangent = Quaternionf().lookAlong(frame.tangent, frame.binormal).normalize().transform(Vector3f(frame.tangent))
-                    val translation = Vector3f(rotatedTangent).mul(-1f).mul(Vector3f(Vector3f(nextFrame.translation).sub(Vector3f(frame.translation))).length())
-                    val position1 = Vector3f(position).add(translation)
-                    position = position1
+                    //initial position right before camera
+                    val frameToBeforeCam = Vector3f(beforeCam).sub(frames[i].translation)
+                    val initialPosition = Vector3f(position).add(frameToBeforeCam)
+                    frames.forEachIndexed { index, frame ->
+                        if(index != i) {
+                            curveRotation.transform(frame.translation)
+                        }
+                        frame.translation.add(frameToBeforeCam)
+                    }
+                    position = initialPosition
                 }
             }
             i += 1
