@@ -43,7 +43,7 @@ class DFTParser (val normalizeDensityTo: Float = -1.0f): AutoCloseable{
     }
 
     // Parse information as .cube file.
-    fun parseCube(filename: String){
+    fun parseCube(filename: String, cubeStyle: String="unknown"){
         // Read entire file content
         val cubeFile =  File(filename).bufferedReader().readLines()
         var counter = 0
@@ -107,25 +107,50 @@ class DFTParser (val normalizeDensityTo: Float = -1.0f): AutoCloseable{
                     // A possible optimization here would be to read this into a 1D array. We cannot directly
                     // read it into the byte buffer, because we don't know max/min values a-priori.
                     if (counter >= 6+numberOfAtoms) {
-                        val lineContent = (line.trim().split(whiteSpaceRegex))
-                        for (value in lineContent) {
-                            // Cube files should be in Fortran (z-fastest ordering).
-                            // Kotlin is x-fastest ordering, so we have to convert that.
-                            val floatVal = value.toFloat()
-                            electronicDensity[xcounter+ycounter*gridDimensions[0]+zcounter*gridDimensions[1]*gridDimensions[0]] = floatVal
-                            if (floatVal > maxDensity) {
-                                maxDensity = floatVal
+                        if (cubeStyle == "QE") {
+                            val lineContent = line.trim().split(" ")
+                            for (i in 0..lineContent.size step 2){
+                                // Cube files should be in Fortran (z-fastest ordering).
+                                // Kotlin is x-fastest ordering, so we have to convert that.
+                                val floatVal = lineContent[i].toFloat()
+                                electronicDensity[xcounter+ycounter*gridDimensions[0]+zcounter*gridDimensions[1]*gridDimensions[0]] = floatVal
+                                if (floatVal > maxDensity) {
+                                    maxDensity = floatVal
+                                }
+                                if (floatVal < minDensity) {
+                                    minDensity = floatVal
+                                }
+                                zcounter++
+                                if (zcounter == gridDimensions[2]) {
+                                    zcounter = 0
+                                    ycounter++
+                                    if (ycounter == gridDimensions[1]) {
+                                        ycounter = 0
+                                        xcounter++
+                                    }
+                                }
                             }
-                            if (floatVal < minDensity) {
-                                minDensity = floatVal
-                            }
-                            zcounter++
-                            if (zcounter == gridDimensions[2]) {
-                                zcounter = 0
-                                ycounter++
-                                if (ycounter == gridDimensions[1]) {
-                                    ycounter = 0
-                                    xcounter++
+                        } else {
+                            val lineContent = (line.trim().split(whiteSpaceRegex))
+                            for (value in lineContent) {
+                                // Cube files should be in Fortran (z-fastest ordering).
+                                // Kotlin is x-fastest ordering, so we have to convert that.
+                                val floatVal = value.toFloat()
+                                electronicDensity[xcounter+ycounter*gridDimensions[0]+zcounter*gridDimensions[1]*gridDimensions[0]] = floatVal
+                                if (floatVal > maxDensity) {
+                                    maxDensity = floatVal
+                                }
+                                if (floatVal < minDensity) {
+                                    minDensity = floatVal
+                                }
+                                zcounter++
+                                if (zcounter == gridDimensions[2]) {
+                                    zcounter = 0
+                                    ycounter++
+                                    if (ycounter == gridDimensions[1]) {
+                                        ycounter = 0
+                                        xcounter++
+                                    }
                                 }
                             }
                         }
