@@ -10,7 +10,8 @@ import net.imglib2.type.numeric.integer.UnsignedByteType
 import org.joml.Vector3f
 
 open class AtomicSimulation(override var name: String = "DFTSimulation", private val scalingFactor: Float,
-                            private var atomicRadius: Float, private val normalizeVolumetricDataTo: Float=-1.0f) : Mesh(name) {
+                            private var atomicRadius: Float, private val normalizeVolumetricDataTo: Float=-1.0f,
+                            private var cubeStyle: String = "unknown") : Mesh(name) {
     init {
         atomicRadius *= scalingFactor
     }
@@ -23,7 +24,7 @@ open class AtomicSimulation(override var name: String = "DFTSimulation", private
     private var currentTimePoint : Int = 0
 
     fun createFromCube(filename: String, hub: Hub){
-        simulationData.parseCube(filename)
+        simulationData.parseCube(filename, cubeStyle)
 
         // Visualize the atoms.
         atoms = Array<Icosphere>(simulationData.numberOfAtoms) {Icosphere(atomicRadius, 4)}
@@ -62,7 +63,7 @@ open class AtomicSimulation(override var name: String = "DFTSimulation", private
     }
 
     fun updateFromCube(filename: String){
-        simulationData.parseCube(filename)
+        simulationData.parseCube(filename, cubeStyle)
         // Visualize the atoms.
         atoms.zip(simulationData.atomicPositions).forEach {
             it.component1().spatial().position = scalingFactor * it.component2()
@@ -93,9 +94,10 @@ open class AtomicSimulation(override var name: String = "DFTSimulation", private
          * Creates a DFT simulation object from a cube file containing some volumetric data and atomic positions.
          */
         @JvmStatic fun fromCube(filename: String, hub: Hub, scalingFactor: Float, atomicRadius: Float,
-                                normalizeVolumetricDataTo:Float = -1.0f): AtomicSimulation {
+                                normalizeVolumetricDataTo:Float = -1.0f, cubeStyle: String = "unknown"):
+                                AtomicSimulation {
             val dftSimulation = AtomicSimulation(scalingFactor=scalingFactor, atomicRadius=atomicRadius,
-                normalizeVolumetricDataTo=normalizeVolumetricDataTo)
+                normalizeVolumetricDataTo=normalizeVolumetricDataTo, cubeStyle=cubeStyle)
             dftSimulation.createFromCube(filename, hub)
             return dftSimulation
         }
