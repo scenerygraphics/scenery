@@ -4,7 +4,6 @@ import org.joml.Vector3i
 import org.lwjgl.system.MemoryUtil
 import java.io.File
 import java.nio.ByteBuffer
-import java.util.*
 
 /**
 Parses a density functional theory (common simulation method in solid state physics and theoretical chemistry)
@@ -60,12 +59,12 @@ class DFTParser (val normalizeDensityTo: Float = -1.0f): AutoCloseable{
         // 3,4,5: Grid spacing in x,y,z direction (in Bohr)
         // 6 - (number_of_atoms+6): One line for each atom with position and species
         // Everything thereafter: the volumetric data, here the density.
-
+        val whiteSpaceRegex = Regex("\\s+")
         for (line in cubeFile){
             when (counter){
                 0,1 ->{}
                 2 -> {
-                    val lineContent = (line.trim().split("\\s+".toRegex()))
+                    val lineContent = (line.trim().split(whiteSpaceRegex))
                     numberOfAtoms = lineContent[0].toInt()
                     unitCellOrigin.x = lineContent[1].toFloat()
                     unitCellOrigin.y = lineContent[2].toFloat()
@@ -75,17 +74,17 @@ class DFTParser (val normalizeDensityTo: Float = -1.0f): AutoCloseable{
                     atomicPositions = Array(numberOfAtoms){ Vector3f()}
                 }
                 3 -> {
-                    val lineContent = (line.trim().split("\\s+".toRegex()))
+                    val lineContent = (line.trim().split(whiteSpaceRegex))
                     gridDimensions.x =  lineContent[0].toInt()
                     gridSpacings.x = lineContent[1].toFloat()
                 }
                 4 -> {
-                    val lineContent = (line.trim().split("\\s+".toRegex()))
+                    val lineContent = (line.trim().split(whiteSpaceRegex))
                     gridDimensions.y =  lineContent[0].toInt()
                     gridSpacings.y = lineContent[2].toFloat()
                 }
                 5 -> {
-                    val lineContent = (line.trim().split("\\s+".toRegex()))
+                    val lineContent = (line.trim().split(whiteSpaceRegex))
                     gridDimensions.z =  lineContent[0].toInt()
                     gridSpacings.z = lineContent[3].toFloat()
                 }
@@ -99,7 +98,7 @@ class DFTParser (val normalizeDensityTo: Float = -1.0f): AutoCloseable{
                     }
                     // Parsing atomic positions.
                     if (counter < 6+numberOfAtoms){
-                        val lineContent = (line.trim().split("\\s+".toRegex()))
+                        val lineContent = (line.trim().split(whiteSpaceRegex))
                         atomicPositions[counter-6] = Vector3f(lineContent[2].toFloat(), lineContent[3].toFloat(),
                             lineContent[4].toFloat())
                     }
@@ -108,7 +107,7 @@ class DFTParser (val normalizeDensityTo: Float = -1.0f): AutoCloseable{
                     // A possible optimization here would be to read this into a 1D array. We cannot directly
                     // read it into the byte buffer, because we don't know max/min values a-priori.
                     if (counter >= 6+numberOfAtoms) {
-                        val lineContent = line.trim().split("\\s+".toRegex())
+                        val lineContent = (line.trim().split(whiteSpaceRegex))
                         for (value in lineContent) {
                             // Cube files should be in Fortran (z-fastest ordering).
                             // Kotlin is x-fastest ordering, so we have to convert that.
