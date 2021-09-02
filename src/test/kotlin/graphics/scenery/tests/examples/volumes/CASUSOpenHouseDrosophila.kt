@@ -33,7 +33,7 @@ class CASUSOpenHouseDrosophila: SceneryBase("Behold, the Open House Drosophila!"
     lateinit var volume: Volume
 
     override fun init() {
-        val files = arrayListOf("D:/datasets/Tobi/111010_weber_full.xml")
+        val files = arrayListOf("C:/Users/ulrik/ExampleDatasets/droso-royer-autopilot-transposed-bdv/export-norange.xml")
 
         logger.info("Loading BDV XML from ${files.first()}")
 
@@ -46,16 +46,28 @@ class CASUSOpenHouseDrosophila: SceneryBase("Behold, the Open House Drosophila!"
             scene.addChild(this)
         }
 
-        val v = Volume.fromPathRaw(Paths.get("C:/Users/ulrik/Datasets/droso-royer-autopilot-transposed"), hub)
+        val options = VolumeViewerOptions()
+            .maxCacheSizeInMB(12000)
+            .maxRenderMillis(500)
+
+//        val v = Volume.fromPathRaw(Paths.get("C:\\Users\\ulrik\\ExampleDatasets\\droso-royer-autopilot-transposed"), hub)
+        val v = Volume.fromXML(files.first(), hub, options)
 
         v.name = "volume"
         v.colormap = Colormap.get("hot") // jet, hot, rainbow, plasma, grays
+        v.levelLimit = -2
         v.spatial {
-            position = Vector3f(1.0f, 0.0f, 1.0f)
+            position = Vector3f(1.0f, 0.5f, 1.0f)
             scale = Vector3f(5.0f, 25.0f, 5.0f)
         }
-        v.ds.converterSetups[0].setDisplayRange(20.0, 500.0)
-        v.transferFunction = TransferFunction.ramp(0.2f, 0.3f)
+//        v.converterSetups[0].setDisplayRange(20.0, 500.0)
+        v.converterSetups.forEach {
+            it.setDisplayRange(10.0, 800.0)
+        }
+//        v.transferFunction = TransferFunction.ramp(0.2f, 0.3f)
+//        v.transferFunction = TransferFunction.ramp(0.02f, 0.4f)
+        v.transferFunction = TransferFunction.ramp(0.055f, 0.5f)
+        v.volumeManager.maxAllowedStepInVoxels = 0.4
         v.spatial().rotation.rotateZ(0.3f)
         v.origin = Origin.Center
         scene.addChild(v)
@@ -104,19 +116,54 @@ class CASUSOpenHouseDrosophila: SceneryBase("Behold, the Open House Drosophila!"
         thread {
             while(running) {
                 when (v.currentTimepoint) {
-                    in 0..50 -> {
+                    in 0..25 -> {
                         deCaption.text = " Das ist eine Fruchtfliege waehrend ihrer fruehen Entwicklung. "
                         enCaption.text = " This is a fruit fly during early development. "
                         plCaption.text = " Jest to muszka owocowa na wczesnym etapie rozwoju. "
                     }
-                    in 51..100 -> {
+                    in 26..50 -> {
+                        deCaption.text = " Die kugelartigen Gebilde sind alles einzelne Zellkerne. "
+                        enCaption.text = " The spherical objects are single cell nuclei. "
+                        plCaption.text = " Jest to muszka owocowa na wczesnym etapie rozwoju. "
+                    }
+                    in 51..75 -> {
                         deCaption.text = " Bei der Gastrulation falten sich Zellen von der Aussenwand nach innen. "
                         enCaption.text = " During gastrulation, cells move from the outside to the inside. "
                         plCaption.text = " We need vocals here. "
                     }
-                    in 101..260 -> {
-                        deCaption.text = " Interessante Sachen passieren. "
-                        enCaption.text = " Interesting stuff happens. "
+                    in 76..100 -> {
+                        deCaption.text = " Aus diesen Zellen entstehen dann Organe und Nervensystem. "
+                        enCaption.text = " These cells evolve to become the organs and the nervous system. "
+                        plCaption.text = " We need vocals here. "
+                    }
+                    in 101..125 -> {
+                        deCaption.text = " Nun entstehen die Segmente des Insekts. "
+                        enCaption.text = " Now, the segments of the insect evolve. "
+                        plCaption.text = " We need vocals here. "
+                    }
+                    in 126..150 -> {
+                        deCaption.text = " Aus diesen Segmenten entstehen z.B. Fluegel und Beine. "
+                        enCaption.text = " The segments will later evolve to wings, or legs. "
+                        plCaption.text = " More beers. "
+                    }
+                    in 151..175 -> {
+                        deCaption.text = " Das Runde Gebilde links ist das kuenftige Hirn. "
+                        enCaption.text = " The large blob on the left side is the future brain. "
+                        plCaption.text = " More beers. "
+                    }
+                    in 176..200 -> {
+                        deCaption.text = " Es entsteht bei Insekten aussen und wandert dann nach innen. "
+                        enCaption.text = " In insects, it develops outside and then moves inside. "
+                        plCaption.text = " More beers. "
+                    }
+                    in 201..225 -> {
+                        deCaption.text = " Bei CASUS entwickeln wir Algorithmen, um solche Prozesse besser zu verstehen. "
+                        enCaption.text = " At CASUS, we develop algorithms to better understand such processes. "
+                        plCaption.text = " More beers. "
+                    }
+                    in 226..250 -> {
+                        deCaption.text = " Und suchen nach interdisziplinaerem Nutzen, z.B. mit Oekologie oder Medizin. "
+                        enCaption.text = " And strive for interdisciplinary use, e.g. together with ecologists, or doctors. "
                         plCaption.text = " More beers. "
                     }
                 }
@@ -153,7 +200,7 @@ class CASUSOpenHouseDrosophila: SceneryBase("Behold, the Open House Drosophila!"
 
             while(running) {
                 if(animating) {
-                    v.spatial().rotation = v.spatial().rotation.rotateLocalX(0.001f)
+                    v.spatial().rotation = v.spatial().rotation.rotateX(0.001f)
                 }
 
                 Thread.sleep(10)
@@ -167,7 +214,7 @@ class CASUSOpenHouseDrosophila: SceneryBase("Behold, the Open House Drosophila!"
 
             while(running) {
                 if(animating) {
-                    if(v.currentTimepoint == v.timepointCount - 1) {
+                    if(v.currentTimepoint >= v.timepointCount - 1) {
                         v.goToTimepoint(0)
                     } else {
                         v.nextTimepoint()
