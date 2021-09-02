@@ -69,6 +69,7 @@ class CASUSOpenHouseDrosophila: SceneryBase("Behold, the Open House Drosophila!"
         v.transferFunction = TransferFunction.ramp(0.055f, 0.5f)
         v.volumeManager.maxAllowedStepInVoxels = 0.4
         v.spatial().rotation.rotateZ(0.3f)
+        v.spatial().rotation.rotateY(0.4f)
         v.origin = Origin.Center
         scene.addChild(v)
 
