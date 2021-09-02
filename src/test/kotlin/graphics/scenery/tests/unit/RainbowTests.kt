@@ -1,7 +1,7 @@
 package graphics.scenery.tests.unit
 
 import graphics.scenery.Mesh
-import graphics.scenery.Rainbow
+import graphics.scenery.proteins.Rainbow
 import org.joml.Vector3f
 import org.junit.Test
 import kotlin.test.assertEquals
@@ -32,7 +32,7 @@ class RainbowTests {
         val rainbowPalette = rainbowPaletteNotScaled.map { it.mul(1/255f) }
         val children = child.children
         for(j in 0 until 6) {
-            assertEquals(children[j].material.diffuse, rainbowPalette[j])
+            assertEquals(children[j].materialOrNull()?.diffuse, rainbowPalette[j])
         }
     }
 }
