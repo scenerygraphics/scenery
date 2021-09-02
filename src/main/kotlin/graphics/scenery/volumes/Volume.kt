@@ -92,6 +92,8 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
     var timepointCount: Int
     val viewerState: ViewerState
 
+    var levelLimit: Int = 0
+
     /** The transfer function to use for the volume. Flat by default. */
     var transferFunction: TransferFunction = TransferFunction.flat(0.5f)
 
