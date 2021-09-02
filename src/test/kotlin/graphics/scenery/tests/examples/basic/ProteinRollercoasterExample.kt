@@ -3,6 +3,7 @@ package graphics.scenery.tests.examples.basic
 import graphics.scenery.*
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.backends.Renderer
+import graphics.scenery.flythroughs.ProteinRollercoaster
 import graphics.scenery.numerics.Random
 import graphics.scenery.proteins.Protein
 import graphics.scenery.proteins.RibbonDiagram

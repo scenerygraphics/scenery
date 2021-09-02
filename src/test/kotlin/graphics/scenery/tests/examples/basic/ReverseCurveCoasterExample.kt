@@ -38,7 +38,7 @@ class ReverseCurveCoasterExample: SceneryBase("CurveRollerCoaster", wantREPL = t
 
         val catmullRom = CatmullRomSpline(points)
         val splineSize = catmullRom.splinePoints().size
-        val geo = Curve(catmullRom, true, true) { triangle(splineSize) }
+        val geo = Curve(catmullRom, false, true) { triangle(splineSize) }
         geo.name = "curve"
 
         scene.addChild(geo)

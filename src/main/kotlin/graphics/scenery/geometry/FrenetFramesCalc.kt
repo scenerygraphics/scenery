@@ -53,7 +53,7 @@ class FrenetFramesCalc(val spline: Spline, private val firstPerpendicularVector:
         frenetFrameList.windowed(2,1).forEach { (firstFrame, secondFrame) ->
             val b = Vector3f(firstFrame.tangent).cross(secondFrame.tangent)
             secondFrame.normal = firstFrame.normal.normalize()
-            //if there is no substantial difference between two tangent vectors, the frenet frame need not to change
+            //if there is no substantial difference between two tangent vectors, the frenet frame need not change
             if (b.length() > 0.00001f) {
                 val firstNormal = firstFrame.normal
                 b.normalize()

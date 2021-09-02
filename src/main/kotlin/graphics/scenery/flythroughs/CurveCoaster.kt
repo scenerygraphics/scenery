@@ -1,7 +1,7 @@
 package graphics.scenery.flythroughs
 
 import graphics.scenery.Camera
-import graphics.scenery.FrenetFrame
+import graphics.scenery.geometry.FrenetFrame
 import graphics.scenery.geometry.Curve
 import org.joml.Vector3f
 

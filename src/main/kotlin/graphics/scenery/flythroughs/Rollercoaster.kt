@@ -1,7 +1,7 @@
 package graphics.scenery.flythroughs
 
 import graphics.scenery.Camera
-import graphics.scenery.FrenetFrame
+import graphics.scenery.geometry.FrenetFrame
 import graphics.scenery.utils.LazyLogger
 import org.joml.Quaternionf
 import org.joml.Vector2f

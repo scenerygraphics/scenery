@@ -1,8 +1,8 @@
 package graphics.scenery.flythroughs
 
 import graphics.scenery.Camera
-import graphics.scenery.FrenetFrame
-import graphics.scenery.FrenetFramesCalc
+import graphics.scenery.geometry.FrenetFrame
+import graphics.scenery.geometry.FrenetFramesCalc
 import graphics.scenery.geometry.Curve
 import graphics.scenery.geometry.UniformBSpline
 import graphics.scenery.proteins.Axis
