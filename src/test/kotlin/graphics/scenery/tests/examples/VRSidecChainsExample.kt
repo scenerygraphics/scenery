@@ -2,11 +2,16 @@ package graphics.scenery.tests.examples
 
 import org.joml.Vector3f
 import graphics.scenery.*
+import graphics.scenery.attribute.material.DefaultMaterial
+import graphics.scenery.attribute.material.Material
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.controls.TrackerRole
 import graphics.scenery.numerics.Random
+import graphics.scenery.proteins.Protein
+import graphics.scenery.proteins.Rainbow
+import graphics.scenery.proteins.RibbonDiagram
 import org.scijava.ui.behaviour.ClickBehaviour
 import kotlin.concurrent.thread
 import kotlin.math.min
@@ -61,16 +66,16 @@ class VRSidecChainsExample : SceneryBase(VRSidecChainsExample::class.java.simple
         val stageLight = PointLight(radius = 150.0f)
         stageLight.name = "StageLight"
         stageLight.intensity = 0.5f
-        stageLight.position = Vector3f(0.0f, 0.0f, 5.0f)
+        stageLight.spatial().position = Vector3f(0.0f, 0.0f, 5.0f)
         scene.addChild(stageLight)
 
         hullbox = Box(Vector3f(30.0f, 30.0f, 30.0f), insideNormals = true)
-        val hullboxMaterial = Material()
+        val hullboxMaterial = DefaultMaterial()
         hullboxMaterial.ambient = Vector3f(0.6f, 0.6f, 0.6f)
         hullboxMaterial.diffuse = Vector3f(0.4f, 0.4f, 0.4f)
         hullboxMaterial.specular = Vector3f(0.0f, 0.0f, 0.0f)
         hullboxMaterial.cullingMode = Material.CullingMode.Front
-        hullbox.material = hullboxMaterial
+        hullbox.ifMaterial {  hullboxMaterial }
 
         scene.addChild(hullbox)
 
@@ -98,8 +103,8 @@ class VRSidecChainsExample : SceneryBase(VRSidecChainsExample::class.java.simple
                                 rainbow.colorVector(it)
                             }
                             ribbon.children.flatMap { subProtein -> subProtein.children }.flatMap { curve -> curve.children }.forEachIndexed { index, subCurve ->
-                                if(controller.children.first().intersects(subCurve)) {
-                                    subCurve.material.diffuse = Vector3f(1f, 0f, 0f)
+                                if(controller.children.first().spatialOrNull()?.intersects(subCurve) == true) {
+                                    subCurve.ifMaterial { diffuse = Vector3f(1f, 0f, 0f) }
                                     chosenCurveSection.add(index)
                                 }
                             }

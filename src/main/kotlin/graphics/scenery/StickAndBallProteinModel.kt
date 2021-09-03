@@ -17,7 +17,6 @@ class StickAndBallProteinModel(protein: Protein, spaceFilling: Boolean = false,
                                displayExternalMolecules: Boolean = false): Mesh("PrimaryStructure") {
     val structure = protein.structure
     companion object PerTab { private val periodicTable = PeriodicTable() }
-    private val container = RichNode("container")
 
     init {
 
@@ -36,7 +35,7 @@ class StickAndBallProteinModel(protein: Protein, spaceFilling: Boolean = false,
                         }
                     }
                     else {  Icosphere(0.05f, 2) }
-            s.ifMaterial {   ShaderMaterial.fromFiles("DefaultDeferredInstanced.vert", "DefaultDeferred.frag") }
+            s.setMaterial(ShaderMaterial.fromFiles("DefaultDeferredInstanced.vert", "DefaultDeferred.frag"))
             if (sceneryElement.color != null) {
                 s.ifMaterial {  diffuse = sceneryElement.color }
                 //s.material.ambient = element.color
@@ -50,7 +49,7 @@ class StickAndBallProteinModel(protein: Protein, spaceFilling: Boolean = false,
                 true
             }
             else { it.group.hasAminoAtoms() }
-        }.map {
+        }.forEach {
             val master = atomMasters[it.element]
             val element = periodicTable.findElementByNumber(it.element.atomicNumber)
             val s = master!!.addInstance()
@@ -62,8 +61,7 @@ class StickAndBallProteinModel(protein: Protein, spaceFilling: Boolean = false,
                     //s.material.specular = element.color
                 }
             }
-            s.parent = container
-            s
+            s.parent = this
         }
 
         atomMasters.filter { it.value.instances.isNotEmpty() }
@@ -71,8 +69,8 @@ class StickAndBallProteinModel(protein: Protein, spaceFilling: Boolean = false,
 
         if (!spaceFilling) {
             val c = Cylinder(0.025f, 1.0f, 10)
+            c.setMaterial(ShaderMaterial.fromFiles("DefaultDeferredInstanced.vert", "DefaultDeferred.frag"))
             c.ifMaterial {
-                ShaderMaterial.fromFiles("DefaultDeferredInstanced.vert", "DefaultDeferred.frag")
                 diffuse = Vector3f(1.0f, 1.0f, 1.0f)
             }
             val cInstancedNode = InstancedNode(c)
@@ -122,7 +120,7 @@ class StickAndBallProteinModel(protein: Protein, spaceFilling: Boolean = false,
 
             bonds.forEach {
                 val bond = cInstancedNode.addInstance()
-                bond.parent = container
+                bond.parent = this
                 val atomA = it.atomA
                 val atomB = it.atomB
                 bond.spatial().orientBetweenPoints(
@@ -132,6 +130,5 @@ class StickAndBallProteinModel(protein: Protein, spaceFilling: Boolean = false,
             }
             this.addChild(cInstancedNode)
         }
-        this.addChild(container)
     }
 }
