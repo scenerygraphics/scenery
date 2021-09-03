@@ -60,7 +60,7 @@ class VolumeSamplingExample: SceneryBase("Volume Sampling example", 1280, 720) {
 //                files.add(file.absolutePath)
 //                VolumeType.File
 //            } else {
-                VolumeType.Procedural
+            VolumeType.Procedural
 //            }
         }
 

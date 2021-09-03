@@ -129,7 +129,11 @@ class BufferedVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewe
      */
     @OptIn(ExperimentalUnsignedTypes::class)
     override fun sample(uv: Vector3f, interpolate: Boolean): Float? {
-        val texture = timepoints?.lastOrNull() ?: throw IllegalStateException("Could not find timepoint")
+        var texture = timepoints?.get(currentTimepoint)
+       if(texture == null)
+       {
+             texture = timepoints?.lastOrNull() ?: throw IllegalStateException("Could not find timepoint")
+        }
         val d = getDimensions()
         val dimensions = Vector3f(d.x.toFloat(), d.y.toFloat(), d.z.toFloat())
 
