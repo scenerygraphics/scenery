@@ -32,7 +32,7 @@ class AminoAcidsStickAndBall(val protein: Protein, displayExternalMolecules: Boo
                 .forEach {
                     val sceneryElement = periodicTable.findElementByNumber(it.atomicNumber)
                     val s = Icosphere(0.15f, 2)
-                    s.ifMaterial { ShaderMaterial.fromFiles("DefaultDeferredInstanced.vert", "DefaultDeferred.frag") }
+                    s.setMaterial(ShaderMaterial.fromFiles("DefaultDeferredInstanced.vert", "DefaultDeferred.frag"))
                     if (sceneryElement.color != null) {
                         s.ifMaterial { diffuse = sceneryElement.color }
                         //s.material.ambient = element.color
@@ -81,8 +81,8 @@ class AminoAcidsStickAndBall(val protein: Protein, displayExternalMolecules: Boo
                 }
                 //display bonds
                 val c = Cylinder(0.025f, 1.0f, 10)
+                c.setMaterial(ShaderMaterial.fromFiles("DefaultDeferredInstanced.vert", "DefaultDeferred.frag"))
                 c.ifMaterial {
-                    ShaderMaterial.fromFiles("DefaultDeferredInstanced.vert", "DefaultDeferred.frag")
                     diffuse = Vector3f(1.0f, 1.0f, 1.0f)
                 }
                 val cInstancedNode = InstancedNode(c)
