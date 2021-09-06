@@ -21,13 +21,8 @@ layout(location = 0) out SilhouetteData /*This is a corner of the silhouette-qua
     vec3 Position;
     vec2 TexCoord;
     flat vec3 Center;
-    flat float Radius;
+    flat vec3 Properties;
 } SilhouetteCorner;
-
-layout(location = 4) out ParticleData /*This is the data for one particle*/ {
-    flat vec3 Center;
-    flat vec3 Properties; // .x = radius
-} Particle;
 
 const float eps = 0.0000000001;
 // Function that calculates the silhouette center and the radius of the silhouette, from Camera.Position, VertexIn.Position and VertexIn.Properties.x = ParticleRadius with
@@ -68,11 +63,8 @@ void main() {
     gl_Position = vec4(unnormPos.xyz / unnormPos.w, 1.0);   // bring corner to clip space
     SilhouetteCorner.Position = cornerPos;
     SilhouetteCorner.TexCoord = vec2(1.0, 1.0);
-
-    SilhouetteCorner.Center = sc;
-    SilhouetteCorner.Radius = sr;
-    Particle.Center = VertexIn[0].Position;
-    Particle.Properties = VertexIn[0].Properties;
+    SilhouetteCorner.Center = VertexIn[0].Position;
+    SilhouetteCorner.Properties = VertexIn[0].Properties;
     EmitVertex();
 
     cornerPos = sc + rMulUp - rMulRight;
@@ -80,6 +72,8 @@ void main() {
     gl_Position = vec4(unnormPos.xyz / unnormPos.w, 1.0);
     SilhouetteCorner.Position = cornerPos;
     SilhouetteCorner.TexCoord = vec2(1.0, -1.0);
+    SilhouetteCorner.Center = VertexIn[0].Position;
+    SilhouetteCorner.Properties = VertexIn[0].Properties;
     EmitVertex();
 
     cornerPos = sc - rMulUp + rMulRight;
@@ -87,6 +81,8 @@ void main() {
     gl_Position = vec4(unnormPos.xyz / unnormPos.w, 1.0);
     SilhouetteCorner.Position = cornerPos;
     SilhouetteCorner.TexCoord = vec2(-1.0, 1.0);
+    SilhouetteCorner.Center = VertexIn[0].Position;
+    SilhouetteCorner.Properties = VertexIn[0].Properties;
     EmitVertex();
 
     cornerPos = sc - rMulUp - rMulRight;
@@ -94,6 +90,8 @@ void main() {
     gl_Position = vec4(unnormPos.xyz / unnormPos.w, 1.0);
     SilhouetteCorner.Position = cornerPos;
     SilhouetteCorner.TexCoord = vec2(-1.0, -1.0);
+    SilhouetteCorner.Center = VertexIn[0].Position;
+    SilhouetteCorner.Properties = VertexIn[0].Properties;
     EmitVertex();
 
     EndPrimitive();

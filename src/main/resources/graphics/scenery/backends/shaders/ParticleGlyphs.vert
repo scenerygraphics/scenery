@@ -5,8 +5,8 @@ layout(location = 0) in vec3 vertexPosition;
 layout(location = 1) in vec3 vertexNormal;
 
 layout(location = 0) out VertexData {
-    vec3 Position;
-    vec3 Properties;
+    flat vec3 Position;
+    flat vec3 Properties;
 } Vertex;
 
 layout(location = 2) out CameraDataOut {

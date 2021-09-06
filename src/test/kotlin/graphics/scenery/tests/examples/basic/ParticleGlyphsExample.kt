@@ -26,11 +26,11 @@ class ParticleGlyphsExample : SceneryBase("ParticleGlyphsExample") {
 
         val particlePositions = mutableListOf<Vector3f>()
         val particleProperties = mutableListOf<Vector3f>()
-        for (i in 0..200) {
-            for (j in 0..200) {
-                for (k in 0..200) {
+        for (i in 0..5) {
+            for (j in 0..5) {
+                for (k in 0..5) {
                     particlePositions.add(Vector3f(i.toFloat()/10.0f, j.toFloat()/10.0f, k.toFloat()/10.0f))
-                    particleProperties.add(Vector3f(0.01f, 0.0f, 0.0f))
+                    particleProperties.add(Vector3f(0.05f, 0.0f, 0.0f))
                 }
             }
         }
