@@ -11,18 +11,40 @@ import graphics.scenery.attribute.geometry.HasGeometry
 import graphics.scenery.attribute.material.HasCustomMaterial
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.attribute.renderable.HasRenderable
+import graphics.scenery.attribute.spatial.HasSpatial
+
 
 import org.joml.Vector3f
 import org.lwjgl.system.MemoryUtil
 import java.nio.FloatBuffer
 
-class ParticleGlyphs(var positions: List<Vector3f>, var properties: List<Vector3f>) : DefaultNode("ParticleGlyphs"), HasRenderable,
+class ParticleGlyphs @JvmOverloads constructor(var positions: List<Vector3f>, var properties: List<Vector3f>) : DefaultNode("ParticleGlyphs"), HasSpatial, HasRenderable,
     HasCustomMaterial<ShaderMaterial>, HasGeometry {
 
     init {
 
         addGeometry {
             geometryType = GeometryType.POINTS
+
+            createMaterial()
+        }
+
+        geometry{
+            vertices.position(0)
+            vertices.limit(positions.size * 3)
+            positions.forEach { v ->
+                v.get(vertices)
+                vertices.position(vertices.position() + 3)
+            }
+            vertices.flip()
+
+            normals.position(0)
+            normals.limit(properties.size * 3)
+            properties.forEach { v ->
+                v.get(normals)
+                normals.position(normals.position() + 3)
+            }
+            normals.flip()
         }
 
         addMaterial {
@@ -30,6 +52,8 @@ class ParticleGlyphs(var positions: List<Vector3f>, var properties: List<Vector3
         }
 
         addRenderable()
+
+        addSpatial()
     }
 
     override fun createGeometry(): Geometry {

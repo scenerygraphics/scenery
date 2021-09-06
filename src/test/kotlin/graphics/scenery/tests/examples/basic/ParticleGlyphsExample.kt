@@ -17,23 +17,33 @@ class ParticleGlyphsExample : SceneryBase("ParticleGlyphsExample") {
         renderer = hub.add(SceneryElement.Renderer,
             Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
 
-        val hull = Box(Vector3f(10.0f, 10.0f, 10.0f), insideNormals = true)
+        val hull = Box(Vector3f(1000.0f, 1000.0f, 1000.0f), insideNormals = true)
         hull.material {
             diffuse = Vector3f(0.2f, 0.2f, 0.2f)
             cullingMode = Material.CullingMode.Front
         }
         scene.addChild(hull)
 
-        val particlePos = listOf(Vector3f(0.0f, 0.0f, 0.0f))
-        val particleProps = listOf(Vector3f(1.0f, 0.0f, 0.0f))
-        val particleGlyphs = ParticleGlyphs(particlePos, particleProps)
+        val particlePositions = mutableListOf<Vector3f>()
+        val particleProperties = mutableListOf<Vector3f>()
+        for (i in 0..200) {
+            for (j in 0..200) {
+                for (k in 0..200) {
+                    particlePositions.add(Vector3f(i.toFloat()/10.0f, j.toFloat()/10.0f, k.toFloat()/10.0f))
+                    particleProperties.add(Vector3f(0.01f, 0.0f, 0.0f))
+                }
+            }
+        }
+        val particleGlyphs = ParticleGlyphs(particlePositions, particleProperties)
         particleGlyphs.name = "Particles?"
         scene.addChild(particleGlyphs)
 
-        val light = PointLight(radius = 15.0f)
-        light.intensity = 5.0f
-        light.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
-        scene.addChild(light)
+
+
+        val light0 = PointLight(radius = 500.0f)
+        light0.intensity = 10.0f
+        light0.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
+        scene.addChild(light0)
 
         val cam: Camera = DetachedHeadCamera()
         cam.spatial {
@@ -41,7 +51,6 @@ class ParticleGlyphsExample : SceneryBase("ParticleGlyphsExample") {
         }
         cam.perspectiveCamera(50.0f, windowWidth, windowHeight)
         cam.target = Vector3f(0.0f, 0.0f, 0.0f)
-
         scene.addChild(cam)
     }
 

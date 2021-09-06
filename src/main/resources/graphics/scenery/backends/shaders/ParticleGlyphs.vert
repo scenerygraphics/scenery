@@ -5,12 +5,13 @@ layout(location = 0) in vec3 vertexPosition;
 layout(location = 1) in vec3 vertexNormal;
 
 layout(location = 0) out VertexData {
-    vec4 VertexPosition;
-    vec3 VertexProperties;
+    vec3 Position;
+    vec3 Properties;
 } Vertex;
 
 layout(location = 2) out CameraDataOut {
     vec3 CamPosition;
+    mat4 Transform;
     mat4 VP;
 } Camera;
 
@@ -53,6 +54,7 @@ layout(push_constant) uniform currentEye_t {
 
 void main()
 {
+    //not needed, figure out how to remove without binding errors)...
     mat4 mv;
     mat4 nMVP;
     mat4 projectionMatrix;
@@ -61,13 +63,16 @@ void main()
     projectionMatrix = (vrParameters.stereoEnabled ^ 1) * lightParams.ProjectionMatrix + vrParameters.stereoEnabled * vrParameters.projectionMatrices[currentEye.eye];
 
     nMVP = projectionMatrix * mv;
-    Vertex.VertexPosition = vec4(vertexPosition, 1.0);
-    gl_Position = Vertex.VertexPosition;
+    //...
 
-    Vertex.VertexProperties = vertexNormal;
+    Vertex.Position = vertexPosition;
+    Vertex.Properties = vertexNormal;
+
+    gl_Position = vec4(Vertex.Position, 1.0);
 
     Camera.CamPosition = lightParams.CamPosition;
     Camera.VP = lightParams.ProjectionMatrix * lightParams.ViewMatrices[0];
+    Camera.Transform = lightParams.InverseViewMatrices[0];
 }
 
 
