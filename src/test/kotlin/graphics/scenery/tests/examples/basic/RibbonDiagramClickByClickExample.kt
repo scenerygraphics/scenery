@@ -20,6 +20,8 @@ class RibbonDiagramClickByClickExample: SceneryBase("RibbonClickByCLick", wantRE
 
         val rowSize = 20f
 
+        ribbon.name = "protein"
+        ribbon.visible = false
         scene.addChild(ribbon)
 
         val lightbox = Box(Vector3f(500.0f, 500.0f, 500.0f), insideNormals = true)
@@ -50,7 +52,7 @@ class RibbonDiagramClickByClickExample: SceneryBase("RibbonClickByCLick", wantRE
         val stageLight = PointLight(radius = 500.0f)
         stageLight.name = "StageLight"
         stageLight.intensity = 0.5f
-        stageLight.position = Vector3f(0.0f, 0.0f, 5.0f)
+        stageLight.spatial().position = Vector3f(0.0f, 0.0f, 5.0f)
         scene.addChild(stageLight)
 
         val cameraLight = PointLight(radius = 50.0f)
@@ -59,16 +61,21 @@ class RibbonDiagramClickByClickExample: SceneryBase("RibbonClickByCLick", wantRE
         cameraLight.intensity = 2.0f
 
         val cam: Camera = DetachedHeadCamera()
-        cam.name = "camera"
-        cam.spatial().position = Vector3f(0.0f, 0.0f, 15.0f)
-        cam.perspectiveCamera(50.0f, windowWidth, windowHeight)
+        with(cam) {
+            spatial {
+                position = Vector3f(0.0f, 0.0f, 5.0f)
+            }
+            perspectiveCamera(50.0f, 512, 512)
+
+            scene.addChild(this)
+        }
 
         cam.addChild(cameraLight)
     }
 
     override fun inputSetup() {
         super.inputSetup()
-        val clickByClick = RibbonDiagramClickByClick(ribbon, scene)
+        val clickByClick = RibbonDiagramClickByClick("protein", scene)
         inputHandler?.addBehaviour("clickByClick", clickByClick)
         inputHandler?.addKeyBinding("clickByClick", "E")
 
