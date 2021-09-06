@@ -20,6 +20,13 @@ import kotlin.system.exitProcess
  * Example for usage of VR controllers. Demonstrates the use of custom key bindings on the
  * HMD, the use of intersection testing with scene elements, and more advanced tools.
  *
+ * Available Controls:
+ * Side buttons alone:  Grab Object
+ * Both side buttons together: Move to scale, after selection
+ * Right Trigger:       Select to Scale
+ * Left Trigger:        Select Party Cube
+ * Left A Button:       Options Menu
+ *
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class VRControllerExample : SceneryBase(
@@ -29,6 +36,7 @@ class VRControllerExample : SceneryBase(
     private lateinit var hmd: OpenVRHMD
     private lateinit var boxes: List<Node>
     private lateinit var hullbox: Box
+    private var leftControllerPushes = false
 
     override fun init() {
         hmd = OpenVRHMD(useCompositor = true)
@@ -111,19 +119,21 @@ class VRControllerExample : SceneryBase(
                         // of the controller's velocity.
                         if (device.role == TrackerRole.LeftHand) {
                             controller.update.add {
-                                boxes.forEach { it.materialOrNull()?.diffuse = Vector3f(0.9f, 0.5f, 0.5f) }
-                                boxes.filter { box ->
-                                    controller.children.first().spatialOrNull()?.intersects(box) ?: false
-                                }.forEach { box ->
-                                    box.ifMaterial {
-                                        diffuse = Vector3f(1.0f, 0.0f, 0.0f)
-                                    }
-                                    if (device.role == TrackerRole.LeftHand) {
-                                        box.ifSpatial {
-                                            position = (device.velocity ?: Vector3f(0.0f)) * 0.05f + position
+                                if (leftControllerPushes){
+                                    boxes.forEach { it.materialOrNull()?.diffuse = Vector3f(0.9f, 0.5f, 0.5f) }
+                                    boxes.filter { box ->
+                                        controller.children.first().spatialOrNull()?.intersects(box) ?: false
+                                    }.forEach { box ->
+                                        box.ifMaterial {
+                                            diffuse = Vector3f(1.0f, 0.0f, 0.0f)
                                         }
+                                        if (device.role == TrackerRole.LeftHand) {
+                                            box.ifSpatial {
+                                                position = (device.velocity ?: Vector3f(0.0f)) * 0.05f + position
+                                            }
+                                        }
+                                        (hmd as? OpenVRHMD)?.vibrate(device)
                                     }
-                                    (hmd as? OpenVRHMD)?.vibrate(device)
                                 }
                             }
                         }
@@ -165,32 +175,34 @@ class VRControllerExample : SceneryBase(
         hmd.addKeyBinding("toggle_boxes", TrackerRole.RightHand, OpenVRHMD.OpenVRButton.A)
          */
 
-        VRGrab.createAndSet(scene, hmd, listOf(OpenVRHMD.OpenVRButton.Side), listOf(TrackerRole.RightHand))
-        val selectionWithStorageAndScaling = true //set false for selection with action
-        if (selectionWithStorageAndScaling) {
-            val selectionStorage =
-                VRSelect.createAndSetWithStorage(
-                    scene,
-                    hmd,
-                    listOf(OpenVRHMD.OpenVRButton.Side),
-                    listOf(TrackerRole.LeftHand)
-                )
-            VRScale.createAndSet(hmd, OpenVRHMD.OpenVRButton.Side) {
-                selectionStorage.selected?.ifSpatial { scale *= Vector3f(it) }
-            }
-        } else {
-            VRSelect.createAndSetWithAction(scene,
+        VRGrab.createAndSet(scene, hmd, listOf(OpenVRHMD.OpenVRButton.Side), listOf(TrackerRole.LeftHand,TrackerRole.RightHand))
+
+        val selectionStorage =
+            VRSelect.createAndSetWithStorage(
+                scene,
                 hmd,
-                listOf(OpenVRHMD.OpenVRButton.Side),
-                listOf(TrackerRole.LeftHand),
-                { n ->
-                    val w = Wiggler(n.spatialOrNull()!!, 1.0f)
-                    thread {
-                        sleep(2 * 1000)
-                        w.deativate()
-                    }
-                })
+                listOf(OpenVRHMD.OpenVRButton.Trigger),
+                listOf(TrackerRole.RightHand)
+            )
+        VRScale.createAndSet(hmd, OpenVRHMD.OpenVRButton.Side) {
+            selectionStorage.selected?.ifSpatial { scale *= Vector3f(it) }
         }
+
+        VRSelect.createAndSetWithAction(scene,
+            hmd,
+            listOf(OpenVRHMD.OpenVRButton.Trigger),
+            listOf(TrackerRole.LeftHand),
+            { n ->
+                // this is just some action to show a successful selection.
+                // Party Cube!
+                val w = Wiggler(n.spatialOrNull()!!, 1.0f)
+                thread {
+                    sleep(2 * 1000)
+                    w.deativate()
+                }
+            })
+
+
         VRSelectionWheel.createAndSet(scene, hmd, { hmd.getPosition() },
             listOf(OpenVRHMD.OpenVRButton.A), listOf(TrackerRole.LeftHand),
             listOf(
@@ -202,7 +214,10 @@ class VRControllerExample : SceneryBase(
                     boxes.forEach { it.visible = !it.visible }
                     logger.info("Boxes visible: ${boxes.first().visible}")
                 },
-                "test" to { print("test") }
+                "test" to { print("test") },
+                "Toggle Push Left" to {
+                    leftControllerPushes = !leftControllerPushes
+                }
             ))
     }
 

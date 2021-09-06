@@ -125,7 +125,7 @@ open class VRSelect(
                 if (device.type == TrackedDeviceType.Controller) {
                     device.model?.let { controller ->
                         if (controllerSide.contains(device.role)) {
-                            val name = "VRDrag:${hmd.trackingSystemName}:${controllerSide}"
+                            val name = "VRDrag:${hmd.trackingSystemName}:${device.role}:$button"
                             val select = VRSelect(
                                 name,
                                 controller.children.first(),
@@ -159,7 +159,7 @@ open class VRSelect(
                 if (device.type == TrackedDeviceType.Controller) {
                     device.model?.let { controller ->
                         if (controllerSide.contains(device.role)) {
-                            val name = "VRDrag:${hmd.trackingSystemName}:${controllerSide}"
+                            val name = "VRDrag:${hmd.trackingSystemName}:${device.role}:$button"
                             val select = VRSelect(
                                 name,
                                 controller.children.first(),
