@@ -8,9 +8,11 @@ import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.controls.TrackerRole
 import graphics.scenery.controls.behaviours.*
 import graphics.scenery.numerics.Random
+import graphics.scenery.utils.Wiggler
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
 import org.joml.Vector3f
+import java.lang.Thread.sleep
 import kotlin.concurrent.thread
 import kotlin.system.exitProcess
 
@@ -164,10 +166,30 @@ class VRControllerExample : SceneryBase(
          */
 
         VRGrab.createAndSet(scene, hmd, listOf(OpenVRHMD.OpenVRButton.Side), listOf(TrackerRole.RightHand))
-        val selectionStorage =
-            VRSelect.createAndSet(scene, hmd, listOf(OpenVRHMD.OpenVRButton.Side), listOf(TrackerRole.LeftHand))
-        VRScale.createAndSet(hmd, OpenVRHMD.OpenVRButton.Side) {
-            selectionStorage.selected?.ifSpatial { scale *= Vector3f(it) }
+        val selectionWithStorageAndScaling = true //set false for selection with action
+        if (selectionWithStorageAndScaling) {
+            val selectionStorage =
+                VRSelect.createAndSetWithStorage(
+                    scene,
+                    hmd,
+                    listOf(OpenVRHMD.OpenVRButton.Side),
+                    listOf(TrackerRole.LeftHand)
+                )
+            VRScale.createAndSet(hmd, OpenVRHMD.OpenVRButton.Side) {
+                selectionStorage.selected?.ifSpatial { scale *= Vector3f(it) }
+            }
+        } else {
+            VRSelect.createAndSetWithAction(scene,
+                hmd,
+                listOf(OpenVRHMD.OpenVRButton.Side),
+                listOf(TrackerRole.LeftHand),
+                { n ->
+                    val w = Wiggler(n.spatialOrNull()!!, 1.0f)
+                    thread {
+                        sleep(2 * 1000)
+                        w.deativate()
+                    }
+                })
         }
         VRSelectionWheel.createAndSet(scene, hmd, { hmd.getPosition() },
             listOf(OpenVRHMD.OpenVRButton.A), listOf(TrackerRole.LeftHand),

@@ -111,8 +111,9 @@ open class VRSelect(
 
         /**
          * Convenience method for adding selection behaviour
+         * @return A container which will point to the currently selected node or null.
          */
-        fun createAndSet(
+        fun createAndSetWithStorage(
             scene: Scene,
             hmd: OpenVRHMD,
             button: List<OpenVRHMD.OpenVRButton>,
@@ -142,8 +143,40 @@ open class VRSelect(
             return selectionStorage
         }
 
+        /**
+         * Convenience method for adding selection behaviour. [action] is performed with a successfully selected node.
+         * @param showIndicator whether a thin red line should indicate the last selection.
+         */
+        fun createAndSetWithAction(
+            scene: Scene,
+            hmd: OpenVRHMD,
+            button: List<OpenVRHMD.OpenVRButton>,
+            controllerSide: List<TrackerRole>,
+            action: (Node) -> Unit,
+            showIndicator: Boolean = false
+        ) {
+            hmd.events.onDeviceConnect.add { _, device, _ ->
+                if (device.type == TrackedDeviceType.Controller) {
+                    device.model?.let { controller ->
+                        if (controllerSide.contains(device.role)) {
+                            val name = "VRDrag:${hmd.trackingSystemName}:${controllerSide}"
+                            val select = VRSelect(
+                                name,
+                                controller.children.first(),
+                                scene,
+                                showIndicator,
+                                action
+                            )
+                            hmd.addBehaviour(name, select)
+                            button.forEach {
+                                hmd.addKeyBinding(name, device.role, it)
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
-
 }
 
 open class Selectable
