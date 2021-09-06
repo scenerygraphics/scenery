@@ -26,7 +26,7 @@ open class VRGrab(
     protected val controllerHitbox: Node,
     protected val targets: () -> List<Node>,
     protected val multiTarget: Boolean = false,
-    protected val vibrate: (() -> Unit)? = null
+    protected val onGrab: (() -> Unit)? = null
 ) : DragBehaviour {
 
     val controllerSpatial: Spatial
@@ -37,7 +37,6 @@ open class VRGrab(
     }
 
     var selected = emptyList<Node>()
-    var startPos = Vector3f()
 
     var lastPos = Vector3f()
     var lastRotation = Quaternionf()
@@ -47,19 +46,6 @@ open class VRGrab(
         if (!multiTarget) {
             selected = selected.take(1)
         }
-        selected.forEach {
-            it.getAttributeOrNull(Grabable::class.java)?.let { grabable ->
-                it.ifSpatial {
-                    grabable.startPos = position
-
-                    grabable.rotationDiff = Quaternionf()
-                    controllerHitbox.spatialOrNull()?.worldRotation()?.invert(grabable.rotationDiff)
-                    grabable.rotationDiff?.mul(rotation)
-                    vibrate?.let { it() }
-                }
-            }
-        }
-        startPos = controllerHitbox.spatialOrNull()?.worldPosition() ?: Vector3f()
         lastPos = controllerSpatial.worldPosition()
         lastRotation = controllerSpatial.worldRotation()
     }
@@ -100,8 +86,8 @@ open class VRGrab(
     }
 
     override fun end(x: Int, y: Int) {
-        if (!selected.isEmpty()){
-            vibrate?.let { it() }
+        if (!selected.isEmpty()) {
+            onGrab?.let { it() }
         }
         selected = emptyList()
     }
@@ -121,13 +107,13 @@ open class VRGrab(
                 if (device.type == TrackedDeviceType.Controller) {
                     device.model?.let { controller ->
                         if (controllerSide.contains(device.role)) {
-                            val name = "VRDrag:${hmd.trackingSystemName}:${controllerSide}"
+                            val name = "VRDrag:${hmd.trackingSystemName}:${device.role}:$button"
                             val grabBehaviour = VRGrab(
                                 name,
                                 controller.children.first(),
                                 { scene.discover(scene, { n -> n.getAttributeOrNull(Grabable::class.java) != null }) },
                                 false,
-                                { (hmd as? OpenVRHMD)?.vibrate(device)} )
+                                { (hmd as? OpenVRHMD)?.vibrate(device) })
 
                             hmd.addBehaviour(name, grabBehaviour)
                             button.forEach {
@@ -142,10 +128,4 @@ open class VRGrab(
 }
 
 open class Grabable(val lockRotation: Boolean = false) {
-    internal var lastPos = Vector3f()
-    internal var lastRotation = Vector3f()
-
-
-    internal var startPos = Vector3f()
-    internal var rotationDiff: Quaternionf? = null
 }

@@ -51,6 +51,7 @@ class VRSelectionWheel(
                 val hmdp = getHmdPos()
                 val diff = (hmdp - position).normalize()
                 rotation = Quaternionf().rotationTo(Vector3f(0f, 0f, 1f), diff)
+
             }
         }
 
@@ -136,7 +137,7 @@ class VRSelectionWheel(
                 if (device.type == TrackedDeviceType.Controller) {
                     device.model?.let { controller ->
                         if (controllerSide.contains(device.role)) {
-                            val name = "VRToolSelect:${hmd.trackingSystemName}:${controllerSide}"
+                            val name = "VRDrag:${hmd.trackingSystemName}:${device.role}:$button"
                             val vrToolSelector = VRSelectionWheel(
                                 controller.children.first().spatialOrNull()
                                     ?: throw IllegalArgumentException("The target controller needs a spatial."),
