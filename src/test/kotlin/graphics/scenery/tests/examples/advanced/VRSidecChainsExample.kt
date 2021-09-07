@@ -1,4 +1,4 @@
-package graphics.scenery.tests.examples
+package graphics.scenery.tests.examples.advanced
 
 import org.joml.Vector3f
 import graphics.scenery.*
@@ -14,7 +14,6 @@ import graphics.scenery.proteins.Rainbow
 import graphics.scenery.proteins.RibbonDiagram
 import org.scijava.ui.behaviour.ClickBehaviour
 import kotlin.concurrent.thread
-import kotlin.math.min
 import kotlin.system.exitProcess
 
 /**
@@ -22,7 +21,8 @@ import kotlin.system.exitProcess
  *
  * @author Justin Buerger <burger@mpi-cbg.de>
  */
-class VRSidecChainsExample : SceneryBase(VRSidecChainsExample::class.java.simpleName,
+class VRSidecChainsExample : SceneryBase(
+    VRSidecChainsExample::class.java.simpleName,
     windowWidth = 1920, windowHeight = 1200) {
     private lateinit var hmd: OpenVRHMD
     private lateinit var protein: Protein
@@ -144,7 +144,7 @@ class VRSidecChainsExample : SceneryBase(VRSidecChainsExample::class.java.simple
                     logger.info("$curveSectionIndex side chain ${sideChains.children[curveSectionIndex].name} should be: ${sideChains.children[curveSectionIndex].visible}")
                 }
                 /*
-                    very rarely a rounding error occurs between the number of sections and residues (i tested a few pdbs- the difference was never bigger than 1)
+                    very rarely a rounding error occurs between the number of sections and residues (I tested a few pdbs, the difference was never bigger than 1)
                     in this case we choose the residue which is closest to our section
                  */
                 else {
@@ -177,7 +177,7 @@ class VRSidecChainsExample : SceneryBase(VRSidecChainsExample::class.java.simple
                 }
             }
         })
-        // ...and bind that to the side button of the right-hand controller.
+        // ...and bind that to the trigger of the right-hand controller.
         hmd.addKeyBinding("show_side_chain", TrackerRole.RightHand, OpenVRHMD.OpenVRButton.Trigger)
     }
 
