@@ -34,7 +34,7 @@ class Rainbow {
         var childrenSize = 0
         subProtein.children.forEach { ss ->
             ss.children.forEach {
-                    childrenSize++
+                childrenSize++
             }
         }
 
@@ -58,8 +58,8 @@ class Rainbow {
                 it.ifMaterial {
                     diffuse = colorList[listIndex]
                 }
+                listIndex++
             }
-            listIndex++
         }
     }
 }
