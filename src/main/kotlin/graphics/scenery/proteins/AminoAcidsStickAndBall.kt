@@ -1,8 +1,7 @@
-package graphics.scenery
+package graphics.scenery.proteins
 
+import graphics.scenery.*
 import graphics.scenery.primitives.Cylinder
-import graphics.scenery.proteins.Axis
-import graphics.scenery.proteins.Protein
 import graphics.scenery.proteins.RibbonDiagram.GuidePointCalculation.getVector
 import org.biojava.nbio.structure.Bond
 import org.biojava.nbio.structure.BondImpl

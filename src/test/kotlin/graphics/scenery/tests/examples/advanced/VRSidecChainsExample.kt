@@ -9,6 +9,7 @@ import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.controls.TrackerRole
 import graphics.scenery.numerics.Random
+import graphics.scenery.proteins.AminoAcidsStickAndBall
 import graphics.scenery.proteins.Protein
 import graphics.scenery.proteins.Rainbow
 import graphics.scenery.proteins.RibbonDiagram

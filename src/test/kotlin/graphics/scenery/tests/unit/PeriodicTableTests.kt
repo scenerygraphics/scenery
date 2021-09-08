@@ -1,6 +1,6 @@
 package graphics.scenery.tests.unit
 
-import graphics.scenery.PeriodicTable
+import graphics.scenery.proteins.PeriodicTable
 import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull

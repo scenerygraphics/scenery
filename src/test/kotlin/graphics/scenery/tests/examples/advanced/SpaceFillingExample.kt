@@ -5,6 +5,7 @@ import graphics.scenery.attribute.material.Material
 import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
 import graphics.scenery.proteins.Protein
+import graphics.scenery.proteins.StickAndBallProteinModel
 import org.joml.Vector3f
 
 /**

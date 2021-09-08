@@ -1,9 +1,8 @@
-package graphics.scenery
+package graphics.scenery.proteins
 
+import graphics.scenery.*
 import org.joml.*
-import graphics.scenery.PeriodicTable
 import graphics.scenery.primitives.Cylinder
-import graphics.scenery.proteins.Protein
 import org.biojava.nbio.structure.*
 
 /**

@@ -1,4 +1,4 @@
-package graphics.scenery
+package graphics.scenery.proteins
 
 import kotlin.collections.ArrayList as ArrayList1
 
