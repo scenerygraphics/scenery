@@ -18,7 +18,7 @@ import org.joml.Vector4f
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class Line @JvmOverloads constructor(var capacity: Int = 50, transparent: Boolean = false, val simple: Boolean = false) : DefaultNode("Line"),
+open class Line @JvmOverloads constructor(var capacity: Int = 50, transparent: Boolean = false, val simple: Boolean = false) : DefaultNode("Line"),
     HasRenderable, HasMaterial, HasSpatial, HasGeometry {
 
     /** Whether the line should be rendered as transparent or not. */

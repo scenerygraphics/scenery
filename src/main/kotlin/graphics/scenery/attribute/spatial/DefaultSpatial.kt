@@ -1,5 +1,6 @@
 package graphics.scenery.attribute.spatial
 
+import com.jogamp.opengl.math.Quaternion
 import graphics.scenery.Node
 import graphics.scenery.Scene
 import graphics.scenery.utils.LazyLogger
@@ -7,12 +8,11 @@ import graphics.scenery.utils.MaybeIntersects
 import graphics.scenery.utils.extensions.*
 import net.imglib2.Localizable
 import net.imglib2.RealLocalizable
-import org.joml.Matrix4f
-import org.joml.Quaternionf
-import org.joml.Vector3f
-import org.joml.Vector4f
+import net.imglib2.util.LinAlgHelpers
+import org.joml.*
 import java.lang.Float.max
 import java.lang.Float.min
+import kotlin.math.sqrt
 import kotlin.properties.Delegates
 import kotlin.reflect.KProperty
 
@@ -84,6 +84,16 @@ open class DefaultSpatial(private var node: Node): Spatial {
         val sz = Vector3f(wm[2,0],wm[2,1],wm[2,2]).length()
 
         return Vector3f(sx,sy,sz)
+    }
+
+    override fun worldRotation(): Quaternionf{
+
+        // unscale rotation part of matrix
+        val scale = worldScale()
+        val iScale = Vector3f(1/scale.x,1/scale.y,1/scale.z)
+        val m = Matrix3f(world)
+        m.scale(iScale)
+        return Quaternionf().setFromNormalized(m)
     }
 
     /**
