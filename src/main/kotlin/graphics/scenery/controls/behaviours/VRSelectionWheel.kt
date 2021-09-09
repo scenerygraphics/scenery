@@ -6,11 +6,11 @@ import graphics.scenery.Sphere
 import graphics.scenery.attribute.spatial.Spatial
 import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.controls.TrackedDeviceType
+import graphics.scenery.controls.TrackerInput
 import graphics.scenery.controls.TrackerRole
 import graphics.scenery.primitives.TextBoard
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.Wiggler
-import graphics.scenery.utils.extensions.minus
 import org.joml.Quaternionf
 import org.joml.Vector3f
 import org.joml.Vector4f
@@ -27,7 +27,7 @@ import org.scijava.ui.behaviour.DragBehaviour
 class VRSelectionWheel(
     val controller: Spatial,
     val scene: Scene,
-    val getHmdPos: () -> Vector3f,
+    val hmd: TrackerInput,
     var actions: List<Pair<String, () -> Unit>>,
     val cutoff: Float = 0.1f
 ) : DragBehaviour {
@@ -48,10 +48,7 @@ class VRSelectionWheel(
 
         root.update.add {
             root.spatial {
-                val hmdp = getHmdPos()
-                val diff = (hmdp - position).normalize()
-                rotation = Quaternionf().rotationTo(Vector3f(0f, 0f, 1f), diff)
-
+                rotation = Quaternionf(hmd.getOrientation()).conjugate().normalize()
             }
         }
 
@@ -128,7 +125,6 @@ class VRSelectionWheel(
         fun createAndSet(
             scene: Scene,
             hmd: OpenVRHMD,
-            getHmdPos: () -> Vector3f,
             button: List<OpenVRHMD.OpenVRButton>,
             controllerSide: List<TrackerRole>,
             actions: List<Pair<String, () -> Unit>>,
@@ -142,7 +138,7 @@ class VRSelectionWheel(
                                 controller.children.first().spatialOrNull()
                                     ?: throw IllegalArgumentException("The target controller needs a spatial."),
                                 scene,
-                                getHmdPos,
+                                hmd,
                                 actions
                             )
                             hmd.addBehaviour(name, vrToolSelector)
