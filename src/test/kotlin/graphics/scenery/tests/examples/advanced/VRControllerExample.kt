@@ -86,7 +86,7 @@ class VRControllerExample : SceneryBase(
 
         val lights = Light.createLightTetrahedron<PointLight>(spread = 5.0f, radius = 8.0f)
         lights.forEach {
-            it.emissionColor = Random.random3DVectorFromRange(0.0f, 1.0f)
+            it.emissionColor = Random.random3DVectorFromRange(0.4f, 1.0f)
             scene.addChild(it)
         }
 
@@ -203,8 +203,8 @@ class VRControllerExample : SceneryBase(
             })
 
 
-        VRSelectionWheel.createAndSet(scene, hmd, { hmd.getPosition() },
-            listOf(OpenVRHMD.OpenVRButton.A), listOf(TrackerRole.LeftHand),
+        VRSelectionWheel.createAndSet(scene, hmd,
+            listOf(OpenVRHMD.OpenVRButton.A), listOf(TrackerRole.LeftHand,TrackerRole.RightHand),
             listOf(
                 "Toggle Shell" to {
                     hullbox.visible = !hullbox.visible
