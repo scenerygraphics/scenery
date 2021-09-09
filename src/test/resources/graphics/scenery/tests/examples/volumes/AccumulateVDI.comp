@@ -1,0 +1,71 @@
+if (vis)
+{
+    vec4 x = sampleVolume(wpos);
+    float newAlpha = x.a;
+    vec3 newColor = x.rgb;
+
+    vec4 ndcPos = pv * wpos;
+    ndcPos *= 1. / ndcPos.w;
+
+    float ndc_step = ndcPos.z;
+
+    if(newAlpha < minOpacity) {
+        transparentSample = true;
+    }
+
+    if(supersegmentIsOpen) {
+
+//        imageStore(OutputSubVDIColor, ivec3(3 * supersegmentNum + 1, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x), vec4(0));
+//        imageStore(OutputSubVDIColor, ivec3(3 * supersegmentNum + 2, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x), vec4(0));
+//        imageStore(OutputSubVDIColor, ivec3(3 * supersegmentNum, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x), vec4(0));
+//        supersegmentNum++;
+
+//        float segLen = step - supSegStartPoint;
+        float segLen = ndc_step - supSegStartPoint;
+        vec4 supersegmentAdjusted;
+        supersegmentAdjusted.rgb = curV.rgb / curV.a;
+//        supersegmentAdjusted.a = adjustOpacity(curV.a, 1.0/segLen);
+        supersegmentAdjusted.a = curV.a;
+//        supersegmentAdjusted = x;
+        float diff = diffPremultiplied(supersegmentAdjusted, x);
+
+        bool newSupSeg = false;
+        if(diff >= newSupSegThresh) {
+            newSupSeg = true;
+        }
+
+        if(lastSample || ((newSupSeg || transparentSample) && !lastSupersegment)) {
+            supersegmentIsOpen = false;
+//            supSegEndPoint = step;
+            supSegEndPoint = ndc_step;
+            vec4 encodedDepthStart;
+            vec4 encodedDepthEnd;
+            encodedDepthStart = EncodeFloatRGBA(supSegStartPoint);
+            encodedDepthEnd = EncodeFloatRGBA(supSegEndPoint);
+//            encodedDepths = encode(supSegStartPoint, supSegEndPoint);
+            imageStore(OutputSubVDIColor, ivec3(3 * supersegmentNum + 1, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x), encodedDepthStart);
+            imageStore(OutputSubVDIColor, ivec3(3 * supersegmentNum + 2, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x), encodedDepthEnd);
+            imageStore(OutputSubVDIColor, ivec3(3 * supersegmentNum, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x), supersegmentAdjusted);
+            supersegmentNum++;
+        }
+    }
+
+    if( (!lastSample) && (!supersegmentIsOpen) && (!transparentSample) ) {
+        supersegmentIsOpen = true;
+//        supSegStartPoint = step;
+        supSegStartPoint = ndc_step;
+        curV = vec4( 0 );
+    }
+
+//    float w = adjustOpacity(newAlpha, nw + step * fwnw);
+    float w = newAlpha;
+    curV.rgb = curV.rgb + (1 - curV.a) * newColor * w;
+    curV.a = curV.a + (1 - curV.a) * w;
+
+    v.rgb = v.rgb + (1.0f - v.a) * newColor * newAlpha; //TODO Remove
+    v.a = v.a + (1.0f - v.a) * newAlpha;
+
+//    if(v.a >= 1.0f) {
+//        break;
+//    }
+}

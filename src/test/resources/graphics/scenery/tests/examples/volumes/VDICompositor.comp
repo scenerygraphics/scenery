@@ -1,0 +1,101 @@
+#version 450
+
+layout (local_size_x = 15, local_size_y = 15, local_size_z = 1) in;
+layout (set = 0, binding = 0, rgba8) uniform readonly image3D VDIsColor;
+layout (set = 1, binding = 0, rgba8) uniform image3D CompositedVDIColor; //TODO: put loadstore
+
+vec2 decode(vec4 c){
+    vec2 v = vec2(0.);
+
+    int ir = int(c.r*255.);
+    int ig = int(c.g*255.);
+    int irg = ir*256 + ig;
+    v.x = float(irg) / 256.;
+
+    int ib = int(c.b*255.);
+    int ia = int(c.a*255.);
+    int iba = ib*256 + ia;
+    v.y = float(iba) / 256.;
+
+    v -= 128.;
+    return v;
+}
+
+const vec4 bitEnc = vec4(1.,255.,65025.,16581375.);
+const vec4 bitDec = 1./bitEnc;
+float DecodeFloatRGBA (vec4 v) {
+    return dot(v, bitDec);
+}
+
+
+void main() {
+    ivec3 imageCoords  = imageSize(VDIsColor);
+    int numInputSupersegments = imageCoords.r/3;
+
+    int frontSupersegment[50]; // which supersegment of this pixel are we currently looking at, for each process
+
+
+//    for(int i = 0; i< 50; i++) {
+//        imageStore(CompositedVDIColor, ivec2(i, gl_GlobalInvocationID.x), vec4(1));
+//    }
+
+    ivec3 opImageCoords  = imageSize(CompositedVDIColor);
+    int numOutputSupersegments = opImageCoords.x/3;
+
+    int numProcesses = opImageCoords.g / opImageCoords.b; //TODO: generalize for non square images
+
+    for (int i = 0; i<numProcesses; i++) {
+        frontSupersegment[i] = 0;
+    }
+
+    vec4 startDepth;
+    vec4 endDepth;
+    vec4 colour;
+
+    float lowDepth;
+    int lowIndex;
+
+    for(int i = 0; i<numOutputSupersegments; i++) {
+        //Selecting which supersegment to place ith in the list
+
+        startDepth = vec4(0);
+        endDepth = vec4(0);
+        colour = vec4(0);
+        lowDepth = 200.0;
+        lowIndex = -1;
+
+        for (int j = 0; j < numProcesses; j++) {
+            if(frontSupersegment[j] >= numInputSupersegments) {
+                continue;
+            }
+
+            vec4 curStartDepthRGBA = imageLoad(VDIsColor, ivec3(frontSupersegment[j] * 3 + 1, gl_GlobalInvocationID.x, j * opImageCoords.b + gl_GlobalInvocationID.y)).rgba;
+            float curStartDepth = DecodeFloatRGBA(curStartDepthRGBA);
+
+            if(curStartDepth < lowDepth && curStartDepth != 0) {
+                lowDepth = curStartDepth;
+                lowIndex = j;
+                startDepth = curStartDepthRGBA;
+                endDepth = imageLoad(VDIsColor, ivec3(frontSupersegment[j] * 3 + 2, gl_GlobalInvocationID.x, j * opImageCoords.b + gl_GlobalInvocationID.y)).rgba;
+                colour = imageLoad(VDIsColor, ivec3(frontSupersegment[j] * 3, gl_GlobalInvocationID.x, j * opImageCoords.b + gl_GlobalInvocationID.y)).rgba;
+            }
+        }
+
+        imageStore(CompositedVDIColor, ivec3(3 * i + 1, gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), startDepth);
+        imageStore(CompositedVDIColor, ivec3(3 * i + 2, gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), endDepth);
+        imageStore(CompositedVDIColor, ivec3(3 * i, gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), colour);
+        if(lowIndex != -1) {
+            frontSupersegment[lowIndex]++;
+        }
+
+        if((numInputSupersegments * numProcesses) <= i) {
+            //If this o/p supersegment could not be written to due to insufficient inputs, make it 0
+            imageStore(CompositedVDIColor, ivec3(3 * i + 1, gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), vec4(0));
+            imageStore(CompositedVDIColor, ivec3(3 * i + 2, gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), vec4(0));
+            imageStore(CompositedVDIColor, ivec3(3 * i, gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), vec4(0));
+        }
+
+    }
+
+
+}
