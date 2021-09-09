@@ -46,6 +46,7 @@ open class VRGrab(
         if (!multiTarget) {
             selected = selected.take(1)
         }
+        selected.forEach {it.getAttribute(Grabable::class.java).onGrab?.invoke()}
         lastPos = controllerSpatial.worldPosition()
         lastRotation = controllerSpatial.worldRotation()
     }
@@ -77,6 +78,8 @@ open class VRGrab(
                             rotation.premul(diffRotation)
                         }
                     }
+
+                    grabable.onDrag?.invoke()
                 }
             }
         }
@@ -89,6 +92,7 @@ open class VRGrab(
         if (!selected.isEmpty()) {
             onGrab?.let { it() }
         }
+        selected.forEach {it.getAttribute(Grabable::class.java).onRelease?.invoke()}
         selected = emptyList()
     }
 
@@ -127,5 +131,9 @@ open class VRGrab(
     }
 }
 
-open class Grabable(val lockRotation: Boolean = false) {
+open class Grabable(
+    val lockRotation: Boolean = false,
+    val onGrab: (() -> Unit)? = null,
+    val onDrag: (() -> Unit)? = null,
+    val onRelease: (() -> Unit)? = null){
 }
