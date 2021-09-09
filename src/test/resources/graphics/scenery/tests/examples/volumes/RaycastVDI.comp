@@ -185,6 +185,101 @@ void linSearch(int rayX, int rayY, int start, int limit, float dist_to_orig, out
     }
 }
 
+void intersectSupersegment(vec2 invoc_orig, vec4 wfront_orig, vec4 wback_orig, vec4 front_orig, vec4 back_orig, float supseg_start, float supseg_end, vec4 pv_orig, vec4 ivp_orig) {
+    vec2 low_ = invoc_orig - 0.5;
+    vec2 high_ = invoc_orig + 0.5;
+
+    vec2 tex_min = low_/vec2(600, 600);
+    vec2 tex_max = high_/vec2(600, 600);
+
+    vec2 uv_min = tex_min * 2.0 - vec2(1.0);
+    vec2 uv_max = tex_max * 2.0 - vec2(1.0);
+
+    vec4 a = mix(wfront_orig, wback_orig, supseg_start);
+    vec4 b = mix(wfront_orig, wback_orig, supseg_end);
+
+    vec4 a_ = pv_orig * a;
+    a_ *= 1 / a_.w;
+    vec4 b_ = pv_orig * b;
+    b_ *= 1 / b_.w;
+
+    float start_depth = mix(vec3(uv_min, -1), vec3(uv_min, 1), supseg_start).z;
+    float end_depth = mix(vec3(uv_max, -1), vec3(uv_max, 1), supseg_end).z;
+
+    float p1, p2;
+    front_orig = vec4(0, 0, -1, 1);
+    //                    intersectBox( front_orig.xyz, vec3(0.0001, 0.0001, 2), vec3( uv_min, a_.z ),
+    //                        vec3( uv_max, b_.z ), p1, p2 );
+
+    intersectBox( front_orig.xyz, (back_orig - front_orig).xyz, vec3( uv_min, a_.z ),
+    vec3( uv_max, b_.z ), p1, p2 );
+
+    //step along the ray in NDC space till the end of the supersegment
+    //                    vec4 end_point = vec4(front_orig.xyz + vec3(0.0001, 0.0001, 2)*p2, 1);
+    vec4 end_point = vec4(front_orig.xyz + (back_orig - front_orig).xyz*p2, 1);
+
+
+
+    //                    vec4 next_pos = mix(front_orig, back_orig, p2);
+    //                    next_pos *= 1/next_pos.w;
+
+    //                    vec4 wpos_next = ivp_orig * next_pos;
+    //                    wpos_next *= 1 / wpos_next.w;
+
+    vec4 wpos_next = ivp_orig * end_point;
+    wpos_next *= 1 / wpos_next.w;
+
+    float length_in_supseg = distance(wpos_next, wpos)/distance(wfront, wback);
+
+    float temp = supseg_end - supseg_start;
+
+    float step_temp = step + temp;
+
+    vec4 wnext_temp = mix(wfront, wback, step_temp);
+
+    //                    vec4 ndc_next_temp = pv_orig * wnext_temp;
+    //                    ndc_next_temp *= 1 / ndc_next_temp.w;
+
+    //                    vec4 wnext_again = ivp_orig * ndc_next_temp;
+    //                    wnext_again *= 1 / wnext_again.w;
+    //
+    //                    vec4 ndc_front_temp = pv_orig * wfront;
+    //                    ndc_front_temp *= 1 / ndc_front_temp.w;
+    //
+    //                    vec4 ndc_back_temp = pv_orig * wback;
+    //                    ndc_back_temp *= 1 / ndc_back_temp.w;
+    //
+    //                    mat4 tempMat = pv_orig * ivp_orig;
+
+
+    #if USE_PRINTF
+    if(gl_GlobalInvocationID.xy == vec2(300, 300)) {
+        debugPrintfEXT("Calculated length is: %f while actual length is %f", length_in_supseg, temp);
+//                        debugPrintfEXT("Next pos in original NDC: (%f, %f, %f) and near and far are %f and %f", next_pos.xyz, p1, p2);
+//                        debugPrintfEXT("Actual next pt in original NDC should be: (%f, %f, %f), because step length was %f", ndc_next_temp.xyz, step_temp);
+//                        debugPrintfEXT("wfront is: (%f, %f, %f, %f), wback is: (%f, %f, %f, %f) and wnext is: (%f, %f, %f, %f)", wfront, wback, wnext_temp);
+//                        debugPrintfEXT("NDC front recalculated is: (%f, %f, %f) and back is (%f, %f, %f)", ndc_front_temp.xyz, ndc_back_temp.xyz);
+//                        debugPrintfEXT("WNext Again is: (%f, %f, %f)", wnext_again.xyz);
+//                        debugPrintfEXT("a_ is: (%f, %f, %f)", a_.xyz);
+//                        debugPrintfEXT("b_ is: (%f, %f, %f)", b_.xyz);
+
+        debugPrintfEXT("Calculated next pos is: (%f, %f, %f)", wpos_next.xyz);
+        debugPrintfEXT("Actual next pos is: (%f, %f, %f)", wnext_temp.xyz);
+
+
+        //
+        //                        debugPrintfEXT("End points of supersegment are: %f and %f . In NDC, they are %f and %f", supseg_start, supseg_end, start_depth, end_depth);
+        //                        debugPrintfEXT("Ray origin is: (%f, %f, %f) and ray direction is (%f, %f, %f)", front_orig.xyz, (back_orig - front_orig).xyz);
+        //                        debugPrintfEXT("Box min point is: (%f, %f, %f) and max point is (%f, %f, %f)",
+        //                                vec3( uv_min, start_depth ),
+        //                                vec3( uv_max, end_depth ));
+
+
+
+        }
+        #endif
+}
+
 // ---------------------
 // $insert{Convert}
 // $insert{SampleVolume}
@@ -295,7 +390,12 @@ void main()
         int i;
         for ( i = 0; i < numSteps; ++i, step += dist )
         {
-            if(i>45) break;
+            #if USE_PRINTF
+            if(gl_GlobalInvocationID.xy == vec2(300, 300) && i% 10 ==0) {
+                debugPrintfEXT("i is: %d and step is %f, while tfar is %f", i, step, tfar);
+            }
+            #endif
+//            if(i>145) break;
             if(step > tfar) {
                 #if USE_PRINTF
                 if(gl_GlobalInvocationID.xy == vec2(300, 300)) {
@@ -424,98 +524,7 @@ void main()
                     prevY = invoc_orig.y;
                     depth = j;
 
-                    vec2 low_ = invoc_orig - 0.5;
-                    vec2 high_ = invoc_orig + 0.5;
 
-                    vec2 tex_min = low_/vec2(600, 600);
-                    vec2 tex_max = high_/vec2(600, 600);
-
-                    vec2 uv_min = tex_min * 2.0 - vec2(1.0);
-                    vec2 uv_max = tex_max * 2.0 - vec2(1.0);
-
-                    vec4 a = mix(wfront_orig, wback_orig, supseg_start);
-                    vec4 b = mix(wfront_orig, wback_orig, supseg_end);
-
-                    vec4 a_ = pv_orig * a;
-                    a_ *= 1 / a_.w;
-                    vec4 b_ = pv_orig * b;
-                    b_ *= 1 / b_.w;
-
-                    float start_depth = mix(vec3(uv_min, -1), vec3(uv_min, 1), supseg_start).z;
-                    float end_depth = mix(vec3(uv_max, -1), vec3(uv_max, 1), supseg_end).z;
-
-                    float p1, p2;
-                    front_orig = vec4(0, 0, -1, 1);
-//                    intersectBox( front_orig.xyz, vec3(0.0001, 0.0001, 2), vec3( uv_min, a_.z ),
-//                        vec3( uv_max, b_.z ), p1, p2 );
-
-                    intersectBox( front_orig.xyz, (back_orig - front_orig).xyz, vec3( uv_min, a_.z ),
-                        vec3( uv_max, b_.z ), p1, p2 );
-
-                    //step along the ray in NDC space till the end of the supersegment
-//                    vec4 end_point = vec4(front_orig.xyz + vec3(0.0001, 0.0001, 2)*p2, 1);
-                    vec4 end_point = vec4(front_orig.xyz + (back_orig - front_orig).xyz*p2, 1);
-
-
-
-//                    vec4 next_pos = mix(front_orig, back_orig, p2);
-//                    next_pos *= 1/next_pos.w;
-
-//                    vec4 wpos_next = ivp_orig * next_pos;
-//                    wpos_next *= 1 / wpos_next.w;
-
-                    vec4 wpos_next = ivp_orig * end_point;
-                    wpos_next *= 1 / wpos_next.w;
-
-                    float length_in_supseg = distance(wpos_next, wpos)/distance(wfront, wback);
-
-                    float temp = supseg_end - supseg_start;
-
-                    float step_temp = step + temp;
-
-                    vec4 wnext_temp = mix(wfront, wback, step_temp);
-
-//                    vec4 ndc_next_temp = pv_orig * wnext_temp;
-//                    ndc_next_temp *= 1 / ndc_next_temp.w;
-
-//                    vec4 wnext_again = ivp_orig * ndc_next_temp;
-//                    wnext_again *= 1 / wnext_again.w;
-//
-//                    vec4 ndc_front_temp = pv_orig * wfront;
-//                    ndc_front_temp *= 1 / ndc_front_temp.w;
-//
-//                    vec4 ndc_back_temp = pv_orig * wback;
-//                    ndc_back_temp *= 1 / ndc_back_temp.w;
-//
-//                    mat4 tempMat = pv_orig * ivp_orig;
-
-
-                    #if USE_PRINTF
-                    if(gl_GlobalInvocationID.xy == vec2(300, 300)) {
-                        debugPrintfEXT("Calculated length is: %f while actual length is %f", length_in_supseg, temp);
-//                        debugPrintfEXT("Next pos in original NDC: (%f, %f, %f) and near and far are %f and %f", next_pos.xyz, p1, p2);
-//                        debugPrintfEXT("Actual next pt in original NDC should be: (%f, %f, %f), because step length was %f", ndc_next_temp.xyz, step_temp);
-//                        debugPrintfEXT("wfront is: (%f, %f, %f, %f), wback is: (%f, %f, %f, %f) and wnext is: (%f, %f, %f, %f)", wfront, wback, wnext_temp);
-//                        debugPrintfEXT("NDC front recalculated is: (%f, %f, %f) and back is (%f, %f, %f)", ndc_front_temp.xyz, ndc_back_temp.xyz);
-//                        debugPrintfEXT("WNext Again is: (%f, %f, %f)", wnext_again.xyz);
-//                        debugPrintfEXT("a_ is: (%f, %f, %f)", a_.xyz);
-//                        debugPrintfEXT("b_ is: (%f, %f, %f)", b_.xyz);
-
-                        debugPrintfEXT("Calculated next pos is: (%f, %f, %f)", wpos_next.xyz);
-                        debugPrintfEXT("Actual next pos is: (%f, %f, %f)", wnext_temp.xyz);
-
-
-//
-//                        debugPrintfEXT("End points of supersegment are: %f and %f . In NDC, they are %f and %f", supseg_start, supseg_end, start_depth, end_depth);
-//                        debugPrintfEXT("Ray origin is: (%f, %f, %f) and ray direction is (%f, %f, %f)", front_orig.xyz, (back_orig - front_orig).xyz);
-//                        debugPrintfEXT("Box min point is: (%f, %f, %f) and max point is (%f, %f, %f)",
-//                                vec3( uv_min, start_depth ),
-//                                vec3( uv_max, end_depth ));
-
-
-
-                    }
-                    #endif
 
                     step += length_in_supseg;
                 }
@@ -541,7 +550,100 @@ void main()
                         prevY = invoc_orig.y;
                         depth = j;
 
-                        float length_in_supseg = supseg_end - supseg_start;
+                        vec2 low_ = invoc_orig - 0.5;
+                        vec2 high_ = invoc_orig + 0.5;
+
+                        vec2 tex_min = low_/vec2(600, 600);
+                        vec2 tex_max = high_/vec2(600, 600);
+
+                        vec2 uv_min = tex_min * 2.0 - vec2(1.0);
+                        vec2 uv_max = tex_max * 2.0 - vec2(1.0);
+
+                        vec4 a = mix(wfront_orig, wback_orig, supseg_start);
+                        vec4 b = mix(wfront_orig, wback_orig, supseg_end);
+
+                        vec4 a_ = pv_orig * a;
+                        a_ *= 1 / a_.w;
+                        vec4 b_ = pv_orig * b;
+                        b_ *= 1 / b_.w;
+
+                        float start_depth = mix(vec3(uv_min, -1), vec3(uv_min, 1), supseg_start).z;
+                        float end_depth = mix(vec3(uv_max, -1), vec3(uv_max, 1), supseg_end).z;
+
+                        float p1, p2;
+                        front_orig = vec4(0, 0, -1, 1);
+                        //                    intersectBox( front_orig.xyz, vec3(0.0001, 0.0001, 2), vec3( uv_min, a_.z ),
+                        //                        vec3( uv_max, b_.z ), p1, p2 );
+
+                        intersectBox( front_orig.xyz, (back_orig - front_orig).xyz, vec3( uv_min, a_.z ),
+                        vec3( uv_max, b_.z ), p1, p2 );
+
+                        //step along the ray in NDC space till the end of the supersegment
+                        //                    vec4 end_point = vec4(front_orig.xyz + vec3(0.0001, 0.0001, 2)*p2, 1);
+                        vec4 end_point = vec4(front_orig.xyz + (back_orig - front_orig).xyz*p2, 1);
+
+
+
+                        //                    vec4 next_pos = mix(front_orig, back_orig, p2);
+                        //                    next_pos *= 1/next_pos.w;
+
+                        //                    vec4 wpos_next = ivp_orig * next_pos;
+                        //                    wpos_next *= 1 / wpos_next.w;
+
+                        vec4 wpos_next = ivp_orig * end_point;
+                        wpos_next *= 1 / wpos_next.w;
+
+                        float length_in_supseg = distance(wpos_next, wpos)/distance(wfront, wback);
+
+                        float temp = supseg_end - supseg_start;
+
+                        float step_temp = step + temp;
+
+                        vec4 wnext_temp = mix(wfront, wback, step_temp);
+
+                        //                    vec4 ndc_next_temp = pv_orig * wnext_temp;
+                        //                    ndc_next_temp *= 1 / ndc_next_temp.w;
+
+                        //                    vec4 wnext_again = ivp_orig * ndc_next_temp;
+                        //                    wnext_again *= 1 / wnext_again.w;
+                        //
+                        //                    vec4 ndc_front_temp = pv_orig * wfront;
+                        //                    ndc_front_temp *= 1 / ndc_front_temp.w;
+                        //
+                        //                    vec4 ndc_back_temp = pv_orig * wback;
+                        //                    ndc_back_temp *= 1 / ndc_back_temp.w;
+                        //
+                        //                    mat4 tempMat = pv_orig * ivp_orig;
+
+
+                        #if USE_PRINTF
+                        if(gl_GlobalInvocationID.xy == vec2(300, 300) && i%3 == 0) {
+                            debugPrintfEXT("Calculated length is: %f while actual length is %f", length_in_supseg, temp);
+//                        debugPrintfEXT("Next pos in original NDC: (%f, %f, %f) and near and far are %f and %f", next_pos.xyz, p1, p2);
+//                        debugPrintfEXT("Actual next pt in original NDC should be: (%f, %f, %f), because step length was %f", ndc_next_temp.xyz, step_temp);
+//                        debugPrintfEXT("wfront is: (%f, %f, %f, %f), wback is: (%f, %f, %f, %f) and wnext is: (%f, %f, %f, %f)", wfront, wback, wnext_temp);
+//                        debugPrintfEXT("NDC front recalculated is: (%f, %f, %f) and back is (%f, %f, %f)", ndc_front_temp.xyz, ndc_back_temp.xyz);
+//                        debugPrintfEXT("WNext Again is: (%f, %f, %f)", wnext_again.xyz);
+//                        debugPrintfEXT("a_ is: (%f, %f, %f)", a_.xyz);
+//                        debugPrintfEXT("b_ is: (%f, %f, %f)", b_.xyz);
+
+//                            debugPrintfEXT("Calculated next pos is: (%f, %f, %f)", wpos_next.xyz);
+//                            debugPrintfEXT("Actual next pos is: (%f, %f, %f)", wnext_temp.xyz);
+
+
+//
+//                        debugPrintfEXT("End points of supersegment are: %f and %f . In NDC, they are %f and %f", supseg_start, supseg_end, start_depth, end_depth);
+//                        debugPrintfEXT("Ray origin is: (%f, %f, %f) and ray direction is (%f, %f, %f)", front_orig.xyz, (back_orig - front_orig).xyz);
+//                        debugPrintfEXT("Box min point is: (%f, %f, %f) and max point is (%f, %f, %f)",
+//                                vec3( uv_min, start_depth ),
+//                                vec3( uv_max, end_depth ));
+
+
+
+                        }
+                        #endif
+
+//                        float length_in_supseg = supseg_end - supseg_start;
                         step += length_in_supseg;
                     } else {
                         firstSample = true;
