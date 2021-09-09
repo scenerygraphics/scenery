@@ -8,6 +8,7 @@ import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.controls.TrackerRole
 import graphics.scenery.controls.behaviours.*
 import graphics.scenery.numerics.Random
+import graphics.scenery.primitives.Cylinder
 import graphics.scenery.utils.Wiggler
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
@@ -28,6 +29,7 @@ import kotlin.system.exitProcess
  * Left A Button:       Options Menu
  *
  * @author Ulrik Günther <hello@ulrik.is>
+ * @author Jan Tiemann <j.tiemann@hzdr.de>
  */
 class VRControllerExample : SceneryBase(
     VRControllerExample::class.java.simpleName,
@@ -58,6 +60,22 @@ class VRControllerExample : SceneryBase(
 
         scene.addChild(cam)
 
+        val lights = Light.createLightTetrahedron<PointLight>(spread = 5.0f, radius = 8.0f)
+        lights.forEach {
+            it.emissionColor = Random.random3DVectorFromRange(0.4f, 1.0f)
+            scene.addChild(it)
+        }
+
+        hullbox = Box(Vector3f(20.0f, 20.0f, 20.0f), insideNormals = true)
+        hullbox.material {
+            ambient = Vector3f(0.6f, 0.6f, 0.6f)
+            diffuse = Vector3f(0.4f, 0.4f, 0.4f)
+            specular = Vector3f(0.0f, 0.0f, 0.0f)
+            cullingMode = Material.CullingMode.Front
+        }
+
+        scene.addChild(hullbox)
+
         boxes = (0..10).map {
             val obj = Box(Vector3f(0.1f, 0.1f, 0.1f))
             obj.spatial {
@@ -77,28 +95,32 @@ class VRControllerExample : SceneryBase(
 
         val longBox = Box(Vector3f(0.1f, 0.2f, 0.1f))
         longBox.spatial {
-            position = Vector3f(-0.5f, 1.0f, 0f)
+        position = Vector3f(-0.5f, 1.0f, 0f)
         }
         longBox.addAttribute(Grabable::class.java, Grabable())
         pivot.addChild(longBox)
-        */
+         */
 
-
-        val lights = Light.createLightTetrahedron<PointLight>(spread = 5.0f, radius = 8.0f)
-        lights.forEach {
-            it.emissionColor = Random.random3DVectorFromRange(0.4f, 1.0f)
-            scene.addChild(it)
+        val pen = Box(Vector3f(0.05f, 0.13f, 0.05f))
+        pen.spatial {
+            position = Vector3f(-0.5f, 1.0f, 0f)
         }
-
-        hullbox = Box(Vector3f(20.0f, 20.0f, 20.0f), insideNormals = true)
-        hullbox.material {
-            ambient = Vector3f(0.6f, 0.6f, 0.6f)
-            diffuse = Vector3f(0.4f, 0.4f, 0.4f)
-            specular = Vector3f(0.0f, 0.0f, 0.0f)
-            cullingMode = Material.CullingMode.Front
+        scene.addChild(pen)
+        val tip = Box(Vector3f(0.025f, 0.025f, 0.025f))
+        tip.spatial {
+            position = Vector3f(0f, 0.08f, 0f)
         }
+        pen.addChild(tip)
+        var lastPenWriting = 0L
+        pen.addAttribute(Grabable::class.java, Grabable(onDrag = {
+            if (System.currentTimeMillis() - lastPenWriting > 50){
+                val ink = Sphere(0.03f)
+                ink.spatial().position=tip.spatial().worldPosition()
+                scene.addChild(ink)
+                lastPenWriting = System.currentTimeMillis()
+            }
+        }))
 
-        scene.addChild(hullbox)
 
         thread {
             while (!running) {
