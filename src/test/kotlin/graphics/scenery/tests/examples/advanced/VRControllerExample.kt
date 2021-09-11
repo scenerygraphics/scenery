@@ -61,7 +61,7 @@ class VRControllerExample : SceneryBase(
 
         val lights = Light.createLightTetrahedron<PointLight>(spread = 5.0f, radius = 8.0f)
         lights.forEach {
-            it.emissionColor = Random.random3DVectorFromRange(0.4f, 1.0f)
+            it.emissionColor = Random.random3DVectorFromRange(0.6f, 1.0f)
             scene.addChild(it)
         }
 
@@ -233,7 +233,7 @@ class VRControllerExample : SceneryBase(
 
 
         VRSelectionWheel.createAndSet(scene, hmd,
-            listOf(OpenVRHMD.OpenVRButton.A), listOf(TrackerRole.LeftHand,TrackerRole.RightHand),
+            listOf(OpenVRHMD.OpenVRButton.A), listOf(TrackerRole.LeftHand),
             listOf(
                 "Toggle Shell" to {
                     hullbox.visible = !hullbox.visible
@@ -247,6 +247,29 @@ class VRControllerExample : SceneryBase(
                 "Toggle Push Left" to {
                     leftControllerPushes = !leftControllerPushes
                 }
+            ))
+
+        VRTreeSelectionWheel.createAndSet(scene, hmd,
+            listOf(OpenVRHMD.OpenVRButton.A), listOf(TrackerRole.RightHand),
+            listOf(
+                Action("dummy1") { println("A dummy entry has been pressed") },
+                SubWheel("Menu1", listOf(
+                    Action("dummy1-1",{println("A dummy entry has been pressed")}),
+                    Action("dummy1-2",{println("A dummy entry has been pressed")}),
+                    Action("dummy1-3",{println("A dummy entry has been pressed")})
+                )),
+                SubWheel("Menu2", listOf(
+                    Action("dummy2-1",{println("A dummy entry has been pressed")}),
+                    SubWheel("Menu2-1", listOf(
+                        Action("dummy2-1-1",{println("A dummy entry has been pressed")}),
+                        Action("dummy2-1-2",{println("A dummy entry has been pressed")}),
+                        Action("dummy2-1-3",{println("A dummy entry has been pressed")})
+                    )),
+                    Action("dummy2-3",{println("A dummy entry has been pressed")})
+                )),
+                Action("dummy2",{println("A dummy entry has been pressed")}),
+                Action("dummy3",{println("A dummy entry has been pressed")}),
+                Action("dummy4",{println("A dummy entry has been pressed")}),
             ))
     }
 
