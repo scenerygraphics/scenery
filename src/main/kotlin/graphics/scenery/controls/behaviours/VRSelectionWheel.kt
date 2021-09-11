@@ -33,55 +33,20 @@ class VRSelectionWheel(
 ) : DragBehaviour {
     protected val logger by LazyLogger(System.getProperty("scenery.LogLevel", "info"))
 
-    private var actionSpheres = emptyList<ActionSphere>()
+    private var activeWheel: Wheel? = null
 
-    private var activeDisplay: RichNode? = null
     private var activeWiggler: Wiggler? = null
 
     override fun init(x: Int, y: Int) {
-        val root = RichNode()
-        scene.addChild(root)
-        activeDisplay = root
-        root.spatial {
-            position = controller.worldPosition()
-        }
 
-        root.update.add {
-            root.spatial {
-                rotation = Quaternionf(hmd.getOrientation()).conjugate().normalize()
-            }
-        }
+        activeWheel = Wheel(controller,hmd,actions)
 
-        actionSpheres = actions.mapIndexed { index, action ->
-            val pos = Vector3f(0f, .15f, 0f)
-            pos.rotateZ((2f * Math.PI.toFloat() / actions.size) * index)
-
-            val sphereRoot = RichNode()
-            root.addChild(sphereRoot)
-            sphereRoot.spatial().position = pos
-
-            val sphere = Sphere(0.025f, 10)
-            sphereRoot.addChild(sphere)
-
-            val board = TextBoard()
-            board.text = action.first
-            board.name = "ToolSelectTextBoard"
-            board.transparent = 0
-            board.fontColor = Vector4f(0.0f, 0.0f, 0.0f, 1.0f)
-            board.backgroundColor = Vector4f(100f, 100f, 100f, 1.0f)
-            board.spatial {
-                position = Vector3f(0f, 0.05f, 0f)
-                scale = Vector3f(0.05f, 0.05f, 0.05f)
-            }
-            sphereRoot.addChild(board)
-
-            ActionSphere(action.first, action.second, sphere)
-        }
+        scene.addChild(activeWheel!!)
     }
 
     override fun drag(x: Int, y: Int) {
 
-        val (closestSphere, distance) = closestActionSphere()
+        val (closestSphere, distance) = activeWheel?.closestActionSphere() ?: return
 
         if (distance > cutoff) {
             activeWiggler?.deativate()
@@ -95,7 +60,7 @@ class VRSelectionWheel(
     }
 
     override fun end(x: Int, y: Int) {
-        val (closestActionSphere, distance) = closestActionSphere()
+        val (closestActionSphere, distance) = activeWheel?.closestActionSphere() ?: return
 
         if (distance < cutoff) {
             closestActionSphere.action()
@@ -104,16 +69,64 @@ class VRSelectionWheel(
         activeWiggler?.deativate()
         activeWiggler = null
 
-        activeDisplay?.let { scene.removeChild(it) }
-        activeDisplay = null
+        activeWheel?.let { scene.removeChild(it) }
+        activeWheel = null
     }
 
-    /**
-     * @return (closest actionSphere) to (distance to controller)
-     */
-    private fun closestActionSphere() = actionSpheres.map { entry ->
-        entry to entry.sphere.spatial().worldPosition().distance(controller.worldPosition())
-    }.reduceRight { left, right -> if (left.second < right.second) left else right }
+
+    private class Wheel(
+        val controller: Spatial,
+        val hmd: TrackerInput,
+        var actions: List<Pair<String, () -> Unit>>
+        ) : RichNode("Selection Wheel"){
+
+        val actionSpheres : List<ActionSphere>
+
+        init {
+            spatial {
+                position = controller.worldPosition()
+            }
+
+            update.add {
+                spatial {
+                    rotation = Quaternionf(hmd.getOrientation()).conjugate().normalize()
+                }
+            }
+
+            actionSpheres = actions.mapIndexed { index, action ->
+                val pos = Vector3f(0f, .15f, 0f)
+                pos.rotateZ((2f * Math.PI.toFloat() / actions.size) * index)
+
+                val sphereRoot = RichNode()
+                addChild(sphereRoot)
+                sphereRoot.spatial().position = pos
+
+                val sphere = Sphere(0.025f, 10)
+                sphereRoot.addChild(sphere)
+
+                val board = TextBoard()
+                board.text = action.first
+                board.name = "ToolSelectTextBoard"
+                board.transparent = 0
+                board.fontColor = Vector4f(0.0f, 0.0f, 0.0f, 1.0f)
+                board.backgroundColor = Vector4f(100f, 100f, 100f, 1.0f)
+                board.spatial {
+                    position = Vector3f(0f, 0.05f, 0f)
+                    scale = Vector3f(0.05f, 0.05f, 0.05f)
+                }
+                sphereRoot.addChild(board)
+
+                ActionSphere(action.first, action.second, sphere)
+            }
+        }
+
+        /**
+         * @return (closest actionSphere) to (distance to controller)
+         */
+        fun closestActionSphere() = actionSpheres.map { entry ->
+            entry to entry.sphere.spatial().worldPosition().distance(controller.worldPosition())
+        }.reduceRight { left, right -> if (left.second < right.second) left else right }
+    }
 
     companion object {
 
