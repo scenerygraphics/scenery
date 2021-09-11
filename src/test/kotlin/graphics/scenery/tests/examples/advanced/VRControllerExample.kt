@@ -8,7 +8,6 @@ import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.controls.TrackerRole
 import graphics.scenery.controls.behaviours.*
 import graphics.scenery.numerics.Random
-import graphics.scenery.primitives.Cylinder
 import graphics.scenery.utils.Wiggler
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
@@ -87,6 +86,13 @@ class VRControllerExample : SceneryBase(
         }
 
         boxes.forEach { scene.addChild(it) }
+
+        val pressableSphere = Sphere(0.1f)
+        pressableSphere.spatial {
+            position = Vector3f(0.5f, 1.0f, 0f)
+        }
+        pressableSphere.addAttribute(Pressable::class.java, Pressable(onRelease = {Wiggler(pressableSphere.spatial(),0.1f, 2000)}))
+        scene.addChild(pressableSphere)
 
         /** Box with rotated parent to debug grabbing
         val pivot = RichNode()
@@ -198,6 +204,7 @@ class VRControllerExample : SceneryBase(
          */
 
         VRGrab.createAndSet(scene, hmd, listOf(OpenVRHMD.OpenVRButton.Side), listOf(TrackerRole.LeftHand,TrackerRole.RightHand))
+        VRPress.createAndSet(scene, hmd, listOf(OpenVRHMD.OpenVRButton.Trigger), listOf(TrackerRole.LeftHand,TrackerRole.RightHand))
 
         val selectionStorage =
             VRSelect.createAndSetWithStorage(
