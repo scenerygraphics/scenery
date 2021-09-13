@@ -65,7 +65,7 @@ internal class WheelMenu(
                     when(action) {
                         is Action -> {
                             action.action()
-                            VRTreeSelectionWheel.closeWheel(this)
+                            VRTreeSelectionWheel.closeWheel(this, true)
                         }
                         is SubWheel -> {
                             val new = WheelMenu(controller,hmd,action.actions,true)
@@ -74,12 +74,17 @@ internal class WheelMenu(
                     }
                 }))
 
+                // make it go red on touch
+                sphere.addAttribute(Touchable::class.java, Touchable())
+
                 // close/back button
                 val close = Box(Vector3f(0.05f,0.05f,0.05f))
-                close.spatial().rotation.rotateLocalZ((PI/2).toFloat())
+                close.spatial().rotation.rotateLocalZ((PI/4).toFloat())
                 close.addAttribute(Pressable::class.java, Pressable(onRelease = {
                     VRTreeSelectionWheel.closeWheel(this)
                 }))
+                // make it go red on touch
+                close.addAttribute(Touchable::class.java, Touchable())
                 addChild(close)
             }
 

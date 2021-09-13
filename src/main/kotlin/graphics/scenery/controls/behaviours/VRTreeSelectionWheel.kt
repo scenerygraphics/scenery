@@ -10,6 +10,7 @@ import graphics.scenery.controls.TrackerRole
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.extensions.plusAssign
 import graphics.scenery.utils.extensions.times
+import org.joml.Quaternionf
 import org.joml.Vector3f
 import org.scijava.ui.behaviour.ClickBehaviour
 
@@ -95,6 +96,7 @@ class VRTreeSelectionWheel(
             old.spatial().position += Vector3f(0f,0f,-0.15f)
 
             old.followHead = false
+            old.spatial().rotation = Quaternionf()
         }
 
         internal fun closeWheel(wheel: WheelMenu, recursive: Boolean = false){
