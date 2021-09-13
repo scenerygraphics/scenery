@@ -37,7 +37,7 @@ class VRControllerExample : SceneryBase(
     private lateinit var hmd: OpenVRHMD
     private lateinit var boxes: List<Node>
     private lateinit var hullbox: Box
-    private var leftControllerPushes = false
+    private var leftControllerPushes = true
 
     override fun init() {
         hmd = OpenVRHMD(useCompositor = true)
@@ -80,6 +80,21 @@ class VRControllerExample : SceneryBase(
             obj.spatial {
                 position = Vector3f(-1.0f + (it + 1) * 0.2f, 1.0f, -0.5f)
             }
+            obj.materialOrNull().diffuse = Vector3f(0.9f, 0.5f, 0.5f)
+            /**
+             * This attribute marks the box as touchable by [VRTouch].
+             * If there is an intersection with a box and the left controller,
+             * that box is slightly nudged in the direction
+             * of the controller's velocity.*/
+            obj.addAttribute(Touchable::class.java, Touchable(onTouch = {device ->
+                if (leftControllerPushes) {
+                    if (device.role == TrackerRole.LeftHand) {
+                        obj.ifSpatial {
+                            position = (device.velocity ?: Vector3f(0.0f)) * 0.05f + position
+                        }
+                    }
+                }
+            }))
             obj.addAttribute(Grabable::class.java, Grabable())
             obj.addAttribute(Selectable::class.java, Selectable())
             obj
@@ -140,36 +155,9 @@ class VRControllerExample : SceneryBase(
                         // This attaches the model of the controller to the controller's transforms
                         // from the OpenVR/SteamVR system.
                         hmd.attachToNode(device, controller, cam)
-
-                        // This update routine is called every time the position of the left controller
-                        // updates, and checks for intersections with any of the boxes. If there is
-                        // an intersection with a box, that box is slightly nudged in the direction
-                        // of the controller's velocity.
-                        if (device.role == TrackerRole.LeftHand) {
-                            controller.update.add {
-                                if (leftControllerPushes){
-                                    boxes.forEach { it.materialOrNull()?.diffuse = Vector3f(0.9f, 0.5f, 0.5f) }
-                                    boxes.filter { box ->
-                                        controller.children.first().spatialOrNull()?.intersects(box) ?: false
-                                    }.forEach { box ->
-                                        box.ifMaterial {
-                                            diffuse = Vector3f(1.0f, 0.0f, 0.0f)
-                                        }
-                                        if (device.role == TrackerRole.LeftHand) {
-                                            box.ifSpatial {
-                                                position = (device.velocity ?: Vector3f(0.0f)) * 0.05f + position
-                                            }
-                                        }
-                                        (hmd as? OpenVRHMD)?.vibrate(device)
-                                    }
-                                }
-                            }
-                        }
                     }
-
                 }
             }
-
         }
     }
 
@@ -202,6 +190,8 @@ class VRControllerExample : SceneryBase(
         // ...and bind that to the A button of the left-hand controller.
         hmd.addKeyBinding("toggle_boxes", TrackerRole.RightHand, OpenVRHMD.OpenVRButton.A)
          */
+
+        VRTouch.createAndSet(scene,hmd, listOf(TrackerRole.RightHand,TrackerRole.LeftHand),true)
 
         VRGrab.createAndSet(scene, hmd, listOf(OpenVRHMD.OpenVRButton.Side), listOf(TrackerRole.LeftHand,TrackerRole.RightHand))
         VRPress.createAndSet(scene, hmd, listOf(OpenVRHMD.OpenVRButton.Trigger), listOf(TrackerRole.LeftHand,TrackerRole.RightHand))
