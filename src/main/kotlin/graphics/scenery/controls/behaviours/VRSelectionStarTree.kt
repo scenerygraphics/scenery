@@ -1,5 +1,6 @@
 package graphics.scenery.controls.behaviours
 
+import graphics.scenery.Node
 import graphics.scenery.Scene
 import graphics.scenery.attribute.spatial.Spatial
 import graphics.scenery.controls.OpenVRHMD
@@ -57,14 +58,12 @@ class VRSelectionStarTree(
         } else if (activeWiggler?.target != closestStarTree.starTree.children.filter { it.name == "StarTreeSphere" }[0].ifSpatial {  }) {
             activeWiggler?.deativate()
             activeWiggler = Wiggler(closestStarTree.starTree.children.filter { it.name == "StarTreeSphere" }[0].ifSpatial {  }!!, 0.01f)
-            if(closestStarTree.isParent) {
-                currentStarTree.decrementRoot()
+
+            if(currentStarTree != closestStarTree.starTree) {
+                currentStarTree.hideChildren()
+                currentStarTree = closestStarTree.starTree
+                currentStarTree.showChildren()
             }
-            else {
-                currentStarTree.inkrementRoot()
-                closestStarTree.starTree.setRoot()
-            }
-            currentStarTree = closestStarTree.starTree
         }
 
     }
@@ -86,17 +85,29 @@ class VRSelectionStarTree(
      * @return (closest actionSphere) to (distance to controller)
      */
     private fun closestStarTree(): StarTreeDistance {
-        val distanceToParent = currentStarTree.parentStarTree?.spatial()?.worldPosition()?.distance(controller.worldPosition())
-        val distanceToChildren = currentStarTree.starTreeChildren.map {it to it.spatial().worldPosition().distance(controller.worldPosition()) }.sortedByDescending{it.second}[0]
-        return if(currentStarTree.parentStarTree != null && distanceToParent!! <= distanceToChildren.second) {
-            StarTreeDistance(currentStarTree.parentStarTree!!, distanceToParent, true)
-        } else {
-            StarTreeDistance(distanceToChildren.first, distanceToChildren.second, false)
+        val compareList = ArrayList<StarTreeDistance>(3)
+        val parent = currentStarTree.parent
+        //root has no neighbors
+        if (parent != null && !currentStarTree.root) {
+            val parentDistance = StarTreeDistance(parent as StarTree, currentStarTree.parent?.ifSpatial { position }?.worldPosition()?.distance(controller.worldPosition())!!)
+            val nearestChild = nearestChild(parent)
+            compareList.add(parentDistance)
+            compareList.add(nearestChild)
         }
+        compareList.add(StarTreeDistance(currentStarTree, currentStarTree.spatial().worldPosition().distance(controller.worldPosition())))
+        compareList.add(nearestChild(currentStarTree))
+        return compareList.sortedBy { it.distance }[0]
+    }
+
+    private fun nearestChild(parent: Node): StarTreeDistance {
+        val nearestChild = parent.children.filter { it.name.contains("StarTree") }
+            .map { it to it.ifSpatial { position }?.worldPosition()?.distance(controller.worldPosition()) }
+            .sortedBy { it.second }[0]
+        return StarTreeDistance(nearestChild.first as StarTree, nearestChild.second!!)
     }
 
     companion object {
-        private data class StarTreeDistance(val starTree: StarTree, val distance: Float, val isParent: Boolean)
+        private data class StarTreeDistance(val starTree: StarTree, val distance: Float)
         /**
          * Convenience method for adding tool select behaviour
          */
