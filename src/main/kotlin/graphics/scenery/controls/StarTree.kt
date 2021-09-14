@@ -8,10 +8,9 @@ import org.joml.Vector4f
 
 class StarTree(textBoardText: String = "", val action: () -> Unit = {},): Mesh("StarTree") {
     var root = false
-    var childrenDisplayed = false
     val starTreeChildren = this.children.filter { it.name == "StarTree" }
     init {
-        if(this.parent?.name != "StarTree") {root = true; childrenDisplayed = true}
+        if(this.parent?.name != "StarTree") {root = true}
         if(!root) {
             starTreeChildren.forEach { it.visible = false }
             val sphere = Sphere(0.025f, 10)
@@ -44,12 +43,16 @@ class StarTree(textBoardText: String = "", val action: () -> Unit = {},): Mesh("
     }
 
     fun showChildren() {
-        starTreeChildren.forEach { visible = true }
-        var childrenDisplayed = true
+        starTreeChildren.forEach { _ -> visible = true }
     }
 
     fun hideChildren() {
-        starTreeChildren.forEach { visible = false }
-        var childrenDisplayed = false
+        starTreeChildren.forEach {
+            //first level is always visible
+            if(!root) { visible = false }
+            if (it is StarTree) {
+                it.hideChildren()
+            }
+        }
     }
 }
