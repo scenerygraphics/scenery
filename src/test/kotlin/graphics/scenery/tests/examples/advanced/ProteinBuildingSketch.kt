@@ -4,7 +4,6 @@ import graphics.scenery.*
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.OpenVRHMD
-import graphics.scenery.controls.StarTree
 import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.controls.TrackerRole
 import graphics.scenery.controls.behaviours.*
@@ -30,8 +29,8 @@ import kotlin.system.exitProcess
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class VRStarTreeExample : SceneryBase(
-    VRStarTreeExample::class.java.simpleName,
+class ProteinBuildingSketch : SceneryBase(
+    ProteinBuildingSketch::class.java.simpleName,
     windowWidth = 1920, windowHeight = 1200
 ) {
     private lateinit var hmd: OpenVRHMD
@@ -204,24 +203,30 @@ class VRStarTreeExample : SceneryBase(
             })
 
 
-        val starTree = StarTree("root", listOf(
-            StarTree("first", listOf(
-                StarTree("first_A", listOf()) { println("hi") },
-                StarTree("first_B", listOf()) { println("hihi") }
-            )),
-            StarTree("second", listOf(
-                StarTree("second_A", listOf()) { println { "bumbumbum" } }
+        VRSelectionWheel.createAndSet(scene, hmd, { hmd.getPosition() },
+            listOf(OpenVRHMD.OpenVRButton.A), listOf(TrackerRole.LeftHand),
+            listOf(
+                "Toggle Shell" to {
+                    hullbox.visible = !hullbox.visible
+                    logger.info("Hull visible: ${hullbox.visible}")
+                },
+                "Toggle Boxes" to {
+                    boxes.forEach { it.visible = !it.visible }
+                    logger.info("Boxes visible: ${boxes.first().visible}")
+                },
+                "test" to { print("test") },
+                "Toggle Push Left" to {
+                    leftControllerPushes = !leftControllerPushes
+                }
             ))
-        ))
-        VRSelectionStarTree.createAndSet(scene, hmd, { hmd.getPosition() },
-            listOf(OpenVRHMD.OpenVRButton.A), listOf(TrackerRole.LeftHand), starTree)
     }
 
 
     companion object {
         @JvmStatic
         fun main(args: Array<String>) {
-            VRStarTreeExample().main()
+            ProteinBuildingSketch().main()
         }
     }
 }
+

@@ -6,12 +6,14 @@ import graphics.scenery.primitives.TextBoard
 import org.joml.Vector3f
 import org.joml.Vector4f
 
-class StarTree(textBoardText: String = "", val starTreeChildren: List<StarTree> = listOf(), val action: () -> Unit = {},): Mesh("StarTree") {
+class StarTree(textBoardText: String = "", val action: () -> Unit = {},): Mesh("StarTree") {
     var root = false
-    var parentStarTree: StarTree? = null
+    var childrenDisplayed = false
+    val starTreeChildren = this.children.filter { it.name == "StarTree" }
     init {
-        starTreeChildren.forEach { it.parentStarTree = this }
-        if (parentStarTree != null) {
+        if(this.parent?.name != "StarTree") {root = true; childrenDisplayed = true}
+        if(!root) {
+            starTreeChildren.forEach { it.visible = false }
             val sphere = Sphere(0.025f, 10)
             sphere.name = "StarTreeSphere"
             this.addChild(sphere)
@@ -27,40 +29,27 @@ class StarTree(textBoardText: String = "", val starTreeChildren: List<StarTree> 
             }
             this.addChild(board)
         }
-        else {
-            root = true
-        }
         // child positions
         starTreeChildren.forEachIndexed { index, it ->
             val pos = Vector3f(0f, .15f, 0f)
-            pos.rotateZ((2f * Math.PI.toFloat() / starTreeChildren.size) * index)
+            if(root) {
+                pos.rotateZ((2f * Math.PI.toFloat() / starTreeChildren.size) * index)
+            }
+            else {
+                pos.rotateZ((Math.PI.toFloat() / starTreeChildren.size) * index)
+            }
             this.addChild(it)
-            it.spatial().position = pos
+            it.ifSpatial { position = pos }
         }
     }
 
-    fun inkrementRoot() {
-        this.spatial().scale.mul(1f / 1.61f)
-        this.ifMaterial {
-            roughness = 1 / 1.61f
-        }
+    fun showChildren() {
+        starTreeChildren.forEach { visible = true }
+        var childrenDisplayed = true
     }
 
-    fun setRoot() {
-        this.visible = true
-        if (!this.children.isEmpty()) {
-            this.children.filter { it.name == "ToolSelectTextBoard" }[0].visible = false
-        }
-    }
-
-    fun decrementRoot() {
-        this.visible = false
-        this.starTreeChildren.forEach {
-            it.decrementRoot()
-        }
-        this.parentStarTree?.spatial()?.scale?.mul(1.61f)
-        this.parentStarTree?.ifMaterial {
-            roughness = 1f
-        }
+    fun hideChildren() {
+        starTreeChildren.forEach { visible = false }
+        var childrenDisplayed = false
     }
 }

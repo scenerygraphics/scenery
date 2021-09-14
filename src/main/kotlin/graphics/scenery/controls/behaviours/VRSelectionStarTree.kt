@@ -41,7 +41,6 @@ class VRSelectionStarTree(
                 val hmdp = getHmdPos()
                 val diff = (hmdp - position).normalize()
                 rotation = Quaternionf().rotationTo(Vector3f(0f, 0f, 1f), diff)
-
             }
         }
         scene.addChild(starTree)
