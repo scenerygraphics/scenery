@@ -46,6 +46,10 @@ open class VRGrab(
         if (!multiTarget) {
             selected = selected.take(1)
         }
+        if (selected.isNotEmpty()) {
+            onGrab?.let { it() }
+        }
+        selected.forEach {it.getAttributeOrNull(Grabable::class.java)?.onGrab?.invoke()}
         lastPos = controllerSpatial.worldPosition()
         lastRotation = controllerSpatial.worldRotation()
     }
@@ -77,6 +81,8 @@ open class VRGrab(
                             rotation.premul(diffRotation)
                         }
                     }
+
+                    grabable.onDrag?.invoke()
                 }
             }
         }
@@ -86,9 +92,7 @@ open class VRGrab(
     }
 
     override fun end(x: Int, y: Int) {
-        if (!selected.isEmpty()) {
-            onGrab?.let { it() }
-        }
+        selected.forEach {it.getAttributeOrNull(Grabable::class.java)?.onRelease?.invoke()}
         selected = emptyList()
     }
 
@@ -107,7 +111,7 @@ open class VRGrab(
                 if (device.type == TrackedDeviceType.Controller) {
                     device.model?.let { controller ->
                         if (controllerSide.contains(device.role)) {
-                            val name = "VRDrag:${hmd.trackingSystemName}:${device.role}:$button"
+                            val name = "VRGrab:${hmd.trackingSystemName}:${device.role}:$button"
                             val grabBehaviour = VRGrab(
                                 name,
                                 controller.children.first(),
@@ -127,5 +131,9 @@ open class VRGrab(
     }
 }
 
-open class Grabable(val lockRotation: Boolean = false) {
+open class Grabable(
+    val lockRotation: Boolean = false,
+    val onGrab: (() -> Unit)? = null,
+    val onDrag: (() -> Unit)? = null,
+    val onRelease: (() -> Unit)? = null){
 }

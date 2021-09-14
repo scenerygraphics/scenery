@@ -1,19 +1,13 @@
 package graphics.scenery.controls.behaviours
 
-import graphics.scenery.RichNode
 import graphics.scenery.Scene
-import graphics.scenery.Sphere
 import graphics.scenery.attribute.spatial.Spatial
 import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.controls.TrackedDeviceType
+import graphics.scenery.controls.TrackerInput
 import graphics.scenery.controls.TrackerRole
-import graphics.scenery.primitives.TextBoard
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.Wiggler
-import graphics.scenery.utils.extensions.minus
-import org.joml.Quaternionf
-import org.joml.Vector3f
-import org.joml.Vector4f
 import org.scijava.ui.behaviour.DragBehaviour
 
 /**
@@ -27,64 +21,26 @@ import org.scijava.ui.behaviour.DragBehaviour
 class VRSelectionWheel(
     val controller: Spatial,
     val scene: Scene,
-    val getHmdPos: () -> Vector3f,
-    var actions: List<Pair<String, () -> Unit>>,
-    val cutoff: Float = 0.1f
+    val hmd: TrackerInput,
+    var actions: List<Action>,
+    val cutoff: Float = 0.1f,
 ) : DragBehaviour {
     protected val logger by LazyLogger(System.getProperty("scenery.LogLevel", "info"))
 
-    private var actionSpheres = emptyList<ActionSphere>()
+    private var activeWheel: WheelMenu? = null
 
-    private var activeDisplay: RichNode? = null
     private var activeWiggler: Wiggler? = null
 
     override fun init(x: Int, y: Int) {
-        val root = RichNode()
-        scene.addChild(root)
-        activeDisplay = root
-        root.spatial {
-            position = controller.worldPosition()
-        }
 
-        root.update.add {
-            root.spatial {
-                val hmdp = getHmdPos()
-                val diff = (hmdp - position).normalize()
-                rotation = Quaternionf().rotationTo(Vector3f(0f, 0f, 1f), diff)
+        activeWheel = WheelMenu(controller,hmd,actions)
 
-            }
-        }
-
-        actionSpheres = actions.mapIndexed { index, action ->
-            val pos = Vector3f(0f, .15f, 0f)
-            pos.rotateZ((2f * Math.PI.toFloat() / actions.size) * index)
-
-            val sphereRoot = RichNode()
-            root.addChild(sphereRoot)
-            sphereRoot.spatial().position = pos
-
-            val sphere = Sphere(0.025f, 10)
-            sphereRoot.addChild(sphere)
-
-            val board = TextBoard()
-            board.text = action.first
-            board.name = "ToolSelectTextBoard"
-            board.transparent = 0
-            board.fontColor = Vector4f(0.0f, 0.0f, 0.0f, 1.0f)
-            board.backgroundColor = Vector4f(100f, 100f, 100f, 1.0f)
-            board.spatial {
-                position = Vector3f(0f, 0.05f, 0f)
-                scale = Vector3f(0.05f, 0.05f, 0.05f)
-            }
-            sphereRoot.addChild(board)
-
-            ActionSphere(action.first, action.second, sphere)
-        }
+        scene.addChild(activeWheel!!)
     }
 
     override fun drag(x: Int, y: Int) {
 
-        val (closestSphere, distance) = closestActionSphere()
+        val (closestSphere, distance) = activeWheel?.closestActionSphere() ?: return
 
         if (distance > cutoff) {
             activeWiggler?.deativate()
@@ -98,29 +54,21 @@ class VRSelectionWheel(
     }
 
     override fun end(x: Int, y: Int) {
-        val (closestActionSphere, distance) = closestActionSphere()
+        val (closestActionSphere, distance) = activeWheel?.closestActionSphere() ?: return
 
         if (distance < cutoff) {
-            closestActionSphere.action()
+            val action = closestActionSphere.action as? Action
+            action?.action?.invoke()
         }
 
         activeWiggler?.deativate()
         activeWiggler = null
 
-        activeDisplay?.let { scene.removeChild(it) }
-        activeDisplay = null
+        activeWheel?.let { scene.removeChild(it) }
+        activeWheel = null
     }
 
-    /**
-     * @return (closest actionSphere) to (distance to controller)
-     */
-    private fun closestActionSphere() = actionSpheres.map { entry ->
-        entry to entry.sphere.spatial().worldPosition().distance(controller.worldPosition())
-    }.reduceRight { left, right -> if (left.second < right.second) left else right }
-
     companion object {
-
-        private data class ActionSphere(val name: String, val action: () -> Unit, val sphere: Sphere)
 
         /**
          * Convenience method for adding tool select behaviour
@@ -128,7 +76,6 @@ class VRSelectionWheel(
         fun createAndSet(
             scene: Scene,
             hmd: OpenVRHMD,
-            getHmdPos: () -> Vector3f,
             button: List<OpenVRHMD.OpenVRButton>,
             controllerSide: List<TrackerRole>,
             actions: List<Pair<String, () -> Unit>>,
@@ -137,13 +84,13 @@ class VRSelectionWheel(
                 if (device.type == TrackedDeviceType.Controller) {
                     device.model?.let { controller ->
                         if (controllerSide.contains(device.role)) {
-                            val name = "VRDrag:${hmd.trackingSystemName}:${device.role}:$button"
+                            val name = "VRSelectionWheel:${hmd.trackingSystemName}:${device.role}:$button"
                             val vrToolSelector = VRSelectionWheel(
                                 controller.children.first().spatialOrNull()
                                     ?: throw IllegalArgumentException("The target controller needs a spatial."),
                                 scene,
-                                getHmdPos,
-                                actions
+                                hmd,
+                                actions.map { Action(it.first, it.second) }
                             )
                             hmd.addBehaviour(name, vrToolSelector)
                             button.forEach {

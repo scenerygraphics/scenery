@@ -28,6 +28,7 @@ import kotlin.system.exitProcess
  * Left A Button:       Options Menu
  *
  * @author Ulrik Günther <hello@ulrik.is>
+ * @author Jan Tiemann <j.tiemann@hzdr.de>
  */
 class VRControllerExample : SceneryBase(
     VRControllerExample::class.java.simpleName,
@@ -36,7 +37,7 @@ class VRControllerExample : SceneryBase(
     private lateinit var hmd: OpenVRHMD
     private lateinit var boxes: List<Node>
     private lateinit var hullbox: Box
-    private var leftControllerPushes = false
+    private var leftControllerPushes = true
 
     override fun init() {
         hmd = OpenVRHMD(useCompositor = true)
@@ -58,35 +59,9 @@ class VRControllerExample : SceneryBase(
 
         scene.addChild(cam)
 
-        boxes = (0..10).map {
-            val obj = Box(Vector3f(0.1f, 0.1f, 0.1f))
-            obj.spatial {
-                position = Vector3f(-1.0f + (it + 1) * 0.2f, 1.0f, -0.5f)
-            }
-            obj.addAttribute(Grabable::class.java, Grabable())
-            obj.addAttribute(Selectable::class.java, Selectable())
-            obj
-        }
-
-        boxes.forEach { scene.addChild(it) }
-
-        /** Box with rotated parent to debug grabbing
-        val pivot = RichNode()
-        pivot.spatial().rotation.rotateLocalY(Math.PI.toFloat())
-        scene.addChild(pivot)
-
-        val longBox = Box(Vector3f(0.1f, 0.2f, 0.1f))
-        longBox.spatial {
-            position = Vector3f(-0.5f, 1.0f, 0f)
-        }
-        longBox.addAttribute(Grabable::class.java, Grabable())
-        pivot.addChild(longBox)
-        */
-
-
         val lights = Light.createLightTetrahedron<PointLight>(spread = 5.0f, radius = 8.0f)
         lights.forEach {
-            it.emissionColor = Random.random3DVectorFromRange(0.0f, 1.0f)
+            it.emissionColor = Random.random3DVectorFromRange(0.6f, 1.0f)
             scene.addChild(it)
         }
 
@@ -100,6 +75,74 @@ class VRControllerExample : SceneryBase(
 
         scene.addChild(hullbox)
 
+        boxes = (0..10).map {
+            val obj = Box(Vector3f(0.1f, 0.1f, 0.1f))
+            obj.spatial {
+                position = Vector3f(-1.0f + (it + 1) * 0.2f, 1.0f, -0.5f)
+            }
+            obj.materialOrNull().diffuse = Vector3f(0.9f, 0.5f, 0.5f)
+            /**
+             * This attribute marks the box as touchable by [VRTouch].
+             * If there is an intersection with a box and the left controller,
+             * that box is slightly nudged in the direction
+             * of the controller's velocity.*/
+            obj.addAttribute(Touchable::class.java, Touchable(onTouch = {device ->
+                if (leftControllerPushes) {
+                    if (device.role == TrackerRole.LeftHand) {
+                        obj.ifSpatial {
+                            position = (device.velocity ?: Vector3f(0.0f)) * 0.05f + position
+                        }
+                    }
+                }
+            }))
+            obj.addAttribute(Grabable::class.java, Grabable())
+            obj.addAttribute(Selectable::class.java, Selectable())
+            obj
+        }
+
+        boxes.forEach { scene.addChild(it) }
+
+        val pressableSphere = Sphere(0.1f)
+        pressableSphere.spatial {
+            position = Vector3f(0.5f, 1.0f, 0f)
+        }
+        pressableSphere.addAttribute(Pressable::class.java, Pressable(onRelease = {Wiggler(pressableSphere.spatial(),0.1f, 2000)}))
+        scene.addChild(pressableSphere)
+
+        /** Box with rotated parent to debug grabbing
+        val pivot = RichNode()
+        pivot.spatial().rotation.rotateLocalY(Math.PI.toFloat())
+        scene.addChild(pivot)
+
+        val longBox = Box(Vector3f(0.1f, 0.2f, 0.1f))
+        longBox.spatial {
+        position = Vector3f(-0.5f, 1.0f, 0f)
+        }
+        longBox.addAttribute(Grabable::class.java, Grabable())
+        pivot.addChild(longBox)
+         */
+
+        val pen = Box(Vector3f(0.05f, 0.13f, 0.05f))
+        pen.spatial {
+            position = Vector3f(-0.5f, 1.0f, 0f)
+        }
+        scene.addChild(pen)
+        val tip = Box(Vector3f(0.025f, 0.025f, 0.025f))
+        tip.spatial {
+            position = Vector3f(0f, 0.08f, 0f)
+        }
+        pen.addChild(tip)
+        var lastPenWriting = 0L
+        pen.addAttribute(Grabable::class.java, Grabable(onDrag = {
+            if (System.currentTimeMillis() - lastPenWriting > 50){
+                val ink = Sphere(0.03f)
+                ink.spatial().position=tip.spatial().worldPosition()
+                scene.addChild(ink)
+                lastPenWriting = System.currentTimeMillis()
+            }
+        }))
+
+
         thread {
             while (!running) {
                 Thread.sleep(200)
@@ -112,36 +155,9 @@ class VRControllerExample : SceneryBase(
                         // This attaches the model of the controller to the controller's transforms
                         // from the OpenVR/SteamVR system.
                         hmd.attachToNode(device, controller, cam)
-
-                        // This update routine is called every time the position of the left controller
-                        // updates, and checks for intersections with any of the boxes. If there is
-                        // an intersection with a box, that box is slightly nudged in the direction
-                        // of the controller's velocity.
-                        if (device.role == TrackerRole.LeftHand) {
-                            controller.update.add {
-                                if (leftControllerPushes){
-                                    boxes.forEach { it.materialOrNull()?.diffuse = Vector3f(0.9f, 0.5f, 0.5f) }
-                                    boxes.filter { box ->
-                                        controller.children.first().spatialOrNull()?.intersects(box) ?: false
-                                    }.forEach { box ->
-                                        box.ifMaterial {
-                                            diffuse = Vector3f(1.0f, 0.0f, 0.0f)
-                                        }
-                                        if (device.role == TrackerRole.LeftHand) {
-                                            box.ifSpatial {
-                                                position = (device.velocity ?: Vector3f(0.0f)) * 0.05f + position
-                                            }
-                                        }
-                                        (hmd as? OpenVRHMD)?.vibrate(device)
-                                    }
-                                }
-                            }
-                        }
                     }
-
                 }
             }
-
         }
     }
 
@@ -175,7 +191,10 @@ class VRControllerExample : SceneryBase(
         hmd.addKeyBinding("toggle_boxes", TrackerRole.RightHand, OpenVRHMD.OpenVRButton.A)
          */
 
+        VRTouch.createAndSet(scene,hmd, listOf(TrackerRole.RightHand,TrackerRole.LeftHand),true)
+
         VRGrab.createAndSet(scene, hmd, listOf(OpenVRHMD.OpenVRButton.Side), listOf(TrackerRole.LeftHand,TrackerRole.RightHand))
+        VRPress.createAndSet(scene, hmd, listOf(OpenVRHMD.OpenVRButton.Trigger), listOf(TrackerRole.LeftHand,TrackerRole.RightHand))
 
         val selectionStorage =
             VRSelect.createAndSetWithStorage(
@@ -203,7 +222,7 @@ class VRControllerExample : SceneryBase(
             })
 
 
-        VRSelectionWheel.createAndSet(scene, hmd, { hmd.getPosition() },
+        VRSelectionWheel.createAndSet(scene, hmd,
             listOf(OpenVRHMD.OpenVRButton.A), listOf(TrackerRole.LeftHand),
             listOf(
                 "Toggle Shell" to {
@@ -218,6 +237,29 @@ class VRControllerExample : SceneryBase(
                 "Toggle Push Left" to {
                     leftControllerPushes = !leftControllerPushes
                 }
+            ))
+
+        VRTreeSelectionWheel.createAndSet(scene, hmd,
+            listOf(OpenVRHMD.OpenVRButton.A), listOf(TrackerRole.RightHand),
+            listOf(
+                Action("dummy1") { println("A dummy entry has been pressed") },
+                SubWheel("Menu1", listOf(
+                    Action("dummy1-1",{println("A dummy entry has been pressed")}),
+                    Action("dummy1-2",{println("A dummy entry has been pressed")}),
+                    Action("dummy1-3",{println("A dummy entry has been pressed")})
+                )),
+                SubWheel("Menu2", listOf(
+                    Action("dummy2-1",{println("A dummy entry has been pressed")}),
+                    SubWheel("Menu2-1", listOf(
+                        Action("dummy2-1-1",{println("A dummy entry has been pressed")}),
+                        Action("dummy2-1-2",{println("A dummy entry has been pressed")}),
+                        Action("dummy2-1-3",{println("A dummy entry has been pressed")})
+                    )),
+                    Action("dummy2-3",{println("A dummy entry has been pressed")})
+                )),
+                Action("dummy2",{println("A dummy entry has been pressed")}),
+                Action("dummy3",{println("A dummy entry has been pressed")}),
+                Action("dummy4",{println("A dummy entry has been pressed")}),
             ))
     }
 

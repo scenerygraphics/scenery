@@ -8,8 +8,9 @@ import kotlin.concurrent.thread
 /**
  * It wiggles a [Node].
  */
-class Wiggler(val target: Spatial, val range: Float = 0.02f) {
+class Wiggler(val target: Spatial, val range: Float = 0.02f, val lifeTimeMillis: Int? = null) {
     private var active = true
+    private val created = System.currentTimeMillis()
 
     init {
         thread {
@@ -17,9 +18,15 @@ class Wiggler(val target: Spatial, val range: Float = 0.02f) {
             while (active) {
                 target.position =
                     originalPosition + Random.random3DVectorFromRange(-range, range)
+
+                if (lifeTimeMillis != null && lifeTimeMillis + created < System.currentTimeMillis()){
+                    active = false
+                }
+
                 Thread.sleep(5)
             }
             target.position = originalPosition
+
         }
     }
 
