@@ -6,10 +6,10 @@ import graphics.scenery.primitives.TextBoard
 import org.joml.Vector3f
 import org.joml.Vector4f
 
-class StarTree(textBoardText: String = "", val action: () -> Unit = {},): Mesh("StarTree") {
+class StarTree(textBoardText: String = "", val action: () -> Unit = {}, starTreeChildren: List<StarTree> = listOf()): Mesh("StarTree") {
     var root = false
-    val starTreeChildren = this.children.filter { it.name == "StarTree" }
     init {
+        starTreeChildren.forEach { this.addChild(it) }
         if(this.parent?.name != "StarTree") {root = true}
         if(!root) {
             starTreeChildren.forEach { it.visible = false }
@@ -43,11 +43,11 @@ class StarTree(textBoardText: String = "", val action: () -> Unit = {},): Mesh("
     }
 
     fun showChildren() {
-        starTreeChildren.forEach { _ -> visible = true }
+        this.children.filter { it.name == "StarTree" }.forEach { _ -> visible = true }
     }
 
     fun hideChildren() {
-        starTreeChildren.forEach {
+        this.children.filter { it.name == "StarTree" }.forEach {
             //first level is always visible
             if(!root) { visible = false }
             if (it is StarTree) {
