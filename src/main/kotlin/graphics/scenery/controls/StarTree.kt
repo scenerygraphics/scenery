@@ -27,16 +27,8 @@ class StarTree(textBoardText: String = "", val starTreeChildren: List<StarTree> 
             this.addChild(board)
         }
         // child positions
-        starTreeChildren.forEachIndexed { index, it ->
-            val pos = Vector3f(0f, .15f, 0f)
-            if(root) {
-                pos.rotateZ((2f * Math.PI.toFloat() / starTreeChildren.size) * index)
-            }
-            else {
-                pos.rotateZ((Math.PI.toFloat() / starTreeChildren.size) * index)
-            }
+        starTreeChildren.forEach {
             this.addChild(it)
-            it.ifSpatial { position = pos }
             it.parent = this
         }
     }
@@ -54,4 +46,16 @@ class StarTree(textBoardText: String = "", val starTreeChildren: List<StarTree> 
             }
         }
     }
+
+    fun arrangeChildren(previousRotation: Float = 0f) {
+        this.children.filterIsInstance<StarTree>().forEachIndexed { index, child ->
+            val pos = Vector3f(0f, .15f, 0f)
+            val rotationAngle = if(root) { (2f * Math.PI.toFloat() / starTreeChildren.size) * index }
+                                else { ((Math.PI.toFloat() / starTreeChildren.size) * index + previousRotation)%(2f*Math.PI).toFloat() }
+            pos.rotateZ(rotationAngle)
+            child.ifSpatial { position = pos }
+            child.arrangeChildren(rotationAngle)
+        }
+    }
+
 }
