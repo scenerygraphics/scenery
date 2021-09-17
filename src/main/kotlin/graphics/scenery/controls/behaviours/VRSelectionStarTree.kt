@@ -51,7 +51,7 @@ open class VRSelectionStarTree(
 
         val closestStarTree = closestStarTree()
 
-        if (closestStarTree.distance > cutoff) {
+        if (closestStarTree.distance > cutoff || closestStarTree.starTree.root) {
             activeWiggler?.deativate()
             activeWiggler = null
 
@@ -125,6 +125,7 @@ open class VRSelectionStarTree(
                 if (device.type == TrackedDeviceType.Controller) {
                     device.model?.let { controller ->
                         if (controllerSide.contains(device.role)) {
+                            starTree.arrangeChildren()
                             val name = "VRDrag:${hmd.trackingSystemName}:${device.role}:$button"
                             val vrToolSelector = VRSelectionStarTree(
                                 controller.children.first().spatialOrNull()
