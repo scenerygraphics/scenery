@@ -212,11 +212,23 @@ class VRStarTreeExample : SceneryBase(
             StarTree("second", listOf(
                 StarTree("second_A", listOf()) { println { "bumbumbum" } }
             ))
-        ))
+        ), true)
         VRSelectionStarTree.createAndSet(scene, hmd, { hmd.getPosition() },
             listOf(OpenVRHMD.OpenVRButton.A), listOf(TrackerRole.LeftHand), starTree)
+        starTree.printChildrenAndParents()
     }
-
+    fun StarTree.printChildrenAndParents() {
+        println(this.textBoardText)
+        println(this.children)
+        println(this.parent)
+        if(this.children.filterIsInstance<StarTree>().isNotEmpty()) {
+            this.children.forEach {
+                if (it is StarTree) {
+                    it.printChildrenAndParents()
+                }
+            }
+        }
+    }
 
     companion object {
         @JvmStatic
