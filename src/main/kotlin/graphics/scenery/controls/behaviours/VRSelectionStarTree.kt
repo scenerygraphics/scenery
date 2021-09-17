@@ -51,7 +51,7 @@ open class VRSelectionStarTree(
 
         val closestStarTree = closestStarTree()
 
-        if (closestStarTree.distance > cutoff || closestStarTree.starTree.root) {
+        if (closestStarTree.distance > cutoff) {
             activeWiggler?.deativate()
             activeWiggler = null
 
@@ -60,7 +60,9 @@ open class VRSelectionStarTree(
             activeWiggler = Wiggler(closestStarTree.starTree.children.filter { it.name == "StarSphere" }[0].ifSpatial {  }!!, 0.01f)
 
             if(currentStarTree != closestStarTree.starTree) {
-                currentStarTree.hideChildren()
+                if(!currentStarTree.children.contains(closestStarTree.starTree)) {
+                    currentStarTree.hideChildren()
+                }
                 currentStarTree = closestStarTree.starTree
                 currentStarTree.showChildren()
             }
@@ -85,25 +87,25 @@ open class VRSelectionStarTree(
      * @return (closest actionSphere) to (distance to controller)
      */
     private fun closestStarTree(): StarTreeDistance {
-        val compareList = ArrayList<StarTreeDistance>(3)
+        val compareList = ArrayList<StarTreeDistance>(4)
         val parent = currentStarTree.parent
         //root has no neighbors
-        if (parent != null && !currentStarTree.root) {
-            val parentDistance = StarTreeDistance(parent as StarTree, currentStarTree.parent?.ifSpatial { position }?.worldPosition()?.distance(controller.worldPosition())!!)
-            val nearestChild = nearestChild(parent)
+        if (parent is StarTree && !currentStarTree.root) {
+            val parentDistance = StarTreeDistance(parent, currentStarTree.parent?.ifSpatial { position }?.worldPosition()?.distance(controller.worldPosition())!!)
             compareList.add(parentDistance)
+            val nearestChild = nearestChild(parent)
             compareList.add(nearestChild)
         }
         compareList.add(StarTreeDistance(currentStarTree, currentStarTree.spatial().worldPosition().distance(controller.worldPosition())))
-        compareList.add(nearestChild(currentStarTree))
+        if(currentStarTree.children.filterIsInstance<StarTree>().isNotEmpty()) { compareList.add(nearestChild(currentStarTree)) }
         return compareList.sortedBy { it.distance }[0]
     }
 
     private fun nearestChild(parent: Node): StarTreeDistance {
-        val nearestChild = parent.children.filter { it.name.contains("StarTree") }
+        val nearestChild = parent.children.filterIsInstance<StarTree>()
             .map { it to it.ifSpatial { position }?.worldPosition()?.distance(controller.worldPosition()) }
             .sortedBy { it.second }[0]
-        return StarTreeDistance(nearestChild.first as StarTree, nearestChild.second!!)
+        return StarTreeDistance(nearestChild.first, nearestChild.second!!)
     }
 
     companion object {
