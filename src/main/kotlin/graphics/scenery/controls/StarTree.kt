@@ -6,15 +6,13 @@ import graphics.scenery.primitives.TextBoard
 import org.joml.Vector3f
 import org.joml.Vector4f
 
-class StarTree(textBoardText: String = "", val action: () -> Unit = {}, starTreeChildren: List<StarTree> = listOf()): Mesh("StarTree") {
-    var root = false
+class StarTree(textBoardText: String = "", val starTreeChildren: List<StarTree> = listOf(), val root: Boolean = false,
+               val action: () -> Unit = {}, ): Mesh("StarTree") {
     init {
-        starTreeChildren.forEach { this.addChild(it) }
-        if(this.parent?.name != "StarTree") {root = true}
         if(!root) {
-            starTreeChildren.forEach { it.visible = false }
+            //starTreeChildren.forEach { it.visible = false }
             val sphere = Sphere(0.025f, 10)
-            sphere.name = "StarTreeSphere"
+            sphere.name = "StarSphere"
             this.addChild(sphere)
             val board = TextBoard()
             board.text = textBoardText
@@ -39,15 +37,16 @@ class StarTree(textBoardText: String = "", val action: () -> Unit = {}, starTree
             }
             this.addChild(it)
             it.ifSpatial { position = pos }
+            it.parent = this
         }
     }
 
     fun showChildren() {
-        this.children.filter { it.name == "StarTree" }.forEach { _ -> visible = true }
+        this.children.filterIsInstance<StarTree>().forEach { _ -> visible = true }
     }
 
     fun hideChildren() {
-        this.children.filter { it.name == "StarTree" }.forEach {
+        this.children.filterIsInstance<StarTree>().forEach {
             //first level is always visible
             if(!root) { visible = false }
             if (it is StarTree) {
