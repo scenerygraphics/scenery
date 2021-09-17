@@ -51,7 +51,7 @@ class StarTree(textBoardText: String = "", val starTreeChildren: List<StarTree> 
         this.children.filterIsInstance<StarTree>().forEachIndexed { index, child ->
             val pos = Vector3f(0f, .15f, 0f)
             val rotationAngle = if(root) { (2f * Math.PI.toFloat() / starTreeChildren.size) * index }
-                                else { ((Math.PI.toFloat() / starTreeChildren.size) * index + previousRotation)%(2f*Math.PI).toFloat() }
+                                else { ((7f/8f*Math.PI.toFloat() / starTreeChildren.size) * index + previousRotation)%(2f*Math.PI).toFloat() }
             pos.rotateZ(rotationAngle)
             child.ifSpatial { position = pos }
             child.arrangeChildren(rotationAngle)
