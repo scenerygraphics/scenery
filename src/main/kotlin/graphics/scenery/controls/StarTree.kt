@@ -10,7 +10,7 @@ class StarTree(textBoardText: String = "", val starTreeChildren: List<StarTree> 
                val action: () -> Unit = {}, ): Mesh("StarTree") {
     init {
         if(!root) {
-            //starTreeChildren.forEach { it.visible = false }
+            starTreeChildren.forEach { it.visible = false }
             val sphere = Sphere(0.025f, 10)
             sphere.name = "StarSphere"
             this.addChild(sphere)
@@ -42,13 +42,13 @@ class StarTree(textBoardText: String = "", val starTreeChildren: List<StarTree> 
     }
 
     fun showChildren() {
-        this.children.filterIsInstance<StarTree>().forEach { _ -> visible = true }
+        this.children.filterIsInstance<StarTree>().forEach { it.visible = true }
     }
 
     fun hideChildren() {
         this.children.filterIsInstance<StarTree>().forEach {
             //first level is always visible
-            if(!root) { visible = false }
+            if(!root) { it.visible = false }
             if (it is StarTree) {
                 it.hideChildren()
             }
