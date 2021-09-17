@@ -22,7 +22,7 @@ import org.scijava.ui.behaviour.DragBehaviour
  * @param actions List of named lambdas which can be selected by the user
  * @param cutoff  after this distance between controller and targets no action will be selected if the button is released
  */
-class VRSelectionStarTree(
+open class VRSelectionStarTree(
     val controller: Spatial,
     val scene: Scene,
     val getHmdPos: () -> Vector3f,
@@ -51,13 +51,13 @@ class VRSelectionStarTree(
 
         val closestStarTree = closestStarTree()
 
-        if (closestStarTree.distance > cutoff) {
+        if (closestStarTree.distance > cutoff || closestStarTree.starTree.root) {
             activeWiggler?.deativate()
             activeWiggler = null
 
-        } else if (activeWiggler?.target != closestStarTree.starTree.children.filter { it.name == "StarTreeSphere" }[0].ifSpatial {  }) {
+        } else if (activeWiggler?.target != closestStarTree.starTree.children.filter { it.name == "StarSphere" }[0].ifSpatial {  }) {
             activeWiggler?.deativate()
-            activeWiggler = Wiggler(closestStarTree.starTree.children.filter { it.name == "StarTreeSphere" }[0].ifSpatial {  }!!, 0.01f)
+            activeWiggler = Wiggler(closestStarTree.starTree.children.filter { it.name == "StarSphere" }[0].ifSpatial {  }!!, 0.01f)
 
             if(currentStarTree != closestStarTree.starTree) {
                 currentStarTree.hideChildren()
