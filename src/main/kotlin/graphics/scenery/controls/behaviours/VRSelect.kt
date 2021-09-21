@@ -23,7 +23,7 @@ open class VRSelect(
     protected val controller: Node,
     protected val scene: Scene,
     protected val showIndicator: Boolean = true,
-    protected val selected: (Node) -> Unit
+    protected val onSelect: ((Node) -> Unit)?
 ) : DragBehaviour {
 
     private var activeWiggler: Wiggler? = null
@@ -99,7 +99,8 @@ open class VRSelect(
                         selectionIndicator.visible = true
                     }
                 }
-                selected(it.node)
+                it.node.getAttributeOrNull(Selectable::class.java)?.onSelect?.invoke()
+                onSelect?.invoke(it.node)
             }
     }
 
@@ -110,49 +111,15 @@ open class VRSelect(
     companion object {
 
         /**
-         * Convenience method for adding selection behaviour
-         * @return A container which will point to the currently selected node or null.
-         */
-        fun createAndSetWithStorage(
-            scene: Scene,
-            hmd: OpenVRHMD,
-            button: List<OpenVRHMD.OpenVRButton>,
-            controllerSide: List<TrackerRole>
-        ): SelectionStorage {
-            val selectionStorage = SelectionStorage()
-
-            hmd.events.onDeviceConnect.add { _, device, _ ->
-                if (device.type == TrackedDeviceType.Controller) {
-                    device.model?.let { controller ->
-                        if (controllerSide.contains(device.role)) {
-                            val name = "VRDrag:${hmd.trackingSystemName}:${device.role}:$button"
-                            val select = VRSelect(
-                                name,
-                                controller.children.first(),
-                                scene
-                            ) { selectionStorage.selected = it }
-
-                            hmd.addBehaviour(name, select)
-                            button.forEach {
-                                hmd.addKeyBinding(name, device.role, it)
-                            }
-                        }
-                    }
-                }
-            }
-            return selectionStorage
-        }
-
-        /**
          * Convenience method for adding selection behaviour. [action] is performed with a successfully selected node.
          * @param showIndicator whether a thin red line should indicate the last selection.
          */
-        fun createAndSetWithAction(
+        fun createAndSet(
             scene: Scene,
             hmd: OpenVRHMD,
             button: List<OpenVRHMD.OpenVRButton>,
             controllerSide: List<TrackerRole>,
-            action: (Node) -> Unit,
+            action: (Node) -> Unit = { },
             showIndicator: Boolean = false
         ) {
             hmd.events.onDeviceConnect.add { _, device, _ ->
@@ -164,9 +131,11 @@ open class VRSelect(
                                 name,
                                 controller.children.first(),
                                 scene,
-                                showIndicator,
-                                action
-                            )
+                                showIndicator
+                            ) { node ->
+                                hmd.vibrate(device)
+                                action(node)
+                            }
                             hmd.addBehaviour(name, select)
                             button.forEach {
                                 hmd.addKeyBinding(name, device.role, it)
@@ -179,4 +148,6 @@ open class VRSelect(
     }
 }
 
-open class Selectable
+open class Selectable(
+    val onSelect: (() -> Unit)? = null
+)
