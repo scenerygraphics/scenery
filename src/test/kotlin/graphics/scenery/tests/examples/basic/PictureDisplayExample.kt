@@ -4,29 +4,32 @@ package graphics.scenery.tests.examples.basic
 import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
-import graphics.scenery.primitives.TextBoard
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.Image
-import kotlin.concurrent.thread
 
 /**
  * <Description>
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class AminoAcidDisplayExample : SceneryBase("TexturedCubeExample", wantREPL = System.getProperty("scenery.master", "false").toBoolean()) {
+class PictureDisplayExample : SceneryBase("PictureDisplayExample", wantREPL = System.getProperty("scenery.master", "false").toBoolean()) {
     override fun init() {
         renderer = hub.add(SceneryElement.Renderer,
             Renderer.createRenderer(hub, applicationName, scene, 512, 512))
 
-        val pic = TextBoard()
-        pic.text = "          "
-        pic.name = "picture"
-        pic.material {
-            textures["diffuse"] = Texture.fromImage(Image.fromResource("textures/helix.png", TexturedCubeExample::class.java))
+        val box = Box(Vector3f(1.0f, 1.0f, 1.0f))
+        box.name = "le box du win"
+        val img = Image.fromResource("textures/L-Glutamic-Acid.jpg", TexturedCubeExample::class.java)
+        val height = img.height
+        val width = img.width
+        box.material {
+            textures["diffuse"] = Texture.fromImage(img)
+            diffuse = Vector3f(100f, 100f, 100f)
+            metallic = 0.3f
+            roughness = 0.9f
         }
-        pic.transparent = 0
-        scene.addChild(pic)
+        box.spatial().scale = Vector3f(width/height.toFloat(), 1f, 0f)
+        scene.addChild(box)
 
         val light = PointLight(radius = 15.0f)
         light.spatial().position = Vector3f(0.0f, 0.0f, 2.0f)
@@ -48,7 +51,7 @@ class AminoAcidDisplayExample : SceneryBase("TexturedCubeExample", wantREPL = Sy
     companion object {
         @JvmStatic
         fun main(args: Array<String>) {
-            AminoAcidDisplayExample().main()
+            PictureDisplayExample().main()
         }
     }
 }
