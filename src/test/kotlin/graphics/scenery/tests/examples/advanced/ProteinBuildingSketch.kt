@@ -202,7 +202,7 @@ class ProteinBuildingSketch : SceneryBase(
                 }
             })
 
-
+        /*
         VRSelectionWheel.createAndSet(scene, hmd, { hmd.getPosition() },
             listOf(OpenVRHMD.OpenVRButton.A), listOf(TrackerRole.LeftHand),
             listOf(
@@ -219,6 +219,8 @@ class ProteinBuildingSketch : SceneryBase(
                     leftControllerPushes = !leftControllerPushes
                 }
             ))
+
+         */
     }
 
 
