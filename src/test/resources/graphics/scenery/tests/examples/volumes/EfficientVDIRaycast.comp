@@ -55,7 +55,7 @@ vec3 sourcemax_x_10_x_ = vec3(128.0, 128.0, 128.0);
 //ivec2 debug_pixel = ivec2(46, 243);
 //ivec2 debug_pixel = ivec2(231, 251);
 //ivec2 debug_pixel = ivec2(611, 520);
-ivec2 debug_pixel = ivec2(515, 503);
+//ivec2 debug_pixel = ivec2(515, 503);
 
 // pixel with lists being skipped
 //ivec2 debug_pixel = ivec2(417, 133);
@@ -64,6 +64,8 @@ ivec2 debug_pixel = ivec2(515, 503);
 //ivec2 debug_pixel = ivec2(448, 127);
 //ivec2 debug_pixel = ivec2(200, 600);
 //ivec2 debug_pixel = ivec2(600, 600);
+ivec2 debug_pixel = ivec2(534, 416);
+//ivec2 debug_pixel = ivec2(424, 539);
 
 const vec4 bitEnc = vec4(1.,255.,65025.,16581375.);
 const vec4 bitDec = 1./bitEnc;
@@ -597,7 +599,9 @@ void intersectSupersegment(ivec2 listCoords, float start_depth, float end_depth,
 
     vec4 exit_point, exit_w;
 
-    float delta = 2. / (max(windowWidth, windowHeight) * 50.);
+    float delta = 6. / (max(windowWidth, windowHeight) * 50.);
+    delta = abs(p1-p2) < 0.0001 ? delta * 50 : delta;
+
 //    float delta = 0.001;
 
 //    #if USE_PRINTF
@@ -702,12 +706,12 @@ void intersectSupersegment(ivec2 listCoords, float start_depth, float end_depth,
     }
 
     #if USE_PRINTF
-    if(listCoords.x == 141 && gl_GlobalInvocationID.xy == debug_pixel) {
+    if(listCoords == ivec2(271, 438) && gl_GlobalInvocationID.xy == debug_pixel) {
         debugPrintfEXT("Box min (%f, %f, %f) and max (%f, %f, %f)", box_min, box_max);
         debugPrintfEXT("First int pt (%f, %f, %f), second (%f, %f, %f)", start_pt.xyz, end_point.xyz);
         debugPrintfEXT("Exit point (%f, %f, %f) and next point (%f, %f, %f)", exit_point.xyz, next_point.xyz);
         debugPrintfEXT("P1: %f, P2: %f. Comp1: %d, Comp2: %d", p1, p2, comp1, comp2 );
-//        debugPrintfEXT("Next list: (%d, %d) and next calc: (%d, %d). List coords: (%d, %d)", nextList, nextCalc, listCoords );
+        debugPrintfEXT("Next list: (%d, %d) and next calc: (%d, %d). List coords: (%d, %d)", nextList, nextCalc, listCoords );
     }
     #endif
 
@@ -828,7 +832,7 @@ void intersectSupersegment_bruteForce(float step, float tfar, ivec2 listCoords, 
 ///distance(newRay.wfront, newRay.wback);
 }
 
-const int maxSteps = 10000;
+const int maxSteps = 1000;
 int totalSteps = 0;
 
 /* find the next supersegment starting at step value STEP along the NEWRAY, where NEWRAY is the ray cast into the VDI from
