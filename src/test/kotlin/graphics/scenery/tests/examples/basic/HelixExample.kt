@@ -1,11 +1,10 @@
-package graphics.scenery.tests.examples.advanced
+package graphics.scenery.tests.examples.basic
 
 import graphics.scenery.*
 import org.joml.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.geometry.CatmullRomSpline
 import graphics.scenery.numerics.Random
-import graphics.scenery.utils.extensions.minus
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.proteins.Helix
 import graphics.scenery.proteins.MathLine
