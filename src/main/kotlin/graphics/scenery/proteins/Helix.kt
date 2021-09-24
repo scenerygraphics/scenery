@@ -13,14 +13,17 @@ import org.joml.*
  *
  * @author  Justin Buerger <burger@mpi-cbg.de>
  */
-class Helix (private val axis: MathLine, val spline: Spline, baseShape: () -> List<Vector3f>): Mesh("Helix") {
-    val splinePoints = spline.splinePoints()
-    private val shape = baseShape.invoke()
-    private val axisVector = axis.direction
-    private val axisPoint = axis.position
+class Helix (val axis: MathLine, val spline: Spline, baseShape: () -> List<Vector3f>): Mesh("Helix") {
+    private val splinePoints = spline.splinePoints()
+    val shape = baseShape.invoke()
+    private val axisVector = Vector3f()
+    private val axisPoint = Vector3f()
 
 
     init {
+        //set axis
+        axisVector.set(axis.direction)
+        axisPoint.set(axis.position)
         val sectionVerticesCount = spline.verticesCountPerSection()
         val transformedShapes = calculateTransformedShapes()
         val subShapes = transformedShapes.windowed(sectionVerticesCount +1, sectionVerticesCount+1, true)
@@ -104,7 +107,11 @@ class Helix (private val axis: MathLine, val spline: Spline, baseShape: () -> Li
 
     private fun calcMesh(section: List<List<Vector3f>>, i: Int): Mesh {
         //algorithms from the curve class, see Curve (line 219-322)
-        val helixSectionVertices = Curve.calculateTriangles(section, i)
-        return Curve.PartialCurve(helixSectionVertices)
+        val helixSectionVertices = Curve.VerticesCalculation().calculateTriangles(section, i)
+        val partialHelix = Curve.PartialCurve(helixSectionVertices)
+        //add a dummy so that the helix children match the iteration depth of the curve
+        val dummyMesh = Mesh("dummy")
+        dummyMesh.addChild(partialHelix)
+        return dummyMesh
     }
 }

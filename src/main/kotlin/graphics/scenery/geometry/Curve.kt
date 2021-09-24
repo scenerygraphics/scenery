@@ -2,10 +2,9 @@ package graphics.scenery.geometry
 
 import graphics.scenery.BufferUtils
 import graphics.scenery.Mesh
+import graphics.scenery.attribute.geometry.HasGeometry
 import graphics.scenery.utils.extensions.toFloatArray
 import org.joml.*
-import kotlin.Float.Companion.MIN_VALUE
-import kotlin.math.acos
 
 /**
  * Constructs a geometry along the calculates points of a Spline.
@@ -20,13 +19,17 @@ import kotlin.math.acos
  * @param [firstPerpendicularVector] vector to which the first frenet tangent shall be perpendicular to.
  * @param [partitionAlongControlpoints] flag to indicate that the curve should be divided into subcurves, one for each
  * controlpoint, note that this option prohibits the use of different baseShapes
+ * @param [partitionAlongSplinePoints] flag to indicate that the curve is to be divided at each splinepoint. Please note,
+ * [partitionAlongControlpoints] and [partitionAlongSplinePoints] are mutually exclusive in this class
  */
-
-class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private val firstPerpendicularVector: Vector3f = Vector3f(0f, 0f, 0f),
-            baseShape: () -> List<List<Vector3f>>): Mesh("CurveGeometry") {
+class Curve(spline: Spline, private val partitionAlongControlpoints: Boolean = true, private val partitionAlongSplinePoints: Boolean = false,
+            private val firstPerpendicularVector: Vector3f = Vector3f(0f, 0f, 0f),
+            baseShape: () -> List<List<Vector3f>>): Mesh("CurveGeometry"), HasGeometry {
     val chain = spline.splinePoints()
     private val sectionVertices = spline.verticesCountPerSection()
-    private val countList = ArrayList<Int>(50).toMutableList()
+    val countList = ArrayList<Int>(50).toMutableList()
+    val frenetFrames = FrenetFramesCalc(spline, firstPerpendicularVector).computeFrenetFrames()
+    val baseShapes = baseShape.invoke()
 
     /*
      * This function renders the spline.
@@ -39,22 +42,10 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
         if (chain.isEmpty()) {
             logger.warn("The spline provided for the Curve is empty.")
         }
-        val bases = computeFrenetFrames(chain as ArrayList<Vector3f>).map { (t, n, b, tr) ->
-            val inverseMatrix = Matrix3f(b.x(), n.x(), t.x(),
-                    b.y(), n.y(), t.y(),
-                    b.z(), n.z(), t.z()).invert()
-            val nb = Vector3f()
-            inverseMatrix.getColumn(0, nb).normalize()
-            val nn = Vector3f()
-            inverseMatrix.getColumn(1, nn).normalize()
-            val nt = Vector3f()
-            inverseMatrix.getColumn(2, nt).normalize()
-            Matrix4f(
-                    nb.x(), nn.x(), nt.x(), 0f,
-                    nb.y(), nn.y(), nt.y(), 0f,
-                    nb.z(), nn.z(), nt.z(), 0f,
-                    tr.x(), tr.y(), tr.z(), 1f)
+        if (partitionAlongControlpoints && partitionAlongSplinePoints) {
+            logger.warn("Please partition along controlpoints xor partition further along the splinepoints.")
         }
+        val bases = FrenetFramesCalc(spline, firstPerpendicularVector).calcBases(frenetFrames)
         val baseShapes = baseShape.invoke()
         val transformedBaseShapes = ArrayList<List<Vector3f>>(baseShapes.size)
         baseShapes.forEachIndexed { index, shape ->
@@ -67,11 +58,13 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
             transformedBaseShapes.add(transformedShape)
         }
 
-        if(partitionAlongControlpoints) {
+        if(partitionAlongControlpoints || partitionAlongSplinePoints) {
             if(transformedBaseShapes.size < sectionVertices +1) {
                 println(transformedBaseShapes.size)
             }
-            val subShapes = transformedBaseShapes.windowed(sectionVertices+1, sectionVertices+1, true)
+            val subShapes = if(partitionAlongControlpoints && !partitionAlongSplinePoints) { transformedBaseShapes.windowed(sectionVertices+1, sectionVertices+1, true) }
+            else { transformedBaseShapes.windowed(2, 1, true) }
+
             subShapes.forEachIndexed { index, list ->
                 //fill gaps
                 val arrayList = list as ArrayList
@@ -89,7 +82,7 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
                         1
                     }
                 }
-                val partialCurve = PartialCurve(calculateTriangles(arrayList, i))
+                val partialCurve = PartialCurve(VerticesCalculation().calculateTriangles(arrayList, i))
                 this.addChild(partialCurve)
             }
         }
@@ -148,101 +141,17 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
                 } else {
                     1
                 }
-                val partialCurve = PartialCurve(calculateTriangles(partialCurveGeometry, i))
+                val partialCurve = PartialCurve(VerticesCalculation().calculateTriangles(partialCurveGeometry, i))
                 this.addChild(partialCurve)
             }
         }
     }
 
-    /**
-     * This function calculates the tangent at a given index.
-     * [i] index of the curve (not the geometry!)
-     */
-    private fun getTangent(i: Int): Vector3f {
-        if(chain.size >= 3) {
-            val tangent = Vector3f()
-            when (i) {
-                0 -> { ((chain[1].sub(chain[0], tangent)).normalize()) }
-                1 -> { ((chain[2].sub(chain[0], tangent)).normalize()) }
-                chain.lastIndex - 1 -> { ((chain[i + 1].sub(chain[i - 1], tangent)).normalize()) }
-                chain.lastIndex -> { ((chain[i].sub(chain[i - 1], tangent)).normalize()) }
-                else -> {
-                    chain[i+1].sub(chain[i-1], tangent).normalize()
-                }
-            }
-            return tangent
-        }
-        else {
-            throw Exception("The spline deosn't provide enough points")
-        }
-    }
-
-    /**
-     * Data class to store Frenet frames (wandering coordinate systems), consisting of [tangent], [normal], [binormal]
-     */
-    data class FrenetFrame(val tangent: Vector3f, var normal: Vector3f, var binormal: Vector3f, val translation: Vector3f)
-    /**
-     * This function returns the frenet frames along the curve. This is essentially a new
-     * coordinate system which represents the form of the curve. For details concerning the
-     * calculation see: http://www.cs.indiana.edu/pub/techreports/TR425.pdf
-     */
-    fun computeFrenetFrames(curve: ArrayList<Vector3f>): List<FrenetFrame> {
-
-        val frenetFrameList = ArrayList<FrenetFrame>(curve.size)
-
-        if(curve.isEmpty()) {
-            return frenetFrameList
-        }
-
-        //adds all the tangent vectors
-        curve.forEachIndexed { index, _ ->
-            val frenetFrame = FrenetFrame(getTangent(index), Vector3f(), Vector3f(), curve[index])
-            frenetFrameList.add(frenetFrame)
-        }
-        var min = MIN_VALUE
-        val vec = Vector3f(0f, 0f, 0f)
-        vec.set(firstPerpendicularVector)
-        if(vec == Vector3f(0f, 0f, 0f)) {
-            val normal = Vector3f()
-            if (frenetFrameList[0].tangent.x() <= min) {
-                min = frenetFrameList[0].tangent.x()
-                normal.set(1f, 0f, 0f)
-            }
-            if (frenetFrameList[0].tangent.y() <= min) {
-                min = frenetFrameList[0].tangent.y()
-                normal.set(0f, 1f, 0f)
-            }
-            if (frenetFrameList[0].tangent.z() <= min) {
-                normal.set(0f, 0f, 1f)
-            } else {
-                normal.set(1f, 0f, 0f).normalize()
-            }
-            frenetFrameList[0].tangent.cross(normal, vec).normalize()
-        }
-        else { vec.normalize() }
-        frenetFrameList[0].tangent.cross(vec, frenetFrameList[0].normal).normalize()
-        frenetFrameList[0].tangent.cross(frenetFrameList[0].normal, frenetFrameList[0].binormal).normalize()
-
-        frenetFrameList.windowed(2,1).forEach { (firstFrame, secondFrame) ->
-            val b = Vector3f(firstFrame.tangent).cross(secondFrame.tangent)
-            secondFrame.normal = firstFrame.normal.normalize()
-            //if there is no substantial difference between two tangent vectors, the frenet frame need not to change
-            if (b.length() > 0.00001f) {
-                val firstNormal = firstFrame.normal
-                b.normalize()
-                val theta = acos(firstFrame.tangent.dot(secondFrame.tangent).coerceIn(-1f, 1f))
-                val q = Quaternionf(AxisAngle4f(theta, b)).normalize()
-                secondFrame.normal = q.transform(Vector3f(firstNormal)).normalize()
-            }
-            secondFrame.tangent.cross(secondFrame.normal, secondFrame.binormal).normalize()
-        }
-        return frenetFrameList.filterNot { it.binormal.toFloatArray().all { value -> value.isNaN() } &&
-                it.normal.toFloatArray().all{ value -> value.isNaN()}}
-    }
-
-    companion object VerticesCalculation {
+    class VerticesCalculation(private val partitionAlongSplinePoints: Boolean = false,) {
+        var coverTopSize: Int = 0
+        var coverBottomSize: Int = 0
         /**
-         * This function calculates the triangles for the the rendering. It takes as a parameter
+         * This function calculates the triangles for the rendering. It takes as a parameter
          * the [curveGeometry] List which contains all the baseShapes transformed and translated
          * along the curve.
          */
@@ -318,15 +227,26 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
                 }
                 verticesList.addAll(getCoverVertices(newList, ccw))
             }
+            // size of top/bottom cover is needed to divide the curve children further
+            if (partitionAlongSplinePoints) {
+                //top
+                if(ccw) {
+                    coverTopSize = verticesList.size
+                }
+                //bottom
+                else {
+                    coverBottomSize = verticesList.size
+                }
+            }
             return verticesList
         }
     }
 
     /**
-     * Each children of the curve must be, per definition, another Mesh. Therefore this class turns a List of
+     * Each child of the curve must be, per definition, another Mesh. Therefore, this class turns a List of
      * vertices into a Mesh.
      */
-    class PartialCurve(verticesVectors: ArrayList<Vector3f>) : Mesh("PartialCurve") {
+    class PartialCurve(verticesVectors: List<Vector3f>) : Mesh("PartialCurve") {
         init {
             geometry {
                 vertices = BufferUtils.allocateFloat(verticesVectors.size * 3)

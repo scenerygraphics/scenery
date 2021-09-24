@@ -51,7 +51,7 @@ import kotlin.math.min
  * @param [protein] the polypeptide you wish to visualize, stored in the class Protein
  */
 
-class RibbonDiagram(val protein: Protein, private val displaySS: Boolean = false): Mesh("ribbon") {
+class RibbonDiagram(val protein: Protein, val displaySS: Boolean = false): Mesh("ribbon") {
 
     /*
      *[structure] the structure of the protein stored in the class Structure of BioJava
@@ -186,7 +186,8 @@ class RibbonDiagram(val protein: Protein, private val displaySS: Boolean = false
                     for(k in 0 .. count) {
                         caList.add(guidePointList[guideIndex+k].nextResidue?.getAtom("CA")?.getVector())
                     }
-                    val axis = Axis(caList)
+                    val axis = Axis(caList.map { it?.sub(centroid) })
+
                     for (j in 0..count) {
                         for (i in 0..sectionVerticesCount) {
                             if (i + (sectionVerticesCount + 1) * j <= helpSpline.lastIndex) {

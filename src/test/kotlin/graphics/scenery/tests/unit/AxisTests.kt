@@ -154,7 +154,7 @@ class AxisTests {
         val p50= Vector3f(+0f, +1f, 50f)
         points.add(p50)
 
-        val lq = Axis.leastSquare(points)
+        val lq = Axis.leastSquare(points, points)
         //the direction should now be approximately the z axis
         assertTrue { lq.direction.x().absoluteValue < 0.1f}
         assertTrue { lq.direction.y().absoluteValue < 0.1f}
