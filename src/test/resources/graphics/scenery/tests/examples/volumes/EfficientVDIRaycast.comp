@@ -301,7 +301,7 @@ void findListNumber(vec4 wpos, out ivec2 listNum, out vec4 NDC_orig) {
 
 
 ivec2 prevList = ivec2(-1);
-int depth = -1;
+int prevIndex = -1;
 
 void supersegmentInList(ivec2 invoc_orig, rayProperties originalRay, vec4 wpos, vec4 exit_pt, bool optimized, int cnt, out float depthStart, out float depthEnd, out int index, out bool supseg_found) {
 
@@ -349,14 +349,49 @@ void supersegmentInList(ivec2 invoc_orig, rayProperties originalRay, vec4 wpos, 
         dotPositive = false;
     }
 
+    if(invoc_orig == prevList) {
+        // we are in the same supersegment list as the previous supseg that was found. So, we only need to check the next supseg
+        if(dotPositive) {
+            index = prevIndex + 1;
+            vec4 d = imageLoad(InputVDI, ivec3(index*3 + 1, invoc_orig.y, invoc_orig.x));
+            depthStart = DecodeFloatRGBA(d);
+
+            bool depth_is_zero = false;
+            depth_is_zero = depthStart == 0. ? true : false;
+//            if(depthStart == 0.) depth_is_zero = true;
+
+            if(depthStart < exit_distance && !depth_is_zero) {
+                // we have found our next supseg
+                d = imageLoad(InputVDI, ivec3(index*3 + 2, invoc_orig.y, invoc_orig.x));
+                depthEnd = DecodeFloatRGBA(d);
+
+                supseg_found = true;
+            }
+        } else {
+            index = prevIndex - 1;
+            vec4 d = imageLoad(InputVDI, ivec3(index*3 + 2, invoc_orig.y, invoc_orig.x));
+            depthEnd = DecodeFloatRGBA(d);
+
+            if(depthEnd > exit_distance) {
+                // we have found our next supseg
+                d = imageLoad(InputVDI, ivec3(index*3 + 1, invoc_orig.y, invoc_orig.x));
+                depthStart = DecodeFloatRGBA(d);
+
+                supseg_found = true;
+            }
+        }
+        return;
+    }
+
     int start = 0;
     int numSupersegments = 20;
     bool supseg_is_on_left;
     binSearch(invoc_orig.x, invoc_orig.y, start, numSupersegments, dist_to_orig, depthStart, depthEnd, index, supseg_found, supseg_is_on_left);
 
     #if USE_PRINTF
-    if(invoc_orig == ivec2(190, 439) &&  gl_GlobalInvocationID.xy == debug_pixel) {
-        debugPrintfEXT("Supseg found? %d, dot positive: %d, index returned %d, supseg on left? %d", supseg_found, dotPositive, index, supseg_is_on_left);
+    if(invoc_orig == ivec2(271, 438) &&  gl_GlobalInvocationID.xy == debug_pixel) {
+//        debugPrintfEXT("Supseg found? %d, dot positive: %d, index returned %d, supseg on left? %d", supseg_found, dotPositive, index, supseg_is_on_left);
+        debugPrintfEXT("Supseg found? %d, depth start: %f, depth end: %f. Dist to orig was: %f, exit distance: %f", supseg_found, depthStart, depthEnd, dist_to_orig, exit_distance);
     }
     #endif
 
@@ -537,9 +572,9 @@ void intersectSupersegment(ivec2 listCoords, float start_depth, float end_depth,
 
     intersectBox( front_orig.xyz, rayDirection, box_min, box_max, p1, p2, comp1, comp2 );
 
-    if((p2 - p1) < 0.00001) {
-        p2 += 0.000005;
-    }
+//    if((p2 - p1) < 0.00001) {
+//        p2 += 0.000005;
+//    }
 
     vec4 end_point = vec4(front_orig.xyz + rayDirection.xyz*p2, 1);
     vec4 start_pt = vec4(front_orig.xyz + rayDirection.xyz*p1, 1);
@@ -599,8 +634,8 @@ void intersectSupersegment(ivec2 listCoords, float start_depth, float end_depth,
 
     vec4 exit_point, exit_w;
 
-    float delta = 6. / (max(windowWidth, windowHeight) * 50.);
-    delta = abs(p1-p2) < 0.0001 ? delta * 50 : delta;
+    float delta = 2. / max(windowWidth, windowHeight);
+//    delta = abs(p1-p2) < 0.0001 ? delta * 50 : delta;
 
 //    float delta = 0.001;
 
@@ -691,7 +726,7 @@ void intersectSupersegment(ivec2 listCoords, float start_depth, float end_depth,
 //        }
 //    }
 
-    if(nextList == listCoords || abs(p2-p1) < 0.0001)
+    if(abs(p2-p1) < 0.0001)
     {
         // since we are still in the same list, or the intersecction
         // points are so close that it is difficult to tell which one is the exit point,
@@ -707,7 +742,9 @@ void intersectSupersegment(ivec2 listCoords, float start_depth, float end_depth,
 
     #if USE_PRINTF
     if(listCoords == ivec2(271, 438) && gl_GlobalInvocationID.xy == debug_pixel) {
+//    if(gl_GlobalInvocationID.xy == debug_pixel) {
         debugPrintfEXT("Box min (%f, %f, %f) and max (%f, %f, %f)", box_min, box_max);
+        debugPrintfEXT("Ray orig: (%f, %f, %f) ray drn: (%f, %f, %f)", front_orig.xyz, rayDirection.xyz);
         debugPrintfEXT("First int pt (%f, %f, %f), second (%f, %f, %f)", start_pt.xyz, end_point.xyz);
         debugPrintfEXT("Exit point (%f, %f, %f) and next point (%f, %f, %f)", exit_point.xyz, next_point.xyz);
         debugPrintfEXT("P1: %f, P2: %f. Comp1: %d, Comp2: %d", p1, p2, comp1, comp2 );
@@ -901,6 +938,15 @@ void findNextSupersegment_opt(ivec2 nextList, vec4 next_point, int mainCnt, out 
 
         //intersecting a supersegment list
         intersectSupersegment(listCoords, -1., 1., cnt, 0, 0, length, nextList, exit_pt);
+
+        if(nextList == listCoords) {
+            //this will lead to an infinite loop!
+            #if USE_PRINTF
+            if(gl_GlobalInvocationID.xy == debug_pixel) {
+                debugPrintfEXT("ERROR: List: (%d, %d) found again.", listCoords);
+            }
+            #endif
+        }
 
 //        if(step > nextStep) {
 //            // if the current STEP is greater than NEXTSTEP (the fraction of NEWRAY at which this supersegment list ends)
@@ -1426,7 +1472,7 @@ void main() {
 //        #endif
 
 
-        depth = index;
+        prevIndex = index;
         prevList = listCoords;
 
 //        #if USE_PRINTF
