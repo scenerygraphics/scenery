@@ -1,0 +1,113 @@
+{
+  "Table": {
+    "Columns": {
+      "Column": [
+        "IUPAC amino acid code",
+		"Three letter code",
+		"Amino acid"
+      ]
+    },
+    "Row": [
+      {"Cell": [
+			"A",
+			"Ala",
+			"Alanine"
+        ]},
+	  {"Cell": [
+			"C",
+			"Cys",
+			"Cysteine"
+		]},
+	  {"Cell": [
+			"D",
+			"Asp",
+			"Aspartic Acid"
+	  ]},
+	  {"Cell": [
+			"E",
+			"Glu",
+			"Glutamic Acid"
+	  ]},
+	  {"Cell": [
+			"F",
+			"Phe",
+			"Phenylalanine"
+	  ]},
+	  {"Cell": [
+			"G",
+			"Gly",
+			"Glycine"
+	  ]},
+	  {"Cell": [
+			"H",
+			"His",
+			"Histidine"
+	  ]},
+	  {"Cell": [
+			"I",
+			"Ile",
+			"Isoleucine"
+	  ]},
+	  {"Cell": [
+			"K",
+			"Lys",
+			"Lysine"
+	  ]},
+	  {"Cell": [
+			"L",
+			"Leu",
+			"Leucine"
+	  ]},
+	  {"Cell": [
+			"M",
+			"Met",
+			"Methionine"
+	  ]},
+	  {"Cell": [
+			"N",
+			"Asn",
+			"Asparagine"
+	  ]},
+	  {"Cell": [
+			"P",
+			"Pro",
+			"Proline"
+	  ]},
+	  {"Cell": [
+			"Q",
+			"Gln",
+			"Glutamine"
+	  ]},
+	  {"Cell": [
+			"R",
+			"Arg",
+			"Arginine"
+	  ]},
+	  {"Cell": [
+			"S",
+			"Ser",
+			"Serine"
+	  ]},
+	  {"Cell": [
+			"T",
+			"Thr",
+			"Threonine"
+	  ]},
+	  {"Cell": [
+			"V",
+			"Val",
+			"Valine"
+	  ]},
+	  {"Cell": [
+			"W",
+			"Trp",
+			"Tryptophan"
+	  ]},
+	  {"Cell": [
+			"Y",
+			"Tyr",
+			"Tyrosine"
+	  ]}
+	]
+	}
+}
