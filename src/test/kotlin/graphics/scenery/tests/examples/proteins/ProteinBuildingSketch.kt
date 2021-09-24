@@ -1,4 +1,4 @@
-package graphics.scenery.tests.examples.advanced
+package graphics.scenery.tests.examples.proteins
 
 import graphics.scenery.*
 import graphics.scenery.attribute.material.Material

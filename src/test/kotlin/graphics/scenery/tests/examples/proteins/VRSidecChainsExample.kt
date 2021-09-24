@@ -1,4 +1,4 @@
-package graphics.scenery.tests.examples.advanced
+package graphics.scenery.tests.examples.proteins
 
 import org.joml.Vector3f
 import graphics.scenery.*

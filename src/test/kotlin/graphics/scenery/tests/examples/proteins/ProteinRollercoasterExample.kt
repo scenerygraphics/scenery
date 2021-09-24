@@ -1,4 +1,4 @@
-package graphics.scenery.tests.examples.basic
+package graphics.scenery.tests.examples.proteins
 
 import graphics.scenery.*
 import graphics.scenery.attribute.material.Material
@@ -34,7 +34,7 @@ class ProteinRollercoasterExample: SceneryBase("RollerCoaster", wantREPL = true,
         scene.addChild(lightbox)
         val lights = (0 until 8).map {
             val l = PointLight(radius = 80.0f)
-            l.position = Vector3f(
+            l.spatial().position = Vector3f(
                 Random.randomFromRange(-rowSize/2.0f, rowSize/2.0f),
                 Random.randomFromRange(-rowSize/2.0f, rowSize/2.0f),
                 Random.randomFromRange(1.0f, 5.0f)
@@ -51,7 +51,7 @@ class ProteinRollercoasterExample: SceneryBase("RollerCoaster", wantREPL = true,
         val stageLight = PointLight(radius = 500.0f)
         stageLight.name = "StageLight"
         stageLight.intensity = 0.5f
-        stageLight.position = Vector3f(0.0f, 0.0f, 5.0f)
+        stageLight.spatial().position = Vector3f(0.0f, 0.0f, 5.0f)
         scene.addChild(stageLight)
 
         val cameraLight = PointLight(radius = 50.0f)
