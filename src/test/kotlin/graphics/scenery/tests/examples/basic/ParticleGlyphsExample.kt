@@ -3,9 +3,15 @@ package graphics.scenery.tests.examples.basic
 import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
-import graphics.scenery.primitives.ParticleGlyphs
 import graphics.scenery.attribute.material.Material
+import graphics.scenery.textures.Texture
+import graphics.scenery.utils.Image
+import kotlin.concurrent.thread
 
+
+import graphics.scenery.primitives.ParticleGlyphs
+
+import com.github.doyaaaaaken.kotlincsv.dsl.csvReader
 
 /**
  * <Description>
@@ -17,31 +23,28 @@ class ParticleGlyphsExample : SceneryBase("ParticleGlyphsExample") {
         renderer = hub.add(SceneryElement.Renderer,
             Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
 
-        val hull = Box(Vector3f(1000.0f, 1000.0f, 1000.0f), insideNormals = true)
+        val hull = Box(Vector3f(15.0f, 15.0f, 15.0f), insideNormals = true)
         hull.material {
-            diffuse = Vector3f(0.2f, 0.2f, 0.2f)
+            diffuse = Vector3f(0.07f, 0.07f, 0.07f)
             cullingMode = Material.CullingMode.Front
         }
         scene.addChild(hull)
 
-        val particlePositions = mutableListOf<Vector3f>()
-        val particleProperties = mutableListOf<Vector3f>()
-        for (i in 0..5) {
-            for (j in 0..5) {
-                for (k in 0..5) {
-                    particlePositions.add(Vector3f(i.toFloat()/10.0f, j.toFloat()/10.0f, k.toFloat()/10.0f))
-                    particleProperties.add(Vector3f(0.05f, 0.0f, 0.0f))
-                }
-            }
+        val box = Box(Vector3f(1.3f, 1.3f, 1.3f))
+        box.name = "le box du win"
+        box.spatial() {
+            position = Vector3f(2.0f, 2.0f, 2.0f)
         }
-        val particleGlyphs = ParticleGlyphs(particlePositions, particleProperties)
-        particleGlyphs.name = "Particles?"
-        scene.addChild(particleGlyphs)
+        box.material {
+            textures["diffuse"] = Texture.fromImage(Image.fromResource("textures/helix.png", TexturedCubeExample::class.java))
+            metallic = 0.3f
+            roughness = 0.9f
+        }
+        scene.addChild(box)
 
-
-
-        val light0 = PointLight(radius = 500.0f)
-        light0.intensity = 10.0f
+        val light0 = PointLight(radius = 50.0f)
+        light0.spatial().position = Vector3f(0.0f, 0.0f, 0.0f)
+        light0.intensity = 20.0f
         light0.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
         scene.addChild(light0)
 
@@ -52,6 +55,32 @@ class ParticleGlyphsExample : SceneryBase("ParticleGlyphsExample") {
         cam.perspectiveCamera(50.0f, windowWidth, windowHeight)
         cam.target = Vector3f(0.0f, 0.0f, 0.0f)
         scene.addChild(cam)
+
+
+
+        val particlePositions = mutableListOf<Vector3f>()
+        val particleProperties = mutableListOf<Vector3f>()
+        csvReader().open("Arya41.csv") {
+            readAllAsSequence().drop(1).forEach{ row: List<String> ->
+                particlePositions.add(Vector3f(row[4].toFloat() - 5, row[5].toFloat() - 5,row[6].toFloat() - 5))
+                val mag = Vector3f(row[0].toFloat(), row[1].toFloat(), row[2].toFloat()).length()
+                particleProperties.add(Vector3f(mag / 10.0f, row[3].toFloat(), 0.0f))
+            }
+        }
+        val particleGlyphs = ParticleGlyphs(particlePositions, particleProperties, true)
+        particleGlyphs.name = "Particles?"
+        scene.addChild(particleGlyphs)
+
+
+        thread {
+            while (running) {
+                box.spatial {
+                    rotation.rotateY(0.01f)
+                    needsUpdate = true
+                }
+                Thread.sleep(50)
+            }
+        }
     }
 
     companion object {

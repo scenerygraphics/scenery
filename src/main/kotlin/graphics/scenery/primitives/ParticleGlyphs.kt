@@ -13,12 +13,10 @@ import graphics.scenery.attribute.material.Material
 import graphics.scenery.attribute.renderable.HasRenderable
 import graphics.scenery.attribute.spatial.HasSpatial
 
-
 import org.joml.Vector3f
-import org.lwjgl.system.MemoryUtil
 import java.nio.FloatBuffer
 
-class ParticleGlyphs @JvmOverloads constructor(var positions: List<Vector3f>, var properties: List<Vector3f>) : DefaultNode("ParticleGlyphs"), HasSpatial, HasRenderable,
+class ParticleGlyphs @JvmOverloads constructor(var positions: List<Vector3f>, var properties: List<Vector3f>, var forward : Boolean = true) : DefaultNode("ParticleGlyphs"), HasSpatial, HasRenderable,
     HasCustomMaterial<ShaderMaterial>, HasGeometry {
 
     init {
@@ -66,11 +64,20 @@ class ParticleGlyphs @JvmOverloads constructor(var positions: List<Vector3f>, va
     override fun createMaterial(): ShaderMaterial {
         val newMaterial: ShaderMaterial
 
-
-        newMaterial = ShaderMaterial.fromClass(
-            this::class.java,
-            listOf(ShaderType.VertexShader, ShaderType.GeometryShader, ShaderType.FragmentShader)
-        )
+        if(forward) {
+            newMaterial = ShaderMaterial.fromFiles(
+                "${this::class.java.simpleName}.vert",
+                "${this::class.java.simpleName}.geom",
+                "${this::class.java.simpleName}Forward.frag"
+            )
+        }
+        else
+        {
+            newMaterial = ShaderMaterial.fromClass(
+                this::class.java,
+                listOf(ShaderType.VertexShader, ShaderType.GeometryShader, ShaderType.FragmentShader)
+            )
+        }
 
         setMaterial(newMaterial) {
             newMaterial.diffuse = diffuse
@@ -78,8 +85,8 @@ class ParticleGlyphs @JvmOverloads constructor(var positions: List<Vector3f>, va
             newMaterial.ambient = ambient
             newMaterial.metallic = metallic
             newMaterial.roughness = roughness
+            newMaterial.blending.transparent = forward
 
-            newMaterial.blending.transparent = true
             cullingMode = Material.CullingMode.None
         }
 

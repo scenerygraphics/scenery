@@ -4,13 +4,9 @@
 layout(location = 0) in SilhouetteData {
     vec3 Position;
     vec2 TexCoord;
-    vec3 Color;
     flat vec3 Center;
     flat vec3 Properties;
 } SilhouetteCorner;
-
-layout(location = 0) out vec4 NormalsMaterial;
-layout(location = 1) out vec4 DiffuseAlbedo;
 
 struct Light {
     float Linear;
@@ -48,7 +44,7 @@ struct MaterialInfo {
     float Opacity;
 };
 
-//layout(location = 0) out vec4 FragColor;
+layout(location = 0) out vec4 FragColor;
 
 
 vec3 RaySphereIntersection(in vec3 eye, in vec3 fragPos, in vec3 center, in float radius)
@@ -59,8 +55,6 @@ vec3 RaySphereIntersection(in vec3 eye, in vec3 fragPos, in vec3 center, in floa
 }
 
 void main() {
-    vec3 objColor = vec3(0.2, 0.6, 0.8); // TODO: calculate from particle properties
-    //First: Check if ray hits sphere
     if(!(length(SilhouetteCorner.TexCoord) * length(SilhouetteCorner.TexCoord) <= 1))
     {
         discard;
@@ -71,8 +65,26 @@ void main() {
         vec3 intersection = RaySphereIntersection(CamPosition, SilhouetteCorner.Position, SilhouetteCorner.Center, SilhouetteCorner.Properties.x);
         vec3 normal = normalize((intersection - SilhouetteCorner.Center));
 
-        NormalsMaterial = vec4(normal, 0.0);
-        DiffuseAlbedo   = vec4(objColor, 1.0);
+        vec3 objColor = vec3(SilhouetteCorner.Properties.y, 0.0, SilhouetteCorner.Properties.y);
+        vec3 lightPos = vec3(0.0, 0.0, 0.0);
+        vec3 lightColor = vec3(1.0, 1.0, 1.0);
+        vec3 lightDir = normalize(lightPos - (normal + SilhouetteCorner.Center));
+
+        float ambientStrength = 0.2;
+        vec3 ambient = ambientStrength * lightColor;
+
+        float diff = max(dot(lightDir, normal), 0.0);
+        vec3 diffuse = diff * lightColor;
+
+        vec3 viewDir = normalize(CamPosition - intersection);
+        vec3 reflectDir = reflect(-lightDir, normal);
+        float specularStrength = 0.5;
+        float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32);
+        vec3 specular = specularStrength * spec * lightColor;
+
+        vec3 result = (ambient + diffuse + specular) * objColor;
+
+        FragColor = vec4(result, 1.0);
     }
 }
 

@@ -55,6 +55,7 @@ layout(push_constant) uniform currentEye_t {
 void main()
 {
     //not needed, figure out how to remove without binding errors)...
+
     mat4 mv;
     mat4 nMVP;
     mat4 projectionMatrix;
@@ -63,7 +64,7 @@ void main()
     projectionMatrix = (vrParameters.stereoEnabled ^ 1) * lightParams.ProjectionMatrix + vrParameters.stereoEnabled * vrParameters.projectionMatrices[currentEye.eye];
 
     nMVP = projectionMatrix * mv;
-    //...
+
 
     Vertex.Position = vertexPosition;
     Vertex.Properties = vertexNormal;

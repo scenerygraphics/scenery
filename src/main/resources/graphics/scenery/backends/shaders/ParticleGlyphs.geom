@@ -5,7 +5,7 @@ layout(triangle_strip, max_vertices=4) out;
 
 layout(location = 0) in VertexDataIn {
     vec3 Position;
-    vec3 Properties; // .x = radius
+    vec3 Properties; // .x = radius, y = color factor
 } VertexIn[];
 
 // for now I calculate for every particle the silhouette, instead of checking if they are in view -> only CamPosition needed
@@ -30,6 +30,7 @@ const float eps = 0.0000000001;
 // sc -> silhouette center
 // e  -> distance between VertexIn.Position and Camera.Position
 // V  -> Vector from Camera.Position to silhouette border
+
 void CalculateSilhouette(in vec3 particlePos, in vec3 cameraPos, in float particleRadius, inout vec3 sc, inout float sr) {
     float e = max(eps, abs(distance(particlePos, cameraPos))); // distance between particle position and camera position
     float rr = (particleRadius * particleRadius);
@@ -39,7 +40,6 @@ void CalculateSilhouette(in vec3 particlePos, in vec3 cameraPos, in float partic
     sc = particlePos + distCenter;
     sr = sqrt(rr * (1 - (rr / (e * e))));
 }
-
 void main() {
 
     vec3 pos = gl_in[0].gl_Position.xyz;
