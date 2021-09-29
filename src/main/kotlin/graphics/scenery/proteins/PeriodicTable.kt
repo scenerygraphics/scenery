@@ -13,7 +13,7 @@ import kotlin.collections.ArrayList
  * https://pubchem.ncbi.nlm.nih.gov/periodic-table/).
  * We store all elements as a [ChemicalElement] and put them into the [elementList].
  */
-open class PeriodicTable {
+class PeriodicTable {
 
     /*
     data-classes to store the JsonProperties
