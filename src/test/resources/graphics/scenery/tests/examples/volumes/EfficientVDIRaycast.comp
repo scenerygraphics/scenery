@@ -64,7 +64,8 @@ vec3 sourcemax_x_10_x_ = vec3(128.0, 128.0, 128.0);
 //ivec2 debug_pixel = ivec2(448, 127);
 //ivec2 debug_pixel = ivec2(200, 600);
 //ivec2 debug_pixel = ivec2(600, 600);
-ivec2 debug_pixel = ivec2(534, 416);
+//ivec2 debug_pixel = ivec2(534, 416);
+ivec2 debug_pixel = ivec2(433, 577);
 //ivec2 debug_pixel = ivec2(424, 539);
 
 const vec4 bitEnc = vec4(1.,255.,65025.,16581375.);
@@ -1257,6 +1258,10 @@ void main() {
             findListNumber(wnear, nextList, ndc);
             step = tnear;
         }
+
+        front_orig = first_entry_pt;
+        back_orig = final_exit_pt;
+
         findNextSupersegment_opt(nextList, first_entry_pt, 0, listCoords, supseg_start, supseg_end, index, supseg_found);
 
         if(!supseg_found) {
