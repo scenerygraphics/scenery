@@ -65,7 +65,9 @@ vec3 sourcemax_x_10_x_ = vec3(128.0, 128.0, 128.0);
 //ivec2 debug_pixel = ivec2(200, 600);
 //ivec2 debug_pixel = ivec2(600, 600);
 //ivec2 debug_pixel = ivec2(534, 416);
-ivec2 debug_pixel = ivec2(433, 577);
+//ivec2 debug_pixel = ivec2(433, 577);
+//ivec2 debug_pixel = ivec2(729, 282);
+ivec2 debug_pixel = ivec2(875, 151);
 //ivec2 debug_pixel = ivec2(424, 539);
 
 const vec4 bitEnc = vec4(1.,255.,65025.,16581375.);
@@ -306,6 +308,7 @@ int prevIndex = -1;
 
 void supersegmentInList(ivec2 invoc_orig, rayProperties originalRay, vec4 wpos, vec4 exit_pt, bool optimized, int cnt, out float depthStart, out float depthEnd, out int index, out bool supseg_found) {
 
+    supseg_found = false;
     vec4 check = imageLoad(InputVDI, ivec3(2, invoc_orig.y, invoc_orig.x));
     if(DecodeFloatRGBA(check) == 0) {
         //the first supersegment is empty, so empty list
@@ -381,6 +384,13 @@ void supersegmentInList(ivec2 invoc_orig, rayProperties originalRay, vec4 wpos, 
                 supseg_found = true;
             }
         }
+
+        #if USE_PRINTF
+        if(invoc_orig == ivec2(435, 305) &&  gl_GlobalInvocationID.xy == debug_pixel) {
+            debugPrintfEXT("Supseg found? %d, dotPositive? %d, depth start: %f, depth end: %f. Dist to orig was: %f, exit distance: %f. Prev index was: %d", supseg_found, dotPositive, depthStart, depthEnd, dist_to_orig, exit_distance, prevIndex);
+        }
+        #endif
+
         return;
     }
 
@@ -996,11 +1006,11 @@ void findNextSupersegment_opt(ivec2 nextList, vec4 next_point, int mainCnt, out 
 //        depthEnd = ndc_to_w(depthEnd);
 //        #endif
 
-        #if USE_PRINTF
-        if(gl_GlobalInvocationID.xy == debug_pixel) {
-            debugPrintfEXT("For list: (%d, %d). Found supseg %d index %d.", listCoords, supseg_found, index);
-        }
-        #endif
+//        #if USE_PRINTF
+//        if(gl_GlobalInvocationID.xy == debug_pixel) {
+//            debugPrintfEXT("For list: (%d, %d). Found supseg %d index %d.", listCoords, supseg_found, index);
+//        }
+//        #endif
 
 //        }
 
@@ -1438,6 +1448,12 @@ void main() {
             #endif
             break;
         }
+
+        #if USE_PRINTF
+        if(gl_GlobalInvocationID.xy == debug_pixel) {
+            debugPrintfEXT("Color so far is: (%f, %f, %f, %f)", v);
+        }
+        #endif
 
         if(nextList == ivec2(-1, -1)) {
             //reached the end of the VDI
