@@ -5,10 +5,12 @@ import graphics.scenery.backends.*
 import graphics.scenery.attribute.renderable.Renderable
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.attribute.renderable.DelegatesRenderable
+import graphics.scenery.attribute.renderable.HasCustomRenderable
 import graphics.scenery.spirvcrossj.Loader
 import graphics.scenery.spirvcrossj.libspirvcrossj
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.*
+import graphics.scenery.volumes.VolumeManager
 import io.github.classgraph.ClassGraph
 import kotlinx.coroutines.*
 import org.joml.*
@@ -2180,6 +2182,11 @@ open class VulkanRenderer(hub: Hub,
         scene.discover(scene, { true }).forEach {
             destroyNode(it)
         }
+
+        hub?.elements?.values?.forEach {
+            (it as? HasCustomRenderable<*>)?.close()
+        }
+
         scene.metadata.remove("DescriptorCache")
         scene.initialized = false
 
