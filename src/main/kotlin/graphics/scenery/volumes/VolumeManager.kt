@@ -140,7 +140,7 @@ class VolumeManager(
         addGeometry {
             this.geometryType = GeometryType.TRIANGLES
         }
-        logger.info("Created new volume manager with compute=$useCompute, segments=$customSegments, bindings=$customBindings")
+        logger.debug("Created new volume manager with compute=$useCompute, segments=$customSegments, bindings=$customBindings")
 
         addMaterial()
 
@@ -353,7 +353,7 @@ class VolumeManager(
     protected fun updateBlocks(context: SceneryContext): Boolean {
         val currentProg = progvol
         if (currentProg == null) {
-            logger.info("Not updating blocks, no prog")
+            logger.debug("Not updating blocks, no prog")
             return false
         }
 
@@ -744,11 +744,8 @@ class VolumeManager(
         needAtLeastNumVolumes(renderStacksStates.size)
     }
 
-    @Synchronized
-    fun remove(node: Volume) {
-        logger.debug("Removing $node to OOC nodes")
-        nodes.remove(node)
-
+    private fun replace() {
+        logger.debug("Replacing volume manager with ${nodes.size} volumes managed")
         val volumes = nodes.toMutableList()
         val current = hub?.get<VolumeManager>()
         if(current != null) {
@@ -762,9 +759,18 @@ class VolumeManager(
         }
         volumes.forEach {
             vm.add(it)
+            it.volumeManager = vm
         }
 
         hub?.add(vm)
+    }
+
+    @Synchronized
+    fun remove(node: Volume) {
+        logger.debug("Removing $node to OOC nodes")
+        nodes.remove(node)
+
+        replace()
     }
 
     protected val updated = HashSet<Volume>()
@@ -810,6 +816,12 @@ class VolumeManager(
 
         context.clearLUTs()
         renderStateUpdated = true
+    }
+
+    override fun close() {
+        logger.debug("Closing VolumeManager")
+
+        replace()
     }
 
     /** Companion object for Volume */
