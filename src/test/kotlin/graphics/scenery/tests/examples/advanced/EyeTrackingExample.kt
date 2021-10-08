@@ -8,6 +8,7 @@ import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.controls.eyetracking.PupilEyeTrackerNew
 import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.numerics.Random
+import graphics.scenery.attribute.material.Material
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
 import org.joml.Vector2f
@@ -35,7 +36,9 @@ class EyeTrackingExample: SceneryBase("Eye Tracking Example", windowWidth = 1280
 
         val cam = DetachedHeadCamera(hmd)
         with(cam) {
-            position = Vector3f(0.0f, 0.2f, 5.0f)
+            spatial {
+                position = Vector3f(0.0f, 0.2f, 5.0f)
+            }
             perspectiveCamera(50.0f, windowWidth, windowHeight, 0.05f, 100.0f)
 
             scene.addChild(this)
@@ -43,32 +46,41 @@ class EyeTrackingExample: SceneryBase("Eye Tracking Example", windowWidth = 1280
         cam.disableCulling = true
 
         referenceTarget.visible = false
-        referenceTarget.material.roughness = 1.0f
-        referenceTarget.material.metallic = 0.0f
-        referenceTarget.material.diffuse = Vector3f(0.8f, 0.8f, 0.8f)
-        cam.addChild(referenceTarget)
+
+        referenceTarget.ifMaterial {
+            roughness = 1.0f
+            metallic = 0.5f
+            diffuse = Vector3f(0.8f, 0.8f, 0.8f)
+        }
+        scene.addChild(referenceTarget)
 
         calibrationTarget.visible = false
-        calibrationTarget.material.roughness = 1.0f
-        calibrationTarget.material.metallic = 0.0f
-        calibrationTarget.material.diffuse = Vector3f(1.0f, 1.0f, 1.0f)
-        calibrationTarget.runRecursive { it.material.diffuse = Vector3f(1.0f, 1.0f, 1.0f) }
+        referenceTarget.ifMaterial {
+            roughness = 1.0f
+            metallic = 0.5f
+            diffuse = Vector3f(0.8f, 0.8f, 0.8f)
+        }
+        scene.addChild(referenceTarget)
         cam.addChild(calibrationTarget)
 
 
         val lightbox = Box(Vector3f(20.0f, 20.0f, 20.0f), insideNormals = true)
         lightbox.name = "Lightbox"
-        lightbox.material.diffuse = Vector3f(0.4f, 0.4f, 0.4f)
-        lightbox.material.roughness = 1.0f
-        lightbox.material.metallic = 0.0f
-        lightbox.material.cullingMode = Material.CullingMode.Front
+        lightbox.material {
+            diffuse = Vector3f(0.4f, 0.4f, 0.4f)
+            roughness = 1.0f
+            metallic = 0.0f
+            cullingMode = Material.CullingMode.Front
+        }
 
         scene.addChild(lightbox)
 
         (0..10).map {
             val light = PointLight(radius = 15.0f)
             light.emissionColor = Random.random3DVectorFromRange(0.0f, 1.0f)
-            light.position = Random.random3DVectorFromRange(-5.0f, 5.0f)
+            light.spatial {
+                position = Random.random3DVectorFromRange(-5.0f, 5.0f)
+            }
             light.intensity = 100.0f
 
             light
@@ -120,19 +132,23 @@ class EyeTrackingExample: SceneryBase("Eye Tracking Example", windowWidth = 1280
                 if (!pupilTracker.isCalibrated && cam != null) {
                     pupilTracker.onCalibrationFailed = {
                         for(i in 0 until 2) {
-                            referenceTarget.material.diffuse = Vector3f(1.0f, 0.0f, 0.0f)
-                            Thread.sleep(300)
-                            referenceTarget.material.diffuse = Vector3f(0.8f, 0.8f, 0.8f)
-                            Thread.sleep(300)
+                            referenceTarget.ifMaterial {
+                                diffuse = Vector3f(1.0f, 0.0f, 0.0f)
+                                Thread.sleep(300)
+                                diffuse = Vector3f(0.8f, 0.8f, 0.8f)
+                                Thread.sleep(300)
+                            }
                         }
                     }
 
                     pupilTracker.onCalibrationSuccess = {
                         for(i in 0 until 20) {
-                            referenceTarget.material.diffuse = Vector3f(0.0f, 1.0f, 0.0f)
-                            Thread.sleep(100)
-                            referenceTarget.material.diffuse = Vector3f(0.8f, 0.8f, 0.8f)
-                            Thread.sleep(30)
+                            referenceTarget.ifMaterial {
+                                diffuse = Vector3f(0.0f, 1.0f, 0.0f)
+                                Thread.sleep(100)
+                                diffuse = Vector3f(0.8f, 0.8f, 0.8f)
+                                Thread.sleep(30)
+                            }
                         }
                     }
 
@@ -146,16 +162,18 @@ class EyeTrackingExample: SceneryBase("Eye Tracking Example", windowWidth = 1280
 
                         PupilEyeTrackerNew.CalibrationType.WorldSpace -> { gaze ->
                             when {
-                                gaze.confidence < confidenceThreshold -> referenceTarget.material.diffuse = Vector3f(0.8f, 0.0f, 0.0f)
-                                gaze.confidence > confidenceThreshold -> referenceTarget.material.diffuse = Vector3f(0.0f, 0.5f, 0.5f)
-                                gaze.confidence > 0.95f -> referenceTarget.material.diffuse = Vector3f(0.0f, 1.0f, 0.0f)
+                                gaze.confidence < confidenceThreshold -> referenceTarget.ifMaterial { diffuse = Vector3f(0.8f, 0.0f, 0.0f) }
+                                gaze.confidence > confidenceThreshold -> referenceTarget.ifMaterial { diffuse = Vector3f(0.8f, 0.0f, 0.0f) }
+                                gaze.confidence > 0.95f -> referenceTarget.ifMaterial { diffuse = Vector3f(0.0f, 1.0f, 0.0f) }
                             }
                             if(gaze.confidence > confidenceThreshold) {
                                 val p = Vector3f(gaze.gazeDirection().x* gaze.gazeDistance(),gaze.gazeDirection().y* gaze.gazeDistance(),gaze.gazeDirection().z* gaze.gazeDistance())
 //                                logger.info(gaze.gazeDirection().toString())
 //                                logger.info(gaze.gazeDistance().toString())
 //                                logger.info(gaze.gazePoint().toString())
-                                referenceTarget.position =p
+                                referenceTarget.ifSpatial {
+                                    position = p
+                                }
                                 referenceTarget.visible = true
                             }
                         }
