@@ -8,6 +8,12 @@ layout(location = 0) in SilhouetteData {
     flat vec3 Properties;
 } SilhouetteCorner;
 
+layout(location = 4) in CameraDataOut
+{
+    mat4 VP;
+} Camera;
+
+
 struct Light {
     float Linear;
     float Quadratic;
@@ -65,7 +71,13 @@ void main() {
         vec3 intersection = RaySphereIntersection(CamPosition, SilhouetteCorner.Position, SilhouetteCorner.Center, SilhouetteCorner.Properties.x);
         vec3 normal = normalize((intersection - SilhouetteCorner.Center));
 
-        vec3 objColor = vec3(SilhouetteCorner.Properties.y, 0.0, SilhouetteCorner.Properties.y);
+    // depth buffer rewriting (from 2D billboards to actual fragment
+        vec4 intersectionVP = Camera.VP * vec4(intersection, 1.0);
+        float depth = (intersectionVP.z / intersectionVP.w);
+        gl_FragDepth = depth;
+
+    // lighting calculations (Phonng lighting model)
+        vec3 objColor = vec3(SilhouetteCorner.Properties.y, 0.0, SilhouetteCorner.Properties.z);
         vec3 lightPos = vec3(0.0, 0.0, 0.0);
         vec3 lightColor = vec3(1.0, 1.0, 1.0);
         vec3 lightDir = normalize(lightPos - (normal + SilhouetteCorner.Center));

@@ -24,6 +24,11 @@ layout(location = 0) out SilhouetteData /*This is a corner of the silhouette-qua
     flat vec3 Properties;
 } SilhouetteCorner;
 
+layout(location = 4) out CameraDataOut
+{
+    mat4 VP;
+} CameraOut;
+
 const float eps = 0.0000000001;
 // Function that calculates the silhouette center and the radius of the silhouette, from Camera.Position, VertexIn.Position and VertexIn.Properties.x = ParticleRadius with
 // sr -> silhouette radius
@@ -60,38 +65,49 @@ void main() {
 
     cornerPos = sc + rMulUp + rMulRight;                    // calculate corner in World space
     unnormPos = Camera[0].VP * vec4(cornerPos, 1.0);        // bring corner to view space
+
     gl_Position = vec4(unnormPos.xyz / unnormPos.w, 1.0);   // bring corner to clip space
     SilhouetteCorner.Position = cornerPos;
     SilhouetteCorner.TexCoord = vec2(1.0, 1.0);
     SilhouetteCorner.Center = VertexIn[0].Position;
     SilhouetteCorner.Properties = VertexIn[0].Properties;
+    CameraOut.VP = Camera[0].VP;
     EmitVertex();
+
 
     cornerPos = sc + rMulUp - rMulRight;
     unnormPos = Camera[0].VP * vec4(cornerPos, 1.0);
+
     gl_Position = vec4(unnormPos.xyz / unnormPos.w, 1.0);
     SilhouetteCorner.Position = cornerPos;
     SilhouetteCorner.TexCoord = vec2(1.0, -1.0);
     SilhouetteCorner.Center = VertexIn[0].Position;
     SilhouetteCorner.Properties = VertexIn[0].Properties;
+    CameraOut.VP = Camera[0].VP;
     EmitVertex();
+
 
     cornerPos = sc - rMulUp + rMulRight;
     unnormPos = Camera[0].VP * vec4(cornerPos, 1.0);
+
     gl_Position = vec4(unnormPos.xyz / unnormPos.w, 1.0);
     SilhouetteCorner.Position = cornerPos;
     SilhouetteCorner.TexCoord = vec2(-1.0, 1.0);
     SilhouetteCorner.Center = VertexIn[0].Position;
     SilhouetteCorner.Properties = VertexIn[0].Properties;
+    CameraOut.VP = Camera[0].VP;
     EmitVertex();
+
 
     cornerPos = sc - rMulUp - rMulRight;
     unnormPos = Camera[0].VP * vec4(cornerPos, 1.0);
+
     gl_Position = vec4(unnormPos.xyz / unnormPos.w, 1.0);
     SilhouetteCorner.Position = cornerPos;
     SilhouetteCorner.TexCoord = vec2(-1.0, -1.0);
     SilhouetteCorner.Center = VertexIn[0].Position;
     SilhouetteCorner.Properties = VertexIn[0].Properties;
+    CameraOut.VP = Camera[0].VP;
     EmitVertex();
 
     EndPrimitive();
