@@ -272,7 +272,7 @@ class PupilEyeTrackerNew(val calibrationType: CalibrationType, val host: String 
                                             }
 
                                             val p = g.gaze_point_3d ?: floatArrayOf(0.0f, 0.0f, 0.0f)
-                                            var vp = Vector3f(p[0], p[1]*(1.0f), p[2])
+                                            var vp = Vector3f(p[0], p[1], p[2])
 
                                             if(vp.z>= 0.0f) {
 //                                                logger.info("Inverting gaze direction")
@@ -379,7 +379,7 @@ class PupilEyeTrackerNew(val calibrationType: CalibrationType, val host: String 
      */
     fun calibrate(cam: Camera, hmd: Display, generateReferenceData: Boolean = false, calibrationTarget: Node? = null): Boolean {
         // Threshold for samples to ignore in the beginning
-        val eyeMovingSamples = 15
+
         subscribe("notify.calibration.successful")
         subscribe("notify.calibration.failed")
         subscribe("pupil.")
@@ -434,9 +434,9 @@ class PupilEyeTrackerNew(val calibrationType: CalibrationType, val host: String 
         val referenceData = arrayListOf<HashMap<String, Serializable>>()
 
         if(generateReferenceData) {
-            val numReferencePoints =  18
-
-            val samplesPerPoint = 120
+            val numReferencePoints =  12
+            val eyeMovingSamples = 30
+            val samplesPerPoint = 100
 
             val posKeyName = "mm_pos"
             val posGenerator = LayeredCircleWorldSpaceCalibrationPointGenerator()

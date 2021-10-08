@@ -24,7 +24,7 @@ class EyeTrackingExample: SceneryBase("Eye Tracking Example", windowWidth = 1280
     val hmd = OpenVRHMD(seated = false, useCompositor = true)
     val referenceTarget = Icosphere(0.004f, 2)
     val calibrationTarget = Icosphere(0.02f, 2)
-    val confidenceThreshold = 0.60f
+    val confidenceThreshold = 0.65f
 
     override fun init() {
         hub.add(SceneryElement.HMDInput, hmd)
