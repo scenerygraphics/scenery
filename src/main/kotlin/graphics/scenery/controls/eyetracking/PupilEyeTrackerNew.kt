@@ -436,7 +436,7 @@ class PupilEyeTrackerNew(val calibrationType: CalibrationType, val host: String 
         if(generateReferenceData) {
             val numReferencePoints =  12
             val eyeMovingSamples = 30
-            val samplesPerPoint = 100
+            val samplesPerPoint = 70
 
             val posKeyName = "mm_pos"
             val posGenerator = LayeredCircleWorldSpaceCalibrationPointGenerator()
@@ -456,9 +456,9 @@ class PupilEyeTrackerNew(val calibrationType: CalibrationType, val host: String 
                 val calibrationPosition = floatArrayOf(p.x, p.y, p.z)
 
                 if(normalizedScreenPos.local.x() == 0.5f && normalizedScreenPos.local.y() == 0.5f) {
-                    calibrationTarget?.material?.diffuse = Vector3f(1.0f, 1.0f, 0.0f)
+                    calibrationTarget?.ifMaterial { diffuse = Vector3f(1.0f, 1.0f, 0.0f)}
                 } else {
-                    calibrationTarget?.material?.diffuse = Vector3f(1.0f, 1.0f, 1.0f)
+                    calibrationTarget?.ifMaterial {diffuse= Vector3f(1.0f, 1.0f, 1.0f)}
                 }
 
                 (0 until samplesPerPoint).forEach {
@@ -481,7 +481,7 @@ class PupilEyeTrackerNew(val calibrationType: CalibrationType, val host: String 
                         referenceData.add(datum1)
                     }
 
-                    Thread.sleep(20)
+                    Thread.sleep(15)
                 }
             }
 

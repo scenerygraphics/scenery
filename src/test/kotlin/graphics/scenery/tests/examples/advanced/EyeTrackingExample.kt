@@ -52,7 +52,7 @@ class EyeTrackingExample: SceneryBase("Eye Tracking Example", windowWidth = 1280
             metallic = 0.5f
             diffuse = Vector3f(0.8f, 0.8f, 0.8f)
         }
-        scene.addChild(referenceTarget)
+        cam.addChild(referenceTarget)
 
         calibrationTarget.visible = false
         referenceTarget.ifMaterial {
@@ -60,7 +60,6 @@ class EyeTrackingExample: SceneryBase("Eye Tracking Example", windowWidth = 1280
             metallic = 0.5f
             diffuse = Vector3f(0.8f, 0.8f, 0.8f)
         }
-        scene.addChild(referenceTarget)
         cam.addChild(calibrationTarget)
 
 
@@ -163,14 +162,11 @@ class EyeTrackingExample: SceneryBase("Eye Tracking Example", windowWidth = 1280
                         PupilEyeTrackerNew.CalibrationType.WorldSpace -> { gaze ->
                             when {
                                 gaze.confidence < confidenceThreshold -> referenceTarget.ifMaterial { diffuse = Vector3f(0.8f, 0.0f, 0.0f) }
-                                gaze.confidence > confidenceThreshold -> referenceTarget.ifMaterial { diffuse = Vector3f(0.8f, 0.0f, 0.0f) }
+                                gaze.confidence > confidenceThreshold -> referenceTarget.ifMaterial { diffuse = Vector3f(0.0f, 0.5f, 0.5f) }
                                 gaze.confidence > 0.95f -> referenceTarget.ifMaterial { diffuse = Vector3f(0.0f, 1.0f, 0.0f) }
                             }
                             if(gaze.confidence > confidenceThreshold) {
                                 val p = Vector3f(gaze.gazeDirection().x* gaze.gazeDistance(),gaze.gazeDirection().y* gaze.gazeDistance(),gaze.gazeDirection().z* gaze.gazeDistance())
-//                                logger.info(gaze.gazeDirection().toString())
-//                                logger.info(gaze.gazeDistance().toString())
-//                                logger.info(gaze.gazePoint().toString())
                                 referenceTarget.ifSpatial {
                                     position = p
                                 }
