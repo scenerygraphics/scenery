@@ -1,5 +1,8 @@
-package graphics.scenery
+package graphics.scenery.atomicsimulations
 
+import graphics.scenery.Hub
+import graphics.scenery.Icosphere
+import graphics.scenery.Mesh
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.utils.extensions.times
 import graphics.scenery.volumes.BufferedVolume
@@ -27,7 +30,7 @@ open class AtomicSimulation(override var name: String = "DFTSimulation", private
         simulationData.parseCube(filename, cubeStyle)
 
         // Visualize the atoms.
-        atoms = Array<Icosphere>(simulationData.numberOfAtoms) {Icosphere(atomicRadius, 4)}
+        atoms = Array<Icosphere>(simulationData.numberOfAtoms) { Icosphere(atomicRadius, 4) }
         atoms.zip(simulationData.atomicPositions).forEach {
             with(it.component1()){
                 spatial {
@@ -95,7 +98,7 @@ open class AtomicSimulation(override var name: String = "DFTSimulation", private
          */
         @JvmStatic fun fromCube(filename: String, hub: Hub, scalingFactor: Float, atomicRadius: Float,
                                 normalizeVolumetricDataTo:Float = -1.0f, cubeStyle: String = "unknown"):
-                                AtomicSimulation {
+            AtomicSimulation {
             val dftSimulation = AtomicSimulation(scalingFactor=scalingFactor, atomicRadius=atomicRadius,
                 normalizeVolumetricDataTo=normalizeVolumetricDataTo, cubeStyle=cubeStyle)
             dftSimulation.createFromCube(filename, hub)

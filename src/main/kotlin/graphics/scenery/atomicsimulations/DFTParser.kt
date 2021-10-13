@@ -1,4 +1,4 @@
-package graphics.scenery
+package graphics.scenery.atomicsimulations
 import org.joml.Vector3f
 import org.joml.Vector3i
 import org.lwjgl.system.MemoryUtil

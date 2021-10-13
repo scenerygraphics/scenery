@@ -2,6 +2,7 @@ package graphics.scenery.tests.examples.basic
 
 import org.joml.Vector3f
 import graphics.scenery.*
+import graphics.scenery.atomicsimulations.AtomicSimulation
 import graphics.scenery.backends.Renderer
 
 /**
@@ -16,7 +17,7 @@ class DFTExample : SceneryBase("DFTExample") {
             Renderer.createRenderer(hub, applicationName, scene, 512, 512))
 
         // Create an object for the DFT simulation.
-        val atomicSimulation = AtomicSimulation.fromCube(getDemoFilesPath() + "/volumes/dft/Fe_snapshot0_dens.cube",
+        val atomicSimulation = AtomicSimulation.fromCube(getDemoFilesPath() + "/dft_data/Fe_snapshot0_dens.cube",
             hub,0.5f, 0.5f)
         scene.addChild(atomicSimulation)
 
