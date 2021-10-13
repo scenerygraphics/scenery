@@ -76,8 +76,21 @@ void main() {
         float depth = (intersectionVP.z / intersectionVP.w);
         gl_FragDepth = depth;
 
+
+        // Coloration is hardcoded for a specific kind of .csv dataset an therefore subject to change in a more dynamic and user-friendly way in the future
+        vec3 objColor = sin(vec3(63, 0, 1.9) * SilhouetteCorner.Properties.y - 1.5) * 0.5 + 0.5;
+        float R = 0.0, B = 0.0;
+        if(SilhouetteCorner.Properties.y > 0.0)
+        {
+            R = SilhouetteCorner.Properties.y;
+        }
+        else
+        {
+            B = abs(SilhouetteCorner.Properties.y);
+        }
+        objColor = vec3(R, 1.0, B);
+
     // lighting calculations (Phonng lighting model)
-        vec3 objColor = vec3(SilhouetteCorner.Properties.y, 0.0, SilhouetteCorner.Properties.z);
         vec3 lightPos = vec3(0.0, 0.0, 0.0);
         vec3 lightColor = vec3(1.0, 1.0, 1.0);
         vec3 lightDir = normalize(lightPos - (normal + SilhouetteCorner.Center));
@@ -95,8 +108,7 @@ void main() {
         vec3 specular = specularStrength * spec * lightColor;
 
         vec3 result = (ambient + diffuse + specular) * objColor;
-
-        FragColor = vec4(result, 1.0);
+        FragColor = vec4(result, 0.1);
     }
 }
 

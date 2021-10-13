@@ -106,6 +106,7 @@ void main() {
         float depth = (intersectionVP.z / intersectionVP.w);
         gl_FragDepth = depth;
 
+        // Coloration is hardcoded for a specific kind of .csv dataset an therefore subject to change in a more dynamic and user-friendly way in the future
         vec3 objColor = sin(vec3(63, 0, 1.9) * SilhouetteCorner.Properties.y - 1.5) * 0.5 + 0.5;
         float R = 0.0, B = 0.0;
         if(SilhouetteCorner.Properties.y > 0.0)
