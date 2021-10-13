@@ -12,20 +12,43 @@ import graphics.scenery.volumes.Volume
 import net.imglib2.type.numeric.integer.UnsignedByteType
 import org.joml.Vector3f
 
+/**
+ * This class represents an atomic simulation, i.e. a simulation that works on the atomic scale. It holds
+ * objects that represent the atoms themselves, and, depending on data source, volumetric data (e.g. the electronic
+ * density). An object of this class can be used directly to visualize such an atomic simulation, after reading
+ * the appropriate data, as it is a child of the Mesh class.
+ * @property[name] Name of this particular visualization.
+ * @property[scalingFactor] Factor to scale positions of this simulation to allow for optimal visualization.
+ * @property[atomicRadius] Radius of the atoms (in Bohr); this does not correspond to a physical radius, it's
+ *                         simply for visualization purposes.
+ * @property[normalizeVolumetricDataTo] A value to normalize the volumetric data to. This is useful for dynamic
+ *                                      simulations, as elsewise each timestep will be normalized to itself.
+ *                                      If this value is >0, then all timesteps will be normalized to the same value
+ *                                      allowing for analysis of local changes.
+ * @property[cubeStyle] Name of the software with which cube file was created (or comparable software). .cube is
+ *                      actually a very loosely defined standard. If we don't know anything about the cube file, we
+ *                      have no choice but to use Regex parsing, which impacts performance. If we know the source
+ *                      of the cube file, other assumptions can be made. Only relevant if cube files are used.
+ *
+ * @author Lenz Fiedler <l.fiedler@hzdr.de>
+ */
 open class AtomicSimulation(override var name: String = "DFTSimulation", private val scalingFactor: Float,
                             private var atomicRadius: Float, private val normalizeVolumetricDataTo: Float=-1.0f,
                             private var cubeStyle: String = "unknown") : Mesh(name) {
     init {
         atomicRadius *= scalingFactor
     }
-
+    /** Atoms of this simulation as spheres. */
     lateinit var atoms : Array<Icosphere>
         protected set
+    /** Volumetric data, e.g. electronic density.. */
     lateinit var volumetricData : BufferedVolume
         protected set
+    /** Simulation data, parsed from a DFT calculation output. */
     val simulationData: DFTParser = DFTParser(normalizeVolumetricDataTo)
+    /** For dynamic cases: Current timepoint. */
     private var currentTimePoint : Int = 0
-
+    /** Creates an atomic simulation object from a cube file. . */
     fun createFromCube(filename: String, hub: Hub){
         simulationData.parseCube(filename, cubeStyle)
 
@@ -64,7 +87,7 @@ open class AtomicSimulation(override var name: String = "DFTSimulation", private
         volumetricData.addTimepoint("t-0", simulationData.electronicDensityUByte)
         volumetricData.goToLastTimepoint()
     }
-
+    /** Updates an existing atomic simulation from a cube file (for dynamic simulations). */
     fun updateFromCube(filename: String){
         simulationData.parseCube(filename, cubeStyle)
         // Visualize the atoms.
@@ -77,7 +100,7 @@ open class AtomicSimulation(override var name: String = "DFTSimulation", private
         volumetricData.goToLastTimepoint()
         volumetricData.purgeFirst(10, 10)
     }
-
+    /** Updates the material of the atoms. */
     fun updateAtomicMaterial(newMaterial: Material){
         this.atoms.forEach { atom ->
             with(atom)

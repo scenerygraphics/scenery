@@ -6,35 +6,44 @@ import java.io.File
 import java.nio.ByteBuffer
 
 /**
-Parses a density functional theory (common simulation method in solid state physics and theoretical chemistry)
-calculation. Can be used to visualize single DFT calculations or DFT-MD (=DFT molecular dynamics simulations).
-
+ * This class parses density functional theory (common simulation method in solid state physics and theoretical
+ * chemistry) calculation. Can be used to visualize single DFT calculation or DFT-MD (=DFT molecular dynamics).
  * @property[normalizeDensityTo] Defines to which value the density is scaled. This is useful when visualizing more then one DFT calculation at the
-same time, in order to keep the density visualization consistent. Negative values mean the density is scaled
-per snapshot. Default is -1.0f.
+ * same time, in order to keep the density visualization consistent. Negative values mean the density is scaled
+ * per snapshot. Default is -1.0f.
+ *
+ * @author Lenz Fiedler <l.fiedler@hzdr.de>
  */
-class DFTParser (val normalizeDensityTo: Float = -1.0f): AutoCloseable{
+class DFTParser (private val normalizeDensityTo: Float = -1.0f): AutoCloseable{
     /**  Number of Atoms.*/
     var numberOfAtoms: Int = 0
+
     /** Distance between two grid points in either direction in Bohr.*/
     var gridSpacings = Vector3f( 0.0f, 0.0f, 0.0f)
+
     /** Number of gridpoints in 3D grid.*/
     var gridDimensions = Vector3i( 0, 0, 0)
+
     /** Positions of the atoms in Bohr.*/
     var atomicPositions = Array(0){ Vector3f()}
+
+    /** Electronic density as float values.*/
     private var electronicDensity = FloatArray(0)
+
     /** Electronic density as scaled bytes, in scaled(1/Bohr).*/
     lateinit var electronicDensityUByte: ByteBuffer
         protected set
+
+    /** Indicates whether memory was allocated for electronic density */
     private var electronicDensityMemory: Int = -1
+
     /** Origin of the unit cell, usually 0,0,0. */
     var unitCellOrigin = Vector3f( 0.0f, 0.0f, 0.0f)
+
     /** Dimensions of the unit cell, in Bohr.*/
     var unitCellDimensions = Vector3f( 0.0f, 0.0f, 0.0f)
 
-    /**
-     * Closes this buffer, freeing all allocated resources on host and device.
-     */
+    /** Closes this buffer, freeing all allocated resources on host and device. */
     override fun close() {
         // Only free memory if we allocated some during parsing.
         if (electronicDensityMemory > 0){
@@ -42,7 +51,14 @@ class DFTParser (val normalizeDensityTo: Float = -1.0f): AutoCloseable{
         }
     }
 
-    // Parse information as .cube file.
+    /**
+     * Parse information as .cube file.
+     * [filename] Name of the file that is parsed.
+     * [cubeStyle] Name of the software with which cube file was created (or comparable software). .cube is
+     *             actually a very loosely defined standard. If we don't know anything about the cube file, we
+     *             have no choice but to use Regex parsing, which impacts performance. If we know the source
+     *             of the cube file, other assumptions can be made.
+     */
     fun parseCube(filename: String, cubeStyle: String="unknown"){
         // Read entire file content
         val cubeFile =  File(filename).bufferedReader().readLines()
