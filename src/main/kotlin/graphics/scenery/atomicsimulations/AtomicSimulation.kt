@@ -29,12 +29,16 @@ import org.joml.Vector3f
  *                      actually a very loosely defined standard. If we don't know anything about the cube file, we
  *                      have no choice but to use Regex parsing, which impacts performance. If we know the source
  *                      of the cube file, other assumptions can be made. Only relevant if cube files are used.
+ * @property[rootFolder] Name of a folder, from which all files for this atomic simulation are read. If not
+ *                       empty, all file names provided to the object will be read from this directoy. This is helpful
+ *                       for larger series of simulations for which the source files are always read from the same
+ *                       directory.
  *
  * @author Lenz Fiedler <l.fiedler@hzdr.de>
  */
 open class AtomicSimulation(override var name: String = "DFTSimulation", private val scalingFactor: Float,
                             private var atomicRadius: Float, private val normalizeVolumetricDataTo: Float=-1.0f,
-                            private var cubeStyle: String = "unknown") : Mesh(name) {
+                            private var cubeStyle: String = "unknown", private val rootFolder: String = "") : Mesh(name) {
     init {
         atomicRadius *= scalingFactor
     }
@@ -50,7 +54,11 @@ open class AtomicSimulation(override var name: String = "DFTSimulation", private
     private var currentTimePoint : Int = 0
     /** Creates an atomic simulation object from a cube file. . */
     fun createFromCube(filename: String, hub: Hub){
-        simulationData.parseCube(filename, cubeStyle)
+        if (this.rootFolder.isEmpty()) {
+            simulationData.parseCube(filename, cubeStyle)
+        } else {
+            simulationData.parseCube(this.rootFolder + filename, cubeStyle)
+        }
 
         // Visualize the atoms.
         atoms = Array<Icosphere>(simulationData.numberOfAtoms) { Icosphere(atomicRadius, 4) }
@@ -89,7 +97,11 @@ open class AtomicSimulation(override var name: String = "DFTSimulation", private
     }
     /** Updates an existing atomic simulation from a cube file (for dynamic simulations). */
     fun updateFromCube(filename: String){
-        simulationData.parseCube(filename, cubeStyle)
+        if (this.rootFolder.isEmpty()) {
+            simulationData.parseCube(filename, cubeStyle)
+        } else {
+            simulationData.parseCube(this.rootFolder + filename, cubeStyle)
+        }
         // Visualize the atoms.
         atoms.zip(simulationData.atomicPositions).forEach {
             it.component1().spatial().position = scalingFactor * it.component2()
@@ -118,12 +130,30 @@ open class AtomicSimulation(override var name: String = "DFTSimulation", private
     companion object {
         /**
          * Creates a DFT simulation object from a cube file containing some volumetric data and atomic positions.
+         * [name] Name of this particular visualization.
+         * [scalingFactor] Factor to scale positions of this simulation to allow for optimal visualization.
+         * [atomicRadius] Radius of the atoms (in Bohr); this does not correspond to a physical radius, it's
+         *                simply for visualization purposes.
+         * [normalizeVolumetricDataTo] A value to normalize the volumetric data to. This is useful for dynamic
+         *                             simulations, as elsewise each timestep will be normalized to itself.
+         *                             If this value is >0, then all timesteps will be normalized to the same value
+         *                             allowing for analysis of local changes.
+         * [cubeStyle] Name of the software with which cube file was created (or comparable software). .cube is
+         *             actually a very loosely defined standard. If we don't know anything about the cube file, we
+         *             have no choice but to use Regex parsing, which impacts performance. If we know the source
+         *             of the cube file, other assumptions can be made. Only relevant if cube files are used.
+         * [rootFolder] Name of a folder, from which all files for this atomic simulation are read. If not
+         *              empty, all file names provided to the object will be read from this directoy. This is helpful
+         *              for larger series of simulations for which the source files are always read from the same
+         *              directory.
+
          */
         @JvmStatic fun fromCube(filename: String, hub: Hub, scalingFactor: Float, atomicRadius: Float,
-                                normalizeVolumetricDataTo:Float = -1.0f, cubeStyle: String = "unknown"):
+                                normalizeVolumetricDataTo:Float = -1.0f, cubeStyle: String = "unknown",
+                                rootFolder: String = ""):
             AtomicSimulation {
             val dftSimulation = AtomicSimulation(scalingFactor=scalingFactor, atomicRadius=atomicRadius,
-                normalizeVolumetricDataTo=normalizeVolumetricDataTo, cubeStyle=cubeStyle)
+                normalizeVolumetricDataTo=normalizeVolumetricDataTo, cubeStyle=cubeStyle, rootFolder = rootFolder)
             dftSimulation.createFromCube(filename, hub)
             return dftSimulation
         }
