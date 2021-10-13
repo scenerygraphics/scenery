@@ -2,6 +2,7 @@ package graphics.scenery.tests.examples.basic
 
 import org.joml.Vector3f
 import graphics.scenery.*
+import graphics.scenery.atomicsimulations.AtomicSimulation
 import graphics.scenery.backends.Renderer
 import kotlin.concurrent.thread
 
@@ -17,7 +18,7 @@ class DFTMDExample : SceneryBase("DFTMDExample") {
             Renderer.createRenderer(hub, applicationName, scene, 512, 512))
 
         // Create an object for the DFT (-MD) simulation.
-        val atomicSimulation = AtomicSimulation.fromCube(getDemoFilesPath() + "/volumes/dft/Fe_snapshot0_dens.cube",
+        val atomicSimulation = AtomicSimulation.fromCube(getDemoFilesPath() + "/dft_data/Fe_snapshot0_dens.cube",
             hub,0.5f, 0.5f)
         scene.addChild(atomicSimulation)
 
@@ -49,7 +50,7 @@ class DFTMDExample : SceneryBase("DFTMDExample") {
         var count = 0
         thread {
             while (running) {
-                atomicSimulation.updateFromCube(getDemoFilesPath() + "/volumes/dft/Fe_snapshot${currentSnapshot}_dens.cube")
+                atomicSimulation.updateFromCube(getDemoFilesPath() + "/dft_data/Fe_snapshot${currentSnapshot}_dens.cube")
                 Thread.sleep(500)
                 currentSnapshot = (currentSnapshot +1) % maxSnapshot
                 count++
