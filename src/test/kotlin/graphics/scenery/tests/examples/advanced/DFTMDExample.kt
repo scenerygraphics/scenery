@@ -18,8 +18,8 @@ class DFTMDExample : SceneryBase("DFTMDExample") {
             Renderer.createRenderer(hub, applicationName, scene, 512, 512))
 
         // Create an object for the DFT (-MD) simulation.
-        val atomicSimulation = AtomicSimulation.fromCube(getDemoFilesPath() + "/dft_data/Fe_snapshot0_dens.cube",
-            hub,0.5f, 0.5f)
+        val atomicSimulation = AtomicSimulation.fromCube("Fe_snapshot0_dens.cube",
+            hub,0.5f, 0.5f, rootFolder = getDemoFilesPath() + "/dft_data/")
         scene.addChild(atomicSimulation)
 
         // One light in every corner.
@@ -50,7 +50,7 @@ class DFTMDExample : SceneryBase("DFTMDExample") {
         var count = 0
         thread {
             while (running) {
-                atomicSimulation.updateFromCube(getDemoFilesPath() + "/dft_data/Fe_snapshot${currentSnapshot}_dens.cube")
+                atomicSimulation.updateFromCube("Fe_snapshot${currentSnapshot}_dens.cube")
                 Thread.sleep(500)
                 currentSnapshot = (currentSnapshot +1) % maxSnapshot
                 count++
