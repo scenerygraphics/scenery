@@ -28,7 +28,8 @@ class DFTMDExample : SceneryBase("DFTMDExample") {
         }
         lights.mapIndexed { i, light ->
             val permutation = String.format("%3s", Integer.toBinaryString(i)).replace(' ', '0')
-            light.spatial().position = Vector3f(atomicSimulation.simulationData.unitCellDimensions[0] * (permutation[0].code-48) ,
+            light.spatial().position = Vector3f(atomicSimulation.simulationData.unitCellDimensions[0] *
+                (permutation[0].code-48),
                 atomicSimulation.simulationData.unitCellDimensions[1] * (permutation[1].code-48),
                 atomicSimulation.simulationData.unitCellDimensions[2] * (permutation[2].code-48))
             light.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
@@ -52,7 +53,7 @@ class DFTMDExample : SceneryBase("DFTMDExample") {
             while (running) {
                 atomicSimulation.updateFromCube("Fe_snapshot${currentSnapshot}_dens.cube")
                 Thread.sleep(500)
-                currentSnapshot = (currentSnapshot +1) % maxSnapshot
+                currentSnapshot = (currentSnapshot + 1) % maxSnapshot
                 count++
             }
         }

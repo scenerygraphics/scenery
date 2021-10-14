@@ -77,18 +77,21 @@ open class AtomicSimulation(override var name: String = "DFTSimulation", private
         simulationData.unitCellDimensions = simulationData.unitCellDimensions
 
 //         Visualize the density data.
-        volumetricData = Volume.fromBuffer(emptyList(), simulationData.gridDimensions[0], simulationData.gridDimensions[1],
-            simulationData.gridDimensions[2], UnsignedByteType(), hub)
+        volumetricData = Volume.fromBuffer(emptyList(), simulationData.gridDimensions[0],
+            simulationData.gridDimensions[1],
+            simulationData.gridDimensions[2],
+            UnsignedByteType(), hub)
         volumetricData.name = "volume"
         // Note: Volumes centered at the origin are currently offset by -2.0 in each direction
         // (see Volume.kt, line 338), so we're adding 2.0 here.
-        volumetricData.spatial().position = (scalingFactor* Vector3f(simulationData.unitCellOrigin[0],simulationData.unitCellOrigin[1],
+        volumetricData.spatial().position = (scalingFactor * Vector3f(simulationData.unitCellOrigin[0],
+            simulationData.unitCellOrigin[1],
             simulationData.unitCellOrigin[2])).add(
             Vector3f(2.0f, 2.0f, 2.0f)
         )
 
         volumetricData.colormap = Colormap.get("viridis")
-        volumetricData.pixelToWorldRatio = simulationData.gridSpacings[0]*scalingFactor
+        volumetricData.pixelToWorldRatio = simulationData.gridSpacings[0] * scalingFactor
 
         volumetricData.transferFunction = TransferFunction.ramp(0.0f, 0.3f, 0.5f)
         this.addChild(volumetricData)
