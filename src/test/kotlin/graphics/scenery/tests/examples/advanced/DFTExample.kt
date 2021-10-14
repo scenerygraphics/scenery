@@ -33,8 +33,6 @@ class DFTExample : SceneryBase("DFTExample") {
                 (permutation[0].code-48),
                 atomicSimulation.simulationData.unitCellDimensions.y * (permutation[1].code-48),
                 atomicSimulation.simulationData.unitCellDimensions.z * (permutation[2].code-48))
-            light.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
-            light.intensity = 1.0f
             scene.addChild(light)
         }
 
