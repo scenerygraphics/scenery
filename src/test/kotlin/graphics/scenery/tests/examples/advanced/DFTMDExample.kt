@@ -32,8 +32,6 @@ class DFTMDExample : SceneryBase("DFTMDExample") {
                 (permutation[0].code-48),
                 atomicSimulation.simulationData.unitCellDimensions[1] * (permutation[1].code-48),
                 atomicSimulation.simulationData.unitCellDimensions[2] * (permutation[2].code-48))
-            light.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
-            light.intensity = 1.0f
             scene.addChild(light)
         }
 

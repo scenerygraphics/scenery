@@ -8,9 +8,9 @@ import java.nio.ByteBuffer
 /**
  * This class parses density functional theory (common simulation method in solid state physics and theoretical
  * chemistry) calculation. Can be used to visualize single DFT calculation or DFT-MD (=DFT molecular dynamics).
- * @property[normalizeDensityTo] Defines to which value the density is scaled. This is useful when visualizing more then one DFT calculation at the
- * same time, in order to keep the density visualization consistent. Negative values mean the density is scaled
- * per snapshot. Default is -1.0f.
+ * [normalizeDensityTo] Defines to which value the density is scaled. This is useful when visualizing more then one DFT
+ *                      calculation at the same time, in order to keep the density visualization consistent. Negative
+ *                      values mean the density is scaled per snapshot. Default is -1.0f.
  *
  * @author Lenz Fiedler <l.fiedler@hzdr.de>
  */
