@@ -6,7 +6,6 @@ import graphics.scenery.atomicsimulations.AtomicSimulation
 import graphics.scenery.backends.Renderer
 
 /**
- * <Description>
  *  Visualizes a DFT snapshot with volumetric data (electronic density).
  *
  * @author Lenz Fiedler <l.fiedler@hzdr.de>

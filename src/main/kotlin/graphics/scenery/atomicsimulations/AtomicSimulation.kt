@@ -53,7 +53,8 @@ open class AtomicSimulation(override var name: String = "DFTSimulation", private
     /** For dynamic cases: Current timepoint. */
     private var currentTimePoint : Int = 0
 
-    /** Creates an atomic simulation object from a cube file with filename [filename], assigned to
+    /**
+     * Creates an atomic simulation object from a cube file with filename [filename], assigned to
      * a hub instance [hub].
      * */
     fun createFromCube(filename: String, hub: Hub){
