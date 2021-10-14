@@ -7,7 +7,6 @@ import graphics.scenery.backends.Renderer
 import kotlin.concurrent.thread
 
 /**
- * <Description>
  *  Visualizes a DFT-MD trajectory with volumetric data (electronic density).
  *
  * @author Lenz Fiedler <l.fiedler@hzdr.de>
