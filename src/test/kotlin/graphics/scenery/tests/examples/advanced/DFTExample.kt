@@ -17,7 +17,8 @@ class DFTExample : SceneryBase("DFTExample") {
             Renderer.createRenderer(hub, applicationName, scene, 512, 512))
 
         // Create an object for the DFT simulation.
-        val atomicSimulation = AtomicSimulation.fromCube(getDemoFilesPath() + "/dft_data/Fe_snapshot0_dens.cube",
+        val atomicSimulation = AtomicSimulation.fromCube(getDemoFilesPath() +
+            "/dft_data/Fe_snapshot0_dens.cube",
             hub,0.5f, 0.5f)
         scene.addChild(atomicSimulation)
 
@@ -28,7 +29,8 @@ class DFTExample : SceneryBase("DFTExample") {
         }
         lights.mapIndexed { i, light ->
             val permutation = String.format("%3s", Integer.toBinaryString(i)).replace(' ', '0')
-            light.spatial().position = Vector3f(atomicSimulation.simulationData.unitCellDimensions.x * (permutation[0].code-48) ,
+            light.spatial().position = Vector3f(atomicSimulation.simulationData.unitCellDimensions.x *
+                (permutation[0].code-48),
                 atomicSimulation.simulationData.unitCellDimensions.y * (permutation[1].code-48),
                 atomicSimulation.simulationData.unitCellDimensions.z * (permutation[2].code-48))
             light.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
