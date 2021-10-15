@@ -1,4 +1,4 @@
-package graphics.scenery
+package graphics.scenery.proteins
 
 /**
  * Represents an Amino acid with a String as its name and a list of its bonds (which have the following data structure:

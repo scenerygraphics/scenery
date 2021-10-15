@@ -1,5 +1,6 @@
-package graphics.scenery
+package graphics.scenery.proteins
 
+import graphics.scenery.*
 import graphics.scenery.RibbonDiagram.GuidePointCalculation.getVector
 import org.biojava.nbio.structure.Bond
 import org.biojava.nbio.structure.BondImpl
