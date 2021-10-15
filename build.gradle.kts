@@ -1,4 +1,4 @@
-oimport org.gradle.kotlin.dsl.api
+import org.gradle.kotlin.dsl.api
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import scenery.*
 import java.net.URL
