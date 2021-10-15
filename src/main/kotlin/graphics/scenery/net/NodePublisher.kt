@@ -8,7 +8,10 @@ import graphics.scenery.*
 import graphics.scenery.serialization.*
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.Statistics
-import graphics.scenery.volumes.*
+import graphics.scenery.volumes.BufferedVolume
+import graphics.scenery.volumes.RAIVolume
+import graphics.scenery.volumes.Volume
+import graphics.scenery.volumes.VolumeManager
 import net.imglib2.img.basictypeaccess.array.ByteArray
 import org.joml.Vector3f
 import org.objenesis.strategy.StdInstantiatorStrategy
