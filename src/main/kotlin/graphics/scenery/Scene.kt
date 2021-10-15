@@ -3,12 +3,14 @@ package graphics.scenery
 import com.esotericsoftware.kryo.Kryo
 import com.esotericsoftware.kryo.io.Input
 import com.esotericsoftware.kryo.io.Output
-import com.esotericsoftware.kryo.util.DefaultInstantiatorStrategy
 import de.javakaffee.kryoserializers.UUIDSerializer
+import graphics.scenery.attribute.material.DefaultMaterial
+import graphics.scenery.attribute.material.HasMaterial
+import graphics.scenery.attribute.renderable.HasRenderable
+import graphics.scenery.attribute.spatial.HasSpatial
 import graphics.scenery.net.NodePublisher
 import graphics.scenery.net.NodeSubscriber
 import graphics.scenery.serialization.*
-import org.joml.Vector3f
 import graphics.scenery.utils.MaybeIntersects
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
@@ -18,14 +20,15 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import net.imglib2.img.basictypeaccess.array.ByteArray
-import org.objenesis.strategy.StdInstantiatorStrategy
+import org.joml.Vector3f
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.nio.ByteBuffer
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
-import kotlin.collections.ArrayList
+import java.util.stream.Stream
+import kotlin.streams.asSequence
 import kotlin.system.measureTimeMillis
 
 /**
@@ -34,7 +37,7 @@ import kotlin.system.measureTimeMillis
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-open class Scene : Node("RootNode") {
+open class Scene : DefaultNode("RootNode"), HasRenderable, HasMaterial, HasSpatial {
 
     /** Temporary storage of the active observer ([Camera]) of the Scene. */
     var activeObserver: Camera? = null
@@ -47,6 +50,12 @@ open class Scene : Node("RootNode") {
     var onChildrenRemoved = ConcurrentHashMap<String, (Node, Node) -> Unit>()
     /** Callbacks to be called when a child is removed from the scene */
     var onNodePropertiesChanged = ConcurrentHashMap<String, (Node) -> Unit>()
+
+    init {
+        addRenderable()
+        addMaterial()
+        addSpatial()
+    }
 
     /**
      * Adds a [Node] to the Scene, at the position given by [parent]
@@ -210,23 +219,32 @@ open class Scene : Node("RootNode") {
                               ignoredObjects: List<Class<*>>,
                               debug: Boolean = false): RaycastResult {
         if (debug) {
-            val indicatorMaterial = Material()
+            val indicatorMaterial = DefaultMaterial()
             indicatorMaterial.diffuse = Vector3f(1.0f, 0.2f, 0.2f)
             indicatorMaterial.specular = Vector3f(1.0f, 0.2f, 0.2f)
             indicatorMaterial.ambient = Vector3f(0.0f, 0.0f, 0.0f)
 
             for(it in 5..50) {
                 val s = Box(Vector3f(0.08f, 0.08f, 0.08f))
-                s.material = indicatorMaterial
-                s.position = position + direction * it.toFloat()
+                s.setMaterial(indicatorMaterial)
+                s.spatial {
+                    this.position = position + direction * it.toFloat()
+                }
                 this.addChild(s)
             }
         }
 
         val matches = this.discover(this, { node ->
             node.visible && !ignoredObjects.any{it.isAssignableFrom(node.javaClass)}
-        }).map {
-            Pair(it, it.intersectAABB(position, direction))
+        }).flatMap { (
+            if (it is InstancedNode)
+                Stream.concat(Stream.of(it as Node), it.instances.map { instanceNode -> instanceNode as Node }.stream())
+            else
+                Stream.of(it)).asSequence()
+        }.map {
+            Pair(it, it.spatialOrNull()?.intersectAABB(position, direction))
+        }.filter {
+            it.first !is InstancedNode
         }.filter {
             it.second is MaybeIntersects.Intersection && (it.second as MaybeIntersects.Intersection).distance > 0.0f
         }.map {
@@ -238,13 +256,13 @@ open class Scene : Node("RootNode") {
         if (debug) {
             logger.info(matches.joinToString(", ") { "${it.node.name} at distance ${it.distance}" })
 
-            val m = Material()
+            val m = DefaultMaterial()
             m.diffuse = Vector3f(1.0f, 0.0f, 0.0f)
             m.specular = Vector3f(0.0f, 0.0f, 0.0f)
             m.ambient = Vector3f(0.0f, 0.0f, 0.0f)
 
             matches.firstOrNull()?.let {
-                it.node.material = m
+                it.node.setMaterial(m)
             }
         }
 
