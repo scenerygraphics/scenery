@@ -1,13 +1,17 @@
-package graphics.scenery.tests.examples
+package graphics.scenery.tests.examples.advanced
 
 import org.joml.Vector3f
 import graphics.scenery.*
+import graphics.scenery.attribute.material.Material
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.controls.TrackerRole
 import graphics.scenery.numerics.Random
 import graphics.scenery.proteins.AminoAcidsStickAndBall
+import graphics.scenery.proteins.Protein
+import graphics.scenery.proteins.Rainbow
+import graphics.scenery.proteins.RibbonDiagram
 import org.scijava.ui.behaviour.ClickBehaviour
 import kotlin.concurrent.thread
 import kotlin.system.exitProcess
@@ -17,7 +21,8 @@ import kotlin.system.exitProcess
  *
  * @author Justin Buerger <burger@mpi-cbg.de>
  */
-class VRSidecChainsExample : SceneryBase(VRSidecChainsExample::class.java.simpleName,
+class VRSidecChainsExample : SceneryBase(
+    VRSidecChainsExample::class.java.simpleName,
     windowWidth = 1920, windowHeight = 1200) {
     private lateinit var hmd: OpenVRHMD
     private lateinit var protein: Protein
@@ -40,7 +45,7 @@ class VRSidecChainsExample : SceneryBase(VRSidecChainsExample::class.java.simple
         renderer?.toggleVR()
 
         val cam: Camera = DetachedHeadCamera(hmd)
-        cam.position = Vector3f(0.0f, 0.0f, 0.0f)
+        cam.spatial().position = Vector3f(0.0f, 0.0f, 0.0f)
 
         cam.perspectiveCamera(50.0f, windowWidth, windowHeight)
 
@@ -61,16 +66,14 @@ class VRSidecChainsExample : SceneryBase(VRSidecChainsExample::class.java.simple
         val stageLight = PointLight(radius = 150.0f)
         stageLight.name = "StageLight"
         stageLight.intensity = 0.5f
-        stageLight.position = Vector3f(0.0f, 0.0f, 5.0f)
+        stageLight.spatial().position = Vector3f(0.0f, 0.0f, 5.0f)
         scene.addChild(stageLight)
 
         hullbox = Box(Vector3f(30.0f, 30.0f, 30.0f), insideNormals = true)
-        val hullboxMaterial = Material()
-        hullboxMaterial.ambient = Vector3f(0.6f, 0.6f, 0.6f)
-        hullboxMaterial.diffuse = Vector3f(0.4f, 0.4f, 0.4f)
-        hullboxMaterial.specular = Vector3f(0.0f, 0.0f, 0.0f)
-        hullboxMaterial.cullingMode = Material.CullingMode.Front
-        hullbox.material = hullboxMaterial
+        hullbox.material {  ambient = Vector3f(0.6f, 0.6f, 0.6f)
+                            diffuse = Vector3f(0.4f, 0.4f, 0.4f)
+                            specular = Vector3f(0.0f, 0.0f, 0.0f)
+                            cullingMode = Material.CullingMode.Front }
 
         scene.addChild(hullbox)
 
@@ -98,9 +101,10 @@ class VRSidecChainsExample : SceneryBase(VRSidecChainsExample::class.java.simple
                                 rainbow.colorVector(it)
                             }
                             ribbon.children.flatMap { subProtein -> subProtein.children }.flatMap { curve -> curve.children }.forEachIndexed { index, subCurve ->
-                                if(controller.children.first().intersects(subCurve)) {
-                                    subCurve.material.diffuse = Vector3f(1f, 0f, 0f)
+                                controller.children.first().ifSpatial { if(intersects(subCurve)) {
+                                    subCurve.ifMaterial { }?.diffuse = Vector3f(1f, 0f, 0f)
                                     chosenCurveSection.add(index)
+                                }
                                 }
                             }
                         }
@@ -151,7 +155,7 @@ class VRSidecChainsExample : SceneryBase(VRSidecChainsExample::class.java.simple
                             sideChains.children.last().visible = !sideChains.children.last().visible
                         }
                         else -> {
-                            val curveSectionPosition = subcurves[curveSectionIndex].position
+                            val curveSectionPosition = subcurves[curveSectionIndex].ifSpatial{}?.position
                             val ca1 = residues[curveSectionIndex - 1].getAtom("CA")
                             val ca1Vec = Vector3f(ca1.x.toFloat(), ca1.y.toFloat(), ca1.z.toFloat())
                             val ca2 = residues[curveSectionIndex].getAtom("CA")
