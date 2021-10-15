@@ -20,7 +20,7 @@ open class GamepadMovementControl(
                              override val axis: List<Component.Identifier>,
                              var invertX: Boolean = false,
                              var invertY: Boolean = false,
-                             private val camera: () -> Node?) : GamepadBehaviour {
+                             private val node: () -> Node?) : GamepadBehaviour {
     /** Speed multiplier for camera movement */
     var speedMultiplier = 0.04f
     /** Threshold below which the behaviour does not trigger */
@@ -32,9 +32,9 @@ open class GamepadMovementControl(
     private var inversionFactorY = 1.0f
 
     protected inner class NodeDelegate {
-        /** Returns the [graphics.scenery.Camera] resulting from the evaluation of [camera] */
+        /** Returns the [graphics.scenery.Camera] resulting from the evaluation of [node] */
         operator fun getValue(thisRef: Any?, property: KProperty<*>): Node? {
-            return camera.invoke()
+            return node.invoke()
         }
 
         /** Setting the value is not supported */
@@ -69,29 +69,30 @@ open class GamepadMovementControl(
             } else {
                 1.0f
             }
-
-            if(cam is Camera) {
-                when (axis) {
-                    Component.Identifier.Axis.X -> {
-                        cam.position = cam.position + Vector3f(cam.forward).cross(cam.up).normalize() * value * speedMultiplier * inversionFactorX
+            cam.ifSpatial {
+                if(cam is Camera) {
+                    when (axis) {
+                        Component.Identifier.Axis.X -> {
+                            position += Vector3f(cam.forward).cross(cam.up).normalize() * value * speedMultiplier * inversionFactorX
+                        }
+                        Component.Identifier.Axis.Y -> {
+                            position += cam.forward * -1.0f * value * speedMultiplier * inversionFactorY
+                        }
+                        Component.Identifier.Axis.Z -> {
+                            position += cam.up * value * speedMultiplier
+                        }
                     }
-                    Component.Identifier.Axis.Y -> {
-                        cam.position = cam.position + cam.forward * -1.0f * value * speedMultiplier * inversionFactorY
-                    }
-                    Component.Identifier.Axis.Z -> {
-                        cam.position = cam.position + cam.up * value * speedMultiplier
-                    }
-                }
-            } else {
-                when (axis) {
-                    Component.Identifier.Axis.X -> {
-                        cam.position = cam.position + Vector3f(1.0f, 0.0f, 0.0f) * value * speedMultiplier * inversionFactorX
-                    }
-                    Component.Identifier.Axis.Y -> {
-                        cam.position = cam.position + Vector3f(0.0f, 0.0f, -1.0f) * -1.0f * value * speedMultiplier * inversionFactorY
-                    }
-                    Component.Identifier.Axis.Z -> {
-                        cam.position = cam.position + Vector3f(0.0f, 1.0f, 0.0f) * value * speedMultiplier
+                } else {
+                    when (axis) {
+                        Component.Identifier.Axis.X -> {
+                            position += Vector3f(1.0f, 0.0f, 0.0f) * value * speedMultiplier * inversionFactorX
+                        }
+                        Component.Identifier.Axis.Y -> {
+                            position += Vector3f(0.0f, 0.0f, -1.0f) * -1.0f * value * speedMultiplier * inversionFactorY
+                        }
+                        Component.Identifier.Axis.Z -> {
+                            position += Vector3f(0.0f, 1.0f, 0.0f) * value * speedMultiplier
+                        }
                     }
                 }
             }
