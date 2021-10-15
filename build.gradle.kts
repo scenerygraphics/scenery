@@ -116,6 +116,82 @@ tasks {
         sourceCompatibility = project.properties["sourceCompatibility"]?.toString() ?: default
     }
 
+    withType<GenerateMavenPom>().configureEach {
+        val matcher = Regex("""generatePomFileFor(\w+)Publication""").matchEntire(name)
+        val publicationName = matcher?.let { it.groupValues[1] }
+
+        pom.properties.empty()
+
+        pom.withXml {
+            // Add parent to the generated pom
+            var parent = asNode().appendNode("parent")
+            parent.appendNode("groupId", "org.scijava")
+            parent.appendNode("artifactId", "pom-scijava")
+            parent.appendNode("version", "31.1.0")
+            parent.appendNode("relativePath")
+
+            // Update the dependencies and properties
+            var dependenciesNode = asNode().appendNode("dependencies")
+            var propertiesNode = asNode().appendNode("properties")
+            propertiesNode.appendNode("inceptionYear", 2016)
+
+            val versionedArtifacts = listOf(
+                "flatlaf",
+                "kotlin-stdlib-common",
+                "kotlin-stdlib",
+                "kotlinx-coroutines-core")
+
+            configurations.implementation.allDependencies.forEach {
+                var artifactId = it.name
+
+                var propertyName = "$artifactId.version"
+
+                if( versionedArtifacts.contains(artifactId) ) {
+                    // add "<artifactid.version>[version]</artifactid.version>" to pom
+                    propertiesNode.appendNode(propertyName, it.version)
+                }
+
+                var dependencyNode = dependenciesNode.appendNode("dependency")
+                dependencyNode.appendNode("groupId", it.group)
+                dependencyNode.appendNode("artifactId", artifactId)
+                dependencyNode.appendNode("version", "\${$propertyName}")
+
+                // Custom per artifact tweaks
+                println(artifactId)
+                if("\\-bom".toRegex().find(artifactId) != null) {
+                    dependencyNode.appendNode("type", "pom")
+                }
+                // from https://github.com/scenerygraphics/sciview/pull/399#issuecomment-904732945
+                if(artifactId == "formats-gpl") {
+                    var exclusions = dependencyNode.appendNode("exclusions")
+                    var jacksonCore = exclusions.appendNode("exclusion")
+                    jacksonCore.appendNode("groupId", "com.fasterxml.jackson.core")
+                    jacksonCore.appendNode("artifactId", "jackson-core")
+                    var jacksonAnnotations = exclusions.appendNode("exclusion")
+                    jacksonAnnotations.appendNode("groupId", "com.fasterxml.jackson.core")
+                    jacksonAnnotations.appendNode("artifactId", "jackson-annotations")
+                }
+                //dependencyNode.appendNode("scope", it.scope)
+            }
+
+            var depStartIdx = "<dependencyManagement>".toRegex().find(asString())?.range?.start
+            var depEndIdx = "</dependencyManagement>".toRegex().find(asString())?.range?.last
+            if (depStartIdx != null) {
+                if (depEndIdx != null) {
+                    asString().replace(depStartIdx, depEndIdx+1, "")
+                }
+            }
+
+            depStartIdx = "<dependencies>".toRegex().find(asString())?.range?.start
+            depEndIdx = "</dependencies>".toRegex().find(asString())?.range?.last
+            if (depStartIdx != null) {
+                if (depEndIdx != null) {
+                    asString().replace(depStartIdx, depEndIdx+1, "")
+                }
+            }
+        }
+    }
+
     dokkaHtml {
         enabled = isRelease
         dokkaSourceSets.configureEach {
