@@ -156,7 +156,8 @@ tasks {
                 "art-dtrack-sdk",
                 "spirvcrossj",
                 "jvrpn",
-                "jogl-minimal")
+                "jogl-minimal",
+                "jinput")
 
             configurations.implementation.allDependencies.forEach {
                 var artifactId = it.name
