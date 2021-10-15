@@ -1,6 +1,5 @@
 package graphics.scenery.proteins
 
-import graphics.scenery.proteins.AminoAcid
 import kotlin.collections.ArrayList as ArrayList1
 
 /**
