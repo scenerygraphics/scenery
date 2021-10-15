@@ -7,9 +7,9 @@ import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.controls.TrackerRole
 import graphics.scenery.numerics.Random
+import graphics.scenery.proteins.AminoAcidsStickAndBall
 import org.scijava.ui.behaviour.ClickBehaviour
 import kotlin.concurrent.thread
-import kotlin.math.min
 import kotlin.system.exitProcess
 
 /**

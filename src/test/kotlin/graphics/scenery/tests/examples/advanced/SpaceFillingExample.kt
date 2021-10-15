@@ -3,6 +3,7 @@ package graphics.scenery.tests.examples.advanced
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
+import graphics.scenery.proteins.StickAndBallProteinModel
 import org.joml.Vector3f
 
 /**
