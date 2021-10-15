@@ -1,7 +1,7 @@
 package graphics.scenery.proteins
 
 import graphics.scenery.*
-import graphics.scenery.RibbonDiagram.GuidePointCalculation.getVector
+import graphics.scenery.primitives.Cylinder
 import graphics.scenery.proteins.RibbonDiagram.GuidePointCalculation.getVector
 import org.biojava.nbio.structure.Bond
 import org.biojava.nbio.structure.BondImpl
@@ -31,13 +31,12 @@ class AminoAcidsStickAndBall(val protein: Protein, displayExternalMolecules: Boo
                 .forEach {
                     val sceneryElement = periodicTable.findElementByNumber(it.atomicNumber)
                     val s = Icosphere(0.15f, 2)
-                    s.material = ShaderMaterial.fromFiles("DefaultDeferredInstanced.vert", "DefaultDeferred.frag")
+                    s.setMaterial(ShaderMaterial.fromFiles("DefaultDeferredInstanced.vert", "DefaultDeferred.frag"))
                     if (sceneryElement.color != null) {
-                        s.material.diffuse = sceneryElement.color
+                        s.ifMaterial { diffuse = sceneryElement.color }
                         //s.material.ambient = element.color
                         //s.material.specular = element.color
                     }
-                    s.instancedProperties["ModelMatrix"] = { s.world }
                     atomMasters[it] = s
                 }
             group.atoms.filter {
@@ -48,21 +47,20 @@ class AminoAcidsStickAndBall(val protein: Protein, displayExternalMolecules: Boo
                 }
             }.forEach {
                 val element = periodicTable.findElementByNumber(it.element.atomicNumber)
-                val s = Node()
+                val master = atomMasters[it.element]
+                val masterInstancedNode = InstancedNode(master!!)
+                val s = masterInstancedNode.addInstance()
                 val position = Vector3f()
                 it.getVector().sub(centroid, position)
-                s.position = position
-                s.instancedProperties["ModelMatrix"] = { s.world }
+                spatial().position = position
                 if (element.color != null) {
-                    s.material.diffuse = element.color
+                    s.ifMaterial {  diffuse = element.color }
                     //s.material.ambient = element.color
                     //s.material.specular = element.color
                 }
-                val master = atomMasters[it.element]
-                master?.instances?.add(s)
             }
 
-            atomMasters.filter { it.value.instances.isNotEmpty() }
+            atomMasters.filter { InstancedNode(it.value).instances.isNotEmpty() }
                 .forEach { aminoAcidMesh.addChild(it.value) }
             //get all bonds
             val storedAAList = aminoList.filter { it.name == group.pdbName }
@@ -82,14 +80,15 @@ class AminoAcidsStickAndBall(val protein: Protein, displayExternalMolecules: Boo
                 }
                 //display bonds
                 val c = Cylinder(0.025f, 1.0f, 10)
-                c.material = ShaderMaterial.fromFiles("DefaultDeferredInstanced.vert", "DefaultDeferred.frag")
-                c.instancedProperties["ModelMatrix1"] = { c.model }
-                c.material.diffuse = Vector3f(1.0f, 1.0f, 1.0f)
+                c.setMaterial(ShaderMaterial.fromFiles("DefaultDeferredInstanced.vert", "DefaultDeferred.frag"))
+                c.ifMaterial {
+                    diffuse = Vector3f(1.0f, 1.0f, 1.0f)
+                }
+                val cInstancedNode = InstancedNode(c)
                 //stores second bond of double bonds
-                val cylinders2 = ArrayList<Mesh>(bonds.filter { it.bondOrder ==2 }.size)
-                val cylinders = bonds.map {
-                    val bond = Mesh()
-                    bond.parent = this
+                bonds.forEach {
+                    val bondInstanced = cInstancedNode.addInstance()
+                    bondInstanced.parent = this
                     val atomA = it.atomA
                     val atomB = it.atomB
                     val positionA = Vector3f()
@@ -109,26 +108,19 @@ class AminoAcidsStickAndBall(val protein: Protein, displayExternalMolecules: Boo
                         positionA.sub(perpendicular.mul(0.05f, positionA1), positionA1)
                         val positionB1 = Vector3f()
                         positionB.sub(perpendicular.mul(0.05f, positionB1), positionB1)
-                        bond.orientBetweenPoints(positionA1, positionB1, true, true)
-                        bond.instancedProperties["ModelMatrix1"] = { bond.model }
-                        val bond2 = Mesh()
-                        bond2.parent = this
+                        spatial().orientBetweenPoints(positionA1, positionB1, true, true)
+                        val bond2 = cInstancedNode.addInstance()
+                        bond2.parent = InstancedNode(c)
                         val positionA2 = Vector3f()
                         positionA.add(perpendicular.mul(0.05f, positionA2), positionA2)
                         val positionB2 = Vector3f()
                         positionB.add(perpendicular.mul(0.05f, positionB2), positionB2)
-                        bond2.orientBetweenPoints(positionA2, positionB2, true, true)
-                        bond2.instancedProperties["ModelMatrix1"] = { bond2.model }
-                        cylinders2.add(bond2)
+                        spatial().orientBetweenPoints(positionA2, positionB2, true, true)
                     }
                     else {
-                        bond.orientBetweenPoints(positionA, positionB, true, true)
-                        bond.instancedProperties["ModelMatrix1"] = { bond.model }
+                        spatial().orientBetweenPoints(positionA, positionB, true, true)
                     }
-                    bond
                 }
-                c.instances.addAll(cylinders)
-                c.instances.addAll(cylinders2)
                 aminoAcidMesh.addChild(c)
             }
             else {
@@ -141,4 +133,3 @@ class AminoAcidsStickAndBall(val protein: Protein, displayExternalMolecules: Boo
 
     }
 }
-
