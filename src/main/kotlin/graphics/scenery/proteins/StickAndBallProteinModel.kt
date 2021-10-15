@@ -1,7 +1,8 @@
-package graphics.scenery
+package graphics.scenery.proteins
 
+import graphics.scenery.*
 import org.joml.*
-import graphics.scenery.PeriodicTable
+import graphics.scenery.primitives.Cylinder
 import org.biojava.nbio.structure.*
 
 /**
@@ -20,27 +21,26 @@ class StickAndBallProteinModel(protein: Protein, spaceFilling: Boolean = false,
 
         val atoms: Array<Atom> = StructureTools.getAllAtomArray(structure)
 
-        val atomMasters = HashMap<Element, Node>()
+        val atomMasters = HashMap<Element, InstancedNode>()
 
         enumValues<Element>().forEach {
             val sceneryElement = periodicTable.findElementByNumber(it.atomicNumber)
-             val s = if(spaceFilling) {
-                        if(sceneryElement.atomicRadius != null) {
-                            Icosphere(sceneryElement.atomicRadius/100f, 2)
-                        }
-                        else {
-                            Icosphere(0.05f, 2)
-                        }
-                    }
-                    else {  Icosphere(0.05f, 2) }
-            s.material = ShaderMaterial.fromFiles("DefaultDeferredInstanced.vert", "DefaultDeferred.frag")
+            val s = if(spaceFilling) {
+                if(sceneryElement.atomicRadius != null) {
+                    Icosphere(sceneryElement.atomicRadius/100f, 2)
+                }
+                else {
+                    Icosphere(0.05f, 2)
+                }
+            }
+            else {  Icosphere(0.05f, 2) }
+            s.setMaterial(ShaderMaterial.fromFiles("DefaultDeferredInstanced.vert", "DefaultDeferred.frag"))
             if (sceneryElement.color != null) {
-                s.material.diffuse = sceneryElement.color
+                s.ifMaterial {  diffuse = sceneryElement.color }
                 //s.material.ambient = element.color
                 //s.material.specular = element.color
             }
-            s.instancedProperties["ModelMatrix"] = { s.world }
-            atomMasters[it] = s
+            atomMasters[it] = InstancedNode(s)
         }
 
         atoms.filter {
@@ -49,17 +49,18 @@ class StickAndBallProteinModel(protein: Protein, spaceFilling: Boolean = false,
             }
             else { it.group.hasAminoAtoms() }
         }.forEach {
-            val element = periodicTable.findElementByNumber(it.element.atomicNumber)
-            val s = Node()
-            s.position = (Vector3f(it.x.toFloat(), it.y.toFloat(), it.z.toFloat()))
-            s.instancedProperties["ModelMatrix"] = { s.world }
-            if (element.color != null) {
-                s.material.diffuse = element.color
-                //s.material.ambient = element.color
-                //s.material.specular = element.color
-            }
             val master = atomMasters[it.element]
-            master?.instances?.add(s)
+            val element = periodicTable.findElementByNumber(it.element.atomicNumber)
+            val s = master!!.addInstance()
+            s.spatial().position = (Vector3f(it.x.toFloat(), it.y.toFloat(), it.z.toFloat()))
+            if (element.color != null) {
+                s.ifMaterial {
+                    diffuse = element.color
+                    //s.material.ambient = element.color
+                    //s.material.specular = element.color
+                }
+            }
+            s.parent = this
         }
 
         atomMasters.filter { it.value.instances.isNotEmpty() }
@@ -67,9 +68,11 @@ class StickAndBallProteinModel(protein: Protein, spaceFilling: Boolean = false,
 
         if (!spaceFilling) {
             val c = Cylinder(0.025f, 1.0f, 10)
-            c.material = ShaderMaterial.fromFiles("DefaultDeferredInstanced.vert", "DefaultDeferred.frag")
-            c.instancedProperties["ModelMatrix1"] = { c.model }
-            c.material.diffuse = Vector3f(1.0f, 1.0f, 1.0f)
+            c.setMaterial(ShaderMaterial.fromFiles("DefaultDeferredInstanced.vert", "DefaultDeferred.frag"))
+            c.ifMaterial {
+                diffuse = Vector3f(1.0f, 1.0f, 1.0f)
+            }
+            val cInstancedNode = InstancedNode(c)
 
             val bonds: MutableList<Bond> = atoms.filter { it.bonds != null }.flatMap { it.bonds }.toMutableList()
 
@@ -114,21 +117,17 @@ class StickAndBallProteinModel(protein: Protein, spaceFilling: Boolean = false,
                 }
             }
 
-            val cylinders = bonds.map {
-                val bond = Mesh()
+            bonds.forEach {
+                val bond = cInstancedNode.addInstance()
                 bond.parent = this
                 val atomA = it.atomA
                 val atomB = it.atomB
-                bond.orientBetweenPoints(
+                bond.spatial().orientBetweenPoints(
                     Vector3f(atomA.x.toFloat(), atomA.y.toFloat(), atomA.z.toFloat()),
                     Vector3f(atomB.x.toFloat(), atomB.y.toFloat(), atomB.z.toFloat()), true, true
                 )
-                bond.instancedProperties["ModelMatrix1"] = { bond.model }
-                bond
             }
-            c.instances.addAll(cylinders)
-
-            this.addChild(c)
+            this.addChild(cInstancedNode)
         }
     }
 }
