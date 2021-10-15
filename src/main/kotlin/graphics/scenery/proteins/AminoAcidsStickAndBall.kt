@@ -2,6 +2,7 @@ package graphics.scenery.proteins
 
 import graphics.scenery.*
 import graphics.scenery.RibbonDiagram.GuidePointCalculation.getVector
+import graphics.scenery.proteins.RibbonDiagram.GuidePointCalculation.getVector
 import org.biojava.nbio.structure.Bond
 import org.biojava.nbio.structure.BondImpl
 import org.biojava.nbio.structure.Element
