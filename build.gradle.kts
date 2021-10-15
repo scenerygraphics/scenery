@@ -1,4 +1,4 @@
-import org.gradle.kotlin.dsl.api
+oimport org.gradle.kotlin.dsl.api
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import scenery.*
 import java.net.URL
@@ -139,7 +139,24 @@ tasks {
                 "flatlaf",
                 "kotlin-stdlib-common",
                 "kotlin-stdlib",
-                "kotlinx-coroutines-core")
+                "kotlinx-coroutines-core",
+                "jocl",
+                "jeromq",
+                "kryo-serializers",
+                "msgpack-core",
+                "jackson-dataformat-msgpack",
+                "ffmpeg",
+                "reflections",
+                "classgraph",
+                "lwjgl3-awt",
+                "biojava-core",
+                "biojava-structure",
+                "biojava-modfinder",
+                "kotlin-scripting-jsr223",
+                "art-dtrack-sdk",
+                "spirvcrossj",
+                "jvrpn",
+                "jogl-minimal")
 
             configurations.implementation.allDependencies.forEach {
                 var artifactId = it.name
