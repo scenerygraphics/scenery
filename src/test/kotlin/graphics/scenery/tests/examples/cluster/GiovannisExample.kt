@@ -10,6 +10,8 @@ import graphics.scenery.controls.behaviours.GamepadRotationControl
 import graphics.scenery.net.NodePublisher
 import graphics.scenery.net.NodeSubscriber
 import graphics.scenery.numerics.Random
+import graphics.scenery.proteins.Protein
+import graphics.scenery.proteins.RibbonDiagram
 import graphics.scenery.utils.Statistics
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.volumes.BufferedVolume
@@ -79,12 +81,12 @@ class GiovannisExample: SceneryBase("Clustered Volume Rendering example, Giovann
 //        }
 
         val hull = Box.hulledBox(Vector3f(10.0f))
-        hull.position = Vector3f(0.0f,4.0f,0.0f)
-        hull.material.diffuse = Vector3f(0.1f)
+        hull.spatial().position = Vector3f(0.0f,4.0f,0.0f)
+        hull.material().diffuse = Vector3f(0.1f)
       //  scene.addChild(hull)
 
         val protein = RibbonDiagram(Protein.fromID("4kcp"))
-        protein.scale = Vector3f(0.02f)
+        protein.spatial().scale = Vector3f(0.02f)
         // scene.addChild(protein)
 
         val basepath = if(System.getProperty("scenery.master").toBoolean()) {
@@ -105,11 +107,13 @@ class GiovannisExample: SceneryBase("Clustered Volume Rendering example, Giovann
 
             volume.name = "volume"
             volume.colormap = Colormap.get("hot") // jet, hot, rainbow, plasma, grays
-            volume.position = Vector3f(1.0f, 1.0f, 1.0f)
-            volume.scale = Vector3f(2.0f, 2.0f, 2.0f)
+            volume.spatial {
+                position = Vector3f(1.0f, 1.0f, 1.0f)
+                scale = Vector3f(2.0f, 2.0f, 2.0f)
+            }
             //volume.rotation = volume.rotation.rotationZ(PI.toFloat()/2.0f)
             //volume.rotation = volume.rotation.rotationX(PI.toFloat())
-            volume.rotation = volume.rotation.rotationXYZ(PI.toFloat()/2.0f, PI.toFloat()/4.0f,-(PI.toFloat())/4.0f)
+            volume.spatial().rotation = volume.rotation.rotationXYZ(PI.toFloat()/2.0f, PI.toFloat()/4.0f,-(PI.toFloat())/4.0f)
             volume.ds.converterSetups[0].setDisplayRange(150.0, 4000.0)
             //volume.ds.converterSetups[0].setDisplayRange(10.0, 6000.0)
 
@@ -123,8 +127,10 @@ class GiovannisExample: SceneryBase("Clustered Volume Rendering example, Giovann
 
             volume.name = "volume"
             volume.colormap = Colormap.get("hot") // jet, hot, rainbow, plasma, grays
-            volume.position = Vector3f(1.0f, 1.0f, 1.0f)
-            volume.scale = Vector3f(5.0f, 25.0f, 5.0f)
+            volume.spatial {
+                position = Vector3f(1.0f, 1.0f, 1.0f)
+                scale = Vector3f(5.0f, 25.0f, 5.0f)
+            }
             volume.ds.converterSetups[0].setDisplayRange(20.0, 500.0)
             volume.transferFunction = TransferFunction.ramp(0.001f, 0.5f)
             scene.addChild(volume)
@@ -136,7 +142,7 @@ class GiovannisExample: SceneryBase("Clustered Volume Rendering example, Giovann
         val lights = Light.createLightTetrahedron<PointLight>(spread = 5.0f, radius = 20.0f)
         lights.forEach { scene.addChild(it) }
         val l = PointLight(5.0f)
-        l.position = Vector3f(0.0f, 2.0f, 2.0f)
+        l.spatial().position = Vector3f(0.0f, 2.0f, 2.0f)
         scene.addChild(l)
 
         /*publishedNodes.add(cam)
