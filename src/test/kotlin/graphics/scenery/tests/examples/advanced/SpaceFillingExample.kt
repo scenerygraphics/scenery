@@ -1,8 +1,10 @@
 package graphics.scenery.tests.examples.advanced
 
 import graphics.scenery.*
+import graphics.scenery.attribute.material.Material
 import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
+import graphics.scenery.proteins.Protein
 import graphics.scenery.proteins.StickAndBallProteinModel
 import org.joml.Vector3f
 
@@ -26,14 +28,16 @@ class SpaceFillingExample: SceneryBase("SpaceFillingDiagram", windowWidth = 1280
 
         val lightbox = Box(Vector3f(500.0f, 500.0f, 500.0f), insideNormals = true)
         lightbox.name = "Lightbox"
-        lightbox.material.diffuse = Vector3f(0.1f, 0.1f, 0.1f)
-        lightbox.material.roughness = 1.0f
-        lightbox.material.metallic = 0.0f
-        lightbox.material.cullingMode = Material.CullingMode.None
+        lightbox.material {
+            diffuse = Vector3f(0.1f, 0.1f, 0.1f)
+            roughness = 1.0f
+            metallic = 0.0f
+            cullingMode = Material.CullingMode.None
+        }
         scene.addChild(lightbox)
         val lights = (0 until 8).map {
             val l = PointLight(radius = 80.0f)
-            l.position = Vector3f(
+            l.spatial().position = Vector3f(
                 Random.randomFromRange(-rowSize/2.0f, rowSize/2.0f),
                 Random.randomFromRange(-rowSize/2.0f, rowSize/2.0f),
                 Random.randomFromRange(1.0f, 5.0f)
@@ -50,7 +54,7 @@ class SpaceFillingExample: SceneryBase("SpaceFillingDiagram", windowWidth = 1280
         val stageLight = PointLight(radius = 350.0f)
         stageLight.name = "StageLight"
         stageLight.intensity = 0.5f
-        stageLight.position = Vector3f(0.0f, 0.0f, 5.0f)
+        stageLight.spatial().position = Vector3f(0.0f, 0.0f, 5.0f)
         scene.addChild(stageLight)
 
         val cameraLight = PointLight(radius = 5.0f)
@@ -59,7 +63,7 @@ class SpaceFillingExample: SceneryBase("SpaceFillingDiagram", windowWidth = 1280
         cameraLight.intensity = 0.8f
 
         val cam: Camera = DetachedHeadCamera()
-        cam.position = Vector3f(0.0f, 0.0f, 15.0f)
+        cam.spatial().position = Vector3f(0.0f, 0.0f, 15.0f)
         cam.perspectiveCamera(50.0f, windowWidth, windowHeight)
         scene.addChild(cam)
 
