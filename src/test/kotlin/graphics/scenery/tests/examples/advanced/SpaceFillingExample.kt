@@ -54,7 +54,7 @@ class SpaceFillingExample: SceneryBase("SpaceFillingDiagram", windowWidth = 1280
         val stageLight = PointLight(radius = 350.0f)
         stageLight.name = "StageLight"
         stageLight.intensity = 0.5f
-        stageLight.position = Vector3f(0.0f, 0.0f, 5.0f)
+        stageLight.spatial().position = Vector3f(0.0f, 0.0f, 5.0f)
         scene.addChild(stageLight)
 
         val cameraLight = PointLight(radius = 5.0f)
@@ -63,7 +63,7 @@ class SpaceFillingExample: SceneryBase("SpaceFillingDiagram", windowWidth = 1280
         cameraLight.intensity = 0.8f
 
         val cam: Camera = DetachedHeadCamera()
-        cam.position = Vector3f(0.0f, 0.0f, 15.0f)
+        cam.spatial().position = Vector3f(0.0f, 0.0f, 15.0f)
         cam.perspectiveCamera(50.0f, windowWidth, windowHeight)
         scene.addChild(cam)
 
