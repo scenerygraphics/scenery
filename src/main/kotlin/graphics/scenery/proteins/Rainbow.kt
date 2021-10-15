@@ -58,8 +58,8 @@ class Rainbow {
                 it.ifMaterial {
                     diffuse = colorList[listIndex]
                 }
+                listIndex++
             }
-            listIndex++
         }
     }
 }
