@@ -13,6 +13,7 @@ import graphics.scenery.proteins.Protein
 import graphics.scenery.proteins.RibbonDiagram
 import net.java.games.input.Component
 import org.joml.Vector3f
+import java.util.*
 import kotlin.time.Duration
 import kotlin.time.ExperimentalTime
 import kotlin.time.milliseconds
@@ -54,7 +55,7 @@ class ProteinComparisonExample: SceneryBase("Protein Comparison Example") {
         lights.forEach { scene.addChild(it) }
 
         val protein1 = RibbonDiagram(Protein.fromID("2zzm"))
-        protein1.name = protein1.protein.structure.name.toLowerCase()
+        protein1.name = protein1.protein.structure.name.lowercase(Locale.getDefault())
         protein1.spatial {
             scale = Vector3f(0.04f)
             position = Vector3f(2.0f, 0.0f, 0.0f)
@@ -66,7 +67,7 @@ class ProteinComparisonExample: SceneryBase("Protein Comparison Example") {
         grid1.gridColor = Vector3f(1.0f, 0.0f, 0.0f)
 
         val protein2 = RibbonDiagram(Protein.fromID("4yvj"))
-        protein2.name = protein2.protein.structure.name.toLowerCase()
+        protein2.name = protein2.protein.structure.name.lowercase(Locale.getDefault())
         protein2.spatial {
             scale = Vector3f(0.04f)
             position = Vector3f(-2.0f, 0.0f, 1.5f)

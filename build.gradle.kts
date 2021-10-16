@@ -9,12 +9,12 @@ plugins {
     java
     kotlin("jvm") version ktVersion
     scenery.base
-//    scenery.docs
+    //    scenery.docs
     scenery.publish
     scenery.sign
     id("org.jetbrains.dokka") version "1.4.30"
     jacoco
-    id("sciJava.platform") version "30.0.0+15" // workaround for jitpack issue
+    //    id("sciJava.platform") version "30.0.0+15" // workaround for jitpack issue
     id("com.github.johnrengelman.shadow") version "7.0.0"
 }
 
@@ -29,28 +29,32 @@ repositories {
 dependencies {
     // we cant use a platform because of a jitpack issue, we apply the dependencies constraints via
     // the sciJava.platform plugin above in the `plugins {}` scope
-//    implementation(platform("sciJava:platform:30.0.0+6"))
-//    implementation(platform("org.scijava:pom-scijava:30.0.0"))
+    //    implementation(platform("sciJava:platform:30.0.0+6"))
+    implementation(platform("org.scijava:pom-scijava:31.1.0"))
 
     implementation(platform(kotlin("bom")))
     implementation(kotlin("stdlib-jdk8"))
     implementation(kotlin("reflect"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.5.0")
 
-    implementation(jogamp.gluegen, joglNatives)
-    implementation(jogamp.jogl, joglNatives)
-    implementation(slf4j.api)
-    implementation(misc.cleargl)
-    implementation(misc.joml)
-    implementation("net.java.jinput:jinput:2.0.9", "natives-all")
+    implementation("org.jogamp.gluegen:gluegen-rt-main")
+    joglNatives.forEach { runtimeOnly("org.jogamp.gluegen", "gluegen-rt", classifier = it) }
+    implementation("org.jogamp.jogl:jogl-all-main")
+    joglNatives.forEach { runtimeOnly("org.jogamp.jogl", "jogl-all", classifier = it) }
+    implementation("org.slf4j:slf4j-api")
+    implementation("net.clearvolume:cleargl")
+    implementation("org.joml:joml")
+    implementation("net.java.jinput:jinput:2.0.9")
+    runtimeOnly("net.java.jinput", "jinput", "2.0.9", classifier = "natives-all")
     implementation("org.jocl:jocl:2.0.2")
-    implementation(sciJava.common)
-    implementation(sciJava.scriptEditor)
-    implementation(sciJava.uiBehaviour)
-    implementation(sciJava.scriptingJavascript)
-    implementation(sciJava.scriptingJython)
-    implementation(misc.trove)
-    implementation(jna.bundles.all)
+    implementation("org.scijava:scijava-common")
+    implementation("org.scijava:script-editor")
+    implementation("org.scijava:ui-behaviour")
+    implementation("org.scijava:scripting-javascript")
+    implementation("org.scijava:scripting-jython")
+    implementation("net.sf.trove4j:trove4j")
+    implementation("net.java.dev.jna:jna")
+        implementation("net.java.dev.jna:jna-platform:4.5.2") // TODO align this to ${jna.platform}
     implementation(platform("org.lwjgl:lwjgl-bom:3.2.3"))
     listOf("", "-glfw", "-jemalloc", "-vulkan", "-opengl", "-openvr", "-xxhash", "-remotery").forEach {
         if (it == "-vulkan")
@@ -58,7 +62,12 @@ dependencies {
         else
             api("org.lwjgl:lwjgl$it", lwjglNatives)
     }
-    implementation(jackson.bundles.all)
+    implementation("com.fasterxml.jackson.core:jackson-annotations")
+    implementation("com.fasterxml.jackson.core:jackson-core")
+    implementation("com.fasterxml.jackson.core:jackson-databind")
+    implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-cbor")
+    implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml")
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
     api("graphics.scenery:spirvcrossj:0.8.0-1.1.106.0", lwjglNatives)
     implementation("org.zeromq:jeromq:0.4.3")
     implementation("com.esotericsoftware:kryo:5.1.1")
@@ -66,7 +75,7 @@ dependencies {
     implementation("org.msgpack:msgpack-core:0.8.20")
     implementation("org.msgpack:jackson-dataformat-msgpack:0.8.20")
     api("graphics.scenery:jvrpn:1.2.0", lwjglNatives)
-    implementation(scifio.core)
+    implementation("io.scif:scifio")
     implementation("org.bytedeco:ffmpeg:4.2.1-1.5.2", ffmpegNatives)
     implementation("org.reflections:reflections:0.9.12")
     implementation("io.github.classgraph:classgraph:4.8.86")
@@ -78,8 +87,8 @@ dependencies {
     api("com.github.skalarproduktraum:jogl-minimal:1c86442")
 
     implementation("com.github.LWJGLX:lwjgl3-awt:cfd741a6")
-    implementation(n5.core)
-    implementation(n5.imglib2)
+    implementation("org.janelia.saalfeldlab:n5")
+    implementation("org.janelia.saalfeldlab:n5-imglib2")
     listOf("core", "structure", "modfinder").forEach {
         implementation("org.biojava:biojava-$it:5.4.0") {
             exclude("org.slf4j", "slf4j-api")
@@ -94,11 +103,11 @@ dependencies {
     testImplementation(kotlin("test-junit"))
     //    implementation("com.github.kotlin-graphics:assimp:25c68811")
 
-    testImplementation(misc.junit4)
-    testImplementation(slf4j.simple)
-    testImplementation(imagej.core)
-    testImplementation(imagej.ij)
-    testImplementation(imgLib2.ij)
+    testImplementation("junit:junit")
+    testImplementation("org.slf4j:slf4j-simple")
+    testImplementation("net.imagej:imagej")
+    testImplementation("net.imagej:ij")
+    testImplementation("net.imglib2:imglib2-ij")
 }
 
 val isRelease: Boolean
@@ -126,7 +135,7 @@ tasks {
             }
         }
     }
-    
+
     named<ShadowJar>("shadowJar") {
         isZip64 = true
     }
@@ -145,7 +154,7 @@ val dokkaHtmlJar by tasks.register<Jar>("dokkaHtmlJar") {
 }
 
 artifacts {
-    if(isRelease) {
+    if (isRelease) {
         archives(dokkaJavadocJar)
         archives(dokkaHtmlJar)
     }
@@ -159,7 +168,7 @@ java.withSourcesJar()
 
 // disable Gradle metadata file creation on Jitpack, as jitpack modifies
 // the metadata file, resulting in broken metadata with missing native dependencies.
-if(System.getenv("JITPACK") != null) {
+if (System.getenv("JITPACK") != null) {
     tasks.withType<GenerateModuleMetadata> {
         enabled = false
     }

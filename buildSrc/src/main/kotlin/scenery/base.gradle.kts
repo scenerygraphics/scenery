@@ -50,9 +50,9 @@ tasks {
 
     jacocoTestReport {
         reports {
-            xml.isEnabled = true
+            xml.required.set(true)
             html.apply {
-                isEnabled = false
+                required.set(false)
                 //                destination = file("$buildDir/jacocoHtml")
             }
         }
@@ -69,7 +69,7 @@ tasks {
 
             register<JavaExec>(name = className.substringAfterLast(".")) {
                 classpath = sourceSets.test.get().runtimeClasspath
-                main = className
+                mainClass.set(className)
                 group = "examples.$exampleType"
 
                 val props = System.getProperties().filter { (k, _) -> k.toString().startsWith("scenery.") }
@@ -88,7 +88,7 @@ tasks {
         if (project.hasProperty("example")) {
             project.property("example")?.let { example ->
                 val file = sourceSets.test.get().allSource.files.first { "class $example" in it.readText() }
-                main = file.path.substringAfter("kotlin${File.separatorChar}").replace(File.separatorChar, '.').substringBefore(".kt")
+                mainClass.set(file.path.substringAfter("kotlin${File.separatorChar}").replace(File.separatorChar, '.').substringBefore(".kt"))
                 val props = System.getProperties().filter { (k, _) -> k.toString().startsWith("scenery.") }
 
                 val additionalArgs = System.getenv("SCENERY_JVM_ARGS")
@@ -98,7 +98,7 @@ tasks {
                     allJvmArgs + props.flatMap { (k, v) -> listOf("-D$k=$v") }
                 }
 
-                println("Will run example $example with classpath $classpath, main=$main")
+                println("Will run example $example with classpath $classpath, main=${mainClass.get()}")
                 println("JVM arguments passed to example: $allJvmArgs")
             }
         }
