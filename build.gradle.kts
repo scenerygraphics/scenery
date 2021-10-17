@@ -56,7 +56,7 @@ dependencies {
         else
             api("org.lwjgl:lwjgl$it", lwjglNatives)
     }
-    implementation("com.fasterxml.jackson.core:jackson-databind")
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.12.5")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:\$jackson-databind")
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:\$jackson-databind")
     api("graphics.scenery:spirvcrossj:0.8.0-1.1.106.0", lwjglNatives)
@@ -157,7 +157,23 @@ tasks {
                 "spirvcrossj",
                 "jvrpn",
                 "jogl-minimal",
-                "jinput")
+                "jinput",
+                "pom-scijava",
+                "gluegen-rt",
+                "jogl-all",
+                "jna-platform",
+                "lwjgl-bom",
+                "jackson-module-kotlin",
+                "jackson-dataformat-yaml",
+                "kryo",
+                "lwjgl",
+                "lwjgl-glfw",
+                "lwjgl-jemalloc",
+                "lwjgl-vulkan",
+                "lwjgl-opengl",
+                "lwjgl-openvr",
+                "lwjgl-xxhash",
+                "lwjgl-remotery")
 
             configurations.implementation.allDependencies.forEach {
                 var artifactId = it.name
