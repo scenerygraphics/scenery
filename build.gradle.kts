@@ -50,11 +50,14 @@ dependencies {
 //    implementation(misc.trove)
     implementation("net.java.dev.jna:jna-platform:5.9.0")
     implementation(platform("org.lwjgl:lwjgl-bom:3.2.3"))
-    listOf("", "-glfw", "-jemalloc", "-vulkan", "-opengl", "-openvr", "-xxhash", "-remotery").forEach {
-        if (it == "-vulkan")
-            api("org.lwjgl:lwjgl$it:3.2.3")
-        else
-            api("org.lwjgl:lwjgl$it:3.2.3", lwjglNatives)
+    listOf("", "-glfw", "-jemalloc", "-vulkan", "-opengl", "-openvr", "-xxhash", "-remotery").forEach { lwjglProject ->
+        api("org.lwjgl:lwjgl$lwjglProject:3.2.3")
+
+        if (lwjglProject != "-vulkan") {
+            lwjglNatives.forEach { native ->
+                runtimeOnly("org.lwjgl:lwjgl$lwjglProject:3.2.3:$native")
+            }
+        }
     }
     implementation("com.fasterxml.jackson.core:jackson-databind:2.12.5")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.12.5")
