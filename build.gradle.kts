@@ -35,8 +35,8 @@ dependencies {
     implementation(kotlin("reflect"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.5.0")
 
-    implementation("org.jogamp.gluegen:gluegen-rt", joglNatives)
-    implementation("org.jogamp.jogl:jogl-all", joglNatives)
+    implementation("org.jogamp.gluegen:gluegen-rt:2.3.2", joglNatives)
+    implementation("org.jogamp.jogl:jogl-all:2.3.2", joglNatives)
     implementation("org.slf4j:slf4j-api")
     implementation("net.clearvolume:cleargl")
 //    implementation("org.joml")
@@ -52,13 +52,13 @@ dependencies {
     implementation(platform("org.lwjgl:lwjgl-bom:3.2.3"))
     listOf("", "-glfw", "-jemalloc", "-vulkan", "-opengl", "-openvr", "-xxhash", "-remotery").forEach {
         if (it == "-vulkan")
-            api("org.lwjgl:lwjgl$it")
+            api("org.lwjgl:lwjgl$it:3.2.3")
         else
-            api("org.lwjgl:lwjgl$it", lwjglNatives)
+            api("org.lwjgl:lwjgl$it:3.2.3", lwjglNatives)
     }
     implementation("com.fasterxml.jackson.core:jackson-databind:2.12.5")
-    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:\$jackson-databind")
-    implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:\$jackson-databind")
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.12.5")
+    implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.12.5")
     api("graphics.scenery:spirvcrossj:0.8.0-1.1.106.0", lwjglNatives)
     implementation("org.zeromq:jeromq:0.4.3")
     implementation("com.esotericsoftware:kryo:5.1.1")
@@ -130,6 +130,16 @@ tasks {
             parent.appendNode("version", "31.1.0")
             parent.appendNode("relativePath")
 
+            var repositories = asNode().appendNode("repositories")
+            var jitpackRepo = repositories.appendNode("repository")
+            jitpackRepo.appendNode("id", "jitpack.io")
+            jitpackRepo.appendNode("url", "https://jitpack.io")
+
+            var scijavaRepo = repositories.appendNode("repository")
+            scijavaRepo.appendNode("id", "scijava.public")
+            scijavaRepo.appendNode("url", "https://maven.scijava.org/content/groups/public")
+
+            
             // Update the dependencies and properties
             var dependenciesNode = asNode().appendNode("dependencies")
             var propertiesNode = asNode().appendNode("properties")
@@ -175,37 +185,42 @@ tasks {
                 "lwjgl-xxhash",
                 "lwjgl-remotery")
 
+            val toSkip = listOf("pom-scijava")
+            
             configurations.implementation.allDependencies.forEach {
                 var artifactId = it.name
 
-                var propertyName = "$artifactId.version"
+                if( !toSkip.contains(artifactId) ) {
+                    
+                    var propertyName = "$artifactId.version"
 
-                if( versionedArtifacts.contains(artifactId) ) {
-                    // add "<artifactid.version>[version]</artifactid.version>" to pom
-                    propertiesNode.appendNode(propertyName, it.version)
-                }
+                    if( versionedArtifacts.contains(artifactId) ) {
+                        // add "<artifactid.version>[version]</artifactid.version>" to pom
+                        propertiesNode.appendNode(propertyName, it.version)
+                    }
 
-                var dependencyNode = dependenciesNode.appendNode("dependency")
-                dependencyNode.appendNode("groupId", it.group)
-                dependencyNode.appendNode("artifactId", artifactId)
-                dependencyNode.appendNode("version", "\${$propertyName}")
+                    var dependencyNode = dependenciesNode.appendNode("dependency")
+                    dependencyNode.appendNode("groupId", it.group)
+                    dependencyNode.appendNode("artifactId", artifactId)
+                    dependencyNode.appendNode("version", "\${$propertyName}")
 
-                // Custom per artifact tweaks
-                println(artifactId)
-                if("\\-bom".toRegex().find(artifactId) != null) {
-                    dependencyNode.appendNode("type", "pom")
+                    // Custom per artifact tweaks
+                    println(artifactId)
+                    if("\\-bom".toRegex().find(artifactId) != null) {
+                        dependencyNode.appendNode("type", "pom")
+                    }
+                    // from https://github.com/scenerygraphics/sciview/pull/399#issuecomment-904732945
+                    if(artifactId == "formats-gpl") {
+                        var exclusions = dependencyNode.appendNode("exclusions")
+                        var jacksonCore = exclusions.appendNode("exclusion")
+                        jacksonCore.appendNode("groupId", "com.fasterxml.jackson.core")
+                        jacksonCore.appendNode("artifactId", "jackson-core")
+                        var jacksonAnnotations = exclusions.appendNode("exclusion")
+                        jacksonAnnotations.appendNode("groupId", "com.fasterxml.jackson.core")
+                        jacksonAnnotations.appendNode("artifactId", "jackson-annotations")
+                    }
+                    //dependencyNode.appendNode("scope", it.scope)
                 }
-                // from https://github.com/scenerygraphics/sciview/pull/399#issuecomment-904732945
-                if(artifactId == "formats-gpl") {
-                    var exclusions = dependencyNode.appendNode("exclusions")
-                    var jacksonCore = exclusions.appendNode("exclusion")
-                    jacksonCore.appendNode("groupId", "com.fasterxml.jackson.core")
-                    jacksonCore.appendNode("artifactId", "jackson-core")
-                    var jacksonAnnotations = exclusions.appendNode("exclusion")
-                    jacksonAnnotations.appendNode("groupId", "com.fasterxml.jackson.core")
-                    jacksonAnnotations.appendNode("artifactId", "jackson-annotations")
-                }
-                //dependencyNode.appendNode("scope", it.scope)
             }
 
             var depStartIdx = "<dependencyManagement>".toRegex().find(asString())?.range?.start
