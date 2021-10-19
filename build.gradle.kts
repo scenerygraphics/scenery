@@ -78,7 +78,7 @@ dependencies {
     api("sc.fiji:bigdataviewer-vistools:1.0.0-beta-28")
 
     //TODO revert to official BVV
-    api("com.github.skalarproduktraum:jogl-minimal:1c86442")
+    api("graphics.scenery:bigvolumeviewer:a6b021d")
 
     implementation("com.github.LWJGLX:lwjgl3-awt:cfd741a6")
     implementation("org.janelia.saalfeldlab:n5")
@@ -147,6 +147,16 @@ tasks {
             var dependenciesNode = asNode().appendNode("dependencies")
             var propertiesNode = asNode().appendNode("properties")
             propertiesNode.appendNode("inceptionYear", 2016)
+
+            // spirvcrossj
+            lwjglNatives.forEach {
+                var dependencyNode = dependenciesNode.appendNode("dependency")
+                dependencyNode.appendNode("groupId", "graphics.scenery")
+                dependencyNode.appendNode("artifactId", "spirvcrossj")
+                dependencyNode.appendNode("version", "\${spirvcrossj.version}")
+                dependencyNode.appendNode("classifier", "$it")
+                dependencyNode.appendNode("scope", "runtime")
+            }
 
             val versionedArtifacts = listOf(
                 "flatlaf",
