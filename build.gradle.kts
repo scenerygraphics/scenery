@@ -196,7 +196,8 @@ tasks {
                 "lwjgl-opengl",
                 "lwjgl-openvr",
                 "lwjgl-xxhash",
-                "lwjgl-remotery")
+                "lwjgl-remotery",
+                "bigvolumeviewer")
 
             val toSkip = listOf("pom-scijava")
             
