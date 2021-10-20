@@ -164,7 +164,6 @@ tasks {
                     "",
                     "-glfw",
                     "-jemalloc",
-                    "-vulkan",
                     "-opengl",
                     "-openvr",
                     "-xxhash",
