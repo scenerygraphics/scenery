@@ -179,17 +179,17 @@ tasks {
                 }
             }
 
-            // jvprn natives
+            // jvrpn natives
             lwjglNatives.forEach {
                 var dependencyNode = dependenciesNode.appendNode("dependency")
                 dependencyNode.appendNode("groupId", "graphics.scenery")
-                dependencyNode.appendNode("artifactId", "jvprn")
-                dependencyNode.appendNode("version", "\${jvprn.version}")
+                dependencyNode.appendNode("artifactId", "jvrpn")
+                dependencyNode.appendNode("version", "\${jvrpn.version}")
                 dependencyNode.appendNode("classifier", "$it")
                 dependencyNode.appendNode("scope", "runtime")
             }
-            // add jvprn property because it only has runtime native deps
-            propertiesNode.appendNode("jvprn.version", "1.2.0")
+            // add jvrpn property because it only has runtime native deps
+            propertiesNode.appendNode("jvrpn.version", "1.2.0")
 
             val versionedArtifacts = listOf(
                 "flatlaf",
@@ -202,7 +202,6 @@ tasks {
                 "msgpack-core",
                 "jackson-dataformat-msgpack",
                 "ffmpeg",
-                "jvprn",
                 "reflections",
                 "classgraph",
                 "lwjgl3-awt",
