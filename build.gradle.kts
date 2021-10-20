@@ -171,7 +171,7 @@ tasks {
                     "-remotery"
                 ).forEach { lwjglProject ->
                     var dependencyNode = dependenciesNode.appendNode("dependency")
-                    dependencyNode.appendNode("groupId", "graphics.scenery")
+                    dependencyNode.appendNode("groupId", "org.lwjgl")
                     dependencyNode.appendNode("artifactId", "lwjgl$lwjglProject")
                     dependencyNode.appendNode("version", "\${lwjgl.version}")
                     dependencyNode.appendNode("classifier", "$nativePlatform")
