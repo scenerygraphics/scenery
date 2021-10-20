@@ -179,7 +179,7 @@ tasks {
                 }
             }
 
-            // do this for jvprn
+            // jvprn natives
             lwjglNatives.forEach {
                 var dependencyNode = dependenciesNode.appendNode("dependency")
                 dependencyNode.appendNode("groupId", "graphics.scenery")
@@ -188,6 +188,8 @@ tasks {
                 dependencyNode.appendNode("classifier", "$it")
                 dependencyNode.appendNode("scope", "runtime")
             }
+            // add jvprn property because it only has runtime native deps
+            propertiesNode.appendNode("jvprn.version", "1.2.0")
 
             val versionedArtifacts = listOf(
                 "flatlaf",
