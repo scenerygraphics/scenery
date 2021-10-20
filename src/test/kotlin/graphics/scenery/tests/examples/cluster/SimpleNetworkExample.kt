@@ -63,7 +63,7 @@ class SimpleNetworkExample : SceneryBase("TexturedCubeExample", wantREPL = false
                     rotation.rotateY(0.01f)
                     needsUpdate = true
                 }
-                box.modifiedAt = System.nanoTime()
+                //box.modifiedAt = System.nanoTime()
 
                 Thread.sleep(20)
             }
