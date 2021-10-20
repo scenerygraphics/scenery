@@ -148,12 +148,43 @@ tasks {
             var propertiesNode = asNode().appendNode("properties")
             propertiesNode.appendNode("inceptionYear", 2016)
 
-            // spirvcrossj
+            // spirvcrossj natives
             lwjglNatives.forEach {
                 var dependencyNode = dependenciesNode.appendNode("dependency")
                 dependencyNode.appendNode("groupId", "graphics.scenery")
                 dependencyNode.appendNode("artifactId", "spirvcrossj")
                 dependencyNode.appendNode("version", "\${spirvcrossj.version}")
+                dependencyNode.appendNode("classifier", "$it")
+                dependencyNode.appendNode("scope", "runtime")
+            }
+
+            // lwjgl natives
+            lwjglNatives.forEach { nativePlatform ->
+                listOf(
+                    "",
+                    "-glfw",
+                    "-jemalloc",
+                    "-vulkan",
+                    "-opengl",
+                    "-openvr",
+                    "-xxhash",
+                    "-remotery"
+                ).forEach { lwjglProject ->
+                    var dependencyNode = dependenciesNode.appendNode("dependency")
+                    dependencyNode.appendNode("groupId", "graphics.scenery")
+                    dependencyNode.appendNode("artifactId", "lwjgl$lwjglProject")
+                    dependencyNode.appendNode("version", "\${lwjgl.version}")
+                    dependencyNode.appendNode("classifier", "$nativePlatform")
+                    dependencyNode.appendNode("scope", "runtime")
+                }
+            }
+
+            // do this for jvprn
+            lwjglNatives.forEach {
+                var dependencyNode = dependenciesNode.appendNode("dependency")
+                dependencyNode.appendNode("groupId", "graphics.scenery")
+                dependencyNode.appendNode("artifactId", "jvprn")
+                dependencyNode.appendNode("version", "\${jvprn.version}")
                 dependencyNode.appendNode("classifier", "$it")
                 dependencyNode.appendNode("scope", "runtime")
             }
@@ -169,6 +200,7 @@ tasks {
                 "msgpack-core",
                 "jackson-dataformat-msgpack",
                 "ffmpeg",
+                "jvprn",
                 "reflections",
                 "classgraph",
                 "lwjgl3-awt",
