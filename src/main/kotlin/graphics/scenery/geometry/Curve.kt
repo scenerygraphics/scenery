@@ -336,6 +336,8 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
                 vertices.flip()
                 texcoords = BufferUtils.allocateFloat(verticesVectors.size * 2)
                 recalculateNormals()
+
+                boundingBox = generateBoundingBox()
             }
             boundingBox = generateBoundingBox()
         }
