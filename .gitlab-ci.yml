@@ -57,7 +57,7 @@ scenery-nvidia:
   after_script:
     - nvidia-smi
     - tar cvjf results.tar.bz2 screenshots/
-    - ARGOS_COMMIT=$CI_COMMIT_SHA ARGOS_BRANCH=$CI_COMMIT_REF_NAME ./node_modules/argos-cli/bin/argos upload screenshots/ --token $ARGOS_TOKEN || true
+    - ARGOS_COMMIT=$CI_COMMIT_SHA ARGOS_BRANCH=$CI_COMMIT_REF_NAME /node_modules/argos-cli/bin/argos upload screenshots/ --token $ARGOS_TOKEN || true
   tags:
     - cuda
     - intel
