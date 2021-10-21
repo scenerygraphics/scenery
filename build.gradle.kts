@@ -2,6 +2,7 @@ import org.gradle.kotlin.dsl.api
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import scenery.*
 import java.net.URL
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 plugins {
     val ktVersion = "1.5.0"
@@ -16,6 +17,7 @@ plugins {
     id("org.sonarqube") version "3.1.1"
     jacoco
     id("sciJava.platform") version "30.0.0+15" // workaround for jitpack issue
+    id("com.github.johnrengelman.shadow") version "7.0.0"
 }
 
 repositories {
@@ -125,6 +127,10 @@ tasks {
                 remoteLineSuffix.set("#L")
             }
         }
+    }
+    
+    named<ShadowJar>("shadowJar") {
+        isZip64 = true
     }
 }
 

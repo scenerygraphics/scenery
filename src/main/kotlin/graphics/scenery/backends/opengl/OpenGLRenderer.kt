@@ -123,7 +123,7 @@ open class OpenGLRenderer(hub: Hub,
     private var screenshotRequested = false
     private var screenshotOverwriteExisting = false
     private var screenshotFilename = ""
-    private var encoder: H264Encoder? = null
+    private var encoder: VideoEncoder? = null
     private var recordMovie = false
     private var movieFilename = ""
 
@@ -2131,7 +2131,7 @@ open class OpenGLRenderer(hub: Hub,
                 }, false)
 
                 val supersamplingFactor = getSupersamplingFactor(cglWindow)
-                encoder = H264Encoder(
+                encoder = VideoEncoder(
                     (supersamplingFactor * window.width).toInt(),
                     (supersamplingFactor * window.height).toInt(),
                     file.absolutePath,
