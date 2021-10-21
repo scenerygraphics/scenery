@@ -57,7 +57,9 @@ class ExampleRunner {
             "VolumeSamplingExample",
             "VideoRecordingExample",
             // these examples don't render anything
-            "AttributesExample"
+            "AttributesExample",
+            "DFTExample",
+            "DFTMDExample"
         )
 
         blocklist.addAll(System.getProperty("scenery.ExampleRunner.Blocklist", "").split(","))
