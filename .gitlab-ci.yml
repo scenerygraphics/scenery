@@ -18,7 +18,7 @@ unit-tests-no-gpu:
   before_script:
     - mkdir -p ./pdb-store/cache
     - apt-get update -qq --force-yes > /dev/null
-    - apt-get install -qq -y --allow-downgrades --allow-remove-essential --allow-change-held-packages unzip wget git curl libgl1-mesa-glx sudo sed > /dev/null
+    - apt-get install -qq -y --allow-downgrades --allow-remove-essential --allow-change-held-packages unzip wget git curl libgl1-mesa-glx sudo sed openjdk-11-jdk-headless > /dev/null
     - if [ ! -d "$MODEL_DIR" ]; then wget -q https://ulrik.is/scenery-demo-models.zip && unzip -q scenery-demo-models.zip; fi
     - chmod +x gradlew
   script:
