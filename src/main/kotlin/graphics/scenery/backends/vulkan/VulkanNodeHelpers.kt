@@ -400,7 +400,7 @@ object VulkanNodeHelpers {
                         material.wireframe,
                         s.vertexDescription
                     )
-                    pass.registerPipelineForNode(pipeline, node)
+                    pass.registerPipelineForNode(pipeline, renderable)
                 }
 
 

@@ -502,8 +502,8 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
         return this
     }
 
-    fun registerPipelineForNode(pipeline: VulkanPipeline, node: Node) {
-        pipelines["preferred-${node.getUuid()}"] = pipeline
+    fun registerPipelineForNode(pipeline: VulkanPipeline, renderable: Renderable) {
+        pipelines["preferred-${renderable.getUuid()}"] = pipeline
     }
 
     fun initializePipeline(shaderModules: List<VulkanShaderModule>, cullingMode: Material.CullingMode, depthTest: Material.DepthTest, blending: Blending, wireframe: Boolean, vertexDescription: VulkanRenderer.VertexDescription?): VulkanPipeline {
