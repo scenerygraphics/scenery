@@ -18,7 +18,7 @@ import kotlin.concurrent.thread
  * Start slave with vm param:
  * -ea -Dscenery.master=false -Dscenery.MasterNode=tcp://127.0.0.1:6666
  */
-class SimpleNetworkExample : SceneryBase("TexturedCubeExample", wantREPL = false) {
+class SimpleNetworkExample : SceneryBase("SimpleNetworkExample", wantREPL = false) {
     override fun init() {
         renderer = hub.add(SceneryElement.Renderer,
             Renderer.createRenderer(hub, applicationName, scene, 512, 512))
@@ -63,7 +63,6 @@ class SimpleNetworkExample : SceneryBase("TexturedCubeExample", wantREPL = false
                     rotation.rotateY(0.01f)
                     needsUpdate = true
                 }
-                //box.modifiedAt = System.nanoTime()
 
                 Thread.sleep(20)
             }
