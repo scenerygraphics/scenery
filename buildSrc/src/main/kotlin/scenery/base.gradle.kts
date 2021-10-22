@@ -17,6 +17,8 @@ tasks {
         if (!gpuPresent) {
             filter { excludeTestsMatching("ExampleRunner") }
         } else {
+            filter { excludeTestsMatching("graphics.scenery.tests.unit.**") }
+
             // this should circumvent Nvidia's Vulkan cleanup issue
             maxParallelForks = 2
             setForkEvery(8)
@@ -34,6 +36,7 @@ tasks {
             } else {
                 allJvmArgs + props.flatMap { (k, v) -> listOf("-D$k=$v") }
             }
+
         }
 
         finalizedBy(jacocoTestReport) // report is always generated after tests run
@@ -43,6 +46,11 @@ tasks {
         maxHeapSize = "8G"
         group = "verification"
         filter { includeTestsMatching("ExampleRunner") }
+
+        val testGroup = System.getProperty("scenery.ExampleRunner.TestGroup", "basic")
+        extensions.configure(JacocoTaskExtension::class) {
+            destinationFile = layout.buildDirectory.file("jacoco/jacocoTest.$testGroup.exec").get().asFile
+        }
     }
 
     named<Jar>("jar") {
