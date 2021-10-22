@@ -17,6 +17,11 @@ tasks {
         if (!gpuPresent) {
             filter { excludeTestsMatching("ExampleRunner") }
         } else {
+            // this should circumvent Nvidia's Vulkan cleanup issue
+            maxParallelForks = 1
+            setForkEvery(8)
+
+            // we only want the Vulkan renderer here, and all screenshot to be stored in the screenshots/ dir
             systemProperty("scenery.Renderer", "VulkanRenderer")
             systemProperty("scenery.ExampleRunner.OutputDir", "screenshots")
 
