@@ -178,6 +178,14 @@ tasks {
                 }
             }
 
+            // lwjgl-vulkan native for macos
+            var dependencyNodeLWJGLVulkan = dependenciesNode.appendNode("dependency")
+            dependencyNodeLWJGLVulkan.appendNode("groupId", "org.lwjgl")
+            dependencyNodeLWJGLVulkan.appendNode("artifactId", "lwjgl-vulkan")
+            dependencyNodeLWJGLVulkan.appendNode("version", "\${lwjgl.version}")
+            dependencyNodeLWJGLVulkan.appendNode("classifier", "natives-macos")
+            dependencyNodeLWJGLVulkan.appendNode("scope", "runtime")
+
             // jvrpn natives
             lwjglNatives.forEach {
                 var dependencyNode = dependenciesNode.appendNode("dependency")
