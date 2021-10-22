@@ -145,7 +145,7 @@ class ExampleRunner(
             .getSubTypesOf(SceneryBase::class.java)
             .filter { !it.canonicalName.contains("stresstests")
                 && !it.canonicalName.contains("cluster")
-                && it.packageName.contains(testGroup)
+                && it.name.substringBeforeLast(".").contains(testGroup)
             }
             .filter { !blocklist.contains(it.simpleName) }.toMutableList()
             .filter { allowedTests?.contains(it.simpleName) ?: true }
