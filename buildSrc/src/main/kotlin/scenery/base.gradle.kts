@@ -49,7 +49,7 @@ tasks {
 
         val testGroup = System.getProperty("scenery.ExampleRunner.TestGroup", "basic")
         extensions.configure(JacocoTaskExtension::class) {
-            destinationFile = layout.buildDirectory.file("jacoco/jacocoTest.$testGroup.exec").get().asFile
+            setDestinationFile(layout.buildDirectory.file("jacoco/jacocoTest.$testGroup.exec").get().asFile)
         }
     }
 
