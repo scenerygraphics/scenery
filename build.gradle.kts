@@ -190,6 +190,14 @@ tasks {
             // add jvrpn property because it only has runtime native deps
             propertiesNode.appendNode("jvrpn.version", "1.2.0")
 
+            // jinput natives
+            var dependencyNode = dependenciesNode.appendNode("dependency")
+            dependencyNode.appendNode("groupId", "net.java.jinput")
+            dependencyNode.appendNode("artifactId", "jinput")
+            dependencyNode.appendNode("version", "2.0.9")
+            dependencyNode.appendNode("classifier", "natives-all")
+            dependencyNode.appendNode("scope", "runtime")
+
             val versionedArtifacts = listOf(
                 "flatlaf",
                 "kotlin-stdlib-common",
