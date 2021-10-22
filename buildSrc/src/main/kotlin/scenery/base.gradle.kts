@@ -18,7 +18,7 @@ tasks {
             filter { excludeTestsMatching("ExampleRunner") }
         } else {
             // this should circumvent Nvidia's Vulkan cleanup issue
-            maxParallelForks = 1
+            maxParallelForks = 2
             setForkEvery(8)
 
             // we only want the Vulkan renderer here, and all screenshot to be stored in the screenshots/ dir
