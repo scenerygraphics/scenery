@@ -23,6 +23,7 @@ import kotlin.time.milliseconds
 @RunWith(Parameterized::class)
 class ExampleRunner(
     private val clazz: Class<*>,
+    private val clazzName: String,
     private val renderer: String,
     private val pipeline: String
 ) {
@@ -162,14 +163,14 @@ class ExampleRunner(
 
         val directoryName = System.getProperty("scenery.ExampleRunner.OutputDir") ?: "ExampleRunner-${SystemHelpers.formatDateTime(delimiter = "_")}"
 
-        @Parameterized.Parameters
+        @Parameterized.Parameters(name = "{index}: {1} ({2}/{3})")
         @JvmStatic
         fun availableExamples(): Collection<Array<*>> {
             val configs = examples.flatMap { example ->
                 renderers.flatMap { renderer ->
                     configurations.map { config ->
                         logger.debug("Adding ${example.simpleName} with $renderer/$config")
-                        arrayOf(example, renderer, config)
+                        arrayOf(example, example.simpleName, renderer, config)
                     }
                 }
             }
