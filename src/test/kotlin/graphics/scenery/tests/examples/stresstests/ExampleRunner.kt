@@ -35,6 +35,7 @@ class ExampleRunner(
 
         logger.info("Memory: ${Runtime.getRuntime().freeMemory().toFloat()/1024.0f/1024.0f}M/${Runtime.getRuntime().totalMemory().toFloat()/1024.0f/1024.0f}/${Runtime.getRuntime().maxMemory().toFloat()/1024.0f/1024.0f}M (free/total/max) available.")
 
+        System.setProperty("scenery.Headless", "true")
         System.setProperty("scenery.Renderer", renderer)
         System.setProperty("scenery.Renderer.Config", pipeline)
 
@@ -136,10 +137,15 @@ class ExampleRunner(
 
         val allowedTests = System.getProperty("scenery.ExampleRunner.AllowedTests")?.split(",")
 
+        val testGroup: String = System.getProperty("scenery.ExampleRunner.TestGroup", "basic")
+
         // find all basic and advanced examples, exclude blacklist
         val examples = reflections
             .getSubTypesOf(SceneryBase::class.java)
-            .filter { !it.canonicalName.contains("stresstests") && !it.canonicalName.contains("cluster") }
+            .filter { !it.canonicalName.contains("stresstests")
+                && !it.canonicalName.contains("cluster")
+                && it.packageName.contains(testGroup)
+            }
             .filter { !blocklist.contains(it.simpleName) }.toMutableList()
             .filter { allowedTests?.contains(it.simpleName) ?: true }
 
@@ -158,15 +164,20 @@ class ExampleRunner(
 
         @Parameterized.Parameters
         @JvmStatic
-        fun availableExamples(): Collection<Array<*>> =
-            examples.shuffled().flatMap { example ->
-                renderers.shuffled().flatMap { renderer ->
-                    configurations.shuffled().map { config ->
+        fun availableExamples(): Collection<Array<*>> {
+            val configs = examples.flatMap { example ->
+                renderers.flatMap { renderer ->
+                    configurations.map { config ->
                         logger.debug("Adding ${example.simpleName} with $renderer/$config")
                         arrayOf(example, renderer, config)
                     }
                 }
             }
+
+            logger.info("Discovered ${renderers.size} renderers with ${configurations.size} different pipelines, for ${examples.size} examples from group $testGroup, resulting in ${configs.size} run configurations.")
+
+            return configs
+        }
 
         @Parameterized.BeforeParam
         @JvmStatic
