@@ -10,14 +10,14 @@ import org.scijava.ui.behaviour.ClickBehaviour
 import org.slf4j.Logger
 import kotlin.math.acos
 
-abstract class Rollercoaster(cam: () -> Camera?): ClickBehaviour {
+abstract class Rollercoaster(cam: () -> Camera?){
     abstract val listOfCameraFrames: List<FrenetFrame>
     abstract val offsetList: List<List<Vector3f>>
     val camera: Camera? = cam.invoke()
     private val logger: Logger by LazyLogger()
 
     var j = 0
-    override fun click(x: Int, y: Int) {
+    fun flyToNextPoint() {
         if(j <= listOfCameraFrames.lastIndex && camera != null) {
             val frame = listOfCameraFrames[j]
             if(offsetList.isEmpty()) {
