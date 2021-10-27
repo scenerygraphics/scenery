@@ -10,10 +10,11 @@ import graphics.scenery.proteins.Helix
 import graphics.scenery.proteins.RibbonDiagram
 import graphics.scenery.utils.LazyLogger
 import org.joml.*
+import org.scijava.ui.behaviour.ClickBehaviour
 import org.slf4j.Logger
 
 
-class ProteinRollercoaster(ribbonDiagram: RibbonDiagram, val cam: () -> Camera?): Rollercoaster(cam) {
+class ProteinRollercoaster(ribbonDiagram: RibbonDiagram, val cam: () -> Camera?): Rollercoaster(cam), ClickBehaviour {
     private val subproteins = ribbonDiagram.children
     val controlpoints = ArrayList<Vector3f>(subproteins.size*10)
     override val offsetList: List<List<Vector3f>> = ArrayList<List<Vector3f>>()
@@ -54,5 +55,9 @@ class ProteinRollercoaster(ribbonDiagram: RibbonDiagram, val cam: () -> Camera?)
             axisSplineList.add(newPoint)
         }
         return axisSplineList
+    }
+
+    override fun click(x: Int, y: Int) {
+        flyToNextPoint()
     }
 }
