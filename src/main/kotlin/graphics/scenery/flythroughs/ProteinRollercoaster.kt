@@ -12,7 +12,7 @@ import graphics.scenery.utils.LazyLogger
 import org.joml.Vector3f
 import org.slf4j.Logger
 
-open class ProteinRollercoaster(ribbonDiagram: RibbonDiagram, val cam: () -> Camera?): Rollercoaster(cam) {
+open class ProteinRollercoaster(open val ribbonDiagram: RibbonDiagram, open val cam: () -> Camera?): Rollercoaster(cam) {
     private val subproteins = ribbonDiagram.children
     val controlpoints = ArrayList<Vector3f>(subproteins.size*10)
     override val offsetList: List<List<Vector3f>> = ArrayList<List<Vector3f>>()
