@@ -1,6 +1,7 @@
 package graphics.scenery.attribute.spatial
 
 import graphics.scenery.Node
+import graphics.scenery.net.Networkable
 import graphics.scenery.utils.MaybeIntersects
 import net.imglib2.RealLocalizable
 import net.imglib2.RealPositionable
@@ -9,7 +10,7 @@ import org.joml.Quaternionf
 import org.joml.Vector3f
 import kotlin.reflect.KProperty
 
-interface Spatial: RealLocalizable, RealPositionable {
+interface Spatial: RealLocalizable, RealPositionable, Networkable {
     /** Model matrix **/
     var model: Matrix4f
     /** World transform matrix */

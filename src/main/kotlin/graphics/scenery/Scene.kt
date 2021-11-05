@@ -8,6 +8,7 @@ import graphics.scenery.attribute.material.DefaultMaterial
 import graphics.scenery.attribute.material.HasMaterial
 import graphics.scenery.attribute.renderable.HasRenderable
 import graphics.scenery.attribute.spatial.HasSpatial
+import graphics.scenery.net.Networkable
 import graphics.scenery.net.NodePublisher
 import graphics.scenery.net.NodeSubscriber
 import graphics.scenery.serialization.*
@@ -44,9 +45,9 @@ open class Scene : DefaultNode("RootNode"), HasRenderable, HasMaterial, HasSpati
 
     internal var sceneSize: AtomicLong = AtomicLong(0L)
 
-    /** Callbacks to be called when a child is added to the scene */
+    /** Callbacks to be called when a child is added to the scene (Parent,Child)*/
     var onChildrenAdded = ConcurrentHashMap<String, (Node, Node) -> Unit>()
-    /** Callbacks to be called when a child is removed from the scene */
+    /** Callbacks to be called when a child is removed from the scene (Parent,Child)*/
     var onChildrenRemoved = ConcurrentHashMap<String, (Node, Node) -> Unit>()
     /** Callbacks to be called when a child is removed from the scene */
     var onNodePropertiesChanged = ConcurrentHashMap<String, (Node) -> Unit>()
@@ -271,11 +272,16 @@ open class Scene : DefaultNode("RootNode"), HasRenderable, HasMaterial, HasSpati
         val nodes = discover(this, filter)
         val pub = hub.get<NodePublisher>()
         val sub = hub.get<NodeSubscriber>()
-
+//TODO
         nodes.forEachIndexed { i, node ->
-            pub?.nodes?.put(13337 + i, node)
-            sub?.nodes?.put(13337 + i, node)
+            //pub?.nodes?.put(13337 + i, node)
+       //     sub?.nodes?.put(13337 + i, node)
         }
+    }
+
+    override fun update(fresh: Networkable) {
+        super.update(fresh)
+        if (fresh !is Scene) throw IllegalArgumentException("Update called with object of foreign class")
 
     }
 

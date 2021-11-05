@@ -1,42 +1,155 @@
 package graphics.scenery.net
 
-import com.esotericsoftware.kryo.Kryo
 import com.esotericsoftware.kryo.io.Input
-import com.jogamp.opengl.math.Quaternion
 import graphics.scenery.*
-import graphics.scenery.geometry.GeometryType
-import graphics.scenery.primitives.Arrow
-import graphics.scenery.primitives.Cylinder
-import graphics.scenery.primitives.Line
-import graphics.scenery.proteins.Protein
-import graphics.scenery.proteins.RibbonDiagram
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.Statistics
-import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.Volume
-import org.joml.Matrix4f
-import org.joml.Vector3f
-import org.objenesis.strategy.StdInstantiatorStrategy
 import org.zeromq.ZContext
 import org.zeromq.ZMQ
 import java.io.ByteArrayInputStream
 import java.io.StreamCorruptedException
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.LinkedBlockingQueue
+import kotlin.concurrent.thread
+import kotlin.reflect.KClass
 
 
 /**
  * Created by ulrik on 4/4/2017.
  */
-class NodeSubscriber(override var hub: Hub?, val address: String = "tcp://localhost:6666", val context: ZContext = ZContext(4)) : Hubable {
+class NodeSubscriber(
+    override var hub: Hub?,
+    val address: String = "tcp://localhost:6666",
+    val context: ZContext = ZContext(4)
+) : Hubable {
 
     private val logger by LazyLogger()
     var nodes: ConcurrentHashMap<Int, Node> = ConcurrentHashMap()
     var subscriber: ZMQ.Socket = context.createSocket(ZMQ.SUB)
     val kryo = NodePublisher.freeze()
+    private val networkObjects = hashMapOf<Int, NetworkObject<*>>()
+    private val eventQueue = LinkedBlockingQueue<NetworkEvent>()
+    private val waitingOnParent = mutableMapOf<Int, List<NetworkEvent>>()
+    private var running = false
 
     init {
         subscriber.connect(address)
         subscriber.subscribe(ZMQ.SUBSCRIPTION_ALL)
+    }
+
+    fun startListening() {
+        running = true
+        thread {
+            while (running) {
+                var payload: ByteArray? = subscriber.recv()
+                while (payload != null && running) {
+                    try {
+                        val bin = ByteArrayInputStream(payload)
+                        val input = Input(bin)
+                        val event = kryo.readClassAndObject(input) as? NetworkEvent
+                            ?: throw IllegalStateException("Received unknown, not NetworkEvent payload")
+                        eventQueue.add(event)
+                        payload = subscriber.recv()
+
+                    } catch (ex: Exception) {
+                        println()
+                    }
+                }
+                Thread.sleep(5)
+            }
+        }
+    }
+
+    /**
+     * Used in Unit test
+     */
+    private fun debugListen(event: NetworkEvent) {
+        eventQueue.add(event)
+    }
+
+    /**
+     * Should be called in update life cycle
+     */
+    fun networkUpdate(scene: Scene) {
+        while (!eventQueue.isEmpty()) {
+            when (val event = eventQueue.poll()) {
+                is NetworkEvent.NewObject -> {
+                    val networkObject = event.obj
+
+                    fun reuniteChildParent(parent: Node) {
+                        val missingChildren = waitingOnParent.remove(parent.networkID)
+                        missingChildren?.forEach { childEvent ->
+                            when (childEvent) {
+                                is NetworkEvent.NewObject -> {
+                                    when (val child = childEvent.obj.obj) {
+                                        is Node -> {
+                                            parent.addChild(child)
+                                        }
+                                        else -> {
+                                            // assuming child is Attribute
+                                            val attributeBaseClass = child.getAttributeClass()!!
+                                            // before adding the attribute to the waitingOnParent list this was null checked
+                                            parent.addAttributeFromNetwork(attributeBaseClass.java, parent)
+                                        }
+                                    }
+                                }
+                                is NetworkEvent.NewRelation -> TODO()
+                            }
+                        }
+                    }
+
+                    when (val networkable = networkObject.obj) {
+                        is Scene -> {
+                            // dont use the scene from network, but adapt own scene
+                            scene.networkID = networkable.networkID
+                            scene.update(networkable)
+                            networkObjects[networkObject.nID] = NetworkObject(networkObject.nID, scene, mutableListOf())
+                            reuniteChildParent(scene)
+                        }
+                        is Node -> {
+                            val parentId = networkObject.parents.first()
+                            val parent = networkObjects[parentId]?.obj as? Node
+                            if (parent != null) {
+                                parent.addChild(networkable)
+                            } else {
+                                waitingOnParent[parentId] = waitingOnParent.getOrDefault(parentId, listOf()) + event
+                            }
+                            networkObjects[networkObject.nID] = networkObject
+                            reuniteChildParent(networkable)
+                        }
+                        else -> {
+                            val attributeBaseClass = networkable.getAttributeClass()
+                            if (attributeBaseClass != null) {
+                                // val r = cast(attributeBaseClass,networkable)
+                                // It is an attribute
+                                networkObject.parents
+                                    .mapNotNull { parentId ->
+                                        val parent = networkObjects[parentId]?.obj as? Node
+                                        if (parent == null) {
+                                            waitingOnParent[parentId] =
+                                                waitingOnParent.getOrDefault(parentId, listOf()) + event
+                                            null
+                                        } else {
+                                            parent
+                                        }
+                                    }
+                                    .forEach {
+                                        it.addAttributeFromNetwork(attributeBaseClass.java, networkable)
+                                    }
+                                networkObjects[networkObject.nID] = networkObject
+                            } else {
+                                throw IllegalStateException(
+                                    "Received unknown object from server. " +
+                                        "Maybe an attribute missing a getAttributeClass implementation?"
+                                )
+                            }
+                        }
+                    }
+                }
+                is NetworkEvent.NewRelation -> TODO()
+            }
+        }
     }
 
     fun process() {
@@ -78,17 +191,17 @@ class NodeSubscriber(override var hub: Hub?, val address: String = "tcp://localh
                         if (Volume::class.java.isAssignableFrom(o.javaClass) && Volume::class.java.isAssignableFrom(node.javaClass)) {
                             (node as Volume).colormap = (o as Volume).colormap
                             node.transferFunction = o.transferFunction
-                            if(node.currentTimepoint != o.currentTimepoint) {
+                            if (node.currentTimepoint != o.currentTimepoint) {
                                 node.goToTimepoint(o.currentTimepoint)
                             }
                         }
 
-                        if(o is PointLight && node is PointLight) {
+                        if (o is PointLight && node is PointLight) {
                             node.emissionColor = o.emissionColor
                             node.lightRadius = o.lightRadius
                         }
 
-                        if(o is BoundingGrid && node is BoundingGrid) {
+                        if (o is BoundingGrid && node is BoundingGrid) {
                             node.gridColor = o.gridColor
                             node.lineWidth = o.lineWidth
                             node.numLines = o.numLines
@@ -99,9 +212,9 @@ class NodeSubscriber(override var hub: Hub?, val address: String = "tcp://localh
                         bin.close()
                     }
                 }
-            } catch(e: StreamCorruptedException) {
+            } catch (e: StreamCorruptedException) {
                 logger.warn("Corrupted stream")
-            } catch(e: NullPointerException) {
+            } catch (e: NullPointerException) {
                 logger.warn("NPE while receiving payload: $e")
             }
 
