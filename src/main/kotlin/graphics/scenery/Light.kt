@@ -1,5 +1,6 @@
 package graphics.scenery
 
+import graphics.scenery.net.Networkable
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
 import org.joml.Vector3f
@@ -11,7 +12,7 @@ import kotlin.reflect.full.createInstance
  *
  * @author Ulrik Guenther <hello@ulrik.is>
  */
-abstract class Light(name: String = "Light") : Mesh(name) {
+abstract class Light(name: String = "Light") : Mesh(name), Networkable {
 
     /** Enum class to determine light type. */
     enum class LightType {
@@ -30,6 +31,13 @@ abstract class Light(name: String = "Light") : Mesh(name) {
     /** The light's type, stored as [LightType]. */
     @ShaderProperty
     abstract val lightType: LightType
+
+    override fun update(fresh: Networkable) {
+        super.update(fresh)
+        if (fresh !is Light) throw IllegalArgumentException("Update called with object of foreign class")
+        emissionColor = fresh.emissionColor
+        intensity = fresh.intensity
+    }
 
     companion object {
         /**

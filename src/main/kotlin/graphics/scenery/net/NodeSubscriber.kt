@@ -1,27 +1,18 @@
 package graphics.scenery.net
 
-import com.esotericsoftware.kryo.Kryo
 import com.esotericsoftware.kryo.io.Input
-import com.jogamp.opengl.math.Quaternion
 import graphics.scenery.*
-import graphics.scenery.geometry.GeometryType
-import graphics.scenery.primitives.Arrow
-import graphics.scenery.primitives.Cylinder
-import graphics.scenery.primitives.Line
-import graphics.scenery.proteins.Protein
-import graphics.scenery.proteins.RibbonDiagram
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.Statistics
-import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.Volume
-import org.joml.Matrix4f
-import org.joml.Vector3f
-import org.objenesis.strategy.StdInstantiatorStrategy
 import org.zeromq.ZContext
 import org.zeromq.ZMQ
 import java.io.ByteArrayInputStream
 import java.io.StreamCorruptedException
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.LinkedBlockingQueue
+import kotlin.concurrent.thread
+import kotlin.reflect.KClass
 
 
 /**
@@ -33,10 +24,95 @@ class NodeSubscriber(override var hub: Hub?, val address: String = "tcp://localh
     var nodes: ConcurrentHashMap<Int, Node> = ConcurrentHashMap()
     var subscriber: ZMQ.Socket = context.createSocket(ZMQ.SUB)
     val kryo = NodePublisher.freeze()
+    private val networkObjects = hashMapOf<Int, NetworkObject<*>>()
+    private val eventQueue = LinkedBlockingQueue<NetworkEvent>()
+    private var running = false
 
     init {
         subscriber.connect(address)
         subscriber.subscribe(ZMQ.SUBSCRIPTION_ALL)
+    }
+
+    fun startListening() {
+        running = true
+        thread {
+            while (running) {
+                var payload: ByteArray? = subscriber.recv()
+                while (payload != null && running) {
+                    try {
+                        val bin = ByteArrayInputStream(payload)
+                        val input = Input(bin)
+                        val event = kryo.readClassAndObject(input) as? NetworkEvent
+                            ?: throw IllegalStateException("Received unknown, not NetworkEvent payload")
+                        eventQueue.add(event)
+                        payload = subscriber.recv()
+
+                    } catch (ex: Exception) {
+                        println()
+                    }
+                }
+                Thread.sleep(5)
+            }
+        }
+    }
+
+    fun debugListen(event: NetworkEvent){
+        eventQueue.add(event)
+    }
+
+    /**
+     * Should be called in update life cycle
+     */
+    fun networkUpdate(scene: Scene) {
+        while (!eventQueue.isEmpty()) {
+            when (val event = eventQueue.poll()) {
+                is NetworkEvent.NewObject -> {
+                    val networkObject = event.obj
+                    when (val networkable = networkObject.obj) {
+                        is Scene -> {
+                            scene.networkID = networkable.networkID
+                            scene.update(networkable)
+                            networkObjects[networkObject.nID] = NetworkObject(networkObject.nID, scene, mutableListOf())
+                        }
+                        is Node -> {
+                            val parent = networkObjects[networkObject.parents.first()]?.obj as? Node
+                            if (parent != null){
+                                parent.addChild(networkable)
+                            } else {
+                                throw IllegalStateException("Cant find parent of Node ${networkable.name} for network sync.")
+                            }
+                            networkObjects[networkObject.nID] = networkObject
+                        }
+                        else -> {
+                            val attributeBaseClass = networkable.getAttributeClass()
+                            if (attributeBaseClass != null) {
+                                //val r = cast(attributeBaseClass,networkable)
+                                // It is an attribute
+                                networkObject.parents
+                                    .map {
+                                        networkObjects[it] as? Node
+                                            ?: throw IllegalStateException("Cant find parent attribute for network sync.")
+                                    }
+                                    .forEach {
+                                        it.addAttributeFromNetwork(attributeBaseClass.java, networkable)
+                                    }
+                                networkObjects[networkObject.nID] = networkObject
+                            } else {
+                                throw IllegalStateException(
+                                    "Received unknown object from server. " +
+                                        "Maybe an attribute missing a getAttributeClass implementation?"
+                                )
+                            }
+                        }
+                    }
+                }
+                is NetworkEvent.NewRelation -> TODO()
+            }
+        }
+    }
+
+    inline fun <reified T : Any> cast(attributeType: KClass<T>, attribute: Networkable): T? {
+        return attribute as? T
     }
 
     fun process() {

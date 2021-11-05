@@ -175,6 +175,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
         val master = System.getProperty("scenery.master")?.toBoolean() ?: false
         val masterAddress = System.getProperty("scenery.MasterNode")
 
+        /* TODO remove
         if (!master && masterAddress != null) {
             thread {
                 logger.info("NodeSubscriber will connect to master at $masterAddress")
@@ -211,6 +212,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
                 logger.debug("Closing publisher")
             }
         }
+         */
 
         hub.add(SceneryElement.Statistics, stats)
         hub.add(SceneryElement.Settings, settings)

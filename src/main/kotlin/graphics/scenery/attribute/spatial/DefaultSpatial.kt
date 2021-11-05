@@ -2,6 +2,7 @@ package graphics.scenery.attribute.spatial
 
 import graphics.scenery.Node
 import graphics.scenery.Scene
+import graphics.scenery.net.Networkable
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.MaybeIntersects
 import graphics.scenery.utils.extensions.*
@@ -11,9 +12,10 @@ import org.joml.*
 import java.lang.Float.max
 import java.lang.Float.min
 import kotlin.properties.Delegates
+import kotlin.reflect.KClass
 import kotlin.reflect.KProperty
 
-open class DefaultSpatial(private var node: Node): Spatial {
+open class DefaultSpatial(private var node: Node): Spatial, Networkable{
     override var world: Matrix4f by Delegates.observable(Matrix4f().identity()) { property, old, new -> propertyChanged(property, old, new) }
     override var model: Matrix4f by Delegates.observable(Matrix4f().identity()) { property, old, new -> propertyChanged(property, old, new) }
     override var view: Matrix4f by Delegates.observable(Matrix4f().identity()) { property, old, new -> propertyChanged(property, old, new) }
@@ -375,5 +377,24 @@ open class DefaultSpatial(private var node: Node): Spatial {
     override fun setPosition(position: Long, d: Int) {
         setPosition(position.toFloat(), d)
     }
+
+    override fun update(fresh: Networkable) {
+        if (fresh !is DefaultSpatial){
+            throw IllegalArgumentException("Got wrong type to update ${this::class.simpleName} ")
+        }
+        position = fresh.position
+        rotation = fresh.rotation
+        scale = fresh.scale
+    }
+
+    override fun hasChanged(): Boolean {
+        TODO("Not yet implemented")
+    }
+
+    override fun getAttributeClass(): KClass<out Any> {
+        return Spatial::class
+    }
+
+    override var networkID: Int = 0
 
 }

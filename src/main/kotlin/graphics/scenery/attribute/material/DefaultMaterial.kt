@@ -1,12 +1,13 @@
 package graphics.scenery.attribute.material
 
 import graphics.scenery.Blending
+import graphics.scenery.net.Networkable
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.TimestampedConcurrentHashMap
 import org.joml.Vector3f
-import java.io.Serializable
+import kotlin.reflect.KClass
 
-open class DefaultMaterial : Material, Serializable {
+open class DefaultMaterial : Material, Networkable {
 
     override var name: String = "Material"
     override var diffuse: Vector3f = Vector3f(0.9f, 0.5f, 0.5f)
@@ -30,4 +31,22 @@ open class DefaultMaterial : Material, Serializable {
          */
         @JvmStatic fun Material(): DefaultMaterial = DefaultMaterial()
     }
+
+    override fun update(fresh: Networkable) {
+        if (fresh !is DefaultMaterial){
+            throw IllegalArgumentException("Got wrong type to update ${this::class.simpleName} ")
+        }
+        diffuse = fresh.diffuse
+        blending = fresh.blending
+    }
+
+    override fun hasChanged(): Boolean {
+        TODO("Not yet implemented")
+    }
+
+    override fun getAttributeClass(): KClass<out Any>? {
+        return Material::class
+    }
+
+    override var networkID: Int = 0
 }
