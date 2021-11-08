@@ -24,22 +24,23 @@ layout(location = 0) out SilhouetteData /*This is a corner of the silhouette-qua
     flat vec3 Properties;
 } SilhouetteCorner;
 
-layout(location = 4) out CameraDataOut
-{
+layout(location = 4) out CameraDataOut {
     mat4 VP;
 } CameraOut;
 
 const float eps = 0.0000000001;
+
 // Function that calculates the silhouette center and the radius of the silhouette, from Camera.Position, VertexIn.Position and VertexIn.Properties.x = ParticleRadius with
 // sr -> silhouette radius
 // sc -> silhouette center
 // e  -> distance between VertexIn.Position and Camera.Position
 // V  -> Vector from Camera.Position to silhouette border
-
 void CalculateSilhouette(in vec3 particlePos, in vec3 cameraPos, in float particleRadius, inout vec3 sc, inout float sr) {
-    float e = max(eps, abs(distance(particlePos, cameraPos))); // distance between particle position and camera position
+    // distance between particle position and camera position
+    float e = max(eps, abs(distance(particlePos, cameraPos)));
     float rr = (particleRadius * particleRadius);
-    float m =  rr / e; // distance between particle position  and silhouette center
+    // distance between particle position  and silhouette center
+    float m =  rr / e;
 
     vec3 distCenter = (m / e) * (cameraPos - particlePos);
     sc = particlePos + distCenter;
@@ -54,19 +55,20 @@ void main() {
     CalculateSilhouette(pos, Camera[0].Position, VertexIn[0].Properties.x, sc, sr);
 
     vec3 up = Camera[0].Transform[1].xyz;
-    //vec3 forward = normalize(sc - Camera[0].Position);
-    vec3 right = Camera[0].Transform[0].xyz; // currently its View-perpendicular, it needs to be camera-perpendicular -> change back to manual right vector calculation
-    //vec3 right = normalize(cross(up, forward));
+    vec3 right = Camera[0].Transform[0].xyz;
     vec3 cornerPos = vec3(1.0);
     vec4 unnormPos = vec4(1.0);
 
     vec3 rMulUp = sr * up;
     vec3 rMulRight = sr * right;
 
-    cornerPos = sc + rMulUp + rMulRight;                    // calculate corner in World space
-    unnormPos = Camera[0].VP * vec4(cornerPos, 1.0);        // bring corner to view space
+    // calculate corner in World space
+    cornerPos = sc + rMulUp + rMulRight;
+    // bring corner to view space
+    unnormPos = Camera[0].VP * vec4(cornerPos, 1.0);
 
-    gl_Position = vec4(unnormPos.xyz / unnormPos.w, 1.0);   // bring corner to clip space
+    // bring corner to clip space
+    gl_Position = vec4(unnormPos.xyz / unnormPos.w, 1.0);
     SilhouetteCorner.Position = cornerPos;
     SilhouetteCorner.TexCoord = vec2(1.0, 1.0);
     SilhouetteCorner.Center = VertexIn[0].Position;
