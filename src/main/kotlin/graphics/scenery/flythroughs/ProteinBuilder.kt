@@ -19,15 +19,26 @@ import org.joml.Vector2f
 import org.joml.Vector3f
 import org.scijava.ui.behaviour.ClickBehaviour
 import org.slf4j.Logger
+import java.text.DecimalFormat
 import kotlin.math.acos
 
-class ProteinBuilder(override val ribbonDiagram: RibbonDiagram, override val cam: ()-> Camera?,  val scene: Scene,
+class ProteinBuilder(ribbonDiagram: RibbonDiagram, override val cam: ()-> Camera?,  val scene: Scene,
                      private val name: String): ProteinRollercoaster(ribbonDiagram, cam), ClickBehaviour {
     val img = Image.fromResource("L-Glutamic-Acid.jpg", ProteinBuilder::class.java)
     var k = 0
+    val residueCount = ribbonDiagram.children.flatMap { chains -> chains.children }.flatMap { residues -> residues.children }.size
+    val framesCount = listOfCameraFrames.size
+    private val cameraFramesPerStepFloat = listOfCameraFrames.size.toFloat()/ribbonDiagram.children.flatMap { chains -> chains.children }.flatMap { residues -> residues.children }.size
+    //toInt() cuts away all the decimal places after 0
+    private val cameraFramesPerStep = cameraFramesPerStepFloat.toInt()
+    //for more precision we will use the first decimal place after the comma as well
+    private val remainder = ((cameraFramesPerStepFloat-cameraFramesPerStep)*10).toInt()
     override fun click(x: Int, y: Int) {
-        for(l in 1..10) {
-            flyToNextPoint()
+        if(k > 0) {
+            val startingPoint = if(k%10 <= remainder) { 0 } else { 1 }
+            for (l in  startingPoint .. cameraFramesPerStep) {
+                flyToNextPoint()
+            }
         }
         //remove old pic
         scene.removeChild("le box du win")
@@ -51,7 +62,7 @@ class ProteinBuilder(override val ribbonDiagram: RibbonDiagram, override val cam
             metallic = 0.3f
             roughness = 0.9f
         }
-        scene.addChild(box)
+        //scene.addChild(box)
 
         if(scene.children.filter { it.name == name }[0] is RibbonDiagram) {
             if (k <= scene.children.filter { it.name == name }[0].children.flatMap { subProtein -> subProtein.children }
@@ -59,7 +70,7 @@ class ProteinBuilder(override val ribbonDiagram: RibbonDiagram, override val cam
                 scene.children.filter { it.name == name }[0].children.flatMap { subProtein -> subProtein.children }
                     .flatMap { curve -> curve.children }[k].visible = true
             }
-            k =+1
         }
+        k += 1
     }
 }
