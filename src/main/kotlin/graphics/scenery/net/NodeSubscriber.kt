@@ -18,7 +18,11 @@ import kotlin.reflect.KClass
 /**
  * Created by ulrik on 4/4/2017.
  */
-class NodeSubscriber(override var hub: Hub?, val address: String = "tcp://localhost:6666", val context: ZContext = ZContext(4)) : Hubable {
+class NodeSubscriber(
+    override var hub: Hub?,
+    val address: String = "tcp://localhost:6666",
+    val context: ZContext = ZContext(4)
+) : Hubable {
 
     private val logger by LazyLogger()
     var nodes: ConcurrentHashMap<Int, Node> = ConcurrentHashMap()
@@ -26,6 +30,7 @@ class NodeSubscriber(override var hub: Hub?, val address: String = "tcp://localh
     val kryo = NodePublisher.freeze()
     private val networkObjects = hashMapOf<Int, NetworkObject<*>>()
     private val eventQueue = LinkedBlockingQueue<NetworkEvent>()
+    private val waitingOnParent = mutableMapOf<Int, List<NetworkEvent>>()
     private var running = false
 
     init {
@@ -56,7 +61,10 @@ class NodeSubscriber(override var hub: Hub?, val address: String = "tcp://localh
         }
     }
 
-    fun debugListen(event: NetworkEvent){
+    /**
+     * Used in Unit test
+     */
+    private fun debugListen(event: NetworkEvent) {
         eventQueue.add(event)
     }
 
@@ -68,30 +76,63 @@ class NodeSubscriber(override var hub: Hub?, val address: String = "tcp://localh
             when (val event = eventQueue.poll()) {
                 is NetworkEvent.NewObject -> {
                     val networkObject = event.obj
+
+                    fun reuniteChildParent(parent: Node) {
+                        val missingChildren = waitingOnParent.remove(parent.networkID)
+                        missingChildren?.forEach { childEvent ->
+                            when (childEvent) {
+                                is NetworkEvent.NewObject -> {
+                                    when (val child = childEvent.obj.obj) {
+                                        is Node -> {
+                                            parent.addChild(child)
+                                        }
+                                        else -> {
+                                            // assuming child is Attribute
+                                            val attributeBaseClass = child.getAttributeClass()!!
+                                            // before adding the attribute to the waitingOnParent list this was null checked
+                                            parent.addAttributeFromNetwork(attributeBaseClass.java, parent)
+                                        }
+                                    }
+                                }
+                                is NetworkEvent.NewRelation -> TODO()
+                            }
+                        }
+                    }
+
                     when (val networkable = networkObject.obj) {
                         is Scene -> {
+                            // dont use the scene from network, but adapt own scene
                             scene.networkID = networkable.networkID
                             scene.update(networkable)
                             networkObjects[networkObject.nID] = NetworkObject(networkObject.nID, scene, mutableListOf())
+                            reuniteChildParent(scene)
                         }
                         is Node -> {
-                            val parent = networkObjects[networkObject.parents.first()]?.obj as? Node
-                            if (parent != null){
+                            val parentId = networkObject.parents.first()
+                            val parent = networkObjects[parentId]?.obj as? Node
+                            if (parent != null) {
                                 parent.addChild(networkable)
                             } else {
-                                throw IllegalStateException("Cant find parent of Node ${networkable.name} for network sync.")
+                                waitingOnParent[parentId] = waitingOnParent.getOrDefault(parentId, listOf()) + event
                             }
                             networkObjects[networkObject.nID] = networkObject
+                            reuniteChildParent(networkable)
                         }
                         else -> {
                             val attributeBaseClass = networkable.getAttributeClass()
                             if (attributeBaseClass != null) {
-                                //val r = cast(attributeBaseClass,networkable)
+                                // val r = cast(attributeBaseClass,networkable)
                                 // It is an attribute
                                 networkObject.parents
-                                    .map {
-                                        networkObjects[it] as? Node
-                                            ?: throw IllegalStateException("Cant find parent attribute for network sync.")
+                                    .mapNotNull { parentId ->
+                                        val parent = networkObjects[parentId]?.obj as? Node
+                                        if (parent == null) {
+                                            waitingOnParent[parentId] =
+                                                waitingOnParent.getOrDefault(parentId, listOf()) + event
+                                            null
+                                        } else {
+                                            parent
+                                        }
                                     }
                                     .forEach {
                                         it.addAttributeFromNetwork(attributeBaseClass.java, networkable)
@@ -109,10 +150,6 @@ class NodeSubscriber(override var hub: Hub?, val address: String = "tcp://localh
                 is NetworkEvent.NewRelation -> TODO()
             }
         }
-    }
-
-    inline fun <reified T : Any> cast(attributeType: KClass<T>, attribute: Networkable): T? {
-        return attribute as? T
     }
 
     fun process() {
@@ -154,17 +191,17 @@ class NodeSubscriber(override var hub: Hub?, val address: String = "tcp://localh
                         if (Volume::class.java.isAssignableFrom(o.javaClass) && Volume::class.java.isAssignableFrom(node.javaClass)) {
                             (node as Volume).colormap = (o as Volume).colormap
                             node.transferFunction = o.transferFunction
-                            if(node.currentTimepoint != o.currentTimepoint) {
+                            if (node.currentTimepoint != o.currentTimepoint) {
                                 node.goToTimepoint(o.currentTimepoint)
                             }
                         }
 
-                        if(o is PointLight && node is PointLight) {
+                        if (o is PointLight && node is PointLight) {
                             node.emissionColor = o.emissionColor
                             node.lightRadius = o.lightRadius
                         }
 
-                        if(o is BoundingGrid && node is BoundingGrid) {
+                        if (o is BoundingGrid && node is BoundingGrid) {
                             node.gridColor = o.gridColor
                             node.lineWidth = o.lineWidth
                             node.numLines = o.numLines
@@ -175,9 +212,9 @@ class NodeSubscriber(override var hub: Hub?, val address: String = "tcp://localh
                         bin.close()
                     }
                 }
-            } catch(e: StreamCorruptedException) {
+            } catch (e: StreamCorruptedException) {
                 logger.warn("Corrupted stream")
-            } catch(e: NullPointerException) {
+            } catch (e: NullPointerException) {
                 logger.warn("NPE while receiving payload: $e")
             }
 
