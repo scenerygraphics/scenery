@@ -17,9 +17,28 @@ tasks {
         if (!gpuPresent) {
             filter { excludeTestsMatching("ExampleRunner") }
         } else {
+            filter { excludeTestsMatching("graphics.scenery.tests.unit.**") }
+
+            // this should circumvent Nvidia's Vulkan cleanup issue
+            maxParallelForks = 2
+            setForkEvery(8)
+
+            // we only want the Vulkan renderer here, and all screenshot to be stored in the screenshots/ dir
             systemProperty("scenery.Renderer", "VulkanRenderer")
             systemProperty("scenery.ExampleRunner.OutputDir", "screenshots")
+
+            val props = System.getProperties().filter { (k, _) -> k.toString().startsWith("scenery.") }
+
+            println("Adding properties ${props.size}/$props")
+            val additionalArgs = System.getenv("SCENERY_JVM_ARGS")
+            allJvmArgs = if (additionalArgs != null) {
+                allJvmArgs + props.flatMap { (k, v) -> listOf("-D$k=$v") } + additionalArgs
+            } else {
+                allJvmArgs + props.flatMap { (k, v) -> listOf("-D$k=$v") }
+            }
+
         }
+
         finalizedBy(jacocoTestReport) // report is always generated after tests run
     }
 
@@ -27,6 +46,11 @@ tasks {
         maxHeapSize = "8G"
         group = "verification"
         filter { includeTestsMatching("ExampleRunner") }
+
+        val testGroup = System.getProperty("scenery.ExampleRunner.TestGroup", "basic")
+        extensions.configure(JacocoTaskExtension::class) {
+            setDestinationFile(layout.buildDirectory.file("jacoco/jacocoTest.$testGroup.exec").get().asFile)
+        }
     }
 
     named<Jar>("jar") {
