@@ -863,7 +863,13 @@ open class OpenGLRenderer(hub: Hub,
         try {
 
             scene.discover(scene, { _ -> true }).forEach {
-                destroyNode(it)
+                destroyNode(it, onShutdown = true)
+            }
+
+            // The hub might contain elements that are both in the scene graph,
+            // and in the hub, e.g. a VolumeManager. We clean them here as well.
+            hub?.find { it is Node }?.forEach { (_, node) ->
+                (node as? Node)?.let { destroyNode(it, onShutdown = true) }
             }
 
             hub?.elements?.values?.forEach {
@@ -1563,7 +1569,7 @@ open class OpenGLRenderer(hub: Hub,
         return state
     }
 
-    protected fun destroyNode(node: Node) {
+    protected fun destroyNode(node: Node, onShutdown: Boolean = false) {
         node.ifRenderable {
             this.metadata.remove("OpenGLRenderer")
             val s = this.metadata["OpenGLRenderer"] as? OpenGLObjectState ?: return@ifRenderable
@@ -1576,6 +1582,12 @@ open class OpenGLRenderer(hub: Hub,
             }
 
             node.metadata.remove("OpenGLRenderer")
+
+            if(onShutdown) {
+                s.textures.forEach { (name, texture) ->
+                    texture.delete()
+                }
+            }
 
             initialized = false
         }

@@ -337,7 +337,7 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
 //            voxelSizes.dimension(1).toFloat() * pixelToWorldRatio,
 //            voxelSizes.dimension(2).toFloat() * pixelToWorldRatio
             pixelToWorldRatio,
-            pixelToWorldRatio,
+            -1.0f * pixelToWorldRatio,
             pixelToWorldRatio
         )
     }
