@@ -15,7 +15,7 @@ import org.scijava.ui.behaviour.ClickBehaviour
 import org.slf4j.Logger
 
 
-class ProteinRollercoasterSimple(override val ribbonDiagram: RibbonDiagram, override val cam: () -> Camera?)
+class ProteinRollercoasterSimple(ribbonDiagram: RibbonDiagram, override val cam: () -> Camera?)
     : ProteinRollercoaster(ribbonDiagram, cam), ClickBehaviour {
     override fun click(x: Int, y: Int) {
         flyToNextPoint()
