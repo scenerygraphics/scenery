@@ -4,11 +4,13 @@ import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import graphics.scenery.Camera
 
-class ProteinBuilderOld(val cam: () -> Camera?) {
+class IUPACAbbreviationsReader(val cam: () -> Camera?) {
 
-    data class IUPACAbbrevation(val singleLetter: Char, val threeLetters: String, val fullName: String)
+    enum class ChemicalCategory{Acid, Basic, Hydrophobic, Polar, Undefined}
 
-    enum class ChemicalCategory {Acid, Basic, Hydrophobic, Polar}
+    data class IUPACAbbrevation(val singleLetter: Char, val threeLetters: String, val fullName: String, val chemicalCategory: ChemicalCategory)
+
+
 
     val abbrevations = ArrayList<IUPACAbbrevation>(20)
     data class AACell(@JsonProperty("Cell") val cell: ArrayList<String>)
@@ -20,7 +22,7 @@ class ProteinBuilderOld(val cam: () -> Camera?) {
         //parsing the json file
         val mapper = jacksonObjectMapper()
         val file = this::class.java.getResource("IUPACAminoAcidAbbreviations.json").readText()
-        val iupacAbbreviations = mapper.readValue(file,ProteinBuilderOld.IUPACAbbreviations::class.java)
+        val iupacAbbreviations = mapper.readValue(file,IUPACAbbreviationsReader.IUPACAbbreviations::class.java)
         extractInformation(iupacAbbreviations)
     }
 
@@ -29,7 +31,13 @@ class ProteinBuilderOld(val cam: () -> Camera?) {
             val abbreviation = IUPACAbbrevation(
                 singleLetter = stringAbbreviation.cell[0][0],
                 threeLetters = stringAbbreviation.cell[1],
-                fullName = stringAbbreviation.cell[2]
+                fullName = stringAbbreviation.cell[2],
+                chemicalCategory = when(stringAbbreviation.cell[3]) {
+                    "Acid" -> ChemicalCategory.Acid
+                    "Basic" -> ChemicalCategory.Basic
+                    "Hydophobic" -> ChemicalCategory.Hydrophobic
+                    "Polar" -> ChemicalCategory.Polar
+                    else -> ChemicalCategory.Undefined}
             )
             abbrevations.add(abbreviation)
         }
