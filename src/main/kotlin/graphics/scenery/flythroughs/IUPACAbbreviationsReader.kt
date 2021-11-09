@@ -4,13 +4,14 @@ import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import graphics.scenery.Camera
 
-class IUPACAbbreviationsReader(val cam: () -> Camera?) {
+class IUPACAbbreviationsReader() {
+
+    val abbrevations = HashMap<String, IUPACAbbrevation>(20)
 
     enum class ChemicalCategory{Acid, Basic, Hydrophobic, Polar, Undefined}
 
     data class IUPACAbbrevation(val singleLetter: Char, val threeLetters: String, val fullName: String, val chemicalCategory: ChemicalCategory)
 
-    val abbrevations = ArrayList<IUPACAbbrevation>(20)
     data class AACell(@JsonProperty("Cell") val cell: ArrayList<String>)
     data class AAColumn(@JsonProperty("Column") val column: ArrayList<String>)
     data class AATable(@JsonProperty("Columns") val columns: AAColumn, @JsonProperty("Row") val row: ArrayList<AACell>)
@@ -38,7 +39,7 @@ class IUPACAbbreviationsReader(val cam: () -> Camera?) {
                     else -> ChemicalCategory.Undefined
                 }
             )
-            abbrevations.add(abbreviation)
+            abbrevations[abbreviation.threeLetters] = abbreviation
         }
     }
 
