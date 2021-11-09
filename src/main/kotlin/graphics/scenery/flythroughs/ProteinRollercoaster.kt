@@ -12,7 +12,7 @@ import graphics.scenery.utils.LazyLogger
 import org.joml.Vector3f
 import org.slf4j.Logger
 
-open class ProteinRollercoaster(open val ribbonDiagram: RibbonDiagram, open val cam: () -> Camera?): Rollercoaster(cam) {
+open class ProteinRollercoaster(ribbonDiagram: RibbonDiagram, open val cam: () -> Camera?): Rollercoaster(cam) {
     private val subproteins = ribbonDiagram.children
     val controlpoints = ArrayList<Vector3f>(subproteins.size*10)
     override val offsetList: List<List<Vector3f>> = ArrayList<List<Vector3f>>()
@@ -24,7 +24,7 @@ open class ProteinRollercoaster(open val ribbonDiagram: RibbonDiagram, open val 
         ribbonDiagram.children.forEach { subprotein ->
             subprotein.children.forEachIndexed{ index, subCurve ->
                 if(subCurve is Curve) {
-                    subCurve.frenetFrames.filterIndexed { index, _ -> index%10 == 1  }.forEachIndexed { _, frame ->
+                    subCurve.frenetFrames.filterIndexed { index, _ -> index%10 == 0  }.forEachIndexed { _, frame ->
                         controlpoints.add(Vector3f(frame.translation.x, frame.translation.y + 0.7f, frame.translation.z))//offset to not fly through the baseShapes
                     }
                 }
@@ -45,7 +45,7 @@ open class ProteinRollercoaster(open val ribbonDiagram: RibbonDiagram, open val 
         // midpoint of the helix since the axis calc does not give a good enough approximation
         val axisPos = Axis.getCentroid(helixSpline.splinePoints().drop(10).dropLast(10))
         val axisDir = helix.axis.direction
-        helixSpline.splinePoints().drop(18).dropLast(18).filterIndexed{index, _ -> index%15 == 0}.forEach { splinePoint ->
+        helixSpline.splinePoints().filterIndexed{index, _ -> index%10 == 0}.forEach { splinePoint ->
             val newPoint = Vector3f()
             val t = (splinePoint.sub(axisPos, newPoint).dot(axisDir))/(axisDir.length()*axisDir.length())
             // this is the splinePoint mapped to the axis
