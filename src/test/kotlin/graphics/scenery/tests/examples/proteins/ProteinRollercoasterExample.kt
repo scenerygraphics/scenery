@@ -3,7 +3,7 @@ package graphics.scenery.tests.examples.proteins
 import graphics.scenery.*
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.backends.Renderer
-import graphics.scenery.flythroughs.ProteinRollercoaster
+import graphics.scenery.flythroughs.ProteinRollercoasterSimple
 import graphics.scenery.numerics.Random
 import graphics.scenery.proteins.Protein
 import graphics.scenery.proteins.RibbonDiagram
@@ -61,7 +61,7 @@ class ProteinRollercoasterExample: SceneryBase("RollerCoaster", wantREPL = true,
 
         val cam: Camera = DetachedHeadCamera()
         cam.name = "camera"
-        cam.position = Vector3f(0.0f, 0.0f, 15.0f)
+        cam.spatial().position = Vector3f(0.0f, 0.0f, 15.0f)
         cam.perspectiveCamera(50.0f, windowWidth, windowHeight)
 
 
@@ -87,7 +87,7 @@ class ProteinRollercoasterExample: SceneryBase("RollerCoaster", wantREPL = true,
 
     override fun inputSetup() {
         super.inputSetup()
-        val rollercoaster = ProteinRollercoaster(ribbon, { scene.activeObserver })
+        val rollercoaster = ProteinRollercoasterSimple(ribbon) { scene.activeObserver }
         inputHandler?.addBehaviour("rollercoaster", rollercoaster)
         inputHandler?.addKeyBinding("rollercoaster", "E")
 

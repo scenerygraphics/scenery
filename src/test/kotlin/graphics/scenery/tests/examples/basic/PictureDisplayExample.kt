@@ -19,7 +19,7 @@ class PictureDisplayExample : SceneryBase("PictureDisplayExample", wantREPL = Sy
 
         val box = Box(Vector3f(1.0f, 1.0f, 1.0f))
         box.name = "le box du win"
-        val img = Image.fromResource("textures/L-Glutamic-Acid.jpg", TexturedCubeExample::class.java)
+        val img = Image.fromResource("textures/L-Glutamic-Acid.jpg", PictureDisplayExample::class.java)
         val height = img.height
         val width = img.width
         box.material {
