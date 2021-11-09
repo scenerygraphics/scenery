@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import graphics.scenery.Camera
 
-class ProteinBuilder(val cam: () -> Camera?) {
+class ProteinBuilderOld(val cam: () -> Camera?) {
 
     data class IUPACAbbrevation(val singleLetter: Char, val threeLetters: String, val fullName: String)
 
@@ -20,7 +20,7 @@ class ProteinBuilder(val cam: () -> Camera?) {
         //parsing the json file
         val mapper = jacksonObjectMapper()
         val file = this::class.java.getResource("IUPACAminoAcidAbbreviations.json").readText()
-        val iupacAbbreviations = mapper.readValue(file,ProteinBuilder.IUPACAbbreviations::class.java)
+        val iupacAbbreviations = mapper.readValue(file,ProteinBuilderOld.IUPACAbbreviations::class.java)
         extractInformation(iupacAbbreviations)
     }
 
