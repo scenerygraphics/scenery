@@ -1,4 +1,4 @@
-package graphics.scenery.proteins
+package graphics.scenery.flythroughs
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
@@ -10,8 +10,6 @@ class IUPACAbbreviationsReader(val cam: () -> Camera?) {
 
     data class IUPACAbbrevation(val singleLetter: Char, val threeLetters: String, val fullName: String, val chemicalCategory: ChemicalCategory)
 
-
-
     val abbrevations = ArrayList<IUPACAbbrevation>(20)
     data class AACell(@JsonProperty("Cell") val cell: ArrayList<String>)
     data class AAColumn(@JsonProperty("Column") val column: ArrayList<String>)
@@ -22,7 +20,7 @@ class IUPACAbbreviationsReader(val cam: () -> Camera?) {
         //parsing the json file
         val mapper = jacksonObjectMapper()
         val file = this::class.java.getResource("IUPACAminoAcidAbbreviations.json").readText()
-        val iupacAbbreviations = mapper.readValue(file,IUPACAbbreviationsReader.IUPACAbbreviations::class.java)
+        val iupacAbbreviations = mapper.readValue(file, IUPACAbbreviations::class.java)
         extractInformation(iupacAbbreviations)
     }
 
@@ -37,7 +35,8 @@ class IUPACAbbreviationsReader(val cam: () -> Camera?) {
                     "Basic" -> ChemicalCategory.Basic
                     "Hydophobic" -> ChemicalCategory.Hydrophobic
                     "Polar" -> ChemicalCategory.Polar
-                    else -> ChemicalCategory.Undefined}
+                    else -> ChemicalCategory.Undefined
+                }
             )
             abbrevations.add(abbreviation)
         }

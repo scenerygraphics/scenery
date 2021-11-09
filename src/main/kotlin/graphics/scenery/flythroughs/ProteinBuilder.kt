@@ -62,7 +62,7 @@ class ProteinBuilder(ribbonDiagram: RibbonDiagram, override val cam: ()-> Camera
             metallic = 0.3f
             roughness = 0.9f
         }
-        //scene.addChild(box)
+        scene.addChild(box)
 
         if(scene.children.filter { it.name == name }[0] is RibbonDiagram) {
             if (k <= scene.children.filter { it.name == name }[0].children.flatMap { subProtein -> subProtein.children }
