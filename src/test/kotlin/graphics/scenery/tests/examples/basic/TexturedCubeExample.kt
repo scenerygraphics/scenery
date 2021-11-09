@@ -61,4 +61,3 @@ class TexturedCubeExample : SceneryBase("TexturedCubeExample", wantREPL = System
         }
     }
 }
-
