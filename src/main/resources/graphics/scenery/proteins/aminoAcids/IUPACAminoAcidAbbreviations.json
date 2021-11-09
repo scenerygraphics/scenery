@@ -12,102 +12,122 @@
       {"Cell": [
 			"A",
 			"Ala",
-			"Alanine"
+			"Alanine",
+		  	"Hydrophobic"
         ]},
 	  {"Cell": [
 			"C",
 			"Cys",
-			"Cysteine"
+			"Cysteine",
+		  	"Polar"
 		]},
 	  {"Cell": [
 			"D",
 			"Asp",
-			"Aspartic Acid"
+			"Aspartic Acid",
+		  	"Acid"
 	  ]},
 	  {"Cell": [
 			"E",
 			"Glu",
-			"Glutamic Acid"
+			"Glutamic Acid",
+		  	"Acid"
 	  ]},
 	  {"Cell": [
 			"F",
 			"Phe",
-			"Phenylalanine"
+			"Phenylalanine",
+		  	"Hydrophobic"
 	  ]},
 	  {"Cell": [
 			"G",
 			"Gly",
-			"Glycine"
+			"Glycine",
+		  	"Polar"
 	  ]},
 	  {"Cell": [
 			"H",
 			"His",
-			"Histidine"
+			"Histidine",
+		  	"Basic"
 	  ]},
 	  {"Cell": [
 			"I",
 			"Ile",
-			"Isoleucine"
+			"Isoleucine",
+		  	"Hydrophobic"
 	  ]},
 	  {"Cell": [
 			"K",
 			"Lys",
-			"Lysine"
+			"Lysine",
+		  	"Basic"
 	  ]},
 	  {"Cell": [
 			"L",
 			"Leu",
-			"Leucine"
+			"Leucine",
+		  	"Hydrophobic"
 	  ]},
 	  {"Cell": [
 			"M",
 			"Met",
-			"Methionine"
+			"Methionine",
+		  	"Hydrophobic"
 	  ]},
 	  {"Cell": [
 			"N",
 			"Asn",
-			"Asparagine"
+			"Asparagine",
+		  	"Polar"
 	  ]},
 	  {"Cell": [
 			"P",
 			"Pro",
-			"Proline"
+			"Proline",
+		  	"Hydrophobic"
 	  ]},
 	  {"Cell": [
 			"Q",
 			"Gln",
-			"Glutamine"
+			"Glutamine",
+		  	"Polar"
 	  ]},
 	  {"Cell": [
 			"R",
 			"Arg",
-			"Arginine"
+			"Arginine",
+		  	"Basic"
 	  ]},
 	  {"Cell": [
 			"S",
 			"Ser",
-			"Serine"
+			"Serine",
+		  	"Polar"
 	  ]},
 	  {"Cell": [
 			"T",
 			"Thr",
-			"Threonine"
+			"Threonine",
+		  	"Polar"
 	  ]},
 	  {"Cell": [
 			"V",
 			"Val",
-			"Valine"
+			"Valine",
+		  	"Hydrophobic"
 	  ]},
 	  {"Cell": [
 			"W",
 			"Trp",
-			"Tryptophan"
+			"Tryptophane",
+		  	"Hydrophobic"
 	  ]},
 	  {"Cell": [
 			"Y",
 			"Tyr",
-			"Tyrosine"
+			"Tyrosine",
+		  	"Polar"
 	  ]}
 	]
 	}
