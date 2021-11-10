@@ -8,6 +8,7 @@ import graphics.scenery.attribute.material.DefaultMaterial
 import graphics.scenery.attribute.material.HasMaterial
 import graphics.scenery.attribute.renderable.HasRenderable
 import graphics.scenery.attribute.spatial.HasSpatial
+import graphics.scenery.net.Networkable
 import graphics.scenery.net.NodePublisher
 import graphics.scenery.net.NodeSubscriber
 import graphics.scenery.serialization.*
@@ -276,6 +277,11 @@ open class Scene : DefaultNode("RootNode"), HasRenderable, HasMaterial, HasSpati
             //pub?.nodes?.put(13337 + i, node)
        //     sub?.nodes?.put(13337 + i, node)
         }
+    }
+
+    override fun update(fresh: Networkable) {
+        super.update(fresh)
+        if (fresh !is Scene) throw IllegalArgumentException("Update called with object of foreign class")
 
     }
 

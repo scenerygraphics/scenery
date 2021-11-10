@@ -34,8 +34,11 @@ import kotlin.concurrent.thread
 class NodePublisher(override var hub: Hub?, val address: String = "tcp://127.0.0.1:6666", val context: ZContext = ZContext(4)): Hubable {
     private val logger by LazyLogger()
 
+
     //var nodes: ConcurrentHashMap<Int, Node> = ConcurrentHashMap()
     //private var publishedAt = ConcurrentHashMap<Int, Long>()
+
+    private val eventQueueTimeout = 500L
 
     var nodes: ConcurrentHashMap<Int, Node> = ConcurrentHashMap() //TODO delete
     private var publisher: ZMQ.Socket = context.createSocket(ZMQ.PUB)
@@ -56,7 +59,7 @@ class NodePublisher(override var hub: Hub?, val address: String = "tcp://127.0.0
     private fun generateNetworkID() = index++
 
     init {
-        // TODO DEBUG uncomment startPublishing()
+        startPublishing()
     }
 
     fun register(scene: Scene){
@@ -64,8 +67,8 @@ class NodePublisher(override var hub: Hub?, val address: String = "tcp://127.0.0
         publishedObjects[sceneNo.nID] = sceneNo
         eventQueue.add(NetworkEvent.NewObject(sceneNo))
 
-        scene.onChildrenAdded["networkPublish"] = {_, child -> registerNode(child)}
-        scene.onChildrenRemoved["networkPublish"] = {_, child -> removeNode(child)}
+        //scene.onChildrenAdded["networkPublish"] = {_, child -> registerNode(child)}
+        //scene.onChildrenRemoved["networkPublish"] = {_, child -> removeNode(child)}
 
         // abusing the discover function for a tree walk
         scene.discover(scene,{registerNode(it); false})
@@ -76,34 +79,28 @@ class NodePublisher(override var hub: Hub?, val address: String = "tcp://127.0.0
     }
 
     fun registerNode(node:Node){
-        /**
-         * Gets current and future network object from the registered objects and the event queue
-         */
-        fun getNetObj(id: Int): NetworkObject<*>? = publishedObjects[id]
-            /*?: eventQueue.firstOrNull{(it as? NetworkEvent.NewObject)?.obj?.nID == id}
-                ?.let { (it as? NetworkEvent.NewObject)?.obj }*/
 
         if (node.parent == null){
             throw IllegalArgumentException("Node not part of scene graph and cant be synchronized alone")
         }
         val parentId = node.parent?.networkID
-        if (parentId == null || getNetObj(parentId) == null){
+        if (parentId == null || publishedObjects[parentId] == null){
             throw IllegalArgumentException("Node Parent not registered with publisher.")
         }
 
-        if (getNetObj(node.networkID) == null) {
-            val netObject = NetworkObject(generateNetworkID(),node, mutableListOf(parentId))
+        if (publishedObjects[node.networkID] == null) {
+            val netObject = NetworkObject(generateNetworkID(), node, mutableListOf(parentId))
             eventQueue.add(NetworkEvent.NewObject(netObject))
             publishedObjects[netObject.nID] = netObject
         }
 
         node.getSubcomponents().forEach { subComponent ->
-            val subNetObj = getNetObj(subComponent.networkID)
-            if (subNetObj != null){
+            val subNetObj = publishedObjects[subComponent.networkID]
+            if (subNetObj != null) {
                 subNetObj.parents.add(node.networkID)
-                eventQueue.add(NetworkEvent.NewRelation(node.networkID,subComponent.networkID))
+                eventQueue.add(NetworkEvent.NewRelation(node.networkID, subComponent.networkID))
             } else {
-                val new = NetworkObject(generateNetworkID(),subComponent, mutableListOf(node.networkID))
+                val new = NetworkObject(generateNetworkID(), subComponent, mutableListOf(node.networkID))
                 publishedObjects[new.nID] = new
                 eventQueue.add(NetworkEvent.NewObject(new))
             }
@@ -118,21 +115,25 @@ class NodePublisher(override var hub: Hub?, val address: String = "tcp://127.0.0
         running = true
         thread {
             while (running){
-                val event = eventQueue.poll(1000, TimeUnit.MILLISECONDS) ?: continue
+                val event = eventQueue.poll(eventQueueTimeout, TimeUnit.MILLISECONDS) ?: continue
                 if (!running) break // in case of shutdown while polling
                 publishEvent(event)
             }
         }
         //TODO discover node changes in update
     }
+
     fun debugPublish(send: (NetworkEvent) -> Unit){
         while(eventQueue.isNotEmpty()){
             send(eventQueue.poll())
         }
     }
 
-    fun stopPublishing(){
+    fun stopPublishing(waitForFinishOfPublishing: Boolean) {
         running = false
+        if(waitForFinishOfPublishing){
+            Thread.sleep(eventQueueTimeout*2)
+        }
     }
 
     private fun publishEvent(event: NetworkEvent){
@@ -155,15 +156,17 @@ class NodePublisher(override var hub: Hub?, val address: String = "tcp://127.0.0
             logger.warn("Error in publishing: ${event.javaClass.name}", e)
         } catch(e: AssertionError) {
             logger.warn("Error in publishing: ${event.javaClass.name}", e)
+        } catch (e: Throwable){
+            print(e)
         }
 
         val duration = (System.nanoTime() - start).toFloat()
-        (hub?.get(SceneryElement.Statistics) as Statistics).add("Serialise.duration", duration)
-        (hub?.get(SceneryElement.Statistics) as Statistics).add("Serialise.payloadSize", payloadSize, isTime = false)
+        (hub?.get(SceneryElement.Statistics) as? Statistics)?.add("Serialise.duration", duration)
+        (hub?.get(SceneryElement.Statistics) as? Statistics)?.add("Serialise.payloadSize", payloadSize, isTime = false)
     }
 
-    fun close() {
-        stopPublishing()
+    fun close(waitForFinishOfPublishing: Boolean = false) {
+        stopPublishing(waitForFinishOfPublishing)
         context.destroySocket(publisher)
         context.close()
     }
@@ -195,5 +198,7 @@ class NodePublisher(override var hub: Hub?, val address: String = "tcp://127.0.0
 
             return kryo
         }
+
     }
+
 }
