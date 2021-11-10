@@ -58,7 +58,7 @@ class ProteinBuilder(ribbonDiagram: RibbonDiagram, override val cam: ()-> Camera
             box.spatial().position.add(camera?.forward?.mul(2f, forwardTimesTwo))
         }
         box.material {
-            if(aaImage != null) { textures["displacement"] = Texture.fromImage(aaImage) }}
+            if(aaImage != null) { textures["diffuse"] = Texture.fromImage(aaImage) }}
         scene.addChild(box)
 
         if(scene.children.filter { it.name == name }[0] is RibbonDiagram) {
@@ -76,7 +76,7 @@ class ProteinBuilder(ribbonDiagram: RibbonDiagram, override val cam: ()-> Camera
             val images = HashMap<String, Image>(20)
             abbreviations.forEach { aminoAcid ->
                 val chemicalCategory = aminoAcid.value.chemicalCategory.toString().lowercase()
-                images[aminoAcid.key] = Image.fromResource("${chemicalCategory}/${aminoAcid.value.fullName}.jpg", ProteinBuilder::class.java)
+                images[aminoAcid.key] = Image.fromResource("${chemicalCategory}/${aminoAcid.value.fullName}.png", ProteinBuilder::class.java)
             }
             return images
         }
