@@ -29,7 +29,7 @@ class IUPACAbbreviationsReader() {
         abbreviationsFromJson.table.row.forEach { stringAbbreviation ->
             val abbreviation = IUPACAbbrevation(
                 singleLetter = stringAbbreviation.cell[0][0],
-                threeLetters = stringAbbreviation.cell[1],
+                threeLetters = stringAbbreviation.cell[1].uppercase(),
                 fullName = stringAbbreviation.cell[2],
                 chemicalCategory = when(stringAbbreviation.cell[3]) {
                     "Acid" -> ChemicalCategory.Acid
