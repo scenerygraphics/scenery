@@ -34,7 +34,7 @@ class IUPACAbbreviationsReader() {
                 chemicalCategory = when(stringAbbreviation.cell[3]) {
                     "Acid" -> ChemicalCategory.Acid
                     "Basic" -> ChemicalCategory.Basic
-                    "Hydophobic" -> ChemicalCategory.Hydrophobic
+                    "Hydrophobic" -> ChemicalCategory.Hydrophobic
                     "Polar" -> ChemicalCategory.Polar
                     else -> ChemicalCategory.Undefined
                 }
