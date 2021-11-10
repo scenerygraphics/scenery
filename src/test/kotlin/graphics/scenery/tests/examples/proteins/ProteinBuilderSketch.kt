@@ -74,18 +74,7 @@ class ProteinBuilderSketch: SceneryBase("ProteinBuilder", wantREPL = true, windo
 
         scene.addChild(cam)
 
-        val box = Box(Vector3f(1.0f, 1.0f, 1.0f))
-        box.name = "le box du win"
-        val img = Image.fromResource("textures/L-Glutamic-Acid.jpg", PictureDisplayExample::class.java)
-        val height = img.height
-        val width = img.width
-        box.material {
-            textures["displacement"] = Texture.fromImage(img)
-            metallic = 0.3f
-            roughness = 0.9f
-        }
-        box.spatial().scale = Vector3f(width/height.toFloat(), 1f, 0f)
-        scene.addChild(box)
+
         /*
         //add a cross to prevent motion sickness
         cam.addChild(cross)
