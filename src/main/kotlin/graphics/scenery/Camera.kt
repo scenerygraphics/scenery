@@ -63,6 +63,8 @@ open class Camera : DefaultNode("Camera"), HasRenderable, HasMaterial, HasCustom
     /** Disables culling for this camera. */
     var disableCulling: Boolean = false
 
+    override fun wantsSync(): Boolean = false
+
     init {
         this.nodeType = "Camera"
         this.viewSpaceTripod = cameraTripod()

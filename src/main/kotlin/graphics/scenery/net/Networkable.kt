@@ -9,6 +9,7 @@ interface Networkable : Serializable{
     fun hasChanged(): Boolean
     // only set for attributes
     fun getAttributeClass(): KClass<out Any>?
+    fun wantsSync(): Boolean = true
 
     //set by external
     var networkID: Int
