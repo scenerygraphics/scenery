@@ -12,7 +12,6 @@ import java.io.StreamCorruptedException
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.LinkedBlockingQueue
 import kotlin.concurrent.thread
-import kotlin.reflect.KClass
 
 
 /**
@@ -40,23 +39,28 @@ class NodeSubscriber(
 
     fun startListening() {
         running = true
+        subscriber.receiveTimeOut = 0
         thread {
             while (running) {
-                var payload: ByteArray? = subscriber.recv()
-                while (payload != null && running) {
-                    try {
-                        val bin = ByteArrayInputStream(payload)
-                        val input = Input(bin)
-                        val event = kryo.readClassAndObject(input) as? NetworkEvent
-                            ?: throw IllegalStateException("Received unknown, not NetworkEvent payload")
-                        eventQueue.add(event)
-                        payload = subscriber.recv()
+                try {
+                    var payload: ByteArray? = subscriber.recv()
+                    while (payload != null && running) {
+                        try {
+                            val bin = ByteArrayInputStream(payload)
+                            val input = Input(bin)
+                            val event = kryo.readClassAndObject(input) as? NetworkEvent
+                                ?: throw IllegalStateException("Received unknown, not NetworkEvent payload")
+                            eventQueue.add(event)
+                            payload = subscriber.recv()
 
-                    } catch (ex: Exception) {
-                        println()
+                        } catch (t: Throwable) {
+                            print(t)
+                        }
                     }
+                } catch (t: Throwable) {
+                    print(t)
                 }
-                Thread.sleep(5)
+                Thread.sleep(50)
             }
         }
     }
@@ -108,6 +112,10 @@ class NodeSubscriber(
                             reuniteChildParent(scene)
                         }
                         is Node -> {
+                            if (networkObjects.containsKey(networkable.networkID)){
+                                networkObjects[networkable.networkID]?.obj?.update(networkable)
+                                continue
+                            }
                             val parentId = networkObject.parents.first()
                             val parent = networkObjects[parentId]?.obj as? Node
                             if (parent != null) {
@@ -136,6 +144,7 @@ class NodeSubscriber(
                                     }
                                     .forEach {
                                         it.addAttributeFromNetwork(attributeBaseClass.java, networkable)
+                                        it.spatialOrNull()?.needsUpdate = true
                                     }
                                 networkObjects[networkObject.nID] = networkObject
                             } else {

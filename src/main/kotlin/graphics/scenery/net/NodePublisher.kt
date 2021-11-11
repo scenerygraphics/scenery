@@ -58,10 +58,6 @@ class NodePublisher(override var hub: Hub?, val address: String = "tcp://127.0.0
 
     private fun generateNetworkID() = index++
 
-    init {
-        startPublishing()
-    }
-
     fun register(scene: Scene){
         val sceneNo = NetworkObject(generateNetworkID(),scene, mutableListOf())
         publishedObjects[sceneNo.nID] = sceneNo
@@ -79,7 +75,9 @@ class NodePublisher(override var hub: Hub?, val address: String = "tcp://127.0.0
     }
 
     fun registerNode(node:Node){
-
+        if (!node.wantsSync()){
+            return
+        }
         if (node.parent == null){
             throw IllegalArgumentException("Node not part of scene graph and cant be synchronized alone")
         }

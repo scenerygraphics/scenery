@@ -75,6 +75,7 @@ class PubSubTest {
         scene1.name = "lol"
 
         sub.startListening()
+        pub.startPublishing()
         pub.register(scene1)
         Thread.sleep(1000)
         sub.networkUpdate(scene2)
@@ -90,6 +91,7 @@ class PubSubTest {
         scene1.addChild(box)
 
         sub.startListening()
+        pub.startPublishing()
         pub.register(scene1)
         Thread.sleep(1000)
         sub.networkUpdate(scene2)

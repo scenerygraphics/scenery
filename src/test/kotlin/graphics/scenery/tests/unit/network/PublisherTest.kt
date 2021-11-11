@@ -24,7 +24,7 @@ class PublisherTest {
     fun initialSceneDiscovery() {
         val hub = Hub()
         val pub = NodePublisher(hub)
-        pub.close(true)
+        pub.close()
 
         val scene = Scene()
         val box = Box()
