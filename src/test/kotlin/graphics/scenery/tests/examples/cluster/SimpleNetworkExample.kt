@@ -24,19 +24,31 @@ class SimpleNetworkExample : SceneryBase("SimpleNetworkExample", wantREPL = fals
             Renderer.createRenderer(hub, applicationName, scene, 512, 512))
 
         val box = Box(Vector3f(1.0f, 1.0f, 1.0f))
-        box.name = "le box du win"
-        box.material {
-            textures["diffuse"] = Texture.fromImage(Image.fromResource("../basic/textures/helix.png", SimpleNetworkExample::class.java))
-            metallic = 0.3f
-            roughness = 0.9f
-        }
-        scene.addChild(box)
+        if (settings.get<Boolean>("master")) {
+            box.name = "le box du win"
+            box.material {
+                /*textures["diffuse"] = Texture.fromImage(
+                    Image.fromResource(
+                        "../basic/textures/helix.png",
+                        SimpleNetworkExample::class.java
+                    )
+                )*/
+                metallic = 0.3f
+                roughness = 0.9f
+            }
 
-        val light = PointLight(radius = 15.0f)
-        light.spatial().position = Vector3f(0.0f, 0.0f, 2.0f)
-        light.intensity = 5.0f
-        light.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
-        scene.addChild(light)
+            box.spatial {
+                rotation.rotateY(0.5f)
+                needsUpdate = true
+            }
+            scene.addChild(box)
+
+        }
+            val light = PointLight(radius = 15.0f)
+            light.spatial().position = Vector3f(0.0f, 0.0f, 2.0f)
+            light.intensity = 5.0f
+            light.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
+            scene.addChild(light)
 
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
@@ -48,13 +60,30 @@ class SimpleNetworkExample : SceneryBase("SimpleNetworkExample", wantREPL = fals
             scene.addChild(this)
         }
 
-        val publisher = hub.get<NodePublisher>(SceneryElement.NodePublisher)
-        val subscriber = hub.get<NodeSubscriber>(SceneryElement.NodeSubscriber)
 
-        if (settings.get<Boolean>("master")){
-            publisher?.nodes?.put(13337, box)
-        }else{
-            subscriber?.nodes?.put(13337, box)
+        //val publisher = hub.get<NodePublisher>(SceneryElement.NodePublisher)
+        //val subscriber = hub.get<NodeSubscriber>(SceneryElement.NodeSubscriber)
+
+        try {
+            if (settings.get<Boolean>("master")) {
+                val publisher = NodePublisher(hub, "tcp://localhost:5556")
+                hub.add(publisher)
+                publisher?.startPublishing()
+                Thread.sleep(1000)
+                publisher?.register(scene)
+            } else {
+                val subscriber = NodeSubscriber(hub, "tcp://localhost:5556")
+                hub.add(subscriber)
+                subscriber?.startListening()
+                thread {
+                    while (true) {
+                        subscriber?.networkUpdate(scene)
+                        Thread.sleep(500)
+                    }
+                }
+            }
+        } catch (t: Throwable){
+            print(t)
         }
 
         thread {
