@@ -5,7 +5,7 @@ import java.net.URL
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 plugins {
-    val ktVersion = "1.5.0"
+    val ktVersion = "1.5.31"
     java
     kotlin("jvm") version ktVersion
     kotlin("kapt") version ktVersion
@@ -92,7 +92,7 @@ dependencies {
             exclude("org.apache.logging.log4j", "log4j-slf4j-impl")
         }
     }
-    implementation("org.jetbrains.kotlin:kotlin-scripting-jsr223:1.5.0")
+    implementation("org.jetbrains.kotlin:kotlin-scripting-jsr223:1.5.31")
     implementation("graphics.scenery:art-dtrack-sdk:2.6.0")
 
     testImplementation(kotlin("test"))
@@ -100,7 +100,7 @@ dependencies {
     //    implementation("com.github.kotlin-graphics:assimp:25c68811")
 
 //    testImplementation(misc.junit4)
-//    testImplementation(slf4j.simple)
+    testImplementation("org.slf4j:slf4j-simple")
     testImplementation("net.imagej:imagej")
     testImplementation("net.imagej:ij")
     testImplementation("net.imglib2:imglib2-ij")
