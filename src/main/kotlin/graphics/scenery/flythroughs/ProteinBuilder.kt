@@ -35,9 +35,9 @@ class ProteinBuilder(ribbonDiagram: RibbonDiagram, override val cam: ()-> Camera
                 flyToNextPoint()
             }
         }
-        //TODO the index gets too large!
-        print(ribbonDiagram.protein.structure.chains.flatMap { it.atomGroups }.filter { it.isAminoAcid }[k].pdbName)
-        val aaImage = allImages[ribbonDiagram.protein.structure.chains.flatMap { it.atomGroups }.filter { it.isAminoAcid }[k].pdbName]
+        val aaImage = if(k <= (ribbonDiagram.protein.structure.chains.flatMap { it.atomGroups }.filter { it.isAminoAcid }.lastIndex)) {
+            allImages[ribbonDiagram.protein.structure.chains.flatMap { it.atomGroups }.filter { it.isAminoAcid }[k].pdbName]
+        } else { null }
         //remove old pic
         scene.removeChild("le box du win")
         //add the amino acid picture
@@ -58,8 +58,11 @@ class ProteinBuilder(ribbonDiagram: RibbonDiagram, override val cam: ()-> Camera
             box.spatial().position.add(camera?.forward?.mul(2f, forwardTimesTwo))
         }
         box.material {
-            if(aaImage != null) { textures["diffuse"] = Texture.fromImage(aaImage) }}
-        scene.addChild(box)
+            if(aaImage != null) {
+                textures["diffuse"] = Texture.fromImage(aaImage) }
+                scene.addChild(box)
+        }
+
 
         if(scene.children.filter { it.name == name }[0] is RibbonDiagram) {
             if (k <= scene.children.filter { it.name == name }[0].children.flatMap { subProtein -> subProtein.children }
