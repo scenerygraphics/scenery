@@ -8,7 +8,11 @@ import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.controls.TrackerRole
 import graphics.scenery.controls.behaviours.*
+import graphics.scenery.flythroughs.IUPACAbbreviationsReader
+import graphics.scenery.flythroughs.ProteinBuilder
 import graphics.scenery.numerics.Random
+import graphics.scenery.proteins.Protein
+import graphics.scenery.proteins.RibbonDiagram
 import graphics.scenery.utils.Wiggler
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
@@ -25,7 +29,7 @@ class ProteinBuilderExample : SceneryBase(
 ) {
     private lateinit var hmd: OpenVRHMD
     private lateinit var hullbox: Box
-    private var leftControllerPushes = true
+    private val ribbon = RibbonDiagram(Protein.fromID("3nir"))
 
     override fun init() {
         hmd = OpenVRHMD(useCompositor = true)
@@ -101,41 +105,57 @@ class ProteinBuilderExample : SceneryBase(
             }
         }
 
+        val builder = ProteinBuilder( ribbon, {scene.activeObserver}, scene, ribbon.name)
+        inputHandler?.addBehaviour("builder", builder)
+
+        val iupacAbbreviations = IUPACAbbreviationsReader().abbrevations
+
+        fun rightProteinChosen(threeLetterCode: String) {
+            val currentCode = builder.currentAminoCode
+            if(currentCode != null && currentCode == threeLetterCode) {
+                //x and y are never used in this implementation of click(), hence, 1 is chosen as an arbitrary value
+                builder.click(1, 1)
+            }
+            else {
+                print("Try ${iupacAbbreviations[currentCode]?.chemicalCategory}")
+            }
+        }
+
         VRTreeSelectionWheel.createAndSet(scene, hmd,
             listOf(OpenVRHMD.OpenVRButton.A), listOf(TrackerRole.RightHand),
             listOf(
                 Action("Acid") { println("Acid has been chosen") },
                 SubWheel("Acid", listOf(
-                    Action("Aspartic Acid",{println("A dummy entry has been pressed")}),
-                    Action("Glutamic Acid",{println("A dummy entry has been pressed")})
+                    Action("Aspartic Acid", { rightProteinChosen("ASP")}),
+                    Action("Glutamic Acid",{rightProteinChosen("GLU")})
                 )),
                 Action("Basic") { println("Basic has been chosen") },
                 SubWheel("Basic", listOf(
-                    Action("Arginine",{println("A dummy entry has been pressed")}),
-                    Action("Histidine",{println("A dummy entry has been pressed")}),
-                    Action("Lysine",{println("A dummy entry has been pressed")})
+                    Action("Arginine",{rightProteinChosen("ARG")}),
+                    Action("Histidine",{rightProteinChosen("HIS")}),
+                    Action("Lysine",{rightProteinChosen("LYS")})
                 )),
                 Action("Hydrophobic") { println("Hydrophobic has been chosen") },
                 SubWheel("Hydrophobic", listOf(
-                    Action("Alanine",{println("A dummy entry has been pressed")}),
-                    Action("Isoleucine",{println("A dummy entry has been pressed")}),
-                    Action("Leucine",{println("A dummy entry has been pressed")}),
-                    Action("Methionine",{println("A dummy entry has been pressed")}),
-                    Action("Phenylalanine",{println("A dummy entry has been pressed")}),
-                    Action("Proline",{println("A dummy entry has been pressed")}),
-                    Action("Tryptophane",{println("A dummy entry has been pressed")}),
-                    Action("Valine",{println("A dummy entry has been pressed")})
+                    Action("Alanine",{rightProteinChosen("ALA")}),
+                    Action("Isoleucine",{rightProteinChosen("ILE")}),
+                    Action("Leucine",{rightProteinChosen("LEU")}),
+                    Action("Methionine",{rightProteinChosen("MET")}),
+                    Action("Phenylalanine",{rightProteinChosen("PHE")}),
+                    Action("Proline",{rightProteinChosen("PRO")}),
+                    Action("Tryptophane",{rightProteinChosen("TRP")}),
+                    Action("Valine",{rightProteinChosen("VAL")})
 
                 )),
                 Action("Polar") { println("Polar has been chosen") },
                 SubWheel("Polar", listOf(
-                    Action("Asparagine",{println("A dummy entry has been pressed")}),
-                    Action("Cysteine",{println("A dummy entry has been pressed")}),
-                    Action("Glutamine",{println("A dummy entry has been pressed")}),
-                    Action("Glycin",{println("A dummy entry has been pressed")}),
-                    Action("Serine",{println("A dummy entry has been pressed")}),
-                    Action("Threonine",{println("A dummy entry has been pressed")}),
-                    Action("Thyrosine",{println("A dummy entry has been pressed")})
+                    Action("Asparagine",{rightProteinChosen("ASN")}),
+                    Action("Cysteine",{rightProteinChosen("CYS")}),
+                    Action("Glutamine",{rightProteinChosen("GLN")}),
+                    Action("Glycin",{rightProteinChosen("GLY")}),
+                    Action("Serine",{rightProteinChosen("SER")}),
+                    Action("Threonine",{rightProteinChosen("THR")}),
+                    Action("Tyrosine",{rightProteinChosen("TYR")})
                 ))
             ))
     }
