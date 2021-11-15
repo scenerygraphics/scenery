@@ -30,6 +30,7 @@ class ProteinBuilderExample : SceneryBase(
     private lateinit var hmd: OpenVRHMD
     private lateinit var hullbox: Box
     private val ribbon = RibbonDiagram(Protein.fromID("3nir"))
+    var firstClick = true
 
     override fun init() {
         hmd = OpenVRHMD(useCompositor = true)
@@ -83,6 +84,11 @@ class ProteinBuilderExample : SceneryBase(
                 }
             }
         }
+
+        //initialize ribbondiagram
+        ribbon.name = "3nir"
+        ribbon.visible = false
+        scene.addChild(ribbon)
     }
 
     override fun inputSetup() {
@@ -105,6 +111,37 @@ class ProteinBuilderExample : SceneryBase(
             }
         }
 
+        VRTouch.createAndSet(scene,hmd, listOf(TrackerRole.RightHand,TrackerRole.LeftHand),true)
+
+        VRGrab.createAndSet(scene, hmd, listOf(OpenVRHMD.OpenVRButton.Side), listOf(TrackerRole.LeftHand,TrackerRole.RightHand))
+        VRPress.createAndSet(scene, hmd, listOf(OpenVRHMD.OpenVRButton.Trigger), listOf(TrackerRole.LeftHand,TrackerRole.RightHand))
+
+        val selectionStorage =
+            VRSelect.createAndSetWithStorage(
+                scene,
+                hmd,
+                listOf(OpenVRHMD.OpenVRButton.Trigger),
+                listOf(TrackerRole.RightHand)
+            )
+        VRScale.createAndSet(hmd, OpenVRHMD.OpenVRButton.Side) {
+            selectionStorage.selected?.ifSpatial { scale *= Vector3f(it) }
+        }
+
+        VRSelect.createAndSetWithAction(scene,
+            hmd,
+            listOf(OpenVRHMD.OpenVRButton.Trigger),
+            listOf(TrackerRole.LeftHand),
+            { n ->
+                // this is just some action to show a successful selection.
+                // Party Cube!
+                val w = Wiggler(n.spatialOrNull()!!, 1.0f)
+                thread {
+                    sleep(2 * 1000)
+                    w.deativate()
+                }
+            })
+
+
         val builder = ProteinBuilder( ribbon, {scene.activeObserver}, scene, ribbon.name)
         inputHandler?.addBehaviour("builder", builder)
 
@@ -112,9 +149,10 @@ class ProteinBuilderExample : SceneryBase(
 
         fun rightProteinChosen(threeLetterCode: String) {
             val currentCode = builder.currentAminoCode
-            if(currentCode != null && currentCode == threeLetterCode) {
+            if((currentCode != null && currentCode == threeLetterCode) || firstClick) {
                 //x and y are never used in this implementation of click(), hence, 1 is chosen as an arbitrary value
                 builder.click(1, 1)
+                firstClick = false
             }
             else {
                 print("Try ${iupacAbbreviations[currentCode]?.chemicalCategory}")
@@ -124,40 +162,37 @@ class ProteinBuilderExample : SceneryBase(
         VRTreeSelectionWheel.createAndSet(scene, hmd,
             listOf(OpenVRHMD.OpenVRButton.A), listOf(TrackerRole.RightHand),
             listOf(
-                Action("Acid") { println("Acid has been chosen") },
                 SubWheel("Acid", listOf(
-                    Action("Aspartic Acid", { rightProteinChosen("ASP")}),
-                    Action("Glutamic Acid",{rightProteinChosen("GLU")})
+                    Action("Aspartic Acid") { rightProteinChosen("ASP") },
+                    Action("Glutamic Acid") { rightProteinChosen("GLU") }
                 )),
-                Action("Basic") { println("Basic has been chosen") },
                 SubWheel("Basic", listOf(
-                    Action("Arginine",{rightProteinChosen("ARG")}),
-                    Action("Histidine",{rightProteinChosen("HIS")}),
-                    Action("Lysine",{rightProteinChosen("LYS")})
+                    Action("Arginine") { rightProteinChosen("ARG") },
+                    Action("Histidine") { rightProteinChosen("HIS") },
+                    Action("Lysine") { rightProteinChosen("LYS") }
                 )),
-                Action("Hydrophobic") { println("Hydrophobic has been chosen") },
                 SubWheel("Hydrophobic", listOf(
-                    Action("Alanine",{rightProteinChosen("ALA")}),
-                    Action("Isoleucine",{rightProteinChosen("ILE")}),
-                    Action("Leucine",{rightProteinChosen("LEU")}),
-                    Action("Methionine",{rightProteinChosen("MET")}),
-                    Action("Phenylalanine",{rightProteinChosen("PHE")}),
-                    Action("Proline",{rightProteinChosen("PRO")}),
-                    Action("Tryptophane",{rightProteinChosen("TRP")}),
-                    Action("Valine",{rightProteinChosen("VAL")})
-
+                    Action("Alanine") { rightProteinChosen("ALA") },
+                    Action("Isoleucine") { rightProteinChosen("ILE") },
+                    Action("Leucine") { rightProteinChosen("LEU") },
+                    Action("Methionine") { rightProteinChosen("MET") },
+                    Action("Phenylalanine") { rightProteinChosen("PHE") },
+                    Action("Proline") { rightProteinChosen("PRO") },
+                    Action("Tryptophane") { rightProteinChosen("TRP") },
+                    Action("Valine") { rightProteinChosen("VAL") }
                 )),
-                Action("Polar") { println("Polar has been chosen") },
                 SubWheel("Polar", listOf(
-                    Action("Asparagine",{rightProteinChosen("ASN")}),
-                    Action("Cysteine",{rightProteinChosen("CYS")}),
-                    Action("Glutamine",{rightProteinChosen("GLN")}),
-                    Action("Glycin",{rightProteinChosen("GLY")}),
-                    Action("Serine",{rightProteinChosen("SER")}),
-                    Action("Threonine",{rightProteinChosen("THR")}),
-                    Action("Tyrosine",{rightProteinChosen("TYR")})
+                    Action("Asparagine") { rightProteinChosen("ASN") },
+                    Action("Cysteine") { rightProteinChosen("CYS") },
+                    Action("Glutamine") { rightProteinChosen("GLN") },
+                    Action("Glycin") { rightProteinChosen("GLY") },
+                    Action("Serine") { rightProteinChosen("SER") },
+                    Action("Threonine") { rightProteinChosen("THR") },
+                    Action("Tyrosine") { rightProteinChosen("TYR") }
                 ))
             ))
+
+
     }
 
 
