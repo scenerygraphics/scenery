@@ -16,6 +16,7 @@ import org.scijava.ui.behaviour.ClickBehaviour
 
 /**
  * A selection wheel to let the user choose between different actions.
+ * The selection is done by [VRPress]. Therefore it is required for this behavior.
  *
  * The list of selectable actions can be changed dynamically.
  *
