@@ -3,6 +3,7 @@ package graphics.scenery.flythroughs
 import graphics.scenery.Box
 import graphics.scenery.Camera
 import graphics.scenery.Scene
+import graphics.scenery.controls.OpenVRHMD
 
 import graphics.scenery.proteins.RibbonDiagram
 import graphics.scenery.textures.Texture
@@ -12,7 +13,7 @@ import org.joml.Vector3f
 import org.scijava.ui.behaviour.ClickBehaviour
 
 class ProteinBuilder(ribbonDiagram: RibbonDiagram, override val cam: ()-> Camera?,  val scene: Scene,
-                     private val name: String): ProteinRollercoaster(ribbonDiagram, cam), ClickBehaviour {
+                     private val name: String, private val hmd: OpenVRHMD? = null): ProteinRollercoaster(ribbonDiagram, cam), ClickBehaviour {
 
     // ribbon diagram to work with the residues later on
     private val ribbonDiagram = ribbonDiagram
@@ -51,13 +52,22 @@ class ProteinBuilder(ribbonDiagram: RibbonDiagram, override val cam: ()-> Camera
             if (width != null && height != null) {
                 box.spatial().scale = Vector3f(width / height.toFloat(), 1f, 0f)
             }
-            box.spatial().rotation = Quaternionf(camera?.spatial()?.rotation).conjugate()
-            box.spatial().position = Vector3f(camera?.spatial()?.position)
-            val forwardTimesTwo = Vector3f()
-            if (camera?.targeted == true) {
-                box.spatial().position.add(camera.target.mul(2f, forwardTimesTwo))
-            } else {
-                box.spatial().position.add(camera?.forward?.mul(2f, forwardTimesTwo))
+            box.spatial {
+                if(hmd != null) {
+                    rotation = Quaternionf(camera?.spatial()?.rotation).conjugate()
+                    position = Vector3f(camera?.spatial()?.position)
+                    val forwardTimesTwo = Vector3f()
+                    if (camera?.targeted == true) {
+                        box.spatial().position.add(camera.target.mul(2f, forwardTimesTwo))
+                    } else {
+                        box.spatial().position.add(camera?.forward?.mul(2f, forwardTimesTwo))
+                    }
+                }
+                //VR mode, baby!
+                else {
+                    rotation = Quaternionf(hmd?.getOrientation())
+                    position = hmd?.getPosition()!!
+                }
             }
             box.material {
                 if (aaImage != null) {
