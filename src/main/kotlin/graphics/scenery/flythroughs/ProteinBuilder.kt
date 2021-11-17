@@ -3,7 +3,10 @@ package graphics.scenery.flythroughs
 import graphics.scenery.Box
 import graphics.scenery.Camera
 import graphics.scenery.Scene
+import graphics.scenery.attribute.spatial.Spatial
 import graphics.scenery.controls.OpenVRHMD
+import graphics.scenery.controls.TrackedDeviceType
+import graphics.scenery.controls.behaviours.VRTreeSelectionWheel
 
 import graphics.scenery.proteins.RibbonDiagram
 import graphics.scenery.textures.Texture
@@ -13,7 +16,7 @@ import org.joml.Vector3f
 import org.scijava.ui.behaviour.ClickBehaviour
 
 class ProteinBuilder(ribbonDiagram: RibbonDiagram, override val cam: ()-> Camera?,  val scene: Scene,
-                     private val name: String, private val hmd: OpenVRHMD? = null): ProteinRollercoaster(ribbonDiagram, cam), ClickBehaviour {
+                     private val name: String, private val hmd: OpenVRHMD? = null, val controller: Spatial): ProteinRollercoaster(ribbonDiagram, cam), ClickBehaviour {
 
     // ribbon diagram to work with the residues later on
     private val ribbonDiagram = ribbonDiagram
@@ -53,7 +56,20 @@ class ProteinBuilder(ribbonDiagram: RibbonDiagram, override val cam: ()-> Camera
                 box.spatial().scale = Vector3f(width / height.toFloat(), 1f, 0f)
             }
             box.spatial {
+                //VR mode, baby!
                 if(hmd != null) {
+                    rotation = Quaternionf(hmd.getOrientation()).conjugate().normalize()
+                    hmd.events.onDeviceConnect.add { _, device, _ ->
+                        if (device.type == TrackedDeviceType.Controller) {
+                            device.model?.let { controller ->
+                                controller.children.first().spatialOrNull()
+                                    ?: throw IllegalArgumentException("The target controller needs a spatial.")
+                            }
+                        }
+                    }
+                }
+                //nope? okay, lets go for 2D then
+                else {
                     rotation = Quaternionf(camera?.spatial()?.rotation).conjugate()
                     position = Vector3f(camera?.spatial()?.position)
                     val forwardTimesTwo = Vector3f()
@@ -62,11 +78,6 @@ class ProteinBuilder(ribbonDiagram: RibbonDiagram, override val cam: ()-> Camera
                     } else {
                         box.spatial().position.add(camera?.forward?.mul(2f, forwardTimesTwo))
                     }
-                }
-                //VR mode, baby!
-                else {
-                    rotation = Quaternionf(hmd?.getOrientation())
-                    position = hmd?.getPosition()!!
                 }
             }
             box.material {
@@ -85,6 +96,22 @@ class ProteinBuilder(ribbonDiagram: RibbonDiagram, override val cam: ()-> Camera
             }
         }
         k += 1
+    }
+
+    fun createAndSet(ribbon: RibbonDiagram, scene: Scene, name: String, hmd: OpenVRHMD, button: List<OpenVRHMD.OpenVRButton>){
+        hmd.events.onDeviceConnect.add { _, device, _ ->
+            if (device.type == TrackedDeviceType.Controller) {
+                device.model?.let { controller ->
+                    val proteinBuilder = ProteinBuilder(ribbon, {scene.activeObserver}, scene, name, hmd,
+                    controller.children.first().spatialOrNull()
+                        ?: throw IllegalArgumentException("The target controller needs a spatial."))
+                    hmd.addBehaviour(name, proteinBuilder)
+                    button.forEach {
+                        hmd.addKeyBinding(name, device.role, it)
+                    }
+                }
+            }
+        }
     }
 
     companion object LoadImages {
