@@ -6,7 +6,7 @@ import graphics.scenery.Scene
 import graphics.scenery.attribute.spatial.Spatial
 import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.controls.TrackedDeviceType
-import graphics.scenery.controls.behaviours.VRTreeSelectionWheel
+import graphics.scenery.controls.TrackerRole
 
 import graphics.scenery.proteins.RibbonDiagram
 import graphics.scenery.textures.Texture
@@ -15,8 +15,8 @@ import org.joml.Quaternionf
 import org.joml.Vector3f
 import org.scijava.ui.behaviour.ClickBehaviour
 
-class ProteinBuilder(ribbonDiagram: RibbonDiagram, override val cam: ()-> Camera?,  val scene: Scene,
-                     private val name: String, private val hmd: OpenVRHMD? = null, val controller: Spatial): ProteinRollercoaster(ribbonDiagram, cam), ClickBehaviour {
+class ProteinBuilder(ribbonDiagram: RibbonDiagram, override val cam: ()-> Camera?, val scene: Scene,
+                     private val proteinName: String, private val hmd: OpenVRHMD? = null, val controller: Spatial? = null): ProteinRollercoaster(ribbonDiagram, cam), ClickBehaviour {
 
     // ribbon diagram to work with the residues later on
     private val ribbonDiagram = ribbonDiagram
@@ -86,32 +86,14 @@ class ProteinBuilder(ribbonDiagram: RibbonDiagram, override val cam: ()-> Camera
                 }
                 scene.addChild(box)
             }
-
-            if (scene.children.filter { it.name == name }[0] is RibbonDiagram) {
-                if (k <= scene.children.filter { it.name == name }[0].children.flatMap { subProtein -> subProtein.children }
+            //todo add a unique identifier for the ribon diagram
+                if (k <= scene.children.filter { it is RibbonDiagram }[0].children.flatMap { subProtein -> subProtein.children }
                         .flatMap { curve -> curve.children }.lastIndex) {
-                    scene.children.filter { it.name == name }[0].children.flatMap { subProtein -> subProtein.children }
+                    scene.children.filter { it is RibbonDiagram }[0].children.flatMap { subProtein -> subProtein.children }
                         .flatMap { curve -> curve.children }[k].visible = true
                 }
-            }
         }
         k += 1
-    }
-
-    fun createAndSet(ribbon: RibbonDiagram, scene: Scene, name: String, hmd: OpenVRHMD, button: List<OpenVRHMD.OpenVRButton>){
-        hmd.events.onDeviceConnect.add { _, device, _ ->
-            if (device.type == TrackedDeviceType.Controller) {
-                device.model?.let { controller ->
-                    val proteinBuilder = ProteinBuilder(ribbon, {scene.activeObserver}, scene, name, hmd,
-                    controller.children.first().spatialOrNull()
-                        ?: throw IllegalArgumentException("The target controller needs a spatial."))
-                    hmd.addBehaviour(name, proteinBuilder)
-                    button.forEach {
-                        hmd.addKeyBinding(name, device.role, it)
-                    }
-                }
-            }
-        }
     }
 
     companion object LoadImages {
@@ -122,6 +104,27 @@ class ProteinBuilder(ribbonDiagram: RibbonDiagram, override val cam: ()-> Camera
                 images[aminoAcid.key] = Image.fromResource("${chemicalCategory}/${aminoAcid.value.fullName}.png", ProteinBuilder::class.java)
             }
             return images
+        }
+
+        fun createAndSet(ribbon: RibbonDiagram, scene: Scene, proteinName: String, hmd: OpenVRHMD, button: List<OpenVRHMD.OpenVRButton>,
+                         controllerSide: List<TrackerRole>, name: String){
+            hmd.events.onDeviceConnect.add { _, device, _ ->
+                if (device.type == TrackedDeviceType.Controller) {
+                    if(controllerSide.contains(device.role)) {
+                        device.model?.let { controller ->
+                            val proteinBuilder = ProteinBuilder(
+                                ribbon, { scene.activeObserver }, scene, proteinName, hmd,
+                                controller.children.first().spatialOrNull()
+                                    ?: throw IllegalArgumentException("The target controller needs a spatial.")
+                            )
+                            hmd.addBehaviour(name, proteinBuilder)
+                            button.forEach {
+                                hmd.addKeyBinding(name, device.role, it)
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
