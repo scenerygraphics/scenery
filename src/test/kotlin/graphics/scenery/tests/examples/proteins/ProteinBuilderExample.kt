@@ -33,7 +33,7 @@ class ProteinBuilderExample : SceneryBase(
     var firstClick = true
 
     override fun init() {
-        hmd = OpenVRHMD(useCompositor = true)
+        hmd = OpenVRHMD(seated = true, useCompositor = true)
 
         if (!hmd.initializedAndWorking()) {
             logger.error("This demo is intended to show the use of OpenVR controllers, but no OpenVR-compatible HMD could be initialized.")
@@ -142,7 +142,7 @@ class ProteinBuilderExample : SceneryBase(
             })
 
 
-        val builder = ProteinBuilder( ribbon, {scene.activeObserver}, scene, ribbon.name)
+        val builder = ProteinBuilder( ribbon, {scene.activeObserver}, scene, ribbon.name, hmd)
         inputHandler?.addBehaviour("builder", builder)
 
         val iupacAbbreviations = IUPACAbbreviationsReader().abbrevations
