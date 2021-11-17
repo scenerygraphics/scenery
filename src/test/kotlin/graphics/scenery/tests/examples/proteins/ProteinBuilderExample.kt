@@ -14,7 +14,6 @@ import graphics.scenery.numerics.Random
 import graphics.scenery.proteins.Protein
 import graphics.scenery.proteins.RibbonDiagram
 import graphics.scenery.utils.Wiggler
-import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
 import org.joml.Vector3f
 import java.lang.Thread.sleep
@@ -141,9 +140,8 @@ class ProteinBuilderExample : SceneryBase(
                 }
             })
 
-
-        val builder = ProteinBuilder( ribbon, {scene.activeObserver}, scene, ribbon.name, hmd)
-        inputHandler?.addBehaviour("builder", builder)
+        ProteinBuilder.createAndSet(ribbon, scene, "3nir", hmd, listOf(OpenVRHMD.OpenVRButton.A), listOf(TrackerRole.LeftHand), "proteinBuilder")
+        val builder = try { hmd.getBehaviour("proteinBuilder") as ProteinBuilder } catch(n: NullPointerException) { ProteinBuilder(ribbon, {scene.activeObserver}, scene, "proteinBuilderFallback")}
 
         val iupacAbbreviations = IUPACAbbreviationsReader().abbrevations
 
