@@ -5,7 +5,7 @@ import java.net.URL
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 plugins {
-    val ktVersion = "1.5.31"
+    val ktVersion = "1.6.0"
     java
     kotlin("jvm") version ktVersion
     kotlin("kapt") version ktVersion
@@ -35,7 +35,7 @@ dependencies {
 //    implementation(platform(kotlin("bom")))
     implementation(kotlin("stdlib-jdk8"))
     implementation(kotlin("reflect"))
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.5.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.5.2")
 
     implementation("org.jogamp.gluegen:gluegen-rt:2.3.2", joglNatives)
     implementation("org.jogamp.jogl:jogl-all:2.3.2", joglNatives)
@@ -51,13 +51,20 @@ dependencies {
     implementation("org.scijava:scripting-jython")
 //    implementation(misc.trove)
     implementation("net.java.dev.jna:jna-platform:5.9.0")
-    implementation(platform("org.lwjgl:lwjgl-bom:3.2.3"))
-    listOf("", "-glfw", "-jemalloc", "-vulkan", "-opengl", "-openvr", "-xxhash", "-remotery").forEach { lwjglProject ->
-        api("org.lwjgl:lwjgl$lwjglProject:3.2.3")
+    implementation(platform("org.lwjgl:lwjgl-bom:3.3.0"))
+    listOf("",
+        "-glfw",
+        "-jemalloc",
+        "-vulkan",
+        "-opengl",
+        "-openvr",
+        "-xxhash",
+        "-remotery").forEach { lwjglProject ->
+        api("org.lwjgl:lwjgl$lwjglProject:3.3.0")
 
         if (lwjglProject != "-vulkan") {
             lwjglNatives.forEach { native ->
-                runtimeOnly("org.lwjgl:lwjgl$lwjglProject:3.2.3:$native")
+                runtimeOnly("org.lwjgl:lwjgl$lwjglProject:3.3.0:$native")
             }
         }
     }
