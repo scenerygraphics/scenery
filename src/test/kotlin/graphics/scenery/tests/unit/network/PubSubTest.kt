@@ -9,7 +9,9 @@ import graphics.scenery.net.NodeSubscriber
 import org.joml.Vector3f
 import org.junit.After
 import org.junit.Before
+import org.junit.BeforeClass
 import org.junit.Test
+import kotlin.concurrent.thread
 import kotlin.reflect.full.declaredMemberFunctions
 import kotlin.reflect.jvm.isAccessible
 import kotlin.test.assertEquals
@@ -26,7 +28,6 @@ class PubSubTest {
     private lateinit var pub: NodePublisher
     private lateinit var sub: NodeSubscriber
 
-
     @Before
     fun init() {
         hub1 = Hub()
@@ -37,11 +38,12 @@ class PubSubTest {
         scene2 = Scene()
         scene2.name = "scene2"
 
-        pub = NodePublisher(hub1,"tcp://127.0.0.1:6666")
+        pub = NodePublisher(hub1,"tcp://127.0.0.1:6660")
         hub1.add(pub)
 
-        sub = NodeSubscriber(hub2,"tcp://127.0.0.1:6666")
+        sub = NodeSubscriber(hub2,"tcp://127.0.0.1:6660")
         hub2.add(sub)
+        Thread.sleep(300)
     }
 
     @After
@@ -77,7 +79,7 @@ class PubSubTest {
         sub.startListening()
         pub.startPublishing()
         pub.register(scene1)
-        Thread.sleep(2000)
+        Thread.sleep(1000)
         sub.networkUpdate(scene2)
 
         assertEquals("lol", scene2.name)
@@ -93,7 +95,7 @@ class PubSubTest {
         sub.startListening()
         pub.startPublishing()
         pub.register(scene1)
-        Thread.sleep(2000)
+        Thread.sleep(1000)
         sub.networkUpdate(scene2)
 
         assert(scene2.find("box") != null)
@@ -119,6 +121,17 @@ class PubSubTest {
         val box2 = scene2.find("box")
         assert(box2 != null) { "precondition not met => Flaky or See previous tests" }
         assertEquals(3f, box2?.spatialOrNull()?.position?.z)
+    }
+
+    companion object {
+        /**
+         * I wish this wasn't needed or I would at least be sure why it is needed. But with out this the first test
+         * fails if the whole package is part of the test run.
+         */
+        @BeforeClass
+        fun waitForPreviousTestToClear(){
+            //Thread.sleep(2000)
+        }
     }
 }
 

@@ -201,7 +201,7 @@ open class DefaultNode(override var name: String = "Node") : Node, Networkable {
 
     override fun lastChange(): Long {
         if (lastAttributesHashCode != attributes.hashCode()){
-            //modifiedAt = System.nanoTime()
+            modifiedAt = System.nanoTime()
             lastAttributesHashCode = attributes.hashCode()
         }
         return modifiedAt

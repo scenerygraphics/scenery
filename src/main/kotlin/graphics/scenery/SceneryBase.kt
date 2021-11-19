@@ -286,12 +286,14 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
             } else {
                 stats.addTimed("render") { renderer?.render(activeCamera, sceneObjects.await()) ?: 0.0f }
             }
+            scene.update.forEach { it.invoke() }
             sceneObjects = GlobalScope.async {
                 scene.discover(scene, { n ->
                         n.visible && n.state == State.Ready
                 }, useDiscoveryBarriers = true)
                     .map { it.spatialOrNull()?.updateWorld(recursive = true, force = false); it }
             }
+            scene.postUpdate.forEach { it.invoke() }
             profiler?.end()
 
             // only run loop if we are either in standalone mode, or master

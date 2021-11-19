@@ -64,7 +64,10 @@ class PublisherTest {
 
         pub.register(scene)
         pub.scanForChanges()
-        pub.debugPublish {  } // clear event queue
+
+        val results2 = mutableListOf<NetworkEvent>()
+        pub.debugPublish { results2.add(it) }
+        //pub.debugPublish {  } // clear event queue
         box.spatial().position = Vector3f(0f,0f,3f)
 
         pub.scanForChanges()

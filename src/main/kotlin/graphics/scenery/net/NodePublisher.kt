@@ -55,13 +55,12 @@ class NodePublisher(override var hub: Hub?, val address: String = "tcp://127.0.0
     private var index = 1
 
     private var running = false
-    private var lastScan = 0L
 
     private fun generateNetworkID() = index++
 
     fun register(scene: Scene){
         val sceneNo = NetworkObject(generateNetworkID(),scene, mutableListOf())
-        publishedObjects[sceneNo.nID] = sceneNo
+        publishedObjects[sceneNo.networkID] = sceneNo
         eventQueue.add(NetworkEvent.NewObject(sceneNo))
 
         //scene.onChildrenAdded["networkPublish"] = {_, child -> registerNode(child)}
@@ -89,7 +88,7 @@ class NodePublisher(override var hub: Hub?, val address: String = "tcp://127.0.0
         if (publishedObjects[node.networkID] == null) {
             val netObject = NetworkObject(generateNetworkID(), node, mutableListOf(parentId))
             eventQueue.add(NetworkEvent.NewObject(netObject))
-            publishedObjects[netObject.nID] = netObject
+            publishedObjects[netObject.networkID] = netObject
         }
 
         node.getSubcomponents().forEach { subComponent ->
@@ -99,7 +98,7 @@ class NodePublisher(override var hub: Hub?, val address: String = "tcp://127.0.0
                 eventQueue.add(NetworkEvent.NewRelation(node.networkID, subComponent.networkID))
             } else {
                 val new = NetworkObject(generateNetworkID(), subComponent, mutableListOf(node.networkID))
-                publishedObjects[new.nID] = new
+                publishedObjects[new.networkID] = new
                 eventQueue.add(NetworkEvent.NewObject(new))
             }
         }
@@ -113,11 +112,11 @@ class NodePublisher(override var hub: Hub?, val address: String = "tcp://127.0.0
      * Should be called in the update phase of the life
      */
     fun scanForChanges(){
-        val tmpLastScan = lastScan // precaution against running conditions
-        lastScan = System.nanoTime()
+
 
         for (it in publishedObjects.values) {
-            if (it.obj.lastChange() >= tmpLastScan) {
+            if (it.obj.lastChange() >= it.publishedAt) {
+                it.publishedAt = System.nanoTime()
                 eventQueue.add(NetworkEvent.Update(it))
             }
         }

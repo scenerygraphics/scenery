@@ -108,7 +108,7 @@ class NodeSubscriber(
                             // dont use the scene from network, but adapt own scene
                             scene.networkID = networkable.networkID
                             scene.update(networkable)
-                            networkObjects[networkObject.nID] = NetworkObject(networkObject.nID, scene, mutableListOf())
+                            networkObjects[networkObject.networkID] = NetworkObject(networkObject.networkID, scene, mutableListOf())
                             reuniteChildParent(scene)
                         }
                         is Node -> {
@@ -123,7 +123,7 @@ class NodeSubscriber(
                             } else {
                                 waitingOnParent[parentId] = waitingOnParent.getOrDefault(parentId, listOf()) + event
                             }
-                            networkObjects[networkObject.nID] = networkObject
+                            networkObjects[networkObject.networkID] = networkObject
                             reuniteChildParent(networkable)
                         }
                         else -> {
@@ -146,7 +146,7 @@ class NodeSubscriber(
                                         it.addAttributeFromNetwork(attributeBaseClass.java, networkable)
                                         it.spatialOrNull()?.needsUpdate = true
                                     }
-                                networkObjects[networkObject.nID] = networkObject
+                                networkObjects[networkObject.networkID] = networkObject
                             } else {
                                 throw IllegalStateException(
                                     "Received unknown object from server. " +
