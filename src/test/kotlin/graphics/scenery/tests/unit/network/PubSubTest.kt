@@ -6,9 +6,12 @@ import graphics.scenery.Scene
 import graphics.scenery.net.NetworkEvent
 import graphics.scenery.net.NodePublisher
 import graphics.scenery.net.NodeSubscriber
+import org.joml.Vector3f
 import org.junit.After
 import org.junit.Before
+import org.junit.BeforeClass
 import org.junit.Test
+import kotlin.concurrent.thread
 import kotlin.reflect.full.declaredMemberFunctions
 import kotlin.reflect.jvm.isAccessible
 import kotlin.test.assertEquals
@@ -18,14 +21,12 @@ import kotlin.test.assertEquals
  */
 class PubSubTest {
 
-
     private lateinit var hub1: Hub
     private lateinit var hub2: Hub
     private lateinit var scene1: Scene
     private lateinit var scene2: Scene
     private lateinit var pub: NodePublisher
     private lateinit var sub: NodeSubscriber
-
 
     @Before
     fun init() {
@@ -37,11 +38,12 @@ class PubSubTest {
         scene2 = Scene()
         scene2.name = "scene2"
 
-        pub = NodePublisher(hub1,"tcp://127.0.0.1:6666")
+        pub = NodePublisher(hub1,"tcp://127.0.0.1:6660")
         hub1.add(pub)
 
-        sub = NodeSubscriber(hub2,"tcp://127.0.0.1:6666")
+        sub = NodeSubscriber(hub2,"tcp://127.0.0.1:6660")
         hub2.add(sub)
+        Thread.sleep(300)
     }
 
     @After
@@ -97,6 +99,39 @@ class PubSubTest {
         sub.networkUpdate(scene2)
 
         assert(scene2.find("box") != null)
+    }
+
+    @Test
+    fun update(){
+
+        val box = Box()
+        box.name = "box"
+        scene1.addChild(box)
+
+        sub.startListening()
+        pub.startPublishing()
+        pub.register(scene1)
+        Thread.sleep(1000)
+        sub.networkUpdate(scene2)
+        box.spatial().position = Vector3f(0f,0f,3f)
+        pub.scanForChanges()
+        Thread.sleep(1000)
+        sub.networkUpdate(scene2)
+
+        val box2 = scene2.find("box")
+        assert(box2 != null) { "precondition not met => Flaky or See previous tests" }
+        assertEquals(3f, box2?.spatialOrNull()?.position?.z)
+    }
+
+    companion object {
+        /**
+         * I wish this wasn't needed or I would at least be sure why it is needed. But with out this the first test
+         * fails if the whole package is part of the test run.
+         */
+        @BeforeClass
+        fun waitForPreviousTestToClear(){
+            //Thread.sleep(2000)
+        }
     }
 }
 

@@ -56,7 +56,6 @@ open class DefaultNode(override var name: String = "Node") : Node, Networkable {
     override fun getAttributes() = attributes
 
     override var networkID: Int = -1
-    var modified = false
     private var lastAttributesHashCode = attributes.hashCode()
 
     override fun addChild(child: Node) {
@@ -200,7 +199,13 @@ open class DefaultNode(override var name: String = "Node") : Node, Networkable {
         return attributes.attributes().filter { it is Spatial || it is Material }.mapNotNull { it as? Networkable }
     }
 
-    override fun hasChanged(): Boolean = modified || lastAttributesHashCode != attributes.hashCode()
+    override fun lastChange(): Long {
+        if (lastAttributesHashCode != attributes.hashCode()){
+            modifiedAt = System.nanoTime()
+            lastAttributesHashCode = attributes.hashCode()
+        }
+        return modifiedAt
+    }
 
     override fun getAttributeClass(): KClass<out Any>? {
         return null
