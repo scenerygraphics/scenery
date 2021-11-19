@@ -44,7 +44,7 @@ class ParticleGlyphsExample : SceneryBase("ParticleGlyphsExample") {
         val particleProperties = ArrayList<Vector3f>(particleNumber)
         repeat(particleNumber) {
             particlePositions.add(graphics.scenery.numerics.Random.random3DVectorFromRange(-50.0f, 50.0f))
-            particleProperties.add(Vector3f(Random.nextDouble(1.0, 5.0).toFloat(), Random.nextDouble(0.0, 1.0).toFloat(), 0.0f))
+            particleProperties.add(Vector3f(Random.nextDouble(0.1, 1.0).toFloat(), Random.nextDouble(0.0, 1.0).toFloat(), 0.0f))
         }
         val particleGlyphs = ParticleGlyphs(particlePositions, particleProperties, false)
         particleGlyphs.name = "Particles?"
@@ -59,8 +59,6 @@ class ParticleGlyphsExample : SceneryBase("ParticleGlyphsExample") {
         cam.perspectiveCamera(60.0f, windowWidth, windowHeight)
         cam.target = Vector3f(0.0f, 0.0f, 0.0f)
         scene.addChild(cam)
-
-
     }
 
     companion object {

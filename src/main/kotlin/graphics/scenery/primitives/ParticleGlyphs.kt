@@ -12,9 +12,17 @@ import graphics.scenery.attribute.material.HasCustomMaterial
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.attribute.renderable.HasRenderable
 import graphics.scenery.attribute.spatial.HasSpatial
+import graphics.scenery.utils.extensions.minus
+import graphics.scenery.utils.extensions.plus
+import graphics.scenery.utils.extensions.times
+import org.joml.Vector2f
 
 import org.joml.Vector3f
 import java.nio.FloatBuffer
+import java.util.ArrayList
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
 
 class ParticleGlyphs @JvmOverloads constructor(var positions: List<Vector3f>, var properties: List<Vector3f>, var forward : Boolean = true) : DefaultNode("ParticleGlyphs"), HasSpatial, HasRenderable,
     HasCustomMaterial<ShaderMaterial>, HasGeometry {
@@ -28,20 +36,24 @@ class ParticleGlyphs @JvmOverloads constructor(var positions: List<Vector3f>, va
         }
 
         geometry{
-            vertices.position(0)
-            vertices.limit(positions.size * 3)
-            positions.forEach { v ->
-                v.get(vertices)
-                vertices.position(vertices.position() + 3)
-            }
-            vertices.flip()
 
-            normals.position(0)
-            normals.limit(properties.size * 3)
-            properties.forEach { v ->
-                v.get(normals)
-                normals.position(normals.position() + 3)
+            vertices = BufferUtils.allocateFloat(positions.size * 3)
+            normals = BufferUtils.allocateFloat(properties.size * 3)
+
+            val vbuffer = ArrayList<Vector3f>(positions.size * 3)
+            val nbuffer = ArrayList<Vector3f>(properties.size * 3)
+            var vSize = positions.size
+            for (i in 0 until vSize) {
+                vbuffer.add(positions[i])
             }
+            var nSize = properties.size
+            for (i in 0 until nSize) {
+                nbuffer.add(properties[i])
+            }
+            vbuffer.forEach { v -> v.get(vertices).position(vertices.position() + 3) }
+            nbuffer.forEach { n -> n.get(normals).position(normals.position() + 3) }
+
+            vertices.flip()
             normals.flip()
         }
 
