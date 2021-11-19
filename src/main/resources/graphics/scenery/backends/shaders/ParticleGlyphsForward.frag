@@ -51,7 +51,14 @@ struct MaterialInfo {
 
 layout(location = 0) out vec4 FragColor;
 
+/*
+The rasterizer interpolates the uv coordinates
+this way, the function can calculate a ray between the eye and the frag pos (which is the fragment position at the billboard)
+and together with the center of the actual particle and its radius calculate the position, where the ray would hit the sphere
 
+The algorithm was produced by Prof. Gumhold / Tu-Dresden
+Pages 26-29: https://tu-dresden.de/ing/informatik/smt/cgv/ressourcen/dateien/lehre/ss-2020/scivis/02_SciVis_Particles.pdf?lang=en (11.2021)
+*/
 vec3 RaySphereIntersection(in vec3 eye, in vec3 fragPos, in vec3 center, in float radius) {
     float beta = (radius * sqrt(1 - length(SilhouetteCorner.TexCoord) * length(SilhouetteCorner.TexCoord))) / length(eye - center);
     float lambda = 1 / (1 + beta);
