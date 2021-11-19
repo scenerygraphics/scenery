@@ -1,10 +1,15 @@
 package graphics.scenery.net
 
-class NetworkObject<T: Networkable>(id:Int, val obj: T,var parents: MutableList<Int>) {
+class NetworkObject<T: Networkable>(id:Int,
+                                    val obj: T,
+                                    var parents: MutableList<Int>,
+                                    var publishedAt: Long = System.nanoTime()) {
     init {
         obj.networkID = id
     }
-    val nID = obj.networkID
-    var needsUpdate = false
-    var publishedAt = 0L
+
+    /**
+     * Convenience accessor
+     */
+    val networkID = obj.networkID
 }

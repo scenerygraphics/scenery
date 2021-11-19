@@ -24,8 +24,9 @@ open class DefaultRenderable(override var parent: Node): Renderable, Networkable
         uuid = fresh.getUuid()
     }
 
-    override fun hasChanged(): Boolean {
-        TODO("Not yet implemented")
+    override fun lastChange(): Long {
+        //TODO("Not yet implemented")
+        return Long.MIN_VALUE
     }
 
     override fun getAttributeClass(): KClass<out Any>? {

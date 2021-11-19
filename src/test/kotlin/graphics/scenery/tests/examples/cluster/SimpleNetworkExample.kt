@@ -5,8 +5,6 @@ import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.net.NodePublisher
 import graphics.scenery.net.NodeSubscriber
-import graphics.scenery.textures.Texture
-import graphics.scenery.utils.Image
 import kotlin.concurrent.thread
 
 /**
@@ -71,16 +69,24 @@ class SimpleNetworkExample : SceneryBase("SimpleNetworkExample", wantREPL = fals
                 publisher?.startPublishing()
                 Thread.sleep(1000)
                 publisher?.register(scene)
+                scene.update += { publisher.scanForChanges()}
+                /*thread {
+                    while (true) {
+                        publisher.scanForChanges()
+                        Thread.sleep(500)
+                    }
+                }*/
             } else {
                 val subscriber = NodeSubscriber(hub, "tcp://localhost:5556")
                 hub.add(subscriber)
                 subscriber?.startListening()
-                thread {
-                    while (true) {
-                        subscriber?.networkUpdate(scene)
-                        Thread.sleep(500)
-                    }
-                }
+                scene.update += {subscriber.networkUpdate(scene)}
+//                thread {
+//                    while (true) {
+//                        subscriber?.networkUpdate(scene)
+//                        Thread.sleep(500)
+//                    }
+//                }
             }
         } catch (t: Throwable){
             print(t)

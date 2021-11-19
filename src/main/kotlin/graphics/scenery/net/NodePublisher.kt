@@ -35,12 +35,12 @@ class NodePublisher(override var hub: Hub?, val address: String = "tcp://127.0.0
     private val logger by LazyLogger()
 
 
-    //var nodes: ConcurrentHashMap<Int, Node> = ConcurrentHashMap()
+
     //private var publishedAt = ConcurrentHashMap<Int, Long>()
+    //var nodes: ConcurrentHashMap<Int, Node> = ConcurrentHashMap()
+    var nodes: ConcurrentHashMap<Int, Node> = ConcurrentHashMap() //TODO delete
 
     private val eventQueueTimeout = 500L
-
-    var nodes: ConcurrentHashMap<Int, Node> = ConcurrentHashMap() //TODO delete
     private var publisher: ZMQ.Socket = context.createSocket(ZMQ.PUB)
     val kryo = freeze()
     var port: Int = try {
@@ -60,7 +60,7 @@ class NodePublisher(override var hub: Hub?, val address: String = "tcp://127.0.0
 
     fun register(scene: Scene){
         val sceneNo = NetworkObject(generateNetworkID(),scene, mutableListOf())
-        publishedObjects[sceneNo.nID] = sceneNo
+        publishedObjects[sceneNo.networkID] = sceneNo
         eventQueue.add(NetworkEvent.NewObject(sceneNo))
 
         //scene.onChildrenAdded["networkPublish"] = {_, child -> registerNode(child)}
@@ -71,7 +71,6 @@ class NodePublisher(override var hub: Hub?, val address: String = "tcp://127.0.0
 
         //TODO sendout new stuff
         //TODO add to networkObjects
-
     }
 
     fun registerNode(node:Node){
@@ -89,7 +88,7 @@ class NodePublisher(override var hub: Hub?, val address: String = "tcp://127.0.0
         if (publishedObjects[node.networkID] == null) {
             val netObject = NetworkObject(generateNetworkID(), node, mutableListOf(parentId))
             eventQueue.add(NetworkEvent.NewObject(netObject))
-            publishedObjects[netObject.nID] = netObject
+            publishedObjects[netObject.networkID] = netObject
         }
 
         node.getSubcomponents().forEach { subComponent ->
@@ -99,7 +98,7 @@ class NodePublisher(override var hub: Hub?, val address: String = "tcp://127.0.0
                 eventQueue.add(NetworkEvent.NewRelation(node.networkID, subComponent.networkID))
             } else {
                 val new = NetworkObject(generateNetworkID(), subComponent, mutableListOf(node.networkID))
-                publishedObjects[new.nID] = new
+                publishedObjects[new.networkID] = new
                 eventQueue.add(NetworkEvent.NewObject(new))
             }
         }
@@ -107,6 +106,21 @@ class NodePublisher(override var hub: Hub?, val address: String = "tcp://127.0.0
 
     fun removeNode(node: Node){
         //TODO
+    }
+
+    /**
+     * Should be called in the update phase of the life
+     */
+    fun scanForChanges(){
+
+
+        for (it in publishedObjects.values) {
+            if (it.obj.lastChange() >= it.publishedAt) {
+                it.publishedAt = System.nanoTime()
+                eventQueue.add(NetworkEvent.Update(it))
+            }
+        }
+
     }
 
     fun startPublishing(){
