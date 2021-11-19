@@ -50,7 +50,7 @@ class ParticleGlyphsExample : SceneryBase("ParticleGlyphsExample") {
         particleGlyphs.name = "Particles?"
         scene.addChild(particleGlyphs)
 
-        val camStartDist = 10.0f
+        val camStartDist = 50.0f
         val camStart = Vector3f(0.0f, 0.0f, camStartDist)
         val cam: Camera = DetachedHeadCamera()
         cam.spatial {
