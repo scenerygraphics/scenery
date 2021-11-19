@@ -6,6 +6,7 @@ import graphics.scenery.Scene
 import graphics.scenery.net.NetworkEvent
 import graphics.scenery.net.NodePublisher
 import graphics.scenery.net.NodeSubscriber
+import org.joml.Vector3f
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
@@ -17,7 +18,6 @@ import kotlin.test.assertEquals
  * Integration tests for [NodePublisher] and [NodeSubscriber]
  */
 class PubSubTest {
-
 
     private lateinit var hub1: Hub
     private lateinit var hub2: Hub
@@ -77,7 +77,7 @@ class PubSubTest {
         sub.startListening()
         pub.startPublishing()
         pub.register(scene1)
-        Thread.sleep(1000)
+        Thread.sleep(2000)
         sub.networkUpdate(scene2)
 
         assertEquals("lol", scene2.name)
@@ -93,10 +93,32 @@ class PubSubTest {
         sub.startListening()
         pub.startPublishing()
         pub.register(scene1)
-        Thread.sleep(1000)
+        Thread.sleep(2000)
         sub.networkUpdate(scene2)
 
         assert(scene2.find("box") != null)
+    }
+
+    @Test
+    fun update(){
+
+        val box = Box()
+        box.name = "box"
+        scene1.addChild(box)
+
+        sub.startListening()
+        pub.startPublishing()
+        pub.register(scene1)
+        Thread.sleep(1000)
+        sub.networkUpdate(scene2)
+        box.spatial().position = Vector3f(0f,0f,3f)
+        pub.scanForChanges()
+        Thread.sleep(1000)
+        sub.networkUpdate(scene2)
+
+        val box2 = scene2.find("box")
+        assert(box2 != null) { "precondition not met => Flaky or See previous tests" }
+        assertEquals(3f, box2?.spatialOrNull()?.position?.z)
     }
 }
 

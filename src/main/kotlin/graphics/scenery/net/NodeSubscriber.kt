@@ -157,6 +157,12 @@ class NodeSubscriber(
                     }
                 }
                 is NetworkEvent.NewRelation -> TODO()
+                is NetworkEvent.Update -> {
+                    val fresh = event.obj.obj
+                    val tmp =  networkObjects[fresh.networkID]?.obj
+                        ?: throw Exception("Got update for unknown object with id ${fresh.networkID} and class ${fresh.javaClass.simpleName}")
+                    tmp.update(fresh)
+                }
             }
         }
     }

@@ -11,12 +11,14 @@ import graphics.scenery.attribute.spatial.Spatial
 import graphics.scenery.net.NetworkEvent
 import graphics.scenery.net.NetworkObject
 import graphics.scenery.net.NodePublisher
+import org.joml.Vector3f
 import org.junit.Test
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import kotlin.reflect.full.declaredMemberFunctions
 import kotlin.reflect.jvm.isAccessible
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 
 class PublisherTest {
 
@@ -47,6 +49,33 @@ class PublisherTest {
         assert(newEvents.any{it.obj.obj is Sphere})
         assert(newEvents.count{it.obj.obj is Material} == 2)
         assert(newEvents.count{it.obj.obj is Spatial} == 2)
+    }
+
+    @Test
+    fun registerUpdate() {
+        val hub = Hub()
+        val pub = NodePublisher(hub)
+        pub.close()
+
+        val scene = Scene()
+        val box = Box()
+
+        scene.addChild(box)
+
+        pub.register(scene)
+        pub.scanForChanges()
+        pub.debugPublish {  } // clear event queue
+        box.spatial().position = Vector3f(0f,0f,3f)
+
+        pub.scanForChanges()
+
+        val results = mutableListOf<NetworkEvent>()
+        pub.debugPublish { results.add(it) }
+
+        assertEquals(1, results.size)
+        val event = results[0] as? NetworkEvent.Update
+        assertNotNull(event)
+        assertEquals(3f,(event.obj.obj as? Spatial)?.position?.z)
     }
 
     @Test

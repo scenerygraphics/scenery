@@ -35,12 +35,12 @@ class NodePublisher(override var hub: Hub?, val address: String = "tcp://127.0.0
     private val logger by LazyLogger()
 
 
-    //var nodes: ConcurrentHashMap<Int, Node> = ConcurrentHashMap()
+
     //private var publishedAt = ConcurrentHashMap<Int, Long>()
+    //var nodes: ConcurrentHashMap<Int, Node> = ConcurrentHashMap()
+    var nodes: ConcurrentHashMap<Int, Node> = ConcurrentHashMap() //TODO delete
 
     private val eventQueueTimeout = 500L
-
-    var nodes: ConcurrentHashMap<Int, Node> = ConcurrentHashMap() //TODO delete
     private var publisher: ZMQ.Socket = context.createSocket(ZMQ.PUB)
     val kryo = freeze()
     var port: Int = try {
@@ -55,6 +55,7 @@ class NodePublisher(override var hub: Hub?, val address: String = "tcp://127.0.0
     private var index = 1
 
     private var running = false
+    private var lastScan = 0L
 
     private fun generateNetworkID() = index++
 
@@ -71,7 +72,6 @@ class NodePublisher(override var hub: Hub?, val address: String = "tcp://127.0.0
 
         //TODO sendout new stuff
         //TODO add to networkObjects
-
     }
 
     fun registerNode(node:Node){
@@ -107,6 +107,21 @@ class NodePublisher(override var hub: Hub?, val address: String = "tcp://127.0.0
 
     fun removeNode(node: Node){
         //TODO
+    }
+
+    /**
+     * Should be called in the update phase of the life
+     */
+    fun scanForChanges(){
+        val tmpLastScan = lastScan // precaution against running conditions
+        lastScan = System.nanoTime()
+
+        for (it in publishedObjects.values) {
+            if (it.obj.lastChange() >= tmpLastScan) {
+                eventQueue.add(NetworkEvent.Update(it))
+            }
+        }
+
     }
 
     fun startPublishing(){
