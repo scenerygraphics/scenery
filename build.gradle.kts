@@ -82,6 +82,8 @@ dependencies {
     implementation("org.reflections:reflections:0.9.12")
     implementation("io.github.classgraph:classgraph:4.8.86")
 
+    implementation("info.picocli:picocli:4.6.2")
+
     api("sc.fiji:bigdataviewer-core:10.2.0")
     api("sc.fiji:bigdataviewer-vistools:1.0.0-beta-28")
 

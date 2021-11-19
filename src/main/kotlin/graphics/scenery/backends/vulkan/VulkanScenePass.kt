@@ -10,6 +10,7 @@ import graphics.scenery.geometry.GeometryType
 import graphics.scenery.attribute.HasDelegationType
 import graphics.scenery.attribute.DelegationType
 import graphics.scenery.attribute.renderable.Renderable
+import graphics.scenery.backends.ShaderIntrospection
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.Statistics
@@ -566,7 +567,7 @@ object VulkanScenePass {
         }
     }
 
-    private fun setRequiredDescriptorSetsForNode(pass: VulkanRenderpass, node: Node, s: VulkanObjectState, specs: List<MutableMap.MutableEntry<String, VulkanShaderModule.UBOSpec>>, descriptorSets: Map<String, Long>): Pair<List<VulkanRenderer.DescriptorSet>, Boolean> {
+    private fun setRequiredDescriptorSetsForNode(pass: VulkanRenderpass, node: Node, s: VulkanObjectState, specs: List<MutableMap.MutableEntry<String, ShaderIntrospection.UBOSpec>>, descriptorSets: Map<String, Long>): Pair<List<VulkanRenderer.DescriptorSet>, Boolean> {
         var skip = false
         return specs.mapNotNull { (name, _) ->
             val ds = when {

@@ -53,6 +53,13 @@ tasks {
         }
     }
 
+    register("CompileShader", JavaExec::class) {
+        group = "tools"
+        mainClass.set("graphics.scenery.backends.ShaderCompiler")
+        classpath = sourceSets["main"].runtimeClasspath
+
+    }
+
     named<Jar>("jar") {
         archiveVersion.set(rootProject.version.toString())
         manifest.attributes["Implementation-Build"] = run { // retrieve the git commit hash

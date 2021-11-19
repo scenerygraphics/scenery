@@ -16,8 +16,6 @@ import graphics.scenery.attribute.DelegationType
 import graphics.scenery.attribute.geometry.Geometry
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.attribute.renderable.Renderable
-import graphics.scenery.spirvcrossj.Loader
-import graphics.scenery.spirvcrossj.libspirvcrossj
 import graphics.scenery.textures.Texture
 import graphics.scenery.textures.Texture.BorderColor
 import graphics.scenery.textures.Texture.RepeatMode
@@ -330,18 +328,6 @@ open class OpenGLRenderer(hub: Hub,
         private const val MATERIAL_HAS_SPECULAR = 0x0004
         private const val MATERIAL_HAS_NORMAL = 0x0008
         private const val MATERIAL_HAS_ALPHAMASK = 0x0010
-
-        init {
-            Loader.loadNatives()
-            libspirvcrossj.initializeProcess()
-
-            Runtime.getRuntime().addShutdownHook(object: Thread() {
-                override fun run() {
-                    logger.debug("Finalizing libspirvcrossj")
-                    libspirvcrossj.finalizeProcess()
-                }
-            })
-        }
     }
 
     /**
