@@ -58,15 +58,7 @@ class ProteinBuilder(ribbonDiagram: RibbonDiagram, override val cam: ()-> Camera
             box.spatial {
                 //VR mode, baby!
                 if(hmd != null) {
-                    rotation = Quaternionf(hmd.getOrientation()).conjugate().normalize()
-                    hmd.events.onDeviceConnect.add { _, device, _ ->
-                        if (device.type == TrackedDeviceType.Controller) {
-                            device.model?.let { controller ->
-                                controller.children.first().spatialOrNull()
-                                    ?: throw IllegalArgumentException("The target controller needs a spatial.")
-                            }
-                        }
-                    }
+                    position = controller!!.worldPosition()
                 }
                 //nope? okay, lets go for 2D then
                 else {
@@ -80,12 +72,20 @@ class ProteinBuilder(ribbonDiagram: RibbonDiagram, override val cam: ()-> Camera
                     }
                 }
             }
+            if(hmd != null) {
+                box.update.add {
+                    box.spatial {
+                        rotation = Quaternionf(hmd.getOrientation()).conjugate().normalize()
+                        position = controller!!.worldPosition()
+                    }
+                }
+            }
             box.material {
                 if (aaImage != null) {
                     textures["diffuse"] = Texture.fromImage(aaImage)
                 }
-                scene.addChild(box)
             }
+            scene.addChild(box)
             //todo add a unique identifier for the ribon diagram
                 if (k <= scene.children.filter { it is RibbonDiagram }[0].children.flatMap { subProtein -> subProtein.children }
                         .flatMap { curve -> curve.children }.lastIndex) {
@@ -107,7 +107,7 @@ class ProteinBuilder(ribbonDiagram: RibbonDiagram, override val cam: ()-> Camera
         }
 
         fun createAndSet(ribbon: RibbonDiagram, scene: Scene, proteinName: String, hmd: OpenVRHMD, button: List<OpenVRHMD.OpenVRButton>,
-                         controllerSide: List<TrackerRole>, name: String){
+                         controllerSide: List<TrackerRole>){
             hmd.events.onDeviceConnect.add { _, device, _ ->
                 if (device.type == TrackedDeviceType.Controller) {
                     if(controllerSide.contains(device.role)) {
@@ -117,6 +117,7 @@ class ProteinBuilder(ribbonDiagram: RibbonDiagram, override val cam: ()-> Camera
                                 controller.children.first().spatialOrNull()
                                     ?: throw IllegalArgumentException("The target controller needs a spatial.")
                             )
+                            val name = "ProteinBuilder"
                             hmd.addBehaviour(name, proteinBuilder)
                             button.forEach {
                                 hmd.addKeyBinding(name, device.role, it)
