@@ -144,6 +144,7 @@ class ProteinBuilderExample : SceneryBase(
 
         val iupacAbbreviations = IUPACAbbreviationsReader().abbrevations
 
+        var numberOfTries = 0
         fun rightProteinChosen(threeLetterCode: String) {
             if(hmd.getBehaviour("ProteinBuilder") is ProteinBuilder) {
                 val builder = hmd.getBehaviour("ProteinBuilder") as ProteinBuilder
@@ -152,8 +153,15 @@ class ProteinBuilderExample : SceneryBase(
                     //x and y are never used in this implementation of click(), hence, 1 is chosen as an arbitrary value
                     builder.click(1, 1)
                     firstClick = false
+                    numberOfTries = 0
                 } else {
-                    print("Try ${iupacAbbreviations[currentCode]?.chemicalCategory}")
+                    when(numberOfTries) {
+                        0-> { print("Try ${iupacAbbreviations[currentCode]?.chemicalCategory}") }
+                        1 -> { print("Try ${iupacAbbreviations[currentCode]?.chemicalCategory}") }
+                        2 -> { print("Try ${iupacAbbreviations[currentCode]?.fullName}") }
+                        else -> {logger.warn("NumberOfTries became $numberOfTries this should not happen.")}
+                    }
+                    numberOfTries = (numberOfTries+1)%3
                 }
             }
         }
