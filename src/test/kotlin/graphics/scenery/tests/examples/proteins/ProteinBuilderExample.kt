@@ -140,20 +140,21 @@ class ProteinBuilderExample : SceneryBase(
                 }
             })
 
-        ProteinBuilder.createAndSet(ribbon, scene, "3nir", hmd, listOf(OpenVRHMD.OpenVRButton.A), listOf(TrackerRole.LeftHand), "proteinBuilder")
-        val builder = try { hmd.getBehaviour("proteinBuilder") as ProteinBuilder } catch(n: NullPointerException) { ProteinBuilder(ribbon, {scene.activeObserver}, scene, "proteinBuilderFallback")}
+        ProteinBuilder.createAndSet(ribbon, scene, "3nir", hmd, listOf(OpenVRHMD.OpenVRButton.A), listOf(TrackerRole.LeftHand))
 
         val iupacAbbreviations = IUPACAbbreviationsReader().abbrevations
 
         fun rightProteinChosen(threeLetterCode: String) {
-            val currentCode = builder.currentAminoCode
-            if((currentCode != null && currentCode == threeLetterCode) || firstClick) {
-                //x and y are never used in this implementation of click(), hence, 1 is chosen as an arbitrary value
-                builder.click(1, 1)
-                firstClick = false
-            }
-            else {
-                print("Try ${iupacAbbreviations[currentCode]?.chemicalCategory}")
+            if(hmd.getBehaviour("ProteinBuilder") is ProteinBuilder) {
+                val builder = hmd.getBehaviour("ProteinBuilder") as ProteinBuilder
+                val currentCode = builder.currentAminoCode
+                if ((currentCode != null && currentCode == threeLetterCode) || firstClick) {
+                    //x and y are never used in this implementation of click(), hence, 1 is chosen as an arbitrary value
+                    builder.click(1, 1)
+                    firstClick = false
+                } else {
+                    print("Try ${iupacAbbreviations[currentCode]?.chemicalCategory}")
+                }
             }
         }
 
