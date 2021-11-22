@@ -11,10 +11,12 @@ import graphics.scenery.controls.behaviours.*
 import graphics.scenery.flythroughs.IUPACAbbreviationsReader
 import graphics.scenery.flythroughs.ProteinBuilder
 import graphics.scenery.numerics.Random
+import graphics.scenery.primitives.TextBoard
 import graphics.scenery.proteins.Protein
 import graphics.scenery.proteins.RibbonDiagram
 import graphics.scenery.utils.Wiggler
 import graphics.scenery.utils.extensions.times
+import org.joml.Quaternionf
 import org.joml.Vector3f
 import java.lang.Thread.sleep
 import kotlin.concurrent.thread
@@ -30,6 +32,8 @@ class ProteinBuilderExample : SceneryBase(
     private lateinit var hullbox: Box
     private val ribbon = RibbonDiagram(Protein.fromID("3nir"))
     var firstClick = true
+    private val lightCount = 20
+    private val positionRange = 250f
 
     override fun init() {
         hmd = OpenVRHMD(seated = true, useCompositor = true)
@@ -51,13 +55,19 @@ class ProteinBuilderExample : SceneryBase(
 
         scene.addChild(cam)
 
-        val lights = Light.createLightTetrahedron<PointLight>(spread = 5.0f, radius = 8.0f)
-        lights.forEach {
-            it.emissionColor = Random.random3DVectorFromRange(0.6f, 1.0f)
+        val lights = (0 until lightCount).map { PointLight(radius = positionRange) }
+
+        lights.map {
+            it.spatial {
+                position = Random.random3DVectorFromRange(-positionRange/2, positionRange/2)
+            }
+            it.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
+            it.intensity = 0.5f
+
             scene.addChild(it)
         }
 
-        hullbox = Box(Vector3f(20.0f, 20.0f, 20.0f), insideNormals = true)
+        hullbox = Box(Vector3f(40.0f, 40.0f, 40.0f), insideNormals = true)
         hullbox.material {
             ambient = Vector3f(0.6f, 0.6f, 0.6f)
             diffuse = Vector3f(0.4f, 0.4f, 0.4f)
@@ -88,6 +98,14 @@ class ProteinBuilderExample : SceneryBase(
         ribbon.name = "3nir"
         ribbon.visible = false
         scene.addChild(ribbon)
+
+        val message = TextBoard()
+        message.name = "AminoAcidHelper"
+        message.spatial {
+            scale = Vector3f(1f, 1f, 1f)
+        }
+        message.visible = false
+        scene.addChild(message)
     }
 
     override fun inputSetup() {
@@ -154,14 +172,28 @@ class ProteinBuilderExample : SceneryBase(
                     builder.click(1, 1)
                     firstClick = false
                     numberOfTries = 0
+                    val message = scene.children.filter { it.name == "AminoAcidHelper" }[0] as TextBoard
+                    message.visible = false
+                    message.spatial().rotation = Quaternionf(hmd.getOrientation()).conjugate().normalize()
+                    message.update.add {
+                        message.spatial {
+                            position = Vector3f(DetachedHeadCamera(hmd).headPosition).add(Vector3f(DetachedHeadCamera(hmd).forward).mul(2f))
+                        }
+                    }
                 } else {
+                    val message = scene.children.filter { it.name == "AminoAcidHelper" }[0] as TextBoard
                     when(numberOfTries) {
-                        0-> { print("Try ${iupacAbbreviations[currentCode]?.chemicalCategory}") }
-                        1 -> { print("Try ${iupacAbbreviations[currentCode]?.chemicalCategory}") }
-                        2 -> { print("Try ${iupacAbbreviations[currentCode]?.fullName}") }
+                        0-> { message.text = "Friend, try ${iupacAbbreviations[currentCode]?.chemicalCategory}" }
+                        1 -> { message.text = "Friend, try ${iupacAbbreviations[currentCode]?.chemicalCategory}" }
+                        2 -> { message.text = "Friend, try ${iupacAbbreviations[currentCode]?.fullName}" }
                         else -> {logger.warn("NumberOfTries became $numberOfTries this should not happen.")}
                     }
+                    message.visible = true
                     numberOfTries = (numberOfTries+1)%3
+                    message.spatial {
+                        position = Vector3f(DetachedHeadCamera(hmd).spatial().worldPosition())
+                        rotation = Quaternionf(hmd.getOrientation()).conjugate().normalize()
+                     }
                 }
             }
         }
