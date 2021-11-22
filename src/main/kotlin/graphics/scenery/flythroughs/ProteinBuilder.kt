@@ -53,7 +53,7 @@ class ProteinBuilder(ribbonDiagram: RibbonDiagram, override val cam: ()-> Camera
             val height = aaImage?.height
             val width = aaImage?.width
             if (width != null && height != null) {
-                box.spatial().scale = Vector3f(width / height.toFloat(), 1f, 0f)
+                box.spatial().scale = Vector3f((width / height.toFloat())/5f, 1/5f, 0f)
             }
             box.spatial {
                 //VR mode, baby!
