@@ -22,7 +22,7 @@ open class ProteinRollercoaster(ribbonDiagram: RibbonDiagram, open val cam: () -
 
     init {
         ribbonDiagram.children.forEach { subprotein ->
-            subprotein.children.forEachIndexed{ index, subCurve ->
+            subprotein.children.forEachIndexed{ _, subCurve ->
                 if(subCurve is Curve) {
                     subCurve.frenetFrames.filterIndexed { index, _ -> index%10 == 0  }.forEachIndexed { _, frame ->
                         controlpoints.add(Vector3f(frame.translation.x, frame.translation.y + 0.7f, frame.translation.z))//offset to not fly through the baseShapes
