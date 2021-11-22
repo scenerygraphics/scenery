@@ -106,6 +106,13 @@ class ProteinBuilderExample : SceneryBase(
         }
         message.visible = false
         scene.addChild(message)
+
+        val greetings = TextBoard("Hello friend, Welcome to the protein builder!")
+        greetings.name = "greetings"
+        greetings.spatial().scale = Vector3f(1f, 1f, 1f)
+        scene.addChild(greetings)
+        thread { sleep(3000) }
+        greetings.text = "Use the A button to select an amino acid. In case you just want to build the protein, use X. Select any Amino Acid to start!"
     }
 
     override fun inputSetup() {
@@ -164,6 +171,9 @@ class ProteinBuilderExample : SceneryBase(
 
         var numberOfTries = 0
         fun rightProteinChosen(threeLetterCode: String) {
+            if (scene.children.filter { it.name == "greetings" }.isNotEmpty()) {
+                scene.removeChild("greetings")
+            }
             if(hmd.getBehaviour("ProteinBuilder") is ProteinBuilder) {
                 val builder = hmd.getBehaviour("ProteinBuilder") as ProteinBuilder
                 val currentCode = builder.currentAminoCode
