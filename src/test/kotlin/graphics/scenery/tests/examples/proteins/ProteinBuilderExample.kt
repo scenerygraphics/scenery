@@ -99,17 +99,18 @@ class ProteinBuilderExample : SceneryBase(
         ribbon.visible = false
         scene.addChild(ribbon)
 
-        val message = TextBoard()
-        message.name = "AminoAcidHelper"
-        message.spatial {
-            scale = Vector3f(1f, 1f, 1f)
+        thread {
+            sleep(10000)
+            cam.showMessage("Hello friend!")
+            sleep(3000)
+            cam.showMessage("Welcome to the protein builder!")
+            sleep(3000)
+            cam.showMessage("Use A to select an amino acid.")
+            sleep(3000)
+            cam.showMessage("Use X to just advance")
+            sleep(3000)
+            cam.showMessage("Select any amino acid to start!")
         }
-        message.visible = false
-        scene.addChild(message)
-
-        cam.showMessage("Hello friend, Welcome to the protein builder!")
-        cam.showMessage("We recommend sitting during this experience.", duration = 2000)
-        cam.showMessage("Use the A button to select an amino acid. In case you just want to build the protein, use X. Select any Amino Acid to start!", duration = 10000)
     }
 
     override fun inputSetup() {
@@ -181,11 +182,12 @@ class ProteinBuilderExample : SceneryBase(
                     numberOfTries = 0
                 } else {
                     when(numberOfTries) {
-                        0-> { DetachedHeadCamera(hmd).showMessage( "Friend, try ${iupacAbbreviations[currentCode]?.chemicalCategory}", duration = 5000) }
-                        1 -> { DetachedHeadCamera(hmd).showMessage( "Friend, try ${iupacAbbreviations[currentCode]?.chemicalCategory}", duration = 5000) }
-                        2 -> { DetachedHeadCamera(hmd).showMessage( "Friend, try ${iupacAbbreviations[currentCode]?.fullName}", duration = 5000) }
+                        0-> { scene.activeObserver?.showMessage( "Friend, try ${iupacAbbreviations[currentCode]?.chemicalCategory}", duration = 5000) }
+                        1 -> { scene.activeObserver?.showMessage( "Friend, try ${iupacAbbreviations[currentCode]?.chemicalCategory}", duration = 5000) }
+                        2 -> { scene.activeObserver?.showMessage( "Friend, try ${iupacAbbreviations[currentCode]?.fullName}", duration = 5000) }
                         else -> {logger.warn("NumberOfTries became $numberOfTries this should not happen.")}
                     }
+                    numberOfTries = (numberOfTries+1)%3
                 }
             }
         }
