@@ -107,12 +107,8 @@ class ProteinBuilderExample : SceneryBase(
         message.visible = false
         scene.addChild(message)
 
-        val greetings = TextBoard("Hello friend, Welcome to the protein builder!")
-        greetings.name = "greetings"
-        greetings.spatial().scale = Vector3f(1f, 1f, 1f)
-        scene.addChild(greetings)
-        thread { sleep(3000) }
-        greetings.text = "Use the A button to select an amino acid. In case you just want to build the protein, use X. Select any Amino Acid to start!"
+        cam.showMessage("Hello friend, Welcome to the protein builder!")
+        cam.showMessage("Use the A button to select an amino acid. In case you just want to build the protein, use X. Select any Amino Acid to start!", duration = 10000)
     }
 
     override fun inputSetup() {
@@ -182,28 +178,13 @@ class ProteinBuilderExample : SceneryBase(
                     builder.click(1, 1)
                     firstClick = false
                     numberOfTries = 0
-                    val message = scene.children.filter { it.name == "AminoAcidHelper" }[0] as TextBoard
-                    message.visible = false
-                    message.spatial().rotation = Quaternionf(hmd.getOrientation()).conjugate().normalize()
-                    message.update.add {
-                        message.spatial {
-                            position = Vector3f(DetachedHeadCamera(hmd).headPosition).add(Vector3f(DetachedHeadCamera(hmd).forward).mul(2f))
-                        }
-                    }
                 } else {
-                    val message = scene.children.filter { it.name == "AminoAcidHelper" }[0] as TextBoard
                     when(numberOfTries) {
-                        0-> { message.text = "Friend, try ${iupacAbbreviations[currentCode]?.chemicalCategory}" }
-                        1 -> { message.text = "Friend, try ${iupacAbbreviations[currentCode]?.chemicalCategory}" }
-                        2 -> { message.text = "Friend, try ${iupacAbbreviations[currentCode]?.fullName}" }
+                        0-> { DetachedHeadCamera(hmd).showMessage( "Friend, try ${iupacAbbreviations[currentCode]?.chemicalCategory}", duration = 5000) }
+                        1 -> { DetachedHeadCamera(hmd).showMessage( "Friend, try ${iupacAbbreviations[currentCode]?.chemicalCategory}", duration = 5000) }
+                        2 -> { DetachedHeadCamera(hmd).showMessage( "Friend, try ${iupacAbbreviations[currentCode]?.fullName}", duration = 5000) }
                         else -> {logger.warn("NumberOfTries became $numberOfTries this should not happen.")}
                     }
-                    message.visible = true
-                    numberOfTries = (numberOfTries+1)%3
-                    message.spatial {
-                        position = Vector3f(DetachedHeadCamera(hmd).spatial().worldPosition())
-                        rotation = Quaternionf(hmd.getOrientation()).conjugate().normalize()
-                     }
                 }
             }
         }
@@ -240,8 +221,6 @@ class ProteinBuilderExample : SceneryBase(
                     Action("Tyrosine") { rightProteinChosen("TYR") }
                 ))
             ))
-
-
     }
 
 
