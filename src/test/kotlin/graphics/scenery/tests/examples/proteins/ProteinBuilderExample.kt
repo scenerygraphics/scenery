@@ -108,6 +108,7 @@ class ProteinBuilderExample : SceneryBase(
         scene.addChild(message)
 
         cam.showMessage("Hello friend, Welcome to the protein builder!")
+        cam.showMessage("We recommend sitting during this experience.", duration = 2000)
         cam.showMessage("Use the A button to select an amino acid. In case you just want to build the protein, use X. Select any Amino Acid to start!", duration = 10000)
     }
 
