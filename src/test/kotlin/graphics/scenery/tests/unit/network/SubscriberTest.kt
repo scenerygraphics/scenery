@@ -32,8 +32,8 @@ class SubscriberTest {
         val sub = NodeSubscriber(hub2)
         hub2.add(sub)
 
-        sub.debugListen(NetworkEvent.NewObject(NetworkObject(1,scene1, mutableListOf())))
-        sub.debugListen(NetworkEvent.NewObject(NetworkObject(2,box, mutableListOf(scene1.networkID))))
+        sub.debugListen(NetworkEvent.Update(NetworkObject(1,scene1, mutableListOf())))
+        sub.debugListen(NetworkEvent.Update(NetworkObject(2,box, mutableListOf(scene1.networkID))))
 
         sub.networkUpdate(scene2)
         assert(scene2.find("box") != null)
@@ -57,8 +57,8 @@ class SubscriberTest {
         val sub = NodeSubscriber(hub2)
         hub2.add(sub)
 
-        sub.debugListen(NetworkEvent.NewObject(NetworkObject(2,box, mutableListOf(1))))
-        sub.debugListen(NetworkEvent.NewObject(NetworkObject(1,scene1, mutableListOf())))
+        sub.debugListen(NetworkEvent.Update(NetworkObject(2,box, mutableListOf(1))))
+        sub.debugListen(NetworkEvent.Update(NetworkObject(1,scene1, mutableListOf())))
 
         sub.networkUpdate(scene2)
         assert(scene2.find("box") != null)
@@ -80,13 +80,13 @@ class SubscriberTest {
         val sub = NodeSubscriber(hub2)
         hub2.add(sub)
 
-        sub.debugListen(NetworkEvent.NewObject(NetworkObject(1,scene1, mutableListOf())))
+        sub.debugListen(NetworkEvent.Update(NetworkObject(1,scene1, mutableListOf())))
 
         // simulate sending by serializing and deserializing (thereby loosing all attributes)
         val kryo = NodePublisher.freeze()
         val bos = ByteArrayOutputStream()
         val output = Output(bos)
-        kryo.writeClassAndObject(output,NetworkEvent.NewObject(NetworkObject(2,box, mutableListOf(1))))
+        kryo.writeClassAndObject(output,NetworkEvent.Update(NetworkObject(2,box, mutableListOf(1))))
         output.flush()
 
         val bin = ByteArrayInputStream(bos.toByteArray())
@@ -96,7 +96,7 @@ class SubscriberTest {
         sub.debugListen(event)
 
         val spatialNObj = NetworkObject(3,box.spatial(), mutableListOf(2))
-        sub.debugListen(NetworkEvent.NewObject(spatialNObj))
+        sub.debugListen(NetworkEvent.Update(spatialNObj))
 
         sub.networkUpdate(scene2)
         val box2 = scene2.find("box")

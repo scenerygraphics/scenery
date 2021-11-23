@@ -41,7 +41,7 @@ class PublisherTest {
 
         pub.debugPublish { results.add(it) }
 
-        val newEvents = results.filterIsInstance<NetworkEvent.NewObject>().toList()
+        val newEvents = results.filterIsInstance<NetworkEvent.Update>().toList()
         //val relationEvents = results.filterIsInstance<NetworkEvent.NewRelation>().toList()
 
         assert(newEvents.any{it.obj.obj is Scene})
@@ -90,12 +90,12 @@ class PublisherTest {
         val kryo = NodePublisher.freeze()
         val bos = ByteArrayOutputStream()
         val output = Output(bos)
-        kryo.writeClassAndObject(output, NetworkEvent.NewObject(NetworkObject(2, scene, mutableListOf(1))))
+        kryo.writeClassAndObject(output, NetworkEvent.Update(NetworkObject(2, scene, mutableListOf(1))))
         output.flush()
 
         val bin = ByteArrayInputStream(bos.toByteArray())
         val input = Input(bin)
-        val event = kryo.readClassAndObject(input) as NetworkEvent.NewObject
+        val event = kryo.readClassAndObject(input) as NetworkEvent.Update
 
         assertEquals("lol", (event.obj.obj as Scene).name)
     }
