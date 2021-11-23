@@ -2,6 +2,8 @@ package graphics.scenery.tests.examples.cluster
 
 import org.joml.Vector3f
 import graphics.scenery.*
+import graphics.scenery.attribute.material.DefaultMaterial
+import graphics.scenery.attribute.material.Material
 import graphics.scenery.backends.Renderer
 import graphics.scenery.net.NodePublisher
 import graphics.scenery.net.NodeSubscriber
@@ -42,11 +44,24 @@ class SimpleNetworkExample : SceneryBase("SimpleNetworkExample", wantREPL = fals
             scene.addChild(box)
 
         }
-            val light = PointLight(radius = 15.0f)
-            light.spatial().position = Vector3f(0.0f, 0.0f, 2.0f)
-            light.intensity = 5.0f
-            light.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
-            scene.addChild(light)
+        val light = PointLight(radius = 15.0f)
+        light.spatial().position = Vector3f(0.0f, 0.0f, 2.0f)
+        light.intensity = 5.0f
+        light.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
+        scene.addChild(light)
+
+        thread {
+            Thread.sleep(4000)
+            val ma = DefaultMaterial()
+            ma.diffuse = Vector3f(0f,1f,0f)
+            box.addAttribute(Material::class.java,ma)
+            box.spatial().needsUpdate = true
+            println("replacing Mat")
+            scene.removeChild(box)
+            scene.addChild(box)
+
+        }
+
 
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
@@ -64,10 +79,10 @@ class SimpleNetworkExample : SceneryBase("SimpleNetworkExample", wantREPL = fals
 
         try {
             if (settings.get<Boolean>("master")) {
-                val publisher = NodePublisher(hub, "tcp://localhost:5556")
+                val publisher = NodePublisher(hub)
                 hub.add(publisher)
                 publisher?.startPublishing()
-                Thread.sleep(1000)
+                //Thread.sleep(1000)
                 publisher?.register(scene)
                 scene.update += { publisher.scanForChanges()}
                 /*thread {
@@ -77,7 +92,7 @@ class SimpleNetworkExample : SceneryBase("SimpleNetworkExample", wantREPL = fals
                     }
                 }*/
             } else {
-                val subscriber = NodeSubscriber(hub, "tcp://localhost:5556")
+                val subscriber = NodeSubscriber(hub)
                 hub.add(subscriber)
                 subscriber?.startListening()
                 scene.update += {subscriber.networkUpdate(scene)}

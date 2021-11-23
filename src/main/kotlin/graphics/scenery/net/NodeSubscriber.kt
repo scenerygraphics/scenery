@@ -5,6 +5,8 @@ import graphics.scenery.*
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.Statistics
 import graphics.scenery.volumes.Volume
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import org.zeromq.ZContext
 import org.zeromq.ZMQ
 import java.io.ByteArrayInputStream
@@ -19,13 +21,19 @@ import kotlin.concurrent.thread
  */
 class NodeSubscriber(
     override var hub: Hub?,
-    val address: String = "tcp://localhost:6666",
-    val context: ZContext = ZContext(4)
+    ip: String = "tcp://localhost",
+    portPublish: Int = 7777,
+    portControl: Int = 6666,
+    val context: ZContext = ZContext(4),
 ) : Hubable {
+    private val addressSubscribe = "$ip:$portPublish"
+    //private val addressControl = "tcp://localhost:5560"
+    private val addressControl = "$ip:$portControl"
 
     private val logger by LazyLogger()
     var nodes: ConcurrentHashMap<Int, Node> = ConcurrentHashMap()
     var subscriber: ZMQ.Socket = context.createSocket(ZMQ.SUB)
+    var control: ZMQ.Socket = context.createSocket(ZMQ.PUB)
     val kryo = NodePublisher.freeze()
     private val networkObjects = hashMapOf<Int, NetworkObject<*>>()
     private val eventQueue = LinkedBlockingQueue<NetworkEvent>()
@@ -33,8 +41,13 @@ class NodeSubscriber(
     private var running = false
 
     init {
-        subscriber.connect(address)
+        subscriber.connect(addressSubscribe)
         subscriber.subscribe(ZMQ.SUBSCRIPTION_ALL)
+        control.connect(addressControl)
+        GlobalScope.launch {
+            Thread.sleep(1000)
+            NodePublisher.sendEvent(NetworkEvent.RequestInitialization(),kryo,control,logger)
+        }
     }
 
     fun startListening() {
@@ -78,14 +91,22 @@ class NodeSubscriber(
     fun networkUpdate(scene: Scene) {
         while (!eventQueue.isEmpty()) {
             when (val event = eventQueue.poll()) {
-                is NetworkEvent.NewObject -> {
+                is NetworkEvent.Update -> {
                     val networkObject = event.obj
+
+                    if (networkObjects.containsKey(networkObject.networkID)) {
+                        val fresh = networkObject.obj
+                        val tmp = networkObjects[fresh.networkID]?.obj
+                            ?: throw Exception("Got update for unknown object with id ${fresh.networkID} and class ${fresh.javaClass.simpleName}")
+                        tmp.update(fresh)
+                        continue
+                    }
 
                     fun reuniteChildParent(parent: Node) {
                         val missingChildren = waitingOnParent.remove(parent.networkID)
                         missingChildren?.forEach { childEvent ->
                             when (childEvent) {
-                                is NetworkEvent.NewObject -> {
+                                is NetworkEvent.Update -> {
                                     when (val child = childEvent.obj.obj) {
                                         is Node -> {
                                             parent.addChild(child)
@@ -94,7 +115,7 @@ class NodeSubscriber(
                                             // assuming child is Attribute
                                             val attributeBaseClass = child.getAttributeClass()!!
                                             // before adding the attribute to the waitingOnParent list this was null checked
-                                            parent.addAttributeFromNetwork(attributeBaseClass.java, parent)
+                                            parent.addAttributeFromNetwork(attributeBaseClass.java, child)
                                         }
                                     }
                                 }
@@ -129,7 +150,6 @@ class NodeSubscriber(
                         else -> {
                             val attributeBaseClass = networkable.getAttributeClass()
                             if (attributeBaseClass != null) {
-                                // val r = cast(attributeBaseClass,networkable)
                                 // It is an attribute
                                 networkObject.parents
                                     .mapNotNull { parentId ->
@@ -157,12 +177,6 @@ class NodeSubscriber(
                     }
                 }
                 is NetworkEvent.NewRelation -> TODO()
-                is NetworkEvent.Update -> {
-                    val fresh = event.obj.obj
-                    val tmp =  networkObjects[fresh.networkID]?.obj
-                        ?: throw Exception("Got update for unknown object with id ${fresh.networkID} and class ${fresh.javaClass.simpleName}")
-                    tmp.update(fresh)
-                }
             }
         }
     }
