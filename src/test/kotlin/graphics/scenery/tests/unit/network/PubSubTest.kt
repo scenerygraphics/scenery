@@ -11,7 +11,6 @@ import org.junit.After
 import org.junit.Before
 import org.junit.BeforeClass
 import org.junit.Test
-import kotlin.concurrent.thread
 import kotlin.reflect.full.declaredMemberFunctions
 import kotlin.reflect.jvm.isAccessible
 import kotlin.test.assertEquals
@@ -38,10 +37,10 @@ class PubSubTest {
         scene2 = Scene()
         scene2.name = "scene2"
 
-        pub = NodePublisher(hub1,"tcp://127.0.0.1:6660")
+        pub = NodePublisher(hub1, "tcp://127.0.0.1",6660)
         hub1.add(pub)
 
-        sub = NodeSubscriber(hub2,"tcp://127.0.0.1:6660")
+        sub = NodeSubscriber(hub2, ip = "tcp://127.0.0.1", 6660)
         hub2.add(sub)
         Thread.sleep(300)
     }
