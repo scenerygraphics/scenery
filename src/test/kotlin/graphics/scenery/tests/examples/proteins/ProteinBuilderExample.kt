@@ -101,15 +101,17 @@ class ProteinBuilderExample : SceneryBase(
 
         thread {
             sleep(10000)
-            cam.showMessage("Hello friend!")
-            sleep(3000)
-            cam.showMessage("Welcome to the protein builder!")
-            sleep(3000)
-            cam.showMessage("Use A to select an amino acid.")
-            sleep(3000)
-            cam.showMessage("Use X to just advance")
-            sleep(3000)
-            cam.showMessage("Select any amino acid to start!")
+            cam.showMessage("Hello friend!", duration= 6000)
+            sleep(6000)
+            cam.showMessage("Welcome to the protein builder!", duration = 6000)
+            sleep(6000)
+            cam.showMessage("Use A to select an amino acid.", duration = 8000)
+            sleep(8000)
+            cam.showMessage("Use B to see all amino acids.", duration = 8000)
+            sleep(8000)
+            cam.showMessage("Use X to just advance", duration = 8000)
+            sleep(8000)
+            cam.showMessage("Select any amino acid to start!", duration = 8000)
         }
     }
 
