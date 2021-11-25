@@ -134,37 +134,7 @@ class ProteinBuilderExample : SceneryBase(
                 }
             }
         }
-
-        VRTouch.createAndSet(scene,hmd, listOf(TrackerRole.RightHand,TrackerRole.LeftHand),true)
-
-        VRGrab.createAndSet(scene, hmd, listOf(OpenVRHMD.OpenVRButton.Side), listOf(TrackerRole.LeftHand,TrackerRole.RightHand))
         VRPress.createAndSet(scene, hmd, listOf(OpenVRHMD.OpenVRButton.Trigger), listOf(TrackerRole.LeftHand,TrackerRole.RightHand))
-
-        val selectionStorage =
-            VRSelect.createAndSetWithStorage(
-                scene,
-                hmd,
-                listOf(OpenVRHMD.OpenVRButton.Trigger),
-                listOf(TrackerRole.RightHand)
-            )
-        VRScale.createAndSet(hmd, OpenVRHMD.OpenVRButton.Side) {
-            selectionStorage.selected?.ifSpatial { scale *= Vector3f(it) }
-        }
-
-        VRSelect.createAndSetWithAction(scene,
-            hmd,
-            listOf(OpenVRHMD.OpenVRButton.Trigger),
-            listOf(TrackerRole.LeftHand),
-            { n ->
-                // this is just some action to show a successful selection.
-                // Party Cube!
-                val w = Wiggler(n.spatialOrNull()!!, 1.0f)
-                thread {
-                    sleep(2 * 1000)
-                    w.deativate()
-                }
-            })
-
         ProteinBuilder.createAndSet(ribbon, scene, "3nir", hmd, listOf(OpenVRHMD.OpenVRButton.A), listOf(TrackerRole.LeftHand))
 
         val iupacAbbreviations = IUPACAbbreviationsReader().abbrevations
