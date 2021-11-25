@@ -11,13 +11,14 @@ import graphics.scenery.controls.behaviours.*
 import graphics.scenery.flythroughs.IUPACAbbreviationsReader
 import graphics.scenery.flythroughs.ProteinBuilder
 import graphics.scenery.numerics.Random
-import graphics.scenery.primitives.TextBoard
 import graphics.scenery.proteins.Protein
 import graphics.scenery.proteins.RibbonDiagram
-import graphics.scenery.utils.Wiggler
-import graphics.scenery.utils.extensions.times
+import graphics.scenery.tests.examples.basic.PictureDisplayExample
+import graphics.scenery.textures.Texture
+import graphics.scenery.utils.Image
 import org.joml.Quaternionf
 import org.joml.Vector3f
+import org.scijava.ui.behaviour.ClickBehaviour
 import java.lang.Thread.sleep
 import kotlin.concurrent.thread
 import kotlin.system.exitProcess
@@ -77,6 +78,23 @@ class ProteinBuilderExample : SceneryBase(
 
         scene.addChild(hullbox)
 
+        val aaOverview = Box(Vector3f(1.0f, 1.0f, 1.0f))
+        aaOverview.name = "aaOverview"
+        val img = Image.fromResource("aa_overview.png", PictureDisplayExample::class.java)
+        val height = img.height
+        val width = img.width
+        aaOverview.material {
+            textures["diffuse"] = Texture.fromImage(img)
+            diffuse = Vector3f(100f, 100f, 100f)
+            metallic = 0.3f
+            roughness = 0.9f
+        }
+        aaOverview.spatial().scale = Vector3f(width/height.toFloat(), 1f, 0f)
+        aaOverview.visible = false
+        aaOverview.update.add {
+            aaOverview.spatial().rotation = Quaternionf(hmd.getOrientation()).conjugate().normalize()
+        }
+
         thread {
             while (!running) {
                 Thread.sleep(200)
@@ -89,6 +107,9 @@ class ProteinBuilderExample : SceneryBase(
                         // This attaches the model of the controller to the controller's transforms
                         // from the OpenVR/SteamVR system.
                         hmd.attachToNode(device, controller, cam)
+                        if (controller.spatialOrNull() != null) {
+                            aaOverview.update.add { aaOverview.spatial().position = controller.spatialOrNull()!!.worldPosition() }
+                        }
                     }
                 }
             }
@@ -107,7 +128,7 @@ class ProteinBuilderExample : SceneryBase(
             sleep(6000)
             cam.showMessage("Use A to select an amino acid.", duration = 8000)
             sleep(8000)
-            cam.showMessage("Use B to see all amino acids.", duration = 8000)
+            cam.showMessage("Use right side button to see all amino acids.", duration = 8000)
             sleep(8000)
             cam.showMessage("Use X to just advance", duration = 8000)
             sleep(8000)
@@ -196,6 +217,14 @@ class ProteinBuilderExample : SceneryBase(
                     Action("Tyrosine") { rightProteinChosen("TYR") }
                 ))
             ))
+
+        //show amino acid overview
+        hmd.addBehaviour("amino_overview", ClickBehaviour { _, _ ->
+            val overview = scene.children.filter { it.name == "aaOverview" }
+            if(overview.isNotEmpty()) { overview[0].visible = !overview[0].visible }
+        })
+        // ...and bind that to the A button of the left-hand controller.
+        hmd.addKeyBinding("amino_overview", TrackerRole.RightHand, OpenVRHMD.OpenVRButton.Side)
     }
 
 
