@@ -1,6 +1,5 @@
 package graphics.scenery.tests.examples.proteins
 
-
 import graphics.scenery.*
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.backends.Renderer
@@ -80,21 +79,16 @@ class ProteinBuilderExample : SceneryBase(
 
         val aaOverview = Box(Vector3f(1.0f, 1.0f, 1.0f))
         aaOverview.name = "aaOverview"
-        val img = Image.fromResource("aa_overview.png", PictureDisplayExample::class.java)
+        //todo: this throws a NPE who the hell knows why...
+        val img = Image.fromResource("aa-overview.png", ProteinBuilderExample::class.java)
         val height = img.height
         val width = img.width
         aaOverview.material {
             textures["diffuse"] = Texture.fromImage(img)
-            diffuse = Vector3f(100f, 100f, 100f)
-            metallic = 0.3f
-            roughness = 0.9f
         }
-        aaOverview.spatial().scale = Vector3f(width/height.toFloat(), 1f, 0f)
+        aaOverview.spatial().scale = Vector3f(3*width/height.toFloat()/5f, 3/5f, 0f)
         aaOverview.visible = false
-        aaOverview.update.add {
-            aaOverview.spatial().rotation = Quaternionf(hmd.getOrientation()).conjugate().normalize()
-        }
-
+        scene.addChild(aaOverview)
         thread {
             while (!running) {
                 Thread.sleep(200)
@@ -107,8 +101,9 @@ class ProteinBuilderExample : SceneryBase(
                         // This attaches the model of the controller to the controller's transforms
                         // from the OpenVR/SteamVR system.
                         hmd.attachToNode(device, controller, cam)
-                        if (controller.spatialOrNull() != null) {
-                            aaOverview.update.add { aaOverview.spatial().position = controller.spatialOrNull()!!.worldPosition() }
+                        if (device.role == TrackerRole.RightHand && controller.children.first().spatialOrNull() != null) {
+                            aaOverview.update.add { aaOverview.spatial().position = controller.children.first().spatialOrNull()!!.worldPosition()
+                                aaOverview.spatial().rotation = Quaternionf(hmd.getOrientation()).conjugate().normalize()}
                         }
                     }
                 }
@@ -156,6 +151,7 @@ class ProteinBuilderExample : SceneryBase(
             }
         }
         VRPress.createAndSet(scene, hmd, listOf(OpenVRHMD.OpenVRButton.Trigger), listOf(TrackerRole.LeftHand,TrackerRole.RightHand))
+        VRTouch.createAndSet(scene,hmd, listOf(TrackerRole.RightHand,TrackerRole.LeftHand),true)
         ProteinBuilder.createAndSet(ribbon, scene, "3nir", hmd, listOf(OpenVRHMD.OpenVRButton.A), listOf(TrackerRole.LeftHand))
 
         val iupacAbbreviations = IUPACAbbreviationsReader().abbrevations
@@ -220,10 +216,8 @@ class ProteinBuilderExample : SceneryBase(
 
         //show amino acid overview
         hmd.addBehaviour("amino_overview", ClickBehaviour { _, _ ->
-            val overview = scene.children.filter { it.name == "aaOverview" }
-            if(overview.isNotEmpty()) { overview[0].visible = !overview[0].visible }
+            scene.children.first { it.name == "aaOverview" }.visible = !scene.children.first { it.name == "aaOverview" }.visible
         })
-        // ...and bind that to the A button of the left-hand controller.
         hmd.addKeyBinding("amino_overview", TrackerRole.RightHand, OpenVRHMD.OpenVRButton.Side)
     }
 
