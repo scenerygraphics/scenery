@@ -11,13 +11,18 @@ class LineBetweenNodes(var from: Spatial, var to: Spatial, transparent: Boolean 
 
     init {
 
+        addPoint(Vector3f())
+        addPoint(Vector3f(0f,1f,0f,))
+
         update.add {
             if (!visible){
                 return@add
             }
-            clearPoints()
-            addPoint(from.worldPosition())
-            addPoint(to.worldPosition())
+            spatial(){
+                orientBetweenPoints(from.worldPosition(),to.worldPosition())
+                scale = Vector3f(from.worldPosition().distance(to.worldPosition()))
+                position = from.worldPosition()
+            }
         }
     }
 }
