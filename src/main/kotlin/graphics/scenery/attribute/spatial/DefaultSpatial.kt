@@ -1,6 +1,5 @@
 package graphics.scenery.attribute.spatial
 
-import com.jogamp.opengl.math.Quaternion
 import graphics.scenery.Node
 import graphics.scenery.Scene
 import graphics.scenery.utils.LazyLogger
@@ -8,11 +7,9 @@ import graphics.scenery.utils.MaybeIntersects
 import graphics.scenery.utils.extensions.*
 import net.imglib2.Localizable
 import net.imglib2.RealLocalizable
-import net.imglib2.util.LinAlgHelpers
 import org.joml.*
 import java.lang.Float.max
 import java.lang.Float.min
-import kotlin.math.sqrt
 import kotlin.properties.Delegates
 import kotlin.reflect.KProperty
 
