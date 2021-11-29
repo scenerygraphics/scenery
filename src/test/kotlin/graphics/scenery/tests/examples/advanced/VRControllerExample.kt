@@ -151,7 +151,7 @@ class VRControllerExample : SceneryBase(
 
         thread {
             while (!running) {
-                Thread.sleep(200)
+                sleep(200)
             }
 
             hmd.events.onDeviceConnect.add { hmd, device, timestamp ->
@@ -214,7 +214,8 @@ class VRControllerExample : SceneryBase(
                     sleep(2 * 1000)
                     w.deativate()
                 }
-            })
+            },
+        true)
 
         // a selection without a general action. Executes just the [onSelect] function of the [Selectable]
         VRSelect.createAndSet(scene,
