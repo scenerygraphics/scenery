@@ -59,8 +59,7 @@ open class VRSelect(
     override fun drag(x: Int, y: Int) {
         val hit = scene.raycast(
             controller.spatialOrNull()!!.worldPosition(),
-            laser.spatial().worldRotation().transform(Vector3f(0f, 1f, 0f)),
-            emptyList()
+            laser.spatial().worldRotation().transform(Vector3f(0f, 1f, 0f))
         )
             .matches.firstOrNull { it.node.getAttributeOrNull(Selectable::class.java) != null }
 
@@ -88,8 +87,7 @@ open class VRSelect(
 
         scene.raycast(
             controller.spatialOrNull()!!.worldPosition(),
-            laser.spatial().worldRotation().transform(Vector3f(0f, 1f, 0f)),
-            emptyList()
+            laser.spatial().worldRotation().transform(Vector3f(0f, 1f, 0f))
         )
             .matches.firstOrNull { it.node.getAttributeOrNull(Selectable::class.java) != null }
             ?.let {
