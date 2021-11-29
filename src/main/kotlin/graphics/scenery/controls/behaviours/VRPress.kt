@@ -79,7 +79,9 @@ open class VRPress (
     }
 }
 
-
+/**
+ * Attribute which marks a node than can be pressed by the [VRPress] behavior.
+ */
 open class Pressable(
     val onPress: (() -> Unit)? = null,
     val onHold: (() -> Unit)? = null,
