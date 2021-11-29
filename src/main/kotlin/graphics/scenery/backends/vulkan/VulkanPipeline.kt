@@ -1,14 +1,12 @@
 package graphics.scenery.backends.vulkan
 
-import graphics.scenery.geometry.GeometryType
 import graphics.scenery.backends.ShaderConsistencyException
+import graphics.scenery.geometry.GeometryType
 import graphics.scenery.utils.LazyLogger
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.*
 import java.nio.IntBuffer
-import java.util.*
-import kotlin.collections.LinkedHashMap
 
 /**
  * Vulkan Pipeline class.

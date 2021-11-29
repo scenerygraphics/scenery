@@ -58,6 +58,8 @@ open class DefaultSpatial(private var node: Node): Spatial {
                 world.set(p.spatialOrNull()?.world)
                 world.mul(this.model)
             }
+
+            node.modifiedAt = System.nanoTime()
         }
 
         if (recursive) {
