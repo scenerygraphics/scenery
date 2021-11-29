@@ -68,7 +68,7 @@ open class DefaultNode(override var name: String = "Node") : Node {
         this.getScene()?.sceneSize?.decrementAndGet()
         GlobalScope.launch { this@DefaultNode.getScene()?.onChildrenRemoved?.forEach { it.value.invoke(this@DefaultNode, child) } }
 
-        return this.children.remove(child)
+        return this.children.remove(child).let { if (it) {child.parent = null}; it }
     }
 
     override fun removeChild(name: String): Boolean {
