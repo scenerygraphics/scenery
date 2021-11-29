@@ -29,7 +29,7 @@ import kotlin.system.exitProcess
  * Side buttons alone:  Grab Object
  * Both side buttons together: Move to scale, after selection
  * Right Trigger:       Select to Scale
- * Left Trigger:        Select Party first, then Scale
+ * Left Trigger:        Select to Party first, then Scale
  * Left A Button:       Options Menu
  *
  * @author Ulrik Günther <hello@ulrik.is>

@@ -18,7 +18,7 @@ class VRScale(
 ) :
     DragBehaviour {
 
-    protected val logger by LazyLogger(System.getProperty("scenery.LogLevel", "info"))
+    private val logger by LazyLogger()
 
     // --- two hand drag behavior ---
     //TODO fix make order of presses irrelevant, waits on issue #432

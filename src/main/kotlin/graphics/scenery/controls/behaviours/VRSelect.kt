@@ -148,6 +148,9 @@ open class VRSelect(
     }
 }
 
+/**
+ * Attribute which marks a node than can be selected by the [VRSelect] behavior.
+ */
 open class Selectable(
     val onSelect: (() -> Unit)? = null
 )

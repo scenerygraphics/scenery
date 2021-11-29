@@ -29,7 +29,7 @@ open class VRGrab(
     protected val onGrab: (() -> Unit)? = null
 ) : DragBehaviour {
 
-    val controllerSpatial: Spatial
+    protected val controllerSpatial: Spatial
 
     init {
         controllerSpatial = controllerHitbox.spatialOrNull()
@@ -131,6 +131,9 @@ open class VRGrab(
     }
 }
 
+/**
+ * Attribute which marks a node that can be grabbed by the [VRGrab] behavior.
+ */
 open class Grabable(
     val lockRotation: Boolean = false,
     val onGrab: (() -> Unit)? = null,
