@@ -212,11 +212,11 @@ open class Scene : DefaultNode("RootNode"), HasRenderable, HasMaterial, HasSpati
     /**
      * Performs a raycast to discover objects in this [Scene] that would be intersected
      * by a ray originating from [position], shot in [direction]. This method can
-     * be given a list of classes as [ignoredObjects], which will then be ignored for
-     * the raycast. If [debug] is true, a set of spheres is placed along the cast ray.
+     * be given a filter function to to ignore nodes for the raycast for nodes it retuns false for.
+     * If [debug] is true, a set of spheres is placed along the cast ray.
      */
     @JvmOverloads fun raycast(position: Vector3f, direction: Vector3f,
-                              ignoredObjects: List<Class<*>>,
+                              filter: (Node) -> Boolean = {true},
                               debug: Boolean = false): RaycastResult {
         if (debug) {
             val indicatorMaterial = DefaultMaterial()
@@ -235,7 +235,7 @@ open class Scene : DefaultNode("RootNode"), HasRenderable, HasMaterial, HasSpati
         }
 
         val matches = this.discover(this, { node ->
-            node.visible && !ignoredObjects.any{it.isAssignableFrom(node.javaClass)}
+            node.visible && filter(node)
         }).flatMap { (
             if (it is InstancedNode)
                 Stream.concat(Stream.of(it as Node), it.instances.map { instanceNode -> instanceNode as Node }.stream())
