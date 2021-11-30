@@ -82,7 +82,8 @@ dependencies {
     //TODO revert to official BVV
     api("graphics.scenery:bigvolumeviewer:a6b021d")
 
-    implementation("com.github.LWJGLX:lwjgl3-awt:cfd741a6")
+//    implementation("com.github.LWJGLX:lwjgl3-awt:cfd741a6")
+    implementation("org.lwjglx:lwjgl3-awt:0.1.8")
     implementation("org.janelia.saalfeldlab:n5")
     implementation("org.janelia.saalfeldlab:n5-imglib2")
     listOf("core", "structure", "modfinder").forEach {
@@ -100,7 +101,7 @@ dependencies {
     //    implementation("com.github.kotlin-graphics:assimp:25c68811")
 
 //    testImplementation(misc.junit4)
-//    testImplementation(slf4j.simple)
+    testImplementation("org.slf4j:slf4j-simple")
     testImplementation("net.imagej:imagej")
     testImplementation("net.imagej:ij")
     testImplementation("net.imglib2:imglib2-ij")
