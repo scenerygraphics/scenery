@@ -9,7 +9,14 @@ import graphics.scenery.utils.LazyLogger
 import org.scijava.ui.behaviour.DragBehaviour
 import kotlin.concurrent.thread
 
-
+/**
+ * Behavior for scaling with the distance between the controllers.
+ * When triggered [setScale] is called with the relative difference of the distance between the controllers
+ * of this and the previous frame.
+ * For easier set-up use the convenience method in the companion object [createAndSet].
+ *
+ * @author Jan Tiemann
+ */
 class VRScale(
     private val name: String,
     private val controller: Spatial,
@@ -74,6 +81,9 @@ class VRScale(
     }
 
 
+    /**
+     * Contains Convenience method for adding zoom behaviour
+     */
     companion object {
 
         /**
@@ -124,11 +134,12 @@ class VRScale(
 
 }
 
+/**
+ * Behavior for the offhand of [VRScale].
+ */
 class VRScaleOffhand(val name: String, val controller: Spatial) : DragBehaviour {
     var pressed = false
-    protected val logger by LazyLogger(System.getProperty("scenery.LogLevel", "info"))
     override fun init(x: Int, y: Int) {
-        //logger.warn("offhand init")
         pressed = true
     }
 
@@ -136,7 +147,6 @@ class VRScaleOffhand(val name: String, val controller: Spatial) : DragBehaviour 
     }
 
     override fun end(x: Int, y: Int) {
-        //logger.warn("offhand end")
         pressed = false
     }
 }

@@ -6,17 +6,20 @@ import graphics.scenery.Sphere
 import graphics.scenery.attribute.spatial.Spatial
 import graphics.scenery.controls.TrackerInput
 import graphics.scenery.primitives.TextBoard
-import graphics.scenery.utils.extensions.minus
 import org.joml.Quaternionf
 import org.joml.Vector3f
 import org.joml.Vector4f
 import kotlin.math.PI
 
+/**
+ * Shared code of [VRSelectionWheel] and [VRTreeSelectionWheel].
+ * Handles the nodes and their positioning of the menu items.
+ */
 internal class WheelMenu(
     val controller: Spatial,
     val hmd: TrackerInput,
     var actions: List<WheelAction>,
-    val supportsSubWheels: Boolean = false
+    private val supportsSubWheels: Boolean = false
     ) : RichNode("Selection Wheel"){
 
     val actionSpheres : List<ActionSphere>

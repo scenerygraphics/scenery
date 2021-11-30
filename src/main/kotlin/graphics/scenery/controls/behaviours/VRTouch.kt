@@ -2,16 +2,24 @@ package graphics.scenery.controls.behaviours
 
 import graphics.scenery.Node
 import graphics.scenery.Scene
-import graphics.scenery.attribute.spatial.Spatial
 import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.controls.TrackedDevice
 import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.controls.TrackerRole
 import org.joml.Vector3f
-import org.scijava.ui.behaviour.DragBehaviour
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Future
 
+/**
+ * Behavior for triggering actions when touching nodes.
+ *
+ * When [controllerHitbox] is intersecting a node with a [Touchable] attribute
+ * [onTouch] and then the respective functions of the Touchable attribute are called.
+ *
+ * @param targets Only nodes in this list may be dragged. They must have a [onTouch] attribute.
+ *
+ * @author Jan Tiemann
+ */
 open class VRTouch(
     protected val name: String,
     protected val controllerHitbox: Node,
@@ -51,12 +59,12 @@ open class VRTouch(
                 val material = node.materialOrNull()
 
                 if (touchable != null) {
-                    if (touchable.ogDiffuse == null
+                    if (touchable.originalDiffuse == null
                         && touchable.changeDiffuseTo != null
                         && material != null) {
                         // if this is set some other VRTouch is already touching this
                         // and we dont want to interfere
-                        touchable.ogDiffuse = material.diffuse
+                        touchable.originalDiffuse = material.diffuse
                         material.diffuse = touchable.changeDiffuseTo
                     }
                     touchable.onTouch?.invoke(controller)
@@ -78,9 +86,9 @@ open class VRTouch(
         val material = node.materialOrNull()
 
         if (touchable != null) {
-            if (touchable.ogDiffuse != null && material != null) {
-                material.diffuse = touchable.ogDiffuse!!
-                touchable.ogDiffuse = null
+            if (touchable.originalDiffuse != null && material != null) {
+                material.diffuse = touchable.originalDiffuse!!
+                touchable.originalDiffuse = null
             }
             touchable.onRelease?.invoke(controller)
         }
@@ -88,6 +96,9 @@ open class VRTouch(
 
     var selected = emptyList<Node>()
 
+    /**
+     * Contains Convenience method for adding touch behaviour
+     */
     companion object {
 
         /**
@@ -124,15 +135,20 @@ open class VRTouch(
 /**
  * Attribute Class that indicates an object can be touched with a controller.
  *
+ * @param onTouch called in the first frame of the interaction
+ * @param onHold called each frame of the interaction
+ * @param onRelease called in the last frame of the interaction
  * @param changeDiffuseTo If set to null no color change will happen.
  */
 open class Touchable(
-    val changeDiffuseTo: Vector3f? = Vector3f(1.0f, 0.0f, 0.0f),
     val onTouch: ((TrackedDevice) -> Unit)? = null,
     val onHold: ((TrackedDevice) -> Unit)? = null,
-    val onRelease: ((TrackedDevice) -> Unit)? = null
+    val onRelease: ((TrackedDevice) -> Unit)? = null,
+    val changeDiffuseTo: Vector3f? = Vector3f(1.0f, 0.0f, 0.0f)
 ) {
-    // if this is set it means a touch is in progress and other 'VRTouch' should not interfere
-    // with the diffuse color
-    var ogDiffuse: Vector3f? = null
+    /**
+     * if this is set it means a touch is in progress and other [VRTouch] should not interfere
+     * with the diffuse color
+     */
+    var originalDiffuse: Vector3f? = null
 }
