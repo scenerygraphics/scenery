@@ -92,7 +92,7 @@ class VRControllerExample : SceneryBase(
              * If there is an intersection with a box and the left controller,
              * that box is slightly nudged in the direction
              * of the controller's velocity.*/
-            obj.addAttribute(Touchable::class.java, Touchable(onTouch = {device ->
+            obj.addAttribute(Touchable::class.java, Touchable(onTouch = { device ->
                 if (leftControllerPushes) {
                     if (device.role == TrackerRole.LeftHand) {
                         obj.ifSpatial {

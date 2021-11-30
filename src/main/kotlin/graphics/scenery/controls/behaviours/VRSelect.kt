@@ -14,7 +14,13 @@ import kotlin.math.PI
 
 
 /**
- * Select nodes with the attribute [Selectable] with a VR controller.
+ * Point and select nodes with the attribute [Selectable] with a VR controller.
+ *
+ * When triggered a ray will shoot out from the controller. The ray stops at the first collision with a node with a
+ *  attribute and wiggles it to indicate a hit. Then when the user releases the trigger button [onSelect] and
+ *  [Selectable.onSelect] of the node are called.
+ *
+ *  @param showIndicator whether a thin line should indicate the last selection
  *
  * @author Jan Tiemann
  */
@@ -52,10 +58,16 @@ open class VRSelect(
         scene.addChild(selectionIndicator)
     }
 
+    /**
+     * Activates the target las0r.
+     */
     override fun init(x: Int, y: Int) {
         laser.visible = true
     }
 
+    /**
+     * Wiggles potential targets and adjust the length of the target laser visualisation.
+     */
     override fun drag(x: Int, y: Int) {
         val hit = scene.raycast(
             controller.spatialOrNull()!!.worldPosition(),
@@ -79,6 +91,9 @@ open class VRSelect(
         }
     }
 
+    /**
+     * Performs the selection
+     */
     override fun end(x: Int, y: Int) {
         activeWiggler?.deativate()
         activeWiggler = null
@@ -102,10 +117,9 @@ open class VRSelect(
             }
     }
 
-    class SelectionStorage {
-        var selected: Node? = null
-    }
-
+    /**
+     * Contains Convenience method for adding selection behaviour.
+     */
     companion object {
 
         /**
@@ -148,6 +162,8 @@ open class VRSelect(
 
 /**
  * Attribute which marks a node than can be selected by the [VRSelect] behavior.
+ *
+ * @param onSelect called upon a successful selection.
  */
 open class Selectable(
     val onSelect: (() -> Unit)? = null

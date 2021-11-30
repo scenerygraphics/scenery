@@ -22,6 +22,8 @@ import org.scijava.ui.behaviour.ClickBehaviour
  *
  * @param actions List of named lambdas which can be selected by the user
  * @param cutoff  after this distance between controller and targets no action will be selected if the button is released
+ *
+ * @author Jan Tiemann
  */
 class VRTreeSelectionWheel(
     val controller: Spatial,
@@ -30,7 +32,7 @@ class VRTreeSelectionWheel(
     var actions: List<WheelAction>,
     val cutoff: Float = 0.1f,
 ) : ClickBehaviour {
-    protected val logger by LazyLogger(System.getProperty("scenery.LogLevel", "info"))
+    private val logger by LazyLogger()
 
     private var activeWheel: WheelMenu? = null
 
@@ -47,9 +49,10 @@ class VRTreeSelectionWheel(
         }
     }
 
+    /**
+     * Contains Convenience method for adding tool select behaviour
+     */
     companion object {
-
-        private data class ActionSphere(val action: WheelAction, val sphere: Sphere)
 
         /**
          * Convenience method for adding tool select behaviour
