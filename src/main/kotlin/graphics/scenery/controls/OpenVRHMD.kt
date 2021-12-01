@@ -32,6 +32,7 @@ import org.scijava.ui.behaviour.*
 import org.scijava.ui.behaviour.io.InputTriggerConfig
 import java.awt.Component
 import java.awt.event.KeyEvent
+import java.awt.event.MouseEvent
 import java.io.File
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
@@ -425,7 +426,9 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
      */
     override fun getPosition(): Vector3f {
         val m = getPose()
-        return Vector3f(-1.0f * m.get(0, 3), -1.0f * m.get(1, 3), -1.0f * m.get(2, 3))
+        val d = Vector3f(-1.0f * m.get(3, 0), -1.0f * m.get(3, 1), -1.0f * m.get(3, 2))
+        // the position is already rotated by the orientation therefore we need to inverse that the get the absolute position
+        return d.rotate(getOrientation().conjugate())
     }
 
     /**
@@ -592,6 +595,17 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
                 inputHandler.keyPressed(e.first)
             }
         }
+
+        if (keysDown.isNotEmpty()) {
+            // do a simulated mouse movement to trigger drag behavior updates
+            inputHandler.mouseMoved(
+                MouseEvent(
+                    object : Component() {}, MouseEvent.MOUSE_CLICKED, System.nanoTime(),
+                    0, 0, 0, 0, 0, 1, false, 0
+                )
+            )
+        }
+
 
         hub?.get<Statistics>()?.let { stats ->
             val timing = CompositorFrameTiming.calloc(1)
