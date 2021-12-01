@@ -121,6 +121,7 @@ class ExampleRunner(
             "TexturedCubeJavaExample",
             // these examples need additional hardware
             "VRControllerExample",
+            "VRVolumeCroppingExample",
             "EyeTrackingExample",
             "ARExample",
             // these examples require user input and/or files
