@@ -27,8 +27,6 @@ class VRSelectionWheel(
     var actions: List<Action>,
     val cutoff: Float = 0.1f,
 ) : DragBehaviour {
-    private val logger by LazyLogger(System.getProperty("scenery.LogLevel", "info"))
-
     private var activeWheel: WheelMenu? = null
 
     private var activeWiggler: Wiggler? = null
