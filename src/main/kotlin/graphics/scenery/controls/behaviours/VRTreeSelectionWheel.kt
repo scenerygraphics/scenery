@@ -36,6 +36,9 @@ class VRTreeSelectionWheel(
 
     private var activeWheel: WheelMenu? = null
 
+    /**
+     * This function is called by the framework. Usually you don't need to call this.
+     */
     override fun click(x: Int, y: Int) {
 
         if (activeWheel != null && activeWheel?.parent != null){

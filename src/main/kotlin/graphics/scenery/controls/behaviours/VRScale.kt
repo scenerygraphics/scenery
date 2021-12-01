@@ -30,12 +30,18 @@ class VRScale(
     // --- two hand drag behavior ---
     //TODO fix make order of presses irrelevant, waits on issue #432
     private var bothPressed = false
+    /**
+     * This function is called by the framework. Usually you don't need to call this.
+     */
     override fun init(x: Int, y: Int) {
         if (offhand.pressed){
             bothPressed = true
             bothInit()
         }
     }
+    /**
+     * This function is called by the framework. Usually you don't need to call this.
+     */
     override fun drag(x: Int, y: Int) {
         logger.debug("both drag OH:${offhand.pressed} Both:${bothPressed}")
         if (offhand.pressed && !bothPressed){
@@ -51,6 +57,9 @@ class VRScale(
         }
     }
 
+    /**
+     * This function is called by the framework. Usually you don't need to call this.
+     */
     override fun end(x: Int, y: Int) {
         if (bothPressed){
             bothEnd()

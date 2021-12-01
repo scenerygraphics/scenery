@@ -11,7 +11,7 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Future
 
 /**
- * Behavior for triggering actions when touching nodes.
+ * Quasi behavior for triggering actions when touching nodes.
  *
  * When [controllerHitbox] is intersecting a node with a [Touchable] attribute
  * [onTouch] and then the respective functions of the Touchable attribute are called.

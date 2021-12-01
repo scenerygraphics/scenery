@@ -31,6 +31,9 @@ class VRSelectionWheel(
 
     private var activeWiggler: Wiggler? = null
 
+    /**
+     * This function is called by the framework. Usually you don't need to call this.
+     */
     override fun init(x: Int, y: Int) {
 
         activeWheel = WheelMenu(controller,hmd,actions)
@@ -38,6 +41,9 @@ class VRSelectionWheel(
         scene.addChild(activeWheel!!)
     }
 
+    /**
+     * This function is called by the framework. Usually you don't need to call this.
+     */
     override fun drag(x: Int, y: Int) {
 
         val (closestSphere, distance) = activeWheel?.closestActionSphere() ?: return
@@ -53,6 +59,9 @@ class VRSelectionWheel(
 
     }
 
+    /**
+     * This function is called by the framework. Usually you don't need to call this.
+     */
     override fun end(x: Int, y: Int) {
         val (closestActionSphere, distance) = activeWheel?.closestActionSphere() ?: return
 
