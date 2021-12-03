@@ -347,11 +347,11 @@ void supersegmentInList(ivec2 invoc_orig, rayProperties originalRay, vec4 wpos, 
 //    exit_distance = exit_distance/distance(originalRay.wfront, originalRay.wback);
 //    #endif
 
-//    #if USE_PRINTF
-//    if(gl_GlobalInvocationID.xy == debug_pixel) {
-//        debugPrintfEXT("List: (%d, %d). Dist to orig: %f and exit dist: %f", invoc_orig, dist_to_orig, exit_distance);
-//    }
-//    #endif
+    #if USE_PRINTF
+    if(gl_GlobalInvocationID.xy == debug_pixel) {
+        debugPrintfEXT("List: (%d, %d). Start pt: (%f, %f, %f, %f) and End pt: (%f, %f, %f, %f). Dist to orig: %f and exit dist: %f", invoc_orig, wpos.xyzw, exit_pt.xyzw, dist_to_orig, exit_distance);
+    }
+    #endif
 
     bool dotPositive;
 //    float dotViewRays = dot((newRay.wfront - newRay.wback), (originalRay.wfront - originalRay.wback));
@@ -440,13 +440,13 @@ void supersegmentInList(ivec2 invoc_orig, rayProperties originalRay, vec4 wpos, 
                     d = imageLoad(InputVDI, ivec3(index*3 + 2, invoc_orig.y, invoc_orig.x));
                     depthEnd = DecodeFloatRGBA(d);
 
-                    #if USE_PRINTF
-                    if(invoc_orig == ivec2(0, 0) &&  gl_GlobalInvocationID.xy == debug_pixel) {
-//                        debugPrintfEXT("Index: %d, depth start is: %f and exit distance for list: %f. depth end is: %f", index, depthStart, exit_distance, depthEnd);
-//                        debugPrintfEXT("Hello world");
-                        debugPrintfEXT("Start point in list was: (%f, %f, %f) while exit point was: (%f, %f, %f)", wpos.xyz, exit_pt.xyz);
-                    }
-                    #endif
+//                    #if USE_PRINTF
+//                    if(invoc_orig == ivec2(0, 0) &&  gl_GlobalInvocationID.xy == debug_pixel) {
+////                        debugPrintfEXT("Index: %d, depth start is: %f and exit distance for list: %f. depth end is: %f", index, depthStart, exit_distance, depthEnd);
+////                        debugPrintfEXT("Hello world");
+//                        debugPrintfEXT("Start point in list was: (%f, %f, %f) while exit point was: (%f, %f, %f)", wpos.xyz, exit_pt.xyz);
+//                    }
+//                    #endif
 
 //                    #if NDC
 //                    depthEnd = ndc_to_w(depthEnd);
@@ -1400,8 +1400,9 @@ void main() {
     ivec2 currentList = firstList;
     u = first_entry_pt;
 
-vec4 befNorm = final_exit_pt - first_entry_pt;
-dir.xyz = normalize(befNorm.xyz);
+    vec4 befNorm = final_exit_pt - first_entry_pt;
+    dir.xyz = normalize(befNorm.xyz);
+    dir.w = 0;
 
     if(gl_GlobalInvocationID.xy == debug_pixel) {
         debugPrintfEXT("The direction of the ray is: (%f, %f, %f). Before norm it was: (%f, %f, %f, %f)", dir.xyz, befNorm);
@@ -1412,6 +1413,10 @@ dir.xyz = normalize(befNorm.xyz);
 
     float nextX = currentList.x + stepX * 0.5;
     float nextY = currentList.y + stepY * 0.5;
+
+//    float nextX = currentList.x + stepX;
+//    float nextY = currentList.y + stepY;
+
 
     float finalZ = dir.z > 0 ? 1 : -1; //TODO: Should this be 0 instead of -1
 
@@ -1474,15 +1479,20 @@ dir.xyz = normalize(befNorm.xyz);
 
         float incr = 0;
 
-        if(tmaxX <= tmaxY) {
+        if(tmaxX < tmaxY) {
             incr = tmaxX;
             nextList.x += stepX;
             tmaxX += tdeltaX;
-        }
-
-        if(tmaxY <= tmaxX) {
+        } else if(tmaxY < tmaxX) {
             incr = tmaxY;
             nextList.y += stepY;
+            tmaxY += tdeltaY;
+        } else {
+            // they are equal
+            incr = tmaxX;
+            nextList.x += stepX;
+            nextList.y += stepY;
+            tmaxX += tdeltaX;
             tmaxY += tdeltaY;
         }
 
@@ -1491,13 +1501,13 @@ dir.xyz = normalize(befNorm.xyz);
             break;
         }
 
-//        #if USE_PRINTF
-//        if(gl_GlobalInvocationID.xy == debug_pixel) {
-//            debugPrintfEXT("Next list was calculated as: (%d, %d)", nextList.xy);
-//            debugPrintfEXT("Updated values: tmaxX: %f, tmaxY: %f, tmaxZ: %f", tmaxX, tmaxY, tmaxZ);
-//
-//        }
-//        #endif
+        #if USE_PRINTF
+        if(gl_GlobalInvocationID.xy == debug_pixel) {
+            debugPrintfEXT("Next list was calculated as: (%d, %d). End pt of this list: (%f, %f, %f)", nextList.xy, end_point.xyz);
+            debugPrintfEXT("Updated values: tmaxX: %f, tmaxY: %f, tmaxZ: %f", tmaxX, tmaxY, tmaxZ);
+
+        }
+        #endif
 
         findSupsegsInList(currentList, start_point, end_point, finalColor);
 
