@@ -347,11 +347,11 @@ void supersegmentInList(ivec2 invoc_orig, rayProperties originalRay, vec4 wpos, 
 //    exit_distance = exit_distance/distance(originalRay.wfront, originalRay.wback);
 //    #endif
 
-    #if USE_PRINTF
-    if(gl_GlobalInvocationID.xy == debug_pixel) {
-        debugPrintfEXT("List: (%d, %d). Start pt: (%f, %f, %f, %f) and End pt: (%f, %f, %f, %f). Dist to orig: %f and exit dist: %f", invoc_orig, wpos.xyzw, exit_pt.xyzw, dist_to_orig, exit_distance);
-    }
-    #endif
+//    #if USE_PRINTF
+//    if(gl_GlobalInvocationID.xy == debug_pixel) {
+//        debugPrintfEXT("List: (%d, %d). Start pt: (%f, %f, %f, %f) and End pt: (%f, %f, %f, %f). Dist to orig: %f and exit dist: %f", invoc_orig, wpos.xyzw, exit_pt.xyzw, dist_to_orig, exit_distance);
+//    }
+//    #endif
 
     bool dotPositive;
 //    float dotViewRays = dot((newRay.wfront - newRay.wback), (originalRay.wfront - originalRay.wback));
@@ -535,7 +535,7 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
         supersegmentInList(theList, originalRay,  start_point, end_point, true, 0, depthStart, depthEnd, index, supseg_found);
 
         #if USE_PRINTF
-        if(gl_GlobalInvocationID.xy == debug_pixel) {
+        if(supseg_found && gl_GlobalInvocationID.xy == debug_pixel) {
             debugPrintfEXT("For list: (%d, %d). Found supseg %d index %d.", theList, supseg_found, index);
         }
         #endif
@@ -549,6 +549,12 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
 
         prevIndex = index;
         prevList = theList;
+
+        vec4 supseg_start_w = ivp_orig * vec4(ndc_x, ndc_y, depthStart, 1);
+        supseg_start_w *= 1. / supseg_start_w.w;
+
+        vec4 supseg_end_w = ivp_orig * vec4(ndc_x, ndc_y, depthEnd, 1);
+        supseg_end_w *= 1. / supseg_end_w.w;
 
         depthStart = max(start_point.z, depthStart);
         depthEnd = min(end_point.z, depthEnd); //TODO: add check for inverted ray direction leading to inverted max and min
@@ -577,7 +583,7 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
 
             float length = distance(w_start_point, w_end_point);
 
-            float alpha = adjustOpacity(supseg_col.a, length / distance(w_start_point, w_end_point));
+            float alpha = adjustOpacity(supseg_col.a, length / distance(supseg_start_w, supseg_end_w));
 
             accumulatedColor.rgb = accumulatedColor.rgb + (1-accumulatedColor.a) * supseg_col.rgb * alpha;
             accumulatedColor.a = accumulatedColor.a + (1-accumulatedColor.a) * alpha;
@@ -902,11 +908,11 @@ void main() {
 
     while ( true ) // loop over all the lists intersected by this ray
     {
-        #if USE_PRINTF
-        if(gl_GlobalInvocationID.xy == debug_pixel) {
-            debugPrintfEXT("Looping for list: (%d, %d)", currentList);
-        }
-        #endif
+//        #if USE_PRINTF
+//        if(gl_GlobalInvocationID.xy == debug_pixel) {
+//            debugPrintfEXT("Looping for list: (%d, %d)", currentList);
+//        }
+//        #endif
 
         if(!(tmaxX > 0 && tmaxY > 0 && tmaxZ > 0)) {
             #if USE_PRINTF
@@ -944,13 +950,13 @@ void main() {
             break;
         }
 
-        #if USE_PRINTF
-        if(gl_GlobalInvocationID.xy == debug_pixel) {
-            debugPrintfEXT("Next list was calculated as: (%d, %d). End pt of this list: (%f, %f, %f)", nextList.xy, end_point.xyz);
-            debugPrintfEXT("Updated values: tmaxX: %f, tmaxY: %f, tmaxZ: %f", tmaxX, tmaxY, tmaxZ);
-
-        }
-        #endif
+//        #if USE_PRINTF
+//        if(gl_GlobalInvocationID.xy == debug_pixel) {
+//            debugPrintfEXT("Next list was calculated as: (%d, %d). End pt of this list: (%f, %f, %f)", nextList.xy, end_point.xyz);
+//            debugPrintfEXT("Updated values: tmaxX: %f, tmaxY: %f, tmaxZ: %f", tmaxX, tmaxY, tmaxZ);
+//
+//        }
+//        #endif
 
         findSupsegsInList(currentList, start_point, end_point, finalColor);
 
