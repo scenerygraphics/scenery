@@ -70,7 +70,7 @@ vec3 sourcemax_x_10_x_ = vec3(128.0, 128.0, 128.0);
 //ivec2 debug_pixel = ivec2(875, 151);
 //ivec2 debug_pixel = ivec2(600, 360);
 //ivec2 debug_pixel = ivec2(35, 61);
-ivec2 debug_pixel = ivec2(640, 360);
+ivec2 debug_pixel = ivec2(427, 465);
 //ivec2 debug_pixel = ivec2(424, 539);
 
 const vec4 bitEnc = vec4(1.,255.,65025.,16581375.);
@@ -311,6 +311,12 @@ int prevIndex = -1;
 
 void supersegmentInList(ivec2 invoc_orig, rayProperties originalRay, vec4 wpos, vec4 exit_pt, bool optimized, int cnt, out float depthStart, out float depthEnd, out int index, out bool supseg_found) {
 
+    #if USE_PRINTF
+    if(gl_GlobalInvocationID.xy == debug_pixel) {
+        debugPrintfEXT("In supseg in list function");
+    }
+    #endif
+
     supseg_found = false;
     vec4 check = imageLoad(InputVDI, ivec3(2, invoc_orig.y, invoc_orig.x));
     if(DecodeFloatRGBA(check) == 0) {
@@ -331,7 +337,7 @@ void supersegmentInList(ivec2 invoc_orig, rayProperties originalRay, vec4 wpos, 
     vec4 direction_orig = vec4 (0, 0, 1, 1); // a unit vector in the z axis  //TODO: shift these calculations to findSupsegs fn
     vec4 vector_sample = wpos - originalRay.NDC_front;
     float dist_to_orig = dot(vector_sample, direction_orig);
-    dist_to_orig = dist_to_orig - 1.;
+    dist_to_orig = dist_to_orig - 1.; //TODO: simplify this and the below calculation. It should be simply wpos.z
 
     vec4 vector_exit = exit_pt - originalRay.NDC_front;
     float exit_distance = dot(vector_exit, direction_orig);
@@ -347,20 +353,22 @@ void supersegmentInList(ivec2 invoc_orig, rayProperties originalRay, vec4 wpos, 
 //    exit_distance = exit_distance/distance(originalRay.wfront, originalRay.wback);
 //    #endif
 
-//    #if USE_PRINTF
-//    if(gl_GlobalInvocationID.xy == debug_pixel) {
-//        debugPrintfEXT("List: (%d, %d). Start pt: (%f, %f, %f, %f) and End pt: (%f, %f, %f, %f). Dist to orig: %f and exit dist: %f", invoc_orig, wpos.xyzw, exit_pt.xyzw, dist_to_orig, exit_distance);
-//    }
-//    #endif
+    #if USE_PRINTF
+    if(gl_GlobalInvocationID.xy == debug_pixel) {
+        debugPrintfEXT("List: (%d, %d). Start pt: (%f, %f, %f, %f) and End pt: (%f, %f, %f, %f). Dist to orig: %f and exit dist: %f", gl_GlobalInvocationID.xy, wpos.xyzw, exit_pt.xyzw, dist_to_orig, exit_distance);
+    }
+    #endif
 
     bool dotPositive;
-//    float dotViewRays = dot((newRay.wfront - newRay.wback), (originalRay.wfront - originalRay.wback));
-    float dotViewRays = dot((newRay.NDC_front - newRay.NDC_back), (originalRay.NDC_front - originalRay.NDC_back));
-    if(dotViewRays > 0) {
-        dotPositive = true;
-    } else {
-        dotPositive = false;
-    }
+////    float dotViewRays = dot((newRay.wfront - newRay.wback), (originalRay.wfront - originalRay.wback));
+//    float dotViewRays = dot((newRay.NDC_front - newRay.NDC_back), (originalRay.NDC_front - originalRay.NDC_back));
+//    if(dotViewRays > 0) {
+//        dotPositive = true;
+//    } else {
+//        dotPositive = false;
+//    }
+
+    dotPositive = wpos.z < exit_pt.z ? true: false;
 
     if(invoc_orig == prevList) {
         // we are in the same supersegment list as the previous supseg that was found. So, we only need to check the next supseg
@@ -535,12 +543,13 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
         supersegmentInList(theList, originalRay,  start_point, end_point, true, 0, depthStart, depthEnd, index, supseg_found);
 
         #if USE_PRINTF
-        if(supseg_found && gl_GlobalInvocationID.xy == debug_pixel) {
+        if(gl_GlobalInvocationID.xy == debug_pixel) {
             debugPrintfEXT("For list: (%d, %d). Found supseg %d index %d.", theList, supseg_found, index);
         }
         #endif
 
-        if(gl_GlobalInvocationID.xy == debug_pixel && supseg_found && index == prevIndex) {
+//        if(gl_GlobalInvocationID.xy == debug_pixel && supseg_found && index == prevIndex) {
+        if(supseg_found && index == prevIndex) {
             #if USE_PRINTF
                 debugPrintfEXT("This is an ERROR! For list: (%d, %d), found index: %d again", theList.x, theList.y, index);
             #endif
@@ -556,8 +565,15 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
         vec4 supseg_end_w = ivp_orig * vec4(ndc_x, ndc_y, depthEnd, 1);
         supseg_end_w *= 1. / supseg_end_w.w;
 
-        depthStart = max(start_point.z, depthStart);
-        depthEnd = min(end_point.z, depthEnd); //TODO: add check for inverted ray direction leading to inverted max and min
+        bool dotPositive = start_point.z < end_point.z ? true: false;
+
+        if(dotPositive) {
+            depthStart = max(start_point.z, depthStart);
+            depthEnd = min(end_point.z, depthEnd);
+        } else {
+            depthStart = min(start_point.z, depthStart);
+            depthEnd = max(end_point.z, depthEnd);
+        }
 
         if(supseg_found) {
 
@@ -863,6 +879,12 @@ void main() {
     float nextX = currentList.x + stepX * 0.5;
     float nextY = currentList.y + stepY * 0.5;
 
+    #if USE_PRINTF
+    if(gl_GlobalInvocationID.xy == debug_pixel) {
+        debugPrintfEXT("nextX: %f, nextY: %f", nextX, nextY);
+    }
+    #endif
+
 //    float nextX = currentList.x + stepX;
 //    float nextY = currentList.y + stepY;
 
@@ -872,11 +894,11 @@ void main() {
     float nextX_ndc = nextX / 1280.0 * 2.0 - 1.0;
     float nextY_ndc = nextY / 720.0 * 2.0 - 1.0;
 
-    float tmaxX = dir.x != 0 ? (nextX_ndc - first_entry_pt.x) / dir.x : 10000000;
-    float tmaxY = dir.y != 0 ? (nextY_ndc - first_entry_pt.y) / dir.y : 10000000;
-    float tmaxZ = dir.z != 0 ? (finalZ - first_entry_pt.z) / dir.z : 10000000;
+    float tmaxX = dir.x != 0 ? abs((nextX_ndc - first_entry_pt.x) / dir.x) : 10000000;
+    float tmaxY = dir.y != 0 ? abs((nextY_ndc - first_entry_pt.y) / dir.y) : 10000000;
+    float tmaxZ = dir.z != 0 ? abs((finalZ - first_entry_pt.z) / dir.z) : 10000000;
 
-    if(gl_GlobalInvocationID.xy == debug_pixel && !(tmaxX > 0 && tmaxY > 0 && tmaxZ > 0)) {
+    if(gl_GlobalInvocationID.xy == debug_pixel && !(tmaxX >= 0 && tmaxY >= 0 && tmaxZ >= 0)) {
         #if USE_PRINTF
         //            if(gl_GlobalInvocationID.xy == debug_pixel) {
             debugPrintfEXT("Invoc id is: (%d, %d)", gl_GlobalInvocationID.xy);
@@ -893,8 +915,14 @@ void main() {
     }
     #endif
 
-    float tdeltaX = (2.0 / 1280.0) / dir.x;
-    float tdeltaY = (2.0 / 720.0) / dir.y;
+    float tdeltaX = abs((2.0 / 1280.0) / dir.x);
+    float tdeltaY = abs((2.0 / 720.0) / dir.y);
+
+    #if USE_PRINTF
+    if(gl_GlobalInvocationID.xy == debug_pixel) {
+        debugPrintfEXT("tdeltaX: %f and tdeltaY: %f", tdeltaX, tdeltaY);
+    }
+    #endif
 
     ivec2 nextList = currentList;
     vec4 start_point = first_entry_pt;
@@ -906,38 +934,46 @@ void main() {
     const int MAX_Y = 1;
     const int MIN_Y = -1;
 
-    while ( true ) // loop over all the lists intersected by this ray
-    {
-//        #if USE_PRINTF
-//        if(gl_GlobalInvocationID.xy == debug_pixel) {
-//            debugPrintfEXT("Looping for list: (%d, %d)", currentList);
-//        }
-//        #endif
+    bool finalIteration = false;
 
-        if(!(tmaxX > 0 && tmaxY > 0 && tmaxZ > 0)) {
+    while ( !finalIteration ) // loop over all the lists intersected by this ray
+    {
+        #if USE_PRINTF
+        if(gl_GlobalInvocationID.xy == debug_pixel) {
+            debugPrintfEXT("Looping for list: (%d, %d)", currentList);
+        }
+        #endif
+
+        if(!(tmaxX >= 0 && tmaxY >= 0 && tmaxZ >= 0)) {
             #if USE_PRINTF
-            if(gl_GlobalInvocationID.xy == debug_pixel) {
+//            if(gl_GlobalInvocationID.xy == debug_pixel) {
                 debugPrintfEXT("Invoc id is: (%d, %d)", gl_GlobalInvocationID.xy);
                 debugPrintfEXT("This is an ERROR! tmaxX: %f, tmaxY: %f, tmaxZ: %f", tmaxX, tmaxY, tmaxZ);
 //                debugPrintfEXT("First point: (%f, %f, %f, %f). Ray dir is: (%f, %f, %f)", first_entry_pt, dir.xyz);
 
-            }
+//            }
             #endif
             break;
         }
 
         float incr = 0;
 
-        if(tmaxX < tmaxY) {
+        if(tmaxZ <= tmaxX && tmaxZ <= tmaxY) {
+            //z is lowest
+            incr = tmaxZ;
+            finalIteration = true;
+        } else if(tmaxX < tmaxY) {
+            //x is the lowest
             incr = tmaxX;
             nextList.x += stepX;
             tmaxX += tdeltaX;
         } else if(tmaxY < tmaxX) {
+            //y is the lowest
             incr = tmaxY;
             nextList.y += stepY;
             tmaxY += tdeltaY;
         } else {
-            // they are equal
+            // x and y are equal
             incr = tmaxX;
             nextList.x += stepX;
             nextList.y += stepY;
@@ -947,6 +983,11 @@ void main() {
 
         end_point = u + dir * incr;
         if(end_point.x > MAX_X || end_point.x < MIN_X || end_point.y > MAX_Y || end_point.y < MIN_Y) { //TODO: perhaps a delta needs to be added to the comparison
+            #if USE_PRINTF
+            if(gl_GlobalInvocationID.xy == debug_pixel) {
+                debugPrintfEXT("Breaking because end pt is outside. It is: (%f, %f, %f)", end_point.xyz);
+            }
+            #endif
             break;
         }
 
@@ -969,9 +1010,14 @@ void main() {
             break;
         }
 
-        if(tmaxZ <= tmaxX && tmaxZ <= tmaxY) { // the next jump should be along z, therefore outside the VDI
-            break;
-        }
+//        if(tmaxZ <= tmaxX && tmaxZ <= tmaxY) { // the next jump should be along z, therefore outside the VDI
+//            #if USE_PRINTF
+//            if(gl_GlobalInvocationID.xy == debug_pixel) {
+//                debugPrintfEXT("Breaking because tmaxZ is the lowest. tmaxX: %f, tmaxY: %f, tmaxZ: %f", tmaxX, tmaxY, tmaxZ);
+//            }
+//            #endif
+//            break;
+//        }
 
         currentList = nextList;
         start_point = end_point;
