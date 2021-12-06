@@ -75,9 +75,10 @@ ivec2 debug_pixel = ivec2(427, 465);
 
 const vec4 bitEnc = vec4(1.,255.,65025.,16581375.);
 const vec4 bitDec = 1./bitEnc;
-float DecodeFloatRGBA (vec4 v) {
-    return dot(v, bitDec);
-}
+#define DecodeFloatRGBA(v) dot(v,bitDec)
+//float DecodeFloatRGBA (vec4 v) {
+//    return dot(v, bitDec);
+//}
 
 float adjustOpacity(float a, float modifiedStepLength) {
 //    modifiedStepLength = max(1.0, modifiedStepLength);
