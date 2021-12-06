@@ -872,9 +872,11 @@ void main() {
     dir.xyz = normalize(befNorm.xyz);
     dir.w = 0;
 
+    #if USE_PRINTF
     if(gl_GlobalInvocationID.xy == debug_pixel) {
         debugPrintfEXT("The direction of the ray is: (%f, %f, %f). Before norm it was: (%f, %f, %f, %f)", dir.xyz, befNorm);
     }
+    #endif
 
     int stepX = dir.x > 0 ? 1 : -1;
     int stepY = dir.y > 0 ? 1 : -1;
