@@ -775,10 +775,12 @@ void main() {
         ndc_far *= 1. / ndc_far.w;
         final_exit_pt = ndc_far;
 
+        #if USE_PRINTF
         if(gl_GlobalInvocationID.xy == debug_pixel) {
             debugPrintfEXT("NDC start and end of the ray: (%f, %f, %f) and (%f, %f, %f)", newRay.NDC_front.xyz, newRay.NDC_back.xyz);
             debugPrintfEXT("After intersecting with volume, ndc_near: (%f, %f, %f) and ndc_far (%f, %f, %f)", ndc_near.xyz, ndc_far.xyz);
         }
+        #endif
 
 //        float first_step;
 //        ivec2 firstList;
