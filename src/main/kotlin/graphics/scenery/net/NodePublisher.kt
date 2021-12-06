@@ -72,7 +72,7 @@ class NodePublisher(
     }
 
     val kryo = freeze()
-    private val publishedObjects = ConcurrentHashMap<Int, NetworkObject<*>>()
+    private val publishedObjects = ConcurrentHashMap<Int, NetworkWrapper<*>>()
     private val eventQueue = LinkedBlockingQueue<NetworkEvent>()
     private var index = 1
 
@@ -86,7 +86,7 @@ class NodePublisher(
     }
 
     fun register(scene: Scene){
-        val sceneNo = NetworkObject(generateNetworkID(),scene, mutableListOf())
+        val sceneNo = NetworkWrapper(generateNetworkID(),scene, mutableListOf())
         publishedObjects[sceneNo.networkID] = sceneNo
         eventQueue.add(NetworkEvent.Update(sceneNo))
 
@@ -111,7 +111,7 @@ class NodePublisher(
         }
 
         if (publishedObjects[node.networkID] == null) {
-            val netObject = NetworkObject(generateNetworkID(), node, mutableListOf(parentId))
+            val netObject = NetworkWrapper(generateNetworkID(), node, mutableListOf(parentId))
             eventQueue.add(NetworkEvent.Update(netObject))
             publishedObjects[netObject.networkID] = netObject
         }
@@ -122,7 +122,7 @@ class NodePublisher(
                 subNetObj.parents.add(node.networkID)
                 eventQueue.add(NetworkEvent.NewRelation(node.networkID, subComponent.networkID))
             } else {
-                val new = NetworkObject(generateNetworkID(), subComponent, mutableListOf(node.networkID))
+                val new = NetworkWrapper(generateNetworkID(), subComponent, mutableListOf(node.networkID))
                 publishedObjects[new.networkID] = new
                 eventQueue.add(NetworkEvent.Update(new))
             }

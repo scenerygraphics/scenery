@@ -9,7 +9,7 @@ import graphics.scenery.Sphere
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.attribute.spatial.Spatial
 import graphics.scenery.net.NetworkEvent
-import graphics.scenery.net.NetworkObject
+import graphics.scenery.net.NetworkWrapper
 import graphics.scenery.net.NodePublisher
 import org.joml.Vector3f
 import org.junit.Test
@@ -90,7 +90,7 @@ class PublisherTest {
         val kryo = NodePublisher.freeze()
         val bos = ByteArrayOutputStream()
         val output = Output(bos)
-        kryo.writeClassAndObject(output, NetworkEvent.Update(NetworkObject(2, scene, mutableListOf(1))))
+        kryo.writeClassAndObject(output, NetworkEvent.Update(NetworkWrapper(2, scene, mutableListOf(1))))
         output.flush()
 
         val bin = ByteArrayInputStream(bos.toByteArray())

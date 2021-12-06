@@ -32,7 +32,7 @@ open class DefaultMaterial : Material, Networkable {
         @JvmStatic fun Material(): DefaultMaterial = DefaultMaterial()
     }
 
-    override fun update(fresh: Networkable) {
+    override fun update(fresh: Networkable, getNetworkable: (Int) -> Networkable) {
         if (fresh !is DefaultMaterial){
             throw IllegalArgumentException("Got wrong type to update ${this::class.simpleName} ")
         }
