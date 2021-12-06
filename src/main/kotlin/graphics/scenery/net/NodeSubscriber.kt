@@ -125,7 +125,7 @@ class NodeSubscriber(
         }
 
         // -------------- new object -----------
-        val networkable = networkObject.obj
+        var networkable = networkObject.obj
         when (networkable) {
             is Scene -> {
                 // dont use the scene from network, but adapt own scene
@@ -136,6 +136,7 @@ class NodeSubscriber(
                     waitingOnNetworkable[e.id] = waitingOnNetworkable.getOrDefault(e.id, listOf())+ (event to WaitReason.Parent)
                 }
                 networkObjects[networkObject.networkID] = NetworkWrapper(networkObject.networkID, scene, mutableListOf())
+                networkable = scene
             }
             is Node -> {
                 val parentId = networkObject.parents.first()

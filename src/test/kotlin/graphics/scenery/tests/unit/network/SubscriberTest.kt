@@ -47,7 +47,9 @@ class SubscriberTest {
         val hub2 = Hub()
 
         val scene1 = Scene()
+        scene1.name = "scene1"
         val scene2 = Scene()
+        scene2.name = "scene2"
 
         val box = Box()
         box.name = "box"
@@ -130,8 +132,6 @@ class SubscriberTest {
         sub.networkUpdate(scene)
         assert(node.updated)
     }
-
-
 }
 
 //Inline function to access private function in the RibbonDiagram
