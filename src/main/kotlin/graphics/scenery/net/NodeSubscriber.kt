@@ -124,7 +124,7 @@ class NodeSubscriber(
             return
         }
 
-        // -------------- new object -----------
+        // ------------ new object -----------
         var networkable = networkObject.obj
         when (networkable) {
             is Scene -> {
@@ -211,7 +211,7 @@ class NodeSubscriber(
             }
         }
     }
-
+/*
     fun process() {
         while (true) {
             var start: Long
@@ -283,6 +283,8 @@ class NodeSubscriber(
 
         }
     }
+
+ */
 
     fun close() {
         context.destroySocket(subscriber)
