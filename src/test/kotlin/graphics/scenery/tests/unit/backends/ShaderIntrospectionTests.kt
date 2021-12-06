@@ -1,5 +1,6 @@
 package graphics.scenery.tests.unit.backends
 
+import graphics.scenery.backends.ShaderCompiler
 import graphics.scenery.backends.ShaderIntrospection
 import graphics.scenery.backends.ShaderType
 import graphics.scenery.backends.Shaders
@@ -137,8 +138,53 @@ void main()
         assertEquals(1, localSizes.z, "Local size Z is wrong")
     }
 
-    private fun getSimpleSPIRVBytecode(): IntArray {
-        return this.javaClass.getResourceAsStream("c_api_test.spv")!!.readBytes()
+    @Test
+    fun testCompileDebugSimpleFile() {
+        val code =
+            """#version 450
+layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 1, std430) buffer SSBO
+{
+    float a;
+} ssbo;
+
+layout(set = 0, binding = 0, std140) uniform UBO
+{
+    float a;
+} ubo;
+
+layout(push_constant, std430) uniform Push
+{
+    float a;
+} registers;
+
+layout(set = 0, binding = 2) uniform sampler2D uTexture;
+layout(set = 0, binding = 3) uniform writeonly image2D uImage;
+layout(set = 0, binding = 4) uniform texture2D uSeparateTexture;
+layout(set = 0, binding = 5) uniform sampler uSampler;
+
+void main()
+{
+    ssbo.a = ubo.a + registers.a;
+}
+
+"""
+        val compiler = ShaderCompiler()
+        val bytecode = compiler.compile(
+            code,
+            ShaderType.ComputeShader,
+            debug = true,
+            target = Shaders.ShaderTarget.Vulkan
+        )
+        compiler.close()
+        val si = ShaderIntrospection(bytecode.toSPIRVBytecode())
+        // FIXME: Fails here with "Currently no block to insert opcode."
+        si.close()
+    }
+
+    private fun ByteArray.toSPIRVBytecode(): IntArray {
+        return this
             .toList()
             .windowed(4, 4)
             .map { bytes ->
@@ -147,5 +193,9 @@ void main()
                     ((bytes[2] and 0xFF.toByte()).toInt() shl 8) or
                     ((bytes[3] and 0xFF.toByte()).toInt() shl 0)
             }.toIntArray()
+    }
+
+    private fun getSimpleSPIRVBytecode(): IntArray {
+        return this.javaClass.getResourceAsStream("c_api_test.spv")!!.readBytes().toSPIRVBytecode()
     }
 }
