@@ -32,8 +32,8 @@ abstract class Light(name: String = "Light") : Mesh(name), Networkable {
     @ShaderProperty
     abstract val lightType: LightType
 
-    override fun update(fresh: Networkable) {
-        super.update(fresh)
+    override fun update(fresh: Networkable, getNetworkable: (Int) -> Networkable) {
+        super.update(fresh,getNetworkable)
         if (fresh !is Light) throw IllegalArgumentException("Update called with object of foreign class")
         emissionColor = fresh.emissionColor
         intensity = fresh.intensity

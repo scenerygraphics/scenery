@@ -121,17 +121,6 @@ class PubSubTest {
         assert(box2 != null) { "precondition not met => Flaky or See previous tests" }
         assertEquals(3f, box2?.spatialOrNull()?.position?.z)
     }
-
-    companion object {
-        /**
-         * I wish this wasn't needed or I would at least be sure why it is needed. But with out this the first test
-         * fails if the whole package is part of the test run.
-         */
-        @BeforeClass
-        fun waitForPreviousTestToClear(){
-            //Thread.sleep(2000)
-        }
-    }
 }
 
 //Inline function to access private function in the RibbonDiagram

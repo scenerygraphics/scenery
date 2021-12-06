@@ -6,6 +6,7 @@ import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.Statistics
 import graphics.scenery.volumes.Volume
 import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.zeromq.ZContext
 import org.zeromq.ZMQ
@@ -25,6 +26,7 @@ class NodeSubscriber(
     portPublish: Int = 7777,
     portControl: Int = 6666,
     val context: ZContext = ZContext(4),
+    val init: Boolean = true
 ) : Hubable {
     private val addressSubscribe = "$ip:$portPublish"
     //private val addressControl = "tcp://localhost:5560"
@@ -35,18 +37,20 @@ class NodeSubscriber(
     var subscriber: ZMQ.Socket = context.createSocket(ZMQ.SUB)
     var control: ZMQ.Socket = context.createSocket(ZMQ.PUB)
     val kryo = NodePublisher.freeze()
-    private val networkObjects = hashMapOf<Int, NetworkObject<*>>()
+    private val networkObjects = hashMapOf<Int, NetworkWrapper<*>>()
     private val eventQueue = LinkedBlockingQueue<NetworkEvent>()
-    private val waitingOnParent = mutableMapOf<Int, List<NetworkEvent>>()
+    private val waitingOnNetworkable = mutableMapOf<Int, List<Pair<NetworkEvent, WaitReason>>>()
     private var running = false
 
     init {
-        subscriber.connect(addressSubscribe)
-        subscriber.subscribe(ZMQ.SUBSCRIPTION_ALL)
-        control.connect(addressControl)
-        GlobalScope.launch {
-            Thread.sleep(1000)
-            NodePublisher.sendEvent(NetworkEvent.RequestInitialization(),kryo,control,logger)
+        if (init){
+            subscriber.connect(addressSubscribe)
+            subscriber.subscribe(ZMQ.SUBSCRIPTION_ALL)
+            control.connect(addressControl)
+            GlobalScope.launch {
+                delay(1000)
+                NodePublisher.sendEvent(NetworkEvent.RequestInitialization(),kryo,control,logger)
+            }
         }
     }
 
@@ -85,6 +89,11 @@ class NodeSubscriber(
         eventQueue.add(event)
     }
 
+    class NetworkableNotFoundException(val id: Int): IllegalStateException()
+    private fun getNetworkable(id: Int): Networkable {
+        return networkObjects[id]?.obj ?: throw NetworkableNotFoundException(id)
+    }
+
     /**
      * Should be called in update life cycle
      */
@@ -92,95 +101,117 @@ class NodeSubscriber(
         while (!eventQueue.isEmpty()) {
             when (val event = eventQueue.poll()) {
                 is NetworkEvent.Update -> {
-                    val networkObject = event.obj
-
-                    if (networkObjects.containsKey(networkObject.networkID)) {
-                        val fresh = networkObject.obj
-                        val tmp = networkObjects[fresh.networkID]?.obj
-                            ?: throw Exception("Got update for unknown object with id ${fresh.networkID} and class ${fresh.javaClass.simpleName}")
-                        tmp.update(fresh)
-                        continue
-                    }
-
-                    fun reuniteChildParent(parent: Node) {
-                        val missingChildren = waitingOnParent.remove(parent.networkID)
-                        missingChildren?.forEach { childEvent ->
-                            when (childEvent) {
-                                is NetworkEvent.Update -> {
-                                    when (val child = childEvent.obj.obj) {
-                                        is Node -> {
-                                            parent.addChild(child)
-                                        }
-                                        else -> {
-                                            // assuming child is Attribute
-                                            val attributeBaseClass = child.getAttributeClass()!!
-                                            // before adding the attribute to the waitingOnParent list this was null checked
-                                            parent.addAttributeFromNetwork(attributeBaseClass.java, child)
-                                        }
-                                    }
-                                }
-                                is NetworkEvent.NewRelation -> TODO()
-                            }
-                        }
-                    }
-
-                    when (val networkable = networkObject.obj) {
-                        is Scene -> {
-                            // dont use the scene from network, but adapt own scene
-                            scene.networkID = networkable.networkID
-                            scene.update(networkable)
-                            networkObjects[networkObject.networkID] = NetworkObject(networkObject.networkID, scene, mutableListOf())
-                            reuniteChildParent(scene)
-                        }
-                        is Node -> {
-                            if (networkObjects.containsKey(networkable.networkID)){
-                                networkObjects[networkable.networkID]?.obj?.update(networkable)
-                                continue
-                            }
-                            val parentId = networkObject.parents.first()
-                            val parent = networkObjects[parentId]?.obj as? Node
-                            if (parent != null) {
-                                parent.addChild(networkable)
-                            } else {
-                                waitingOnParent[parentId] = waitingOnParent.getOrDefault(parentId, listOf()) + event
-                            }
-                            networkObjects[networkObject.networkID] = networkObject
-                            reuniteChildParent(networkable)
-                        }
-                        else -> {
-                            val attributeBaseClass = networkable.getAttributeClass()
-                            if (attributeBaseClass != null) {
-                                // It is an attribute
-                                networkObject.parents
-                                    .mapNotNull { parentId ->
-                                        val parent = networkObjects[parentId]?.obj as? Node
-                                        if (parent == null) {
-                                            waitingOnParent[parentId] =
-                                                waitingOnParent.getOrDefault(parentId, listOf()) + event
-                                            null
-                                        } else {
-                                            parent
-                                        }
-                                    }
-                                    .forEach {
-                                        it.addAttributeFromNetwork(attributeBaseClass.java, networkable)
-                                        it.spatialOrNull()?.needsUpdate = true
-                                    }
-                                networkObjects[networkObject.networkID] = networkObject
-                            } else {
-                                throw IllegalStateException(
-                                    "Received unknown object from server. " +
-                                        "Maybe an attribute missing a getAttributeClass implementation?"
-                                )
-                            }
-                        }
-                    }
+                    processUpdateEvent(event, scene)
                 }
                 is NetworkEvent.NewRelation -> TODO()
             }
         }
     }
 
+    private fun processUpdateEvent(event: NetworkEvent.Update, scene: Scene){
+        val networkObject = event.obj
+
+        // ---------- update -------------
+        if (networkObjects.containsKey(networkObject.networkID)) {
+            val fresh = networkObject.obj
+            val tmp = networkObjects[fresh.networkID]?.obj
+                ?: throw Exception("Got update for unknown object with id ${fresh.networkID} and class ${fresh.javaClass.simpleName}")
+            try {
+                tmp.update(fresh,this::getNetworkable)
+            } catch (e: NetworkableNotFoundException){
+                waitingOnNetworkable[e.id] = waitingOnNetworkable.getOrDefault(e.id, listOf()) + (event to WaitReason.UpdateRelation)
+            }
+            return
+        }
+
+        // ------------ new object -----------
+        var networkable = networkObject.obj
+        when (networkable) {
+            is Scene -> {
+                // dont use the scene from network, but adapt own scene
+                scene.networkID = networkable.networkID
+                try {
+                    scene.update(networkable,this::getNetworkable)
+                } catch (e: NetworkableNotFoundException){
+                    waitingOnNetworkable[e.id] = waitingOnNetworkable.getOrDefault(e.id, listOf())+ (event to WaitReason.Parent)
+                }
+                networkObjects[networkObject.networkID] = NetworkWrapper(networkObject.networkID, scene, mutableListOf())
+                networkable = scene
+            }
+            is Node -> {
+                val parentId = networkObject.parents.first()
+                val parent = networkObjects[parentId]?.obj as? Node
+                if (parent != null) {
+                    parent.addChild(networkable)
+                } else {
+                    waitingOnNetworkable[parentId] = waitingOnNetworkable.getOrDefault(parentId, listOf())+ (event to WaitReason.Parent)
+                }
+                networkObjects[networkObject.networkID] = networkObject
+            }
+            else -> {
+                val attributeBaseClass = networkable.getAttributeClass()
+                if (attributeBaseClass != null) {
+                    // It is an attribute
+                    networkObject.parents
+                        .mapNotNull { parentId ->
+                            val parent = networkObjects[parentId]?.obj as? Node
+                            if (parent == null) {
+                                waitingOnNetworkable[parentId] =
+                                    waitingOnNetworkable.getOrDefault(parentId, listOf()) + (event to WaitReason.Parent)
+                                null
+                            } else {
+                                parent
+                            }
+                        }
+                        .forEach {
+                            it.addAttributeFromNetwork(attributeBaseClass.java, networkable)
+                            it.spatialOrNull()?.needsUpdate = true
+                        }
+                    networkObjects[networkObject.networkID] = networkObject
+                } else {
+                    throw IllegalStateException(
+                        "Received unknown object from server. ${networkable.javaClass.simpleName}" +
+                            "Maybe an attribute missing a getAttributeClass implementation?"
+                    )
+                }
+            }
+        }
+        processWaitingNodes(networkable,scene)
+    }
+
+    private fun processWaitingNodes(parent: Networkable, scene: Scene) {
+        val missingChildren = waitingOnNetworkable.remove(parent.networkID)
+        missingChildren?.forEach { childEvent ->
+            val reason = childEvent.second
+            val event = childEvent.first
+            when (reason) {
+                WaitReason.UpdateRelation -> {
+                    if (event is NetworkEvent.Update) {
+                        processUpdateEvent(event, scene)
+                    }
+                }
+                WaitReason.Parent -> {
+                    when (event) {
+                        is NetworkEvent.Update -> {
+                            when (val child = (event).obj.obj) {
+                                is Node -> {
+                                    (parent as? Node)?.addChild(child)
+                                }
+                                else -> {
+                                    // assuming child is Attribute
+                                    val attributeBaseClass = child.getAttributeClass()!!
+                                    // before adding the attribute to the waitingOnParent list this was null checked
+                                    (parent as? Node)?.addAttributeFromNetwork(attributeBaseClass.java, child)
+                                }
+                            }
+                        }
+                        is NetworkEvent.NewRelation -> TODO()
+                    }
+                }
+            }
+        }
+    }
+/*
     fun process() {
         while (true) {
             var start: Long
@@ -217,7 +248,8 @@ class NodeSubscriber(
                             }
                         }
 
-                        if (Volume::class.java.isAssignableFrom(o.javaClass) && Volume::class.java.isAssignableFrom(node.javaClass)) {
+                        if (Volume::class.java.isAssignableFrom(o.javaClass)
+                            && Volume::class.java.isAssignableFrom(node.javaClass)) {
                             (node as Volume).colormap = (o as Volume).colormap
                             node.transferFunction = o.transferFunction
                             if (node.currentTimepoint != o.currentTimepoint) {
@@ -252,8 +284,14 @@ class NodeSubscriber(
         }
     }
 
+ */
+
     fun close() {
         context.destroySocket(subscriber)
         context.close()
+    }
+
+    private enum class WaitReason(){
+        Parent, UpdateRelation
     }
 }

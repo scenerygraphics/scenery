@@ -189,7 +189,7 @@ open class DefaultNode(override var name: String = "Node") : Node, Networkable {
         }
     }
 
-    override fun update(fresh: Networkable) {
+    override fun update(fresh: Networkable, getNetworkable: (Int) -> Networkable) {
         if (fresh !is DefaultNode) throw IllegalArgumentException("Update called with object of foreign class")
         visible = fresh.visible
         name = fresh.name

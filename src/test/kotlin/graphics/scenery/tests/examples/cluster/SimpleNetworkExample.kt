@@ -43,6 +43,14 @@ class SimpleNetworkExample : SceneryBase("SimpleNetworkExample", wantREPL = fals
             }
             scene.addChild(box)
 
+            thread {
+                Thread.sleep(6000)
+                val ma = DefaultMaterial()
+                box.material().diffuse = Vector3f(0f,1f,0f)
+                box.setMaterial(ma)
+                box.spatial().needsUpdate = true
+                println("replacing Mat")
+            }
         }
         val light = PointLight(radius = 15.0f)
         light.spatial().position = Vector3f(0.0f, 0.0f, 2.0f)
@@ -50,17 +58,6 @@ class SimpleNetworkExample : SceneryBase("SimpleNetworkExample", wantREPL = fals
         light.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
         scene.addChild(light)
 
-        thread {
-            Thread.sleep(4000)
-            val ma = DefaultMaterial()
-            ma.diffuse = Vector3f(0f,1f,0f)
-            box.addAttribute(Material::class.java,ma)
-            box.spatial().needsUpdate = true
-            println("replacing Mat")
-            scene.removeChild(box)
-            scene.addChild(box)
-
-        }
 
 
         val cam: Camera = DetachedHeadCamera()
