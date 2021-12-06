@@ -40,12 +40,12 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
             scene.addChild(this)
         }
 
-//        cam.position = Vector3f(3.213f, 8.264E-1f, -9.844E-1f)
-//        cam.rotation = Quaternionf(3.049E-2, 9.596E-1, -1.144E-1, -2.553E-1)
+        cam.position = Vector3f(3.213f, 8.264E-1f, -9.844E-1f)
+        cam.rotation = Quaternionf(3.049E-2, 9.596E-1, -1.144E-1, -2.553E-1)
 
 //         optimized depth calculation working at this view point, opacity calculation looking reasonable
-        cam.rotation = Quaternionf(5.449E-2,  8.801E-1, -1.041E-1, -4.601E-1)
-        cam.position = Vector3f(6.639E+0f,  1.092E+0f, -1.584E-1f)
+//        cam.rotation = Quaternionf(5.449E-2,  8.801E-1, -1.041E-1, -4.601E-1)
+//        cam.position = Vector3f(6.639E+0f,  1.092E+0f, -1.584E-1f)
 
 //        same as previous
 //        cam.position = Vector3f(1.881E+0f,  5.558E+0f, -7.854E-1f)
@@ -53,6 +53,21 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
 
 //        cam.position = Vector3f(-3.435E+0f,  1.109E+0f,  6.433E+0f)
 //        cam.rotation = Quaternionf(-3.985E-2,  5.315E-1, -2.510E-2,  8.457E-1)
+
+//        cam.position = Vector3f(3.729E+0f,  8.263E-1f, -6.808E-1f)
+//        cam.rotation = Quaternionf(2.731E-2,  9.596E-1, -9.999E-2, -2.616E-1)
+
+//        cam.position = Vector3f(3.729E+0f,  8.263E-1f, -6.808E-1f)
+//        cam.rotation = Quaternionf(1.499E-2,  9.660E-1, -5.738E-2, -2.517E-1)
+
+//        cam.position = Vector3f(4.374E+0f, 8.262E-1f,-3.773E-1f)
+//        cam.rotation = Quaternionf(2.247E-2,  9.707E-1, -1.003E-1, -2.171E-1)
+
+//        cam.position = Vector3f( 3.853E+0f,  7.480E-1f, -9.672E-1f)
+//        cam.rotation = Quaternionf( 4.521E-2,  9.413E-1, -1.398E-1, -3.040E-1)
+
+        cam.position = Vector3f( 3.216E+0f,  8.251E-1f, -9.890E-1f)
+        cam.rotation = Quaternionf( 3.049E-2,  9.596E-1, -1.144E-1, -2.553E-1)
 
         cam.farPlaneDistance = 20.0f
 
@@ -70,7 +85,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
         val compute = Node()
         compute.name = "compute node"
 //        compute.material = ShaderMaterial(Shaders.ShadersFromFiles(arrayOf("EfficientVDIRaycast.comp"), this::class.java))
-        compute.material = ShaderMaterial(Shaders.ShadersFromFiles(arrayOf("EfficientVDIRaycast.comp"), this::class.java))
+        compute.material = ShaderMaterial(Shaders.ShadersFromFiles(arrayOf("AmanatidesJumps.comp"), this::class.java))
         compute.material.textures["OutputViewport"] = Texture.fromImage(Image(opBuffer, windowWidth, windowHeight), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
         compute.material.textures["InputVDI"] = Texture(Vector3i(3*numSupersegments, windowHeight, windowWidth), 4, contents = bufferVDI, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
         compute.metadata["ComputeMetadata"] = ComputeMetadata(
@@ -101,9 +116,12 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
 //            }
 //        }
 //        thread {
-//            Thread.sleep(2000)
-//            println("${cam.position}")
-//            println("${cam.rotation}")
+//            while(true)
+//            {
+//                Thread.sleep(2000)
+//                println("${cam.position}")
+//                println("${cam.rotation}")
+//            }
 //        }
     }
 
