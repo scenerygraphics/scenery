@@ -1,7 +1,6 @@
 package graphics.scenery.attribute.renderable
 
 import graphics.scenery.Node
-import graphics.scenery.attribute.material.DefaultMaterial
 import graphics.scenery.net.Networkable
 import java.util.*
 import kotlin.collections.HashMap
@@ -16,7 +15,7 @@ open class DefaultRenderable(override var parent: Node): Renderable, Networkable
     }
     override var isBillboard: Boolean = false
 
-    override fun update(fresh: Networkable) {
+    override fun update(fresh: Networkable, getNetworkable: (Int) -> Networkable) {
         if (fresh !is DefaultRenderable){
             throw IllegalArgumentException("Got wrong type to update ${this::class.simpleName} ")
         }
