@@ -69,7 +69,7 @@ vec3 sourcemax_x_10_x_ = vec3(128.0, 128.0, 128.0);
 //ivec2 debug_pixel = ivec2(729, 282);
 //ivec2 debug_pixel = ivec2(875, 151);
 //ivec2 debug_pixel = ivec2(600, 360);
-ivec2 debug_pixel = ivec2(640, 360);
+ivec2 debug_pixel = ivec2(427, 465);
 //ivec2 debug_pixel = ivec2(424, 539);
 
 const vec4 bitEnc = vec4(1.,255.,65025.,16581375.);
@@ -310,11 +310,11 @@ int prevIndex = -1;
 
 void supersegmentInList(ivec2 invoc_orig, rayProperties originalRay, vec4 wpos, vec4 exit_pt, bool optimized, int cnt, out float depthStart, out float depthEnd, out int index, out bool supseg_found) {
 
-    #if USE_PRINTF
-    if(gl_GlobalInvocationID.xy == debug_pixel) {
-        debugPrintfEXT("Looping for list: (%d, %d)", invoc_orig);
-    }
-    #endif
+//    #if USE_PRINTF
+//    if(gl_GlobalInvocationID.xy == debug_pixel) {
+//        debugPrintfEXT("Looping for list: (%d, %d)", invoc_orig);
+//    }
+//    #endif
 
     supseg_found = false;
     vec4 check = imageLoad(InputVDI, ivec3(2, invoc_orig.y, invoc_orig.x));
@@ -359,13 +359,15 @@ void supersegmentInList(ivec2 invoc_orig, rayProperties originalRay, vec4 wpos, 
     #endif
 
     bool dotPositive;
-//    float dotViewRays = dot((newRay.wfront - newRay.wback), (originalRay.wfront - originalRay.wback));
-    float dotViewRays = dot((newRay.NDC_front - newRay.NDC_back), (originalRay.NDC_front - originalRay.NDC_back));
-    if(dotViewRays > 0) {
-        dotPositive = true;
-    } else {
-        dotPositive = false;
-    }
+////    float dotViewRays = dot((newRay.wfront - newRay.wback), (originalRay.wfront - originalRay.wback));
+//    float dotViewRays = dot((newRay.NDC_front - newRay.NDC_back), (originalRay.NDC_front - originalRay.NDC_back));
+//    if(dotViewRays > 0) {
+//        dotPositive = true;
+//    } else {
+//        dotPositive = false;
+//    }
+
+    dotPositive = wpos.z < exit_pt.z ? true: false;
 
     if(invoc_orig == prevList) {
         // we are in the same supersegment list as the previous supseg that was found. So, we only need to check the next supseg
@@ -1028,11 +1030,11 @@ void findNextSupersegment_opt(ivec2 nextList, vec4 next_point, int mainCnt, out 
 //        depthEnd = ndc_to_w(depthEnd);
 //        #endif
 
-        #if USE_PRINTF
-        if(gl_GlobalInvocationID.xy == debug_pixel) {
-            debugPrintfEXT("For list: (%d, %d). Found supseg %d index %d.", listCoords, supseg_found, index);
-        }
-        #endif
+//        #if USE_PRINTF
+//        if(gl_GlobalInvocationID.xy == debug_pixel) {
+//            debugPrintfEXT("For list: (%d, %d). Found supseg %d index %d.", listCoords, supseg_found, index);
+//        }
+//        #endif
 
 //        }
 
