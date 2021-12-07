@@ -58,21 +58,6 @@ open class Scene : DefaultNode("RootNode"), HasRenderable, HasMaterial, HasSpati
     }
 
     /**
-     * Adds a [Node] to the Scene, at the position given by [parent]
-     *
-     * @param[n] The node to add.
-     * @param[parent] The node to attach [n] to.
-     */
-    @Suppress("unused")
-    fun addNode(n: Node, parent: Node) {
-        if (n.name == "RootNode") {
-            throw IllegalStateException("Only one RootNode may exist per scenegraph. Please choose a different name.")
-        }
-
-        discover(this, { node -> node == parent }).first().addChild(n)
-    }
-
-    /**
      * Find the currently active observer in the Scene.
      *
      * TODO: Store once-found camera in [activeObserver]
