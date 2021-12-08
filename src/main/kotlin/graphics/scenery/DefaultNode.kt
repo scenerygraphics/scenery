@@ -5,8 +5,7 @@ import graphics.scenery.attribute.material.Material
 import graphics.scenery.attribute.spatial.Spatial
 import graphics.scenery.net.Networkable
 import graphics.scenery.utils.LazyLogger
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import org.joml.Vector3f
 import java.sql.Timestamp
 import java.util.*
@@ -65,15 +64,13 @@ open class DefaultNode(override var name: String = "Node") : Node, Networkable {
         val scene = this.getScene() ?: return
         scene.sceneSize.incrementAndGet()
         if(scene.onChildrenAdded.isNotEmpty()) {
-            GlobalScope.launch {
-                scene.onChildrenAdded.forEach { it.value.invoke(this@DefaultNode, child) }
-            }
+            scene.onChildrenAdded.forEach { it.value.invoke(this@DefaultNode, child) }
         }
     }
 
     override fun removeChild(child: Node): Boolean {
         this.getScene()?.sceneSize?.decrementAndGet()
-        GlobalScope.launch { this@DefaultNode.getScene()?.onChildrenRemoved?.forEach { it.value.invoke(this@DefaultNode, child) } }
+        this@DefaultNode.getScene()?.onChildrenRemoved?.forEach { it.value.invoke(this@DefaultNode, child) }
 
         return this.children.remove(child).let { if (it) {child.parent = null}; it }
     }
@@ -81,12 +78,9 @@ open class DefaultNode(override var name: String = "Node") : Node, Networkable {
     override fun removeChild(name: String): Boolean {
         for (c in this.children) {
             if (c.name.compareTo(name) == 0) {
-                c.parent = null
-                this.children.remove(c)
-                return true
+                return this.removeChild(c)
             }
         }
-
         return false
     }
 
