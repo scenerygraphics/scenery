@@ -41,7 +41,7 @@ class NodePublisher(
     portPublish: Int = 7777,
     portControl: Int = 6666,
     val context: ZContext = ZContext(4)
-): Hubable {
+) : Hubable {
     private val logger by LazyLogger()
 
     private val addressPublish = "$ip:$portPublish"
@@ -85,35 +85,40 @@ class NodePublisher(
         controlSubscriber.subscribe(ZMQ.SUBSCRIPTION_ALL)
     }
 
-    fun register(scene: Scene){
-        val sceneNo = NetworkWrapper(generateNetworkID(),scene, mutableListOf())
+    fun register(scene: Scene) {
+        val sceneNo = NetworkWrapper(generateNetworkID(), scene, mutableListOf())
         publishedObjects[sceneNo.networkID] = sceneNo
         eventQueue.add(NetworkEvent.Update(sceneNo))
 
-        // TODO relation updates
-        //scene.onChildrenAdded["networkPublish"] = {_, child -> registerNode(child)}
-        //scene.onChildrenRemoved["networkPublish"] = {_, child -> removeNode(child)}
+        scene.onChildrenAdded["networkPublish"] = { _, child -> registerNode(child) }
+        scene.onChildrenRemoved["networkPublish"] = { parent, child -> detachNode(child,parent) }
+        scene.onAttributeAdded["NetworkPublish"] = {node, attribute -> addAttribute(node,attribute) }
 
         // abusing the discover function for a tree walk
-        scene.discover(scene,{registerNode(it); false})
+        scene.discover(scene, { registerNode(it); false })
     }
 
-    fun registerNode(node:Node){
-        if (!node.wantsSync()){
+    private fun registerNode(node: Node) {
+        if (!node.wantsSync()) {
             return
         }
-        if (node.parent == null){
+        if (node.parent == null) {
             throw IllegalArgumentException("Node not part of scene graph and cant be synchronized alone")
         }
         val parentId = node.parent?.networkID
-        if (parentId == null || publishedObjects[parentId] == null){
+        if (parentId == null || publishedObjects[parentId] == null) {
             throw IllegalArgumentException("Node Parent not registered with publisher.")
         }
 
         if (publishedObjects[node.networkID] == null) {
-            val netObject = NetworkWrapper(generateNetworkID(), node, mutableListOf(parentId))
-            eventQueue.add(NetworkEvent.Update(netObject))
-            publishedObjects[netObject.networkID] = netObject
+            val wrapper = NetworkWrapper(generateNetworkID(), node, mutableListOf(parentId))
+            eventQueue.add(NetworkEvent.Update(wrapper))
+            publishedObjects[wrapper.networkID] = wrapper
+        } else {
+            // parent change
+            val wrapper = publishedObjects[node.networkID]
+            wrapper?.parents?.add(parentId)
+            eventQueue.add(NetworkEvent.NewRelation(parentId, node.networkID))
         }
 
         node.getSubcomponents().forEach { subComponent ->
@@ -129,14 +134,37 @@ class NodePublisher(
         }
     }
 
-    fun removeNode(node: Node){
-        //TODO
+    private fun detachNode(node: Node, parent: Node) {
+        publishedObjects[node.networkID]?.let {
+            it.parents.remove(parent.networkID)
+            eventQueue.add(NetworkEvent.NewRelation(null, node.networkID))
+        }
+    }
+
+    private fun addAttribute(node: Node, attribute: Any) {
+        if (attribute !is Networkable){
+            return
+        }
+        if (!publishedObjects.containsKey(node.networkID)){
+            // this relation and attribute will be published with the registration of the parent node
+            return
+        }
+        val attributeWrapper = publishedObjects[attribute.networkID]
+
+        if (attributeWrapper == null){
+            val new = NetworkWrapper(generateNetworkID(), attribute, mutableListOf(node.networkID))
+            publishedObjects[new.networkID] = new
+            eventQueue.add(NetworkEvent.Update(new))
+        } else {
+            attributeWrapper.parents.add(node.networkID)
+            eventQueue.add(NetworkEvent.NewRelation(node.networkID, attribute.networkID))
+        }
     }
 
     /**
      * Should be called in the update phase of the life cycle
      */
-    fun scanForChanges(){
+    fun scanForChanges() {
         for (it in publishedObjects.values) {
             if (it.obj.lastChange() >= it.publishedAt) {
                 it.publishedAt = System.nanoTime()
@@ -145,14 +173,14 @@ class NodePublisher(
         }
     }
 
-    fun startPublishing(){
+    fun startPublishing() {
         publishing = true
         thread {
-            while (publishing){
+            while (publishing) {
                 val event = eventQueue.poll(eventQueueTimeout, TimeUnit.MILLISECONDS) ?: continue
                 if (!publishing) break // in case of shutdown while polling
-                if (event is NetworkEvent.RequestInitialization){
-                    publishedObjects.forEach{
+                if (event is NetworkEvent.RequestInitialization) {
+                    publishedObjects.forEach {
                         eventQueue.add(NetworkEvent.Update(it.value))
                     }
                 }
@@ -190,27 +218,27 @@ class NodePublisher(
         }
     }
 
-    fun debugPublish(send: (NetworkEvent) -> Unit){
-        while(eventQueue.isNotEmpty()){
+    fun debugPublish(send: (NetworkEvent) -> Unit) {
+        while (eventQueue.isNotEmpty()) {
             send(eventQueue.poll())
         }
     }
 
-    fun stopPublishing(waitForFinishOfPublishing: Boolean) {
+    fun stopPublishing(waitForFinishOfPublishing: Boolean = false) {
         publishing = false
-        if(waitForFinishOfPublishing){
-            Thread.sleep(eventQueueTimeout*2)
+        if (waitForFinishOfPublishing) {
+            Thread.sleep(eventQueueTimeout * 2)
         }
     }
 
-    fun stopListening(waitForIt: Boolean){
+    fun stopListening(waitForIt: Boolean) {
         listeningForControl = false
-        if (waitForIt){
+        if (waitForIt) {
             Thread.sleep(100)
         }
     }
 
-    private fun publishEvent(event: NetworkEvent){
+    private fun publishEvent(event: NetworkEvent) {
         val start = System.nanoTime()
         val payloadSize = sendEvent(event, kryo, publisher, logger)
         val duration = (System.nanoTime() - start).toFloat()
