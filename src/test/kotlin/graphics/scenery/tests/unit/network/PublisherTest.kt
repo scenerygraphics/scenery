@@ -100,15 +100,3 @@ class PublisherTest {
         assertEquals("lol", (event.obj.obj as Scene).name)
     }
 }
-
-//Inline function to access private function in the RibbonDiagram
-private inline fun <reified T> T.callPrivateFunc(name: String, vararg args: Any?): Any? =
-    T::class
-        .declaredMemberFunctions
-        .firstOrNull { it.name == name }
-        ?.apply { isAccessible = true }
-        ?.call(this, *args)
-
-
-private fun NodePublisher.debugPublish(send: (NetworkEvent) -> Unit) =
-    callPrivateFunc("debugPublish",send)

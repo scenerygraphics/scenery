@@ -134,14 +134,3 @@ class SubscriberTest {
     }
 }
 
-//Inline function to access private function in the RibbonDiagram
-private inline fun <reified T> T.callPrivateFunc(name: String, vararg args: Any?): Any? =
-    T::class
-        .declaredMemberFunctions
-        .firstOrNull { it.name == name }
-        ?.apply { isAccessible = true }
-        ?.call(this, *args)
-
-private fun NodeSubscriber.debugListen(event: NetworkEvent) =
-    callPrivateFunc("debugListen",event)
-

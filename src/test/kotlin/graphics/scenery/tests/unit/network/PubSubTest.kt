@@ -1,6 +1,7 @@
 package graphics.scenery.tests.unit.network
 
 import graphics.scenery.Box
+import graphics.scenery.DefaultNode
 import graphics.scenery.Hub
 import graphics.scenery.Scene
 import graphics.scenery.net.NetworkEvent
@@ -14,6 +15,7 @@ import org.junit.Test
 import kotlin.reflect.full.declaredMemberFunctions
 import kotlin.reflect.jvm.isAccessible
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 
 /**
  * Integration tests for [NodePublisher] and [NodeSubscriber]
@@ -47,6 +49,9 @@ class PubSubTest {
 
     @After
     fun teardown() {
+        pub.stopPublishing()
+        sub.stopListening()
+
         pub.close()
         sub.close()
     }
@@ -60,8 +65,6 @@ class PubSubTest {
         val box = Box()
         box.name = "box"
         scene1.addChild(box)
-
-        pub.stopPublishing(true)
 
         pub.register(scene1)
         pub.debugPublish (sub::debugListen )
@@ -101,6 +104,64 @@ class PubSubTest {
     }
 
     @Test
+    fun integrationNodeRemoval(){
+        val node1 = DefaultNode("eins")
+        scene1.addChild(node1)
+        pub.register(scene1)
+        pub.debugPublish {sub.debugListen(serializeAndDeserialize(it) as NetworkEvent)}
+        sub.networkUpdate(scene2)
+        assert(scene2.find("eins") != null)
+
+        scene1.removeChild(node1)
+        pub.debugPublish {sub.debugListen(serializeAndDeserialize(it) as NetworkEvent)}
+        sub.networkUpdate(scene1)
+        assert(scene2.find("eins") == null)
+    }
+
+    @Test
+    fun integrationMoveNodeInGraph(){
+        val node1 = DefaultNode("eins")
+        val node2 = DefaultNode("zwei")
+        scene1.addChild(node1)
+        scene1.addChild(node2)
+        pub.register(scene1)
+        pub.debugPublish {sub.debugListen(serializeAndDeserialize(it) as NetworkEvent)}
+        sub.networkUpdate(scene2)
+
+        scene1.removeChild(node2)
+        node1.addChild(node2)
+        pub.debugPublish {sub.debugListen(serializeAndDeserialize(it) as NetworkEvent)}
+        sub.networkUpdate(scene1)
+
+        val zwei = scene2.find("zwei")
+        assertNotNull(zwei)
+        val eins = zwei.parent
+        assertNotNull(eins)
+    }
+
+    @Test
+    fun integrationMoveAttribute() {
+        val node1 = Box()
+        node1.name = "eins"
+        val node2 = Box()
+        node2.name = "zwei"
+        scene1.addChild(node1)
+        scene1.addChild(node2)
+        pub.register(scene1)
+        pub.debugPublish { sub.debugListen(serializeAndDeserialize(it) as NetworkEvent) }
+        sub.networkUpdate(scene2)
+
+        node2.setMaterial(node1.material())
+        pub.debugPublish {sub.debugListen(serializeAndDeserialize(it) as NetworkEvent)}
+        sub.networkUpdate(scene1)
+
+        val eins = scene2.find("eins")
+        val zwei = scene2.find("zwei")
+
+        assert(eins?.materialOrNull() == zwei?.materialOrNull())
+    }
+
+    @Test
     fun update(){
 
         val box = Box()
@@ -123,16 +184,4 @@ class PubSubTest {
     }
 }
 
-//Inline function to access private function in the RibbonDiagram
-private inline fun <reified T> T.callPrivateFunc(name: String, vararg args: Any?): Any? =
-    T::class
-        .declaredMemberFunctions
-        .firstOrNull { it.name == name }
-        ?.apply { isAccessible = true }
-        ?.call(this, *args)
 
-private fun NodeSubscriber.debugListen(event: NetworkEvent) =
-    callPrivateFunc("debugListen",event)
-
-private fun NodePublisher.debugPublish(send: (NetworkEvent) -> Unit) =
-    callPrivateFunc("debugPublish",send)

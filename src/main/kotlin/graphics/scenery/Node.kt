@@ -8,6 +8,8 @@ import graphics.scenery.attribute.renderable.Renderable
 import graphics.scenery.attribute.spatial.Spatial
 import graphics.scenery.net.Networkable
 import graphics.scenery.utils.MaybeIntersects
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import net.imglib2.Localizable
 import net.imglib2.RealLocalizable
 import org.joml.Matrix4f
@@ -66,6 +68,8 @@ interface Node : Networkable {
 
     fun <T, U: T> addAttribute(attributeType: Class<T>, attribute: U) {
         getAttributes().put(attributeType, attribute)
+        this@Node.getScene()?.onAttributeAdded?.forEach { it.value.invoke(this@Node, attribute as Any) }
+
     }
 
     fun <T, U: T> addAttribute(attributeType: Class<T>, attribute: U, block: U.() -> Unit) {

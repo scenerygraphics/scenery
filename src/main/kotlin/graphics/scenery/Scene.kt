@@ -46,9 +46,14 @@ open class Scene : DefaultNode("RootNode"), HasRenderable, HasMaterial, HasSpati
     internal var sceneSize: AtomicLong = AtomicLong(0L)
 
     /** Callbacks to be called when a child is added to the scene (Parent,Child)*/
+    @Transient
     var onChildrenAdded = ConcurrentHashMap<String, (Node, Node) -> Unit>()
     /** Callbacks to be called when a child is removed from the scene (Parent,Child)*/
+    @Transient
     var onChildrenRemoved = ConcurrentHashMap<String, (Node, Node) -> Unit>()
+    /** Callbacks to be called when an attribute is added to a node (Node,Attribute)*/
+    @Transient
+    var onAttributeAdded = ConcurrentHashMap<String, (Node, Any) -> Unit>()
     /** Callbacks to be called when a child is removed from the scene */
     var onNodePropertiesChanged = ConcurrentHashMap<String, (Node) -> Unit>()
 

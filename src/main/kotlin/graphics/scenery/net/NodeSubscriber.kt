@@ -3,15 +3,12 @@ package graphics.scenery.net
 import com.esotericsoftware.kryo.io.Input
 import graphics.scenery.*
 import graphics.scenery.utils.LazyLogger
-import graphics.scenery.utils.Statistics
-import graphics.scenery.volumes.Volume
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.zeromq.ZContext
 import org.zeromq.ZMQ
 import java.io.ByteArrayInputStream
-import java.io.StreamCorruptedException
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.LinkedBlockingQueue
 import kotlin.concurrent.thread
@@ -82,6 +79,10 @@ class NodeSubscriber(
         }
     }
 
+    fun stopListening(){
+        running = false
+    }
+
     /**
      * Used in Unit test
      */
@@ -103,7 +104,35 @@ class NodeSubscriber(
                 is NetworkEvent.Update -> {
                     processUpdateEvent(event, scene)
                 }
-                is NetworkEvent.NewRelation -> TODO()
+                is NetworkEvent.NewRelation -> {
+                    processNewRelationEvent(event,scene)
+                }
+            }
+        }
+    }
+
+    private fun processNewRelationEvent(event: NetworkEvent.NewRelation, scene: Scene) {
+        val parent = event.parent?.let { networkObjects[it]  }?.obj as? Node
+        if (event.parent != null && parent == null){
+            waitingOnNetworkable.getOrDefault(event.parent, listOf()) + (event to WaitReason.UpdateRelation)
+            return
+        }
+        val childWrapper = networkObjects[event.child]
+        if (childWrapper == null){
+            waitingOnNetworkable.getOrDefault(event.child, listOf()) + (event to WaitReason.UpdateRelation)
+            return
+        }
+        when (val child = childWrapper.obj){
+            is Node -> {
+                if (parent == null){
+                    child.parent?.removeChild(child)
+                } else {
+                    parent.addChild(child)
+                }
+            }
+            else -> {
+                // Attribute
+                parent?.addAttributeFromNetwork(child.getAttributeClass()!!.java,child)
             }
         }
     }
@@ -205,7 +234,7 @@ class NodeSubscriber(
                                 }
                             }
                         }
-                        is NetworkEvent.NewRelation -> TODO()
+                        is NetworkEvent.NewRelation -> processNewRelationEvent(event, scene)
                     }
                 }
             }
