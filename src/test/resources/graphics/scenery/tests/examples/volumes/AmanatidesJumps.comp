@@ -335,74 +335,9 @@ void findListNumber(vec4 wpos, out ivec2 listNum, out vec4 NDC_orig) {
 ivec2 prevList = ivec2(-1);
 int prevIndex = -1;
 
-void supersegmentInList(ivec2 invoc_orig, rayProperties originalRay, vec4 wpos, vec4 exit_pt, bool optimized, int cnt, out float depthStart, out float depthEnd, out int index, out bool supseg_found) {
-
-    #if USE_PRINTF
-    if(gl_GlobalInvocationID.xy == debug_pixel) {
-        debugPrintfEXT("In supseg in list function");
-    }
-    #endif
+void supersegmentInList(ivec2 invoc_orig, bool optimized, float dist_to_orig, float exit_distance, bool dotPositive, out float depthStart, out float depthEnd, out int index, out bool supseg_found) {
 
     supseg_found = false;
-
-    #if SEPARATE_DEPTH
-    vec4 check = imageLoad(DepthVDI, ivec3(1, invoc_orig.y, invoc_orig.x));
-    float firstBack = check.x;
-    #else
-    vec4 check = imageLoad(InputVDI, ivec3(2, invoc_orig.y, invoc_orig.x));
-    float firstBack = DecodeFloatRGBA(check);
-    #endif
-
-    if(firstBack == 0) {
-        //the first supersegment is empty, so empty list
-        depthStart = -1.;
-        depthEnd = -1.;
-        index = -1;
-        supseg_found = false;
-        #if USE_PRINTF
-        if(gl_GlobalInvocationID.xy == debug_pixel) {
-            debugPrintfEXT("Returning because first element was 0. The list no. was: (%d, %d)", invoc_orig);
-        }
-        #endif
-        return;
-    }
-
-//    #if NDC
-    vec4 direction_orig = vec4 (0, 0, 1, 1); // a unit vector in the z axis  //TODO: shift these calculations to findSupsegs fn
-    vec4 vector_sample = wpos - originalRay.NDC_front;
-    float dist_to_orig = dot(vector_sample, direction_orig);
-    dist_to_orig = dist_to_orig - 1.; //TODO: simplify this and the below calculation. It should be simply wpos.z
-
-    vec4 vector_exit = exit_pt - originalRay.NDC_front;
-    float exit_distance = dot(vector_exit, direction_orig);
-    exit_distance = exit_distance - 1.;
-//    #else
-//    vec4 direction_orig = (originalRay.wback - originalRay.wfront)/distance(originalRay.wfront, originalRay.wback);
-//    vec4 vector_sample = wpos - originalRay.wfront;
-//    float dist_to_orig = dot(vector_sample, direction_orig);
-//    dist_to_orig = dist_to_orig/distance(originalRay.wfront, originalRay.wback);
-//
-//    vec4 vector_exit = exit_pt - originalRay.wfront;
-//    float exit_distance = dot(vector_exit, direction_orig);
-//    exit_distance = exit_distance/distance(originalRay.wfront, originalRay.wback);
-//    #endif
-
-    #if USE_PRINTF
-    if(gl_GlobalInvocationID.xy == debug_pixel) {
-        debugPrintfEXT("List: (%d, %d). Start pt: (%f, %f, %f, %f) and End pt: (%f, %f, %f, %f). Dist to orig: %f and exit dist: %f", gl_GlobalInvocationID.xy, wpos.xyzw, exit_pt.xyzw, dist_to_orig, exit_distance);
-    }
-    #endif
-
-    bool dotPositive;
-////    float dotViewRays = dot((newRay.wfront - newRay.wback), (originalRay.wfront - originalRay.wback));
-//    float dotViewRays = dot((newRay.NDC_front - newRay.NDC_back), (originalRay.NDC_front - originalRay.NDC_back));
-//    if(dotViewRays > 0) {
-//        dotPositive = true;
-//    } else {
-//        dotPositive = false;
-//    }
-
-    dotPositive = wpos.z < exit_pt.z ? true: false;
 
     if(invoc_orig == prevList) {
         // we are in the same supersegment list as the previous supseg that was found. So, we only need to check the next supseg
@@ -593,6 +528,24 @@ vec4 u, dir;
 
 void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout vec4 accumulatedColor) {
 
+    #if SEPARATE_DEPTH
+    vec4 check = imageLoad(DepthVDI, ivec3(1, theList.y, theList.x));
+    float firstBack = check.x;
+    #else
+    vec4 check = imageLoad(InputVDI, ivec3(2, theList.y, theList.x));
+    float firstBack = DecodeFloatRGBA(check);
+    #endif
+
+    if(firstBack == 0) {
+        //the first supersegment is empty, so empty list
+        #if USE_PRINTF
+        if(gl_GlobalInvocationID.xy == debug_pixel) {
+            debugPrintfEXT("Returning because first element was 0. The list no. was: (%d, %d)", theList);
+        }
+        #endif
+        return;
+    }
+
     rayProperties originalRay;
     originalRay.coords = theList;
 
@@ -607,14 +560,25 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
     originalRay.wback = ivp_orig * originalRay.NDC_back;
     originalRay.wback *= 1. / originalRay.wback.w;
 
-    bool supseg_found = false;
+    vec4 direction_orig = vec4 (0, 0, 1, 1); // a unit vector in the z axis
+    vec4 vector_sample = start_point - originalRay.NDC_front;
+    float dist_to_orig = dot(vector_sample, direction_orig);
+    dist_to_orig = dist_to_orig - 1.; //TODO: simplify this and the below calculation. It should be simply wpos.z
 
+    vec4 vector_exit = end_point - originalRay.NDC_front;
+    float exit_distance = dot(vector_exit, direction_orig);
+    exit_distance = exit_distance - 1.;
+
+    bool dotPositive;
+    dotPositive = start_point.z < end_point.z ? true: false;
+
+    bool supseg_found = false;
 
     do {
         float depthStart, depthEnd;
         int index;
 
-        supersegmentInList(theList, originalRay,  start_point, end_point, true, 0, depthStart, depthEnd, index, supseg_found);
+        supersegmentInList(theList, true, dist_to_orig, exit_distance, dotPositive, depthStart, depthEnd, index, supseg_found);
 
         #if USE_PRINTF
         if(gl_GlobalInvocationID.xy == debug_pixel) {
