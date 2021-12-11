@@ -189,7 +189,7 @@ class VDIGenerationExample : SceneryBase("VDI Generation") {
             prevAtomic = subvdi.get()
             subVDIColorBuffer = subVDIColor.contents
 
-            SystemHelpers.dumpToFile(subVDIColorBuffer!!, "VDI${cnt}_ndc")
+//            SystemHelpers.dumpToFile(subVDIColorBuffer!!, "VDI${cnt}_ndc")
             logger.info("Wrote VDI $cnt")
             cnt++
         }

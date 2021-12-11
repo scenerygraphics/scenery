@@ -10,11 +10,13 @@ import graphics.scenery.textures.Texture
 import graphics.scenery.utils.Image
 import graphics.scenery.utils.SystemHelpers
 import graphics.scenery.volumes.VolumeManager
+import net.imglib2.type.numeric.real.FloatType
 import org.joml.Quaternionf
 import org.joml.Vector3f
 import org.joml.Vector3i
 import org.lwjgl.system.MemoryUtil
 import java.io.File
+import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.concurrent.thread
 
@@ -23,7 +25,16 @@ import kotlin.concurrent.thread
  */
 class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = false) {
 
+    val separateDepth = true
+
     override fun init () {
+
+        val numLayers = if(separateDepth) {
+            1
+        } else {
+            3
+        }
+
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
 
         val light = PointLight(radius = 15.0f)
@@ -73,21 +84,42 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
 
         val numSupersegments = 20
 
-        val buff: ByteArray = File("/home/aryaman/Repositories/scenery-insitu/VDI10_ndc").readBytes()
+        val buff: ByteArray
+        val depthBuff: ByteArray?
+
+        if(separateDepth) {
+            buff = File("/home/aryaman/Repositories/scenery-insitu/VDI10_ndc_col").readBytes()
+            depthBuff = File("/home/aryaman/Repositories/scenery-insitu/VDI10_ndc_depth").readBytes()
+
+        } else {
+            buff = File("/home/aryaman/Repositories/scenery-insitu/VDI10_ndc").readBytes()
+            depthBuff = null
+        }
 
         val opBuffer = MemoryUtil.memCalloc(windowWidth * windowHeight * 4)
-        val bufferVDI = MemoryUtil.memCalloc(3 * windowWidth * windowHeight * numSupersegments * 4)
 
-        logger.info("Actual size is: ${buff.size}")
+        var colBuffer: ByteBuffer
+        var depthBuffer: ByteBuffer?
 
-        bufferVDI.put(buff).flip()
+        colBuffer = MemoryUtil.memCalloc(windowHeight * windowWidth * numSupersegments * numLayers * 4)
+        colBuffer.put(buff).flip()
+
+        if(separateDepth) {
+            depthBuffer = MemoryUtil.memCalloc(windowHeight * windowWidth * numSupersegments * 4 * 2)
+            depthBuffer.put(depthBuff).flip()
+        } else {
+            depthBuffer = null
+        }
 
         val compute = Node()
         compute.name = "compute node"
 //        compute.material = ShaderMaterial(Shaders.ShadersFromFiles(arrayOf("EfficientVDIRaycast.comp"), this::class.java))
         compute.material = ShaderMaterial(Shaders.ShadersFromFiles(arrayOf("AmanatidesJumps.comp"), this::class.java))
         compute.material.textures["OutputViewport"] = Texture.fromImage(Image(opBuffer, windowWidth, windowHeight), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
-        compute.material.textures["InputVDI"] = Texture(Vector3i(3*numSupersegments, windowHeight, windowWidth), 4, contents = bufferVDI, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
+        compute.material.textures["InputVDI"] = Texture(Vector3i(numLayers*numSupersegments, windowHeight, windowWidth), 4, contents = colBuffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
+        if(separateDepth) {
+            compute.material.textures["DepthVDI"] = Texture(Vector3i(2*numSupersegments, windowHeight, windowWidth), 1, contents = depthBuffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType())
+        }
         compute.metadata["ComputeMetadata"] = ComputeMetadata(
             workSizes = Vector3i(windowWidth, windowHeight, 1),
             invocationType = InvocationType.Permanent
