@@ -560,17 +560,12 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
     originalRay.wback = ivp_orig * originalRay.NDC_back;
     originalRay.wback *= 1. / originalRay.wback.w;
 
-    vec4 direction_orig = vec4 (0, 0, 1, 1); // a unit vector in the z axis
-    vec4 vector_sample = start_point - originalRay.NDC_front;
-    float dist_to_orig = dot(vector_sample, direction_orig);
-    dist_to_orig = dist_to_orig - 1.; //TODO: simplify this and the below calculation. It should be simply wpos.z
+    float dist_to_orig = start_point.z;
 
-    vec4 vector_exit = end_point - originalRay.NDC_front;
-    float exit_distance = dot(vector_exit, direction_orig);
-    exit_distance = exit_distance - 1.;
+    float exit_distance = end_point.z;
 
     bool dotPositive;
-    dotPositive = start_point.z < end_point.z ? true: false;
+    dotPositive = dist_to_orig < exit_distance ? true: false;
 
     bool supseg_found = false;
 
