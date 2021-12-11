@@ -546,19 +546,8 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
         return;
     }
 
-    rayProperties originalRay;
-    originalRay.coords = theList;
-
     float ndc_x = theList.x / 1280.0 * 2.0 - 1.0;
     float ndc_y = theList.y / 720.0 * 2.0 - 1.0;
-    originalRay.NDC_front = vec4(ndc_x, ndc_y, -1, 1); //TODO: should it be 0?
-    originalRay.NDC_back = vec4(ndc_x, ndc_y, 1, 1);
-
-    originalRay.wfront = ivp_orig * originalRay.NDC_front;
-    originalRay.wfront *= 1. / originalRay.wfront.w;
-
-    originalRay.wback = ivp_orig * originalRay.NDC_back;
-    originalRay.wback *= 1. / originalRay.wback.w;
 
     float dist_to_orig = start_point.z;
 
