@@ -16,6 +16,10 @@ import org.scijava.ui.behaviour.DragBehaviour
 /**
  * Grab and Drag nodes with a VR controller.
  *
+ * When triggered and [controllerHitbox] is intersecting a node with a [Grabable] attribute
+ * [onGrab] and then the respective functions of the Grabable attribute are called.
+ * Also translations and rotations of the controller will be also applied to the node.
+ *
  * @param targets Only nodes in this list may be dragged. They must have a [Grabable] attribute.
  * @param multiTarget If this is true all targets which collide with [controllerHitbox] will be dragged otherwise only one.
  *
@@ -29,18 +33,20 @@ open class VRGrab(
     protected val onGrab: (() -> Unit)? = null
 ) : DragBehaviour {
 
-    val controllerSpatial: Spatial
+    protected val controllerSpatial: Spatial = controllerHitbox.spatialOrNull()
+        ?: throw IllegalArgumentException("controller hitbox needs a spatial attribute")
 
-    init {
-        controllerSpatial = controllerHitbox.spatialOrNull()
-            ?: throw IllegalArgumentException("controller hitbox needs a spatial attribute")
-    }
+    protected var selected = emptyList<Node>()
 
-    var selected = emptyList<Node>()
+    protected var lastPos = Vector3f()
+    protected var lastRotation = Quaternionf()
 
-    var lastPos = Vector3f()
-    var lastRotation = Quaternionf()
-
+    /**
+     * Called on the first frame this behavior is triggered.
+     *
+     * @param x invalid - residue from parent behavior. Use [controllerSpatial] instead.
+     * @param y invalid - residue from parent behavior. Use [controllerSpatial] instead.
+     */
     override fun init(x: Int, y: Int) {
         selected = targets().filter { box -> controllerHitbox.spatialOrNull()?.intersects(box) ?: false }
         if (!multiTarget) {
@@ -49,11 +55,17 @@ open class VRGrab(
         if (selected.isNotEmpty()) {
             onGrab?.let { it() }
         }
-        selected.forEach {it.getAttributeOrNull(Grabable::class.java)?.onGrab?.invoke()}
+        selected.forEach { it.getAttributeOrNull(Grabable::class.java)?.onGrab?.invoke() }
         lastPos = controllerSpatial.worldPosition()
         lastRotation = controllerSpatial.worldRotation()
     }
 
+    /**
+     * Called on every frame this behavior is triggered.
+     *
+     * @param x invalid - residue from parent behavior. Use [controllerSpatial] instead.
+     * @param y invalid - residue from parent behavior. Use [controllerSpatial] instead.
+     */
     override fun drag(x: Int, y: Int) {
         val newPos = controllerHitbox.spatialOrNull()?.worldPosition() ?: Vector3f()
         val diffTranslation = newPos - lastPos
@@ -91,11 +103,21 @@ open class VRGrab(
         lastRotation = controllerSpatial.worldRotation()
     }
 
+    /**
+     * Called on the last frame this behavior is triggered.
+     *
+     * @param x invalid - residue from parent behavior. Use [controllerSpatial] instead.
+     * @param y invalid - residue from parent behavior. Use [controllerSpatial] instead.
+     */
     override fun end(x: Int, y: Int) {
-        selected.forEach {it.getAttributeOrNull(Grabable::class.java)?.onRelease?.invoke()}
+        selected.forEach { it.getAttributeOrNull(Grabable::class.java)?.onRelease?.invoke() }
         selected = emptyList()
     }
 
+
+    /**
+     * Contains Convenience method for adding grab behaviour
+     */
     companion object {
 
         /**
@@ -131,9 +153,17 @@ open class VRGrab(
     }
 }
 
+/**
+ * Attribute which marks a node that can be grabbed by the [VRGrab] behavior.
+ *
+ * @param onGrab called in the first frame of the interaction
+ * @param onDrag called each frame of the interaction
+ * @param onRelease called in the last frame of the interaction
+ * @param lockRotation if set to true dragging will only change the position not rotation
+ * */
 open class Grabable(
-    val lockRotation: Boolean = false,
     val onGrab: (() -> Unit)? = null,
     val onDrag: (() -> Unit)? = null,
-    val onRelease: (() -> Unit)? = null){
-}
+    val onRelease: (() -> Unit)? = null,
+    val lockRotation: Boolean = false
+)

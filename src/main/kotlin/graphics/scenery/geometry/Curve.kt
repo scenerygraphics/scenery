@@ -256,6 +256,8 @@ class Curve(spline: Spline, private val partitionAlongControlpoints: Boolean = t
                 vertices.flip()
                 texcoords = BufferUtils.allocateFloat(verticesVectors.size * 2)
                 recalculateNormals()
+
+                boundingBox = generateBoundingBox()
             }
             boundingBox = generateBoundingBox()
         }

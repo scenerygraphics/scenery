@@ -13,7 +13,8 @@ import org.joml.Vector4f
  * Default position is the XZ-plane through the origin.
  */
 class SlicingPlane(override var name: String = "Slicing Plane") : DefaultNode(name), HasSpatial {
-    private var slicedVolumes = listOf<Volume>()
+    var slicedVolumes = listOf<Volume>()
+        private set
 
     init {
         addSpatial()

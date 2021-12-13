@@ -17,6 +17,8 @@ import org.scijava.ui.behaviour.DragBehaviour
  *
  * @param actions List of named lambdas which can be selected by the user
  * @param cutoff  after this distance between controller and targets no action will be selected if the button is released
+ *
+ * @author Jan Tiemann
  */
 class VRSelectionWheel(
     val controller: Spatial,
@@ -25,12 +27,13 @@ class VRSelectionWheel(
     var actions: List<Action>,
     val cutoff: Float = 0.1f,
 ) : DragBehaviour {
-    protected val logger by LazyLogger(System.getProperty("scenery.LogLevel", "info"))
-
     private var activeWheel: WheelMenu? = null
 
     private var activeWiggler: Wiggler? = null
 
+    /**
+     * This function is called by the framework. Usually you don't need to call this.
+     */
     override fun init(x: Int, y: Int) {
 
         activeWheel = WheelMenu(controller,hmd,actions)
@@ -38,6 +41,9 @@ class VRSelectionWheel(
         scene.addChild(activeWheel!!)
     }
 
+    /**
+     * This function is called by the framework. Usually you don't need to call this.
+     */
     override fun drag(x: Int, y: Int) {
 
         val (closestSphere, distance) = activeWheel?.closestActionSphere() ?: return
@@ -53,6 +59,9 @@ class VRSelectionWheel(
 
     }
 
+    /**
+     * This function is called by the framework. Usually you don't need to call this.
+     */
     override fun end(x: Int, y: Int) {
         val (closestActionSphere, distance) = activeWheel?.closestActionSphere() ?: return
 
@@ -68,6 +77,9 @@ class VRSelectionWheel(
         activeWheel = null
     }
 
+    /**
+     * Contains Convenience method for adding tool select behaviour
+     */
     companion object {
 
         /**

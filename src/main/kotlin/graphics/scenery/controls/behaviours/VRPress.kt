@@ -8,7 +8,18 @@ import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.controls.TrackerRole
 import org.scijava.ui.behaviour.DragBehaviour
 
-open class VRPress (
+/**
+ * Behavior for pressing or clicking nodes.
+ *
+ * When triggered and [controllerHitbox] is intersecting a node with a [Pressable] attribute
+ * [onPress] and then the respective functions of the Pressable attribute are called.
+ *
+ * @param targets Only nodes in this list may be dragged. They must have a [Pressable] attribute.
+ * @param multiTarget If this is true all targets which collide with [controllerHitbox] will be interacted with otherwise only one.
+ *
+ * @author Jan Tiemann
+ */
+open class VRPress(
     protected val name: String,
     protected val controllerHitbox: Node,
     protected val targets: () -> List<Node>,
@@ -16,15 +27,17 @@ open class VRPress (
     protected val onPress: (() -> Unit)? = null
 ) : DragBehaviour {
 
-    val controllerSpatial: Spatial
+    protected val controllerSpatial: Spatial = controllerHitbox.spatialOrNull()
+        ?: throw IllegalArgumentException("controller hitbox needs a spatial attribute")
 
-    init {
-        controllerSpatial = controllerHitbox.spatialOrNull()
-            ?: throw IllegalArgumentException("controller hitbox needs a spatial attribute")
-    }
+    protected var selected = emptyList<Node>()
 
-    var selected = emptyList<Node>()
-
+    /**
+     * Called on the first frame this behavior is triggered.
+     *
+     * @param x invalid - residue from parent behavior. Use [controllerSpatial] instead.
+     * @param y invalid - residue from parent behavior. Use [controllerSpatial] instead.
+     */
     override fun init(x: Int, y: Int) {
         selected = targets().filter { box -> controllerHitbox.spatialOrNull()?.intersects(box) ?: false }
         if (!multiTarget) {
@@ -33,17 +46,33 @@ open class VRPress (
         if (selected.isNotEmpty()) {
             onPress?.let { it() }
         }
-        selected.forEach {it.getAttributeOrNull(Pressable::class.java)?.onPress?.invoke()}
+        selected.forEach { it.getAttributeOrNull(Pressable::class.java)?.onPress?.invoke() }
     }
 
+    /**
+     * Called on every frame this behavior is triggered.
+     *
+     * @param x invalid - residue from parent behavior. Use [controllerSpatial] instead.
+     * @param y invalid - residue from parent behavior. Use [controllerSpatial] instead.
+     */
     override fun drag(x: Int, y: Int) {
-        selected.forEach {it.getAttributeOrNull(Pressable::class.java)?.onHold?.invoke()}
+        selected.forEach { it.getAttributeOrNull(Pressable::class.java)?.onHold?.invoke() }
     }
 
+    /**
+     * Called on the last frame this behavior is triggered.
+     *
+     * @param x invalid - residue from parent behavior. Use [controllerSpatial] instead.
+     * @param y invalid - residue from parent behavior. Use [controllerSpatial] instead.
+     */
     override fun end(x: Int, y: Int) {
-        selected.forEach {it.getAttributeOrNull(Pressable::class.java)?.onRelease?.invoke()}
+        selected.forEach { it.getAttributeOrNull(Pressable::class.java)?.onRelease?.invoke() }
         selected = emptyList()
     }
+
+    /**
+     * Contains Convenience method for adding press behaviour
+     */
     companion object {
 
         /**
@@ -79,9 +108,15 @@ open class VRPress (
     }
 }
 
-
+/**
+ * Attribute which marks a node than can be pressed by the [VRPress] behavior.
+ *
+ * @param onPress called in the first frame of the interaction
+ * @param onHold called each frame of the interaction
+ * @param onRelease called in the last frame of the interaction
+ */
 open class Pressable(
     val onPress: (() -> Unit)? = null,
     val onHold: (() -> Unit)? = null,
-    val onRelease: (() -> Unit)? = null){
-}
+    val onRelease: (() -> Unit)? = null
+)

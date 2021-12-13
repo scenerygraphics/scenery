@@ -20,11 +20,16 @@ import kotlin.system.exitProcess
  * Example for usage of VR controllers. Demonstrates the use of custom key bindings on the
  * HMD, the use of intersection testing with scene elements, and more advanced tools.
  *
+ * Contents:
+ * - Boxes to select and scale and to grab and move
+ * - A grabable spray can to the left
+ * - A touchable party sphere to the right
+ *
  * Available Controls:
  * Side buttons alone:  Grab Object
  * Both side buttons together: Move to scale, after selection
  * Right Trigger:       Select to Scale
- * Left Trigger:        Select Party Cube
+ * Left Trigger:        Select to Party first, then Scale
  * Left A Button:       Options Menu
  *
  * @author Ulrik Günther <hello@ulrik.is>
@@ -38,6 +43,7 @@ class VRControllerExample : SceneryBase(
     private lateinit var boxes: List<Node>
     private lateinit var hullbox: Box
     private var leftControllerPushes = true
+    private var selectionStorage: Node? = null
 
     override fun init() {
         hmd = OpenVRHMD(useCompositor = true)
@@ -86,7 +92,7 @@ class VRControllerExample : SceneryBase(
              * If there is an intersection with a box and the left controller,
              * that box is slightly nudged in the direction
              * of the controller's velocity.*/
-            obj.addAttribute(Touchable::class.java, Touchable(onTouch = {device ->
+            obj.addAttribute(Touchable::class.java, Touchable(onTouch = { device ->
                 if (leftControllerPushes) {
                     if (device.role == TrackerRole.LeftHand) {
                         obj.ifSpatial {
@@ -96,7 +102,7 @@ class VRControllerExample : SceneryBase(
                 }
             }))
             obj.addAttribute(Grabable::class.java, Grabable())
-            obj.addAttribute(Selectable::class.java, Selectable())
+            obj.addAttribute(Selectable::class.java, Selectable(onSelect = {selectionStorage = obj}))
             obj
         }
 
@@ -145,7 +151,7 @@ class VRControllerExample : SceneryBase(
 
         thread {
             while (!running) {
-                Thread.sleep(200)
+                sleep(200)
             }
 
             hmd.events.onDeviceConnect.add { hmd, device, timestamp ->
@@ -196,18 +202,7 @@ class VRControllerExample : SceneryBase(
         VRGrab.createAndSet(scene, hmd, listOf(OpenVRHMD.OpenVRButton.Side), listOf(TrackerRole.LeftHand,TrackerRole.RightHand))
         VRPress.createAndSet(scene, hmd, listOf(OpenVRHMD.OpenVRButton.Trigger), listOf(TrackerRole.LeftHand,TrackerRole.RightHand))
 
-        val selectionStorage =
-            VRSelect.createAndSetWithStorage(
-                scene,
-                hmd,
-                listOf(OpenVRHMD.OpenVRButton.Trigger),
-                listOf(TrackerRole.RightHand)
-            )
-        VRScale.createAndSet(hmd, OpenVRHMD.OpenVRButton.Side) {
-            selectionStorage.selected?.ifSpatial { scale *= Vector3f(it) }
-        }
-
-        VRSelect.createAndSetWithAction(scene,
+        VRSelect.createAndSet(scene,
             hmd,
             listOf(OpenVRHMD.OpenVRButton.Trigger),
             listOf(TrackerRole.LeftHand),
@@ -219,8 +214,19 @@ class VRControllerExample : SceneryBase(
                     sleep(2 * 1000)
                     w.deativate()
                 }
-            })
+            },
+        true)
 
+        // a selection without a general action. Executes just the [onSelect] function of the [Selectable]
+        VRSelect.createAndSet(scene,
+            hmd,
+            listOf(OpenVRHMD.OpenVRButton.Trigger),
+            listOf(TrackerRole.RightHand)
+            )
+
+        VRScale.createAndSet(hmd, OpenVRHMD.OpenVRButton.Side) {
+            selectionStorage?.ifSpatial { scale *= Vector3f(it) }
+        }
 
         VRSelectionWheel.createAndSet(scene, hmd,
             listOf(OpenVRHMD.OpenVRButton.A), listOf(TrackerRole.LeftHand),

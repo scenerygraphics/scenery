@@ -14,7 +14,13 @@ import kotlin.math.PI
 
 
 /**
- * Select nodes with the attribute [Selectable] with a VR controller.
+ * Point and select nodes with the attribute [Selectable] with a VR controller.
+ *
+ * When triggered a ray will shoot out from the controller. The ray stops at the first collision with a node with a
+ *  attribute and wiggles it to indicate a hit. Then when the user releases the trigger button [onSelect] and
+ *  [Selectable.onSelect] of the node are called.
+ *
+ *  @param showIndicator whether a thin line should indicate the last selection
  *
  * @author Jan Tiemann
  */
@@ -23,7 +29,7 @@ open class VRSelect(
     protected val controller: Node,
     protected val scene: Scene,
     protected val showIndicator: Boolean = true,
-    protected val selected: (Node) -> Unit
+    protected val onSelect: ((Node) -> Unit)?
 ) : DragBehaviour {
 
     private var activeWiggler: Wiggler? = null
@@ -52,15 +58,20 @@ open class VRSelect(
         scene.addChild(selectionIndicator)
     }
 
+    /**
+     * Activates the target las0r.
+     */
     override fun init(x: Int, y: Int) {
         laser.visible = true
     }
 
+    /**
+     * Wiggles potential targets and adjust the length of the target laser visualisation.
+     */
     override fun drag(x: Int, y: Int) {
         val hit = scene.raycast(
             controller.spatialOrNull()!!.worldPosition(),
-            laser.spatial().worldRotation().transform(Vector3f(0f, 1f, 0f)),
-            emptyList()
+            laser.spatial().worldRotation().transform(Vector3f(0f, 1f, 0f))
         )
             .matches.firstOrNull { it.node.getAttributeOrNull(Selectable::class.java) != null }
 
@@ -80,6 +91,9 @@ open class VRSelect(
         }
     }
 
+    /**
+     * Performs the selection
+     */
     override fun end(x: Int, y: Int) {
         activeWiggler?.deativate()
         activeWiggler = null
@@ -88,8 +102,7 @@ open class VRSelect(
 
         scene.raycast(
             controller.spatialOrNull()!!.worldPosition(),
-            laser.spatial().worldRotation().transform(Vector3f(0f, 1f, 0f)),
-            emptyList()
+            laser.spatial().worldRotation().transform(Vector3f(0f, 1f, 0f))
         )
             .matches.firstOrNull { it.node.getAttributeOrNull(Selectable::class.java) != null }
             ?.let {
@@ -99,60 +112,26 @@ open class VRSelect(
                         selectionIndicator.visible = true
                     }
                 }
-                selected(it.node)
+                it.node.getAttributeOrNull(Selectable::class.java)?.onSelect?.invoke()
+                onSelect?.invoke(it.node)
             }
     }
 
-    class SelectionStorage {
-        var selected: Node? = null
-    }
-
+    /**
+     * Contains Convenience method for adding selection behaviour.
+     */
     companion object {
-
-        /**
-         * Convenience method for adding selection behaviour
-         * @return A container which will point to the currently selected node or null.
-         */
-        fun createAndSetWithStorage(
-            scene: Scene,
-            hmd: OpenVRHMD,
-            button: List<OpenVRHMD.OpenVRButton>,
-            controllerSide: List<TrackerRole>
-        ): SelectionStorage {
-            val selectionStorage = SelectionStorage()
-
-            hmd.events.onDeviceConnect.add { _, device, _ ->
-                if (device.type == TrackedDeviceType.Controller) {
-                    device.model?.let { controller ->
-                        if (controllerSide.contains(device.role)) {
-                            val name = "VRDrag:${hmd.trackingSystemName}:${device.role}:$button"
-                            val select = VRSelect(
-                                name,
-                                controller.children.first(),
-                                scene
-                            ) { selectionStorage.selected = it }
-
-                            hmd.addBehaviour(name, select)
-                            button.forEach {
-                                hmd.addKeyBinding(name, device.role, it)
-                            }
-                        }
-                    }
-                }
-            }
-            return selectionStorage
-        }
 
         /**
          * Convenience method for adding selection behaviour. [action] is performed with a successfully selected node.
          * @param showIndicator whether a thin red line should indicate the last selection.
          */
-        fun createAndSetWithAction(
+        fun createAndSet(
             scene: Scene,
             hmd: OpenVRHMD,
             button: List<OpenVRHMD.OpenVRButton>,
             controllerSide: List<TrackerRole>,
-            action: (Node) -> Unit,
+            action: (Node) -> Unit = { },
             showIndicator: Boolean = false
         ) {
             hmd.events.onDeviceConnect.add { _, device, _ ->
@@ -164,9 +143,11 @@ open class VRSelect(
                                 name,
                                 controller.children.first(),
                                 scene,
-                                showIndicator,
-                                action
-                            )
+                                showIndicator
+                            ) { node ->
+                                hmd.vibrate(device)
+                                action(node)
+                            }
                             hmd.addBehaviour(name, select)
                             button.forEach {
                                 hmd.addKeyBinding(name, device.role, it)
@@ -179,4 +160,11 @@ open class VRSelect(
     }
 }
 
-open class Selectable
+/**
+ * Attribute which marks a node than can be selected by the [VRSelect] behavior.
+ *
+ * @param onSelect called upon a successful selection.
+ */
+open class Selectable(
+    val onSelect: (() -> Unit)? = null
+)
