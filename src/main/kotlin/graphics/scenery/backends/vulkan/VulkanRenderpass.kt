@@ -363,7 +363,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
         }
     }
 
-    fun getDescriptorSetLayoutForTexture(name: String, renderable: Renderable): Pair<Long, List<VulkanShaderModule.UBOSpec>>? {
+    fun getDescriptorSetLayoutForTexture(name: String, renderable: Renderable): Pair<Long, List<ShaderIntrospection.UBOSpec>>? {
         logger.debug("Looking for texture name $name in descriptor specs")
         val set = getActivePipeline(renderable).descriptorSpecs.entries
             .groupBy { it.value.set }
@@ -707,7 +707,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
         vulkanMetadata.renderLists.keys.forEach { it.stale = true }
     }
 
-    private fun initializeDescriptorSetLayoutForSpecs(setId: Long, specs: List<MutableMap.MutableEntry<String, VulkanShaderModule.UBOSpec>>): Long {
+    private fun initializeDescriptorSetLayoutForSpecs(setId: Long, specs: List<MutableMap.MutableEntry<String, ShaderIntrospection.UBOSpec>>): Long {
         val contents = specs.map { s ->
             val spec = s.value
             logger.debug("$name: Looking at ${spec.name} with size ${spec.size} and ${spec.members.size} members")
@@ -720,9 +720,9 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
                     listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1))
 
                 spec.name.startsWith("Input")
-                    && (spec.type == VulkanShaderModule.UBOSpecType.SampledImage1D
-                    || spec.type == VulkanShaderModule.UBOSpecType.SampledImage2D
-                    || spec.type == VulkanShaderModule.UBOSpecType.SampledImage3D) ->
+                    && (spec.type == ShaderIntrospection.UBOSpecType.SampledImage1D
+                    || spec.type == ShaderIntrospection.UBOSpecType.SampledImage2D
+                    || spec.type == ShaderIntrospection.UBOSpecType.SampledImage3D) ->
                     if(spec.members.isNotEmpty()) {
                         spec.members.map { Pair(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1) }.toList()
                     } else {
@@ -730,9 +730,9 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
                     }
 
                 spec.name.startsWith("Input")
-                    && (spec.type == VulkanShaderModule.UBOSpecType.Image1D
-                    || spec.type == VulkanShaderModule.UBOSpecType.Image2D
-                    || spec.type == VulkanShaderModule.UBOSpecType.Image3D) ->
+                    && (spec.type == ShaderIntrospection.UBOSpecType.Image1D
+                    || spec.type == ShaderIntrospection.UBOSpecType.Image2D
+                    || spec.type == ShaderIntrospection.UBOSpecType.Image3D) ->
                     if(spec.members.isNotEmpty()) {
                         spec.members.map { Pair(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1) }.toList()
                     } else {
@@ -740,9 +740,9 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
                     }
 
                 spec.name.startsWith("Output")
-                    && (spec.type == VulkanShaderModule.UBOSpecType.Image1D
-                    || spec.type == VulkanShaderModule.UBOSpecType.Image2D
-                    || spec.type == VulkanShaderModule.UBOSpecType.Image3D) ->
+                    && (spec.type == ShaderIntrospection.UBOSpecType.Image1D
+                    || spec.type == ShaderIntrospection.UBOSpecType.Image2D
+                    || spec.type == ShaderIntrospection.UBOSpecType.Image3D) ->
                     if(spec.members.isNotEmpty()) {
                         spec.members.map { Pair(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1) }.toList()
                     } else {
@@ -755,20 +755,20 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
                 spec.name == "ShaderProperties" ->
                     listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1))
 
-                spec.type == VulkanShaderModule.UBOSpecType.StorageBuffer ->
+                spec.type == ShaderIntrospection.UBOSpecType.StorageBuffer ->
                     listOf(Pair(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, spec.size))
 
-                spec.type == VulkanShaderModule.UBOSpecType.StorageBufferDynamic ->
+                spec.type == ShaderIntrospection.UBOSpecType.StorageBufferDynamic ->
                     listOf(Pair(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, spec.size))
 
-                spec.type == VulkanShaderModule.UBOSpecType.Image1D
-                    || spec.type == VulkanShaderModule.UBOSpecType.Image2D
-                    || spec.type == VulkanShaderModule.UBOSpecType.Image3D ->
+                spec.type == ShaderIntrospection.UBOSpecType.Image1D
+                    || spec.type == ShaderIntrospection.UBOSpecType.Image2D
+                    || spec.type == ShaderIntrospection.UBOSpecType.Image3D ->
                     listOf(Pair(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, maxOf(1, spec.size)))
 
-                spec.type == VulkanShaderModule.UBOSpecType.SampledImage1D
-                    || spec.type == VulkanShaderModule.UBOSpecType.SampledImage2D
-                    || spec.type == VulkanShaderModule.UBOSpecType.SampledImage3D ->
+                spec.type == ShaderIntrospection.UBOSpecType.SampledImage1D
+                    || spec.type == ShaderIntrospection.UBOSpecType.SampledImage2D
+                    || spec.type == ShaderIntrospection.UBOSpecType.SampledImage3D ->
                     listOf(Pair(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, maxOf(1, spec.size)))
 
                 else ->
