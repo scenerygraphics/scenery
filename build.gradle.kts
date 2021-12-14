@@ -30,9 +30,7 @@ repositories {
 dependencies {
     implementation(platform("org.scijava:pom-scijava:31.1.0"))
     annotationProcessor("org.scijava:scijava-common")
-//    kapt("org.scijava:scijava-common")
 
-//    implementation(platform(kotlin("bom")))
     implementation(kotlin("stdlib-jdk8"))
     implementation(kotlin("reflect"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.5.2")
@@ -41,7 +39,7 @@ dependencies {
     implementation("org.jogamp.jogl:jogl-all:2.3.2", joglNatives)
     implementation("org.slf4j:slf4j-api")
     implementation("net.clearvolume:cleargl")
-//    implementation("org.joml")
+    implementation("org.joml:joml:1.10.2")
     implementation("net.java.jinput:jinput:2.0.9", "natives-all")
     implementation("org.jocl:jocl:2.0.2")
     implementation("org.scijava:scijava-common")
@@ -49,7 +47,6 @@ dependencies {
     implementation("org.scijava:ui-behaviour")
     implementation("org.scijava:scripting-javascript")
     implementation("org.scijava:scripting-jython")
-//    implementation(misc.trove)
     implementation("net.java.dev.jna:jna-platform:5.9.0")
     implementation(platform("org.lwjgl:lwjgl-bom:3.3.0"))
     listOf("",
@@ -59,7 +56,10 @@ dependencies {
         "-opengl",
         "-openvr",
         "-xxhash",
-        "-remotery").forEach { lwjglProject ->
+        "-remotery",
+        "-spvc",
+        "-shaderc"
+    ).forEach { lwjglProject ->
         api("org.lwjgl:lwjgl$lwjglProject:3.3.0")
 
         if (lwjglProject != "-vulkan") {
@@ -71,7 +71,6 @@ dependencies {
     implementation("com.fasterxml.jackson.core:jackson-databind:2.12.5")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.12.5")
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.12.5")
-    api("graphics.scenery:spirvcrossj:0.8.0-1.1.106.0", lwjglNatives)
     implementation("org.zeromq:jeromq:0.4.3")
     implementation("com.esotericsoftware:kryo:5.1.1")
     implementation("de.javakaffee:kryo-serializers:0.45")
@@ -82,6 +81,8 @@ dependencies {
     implementation("org.bytedeco:ffmpeg:4.2.1-1.5.2", ffmpegNatives)
     implementation("org.reflections:reflections:0.9.12")
     implementation("io.github.classgraph:classgraph:4.8.86")
+
+    implementation("info.picocli:picocli:4.6.2")
 
     api("sc.fiji:bigdataviewer-core:10.2.0")
     api("sc.fiji:bigdataviewer-vistools:1.0.0-beta-28")
@@ -157,16 +158,6 @@ tasks {
             var propertiesNode = asNode().appendNode("properties")
             propertiesNode.appendNode("inceptionYear", 2016)
 
-            // spirvcrossj natives
-            lwjglNatives.forEach {
-                var dependencyNode = dependenciesNode.appendNode("dependency")
-                dependencyNode.appendNode("groupId", "graphics.scenery")
-                dependencyNode.appendNode("artifactId", "spirvcrossj")
-                dependencyNode.appendNode("version", "\${spirvcrossj.version}")
-                dependencyNode.appendNode("classifier", "$it")
-                dependencyNode.appendNode("scope", "runtime")
-            }
-
             // lwjgl natives
             lwjglNatives.forEach { nativePlatform ->
                 listOf(
@@ -176,7 +167,9 @@ tasks {
                     "-opengl",
                     "-openvr",
                     "-xxhash",
-                    "-remotery"
+                    "-remotery",
+                    "-spvc",
+                    "-shaderc"
                 ).forEach { lwjglProject ->
                     var dependencyNode = dependenciesNode.appendNode("dependency")
                     dependencyNode.appendNode("groupId", "org.lwjgl")
@@ -234,7 +227,6 @@ tasks {
                 "biojava-modfinder",
                 "kotlin-scripting-jsr223",
                 "art-dtrack-sdk",
-                "spirvcrossj",
                 "jvrpn",
                 "jogl-minimal",
                 "jinput",
@@ -254,6 +246,8 @@ tasks {
                 "lwjgl-openvr",
                 "lwjgl-xxhash",
                 "lwjgl-remotery",
+                "lwjgl-spvc",
+                "lwjgl-shaderc",
                 "bigvolumeviewer")
 
             val toSkip = listOf("pom-scijava")
