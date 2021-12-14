@@ -1,6 +1,7 @@
 package graphics.scenery.backends
 
 import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.SystemHelpers.Companion.toIntArray
 import org.lwjgl.system.MemoryUtil
 import java.nio.IntBuffer
 import java.util.*
@@ -55,18 +56,7 @@ data class ShaderPackage(val baseClass: Class<*>,
     fun getSPIRVOpcodes(): IntArray? {
         var i = 0
         spirv?.let { spv ->
-            val buffer = IntArray(spirv.size/4)
-            spv.toList().windowed(4, 4).forEach { bytes ->
-                val value: Int = (bytes[0] and 0xFF.toByte()).toInt() shl 24 or
-                    ((bytes[1] and 0xFF.toByte()).toInt() shl 16) or
-                    ((bytes[2] and 0xFF.toByte()).toInt() shl 8) or
-                    ((bytes[3] and 0xFF.toByte()).toInt() shl 0)
-
-                buffer[i] = value
-                i++
-            }
-
-            return buffer
+            return spv.toIntArray()
         }
 
         return null

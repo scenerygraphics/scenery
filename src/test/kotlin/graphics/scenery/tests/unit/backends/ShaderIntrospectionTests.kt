@@ -6,8 +6,12 @@ import graphics.scenery.backends.ShaderType
 import graphics.scenery.backends.Shaders
 import graphics.scenery.tests.examples.compute.ComputeShaderExample
 import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.SystemHelpers.Companion.toIntArray
 import org.junit.Test
+import java.io.File
+import java.nio.ByteBuffer
 import kotlin.experimental.and
+import kotlin.test.assertContains
 import kotlin.test.assertEquals
 
 /**
@@ -175,27 +179,28 @@ void main()
             code,
             ShaderType.ComputeShader,
             debug = true,
+            warningsAsErrors = true,
             target = Shaders.ShaderTarget.Vulkan
         )
+
+        val binaryOutput = String(bytecode)
         compiler.close()
-        val si = ShaderIntrospection(bytecode.toSPIRVBytecode())
-        // FIXME: Fails here with "Currently no block to insert opcode."
+
+
+        // the output needs to contain variable names and the full source code
+        assertContains(binaryOutput, "ubo", false, "Debug SPIRV should contain UBO name")
+        assertContains(binaryOutput, "registers", false, "Debug SPIRV should contain push constant name")
+        assertContains(binaryOutput, "uTexture", false, "Debug SPIRV should contain first texture name")
+        assertContains(binaryOutput, "uImage", false, "Debug SPIRV should contain first image name")
+        assertContains(binaryOutput, "uSeparateTexture", false, "Debug SPIRV should contain second texture name")
+        assertContains(binaryOutput, "uSampler", false, "Debug SPIRV should contain first sampler name")
+        assertContains(binaryOutput, code, false, "Debug SPIRV should contain full source")
+
+        val si = ShaderIntrospection(bytecode.toIntArray())
         si.close()
     }
 
-    private fun ByteArray.toSPIRVBytecode(): IntArray {
-        return this
-            .toList()
-            .windowed(4, 4)
-            .map { bytes ->
-                (bytes[0] and 0xFF.toByte()).toInt() shl 24 or
-                    ((bytes[1] and 0xFF.toByte()).toInt() shl 16) or
-                    ((bytes[2] and 0xFF.toByte()).toInt() shl 8) or
-                    ((bytes[3] and 0xFF.toByte()).toInt() shl 0)
-            }.toIntArray()
-    }
-
     private fun getSimpleSPIRVBytecode(): IntArray {
-        return this.javaClass.getResourceAsStream("c_api_test.spv")!!.readBytes().toSPIRVBytecode()
+        return this.javaClass.getResourceAsStream("c_api_test.spv")!!.readBytes().toIntArray()
     }
 }
