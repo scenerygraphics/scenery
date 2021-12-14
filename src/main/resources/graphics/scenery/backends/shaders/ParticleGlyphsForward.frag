@@ -5,10 +5,11 @@ layout(location = 0) in SilhouetteData {
     vec3 Position;
     vec2 TexCoord;
     flat vec3 Center;
-    flat vec3 Properties;
+    flat vec2 Properties;
+    flat vec3 Color;
 } SilhouetteCorner;
 
-layout(location = 4) in CameraDataOut {
+layout(location = 5) in CameraDataOut {
     mat4 VP;
 } Camera;
 
@@ -82,19 +83,6 @@ void main() {
         float depth = (intersectionVP.z / intersectionVP.w);
         gl_FragDepth = depth;
 
-        // coloration is hardcoded for a specific kind of .csv dataset an therefore subject to change in a more dynamic and user-friendly way in the future
-        vec3 objColor = sin(vec3(63, 0, 1.9) * SilhouetteCorner.Properties.y - 1.5) * 0.5 + 0.5;
-        float R = 0.0, B = 0.0;
-        if(SilhouetteCorner.Properties.y > 0.0)
-        {
-            R = SilhouetteCorner.Properties.y;
-        }
-        else
-        {
-            B = abs(SilhouetteCorner.Properties.y);
-        }
-        objColor = vec3(R, 1.0, B);
-
         // lighting calculations (Phonng lighting model)
         // Light pos is hardcoded atm, but should get the information about the lights from scenery and the example itself
         vec3 lightPos = vec3(0.0, 0.0, 0.0);
@@ -113,7 +101,7 @@ void main() {
         float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32);
         vec3 specular = specularStrength * spec * lightColor;
 
-        vec3 result = (ambient + diffuse + specular) * objColor;
+        vec3 result = (ambient + diffuse + specular) * SilhouetteCorner.Color;
         FragColor = vec4(result, 0.1);
     }
 }

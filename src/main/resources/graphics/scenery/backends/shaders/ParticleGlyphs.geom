@@ -5,11 +5,12 @@ layout(triangle_strip, max_vertices=4) out;
 
 layout(location = 0) in VertexDataIn {
     vec3 Position;
-    vec3 Properties; // .x = radius, y = color factor
+    vec2 Properties; // .x = radius
+    vec3 Color;
 } VertexIn[];
 
 // for now I calculate for every particle the silhouette, instead of checking if they are in view -> only CamPosition needed
-layout(location = 2) in CameraDataIn {
+layout(location = 3) in CameraDataIn {
     vec3 Position;
     mat4 Transform;
     mat4 VP;
@@ -21,16 +22,18 @@ layout(location = 0) out SilhouetteData /*This is a corner of the silhouette-qua
     vec3 Position;
     vec2 TexCoord;
     flat vec3 Center;
-    flat vec3 Properties;
+    flat vec2 Properties;
+    flat vec3 Color;
 } SilhouetteCorner;
 
-layout(location = 4) out CameraDataOut {
+layout(location = 5) out CameraDataOut {
     mat4 VP;
 } CameraOut;
 
 const float eps = 0.0000000001;
 
-// Function that calculates the silhouette center and the radius of the silhouette, from Camera.Position, VertexIn.Position and VertexIn.Properties.x = ParticleRadius with
+// Function that calculates the silhouette center and the radius of the silhouette, from Camera.Position, VertexIn.Position
+// and VertexIn.Properties.x = ParticleRadius with
 // sr -> silhouette radius
 // sc -> silhouette center
 // e  -> distance between VertexIn.Position and Camera.Position
@@ -73,6 +76,7 @@ void main() {
     SilhouetteCorner.TexCoord = vec2(1.0, 1.0);
     SilhouetteCorner.Center = VertexIn[0].Position;
     SilhouetteCorner.Properties = VertexIn[0].Properties;
+    SilhouetteCorner.Color = VertexIn[0].Color;
     CameraOut.VP = Camera[0].VP;
     EmitVertex();
 
@@ -85,6 +89,7 @@ void main() {
     SilhouetteCorner.TexCoord = vec2(1.0, -1.0);
     SilhouetteCorner.Center = VertexIn[0].Position;
     SilhouetteCorner.Properties = VertexIn[0].Properties;
+    SilhouetteCorner.Color = VertexIn[0].Color;
     CameraOut.VP = Camera[0].VP;
     EmitVertex();
 
@@ -97,6 +102,7 @@ void main() {
     SilhouetteCorner.TexCoord = vec2(-1.0, 1.0);
     SilhouetteCorner.Center = VertexIn[0].Position;
     SilhouetteCorner.Properties = VertexIn[0].Properties;
+    SilhouetteCorner.Color = VertexIn[0].Color;
     CameraOut.VP = Camera[0].VP;
     EmitVertex();
 
@@ -109,6 +115,7 @@ void main() {
     SilhouetteCorner.TexCoord = vec2(-1.0, -1.0);
     SilhouetteCorner.Center = VertexIn[0].Position;
     SilhouetteCorner.Properties = VertexIn[0].Properties;
+    SilhouetteCorner.Color = VertexIn[0].Color;
     CameraOut.VP = Camera[0].VP;
     EmitVertex();
 

@@ -3,13 +3,15 @@
 
 layout(location = 0) in vec3 vertexPosition;
 layout(location = 1) in vec3 vertexNormal;
+layout(location = 2) in vec2 vertexTex;
 
 layout(location = 0) out VertexData {
     flat vec3 Position;
-    flat vec3 Properties;
+    flat vec2 Properties;
+    flat vec3 Color;
 } Vertex;
 
-layout(location = 2) out CameraDataOut {
+layout(location = 3) out CameraDataOut {
     vec3 CamPosition;
     mat4 Transform;
     mat4 VP;
@@ -37,7 +39,8 @@ layout(set = 0, binding = 0) uniform LightParameters {
 void main()
 {
     Vertex.Position = vertexPosition;
-    Vertex.Properties = vertexNormal;
+    Vertex.Properties = vertexTex;
+    Vertex.Color = vertexNormal;
 
     gl_Position = vec4(Vertex.Position, 1.0);
 

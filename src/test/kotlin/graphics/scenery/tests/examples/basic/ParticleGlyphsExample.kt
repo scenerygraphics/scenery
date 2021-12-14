@@ -6,6 +6,13 @@ import graphics.scenery.backends.Renderer
 import graphics.scenery.attribute.material.Material
 
 import graphics.scenery.primitives.ParticleGlyphs
+import graphics.scenery.utils.Statistics
+import org.joml.Vector2f
+import kotlin.concurrent.thread
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.pow
+import kotlin.math.sin
 
 import kotlin.random.Random
 
@@ -39,18 +46,20 @@ class ParticleGlyphsExample : SceneryBase("ParticleGlyphsExample") {
         light3.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
         scene.addChild(light3)
 
-        val particleNumber = 500000
+        val particleNumber = 50000
         val particlePositions = ArrayList<Vector3f>(particleNumber)
-        val particleProperties = ArrayList<Vector3f>(particleNumber)
+        val particleProperties = ArrayList<Vector2f>(particleNumber)
+        val particleColors = ArrayList<Vector3f>(particleNumber)
         repeat(particleNumber) {
             particlePositions.add(graphics.scenery.numerics.Random.random3DVectorFromRange(-50.0f, 50.0f))
-            particleProperties.add(Vector3f(Random.nextDouble(0.1, 1.0).toFloat(), Random.nextDouble(0.0, 1.0).toFloat(), 0.0f))
+            particleProperties.add(Vector2f(Random.nextDouble(0.1, 1.0).toFloat(), 0.0f))
+            particleColors.add(Vector3f(Random.nextDouble(0.1, 1.0).toFloat(), Random.nextDouble(0.0, 1.0).toFloat(), Random.nextDouble(0.0, 1.0).toFloat()))
         }
-        val particleGlyphs = ParticleGlyphs(particlePositions, particleProperties, false)
-        particleGlyphs.name = "Particles?"
+        val particleGlyphs = ParticleGlyphs(particlePositions, particleProperties, particleColors, false)
+        particleGlyphs.name = "Particles"
         scene.addChild(particleGlyphs)
 
-        val camStartDist = 50.0f
+        var camStartDist = 50.0f
         val camStart = Vector3f(0.0f, 0.0f, camStartDist)
         val cam: Camera = DetachedHeadCamera()
         cam.spatial {

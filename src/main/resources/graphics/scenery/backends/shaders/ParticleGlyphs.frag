@@ -5,10 +5,11 @@ layout(location = 0) in SilhouetteData {
     vec3 Position;
     vec2 TexCoord;
     flat vec3 Center;
-    flat vec3 Properties;
+    flat vec2 Properties;
+    flat vec3 Color;
 } SilhouetteCorner;
 
-layout(location = 4) in CameraDataOut {
+layout(location = 5) in CameraDataOut {
     mat4 VP;
 } Camera;
 
@@ -89,20 +90,8 @@ void main() {
         float depth = (intersectionVP.z / intersectionVP.w);
         gl_FragDepth = depth;
 
-        // Coloration is hardcoded for a specific kind of .csv dataset an therefore subject to change in a more dynamic and user-friendly way in the future
-        vec3 objColor = sin(vec3(63, 0, 1.9) * SilhouetteCorner.Properties.y - 1.5) * 0.5 + 0.5;
-        float R = 0.0, B = 0.0;
-        if(SilhouetteCorner.Properties.y > 0.0)
-        {
-            R = SilhouetteCorner.Properties.y;
-        }
-        else
-        {
-            B = abs(SilhouetteCorner.Properties.y);
-        }
-        objColor = vec3(R, 1.0, B);
         NormalsMaterial = vec4(EncodeOctaH(normal), 0.8, 0.2);
-        DiffuseAlbedo   = vec4(objColor, 1.0);
+        DiffuseAlbedo   = vec4(SilhouetteCorner.Color, 1.0);
     }
 }
 
