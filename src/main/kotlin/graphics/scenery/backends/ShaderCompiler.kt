@@ -121,7 +121,6 @@ class ShaderCompiler: AutoCloseable, Callable<ByteArray> {
         val resultLength = Shaderc.shaderc_result_get_length(result)
         val resultBytes = Shaderc.shaderc_result_get_bytes(result)
 
-        logger.info("Got $resultLength vs ${resultBytes?.remaining()}")
         val bytecode = if (resultLength > 0 && resultBytes != null) {
             val array = ByteArray(resultLength.toInt())
             resultBytes.get(array)
@@ -132,22 +131,30 @@ class ShaderCompiler: AutoCloseable, Callable<ByteArray> {
             throw ShaderCompilationException("Error compiling shader file $path, received zero-length bytecode")
         }
 
-        logger.info("Successfully compiled $path with ${Shaderc.shaderc_result_get_num_warnings(result)} warnings and ${Shaderc.shaderc_result_get_num_errors(result)} errors.")
+        logger.debug("Successfully compiled $path into bytecode (${(resultLength/4)} opcodes), with ${Shaderc.shaderc_result_get_num_warnings(result)} warnings and ${Shaderc.shaderc_result_get_num_errors(result)} errors.")
 
         Shaderc.shaderc_result_release(result)
         return bytecode
     }
 
+    /**
+     * Returns the version info for the shader compiler.
+     */
     fun versionInfo(): String {
         val p = Package.getPackage("org.lwjgl.util.shaderc")
         return "shaderc / lwjgl ${p?.specificationVersion} ${p?.implementationVersion}"
     }
 
+    /**
+     * Closes this compiler instance, freeing up resouces.
+     */
     override fun close() {
         Shaderc.shaderc_compiler_release(compiler)
-
     }
 
+    /**
+     * Hook function for picocli to be invoked on startup.
+     */
     override fun call(): ByteArray {
         println(versionInfo())
         val out = if(!this::output.isInitialized) {

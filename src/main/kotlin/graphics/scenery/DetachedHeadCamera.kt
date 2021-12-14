@@ -110,7 +110,7 @@ class DetachedHeadCamera(@Transient var tracker: TrackerInput? = null) : Camera(
         return object: CameraSpatial(this) {
             override var projection: Matrix4f = Matrix4f().identity()
                 get() = if(tracker != null && tracker is Display && tracker?.initializedAndWorking() == true) {
-                    (tracker as? Display)?.getEyeProjection(0) ?: super.projection
+                    (tracker as? Display)?.getEyeProjection(0, nearPlaneDistance, farPlaneDistance) ?: super.projection
                 } else {
                     super.projection
                 }

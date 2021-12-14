@@ -858,6 +858,10 @@ open class OpenGLRenderer(hub: Hub,
                 (node as? Node)?.let { destroyNode(it, onShutdown = true) }
             }
 
+            hub?.elements?.values?.forEach {
+                (it as? Node)?.renderableOrNull()?.close()
+            }
+
             scene.initialized = false
 
             if(cglWindow != null) {

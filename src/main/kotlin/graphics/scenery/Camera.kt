@@ -147,9 +147,26 @@ open class Camera : DefaultNode("Camera"), HasRenderable, HasMaterial, HasCustom
      * Returns the list of objects (as [Scene.RaycastResult]) under the screen space position
      * indicated by [x] and [y], sorted by their distance to the observer.
      */
-    @JvmOverloads fun getNodesForScreenSpacePosition(x: Int, y: Int,
-                                                       ignoredObjects: List<Class<*>> = emptyList(),
-                                                       debug: Boolean = false): Scene.RaycastResult {
+    @JvmOverloads
+    fun getNodesForScreenSpacePosition(
+        x: Int, y: Int,
+        ignoredObjects: List<Class<*>> = listOf<Class<*>>(BoundingGrid::class.java),
+        debug: Boolean = false
+    ): Scene.RaycastResult {
+        return getNodesForScreenSpacePosition(x, y, { n: Node ->
+            !ignoredObjects.any { it.isAssignableFrom(n.javaClass) }
+        }, debug)
+    }
+
+    /**
+     * Returns the list of objects (as [Scene.RaycastResult]) under the screen space position
+     * indicated by [x] and [y], sorted by their distance to the observer.
+     */
+    fun getNodesForScreenSpacePosition(
+        x: Int, y: Int,
+        filter: (Node) -> Boolean,
+        debug: Boolean = false
+    ): Scene.RaycastResult {
         val (worldPos, worldDir) = screenPointToRay(x, y)
 
         val scene = getScene()
@@ -158,7 +175,7 @@ open class Camera : DefaultNode("Camera"), HasRenderable, HasMaterial, HasCustom
             return Scene.RaycastResult(emptyList(), worldPos, worldDir)
         }
 
-        return scene.raycast(worldPos, worldDir, ignoredObjects, debug)
+        return scene.raycast(worldPos, worldDir, filter, debug)
     }
 
     /**
