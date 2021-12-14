@@ -38,4 +38,8 @@ interface Renderable {
     fun preDraw(): Boolean {
         return true
     }
+
+    fun close() {
+
+    }
 }

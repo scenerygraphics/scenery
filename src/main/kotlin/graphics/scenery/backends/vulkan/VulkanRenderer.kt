@@ -5,6 +5,7 @@ import graphics.scenery.backends.*
 import graphics.scenery.attribute.renderable.Renderable
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.attribute.renderable.DelegatesRenderable
+import graphics.scenery.attribute.renderable.HasCustomRenderable
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.*
 import io.github.classgraph.ClassGraph
@@ -2176,10 +2177,9 @@ open class VulkanRenderer(hub: Hub,
             destroyNode(it, onShutdown = true)
         }
 
-        // The hub might contain elements that are both in the scene graph,
-        // and in the hub, e.g. a VolumeManager. We clean them here as well.
-        hub?.find { it is Node }?.forEach { (_, node) ->
-            (node as? Node)?.let { destroyNode(it, onShutdown = true) }
+        hub?.elements?.values?.forEach { elem ->
+            (elem as? HasCustomRenderable<*>)?.close()
+            (elem as? Node)?.let { destroyNode(it, onShutdown = true) }
         }
 
         scene.metadata.remove("DescriptorCache")

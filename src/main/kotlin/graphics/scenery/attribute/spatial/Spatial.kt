@@ -53,6 +53,13 @@ interface Spatial: RealLocalizable, RealPositionable {
      */
     fun worldScale(): Vector3f
 
+    /**
+     * Extracts the rotation component from the world matrix
+     *
+     * Is not correct for world matrices with shear or are anisotropic!
+     */
+    fun worldRotation(): Quaternionf
+
     fun intersectAABB(origin: Vector3f, dir: Vector3f): MaybeIntersects
 
     /**
