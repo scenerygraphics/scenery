@@ -86,6 +86,8 @@ class ShaderIntrospection(
 
     init {
         stackPush().use { stack ->
+            logger.debug("Using spirv-cross, ${Spvc.spvc_get_commit_revision_and_timestamp()}")
+
             bytecode = MemoryUtil.memAllocInt(spirv.size)
             bytecode.put(spirv, 0, spirv.size)
             bytecode.flip()
@@ -106,8 +108,11 @@ class ShaderIntrospection(
             }
             Spvc.spvc_context_set_error_callback(context, callback, 0)
 
-            logger.debug("Parsing ${spirv.size} SPIR-V ops on context ${context.toHexString()}")
-            Spvc.spvc_context_parse_spirv(context, bytecode, spirv.size.toLong(), ir)
+            Spvc.spvc_context_parse_spirv(context, bytecode, bytecode.remaining().toLong(), ir)
+
+            if(ir.get(0) == 0L) {
+                throw ShaderIntrospectionException("Shader introspection returned NULL IR: ${Spvc.spvc_context_get_last_error_string(context) ?: "Unknown failure in shader introspection"}", vulkanSemantics, version)
+            }
 
             Spvc.spvc_context_create_compiler(
                 context,
@@ -116,6 +121,7 @@ class ShaderIntrospection(
                 Spvc.SPVC_CAPTURE_MODE_TAKE_OWNERSHIP,
                 compilerPtr
             )
+            logger.debug("Parsed ${bytecode.remaining().toLong()} SPIR-V ops on context ${context.toHexString()} and created compiler.")
 
             compiler = compilerPtr.get(0)
 

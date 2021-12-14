@@ -16,7 +16,6 @@ class ShaderCompiler: AutoCloseable, Callable<ByteArray> {
     private val logger by LazyLogger()
 
     protected val compiler = Shaderc.shaderc_compiler_initialize()
-    protected val options = Shaderc.shaderc_compile_options_initialize()
 
     @CommandLine.Parameters(index = "0", description = ["The file to compile"])
     lateinit var file: File
@@ -62,6 +61,7 @@ class ShaderCompiler: AutoCloseable, Callable<ByteArray> {
         path: String? = null,
         baseClass: String? = null
     ): ByteArray {
+        val options = Shaderc.shaderc_compile_options_initialize()
         logger.debug("Compiling code from $path of $baseClass, debug=$debug, optimisation=$optimisationLevel")
         val shaderType = when (type) {
             ShaderType.VertexShader -> Shaderc.shaderc_glsl_vertex_shader
@@ -72,15 +72,16 @@ class ShaderCompiler: AutoCloseable, Callable<ByteArray> {
             ShaderType.ComputeShader -> Shaderc.shaderc_glsl_compute_shader
         }
 
+        Shaderc.shaderc_compile_options_set_source_language(options, Shaderc.shaderc_source_language_glsl)
+
         val shaderCode = if (target == Shaders.ShaderTarget.Vulkan) {
+            Shaderc.shaderc_compile_options_set_target_env(options, Shaderc.shaderc_target_env_vulkan, Shaderc.shaderc_env_version_vulkan_1_2)
+            Shaderc.shaderc_compile_options_set_target_spirv(options, Shaderc.shaderc_spirv_version_1_5)
             code
         } else {
-            val extensionEnd = code.indexOf("\n", code.findLastAnyOf(listOf("#extension", "#versions"))?.first ?: 0)
+            Shaderc.shaderc_compile_options_set_target_env(options, Shaderc.shaderc_target_env_opengl, Shaderc.shaderc_env_version_opengl_4_5)
+            val extensionEnd = code.indexOf("\n", code.findLastAnyOf(listOf("#extension", "#version"))?.first ?: 0)
             code.substring(0, extensionEnd) + "\n#define OPENGL\n" + code.substring(extensionEnd)
-        }
-
-        if(debug) {
-            Shaderc.shaderc_compile_options_set_generate_debug_info(options)
         }
 
         val optimisation = when(optimisationLevel) {
@@ -95,6 +96,10 @@ class ShaderCompiler: AutoCloseable, Callable<ByteArray> {
             Shaderc.shaderc_compile_options_set_warnings_as_errors(options)
         }
 
+        if(debug) {
+            Shaderc.shaderc_compile_options_set_generate_debug_info(options)
+        }
+
         val result = Shaderc.shaderc_compile_into_spv(
             compiler,
             shaderCode,
@@ -104,27 +109,30 @@ class ShaderCompiler: AutoCloseable, Callable<ByteArray> {
             options
         )
 
-        Shaderc.shaderc_result_get_compilation_status(result)
+        Shaderc.shaderc_compile_options_release(options)
 
-        val compileFail = Shaderc.shaderc_result_get_compilation_status(result) != Shaderc.shaderc_compilation_status_success
-        if (compileFail) {
+        if (Shaderc.shaderc_result_get_compilation_status(result) != Shaderc.shaderc_compilation_status_success) {
             val log = Shaderc.shaderc_result_get_error_message(result)
-            logger.error("Error in shader compilation of ${path} for ${baseClass}: $log")
+            logger.error("Error in shader compilation of $path for ${baseClass}: $log")
             logger.error("Shader code was: \n${shaderCode.split("\n").mapIndexed { index, s -> "${index+1}\t:  $s" }.joinToString("\n")}")
+            throw ShaderCompilationException("Error compiling shader file $path")
         }
 
         val resultLength = Shaderc.shaderc_result_get_length(result)
         val resultBytes = Shaderc.shaderc_result_get_bytes(result)
 
-        val bytecode = if (!compileFail && resultLength > 0 && resultBytes != null) {
+        logger.info("Got $resultLength vs ${resultBytes?.remaining()}")
+        val bytecode = if (resultLength > 0 && resultBytes != null) {
             val array = ByteArray(resultLength.toInt())
             resultBytes.get(array)
             array
         } else {
             val log = Shaderc.shaderc_result_get_error_message(result)
-            logger.error("Error in shader linking of ${path} for ${baseClass}: $log")
-            throw ShaderCompilationException("Error compiling shader file ${path}")
+            logger.error("Error in shader linking of $path for ${baseClass}: $log")
+            throw ShaderCompilationException("Error compiling shader file $path, received zero-length bytecode")
         }
+
+        logger.info("Successfully compiled $path with ${Shaderc.shaderc_result_get_num_warnings(result)} warnings and ${Shaderc.shaderc_result_get_num_errors(result)} errors.")
 
         Shaderc.shaderc_result_release(result)
         return bytecode
@@ -136,7 +144,6 @@ class ShaderCompiler: AutoCloseable, Callable<ByteArray> {
     }
 
     override fun close() {
-        Shaderc.shaderc_compile_options_release(options)
         Shaderc.shaderc_compiler_release(compiler)
 
     }
