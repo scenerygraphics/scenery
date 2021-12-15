@@ -1,4 +1,4 @@
-package graphics.scenery.proteins
+package graphics.scenery.proteins.chemistry
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper

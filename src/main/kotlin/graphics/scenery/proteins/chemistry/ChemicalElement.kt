@@ -1,4 +1,4 @@
-package graphics.scenery.proteins
+package graphics.scenery.proteins.chemistry
 
 import org.joml.Vector3f
 

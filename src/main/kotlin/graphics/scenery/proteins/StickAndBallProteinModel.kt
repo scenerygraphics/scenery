@@ -3,6 +3,7 @@ package graphics.scenery.proteins
 import graphics.scenery.*
 import org.joml.*
 import graphics.scenery.primitives.Cylinder
+import graphics.scenery.proteins.chemistry.PeriodicTable
 import org.biojava.nbio.structure.*
 
 /**
