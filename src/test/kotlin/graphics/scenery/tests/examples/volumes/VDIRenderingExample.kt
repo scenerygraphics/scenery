@@ -76,9 +76,12 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
 
 //        cam.position = Vector3f( 3.853E+0f,  7.480E-1f, -9.672E-1f)
 //        cam.rotation = Quaternionf( 4.521E-2,  9.413E-1, -1.398E-1, -3.040E-1)
+//
+//        cam.position = Vector3f( 3.853E+0f,  7.480E-1f, -9.672E-1f)
+//        cam.rotation = Quaternionf( 4.521E-2,  9.413E-1, -1.398E-1, -3.040E-1)
 
-        cam.position = Vector3f( 3.216E+0f,  8.251E-1f, -9.890E-1f)
-        cam.rotation = Quaternionf( 3.049E-2,  9.596E-1, -1.144E-1, -2.553E-1)
+        cam.position = Vector3f( 5.286E+0f,  8.330E-1f,  3.088E-1f)
+        cam.rotation = Quaternionf( 4.208E-2,  9.225E-1, -1.051E-1, -3.690E-1)
 
         cam.farPlaneDistance = 20.0f
 
@@ -131,7 +134,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
         scene.addChild(plane)
         plane.material.textures["diffuse"] = compute.material.textures["OutputViewport"]!!
         thread {
-            Thread.sleep(50000)
+            Thread.sleep(60000)
             renderer?.shouldClose = true
         }
 
@@ -147,14 +150,14 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
 //                }
 //            }
 //        }
-//        thread {
-//            while(true)
-//            {
-//                Thread.sleep(2000)
-//                println("${cam.position}")
-//                println("${cam.rotation}")
-//            }
-//        }
+        thread {
+            while(true)
+            {
+                Thread.sleep(2000)
+                println("${cam.position}")
+                println("${cam.rotation}")
+            }
+        }
     }
 
     companion object {
