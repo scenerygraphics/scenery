@@ -6,11 +6,11 @@ import graphics.scenery.backends.Renderer
 import graphics.scenery.utils.ExtractsNatives
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.SystemHelpers
+import io.github.classgraph.ClassGraph
 import kotlinx.coroutines.*
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.reflections.Reflections
 import java.nio.file.Files
 import java.nio.file.Paths
 import kotlin.system.exitProcess
@@ -112,8 +112,6 @@ class ExampleRunner(
         var maxRuntimePerTest =
             Duration.minutes(System.getProperty("scenery.ExampleRunner.maxRuntimePerTest", "5").toInt())
 
-        val reflections = Reflections("graphics.scenery.tests")
-
         // blacklist contains examples that require user interaction or additional devices
         val blocklist = mutableListOf(
             // these examples don't work in headless mode
@@ -142,14 +140,18 @@ class ExampleRunner(
         val testGroup: String = System.getProperty("scenery.ExampleRunner.TestGroup", "basic")
 
         // find all basic and advanced examples, exclude blacklist
-        val examples = reflections
-            .getSubTypesOf(SceneryBase::class.java)
+        val examples = ClassGraph()
+            .acceptPackages("graphics.scenery.tests")
+            .enableClassInfo()
+            .scan()
+            .getSubclasses(SceneryBase::class.java)
+            .loadClasses()
             .filter { !it.canonicalName.contains("stresstests")
                 && !it.canonicalName.contains("cluster")
                 && it.name.substringBeforeLast(".").contains(testGroup)
+                && !blocklist.contains(it.simpleName)
+                && (allowedTests?.contains(it.simpleName) ?: true)
             }
-            .filter { !blocklist.contains(it.simpleName) }.toMutableList()
-            .filter { allowedTests?.contains(it.simpleName) ?: true }
 
         val renderers = System.getProperty("scenery.Renderer")?.split(",") ?: when(ExtractsNatives.getPlatform()) {
             ExtractsNatives.Platform.WINDOWS,
