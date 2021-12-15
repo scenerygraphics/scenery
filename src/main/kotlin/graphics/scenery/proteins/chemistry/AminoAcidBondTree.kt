@@ -8,7 +8,8 @@ import graphics.scenery.utils.LazyLogger
  * BondTree specific for amino acids as stored in the AminoList
  */
 class AminoAcidBondTree(val aminoAcid: AminoAcid, val aminoParent:AminoAcidBondTree? = null,
-                        val aminoChildren: List<AminoAcidBondTree> = ArrayList()): BondTree(aminoAcid, aminoParent, aminoChildren){
+                        val aminoChildren: List<AminoAcidBondTree> = ArrayList(), val aminoBondOrder: Int):
+    BondTree(aminoAcid, aminoParent, aminoChildren, aminoBondOrder){
 
         //The bond tree is calculated here.
         companion object AminoTreeCalculator {
