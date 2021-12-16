@@ -65,7 +65,8 @@ unit-tests-no-gpu:
     - echo -e "\e[0Ksection_end:`date +%s`:volumes_section\r\e[0K"
     # code coverage reporting
     - echo -e "\e[0Ksection_start:`date +%s`:coverage_section[collapsed=true]\r\e[0KCode Coverage and Analysis"
-    - ./gradlew fullCodeCoverageReport sonarqube --info --full-stacktrace -Pgpu=true
+    # we keep the same arguments here as in the last test run to not startle Gradle into re-running the test task
+    - ./gradlew fullCodeCoverageReport sonarqube --info --full-stacktrace -Pgpu=true -Dscenery.ExampleRunner.TestGroup=volumes -Dscenery.ExampleRunner.Configurations=DeferredShadingStereo.yml
     - echo -e "\e[0Ksection_end:`date +%s`:coverage_section\r\e[0K"
   artifacts:
     when: always
