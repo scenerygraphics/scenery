@@ -484,8 +484,7 @@ open class VulkanRenderer(hub: Hub,
             createInstance(
                 null,
                 validation,
-                headless = headlessRequested,
-                embedded = embedIn != null
+                headless = headlessRequested
             )
         } else {
             if (!glfwInit()) {
@@ -1202,7 +1201,7 @@ open class VulkanRenderer(hub: Hub,
         val map = ConcurrentHashMap<StandardSemaphores, Array<Long>>()
 
         StandardSemaphores.values().forEach {
-            map[it] = swapchain.images.map { i ->
+            map[it] = swapchain.images.map {
                 device.createSemaphore()
             }.toTypedArray()
         }
@@ -1802,7 +1801,7 @@ open class VulkanRenderer(hub: Hub,
         totalFrames++
     }
 
-    private fun createInstance(requiredExtensions: PointerBuffer? = null, enableValidations: Boolean = false, headless: Boolean = false, embedded: Boolean = false): VkInstance {
+    private fun createInstance(requiredExtensions: PointerBuffer? = null, enableValidations: Boolean = false, headless: Boolean = false): VkInstance {
         return stackPush().use { stack ->
             val appInfo = VkApplicationInfo.calloc(stack)
                 .sType(VK_STRUCTURE_TYPE_APPLICATION_INFO)
