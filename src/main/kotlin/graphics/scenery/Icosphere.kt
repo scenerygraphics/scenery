@@ -3,6 +3,7 @@ package graphics.scenery
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
+import graphics.scenery.utils.extensions.xy
 import org.joml.Vector3f
 import java.util.*
 import kotlin.math.*
@@ -176,9 +177,9 @@ open class Icosphere(val radius: Float, val subdivisions: Int) : Mesh("Icosphere
                     }
                 }
 
-                uv1.get(texcoords).position(texcoords.position() + 2)
-                uv2.get(texcoords).position(texcoords.position() + 2)
-                uv3.get(texcoords).position(texcoords.position() + 2)
+                uv1.xy().get(texcoords).position(texcoords.position() + 2)
+                uv2.xy().get(texcoords).position(texcoords.position() + 2)
+                uv3.xy().get(texcoords).position(texcoords.position() + 2)
             }
 
             vertices.flip()
