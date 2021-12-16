@@ -55,6 +55,9 @@ interface Material {
     /** Flag to make the object wireframe */
     var wireframe: Boolean
 
+    /** Timestamp for creation */
+    var timestamp: Long
+
     /**
      * Returns a hash of the material, with properties relevant for
      * presentation taken into account. Does not include [textures], as
@@ -65,6 +68,7 @@ interface Material {
         result = 31 * result + cullingMode.hashCode()
         result = 31 * result + depthTest.hashCode()
         result = 31 * result + wireframe.hashCode()
+        result = 31 * result + timestamp.hashCode()
         return result
     }
 }

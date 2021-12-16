@@ -774,7 +774,9 @@ open class OpenGLRenderer(hub: Hub,
 
         ShaderType.values().forEach { type ->
             try {
-                val m = OpenGLShaderModule.getFromCacheOrCreate(gl, "main", shaders.get(Shaders.ShaderTarget.OpenGL, type))
+                // we still request Vulkan shaders here, albeit working on OpenGL, as the shaders
+                // are written for Vulkan and will be converted on-the-fly by [OpenGLShaderModule].
+                val m = OpenGLShaderModule.getFromCacheOrCreate(gl, "main", shaders.get(Shaders.ShaderTarget.Vulkan, type))
                 modules[m.shaderType] = m
             } catch (e: ShaderNotFoundException) {
                 if(shaders is Shaders.ShadersFromFiles) {
@@ -2362,13 +2364,13 @@ open class OpenGLRenderer(hub: Hub,
 
         with(materialUbo) {
             name = "MaterialProperties"
-            add("materialType", { material.materialToMaterialType(s) })
-            add("Ka", { material.ambient })
-            add("Kd", { material.diffuse })
-            add("Ks", { material.specular })
-            add("Roughness", { material.roughness })
-            add("Metallic", { material.metallic })
-            add("Opacity", { material.blending.opacity })
+            add("materialType", { node.materialOrNull()!!.materialToMaterialType(s) })
+            add("Ka", { node.materialOrNull()!!.ambient })
+            add("Kd", { node.materialOrNull()!!.diffuse })
+            add("Ks", { node.materialOrNull()!!.specular })
+            add("Roughness", { node.materialOrNull()!!.roughness })
+            add("Metallic", { node.materialOrNull()!!.metallic })
+            add("Opacity", { node.materialOrNull()!!.blending.opacity })
 
             s.UBOs.put("MaterialProperties", this)
         }
