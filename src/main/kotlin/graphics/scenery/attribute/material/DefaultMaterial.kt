@@ -19,6 +19,7 @@ open class DefaultMaterial : Material, Serializable {
     override var cullingMode: Material.CullingMode = Material.CullingMode.Back
     override var depthTest: Material.DepthTest = Material.DepthTest.LessEqual
     override var wireframe: Boolean = false
+    override var timestamp: Long = System.nanoTime()
 
     /** Companion object for Material, emulating static methods */
     companion object Factory {

@@ -902,13 +902,13 @@ open class VulkanRenderer(hub: Hub,
         val materialUbo = VulkanUBO(device, backingBuffer = buffers.UBOs)
         with(materialUbo) {
             name = "MaterialProperties"
-            add("materialType", { material.materialTypeFromTextures(s) })
-            add("Ka", { material.ambient })
-            add("Kd", { material.diffuse })
-            add("Ks", { material.specular })
-            add("Roughness", { material.roughness})
-            add("Metallic", { material.metallic})
-            add("Opacity", { material.blending.opacity })
+            add("materialType", { node.materialOrNull()!!.materialTypeFromTextures(s) })
+            add("Ka", { node.materialOrNull()!!.ambient })
+            add("Kd", { node.materialOrNull()!!.diffuse })
+            add("Ks", { node.materialOrNull()!!.specular })
+            add("Roughness", { node.materialOrNull()!!.roughness})
+            add("Metallic", { node.materialOrNull()!!.metallic})
+            add("Opacity", { node.materialOrNull()!!.blending.opacity })
 
             createUniformBuffer()
             s.UBOs.put("MaterialProperties", materialPropertiesDescriptorSet.contents to this)

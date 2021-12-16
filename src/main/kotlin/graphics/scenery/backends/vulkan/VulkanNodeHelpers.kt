@@ -321,6 +321,10 @@ object VulkanNodeHelpers {
             }
         }
 
+        if(material.textures.isEmpty()) {
+            s.textures.clear()
+        }
+
         s.texturesLastSeen = now
 
         val isCompute = material is ShaderMaterial && ((material as? ShaderMaterial)?.isCompute() ?: false)
