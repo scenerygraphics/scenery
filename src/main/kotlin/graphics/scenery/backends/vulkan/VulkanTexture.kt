@@ -916,7 +916,7 @@ open class VulkanTexture(val device: VulkanDevice,
                              srcAccessMask: Int, dstAccessMask: Int,
                              commandBuffer: VkCommandBuffer, dependencyFlags: Int = 0, memoryBarrier: Boolean = false) {
             stackPush().use { stack ->
-                val barrier = VkImageMemoryBarrier.callocStack(1, stack)
+                val barrier = VkImageMemoryBarrier.calloc(1, stack)
                     .sType(VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER)
                     .pNext(NULL)
                     .oldLayout(from)
@@ -941,7 +941,7 @@ open class VulkanTexture(val device: VulkanDevice,
                 logger.trace("Transition: {} -> {} with srcAccessMark={}, dstAccessMask={}, srcStage={}, dstStage={}", from, to, barrier.srcAccessMask(), barrier.dstAccessMask(), srcStage, dstStage)
 
                 val memoryBarriers = if(memoryBarrier) {
-                    VkMemoryBarrier.callocStack(1, stack)
+                    VkMemoryBarrier.calloc(1, stack)
                         .sType(VK_STRUCTURE_TYPE_MEMORY_BARRIER)
                         .srcAccessMask(srcAccessMask)
                         .dstAccessMask(dstAccessMask)
