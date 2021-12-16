@@ -18,9 +18,11 @@ tasks {
             filter { excludeTestsMatching("ExampleRunner") }
         } else {
             val testGroup = System.getProperty("scenery.ExampleRunner.TestGroup", "unittest")
+            val testConfig = System.getProperty("scenery.ExampleRunner.Configurations", "None")
+
             configure<JacocoTaskExtension> {
-                setDestinationFile(file("$buildDir/jacoco/jacocoTest.$testGroup.exec"))
-                println("Destination file for jacoco is $destinationFile (test, $testGroup)")
+                setDestinationFile(file("$buildDir/jacoco/jacocoTest.$testGroup.$testConfig.exec"))
+                println("Destination file for jacoco is $destinationFile (test, $testGroup, $testConfig)")
             }
 
             filter { excludeTestsMatching("graphics.scenery.tests.unit.**") }
