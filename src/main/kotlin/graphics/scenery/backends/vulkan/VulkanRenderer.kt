@@ -6,11 +6,8 @@ import graphics.scenery.attribute.renderable.Renderable
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.attribute.renderable.DelegatesRenderable
 import graphics.scenery.attribute.renderable.HasCustomRenderable
-import graphics.scenery.spirvcrossj.Loader
-import graphics.scenery.spirvcrossj.libspirvcrossj
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.*
-import graphics.scenery.volumes.VolumeManager
 import io.github.classgraph.ClassGraph
 import kotlinx.coroutines.*
 import org.joml.*
@@ -421,18 +418,6 @@ open class VulkanRenderer(hub: Hub,
         private const val MATERIAL_HAS_NORMAL = 0x0008
         private const val MATERIAL_HAS_ALPHAMASK = 0x0010
 
-        init {
-            Loader.loadNatives()
-            libspirvcrossj.initializeProcess()
-
-            Runtime.getRuntime().addShutdownHook(object: Thread() {
-                override fun run() {
-                    logger.debug("Finalizing libspirvcrossj")
-                    libspirvcrossj.finalizeProcess()
-                }
-            })
-        }
-
         fun getStrictValidation(): Pair<Boolean, List<Int>> {
             val strict = System.getProperty("scenery.VulkanRenderer.StrictValidation")
             val separated = strict?.split(",")?.asSequence()?.mapNotNull { it.toIntOrNull() }?.toList()
@@ -713,7 +698,7 @@ open class VulkanRenderer(hub: Hub,
     // Thanks to Holger :-)
     @Suppress("UNUSED")
     fun <T, R> Iterable<T>.parallelMap(
-        numThreads: Int = Runtime.getRuntime().availableProcessors(),
+        numThreads: Int = java.lang.Runtime.getRuntime().availableProcessors(),
         exec: ExecutorService = Executors.newFixedThreadPool(numThreads),
         transform: (T) -> R): List<R> {
 
@@ -917,13 +902,13 @@ open class VulkanRenderer(hub: Hub,
         val materialUbo = VulkanUBO(device, backingBuffer = buffers.UBOs)
         with(materialUbo) {
             name = "MaterialProperties"
-            add("materialType", { material.materialTypeFromTextures(s) })
-            add("Ka", { material.ambient })
-            add("Kd", { material.diffuse })
-            add("Ks", { material.specular })
-            add("Roughness", { material.roughness})
-            add("Metallic", { material.metallic})
-            add("Opacity", { material.blending.opacity })
+            add("materialType", { node.materialOrNull()!!.materialTypeFromTextures(s) })
+            add("Ka", { node.materialOrNull()!!.ambient })
+            add("Kd", { node.materialOrNull()!!.diffuse })
+            add("Ks", { node.materialOrNull()!!.specular })
+            add("Roughness", { node.materialOrNull()!!.roughness})
+            add("Metallic", { node.materialOrNull()!!.metallic})
+            add("Opacity", { node.materialOrNull()!!.blending.opacity })
 
             createUniformBuffer()
             s.UBOs.put("MaterialProperties", materialPropertiesDescriptorSet.contents to this)

@@ -17,6 +17,14 @@ tasks {
         if (!gpuPresent) {
             filter { excludeTestsMatching("ExampleRunner") }
         } else {
+            val testGroup = System.getProperty("scenery.ExampleRunner.TestGroup", "unittest")
+            val testConfig = System.getProperty("scenery.ExampleRunner.Configurations", "None")
+
+            configure<JacocoTaskExtension> {
+                setDestinationFile(file("$buildDir/jacoco/jacocoTest.$testGroup.$testConfig.exec"))
+                println("Destination file for jacoco is $destinationFile (test, $testGroup, $testConfig)")
+            }
+
             filter { excludeTestsMatching("graphics.scenery.tests.unit.**") }
 
             // this should circumvent Nvidia's Vulkan cleanup issue
@@ -36,7 +44,6 @@ tasks {
             } else {
                 allJvmArgs + props.flatMap { (k, v) -> listOf("-D$k=$v") }
             }
-
         }
 
         finalizedBy(jacocoTestReport) // report is always generated after tests run
@@ -51,6 +58,27 @@ tasks {
         extensions.configure(JacocoTaskExtension::class) {
             setDestinationFile(layout.buildDirectory.file("jacoco/jacocoTest.$testGroup.exec").get().asFile)
         }
+    }
+
+    register("compileShader", JavaExec::class) {
+        group = "tools"
+        mainClass.set("graphics.scenery.backends.ShaderCompiler")
+        classpath = sourceSets["main"].runtimeClasspath
+
+    }
+
+    register("fullCodeCoverageReport", JacocoReport::class) {
+        executionData(fileTree(project.rootDir.absolutePath).include("**/build/jacoco/*.exec"))
+
+        sourceSets(sourceSets["main"], sourceSets["test"])
+
+        reports {
+            xml.required.set(true)
+            html.required.set(true)
+            csv.required.set(false)
+        }
+
+        dependsOn(test)
     }
 
     named<Jar>("jar") {

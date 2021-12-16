@@ -40,8 +40,7 @@ class SceneTests {
 
         val results = scene.raycast(
             position = Vector3f(0.0f),
-            direction = Vector3f(0.0f, 0.0f, -1.0f),
-            ignoredObjects = emptyList())
+            direction = Vector3f(0.0f, 0.0f, -1.0f))
 
         assertEquals(count, results.matches.size, "Raycast should have hit $count objects")
     }
