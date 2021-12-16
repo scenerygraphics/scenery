@@ -1804,7 +1804,7 @@ open class VulkanRenderer(hub: Hub,
 
     private fun createInstance(requiredExtensions: PointerBuffer? = null, enableValidations: Boolean = false, headless: Boolean = false, embedded: Boolean = false): VkInstance {
         return stackPush().use { stack ->
-            val appInfo = VkApplicationInfo.callocStack(stack)
+            val appInfo = VkApplicationInfo.calloc(stack)
                 .sType(VK_STRUCTURE_TYPE_APPLICATION_INFO)
                 .pApplicationName(stack.UTF8(applicationName))
                 .pEngineName(stack.UTF8("scenery"))
@@ -1857,7 +1857,7 @@ open class VulkanRenderer(hub: Hub,
 
             enabledLayerNames.flip()
 
-            val createInfo = VkInstanceCreateInfo.callocStack(stack)
+            val createInfo = VkInstanceCreateInfo.calloc(stack)
                 .sType(VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO)
                 .pNext(NULL)
                 .pApplicationInfo(appInfo)
