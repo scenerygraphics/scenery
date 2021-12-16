@@ -352,7 +352,7 @@ sonarqube {
         property("sonar.projectKey", "scenerygraphics_scenery")
         property("sonar.organization", "scenerygraphics-1")
         property("sonar.host.url", "https://sonarcloud.io")
-        property("sonar.coverage.jacoco.xmlReportPaths", "build/reports/jacoco/test/jacocoTestReport.xml")
+        property("sonar.coverage.jacoco.xmlReportPaths", "build/reports/jacoco/fullCodeCoverageReport/fullCodeCoverageReport.xml")
     }
 }
 

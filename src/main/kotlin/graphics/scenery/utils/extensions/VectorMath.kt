@@ -99,6 +99,10 @@ operator fun Float.times(other: Vector3fc): Vector3f {
     return Vector3f(other).times(this)
 }
 
+fun Vector3fc.xy(): Vector2f {
+    return Vector2f().set(this.x(), this.y())
+}
+
 fun Vector3fc.xyzw(): Vector4f {
     return Vector4f().set(this, 1.0f)
 }
