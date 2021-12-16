@@ -33,11 +33,13 @@ class SLNParser {
             val root = when {
                 (workingSLN.startsWith("="))-> {
                     bondOrder = 2
-                    workingSLN.take(2)
+                    workingSLN = workingSLN.drop(1)
+                    workingSLN.take(1)
                 }
                 (workingSLN.startsWith("#")) -> {
                     bondOrder = 3
-                    workingSLN.take(2)
+                    workingSLN = workingSLN.drop(1)
+                    workingSLN.take(1)
                 }
                 else -> { workingSLN.take(1) }
             }

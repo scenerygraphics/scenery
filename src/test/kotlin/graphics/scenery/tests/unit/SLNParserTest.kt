@@ -3,8 +3,6 @@ package graphics.scenery.tests.unit
 import graphics.scenery.proteins.chemistry.BondTree
 import graphics.scenery.proteins.chemistry.SLNParser
 import graphics.scenery.utils.LazyLogger
-import org.biojava.nbio.structure.Bond
-import org.junit.Assert
 import org.junit.Test
 
 /**
@@ -60,7 +58,6 @@ class SLNParserTest {
     fun printHelperTree(helperTree: SLNParser.HelperTree) {
         println(helperTree.element + helperTree.bondOrder)
         helperTree.children.forEach {
-            print(it.element)
             printHelperTree(it)
         }
     }
