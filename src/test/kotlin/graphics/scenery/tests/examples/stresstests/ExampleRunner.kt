@@ -15,9 +15,9 @@ import java.nio.file.Files
 import java.nio.file.Paths
 import kotlin.system.exitProcess
 import kotlin.test.assertFalse
-import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.ExperimentalTime
-import kotlin.time.milliseconds
 
 @OptIn(ExperimentalTime::class)
 @RunWith(Parameterized::class)
@@ -32,7 +32,7 @@ class ExampleRunner(
     @Test
     fun runExample() = runBlocking {
         logger.info("Running scenery example ${clazz.simpleName} with renderer $renderer and pipeline $pipeline")
-        var runtime = Duration.milliseconds(0)
+        var runtime = 0.milliseconds
 
         logger.info("Memory: ${Runtime.getRuntime().freeMemory().toFloat()/1024.0f/1024.0f}M/${Runtime.getRuntime().totalMemory().toFloat()/1024.0f/1024.0f}/${Runtime.getRuntime().maxMemory().toFloat()/1024.0f/1024.0f}M (free/total/max) available.")
 
@@ -42,7 +42,6 @@ class ExampleRunner(
 
         val rendererDirectory = "$directoryName/$renderer-${pipeline.substringBefore(".")}"
         val instance: SceneryBase = clazz.getConstructor().newInstance() as SceneryBase
-        var exampleRunnable: Job? = null
         var failure = false
 
         try {
@@ -55,7 +54,7 @@ class ExampleRunner(
                 exitProcess(-1)
             }
 
-            exampleRunnable = GlobalScope.launch(handler) {
+            val exampleRunnable = GlobalScope.launch(handler) {
                 instance.assertions[SceneryBase.AssertionCheckPoint.BeforeStart]?.forEach {
                     it.invoke()
                 }
@@ -110,7 +109,7 @@ class ExampleRunner(
         private val logger by LazyLogger()
 
         var maxRuntimePerTest =
-            Duration.minutes(System.getProperty("scenery.ExampleRunner.maxRuntimePerTest", "5").toInt())
+            System.getProperty("scenery.ExampleRunner.maxRuntimePerTest", "5").toInt().minutes
 
         // blacklist contains examples that require user interaction or additional devices
         val blocklist = mutableListOf(

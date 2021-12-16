@@ -5,7 +5,6 @@
 [![Join the chat at https://gitter.im/scenerygraphics/SciView](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/scenerygraphics/SciView?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge) 
 // [![pipeline status](https://gitlab.com/hzdr/crp/scenery/badges/master/pipeline.svg)](https://gitlab.com/hzdr/crp/scenery/-/commits/master)
 [![Build Status](https://github.com/scenerygraphics/scenery/workflows/build/badge.svg)](https://github.com/scenerygraphics/scenery/actions?workflow=build)
-[![Appveyor Build status](https://ci.appveyor.com/api/projects/status/vysiatrptqas4cfy/branch/master?svg=true)](https://ci.appveyor.com/project/skalarproduktraum/scenery/branch/master) 
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/3940e961b2fc41b5a6d17e2b4fff333b)](https://www.codacy.com/app/skalarproduktraum/scenery)  
 
 # scenery  // Flexible VR Visualisation for Volumetric and Geometric Data on the Java VM
