@@ -330,13 +330,13 @@ open class VulkanDevice(
 
             val semaphore = VU.getLong("vkCreateSemaphore",
                 { vkCreateSemaphore(this@VulkanDevice.vulkanDevice, semaphoreCreateInfo, null, this) }, {})
-            logger.debug("Created semaphore {}", semaphore.toHexString().toLowerCase())
+            logger.debug("Created semaphore {}", semaphore.toHexString().lowercase())
             semaphore
         }
     }
 
     fun removeSemaphore(semaphore: Long) {
-        logger.debug("Removing semaphore {}", semaphore.toHexString().toLowerCase())
+        logger.debug("Removing semaphore {}", semaphore.toHexString().lowercase())
         vkDestroySemaphore(this.vulkanDevice, semaphore, null)
     }
 
@@ -579,7 +579,7 @@ open class VulkanDevice(
             return
         }
 
-        logger.debug("Removing ${current.size} known descriptor set layout (${dsl.toHexString().toLowerCase()})")
+        logger.debug("Removing ${current.size} known descriptor set layout (${dsl.toHexString().lowercase()})")
         current.forEach {
                 vkDestroyDescriptorSetLayout(this.vulkanDevice, it.second, null)
                 descriptorSetLayouts.remove(it.first)
