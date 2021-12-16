@@ -13,9 +13,8 @@ import graphics.scenery.proteins.Protein
 import graphics.scenery.proteins.RibbonDiagram
 import net.java.games.input.Component
 import org.joml.Vector3f
-import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.ExperimentalTime
-import kotlin.time.milliseconds
 
 /**
  * Example for visually comparing two proteins. A gamepad can be used for navigation,
@@ -38,7 +37,7 @@ class ProteinComparisonExample: SceneryBase("Protein Comparison Example") {
 
         cam = DetachedHeadCamera(hmd)
         with(cam) {
-            position = Vector3f(0.0f, 0.0f, 2.0f)
+            spatial().position = Vector3f(0.0f, 0.0f, 2.0f)
             perspectiveCamera(50.0f, windowWidth, windowHeight, 0.02f, 500.0f)
 
             scene.addChild(this)
@@ -92,7 +91,7 @@ class ProteinComparisonExample: SceneryBase("Protein Comparison Example") {
 
         val toggleProteins = object : GamepadClickBehaviour {
             override fun click(p0: Int, p1: Int) {
-                withCooldown(Duration.milliseconds(200)) {
+                withCooldown(200.milliseconds) {
                     // finds the currently active protein, un-highlights it
                     activeProtein.children.forEach {
                         if (it is BoundingGrid) {
