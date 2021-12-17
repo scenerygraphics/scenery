@@ -6,6 +6,7 @@ import graphics.scenery.backends.Renderer
 import graphics.scenery.backends.vulkan.VulkanRenderer
 import graphics.scenery.backends.vulkan.VulkanTexture
 import graphics.scenery.numerics.Random
+import graphics.scenery.tests.examples.volumes.VolumeExample
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.Image
 import graphics.scenery.utils.RingBuffer
@@ -310,16 +311,10 @@ class ComputeProceduralVolumeExample: SceneryBase("Volume Rendering example", 12
         inputHandler?.addKeyBinding("toggle_rendering_mode", "M")
     }
 
-    @Test override fun main() {
-
-//        var i = 0
-//
-//        while (i<15) {
-//            logger.info("In main")
-//            Thread.sleep(2000)
-//            i++
-//        }
-
-        super.main()
+    companion object {
+        @JvmStatic
+        fun main(args: Array<String>) {
+            ComputeProceduralVolumeExample().main()
+        }
     }
 }

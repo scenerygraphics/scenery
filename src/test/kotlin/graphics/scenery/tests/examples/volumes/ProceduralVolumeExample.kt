@@ -10,6 +10,7 @@ import graphics.scenery.volumes.Colormap
 import graphics.scenery.volumes.Volume
 import net.imglib2.type.numeric.integer.UnsignedByteType
 import net.imglib2.type.numeric.integer.UnsignedShortType
+import org.joml.Quaternionf
 import org.lwjgl.system.MemoryUtil.memAlloc
 import org.scijava.ui.behaviour.ClickBehaviour
 import java.nio.ByteBuffer
@@ -21,7 +22,7 @@ import kotlin.concurrent.thread
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class ProceduralVolumeExample: SceneryBase("Procedural Volume Rendering Example", 1280, 720) {
+class ProceduralVolumeExample: SceneryBase("Procedural Volume Rendering Example", 1280, 720, wantREPL = true) {
     val bitsPerVoxel = 8
     val volumeSize = 128L
 
@@ -36,6 +37,11 @@ class ProceduralVolumeExample: SceneryBase("Procedural Volume Rendering Example"
             scene.addChild(this)
         }
 
+        cam.position = Vector3f(3.213f, 8.264E-1f, -9.844E-1f)
+        cam.rotation = Quaternionf(3.049E-2, 9.596E-1, -1.144E-1, -2.553E-1)
+
+        cam.farPlaneDistance = 20.0f
+
         val shell = Box(Vector3f(10.0f, 10.0f, 10.0f), insideNormals = true)
         shell.material.cullingMode = Material.CullingMode.None
         shell.material.diffuse = Vector3f(0.1f, 0.1f, 0.1f)
@@ -43,6 +49,7 @@ class ProceduralVolumeExample: SceneryBase("Procedural Volume Rendering Example"
         shell.material.ambient = Vector3f(0.0f)
         shell.position = Vector3f(0.0f, 4.0f, 0.0f)
         scene.addChild(shell)
+        shell.visible = false
 
         val volume = if(bitsPerVoxel == 8) {
             Volume.fromBuffer(emptyList(), volumeSize.toInt(), volumeSize.toInt(), volumeSize.toInt(), UnsignedByteType(), hub)
@@ -51,7 +58,8 @@ class ProceduralVolumeExample: SceneryBase("Procedural Volume Rendering Example"
         }
 
         volume.name = "volume"
-        volume.position = Vector3f(0.0f, 0.0f, 0.0f)
+//        volume.position = Vector3f(0.0f, 0.0f, 0.0f)
+        volume.position = Vector3f(2.0f, 2.0f, 4.0f)
         volume.colormap = Colormap.get("hot")
         volume.pixelToWorldRatio = 0.03f
 
@@ -80,9 +88,11 @@ class ProceduralVolumeExample: SceneryBase("Procedural Volume Rendering Example"
         thread {
             val volumeBuffer = RingBuffer<ByteBuffer>(2) { memAlloc((volumeSize*volumeSize*volumeSize*bitsPerVoxel/8).toInt()) }
 
-            val seed = Random.randomFromRange(0.0f, 133333337.0f).toLong()
+//            val seed = Random.randomFromRange(0.0f, 133333337.0f).toLong()
+            val seed = 1000L
             var shift = Vector3f(0.0f)
-            val shiftDelta = Random.random3DVectorFromRange(-1.5f, 1.5f)
+//            val shiftDelta = Random.random3DVectorFromRange(-1.5f, 1.5f)
+            val shiftDelta = Vector3f(1.0f)
 
             var count = 0
             while(running && !shouldClose) {
@@ -99,11 +109,26 @@ class ProceduralVolumeExample: SceneryBase("Procedural Volume Rendering Example"
 
                     shift += shiftDelta
                     count++
+
+                    if(count == 5) {
+                        break
+                    }
                 }
 
                 Thread.sleep(kotlin.random.Random.nextLong(10L, 200L))
             }
         }
+//
+//        thread {
+//            while (!renderer!!.shouldClose) {
+//                Thread.sleep(5000)
+//                logger.info("Position is: ${cam.position}")
+//                val euler = Vector3f(0f)
+//                cam.rotation.getEulerAnglesXYZ(euler)
+//
+//                logger.info("Rotation is $euler")
+//            }
+//        }
     }
 
     override fun inputSetup() {
