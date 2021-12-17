@@ -642,13 +642,13 @@ open class VulkanTexture(val device: VulkanDevice,
 
                 var end = System.nanoTime()
 
-                logger.info("In VulkanTextures, the with block took: ${(end.toDouble() - start.toDouble()) / 10e5}")
+//                logger.info("In VulkanTextures, the with block took: ${(end.toDouble() - start.toDouble()) / 10e5}")
 
                 start = System.nanoTime()
                 b.copyTo(buffer)
                 end = System.nanoTime() - start
 
-                logger.info("In VulkanTextures, the b.copyto took: ${end/10e5}")
+//                logger.info("In VulkanTextures, the b.copyto took: ${end/10e5}")
             }
         }
 

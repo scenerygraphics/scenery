@@ -2256,12 +2256,25 @@ open class VulkanRenderer(hub: Hub,
 
         val lightUbo = defaultUBOs["LightParameters"]!!
         lightUbo.add("ViewMatrix0", { cam.getTransformationForEye(0) })
+//        logger.info("View matrix is: ${cam.getTransformationForEye(0)}")
         lightUbo.add("ViewMatrix1", { cam.getTransformationForEye(1) })
         lightUbo.add("InverseViewMatrix0", { cam.getTransformationForEye(0).invert() })
+//        logger.info("Inv view matrix is: ${cam.getTransformationForEye(0).invert()}")
         lightUbo.add("InverseViewMatrix1", { cam.getTransformationForEye(1).invert() })
         lightUbo.add("ProjectionMatrix", { cam.projection.applyVulkanCoordinateSystem() })
+//        logger.info("Projection matrix is: ${cam.projection.applyVulkanCoordinateSystem()}")
         lightUbo.add("InverseProjectionMatrix", { cam.projection.applyVulkanCoordinateSystem().invert() })
+//        logger.info("Inverse Projection matrix is: ${cam.projection.applyVulkanCoordinateSystem().invert()}")
         lightUbo.add("CamPosition", { cam.position })
+//        cam.projection.invert()
+//        cam.getTransformationForEye(0).invert()
+//        logger.info("Projection matrix is: ${cam.projection}")
+//        logger.info("View matrix is: ${cam.getTransformationForEye(0)}")
+//        logger.info("Inverse View matrix is: ${cam.getTransformationForEye(0).invert()}")
+//
+//        logger.info("Inverse Projection matrix is: ${cam.projection.invert()}")
+//        logger.info("In Vulkan coords, inverse projection matrix is: ${cam.projection.applyVulkanCoordinateSystem()}")
+
 
         updated = lightUbo.populate()
 
