@@ -166,11 +166,13 @@ class OpenGLSwapchain(device: VulkanDevice,
             window.height = 1600
         }
 
-        val windowWidth = if(renderConfig.stereoEnabled && window.width < 10000) {
-            window.width
-        } else {
-            window.width
-        }
+        // TODO: Figure out whether this sanity check was really ever useful
+//        val windowWidth = if(renderConfig.stereoEnabled && window.width < 10000) {
+//            window.width
+//        } else {
+//            window.width
+//        }
+        val windowWidth = window.width
 
         logger.info("Creating backing images with ${windowWidth}x${window.height}")
 
