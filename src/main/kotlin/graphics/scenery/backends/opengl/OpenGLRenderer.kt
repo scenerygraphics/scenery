@@ -1572,7 +1572,7 @@ open class OpenGLRenderer(hub: Hub,
             node.metadata.remove("OpenGLRenderer")
 
             if(onShutdown) {
-                s.textures.forEach { (name, texture) ->
+                s.textures.forEach { (_, texture) ->
                     texture.delete()
                 }
             }

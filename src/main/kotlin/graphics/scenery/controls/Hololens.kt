@@ -448,7 +448,7 @@ class Hololens: TrackerInput, Display, Hubable {
             currentCommandBuffer.commandBuffer.commandBuffer = with(VU.newCommandBuffer(device, hololensCommandPool, autostart = true)) {
                 MemoryStack.stackPush().use { stack ->
                     logger.info("Blitting image of size ${width}x$height")
-                    val imageBlit = VkImageBlit.callocStack(1, stack)
+                    val imageBlit = VkImageBlit.calloc(1, stack)
                     val type = VK_IMAGE_ASPECT_COLOR_BIT
 
                     imageBlit.srcSubresource().set(type, 0, 0, 1)
@@ -459,7 +459,7 @@ class Hololens: TrackerInput, Display, Hubable {
                     imageBlit.dstOffsets(0).set(0, 0, 0)
                     imageBlit.dstOffsets(1).set(hololensDisplaySize.x().toInt(), hololensDisplaySize.y().toInt(), 1)
 
-                    val subresourceRange = VkImageSubresourceRange.callocStack(stack)
+                    val subresourceRange = VkImageSubresourceRange.calloc(stack)
                         .aspectMask(type)
                         .baseMipLevel(0)
                         .levelCount(1)
