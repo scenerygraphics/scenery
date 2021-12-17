@@ -209,11 +209,11 @@ open class Scene : DefaultNode("RootNode"), HasRenderable, HasMaterial, HasSpati
             indicatorMaterial.specular = Vector3f(1.0f, 0.2f, 0.2f)
             indicatorMaterial.ambient = Vector3f(0.0f, 0.0f, 0.0f)
 
-            for(it in 5..50) {
-                val s = Box(Vector3f(0.08f, 0.08f, 0.08f))
+            for(it in 1..20) {
+                val s = Box(Vector3f(0.03f))
                 s.setMaterial(indicatorMaterial)
                 s.spatial {
-                    this.position = position + direction * it.toFloat()
+                    this.position = position + direction * (it.toFloat() * 0.5f)
                 }
                 this.addChild(s)
             }
@@ -226,14 +226,14 @@ open class Scene : DefaultNode("RootNode"), HasRenderable, HasMaterial, HasSpati
                 Stream.concat(Stream.of(it as Node), it.instances.map { instanceNode -> instanceNode as Node }.stream())
             else
                 Stream.of(it)).asSequence()
-        }.map {
-            Pair(it, it.spatialOrNull()?.intersectAABB(position, direction))
-        }.filter {
-            it.first !is InstancedNode
-        }.filter {
-            it.second is MaybeIntersects.Intersection && (it.second as MaybeIntersects.Intersection).distance > 0.0f
-        }.map {
-            RaycastMatch(it.first, (it.second as MaybeIntersects.Intersection).distance)
+        }.mapNotNull {
+            val p = Pair(it, it.spatialOrNull()?.intersectAABB(position, direction))
+            if(p.first !is InstancedNode && p.second is MaybeIntersects.Intersection
+                && (p.second as MaybeIntersects.Intersection).distance > 0.0f) {
+                RaycastMatch(p.first, (p.second as MaybeIntersects.Intersection).distance)
+            } else {
+                null
+            }
         }.sortedBy {
             it.distance
         }
@@ -246,9 +246,7 @@ open class Scene : DefaultNode("RootNode"), HasRenderable, HasMaterial, HasSpati
             m.specular = Vector3f(0.0f, 0.0f, 0.0f)
             m.ambient = Vector3f(0.0f, 0.0f, 0.0f)
 
-            matches.firstOrNull()?.let {
-                it.node.setMaterial(m)
-            }
+            matches.firstOrNull()?.node?.setMaterial(m)
         }
 
         return RaycastResult(matches, position, direction)
