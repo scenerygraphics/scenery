@@ -2,6 +2,7 @@ import org.gradle.kotlin.dsl.api
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import scenery.*
 import java.net.URL
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 plugins {
     val ktVersion = "1.5.0"
@@ -14,6 +15,7 @@ plugins {
     id("org.jetbrains.dokka") version "1.4.30"
     jacoco
     id("sciJava.platform") version "30.0.0+15" // workaround for jitpack issue
+    id("com.github.johnrengelman.shadow") version "7.0.0"
 }
 
 repositories {
@@ -159,6 +161,16 @@ tasks {
                 remoteLineSuffix.set("#L")
             }
         }
+    }
+
+    named<ShadowJar>("shadowJar") {
+        isZip64 = true
+    }
+
+    task<Jar>("testJar") {
+        archiveClassifier.set("tests")
+        from(sourceSets.test.get().output)
+        dependsOn("assemble")
     }
 }
 
