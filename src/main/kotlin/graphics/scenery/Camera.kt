@@ -185,22 +185,22 @@ open class Camera : DefaultNode("Camera"), HasRenderable, HasMaterial, HasCustom
      * Returns (worldPos, worldDir)
      */
     fun screenPointToRay(x: Int, y: Int): Pair<Vector3f, Vector3f> {
-        val view = (if (targeted) target - spatial().position else  forward).normalize()
-        var h = Vector3f(view).cross(up).normalize()
-        var v = Vector3f(h).cross(view)
+        // calculate aspect ratio, note here that both width and height
+        // are integers and need to be converted before the division, otherwise
+        // we end up with an incorrect (integer) result
+        val aspect: Float = width.toFloat() / height.toFloat()
+        val tanFov = tan(fov / 2.0f * PI.toFloat()/180.0f)
 
-        val fov = fov * Math.PI / 180.0f
-        val lengthV = tan(fov / 2.0).toFloat() * nearPlaneDistance
-        val lengthH = lengthV * (width / height)
+        // shift the x and y coordinates to a [-1, 1] coordinate system,
+        // with 0,0 being center
+        val posX = (2.0f * (( x + 0.5f)/width) - 1) * tanFov * aspect
+        val posY = (1.0f - 2.0f * ((y + 0.5f)/height)) * tanFov
 
-        v *= lengthV
-        h *= lengthH
+        // transform both origin points and screen-space positions with the view matrix to world space
+        val worldPos = spatial().viewToWorld(Vector3f(posX, posY, -1.0f)).xyz()
+        val origin = spatial().viewToWorld(Vector3f(0.0f)).xyz()
 
-        val posX = (x - width / 2.0f) / (width / 2.0f)
-        val posY = -1.0f * (y - height / 2.0f) / (height / 2.0f)
-
-        val worldPos = spatial().position + view * nearPlaneDistance + h * posX + v * posY
-        val worldDir = (worldPos - spatial().position).normalize()
+        val worldDir = (worldPos - origin).normalize()
         return Pair(worldPos, worldDir)
     }
 
