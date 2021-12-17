@@ -122,10 +122,12 @@ open class Texture @JvmOverloads constructor(
             mipmap: Boolean = true,
             minFilter: FilteringMode = FilteringMode.Linear,
             maxFilter: FilteringMode = FilteringMode.Linear,
-            usage: HashSet<UsageType> = hashSetOf(UsageType.Texture)
+            usage: HashSet<UsageType> = hashSetOf(UsageType.Texture),
+            type : NumericType<*> = UnsignedByteType(),
+            channels: Int = 4
         ): Texture {
             return Texture(Vector3i(image.width, image.height, image.depth),
-                4, UnsignedByteType(), image.contents, repeatUVW, borderColor, normalized, mipmap, usageType = usage, minFilter = minFilter, maxFilter = maxFilter)
+                channels, type, image.contents, repeatUVW, borderColor, normalized, mipmap, usageType = usage, minFilter = minFilter, maxFilter = maxFilter)
         }
     }
 
