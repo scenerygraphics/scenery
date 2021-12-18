@@ -91,7 +91,7 @@ fun VkCommandBuffer.submit(queue: VkQueue, submitInfoPNext: Pointer? = null,
                            waitDstStageMask: IntBuffer? = null,
                            block: Boolean = true, fence: Long? = null) {
     stackPush().use { stack ->
-        val submitInfo = VkSubmitInfo.callocStack(1, stack)
+        val submitInfo = VkSubmitInfo.calloc(1, stack)
         val commandBuffers = stack.callocPointer(1).put(0, this)
 
         VU.run("VkCommandBuffer.submit", {
@@ -419,7 +419,7 @@ class VU {
          */
         fun setImageLayout(commandBuffer: VkCommandBuffer, image: Long, oldImageLayout: Int, newImageLayout: Int, range: VkImageSubresourceRange) {
             stackPush().use { stack ->
-                val imageMemoryBarrier = VkImageMemoryBarrier.callocStack(1, stack)
+                val imageMemoryBarrier = VkImageMemoryBarrier.calloc(1, stack)
                     .sType(VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER)
                     .pNext(NULL)
                     .oldLayout(oldImageLayout)
@@ -484,7 +484,7 @@ class VU {
          */
         fun setImageLayout(commandBuffer: VkCommandBuffer, image: Long, aspectMask: Int, oldImageLayout: Int, newImageLayout: Int) {
             stackPush().use { stack ->
-                val range = VkImageSubresourceRange.callocStack(stack)
+                val range = VkImageSubresourceRange.calloc(stack)
                     .aspectMask(aspectMask)
                     .baseMipLevel(0)
                     .levelCount(1)
@@ -510,7 +510,7 @@ class VU {
          */
         fun newCommandBuffer(device: VulkanDevice, commandPool: Long, level: Int = VK_COMMAND_BUFFER_LEVEL_PRIMARY): VkCommandBuffer {
             return stackPush().use { stack ->
-                val cmdBufAllocateInfo = VkCommandBufferAllocateInfo.callocStack(stack)
+                val cmdBufAllocateInfo = VkCommandBufferAllocateInfo.calloc(stack)
                     .sType(VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO)
                     .commandPool(commandPool)
                     .level(level)
@@ -544,7 +544,7 @@ class VU {
          */
         fun beginCommandBuffer(commandBuffer: VkCommandBuffer, flags: Int = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT) {
             stackPush().use { stack ->
-                val cmdBufInfo = VkCommandBufferBeginInfo.callocStack(stack)
+                val cmdBufInfo = VkCommandBufferBeginInfo.calloc(stack)
                     .sType(VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO)
                     .pNext(NULL)
                     .flags(flags)
@@ -561,12 +561,12 @@ class VU {
             logger.trace("Updating dynamic descriptor set with {} bindings to use buffer {}", bindingCount, buffer)
 
             return stackPush().use { stack ->
-                val d = VkDescriptorBufferInfo.callocStack(1, stack)
+                val d = VkDescriptorBufferInfo.calloc(1, stack)
                     .buffer(buffer.vulkanBuffer)
                     .range(2048)
                     .offset(0L)
 
-                val writeDescriptorSet = VkWriteDescriptorSet.callocStack(bindingCount, stack)
+                val writeDescriptorSet = VkWriteDescriptorSet.calloc(bindingCount, stack)
 
                 (0 until bindingCount).forEach { i ->
                     writeDescriptorSet[i]

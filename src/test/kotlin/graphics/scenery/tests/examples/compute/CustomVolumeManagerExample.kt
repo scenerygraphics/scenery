@@ -47,7 +47,7 @@ class CustomVolumeManagerExample : SceneryBase("CustomVolumeManagerExample") {
 
         val outputBuffer = MemoryUtil.memCalloc(1280*720*4)
         val outputTexture = Texture.fromImage(Image(outputBuffer, 1280, 720), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
-        volumeManager.material.textures["OutputRender"] = outputTexture
+        volumeManager.material().textures["OutputRender"] = outputTexture
 
         hub.add(volumeManager)
 
@@ -58,20 +58,27 @@ class CustomVolumeManagerExample : SceneryBase("CustomVolumeManagerExample") {
         volume.transferFunction = TransferFunction.ramp(0.001f, 0.5f, 0.3f)
         scene.addChild(volume)
 
-        val box = FullscreenObject()
-        box.material.textures["diffuse"] = outputTexture
+        val box = Box(Vector3f(1.0f, 1.0f, 1.0f))
+        box.name = "le box du win"
+        box.material {
+            textures["diffuse"] = outputTexture
+            metallic = 0.0f
+            roughness = 1.0f
+        }
 
         scene.addChild(box)
 
         val light = PointLight(radius = 15.0f)
-        light.position = Vector3f(0.0f, 0.0f, 2.0f)
+        light.spatial().position = Vector3f(0.0f, 0.0f, 2.0f)
         light.intensity = 5.0f
         light.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
         scene.addChild(light)
 
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
-            position = Vector3f(0.0f, 0.0f, 5.0f)
+            spatial {
+                position = Vector3f(0.0f, 0.0f, 5.0f)
+            }
             perspectiveCamera(50.0f, 512, 512)
 
             scene.addChild(this)

@@ -269,7 +269,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
             scene.discover(scene, { n ->
                     n.visible && n.state == State.Ready
             }, useDiscoveryBarriers = true)
-                .map { it.updateWorld(recursive = true, force = false); it }
+                .map { it.spatialOrNull()?.updateWorld(recursive = true, force = false); it }
         }
 
         while (!shouldClose || gracePeriod > 0) {
@@ -289,7 +289,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
                 scene.discover(scene, { n ->
                         n.visible && n.state == State.Ready
                 }, useDiscoveryBarriers = true)
-                    .map { it.updateWorld(recursive = true, force = false); it }
+                    .map { it.spatialOrNull()?.updateWorld(recursive = true, force = false); it }
             }
             profiler?.end()
 
@@ -589,20 +589,20 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
             }
         }
 
-        @JvmStatic fun xinitThreads() {
-            if(Platform.get() == Platform.LINUX && xinitThreadsCalled == false) {
-                logger.debug("Running XInitThreads")
-                XLib.INSTANCE.XInitThreads()
-                xinitThreadsCalled = true
-            }
-        }
-
         @JvmStatic fun URL.sanitizedPath(): String {
             // cuts off the initial / on Windows
             return if(Platform.get() == Platform.WINDOWS) {
                 this.path.substringAfter("/")
             } else {
                 this.path
+            }
+        }
+
+        @JvmStatic fun xinitThreads() {
+            if(Platform.get() == Platform.LINUX && xinitThreadsCalled == false) {
+                logger.debug("Running XInitThreads")
+                XLib.INSTANCE.XInitThreads()
+                xinitThreadsCalled = true
             }
         }
     }

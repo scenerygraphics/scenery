@@ -17,9 +17,35 @@ tasks {
         if (!gpuPresent) {
             filter { excludeTestsMatching("ExampleRunner") }
         } else {
+            val testGroup = System.getProperty("scenery.ExampleRunner.TestGroup", "unittest")
+            val testConfig = System.getProperty("scenery.ExampleRunner.Configurations", "None")
+
+            configure<JacocoTaskExtension> {
+                setDestinationFile(file("$buildDir/jacoco/jacocoTest.$testGroup.$testConfig.exec"))
+                println("Destination file for jacoco is $destinationFile (test, $testGroup, $testConfig)")
+            }
+
+            filter { excludeTestsMatching("graphics.scenery.tests.unit.**") }
+
+            // this should circumvent Nvidia's Vulkan cleanup issue
+            maxParallelForks = 2
+            setForkEvery(8)
+
+            // we only want the Vulkan renderer here, and all screenshot to be stored in the screenshots/ dir
             systemProperty("scenery.Renderer", "VulkanRenderer")
             systemProperty("scenery.ExampleRunner.OutputDir", "screenshots")
+
+            val props = System.getProperties().filter { (k, _) -> k.toString().startsWith("scenery.") }
+
+            println("Adding properties ${props.size}/$props")
+            val additionalArgs = System.getenv("SCENERY_JVM_ARGS")
+            allJvmArgs = if (additionalArgs != null) {
+                allJvmArgs + props.flatMap { (k, v) -> listOf("-D$k=$v") } + additionalArgs
+            } else {
+                allJvmArgs + props.flatMap { (k, v) -> listOf("-D$k=$v") }
+            }
         }
+
         finalizedBy(jacocoTestReport) // report is always generated after tests run
     }
 
@@ -27,6 +53,32 @@ tasks {
         maxHeapSize = "8G"
         group = "verification"
         filter { includeTestsMatching("ExampleRunner") }
+
+        val testGroup = System.getProperty("scenery.ExampleRunner.TestGroup", "basic")
+        extensions.configure(JacocoTaskExtension::class) {
+            setDestinationFile(layout.buildDirectory.file("jacoco/jacocoTest.$testGroup.exec").get().asFile)
+        }
+    }
+
+    register("compileShader", JavaExec::class) {
+        group = "tools"
+        mainClass.set("graphics.scenery.backends.ShaderCompiler")
+        classpath = sourceSets["main"].runtimeClasspath
+
+    }
+
+    register("fullCodeCoverageReport", JacocoReport::class) {
+        executionData(fileTree(project.rootDir.absolutePath).include("**/build/jacoco/*.exec"))
+
+        sourceSets(sourceSets["main"], sourceSets["test"])
+
+        reports {
+            xml.required.set(true)
+            html.required.set(true)
+            csv.required.set(false)
+        }
+
+        dependsOn(test)
     }
 
     named<Jar>("jar") {

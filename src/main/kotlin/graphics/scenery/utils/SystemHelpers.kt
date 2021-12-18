@@ -257,5 +257,28 @@ class SystemHelpers {
             }
 
         }
+
+        /**
+         * Converts a byte array into an int array.
+         * @param[bigEndian] By default, big endian is used. Set to false to use little endian.
+         *
+         * @return An [IntArray] with the given endianness.
+         */
+        fun ByteArray.toIntArray(bigEndian: Boolean = true): IntArray {
+            val result = IntArray(this.size/4)
+            if(bigEndian) {
+                ByteBuffer
+                    .wrap(this)
+                    .asIntBuffer()
+                    .get(result)
+            } else {
+                ByteBuffer
+                    .wrap(this)
+                    .order(ByteOrder.LITTLE_ENDIAN)
+                    .asIntBuffer()
+                    .get(result)
+            }
+            return result
+        }
     }
 }

@@ -2,6 +2,7 @@ package graphics.scenery.tests.examples.volumes
 
 import com.jogamp.opengl.math.FloatUtil.sin
 import graphics.scenery.*
+import graphics.scenery.attribute.material.Material
 import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
 import graphics.scenery.utils.RingBuffer
@@ -38,11 +39,15 @@ class StackedVolumesExample : SceneryBase("Stacking Procedural Volume Rendering 
         }
 
         val shell = Box(Vector3f(10.0f, 10.0f, 10.0f), insideNormals = true)
-        shell.material.cullingMode = Material.CullingMode.None
-        shell.material.diffuse = Vector3f(0.5f, 0.5f, 0.5f)
-        shell.material.specular = Vector3f(0.0f)
-        shell.material.ambient = Vector3f(0.0f)
-        shell.position = Vector3f(0.0f, 0.0f, 0.0f)
+        shell.material {
+            cullingMode = Material.CullingMode.None
+            diffuse = Vector3f(0.5f, 0.5f, 0.5f)
+            specular = Vector3f(0.0f)
+            ambient = Vector3f(0.0f)
+        }
+        shell.spatial {
+            position = Vector3f(0.0f, 0.0f, 0.0f)
+        }
         scene.addChild(shell)
 
         val volume = if (bitsPerVoxel == 8) {
@@ -86,13 +91,13 @@ class StackedVolumesExample : SceneryBase("Stacking Procedural Volume Rendering 
         }
 
         volume.name = "volume"
-        volume.position = Vector3f(0.0f, 0.0f, 0.0f)
+        volume.spatial().position = Vector3f(0.0f, 0.0f, 0.0f)
         volume.colormap = Colormap.get("hot")
         volume.pixelToWorldRatio = 0.03f
         volume.transferFunction = TransferFunction.ramp(0.6f, 0.9f)
 
         volumeSliced.name = "volumeSliced"
-        volumeSliced.position = Vector3f(0.0f, 0.0f, 0.0f)
+        volumeSliced.spatial().position = Vector3f(0.0f, 0.0f, 0.0f)
         volumeSliced.colormap = Colormap.get("viridis")
         volumeSliced.pixelToWorldRatio = 0.03f
 
@@ -120,7 +125,7 @@ class StackedVolumesExample : SceneryBase("Stacking Procedural Volume Rendering 
         }
 
         lights.mapIndexed { i, light ->
-            light.position = Vector3f(2.0f * i - 4.0f, i - 1.0f, 0.0f)
+            light.spatial().position = Vector3f(2.0f * i - 4.0f, i - 1.0f, 0.0f)
             light.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
             light.intensity = 0.2f
             scene.addChild(light)
@@ -164,8 +169,10 @@ class StackedVolumesExample : SceneryBase("Stacking Procedural Volume Rendering 
             while (running && !shouldClose) {
                 val y = sin(((System.currentTimeMillis() % 20000) / 20000f) * Math.PI.toFloat() * 2) *2
                 //println(y)
-                slicingPlane.position = Vector3f(0f, y, 0f)
-                slicingPlane.updateWorld(true)
+                slicingPlane.spatial {
+                    position = Vector3f(0f, y, 0f)
+                    updateWorld(true)
+                }
 
                 Thread.sleep(1L)
             }

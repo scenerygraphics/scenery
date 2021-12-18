@@ -6,6 +6,11 @@ import graphics.scenery.backends.RendererFlags
 import graphics.scenery.backends.vulkan.VulkanNodeHelpers.rendererMetadata
 import graphics.scenery.compute.ComputeMetadata
 import graphics.scenery.compute.InvocationType
+import graphics.scenery.geometry.GeometryType
+import graphics.scenery.attribute.HasDelegationType
+import graphics.scenery.attribute.DelegationType
+import graphics.scenery.attribute.renderable.Renderable
+import graphics.scenery.backends.ShaderIntrospection
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.Statistics
@@ -14,7 +19,7 @@ import org.joml.Vector3i
 import org.lwjgl.system.MemoryStack
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.vulkan.*
-import java.util.ArrayList
+import java.util.*
 
 /**
  * Helper object for scene pass command buffer recording.
@@ -62,36 +67,30 @@ object VulkanScenePass {
         // e.g. which have the same transparency settings as the pass,
         // and filter according to any custom filters applicable to this pass
         // (e.g. to discern geometry from lighting passes)
-        val seenDelegates = ArrayList<Node>(5)
+        val seenDelegates = ArrayList<Renderable>(5)
         sceneObjects.filter { customNodeFilter?.invoke(it) ?: true }.forEach { node ->
-            val n = if(node is DelegatesRendering) {
-                val delegate = node.delegate
-                if(node.delegationType == DelegationType.OncePerDelegate && delegate != null) {
-                    if(delegate in seenDelegates) {
-                        return@forEach
-                    } else {
-                        seenDelegates.add(delegate)
-                        delegate
-                    }
+            val renderable = node.renderableOrNull() ?: return@forEach
+            val material = node.materialOrNull() ?: return@forEach
+            if(node is HasDelegationType && node.getDelegationType() == DelegationType.OncePerDelegate) {
+                if(seenDelegates.contains(renderable)) {
+                    return@forEach
                 } else {
-                    node.delegate ?: return@forEach
+                    seenDelegates.add(renderable)
                 }
-            } else {
-                node
             }
 
-            if(n.state != State.Ready || n.rendererMetadata()?.preDrawSkip == true) {
+            if(node.state != State.Ready || renderable.rendererMetadata()?.preDrawSkip == true) {
                 return@forEach
             }
 
-            if(n is RenderingOrder) {
+            if(node is RenderingOrder) {
                 needsOrderSort = true
             }
 
-            n.rendererMetadata()?.let {
-                if (!((pass.passConfig.renderOpaque && n.material.blending.transparent && pass.passConfig.renderOpaque != pass.passConfig.renderTransparent) ||
-                        (pass.passConfig.renderTransparent && !n.material.blending.transparent && pass.passConfig.renderOpaque != pass.passConfig.renderTransparent))) {
-                    renderOrderList.add(n)
+            renderable.rendererMetadata()?.let {
+                if (!((pass.passConfig.renderOpaque && material.blending.transparent && pass.passConfig.renderOpaque != pass.passConfig.renderTransparent) ||
+                        (pass.passConfig.renderTransparent && !material.blending.transparent && pass.passConfig.renderOpaque != pass.passConfig.renderTransparent))) {
+                    renderOrderList.add(node)
                 } else {
                     return@let
                 }
@@ -99,7 +98,7 @@ object VulkanScenePass {
         }
 
         if(needsOrderSort) {
-            renderOrderList.sortBy { (it as? RenderingOrder)?.renderingOrder }
+            renderOrderList.sortBy { node -> (node.renderableOrNull() as? RenderingOrder)?.renderingOrder }
         }
         // if the pass' metadata does not contain a command buffer,
         // OR the cached command buffer does not contain the same nodes in the same order,
@@ -151,14 +150,23 @@ object VulkanScenePass {
                 }
             }
 
-            val computeNodesGraphicsNodes = renderOrderList.partition { pass.getActivePipeline(it).type == VulkanPipeline.PipelineType.Compute }
+            val computeNodesGraphicsNodes = renderOrderList.partition {
+                val renderable = it.renderableOrNull()
+                if(renderable != null) {
+                    pass.getActivePipeline(renderable).type == VulkanPipeline.PipelineType.Compute
+                } else {
+                    false
+                }
+            }
 
             computeNodesGraphicsNodes.first.forEach computeLoop@ { node ->
-                val s = node.rendererMetadata() ?: return@computeLoop
+                val renderable = node.renderableOrNull() ?: return@computeLoop
+                val material = node.materialOrNull() ?: return@computeLoop
+                val s = renderable.rendererMetadata() ?: return@computeLoop
 
                 val metadata = node.metadata["ComputeMetadata"] as? ComputeMetadata ?: ComputeMetadata(Vector3i(pass.getOutput().width, pass.getOutput().height, 1))
 
-                val pipeline = pass.getActivePipeline(node)
+                val pipeline = pass.getActivePipeline(renderable)
                 val vulkanPipeline = pipeline.getPipelineForGeometryType(GeometryType.TRIANGLES)
 
                 if (pass.vulkanMetadata.descriptorSets.capacity() != pipeline.descriptorSpecs.count()) {
@@ -196,7 +204,7 @@ object VulkanScenePass {
 //                (0..15).forEach { pass.vulkanMetadata.uboOffsets.put(it, 0) }
 
                 val loadStoreTextures =
-                    node.material.textures
+                    material.textures
                         .filter { it.value.usageType.contains(Texture.UsageType.LoadStoreImage)}
 
                 val localSizes = pipeline.shaderStages.first().localSize
@@ -278,7 +286,10 @@ object VulkanScenePass {
 
             var previousPipeline: VulkanRenderer.Pipeline? = null
             computeNodesGraphicsNodes.second.forEach drawLoop@ { node ->
-                val s = node.rendererMetadata() ?: return@drawLoop
+                val renderable = node.renderableOrNull() ?: return@drawLoop
+                val material = node.materialOrNull() ?: return@drawLoop
+                val geometry = node.geometryOrNull() ?: return@drawLoop
+                val s = renderable.rendererMetadata() ?: return@drawLoop
 
                 // nodes that just have been initialised will also be skipped
                 if(!s.flags.contains(RendererFlags.Updated)) {
@@ -292,12 +303,12 @@ object VulkanScenePass {
                 }
 
                 // return if we are on a opaque pass, but the node requires transparency.
-                if(pass.passConfig.renderOpaque && node.material.blending.transparent && pass.passConfig.renderOpaque != pass.passConfig.renderTransparent) {
+                if(pass.passConfig.renderOpaque && material.blending.transparent && pass.passConfig.renderOpaque != pass.passConfig.renderTransparent) {
                     return@drawLoop
                 }
 
                 // return if we are on a transparency pass, but the node is only opaque.
-                if(pass.passConfig.renderTransparent && !node.material.blending.transparent && pass.passConfig.renderOpaque != pass.passConfig.renderTransparent) {
+                if(pass.passConfig.renderTransparent && !material.blending.transparent && pass.passConfig.renderOpaque != pass.passConfig.renderTransparent) {
                     return@drawLoop
                 }
 
@@ -313,8 +324,8 @@ object VulkanScenePass {
 //                if(rerecordingCauses.contains(node.name)) {
 //                    logger.debug("Using pipeline ${pass.getActivePipeline(node)} for re-recording")
 //                }
-                val p = pass.getActivePipeline(node)
-                val pipeline = p.getPipelineForGeometryType((node as HasGeometry).geometryType)
+                val p = pass.getActivePipeline(renderable)
+                val pipeline = p.getPipelineForGeometryType(geometry.geometryType)
                 val specs = p.orderedDescriptorSpecs()
 
                 if(pipeline != previousPipeline) {
@@ -336,7 +347,7 @@ object VulkanScenePass {
                 pass.vulkanMetadata.vertexBufferOffsets.limit(1)
                 pass.vulkanMetadata.vertexBuffers.limit(1)
 
-                if(node.instancedProperties.size > 0) {
+                if(node is InstancedNode) {
                     if (node.instances.size > 0 && instanceBuffer != null) {
                         pass.vulkanMetadata.vertexBuffers.limit(2)
                         pass.vulkanMetadata.vertexBufferOffsets.limit(2)
@@ -416,8 +427,8 @@ object VulkanScenePass {
      */
     private fun VkCommandBuffer.blitInputsForPass(pass: VulkanRenderpass, name: String, input: VulkanFramebuffer) {
         MemoryStack.stackPush().use { stack ->
-            val imageBlit = VkImageBlit.callocStack(1, stack)
-            val region = VkImageCopy.callocStack(1, stack)
+            val imageBlit = VkImageBlit.calloc(1, stack)
+            val region = VkImageCopy.calloc(1, stack)
 
             val attachmentList = if (name.contains(".")) {
                 input.attachments.filter { it.key == name.substringAfter(".") }
@@ -474,7 +485,7 @@ object VulkanScenePass {
                 imageBlit.dstOffsets(0).set(offsetX, offsetY, 0)
                 imageBlit.dstOffsets(1).set(sizeX, sizeY, 1)
 
-                val subresourceRange = VkImageSubresourceRange.callocStack(stack)
+                val subresourceRange = VkImageSubresourceRange.calloc(stack)
                     .aspectMask(type)
                     .baseMipLevel(0)
                     .levelCount(1)
@@ -556,7 +567,7 @@ object VulkanScenePass {
         }
     }
 
-    private fun setRequiredDescriptorSetsForNode(pass: VulkanRenderpass, node: Node, s: VulkanObjectState, specs: List<MutableMap.MutableEntry<String, VulkanShaderModule.UBOSpec>>, descriptorSets: Map<String, Long>): Pair<List<VulkanRenderer.DescriptorSet>, Boolean> {
+    private fun setRequiredDescriptorSetsForNode(pass: VulkanRenderpass, node: Node, s: VulkanObjectState, specs: List<MutableMap.MutableEntry<String, ShaderIntrospection.UBOSpec>>, descriptorSets: Map<String, Long>): Pair<List<VulkanRenderer.DescriptorSet>, Boolean> {
         var skip = false
         return specs.mapNotNull { (name, _) ->
             val ds = when {

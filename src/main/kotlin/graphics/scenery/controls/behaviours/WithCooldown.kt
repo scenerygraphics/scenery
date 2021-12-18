@@ -25,7 +25,7 @@ open class WithCooldown(val obj: Any, cooldown: Duration, block: () -> Unit) {
         if (!invoked) {
             block.invoke()
             invocations.add(obj)
-            Timer(true).schedule(cooldown.toLongMilliseconds()) { invocations.remove(obj) }
+            Timer(true).schedule(cooldown.inWholeMilliseconds) { invocations.remove(obj) }
         }
     }
 }
