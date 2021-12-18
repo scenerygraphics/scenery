@@ -1,6 +1,7 @@
 package graphics.scenery.proteins.chemistry
 
 import graphics.scenery.Icosphere
+import graphics.scenery.InstancedNode
 import graphics.scenery.Mesh
 import graphics.scenery.Node
 import graphics.scenery.primitives.Cylinder
@@ -45,19 +46,17 @@ class ThreeDimensionalMolecularStructure(val bondTree: BondTree, val lConfigurat
         while(nodesToTravers.drop(i).isNotEmpty()) {
             val newMolecule = nodesToTravers[i]
             val newRoots = calculate3DStructure(newMolecule.first, newMolecule.second, yVector)
-            newMolecule.first.boundMolecules.forEachIndexed { index, molecule ->
-                nodesToTravers.add(Pair(molecule, newRoots[index]))
-            }
+            newRoots.forEach { nodesToTravers.add(it) }
             i += 1
         }
         this.addChild(atomSphere)
     }
 
 
-    fun calculate3DStructure(bondTree:BondTree, root: Node, y: Vector3f): List<Node> {
+    fun calculate3DStructure(bondTree:BondTree, root: Node, y: Vector3f): List<Pair<BondTree, Node>> {
         y.normalize()
         var treeRoot = false
-        val rootPosition = Vector3f(root.spatialOrNull()?.position)
+        val rootPosition = Vector3f(root.spatialOrNull()?.worldPosition())
         val z = if(root.parent?.spatialOrNull() == null) {
             //if parent is null we are at the very root of our bond tree
             treeRoot = true
@@ -69,21 +68,26 @@ class ThreeDimensionalMolecularStructure(val bondTree: BondTree, val lConfigurat
         if(x != null && y != null && z != null && rootPosition != null) {
             val necessaryPositions =  bondTree.boundMolecules.size + numberOfFreeElectronPairs
             val positions = positions(necessaryPositions, x,y,z,rootPosition, treeRoot)
-            val newNodes = ArrayList<Node>(bondTree.boundMolecules.size + numberOfFreeElectronPairs)
+            val newNodes = ArrayList<Pair<BondTree, Node>>(bondTree.boundMolecules.size + numberOfFreeElectronPairs)
             bondTree.boundMolecules.forEachIndexed { index, boundMolecule ->
                 val element = PeriodicTable().findElementBySymbol(boundMolecule.element)
                 val atomSphere = if(element == PeriodicTable().findElementByNumber(1)) {
                     Icosphere(0.05f, 2) }
                     else { Icosphere(0.15f, 2) }
                 if (element.color != null) { atomSphere.ifMaterial { diffuse = element.color } }
+                this.addChild(atomSphere)
                 atomSphere.spatial().position = positions[index]
-                root.addChild(atomSphere)
-                newNodes.add(atomSphere)
+                newNodes.add(Pair(boundMolecule, atomSphere))
                 //display bond
-                val c = Cylinder(0.025f, 1.0f, 10)
-                c.ifMaterial { diffuse = Vector3f(1.0f, 1.0f, 1.0f) }
-                c.spatial().orientBetweenPoints(rootPosition, atomSphere.spatial().position, true, true)
-                root.addChild(c)
+                if(boundMolecule.bondOrder > 1) {
+                    addMultipleBoundCylinder(rootPosition, Vector3f(atomSphere.spatial().position), boundMolecule.bondOrder)
+                }
+                else {
+                    val c = Cylinder(0.025f, 1.0f, 10)
+                    c.ifMaterial { diffuse = Vector3f(1.0f, 1.0f, 1.0f) }
+                    c.spatial().orientBetweenPoints(rootPosition, atomSphere.spatial().position, true, true)
+                    this.addChild(c)
+                }
             }
             return newNodes
         }
@@ -196,5 +200,32 @@ class ThreeDimensionalMolecularStructure(val bondTree: BondTree, val lConfigurat
         val inverseY = inverse.getColumn(1, Vector3f()).normalize()
         val inverseZ = inverse.getColumn(2, Vector3f()).normalize()
         return Matrix3f(inverseX, inverseY, inverseZ)
+    }
+
+    private fun addMultipleBoundCylinder(rootPosition: Vector3f, childPosition: Vector3f, bondOrder: Int) {
+        val scalar = if(bondOrder == 2) { 0.05f } else { 0.08f }
+        //create vector perpendicular to bond cylinder
+        val rootToChild = Vector3f(rootPosition).sub(Vector3f(childPosition)).normalize()
+        val perpendicular = Vector3f()
+        rootToChild.cross(Vector3f(1f, 0f, 0f), perpendicular).normalize().cross(Vector3f(0f, 1f, 0f))
+            .normalize()
+        //translate both bonds so that the double bond becomes visible
+        val positionRoot1 = Vector3f(rootPosition).add(Vector3f(perpendicular).mul(scalar))
+        val positionRoot2 = Vector3f(rootPosition).sub(Vector3f(perpendicular).mul(scalar))
+        val positionChild1 = Vector3f(childPosition).add(Vector3f(perpendicular).mul(scalar))
+        val positionChild2 = Vector3f(childPosition).sub(Vector3f(perpendicular).mul(scalar))
+        val c1 = Cylinder(0.025f, 1.0f, 10)
+        c1.ifMaterial { diffuse = Vector3f(1.0f, 1.0f, 1.0f) }
+        c1.spatial().orientBetweenPoints(positionRoot1, positionChild1, true, true)
+        this.addChild(c1)
+        val c2 = Cylinder(0.025f, 1.0f, 10)
+        c2.ifMaterial { diffuse = Vector3f(1.0f, 1.0f, 1.0f) }
+        c2.spatial().orientBetweenPoints(positionRoot2, positionChild2, true, true)
+        this.addChild(c2)
+        if(bondOrder == 3) {
+            val c3 = Cylinder(0.025f, 1f, 10)
+            c3.ifMaterial { diffuse = Vector3f(1f, 1f, 1f) }
+            c3.spatial().orientBetweenPoints(rootPosition, childPosition, true, true)
+        }
     }
 }
