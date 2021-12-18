@@ -10,8 +10,9 @@ class AminoAcidBondTreeMap {
     init {
         //alanine
         val alanine = aminoAcidBluePrint()
-        val caAlanine = BondTree("C", 1, alanine)
-        caAlanine.addhydrogen(3)
+        val cbAlanine = BondTree("C", 1, alanine)
+        cbAlanine.addhydrogen(3)
+        alanine.addBoundMolecule(cbAlanine)
         aminoMap["ALA"] = alanine
 
         //arginine
