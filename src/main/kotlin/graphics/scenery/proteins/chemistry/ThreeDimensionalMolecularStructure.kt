@@ -1,9 +1,11 @@
 package graphics.scenery.proteins.chemistry
 
 import graphics.scenery.Icosphere
-import graphics.scenery.InstancedNode
 import graphics.scenery.Mesh
 import graphics.scenery.Node
+import graphics.scenery.attribute.material.DefaultMaterial
+import graphics.scenery.attribute.material.Material
+import graphics.scenery.primitives.Arrow
 import graphics.scenery.primitives.Cylinder
 import graphics.scenery.utils.extensions.times
 import org.joml.Matrix3f
@@ -26,12 +28,9 @@ import kotlin.math.sqrt
  * Circular molecules, e.g., aromatics are displayed as planes, with all inner angles being of equal size.
  */
 class ThreeDimensionalMolecularStructure(val bondTree: BondTree, val lConfiguration: Boolean = true): Mesh("3DStructure") {
-    private val yVector = Vector3f(0f, 1f, 0f)
     private val bondLength = 1f
     private val sin60 = sqrt(3f)/2
-    private val sin120 = sin60
     private val cos60 = 0.5f
-    private val cos120 = -cos60
     private val seventyPointFiveRad = (70.5*kotlin.math.PI/180)
     private val sin70Point5 = sin(seventyPointFiveRad).toFloat()
     private val cos70Point5 = cos(seventyPointFiveRad).toFloat()
@@ -40,21 +39,24 @@ class ThreeDimensionalMolecularStructure(val bondTree: BondTree, val lConfigurat
         val atomSphere = if(rootElement == PeriodicTable().findElementByNumber(1))
         { Icosphere(0.05f, 5) } else { Icosphere(0.15f, 2)}
         if (rootElement.color != null) { atomSphere.ifMaterial { diffuse = rootElement.color } }
-        val nodesToTravers = ArrayList<Pair<BondTree, Node>>()
-        nodesToTravers.add(Pair(bondTree, atomSphere))
+        val nodesToTravers = ArrayList<BondTreeNodeBasisAndParent>()
+        nodesToTravers.add(BondTreeNodeBasisAndParent(bondTree, atomSphere))
         var i = 0
         while(nodesToTravers.drop(i).isNotEmpty()) {
             val newMolecule = nodesToTravers[i]
-            val newRoots = calculate3DStructure(newMolecule.first, newMolecule.second, yVector)
+            val newRoots = calculate3DStructure(newMolecule)
             newRoots.forEach { nodesToTravers.add(it) }
             i += 1
         }
         this.addChild(atomSphere)
     }
 
+    data class BondTreeNodeBasisAndParent(val bondTree: BondTree, val node: Node, val newX: Vector3f = Vector3f(1f, 0f, 0f), val treeParent: Node? = null)
 
-    fun calculate3DStructure(bondTree:BondTree, root: Node, y: Vector3f): List<Pair<BondTree, Node>> {
-        y.normalize()
+    fun calculate3DStructure(bondTreeNodeBasis: BondTreeNodeBasisAndParent): List<BondTreeNodeBasisAndParent> {
+        val bondTree = bondTreeNodeBasis.bondTree
+        val root = bondTreeNodeBasis.node
+        val x = bondTreeNodeBasis.newX
         var treeRoot = false
         val rootPosition = Vector3f(root.spatialOrNull()?.worldPosition())
         val z = if(root.parent?.spatialOrNull() == null) {
@@ -62,30 +64,33 @@ class ThreeDimensionalMolecularStructure(val bondTree: BondTree, val lConfigurat
             treeRoot = true
             //we cannot compute a z vector without a parent position
             Vector3f(0f, 0f, 1f)
-        } else { Vector3f(rootPosition).sub(Vector3f(root.parent?.spatialOrNull()?.worldPosition())).normalize() }
-        val x = Vector3f(y).cross(z)?.normalize()
+        } else { Vector3f(rootPosition).sub(Vector3f(bondTreeNodeBasis.treeParent?.spatialOrNull()?.worldPosition())).normalize() }
+        val y = if(root.parent?.spatialOrNull() == null) { Vector3f(0f, 1f, 0f) }
+        else { Vector3f(x).cross(Vector3f(z)).normalize() }
+
         val numberOfFreeElectronPairs = numberOfFreeElectronPairs(bondTree)
-        if(x != null && y != null && z != null && rootPosition != null) {
+        if(y != null && z != null && rootPosition != null) {
             val necessaryPositions =  bondTree.boundMolecules.size + numberOfFreeElectronPairs
-            val positions = positions(necessaryPositions, x,y,z,rootPosition, treeRoot)
-            val newNodes = ArrayList<Pair<BondTree, Node>>(bondTree.boundMolecules.size + numberOfFreeElectronPairs)
+            val positions = positions(necessaryPositions, x, y, z, rootPosition, treeRoot)
+            val newNodes = ArrayList<BondTreeNodeBasisAndParent>(bondTree.boundMolecules.size + numberOfFreeElectronPairs)
             bondTree.boundMolecules.forEachIndexed { index, boundMolecule ->
                 val element = PeriodicTable().findElementBySymbol(boundMolecule.element)
-                val atomSphere = if(element == PeriodicTable().findElementByNumber(1)) {
+                val elementSphere = if(element == PeriodicTable().findElementByNumber(1)) {
                     Icosphere(0.05f, 2) }
                     else { Icosphere(0.15f, 2) }
-                if (element.color != null) { atomSphere.ifMaterial { diffuse = element.color } }
-                this.addChild(atomSphere)
-                atomSphere.spatial().position = positions[index]
-                newNodes.add(Pair(boundMolecule, atomSphere))
+                if (element.color != null) { elementSphere.ifMaterial { diffuse = element.color } }
+                elementSphere.parent = root
+                this.addChild(elementSphere)
+                elementSphere.spatial().position = positions[index].position
+                newNodes.add(BondTreeNodeBasisAndParent(boundMolecule, elementSphere, positions[index].x, root))
                 //display bond
                 if(boundMolecule.bondOrder > 1) {
-                    addMultipleBoundCylinder(rootPosition, Vector3f(atomSphere.spatial().position), boundMolecule.bondOrder)
+                    addMultipleBoundCylinder(rootPosition, Vector3f(elementSphere.spatial().position), boundMolecule.bondOrder)
                 }
                 else {
                     val c = Cylinder(0.025f, 1.0f, 10)
                     c.ifMaterial { diffuse = Vector3f(1.0f, 1.0f, 1.0f) }
-                    c.spatial().orientBetweenPoints(rootPosition, atomSphere.spatial().position, true, true)
+                    c.spatial().orientBetweenPoints(rootPosition, elementSphere.spatial().position, true, true)
                     this.addChild(c)
                 }
             }
@@ -97,38 +102,44 @@ class ThreeDimensionalMolecularStructure(val bondTree: BondTree, val lConfigurat
         }
     }
 
+    data class PositionAndX(val position: Vector3f, val x: Vector3f)
+
     /**
      * returns the positions of the atoms bounded to the respective molecule
      */
-    fun positions(boundedMoleculesPlusFreeElectrons: Int, x: Vector3f, y:  Vector3f, z: Vector3f, rootPosition: Vector3f,
-    treeRoot: Boolean): List<Vector3f> {
+    fun positions(boundedMoleculesPlusFreeElectrons: Int, x: Vector3f, y: Vector3f, z: Vector3f, rootPosition: Vector3f,
+    treeRoot: Boolean): List<PositionAndX> {
         val positions =  when (if(treeRoot) { boundedMoleculesPlusFreeElectrons-1 } else { boundedMoleculesPlusFreeElectrons }) {
             0 -> {
                 listOf()
             }
             1 -> {
-                listOf(Vector3f(rootPosition).add(Vector3f(z).times(bondLength)))
+                listOf(PositionAndX(Vector3f(rootPosition).add(Vector3f(z).times(bondLength)), x))
             }
             2 -> {
+                val newX1 = Vector3f(x.x*cos60, 0f, -z.z*sin60).normalize()
+                val newX2 = Vector3f(x.x*cos60, 0f, z.z*sin60).normalize()
                 listOf(
-                    Vector3f(rootPosition).add(Vector3f(z).times(cos60 * bondLength))
-                        .add(Vector3f(x).times(sin60 * bondLength)),
-                    Vector3f(rootPosition).add(Vector3f(z).times(cos60 * bondLength))
-                        .sub(Vector3f(x).times(sin60 * bondLength))
+                    PositionAndX(Vector3f(rootPosition).add(Vector3f(z).times(cos60 * bondLength))
+                        .add(Vector3f(x).times(sin60 * bondLength)), newX1),
+                    PositionAndX(Vector3f(rootPosition).add(Vector3f(z).times(cos60 * bondLength))
+                        .sub(Vector3f(x).times(sin60 * bondLength)), newX2)
                 )
             }
             3 -> {
                 val basis = invertedBasis(x, y, z)
-                val toTransformVector1 = Vector3f(-cos60, sin60, 0f).times(sin70Point5 * bondLength)
-                val rotationVector1 = basis.transform(toTransformVector1).normalize()
-                val toTransformVector2 = Vector3f(-cos60, -sin60, 0f).times(sin70Point5 * bondLength)
+                val toTransformVector1 = Vector3f(-cos60, sin60, 0f)
+                val rotationVector1 = basis.transform(toTransformVector1)
+                val toTransformVector2 = Vector3f(-cos60, -sin60, 0f)
                 val rotationVector2 = basis.transform(toTransformVector2)
+                val newX1 = Vector3f(x.x*cos70Point5, 0f, z.z*sin70Point5).normalize()
+                val newX2 = Vector3f(x.x*cos70Point5, 0f, -z.z*sin70Point5).normalize()
                 listOf(
-                    Vector3f(rootPosition).add(Vector3f(z).times(cos70Point5)).add(Vector3f(x).times(sin70Point5)),
-                    Vector3f(rootPosition).add(Vector3f(z).times(cos70Point5 * bondLength)).add(
-                        Vector3f(rotationVector1)),
-                    Vector3f(rootPosition).add(Vector3f(z).times(cos70Point5 * bondLength)).add(
-                        Vector3f(rotationVector2))
+                    PositionAndX(Vector3f(rootPosition).add(Vector3f(z).times(cos70Point5*bondLength)).add(Vector3f(x).times(sin70Point5*bondLength)), z),
+                    PositionAndX(Vector3f(rootPosition).add(Vector3f(z).times(cos70Point5 * bondLength)).add(
+                        Vector3f(rotationVector1.normalize()).times(sin70Point5 * bondLength)), Vector3f(newX2)),
+                    PositionAndX(Vector3f(rootPosition).add(Vector3f(z).times(cos70Point5 * bondLength)).add(
+                        Vector3f(rotationVector2.normalize()).times(sin70Point5 * bondLength)), Vector3f(newX1))
                 )
             }
             4 -> {
@@ -138,19 +149,19 @@ class ThreeDimensionalMolecularStructure(val bondTree: BondTree, val lConfigurat
                 val toTransformVector2 = Vector3f(-cos60, -sin60, 0f).times(sin70Point5 * bondLength)
                 val rotationVector2 = basis.transform(toTransformVector2)
                 listOf(
-                    Vector3f(rootPosition).add(Vector3f(z).times(bondLength)),
-                    Vector3f(rootPosition).add(Vector3f(y).times(bondLength)),
-                    Vector3f(rootPosition).add(Vector3f(rotationVector1).times(-cos70Point5 * bondLength)),
-                    Vector3f(rootPosition).add(Vector3f(rotationVector2).times(cos70Point5 * bondLength))
+                    PositionAndX(Vector3f(rootPosition).add(Vector3f(z).times(bondLength)), z),
+                    PositionAndX(Vector3f(rootPosition).add(Vector3f(y).times(bondLength)), z),
+                    PositionAndX(Vector3f(rootPosition).add(Vector3f(rotationVector1).times(-cos70Point5 * bondLength)), z),
+                    PositionAndX(Vector3f(rootPosition).add(Vector3f(rotationVector2).times(cos70Point5 * bondLength)), z)
                 )
             }
             5 -> {
                 listOf(
-                    Vector3f(rootPosition).add(Vector3f(z).times(bondLength)),
-                    Vector3f(rootPosition).add(Vector3f(y).times(bondLength)),
-                    Vector3f(rootPosition).add(Vector3f(y).times(-bondLength)),
-                    Vector3f(rootPosition).add(Vector3f(x).times(bondLength)),
-                    Vector3f(rootPosition).add(Vector3f(x).times(-bondLength))
+                    PositionAndX(Vector3f(rootPosition).add(Vector3f(z).times(bondLength)), z),
+                    PositionAndX(Vector3f(rootPosition).add(Vector3f(y).times(bondLength)), z),
+                    PositionAndX(Vector3f(rootPosition).add(Vector3f(y).times(-bondLength)), z),
+                    PositionAndX(Vector3f(rootPosition).add(Vector3f(x).times(bondLength)), z),
+                    PositionAndX(Vector3f(rootPosition).add(Vector3f(x).times(-bondLength)), z)
                 )
             }
             else -> {
@@ -161,8 +172,8 @@ class ThreeDimensionalMolecularStructure(val bondTree: BondTree, val lConfigurat
                 listOf()
             }
         }
-        val allPositions = ArrayList<Vector3f>(boundedMoleculesPlusFreeElectrons)
-        if(treeRoot) { allPositions.add(Vector3f(rootPosition).add(Vector3f(z).times(-bondLength))) }
+        val allPositions = ArrayList<PositionAndX>(boundedMoleculesPlusFreeElectrons)
+        if(treeRoot) { allPositions.add(PositionAndX(Vector3f(rootPosition).add(Vector3f(z).times(-bondLength)), x))}
         allPositions.addAll(positions)
         return allPositions
     }
@@ -195,7 +206,7 @@ class ThreeDimensionalMolecularStructure(val bondTree: BondTree, val lConfigurat
     }
 
     private fun invertedBasis(x: Vector3f, y: Vector3f, z: Vector3f): Matrix3f {
-        val inverse = Matrix3f(x,y,z).invert()
+        val inverse = Matrix3f(x,y,z).invert().transpose()
         val inverseX = inverse.getColumn(0, Vector3f()).normalize()
         val inverseY = inverse.getColumn(1, Vector3f()).normalize()
         val inverseZ = inverse.getColumn(2, Vector3f()).normalize()
