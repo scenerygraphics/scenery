@@ -2,6 +2,7 @@ package graphics.scenery.tests.examples.compute
 
 import org.joml.Vector3f
 import graphics.scenery.*
+import graphics.scenery.attribute.material.Material
 import graphics.scenery.backends.Renderer
 import graphics.scenery.backends.vulkan.VulkanRenderer
 import graphics.scenery.backends.vulkan.VulkanTexture
@@ -60,7 +61,6 @@ class ComputeProceduralVolumeExample: SceneryBase("Volume Rendering example", 12
     var gpuSendTime: Long = 0
     var rendPrev: Long = 0
 
-    @ExperimentalCoroutinesApi
     override fun init() {
         logger.info("In init function")
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
@@ -80,7 +80,7 @@ class ComputeProceduralVolumeExample: SceneryBase("Volume Rendering example", 12
 
         val outputBuffer = MemoryUtil.memCalloc(windowWidth*windowHeight*4)
         val outputTexture = Texture.fromImage(Image(outputBuffer, windowWidth, windowHeight), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
-        volumeManager.material.textures["OutputRender"] = outputTexture
+        volumeManager.material().textures["OutputRender"] = outputTexture
 
         hub.add(volumeManager)
 
@@ -95,16 +95,18 @@ class ComputeProceduralVolumeExample: SceneryBase("Volume Rendering example", 12
         }
 
         val shell = Box(Vector3f(10.0f, 10.0f, 10.0f), insideNormals = true)
-        shell.material.cullingMode = Material.CullingMode.None
-        shell.material.diffuse = Vector3f(0.1f, 0.1f, 0.1f)
-        shell.material.specular = Vector3f(0.0f)
-        shell.material.ambient = Vector3f(0.0f)
+        shell.material{
+            cullingMode = Material.CullingMode.None
+            diffuse = Vector3f(0.1f, 0.1f, 0.1f)
+            specular = Vector3f(0.0f)
+            ambient = Vector3f(0.0f)
+        }
         shell.position = Vector3f(0.0f, 4.0f, 0.0f)
         scene.addChild(shell)
 
         volume = Volume.fromBuffer(emptyList(), volumeSize.toInt(), volumeSize.toInt(), volumeSize.toInt(), UnsignedShortType(), hub)
         volume.name = "volume"
-        volume.position = Vector3f(0.0f, 0.0f, 0.0f)
+        volume.spatial().position = Vector3f(0.0f, 0.0f, 0.0f)
         volume.colormap = Colormap.get("hot")
         volume.pixelToWorldRatio = 0.008f
 
@@ -136,9 +138,11 @@ class ComputeProceduralVolumeExample: SceneryBase("Volume Rendering example", 12
 
         val box = Box(Vector3f(1.0f, 1.0f, 1.0f))
         box.name = "le box du win"
-        box.material.textures["diffuse"] = outputTexture
-        box.material.metallic = 0.0f
-        box.material.roughness = 1.0f
+        box.material {
+            textures["diffuse"] = outputTexture
+            metallic = 0.0f
+            roughness = 1.0f
+        }
 
         scene.addChild(box)
 
@@ -181,9 +185,9 @@ class ComputeProceduralVolumeExample: SceneryBase("Volume Rendering example", 12
 
         var cnt = 0
 
-        val subVDIColor = volumeManager.material.textures["OutputRender"]!!
+        val subVDIColor = volumeManager.material().textures["OutputRender"]!!
 
-        val temp = VulkanTexture.getReference(volumeManager.material.textures["OutputRender"]!!)
+        val temp = VulkanTexture.getReference(volumeManager.material().textures["OutputRender"]!!)
 
         if(temp == null) {
             logger.info("Yes it is indeed null")

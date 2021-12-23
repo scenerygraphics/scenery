@@ -29,8 +29,10 @@ class PostRenderLambdaExample : SceneryBase("PosRenderLambdaExample") {
 
         val box = Box(Vector3f(1.0f, 1.0f, 1.0f))
         box.name = "le box du win"
-        box.material.metallic = 0.3f
-        box.material.roughness = 0.9f
+        box.material{
+            metallic = 0.3f
+            roughness = 0.9f
+        }
         scene.addChild(box)
 
         val light = PointLight(radius = 15.0f)

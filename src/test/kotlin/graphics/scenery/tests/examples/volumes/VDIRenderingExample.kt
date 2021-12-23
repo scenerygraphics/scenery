@@ -26,6 +26,8 @@ import kotlin.concurrent.thread
 class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = false) {
 
     val separateDepth = true
+    val profileMemoryAccesses = false
+    val compute = RichNode()
 
     override fun init () {
 
@@ -38,23 +40,24 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
 
         val light = PointLight(radius = 15.0f)
-        light.position = Vector3f(0.0f, 0.0f, 2.0f)
+        light.spatial().position = Vector3f(0.0f, 0.0f, 2.0f)
         light.intensity = 5.0f
         light.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
         scene.addChild(light)
 
         val cam = DetachedHeadCamera()
         with(cam) {
-            position = Vector3f(-4.365f, 0.38f, 0.62f)
+            spatial().position = Vector3f(-4.365f, 0.38f, 0.62f)
             perspectiveCamera(50.0f, windowWidth, windowHeight)
 
             scene.addChild(this)
         }
 
-        cam.position = Vector3f(3.213f, 8.264E-1f, -9.844E-1f)
-        cam.rotation = Quaternionf(3.049E-2, 9.596E-1, -1.144E-1, -2.553E-1)
+        cam.spatial{
+            position = Vector3f(3.213f, 8.264E-1f, -9.844E-1f)
+            rotation = Quaternionf(3.049E-2, 9.596E-1, -1.144E-1, -2.553E-1)
 
-//         optimized depth calculation working at this view point, opacity calculation looking reasonable
+            //         optimized depth calculation working at this view point, opacity calculation looking reasonable
 //        cam.rotation = Quaternionf(5.449E-2,  8.801E-1, -1.041E-1, -4.601E-1)
 //        cam.position = Vector3f(6.639E+0f,  1.092E+0f, -1.584E-1f)
 
@@ -80,8 +83,9 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
 //        cam.position = Vector3f( 3.853E+0f,  7.480E-1f, -9.672E-1f)
 //        cam.rotation = Quaternionf( 4.521E-2,  9.413E-1, -1.398E-1, -3.040E-1)
 
-        cam.position = Vector3f( 5.286E+0f,  8.330E-1f,  3.088E-1f)
-        cam.rotation = Quaternionf( 4.208E-2,  9.225E-1, -1.051E-1, -3.690E-1)
+            position = Vector3f( 5.286E+0f,  8.330E-1f,  3.088E-1f)
+            rotation = Quaternionf( 4.208E-2,  9.225E-1, -1.051E-1, -3.690E-1)
+        }
 
         cam.farPlaneDistance = 20.0f
 
@@ -91,15 +95,19 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
         val depthBuff: ByteArray?
 
         if(separateDepth) {
-            buff = File("/home/aryaman/Repositories/scenery-insitu/VDI10_ndc_col").readBytes()
-            depthBuff = File("/home/aryaman/Repositories/scenery-insitu/VDI10_ndc_depth").readBytes()
+            buff = File("/home/aryaman/Repositories/scenery-insitu/working_files/VDI10_ndc_col").readBytes()
+            depthBuff = File("/home/aryaman/Repositories/scenery-insitu/working_files/VDI10_ndc_depth").readBytes()
 
         } else {
-            buff = File("/home/aryaman/Repositories/scenery-insitu/VDI10_ndc").readBytes()
+            buff = File("/home/aryaman/Repositories/scenery-insitu/working_files/VDI10_ndc").readBytes()
             depthBuff = null
         }
 
         val opBuffer = MemoryUtil.memCalloc(windowWidth * windowHeight * 4)
+        val opNumSteps = MemoryUtil.memCalloc(windowWidth * windowHeight * 4)
+        val opNumIntersect = MemoryUtil.memCalloc(windowWidth * windowHeight * 4)
+        val opNumEmptyL = MemoryUtil.memCalloc(windowWidth * windowHeight * 4)
+        val opNumSkipped = MemoryUtil.memCalloc(windowWidth * windowHeight * 4)
 
         var colBuffer: ByteBuffer
         var depthBuffer: ByteBuffer?
@@ -114,14 +122,24 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
             depthBuffer = null
         }
 
-        val compute = Node()
         compute.name = "compute node"
-//        compute.material = ShaderMaterial(Shaders.ShadersFromFiles(arrayOf("EfficientVDIRaycast.comp"), this::class.java))
-        compute.material = ShaderMaterial(Shaders.ShadersFromFiles(arrayOf("AmanatidesJumps.comp"), this::class.java))
-        compute.material.textures["OutputViewport"] = Texture.fromImage(Image(opBuffer, windowWidth, windowHeight), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
-        compute.material.textures["InputVDI"] = Texture(Vector3i(numLayers*numSupersegments, windowHeight, windowWidth), 4, contents = colBuffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
+
+//        compute.setMaterial(ShaderMaterial(Shaders.ShadersFromFiles(arrayOf("EfficientVDIRaycast.comp"), this@VDIRenderingExample::class.java))) {
+        compute.setMaterial(ShaderMaterial(Shaders.ShadersFromFiles(arrayOf("AmanatidesJumps.comp"), this@VDIRenderingExample::class.java))) {
+            textures["OutputViewport"] = Texture.fromImage(Image(opBuffer, windowWidth, windowHeight), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
+
+            if (profileMemoryAccesses) {
+                textures["NumSteps"] = Texture.fromImage(Image(opNumSteps, windowWidth, windowHeight), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), channels = 1, mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+                textures["NumIntersectedSupsegs"] = Texture.fromImage(Image(opNumIntersect, windowWidth, windowHeight), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), channels = 1, mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+                textures["NumEmptyLists"] = Texture.fromImage(Image(opNumEmptyL, windowWidth, windowHeight), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), channels = 1, mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+                textures["NumNotIntLists"] = Texture.fromImage(Image(opNumSkipped, windowWidth, windowHeight), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), channels = 1, mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+            }
+
+            textures["InputVDI"] = Texture(Vector3i(numLayers*numSupersegments, windowHeight, windowWidth), 4, contents = colBuffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
+        }
+
         if(separateDepth) {
-            compute.material.textures["DepthVDI"] = Texture(Vector3i(2*numSupersegments, windowHeight, windowWidth), 1, contents = depthBuffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType())
+            compute.material().textures["DepthVDI"] = Texture(Vector3i(2*numSupersegments, windowHeight, windowWidth), 1, contents = depthBuffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType())
         }
         compute.metadata["ComputeMetadata"] = ComputeMetadata(
             workSizes = Vector3i(windowWidth, windowHeight, 1),
@@ -132,7 +150,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
 
         val plane = FullscreenObject()
         scene.addChild(plane)
-        plane.material.textures["diffuse"] = compute.material.textures["OutputViewport"]!!
+        plane.material().textures["diffuse"] = compute.material().textures["OutputViewport"]!!
         thread {
             Thread.sleep(60000)
             renderer?.shouldClose = true
@@ -154,9 +172,70 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
             while(true)
             {
                 Thread.sleep(2000)
-                println("${cam.position}")
-                println("${cam.rotation}")
+                println("${cam.spatial().position}")
+                println("${cam.spatial().rotation}")
             }
+        }
+
+        thread {
+            if (profileMemoryAccesses) {
+                manageDebugTextures()
+            }
+        }
+    }
+
+
+    private fun manageDebugTextures() {
+        var numStepsBuff: ByteBuffer?
+        var numIntersectedBuff: ByteBuffer?
+        var numSkippedBuff: ByteBuffer?
+        var numEmptyLBuff: ByteBuffer?
+
+        while(renderer?.firstImageReady == false) {
+            Thread.sleep(50)
+        }
+
+        logger.info("First image is ready")
+
+        val numSteps = compute.material().textures["NumSteps"]!!
+        val firstAtomic = AtomicInteger(0)
+
+        (renderer as? VulkanRenderer)?.persistentTextureRequests?.add (numSteps to firstAtomic)
+
+        val numIntersectedSupsegs = compute.material().textures["NumIntersectedSupsegs"]!!
+        val secondAtomic = AtomicInteger(0)
+        (renderer as? VulkanRenderer)?.persistentTextureRequests?.add (numIntersectedSupsegs to secondAtomic)
+
+        val numEmptyLists = compute.material().textures["NumEmptyLists"]!!
+        val thirdAtomic = AtomicInteger(0)
+        (renderer as? VulkanRenderer)?.persistentTextureRequests?.add (numEmptyLists to thirdAtomic)
+
+        val numNotIntLists = compute.material().textures["NumNotIntLists"]!!
+        val fourthAtomic = AtomicInteger(0)
+        (renderer as? VulkanRenderer)?.persistentTextureRequests?.add (numNotIntLists to fourthAtomic)
+
+        var prevAtomic = firstAtomic.get()
+
+        var cnt = 0
+        while (true) {
+            while(firstAtomic.get() == prevAtomic) {
+                Thread.sleep(5)
+            }
+            prevAtomic = firstAtomic.get()
+
+            numStepsBuff = numSteps.contents
+            numIntersectedBuff = numIntersectedSupsegs.contents
+            numEmptyLBuff = numEmptyLists.contents
+            numSkippedBuff = numNotIntLists.contents
+
+            if(cnt < 2) {
+                SystemHelpers.dumpToFile(numStepsBuff!!, "num_steps.raw")
+                SystemHelpers.dumpToFile(numSkippedBuff!!, "num_skipped.raw")
+                SystemHelpers.dumpToFile(numIntersectedBuff!!, "num_intersected.raw")
+                SystemHelpers.dumpToFile(numEmptyLBuff!!, "num_empty_lists.raw")
+                logger.info("Wrote VDI $cnt")
+            }
+            cnt++
         }
     }
 

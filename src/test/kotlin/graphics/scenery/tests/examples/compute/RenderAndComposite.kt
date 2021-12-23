@@ -2,6 +2,7 @@ package graphics.scenery.tests.examples.compute
 
 import org.joml.Vector3f
 import graphics.scenery.*
+import graphics.scenery.attribute.material.Material
 import graphics.scenery.backends.Renderer
 import graphics.scenery.backends.Shaders
 import graphics.scenery.backends.vulkan.VulkanRenderer
@@ -67,7 +68,6 @@ class RenderAndComposite: SceneryBase("Volume Rendering example", 1200, 1200, wa
     val compute = Box()
     var volumeInitialized = false
 
-    @ExperimentalCoroutinesApi
     override fun init() {
         logger.info("In init function")
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
@@ -92,18 +92,19 @@ class RenderAndComposite: SceneryBase("Volume Rendering example", 1200, 1200, wa
         val outputSubDepthBuffer = MemoryUtil.memCalloc(windowHeight*windowWidth*4)
         val outputSubVDIColor = Texture.fromImage(Image(outputSubColorBuffer,  windowHeight, windowWidth), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
         val outputSubVDIDepth = Texture.fromImage(Image(outputSubDepthBuffer,  windowHeight, windowWidth), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
-        volumeManager.material.textures["OutputSubVDIColor"] = outputSubVDIColor
-        volumeManager.material.textures["OutputSubVDIDepth"] = outputSubVDIDepth
+        volumeManager.material().textures["OutputSubVDIColor"] = outputSubVDIColor
+        volumeManager.material().textures["OutputSubVDIDepth"] = outputSubVDIDepth
         hub.add(volumeManager)
 
         logger.info("Init 3")
 
         compute.name = "compositor node"
 
-        compute.material = ShaderMaterial(Shaders.ShadersFromFiles(arrayOf("Distr_Compositor.comp"), this::class.java))
         val outputColours = MemoryUtil.memCalloc(windowHeight*windowWidth*4)
-        val alphaComposited = Texture.fromImage(Image(outputColours, windowHeight,  windowWidth), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
-        compute.material.textures["AlphaComposited"] = alphaComposited
+
+        compute.setMaterial(ShaderMaterial(Shaders.ShadersFromFiles(arrayOf("Distr_Compositor.comp"), this@RenderAndComposite::class.java))) {
+            textures["AlphaComposited"] = Texture.fromImage(Image(outputColours, windowHeight,  windowWidth), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
+        }
 
         compute.metadata["ComputeMetadata"] = ComputeMetadata(
             workSizes = Vector3i(windowHeight, windowWidth, 1)
@@ -124,11 +125,13 @@ class RenderAndComposite: SceneryBase("Volume Rendering example", 1200, 1200, wa
         cam.rotation = Quaternionf(3.049E-2,  9.596E-1, -1.144E-1, -2.553E-1)
 
         val shell = Box(Vector3f(10.0f, 10.0f, 10.0f), insideNormals = true)
-        shell.material.cullingMode = Material.CullingMode.None
-        shell.material.diffuse = Vector3f(0.1f, 0.1f, 0.1f)
-        shell.material.specular = Vector3f(0.0f)
-        shell.material.ambient = Vector3f(0.0f)
-        shell.position = Vector3f(0.0f, 4.0f, 0.0f)
+        shell.material {
+            cullingMode = Material.CullingMode.None
+            diffuse = Vector3f(0.1f, 0.1f, 0.1f)
+            specular = Vector3f(0.0f)
+            ambient = Vector3f(0.0f)
+        }
+        shell.spatial().position = Vector3f(0.0f, 4.0f, 0.0f)
         scene.addChild(shell)
 
         volume = Volume.fromBuffer(emptyList(), volumeSize.toInt(), volumeSize.toInt(), volumeSize.toInt(), UnsignedShortType(), hub)
@@ -157,7 +160,7 @@ class RenderAndComposite: SceneryBase("Volume Rendering example", 1200, 1200, wa
         logger.info("Init 5")
 
         lights.mapIndexed { i, light ->
-            light.position = Vector3f(2.0f * i - 4.0f,  i - 1.0f, 0.0f)
+            light.spatial().position = Vector3f(2.0f * i - 4.0f,  i - 1.0f, 0.0f)
             light.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
             light.intensity = 0.2f
             scene.addChild(light)
@@ -221,10 +224,10 @@ class RenderAndComposite: SceneryBase("Volume Rendering example", 1200, 1200, wa
 
         var cnt = 0
 
-        val subVDIColor = volumeManager.material.textures["OutputSubVDIColor"]!!
-        val subVDIDepth = volumeManager.material.textures["OutputSubVDIDepth"]!!
+        val subVDIColor = volumeManager.material().textures["OutputSubVDIColor"]!!
+        val subVDIDepth = volumeManager.material().textures["OutputSubVDIDepth"]!!
 
-        val compositedColor = compute.material.textures["AlphaComposited"]!!
+        val compositedColor = compute.material().textures["AlphaComposited"]!!
 
         val composited = AtomicInteger(0)
 
@@ -248,7 +251,7 @@ class RenderAndComposite: SceneryBase("Volume Rendering example", 1200, 1200, wa
 
         while (true) {
 
-            val temp = VulkanTexture.getReference(volumeManager.material.textures["OutputSubVDIColor"]!!)
+            val temp = VulkanTexture.getReference(volumeManager.material().textures["OutputSubVDIColor"]!!)
 
             if(temp == null) {
                 logger.info("Yes it is indeed null")
@@ -314,8 +317,8 @@ class RenderAndComposite: SceneryBase("Volume Rendering example", 1200, 1200, wa
                 imgFetchTime += tRend.end - tRend.start
             }
 
-            compute.material.textures["VDIsColor"] = Texture(Vector3i(windowHeight, windowWidth, 1), 4, contents = subVDIColorBuffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
-            compute.material.textures["VDIsDepth"] = Texture(Vector3i(windowHeight, windowWidth, 1), 4, contents = subVDIDepthBuffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
+            compute.material().textures["VDIsColor"] = Texture(Vector3i(windowHeight, windowWidth, 1), 4, contents = subVDIColorBuffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
+            compute.material().textures["VDIsDepth"] = Texture(Vector3i(windowHeight, windowWidth, 1), 4, contents = subVDIDepthBuffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
 
 //            Thread.sleep(50)
 
