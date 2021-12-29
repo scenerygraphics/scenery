@@ -168,6 +168,7 @@ class NodeSubscriber(
                 networkable = scene
             }
             is Node -> {
+                networkable.initialized = false
                 val parentId = networkObject.parents.first()
                 val parent = networkObjects[parentId]?.obj as? Node
                 if (parent != null) {
