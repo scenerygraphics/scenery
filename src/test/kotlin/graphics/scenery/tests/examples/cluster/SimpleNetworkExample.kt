@@ -46,17 +46,17 @@ class SimpleNetworkExample : SceneryBase("SimpleNetworkExample", wantREPL = fals
             thread {
                 Thread.sleep(6000)
                 val ma = DefaultMaterial()
-                box.material().diffuse = Vector3f(0f,1f,0f)
+                ma.diffuse = Vector3f(0f,1f,0f)
                 box.setMaterial(ma)
                 box.spatial().needsUpdate = true
                 println("replacing Mat")
             }
+            val light = PointLight(radius = 15.0f)
+            light.spatial().position = Vector3f(0.0f, 0.0f, 2.0f)
+            light.intensity = 5.0f
+            light.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
+            scene.addChild(light)
         }
-        val light = PointLight(radius = 15.0f)
-        light.spatial().position = Vector3f(0.0f, 0.0f, 2.0f)
-        light.intensity = 5.0f
-        light.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
-        scene.addChild(light)
 
 
 
@@ -81,7 +81,7 @@ class SimpleNetworkExample : SceneryBase("SimpleNetworkExample", wantREPL = fals
                 publisher?.startPublishing()
                 //Thread.sleep(1000)
                 publisher?.register(scene)
-                scene.update += { publisher.scanForChanges()}
+                scene.postUpdate += { publisher.scanForChanges()}
                 /*thread {
                     while (true) {
                         publisher.scanForChanges()
@@ -91,8 +91,8 @@ class SimpleNetworkExample : SceneryBase("SimpleNetworkExample", wantREPL = fals
             } else {
                 val subscriber = NodeSubscriber(hub)
                 hub.add(subscriber)
-                subscriber?.startListening()
-                scene.update += {subscriber.networkUpdate(scene)}
+                subscriber.startListening()
+                scene.postUpdate += {subscriber.networkUpdate(scene)}
 //                thread {
 //                    while (true) {
 //                        subscriber?.networkUpdate(scene)
@@ -101,7 +101,7 @@ class SimpleNetworkExample : SceneryBase("SimpleNetworkExample", wantREPL = fals
 //                }
             }
         } catch (t: Throwable){
-            print(t)
+            t.printStackTrace()
         }
 
         thread {
