@@ -79,7 +79,7 @@ vec3 sourcemax_x_10_x_ = vec3(128.0, 128.0, 128.0);
 //ivec2 debug_pixel = ivec2(534, 416);
 //ivec2 debug_pixel = ivec2(433, 577);
 //ivec2 debug_pixel = ivec2(729, 282);
-ivec2 debug_pixel = ivec2(351, 125);
+ivec2 debug_pixel = ivec2(701, 316);
 //ivec2 debug_pixel = ivec2(600, 360);
 //ivec2 debug_pixel = ivec2(35, 61);
 //ivec2 debug_pixel = ivec2(427, 465);
@@ -304,6 +304,17 @@ bool firstNotYetIntersected = true;
 
 
 float getSupsegFront(ivec2 theList, int index) {
+
+    if(!(index >= 0 && index < maxSupersegments)) {
+        //This is an error!
+        #if USE_PRINTF
+        if(gl_GlobalInvocationID.xy == debug_pixel) { //TODO: generalize
+            debugPrintfEXT("Searching for front face of incorrect supersegment index! List: (%d, %d) and index requested: %d", theList, index);
+        }
+        #endif
+        return -1;
+    }
+
     #if SEPARATE_DEPTH
     vec4 front = imageLoad(DepthVDI, ivec3(index*2, theList.y, theList.x));
     totalMemoryLoads++;
@@ -316,6 +327,17 @@ float getSupsegFront(ivec2 theList, int index) {
 }
 
 float getSupsegBack(ivec2 theList, int index) {
+
+    if(!(index >= 0 && index < maxSupersegments)) {
+        //This is an error!
+        #if USE_PRINTF
+        if(gl_GlobalInvocationID.xy == debug_pixel) { //TODO: generalize
+            debugPrintfEXT("Searching for back face of incorrect supersegment index! List: (%d, %d) and index requested: %d", theList, index);
+        }
+        #endif
+        return -1;
+    }
+
     #if SEPARATE_DEPTH
     vec4 back = imageLoad(DepthVDI, ivec3(index*2 + 1, theList.y, theList.x));
     totalMemoryLoads++;
@@ -329,6 +351,13 @@ float getSupsegBack(ivec2 theList, int index) {
 
 void binSearch(ivec2 theList, float dist_to_orig, int start, int end, out bool supseg_found, out int index, out float depthStart, out float depthEnd) {
 
+//    #if USE_PRINTF
+//    if(gl_GlobalInvocationID.xy == debug_pixel) {
+//        debugPrintfEXT("Performing bin search for list: (%d, %d) from %d to %d ", theList, start, end);
+//    }
+//    #endif
+
+
     supseg_found = false;
     int low = start;
     int high = end;
@@ -336,6 +365,12 @@ void binSearch(ivec2 theList, float dist_to_orig, int start, int end, out bool s
     while(low <= high) {
 
         index = (low + high)/2;
+//
+//        #if USE_PRINTF
+//        if(gl_GlobalInvocationID.xy == debug_pixel) {
+//            debugPrintfEXT("High is: %d, low is: %d and index is: %d", high, low, index);
+//        }
+//        #endif
 
         depthEnd = getSupsegBack(theList, index);
 
@@ -348,7 +383,12 @@ void binSearch(ivec2 theList, float dist_to_orig, int start, int end, out bool s
         if(depthEnd < dist_to_orig) { //this supersegment is behind the sample point
             low = index + 1;
         } else {
-            float prevEnd = getSupsegBack(theList, index - 1);
+            float prevEnd;
+            if(index >= 1) {
+                prevEnd = getSupsegBack(theList, index - 1);
+            } else {
+                prevEnd = getSupsegFront(theList, index);
+            }
 
             if(prevEnd < dist_to_orig) {
                 // this is the supersegment
@@ -480,34 +520,85 @@ int totalSteps = 0;
 
 vec4 u, dir;
 
-void findFirstSupseg(ivec2 theList, float dist_to_orig, out bool supseg_found, out int index, out float depthStart, out float depthEnd) {
+void findFirstSupseg(ivec2 theList, float dist_to_orig, float exit_distance, out bool supseg_found, out int index, out float depthStart, out float depthEnd) {
     supseg_found = false;
 
-    if(getSupsegBack(theList, prevIndex) >= dist_to_orig) {
-        if(getSupsegBack(theList, prevIndex - 1) < dist_to_orig) {
-            supseg_found = true;
-            index = prevIndex;
-            depthEnd = getSupsegBack(theList, index);
-        } else if (getSupsegBack(theList, prevIndex - 2) < dist_to_orig) {
-            supseg_found = true;
-            index = prevIndex - 1;
-            depthEnd = getSupsegBack(theList, index);
-        } else {
-            binSearch(theList, dist_to_orig, 0, prevIndex - 2, supseg_found, index, depthStart, depthEnd);
-        }
+    if(prevIndex == -1) {
+        binSearch(theList, dist_to_orig, 0, maxSupersegments - 1, supseg_found, index, depthStart, depthEnd);
     } else {
-        if(getSupsegBack(theList, prevIndex + 1) >= dist_to_orig) {
-            supseg_found = true;
-            index = prevIndex + 1;
-            depthEnd = getSupsegBack(theList, index);
+
+        if(getSupsegBack(theList, prevIndex) >= dist_to_orig) {
+            if(prevIndex >= 1) {
+                //we can check the end-point of the preceding supersegment
+                if(getSupsegBack(theList, prevIndex - 1) < dist_to_orig) {
+                    #if USE_PRINTF
+                    if(gl_GlobalInvocationID.xy == debug_pixel && theList == ivec2(299, 318)) {
+                        debugPrintfEXT("option 1. prevIndex: %d", prevIndex);
+                    }
+                    #endif
+                    supseg_found = true;
+                    index = prevIndex;
+                    depthEnd = getSupsegBack(theList, index);
+                } else if (prevIndex >= 2) {
+                    //we can check the end-point of the supersegment before the previous
+                    if(getSupsegBack(theList, prevIndex - 2) < dist_to_orig) {
+                        #if USE_PRINTF
+                        if(gl_GlobalInvocationID.xy == debug_pixel && theList == ivec2(299, 318)) {
+                            debugPrintfEXT("option 2. prevIndex: %d", prevIndex);
+                        }
+                        #endif
+                        supseg_found = true;
+                        index = prevIndex - 1;
+                        depthEnd = getSupsegBack(theList, index);
+                    } else {
+                        binSearch(theList, dist_to_orig, 0, prevIndex - 2, supseg_found, index, depthStart, depthEnd);
+                    }
+                } else {
+                    if(getSupsegFront(theList, prevIndex - 1) < dist_to_orig) {
+                        //found the supseg prevIndex - 1
+                        #if USE_PRINTF
+                        if(gl_GlobalInvocationID.xy == debug_pixel && theList == ivec2(299, 318)) {
+                            debugPrintfEXT("option 3. prevIndex: %d", prevIndex);
+                        }
+                        #endif
+                        supseg_found = true;
+                        index = prevIndex - 1;
+                        depthEnd = getSupsegBack(theList, index);
+                    }
+                }
+            } else {
+                if(getSupsegFront(theList, prevIndex) < dist_to_orig) {
+                    //found the supseg prevIndex
+                    #if USE_PRINTF
+                    if(gl_GlobalInvocationID.xy == debug_pixel && theList == ivec2(299, 318)) {
+                        debugPrintfEXT("option 4. prevIndex: %d", prevIndex);
+                    }
+                    #endif
+                    supseg_found = true;
+                    index = prevIndex;
+                    depthEnd = getSupsegBack(theList, index);
+                }
+            }
         } else {
-            binSearch(theList, dist_to_orig, prevIndex + 2, maxSupersegments - 1, supseg_found, index, depthStart, depthEnd);
+            if(prevIndex < (maxSupersegments - 1)) {
+                if(getSupsegBack(theList, prevIndex + 1) >= dist_to_orig) {
+                    supseg_found = true;
+                    index = prevIndex + 1;
+                    depthEnd = getSupsegBack(theList, index);
+                } else if(prevIndex < (maxSupersegments - 2)) {
+                    binSearch(theList, dist_to_orig, prevIndex + 2, maxSupersegments - 1, supseg_found, index, depthStart, depthEnd);
+                }
+            }
         }
+
     }
 
-    if(supseg_found) {
-        depthStart = getSupsegFront(theList, index);
+    depthStart = getSupsegFront(theList, index);
+
+    if(depthStart > exit_distance) {
+        supseg_found = false;
     }
+
 }
 
 void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout vec4 accumulatedColor) {
@@ -566,7 +657,7 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
         int index;
 
         if(firstIteration) {
-            findFirstSupseg(theList, dist_to_orig, supseg_found, index, depthStart, depthEnd);
+            findFirstSupseg(theList, dist_to_orig, exit_distance, supseg_found, index, depthStart, depthEnd);
             firstIteration = false;
         } else {
             nextSupersegmentInList(theList, exit_distance, dotPositive, supseg_found, index, depthStart, depthEnd);
@@ -611,6 +702,7 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
             #if USE_PRINTF
             if(gl_GlobalInvocationID.xy == debug_pixel) {
                 debugPrintfEXT("Found supseg: (%d, %d), %d", theList, index);
+//                debugPrintfEXT("DepthStart: %f and DepthEnd: %f, while dto: %f and exit: %f ", depthStart, depthEnd, dist_to_orig, exit_distance);
             }
             #endif
 
@@ -650,11 +742,11 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
             accumulatedColor.rgb = accumulatedColor.rgb + (1-accumulatedColor.a) * supseg_col.rgb * alpha;
             accumulatedColor.a = accumulatedColor.a + (1-accumulatedColor.a) * alpha;
 
-            #if USE_PRINTF
-            if(gl_GlobalInvocationID.xy == debug_pixel) {
-                debugPrintfEXT("Color so far is: (%f, %f, %f, %f)", accumulatedColor.rgba);
-            }
-            #endif
+//            #if USE_PRINTF
+//            if(gl_GlobalInvocationID.xy == debug_pixel) {
+//                debugPrintfEXT("Color so far is: (%f, %f, %f, %f)", accumulatedColor.rgba);
+//            }
+//            #endif
 
             if(accumulatedColor.a > 0.95) {
                 #if USE_PRINTF
@@ -1061,11 +1153,11 @@ void main() {
 
         findSupsegsInList(currentList, start_point, end_point, finalColor);
 
-        #if USE_PRINTF
-        if(gl_GlobalInvocationID.xy == debug_pixel) {
-            debugPrintfEXT("After finding supsegs in list: (%d, %d), the color is: (%f, %f, %f, %f)", currentList, finalColor);
-        }
-        #endif
+//        #if USE_PRINTF
+//        if(gl_GlobalInvocationID.xy == debug_pixel) {
+//            debugPrintfEXT("After finding supsegs in list: (%d, %d), the color is: (%f, %f, %f, %f)", currentList, finalColor);
+//        }
+//        #endif
 
         if(finalColor.a > 0.95) {
             #if USE_PRINTF
