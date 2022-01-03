@@ -5,7 +5,6 @@ import graphics.scenery.attribute.material.Material
 import graphics.scenery.attribute.spatial.Spatial
 import graphics.scenery.net.Networkable
 import graphics.scenery.utils.LazyLogger
-import kotlinx.coroutines.*
 import org.joml.Vector3f
 import java.sql.Timestamp
 import java.util.*
@@ -183,7 +182,7 @@ open class DefaultNode(override var name: String = "Node") : Node, Networkable {
         }
     }
 
-    override fun update(fresh: Networkable, getNetworkable: (Int) -> Networkable) {
+    override fun update(fresh: Networkable, getNetworkable: (Int) -> Networkable, additionalData: Any?) {
         if (fresh !is DefaultNode) throw IllegalArgumentException("Update called with object of foreign class")
         visible = fresh.visible
         name = fresh.name

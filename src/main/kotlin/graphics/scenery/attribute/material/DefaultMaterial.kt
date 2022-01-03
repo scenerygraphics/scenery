@@ -22,6 +22,8 @@ open class DefaultMaterial : Material, Networkable {
     override var wireframe: Boolean = false
     override var timestamp: Long = System.nanoTime()
 
+    var synchronizeTextures = true
+
     /** Companion object for Material, emulating static methods */
     companion object Factory {
         /**
@@ -32,12 +34,23 @@ open class DefaultMaterial : Material, Networkable {
         @JvmStatic fun Material(): DefaultMaterial = DefaultMaterial()
     }
 
-    override fun update(fresh: Networkable, getNetworkable: (Int) -> Networkable) {
+    override fun getAdditionalData(): Any? {
+        return if (synchronizeTextures){
+            textures
+        } else {
+            null
+        }
+    }
+
+    override fun update(fresh: Networkable, getNetworkable: (Int) -> Networkable, additionalData: Any?) {
         if (fresh !is DefaultMaterial){
             throw IllegalArgumentException("Got wrong type to update ${this::class.simpleName} ")
         }
         diffuse = fresh.diffuse
         blending = fresh.blending
+        (additionalData as? TimestampedConcurrentHashMap<String, Texture>)?.let {
+            textures = it
+        }
     }
 
     override fun lastChange(): Long {

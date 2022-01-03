@@ -284,8 +284,8 @@ open class Scene : DefaultNode("RootNode"), HasRenderable, HasMaterial, HasSpati
         }
     }
 
-    override fun update(fresh: Networkable, getNetworkable: (Int) -> Networkable) {
-        super.update(fresh,getNetworkable)
+    override fun update(fresh: Networkable, getNetworkable: (Int) -> Networkable, additionalData: Any?) {
+        super.update(fresh, getNetworkable, additionalData)
         if (fresh !is Scene) throw IllegalArgumentException("Update called with object of foreign class")
 
     }

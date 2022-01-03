@@ -17,6 +17,7 @@ import net.imglib2.img.basictypeaccess.array.ByteArray
 import org.joml.Vector3f
 import org.objenesis.strategy.StdInstantiatorStrategy
 import org.slf4j.Logger
+import org.zeromq.SocketType
 import org.zeromq.ZContext
 import org.zeromq.ZMQ
 import org.zeromq.ZMQException
@@ -53,7 +54,7 @@ class NodePublisher(
     var nodes: ConcurrentHashMap<Int, Node> = ConcurrentHashMap() //TODO delete
 
     private val eventQueueTimeout = 500L
-    private val publisher: ZMQ.Socket = context.createSocket(ZMQ.PUB)
+    private val publisher: ZMQ.Socket = context.createSocket(SocketType.PUB)
     var portPublish: Int = try {
         publisher.bind(addressPublish)
         addressPublish.substringAfterLast(":").toInt()
@@ -62,7 +63,7 @@ class NodePublisher(
         publisher.bindToRandomPort(addressPublish.substringBeforeLast(":"))
     }
 
-    private val controlSubscriber: ZMQ.Socket = context.createSocket(ZMQ.SUB)
+    private val controlSubscriber: ZMQ.Socket = context.createSocket(SocketType.SUB)
     var portControl: Int = try {
         controlSubscriber.bind(addressControl)
         addressControl.substringAfterLast(":").toInt()
@@ -88,7 +89,7 @@ class NodePublisher(
     fun register(scene: Scene) {
         val sceneNo = NetworkWrapper(generateNetworkID(), scene, mutableListOf())
         publishedObjects[sceneNo.networkID] = sceneNo
-        eventQueue.add(NetworkEvent.Update(sceneNo))
+        addUpdateEvent(sceneNo)
 
         scene.onChildrenAdded["networkPublish"] = { _, child -> registerNode(child) }
         scene.onChildrenRemoved["networkPublish"] = { parent, child -> detachNode(child,parent) }
@@ -112,7 +113,7 @@ class NodePublisher(
 
         if (publishedObjects[node.networkID] == null) {
             val wrapper = NetworkWrapper(generateNetworkID(), node, mutableListOf(parentId))
-            eventQueue.add(NetworkEvent.Update(wrapper))
+            addUpdateEvent(wrapper)
             publishedObjects[wrapper.networkID] = wrapper
         } else {
             // parent change
@@ -129,7 +130,7 @@ class NodePublisher(
             } else {
                 val new = NetworkWrapper(generateNetworkID(), subComponent, mutableListOf(node.networkID))
                 publishedObjects[new.networkID] = new
-                eventQueue.add(NetworkEvent.Update(new))
+                addUpdateEvent(new)
             }
         }
     }
@@ -154,7 +155,7 @@ class NodePublisher(
         if (attributeWrapper == null){
             val new = NetworkWrapper(generateNetworkID(), attribute, mutableListOf(node.networkID))
             publishedObjects[new.networkID] = new
-            eventQueue.add(NetworkEvent.Update(new))
+            addUpdateEvent(new)
         } else {
             attributeWrapper.parents.add(node.networkID)
             eventQueue.add(NetworkEvent.NewRelation(node.networkID, attribute.networkID))
@@ -168,7 +169,7 @@ class NodePublisher(
         for (it in publishedObjects.values) {
             if (it.obj.lastChange() >= it.publishedAt) {
                 it.publishedAt = System.nanoTime()
-                eventQueue.add(NetworkEvent.Update(it))
+                addUpdateEvent(it)
             }
         }
     }
@@ -181,13 +182,19 @@ class NodePublisher(
                 if (!publishing) break // in case of shutdown while polling
                 if (event is NetworkEvent.RequestInitialization) {
                     publishedObjects.forEach {
-                        eventQueue.add(NetworkEvent.Update(it.value))
+                        val obj = it.value
+                        addUpdateEvent(obj)
                     }
                 }
                 publishEvent(event)
             }
         }
         startListeningControl()
+    }
+
+    private fun addUpdateEvent(wrapper: NetworkWrapper<*>) {
+        wrapper.additionalData = wrapper.obj.getAdditionalData()
+        eventQueue.add(NetworkEvent.Update(wrapper))
     }
 
     fun startListeningControl() {

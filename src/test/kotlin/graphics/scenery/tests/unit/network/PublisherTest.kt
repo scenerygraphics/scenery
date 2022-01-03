@@ -15,8 +15,6 @@ import org.joml.Vector3f
 import org.junit.Test
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
-import kotlin.reflect.full.declaredMemberFunctions
-import kotlin.reflect.jvm.isAccessible
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 
