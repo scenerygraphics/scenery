@@ -10,8 +10,6 @@ import graphics.scenery.net.*
 import org.junit.Test
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
-import kotlin.reflect.full.declaredMemberFunctions
-import kotlin.reflect.jvm.isAccessible
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 
@@ -108,7 +106,7 @@ class SubscriberTest {
     fun postponeUpdateAndWaitForRelatedNetworkable(){
         class UpdateNode : DefaultNode(){
             var updated = false
-            override fun update(fresh: Networkable, getNetworkable: (Int) -> Networkable) {
+            override fun update(fresh: Networkable, getNetworkable: (Int) -> Networkable, additionalData: Any?) {
                 getNetworkable(10) // wants other networkable with the id 10. This should fail in the first try
                 updated = true
             }

@@ -414,7 +414,7 @@ open class DefaultSpatial(private var node: Node = DefaultNode()) : Spatial {
         setPosition(position.toFloat(), d)
     }
 
-    override fun update(fresh: Networkable, getNetworkable: (Int) -> Networkable) {
+    override fun update(fresh: Networkable, getNetworkable: (Int) -> Networkable, additionalData: Any?) {
         if (fresh !is DefaultSpatial) {
             throw IllegalArgumentException("Got wrong type to update ${this::class.simpleName} ")
         }
