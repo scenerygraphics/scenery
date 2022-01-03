@@ -7,6 +7,8 @@ import graphics.scenery.attribute.material.Material
 import graphics.scenery.backends.Renderer
 import graphics.scenery.net.NodePublisher
 import graphics.scenery.net.NodeSubscriber
+import graphics.scenery.textures.Texture
+import graphics.scenery.utils.Image
 import kotlin.concurrent.thread
 
 /**
@@ -27,14 +29,15 @@ class SimpleNetworkExample : SceneryBase("SimpleNetworkExample", wantREPL = fals
         if (settings.get<Boolean>("master")) {
             box.name = "le box du win"
             box.material {
-                /*textures["diffuse"] = Texture.fromImage(
+                textures["diffuse"] = Texture.fromImage(
                     Image.fromResource(
                         "../basic/textures/helix.png",
                         SimpleNetworkExample::class.java
                     )
-                )*/
+                )
                 metallic = 0.3f
                 roughness = 0.9f
+                //(this as DefaultMaterial).synchronizeTextures = false
             }
 
             box.spatial {
@@ -47,7 +50,7 @@ class SimpleNetworkExample : SceneryBase("SimpleNetworkExample", wantREPL = fals
                 Thread.sleep(6000)
                 val ma = DefaultMaterial()
                 ma.diffuse = Vector3f(0f,1f,0f)
-                box.setMaterial(ma)
+                //box.setMaterial(ma)
                 box.spatial().needsUpdate = true
                 println("replacing Mat")
             }

@@ -15,7 +15,7 @@ open class DefaultRenderable(override var parent: Node): Renderable, Networkable
     }
     override var isBillboard: Boolean = false
 
-    override fun update(fresh: Networkable, getNetworkable: (Int) -> Networkable) {
+    override fun update(fresh: Networkable, getNetworkable: (Int) -> Networkable, additionalData: Any?) {
         if (fresh !is DefaultRenderable){
             throw IllegalArgumentException("Got wrong type to update ${this::class.simpleName} ")
         }
