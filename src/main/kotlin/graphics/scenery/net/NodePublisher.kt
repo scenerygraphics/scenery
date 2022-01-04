@@ -167,7 +167,7 @@ class NodePublisher(
      */
     fun scanForChanges() {
         for (it in publishedObjects.values) {
-            if (it.obj.lastChange() >= it.publishedAt) {
+            if (it.obj.modifiedAt >= it.publishedAt) {
                 it.publishedAt = System.nanoTime()
                 addUpdateEvent(it)
             }

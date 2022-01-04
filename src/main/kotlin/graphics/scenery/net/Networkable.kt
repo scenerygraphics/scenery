@@ -23,9 +23,9 @@ interface Networkable : Serializable {
 
 
     /**
-     * Time point of last change in [System.nanoTime()]
+     * Time point of last modification in [System.nanoTime()]
      */
-    fun lastChange(): Long
+    var modifiedAt: Long
 
     /**
      * Get sub components which are not part of the node graph eg. attributes
@@ -39,6 +39,10 @@ interface Networkable : Serializable {
 
     //set by external
     var networkID: Int
+
+    fun updateModifiedAt() {
+        modifiedAt = System.nanoTime()
+    }
 }
 
 

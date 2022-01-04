@@ -1,12 +1,9 @@
 package graphics.scenery
 
 import graphics.scenery.attribute.DefaultAttributesMap
-import graphics.scenery.attribute.material.Material
-import graphics.scenery.attribute.spatial.Spatial
 import graphics.scenery.net.Networkable
 import graphics.scenery.utils.LazyLogger
 import org.joml.Vector3f
-import java.sql.Timestamp
 import java.util.*
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.locks.ReentrantLock
@@ -18,13 +15,24 @@ import kotlin.reflect.full.findAnnotation
 import kotlin.reflect.full.memberProperties
 import kotlin.reflect.jvm.isAccessible
 
-open class DefaultNode(override var name: String = "Node") : Node, Networkable {
+open class DefaultNode(name: String = "Node") : Node, Networkable {
+    override var name = name
+        set(v) {
+            field = v
+            updateModifiedAt()
+        }
     @Transient override var children = CopyOnWriteArrayList<Node>()
     @Transient override var linkedNodes = CopyOnWriteArrayList<Node>()
     @Transient override var metadata: HashMap<String, Any> = HashMap()
     override var parent: Node? = null
-    override var createdAt = (Timestamp(Date().time).time)
     override var modifiedAt = 0L
+        get() {
+            if (lastAttributesHashCode != attributes.hashCode()){
+                field = System.nanoTime()
+                lastAttributesHashCode = attributes.hashCode()
+            }
+            return field
+        }
     override var discoveryBarrier = false
     override var update: ArrayList<() -> Unit> = ArrayList()
     override var postUpdate: ArrayList<() -> Unit> = ArrayList()
@@ -32,6 +40,7 @@ open class DefaultNode(override var name: String = "Node") : Node, Networkable {
         set(v) {
             children.forEach { it.visible = v }
             field = v
+            updateModifiedAt()
         }
     override var initialized: Boolean = false
     override var state : State = State.Ready
@@ -189,15 +198,7 @@ open class DefaultNode(override var name: String = "Node") : Node, Networkable {
     }
 
     override fun getSubcomponents(): List<Networkable> {
-        return attributes.attributes().filter { it is Spatial || it is Material }.mapNotNull { it as? Networkable }
-    }
-
-    override fun lastChange(): Long {
-        if (lastAttributesHashCode != attributes.hashCode()){
-            modifiedAt = System.nanoTime()
-            lastAttributesHashCode = attributes.hashCode()
-        }
-        return modifiedAt
+        return attributes.attributes().mapNotNull { it as? Networkable }
     }
 
     override fun getAttributeClass(): KClass<out Any>? {
