@@ -53,7 +53,7 @@ class NodePublisher(
     //var nodes: ConcurrentHashMap<Int, Node> = ConcurrentHashMap()
     var nodes: ConcurrentHashMap<Int, Node> = ConcurrentHashMap() //TODO delete
 
-    private val eventQueueTimeout = 500L
+    private val timeout = 500
     private val publisher: ZMQ.Socket = context.createSocket(SocketType.PUB)
     var portPublish: Int = try {
         publisher.bind(addressPublish)
@@ -178,15 +178,22 @@ class NodePublisher(
         publishing = true
         thread {
             while (publishing) {
-                val event = eventQueue.poll(eventQueueTimeout, TimeUnit.MILLISECONDS) ?: continue
+                val event = eventQueue.poll(timeout.toLong(), TimeUnit.MILLISECONDS) ?: continue
                 if (!publishing) break // in case of shutdown while polling
                 if (event is NetworkEvent.RequestInitialization) {
                     publishedObjects.forEach {
-                        val obj = it.value
-                        addUpdateEvent(obj)
+                        addUpdateEvent(it.value)
                     }
                 }
-                publishEvent(event)
+                val start = System.nanoTime()
+                val payloadSize = sendEvent(event, kryo, publisher, logger)
+                val duration = (System.nanoTime() - start).toFloat()
+                (hub?.get(SceneryElement.Statistics) as? Statistics)?.add("Serialise.duration", duration)
+                (hub?.get(SceneryElement.Statistics) as? Statistics)?.add(
+                    "Serialise.payloadSize",
+                    payloadSize,
+                    isTime = false
+                )
             }
         }
         startListeningControl()
@@ -199,28 +206,21 @@ class NodePublisher(
 
     fun startListeningControl() {
         listeningForControl = true
-        controlSubscriber.receiveTimeOut = 0
+        controlSubscriber.receiveTimeOut = timeout
         thread {
             while (listeningForControl) {
                 try {
-                    var payload: kotlin.ByteArray? = controlSubscriber.recv()
-                    while (payload != null && listeningForControl) {
-                        try {
-                            val bin = ByteArrayInputStream(payload)
-                            val input = Input(bin)
-                            val event = kryo.readClassAndObject(input) as? NetworkEvent
-                                ?: throw IllegalStateException("Received unknown, not NetworkEvent payload")
-                            eventQueue.add(event)
-                            payload = controlSubscriber.recv()
+                    val payload: kotlin.ByteArray = controlSubscriber.recv() ?: continue
 
-                        } catch (t: Throwable) {
-                            print(t)
-                        }
-                    }
+                    val bin = ByteArrayInputStream(payload)
+                    val input = Input(bin)
+                    val event = kryo.readClassAndObject(input) as? NetworkEvent
+                        ?: throw IllegalStateException("Received unknown, not NetworkEvent payload")
+                    eventQueue.add(event)
+
                 } catch (t: Throwable) {
-                    print(t)
+                    t.printStackTrace()
                 }
-                Thread.sleep(50)
             }
         }
     }
@@ -231,31 +231,12 @@ class NodePublisher(
         }
     }
 
-    fun stopPublishing(waitForFinishOfPublishing: Boolean = false) {
+    fun close(waitForWorkerAndListeners: Boolean = false) {
         publishing = false
-        if (waitForFinishOfPublishing) {
-            Thread.sleep(eventQueueTimeout * 2)
-        }
-    }
-
-    fun stopListening(waitForIt: Boolean) {
         listeningForControl = false
-        if (waitForIt) {
-            Thread.sleep(100)
+        if (waitForWorkerAndListeners) {
+            Thread.sleep(timeout * 2L)
         }
-    }
-
-    private fun publishEvent(event: NetworkEvent) {
-        val start = System.nanoTime()
-        val payloadSize = sendEvent(event, kryo, publisher, logger)
-        val duration = (System.nanoTime() - start).toFloat()
-        (hub?.get(SceneryElement.Statistics) as? Statistics)?.add("Serialise.duration", duration)
-        (hub?.get(SceneryElement.Statistics) as? Statistics)?.add("Serialise.payloadSize", payloadSize, isTime = false)
-    }
-
-    fun close(waitForFinishOfPublishing: Boolean = false) {
-        stopPublishing(waitForFinishOfPublishing)
-        stopListening(true)
         context.destroySocket(publisher)
         context.close()
     }
@@ -312,7 +293,5 @@ class NodePublisher(
 
             return kryo
         }
-
     }
-
 }
