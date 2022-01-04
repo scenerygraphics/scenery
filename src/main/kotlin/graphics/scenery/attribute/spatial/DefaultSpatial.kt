@@ -15,7 +15,6 @@ import java.lang.Float.min
 import kotlin.reflect.KClass
 import kotlin.reflect.KProperty
 
-//TODO sync node in constructor
 open class DefaultSpatial(private var node: Node = DefaultNode()) : Spatial {
     override var world: Matrix4f = Matrix4f().identity()
         set(value) {
@@ -56,7 +55,7 @@ open class DefaultSpatial(private var node: Node = DefaultNode()) : Spatial {
     override var needsUpdate = true
     override var needsUpdateWorld = true
 
-    var modifiedAt = 0L
+    override var modifiedAt = 0L
 
     val logger by LazyLogger()
 
@@ -69,7 +68,7 @@ open class DefaultSpatial(private var node: Node = DefaultNode()) : Spatial {
         ) {
             needsUpdate = true
             needsUpdateWorld = true
-            modifiedAt = System.nanoTime()
+            updateModifiedAt()
         }
     }
 
@@ -418,13 +417,11 @@ open class DefaultSpatial(private var node: Node = DefaultNode()) : Spatial {
         if (fresh !is DefaultSpatial) {
             throw IllegalArgumentException("Got wrong type to update ${this::class.simpleName} ")
         }
+        this.node = getNetworkable(fresh.node.networkID) as Node
+
         position = fresh.position
         rotation = fresh.rotation
         scale = fresh.scale
-    }
-
-    override fun lastChange(): Long {
-        return modifiedAt
     }
 
     override fun getAttributeClass(): KClass<out Any> {
@@ -432,5 +429,4 @@ open class DefaultSpatial(private var node: Node = DefaultNode()) : Spatial {
     }
 
     override var networkID: Int = 0
-
 }
