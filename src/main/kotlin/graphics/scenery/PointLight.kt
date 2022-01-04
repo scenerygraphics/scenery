@@ -1,6 +1,7 @@
 package graphics.scenery
 
 import graphics.scenery.attribute.material.Material
+import graphics.scenery.net.Networkable
 import graphics.scenery.utils.extensions.xyz
 import org.joml.Vector3f
 import org.joml.Vector4f
@@ -87,5 +88,13 @@ class PointLight(radius: Float = 5.0f) : Light("PointLight") {
             cullingMode = Material.CullingMode.Front
             depthTest = Material.DepthTest.Greater
         }
+    }
+
+    override fun update(fresh: Networkable, getNetworkable: (Int) -> Networkable, additionalData: Any?) {
+        super.update(fresh, getNetworkable, additionalData)
+        if (fresh !is PointLight) throw IllegalArgumentException("Update called with object of foreign class")
+
+        this.emissionColor = fresh.emissionColor
+        this.lightRadius = fresh.lightRadius
     }
 }

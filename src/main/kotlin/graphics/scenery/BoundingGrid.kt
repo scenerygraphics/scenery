@@ -4,6 +4,7 @@ import graphics.scenery.primitives.TextBoard
 import graphics.scenery.attribute.renderable.DefaultRenderable
 import graphics.scenery.attribute.renderable.Renderable
 import graphics.scenery.attribute.material.Material
+import graphics.scenery.net.Networkable
 import graphics.scenery.utils.extensions.*
 import org.joml.Vector3f
 import org.joml.Vector4f
@@ -163,6 +164,15 @@ open class BoundingGrid : Mesh("Bounding Grid") {
                 name = "Bounding Grid of ${node.name}"
             } ?: logger.error("Bounding box of $b is null")
         }
+    }
+
+    override fun update(fresh: Networkable, getNetworkable: (Int) -> Networkable, additionalData: Any?) {
+        super.update(fresh, getNetworkable, additionalData)
+        if (fresh !is BoundingGrid) throw IllegalArgumentException("Update called with object of foreign class")
+        this.gridColor = fresh.gridColor
+        this.lineWidth = fresh.lineWidth
+        this.numLines = fresh.numLines
+        this.ticksOnly = fresh.ticksOnly
     }
 
     /**

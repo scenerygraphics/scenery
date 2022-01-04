@@ -244,6 +244,19 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
         }
     }
 
+    /* TODO Update methode
+    overwrite fun Update(bla){
+        if (Volume::class.java.isAssignableFrom(o.javaClass)
+            && Volume::class.java.isAssignableFrom(node.javaClass)) {
+            (node as Volume).colormap = (o as Volume).colormap
+            node.transferFunction = o.transferFunction
+            if (node.currentTimepoint != o.currentTimepoint) {
+                node.goToTimepoint(o.currentTimepoint)
+            }
+        }
+    }
+     */
+
     override fun createSpatial(): VolumeSpatial {
         return VolumeSpatial(this)
     }
