@@ -32,10 +32,6 @@ interface Node : Networkable {
     var linkedNodes: CopyOnWriteArrayList<Node>
     /** Parent node of this node. */
     var parent: Node?
-    /** Creation timestamp of the node. */
-    var createdAt: Long
-    /** Modification timestamp of the node. */
-    var modifiedAt: Long
     /** Flag to set whether the object is visible or not. */
     var visible: Boolean
     var discoveryBarrier: Boolean

@@ -200,13 +200,16 @@ class PubSubTest {
         Thread.sleep(1000)
         sub.networkUpdate(scene2)
         box.spatial().position = Vector3f(0f,0f,3f)
+        box.material().diffuse = Vector3f(0f,0f,3f)
         pub.scanForChanges()
         Thread.sleep(1000)
         sub.networkUpdate(scene2)
 
         val box2 = scene2.find("box")
+        val mat = box2?.materialOrNull()
         assert(box2 != null) { "precondition not met => Flaky or See previous tests" }
         assertEquals(3f, box2?.spatialOrNull()?.position?.z)
+        assertEquals(3f, mat?.diffuse?.z)
     }
 }
 

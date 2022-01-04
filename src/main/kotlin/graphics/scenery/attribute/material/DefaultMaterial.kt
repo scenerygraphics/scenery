@@ -11,16 +11,39 @@ open class DefaultMaterial : Material, Networkable {
 
     override var name: String = "Material"
     override var diffuse: Vector3f = Vector3f(0.9f, 0.5f, 0.5f)
+        set(value) {
+            field = value
+            updateModifiedAt()
+        }
     override var specular: Vector3f = Vector3f(0.5f, 0.5f, 0.5f)
+        set(value) {
+            field = value
+            updateModifiedAt()
+        }
     override var ambient: Vector3f = Vector3f(0.5f, 0.5f, 0.5f)
+        set(value) {
+            field = value
+            updateModifiedAt()
+        }
     override var roughness: Float = 1.0f
+        set(value) {
+            field = value
+            updateModifiedAt()
+        }
     override var metallic: Float = 0.0f
+        set(value) {
+            field = value
+            updateModifiedAt()
+        }
     override var blending: Blending = Blending()
-    @Volatile @Transient override var textures: TimestampedConcurrentHashMap<String, Texture> = TimestampedConcurrentHashMap()
+    @Volatile
+    @Transient
+    override var textures: TimestampedConcurrentHashMap<String, Texture> = TimestampedConcurrentHashMap()
     override var cullingMode: Material.CullingMode = Material.CullingMode.Back
     override var depthTest: Material.DepthTest = Material.DepthTest.LessEqual
     override var wireframe: Boolean = false
     override var timestamp: Long = System.nanoTime()
+    override var modifiedAt = Long.MIN_VALUE
 
     var synchronizeTextures = true
 
@@ -31,11 +54,12 @@ open class DefaultMaterial : Material, Networkable {
          *
          * @return Material with default properties
          */
-        @JvmStatic fun Material(): DefaultMaterial = DefaultMaterial()
+        @JvmStatic
+        fun Material(): DefaultMaterial = DefaultMaterial()
     }
 
     override fun getAdditionalData(): Any? {
-        return if (synchronizeTextures){
+        return if (synchronizeTextures) {
             textures
         } else {
             null
@@ -43,7 +67,7 @@ open class DefaultMaterial : Material, Networkable {
     }
 
     override fun update(fresh: Networkable, getNetworkable: (Int) -> Networkable, additionalData: Any?) {
-        if (fresh !is DefaultMaterial){
+        if (fresh !is DefaultMaterial) {
             throw IllegalArgumentException("Got wrong type to update ${this::class.simpleName} ")
         }
         diffuse = fresh.diffuse
@@ -51,11 +75,6 @@ open class DefaultMaterial : Material, Networkable {
         (additionalData as? TimestampedConcurrentHashMap<String, Texture>)?.let {
             textures = it
         }
-    }
-
-    override fun lastChange(): Long {
-        //TODO("Not yet implemented")
-        return Long.MIN_VALUE
     }
 
     override fun getAttributeClass(): KClass<out Any>? {
