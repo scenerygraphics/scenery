@@ -7,6 +7,9 @@ import graphics.scenery.Scene
 import graphics.scenery.net.NetworkEvent
 import graphics.scenery.net.NodePublisher
 import graphics.scenery.net.NodeSubscriber
+import graphics.scenery.tests.examples.cluster.SimpleNetworkExample
+import graphics.scenery.textures.Texture
+import graphics.scenery.utils.Image
 import org.joml.Vector3f
 import org.junit.After
 import org.junit.Before
@@ -49,7 +52,6 @@ class PubSubTest {
 
     @After
     fun teardown() {
-        pub.stopPublishing()
         sub.stopListening()
 
         pub.close()
@@ -147,6 +149,7 @@ class PubSubTest {
         node2.name = "zwei"
         scene1.addChild(node1)
         scene1.addChild(node2)
+
         pub.register(scene1)
         pub.debugPublish { sub.debugListen(serializeAndDeserialize(it) as NetworkEvent) }
         sub.networkUpdate(scene2)
@@ -159,6 +162,29 @@ class PubSubTest {
         val zwei = scene2.find("zwei")
 
         assert(eins?.materialOrNull() == zwei?.materialOrNull())
+    }
+
+    @Test
+    fun additionalDataTexture(){
+        val box = Box(Vector3f(1.0f, 1.0f, 1.0f))
+        box.name = "box"
+        box.material {
+            textures["diffuse"] = Texture.fromImage(
+                Image.fromResource(
+                    "../../examples/basic/textures/helix.png",
+                    PubSubTest::class.java
+                )
+            )
+        }
+        scene1.addChild(box)
+
+        pub.register(scene1)
+        pub.debugPublish { sub.debugListen(serializeAndDeserialize(it) as NetworkEvent) }
+        sub.networkUpdate(scene2)
+
+        val box2 = scene2.find("box") as? Box
+        assert(box2?.material()?.textures?.isNotEmpty() ?: false)
+
     }
 
     @Test

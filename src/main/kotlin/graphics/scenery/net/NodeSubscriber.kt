@@ -1,7 +1,10 @@
 package graphics.scenery.net
 
 import com.esotericsoftware.kryo.io.Input
-import graphics.scenery.*
+import graphics.scenery.Hub
+import graphics.scenery.Hubable
+import graphics.scenery.Node
+import graphics.scenery.Scene
 import graphics.scenery.utils.LazyLogger
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
@@ -24,9 +27,10 @@ class NodeSubscriber(
     portPublish: Int = 7777,
     portControl: Int = 6666,
     val context: ZContext = ZContext(4),
-    val init: Boolean = true
+    startNetworkActivity: Boolean = true
 ) : Hubable {
     private val addressSubscribe = "$ip:$portPublish"
+
     //private val addressControl = "tcp://localhost:5560"
     private val addressControl = "$ip:$portControl"
 
@@ -38,46 +42,42 @@ class NodeSubscriber(
     private val networkObjects = hashMapOf<Int, NetworkWrapper<*>>()
     private val eventQueue = LinkedBlockingQueue<NetworkEvent>()
     private val waitingOnNetworkable = mutableMapOf<Int, List<Pair<NetworkEvent, WaitReason>>>()
-    private var running = false
+    private var listening = false
 
     init {
-        if (init){
+        if (startNetworkActivity) {
             subscriber.connect(addressSubscribe)
             subscriber.subscribe(ZMQ.SUBSCRIPTION_ALL)
             control.connect(addressControl)
             GlobalScope.launch {
                 delay(1000)
-                NodePublisher.sendEvent(NetworkEvent.RequestInitialization(),kryo,control,logger)
+                NodePublisher.sendEvent(NetworkEvent.RequestInitialization(), kryo, control, logger)
             }
         }
     }
 
     fun startListening() {
-        running = true
+        listening = true
         subscriber.receiveTimeOut = 0
         thread {
-            while (running) {
+            while (listening) {
                 try {
-                    var payload: ByteArray? = subscriber.recv()
-                    while (payload != null && running) {
-                        val bin = ByteArrayInputStream(payload)
-                        val input = Input(bin)
-                        val event = kryo.readClassAndObject(input) as? NetworkEvent
-                            ?: throw IllegalStateException("Received unknown, not NetworkEvent payload")
-                        eventQueue.add(event)
-                        payload = subscriber.recv()
+                    val payload: ByteArray = subscriber.recv() ?: continue
 
-                    }
+                    val bin = ByteArrayInputStream(payload)
+                    val input = Input(bin)
+                    val event = kryo.readClassAndObject(input) as? NetworkEvent
+                        ?: throw IllegalStateException("Received unknown, not NetworkEvent payload")
+                    eventQueue.add(event)
                 } catch (t: Throwable) {
                     t.printStackTrace()
                 }
-                Thread.sleep(50)
             }
         }
     }
 
-    fun stopListening(){
-        running = false
+    fun stopListening() {
+        listening = false
     }
 
     /**
@@ -87,7 +87,8 @@ class NodeSubscriber(
         eventQueue.add(event)
     }
 
-    class NetworkableNotFoundException(val id: Int): IllegalStateException()
+    class NetworkableNotFoundException(val id: Int) : IllegalStateException()
+
     private fun getNetworkable(id: Int): Networkable {
         return networkObjects[id]?.obj ?: throw NetworkableNotFoundException(id)
     }
@@ -102,26 +103,26 @@ class NodeSubscriber(
                     processUpdateEvent(event, scene)
                 }
                 is NetworkEvent.NewRelation -> {
-                    processNewRelationEvent(event,scene)
+                    processNewRelationEvent(event)
                 }
             }
         }
     }
 
-    private fun processNewRelationEvent(event: NetworkEvent.NewRelation, scene: Scene) {
-        val parent = event.parent?.let { networkObjects[it]  }?.obj as? Node
-        if (event.parent != null && parent == null){
+    private fun processNewRelationEvent(event: NetworkEvent.NewRelation) {
+        val parent = event.parent?.let { networkObjects[it] }?.obj as? Node
+        if (event.parent != null && parent == null) {
             waitingOnNetworkable.getOrDefault(event.parent, listOf()) + (event to WaitReason.UpdateRelation)
             return
         }
         val childWrapper = networkObjects[event.child]
-        if (childWrapper == null){
+        if (childWrapper == null) {
             waitingOnNetworkable.getOrDefault(event.child, listOf()) + (event to WaitReason.UpdateRelation)
             return
         }
-        when (val child = childWrapper.obj){
+        when (val child = childWrapper.obj) {
             is Node -> {
-                if (parent == null){
+                if (parent == null) {
                     child.parent?.removeChild(child)
                 } else {
                     parent.addChild(child)
@@ -129,12 +130,12 @@ class NodeSubscriber(
             }
             else -> {
                 // Attribute
-                parent?.addAttributeFromNetwork(child.getAttributeClass()!!.java,child)
+                parent?.addAttributeFromNetwork(child.getAttributeClass()!!.java, child)
             }
         }
     }
 
-    private fun processUpdateEvent(event: NetworkEvent.Update, scene: Scene){
+    private fun processUpdateEvent(event: NetworkEvent.Update, scene: Scene) {
         val networkWrapper = event.obj
 
         // ---------- update -------------
@@ -143,9 +144,10 @@ class NodeSubscriber(
             val tmp = networkObjects[fresh.networkID]?.obj
                 ?: throw Exception("Got update for unknown object with id ${fresh.networkID} and class ${fresh.javaClass.simpleName}")
             try {
-                tmp.update(fresh,this::getNetworkable, networkWrapper.additionalData)
-            } catch (e: NetworkableNotFoundException){
-                waitingOnNetworkable[e.id] = waitingOnNetworkable.getOrDefault(e.id, listOf()) + (event to WaitReason.UpdateRelation)
+                tmp.update(fresh, this::getNetworkable, networkWrapper.additionalData)
+            } catch (e: NetworkableNotFoundException) {
+                waitingOnNetworkable[e.id] =
+                    waitingOnNetworkable.getOrDefault(e.id, listOf()) + (event to WaitReason.UpdateRelation)
             }
             return
         }
@@ -157,11 +159,13 @@ class NodeSubscriber(
                 // dont use the scene from network, but adapt own scene
                 scene.networkID = networkable.networkID
                 try {
-                    scene.update(networkable, this::getNetworkable,networkWrapper.additionalData)
-                } catch (e: NetworkableNotFoundException){
-                    waitingOnNetworkable[e.id] = waitingOnNetworkable.getOrDefault(e.id, listOf())+ (event to WaitReason.Parent)
+                    scene.update(networkable, this::getNetworkable, networkWrapper.additionalData)
+                } catch (e: NetworkableNotFoundException) {
+                    waitingOnNetworkable[e.id] =
+                        waitingOnNetworkable.getOrDefault(e.id, listOf()) + (event to WaitReason.Parent)
                 }
-                networkObjects[networkWrapper.networkID] = NetworkWrapper(networkWrapper.networkID, scene, mutableListOf())
+                networkObjects[networkWrapper.networkID] =
+                    NetworkWrapper(networkWrapper.networkID, scene, mutableListOf())
                 networkable = scene
             }
             is Node -> {
@@ -171,7 +175,8 @@ class NodeSubscriber(
                 if (parent != null) {
                     parent.addChild(networkable)
                 } else {
-                    waitingOnNetworkable[parentId] = waitingOnNetworkable.getOrDefault(parentId, listOf())+ (event to WaitReason.Parent)
+                    waitingOnNetworkable[parentId] =
+                        waitingOnNetworkable.getOrDefault(parentId, listOf()) + (event to WaitReason.Parent)
                 }
                 networkObjects[networkWrapper.networkID] = networkWrapper
             }
@@ -204,7 +209,7 @@ class NodeSubscriber(
             }
         }
         eventQueue.add(NetworkEvent.Update(networkWrapper)) // update relations if this is a post-initial-sync new object
-        processWaitingNodes(networkable,scene)
+        processWaitingNodes(networkable, scene)
     }
 
     private fun processWaitingNodes(parent: Networkable, scene: Scene) {
@@ -233,7 +238,7 @@ class NodeSubscriber(
                                 }
                             }
                         }
-                        is NetworkEvent.NewRelation -> processNewRelationEvent(event, scene)
+                        is NetworkEvent.NewRelation -> processNewRelationEvent(event)
                     }
                 }
             }
@@ -319,7 +324,7 @@ class NodeSubscriber(
         context.close()
     }
 
-    private enum class WaitReason(){
+    private enum class WaitReason {
         Parent, UpdateRelation
     }
 }

@@ -112,7 +112,7 @@ class SubscriberTest {
             }
         }
 
-        val sub = NodeSubscriber(null,init = false)
+        val sub = NodeSubscriber(null,startNetworkActivity = false)
         val scene = Scene()
         val node = UpdateNode()
 
