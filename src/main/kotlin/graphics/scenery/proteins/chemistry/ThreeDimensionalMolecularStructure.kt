@@ -69,7 +69,7 @@ class ThreeDimensionalMolecularStructure(val bondTree: BondTree, val lConfigurat
         else { Vector3f(x).cross(Vector3f(z)).normalize() }
 
         val numberOfFreeElectronPairs = numberOfFreeElectronPairs(bondTree)
-        if(y != null && z != null && rootPosition != null) {
+        if(y != null && z != null) {
             val necessaryPositions =  bondTree.boundMolecules.size + numberOfFreeElectronPairs
             val positions = positions(necessaryPositions, x, y, z, rootPosition, treeRoot)
             val newNodes = ArrayList<BondTreeNodeBasisAndParent>(bondTree.boundMolecules.size + numberOfFreeElectronPairs)
@@ -85,7 +85,7 @@ class ThreeDimensionalMolecularStructure(val bondTree: BondTree, val lConfigurat
                 newNodes.add(BondTreeNodeBasisAndParent(boundMolecule, elementSphere, positions[index].x, root))
                 //display bond
                 if(boundMolecule.bondOrder > 1) {
-                    addMultipleBoundCylinder(rootPosition, Vector3f(elementSphere.spatial().position), boundMolecule.bondOrder)
+                    addMultipleBoundCylinder(rootPosition, Vector3f(elementSphere.spatial().position), boundMolecule.bondOrder, x)
                 }
                 else {
                     val c = Cylinder(0.025f, 1.0f, 10)
@@ -213,13 +213,8 @@ class ThreeDimensionalMolecularStructure(val bondTree: BondTree, val lConfigurat
         return Matrix3f(inverseX, inverseY, inverseZ)
     }
 
-    private fun addMultipleBoundCylinder(rootPosition: Vector3f, childPosition: Vector3f, bondOrder: Int) {
+    private fun addMultipleBoundCylinder(rootPosition: Vector3f, childPosition: Vector3f, bondOrder: Int, perpendicular: Vector3f) {
         val scalar = if(bondOrder == 2) { 0.05f } else { 0.08f }
-        //create vector perpendicular to bond cylinder
-        val rootToChild = Vector3f(rootPosition).sub(Vector3f(childPosition)).normalize()
-        val perpendicular = Vector3f()
-        rootToChild.cross(Vector3f(1f, 0f, 0f), perpendicular).normalize().cross(Vector3f(0f, 1f, 0f))
-            .normalize()
         //translate both bonds so that the double bond becomes visible
         val positionRoot1 = Vector3f(rootPosition).add(Vector3f(perpendicular).mul(scalar))
         val positionRoot2 = Vector3f(rootPosition).sub(Vector3f(perpendicular).mul(scalar))
