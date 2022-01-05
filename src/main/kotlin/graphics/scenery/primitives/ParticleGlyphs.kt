@@ -24,7 +24,7 @@ import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
 
-class ParticleGlyphs @JvmOverloads constructor(var positions: List<Vector3f>, var properties: List<Vector2f>, var colors: List<Vector3f>, var forward : Boolean = true) : DefaultNode("ParticleGlyphs"), HasSpatial, HasRenderable,
+class ParticleGlyphs @JvmOverloads constructor(var positions: FloatBuffer, var properties: FloatBuffer, var colors: FloatBuffer, var forward : Boolean = true) : DefaultNode("ParticleGlyphs"), HasSpatial, HasRenderable,
     HasCustomMaterial<ShaderMaterial>, HasGeometry {
 
     init {
@@ -37,31 +37,16 @@ class ParticleGlyphs @JvmOverloads constructor(var positions: List<Vector3f>, va
 
         geometry{
 
-            vertices = BufferUtils.allocateFloat(positions.size * 3)
-            texcoords = BufferUtils.allocateFloat(properties.size * 2)
-            normals = BufferUtils.allocateFloat(colors.size * 3)
-
-            val vbuffer = ArrayList<Vector3f>(positions.size * 3)
-            val tbuffer = ArrayList<Vector2f>(properties.size * 2)
-            val nbuffer = ArrayList<Vector3f>(colors.size * 3)
-            var vSize = positions.size
-            for (i in 0 until vSize) {
-                vbuffer.add(positions[i])
-            }
-            var tSize = properties.size
-            for (i in 0 until tSize) {
-                tbuffer.add(properties[i])
-            }
-            var nSize = colors.size
-            for (i in 0 until nSize) {
-                nbuffer.add(colors[i])
-            }
-            vbuffer.forEach { v -> v.get(vertices).position(vertices.position() + 3) }
-            tbuffer.forEach { n -> n.get(texcoords).position(texcoords.position() + 2) }
-            nbuffer.forEach { n -> n.get(normals).position(normals.position() + 3) }
-
+            vertices = BufferUtils.allocateFloat(positions.limit())
+            vertices.put(positions)
             vertices.flip()
+
+            texcoords = BufferUtils.allocateFloat(properties.limit())
+            texcoords.put(properties)
             texcoords.flip()
+
+            normals = BufferUtils.allocateFloat(colors.limit())
+            normals.put(colors)
             normals.flip()
         }
 
@@ -76,9 +61,9 @@ class ParticleGlyphs @JvmOverloads constructor(var positions: List<Vector3f>, va
 
     override fun createGeometry(): Geometry {
         return object: DefaultGeometry(this) {
-            override var vertices: FloatBuffer = BufferUtils.allocateFloat(positions.size * 3)
-            override var texcoords: FloatBuffer = BufferUtils.allocateFloat(properties.size * 2)
-            override var normals: FloatBuffer = BufferUtils.allocateFloat(colors.size * 3)
+            override var vertices: FloatBuffer = BufferUtils.allocateFloat(positions.limit())
+            override var texcoords: FloatBuffer = BufferUtils.allocateFloat(properties.limit())
+            override var normals: FloatBuffer = BufferUtils.allocateFloat(colors.limit())
         }
     }
 

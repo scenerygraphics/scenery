@@ -8,6 +8,7 @@ import graphics.scenery.attribute.material.Material
 import graphics.scenery.primitives.ParticleGlyphs
 import graphics.scenery.utils.Statistics
 import org.joml.Vector2f
+import java.nio.FloatBuffer
 import kotlin.concurrent.thread
 import kotlin.math.PI
 import kotlin.math.cos
@@ -46,20 +47,33 @@ class ParticleGlyphsExample : SceneryBase("ParticleGlyphsExample") {
         light3.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
         scene.addChild(light3)
 
-        val particleNumber = 50000
-        val particlePositions = ArrayList<Vector3f>(particleNumber)
-        val particleProperties = ArrayList<Vector2f>(particleNumber)
-        val particleColors = ArrayList<Vector3f>(particleNumber)
+
+        val particleNumber = 1000
+        val particlePos = FloatBuffer.allocate(particleNumber * 3)
+        val particleProp = FloatBuffer.allocate(particleNumber * 2)
+        val particleCol = FloatBuffer.allocate(particleNumber * 3)
         repeat(particleNumber) {
-            particlePositions.add(graphics.scenery.numerics.Random.random3DVectorFromRange(-50.0f, 50.0f))
-            particleProperties.add(Vector2f(Random.nextDouble(0.1, 1.0).toFloat(), 0.0f))
-            particleColors.add(Vector3f(Random.nextDouble(0.1, 1.0).toFloat(), Random.nextDouble(0.0, 1.0).toFloat(), Random.nextDouble(0.0, 1.0).toFloat()))
+            particlePos.put(Random.nextDouble(-10.0, 10.0).toFloat())
+            particlePos.put(Random.nextDouble(-10.0, 10.0).toFloat())
+            particlePos.put(Random.nextDouble(-10.0, 10.0).toFloat())
+
+            particleProp.put(Random.nextDouble(0.01, 0.1).toFloat())
+            particleProp.put(0.0f)
+
+            particleCol.put(Random.nextDouble(0.1, 1.0).toFloat())
+            particleCol.put(Random.nextDouble(0.1, 1.0).toFloat())
+            particleCol.put(Random.nextDouble(0.1, 1.0).toFloat())
         }
-        val particleGlyphs = ParticleGlyphs(particlePositions, particleProperties, particleColors, false)
+        particlePos.flip()
+        particleProp.flip()
+        particleCol.flip()
+        val particleGlyphs = ParticleGlyphs(particlePos, particleProp, particleCol, false)
         particleGlyphs.name = "Particles"
         scene.addChild(particleGlyphs)
 
-        var camStartDist = 50.0f
+
+
+        var camStartDist = 10.0f
         val camStart = Vector3f(0.0f, 0.0f, camStartDist)
         val cam: Camera = DetachedHeadCamera()
         cam.spatial {
