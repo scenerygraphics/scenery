@@ -273,16 +273,6 @@ open class Scene : DefaultNode("RootNode"), HasRenderable, HasMaterial, HasSpati
         logger.info("Written scene to $filename (${"%.2f".format(size/1024.0f)} KiB) in ${duration}ms")
     }
 
-    fun publishSubscribe(hub: Hub, filter: (Node) -> Boolean = { true }) {
-        val nodes = discover(this, filter)
-        val pub = hub.get<NodePublisher>()
-        val sub = hub.get<NodeSubscriber>()
-//TODO
-        nodes.forEachIndexed { i, node ->
-            //pub?.nodes?.put(13337 + i, node)
-       //     sub?.nodes?.put(13337 + i, node)
-        }
-    }
 
     override fun update(fresh: Networkable, getNetworkable: (Int) -> Networkable, additionalData: Any?) {
         super.update(fresh, getNetworkable, additionalData)

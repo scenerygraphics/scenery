@@ -29,16 +29,14 @@ class NodeSubscriber(
     val context: ZContext = ZContext(4),
     startNetworkActivity: Boolean = true
 ) : Hubable {
-    private val addressSubscribe = "$ip:$portPublish"
-
-    //private val addressControl = "tcp://localhost:5560"
-    private val addressBackchannel = "$ip:$portBackchannel"
-
     private val logger by LazyLogger()
-    var nodes: ConcurrentHashMap<Int, Node> = ConcurrentHashMap()
+    val kryo = NodePublisher.freeze()
+
+    private val addressSubscribe = "$ip:$portPublish"
+    private val addressBackchannel = "$ip:$portBackchannel"
     var subscriber: ZMQ.Socket = context.createSocket(SocketType.SUB)
     var backchannel: ZMQ.Socket = context.createSocket(SocketType.PUB)
-    val kryo = NodePublisher.freeze()
+
     private val networkObjects = hashMapOf<Int, NetworkWrapper<*>>()
     private val eventQueue = LinkedBlockingQueue<NetworkEvent>()
     private val waitingOnNetworkable = mutableMapOf<Int, List<Pair<NetworkEvent, WaitReason>>>()

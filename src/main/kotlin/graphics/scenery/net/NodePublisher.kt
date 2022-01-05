@@ -48,8 +48,6 @@ class NodePublisher(
     private val addressMain = "$ip:$portMain"
     private val addressBackchannel = "$ip:$portBackchannel"
 
-    var nodes: ConcurrentHashMap<Int, Node> = ConcurrentHashMap() //TODO delete
-
     private val timeout = 500
     private val publisher: ZMQ.Socket = context.createSocket(SocketType.PUB)
     var portMain: Int = try {
