@@ -39,37 +39,34 @@ class NodePublisher(
     override var hub: Hub?,
     //ip: String = "tcp://127.0.0.1",
     ip: String = "tcp://localhost",
-    portPublish: Int = 7777,
-    portControl: Int = 6666,
+    portMain: Int = 7777,
+    portBackchannel: Int = 6666,
     val context: ZContext = ZContext(4)
 ) : Hubable {
     private val logger by LazyLogger()
 
-    private val addressPublish = "$ip:$portPublish"
-    private val addressControl = "$ip:$portControl"
-    //private val addressControl = "tcp://*:5560" //"$ip:$portControl"
+    private val addressMain = "$ip:$portMain"
+    private val addressBackchannel = "$ip:$portBackchannel"
 
-    //private var publishedAt = ConcurrentHashMap<Int, Long>()
-    //var nodes: ConcurrentHashMap<Int, Node> = ConcurrentHashMap()
     var nodes: ConcurrentHashMap<Int, Node> = ConcurrentHashMap() //TODO delete
 
     private val timeout = 500
     private val publisher: ZMQ.Socket = context.createSocket(SocketType.PUB)
-    var portPublish: Int = try {
-        publisher.bind(addressPublish)
-        addressPublish.substringAfterLast(":").toInt()
+    var portMain: Int = try {
+        publisher.bind(addressMain)
+        addressMain.substringAfterLast(":").toInt()
     } catch (e: ZMQException) {
         logger.warn("Binding failed, trying random port: $e")
-        publisher.bindToRandomPort(addressPublish.substringBeforeLast(":"))
+        publisher.bindToRandomPort(addressMain.substringBeforeLast(":"))
     }
 
-    private val controlSubscriber: ZMQ.Socket = context.createSocket(SocketType.SUB)
-    var portControl: Int = try {
-        controlSubscriber.bind(addressControl)
-        addressControl.substringAfterLast(":").toInt()
+    private val backchannelSubscriber: ZMQ.Socket = context.createSocket(SocketType.SUB)
+    var portBackchannel: Int = try {
+        backchannelSubscriber.bind(addressBackchannel)
+        addressBackchannel.substringAfterLast(":").toInt()
     } catch (e: ZMQException) {
         logger.warn("Binding failed, trying random port: $e")
-        controlSubscriber.bindToRandomPort(addressControl.substringBeforeLast(":"))
+        backchannelSubscriber.bindToRandomPort(addressBackchannel.substringBeforeLast(":"))
     }
 
     val kryo = freeze()
@@ -83,7 +80,8 @@ class NodePublisher(
     private fun generateNetworkID() = index++
 
     init {
-        controlSubscriber.subscribe(ZMQ.SUBSCRIPTION_ALL)
+        logger.info("Server opened main channel at $ip:${this.portMain} and back channel at $ip:${this.portBackchannel}")
+        backchannelSubscriber.subscribe(ZMQ.SUBSCRIPTION_ALL)
     }
 
     fun register(scene: Scene) {
@@ -93,7 +91,7 @@ class NodePublisher(
 
         scene.onChildrenAdded["networkPublish"] = { _, child -> registerNode(child) }
         scene.onChildrenRemoved["networkPublish"] = { parent, child -> detachNode(child,parent) }
-        scene.onAttributeAdded["NetworkPublish"] = {node, attribute -> addAttribute(node,attribute) }
+        scene.onAttributeAdded["networkPublish"] = {node, attribute -> addAttribute(node,attribute) }
 
         // abusing the discover function for a tree walk
         scene.discover(scene, { registerNode(it); false })
@@ -206,11 +204,11 @@ class NodePublisher(
 
     fun startListeningControl() {
         listeningForControl = true
-        controlSubscriber.receiveTimeOut = timeout
+        backchannelSubscriber.receiveTimeOut = timeout
         thread {
             while (listeningForControl) {
                 try {
-                    val payload: kotlin.ByteArray = controlSubscriber.recv() ?: continue
+                    val payload: kotlin.ByteArray = backchannelSubscriber.recv() ?: continue
 
                     val bin = ByteArrayInputStream(payload)
                     val input = Input(bin)
@@ -238,6 +236,7 @@ class NodePublisher(
             Thread.sleep(timeout * 2L)
         }
         context.destroySocket(publisher)
+        context.destroySocket(backchannelSubscriber)
         context.close()
     }
 

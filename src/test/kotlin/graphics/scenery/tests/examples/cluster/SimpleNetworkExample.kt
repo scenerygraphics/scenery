@@ -26,7 +26,7 @@ class SimpleNetworkExample : SceneryBase("SimpleNetworkExample", wantREPL = fals
             Renderer.createRenderer(hub, applicationName, scene, 512, 512))
 
         val box = Box(Vector3f(1.0f, 1.0f, 1.0f))
-        if (settings.get<Boolean>("master")) {
+        if (settings.get<Boolean>("Server",false)) {
             box.name = "le box du win"
             box.material {
                 textures["diffuse"] = Texture.fromImage(
@@ -61,8 +61,6 @@ class SimpleNetworkExample : SceneryBase("SimpleNetworkExample", wantREPL = fals
             scene.addChild(light)
         }
 
-
-
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
             spatial {
@@ -73,42 +71,8 @@ class SimpleNetworkExample : SceneryBase("SimpleNetworkExample", wantREPL = fals
             scene.addChild(this)
         }
 
-
-        //val publisher = hub.get<NodePublisher>(SceneryElement.NodePublisher)
-        //val subscriber = hub.get<NodeSubscriber>(SceneryElement.NodeSubscriber)
-
-        try {
-            if (settings.get<Boolean>("master")) {
-                val publisher = NodePublisher(hub)
-                hub.add(publisher)
-                publisher?.startPublishing()
-                //Thread.sleep(1000)
-                publisher?.register(scene)
-                scene.postUpdate += { publisher.scanForChanges()}
-                /*thread {
-                    while (true) {
-                        publisher.scanForChanges()
-                        Thread.sleep(500)
-                    }
-                }*/
-            } else {
-                val subscriber = NodeSubscriber(hub)
-                hub.add(subscriber)
-                subscriber.startListening()
-                scene.postUpdate += {subscriber.networkUpdate(scene)}
-//                thread {
-//                    while (true) {
-//                        subscriber?.networkUpdate(scene)
-//                        Thread.sleep(500)
-//                    }
-//                }
-            }
-        } catch (t: Throwable){
-            t.printStackTrace()
-        }
-
         thread {
-            while (running && settings.get<Boolean>("master")) {
+            while (running && settings.get<Boolean>("Server",false)) {
                 box.spatial {
                     rotation.rotateY(0.01f)
                     needsUpdate = true
