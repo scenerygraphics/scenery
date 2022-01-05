@@ -25,19 +25,19 @@ class NodeSubscriber(
     override var hub: Hub?,
     ip: String = "tcp://localhost",
     portPublish: Int = 7777,
-    portControl: Int = 6666,
+    portBackchannel: Int = 6666,
     val context: ZContext = ZContext(4),
     startNetworkActivity: Boolean = true
 ) : Hubable {
     private val addressSubscribe = "$ip:$portPublish"
 
     //private val addressControl = "tcp://localhost:5560"
-    private val addressControl = "$ip:$portControl"
+    private val addressBackchannel = "$ip:$portBackchannel"
 
     private val logger by LazyLogger()
     var nodes: ConcurrentHashMap<Int, Node> = ConcurrentHashMap()
     var subscriber: ZMQ.Socket = context.createSocket(SocketType.SUB)
-    var control: ZMQ.Socket = context.createSocket(SocketType.PUB)
+    var backchannel: ZMQ.Socket = context.createSocket(SocketType.PUB)
     val kryo = NodePublisher.freeze()
     private val networkObjects = hashMapOf<Int, NetworkWrapper<*>>()
     private val eventQueue = LinkedBlockingQueue<NetworkEvent>()
@@ -46,19 +46,23 @@ class NodeSubscriber(
 
     init {
         if (startNetworkActivity) {
-            subscriber.connect(addressSubscribe)
+            if (subscriber.connect(addressSubscribe)){
+                logger.info("Client connected to main channel at $addressSubscribe")
+            }
             subscriber.subscribe(ZMQ.SUBSCRIPTION_ALL)
-            control.connect(addressControl)
+            if(backchannel.connect(addressBackchannel)){
+                logger.info("Client connected to back channel at $addressBackchannel")
+            }
             GlobalScope.launch {
                 delay(1000)
-                NodePublisher.sendEvent(NetworkEvent.RequestInitialization(), kryo, control, logger)
+                NodePublisher.sendEvent(NetworkEvent.RequestInitialization(), kryo, backchannel, logger)
             }
         }
     }
 
     fun startListening() {
         listening = true
-        subscriber.receiveTimeOut = 0
+        subscriber.receiveTimeOut = 100
         thread {
             while (listening) {
                 try {
@@ -246,7 +250,9 @@ class NodeSubscriber(
     }
 
     fun close() {
+        stopListening()
         context.destroySocket(subscriber)
+        context.destroySocket(backchannel)
         context.close()
     }
 
