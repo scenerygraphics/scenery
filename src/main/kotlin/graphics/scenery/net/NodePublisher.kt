@@ -89,7 +89,7 @@ class NodePublisher(
 
         scene.onChildrenAdded["networkPublish"] = { _, child -> registerNode(child) }
         scene.onChildrenRemoved["networkPublish"] = { parent, child -> detachNode(child,parent) }
-        scene.onAttributeAdded["networkPublish"] = {node, attribute -> addAttribute(node,attribute) }
+        scene.onAttributeAdded["networkPublish"] = {node, attribute -> registerAttribute(node,attribute) }
 
         // abusing the discover function for a tree walk
         scene.discover(scene, { registerNode(it); false })
@@ -138,7 +138,7 @@ class NodePublisher(
         }
     }
 
-    private fun addAttribute(node: Node, attribute: Any) {
+    private fun registerAttribute(node: Node, attribute: Any) {
         if (attribute !is Networkable){
             return
         }
@@ -259,7 +259,7 @@ class NodePublisher(
             } catch (e: AssertionError) {
                 logger.warn("Error in publishing: ${event.javaClass.name}", e)
             } catch (e: Throwable) {
-                print(e)
+                e.printStackTrace()
             }
             return payloadSize
         }
