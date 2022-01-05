@@ -18,7 +18,7 @@ class AminoAcidBondTreeMap {
         //arginine
         val arginine = aminoAcidBluePrint()
         val cb = BondTree("C", 1, arginine)
-        cb.addhydrogen(2)
+        cb.addhydrogen(1)
         val cg = BondTree("C", 1, cb)
         cg.addhydrogen(2)
         val cd = BondTree("C", 1, cg)
@@ -36,6 +36,7 @@ class AminoAcidBondTreeMap {
         cd.addBoundMolecule(en)
         cg.addBoundMolecule(cd)
         cb.addBoundMolecule(cd)
+        cb.addhydrogen(1)
         arginine.addBoundMolecule(cb)
         aminoMap["ARG"] = arginine
 
@@ -70,7 +71,7 @@ class AminoAcidBondTreeMap {
         //glutamine
         val glutamine = aminoAcidBluePrint()
         val cbGln = BondTree("C", 1, glutamine)
-        cbGln.addhydrogen(2)
+        cbGln.addhydrogen(1)
         val cgGln = BondTree("C", 1, cbGln)
         cgGln.addhydrogen(2)
         val cdGln = BondTree("C", 1, cgGln)
@@ -81,6 +82,7 @@ class AminoAcidBondTreeMap {
         cdGln.addBoundMolecule(oeGln)
         cgGln.addBoundMolecule(cdGln)
         cbGln.addBoundMolecule(cgGln)
+        cbGln.addhydrogen(1)
         glutamine.addBoundMolecule(cbGln)
         aminoMap["GLN"] = glutamine
 
@@ -101,8 +103,8 @@ class AminoAcidBondTreeMap {
         o2c.addhydrogen(1)
         c.addBoundMolecule(o1c)
         c.addBoundMolecule(o2c)
-        ca.addhydrogen(1)
         ca.addBoundMolecule(n)
+        ca.addhydrogen(1)
         ca.addBoundMolecule(c)
         return ca
     }
