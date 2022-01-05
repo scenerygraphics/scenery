@@ -20,10 +20,10 @@ class GlutamineExample: SceneryBase("RainbowRibbon", windowWidth = 1280, windowH
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
 
         val rowSize = 20f
-        val glutamineBondTree = AminoAcidBondTreeMap().aminoMap["ALA"]
+        val glutamineBondTree = AminoAcidBondTreeMap().aminoMap["GLN"]
         if(glutamineBondTree != null) {
-            //val glutamine = ThreeDimensionalMolecularStructure(glutamineBondTree)
-            //scene.addChild(glutamine)
+            val glutamine = ThreeDimensionalMolecularStructure(glutamineBondTree)
+            scene.addChild(glutamine)
         }
 
         val ethanol = BondTree("C", 0, null)
@@ -39,7 +39,7 @@ class GlutamineExample: SceneryBase("RainbowRibbon", windowWidth = 1280, windowH
         val methane = BondTree("C", 0, null)
         methane.addhydrogen(4)
 
-        scene.addChild(ThreeDimensionalMolecularStructure(ethanol))
+        //scene.addChild(ThreeDimensionalMolecularStructure(ethanol))
 
 
         val lightbox = Box(Vector3f(500.0f, 500.0f, 500.0f), insideNormals = true)
