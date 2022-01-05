@@ -13,6 +13,8 @@ interface Networkable : Serializable {
      *
      *  Don't access members of the @return networkable which are also networkables themself. 2.level networkable
      *  relations might be wrong. Instead add them to the direct relations of this object.
+     *
+     *  @param fresh by-value deep (except for transient members) copy of the original at the server
      */
     fun update(fresh: Networkable, getNetworkable: (Int) -> Networkable, additionalData: Any?)
 
@@ -20,7 +22,6 @@ interface Networkable : Serializable {
      * Serialize data which is not picket up by kryo eg. transient members
      */
     fun getAdditionalData(): Any? = null
-
 
     /**
      * Time point of last modification in [System.nanoTime()]
