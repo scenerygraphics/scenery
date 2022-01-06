@@ -18,13 +18,13 @@ class CircularMolecularStructureExample: SceneryBase("RainbowRibbon", windowWidt
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
 
         val rowSize = 20f
-        val circularBondTree = BondTreeCycle("C", listOf(listOf(BondTree("C", 1, null),
+        val circularBondTree = BondTreeCycle("F", listOf(listOf(BondTree("C", 1, null),
             BondTree("C", 1, null),
             BondTree("C", 1, null), BondTree("C", 1, null),
             BondTree("C", 1, null), BondTree("C", 1, null)),
             listOf(BondTree("O", 2, null))), 1, null)
 
-        val threeDStructure = CircularMolecularStructure(circularBondTree, 30f, Matrix3f(1f, 0f, 0f,
+        val threeDStructure = CircularMolecularStructure(circularBondTree, kotlin.math.PI.toFloat()/2f, Matrix3f(1f, 0f, 0f,
                                                                                                     0f, 1f, 0f,
                                                                                                     0f, 0f, 1f),
         1f, Vector3f()
