@@ -3,9 +3,6 @@ package graphics.scenery.proteins.chemistry
 import graphics.scenery.Icosphere
 import graphics.scenery.Mesh
 import graphics.scenery.Node
-import graphics.scenery.attribute.material.DefaultMaterial
-import graphics.scenery.attribute.material.Material
-import graphics.scenery.primitives.Arrow
 import graphics.scenery.primitives.Cylinder
 import graphics.scenery.utils.extensions.times
 import org.joml.Matrix3f
