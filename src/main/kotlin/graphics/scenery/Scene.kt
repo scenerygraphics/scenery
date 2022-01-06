@@ -41,6 +41,7 @@ import kotlin.system.measureTimeMillis
 open class Scene : DefaultNode("RootNode"), HasRenderable, HasMaterial, HasSpatial {
 
     /** Temporary storage of the active observer ([Camera]) of the Scene. */
+    @Transient
     var activeObserver: Camera? = null
 
     internal var sceneSize: AtomicLong = AtomicLong(0L)

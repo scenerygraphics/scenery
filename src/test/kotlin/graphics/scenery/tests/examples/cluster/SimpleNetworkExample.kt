@@ -24,33 +24,26 @@ class SimpleNetworkExample : SceneryBase("SimpleNetworkExample", wantREPL = fals
         )
 
         val box = Box(Vector3f(1.0f, 1.0f, 1.0f))
-        box.name = "le box du win"
-        box.material {
-            textures["diffuse"] = Texture.fromImage(
-                Image.fromResource(
-                    "../basic/textures/helix.png",
-                    SimpleNetworkExample::class.java
+        with(box) {
+            name = "le box du win"
+            material {
+                textures["diffuse"] = Texture.fromImage(
+                    Image.fromResource(
+                        "../basic/textures/helix.png",
+                        SimpleNetworkExample::class.java
+                    )
                 )
-            )
-            metallic = 0.3f
-            roughness = 0.9f
-            //(this as DefaultMaterial).synchronizeTextures = false
+                metallic = 0.3f
+                roughness = 0.9f
+                //(this as DefaultMaterial).synchronizeTextures = false
+            }
+            spatial {
+                rotation.rotateY(0.5f)
+                needsUpdate = true
+            }
+            scene.addChild(this)
         }
 
-        box.spatial {
-            rotation.rotateY(0.5f)
-            needsUpdate = true
-        }
-        scene.addChild(box)
-
-        thread {
-            Thread.sleep(6000)
-            val ma = DefaultMaterial()
-            ma.diffuse = Vector3f(0f, 1f, 0f)
-            //box.setMaterial(ma)
-            box.spatial().needsUpdate = true
-            println("replacing Mat")
-        }
         val light = PointLight(radius = 15.0f)
         light.spatial().position = Vector3f(0.0f, 0.0f, 2.0f)
         light.intensity = 5.0f
@@ -64,10 +57,11 @@ class SimpleNetworkExample : SceneryBase("SimpleNetworkExample", wantREPL = fals
                 position = Vector3f(0.0f, 0.0f, 5.0f)
             }
             perspectiveCamera(50.0f, 512, 512)
-
+            wantsSync = true
             scene.addChild(this)
         }
 
+        // box rotation
         thread {
             while (running) {
                 box.spatial {
@@ -78,6 +72,16 @@ class SimpleNetworkExample : SceneryBase("SimpleNetworkExample", wantREPL = fals
                 Thread.sleep(20)
             }
         }
+
+        thread {
+            Thread.sleep(6000)
+            val ma = DefaultMaterial()
+            ma.diffuse = Vector3f(0f, 1f, 0f)
+            //box.setMaterial(ma)
+            box.spatial().needsUpdate = true
+            println("replacing Mat")
+        }
+
     }
 
     companion object {
