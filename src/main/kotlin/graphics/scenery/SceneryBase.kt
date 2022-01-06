@@ -255,15 +255,6 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
             runtime = (System.nanoTime() - startTime) / 1000000f
             settings.set("System.Runtime", runtime)
 
-            val activeCamera = scene.findObserver() ?: continue
-
-            profiler?.begin("Render")
-            if (renderer?.managesRenderLoop != false) {
-                renderer?.render(activeCamera, sceneObjects.await())
-                delay(1)
-            } else {
-                stats.addTimed("render") { renderer?.render(activeCamera, sceneObjects.await()) ?: 0.0f }
-            }
             scene.update.forEach { it.invoke() }
             sceneObjects = GlobalScope.async {
                 scene.discover(scene, { n ->
@@ -272,6 +263,15 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
                     .map { it.spatialOrNull()?.updateWorld(recursive = true, force = false); it }
             }
             scene.postUpdate.forEach { it.invoke() }
+
+            profiler?.begin("Render")
+            val activeCamera = scene.findObserver() ?: continue
+            if (renderer?.managesRenderLoop != false) {
+                renderer?.render(activeCamera, sceneObjects.await())
+                delay(1)
+            } else {
+                stats.addTimed("render") { renderer?.render(activeCamera, sceneObjects.await()) ?: 0.0f }
+            }
             profiler?.end()
 
             // only run loop if we are either in standalone mode, or master
