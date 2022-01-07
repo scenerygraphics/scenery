@@ -4,8 +4,6 @@ import com.esotericsoftware.kryo.Kryo
 import com.esotericsoftware.kryo.Serializer
 import com.esotericsoftware.kryo.io.Input
 import com.esotericsoftware.kryo.io.Output
-import graphics.scenery.Hub
-import graphics.scenery.Node
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.volumes.Colormap
 import graphics.scenery.volumes.TransferFunction
@@ -61,7 +59,7 @@ class VolumeSerializer: Serializer<Volume>() {
 
         logger.info("TP=$timepoint")
 
-        val vol = Volume(Volume.VolumeDataSource.NullSource(timepoint+1), VolumeViewerOptions(), Hub())
+        val vol = Volume(Volume.VolumeDataSource.NullSource(timepoint+1), VolumeViewerOptions())
         vol.transferFunction = tf
         vol.colormap = colormap
         vol.pixelToWorldRatio = pixelToWorldRatio

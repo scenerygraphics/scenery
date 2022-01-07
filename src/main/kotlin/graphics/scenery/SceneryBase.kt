@@ -20,6 +20,8 @@ import graphics.scenery.utils.RemoteryProfiler
 import graphics.scenery.utils.Renderdoc
 import graphics.scenery.utils.SceneryPanel
 import graphics.scenery.utils.Statistics
+import graphics.scenery.volumes.Volume
+import graphics.scenery.volumes.VolumeManager
 import kotlinx.coroutines.*
 import org.lwjgl.system.Platform
 import org.scijava.Context
@@ -190,6 +192,12 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
             publisher.startPublishing()
             publisher.register(scene)
             scene.postUpdate += { publisher.scanForChanges()}
+        }
+
+        scene.onChildrenAdded["VolumeManager"] = { _,node ->
+            if (node is Volume){
+                VolumeManager.regenerateVolumeManagerWithExtraVolume(node,hub)
+            }
         }
 
         hub.add(SceneryElement.Statistics, stats)
