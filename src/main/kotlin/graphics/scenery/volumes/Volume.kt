@@ -70,8 +70,7 @@ import kotlin.streams.toList
 @Suppress("DEPRECATION")
 open class Volume(
     val dataSource: VolumeDataSource,
-    val options: VolumeViewerOptions,
-    @Transient val hub: Hub
+    val options: VolumeViewerOptions
 ) : DefaultNode("Volume"),
     DelegatesRenderable, DelegatesGeometry, DelegatesMaterial, DisableFrustumCulling,
     HasCustomSpatial<Volume.VolumeSpatial> {
@@ -234,33 +233,11 @@ open class Volume(
         viewerState.sources.forEach { s -> s.isActive = true }
         viewerState.displayMode = DisplayMode.FUSED
 
-        if (dataSource !is VolumeDataSource.NullSource) {
+        //if (dataSource !is VolumeDataSource.NullSource) {
             converterSetups.forEach {
                 it.color = ARGBType(Int.MAX_VALUE)
             }
-
-            val vm = hub.get<VolumeManager>()
-            val volumes = ArrayList<Volume>(10)
-
-            if (vm != null) {
-                volumes.addAll(vm.nodes)
-                hub.remove(vm)
-            }
-            volumeManager = if (vm != null) {
-                hub.add(VolumeManager(hub, vm.useCompute, vm.customSegments, vm.customBindings))
-            } else {
-                hub.add(VolumeManager(hub))
-            }
-            vm?.customTextures?.forEach {
-                volumeManager.customTextures.add(it)
-                volumeManager.material().textures[it] = vm.material().textures[it]!!
-            }
-            volumeManager.add(this)
-            volumes.forEach {
-                volumeManager.add(it)
-                it.volumeManager = volumeManager
-            }
-        }
+        //}
     }
 
     /* TODO Update methode
@@ -407,7 +384,7 @@ open class Volume(
             options: VolumeViewerOptions = VolumeViewerOptions()
         ): Volume {
             val ds = SpimDataMinimalSource(spimData)
-            return Volume(ds, options, hub)
+            return Volume(ds, options)
         }
 
         @JvmStatic
@@ -419,7 +396,7 @@ open class Volume(
         ): Volume {
             val spimData = XmlIoSpimDataMinimal().load(path)
             val ds = SpimDataMinimalSource(spimData)
-            return Volume(ds, options, hub)
+            return Volume(ds, options)
         }
 
         @JvmStatic
