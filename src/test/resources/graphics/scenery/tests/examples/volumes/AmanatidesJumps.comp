@@ -349,6 +349,26 @@ float getSupsegBack(ivec2 theList, int index) {
     #endif
 }
 
+float getPrecedingDepth(ivec2 theList, int index) {
+
+    if(!(index >= 0 && index < maxSupersegments)) {
+        //This is an error!
+        #if USE_PRINTF
+        if(gl_GlobalInvocationID.xy == debug_pixel) { //TODO: generalize
+            debugPrintfEXT("Searching for back face of incorrect supersegment index! List: (%d, %d) and index requested: %d", theList, index);
+        }
+        #endif
+        return -1;
+    }
+
+    if(index >= 1) {
+        return getSupsegBack(theList, index - 1);
+    } else {
+        return -50000.; // -inf
+    }
+
+}
+
 void binSearch(ivec2 theList, float dist_to_orig, int start, int end, out bool supseg_found, out int index, out float depthStart, out float depthEnd) {
 
     #if USE_PRINTF
@@ -366,11 +386,11 @@ void binSearch(ivec2 theList, float dist_to_orig, int start, int end, out bool s
 
         index = (low + high)/2;
 //
-        #if USE_PRINTF
-        if(gl_GlobalInvocationID.xy == debug_pixel) {
-            debugPrintfEXT("High is: %d, low is: %d and index is: %d", high, low, index);
-        }
-        #endif
+//        #if USE_PRINTF
+//        if(gl_GlobalInvocationID.xy == debug_pixel) {
+//            debugPrintfEXT("High is: %d, low is: %d and index is: %d", high, low, index);
+//        }
+//        #endif
 
         depthEnd = getSupsegBack(theList, index);
 
@@ -383,12 +403,7 @@ void binSearch(ivec2 theList, float dist_to_orig, int start, int end, out bool s
         if(depthEnd < dist_to_orig) { //this supersegment is behind the sample point
             low = index + 1;
         } else {
-            float prevEnd;
-            if(index >= 1) {
-                prevEnd = getSupsegBack(theList, index - 1);
-            } else {
-                prevEnd = getSupsegFront(theList, index);
-            }
+            float prevEnd = getPrecedingDepth(theList, index);
 
             if(prevEnd < dist_to_orig) {
                 // this is the supersegment
@@ -534,64 +549,42 @@ void findFirstSupseg(ivec2 theList, float dist_to_orig, float exit_distance, out
     } else {
 
         if(getSupsegBack(theList, prevIndex) == 0 || getSupsegBack(theList, prevIndex) >= dist_to_orig) {
-            //the supersegment, if any, lies on the left of prevIndex
-            if(prevIndex >= 1) {
-                //we can check the end-point of the preceding supersegment
-                if((getSupsegBack(theList, prevIndex - 1) < dist_to_orig) ) {
-                    if(getSupsegBack(theList, prevIndex) != 0) { // if prevIndex was filled, it is the supseg we are searching for
-                        #if USE_PRINTF
-                        if(gl_GlobalInvocationID.xy == debug_pixel && theList == ivec2(70, 589)) {
-                            debugPrintfEXT("option 1. prevIndex: %d", prevIndex);
-                        }
-                        #endif
-                        supseg_found = true;
-                        index = prevIndex;
-                        depthEnd = getSupsegBack(theList, index);
-
-                    }
-                } else if (prevIndex >= 2) {
-                    //we can check the end-point of the supersegment before the previous
-                    if((getSupsegBack(theList, prevIndex - 2) < dist_to_orig)) {
-                        if(getSupsegBack(theList, prevIndex-1) != 0) { // if prevIndex-1 was filled, it is the supseg we are searching for
-                            #if USE_PRINTF
-                            if(gl_GlobalInvocationID.xy == debug_pixel && theList == ivec2(70, 589)) {
-                                debugPrintfEXT("option 2. prevIndex: %d", prevIndex);
-                            }
-                            #endif
-                            supseg_found = true;
-                            index = prevIndex - 1;
-                            depthEnd = getSupsegBack(theList, index);
-
-                        }
-                    } else {
-                        binSearch(theList, dist_to_orig, 0, prevIndex - 2, supseg_found, index, depthStart, depthEnd);
-                    }
-                } else {
-                    if((getSupsegFront(theList, prevIndex - 1) < dist_to_orig) && (getSupsegFront(theList, prevIndex - 1) != 0)) {
-                        //found the supseg prevIndex - 1
-                        #if USE_PRINTF
-                        if(gl_GlobalInvocationID.xy == debug_pixel && theList == ivec2(70, 589)) {
-                            debugPrintfEXT("option 3. prevIndex: %d", prevIndex);
-                        }
-                        #endif
-                        supseg_found = true;
-                        index = prevIndex - 1;
-                        depthEnd = getSupsegBack(theList, index);
-                    }
-                }
-            } else {
-                if((getSupsegFront(theList, prevIndex) < dist_to_orig) && (getSupsegFront(theList, prevIndex) != 0)) {
-                    //found the supseg prevIndex
+            //the supersegment we are searching for, if present, lies on the left of prevIndex
+            //we can check the end-point of the preceding supersegment
+            if((getPrecedingDepth(theList, prevIndex) < dist_to_orig) ) { //check if prevIndex is a candidate
+                if(getSupsegBack(theList, prevIndex) != 0) { // if prevIndex was filled, it is the supseg we are searching for
                     #if USE_PRINTF
                     if(gl_GlobalInvocationID.xy == debug_pixel && theList == ivec2(70, 589)) {
-                        debugPrintfEXT("option 4. prevIndex: %d", prevIndex);
+                        debugPrintfEXT("option 1. prevIndex: %d", prevIndex);
                     }
                     #endif
                     supseg_found = true;
                     index = prevIndex;
                     depthEnd = getSupsegBack(theList, index);
+
+                } else {
+                    binSearch(theList, dist_to_orig, 0, prevIndex - 1, supseg_found, index, depthStart, depthEnd);
+                }
+            } else if (prevIndex >= 1) {
+                //we can check the end-point of the supersegment before the previous
+                if((getPrecedingDepth(theList, prevIndex - 1) < dist_to_orig)) { //check whether prevIndex-1 is a candidate
+                    if(getSupsegBack(theList, prevIndex-1) != 0) { // if prevIndex-1 was filled, it is the supseg we are searching for
+                        #if USE_PRINTF
+                        if(gl_GlobalInvocationID.xy == debug_pixel && theList == ivec2(70, 589)) {
+                            debugPrintfEXT("option 2. prevIndex: %d", prevIndex);
+                        }
+                        #endif
+                        supseg_found = true;
+                        index = prevIndex - 1;
+                        depthEnd = getSupsegBack(theList, index);
+                    } else {
+                        binSearch(theList, dist_to_orig, 0, prevIndex - 2, supseg_found, index, depthStart, depthEnd);
+                    }
+                } else {
+                    binSearch(theList, dist_to_orig, 0, prevIndex - 2, supseg_found, index, depthStart, depthEnd);
                 }
             }
+
         } else {
             if(prevIndex < (maxSupersegments - 1)) {
                 if(getSupsegBack(theList, prevIndex + 1) >= dist_to_orig) {
