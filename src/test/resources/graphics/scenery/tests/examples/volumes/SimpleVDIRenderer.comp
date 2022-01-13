@@ -1,0 +1,165 @@
+#version 450
+#extension GL_EXT_debug_printf : enable
+#define SEPARATE_DEPTH 1
+#define USE_PRINTF 1
+
+layout (local_size_x = 15, local_size_y = 15) in;
+layout (set = 0, binding = 0, rgba8) uniform readonly image3D InputVDI;
+layout (set = 1, binding = 0, rgba8) uniform image2D OutputViewport;
+#if SEPARATE_DEPTH
+    layout (set = 2, binding = 0, r32f) uniform readonly image3D DepthVDI;
+#endif
+
+vec2 decode(vec4 c){
+    vec2 v = vec2(0.);
+
+    int ir = int(c.r*255.);
+    int ig = int(c.g*255.);
+    int irg = ir*256 + ig;
+    v.x = float(irg) / 256.;
+
+    int ib = int(c.b*255.);
+    int ia = int(c.a*255.);
+    int iba = ib*256 + ia;
+    v.y = float(iba) / 256.;
+
+    v -= 128.;
+    return v;
+}
+
+const vec4 bitEnc = vec4(1.,255.,65025.,16581375.);
+const vec4 bitDec = 1./bitEnc;
+float DecodeFloatRGBA (vec4 v) {
+    return dot(v, bitDec);
+}
+
+float adjustOpacity(float a, float modifiedStepLength) {
+    return 1.0 - pow((1.0 - a), modifiedStepLength);
+}
+
+void main() {
+    ivec2 debug_pixel = ivec2(460, 350);
+
+    ivec3 imageCoords  = imageSize(InputVDI);
+
+#if SEPARATE_DEPTH
+    int numSupersegments = imageCoords.r;
+#else
+    int numSupersegments = imageCoords.r / 3;
+#endif
+
+    mat4 ViewOriginal = mat4(-0.86781174,  1.0376796E-4, -0.49694782,  2.299E+0,
+    0.11692904,  0.9719932, -0.20398827, -1.3797543,
+    0.48299563, -0.23512466, -0.8434963, -2.1878958,
+    0.0,  0.0, 0.0,  1.000E+0);
+    ViewOriginal = transpose(ViewOriginal);
+
+    mat4 invViewOriginal = mat4(-0.86781174,  0.11692904,  0.48299563,  3.2131748,
+    1.0376796E-4,  0.9719932, -0.23512466,  0.826445,
+    -0.49694782, -0.20398827, -0.8434963, -0.9844537,
+    0.000E+0,  0.000E+0,  0.000E+0,  1.000E+0);
+    invViewOriginal = transpose(invViewOriginal);
+
+    mat4 ProjectionOriginal = mat4(1.206285,  0.0,  0.0,  0.0,
+    0.0, -2.1445067,  0.0,  0.0,
+    0.0,  0.0, -1.0050251, -0.10050251,
+    0.0,  0.0, -1.0,  0.0);
+    ProjectionOriginal = transpose(ProjectionOriginal);
+
+    mat4 invProjectionOriginal = mat4(0.8289915,  0.000E+0,  0.000E+0, -0.000E+0,
+    0.000E+0, -0.4663077,  0.000E+0,  0.000E+0,
+    0.000E+0, -0.000E+0,  0.000E+0, -1.0,
+    0.000E+0,  0.000E+0, -9.949999,  10.0);
+    invProjectionOriginal = transpose(invProjectionOriginal);
+
+    mat4 pv_orig = ProjectionOriginal * ViewOriginal;
+
+    mat4 ivp_orig = invViewOriginal * invProjectionOriginal;
+
+    vec4 v = vec4(0);
+
+
+    vec4 maxV = vec4(0);
+
+    for(int i = 0; i < numSupersegments; i++) {
+        #if SEPARATE_DEPTH
+            vec4 x = imageLoad(InputVDI, ivec3(i, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x));
+        #else
+            vec4 x = imageLoad(InputVDI, ivec3(i*3, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x));
+        #endif
+
+        vec3 newColor = x.rgb;
+        float newAlpha = x.a;
+
+        #if SEPARATE_DEPTH
+            vec4 d = imageLoad(DepthVDI, ivec3(i*2, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x)); //Start point of this supersegment
+            vec4 dNext = imageLoad(DepthVDI, ivec3(i*2+1, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x)); //End point of this supersegment
+
+            float depthHere = d.x;
+            float depthEnd = dNext.x;
+
+//            if(gl_GlobalInvocationID.xy == debug_pixel) {
+//                debugPrintfEXT("Supseg %d! Start is: %f, end is: %f. a: %f", i, depthHere, depthEnd, newAlpha);
+//            }
+
+        #else
+            vec4 d = imageLoad(InputVDI, ivec3(i*3+1, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x)); //Start point of this supersegment
+            vec4 dNext = imageLoad(InputVDI, ivec3(i*3+2, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x)); //End point of this supersegment
+            float depthHere = DecodeFloatRGBA(d);
+            float depthEnd = DecodeFloatRGBA(dNext);
+
+//            if(gl_GlobalInvocationID.xy == debug_pixel) {
+//                debugPrintfEXT("Supseg %d! Start is: %f, end is: %f. a: %f", i, depthHere, depthEnd, newAlpha);
+//            }
+        #endif
+
+        if(i!=0 && depthHere == 0.0) {
+                break;
+        }
+
+
+        if(i==0 && depthEnd == 0.0) {
+//                v = vec4(1, 0, 0, 1);
+//                break;
+        }
+
+        float ndc_x = gl_GlobalInvocationID.x / 1280.0 * 2.0 - 1.0;
+        float ndc_y = gl_GlobalInvocationID.y / 720.0 * 2.0 - 1.0;
+
+        vec4 supseg_start_w = ivp_orig * vec4(ndc_x, ndc_y, depthHere, 1);
+        supseg_start_w *= 1. / supseg_start_w.w;
+
+        vec4 supseg_end_w = ivp_orig * vec4(ndc_x, ndc_y, depthEnd, 1);
+        supseg_end_w *= 1. / supseg_end_w.w;
+
+        float adj_alpha = adjustOpacity(newAlpha, distance(supseg_start_w, supseg_end_w));
+
+        #if USE_PRINTF
+        if(gl_GlobalInvocationID.xy == debug_pixel) {
+            debugPrintfEXT("Supseg: %d. Color is: (%f, %f, %f). Opacity: %f and adj opacity: %f. Supseg length: %f", i, newColor.rgb, newAlpha, adj_alpha, distance(supseg_start_w, supseg_end_w));
+        }
+        #endif
+
+        v.rgb = v.rgb + (1.0f - v.a) * newColor * adj_alpha;
+        v.a = v.a + (1.0f - v.a) * adj_alpha;
+
+//            if(depthHere >= depthEnd) {
+//                v = vec4(1);
+//            }
+
+    }
+
+//    v.r = gl_GlobalInvocationID.x/600.0;
+//    v.g = gl_GlobalInvocationID.y/600.0;
+//    v.b = 0;
+//    v.a = 1;
+
+    v.xyz = pow(v.xyz, vec3(1/2.2));
+//v = vec4(1);
+
+    if(gl_GlobalInvocationID.xy == debug_pixel) {
+        debugPrintfEXT("For pixel: (%d, %d), final accumulated color is: (%f, %f, %f, %f)", debug_pixel.xy, v.rgba);
+    }
+
+    imageStore(OutputViewport, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), v);
+}
