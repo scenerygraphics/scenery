@@ -24,20 +24,27 @@ import kotlin.math.sqrt
  *
  * Circular molecules, e.g., aromatics are displayed as planes, with all inner angles being of equal size.
  */
-class ThreeDimensionalMolecularStructure(val bondTree: BondTree, val lConfiguration: Boolean = true): Mesh("3DStructure") {
+class ThreeDimensionalMolecularStructure(val bondTree: BondTree, val lConfiguration: Boolean = true,
+                                         val initialBase: Matrix3f = Matrix3f(1f, 0f, 0f,
+                                                                            0f, 1f, 0f,
+                                                                            0f, 0f, 1f)): Mesh("3DStructure") {
+
     private val bondLength = 1f
     private val sin60 = sqrt(3f)/2
     private val cos60 = 0.5f
     private val seventyPointFiveRad = (70.5*kotlin.math.PI/180)
     private val sin70Point5 = sin(seventyPointFiveRad).toFloat()
     private val cos70Point5 = cos(seventyPointFiveRad).toFloat()
+    private val initialX = initialBase.getColumn(0, Vector3f())
+    private val initialY = initialBase.getColumn(1, Vector3f())
+    private val initialZ = initialBase.getColumn(2, Vector3f())
     init {
         val rootElement = PeriodicTable().findElementBySymbol(bondTree.element)
         val atomSphere = if(rootElement == PeriodicTable().findElementByNumber(1))
         { Icosphere(0.05f, 5) } else { Icosphere(0.15f, 2)}
         if (rootElement.color != null) { atomSphere.ifMaterial { diffuse = rootElement.color } }
         val nodesToTravers = ArrayList<BondTreeNodeBasisAndParent>()
-        nodesToTravers.add(BondTreeNodeBasisAndParent(bondTree, atomSphere))
+        nodesToTravers.add(BondTreeNodeBasisAndParent(bondTree, atomSphere, initialX))
         var i = 0
         while(nodesToTravers.drop(i).isNotEmpty()) {
             val newMolecule = nodesToTravers[i]
@@ -48,7 +55,7 @@ class ThreeDimensionalMolecularStructure(val bondTree: BondTree, val lConfigurat
         this.addChild(atomSphere)
     }
 
-    data class BondTreeNodeBasisAndParent(val bondTree: BondTree, val node: Node, val newX: Vector3f = Vector3f(1f, 0f, 0f), val treeParent: Node? = null)
+    data class BondTreeNodeBasisAndParent(val bondTree: BondTree, val node: Node, val newX: Vector3f, val treeParent: Node? = null)
 
     fun calculate3DStructure(bondTreeNodeBasis: BondTreeNodeBasisAndParent): List<BondTreeNodeBasisAndParent> {
         val bondTree = bondTreeNodeBasis.bondTree
@@ -60,9 +67,9 @@ class ThreeDimensionalMolecularStructure(val bondTree: BondTree, val lConfigurat
             //if parent is null we are at the very root of our bond tree
             treeRoot = true
             //we cannot compute a z vector without a parent position
-            Vector3f(0f, 0f, 1f)
+            initialZ
         } else { Vector3f(rootPosition).sub(Vector3f(bondTreeNodeBasis.treeParent?.spatialOrNull()?.worldPosition())).normalize() }
-        val y = if(root.parent?.spatialOrNull() == null) { Vector3f(0f, 1f, 0f) }
+        val y = if(root.parent?.spatialOrNull() == null) { initialY }
         else { Vector3f(x).cross(Vector3f(z)).normalize() }
 
         val numberOfFreeElectronPairs = numberOfFreeElectronPairs(bondTree)
