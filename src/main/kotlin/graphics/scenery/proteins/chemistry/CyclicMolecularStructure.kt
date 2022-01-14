@@ -103,7 +103,7 @@ class CyclicMolecularStructure(val root: BondTreeCycle, initialAngle: Float, bas
      * Calculates the atom positions and adds children along the way, returns the last position
      */
     private fun circle(cycle: List<BondTree>, positionalVector: Vector3f, x: Vector3f, y: Vector3f, z: Vector3f,
-                       cosTheta: Float, sinTheta: Float): Vector3f {
+                       cosTheta: Float, sinTheta: Float, changeDir: Boolean = false): Vector3f {
         var currentPosition = positionalVector
         cycle.forEachIndexed { index, currentSubstituent ->
 
@@ -126,7 +126,8 @@ class CyclicMolecularStructure(val root: BondTreeCycle, initialAngle: Float, bas
 
             //change values for the next iteration
             currentPosition = substituentPosition
-            val newZ = (Vector3f(z).mul(cosTheta).add(Vector3f(y).mul(-sinTheta))).normalize()
+            val newZ = if(changeDir) { (Vector3f(z).mul(cosTheta).add(Vector3f(y).mul(sinTheta))).normalize() }
+            else { (Vector3f(z).mul(cosTheta).add(Vector3f(y).mul(-sinTheta))).normalize() }
             z.set(newZ)
             y.set(Vector3f(x).cross(Vector3f(z))).normalize()
         }
@@ -221,15 +222,15 @@ class CyclicMolecularStructure(val root: BondTreeCycle, initialAngle: Float, bas
                 z.set((Vector3f(z).mul(cosTheta).add(Vector3f(y).mul(sinTheta))).normalize())
             }
             else {
-                z.set((Vector3f(z).mul(cosTheta).add(Vector3f(y).mul(-sinTheta))).normalize())
+                z.set((Vector3f(z).mul(cosTheta).add(Vector3f(y).mul(sinTheta))).normalize())
             }
             y.set(Vector3f(z).cross(x).normalize())
 
             val lastPosition = if(changeDirection) {
-                circle(cycle.drop(1), firstPoint, x, Vector3f(y).mul(-1f), z, cosTheta, sinTheta) }
-                else { circle(cycle.drop(1), firstPoint, x, y, z, cosTheta, sinTheta) }
+                circle(cycle.drop(1), rootPosition, x, y, z, cosTheta, sinTheta, changeDir = true) }
+                else { circle(cycle.drop(1), rootPosition, x, y, Vector3f(z).mul(-1f), cosTheta, sinTheta) }
 
-            addCylinder(rootPosition, lastPosition)
+            addCylinder(firstPoint, lastPosition)
         }
     }
 
