@@ -636,8 +636,8 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
         return;
     }
 
-    float ndc_x = theList.x / 1280.0 * 2.0 - 1.0;
-    float ndc_y = theList.y / 720.0 * 2.0 - 1.0;
+    float ndc_x = theList.x / windowWidth * 2.0 - 1.0;
+    float ndc_y = theList.y / windowHeight * 2.0 - 1.0;
 
     float dist_to_orig = start_point.z;
 
@@ -790,8 +790,8 @@ void main() {
     int imgWidth = imageCoords.x;
     int imgHeight = imageCoords.y;
 
-    windowWidth = 1280;
-    windowHeight = 720;
+    windowWidth = imageCoords.x;
+    windowHeight = imageCoords.y;
 
     maxSupersegments = imageSize(InputVDI).r;
     maxSupersegments = 20;
@@ -1057,8 +1057,8 @@ void main() {
 
     float finalZ = dir.z > 0 ? 1 : -1; //TODO: Should this be 0 instead of -1
 
-    float nextX_ndc = nextX / 1280.0 * 2.0 - 1.0;
-    float nextY_ndc = nextY / 720.0 * 2.0 - 1.0;
+    float nextX_ndc = nextX / windowWidth * 2.0 - 1.0;
+    float nextY_ndc = nextY / windowHeight * 2.0 - 1.0;
 
     float tmaxX = dir.x != 0 ? abs((nextX_ndc - first_entry_pt.x) / dir.x) : 10000000;
     float tmaxY = dir.y != 0 ? abs((nextY_ndc - first_entry_pt.y) / dir.y) : 10000000;
@@ -1081,8 +1081,8 @@ void main() {
     }
     #endif
 
-    float tdeltaX = abs((2.0 / 1280.0) / dir.x);
-    float tdeltaY = abs((2.0 / 720.0) / dir.y);
+    float tdeltaX = abs((2.0 / windowWidth) / dir.x);
+    float tdeltaY = abs((2.0 / windowHeight) / dir.y);
 
     #if USE_PRINTF
     if(gl_GlobalInvocationID.xy == debug_pixel) {
