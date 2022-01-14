@@ -23,11 +23,13 @@ import kotlin.concurrent.thread
 /**
  * @author Aryaman Gupta <argupta@mpi-cbg.de>
  */
-class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = false) {
+class VDIRenderingExample : SceneryBase("VDI Rendering", 1848, 1016, wantREPL = false) {
 
     val separateDepth = true
     val profileMemoryAccesses = false
     val compute = RichNode()
+    val closeAfter = 15000L
+    val dataset = "Stagbeetle"
 
     override fun init () {
 
@@ -54,19 +56,20 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
         }
 
         cam.spatial{
+            //The original viewpoint for procedural volume data
             position = Vector3f(3.213f, 8.264E-1f, -9.844E-1f)
             rotation = Quaternionf(3.049E-2, 9.596E-1, -1.144E-1, -2.553E-1)
 
             //         optimized depth calculation working at this view point, opacity calculation looking reasonable
-//        cam.rotation = Quaternionf(5.449E-2,  8.801E-1, -1.041E-1, -4.601E-1)
-//        cam.position = Vector3f(6.639E+0f,  1.092E+0f, -1.584E-1f)
+//        rotation = Quaternionf(5.449E-2,  8.801E-1, -1.041E-1, -4.601E-1)
+//        position = Vector3f(6.639E+0f,  1.092E+0f, -1.584E-1f)
 
 //        same as previous
 //        cam.position = Vector3f(1.881E+0f,  5.558E+0f, -7.854E-1f)
 //        cam.rotation = Quaternionf(-2.733E-2, 9.552E-1, 2.793E-1, -9.365E-2)
 
-//        cam.position = Vector3f(-3.435E+0f,  1.109E+0f,  6.433E+0f)
-//        cam.rotation = Quaternionf(-3.985E-2,  5.315E-1, -2.510E-2,  8.457E-1)
+//        position = Vector3f(-3.435E+0f,  1.109E+0f,  6.433E+0f)
+//        rotation = Quaternionf(-3.985E-2,  5.315E-1, -2.510E-2,  8.457E-1)
 
 //        cam.position = Vector3f(3.729E+0f,  8.263E-1f, -6.808E-1f)
 //        cam.rotation = Quaternionf(2.731E-2,  9.596E-1, -9.999E-2, -2.616E-1)
@@ -77,14 +80,14 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
 //        cam.position = Vector3f(4.374E+0f, 8.262E-1f,-3.773E-1f)
 //        cam.rotation = Quaternionf(2.247E-2,  9.707E-1, -1.003E-1, -2.171E-1)
 
-//        cam.position = Vector3f( 3.853E+0f,  7.480E-1f, -9.672E-1f)
-//        cam.rotation = Quaternionf( 4.521E-2,  9.413E-1, -1.398E-1, -3.040E-1)
+//        position = Vector3f( 3.853E+0f,  7.480E-1f, -9.672E-1f)
+//        rotation = Quaternionf( 4.521E-2,  9.413E-1, -1.398E-1, -3.040E-1)
 //
 //        cam.position = Vector3f( 3.853E+0f,  7.480E-1f, -9.672E-1f)
 //        cam.rotation = Quaternionf( 4.521E-2,  9.413E-1, -1.398E-1, -3.040E-1)
 
-            position = Vector3f( 5.286E+0f,  8.330E-1f,  3.088E-1f)
-            rotation = Quaternionf( 4.208E-2,  9.225E-1, -1.051E-1, -3.690E-1)
+//            position = Vector3f( 5.286E+0f,  8.330E-1f,  3.088E-1f)
+//            rotation = Quaternionf( 4.208E-2,  9.225E-1, -1.051E-1, -3.690E-1)
         }
 
         cam.farPlaneDistance = 20.0f
@@ -95,11 +98,11 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
         val depthBuff: ByteArray?
 
         if(separateDepth) {
-            buff = File("/home/aryaman/Repositories/scenery-insitu/working_files/VDI10_ndc_col").readBytes()
-            depthBuff = File("/home/aryaman/Repositories/scenery-insitu/working_files/VDI10_ndc_depth").readBytes()
+            buff = File("/home/aryaman/Repositories/scenery-insitu/${dataset}VDI4_ndc_col").readBytes()
+            depthBuff = File("/home/aryaman/Repositories/scenery-insitu/${dataset}VDI4_ndc_depth").readBytes()
 
         } else {
-            buff = File("/home/aryaman/Repositories/scenery-insitu/working_files/VDI10_ndc").readBytes()
+            buff = File("/home/aryaman/Repositories/scenery-insitu/${dataset}VDI10_ndc").readBytes()
             depthBuff = null
         }
 
@@ -152,7 +155,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
         scene.addChild(plane)
         plane.material().textures["diffuse"] = compute.material().textures["OutputViewport"]!!
         thread {
-            Thread.sleep(60000)
+            Thread.sleep(closeAfter)
             renderer?.shouldClose = true
         }
 
