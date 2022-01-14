@@ -27,8 +27,6 @@ import org.joml.Vector3f
 class CyclicMolecularStructure(val root: BondTreeCycle, initialAngle: Float, basis: Matrix3f, private val bondLength: Float,
                                positionalVector: Vector3f): Mesh("CircularMolecularStructure") {
 
-    private val vectorsPointingOutwards = ArrayList<Vector3f>(root.cyclesAndChildren.filter{ it.size > 1}.flatten().size)
-
     init {
         this.spatial().position = positionalVector
 
@@ -85,15 +83,7 @@ class CyclicMolecularStructure(val root: BondTreeCycle, initialAngle: Float, bas
             val z = Vector3f(intermediateZ).mul(cosAlpha).add(Vector3f(initialY).mul(sinAlpha)).normalize()
             val y = Vector3f(x).cross(Vector3f(z)).normalize()
 
-            //add vectors pointing out of the circle; bisectors of the respective corner
-            val initialOutwardVector = Vector3f(intermediateZ).mul(-1f)
-            val initialYOutward = Vector3f(initialOutwardVector).cross(x).normalize()
-            cycle.dropLast(1).forEach { _ ->
-                initialOutwardVector.set((Vector3f(initialYOutward).mul(cosTheta).add(Vector3f(y).mul(-sinTheta))).normalize())
-                vectorsPointingOutwards.add(initialOutwardVector)
-            }
-
-            val lastPosition = circle(cycle, positionalVector, x,y,z, cosTheta, sinTheta)
+            val lastPosition = circle(cycle, positionalVector, x,y,z, cosTheta, sinTheta, cosAlpha, sinAlpha)
             //last cylinder
             addCylinder(this.spatial().position, lastPosition)
         }
@@ -103,7 +93,7 @@ class CyclicMolecularStructure(val root: BondTreeCycle, initialAngle: Float, bas
      * Calculates the atom positions and adds children along the way, returns the last position
      */
     private fun circle(cycle: List<BondTree>, positionalVector: Vector3f, x: Vector3f, y: Vector3f, z: Vector3f,
-                       cosTheta: Float, sinTheta: Float, changeDir: Boolean = false): Vector3f {
+                       cosTheta: Float, sinTheta: Float, cosAlpha: Float, sinAlpha: Float, changeDir: Boolean = false): Vector3f {
         var currentPosition = positionalVector
         cycle.forEachIndexed { index, currentSubstituent ->
 
@@ -113,11 +103,13 @@ class CyclicMolecularStructure(val root: BondTreeCycle, initialAngle: Float, bas
             if(currentSubstituent is BondTreeCycle) {
                 addSubCircle(currentSubstituent.cyclesAndChildren, currentPosition, substituentPosition, x)
             }
+
+            val outwardVector = (Vector3f(z).mul(cosAlpha).add(Vector3f(y).mul(sinAlpha))).normalize()
             /*
             Add the next elements of the tree, i.e., all the molecules bound to the constituents of the respective
             circle.
              */
-            addSubstituentChildren(x, currentSubstituent, substituentPosition, index)
+            addSubstituentChildren(x, currentSubstituent, substituentPosition, outwardVector)
 
             //add the sphere
             addAtomSphere(PeriodicTable().findElementBySymbol(currentSubstituent.element), substituentPosition)
@@ -137,11 +129,11 @@ class CyclicMolecularStructure(val root: BondTreeCycle, initialAngle: Float, bas
     /**
      * Adds the children of a substituent of the circle to the mesh
      */
-    private fun addSubstituentChildren(x: Vector3f, substituent: BondTree, substituentPosition: Vector3f, index: Int) {
+    private fun addSubstituentChildren(x: Vector3f, substituent: BondTree, substituentPosition: Vector3f, outwardVector: Vector3f) {
         val childrenOfConstituent = substituent.boundMolecules
         if (childrenOfConstituent.isNotEmpty()) {
             //bisector of z and y serves as the new z
-            val newZ = vectorsPointingOutwards[index]
+            val newZ = outwardVector.normalize()
             val newY = Vector3f(x).cross(newZ).normalize()
             when (childrenOfConstituent.size) {
                 1 -> {
@@ -226,9 +218,12 @@ class CyclicMolecularStructure(val root: BondTreeCycle, initialAngle: Float, bas
             }
             y.set(Vector3f(z).cross(x).normalize())
 
+            val alpha = (kotlin.math.PI - theta) / 2f
+            val cosAlpha = kotlin.math.cos(alpha).toFloat()
+            val sinAlpha = kotlin.math.sin(alpha).toFloat()
             val lastPosition = if(changeDirection) {
-                circle(cycle.drop(1), rootPosition, x, y, z, cosTheta, sinTheta, changeDir = true) }
-                else { circle(cycle.drop(1), rootPosition, x, y, Vector3f(z).mul(-1f), cosTheta, sinTheta) }
+                circle(cycle.drop(1), rootPosition, x, y, z, cosTheta, sinTheta, cosAlpha, sinAlpha, changeDir = true) }
+                else { circle(cycle.drop(1), rootPosition, x, y, Vector3f(z).mul(-1f), cosTheta, sinTheta, cosAlpha, sinAlpha) }
 
             addCylinder(firstPoint, lastPosition)
         }
