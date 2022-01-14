@@ -24,38 +24,33 @@ import org.joml.Vector3f
  * Those two egg shapes are supposed to represent circles (the rendering looks better) and the star * is to represent the
  * root position.
  */
-class CircularMolecularStructure(val root: BondTreeCycle, initialAngle: Float, basis: Matrix3f, bondLength: Float,
-                                 positionalVector: Vector3f): Mesh("CircularMolecularStructure") {
+class CircularMolecularStructure(val root: BondTreeCycle, initialAngle: Float, basis: Matrix3f, val bondLength: Float,
+                                 positionalVector: Vector3f, comesFromACycle: Boolean = false): Mesh("CircularMolecularStructure") {
+
+    private val vectorsPointingOutwards = ArrayList<Vector3f>(root.cyclesAndChildren.filter{ it.size > 1}.flatten().size)
 
     init {
         this.spatial().position = positionalVector
 
-        //change the basis according to initial angle
-        val initialX = Vector3f()
-        basis.getColumn(0, initialX)
-        val initialY = Vector3f()
-        basis.getColumn(1, initialY)
-        val initialZ = Vector3f()
-        basis.getColumn(2, initialZ)
+        //set initial vectors
+        val initialX = basis.getColumn(0, Vector3f())
+        val initialY = basis.getColumn(1, Vector3f())
+        val initialZ = basis.getColumn(2, Vector3f())
 
-        //turn the axes according to inital angle
+        //turn the axes according to initial angle
         val sinInitial = kotlin.math.sin(initialAngle)
         val cosInitial = kotlin.math.cos(initialAngle)
         val x = Vector3f(initialX).mul(cosInitial).add(Vector3f(initialZ).mul(sinInitial)).normalize()
+        //first z Vector pointing from root to center of the circle
         val intermediateZ = Vector3f(Vector3f(x).cross(Vector3f(initialY))).normalize()
 
+        //add sphere for the root
+        addAtomSphere(PeriodicTable().findElementBySymbol(this.root.element), this.spatial().position)
 
-        val element = PeriodicTable().findElementBySymbol(root.element)
-        val elementSphere = if(element == PeriodicTable().findElementByNumber(1)) {
-            Icosphere(0.05f, 2) }
-        else { Icosphere(0.15f, 2) }
-        if (element.color != null) { elementSphere.ifMaterial { diffuse = element.color } }
-        this.addChild(elementSphere)
-
-
+        //exclude all the children which are no circles and continue the calculation according to the number of circles
         val allCycles = root.cyclesAndChildren.filter{it.size > 1}
         if(allCycles.isEmpty()) {
-            logger.warn("Cicle without children")
+            logger.warn("Circle without children")
         }
         //more than one circle attached to the root
         else if(allCycles.size > 1) {
@@ -64,12 +59,12 @@ class CircularMolecularStructure(val root: BondTreeCycle, initialAngle: Float, b
         else {
             val cycle = allCycles[0]
             //angle around which to turn each new z axis
-            val theta = 2*kotlin.math.PI/(cycle.size+1)
+            val theta = 2 * kotlin.math.PI / (cycle.size + 1)
             val cosTheta = kotlin.math.cos(theta).toFloat()
             val sinTheta = kotlin.math.sin(theta).toFloat()
 
             //intial z and y vector need to be turned such that the circle is symmetric to the original z axis
-            val alpha = (kotlin.math.PI-theta)/2f
+            val alpha = (kotlin.math.PI - theta) / 2f
             val cosAlpha = kotlin.math.cos(alpha).toFloat()
             val sinAlpha = kotlin.math.sin(alpha).toFloat()
             val z = Vector3f(intermediateZ).mul(cosAlpha).add(Vector3f(initialY).mul(sinAlpha)).normalize()
@@ -77,105 +72,145 @@ class CircularMolecularStructure(val root: BondTreeCycle, initialAngle: Float, b
 
             val initialOutwardVector = Vector3f(intermediateZ).mul(-1f)
             val initialYOutward = Vector3f(initialOutwardVector).cross(x).normalize()
-            val vectorsPointingOutwards = ArrayList<Vector3f>(cycle.size-1)
             cycle.dropLast(1).forEach { _ ->
-                initialOutwardVector.set((Vector3f(initialYOutward).mul(cosTheta).add(Vector3f(y).mul(-sinTheta))).normalize())
+                initialOutwardVector.set(
+                    (Vector3f(initialYOutward).mul(cosTheta).add(Vector3f(y).mul(-sinTheta))).normalize()
+                )
                 vectorsPointingOutwards.add(initialOutwardVector)
             }
 
             var currentPosition = positionalVector
             var i = 0
-            while(cycle.drop(i).isNotEmpty()) {
+            while (cycle.drop(i).isNotEmpty()) {
 
-                val constituentPosition = Vector3f(currentPosition).add(Vector3f(z).mul(bondLength))
+                val substituentPosition = Vector3f(currentPosition).add(Vector3f(z).mul(bondLength))
 
-                val currentConstituent = cycle[i]
+                val currentSubstituent = cycle[i]
 
+                // add secondary cyclic molecule with a geometry like the on described at the top
+                if (currentSubstituent is BondTreeCycle) {
+                    this.addChild(CircularMolecularStructure(currentSubstituent, initialAngle,
+                            Matrix3f(x, y, z), bondLength, substituentPosition, true))
+                }
                 /*
                 Add the next elements of the tree, i.e., all the molecules bound to the constituents of the respective
                 circle.
                  */
-                val childrenOfConstituent = currentConstituent.boundMolecules
-                if(childrenOfConstituent.isNotEmpty()) {
-                    //bisector of z and y serves as the new z
-                    val newZ = vectorsPointingOutwards[i]
-                    val newY = Vector3f(x).cross(newZ).normalize()
-                    when(childrenOfConstituent.size) {
-                        1 -> {
-                            val newPosition = Vector3f(newZ).mul(bondLength).add(Vector3f(constituentPosition))
-                            val child = ThreeDimensionalMolecularStructure(childrenOfConstituent[0], initialBase = Matrix3f(x, newY, newZ))
-                            child.spatial().position = newPosition
-                            this.addChild(child)
-                            val c = Cylinder(0.025f, 1.0f, 10)
-                            c.ifMaterial { diffuse = Vector3f(1.0f, 1.0f, 1.0f) }
-                            c.spatial().orientBetweenPoints(constituentPosition, newPosition, true, true)
-                            this.addChild(c)
-                        }
-                        2 -> {
-                            val firstNewPosition = Vector3f(x).mul(bondLength).add(Vector3f(constituentPosition))
-                            val newBasis = Matrix3f(newZ, newY, x)
-                            val firstChild = ThreeDimensionalMolecularStructure(childrenOfConstituent[0], initialBase = newBasis)
-                            firstChild.spatial().position = firstNewPosition
-                            this.addChild(firstChild)
-                            val c1 = Cylinder(0.025f, 1.0f, 10)
-                            c1.ifMaterial { diffuse = Vector3f(1.0f, 1.0f, 1.0f) }
-                            c1.spatial().orientBetweenPoints(constituentPosition, firstNewPosition, true, true)
-                            this.addChild(c1)
-                            val secondNewPosition = Vector3f(x).mul(-bondLength).add(Vector3f(constituentPosition))
-                            val newBasis2 = Matrix3f(newZ, newZ, x)
-                            val secondChild = ThreeDimensionalMolecularStructure(childrenOfConstituent[1], initialBase = newBasis2)
-                            secondChild.spatial().position = secondNewPosition
-                            this.addChild(secondChild)
-                            val c2 = Cylinder(0.025f, 1.0f, 10)
-                            c2.ifMaterial { diffuse = Vector3f(1.0f, 1.0f, 1.0f) }
-                            c2.spatial().orientBetweenPoints(constituentPosition, secondNewPosition, true, true)
-                            this.addChild(c2)
-                        }
-                        3 -> {
-                            val newPosition = Vector3f(newZ).mul(bondLength).add(Vector3f(constituentPosition))
-                            val child = ThreeDimensionalMolecularStructure(childrenOfConstituent[0], initialBase = Matrix3f(x, newY, newZ))
-                            child.spatial().position = newPosition
-                            this.addChild(child)
-                            val firstNewPosition = Vector3f(x).mul(bondLength).add(Vector3f(constituentPosition))
-                            val newBasis = Matrix3f(newZ, newY, x)
-                            val firstChild = ThreeDimensionalMolecularStructure(childrenOfConstituent[1], initialBase = newBasis)
-                            firstChild.spatial().position = firstNewPosition
-                            this.addChild(firstChild)
-                            val secondNewPosition = Vector3f(x).mul(-bondLength).add(Vector3f(constituentPosition))
-                            val newBasis2 = Matrix3f(newZ, newZ, x)
-                            val secondChild = ThreeDimensionalMolecularStructure(childrenOfConstituent[2], initialBase = newBasis2)
-                            secondChild.spatial().position = secondNewPosition
-                            this.addChild(secondChild)
-                        }
-                        else -> { logger.warn("Too many children for one element!") }
-                    }
-                }
+                addSubstituentChildren(x, currentSubstituent, substituentPosition, i)
+
                 //add the sphere
-                val element = PeriodicTable().findElementBySymbol(currentConstituent.element)
-                val elementSphere = if(element == PeriodicTable().findElementByNumber(1)) {
-                    Icosphere(0.05f, 2) }
-                else { Icosphere(0.15f, 2) }
-                if (element.color != null) { elementSphere.ifMaterial { diffuse = element.color } }
-                elementSphere.spatial().position = constituentPosition
-                this.addChild(elementSphere)
+                addAtomSphere(PeriodicTable().findElementBySymbol(currentSubstituent.element), substituentPosition)
                 //add the cylinder
-                val c = Cylinder(0.025f, 1.0f, 10)
-                c.ifMaterial { diffuse = Vector3f(1.0f, 1.0f, 1.0f) }
-                c.spatial().orientBetweenPoints(currentPosition, elementSphere.spatial().position, true, true)
-                this.addChild(c)
-                currentPosition = constituentPosition
+                addCylinder(substituentPosition, currentPosition)
+
+                //change values for the next iteration
+                currentPosition = substituentPosition
                 val newZ = (Vector3f(z).mul(cosTheta).add(Vector3f(y).mul(-sinTheta))).normalize()
                 z.set(newZ)
                 y.set(Vector3f(x).cross(Vector3f(z))).normalize()
                 i += 1
             }
             //last cylinder
-            val c = Cylinder(0.025f, 1.0f, 10)
-            c.ifMaterial { diffuse = Vector3f(1.0f, 1.0f, 1.0f) }
-            c.spatial().orientBetweenPoints(this.spatial().position, currentPosition, true, true)
-            this.addChild(c)
+            addCylinder(this.spatial().position, currentPosition)
         }
+    }
 
+    /**
+     * Adds the children of a substituent of the circle to the mesh
+     */
+    private fun addSubstituentChildren(x: Vector3f, substituent: BondTree, substituentPosition: Vector3f, index: Int) {
+        val childrenOfConstituent = substituent.boundMolecules
+        if (childrenOfConstituent.isNotEmpty()) {
+            //bisector of z and y serves as the new z
+            val newZ = vectorsPointingOutwards[index]
+            val newY = Vector3f(x).cross(newZ).normalize()
+            when (childrenOfConstituent.size) {
+                1 -> {
+                    val newPosition = Vector3f(newZ).mul(bondLength).add(Vector3f(substituentPosition))
+                    val child = ThreeDimensionalMolecularStructure(
+                        childrenOfConstituent[0],
+                        initialBase = Matrix3f(x, newY, newZ)
+                    )
+                    child.spatial().position = newPosition
+                    this.addChild(child)
+                    //add cylinder to connect to new child
+                    addCylinder(substituentPosition, newPosition)
+                }
+                2 -> {
+                    //first new child
+                    val firstNewPosition = Vector3f(x).mul(bondLength).add(Vector3f(substituentPosition))
+                    val newBasis = Matrix3f(newZ, newY, x)
+                    val firstChild =
+                        ThreeDimensionalMolecularStructure(childrenOfConstituent[0], initialBase = newBasis)
+                    firstChild.spatial().position = firstNewPosition
+                    this.addChild(firstChild)
+                    addCylinder(substituentPosition, firstNewPosition)
+                    //second
+                    val secondNewPosition = Vector3f(x).mul(-bondLength).add(Vector3f(substituentPosition))
+                    val newBasis2 = Matrix3f(newZ, newZ, x)
+                    val secondChild =
+                        ThreeDimensionalMolecularStructure(childrenOfConstituent[1], initialBase = newBasis2)
+                    secondChild.spatial().position = secondNewPosition
+                    this.addChild(secondChild)
+                    addCylinder(substituentPosition, secondNewPosition)
+                }
+                3 -> {
+                    //first
+                    val newPosition = Vector3f(newZ).mul(bondLength).add(Vector3f(substituentPosition))
+                    val child = ThreeDimensionalMolecularStructure(
+                        childrenOfConstituent[0],
+                        initialBase = Matrix3f(x, newY, newZ)
+                    )
+                    child.spatial().position = newPosition
+                    addCylinder(substituentPosition,newPosition)
+                    this.addChild(child)
+                    //second
+                    val firstNewPosition = Vector3f(x).mul(bondLength).add(Vector3f(substituentPosition))
+                    val newBasis = Matrix3f(newZ, newY, x)
+                    val firstChild = ThreeDimensionalMolecularStructure(childrenOfConstituent[1], initialBase = newBasis)
+                    firstChild.spatial().position = firstNewPosition
+                    this.addChild(firstChild)
+                    addCylinder(substituentPosition, firstNewPosition)
+                    //third
+                    val secondNewPosition = Vector3f(x).mul(-bondLength).add(Vector3f(substituentPosition))
+                    val newBasis2 = Matrix3f(newZ, newZ, x)
+                    val secondChild =
+                        ThreeDimensionalMolecularStructure(childrenOfConstituent[2], initialBase = newBasis2)
+                    secondChild.spatial().position = secondNewPosition
+                    this.addChild(secondChild)
+                    addCylinder(substituentPosition, secondNewPosition)
+                }
+                else -> {
+                    logger.warn("Too many children for one element!")
+                }
+            }
+        }
+    }
 
+    /**
+     * creates a sphere, representing an atom of a certain element at a given position
+     */
+    private fun addAtomSphere(element: ChemicalElement, position: Vector3f) {
+        //make smaller spheres for hydrogen
+        val elementSphere = if (element == PeriodicTable().findElementByNumber(1)) {
+            Icosphere(0.05f, 2)
+        } else {
+            Icosphere(0.15f, 2)
+        }
+        if (element.color != null) {
+            elementSphere.ifMaterial { diffuse = element.color }
+        }
+        elementSphere.spatial().position = position
+        this.addChild(elementSphere)
+    }
+
+    /**
+     * Adds a cylinder, representing the covalent bond between to atoms
+     */
+    private fun addCylinder(atomPosition1: Vector3f, atomPosition2: Vector3f) {
+        val c = Cylinder(0.025f, 1.0f, 10)
+        c.ifMaterial { diffuse = Vector3f(1.0f, 1.0f, 1.0f) }
+        c.spatial().orientBetweenPoints(atomPosition1, atomPosition2,rescale = true, reposition = true)
+        this.addChild(c)
     }
 }
