@@ -9,6 +9,20 @@ import org.joml.Vector3f
 /**
  * Class to compute the 3D structure of a circular molecule. We are using the simplest model, i.e., the ring is kept
  * flat.
+ *
+ * [root]  can be part of two circles. There are numerous geometric variants possible, e.g., the root being part of three
+ * circles. However, in chemistry such molecules are unstable, hence, almost never displayed. This class does not cover
+ * those edge cases, as it would make the code unnecessarily complicated.
+ * In fact, we only consider one possible geometry which is a fairly common geometry in organic chemistry.
+ * Namely, a root which is part of two circles in the following way:
+ *     _     _
+ *   /  \  /   \
+ *       *
+ *  |    |     |
+ *  \ _ / \ _ /
+ *
+ * Those two egg shapes are supposed to represent circles (the rendering looks better) and the star * is to represent the
+ * root position.
  */
 class CircularMolecularStructure(val root: BondTreeCycle, initialAngle: Float, basis: Matrix3f, bondLength: Float,
                                  positionalVector: Vector3f): Mesh("CircularMolecularStructure") {
