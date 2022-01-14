@@ -6,7 +6,6 @@ import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.proteins.chemistry.*
-import org.biojava.nbio.structure.Bond
 
 /**
  *
@@ -29,11 +28,10 @@ class CircularMolecularStructureExample: SceneryBase("RainbowRibbon", windowWidt
             someOtherChildWithElements, BondTree("C", 1, null)),
             listOf(BondTree("O", 2, null))), 1, null)
 
-        val threeDStructure = CircularMolecularStructure(circularBondTree, kotlin.math.PI.toFloat()/2f, Matrix3f(1f, 0f, 0f,
-                                                                                                    0f, 1f, 0f,
-                                                                                                    0f, 0f, 1f),
-        1f, Vector3f()
-        )
+        val threeDStructure = CyclicMolecularStructure(circularBondTree, kotlin.math.PI.toFloat()/2f,
+            Matrix3f(1f, 0f, 0f,
+                0f, 1f, 0f,
+                0f, 0f, 1f), 1f, Vector3f())
 
         scene.addChild(threeDStructure)
 
