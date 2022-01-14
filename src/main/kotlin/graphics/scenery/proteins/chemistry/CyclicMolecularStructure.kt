@@ -11,8 +11,8 @@ import org.joml.Vector3f
  * flat.
  *
  * [root]  can be part of two circles. There are numerous geometric variants possible, e.g., the root being part of three
- * circles. However, in chemistry such molecules are unstable, hence, almost never displayed. This class does not cover
- * those edge cases, as it would make the code unnecessarily complicated.
+ * circles. However, in chemistry such molecules are unstable, hence, almost never displayed. [CyclicMolecularStructure]
+ * does not cover those edge cases as it would make the code unnecessarily complicated.
  * In fact, we only consider one possible geometry which is a fairly common geometry in organic chemistry.
  * Namely, a root which is part of two circles in the following way:
  *     _     _
@@ -24,8 +24,8 @@ import org.joml.Vector3f
  * Those two egg shapes are supposed to represent circles (the rendering looks better) and the star * is to represent the
  * root position.
  */
-class CircularMolecularStructure(val root: BondTreeCycle, initialAngle: Float, basis: Matrix3f, val bondLength: Float,
-                                 positionalVector: Vector3f, comesFromACycle: Boolean = false): Mesh("CircularMolecularStructure") {
+class CyclicMolecularStructure(val root: BondTreeCycle, initialAngle: Float, basis: Matrix3f, private val bondLength: Float,
+                               positionalVector: Vector3f): Mesh("CircularMolecularStructure") {
 
     private val vectorsPointingOutwards = ArrayList<Vector3f>(root.cyclesAndChildren.filter{ it.size > 1}.flatten().size)
 
@@ -54,7 +54,22 @@ class CircularMolecularStructure(val root: BondTreeCycle, initialAngle: Float, b
         }
         //more than one circle attached to the root
         else if(allCycles.size > 1) {
-            //TODO
+            val firstPosition = Vector3f(initialY).mul(bondLength).add(this.spatial().position)
+            //common element gets the first atomSphere
+            allCycles[0].forEach { firstCycleElement ->
+                allCycles[1].forEach { secondCycleElement ->
+                    if(firstCycleElement == secondCycleElement) {
+                        addAtomSphere(PeriodicTable().findElementBySymbol(firstCycleElement.element), firstPosition)
+                    }
+                }
+            }
+            //...and will be connected to the root
+            addCylinder(this.spatial().position, firstPosition)
+            //then add each cycle
+            addSubCircle(listOf(allCycles[0]), this.spatial().position, firstPosition,
+                Vector3f(initialY).mul(-1f).normalize())
+            addSubCircle(listOf(allCycles[1]), this.spatial().position, firstPosition,
+                Vector3f(initialY).mul(-1f).normalize(), true)
         }
         else {
             val cycle = allCycles[0]
@@ -70,49 +85,52 @@ class CircularMolecularStructure(val root: BondTreeCycle, initialAngle: Float, b
             val z = Vector3f(intermediateZ).mul(cosAlpha).add(Vector3f(initialY).mul(sinAlpha)).normalize()
             val y = Vector3f(x).cross(Vector3f(z)).normalize()
 
+            //add vectors pointing out of the circle; bisectors of the respective corner
             val initialOutwardVector = Vector3f(intermediateZ).mul(-1f)
             val initialYOutward = Vector3f(initialOutwardVector).cross(x).normalize()
             cycle.dropLast(1).forEach { _ ->
-                initialOutwardVector.set(
-                    (Vector3f(initialYOutward).mul(cosTheta).add(Vector3f(y).mul(-sinTheta))).normalize()
-                )
+                initialOutwardVector.set((Vector3f(initialYOutward).mul(cosTheta).add(Vector3f(y).mul(-sinTheta))).normalize())
                 vectorsPointingOutwards.add(initialOutwardVector)
             }
 
-            var currentPosition = positionalVector
-            var i = 0
-            while (cycle.drop(i).isNotEmpty()) {
-
-                val substituentPosition = Vector3f(currentPosition).add(Vector3f(z).mul(bondLength))
-
-                val currentSubstituent = cycle[i]
-
-                // add secondary cyclic molecule with a geometry like the on described at the top
-                if (currentSubstituent is BondTreeCycle) {
-                    this.addChild(CircularMolecularStructure(currentSubstituent, initialAngle,
-                            Matrix3f(x, y, z), bondLength, substituentPosition, true))
-                }
-                /*
-                Add the next elements of the tree, i.e., all the molecules bound to the constituents of the respective
-                circle.
-                 */
-                addSubstituentChildren(x, currentSubstituent, substituentPosition, i)
-
-                //add the sphere
-                addAtomSphere(PeriodicTable().findElementBySymbol(currentSubstituent.element), substituentPosition)
-                //add the cylinder
-                addCylinder(substituentPosition, currentPosition)
-
-                //change values for the next iteration
-                currentPosition = substituentPosition
-                val newZ = (Vector3f(z).mul(cosTheta).add(Vector3f(y).mul(-sinTheta))).normalize()
-                z.set(newZ)
-                y.set(Vector3f(x).cross(Vector3f(z))).normalize()
-                i += 1
-            }
+            val lastPosition = circle(cycle, positionalVector, x,y,z, cosTheta, sinTheta)
             //last cylinder
-            addCylinder(this.spatial().position, currentPosition)
+            addCylinder(this.spatial().position, lastPosition)
         }
+    }
+
+    /**
+     * Calculates the atom positions and adds children along the way, returns the last position
+     */
+    private fun circle(cycle: List<BondTree>, positionalVector: Vector3f, x: Vector3f, y: Vector3f, z: Vector3f,
+                       cosTheta: Float, sinTheta: Float): Vector3f {
+        var currentPosition = positionalVector
+        cycle.forEachIndexed { index, currentSubstituent ->
+
+            val substituentPosition = Vector3f(currentPosition).add(Vector3f(z).mul(bondLength))
+
+            // verify the substituent is no subcycle
+            if(currentSubstituent is BondTreeCycle) {
+                addSubCircle(currentSubstituent.cyclesAndChildren, currentPosition, substituentPosition, x)
+            }
+            /*
+            Add the next elements of the tree, i.e., all the molecules bound to the constituents of the respective
+            circle.
+             */
+            addSubstituentChildren(x, currentSubstituent, substituentPosition, index)
+
+            //add the sphere
+            addAtomSphere(PeriodicTable().findElementBySymbol(currentSubstituent.element), substituentPosition)
+            //add the cylinder
+            addCylinder(substituentPosition, currentPosition)
+
+            //change values for the next iteration
+            currentPosition = substituentPosition
+            val newZ = (Vector3f(z).mul(cosTheta).add(Vector3f(y).mul(-sinTheta))).normalize()
+            z.set(newZ)
+            y.set(Vector3f(x).cross(Vector3f(z))).normalize()
+        }
+        return currentPosition
     }
 
     /**
@@ -184,6 +202,34 @@ class CircularMolecularStructure(val root: BondTreeCycle, initialAngle: Float, b
                     logger.warn("Too many children for one element!")
                 }
             }
+        }
+    }
+
+    /**
+     * Calculates the coordinates for a cycle attached to the original cycle and adds the respective Spheres and cylinders
+     */
+    private fun addSubCircle(cycles: List<List<BondTree>>, rootPosition: Vector3f, firstPoint: Vector3f, x: Vector3f,
+                             changeDirection: Boolean = false) {
+        if(cycles.filter{it.size > 1}.size == 1) {
+            val cycle = cycles.filter { it.size > 1}[0]
+            val theta = 2 * kotlin.math.PI / (cycle.size + 1)
+            val cosTheta = kotlin.math.cos(theta).toFloat()
+            val sinTheta = kotlin.math.sin(theta).toFloat()
+            val z = Vector3f(firstPoint).sub(rootPosition).normalize()
+            val y = Vector3f(z).cross(x).normalize()
+            if(changeDirection) {
+                z.set((Vector3f(z).mul(cosTheta).add(Vector3f(y).mul(sinTheta))).normalize())
+            }
+            else {
+                z.set((Vector3f(z).mul(cosTheta).add(Vector3f(y).mul(-sinTheta))).normalize())
+            }
+            y.set(Vector3f(z).cross(x).normalize())
+
+            val lastPosition = if(changeDirection) {
+                circle(cycle.drop(1), firstPoint, x, Vector3f(y).mul(-1f), z, cosTheta, sinTheta) }
+                else { circle(cycle.drop(1), firstPoint, x, y, z, cosTheta, sinTheta) }
+
+            addCylinder(rootPosition, lastPosition)
         }
     }
 
