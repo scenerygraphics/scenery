@@ -10,7 +10,7 @@ import graphics.scenery.proteins.chemistry.*
 /**
  *
  *
- * @author Justin Buerger <burger@mpi-cbg.de>
+ * @author Justin Buerger <buerge84@hzdr.de>
  */
 class CircularMolecularStructureExample: SceneryBase("RainbowRibbon", windowWidth = 1280, windowHeight = 720) {
     override fun init() {
@@ -28,7 +28,11 @@ class CircularMolecularStructureExample: SceneryBase("RainbowRibbon", windowWidt
             someOtherChildWithElements, BondTree("C", 1, null)),
             listOf(BondTree("O", 2, null))), 1, null)
 
-        val threeDStructure = CyclicMolecularStructure(circularBondTree, kotlin.math.PI.toFloat()/2f,
+        val anotherCircularBondTree = BondTreeCycle("F", listOf(listOf(BondTree("C", 1, null),
+            BondTree("C", 1, null), circularBondTree, BondTree("C", 1, null),
+            BondTree("C", 1, null))), 1, null)
+
+        val threeDStructure = CyclicMolecularStructure(anotherCircularBondTree, kotlin.math.PI.toFloat()/2f,
             Matrix3f(1f, 0f, 0f,
                 0f, 1f, 0f,
                 0f, 0f, 1f), 1f, Vector3f())
