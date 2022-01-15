@@ -37,40 +37,13 @@ class CyclicMolecularStructure(val root: BondTreeCycle, initialAngle: Float, bas
         val initialY = basis.getColumn(1, Vector3f())
         val initialZ = basis.getColumn(2, Vector3f())
 
-        //debug arrows
-        val matBright = DefaultMaterial()
-        matBright.diffuse  = Vector3f(0.0f, 1.0f, 0.0f)
-        matBright.ambient  = Vector3f(1.0f, 1.0f, 1.0f)
-        matBright.specular = Vector3f(1.0f, 1.0f, 1.0f)
-        matBright.cullingMode = Material.CullingMode.None
-        val a = Arrow(initialX)  //shape of the vector itself
-        a.addAttribute(Material::class.java, matBright)                  //usual stuff follows...
-        a.edgeWidth = 0.5f
-        //this.addChild(a)
-        val b = Arrow(initialY)  //shape of the vector itself
-        b.addAttribute(Material::class.java, matBright)                  //usual stuff follows...
-        b.edgeWidth = 0.5f
-        //this.addChild(b)
-        val c = Arrow(initialZ)  //shape of the vector itself
-        c.addAttribute(Material::class.java, matBright)                  //usual stuff follows...
-        c.edgeWidth = 0.5f
-        //this.addChild(c)
-
-
         //turn the axes according to initial angle
         val sinInitial = kotlin.math.sin(initialAngle)
         val cosInitial = kotlin.math.cos(initialAngle)
         val intermediateZ  = Vector3f(initialY).mul(sinInitial).add(Vector3f(initialZ).mul(cosInitial)).normalize()
-        val d = Arrow(intermediateZ)  //shape of the vector itself
-        d.addAttribute(Material::class.java, matBright)                  //usual stuff follows...
-        d.edgeWidth = 0.5f
-        this.addChild(d)
+
         //first z Vector pointing from root to center of the circle
         val x = Vector3f(Vector3f(intermediateZ).cross(Vector3f(initialX))).normalize()
-        val e = Arrow(x)  //shape of the vector itself
-        e.addAttribute(Material::class.java, matBright)                  //usual stuff follows...
-        e.edgeWidth = 0.5f
-        this.addChild(e)
 
         //exclude all the children which are no circles and continue the calculation according to the number of circles
         val allCycles = root.cyclesAndChildren.filter{it.size > 1}
@@ -108,10 +81,6 @@ class CyclicMolecularStructure(val root: BondTreeCycle, initialAngle: Float, bas
             val cosAlpha = kotlin.math.cos(alpha).toFloat()
             val sinAlpha = kotlin.math.sin(alpha).toFloat()
             val z = Vector3f(intermediateZ).mul(cosAlpha).add(Vector3f(initialX).mul(sinAlpha)).normalize()
-            val f = Arrow(z)  //shape of the vector itself
-            f.addAttribute(Material::class.java, matBright)                  //usual stuff follows...
-            f.edgeWidth = 0.5f
-            this.addChild(f)
             val y = Vector3f(x).cross(Vector3f(z)).normalize()
 
             val lastPosition = circle(cycle, positionalVector, x,y,z, cosTheta, sinTheta, cosAlpha, sinAlpha)
