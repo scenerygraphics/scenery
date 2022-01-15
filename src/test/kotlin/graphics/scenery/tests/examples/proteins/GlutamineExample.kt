@@ -20,7 +20,7 @@ class GlutamineExample: SceneryBase("RainbowRibbon", windowWidth = 1280, windowH
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
 
         val rowSize = 20f
-        val glutamineBondTree = AminoAcidBondTreeMap().aminoMap["GLN"]
+        val glutamineBondTree = AminoAcidBondTreeMap().aminoMap["PRO"]
         if(glutamineBondTree != null) {
             val glutamine = ThreeDimensionalMolecularStructure(glutamineBondTree)
             scene.addChild(glutamine)
