@@ -86,6 +86,26 @@ class AminoAcidBondTreeMap {
         glutamine.addBoundMolecule(cbGln)
         aminoMap["GLN"] = glutamine
 
+        //proline
+        val proline = BondTree("C", 0, null)
+        val oP = BondTree("O", 2, proline)
+        val o2P = BondTree("O", 1, proline)
+        o2P.addhydrogen(1)
+        //cycle elements
+        val cP1 = BondTree("C", 1, null)
+        cP1.addhydrogen(1)
+        val cP2 = BondTree("C", 1, null)
+        cP2.addhydrogen(1)
+        val cP3 = BondTree("C", 1, null)
+        cP3.addhydrogen(1)
+        val nP = BondTree("N", 1, null)
+        nP.addhydrogen(1)
+        val hcP = BondTree("H", 1, null)
+        val cP = BondTreeCycle("C", listOf(listOf(cP1, cP2, cP3, nP), listOf(hcP)),1, proline)
+        proline.addBoundMolecule(oP)
+        proline.addBoundMolecule(o2P)
+        proline.addBoundMolecule(cP)
+        aminoMap["PRO"] = proline
     }
 
     /**
