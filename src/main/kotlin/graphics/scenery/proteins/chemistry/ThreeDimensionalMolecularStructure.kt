@@ -57,7 +57,7 @@ class ThreeDimensionalMolecularStructure(val bondTree: BondTree, val lConfigurat
 
     data class BondTreeNodeBasisAndParent(val bondTree: BondTree, val node: Node, val newX: Vector3f, val treeParent: Node? = null)
 
-    fun calculate3DStructure(bondTreeNodeBasis: BondTreeNodeBasisAndParent): List<BondTreeNodeBasisAndParent> {
+    private fun calculate3DStructure(bondTreeNodeBasis: BondTreeNodeBasisAndParent): List<BondTreeNodeBasisAndParent> {
         val bondTree = bondTreeNodeBasis.bondTree
         val root = bondTreeNodeBasis.node
         val x = bondTreeNodeBasis.newX
@@ -74,7 +74,8 @@ class ThreeDimensionalMolecularStructure(val bondTree: BondTree, val lConfigurat
 
         val numberOfFreeElectronPairs = numberOfFreeElectronPairs(bondTree)
         if(y != null && z != null) {
-            val necessaryPositions =  bondTree.boundMolecules.size + numberOfFreeElectronPairs
+            val necessaryPositions = if(bondTree is BondTreeCycle) { bondTree.cyclesAndChildren.size + numberOfFreeElectronPairs }
+                                        else { bondTree.boundMolecules.size + numberOfFreeElectronPairs }
             val positions = positions(necessaryPositions, x, y, z, rootPosition, treeRoot)
             val newNodes = ArrayList<BondTreeNodeBasisAndParent>(bondTree.boundMolecules.size + numberOfFreeElectronPairs)
             bondTree.boundMolecules.forEachIndexed { index, boundMolecule ->
@@ -97,6 +98,10 @@ class ThreeDimensionalMolecularStructure(val bondTree: BondTree, val lConfigurat
                     c.spatial().orientBetweenPoints(rootPosition, elementSphere.spatial().position, true, true)
                     this.addChild(c)
                 }
+            }
+            if(bondTree is BondTreeCycle) {
+                val initialAngle = kotlin.math.acos(Vector3f(positions[bondTree.cyclesAndChildren.size-numberOfFreeElectronPairs-1].position).sub(z).normalize().dot(z))
+                this.addChild(CyclicMolecularStructure(bondTree, initialAngle, Matrix3f(y,Vector3f(x).mul(-1f), z), bondLength, rootPosition))
             }
             return newNodes
         }
@@ -188,7 +193,8 @@ class ThreeDimensionalMolecularStructure(val bondTree: BondTree, val lConfigurat
     private fun numberOfFreeElectronPairs(bondTree: BondTree): Int {
         val rootElement = PeriodicTable().findElementBySymbol(bondTree.element)
         val outerElectronsAndShellNumber = countOuterElectronNumber(rootElement.atomicNumber)
-        val numberOfBoundElectrons = bondTree.boundMolecules.fold(0) { acc, next -> acc + next.bondOrder }
+        var numberOfBoundElectrons = if(bondTree is BondTreeCycle) { bondTree.boundMolecules.fold(0) { acc, next -> acc + next.bondOrder } + bondTree.cyclesAndChildren.filter { it.size >1 }.size*2}
+        else { bondTree.boundMolecules.fold(0) { acc, next -> acc + next.bondOrder } }
         return (outerElectronsAndShellNumber.numberOfOuterElectrons - numberOfBoundElectrons)/2
     }
 
