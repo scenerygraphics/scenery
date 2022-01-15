@@ -26,17 +26,17 @@ class GlutamineExample: SceneryBase("RainbowRibbon", windowWidth = 1280, windowH
             scene.addChild(glutamine)
         }
 
-        val ethanol = BondTree("C", 0, null)
+        val ethanol = BondTree("C", 0)
         ethanol.addhydrogen(3)
-        val c = BondTree("C", 1, ethanol)
-        val o1 = BondTree("O", 2, c)
-        val o2 = BondTree("O", 1, c)
+        val c = BondTree("C", 1)
+        val o1 = BondTree("O", 2)
+        val o2 = BondTree("O", 1)
         o2.addhydrogen(1)
         c.addBoundMolecule(o1)
         c.addBoundMolecule(o2)
         ethanol.addBoundMolecule(c)
 
-        val methane = BondTree("C", 0, null)
+        val methane = BondTree("C", 0)
         methane.addhydrogen(4)
 
         //scene.addChild(ThreeDimensionalMolecularStructure(ethanol))

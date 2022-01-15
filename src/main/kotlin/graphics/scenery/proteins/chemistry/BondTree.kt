@@ -6,7 +6,7 @@ package graphics.scenery.proteins.chemistry
  * [boundMolecules] children of the node
  * [bondOrder] order of the bond with which the node is connected to its parent, 0 if parent is null
  */
-open class BondTree(val element: String, val bondOrder: Int = 0, var parent: BondTree?) {
+open class BondTree(val element: String, val bondOrder: Int = 0) {
     var boundMolecules = mutableListOf<BondTree>()
     var isPartOfACycle = false
     val periodicTable = PeriodicTable()
@@ -44,7 +44,7 @@ open class BondTree(val element: String, val bondOrder: Int = 0, var parent: Bon
      */
     fun addhydrogen(numberOfHydrogens: Int) {
         for (i in 0 until numberOfHydrogens) {
-            val hydrogen = BondTree("H", 1, this)
+            val hydrogen = BondTree("H", 1)
             this.boundMolecules.add(hydrogen)
 
         }

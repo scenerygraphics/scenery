@@ -18,19 +18,19 @@ class CircularMolecularStructureExample: SceneryBase("RainbowRibbon", windowWidt
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
 
         val rowSize = 20f
-        val someChildWithElements = BondTree("C", 1, null)
+        val someChildWithElements = BondTree("C", 1)
         someChildWithElements.addhydrogen(2)
-        val someOtherChildWithElements = BondTree("C", 1, null)
+        val someOtherChildWithElements = BondTree("C", 1)
         someOtherChildWithElements.addhydrogen(1)
-        val circularBondTree = BondTreeCycle("F", listOf(listOf(BondTree("C", 1, null),
+        val circularBondTree = BondTreeCycle("F", listOf(listOf(BondTree("C", 1),
             someChildWithElements,
-            BondTree("C", 1, null), BondTree("C", 1, null),
-            someOtherChildWithElements, BondTree("C", 1, null)),
-            listOf(BondTree("O", 2, null))), 1, null)
+            BondTree("C", 1), BondTree("C", 1),
+            someOtherChildWithElements, BondTree("C", 1)),
+            listOf(BondTree("O", 2))), 1)
 
-        val anotherCircularBondTree = BondTreeCycle("F", listOf(listOf(BondTree("C", 1, null),
-            BondTree("C", 1, null), circularBondTree, BondTree("C", 1, null),
-            BondTree("C", 1, null))), 1, null)
+        val anotherCircularBondTree = BondTreeCycle("F", listOf(listOf(BondTree("C", 1),
+            BondTree("C", 1), circularBondTree, BondTree("C", 1),
+            BondTree("C", 1))), 1)
 
         val threeDStructure = CyclicMolecularStructure(anotherCircularBondTree, kotlin.math.PI.toFloat()/2f,
             Matrix3f(1f, 0f, 0f,

@@ -19,7 +19,7 @@ class ThreeDimensionalStructureTests {
      */
     @Test
     fun testOuterElectrons() {
-        val bondTree = BondTree("H", 1, null)
+        val bondTree = BondTree("H", 1)
         //hydrogen
         val outerElectronsHydrogen = ThreeDimensionalMolecularStructure(bondTree).countOuterElectronNumber(1)
         Assert.assertEquals(outerElectronsHydrogen.numberOfOuterElectrons, 1)
@@ -40,10 +40,10 @@ class ThreeDimensionalStructureTests {
      */
     @Test
     fun testFreeElectronPairs() {
-        val water = BondTree("O", 0, null)
+        val water = BondTree("O", 0)
         water.addhydrogen(2)
         Assert.assertEquals(ThreeDimensionalMolecularStructure(water).callPrivateFunc("numberOfFreeElectronPairs", water), 2)
-        val ammonia = BondTree("N", 0, null)
+        val ammonia = BondTree("N", 0,)
         ammonia.addhydrogen(3)
         Assert.assertEquals(ThreeDimensionalMolecularStructure(ammonia).callPrivateFunc("numberOfFreeElectronPairs", ammonia), 1)
     }
