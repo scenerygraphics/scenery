@@ -177,6 +177,7 @@ class ProteinBuildingSketch : SceneryBase(
 
         VRGrab.createAndSet(scene, hmd, listOf(OpenVRHMD.OpenVRButton.Side), listOf(TrackerRole.LeftHand,TrackerRole.RightHand))
 
+        /*
         val selectionStorage =
             VRSelect.createAndSetWithStorage(
                 scene,
@@ -220,6 +221,8 @@ class ProteinBuildingSketch : SceneryBase(
                 }
             ))
 
+         */
+         
          */
     }
 

@@ -177,7 +177,7 @@ class VRStarTreeExample : SceneryBase(
          */
 
         VRGrab.createAndSet(scene, hmd, listOf(OpenVRHMD.OpenVRButton.Side), listOf(TrackerRole.LeftHand,TrackerRole.RightHand))
-
+        /*
         val selectionStorage =
             VRSelect.createAndSetWithStorage(
                 scene,
@@ -215,6 +215,8 @@ class VRStarTreeExample : SceneryBase(
         ), true)
         VRSelectionStarTree.createAndSet(scene, hmd, { hmd.getPosition() },
             listOf(OpenVRHMD.OpenVRButton.A), listOf(TrackerRole.LeftHand), starTree)
+
+         */
     }
 
     companion object {
