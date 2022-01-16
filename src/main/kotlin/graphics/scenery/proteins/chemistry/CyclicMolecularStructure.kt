@@ -146,11 +146,20 @@ class CyclicMolecularStructure(val root: BondTreeCycle, initialAngle: Float, bas
             //bisector of z and y serves as the new z
             val newZ = outwardVector.normalize()
             val newY = Vector3f(x).cross(newZ).normalize()
+            val scalars = ArrayList<Float>(childrenOfConstituent.size)
+            childrenOfConstituent.forEach {
+               if(PeriodicTable().findElementBySymbol(it.element).atomicNumber == 1) {
+                    scalars.add(bondLength/5f)
+                }
+                else {
+                    scalars.add(bondLength)
+                }
+            }
             when (childrenOfConstituent.size) {
                 1 -> {
-                    val newPosition = if(!pointDown) { Vector3f(newZ).mul(bondLength).add(Vector3f(substituentPosition)) }
-                    else { val directedBondlength = if(flipAddedHydrogens) { bondLength }
-                        else { -bondLength }
+                    val newPosition = if(!pointDown) { Vector3f(newZ).mul(scalars[0]).add(Vector3f(substituentPosition)) }
+                    else { val directedBondlength = if(flipAddedHydrogens) { scalars[0] }
+                        else { -scalars[0] }
                         flipAddedHydrogens = !flipAddedHydrogens
                         Vector3f(x).mul(directedBondlength).add(Vector3f(substituentPosition))
                     }
@@ -165,7 +174,7 @@ class CyclicMolecularStructure(val root: BondTreeCycle, initialAngle: Float, bas
                 }
                 2 -> {
                     //first new child
-                    val firstNewPosition = Vector3f(x).mul(bondLength).add(Vector3f(substituentPosition))
+                    val firstNewPosition = Vector3f(x).mul(scalars[0]).add(Vector3f(substituentPosition))
                     val newBasis = Matrix3f(newZ, newY, x)
                     val firstChild =
                         ThreeDimensionalMolecularStructure(childrenOfConstituent[0], initialBase = newBasis)
@@ -173,7 +182,7 @@ class CyclicMolecularStructure(val root: BondTreeCycle, initialAngle: Float, bas
                     this.addChild(firstChild)
                     addCylinder(substituentPosition, firstNewPosition, childrenOfConstituent[0].bondOrder, newY)
                     //second
-                    val secondNewPosition = Vector3f(x).mul(-bondLength).add(Vector3f(substituentPosition))
+                    val secondNewPosition = Vector3f(x).mul(-scalars[1]).add(Vector3f(substituentPosition))
                     val newBasis2 = Matrix3f(newZ, newZ, x)
                     val secondChild =
                         ThreeDimensionalMolecularStructure(childrenOfConstituent[1], initialBase = newBasis2)
@@ -183,7 +192,7 @@ class CyclicMolecularStructure(val root: BondTreeCycle, initialAngle: Float, bas
                 }
                 3 -> {
                     //first
-                    val newPosition = Vector3f(newZ).mul(bondLength).add(Vector3f(substituentPosition))
+                    val newPosition = Vector3f(newZ).mul(scalars[0]).add(Vector3f(substituentPosition))
                     val child = ThreeDimensionalMolecularStructure(
                         childrenOfConstituent[0],
                         initialBase = Matrix3f(x, newY, newZ)
@@ -192,14 +201,14 @@ class CyclicMolecularStructure(val root: BondTreeCycle, initialAngle: Float, bas
                     addCylinder(substituentPosition,newPosition, childrenOfConstituent[0].bondOrder, newY)
                     this.addChild(child)
                     //second
-                    val firstNewPosition = Vector3f(x).mul(bondLength).add(Vector3f(substituentPosition))
+                    val firstNewPosition = Vector3f(x).mul(scalars[1]).add(Vector3f(substituentPosition))
                     val newBasis = Matrix3f(newZ, newY, x)
                     val firstChild = ThreeDimensionalMolecularStructure(childrenOfConstituent[1], initialBase = newBasis)
                     firstChild.spatial().position = firstNewPosition
                     this.addChild(firstChild)
                     addCylinder(substituentPosition, firstNewPosition, childrenOfConstituent[1].bondOrder, newY)
                     //third
-                    val secondNewPosition = Vector3f(x).mul(-bondLength).add(Vector3f(substituentPosition))
+                    val secondNewPosition = Vector3f(x).mul(-scalars[2]).add(Vector3f(substituentPosition))
                     val newBasis2 = Matrix3f(newZ, newZ, x)
                     val secondChild =
                         ThreeDimensionalMolecularStructure(childrenOfConstituent[2], initialBase = newBasis2)
