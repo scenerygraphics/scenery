@@ -105,11 +105,15 @@ class CyclicMolecularStructure(val root: BondTreeCycle, initialAngle: Float, bas
             }
 
             val outwardVector = (Vector3f(z).mul(cosAlpha).add(Vector3f(y).mul(sinAlpha))).normalize()
+
             /*
             Add the next elements of the tree, i.e., all the molecules bound to the constituents of the respective
             circle.
              */
-            addSubstituentChildren(x, currentSubstituent, substituentPosition, outwardVector)
+            //flag to not use the outward vector if the substituent is the beginning of a new cycle
+            val pointDown = if(index != cycle.lastIndex) { currentSubstituent is BondTreeCycle || cycle[index + 1] is BondTreeCycle }
+            else { currentSubstituent is BondTreeCycle }
+            addSubstituentChildren(x, currentSubstituent, substituentPosition, outwardVector, pointDown)
 
             //add the sphere
             addAtomSphere(PeriodicTable().findElementBySymbol(currentSubstituent.element), substituentPosition)
@@ -129,7 +133,7 @@ class CyclicMolecularStructure(val root: BondTreeCycle, initialAngle: Float, bas
     /**
      * Adds the children of a substituent of the circle to the mesh
      */
-    private fun addSubstituentChildren(x: Vector3f, substituent: BondTree, substituentPosition: Vector3f, outwardVector: Vector3f) {
+    private fun addSubstituentChildren(x: Vector3f, substituent: BondTree, substituentPosition: Vector3f, outwardVector: Vector3f, pointDown: Boolean) {
         val childrenOfConstituent = substituent.boundMolecules
         if (childrenOfConstituent.isNotEmpty()) {
             //bisector of z and y serves as the new z
@@ -137,7 +141,8 @@ class CyclicMolecularStructure(val root: BondTreeCycle, initialAngle: Float, bas
             val newY = Vector3f(x).cross(newZ).normalize()
             when (childrenOfConstituent.size) {
                 1 -> {
-                    val newPosition = Vector3f(newZ).mul(bondLength).add(Vector3f(substituentPosition))
+                    val newPosition = if(!pointDown) { Vector3f(newZ).mul(bondLength).add(Vector3f(substituentPosition)) }
+                    else { Vector3f(x).mul(bondLength).add(Vector3f(substituentPosition)) }
                     val child = ThreeDimensionalMolecularStructure(
                         childrenOfConstituent[0],
                         initialBase = Matrix3f(x, newY, newZ)
