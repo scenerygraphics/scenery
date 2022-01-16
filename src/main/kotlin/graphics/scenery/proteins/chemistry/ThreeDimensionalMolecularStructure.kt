@@ -193,8 +193,14 @@ class ThreeDimensionalMolecularStructure(val bondTree: BondTree, val lConfigurat
     private fun numberOfFreeElectronPairs(bondTree: BondTree): Int {
         val rootElement = PeriodicTable().findElementBySymbol(bondTree.element)
         val outerElectronsAndShellNumber = countOuterElectronNumber(rootElement.atomicNumber)
-        var numberOfBoundElectrons = if(bondTree is BondTreeCycle) { bondTree.boundMolecules.fold(0) { acc, next -> acc + next.bondOrder } + bondTree.cyclesAndChildren.filter { it.size >1 }.size*2}
-        else { bondTree.boundMolecules.fold(0) { acc, next -> acc + next.bondOrder } }
+        val bondsFromCycle = if(bondTree is BondTreeCycle) {
+            var number = 0
+            bondTree.cyclesAndChildren.filter { it.size >1 }.forEach {
+                number += it[0].bondOrder
+                number += it[it.lastIndex].bondOrder}
+            number
+        } else { 0 }
+        val numberOfBoundElectrons = bondTree.boundMolecules.fold(0) { acc, next -> acc + next.bondOrder } + bondsFromCycle
         return (outerElectronsAndShellNumber.numberOfOuterElectrons - numberOfBoundElectrons)/2
     }
 
