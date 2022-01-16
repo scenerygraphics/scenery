@@ -42,6 +42,7 @@ class ThreeDimensionalMolecularStructure(val bondTree: BondTree, val lConfigurat
         val rootElement = PeriodicTable().findElementBySymbol(bondTree.element)
         val atomSphere = if(rootElement == PeriodicTable().findElementByNumber(1))
         { Icosphere(0.05f, 5) } else { Icosphere(0.15f, 2)}
+        atomSphere.name = bondTree.id
         if (rootElement.color != null) { atomSphere.ifMaterial { diffuse = rootElement.color } }
         val nodesToTravers = ArrayList<BondTreeNodeBasisAndParent>()
         nodesToTravers.add(BondTreeNodeBasisAndParent(bondTree, atomSphere, initialX))
@@ -81,8 +82,9 @@ class ThreeDimensionalMolecularStructure(val bondTree: BondTree, val lConfigurat
             bondTree.boundMolecules.forEachIndexed { index, boundMolecule ->
                 val element = PeriodicTable().findElementBySymbol(boundMolecule.element)
                 val elementSphere = if(element == PeriodicTable().findElementByNumber(1)) {
-                    Icosphere(0.05f, 2) }
+                    Icosphere( 0.05f, 2) }
                     else { Icosphere(0.15f, 2) }
+                elementSphere.name = boundMolecule.id
                 if (element.color != null) { elementSphere.ifMaterial { diffuse = element.color } }
                 elementSphere.parent = root
                 this.addChild(elementSphere)
