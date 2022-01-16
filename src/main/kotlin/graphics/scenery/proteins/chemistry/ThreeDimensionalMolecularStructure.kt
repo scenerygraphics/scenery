@@ -3,7 +3,11 @@ package graphics.scenery.proteins.chemistry
 import graphics.scenery.Icosphere
 import graphics.scenery.Mesh
 import graphics.scenery.Node
+import graphics.scenery.attribute.material.DefaultMaterial
+import graphics.scenery.attribute.material.Material
+import graphics.scenery.primitives.Arrow
 import graphics.scenery.primitives.Cylinder
+import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.times
 import org.joml.Matrix3f
 import org.joml.Vector3f
@@ -72,6 +76,27 @@ class ThreeDimensionalMolecularStructure(val bondTree: BondTree, val lConfigurat
         val y = if(root.parent?.spatialOrNull() == null) { initialY }
         else { Vector3f(x).cross(Vector3f(z)).normalize() }
 
+        //debug arrows
+        val matFaint = DefaultMaterial()
+        matFaint.diffuse  = Vector3f(0.0f, 0.6f, 0.6f)
+        matFaint.ambient  = Vector3f(1.0f, 1.0f, 1.0f)
+        matFaint.specular = Vector3f(1.0f, 1.0f, 1.0f)
+        matFaint.cullingMode = Material.CullingMode.None
+        val a = Arrow(x)  //shape of the vector itself
+        a.spatial {
+            position = rootPosition                  //position/base of the vector
+        }
+        a.addAttribute(Material::class.java, matFaint)                  //usual stuff follows...
+        a.edgeWidth = 0.5f
+        this.addChild(a)
+        val b = Arrow(y)  //shape of the vector itself
+        b.spatial {
+            position = rootPosition                  //position/base of the vector
+        }
+        b.addAttribute(Material::class.java, matFaint)                  //usual stuff follows...
+        b.edgeWidth = 0.5f
+        //this.addChild(b)
+
         val numberOfFreeElectronPairs = numberOfFreeElectronPairs(bondTree)
         if(y != null && z != null) {
             val necessaryPositions = if(bondTree is BondTreeCycle) { bondTree.cyclesAndChildren.size + numberOfFreeElectronPairs }
@@ -126,8 +151,10 @@ class ThreeDimensionalMolecularStructure(val bondTree: BondTree, val lConfigurat
                 listOf(PositionAndX(Vector3f(rootPosition).add(Vector3f(z).times(bondLength)), x))
             }
             2 -> {
-                val newX1 = Vector3f(x.x*cos60, 0f, -z.z*sin60).normalize()
-                val newX2 = Vector3f(x.x*cos60, 0f, z.z*sin60).normalize()
+                val newX1 =  Vector3f(x).mul(cos60).add(Vector3f(z).mul(-sin60)).normalize()
+                    //Vector3f(x.x*cos60, 0f, -z.z*sin60).normalize()
+                val newX2 = Vector3f(x).mul(cos60).add(Vector3f(z).mul(sin60)).normalize()
+                    //Vector3f(x.x*cos60, 0f, z.z*sin60).normalize()
                 listOf(
                     PositionAndX(Vector3f(rootPosition).add(Vector3f(z).times(cos60 * bondLength))
                         .add(Vector3f(x).times(sin60 * bondLength)), newX1),
@@ -141,8 +168,10 @@ class ThreeDimensionalMolecularStructure(val bondTree: BondTree, val lConfigurat
                 val rotationVector1 = basis.transform(toTransformVector1)
                 val toTransformVector2 = Vector3f(-cos60, -sin60, 0f)
                 val rotationVector2 = basis.transform(toTransformVector2)
-                val newX1 = Vector3f(x.x*cos70Point5, 0f, z.z*sin70Point5).normalize()
-                val newX2 = Vector3f(x.x*cos70Point5, 0f, -z.z*sin70Point5).normalize()
+                val newX1 = Vector3f(x).mul(cos70Point5).add(Vector3f(z).mul(sin70Point5)).normalize()
+                    //Vector3f(x.x*cos70Point5, 0f, z.z*sin70Point5).normalize()
+                val newX2 = Vector3f(x).mul(cos70Point5).add(Vector3f(z).mul(-sin70Point5)).normalize()
+                //Vector3f(x.x*cos70Point5, 0f, -z.z*sin70Point5).normalize()
                 listOf(
                     PositionAndX(Vector3f(rootPosition).add(Vector3f(z).times(cos70Point5*bondLength)).add(Vector3f(x).times(sin70Point5*bondLength)), z),
                     PositionAndX(Vector3f(rootPosition).add(Vector3f(z).times(cos70Point5 * bondLength)).add(
