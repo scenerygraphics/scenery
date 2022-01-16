@@ -31,6 +31,8 @@ import org.joml.Vector3f
 class CyclicMolecularStructure(val root: BondTreeCycle, initialAngle: Float, basis: Matrix3f, private val bondLength: Float,
                                positionalVector: Vector3f): Mesh("CircularMolecularStructure") {
 
+    //flips the order of singular hydrogens added to the circle
+    var flipAddedHydrogens = true
     init {
         //set initial vectors
         val initialX = basis.getColumn(0, Vector3f())
@@ -142,7 +144,11 @@ class CyclicMolecularStructure(val root: BondTreeCycle, initialAngle: Float, bas
             when (childrenOfConstituent.size) {
                 1 -> {
                     val newPosition = if(!pointDown) { Vector3f(newZ).mul(bondLength).add(Vector3f(substituentPosition)) }
-                    else { Vector3f(x).mul(bondLength).add(Vector3f(substituentPosition)) }
+                    else { val directedBondlength = if(flipAddedHydrogens) { bondLength }
+                        else { -bondLength }
+                        flipAddedHydrogens = !flipAddedHydrogens
+                        Vector3f(x).mul(directedBondlength).add(Vector3f(substituentPosition))
+                    }
                     val child = ThreeDimensionalMolecularStructure(
                         childrenOfConstituent[0],
                         initialBase = Matrix3f(x, newY, newZ)
