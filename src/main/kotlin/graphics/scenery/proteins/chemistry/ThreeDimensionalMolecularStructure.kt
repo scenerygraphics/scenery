@@ -3,11 +3,7 @@ package graphics.scenery.proteins.chemistry
 import graphics.scenery.Icosphere
 import graphics.scenery.Mesh
 import graphics.scenery.Node
-import graphics.scenery.attribute.material.DefaultMaterial
-import graphics.scenery.attribute.material.Material
-import graphics.scenery.primitives.Arrow
 import graphics.scenery.primitives.Cylinder
-import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.times
 import org.joml.Matrix3f
 import org.joml.Vector3f
@@ -76,27 +72,6 @@ class ThreeDimensionalMolecularStructure(val bondTree: BondTree, val lConfigurat
         val y = if(root.parent?.spatialOrNull() == null) { initialY }
         else { Vector3f(x).cross(Vector3f(z)).normalize() }
 
-        //debug arrows
-        val matFaint = DefaultMaterial()
-        matFaint.diffuse  = Vector3f(0.0f, 0.6f, 0.6f)
-        matFaint.ambient  = Vector3f(1.0f, 1.0f, 1.0f)
-        matFaint.specular = Vector3f(1.0f, 1.0f, 1.0f)
-        matFaint.cullingMode = Material.CullingMode.None
-        val a = Arrow(x)  //shape of the vector itself
-        a.spatial {
-            position = rootPosition                  //position/base of the vector
-        }
-        a.addAttribute(Material::class.java, matFaint)                  //usual stuff follows...
-        a.edgeWidth = 0.5f
-        this.addChild(a)
-        val b = Arrow(y)  //shape of the vector itself
-        b.spatial {
-            position = rootPosition                  //position/base of the vector
-        }
-        b.addAttribute(Material::class.java, matFaint)                  //usual stuff follows...
-        b.edgeWidth = 0.5f
-        //this.addChild(b)
-
         val numberOfFreeElectronPairs = numberOfFreeElectronPairs(bondTree)
         if(y != null && z != null) {
             val necessaryPositions = if(bondTree is BondTreeCycle) { bondTree.cyclesAndChildren.size + numberOfFreeElectronPairs }
@@ -111,7 +86,17 @@ class ThreeDimensionalMolecularStructure(val bondTree: BondTree, val lConfigurat
                 if (element.color != null) { elementSphere.ifMaterial { diffuse = element.color } }
                 elementSphere.parent = root
                 this.addChild(elementSphere)
-                elementSphere.spatial().position = positions[index].position
+                val computedPosition = positions[index].position
+                elementSphere.spatial {
+                    position = if (element == PeriodicTable().findElementByNumber(1)) {
+                        Vector3f(rootPosition).add(
+                            Vector3f(computedPosition).sub(rootPosition).normalize().mul(bondLength / 5f)
+                        )
+                    } else {
+                        computedPosition
+                    }
+                }
+
                 newNodes.add(BondTreeNodeBasisAndParent(boundMolecule, elementSphere, positions[index].x, root))
                 //display bond
                 if(boundMolecule.bondOrder > 1) {
@@ -125,8 +110,9 @@ class ThreeDimensionalMolecularStructure(val bondTree: BondTree, val lConfigurat
                 }
             }
             if(bondTree is BondTreeCycle) {
-                val initialAngle = kotlin.math.acos(Vector3f(positions[bondTree.cyclesAndChildren.size-numberOfFreeElectronPairs-1].position).sub(z).normalize().dot(z))
-                this.addChild(CyclicMolecularStructure(bondTree, initialAngle, Matrix3f(y,Vector3f(x).mul(-1f), z), bondLength, rootPosition))
+                val initialAngle = 0f
+                    //kotlin.math.acos(Vector3f(positions[bondTree.cyclesAndChildren.size-numberOfFreeElectronPairs-1].position).sub(z).normalize().dot(z))
+                this.addChild(CyclicMolecularStructure(bondTree, initialAngle, Matrix3f(x, y, z), bondLength, rootPosition))
             }
             return newNodes
         }
