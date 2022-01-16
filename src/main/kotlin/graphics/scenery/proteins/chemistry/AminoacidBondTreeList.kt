@@ -98,14 +98,39 @@ class AminoAcidBondTreeMap {
         cP2.addhydrogen(1)
         val cP3 = BondTree("C", 1)
         cP3.addhydrogen(1)
-        val nP = BondTree("N", 1)
+        val nP = BondTree("N", 1, "N")
         nP.addhydrogen(1)
         val hcP = BondTree("H", 1)
-        val cP = BondTreeCycle("C", listOf(listOf(cP1, cP2, cP3, nP), listOf(hcP)),1)
+        val cP = BondTreeCycle("C", listOf(listOf(cP1, cP2, cP3, nP), listOf(hcP)),1, "Ca")
         proline.addBoundMolecule(oP)
         proline.addBoundMolecule(o2P)
         proline.addBoundMolecule(cP)
         aminoMap["PRO"] = proline
+
+        //Tryptophane
+        val cbTryptophane = BondTree("C", 1, "cb")
+        cbTryptophane.addhydrogen(2)
+        val cycle1c1 = BondTree("C", 2)
+        cycle1c1.addhydrogen(1)
+        val cycleN = BondTree("N", 1)
+        cycleN.addhydrogen(1)
+        val cycle2c1 = BondTree("C", 1)
+        cycle2c1.addhydrogen(1)
+        val cycle2c2 = BondTree("C", 2)
+        cycle2c2.addhydrogen(1)
+        val cycle2c3 = BondTree("C", 1)
+        cycle2c3.addhydrogen(1)
+        val cycle2c4 = BondTree("C", 2)
+        cycle2c4.addhydrogen(1)
+        val cycle1c3 = BondTree("C", 2)
+        val cycle1c2 = BondTreeCycle("C", listOf(listOf(cycle2c1, cycle2c2, cycle2c3, cycle2c4, cycle1c3), listOf(
+            BondTree("H", 1)
+        )), 1)
+        val cycle1 = BondTreeCycle("C", listOf(listOf(cycle1c1, cycleN, cycle1c2, cycle1c3)), 1)
+        cbTryptophane.addBoundMolecule(cycle1)
+        val tryptophane = aminoAcidBluePrint()
+        tryptophane.addBoundMolecule(cbTryptophane)
+        aminoMap["TRP"] = tryptophane
     }
 
     /**
@@ -114,8 +139,8 @@ class AminoAcidBondTreeMap {
      */
     fun aminoAcidBluePrint(): BondTree {
         //c alpha atom functions as the parent
-        val ca = BondTree("C", 0)
-        val n = BondTree("N", 1)
+        val ca = BondTree("C", 0, "Ca")
+        val n = BondTree("N", 1, "N")
         n.addhydrogen(2)
         val c = BondTree("C", 1,)
         val o1c = BondTree("O", 2)
