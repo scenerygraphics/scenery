@@ -18,7 +18,6 @@ class SlimClient : SceneryBase("Client", wantREPL = false) {
     override fun init() {
         renderer = hub.add(SceneryElement.Renderer,
             Renderer.createRenderer(hub, applicationName, scene, 512, 512))
-
         val withCam = !Settings().get("RemoteCamera",false)
         if(withCam) {
             val cam: Camera = DetachedHeadCamera()
@@ -31,9 +30,13 @@ class SlimClient : SceneryBase("Client", wantREPL = false) {
                 scene.addChild(this)
             }
         }
+
         thread {
-            Thread.sleep(2000)
-            print(scene)
+            while (true) {
+
+                Thread.sleep(5000)
+                print(scene)
+            }
         }
     }
 
