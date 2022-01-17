@@ -17,7 +17,7 @@ import kotlin.concurrent.thread
  *
  * @author Justin Buerger <burger@mpi-cbg.de>
  */
-class PeptideBondingExample: SceneryBase("RainbowRibbon", windowWidth = 1280, windowHeight = 720) {
+class PeptideBondAnimationExample: SceneryBase("RainbowRibbon", windowWidth = 1280, windowHeight = 720) {
     override fun init() {
 
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
@@ -199,7 +199,7 @@ class PeptideBondingExample: SceneryBase("RainbowRibbon", windowWidth = 1280, wi
     companion object {
         @JvmStatic
         fun main(args: Array<String>) {
-            PeptideBondingExample().main()
+            AminoAcidChainer().main()
         }
     }
 }
