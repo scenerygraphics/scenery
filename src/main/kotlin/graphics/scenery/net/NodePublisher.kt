@@ -9,9 +9,6 @@ import graphics.scenery.*
 import graphics.scenery.serialization.*
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.Statistics
-import graphics.scenery.volumes.BufferedVolume
-import graphics.scenery.volumes.RAIVolume
-import graphics.scenery.volumes.Volume
 import graphics.scenery.volumes.VolumeManager
 import net.imglib2.img.basictypeaccess.array.ByteArray
 import org.joml.Vector3f
@@ -196,8 +193,11 @@ class NodePublisher(
     }
 
     private fun addUpdateEvent(wrapper: NetworkWrapper<*>) {
-        wrapper.additionalData = wrapper.obj.getAdditionalData()
-        eventQueue.add(NetworkEvent.Update(wrapper))
+        eventQueue.add(
+            NetworkEvent.Update(
+                wrapper
+            )
+        )
     }
 
     fun startListeningControl() {
@@ -284,9 +284,9 @@ class NodePublisher(
             kryo.register(VolumeManager::class.java, IgnoreSerializer<VolumeManager>())
             kryo.register(Vector3f::class.java, Vector3fSerializer())
 
-            kryo.register(Volume::class.java, VolumeSerializer())
-            kryo.register(RAIVolume::class.java, VolumeSerializer())
-            kryo.register(BufferedVolume::class.java, VolumeSerializer())
+            //kryo.register(Volume::class.java, VolumeSerializer())
+            //kryo.register(RAIVolume::class.java, VolumeSerializer())
+            //kryo.register(BufferedVolume::class.java, VolumeSerializer())
 
             return kryo
         }

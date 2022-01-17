@@ -1,5 +1,6 @@
 package graphics.scenery.net
 
+import graphics.scenery.Hub
 import java.io.Serializable
 import kotlin.reflect.KClass
 
@@ -21,8 +22,11 @@ interface Networkable : Serializable {
     /**
      * Serialize data which is not picket up by kryo eg. transient members
      */
-    fun getAdditionalData(): Any? = null
+    fun getAdditionalUpdateData(): Any? = null
 
+    fun constructWithParameters(parameters: Any, hub: Hub) = this
+
+    fun getConstructorParameters(): Any? = null
     /**
      * Time point of last modification in [System.nanoTime()]
      */
