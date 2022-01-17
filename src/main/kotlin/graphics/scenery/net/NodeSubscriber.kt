@@ -13,7 +13,6 @@ import org.zeromq.SocketType
 import org.zeromq.ZContext
 import org.zeromq.ZMQ
 import java.io.ByteArrayInputStream
-import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.LinkedBlockingQueue
 import kotlin.concurrent.thread
 
@@ -53,7 +52,7 @@ class NodeSubscriber(
             }
             GlobalScope.launch {
                 delay(1000)
-                NodePublisher.sendEvent(NetworkEvent.RequestInitialization(), kryo, backchannel, logger)
+                NodePublisher.sendEvent(NetworkEvent.RequestInitialization, kryo, backchannel, logger)
             }
         }
     }
@@ -146,7 +145,7 @@ class NodeSubscriber(
             val tmp = networkObjects[fresh.networkID]?.obj
                 ?: throw Exception("Got update for unknown object with id ${fresh.networkID} and class ${fresh.javaClass.simpleName}")
             try {
-                tmp.update(fresh, this::getNetworkable, networkWrapper.additionalData)
+                tmp.update(fresh, this::getNetworkable, event.additionalData)
             } catch (e: NetworkableNotFoundException) {
                 waitingOnNetworkable[e.id] =
                     waitingOnNetworkable.getOrDefault(e.id, listOf()) + (event to WaitReason.UpdateRelation)
@@ -161,7 +160,7 @@ class NodeSubscriber(
                 // dont use the scene from network, but adapt own scene
                 scene.networkID = networkable.networkID
                 try {
-                    scene.update(networkable, this::getNetworkable, networkWrapper.additionalData)
+                    scene.update(networkable, this::getNetworkable, event.additionalData)
                 } catch (e: NetworkableNotFoundException) {
                     waitingOnNetworkable[e.id] =
                         waitingOnNetworkable.getOrDefault(e.id, listOf()) + (event to WaitReason.Parent)
@@ -171,18 +170,23 @@ class NodeSubscriber(
                 networkable = scene
             }
             is Node -> {
-                networkable.initialized = false
+                val node = event.constructorParameters?.let { networkable.constructWithParameters(it,hub!!) as Node}
+                    ?: networkable
+                node.initialized = false
                 val parentId = networkWrapper.parents.first()
                 val parent = networkObjects[parentId]?.obj as? Node
                 if (parent != null) {
-                    parent.addChild(networkable)
+                    parent.addChild(node)
                 } else {
                     waitingOnNetworkable[parentId] =
                         waitingOnNetworkable.getOrDefault(parentId, listOf()) + (event to WaitReason.Parent)
                 }
-                networkObjects[networkWrapper.networkID] = networkWrapper
+                networkObjects[networkWrapper.networkID] =
+                    NetworkWrapper(networkWrapper.networkID,node,networkWrapper.parents,networkWrapper.publishedAt)
             }
             else -> {
+                val attribute = event.constructorParameters?.let { networkable.constructWithParameters(it,hub!!)}
+                    ?: networkable
                 val attributeBaseClass = networkable.getAttributeClass()
                 if (attributeBaseClass != null) {
                     // It is an attribute
@@ -198,10 +202,11 @@ class NodeSubscriber(
                             }
                         }
                         .forEach {
-                            it.addAttributeFromNetwork(attributeBaseClass.java, networkable)
+                            it.addAttributeFromNetwork(attributeBaseClass.java, attribute)
                             it.spatialOrNull()?.needsUpdate = true
                         }
-                    networkObjects[networkWrapper.networkID] = networkWrapper
+                    networkObjects[networkWrapper.networkID] =
+                        NetworkWrapper(networkWrapper.networkID,attribute,networkWrapper.parents,networkWrapper.publishedAt)
                 } else {
                     throw IllegalStateException(
                         "Received unknown object from server. ${networkable.javaClass.simpleName}" +
@@ -210,7 +215,7 @@ class NodeSubscriber(
                 }
             }
         }
-        eventQueue.add(NetworkEvent.Update(networkWrapper)) // update relations if this is a post-initial-sync new object
+        eventQueue.add(event) // update relations in case this is a post-initial-sync new object
         processWaitingNodes(networkable, scene)
     }
 

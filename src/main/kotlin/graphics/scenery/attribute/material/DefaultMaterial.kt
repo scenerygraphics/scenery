@@ -58,7 +58,7 @@ open class DefaultMaterial : Material, Networkable {
         fun Material(): DefaultMaterial = DefaultMaterial()
     }
 
-    override fun getAdditionalData(): Any? {
+    override fun getAdditionalUpdateData(): Any? {
         return if (synchronizeTextures) {
             textures
         } else {

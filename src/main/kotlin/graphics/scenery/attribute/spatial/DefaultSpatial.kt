@@ -68,8 +68,8 @@ open class DefaultSpatial(private var node: Node = DefaultNode()) : Spatial {
         ) {
             needsUpdate = true
             needsUpdateWorld = true
-            updateModifiedAt()
         }
+        updateModifiedAt()
     }
 
     @Synchronized
