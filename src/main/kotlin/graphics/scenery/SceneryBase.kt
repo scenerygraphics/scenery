@@ -174,6 +174,13 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
             null
         }
 
+        scene.onChildrenAdded["VolumeManager"] = { _,node ->
+            if (node is Volume){
+                if (node.dataSource !is Volume.VolumeDataSource.NullSource) {
+                    VolumeManager.regenerateVolumeManagerWithExtraVolume(node, hub)
+                }
+            }
+        }
 
         val server = System.getProperty("scenery.Server")?.toBoolean() ?: false
         val serverAddress = System.getProperty("scenery.ServerAddress")
@@ -194,11 +201,6 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
             scene.postUpdate += { publisher.scanForChanges()}
         }
 
-        scene.onChildrenAdded["VolumeManager"] = { _,node ->
-            if (node is Volume){
-                VolumeManager.regenerateVolumeManagerWithExtraVolume(node,hub)
-            }
-        }
 
         hub.add(SceneryElement.Statistics, stats)
         hub.add(SceneryElement.Settings, settings)
@@ -285,7 +287,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
             // only run loop if we are either in standalone mode, or master
             // for details about the interpolation code, see
             // https://gafferongames.com/post/fix_your_timestep/
-            if(server || serverAddress == null) {
+            //if(server || serverAddress == null) {
                 val newTime = System.nanoTime()
                 lastFrameTime = frameTime
                 frameTime = (newTime - currentTime)/1e6f
@@ -319,7 +321,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
                     frameTimes.push((renderer?.lastFrameTime ?: 1.0f) / 100.0f)
                     scene.activeObserver?.deltaT = frameTimes.average().toFloat()
                 }
-            }
+            //}
 
             if (statsRequested && ticks % 100L == 0L) {
                 logger.info("\nStatistics:\n=============\n$stats")

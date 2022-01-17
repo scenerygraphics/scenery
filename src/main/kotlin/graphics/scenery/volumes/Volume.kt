@@ -19,10 +19,7 @@ import bdv.viewer.DisplayMode
 import bdv.viewer.Source
 import bdv.viewer.SourceAndConverter
 import bdv.viewer.state.ViewerState
-import graphics.scenery.DefaultNode
-import graphics.scenery.DisableFrustumCulling
-import graphics.scenery.Hub
-import graphics.scenery.Origin
+import graphics.scenery.*
 import graphics.scenery.attribute.DelegationType
 import graphics.scenery.attribute.geometry.DelegatesGeometry
 import graphics.scenery.attribute.geometry.Geometry
@@ -32,6 +29,7 @@ import graphics.scenery.attribute.renderable.DelegatesRenderable
 import graphics.scenery.attribute.renderable.Renderable
 import graphics.scenery.attribute.spatial.DefaultSpatial
 import graphics.scenery.attribute.spatial.HasCustomSpatial
+import graphics.scenery.net.Networkable
 import graphics.scenery.numerics.OpenSimplexNoise
 import graphics.scenery.numerics.Random
 import graphics.scenery.utils.LazyLogger
@@ -69,11 +67,20 @@ import kotlin.streams.toList
 
 @Suppress("DEPRECATION")
 open class Volume(
-    val dataSource: VolumeDataSource,
-    val options: VolumeViewerOptions
+    @Transient
+    val dataSource: VolumeDataSource = VolumeDataSource.NullSource(1),
+    @Transient
+    val options: VolumeViewerOptions = VolumeViewerOptions()
 ) : DefaultNode("Volume"),
     DelegatesRenderable, DelegatesGeometry, DelegatesMaterial, DisableFrustumCulling,
     HasCustomSpatial<Volume.VolumeSpatial> {
+
+    //without this line the *java* serialization framework kryo does not recognize the parameter-less constructor
+    // and uses dark magic to instanciate this class
+    //constructor():this(VolumeDataSource.NullSource(1))
+
+    //TODO make nice
+    var constructionParameters: Any? = null
 
     private val delegationType: DelegationType = DelegationType.OncePerDelegate
     override fun getDelegationType(): DelegationType {
@@ -92,8 +99,10 @@ open class Volume(
         return volumeManager.materialOrNull()
     }
 
+    @Transient
     val converterSetups = ArrayList<ConverterSetup>()
     var timepointCount: Int
+    @Transient
     val viewerState: ViewerState
 
     /** The transfer function to use for the volume. Flat by default. */
@@ -155,30 +164,39 @@ open class Volume(
     lateinit var volumeManager: VolumeManager
 
     // TODO IS THIS REQUIRED??
+    @Transient
     var cacheControls = CacheControl.CacheControls()
 
     /** Current timepoint. */
-    var currentTimepoint: Int = 0
+    var currentTimepoint: Int
         get() {
-            return viewerState.currentTimepoint
+            return if (dataSource == null || dataSource is VolumeDataSource.NullSource){
+                0
+            } else {
+                viewerState.currentTimepoint
+            }
         }
         set(value) {
             viewerState.currentTimepoint = value
             modifiedAt = System.nanoTime()
-            field = value
         }
 
     sealed class VolumeDataSource {
-        class SpimDataMinimalSource(val spimData: SpimDataMinimal) : VolumeDataSource()
+        open class SpimDataMinimalSource(val spimData: SpimDataMinimal) : VolumeDataSource()
         class RAISource<T : NumericType<T>>(
+            @Transient
             val type: NumericType<T>,
+            @Transient
             val sources: List<SourceAndConverter<T>>,
+            @Transient
             val converterSetups: ArrayList<ConverterSetup>,
             val numTimepoints: Int,
+            @Transient
             val cacheControl: CacheControl? = null
         ) : VolumeDataSource()
 
         class NullSource(val numTimepoints: Int) : VolumeDataSource()
+        class SpimFileSource(val file: String) : SpimDataMinimalSource(XmlIoSpimDataMinimal().load(file))
     }
 
     /**
@@ -195,12 +213,12 @@ open class Volume(
 
         addSpatial()
 
-        when (dataSource) {
+        viewerState = when (dataSource) {
             is SpimDataMinimalSource -> {
                 val spimData = dataSource.spimData
 
                 val seq: AbstractSequenceDescription<*, *, *> = spimData.sequenceDescription
-                timepointCount = seq.timePoints.size() - 1
+                timepointCount = seq.timePoints.size()
                 cacheControls.addCacheControl((seq.imgLoader as ViewerImgLoader).cacheControl)
 
                 // wraps legacy image formats (e.g., TIFF) if referenced in BDV XML
@@ -211,47 +229,64 @@ open class Volume(
                 // These are then stored in [converterSetups] and [sources_].
                 BigDataViewer.initSetups(spimData, converterSetups, sources)
 
-                viewerState = ViewerState(sources, timepointCount)
 
                 WrapBasicImgLoader.removeWrapperIfPresent(spimData)
+                ViewerState(sources, timepointCount)
             }
 
             is VolumeDataSource.RAISource<*> -> {
-                timepointCount = dataSource.numTimepoints
+                val raiSource = (dataSource as VolumeDataSource.RAISource<*>)
+                timepointCount = raiSource.numTimepoints
                 // FIXME: bigdataviewer-core > 9.0.0 doesn't enjoy having 0 timepoints anymore :-(
                 // We tell it here to have a least one, so far no ill side effects from that
-                viewerState = ViewerState(dataSource.sources, max(1, timepointCount))
-                converterSetups.addAll(dataSource.converterSetups)
+                converterSetups.addAll(raiSource.converterSetups)
+                ViewerState(raiSource.sources, max(1, timepointCount))
             }
-
             is VolumeDataSource.NullSource -> {
-                viewerState = ViewerState(emptyList(), dataSource.numTimepoints)
                 timepointCount = dataSource.numTimepoints
+                ViewerState(emptyList(), dataSource.numTimepoints)
             }
         }
-
         viewerState.sources.forEach { s -> s.isActive = true }
         viewerState.displayMode = DisplayMode.FUSED
+        converterSetups.forEach {
+            it.color = ARGBType(Int.MAX_VALUE)
+        }
 
-        //if (dataSource !is VolumeDataSource.NullSource) {
-            converterSetups.forEach {
-                it.color = ARGBType(Int.MAX_VALUE)
-            }
+    }
+
+    override fun update(fresh: Networkable, getNetworkable: (Int) -> Networkable, additionalData: Any?) {
+        if (fresh !is Volume) throw IllegalArgumentException("Update called with object of foreign class")
+        this.colormap = fresh.colormap
+        this.transferFunction = fresh.transferFunction
+
+        if (this.currentTimepoint != fresh.currentTimepoint) {
+            this.goToTimepoint(fresh.currentTimepoint)
+        }
+    }
+
+    override fun getConstructorParameters(): Any? {
+        if (dataSource is VolumeDataSource.SpimFileSource){
+            return dataSource.file
+        }
+        return constructionParameters
+    }
+
+    override fun constructWithParameters(parameters: Any, hub: Hub): Networkable {
+        val spimFile = parameters as? String
+        //if (spimFile != null) {
+            //return Volume(VolumeDataSource.SpimFileSource(spimFile))
+        //} else {
+        val path = Path.of(spimFile)
+            return Volume.fromPath(path, hub)
         //}
     }
 
-    /* TODO Update methode
-    overwrite fun Update(bla){
-        if (Volume::class.java.isAssignableFrom(o.javaClass)
-            && Volume::class.java.isAssignableFrom(node.javaClass)) {
-            (node as Volume).colormap = (o as Volume).colormap
-            node.transferFunction = o.transferFunction
-            if (node.currentTimepoint != o.currentTimepoint) {
-                node.goToTimepoint(o.currentTimepoint)
-            }
-        }
+
+    override fun getSubcomponents(): List<Networkable> {
+        val tmp = super<DefaultNode>.getSubcomponents()
+        return tmp
     }
-     */
 
     override fun createSpatial(): VolumeSpatial {
         return VolumeSpatial(this)
@@ -387,6 +422,18 @@ open class Volume(
             return Volume(ds, options)
         }
 
+
+        @JvmStatic
+        @JvmOverloads
+        fun fromSpimFile(
+            file: String,
+            options: VolumeViewerOptions = VolumeViewerOptions()
+        ): Volume {
+            val ds = VolumeDataSource.SpimFileSource(file)
+            return Volume(ds, options)
+        }
+
+
         @JvmStatic
         @JvmOverloads
         fun fromXML(
@@ -433,7 +480,8 @@ open class Volume(
 
             @Suppress("UNCHECKED_CAST")
             val cacheControl = if (img is VolatileView<*, *>) {
-                val viewData: VolatileViewData<T, Volatile<T>> = (img as VolatileView<T, Volatile<T>>).volatileViewData
+                val viewData: VolatileViewData<T, Volatile<T>> =
+                    (img as VolatileView<T, Volatile<T>>).volatileViewData
                 viewData.cacheControl
             } else {
                 null
@@ -460,7 +508,8 @@ open class Volume(
 
             @Suppress("UNCHECKED_CAST")
             val cacheControl = if (img is VolatileView<*, *>) {
-                val viewData: VolatileViewData<T, Volatile<T>> = (img as VolatileView<T, Volatile<T>>).volatileViewData
+                val viewData: VolatileViewData<T, Volatile<T>> =
+                    (img as VolatileView<T, Volatile<T>>).volatileViewData
                 viewData.cacheControl
             } else {
                 null
@@ -677,7 +726,7 @@ open class Volume(
                 is UnsignedIntType -> fromBuffer(volumes, dims.x, dims.y, dims.z, UnsignedIntType(), hub)
                 is FloatType -> fromBuffer(volumes, dims.x, dims.y, dims.z, FloatType(), hub)
                 else -> throw UnsupportedOperationException("Image type ${type.javaClass.simpleName} not supported for volume data.")
-            }
+            }.let { it.constructionParameters = file.toString(); it }
         }
 
         /**
@@ -716,7 +765,8 @@ open class Volume(
                     logger.debug("Loading $id from disk")
                     val buffer = ByteArray(1024 * 1024)
                     val stream = FileInputStream(v.toFile())
-                    val imageData: ByteBuffer = MemoryUtil.memAlloc((2 * dimensions.x * dimensions.y * dimensions.z))
+                    val imageData: ByteBuffer =
+                        MemoryUtil.memAlloc((2 * dimensions.x * dimensions.y * dimensions.z))
 
                     logger.debug("${v.fileName}: Allocated ${imageData.capacity()} bytes for UINT16 image of $dimensions")
 

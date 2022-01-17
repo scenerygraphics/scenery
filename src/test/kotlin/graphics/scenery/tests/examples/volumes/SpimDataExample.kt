@@ -11,6 +11,8 @@ import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.Volume
 
 import tpietzsch.example2.VolumeViewerOptions
+import kotlin.concurrent.thread
+import kotlin.io.path.Path
 
 /**
  */
@@ -21,16 +23,26 @@ class SpimDataExample: SceneryBase("SpimData Rendering example", 1280, 720,false
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
 
 
-        val file =  "C:\\Users\\JanCasus\\volumes\\drosophila.xml"
+        //val file =  "C:\\Users\\JanCasus\\volumes\\drosophila.xml"
+        val file =  "C:\\Users\\JanCasus\\volumes\\HisYFP-SPIM.xml"
         val options = VolumeViewerOptions().maxCacheSizeInMB(512)
-        volume = Volume.fromSpimData(XmlIoSpimDataMinimal().load(file), hub, options)
+        //volume = Volume.fromSpimData(XmlIoSpimDataMinimal().load(file), hub, options)
+        //volume = Volume.fromSpimFile(file, options)
+        //volume = Volume.fromPath(Path("C:\\Users\\JanCasus\\volumes\\ct-scan.tif"),hub)
+        volume = Volume.fromPath(Path("C:\\Users\\JanCasus\\volumes\\t1-head.tif"),hub)
+        scene.addChild(volume)
         volume.transferFunction = TransferFunction.ramp(0.001f, 0.5f, 0.3f)
         volume.spatial {
             position.y += 3f
             scale *= 3f
             needsUpdate = true
         }
-        scene.addChild(volume)
+
+        thread {
+            //Thread.sleep(3000)
+
+            //println("updating volume data done")
+        }
 
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
@@ -38,6 +50,7 @@ class SpimDataExample: SceneryBase("SpimData Rendering example", 1280, 720,false
             spatial {
                 position = Vector3f(0.0f, 0.0f, 5.0f)
             }
+            wantsSync = false
             scene.addChild(this)
         }
 
