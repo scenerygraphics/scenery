@@ -8,8 +8,6 @@ class NetworkWrapper<T: Networkable>(id:Int,
         obj.networkID = id
     }
 
-    var additionalData: Any? = null
-
     /**
      * Convenience accessor
      */
