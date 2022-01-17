@@ -1,7 +1,5 @@
 package graphics.scenery.proteins.chemistry
 
-import org.biojava.nbio.structure.Bond
-
 /**
  *
  */
@@ -37,7 +35,7 @@ class AminoAcidBondTreeMap {
         cg.addBoundMolecule(cd)
         cb.addBoundMolecule(cd)
         cb.addhydrogen(1)
-        arginine.addBoundMolecule(cb)
+        arginine.findByID("Ca")!!.addBoundMolecule(cb)
         aminoMap["ARG"] = arginine
 
         //asparagine
@@ -47,11 +45,11 @@ class AminoAcidBondTreeMap {
         val cgAsp = BondTree("C", 1)
         val o1Asp = BondTree("O", 2)
         val n1Asp = BondTree("N", 1)
-        n1Asp.addhydrogen(1)
-        cgAsp.addBoundMolecule(o1Asp)
+        n1Asp.addhydrogen(2)
         cgAsp.addBoundMolecule(n1Asp)
+        cgAsp.addBoundMolecule(o1Asp)
         cbAsp.addBoundMolecule(cgAsp)
-        asparagine.addBoundMolecule(cbAsp)
+        asparagine.findByID("Ca")!!.addBoundMolecule(cbAsp)
         aminoMap["ASP"] = asparagine
         aminoMap["ASN"] = asparagine
 
@@ -65,7 +63,7 @@ class AminoAcidBondTreeMap {
         sdCys.addhydrogen(1)
         cgCys.addBoundMolecule(sdCys)
         cbCys.addBoundMolecule(cgCys)
-        cysteine.addBoundMolecule(cbCys)
+        cysteine.findByID("Ca")!!.addBoundMolecule(cbCys)
         aminoMap["CYS"] = cysteine
 
         //glutamine
@@ -73,7 +71,6 @@ class AminoAcidBondTreeMap {
         val cbGln = BondTree("C", 1)
         cbGln.addhydrogen(1)
         val cgGln = BondTree("C", 1)
-        cgGln.addhydrogen(2)
         val cdGln = BondTree("C", 1)
         val neGln = BondTree("N", 1)
         neGln.addhydrogen(2)
@@ -81,9 +78,11 @@ class AminoAcidBondTreeMap {
         cdGln.addBoundMolecule(neGln)
         cdGln.addBoundMolecule(oeGln)
         cgGln.addBoundMolecule(cdGln)
-        cbGln.addBoundMolecule(cgGln)
+        cgGln.addhydrogen(2)
         cbGln.addhydrogen(1)
-        glutamine.addBoundMolecule(cbGln)
+        cbGln.addBoundMolecule(cgGln)
+
+        glutamine.findByID("Ca")!!.addBoundMolecule(cbGln)
         aminoMap["GLN"] = glutamine
 
         //proline
@@ -130,7 +129,7 @@ class AminoAcidBondTreeMap {
         val cycle1 = BondTreeCycle("C", listOf(listOf(cycle1c1, cycleN,  cycle1c2, cycle1c3)), 1)
         cbTryptophane.addBoundMolecule(cycle1)
         val tryptophane = aminoAcidBluePrint()
-        tryptophane.addBoundMolecule(cbTryptophane)
+        tryptophane.findByID("Ca")!!.addBoundMolecule(cbTryptophane)
         aminoMap["TRP"] = tryptophane
     }
 
@@ -138,20 +137,21 @@ class AminoAcidBondTreeMap {
      * Proteinogenic amino acids have a similar structure, they only differ in their sidechains.
      * The only exception is proline.
      */
-    fun aminoAcidBluePrint(): BondTree {
+    private fun aminoAcidBluePrint(): BondTree {
         //c alpha atom functions as the parent
-        val ca = BondTree("C", 0, "Ca")
+        val ca = BondTree("C", 1, "Ca")
         val n = BondTree("N", 1, "N")
-        n.addhydrogen(2)
-        val c = BondTree("C", 1,)
-        val o1c = BondTree("O", 2)
-        val o2c = BondTree("O", 1)
-        o2c.addhydrogen(1)
-        c.addBoundMolecule(o1c)
-        c.addBoundMolecule(o2c)
+        n.addBoundMolecule(BondTree("H", 1, "HN"))
+        n.addBoundMolecule(BondTree("H", 1, "HNB"))
         ca.addBoundMolecule(n)
         ca.addhydrogen(1)
-        ca.addBoundMolecule(c)
-        return ca
+        val c = BondTree("C", 1, "C")
+        val o1c = BondTree("O", 2)
+        val o2c = BondTree("O", 1, "OH")
+        o2c.addBoundMolecule(BondTree("H", 1, "HO"))
+        c.addBoundMolecule(o1c)
+        c.addBoundMolecule(o2c)
+        c.addBoundMolecule(ca)
+        return c
     }
 }
