@@ -102,10 +102,11 @@ class ThreeDimensionalMolecularStructure(val bondTree: BondTree, val lConfigurat
                 newNodes.add(BondTreeNodeBasisAndParent(boundMolecule, elementSphere, positions[index].x, root))
                 //display bond
                 if(boundMolecule.bondOrder > 1) {
-                    addMultipleBoundCylinder(rootPosition, Vector3f(elementSphere.spatial().position), boundMolecule.bondOrder, x)
+                    addMultipleBoundCylinder(rootPosition, Vector3f(elementSphere.spatial().position), boundMolecule.bondOrder, x, boundMolecule.id + "Cyl")
                 }
                 else {
                     val c = Cylinder(0.025f, 1.0f, 10)
+                    c.name = boundMolecule.id + "Cyl"
                     c.ifMaterial { diffuse = Vector3f(1.0f, 1.0f, 1.0f) }
                     c.spatial().orientBetweenPoints(rootPosition, elementSphere.spatial().position, true, true)
                     this.addChild(c)
@@ -246,7 +247,7 @@ class ThreeDimensionalMolecularStructure(val bondTree: BondTree, val lConfigurat
         return Matrix3f(inverseX, inverseY, inverseZ)
     }
 
-    private fun addMultipleBoundCylinder(rootPosition: Vector3f, childPosition: Vector3f, bondOrder: Int, perpendicular: Vector3f) {
+    private fun addMultipleBoundCylinder(rootPosition: Vector3f, childPosition: Vector3f, bondOrder: Int, perpendicular: Vector3f, id: String = "") {
         val scalar = if(bondOrder == 2) { 0.05f } else { 0.08f }
         //translate both bonds so that the double bond becomes visible
         val positionRoot1 = Vector3f(rootPosition).add(Vector3f(perpendicular).mul(scalar))
@@ -254,15 +255,18 @@ class ThreeDimensionalMolecularStructure(val bondTree: BondTree, val lConfigurat
         val positionChild1 = Vector3f(childPosition).add(Vector3f(perpendicular).mul(scalar))
         val positionChild2 = Vector3f(childPosition).sub(Vector3f(perpendicular).mul(scalar))
         val c1 = Cylinder(0.025f, 1.0f, 10)
+        c1.name = id
         c1.ifMaterial { diffuse = Vector3f(1.0f, 1.0f, 1.0f) }
         c1.spatial().orientBetweenPoints(positionRoot1, positionChild1, true, true)
         this.addChild(c1)
         val c2 = Cylinder(0.025f, 1.0f, 10)
+        c2.name = id
         c2.ifMaterial { diffuse = Vector3f(1.0f, 1.0f, 1.0f) }
         c2.spatial().orientBetweenPoints(positionRoot2, positionChild2, true, true)
         this.addChild(c2)
         if(bondOrder == 3) {
             val c3 = Cylinder(0.025f, 1f, 10)
+            c3.name = id
             c3.ifMaterial { diffuse = Vector3f(1f, 1f, 1f) }
             c3.spatial().orientBetweenPoints(rootPosition, childPosition, true, true)
         }

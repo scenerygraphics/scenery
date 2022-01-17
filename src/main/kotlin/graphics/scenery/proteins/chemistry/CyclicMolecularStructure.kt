@@ -59,7 +59,7 @@ class CyclicMolecularStructure(val root: BondTreeCycle, initialAngle: Float, bas
             allCycles[0].reversed().forEach { firstCycleElement ->
                 allCycles[1].reversed().forEach { secondCycleElement ->
                     if(firstCycleElement == secondCycleElement) {
-                        addAtomSphere(PeriodicTable().findElementBySymbol(firstCycleElement.element), firstPosition)
+                        addAtomSphere(PeriodicTable().findElementBySymbol(firstCycleElement.element), firstPosition, firstCycleElement.id)
                     }
                 }
             }
@@ -118,7 +118,7 @@ class CyclicMolecularStructure(val root: BondTreeCycle, initialAngle: Float, bas
             addSubstituentChildren(x, currentSubstituent, substituentPosition, outwardVector, pointDown)
 
             //add the sphere
-            addAtomSphere(PeriodicTable().findElementBySymbol(currentSubstituent.element), substituentPosition)
+            addAtomSphere(PeriodicTable().findElementBySymbol(currentSubstituent.element), substituentPosition, currentSubstituent.id)
             //add the cylinder
             if(index != 0) {
                 addCylinder(substituentPosition, currentPosition, cycle[index-1].bondOrder, y)
@@ -257,7 +257,7 @@ class CyclicMolecularStructure(val root: BondTreeCycle, initialAngle: Float, bas
     /**
      * creates a sphere, representing an atom of a certain element at a given position
      */
-    private fun addAtomSphere(element: ChemicalElement, position: Vector3f) {
+    private fun addAtomSphere(element: ChemicalElement, position: Vector3f, id:String = "") {
         //make smaller spheres for hydrogen
         val elementSphere = if (element == PeriodicTable().findElementByNumber(1)) {
             Icosphere(0.05f, 2)
@@ -268,6 +268,7 @@ class CyclicMolecularStructure(val root: BondTreeCycle, initialAngle: Float, bas
             elementSphere.ifMaterial { diffuse = element.color }
         }
         elementSphere.spatial().position = position
+        elementSphere.name = id
         this.addChild(elementSphere)
     }
 
