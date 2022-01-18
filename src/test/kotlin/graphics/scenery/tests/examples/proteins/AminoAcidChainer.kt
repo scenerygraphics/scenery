@@ -8,6 +8,7 @@ import graphics.scenery.numerics.Random
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.controls.behaviours.SelectCommand
 import graphics.scenery.proteins.chemistry.AminoAcidBondTreeMap
+import graphics.scenery.proteins.chemistry.BondTreeCycle
 import graphics.scenery.proteins.chemistry.ThreeDimensionalMolecularStructure
 
 /**
@@ -17,7 +18,7 @@ import graphics.scenery.proteins.chemistry.ThreeDimensionalMolecularStructure
  */
 class AminoAcidChainer: SceneryBase("RainbowRibbon", windowWidth = 1280, windowHeight = 720) {
 
-    private val aminoAcidAbbreviations = listOf("GLN", "TRP", "GLN", "TRP", "GLN", "ARG")
+    private val aminoAcidAbbreviations = listOf("ALA", "PRO", "ALA")
     private var aminoacidNumbersStored = 0
     private var rootAA = AminoAcidBondTreeMap().aminoMap[aminoAcidAbbreviations.first()]
     private var combineTwoAcids = false
@@ -93,7 +94,7 @@ class AminoAcidChainer: SceneryBase("RainbowRibbon", windowWidth = 1280, windowH
                         .spatialOrNull()!!.worldPosition()
                     val hnPrev = previous.getChildrenByName("OH" + "${aminoacidNumbersStored - 1}").first()
                         .spatialOrNull()!!.worldPosition()
-                    val nextAAPos = Vector3f(hnPrev).add(Vector3f(hnPrev).sub(nPrev).normalize().mul(2f))
+                    val nextAAPos = Vector3f(hnPrev).add(Vector3f(hnPrev).sub(nPrev).normalize().mul(1f))
                     val nextAminoBondTree =
                         AminoAcidBondTreeMap().aminoMap[aminoAcidAbbreviations[aminoacidNumbersStored]]
                     nextAminoBondTree!!.renameAminoAcidIds(aminoacidNumbersStored)
@@ -107,21 +108,24 @@ class AminoAcidChainer: SceneryBase("RainbowRibbon", windowWidth = 1280, windowH
                     val nextAminoBondTree =
                         AminoAcidBondTreeMap().aminoMap[aminoAcidAbbreviations[aminoacidNumbersStored]]
                     nextAminoBondTree!!.renameAminoAcidIds(aminoacidNumbersStored)
-                    nextAminoBondTree.removeByID("HN$aminoacidNumbersStored")
-                    rootAA!!.removeByID("OH" +  "${aminoacidNumbersStored-1}")
-                    /*
+                    rootAA!!.removeByID("OH" + "${aminoacidNumbersStored-1}")
                     nextAaUP = if(nextAaUP) {
-                        rootAA!!.removeByID("HNB" + "${aminoacidNumbersStored - 1}")
+                        //would break in case its Proline
+                        if(nextAminoBondTree is BondTreeCycle) {
+                            nextAminoBondTree.removeByID("HN$aminoacidNumbersStored")
+                        }
+                        else {
+                            nextAminoBondTree.removeByID("HNB$aminoacidNumbersStored")
+                        }
                         !nextAaUP
                     } else {
-                        rootAA!!.removeByID("HN" +  "${aminoacidNumbersStored-1}")
+                        nextAminoBondTree.removeByID("HN$aminoacidNumbersStored")
                         !nextAaUP
                     }
 
-                     */
-                    nextAminoBondTree.addAtID("N$aminoacidNumbersStored", rootAA!!)
-                    rootAA = nextAminoBondTree
-                    val polypeptide = ThreeDimensionalMolecularStructure(rootAA!!)
+                    rootAA!!.addAtID("C${aminoacidNumbersStored-1}", nextAminoBondTree)
+                    val newRoot = rootAA!!
+                    val polypeptide = ThreeDimensionalMolecularStructure(newRoot)
                     polypeptide.name = "poly${aminoacidNumbersStored}"
                     if(aminoacidNumbersStored == 1) {
                         scene.removeChild("aa" + "${aminoacidNumbersStored-1}")
