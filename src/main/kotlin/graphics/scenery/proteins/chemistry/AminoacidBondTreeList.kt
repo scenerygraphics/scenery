@@ -10,7 +10,7 @@ class AminoAcidBondTreeMap {
         val alanine = aminoAcidBluePrint()
         val cbAlanine = BondTree("C", 1)
         cbAlanine.addhydrogen(3)
-        alanine.addBoundMolecule(cbAlanine)
+        alanine.findByID("Ca")!!.addBoundMolecule(cbAlanine)
         aminoMap["ALA"] = alanine
 
         //arginine
@@ -58,11 +58,11 @@ class AminoAcidBondTreeMap {
         val cbCys = BondTree("C", 1)
         cbCys.addhydrogen(2)
         val cgCys = BondTree("C", 1)
-        cgCys.addhydrogen(2)
         val sdCys = BondTree("S", 1)
         sdCys.addhydrogen(1)
         cgCys.addBoundMolecule(sdCys)
         cbCys.addBoundMolecule(cgCys)
+        cgCys.addhydrogen(2)
         cysteine.findByID("Ca")!!.addBoundMolecule(cbCys)
         aminoMap["CYS"] = cysteine
 
@@ -86,24 +86,24 @@ class AminoAcidBondTreeMap {
         aminoMap["GLN"] = glutamine
 
         //proline
-        val proline = BondTree("C", 0)
+        val caP = BondTree("C", 1, "Ca")
+        val cP = BondTree("C", 1, "C")
         val oP = BondTree("O", 2)
-        val o2P = BondTree("O", 1)
-        o2P.addhydrogen(1)
-        //cycle elements
-        val cP1 = BondTree("C", 1)
-        cP1.addhydrogen(1)
-        val cP2 = BondTree("C", 1)
-        cP2.addhydrogen(1)
-        val cP3 = BondTree("C", 1)
-        cP3.addhydrogen(1)
-        val nP = BondTree("N", 1, "N")
-        nP.addhydrogen(1)
-        val hcP = BondTree("H", 1)
-        val cP = BondTreeCycle("C", listOf(listOf(cP1, cP2, cP3, nP), listOf(hcP)),1, "Ca")
-        proline.addBoundMolecule(oP)
-        proline.addBoundMolecule(o2P)
-        proline.addBoundMolecule(cP)
+        val oP2 = BondTree("O", 1, "OH")
+        val hOP2 = BondTree("H", 1, "HO")
+        oP2.addBoundMolecule(hOP2)
+        cP.addBoundMolecule(oP2)
+        cP.addBoundMolecule(oP)
+        caP.addBoundMolecule(cP)
+        caP.addhydrogen(1)
+        val c1P = BondTree("C", 1)
+        c1P.addhydrogen(2)
+        val c2P = BondTree("C", 1)
+        c2P.addhydrogen(2)
+        val c3P = BondTree("C", 1)
+        c3P.addhydrogen(2)
+        val hn = BondTree("H", 1, "HN")
+        val proline = BondTreeCycle("N", listOf(listOf(caP, c1P, c2P, c3P), listOf(hn)), 1, "N")
         aminoMap["PRO"] = proline
 
         //Tryptophane
@@ -143,7 +143,6 @@ class AminoAcidBondTreeMap {
         val n = BondTree("N", 1, "N")
         n.addBoundMolecule(BondTree("H", 1, "HN"))
         n.addBoundMolecule(BondTree("H", 1, "HNB"))
-        ca.addBoundMolecule(n)
         ca.addhydrogen(1)
         val c = BondTree("C", 1, "C")
         val o1c = BondTree("O", 2)
@@ -151,7 +150,8 @@ class AminoAcidBondTreeMap {
         o2c.addBoundMolecule(BondTree("H", 1, "HO"))
         c.addBoundMolecule(o1c)
         c.addBoundMolecule(o2c)
-        c.addBoundMolecule(ca)
-        return c
+        ca.addBoundMolecule(c)
+        n.addBoundMolecule(ca)
+        return n
     }
 }
