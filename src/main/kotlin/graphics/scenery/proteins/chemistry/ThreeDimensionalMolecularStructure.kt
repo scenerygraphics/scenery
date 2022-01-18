@@ -147,10 +147,10 @@ class ThreeDimensionalMolecularStructure(val bondTree: BondTree, val comingFromC
                 val newX2 = Vector3f(x).mul(cos60).add(Vector3f(z).mul(sin60)).normalize()
                     //Vector3f(x.x*cos60, 0f, z.z*sin60).normalize()
                 listOf(
-                    PositionAndX(Vector3f(rootPosition).add(Vector3f(z).times(cos60 * bondLength))
-                        .add(Vector3f(x).times(sin60 * bondLength)), newX1),
-                    PositionAndX(Vector3f(rootPosition).add(Vector3f(z).times(cos60 * bondLength))
-                        .sub(Vector3f(x).times(sin60 * bondLength)), newX2)
+                    PositionAndX(Vector3f(rootPosition).add((Vector3f(z).mul(cos60))
+                        .add(Vector3f(x).mul(sin60)).normalize().mul(bondLength)), newX1),
+                    PositionAndX(Vector3f(rootPosition).add((Vector3f(z).mul(cos60))
+                        .sub(Vector3f(x).mul(sin60)).normalize().mul(bondLength)), newX2)
                 )
             }
             3 -> {
@@ -164,11 +164,11 @@ class ThreeDimensionalMolecularStructure(val bondTree: BondTree, val comingFromC
                 val newX2 = Vector3f(x).mul(cos70Point5).add(Vector3f(z).mul(-sin70Point5)).normalize()
                 //Vector3f(x.x*cos70Point5, 0f, -z.z*sin70Point5).normalize()
                 listOf(
-                    PositionAndX(Vector3f(rootPosition).add(Vector3f(z).times(cos70Point5*bondLength)).add(Vector3f(x).times(sin70Point5*bondLength)), z),
-                    PositionAndX(Vector3f(rootPosition).add(Vector3f(z).times(cos70Point5 * bondLength)).add(
-                        Vector3f(rotationVector1.normalize()).times(sin70Point5 * bondLength)), Vector3f(newX2)),
-                    PositionAndX(Vector3f(rootPosition).add(Vector3f(z).times(cos70Point5 * bondLength)).add(
-                        Vector3f(rotationVector2.normalize()).times(sin70Point5 * bondLength)), Vector3f(newX1))
+                    PositionAndX(Vector3f(rootPosition).add(Vector3f(z).mul(cos70Point5*bondLength)).add(Vector3f(x).mul(sin70Point5*bondLength)), z),
+                    PositionAndX(Vector3f(rootPosition).add(Vector3f(z).mul(cos70Point5 * bondLength)).add(
+                        Vector3f(rotationVector1.normalize()).mul(sin70Point5 * bondLength)), Vector3f(newX2)),
+                    PositionAndX(Vector3f(rootPosition).add(Vector3f(z).mul(cos70Point5 * bondLength)).add(
+                        Vector3f(rotationVector2.normalize()).mul(sin70Point5 * bondLength)), Vector3f(newX1))
                 )
             }
             4 -> {
