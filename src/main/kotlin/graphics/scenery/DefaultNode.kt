@@ -42,9 +42,9 @@ open class DefaultNode(name: String = "Node") : Node, Networkable {
             field = v
             updateModifiedAt()
         }
-    override var initialized: Boolean = false
+    @Transient override var initialized: Boolean = false
     override var state : State = State.Ready
-    override var lock: ReentrantLock = ReentrantLock()
+    @Transient override var lock: ReentrantLock = ReentrantLock()
     override fun init(): Boolean {
         return true
     }
