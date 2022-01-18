@@ -52,8 +52,8 @@ open class DefaultSpatial(private var node: Node = DefaultNode()) : Spatial {
             field = value
         }
     override var wantsComposeModel = true
-    override var needsUpdate = true
-    override var needsUpdateWorld = true
+    @Transient override var needsUpdate = true
+    @Transient override var needsUpdateWorld = true
 
     override var modifiedAt = 0L
 
