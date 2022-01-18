@@ -3,6 +3,7 @@ package graphics.scenery.tests.examples.cluster
 import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
+import graphics.scenery.net.NodeSubscriber
 import kotlin.concurrent.thread
 
 /**
@@ -35,6 +36,7 @@ class SlimClient : SceneryBase("Client", wantREPL = false) {
             while (true) {
 
                 Thread.sleep(5000)
+                val aaaaaa = hub.get<NodeSubscriber>()
                 print(scene)
             }
         }

@@ -107,6 +107,10 @@ open class Volume(
 
     /** The transfer function to use for the volume. Flat by default. */
     var transferFunction: TransferFunction = TransferFunction.flat(0.5f)
+        set(m) {
+            field = m
+            modifiedAt = System.nanoTime()
+        }
 
     /** The color map for the volume. */
     var colormap: Colormap = Colormap.get("viridis")
@@ -170,6 +174,7 @@ open class Volume(
     /** Current timepoint. */
     var currentTimepoint: Int
         get() {
+            // despite IDEAs warning this might be not be false if kryo uses its de/serialization magic
             return if (dataSource == null || dataSource is VolumeDataSource.NullSource){
                 0
             } else {
