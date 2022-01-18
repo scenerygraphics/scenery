@@ -172,7 +172,6 @@ class NodeSubscriber(
             is Node -> {
                 val node = event.constructorParameters?.let { networkable.constructWithParameters(it,hub!!) as Node}
                     ?: networkable
-                node.initialized = false
                 val parentId = networkWrapper.parents.first()
                 val parent = networkObjects[parentId]?.obj as? Node
                 if (parent != null) {
