@@ -1,5 +1,8 @@
 package graphics.scenery.proteins.chemistry
 
+import org.biojava.nbio.structure.Bond
+import java.util.concurrent.CopyOnWriteArrayList
+
 /**
  * Open class to store the configuration of a molecule.
  * [parent] perant of the node
@@ -7,7 +10,8 @@ package graphics.scenery.proteins.chemistry
  * [bondOrder] order of the bond with which the node is connected to its parent, 0 if root
  */
 open class BondTree(val element: String, val bondOrder: Int = 0, var id: String = "") {
-    var boundMolecules = mutableListOf<BondTree>()
+    var boundMolecules = CopyOnWriteArrayList<BondTree>()
+    var bondTreeParent: BondTree? = null
 
     /**
      * add a child
@@ -63,22 +67,19 @@ open class BondTree(val element: String, val bondOrder: Int = 0, var id: String 
      * remove a bounded molecule
      */
     fun removeByID(id: String) {
-        this.boundMolecules.forEachIndexed { index, molecule ->
-            if(molecule.id == id) {
-                this.boundMolecules.removeAt(index)
-            }
-            if(molecule is BondTreeCycle) {
-                molecule.cyclesAndChildren.forEach { cycleOrChild ->
-                    cycleOrChild.forEach { substituent ->
-                        substituent.removeByID(id)
-                    }
-                }
+        this.addParentToChildren()
+        var remainingChildren = mutableListOf(this)
+        while(remainingChildren.isNotEmpty()) {
+            if(remainingChildren.first().id == id && remainingChildren.first().bondTreeParent != null) {
+                remainingChildren.first().bondTreeParent!!.removeFromChildren(id)
+                return
             }
             else {
-                molecule.boundMolecules.forEach { child ->
-                    child.removeByID(id)
+                remainingChildren.first().boundMolecules.forEach {
+                    remainingChildren.add(it)
                 }
             }
+            remainingChildren.removeAt(0)
         }
     }
 
@@ -108,7 +109,7 @@ open class BondTree(val element: String, val bondOrder: Int = 0, var id: String 
     /**
      * find a respective id and change it to a new one
      */
-    fun findIdAndChangeIt(oldID: String, newID: String) {
+    private fun findIdAndChangeIt(oldID: String, newID: String) {
         findByID(oldID)?.id = newID
     }
 
@@ -123,5 +124,20 @@ open class BondTree(val element: String, val bondOrder: Int = 0, var id: String 
         this.findIdAndChangeIt("HN", "HN$number")
         this.findIdAndChangeIt("HNB", "HNB$number")
         this.findIdAndChangeIt("C", "C$number")
+    }
+
+    private fun addParentToChildren() {
+        this.boundMolecules.forEach {
+            it.bondTreeParent = this
+            it.addParentToChildren()
+        }
+    }
+
+    private fun removeFromChildren(id: String) {
+        this.boundMolecules.forEachIndexed { index, molecule ->
+            if(molecule.id == id) {
+                this.boundMolecules.removeAt(index)
+            }
+        }
     }
 }
