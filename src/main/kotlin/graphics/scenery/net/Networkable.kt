@@ -6,6 +6,8 @@ import kotlin.reflect.KClass
 
 interface Networkable : Serializable {
     /**
+     *  Mind maybe calling [super.update] here.
+     *
      *  @param getNetworkable Should be used to get other related networkables besides children/parents or attributes
      *  (those are automatically synced). If the desired networkable is not found the call is aborted via an exception.
      *  The exception is caught by the surrounding function and the update will be called again once the desired
@@ -21,12 +23,14 @@ interface Networkable : Serializable {
 
     /**
      * Serialize data which is not picket up by kryo eg. transient members
+     * Attention: [super] might also have data.
      */
     fun getAdditionalUpdateData(): Any? = null
 
     fun constructWithParameters(parameters: Any, hub: Hub) = this
 
     fun getConstructorParameters(): Any? = null
+
     /**
      * Time point of last modification in [System.nanoTime()]
      */
