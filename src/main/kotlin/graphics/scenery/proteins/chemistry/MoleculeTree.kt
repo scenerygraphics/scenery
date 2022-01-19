@@ -40,24 +40,13 @@ open class MoleculeTree(val element: String, val bondOrder: Int = 0, var id: Str
             if(it.id == id) {
                 return it
             }
-            if(it is MoleculeTreeCycle) {
-                it.cyclesAndChildren.forEach { cycleOrChild ->
-                    cycleOrChild.forEach { substituent ->
-                        val returnValue =  substituent.findByID(id)
-                        if(returnValue != null) {
-                            return  returnValue
-                        }
-                    }
+            it.boundMolecules.forEach { child ->
+                val returnValue = child.findByID(id)
+                if(returnValue != null) {
+                    return returnValue
                 }
             }
-            else {
-                it.boundMolecules.forEach { child ->
-                    val returnValue = child.findByID(id)
-                    if(returnValue != null) {
-                        return returnValue
-                    }
-                }
-            }
+
         }
         return null
     }
@@ -65,44 +54,54 @@ open class MoleculeTree(val element: String, val bondOrder: Int = 0, var id: Str
     /**
      * remove a bounded molecule
      */
-    fun removeByID(id: String) {
-        this.addParentToChildren()
-        var remainingChildren = mutableListOf(this)
-        while(remainingChildren.isNotEmpty()) {
-            if(remainingChildren.first().id == id && remainingChildren.first().moleculeTreeParent != null) {
-                remainingChildren.first().moleculeTreeParent!!.removeFromChildren(id)
-                return
+    fun removeByID(id: String): MoleculeTree {
+        val newChildren = CopyOnWriteArrayList<MoleculeTree>()
+        this.boundMolecules.forEach {
+            if(it.id != id) {
+                newChildren.add(it.removeByID(id))
             }
-            else {
-                remainingChildren.first().boundMolecules.forEach {
-                    remainingChildren.add(it)
-                }
-            }
-            remainingChildren.removeAt(0)
         }
+        this.boundMolecules = newChildren
+        if(this is MoleculeTreeCycle) {
+            val newCycles = ArrayList<ArrayList<MoleculeTree>>()
+            this.cyclesAndChildren.forEachIndexed { index, cycle ->
+                val newCycle = ArrayList<MoleculeTree>()
+                cycle.forEach { substituent ->
+                    if(substituent.id != id) {
+                        newCycle.add(substituent.removeByID(id))
+                    }
+                }
+                newCycles.add(newCycle)
+            }
+            this.cyclesAndChildren = newCycles
+        }
+        return this
     }
 
     /**
      * add a molecule at a given id
      */
-    fun addAtID(id: String, newMolecule: MoleculeTree) {
-        this.boundMolecules.forEach {
-            if(it.id == id) {
-                it.addMolecule(newMolecule)
-            }
-            if(it is MoleculeTreeCycle) {
-                it.cyclesAndChildren.forEach { cycleOrChild ->
-                    cycleOrChild.forEach { substituent ->
-                        substituent.findByID(id)?.addMolecule(newMolecule)
-                    }
-                }
-            }
-            else {
-                it.boundMolecules.forEach { child ->
-                    child.findByID(id)?.addMolecule(newMolecule)
-                }
-            }
+    fun addAtID(id: String, newMolecule: MoleculeTree): MoleculeTree {
+        val newChildren = CopyOnWriteArrayList<MoleculeTree>()
+        if(this.id == id) {
+            newChildren.add(newMolecule)
         }
+        this.boundMolecules.forEach {
+            newChildren.add(it.addAtID(id, newMolecule))
+        }
+        this.boundMolecules = newChildren
+        if(this is MoleculeTreeCycle) {
+            val newCycles = ArrayList<ArrayList<MoleculeTree>>()
+            this.cyclesAndChildren.forEachIndexed { index, cycle ->
+                val newCycle = ArrayList<MoleculeTree>()
+                cycle.forEach { substituent ->
+                    newCycle.add(substituent.addAtID(id, newMolecule))
+                }
+                newCycles.add(newCycle)
+            }
+            this.cyclesAndChildren = newCycles
+        }
+        return this
     }
 
     /**
@@ -116,6 +115,9 @@ open class MoleculeTree(val element: String, val bondOrder: Int = 0, var id: Str
      * Changes the values of amino acids according to their appearance
      */
     fun renameAminoAcidIds(number: Int) {
+        if(this is MoleculeTreeCycle) {
+            renameAminoIdCycle(number)
+        }
         this.findIdAndChangeIt("N", "N$number")
         this.findIdAndChangeIt("Ca", "Ca$number")
         this.findIdAndChangeIt("OH", "OH$number")
@@ -123,20 +125,5 @@ open class MoleculeTree(val element: String, val bondOrder: Int = 0, var id: Str
         this.findIdAndChangeIt("HN", "HN$number")
         this.findIdAndChangeIt("HNB", "HNB$number")
         this.findIdAndChangeIt("C", "C$number")
-    }
-
-    private fun addParentToChildren() {
-        this.boundMolecules.forEach {
-            it.moleculeTreeParent = this
-            it.addParentToChildren()
-        }
-    }
-
-    private fun removeFromChildren(id: String) {
-        this.boundMolecules.forEachIndexed { index, molecule ->
-            if(molecule.id == id) {
-                this.boundMolecules.removeAt(index)
-            }
-        }
     }
 }
