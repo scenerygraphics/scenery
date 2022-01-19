@@ -7,9 +7,9 @@ import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.controls.behaviours.SelectCommand
-import graphics.scenery.proteins.chemistry.AminoAcidBondTreeMap
-import graphics.scenery.proteins.chemistry.BondTreeCycle
-import graphics.scenery.proteins.chemistry.ThreeDimensionalMolecularStructure
+import graphics.scenery.proteins.chemistry.AminoTreeList
+import graphics.scenery.proteins.chemistry.MoleculeTreeCycle
+import graphics.scenery.proteins.chemistry.MoleculeMesh
 
 /**
  *
@@ -18,15 +18,15 @@ import graphics.scenery.proteins.chemistry.ThreeDimensionalMolecularStructure
  */
 class AminoAcidChainer: SceneryBase("RainbowRibbon", windowWidth = 1280, windowHeight = 720) {
 
-    private val aminoAcidAbbreviations = listOf("ALA", "PRO", "ALA")
+    private val aminoAcidAbbreviations = listOf("ALA", "PRO", "ALA", "TYR", "ASP", "ARG", "THR")
     private var aminoacidNumbersStored = 0
-    private var rootAA = AminoAcidBondTreeMap().aminoMap[aminoAcidAbbreviations.first()]
+    private var rootAA = AminoTreeList().aminoMap[aminoAcidAbbreviations.first()]
     private var combineTwoAcids = false
     private var nextAaUP = false
     override fun init() {
         rootAA!!.renameAminoAcidIds(aminoacidNumbersStored)
-        val root = ThreeDimensionalMolecularStructure(rootAA!!)
-        root.name = "aa0"
+        val root = MoleculeMesh(rootAA!!)
+        root.name = "poly$aminoacidNumbersStored"
         scene.addChild(root)
         aminoacidNumbersStored += 1
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
@@ -87,18 +87,15 @@ class AminoAcidChainer: SceneryBase("RainbowRibbon", windowWidth = 1280, windowH
         val action: (Scene.RaycastResult, Int, Int) -> Unit = { _, _, _ ->
             if(aminoacidNumbersStored < aminoAcidAbbreviations.size) {
                 if(!combineTwoAcids) {
-                    val previous = if(aminoacidNumbersStored == 1) { scene.getChildrenByName("aa0").first() } else {
-                        scene.getChildrenByName("poly${aminoacidNumbersStored - 1}").first()
-                    }
-                    val nPrev = previous.getChildrenByName("HO" + "${aminoacidNumbersStored - 1}").first()
-                        .spatialOrNull()!!.worldPosition()
-                    val hnPrev = previous.getChildrenByName("OH" + "${aminoacidNumbersStored - 1}").first()
-                        .spatialOrNull()!!.worldPosition()
+
+                    val previous = scene.find("poly${aminoacidNumbersStored - 1}")
+                    val nPrev = previous!!.findChildrenByNameRecursive("HO" + "${aminoacidNumbersStored - 1}")?.spatialOrNull()!!.worldPosition()
+                    val hnPrev = previous.findChildrenByNameRecursive("OH" + "${aminoacidNumbersStored - 1}")?.spatialOrNull()!!.worldPosition()
                     val nextAAPos = Vector3f(hnPrev).add(Vector3f(hnPrev).sub(nPrev).normalize().mul(1f))
                     val nextAminoBondTree =
-                        AminoAcidBondTreeMap().aminoMap[aminoAcidAbbreviations[aminoacidNumbersStored]]
+                        AminoTreeList().aminoMap[aminoAcidAbbreviations[aminoacidNumbersStored]]
                     nextAminoBondTree!!.renameAminoAcidIds(aminoacidNumbersStored)
-                    val nextAA = ThreeDimensionalMolecularStructure(nextAminoBondTree)
+                    val nextAA = MoleculeMesh(nextAminoBondTree)
                     nextAA.spatial().position = nextAAPos
                     nextAA.name = "aa$aminoacidNumbersStored"
                     scene.addChild(nextAA)
@@ -106,12 +103,12 @@ class AminoAcidChainer: SceneryBase("RainbowRibbon", windowWidth = 1280, windowH
                 }
                 else {
                     val nextAminoBondTree =
-                        AminoAcidBondTreeMap().aminoMap[aminoAcidAbbreviations[aminoacidNumbersStored]]
+                        AminoTreeList().aminoMap[aminoAcidAbbreviations[aminoacidNumbersStored]]
                     nextAminoBondTree!!.renameAminoAcidIds(aminoacidNumbersStored)
                     rootAA!!.removeByID("OH" + "${aminoacidNumbersStored-1}")
                     nextAaUP = if(nextAaUP) {
                         //would break in case its Proline
-                        if(nextAminoBondTree is BondTreeCycle) {
+                        if(nextAminoBondTree is MoleculeTreeCycle) {
                             nextAminoBondTree.removeByID("HN$aminoacidNumbersStored")
                         }
                         else {
@@ -125,7 +122,7 @@ class AminoAcidChainer: SceneryBase("RainbowRibbon", windowWidth = 1280, windowH
 
                     rootAA!!.addAtID("C${aminoacidNumbersStored-1}", nextAminoBondTree)
                     val newRoot = rootAA!!
-                    val polypeptide = ThreeDimensionalMolecularStructure(newRoot)
+                    val polypeptide = MoleculeMesh(newRoot)
                     polypeptide.name = "poly${aminoacidNumbersStored}"
                     if(aminoacidNumbersStored == 1) {
                         scene.removeChild("aa" + "${aminoacidNumbersStored-1}")
@@ -179,6 +176,18 @@ class AminoAcidChainer: SceneryBase("RainbowRibbon", windowWidth = 1280, windowH
         setupCameraModeSwitching()
     }
 
+    private fun Node.findChildrenByNameRecursive(name: String): Node? {
+        val childrenToTravers = this.children
+        var i = 0
+        while(childrenToTravers.drop(i).isNotEmpty()) {
+            if(childrenToTravers[i].name == name) {
+                return childrenToTravers[i]
+            }
+            childrenToTravers.addAll(childrenToTravers[i].children)
+            i += 1
+        }
+        return null
+    }
     companion object {
         @JvmStatic
         fun main(args: Array<String>) {
