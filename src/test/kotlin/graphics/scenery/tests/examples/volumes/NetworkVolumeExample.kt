@@ -1,7 +1,5 @@
 package graphics.scenery.tests.examples.volumes
 
-import bdv.spimdata.XmlIoSpimDataMinimal
-import bdv.util.AxisOrder
 import graphics.scenery.*
 import org.joml.Vector3f
 import graphics.scenery.backends.Renderer
@@ -10,26 +8,41 @@ import graphics.scenery.utils.extensions.timesAssign
 import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.Volume
 
-import tpietzsch.example2.VolumeViewerOptions
 import kotlin.concurrent.thread
-import kotlin.io.path.Path
 
 /**
  */
-class SpimDataExample: SceneryBase("SpimData Rendering example", 1280, 720,false) {
+class NetworkVolumeExample: SceneryBase("SpimData Rendering example", 1280, 720,false) {
     lateinit var volume: Volume
 
     override fun init() {
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
 
 
-        //val file =  "C:\\Users\\JanCasus\\volumes\\drosophila.xml"
-        val file =  "C:\\Users\\JanCasus\\volumes\\HisYFP-SPIM.xml"
-        val options = VolumeViewerOptions().maxCacheSizeInMB(512)
-        //volume = Volume.fromSpimData(XmlIoSpimDataMinimal().load(file), hub, options)
-        //volume = Volume.fromSpimFile(file, options)
-        //volume = Volume.fromPath(Path("C:\\Users\\JanCasus\\volumes\\ct-scan.tif"),hub)
-        volume = Volume.fromPath(Path("C:\\Users\\JanCasus\\volumes\\t1-head.tif"),hub)
+        //"C:\\Users\\JanCasus\\volumes\\HisYFP-SPIM.xml"
+        //"C:\\Users\\JanCasus\\volumes\\ct-scan.tif"
+
+        val drosophila = Volume.forNetwork(
+            Volume.VolumeFileSource(
+                Volume.VolumeFileSource.VolumePath.Given("C:\\Users\\JanCasus\\volumes\\drosophila.xml"),
+                Volume.VolumeFileSource.VolumeType.SPIM),
+            hub)
+
+        val t1head = Volume.forNetwork(
+            Volume.VolumeFileSource(
+                Volume.VolumeFileSource.VolumePath.Given("C:\\Users\\JanCasus\\volumes\\t1-head.tif"),
+                Volume.VolumeFileSource.VolumeType.DEFAULT),
+            hub)
+
+        // add the following, adjusted to you path to VM Options of both client and Server :
+        // -Dscenery.VolumeFile="C:\\Users\\JanCasus\\volumes\\t1-head.tif"
+        val consoleParam = Volume.forNetwork(
+            Volume.VolumeFileSource(
+                Volume.VolumeFileSource.VolumePath.Settings(),
+                Volume.VolumeFileSource.VolumeType.DEFAULT),
+            hub)
+
+        volume = consoleParam
         scene.addChild(volume)
         volume.transferFunction = TransferFunction.ramp(0.001f, 0.5f, 0.3f)
         volume.spatial {
@@ -52,7 +65,7 @@ class SpimDataExample: SceneryBase("SpimData Rendering example", 1280, 720,false
             spatial {
                 position = Vector3f(0.0f, 0.0f, 5.0f)
             }
-            wantsSync = false
+            wantsSync = true
             scene.addChild(this)
         }
 
@@ -80,7 +93,7 @@ class SpimDataExample: SceneryBase("SpimData Rendering example", 1280, 720,false
     companion object {
         @JvmStatic
         fun main(args: Array<String>) {
-            SpimDataExample().main()
+            NetworkVolumeExample().main()
         }
     }
 }

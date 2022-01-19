@@ -12,15 +12,15 @@ import kotlin.concurrent.thread
  * Start with vm param:
  * -ea -Dscenery.ServerAddress=tcp://127.0.0.1 [-Dscenery.RemoteCamera=false|true]
  *
- * Explanataion:
+ * Explanation:
  * - RemoteCamera: (default false) Has to be set to true if the camera of the server provided scene should be used.
  */
 class SlimClient : SceneryBase("Client", wantREPL = false) {
     override fun init() {
         renderer = hub.add(SceneryElement.Renderer,
             Renderer.createRenderer(hub, applicationName, scene, 512, 512))
-        val withCam = !Settings().get("RemoteCamera",false)
-        if(withCam) {
+
+        if(!Settings().get("RemoteCamera",false)) {
             val cam: Camera = DetachedHeadCamera()
             with(cam) {
                 spatial {
@@ -29,15 +29,6 @@ class SlimClient : SceneryBase("Client", wantREPL = false) {
                 perspectiveCamera(50.0f, 512, 512)
 
                 scene.addChild(this)
-            }
-        }
-
-        thread {
-            while (true) {
-
-                Thread.sleep(5000)
-                val aaaaaa = hub.get<NodeSubscriber>()
-                print(scene)
             }
         }
     }

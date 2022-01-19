@@ -68,19 +68,18 @@ import kotlin.streams.toList
 @Suppress("DEPRECATION")
 open class Volume(
     @Transient
-    val dataSource: VolumeDataSource = VolumeDataSource.NullSource(1),
+    val dataSource: VolumeDataSource = VolumeDataSource.NullSource,
     @Transient
     val options: VolumeViewerOptions = VolumeViewerOptions()
 ) : DefaultNode("Volume"),
     DelegatesRenderable, DelegatesGeometry, DelegatesMaterial, DisableFrustumCulling,
     HasCustomSpatial<Volume.VolumeSpatial> {
 
-    //without this line the *java* serialization framework kryo does not recognize the parameter-less constructor
+    // without this line the *java* serialization framework kryo does not recognize the parameter-less constructor
     // and uses dark magic to instanciate this class
-    constructor():this(VolumeDataSource.NullSource(1))
+    constructor():this(VolumeDataSource.NullSource)
 
-    //TODO make nice
-    var constructionParameters: Any? = null
+    var constructionParameters: VolumeFileSource? = null
 
     private val delegationType: DelegationType = DelegationType.OncePerDelegate
     override fun getDelegationType(): DelegationType {
@@ -188,6 +187,7 @@ open class Volume(
 
     sealed class VolumeDataSource {
         open class SpimDataMinimalSource(val spimData: SpimDataMinimal) : VolumeDataSource()
+
         class RAISource<T : NumericType<T>>(
             @Transient
             val type: NumericType<T>,
@@ -200,8 +200,19 @@ open class Volume(
             val cacheControl: CacheControl? = null
         ) : VolumeDataSource()
 
-        class NullSource(val numTimepoints: Int) : VolumeDataSource()
-        class SpimFileSource(val file: String) : SpimDataMinimalSource(XmlIoSpimDataMinimal().load(file))
+        object NullSource : VolumeDataSource()
+    }
+
+    class VolumeFileSource(val path: VolumePath, val type: VolumeType){
+
+        sealed class VolumePath(){
+            class Given(val filePath: String): VolumePath()
+            class Settings(val settingsName: String = "VolumeFile"): VolumePath()
+            //class Online
+        }
+        enum class VolumeType(){
+            DEFAULT,SPIM
+        }
     }
 
     /**
@@ -248,8 +259,8 @@ open class Volume(
                 ViewerState(raiSource.sources, max(1, timepointCount))
             }
             is VolumeDataSource.NullSource -> {
-                timepointCount = dataSource.numTimepoints
-                ViewerState(emptyList(), dataSource.numTimepoints)
+                timepointCount = 1
+                ViewerState(emptyList(), 1)
             }
         }
         viewerState.sources.forEach { s -> s.isActive = true }
@@ -271,20 +282,26 @@ open class Volume(
     }
 
     override fun getConstructorParameters(): Any? {
-        if (dataSource is VolumeDataSource.SpimFileSource){
-            return dataSource.file
-        }
         return constructionParameters
     }
 
     override fun constructWithParameters(parameters: Any, hub: Hub): Networkable {
-        val spimFile = parameters as? String
-        //if (spimFile != null) {
-            //return Volume(VolumeDataSource.SpimFileSource(spimFile))
-        //} else {
-        val path = Path.of(spimFile)
-            return Volume.fromPath(path, hub)
-        //}
+        val fileSource = parameters as? VolumeFileSource ?:
+            throw IllegalArgumentException()
+
+        val path = when(fileSource.path){
+            is VolumeFileSource.VolumePath.Given -> fileSource.path.filePath
+            is VolumeFileSource.VolumePath.Settings -> {
+                Settings().get<String?>(fileSource.path.settingsName)
+                    ?: throw IllegalArgumentException("Setting ${fileSource.path.settingsName} not set! " +
+                        "Can't load volume.")
+            }
+        }
+
+        return when(fileSource.type){
+            VolumeFileSource.VolumeType.DEFAULT -> Volume.fromPath(Path.of(path), hub)
+            VolumeFileSource.VolumeType.SPIM -> Volume.fromSpimFile(path, VolumeViewerOptions.options())
+        }
     }
 
 
@@ -427,6 +444,14 @@ open class Volume(
             return Volume(ds, options)
         }
 
+        @JvmStatic
+        fun forNetwork(params: VolumeFileSource,
+                       hub: Hub
+        ): Volume {
+            val vol = Volume().constructWithParameters(params,hub) as Volume
+            vol.constructionParameters = params
+            return vol
+        }
 
         @JvmStatic
         @JvmOverloads
@@ -434,10 +459,9 @@ open class Volume(
             file: String,
             options: VolumeViewerOptions = VolumeViewerOptions()
         ): Volume {
-            val ds = VolumeDataSource.SpimFileSource(file)
+            val ds = VolumeDataSource.SpimDataMinimalSource(XmlIoSpimDataMinimal().load(file))
             return Volume(ds, options)
         }
-
 
         @JvmStatic
         @JvmOverloads
@@ -731,7 +755,7 @@ open class Volume(
                 is UnsignedIntType -> fromBuffer(volumes, dims.x, dims.y, dims.z, UnsignedIntType(), hub)
                 is FloatType -> fromBuffer(volumes, dims.x, dims.y, dims.z, FloatType(), hub)
                 else -> throw UnsupportedOperationException("Image type ${type.javaClass.simpleName} not supported for volume data.")
-            }.let { it.constructionParameters = file.toString(); it }
+            }
         }
 
         /**
