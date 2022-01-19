@@ -3,7 +3,7 @@ package graphics.scenery.proteins.chemistry
 /**
  *
  */
-class AminoAcidBondTreeMap {
+class AminoTreeList {
     val aminoMap = hashMapOf<String, MoleculeTree>()
     init {
         //Alanine
