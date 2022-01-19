@@ -24,7 +24,7 @@ import kotlin.math.sqrt
  *
  * Circular molecules, e.g., aromatics are displayed as planes, with all inner angles being of equal size.
  */
-class MoleculeMesh(val moleculeTree: MoleculeTree, val comingFromCycle: Boolean = false,
+class MoleculeMesh(val moleculeTree: MoleculeTree, var comingFromCycle: Boolean = false,
                    val initialBase: Matrix3f = Matrix3f(1f, 0f, 0f,
                                                                             0f, 1f, 0f,
                                                                             0f, 0f, 1f)): Mesh("3DStructure") {
@@ -39,6 +39,7 @@ class MoleculeMesh(val moleculeTree: MoleculeTree, val comingFromCycle: Boolean 
     private val initialY = initialBase.getColumn(1, Vector3f())
     private val initialZ = initialBase.getColumn(2, Vector3f())
     init {
+        this.name = moleculeTree.id
         val rootElement = PeriodicTable().findElementBySymbol(moleculeTree.element)
         val atomSphere = if(rootElement == PeriodicTable().findElementByNumber(1))
         { Icosphere(0.05f, 5) } else { Icosphere(0.15f, 2)}
@@ -119,6 +120,8 @@ class MoleculeMesh(val moleculeTree: MoleculeTree, val comingFromCycle: Boolean 
                     this.addChild(c)
                 }
             }
+            //after the first iteration we certainly don't come out of a circle anymore
+            comingFromCycle = false
             return newNodes
         }
         else {
@@ -164,7 +167,7 @@ class MoleculeMesh(val moleculeTree: MoleculeTree, val comingFromCycle: Boolean 
                 val newX2 = Vector3f(x).mul(cos70Point5).add(Vector3f(z).mul(-sin70Point5)).normalize()
                 //Vector3f(x.x*cos70Point5, 0f, -z.z*sin70Point5).normalize()
                 listOf(
-                    PositionAndX(Vector3f(rootPosition).add(Vector3f(z).mul(cos70Point5*bondLength)).add(Vector3f(x).mul(sin70Point5*bondLength)), z),
+                    PositionAndX(Vector3f(rootPosition).add(Vector3f(z).mul(cos70Point5*bondLength)).add(Vector3f(x).mul(sin70Point5*bondLength).normalize()), z),
                     PositionAndX(Vector3f(rootPosition).add(Vector3f(z).mul(cos70Point5 * bondLength)).add(
                         Vector3f(rotationVector1.normalize()).mul(sin70Point5 * bondLength)), Vector3f(newX2)),
                     PositionAndX(Vector3f(rootPosition).add(Vector3f(z).mul(cos70Point5 * bondLength)).add(
@@ -216,7 +219,7 @@ class MoleculeMesh(val moleculeTree: MoleculeTree, val comingFromCycle: Boolean 
         val bondsFromCycle = if(moleculeTree is MoleculeTreeCycle) {
             var number = 0
             moleculeTree.cyclesAndChildren.filter { it.size >1 }.forEach {
-                number += it[0].bondOrder
+                number += moleculeTree.bondOrder
                 number += it[it.lastIndex].bondOrder}
             number
         } else { 0 }
