@@ -13,7 +13,7 @@ interface Networkable : Serializable {
      *  function to not leave the object in an invalid half-update state.
      *
      *  Don't access members of the @return networkable which are also networkables themself. 2.level networkable
-     *  relations might be wrong. Instead add them to the direct relations of this object.
+     *  relations might be wrong. Instead handle them as direct relations of this object.
      *
      *  @param fresh by-value deep (except for transient members) copy of the original at the server
      */
