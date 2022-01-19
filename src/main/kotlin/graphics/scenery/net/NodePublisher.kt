@@ -284,10 +284,6 @@ class NodePublisher(
             kryo.register(VolumeManager::class.java, IgnoreSerializer<VolumeManager>())
             kryo.register(Vector3f::class.java, Vector3fSerializer())
 
-            //kryo.register(Volume::class.java, VolumeSerializer())
-            //kryo.register(RAIVolume::class.java, VolumeSerializer())
-            //kryo.register(BufferedVolume::class.java, VolumeSerializer())
-
             return kryo
         }
     }
