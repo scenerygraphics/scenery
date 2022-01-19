@@ -248,22 +248,42 @@ class AminoAcidBondTreeMap {
         Methionine.findByID("Ca")!!.addMolecule(cbMet)
         aminoMap["MET"] = Methionine
 
+        //histidine
+        val cbHis = MoleculeTree("C", 1)
+        cbHis.addhydrogen(1)
+        val hisN = MoleculeTree("N", 1)
+        val c1His = MoleculeTree("C", 2)
+        c1His.addhydrogen(1)
+        val n2His = MoleculeTree("N", 1)
+        n2His.addhydrogen(1)
+        val c2His = MoleculeTree("C", 1)
+        c2His.addhydrogen(1)
+        val cycHis = MoleculeTreeCycle("C", listOf(listOf(hisN, c1His, n2His, c2His)), 2)
+        cbHis.addMolecule(cycHis)
+        cbHis.addhydrogen(1)
+        val histidine = aminoAcid()
+        histidine.findByID("Ca")!!.addMolecule(cbHis)
+        aminoMap["HIS"] = histidine
+        aminoMap["HID"] = histidine
 
+        //phenylalanine
+        val cbPhe = MoleculeTree("C", 1)
+        cbPhe.addhydrogen(1)
+        cbPhe.addMolecule(benzene())
+        cbPhe.addhydrogen(1)
+        val phenylalanine = aminoAcid()
+        phenylalanine.findByID("Ca")!!.addMolecule(cbPhe)
+        aminoMap["PHE"] = phenylalanine
 
+        //tyrosine
+        val cbTyr = MoleculeTree("C", 1)
+        cbTyr.addhydrogen(1)
+        cbTyr.addMolecule(benzene(true))
+        cbTyr.addhydrogen(1)
+        val tyrosine = aminoAcid()
+        tyrosine.findByID("Ca")!!.addMolecule(cbTyr)
+        aminoMap["TYR"] = tyrosine
 
-
-
-
-
-
-            /*
-            //histidine
-        val cbHis = BondTree("C", 1)
-        cbHis.addhydrogen(2)
-        val hisN = BondTree("N", 1)
-        val c1 = BondTree("C", 2)
-        val n2His = BondTree()
-             */
 
     }
 
@@ -322,5 +342,27 @@ class AminoAcidBondTreeMap {
         c.addMolecule(o)
         c.addMolecule(oh)
         return c
+    }
+
+    /**
+     * returns benzol
+     */
+    private fun benzene(hydroxAtC3: Boolean = false): MoleculeTreeCycle {
+        val c1 = MoleculeTree("C", 1, "b1")
+        c1.addhydrogen(1)
+        val c2 = MoleculeTree("C", 2, "b2")
+        c2.addhydrogen(1)
+        val c3 = MoleculeTree("C", 1, "b3")
+        if(hydroxAtC3) {
+            c3.addMolecule(hydroxyGroup())
+        }
+        else {
+            c3.addhydrogen(1)
+        }
+        val c4 = MoleculeTree("C", 2, "b4")
+        c4.addhydrogen(1)
+        val c5 = MoleculeTree("C", 1, "b5")
+        c5.addhydrogen(1)
+        return MoleculeTreeCycle("C", listOf(listOf(c1, c2, c3, c4, c5)), 2)
     }
 }
