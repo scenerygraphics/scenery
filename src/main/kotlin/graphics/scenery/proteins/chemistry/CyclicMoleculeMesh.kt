@@ -2,11 +2,7 @@ package graphics.scenery.proteins.chemistry
 
 import graphics.scenery.Icosphere
 import graphics.scenery.Mesh
-import graphics.scenery.attribute.material.DefaultMaterial
-import graphics.scenery.attribute.material.Material
-import graphics.scenery.primitives.Arrow
 import graphics.scenery.primitives.Cylinder
-import graphics.scenery.utils.extensions.minus
 import org.joml.Matrix3f
 import org.joml.Vector3f
 
@@ -15,7 +11,7 @@ import org.joml.Vector3f
  * flat.
  *
  * [root]  can be part of two circles. There are numerous geometric variants possible, e.g., the root being part of three
- * circles. However, in chemistry such molecules are unstable, hence, almost never displayed. [CyclicMolecularStructure]
+ * circles. However, in chemistry such molecules are unstable, hence, almost never displayed. [CyclicMoleculeMesh]
  * does not cover those edge cases as it would make the code unnecessarily complicated.
  * In fact, we only consider one possible geometry which is a fairly common geometry in organic chemistry.
  * Namely, a root which is part of two circles in the following way:
@@ -28,8 +24,8 @@ import org.joml.Vector3f
  * Those two egg shapes are supposed to represent circles (the rendering looks better) and the star * is to represent the
  * root position.
  */
-class CyclicMolecularStructure(val root: BondTreeCycle, initialAngle: Float, basis: Matrix3f, private val bondLength: Float,
-                               positionalVector: Vector3f): Mesh("CircularMolecularStructure") {
+class CyclicMoleculeMesh(val root: MoleculeTreeCycle, initialAngle: Float, basis: Matrix3f, private val bondLength: Float,
+                         positionalVector: Vector3f): Mesh("CircularMolecularStructure") {
 
     //flips the order of singular hydrogens added to the circle
     var flipAddedHydrogens = true
@@ -96,7 +92,7 @@ class CyclicMolecularStructure(val root: BondTreeCycle, initialAngle: Float, bas
     /**
      * Calculates the atom positions and adds children along the way, returns the last position
      */
-    private fun circle(cycle: List<BondTree>, positionalVector: Vector3f, x: Vector3f, y: Vector3f, z: Vector3f,
+    private fun circle(cycle: List<MoleculeTree>, positionalVector: Vector3f, x: Vector3f, y: Vector3f, z: Vector3f,
                        cosTheta: Float, sinTheta: Float, cosAlpha: Float, sinAlpha: Float, rootBondOrder: Int = 1, changeDir: Boolean = false): Vector3f {
         var currentPosition = positionalVector
         cycle.forEachIndexed { index, currentSubstituent ->
@@ -104,7 +100,7 @@ class CyclicMolecularStructure(val root: BondTreeCycle, initialAngle: Float, bas
             val substituentPosition = Vector3f(currentPosition).add(Vector3f(z).mul(bondLength))
 
             // verify the substituent is no subcycle
-            if(currentSubstituent is BondTreeCycle) {
+            if(currentSubstituent is MoleculeTreeCycle) {
                 addSubCircle(currentSubstituent.cyclesAndChildren, currentPosition, substituentPosition, x)
             }
 
@@ -115,8 +111,8 @@ class CyclicMolecularStructure(val root: BondTreeCycle, initialAngle: Float, bas
             circle.
              */
             //flag to not use the outward vector if the substituent is the beginning of a new cycle
-            val pointDown = if(index != cycle.lastIndex) { currentSubstituent is BondTreeCycle || cycle[index + 1] is BondTreeCycle }
-            else { currentSubstituent is BondTreeCycle }
+            val pointDown = if(index != cycle.lastIndex) { currentSubstituent is MoleculeTreeCycle || cycle[index + 1] is MoleculeTreeCycle }
+            else { currentSubstituent is MoleculeTreeCycle }
             addSubstituentChildren(x, currentSubstituent, substituentPosition, outwardVector, pointDown)
 
             //add the sphere
@@ -142,7 +138,7 @@ class CyclicMolecularStructure(val root: BondTreeCycle, initialAngle: Float, bas
     /**
      * Adds the children of a substituent of the circle to the mesh
      */
-    private fun addSubstituentChildren(x: Vector3f, substituent: BondTree, substituentPosition: Vector3f, outwardVector: Vector3f, pointDown: Boolean) {
+    private fun addSubstituentChildren(x: Vector3f, substituent: MoleculeTree, substituentPosition: Vector3f, outwardVector: Vector3f, pointDown: Boolean) {
         val childrenOfConstituent = substituent.boundMolecules
         if (childrenOfConstituent.isNotEmpty()) {
             //bisector of z and y serves as the new z
@@ -165,7 +161,7 @@ class CyclicMolecularStructure(val root: BondTreeCycle, initialAngle: Float, bas
                         flipAddedHydrogens = !flipAddedHydrogens
                         Vector3f(x).mul(directedBondlength).add(Vector3f(substituentPosition))
                     }
-                    val child = ThreeDimensionalMolecularStructure(
+                    val child = MoleculMesh(
                         childrenOfConstituent[0], true,
                         initialBase = Matrix3f(x, newY, newZ)
                     )
@@ -179,7 +175,7 @@ class CyclicMolecularStructure(val root: BondTreeCycle, initialAngle: Float, bas
                     val firstNewPosition = Vector3f(x).mul(scalars[0]).add(Vector3f(substituentPosition))
                     val newBasis = Matrix3f(newY, newZ, x)
                     val firstChild =
-                        ThreeDimensionalMolecularStructure(childrenOfConstituent[0], true, initialBase = newBasis)
+                        MoleculMesh(childrenOfConstituent[0], true, initialBase = newBasis)
                     firstChild.spatial().position = firstNewPosition
                     this.addChild(firstChild)
                     addCylinder(substituentPosition, firstNewPosition, childrenOfConstituent[0].bondOrder, newY)
@@ -187,7 +183,7 @@ class CyclicMolecularStructure(val root: BondTreeCycle, initialAngle: Float, bas
                     val secondNewPosition = Vector3f(x).mul(-scalars[1]).add(Vector3f(substituentPosition))
                     val newBasis2 = Matrix3f(newY, newZ, Vector3f(x).mul(-1f))
                     val secondChild =
-                        ThreeDimensionalMolecularStructure(childrenOfConstituent[1], true, initialBase = newBasis2)
+                        MoleculMesh(childrenOfConstituent[1], true, initialBase = newBasis2)
                     secondChild.spatial().position = secondNewPosition
                     this.addChild(secondChild)
                     addCylinder(substituentPosition, secondNewPosition, childrenOfConstituent[1].bondOrder, newY)
@@ -195,7 +191,7 @@ class CyclicMolecularStructure(val root: BondTreeCycle, initialAngle: Float, bas
                 3 -> {
                     //first
                     val newPosition = Vector3f(newZ).mul(scalars[0]).add(Vector3f(substituentPosition))
-                    val child = ThreeDimensionalMolecularStructure(
+                    val child = MoleculMesh(
                         childrenOfConstituent[0],
                         true, initialBase = Matrix3f(x, newY, newZ)
                     )
@@ -205,7 +201,7 @@ class CyclicMolecularStructure(val root: BondTreeCycle, initialAngle: Float, bas
                     //second
                     val firstNewPosition = Vector3f(x).mul(scalars[1]).add(Vector3f(substituentPosition))
                     val newBasis = Matrix3f(newZ, newY, x)
-                    val firstChild = ThreeDimensionalMolecularStructure(childrenOfConstituent[1], true, initialBase = newBasis)
+                    val firstChild = MoleculMesh(childrenOfConstituent[1], true, initialBase = newBasis)
                     firstChild.spatial().position = firstNewPosition
                     this.addChild(firstChild)
                     addCylinder(substituentPosition, firstNewPosition, childrenOfConstituent[1].bondOrder, newY)
@@ -213,7 +209,7 @@ class CyclicMolecularStructure(val root: BondTreeCycle, initialAngle: Float, bas
                     val secondNewPosition = Vector3f(x).mul(-scalars[2]).add(Vector3f(substituentPosition))
                     val newBasis2 = Matrix3f(newZ, newZ, x)
                     val secondChild =
-                        ThreeDimensionalMolecularStructure(childrenOfConstituent[2], true, initialBase = newBasis2)
+                        MoleculMesh(childrenOfConstituent[2], true, initialBase = newBasis2)
                     secondChild.spatial().position = secondNewPosition
                     this.addChild(secondChild)
                     addCylinder(substituentPosition, secondNewPosition, childrenOfConstituent[2].bondOrder, newY)
@@ -228,7 +224,7 @@ class CyclicMolecularStructure(val root: BondTreeCycle, initialAngle: Float, bas
     /**
      * Calculates the coordinates for a cycle attached to the original cycle and adds the respective Spheres and cylinders
      */
-    private fun addSubCircle(cycles: List<List<BondTree>>, rootPosition: Vector3f, firstPoint: Vector3f, x: Vector3f,
+    private fun addSubCircle(cycles: List<List<MoleculeTree>>, rootPosition: Vector3f, firstPoint: Vector3f, x: Vector3f,
                              changeDirection: Boolean = false) {
         if(cycles.filter{it.size > 1}.size == 1) {
             val cycle = cycles.filter { it.size > 1}[0]

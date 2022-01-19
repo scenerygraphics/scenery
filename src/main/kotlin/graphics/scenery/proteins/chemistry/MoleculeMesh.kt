@@ -24,8 +24,8 @@ import kotlin.math.sqrt
  *
  * Circular molecules, e.g., aromatics are displayed as planes, with all inner angles being of equal size.
  */
-class ThreeDimensionalMolecularStructure(val moleculeTree: MoleculeTree, val comingFromCycle: Boolean = false,
-                                         val initialBase: Matrix3f = Matrix3f(1f, 0f, 0f,
+class MoleculeMesh(val moleculeTree: MoleculeTree, val comingFromCycle: Boolean = false,
+                   val initialBase: Matrix3f = Matrix3f(1f, 0f, 0f,
                                                                             0f, 1f, 0f,
                                                                             0f, 0f, 1f)): Mesh("3DStructure") {
 
@@ -76,7 +76,7 @@ class ThreeDimensionalMolecularStructure(val moleculeTree: MoleculeTree, val com
         if(bondTree is MoleculeTreeCycle) {
             val initialAngle = 0f
             //kotlin.math.acos(Vector3f(positions[bondTree.cyclesAndChildren.size-numberOfFreeElectronPairs-1].position).sub(z).normalize().dot(z))
-            this.addChild(CyclicMolecularStructure(bondTree, initialAngle, Matrix3f(x, y, z), bondLength, rootPosition))
+            this.addChild(CyclicMoleculeMesh(bondTree, initialAngle, Matrix3f(x, y, z), bondLength, rootPosition))
             return listOf()
         }
         val numberOfFreeElectronPairs = numberOfFreeElectronPairs(bondTree)
