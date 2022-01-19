@@ -77,7 +77,7 @@ open class Volume(
 
     //without this line the *java* serialization framework kryo does not recognize the parameter-less constructor
     // and uses dark magic to instanciate this class
-    //constructor():this(VolumeDataSource.NullSource(1))
+    constructor():this(VolumeDataSource.NullSource(1))
 
     //TODO make nice
     var constructionParameters: Any? = null

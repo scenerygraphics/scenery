@@ -39,9 +39,11 @@ class SpimDataExample: SceneryBase("SpimData Rendering example", 1280, 720,false
         }
 
         thread {
-            //Thread.sleep(3000)
-
-            //println("updating volume data done")
+            while (false) {
+                Thread.sleep(5000)
+                volume.transferFunction = TransferFunction.ramp(0.001f, 0.5f, 0.3f)
+                println("updating volume data done")
+            }
         }
 
         val cam: Camera = DetachedHeadCamera()
