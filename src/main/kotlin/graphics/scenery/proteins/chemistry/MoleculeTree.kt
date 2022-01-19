@@ -1,6 +1,5 @@
 package graphics.scenery.proteins.chemistry
 
-import org.biojava.nbio.structure.Bond
 import java.util.concurrent.CopyOnWriteArrayList
 
 /**
@@ -9,15 +8,15 @@ import java.util.concurrent.CopyOnWriteArrayList
  * [boundMolecules] children of the node
  * [bondOrder] order of the bond with which the node is connected to its parent, 0 if root
  */
-open class BondTree(val element: String, val bondOrder: Int = 0, var id: String = "") {
-    var boundMolecules = CopyOnWriteArrayList<BondTree>()
-    var bondTreeParent: BondTree? = null
+open class MoleculeTree(val element: String, val bondOrder: Int = 0, var id: String = "") {
+    var boundMolecules = CopyOnWriteArrayList<MoleculeTree>()
+    var moleculeTreeParent: MoleculeTree? = null
 
     /**
      * add a child
      */
-    fun addBoundMolecule(bondTree: BondTree) {
-        this.boundMolecules.add(bondTree)
+    fun addMolecule(moleculeTree: MoleculeTree) {
+        this.boundMolecules.add(moleculeTree)
     }
 
     /**
@@ -25,7 +24,7 @@ open class BondTree(val element: String, val bondOrder: Int = 0, var id: String 
      */
     fun addhydrogen(numberOfHydrogens: Int) {
         for (i in 0 until numberOfHydrogens) {
-            val hydrogen = BondTree("H", 1)
+            val hydrogen = MoleculeTree("H", 1)
             this.boundMolecules.add(hydrogen)
 
         }
@@ -33,7 +32,7 @@ open class BondTree(val element: String, val bondOrder: Int = 0, var id: String 
     /**
      * find a specific molecule bound to the molecule by its id
      */
-    fun findByID(id: String): BondTree? {
+    fun findByID(id: String): MoleculeTree? {
         if(this.id == id) {
             return this
         }
@@ -41,7 +40,7 @@ open class BondTree(val element: String, val bondOrder: Int = 0, var id: String 
             if(it.id == id) {
                 return it
             }
-            if(it is BondTreeCycle) {
+            if(it is MoleculeTreeCycle) {
                 it.cyclesAndChildren.forEach { cycleOrChild ->
                     cycleOrChild.forEach { substituent ->
                         val returnValue =  substituent.findByID(id)
@@ -70,8 +69,8 @@ open class BondTree(val element: String, val bondOrder: Int = 0, var id: String 
         this.addParentToChildren()
         var remainingChildren = mutableListOf(this)
         while(remainingChildren.isNotEmpty()) {
-            if(remainingChildren.first().id == id && remainingChildren.first().bondTreeParent != null) {
-                remainingChildren.first().bondTreeParent!!.removeFromChildren(id)
+            if(remainingChildren.first().id == id && remainingChildren.first().moleculeTreeParent != null) {
+                remainingChildren.first().moleculeTreeParent!!.removeFromChildren(id)
                 return
             }
             else {
@@ -86,21 +85,21 @@ open class BondTree(val element: String, val bondOrder: Int = 0, var id: String 
     /**
      * add a molecule at a given id
      */
-    fun addAtID(id: String, newMolecule: BondTree) {
+    fun addAtID(id: String, newMolecule: MoleculeTree) {
         this.boundMolecules.forEach {
             if(it.id == id) {
-                it.addBoundMolecule(newMolecule)
+                it.addMolecule(newMolecule)
             }
-            if(it is BondTreeCycle) {
+            if(it is MoleculeTreeCycle) {
                 it.cyclesAndChildren.forEach { cycleOrChild ->
                     cycleOrChild.forEach { substituent ->
-                        substituent.findByID(id)?.addBoundMolecule(newMolecule)
+                        substituent.findByID(id)?.addMolecule(newMolecule)
                     }
                 }
             }
             else {
                 it.boundMolecules.forEach { child ->
-                    child.findByID(id)?.addBoundMolecule(newMolecule)
+                    child.findByID(id)?.addMolecule(newMolecule)
                 }
             }
         }
@@ -128,7 +127,7 @@ open class BondTree(val element: String, val bondOrder: Int = 0, var id: String 
 
     private fun addParentToChildren() {
         this.boundMolecules.forEach {
-            it.bondTreeParent = this
+            it.moleculeTreeParent = this
             it.addParentToChildren()
         }
     }
