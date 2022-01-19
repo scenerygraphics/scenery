@@ -89,9 +89,9 @@ class AminoAcidChainer: SceneryBase("RainbowRibbon", windowWidth = 1280, windowH
                 if(!combineTwoAcids) {
 
                     val previous = scene.find("poly${aminoacidNumbersStored - 1}")
-                    val nPrev = previous!!.findChildrenByNameRecursive("HO" + "${aminoacidNumbersStored - 1}")?.spatialOrNull()!!.worldPosition()
-                    val hnPrev = previous.findChildrenByNameRecursive("OH" + "${aminoacidNumbersStored - 1}")?.spatialOrNull()!!.worldPosition()
-                    val nextAAPos = Vector3f(hnPrev).add(Vector3f(hnPrev).sub(nPrev).normalize().mul(1f))
+                    val cPrev = previous!!.findChildrenByNameRecursive("C" + "${aminoacidNumbersStored - 1}")?.spatialOrNull()!!.world.getColumn(3, Vector3f())
+                    val ohPrev = previous.findChildrenByNameRecursive("OH" + "${aminoacidNumbersStored - 1}")?.spatialOrNull()!!.world.getColumn(3, Vector3f())
+                    val nextAAPos = Vector3f(ohPrev).add(Vector3f(ohPrev).sub(cPrev).normalize().mul(1.61f))
                     val nextAminoBondTree =
                         AminoTreeList().aminoMap[aminoAcidAbbreviations[aminoacidNumbersStored]]
                     nextAminoBondTree!!.renameAminoAcidIds(aminoacidNumbersStored)
