@@ -24,7 +24,7 @@ import kotlin.math.sqrt
  *
  * Circular molecules, e.g., aromatics are displayed as planes, with all inner angles being of equal size.
  */
-class ThreeDimensionalMolecularStructure(val bondTree: BondTree, val comingFromCycle: Boolean = false,
+class ThreeDimensionalMolecularStructure(val moleculeTree: MoleculeTree, val comingFromCycle: Boolean = false,
                                          val initialBase: Matrix3f = Matrix3f(1f, 0f, 0f,
                                                                             0f, 1f, 0f,
                                                                             0f, 0f, 1f)): Mesh("3DStructure") {
@@ -39,13 +39,13 @@ class ThreeDimensionalMolecularStructure(val bondTree: BondTree, val comingFromC
     private val initialY = initialBase.getColumn(1, Vector3f())
     private val initialZ = initialBase.getColumn(2, Vector3f())
     init {
-        val rootElement = PeriodicTable().findElementBySymbol(bondTree.element)
+        val rootElement = PeriodicTable().findElementBySymbol(moleculeTree.element)
         val atomSphere = if(rootElement == PeriodicTable().findElementByNumber(1))
         { Icosphere(0.05f, 5) } else { Icosphere(0.15f, 2)}
-        atomSphere.name = bondTree.id
+        atomSphere.name = moleculeTree.id
         if (rootElement.color != null) { atomSphere.ifMaterial { diffuse = rootElement.color } }
         val nodesToTravers = ArrayList<BondTreeNodeBasisAndParent>()
-        nodesToTravers.add(BondTreeNodeBasisAndParent(bondTree, atomSphere, initialX))
+        nodesToTravers.add(BondTreeNodeBasisAndParent(moleculeTree, atomSphere, initialX))
         var i = 0
         while (nodesToTravers.drop(i).isNotEmpty()) {
             val newMolecule = nodesToTravers[i]
@@ -57,10 +57,10 @@ class ThreeDimensionalMolecularStructure(val bondTree: BondTree, val comingFromC
 
     }
 
-    data class BondTreeNodeBasisAndParent(val bondTree: BondTree, val node: Node, val newX: Vector3f, val treeParent: Node? = null)
+    data class BondTreeNodeBasisAndParent(val moleculeTree: MoleculeTree, val node: Node, val newX: Vector3f, val treeParent: Node? = null)
 
     private fun calculate3DStructure(bondTreeNodeBasis: BondTreeNodeBasisAndParent): List<BondTreeNodeBasisAndParent> {
-        val bondTree = bondTreeNodeBasis.bondTree
+        val bondTree = bondTreeNodeBasis.moleculeTree
         val root = bondTreeNodeBasis.node
         val x = bondTreeNodeBasis.newX
         var treeRoot = false
@@ -73,7 +73,7 @@ class ThreeDimensionalMolecularStructure(val bondTree: BondTree, val comingFromC
         } else { Vector3f(rootPosition).sub(Vector3f(bondTreeNodeBasis.treeParent?.spatialOrNull()?.worldPosition())).normalize() }
         val y = if(root.parent?.spatialOrNull() == null) { initialY }
         else { Vector3f(x).cross(Vector3f(z)).normalize() }
-        if(bondTree is BondTreeCycle) {
+        if(bondTree is MoleculeTreeCycle) {
             val initialAngle = 0f
             //kotlin.math.acos(Vector3f(positions[bondTree.cyclesAndChildren.size-numberOfFreeElectronPairs-1].position).sub(z).normalize().dot(z))
             this.addChild(CyclicMolecularStructure(bondTree, initialAngle, Matrix3f(x, y, z), bondLength, rootPosition))
@@ -81,7 +81,7 @@ class ThreeDimensionalMolecularStructure(val bondTree: BondTree, val comingFromC
         }
         val numberOfFreeElectronPairs = numberOfFreeElectronPairs(bondTree)
         if(y != null && z != null) {
-            val necessaryPositions = if(bondTree is BondTreeCycle) { bondTree.cyclesAndChildren.size + numberOfFreeElectronPairs }
+            val necessaryPositions = if(bondTree is MoleculeTreeCycle) { bondTree.cyclesAndChildren.size + numberOfFreeElectronPairs }
                                         else { bondTree.boundMolecules.size + numberOfFreeElectronPairs }
             val positions = positions(necessaryPositions, x, y, z, rootPosition, treeRoot)
             val newNodes = ArrayList<BondTreeNodeBasisAndParent>(bondTree.boundMolecules.size + numberOfFreeElectronPairs)
@@ -108,7 +108,7 @@ class ThreeDimensionalMolecularStructure(val bondTree: BondTree, val comingFromC
 
                 newNodes.add(BondTreeNodeBasisAndParent(boundMolecule, elementSphere, positions[index].x, root))
                 //display bond
-                if(boundMolecule.bondOrder > 1) {
+                if(boundMolecule.bondOrder > 1 && boundMolecule !is MoleculeTreeCycle) {
                     addMultipleBoundCylinder(rootPosition, Vector3f(elementSphere.spatial().position), boundMolecule.bondOrder, x, boundMolecule.id + "Cyl")
                 }
                 else {
@@ -210,17 +210,17 @@ class ThreeDimensionalMolecularStructure(val bondTree: BondTree, val comingFromC
     /**
      * calculates the remaining free electron pairs after all bonds are taking into account
      */
-    private fun numberOfFreeElectronPairs(bondTree: BondTree): Int {
-        val rootElement = PeriodicTable().findElementBySymbol(bondTree.element)
+    private fun numberOfFreeElectronPairs(moleculeTree: MoleculeTree): Int {
+        val rootElement = PeriodicTable().findElementBySymbol(moleculeTree.element)
         val outerElectronsAndShellNumber = countOuterElectronNumber(rootElement.atomicNumber)
-        val bondsFromCycle = if(bondTree is BondTreeCycle) {
+        val bondsFromCycle = if(moleculeTree is MoleculeTreeCycle) {
             var number = 0
-            bondTree.cyclesAndChildren.filter { it.size >1 }.forEach {
+            moleculeTree.cyclesAndChildren.filter { it.size >1 }.forEach {
                 number += it[0].bondOrder
                 number += it[it.lastIndex].bondOrder}
             number
         } else { 0 }
-        val numberOfBoundElectrons = bondTree.boundMolecules.fold(0) { acc, next -> acc + next.bondOrder } + bondsFromCycle
+        val numberOfBoundElectrons = moleculeTree.boundMolecules.fold(0) { acc, next -> acc + next.bondOrder } + bondsFromCycle
         return (outerElectronsAndShellNumber.numberOfOuterElectrons - numberOfBoundElectrons)/2
     }
 
