@@ -1,7 +1,5 @@
 package graphics.scenery.proteins.chemistry
 
-import java.util.concurrent.CopyOnWriteArrayList
-
 class MoleculeTreeCycle(element: String, var cyclesAndChildren: List<List<MoleculeTree>>, bondOrder: Int, id: String = ""):
     MoleculeTree(element = element, bondOrder, id) {
         init {
