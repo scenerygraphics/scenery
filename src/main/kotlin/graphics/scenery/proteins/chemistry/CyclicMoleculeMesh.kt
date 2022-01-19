@@ -30,6 +30,7 @@ class CyclicMoleculeMesh(val root: MoleculeTreeCycle, initialAngle: Float, basis
     //flips the order of singular hydrogens added to the circle
     var flipAddedHydrogens = true
     init {
+        this.name = root.id+"cyc"
         //set initial vectors
         val initialX = basis.getColumn(0, Vector3f())
         val initialY = basis.getColumn(1, Vector3f())
