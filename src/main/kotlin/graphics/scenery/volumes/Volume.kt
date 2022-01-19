@@ -142,7 +142,7 @@ open class Volume(
         }
 
     /** Plane equations for slicing planes mapped to origin */
-    var slicingPlaneEquations = mapOf<SlicingPlane, Vector4f>()
+    var slicingPlaneEquations = mapOf<Int, Vector4f>()
 
     /** Modes how assigned slicing planes interact with the volume */
     var slicingMode = SlicingMode.None
@@ -275,6 +275,7 @@ open class Volume(
         if (fresh !is Volume) throw IllegalArgumentException("Update called with object of foreign class")
         this.colormap = fresh.colormap
         this.transferFunction = fresh.transferFunction
+        this.slicingMode = fresh.slicingMode
 
         if (this.currentTimepoint != fresh.currentTimepoint) {
             this.goToTimepoint(fresh.currentTimepoint)
