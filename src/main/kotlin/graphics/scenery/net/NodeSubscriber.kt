@@ -43,11 +43,11 @@ class NodeSubscriber(
 
     init {
         if (startNetworkActivity) {
-            if (subscriber.connect(addressSubscribe)){
+            if (subscriber.connect(addressSubscribe)) {
                 logger.info("Client connected to main channel at $addressSubscribe")
             }
             subscriber.subscribe(ZMQ.SUBSCRIPTION_ALL)
-            if(backchannel.connect(addressBackchannel)){
+            if (backchannel.connect(addressBackchannel)) {
                 logger.info("Client connected to back channel at $addressBackchannel")
             }
             GlobalScope.launch {
@@ -172,20 +172,28 @@ class NodeSubscriber(
                 networkable = scene
             }
             is Node -> {
-                val newNode = event.constructorParameters?.let { networkable.constructWithParameters(it,hub!!) as Node}
-                    ?: networkable
-                val newWrapped = NetworkWrapper(networkWrapper.networkID,newNode,networkWrapper.parents,networkWrapper.publishedAt)
                 val parentId = networkWrapper.parents.first() // nodes have only one parent
                 val parent = networkObjects[parentId]?.obj as? Node
-
-                if (parent != null) {
-                    parent.addChild(newNode)
-                } else {
+                if (parent == null) {
                     waitingOnNetworkable[parentId] =
-                        waitingOnNetworkable.getOrDefault(parentId, listOf())+ (event.copy(obj = newWrapped) to WaitReason.Parent)
+                        waitingOnNetworkable.getOrDefault(parentId, listOf()) + (event to WaitReason.Parent)
+                    return
                 }
 
+                val newNode = event.constructorParameters?.let { networkable.constructWithParameters(it, hub!!) as Node
+                    }?: networkable
+                val newWrapped = NetworkWrapper(
+                    networkWrapper.networkID,
+                    newNode,
+                    networkWrapper.parents,
+                    networkWrapper.publishedAt
+                )
+
                 networkObjects[networkWrapper.networkID] = newWrapped
+                // update relations (and other values if created client site with constructor params)
+                processUpdateEvent(event,scene)
+
+                parent.addChild(newNode)
                 networkable = newNode
             }
             else -> {
@@ -196,16 +204,29 @@ class NodeSubscriber(
                             "Maybe an attribute missing a getAttributeClass implementation?"
                     )
 
-                val newAttribute = event.constructorParameters?.let { networkable.constructWithParameters(it,hub!!)}
+                val newAttribute = event.constructorParameters?.let { networkable.constructWithParameters(it, hub!!) }
                     ?: networkable
-                val newWrapped = NetworkWrapper(networkWrapper.networkID,newAttribute,networkWrapper.parents,networkWrapper.publishedAt)
+                val newWrapped = NetworkWrapper(
+                    networkWrapper.networkID,
+                    newAttribute,
+                    networkWrapper.parents,
+                    networkWrapper.publishedAt
+                )
+
+                networkObjects[networkWrapper.networkID] = newWrapped
+                // update relations (and other values if created client site with constructor params)
+                processUpdateEvent(event,scene)
+                networkable = newAttribute
 
                 networkWrapper.parents
                     .mapNotNull { parentId ->
                         val parent = networkObjects[parentId]?.obj as? Node
                         if (parent == null) {
                             waitingOnNetworkable[parentId] =
-                                waitingOnNetworkable.getOrDefault(parentId, listOf()) + (event.copy(obj= newWrapped) to WaitReason.Parent)
+                                waitingOnNetworkable.getOrDefault(
+                                    parentId,
+                                    listOf()
+                                ) + (event.copy(obj = newWrapped) to WaitReason.Parent)
                             null
                         } else {
                             parent
@@ -214,13 +235,8 @@ class NodeSubscriber(
                     .forEach { parent ->
                         parent.addAttributeFromNetwork(attributeBaseClass.java, newAttribute)
                     }
-
-                networkObjects[networkWrapper.networkID] = newWrapped
-                networkable = newAttribute
-
             }
         }
-        eventQueue.add(event) // update relations in case this is a post-initial-sync new object or created by a param constructor
         processWaitingNodes(networkable, scene)
     }
 
@@ -229,29 +245,19 @@ class NodeSubscriber(
         missingChildren?.forEach { childEvent ->
             val reason = childEvent.second
             val event = childEvent.first
-            when (reason) {
-                WaitReason.UpdateRelation -> {
-                    if (event is NetworkEvent.Update) {
-                        processUpdateEvent(event, scene)
-                    }
-                }
-                WaitReason.Parent -> {
-                    when (event) {
-                        is NetworkEvent.Update -> {
-                            when (val child = (event).obj.obj) {
-                                is Node -> {
-                                    (parent as? Node)?.addChild(child)
-                                }
-                                else -> {
-                                    // assuming child is Attribute
-                                    val attributeBaseClass = child.getAttributeClass()!!
-                                    // before adding the attribute to the waitingOnParent list this was null checked
-                                    (parent as? Node)?.addAttributeFromNetwork(attributeBaseClass.java, child)
-                                }
-                            }
-                        }
-                        is NetworkEvent.NewRelation -> processNewRelationEvent(event)
-                    }
+            when{
+                reason == WaitReason.UpdateRelation && event is NetworkEvent.Update ->
+                    processUpdateEvent(event, scene)
+                reason == WaitReason.Parent && event is NetworkEvent.NewRelation ->
+                    processNewRelationEvent(event)
+                reason == WaitReason.Parent && event is NetworkEvent.Update && event.obj.obj is Node ->
+                    processUpdateEvent(event, scene)
+                reason == WaitReason.Parent && event is NetworkEvent.Update -> {
+                    // this should be an attribute
+                    val child = (event).obj.obj
+                    val attributeBaseClass = child.getAttributeClass()!!
+                    // before adding the attribute to the waitingOnParent list this was null checked
+                    (parent as? Node)?.addAttributeFromNetwork(attributeBaseClass.java, child)
                 }
             }
         }
@@ -267,7 +273,8 @@ class NodeSubscriber(
     private enum class WaitReason {
         // Parent is missing
         Parent,
-        // A relation required in the update method is missing
+
+        // A related Network Object required in the update method is missing
         UpdateRelation
     }
 }
