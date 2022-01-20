@@ -5,12 +5,12 @@ import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
 import graphics.scenery.attribute.material.Material
-import graphics.scenery.proteins.chemistry.AminoAcidBondTreeMap
-import graphics.scenery.proteins.chemistry.BondTree
-import graphics.scenery.proteins.chemistry.ThreeDimensionalMolecularStructure
+import graphics.scenery.proteins.chemistry.AminoTreeList
+import graphics.scenery.proteins.chemistry.MoleculeTree
+import graphics.scenery.proteins.chemistry.MoleculeMesh
 
 /**
- *
+ * Shwws a mesh representation of glutamine.
  *
  * @author Justin Buerger <burger@mpi-cbg.de>
  */
@@ -20,23 +20,23 @@ class GlutamineExample: SceneryBase("RainbowRibbon", windowWidth = 1280, windowH
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
 
         val rowSize = 20f
-        val glutamineBondTree = AminoAcidBondTreeMap().aminoMap["GLN"]
+        val glutamineBondTree = AminoTreeList().aminoMap["GLN"]
         if(glutamineBondTree != null) {
-            val glutamine = ThreeDimensionalMolecularStructure(glutamineBondTree)
+            val glutamine = MoleculeMesh(glutamineBondTree)
             scene.addChild(glutamine)
         }
 
-        val ethanol = BondTree("C", 0)
+        val ethanol = MoleculeTree("C", 0)
         ethanol.addhydrogen(3)
-        val c = BondTree("C", 1)
-        val o1 = BondTree("O", 2)
-        val o2 = BondTree("O", 1)
+        val c = MoleculeTree("C", 1)
+        val o1 = MoleculeTree("O", 2)
+        val o2 = MoleculeTree("O", 1)
         o2.addhydrogen(1)
-        c.addBoundMolecule(o1)
-        c.addBoundMolecule(o2)
-        ethanol.addBoundMolecule(c)
+        c.addMolecule(o1)
+        c.addMolecule(o2)
+        ethanol.addMolecule(c)
 
-        val methane = BondTree("C", 0)
+        val methane = MoleculeTree("C", 0)
         methane.addhydrogen(4)
 
         //scene.addChild(ThreeDimensionalMolecularStructure(ethanol))

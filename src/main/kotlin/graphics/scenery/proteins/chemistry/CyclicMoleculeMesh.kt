@@ -63,7 +63,7 @@ class CyclicMoleculeMesh(val root: MoleculeTreeCycle, initialAngle: Float, basis
                 }
             }
             //...and will be connected to the root
-            addCylinder(this.spatial().position, firstPosition)
+            addCylinder(this.spatial().position, firstPosition, id = root.id)
             //then add each cycle
             addSubCircle(listOf(allCycles[0]), this.spatial().position, firstPosition,
                 Vector3f(initialY).mul(-1f).normalize())
@@ -86,7 +86,7 @@ class CyclicMoleculeMesh(val root: MoleculeTreeCycle, initialAngle: Float, basis
 
             val lastPosition = circle(cycle, positionalVector, x,y,z, cosTheta, sinTheta, cosAlpha, sinAlpha, root.bondOrder)
             //last cylinder
-            addCylinder(positionalVector, lastPosition, cycle.first().bondOrder, Vector3f(positionalVector).sub(lastPosition).cross(x).normalize())
+            addCylinder(positionalVector, lastPosition, cycle.first().bondOrder, Vector3f(positionalVector).sub(lastPosition).cross(x).normalize(), cycle.first().id)
         }
     }
 
@@ -120,10 +120,10 @@ class CyclicMoleculeMesh(val root: MoleculeTreeCycle, initialAngle: Float, basis
             addAtomSphere(PeriodicTable().findElementBySymbol(currentSubstituent.element), substituentPosition, currentSubstituent.id)
             //add the cylinder
             if(index != 0) {
-                addCylinder(substituentPosition, currentPosition, cycle[index-1].bondOrder, y)
+                addCylinder(substituentPosition, currentPosition, cycle[index-1].bondOrder, y, currentSubstituent.id)
             }
             else {
-                addCylinder(substituentPosition, currentPosition, rootBondOrder, y)
+                addCylinder(substituentPosition, currentPosition, rootBondOrder, y, currentSubstituent.id)
             }
 
             //change values for the next iteration
@@ -169,7 +169,7 @@ class CyclicMoleculeMesh(val root: MoleculeTreeCycle, initialAngle: Float, basis
                     child.spatial().position = newPosition
                     this.addChild(child)
                     //add cylinder to connect to new child
-                    addCylinder(substituentPosition, newPosition, childrenOfConstituent[0].bondOrder, newY)
+                    addCylinder(substituentPosition, newPosition, childrenOfConstituent[0].bondOrder, newY, childrenOfConstituent[0].id)
                 }
                 2 -> {
                     //first new child
@@ -179,7 +179,7 @@ class CyclicMoleculeMesh(val root: MoleculeTreeCycle, initialAngle: Float, basis
                         MoleculeMesh(childrenOfConstituent[0], true, initialBase = newBasis)
                     firstChild.spatial().position = firstNewPosition
                     this.addChild(firstChild)
-                    addCylinder(substituentPosition, firstNewPosition, childrenOfConstituent[0].bondOrder, newY)
+                    addCylinder(substituentPosition, firstNewPosition, childrenOfConstituent[0].bondOrder, newY,childrenOfConstituent[0].id)
                     //second
                     val secondNewPosition = Vector3f(x).mul(-scalars[1]).add(Vector3f(substituentPosition))
                     val newBasis2 = Matrix3f(newY, newZ, Vector3f(x).mul(-1f))
@@ -187,7 +187,7 @@ class CyclicMoleculeMesh(val root: MoleculeTreeCycle, initialAngle: Float, basis
                         MoleculeMesh(childrenOfConstituent[1], true, initialBase = newBasis2)
                     secondChild.spatial().position = secondNewPosition
                     this.addChild(secondChild)
-                    addCylinder(substituentPosition, secondNewPosition, childrenOfConstituent[1].bondOrder, newY)
+                    addCylinder(substituentPosition, secondNewPosition, childrenOfConstituent[1].bondOrder, newY,childrenOfConstituent[1].id)
                 }
                 3 -> {
                     //first
@@ -197,7 +197,7 @@ class CyclicMoleculeMesh(val root: MoleculeTreeCycle, initialAngle: Float, basis
                         true, initialBase = Matrix3f(x, newY, newZ)
                     )
                     child.spatial().position = newPosition
-                    addCylinder(substituentPosition,newPosition, childrenOfConstituent[0].bondOrder, newY)
+                    addCylinder(substituentPosition,newPosition, childrenOfConstituent[0].bondOrder, newY, childrenOfConstituent[0].id)
                     this.addChild(child)
                     //second
                     val firstNewPosition = Vector3f(x).mul(scalars[1]).add(Vector3f(substituentPosition))
@@ -205,7 +205,7 @@ class CyclicMoleculeMesh(val root: MoleculeTreeCycle, initialAngle: Float, basis
                     val firstChild = MoleculeMesh(childrenOfConstituent[1], true, initialBase = newBasis)
                     firstChild.spatial().position = firstNewPosition
                     this.addChild(firstChild)
-                    addCylinder(substituentPosition, firstNewPosition, childrenOfConstituent[1].bondOrder, newY)
+                    addCylinder(substituentPosition, firstNewPosition, childrenOfConstituent[1].bondOrder, newY, childrenOfConstituent[1].id)
                     //third
                     val secondNewPosition = Vector3f(x).mul(-scalars[2]).add(Vector3f(substituentPosition))
                     val newBasis2 = Matrix3f(newZ, newZ, x)
@@ -213,7 +213,7 @@ class CyclicMoleculeMesh(val root: MoleculeTreeCycle, initialAngle: Float, basis
                         MoleculeMesh(childrenOfConstituent[2], true, initialBase = newBasis2)
                     secondChild.spatial().position = secondNewPosition
                     this.addChild(secondChild)
-                    addCylinder(substituentPosition, secondNewPosition, childrenOfConstituent[2].bondOrder, newY)
+                    addCylinder(substituentPosition, secondNewPosition, childrenOfConstituent[2].bondOrder, newY,childrenOfConstituent[2].id)
                 }
                 else -> {
                     logger.warn("Too many children for one element!")
@@ -249,7 +249,7 @@ class CyclicMoleculeMesh(val root: MoleculeTreeCycle, initialAngle: Float, basis
                 circle(cycle.drop(1), rootPosition, x, y, z, cosTheta, sinTheta, cosAlpha, sinAlpha, cycle.first().bondOrder, changeDir = true) }
                 else { circle(cycle.drop(1), rootPosition, x, y, Vector3f(z).mul(-1f), cosTheta, sinTheta, cosAlpha, sinAlpha, cycle.first().bondOrder) }
 
-            addCylinder(firstPoint, lastPosition)
+            addCylinder(firstPoint, lastPosition, id = cycle.first().id)
         }
     }
 
@@ -274,10 +274,12 @@ class CyclicMoleculeMesh(val root: MoleculeTreeCycle, initialAngle: Float, basis
     /**
      * Adds a cylinder, representing the covalent bond between to atoms
      */
-    private fun addCylinder(atomPosition1: Vector3f, atomPosition2: Vector3f, bondOrder: Int = 1, perpendicular: Vector3f = Vector3f()) {
+    private fun addCylinder(atomPosition1: Vector3f, atomPosition2: Vector3f, bondOrder: Int = 1, perpendicular: Vector3f = Vector3f(),
+        id: String) {
         if(bondOrder == 1) { val c = Cylinder(0.025f, 1.0f, 10)
         c.ifMaterial { diffuse = Vector3f(1.0f, 1.0f, 1.0f) }
         c.spatial().orientBetweenPoints(atomPosition1, atomPosition2,rescale = true, reposition = true)
+            c.name = id+"Cyl"
         this.addChild(c) }
         else {
             val scalar = if(bondOrder == 2) { 0.05f } else { 0.08f }
@@ -289,15 +291,19 @@ class CyclicMoleculeMesh(val root: MoleculeTreeCycle, initialAngle: Float, basis
             val c1 = Cylinder(0.025f, 1.0f, 10)
             c1.ifMaterial { diffuse = Vector3f(1.0f, 1.0f, 1.0f) }
             c1.spatial().orientBetweenPoints(positionRoot1, positionChild1, true, true)
+            c1.name = id+"Cyl"
             this.addChild(c1)
             val c2 = Cylinder(0.025f, 1.0f, 10)
             c2.ifMaterial { diffuse = Vector3f(1.0f, 1.0f, 1.0f) }
             c2.spatial().orientBetweenPoints(positionRoot2, positionChild2, true, true)
+            c2.name = id+"Cyl"
             this.addChild(c2)
             if(bondOrder == 3) {
                 val c3 = Cylinder(0.025f, 1f, 10)
                 c3.ifMaterial { diffuse = Vector3f(1f, 1f, 1f) }
                 c3.spatial().orientBetweenPoints(atomPosition1, atomPosition2, true, true)
+                c3.name = id+"Cyl"
+                this.addChild(c3)
             }
         }
     }

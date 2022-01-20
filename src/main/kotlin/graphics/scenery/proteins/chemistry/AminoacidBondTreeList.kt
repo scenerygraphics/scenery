@@ -1,5 +1,7 @@
 package graphics.scenery.proteins.chemistry
 
+import java.util.concurrent.CopyOnWriteArrayList
+
 /**
  *
  */
@@ -101,7 +103,7 @@ class AminoTreeList {
         val c3P = MoleculeTree("C", 1)
         c3P.addhydrogen(2)
         val hn = MoleculeTree("H", 1, "HN")
-        val proline = MoleculeTreeCycle("N", listOf(listOf(caP, c1P, c2P, c3P), listOf(hn)), 1, "N")
+        val proline = MoleculeTreeCycle("N", listOf(listOf(caP, c1P, c2P, c3P), listOf(hn)),1, "N")
         aminoMap["PRO"] = proline
 
         //Tryptophane

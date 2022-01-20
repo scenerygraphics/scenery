@@ -9,5 +9,5 @@ interface Chirality {
      * elements are bound to the same atom. This function is there to sort the respective elements in a list such that
      * the algorithm to compute the 3D structure gets the right input.
      */
-    fun orderAtomPositions(bondtree: BondTree): BondTree
+    fun orderAtomPositions(bondtree: MoleculeTree): MoleculeTree
 }
