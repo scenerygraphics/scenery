@@ -1,5 +1,6 @@
 package graphics.scenery.proteins.chemistry
 
+import graphics.scenery.Box
 import graphics.scenery.Icosphere
 import graphics.scenery.Node
 import graphics.scenery.Scene
@@ -8,10 +9,14 @@ import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.controls.TrackerRole
 import graphics.scenery.flythroughs.IUPACAbbreviationsReader
+import graphics.scenery.flythroughs.ProteinBuilder
 import graphics.scenery.numerics.Random
 import graphics.scenery.proteins.Protein
+import graphics.scenery.textures.Texture
+import graphics.scenery.utils.Image
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plus
+import org.joml.Quaternionf
 import org.joml.Vector3f
 import org.scijava.ui.behaviour.ClickBehaviour
 import kotlin.concurrent.thread
@@ -31,6 +36,9 @@ class AminoChainer(val scene: Scene, proteinID: String = "", private val hmd: Op
     var rootAA: MoleculeTree
     private var nextAaUP = true
     var currentCode: String
+    // all images of amino acids
+    private val allImages = fillUpImageMap(abbreviations)
+    private val camera = scene.activeObserver
 
     init {
         groups.forEach { residue ->
@@ -46,9 +54,12 @@ class AminoChainer(val scene: Scene, proteinID: String = "", private val hmd: Op
         root.name = "poly$aminoacidNumbersStored"
         scene.addChild(root)
         currentCode = aminoAcidAbbreviations.first()
+        addAminoAcidPicture()
     }
     override fun click(x: Int, y: Int) {
+
         if(aminoacidNumbersStored < aminoAcidAbbreviations.size && aminoacidNumbersStored != 0) {
+            addAminoAcidPicture()
             thread {
                 if(showAnimation) {
                     val previous = scene.getChildrenByName("poly${aminoacidNumbersStored - 1}").first()
@@ -199,6 +210,50 @@ class AminoChainer(val scene: Scene, proteinID: String = "", private val hmd: Op
             }
         }
 
+    private fun addAminoAcidPicture() {
+        val aaImage = allImages[aminoAcidAbbreviations[aminoacidNumbersStored]]
+        //remove old pic
+        scene.removeChild("le box du win")
+        //add the amino acid picture
+        val box = Box(Vector3f(1.0f, 1.0f, 1.0f))
+        box.name = "le box du win"
+        val height = aaImage?.height
+        val width = aaImage?.width
+        if (width != null && height != null) {
+            box.spatial().scale = Vector3f((width / height.toFloat())/5f, 1/5f, 0f)
+        }
+        box.spatial {
+            //VR mode, baby!
+            if(hmd != null) {
+                position = controller!!.worldPosition()
+            }
+            //nope? okay, lets go for 2D then
+            else {
+                rotation = Quaternionf(camera?.spatial()?.rotation).conjugate()
+                position = Vector3f(camera?.spatial()?.position)
+                val forwardTimesTwo = Vector3f()
+                if (camera?.targeted == true) {
+                    box.spatial().position.add(camera.target.mul(2f, forwardTimesTwo))
+                } else {
+                    box.spatial().position.add(camera?.forward?.mul(2f, forwardTimesTwo))
+                }
+            }
+        }
+        if(hmd != null) {
+            box.update.add {
+                box.spatial {
+                    rotation = Quaternionf(hmd.getOrientation()).conjugate().normalize()
+                    position = controller!!.worldPosition()
+                }
+            }
+        }
+        box.material {
+            if (aaImage != null) {
+                textures["diffuse"] = Texture.fromImage(aaImage)
+            }
+        }
+        scene.addChild(box)
+    }
     private fun Node.findChildrenByNameRecursive(name: String): Node? {
         val childrenToTravers = this.children
         var i = 0
@@ -213,6 +268,15 @@ class AminoChainer(val scene: Scene, proteinID: String = "", private val hmd: Op
     }
 
     companion object {
+        fun fillUpImageMap(abbreviations: HashMap<String, IUPACAbbreviationsReader.IUPACAbbrevation>): HashMap<String, Image> {
+            val images = HashMap<String, Image>(20)
+            abbreviations.forEach { aminoAcid ->
+                val chemicalCategory = aminoAcid.value.chemicalCategory.toString().lowercase()
+                images[aminoAcid.key] = Image.fromResource("${chemicalCategory}/${aminoAcid.value.fullName}.png", ProteinBuilder::class.java)
+            }
+            return images
+        }
+
         fun createAndSet(
             proteinID: String, scene: Scene, hmd: OpenVRHMD, button: List<OpenVRHMD.OpenVRButton>,
             controllerSide: List<TrackerRole>
