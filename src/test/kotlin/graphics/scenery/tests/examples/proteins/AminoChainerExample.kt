@@ -102,22 +102,34 @@ class AminoChainerExample: SceneryBase("RainbowRibbon", windowWidth = 1280, wind
                     }
                 }
             }
-            /*
+
             thread {
                 Thread.sleep(10000)
                 cam.showMessage("Hello friend!", duration= 6000)
                 Thread.sleep(6000)
-                cam.showMessage("Welcome to the protein builder!", duration = 6000)
+                cam.showMessage("Welcome to the protein forge!", duration = 6000)
                 Thread.sleep(6000)
-                cam.showMessage("Use A to select an amino acid.", duration = 8000)
+                cam.showMessage("There is an amino acid on your left hand", duration = 8000)
+                Thread.sleep(6000)
+                cam.showMessage("And in front of you!", duration = 8000)
+                Thread.sleep(6000)
+                cam.showMessage("Choose the right acid", duration = 8000)
+                Thread.sleep(6000)
+                cam.showMessage("And build your polypeptide!", duration = 8000)
+                Thread.sleep(6000)
+                cam.showMessage("Use A to select the amino acid.", duration = 8000)
                 Thread.sleep(8000)
                 cam.showMessage("Use right side button to see all amino acids.", duration = 8000)
                 Thread.sleep(8000)
                 cam.showMessage("Use X to just advance", duration = 8000)
                 Thread.sleep(8000)
-                cam.showMessage("Select any amino acid to start!", duration = 8000)
+                cam.showMessage("Click left side to disable animation", duration = 8000)
+                Thread.sleep(8000)
+                cam.showMessage("Click left side again to enable it", duration = 8000)
+                Thread.sleep(8000)
+                cam.showMessage("Have fun!", duration = 8000)
+                Thread.sleep(8000)
             }
-            */
         }
 
     override fun inputSetup() {
