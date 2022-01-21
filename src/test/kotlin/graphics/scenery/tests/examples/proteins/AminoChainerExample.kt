@@ -102,7 +102,7 @@ class AminoChainerExample: SceneryBase("RainbowRibbon", windowWidth = 1280, wind
                     }
                 }
             }
-
+            /*
             thread {
                 Thread.sleep(10000)
                 cam.showMessage("Hello friend!", duration= 6000)
@@ -117,6 +117,7 @@ class AminoChainerExample: SceneryBase("RainbowRibbon", windowWidth = 1280, wind
                 Thread.sleep(8000)
                 cam.showMessage("Select any amino acid to start!", duration = 8000)
             }
+            */
         }
 
     override fun inputSetup() {
@@ -149,8 +150,8 @@ class AminoChainerExample: SceneryBase("RainbowRibbon", windowWidth = 1280, wind
             if (scene.children.filter { it.name == "greetings" }.isNotEmpty()) {
                 scene.removeChild("greetings")
             }
-            if(hmd.getBehaviour("AminoChainer") is AminoChainer) {
-                val builder = hmd.getBehaviour("ProteinBuilder") as AminoChainer
+            if(hmd.getBehaviour("aaForge") is AminoChainer) {
+                val builder = hmd.getBehaviour("aaForge") as AminoChainer
                 val currentCode = builder.currentCode
                 numberOfTries = if (currentCode == threeLetterCode) {
                     //x and y are never used in this implementation of click(), hence, 1 is chosen as an arbitrary value
@@ -201,15 +202,23 @@ class AminoChainerExample: SceneryBase("RainbowRibbon", windowWidth = 1280, wind
                 ))
             ))
 
+        fun animation() {
+            val builder = hmd.getBehaviour("aaForge") as AminoChainer
+            builder.showAnimation = !builder.showAnimation
+            val message = if(builder.showAnimation) { "Animation eneabled!" } else { "Animation disabled!" }
+            scene.activeObserver?.showMessage( message, duration = 5000)
+        }
         //show amino acid overview
         hmd.addBehaviour("amino_overview", ClickBehaviour { _, _ ->
             scene.children.first { it.name == "aaOverview" }.visible = !scene.children.first { it.name == "aaOverview" }.visible
         })
         hmd.addKeyBinding("amino_overview", TrackerRole.RightHand, OpenVRHMD.OpenVRButton.Side)
+        //show animation or show no animation
+        hmd.addBehaviour("animation", ClickBehaviour { _, _ ->
+           animation()
+        })
+        hmd.addKeyBinding("animation", TrackerRole.LeftHand, OpenVRHMD.OpenVRButton.Side)
         setupCameraModeSwitching()
-        val aaChainer = AminoChainer(scene, "3nir")
-        inputHandler?.addBehaviour("aaForge", aaChainer)
-        inputHandler?.addKeyBinding("aaForge", "K")
     }
 
     companion object {
