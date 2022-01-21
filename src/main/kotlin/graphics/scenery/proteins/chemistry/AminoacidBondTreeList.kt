@@ -144,11 +144,8 @@ class AminoTreeList {
 
         //Threonine
         val cbThr = MoleculeTree("C", 1)
-        cbThr.addhydrogen(2)
-        val cgThr = MoleculeTree("C", 1)
-        cgThr.addMolecule(hydroxyGroup())
-        cgThr.addMolecule(ch3())
-        cbThr.addMolecule(cgThr)
+        cbThr.addMolecule(hydroxyGroup())
+        cbThr.addMolecule(ch3())
         val threonine = aminoAcid()
         threonine.findByID("Ca")!!.addMolecule(cbThr)
         aminoMap["THR"] = threonine
