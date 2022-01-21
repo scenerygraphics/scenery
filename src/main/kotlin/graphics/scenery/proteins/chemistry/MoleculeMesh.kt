@@ -77,7 +77,8 @@ class MoleculeMesh(val moleculeTree: MoleculeTree, var comingFromCycle: Boolean 
         if(bondTree is MoleculeTreeCycle) {
             val initialAngle = 0f
             //kotlin.math.acos(Vector3f(positions[bondTree.cyclesAndChildren.size-numberOfFreeElectronPairs-1].position).sub(z).normalize().dot(z))
-            this.addChild(CyclicMoleculeMesh(bondTree, initialAngle, Matrix3f(x, y, z), bondLength, rootPosition))
+            val cycle = CyclicMoleculeMesh(bondTree, initialAngle, Matrix3f(x, y, z), bondLength)
+            root.addChild(cycle)
             return listOf()
         }
         val numberOfFreeElectronPairs = numberOfFreeElectronPairs(bondTree)
@@ -93,8 +94,6 @@ class MoleculeMesh(val moleculeTree: MoleculeTree, var comingFromCycle: Boolean 
                     else { Icosphere(0.15f, 2) }
                 elementSphere.name = boundMolecule.id
                 if (element.color != null) { elementSphere.ifMaterial { diffuse = element.color } }
-                elementSphere.parent = root
-                this.addChild(elementSphere)
                 val computedPosition = if(comingFromCycle) { positions[index+1].position }
                 else { positions[index].position }
                 elementSphere.spatial {
@@ -106,17 +105,28 @@ class MoleculeMesh(val moleculeTree: MoleculeTree, var comingFromCycle: Boolean 
                         computedPosition
                     }
                 }
+                this.addChild(elementSphere)
 
                 newNodes.add(BondTreeNodeBasisAndParent(boundMolecule, elementSphere, positions[index].x, root))
                 //display bond
                 if(boundMolecule.bondOrder > 1 && boundMolecule !is MoleculeTreeCycle) {
-                    addMultipleBoundCylinder(rootPosition, Vector3f(elementSphere.spatial().position), boundMolecule.bondOrder, x, boundMolecule.id + "Cyl")
+                    addMultipleBoundCylinder(rootPosition, Vector3f(elementSphere.spatial().worldPosition()), boundMolecule.bondOrder, x, boundMolecule.id + "Cyl")
                 }
                 else {
                     val c = Cylinder(0.025f, 1.0f, 10)
                     c.name = boundMolecule.id + "Cyl"
-                    c.ifMaterial { diffuse = Vector3f(1.0f, 1.0f, 1.0f) }
-                    c.spatial().orientBetweenPoints(rootPosition, elementSphere.spatial().position, true, true)
+                    c.ifMaterial {
+                        diffuse = if((bondTree.id.contains("Ca") && boundMolecule.id.contains("N") ||
+                                (bondTree.id.contains("N") && boundMolecule.id.contains("C"))
+                                || (bondTree.id.contains("C") && boundMolecule.id.contains("N")) ||
+                                (bondTree.id.contains("Ca") && boundMolecule.id.contains("C")))) {
+                            Vector3f(0f, 0f, 0f)
+
+                        } else {
+                            Vector3f(1.0f, 1.0f, 1.0f)
+                        }
+                    }
+                    c.spatial().orientBetweenPoints(rootPosition, elementSphere.spatial().worldPosition(), true, true)
                     this.addChild(c)
                 }
             }
