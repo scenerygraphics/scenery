@@ -7,6 +7,7 @@ import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.controls.TrackerRole
 import graphics.scenery.controls.behaviours.*
+import graphics.scenery.controls.behaviours.VRSelectionWheel.Companion.toActions
 import graphics.scenery.numerics.Random
 import graphics.scenery.utils.Wiggler
 import graphics.scenery.utils.extensions.plus
@@ -228,9 +229,13 @@ class VRControllerExample : SceneryBase(
             selectionStorage?.ifSpatial { scale *= Vector3f(it) }
         }
 
-        VRSelectionWheel.createAndSet(scene, hmd,
+        val menu = VRSelectionWheel.createAndSet(scene, hmd,
             listOf(OpenVRHMD.OpenVRButton.A), listOf(TrackerRole.LeftHand),
-            listOf(
+            listOf("Loading please wait" to {})
+            )
+        thread {
+            Thread.sleep(5000) // or actually load something
+            menu.get().actions = listOf(
                 "Toggle Shell" to {
                     hullbox.visible = !hullbox.visible
                     logger.info("Hull visible: ${hullbox.visible}")
@@ -242,8 +247,8 @@ class VRControllerExample : SceneryBase(
                 "test" to { print("test") },
                 "Toggle Push Left" to {
                     leftControllerPushes = !leftControllerPushes
-                }
-            ))
+                }).toActions()
+        }
 
         VRTreeSelectionWheel.createAndSet(scene, hmd,
             listOf(OpenVRHMD.OpenVRButton.A), listOf(TrackerRole.RightHand),
