@@ -1,7 +1,6 @@
 package graphics.scenery.controls.behaviours
 
 import graphics.scenery.Scene
-import graphics.scenery.Sphere
 import graphics.scenery.attribute.spatial.Spatial
 import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.controls.TrackedDeviceType
@@ -13,6 +12,8 @@ import graphics.scenery.utils.extensions.times
 import org.joml.Quaternionf
 import org.joml.Vector3f
 import org.scijava.ui.behaviour.ClickBehaviour
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.Future
 
 /**
  * A selection wheel to let the user choose between different actions.
@@ -66,7 +67,8 @@ class VRTreeSelectionWheel(
             button: List<OpenVRHMD.OpenVRButton>,
             controllerSide: List<TrackerRole>,
             menu: List<WheelAction>,
-        ) {
+        ) : Future<VRTreeSelectionWheel> {
+            val future = CompletableFuture<VRTreeSelectionWheel>()
             hmd.events.onDeviceConnect.add { _, device, _ ->
                 if (device.type == TrackedDeviceType.Controller) {
                     device.model?.let { controller ->
@@ -87,6 +89,7 @@ class VRTreeSelectionWheel(
                     }
                 }
             }
+            return future
         }
 
         internal fun openSubWheel(new: WheelMenu, old: WheelMenu, relActionSpherePos: Vector3f){
