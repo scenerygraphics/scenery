@@ -48,10 +48,10 @@ class ParticleGlyphsExample : SceneryBase("ParticleGlyphsExample") {
         scene.addChild(light3)
 
 
-        val particleNumber = 1000
+        val particleNumber = 100000
         val particlePos = FloatBuffer.allocate(particleNumber * 3)
         val particleProp = FloatBuffer.allocate(particleNumber * 2)
-        val particleCol = FloatBuffer.allocate(particleNumber * 3)
+        val particleColor = FloatBuffer.allocate(particleNumber * 3)
         repeat(particleNumber) {
             particlePos.put(Random.nextDouble(-10.0, 10.0).toFloat())
             particlePos.put(Random.nextDouble(-10.0, 10.0).toFloat())
@@ -60,18 +60,16 @@ class ParticleGlyphsExample : SceneryBase("ParticleGlyphsExample") {
             particleProp.put(Random.nextDouble(0.01, 0.1).toFloat())
             particleProp.put(0.0f)
 
-            particleCol.put(Random.nextDouble(0.1, 1.0).toFloat())
-            particleCol.put(Random.nextDouble(0.1, 1.0).toFloat())
-            particleCol.put(Random.nextDouble(0.1, 1.0).toFloat())
+            particleColor.put(Random.nextDouble(0.1, 1.0).toFloat())
+            particleColor.put(Random.nextDouble(0.1, 1.0).toFloat())
+            particleColor.put(Random.nextDouble(0.1, 1.0).toFloat())
         }
         particlePos.flip()
         particleProp.flip()
-        particleCol.flip()
-        val particleGlyphs = ParticleGlyphs(particlePos, particleProp, particleCol, false)
+        particleColor.flip()
+        val particleGlyphs = ParticleGlyphs(particlePos, particleProp, particleColor, false)
         particleGlyphs.name = "Particles"
         scene.addChild(particleGlyphs)
-
-
 
         var camStartDist = 10.0f
         val camStart = Vector3f(0.0f, 0.0f, camStartDist)
@@ -82,6 +80,50 @@ class ParticleGlyphsExample : SceneryBase("ParticleGlyphsExample") {
         cam.perspectiveCamera(60.0f, windowWidth, windowHeight)
         cam.target = Vector3f(0.0f, 0.0f, 0.0f)
         scene.addChild(cam)
+
+
+        val velocity = 0.10
+        thread {
+            while(!scene.initialized) {
+                Thread.sleep(200)
+            }
+
+            while (running) {
+
+                val particleNewPos = FloatBuffer.allocate(particleNumber * 3)
+                val particleNewColor = FloatBuffer.allocate(particleNumber * 3)
+                val particleNewProp = FloatBuffer.allocate(particleNumber * 2)
+                particlePos.position(0)
+                particleColor.position(0)
+                particleProp.position(0)
+                repeat(particleNumber)
+                {
+                    particleNewPos.put(particlePos.get() + Random.nextDouble(-velocity, velocity).toFloat())
+                    particleNewPos.put(particlePos.get() + Random.nextDouble(-velocity, velocity).toFloat())
+                    particleNewPos.put(particlePos.get() + Random.nextDouble(-velocity, velocity).toFloat())
+
+                    particleNewColor.put(particleColor.get() + Random.nextDouble(0.1, 0.2).toFloat())
+                    particleNewColor.put(particleColor.get() + Random.nextDouble(0.1, 0.2).toFloat())
+                    particleNewColor.put(particleColor.get() + Random.nextDouble(0.1, 0.2).toFloat())
+
+                    particleNewProp.put(particleProp.get() + Random.nextDouble(-velocity, velocity).toFloat())
+                    particleNewProp.put(0.0f)
+
+                }
+                particleNewPos.flip()
+                particleNewColor.flip()
+                particleNewProp.flip()
+
+                particlePos.flip()
+                particleColor.flip()
+                particleProp.flip()
+                particleGlyphs.updatePositions(particleNewPos)
+                particleGlyphs.updateProperties(particleNewProp, particleNewColor)
+
+                Thread.sleep(50)
+            }
+        }
+
     }
 
     companion object {

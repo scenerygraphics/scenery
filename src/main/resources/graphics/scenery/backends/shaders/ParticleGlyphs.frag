@@ -86,6 +86,7 @@ void main() {
         vec3 intersection = RaySphereIntersection(CamPosition, SilhouetteCorner.Position, SilhouetteCorner.Center, SilhouetteCorner.Properties.x);
         vec3 normal = normalize((intersection - SilhouetteCorner.Center));
 
+        //recalculate the depth buffer (quad fragment position -> sphere fragment position), by appliying the view projection matrix and bringing it to clip space
         vec4 intersectionVP = Camera.VP * vec4(intersection, 1.0);
         float depth = (intersectionVP.z / intersectionVP.w);
         gl_FragDepth = depth;

@@ -98,4 +98,21 @@ class ParticleGlyphs @JvmOverloads constructor(var positions: FloatBuffer, var p
 
         return newMaterial
     }
+
+    fun updatePositions(positions: FloatBuffer)
+    {
+        geometry{
+            vertices = positions
+            dirty = true
+        }
+    }
+
+    fun updateProperties(propertiesRadius: FloatBuffer, propertiesColor: FloatBuffer)
+    {
+        geometry{
+            normals = propertiesColor
+            texcoords = propertiesRadius
+            dirty = true
+        }
+    }
 }
