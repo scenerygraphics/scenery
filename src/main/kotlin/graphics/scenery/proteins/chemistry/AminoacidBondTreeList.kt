@@ -88,7 +88,7 @@ class AminoTreeList {
         //Proline
         val caP = MoleculeTree("C", 1, "Ca")
         val cP = MoleculeTree("C", 1, "C")
-        val oP = MoleculeTree("O", 2)
+        val oP = MoleculeTree("O", 2, "O")
         val oP2 = MoleculeTree("O", 1, "OH")
         val hOP2 = MoleculeTree("H", 1, "HO")
         oP2.addMolecule(hOP2)
@@ -297,7 +297,7 @@ class AminoTreeList {
         val ca = MoleculeTree("C", 1, "Ca")
         ca.addhydrogen(1)
         val c = MoleculeTree("C", 1, "C")
-        val o1c = MoleculeTree("O", 2)
+        val o1c = MoleculeTree("O", 2, "O")
         val o2c = MoleculeTree("O", 1, "OH")
         o2c.addMolecule(MoleculeTree("H", 1, "HO"))
         c.addMolecule(o1c)

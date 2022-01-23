@@ -59,7 +59,6 @@ class AminoChainer(val scene: Scene, proteinID: String = "", private val hmd: Op
     override fun click(x: Int, y: Int) {
 
         if(aminoacidNumbersStored < aminoAcidAbbreviations.size && aminoacidNumbersStored != 0) {
-            addAminoAcidPicture()
             thread {
                 if(showAnimation) {
                     val previous = scene.getChildrenByName("poly${aminoacidNumbersStored - 1}").first()
@@ -137,17 +136,6 @@ class AminoChainer(val scene: Scene, proteinID: String = "", private val hmd: Op
                     scene.removeChild(h)
                     scene.removeChild(o)
                     scene.removeChild(h2)
-                    val n = aaMesh.findChildrenByNameRecursive("N$aminoacidNumbersStored")
-                    val nPos = Vector3f(n?.spatialOrNull()!!.position)
-                    val c = previous.findChildrenByNameRecursive("C${aminoacidNumbersStored - 1}")
-                    val cPos = Vector3f(c?.spatialOrNull()!!.position)
-
-                    for (i in 0 until 1000) {
-                        //n.spatialOrNull()!!.position = nPos + randomVectorWiggle
-                        //c.spatialOrNull()!!.position = cPos + randomVectorWiggle
-                        Thread.sleep(2)
-                    }
-
                 }
                 val aminoTree =
                     AminoTreeList().aminoMap[aminoAcidAbbreviations[aminoacidNumbersStored]]
@@ -176,47 +164,54 @@ class AminoChainer(val scene: Scene, proteinID: String = "", private val hmd: Op
                 scene.update
                 aminoacidNumbersStored += 1
                 currentCode = aminoAcidAbbreviations[aminoacidNumbersStored]
-                val poly2 = scene.find("poly${aminoacidNumbersStored-1}")!!
-                val cPrev = poly2.findChildrenByNameRecursive("C" + "${aminoacidNumbersStored - 1}")!!
-                val cPrevPos = Vector3f(cPrev.spatialOrNull()!!.world.getColumn(3, Vector3f()))
-                val ohPrev = poly2.findChildrenByNameRecursive("OH" + "${aminoacidNumbersStored - 1}")!!
-                val ohPrevPos = Vector3f(ohPrev.spatialOrNull()!!.world.getColumn(3, Vector3f()))
-                val nextAAPos = Vector3f(ohPrevPos).add(Vector3f(ohPrevPos).sub(cPrevPos).normalize().mul(1.61f))
-                val nextAA = AminoTreeList().aminoMap[aminoAcidAbbreviations[aminoacidNumbersStored]]
-                nextAA!!.renameAminoAcidIds(aminoacidNumbersStored)
-                val nextAAMesh = MoleculeMesh(nextAA)
-                nextAAMesh.name = "aa$aminoacidNumbersStored"
-                nextAAMesh.spatial().position = nextAAPos
-                scene.addChild(nextAAMesh)
+                addNextAminoAcid()
+                addAminoAcidPicture()
                 }
             }
             else {
                 if (aminoacidNumbersStored == 0) {
                     aminoacidNumbersStored += 1
                     currentCode = aminoAcidAbbreviations[1]
-                    val previous = scene.getChildrenByName("poly${aminoacidNumbersStored - 1}").first()
-                    val nextAA = AminoTreeList().aminoMap[aminoAcidAbbreviations[aminoacidNumbersStored]]
-                    nextAA!!.renameAminoAcidIds(aminoacidNumbersStored)
-                    val nextAAMesh = MoleculeMesh(nextAA)
-                    nextAAMesh.name = "aa$aminoacidNumbersStored"
-                    val cPrev = previous.findChildrenByNameRecursive("C" + "${aminoacidNumbersStored - 1}")
-                        ?.spatialOrNull()!!.world.getColumn(3, Vector3f())
-                    val ohPrev = previous.findChildrenByNameRecursive("OH" + "${aminoacidNumbersStored - 1}")
-                        ?.spatialOrNull()!!.world.getColumn(3, Vector3f())
-                    val nextAAPos = Vector3f(ohPrev).add(Vector3f(ohPrev).sub(cPrev).normalize().mul(1.61f))
-                    nextAAMesh.spatial().position = nextAAPos
-                    scene.addChild(nextAAMesh)
+                    addNextAminoAcid()
+                    addAminoAcidPicture()
                 }
             }
         }
 
+    private fun addNextAminoAcid() {
+        val poly = scene.find("poly${aminoacidNumbersStored-1}")!!
+        poly.spatialOrNull()?.updateWorld(true)
+        val cPrev = poly.findChildrenByNameRecursive("C" + "${aminoacidNumbersStored - 1}")!!
+        val cPrevPos = Vector3f(cPrev.spatialOrNull()!!.world.getColumn(3, Vector3f()))
+        val ohPrev = poly.findChildrenByNameRecursive("OH" + "${aminoacidNumbersStored - 1}")!!
+        val ohPrevPos = Vector3f(ohPrev.spatialOrNull()!!.world.getColumn(3, Vector3f()))
+        val nextAAPos = Vector3f(ohPrevPos).add(Vector3f(ohPrevPos).sub(cPrevPos).normalize().mul(1.61f))
+        val nextAA = AminoTreeList().aminoMap[aminoAcidAbbreviations[aminoacidNumbersStored]]
+        nextAA!!.renameAminoAcidIds(aminoacidNumbersStored)
+        val nextAAMesh = MoleculeMesh(nextAA)
+        nextAAMesh.name = "aa$aminoacidNumbersStored"
+        nextAAMesh.spatial().position = nextAAPos
+        scene.addChild(nextAAMesh)
+    }
+
     private fun addAminoAcidPicture() {
         val aaImage = allImages[aminoAcidAbbreviations[aminoacidNumbersStored]]
         //remove old pic
-        scene.removeChild("le box du win")
+        val previous = scene.find("box${aminoacidNumbersStored-1}")
+        if (previous != null) {
+            val poly = scene.find("poly${aminoacidNumbersStored-1}")!!
+            val cPosition = Vector3f(poly.findChildrenByNameRecursive("C${aminoacidNumbersStored-1}")!!.spatialOrNull()!!.world.getColumn(3, Vector3f()))
+            val oPosition = Vector3f(poly.findChildrenByNameRecursive("O${aminoacidNumbersStored-1}")!!.spatialOrNull()!!.world.getColumn(3, Vector3f()))
+            val dir = Vector3f(oPosition).sub(cPosition).normalize()
+            val newBoxPos = Vector3f(oPosition).add(Vector3f(dir).mul(2f))
+            previous.update.add {
+                previous.spatialOrNull()!!.position = newBoxPos
+            }
+        }
+
         //add the amino acid picture
         val box = Box(Vector3f(1.0f, 1.0f, 1.0f))
-        box.name = "le box du win"
+        box.name = "box$aminoacidNumbersStored"
         val height = aaImage?.height
         val width = aaImage?.width
         if (width != null && height != null) {
