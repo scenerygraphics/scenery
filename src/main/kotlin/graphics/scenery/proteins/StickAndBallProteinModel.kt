@@ -75,6 +75,7 @@ class StickAndBallProteinModel(protein: Protein, spaceFilling: Boolean = false,
             }
             val cInstancedNode = InstancedNode(c)
 
+
             val bonds: MutableList<Bond> = atoms.filter { it.bonds != null }.flatMap { it.bonds }.toMutableList()
 
             val aminoList = AminoList()
@@ -109,9 +110,9 @@ class StickAndBallProteinModel(protein: Protein, spaceFilling: Boolean = false,
                     val group2 = it[1]
                     group1.atoms.forEach { atom1 ->
                         group2.atoms.forEach { atom2 ->
-                            if (atom1.name == "CA" && atom2.name == "N") {
+                            if (atom1.name == "C" && atom2.name == "N") {
                                 val bond = BondImpl(atom1, atom2, 1)
-                                bonds.add(bond)
+                                //bonds.add(bond)
                             }
                         }
                     }
