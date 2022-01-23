@@ -112,7 +112,7 @@ class StickAndBallProteinModel(protein: Protein, spaceFilling: Boolean = false,
                         group2.atoms.forEach { atom2 ->
                             if (atom1.name == "C" && atom2.name == "N") {
                                 val bond = BondImpl(atom1, atom2, 1)
-                                //bonds.add(bond)
+                                bonds.add(bond)
                             }
                         }
                     }

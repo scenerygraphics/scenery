@@ -195,7 +195,7 @@ class AminoChainer(val scene: Scene, val proteinID: List<String> = listOf(""), p
                 scene.update
                 aminoacidNumbersStored += 1
                 currentCode = aminoAcidAbbreviations[aminoacidNumbersStored]
-                if(seenRes >= 3) {
+                if(seenRes >= 10) {
                     removePrevious()
                     thread {
                         removePrevious()
@@ -288,7 +288,7 @@ class AminoChainer(val scene: Scene, val proteinID: List<String> = listOf(""), p
                     previous.spatialOrNull()!!.position = newBoxPos
                     if(i == aminoacidNumbersStored-1) {
                         val aaImage = allImages[aminoAcidAbbreviations[aminoacidNumbersStored-1]]
-                        previous.spatialOrNull()!!.scale = Vector3f((aaImage!!.width/aaImage!!.height).toFloat()/3f, 1/3f, 0f)
+                        previous.spatialOrNull()!!.scale = Vector3f((aaImage!!.width/aaImage!!.height.toFloat())/2f, 1/2f, 0f)
                     }
                 }
             }
