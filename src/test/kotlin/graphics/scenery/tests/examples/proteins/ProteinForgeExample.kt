@@ -105,7 +105,7 @@ class ProteinForgeExample: SceneryBase("RainbowRibbon", windowWidth = 1280, wind
             }
 
             thread {
-                Thread.sleep(10000)
+                Thread.sleep(20000)
                 cam.showMessage("Hello friend!", duration= 6000)
                 Thread.sleep(6000)
                 cam.showMessage("Welcome to the protein forge!", duration = 6000)
