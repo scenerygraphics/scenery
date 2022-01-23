@@ -276,7 +276,7 @@ class CyclicMoleculeMesh(val root: MoleculeTreeCycle, initialAngle: Float, basis
     private fun addCylinder(atomPosition1: Vector3f, atomPosition2: Vector3f, bondOrder: Int = 1, perpendicular: Vector3f = Vector3f(),
         id: String, black: Boolean = false) {
         if(bondOrder == 1) { val c = Cylinder(0.025f, 1.0f, 10)
-        c.ifMaterial { diffuse = if(black) { Vector3f(0f, 0f, 0f)
+        c.ifMaterial { diffuse = if(black) { Vector3f(0.25f, 0.25f, 0.25f)
         } else { Vector3f(1.0f, 1.0f, 1.0f) } }
         c.spatial().orientBetweenPoints(atomPosition1, atomPosition2,rescale = true, reposition = true)
             c.name = id+"Cyl"
@@ -289,7 +289,7 @@ class CyclicMoleculeMesh(val root: MoleculeTreeCycle, initialAngle: Float, basis
             val positionChild1 = Vector3f(atomPosition2).add(Vector3f(perpendicular).mul(scalar))
             val positionChild2 = Vector3f(atomPosition2).sub(Vector3f(perpendicular).mul(scalar))
             val c1 = Cylinder(0.025f, 1.0f, 10)
-            c1.ifMaterial { diffuse = if(black) { Vector3f(0f, 0f, 0f)
+            c1.ifMaterial { diffuse = if(black) { Vector3f(0.25f, 0.25f, 0.25f)
             } else { Vector3f(1.0f, 1.0f, 1.0f) } }
             c1.spatial().orientBetweenPoints(positionRoot1, positionChild1, true, true)
             c1.name = id+"Cyl"

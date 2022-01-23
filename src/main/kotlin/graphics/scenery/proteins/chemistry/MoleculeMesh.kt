@@ -93,6 +93,10 @@ class MoleculeMesh(val moleculeTree: MoleculeTree, var comingFromCycle: Boolean 
                     Icosphere( 0.05f, 2) }
                     else { Icosphere(0.15f, 2) }
                 elementSphere.name = boundMolecule.id
+                val black = ((bondTree.id.contains("Ca") && boundMolecule.id.contains("N") ||
+                        (bondTree.id.contains("N") && boundMolecule.id.contains("C"))
+                        || (bondTree.id.contains("C") && boundMolecule.id.contains("N")) ||
+                        (bondTree.id.contains("Ca") && boundMolecule.id.contains("C"))))
                 if (element.color != null) { elementSphere.ifMaterial { diffuse = element.color } }
                 val computedPosition = if(comingFromCycle) { positions[index+1].position }
                 else { positions[index].position }
@@ -116,11 +120,8 @@ class MoleculeMesh(val moleculeTree: MoleculeTree, var comingFromCycle: Boolean 
                     val c = Cylinder(0.025f, 1.0f, 10)
                     c.name = boundMolecule.id + "Cyl"
                     c.ifMaterial {
-                        diffuse = if((bondTree.id.contains("Ca") && boundMolecule.id.contains("N") ||
-                                (bondTree.id.contains("N") && boundMolecule.id.contains("C"))
-                                || (bondTree.id.contains("C") && boundMolecule.id.contains("N")) ||
-                                (bondTree.id.contains("Ca") && boundMolecule.id.contains("C")))) {
-                            Vector3f(0f, 0f, 0f)
+                        diffuse = if(black) {
+                            Vector3f(0.25f, 0.25f, 0.25f)
 
                         } else {
                             Vector3f(1.0f, 1.0f, 1.0f)
