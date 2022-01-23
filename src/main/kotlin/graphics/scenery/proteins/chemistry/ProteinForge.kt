@@ -12,6 +12,8 @@ import graphics.scenery.flythroughs.IUPACAbbreviationsReader
 import graphics.scenery.flythroughs.ProteinBuilder
 import graphics.scenery.numerics.Random
 import graphics.scenery.proteins.Protein
+import graphics.scenery.proteins.RibbonDiagram
+import graphics.scenery.proteins.StickAndBallProteinModel
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.Image
 import graphics.scenery.utils.extensions.minus
@@ -24,40 +26,59 @@ import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
 
-class AminoChainer(val scene: Scene, proteinID: String = "", private val hmd: OpenVRHMD? = null, val controller: Spatial? = null): ClickBehaviour {
+class AminoChainer(val scene: Scene, val proteinID: List<String> = listOf(""), private val hmd: OpenVRHMD? = null, val controller: Spatial? = null): ClickBehaviour {
     var showAnimation = true
-    private val protein = Protein.fromID(proteinID)
-    private val structure = protein.structure
-    private val chains = structure.chains
-    val groups = chains.flatMap { it.atomGroups }.filter { it.isAminoAcid }
-    private val aminoAcidAbbreviations = ArrayList<String>(groups.size)
+    private var aminoAcidAbbreviations = ArrayList<String>()
     val abbreviations = IUPACAbbreviationsReader().abbrevations
-    private var aminoacidNumbersStored = 0
-    var rootAA: MoleculeTree
+    var aminoacidNumbersStored = 0
+    private set
+    private var rootAA = MoleculeTree("", 0)
     private var nextAaUP = true
-    var currentCode: String
+    var currentCode = ""
     // all images of amino acids
     private val allImages = fillUpImageMap(abbreviations)
     private val camera = scene.activeObserver
+    private var seenRes = 0
+    private var nextProteinIndex = 0
 
     init {
-        groups.forEach { residue ->
-            abbreviations.forEach {
-                if(it.value.threeLetters == residue.pdbName) {
-                    aminoAcidAbbreviations.add(it.value.threeLetters)
+        updateProtein()
+    }
+
+    private fun updateProtein() {
+        if(proteinID.drop(nextProteinIndex).isEmpty()) {
+            camera?.showMessage("No proteins left, congratulations!")
+        }
+        else {
+            val protein = Protein.fromID(proteinID[nextProteinIndex])
+            val structure = protein.structure
+            val chains = structure.chains
+            val groups = chains.flatMap { it.atomGroups }.filter { it.isAminoAcid }
+            aminoAcidAbbreviations = ArrayList<String>()
+            groups.forEach { residue ->
+                abbreviations.forEach {
+                    if(it.value.threeLetters == residue.pdbName) {
+                        aminoAcidAbbreviations.add(it.value.threeLetters)
+                    }
                 }
             }
+            rootAA = AminoTreeList().aminoMap[aminoAcidAbbreviations.first()]!!
+            rootAA.renameAminoAcidIds(0)
+            val root = MoleculeMesh(rootAA)
+            root.name = "poly0"
+            scene.addChild(root)
+            currentCode = aminoAcidAbbreviations.first()
+            aminoacidNumbersStored = 0
+            addAminoAcidPicture()
+            seenRes = 0
+            nextProteinIndex += 1
         }
-        rootAA = AminoTreeList().aminoMap[aminoAcidAbbreviations.first()]!!
-        rootAA.renameAminoAcidIds(aminoacidNumbersStored)
-        val root = MoleculeMesh(rootAA)
-        root.name = "poly$aminoacidNumbersStored"
-        scene.addChild(root)
-        currentCode = aminoAcidAbbreviations.first()
-        addAminoAcidPicture()
     }
     override fun click(x: Int, y: Int) {
-
+        if(proteinID.drop(nextProteinIndex).isEmpty()) {
+            camera?.showMessage("No proteins left, congratulations!")
+        }
+        else {
         if(aminoacidNumbersStored < aminoAcidAbbreviations.size && aminoacidNumbersStored != 0) {
             thread {
                 if(showAnimation) {
@@ -136,6 +157,16 @@ class AminoChainer(val scene: Scene, proteinID: String = "", private val hmd: Op
                     scene.removeChild(h)
                     scene.removeChild(o)
                     scene.removeChild(h2)
+                    val nitrogen  = aaMesh.findChildrenByNameRecursive("N$aminoacidNumbersStored")
+                    val carbon = previous.findChildrenByNameRecursive("C${aminoacidNumbersStored - 1}")
+                    val nitrogenPos = nitrogen!!.spatialOrNull()!!.world.getColumn(3, Vector3f())
+                    val carbonPos = carbon!!.spatialOrNull()!!.world.getColumn(3, Vector3f())
+                    val directionVector = Vector3f(carbonPos).sub(nitrogenPos).normalize()
+                    val step = Vector3f(directionVector).mul(1/600f)
+                    for (i in 0 until 1000) {
+                        aaMesh.spatialOrNull()!!.position = Vector3f(aaMesh.spatialOrNull()!!.position) + step
+                        Thread.sleep(2)
+                    }
                 }
                 val aminoTree =
                     AminoTreeList().aminoMap[aminoAcidAbbreviations[aminoacidNumbersStored]]
@@ -164,8 +195,38 @@ class AminoChainer(val scene: Scene, proteinID: String = "", private val hmd: Op
                 scene.update
                 aminoacidNumbersStored += 1
                 currentCode = aminoAcidAbbreviations[aminoacidNumbersStored]
-                addNextAminoAcid()
-                addAminoAcidPicture()
+                if(seenRes >= 3) {
+                    removePrevious()
+                    thread {
+                        removePrevious()
+                        camera?.showMessage("You correctly identified...", duration = 2500)
+                        Thread.sleep(2500)
+                        camera?.showMessage("10 residues!", duration = 2500)
+                        val protein = Protein.fromID(proteinID[nextProteinIndex-1])
+                        val stickAndBall = StickAndBallProteinModel(protein)
+                        stickAndBall.spatial().scale = Vector3f(0.5f, 0.5f, 0.5f)
+                        Thread.sleep(2500)
+                        scene.addChild(stickAndBall)
+                        camera?.showMessage("Those are all residues", duration = 5000)
+                        Thread.sleep(5000)
+                        camera?.showMessage("After they folded into a 3D structure.", duration = 5000)
+                        Thread.sleep(20000)
+                        camera?.showMessage("This is the structure's ribbon diagram", duration = 5000)
+                        scene.removeChild(stickAndBall)
+                        val ribbon = RibbonDiagram(protein)
+                        scene.addChild(ribbon)
+                        Thread.sleep(20000)
+                        scene.removeChild(ribbon)
+                        camera?.showMessage("To the next one!", duration = 3000)
+                        Thread.sleep(3000)
+                        updateProtein()
+                    }
+                }
+                else {
+                    addNextAminoAcid()
+                    addAminoAcidPicture()
+                    seenRes += 1
+                }
                 }
             }
             else {
@@ -174,9 +235,21 @@ class AminoChainer(val scene: Scene, proteinID: String = "", private val hmd: Op
                     currentCode = aminoAcidAbbreviations[1]
                     addNextAminoAcid()
                     addAminoAcidPicture()
+                    seenRes +=1
                 }
             }
         }
+    }
+
+    private fun removePrevious() {
+        //remove all previous children
+        for(i in 0 .. aminoacidNumbersStored) {
+            scene.removeChild("poly$i")
+            scene.removeChild("box$i")
+            scene.removeChild("aa$i")
+            scene.update
+        }
+    }
 
     private fun addNextAminoAcid() {
         val poly = scene.find("poly${aminoacidNumbersStored-1}")!!
@@ -196,16 +269,28 @@ class AminoChainer(val scene: Scene, proteinID: String = "", private val hmd: Op
 
     private fun addAminoAcidPicture() {
         val aaImage = allImages[aminoAcidAbbreviations[aminoacidNumbersStored]]
-        //remove old pic
-        val previous = scene.find("box${aminoacidNumbersStored-1}")
-        if (previous != null) {
-            val poly = scene.find("poly${aminoacidNumbersStored-1}")!!
-            val cPosition = Vector3f(poly.findChildrenByNameRecursive("C${aminoacidNumbersStored-1}")!!.spatialOrNull()!!.world.getColumn(3, Vector3f()))
-            val oPosition = Vector3f(poly.findChildrenByNameRecursive("O${aminoacidNumbersStored-1}")!!.spatialOrNull()!!.world.getColumn(3, Vector3f()))
-            val dir = Vector3f(oPosition).sub(cPosition).normalize()
-            val newBoxPos = Vector3f(oPosition).add(Vector3f(dir).mul(2f))
-            previous.update.add {
-                previous.spatialOrNull()!!.position = newBoxPos
+        //update positions of old pictures
+        for(i in 0 until aminoacidNumbersStored) {
+            val previous = scene.find("box${i}")
+            if (previous != null) {
+                val poly = scene.find("poly${aminoacidNumbersStored-1}")!!
+                val cPosition = Vector3f(
+                    poly.findChildrenByNameRecursive("C${i}")!!
+                        .spatialOrNull()!!.world.getColumn(3, Vector3f())
+                )
+                val oPosition = Vector3f(
+                    poly.findChildrenByNameRecursive("O${i}")!!
+                        .spatialOrNull()!!.world.getColumn(3, Vector3f())
+                )
+                val dir = Vector3f(oPosition).sub(cPosition).normalize()
+                val newBoxPos = Vector3f(oPosition).add(Vector3f(dir).mul(0.625f))
+                previous.update.add {
+                    previous.spatialOrNull()!!.position = newBoxPos
+                    if(i == aminoacidNumbersStored-1) {
+                        val aaImage = allImages[aminoAcidAbbreviations[aminoacidNumbersStored-1]]
+                        previous.spatialOrNull()!!.scale = Vector3f((aaImage!!.width/aaImage!!.height).toFloat()/3f, 1/3f, 0f)
+                    }
+                }
             }
         }
 
@@ -273,7 +358,7 @@ class AminoChainer(val scene: Scene, proteinID: String = "", private val hmd: Op
         }
 
         fun createAndSet(
-            proteinID: String, scene: Scene, hmd: OpenVRHMD, button: List<OpenVRHMD.OpenVRButton>,
+            proteinID: List<String>, scene: Scene, hmd: OpenVRHMD, button: List<OpenVRHMD.OpenVRButton>,
             controllerSide: List<TrackerRole>
         ) {
             hmd.events.onDeviceConnect.add { _, device, _ ->
