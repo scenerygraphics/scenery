@@ -22,11 +22,12 @@ import kotlin.system.exitProcess
  *
  * @author Justin Buerger <burger@mpi-cbg.de>
  */
-class AminoChainerExample: SceneryBase("RainbowRibbon", windowWidth = 1280, windowHeight = 720) {
+class ProteinForgeExample: SceneryBase("RainbowRibbon", windowWidth = 1280, windowHeight = 720) {
     private lateinit var hmd: OpenVRHMD
     private lateinit var hullbox: Box
     private val lightCount = 20
     private val positionRange = 250f
+    private var showPictures = true
 
         override fun init() {
 
@@ -153,7 +154,7 @@ class AminoChainerExample: SceneryBase("RainbowRibbon", windowWidth = 1280, wind
         }
         VRPress.createAndSet(scene, hmd, listOf(OpenVRHMD.OpenVRButton.Trigger), listOf(TrackerRole.LeftHand,TrackerRole.RightHand))
         VRTouch.createAndSet(scene,hmd, listOf(TrackerRole.RightHand,TrackerRole.LeftHand),true)
-        AminoChainer.createAndSet("3nir", scene, hmd, listOf(OpenVRHMD.OpenVRButton.A), listOf(TrackerRole.LeftHand))
+        AminoChainer.createAndSet(listOf("3nir", "9rnt", "2zzm"), scene, hmd, listOf(OpenVRHMD.OpenVRButton.A), listOf(TrackerRole.LeftHand))
 
         val iupacAbbreviations = IUPACAbbreviationsReader().abbrevations
 
@@ -168,6 +169,7 @@ class AminoChainerExample: SceneryBase("RainbowRibbon", windowWidth = 1280, wind
                 numberOfTries = if (currentCode == threeLetterCode) {
                     //x and y are never used in this implementation of click(), hence, 1 is chosen as an arbitrary value
                     builder.click(1, 1)
+                    val box = scene.find("box${builder.aminoacidNumbersStored-1}")!!
                     0
                 } else {
                     when(numberOfTries) {
@@ -220,6 +222,24 @@ class AminoChainerExample: SceneryBase("RainbowRibbon", windowWidth = 1280, wind
             val message = if(builder.showAnimation) { "Animation eneabled!" } else { "Animation disabled!" }
             scene.activeObserver?.showMessage( message, duration = 5000)
         }
+
+        fun aminoAcidPictures() {
+            showPictures = !showPictures
+            val builder = hmd.getBehaviour("aaForge") as AminoChainer
+            val aminoNumber = builder.aminoacidNumbersStored
+            for(i in 0 until aminoNumber) {
+                val box = scene.find("box$i")!!
+                if(!showPictures) {
+                    box.update.add {
+                        box.visible = showPictures
+                    }
+                }
+                else { box.visible = true }
+                scene.update
+            }
+            val message = if(showPictures) {"Pictures visible!"} else {"Pictures not visible"}
+            scene.activeObserver?.showMessage( message, duration = 5000)
+        }
         //show amino acid overview
         hmd.addBehaviour("amino_overview", ClickBehaviour { _, _ ->
             scene.children.first { it.name == "aaOverview" }.visible = !scene.children.first { it.name == "aaOverview" }.visible
@@ -229,14 +249,19 @@ class AminoChainerExample: SceneryBase("RainbowRibbon", windowWidth = 1280, wind
         hmd.addBehaviour("animation", ClickBehaviour { _, _ ->
            animation()
         })
+        hmd.addBehaviour("picsVisible", ClickBehaviour { _, _ ->
+            aminoAcidPictures()
+        })
         hmd.addKeyBinding("animation", TrackerRole.LeftHand, OpenVRHMD.OpenVRButton.Side)
+        setupCameraModeSwitching()
+        hmd.addKeyBinding("picsVisible", TrackerRole.LeftHand, OpenVRHMD.OpenVRButton.Trigger)
         setupCameraModeSwitching()
     }
 
     companion object {
         @JvmStatic
         fun main(args: Array<String>) {
-            AminoChainerExample().main()
+            ProteinForgeExample().main()
         }
     }
 }
