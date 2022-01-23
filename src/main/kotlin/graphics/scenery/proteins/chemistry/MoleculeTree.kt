@@ -125,5 +125,6 @@ open class MoleculeTree(val element: String, val bondOrder: Int = 0, var id: Str
         this.findIdAndChangeIt("HN", "HN$number")
         this.findIdAndChangeIt("HNB", "HNB$number")
         this.findIdAndChangeIt("C", "C$number")
+        this.findIdAndChangeIt("O", "O$number")
     }
 }
