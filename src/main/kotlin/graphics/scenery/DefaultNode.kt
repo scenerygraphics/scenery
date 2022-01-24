@@ -34,8 +34,8 @@ open class DefaultNode(name: String = "Node") : Node, Networkable {
             return field
         }
     override var discoveryBarrier = false
-    override var update: ArrayList<() -> Unit> = ArrayList()
-    override var postUpdate: ArrayList<() -> Unit> = ArrayList()
+    @Transient override var update: ArrayList<() -> Unit> = ArrayList()
+    @Transient override var postUpdate: ArrayList<() -> Unit> = ArrayList()
     override var visible: Boolean = true
         set(v) {
             children.forEach { it.visible = v }
