@@ -15,7 +15,7 @@ import java.lang.Float.min
 import kotlin.reflect.KClass
 import kotlin.reflect.KProperty
 
-open class DefaultSpatial(private var node: Node = DefaultNode()) : Spatial {
+open class DefaultSpatial(@Transient private var node: Node = DefaultNode()) : Spatial {
     override var world: Matrix4f = Matrix4f().identity()
         set(value) {
             propertyChanged(::world, field, value)
@@ -413,11 +413,15 @@ open class DefaultSpatial(private var node: Node = DefaultNode()) : Spatial {
         setPosition(position.toFloat(), d)
     }
 
+    override fun getAdditionalUpdateData(): Any? {
+        return node.networkID
+    }
+
     override fun update(fresh: Networkable, getNetworkable: (Int) -> Networkable, additionalData: Any?) {
         if (fresh !is DefaultSpatial) {
             throw IllegalArgumentException("Got wrong type to update ${this::class.simpleName} ")
         }
-        this.node = getNetworkable(fresh.node.networkID) as Node
+        this.node = getNetworkable(additionalData as Int) as Node
 
         position = fresh.position
         rotation = fresh.rotation
