@@ -1,7 +1,6 @@
 package graphics.scenery.volumes
 
 import graphics.scenery.DefaultNode
-import graphics.scenery.Hub
 import graphics.scenery.attribute.spatial.HasSpatial
 import graphics.scenery.net.Networkable
 import graphics.scenery.utils.extensions.minus
@@ -17,7 +16,7 @@ import java.util.concurrent.atomic.AtomicInteger
  */
 class SlicingPlane(name: String = "Slicing Plane") : DefaultNode(name), HasSpatial {
     // kryo doesn't understand kotlins empty constructors
-    constructor():this("Slicing Plane")
+    constructor() : this("Slicing Plane")
 
     var slicedVolumes = listOf<Volume>()
         private set
@@ -62,14 +61,6 @@ class SlicingPlane(name: String = "Slicing Plane") : DefaultNode(name), HasSpati
         updateModifiedAt()
     }
 
-    override fun getConstructorParameters(): Any? {
-        return 8
-    }
-
-    override fun constructWithParameters(parameters: Any, hub: Hub): Networkable {
-        return SlicingPlane()
-    }
-
     override fun update(fresh: Networkable, getNetworkable: (Int) -> Networkable, additionalData: Any?) {
         super.update(fresh, getNetworkable, additionalData)
         if (fresh !is SlicingPlane) {
@@ -77,6 +68,14 @@ class SlicingPlane(name: String = "Slicing Plane") : DefaultNode(name), HasSpati
         }
 
         val freshTargets = fresh.slicedVolumes.map { getNetworkable(it.networkID) as Volume }.toList()
+
+        if (this == fresh) {
+            // this happens at initialisation because we are not using a our constructor but the deserialized object
+            // from the server
+            this.slicedVolumes = emptyList()
+            // now also fresh.slicedVolumes is empty
+        }
+
         // remove old
         slicedVolumes.forEach { oldVolume ->
             if (!freshTargets.any { it.networkID == oldVolume.networkID }) {
