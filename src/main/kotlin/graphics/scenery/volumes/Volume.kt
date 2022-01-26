@@ -56,6 +56,7 @@ import java.io.FileInputStream
 import java.nio.ByteBuffer
 import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.Paths
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.abs
@@ -300,7 +301,7 @@ open class Volume(
         }
 
         return when(fileSource.type){
-            VolumeFileSource.VolumeType.DEFAULT -> Volume.fromPath(Path.of(path), hub)
+            VolumeFileSource.VolumeType.DEFAULT -> Volume.fromPath(Paths.get(path), hub)
             VolumeFileSource.VolumeType.SPIM -> Volume.fromSpimFile(path, VolumeViewerOptions.options())
         }
     }
