@@ -119,6 +119,15 @@ val isRelease: Boolean
 
 tasks {
 
+    test {
+        jvmArgs(
+            listOf("--add-opens=java.base/java.lang=ALL-UNNAMED",
+                "--add-opens=java.base/java.util=ALL-UNNAMED",
+                "--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED",
+                "--add-opens=java.base/java.nio=ALL-UNNAMED",
+                "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED"))
+    }
+
     withType<KotlinCompile>().all {
         val version = System.getProperty("java.version").substringBefore('.').toInt()
         val default = if (version == 1) "1.8" else "$version"
