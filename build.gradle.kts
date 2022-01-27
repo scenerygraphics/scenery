@@ -119,13 +119,18 @@ val isRelease: Boolean
 
 tasks {
 
-    test {
-        jvmArgs(
-            listOf("--add-opens=java.base/java.lang=ALL-UNNAMED",
-                "--add-opens=java.base/java.util=ALL-UNNAMED",
-                "--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED",
-                "--add-opens=java.base/java.nio=ALL-UNNAMED",
-                "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED"))
+    if(java.toolchain.languageVersion != JavaLanguageVersion.of("8")) {
+        test {
+            jvmArgs(
+                listOf(
+                    "--add-opens=java.base/java.lang=ALL-UNNAMED",
+                    "--add-opens=java.base/java.util=ALL-UNNAMED",
+                    "--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED",
+                    "--add-opens=java.base/java.nio=ALL-UNNAMED",
+                    "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED"
+                )
+            )
+        }
     }
 
     withType<KotlinCompile>().all {
