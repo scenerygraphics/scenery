@@ -145,19 +145,19 @@ tasks {
         }
     }
 
+    val default = getLocalJavaVersion().first
     withType<KotlinCompile>().all {
-        val default = getLocalJavaVersion().first
         kotlinOptions {
             jvmTarget = project.properties["jvmTarget"]?.toString() ?: default
             freeCompilerArgs += listOf("-Xinline-classes", "-Xopt-in=kotlin.RequiresOptIn")
         }
         sourceCompatibility = project.properties["sourceCompatibility"]?.toString() ?: default
+        targetCompatibility = project.properties["sourceCompatibility"]?.toString() ?: default
     }
 
     java {
-        toolchain {
-            languageVersion.set(JavaLanguageVersion.of(8))
-        }
+        sourceCompatibility = JavaVersion.toVersion(project.properties["sourceCompatibility"]?.toString() ?: default)
+        targetCompatibility = JavaVersion.toVersion(project.properties["sourceCompatibility"]?.toString() ?: default)
     }
 
     withType<GenerateMavenPom>().configureEach {
