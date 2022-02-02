@@ -119,8 +119,20 @@ val isRelease: Boolean
 
 tasks {
 
-    if(java.toolchain.languageVersion != JavaLanguageVersion.of("8")) {
-        test {
+    fun getLocalJavaVersion(): Pair<String, Int> {
+        val versionString = System.getProperty("java.version")
+        val split = versionString.split(".")
+        return if(versionString.startsWith("1.")) {
+            "${split[0]}.${split[1]}" to split[1].toInt()
+        } else {
+            split[0] to split[0].toInt()
+        }
+    }
+
+    test {
+        println("java version is ${JavaVersion.current()}")
+        if(JavaVersion.current() > JavaVersion.VERSION_1_8) {
+            System.err.println("Java Module System available, adding required --add-opens options")
             jvmArgs(
                 listOf(
                     "--add-opens=java.base/java.lang=ALL-UNNAMED",
@@ -134,13 +146,18 @@ tasks {
     }
 
     withType<KotlinCompile>().all {
-        val version = System.getProperty("java.version").substringBefore('.').toInt()
-        val default = if (version == 1) "1.8" else "$version"
+        val default = getLocalJavaVersion().first
         kotlinOptions {
             jvmTarget = project.properties["jvmTarget"]?.toString() ?: default
             freeCompilerArgs += listOf("-Xinline-classes", "-Xopt-in=kotlin.RequiresOptIn")
         }
         sourceCompatibility = project.properties["sourceCompatibility"]?.toString() ?: default
+    }
+
+    java {
+        toolchain {
+            languageVersion.set(JavaLanguageVersion.of(8))
+        }
     }
 
     withType<GenerateMavenPom>().configureEach {
