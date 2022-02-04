@@ -36,7 +36,7 @@ class CroppingExample : SceneryBase("Volume Cropping example", 1280, 720) {
     lateinit var volume: Volume
     lateinit var volume2: Volume
     var slicingPlanes = mapOf<SlicingPlane,Animator>()
-    val additionalVolumes = false
+    val additionalVolumes = true
     var additionalAnimators = emptyList<Animator>()
 
 
@@ -72,18 +72,7 @@ class CroppingExample : SceneryBase("Volume Cropping example", 1280, 720) {
         val imp: ImagePlus = IJ.openImage("https://imagej.nih.gov/ij/images/t1-head.zip")
         val img: Img<UnsignedShortType> = ImageJFunctions.wrapShort(imp)
 
-
-        val t1head = Volume.forNetwork(
-            Volume.VolumeFileSource(
-                Volume.VolumeFileSource.VolumePath.Given("C:\\Users\\JanCasus\\volumes\\t1-head.tif"),
-                Volume.VolumeFileSource.VolumeType.DEFAULT),
-            hub)
-        volume=t1head
-        volume.spatial {
-            position.y = 5f
-            scale=Vector3f(20f)
-        }
-        //volume = Volume.fromRAI(img, UnsignedShortType(), AxisOrder.DEFAULT, "T1 head", hub, VolumeViewerOptions())
+        volume = Volume.fromRAI(img, UnsignedShortType(), AxisOrder.DEFAULT, "T1 head", hub, VolumeViewerOptions())
         volume.transferFunction = TransferFunction.ramp(0.001f, 0.5f, 0.3f)
         scene.addChild(volume)
 
