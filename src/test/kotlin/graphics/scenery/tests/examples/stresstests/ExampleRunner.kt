@@ -128,6 +128,7 @@ class ExampleRunner(
             "BigAndSmallVolumeExample",
             "VolumeSamplingExample",
             "VideoRecordingExample",
+            "NetworkVolumeExample",
             // these examples don't render anything
             "AttributesExample",
             "DFTExample",
