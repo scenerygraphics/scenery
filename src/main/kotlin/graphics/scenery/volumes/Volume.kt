@@ -82,7 +82,7 @@ open class Volume(
 
     // without this line the *java* serialization framework kryo does not recognize the parameter-less constructor
     // and uses dark magic to instanciate this class
-    constructor():this(VolumeDataSource.NullSource)
+    constructor() : this(VolumeDataSource.NullSource)
 
     var constructionParameters: VolumeFileSource? = null
 
@@ -106,6 +106,7 @@ open class Volume(
     @Transient
     val converterSetups = ArrayList<ConverterSetup>()
     var timepointCount: Int
+
     @Transient
     val viewerState: ViewerState
 
@@ -179,7 +180,7 @@ open class Volume(
     var currentTimepoint: Int
         get() {
             // despite IDEAs warning this might be not be false if kryo uses its de/serialization magic
-            return if (dataSource == null || dataSource is VolumeDataSource.NullSource){
+            return if (dataSource == null || dataSource is VolumeDataSource.NullSource) {
                 0
             } else {
                 viewerState.currentTimepoint
@@ -208,15 +209,16 @@ open class Volume(
         object NullSource : VolumeDataSource()
     }
 
-    class VolumeFileSource(val path: VolumePath, val type: VolumeType){
+    class VolumeFileSource(val path: VolumePath, val type: VolumeType) {
 
-        sealed class VolumePath(){
-            class Given(val filePath: String): VolumePath()
-            class Settings(val settingsName: String = "VolumeFile"): VolumePath()
-            class Resource(val path: String): VolumePath()
-            class Online(val url: String): VolumePath()
+        sealed class VolumePath {
+            class Given(val filePath: String) : VolumePath()
+            class Settings(val settingsName: String = "VolumeFile") : VolumePath()
+            class Resource(val path: String) : VolumePath()
+            class Online(val url: String) : VolumePath()
         }
-        enum class VolumeType(){
+
+        enum class VolumeType {
             DEFAULT, SPIM, ZIP
         }
     }
@@ -257,7 +259,7 @@ open class Volume(
             }
 
             is VolumeDataSource.RAISource<*> -> {
-                val raiSource = (dataSource as VolumeDataSource.RAISource<*>)
+                val raiSource = dataSource
                 timepointCount = raiSource.numTimepoints
                 // FIXME: bigdataviewer-core > 9.0.0 doesn't enjoy having 0 timepoints anymore :-(
                 // We tell it here to have a least one, so far no ill side effects from that
@@ -294,18 +296,19 @@ open class Volume(
     }
 
     override fun constructWithParameters(parameters: Any, hub: Hub): Networkable {
-        val fileSource = parameters as? VolumeFileSource ?:
-            throw IllegalArgumentException()
+        val fileSource = parameters as? VolumeFileSource ?: throw IllegalArgumentException()
 
-        val path = when(fileSource.path){
+        val path = when (fileSource.path) {
             is VolumeFileSource.VolumePath.Given -> fileSource.path.filePath
             is VolumeFileSource.VolumePath.Settings -> {
                 Settings().get<String?>(fileSource.path.settingsName)
-                    ?: throw IllegalArgumentException("Setting ${fileSource.path.settingsName} not set! " +
-                        "Can't load volume.")
+                    ?: throw IllegalArgumentException(
+                        "Setting ${fileSource.path.settingsName} not set! " +
+                            "Can't load volume."
+                    )
             }
             is VolumeFileSource.VolumePath.Online -> {
-                if (fileSource.type != VolumeFileSource.VolumeType.ZIP){
+                if (fileSource.type != VolumeFileSource.VolumeType.ZIP) {
                     throw IllegalArgumentException("Only ZIP type supported for online volumes.")
                 }
                 fileSource.path.url
@@ -316,7 +319,7 @@ open class Volume(
             }
         }
 
-        return when(fileSource.type){
+        return when (fileSource.type) {
             VolumeFileSource.VolumeType.DEFAULT -> fromPath(Paths.get(path), hub)
             VolumeFileSource.VolumeType.SPIM -> fromSpimFile(path, VolumeViewerOptions.options())
             VolumeFileSource.VolumeType.ZIP -> {
@@ -469,10 +472,11 @@ open class Volume(
         }
 
         @JvmStatic
-        fun forNetwork(params: VolumeFileSource,
-                       hub: Hub
+        fun forNetwork(
+            params: VolumeFileSource,
+            hub: Hub
         ): Volume {
-            val vol = Volume().constructWithParameters(params,hub) as Volume
+            val vol = Volume().constructWithParameters(params, hub) as Volume
             vol.constructionParameters = params
             return vol
         }

@@ -7,7 +7,6 @@ import graphics.scenery.Scene
 import graphics.scenery.net.NetworkEvent
 import graphics.scenery.net.NodePublisher
 import graphics.scenery.net.NodeSubscriber
-import graphics.scenery.tests.examples.cluster.SimpleNetworkExample
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.Image
 import graphics.scenery.volumes.TransferFunction
@@ -15,10 +14,7 @@ import graphics.scenery.volumes.Volume
 import org.joml.Vector3f
 import org.junit.After
 import org.junit.Before
-import org.junit.BeforeClass
 import org.junit.Test
-import kotlin.reflect.full.declaredMemberFunctions
-import kotlin.reflect.jvm.isAccessible
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 
@@ -44,7 +40,7 @@ class PubSubTest {
         scene2 = Scene()
         scene2.name = "scene2"
 
-        pub = NodePublisher(hub1, "tcp://127.0.0.1",6660)
+        pub = NodePublisher(hub1, "tcp://127.0.0.1", 6660)
         hub1.add(pub)
 
         sub = NodeSubscriber(hub2, ip = "tcp://127.0.0.1", 6660)
@@ -64,21 +60,21 @@ class PubSubTest {
      * Instead of network use debug listen and publish
      */
     @Test
-    fun integrationSkippingNetwork(){
+    fun integrationSkippingNetwork() {
 
         val box = Box()
         box.name = "box"
         scene1.addChild(box)
 
         pub.register(scene1)
-        pub.debugPublish (sub::debugListen )
+        pub.debugPublish(sub::debugListen)
         sub.networkUpdate(scene2)
 
         assert(scene2.find("box") != null)
     }
 
     @Test
-    fun integrationSceneName(){
+    fun integrationSceneName() {
 
         scene1.name = "lol"
 
@@ -92,7 +88,7 @@ class PubSubTest {
     }
 
     @Test
-    fun integrationSimpleChildNode(){
+    fun integrationSimpleChildNode() {
 
         val box = Box()
         box.name = "box"
@@ -108,33 +104,33 @@ class PubSubTest {
     }
 
     @Test
-    fun integrationNodeRemoval(){
+    fun integrationNodeRemoval() {
         val node1 = DefaultNode("eins")
         scene1.addChild(node1)
         pub.register(scene1)
-        pub.debugPublish {sub.debugListen(serializeAndDeserialize(it) as NetworkEvent)}
+        pub.debugPublish { sub.debugListen(serializeAndDeserialize(it) as NetworkEvent) }
         sub.networkUpdate(scene2)
         assert(scene2.find("eins") != null)
 
         scene1.removeChild(node1)
-        pub.debugPublish {sub.debugListen(serializeAndDeserialize(it) as NetworkEvent)}
+        pub.debugPublish { sub.debugListen(serializeAndDeserialize(it) as NetworkEvent) }
         sub.networkUpdate(scene1)
         assert(scene2.find("eins") == null)
     }
 
     @Test
-    fun integrationMoveNodeInGraph(){
+    fun integrationMoveNodeInGraph() {
         val node1 = DefaultNode("eins")
         val node2 = DefaultNode("zwei")
         scene1.addChild(node1)
         scene1.addChild(node2)
         pub.register(scene1)
-        pub.debugPublish {sub.debugListen(serializeAndDeserialize(it) as NetworkEvent)}
+        pub.debugPublish { sub.debugListen(serializeAndDeserialize(it) as NetworkEvent) }
         sub.networkUpdate(scene2)
 
         scene1.removeChild(node2)
         node1.addChild(node2)
-        pub.debugPublish {sub.debugListen(serializeAndDeserialize(it) as NetworkEvent)}
+        pub.debugPublish { sub.debugListen(serializeAndDeserialize(it) as NetworkEvent) }
         sub.networkUpdate(scene1)
 
         val zwei = scene2.find("zwei")
@@ -157,7 +153,7 @@ class PubSubTest {
         sub.networkUpdate(scene2)
 
         node2.setMaterial(node1.material())
-        pub.debugPublish {sub.debugListen(serializeAndDeserialize(it) as NetworkEvent)}
+        pub.debugPublish { sub.debugListen(serializeAndDeserialize(it) as NetworkEvent) }
         sub.networkUpdate(scene1)
 
         val eins = scene2.find("eins")
@@ -167,7 +163,7 @@ class PubSubTest {
     }
 
     @Test
-    fun additionalDataTexture(){
+    fun additionalDataTexture() {
         val box = Box(Vector3f(1.0f, 1.0f, 1.0f))
         box.name = "box"
         box.material {
@@ -190,7 +186,7 @@ class PubSubTest {
     }
 
     @Test
-    fun update(){
+    fun update() {
 
         val box = Box()
         box.name = "box"
@@ -202,8 +198,8 @@ class PubSubTest {
         Thread.sleep(1000)
         sub.networkUpdate(scene2)
 
-        box.spatial().position = Vector3f(0f,0f,3f)
-        box.material().diffuse = Vector3f(0f,0f,3f)
+        box.spatial().position = Vector3f(0f, 0f, 3f)
+        box.material().diffuse = Vector3f(0f, 0f, 3f)
         pub.scanForChanges()
         Thread.sleep(1000)
         sub.networkUpdate(scene2)
@@ -216,12 +212,14 @@ class PubSubTest {
     }
 
     @Test
-    fun volume(){
+    fun volume() {
         val volume = Volume.forNetwork(
             Volume.VolumeFileSource(
                 Volume.VolumeFileSource.VolumePath.Resource("/graphics/scenery/tests/unit/volume/t1-head.zip"),
-                Volume.VolumeFileSource.VolumeType.ZIP),
-            hub1)
+                Volume.VolumeFileSource.VolumeType.ZIP
+            ),
+            hub1
+        )
         volume.name = "vol"
         volume.transferFunction = TransferFunction.ramp(0.5f)
         scene1.addChild(volume)
@@ -239,7 +237,7 @@ class PubSubTest {
         assert(testVol1.transferFunction.serialise() == volume.transferFunction.serialise())
 
         // update
-        volume.spatial().position = Vector3f(0f,0f,3f)
+        volume.spatial().position = Vector3f(0f, 0f, 3f)
         volume.transferFunction = TransferFunction.ramp(0.75f)
 
         pub.scanForChanges()
