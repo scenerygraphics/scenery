@@ -34,12 +34,16 @@ import graphics.scenery.numerics.OpenSimplexNoise
 import graphics.scenery.numerics.Random
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.volumes.Volume.VolumeDataSource.SpimDataMinimalSource
+import ij.IJ
+import ij.ImagePlus
 import io.scif.SCIFIO
 import io.scif.util.FormatTools
 import mpicbg.spim.data.generic.sequence.AbstractSequenceDescription
 import mpicbg.spim.data.sequence.FinalVoxelDimensions
 import net.imglib2.RandomAccessibleInterval
 import net.imglib2.Volatile
+import net.imglib2.img.Img
+import net.imglib2.img.display.imagej.ImageJFunctions
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.numeric.ARGBType
 import net.imglib2.type.numeric.NumericType
@@ -209,7 +213,8 @@ open class Volume(
         sealed class VolumePath(){
             class Given(val filePath: String): VolumePath()
             class Settings(val settingsName: String = "VolumeFile"): VolumePath()
-            //class Online
+            class Resource(val path: String): VolumePath()
+            class Online(val url: String): VolumePath()
         }
         enum class VolumeType(){
             DEFAULT,SPIM
@@ -298,6 +303,13 @@ open class Volume(
                     ?: throw IllegalArgumentException("Setting ${fileSource.path.settingsName} not set! " +
                         "Can't load volume.")
             }
+            is VolumeFileSource.VolumePath.Online -> {
+                val imp: ImagePlus = IJ.openImage(fileSource.path.url)
+                val img: Img<UnsignedShortType> = ImageJFunctions.wrapShort(imp)
+
+                return fromRAI(img, UnsignedShortType(), AxisOrder.DEFAULT, name, hub, VolumeViewerOptions())
+            }
+            is VolumeFileSource.VolumePath.Resource -> TODO()
         }
 
         return when(fileSource.type){
@@ -825,7 +837,7 @@ open class Volume(
 
     }
 
-    open class VolumeSpatial(val volume: Volume) : DefaultSpatial(volume) {
+    open class VolumeSpatial(volume: Volume) : DefaultSpatial(volume) {
         /**
          * Composes the world matrix for this volume node, taken voxel size and [pixelToWorldRatio]
          * into account.
@@ -835,11 +847,11 @@ open class Volume(
             if (position != null && rotation != null && scale != null) {
                 model.translation(position)
                 model.mul(Matrix4f().set(this.rotation))
-                if (volume.origin == Origin.Center) {
+                if ((node as? Volume)?.origin == Origin.Center) {
                     model.translate(-2.0f, -2.0f, -2.0f)
                 }
                 model.scale(scale)
-                model.scale(volume.localScale())
+                model.scale((node as? Volume)?.localScale())
             }
         }
     }
