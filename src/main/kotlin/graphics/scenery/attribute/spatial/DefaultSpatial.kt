@@ -15,7 +15,7 @@ import java.lang.Float.min
 import kotlin.reflect.KClass
 import kotlin.reflect.KProperty
 
-open class DefaultSpatial(@Transient private var node: Node = DefaultNode()) : Spatial {
+open class DefaultSpatial(@Transient protected var node: Node = DefaultNode()) : Spatial {
     override var world: Matrix4f = Matrix4f().identity()
         set(value) {
             propertyChanged(::world, field, value)

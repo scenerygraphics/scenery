@@ -28,12 +28,6 @@ class NetworkVolumeExample: SceneryBase("SpimData Rendering example", 1280, 720,
                 Volume.VolumeFileSource.VolumeType.SPIM),
             hub)
 
-        val t1head = Volume.forNetwork(
-            Volume.VolumeFileSource(
-                Volume.VolumeFileSource.VolumePath.Given("C:\\Users\\JanCasus\\volumes\\t1-head.tif"),
-                Volume.VolumeFileSource.VolumeType.DEFAULT),
-            hub)
-
         // add the following, adjusted to you path to VM Options of both client and Server :
         // -Dscenery.VolumeFile="C:\\Users\\JanCasus\\volumes\\t1-head.tif"
         val consoleParam = Volume.forNetwork(
@@ -42,7 +36,13 @@ class NetworkVolumeExample: SceneryBase("SpimData Rendering example", 1280, 720,
                 Volume.VolumeFileSource.VolumeType.DEFAULT),
             hub)
 
-        volume = consoleParam
+        val online = Volume.forNetwork(
+            Volume.VolumeFileSource(
+                Volume.VolumeFileSource.VolumePath.Online("https://imagej.nih.gov/ij/images/t1-head.zip"),
+                Volume.VolumeFileSource.VolumeType.DEFAULT),
+            hub)
+
+        volume = online
         scene.addChild(volume)
         volume.transferFunction = TransferFunction.ramp(0.001f, 0.5f, 0.3f)
         volume.spatial {
