@@ -217,7 +217,7 @@ open class Volume(
             class Online(val url: String): VolumePath()
         }
         enum class VolumeType(){
-            DEFAULT,SPIM
+            DEFAULT, SPIM, ZIP
         }
     }
 
@@ -279,6 +279,7 @@ open class Volume(
 
     override fun update(fresh: Networkable, getNetworkable: (Int) -> Networkable, additionalData: Any?) {
         if (fresh !is Volume) throw IllegalArgumentException("Update called with object of foreign class")
+        super.update(fresh, getNetworkable, additionalData)
         this.colormap = fresh.colormap
         this.transferFunction = fresh.transferFunction
         this.slicingMode = fresh.slicingMode
@@ -304,17 +305,26 @@ open class Volume(
                         "Can't load volume.")
             }
             is VolumeFileSource.VolumePath.Online -> {
-                val imp: ImagePlus = IJ.openImage(fileSource.path.url)
+                if (fileSource.type != VolumeFileSource.VolumeType.ZIP){
+                    throw IllegalArgumentException("Only ZIP type supported for online volumes.")
+                }
+                fileSource.path.url
+            }
+            is VolumeFileSource.VolumePath.Resource -> {
+                javaClass.getResource(fileSource.path.path)?.path
+                    ?: throw IllegalArgumentException("Cant find resource ${fileSource.path.path}")
+            }
+        }
+
+        return when(fileSource.type){
+            VolumeFileSource.VolumeType.DEFAULT -> fromPath(Paths.get(path), hub)
+            VolumeFileSource.VolumeType.SPIM -> fromSpimFile(path, VolumeViewerOptions.options())
+            VolumeFileSource.VolumeType.ZIP -> {
+                val imp: ImagePlus = IJ.openImage(path)
                 val img: Img<UnsignedShortType> = ImageJFunctions.wrapShort(imp)
 
                 return fromRAI(img, UnsignedShortType(), AxisOrder.DEFAULT, name, hub, VolumeViewerOptions())
             }
-            is VolumeFileSource.VolumePath.Resource -> TODO()
-        }
-
-        return when(fileSource.type){
-            VolumeFileSource.VolumeType.DEFAULT -> Volume.fromPath(Paths.get(path), hub)
-            VolumeFileSource.VolumeType.SPIM -> Volume.fromSpimFile(path, VolumeViewerOptions.options())
         }
     }
 
