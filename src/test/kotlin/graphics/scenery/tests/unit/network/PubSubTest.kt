@@ -10,6 +10,8 @@ import graphics.scenery.net.NodeSubscriber
 import graphics.scenery.tests.examples.cluster.SimpleNetworkExample
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.Image
+import graphics.scenery.volumes.TransferFunction
+import graphics.scenery.volumes.Volume
 import org.joml.Vector3f
 import org.junit.After
 import org.junit.Before
@@ -199,6 +201,7 @@ class PubSubTest {
         pub.register(scene1)
         Thread.sleep(1000)
         sub.networkUpdate(scene2)
+
         box.spatial().position = Vector3f(0f,0f,3f)
         box.material().diffuse = Vector3f(0f,0f,3f)
         pub.scanForChanges()
@@ -210,6 +213,45 @@ class PubSubTest {
         assert(box2 != null) { "precondition not met => Flaky or See previous tests" }
         assertEquals(3f, box2?.spatialOrNull()?.position?.z)
         assertEquals(3f, mat?.diffuse?.z)
+    }
+
+    @Test
+    fun volume(){
+        val volume = Volume.forNetwork(
+            Volume.VolumeFileSource(
+                Volume.VolumeFileSource.VolumePath.Resource("/graphics/scenery/tests/unit/volume/t1-head.zip"),
+                Volume.VolumeFileSource.VolumeType.ZIP),
+            hub1)
+        volume.name = "vol"
+        volume.transferFunction = TransferFunction.ramp(0.5f)
+        scene1.addChild(volume)
+
+        sub.startListening()
+        pub.startPublishing()
+        pub.register(scene1)
+        Thread.sleep(1000)
+        sub.networkUpdate(scene2)
+
+        // assert initial sync
+        val testVol1 = scene2.find("vol") as? Volume
+        assertNotNull(testVol1)
+        assert(testVol1.dataSource !is Volume.VolumeDataSource.NullSource)
+        assert(testVol1.transferFunction.serialise() == volume.transferFunction.serialise())
+
+        // update
+        volume.spatial().position = Vector3f(0f,0f,3f)
+        volume.transferFunction = TransferFunction.ramp(0.75f)
+
+        pub.scanForChanges()
+        Thread.sleep(1000)
+        sub.networkUpdate(scene2)
+
+
+        // assert update sync
+        val testVol2 = scene2.find("vol") as? Volume
+        assertNotNull(testVol2)
+        assert(testVol2.transferFunction.serialise() == volume.transferFunction.serialise())
+        assert(testVol2.spatial().position.z == 3f)
     }
 }
 
