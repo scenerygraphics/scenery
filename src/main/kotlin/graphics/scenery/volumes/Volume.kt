@@ -212,14 +212,42 @@ open class Volume(
     class VolumeFileSource(val path: VolumePath, val type: VolumeType) {
 
         sealed class VolumePath {
+            /**
+             *  for fixed file path witch are the same on every machine (eg. network drive or something like "C://Volume")
+             */
             class Given(val filePath: String) : VolumePath()
+
+            /**
+             * the file path is taken from the VM parameter "-DVolumeFile=$path$" of each individual application
+             */
             class Settings(val settingsName: String = "VolumeFile") : VolumePath()
+
+            /**
+             * the volume is a resource reachable by the java loader
+             */
             class Resource(val path: String) : VolumePath()
+
+            /**
+             * volume reachable by an url. Only supports [VolumeType.ZIP].
+             */
             class Online(val url: String) : VolumePath()
         }
 
         enum class VolumeType {
-            DEFAULT, SPIM, ZIP
+            /**
+             * tiff file format
+             */
+            DEFAULT,
+
+            /**
+             * Spim xml data format
+             */
+            SPIM,
+
+            /**
+             * Zipped tiff stack format. Additionally, might support everything [IJ.openImage] can open.
+             */
+            ZIP
         }
     }
 
