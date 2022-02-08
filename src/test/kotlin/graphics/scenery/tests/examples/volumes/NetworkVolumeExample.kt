@@ -1,18 +1,17 @@
 package graphics.scenery.tests.examples.volumes
 
 import graphics.scenery.*
-import org.joml.Vector3f
-import graphics.scenery.backends.Renderer
 import graphics.scenery.attribute.material.Material
+import graphics.scenery.backends.Renderer
 import graphics.scenery.utils.extensions.timesAssign
 import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.Volume
-
+import org.joml.Vector3f
 import kotlin.concurrent.thread
 
 /**
  */
-class NetworkVolumeExample: SceneryBase("SpimData Rendering example", 1280, 720,false) {
+class NetworkVolumeExample : SceneryBase("SpimData Rendering example", 1280, 720, false) {
     lateinit var volume: Volume
 
     override fun init() {
@@ -23,26 +22,30 @@ class NetworkVolumeExample: SceneryBase("SpimData Rendering example", 1280, 720,
         //"C:\\Users\\JanCasus\\volumes\\ct-scan.tif"
 
         val drosophila = Volume.VolumeFileSource(
-                Volume.VolumeFileSource.VolumePath.Given("C:\\Users\\JanCasus\\volumes\\drosophila.xml"),
-                Volume.VolumeFileSource.VolumeType.SPIM)
+            Volume.VolumeFileSource.VolumePath.Given("C:\\Users\\JanCasus\\volumes\\drosophila.xml"),
+            Volume.VolumeFileSource.VolumeType.SPIM
+        )
 
         // add the following, adjusted to you path to VM Options of both client and Server :
         // -Dscenery.VolumeFile="C:\\Users\\JanCasus\\volumes\\t1-head.tif"
         val console = Volume.VolumeFileSource(
-                Volume.VolumeFileSource.VolumePath.Settings(),
-                Volume.VolumeFileSource.VolumeType.DEFAULT)
+            Volume.VolumeFileSource.VolumePath.Settings(),
+            Volume.VolumeFileSource.VolumeType.DEFAULT
+        )
 
-        val online =  Volume.VolumeFileSource(
-                Volume.VolumeFileSource.VolumePath.Online("https://imagej.nih.gov/ij/images/t1-head.zip"),
-                Volume.VolumeFileSource.VolumeType.ZIP)
+        val online = Volume.VolumeFileSource(
+            Volume.VolumeFileSource.VolumePath.Online("https://imagej.nih.gov/ij/images/t1-head.zip"),
+            Volume.VolumeFileSource.VolumeType.ZIP
+        )
 
         val resource = Volume.VolumeFileSource(
-                Volume.VolumeFileSource.VolumePath.Resource("/graphics/scenery/tests/unit/volume/t1-head.zip"),
-                Volume.VolumeFileSource.VolumeType.ZIP)
+            Volume.VolumeFileSource.VolumePath.Resource("/graphics/scenery/tests/unit/volume/t1-head.zip"),
+            Volume.VolumeFileSource.VolumeType.ZIP
+        )
 
         val choice = resource
 
-        volume = Volume.forNetwork(choice,hub)
+        volume = Volume.forNetwork(choice, hub)
         scene.addChild(volume)
         volume.transferFunction = TransferFunction.ramp(0.001f, 0.5f, 0.3f)
         volume.spatial {
