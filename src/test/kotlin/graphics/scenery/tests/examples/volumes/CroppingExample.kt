@@ -69,10 +69,12 @@ class CroppingExample : SceneryBase("Volume Cropping example", 1280, 720) {
         origin.material().diffuse = Vector3f(0.8f, 0.0f, 0.0f)
         scene.addChild(origin)
 
-        val imp: ImagePlus = IJ.openImage("https://imagej.nih.gov/ij/images/t1-head.zip")
-        val img: Img<UnsignedShortType> = ImageJFunctions.wrapShort(imp)
+        val resource = Volume.VolumeFileSource(
+            Volume.VolumeFileSource.VolumePath.Resource("/graphics/scenery/tests/unit/volume/t1-head.zip"),
+            Volume.VolumeFileSource.VolumeType.ZIP
+        )
 
-        volume = Volume.fromRAI(img, UnsignedShortType(), AxisOrder.DEFAULT, "T1 head", hub, VolumeViewerOptions())
+        volume = Volume.forNetwork(resource, hub)
         volume.transferFunction = TransferFunction.ramp(0.001f, 0.5f, 0.3f)
         scene.addChild(volume)
 
@@ -88,8 +90,7 @@ class CroppingExample : SceneryBase("Volume Cropping example", 1280, 720) {
                     scale = Vector3f(0.5f)
                 }
 
-                volume2 =
-                    Volume.fromRAI(img, UnsignedShortType(), AxisOrder.DEFAULT, "T1 head", hub, VolumeViewerOptions())
+                volume2 = Volume.forNetwork(resource, hub)
                 volume2.transferFunction = TransferFunction.ramp(0.001f, 0.5f, 0.3f)
                 vol2Pivot.addChild(volume2)
 

@@ -126,6 +126,7 @@ class ExampleRunner(
             "ReaderExample",
             "BDVExample",
             "BigAndSmallVolumeExample",
+            "CroppingExample",
             "VolumeSamplingExample",
             "VideoRecordingExample",
             "NetworkVolumeExample",
