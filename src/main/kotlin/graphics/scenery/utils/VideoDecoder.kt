@@ -2,6 +2,7 @@ package graphics.scenery.utils
 
 import org.bytedeco.ffmpeg.avcodec.AVPacket
 import org.bytedeco.ffmpeg.avformat.AVFormatContext
+import org.bytedeco.ffmpeg.avutil.AVDictionary
 import org.bytedeco.ffmpeg.avutil.AVFrame
 import org.bytedeco.ffmpeg.global.avcodec.*
 import org.bytedeco.ffmpeg.global.avformat.*
@@ -36,6 +37,9 @@ class VideoDecoder(val filename: String) {
     private val pFrameRGB = av_frame_alloc()
     private val frm = av_frame_alloc()
 
+    //temp
+    private val dict: AVDictionary? = null
+
     var nextFrameExists = true
     var videoWidth: Int = 0
     var videoHeight: Int = 0
@@ -47,6 +51,13 @@ class VideoDecoder(val filename: String) {
 
     init {
 
+        // added by Konrad
+        @Suppress("DEPRECATION")
+        av_register_all()
+        @Suppress("DEPRECATION")
+        avcodec_register_all()
+        avformat_network_init()
+
         thread {
             if (logger.isDebugEnabled) {
                 av_log_set_level(AV_LOG_TRACE)
@@ -55,6 +66,7 @@ class VideoDecoder(val filename: String) {
             }
 
             val videoPath = filename
+
 
             ret = avformat_open_input(formatContext, videoPath, null, null)
             if (ret < 0) {
