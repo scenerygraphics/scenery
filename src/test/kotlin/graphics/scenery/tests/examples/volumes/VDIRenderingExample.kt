@@ -23,13 +23,13 @@ import kotlin.concurrent.thread
 /**
  * @author Aryaman Gupta <argupta@mpi-cbg.de>
  */
-class VDIRenderingExample : SceneryBase("VDI Rendering", 1848, 1016, wantREPL = false) {
+class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = false) {
 
     val separateDepth = true
     val profileMemoryAccesses = false
     val compute = RichNode()
-    val closeAfter = 15000L
-    val dataset = "Stagbeetle"
+    val closeAfter = 1500000L
+    val dataset = "Backpack"
 
     override fun init () {
 
@@ -111,6 +111,8 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1848, 1016, wantREPL = 
         val opNumIntersect = MemoryUtil.memCalloc(windowWidth * windowHeight * 4)
         val opNumEmptyL = MemoryUtil.memCalloc(windowWidth * windowHeight * 4)
         val opNumSkipped = MemoryUtil.memCalloc(windowWidth * windowHeight * 4)
+        val opNumBefFirst = MemoryUtil.memCalloc(windowWidth * windowHeight * 4)
+        val opNumAfterLast = MemoryUtil.memCalloc(windowWidth * windowHeight * 4)
 
         var colBuffer: ByteBuffer
         var depthBuffer: ByteBuffer?
@@ -136,6 +138,8 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1848, 1016, wantREPL = 
                 textures["NumIntersectedSupsegs"] = Texture.fromImage(Image(opNumIntersect, windowWidth, windowHeight), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), channels = 1, mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
                 textures["NumEmptyLists"] = Texture.fromImage(Image(opNumEmptyL, windowWidth, windowHeight), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), channels = 1, mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
                 textures["NumNotIntLists"] = Texture.fromImage(Image(opNumSkipped, windowWidth, windowHeight), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), channels = 1, mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+                textures["EmptyBeforeFirst"] = Texture.fromImage(Image(opNumBefFirst, windowWidth, windowHeight), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), channels = 1, mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+                textures["EmptyAfterLast"] = Texture.fromImage(Image(opNumAfterLast, windowWidth, windowHeight), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), channels = 1, mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
             }
 
             textures["InputVDI"] = Texture(Vector3i(numLayers*numSupersegments, windowHeight, windowWidth), 4, contents = colBuffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
@@ -193,6 +197,8 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1848, 1016, wantREPL = 
         var numIntersectedBuff: ByteBuffer?
         var numSkippedBuff: ByteBuffer?
         var numEmptyLBuff: ByteBuffer?
+        var emptyBeforeFirstBuff: ByteBuffer?
+        var emptyAfterLastBuff: ByteBuffer?
 
         while(renderer?.firstImageReady == false) {
             Thread.sleep(50)
@@ -217,12 +223,20 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1848, 1016, wantREPL = 
         val fourthAtomic = AtomicInteger(0)
         (renderer as? VulkanRenderer)?.persistentTextureRequests?.add (numNotIntLists to fourthAtomic)
 
+        val emptyBeforeFirst = compute.material().textures["EmptyBeforeFirst"]!!
+        val fifthAtomic = AtomicInteger(0)
+        (renderer as? VulkanRenderer)?.persistentTextureRequests?.add (numNotIntLists to fifthAtomic)
+
+        val emptyAfterLast = compute.material().textures["EmptyAfterLast"]!!
+        val sixthAtomic = AtomicInteger(0)
+        (renderer as? VulkanRenderer)?.persistentTextureRequests?.add (numNotIntLists to sixthAtomic)
+
         var prevAtomic = firstAtomic.get()
 
         var cnt = 0
         while (true) {
             while(firstAtomic.get() == prevAtomic) {
-                Thread.sleep(5)
+                Thread.sleep(20)
             }
             prevAtomic = firstAtomic.get()
 
@@ -230,12 +244,16 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1848, 1016, wantREPL = 
             numIntersectedBuff = numIntersectedSupsegs.contents
             numEmptyLBuff = numEmptyLists.contents
             numSkippedBuff = numNotIntLists.contents
+            emptyBeforeFirstBuff = emptyBeforeFirst.contents
+            emptyAfterLastBuff = emptyAfterLast.contents
 
             if(cnt < 2) {
                 SystemHelpers.dumpToFile(numStepsBuff!!, "num_steps.raw")
                 SystemHelpers.dumpToFile(numSkippedBuff!!, "num_skipped.raw")
                 SystemHelpers.dumpToFile(numIntersectedBuff!!, "num_intersected.raw")
                 SystemHelpers.dumpToFile(numEmptyLBuff!!, "num_empty_lists.raw")
+                SystemHelpers.dumpToFile(emptyBeforeFirstBuff!!, "num_empty_before_first.raw")
+                SystemHelpers.dumpToFile(emptyAfterLastBuff!!, "num_empty_after_last.raw")
                 logger.info("Wrote VDI $cnt")
             }
             cnt++

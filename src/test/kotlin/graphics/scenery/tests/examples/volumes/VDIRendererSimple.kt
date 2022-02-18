@@ -19,7 +19,7 @@ import kotlin.concurrent.thread
 
 val separateDepth = true
 
-class VDIRendererSimple : SceneryBase("SimpleVDIRenderer", 1280, 720) {
+class VDIRendererSimple : SceneryBase("SimpleVDIRenderer", 1832, 1016) {
     override fun init() {
 
         val numLayers = if(separateDepth) {
@@ -36,11 +36,11 @@ class VDIRendererSimple : SceneryBase("SimpleVDIRenderer", 1280, 720) {
         val buff: ByteArray
         val depthBuff: ByteArray?
 
-        val dataset = "Backpack"
+        val dataset = "Stagbeetle"
 
         if(separateDepth) {
-            buff = File("/home/aryaman/Repositories/scenery-insitu/${dataset}VDI10_ndc_col").readBytes()
-            depthBuff = File("/home/aryaman/Repositories/scenery-insitu/${dataset}VDI10_ndc_depth").readBytes()
+            buff = File("/home/aryaman/Repositories/scenery-insitu/${dataset}VDI4_ndc_col").readBytes()
+            depthBuff = File("/home/aryaman/Repositories/scenery-insitu/${dataset}VDI4_ndc_depth").readBytes()
 
         } else {
             buff = File("/home/aryaman/Repositories/scenery-insitu/VDI10_ndc").readBytes()
@@ -77,7 +77,7 @@ class VDIRendererSimple : SceneryBase("SimpleVDIRenderer", 1280, 720) {
 
         compute.metadata["ComputeMetadata"] = ComputeMetadata(
             workSizes = Vector3i(windowWidth, windowHeight, 1),
-            invocationType = InvocationType.Once
+            invocationType = InvocationType.Permanent
         )
         compute.material().textures["InputVDI"] = Texture(Vector3i(numSupersegments*numLayers, windowHeight, windowWidth), 4, contents = colBuffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
         compute.material().textures["DepthVDI"] = Texture(Vector3i(2*numSupersegments, windowHeight, windowWidth), 1, contents = depthBuffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType())
