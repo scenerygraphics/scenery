@@ -46,6 +46,14 @@ layout(push_constant) uniform currentEye_t {
 } currentEye;
 #pragma scenery endverbatim
 
+#define USE_PRINTF 1
+
+#if USE_PRINTF
+#extension GL_EXT_debug_printf : enable
+#endif
+
+ivec2 debug_pixel = ivec2(460, 350);
+
 // intersect ray with a box
 // http://www.siggraph.org/education/materials/HyperGraph/raytrace/rtinter3.htm
 void intersectBox( vec3 r_o, vec3 r_d, vec3 boxmin, vec3 boxmax, out float tnear, out float tfar )
@@ -80,6 +88,10 @@ void intersectBox( vec3 r_o, vec3 r_d, vec3 boxmin, vec3 boxmax, out float tnear
 // $insert{SampleVolume}
 // ---------------------
 
+float adjustOpacity(float a, float modifiedStepLength) {
+	return 1.0 - pow((1.0 - a), modifiedStepLength);
+}
+
 void main()
 {
 	mat4 ipv = Vertex.inverseView * Vertex.inverseProjection;
@@ -94,6 +106,12 @@ void main()
 	vec2 uv = Vertex.textureCoord * 2.0 - vec2(1.0);
 	vec2 depthUV = (vrParameters.stereoEnabled ^ 1) * Vertex.textureCoord + vrParameters.stereoEnabled * vec2((Vertex.textureCoord.x/2.0 + currentEye.eye * 0.5), Vertex.textureCoord.y);
 	depthUV = depthUV * 2.0 - vec2(1.0);
+
+	int windowWidth = 1280;
+	int windowHeight = 720;
+	ivec2 pixel_coords;
+	pixel_coords.x = int(round(Vertex.textureCoord.x * windowWidth));
+	pixel_coords.y = int(round(Vertex.textureCoord.y * windowHeight));
 
 	// NDC of frag on near and far plane
 	vec4 front = vec4( uv, -1, 1 );
@@ -157,6 +175,11 @@ void main()
 //		bool transparentSample = false;
 
 		float step = tnear;
+
+		vec4 wprev = mix(wfront, wback, step);
+
+		step += nw + step * fwnw;
+
 		vec4 v = vec4( 0 );
 //		vec4 curV = vec4( 0 );
 		for ( int i = 0; i < numSteps; ++i, step += nw + step * fwnw )
@@ -181,8 +204,17 @@ void main()
 				v = max(v, convert(x));
 			}
 			*/
+
+			wprev = wpos;
 		}
         v.xyz = pow(v.xyz, vec3(1/2.2));
+
+		#if USE_PRINTF
+		if(pixel_coords.xy == debug_pixel) {
+			debugPrintfEXT("For pixel: (%d, %d), final accumulated color is: (%f, %f, %f, %f)", debug_pixel.xy, v.rgba);
+		}
+		#endif
+
 		FragColor = v;
 
 		if(v.w < 0.001f) {
