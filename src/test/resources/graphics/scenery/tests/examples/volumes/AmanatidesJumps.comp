@@ -42,6 +42,8 @@ layout(set = 5, binding = 0, r32f) uniform image2D NumSteps;
 layout(set = 6, binding = 0, r32f) uniform image2D NumIntersectedSupsegs;
 layout(set = 7, binding = 0, r32f) uniform image2D NumEmptyLists;
 layout(set = 8, binding = 0, r32f) uniform image2D NumNotIntLists;
+layout(set = 9, binding = 0, r32f) uniform image2D EmptyBeforeFirst;
+layout(set = 10, binding = 0, r32f) uniform image2D EmptyAfterLast;
 #endif
 
 //mat4 im_x_9_x_ = mat4(50.0, 0.0, 0.0, 0.0,
@@ -79,7 +81,7 @@ vec3 sourcemax_x_10_x_ = vec3(128.0, 128.0, 128.0);
 //ivec2 debug_pixel = ivec2(534, 416);
 //ivec2 debug_pixel = ivec2(433, 577);
 //ivec2 debug_pixel = ivec2(729, 282);
-ivec2 debug_pixel = ivec2(229, 586);
+ivec2 debug_pixel = ivec2(987, 437);
 //ivec2 debug_pixel = ivec2(600, 360);
 //ivec2 debug_pixel = ivec2(35, 61);
 //ivec2 debug_pixel = ivec2(427, 465);
@@ -371,11 +373,11 @@ float getPrecedingDepth(ivec2 theList, int index) {
 
 void binSearch(ivec2 theList, float dist_to_orig, int start, int end, out bool supseg_found, out int index, out float depthStart, out float depthEnd) {
 
-    #if USE_PRINTF
-    if(gl_GlobalInvocationID.xy == debug_pixel) {
-        debugPrintfEXT("Performing bin search for list: (%d, %d) from %d to %d ", theList, start, end);
-    }
-    #endif
+//    #if USE_PRINTF
+//    if(gl_GlobalInvocationID.xy == debug_pixel) {
+//        debugPrintfEXT("Performing bin search for list: (%d, %d) from %d to %d ", theList, start, end);
+//    }
+//    #endif
 
 
     supseg_found = false;
@@ -628,6 +630,7 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
     if(firstBack == 0) {
         //the first supersegment is empty, so empty list
         totalEmptyLists++;
+        totalNonIntersected++;
         #if USE_PRINTF
         if(gl_GlobalInvocationID.xy == debug_pixel) {
             debugPrintfEXT("Returning because first element was 0. The list no. was: (%d, %d)", theList);
@@ -659,7 +662,7 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
 
     bool supseg_found = false;
     int supsegs_in_list = 0;
-    int total_steps_before = totalMemoryLoads;
+    int total_steps_before = totalMemoryLoads - 1; //subtract the first empty supseg check that is performed to determine an empty list
 
     bool firstIteration = true;
 
@@ -1196,12 +1199,19 @@ void main() {
     }
 
     finalColor.xyz = pow(finalColor.xyz, vec3(1/2.2));
+
+    if(totalIntersectedSupsegs == 0) {
+        totalBeforeFirst = totalMemoryLoads;
+    }
+
     #if USE_PRINTF
     if(gl_GlobalInvocationID.xy == debug_pixel) {
         debugPrintfEXT("Total memory loads was: %d", totalMemoryLoads);
         debugPrintfEXT("Total empty lists was: %d", totalEmptyLists);
         debugPrintfEXT("Total intersected supsegs was: %d", totalIntersectedSupsegs);
         debugPrintfEXT("Total samples taken in lists that were not intersected: %d", totalNonIntersected);
+        debugPrintfEXT("Total before first: %d", totalBeforeFirst);
+        debugPrintfEXT("Total after last: %d", totalAfterLast);
         debugPrintfEXT("For pixel: (%d, %d), final color is: (%f, %f, %f, %f)", gl_GlobalInvocationID.xy, finalColor);
     }
     #endif
@@ -1213,9 +1223,11 @@ void main() {
 
 #if PROFILE_MEM
     imageStore(NumSteps, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), vec4(totalMemoryLoads, 0, 0, 0));
-    imageStore(NumEmptyLists, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), vec4(totalAfterLast, 0, 0, 0));
-    imageStore(NumIntersectedSupsegs, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), vec4(totalBeforeFirst, 0, 0, 0));
+    imageStore(NumEmptyLists, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), vec4(totalEmptyLists, 0, 0, 0));
+    imageStore(NumIntersectedSupsegs, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), vec4(totalIntersectedSupsegs, 0, 0, 0));
     imageStore(NumNotIntLists, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), vec4(totalNonIntersected, 0, 0, 0));
+    imageStore(EmptyBeforeFirst, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), vec4(totalBeforeFirst, 0, 0, 0));
+    imageStore(EmptyAfterLast, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), vec4(totalAfterLast, 0, 0, 0));
 #endif
 
 }
