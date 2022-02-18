@@ -38,9 +38,12 @@ float adjustOpacity(float a, float modifiedStepLength) {
 }
 
 void main() {
-    ivec2 debug_pixel = ivec2(460, 350);
+    ivec2 debug_pixel = ivec2(186, 497);
 
     ivec3 imageCoords  = imageSize(InputVDI);
+
+    int windowHeight = imageCoords.g;
+    int windowWidth = imageCoords.b;
 
 #if SEPARATE_DEPTH
     int numSupersegments = imageCoords.r;
@@ -123,8 +126,8 @@ void main() {
 //                break;
         }
 
-        float ndc_x = gl_GlobalInvocationID.x / 1280.0 * 2.0 - 1.0;
-        float ndc_y = gl_GlobalInvocationID.y / 720.0 * 2.0 - 1.0;
+        float ndc_x = gl_GlobalInvocationID.x / windowWidth * 2.0 - 1.0;
+        float ndc_y = gl_GlobalInvocationID.y / windowHeight * 2.0 - 1.0;
 
         vec4 supseg_start_w = ivp_orig * vec4(ndc_x, ndc_y, depthHere, 1);
         supseg_start_w *= 1. / supseg_start_w.w;
@@ -161,5 +164,8 @@ void main() {
         debugPrintfEXT("For pixel: (%d, %d), final accumulated color is: (%f, %f, %f, %f)", debug_pixel.xy, v.rgba);
     }
 
+//    if(gl_GlobalInvocationID.y > 900) {
+//        v = vec4(1);
+//    }
     imageStore(OutputViewport, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), v);
 }
