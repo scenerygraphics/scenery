@@ -11,6 +11,7 @@ import org.joml.Quaternionf
 import org.joml.Vector3f
 import org.joml.Vector3i
 import java.io.FileNotFoundException
+//import java.net.InetAddress
 import java.nio.ByteBuffer
 import kotlin.concurrent.thread
 import kotlin.test.assertTrue
@@ -47,6 +48,8 @@ class VideoDecodingExample : SceneryBase("VideoDecodingExample", 600, 600, wantR
         settings.set("Renderer.HDR.Exposure", 0.05f)
 
         val videoDecoder = VideoDecoder(this::class.java.getResource("SampleVideo.mp4")?.sanitizedPath() ?: throw FileNotFoundException("Could not find sample file."))
+//        val videoDecoder = VideoDecoder("udp://${InetAddress.getLocalHost().hostAddress}:3337")
+//        val videoDecoder = VideoDecoder("/home/aryaman/Repositories/scenery-insitu/scenery-stream.sdp")
         logger.info("video decoder object created")
         thread {
             while (!sceneInitialized()) {

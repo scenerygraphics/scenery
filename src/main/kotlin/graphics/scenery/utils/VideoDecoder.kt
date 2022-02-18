@@ -2,6 +2,7 @@ package graphics.scenery.utils
 
 import org.bytedeco.ffmpeg.avcodec.AVPacket
 import org.bytedeco.ffmpeg.avformat.AVFormatContext
+//import org.bytedeco.ffmpeg.avutil.AVDictionary
 import org.bytedeco.ffmpeg.avutil.AVFrame
 import org.bytedeco.ffmpeg.global.avcodec.*
 import org.bytedeco.ffmpeg.global.avformat.*
@@ -56,7 +57,12 @@ class VideoDecoder(val filename: String) {
 
             val videoPath = filename
 
-            ret = avformat_open_input(formatContext, videoPath, null, null)
+//            var d = AVDictionary()
+//            av_dict_set(d, "protocol_whitelist", "file, udp, rtp", 0)
+//
+//            val infm = av_find_input_format("sdp")
+//
+//            ret = avformat_open_input(formatContext, videoPath, infm, d)
             if (ret < 0) {
                 eVal = ret
                 logger.error("Open video file $videoPath failed. Error code: $eVal")
