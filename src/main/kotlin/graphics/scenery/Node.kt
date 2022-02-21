@@ -6,13 +6,15 @@ import graphics.scenery.attribute.geometry.Geometry
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.attribute.renderable.Renderable
 import graphics.scenery.attribute.spatial.Spatial
+import graphics.scenery.net.Networkable
 import graphics.scenery.utils.MaybeIntersects
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import net.imglib2.Localizable
 import net.imglib2.RealLocalizable
 import org.joml.Matrix4f
 import org.joml.Quaternionf
 import org.joml.Vector3f
-import java.io.Serializable
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
 import java.util.*
@@ -21,7 +23,7 @@ import java.util.concurrent.locks.ReentrantLock
 import java.util.function.Consumer
 import kotlin.collections.ArrayList
 
-interface Node : Serializable {
+interface Node : Networkable {
     var name: String
     var nodeType: String
     /** Children of the Node. */
@@ -30,10 +32,6 @@ interface Node : Serializable {
     var linkedNodes: CopyOnWriteArrayList<Node>
     /** Parent node of this node. */
     var parent: Node?
-    /** Creation timestamp of the node. */
-    var createdAt: Long
-    /** Modification timestamp of the node. */
-    var modifiedAt: Long
     /** Flag to set whether the object is visible or not. */
     var visible: Boolean
     var discoveryBarrier: Boolean
@@ -66,11 +64,17 @@ interface Node : Serializable {
 
     fun <T, U: T> addAttribute(attributeType: Class<T>, attribute: U) {
         getAttributes().put(attributeType, attribute)
+        this@Node.getScene()?.onAttributeAdded?.forEach { it.value.invoke(this@Node, attribute as Any) }
+
     }
 
     fun <T, U: T> addAttribute(attributeType: Class<T>, attribute: U, block: U.() -> Unit) {
         attribute.block()
         addAttribute(attributeType, attribute)
+    }
+
+    fun <T> addAttributeFromNetwork(attributeType: Class<T>, attribute: Networkable) {
+        getAttributes().put(attributeType, attribute as T)
     }
 
     fun <T, U: T> ifHasAttribute(attributeType: Class<T>, block: U.() -> Unit) : U? {

@@ -10,6 +10,7 @@ import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.times
 import kotlinx.coroutines.*
 import org.joml.Vector3f
+import java.lang.IllegalArgumentException
 import java.lang.Thread.sleep
 import kotlin.concurrent.thread
 
@@ -22,8 +23,9 @@ import kotlin.concurrent.thread
  * [Volume.slicingMode] should be set to [Volume.SlicingMode.None]
  *
  * @param key The input key for optional plane movement behavior. See Input Docs for format.
+ * @param hub only needed when [key] is set
  */
-fun createOrthoView(volume: Volume, key: String? = null) {
+fun createOrthoView(volume: Volume, key: String? = null, hub: Hub?) {
     volume.slicingMode = Volume.SlicingMode.Slicing
 
     val sliceXZ = SlicingPlane()
@@ -105,12 +107,15 @@ fun createOrthoView(volume: Volume, key: String? = null) {
     }
 
     key?.let {
+        if (hub == null){
+            throw IllegalArgumentException("Key is set, a hub is needed.")
+        }
         GlobalScope.launch {
-            var inputHandler = volume.hub.get<InputHandler>()
+            var inputHandler = hub.get<InputHandler>()
             var count = 0
             while (inputHandler == null) {
                 delay(1000L)
-                inputHandler = volume.hub.get<InputHandler>()
+                inputHandler = hub.get<InputHandler>()
                 if (count++ > 60) {
                     volume.logger.warn("Could not find input handler to attach orthoPlane drag behavior to.")
                     break

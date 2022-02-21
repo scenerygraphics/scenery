@@ -8,6 +8,7 @@ import graphics.scenery.attribute.material.DefaultMaterial
 import graphics.scenery.attribute.material.HasMaterial
 import graphics.scenery.attribute.renderable.HasRenderable
 import graphics.scenery.attribute.spatial.HasSpatial
+import graphics.scenery.net.Networkable
 import graphics.scenery.net.NodePublisher
 import graphics.scenery.net.NodeSubscriber
 import graphics.scenery.serialization.*
@@ -40,14 +41,20 @@ import kotlin.system.measureTimeMillis
 open class Scene : DefaultNode("RootNode"), HasRenderable, HasMaterial, HasSpatial {
 
     /** Temporary storage of the active observer ([Camera]) of the Scene. */
+    @Transient
     var activeObserver: Camera? = null
 
     internal var sceneSize: AtomicLong = AtomicLong(0L)
 
-    /** Callbacks to be called when a child is added to the scene */
+    /** Callbacks to be called when a child is added to the scene (Parent,Child)*/
+    @Transient
     var onChildrenAdded = ConcurrentHashMap<String, (Node, Node) -> Unit>()
-    /** Callbacks to be called when a child is removed from the scene */
+    /** Callbacks to be called when a child is removed from the scene (Parent,Child)*/
+    @Transient
     var onChildrenRemoved = ConcurrentHashMap<String, (Node, Node) -> Unit>()
+    /** Callbacks to be called when an attribute is added to a node (Node,Attribute)*/
+    @Transient
+    var onAttributeAdded = ConcurrentHashMap<String, (Node, Any) -> Unit>()
     /** Callbacks to be called when a child is removed from the scene */
     var onNodePropertiesChanged = ConcurrentHashMap<String, (Node) -> Unit>()
 
@@ -267,15 +274,10 @@ open class Scene : DefaultNode("RootNode"), HasRenderable, HasMaterial, HasSpati
         logger.info("Written scene to $filename (${"%.2f".format(size/1024.0f)} KiB) in ${duration}ms")
     }
 
-    fun publishSubscribe(hub: Hub, filter: (Node) -> Boolean = { true }) {
-        val nodes = discover(this, filter)
-        val pub = hub.get<NodePublisher>()
-        val sub = hub.get<NodeSubscriber>()
 
-        nodes.forEachIndexed { i, node ->
-            pub?.nodes?.put(13337 + i, node)
-            sub?.nodes?.put(13337 + i, node)
-        }
+    override fun update(fresh: Networkable, getNetworkable: (Int) -> Networkable, additionalData: Any?) {
+        super.update(fresh, getNetworkable, additionalData)
+        if (fresh !is Scene) throw IllegalArgumentException("Update called with object of foreign class")
 
     }
 

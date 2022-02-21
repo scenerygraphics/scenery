@@ -23,7 +23,6 @@ import kotlin.concurrent.thread
  */
 class DemoReelExample: SceneryBase("Demo Reel") {
     var hmd: TrackedStereoGlasses? = null
-    var publishedNodes = ArrayList<Node>()
 
     var cam = DetachedHeadCamera()
     var bileScene = Mesh(name = "bile")
@@ -137,27 +136,9 @@ class DemoReelExample: SceneryBase("Demo Reel") {
         bileScene.addChild(bile)
         scene.addChild(bileScene)
 
-        publishedNodes.add(cam)
-        publishedNodes.add(drosophilaVolume)
-        publishedNodes.add(drosophilaScene)
-
-        publishedNodes.add(histoneVolume)
-        publishedNodes.add(histoneScene)
-
-        publishedNodes.add(bile)
-        publishedNodes.add(canaliculi)
-        publishedNodes.add(nuclei)
-        publishedNodes.add(sinusoidal)
-        publishedNodes.add(bileScene)
-
         val publisher = hub.get<NodePublisher>(SceneryElement.NodePublisher)
         val subscriber = hub.get<NodeSubscriber>(SceneryElement.NodeSubscriber)
 
-        publishedNodes.forEachIndexed { index, node ->
-            publisher?.nodes?.put(13337 + index, node)
-
-            subscriber?.nodes?.put(13337 + index, node)
-        }
 
         val minDelay = 200
 
