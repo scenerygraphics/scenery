@@ -81,8 +81,8 @@ vec3 sourcemax_x_10_x_ = vec3(128.0, 128.0, 128.0);
 //ivec2 debug_pixel = ivec2(534, 416);
 //ivec2 debug_pixel = ivec2(433, 577);
 //ivec2 debug_pixel = ivec2(729, 282);
-ivec2 debug_pixel = ivec2(987, 437);
-//ivec2 debug_pixel = ivec2(600, 360);
+//ivec2 debug_pixel = ivec2(987, 437);
+ivec2 debug_pixel = ivec2(600, 360);
 //ivec2 debug_pixel = ivec2(35, 61);
 //ivec2 debug_pixel = ivec2(427, 465);
 //ivec2 debug_pixel = ivec2(424, 539);
@@ -210,6 +210,7 @@ int totalNonIntersected = 0;
 int totalBeforeFirst = 0;
 int totalAfterLast = 0;
 int whenLast_Total = 0; // how many memory loads were performed by the time the last supseg was intersected?
+int totalIntersectedLists = 0;
 
 bool firstNotYetIntersected = true;
 
@@ -616,6 +617,16 @@ void findFirstSupseg(ivec2 theList, float dist_to_orig, float exit_distance, out
 
 void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout vec4 accumulatedColor) {
 
+    totalIntersectedLists++;
+
+    #if USE_PRINTF
+    if(gl_GlobalInvocationID.xy == debug_pixel) {
+        debugPrintfEXT("Intersecting list: (%d, %d)", theList);
+    }
+    #endif
+
+    return;
+
     //TODO: see whether the below is required
     #if SEPARATE_DEPTH
     vec4 check = imageLoad(DepthVDI, ivec3(1, theList.y, theList.x));
@@ -631,11 +642,6 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
         //the first supersegment is empty, so empty list
         totalEmptyLists++;
         totalNonIntersected++;
-        #if USE_PRINTF
-        if(gl_GlobalInvocationID.xy == debug_pixel) {
-            debugPrintfEXT("Returning because first element was 0. The list no. was: (%d, %d)", theList);
-        }
-        #endif
         return;
     }
 
@@ -1212,6 +1218,7 @@ void main() {
         debugPrintfEXT("Total samples taken in lists that were not intersected: %d", totalNonIntersected);
         debugPrintfEXT("Total before first: %d", totalBeforeFirst);
         debugPrintfEXT("Total after last: %d", totalAfterLast);
+        debugPrintfEXT("Total intersected lists: %d", totalIntersectedLists);
         debugPrintfEXT("For pixel: (%d, %d), final color is: (%f, %f, %f, %f)", gl_GlobalInvocationID.xy, finalColor);
     }
     #endif
