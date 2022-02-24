@@ -36,14 +36,15 @@ layout(set = 3, binding = 0, rgba8) uniform image2D OutputViewport;
 #if SEPARATE_DEPTH
 layout (set = 4, binding = 0, r32f) uniform readonly image3D DepthVDI;
 #endif
+layout (set = 5, binding = 0, r8i) uniform readonly iimage3D OctreeCells;
 
 #if PROFILE_MEM
-layout(set = 5, binding = 0, r32f) uniform image2D NumSteps;
-layout(set = 6, binding = 0, r32f) uniform image2D NumIntersectedSupsegs;
-layout(set = 7, binding = 0, r32f) uniform image2D NumEmptyLists;
-layout(set = 8, binding = 0, r32f) uniform image2D NumNotIntLists;
-layout(set = 9, binding = 0, r32f) uniform image2D EmptyBeforeFirst;
-layout(set = 10, binding = 0, r32f) uniform image2D EmptyAfterLast;
+layout(set = 6, binding = 0, r32f) uniform image2D NumSteps;
+layout(set = 7, binding = 0, r32f) uniform image2D NumIntersectedSupsegs;
+layout(set = 8, binding = 0, r32f) uniform image2D NumEmptyLists;
+layout(set = 9, binding = 0, r32f) uniform image2D NumNotIntLists;
+layout(set = 10, binding = 0, r32f) uniform image2D EmptyBeforeFirst;
+layout(set = 11, binding = 0, r32f) uniform image2D EmptyAfterLast;
 #endif
 
 //mat4 im_x_9_x_ = mat4(50.0, 0.0, 0.0, 0.0,
@@ -488,8 +489,8 @@ void findListNumber(vec4 wpos, out ivec2 listNum, out vec4 NDC_orig) {
 
     vec2 tex_orig = (NDC_orig.xy + 1) / 2.0;
 
-    listNum.x = int(round(tex_orig.x * windowWidth)); //TODO: verify that this is correct
-    listNum.y = int(round(tex_orig.y * windowHeight)); //TODO: verify that this is correct
+    listNum.x = int(round(tex_orig.x * windowWidth)); //TODO: verify that this is correct. Maybe floor makes more sense?
+    listNum.y = int(round(tex_orig.y * windowHeight)); //TODO: verify that this is correct. Maybe floor makes more sense?
 }
 
 void nextSupersegmentInList(ivec2 theList, float exit_distance, bool dotPositive, out bool supseg_found, out int index, out float depthStart, out float depthEnd) {
@@ -615,6 +616,12 @@ void findFirstSupseg(ivec2 theList, float dist_to_orig, float exit_distance, out
 
 }
 
+ivec3 findGridCell(ivec4 position) {
+    ivec3 grid_coords;
+
+    return grid_coords;
+}
+
 void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout vec4 accumulatedColor) {
 
     totalIntersectedLists++;
@@ -624,8 +631,6 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
         debugPrintfEXT("Intersecting list: (%d, %d)", theList);
     }
     #endif
-
-    return;
 
     //TODO: see whether the below is required
     #if SEPARATE_DEPTH
@@ -792,10 +797,162 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
 
 }
 
+int stepX, stepY;
+float tdeltaX, tdeltaY; //the delta intercepts for the ray on the supseg lists
+vec4 finalColor = vec4(0);
+float num_cells;
+
+void traverse_cell(vec4 entry_point, vec3 cell_min, vec3 cell_max, out vec4 end_point) {
+
+    vec2 tex_orig = (entry_point.xy + 1) / 2.0;
+    ivec2 currentList;
+
+    currentList.x = int(round(tex_orig.x * windowWidth));
+    currentList.y = int(round(tex_orig.y * windowHeight));
+
+    float nextX = currentList.x + stepX * 0.5;
+    float nextY = currentList.y + stepY * 0.5;
+
+    #if USE_PRINTF
+    if(gl_GlobalInvocationID.xy == debug_pixel) {
+        debugPrintfEXT("nextX: %f, nextY: %f", nextX, nextY);
+    }
+    #endif
+
+    float finalZ = dir.z > 0 ? cell_max.z : cell_min.z; //TODO: Should this be 0 instead of -1
+
+    float nextX_ndc = nextX / windowWidth * 2.0 - 1.0;
+    float nextY_ndc = nextY / windowHeight * 2.0 - 1.0;
+
+    float tmaxX = dir.x != 0 ? abs((nextX_ndc - entry_point.x) / dir.x) : 10000000;
+    float tmaxY = dir.y != 0 ? abs((nextY_ndc - entry_point.y) / dir.y) : 10000000;
+    float tmaxZ = dir.z != 0 ? abs((finalZ - entry_point.z) / dir.z) : 10000000;
+
+    if(gl_GlobalInvocationID.xy == debug_pixel && !(tmaxX >= 0 && tmaxY >= 0 && tmaxZ >= 0)) {
+    #if USE_PRINTF
+        debugPrintfEXT("Invoc id is: (%d, %d)", gl_GlobalInvocationID.xy);
+        debugPrintfEXT("This is an ERROR at initialization! tmaxX: %f, tmaxY: %f, tmaxZ: %f", tmaxX, tmaxY, tmaxZ);
+    #endif
+    }
+
+    #if USE_PRINTF
+    if(gl_GlobalInvocationID.xy == debug_pixel) {
+        debugPrintfEXT("tmaxX: %f, tmaxY: %f, tmaxZ: %f", tmaxX, tmaxY, tmaxZ);
+    }
+    #endif
+
+    ivec2 nextList = currentList;
+    vec4 start_point = entry_point;
+
+    bool finalIteration = false;
+
+    while ( !finalIteration ) // loop over all the lists intersected by this ray
+    {
+        //        #if USE_PRINTF
+        //        if(gl_GlobalInvocationID.xy == debug_pixel) {
+        //            debugPrintfEXT("Looping for list: (%d, %d)", currentList);
+        //        }
+        //        #endif
+
+        if(!(tmaxX >= 0 && tmaxY >= 0 && tmaxZ >= 0)) {
+            #if USE_PRINTF
+            //            if(gl_GlobalInvocationID.xy == debug_pixel) {
+            debugPrintfEXT("Invoc id is: (%d, %d)", gl_GlobalInvocationID.xy);
+            debugPrintfEXT("This is an ERROR! tmaxX: %f, tmaxY: %f, tmaxZ: %f", tmaxX, tmaxY, tmaxZ);
+            //                debugPrintfEXT("First point: (%f, %f, %f, %f). Ray dir is: (%f, %f, %f)", first_entry_pt, dir.xyz);
+
+            //            }
+            #endif
+            break;
+        }
+
+        float incr = 0;
+
+        if(tmaxZ <= tmaxX && tmaxZ <= tmaxY) {
+            //z is lowest
+            incr = tmaxZ;
+            finalIteration = true;
+        } else if(tmaxX < tmaxY) {
+            //x is the lowest
+            incr = tmaxX;
+            nextList.x += stepX;
+            tmaxX += tdeltaX;
+        } else if(tmaxY < tmaxX) {
+            //y is the lowest
+            incr = tmaxY;
+            nextList.y += stepY;
+            tmaxY += tdeltaY;
+        } else {
+            // x and y are equal
+            incr = tmaxX;
+            nextList.x += stepX;
+            nextList.y += stepY;
+            tmaxX += tdeltaX;
+            tmaxY += tdeltaY;
+        }
+
+        end_point = u + dir * incr;
+        if(end_point.x > cell_max.x || end_point.x < cell_min.x || end_point.y > cell_max.y || end_point.y < cell_min.y) { //TODO: perhaps a delta needs to be added to the comparison
+            //TODO: this check can potentially be incorporated into the loop
+            #if USE_PRINTF
+            if(gl_GlobalInvocationID.xy == debug_pixel) {
+                debugPrintfEXT("Breaking because end pt is outside. It is: (%f, %f, %f)", end_point.xyz);
+            }
+            #endif
+            break;
+        }
+
+    //        #if USE_PRINTF
+    //        if(gl_GlobalInvocationID.xy == debug_pixel) {
+    //            debugPrintfEXT("Next list was calculated as: (%d, %d). End pt of this list: (%f, %f, %f)", nextList.xy, end_point.xyz);
+    //            debugPrintfEXT("Updated values: tmaxX: %f, tmaxY: %f, tmaxZ: %f", tmaxX, tmaxY, tmaxZ);
+    //
+    //        }
+    //        #endif
+
+        findSupsegsInList(currentList, start_point, end_point, finalColor);
+
+
+    //        #if USE_PRINTF
+    //        if(gl_GlobalInvocationID.xy == debug_pixel) {
+    //            debugPrintfEXT("After finding supsegs in list: (%d, %d), the color is: (%f, %f, %f, %f)", currentList, finalColor);
+    //        }
+    //        #endif
+
+        if(finalColor.a > 0.95) {
+            #if USE_PRINTF
+            if(gl_GlobalInvocationID.xy == debug_pixel) {
+                debugPrintfEXT("Breaking because alpha is: %f", finalColor.a);
+            }
+            #endif
+            break;
+        }
+
+    //        if(tmaxZ <= tmaxX && tmaxZ <= tmaxY) { // the next jump should be along z, therefore outside the VDI
+    //            #if USE_PRINTF
+    //            if(gl_GlobalInvocationID.xy == debug_pixel) {
+    //                debugPrintfEXT("Breaking because tmaxZ is the lowest. tmaxX: %f, tmaxY: %f, tmaxZ: %f", tmaxX, tmaxY, tmaxZ);
+    //            }
+    //            #endif
+    //            break;
+    //        }
+
+        currentList = nextList;
+        start_point = end_point;
+    }
+}
+
+ivec3 findGridCell(vec4 pos) {
+    vec4 pos_tex = (pos + 1.)/2.;
+    ivec3 grid_cell = ivec3(floor(pos_tex.xyz * num_cells));
+    return grid_cell;
+}
+
 void main() {
     im_x_9_x_ = transpose(im_x_9_x_);
 
     ivec2 imageCoords  = imageSize(OutputViewport);
+    num_cells = imageSize(OctreeCells).r;
     int imgWidth = imageCoords.x;
     int imgHeight = imageCoords.y;
 
@@ -877,8 +1034,6 @@ void main() {
 
     dist = (tfar-tnear) / 5000.;
     dist = max(dist, 0.00001);
-
-    vec4 finalColor = vec4(0);
 
     float step = tnear;
     float step_dbg = tnear;
@@ -1048,50 +1203,12 @@ void main() {
     }
     #endif
 
-    int stepX = dir.x > 0 ? 1 : -1;
-    int stepY = dir.y > 0 ? 1 : -1;
+    stepX = dir.x > 0 ? 1 : -1;
+    stepY = dir.y > 0 ? 1 : -1;
+    int stepZ = dir.z > 0 ? 1 : -1;
 
-    float nextX = currentList.x + stepX * 0.5;
-    float nextY = currentList.y + stepY * 0.5;
-
-    #if USE_PRINTF
-    if(gl_GlobalInvocationID.xy == debug_pixel) {
-        debugPrintfEXT("nextX: %f, nextY: %f", nextX, nextY);
-    }
-    #endif
-
-//    float nextX = currentList.x + stepX;
-//    float nextY = currentList.y + stepY;
-
-
-    float finalZ = dir.z > 0 ? 1 : -1; //TODO: Should this be 0 instead of -1
-
-    float nextX_ndc = nextX / windowWidth * 2.0 - 1.0;
-    float nextY_ndc = nextY / windowHeight * 2.0 - 1.0;
-
-    float tmaxX = dir.x != 0 ? abs((nextX_ndc - first_entry_pt.x) / dir.x) : 10000000;
-    float tmaxY = dir.y != 0 ? abs((nextY_ndc - first_entry_pt.y) / dir.y) : 10000000;
-    float tmaxZ = dir.z != 0 ? abs((finalZ - first_entry_pt.z) / dir.z) : 10000000;
-
-    if(gl_GlobalInvocationID.xy == debug_pixel && !(tmaxX >= 0 && tmaxY >= 0 && tmaxZ >= 0)) {
-        #if USE_PRINTF
-        //            if(gl_GlobalInvocationID.xy == debug_pixel) {
-            debugPrintfEXT("Invoc id is: (%d, %d)", gl_GlobalInvocationID.xy);
-            debugPrintfEXT("This is an ERROR at initialization! tmaxX: %f, tmaxY: %f, tmaxZ: %f", tmaxX, tmaxY, tmaxZ);
-        //                debugPrintfEXT("First point: (%f, %f, %f, %f). Ray dir is: (%f, %f, %f)", first_entry_pt, dir.xyz);
-
-        //            }
-        #endif
-    }
-
-    #if USE_PRINTF
-    if(gl_GlobalInvocationID.xy == debug_pixel) {
-        debugPrintfEXT("At initialization, tmaxX: %f, tmaxY: %f, tmaxZ: %f", tmaxX, tmaxY, tmaxZ);
-    }
-    #endif
-
-    float tdeltaX = abs((2.0 / windowWidth) / dir.x);
-    float tdeltaY = abs((2.0 / windowHeight) / dir.y);
+    tdeltaX = abs((2.0 / windowWidth) / dir.x);
+    tdeltaY = abs((2.0 / windowHeight) / dir.y);
 
     #if USE_PRINTF
     if(gl_GlobalInvocationID.xy == debug_pixel) {
@@ -1099,88 +1216,85 @@ void main() {
     }
     #endif
 
-    ivec2 nextList = currentList;
-    vec4 start_point = first_entry_pt;
-    vec4 end_point;
-
     const int MAX_X = 1;
     const int MIN_X = -1;
 
     const int MAX_Y = 1;
     const int MIN_Y = -1;
 
-    bool finalIteration = false;
+    const int MAX_Z = 1;
+    const int MIN_Z = -1;
 
-    while ( !finalIteration ) // loop over all the lists intersected by this ray
-    {
-//        #if USE_PRINTF
-//        if(gl_GlobalInvocationID.xy == debug_pixel) {
-//            debugPrintfEXT("Looping for list: (%d, %d)", currentList);
-//        }
-//        #endif
+    float cell_tdeltaX = abs(2. / num_cells) / dir.x;
+    float cell_tdeltaY = abs(2. / num_cells) / dir.y;
+    float cell_tdeltaZ = abs(2. / num_cells) / dir.z;
 
-        if(!(tmaxX >= 0 && tmaxY >= 0 && tmaxZ >= 0)) {
-            #if USE_PRINTF
-//            if(gl_GlobalInvocationID.xy == debug_pixel) {
-                debugPrintfEXT("Invoc id is: (%d, %d)", gl_GlobalInvocationID.xy);
-                debugPrintfEXT("This is an ERROR! tmaxX: %f, tmaxY: %f, tmaxZ: %f", tmaxX, tmaxY, tmaxZ);
-//                debugPrintfEXT("First point: (%f, %f, %f, %f). Ray dir is: (%f, %f, %f)", first_entry_pt, dir.xyz);
+    vec4 end_point;
+    vec4 start_point = first_entry_pt;
+    ivec3 grid_cell = findGridCell(start_point);
 
-//            }
-            #endif
-            break;
+    float t = 0;
+
+    while(true) { //looping over the cells of the lowest level of the octree
+        vec3 cell_min = vec3(grid_cell / num_cells);
+        cell_min = (cell_min * 2.) - 1.;
+        vec3 cell_max = vec3(grid_cell+1 / num_cells);
+        cell_max = (cell_max * 2.) - 1.;
+
+        bool cell_traversed = false;
+        vec4 end_traversal = vec4(0);
+
+        if(imageLoad(OctreeCells, grid_cell).r == 1) {
+            traverse_cell(start_point, cell_min, cell_max, end_traversal);
+            cell_traversed = true;
         }
 
-        float incr = 0;
+        float tmaxX = dir.x != 0 ? abs((cell_max.x - start_point.x) / dir.x) : 10000000;
+        float tmaxY = dir.y != 0 ? abs((cell_max.y - start_point.y) / dir.y) : 10000000;
+        float tmaxZ = dir.z != 0 ? abs((cell_max.z - start_point.z) / dir.z) : 10000000;
 
-        if(tmaxZ <= tmaxX && tmaxZ <= tmaxY) {
-            //z is lowest
-            incr = tmaxZ;
-            finalIteration = true;
-        } else if(tmaxX < tmaxY) {
-            //x is the lowest
-            incr = tmaxX;
-            nextList.x += stepX;
-            tmaxX += tdeltaX;
-        } else if(tmaxY < tmaxX) {
-            //y is the lowest
-            incr = tmaxY;
-            nextList.y += stepY;
-            tmaxY += tdeltaY;
+        if(tmaxX < tmaxY) {
+            if(tmaxX < tmaxZ) {
+                // x is the lowest
+                t += tmaxX;
+                grid_cell.x += stepX;
+                tmaxX += cell_tdeltaX;
+            } else {
+                // z is lowest or x = z
+                t += tmaxZ;
+                grid_cell.z += stepZ;
+                tmaxZ += cell_tdeltaZ;
+            }
         } else {
-            // x and y are equal
-            incr = tmaxX;
-            nextList.x += stepX;
-            nextList.y += stepY;
-            tmaxX += tdeltaX;
-            tmaxY += tdeltaY;
+            if(tmaxY < tmaxZ) {
+                // y is the lowest
+                t += tmaxY;
+                grid_cell.y += stepY;
+                tmaxY += cell_tdeltaY;
+            } else {
+                // z is the lowest or y = z
+                t += tmaxZ;
+                grid_cell.z += stepZ;
+                tmaxZ += cell_tdeltaZ;
+            }
         }
 
-        end_point = u + dir * incr;
-        if(end_point.x > MAX_X || end_point.x < MIN_X || end_point.y > MAX_Y || end_point.y < MIN_Y) { //TODO: perhaps a delta needs to be added to the comparison
+        if(cell_traversed) {
+            end_point = end_traversal;
+        } else {
+            end_point = first_entry_pt + t * dir;
+        }
+
+        if(end_point.x > MAX_X || end_point.x < MIN_X || end_point.y > MAX_Y || end_point.y < MIN_Y || end_point.z > MAX_Z || end_point.z < MIN_Z) { //TODO: perhaps a delta needs to be added to the comparison
+            //TODO: this check can potentially be incorporated into the loop
+            //TODO: add check for outside the volume even though still inside the VDI
             #if USE_PRINTF
             if(gl_GlobalInvocationID.xy == debug_pixel) {
                 debugPrintfEXT("Breaking because end pt is outside. It is: (%f, %f, %f)", end_point.xyz);
-            }
-            #endif
-            break;
         }
-
-//        #if USE_PRINTF
-//        if(gl_GlobalInvocationID.xy == debug_pixel) {
-//            debugPrintfEXT("Next list was calculated as: (%d, %d). End pt of this list: (%f, %f, %f)", nextList.xy, end_point.xyz);
-//            debugPrintfEXT("Updated values: tmaxX: %f, tmaxY: %f, tmaxZ: %f", tmaxX, tmaxY, tmaxZ);
-//
-//        }
-//        #endif
-
-        findSupsegsInList(currentList, start_point, end_point, finalColor);
-
-//        #if USE_PRINTF
-//        if(gl_GlobalInvocationID.xy == debug_pixel) {
-//            debugPrintfEXT("After finding supsegs in list: (%d, %d), the color is: (%f, %f, %f, %f)", currentList, finalColor);
-//        }
-//        #endif
+        #endif
+        break;
+        }
 
         if(finalColor.a > 0.95) {
             #if USE_PRINTF
@@ -1191,16 +1305,6 @@ void main() {
             break;
         }
 
-//        if(tmaxZ <= tmaxX && tmaxZ <= tmaxY) { // the next jump should be along z, therefore outside the VDI
-//            #if USE_PRINTF
-//            if(gl_GlobalInvocationID.xy == debug_pixel) {
-//                debugPrintfEXT("Breaking because tmaxZ is the lowest. tmaxX: %f, tmaxY: %f, tmaxZ: %f", tmaxX, tmaxY, tmaxZ);
-//            }
-//            #endif
-//            break;
-//        }
-
-        currentList = nextList;
         start_point = end_point;
     }
 
