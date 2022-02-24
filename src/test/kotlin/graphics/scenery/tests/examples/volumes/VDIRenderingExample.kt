@@ -19,6 +19,7 @@ import java.io.File
 import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.concurrent.thread
+import kotlin.math.pow
 
 /**
  * @author Aryaman Gupta <argupta@mpi-cbg.de>
@@ -28,8 +29,9 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1832, 1016, wantREPL = 
     val separateDepth = true
     val profileMemoryAccesses = false
     val compute = RichNode()
-    val closeAfter = 1500000L
+    val closeAfter = 5000L
     val dataset = "Stagbeetle"
+    val numOctreeLayers = 7.0
 
     override fun init () {
 
@@ -99,6 +101,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1832, 1016, wantREPL = 
 
         val buff: ByteArray
         val depthBuff: ByteArray?
+        val octBuff: ByteArray
 
         if(separateDepth) {
             buff = File("/home/aryaman/Repositories/scenery-insitu/${dataset}VDI4_ndc_col").readBytes()
@@ -108,6 +111,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1832, 1016, wantREPL = 
             buff = File("/home/aryaman/Repositories/scenery-insitu/${dataset}VDI10_ndc").readBytes()
             depthBuff = null
         }
+        octBuff = File("/home/aryaman/Repositories/scenery-insitu/octree_lowest.raw").readBytes()
 
         val opBuffer = MemoryUtil.memCalloc(windowWidth * windowHeight * 4)
         val opNumSteps = MemoryUtil.memCalloc(windowWidth * windowHeight * 4)
@@ -130,6 +134,10 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1832, 1016, wantREPL = 
             depthBuffer = null
         }
 
+        val numVoxels = 2.0.pow(numOctreeLayers)
+        val lowestLevel = MemoryUtil.memCalloc(numVoxels.pow(3).toInt())
+        lowestLevel.put(octBuff).flip()
+
         compute.name = "compute node"
 
 //        compute.setMaterial(ShaderMaterial(Shaders.ShadersFromFiles(arrayOf("EfficientVDIRaycast.comp"), this@VDIRenderingExample::class.java))) {
@@ -151,6 +159,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1832, 1016, wantREPL = 
         if(separateDepth) {
             compute.material().textures["DepthVDI"] = Texture(Vector3i(2*numSupersegments, windowHeight, windowWidth), 1, contents = depthBuffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType())
         }
+        compute.material().textures["OctreeCells"] = Texture(Vector3i(numVoxels.toInt(), numVoxels.toInt(), numVoxels.toInt()), 1, contents = lowestLevel, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
         compute.metadata["ComputeMetadata"] = ComputeMetadata(
             workSizes = Vector3i(windowWidth, windowHeight, 1),
             invocationType = InvocationType.Permanent
