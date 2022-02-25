@@ -211,7 +211,6 @@ int totalNonIntersected = 0;
 int totalBeforeFirst = 0;
 int totalAfterLast = 0;
 int whenLast_Total = 0; // how many memory loads were performed by the time the last supseg was intersected?
-int totalIntersectedLists = 0;
 
 bool firstNotYetIntersected = true;
 
@@ -647,6 +646,11 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
         //the first supersegment is empty, so empty list
         totalEmptyLists++;
         totalNonIntersected++;
+        #if USE_PRINTF
+        if(gl_GlobalInvocationID.xy == debug_pixel) {
+            debugPrintfEXT("Returning because first element was 0. The list no. was: (%d, %d)", theList);
+        }
+        #endif
         return;
     }
 
@@ -984,13 +988,13 @@ void main() {
     0.000E+0,  0.000E+0,  0.000E+0,  1.000E+0);
     invViewOriginal = transpose(invViewOriginal);
 
-    mat4 ProjectionOriginal = mat4(1.206285,  0.0,  0.0,  0.0,
+    mat4 ProjectionOriginal = mat4(1.1790146,  0.0,  0.0,  0.0,
     0.0, -2.1445067,  0.0,  0.0,
     0.0,  0.0, -1.0050251, -0.10050251,
     0.0,  0.0, -1.0,  0.0);
     ProjectionOriginal = transpose(ProjectionOriginal);
 
-    mat4 invProjectionOriginal = mat4(0.8289915,  0.000E+0,  0.000E+0, -0.000E+0,
+    mat4 invProjectionOriginal = mat4(0.8481659,  0.000E+0,  0.000E+0, -0.000E+0,
     0.000E+0, -0.4663077,  0.000E+0,  0.000E+0,
     0.000E+0, -0.000E+0,  0.000E+0, -1.0,
     0.000E+0,  0.000E+0, -9.949999,  10.0);
@@ -1357,7 +1361,6 @@ void main() {
         debugPrintfEXT("Total samples taken in lists that were not intersected: %d", totalNonIntersected);
         debugPrintfEXT("Total before first: %d", totalBeforeFirst);
         debugPrintfEXT("Total after last: %d", totalAfterLast);
-        debugPrintfEXT("Total intersected lists: %d", totalIntersectedLists);
         debugPrintfEXT("For pixel: (%d, %d), final color is: (%f, %f, %f, %f)", gl_GlobalInvocationID.xy, finalColor);
     }
     #endif

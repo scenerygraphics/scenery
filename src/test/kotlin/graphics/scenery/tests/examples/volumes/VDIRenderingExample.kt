@@ -79,8 +79,8 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1832, 1016, wantREPL = 
 //        cam.position = Vector3f(3.729E+0f,  8.263E-1f, -6.808E-1f)
 //        cam.rotation = Quaternionf(1.499E-2,  9.660E-1, -5.738E-2, -2.517E-1)
 
-//            position = Vector3f(4.374E+0f, 8.262E-1f,-3.773E-1f)
-//            rotation = Quaternionf(2.247E-2,  9.707E-1, -1.003E-1, -2.171E-1)
+//        cam.position = Vector3f(4.374E+0f, 8.262E-1f,-3.773E-1f)
+//        cam.rotation = Quaternionf(2.247E-2,  9.707E-1, -1.003E-1, -2.171E-1)
 
 //        position = Vector3f( 3.853E+0f,  7.480E-1f, -9.672E-1f)
 //        rotation = Quaternionf( 4.521E-2,  9.413E-1, -1.398E-1, -3.040E-1)
@@ -90,9 +90,6 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1832, 1016, wantREPL = 
 
 //            position = Vector3f( 5.286E+0f,  8.330E-1f,  3.088E-1f)
 //            rotation = Quaternionf( 4.208E-2,  9.225E-1, -1.051E-1, -3.690E-1)
-
-            position = Vector3f(6.082E+0f,  8.260E-1f,  1.827E+0f)
-            rotation = Quaternionf(5.272E-2,  8.406E-1, -8.314E-2, -5.326E-1)
         }
 
         cam.farPlaneDistance = 20.0f
