@@ -83,7 +83,7 @@ vec3 sourcemax_x_10_x_ = vec3(128.0, 128.0, 128.0);
 //ivec2 debug_pixel = ivec2(433, 577);
 //ivec2 debug_pixel = ivec2(729, 282);
 //ivec2 debug_pixel = ivec2(987, 437);
-ivec2 debug_pixel = ivec2(600, 360);
+ivec2 debug_pixel = ivec2(553, 389);
 //ivec2 debug_pixel = ivec2(35, 61);
 //ivec2 debug_pixel = ivec2(427, 465);
 //ivec2 debug_pixel = ivec2(424, 539);
@@ -804,6 +804,13 @@ float num_cells;
 
 void traverse_cell(vec4 entry_point, vec3 cell_min, vec3 cell_max, out vec4 end_point) {
 
+    #if USE_PRINTF
+    if(gl_GlobalInvocationID.xy == debug_pixel) {
+        debugPrintfEXT("Traversing cell with min: (%f, %f, %f) and max: (%f, %f, %f). Entry point: (%f, %f, %f, %f)", cell_min.xyz, cell_max.xyz, entry_point.xyzw);
+    }
+    #endif
+
+
     vec2 tex_orig = (entry_point.xy + 1) / 2.0;
     ivec2 currentList;
 
@@ -952,7 +959,8 @@ void main() {
     im_x_9_x_ = transpose(im_x_9_x_);
 
     ivec2 imageCoords  = imageSize(OutputViewport);
-    num_cells = imageSize(OctreeCells).r;
+//    num_cells = imageSize(OctreeCells).r;
+    num_cells = 1.;
     int imgWidth = imageCoords.x;
     int imgHeight = imageCoords.y;
 
@@ -1232,19 +1240,37 @@ void main() {
     vec4 end_point;
     vec4 start_point = first_entry_pt;
     ivec3 grid_cell = findGridCell(start_point);
+    vec4 end_traversal = start_point;
 
     float t = 0;
 
-    while(true) { //looping over the cells of the lowest level of the octree
+    bool finalIteration = false;
+
+    while(!finalIteration) { //looping over the cells of the lowest level of the octree
+
+        #if USE_PRINTF
+        if(gl_GlobalInvocationID.xy == debug_pixel) {
+            debugPrintfEXT("Grid cell is: (%d, %d, %d) and num_cells: %f", grid_cell.xyz, num_cells);
+        }
+        #endif
+
+        ivec3 grid_at_end = findGridCell(end_traversal);
+        if(((grid_at_end.z - grid_cell.z) * stepZ) > 0) {
+            grid_cell = grid_at_end;
+            if(grid_cell.z >= num_cells || grid_cell.z < 0) {
+                break;
+            }
+        }
+
         vec3 cell_min = vec3(grid_cell / num_cells);
         cell_min = (cell_min * 2.) - 1.;
         vec3 cell_max = vec3(grid_cell+1 / num_cells);
         cell_max = (cell_max * 2.) - 1.;
 
         bool cell_traversed = false;
-        vec4 end_traversal = vec4(0);
 
-        if(imageLoad(OctreeCells, grid_cell).r == 1) {
+//        if(imageLoad(OctreeCells, grid_cell).r == 1) {
+        if(true) {
             traverse_cell(start_point, cell_min, cell_max, end_traversal);
             cell_traversed = true;
         }
@@ -1258,11 +1284,17 @@ void main() {
                 // x is the lowest
                 t += tmaxX;
                 grid_cell.x += stepX;
+                if(grid_cell.x >= num_cells || grid_cell.x < 0) { // TODO: only one comparison is required depending on stepX
+                    finalIteration = true;
+                }
                 tmaxX += cell_tdeltaX;
             } else {
                 // z is lowest or x = z
                 t += tmaxZ;
                 grid_cell.z += stepZ;
+                if(grid_cell.z >= num_cells || grid_cell.z < 0) {
+                    finalIteration = true;
+                }
                 tmaxZ += cell_tdeltaZ;
             }
         } else {
@@ -1270,11 +1302,17 @@ void main() {
                 // y is the lowest
                 t += tmaxY;
                 grid_cell.y += stepY;
+                if(grid_cell.y >= num_cells || grid_cell.y < 0) {
+                    finalIteration = true;
+                }
                 tmaxY += cell_tdeltaY;
             } else {
                 // z is the lowest or y = z
                 t += tmaxZ;
                 grid_cell.z += stepZ;
+                if(grid_cell.z >= num_cells || grid_cell.z < 0) {
+                    finalIteration = true;
+                }
                 tmaxZ += cell_tdeltaZ;
             }
         }
@@ -1285,16 +1323,13 @@ void main() {
             end_point = first_entry_pt + t * dir;
         }
 
-        if(end_point.x > MAX_X || end_point.x < MIN_X || end_point.y > MAX_Y || end_point.y < MIN_Y || end_point.z > MAX_Z || end_point.z < MIN_Z) { //TODO: perhaps a delta needs to be added to the comparison
-            //TODO: this check can potentially be incorporated into the loop
-            //TODO: add check for outside the volume even though still inside the VDI
-            #if USE_PRINTF
-            if(gl_GlobalInvocationID.xy == debug_pixel) {
-                debugPrintfEXT("Breaking because end pt is outside. It is: (%f, %f, %f)", end_point.xyz);
+        #if USE_PRINTF
+        if(gl_GlobalInvocationID.xy == debug_pixel) {
+            debugPrintfEXT("End point of grid cell: (%f, %f, %f)", end_point.xyz);
         }
         #endif
-        break;
-        }
+
+        //TODO: add check for outside the volume even though still inside the VDI
 
         if(finalColor.a > 0.95) {
             #if USE_PRINTF
