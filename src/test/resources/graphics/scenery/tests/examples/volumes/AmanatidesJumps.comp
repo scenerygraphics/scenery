@@ -81,7 +81,8 @@ vec3 sourcemax_x_10_x_ = vec3(128.0, 128.0, 128.0);
 //ivec2 debug_pixel = ivec2(534, 416);
 //ivec2 debug_pixel = ivec2(433, 577);
 //ivec2 debug_pixel = ivec2(729, 282);
-ivec2 debug_pixel = ivec2(987, 437);
+//ivec2 debug_pixel = ivec2(987, 437);
+ivec2 debug_pixel = ivec2(553, 389);
 //ivec2 debug_pixel = ivec2(600, 360);
 //ivec2 debug_pixel = ivec2(35, 61);
 //ivec2 debug_pixel = ivec2(427, 465);
@@ -813,13 +814,13 @@ void main() {
     0.000E+0,  0.000E+0,  0.000E+0,  1.000E+0);
     invViewOriginal = transpose(invViewOriginal);
 
-    mat4 ProjectionOriginal = mat4(1.206285,  0.0,  0.0,  0.0,
+    mat4 ProjectionOriginal = mat4(1.1790146,  0.0,  0.0,  0.0,
     0.0, -2.1445067,  0.0,  0.0,
     0.0,  0.0, -1.0050251, -0.10050251,
     0.0,  0.0, -1.0,  0.0);
     ProjectionOriginal = transpose(ProjectionOriginal);
 
-    mat4 invProjectionOriginal = mat4(0.8289915,  0.000E+0,  0.000E+0, -0.000E+0,
+    mat4 invProjectionOriginal = mat4(0.8481659,  0.000E+0,  0.000E+0, -0.000E+0,
     0.000E+0, -0.4663077,  0.000E+0,  0.000E+0,
     0.000E+0, -0.000E+0,  0.000E+0, -1.0,
     0.000E+0,  0.000E+0, -9.949999,  10.0);
