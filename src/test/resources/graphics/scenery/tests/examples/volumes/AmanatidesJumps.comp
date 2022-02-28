@@ -36,7 +36,7 @@ layout(set = 3, binding = 0, rgba8) uniform image2D OutputViewport;
 #if SEPARATE_DEPTH
 layout (set = 4, binding = 0, r32f) uniform readonly image3D DepthVDI;
 #endif
-layout (set = 5, binding = 0, r8i) uniform readonly iimage3D OctreeCells;
+layout (set = 5, binding = 0, r8ui) uniform readonly uimage3D OctreeCells;
 
 #if PROFILE_MEM
 layout(set = 6, binding = 0, r32f) uniform image2D NumSteps;
@@ -83,7 +83,7 @@ vec3 sourcemax_x_10_x_ = vec3(128.0, 128.0, 128.0);
 //ivec2 debug_pixel = ivec2(433, 577);
 //ivec2 debug_pixel = ivec2(729, 282);
 //ivec2 debug_pixel = ivec2(987, 437);
-ivec2 debug_pixel = ivec2(553, 389);
+ivec2 debug_pixel = ivec2(726, 496);
 //ivec2 debug_pixel = ivec2(35, 61);
 //ivec2 debug_pixel = ivec2(427, 465);
 //ivec2 debug_pixel = ivec2(424, 539);
@@ -211,6 +211,7 @@ int totalNonIntersected = 0;
 int totalBeforeFirst = 0;
 int totalAfterLast = 0;
 int whenLast_Total = 0; // how many memory loads were performed by the time the last supseg was intersected?
+int totalIntersectedLists = 0;
 
 bool firstNotYetIntersected = true;
 
@@ -615,19 +616,14 @@ void findFirstSupseg(ivec2 theList, float dist_to_orig, float exit_distance, out
 
 }
 
-ivec3 findGridCell(ivec4 position) {
-    ivec3 grid_coords;
-
-    return grid_coords;
-}
-
 void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout vec4 accumulatedColor) {
 
     totalIntersectedLists++;
 
     #if USE_PRINTF
     if(gl_GlobalInvocationID.xy == debug_pixel) {
-        debugPrintfEXT("Intersecting list: (%d, %d)", theList);
+        debugPrintfEXT("Intersecting list: (%d, %d). Start pt: (%f, %f, %f) and End pt: (%f, %f, %f)", theList,
+                                    start_point.xyz, end_point.xyz);
     }
     #endif
 
@@ -646,11 +642,11 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
         //the first supersegment is empty, so empty list
         totalEmptyLists++;
         totalNonIntersected++;
-        #if USE_PRINTF
-        if(gl_GlobalInvocationID.xy == debug_pixel) {
-            debugPrintfEXT("Returning because first element was 0. The list no. was: (%d, %d)", theList);
-        }
-        #endif
+//        #if USE_PRINTF
+//        if(gl_GlobalInvocationID.xy == debug_pixel) {
+//            debugPrintfEXT("Returning because first element was 0. The list no. was: (%d, %d)", theList);
+//        }
+//        #endif
         return;
     }
 
@@ -702,7 +698,7 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
 //        if(gl_GlobalInvocationID.xy == debug_pixel && supseg_found && index == prevIndex) {
         if(theList == prevList && supseg_found && index == prevIndex) {
             #if USE_PRINTF
-                debugPrintfEXT("This is an ERROR! For list: (%d, %d), found index: %d again", theList.x, theList.y, index);
+                debugPrintfEXT("This is an ERROR! For list: (%d, %d), found index: %d again. Invoc ID was: (%d, %d)", theList.x, theList.y, index, gl_GlobalInvocationID.xy);
             #endif
             break;
         }
@@ -804,9 +800,9 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
 int stepX, stepY;
 float tdeltaX, tdeltaY; //the delta intercepts for the ray on the supseg lists
 vec4 finalColor = vec4(0);
-float num_cells;
+int num_cells;
 
-void traverse_cell(vec4 entry_point, vec3 cell_min, vec3 cell_max, out vec4 end_point) {
+void traverse_cell(vec4 entry_point, ivec2 entry_list, vec3 cell_min, vec3 cell_max, out vec4 end_point, out ivec2 nextList) {
 
     #if USE_PRINTF
     if(gl_GlobalInvocationID.xy == debug_pixel) {
@@ -814,15 +810,13 @@ void traverse_cell(vec4 entry_point, vec3 cell_min, vec3 cell_max, out vec4 end_
     }
     #endif
 
+    const float max_x = max(cell_max.x, cell_min.x);
+    const float min_x = min(cell_max.x, cell_min.x);
+    const float max_y = max(cell_max.y, cell_min.y);
+    const float min_y = min(cell_max.y, cell_min.y);
 
-    vec2 tex_orig = (entry_point.xy + 1) / 2.0;
-    ivec2 currentList;
-
-    currentList.x = int(round(tex_orig.x * windowWidth));
-    currentList.y = int(round(tex_orig.y * windowHeight));
-
-    float nextX = currentList.x + stepX * 0.5;
-    float nextY = currentList.y + stepY * 0.5;
+    float nextX = entry_list.x + stepX * 0.5;
+    float nextY = entry_list.y + stepY * 0.5;
 
     #if USE_PRINTF
     if(gl_GlobalInvocationID.xy == debug_pixel) {
@@ -834,6 +828,12 @@ void traverse_cell(vec4 entry_point, vec3 cell_min, vec3 cell_max, out vec4 end_
 
     float nextX_ndc = nextX / windowWidth * 2.0 - 1.0;
     float nextY_ndc = nextY / windowHeight * 2.0 - 1.0;
+
+    #if USE_PRINTF
+    if(gl_GlobalInvocationID.xy == debug_pixel) {
+        debugPrintfEXT("In NDC: nextX: %f, nextY: %f", nextX_ndc, nextY_ndc);
+    }
+    #endif
 
     float tmaxX = dir.x != 0 ? abs((nextX_ndc - entry_point.x) / dir.x) : 10000000;
     float tmaxY = dir.y != 0 ? abs((nextY_ndc - entry_point.y) / dir.y) : 10000000;
@@ -852,7 +852,9 @@ void traverse_cell(vec4 entry_point, vec3 cell_min, vec3 cell_max, out vec4 end_
     }
     #endif
 
-    ivec2 nextList = currentList;
+    ivec2 currentList = entry_list;
+
+    nextList = currentList;
     vec4 start_point = entry_point;
 
     bool finalIteration = false;
@@ -902,9 +904,32 @@ void traverse_cell(vec4 entry_point, vec3 cell_min, vec3 cell_max, out vec4 end_
             tmaxY += tdeltaY;
         }
 
-        end_point = u + dir * incr;
-        if(end_point.x > cell_max.x || end_point.x < cell_min.x || end_point.y > cell_max.y || end_point.y < cell_min.y) { //TODO: perhaps a delta needs to be added to the comparison
-            //TODO: this check can potentially be incorporated into the loop
+        end_point = entry_point + dir * incr;
+        bool terminate = false;
+
+        if(stepX == 1) {
+            if(end_point.x > max_x) { //TODO: perhaps a delta needs to be added to the comparison
+                terminate = true;
+            }
+        } else {
+            if(end_point.x < min_x) { //TODO: this check can potentially be incorporated into the loop
+                terminate = true;
+            }
+        }
+
+        if(stepY == 1) {
+            if(end_point.y > max_y) {
+                terminate = true;
+            }
+        } else {
+            if(end_point.y < min_y) {
+                terminate = true;
+            }
+        }
+
+        findSupsegsInList(currentList, start_point, end_point, finalColor);
+
+        if(terminate) {
             #if USE_PRINTF
             if(gl_GlobalInvocationID.xy == debug_pixel) {
                 debugPrintfEXT("Breaking because end pt is outside. It is: (%f, %f, %f)", end_point.xyz);
@@ -912,17 +937,6 @@ void traverse_cell(vec4 entry_point, vec3 cell_min, vec3 cell_max, out vec4 end_
             #endif
             break;
         }
-
-    //        #if USE_PRINTF
-    //        if(gl_GlobalInvocationID.xy == debug_pixel) {
-    //            debugPrintfEXT("Next list was calculated as: (%d, %d). End pt of this list: (%f, %f, %f)", nextList.xy, end_point.xyz);
-    //            debugPrintfEXT("Updated values: tmaxX: %f, tmaxY: %f, tmaxZ: %f", tmaxX, tmaxY, tmaxZ);
-    //
-    //        }
-    //        #endif
-
-        findSupsegsInList(currentList, start_point, end_point, finalColor);
-
 
     //        #if USE_PRINTF
     //        if(gl_GlobalInvocationID.xy == debug_pixel) {
@@ -953,9 +967,31 @@ void traverse_cell(vec4 entry_point, vec3 cell_min, vec3 cell_max, out vec4 end_
     }
 }
 
-ivec3 findGridCell(vec4 pos) {
-    vec4 pos_tex = (pos + 1.)/2.;
-    ivec3 grid_cell = ivec3(floor(pos_tex.xyz * num_cells));
+int findZInterval(float z_val) {
+    float dist_from_front = z_val - (-1);
+    int interval_num = int(floor(dist_from_front / (2.0 / num_cells)));
+    return interval_num;
+}
+
+ivec3 findGridCell(vec4 position) {
+    ivec3 grid_coords;
+
+    vec2 tex = (position.xy + vec2(1.)) / 2.;
+
+    grid_coords.xy = ivec2(floor(tex * num_cells));
+    grid_coords.z = findZInterval(position.z);
+
+    return grid_coords;
+}
+
+ivec3 findGridCell(ivec2 theList, float depth) {
+
+    ivec3 grid_cell;
+    grid_cell.x = theList.x / (windowWidth / num_cells);
+    grid_cell.y = theList.y / (windowHeight / num_cells);
+
+    grid_cell.z = findZInterval(depth);
+
     return grid_cell;
 }
 
@@ -963,8 +999,8 @@ void main() {
     im_x_9_x_ = transpose(im_x_9_x_);
 
     ivec2 imageCoords  = imageSize(OutputViewport);
-//    num_cells = imageSize(OctreeCells).r;
-    num_cells = 1.;
+//    num_cells = imageSize(OctreeCellads).r;
+    num_cells = 1;
     int imgWidth = imageCoords.x;
     int imgHeight = imageCoords.y;
 
@@ -1237,16 +1273,43 @@ void main() {
     const int MAX_Z = 1;
     const int MIN_Z = -1;
 
-    float cell_tdeltaX = abs(2. / num_cells) / dir.x;
-    float cell_tdeltaY = abs(2. / num_cells) / dir.y;
-    float cell_tdeltaZ = abs(2. / num_cells) / dir.z;
+    float cell_tdeltaX = abs((2. / num_cells) / dir.x);
+    float cell_tdeltaY = abs((2. / num_cells) / dir.y);
+    float cell_tdeltaZ = abs((2. / num_cells) / dir.z);
 
     vec4 end_point;
     vec4 start_point = first_entry_pt;
+
+    vec2 tex_orig = (start_point.xy + 1.0) / 2.0;
+    ivec2 start_list;
+
+    start_list.x = int(round(tex_orig.x * windowWidth));
+    start_list.y = int(round(tex_orig.y * windowHeight));
+
+    ivec2 next_list = start_list;
+
+//    ivec3 grid_cell = findGridCell(start_list, start_point.z);
     ivec3 grid_cell = findGridCell(start_point);
-    vec4 end_traversal = start_point;
+    ivec3 next_cell = grid_cell;
+    next_cell.x += (stepX == 1 ? 1 : 0);
+    next_cell.y += (stepY == 1 ? 1 : 0);
+    next_cell.z += (stepZ == 1 ? 1 : 0);
+
+    vec3 next_cell_ndc = ((next_cell / float(num_cells)) * 2.0) - vec3(1.0);
+
+    #if USE_PRINTF
+    if(gl_GlobalInvocationID.xy == debug_pixel) {
+        debugPrintfEXT("Next grid cell is: (%d, %d, %d). In NDC: (%f, %f, %f)", next_cell.xyz, next_cell_ndc.xyz);
+    }
+    #endif
+
+    float cell_tmaxX = dir.x != 0 ? abs((next_cell_ndc.x - start_point.x) / dir.x) : 10000000;
+    float cell_tmaxY = dir.y != 0 ? abs((next_cell_ndc.y - start_point.y) / dir.y) : 10000000;
+    float cell_tmaxZ = dir.z != 0 ? abs((next_cell_ndc.z - start_point.z) / dir.z) : 10000000;
+
 
     float t = 0;
+    vec4 end_traversal = vec4(0);
 
     bool finalIteration = false;
 
@@ -1254,77 +1317,130 @@ void main() {
 
         #if USE_PRINTF
         if(gl_GlobalInvocationID.xy == debug_pixel) {
-            debugPrintfEXT("Grid cell is: (%d, %d, %d) and num_cells: %f", grid_cell.xyz, num_cells);
+            debugPrintfEXT("Grid cell is: (%d, %d, %d) and num_cells: %d", grid_cell.xyz, num_cells);
         }
         #endif
 
-        ivec3 grid_at_end = findGridCell(end_traversal);
-        if(((grid_at_end.z - grid_cell.z) * stepZ) > 0) {
-            grid_cell = grid_at_end;
-            if(grid_cell.z >= num_cells || grid_cell.z < 0) {
-                break;
+        if(start_point == end_traversal) {
+            //if the new cell is to start at the end point of the previous traversal, then we need to check whether the
+            //previous traversal took us to a different grid cell along z
+
+//            ivec3 grid_at_end = findGridCell(start_list, start_point.z);
+            ivec3 grid_at_end = findGridCell(start_point);
+
+            if(((grid_at_end.z - grid_cell.z) * stepZ) > 0) {
+                grid_cell = grid_at_end;
+                if(grid_cell.z >= num_cells || grid_cell.z < 0) {
+                    break;
+                }
             }
+
         }
 
-        vec3 cell_min = vec3(grid_cell / num_cells);
+        vec3 cell_min = vec3(grid_cell / float(num_cells));
+        #if USE_PRINTF
+        if(gl_GlobalInvocationID.xy == debug_pixel) {
+            debugPrintfEXT("In tex, cell min: (%f, %f, %f) numcells was: %d", cell_min.xyz, num_cells);
+        }
+        #endif
         cell_min = (cell_min * 2.) - 1.;
-        vec3 cell_max = vec3(grid_cell+1 / num_cells);
+        vec3 cell_max = vec3((grid_cell+vec3(1.)) / float(num_cells));
+        #if USE_PRINTF
+        if(gl_GlobalInvocationID.xy == debug_pixel) {
+            debugPrintfEXT("In tex, cell max: (%f, %f, %f) numcells was: %d", cell_max.xyz, num_cells);
+        }
+        #endif
         cell_max = (cell_max * 2.) - 1.;
 
         bool cell_traversed = false;
 
-//        if(imageLoad(OctreeCells, grid_cell).r == 1) {
+        float temp = imageLoad(OctreeCells, grid_cell).r;
+        #if USE_PRINTF
+        if(gl_GlobalInvocationID.xy == debug_pixel) {
+            debugPrintfEXT("Value in the grid cell is: %f", temp);
+        }
+        #endif
+
+//        if(imageLoad(OctreeCells, grid_cell).r != 0) {
         if(true) {
-            traverse_cell(start_point, cell_min, cell_max, end_traversal);
+            traverse_cell(start_point, start_list, cell_min, cell_max, end_traversal, next_list);
             cell_traversed = true;
         }
 
-        float tmaxX = dir.x != 0 ? abs((cell_max.x - start_point.x) / dir.x) : 10000000;
-        float tmaxY = dir.y != 0 ? abs((cell_max.y - start_point.y) / dir.y) : 10000000;
-        float tmaxZ = dir.z != 0 ? abs((cell_max.z - start_point.z) / dir.z) : 10000000;
 
-        if(tmaxX < tmaxY) {
-            if(tmaxX < tmaxZ) {
+        #if USE_PRINTF
+        if(gl_GlobalInvocationID.xy == debug_pixel) {
+            debugPrintfEXT("cell_tmaxX: %f, cell_tmaxY: %f, cell_tmaxZ: %f", cell_tmaxX, cell_tmaxY, cell_tmaxZ);
+        }
+        #endif
+
+        if(cell_tmaxX < cell_tmaxY) {
+            if(cell_tmaxX < cell_tmaxZ) {
                 // x is the lowest
-                t += tmaxX;
+                t += cell_tmaxX;
                 grid_cell.x += stepX;
                 if(grid_cell.x >= num_cells || grid_cell.x < 0) { // TODO: only one comparison is required depending on stepX
                     finalIteration = true;
+                    #if USE_PRINTF
+                    if(gl_GlobalInvocationID.xy == debug_pixel) {
+                        debugPrintfEXT("This is final iteration because new x val: %d:", grid_cell.x);
+                    }
+                    #endif
                 }
-                tmaxX += cell_tdeltaX;
+                cell_tmaxX += cell_tdeltaX;
             } else {
                 // z is lowest or x = z
-                t += tmaxZ;
+                t += cell_tmaxZ;
                 grid_cell.z += stepZ;
                 if(grid_cell.z >= num_cells || grid_cell.z < 0) {
                     finalIteration = true;
+                    #if USE_PRINTF
+                    if(gl_GlobalInvocationID.xy == debug_pixel) {
+                        debugPrintfEXT("This is final iteration because new z val: %d:", grid_cell.z);
+                    }
+                    #endif
                 }
-                tmaxZ += cell_tdeltaZ;
+                cell_tmaxZ += cell_tdeltaZ;
             }
         } else {
-            if(tmaxY < tmaxZ) {
+            if(cell_tmaxY < cell_tmaxZ) {
                 // y is the lowest
-                t += tmaxY;
+                t += cell_tmaxY;
                 grid_cell.y += stepY;
                 if(grid_cell.y >= num_cells || grid_cell.y < 0) {
                     finalIteration = true;
+                    #if USE_PRINTF
+                    if(gl_GlobalInvocationID.xy == debug_pixel) {
+                        debugPrintfEXT("This is final iteration because new y val: %d:", grid_cell.y);
+                    }
+                    #endif
                 }
-                tmaxY += cell_tdeltaY;
+                cell_tmaxY += cell_tdeltaY;
             } else {
                 // z is the lowest or y = z
-                t += tmaxZ;
+                t += cell_tmaxZ;
                 grid_cell.z += stepZ;
                 if(grid_cell.z >= num_cells || grid_cell.z < 0) {
                     finalIteration = true;
+                    #if USE_PRINTF
+                    if(gl_GlobalInvocationID.xy == debug_pixel) {
+                        debugPrintfEXT("This is final iteration because new z val: %d:", grid_cell.z);
+                    }
+                    #endif
                 }
-                tmaxZ += cell_tdeltaZ;
+                cell_tmaxZ += cell_tdeltaZ;
             }
         }
 
         if(cell_traversed) {
             end_point = end_traversal;
+            //we have next_list from the traversal method
         } else {
             end_point = first_entry_pt + t * dir;
+            tex_orig = (end_point.xy + 1.0)/2.0;
+
+            next_list.x = int(round(tex_orig.x * windowWidth));
+            next_list.y = int(round(tex_orig.y * windowHeight));
         }
 
         #if USE_PRINTF
@@ -1345,6 +1461,7 @@ void main() {
         }
 
         start_point = end_point;
+        start_list = next_list;
     }
 
     finalColor.xyz = pow(finalColor.xyz, vec3(1/2.2));
@@ -1359,6 +1476,7 @@ void main() {
         debugPrintfEXT("Total empty lists was: %d", totalEmptyLists);
         debugPrintfEXT("Total intersected supsegs was: %d", totalIntersectedSupsegs);
         debugPrintfEXT("Total samples taken in lists that were not intersected: %d", totalNonIntersected);
+        debugPrintfEXT("Total intersected lists: %d", totalIntersectedLists);
         debugPrintfEXT("Total before first: %d", totalBeforeFirst);
         debugPrintfEXT("Total after last: %d", totalAfterLast);
         debugPrintfEXT("For pixel: (%d, %d), final color is: (%f, %f, %f, %f)", gl_GlobalInvocationID.xy, finalColor);
@@ -1369,6 +1487,10 @@ void main() {
     totalAfterLast = totalMemoryLoads - whenLast_Total;
 
     imageStore(OutputViewport, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), finalColor);
+
+    if(gl_GlobalInvocationID.xy == debug_pixel) {
+        imageStore(OutputViewport, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), vec4(0, 0, 1, 1));
+    }
 
 #if PROFILE_MEM
     imageStore(NumSteps, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), vec4(totalMemoryLoads, 0, 0, 0));
