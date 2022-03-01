@@ -3,6 +3,7 @@
 #define NDC 1
 #define SEPARATE_DEPTH 1
 #define PROFILE_MEM 0
+#define SKIP_EMPTY 1
 
 #if USE_PRINTF
 #extension GL_EXT_debug_printf : enable
@@ -36,7 +37,7 @@ layout(set = 3, binding = 0, rgba8) uniform image2D OutputViewport;
 #if SEPARATE_DEPTH
 layout (set = 4, binding = 0, r32f) uniform readonly image3D DepthVDI;
 #endif
-layout (set = 5, binding = 0, r8ui) uniform readonly uimage3D OctreeCells;
+layout (set = 5, binding = 0, rgba8) uniform readonly image3D OctreeCells;
 
 #if PROFILE_MEM
 layout(set = 6, binding = 0, r32f) uniform image2D NumSteps;
@@ -83,7 +84,7 @@ vec3 sourcemax_x_10_x_ = vec3(128.0, 128.0, 128.0);
 //ivec2 debug_pixel = ivec2(433, 577);
 //ivec2 debug_pixel = ivec2(729, 282);
 //ivec2 debug_pixel = ivec2(987, 437);
-ivec2 debug_pixel = ivec2(726, 496);
+ivec2 debug_pixel = ivec2(855, 384);
 //ivec2 debug_pixel = ivec2(35, 61);
 //ivec2 debug_pixel = ivec2(427, 465);
 //ivec2 debug_pixel = ivec2(424, 539);
@@ -999,8 +1000,13 @@ void main() {
     im_x_9_x_ = transpose(im_x_9_x_);
 
     ivec2 imageCoords  = imageSize(OutputViewport);
-//    num_cells = imageSize(OctreeCellads).r;
+
+    #if SKIP_EMPTY
+    num_cells = imageSize(OctreeCells).r;
+    #else
     num_cells = 1;
+    #endif
+
     int imgWidth = imageCoords.x;
     int imgHeight = imageCoords.y;
 
@@ -1317,7 +1323,7 @@ void main() {
 
         #if USE_PRINTF
         if(gl_GlobalInvocationID.xy == debug_pixel) {
-            debugPrintfEXT("Grid cell is: (%d, %d, %d) and num_cells: %d", grid_cell.xyz, num_cells);
+            debugPrintfEXT("Grid cell is: (%d, %d, %d) and num_cells: %d. Start point is: (%f, %f, %f, %f)", grid_cell.xyz, num_cells, start_point.xyzw);
         }
         #endif
 
@@ -1338,33 +1344,30 @@ void main() {
         }
 
         vec3 cell_min = vec3(grid_cell / float(num_cells));
-        #if USE_PRINTF
-        if(gl_GlobalInvocationID.xy == debug_pixel) {
-            debugPrintfEXT("In tex, cell min: (%f, %f, %f) numcells was: %d", cell_min.xyz, num_cells);
-        }
-        #endif
+
         cell_min = (cell_min * 2.) - 1.;
         vec3 cell_max = vec3((grid_cell+vec3(1.)) / float(num_cells));
-        #if USE_PRINTF
-        if(gl_GlobalInvocationID.xy == debug_pixel) {
-            debugPrintfEXT("In tex, cell max: (%f, %f, %f) numcells was: %d", cell_max.xyz, num_cells);
-        }
-        #endif
+
         cell_max = (cell_max * 2.) - 1.;
 
         bool cell_traversed = false;
 
-        float temp = imageLoad(OctreeCells, grid_cell).r;
-        #if USE_PRINTF
-        if(gl_GlobalInvocationID.xy == debug_pixel) {
-            debugPrintfEXT("Value in the grid cell is: %f", temp);
-        }
-        #endif
+        vec4 temp = imageLoad(OctreeCells, grid_cell);
 
-//        if(imageLoad(OctreeCells, grid_cell).r != 0) {
+        #if SKIP_EMPTY
+        if(imageLoad(OctreeCells, grid_cell).r != 0.) {
+//        if(true) {
+        #else
         if(true) {
+        #endif
             traverse_cell(start_point, start_list, cell_min, cell_max, end_traversal, next_list);
             cell_traversed = true;
+        } else {
+            #if USE_PRINTF
+            if(gl_GlobalInvocationID.xy == debug_pixel) {
+                debugPrintfEXT("Skipping the cell: (%d, %d, %d)", grid_cell.xyz);
+            }
+            #endif
         }
 
 
@@ -1377,7 +1380,7 @@ void main() {
         if(cell_tmaxX < cell_tmaxY) {
             if(cell_tmaxX < cell_tmaxZ) {
                 // x is the lowest
-                t += cell_tmaxX;
+                t = cell_tmaxX;
                 grid_cell.x += stepX;
                 if(grid_cell.x >= num_cells || grid_cell.x < 0) { // TODO: only one comparison is required depending on stepX
                     finalIteration = true;
@@ -1390,7 +1393,7 @@ void main() {
                 cell_tmaxX += cell_tdeltaX;
             } else {
                 // z is lowest or x = z
-                t += cell_tmaxZ;
+                t = cell_tmaxZ;
                 grid_cell.z += stepZ;
                 if(grid_cell.z >= num_cells || grid_cell.z < 0) {
                     finalIteration = true;
@@ -1405,7 +1408,7 @@ void main() {
         } else {
             if(cell_tmaxY < cell_tmaxZ) {
                 // y is the lowest
-                t += cell_tmaxY;
+                t = cell_tmaxY;
                 grid_cell.y += stepY;
                 if(grid_cell.y >= num_cells || grid_cell.y < 0) {
                     finalIteration = true;
@@ -1418,7 +1421,7 @@ void main() {
                 cell_tmaxY += cell_tdeltaY;
             } else {
                 // z is the lowest or y = z
-                t += cell_tmaxZ;
+                t = cell_tmaxZ;
                 grid_cell.z += stepZ;
                 if(grid_cell.z >= num_cells || grid_cell.z < 0) {
                     finalIteration = true;
@@ -1443,9 +1446,12 @@ void main() {
             next_list.y = int(round(tex_orig.y * windowHeight));
         }
 
+        vec3 t_temp = (end_point.xyz - first_entry_pt.xyz) / dir.xyz;
+
         #if USE_PRINTF
         if(gl_GlobalInvocationID.xy == debug_pixel) {
-            debugPrintfEXT("End point of grid cell: (%f, %f, %f)", end_point.xyz);
+            debugPrintfEXT("End point of grid cell: (%f, %f, %f), while end_traversal: (%f, %f, %f)", end_point.xyz, end_traversal.xyz);
+            debugPrintfEXT("Calculated vals of t: (%f, %f, %f), while t by stepping: %f", t_temp.xyz, t);
         }
         #endif
 
