@@ -36,6 +36,9 @@ import java.nio.file.Files
 open class Mesh(override var name: String = "Mesh") : DefaultNode(name), HasRenderable, HasMaterial, HasSpatial,
     HasGeometry {
 
+    var wantsSync = true
+    override fun wantsSync(): Boolean = wantsSync
+
     init {
         addGeometry()
         addRenderable()
