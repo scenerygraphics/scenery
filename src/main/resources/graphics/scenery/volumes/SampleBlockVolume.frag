@@ -5,6 +5,7 @@ uniform vec3 sourcemin;
 uniform vec3 sourcemax;
 uniform vec4 slicingPlanes[16];
 uniform int slicingMode;
+uniform int usedSlicingPlanes;
 
 void intersectBoundingBox( vec4 wfront, vec4 wback, out float tnear, out float tfar )
 {
@@ -28,7 +29,7 @@ vec4 sampleVolume( vec4 wpos, sampler3D volumeCache, vec3 cacheSize, vec3 blockS
     bool isCropped = false;
     bool isInSlice = false;
 
-    for(int i = 0; i < 16; i++){
+    for(int i = 0; i < usedSlicingPlanes; i++){
         vec4 slicingPlane = slicingPlanes[i];
         float dv = slicingPlane.x * wpos.x + slicingPlane.y * wpos.y + slicingPlane.z * wpos.z;
 
