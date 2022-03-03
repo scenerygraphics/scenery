@@ -140,7 +140,8 @@ class VRControllerExample : SceneryBase(
         }
         pen.addChild(tip)
         var lastPenWriting = 0L
-        pen.addAttribute(Grabable::class.java, Grabable(onDrag = {
+        pen.addAttribute(Grabable::class.java, Grabable())
+        pen.addAttribute(Pressable::class.java, Pressable(onHold = {
             if (System.currentTimeMillis() - lastPenWriting > 50){
                 val ink = Sphere(0.03f)
                 ink.spatial().position=tip.spatial().worldPosition()
