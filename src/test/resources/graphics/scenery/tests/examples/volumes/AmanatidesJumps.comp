@@ -4,6 +4,7 @@
 #define SEPARATE_DEPTH 1
 #define PROFILE_MEM 0
 #define SKIP_EMPTY 1
+#define USE_VIEW_SPACE_CELLS 1
 
 #if USE_PRINTF
 #extension GL_EXT_debug_printf : enable
@@ -84,7 +85,7 @@ vec3 sourcemax_x_10_x_ = vec3(128.0, 128.0, 128.0);
 //ivec2 debug_pixel = ivec2(433, 577);
 //ivec2 debug_pixel = ivec2(729, 282);
 //ivec2 debug_pixel = ivec2(987, 437);
-ivec2 debug_pixel = ivec2(855, 384);
+ivec2 debug_pixel = ivec2(817, 518);
 //ivec2 debug_pixel = ivec2(35, 61);
 //ivec2 debug_pixel = ivec2(427, 465);
 //ivec2 debug_pixel = ivec2(424, 539);
@@ -697,7 +698,7 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
 //        #endif
 
 //        if(gl_GlobalInvocationID.xy == debug_pixel && supseg_found && index == prevIndex) {
-        if(theList == prevList && supseg_found && index == prevIndex) {
+        if(gl_GlobalInvocationID.xy == debug_pixel && theList == prevList && supseg_found && index == prevIndex) {
             #if USE_PRINTF
                 debugPrintfEXT("This is an ERROR! For list: (%d, %d), found index: %d again. Invoc ID was: (%d, %d)", theList.x, theList.y, index, gl_GlobalInvocationID.xy);
             #endif
@@ -819,22 +820,10 @@ void traverse_cell(vec4 entry_point, ivec2 entry_list, vec3 cell_min, vec3 cell_
     float nextX = entry_list.x + stepX * 0.5;
     float nextY = entry_list.y + stepY * 0.5;
 
-    #if USE_PRINTF
-    if(gl_GlobalInvocationID.xy == debug_pixel) {
-        debugPrintfEXT("nextX: %f, nextY: %f", nextX, nextY);
-    }
-    #endif
-
     float finalZ = dir.z > 0 ? cell_max.z : cell_min.z; //TODO: Should this be 0 instead of -1
 
     float nextX_ndc = nextX / windowWidth * 2.0 - 1.0;
     float nextY_ndc = nextY / windowHeight * 2.0 - 1.0;
-
-    #if USE_PRINTF
-    if(gl_GlobalInvocationID.xy == debug_pixel) {
-        debugPrintfEXT("In NDC: nextX: %f, nextY: %f", nextX_ndc, nextY_ndc);
-    }
-    #endif
 
     float tmaxX = dir.x != 0 ? abs((nextX_ndc - entry_point.x) / dir.x) : 10000000;
     float tmaxY = dir.y != 0 ? abs((nextY_ndc - entry_point.y) / dir.y) : 10000000;
@@ -884,9 +873,13 @@ void traverse_cell(vec4 entry_point, ivec2 entry_list, vec3 cell_min, vec3 cell_
 
         if(tmaxZ <= tmaxX && tmaxZ <= tmaxY) {
             //z is lowest
-            incr = tmaxZ;
+            /* this check only ensures that this list will be the last one intersected in this cell. For calculating the
+             end point in the list, and the next_list, we use the x or y intercept*/
+
             finalIteration = true;
-        } else if(tmaxX < tmaxY) {
+        }
+
+        if(tmaxX < tmaxY) {
             //x is the lowest
             incr = tmaxX;
             nextList.x += stepX;
@@ -968,10 +961,53 @@ void traverse_cell(vec4 entry_point, ivec2 entry_list, vec3 cell_min, vec3 cell_
     }
 }
 
-int findZInterval(float z_val) {
+float near_plane = 0.1; //TODO: get from the CPU
+float far_plane = 20.0;
+
+float A = -1 * ((far_plane + near_plane) / (far_plane - near_plane));
+float B = -1 * ((2 * far_plane * near_plane) / (far_plane - near_plane));
+
+float z_to_view(float z_n) {
+    float z_v = -1 * (B / (A + z_n));
+    return z_v;
+}
+
+float z_to_ndc(float z_v) {
+    float z_n = -1 * ((A * z_v + B)/z_v);
+    return z_n;
+}
+
+int findZInterval_ndc(float z_val) {
     float dist_from_front = z_val - (-1);
     int interval_num = int(floor(dist_from_front / (2.0 / num_cells)));
     return interval_num;
+}
+
+int findZInterval_view(float z_ndc) {
+    float z_view = z_to_view(z_ndc);
+    float dist_from_front = abs(z_view - (-1 * near_plane));
+    int interval_num = int(floor(dist_from_front / ((far_plane - near_plane) / num_cells)));
+    return interval_num;
+}
+
+float cellToViewToNDC(int cell_z) {
+//    float lambda = float(cell_z) / float(num_cells);
+//    float view_z = near_plane * (1. - lambda) + lambda * far_plane;
+//    view_z = -1 * view_z;
+
+    float dist_from_near = cell_z * ((far_plane - near_plane) / float(num_cells));
+    float view_z = dist_from_near + near_plane;
+    view_z = -1 * view_z;
+
+    float ndc_z = -1 * ((A * view_z + B) / view_z);
+
+    #if USE_PRINTF
+    if(gl_GlobalInvocationID.xy == debug_pixel) { //TODO: generalize
+        debugPrintfEXT("z_view is: %f. Dist to orig was: %f. NDC_Z: %f, cell_z: %d", view_z, dist_from_near, ndc_z, cell_z);
+    }
+    #endif
+
+    return ndc_z;
 }
 
 ivec3 findGridCell(vec4 position) {
@@ -980,7 +1016,12 @@ ivec3 findGridCell(vec4 position) {
     vec2 tex = (position.xy + vec2(1.)) / 2.;
 
     grid_coords.xy = ivec2(floor(tex * num_cells));
-    grid_coords.z = findZInterval(position.z);
+
+    #if USE_VIEW_SPACE_CELLS
+    grid_coords.z = findZInterval_view(position.z);
+    #else
+    grid_coords.z = findZInterval_ndc(position.z);
+    #endif
 
     return grid_coords;
 }
@@ -988,10 +1029,14 @@ ivec3 findGridCell(vec4 position) {
 ivec3 findGridCell(ivec2 theList, float depth) {
 
     ivec3 grid_cell;
-    grid_cell.x = theList.x / (windowWidth / num_cells);
-    grid_cell.y = theList.y / (windowHeight / num_cells);
+    grid_cell.x = int(floor((float(theList.x) / windowWidth) * num_cells));
+    grid_cell.y = int(floor((float(theList.y) / windowHeight) * num_cells));
 
-    grid_cell.z = findZInterval(depth);
+    #if USE_VIEW_SPACE_CELLS
+    grid_cell.z = findZInterval_view(depth);
+    #else
+    grid_cell.z = findZInterval_ndc(depth);
+    #endif
 
     return grid_cell;
 }
@@ -1131,6 +1176,9 @@ void main() {
             debugPrintfEXT("Sigma is: %f and dist was: %f", sigma, dist);
         }
         #endif
+
+        cellToViewToNDC(127);
+cellToViewToNDC(128);
 
         vec4 view_orig = ViewOriginal * newRay.wfront;
 
@@ -1281,7 +1329,11 @@ void main() {
 
     float cell_tdeltaX = abs((2. / num_cells) / dir.x);
     float cell_tdeltaY = abs((2. / num_cells) / dir.y);
+    #if USE_VIEW_SPACE_CELLS
+    float cell_tdeltaZ = 0;
+    #else
     float cell_tdeltaZ = abs((2. / num_cells) / dir.z);
+    #endif
 
     vec4 end_point;
     vec4 start_point = first_entry_pt;
@@ -1301,7 +1353,14 @@ void main() {
     next_cell.y += (stepY == 1 ? 1 : 0);
     next_cell.z += (stepZ == 1 ? 1 : 0);
 
+    #if USE_VIEW_SPACE_CELLS
+    vec3 next_cell_ndc;
+    next_cell_ndc.xy = ((next_cell.xy / float(num_cells)) * 2.0) - vec2(1.0);
+    next_cell_ndc.z = cellToViewToNDC(next_cell.z);
+    #else
     vec3 next_cell_ndc = ((next_cell / float(num_cells)) * 2.0) - vec3(1.0);
+    #endif
+
 
     #if USE_PRINTF
     if(gl_GlobalInvocationID.xy == debug_pixel) {
@@ -1323,7 +1382,7 @@ void main() {
 
         #if USE_PRINTF
         if(gl_GlobalInvocationID.xy == debug_pixel) {
-            debugPrintfEXT("Grid cell is: (%d, %d, %d) and num_cells: %d. Start point is: (%f, %f, %f, %f)", grid_cell.xyz, num_cells, start_point.xyzw);
+            debugPrintfEXT("Grid cell is: (%d, %d, %d). Start point is: (%f, %f, %f, %f)", grid_cell.xyz, start_point.xyzw);
         }
         #endif
 
@@ -1332,23 +1391,45 @@ void main() {
             //previous traversal took us to a different grid cell along z
 
 //            ivec3 grid_at_end = findGridCell(start_list, start_point.z);
+            if(start_point.x < MIN_X || start_point.x > MAX_X || start_point.y < MIN_Y || start_point.y > MAX_Y || start_point.z < MIN_Z || start_point.z > MAX_Z) {
+                break;
+            }
+
             ivec3 grid_at_end = findGridCell(start_point);
 
-            if(((grid_at_end.z - grid_cell.z) * stepZ) > 0) {
-                grid_cell = grid_at_end;
-                if(grid_cell.z >= num_cells || grid_cell.z < 0) {
-                    break;
-                }
+//            if(((grid_at_end.z - grid_cell.z) * stepZ) > 0) {
+            grid_cell = grid_at_end;
+
+            #if USE_PRINTF
+            if(gl_GlobalInvocationID.xy == debug_pixel) {
+                debugPrintfEXT("At the end of traversal, grid cell is: (%d, %d, %d).", grid_cell.xyz);
             }
+            #endif
+//            }
 
         }
 
+        #if USE_VIEW_SPACE_CELLS
+
+        vec3 cell_min;
+        cell_min.xy = vec2(grid_cell.xy / float(num_cells));
+        cell_min.xy = (cell_min.xy * 2.) - 1.;
+        cell_min.z = cellToViewToNDC(grid_cell.z);
+
+        vec3 cell_max;
+        cell_max.xy = vec2((grid_cell.xy+vec2(1.)) / float(num_cells));
+        cell_max.xy = (cell_max.xy * 2.) - 1.;
+        cell_max.z = cellToViewToNDC(grid_cell.z + 1);
+
+        #else
+
         vec3 cell_min = vec3(grid_cell / float(num_cells));
-
         cell_min = (cell_min * 2.) - 1.;
-        vec3 cell_max = vec3((grid_cell+vec3(1.)) / float(num_cells));
 
+        vec3 cell_max = vec3((grid_cell+vec3(1.)) / float(num_cells));
         cell_max = (cell_max * 2.) - 1.;
+
+        #endif
 
         bool cell_traversed = false;
 
@@ -1377,6 +1458,8 @@ void main() {
         }
         #endif
 
+        //TODO: the next section can probably be skipped if the cell has been traversed
+
         if(cell_tmaxX < cell_tmaxY) {
             if(cell_tmaxX < cell_tmaxZ) {
                 // x is the lowest
@@ -1403,6 +1486,12 @@ void main() {
                     }
                     #endif
                 }
+                #if USE_VIEW_SPACE_CELLS
+                int next_z = grid_cell.z + (stepZ == 1 ? 1 : -1);
+                float current_z_ndc = cellToViewToNDC(grid_cell.z);
+                float next_z_ndc = cellToViewToNDC(next_z);
+                cell_tdeltaZ = dir.z != 0 ? abs((next_z_ndc - current_z_ndc) / dir.z) : 10000000;
+                #endif
                 cell_tmaxZ += cell_tdeltaZ;
             }
         } else {
@@ -1431,6 +1520,12 @@ void main() {
                     }
                     #endif
                 }
+                #if USE_VIEW_SPACE_CELLS
+                int next_z = grid_cell.z + (stepZ == 1 ? 1 : -1);
+                float current_z_ndc = cellToViewToNDC(grid_cell.z);
+                float next_z_ndc = cellToViewToNDC(next_z);
+                cell_tdeltaZ = dir.z != 0 ? abs((next_z_ndc - current_z_ndc) / dir.z) : 10000000;
+                #endif
                 cell_tmaxZ += cell_tdeltaZ;
             }
         }

@@ -1,0 +1,192 @@
+#version 450
+#extension GL_EXT_debug_printf : enable
+#define SEPARATE_DEPTH 1
+#define USE_PRINTF 1
+
+layout (local_size_x = 16, local_size_y = 16) in;
+layout (set = 0, binding = 0, rgba8) uniform readonly image3D InputVDI;
+#if SEPARATE_DEPTH
+layout (set = 1, binding = 0, r32f) uniform readonly image3D DepthVDI;
+#endif
+layout (set = 2, binding = 0, rgba8) uniform image3D OctreeCells;
+
+
+int numSupersegments = 0;
+ivec2 debug_pixel = ivec2(434, 531);
+
+float getSupsegFront(ivec2 theList, int index) {
+
+    if(!(index >= 0 && index < numSupersegments)) {
+        //This is an error!
+        #if USE_PRINTF
+        if(gl_GlobalInvocationID.xy == debug_pixel) { //TODO: generalize
+            debugPrintfEXT("Searching for front face of incorrect supersegment index! List: (%d, %d) and index requested: %d", theList, index);
+        }
+        #endif
+        return -1;
+    }
+
+    #if SEPARATE_DEPTH
+    vec4 front = imageLoad(DepthVDI, ivec3(index*2, theList.y, theList.x));
+    return front.x;
+    #else
+    vec4 front = imageLoad(InputVDI, ivec3(index*3 + 1, theList.y, theList.x));
+    return DecodeFloatRGBA(front);
+    #endif
+}
+
+float getSupsegBack(ivec2 theList, int index) {
+
+    if(!(index >= 0 && index < numSupersegments)) {
+        //This is an error!
+        #if USE_PRINTF
+        if(gl_GlobalInvocationID.xy == debug_pixel) { //TODO: generalize
+            debugPrintfEXT("Searching for back face of incorrect supersegment index! List: (%d, %d) and index requested: %d", theList, index);
+        }
+        #endif
+        return -1;
+    }
+
+    #if SEPARATE_DEPTH
+    vec4 back = imageLoad(DepthVDI, ivec3(index*2 + 1, theList.y, theList.x));
+    return back.x;
+    #else
+    vec4 back = imageLoad(InputVDI, ivec3(index*3 + 2, theList.y, theList.x));
+    return DecodeFloatRGBA(back);
+    #endif
+}
+
+int num_cells;
+ivec3 prevCell = ivec3(-1);
+
+float near_plane = 0.1; //TODO: get from the CPU
+float far_plane = 20.0;
+
+float A = -1 * ((far_plane + near_plane) / (far_plane - near_plane));
+float B = -1 * ((2 * far_plane * near_plane) / (far_plane - near_plane));
+
+float z_to_view(float z_n) {
+    float z_v = -1 * (B / (A + z_n));
+    return z_v;
+}
+
+int findZInterval_ndc(float z_val) {
+    float dist_from_front = z_val - (-1);
+    int interval_num = int(floor(dist_from_front / (2.0 / num_cells)));
+    return interval_num;
+}
+
+int findZInterval_view(float z_ndc) {
+    float z_view = z_to_view(z_ndc);
+//    #if USE_PRINTF
+//    if(gl_GlobalInvocationID.xy == debug_pixel) { //TODO: generalize
+//        debugPrintfEXT("z_view is: %f. NDC val was: %f", z_view, z_ndc);
+//    }
+//    #endif
+
+    float dist_from_front = abs(z_view - (-1 * near_plane));
+    float interval_size = ((far_plane - near_plane) / num_cells);
+    int interval_num = int(floor(dist_from_front / interval_size));
+
+//    if(gl_GlobalInvocationID.xy == debug_pixel) { //TODO: generalize
+//        debugPrintfEXT("for z_view: %f, dist_from_front: %f, interval size: %f, interval found is: %d", z_view, dist_from_front, interval_size, interval_num);
+//    }
+
+    return interval_num;
+}
+
+void update_cell(ivec3 cell) {
+    if (cell == prevCell) {
+        // we have already written a 1 to this cell
+        return;
+    } else {
+        #if USE_PRINTF
+        if(gl_GlobalInvocationID.xy == debug_pixel) { //TODO: generalize
+            debugPrintfEXT("Writing %d to grid cell: (%d, %d, %d)", 2, cell.xyz);
+        }
+        #endif
+        imageStore(OctreeCells, cell, vec4(1));
+        prevCell = cell;
+    }
+}
+
+void main() {
+
+    ivec3 imageCoords  = imageSize(InputVDI);
+
+    int windowHeight = imageCoords.g;
+    int windowWidth = imageCoords.b;
+
+    num_cells = imageSize(OctreeCells).r;
+//    num_cells = 4;
+
+    #if USE_PRINTF
+    if(gl_GlobalInvocationID.xy == debug_pixel) { //TODO: generalize
+        debugPrintfEXT("Number of cells is: %d", num_cells);
+    }
+    #endif
+
+    #if SEPARATE_DEPTH
+    numSupersegments = imageCoords.r;
+    #else
+    numSupersegments = imageCoords.r / 3;
+    #endif
+
+    float t1 = z_to_view(-1);
+    float t2 = z_to_view(-0.5);
+    float t3 = z_to_view(0.0);
+    float t4 = z_to_view(0.5);
+    float t5 = z_to_view(1);
+
+    #if USE_PRINTF
+    if(gl_GlobalInvocationID.xy == debug_pixel) { //TODO: generalize
+        debugPrintfEXT("t1: %f t2: %f t3: %f t4: %f t5: %f", t1, t2, t3, t4, t5);
+    }
+    #endif
+
+    vec4 v = vec4(0);
+    vec4 maxV = vec4(0);
+
+    ivec2 theList = ivec2(gl_GlobalInvocationID.xy);
+    ivec3 cell = ivec3(0);
+
+    for(int i = 0; i < numSupersegments; i++) {
+        #if SEPARATE_DEPTH
+        vec4 x = imageLoad(InputVDI, ivec3(i, theList.y, theList.x));
+        #else
+        vec4 x = imageLoad(InputVDI, ivec3(i*3, theList.y, theList.x));
+        #endif
+
+        vec3 newColor = x.rgb;
+        float newAlpha = x.a;
+
+        float depthHere = getSupsegFront(theList, i);
+        float depthEnd = getSupsegBack(theList, i);
+
+        if(gl_GlobalInvocationID.xy == debug_pixel) {
+            debugPrintfEXT("Supseg: %d, start: %f and end: %f", i, depthHere, depthEnd);
+        }
+
+        if(depthEnd == 0.0) { // the supersegment has not been filled
+            break;
+        }
+
+        cell.x = int(floor((float(theList.x) / windowWidth) * num_cells));
+        cell.y = int(floor((float(theList.y) / windowHeight) * num_cells));
+
+        int start_z = findZInterval_view(depthHere);
+        int end_z = findZInterval_view(depthEnd);
+
+        for(int j = start_z; j <= end_z; j++) {
+            cell.z = j;
+            update_cell(cell);
+        }
+
+    }
+//    for(int i = 0; i < num_cells; i++) {
+//        cell.x = theList.x / (windowWidth / num_cells);
+//        cell.y = theList.y / (windowHeight / num_cells);
+//        cell.z = i;
+//        update_cell(cell);
+//    }
+}

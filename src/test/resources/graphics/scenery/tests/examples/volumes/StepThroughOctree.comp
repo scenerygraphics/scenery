@@ -1,0 +1,35 @@
+#version 450
+#extension GL_EXT_debug_printf : enable
+#define USE_PRINTF 1
+
+layout (local_size_x = 16, local_size_y = 16) in;
+layout (set = 0, binding = 0, rgba8) uniform readonly image3D OctreeCells;
+layout (set = 1, binding = 0, rgba8) uniform image2D OutputViewport;
+
+void main() {
+    ivec2 debug_pixel = ivec2(60, 133);
+
+    ivec3 imageCoords  = imageSize(OctreeCells);
+    int num_cells = imageCoords.r;
+
+    int cnt = 0;
+
+    for(int i = 0; i < num_cells; i++) {
+
+        vec4 cell = imageLoad(OctreeCells, ivec3(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y, i));
+
+        if(gl_GlobalInvocationID.xy == debug_pixel) {
+            debugPrintfEXT("Cell: (%d, %d, %d) is in float: (%f, %f, %f, %f)", gl_GlobalInvocationID.x, gl_GlobalInvocationID.y, i, cell.xyzw);
+        }
+
+        if(cell.r != 0.0) {
+            cnt++;
+        }
+    }
+
+//    if(cnt > 1) {
+//        debugPrintfEXT("Invoc coords: (%d, %d), num not zero: %d", gl_GlobalInvocationID.x, gl_GlobalInvocationID.y, cnt);
+//    }
+
+    imageStore(OutputViewport, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), vec4(cnt, 0, 0, 1));
+}

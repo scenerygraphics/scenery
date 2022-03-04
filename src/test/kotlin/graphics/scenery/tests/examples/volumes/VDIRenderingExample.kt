@@ -29,9 +29,9 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1832, 1016, wantREPL = 
     val separateDepth = true
     val profileMemoryAccesses = false
     val compute = RichNode()
-    val closeAfter = 5000L
+    val closeAfter = 150000L
     val dataset = "Stagbeetle"
-    val numOctreeLayers = 7.0
+    val numOctreeLayers = 8.0
 
     override fun init () {
 
@@ -88,8 +88,11 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1832, 1016, wantREPL = 
 //        cam.position = Vector3f( 3.853E+0f,  7.480E-1f, -9.672E-1f)
 //        cam.rotation = Quaternionf( 4.521E-2,  9.413E-1, -1.398E-1, -3.040E-1)
 
-//            position = Vector3f( 5.286E+0f,  8.330E-1f,  3.088E-1f)
-//            rotation = Quaternionf( 4.208E-2,  9.225E-1, -1.051E-1, -3.690E-1)
+            position = Vector3f( 5.286E+0f,  8.330E-1f,  3.088E-1f)
+            rotation = Quaternionf( 4.208E-2,  9.225E-1, -1.051E-1, -3.690E-1)
+//
+//            position = Vector3f( 2.869E+0f,  8.955E-1f, -9.165E-1f)
+//            rotation = Quaternionf( 2.509E-2,  9.739E-1, -1.351E-1, -1.805E-1)
         }
 
         cam.farPlaneDistance = 20.0f
@@ -108,7 +111,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1832, 1016, wantREPL = 
             buff = File("/home/aryaman/Repositories/scenery-insitu/${dataset}VDI10_ndc").readBytes()
             depthBuff = null
         }
-        octBuff = File("/home/aryaman/Repositories/scenery-insitu/octree_lowest.raw").readBytes()
+        octBuff = File("/home/aryaman/Repositories/scenery-insitu/octree_lowest5.raw").readBytes()
 
         val opBuffer = MemoryUtil.memCalloc(windowWidth * windowHeight * 4)
         val opNumSteps = MemoryUtil.memCalloc(windowWidth * windowHeight * 4)
@@ -132,7 +135,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1832, 1016, wantREPL = 
         }
 
         val numVoxels = 2.0.pow(numOctreeLayers)
-        val lowestLevel = MemoryUtil.memCalloc(numVoxels.pow(3).toInt())
+        val lowestLevel = MemoryUtil.memCalloc(numVoxels.pow(3).toInt() * 4)
         lowestLevel.put(octBuff).flip()
 
         compute.name = "compute node"
@@ -156,7 +159,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1832, 1016, wantREPL = 
         if(separateDepth) {
             compute.material().textures["DepthVDI"] = Texture(Vector3i(2*numSupersegments, windowHeight, windowWidth), 1, contents = depthBuffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType())
         }
-        compute.material().textures["OctreeCells"] = Texture(Vector3i(numVoxels.toInt(), numVoxels.toInt(), numVoxels.toInt()), 1, contents = lowestLevel, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
+        compute.material().textures["OctreeCells"] = Texture(Vector3i(numVoxels.toInt(), numVoxels.toInt(), numVoxels.toInt()), 4, contents = lowestLevel, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
         compute.metadata["ComputeMetadata"] = ComputeMetadata(
             workSizes = Vector3i(windowWidth, windowHeight, 1),
             invocationType = InvocationType.Permanent
