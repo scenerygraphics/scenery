@@ -34,7 +34,7 @@ class RemoteRenderingClientExample : SceneryBase("RemoteRenderingClientExample",
             Renderer.createRenderer(hub, applicationName, scene, 512, 512)
         )
 
-        val shell = Box(Vector3f(10.0f, 10.0f, 10.0f), insideNormals = true)
+        val shell = Box(Vector3f(20.0f, 20.0f, 20.0f), insideNormals = true)
         with(shell) {
             wantsSync = false
             material() {
@@ -56,19 +56,12 @@ class RemoteRenderingClientExample : SceneryBase("RemoteRenderingClientExample",
             scene.addChild(this)
         }
 
-        val billBoard = Billboard(Vector2f(1.0f, 1.0f))
+        val billBoard = Billboard(Vector2f(2.0f, 2.0f), Vector3f(0.0f, 0.0f, 0.0f), true)
         with(billBoard)
         {
             wantsSync = false
             material {
                 textures["diffuse"] = Texture.fromImage(Image.fromResource("textures/helix.png", TexturedCubeExample::class.java))
-                cullingMode = Material.CullingMode.Front
-            }
-            renderable {
-                isBillboard = true
-            }
-            spatial {
-                position = Vector3f(0.0f, 0.0f, 0.0f)
             }
 
             scene.addChild(this)

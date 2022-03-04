@@ -7,10 +7,19 @@ layout(location = 2) in vec2 vertexTexCoord;
 
 layout(location = 0) out VertexData {
     vec3 Position;
-    vec3 Normal;
     vec2 TexCoord;
-    vec3 FragPosition;
+    vec3 Normal; //hold sizes if geometryBillboarding is used in .xy
 } Vertex;
+
+layout(location = 3) out CameraDataOut {
+    vec3 CamPosition;
+    mat4 Transform;
+    mat4 VP;
+} Camera;
+
+layout(set = 4, binding = 0) uniform ShaderProperties {
+    int UseGeometryBillboarding;
+};
 
 layout(set = 2, binding = 0) uniform Matrices {
 	mat4 ModelMatrix;
@@ -43,7 +52,7 @@ layout(set = 1, binding = 0) uniform LightParameters {
     mat4 ProjectionMatrix;
     mat4 InverseProjectionMatrix;
     vec3 CamPosition;
-};
+}lightParams;
 
 layout(push_constant) uniform currentEye_t {
     int eye;
@@ -51,35 +60,51 @@ layout(push_constant) uniform currentEye_t {
 
 void main()
 {
-	mat4 mv;
-	mat4 nMVP;
-	mat4 projectionMatrix;
+    if(UseGeometryBillboarding == 0)
+    {
+        mat4 mv;
+        mat4 nMVP;
+        mat4 projectionMatrix;
 
-    mv = (vrParameters.stereoEnabled ^ 1) * ViewMatrices[0] * ubo.ModelMatrix + (vrParameters.stereoEnabled * ViewMatrices[currentEye.eye] * ubo.ModelMatrix);
-	projectionMatrix = (vrParameters.stereoEnabled ^ 1) * ProjectionMatrix + vrParameters.stereoEnabled * vrParameters.projectionMatrices[currentEye.eye];
-
-
-	/*mv[0][0] = 1.0f;
-	mv[0][1] = 0.0f;
-	mv[0][2] = 0.0f;
-
-	mv[1][0] = 0.0f;
-	mv[1][1] = 1.0f;
-	mv[1][2] = 0.0f;
-
-	mv[2][0] = 0.0f;
-	mv[2][1] = 0.0f;
-	mv[2][2] = 1.0f;*/
+        mv = (vrParameters.stereoEnabled ^ 1) * lightParams.ViewMatrices[0] * ubo.ModelMatrix + (vrParameters.stereoEnabled * lightParams.ViewMatrices[currentEye.eye] * ubo.ModelMatrix);
+        projectionMatrix = (vrParameters.stereoEnabled ^ 1) * lightParams.ProjectionMatrix + vrParameters.stereoEnabled * vrParameters.projectionMatrices[currentEye.eye];
 
 
-	nMVP = projectionMatrix*mv;
+        /*mv[0][0] = 1.0f;
+        mv[0][1] = 0.0f;
+        mv[0][2] = 0.0f;
 
-    Vertex.Normal = mat3(ubo.NormalMatrix) * normalize(vertexNormal);
-    Vertex.TexCoord = vertexTexCoord;
-    Vertex.FragPosition = (ubo.ModelMatrix * vec4(vertexPosition, 1.0)).xyz;
+        mv[1][0] = 0.0f;
+        mv[1][1] = 1.0f;
+        mv[1][2] = 0.0f;
 
-    gl_PointSize = 1.0;
-	gl_Position = vrParameters.projectionMatrices[currentEye.eye] * ubo.ModelMatrix * vec4(vertexPosition, 1.0);
-    Vertex.Position = gl_Position.xyz;
+        mv[2][0] = 0.0f;
+        mv[2][1] = 0.0f;
+        mv[2][2] = 1.0f;*/
+
+
+        nMVP = projectionMatrix*mv;
+
+        Vertex.Normal = mat3(ubo.NormalMatrix) * normalize(vertexNormal);
+        Vertex.TexCoord = vertexTexCoord;
+
+        gl_PointSize = 1.0;
+        gl_Position = vrParameters.projectionMatrices[currentEye.eye] * ubo.ModelMatrix * vec4(vertexPosition, 1.0);
+        gl_Position = ubo.ModelMatrix * vec4(vertexPosition, 1.0);
+        Vertex.Position = gl_Position.xyz;
+    }
+
+    else
+    {
+        Vertex.Position = vertexPosition;
+        Vertex.TexCoord = vertexTexCoord;
+        Vertex.Normal = vertexNormal;
+
+        gl_Position = vec4(Vertex.Position, 1.0);
+
+        Camera.CamPosition = lightParams.CamPosition;
+        Camera.VP = lightParams.ProjectionMatrix * lightParams.ViewMatrices[0];
+        Camera.Transform = lightParams.InverseViewMatrices[0];
+    }
 }
 
