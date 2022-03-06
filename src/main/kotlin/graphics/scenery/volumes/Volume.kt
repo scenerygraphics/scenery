@@ -690,7 +690,7 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
         }
 
         /** Amount of supported slicing planes per volume, see also sampling shader segments */
-        private const val MAX_SUPPORTED_SLICING_PLANES = 16
+        internal const val MAX_SUPPORTED_SLICING_PLANES = 16
 
     }
 
