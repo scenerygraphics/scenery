@@ -804,6 +804,71 @@ float tdeltaX, tdeltaY; //the delta intercepts for the ray on the supseg lists
 vec4 finalColor = vec4(0);
 int num_cells;
 
+void traverse_subsample(vec4 entry_point, vec4 end_point, int num_samples) {
+    int total_before = totalMemoryLoads;
+
+    vec4 world_entry, world_end;
+
+    world_entry = ivp_orig * entry_point;
+    world_entry *= 1. / world_entry.w;
+
+    world_end = ivp_orig * end_point;
+    world_end *= 1. / world_end.w;
+
+    float total_distance = distance(world_entry, world_end);
+    float jump_size = total_distance / float(num_samples);
+
+    float step = 0;
+
+    for(int i = 1; i <= num_samples; i++) {
+        step = i * jump_size / total_distance;
+        vec4 wpos = mix(world_entry, world_end, step);
+
+        vec4 npos = pv_orig * wpos;
+        npos *= 1. / npos.w;
+        vec2 tex = (npos.xy + 1) / 2.0;
+
+        ivec2 list_coords;
+        list_coords.x = int(round(tex.x * windowWidth));
+        list_coords.y = int(round(tex.y * windowHeight));
+
+        bool supseg_found;
+        int index;
+        float depth_start, depth_end;
+        findFirstSupseg(list_coords, npos.z, npos.z, supseg_found, index, depth_start, depth_end);
+
+        if(supseg_found) {
+            totalIntersectedSupsegs++;
+            totalIntersectedLists++;
+
+            vec4 supseg_start_w = ivp_orig * vec4(npos.xy, depth_start, 1);
+            supseg_start_w *= 1. / supseg_start_w.w;
+
+            vec4 supseg_end_w = ivp_orig * vec4(npos.xy, depth_end, 1);
+            supseg_end_w *= 1. / supseg_end_w.w;
+
+
+            #if SEPARATE_DEPTH
+            vec4 supseg_col = imageLoad(InputVDI, ivec3(index, list_coords.y, list_coords.x));
+            totalMemoryLoads++;
+            #else
+            vec4 supseg_col = imageLoad(InputVDI, ivec3(index*3, list_coords.y, list_coords.x));
+            totalMemoryLoads++;
+            #endif
+
+            float alpha = adjustOpacity(supseg_col.a, jump_size / distance(supseg_start_w, supseg_end_w));
+            finalColor.rgb = finalColor.rgb + (1-finalColor.a) * supseg_col.rgb * alpha;
+            finalColor.a = finalColor.a + (1-finalColor.a) * alpha;
+        }
+    }
+
+    #if USE_PRINTF
+    if(gl_GlobalInvocationID.xy == debug_pixel) {
+        debugPrintfEXT("A cell of length: %f was traversed in %d steps. This required %d memory accesses.", total_distance, num_samples, totalMemoryLoads-total_before);
+    }
+    #endif
+}
+
 void traverse_cell(vec4 entry_point, ivec2 entry_list, vec3 cell_min, vec3 cell_max, out vec4 end_point, out ivec2 nextList) {
 
     #if USE_PRINTF
@@ -1001,12 +1066,6 @@ float cellToViewToNDC(int cell_z) {
 
     float ndc_z = -1 * ((A * view_z + B) / view_z);
 
-    #if USE_PRINTF
-    if(gl_GlobalInvocationID.xy == debug_pixel) { //TODO: generalize
-        debugPrintfEXT("z_view is: %f. Dist to orig was: %f. NDC_Z: %f, cell_z: %d", view_z, dist_from_near, ndc_z, cell_z);
-    }
-    #endif
-
     return ndc_z;
 }
 
@@ -1176,9 +1235,6 @@ void main() {
             debugPrintfEXT("Sigma is: %f and dist was: %f", sigma, dist);
         }
         #endif
-
-        cellToViewToNDC(127);
-cellToViewToNDC(128);
 
         vec4 view_orig = ViewOriginal * newRay.wfront;
 
@@ -1361,13 +1417,6 @@ cellToViewToNDC(128);
     vec3 next_cell_ndc = ((next_cell / float(num_cells)) * 2.0) - vec3(1.0);
     #endif
 
-
-    #if USE_PRINTF
-    if(gl_GlobalInvocationID.xy == debug_pixel) {
-        debugPrintfEXT("Next grid cell is: (%d, %d, %d). In NDC: (%f, %f, %f)", next_cell.xyz, next_cell_ndc.xyz);
-    }
-    #endif
-
     float cell_tmaxX = dir.x != 0 ? abs((next_cell_ndc.x - start_point.x) / dir.x) : 10000000;
     float cell_tmaxY = dir.y != 0 ? abs((next_cell_ndc.y - start_point.y) / dir.y) : 10000000;
     float cell_tmaxZ = dir.z != 0 ? abs((next_cell_ndc.z - start_point.z) / dir.z) : 10000000;
@@ -1378,15 +1427,12 @@ cellToViewToNDC(128);
 
     bool finalIteration = false;
 
+    bool do_subsample = true;
+    int num_traversed = 0;
+
     while(!finalIteration) { //looping over the cells of the lowest level of the octree
 
-        #if USE_PRINTF
-        if(gl_GlobalInvocationID.xy == debug_pixel) {
-            debugPrintfEXT("Grid cell is: (%d, %d, %d). Start point is: (%f, %f, %f, %f)", grid_cell.xyz, start_point.xyzw);
-        }
-        #endif
-
-        if(start_point == end_traversal) {
+        if(start_point == end_traversal) { //TODO: convert to checking a boolean
             //if the new cell is to start at the end point of the previous traversal, then we need to check whether the
             //previous traversal took us to a different grid cell along z
 
@@ -1400,13 +1446,7 @@ cellToViewToNDC(128);
 //            if(((grid_at_end.z - grid_cell.z) * stepZ) > 0) {
             grid_cell = grid_at_end;
 
-            #if USE_PRINTF
-            if(gl_GlobalInvocationID.xy == debug_pixel) {
-                debugPrintfEXT("At the end of traversal, grid cell is: (%d, %d, %d).", grid_cell.xyz);
-            }
-            #endif
 //            }
-
         }
 
         #if USE_VIEW_SPACE_CELLS
@@ -1436,27 +1476,14 @@ cellToViewToNDC(128);
         vec4 temp = imageLoad(OctreeCells, grid_cell);
 
         #if SKIP_EMPTY
-        if(imageLoad(OctreeCells, grid_cell).r != 0.) {
+        if(imageLoad(OctreeCells, grid_cell).r != 0. && !do_subsample) {
 //        if(true) {
         #else
-        if(true) {
+        if(!do_subsample) {
         #endif
             traverse_cell(start_point, start_list, cell_min, cell_max, end_traversal, next_list);
             cell_traversed = true;
-        } else {
-            #if USE_PRINTF
-            if(gl_GlobalInvocationID.xy == debug_pixel) {
-                debugPrintfEXT("Skipping the cell: (%d, %d, %d)", grid_cell.xyz);
-            }
-            #endif
         }
-
-
-        #if USE_PRINTF
-        if(gl_GlobalInvocationID.xy == debug_pixel) {
-            debugPrintfEXT("cell_tmaxX: %f, cell_tmaxY: %f, cell_tmaxZ: %f", cell_tmaxX, cell_tmaxY, cell_tmaxZ);
-        }
-        #endif
 
         //TODO: the next section can probably be skipped if the cell has been traversed
 
@@ -1541,14 +1568,11 @@ cellToViewToNDC(128);
             next_list.y = int(round(tex_orig.y * windowHeight));
         }
 
-        vec3 t_temp = (end_point.xyz - first_entry_pt.xyz) / dir.xyz;
-
-        #if USE_PRINTF
-        if(gl_GlobalInvocationID.xy == debug_pixel) {
-            debugPrintfEXT("End point of grid cell: (%f, %f, %f), while end_traversal: (%f, %f, %f)", end_point.xyz, end_traversal.xyz);
-            debugPrintfEXT("Calculated vals of t: (%f, %f, %f), while t by stepping: %f", t_temp.xyz, t);
+        if(imageLoad(OctreeCells, grid_cell).r != 0. && do_subsample) {
+            traverse_subsample(start_point, end_point, 10);
+            num_traversed++;
         }
-        #endif
+
 
         //TODO: add check for outside the volume even though still inside the VDI
 
@@ -1573,6 +1597,7 @@ cellToViewToNDC(128);
 
     #if USE_PRINTF
     if(gl_GlobalInvocationID.xy == debug_pixel) {
+        debugPrintfEXT("Total cells sampled was: %d", num_traversed);
         debugPrintfEXT("Total memory loads was: %d", totalMemoryLoads);
         debugPrintfEXT("Total empty lists was: %d", totalEmptyLists);
         debugPrintfEXT("Total intersected supsegs was: %d", totalIntersectedSupsegs);
