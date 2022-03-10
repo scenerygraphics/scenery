@@ -3,7 +3,7 @@
 #define NDC 1
 #define SEPARATE_DEPTH 1
 #define PROFILE_MEM 0
-#define SKIP_EMPTY 1
+#define SKIP_EMPTY 0
 #define USE_VIEW_SPACE_CELLS 1
 
 #if USE_PRINTF
@@ -652,8 +652,8 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
         return;
     }
 
-    float ndc_x = theList.x / windowWidth * 2.0 - 1.0;
-    float ndc_y = theList.y / windowHeight * 2.0 - 1.0;
+    float ndc_x = float(theList.x) / windowWidth * 2.0 - 1.0;
+    float ndc_y = float(theList.y) / windowHeight * 2.0 - 1.0;
 
     float dist_to_orig = start_point.z;
 
@@ -765,18 +765,13 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
             totalMemoryLoads++;
             #endif
 
-            float length = distance(w_start_point, w_end_point);
+            float length_in_supseg = distance(w_start_point, w_end_point);
 
-            float alpha = adjustOpacity(supseg_col.a, length / distance(supseg_start_w, supseg_end_w));
+            float alpha = adjustOpacity(supseg_col.a, length_in_supseg);
 
             accumulatedColor.rgb = accumulatedColor.rgb + (1-accumulatedColor.a) * supseg_col.rgb * alpha;
             accumulatedColor.a = accumulatedColor.a + (1-accumulatedColor.a) * alpha;
 
-//            #if USE_PRINTF
-//            if(gl_GlobalInvocationID.xy == debug_pixel) {
-//                debugPrintfEXT("Color so far is: (%f, %f, %f, %f)", accumulatedColor.rgba);
-//            }
-//            #endif
 
             if(accumulatedColor.a > 0.95) {
                 #if USE_PRINTF
@@ -856,7 +851,7 @@ void traverse_subsample(vec4 entry_point, vec4 end_point, int num_samples) {
             totalMemoryLoads++;
             #endif
 
-            float alpha = adjustOpacity(supseg_col.a, jump_size / distance(supseg_start_w, supseg_end_w));
+            float alpha = adjustOpacity(supseg_col.a, jump_size);
             finalColor.rgb = finalColor.rgb + (1-finalColor.a) * supseg_col.rgb * alpha;
             finalColor.a = finalColor.a + (1-finalColor.a) * alpha;
         }
@@ -1427,7 +1422,7 @@ void main() {
 
     bool finalIteration = false;
 
-    bool do_subsample = true;
+    bool do_subsample = false;
     int num_traversed = 0;
 
     while(!finalIteration) { //looping over the cells of the lowest level of the octree
