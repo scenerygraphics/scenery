@@ -52,7 +52,7 @@ layout(push_constant) uniform currentEye_t {
 #extension GL_EXT_debug_printf : enable
 #endif
 
-ivec2 debug_pixel = ivec2(460, 350);
+ivec2 debug_pixel = ivec2(542, 447);
 
 // intersect ray with a box
 // http://www.siggraph.org/education/materials/HyperGraph/raytrace/rtinter3.htm
@@ -109,9 +109,7 @@ void main()
 
 	int windowWidth = 1280;
 	int windowHeight = 720;
-	ivec2 pixel_coords;
-	pixel_coords.x = int(round(Vertex.textureCoord.x * windowWidth));
-	pixel_coords.y = int(round(Vertex.textureCoord.y * windowHeight));
+	ivec2 pixel_coords = ivec2(gl_FragCoord.xy);
 
 	// NDC of frag on near and far plane
 	vec4 front = vec4( uv, -1, 1 );

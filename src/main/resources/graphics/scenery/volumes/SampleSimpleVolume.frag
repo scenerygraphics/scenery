@@ -43,6 +43,11 @@ vec4 sampleVolume( vec4 wpos )
 
 
     vec3 pos = (im * wpos).xyz + 0.5;
+    vec3 tex = pos / textureSize( volume, 0 );
+//
+//    if(tex.z > 1.0 || tex.z < 0.0) {
+//        return vec4(-1);
+//    }
 
     float rawsample = convert(texture( volume, pos / textureSize( volume, 0 ) ).r);
     float tf = texture(transferFunction, vec2(rawsample + 0.001f, 0.5f)).r;
