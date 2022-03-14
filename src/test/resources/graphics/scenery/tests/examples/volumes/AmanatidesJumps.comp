@@ -38,7 +38,7 @@ layout(set = 3, binding = 0, rgba8) uniform image2D OutputViewport;
 #if SEPARATE_DEPTH
 layout (set = 4, binding = 0, r32f) uniform readonly image3D DepthVDI;
 #endif
-layout (set = 5, binding = 0, rgba8) uniform readonly image3D OctreeCells;
+layout (set = 5, binding = 0, r32ui) uniform readonly uimage3D OctreeCells;
 
 #if PROFILE_MEM
 layout(set = 6, binding = 0, r32f) uniform image2D NumSteps;
@@ -548,7 +548,7 @@ bool startPrinting = false;
 const int maxSteps = 1000;
 int totalSteps = 0;
 
-int max_samples = 25; //TODO: make uniform
+int max_samples = 100; //TODO: make uniform
 
 vec4 u, dir;
 
@@ -1481,10 +1481,8 @@ void main() {
 
             bool cell_traversed = false;
 
-            vec4 temp = imageLoad(OctreeCells, grid_cell);
-
             #if SKIP_EMPTY
-            if(imageLoad(OctreeCells, grid_cell).r != 0. && !do_subsample) {
+            if(imageLoad(OctreeCells, grid_cell).r > 0 && !do_subsample) {
     //        if(true) {
             #else
             if(!do_subsample) {
@@ -1576,7 +1574,9 @@ void main() {
                 next_list.y = int(round(tex_orig.y * windowHeight));
             }
 
-            if(imageLoad(OctreeCells, grid_cell).r != 0. && do_subsample) {
+            uint supsegs_in_cell = imageLoad(OctreeCells, grid_cell).r;
+
+            if(supsegs_in_cell > 0 && do_subsample) {
                 vec4 cell_start_w = ivp_orig * start_point;
                 cell_start_w *= 1. / cell_start_w.w;
 
@@ -1585,9 +1585,19 @@ void main() {
                 float intersection_length = distance(cell_start_w, cell_end_w);
                 if(trav == 1) {
                     length_in_non_empty += intersection_length;
+//                    length_in_non_empty += supsegs_in_cell * intersection_length;
                 } else {
-                    float fract = intersection_length / length_in_non_empty;
+                    float fract =  (intersection_length) / length_in_non_empty;
+//                    float fract =  (supsegs_in_cell * intersection_length) / length_in_non_empty;
                     int samples_in_cell = int(fract * max_samples); //TODO: should it be round()?
+
+                    #if USE_PRINTF
+                    if(gl_GlobalInvocationID.xy == debug_pixel) {
+                        debugPrintfEXT("Cell: (%d, %d, %d), intersection length: %f and supseg count: %d. Steps: %d will be taken", grid_cell.xyz, intersection_length,
+                            int(supsegs_in_cell), samples_in_cell);
+                    }
+                    #endif
+
                     traverse_subsample(cell_start_w, cell_end_w, intersection_length, samples_in_cell);
                     num_traversed++;
                 }
