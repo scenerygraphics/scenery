@@ -1,3 +1,9 @@
+#define USE_PRINTF 1
+
+#if USE_PRINTF
+#extension GL_EXT_debug_printf : enable
+#endif
+
 out vec4 FragColor;
 uniform vec2 viewportSize;
 uniform vec2 dsp;
@@ -45,12 +51,6 @@ layout(push_constant) uniform currentEye_t {
 	int eye;
 } currentEye;
 #pragma scenery endverbatim
-
-#define USE_PRINTF 1
-
-#if USE_PRINTF
-#extension GL_EXT_debug_printf : enable
-#endif
 
 ivec2 debug_pixel = ivec2(542, 447);
 
@@ -107,8 +107,6 @@ void main()
 	vec2 depthUV = (vrParameters.stereoEnabled ^ 1) * Vertex.textureCoord + vrParameters.stereoEnabled * vec2((Vertex.textureCoord.x/2.0 + currentEye.eye * 0.5), Vertex.textureCoord.y);
 	depthUV = depthUV * 2.0 - vec2(1.0);
 
-	int windowWidth = 1280;
-	int windowHeight = 720;
 	ivec2 pixel_coords = ivec2(gl_FragCoord.xy);
 
 	// NDC of frag on near and far plane
@@ -161,9 +159,10 @@ void main()
 
 		vec4 fb = wback - wfront;
 		int numSteps =
-		( fwnw > 0.00001 )
-		? int ( log( ( tfar * fwnw + nw ) / ( tnear * fwnw + nw ) ) / log ( 1 + fwnw ) )
-		: int ( trunc( ( tfar - tnear ) / nw + 1 ) );
+//		( fwnw > 0.00001 )
+//		? int ( log( ( tfar * fwnw + nw ) / ( tnear * fwnw + nw ) ) / log ( 1 + fwnw ) )
+//		:
+		int ( trunc( ( tfar - tnear ) / nw + 1 ) );
 
 ////		int cnt = 0;
 //		bool supersegmentIsOpen = false;
@@ -176,11 +175,13 @@ void main()
 
 		vec4 wprev = mix(wfront, wback, step);
 
-		step += nw + step * fwnw;
+//		step += nw + step * fwnw;
+		step += nw;
 
 		vec4 v = vec4( 0 );
 //		vec4 curV = vec4( 0 );
-		for ( int i = 0; i < numSteps; ++i, step += nw + step * fwnw )
+//		for ( int i = 0; i < numSteps; ++i, step += nw + step * fwnw )
+		for ( int i = 0; i < numSteps; ++i, step += nw )
 		{
 //			if(i==(numSteps-1)) {
 //				lastSample = true;

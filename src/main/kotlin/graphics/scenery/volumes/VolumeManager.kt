@@ -119,10 +119,10 @@ class VolumeManager(
     protected var currentVolumeCount: Pair<Int, Int>
 
     /** Sets the maximum allowed step size in voxels. */
-    var maxAllowedStepInVoxels = 1.0
+    var maxAllowedStepInVoxels = 0.50
 
     /** Numeric factor by which the step size may degrade on the far plane. */
-    var farPlaneDegradation = 2.0
+    var farPlaneDegradation = 1.0
 
     // TODO: What happens when changing this? And should it change the mode for the current node only
     // or for all VolumeManager-managed nodes?
@@ -490,6 +490,9 @@ class VolumeManager(
             currentProg.setViewportWidth(cam.width)
             currentProg.setEffectiveViewportSize(cam.width, cam.height)
             currentProg.setDegrade(farPlaneDegradation)
+            val temp = maxAllowedStepInVoxels * minWorldVoxelSize
+//            logger.info("maxAllowedStepsInVoxel: $maxAllowedStepInVoxels and minWorldVoxelSize: $minWorldVoxelSize")
+//            logger.info("Passing minWorldVoxel size as: $temp")
             currentProg.setProjectionViewMatrix(mvp, maxAllowedStepInVoxels * minWorldVoxelSize)
             currentProg.use(context)
             currentProg.setUniforms(context)
