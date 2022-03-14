@@ -10,6 +10,7 @@ import graphics.scenery.textures.Texture
 import graphics.scenery.utils.Image
 import graphics.scenery.utils.SystemHelpers
 import graphics.scenery.volumes.VolumeManager
+import net.imglib2.type.numeric.integer.UnsignedIntType
 import net.imglib2.type.numeric.real.FloatType
 import org.joml.Quaternionf
 import org.joml.Vector3f
@@ -29,8 +30,8 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1832, 1016, wantREPL = 
     val separateDepth = true
     val profileMemoryAccesses = false
     val compute = RichNode()
-    val closeAfter = 150000L
-    val dataset = "Stagbeetle"
+    val closeAfter = 10000L
+    val dataset = "Kingsnake"
     val numOctreeLayers = 8.0
 
     override fun init () {
@@ -111,7 +112,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1832, 1016, wantREPL = 
             buff = File("/home/aryaman/Repositories/scenery-insitu/${dataset}VDI10_ndc").readBytes()
             depthBuff = null
         }
-        octBuff = File("/home/aryaman/Repositories/scenery-insitu/octree_lowest5.raw").readBytes()
+        octBuff = File("/home/aryaman/Repositories/scenery-insitu/octree_lowest0.raw").readBytes()
 
         val opBuffer = MemoryUtil.memCalloc(windowWidth * windowHeight * 4)
         val opNumSteps = MemoryUtil.memCalloc(windowWidth * windowHeight * 4)
@@ -159,7 +160,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1832, 1016, wantREPL = 
         if(separateDepth) {
             compute.material().textures["DepthVDI"] = Texture(Vector3i(2*numSupersegments, windowHeight, windowWidth), 1, contents = depthBuffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType())
         }
-        compute.material().textures["OctreeCells"] = Texture(Vector3i(numVoxels.toInt(), numVoxels.toInt(), numVoxels.toInt()), 4, contents = lowestLevel, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
+        compute.material().textures["OctreeCells"] = Texture(Vector3i(numVoxels.toInt(), numVoxels.toInt(), numVoxels.toInt()), 1, type = UnsignedIntType(), contents = lowestLevel, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
         compute.metadata["ComputeMetadata"] = ComputeMetadata(
             workSizes = Vector3i(windowWidth, windowHeight, 1),
             invocationType = InvocationType.Permanent

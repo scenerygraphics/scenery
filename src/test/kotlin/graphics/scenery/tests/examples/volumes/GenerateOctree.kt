@@ -9,6 +9,8 @@ import graphics.scenery.compute.InvocationType
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.Image
 import graphics.scenery.utils.SystemHelpers
+import net.imglib2.type.numeric.integer.IntType
+import net.imglib2.type.numeric.integer.UnsignedIntType
 import net.imglib2.type.numeric.real.FloatType
 import org.joml.Vector3f
 import org.joml.Vector3i
@@ -42,7 +44,7 @@ class GenerateOctree : SceneryBase("GenerateOctree", 1832, 1016) {
         val buff: ByteArray
         val depthBuff: ByteArray?
 
-        val dataset = "Stagbeetle"
+        val dataset = "Kingsnake"
 
         if(separateDepth) {
             buff = File("/home/aryaman/Repositories/scenery-insitu/${dataset}VDI4_ndc_col").readBytes()
@@ -80,14 +82,14 @@ class GenerateOctree : SceneryBase("GenerateOctree", 1832, 1016) {
         compute.setMaterial(ShaderMaterial(Shaders.ShadersFromFiles(arrayOf("OctreeGenerator.comp"), this@GenerateOctree::class.java))) {
             textures["InputVDI"] = Texture(Vector3i(numSupersegments*numLayers, windowHeight, windowWidth), 4, contents = colBuffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
             textures["DepthVDI"] = Texture(Vector3i(2*numSupersegments, windowHeight, windowWidth), 1, contents = depthBuffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType())
-            textures["OctreeCells"] = Texture.fromImage(Image(lowestLevel, numVoxels.toInt(), numVoxels.toInt(), numVoxels.toInt()), channels = 4,
+            textures["OctreeCells"] = Texture.fromImage(Image(lowestLevel, numVoxels.toInt(), numVoxels.toInt(), numVoxels.toInt()), channels = 1, type = UnsignedIntType(),
                 usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
 //            textures["OctreeCells"]!!.mipmap = false
         }
 
         compute.metadata["ComputeMetadata"] = ComputeMetadata(
             workSizes = Vector3i(windowWidth, windowHeight, 1),
-            invocationType = InvocationType.Permanent
+            invocationType = InvocationType.Once
         )
 
         scene.addChild(compute)
@@ -118,6 +120,8 @@ class GenerateOctree : SceneryBase("GenerateOctree", 1832, 1016) {
             val cnt1 = AtomicInteger(0)
 
             (renderer as? VulkanRenderer)?.persistentTextureRequests?.add (octreeLowest to cnt1)
+//            (renderer as? VulkanRenderer)?.postRenderLambdas?.add { compute.material().textures["OctreeCells"] = Texture.fromImage(Image(lowestLevel, numVoxels.toInt(), numVoxels.toInt(), numVoxels.toInt()), channels = 4,
+//                usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture)) }
 
             var prevAtomic = cnt1.get()
 

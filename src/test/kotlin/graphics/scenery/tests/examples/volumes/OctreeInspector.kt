@@ -7,6 +7,7 @@ import graphics.scenery.compute.ComputeMetadata
 import graphics.scenery.compute.InvocationType
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.Image
+import net.imglib2.type.numeric.integer.UnsignedIntType
 import org.joml.Vector3f
 import org.joml.Vector3i
 import org.lwjgl.system.MemoryUtil
@@ -23,7 +24,7 @@ class OctreeInspector : SceneryBase("Octree Inscpector", 256, 256) {
 
         val buff: ByteArray
 
-        buff = File("/home/aryaman/Repositories/scenery-insitu/octree_lowest5.raw").readBytes()
+        buff = File("/home/aryaman/Repositories/scenery-insitu/octree_lowest0.raw").readBytes()
 
         val octBuffer: ByteBuffer
 
@@ -44,7 +45,7 @@ class OctreeInspector : SceneryBase("Octree Inscpector", 256, 256) {
             workSizes = Vector3i(windowWidth, windowHeight, 1),
             invocationType = InvocationType.Permanent
         )
-        compute.material().textures["OctreeCells"] = Texture(Vector3i(windowHeight, windowHeight, windowWidth), 4, contents = octBuffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
+        compute.material().textures["OctreeCells"] = Texture(Vector3i(windowHeight, windowHeight, windowWidth), 1, type = UnsignedIntType(), contents = octBuffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
 
         scene.addChild(compute)
 

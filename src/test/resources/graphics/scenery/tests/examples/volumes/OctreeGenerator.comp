@@ -8,8 +8,7 @@ layout (set = 0, binding = 0, rgba8) uniform readonly image3D InputVDI;
 #if SEPARATE_DEPTH
 layout (set = 1, binding = 0, r32f) uniform readonly image3D DepthVDI;
 #endif
-layout (set = 2, binding = 0, rgba8) uniform image3D OctreeCells;
-
+layout (set = 2, binding = 0, r32ui) uniform uimage3D OctreeCells;
 
 int numSupersegments = 0;
 ivec2 debug_pixel = ivec2(434, 531);
@@ -95,19 +94,29 @@ int findZInterval_view(float z_ndc) {
     return interval_num;
 }
 
-void update_cell(ivec3 cell) {
-    if (cell == prevCell) {
-        // we have already written a 1 to this cell
-        return;
-    } else {
-        #if USE_PRINTF
-        if(gl_GlobalInvocationID.xy == debug_pixel) { //TODO: generalize
-            debugPrintfEXT("Writing %d to grid cell: (%d, %d, %d)", 2, cell.xyz);
-        }
-        #endif
-        imageStore(OctreeCells, cell, vec4(1));
-        prevCell = cell;
+//void update_cell(ivec3 cell) {
+//    if (cell == prevCell) {
+//        // we have already written a 1 to this cell
+//        return;
+//    } else {
+//        #if USE_PRINTF
+//        if(gl_GlobalInvocationID.xy == debug_pixel) { //TODO: generalize
+//            debugPrintfEXT("Writing %d to grid cell: (%d, %d, %d)", 2, cell.xyz);
+//        }
+//        #endif
+//        imageStore(OctreeCells, cell, vec4(1));
+//        prevCell = cell;
+//    }
+//}
+
+void update_cell_count(ivec3 cell) {
+
+    uint ret = imageAtomicAdd(OctreeCells, cell, 1);
+
+    if(cell == ivec3(60, 133, 105)) {
+        debugPrintfEXT("Cell has been updated by thread: (%d, %d). Value earlier: %d", gl_GlobalInvocationID.xy, int(ret));
     }
+
 }
 
 void main() {
@@ -179,7 +188,7 @@ void main() {
 
         for(int j = start_z; j <= end_z; j++) {
             cell.z = j;
-            update_cell(cell);
+            update_cell_count(cell);
         }
 
     }
