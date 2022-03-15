@@ -88,7 +88,7 @@ dependencies {
     api("sc.fiji:bigdataviewer-vistools:1.0.0-beta-28")
 
     //TODO revert to official BVV
-    api("graphics.scenery:bigvolumeviewer:a6b021d")
+    api("graphics.scenery:bigvolumeviewer:7f36eda")
 
     implementation("com.github.LWJGLX:lwjgl3-awt:cfd741a6")
     implementation("org.janelia.saalfeldlab:n5")
