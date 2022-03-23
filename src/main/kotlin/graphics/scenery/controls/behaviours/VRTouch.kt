@@ -35,7 +35,10 @@ open class VRTouch(
         controllerHitbox.postUpdate.add {
             if(!active){
                 if (selected.isNotEmpty()){
-                    selected.forEach(::unapplySelectionColor)
+                    selected.forEach {
+                        unapplySelectionColor(it)
+                        it.getAttributeOrNull(Touchable::class.java)?.onRelease?.invoke(controller)
+                    }
                     selected = emptyList()
                 }
                 return@add
@@ -67,32 +70,6 @@ open class VRTouch(
                 unapplySelectionColor(it)
                 it.getAttributeOrNull(Touchable::class.java)?.onRelease?.invoke(controller)
             }
-        }
-    }
-
-    protected fun applySelectionColor(node: Node) {
-        val touchable = node.getAttributeOrNull(Touchable::class.java)
-        val material = node.materialOrNull()
-
-        if (touchable != null
-            && touchable.originalDiffuse == null
-            && touchable.changeDiffuseTo != null
-            && material != null
-        ) {
-            // if this is set some other VRTouch is already touching this
-            // and we dont want to interfere
-            touchable.originalDiffuse = material.diffuse
-            material.diffuse = touchable.changeDiffuseTo
-        }
-    }
-
-    protected fun unapplySelectionColor (node: Node) {
-        val touchable = node.getAttributeOrNull(Touchable::class.java)
-        val material = node.materialOrNull()
-
-        if (touchable?.originalDiffuse != null && material != null) {
-            material.diffuse = touchable.originalDiffuse!!
-            touchable.originalDiffuse = null
         }
     }
 
@@ -129,6 +106,40 @@ open class VRTouch(
             }
             return future
         }
+
+        /**
+         * Apply the [Touchable.onHoldChangeDiffuseTo] color.
+         * If you are calling this manually make sure [unapplySelectionColor] will be called later.
+         */
+        fun applySelectionColor(node: Node) {
+            val touchable = node.getAttributeOrNull(Touchable::class.java)
+            val material = node.materialOrNull()
+
+            if (touchable != null
+                && touchable.originalDiffuse == null
+                && touchable.onHoldChangeDiffuseTo != null
+                && material != null
+            ) {
+                // if this is set some other VRTouch is already touching this
+                // and we dont want to interfere
+                touchable.originalDiffuse = material.diffuse
+                material.diffuse = touchable.onHoldChangeDiffuseTo
+            }
+        }
+
+        /**
+         * Return to the original diffuse color after calling  [applySelectionColor].
+         * Should do nothing if no previous call of [applySelectionColor] happend.
+         */
+        fun unapplySelectionColor (node: Node) {
+            val touchable = node.getAttributeOrNull(Touchable::class.java)
+            val material = node.materialOrNull()
+
+            if (touchable?.originalDiffuse != null && material != null) {
+                material.diffuse = touchable.originalDiffuse!!
+                touchable.originalDiffuse = null
+            }
+        }
     }
 }
 
@@ -138,13 +149,13 @@ open class VRTouch(
  * @param onTouch called in the first frame of the interaction
  * @param onHold called each frame of the interaction
  * @param onRelease called in the last frame of the interaction
- * @param changeDiffuseTo If set to null no color change will happen.
+ * @param onHoldChangeDiffuseTo If set to null no color change will happen.
  */
 open class Touchable(
     val onTouch: ((TrackedDevice) -> Unit)? = null,
     val onHold: ((TrackedDevice) -> Unit)? = null,
     val onRelease: ((TrackedDevice) -> Unit)? = null,
-    val changeDiffuseTo: Vector3f? = Vector3f(1.0f, 0.0f, 0.0f)
+    val onHoldChangeDiffuseTo: Vector3f? = Vector3f(1.0f, 0.0f, 0.0f)
 ) {
     /**
      * if this is set it means a touch is in progress and other [VRTouch] should not interfere
