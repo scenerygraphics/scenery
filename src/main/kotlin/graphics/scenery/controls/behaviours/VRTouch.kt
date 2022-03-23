@@ -16,7 +16,7 @@ import java.util.concurrent.Future
  * When [controllerHitbox] is intersecting a node with a [Touchable] attribute
  * [onTouch] and then the respective functions of the Touchable attribute are called.
  *
- * @param targets Only nodes in this list may be dragged. They must have a [onTouch] attribute.
+ * @param targets Only nodes in this list may be touched. They must have a [onTouch] attribute.
  *
  * @author Jan Tiemann
  */
@@ -27,16 +27,15 @@ open class VRTouch(
     protected val targets: () -> List<Node>,
     protected val onTouch: (() -> Unit)? = null
 ){
-
     var active = true
+    var selected = emptyList<Node>()
 
     init {
-
         // this has to be done in the post update otherwise the intersection test causes a stack overflow
         controllerHitbox.postUpdate.add {
             if(!active){
                 if (selected.isNotEmpty()){
-                    selected.forEach(::release)
+                    selected.forEach(::unapplySelectionColor)
                     selected = emptyList()
                 }
                 return@add
@@ -53,22 +52,9 @@ open class VRTouch(
             val new = hit.filter { !selected.contains(it) }
             val released = selected.filter { !hit.contains(it) }
             selected = hit
-
-            new.forEach{ node ->
-                val touchable = node.getAttributeOrNull(Touchable::class.java)
-                val material = node.materialOrNull()
-
-                if (touchable != null) {
-                    if (touchable.originalDiffuse == null
-                        && touchable.changeDiffuseTo != null
-                        && material != null) {
-                        // if this is set some other VRTouch is already touching this
-                        // and we dont want to interfere
-                        touchable.originalDiffuse = material.diffuse
-                        material.diffuse = touchable.changeDiffuseTo
-                    }
-                    touchable.onTouch?.invoke(controller)
-                }
+            new.forEach {
+                applySelectionColor(it)
+                it.getAttributeOrNull(Touchable::class.java)?.onTouch?.invoke(controller)
             }
 
             selected.forEach { node ->
@@ -77,30 +63,43 @@ open class VRTouch(
                 }
             }
 
-            released.forEach(::release)
+            released.forEach {
+                unapplySelectionColor(it)
+                it.getAttributeOrNull(Touchable::class.java)?.onRelease?.invoke(controller)
+            }
         }
     }
 
-    private fun release (node: Node) {
+    protected fun applySelectionColor(node: Node) {
         val touchable = node.getAttributeOrNull(Touchable::class.java)
         val material = node.materialOrNull()
 
-        if (touchable != null) {
-            if (touchable.originalDiffuse != null && material != null) {
-                material.diffuse = touchable.originalDiffuse!!
-                touchable.originalDiffuse = null
-            }
-            touchable.onRelease?.invoke(controller)
+        if (touchable != null
+            && touchable.originalDiffuse == null
+            && touchable.changeDiffuseTo != null
+            && material != null
+        ) {
+            // if this is set some other VRTouch is already touching this
+            // and we dont want to interfere
+            touchable.originalDiffuse = material.diffuse
+            material.diffuse = touchable.changeDiffuseTo
         }
     }
 
-    var selected = emptyList<Node>()
+    protected fun unapplySelectionColor (node: Node) {
+        val touchable = node.getAttributeOrNull(Touchable::class.java)
+        val material = node.materialOrNull()
+
+        if (touchable?.originalDiffuse != null && material != null) {
+            material.diffuse = touchable.originalDiffuse!!
+            touchable.originalDiffuse = null
+        }
+    }
 
     /**
      * Contains Convenience method for adding touch behaviour
      */
     companion object {
-
         /**
          * Convenience method for adding touch behaviour
          */
@@ -108,7 +107,8 @@ open class VRTouch(
             scene: Scene,
             hmd: OpenVRHMD,
             controllerSide: List<TrackerRole>,
-            vibrate: Boolean
+            vibrate: Boolean,
+            onTouch: (() -> Unit)? = null
         ) : Future<VRTouch>{
             val future = CompletableFuture<VRTouch>()
             hmd.events.onDeviceConnect.add { _, device, _ ->
@@ -121,7 +121,7 @@ open class VRTouch(
                                 controller.children.first(),
                                 device,
                                 { scene.discover(scene, { n -> n.getAttributeOrNull(Touchable::class.java) != null }) },
-                                if (vibrate) fun(){ (hmd as? OpenVRHMD)?.vibrate(device) } else fun(){})
+                                if (vibrate) fun(){ (hmd as? OpenVRHMD)?.vibrate(device); onTouch?.invoke() } else onTouch)
                             future.complete(touchBehaviour)
                         }
                     }
