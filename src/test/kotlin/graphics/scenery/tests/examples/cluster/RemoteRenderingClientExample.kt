@@ -23,7 +23,7 @@ import kotlin.test.assertTrue
 /**
  * Texture cube, but with network sync * * Start master with vm param: * -ea -Dscenery.Server=true * * For client see [SlimClient]
  */
-class RemoteRenderingClientExample : SceneryBase("RemoteRenderingClientExample", wantREPL = false) {
+class RemoteRenderingClientExample : SceneryBase("Client", wantREPL = false) {
 
     var buffer: ByteBuffer = ByteBuffer.allocateDirect(0)
     var decodedFrameCount: Int = 0
@@ -31,7 +31,7 @@ class RemoteRenderingClientExample : SceneryBase("RemoteRenderingClientExample",
     override fun init() {
         renderer = hub.add(
             SceneryElement.Renderer,
-            Renderer.createRenderer(hub, applicationName, scene, 512, 512)
+            Renderer.createRenderer(hub, applicationName, scene, 1024, 1024)
         )
 
         val shell = Box(Vector3f(20.0f, 20.0f, 20.0f), insideNormals = true)
@@ -63,7 +63,6 @@ class RemoteRenderingClientExample : SceneryBase("RemoteRenderingClientExample",
             material {
                 textures["diffuse"] = Texture.fromImage(Image.fromResource("textures/helix.png", TexturedCubeExample::class.java))
             }
-
             scene.addChild(this)
         }
 
@@ -76,16 +75,20 @@ class RemoteRenderingClientExample : SceneryBase("RemoteRenderingClientExample",
 
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
+            name = "ClientCamera"
             spatial {
-                position = Vector3f(0.0f, 0.0f, 0.0f)
+                position = Vector3f(0.0f, 0.0f, 5.0f)
             }
-            perspectiveCamera(50.0f, 512, 512)
+            perspectiveCamera(70.0f, 512, 512)
             wantsSync = true
             scene.addChild(this)
         }
 
+
+        // the videoDecoder should only be created if a client connects to a server)
         val videoDecoder = VideoDecoder("udp://${InetAddress.getLocalHost().hostAddress}:3337")
         logger.info("video decoder object created")
+
         thread {
             while (!sceneInitialized()) {
                 Thread.sleep(200)

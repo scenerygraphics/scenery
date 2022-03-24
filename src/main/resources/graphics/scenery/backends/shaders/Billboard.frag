@@ -5,7 +5,7 @@
 layout(location = 0) in VertexDataIn {
     vec3 Position;
     vec2 TexCoord;
-    vec3 Center;
+    vec3 Normal;
 } Vertex;
 
 layout(location = 0) out vec4 FragColor;

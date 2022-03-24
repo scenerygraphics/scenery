@@ -51,6 +51,7 @@ class VideoDecoder(val filename: String) {
 
     init {
 
+
         // added by Konrad
         @Suppress("DEPRECATION")
         av_register_all()
@@ -67,6 +68,8 @@ class VideoDecoder(val filename: String) {
 
             val videoPath = filename
 
+            //Konrad
+            logger.info("Video Decoder startup")
 
             ret = avformat_open_input(formatContext, videoPath, null, null)
             if (ret < 0) {

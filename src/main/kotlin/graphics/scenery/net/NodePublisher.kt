@@ -10,7 +10,6 @@ import graphics.scenery.serialization.*
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.Statistics
 import graphics.scenery.volumes.VolumeManager
-import net.imglib2.img.basictypeaccess.array.ByteArray
 import org.joml.Vector3f
 import org.objenesis.strategy.StdInstantiatorStrategy
 import org.slf4j.Logger
@@ -238,7 +237,14 @@ class NodePublisher(
         context.close()
     }
 
+    fun send(payload: ByteArray?) {
+        if(payload != null) {
+            publisher.send(payload)
+        }
+    }
+
     companion object {
+
         fun sendEvent(event: NetworkEvent, kryo: Kryo, socket: ZMQ.Socket, logger: Logger): Long {
             var payloadSize = 0L
             try {

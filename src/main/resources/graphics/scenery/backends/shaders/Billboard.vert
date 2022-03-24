@@ -89,15 +89,14 @@ void main()
         Vertex.TexCoord = vertexTexCoord;
 
         gl_PointSize = 1.0;
-        gl_Position = vrParameters.projectionMatrices[currentEye.eye] * ubo.ModelMatrix * vec4(vertexPosition, 1.0);
+        //gl_Position = vrParameters.projectionMatrices[currentEye.eye] * ubo.ModelMatrix * vec4(vertexPosition, 1.0);
         gl_Position = ubo.ModelMatrix * vec4(vertexPosition, 1.0);
         Vertex.Position = gl_Position.xyz;
     }
-
     else
     {
         Vertex.Position = vertexPosition;
-        Vertex.TexCoord = vertexTexCoord;
+        Vertex.TexCoord = vec2(vertexTexCoord.x, -vertexTexCoord.y);
         Vertex.Normal = vertexNormal;
 
         gl_Position = vec4(Vertex.Position, 1.0);

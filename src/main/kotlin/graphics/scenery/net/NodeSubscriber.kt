@@ -9,6 +9,7 @@ import graphics.scenery.utils.LazyLogger
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import org.zeromq.SocketType
 import org.zeromq.ZContext
 import org.zeromq.ZMQ
@@ -64,7 +65,6 @@ class NodeSubscriber(
             while (listening) {
                 try {
                     val payload: ByteArray = subscriber.recv() ?: continue
-
                     val bin = ByteArrayInputStream(payload)
                     val input = Input(bin)
                     val event = kryo.readClassAndObject(input) as? NetworkEvent
@@ -75,6 +75,18 @@ class NodeSubscriber(
                 }
             }
         }
+    }
+
+    fun getPayload() : ByteArray? {
+        val msg = subscriber.recv()
+        if(msg != null) {
+            return msg
+        }
+        return null
+    }
+
+    fun setReceiveTimeout(timeout: Int) {
+        subscriber.receiveTimeOut = timeout
     }
 
     fun stopListening() {

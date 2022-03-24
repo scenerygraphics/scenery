@@ -15,8 +15,6 @@ class Billboard(sizes: Vector2f, position: Vector3f = Vector3f(0.0f, 0.0f, 0.0f)
     /** The [ShaderProperty] storing whether the biilboard should use vertex shader based billboarding (not working) or geometry shader billboarding. */
     @ShaderProperty
     var UseGeometryBillboarding: Int = 1
-
-
     init {
         if(useGeometryShader) {
             UseGeometryBillboarding = 1;
@@ -41,8 +39,8 @@ class Billboard(sizes: Vector2f, position: Vector3f = Vector3f(0.0f, 0.0f, 0.0f)
             }
         }
         else {
+            UseGeometryBillboarding = 0;
             geometry {
-                UseGeometryBillboarding = 0;
                 vertices = BufferUtils.allocateFloatAndPut(
                     floatArrayOf(
                         position.x + -0.5f * sizes.x, position.y + -0.5f * sizes.y, position.z + 0.0f,
@@ -80,7 +78,7 @@ class Billboard(sizes: Vector2f, position: Vector3f = Vector3f(0.0f, 0.0f, 0.0f)
             }
 
             setMaterial(ShaderMaterial.fromFiles("${this::class.java.simpleName}.vert", "${this::class.java.simpleName}.frag")) {
-                cullingMode = Material.CullingMode.Back
+                cullingMode = Material.CullingMode.None
                 blending.transparent = true
             }
         }
