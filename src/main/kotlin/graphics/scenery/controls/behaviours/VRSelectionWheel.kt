@@ -6,7 +6,6 @@ import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.controls.TrackerInput
 import graphics.scenery.controls.TrackerRole
-import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.Wiggler
 import org.scijava.ui.behaviour.DragBehaviour
 import java.util.concurrent.CompletableFuture
@@ -92,8 +91,8 @@ class VRSelectionWheel(
             hmd: OpenVRHMD,
             button: List<OpenVRHMD.OpenVRButton>,
             controllerSide: List<TrackerRole>,
-            actions: List<Pair<String, () -> Unit>>,
-        ) : Future<VRSelectionWheel> {
+            actions: List<Pair<String, (Spatial) -> Unit>>,
+        ): Future<VRSelectionWheel> {
             val future = CompletableFuture<VRSelectionWheel>()
             hmd.events.onDeviceConnect.add { _, device, _ ->
                 if (device.type == TrackedDeviceType.Controller) {
@@ -105,7 +104,11 @@ class VRSelectionWheel(
                                     ?: throw IllegalArgumentException("The target controller needs a spatial."),
                                 scene,
                                 hmd,
-                                actions.toActions()
+                                actions.toActions(
+                                    controller.children.first().spatialOrNull() ?: throw IllegalArgumentException(
+                                        "The target controller needs a spatial."
+                                    )
+                                )
                             )
                             hmd.addBehaviour(name, vrToolSelector)
                             button.forEach {
@@ -119,6 +122,8 @@ class VRSelectionWheel(
             return future
         }
         fun List<Pair<String, () -> Unit>>.toActions(): List<Action> = map { Action(it.first, it.second)}
+        fun List<Pair<String, (Spatial) -> Unit>>.toActions(device: Spatial): List<Action> =
+            map { Action(it.first) { it.second.invoke(device) } }
     }
 }
 

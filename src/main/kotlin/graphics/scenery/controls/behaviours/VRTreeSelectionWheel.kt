@@ -6,7 +6,7 @@ import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.controls.TrackerInput
 import graphics.scenery.controls.TrackerRole
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.controls.behaviours.VRSelectionWheel.Companion.toActions
 import graphics.scenery.utils.extensions.plusAssign
 import graphics.scenery.utils.extensions.times
 import org.joml.Quaternionf
@@ -33,8 +33,6 @@ class VRTreeSelectionWheel(
     var actions: List<WheelAction>,
     val cutoff: Float = 0.1f,
 ) : ClickBehaviour {
-    private val logger by LazyLogger()
-
     private var activeWheel: WheelMenu? = null
 
     /**
@@ -66,8 +64,8 @@ class VRTreeSelectionWheel(
             hmd: OpenVRHMD,
             button: List<OpenVRHMD.OpenVRButton>,
             controllerSide: List<TrackerRole>,
-            menu: List<WheelAction>,
-        ) : Future<VRTreeSelectionWheel> {
+            actions: List<Pair<String, (Spatial) -> Unit>>,
+        ): Future<VRTreeSelectionWheel> {
             val future = CompletableFuture<VRTreeSelectionWheel>()
             hmd.events.onDeviceConnect.add { _, device, _ ->
                 if (device.type == TrackedDeviceType.Controller) {
@@ -79,12 +77,17 @@ class VRTreeSelectionWheel(
                                     ?: throw IllegalArgumentException("The target controller needs a spatial."),
                                 scene,
                                 hmd,
-                                menu
+                                actions.toActions(
+                                    controller.children.first().spatialOrNull() ?: throw IllegalArgumentException(
+                                        "The target controller needs a spatial."
+                                    )
+                                )
                             )
                             hmd.addBehaviour(name, vrToolSelector)
                             button.forEach {
                                 hmd.addKeyBinding(name, device.role, it)
                             }
+                            future.complete(vrToolSelector)
                         }
                     }
                 }
