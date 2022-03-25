@@ -4,6 +4,7 @@ uniform vec4 slicingPlanes[16];
 uniform int slicingMode;
 uniform int usedSlicingPlanes;
 
+// tnear - position on ray ((mback - mfront) * tnear) starting at wfront
 void intersectBoundingBox( vec4 wfront, vec4 wback, out float tnear, out float tfar )
 {
     vec4 mfront = im * wfront;
