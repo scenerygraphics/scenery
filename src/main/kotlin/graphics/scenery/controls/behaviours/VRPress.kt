@@ -24,7 +24,7 @@ open class VRPress(
     protected val controllerHitbox: Node,
     protected val targets: () -> List<Node>,
     protected val multiTarget: Boolean = false,
-    protected val onPress: (() -> Unit)? = null
+    protected val onPress: ((Node) -> Unit)? = null
 ) : DragBehaviour {
 
     protected val controllerSpatial: Spatial = controllerHitbox.spatialOrNull()
@@ -43,10 +43,10 @@ open class VRPress(
         if (!multiTarget) {
             selected = selected.take(1)
         }
-        if (selected.isNotEmpty()) {
-            onPress?.let { it() }
+        selected.forEach { node ->
+            onPress?.let { it(node) }
+            node.getAttributeOrNull(Pressable::class.java)?.onPress?.invoke()
         }
-        selected.forEach { it.getAttributeOrNull(Pressable::class.java)?.onPress?.invoke() }
     }
 
     /**
@@ -83,7 +83,7 @@ open class VRPress(
             hmd: OpenVRHMD,
             button: List<OpenVRHMD.OpenVRButton>,
             controllerSide: List<TrackerRole>,
-            onPress: (() -> Unit)? = null
+            onPress: ((Node) -> Unit)? = null
         ) {
             hmd.events.onDeviceConnect.add { _, device, _ ->
                 if (device.type == TrackedDeviceType.Controller) {
@@ -97,7 +97,7 @@ open class VRPress(
                                 false,
                                 {
                                     (hmd as? OpenVRHMD)?.vibrate(device)
-                                    onPress?.invoke()
+                                    onPress?.invoke(it)
                                 })
 
                             hmd.addBehaviour(name, pressBehaviour)
