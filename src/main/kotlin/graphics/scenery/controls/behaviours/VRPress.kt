@@ -82,7 +82,8 @@ open class VRPress(
             scene: Scene,
             hmd: OpenVRHMD,
             button: List<OpenVRHMD.OpenVRButton>,
-            controllerSide: List<TrackerRole>
+            controllerSide: List<TrackerRole>,
+            onPress: (() -> Unit)? = null
         ) {
             hmd.events.onDeviceConnect.add { _, device, _ ->
                 if (device.type == TrackedDeviceType.Controller) {
@@ -94,7 +95,10 @@ open class VRPress(
                                 controller.children.first(),
                                 { scene.discover(scene, { n -> n.getAttributeOrNull(Pressable::class.java) != null }) },
                                 false,
-                                { (hmd as? OpenVRHMD)?.vibrate(device) })
+                                {
+                                    (hmd as? OpenVRHMD)?.vibrate(device)
+                                    onPress?.invoke()
+                                })
 
                             hmd.addBehaviour(name, pressBehaviour)
                             button.forEach {
