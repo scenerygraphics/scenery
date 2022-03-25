@@ -7,6 +7,7 @@ uniform float lensingRadius;
 uniform vec3 lensingPosition;
 uniform ivec3 volTextureSize;
 
+// tnear - position on ray ((mback - mfront) * tnear) starting at wfront
 void intersectBoundingBox( vec4 wfront, vec4 wback, out float tnear, out float tfar )
 {
     vec4 mfront = im * wfront;
