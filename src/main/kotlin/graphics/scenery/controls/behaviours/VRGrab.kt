@@ -4,6 +4,7 @@ import graphics.scenery.Node
 import graphics.scenery.Scene
 import graphics.scenery.attribute.spatial.Spatial
 import graphics.scenery.controls.OpenVRHMD
+import graphics.scenery.controls.TrackedDevice
 import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.controls.TrackerRole
 import graphics.scenery.utils.extensions.minus
@@ -30,7 +31,9 @@ open class VRGrab(
     protected val controllerHitbox: Node,
     protected val targets: () -> List<Node>,
     protected val multiTarget: Boolean = false,
-    protected val onGrab: (() -> Unit)? = null
+    protected val onGrab: ((Node) -> Unit)? = null,
+    protected val onDrag: ((Node) -> Unit)? = null,
+    protected val onRelease: ((Node) -> Unit)? = null
 ) : DragBehaviour {
 
     protected val controllerSpatial: Spatial = controllerHitbox.spatialOrNull()
@@ -53,9 +56,12 @@ open class VRGrab(
             selected = selected.take(1)
         }
         if (selected.isNotEmpty()) {
-            onGrab?.let { it() }
+            onGrab?.let { it(selected.first()) }
         }
-        selected.forEach { it.getAttributeOrNull(Grabable::class.java)?.onGrab?.invoke() }
+        selected.forEach {
+            onGrab?.invoke(it)
+            it.getAttributeOrNull(Grabable::class.java)?.onGrab?.invoke()
+        }
         lastPos = controllerSpatial.worldPosition()
         lastRotation = controllerSpatial.worldRotation()
     }
@@ -93,7 +99,7 @@ open class VRGrab(
                             rotation.premul(diffRotation)
                         }
                     }
-
+                    onDrag?.invoke(it)
                     grabable.onDrag?.invoke()
                 }
             }
@@ -110,7 +116,10 @@ open class VRGrab(
      * @param y invalid - residue from parent behavior. Use [controllerSpatial] instead.
      */
     override fun end(x: Int, y: Int) {
-        selected.forEach { it.getAttributeOrNull(Grabable::class.java)?.onRelease?.invoke() }
+        selected.forEach {
+            onRelease?.invoke(it)
+            it.getAttributeOrNull(Grabable::class.java)?.onRelease?.invoke()
+        }
         selected = emptyList()
     }
 
@@ -127,7 +136,10 @@ open class VRGrab(
             scene: Scene,
             hmd: OpenVRHMD,
             button: List<OpenVRHMD.OpenVRButton>,
-            controllerSide: List<TrackerRole>
+            controllerSide: List<TrackerRole>,
+            onGrab: ((Node, TrackedDevice) -> Unit)? = { _, device -> (hmd as? OpenVRHMD)?.vibrate(device) },
+            onDrag: ((Node, TrackedDevice) -> Unit)? = null,
+            onRelease: ((Node, TrackedDevice) -> Unit)? = null
         ) {
             hmd.events.onDeviceConnect.add { _, device, _ ->
                 if (device.type == TrackedDeviceType.Controller) {
@@ -139,7 +151,10 @@ open class VRGrab(
                                 controller.children.first(),
                                 { scene.discover(scene, { n -> n.getAttributeOrNull(Grabable::class.java) != null }) },
                                 false,
-                                { (hmd as? OpenVRHMD)?.vibrate(device) })
+                                { n -> onGrab?.invoke(n, device) },
+                                { n -> onDrag?.invoke(n, device) },
+                                { n -> onRelease?.invoke(n, device) }
+                            )
 
                             hmd.addBehaviour(name, grabBehaviour)
                             button.forEach {
