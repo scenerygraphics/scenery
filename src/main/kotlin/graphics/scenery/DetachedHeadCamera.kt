@@ -109,11 +109,10 @@ class DetachedHeadCamera(@Transient var tracker: TrackerInput? = null) : Camera(
     override fun createSpatial(): CameraSpatial = DetachedHeadCameraSpatial(this)
     
     class DetachedHeadCameraSpatial(private val cam: DetachedHeadCamera) : Camera.CameraSpatial(cam) {
-        private val tracker = cam.tracker
 
         override var projection: Matrix4f = Matrix4f().identity()
-            get() = if (tracker != null && tracker is Display && tracker.initializedAndWorking()) {
-                (tracker as? Display)?.getEyeProjection(0, cam.nearPlaneDistance, cam.farPlaneDistance)
+            get() = if (cam.tracker != null && cam.tracker is Display && cam.tracker!!.initializedAndWorking()) {
+                (cam.tracker as? Display)?.getEyeProjection(0, cam.nearPlaneDistance, cam.farPlaneDistance)
                     ?: super.projection
             } else {
                 super.projection
@@ -131,7 +130,7 @@ class DetachedHeadCamera(@Transient var tracker: TrackerInput? = null) : Camera(
             val tr = Matrix4f().translate(this.position * (-1.0f))
 //        val r = Matrix4f.fromQuaternion(this.rotation)
 //        val hr = Matrix4f.fromQuaternion(this.headOrientation)
-            return tracker?.getWorkingTracker()?.getPose()?.times(tr) ?: Matrix4f().set(this.rotation) * tr
+            return cam.tracker?.getWorkingTracker()?.getPose()?.times(tr) ?: Matrix4f().set(this.rotation) * tr
         }
 
         /**
@@ -142,7 +141,7 @@ class DetachedHeadCamera(@Transient var tracker: TrackerInput? = null) : Camera(
             val tr = Matrix4f().translate(this.position * (-1.0f))
 //        val r = Matrix4f.fromQuaternion(this.rotation)
 //        val hr = Matrix4f.fromQuaternion(this.headOrientation)
-            return tracker?.getWorkingTracker()?.getPoseForEye(eye)?.times(tr) ?: Matrix4f().set(this.rotation) * tr
+            return cam.tracker?.getWorkingTracker()?.getPoseForEye(eye)?.times(tr) ?: Matrix4f().set(this.rotation) * tr
         }
 
         /**
