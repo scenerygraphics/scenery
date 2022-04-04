@@ -5,6 +5,8 @@ import graphics.scenery.Scene
 import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.controls.TrackerRole
+import graphics.scenery.controls.behaviours.VRGrab.Companion.createAndSet
+import graphics.scenery.controls.behaviours.VRPress.Companion.createAndSet
 import graphics.scenery.primitives.Cylinder
 import graphics.scenery.primitives.LineBetweenNodes
 import graphics.scenery.utils.Wiggler
@@ -15,6 +17,8 @@ import kotlin.math.PI
 
 /**
  * Point and select nodes with the attribute [Selectable] with a VR controller.
+ *
+ * Use the [createAndSet] method to create.
  *
  * When triggered a ray will shoot out from the controller. The ray stops at the first collision with a node with a
  *  attribute and wiggles it to indicate a hit. Then when the user releases the trigger button [onSelect] and
