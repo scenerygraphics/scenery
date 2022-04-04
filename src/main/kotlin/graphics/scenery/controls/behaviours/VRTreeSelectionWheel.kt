@@ -6,6 +6,8 @@ import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.controls.TrackerInput
 import graphics.scenery.controls.TrackerRole
+import graphics.scenery.controls.behaviours.VRGrab.Companion.createAndSet
+import graphics.scenery.controls.behaviours.VRPress.Companion.createAndSet
 import graphics.scenery.utils.extensions.plusAssign
 import graphics.scenery.utils.extensions.times
 import org.joml.Quaternionf
@@ -16,6 +18,9 @@ import java.util.concurrent.Future
 
 /**
  * A selection wheel to let the user choose between different actions.
+ *
+ * Use the [createAndSet] method to create.
+ *
  * The selection is done by [VRPress]. Therefore it is required for this behavior.
  *
  * The list of selectable actions can be changed dynamically.

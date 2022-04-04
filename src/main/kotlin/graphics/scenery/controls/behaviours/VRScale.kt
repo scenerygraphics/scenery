@@ -5,12 +5,17 @@ import graphics.scenery.attribute.spatial.Spatial
 import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.controls.TrackerRole
+import graphics.scenery.controls.behaviours.VRGrab.Companion.createAndSet
+import graphics.scenery.controls.behaviours.VRPress.Companion.createAndSet
 import graphics.scenery.utils.LazyLogger
 import org.scijava.ui.behaviour.DragBehaviour
 import kotlin.concurrent.thread
 
 /**
  * Behavior for scaling with the distance between the controllers.
+ *
+ * Use the [createAndSet] method to create.
+ *
  * When triggered [setScale] is called with the relative difference of the distance between the controllers
  * of this and the previous frame.
  * For easier set-up use the convenience method in the companion object [createAndSet].

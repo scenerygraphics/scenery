@@ -6,12 +6,16 @@ import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.controls.TrackedDevice
 import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.controls.TrackerRole
+import graphics.scenery.controls.behaviours.VRGrab.Companion.createAndSet
+import graphics.scenery.controls.behaviours.VRPress.Companion.createAndSet
 import org.joml.Vector3f
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Future
 
 /**
  * Quasi behavior for triggering actions when touching nodes.
+ *
+ * Use the [createAndSet] method to create.
  *
  * When [controllerHitbox] is intersecting a node with a [Touchable] attribute
  * [onTouch] and then the respective functions of the Touchable attribute are called.

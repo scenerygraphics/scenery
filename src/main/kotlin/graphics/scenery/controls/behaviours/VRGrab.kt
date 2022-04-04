@@ -7,6 +7,7 @@ import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.controls.TrackedDevice
 import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.controls.TrackerRole
+import graphics.scenery.controls.behaviours.VRPress.Companion.createAndSet
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plus
 import org.joml.Quaternionf
@@ -16,6 +17,8 @@ import org.scijava.ui.behaviour.DragBehaviour
 
 /**
  * Grab and Drag nodes with a VR controller.
+ *
+ * Use the [createAndSet] method to create.
  *
  * When triggered and [controllerHitbox] is intersecting a node with a [Grabable] attribute
  * [onGrab] and then the respective functions of the Grabable attribute are called.
