@@ -66,6 +66,7 @@ class NodeSubscriber(
                 try {
                     val payload: ByteArray = subscriber.recv() ?: continue
                     val bin = ByteArrayInputStream(payload)
+                    //logger.info("Payload: $payload")
                     val input = Input(bin)
                     val event = kryo.readClassAndObject(input) as? NetworkEvent
                         ?: throw IllegalStateException("Received unknown, not NetworkEvent payload")

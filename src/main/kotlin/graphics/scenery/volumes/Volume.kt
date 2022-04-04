@@ -53,6 +53,7 @@ import org.lwjgl.system.MemoryUtil
 import org.scijava.io.location.FileLocation
 import tpietzsch.example2.VolumeViewerOptions
 import java.io.FileInputStream
+import java.lang.reflect.TypeVariable
 import java.nio.ByteBuffer
 import java.nio.file.Files
 import java.nio.file.Path
@@ -285,6 +286,7 @@ open class Volume(
     override fun getConstructorParameters(): Any? {
         return constructionParameters
     }
+
 
     override fun constructWithParameters(parameters: Any, hub: Hub): Networkable {
         val fileSource = parameters as? VolumeFileSource ?:

@@ -27,16 +27,14 @@ class RemoteRenderingClusterExample : SceneryBase("Cluster", wantREPL = false) {
         renderer = hub.add(SceneryElement.Renderer,
             Renderer.createRenderer(hub, applicationName, scene, 512, 512))
 
-        if(!Settings().get("RemoteCamera",false)) {
-            val cam: Camera = DetachedHeadCamera()
-            with(cam) {
-                spatial {
-                    position = Vector3f(0.0f, 0.0f, 5.0f)
-                }
-                perspectiveCamera(50.0f, 512, 512)
-
-                scene.addChild(this)
+        val cam: Camera = DetachedHeadCamera()
+        with(cam) {
+            spatial {
+                position = Vector3f(0.0f, 0.0f, 5.0f)
             }
+            perspectiveCamera(50.0f, 512, 512)
+
+            scene.addChild(this)
         }
 
         val volume = Volume.fromPathRaw(Paths.get(getDemoFilesPath() + "/volumes/box-iso/"), hub)
@@ -56,17 +54,26 @@ class RemoteRenderingClusterExample : SceneryBase("Cluster", wantREPL = false) {
             while(!sceneInitialized()) {
                 Thread.sleep(200)
             }
-            //wait until user camera and dummyVolume (emptyVolume holding manipulation data, s.a. transfer function, slicing parameters... have been received
 
-            //var userCamera;
             while(true) {
-                var dummyVolume = scene.find("DummyVolumeOne") as? DummyVolume
-                //userCamera = scene.find("ClientCamera") as? Camera //or DetachedHeadCamera
-                if(dummyVolume != null/* && userCamera != null*/) {
+                val dummyVolume = scene.find("DummyVolume") as? DummyVolume
+                val clientCam = scene.find("ClientCamera") as? DetachedHeadCamera
+                if(dummyVolume != null && clientCam != null) {
                     volume.update += {
-                        if (volume.transferFunction != dummyVolume.transferFunction){
+                        if (volume.transferFunction != dummyVolume.transferFunction) {
                             volume.transferFunction = dummyVolume.transferFunction
                         }
+                        /*
+                        if(volume.colormap != dummyVolume.colormap) {
+                            volume.colormap = dummyVolume.colormap
+                        }
+                        if(volume.slicingMode != dummyVolume.slicingMode) {
+                            volume.slicingMode = dummyVolume.slicingMode
+                        }*/
+                    }
+                    cam.update += {
+                        cam.spatial().position = clientCam.spatial().position
+                        cam.spatial().rotation = clientCam.spatial().rotation
                     }
                     break;
                 }
@@ -83,7 +90,6 @@ class RemoteRenderingClusterExample : SceneryBase("Cluster", wantREPL = false) {
         assertions[AssertionCheckPoint.AfterClose]?.add {
             //assertTrue ( decodedFrameCount == 105, "All frames of the video were read and decoded" )
         }
-
         super.main()
     }
 

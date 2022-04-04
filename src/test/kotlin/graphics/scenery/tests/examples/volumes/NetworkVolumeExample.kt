@@ -5,8 +5,11 @@ import org.joml.Vector3f
 import graphics.scenery.backends.Renderer
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.utils.extensions.timesAssign
+import graphics.scenery.volumes.BufferedVolume
 import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.Volume
+import net.imglib2.type.numeric.integer.UnsignedByteType
+import java.nio.ByteBuffer
 
 import kotlin.concurrent.thread
 
@@ -21,6 +24,7 @@ class NetworkVolumeExample: SceneryBase("SpimData Rendering example", 1280, 720,
 
         //"C:\\Users\\JanCasus\\volumes\\HisYFP-SPIM.xml"
         //"C:\\Users\\JanCasus\\volumes\\ct-scan.tif"
+
 
         val drosophila = Volume.forNetwork(
             Volume.VolumeFileSource(

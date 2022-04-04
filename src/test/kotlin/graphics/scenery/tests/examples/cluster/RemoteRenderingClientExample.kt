@@ -4,16 +4,25 @@ import graphics.scenery.*
 import graphics.scenery.attribute.material.DefaultMaterial
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.backends.Renderer
+import graphics.scenery.controls.InputHandler
+import graphics.scenery.controls.behaviours.ArcballCameraControl
+import graphics.scenery.controls.behaviours.FPSCameraControl
+import graphics.scenery.controls.behaviours.MouseDragSphere
 import graphics.scenery.primitives.Plane
 import graphics.scenery.tests.examples.basic.TexturedCubeExample
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.Image
 import graphics.scenery.utils.VideoDecoder
+import graphics.scenery.volumes.BufferedVolume
 import graphics.scenery.volumes.DummyVolume
 import graphics.scenery.volumes.TransferFunction
+import graphics.scenery.volumes.Volume
+import net.imglib2.type.numeric.integer.UnsignedByteType
+import net.imglib2.type.operators.SetZero
 import org.joml.Vector2f
 import org.joml.Vector3f
 import org.joml.Vector3i
+import org.scijava.ui.behaviour.ClickBehaviour
 import java.io.FileNotFoundException
 import java.net.InetAddress
 import java.nio.ByteBuffer
@@ -27,24 +36,13 @@ class RemoteRenderingClientExample : SceneryBase("Client", wantREPL = false) {
 
     var buffer: ByteBuffer = ByteBuffer.allocateDirect(0)
     var decodedFrameCount: Int = 0
+    var remoteRendering = true
 
     override fun init() {
         renderer = hub.add(
             SceneryElement.Renderer,
             Renderer.createRenderer(hub, applicationName, scene, 1024, 1024)
         )
-
-        val shell = Box(Vector3f(20.0f, 20.0f, 20.0f), insideNormals = true)
-        with(shell) {
-            wantsSync = false
-            material() {
-                cullingMode = Material.CullingMode.None
-                diffuse = Vector3f(0.2f, 0.2f, 0.2f)
-                specular = Vector3f(0.0f)
-                ambient = Vector3f(0.0f)
-            }
-        }
-        scene.addChild(shell)
 
         val light = PointLight(radius = 15.0f)
         with(light) {
@@ -66,9 +64,9 @@ class RemoteRenderingClientExample : SceneryBase("Client", wantREPL = false) {
             scene.addChild(this)
         }
 
-        val dummyVolume = DummyVolume(0)
+        val dummyVolume = DummyVolume()
         with(dummyVolume) {
-            name = "DummyVolumeOne"
+            name = "DummyVolume"
             transferFunction = TransferFunction.ramp(0.001f, 0.5f, 0.3f)
             scene.addChild(this)
         }
@@ -84,27 +82,35 @@ class RemoteRenderingClientExample : SceneryBase("Client", wantREPL = false) {
             scene.addChild(this)
         }
 
-
         // the videoDecoder should only be created if a client connects to a server)
-        val videoDecoder = VideoDecoder("udp://${InetAddress.getLocalHost().hostAddress}:3337")
-        logger.info("video decoder object created")
 
-        thread {
-            while (!sceneInitialized()) {
-                Thread.sleep(200)
-            }
-            decodedFrameCount = 1
+        if(remoteRendering) {
+            val videoDecoder = VideoDecoder("udp://${InetAddress.getLocalHost().hostAddress}:3337")
+            logger.info("video decoder object created")
 
-            while (videoDecoder.nextFrameExists) {
-                val image = videoDecoder.decodeFrame()  /* the decoded image is returned as a ByteArray, and can now be processed.
-                                                            Here, it is simply displayed in fullscreen */
-                if(image != null) { // image can be null, e.g. when the decoder encounters invalid information between frames
-                    drawFrame(image, videoDecoder.videoWidth, videoDecoder.videoHeight, billBoard, decodedFrameCount)
-                    decodedFrameCount++
+            thread {
+                while (!sceneInitialized()) {
+                    Thread.sleep(200)
                 }
+                decodedFrameCount = 1
+
+                while (videoDecoder.nextFrameExists) {
+                    val image = videoDecoder.decodeFrame()  /* the decoded image is returned as a ByteArray, and can now be processed.
+                                                            Here, it is simply displayed in fullscreen */
+                    if (image != null) { // image can be null, e.g. when the decoder encounters invalid information between frames
+                        drawFrame(
+                            image,
+                            videoDecoder.videoWidth,
+                            videoDecoder.videoHeight,
+                            billBoard,
+                            decodedFrameCount
+                        )
+                        decodedFrameCount++
+                    }
+                }
+                decodedFrameCount -= 1
+                logger.info("Done decoding and displaying $decodedFrameCount frames.")
             }
-            decodedFrameCount -= 1
-            logger.info("Done decoding and displaying $decodedFrameCount frames.")
         }
 
         // transfer function manipulation
