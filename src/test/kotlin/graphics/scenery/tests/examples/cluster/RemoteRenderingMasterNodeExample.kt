@@ -1,18 +1,13 @@
 package graphics.scenery.tests.examples.cluster
 
-import com.esotericsoftware.kryo.io.Input
 import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
-import graphics.scenery.net.NetworkEvent
 import graphics.scenery.net.NodePublisher
 import graphics.scenery.net.NodeSubscriber
 import graphics.scenery.volumes.*
-import net.imglib2.type.numeric.integer.UnsignedByteType
-import java.io.ByteArrayInputStream
 import java.io.File
 import java.net.InetAddress
-import java.nio.ByteBuffer
 import java.nio.file.Paths
 import kotlin.concurrent.thread
 import kotlin.test.assertTrue
@@ -25,7 +20,7 @@ import kotlin.test.assertTrue
  * to cluster nodes connected to the master node (this is an example of a master node)
  * The master node should still be able to render on its own, without dependency on the cluster
  */
-class RemoteRenderingServerExample : SceneryBase("Server", wantREPL = false) {
+class RemoteRenderingMasterNodeExample : SceneryBase("Server", wantREPL = false) {
     override fun init() {
         renderer = hub.add(SceneryElement.Renderer,
             Renderer.createRenderer(hub, applicationName, scene, 512, 512))
@@ -39,6 +34,7 @@ class RemoteRenderingServerExample : SceneryBase("Server", wantREPL = false) {
         val subscriber = NodeSubscriber(hub, serverAddress, mainPort, backchannelPort)
         hub.add(subscriber)
 
+        applicationName = "MasterNode"
         val clusteredRendering = true
         if(clusteredRendering) {
             // publisher to the cluster, needs to send the payload from the client subscriber tp the cluster, if wanted
@@ -127,7 +123,7 @@ class RemoteRenderingServerExample : SceneryBase("Server", wantREPL = false) {
         // add assertions, these only get called when the example is called
         // as part of scenery's integration tests
         assertions[AssertionCheckPoint.AfterClose]?.add {
-            val f = File("./RemoteRenderingServerExample.mp4")
+            val f = File("./RemoteRenderingMasterNodeExample.mp4")
             try {
                 assertTrue(f.length() > 0, "Size of recorded video is larger than zero.")
             } finally {
@@ -142,7 +138,7 @@ class RemoteRenderingServerExample : SceneryBase("Server", wantREPL = false) {
     companion object {
         @JvmStatic
         fun main(args: Array<String>) {
-            RemoteRenderingServerExample().main()
+            RemoteRenderingMasterNodeExample().main()
         }
     }
 }

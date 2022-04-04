@@ -3,16 +3,13 @@ package graphics.scenery.tests.examples.cluster
 import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
-import graphics.scenery.net.NodeSubscriber
 import graphics.scenery.volumes.Colormap
 import graphics.scenery.volumes.DummyVolume
 import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.Volume
-import java.io.File
 import java.net.InetAddress
 import java.nio.file.Paths
 import kotlin.concurrent.thread
-import kotlin.test.assertTrue
 
 /**
  * This example resembles the server site interface a client connects to, to render large volume data on a remote server
@@ -22,7 +19,7 @@ import kotlin.test.assertTrue
  * to cluster nodes connected to the master node (this is an example of a master node)
  * The master node should still be able to render on its own, without dependency on the cluster
  */
-class RemoteRenderingClusterExample : SceneryBase("Cluster", wantREPL = false) {
+class RemoteRenderingClusterNodeExample : SceneryBase("Cluster", wantREPL = false) {
     override fun init() {
         renderer = hub.add(SceneryElement.Renderer,
             Renderer.createRenderer(hub, applicationName, scene, 512, 512))
@@ -50,6 +47,7 @@ class RemoteRenderingClusterExample : SceneryBase("Cluster", wantREPL = false) {
             scene.addChild(this)
         }
 
+        applicationName = "ClusterNode"
         thread {
             while(!sceneInitialized()) {
                 Thread.sleep(200)
@@ -96,7 +94,7 @@ class RemoteRenderingClusterExample : SceneryBase("Cluster", wantREPL = false) {
     companion object {
         @JvmStatic
         fun main(args: Array<String>) {
-            RemoteRenderingClusterExample().main()
+            RemoteRenderingClusterNodeExample().main()
         }
     }
 }

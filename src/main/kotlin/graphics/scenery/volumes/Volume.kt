@@ -212,7 +212,7 @@ open class Volume(
             //class Online
         }
         enum class VolumeType(){
-            DEFAULT,SPIM
+            /*DEFAULT,*/SPIM
         }
     }
 
@@ -302,7 +302,7 @@ open class Volume(
         }
 
         return when(fileSource.type){
-            VolumeFileSource.VolumeType.DEFAULT -> Volume.fromPath(Path.of(path), hub)
+            //VolumeFileSource.VolumeType.DEFAULT -> Volume.fromPath(Path.of(path), hub)
             VolumeFileSource.VolumeType.SPIM -> Volume.fromSpimFile(path, VolumeViewerOptions.options())
         }
     }
@@ -679,6 +679,7 @@ open class Volume(
          * Reads a volume from the given [file].
          */
         @JvmStatic
+        /*
         fun fromPath(file: Path, hub: Hub): BufferedVolume {
             if (file.normalize().toString().endsWith("raw")) {
                 return fromPathRaw(file, hub)
@@ -759,14 +760,14 @@ open class Volume(
                 is FloatType -> fromBuffer(volumes, dims.x, dims.y, dims.z, FloatType(), hub)
                 else -> throw UnsupportedOperationException("Image type ${type.javaClass.simpleName} not supported for volume data.")
             }
-        }
+        }*/
 
         /**
          * Reads raw volumetric data from a [file].
          *
          * Returns the new volume.
          */
-        @JvmStatic
+        //@JvmStatic
         fun fromPathRaw(file: Path, hub: Hub): BufferedVolume {
 
             val infoFile: Path

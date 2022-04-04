@@ -32,7 +32,7 @@ class NetworkVolumeExample: SceneryBase("SpimData Rendering example", 1280, 720,
                 Volume.VolumeFileSource.VolumeType.SPIM),
             hub)
 
-        val t1head = Volume.forNetwork(
+        /*val t1head = Volume.forNetwork(
             Volume.VolumeFileSource(
                 Volume.VolumeFileSource.VolumePath.Given("C:\\Users\\JanCasus\\volumes\\t1-head.tif"),
                 Volume.VolumeFileSource.VolumeType.DEFAULT),
@@ -61,7 +61,7 @@ class NetworkVolumeExample: SceneryBase("SpimData Rendering example", 1280, 720,
                 volume.transferFunction = TransferFunction.ramp(0.001f, 0.5f, 0.3f)
                 println("updating volume data done")
             }
-        }
+        }*/
 
         val cam: Camera = DetachedHeadCamera()
         with(cam) {

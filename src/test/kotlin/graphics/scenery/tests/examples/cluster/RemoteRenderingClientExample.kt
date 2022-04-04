@@ -84,6 +84,7 @@ class RemoteRenderingClientExample : SceneryBase("Client", wantREPL = false) {
 
         // the videoDecoder should only be created if a client connects to a server)
 
+        applicationName = "Client"
         if(remoteRendering) {
             val videoDecoder = VideoDecoder("udp://${InetAddress.getLocalHost().hostAddress}:3337")
             logger.info("video decoder object created")
