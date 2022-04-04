@@ -52,7 +52,7 @@ layout(push_constant) uniform currentEye_t {
 } currentEye;
 #pragma scenery endverbatim
 
-ivec2 debug_pixel = ivec2(542, 447);
+ivec2 debug_pixel = ivec2(750, 500);
 
 // intersect ray with a box
 // http://www.siggraph.org/education/materials/HyperGraph/raytrace/rtinter3.htm
