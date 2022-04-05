@@ -167,7 +167,7 @@ open class VulkanDevice(
             vkGetPhysicalDeviceFeatures(physicalDevice, enabledFeatures)
             if(!enabledFeatures.samplerAnisotropy()
                 || !enabledFeatures.largePoints()
-                || !enabledFeatures.geometryShader()
+//                || !enabledFeatures.geometryShader()
                 || !enabledFeatures.fillModeNonSolid()) {
                 throw IllegalStateException("Device does not support required features.")
             }
