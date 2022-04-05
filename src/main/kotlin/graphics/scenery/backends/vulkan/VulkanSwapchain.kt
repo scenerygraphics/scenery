@@ -404,9 +404,8 @@ open class VulkanSwapchain(open val device: VulkanDevice,
                 throw RuntimeException("Presentation queue != graphics queue")
             }
 
-            presentQueue = VkQueue(VU.getPointer("Get present queue",
-                { VK10.vkGetDeviceQueue(device.vulkanDevice, presentQueueNodeIndex, 0, this); VK10.VK_SUCCESS }, {}),
-                device.vulkanDevice)
+            logger.info("Present queue is ${presentQueueNodeIndex}, graphics queue is ${graphicsQueueNodeIndex}")
+            presentQueue = VU.createDeviceQueue(device, device.queues.graphicsQueue.first)
 
             // Get list of supported formats
             val formatCount = VU.getInts("Getting supported surface formats", 1,

@@ -45,7 +45,7 @@ open class SceneryWindow {
             field = value
             when(this) {
                 is UninitializedWindow -> {}
-                is GLFWWindow -> glfwSetWindowTitle(window, value)
+                is GLFWWindow -> {}//glfwSetWindowTitle(window, value)
                 is ClearGLWindow -> window.windowTitle = value
                 is SwingWindow -> {
                     val window = SwingUtilities.getWindowAncestor(panel)
