@@ -21,6 +21,7 @@ plugins {
 }
 
 repositories {
+    mavenLocal()
     mavenCentral()
     jcenter()
     maven("https://maven.scijava.org/content/groups/public")
@@ -49,7 +50,7 @@ dependencies {
     implementation("org.scijava:scripting-jython")
     implementation("net.java.dev.jna:jna-platform:5.9.0")
 
-    val lwjglVersion = "3.3.0"
+    val lwjglVersion = "3.3.1"
     listOf("",
         "-glfw",
         "-jemalloc",
@@ -63,8 +64,17 @@ dependencies {
     ).forEach { lwjglProject ->
         api("org.lwjgl:lwjgl$lwjglProject:$lwjglVersion")
 
-        if (lwjglProject != "-vulkan") {
-            lwjglNatives.forEach { native ->
+        lwjglNatives.forEach { native ->
+            if (lwjglProject.endsWith("-vulkan")) {
+                if (!native.contains("linux") && !native.contains("win")) {
+                    runtimeOnly("org.lwjgl:lwjgl$lwjglProject:$lwjglVersion:$native")
+                }
+            }
+            else if (lwjglProject.endsWith("-openvr")) {
+                if (native.contains("linux") && native.contains("win")) {
+                    runtimeOnly("org.lwjgl:lwjgl$lwjglProject:$lwjglVersion:$native")
+                }
+            } else {
                 runtimeOnly("org.lwjgl:lwjgl$lwjglProject:$lwjglVersion:$native")
             }
         }
@@ -77,7 +87,7 @@ dependencies {
     implementation("de.javakaffee:kryo-serializers:0.45")
     implementation("org.msgpack:msgpack-core:0.9.0")
     implementation("org.msgpack:jackson-dataformat-msgpack:0.9.0")
-    api("graphics.scenery:jvrpn:1.2.0", lwjglNatives)
+    api("graphics.scenery:jvrpn:1.2.0", lwjglNatives.filter { !it.contains("arm") }.toTypedArray())
     implementation("io.scif:scifio")
     implementation("org.bytedeco:ffmpeg:4.3.2-1.5.5", ffmpegNatives)
     implementation("io.github.classgraph:classgraph:4.8.137")
@@ -90,7 +100,8 @@ dependencies {
     //TODO revert to official BVV
     api("graphics.scenery:bigvolumeviewer:a6b021d")
 
-    implementation("com.github.LWJGLX:lwjgl3-awt:cfd741a6")
+//    implementation("com.github.LWJGLX:lwjgl3-awt:cfd741a6")
+    implementation("org.lwjglx:lwjgl3-awt:0.1.9-localbuild")
     implementation("org.janelia.saalfeldlab:n5")
     implementation("org.janelia.saalfeldlab:n5-imglib2")
     listOf("core", "structure", "modfinder").forEach {
