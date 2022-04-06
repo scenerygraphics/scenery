@@ -4,39 +4,57 @@ import graphics.scenery.Box
 import graphics.scenery.RichNode
 import graphics.scenery.Sphere
 import graphics.scenery.attribute.spatial.HasSpatial
-import graphics.scenery.attribute.spatial.Spatial
 import graphics.scenery.controls.TrackerInput
 import graphics.scenery.primitives.TextBoard
+import graphics.scenery.utils.extensions.plusAssign
+import graphics.scenery.utils.extensions.times
 import org.joml.Quaternionf
 import org.joml.Vector3f
 import org.joml.Vector4f
 import kotlin.math.PI
 
 /**
- * Shared code of [VRSelectionWheel] and [VRTreeSelectionWheel].
+ * WheelMenu used by [VRSelectionWheel] and [VRTreeSelectionWheel].
+ * But can be used standalone
  * Handles the nodes and their positioning of the menu items.
+ *
+ * @param trackingMode how the menu should follow the users head position
  */
-internal class WheelMenu(
-    val controller: Spatial,
+class WheelMenu(
     val hmd: TrackerInput,
     var actions: List<WheelEntry>,
-    supportsSubWheels: Boolean = false
+    supportsSubWheels: Boolean = false,
+    var trackingMode: TrackingMode = TrackingMode.LIVE
 ) : RichNode("Selection Wheel") {
 
     val menuEntries: List<MenuEntry>
     var previous: WheelMenu? = null
 
-    var followHead = true
+    enum class TrackingMode{
+        /**
+         * DoNotTrack
+         */
+        NONE,
+        /**
+         * Only once at start
+         */
+        START,
+        /**
+         * Follow user (Only rotation)
+         */
+        LIVE
+    }
 
     init {
-        spatial {
-            position = controller.worldPosition()
-        }
 
-        update.add {
-            if (followHead) {
-                spatial {
-                    rotation = Quaternionf(hmd.getOrientation()).conjugate().normalize()
+        when(trackingMode){
+            TrackingMode.NONE -> {}
+            TrackingMode.START -> spatial().rotation = Quaternionf(hmd.getOrientation()).conjugate().normalize()
+            TrackingMode.LIVE -> update.add {
+                if (trackingMode == TrackingMode.LIVE) {
+                    spatial {
+                        rotation = Quaternionf(hmd.getOrientation()).conjugate().normalize()
+                    }
                 }
             }
         }
@@ -58,17 +76,17 @@ internal class WheelMenu(
                     val s = Sphere(0.025f, 10)
                     s.addAttribute(Pressable::class.java, SimplePressable(onRelease = {
                         action.action()
-                        if (action.closeMenu){VRTreeSelectionWheel.closeWheel(this, true)}
+                        if (action.closeMenu){this.closeWheel(true)}
                     }))
                     // make it go red on touch
                     s.addAttribute(Touchable::class.java, Touchable())
                     s
                 }
                 is SubWheel -> {
-                    val s = Box(Vector3f(0.025f))
+                    val s = Box(Vector3f(0.05f))
                     s.addAttribute(Pressable::class.java, SimplePressable(onRelease = {
-                        val new = WheelMenu(controller, hmd, action.actions, true)
-                        VRTreeSelectionWheel.openSubWheel(new, this, pos)
+                        val new = WheelMenu(hmd, action.actions, true)
+                        new.openSubWheel(this, pos)
                     }))
                     // make it go red on touch
                     s.addAttribute(Touchable::class.java, Touchable())
@@ -124,22 +142,67 @@ internal class WheelMenu(
             val close = Box(Vector3f(0.05f, 0.05f, 0.05f))
             close.spatial().rotation.rotateLocalZ((PI / 4).toFloat())
             close.addAttribute(Pressable::class.java, SimplePressable(onRelease = {
-                VRTreeSelectionWheel.closeWheel(this)
+                this.closeWheel()
             }))
             // make it go red on touch
             close.addAttribute(Touchable::class.java, Touchable())
             addChild(close)
         }
+
+    }
+
+     private fun openSubWheel(old: WheelMenu, relActionSpherePos: Vector3f){
+         val new = this
+        val root = old.parent?: return
+
+        root.removeChild(old)
+        root.addChild(new)
+        new.addChild(old)
+
+        new.previous = old
+
+        new.spatial().position = old.spatial().position
+        old.spatial().position = relActionSpherePos * -1.0f
+        old.spatial().position += Vector3f(0f,0f,-0.15f)
+         old.trackingMode = TrackingMode.NONE
+
+        old.spatial().rotation = Quaternionf()
     }
 
     /**
+     * closes this wheel
+     */
+    fun closeWheel(recursive: Boolean = false){
+        val wheel = this
+        if (wheel.previous == null){
+            wheel.parent?.removeChild(wheel)
+            return
+        }
+
+        val root = wheel.parent?: return
+        val prev = wheel.previous!!
+
+        root.removeChild(wheel)
+        wheel.removeChild(prev)
+        root.addChild(prev)
+
+        prev.spatial().position = wheel.spatial().position
+
+        prev.trackingMode = wheel.trackingMode
+
+
+        if (recursive){
+            prev.closeWheel(true)
+        }
+    }
+    /**
      * @return (closest actionSphere) to (distance to controller)
      */
-    fun closestActionSphere() = menuEntries.map { entry ->
-        entry to entry.representation.spatial().worldPosition().distance(controller.worldPosition())
+    fun closestActionSphere(pos: Vector3f) = menuEntries.map { entry ->
+        entry to entry.representation.spatial().worldPosition().distance(pos)
     }.reduceRight { left, right -> if (left.second < right.second) left else right }
 
     companion object {
-        internal data class MenuEntry(val action: WheelEntry, val representation: HasSpatial)
+        data class MenuEntry(val action: WheelEntry, val representation: HasSpatial)
     }
 }
