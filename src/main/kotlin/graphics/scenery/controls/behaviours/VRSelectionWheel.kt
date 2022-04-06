@@ -57,9 +57,9 @@ class VRSelectionWheel(
             activeWiggler?.deativate()
             activeWiggler = null
 
-        } else if (activeWiggler?.target != closestSphere.sphere.spatial()) {
+        } else if (activeWiggler?.target != closestSphere.representation.spatial()) {
             activeWiggler?.deativate()
-            activeWiggler = Wiggler(closestSphere.sphere.spatial(), 0.01f)
+            activeWiggler = Wiggler(closestSphere.representation.spatial(), 0.01f)
         }
 
     }
@@ -71,8 +71,11 @@ class VRSelectionWheel(
         val (closestActionSphere, distance) = activeWheel?.closestActionSphere() ?: return
 
         if (distance < cutoff) {
-            val action = closestActionSphere.action as? Action
-            action?.action?.invoke()
+            when(val entry = closestActionSphere.action){
+                is Action -> entry.action()
+                is Switch -> entry.toggle()
+                else -> throw IllegalStateException("${entry.javaClass.simpleName} not implemented for Selection Wheel")
+            }
         }
 
         activeWiggler?.deativate()

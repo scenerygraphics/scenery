@@ -287,6 +287,7 @@ class VRControllerExample : SceneryBase(
             scene, hmd,
             listOf(OpenVRHMD.OpenVRButton.Menu), listOf(TrackerRole.RightHand),
             listOf(
+                Switch("switch 1", false){ println("switch has been set to $it") },
                 Action("dummy1") { println("A dummy entry has been pressed") },
                 SubWheel(
                     "Menu1", listOf(

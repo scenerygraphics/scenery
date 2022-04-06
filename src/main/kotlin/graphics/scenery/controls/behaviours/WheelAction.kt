@@ -13,6 +13,17 @@ sealed class WheelAction(val name: String)
  */
 class Action(name: String, val action: () -> Unit) : WheelAction(name)
 
+class Switch(name: String, var state:Boolean, val onChange: (Boolean) -> Unit): WheelAction(name){
+    /**
+     * @return new state
+     */
+    fun toggle(): Boolean{
+        state = !state
+        onChange(state)
+        return state
+    }
+}
+
 /**
  * A sub menu of a wheel menu. It will be displayed like a regular menu entry and when selected
  * it opens on-top of the previous menu. Deeper sub menus are supported.
