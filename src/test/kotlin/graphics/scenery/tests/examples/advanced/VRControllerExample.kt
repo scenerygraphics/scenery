@@ -288,30 +288,30 @@ class VRControllerExample : SceneryBase(
             listOf(OpenVRHMD.OpenVRButton.Menu), listOf(TrackerRole.RightHand),
             listOf(
                 Switch("switch 1", false){ println("switch has been set to $it") },
-                Action("dummy1") { println("A dummy entry has been pressed") },
+                Action("dummy1", false) { println("A dummy entry has been pressed") },
                 SubWheel(
                     "Menu1", listOf(
-                        Action("dummy1-1", { println("A dummy entry has been pressed") }),
-                        Action("dummy1-2", { println("A dummy entry has been pressed") }),
-                        Action("dummy1-3", { println("A dummy entry has been pressed") })
+                        Action("dummy1-1") { println("A dummy entry has been pressed") },
+                        Action("dummy1-2") { println("A dummy entry has been pressed") },
+                        Action("dummy1-3") { println("A dummy entry has been pressed") }
                     )
                 ),
                 SubWheel(
                     "Menu2", listOf(
-                        Action("dummy2-1", { println("A dummy entry has been pressed") }),
+                        Action("dummy2-1") { println("A dummy entry has been pressed") },
                         SubWheel(
                             "Menu2-1", listOf(
-                                Action("dummy2-1-1", { println("A dummy entry has been pressed") }),
-                                Action("dummy2-1-2", { println("A dummy entry has been pressed") }),
-                                Action("dummy2-1-3", { println("A dummy entry has been pressed") })
+                                Action("dummy2-1-1") { println("A dummy entry has been pressed") },
+                                Action("dummy2-1-2") { println("A dummy entry has been pressed") },
+                                Action("dummy2-1-3") { println("A dummy entry has been pressed") }
                             )
                         ),
-                        Action("dummy2-3", { println("A dummy entry has been pressed") })
+                        Action("dummy2-3") { println("A dummy entry has been pressed") }
                     )
                 ),
-                Action("dummy2", { println("A dummy entry has been pressed") }),
-                Action("dummy3", { println("A dummy entry has been pressed") }),
-                Action("dummy4", { println("A dummy entry has been pressed") }),
+                Action("dummy2") { println("A dummy entry has been pressed") },
+                Action("dummy3") { println("A dummy entry has been pressed") },
+                Action("dummy4") { println("A dummy entry has been pressed") },
             )
         )
     }

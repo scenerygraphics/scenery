@@ -19,7 +19,7 @@ import kotlin.math.PI
 internal class WheelMenu(
     val controller: Spatial,
     val hmd: TrackerInput,
-    var actions: List<WheelAction>,
+    var actions: List<WheelEntry>,
     supportsSubWheels: Boolean = false
 ) : RichNode("Selection Wheel") {
 
@@ -58,7 +58,7 @@ internal class WheelMenu(
                     val s = Sphere(0.025f, 10)
                     s.addAttribute(Pressable::class.java, SimplePressable(onRelease = {
                         action.action()
-                        VRTreeSelectionWheel.closeWheel(this, true)
+                        if (action.closeMenu){VRTreeSelectionWheel.closeWheel(this, true)}
                     }))
                     // make it go red on touch
                     s.addAttribute(Touchable::class.java, Touchable())
@@ -140,6 +140,6 @@ internal class WheelMenu(
     }.reduceRight { left, right -> if (left.second < right.second) left else right }
 
     companion object {
-        internal data class MenuEntry(val action: WheelAction, val representation: HasSpatial)
+        internal data class MenuEntry(val action: WheelEntry, val representation: HasSpatial)
     }
 }

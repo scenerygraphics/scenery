@@ -34,7 +34,7 @@ class VRTreeSelectionWheel(
     val controller: Spatial,
     val scene: Scene,
     val hmd: TrackerInput,
-    var actions: List<WheelAction>,
+    var actions: List<WheelEntry>,
     val cutoff: Float = 0.1f,
 ) : ClickBehaviour {
 
@@ -69,7 +69,7 @@ class VRTreeSelectionWheel(
             hmd: OpenVRHMD,
             button: List<OpenVRHMD.OpenVRButton>,
             controllerSide: List<TrackerRole>,
-            menu: List<WheelAction>,
+            menu: List<WheelEntry>,
         ) : Future<VRTreeSelectionWheel> {
             val future = CompletableFuture<VRTreeSelectionWheel>()
             hmd.events.onDeviceConnect.add { _, device, _ ->
