@@ -14,7 +14,7 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Future
 
 /**
- * A selection wheel to let the user choose between different actions.
+ * A fast selection wheel to let the user choose between different actions.
  *
  * Use the [createAndSet] method to create.
  *
@@ -41,7 +41,8 @@ class VRSelectionWheel(
      */
     override fun init(x: Int, y: Int) {
 
-        activeWheel = WheelMenu(controller,hmd,actions)
+        activeWheel = WheelMenu(hmd, actions)
+        activeWheel?.spatial()?.position = controller.worldPosition()
 
         scene.addChild(activeWheel!!)
     }
@@ -51,7 +52,7 @@ class VRSelectionWheel(
      */
     override fun drag(x: Int, y: Int) {
 
-        val (closestSphere, distance) = activeWheel?.closestActionSphere() ?: return
+        val (closestSphere, distance) = activeWheel?.closestActionSphere(controller.worldPosition()) ?: return
 
         if (distance > cutoff) {
             activeWiggler?.deativate()
@@ -68,7 +69,7 @@ class VRSelectionWheel(
      * This function is called by the framework. Usually you don't need to call this.
      */
     override fun end(x: Int, y: Int) {
-        val (closestActionSphere, distance) = activeWheel?.closestActionSphere() ?: return
+        val (closestActionSphere, distance) = activeWheel?.closestActionSphere(controller.worldPosition()) ?: return
 
         if (distance < cutoff) {
             when(val entry = closestActionSphere.action){
@@ -131,6 +132,7 @@ class VRSelectionWheel(
         fun List<Pair<String, () -> Unit>>.toActions(): List<Action> = map { Action(it.first, action = it.second)}
         fun List<Pair<String, (Spatial) -> Unit>>.toActions(device: Spatial): List<Action> =
             map { Action(it.first) { it.second.invoke(device) } }
+
     }
 }
 

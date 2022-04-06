@@ -68,7 +68,7 @@ class VRControllerExample : SceneryBase(
 
         val lights = Light.createLightTetrahedron<PointLight>(spread = 5.0f, radius = 8.0f)
         lights.forEach {
-            it.emissionColor = Random.random3DVectorFromRange(0.6f, 1.0f)
+            it.emissionColor = Random.random3DVectorFromRange(0.8f, 1.0f)
             scene.addChild(it)
         }
 
@@ -228,7 +228,7 @@ class VRControllerExample : SceneryBase(
         VRPress.createAndSet(
             scene,
             hmd,
-            listOf(OpenVRHMD.OpenVRButton.Trigger,OpenVRHMD.OpenVRButton.A),
+            listOf(OpenVRHMD.OpenVRButton.Trigger, OpenVRHMD.OpenVRButton.A),
             listOf(TrackerRole.LeftHand, TrackerRole.RightHand)
         )
 
@@ -277,7 +277,13 @@ class VRControllerExample : SceneryBase(
                     boxes.forEach { it.visible = !it.visible }
                     logger.info("Boxes visible: ${boxes.first().visible}")
                 },
-                "test" to { print("test") },
+                "Tree Selection Wheel" to {
+                    val w = WheelMenu(hmd, listOf(
+                        Action("Test sub wheel") { println("test fix sub wheel") }
+                    ), true)
+                    w.spatial().position = menu.get().controller.worldPosition(Vector3f())
+                    scene.addChild(w)
+                },
                 "Toggle Push Left" to {
                     leftControllerPushes = !leftControllerPushes
                 }).toActions()
@@ -287,7 +293,7 @@ class VRControllerExample : SceneryBase(
             scene, hmd,
             listOf(OpenVRHMD.OpenVRButton.Menu), listOf(TrackerRole.RightHand),
             listOf(
-                Switch("switch 1", false){ println("switch has been set to $it") },
+                Switch("switch 1", false) { println("switch has been set to $it") },
                 Action("dummy1", false) { println("A dummy entry has been pressed") },
                 SubWheel(
                     "Menu1", listOf(

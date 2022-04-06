@@ -8,10 +8,6 @@ import graphics.scenery.controls.TrackerInput
 import graphics.scenery.controls.TrackerRole
 import graphics.scenery.controls.behaviours.VRGrab.Companion.createAndSet
 import graphics.scenery.controls.behaviours.VRPress.Companion.createAndSet
-import graphics.scenery.utils.extensions.plusAssign
-import graphics.scenery.utils.extensions.times
-import org.joml.Quaternionf
-import org.joml.Vector3f
 import org.scijava.ui.behaviour.ClickBehaviour
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Future
@@ -46,11 +42,12 @@ class VRTreeSelectionWheel(
     override fun click(x: Int, y: Int) {
 
         if (activeWheel != null && activeWheel?.parent != null){
-            // if the previous wheel was closed by the close button is is still set here but has no parent
-            closeWheel(activeWheel!!,true)
+            // if the previous wheel was closed by the close button is still set here but has no parent
+            activeWheel?.closeWheel(true)
             activeWheel = null
         } else {
-            activeWheel = WheelMenu(controller, hmd, actions, true)
+            activeWheel = WheelMenu(hmd, actions, true)
+            activeWheel?.spatial()?.position = controller.worldPosition()
 
             scene.addChild(activeWheel!!)
         }
@@ -94,44 +91,6 @@ class VRTreeSelectionWheel(
                 }
             }
             return future
-        }
-
-        internal fun openSubWheel(new: WheelMenu, old: WheelMenu, relActionSpherePos: Vector3f){
-            val root = old.parent?: return
-
-            root.removeChild(old)
-            root.addChild(new)
-            new.addChild(old)
-
-            new.previous = old
-
-            new.spatial().position = old.spatial().position
-            old.spatial().position = relActionSpherePos * -1.0f
-            old.spatial().position += Vector3f(0f,0f,-0.15f)
-
-            old.followHead = false
-            old.spatial().rotation = Quaternionf()
-        }
-
-        internal fun closeWheel(wheel: WheelMenu, recursive: Boolean = false){
-            if (wheel.previous == null){
-                wheel.parent?.removeChild(wheel)
-                return
-            }
-
-            val root = wheel.parent?: return
-            val prev = wheel.previous!!
-
-            root.removeChild(wheel)
-            wheel.removeChild(prev)
-            root.addChild(prev)
-
-            prev.spatial().position = wheel.spatial().position
-            prev.followHead = true
-
-            if (recursive){
-                closeWheel(prev,true)
-            }
         }
     }
 }
