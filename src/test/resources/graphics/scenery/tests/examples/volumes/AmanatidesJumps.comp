@@ -108,7 +108,7 @@ vec3 sourcemax_x_10_x_ = vec3(832.0, 832.0, 494.0);
 //ivec2 debug_pixel = ivec2(433, 577);
 //ivec2 debug_pixel = ivec2(729, 282);
 //ivec2 debug_pixel = ivec2(987, 437);
-ivec2 debug_pixel = ivec2(1298, 403);
+ivec2 debug_pixel = ivec2(832, 512);
 //ivec2 debug_pixel = ivec2(35, 61);
 //ivec2 debug_pixel = ivec2(427, 465);
 //ivec2 debug_pixel = ivec2(424, 539);
@@ -338,6 +338,12 @@ bool firstNotYetIntersected = true;
 
 float getSupsegFront(ivec2 theList, int index) {
 
+    #if USE_PRINTF
+    if(gl_GlobalInvocationID.xy == debug_pixel && theList.x < 343) {
+        debugPrintfEXT("Searching for front face of (%d, %d), %d", theList, index);
+    }
+    #endif
+
     if(!(index >= 0 && index < maxSupersegments)) {
         //This is an error!
         #if USE_PRINTF
@@ -350,7 +356,12 @@ float getSupsegFront(ivec2 theList, int index) {
 
     #if SEPARATE_DEPTH
         #if INT_DEPTHS
-        uint front_index = imageLoad(DepthVDI, ivec3(index, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x)).x;
+        uint front_index = imageLoad(DepthVDI, ivec3(index, theList.y, theList.x)).x;
+        #if USE_PRINTF
+        if(gl_GlobalInvocationID.xy == debug_pixel && theList.x < 343) {
+            debugPrintfEXT("Obtained front index: %d", front_index);
+        }
+        #endif
         totalMemoryLoads++;
         if(front_index == 0 && index != 0) {
             return 0.0;
@@ -369,6 +380,11 @@ float getSupsegFront(ivec2 theList, int index) {
         #else
         vec4 front = imageLoad(DepthVDI, ivec3(index*2, theList.y, theList.x));
         totalMemoryLoads++;
+        #if USE_PRINTF
+        if(gl_GlobalInvocationID.xy == debug_pixel) {
+            debugPrintfEXT("Searching for front depth of: (%d, %d), %d. returning: %f", theList, index, front.x);
+        }
+        #endif
         return front.x;
         #endif
     #else
@@ -379,6 +395,12 @@ float getSupsegFront(ivec2 theList, int index) {
 }
 
 float getSupsegBack(ivec2 theList, int index) {
+
+    #if USE_PRINTF
+    if(gl_GlobalInvocationID.xy == debug_pixel && theList.x < 343) {
+        debugPrintfEXT("Searching for back face of (%d, %d), %d", theList, index);
+    }
+    #endif
 
     if(!(index >= 0 && index < maxSupersegments)) {
         //This is an error!
@@ -392,7 +414,12 @@ float getSupsegBack(ivec2 theList, int index) {
 
     #if SEPARATE_DEPTH
         #if INT_DEPTHS
-        uint back_index = imageLoad(DepthVDI, ivec3(index, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x)).y;
+        uint back_index = imageLoad(DepthVDI, ivec3(index, theList.y, theList.x)).y;
+        #if USE_PRINTF
+        if(gl_GlobalInvocationID.xy == debug_pixel && theList.x < 343) {
+            debugPrintfEXT("Obtained back index: %d", back_index);
+        }
+        #endif
         totalMemoryLoads++;
         if(back_index == 0) {
             return 0.0;
@@ -402,10 +429,20 @@ float getSupsegBack(ivec2 theList, int index) {
         vec4 ndcPos = pv_orig * w_end;
         ndcPos *= 1. / ndcPos.w;
         float ndc_step = ndcPos.z;
+        #if USE_PRINTF
+        if(gl_GlobalInvocationID.xy == debug_pixel && theList.x < 343) {
+            debugPrintfEXT("Searching for back depth of: (%d, %d), %d. Found jump num: %u, therefore returning: %f", theList, index, back_index, ndc_step);
+        }
+        #endif
         return ndc_step;
         #else
         vec4 back = imageLoad(DepthVDI, ivec3(index*2 + 1, theList.y, theList.x));
         totalMemoryLoads++;
+//        #if USE_PRINTF
+//        if(gl_GlobalInvocationID.xy == debug_pixel) {
+//            debugPrintfEXT("Searching for back depth of: (%d, %d), %d. returning: %f", theList, index, back.x);
+//        }
+//        #endif
         return back.x;
         #endif
     #else
@@ -722,11 +759,11 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
         //the first supersegment is empty, so empty list
         totalEmptyLists++;
         totalNonIntersected++;
-        #if USE_PRINTF
-        if(gl_GlobalInvocationID.xy == debug_pixel) {
-            debugPrintfEXT("Returning because first element was 0. The list no. was: (%d, %d)", theList);
-        }
-        #endif
+//        #if USE_PRINTF
+//        if(gl_GlobalInvocationID.xy == debug_pixel) {
+//            debugPrintfEXT("Returning because first element was 0. The list no. was: (%d, %d)", theList);
+//        }
+//        #endif
         return;
     }
 
@@ -747,12 +784,6 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
     orig_tnear = 1, orig_tfar = 0;
     float n, f;
 
-    #if USE_PRINTF
-    if(gl_GlobalInvocationID.xy == debug_pixel) {
-        debugPrintfEXT("Original ray wfront: (%f, %f, %f, %f) wback: (%f, %f, %f, %f)", originalRay.wfront.xyzw, originalRay.wback.xyzw);
-    }
-    #endif
-
     bool vis = false;
     intersectBoundingBox_x_11_x_( originalRay.wfront, originalRay.wback, n, f );
 
@@ -762,6 +793,14 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
         orig_tfar = max( orig_tfar, f );
         vis = true;
     }
+
+    #if USE_PRINTF
+    if(gl_GlobalInvocationID.xy == debug_pixel && theList.x < 344) {
+        debugPrintfEXT("Original ray nfront: (%f, %f, %f, %f) nback: (%f, %f, %f, %f)", originalRay.NDC_front.xyzw, originalRay.NDC_back.xyzw);
+        debugPrintfEXT("Original ray wfront: (%f, %f, %f, %f) wback: (%f, %f, %f, %f)", originalRay.wfront.xyzw, originalRay.wback.xyzw);
+        debugPrintfEXT("tnear: %f and tfar: %f", orig_tnear, orig_tfar);
+    }
+    #endif
 
     if(!vis) {
         #if USE_PRINTF
