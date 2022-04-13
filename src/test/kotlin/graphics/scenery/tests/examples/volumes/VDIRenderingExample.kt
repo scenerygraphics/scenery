@@ -90,8 +90,8 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1832, 1016, wantREPL = 
 //        cam.position = Vector3f( 3.853E+0f,  7.480E-1f, -9.672E-1f)
 //        cam.rotation = Quaternionf( 4.521E-2,  9.413E-1, -1.398E-1, -3.040E-1)
 
-//            position = Vector3f( 5.286E+0f,  8.330E-1f,  3.088E-1f) //This is the viewpoint at which I recorded 13 fps with float depths (Stagbeetle, 1070)
-//            rotation = Quaternionf( 4.208E-2,  9.225E-1, -1.051E-1, -3.690E-1)
+            position = Vector3f( 5.286E+0f,  8.330E-1f,  3.088E-1f) //This is the viewpoint at which I recorded 13 fps with float depths (Stagbeetle, 1070)
+            rotation = Quaternionf( 4.208E-2,  9.225E-1, -1.051E-1, -3.690E-1)
 //
 //            position = Vector3f( 2.869E+0f,  8.955E-1f, -9.165E-1f)
 //            rotation = Quaternionf( 2.509E-2,  9.739E-1, -1.351E-1, -1.805E-1)
@@ -130,6 +130,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1832, 1016, wantREPL = 
         colBuffer.put(buff).flip()
 
         if(separateDepth) {
+//            depthBuffer = MemoryUtil.memCalloc(windowHeight * windowWidth * numSupersegments * 4 * 2 * 2)
             depthBuffer = MemoryUtil.memCalloc(windowHeight * windowWidth * numSupersegments * 4 * 2)
             depthBuffer.put(depthBuff).flip()
         } else {
@@ -162,6 +163,8 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1832, 1016, wantREPL = 
         if(separateDepth) {
             compute.material().textures["DepthVDI"] = Texture(Vector3i(numSupersegments, windowHeight, windowWidth),  channels = 2, contents = depthBuffer, usageType = hashSetOf(
                 Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = UnsignedShortType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+//            compute.material().textures["DepthVDI"] = Texture(Vector3i(2 * numSupersegments, windowHeight, windowWidth),  channels = 1, contents = depthBuffer, usageType = hashSetOf(
+//                Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
         }
         compute.material().textures["OctreeCells"] = Texture(Vector3i(numVoxels.toInt(), numVoxels.toInt(), numVoxels.toInt()), 1, type = UnsignedIntType(), contents = lowestLevel, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
         compute.metadata["ComputeMetadata"] = ComputeMetadata(
