@@ -52,7 +52,7 @@ layout(push_constant) uniform currentEye_t {
 } currentEye;
 #pragma scenery endverbatim
 
-ivec2 debug_pixel = ivec2(750, 500);
+ivec2 debug_pixel = ivec2(1017, 519);
 
 // intersect ray with a box
 // http://www.siggraph.org/education/materials/HyperGraph/raytrace/rtinter3.htm
@@ -168,6 +168,12 @@ void main()
 //		:
 		int ( trunc( ( tfar - tnear ) / nw + 1 ) );
 
+		#if USE_PRINTF
+		if(pixel_coords.xy == debug_pixel) {
+			debugPrintfEXT("tnear: %f, tfar: %f, nw: %f. numSteps: %d.", tnear, tfar, nw, numSteps);
+		}
+		#endif
+
 ////		int cnt = 0;
 //		bool supersegmentIsOpen = false;
 //		float supSegStartPoint = 0.0;
@@ -176,11 +182,11 @@ void main()
 //		bool transparentSample = false;
 
 		float step = tnear;
-
-		vec4 wprev = mix(wfront, wback, step);
+		float step_prev = step - nw;
+		vec4 wprev = mix(wfront, wback, step_prev);
 
 //		step += nw + step * fwnw;
-		step += nw;
+//		step += nw;
 
 		vec4 v = vec4( 0 );
 //		vec4 curV = vec4( 0 );
