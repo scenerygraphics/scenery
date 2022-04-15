@@ -153,11 +153,16 @@ float orig_tnear;
 float orig_tfar;
 float nw = 0.000116;
 
-float ndc_to_w(float n_depth)
+float ndc_to_w(vec2 uv, float n_depth)
 {
+    if(n_depth >= 1.0) {
+        return 1.0;
+    }
 
-    vec2 texcoord = originalRay.coords/vec2(windowWidth, windowHeight);
-    vec2 uv = texcoord * 2.0 - vec2(1.0);
+    if(n_depth <= -1.0) {
+        return 0.0;
+    }
+
     vec4 ndc_start = vec4(uv, n_depth, 1.0);
 
     vec4 w_start = ivp_orig * ndc_start;
@@ -166,6 +171,16 @@ float ndc_to_w(float n_depth)
     float w_depth = distance(w_start, originalRay.wfront) / distance(originalRay.wfront, originalRay.wback);
 
     return w_depth;
+}
+
+float w_to_ndc(float w_step)
+{
+    vec4 wpos = mix(originalRay.wfront, originalRay.wback, w_step);
+
+    vec4 n_pos = pv_orig * wpos;
+    n_pos *= 1.0 / n_pos.w;
+
+    return n_pos.z;
 }
 
 // intersect ray with a box
@@ -367,16 +382,12 @@ float getSupsegFront(ivec2 theList, int index) {
             return 0.0;
         }
         float step = orig_tnear + nw * front_index;
-        vec4 wstart = mix(originalRay.wfront, originalRay.wback, step);
-        vec4 ndcPos = pv_orig * wstart;
-        ndcPos *= 1. / ndcPos.w;
-        float ndc_step = ndcPos.z;
         #if USE_PRINTF
         if(gl_GlobalInvocationID.xy == debug_pixel) {
-            debugPrintfEXT("Searching for front depth of: (%d, %d), %d. Found jump num: %u, therefore returning: %f", theList, index, front_index, ndc_step);
+            debugPrintfEXT("Searching for front depth of: (%d, %d), %d. Found jump num: %u, therefore returning: %f", theList, index, front_index, step);
         }
         #endif
-        return ndc_step;
+        return step;
         #else
         vec4 front = imageLoad(DepthVDI, ivec3(index*2, theList.y, theList.x));
         totalMemoryLoads++;
@@ -425,16 +436,12 @@ float getSupsegBack(ivec2 theList, int index) {
             return 0.0;
         }
         float step = orig_tnear + nw * back_index;
-        vec4 w_end = mix(originalRay.wfront, originalRay.wback, step);
-        vec4 ndcPos = pv_orig * w_end;
-        ndcPos *= 1. / ndcPos.w;
-        float ndc_step = ndcPos.z;
         #if USE_PRINTF
         if(gl_GlobalInvocationID.xy == debug_pixel && theList.x < 343) {
-            debugPrintfEXT("Searching for back depth of: (%d, %d), %d. Found jump num: %u, therefore returning: %f", theList, index, back_index, ndc_step);
+            debugPrintfEXT("Searching for back depth of: (%d, %d), %d. Found jump num: %u, therefore returning: %f", theList, index, back_index, step);
         }
         #endif
-        return ndc_step;
+        return step;
         #else
         vec4 back = imageLoad(DepthVDI, ivec3(index*2 + 1, theList.y, theList.x));
         totalMemoryLoads++;
@@ -541,8 +548,13 @@ void linSearch(int rayX, int rayY, int start, int limit, float dist_to_orig, out
             break; // there are no more supersegments in this list, so break
         }
 
+        float ndc_x = float(rayX) / windowWidth * 2.0 - 1.0;
+        float ndc_y = float(rayY) / windowHeight * 2.0 - 1.0;
+
+        vec2 uv = vec2(ndc_x, ndc_y);
+
         #if NDC
-        depthStart = ndc_to_w(depthStart);
+        depthStart = ndc_to_w(uv, depthStart);
         #endif
 
         //d
@@ -559,7 +571,7 @@ void linSearch(int rayX, int rayY, int start, int limit, float dist_to_orig, out
             #endif
 
             #if NDC
-            depthEnd = ndc_to_w(depthEnd);
+            depthEnd = ndc_to_w(uv, depthEnd);
             #endif
 
             if(dist_to_orig <= depthEnd) {
@@ -812,12 +824,12 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
         return;
     }
 
-    float dist_to_orig = start_point.z;
+    float dist_to_orig_n = start_point.z;
 
-    float exit_distance = end_point.z;
+    float exit_distance_n = end_point.z;
 
     bool dotPositive;
-    dotPositive = dist_to_orig <= exit_distance ? true: false;
+    dotPositive = dist_to_orig_n <= exit_distance_n ? true: false;
 
     if(!dotPositive) {
         accumulatedColor = vec4(1, 0, 0, 1);
@@ -829,6 +841,17 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
         return;
         //TODO: implement code path for inverted ray direction
     }
+
+    float dist_to_orig_w = ndc_to_w(vec2(ndc_x, ndc_y), dist_to_orig_n);
+    float exit_distance_w = ndc_to_w(vec2(ndc_x, ndc_y), exit_distance_n);
+
+    #if INT_DEPTHS
+    float dist_to_orig = dist_to_orig_w;
+    float exit_distance = exit_distance_w;
+    #else
+    float dist_to_orig = dist_to_orig_n;
+    float exit_distance = exit_distance_n;
+    #endif
 
     bool supseg_found = false;
     int supsegs_in_list = 0;
@@ -867,21 +890,15 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
         prevIndex = index;
 //        }
 
-        vec4 supseg_start_w = ivp_orig * vec4(ndc_x, ndc_y, depthStart, 1);
-        supseg_start_w *= 1. / supseg_start_w.w;
-
-        vec4 supseg_end_w = ivp_orig * vec4(ndc_x, ndc_y, depthEnd, 1);
-        supseg_end_w *= 1. / supseg_end_w.w;
-
         float temp_start = depthStart;
         float temp_end = depthEnd;
 
         if(dotPositive) {
-            depthStart = max(start_point.z, depthStart);
-            depthEnd = min(end_point.z, depthEnd);
+            depthStart = max(dist_to_orig, depthStart);
+            depthEnd = min(exit_distance, depthEnd);
         } else {
-            depthStart = min(start_point.z, depthStart);
-            depthEnd = max(end_point.z, depthEnd);
+            depthStart = min(dist_to_orig, depthStart);
+            depthEnd = max(exit_distance, depthEnd);
         }
 
         if(supseg_found) {
@@ -901,6 +918,11 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
             whenLast_Total = totalMemoryLoads;
             totalIntersectedSupsegs++;
             supsegs_in_list++;
+
+            #if INT_DEPTHS
+            depthStart = w_to_ndc(depthStart); //if the distances were calculated in w space, we need to convert to a coordinate system that has constant value of z along the supseg face, which makes it easy to detrmine where exactly the ray has intersected the supseg
+            depthEnd = w_to_ndc(depthEnd);
+            #endif
 
             float start_t = (depthStart - u.z) / dir.z;
 
