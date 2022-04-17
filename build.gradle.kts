@@ -21,11 +21,11 @@ plugins {
 }
 
 repositories {
-    mavenLocal()
     mavenCentral()
     jcenter()
     maven("https://maven.scijava.org/content/groups/public")
     maven("https://jitpack.io")
+    mavenLocal()
 }
 
 dependencies {
@@ -101,7 +101,7 @@ dependencies {
     api("graphics.scenery:bigvolumeviewer:a6b021d")
 
 //    implementation("com.github.LWJGLX:lwjgl3-awt:cfd741a6")
-    implementation("org.lwjglx:lwjgl3-awt:0.1.9-localbuild")
+    implementation("com.github.skalarproduktraum:lwjgl3-awt:f298596")
     implementation("org.janelia.saalfeldlab:n5")
     implementation("org.janelia.saalfeldlab:n5-imglib2")
     listOf("core", "structure", "modfinder").forEach {
