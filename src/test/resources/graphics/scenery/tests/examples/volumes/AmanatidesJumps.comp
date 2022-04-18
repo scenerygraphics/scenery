@@ -4,7 +4,7 @@
 #define SEPARATE_DEPTH 1
 #define INT_DEPTHS 1
 #define PROFILE_MEM 0
-#define SKIP_EMPTY 0
+#define SKIP_EMPTY 1
 #define USE_VIEW_SPACE_CELLS 1
 
 #if USE_PRINTF
@@ -27,6 +27,11 @@ layout(set = 1, binding = 0) uniform LightParameters {
     mat4 ProjectionMatrix;
     mat4 InverseProjectionMatrix;
     vec3 CamPosition;
+};
+
+layout(set = 6, binding = 0) uniform ShaderProperties {
+    mat4 ViewOriginal;
+    float nw;
 };
 
 layout(push_constant) uniform currentEye_t {
@@ -75,7 +80,7 @@ mat4 im_x_9_x_ = mat4 (216.666672, -0.000000, -0.000000, 0.000000,
 
 vec3 sourcemax_x_10_x_ = vec3(832.0, 832.0, 494.0);
 
-
+mat4 invProjectionOriginal;
 
 //for kingsnake:
 //mat4 im_x_9_x_ = mat4 (266.666687, -0.000000, -0.000000, 0.000000,
@@ -151,10 +156,11 @@ vec4 back_orig; // the end point of newRay in the perspective space of the origi
 
 float orig_tnear;
 float orig_tfar;
-float nw = 0.000116;
+//float nw = 0.000116;
 
 float ndc_to_w(vec2 uv, float n_depth)
 {
+    //TODO: possible optimization by converting only the z coordinate to view space and comparing with f and n
     if(n_depth >= 1.0) {
         return 1.0;
     }
@@ -259,6 +265,8 @@ int totalIntersectedLists = 0;
 
 bool firstNotYetIntersected = true;
 
+int num_cells;
+
 //void binSearch(int rayX, int rayY, int start, int end, float dist_to_orig, out float depthStart, out float depthEnd, out int index, out bool supseg_found, out bool supseg_is_on_left) {
 //
 //    supseg_found = false;
@@ -350,6 +358,35 @@ bool firstNotYetIntersected = true;
 ////    #endif
 //}
 
+float near_plane = 0.1; //TODO: get from the CPU
+float far_plane = 20.0;
+
+float A = -1 * ((far_plane) / (far_plane - near_plane));
+float B = -1 * ((far_plane * near_plane) / (far_plane - near_plane));
+
+float z_to_view(float z_n) {
+    float z_v = -1 * (B / (A + z_n));
+    return z_v;
+}
+
+float z_to_ndc(float z_v) {
+    float z_n = -1 * ((A * z_v + B)/z_v);
+    return z_n;
+}
+
+int findZInterval_ndc(float z_val) {
+    float dist_from_front = z_val - (-1);
+    int interval_num = int(floor(dist_from_front / (2.0 / num_cells)));
+    return interval_num;
+}
+
+int findZInterval_view(float z_ndc) {
+    float z_view = z_to_view(z_ndc);
+    float dist_from_front = abs(z_view - (-1 * near_plane));
+    int interval_num = int(floor(dist_from_front / ((far_plane - near_plane) / num_cells)));
+    return interval_num;
+}
+
 
 float getSupsegFront(ivec2 theList, int index) {
 
@@ -359,7 +396,7 @@ float getSupsegFront(ivec2 theList, int index) {
     }
     #endif
 
-    if(!(index >= 0 && index < maxSupersegments)) {
+    if(!(index >= 0 && index < maxSupersegments)) { //TODO: error checks need to be disabled everywhere!
         //This is an error!
         #if USE_PRINTF
         if(gl_GlobalInvocationID.xy == debug_pixel) { //TODO: generalize
@@ -372,11 +409,6 @@ float getSupsegFront(ivec2 theList, int index) {
     #if SEPARATE_DEPTH
         #if INT_DEPTHS
         uint front_index = imageLoad(DepthVDI, ivec3(index, theList.y, theList.x)).x;
-        #if USE_PRINTF
-        if(gl_GlobalInvocationID.xy == debug_pixel && theList.x < 343) {
-            debugPrintfEXT("Obtained front index: %d", front_index);
-        }
-        #endif
         totalMemoryLoads++;
         if(front_index == 0 && index != 0) {
             return 0.0;
@@ -982,7 +1014,6 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
 int stepX, stepY;
 float tdeltaX, tdeltaY; //the delta intercepts for the ray on the supseg lists
 vec4 finalColor = vec4(0);
-int num_cells;
 
 void traverse_subsample(vec4 world_entry, vec4 world_end, float total_distance, int num_samples) {
     int total_before = totalMemoryLoads;
@@ -1197,35 +1228,6 @@ void traverse_cell(vec4 entry_point, ivec2 entry_list, vec3 cell_min, vec3 cell_
     }
 }
 
-float near_plane = 0.1; //TODO: get from the CPU
-float far_plane = 20.0;
-
-float A = -1 * ((far_plane + near_plane) / (far_plane - near_plane));
-float B = -1 * ((2 * far_plane * near_plane) / (far_plane - near_plane));
-
-float z_to_view(float z_n) {
-    float z_v = -1 * (B / (A + z_n));
-    return z_v;
-}
-
-float z_to_ndc(float z_v) {
-    float z_n = -1 * ((A * z_v + B)/z_v);
-    return z_n;
-}
-
-int findZInterval_ndc(float z_val) {
-    float dist_from_front = z_val - (-1);
-    int interval_num = int(floor(dist_from_front / (2.0 / num_cells)));
-    return interval_num;
-}
-
-int findZInterval_view(float z_ndc) {
-    float z_view = z_to_view(z_ndc);
-    float dist_from_front = abs(z_view - (-1 * near_plane));
-    int interval_num = int(floor(dist_from_front / ((far_plane - near_plane) / num_cells)));
-    return interval_num;
-}
-
 float cellToViewToNDC(int cell_z) {
 //    float lambda = float(cell_z) / float(num_cells);
 //    float view_z = near_plane * (1. - lambda) + lambda * far_plane;
@@ -1293,11 +1295,11 @@ void main() {
 
     highp mat4 ipv = InverseViewMatrices[0] * InverseProjectionMatrix;
 
-    mat4 ViewOriginal = mat4(-0.86781174,  1.0376796E-4, -0.49694782,  2.299E+0,
-    0.11692904,  0.9719932, -0.20398827, -1.3797543,
-    0.48299563, -0.23512466, -0.8434963, -2.1878958,
-    0.0,  0.0, 0.0,  1.000E+0);
-    ViewOriginal = transpose(ViewOriginal);
+//    mat4 ViewOriginal = mat4(-0.86781174,  1.0376796E-4, -0.49694782,  2.299E+0,
+//    0.11692904,  0.9719932, -0.20398827, -1.3797543,
+//    0.48299563, -0.23512466, -0.8434963, -2.1878958,
+//    0.0,  0.0, 0.0,  1.000E+0);
+//    ViewOriginal = transpose(ViewOriginal);
 
     mat4 invViewOriginal = mat4(-0.86781174,  0.11692904,  0.48299563,  3.2131748,
     1.0376796E-4,  0.9719932, -0.23512466,  0.826445,
@@ -1311,7 +1313,7 @@ void main() {
     0.0,  0.0, -1.0,  0.0);
     ProjectionOriginal = transpose(ProjectionOriginal);
 
-    mat4 invProjectionOriginal = mat4(0.8481659,  0.000E+0,  0.000E+0, -0.000E+0,
+    invProjectionOriginal = mat4(0.8481659,  0.000E+0,  0.000E+0, -0.000E+0,
     0.000E+0, -0.4663077,  0.000E+0,  0.000E+0,
     0.000E+0, -0.000E+0,  0.000E+0, -1.0,
     0.000E+0,  0.000E+0, -9.949999,  10.0);
@@ -1656,8 +1658,17 @@ void main() {
             bool cell_traversed = false;
 
             #if SKIP_EMPTY
-            if(imageLoad(OctreeCells, grid_cell).r > 0 && !do_subsample) {
-    //        if(true) {
+
+            uint grid_val = imageLoad(OctreeCells, grid_cell).r;
+
+            #if USE_PRINTF
+            if(gl_GlobalInvocationID.xy == debug_pixel) {
+                debugPrintfEXT("Checking the cell: (%d. %d. %d). value: %d", grid_cell.xyz, grid_val);
+            }
+            #endif
+
+            if(grid_val > 0 && !do_subsample) {
+//            if(true) {
             #else
             if(!do_subsample) {
             #endif
