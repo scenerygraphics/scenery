@@ -36,7 +36,7 @@ float adjustOpacity(float a, float modifiedStepLength) {
 }
 
 void main() {
-    ivec2 debug_pixel = ivec2(1472, 372);
+    ivec2 debug_pixel = ivec2(832, 512);
 
     ivec3 imageCoords  = imageSize(InputVDI);
 
