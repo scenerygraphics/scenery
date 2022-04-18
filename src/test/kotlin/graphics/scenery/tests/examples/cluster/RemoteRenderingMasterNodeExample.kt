@@ -27,39 +27,28 @@ class RemoteRenderingMasterNodeExample : SceneryBase("Server", wantREPL = false)
 
         //subscriber to the client (instead of using VM parameters, because we need to catch the payload coming from the client (server) and either send it further to
         // the clusters, or deserialize it here
-        val serverAddress = "tcp://127.0.0.1"
-        val mainPort = 6040
-        val backchannelPort = 6041
-
-        val subscriber = NodeSubscriber(hub, serverAddress, mainPort, backchannelPort)
-        hub.add(subscriber)
 
         applicationName = "MasterNode"
-        val clusteredRendering = true
-        if(clusteredRendering) {
-            // publisher to the cluster, needs to send the payload from the client subscriber tp the cluster, if wanted
+        val directDeserialize = System.getProperty("scenery.DirectDeserialize")?.toBoolean() ?: true
+        if(!directDeserialize) {
+            //the following relay publisher block and relayPublishr.send(payload) call will be replaced with MPI related code!
             val relayMainPort = 6042
             val relayBackchannelPort = 6043
             val relayPublisher = NodePublisher(hub, portMain = relayMainPort, portBackchannel = relayBackchannelPort)
             hub.add(relayPublisher)
 
             val listening = true
-            subscriber.setReceiveTimeout(100)
+            val subscriber = hub.get(SceneryElement.NodeSubscriber) as? NodeSubscriber
+            subscriber?.setReceiveTimeout(100)
             var payload: ByteArray?
             thread {
                 while (listening) {
-                    payload = subscriber.getPayload() ?: continue
-                    relayPublisher.send(payload)
+                    payload = subscriber?.getPayload() ?: continue
+                    NodePublisher.send(payload, relayPublisher.getSocket())
                 }
             }
-            //now we dont want the publisher to go through this scene, deserializing it and sending it to the cluster, but we want to catch the datastream of the subscriber
-            //and relay this to the cluster
-
-            }
+        }
         else {
-            subscriber.startListening()
-            scene.postUpdate += { subscriber.networkUpdate(scene) }
-
             val cam: Camera = DetachedHeadCamera()
             with(cam) {
                 spatial {
@@ -87,12 +76,11 @@ class RemoteRenderingMasterNodeExample : SceneryBase("Server", wantREPL = false)
                 while (!sceneInitialized()) {
                     Thread.sleep(200)
                 }
-
                 while (true) {
                     val dummyVolume = scene.find("DummyVolume") as? DummyVolume
                     val clientCam = scene.find("ClientCamera") as? DetachedHeadCamera
                     if (dummyVolume != null && clientCam != null) {
-                        volume.update += {
+                        volume.networkCallback += {
                             if (volume.transferFunction != dummyVolume.transferFunction) {
                                 volume.transferFunction = dummyVolume.transferFunction
                             }

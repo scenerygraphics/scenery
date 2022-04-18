@@ -21,6 +21,10 @@ interface Networkable : Serializable {
      */
     fun update(fresh: Networkable, getNetworkable: (Int) -> Networkable, additionalData: Any?)
 
+    fun updateCallback() {
+
+    }
+
     /**
      * Serialize data which is not picket up by kryo eg. transient members
      * Attention: [super] might also have data.

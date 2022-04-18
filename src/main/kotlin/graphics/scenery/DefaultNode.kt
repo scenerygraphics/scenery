@@ -35,6 +35,7 @@ open class DefaultNode(name: String = "Node") : Node, Networkable {
         }
     override var discoveryBarrier = false
     override var update: ArrayList<() -> Unit> = ArrayList()
+    override var networkCallback: ArrayList<() -> Unit> = ArrayList()
     override var postUpdate: ArrayList<() -> Unit> = ArrayList()
     override var visible: Boolean = true
         set(v) {
@@ -195,6 +196,10 @@ open class DefaultNode(name: String = "Node") : Node, Networkable {
         if (fresh !is DefaultNode) throw IllegalArgumentException("Update called with object of foreign class")
         visible = fresh.visible
         name = fresh.name
+    }
+
+    override fun updateCallback() {
+        networkCallback.forEach { it.invoke() }
     }
 
     override fun getSubcomponents(): List<Networkable> {

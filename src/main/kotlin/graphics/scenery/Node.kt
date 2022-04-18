@@ -39,6 +39,8 @@ interface Node : Networkable {
     var metadata: HashMap<String, Any>
     /** Node update routine, called before updateWorld */
     var update: ArrayList<() -> Unit>
+    /** Node callbacks, which get called when a network update happens*/
+    var networkCallback: ArrayList<() -> Unit>
     /** Node update routine, called after updateWorld */
     var postUpdate: ArrayList<() -> Unit>
     /** Whether the object has been initialized. Used by renderers. */

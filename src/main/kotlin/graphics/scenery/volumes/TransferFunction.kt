@@ -175,6 +175,12 @@ open class TransferFunction(val name: String = "") {
     }
 
     companion object {
+
+        fun setStale(tf : TransferFunction, state : Boolean)
+        {
+            tf.stale = state
+        }
+
         /** Returns a flat transfer function that transfers all values */
         @JvmStatic @JvmOverloads fun flat(factor: Float = 1.0f): TransferFunction {
             val tf = TransferFunction("Flat")

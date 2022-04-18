@@ -58,15 +58,22 @@ class NodeSubscriber(
         }
     }
 
+    fun getPayload() : ByteArray? {
+        val msg = subscriber.recv()
+        if(msg != null) {
+            return msg
+        }
+        return null
+    }
+
     fun startListening() {
         listening = true
         subscriber.receiveTimeOut = 100
         thread {
             while (listening) {
                 try {
-                    val payload: ByteArray = subscriber.recv() ?: continue
+                    val payload: ByteArray = getPayload() ?: continue
                     val bin = ByteArrayInputStream(payload)
-                    //logger.info("Payload: $payload")
                     val input = Input(bin)
                     val event = kryo.readClassAndObject(input) as? NetworkEvent
                         ?: throw IllegalStateException("Received unknown, not NetworkEvent payload")
@@ -76,14 +83,6 @@ class NodeSubscriber(
                 }
             }
         }
-    }
-
-    fun getPayload() : ByteArray? {
-        val msg = subscriber.recv()
-        if(msg != null) {
-            return msg
-        }
-        return null
     }
 
     fun setReceiveTimeout(timeout: Int) {
@@ -159,6 +158,7 @@ class NodeSubscriber(
             val tmp = it.obj
             try {
                 tmp.update(fresh, this::getNetworkable, event.additionalData)
+                tmp.updateCallback()
             } catch (e: NetworkableNotFoundException) {
                 waitingOnNetworkable[e.id] =
                     waitingOnNetworkable.getOrDefault(e.id, listOf()) + (event to WaitReason.UpdateRelation)

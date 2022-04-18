@@ -126,7 +126,7 @@ class RemoteRenderingClientExample : SceneryBase("Client", wantREPL = false) {
     private fun drawFrame(tex: ByteArray, width: Int, height: Int, plane: Billboard, frameIndex: Int) {
 
         if(frameIndex % 100 == 0) {
-            logger.info("Displaying frame $frameIndex")
+            //logger.info("Displaying frame $frameIndex")
         }
 
         if(buffer.capacity() == 0) {

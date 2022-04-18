@@ -220,6 +220,10 @@ class NodePublisher(
         }
     }
 
+    fun getSocket() : ZMQ.Socket {
+        return publisher
+    }
+
     fun debugPublish(send: (NetworkEvent) -> Unit) {
         while (eventQueue.isNotEmpty()) {
             send(eventQueue.poll())
@@ -237,13 +241,13 @@ class NodePublisher(
         context.close()
     }
 
-    fun send(payload: ByteArray?) {
-        if(payload != null) {
-            publisher.send(payload)
-        }
-    }
-
     companion object {
+
+        fun send(payload: ByteArray?, socket: ZMQ.Socket) {
+            if(payload != null) {
+                socket.send(payload)
+            }
+        }
 
         fun sendEvent(event: NetworkEvent, kryo: Kryo, socket: ZMQ.Socket, logger: Logger): Long {
             var payloadSize = 0L
@@ -254,7 +258,7 @@ class NodePublisher(
                 output.flush()
 
                 val payload = bos.toByteArray()
-                socket.send(payload)
+                send(payload, socket)
                 Thread.sleep(1)
                 payloadSize = payload.size.toLong()
 

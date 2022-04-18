@@ -3,6 +3,7 @@ package graphics.scenery.tests.examples.cluster
 import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
+import graphics.scenery.net.NodeSubscriber
 import graphics.scenery.volumes.Colormap
 import graphics.scenery.volumes.DummyVolume
 import graphics.scenery.volumes.TransferFunction
@@ -39,6 +40,7 @@ class RemoteRenderingClusterNodeExample : SceneryBase("Cluster", wantREPL = fals
             name = "volume"
             colormap = Colormap.get("viridis")
             transferFunction = TransferFunction.ramp(0.001f, 0.5f, 0.3f)
+            TransferFunction.setStale(this.transferFunction,false)
             spatial() {
                 position = Vector3f(0.0f, 0.0f, 0.0f)
                 rotation = rotation.rotateXYZ(0.05f, 0.05f, 0.05f)
@@ -47,17 +49,30 @@ class RemoteRenderingClusterNodeExample : SceneryBase("Cluster", wantREPL = fals
             scene.addChild(this)
         }
 
+        //the next block of code is to be replaced by MPI networking code
+        val serverAddress = "tcp://127.0.0.1"
+        val mainPort = 6042
+        val backchannelPort = 6043
+        val subscriber = NodeSubscriber(hub, serverAddress, mainPort, backchannelPort)
+        hub.add(subscriber)
+        subscriber.startListening()
+        scene.postUpdate += { subscriber.networkUpdate(scene) }
+
         applicationName = "ClusterNode"
         thread {
             while(!sceneInitialized()) {
                 Thread.sleep(200)
             }
 
+            settings.set("VideoEncoder.StreamVideo", true)
+            settings.set("VideoEncoder.StreamingAddress", "udp://${InetAddress.getLocalHost().hostAddress}:3337")
+            renderer?.recordMovie()
             while(true) {
                 val dummyVolume = scene.find("DummyVolume") as? DummyVolume
                 val clientCam = scene.find("ClientCamera") as? DetachedHeadCamera
-                if(dummyVolume != null && clientCam != null) {
-                    volume.update += {
+                if (dummyVolume != null && clientCam != null) {
+                    //Network callbacks need to be added to the objects coming from the network, because they get called when coming.
+                    /*dummyVolume.networkCallback += {
                         if (volume.transferFunction != dummyVolume.transferFunction) {
                             volume.transferFunction = dummyVolume.transferFunction
                         }
@@ -68,17 +83,17 @@ class RemoteRenderingClusterNodeExample : SceneryBase("Cluster", wantREPL = fals
                         if(volume.slicingMode != dummyVolume.slicingMode) {
                             volume.slicingMode = dummyVolume.slicingMode
                         }*/
-                    }
+                    }*/
+                    //scene.removeChild(cam)
+                    volume.transferFunction = dummyVolume.transferFunction
                     cam.update += {
                         cam.spatial().position = clientCam.spatial().position
                         cam.spatial().rotation = clientCam.spatial().rotation
                     }
                     break;
                 }
+                logger.info("Done adding update functions.")
             }
-            settings.set("VideoEncoder.StreamVideo", true)
-            settings.set("VideoEncoder.StreamingAddress", "udp://${InetAddress.getLocalHost().hostAddress}:3337")
-            renderer?.recordMovie()
         }
     }
 

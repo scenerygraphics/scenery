@@ -10,10 +10,10 @@ import java.lang.IllegalArgumentException
 
 open class DummyVolume(val counterStart : Int = 0) : DefaultNode("DummyVolume") {
     var transferFunction: TransferFunction = TransferFunction.flat(0.5f)
-    set(m) {
-        field = m
-        modifiedAt = System.nanoTime()
-    }
+        set(m) {
+            field = m
+            modifiedAt = System.nanoTime()
+        }
     var counter = 0
 
     init {

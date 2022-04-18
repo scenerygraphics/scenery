@@ -182,7 +182,9 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
             }
         }
 
+
         val server = System.getProperty("scenery.Server")?.toBoolean() ?: false
+        val directDeserialize = System.getProperty("scenery.DirectDeserialize")?.toBoolean() ?: true
         val serverAddress = System.getProperty("scenery.ServerAddress")
         val mainPort = System.getProperty("scenery.MainPort")?.toIntOrNull() ?: 6040
         val backchannelPort = System.getProperty("scenery.BackchannelPort")?.toIntOrNull() ?: 6041
@@ -190,8 +192,10 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
         if (!server && serverAddress != null) {
             val subscriber = NodeSubscriber(hub,serverAddress,mainPort,backchannelPort)
             hub.add(subscriber)
-            subscriber.startListening()
-            scene.postUpdate += {subscriber.networkUpdate(scene)}
+            if(directDeserialize) {
+                subscriber.startListening()
+                scene.postUpdate += {subscriber.networkUpdate(scene)}
+            }
         } else if (server) {
             applicationName += " [SERVER]"
             val publisher = NodePublisher(hub, portMain = mainPort, portBackchannel = backchannelPort)
