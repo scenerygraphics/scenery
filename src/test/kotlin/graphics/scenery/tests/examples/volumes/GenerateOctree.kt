@@ -10,7 +10,9 @@ import graphics.scenery.textures.Texture
 import graphics.scenery.utils.Image
 import graphics.scenery.utils.SystemHelpers
 import net.imglib2.type.numeric.integer.IntType
+import net.imglib2.type.numeric.integer.UnsignedByteType
 import net.imglib2.type.numeric.integer.UnsignedIntType
+import net.imglib2.type.numeric.integer.UnsignedShortType
 import net.imglib2.type.numeric.real.FloatType
 import org.joml.Vector3f
 import org.joml.Vector3i
@@ -25,6 +27,7 @@ import kotlin.math.pow
 class GenerateOctree : SceneryBase("GenerateOctree", 1832, 1016) {
 
     val separateDepth = true
+    val colors32bit = true
 
     override fun init() {
 
@@ -44,7 +47,7 @@ class GenerateOctree : SceneryBase("GenerateOctree", 1832, 1016) {
         val buff: ByteArray
         val depthBuff: ByteArray?
 
-        val dataset = "Kingsnake"
+        val dataset = "Stagbeetle"
 
         if(separateDepth) {
             buff = File("/home/aryaman/Repositories/scenery-insitu/${dataset}VDI4_ndc_col").readBytes()
@@ -59,13 +62,17 @@ class GenerateOctree : SceneryBase("GenerateOctree", 1832, 1016) {
         var depthBuffer: ByteBuffer?
 //        colBuffer = ByteBuffer.wrap(buff)
 //        depthBuffer = ByteBuffer.wrap(depthBuff)
-        colBuffer = MemoryUtil.memCalloc(windowHeight * windowWidth * numSupersegments * numLayers * 4)
+        colBuffer = if(colors32bit) {
+            MemoryUtil.memCalloc(windowHeight * windowWidth * numSupersegments * numLayers * 4 * 4)
+        } else {
+            MemoryUtil.memCalloc(windowHeight * windowWidth * numSupersegments * numLayers * 4)
+        }
         colBuffer.put(buff).flip()
         logger.info("Length of color buffer is ${buff.size} and associated bytebuffer capacity is ${colBuffer.capacity()} it has remaining: ${colBuffer.remaining()}")
         logger.info("Col sum is ${buff.sum()}")
 
         if(separateDepth) {
-            depthBuffer = MemoryUtil.memCalloc(windowHeight * windowWidth * numSupersegments * 4 * 2)
+            depthBuffer = MemoryUtil.memCalloc(windowHeight * windowWidth * numSupersegments * 2 * 2)
             depthBuffer.put(depthBuff).flip()
             logger.info("Length of depth buffer is ${depthBuff!!.size} and associated bytebuffer capacity is ${depthBuffer.capacity()} it has remaining ${depthBuffer.remaining()}")
             logger.info("Depth sum is ${depthBuff.sum()}")
@@ -79,9 +86,22 @@ class GenerateOctree : SceneryBase("GenerateOctree", 1832, 1016) {
         val compute = RichNode()
         compute.name = "compute node"
 
+        val bufType = if(colors32bit) {
+            FloatType()
+        } else {
+            UnsignedByteType()
+        }
+
         compute.setMaterial(ShaderMaterial(Shaders.ShadersFromFiles(arrayOf("OctreeGenerator.comp"), this@GenerateOctree::class.java))) {
-            textures["InputVDI"] = Texture(Vector3i(numSupersegments*numLayers, windowHeight, windowWidth), 4, contents = colBuffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
-            textures["DepthVDI"] = Texture(Vector3i(2*numSupersegments, windowHeight, windowWidth), 1, contents = depthBuffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType())
+            textures["InputVDI"] = Texture(Vector3i(numSupersegments*numLayers, windowHeight, windowWidth), 4, contents = colBuffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture)
+                , type = bufType,
+                mipmap = false,
+                minFilter = Texture.FilteringMode.NearestNeighbour,
+                maxFilter = Texture.FilteringMode.NearestNeighbour
+            )
+            textures["DepthVDI"] = Texture(Vector3i(numSupersegments, windowHeight, windowWidth),  channels = 2, contents = depthBuffer, usageType = hashSetOf(
+                Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = UnsignedShortType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+
             textures["OctreeCells"] = Texture.fromImage(Image(lowestLevel, numVoxels.toInt(), numVoxels.toInt(), numVoxels.toInt()), channels = 1, type = UnsignedIntType(),
                 usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
 //            textures["OctreeCells"]!!.mipmap = false

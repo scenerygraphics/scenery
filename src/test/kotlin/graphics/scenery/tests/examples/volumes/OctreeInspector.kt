@@ -14,7 +14,7 @@ import org.lwjgl.system.MemoryUtil
 import java.io.File
 import java.nio.ByteBuffer
 
-class OctreeInspector : SceneryBase("Octree Inscpector", 256, 256) {
+class OctreeInspector : SceneryBase("Octree Inscpector", 256, 256, wantREPL = false) {
     override fun init() {
 
         renderer = hub.add(SceneryElement.Renderer,
@@ -24,7 +24,7 @@ class OctreeInspector : SceneryBase("Octree Inscpector", 256, 256) {
 
         val buff: ByteArray
 
-        buff = File("/home/aryaman/Repositories/scenery-insitu/octree_lowest0.raw").readBytes()
+        buff = File("/home/aryaman/Repositories/scenery-insitu/StagbeetleVDI4_ndc_octree").readBytes()
 
         val octBuffer: ByteBuffer
 
