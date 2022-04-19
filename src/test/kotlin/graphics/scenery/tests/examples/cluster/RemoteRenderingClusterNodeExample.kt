@@ -40,7 +40,7 @@ class RemoteRenderingClusterNodeExample : SceneryBase("Cluster", wantREPL = fals
             name = "volume"
             colormap = Colormap.get("viridis")
             transferFunction = TransferFunction.ramp(0.001f, 0.5f, 0.3f)
-            TransferFunction.setStale(this.transferFunction,false)
+            //TransferFunction.setStale(this.transferFunction,false)
             spatial() {
                 position = Vector3f(0.0f, 0.0f, 0.0f)
                 rotation = rotation.rotateXYZ(0.05f, 0.05f, 0.05f)
@@ -92,7 +92,6 @@ class RemoteRenderingClusterNodeExample : SceneryBase("Cluster", wantREPL = fals
                     }
                     break;
                 }
-                logger.info("Done adding update functions.")
             }
         }
     }

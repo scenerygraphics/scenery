@@ -56,6 +56,7 @@ open class Scene : DefaultNode("RootNode"), HasRenderable, HasMaterial, HasSpati
     @Transient
     var onAttributeAdded = ConcurrentHashMap<String, (Node, Any) -> Unit>()
     /** Callbacks to be called when a child is removed from the scene */
+    @Transient
     var onNodePropertiesChanged = ConcurrentHashMap<String, (Node) -> Unit>()
 
     init {
