@@ -4,7 +4,7 @@
 #define SEPARATE_DEPTH 1
 #define INT_DEPTHS 1
 #define PROFILE_MEM 0
-#define SKIP_EMPTY 1
+#define SKIP_EMPTY 0
 #define USE_VIEW_SPACE_CELLS 1
 
 #if USE_PRINTF
@@ -30,7 +30,12 @@ layout(set = 1, binding = 0) uniform LightParameters {
 };
 
 layout(set = 6, binding = 0) uniform ShaderProperties {
+    mat4 ProjectionOriginal;
+    mat4 invProjectionOriginal;
     mat4 ViewOriginal;
+    mat4 invViewOriginal;
+    mat4 invModel;
+    vec3 volumeDims;
     float nw;
 };
 
@@ -69,18 +74,18 @@ layout(set = 11, binding = 0, r32f) uniform image2D EmptyAfterLast;
 //0.00, 0.00, 33.33334, -66.66667,
 //0.00, 0.00, 0.00, 1.00);
 //
-////vec3 sourcemax_x_10_x_ = vec3(131.0, 131.0, 131.0);
-//vec3 sourcemax_x_10_x_ = vec3(128.0, 128.0, 128.0);
+////vec3 volumeDims = vec3(131.0, 131.0, 131.0);
+//vec3 volumeDims = vec3(128.0, 128.0, 128.0);
 
 //for stagbeetle:
-mat4 im_x_9_x_ = mat4 (216.666672, -0.000000, -0.000000, 0.000000,
--0.000000, -216.666672, -0.000000, 0.000000,
--0.000000, -0.000000, 216.666672, 0.000000,
--0.000000, 866.666687, -433.333344, 1.000000);
+//mat4 invModel = mat4 (216.666672, -0.000000, -0.000000, 0.000000,
+//-0.000000, -216.666672, -0.000000, 0.000000,
+//-0.000000, -0.000000, 216.666672, 0.000000,
+//-0.000000, 866.666687, -433.333344, 1.000000);
 
-vec3 sourcemax_x_10_x_ = vec3(832.0, 832.0, 494.0);
+//vec3 volumeDims = vec3(832.0, 832.0, 494.0);
 
-mat4 invProjectionOriginal;
+//mat4 invProjectionOriginal;
 
 //for kingsnake:
 //mat4 im_x_9_x_ = mat4 (266.666687, -0.000000, -0.000000, 0.000000,
@@ -88,7 +93,7 @@ mat4 invProjectionOriginal;
 //-0.000000, -0.000000, 266.666687, 0.000000,
 //-0.000000, 1066.666748, -533.333374, 1.000000);
 //
-//vec3 sourcemax_x_10_x_ = vec3(1024.000000, 1024.000000, 795.000000);
+//vec3 volumeDims = vec3(1024.000000, 1024.000000, 795.000000);
 
 //ivec2 debug_pixel = ivec2(640, 360);
 //ivec2 debug_pixel = ivec2(490, 560);
@@ -243,10 +248,10 @@ void intersectBox( vec3 r_o, vec3 r_d, vec3 boxmin, vec3 boxmax, out float tnear
 
 void intersectBoundingBox_x_11_x_( vec4 wfront, vec4 wback, out float tnear, out float tfar )
 {
-    vec4 mfront = im_x_9_x_ * wfront;
-    vec4 mback = im_x_9_x_ * wback;
+    vec4 mfront = invModel * wfront;
+    vec4 mback = invModel * wback;
     int a, b;
-    intersectBox( mfront.xyz, (mback - mfront).xyz, vec3( 0, 0, 0 ), sourcemax_x_10_x_, tnear, tfar, a, b );
+    intersectBox( mfront.xyz, (mback - mfront).xyz, vec3( 0, 0, 0 ), volumeDims, tnear, tfar, a, b );
 }
 
 ivec2 prevList = ivec2(-1);
@@ -1301,23 +1306,23 @@ void main() {
 //    0.0,  0.0, 0.0,  1.000E+0);
 //    ViewOriginal = transpose(ViewOriginal);
 
-    mat4 invViewOriginal = mat4(-0.86781174,  0.11692904,  0.48299563,  3.2131748,
-    1.0376796E-4,  0.9719932, -0.23512466,  0.826445,
-    -0.49694782, -0.20398827, -0.8434963, -0.9844537,
-    0.000E+0,  0.000E+0,  0.000E+0,  1.000E+0);
-    invViewOriginal = transpose(invViewOriginal);
+//    mat4 invViewOriginal = mat4(-0.86781174,  0.11692904,  0.48299563,  3.2131748,
+//    1.0376796E-4,  0.9719932, -0.23512466,  0.826445,
+//    -0.49694782, -0.20398827, -0.8434963, -0.9844537,
+//    0.000E+0,  0.000E+0,  0.000E+0,  1.000E+0);
+//    invViewOriginal = transpose(invViewOriginal);
 
-    mat4 ProjectionOriginal = mat4(1.1790146,  0.0,  0.0,  0.0,
-    0.0, -2.1445067,  0.0,  0.0,
-    0.0,  0.0, -1.0050251, -0.10050251,
-    0.0,  0.0, -1.0,  0.0);
-    ProjectionOriginal = transpose(ProjectionOriginal);
+//    mat4 ProjectionOriginal = mat4(1.1790146,  0.0,  0.0,  0.0,
+//    0.0, -2.1445067,  0.0,  0.0,
+//    0.0,  0.0, -1.0050251, -0.10050251,
+//    0.0,  0.0, -1.0,  0.0);
+//    ProjectionOriginal = transpose(ProjectionOriginal);
 
-    invProjectionOriginal = mat4(0.8481659,  0.000E+0,  0.000E+0, -0.000E+0,
-    0.000E+0, -0.4663077,  0.000E+0,  0.000E+0,
-    0.000E+0, -0.000E+0,  0.000E+0, -1.0,
-    0.000E+0,  0.000E+0, -9.949999,  10.0);
-    invProjectionOriginal = transpose(invProjectionOriginal);
+//    invProjectionOriginal = mat4(0.8481659,  0.000E+0,  0.000E+0, -0.000E+0,
+//    0.000E+0, -0.4663077,  0.000E+0,  0.000E+0,
+//    0.000E+0, -0.000E+0,  0.000E+0, -1.0,
+//    0.000E+0,  0.000E+0, -9.949999,  10.0);
+//    invProjectionOriginal = transpose(invProjectionOriginal);
 
     pv_orig = ProjectionOriginal * ViewOriginal;
 
