@@ -16,8 +16,8 @@ data class VDIMetadata(
 )
 
 data class VDIData(
-    val vdiDepth: ByteBuffer = ByteBuffer.allocate(1),
-    val vdiColor: ByteBuffer = ByteBuffer.allocate(1),
-    val gridCells: ByteBuffer = ByteBuffer.allocate(1),
+//    val vdiDepth: ByteBuffer = ByteBuffer.allocate(1),
+//    val vdiColor: ByteBuffer = ByteBuffer.allocate(1),
+//    val gridCells: ByteBuffer = ByteBuffer.allocate(1),
     val metadata: VDIMetadata = VDIMetadata()
 )

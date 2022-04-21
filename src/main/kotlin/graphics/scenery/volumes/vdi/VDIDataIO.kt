@@ -19,8 +19,8 @@ class VDIDataIO {
             return if(kryo == null) {
                 val temp = Kryo()
                 temp.register(VDIData::class.java)
-                temp.register(ByteBuffer::class.java, ByteBufferSerializer())
-                temp.register(b.javaClass, ByteBufferSerializer())
+//                temp.register(ByteBuffer::class.java, ByteBufferSerializer())
+//                temp.register(b.javaClass, ByteBufferSerializer())
                 temp.register(VDIMetadata::class.java)
                 temp.register(Matrix4f::class.java)
                 temp.register(Vector3f::class.java)
