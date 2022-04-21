@@ -64,7 +64,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1832, 1016, wantREPL = 
     val profileMemoryAccesses = false
     val compute = CustomNode()
     val closeAfter = 100000L
-    val dataset = "Stagbeetle_divided"
+    val dataset = "Stagbeetle"
     val numOctreeLayers = 8.0
 
     private val vulkanProjectionFix =
@@ -107,8 +107,8 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1832, 1016, wantREPL = 
 
         cam.spatial{
             //The original viewpoint for procedural volume data
-            position = Vector3f(3.213f, 8.264E-1f, -9.844E-1f)
-            rotation = Quaternionf(3.049E-2, 9.596E-1, -1.144E-1, -2.553E-1)
+//            position = Vector3f(3.213f, 8.264E-1f, -9.844E-1f)
+//            rotation = Quaternionf(3.049E-2, 9.596E-1, -1.144E-1, -2.553E-1)
 
             //         optimized depth calculation working at this view point, opacity calculation looking reasonable
 //        rotation = Quaternionf(5.449E-2,  8.801E-1, -1.041E-1, -4.601E-1)
@@ -136,11 +136,18 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1832, 1016, wantREPL = 
 //        cam.position = Vector3f( 3.853E+0f,  7.480E-1f, -9.672E-1f)
 //        cam.rotation = Quaternionf( 4.521E-2,  9.413E-1, -1.398E-1, -3.040E-1)
 
-            position = Vector3f( 5.286E+0f,  8.330E-1f,  3.088E-1f) //This is the viewpoint at which I recorded 13 fps with float depths (Stagbeetle, 1070)
-            rotation = Quaternionf( 4.208E-2,  9.225E-1, -1.051E-1, -3.690E-1)
+//            position = Vector3f( 5.286E+0f,  8.330E-1f,  3.088E-1f) //This is the viewpoint at which I recorded 13 fps with float depths (Stagbeetle, 1070)
+//            rotation = Quaternionf( 4.208E-2,  9.225E-1, -1.051E-1, -3.690E-1)
 //
 //            position = Vector3f( 2.869E+0f,  8.955E-1f, -9.165E-1f)
 //            rotation = Quaternionf( 2.509E-2,  9.739E-1, -1.351E-1, -1.805E-1)
+
+            position = Vector3f(3.345E+0f, -8.651E-1f, -2.857E+0f)
+            rotation = Quaternionf(3.148E-2, -9.600E-1, -1.204E-1,  2.509E-1)
+
+            position = Vector3f(5.436E+0f, -8.650E-1f, -7.923E-1f)
+            rotation = Quaternionf(7.029E-2, -8.529E-1, -1.191E-1,  5.034E-1)
+
         }
 
         cam.farPlaneDistance = 20.0f
@@ -151,10 +158,10 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1832, 1016, wantREPL = 
         val depthBuff: ByteArray?
         val octBuff: ByteArray
 
-        val file = FileInputStream(File("${dataset}vdidump4.gz"))
-        val comp = GZIPInputStream(file, 65536)
+        val file = FileInputStream(File("${dataset}vdidump4"))
+//        val comp = GZIPInputStream(file, 65536)
 
-        val vdiData = VDIDataIO.read(comp)
+        val vdiData = VDIDataIO.read(file)
 
         if(separateDepth) {
             buff = File("/home/aryaman/Repositories/scenery-insitu/${dataset}VDI4_ndc_col").readBytes()
@@ -207,17 +214,17 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1832, 1016, wantREPL = 
                 textures["EmptyAfterLast"] = Texture.fromImage(Image(opNumAfterLast, windowWidth, windowHeight), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), channels = 1, mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
             }
 
-            textures["InputVDI"] = Texture(Vector3i(numLayers*numSupersegments, windowHeight, windowWidth), 4, contents = vdiData.vdiColor, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
+            textures["InputVDI"] = Texture(Vector3i(numLayers*numSupersegments, windowHeight, windowWidth), 4, contents = colBuffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
                 type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
         }
 
         if(separateDepth) {
-            compute.material().textures["DepthVDI"] = Texture(Vector3i(numSupersegments, windowHeight, windowWidth),  channels = 2, contents = vdiData.vdiDepth, usageType = hashSetOf(
+            compute.material().textures["DepthVDI"] = Texture(Vector3i(numSupersegments, windowHeight, windowWidth),  channels = 2, contents = depthBuffer, usageType = hashSetOf(
                 Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = UnsignedShortType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
 //            compute.material().textures["DepthVDI"] = Texture(Vector3i(2 * numSupersegments, windowHeight, windowWidth),  channels = 1, contents = depthBuffer, usageType = hashSetOf(
 //                Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
         }
-        compute.material().textures["OctreeCells"] = Texture(Vector3i(numVoxels.toInt(), numVoxels.toInt(), numVoxels.toInt()), 1, type = UnsignedIntType(), contents = vdiData.gridCells, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
+        compute.material().textures["OctreeCells"] = Texture(Vector3i(numVoxels.toInt(), numVoxels.toInt(), numVoxels.toInt()), 1, type = UnsignedIntType(), contents = lowestLevel, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
         compute.metadata["ComputeMetadata"] = ComputeMetadata(
             workSizes = Vector3i(windowWidth, windowHeight, 1),
             invocationType = InvocationType.Permanent
