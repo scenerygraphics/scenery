@@ -4,7 +4,7 @@
 #define SEPARATE_DEPTH 1
 #define INT_DEPTHS 1
 #define PROFILE_MEM 0
-#define SKIP_EMPTY 0
+#define SKIP_EMPTY 1
 #define USE_VIEW_SPACE_CELLS 1
 
 #if USE_PRINTF
@@ -421,7 +421,7 @@ float getSupsegFront(ivec2 theList, int index) {
         float step = orig_tnear + nw * front_index;
         #if USE_PRINTF
         if(gl_GlobalInvocationID.xy == debug_pixel) {
-            debugPrintfEXT("Searching for front depth of: (%d, %d), %d. Found jump num: %u, therefore returning: %f", theList, index, front_index, step);
+            debugPrintfEXT("Searching for front depth of: (%d, %d), %d. Found jump num: %u, therefore returning: %f. orig_tnear: %f, nw: %f", theList, index, front_index, step, orig_tnear, nw);
         }
         #endif
         return step;
@@ -685,7 +685,7 @@ bool startPrinting = false;
 const int maxSteps = 1000;
 int totalSteps = 0;
 
-int max_samples = 100; //TODO: make uniform
+int max_samples = 50; //TODO: make uniform
 
 vec4 u, dir;
 
@@ -851,7 +851,7 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
     }
     #endif
 
-    if(!vis) {
+    if(!vis) { //todo: this check seems unnecessary because the list is not empty
         #if USE_PRINTF
         if(gl_GlobalInvocationID.xy == debug_pixel) {
             debugPrintfEXT("Returning because list does not intersect volume. n: %f, f: %f", n, f);
@@ -1039,14 +1039,50 @@ void traverse_subsample(vec4 world_entry, vec4 world_end, float total_distance, 
         list_coords.x = int(round(tex.x * windowWidth));
         list_coords.y = int(round(tex.y * windowHeight));
 
+        originalRay.coords = list_coords;
+        originalRay.NDC_front = vec4( npos.xy, -1, 1 );
+        originalRay.NDC_back = vec4( npos.xy, 1, 1 );
+
+        originalRay.wfront = ivp_orig * originalRay.NDC_front;
+        originalRay.wfront *= 1.0 / originalRay.wfront.w;
+
+        originalRay.wback = ivp_orig * originalRay.NDC_back;
+        originalRay.wback *= 1.0 / originalRay.wback.w;
+
+        // -- bounding box intersection for all volumes ----------
+        orig_tnear = 1, orig_tfar = 0;
+        float n, f;
+
+        bool vis = false;
+        intersectBoundingBox_x_11_x_( originalRay.wfront, originalRay.wback, n, f );
+
+        if ( n < f )
+        {
+            orig_tnear = min( orig_tnear, max( 0, n ) );
+            orig_tfar = max( orig_tfar, f );
+            vis = true;
+        }
+
         bool supseg_found;
         int index;
         float depth_start, depth_end;
-        findFirstSupseg(list_coords, npos.z, npos.z, supseg_found, index, depth_start, depth_end);
+
+        #if INT_DEPTHS
+        float dist_to_orig = ndc_to_w(npos.xy, npos.z);
+        #else
+        float dist_to_orig = npos.z;
+        #endif
+
+        findFirstSupseg(list_coords, dist_to_orig, dist_to_orig, supseg_found, index, depth_start, depth_end);
 
         if(supseg_found) {
             totalIntersectedSupsegs++;
             totalIntersectedLists++;
+
+            #if INT_DEPTHS
+            depth_start = w_to_ndc(depth_start);
+            depth_end = w_to_ndc(depth_end);
+            #endif
 
             vec4 supseg_start_w = ivp_orig * vec4(npos.xy, depth_start, 1);
             supseg_start_w *= 1. / supseg_start_w.w;
@@ -1575,7 +1611,7 @@ void main() {
     float cell_tmaxX, cell_tmaxY, cell_tmaxZ;
     bool finalIteration = false;
 
-    bool do_subsample = false;
+    bool do_subsample = true;
     int num_traversed = 0;
 
     int num_octree_traversals = 1;
@@ -1774,11 +1810,11 @@ void main() {
                 cell_end_w *= 1. / cell_end_w.w;
                 float intersection_length = distance(cell_start_w, cell_end_w);
                 if(trav == 1) {
-                    length_in_non_empty += intersection_length;
-//                    length_in_non_empty += supsegs_in_cell * intersection_length;
+//                    length_in_non_empty += intersection_length;
+                    length_in_non_empty += supsegs_in_cell * intersection_length;
                 } else {
-                    float fract =  (intersection_length) / length_in_non_empty;
-//                    float fract =  (supsegs_in_cell * intersection_length) / length_in_non_empty;
+//                    float fract =  (intersection_length) / length_in_non_empty;
+                    float fract =  (supsegs_in_cell * intersection_length) / length_in_non_empty;
                     int samples_in_cell = int(fract * max_samples); //TODO: should it be round()?
 
                     #if USE_PRINTF
