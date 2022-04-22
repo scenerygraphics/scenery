@@ -292,6 +292,8 @@ class NodePublisher(
             kryo.register(ShaderMaterial::class.java, ShaderMaterialSerializer())
             kryo.register(java.util.zip.Inflater::class.java, IgnoreSerializer<Inflater>())
             kryo.register(VolumeManager::class.java, IgnoreSerializer<VolumeManager>())
+            kryo.register(org.apache.log4j.Logger::class.java, IgnoreSerializer<org.apache.log4j.Logger>())
+            kryo.register(Logger::class.java, IgnoreSerializer<Logger>())
             kryo.register(Vector3f::class.java, Vector3fSerializer())
 
             return kryo
