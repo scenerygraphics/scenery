@@ -4,7 +4,7 @@
 #define SEPARATE_DEPTH 1
 #define INT_DEPTHS 1
 #define PROFILE_MEM 0
-#define SKIP_EMPTY 1
+#define SKIP_EMPTY 0
 #define USE_VIEW_SPACE_CELLS 1
 
 #if USE_PRINTF
@@ -118,7 +118,10 @@ layout(set = 11, binding = 0, r32f) uniform image2D EmptyAfterLast;
 //ivec2 debug_pixel = ivec2(433, 577);
 //ivec2 debug_pixel = ivec2(729, 282);
 //ivec2 debug_pixel = ivec2(987, 437);
-ivec2 debug_pixel = ivec2(832, 512);
+
+//ivec2 debug_pixel = ivec2(610, 641);
+ivec2 debug_pixel = ivec2(167, 78);
+
 //ivec2 debug_pixel = ivec2(35, 61);
 //ivec2 debug_pixel = ivec2(427, 465);
 //ivec2 debug_pixel = ivec2(424, 539);
@@ -395,11 +398,11 @@ int findZInterval_view(float z_ndc) {
 
 float getSupsegFront(ivec2 theList, int index) {
 
-    #if USE_PRINTF
-    if(gl_GlobalInvocationID.xy == debug_pixel && theList.x < 343) {
-        debugPrintfEXT("Searching for front face of (%d, %d), %d", theList, index);
-    }
-    #endif
+//    #if USE_PRINTF
+//    if(gl_GlobalInvocationID.xy == debug_pixel) {
+//        debugPrintfEXT("Searching for front face of (%d, %d), %d", theList, index);
+//    }
+//    #endif
 
     if(!(index >= 0 && index < maxSupersegments)) { //TODO: error checks need to be disabled everywhere!
         //This is an error!
@@ -419,20 +422,20 @@ float getSupsegFront(ivec2 theList, int index) {
             return 0.0;
         }
         float step = orig_tnear + nw * front_index;
-        #if USE_PRINTF
-        if(gl_GlobalInvocationID.xy == debug_pixel) {
-            debugPrintfEXT("Searching for front depth of: (%d, %d), %d. Found jump num: %u, therefore returning: %f. orig_tnear: %f, nw: %f", theList, index, front_index, step, orig_tnear, nw);
-        }
-        #endif
+//        #if USE_PRINTF
+//        if(gl_GlobalInvocationID.xy == debug_pixel) {
+//            debugPrintfEXT("Searching for front depth of: (%d, %d), %d. Found jump num: %u, therefore returning: %f. orig_tnear: %f, nw: %f", theList, index, front_index, step, orig_tnear, nw);
+//        }
+//        #endif
         return step;
         #else
         vec4 front = imageLoad(DepthVDI, ivec3(index*2, theList.y, theList.x));
         totalMemoryLoads++;
-        #if USE_PRINTF
-        if(gl_GlobalInvocationID.xy == debug_pixel) {
-            debugPrintfEXT("Searching for front depth of: (%d, %d), %d. returning: %f", theList, index, front.x);
-        }
-        #endif
+//        #if USE_PRINTF
+//        if(gl_GlobalInvocationID.xy == debug_pixel) {
+//            debugPrintfEXT("Searching for front depth of: (%d, %d), %d. returning: %f", theList, index, front.x);
+//        }
+//        #endif
         return front.x;
         #endif
     #else
@@ -444,11 +447,11 @@ float getSupsegFront(ivec2 theList, int index) {
 
 float getSupsegBack(ivec2 theList, int index) {
 
-    #if USE_PRINTF
-    if(gl_GlobalInvocationID.xy == debug_pixel && theList.x < 343) {
-        debugPrintfEXT("Searching for back face of (%d, %d), %d", theList, index);
-    }
-    #endif
+//    #if USE_PRINTF
+//    if(gl_GlobalInvocationID.xy == debug_pixel && theList.x < 343) {
+//        debugPrintfEXT("Searching for back face of (%d, %d), %d", theList, index);
+//    }
+//    #endif
 
     if(!(index >= 0 && index < maxSupersegments)) {
         //This is an error!
@@ -463,21 +466,21 @@ float getSupsegBack(ivec2 theList, int index) {
     #if SEPARATE_DEPTH
         #if INT_DEPTHS
         uint back_index = imageLoad(DepthVDI, ivec3(index, theList.y, theList.x)).y;
-        #if USE_PRINTF
-        if(gl_GlobalInvocationID.xy == debug_pixel && theList.x < 343) {
-            debugPrintfEXT("Obtained back index: %d", back_index);
-        }
-        #endif
+//        #if USE_PRINTF
+//        if(gl_GlobalInvocationID.xy == debug_pixel && theList.x < 343) {
+//            debugPrintfEXT("Obtained back index: %d", back_index);
+//        }
+//        #endif
         totalMemoryLoads++;
         if(back_index == 0) {
             return 0.0;
         }
         float step = orig_tnear + nw * back_index;
-        #if USE_PRINTF
-        if(gl_GlobalInvocationID.xy == debug_pixel && theList.x < 343) {
-            debugPrintfEXT("Searching for back depth of: (%d, %d), %d. Found jump num: %u, therefore returning: %f", theList, index, back_index, step);
-        }
-        #endif
+//        #if USE_PRINTF
+//        if(gl_GlobalInvocationID.xy == debug_pixel && theList.x < 343) {
+//            debugPrintfEXT("Searching for back depth of: (%d, %d), %d. Found jump num: %u, therefore returning: %f", theList, index, back_index, step);
+//        }
+//        #endif
         return step;
         #else
         vec4 back = imageLoad(DepthVDI, ivec3(index*2 + 1, theList.y, theList.x));
@@ -692,11 +695,6 @@ vec4 u, dir;
 void findFirstSupseg(ivec2 theList, float dist_to_orig, float exit_distance, out bool supseg_found, out int index, out float depthStart, out float depthEnd) {
     supseg_found = false;
 
-    #if USE_PRINTF
-    if(gl_GlobalInvocationID.xy == debug_pixel && theList == ivec2(116, 51)) {
-        debugPrintfEXT("In the list. prev index is: %d", prevIndex);
-    }
-    #endif
 
     if(prevIndex == -1) {
         binSearch(theList, dist_to_orig, 0, maxSupersegments - 1, supseg_found, index, depthStart, depthEnd);
@@ -707,11 +705,6 @@ void findFirstSupseg(ivec2 theList, float dist_to_orig, float exit_distance, out
             //we can check the end-point of the preceding supersegment
             if((getPrecedingDepth(theList, prevIndex) < dist_to_orig) ) { //check if prevIndex is a candidate
                 if(getSupsegBack(theList, prevIndex) != 0) { // if prevIndex was filled, it is the supseg we are searching for
-                    #if USE_PRINTF
-                    if(gl_GlobalInvocationID.xy == debug_pixel && theList == ivec2(70, 589)) {
-                        debugPrintfEXT("option 1. prevIndex: %d", prevIndex);
-                    }
-                    #endif
                     supseg_found = true;
                     index = prevIndex;
                     depthEnd = getSupsegBack(theList, index);
@@ -723,11 +716,6 @@ void findFirstSupseg(ivec2 theList, float dist_to_orig, float exit_distance, out
                 //we can check the end-point of the supersegment before the previous
                 if((getPrecedingDepth(theList, prevIndex - 1) < dist_to_orig)) { //check whether prevIndex-1 is a candidate
                     if(getSupsegBack(theList, prevIndex-1) != 0) { // if prevIndex-1 was filled, it is the supseg we are searching for
-                        #if USE_PRINTF
-                        if(gl_GlobalInvocationID.xy == debug_pixel && theList == ivec2(70, 589)) {
-                            debugPrintfEXT("option 2. prevIndex: %d", prevIndex);
-                        }
-                        #endif
                         supseg_found = true;
                         index = prevIndex - 1;
                         depthEnd = getSupsegBack(theList, index);
@@ -742,11 +730,6 @@ void findFirstSupseg(ivec2 theList, float dist_to_orig, float exit_distance, out
         } else {
             if(prevIndex < (maxSupersegments - 1)) {
                 if(getSupsegBack(theList, prevIndex + 1) >= dist_to_orig) {
-                    #if USE_PRINTF
-                    if(gl_GlobalInvocationID.xy == debug_pixel && theList == ivec2(70, 589)) {
-                        debugPrintfEXT("option 5. prevIndex: %d", prevIndex);
-                    }
-                    #endif
                     supseg_found = true;
                     index = prevIndex + 1;
                     depthEnd = getSupsegBack(theList, index);
@@ -843,20 +826,20 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
         vis = true;
     }
 
-    #if USE_PRINTF
-    if(gl_GlobalInvocationID.xy == debug_pixel && theList.x < 344) {
-        debugPrintfEXT("Original ray nfront: (%f, %f, %f, %f) nback: (%f, %f, %f, %f)", originalRay.NDC_front.xyzw, originalRay.NDC_back.xyzw);
-        debugPrintfEXT("Original ray wfront: (%f, %f, %f, %f) wback: (%f, %f, %f, %f)", originalRay.wfront.xyzw, originalRay.wback.xyzw);
-        debugPrintfEXT("tnear: %f and tfar: %f", orig_tnear, orig_tfar);
-    }
-    #endif
+//    #if USE_PRINTF
+//    if(gl_GlobalInvocationID.xy == debug_pixel && theList.x < 344) {
+//        debugPrintfEXT("Original ray nfront: (%f, %f, %f, %f) nback: (%f, %f, %f, %f)", originalRay.NDC_front.xyzw, originalRay.NDC_back.xyzw);
+//        debugPrintfEXT("Original ray wfront: (%f, %f, %f, %f) wback: (%f, %f, %f, %f)", originalRay.wfront.xyzw, originalRay.wback.xyzw);
+//        debugPrintfEXT("tnear: %f and tfar: %f", orig_tnear, orig_tfar);
+//    }
+//    #endif
 
     if(!vis) { //todo: this check seems unnecessary because the list is not empty
-        #if USE_PRINTF
-        if(gl_GlobalInvocationID.xy == debug_pixel) {
-            debugPrintfEXT("Returning because list does not intersect volume. n: %f, f: %f", n, f);
-        }
-        #endif
+//        #if USE_PRINTF
+//        if(gl_GlobalInvocationID.xy == debug_pixel) {
+//            debugPrintfEXT("Returning because list does not intersect volume. n: %f, f: %f", n, f);
+//        }
+//        #endif
         //this original ray (i.e., list) does not intersect the volume, so return
         return;
     }
@@ -942,8 +925,8 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
 
             #if USE_PRINTF
             if(gl_GlobalInvocationID.xy == debug_pixel) {
-                debugPrintfEXT("Found supseg: (%d, %d), %d", theList, index);
-                debugPrintfEXT("DepthStart: %f and DepthEnd: %f, while dto: %f and exit: %f ", temp_start, temp_end, dist_to_orig, exit_distance);
+//                debugPrintfEXT("Found supseg: (%d, %d), %d", theList, index);
+//                debugPrintfEXT("DepthStart: %f and DepthEnd: %f, while dto: %f and exit: %f ", temp_start, temp_end, dist_to_orig, exit_distance);
             }
             #endif
 
@@ -990,8 +973,8 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
 
             #if USE_PRINTF
             if(gl_GlobalInvocationID.xy == debug_pixel) {
-                debugPrintfEXT("Opacity: %f, adjusted opacity: %f, supseg length: %f", supseg_col.a, alpha, length_in_supseg);
-                debugPrintfEXT("Accumulated color: (%f, %f, %f, %f)", accumulatedColor.rgba);
+//                debugPrintfEXT("Opacity: %f, adjusted opacity: %f, supseg length: %f", supseg_col.a, alpha, length_in_supseg);
+//                debugPrintfEXT("Accumulated color: (%f, %f, %f, %f)", accumulatedColor.rgba);
             }
             #endif
 
@@ -1114,11 +1097,11 @@ void traverse_subsample(vec4 world_entry, vec4 world_end, float total_distance, 
 
 void traverse_cell(vec4 entry_point, ivec2 entry_list, vec3 cell_min, vec3 cell_max, out vec4 end_point, out ivec2 nextList) {
 
-    #if USE_PRINTF
-    if(gl_GlobalInvocationID.xy == debug_pixel) {
-        debugPrintfEXT("Traversing cell with min: (%f, %f, %f) and max: (%f, %f, %f). Entry point: (%f, %f, %f, %f)", cell_min.xyz, cell_max.xyz, entry_point.xyzw);
-    }
-    #endif
+//    #if USE_PRINTF
+//    if(gl_GlobalInvocationID.xy == debug_pixel) {
+//        debugPrintfEXT("Traversing cell with min: (%f, %f, %f) and max: (%f, %f, %f). Entry point: (%f, %f, %f, %f)", cell_min.xyz, cell_max.xyz, entry_point.xyzw);
+//    }
+//    #endif
 
     const float max_x = max(cell_max.x, cell_min.x);
     const float min_x = min(cell_max.x, cell_min.x);
@@ -1332,7 +1315,7 @@ void main() {
     windowHeight = imageCoords.y;
 
     maxSupersegments = imageSize(InputVDI).r;
-    maxSupersegments = 20;
+//    maxSupersegments = 20;
 
     highp mat4 ipv = InverseViewMatrices[0] * InverseProjectionMatrix;
 
@@ -1611,7 +1594,7 @@ void main() {
     float cell_tmaxX, cell_tmaxY, cell_tmaxZ;
     bool finalIteration = false;
 
-    bool do_subsample = true;
+    bool do_subsample = false;
     int num_traversed = 0;
 
     int num_octree_traversals = 1;
