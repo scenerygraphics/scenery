@@ -120,7 +120,7 @@ layout(set = 11, binding = 0, r32f) uniform image2D EmptyAfterLast;
 //ivec2 debug_pixel = ivec2(987, 437);
 
 //ivec2 debug_pixel = ivec2(610, 641);
-ivec2 debug_pixel = ivec2(1014, 638);
+ivec2 debug_pixel = ivec2(371, 273);
 
 //ivec2 debug_pixel = ivec2(35, 61);
 //ivec2 debug_pixel = ivec2(427, 465);
@@ -1649,10 +1649,11 @@ void main() {
         end_traversal = vec4(0);
 
         finalIteration = false;
+        bool cell_traversed = false;
 
         while(!finalIteration) { //looping over the cells of the lowest level of the octree
 
-            if(start_point == end_traversal) { //TODO: convert to checking a boolean
+            if(cell_traversed) {
                 //if the new cell is to start at the end point of the previous traversal, then we need to check whether the
                 //previous traversal took us to a different grid cell along z
 
@@ -1663,19 +1664,71 @@ void main() {
 
                 ivec3 grid_at_end = findGridCell(start_point);
 
-    //            if(((grid_at_end.z - grid_cell.z) * stepZ) > 0) {
+                if(grid_at_end.x != grid_cell.x) {
+                    t = cell_tmaxX;
+//                    if(grid_at_end.x >= num_cells.x || grid_at_end.x < 0) { // TODO: only one comparison is required depending on stepX
+//                        finalIteration = true;
+//                        #if USE_PRINTF
+//                        if(gl_GlobalInvocationID.xy == debug_pixel) {
+//                            debugPrintfEXT("This is final iteration because new x val: %d:", grid_at_end.x);
+//                        }
+//                        #endif
+//                    }
+                    cell_tmaxX += cell_tdeltaX;
+                }
+
+                if(grid_at_end.y != grid_cell.y) {
+                    t = cell_tmaxY;
+//                    if(grid_at_end.y >= num_cells.y || grid_at_end.y < 0) {
+//                        finalIteration = true;
+//                        #if USE_PRINTF
+//                        if(gl_GlobalInvocationID.xy == debug_pixel) {
+//                            debugPrintfEXT("This is final iteration because new y val: %d:", grid_at_end.y);
+//                        }
+//                        #endif
+//                    }
+                    cell_tmaxY += cell_tdeltaY;
+                }
+
+                if(grid_at_end.z != grid_cell.z) {
+                    t = cell_tmaxZ;
+//                    if(grid_at_end.z >= num_cells.z || grid_at_end.z < 0) { // TODO: only one comparison is required depending on stepX
+//                        finalIteration = true;
+//                        #if USE_PRINTF
+//                        if(gl_GlobalInvocationID.xy == debug_pixel) {
+//                            debugPrintfEXT("This is final iteration because new z val: %d:", grid_at_end.z);
+//                        }
+//                        #endif
+//                    }
+                    #if USE_VIEW_SPACE_CELLS
+                    float current_z_ndc = cellToViewToNDC(grid_at_end.z);
+                    int next_z = grid_at_end.z + (stepZ == 1 ? 1 : -1);
+                    float next_z_ndc = cellToViewToNDC(next_z);
+                    cell_tdeltaZ = dir.z != 0 ? abs((next_z_ndc - current_z_ndc) / dir.z) : 10000000;
+                    #if USE_PRINTF
+                    if(gl_GlobalInvocationID.xy == debug_pixel) {
+                        debugPrintfEXT("current z: %d, next z: %d, delta obtained: %f, prev tmaxZ was: %f", grid_cell.z, grid_at_end.z, cell_tdeltaZ, cell_tmaxZ);
+                    }
+                    #endif
+                    #endif
+                    cell_tmaxZ += cell_tdeltaZ;
+                }
+
+
                 grid_cell = grid_at_end;
 
-    //            }
+
             }
 
-            ivec3 grid_test = findGridCell(start_point);
+//            ivec3 grid_test = findGridCell(start_point);
+//
+//            #if USE_PRINTF
+//            if(gl_GlobalInvocationID.xy == debug_pixel) {
+//                debugPrintfEXT("Current grid cell is: (%d, %d, %d) while start point lies in: (%d, %d, %d)", grid_cell.xyz, grid_test.xyz);
+//            }
+//            #endif
 
-            #if USE_PRINTF
-            if(gl_GlobalInvocationID.xy == debug_pixel) {
-                debugPrintfEXT("Current grid cell is: (%d, %d, %d) while start point lies in: (%d, %d, %d)", grid_cell.xyz, grid_test.xyz);
-            }
-            #endif
+            cell_traversed = false;
 
 
             #if USE_VIEW_SPACE_CELLS
@@ -1700,8 +1753,6 @@ void main() {
 
             #endif
 
-            bool cell_traversed = false;
-
             #if SKIP_EMPTY
 
             uint grid_val = imageLoad(OctreeCells, grid_cell).r;
@@ -1713,7 +1764,7 @@ void main() {
             #endif
 
             if(grid_val > 0 && !do_subsample) {
-//            if(true) {
+//            if(false) {
             #else
             if(!do_subsample) {
             #endif
@@ -1723,91 +1774,103 @@ void main() {
 
             //TODO: the next section can probably be skipped if the cell has been traversed
 
-            #if USE_PRINTF
-            if(gl_GlobalInvocationID.xy == debug_pixel) {
-                debugPrintfEXT("cell_tmaxX: %f, cell_tmaxY: %f, cell_tmaxZ: %f", cell_tmaxX, cell_tmaxY, cell_tmaxZ);
-            }
-            #endif
+            if(!cell_traversed) {
 
-            if(cell_tmaxX < cell_tmaxY) {
-                if(cell_tmaxX < cell_tmaxZ) {
-                    // x is the lowest
-                    t = cell_tmaxX;
-                    grid_cell.x += stepX;
-                    if(grid_cell.x >= num_cells.x || grid_cell.x < 0) { // TODO: only one comparison is required depending on stepX
-                        finalIteration = true;
-                        #if USE_PRINTF
-                        if(gl_GlobalInvocationID.xy == debug_pixel) {
-                            debugPrintfEXT("This is final iteration because new x val: %d:", grid_cell.x);
-                        }
-                        #endif
-                    }
-                    cell_tmaxX += cell_tdeltaX;
-                } else {
-                    // z is lowest or x = z
-                    t = cell_tmaxZ;
-                    grid_cell.z += stepZ;
-                    if(grid_cell.z >= num_cells.z || grid_cell.z < 0) {
-                        finalIteration = true;
-                        #if USE_PRINTF
-                        if(gl_GlobalInvocationID.xy == debug_pixel) {
-                            debugPrintfEXT("This is final iteration because new z val: %d:", grid_cell.z);
-                        }
-                        #endif
-                    }
-                    #if USE_VIEW_SPACE_CELLS
-                    int next_z = grid_cell.z + (stepZ == 1 ? 1 : -1);
-                    float current_z_ndc = cellToViewToNDC(grid_cell.z);
-                    float next_z_ndc = cellToViewToNDC(next_z);
-                    cell_tdeltaZ = dir.z != 0 ? abs((next_z_ndc - current_z_ndc) / dir.z) : 10000000;
-                    #endif
-                    cell_tmaxZ += cell_tdeltaZ;
+                #if USE_PRINTF
+                if (gl_GlobalInvocationID.xy == debug_pixel) {
+                    debugPrintfEXT("cell_tmaxX: %f, cell_tmaxY: %f, cell_tmaxZ: %f", cell_tmaxX, cell_tmaxY, cell_tmaxZ);
                 }
-            } else {
-                if(cell_tmaxY < cell_tmaxZ) {
-                    // y is the lowest
-                    t = cell_tmaxY;
-                    grid_cell.y += stepY;
-                    if(grid_cell.y >= num_cells.y || grid_cell.y < 0) {
-                        finalIteration = true;
-                        #if USE_PRINTF
-                        if(gl_GlobalInvocationID.xy == debug_pixel) {
-                            debugPrintfEXT("This is final iteration because new y val: %d:", grid_cell.y);
-                        }
-                        #endif
-                    }
-                    cell_tmaxY += cell_tdeltaY;
-                } else {
-                    // z is the lowest or y = z
-                    t = cell_tmaxZ;
-                    grid_cell.z += stepZ;
-                    if(grid_cell.z >= num_cells.z || grid_cell.z < 0) {
-                        finalIteration = true;
-                        #if USE_PRINTF
-                        if(gl_GlobalInvocationID.xy == debug_pixel) {
-                            debugPrintfEXT("This is final iteration because new z val: %d:", grid_cell.z);
-                        }
-                        #endif
-                    }
-                    #if USE_VIEW_SPACE_CELLS
-                    int next_z = grid_cell.z + (stepZ == 1 ? 1 : -1);
-                    float current_z_ndc = cellToViewToNDC(grid_cell.z);
-                    float next_z_ndc = cellToViewToNDC(next_z);
-                    cell_tdeltaZ = dir.z != 0 ? abs((next_z_ndc - current_z_ndc) / dir.z) : 10000000;
-                    #endif
-                    cell_tmaxZ += cell_tdeltaZ;
-                }
-            }
+                #endif
 
-            if(cell_traversed) {
-                end_point = end_traversal;
-                //we have next_list from the traversal method
-            } else {
+
+                if(cell_tmaxX < cell_tmaxY) {
+                    if(cell_tmaxX < cell_tmaxZ) {
+                        // x is the lowest
+                        t = cell_tmaxX;
+                        grid_cell.x += stepX;
+                        if(grid_cell.x >= num_cells.x || grid_cell.x < 0) { // TODO: only one comparison is required depending on stepX
+                            finalIteration = true;
+                            #if USE_PRINTF
+                            if(gl_GlobalInvocationID.xy == debug_pixel) {
+                                debugPrintfEXT("This is final iteration because new x val: %d:", grid_cell.x);
+                            }
+                            #endif
+                        }
+                        cell_tmaxX += cell_tdeltaX;
+                    } else {
+                        // z is lowest or x = z
+                        t = cell_tmaxZ;
+                        grid_cell.z += stepZ;
+                        if(grid_cell.z >= num_cells.z || grid_cell.z < 0) {
+                            finalIteration = true;
+                            #if USE_PRINTF
+                            if(gl_GlobalInvocationID.xy == debug_pixel) {
+                                debugPrintfEXT("This is final iteration because new z val: %d:", grid_cell.z);
+                            }
+                            #endif
+                        }
+                        #if USE_VIEW_SPACE_CELLS
+                        int next_z = grid_cell.z + (stepZ == 1 ? 1 : -1);
+                        float current_z_ndc = cellToViewToNDC(grid_cell.z);
+                        float next_z_ndc = cellToViewToNDC(next_z);
+                        cell_tdeltaZ = dir.z != 0 ? abs((next_z_ndc - current_z_ndc) / dir.z) : 10000000;
+                        #if USE_PRINTF
+                        if(gl_GlobalInvocationID.xy == debug_pixel) {
+                            debugPrintfEXT("current z: %d, next z: %d, delta obtained: %f, prev tmaxZ was: %f", grid_cell.z, next_z, cell_tdeltaZ, cell_tmaxZ);
+                        }
+                        #endif
+                        #endif
+                        cell_tmaxZ += cell_tdeltaZ;
+                    }
+                } else {
+                    if(cell_tmaxY < cell_tmaxZ) {
+                        // y is the lowest
+                        t = cell_tmaxY;
+                        grid_cell.y += stepY;
+                        if(grid_cell.y >= num_cells.y || grid_cell.y < 0) {
+                            finalIteration = true;
+                            #if USE_PRINTF
+                            if(gl_GlobalInvocationID.xy == debug_pixel) {
+                                debugPrintfEXT("This is final iteration because new y val: %d:", grid_cell.y);
+                            }
+                            #endif
+                        }
+                        cell_tmaxY += cell_tdeltaY;
+                    } else {
+                        // z is the lowest or y = z
+                        t = cell_tmaxZ;
+                        grid_cell.z += stepZ;
+                        if(grid_cell.z >= num_cells.z || grid_cell.z < 0) {
+                            finalIteration = true;
+                            #if USE_PRINTF
+                            if(gl_GlobalInvocationID.xy == debug_pixel) {
+                                debugPrintfEXT("This is final iteration because new z val: %d:", grid_cell.z);
+                            }
+                            #endif
+                        }
+                        #if USE_VIEW_SPACE_CELLS
+                        int next_z = grid_cell.z + (stepZ == 1 ? 1 : -1);
+                        float current_z_ndc = cellToViewToNDC(grid_cell.z);
+                        float next_z_ndc = cellToViewToNDC(next_z);
+                        cell_tdeltaZ = dir.z != 0 ? abs((next_z_ndc - current_z_ndc) / dir.z) : 10000000;
+                        #if USE_PRINTF
+                        if(gl_GlobalInvocationID.xy == debug_pixel) {
+                            debugPrintfEXT("current z: %d, next z: %d, delta obtained: %f, prev tmaxZ was: %f", grid_cell.z, next_z, cell_tdeltaZ, cell_tmaxZ);
+                        }
+                        #endif
+                        #endif
+                        cell_tmaxZ += cell_tdeltaZ;
+                    }
+                }
+
                 end_point = first_entry_pt + t * dir;
                 tex_orig = (end_point.xy + 1.0)/2.0;
 
                 next_list.x = int(round(tex_orig.x * windowWidth));
                 next_list.y = int(round(tex_orig.y * windowHeight));
+            } else {
+                end_point = end_traversal;
+                //we have next_list from the traversal method
             }
 
             uint supsegs_in_cell = imageLoad(OctreeCells, grid_cell).r;
