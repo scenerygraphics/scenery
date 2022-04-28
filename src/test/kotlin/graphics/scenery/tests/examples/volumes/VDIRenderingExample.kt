@@ -6,9 +6,14 @@ import graphics.scenery.backends.Shaders
 import graphics.scenery.backends.vulkan.VulkanRenderer
 import graphics.scenery.compute.ComputeMetadata
 import graphics.scenery.compute.InvocationType
+import graphics.scenery.controls.TrackedStereoGlasses
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.Image
+import graphics.scenery.utils.Statistics
 import graphics.scenery.utils.SystemHelpers
+import graphics.scenery.utils.extensions.minus
+import graphics.scenery.utils.extensions.plus
+import graphics.scenery.utils.extensions.times
 import graphics.scenery.volumes.VolumeManager
 import graphics.scenery.volumes.vdi.VDIData
 import graphics.scenery.volumes.vdi.VDIDataIO
@@ -59,13 +64,21 @@ class CustomNode : RichNode() {
 }
 
 class VDIRenderingExample : SceneryBase("VDI Rendering", 1832, 1016, wantREPL = false) {
+    var hmd: TrackedStereoGlasses? = null
 
     val separateDepth = true
     val profileMemoryAccesses = false
     val compute = CustomNode()
     val closeAfter = 100000L
-    val dataset = "Beechnut"
+    val dataset = "Stagbeetle_divided"
     val numOctreeLayers = 8.0
+    val numSupersegments = 20
+    val benchmarking = true
+    val viewNumber = 1
+
+    val cam: Camera = DetachedHeadCamera(hmd)
+
+    val camTarget = Vector3f(1.920E+0f, -1.920E+0f,  1.140E+0f)
 
     private val vulkanProjectionFix =
         Matrix4f(
@@ -97,7 +110,6 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1832, 1016, wantREPL = 
         light.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
         scene.addChild(light)
 
-        val cam = DetachedHeadCamera()
         with(cam) {
             spatial().position = Vector3f(-4.365f, 0.38f, 0.62f)
             perspectiveCamera(50.0f, windowWidth, windowHeight)
@@ -148,11 +160,13 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1832, 1016, wantREPL = 
             position = Vector3f(5.436E+0f, -8.650E-1f, -7.923E-1f)
             rotation = Quaternionf(7.029E-2, -8.529E-1, -1.191E-1,  5.034E-1)
 
+            position = Vector3f(4.004E+0f, -1.398E+0f, -2.170E+0f) //this is the actual 0 degree
+            rotation = Quaternionf(-1.838E-2,  9.587E-1,  6.367E-2, -2.767E-1)
+
         }
 
         cam.farPlaneDistance = 20.0f
-
-        val numSupersegments = 20
+        cam.target = camTarget
 
         val buff: ByteArray
         val depthBuff: ByteArray?
@@ -277,6 +291,63 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1832, 1016, wantREPL = 
                 manageDebugTextures()
             }
         }
+
+        thread {
+            if(benchmarking) {
+                doBenchmarks()
+            }
+        }
+    }
+
+
+
+    private fun doBenchmarks() {
+        val r = (hub.get(SceneryElement.Renderer) as Renderer)
+        var stats = hub.get<Statistics>()!!
+
+        while(!r.firstImageReady) {
+            Thread.sleep(200)
+        }
+
+        val rotationInterval = 10f
+        var totalRotation = 0f
+
+        for(i in 1..4) {
+            val path = "benchmarking/${dataset}/View${viewNumber}/vdi$numSupersegments/vdi${windowWidth}_${windowHeight}_${totalRotation.toInt()}"
+            // take screenshot and wait for async writing
+            r.screenshot("$path.png")
+            Thread.sleep(1000L)
+            stats.clear("Renderer.fps")
+
+            // collect data for a few secs
+            Thread.sleep(5000)
+
+            // write out CSV with fps data
+            val fps = stats.get("Renderer.fps")!!
+            File("$path.csv").writeText("${fps.avg()};${fps.min()};${fps.max()};${fps.stddev()};${fps.data.size}")
+
+            rotateCamera(10f)
+            totalRotation = i * rotationInterval
+        }
+    }
+
+    private fun rotateCamera(degrees: Float) {
+        cam.targeted = true
+        val frameYaw = degrees / 180.0f * Math.PI.toFloat()
+        val framePitch = 0f
+
+        // first calculate the total rotation quaternion to be applied to the camera
+        val yawQ = Quaternionf().rotateXYZ(0.0f, frameYaw, 0.0f).normalize()
+        val pitchQ = Quaternionf().rotateXYZ(framePitch, 0.0f, 0.0f).normalize()
+
+        logger.info("cam target: ${camTarget}")
+
+        val distance = (camTarget - cam.spatial().position).length()
+        cam.spatial().rotation = pitchQ.mul(cam.spatial().rotation).mul(yawQ).normalize()
+        cam.spatial().position = camTarget + cam.forward * distance * (-1.0f)
+        logger.info("new camera pos: ${cam.spatial().position}")
+        logger.info("new camera rotation: ${cam.spatial().rotation}")
+        logger.info("camera forward: ${cam.forward}")
     }
 
 
