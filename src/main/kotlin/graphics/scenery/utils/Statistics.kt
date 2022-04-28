@@ -85,6 +85,10 @@ class Statistics(override var hub: Hub?) : Hubable {
         }
     }
 
+    fun clear(name: String) {
+        stats.remove(name)
+    }
+
     /**
      * Adds a new datum to the statistic about [name] with [value].
      * Accepts all types of numbers.
