@@ -120,7 +120,7 @@ layout(set = 11, binding = 0, r32f) uniform image2D EmptyAfterLast;
 //ivec2 debug_pixel = ivec2(987, 437);
 
 //ivec2 debug_pixel = ivec2(610, 641);
-ivec2 debug_pixel = ivec2(371, 273);
+ivec2 debug_pixel = ivec2(746, 774);
 
 //ivec2 debug_pixel = ivec2(35, 61);
 //ivec2 debug_pixel = ivec2(427, 465);
@@ -749,6 +749,131 @@ void findFirstSupseg(ivec2 theList, float dist_to_orig, float exit_distance, out
 
 }
 
+void findFirstSupseg_opt(ivec2 theList, float dist_to_orig, float exit_distance, out bool supseg_found, out int index, out float depthStart, out float depthEnd) {
+    supseg_found = false;
+
+    int bin_search_end = -1;
+
+    if(prevIndex == -1) {
+    	bin_search_end = maxSupersegments - 1;
+    } else {
+
+        uint backs_u[4];
+
+        float backs_f[4];
+
+//        backs_u[3] = imageLoad(DepthVDI, ivec3(prevIndex + 1, theList.y, theList.x)).y;
+        if(!(prevIndex >= 0 && prevIndex < maxSupersegments)) {
+            //This is an error!
+            #if USE_PRINTF
+            if(gl_GlobalInvocationID.xy == debug_pixel) { //TODO: generalize
+                debugPrintfEXT("Searching for back face of incorrect supersegment index! List: (%d, %d) and index requested: %d. Invoc was: (%d, %d)", theList, prevIndex, gl_GlobalInvocationID.xy);
+            }
+            #endif
+
+        }
+//        backs_u[2] = imageLoad(DepthVDI, ivec3(prevIndex, theList.y, theList.x)).y;
+//        backs_u[1] = imageLoad(DepthVDI, ivec3(prevIndex - 1, theList.y, theList.x)).y;
+//        backs_u[0] = imageLoad(DepthVDI, ivec3(prevIndex - 2, theList.y, theList.x)).y;
+//
+//        backs_f[3] = (backs_u[3] == 0)? 0.0 : orig_tnear + nw * backs_u[3];
+//        backs_f[2] = (backs_u[2] == 0)? 0.0 :orig_tnear + nw * backs_u[2];
+//        backs_f[1] = (backs_u[1] == 0)? 0.0 :orig_tnear + nw * backs_u[1];
+//        backs_f[0] = (backs_u[0] == 0)? 0.0 :orig_tnear + nw * backs_u[0];
+
+        float backs[4];
+//
+//        backs[3] = (prevIndex < (maxSupersegments - 1))?backs_f[3]:5000;   // 5000 very very far +inf
+//        backs[2] = backs_f[2];
+//        backs[1] = (prevIndex >= 1) ? backs_f[1] : -5000;
+//        backs[0] = ((prevIndex - 1) >= 1) ? backs_f[0] : -5000;
+//
+//        backs[3] = (backs[3] == 0)?5000:backs[3];
+//        backs[2] = (backs[2] == 0)?5000:backs[2];
+//        backs[1] = (backs[1] == 0)?5000:backs[1];
+
+//        float backs[4];
+
+        backs[3] = (prevIndex < (maxSupersegments - 1))?getSupsegBack(theList, prevIndex + 1):5000;   // 5000 very very far +inf
+        backs[2] = getSupsegBack(theList, prevIndex);
+        backs[1] = getPrecedingDepth(theList, prevIndex);
+        backs[0] = getPrecedingDepth(theList, prevIndex - 1);
+
+        backs[3] = (backs[3] == 0)?5000:backs[3];
+        backs[2] = (backs[2] == 0)?5000:backs[2];
+        backs[1] = (backs[1] == 0)?5000:backs[1];
+
+        int interval = int(backs[3] >= dist_to_orig) + int(backs[2] >= dist_to_orig) + int(backs[1] >= dist_to_orig) + int(backs[0] >= dist_to_orig);
+        int nzeros_back = int(backs[3] != 5000) + int(backs[2] != 5000) + int(backs[1] != 5000);
+
+        if (interval == 0)
+        {bin_search_end = maxSupersegments - 1;}
+        else if (interval == 4)
+        {bin_search_end = prevIndex - 2;}
+        else
+        {
+            if (interval == 1)
+            {
+                if (nzeros_back >= 3)
+                {
+                                supseg_found = true;
+                                index = prevIndex + 1;
+                                depthEnd = backs[3];
+                }
+                else
+                {
+                    bin_search_end = maxSupersegments - 1;
+                }
+            }
+            else if (interval == 2)
+            {
+                if (nzeros_back >= 2)
+                {
+                        supseg_found = true;
+                        index = prevIndex;
+                        depthEnd = backs[2];
+                }
+                else
+                {
+                    bin_search_end = prevIndex - 1;
+                }
+            }
+            else if (interval == 3)
+            {
+                if (nzeros_back >= 1)
+                {
+                        supseg_found = true;
+                        index = prevIndex - 1;
+                            depthEnd = backs[1];
+                }
+                else
+                {
+                    bin_search_end = prevIndex - 2;
+                }
+
+            }
+        }
+    }
+
+    if (bin_search_end != -1)
+    {
+    	binSearch(theList, dist_to_orig, 0, bin_search_end, supseg_found, index, depthStart, depthEnd);
+    }
+
+    depthStart = getSupsegFront(theList, index);
+
+    if(depthStart > exit_distance) {
+        supseg_found = false;
+    }
+
+        #if USE_PRINTF
+        if(gl_GlobalInvocationID.xy == debug_pixel) { //TODO: generalize
+            debugPrintfEXT("In thelist: (%d, %d) found the index: %d", theList.xy, index);
+        }
+        #endif
+
+}
+
 void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout vec4 accumulatedColor) {
 
     totalIntersectedLists++;
@@ -885,6 +1010,20 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
 
         if(firstIteration) {
             findFirstSupseg(theList, dist_to_orig, exit_distance, supseg_found, index, depthStart, depthEnd);
+//
+//            bool sf2;
+//            int ind2;
+//            float ds2;
+//            float de2;
+//            findFirstSupseg2(theList, dist_to_orig, exit_distance, sf2, ind2, ds2, de2);
+//
+//            if(ind2 != index) {
+//                #if USE_PRINTF
+//                if(gl_GlobalInvocationID.xy == debug_pixel) {
+//                    debugPrintfEXT("Got different values: ind2: %d and index: %d. supseg_found: %d and sf2: %d", ind2, index, supseg_found, sf2);
+//                    }
+//                #endif
+//            }
             firstIteration = false;
         } else {
             nextSupersegmentInList(theList, exit_distance, dotPositive, supseg_found, index, depthStart, depthEnd);
@@ -1383,7 +1522,7 @@ void main() {
         vis = true;
     }
     if(!vis) {
-        imageStore(OutputViewport, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), vec4(1));
+        imageStore(OutputViewport, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), vec4(0));
         return;
     }
 
@@ -1506,7 +1645,7 @@ void main() {
 
                 //TODO: check ray (496, 0) from original viewpoint. It should pass through viewport, but just misses it
 
-                imageStore(OutputViewport, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), vec4(1));
+                imageStore(OutputViewport, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), vec4(0));
                 return;
             }
 
@@ -1757,11 +1896,11 @@ void main() {
 
             uint grid_val = imageLoad(OctreeCells, grid_cell).r;
 
-            #if USE_PRINTF
-            if(gl_GlobalInvocationID.xy == debug_pixel) {
-                debugPrintfEXT("Checking the cell: (%d, %d, %d). value: %d", grid_cell.xyz, grid_val);
-            }
-            #endif
+//            #if USE_PRINTF
+//            if(gl_GlobalInvocationID.xy == debug_pixel) {
+//                debugPrintfEXT("Checking the cell: (%d, %d, %d). value: %d", grid_cell.xyz, grid_val);
+//            }
+//            #endif
 
             if(grid_val > 0 && !do_subsample) {
 //            if(false) {
@@ -1776,11 +1915,11 @@ void main() {
 
             if(!cell_traversed) {
 
-                #if USE_PRINTF
-                if (gl_GlobalInvocationID.xy == debug_pixel) {
-                    debugPrintfEXT("cell_tmaxX: %f, cell_tmaxY: %f, cell_tmaxZ: %f", cell_tmaxX, cell_tmaxY, cell_tmaxZ);
-                }
-                #endif
+//                #if USE_PRINTF
+//                if (gl_GlobalInvocationID.xy == debug_pixel) {
+//                    debugPrintfEXT("cell_tmaxX: %f, cell_tmaxY: %f, cell_tmaxZ: %f", cell_tmaxX, cell_tmaxY, cell_tmaxZ);
+//                }
+//                #endif
 
 
                 if(cell_tmaxX < cell_tmaxY) {
@@ -1814,11 +1953,11 @@ void main() {
                         float current_z_ndc = cellToViewToNDC(grid_cell.z);
                         float next_z_ndc = cellToViewToNDC(next_z);
                         cell_tdeltaZ = dir.z != 0 ? abs((next_z_ndc - current_z_ndc) / dir.z) : 10000000;
-                        #if USE_PRINTF
-                        if(gl_GlobalInvocationID.xy == debug_pixel) {
-                            debugPrintfEXT("current z: %d, next z: %d, delta obtained: %f, prev tmaxZ was: %f", grid_cell.z, next_z, cell_tdeltaZ, cell_tmaxZ);
-                        }
-                        #endif
+//                        #if USE_PRINTF
+//                        if(gl_GlobalInvocationID.xy == debug_pixel) {
+//                            debugPrintfEXT("current z: %d, next z: %d, delta obtained: %f, prev tmaxZ was: %f", grid_cell.z, next_z, cell_tdeltaZ, cell_tmaxZ);
+//                        }
+//                        #endif
                         #endif
                         cell_tmaxZ += cell_tdeltaZ;
                     }
@@ -1853,11 +1992,11 @@ void main() {
                         float current_z_ndc = cellToViewToNDC(grid_cell.z);
                         float next_z_ndc = cellToViewToNDC(next_z);
                         cell_tdeltaZ = dir.z != 0 ? abs((next_z_ndc - current_z_ndc) / dir.z) : 10000000;
-                        #if USE_PRINTF
-                        if(gl_GlobalInvocationID.xy == debug_pixel) {
-                            debugPrintfEXT("current z: %d, next z: %d, delta obtained: %f, prev tmaxZ was: %f", grid_cell.z, next_z, cell_tdeltaZ, cell_tmaxZ);
-                        }
-                        #endif
+//                        #if USE_PRINTF
+//                        if(gl_GlobalInvocationID.xy == debug_pixel) {
+//                            debugPrintfEXT("current z: %d, next z: %d, delta obtained: %f, prev tmaxZ was: %f", grid_cell.z, next_z, cell_tdeltaZ, cell_tmaxZ);
+//                        }
+//                        #endif
                         #endif
                         cell_tmaxZ += cell_tdeltaZ;
                     }
