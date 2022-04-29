@@ -1,5 +1,5 @@
 #version 450
-#define USE_PRINTF 1
+#define USE_PRINTF 0
 #define NDC 1
 #define SEPARATE_DEPTH 1
 #define INT_DEPTHS 1
@@ -404,15 +404,15 @@ float getSupsegFront(ivec2 theList, int index) {
 //    }
 //    #endif
 
-    if(!(index >= 0 && index < maxSupersegments)) { //TODO: error checks need to be disabled everywhere!
-        //This is an error!
-        #if USE_PRINTF
-        if(gl_GlobalInvocationID.xy == debug_pixel) { //TODO: generalize
-            debugPrintfEXT("Searching for front face of incorrect supersegment index! List: (%d, %d) and index requested: %d", theList, index);
-        }
-        #endif
-        return -1;
-    }
+//    if(!(index >= 0 && index < maxSupersegments)) { //TODO: error checks need to be disabled everywhere!
+//        //This is an error!
+//        #if USE_PRINTF
+//        if(gl_GlobalInvocationID.xy == debug_pixel) { //TODO: generalize
+//            debugPrintfEXT("Searching for front face of incorrect supersegment index! List: (%d, %d) and index requested: %d", theList, index);
+//        }
+//        #endif
+//        return -1;
+//    }
 
     #if SEPARATE_DEPTH
         #if INT_DEPTHS
@@ -453,15 +453,15 @@ float getSupsegBack(ivec2 theList, int index) {
 //    }
 //    #endif
 
-    if(!(index >= 0 && index < maxSupersegments)) {
-        //This is an error!
-        #if USE_PRINTF
-        if(gl_GlobalInvocationID.xy == debug_pixel) { //TODO: generalize
-            debugPrintfEXT("Searching for back face of incorrect supersegment index! List: (%d, %d) and index requested: %d", theList, index);
-        }
-        #endif
-        return -1;
-    }
+//    if(!(index >= 0 && index < maxSupersegments)) {
+//        //This is an error!
+//        #if USE_PRINTF
+//        if(gl_GlobalInvocationID.xy == debug_pixel) { //TODO: generalize
+//            debugPrintfEXT("Searching for back face of incorrect supersegment index! List: (%d, %d) and index requested: %d", theList, index);
+//        }
+//        #endif
+//        return -1;
+//    }
 
     #if SEPARATE_DEPTH
         #if INT_DEPTHS
@@ -501,15 +501,15 @@ float getSupsegBack(ivec2 theList, int index) {
 
 float getPrecedingDepth(ivec2 theList, int index) {
 
-    if(!(index >= 0 && index < maxSupersegments)) {
-        //This is an error!
-        #if USE_PRINTF
-        if(gl_GlobalInvocationID.xy == debug_pixel) { //TODO: generalize
-            debugPrintfEXT("Searching for back face of incorrect supersegment index! List: (%d, %d) and index requested: %d", theList, index);
-        }
-        #endif
-        return -1;
-    }
+//    if(!(index >= 0 && index < maxSupersegments)) {
+//        //This is an error!
+//        #if USE_PRINTF
+//        if(gl_GlobalInvocationID.xy == debug_pixel) { //TODO: generalize
+//            debugPrintfEXT("Searching for back face of incorrect supersegment index! List: (%d, %d) and index requested: %d", theList, index);
+//        }
+//        #endif
+//        return -1;
+//    }
 
     if(index >= 1) {
         return getSupsegBack(theList, index - 1);
@@ -1037,12 +1037,12 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
 //        #endif
 
 //        if(gl_GlobalInvocationID.xy == debug_pixel && supseg_found && index == prevIndex) {
-        if(gl_GlobalInvocationID.xy == debug_pixel && theList == prevList && supseg_found && index == prevIndex) {
-            #if USE_PRINTF
-                debugPrintfEXT("This is an ERROR! For list: (%d, %d), found index: %d again. Invoc ID was: (%d, %d)", theList.x, theList.y, index, gl_GlobalInvocationID.xy);
-            #endif
-            break;
-        }
+//        if(gl_GlobalInvocationID.xy == debug_pixel && theList == prevList && supseg_found && index == prevIndex) {
+//            #if USE_PRINTF
+//                debugPrintfEXT("This is an ERROR! For list: (%d, %d), found index: %d again. Invoc ID was: (%d, %d)", theList.x, theList.y, index, gl_GlobalInvocationID.xy);
+//            #endif
+//            break;
+//        }
 
         prevList = theList;
 //        if(supseg_found) {
@@ -1259,12 +1259,12 @@ void traverse_cell(vec4 entry_point, ivec2 entry_list, vec3 cell_min, vec3 cell_
     float tmaxY = dir.y != 0 ? abs((nextY_ndc - entry_point.y) / dir.y) : 10000000;
     float tmaxZ = dir.z != 0 ? abs((finalZ - entry_point.z) / dir.z) : 10000000;
 
-    if(gl_GlobalInvocationID.xy == debug_pixel && !(tmaxX >= 0 && tmaxY >= 0 && tmaxZ >= 0)) {
-    #if USE_PRINTF
-        debugPrintfEXT("Invoc id is: (%d, %d)", gl_GlobalInvocationID.xy);
-        debugPrintfEXT("This is an ERROR at initialization! tmaxX: %f, tmaxY: %f, tmaxZ: %f", tmaxX, tmaxY, tmaxZ);
-    #endif
-    }
+//    if(gl_GlobalInvocationID.xy == debug_pixel && !(tmaxX >= 0 && tmaxY >= 0 && tmaxZ >= 0)) {
+//    #if USE_PRINTF
+//        debugPrintfEXT("Invoc id is: (%d, %d)", gl_GlobalInvocationID.xy);
+//        debugPrintfEXT("This is an ERROR at initialization! tmaxX: %f, tmaxY: %f, tmaxZ: %f", tmaxX, tmaxY, tmaxZ);
+//    #endif
+//    }
 
     #if USE_PRINTF
     if(gl_GlobalInvocationID.xy == debug_pixel) {
@@ -1287,17 +1287,17 @@ void traverse_cell(vec4 entry_point, ivec2 entry_list, vec3 cell_min, vec3 cell_
         //        }
         //        #endif
 
-        if(!(tmaxX >= 0 && tmaxY >= 0 && tmaxZ >= 0)) {
-            #if USE_PRINTF
-            //            if(gl_GlobalInvocationID.xy == debug_pixel) {
-            debugPrintfEXT("Invoc id is: (%d, %d)", gl_GlobalInvocationID.xy);
-            debugPrintfEXT("This is an ERROR! tmaxX: %f, tmaxY: %f, tmaxZ: %f", tmaxX, tmaxY, tmaxZ);
-            //                debugPrintfEXT("First point: (%f, %f, %f, %f). Ray dir is: (%f, %f, %f)", first_entry_pt, dir.xyz);
-
-            //            }
-            #endif
-            break;
-        }
+//        if(!(tmaxX >= 0 && tmaxY >= 0 && tmaxZ >= 0)) {
+//            #if USE_PRINTF
+//            //            if(gl_GlobalInvocationID.xy == debug_pixel) {
+//            debugPrintfEXT("Invoc id is: (%d, %d)", gl_GlobalInvocationID.xy);
+//            debugPrintfEXT("This is an ERROR! tmaxX: %f, tmaxY: %f, tmaxZ: %f", tmaxX, tmaxY, tmaxZ);
+//            //                debugPrintfEXT("First point: (%f, %f, %f, %f). Ray dir is: (%f, %f, %f)", first_entry_pt, dir.xyz);
+//
+//            //            }
+//            #endif
+//            break;
+//        }
 
         float incr = 0;
 
