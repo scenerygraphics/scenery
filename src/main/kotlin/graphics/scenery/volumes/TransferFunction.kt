@@ -12,7 +12,7 @@ import kotlin.math.min
 
 /** Transfer function class with an optional [name]. */
 open class TransferFunction(val name: String = "") {
-    private val logger by LazyLogger()
+    @delegate:Transient private val logger by LazyLogger()
 
     /**
      * Data class to contain control points for transfer functions.
