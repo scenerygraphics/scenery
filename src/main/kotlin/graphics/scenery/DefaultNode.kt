@@ -52,7 +52,7 @@ open class DefaultNode(name: String = "Node") : Node, Networkable {
 
     override var nodeType = "Node"
     override var boundingBox: OrientedBoundingBox? = null
-    override val logger by LazyLogger()
+    @delegate:Transient override val logger by LazyLogger()
 
     @Transient private val attributes = DefaultAttributesMap()
 

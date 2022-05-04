@@ -57,7 +57,8 @@ open class DefaultSpatial(private var node: Node = DefaultNode()) : Spatial {
 
     override var modifiedAt = 0L
 
-    val logger by LazyLogger()
+
+    @delegate:Transient val logger by LazyLogger()
 
     @Suppress("UNUSED_PARAMETER")
     override fun <R> propertyChanged(property: KProperty<*>, old: R, new: R, custom: String) {
