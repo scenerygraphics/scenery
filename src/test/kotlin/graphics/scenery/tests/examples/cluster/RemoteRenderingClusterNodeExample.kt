@@ -68,7 +68,7 @@ class RemoteRenderingClusterNodeExample : SceneryBase("Cluster", wantREPL = fals
             settings.set("VideoEncoder.StreamingAddress", "udp://${InetAddress.getLocalHost().hostAddress}:3337")
             renderer?.recordMovie()
             while(true) {
-                val dummyVolume = scene.find("DummyVolume") as? DummyVolume
+                val dummyVolume = scene.find("DummyVolume") as? DummyVolume //later remove DummyVolume and use an actual empty volume as container for the transfer function
                 val clientCam = scene.find("ClientCamera") as? DetachedHeadCamera
                 if (dummyVolume != null && clientCam != null) {
                     //Network callbacks need to be added to the objects coming from the network, because they get called when coming.
