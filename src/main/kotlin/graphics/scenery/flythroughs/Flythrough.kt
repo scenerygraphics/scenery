@@ -3,32 +3,28 @@ package graphics.scenery.flythroughs
 import graphics.scenery.Camera
 import graphics.scenery.Node
 import graphics.scenery.geometry.FrenetFrame
+import graphics.scenery.geometry.FrenetFramesCalc
+import graphics.scenery.geometry.Spline
 import graphics.scenery.utils.LazyLogger
 import org.joml.Quaternionf
 import org.joml.Vector2f
 import org.joml.Vector3f
+import org.scijava.ui.behaviour.ClickBehaviour
 import org.slf4j.Logger
 import kotlin.math.acos
 
-abstract class Flythrough(cam: () -> Camera?, val target: Node) {
+class Flythrough(cam: () -> Camera?, val target: Node,val spline: Spline): ClickBehaviour {
 
-    abstract val listOfCameraFrames: List<FrenetFrame>
-    abstract val offsetList: List<List<Vector3f>>
+    val listOfCameraFrames: List<FrenetFrame> = FrenetFramesCalc(spline).computeFrenetFrames()
     val camera: Camera? = cam.invoke()
     private val logger: Logger by LazyLogger()
 
     var j = 0
-    fun flyToNextPoint() {
+    override fun click(x: Int, y: Int) {
         if(j <= listOfCameraFrames.lastIndex && camera != null) {
             val frame = listOfCameraFrames[j]
-            if(offsetList.isEmpty()) {
-                camera.spatial().position = frame.translation
-            }
-            else {
-                val offset = offsetList[j].sortedByDescending { it.y }[0].y + 0.1f
-                val newCamPos = Vector3f(frame.translation.x, frame.translation.y + offset, frame.translation.z )
-                camera.spatial().position = newCamPos
-            }
+            camera.spatial().position = frame.translation
+
             //desired view direction in world coords
             val worldDirVec = Vector3f(target.ifSpatial { }?.worldPosition()).sub(camera.spatial().worldPosition()).normalize()
             /*
