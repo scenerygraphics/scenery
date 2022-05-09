@@ -25,6 +25,7 @@ import org.joml.Quaternionf
 import org.joml.Vector3f
 import org.joml.Vector3i
 import org.lwjgl.system.MemoryUtil
+import org.scijava.ui.behaviour.ClickBehaviour
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
@@ -70,10 +71,10 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1832, 1016, wantREPL = 
     val profileMemoryAccesses = false
     val compute = CustomNode()
     val closeAfter = 100000L
-    val dataset = "Stagbeetle_divided"
+    val dataset = "Kingsnake"
     val numOctreeLayers = 8.0
     val numSupersegments = 20
-    val benchmarking = true
+    val benchmarking = false
     val viewNumber = 1
 
     val cam: Camera = DetachedHeadCamera(hmd)
@@ -348,6 +349,15 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1832, 1016, wantREPL = 
         logger.info("new camera pos: ${cam.spatial().position}")
         logger.info("new camera rotation: ${cam.spatial().rotation}")
         logger.info("camera forward: ${cam.forward}")
+    }
+
+    override fun inputSetup() {
+        setupCameraModeSwitching()
+
+        inputHandler?.addBehaviour("rotate_camera", ClickBehaviour { _, _ ->
+            rotateCamera(5f)
+        })
+        inputHandler?.addKeyBinding("rotate_camera", "R")
     }
 
 
