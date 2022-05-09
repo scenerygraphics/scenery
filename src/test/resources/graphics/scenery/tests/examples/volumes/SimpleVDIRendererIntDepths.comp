@@ -36,7 +36,7 @@ float adjustOpacity(float a, float modifiedStepLength) {
 }
 
 void main() {
-    ivec2 debug_pixel = ivec2(832, 512);
+    ivec2 debug_pixel = ivec2(578, 327);
 
     ivec3 imageCoords  = imageSize(InputVDI);
 
@@ -45,7 +45,7 @@ void main() {
 
     int numSupersegments = imageCoords.r;
 
-    float nw = 0.000116;
+    float nw = 0.000094;
 
     mat4 ViewOriginal = mat4(-0.86781174,  1.0376796E-4, -0.49694782,  2.299E+0,
     0.11692904,  0.9719932, -0.20398827, -1.3797543,
@@ -113,6 +113,10 @@ void main() {
             debugPrintfEXT("Supseg %d! Start is: %u, end is: %u. a: %f", i, start_step, end_step, newAlpha);
         }
 
+        if(start_step > end_step) {
+            debugPrintfEXT("Error! Supseg (%d, %d), %d, start is: %u, end is: %u. a: %f", gl_GlobalInvocationID.xy, i, start_step, end_step, newAlpha);
+        }
+
         if(i!=0 && start_step == 0.0) {
                 break;
         }
@@ -131,6 +135,10 @@ void main() {
         }
         #endif
 
+//        if(i % 5 == 0) {
+//            adj_alpha = 0.;
+//        }
+//
         v.rgb = v.rgb + (1.0f - v.a) * newColor * adj_alpha;
         v.a = v.a + (1.0f - v.a) * adj_alpha;
 
