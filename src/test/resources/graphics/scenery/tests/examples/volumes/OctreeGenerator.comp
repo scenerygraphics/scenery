@@ -2,20 +2,28 @@
 #extension GL_EXT_debug_printf : enable
 #define SEPARATE_DEPTH 1
 #define USE_PRINTF 1
+#define INT_DEPTHS 1
 
 layout (local_size_x = 16, local_size_y = 16) in;
 layout (set = 0, binding = 0, rgba8) uniform readonly image3D InputVDI;
 #if SEPARATE_DEPTH
-layout (set = 1, binding = 0, r32f) uniform readonly image3D DepthVDI;
+layout (set = 1, binding = 0, rg16ui) uniform readonly uimage3D DepthVDI;
 #endif
 layout (set = 2, binding = 0, r32ui) uniform uimage3D OctreeCells;
 
-int numSupersegments = 0;
+int maxSupersegments = 0;
+float nw = 0.000116;
 ivec2 debug_pixel = ivec2(434, 531);
 
 float getSupsegFront(ivec2 theList, int index) {
 
-    if(!(index >= 0 && index < numSupersegments)) {
+    #if USE_PRINTF
+    if(gl_GlobalInvocationID.xy == debug_pixel && theList.x < 343) {
+        debugPrintfEXT("Searching for front face of (%d, %d), %d", theList, index);
+    }
+    #endif
+
+    if(!(index >= 0 && index < maxSupersegments)) {
         //This is an error!
         #if USE_PRINTF
         if(gl_GlobalInvocationID.xy == debug_pixel) { //TODO: generalize
@@ -26,8 +34,32 @@ float getSupsegFront(ivec2 theList, int index) {
     }
 
     #if SEPARATE_DEPTH
-    vec4 front = imageLoad(DepthVDI, ivec3(index*2, theList.y, theList.x));
-    return front.x;
+        #if INT_DEPTHS
+        uint front_index = imageLoad(DepthVDI, ivec3(index, theList.y, theList.x)).x;
+        #if USE_PRINTF
+        if(gl_GlobalInvocationID.xy == debug_pixel && theList.x < 343) {
+            debugPrintfEXT("Obtained front index: %d", front_index);
+        }
+        #endif
+        if(front_index == 0 && index != 0) {
+            return 0.0;
+        }
+        float step = orig_tnear + nw * front_index;
+        #if USE_PRINTF
+        if(gl_GlobalInvocationID.xy == debug_pixel) {
+            debugPrintfEXT("Searching for front depth of: (%d, %d), %d. Found jump num: %u, therefore returning: %f", theList, index, front_index, step);
+        }
+        #endif
+        return step;
+        #else
+        vec4 front = imageLoad(DepthVDI, ivec3(index*2, theList.y, theList.x));
+        #if USE_PRINTF
+        if(gl_GlobalInvocationID.xy == debug_pixel) {
+            debugPrintfEXT("Searching for front depth of: (%d, %d), %d. returning: %f", theList, index, front.x);
+        }
+        #endif
+        return front.x;
+        #endif
     #else
     vec4 front = imageLoad(InputVDI, ivec3(index*3 + 1, theList.y, theList.x));
     return DecodeFloatRGBA(front);
@@ -36,7 +68,13 @@ float getSupsegFront(ivec2 theList, int index) {
 
 float getSupsegBack(ivec2 theList, int index) {
 
-    if(!(index >= 0 && index < numSupersegments)) {
+    #if USE_PRINTF
+    if(gl_GlobalInvocationID.xy == debug_pixel && theList.x < 343) {
+        debugPrintfEXT("Searching for back face of (%d, %d), %d", theList, index);
+    }
+    #endif
+
+    if(!(index >= 0 && index < maxSupersegments)) {
         //This is an error!
         #if USE_PRINTF
         if(gl_GlobalInvocationID.xy == debug_pixel) { //TODO: generalize
@@ -47,8 +85,32 @@ float getSupsegBack(ivec2 theList, int index) {
     }
 
     #if SEPARATE_DEPTH
-    vec4 back = imageLoad(DepthVDI, ivec3(index*2 + 1, theList.y, theList.x));
-    return back.x;
+        #if INT_DEPTHS
+        uint back_index = imageLoad(DepthVDI, ivec3(index, theList.y, theList.x)).y;
+        #if USE_PRINTF
+        if(gl_GlobalInvocationID.xy == debug_pixel && theList.x < 343) {
+            debugPrintfEXT("Obtained back index: %d", back_index);
+        }
+        #endif
+        if(back_index == 0) {
+            return 0.0;
+        }
+        float step = orig_tnear + nw * back_index;
+        #if USE_PRINTF
+        if(gl_GlobalInvocationID.xy == debug_pixel && theList.x < 343) {
+            debugPrintfEXT("Searching for back depth of: (%d, %d), %d. Found jump num: %u, therefore returning: %f", theList, index, back_index, step);
+        }
+        #endif
+        return step;
+        #else
+        vec4 back = imageLoad(DepthVDI, ivec3(index*2 + 1, theList.y, theList.x));
+//        #if USE_PRINTF
+//        if(gl_GlobalInvocationID.xy == debug_pixel) {
+//            debugPrintfEXT("Searching for back depth of: (%d, %d), %d. returning: %f", theList, index, back.x);
+//        }
+//        #endif
+        return back.x;
+        #endif
     #else
     vec4 back = imageLoad(InputVDI, ivec3(index*3 + 2, theList.y, theList.x));
     return DecodeFloatRGBA(back);
@@ -94,6 +156,11 @@ int findZInterval_view(float z_ndc) {
     return interval_num;
 }
 
+int findZInterval_world(float step) {
+    int interval_num = int(floor(step * num_cells));
+    return interval_num;
+}
+
 //void update_cell(ivec3 cell) {
 //    if (cell == prevCell) {
 //        // we have already written a 1 to this cell
@@ -136,9 +203,9 @@ void main() {
     #endif
 
     #if SEPARATE_DEPTH
-    numSupersegments = imageCoords.r;
+    maxSupersegments = imageCoords.r;
     #else
-    numSupersegments = imageCoords.r / 3;
+    maxSupersegments = imageCoords.r / 3;
     #endif
 
     float t1 = z_to_view(-1);
@@ -159,7 +226,7 @@ void main() {
     ivec2 theList = ivec2(gl_GlobalInvocationID.xy);
     ivec3 cell = ivec3(0);
 
-    for(int i = 0; i < numSupersegments; i++) {
+    for(int i = 0; i < maxSupersegments; i++) {
         #if SEPARATE_DEPTH
         vec4 x = imageLoad(InputVDI, ivec3(i, theList.y, theList.x));
         #else
@@ -183,8 +250,8 @@ void main() {
         cell.x = int(floor((float(theList.x) / windowWidth) * num_cells));
         cell.y = int(floor((float(theList.y) / windowHeight) * num_cells));
 
-        int start_z = findZInterval_view(depthHere);
-        int end_z = findZInterval_view(depthEnd);
+        int start_z = findZInterval_world(depthHere);
+        int end_z = findZInterval_world(depthEnd);
 
         for(int j = start_z; j <= end_z; j++) {
             cell.z = j;
