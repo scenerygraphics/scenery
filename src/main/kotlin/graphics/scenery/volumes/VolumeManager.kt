@@ -977,5 +977,30 @@ class VolumeManager(
                 it.volumeManager = volume.volumeManager
             }
         }
+
+        fun regenerateVolumeManagerWithRemovedVolume(volume: Volume, hub: Hub ) {
+            val vm = hub.get<VolumeManager>()
+            val volumes = ArrayList<Volume>(10)
+
+            if (vm != null) {
+                volumes.addAll(vm.nodes)
+                hub.remove(vm)
+            } else {
+                return
+            }
+
+            volumes.remove(volume)
+
+            val newVM =  hub.add(VolumeManager(hub, vm.useCompute, vm.customSegments, vm.customBindings))
+            vm.customTextures.forEach {
+                newVM.customTextures.add(it)
+                newVM.material().textures[it] = vm.material().textures[it]!!
+            }
+
+            volumes.forEach {
+                newVM.add(it)
+                it.volumeManager = newVM
+            }
+        }
     }
 }
