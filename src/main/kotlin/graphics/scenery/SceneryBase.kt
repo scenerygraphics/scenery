@@ -155,6 +155,52 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
      */
     open suspend fun sceneryMain() {
 
+        scene.onChildrenAdded["VolumeManager"] = { _,node ->
+            if (node is Volume){
+                if (node.dataSource !is Volume.VolumeDataSource.NullSource) {
+                    VolumeManager.regenerateVolumeManagerWithExtraVolume(node, hub)
+                }
+            }
+        }
+
+        scene.onChildrenRemoved["VolumeManager"] = {_, node ->
+            if (node is Volume){
+                VolumeManager.regenerateVolumeManagerWithRemovedVolume(node, hub)
+            }
+        }
+
+        val server = System.getProperty("scenery.Server")?.toBoolean() ?: false
+        val serverAddress = System.getProperty("scenery.ServerAddress")
+        val mainPort = System.getProperty("scenery.MainPort")?.toIntOrNull() ?: 6040
+        val backchannelPort = System.getProperty("scenery.BackchannelPort")?.toIntOrNull() ?: 6041
+
+        if (!server && serverAddress != null) {
+            val subscriber = NodeSubscriber(hub,serverAddress,mainPort,backchannelPort)
+            hub.add(subscriber)
+            subscriber.startListening()
+            scene.postUpdate += {subscriber.networkUpdate(scene)}
+        } else if (server) {
+            applicationName += " [SERVER]"
+            val publisher = NodePublisher(hub, portMain = mainPort, portBackchannel = backchannelPort)
+            hub.add(publisher)
+            publisher.startPublishing()
+            publisher.register(scene)
+            scene.postUpdate += { publisher.scanForChanges()}
+        }
+
+
+        hub.add(SceneryElement.Statistics, stats)
+        hub.add(SceneryElement.Settings, settings)
+
+        settings.set("System.PID", getProcessID())
+
+        if (wantREPL) {
+            repl = REPL(hub, scijavaContext, scene, stats, hub)
+            repl?.addAccessibleObject(settings)
+        }
+
+        // initialize renderer, etc first in init, then setup key bindings
+        init()
 
         // wait for renderer
         while(renderer?.initialized == false) {
