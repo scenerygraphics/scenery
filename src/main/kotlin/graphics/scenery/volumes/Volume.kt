@@ -197,6 +197,8 @@ open class Volume(
     @Transient
     lateinit var volumeManager: VolumeManager
 
+    val isVolumeManagerInitialized get() = this::volumeManager.isInitialized
+
     // TODO IS THIS REQUIRED??
     @Transient
     var cacheControls = CacheControl.CacheControls()

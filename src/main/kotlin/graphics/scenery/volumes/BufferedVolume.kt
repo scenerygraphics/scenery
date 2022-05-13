@@ -69,9 +69,10 @@ class BufferedVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewe
         timepoints?.removeIf { it.name == name }
         timepoints?.add(Timepoint(name, buffer))
         timepointCount = timepoints?.size ?: 0
+        if (this.isVolumeManagerInitialized) {
+            volumeManager.notifyUpdate(this)
+        }
         viewerState.numTimepoints = timepointCount
-
-        volumeManager.notifyUpdate(this)
     }
 
     /**
