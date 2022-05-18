@@ -198,6 +198,10 @@ open class DefaultSpatial(private var node: Node): Spatial {
         val min = world.transform(bbmin)
         val max = world.transform(bbmax)
 
+//        println("min" + min)
+//        println("max" + max)
+//        println("origin" + origin)
+
         // skip if inside the bounding box
         if(origin.isInside(min.xyz(), max.xyz())) {
             return MaybeIntersects.NoIntersection()
@@ -217,11 +221,13 @@ open class DefaultSpatial(private var node: Node): Spatial {
 
         // we are in front of the AABB
         if (tmax < 0) {
+            println("we are in front of AABB")
             return MaybeIntersects.NoIntersection()
         }
 
         // we have missed the AABB
         if (tmin > tmax) {
+            println("we have missed the AABB")
             return MaybeIntersects.NoIntersection()
         }
 

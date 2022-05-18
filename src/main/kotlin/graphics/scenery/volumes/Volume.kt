@@ -67,6 +67,8 @@ import kotlin.math.min
 import kotlin.math.sqrt
 import kotlin.properties.Delegates
 import kotlin.streams.toList
+import graphics.scenery.utils.extensions.minus
+import net.imglib2.type.numeric.RealType
 
 @Suppress("DEPRECATION")
 open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOptions, @Transient val hub: Hub) : DefaultNode("Volume"),
@@ -155,8 +157,8 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
 
     sealed class VolumeDataSource {
         class SpimDataMinimalSource(val spimData : SpimDataMinimal) : VolumeDataSource()
-        class RAISource<T: NumericType<T>>(
-            val type: NumericType<T>,
+        class RAISource<T: RealType<T>>(
+            val type: RealType<T>,
             val sources: List<SourceAndConverter<T>>,
             val converterSetups: ArrayList<ConverterSetup>,
             val numTimepoints: Int,
@@ -332,6 +334,7 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
 //            voxelSizes = source.spimSource.voxelDimensions ?: voxelSizes
 //        }
 
+        println("localScale is called")
         return Vector3f(
 //            voxelSizes.dimension(0).toFloat() * pixelToWorldRatio,
 //            voxelSizes.dimension(1).toFloat() * pixelToWorldRatio,
@@ -363,23 +366,27 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
         return null
     }
 
-    open fun getDimensions(timepoint: Int = 0, view: Int = 0, level: Int = 0): Vector3i {
+    open fun getDimensions(timepoint: Int = 0, view: Int = 0, level: Int = 0): Vector3f {
         return when(dataSource) {
             is VolumeDataSource.SpimDataMinimalSource -> {
                 val s = viewerState.sources.getOrNull(view)?.spimSource?.getSource(timepoint, level) ?: throw IllegalStateException("No source known for $this, can't determine dimensions.")
-                val min = Vector3i(s.min(0).toInt(), s.min(1).toInt(), s.min(2).toInt())
-                val max = Vector3i(s.max(0).toInt(), s.max(1).toInt(), s.max(2).toInt())
-                max.min(min)
+                val min = Vector3f(s.min(0).toFloat(), s.min(1).toFloat(), s.min(2).toFloat())
+                val max = Vector3f(s.max(0).toFloat(), s.max(1).toFloat(), s.max(2).toFloat())
+                max.minus(min)
             }
             is VolumeDataSource.RAISource<*> -> {
                 val s = dataSource.sources.getOrNull(view)?.spimSource?.getSource(0, 0) ?: throw IllegalStateException("No source known for $this, can't determine dimensions.")
-                val min = Vector3i(s.min(0).toInt(), s.min(1).toInt(), s.min(2).toInt())
-                val max = Vector3i(s.max(0).toInt(), s.max(1).toInt(), s.max(2).toInt())
-                max.min(min)
+                //println( Vector3i(s.dimension(0).toInt(),s.dimension(1).toInt(),s.dimension(2).toInt()))
+                val min = Vector3f(s.min(0).toFloat(), s.min(1).toFloat(), s.min(2).toFloat())
+                val max = Vector3f(s.max(0).toFloat(), s.max(1).toFloat(), s.max(2).toFloat())
+                //println(max)
+                max.minus(min)
+
+                //Vector3i(s.dimension(0).toInt(),s.dimension(1).toInt(),s.dimension(2).toInt())
             }
             is VolumeDataSource.NullSource -> {
                 logger.warn("Querying dimensions of NullSource, returning (1,1,1)")
-                Vector3i(1, 1, 1)
+                Vector3f(1.0f, 1.0f, 1.0f)
             }
         }
     }
@@ -408,7 +415,7 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
             return Volume(ds, options, hub)
         }
 
-        @JvmStatic @JvmOverloads fun <T: NumericType<T>> fromRAI(
+        @JvmStatic @JvmOverloads fun <T: RealType<T>> fromRAI(
             img: RandomAccessibleInterval<T>,
             type: T,
             axisOrder: AxisOrder = DEFAULT,
@@ -430,6 +437,7 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
                 } else {
                     s = RandomAccessibleIntervalSource<T>(stack, type, sourceTransform, name)
                 }
+
                 val source: SourceAndConverter<T> = BigDataViewer.wrapWithTransformedSource(
                     SourceAndConverter<T>(s, BigDataViewer.createConverterToARGB(type)))
                 converterSetups.add(BigDataViewer.createConverterSetup(source, setupId.getAndIncrement()))
@@ -448,7 +456,7 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
             return RAIVolume(ds, options, hub)
         }
 
-        @JvmStatic @JvmOverloads fun <T: NumericType<T>> fromSourceAndConverter(
+        @JvmStatic @JvmOverloads fun <T: RealType<T>> fromSourceAndConverter(
             source: SourceAndConverter<T>,
             type: T,
             name: String,
@@ -477,7 +485,7 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
         }
 
         @Deprecated("Please use the version that takes List<Timepoint> as input instead of this one.")
-        @JvmStatic @JvmOverloads fun <T: NumericType<T>> fromBuffer(
+        @JvmStatic @JvmOverloads fun <T: RealType<T>> fromBuffer(
             volumes: LinkedHashMap<String, ByteBuffer>,
             width: Int,
             height: Int,
@@ -496,7 +504,7 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
             return fromBuffer(list, width, height, depth, type, hub, voxelDimensions, voxelUnit, options)
         }
 
-        @JvmStatic @JvmOverloads fun <T: NumericType<T>> fromBuffer(
+        @JvmStatic @JvmOverloads fun <T: RealType<T>> fromBuffer(
             volumes: List<BufferedVolume.Timepoint>,
             width: Int,
             height: Int,
@@ -737,3 +745,4 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
         }
     }
 }
+

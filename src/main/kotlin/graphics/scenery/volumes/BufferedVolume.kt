@@ -35,7 +35,6 @@ class BufferedVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewe
 
     override fun generateBoundingBox(): OrientedBoundingBox {
         val source = (ds.sources[0].spimSource as TransformedSource).wrappedSource as? BufferSource<*>
-
         val sizes = if(source != null) {
             val min = Vector3f(0.0f)
             val max = Vector3f(source.width.toFloat(), source.height.toFloat(), source.depth.toFloat())
@@ -269,8 +268,8 @@ class BufferedVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewe
         } to delta
     }
 
-    override fun getDimensions(timepoint: Int, view: Int, level: Int): Vector3i {
+    override fun getDimensions(timepoint: Int, view: Int, level: Int): Vector3f {
         val source = (ds.sources.firstOrNull()?.spimSource as? TransformedSource)?.wrappedSource as? BufferSource<*> ?: throw IllegalStateException("No source found")
-        return Vector3i(source.width, source.height, source.depth)
+        return Vector3f(source.width.toFloat(), source.height.toFloat(), source.depth.toFloat())
     }
 }

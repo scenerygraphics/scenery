@@ -1,5 +1,6 @@
 package graphics.scenery.tests.examples.volumes
 
+import bdv.util.AxisOrder
 import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
@@ -14,6 +15,10 @@ import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
 import graphics.scenery.volumes.Colormap
 import graphics.scenery.volumes.Volume
+import ij.IJ
+import ij.ImagePlus
+import net.imglib2.img.Img
+import net.imglib2.img.display.imagej.ImageJFunctions
 import net.imglib2.type.numeric.integer.UnsignedByteType
 import net.imglib2.type.numeric.integer.UnsignedShortType
 import org.lwjgl.system.MemoryUtil.memAlloc
@@ -21,6 +26,7 @@ import org.scijava.Context
 import org.scijava.ui.UIService
 import org.scijava.ui.behaviour.ClickBehaviour
 import org.scijava.widget.FileWidget
+import tpietzsch.example2.VolumeViewerOptions
 import java.io.File
 import java.nio.ByteBuffer
 import java.text.DecimalFormat
@@ -56,15 +62,17 @@ class VolumeSamplingExample: SceneryBase("Volume Sampling example", 1280, 720) {
             files.add(fileFromProperty)
             VolumeType.File
         } else {
-//            val c = Context()
-//            val ui = c.getService(UIService::class.java)
-//            val file = ui.chooseFile(null, FileWidget.DIRECTORY_STYLE)
-//            if(file != null) {
-//                files.add(file.absolutePath)
-//                VolumeType.File
-//            } else {
+            val c = Context()
+            val ui = c.getService(UIService::class.java)
+            val file = ui.chooseFile(null, FileWidget.DIRECTORY_STYLE)
+            if(file != null) {
+                files.add(file.absolutePath)
+                VolumeType.File
+            }
+            else {
+                println("procedural")
             VolumeType.Procedural
-//            }
+            }
         }
 
         if(volumeType == VolumeType.File) {
@@ -122,7 +130,6 @@ class VolumeSamplingExample: SceneryBase("Volume Sampling example", 1280, 720) {
 
         val volume = Volume.fromBuffer(emptyList(), volumeSize, volumeSize, volumeSize, UnsignedShortType(), hub)
         volume.name = "volume"
-
         volume.spatial {
             position = Vector3f(0.0f, 0.0f, 0.0f)
             scale = Vector3f(10.0f, 10.0f, 10.0f)

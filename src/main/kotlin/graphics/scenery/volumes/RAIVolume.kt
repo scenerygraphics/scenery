@@ -1,16 +1,28 @@
 package graphics.scenery.volumes
 
 import bdv.tools.brightness.ConverterSetup
+import bdv.tools.transformation.TransformedSource
 import graphics.scenery.Hub
 import graphics.scenery.OrientedBoundingBox
 import graphics.scenery.Origin
 import graphics.scenery.utils.extensions.minus
+import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
-import net.imglib2.type.numeric.integer.UnsignedByteType
+import net.imglib2.type.numeric.NumericType
+import net.imglib2.type.numeric.integer.*
+import net.imglib2.type.numeric.integer.UnsignedShortType
+import net.imglib2.type.numeric.real.DoubleType
+import net.imglib2.type.numeric.real.FloatType
 import org.joml.Matrix4f
 import org.joml.Vector3f
 import org.joml.Vector3i
 import tpietzsch.example2.VolumeViewerOptions
+import java.nio.ByteBuffer
+import java.util.concurrent.CopyOnWriteArrayList
+import kotlin.math.floor
+import kotlin.math.max
+import kotlin.math.min
+import kotlin.math.roundToInt
 
 class RAIVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewerOptions, hub: Hub): Volume(ds, options, hub) {
     private constructor() : this(VolumeDataSource.RAISource(UnsignedByteType(), emptyList(), ArrayList<ConverterSetup>(), 0, null), VolumeViewerOptions.options(), Hub()) {
@@ -31,10 +43,9 @@ class RAIVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewerOpti
 
     override fun generateBoundingBox(): OrientedBoundingBox {
         val source = ds.sources.firstOrNull()
-
         val sizes = if(source != null) {
             val d = getDimensions()
-            Vector3f(d.x.toFloat(), d.y.toFloat(), d.z.toFloat())
+            d
         } else {
             Vector3f(1.0f, 1.0f, 1.0f)
         }
@@ -44,22 +55,15 @@ class RAIVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewerOpti
             sizes)
     }
 
-    override fun localScale(): Vector3f {
-        var size = Vector3f(1.0f, 1.0f, 1.0f)
-        val source = ds.sources.firstOrNull()
 
-        if(source != null) {
-            val s = source.spimSource.getSource(0, 0)
-            val min = Vector3f(s.min(0).toFloat(), s.min(1).toFloat(), s.min(2).toFloat())
-            val max = Vector3f(s.max(0).toFloat(), s.max(1).toFloat(), s.max(2).toFloat())
-            size = max - min
-        }
-        logger.debug("Sizes are $size")
+    override fun localScale(): Vector3f {
+        val d = getDimensions()
+        logger.info("Sizes are $d")
 
         return Vector3f(
-                size.x() * pixelToWorldRatio / 10.0f,
-                -1.0f * size.y() * pixelToWorldRatio / 10.0f,
-                size.z() * pixelToWorldRatio / 10.0f
+                d.x() * pixelToWorldRatio / 10.0f,
+                -1.0f * d.y() * pixelToWorldRatio / 10.0f,
+                d.z() * pixelToWorldRatio / 10.0f
         )
     }
 
@@ -91,11 +95,77 @@ class RAIVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewerOpti
         }
     }
 
-    override fun sampleRay(start: Vector3f, end: Vector3f): Pair<List<Float?>, Vector3f>? {
-        return super.sampleRay(start, end)
+
+
+    override fun sampleRay(rayStart: Vector3f, rayEnd: Vector3f): Pair<List<Float?>, Vector3f>? {
+        val d = getDimensions()
+        val dimensions = Vector3f(d.x, d.y, d.z)
+
+        val start = rayStart/dimensions
+        val end = rayEnd/dimensions
+
+        if (start.x() < 0.0f || start.x() > 1.0f || start.y() < 0.0f || start.y() > 1.0f || start.z() < 0.0f || start.z() > 1.0f) {
+            logger.debug("Invalid UV coords for ray start: {} -- will clamp values to [0.0, 1.0].", start)
+        }
+
+        if (end.x() < 0.0f || end.x() > 1.0f || end.y() < 0.0f || end.y() > 1.0f || end.z() < 0.0f || end.z() > 1.0f) {
+            logger.debug("Invalid UV coords for ray end: {} -- will clamp values to [0.0, 1.0].", end)
+        }
+
+        val startClamped = Vector3f(
+            min(max(start.x(), 0.0f), 1.0f),
+            min(max(start.y(), 0.0f), 1.0f),
+            min(max(start.z(), 0.0f), 1.0f)
+        )
+
+        val endClamped = Vector3f(
+            min(max(end.x(), 0.0f), 1.0f),
+            min(max(end.y(), 0.0f), 1.0f),
+            min(max(end.z(), 0.0f), 1.0f)
+        )
+
+        val direction = (endClamped - startClamped)
+        val maxSteps = (Vector3f(direction).mul(dimensions).length() * 2.0f).roundToInt()
+        val delta = direction * (1.0f / maxSteps.toFloat())
+
+        logger.info("Sampling from $startClamped to ${startClamped + maxSteps.toFloat() * delta}")
+        direction.normalize()
+
+        return (0 until maxSteps).map {
+            sample(startClamped + (delta * it.toFloat()))
+        } to delta
+
+    }
+
+    private fun NumericType<*>.maxValue(): Float = when(this) {
+        is UnsignedByteType -> 255.0f
+        is UnsignedShortType -> 65536.0f
+        is FloatType -> 1.0f
+        else -> 1.0f
     }
 
     override fun sample(uv: Vector3f, interpolate: Boolean): Float? {
-        return super.sample(uv, interpolate)
+         val d = getDimensions()
+
+        val absoluteCoords = Vector3f(uv.x() * d.x(), uv.y() * d.y(), uv.z() * d.z())
+        val absoluteCoordsD = Vector3i(floor(absoluteCoords.x()).toInt(), floor(absoluteCoords.y()).toInt(), floor(absoluteCoords.z()).toInt())
+
+        val r = ds.sources.get(currentTimepoint).spimSource.getSource(currentTimepoint,0).randomAccess()
+        r.setPosition(absoluteCoordsD.x(),0)
+        r.setPosition(absoluteCoordsD.y(),1)
+        r.setPosition(absoluteCoordsD.z(),2)
+
+        val value = r.get()
+
+         val finalresult = when(r.get()) {
+            is UnsignedShortType -> r.get().realFloat
+            else -> throw java.lang.IllegalStateException("Can't determine density for ${value.javaClass} data")
+        }
+
+        val transferRangeMax = ds.converterSetups.firstOrNull()?.displayRangeMax?.toFloat() ?: ds.type.maxValue()
+        return finalresult/transferRangeMax
+        //return transferFunction.evaluate(finalresult/transferRangeMax)
     }
+
+
 }
