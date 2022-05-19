@@ -84,7 +84,7 @@ class CameraTests {
             val b = Box()
             b.spatial().position = Vector3f(0.0f,
                 0f,
-                Random.randomFromRange(2.0f, 10.0f))
+                Random.randomFromRange(-2.0f, -10.0f))
             s.addChild(b)
             b
         }
@@ -108,8 +108,14 @@ class CameraTests {
 
         val (pos,dir) = cam.screenPointToRay(1280/2,720/2)
 
-        assertEquals(Vector3f(0f,0f,0.01f),pos, "ray start position")
-        assertEquals(Vector3f(0f,0f,1f),dir, "ray direction")
+        val epsilon = 0.001f
+        assertEquals(0.0f, pos.x, epsilon, "Position X")
+        assertEquals(0.0f, pos.y, epsilon, "Position Y")
+        assertEquals(-1.0f, pos.z, epsilon, "Position Z")
+
+        assertEquals(0.0f, dir.x, epsilon, "Direction X")
+        assertEquals(0.0f, dir.y, epsilon, "Direction Y")
+        assertEquals(-1.0f, dir.z, epsilon, "Direction Z")
 
     }
 }

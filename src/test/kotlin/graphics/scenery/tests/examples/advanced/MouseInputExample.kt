@@ -26,9 +26,9 @@ import kotlin.concurrent.thread
  * @author Ulrik Günther <hello@ulrik.is>
  * @author Jan Tiemann
  */
-class MouseInputExample : SceneryBase("MouseInputExample", wantREPL = true) {
+class MouseInputExample : SceneryBase("MouseInputExample", 1280, 720) {
     override fun init() {
-        renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, 512, 512))
+        renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
 
         for (i in 0 until 200) {
             if (i % 2 == 0) {
@@ -70,7 +70,7 @@ class MouseInputExample : SceneryBase("MouseInputExample", wantREPL = true) {
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
             spatial().position = Vector3f(0.0f, 0.0f, 5.0f)
-            perspectiveCamera(50.0f, 512, 512)
+            perspectiveCamera(50.0f, windowWidth, windowHeight)
 
             scene.addChild(this)
         }

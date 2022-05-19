@@ -76,7 +76,7 @@ class ShaderCompiler: AutoCloseable, Callable<ByteArray> {
 
         val shaderCode = if (target == Shaders.ShaderTarget.Vulkan) {
             Shaderc.shaderc_compile_options_set_target_env(options, Shaderc.shaderc_target_env_vulkan, Shaderc.shaderc_env_version_vulkan_1_2)
-            Shaderc.shaderc_compile_options_set_target_spirv(options, Shaderc.shaderc_spirv_version_1_5)
+            Shaderc.shaderc_compile_options_set_target_spirv(options, Shaderc.shaderc_spirv_version_1_2)
             code
         } else {
             Shaderc.shaderc_compile_options_set_target_env(options, Shaderc.shaderc_target_env_opengl, Shaderc.shaderc_env_version_opengl_4_5)

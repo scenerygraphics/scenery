@@ -78,7 +78,8 @@ open class AtomicSimulation(override var name: String = "DFTSimulation", private
             }
             this.addChild(it.component1())
         }
-        simulationData.unitCellDimensions = simulationData.unitCellDimensions
+        // TODO: Ask @randomdefaultuser if the following line has any use
+        // simulationData.unitCellDimensions = simulationData.unitCellDimensions
 
 //         Visualize the density data.
         volumetricData = Volume.fromBuffer(emptyList(), simulationData.gridDimensions[0],
