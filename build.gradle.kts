@@ -49,7 +49,7 @@ dependencies {
     implementation("org.scijava:scripting-jython")
     implementation("net.java.dev.jna:jna-platform:5.9.0")
 
-    val lwjglVersion = "3.3.0"
+    val lwjglVersion = "3.3.1"
     listOf("",
         "-glfw",
         "-jemalloc",
