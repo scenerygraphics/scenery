@@ -4,6 +4,7 @@ import graphics.scenery.Box
 import graphics.scenery.DefaultNode
 import graphics.scenery.Hub
 import graphics.scenery.Scene
+import graphics.scenery.attribute.spatial.DefaultSpatial
 import graphics.scenery.net.NetworkEvent
 import graphics.scenery.net.NodePublisher
 import graphics.scenery.net.NodeSubscriber
@@ -11,6 +12,7 @@ import graphics.scenery.textures.Texture
 import graphics.scenery.utils.Image
 import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.Volume
+import net.imglib2.type.numeric.integer.UnsignedByteType
 import org.joml.Vector3f
 import org.junit.After
 import org.junit.Before
@@ -21,7 +23,7 @@ import kotlin.test.assertNotNull
 /**
  * Integration tests for [NodePublisher] and [NodeSubscriber]
  */
-class PubSubTest {
+class NodePublisherNodeSubscriberTest {
 
     private lateinit var hub1: Hub
     private lateinit var hub2: Hub
@@ -170,7 +172,7 @@ class PubSubTest {
             textures["diffuse"] = Texture.fromImage(
                 Image.fromResource(
                     "../../examples/basic/textures/helix.png",
-                    PubSubTest::class.java
+                    NodePublisherNodeSubscriberTest::class.java
                 )
             )
         }
@@ -213,11 +215,15 @@ class PubSubTest {
 
     @Test
     fun volume() {
+        class VolInt: Volume.VolumeInitializer{
+            override fun initializeVolume(hub: Hub): Volume {
+                return Volume.fromBuffer(emptyList(), 5,5,5, UnsignedByteType(), hub)
+            }
+
+        }
+
         val volume = Volume.forNetwork(
-            Volume.VolumeFileSource(
-                Volume.VolumeFileSource.VolumePath.Resource("/graphics/scenery/tests/unit/volume/t1-head.zip"),
-                Volume.VolumeFileSource.VolumeType.TIFF
-            ),
+            VolInt(),
             hub1
         )
         volume.name = "vol"
@@ -250,6 +256,21 @@ class PubSubTest {
         assertNotNull(testVol2)
         assert(testVol2.transferFunction.serialise() == volume.transferFunction.serialise())
         assert(testVol2.spatial().position.z == 3f)
+    }
+
+    @Test
+    fun delegateSerializationAndUpdate() {
+
+        val node = DefaultNode()
+        val spatial = DefaultSpatial(node)
+        spatial.position = Vector3f(3f, 0f, 0f)
+
+
+        val result = serializeAndDeserialize(spatial) as DefaultSpatial
+
+        assertEquals(3f, result.position.x)
+        //should not fail
+        result.position = Vector3f(3f, 0f, 0f)
     }
 }
 

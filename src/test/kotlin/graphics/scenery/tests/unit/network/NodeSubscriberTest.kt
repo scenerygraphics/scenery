@@ -13,7 +13,7 @@ import java.io.ByteArrayOutputStream
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 
-class SubscriberTest {
+class NodeSubscriberTest {
 
     @Test
     fun simple() {
