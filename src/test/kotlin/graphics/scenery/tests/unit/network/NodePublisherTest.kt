@@ -18,7 +18,7 @@ import java.io.ByteArrayOutputStream
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 
-class PublisherTest {
+class NodePublisherTest {
 
     @Test
     fun initialSceneDiscovery() {
