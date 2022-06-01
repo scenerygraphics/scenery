@@ -21,7 +21,7 @@ import kotlin.concurrent.thread
  * Syncing volume parameters and scene.
  *
  * Start master with vm param:
- * -ea -Dscenery.Server=true
+ * -Dscenery.Server=true
  *
  * For client see [SlimClient]
  */
