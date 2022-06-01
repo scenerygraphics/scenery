@@ -48,8 +48,6 @@ dependencies {
     implementation("org.scijava:scripting-javascript")
     implementation("org.scijava:scripting-jython")
     implementation("net.java.dev.jna:jna-platform:5.9.0")
-    implementation("net.imagej:imagej")
-    implementation("net.imglib2:imglib2-ij")
 
     val lwjglVersion = "3.3.0"
     listOf("",
@@ -111,7 +109,9 @@ dependencies {
 
 //    testImplementation(misc.junit4)
     testImplementation("org.slf4j:slf4j-simple:1.7.32")
+    testImplementation("net.imagej:imagej")
     testImplementation("net.imagej:ij")
+    testImplementation("net.imglib2:imglib2-ij")
 }
 
 val isRelease: Boolean

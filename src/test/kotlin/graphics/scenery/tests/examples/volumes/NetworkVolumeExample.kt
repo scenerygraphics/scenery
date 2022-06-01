@@ -1,15 +1,29 @@
 package graphics.scenery.tests.examples.volumes
 
+import bdv.util.AxisOrder
 import graphics.scenery.*
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.backends.Renderer
+import graphics.scenery.tests.examples.cluster.SlimClient
 import graphics.scenery.utils.extensions.timesAssign
 import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.Volume
+import ij.IJ
+import ij.ImagePlus
+import net.imglib2.img.Img
+import net.imglib2.img.display.imagej.ImageJFunctions
+import net.imglib2.type.numeric.integer.UnsignedShortType
 import org.joml.Vector3f
+import tpietzsch.example2.VolumeViewerOptions
 import kotlin.concurrent.thread
 
 /**
+ * Syncing volume parameters and scene.
+ *
+ * Start master with vm param:
+ * -ea -Dscenery.Server=true
+ *
+ * For client see [SlimClient]
  */
 class NetworkVolumeExample : SceneryBase("SpimData Rendering example", 1280, 720, false) {
     lateinit var volume: Volume
@@ -21,29 +35,30 @@ class NetworkVolumeExample : SceneryBase("SpimData Rendering example", 1280, 720
         //"C:\\Users\\JanCasus\\volumes\\HisYFP-SPIM.xml"
         //"C:\\Users\\JanCasus\\volumes\\ct-scan.tif"
 
+        /**
+         * Following are examples of [Volume.VolumeInitializer]. The path need to adjusted.
+         */
         val drosophila = Volume.VolumeFileSource(
             Volume.VolumeFileSource.VolumePath.Given("C:\\Users\\JanCasus\\volumes\\drosophila.xml"),
             Volume.VolumeFileSource.VolumeType.SPIM
+        )
+
+        val resource = Volume.VolumeFileSource(
+            Volume.VolumeFileSource.VolumePath.Resource("/graphics/scenery/tests/unit/volume/t1-head.zip"),
+            Volume.VolumeFileSource.VolumeType.TIFF
         )
 
         // add the following, adjusted to you path to VM Options of both client and Server :
         // -Dscenery.VolumeFile="C:\\Users\\JanCasus\\volumes\\t1-head.tif"
         val console = Volume.VolumeFileSource(
             Volume.VolumeFileSource.VolumePath.Settings(),
-            Volume.VolumeFileSource.VolumeType.DEFAULT
+            Volume.VolumeFileSource.VolumeType.TIFF
         )
 
-        val online = Volume.VolumeFileSource(
-            Volume.VolumeFileSource.VolumePath.Online("https://imagej.nih.gov/ij/images/t1-head.zip"),
-            Volume.VolumeFileSource.VolumeType.ZIP
-        )
+        val online = IJVolumeInitializer("https://imagej.nih.gov/ij/images/t1-head.zip")
 
-        val resource = Volume.VolumeFileSource(
-            Volume.VolumeFileSource.VolumePath.Resource("/graphics/scenery/tests/unit/volume/t1-head.zip"),
-            Volume.VolumeFileSource.VolumeType.ZIP
-        )
 
-        val choice = resource
+        val choice = online
 
         volume = Volume.forNetwork(choice, hub)
         scene.addChild(volume)
@@ -98,5 +113,23 @@ class NetworkVolumeExample : SceneryBase("SpimData Rendering example", 1280, 720
         fun main(args: Array<String>) {
             NetworkVolumeExample().main()
         }
+    }
+}
+
+class IJVolumeInitializer(private val path: String) : Volume.VolumeInitializer {
+
+    override fun initializeVolume(hub: Hub): Volume {
+
+        val imp: ImagePlus = IJ.openImage(path)
+        val img: Img<UnsignedShortType> = ImageJFunctions.wrapShort(imp)
+
+        return Volume.fromRAI(
+            img,
+            UnsignedShortType(),
+            AxisOrder.DEFAULT,
+            "Volume loaded with IJ",
+            hub,
+            VolumeViewerOptions()
+        )
     }
 }

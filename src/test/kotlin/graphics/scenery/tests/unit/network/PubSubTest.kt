@@ -216,7 +216,7 @@ class PubSubTest {
         val volume = Volume.forNetwork(
             Volume.VolumeFileSource(
                 Volume.VolumeFileSource.VolumePath.Resource("/graphics/scenery/tests/unit/volume/t1-head.zip"),
-                Volume.VolumeFileSource.VolumeType.ZIP
+                Volume.VolumeFileSource.VolumeType.TIFF
             ),
             hub1
         )

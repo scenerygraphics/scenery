@@ -34,16 +34,12 @@ import graphics.scenery.numerics.OpenSimplexNoise
 import graphics.scenery.numerics.Random
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.volumes.Volume.VolumeDataSource.SpimDataMinimalSource
-import ij.IJ
-import ij.ImagePlus
 import io.scif.SCIFIO
 import io.scif.util.FormatTools
 import mpicbg.spim.data.generic.sequence.AbstractSequenceDescription
 import mpicbg.spim.data.sequence.FinalVoxelDimensions
 import net.imglib2.RandomAccessibleInterval
 import net.imglib2.Volatile
-import net.imglib2.img.Img
-import net.imglib2.img.display.imagej.ImageJFunctions
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.numeric.ARGBType
 import net.imglib2.type.numeric.NumericType
@@ -84,7 +80,7 @@ open class Volume(
     // and uses dark magic to instanciate this class
     constructor() : this(VolumeDataSource.NullSource)
 
-    var constructionParameters: VolumeFileSource? = null
+    var initalizer: VolumeInitializer? = null
 
     private val delegationType: DelegationType = DelegationType.OncePerDelegate
     override fun getDelegationType(): DelegationType {
@@ -209,7 +205,14 @@ open class Volume(
         object NullSource : VolumeDataSource()
     }
 
-    class VolumeFileSource(val path: VolumePath, val type: VolumeType) {
+    /**
+     * Class to hold constructor parameters and function for initializing a Volume
+     */
+    interface VolumeInitializer{
+        fun initializeVolume(hub: Hub) : Volume
+    }
+
+    class VolumeFileSource(val path: VolumePath, val type: VolumeType) : VolumeInitializer{
 
         sealed class VolumePath {
             /**
@@ -226,28 +229,41 @@ open class Volume(
              * the volume is a resource reachable by the java loader
              */
             class Resource(val path: String) : VolumePath()
-
-            /**
-             * volume reachable by an url. Only supports [VolumeType.ZIP].
-             */
-            class Online(val url: String) : VolumePath()
         }
 
         enum class VolumeType {
             /**
              * tiff file format
              */
-            DEFAULT,
+            TIFF,
 
             /**
              * Spim xml data format
              */
-            SPIM,
+            SPIM
+        }
 
-            /**
-             * Zipped tiff stack format. Additionally, might support everything [IJ.openImage] can open.
-             */
-            ZIP
+        override fun initializeVolume(hub: Hub): Volume {
+
+            val path = when (this.path) {
+                is VolumePath.Given -> this.path.filePath
+                is VolumePath.Settings -> {
+                    Settings().get<String?>(this.path.settingsName)
+                        ?: throw IllegalArgumentException(
+                            "Setting ${this.path.settingsName} not set! " +
+                                "Can't load volume."
+                        )
+                }
+                is VolumePath.Resource -> {
+                    javaClass.getResource(this.path.path)?.path
+                        ?: throw IllegalArgumentException("Cant find resource ${this.path.path}")
+                }
+            }
+
+            return when (this.type) {
+                VolumeType.TIFF -> fromPath(Paths.get(path), hub)
+                VolumeType.SPIM -> fromSpimFile(path, VolumeViewerOptions.options())
+            }
         }
     }
 
@@ -320,42 +336,16 @@ open class Volume(
     }
 
     override fun getConstructorParameters(): Any? {
-        return constructionParameters
+        return initalizer
     }
 
     override fun constructWithParameters(parameters: Any, hub: Hub): Networkable {
-        val fileSource = parameters as? VolumeFileSource ?: throw IllegalArgumentException()
-
-        val path = when (fileSource.path) {
-            is VolumeFileSource.VolumePath.Given -> fileSource.path.filePath
-            is VolumeFileSource.VolumePath.Settings -> {
-                Settings().get<String?>(fileSource.path.settingsName)
-                    ?: throw IllegalArgumentException(
-                        "Setting ${fileSource.path.settingsName} not set! " +
-                            "Can't load volume."
-                    )
-            }
-            is VolumeFileSource.VolumePath.Online -> {
-                if (fileSource.type != VolumeFileSource.VolumeType.ZIP) {
-                    throw IllegalArgumentException("Only ZIP type supported for online volumes.")
-                }
-                fileSource.path.url
-            }
-            is VolumeFileSource.VolumePath.Resource -> {
-                javaClass.getResource(fileSource.path.path)?.path
-                    ?: throw IllegalArgumentException("Cant find resource ${fileSource.path.path}")
-            }
-        }
-
-        return when (fileSource.type) {
-            VolumeFileSource.VolumeType.DEFAULT -> fromPath(Paths.get(path), hub)
-            VolumeFileSource.VolumeType.SPIM -> fromSpimFile(path, VolumeViewerOptions.options())
-            VolumeFileSource.VolumeType.ZIP -> {
-                val imp: ImagePlus = IJ.openImage(path)
-                val img: Img<UnsignedShortType> = ImageJFunctions.wrapShort(imp)
-
-                return fromRAI(img, UnsignedShortType(), AxisOrder.DEFAULT, name, hub, VolumeViewerOptions())
-            }
+        if (parameters is VolumeInitializer) {
+            val vol = parameters.initializeVolume(hub)
+            vol.initalizer = parameters
+            return vol
+        } else {
+            throw IllegalArgumentException("Volume Initializer implementation as params expected")
         }
     }
 
@@ -501,13 +491,9 @@ open class Volume(
 
         @JvmStatic
         fun forNetwork(
-            params: VolumeFileSource,
+            params: VolumeInitializer,
             hub: Hub
-        ): Volume {
-            val vol = Volume().constructWithParameters(params, hub) as Volume
-            vol.constructionParameters = params
-            return vol
-        }
+        ): Volume = Volume().constructWithParameters(params, hub) as Volume
 
         @JvmStatic
         @JvmOverloads
