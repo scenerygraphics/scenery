@@ -18,7 +18,9 @@ import kotlin.concurrent.thread
 
 
 /**
- * Created by ulrik on 4/4/2017.
+ * Client of scenery networking.
+ *
+ * @author Jan Tiemann <j.tiemann@hzdr.de>
  */
 class NodeSubscriber(
     override var hub: Hub?,
@@ -37,6 +39,7 @@ class NodeSubscriber(
     var backchannel: ZMQ.Socket = context.createSocket(SocketType.PUB)
 
     private val networkObjects = hashMapOf<Int, NetworkWrapper<*>>()
+    /** This is the hand-of point between the network thread and update/main-loop thread */
     private val eventQueue = LinkedBlockingQueue<NetworkEvent>()
     private val waitingOnNetworkable = mutableMapOf<Int, List<Pair<NetworkEvent, WaitReason>>>()
     private var listening = false
@@ -57,7 +60,10 @@ class NodeSubscriber(
         }
     }
 
-    fun startListening() {
+    /**
+     * Starts the listening thread.
+     */
+    internal fun startListening() {
         listening = true
         subscriber.receiveTimeOut = 100
         thread {
@@ -77,7 +83,10 @@ class NodeSubscriber(
         }
     }
 
-    fun stopListening() {
+    /**
+     * Stops the listening thread.
+     */
+    internal fun stopListening() {
         listening = false
     }
 

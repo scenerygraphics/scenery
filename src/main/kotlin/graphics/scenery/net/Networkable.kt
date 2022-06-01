@@ -4,6 +4,11 @@ import graphics.scenery.Hub
 import java.io.Serializable
 import kotlin.reflect.KClass
 
+/**
+ * An object that can be synchronised over the network.
+ *
+ * @author Jan Tiemann <j.tiemann@hzdr.de>
+ */
 interface Networkable : Serializable {
     /**
      *  Mind maybe calling [super.update] here.
@@ -12,10 +17,10 @@ interface Networkable : Serializable {
      *  (those are automatically synced). If the desired networkable is not found the call is aborted via an exception.
      *  The exception is caught by the surrounding function and the update will be called again once the desired
      *  networkable has been synced. It might be advisable to get all needed other networkables at the beginning of the
-     *  function to not leave the object in an invalid half-update state.
+     *  function before applying the new values to not leave the object in an invalid half-update state.
      *
-     *  Don't access members of the @return networkable which are also networkables themself. 2.level networkable
-     *  relations might be wrong. Instead handle them as direct relations of this object.
+     *  Don't access members of the @return networkable which are also networkables themself. Second level networkable
+     *  relations might be wrong. Instead, handle them as direct relations of this object.
      *
      *  @param fresh by-value deep (except for transient members) copy of the original at the server
      */
