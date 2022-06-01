@@ -12,7 +12,7 @@ import kotlin.concurrent.thread
  * Texture cube, but with network sync
  *
  * Start master with vm param:
- * -ea -Dscenery.Server=true
+ * -Dscenery.Server=true
  *
  * For client see [SlimClient]
  */
