@@ -35,7 +35,7 @@ class DetachedHeadCamera(@Transient var tracker: TrackerInput? = null) : Camera(
         }
 
     override var height: Int = 0
-        get() = if (tracker != null && tracker is Display && tracker?.initializedAndWorking() == true) {
+        get() = if(tracker != null && tracker is Display && tracker?.initializedAndWorking() == true) {
             (tracker as? Display)?.getRenderTargetSize()?.y() ?: super.width
         } else {
             super.height
@@ -46,9 +46,9 @@ class DetachedHeadCamera(@Transient var tracker: TrackerInput? = null) : Camera(
         }
 
     override var fov: Float = 70.0f
-        get() = if (tracker != null && tracker is Display && tracker?.initializedAndWorking() == true) {
+        get() = if(tracker != null && tracker is Display && tracker?.initializedAndWorking() == true) {
             val proj = (tracker as? Display)?.getEyeProjection(0, nearPlaneDistance, farPlaneDistance)
-            if (proj != null) {
+            if(proj != null) {
                 atan(1.0f / proj.get(1, 1)) * 2.0f * 180.0f / PI.toFloat()
             } else {
                 super.fov
