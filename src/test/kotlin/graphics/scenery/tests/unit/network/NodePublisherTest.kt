@@ -42,11 +42,11 @@ class NodePublisherTest {
         val newEvents = results.filterIsInstance<NetworkEvent.Update>().toList()
         //val relationEvents = results.filterIsInstance<NetworkEvent.NewRelation>().toList()
 
-        assert(newEvents.any{it.obj.obj is Scene})
-        assert(newEvents.any{it.obj.obj is Box})
-        assert(newEvents.any{it.obj.obj is Sphere})
-        assert(newEvents.count{it.obj.obj is Material} == 2)
-        assert(newEvents.count{it.obj.obj is Spatial} == 2)
+        assert(newEvents.any{it.wrapper.obj is Scene})
+        assert(newEvents.any{it.wrapper.obj is Box})
+        assert(newEvents.any{it.wrapper.obj is Sphere})
+        assert(newEvents.count{it.wrapper.obj is Material} == 2)
+        assert(newEvents.count{it.wrapper.obj is Spatial} == 2)
     }
 
     @Test
@@ -76,7 +76,7 @@ class NodePublisherTest {
         assertEquals(1, results.size)
         val event = results[0] as? NetworkEvent.Update
         assertNotNull(event)
-        assertEquals(3f,(event.obj.obj as? Spatial)?.position?.z)
+        assertEquals(3f,(event.wrapper.obj as? Spatial)?.position?.z)
     }
 
     @Test
@@ -95,6 +95,6 @@ class NodePublisherTest {
         val input = Input(bin)
         val event = kryo.readClassAndObject(input) as NetworkEvent.Update
 
-        assertEquals("lol", (event.obj.obj as Scene).name)
+        assertEquals("lol", (event.wrapper.obj as Scene).name)
     }
 }
