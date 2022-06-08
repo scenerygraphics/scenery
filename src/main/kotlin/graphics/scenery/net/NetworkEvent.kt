@@ -9,9 +9,9 @@ sealed class NetworkEvent {
     /**
      * An object has benn created or properties have been changed.
      */
-    data class Update(val obj: NetworkWrapper<*>,
-                 val additionalData: Any? = obj.obj.getAdditionalUpdateData(),
-                 val constructorParameters: Any? = obj.obj.getConstructorParameters()) : NetworkEvent() {
+    data class Update(val wrapper: NetworkWrapper<*>,
+                      val additionalData: Any? = wrapper.obj.getAdditionalUpdateData(),
+                      val constructorParameters: Any? = wrapper.obj.getConstructorParameters()) : NetworkEvent() {
                      constructor(obj: NetworkWrapper<*>):
                          this(obj,obj.obj.getAdditionalUpdateData(),obj.obj.getConstructorParameters())
     }

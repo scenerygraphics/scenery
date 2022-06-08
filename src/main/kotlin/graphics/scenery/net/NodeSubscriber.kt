@@ -146,7 +146,7 @@ class NodeSubscriber(
     }
 
     private fun processUpdateEvent(event: NetworkEvent.Update, scene: Scene) {
-        val networkWrapper = event.obj
+        val networkWrapper = event.wrapper
 
         // ---------- update -------------
         // The object exists on this client -> we only need to update it
@@ -235,7 +235,7 @@ class NodeSubscriber(
                                 waitingOnNetworkable.getOrDefault(
                                     parentId,
                                     listOf()
-                                ) + (event.copy(obj = newWrapped) to WaitReason.Parent)
+                                ) + (event.copy(wrapper = newWrapped) to WaitReason.Parent)
                             null
                         } else {
                             parent
@@ -259,11 +259,11 @@ class NodeSubscriber(
                     processUpdateEvent(event, scene)
                 reason == WaitReason.Parent && event is NetworkEvent.NewRelation ->
                     processNewRelationEvent(event)
-                reason == WaitReason.Parent && event is NetworkEvent.Update && event.obj.obj is Node ->
+                reason == WaitReason.Parent && event is NetworkEvent.Update && event.wrapper.obj is Node ->
                     processUpdateEvent(event, scene)
                 reason == WaitReason.Parent && event is NetworkEvent.Update -> {
                     // this should be an attribute
-                    val child = (event).obj.obj
+                    val child = (event).wrapper.obj
                     val attributeBaseClass = child.getAttributeClass()!!
                     // before adding the attribute to the waitingOnParent list this was null checked
                     (parent as? Node)?.addAttributeFromNetwork(attributeBaseClass.java, child)
