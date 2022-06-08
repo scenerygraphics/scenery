@@ -30,7 +30,9 @@ import java.util.zip.Inflater
 import kotlin.concurrent.thread
 
 /**
- * Created by ulrik on 4/4/2017.
+ * Server of scenery networking.
+ *
+ * @author Jan Tiemann <j.tiemann@hzdr.de>
  */
 class NodePublisher(
     override var hub: Hub?,
@@ -79,7 +81,10 @@ class NodePublisher(
         backchannelSubscriber.subscribe(ZMQ.SUBSCRIPTION_ALL)
     }
 
-    fun register(scene: Scene) {
+    /**
+     * Needs to be called at initialization.
+     */
+    internal fun register(scene: Scene) {
         val sceneNo = NetworkWrapper(generateNetworkID(), scene, mutableListOf())
         publishedObjects[sceneNo.networkID] = sceneNo
         addUpdateEvent(sceneNo)
