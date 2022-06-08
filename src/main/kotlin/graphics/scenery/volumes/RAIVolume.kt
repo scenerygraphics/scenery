@@ -4,7 +4,6 @@ import bdv.tools.brightness.ConverterSetup
 import graphics.scenery.Hub
 import graphics.scenery.OrientedBoundingBox
 import graphics.scenery.Origin
-import graphics.scenery.net.Networkable
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.times
 import net.imglib2.type.numeric.integer.UnsignedByteType
@@ -12,7 +11,11 @@ import org.joml.Matrix4f
 import org.joml.Vector3f
 import tpietzsch.example2.VolumeViewerOptions
 
-class RAIVolume(@Transient val ds: VolumeDataSource.RAISource<*>, options: VolumeViewerOptions, hub: Hub): Volume(ds, options) {
+class RAIVolume(@Transient val ds: VolumeDataSource.RAISource<*>, options: VolumeViewerOptions, hub: Hub): Volume(
+    ds,
+    options,
+    hub
+) {
     private constructor() : this(VolumeDataSource.RAISource(UnsignedByteType(), emptyList(), ArrayList<ConverterSetup>(), 0, null), VolumeViewerOptions.options(), Hub()) {
 
     }

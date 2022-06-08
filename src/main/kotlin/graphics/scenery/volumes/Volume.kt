@@ -71,14 +71,15 @@ open class Volume(
     @Transient
     val dataSource: VolumeDataSource = VolumeDataSource.NullSource,
     @Transient
-    val options: VolumeViewerOptions = VolumeViewerOptions()
+    val options: VolumeViewerOptions = VolumeViewerOptions(),
+    hub: Hub
 ) : DefaultNode("Volume"),
     DelegatesRenderable, DelegatesGeometry, DelegatesMaterial, DisableFrustumCulling,
     HasCustomSpatial<Volume.VolumeSpatial> {
 
     // without this line the *java* serialization framework kryo does not recognize the parameter-less constructor
     // and uses dark magic to instanciate this class
-    constructor() : this(VolumeDataSource.NullSource)
+    constructor() : this(VolumeDataSource.NullSource, hub = Hub("dummyVolumeHub"))
 
     var initalizer: VolumeInitializer? = null
 
@@ -262,7 +263,7 @@ open class Volume(
 
             return when (this.type) {
                 VolumeType.TIFF -> fromPath(Paths.get(path), hub)
-                VolumeType.SPIM -> fromSpimFile(path, VolumeViewerOptions.options())
+                VolumeType.SPIM -> fromSpimFile(path, VolumeViewerOptions.options(),hub)
             }
         }
     }
@@ -321,6 +322,9 @@ open class Volume(
             it.color = ARGBType(Int.MAX_VALUE)
         }
 
+        if(hub.name != "dummyVolumeHub" && dataSource !is VolumeDataSource.NullSource){
+            VolumeManager.regenerateVolumeManagerWithExtraVolume(this,hub)
+        }
     }
 
     override fun update(fresh: Networkable, getNetworkable: (Int) -> Networkable, additionalData: Any?) {
@@ -486,7 +490,7 @@ open class Volume(
             options: VolumeViewerOptions = VolumeViewerOptions()
         ): Volume {
             val ds = SpimDataMinimalSource(spimData)
-            return Volume(ds, options)
+            return Volume(ds, options, hub)
         }
 
         @JvmStatic
@@ -499,10 +503,11 @@ open class Volume(
         @JvmOverloads
         fun fromSpimFile(
             file: String,
-            options: VolumeViewerOptions = VolumeViewerOptions()
+            options: VolumeViewerOptions = VolumeViewerOptions(),
+            hub: Hub
         ): Volume {
             val ds = VolumeDataSource.SpimDataMinimalSource(XmlIoSpimDataMinimal().load(file))
-            return Volume(ds, options)
+            return Volume(ds, options, hub)
         }
 
         @JvmStatic
@@ -514,7 +519,7 @@ open class Volume(
         ): Volume {
             val spimData = XmlIoSpimDataMinimal().load(path)
             val ds = SpimDataMinimalSource(spimData)
-            return Volume(ds, options)
+            return Volume(ds, options, hub)
         }
 
         @JvmStatic
