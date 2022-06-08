@@ -24,7 +24,11 @@ import kotlin.math.roundToInt
  * Convenience class to handle buffer-based volumes. Data descriptor is stored in [ds], similar
  * to [Volume.VolumeDataSource.RAISource], with [options] and a required [hub].
  */
-class BufferedVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewerOptions, hub: Hub): Volume(ds, options) {
+class BufferedVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewerOptions, hub: Hub): Volume(
+    ds,
+    options,
+    hub
+) {
     init {
         name = "Volume (Buffer source)"
         logger.debug("Data source is $ds")

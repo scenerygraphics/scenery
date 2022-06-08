@@ -174,14 +174,6 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
             null
         }
 
-        scene.onChildrenAdded["VolumeManager"] = { _,node ->
-            if (node is Volume){
-                if (node.dataSource !is Volume.VolumeDataSource.NullSource) {
-                    VolumeManager.regenerateVolumeManagerWithExtraVolume(node, hub)
-                }
-            }
-        }
-
         val server = System.getProperty("scenery.Server")?.toBoolean() ?: false
         val serverAddress = System.getProperty("scenery.ServerAddress")
         val mainPort = System.getProperty("scenery.MainPort")?.toIntOrNull() ?: 6040
