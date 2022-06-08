@@ -61,7 +61,7 @@ open class DefaultSpatial(@Transient protected var node: Node = DefaultNode()) :
 
     @Suppress("UNUSED_PARAMETER")
     override fun <R> propertyChanged(property: KProperty<*>, old: R, new: R, custom: String) {
-        if (property.name == "rotation"
+        if(property.name == "rotation"
             || property.name == "position"
             || property.name == "scale"
             || property.name == custom
@@ -137,7 +137,7 @@ open class DefaultSpatial(@Transient protected var node: Node = DefaultNode()) :
     override fun composeModel() {
 
         @Suppress("SENSELESS_COMPARISON")
-        if (position != null && rotation != null && scale != null) {
+        if(position != null && rotation != null && scale != null) {
             model.translationRotateScale(
                 Vector3f(position.x(), position.y(), position.z()),
                 this.rotation,
@@ -173,7 +173,7 @@ open class DefaultSpatial(@Transient protected var node: Node = DefaultNode()) :
         val maxDimension = (max - min).max()
         val scaling = sideLength / maxDimension
 
-        if ((scaleUp && scaling > 1.0f) || scaling <= 1.0f) {
+        if((scaleUp && scaling > 1.0f) || scaling <= 1.0f) {
             this.scale = Vector3f(scaling, scaling, scaling)
         } else {
             this.scale = Vector3f(1.0f, 1.0f, 1.0f)
@@ -187,11 +187,11 @@ open class DefaultSpatial(@Transient protected var node: Node = DefaultNode()) :
         val length = direction.length()
 
         this.rotation = Quaternionf().rotationTo(Vector3f(0.0f, 1.0f, 0.0f), direction.normalize())
-        if (rescale) {
+        if(rescale) {
             this.scale = Vector3f(1.0f, length, 1.0f)
         }
 
-        if (reposition) {
+        if(reposition) {
             this.position = Vector3f(p1)
         }
 
@@ -211,7 +211,7 @@ open class DefaultSpatial(@Transient protected var node: Node = DefaultNode()) :
 
     override fun worldPosition(v: Vector3f?): Vector3f {
         val target = v ?: position
-        return if (node.parent is Scene && v == null) {
+        return if(node.parent is Scene && v == null) {
             Vector3f(target)
         } else {
             world.transform(Vector4f().set(target, 1.0f)).xyz()
@@ -235,7 +235,7 @@ open class DefaultSpatial(@Transient protected var node: Node = DefaultNode()) :
         val max = world.transform(bbmax)
 
         // skip if inside the bounding box
-        if (origin.isInside(min.xyz(), max.xyz())) {
+        if(origin.isInside(min.xyz(), max.xyz())) {
             return MaybeIntersects.NoIntersection()
         }
 
