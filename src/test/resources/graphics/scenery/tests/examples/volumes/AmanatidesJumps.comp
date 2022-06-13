@@ -1,10 +1,10 @@
 #version 450
-#define USE_PRINTF 0
+#define USE_PRINTF 1
 #define NDC 1
 #define SEPARATE_DEPTH 1
-#define INT_DEPTHS 1
+#define INT_DEPTHS 0
 #define PROFILE_MEM 0
-#define SKIP_EMPTY 1
+#define SKIP_EMPTY 0
 #define USE_VIEW_SPACE_CELLS 1
 
 #if USE_PRINTF
@@ -120,7 +120,7 @@ layout(set = 11, binding = 0, r32f) uniform image2D EmptyAfterLast;
 //ivec2 debug_pixel = ivec2(987, 437);
 
 //ivec2 debug_pixel = ivec2(610, 641);
-ivec2 debug_pixel = ivec2(746, 774);
+ivec2 debug_pixel = ivec2(640, 360);
 
 //ivec2 debug_pixel = ivec2(35, 61);
 //ivec2 debug_pixel = ivec2(427, 465);
@@ -1062,12 +1062,20 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
 
         if(supseg_found) {
 
+//            #if USE_PRINTF
+//            if(gl_GlobalInvocationID.xy == debug_pixel) {
+//                debugPrintfEXT("Found supseg: (%d, %d), %d", theList, index);
+//                debugPrintfEXT("DepthStart: %f and DepthEnd: %f, while dto: %f and exit: %f ", temp_start, temp_end, dist_to_orig, exit_distance);
+//            }
+//            #endif
+
             #if USE_PRINTF
-            if(gl_GlobalInvocationID.xy == debug_pixel) {
-                debugPrintfEXT("Found supseg: (%d, %d), %d", theList, index);
+            if(temp_end <= temp_start) {
+                debugPrintfEXT("This is an error! Found supseg: (%d, %d), %d", theList, index);
                 debugPrintfEXT("DepthStart: %f and DepthEnd: %f, while dto: %f and exit: %f ", temp_start, temp_end, dist_to_orig, exit_distance);
             }
             #endif
+
 
             if(firstNotYetIntersected) {
                 totalBeforeFirst = total_steps_before;
@@ -1110,12 +1118,13 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
             accumulatedColor.rgb = accumulatedColor.rgb + (1-accumulatedColor.a) * supseg_col.rgb * alpha;
             accumulatedColor.a = accumulatedColor.a + (1-accumulatedColor.a) * alpha;
 
-            #if USE_PRINTF
-            if(gl_GlobalInvocationID.xy == debug_pixel) {
-//                debugPrintfEXT("Opacity: %f, adjusted opacity: %f, supseg length: %f", supseg_col.a, alpha, length_in_supseg);
+//            #if USE_PRINTF
+//            if(gl_GlobalInvocationID.xy == debug_pixel) {
+//                debugPrintfEXT("NDC start point: (%f, %f, %f, %f) and NDC end point: (%f, %f, %f, %f).", start_point.xyzw, end_point.xyzw);
+//                debugPrintfEXT("World start point: (%f, %f, %f, %f) and end point: (%f, %f, %f, %f). Length: %f", w_start_point.xyzw, w_end_point.xyzw, length_in_supseg);
 //                debugPrintfEXT("Accumulated color: (%f, %f, %f, %f)", accumulatedColor.rgba);
-            }
-            #endif
+//            }
+//            #endif
 
             if(accumulatedColor.a > 0.95) {
                 #if USE_PRINTF
