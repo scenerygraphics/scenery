@@ -131,6 +131,7 @@ class VolumeManager(
 
     /** List of custom-created textures not to be cleared automatically */
     var customTextures = arrayListOf<String>()
+    var customUniforms = arrayListOf<String>()
 
     init {
         addRenderable {
@@ -172,7 +173,10 @@ class VolumeManager(
 
     @Synchronized
     private fun recreateMaterial(context: SceneryContext) {
-        shaderProperties.clear()
+        val oldProperties = shaderProperties.filter { it.key !in customUniforms }.keys
+        oldProperties.forEach{
+            shaderProperties.remove(it)
+        }
         shaderProperties["transform"] = Matrix4f()
         shaderProperties["viewportSize"] = Vector2f()
         shaderProperties["dsp"] = Vector2f()
