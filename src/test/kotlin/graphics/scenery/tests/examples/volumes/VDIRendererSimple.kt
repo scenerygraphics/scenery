@@ -8,21 +8,59 @@ import graphics.scenery.compute.ComputeMetadata
 import graphics.scenery.compute.InvocationType
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.Image
+import graphics.scenery.volumes.vdi.VDIDataIO
 import net.imglib2.type.numeric.integer.UnsignedByteType
 import net.imglib2.type.numeric.integer.UnsignedShortType
 import net.imglib2.type.numeric.real.FloatType
+import org.joml.Matrix4f
 import org.joml.Vector3f
 import org.joml.Vector3i
 import org.junit.Test
 import org.lwjgl.system.MemoryUtil
 import java.io.File
+import java.io.FileInputStream
 import java.nio.ByteBuffer
 import kotlin.concurrent.thread
 
-class VDIRendererSimple : SceneryBase("SimpleVDIRenderer", 1832, 1016) {
+class CustomNodeSimple : RichNode() {
+    @ShaderProperty
+    var ProjectionOriginal = Matrix4f()
+
+    @ShaderProperty
+    var invProjectionOriginal = Matrix4f()
+
+    @ShaderProperty
+    var ViewOriginal = Matrix4f()
+
+    @ShaderProperty
+    var invViewOriginal = Matrix4f()
+
+    @ShaderProperty
+    var nw = 0f
+}
+
+
+class VDIRendererSimple : SceneryBase("SimpleVDIRenderer", 1280, 720) {
+
+    private val vulkanProjectionFix =
+        Matrix4f(
+            1.0f,  0.0f, 0.0f, 0.0f,
+            0.0f, -1.0f, 0.0f, 0.0f,
+            0.0f,  0.0f, 0.5f, 0.0f,
+            0.0f,  0.0f, 0.5f, 1.0f)
+
+    fun Matrix4f.applyVulkanCoordinateSystem(): Matrix4f {
+        val m = Matrix4f(vulkanProjectionFix)
+        m.mul(this)
+
+        return m
+    }
 
     val separateDepth = true
     val colors32bit = true
+
+    val commSize = 1
+    val rank = 0
 
     override fun init() {
 
@@ -40,11 +78,29 @@ class VDIRendererSimple : SceneryBase("SimpleVDIRenderer", 1832, 1016) {
         val buff: ByteArray
         val depthBuff: ByteArray?
 
-        val dataset = "Stagbeetle"
+        var dataset = "DistributedStagbeetle"
+
+        dataset += "_${commSize}_${rank}"
+
+
+//        val basePath = "/home/aryaman/Repositories/DistributedVis/cmake-build-debug/"
+//        val basePath = "/home/aryaman/Repositories/scenery-insitu/"
+//        val basePath = "/home/aryaman/TestingData/"
+        val basePath = "/home/aryaman/TestingData/FromCluster/"
+
+        val file = FileInputStream(File(basePath + "${dataset}vdidump4"))
+//        val comp = GZIPInputStream(file, 65536)
+
+        val vdiData = VDIDataIO.read(file)
+
+//        val vdiType = "Sub"
+//        val vdiType = "Composited"
+//        val vdiType = "SetOf"
+        val vdiType = "Final"
 
         if(separateDepth) {
-            buff = File("/home/aryaman/Repositories/scenery-insitu/${dataset}VDI4_ndc_col").readBytes()
-            depthBuff = File("/home/aryaman/Repositories/scenery-insitu/${dataset}VDI4_ndc_depth").readBytes()
+            buff = File(basePath + "${dataset}${vdiType}VDI2_ndc_col").readBytes()
+            depthBuff = File(basePath + "${dataset}${vdiType}VDI2_ndc_depth").readBytes()
 
         } else {
             buff = File("/home/aryaman/Repositories/scenery-insitu/VDI10_ndc").readBytes()
@@ -65,7 +121,7 @@ class VDIRendererSimple : SceneryBase("SimpleVDIRenderer", 1832, 1016) {
         logger.info("Col sum is ${buff.sum()}")
 
         if(separateDepth) {
-            depthBuffer = MemoryUtil.memCalloc(windowHeight * windowWidth * numSupersegments * 2 * 2)
+            depthBuffer = MemoryUtil.memCalloc(windowHeight * windowWidth * numSupersegments * 2 * 2 * 2)
             depthBuffer.put(depthBuff).flip()
             logger.info("Length of depth buffer is ${depthBuff!!.size} and associated bytebuffer capacity is ${depthBuffer.capacity()} it has remaining ${depthBuffer.remaining()}")
             logger.info("Depth sum is ${depthBuff.sum()}")
@@ -75,10 +131,11 @@ class VDIRendererSimple : SceneryBase("SimpleVDIRenderer", 1832, 1016) {
 
         val outputBuffer = MemoryUtil.memCalloc(windowHeight * windowWidth * 4)
 
-        val compute = RichNode()
+        val compute = CustomNodeSimple()
         compute.name = "compute node"
 
-        compute.setMaterial(ShaderMaterial(Shaders.ShadersFromFiles(arrayOf("SimpleVDIRendererIntDepths.comp"), this@VDIRendererSimple::class.java))) {
+        compute.setMaterial(ShaderMaterial(Shaders.ShadersFromFiles(arrayOf("SimpleVDIRenderer.comp"), this@VDIRendererSimple::class.java))) {
+//        compute.setMaterial(ShaderMaterial(Shaders.ShadersFromFiles(arrayOf("SimpleVDIRendererIntDepths.comp"), this@VDIRendererSimple::class.java))) {
             textures["OutputViewport"] = Texture.fromImage(Image(outputBuffer, windowWidth, windowHeight), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
             textures["OutputViewport"]!!.mipmap = false
         }
@@ -94,6 +151,14 @@ class VDIRendererSimple : SceneryBase("SimpleVDIRenderer", 1832, 1016) {
             UnsignedByteType()
         }
 
+        compute.nw = vdiData.metadata.nw
+        compute.ViewOriginal = vdiData.metadata.view
+        compute.invViewOriginal = Matrix4f(vdiData.metadata.view).invert()
+        compute.ProjectionOriginal = Matrix4f(vdiData.metadata.projection).applyVulkanCoordinateSystem()
+        compute.invProjectionOriginal = Matrix4f(vdiData.metadata.projection).applyVulkanCoordinateSystem().invert()
+
+        logger.info("value of nw: ${vdiData.metadata.nw}")
+
         compute.material().textures["InputVDI"] = Texture(Vector3i(numSupersegments*numLayers, windowHeight, windowWidth), 4, contents = colBuffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture)
             , type = bufType,
             mipmap = false,
@@ -101,8 +166,8 @@ class VDIRendererSimple : SceneryBase("SimpleVDIRenderer", 1832, 1016) {
             minFilter = Texture.FilteringMode.NearestNeighbour,
             maxFilter = Texture.FilteringMode.NearestNeighbour
         )
-        compute.material().textures["DepthVDI"] = Texture(Vector3i(numSupersegments, windowHeight, windowWidth),  channels = 2, contents = depthBuffer, usageType = hashSetOf(
-            Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = UnsignedShortType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+        compute.material().textures["DepthVDI"] = Texture(Vector3i(2 * numSupersegments, windowHeight, windowWidth),  channels = 1, contents = depthBuffer, usageType = hashSetOf(
+            Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
 
         scene.addChild(compute)
 
@@ -119,7 +184,7 @@ class VDIRendererSimple : SceneryBase("SimpleVDIRenderer", 1832, 1016) {
 
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
-            position = Vector3f(0.0f, 0.0f, 5.0f)
+            spatial().position = Vector3f(0.0f, 0.0f, 5.0f)
             perspectiveCamera(50.0f, 512, 512)
 
             scene.addChild(this)
