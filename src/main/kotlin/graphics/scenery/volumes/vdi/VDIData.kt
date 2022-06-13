@@ -7,8 +7,8 @@ import java.nio.ByteBuffer
 
 data class VDIMetadata(
     val version: Int = 1,
-    val projection: Matrix4f = Matrix4f(),
-    val view: Matrix4f = Matrix4f(),
+    var projection: Matrix4f = Matrix4f(),
+    var view: Matrix4f = Matrix4f(),
     val model: Matrix4f = Matrix4f(),
     val volumeDimensions: Vector3f = Vector3f(),
     val windowDimensions: Vector2i = Vector2i(),
