@@ -236,6 +236,10 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
                 volumeManager.customTextures.add(it)
                 volumeManager.material().textures[it] = vm.material().textures[it]!!
             }
+            vm?.customUniforms?.forEach {
+                volumeManager.customUniforms.add(it)
+                volumeManager.shaderProperties[it] = vm.shaderProperties[it]!!
+            }
             volumeManager.add(this)
             volumes.forEach {
                 volumeManager.add(it)
@@ -364,7 +368,7 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
 
     companion object {
         val setupId = AtomicInteger(0)
-        val scifio: SCIFIO = SCIFIO()
+        lateinit var scifio: SCIFIO// = SCIFIO()
         private val logger by LazyLogger()
 
         @JvmStatic @JvmOverloads fun fromSpimData(
@@ -565,6 +569,7 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
 
             val id = file.fileName.toString()
 
+            scifio = SCIFIO()
             val reader = scifio.initializer().initializeReader(FileLocation(file.toFile()))
 
             val dims = Vector3i()
