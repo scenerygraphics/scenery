@@ -37,6 +37,8 @@ layout(set = 6, binding = 0) uniform ShaderProperties {
     mat4 invModel;
     vec3 volumeDims;
     float nw;
+    bool do_subsample;
+    int max_samples;
 };
 
 layout(push_constant) uniform currentEye_t {
@@ -687,8 +689,6 @@ bool startPrinting = false;
 
 const int maxSteps = 1000;
 int totalSteps = 0;
-
-int max_samples = 50; //TODO: make uniform
 
 vec4 u, dir;
 
@@ -1754,7 +1754,6 @@ void main() {
     float cell_tmaxX, cell_tmaxY, cell_tmaxZ;
     bool finalIteration = false;
 
-    bool do_subsample = false;
     int num_traversed = 0;
 
     int num_octree_traversals = 1;
