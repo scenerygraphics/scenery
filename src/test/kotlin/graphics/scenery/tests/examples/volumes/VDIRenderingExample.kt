@@ -62,6 +62,12 @@ class CustomNode : RichNode() {
 
     @ShaderProperty
     var nw = 0f
+
+    @ShaderProperty
+    var do_subsample = false
+
+    @ShaderProperty
+    var max_samples = 50
 }
 
 class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = false) {
@@ -74,8 +80,13 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
     var dataset = "DistributedStagbeetle"
     val numOctreeLayers = 8.0
     val numSupersegments = 20
-    val benchmarking = false
+    var benchmarking = false
+    val skipEmpty = false
     val viewNumber = 1
+    val subsampling = false
+    var subsampling_benchmarks = false
+    var desiredFrameRate = 30
+    var maxFrameRate = 90
 
     val commSize = 1
     val rank = 0
@@ -83,6 +94,9 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
     val cam: Camera = DetachedHeadCamera(hmd)
 
     val camTarget = Vector3f(1.920E+0f, -1.920E+0f,  1.140E+0f)
+    //    val camTarget = Vector3f(1.920E+0f, -1.920E+0f,  2.899E+0f) //beechnut
+//    val camTarget = Vector3f(1.920E+0f, -1.920E+0f,  1.800E+0f) //simulation
+//    val camTarget = Vector3f(1.920E+0f, -1.920E+0f,  1.491E+0f) //kingsnake
 
     private val vulkanProjectionFix =
         Matrix4f(
@@ -172,6 +186,15 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
 
             position = Vector3f(3.174E+0f, -1.326E+0f, -2.554E+0f)
             rotation = Quaternionf(-1.484E-2,  9.737E-1,  6.638E-2, -2.176E-1)
+
+//            position = Vector3f(-2.607E+0f, -5.973E-1f,  2.415E+0f) //this is the actual 0 degree (maybe beechnut)
+//            rotation = Quaternionf(-9.418E-2, -7.363E-1, -1.048E-1, -6.618E-1)
+
+//            position = Vector3f(4.908E+0f, -4.931E-1f, -2.563E+0f) //V1 for Simulation
+//            rotation = Quaternionf( 3.887E-2, -9.470E-1, -1.255E-1,  2.931E-1)
+
+//            position = Vector3f( 4.622E+0f, -9.060E-1f, -1.047E+0f) //V1 for kingsnake
+//            rotation = Quaternionf( 5.288E-2, -9.096E-1, -1.222E-1,  3.936E-1)
 
         }
 
@@ -275,6 +298,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
         compute.invViewOriginal = Matrix4f(vdiData.metadata.view).invert()
         compute.invModel = Matrix4f(vdiData.metadata.model).invert()
         compute.volumeDims = vdiData.metadata.volumeDimensions
+        compute.do_subsample = false
 
         logger.info("Projection: ${Matrix4f(vdiData.metadata.projection).applyVulkanCoordinateSystem()}")
         logger.info("View: ${vdiData.metadata.view}")
@@ -319,11 +343,67 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
             }
         }
 
+        if(subsampling_benchmarks && benchmarking) {
+            logger.info("Only one type of benchmarks can be performed at a time!")
+            benchmarking = false
+        }
+
+        thread {
+            if(subsampling) {
+                dynamicSubsampling()
+            }
+        }
+
         thread {
             if(benchmarking) {
                 doBenchmarks()
             }
         }
+    }
+
+    private fun dynamicSubsampling() {
+        val r = (hub.get(SceneryElement.Renderer) as Renderer)
+        var stats = hub.get<Statistics>()!!
+        val tolerance = 5
+
+        val totalRotation = 30f
+        if(subsampling_benchmarks) {
+            rotateCamera(totalRotation)
+        }
+
+        val path = "benchmarking/${dataset}/View${viewNumber}/vdi$numSupersegments/subsampling/vdi${windowWidth}_${windowHeight}_${totalRotation.toInt()}"
+
+        while(!r.firstImageReady) {
+            Thread.sleep(200)
+        }
+
+        var currentSamples = 50.0
+        compute.max_samples = currentSamples.toInt()
+
+        compute.do_subsample = true
+
+        while(!r.shouldClose) {
+            //gather some data
+            Thread.sleep(2000)
+            val fps = stats.get("Renderer.fps")!!
+            val scaleFactor = fps.avg() / desiredFrameRate
+            val newSamples = scaleFactor * currentSamples
+            if((newSamples < (currentSamples - tolerance)) || (newSamples > (currentSamples + tolerance))) {
+                currentSamples = newSamples
+                compute.max_samples = currentSamples.toInt()
+            } else if(subsampling_benchmarks) {
+                r.screenshot("${path}_$desiredFrameRate.png")
+                //wait for screenshot
+                Thread.sleep(1000)
+                desiredFrameRate += 10
+                if(desiredFrameRate >= maxFrameRate) {
+                    subsampling_benchmarks = false
+                }
+            }
+
+            stats.clear("Renderer.fps")
+        }
+
     }
 
 
@@ -336,11 +416,15 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
             Thread.sleep(200)
         }
 
-        val rotationInterval = 10f
+        val rotationInterval = 5f
         var totalRotation = 0f
 
-        for(i in 1..4) {
-            val path = "benchmarking/${dataset}/View${viewNumber}/vdi$numSupersegments/vdi${windowWidth}_${windowHeight}_${totalRotation.toInt()}"
+        for(i in 1..9) {
+            val path = if(skipEmpty) {
+                "benchmarking/${dataset}/View${viewNumber}/vdi$numSupersegments/empty/vdi${windowWidth}_${windowHeight}_${totalRotation.toInt()}"
+            } else {
+                "benchmarking/${dataset}/View${viewNumber}/vdi$numSupersegments/vdi${windowWidth}_${windowHeight}_${totalRotation.toInt()}"
+            }
             // take screenshot and wait for async writing
             r.screenshot("$path.png")
             Thread.sleep(1000L)
@@ -353,8 +437,9 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
             val fps = stats.get("Renderer.fps")!!
             File("$path.csv").writeText("${fps.avg()};${fps.min()};${fps.max()};${fps.stddev()};${fps.data.size}")
 
-            rotateCamera(10f)
+            rotateCamera(rotationInterval)
             totalRotation = i * rotationInterval
+            Thread.sleep(1000)
         }
     }
 
@@ -385,6 +470,16 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
         })
         inputHandler?.addKeyBinding("rotate_camera", "R")
     }
+
+    override fun inputSetup() {
+        setupCameraModeSwitching()
+
+        inputHandler?.addBehaviour("rotate_camera", ClickBehaviour { _, _ ->
+            rotateCamera(5f)
+        })
+        inputHandler?.addKeyBinding("rotate_camera", "R")
+    }
+
 
 
     private fun manageDebugTextures() {
