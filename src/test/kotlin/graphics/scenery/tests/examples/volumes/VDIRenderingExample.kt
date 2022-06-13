@@ -64,18 +64,21 @@ class CustomNode : RichNode() {
     var nw = 0f
 }
 
-class VDIRenderingExample : SceneryBase("VDI Rendering", 1832, 1016, wantREPL = false) {
+class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = false) {
     var hmd: TrackedStereoGlasses? = null
 
     val separateDepth = true
     val profileMemoryAccesses = false
     val compute = CustomNode()
-    val closeAfter = 100000L
-    val dataset = "Kingsnake"
+    val closeAfter = 10000L
+    var dataset = "DistributedStagbeetle"
     val numOctreeLayers = 8.0
     val numSupersegments = 20
     val benchmarking = false
     val viewNumber = 1
+
+    val commSize = 1
+    val rank = 0
 
     val cam: Camera = DetachedHeadCamera(hmd)
 
@@ -164,29 +167,47 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1832, 1016, wantREPL = 
             position = Vector3f(4.004E+0f, -1.398E+0f, -2.170E+0f) //this is the actual 0 degree
             rotation = Quaternionf(-1.838E-2,  9.587E-1,  6.367E-2, -2.767E-1)
 
+            position = Vector3f(3.174E+0f, -1.326E+0f, -2.554E+0f)
+            rotation = Quaternionf(-1.276E-2,  9.791E-1,  6.503E-2, -1.921E-1)
+
+            position = Vector3f(3.174E+0f, -1.326E+0f, -2.554E+0f)
+            rotation = Quaternionf(-1.484E-2,  9.737E-1,  6.638E-2, -2.176E-1)
+
         }
 
         cam.farPlaneDistance = 20.0f
         cam.target = camTarget
 
+        dataset += "_${commSize}_${rank}"
+
         val buff: ByteArray
         val depthBuff: ByteArray?
         val octBuff: ByteArray
 
-        val file = FileInputStream(File("${dataset}vdidump4"))
+//        val basePath = "/home/aryaman/TestingData/"
+        val basePath = "/home/aryaman/TestingData/FromCluster/"
+//        val basePath = "/home/aryaman/Repositories/DistributedVis/cmake-build-debug/"
+//        val basePath = "/home/aryaman/Repositories/scenery-insitu/"
+
+        val file = FileInputStream(File(basePath + "${dataset}vdidump4"))
 //        val comp = GZIPInputStream(file, 65536)
 
         val vdiData = VDIDataIO.read(file)
 
+//        val vdiType = "Composited"
+//        val vdiType = "SetOf"
+        val vdiType = "Final"
+
         if(separateDepth) {
-            buff = File("/home/aryaman/Repositories/scenery-insitu/${dataset}VDI4_ndc_col").readBytes()
-            depthBuff = File("/home/aryaman/Repositories/scenery-insitu/${dataset}VDI4_ndc_depth").readBytes()
+            buff = File(basePath + "${dataset}${vdiType}VDI2_ndc_col").readBytes()
+            depthBuff = File(basePath + "${dataset}${vdiType}VDI2_ndc_depth").readBytes()
 
         } else {
-            buff = File("/home/aryaman/Repositories/scenery-insitu/${dataset}VDI10_ndc").readBytes()
+
+            buff = File(basePath + "${dataset}VDI10_ndc").readBytes()
             depthBuff = null
         }
-        octBuff = File("/home/aryaman/Repositories/scenery-insitu/${dataset}VDI4_ndc_octree").readBytes()
+        octBuff = File(basePath + "${dataset}VDI4_ndc_octree").readBytes()
 
         val opBuffer = MemoryUtil.memCalloc(windowWidth * windowHeight * 4)
         val opNumSteps = MemoryUtil.memCalloc(windowWidth * windowHeight * 4)
@@ -204,7 +225,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1832, 1016, wantREPL = 
 
         if(separateDepth) {
 //            depthBuffer = MemoryUtil.memCalloc(windowHeight * windowWidth * numSupersegments * 4 * 2 * 2)
-            depthBuffer = MemoryUtil.memCalloc(windowHeight * windowWidth * numSupersegments * 4 * 2)
+            depthBuffer = MemoryUtil.memCalloc(windowHeight * windowWidth * numSupersegments * 4 * 2) //TODO: IMP! This should be 2*2 for uint
             depthBuffer.put(depthBuff).flip()
         } else {
             depthBuffer = null
@@ -236,8 +257,8 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1832, 1016, wantREPL = 
         }
 
         if(separateDepth) {
-            compute.material().textures["DepthVDI"] = Texture(Vector3i(numSupersegments, windowHeight, windowWidth),  channels = 2, contents = depthBuffer, usageType = hashSetOf(
-                Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = UnsignedShortType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+            compute.material().textures["DepthVDI"] = Texture(Vector3i(2*numSupersegments, windowHeight, windowWidth),  channels = 1, contents = depthBuffer, usageType = hashSetOf(
+                Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
 //            compute.material().textures["DepthVDI"] = Texture(Vector3i(2 * numSupersegments, windowHeight, windowWidth),  channels = 1, contents = depthBuffer, usageType = hashSetOf(
 //                Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
         }
@@ -254,6 +275,11 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1832, 1016, wantREPL = 
         compute.invViewOriginal = Matrix4f(vdiData.metadata.view).invert()
         compute.invModel = Matrix4f(vdiData.metadata.model).invert()
         compute.volumeDims = vdiData.metadata.volumeDimensions
+
+        logger.info("Projection: ${Matrix4f(vdiData.metadata.projection).applyVulkanCoordinateSystem()}")
+        logger.info("View: ${vdiData.metadata.view}")
+        logger.info("Actual view: ${cam.spatial().getTransformation()}")
+        logger.info("nw: ${vdiData.metadata.nw}")
 
 
         scene.addChild(compute)
