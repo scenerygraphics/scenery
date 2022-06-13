@@ -555,8 +555,15 @@ open class VulkanRenderer(hub: Hub,
         val selectedSwapchain = swapchains.firstOrNull { (it.kotlin.companionObjectInstance as SwapchainParameters).usageCondition.invoke(embedIn) }
         val headless = (selectedSwapchain?.kotlin?.companionObjectInstance as? SwapchainParameters)?.headless ?: false
 
+        val filter = if(System.getProperty("scenery.Renderer.DeviceId") != null) {
+            { id: Int, device: VulkanDevice.DeviceData -> id == System.getProperty("scenery.Renderer.DeviceId").toInt()}
+        } else {
+            { id: Int, device: VulkanDevice.DeviceData ->
+                "${device.vendor} ${device.name}".contains(System.getProperty("scenery.Renderer.Device", "DOES_NOT_EXIST"))
+            }
+        }
         device = VulkanDevice.fromPhysicalDevice(instance,
-            physicalDeviceFilter = { _, device -> "${device.vendor} ${device.name}".contains(System.getProperty("scenery.Renderer.Device", "DOES_NOT_EXIST"))},
+            physicalDeviceFilter = filter,
             additionalExtensions = { physicalDevice -> hub.getWorkingHMDDisplay()?.getVulkanDeviceExtensions(physicalDevice)?.toTypedArray() ?: arrayOf() },
             validationLayers = requestedValidationLayers,
             headless = headless,
@@ -1336,7 +1343,7 @@ open class VulkanRenderer(hub: Hub,
                 val start = System.nanoTime()
                 ref.copyTo(buffer)
                 val end = System.nanoTime()
-                logger.debug("The request textures of size ${texture.contents?.remaining()?.toFloat()?.div((1024f*1024f))} took: ${(end.toDouble()-start.toDouble())/1000000.0}")
+                logger.info("The request textures of size ${texture.contents?.remaining()?.toFloat()?.div((1024f*1024f))} took: ${(end.toDouble()-start.toDouble())/10e9}")
                 indicator.incrementAndGet()
             } else {
                 logger.error("In persistent texture requests: Texture not accessible")
