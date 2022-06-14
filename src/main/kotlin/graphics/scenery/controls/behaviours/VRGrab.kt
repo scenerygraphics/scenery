@@ -37,7 +37,9 @@ open class VRGrab(
     protected val onGrab: ((Node) -> Unit)? = null,
     protected val onDrag: ((Node) -> Unit)? = null,
     protected val onRelease: ((Node) -> Unit)? = null
-) : DragBehaviour {
+) : DragBehaviour, Enableable{
+
+    override var enabled: Boolean = true
 
     protected val controllerSpatial: Spatial = controllerHitbox.spatialOrNull()
         ?: throw IllegalArgumentException("controller hitbox needs a spatial attribute")
@@ -54,6 +56,7 @@ open class VRGrab(
      * @param y invalid - residue from parent behavior. Use [controllerSpatial] instead.
      */
     override fun init(x: Int, y: Int) {
+        if (!enabled) return
         selected = targets().filter { box -> controllerHitbox.spatialOrNull()?.intersects(box) ?: false }
         if (!multiTarget) {
             selected = selected.take(1)
@@ -76,6 +79,7 @@ open class VRGrab(
      * @param y invalid - residue from parent behavior. Use [controllerSpatial] instead.
      */
     override fun drag(x: Int, y: Int) {
+        if (!enabled) return
         val newPos = controllerHitbox.spatialOrNull()?.worldPosition() ?: Vector3f()
         val diffTranslation = newPos - lastPos
         val diffRotation = Quaternionf(controllerSpatial.worldRotation()).mul(lastRotation.conjugate())
@@ -119,6 +123,7 @@ open class VRGrab(
      * @param y invalid - residue from parent behavior. Use [controllerSpatial] instead.
      */
     override fun end(x: Int, y: Int) {
+        if (!enabled) return
         selected.forEach {
             onRelease?.invoke(it)
             it.getAttributeOrNull(Grabable::class.java)?.onRelease?.invoke()
@@ -143,7 +148,8 @@ open class VRGrab(
             onGrab: ((Node, TrackedDevice) -> Unit)? = { _, device -> (hmd as? OpenVRHMD)?.vibrate(device) },
             onDrag: ((Node, TrackedDevice) -> Unit)? = null,
             onRelease: ((Node, TrackedDevice) -> Unit)? = null
-        ) {
+        ) : List<VRGrab>{
+            val future = mutableListOf<VRGrab>()
             hmd.events.onDeviceConnect.add { _, device, _ ->
                 if (device.type == TrackedDeviceType.Controller) {
                     device.model?.let { controller ->
@@ -163,10 +169,12 @@ open class VRGrab(
                             button.forEach {
                                 hmd.addKeyBinding(name, device.role, it)
                             }
+                            future.add(grabBehaviour)
                         }
                     }
                 }
             }
+            return future
         }
     }
 }

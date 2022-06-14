@@ -6,6 +6,7 @@ import graphics.scenery.controls.behaviours.VRGrab.Companion.createAndSet
 import graphics.scenery.controls.behaviours.VRPress.Companion.createAndSet
 import graphics.scenery.controls.behaviours.VRScale.Companion.createAndSet
 import org.joml.Vector3f
+import java.util.concurrent.CompletableFuture
 
 /**
  * Behavior for scaling with the distance between the controllers.
@@ -52,10 +53,11 @@ class VRScale(
             hmd: OpenVRHMD,
             button: OpenVRHMD.OpenVRButton,
             setScale: (Float) -> Unit
-        ) {
-            createAndSet(hmd, button) { controller: Spatial, offhand: VRTwoHandDragOffhand ->
+        ) : CompletableFuture<VRScale> {
+            @Suppress("UNCHECKED_CAST")
+            return createAndSet(hmd, button) { controller: Spatial, offhand: VRTwoHandDragOffhand ->
                 VRScale("Scaling", controller, offhand, setScale)
-            }
+            } as CompletableFuture<VRScale>
         }
     }
 }
