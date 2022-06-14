@@ -11,13 +11,10 @@ import org.scijava.ui.behaviour.DragBehaviour
 import java.util.concurrent.CompletableFuture
 import kotlin.concurrent.thread
 
-open class VRTwoHandDragBehavior(
+abstract class VRTwoHandDragBehavior(
     private val name: String,
     private val controller: Spatial,
     private val offhand: VRTwoHandDragOffhand,
-    private val drag: (
-        currentPositionMain: Vector3f, currentPositionOff: Vector3f, lastPositionMain: Vector3f, lastPositionOff: Vector3f
-    ) -> Unit
 ) : DragBehaviour, Enableable {
 
     private val logger by LazyLogger()
@@ -84,7 +81,7 @@ open class VRTwoHandDragBehavior(
         val curPosMain = controller.worldPosition()
         val curPosOff = offhand.controller.worldPosition()
 
-        drag(curPosMain, curPosOff, lastPosMain, lastPosOff)
+        dragDelta(curPosMain, curPosOff, lastPosMain, lastPosOff)
 
         lastPosMain = curPosMain
         lastPosOff = curPosOff
@@ -93,6 +90,14 @@ open class VRTwoHandDragBehavior(
     private fun bothEnd() {
         logger.debug("both end")
     }
+
+
+    abstract fun dragDelta(
+        currentPositionMain: Vector3f,
+        currentPositionOff: Vector3f,
+        lastPositionMain: Vector3f,
+        lastPositionOff: Vector3f
+    )
 
     companion object {
 
@@ -103,7 +108,7 @@ open class VRTwoHandDragBehavior(
             hmd: OpenVRHMD, button: OpenVRHMD.OpenVRButton, createBehavior: (
                 controller: Spatial, offhand: VRTwoHandDragOffhand
             ) -> VRTwoHandDragBehavior
-        ) : CompletableFuture<VRTwoHandDragBehavior>{
+        ): CompletableFuture<VRTwoHandDragBehavior> {
             var mainhandController: Node? = null
             var offhandController: Node? = null
             val future = CompletableFuture<VRTwoHandDragBehavior>()
