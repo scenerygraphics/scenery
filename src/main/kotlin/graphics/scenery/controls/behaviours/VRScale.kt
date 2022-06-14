@@ -20,11 +20,20 @@ import java.util.concurrent.CompletableFuture
  * @author Jan Tiemann
  */
 class VRScale(
-    name: String,
-    controller: Spatial,
-    offhand: VRTwoHandDragOffhand,
-    private val setScale: (Float) -> Unit
-) : VRTwoHandDragBehavior(name, controller, offhand, this::getScaleDelta) {
+    name: String, controller: Spatial, offhand: VRTwoHandDragOffhand, private val setScale: (Float) -> Unit
+) : VRTwoHandDragBehavior(
+    name,
+    controller,
+    offhand) {
+
+    override fun dragDelta(
+        currentPositionMain: Vector3f,
+        currentPositionOff: Vector3f,
+        lastPositionMain: Vector3f,
+        lastPositionOff: Vector3f
+    ) {
+        setScale(getScaleDelta(currentPositionMain, currentPositionOff, lastPositionMain, lastPositionOff))
+    }
 
     /**
      * Contains Convenience method for adding zoom behaviour
@@ -50,12 +59,12 @@ class VRScale(
          * Convenience method for adding scale behaviour
          */
         fun createAndSet(
-            hmd: OpenVRHMD,
-            button: OpenVRHMD.OpenVRButton,
-            setScale: (Float) -> Unit
-        ) : CompletableFuture<VRScale> {
-            @Suppress("UNCHECKED_CAST")
-            return createAndSet(hmd, button) { controller: Spatial, offhand: VRTwoHandDragOffhand ->
+            hmd: OpenVRHMD, button: OpenVRHMD.OpenVRButton, setScale: (Float) -> Unit
+        ): CompletableFuture<VRScale> {
+            @Suppress("UNCHECKED_CAST") return createAndSet(
+                hmd,
+                button
+            ) { controller: Spatial, offhand: VRTwoHandDragOffhand ->
                 VRScale("Scaling", controller, offhand, setScale)
             } as CompletableFuture<VRScale>
         }
