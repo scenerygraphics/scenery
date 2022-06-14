@@ -8,6 +8,7 @@ import graphics.scenery.controls.TrackerRole
 import graphics.scenery.utils.LazyLogger
 import org.joml.Vector3f
 import org.scijava.ui.behaviour.DragBehaviour
+import java.util.concurrent.CompletableFuture
 import kotlin.concurrent.thread
 
 open class VRTwoHandDragBehavior(
@@ -17,7 +18,7 @@ open class VRTwoHandDragBehavior(
     private val drag: (
         currentPositionMain: Vector3f, currentPositionOff: Vector3f, lastPositionMain: Vector3f, lastPositionOff: Vector3f
     ) -> Unit
-) : DragBehaviour {
+) : DragBehaviour, Enableable {
 
     private val logger by LazyLogger()
 
@@ -25,10 +26,13 @@ open class VRTwoHandDragBehavior(
     //TODO fix make order of presses irrelevant, waits on issue #432
     private var bothPressed = false
 
+    override var enabled: Boolean = true
+
     /**
      * This function is called by the framework. Usually you don't need to call this.
      */
     override fun init(x: Int, y: Int) {
+        if (!enabled) return
         if (offhand.pressed) {
             bothPressed = true
             bothInit()
@@ -39,6 +43,7 @@ open class VRTwoHandDragBehavior(
      * This function is called by the framework. Usually you don't need to call this.
      */
     override fun drag(x: Int, y: Int) {
+        if (!enabled) return
         logger.debug("both drag OH:${offhand.pressed} Both:${bothPressed}")
         if (offhand.pressed && !bothPressed) {
             bothPressed = true
@@ -57,6 +62,7 @@ open class VRTwoHandDragBehavior(
      * This function is called by the framework. Usually you don't need to call this.
      */
     override fun end(x: Int, y: Int) {
+        if (!enabled) return
         if (bothPressed) {
             bothEnd()
             bothPressed = false
@@ -97,9 +103,10 @@ open class VRTwoHandDragBehavior(
             hmd: OpenVRHMD, button: OpenVRHMD.OpenVRButton, createBehavior: (
                 controller: Spatial, offhand: VRTwoHandDragOffhand
             ) -> VRTwoHandDragBehavior
-        ) {
+        ) : CompletableFuture<VRTwoHandDragBehavior>{
             var mainhandController: Node? = null
             var offhandController: Node? = null
+            val future = CompletableFuture<VRTwoHandDragBehavior>()
 
             hmd.events.onDeviceConnect.add { _, device, _ ->
                 if (device.type == TrackedDeviceType.Controller) {
@@ -128,9 +135,12 @@ open class VRTwoHandDragBehavior(
                 hmd.addBehaviour("offhandZoom", offhand)
                 hmd.addKeyBinding("offhandZoom", TrackerRole.RightHand, button)
 
-                hmd.addBehaviour("mainhandZoom", createBehavior(mainhandController!!.spatialOrNull()!!, offhand))
+                val tmp = createBehavior(mainhandController!!.spatialOrNull()!!, offhand)
+                hmd.addBehaviour("mainhandZoom", tmp)
                 hmd.addKeyBinding("mainhandZoom", TrackerRole.LeftHand, button)
+                future.complete(tmp)
             }
+            return future
         }
     }
 }
