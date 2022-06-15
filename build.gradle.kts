@@ -200,7 +200,7 @@ tasks {
             dependencyNodeLWJGLVulkan.appendNode("scope", "runtime")
 
             // jvrpn natives
-            lwjglNatives.forEach {
+            lwjglNatives.filter { !it.contains("arm") }.forEach {
                 val dependencyNode = dependenciesNode.appendNode("dependency")
                 dependencyNode.appendNode("groupId", "graphics.scenery")
                 dependencyNode.appendNode("artifactId", "jvrpn")
