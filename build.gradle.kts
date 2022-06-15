@@ -180,8 +180,15 @@ tasks {
                     "-xxhash",
                     "-remotery",
                     "-spvc",
-                    "-shaderc"
-                ).forEach { lwjglProject ->
+                    "-shaderc",
+                    "-vulkan",
+                ).forEach pkg@ { lwjglProject ->
+                    // OpenVR does not have macOS binaries, Vulkan only has macOS binaries
+                    if((lwjglProject.contains("openvr") && nativePlatform.contains("mac"))
+                            || (lwjglProject.contains("vulkan") && !nativePlatform.contains("mac"))) {
+                        return@pkg
+                    }
+
                     val dependencyNode = dependenciesNode.appendNode("dependency")
                     dependencyNode.appendNode("groupId", "org.lwjgl")
                     dependencyNode.appendNode("artifactId", "lwjgl$lwjglProject")
