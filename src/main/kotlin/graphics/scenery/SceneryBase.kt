@@ -447,7 +447,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
         }
 
         hub.addApplication(this)
-        logger.info("Started application as PID ${getProcessID()}")
+        logger.info("Started application as PID ${getProcessID()} on ${Platform.get()}/${Platform.getArchitecture()}")
         running = true
 
         if(parseBoolean(System.getProperty("scenery.Profiler", "false"))) {
