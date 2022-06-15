@@ -347,7 +347,11 @@ class VRControllerExample : SceneryBase(
                 ),
                 Action("dummy2") { println("A dummy entry has been pressed") },
                 Action("dummy3") { println("A dummy entry has been pressed") },
-                Action("dummy4") { println("A dummy entry has been pressed") },
+                Action("go to sleep") { thread {
+                    hmd.fadeToBlack()
+                    sleep(2000)
+                    hmd.fateToClear()
+                } },
             )
         )
     }
