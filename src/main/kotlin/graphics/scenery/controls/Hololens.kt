@@ -574,6 +574,10 @@ class Hololens: TrackerInput, Display, Hubable {
         return headToEyeTransforms[eye]
     }
 
+    override fun fadeToColor(seconds: Float, color: Vector3f, alpha: Float, background: Boolean) {
+        TODO("Not yet implemented")
+    }
+
     override fun getTrackedDevices(ofType: TrackedDeviceType): Map<String, TrackedDevice> {
         TODO("Not implemented yet")
     }

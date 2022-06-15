@@ -291,6 +291,10 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
         return shift
     }
 
+    override fun fadeToColor(seconds: Float, color: Vector3f, alpha: Float, background: Boolean) {
+        TODO("Not yet implemented")
+    }
+
     override fun loadModelForMesh(type: TrackedDeviceType, mesh: Mesh): Mesh {
         TODO("not implemented")
     }
