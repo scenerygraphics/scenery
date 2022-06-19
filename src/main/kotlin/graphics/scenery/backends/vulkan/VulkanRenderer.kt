@@ -555,7 +555,14 @@ open class VulkanRenderer(hub: Hub,
         val selectedSwapchain = swapchains.firstOrNull { (it.kotlin.companionObjectInstance as SwapchainParameters).usageCondition.invoke(embedIn) }
         val headless = (selectedSwapchain?.kotlin?.companionObjectInstance as? SwapchainParameters)?.headless ?: false
 
-        val filter = if(System.getProperty("scenery.Renderer.DeviceId") != null) {
+        if(System.getProperty("scenery.Renderer.DeviceId") != null) {
+            logger.info("Got the property! It is: ${System.getProperty("scenery.Renderer.DeviceId").toInt()}")
+        } else {
+            logger.info("Didn't get the property!")
+        }
+
+        val filter = if
+            (System.getProperty("scenery.Renderer.DeviceId") != null) {
             { id: Int, device: VulkanDevice.DeviceData -> id == System.getProperty("scenery.Renderer.DeviceId").toInt()}
         } else {
             { id: Int, device: VulkanDevice.DeviceData ->
@@ -1335,13 +1342,17 @@ open class VulkanRenderer(hub: Hub,
             }
         }
 
+        postRenderLambdas.forEach {
+            it.invoke()
+        }
+
         persistentTextureRequests.forEach{ (texture, indicator) ->
             val ref = VulkanTexture.getReference(texture)
             val buffer = texture.contents ?: return@forEach
 
             if(ref != null) {
                 val start = System.nanoTime()
-                ref.copyTo(buffer)
+                texture.contents = ref.copyTo(buffer, true)
                 val end = System.nanoTime()
                 logger.info("The request textures of size ${texture.contents?.remaining()?.toFloat()?.div((1024f*1024f))} took: ${(end.toDouble()-start.toDouble())/10e9}")
                 indicator.incrementAndGet()
@@ -1642,10 +1653,6 @@ open class VulkanRenderer(hub: Hub,
             } catch (e: Exception) {
                 e.printStackTrace()
             }
-        }
-
-        postRenderLambdas.forEach {
-            it.invoke()
         }
 
         if(hub?.getWorkingHMDDisplay()?.hasCompositor() == true) {
