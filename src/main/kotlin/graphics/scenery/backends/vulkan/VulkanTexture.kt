@@ -13,6 +13,7 @@ import net.imglib2.type.numeric.integer.*
 import net.imglib2.type.numeric.real.DoubleType
 import net.imglib2.type.numeric.real.FloatType
 import org.lwjgl.system.MemoryStack.stackPush
+import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.*
@@ -569,7 +570,7 @@ open class VulkanTexture(val device: VulkanDevice,
     /**
      * Copies the first layer, first mipmap of the texture to [buffer].
      */
-    fun copyTo(buffer: ByteBuffer) {
+    fun copyTo(buffer: ByteBuffer, inPlace: Boolean = false): ByteBuffer? {
         stackPush().use { stack ->
             if (tmpBuffer == null || (tmpBuffer != null && tmpBuffer?.size!! < image.maxSize)) {
                 tmpBuffer?.close()
@@ -642,16 +643,25 @@ open class VulkanTexture(val device: VulkanDevice,
 
                 var end = System.nanoTime()
 
-//                logger.info("In VulkanTextures, the with block took: ${(end.toDouble() - start.toDouble()) / 10e5}")
+//                logger.info("In VulkanTextures, the with block took: ${(end.toDouble() - start.toDouble()) / 10e9}")
 
                 start = System.nanoTime()
-                b.copyTo(buffer)
+                val result = if(!inPlace) {
+                    b.copyTo(buffer)
+                    buffer
+                } else {
+                    val p = b.mapIfUnmapped()
+                    MemoryUtil.memByteBuffer(p.get(0), buffer.remaining())
+                }
                 end = System.nanoTime() - start
 
-//                logger.info("In VulkanTextures, the b.copyto took: ${end/10e5}")
+//                logger.info("In VulkanTextures, the b.copyto took: ${end/10e9}")
+
+                return result
             }
         }
 
+        return null
     }
 
     /**
