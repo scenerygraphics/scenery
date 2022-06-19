@@ -77,7 +77,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
     val profileMemoryAccesses = false
     val compute = CustomNode()
     val closeAfter = 10000L
-    var dataset = "DistributedStagbeetle"
+    var dataset = "Kingsnake"
     val numOctreeLayers = 8.0
     val numSupersegments = 20
     var benchmarking = false
@@ -88,15 +88,15 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
     var desiredFrameRate = 30
     var maxFrameRate = 90
 
-    val commSize = 1
+    val commSize = 4
     val rank = 0
 
     val cam: Camera = DetachedHeadCamera(hmd)
 
-    val camTarget = Vector3f(1.920E+0f, -1.920E+0f,  1.140E+0f)
+//    val camTarget = Vector3f(1.920E+0f, -1.920E+0f,  1.140E+0f)
     //    val camTarget = Vector3f(1.920E+0f, -1.920E+0f,  2.899E+0f) //beechnut
 //    val camTarget = Vector3f(1.920E+0f, -1.920E+0f,  1.800E+0f) //simulation
-//    val camTarget = Vector3f(1.920E+0f, -1.920E+0f,  1.491E+0f) //kingsnake
+    val camTarget = Vector3f(1.920E+0f, -1.920E+0f,  1.491E+0f) //kingsnake
 
     private val vulkanProjectionFix =
         Matrix4f(
@@ -184,8 +184,8 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
             position = Vector3f(3.174E+0f, -1.326E+0f, -2.554E+0f)
             rotation = Quaternionf(-1.276E-2,  9.791E-1,  6.503E-2, -1.921E-1)
 
-            position = Vector3f(3.174E+0f, -1.326E+0f, -2.554E+0f)
-            rotation = Quaternionf(-1.484E-2,  9.737E-1,  6.638E-2, -2.176E-1)
+//            position = Vector3f(3.174E+0f, -1.326E+0f, -2.554E+0f)
+//            rotation = Quaternionf(-1.484E-2,  9.737E-1,  6.638E-2, -2.176E-1)
 
 //            position = Vector3f(-2.607E+0f, -5.973E-1f,  2.415E+0f) //this is the actual 0 degree (maybe beechnut)
 //            rotation = Quaternionf(-9.418E-2, -7.363E-1, -1.048E-1, -6.618E-1)
@@ -193,8 +193,8 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
 //            position = Vector3f(4.908E+0f, -4.931E-1f, -2.563E+0f) //V1 for Simulation
 //            rotation = Quaternionf( 3.887E-2, -9.470E-1, -1.255E-1,  2.931E-1)
 
-//            position = Vector3f( 4.622E+0f, -9.060E-1f, -1.047E+0f) //V1 for kingsnake
-//            rotation = Quaternionf( 5.288E-2, -9.096E-1, -1.222E-1,  3.936E-1)
+            position = Vector3f( 4.622E+0f, -9.060E-1f, -1.047E+0f) //V1 for kingsnake
+            rotation = Quaternionf( 5.288E-2, -9.096E-1, -1.222E-1,  3.936E-1)
 
         }
 
@@ -205,7 +205,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
 
         val buff: ByteArray
         val depthBuff: ByteArray?
-        val octBuff: ByteArray
+        val octBuff: ByteArray?
 
 //        val basePath = "/home/aryaman/TestingData/"
         val basePath = "/home/aryaman/TestingData/FromCluster/"
@@ -220,17 +220,23 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
 //        val vdiType = "Composited"
 //        val vdiType = "SetOf"
         val vdiType = "Final"
+//        val vdiType = "Sub"
+//        val vdiType = ""
 
         if(separateDepth) {
-            buff = File(basePath + "${dataset}${vdiType}VDI2_ndc_col").readBytes()
-            depthBuff = File(basePath + "${dataset}${vdiType}VDI2_ndc_depth").readBytes()
+            buff = File(basePath + "${dataset}${vdiType}VDI4_ndc_col").readBytes()
+            depthBuff = File(basePath + "${dataset}${vdiType}VDI4_ndc_depth").readBytes()
 
         } else {
 
             buff = File(basePath + "${dataset}VDI10_ndc").readBytes()
             depthBuff = null
         }
-        octBuff = File(basePath + "${dataset}VDI4_ndc_octree").readBytes()
+        if(skipEmpty) {
+            octBuff = File(basePath + "${dataset}VDI4_ndc_octree").readBytes()
+        } else {
+            octBuff = null
+        }
 
         val opBuffer = MemoryUtil.memCalloc(windowWidth * windowHeight * 4)
         val opNumSteps = MemoryUtil.memCalloc(windowWidth * windowHeight * 4)
@@ -258,7 +264,9 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
         val numGridCells = Vector3f(windowWidth.toFloat() / 8f, windowHeight.toFloat() / 8f, numSupersegments.toFloat())
 //        val numGridCells = Vector3f(256f, 256f, 256f)
         val lowestLevel = MemoryUtil.memCalloc(numGridCells.x.toInt() * numGridCells.y.toInt() * numGridCells.z.toInt() * 4)
-        lowestLevel.put(octBuff).flip()
+        if(skipEmpty) {
+            lowestLevel.put(octBuff).flip()
+        }
 
         compute.name = "compute node"
 
@@ -285,7 +293,9 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
 //            compute.material().textures["DepthVDI"] = Texture(Vector3i(2 * numSupersegments, windowHeight, windowWidth),  channels = 1, contents = depthBuffer, usageType = hashSetOf(
 //                Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
         }
-        compute.material().textures["OctreeCells"] = Texture(Vector3i(numGridCells.x.toInt(), numGridCells.y.toInt(), numGridCells.z.toInt()), 1, type = UnsignedIntType(), contents = lowestLevel, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
+        if(skipEmpty) {
+            compute.material().textures["OctreeCells"] = Texture(Vector3i(numGridCells.x.toInt(), numGridCells.y.toInt(), numGridCells.z.toInt()), 1, type = UnsignedIntType(), contents = lowestLevel, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
+        }
         compute.metadata["ComputeMetadata"] = ComputeMetadata(
             workSizes = Vector3i(windowWidth, windowHeight, 1),
             invocationType = InvocationType.Permanent
@@ -462,14 +472,6 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
         logger.info("camera forward: ${cam.forward}")
     }
 
-    override fun inputSetup() {
-        setupCameraModeSwitching()
-
-        inputHandler?.addBehaviour("rotate_camera", ClickBehaviour { _, _ ->
-            rotateCamera(5f)
-        })
-        inputHandler?.addKeyBinding("rotate_camera", "R")
-    }
 
     override fun inputSetup() {
         setupCameraModeSwitching()
