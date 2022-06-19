@@ -29,7 +29,7 @@ layout(set = 1, binding = 0) uniform LightParameters {
     vec3 CamPosition;
 };
 
-layout(set = 6, binding = 0) uniform ShaderProperties {
+layout(set = 5, binding = 0) uniform ShaderProperties {
     mat4 ProjectionOriginal;
     mat4 invProjectionOriginal;
     mat4 ViewOriginal;
@@ -55,7 +55,10 @@ layout(set = 3, binding = 0, rgba8) uniform image2D OutputViewport;
     layout (set = 4, binding = 0, r32f) uniform readonly image3D DepthVDI;
     #endif
 #endif
-layout (set = 5, binding = 0, r32ui) uniform readonly uimage3D OctreeCells;
+
+#if SKIP_EMPTY
+layout (set = 6, binding = 0, r32ui) uniform readonly uimage3D OctreeCells;
+#endif
 
 #if PROFILE_MEM
 layout(set = 6, binding = 0, r32f) uniform image2D NumSteps;
@@ -2020,7 +2023,12 @@ void main() {
                 //we have next_list from the traversal method
             }
 
+            #if SKIP_EMPTY
             uint supsegs_in_cell = imageLoad(OctreeCells, grid_cell).r;
+            #else
+            uint supsegs_in_cell = 0;
+            #endif
+
 
             if(supsegs_in_cell > 0 && do_subsample) {
                 vec4 cell_start_w = ivp_orig * start_point;
