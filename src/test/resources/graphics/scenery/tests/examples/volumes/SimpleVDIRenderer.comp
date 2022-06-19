@@ -52,7 +52,7 @@ float adjustOpacity(float a, float modifiedStepLength) {
 
 void main() {
 
-    ivec2 debug_pixel = ivec2(630, 360);
+    ivec2 debug_pixel = ivec2(586, 553);
 
     if(gl_GlobalInvocationID.xy == debug_pixel) {
         debugPrintfEXT("Value of nw: %f", nw);
@@ -202,11 +202,15 @@ void main() {
 //    v.b = 0;
 //    v.a = 1;
 
+    if(gl_GlobalInvocationID.xy == debug_pixel) {
+        debugPrintfEXT("For pixel: (%d, %d), final accumulated color is (before attenuation): (%f, %f, %f, %f)", debug_pixel.xy, v.rgba);
+    }
+
     v.xyz = pow(v.xyz, vec3(1/2.2));
 //v = vec4(1);
 
     if(gl_GlobalInvocationID.xy == debug_pixel) {
-        debugPrintfEXT("For pixel: (%d, %d), final accumulated color is: (%f, %f, %f, %f)", debug_pixel.xy, v.rgba);
+        debugPrintfEXT("For pixel: (%d, %d), final accumulated color (after attenuation) is: (%f, %f, %f, %f)", debug_pixel.xy, v.rgba);
     }
 
 //    if(gl_GlobalInvocationID.y > 900) {

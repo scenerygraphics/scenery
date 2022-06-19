@@ -59,7 +59,7 @@ class VDIRendererSimple : SceneryBase("SimpleVDIRenderer", 1280, 720) {
     val separateDepth = true
     val colors32bit = true
 
-    val commSize = 1
+    val commSize = 4
     val rank = 0
 
     override fun init() {
@@ -78,7 +78,7 @@ class VDIRendererSimple : SceneryBase("SimpleVDIRenderer", 1280, 720) {
         val buff: ByteArray
         val depthBuff: ByteArray?
 
-        var dataset = "DistributedStagbeetle"
+        var dataset = "Kingsnake"
 
         dataset += "_${commSize}_${rank}"
 
@@ -97,10 +97,11 @@ class VDIRendererSimple : SceneryBase("SimpleVDIRenderer", 1280, 720) {
 //        val vdiType = "Composited"
 //        val vdiType = "SetOf"
         val vdiType = "Final"
+//        val vdiType = ""
 
         if(separateDepth) {
-            buff = File(basePath + "${dataset}${vdiType}VDI2_ndc_col").readBytes()
-            depthBuff = File(basePath + "${dataset}${vdiType}VDI2_ndc_depth").readBytes()
+            buff = File(basePath + "${dataset}${vdiType}VDI4_ndc_col").readBytes()
+            depthBuff = File(basePath + "${dataset}${vdiType}VDI4_ndc_depth").readBytes()
 
         } else {
             buff = File("/home/aryaman/Repositories/scenery-insitu/VDI10_ndc").readBytes()
