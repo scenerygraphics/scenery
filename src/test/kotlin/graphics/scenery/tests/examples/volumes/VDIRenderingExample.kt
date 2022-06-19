@@ -78,9 +78,10 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
     val compute = CustomNode()
     val closeAfter = 10000L
     var dataset = "Kingsnake"
+    var baseDataset = dataset
     val numOctreeLayers = 8.0
     val numSupersegments = 20
-    var benchmarking = false
+    var benchmarking = true
     val skipEmpty = false
     val viewNumber = 1
     val subsampling = false
@@ -90,6 +91,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
 
     val commSize = 4
     val rank = 0
+    val communicatorType = "_${commSize}_${rank}"
 
     val cam: Camera = DetachedHeadCamera(hmd)
 
@@ -201,7 +203,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
         cam.farPlaneDistance = 20.0f
         cam.target = camTarget
 
-        dataset += "_${commSize}_${rank}"
+        dataset += communicatorType
 
         val buff: ByteArray
         val depthBuff: ByteArray?
@@ -431,9 +433,9 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
 
         for(i in 1..9) {
             val path = if(skipEmpty) {
-                "benchmarking/${dataset}/View${viewNumber}/vdi$numSupersegments/empty/vdi${windowWidth}_${windowHeight}_${totalRotation.toInt()}"
+                "benchmarking/${baseDataset}/View${viewNumber}/vdi$numSupersegments/empty/vdi" + communicatorType + "_${windowWidth}_${windowHeight}_${totalRotation.toInt()}"
             } else {
-                "benchmarking/${dataset}/View${viewNumber}/vdi$numSupersegments/vdi${windowWidth}_${windowHeight}_${totalRotation.toInt()}"
+                "benchmarking/${baseDataset}/View${viewNumber}/vdi$numSupersegments/vdi"+ communicatorType +"_${windowWidth}_${windowHeight}_${totalRotation.toInt()}"
             }
             // take screenshot and wait for async writing
             r.screenshot("$path.png")
@@ -441,7 +443,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
             stats.clear("Renderer.fps")
 
             // collect data for a few secs
-            Thread.sleep(5000)
+            Thread.sleep(1000)
 
             // write out CSV with fps data
             val fps = stats.get("Renderer.fps")!!
