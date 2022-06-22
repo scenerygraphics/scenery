@@ -239,8 +239,6 @@ object VulkanScenePass {
                 val maxGroupCount = intArrayOf(1, 1, 1)
                 commandBuffer.device.deviceData.properties.limits().maxComputeWorkGroupCount().get(maxGroupCount)
 
-                VulkanComputePass.logger.info("using ceil to determine work group size")
-
                 val groupCount = intArrayOf(
                     ceil(metadata.workSizes.x().toFloat()/localSizes.first.toFloat()).toInt(),
                     ceil(metadata.workSizes.y().toFloat()/localSizes.second.toFloat()).toInt(),
