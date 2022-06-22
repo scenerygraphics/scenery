@@ -572,13 +572,14 @@ open class VulkanTexture(val device: VulkanDevice,
      */
     fun copyTo(buffer: ByteBuffer, inPlace: Boolean = false): ByteBuffer? {
         stackPush().use { stack ->
-            if (tmpBuffer == null || (tmpBuffer != null && tmpBuffer?.size!! < image.maxSize)) {
+            val memoryProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_COHERENT_BIT or VK_MEMORY_PROPERTY_HOST_CACHED_BIT
+            if (tmpBuffer == null || (tmpBuffer != null && tmpBuffer?.size!! < image.maxSize) || (tmpBuffer?.requestedMemoryProperties != memoryProperties)) {
                 tmpBuffer?.close()
                 logger.warn("Reallocating temporary buffer")
                 tmpBuffer = VulkanBuffer(this@VulkanTexture.device,
                     image.maxSize,
                     VK_BUFFER_USAGE_TRANSFER_SRC_BIT or VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_COHERENT_BIT or VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
+                    memoryProperties,
                     wantAligned = true)
             }
 
