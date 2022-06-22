@@ -57,6 +57,7 @@ dependencies {
         "-vulkan",
         "-opengl",
         "-openvr",
+        "-openxr",
         "-xxhash",
         "-remotery",
         "-spvc",
@@ -70,7 +71,7 @@ dependencies {
                     runtimeOnly("org.lwjgl:lwjgl$lwjglProject:$lwjglVersion:$native")
                 }
             }
-            else if (lwjglProject.endsWith("-openvr")) {
+            else if (lwjglProject.endsWith("-openvr") || lwjglProject.endsWith("-openxr")) {
                 if (native.contains("linux") && native.contains("win")) {
                     runtimeOnly("org.lwjgl:lwjgl$lwjglProject:$lwjglVersion:$native")
                 }
@@ -177,6 +178,7 @@ tasks {
                     "-jemalloc",
                     "-opengl",
                     "-openvr",
+                    "-openxr",
                     "-xxhash",
                     "-remotery",
                     "-spvc",
@@ -185,7 +187,9 @@ tasks {
                 ).forEach pkg@ { lwjglProject ->
                     // OpenVR does not have macOS binaries, Vulkan only has macOS binaries
                     if((lwjglProject.contains("openvr") && nativePlatform.contains("mac"))
-                            || (lwjglProject.contains("vulkan") && !nativePlatform.contains("mac"))) {
+                            || (lwjglProject.contains("vulkan") && !nativePlatform.contains("mac"))
+                            || (lwjglProject.contains("openxr") && !nativePlatform.contains("mac"))
+                    ) {
                         return@pkg
                     }
 
@@ -262,6 +266,7 @@ tasks {
                 "lwjgl-vulkan",
                 "lwjgl-opengl",
                 "lwjgl-openvr",
+                "lwjgl-openxr",
                 "lwjgl-xxhash",
                 "lwjgl-remotery",
                 "lwjgl-spvc",
