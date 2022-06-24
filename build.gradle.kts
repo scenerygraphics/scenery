@@ -94,8 +94,12 @@ dependencies {
 
     implementation("info.picocli:picocli:4.6.3")
 
-    api("sc.fiji:bigdataviewer-core:10.2.0")
+    api("sc.fiji:bigdataviewer-core:10.4.0")
     api("sc.fiji:bigdataviewer-vistools:1.0.0-beta-28")
+    // TODO: These are still needed for HDF5 support to work on M1
+    // api(files("sis-base-18.09.0.jar"))
+    // api(files("sis-jhdf5-1654327451.jar"))
+
 
     //TODO revert to official BVV
     api("graphics.scenery:bigvolumeviewer:a6b021d")
