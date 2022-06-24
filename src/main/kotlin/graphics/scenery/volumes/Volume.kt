@@ -381,7 +381,7 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
             hub: Hub,
             options : VolumeViewerOptions = VolumeViewerOptions()
         ): Volume {
-            val spimData = XmlIoSpimDataMinimal().load(path)
+            val spimData = XmlIoSpimDataMinimal().load(path, 4)
             val ds = SpimDataMinimalSource(spimData)
             return Volume(ds, options, hub)
         }
