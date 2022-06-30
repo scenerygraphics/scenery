@@ -1,5 +1,7 @@
 package graphics.scenery.textures
 
+import graphics.scenery.backends.vulkan.toHexString
+import graphics.scenery.utils.LazyLogger
 import net.imglib2.type.numeric.NumericType
 import net.imglib2.type.numeric.integer.UnsignedByteType
 import org.joml.Vector3i
@@ -43,7 +45,11 @@ class UpdatableTexture(
 
     /** Clears all consumed updates */
     fun clearConsumedUpdates() {
-        updates.forEach { if(it.consumed && it.deallocate) { MemoryUtil.memFree(it.contents) } }
+        updates.forEach {
+            if((it.consumed && it.deallocate)) {
+                MemoryUtil.memFree(it.contents)
+            }
+        }
         updates.removeIf { it.consumed }
     }
 
