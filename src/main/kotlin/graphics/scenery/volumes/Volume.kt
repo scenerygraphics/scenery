@@ -124,6 +124,8 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
     /** Modes how assigned slicing planes interact with the volume */
     var slicingMode = SlicingMode.None
 
+    var multiResolutionLevelLimits: Pair<Int, Int>? = null
+
     enum class SlicingMode(val id: Int){
         // Volume is rendered as it is
         None(0),
@@ -381,7 +383,7 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
             hub: Hub,
             options : VolumeViewerOptions = VolumeViewerOptions()
         ): Volume {
-            val spimData = XmlIoSpimDataMinimal().load(path, 4)
+            val spimData = XmlIoSpimDataMinimal().load(path)
             val ds = SpimDataMinimalSource(spimData)
             return Volume(ds, options, hub)
         }
