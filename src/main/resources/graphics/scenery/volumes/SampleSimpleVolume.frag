@@ -46,7 +46,7 @@ vec4 sampleVolume( vec4 wpos )
 
     float rawsample = convert(texture( volume, pos / textureSize( volume, 0 ) ).r);
     float tf = texture(transferFunction, vec2(rawsample + 0.001f, 0.5f)).r;
-    vec3 cmapplied = texture(colorMap, vec2(rawsample + 0.001f, 0.5f)).rgb;
+    vec3 cmapplied = texture(colorMap, vec2(tf + 0.001f, 0.5f)).rgb;
 
     int intransparent = int( slicing && isInSlice) ;
     return vec4(cmapplied*tf,1) * intransparent + vec4(cmapplied, tf) * (1-intransparent);
