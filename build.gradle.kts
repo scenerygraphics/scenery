@@ -5,16 +5,17 @@ import java.net.URL
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 plugins {
-    val ktVersion = "1.7.0"
     java
-    kotlin("jvm") version ktVersion
-    kotlin("kapt") version ktVersion
+    // kotlin and dokka versions are now managed in settings.gradle.kts and gradle.properties
+    kotlin("jvm")
+    kotlin("kapt")
+    id("org.jetbrains.dokka")
+
     scenery.base
 //    scenery.docs
     scenery.publish
     scenery.sign
     id("com.github.elect86.sciJava") version "0.0.4"
-    id("org.jetbrains.dokka") version "1.6.21"
     id("org.sonarqube") version "3.3"
     jacoco
     id("com.github.johnrengelman.shadow") version "7.1.0"
@@ -22,7 +23,6 @@ plugins {
 
 repositories {
     mavenCentral()
-    jcenter()
     maven("https://maven.scijava.org/content/groups/public")
     maven("https://jitpack.io")
     mavenLocal()
@@ -94,12 +94,10 @@ dependencies {
 
     implementation("info.picocli:picocli:4.6.3")
 
-    api("sc.fiji:bigdataviewer-core:10.4.0")
+    api("sc.fiji:bigdataviewer-core:10.4.1")
     api("sc.fiji:bigdataviewer-vistools:1.0.0-beta-28")
-    // TODO: These are still needed for HDF5 support to work on M1
-    // api(files("sis-base-18.09.0.jar"))
-    // api(files("sis-jhdf5-1654327451.jar"))
-
+    api(githubRelease("JaneliaSciComp", "jhdf5", "jhdf5-19.04.1_fatjar", "sis-base-18.09.0.jar"))
+    api(githubRelease("JaneliaSciComp", "jhdf5", "jhdf5-19.04.1_fatjar", "sis-jhdf5-1654327451.jar"))
 
     //TODO revert to official BVV
     api("graphics.scenery:bigvolumeviewer:a6b021d")
@@ -116,7 +114,7 @@ dependencies {
         }
     }
     implementation("org.jetbrains.kotlin:kotlin-scripting-jsr223:1.5.31")
-    implementation("graphics.scenery:art-dtrack-sdk:2.6.0")
+    api("graphics.scenery:art-dtrack-sdk:2.6.0")
 
     testImplementation(kotlin("test"))
     testImplementation(kotlin("test-junit"))
@@ -131,6 +129,19 @@ dependencies {
 
 val isRelease: Boolean
     get() = System.getProperty("release") == "true"
+
+/**
+ * Downloads a [file] from the given GitHub release, with [organization], [repository], and [release] tag given.
+ */
+fun githubRelease(organization: String, repository: String, release: String, file: String): ConfigurableFileCollection {
+    val url = "https://github.com/$organization/$repository/releases/download/$release/$file"
+    val output = File("$buildDir/download/$organization-$repository-$release-$file.jar")
+    output.parentFile.mkdirs()
+    if(!output.exists()) {
+        URL(url).openStream().copyTo(output.outputStream())
+    }
+    return files(output.absolutePath)
+}
 
 tasks {
 
