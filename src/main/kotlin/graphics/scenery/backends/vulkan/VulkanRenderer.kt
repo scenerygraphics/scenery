@@ -30,6 +30,7 @@ import org.lwjgl.vulkan.KHRXlibSurface.VK_KHR_XLIB_SURFACE_EXTENSION_NAME
 import org.lwjgl.vulkan.MVKMacosSurface.VK_MVK_MACOS_SURFACE_EXTENSION_NAME
 import org.lwjgl.vulkan.VK10.*
 import org.lwjgl.vulkan.awt.AWTVK
+import java.awt.BorderLayout
 import java.awt.image.BufferedImage
 import java.awt.image.DataBufferByte
 import java.io.File
@@ -40,6 +41,7 @@ import java.util.*
 import java.util.concurrent.*
 import java.util.concurrent.locks.ReentrantLock
 import javax.imageio.ImageIO
+import javax.swing.JFrame
 import kotlin.concurrent.thread
 import kotlin.concurrent.withLock
 import kotlin.reflect.full.*
@@ -478,6 +480,19 @@ open class VulkanRenderer(hub: Hub,
                 }
             }
 
+            // GLFW works kinda shaky on macOS, we create a JFrame here for a nicer experience then.
+            // That is of course unless [embedIn] is already set.
+            if(Platform.get() == Platform.MACOSX && embedIn == null) {
+                val mainFrame = JFrame(applicationName)
+                mainFrame.setSize(windowWidth, windowHeight)
+                mainFrame.layout = BorderLayout()
+
+                val sceneryPanel = SceneryJPanel()
+                mainFrame.add(sceneryPanel, BorderLayout.CENTER)
+                mainFrame.isVisible = true
+
+                embedIn = sceneryPanel
+            }
 
             // Create the Vulkan instance
             val headlessRequested = System.getProperty("scenery.Headless")?.toBoolean() ?: false

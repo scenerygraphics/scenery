@@ -6,6 +6,7 @@ import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.utils.SceneryJPanel
 import graphics.scenery.utils.SceneryPanel
 import org.lwjgl.system.MemoryUtil.memFree
+import org.lwjgl.system.Platform
 import org.lwjgl.vulkan.KHRSwapchain
 import org.lwjgl.vulkan.VkQueue
 import org.lwjgl.vulkan.awt.AWTVKCanvas
@@ -37,6 +38,8 @@ open class SwingSwapchain(override val device: VulkanDevice,
     private val WINDOW_RESIZE_TIMEOUT: Long = 500_000_000
 
     protected var sceneryPanel: SceneryPanel? = null
+    var mainFrame: JFrame? = null
+        protected set
 
     /**
      * Creates a window for this swapchain, and initialiases [win] as [SceneryWindow.GLFWWindow].
@@ -48,7 +51,20 @@ open class SwingSwapchain(override val device: VulkanDevice,
         data.instance = device.instance
         logger.debug("Vulkan Instance=${data.instance}")
 
-        val p = sceneryPanel as? SceneryJPanel ?: throw IllegalArgumentException("Must have SwingWindow")
+        val p = if(Platform.get() == Platform.MACOSX && sceneryPanel == null) {
+            val mainFrame = JFrame(win.title)
+            mainFrame.setSize(win.width, win.height)
+            mainFrame.layout = BorderLayout()
+
+            val sceneryPanel = SceneryJPanel()
+            mainFrame.add(sceneryPanel, BorderLayout.CENTER)
+            mainFrame.isVisible = true
+
+            sceneryPanel
+        }
+        else {
+            sceneryPanel as? SceneryJPanel ?: throw IllegalArgumentException("Must have SwingWindow")
+        }
 
         val canvas = object : AWTVKCanvas(data) {
             private val serialVersionUID = 1L
@@ -147,6 +163,10 @@ open class SwingSwapchain(override val device: VulkanDevice,
 
     companion object: SwapchainParameters {
         override var headless = false
-        override var usageCondition = { p: SceneryPanel? -> System.getProperty("scenery.Renderer.UseAWT", "false")?.toBoolean() ?: false || p is SceneryJPanel }
+        override var usageCondition = { p: SceneryPanel? ->
+            System.getProperty("scenery.Renderer.UseAWT", "false")?.toBoolean() ?: false
+                    || p is SceneryJPanel
+                    || Platform.get() == Platform.MACOSX
+        }
     }
 }
