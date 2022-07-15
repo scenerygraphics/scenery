@@ -6,7 +6,6 @@ import graphics.scenery.textures.UpdatableTexture.TextureExtents
 import graphics.scenery.textures.Texture.RepeatMode
 import graphics.scenery.textures.UpdatableTexture.TextureUpdate
 import graphics.scenery.backends.ShaderType
-import graphics.scenery.backends.vulkan.toHexString
 import graphics.scenery.textures.UpdatableTexture
 import graphics.scenery.utils.LazyLogger
 import net.imglib2.type.numeric.NumericType
@@ -15,7 +14,6 @@ import net.imglib2.type.numeric.integer.UnsignedShortType
 import net.imglib2.type.numeric.real.FloatType
 import org.joml.*
 import org.lwjgl.system.MemoryUtil
-import org.lwjgl.util.xxhash.XXHash
 import tpietzsch.backend.*
 import tpietzsch.cache.TextureCache
 import tpietzsch.example2.LookupTextureARGB
@@ -26,8 +24,6 @@ import java.nio.ByteOrder
 import java.nio.FloatBuffer
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.ExperimentalTime
-import kotlin.time.measureTime
-import kotlin.time.measureTimedValue
 import tpietzsch.backend.Texture as BVVTexture
 
 /**
