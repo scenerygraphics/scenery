@@ -29,7 +29,6 @@ import org.lwjgl.vulkan.KHRWin32Surface.VK_KHR_WIN32_SURFACE_EXTENSION_NAME
 import org.lwjgl.vulkan.KHRXlibSurface.VK_KHR_XLIB_SURFACE_EXTENSION_NAME
 import org.lwjgl.vulkan.MVKMacosSurface.VK_MVK_MACOS_SURFACE_EXTENSION_NAME
 import org.lwjgl.vulkan.VK10.*
-import org.lwjgl.vulkan.awt.AWTVK
 import java.awt.BorderLayout
 import java.awt.image.BufferedImage
 import java.awt.image.DataBufferByte
