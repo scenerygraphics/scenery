@@ -1,7 +1,5 @@
 package graphics.scenery.textures
 
-import graphics.scenery.backends.vulkan.toHexString
-import graphics.scenery.utils.LazyLogger
 import net.imglib2.type.numeric.NumericType
 import net.imglib2.type.numeric.integer.UnsignedByteType
 import org.joml.Vector3i

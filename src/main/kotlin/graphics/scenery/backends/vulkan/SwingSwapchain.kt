@@ -7,14 +7,16 @@ import graphics.scenery.utils.SceneryJPanel
 import graphics.scenery.utils.SceneryPanel
 import org.lwjgl.system.MemoryUtil.memFree
 import org.lwjgl.system.Platform
+import org.lwjgl.vulkan.KHRSurface
 import org.lwjgl.vulkan.KHRSwapchain
 import org.lwjgl.vulkan.VkQueue
-import org.lwjgl.vulkan.awt.AWTVKCanvas
-import org.lwjgl.vulkan.awt.VKData
+import org.lwjgl.vulkan.awt.AWTVK
 import java.awt.BorderLayout
-import java.awt.Color
+import java.awt.Canvas
 import java.awt.event.ComponentEvent
 import java.awt.event.ComponentListener
+import java.awt.event.WindowAdapter
+import java.awt.event.WindowEvent
 import javax.swing.JFrame
 import javax.swing.SwingUtilities
 
@@ -47,10 +49,6 @@ open class SwingSwapchain(override val device: VulkanDevice,
      * Returns the initialised [SceneryWindow].
      */
     override fun createWindow(win: SceneryWindow, swapchainRecreator: VulkanRenderer.SwapchainRecreator): SceneryWindow {
-        val data = VKData()
-        data.instance = device.instance
-        logger.debug("Vulkan Instance=${data.instance}")
-
         val p = if(Platform.get() == Platform.MACOSX && sceneryPanel == null) {
             val mainFrame = JFrame(win.title)
             mainFrame.setSize(win.width, win.height)
@@ -66,30 +64,25 @@ open class SwingSwapchain(override val device: VulkanDevice,
             sceneryPanel as? SceneryJPanel ?: throw IllegalArgumentException("Must have SwingWindow")
         }
 
-        val canvas = object : AWTVKCanvas(data) {
-            private val serialVersionUID = 1L
-            var initialized: Boolean = false
-                private set
-            override fun initVK() {
-                logger.debug("Surface for canvas set to $surface")
-                this@SwingSwapchain.surface = surface
-                this.background = Color.BLACK
-                initialized = true
-            }
-
-            override fun paintVK() {}
-        }
+        val canvas = Canvas()
 
         p.component = canvas
         p.layout = BorderLayout()
         p.add(canvas, BorderLayout.CENTER)
 
         val frame = SwingUtilities.getAncestorOfClass(JFrame::class.java, p) as JFrame
+
+        surface = AWTVK.create(canvas, device.instance)
         frame.isVisible = true
 
-        while(!canvas.initialized) {
-            Thread.sleep(100)
-        }
+        frame.addWindowListener(object: WindowAdapter() {
+            override fun windowClosing(e: WindowEvent?) {
+                super.windowClosing(e)
+
+                KHRSurface.vkDestroySurfaceKHR(device.instance, surface, null)
+            }
+
+        })
 
         window = SceneryWindow.SwingWindow(p)
         window.width = win.width
