@@ -479,9 +479,10 @@ open class VulkanRenderer(hub: Hub,
                 }
             }
 
+            val headlessRequested = System.getProperty("scenery.Headless")?.toBoolean() ?: false
             // GLFW works kinda shaky on macOS, we create a JFrame here for a nicer experience then.
             // That is of course unless [embedIn] is already set.
-            if(Platform.get() == Platform.MACOSX && embedIn == null) {
+            if(Platform.get() == Platform.MACOSX && embedIn == null && !headlessRequested) {
                 val mainFrame = JFrame(applicationName)
                 mainFrame.setSize(windowWidth, windowHeight)
                 mainFrame.layout = BorderLayout()
@@ -494,7 +495,6 @@ open class VulkanRenderer(hub: Hub,
             }
 
             // Create the Vulkan instance
-            val headlessRequested = System.getProperty("scenery.Headless")?.toBoolean() ?: false
             instance = if(embedIn != null || headlessRequested) {
                 logger.debug("Running embedded or headless, skipping GLFW initialisation.")
 

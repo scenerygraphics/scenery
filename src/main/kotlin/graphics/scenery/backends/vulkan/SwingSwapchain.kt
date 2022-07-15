@@ -159,7 +159,7 @@ open class SwingSwapchain(override val device: VulkanDevice,
         override var usageCondition = { p: SceneryPanel? ->
             System.getProperty("scenery.Renderer.UseAWT", "false")?.toBoolean() ?: false
                     || p is SceneryJPanel
-                    || Platform.get() == Platform.MACOSX
+                    || (Platform.get() == Platform.MACOSX && System.getProperty("scenery.Headless", "false").toBoolean())
         }
     }
 }
