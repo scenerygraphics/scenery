@@ -107,10 +107,11 @@ dependencies {
     implementation("org.janelia.saalfeldlab:n5")
     implementation("org.janelia.saalfeldlab:n5-imglib2")
     listOf("core", "structure", "modfinder").forEach {
-        implementation("org.biojava:biojava-$it:5.4.0") {
+        implementation("org.biojava:biojava-$it:6.0.5") {
             exclude("org.slf4j", "slf4j-api")
             exclude("org.slf4j", "slf4j-simple")
             exclude("org.apache.logging.log4j", "log4j-slf4j-impl")
+            exclude("org.biojava.thirdparty", "forester")
         }
     }
     implementation("org.jetbrains.kotlin:kotlin-scripting-jsr223:1.5.31")
