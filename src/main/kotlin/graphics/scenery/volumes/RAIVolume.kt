@@ -9,6 +9,7 @@ import graphics.scenery.utils.extensions.times
 import net.imglib2.type.numeric.integer.UnsignedByteType
 import org.joml.Matrix4f
 import org.joml.Vector3f
+import org.joml.Vector3i
 import tpietzsch.example2.VolumeViewerOptions
 
 class RAIVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewerOptions, hub: Hub): Volume(ds, options, hub) {
@@ -29,39 +30,33 @@ class RAIVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewerOpti
     }
 
     override fun generateBoundingBox(): OrientedBoundingBox {
-        val source = ds.sources.firstOrNull()
-
-        val sizes = if(source != null) {
-            val s = source.spimSource.getSource(0, 0)
-            val min = Vector3f(s.min(0).toFloat(), s.min(1).toFloat(), s.min(2).toFloat())
-            val max = Vector3f(s.max(0).toFloat(), s.max(1).toFloat(), s.max(2).toFloat())
-            max - min
-        } else {
-            Vector3f(1.0f, 1.0f, 1.0f)
-        }
-
         return OrientedBoundingBox(this,
             Vector3f(-0.0f, -0.0f, -0.0f),
-            sizes)
+            Vector3f(getDimensions()))
     }
 
     override fun localScale(): Vector3f {
-        var size = Vector3f(1.0f, 1.0f, 1.0f)
-        val source = ds.sources.firstOrNull()
-
-        if(source != null) {
-            val s = source.spimSource.getSource(0, 0)
-            val min = Vector3f(s.min(0).toFloat(), s.min(1).toFloat(), s.min(2).toFloat())
-            val max = Vector3f(s.max(0).toFloat(), s.max(1).toFloat(), s.max(2).toFloat())
-            size = max - min
-        }
-        logger.debug("Sizes are $size")
+        val size = getDimensions()
+        logger.info("Sizes are $size")
 
         return Vector3f(
                 size.x() * pixelToWorldRatio / 10.0f,
                 -1.0f * size.y() * pixelToWorldRatio / 10.0f,
                 size.z() * pixelToWorldRatio / 10.0f
         )
+    }
+
+    override fun getDimensions(): Vector3i {
+        val source = ds.sources.firstOrNull()
+
+        return if(source != null) {
+            val s = source.spimSource.getSource(0, 0)
+            val min = Vector3i(s.min(0).toInt(), s.min(1).toInt(), s.min(2).toInt())
+            val max = Vector3i(s.max(0).toInt(), s.max(1).toInt(), s.max(2).toInt())
+            max.sub(min)
+        } else {
+            Vector3i(1, 1, 1)
+        }
     }
 
     override fun createSpatial(): VolumeSpatial {

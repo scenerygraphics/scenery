@@ -364,6 +364,13 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
         return null
     }
 
+    /**
+     * Returns the volume's physical (voxel) dimensions.
+     */
+    open fun getDimensions(): Vector3i {
+        return Vector3i(0)
+    }
+
     companion object {
         val setupId = AtomicInteger(0)
         val scifio: SCIFIO = SCIFIO()

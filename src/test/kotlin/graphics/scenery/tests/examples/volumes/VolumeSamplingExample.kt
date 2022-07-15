@@ -118,11 +118,10 @@ class VolumeSamplingExample: SceneryBase("Volume Sampling example", 1280, 720) {
         val volume = Volume.fromBuffer(emptyList(), volumeSize, volumeSize, volumeSize, UnsignedByteType(), hub)
         volume.name = "volume"
         volume.spatial {
-            position = Vector3f(0.0f, 0.0f, 0.0f)
-            scale = Vector3f(10.0f, 10.0f, 10.0f)
+            position = Vector3f(0.0f, 5.0f, 0.0f)
+            scale = Vector3f(30.0f, 30.0f, 30.0f)
         }
         volume.colormap = Colormap.get("viridis")
-//        volume.voxelSizeZ = 0.5f
         with(volume.transferFunction) {
             addControlPoint(0.0f, 0.0f)
             addControlPoint(0.2f, 0.0f)
@@ -152,7 +151,7 @@ class VolumeSamplingExample: SceneryBase("Volume Sampling example", 1280, 720) {
             while(!scene.initialized) { Thread.sleep(200) }
 
             val volumeSize = 128L
-            val volumeBuffer = RingBuffer<ByteBuffer>(2) { memAlloc((volumeSize*volumeSize*volumeSize*bitsPerVoxel/8).toInt()) }
+            val volumeBuffer = RingBuffer(2, default = { memAlloc((volumeSize*volumeSize*volumeSize*bitsPerVoxel/8).toInt()) })
 
             val seed = Random.randomFromRange(0.0f, 133333337.0f).toLong()
             var shift = Vector3f(0.0f)
@@ -208,13 +207,10 @@ class VolumeSamplingExample: SceneryBase("Volume Sampling example", 1280, 720) {
                     val diagram = if(connector.getChildrenByName("diagram").isNotEmpty()) {
                         connector.getChildrenByName("diagram").first() as Line
                     } else {
-                        TODO("Implement volume size queries or refactor")
-//                        val sizeX = 128
-//                        val sizeY = 128
-//                        val sizeZ = 128
-//                        val l = Line(capacity = maxOf(sizeX, sizeY, sizeZ) * 2)
-//                        connector.addChild(l)
-//                        l
+                        val dims = volume.getDimensions()
+                        val l = Line(capacity = dims[dims.maxComponent()] * 2)
+                        connector.addChild(l)
+                        l
                     }
 
                     diagram.clearPoints()
