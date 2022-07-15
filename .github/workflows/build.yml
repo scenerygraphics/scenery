@@ -11,8 +11,6 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            java: 8
-          - os: ubuntu-latest
             java: 11
           - os: ubuntu-latest
             java: 16
@@ -42,8 +40,6 @@ jobs:
       matrix:
         include:
           - os: windows-latest
-            java: 8
-          - os: windows-latest
             java: 11
           - os: windows-latest
             java: 16
@@ -68,8 +64,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macos-latest
-            java: 8
           - os: macos-latest
             java: 11
           - os: macos-latest
