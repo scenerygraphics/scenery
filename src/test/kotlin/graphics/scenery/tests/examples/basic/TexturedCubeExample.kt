@@ -15,7 +15,7 @@ import kotlin.concurrent.thread
 class TexturedCubeExample : SceneryBase("TexturedCubeExample") {
     override fun init() {
         renderer = hub.add(SceneryElement.Renderer,
-            Renderer.createRenderer(hub, applicationName, scene, 512, 512))
+            Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
 
         val box = Box(Vector3f(1.0f, 1.0f, 1.0f))
         box.name = "le box du win"

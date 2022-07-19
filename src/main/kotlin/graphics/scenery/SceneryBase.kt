@@ -106,6 +106,17 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
         AssertionCheckPoint.AfterClose to arrayListOf()
     )
 
+    val headless = parseBoolean(System.getProperty("scenery.Headless", "false"))
+    val renderdoc = if(System.getProperty("scenery.AttachRenderdoc")?.toBoolean() == true) {
+        Renderdoc()
+    } else {
+        null
+    }
+
+    val master = System.getProperty("scenery.master")?.toBoolean() ?: false
+    val masterAddress = System.getProperty("scenery.MasterNode")
+
+
     interface XLib: Library {
         fun XInitThreads()
 
@@ -146,84 +157,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
      *
      */
     open suspend fun sceneryMain() {
-        System.getProperties().forEach { prop ->
-            val name = prop.key as? String ?: return@forEach
-            val value = prop.value as? String ?: return@forEach
 
-            if(name.startsWith("scenery.LogLevel.")) {
-                val className = name.substringAfter("scenery.LogLevel.")
-                logger.info("Setting logging level of class $className to $value")
-                System.setProperty("org.slf4j.simpleLogger.log.${className}", value)
-            }
-        }
-
-        hub.addApplication(this)
-        logger.info("Started application as PID ${getProcessID()}")
-        running = true
-
-        if(parseBoolean(System.getProperty("scenery.Profiler", "false"))) {
-            hub.add(RemoteryProfiler(hub))
-        }
-
-        val headless = parseBoolean(System.getProperty("scenery.Headless", "false"))
-        val renderdoc = if(System.getProperty("scenery.AttachRenderdoc")?.toBoolean() == true) {
-            Renderdoc()
-        } else {
-            null
-        }
-
-        val master = System.getProperty("scenery.master")?.toBoolean() ?: false
-        val masterAddress = System.getProperty("scenery.MasterNode")
-
-        if (!master && masterAddress != null) {
-            thread {
-                logger.info("NodeSubscriber will connect to master at $masterAddress")
-                val subscriber = NodeSubscriber(hub, masterAddress)
-
-                hub.add(SceneryElement.NodeSubscriber, subscriber)
-                scene.discover(scene, { true }).forEachIndexed { index, node ->
-                    subscriber.nodes.put(index, node)
-                }
-
-                while (running && !shouldClose) {
-                    subscriber.process()
-                    Thread.sleep(2)
-                }
-                logger.debug("Closing subscriber")
-            }
-        } else if(master) {
-            applicationName += " [MASTER]"
-            thread {
-                val address = settings.get("NodePublisher.ListenAddress", "tcp://127.0.0.1:6666")
-                val p = NodePublisher(hub, address)
-
-                logger.info("NodePublisher listening on ${address.substringBeforeLast(":")}:${p.port}")
-                hub.add(SceneryElement.NodePublisher, p)
-
-                scene.discover(scene, { true }).forEachIndexed { index, node ->
-                        p.nodes.put(index, node)
-                }
-
-                while (running && !shouldClose) {
-                    p.publish()
-                    Thread.sleep(2)
-                }
-                logger.debug("Closing publisher")
-            }
-        }
-
-        hub.add(SceneryElement.Statistics, stats)
-        hub.add(SceneryElement.Settings, settings)
-
-        settings.set("System.PID", getProcessID())
-
-        if (wantREPL) {
-            repl = REPL(hub, scijavaContext, scene, stats, hub)
-            repl?.addAccessibleObject(settings)
-        }
-
-        // initialize renderer, etc first in init, then setup key bindings
-        init()
 
         // wait for renderer
         while(renderer?.initialized == false) {
@@ -501,6 +435,75 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
     }
 
     open fun main() {
+        System.getProperties().forEach { prop ->
+            val name = prop.key as? String ?: return@forEach
+            val value = prop.value as? String ?: return@forEach
+
+            if(name.startsWith("scenery.LogLevel.")) {
+                val className = name.substringAfter("scenery.LogLevel.")
+                logger.info("Setting logging level of class $className to $value")
+                System.setProperty("org.slf4j.simpleLogger.log.${className}", value)
+            }
+        }
+
+        hub.addApplication(this)
+        logger.info("Started application as PID ${getProcessID()} on ${Platform.get()}/${Platform.getArchitecture()}")
+        running = true
+
+        if(parseBoolean(System.getProperty("scenery.Profiler", "false"))) {
+            hub.add(RemoteryProfiler(hub))
+        }
+
+
+        if (!master && masterAddress != null) {
+            thread {
+                logger.info("NodeSubscriber will connect to master at $masterAddress")
+                val subscriber = NodeSubscriber(hub, masterAddress)
+
+                hub.add(SceneryElement.NodeSubscriber, subscriber)
+                scene.discover(scene, { true }).forEachIndexed { index, node ->
+                    subscriber.nodes.put(index, node)
+                }
+
+                while (running && !shouldClose) {
+                    subscriber.process()
+                    Thread.sleep(2)
+                }
+                logger.debug("Closing subscriber")
+            }
+        } else if(master) {
+            applicationName += " [MASTER]"
+            thread {
+                val address = settings.get("NodePublisher.ListenAddress", "tcp://127.0.0.1:6666")
+                val p = NodePublisher(hub, address)
+
+                logger.info("NodePublisher listening on ${address.substringBeforeLast(":")}:${p.port}")
+                hub.add(SceneryElement.NodePublisher, p)
+
+                scene.discover(scene, { true }).forEachIndexed { index, node ->
+                    p.nodes.put(index, node)
+                }
+
+                while (running && !shouldClose) {
+                    p.publish()
+                    Thread.sleep(2)
+                }
+                logger.debug("Closing publisher")
+            }
+        }
+
+        hub.add(SceneryElement.Statistics, stats)
+        hub.add(SceneryElement.Settings, settings)
+
+        settings.set("System.PID", getProcessID())
+
+        if (wantREPL) {
+            repl = REPL(hub, scijavaContext, scene, stats, hub)
+            repl?.addAccessibleObject(settings)
+        }
+
+        // initialize renderer, etc first in init, then setup key bindings
+        init()
         runBlocking { sceneryMain() }
     }
 

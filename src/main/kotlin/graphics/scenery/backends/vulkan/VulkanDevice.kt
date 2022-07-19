@@ -167,7 +167,7 @@ open class VulkanDevice(
             vkGetPhysicalDeviceFeatures(physicalDevice, enabledFeatures)
             if(!enabledFeatures.samplerAnisotropy()
                 || !enabledFeatures.largePoints()
-                || !enabledFeatures.geometryShader()
+//                || !enabledFeatures.geometryShader()
                 || !enabledFeatures.fillModeNonSolid()) {
                 throw IllegalStateException("Device does not support required features.")
             }
@@ -811,6 +811,7 @@ open class VulkanDevice(
                 0x1002 -> "AMD"
                 0x10DE -> "Nvidia"
                 0x8086 -> "Intel"
+                0x106B -> "🍎"
                 else -> "(Unknown vendor)"
             }
 

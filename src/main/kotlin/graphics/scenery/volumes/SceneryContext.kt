@@ -14,7 +14,6 @@ import net.imglib2.type.numeric.integer.UnsignedShortType
 import net.imglib2.type.numeric.real.FloatType
 import org.joml.*
 import org.lwjgl.system.MemoryUtil
-import org.lwjgl.util.xxhash.XXHash
 import tpietzsch.backend.*
 import tpietzsch.cache.TextureCache
 import tpietzsch.example2.LookupTextureARGB
@@ -25,8 +24,6 @@ import java.nio.ByteOrder
 import java.nio.FloatBuffer
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.ExperimentalTime
-import kotlin.time.measureTime
-import kotlin.time.measureTimedValue
 import tpietzsch.backend.Texture as BVVTexture
 
 /**
@@ -527,7 +524,7 @@ open class SceneryContext(val node: VolumeManager, val useCompute: Boolean = fal
         bindings[texture]?.reallocate = true
     }
 
-    private data class SubImageUpdate(val xoffset: Int, val yoffset: Int, val zoffset: Int, val width: Int, val height: Int, val depth: Int, val contents: ByteBuffer, val reallocate: Boolean = false)
+    private data class SubImageUpdate(val xoffset: Int, val yoffset: Int, val zoffset: Int, val width: Int, val height: Int, val depth: Int, val contents: ByteBuffer, val reallocate: Boolean = false, val deallocate: Boolean = false)
     private var cachedUpdates = ConcurrentHashMap<BVVTexture, MutableList<SubImageUpdate>>()
 
     private data class UpdateParameters(val xoffset: Int, val yoffset: Int, val zoffset: Int, val width: Int, val height: Int, val depth: Int, val hash: Long)
@@ -566,14 +563,14 @@ open class SceneryContext(val node: VolumeManager, val useCompute: Boolean = fal
 
                         val textureUpdate = TextureUpdate(
                             TextureExtents(update.xoffset, update.yoffset, update.zoffset, update.width, update.height, update.depth),
-                            update.contents, deallocate = false)
+                            update.contents, deallocate = update.deallocate)
                         gt.addUpdate(textureUpdate)
 
                         texture.reallocate = false
                     } else {
                         val textureUpdate = TextureUpdate(
                             TextureExtents(update.xoffset, update.yoffset, update.zoffset, update.width, update.height, update.depth),
-                            update.contents, deallocate = false)
+                            update.contents, deallocate = update.deallocate)
 
                         gt.addUpdate(textureUpdate)
                     }
@@ -615,7 +612,7 @@ open class SceneryContext(val node: VolumeManager, val useCompute: Boolean = fal
         tmp.put(tmpStorage)
         tmp.flip()
 
-        val update = SubImageUpdate(xoffset, yoffset, zoffset, width, height, depth, tmp)
+        val update = SubImageUpdate(xoffset, yoffset, zoffset, width, height, depth, tmp, deallocate = true)
         cachedUpdates.getOrPut(texture, { ArrayList(10) }).add(update)
     }
 
