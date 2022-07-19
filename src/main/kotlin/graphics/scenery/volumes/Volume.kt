@@ -124,6 +124,8 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
     /** Modes how assigned slicing planes interact with the volume */
     var slicingMode = SlicingMode.None
 
+    var multiResolutionLevelLimits: Pair<Int, Int>? = null
+
     enum class SlicingMode(val id: Int){
         // Volume is rendered as it is
         None(0),
@@ -360,6 +362,13 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
      */
     open fun sampleRay(start: Vector3f, end: Vector3f): Pair<List<Float?>, Vector3f>? {
         return null
+    }
+
+    /**
+     * Returns the volume's physical (voxel) dimensions.
+     */
+    open fun getDimensions(): Vector3i {
+        return Vector3i(0)
     }
 
     companion object {
