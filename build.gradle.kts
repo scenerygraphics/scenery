@@ -136,10 +136,16 @@ val isRelease: Boolean
  */
 fun githubRelease(organization: String, repository: String, release: String, file: String): ConfigurableFileCollection {
     val url = "https://github.com/$organization/$repository/releases/download/$release/$file"
-    val output = File("$buildDir/download/$organization-$repository-$release-$file.jar")
+    val output = File("$projectDir/external-libs/$organization-$repository-$release-$file")
     output.parentFile.mkdirs()
+
     if(!output.exists()) {
-        URL(url).openStream().copyTo(output.outputStream())
+        val created = output.createNewFile()
+        val stream = URL(url).openStream()
+        val out = output.outputStream()
+        stream.copyTo(out)
+        out.close()
+        stream.close()
     }
     return files(output.absolutePath)
 }
@@ -147,14 +153,17 @@ fun githubRelease(organization: String, repository: String, release: String, fil
 tasks {
 
     withType<KotlinCompile>().all {
-        val version = System.getProperty("java.version").substringBefore('.').toInt()
-        val default = if (version == 1) "1.8" else "$version"
         kotlinOptions {
-            jvmTarget = project.properties["jvmTarget"]?.toString() ?: default
-            freeCompilerArgs += listOf("-Xinline-classes", "-Xopt-in=kotlin.RequiresOptIn")
-//            sourceCompatibility = project.properties["sourceCompatibility"]?.toString() ?: default
+            jvmTarget = project.properties["jvmTarget"]?.toString() ?: "11"
+            freeCompilerArgs += listOf("-Xinline-classes", "-opt-in=kotlin.RequiresOptIn")
         }
     }
+
+    withType<JavaCompile>().all {
+        targetCompatibility = project.properties["jvmTarget"]?.toString() ?: "11"
+        sourceCompatibility = project.properties["jvmTarget"]?.toString() ?: "11"
+    }
+
 
     withType<GenerateMavenPom>().configureEach {
         val matcher = Regex("""generatePomFileFor(\w+)Publication""").matchEntire(name)
@@ -376,7 +385,7 @@ artifacts {
 }
 
 jacoco {
-    toolVersion = "0.8.7"
+    toolVersion = "0.8.8"
 }
 
 java.withSourcesJar()
