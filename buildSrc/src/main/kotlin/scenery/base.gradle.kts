@@ -132,6 +132,13 @@ tasks {
                 } else {
                     allJvmArgs + props.flatMap { (k, v) -> listOf("-D$k=$v") }
                 }
+
+                if(JavaVersion.current() > JavaVersion.VERSION_11) {
+                    allJvmArgs = allJvmArgs + listOf(
+                        "--add-opens=java.base/java.nio=ALL-UNNAMED",
+                        "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED"
+                    )
+                }
             }
         }
 
@@ -148,6 +155,13 @@ tasks {
                     allJvmArgs + props.flatMap { (k, v) -> listOf("-D$k=$v") } + additionalArgs
                 } else {
                     allJvmArgs + props.flatMap { (k, v) -> listOf("-D$k=$v") }
+                }
+
+                if(JavaVersion.current() > JavaVersion.VERSION_11) {
+                    allJvmArgs = allJvmArgs + listOf(
+                        "--add-opens=java.base/java.nio=ALL-UNNAMED",
+                        "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED"
+                    )
                 }
 
                 println("Will run example $example with classpath $classpath, main=$main")
