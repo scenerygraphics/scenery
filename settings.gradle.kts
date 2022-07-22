@@ -1,16 +1,20 @@
 
 pluginManagement {
+    val kotlinVersion: String by settings
+    val dokkaVersion: String by settings
+
+    plugins {
+        kotlin("jvm") version kotlinVersion
+        kotlin("kapt") version kotlinVersion
+        id("org.jetbrains.dokka") version dokkaVersion
+    }
+
     repositories {
         gradlePluginPortal()
-        maven("https://raw.githubusercontent.com/kotlin-graphics/mary/master")
     }
 }
 
 enableFeaturePreview("VERSION_CATALOGS")
-
-plugins {
-    id("sciJava.catalogs") version "30.0.0+66"
-}
 
 rootProject.name = "scenery"
 

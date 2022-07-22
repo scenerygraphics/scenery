@@ -19,8 +19,19 @@ import bdv.viewer.DisplayMode
 import bdv.viewer.Source
 import bdv.viewer.SourceAndConverter
 import bdv.viewer.state.ViewerState
-import org.joml.Vector3f
-import graphics.scenery.*
+import graphics.scenery.DefaultNode
+import graphics.scenery.DisableFrustumCulling
+import graphics.scenery.Hub
+import graphics.scenery.Origin
+import graphics.scenery.attribute.DelegationType
+import graphics.scenery.attribute.geometry.DelegatesGeometry
+import graphics.scenery.attribute.geometry.Geometry
+import graphics.scenery.attribute.material.DelegatesMaterial
+import graphics.scenery.attribute.material.Material
+import graphics.scenery.attribute.renderable.DelegatesRenderable
+import graphics.scenery.attribute.renderable.Renderable
+import graphics.scenery.attribute.spatial.DefaultSpatial
+import graphics.scenery.attribute.spatial.HasCustomSpatial
 import graphics.scenery.numerics.OpenSimplexNoise
 import graphics.scenery.numerics.Random
 import graphics.scenery.utils.LazyLogger
@@ -37,6 +48,7 @@ import net.imglib2.type.numeric.NumericType
 import net.imglib2.type.numeric.integer.*
 import net.imglib2.type.numeric.real.FloatType
 import org.joml.Matrix4f
+import org.joml.Vector3f
 import org.joml.Vector3i
 import org.joml.Vector4f
 import org.lwjgl.system.MemoryUtil
@@ -44,33 +56,37 @@ import org.scijava.io.location.FileLocation
 import tpietzsch.example2.VolumeViewerOptions
 import java.io.FileInputStream
 import java.nio.ByteBuffer
-import java.nio.FloatBuffer
-import java.nio.IntBuffer
 import java.nio.file.Files
 import java.nio.file.Path
-import java.util.*
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
-import kotlin.math.*
+import kotlin.math.abs
+import kotlin.math.max
+import kotlin.math.min
+import kotlin.math.sqrt
 import kotlin.properties.Delegates
 import kotlin.streams.toList
 
 @Suppress("DEPRECATION")
-open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOptions, val hub: Hub) : DelegatesRendering(), HasGeometry, DisableFrustumCulling {
-    /** How many elements does a vertex store? */
-    override val vertexSize : Int = 3
-    /** How many elements does a texture coordinate store? */
-    override val texcoordSize : Int = 2
-    /** The [GeometryType] of the [Node] */
-    override var geometryType : GeometryType = GeometryType.TRIANGLES
-    /** Array of the vertices. This buffer is _required_, but may empty. */
-    override var vertices : FloatBuffer = FloatBuffer.allocate(0)
-    /** Array of the normals. This buffer is _required_, and may _only_ be empty if [vertices] is empty as well. */
-    override var normals : FloatBuffer = FloatBuffer.allocate(0)
-    /** Array of the texture coordinates. Texture coordinates are optional. */
-    override var texcoords : FloatBuffer = FloatBuffer.allocate(0)
-    /** Array of the indices to create an indexed mesh. Optional, but advisable to use to minimize the number of submitted vertices. */
-    override var indices : IntBuffer = IntBuffer.allocate(0)
+open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOptions, @Transient val hub: Hub) : DefaultNode("Volume"),
+    DelegatesRenderable, DelegatesGeometry, DelegatesMaterial, DisableFrustumCulling, HasCustomSpatial<Volume.VolumeSpatial> {
+
+    private val delegationType: DelegationType = DelegationType.OncePerDelegate
+    override fun getDelegationType(): DelegationType {
+        return delegationType
+    }
+
+    override fun getDelegateRenderable(): Renderable? {
+        return volumeManager.renderableOrNull()
+    }
+
+    override fun getDelegateGeometry(): Geometry? {
+        return volumeManager.geometryOrNull()
+    }
+
+    override fun getDelegateMaterial(): Material? {
+        return volumeManager.materialOrNull()
+    }
 
     val converterSetups = ArrayList<ConverterSetup>()
     var timepointCount: Int
@@ -83,11 +99,14 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
     var colormap: Colormap = Colormap.get("viridis")
         set(m) {
             field = m
-            volumeManager.removeCachedColormapFor(this)
+            if(::volumeManager.isInitialized) {
+                volumeManager.removeCachedColormapFor(this)
+            }
+            modifiedAt = System.nanoTime()
         }
 
     /** Pixel-to-world scaling ratio. Default: 1 px = 1mm in world space*/
-    var pixelToWorldRatio: Float by Delegates.observable(0.001f) { property, old, new -> propertyChanged(property, old, new, "pixelToWorldRatio") }
+    var pixelToWorldRatio: Float by Delegates.observable(0.001f) { property, old, new -> spatial().propertyChanged(property, old, new, "pixelToWorldRatio") }
 
     /** What to use as the volume's origin, scenery's default is [Origin.Center], BVV's default is [Origin.FrontBottomLeft]. **/
     var origin = Origin.Center
@@ -105,6 +124,8 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
     /** Modes how assigned slicing planes interact with the volume */
     var slicingMode = SlicingMode.None
 
+    var multiResolutionLevelLimits: Pair<Int, Int>? = null
+
     enum class SlicingMode(val id: Int){
         // Volume is rendered as it is
         None(0),
@@ -118,15 +139,20 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
         Both(3)
     }
 
-    var volumeManager: VolumeManager
+    @Transient
+    lateinit var volumeManager: VolumeManager
 
     // TODO IS THIS REQUIRED??
     var cacheControls = CacheControl.CacheControls()
 
     /** Current timepoint. */
-    var currentTimepoint: Int
+    var currentTimepoint: Int = 0
         get() { return viewerState.currentTimepoint }
-        set(value) {viewerState.currentTimepoint = value}
+        set(value) {
+            viewerState.currentTimepoint = value
+            modifiedAt = System.nanoTime()
+            field = value
+        }
 
     sealed class VolumeDataSource {
         class SpimDataMinimalSource(val spimData : SpimDataMinimal) : VolumeDataSource()
@@ -136,6 +162,7 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
             val converterSetups: ArrayList<ConverterSetup>,
             val numTimepoints: Int,
             val cacheControl: CacheControl? = null) : VolumeDataSource()
+        class NullSource(val numTimepoints: Int): VolumeDataSource()
     }
 
     /**
@@ -150,7 +177,9 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
     init {
         name = "Volume"
 
-        when(dataSource) {
+        addSpatial()
+
+        when (dataSource) {
             is SpimDataMinimalSource -> {
                 val spimData = dataSource.spimData
 
@@ -176,41 +205,49 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
                 // FIXME: bigdataviewer-core > 9.0.0 doesn't enjoy having 0 timepoints anymore :-(
                 // We tell it here to have a least one, so far no ill side effects from that
                 viewerState = ViewerState(dataSource.sources, max(1, timepointCount))
-                converterSetups.addAll( dataSource.converterSetups )
+                converterSetups.addAll(dataSource.converterSetups)
+            }
+
+            is VolumeDataSource.NullSource -> {
+                viewerState = ViewerState(emptyList(), dataSource.numTimepoints)
+                timepointCount = dataSource.numTimepoints
             }
         }
 
         viewerState.sources.forEach { s -> s.isActive = true }
         viewerState.displayMode = DisplayMode.FUSED
 
-        converterSetups.forEach {
-            it.color = ARGBType(Int.MAX_VALUE)
-        }
+        if (dataSource !is VolumeDataSource.NullSource) {
+            converterSetups.forEach {
+                it.color = ARGBType(Int.MAX_VALUE)
+            }
 
-        val vm = hub.get<VolumeManager>()
-        val volumes = ArrayList<Volume>(10)
+            val vm = hub.get<VolumeManager>()
+            val volumes = ArrayList<Volume>(10)
 
-        if(vm != null) {
-            volumes.addAll(vm.nodes)
-            hub.remove(vm)
+            if (vm != null) {
+                volumes.addAll(vm.nodes)
+                hub.remove(vm)
+            }
+            volumeManager = if (vm != null) {
+                hub.add(VolumeManager(hub, vm.useCompute, vm.customSegments, vm.customBindings))
+            } else {
+                hub.add(VolumeManager(hub))
+            }
+            vm?.customTextures?.forEach {
+                volumeManager.customTextures.add(it)
+                volumeManager.material().textures[it] = vm.material().textures[it]!!
+            }
+            volumeManager.add(this)
+            volumes.forEach {
+                volumeManager.add(it)
+                it.volumeManager = volumeManager
+            }
         }
+    }
 
-        volumeManager = if(vm != null) {
-            hub.add(VolumeManager(hub, vm.useCompute, vm.customSegments, vm.customBindings))
-        } else {
-            hub.add(VolumeManager(hub))
-        }
-        vm?.customTextures?.forEach {
-            volumeManager.customTextures.add(it)
-            volumeManager.material.textures[it] = vm.material.textures[it]!!
-        }
-        volumeManager.add(this)
-        volumes.forEach {
-            volumeManager.add(it)
-            it.delegate = volumeManager
-            it.volumeManager = volumeManager
-        }
-        delegate = volumeManager
+    override fun createSpatial(): VolumeSpatial {
+        return VolumeSpatial(this)
     }
 
     /**
@@ -252,13 +289,14 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
             timepoint
         }
         val current = viewerState.currentTimepoint
-        viewerState.currentTimepoint = min(max(tp, 0), timepointCount - 1)
+        currentTimepoint = min(max(tp, 0), timepointCount - 1)
         logger.debug("Going to timepoint ${viewerState.currentTimepoint+1} of $timepointCount")
 
         if(current != viewerState.currentTimepoint) {
             volumeManager.notifyUpdate(this)
         }
 
+        modifiedAt = System.nanoTime()
         return viewerState.currentTimepoint
     }
 
@@ -300,26 +338,9 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
 //            voxelSizes.dimension(1).toFloat() * pixelToWorldRatio,
 //            voxelSizes.dimension(2).toFloat() * pixelToWorldRatio
             pixelToWorldRatio,
-            pixelToWorldRatio,
+            -1.0f * pixelToWorldRatio,
             pixelToWorldRatio
         )
-    }
-
-    /**
-     * Composes the world matrix for this volume node, taken voxel size and [pixelToWorldRatio]
-     * into account.
-     */
-    override fun composeModel() {
-        @Suppress("SENSELESS_COMPARISON")
-        if(position != null && rotation != null && scale != null) {
-            model.translation(position)
-            model.mul(Matrix4f().set(this.rotation))
-            if(origin == Origin.Center) {
-                model.translate(-2.0f, -2.0f, -2.0f)
-            }
-            model.scale(scale)
-            model.scale(localScale())
-        }
     }
 
     /**
@@ -343,10 +364,16 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
         return null
     }
 
+    /**
+     * Returns the volume's physical (voxel) dimensions.
+     */
+    open fun getDimensions(): Vector3i {
+        return Vector3i(0)
+    }
+
     companion object {
         val setupId = AtomicInteger(0)
         val scifio: SCIFIO = SCIFIO()
-        
         private val logger by LazyLogger()
 
         @JvmStatic @JvmOverloads fun fromSpimData(
@@ -621,10 +648,10 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
          * Returns the new volume.
          */
         @JvmStatic fun fromPathRaw(file: Path, hub: Hub): BufferedVolume {
-            
+
             val infoFile: Path
             val volumeFiles: List<Path>
-            
+
             if(Files.isDirectory(file)) {
                 volumeFiles = Files.list(file).filter { it.toString().endsWith(".raw") && Files.isRegularFile(it) && Files.isReadable(it) }.toList()
                 infoFile = file.resolve("stacks.info")
@@ -672,6 +699,26 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
         }
 
         /** Amount of supported slicing planes per volume, see also sampling shader segments */
-        private const val MAX_SUPPORTED_SLICING_PLANES = 16
+        internal const val MAX_SUPPORTED_SLICING_PLANES = 16
+
+    }
+
+    open class VolumeSpatial(val volume: Volume): DefaultSpatial(volume) {
+        /**
+         * Composes the world matrix for this volume node, taken voxel size and [pixelToWorldRatio]
+         * into account.
+         */
+        override fun composeModel() {
+            @Suppress("SENSELESS_COMPARISON")
+            if(position != null && rotation != null && scale != null) {
+                model.translation(position)
+                model.mul(Matrix4f().set(this.rotation))
+                if(volume.origin == Origin.Center) {
+                    model.translate(-2.0f, -2.0f, -2.0f)
+                }
+                model.scale(scale)
+                model.scale(volume.localScale())
+            }
+        }
     }
 }

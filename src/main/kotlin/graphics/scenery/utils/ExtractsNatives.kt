@@ -24,7 +24,7 @@ interface ExtractsNatives {
          * Returns the platform based on the os.name system property.
          */
         @JvmStatic fun getPlatform(): Platform {
-            val os = System.getProperty("os.name").toLowerCase()
+            val os = System.getProperty("os.name").lowercase()
 
             return when {
                 os.contains("win") -> Platform.WINDOWS
@@ -80,7 +80,7 @@ interface ExtractsNatives {
             Platform.MACOS to listOf("dylib", "jnilib"))
 
         logger.debug("Got back ${paths.joinToString(", ")}")
-        paths.filter { it.toLowerCase().endsWith("jar") }.forEach {
+        paths.filter { it.lowercase().endsWith("jar") }.forEach {
             logger.debug("Extracting $it...")
 
             val jar = JarFile(it)

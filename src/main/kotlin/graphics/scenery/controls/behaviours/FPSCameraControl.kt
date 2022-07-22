@@ -10,13 +10,12 @@ import kotlin.reflect.KProperty
  * FPS-style camera control
  *
  * @author Ulrik Günther <hello@ulrik.is>
- * @property[name] The name of the behaviour
  * @property[node] The node this behaviour controls
  * @property[w] Window width
  * @property[h] Window height
  * @constructor Creates a new FPSCameraControl behaviour
  */
-open class FPSCameraControl(private val name: String, private val n: () -> Camera?, private val w: Int, private val h: Int) : DragBehaviour {
+open class FPSCameraControl(private val n: () -> Camera?, private val w: Int, private val h: Int) : DragBehaviour {
     private var lastX = w / 2
     private var lastY = h / 2
 
@@ -46,7 +45,7 @@ open class FPSCameraControl(private val name: String, private val n: () -> Camer
      * FPS-style camera control, supplying a Camera via a Java [Supplier] lambda.
      */
     @Suppress("unused")
-    constructor(name: String, n: Supplier<Camera?>, w: Int, h: Int) : this(name, { n.get() }, w, h)
+    constructor(name: String, n: Supplier<Camera?>, w: Int, h: Int) : this({ n.get() }, w, h)
 
     /**
      * This function is called upon mouse down and initialises the camera control
@@ -82,18 +81,22 @@ open class FPSCameraControl(private val name: String, private val n: () -> Camer
             return
         }
 
-        var xoffset: Float = (x - lastX).toFloat() * mouseSpeedMultiplier
-        var yoffset: Float = (y - lastY).toFloat() * mouseSpeedMultiplier
+        node?.ifSpatial {
 
-        lastX = x
-        lastY = y
+            var xoffset: Float = (x - lastX).toFloat() * mouseSpeedMultiplier
+            var yoffset: Float = (y - lastY).toFloat() * mouseSpeedMultiplier
 
-        val frameYaw = xoffset
-        val framePitch = yoffset
+            lastX = x
+            lastY = y
 
-        val yawQ = Quaternionf().rotateXYZ(0.0f, frameYaw/180.0f*Math.PI.toFloat(), 0.0f)
-        val pitchQ = Quaternionf().rotateXYZ(framePitch/180.0f*Math.PI.toFloat(), 0.0f, 0.0f)
-        node?.rotation = pitchQ.mul(node?.rotation).mul(yawQ).normalize()
+            val frameYaw = xoffset
+            val framePitch = yoffset
+
+            val yawQ = Quaternionf().rotateXYZ(0.0f, frameYaw/180.0f*Math.PI.toFloat(), 0.0f)
+            val pitchQ = Quaternionf().rotateXYZ(framePitch/180.0f*Math.PI.toFloat(), 0.0f, 0.0f)
+            rotation = pitchQ.mul(rotation).mul(yawQ).normalize()
+        }
+
 
         node?.lock?.unlock()
     }

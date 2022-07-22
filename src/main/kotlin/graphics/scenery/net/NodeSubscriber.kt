@@ -1,15 +1,21 @@
 package graphics.scenery.net
 
-import org.joml.Matrix4f
-import org.joml.Vector3f
 import com.esotericsoftware.kryo.Kryo
 import com.esotericsoftware.kryo.io.Input
 import com.jogamp.opengl.math.Quaternion
 import graphics.scenery.*
+import graphics.scenery.geometry.GeometryType
+import graphics.scenery.primitives.Arrow
+import graphics.scenery.primitives.Cylinder
+import graphics.scenery.primitives.Line
+import graphics.scenery.proteins.Protein
+import graphics.scenery.proteins.RibbonDiagram
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.Statistics
 import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.Volume
+import org.joml.Matrix4f
+import org.joml.Vector3f
 import org.objenesis.strategy.StdInstantiatorStrategy
 import org.zeromq.ZContext
 import org.zeromq.ZMQ
@@ -21,43 +27,16 @@ import java.util.concurrent.ConcurrentHashMap
 /**
  * Created by ulrik on 4/4/2017.
  */
-class NodeSubscriber(override var hub: Hub?, val address: String = "udp://localhost:6666", val context: ZContext = ZContext(4)) : Hubable {
+class NodeSubscriber(override var hub: Hub?, val address: String = "tcp://localhost:6666", val context: ZContext = ZContext(4)) : Hubable {
 
     private val logger by LazyLogger()
     var nodes: ConcurrentHashMap<Int, Node> = ConcurrentHashMap()
     var subscriber: ZMQ.Socket = context.createSocket(ZMQ.SUB)
-    val kryo = Kryo()
+    val kryo = NodePublisher.freeze()
 
     init {
         subscriber.connect(address)
         subscriber.subscribe(ZMQ.SUBSCRIPTION_ALL)
-        kryo.isRegistrationRequired = false
-        //kryo.references = true
-
-        kryo.register(Matrix4f::class.java)
-        kryo.register(Vector3f::class.java)
-        kryo.register(Node::class.java)
-        kryo.register(Camera::class.java)
-        kryo.register(DetachedHeadCamera::class.java)
-        kryo.register(Quaternion::class.java)
-        kryo.register(Mesh::class.java)
-        kryo.register(Volume::class.java)
-        kryo.register(OrientedBoundingBox::class.java)
-        kryo.register(TransferFunction::class.java)
-        kryo.register(PointLight::class.java)
-        kryo.register(Light::class.java)
-        kryo.register(Sphere::class.java)
-        kryo.register(Box::class.java)
-        kryo.register(Icosphere::class.java)
-        kryo.register(Cylinder::class.java)
-        kryo.register(Arrow::class.java)
-        kryo.register(Line::class.java)
-        kryo.register(FloatArray::class.java)
-        kryo.register(GeometryType::class.java)
-        kryo.register(RibbonDiagram::class.java)
-        kryo.register(Protein::class.java)
-
-        kryo.instantiatorStrategy = StdInstantiatorStrategy()
     }
 
     fun process() {
@@ -79,13 +58,29 @@ class NodeSubscriber(override var hub: Hub?, val address: String = "udp://localh
                         val input = Input(bin)
                         val o = kryo.readClassAndObject(input) as? Node ?: return@let
 
-                        node.position = o.position
-                        node.rotation = o.rotation
-                        node.scale = o.scale
+                        val oSpatial = o.spatialOrNull()
+                        if (oSpatial != null) {
+                            node.ifSpatial {
+                                position = oSpatial.position
+                                rotation = oSpatial.rotation
+                                scale = oSpatial.scale
+                            }
+                        }
                         node.visible = o.visible
 
-                        if (o is Volume && node is Volume && node.initialized) {
-                            TODO("Reimplement changes for synchronising volumes")
+                        node.ifMaterial {
+                            o.materialOrNull()?.let {
+                                diffuse = it.diffuse
+                                blending = it.blending
+                            }
+                        }
+
+                        if (Volume::class.java.isAssignableFrom(o.javaClass) && Volume::class.java.isAssignableFrom(node.javaClass)) {
+                            (node as Volume).colormap = (o as Volume).colormap
+                            node.transferFunction = o.transferFunction
+                            if(node.currentTimepoint != o.currentTimepoint) {
+                                node.goToTimepoint(o.currentTimepoint)
+                            }
                         }
 
                         if(o is PointLight && node is PointLight) {

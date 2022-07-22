@@ -11,6 +11,7 @@ import graphics.scenery.utils.SceneryPanel
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.selects.select
+import org.lwjgl.system.Platform
 import java.util.concurrent.ConcurrentLinkedQueue
 
 /**
@@ -255,6 +256,10 @@ abstract class Renderer : Hubable {
                 preference == null &&
                     (ExtractsNatives.getPlatform() == ExtractsNatives.Platform.LINUX
                         || ExtractsNatives.getPlatform() == ExtractsNatives.Platform.WINDOWS) -> "VulkanRenderer"
+
+                preference == null &&
+                    ExtractsNatives.getPlatform() == ExtractsNatives.Platform.MACOS &&
+                    Platform.getArchitecture() == Platform.Architecture.ARM64 -> "VulkanRenderer"
 
                 preference == null &&
                     ExtractsNatives.getPlatform() == ExtractsNatives.Platform.MACOS -> "OpenGLRenderer"

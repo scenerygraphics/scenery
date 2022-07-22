@@ -14,11 +14,10 @@ import kotlin.reflect.KProperty
  * Movement Command class. Moves a given camera in the given direction.
  *
  * @author Ulrik Günther <hello@ulrik.is>
- * @property[name] The name of the behaviour
  * @property[direction] The direction of movement as string. Can be forward/back/left/right/up/down.
  * @property[n] The [Node] this behaviour affects.
  */
-open class MovementCommand(private val name: String, private val direction: String, private var n: () -> Node?) : ClickBehaviour {
+open class MovementCommand(private val direction: String, private var n: () -> Node?) : ClickBehaviour {
 
     private val node: Node? by NodeDelegate()
     private val logger: Logger by LazyLogger()
@@ -41,12 +40,11 @@ open class MovementCommand(private val name: String, private val direction: Stri
     /**
      * Additional constructor to directly adjust movement speed.
      *
-     * @param[name] The name of the behaviour
      * @param[direction] The direction of movement as string. Can be forward/back/left/right/up/down.
      * @param[n] The [Node] this behaviour affects.
      * @param[speed] The speed multiplier for movement.
      */
-    constructor(name: String, direction: String, n: () -> Node?, speed: Float): this(name, direction, n) {
+    constructor(direction: String, n: () -> Node?, speed: Float): this(direction, n) {
         this.speed = speed
     }
 
@@ -61,14 +59,16 @@ open class MovementCommand(private val name: String, private val direction: Stri
         val axisProvider = node as? Camera ?: node?.getScene()?.findObserver() ?: return
 
         node?.let { node ->
-            if (node.lock.tryLock()) {
-                when (direction) {
-                    "forward" -> node.position = node.position + axisProvider.forward * speed * axisProvider.deltaT
-                    "back" -> node.position = node.position - axisProvider.forward * speed * axisProvider.deltaT
-                    "left" -> node.position = node.position - axisProvider.right * speed * axisProvider.deltaT
-                    "right" -> node.position = node.position + axisProvider.right * speed * axisProvider.deltaT
-                    "up" -> node.position = node.position + axisProvider.up * speed * axisProvider.deltaT
-                    "down" -> node.position = node.position - axisProvider.up * speed * axisProvider.deltaT
+            if (node.lock.tryLock() != false) {
+                node.ifSpatial {
+                    when (direction) {
+                        "forward" -> position += axisProvider.forward * speed * axisProvider.deltaT
+                        "back" -> position -= axisProvider.forward * speed * axisProvider.deltaT
+                        "left" -> position -= axisProvider.right * speed * axisProvider.deltaT
+                        "right" -> position += axisProvider.right * speed * axisProvider.deltaT
+                        "up" -> position += axisProvider.up * speed * axisProvider.deltaT
+                        "down" -> position -= axisProvider.up * speed * axisProvider.deltaT
+                    }
                 }
 
                 node.lock.unlock()
