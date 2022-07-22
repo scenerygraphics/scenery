@@ -122,7 +122,11 @@ class RibbonDiagramTests {
             "4xib", "4u0q", "6phf"
         )
 
-        proteins.shuffled().drop(80).forEach { pdbId ->
+        val runtime = Runtime.getRuntime()
+        proteins.shuffled().take(20).forEach { pdbId ->
+            val used = (runtime.totalMemory()-runtime.freeMemory())/1024/1024
+            val free = runtime.freeMemory()/1024/1024
+            logger.info("Memory use: $used MB, $free MB free")
             val protein = Protein.fromID(pdbId)
             logger.info("Testing ${protein.structure.name} ...")
             RibbonDiagram(protein)
