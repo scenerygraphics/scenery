@@ -136,7 +136,7 @@ val isRelease: Boolean
  */
 fun githubRelease(organization: String, repository: String, release: String, file: String): ConfigurableFileCollection {
     val url = "https://github.com/$organization/$repository/releases/download/$release/$file"
-    val output = File("$buildDir/download/$organization-$repository-$release-$file")
+    val output = File("$projectDir/external-libs/$organization-$repository-$release-$file")
     output.parentFile.mkdirs()
 
     if(!output.exists()) {
@@ -155,7 +155,7 @@ tasks {
     withType<KotlinCompile>().all {
         kotlinOptions {
             jvmTarget = project.properties["jvmTarget"]?.toString() ?: "11"
-            freeCompilerArgs += listOf("-Xinline-classes", "-Xopt-in=kotlin.RequiresOptIn")
+            freeCompilerArgs += listOf("-Xinline-classes", "-opt-in=kotlin.RequiresOptIn")
         }
     }
 
