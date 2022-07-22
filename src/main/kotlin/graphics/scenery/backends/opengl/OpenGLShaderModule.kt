@@ -3,10 +3,9 @@ package graphics.scenery.backends.opengl
 import cleargl.GLShader
 import cleargl.GLShaderType
 import com.jogamp.opengl.GL4
+import graphics.scenery.backends.ShaderIntrospection
 import graphics.scenery.backends.ShaderPackage
 import graphics.scenery.backends.ShaderType
-import graphics.scenery.spirvcrossj.CompilerGLSL
-import graphics.scenery.spirvcrossj.Decoration
 import graphics.scenery.utils.LazyLogger
 import java.util.concurrent.ConcurrentHashMap
 
@@ -23,54 +22,25 @@ open class OpenGLShaderModule(gl: GL4, entryPoint: String, sp: ShaderPackage) {
         private set
     var shaderType: ShaderType
         private set
-    var uboSpecs = LinkedHashMap<String, UBOSpec>()
+    var uboSpecs = LinkedHashMap<String, ShaderIntrospection.UBOSpec>()
 
     var source: String = ""
         private set
-
-    data class UBOMemberSpec(val name: String, val index: Long, val offset: Long, val range: Long)
-    data class UBOSpec(val name: String, val set: Long, val binding: Long, val members: LinkedHashMap<String, UBOMemberSpec>)
 
     init {
 
         logger.debug("Creating OpenGLShaderModule $entryPoint, ${sp.toShortString()}")
 
-        val spirv = sp.getSPIRVBytecode() ?: throw IllegalStateException("Shader Package is expected to have SPIRV bytecode at this point")
+        val spirv = sp.getSPIRVOpcodes() ?: throw IllegalStateException("Shader Package is expected to have SPIRV bytecode at this point")
 
-        val compiler = CompilerGLSL(spirv)
+        val intro = ShaderIntrospection(spirv, vulkanSemantics = false, version = 410)
 
-        val uniformBuffers = compiler.shaderResources.uniformBuffers
         logger.debug("Analysing uniform buffers ...")
-        for(i in 0 until uniformBuffers.capacity()) {
-            logger.debug("Getting $i for ${sp.toShortString()} (size: ${uniformBuffers.capacity()}/${uniformBuffers.capacity()})")
-            val res = uniformBuffers.get(i)
-            logger.debug("${res.name}, set=${compiler.getDecoration(res.id, Decoration.DecorationDescriptorSet)}, binding=${compiler.getDecoration(res.id, Decoration.DecorationBinding)}")
-
-            val members = LinkedHashMap<String, UBOMemberSpec>()
-            val activeRanges = compiler.getActiveBufferRanges(res.id)
-
-            // record all members of the UBO struct, order by index, and store them to UBOSpec.members
-            // for further use
-            members.putAll((0 until activeRanges.capacity()).map {
-                val range = activeRanges.get(it)
-                val name = compiler.getMemberName(res.baseTypeId, range.index)
-
-                name to UBOMemberSpec(
-                    compiler.getMemberName(res.baseTypeId, range.index),
-                    range.index,
-                    range.offset,
-                    range.range)
-            }.sortedBy { it.second.index })
-
-            val ubo = UBOSpec(res.name,
-                set = compiler.getDecoration(res.id, Decoration.DecorationDescriptorSet),
-                binding = compiler.getDecoration(res.id, Decoration.DecorationBinding),
-                members = members)
-
+        intro.uniformBuffers().forEach { ubo ->
             // only add the UBO spec if it doesn't already exist, and has more than 0 members
             // SPIRV UBOs may have 0 members, if they are not used in the actual shader code
-            if(!uboSpecs.contains(res.name) && ubo.members.size > 0) {
-                uboSpecs[res.name] = ubo
+            if(!uboSpecs.contains(ubo.name) && ubo.members.size > 0) {
+                uboSpecs[ubo.name] = ubo
             }
         }
 
@@ -93,32 +63,28 @@ open class OpenGLShaderModule(gl: GL4, entryPoint: String, sp: ShaderPackage) {
                     members = LinkedHashMap<String, UBOMemberSpec>()))
          */
         // inputs are summarized into one descriptor set
-        if(compiler.shaderResources.sampledImages.capacity() > 0) {
-            val res = compiler.shaderResources.sampledImages.get(0)
-            if (res.name != "ObjectTextures") {
-                uboSpecs[res.name] = UBOSpec("inputs",
-                    set = compiler.getDecoration(res.id, Decoration.DecorationDescriptorSet),
+        intro.sampledImages().forEach { sampledImage ->
+            if (sampledImage.name != "ObjectTextures") {
+                uboSpecs[sampledImage.name] = ShaderIntrospection.UBOSpec(
+                    "inputs",
+                    set = sampledImage.set,
                     binding = 0,
-                    members = LinkedHashMap())
+                    members = LinkedHashMap(),
+                    type = ShaderIntrospection.UBOSpecType.SampledImage2D
+                )
             }
         }
 
-        val inputs = compiler.shaderResources.stageInputs
-        if(inputs.capacity() > 0) {
-            for (i in 0 until inputs.capacity()) {
-                logger.debug("${sp.toShortString()}: ${inputs.get(i).name}")
-            }
-        }
-
-        val options = CompilerGLSL.Options()
-        options.version = 410
-        options.es = false
-        options.vulkanSemantics = false
-        compiler.commonOptions = options
+//        val inputs = compiler.shaderResources.stageInputs
+//        if(inputs.capacity() > 0) {
+//            for (i in 0 until inputs.capacity()) {
+//                logger.debug("${sp.toShortString()}: ${inputs.get(i).name}")
+//            }
+//        }
 
         this.shaderType = sp.type
 
-        source = compiler.compile()
+        source = intro.compile()
         // remove binding and set qualifiers
         var start = 0
         var found = source.indexOf("layout(", start)
@@ -198,7 +164,7 @@ open class OpenGLShaderModule(gl: GL4, entryPoint: String, sp: ShaderPackage) {
             logger.warn("Shader compilation log:")
             logger.warn(this.shader.shaderInfoLog)
 
-            if(this.shader.shaderInfoLog.toLowerCase().contains("error")) {
+            if(this.shader.shaderInfoLog.lowercase().contains("error")) {
                 logger.error("Shader code follows:")
                 logger.error("--------------------\n$source")
             }

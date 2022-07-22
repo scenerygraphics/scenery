@@ -6,6 +6,8 @@ import com.sun.jna.Library
 import com.sun.jna.Native
 import graphics.scenery.backends.Renderer
 import graphics.scenery.compute.OpenCLContext
+import graphics.scenery.controls.DTrackButton
+import graphics.scenery.controls.GamepadButton
 import graphics.scenery.controls.InputHandler
 import graphics.scenery.controls.behaviours.ArcballCameraControl
 import graphics.scenery.controls.behaviours.FPSCameraControl
@@ -21,6 +23,7 @@ import graphics.scenery.utils.Statistics
 import kotlinx.coroutines.*
 import org.lwjgl.system.Platform
 import org.scijava.Context
+import org.scijava.ui.behaviour.Behaviour
 import org.scijava.ui.behaviour.ClickBehaviour
 import java.lang.Boolean.parseBoolean
 import java.lang.management.ManagementFactory
@@ -52,7 +55,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
                        val scijavaContext: Context? = null) {
 
     /** The scene used by the renderer in the application */
-    protected val scene: Scene = Scene()
+    protected var scene: Scene = Scene()
     /** REPL for the application, can be initialised in the [init] function */
     protected var repl: REPL? = null
     /** Frame number for counting FPS */
@@ -103,6 +106,17 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
         AssertionCheckPoint.AfterClose to arrayListOf()
     )
 
+    val headless = parseBoolean(System.getProperty("scenery.Headless", "false"))
+    val renderdoc = if(System.getProperty("scenery.AttachRenderdoc")?.toBoolean() == true) {
+        Renderdoc()
+    } else {
+        null
+    }
+
+    val master = System.getProperty("scenery.master")?.toBoolean() ?: false
+    val masterAddress = System.getProperty("scenery.MasterNode")
+
+
     interface XLib: Library {
         fun XInitThreads()
 
@@ -143,83 +157,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
      *
      */
     open suspend fun sceneryMain() {
-        System.getProperties().forEach { prop ->
-            val name = prop.key as? String ?: return@forEach
-            val value = prop.value as? String ?: return@forEach
 
-            if(name.startsWith("scenery.LogLevel.")) {
-                val className = name.substringAfter("scenery.LogLevel.")
-                logger.info("Setting logging level of class $className to $value")
-                System.setProperty("org.slf4j.simpleLogger.log.${className}", value)
-            }
-        }
-
-        hub.addApplication(this)
-        logger.info("Started application as PID ${getProcessID()}")
-        running = true
-
-        if(parseBoolean(System.getProperty("scenery.Profiler", "false"))) {
-            hub.add(RemoteryProfiler(hub))
-        }
-
-        val headless = parseBoolean(System.getProperty("scenery.Headless", "false"))
-        val renderdoc = if(System.getProperty("scenery.AttachRenderdoc")?.toBoolean() == true) {
-            Renderdoc()
-        } else {
-            null
-        }
-
-        val master = System.getProperty("scenery.master")?.toBoolean() ?: false
-        val masterAddress = System.getProperty("scenery.MasterNode")
-
-        if (!master && masterAddress != null) {
-            thread {
-                logger.info("NodeSubscriber will connect to master at $masterAddress")
-                val subscriber = NodeSubscriber(hub, masterAddress)
-
-                hub.add(SceneryElement.NodeSubscriber, subscriber)
-                scene.discover(scene, { true }).forEachIndexed { index, node ->
-                    subscriber.nodes.put(index, node)
-                }
-
-                while (running && !shouldClose) {
-                    subscriber.process()
-                    Thread.sleep(2)
-                }
-                logger.debug("Closing subscriber")
-            }
-        } else if(master) {
-            thread {
-                val address = settings.get("NodePublisher.ListenAddress", "tcp://127.0.0.1:6666")
-                val p = NodePublisher(hub, address)
-
-                logger.info("NodePublisher listening on ${address.substringBeforeLast(":")}:${p.port}")
-                hub.add(SceneryElement.NodePublisher, p)
-
-                scene.discover(scene, { true }).forEachIndexed { index, node ->
-                        p.nodes.put(index, node)
-                }
-
-                while (running && !shouldClose) {
-                    p.publish()
-                    Thread.sleep(2)
-                }
-                logger.debug("Closing publisher")
-            }
-        }
-
-        hub.add(SceneryElement.Statistics, stats)
-        hub.add(SceneryElement.Settings, settings)
-
-        settings.set("System.PID", getProcessID())
-
-        if (wantREPL) {
-            repl = REPL(hub, scijavaContext, scene, stats, hub)
-            repl?.addAccessibleObject(settings)
-        }
-
-        // initialize renderer, etc first in init, then setup key bindings
-        init()
 
         // wait for renderer
         while(renderer?.initialized == false) {
@@ -237,7 +175,9 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
                 Thread.sleep(100)
             }
 
-            if (!headless) {
+            val isClient = !master && masterAddress != null
+            if (!headless && !isClient) {
+                logger.debug("Client: $isClient, showing REPL window")
                 repl?.showConsoleWindow()
             }
         }
@@ -262,7 +202,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
             scene.discover(scene, { n ->
                     n.visible && n.state == State.Ready
             }, useDiscoveryBarriers = true)
-                .map { it.updateWorld(recursive = true, force = false); it }
+                .map { it.spatialOrNull()?.updateWorld(recursive = true, force = false); it }
         }
 
         while (!shouldClose || gracePeriod > 0) {
@@ -282,7 +222,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
                 scene.discover(scene, { n ->
                         n.visible && n.state == State.Ready
                 }, useDiscoveryBarriers = true)
-                    .map { it.updateWorld(recursive = true, force = false); it }
+                    .map { it.spatialOrNull()?.updateWorld(recursive = true, force = false); it }
             }
             profiler?.end()
 
@@ -495,6 +435,75 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
     }
 
     open fun main() {
+        System.getProperties().forEach { prop ->
+            val name = prop.key as? String ?: return@forEach
+            val value = prop.value as? String ?: return@forEach
+
+            if(name.startsWith("scenery.LogLevel.")) {
+                val className = name.substringAfter("scenery.LogLevel.")
+                logger.info("Setting logging level of class $className to $value")
+                System.setProperty("org.slf4j.simpleLogger.log.${className}", value)
+            }
+        }
+
+        hub.addApplication(this)
+        logger.info("Started application as PID ${getProcessID()} on ${Platform.get()}/${Platform.getArchitecture()}")
+        running = true
+
+        if(parseBoolean(System.getProperty("scenery.Profiler", "false"))) {
+            hub.add(RemoteryProfiler(hub))
+        }
+
+
+        if (!master && masterAddress != null) {
+            thread {
+                logger.info("NodeSubscriber will connect to master at $masterAddress")
+                val subscriber = NodeSubscriber(hub, masterAddress)
+
+                hub.add(SceneryElement.NodeSubscriber, subscriber)
+                scene.discover(scene, { true }).forEachIndexed { index, node ->
+                    subscriber.nodes.put(index, node)
+                }
+
+                while (running && !shouldClose) {
+                    subscriber.process()
+                    Thread.sleep(2)
+                }
+                logger.debug("Closing subscriber")
+            }
+        } else if(master) {
+            applicationName += " [MASTER]"
+            thread {
+                val address = settings.get("NodePublisher.ListenAddress", "tcp://127.0.0.1:6666")
+                val p = NodePublisher(hub, address)
+
+                logger.info("NodePublisher listening on ${address.substringBeforeLast(":")}:${p.port}")
+                hub.add(SceneryElement.NodePublisher, p)
+
+                scene.discover(scene, { true }).forEachIndexed { index, node ->
+                    p.nodes.put(index, node)
+                }
+
+                while (running && !shouldClose) {
+                    p.publish()
+                    Thread.sleep(2)
+                }
+                logger.debug("Closing publisher")
+            }
+        }
+
+        hub.add(SceneryElement.Statistics, stats)
+        hub.add(SceneryElement.Settings, settings)
+
+        settings.set("System.PID", getProcessID())
+
+        if (wantREPL) {
+            repl = REPL(hub, scijavaContext, scene, stats, hub)
+            repl?.addAccessibleObject(settings)
+        }
+
+        // initialize renderer, etc first in init, then setup key bindings
+        init()
         runBlocking { sceneryMain() }
     }
 
@@ -502,6 +511,39 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
         while(!sceneInitialized()) {
             Thread.sleep(200)
         }
+    }
+
+    infix fun Behaviour.called(name: String): Pair<String, Behaviour> {
+        return name to this
+    }
+
+    infix fun Pair<String, Behaviour>.boundTo(key: String): InputHandler.NamedBehaviourWithKeyBinding {
+        return InputHandler.NamedBehaviourWithKeyBinding(this.first, this.second, key)
+    }
+
+    infix fun Pair<String, Behaviour>.boundTo(key: GamepadButton): InputHandler.NamedBehaviourWithKeyBinding {
+        val button = when {
+            key.ordinal <= GamepadButton.Button8.ordinal -> key.ordinal.toString()
+            key.ordinal == GamepadButton.PovUp.ordinal -> "NUMPAD8"
+            key.ordinal == GamepadButton.PovRight.ordinal -> "NUMPAD6"
+            key.ordinal == GamepadButton.PovDown.ordinal -> "NUMPAD2"
+            key.ordinal == GamepadButton.PovLeft.ordinal -> "NUMPAD4"
+            key.ordinal == GamepadButton.AlwaysActive.ordinal -> "F24"
+            else -> throw IllegalStateException("Don't know how to translate gamepad button with ordinal ${key.ordinal} to key code.")
+        }
+
+        return InputHandler.NamedBehaviourWithKeyBinding(this.first, this.second, button)
+    }
+
+    infix fun Pair<String, Behaviour>.boundTo(key: DTrackButton): InputHandler.NamedBehaviourWithKeyBinding {
+        val button = when(key) {
+            DTrackButton.Trigger -> "0"
+            DTrackButton.Left -> "3"
+            DTrackButton.Center -> "2"
+            DTrackButton.Right -> "1"
+        }
+
+        return InputHandler.NamedBehaviourWithKeyBinding(this.first, this.second, button)
     }
 
     companion object {
@@ -549,20 +591,20 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
             }
         }
 
-        @JvmStatic fun xinitThreads() {
-            if(Platform.get() == Platform.LINUX && xinitThreadsCalled == false) {
-                logger.debug("Running XInitThreads")
-                XLib.INSTANCE.XInitThreads()
-                xinitThreadsCalled = true
-            }
-        }
-
         @JvmStatic fun URL.sanitizedPath(): String {
             // cuts off the initial / on Windows
             return if(Platform.get() == Platform.WINDOWS) {
                 this.path.substringAfter("/")
             } else {
                 this.path
+            }
+        }
+
+        @JvmStatic fun xinitThreads() {
+            if(Platform.get() == Platform.LINUX && xinitThreadsCalled == false) {
+                logger.debug("Running XInitThreads")
+                XLib.INSTANCE.XInitThreads()
+                xinitThreadsCalled = true
             }
         }
     }

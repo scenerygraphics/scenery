@@ -3,6 +3,7 @@ package graphics.scenery.controls
 import graphics.scenery.*
 import graphics.scenery.backends.Display
 import graphics.scenery.backends.vulkan.VulkanDevice
+import graphics.scenery.Mesh
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.extensions.plus
 import org.joml.*
@@ -52,7 +53,7 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
 
             address.startsWith("DTrack:") -> {
                 val host = address.substringAfter("@").substringBeforeLast(":")
-                val device = address.substringAfter("DTrack:").substringBefore("@").toIntOrNull() ?: 0
+                val device = address.substringAfter("DTrack:").substringBefore("@")
                 val port = address.substringAfterLast(":").toIntOrNull() ?: 5000
 
                 DTrackTrackerInput(host, port, device)
