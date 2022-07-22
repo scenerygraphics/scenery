@@ -136,10 +136,16 @@ val isRelease: Boolean
  */
 fun githubRelease(organization: String, repository: String, release: String, file: String): ConfigurableFileCollection {
     val url = "https://github.com/$organization/$repository/releases/download/$release/$file"
-    val output = File("$buildDir/download/$organization-$repository-$release-$file.jar")
+    val output = File("$buildDir/download/$organization-$repository-$release-$file")
     output.parentFile.mkdirs()
+
     if(!output.exists()) {
-        URL(url).openStream().copyTo(output.outputStream())
+        val created = output.createNewFile()
+        val stream = URL(url).openStream()
+        val out = output.outputStream()
+        stream.copyTo(out)
+        out.close()
+        stream.close()
     }
     return files(output.absolutePath)
 }
@@ -379,7 +385,7 @@ artifacts {
 }
 
 jacoco {
-    toolVersion = "0.8.7"
+    toolVersion = "0.8.8"
 }
 
 java.withSourcesJar()
