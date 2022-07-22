@@ -43,23 +43,6 @@ class RibbonDiagramTests {
             }
         }
         assertEquals(allPlantPoints, (46) * (10 + 1))
-
-        val saccharomycesCerevisiae = Protein.fromID("6zqd")
-        val scRibbon = RibbonDiagram(saccharomycesCerevisiae)
-        val dsspSC = scRibbon.callPrivateFunc("dssp")
-        val scChains = saccharomycesCerevisiae.getResidues()
-        var allSCPoints = 0
-        scChains.forEach {
-            if (dsspSC is List<*>) {
-                @Suppress("UNCHECKED_CAST")
-                val guides =
-                    RibbonDiagram.GuidePointCalculation.calculateGuidePoints(it, dsspSC as List<SecStrucElement>)
-                val spline = scRibbon.callPrivateFunc("ribbonSpline", guides) as DummySpline
-                allSCPoints += spline.splinePoints().size
-            }
-        }
-        assertEquals(allSCPoints, (23448) * (10 + 1))
-
     }
 
     /**
