@@ -115,10 +115,6 @@ class VideoEncoder(
         }
 
         init {
-            @Suppress("DEPRECATION")
-            av_register_all()
-            @Suppress("DEPRECATION")
-            avcodec_register_all()
             avformat_network_init()
         }
     }

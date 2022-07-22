@@ -9,6 +9,8 @@ import graphics.scenery.controls.TrackerRole
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.Wiggler
 import org.scijava.ui.behaviour.DragBehaviour
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.Future
 
 /**
  * A selection wheel to let the user choose between different actions.
@@ -91,7 +93,8 @@ class VRSelectionWheel(
             button: List<OpenVRHMD.OpenVRButton>,
             controllerSide: List<TrackerRole>,
             actions: List<Pair<String, () -> Unit>>,
-        ) {
+        ) : Future<VRSelectionWheel> {
+            val future = CompletableFuture<VRSelectionWheel>()
             hmd.events.onDeviceConnect.add { _, device, _ ->
                 if (device.type == TrackedDeviceType.Controller) {
                     device.model?.let { controller ->
@@ -102,16 +105,20 @@ class VRSelectionWheel(
                                     ?: throw IllegalArgumentException("The target controller needs a spatial."),
                                 scene,
                                 hmd,
-                                actions.map { Action(it.first, it.second) }
+                                actions.toActions()
                             )
                             hmd.addBehaviour(name, vrToolSelector)
                             button.forEach {
                                 hmd.addKeyBinding(name, device.role, it)
                             }
+                            future.complete(vrToolSelector)
                         }
                     }
                 }
             }
+            return future
         }
+        fun List<Pair<String, () -> Unit>>.toActions(): List<Action> = map { Action(it.first, it.second)}
     }
 }
+

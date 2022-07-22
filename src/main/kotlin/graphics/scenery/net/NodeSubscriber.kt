@@ -115,6 +115,7 @@ class NodeSubscriber(
                 is NetworkEvent.NewRelation -> {
                     processNewRelationEvent(event)
                 }
+                NetworkEvent.RequestInitialization -> {} // should not arrive at subscriber
             }
         }
     }

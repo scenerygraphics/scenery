@@ -96,7 +96,7 @@ class CroppingExample : SceneryBase("Volume Cropping example", 1280, 720) {
             addAdditionalVolume(Vector3f(2f,2f,-2f)).slicingMode = Volume.SlicingMode.Slicing
             addAdditionalVolume(Vector3f(-2f,2f,-2f)).slicingMode = Volume.SlicingMode.Cropping
             addAdditionalVolume(Vector3f(2f,-2f,-2f)).slicingMode = Volume.SlicingMode.Both
-            addAdditionalVolume(Vector3f(-2f,-2f,-2f))
+//            addAdditionalVolume(Vector3f(-2f,-2f,-2f))
         }
 
         thread {
