@@ -102,10 +102,9 @@ tasks {
 
     jacocoTestReport {
         reports {
-            xml.isEnabled = true
+            xml.required.set(true)
             html.apply {
-                isEnabled = false
-                //                destination = file("$buildDir/jacocoHtml")
+                required.set(false)
             }
         }
         dependsOn(test) // tests are required to run before generating the report
@@ -119,9 +118,9 @@ tasks {
             val exampleName = className.substringAfterLast(".")
             val exampleType = className.substringBeforeLast(".").substringAfterLast(".")
 
-            register<JavaExec>(name = className.substringAfterLast(".")) {
+            register<JavaExec>(name = exampleName) {
                 classpath = sourceSets.test.get().runtimeClasspath
-                main = className
+                mainClass.set(className)
                 group = "examples.$exampleType"
 
                 val props = System.getProperties().filter { (k, _) -> k.toString().startsWith("scenery.") }
@@ -147,7 +146,7 @@ tasks {
         if (project.hasProperty("example")) {
             project.property("example")?.let { example ->
                 val file = sourceSets.test.get().allSource.files.first { "class $example" in it.readText() }
-                main = file.path.substringAfter("kotlin${File.separatorChar}").replace(File.separatorChar, '.').substringBefore(".kt")
+                mainClass.set(file.path.substringAfter("kotlin${File.separatorChar}").replace(File.separatorChar, '.').substringBefore(".kt"))
                 val props = System.getProperties().filter { (k, _) -> k.toString().startsWith("scenery.") }
 
                 val additionalArgs = System.getenv("SCENERY_JVM_ARGS")
@@ -164,7 +163,7 @@ tasks {
                     )
                 }
 
-                println("Will run example $example with classpath $classpath, main=$main")
+                println("Will run example $example with classpath $classpath, main=${mainClass.get()}")
                 println("JVM arguments passed to example: $allJvmArgs")
             }
         }
