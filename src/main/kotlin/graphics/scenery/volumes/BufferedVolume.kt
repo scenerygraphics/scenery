@@ -133,8 +133,7 @@ class BufferedVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewe
     @OptIn(ExperimentalUnsignedTypes::class)
     override fun sample(uv: Vector3f, interpolate: Boolean): Float? {
         val texture = timepoints?.lastOrNull() ?: throw IllegalStateException("Could not find timepoint")
-        val source = (ds.sources.first().spimSource as? BufferSource) ?: throw IllegalStateException("No source found")
-        val dimensions = Vector3i(source.width, source.height, source.depth)
+        val dimensions = getDimensions()
 
         val bpp = when(ds.type) {
             is UnsignedByteType, is ByteType -> 1
@@ -222,8 +221,7 @@ class BufferedVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewe
      * as well as the delta used along the ray, or null if the start/end coordinates are invalid.
      */
     override fun sampleRay(start: Vector3f, end: Vector3f): Pair<List<Float?>, Vector3f>? {
-        val source = (ds.sources.first().spimSource as? BufferSource) ?: throw IllegalStateException("No source found")
-        val dimensions = Vector3f(source.width.toFloat(), source.height.toFloat(), source.depth.toFloat())
+        val dimensions = Vector3f(getDimensions())
 
         if (start.x() < 0.0f || start.x() > 1.0f || start.y() < 0.0f || start.y() > 1.0f || start.z() < 0.0f || start.z() > 1.0f) {
             logger.debug("Invalid UV coords for ray start: {} -- will clamp values to [0.0, 1.0].", start)
@@ -252,5 +250,13 @@ class BufferedVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewe
         return (0 until maxSteps).map {
             sample(startClamped + (delta * it.toFloat()))
         } to delta
+    }
+
+    /**
+     * Returns the volume's physical (voxel) dimensions.
+     */
+    override fun getDimensions(): Vector3i {
+        val source = ((ds.sources.first().spimSource as? TransformedSource)?.wrappedSource as? BufferSource) ?: throw IllegalStateException("No source found")
+        return Vector3i(source.width, source.height, source.depth)
     }
 }

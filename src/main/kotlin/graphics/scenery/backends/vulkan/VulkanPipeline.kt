@@ -218,7 +218,7 @@ class VulkanPipeline(val device: VulkanDevice, val renderpass: VulkanRenderpass,
         // derivative pipelines only make sense for graphics pipelines in our case
         if(onlyForTopology == null && pipelineCreateInfo is VkGraphicsPipelineCreateInfo.Buffer) {
             // create pipelines for other topologies as well
-            GeometryType.values().forEach { topology ->
+            GeometryType.values().filter { it != GeometryType.TRIANGLE_FAN }.forEach { topology ->
                 if (topology == GeometryType.TRIANGLES) {
                     return@forEach
                 }

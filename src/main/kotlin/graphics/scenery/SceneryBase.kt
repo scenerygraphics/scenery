@@ -20,8 +20,6 @@ import graphics.scenery.utils.RemoteryProfiler
 import graphics.scenery.utils.Renderdoc
 import graphics.scenery.utils.SceneryPanel
 import graphics.scenery.utils.Statistics
-import graphics.scenery.volumes.Volume
-import graphics.scenery.volumes.VolumeManager
 import kotlinx.coroutines.*
 import org.lwjgl.system.Platform
 import org.scijava.Context
@@ -108,6 +106,16 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
         AssertionCheckPoint.AfterClose to arrayListOf()
     )
 
+    val headless = parseBoolean(System.getProperty("scenery.Headless", "false"))
+    val renderdoc = if(System.getProperty("scenery.AttachRenderdoc")?.toBoolean() == true) {
+        Renderdoc()
+    } else {
+        null
+    }
+
+    val server = System.getProperty("scenery.Server")?.toBoolean() ?: false
+    val serverAddress = System.getProperty("scenery.ServerAddress")
+
     interface XLib: Library {
         fun XInitThreads()
 
@@ -148,64 +156,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
      *
      */
     open suspend fun sceneryMain() {
-        System.getProperties().forEach { prop ->
-            val name = prop.key as? String ?: return@forEach
-            val value = prop.value as? String ?: return@forEach
 
-            if(name.startsWith("scenery.LogLevel.")) {
-                val className = name.substringAfter("scenery.LogLevel.")
-                logger.info("Setting logging level of class $className to $value")
-                System.setProperty("org.slf4j.simpleLogger.log.${className}", value)
-            }
-        }
-
-        hub.addApplication(this)
-        logger.info("Started application as PID ${getProcessID()}")
-        running = true
-
-        if(parseBoolean(System.getProperty("scenery.Profiler", "false"))) {
-            hub.add(RemoteryProfiler(hub))
-        }
-
-        val headless = parseBoolean(System.getProperty("scenery.Headless", "false"))
-        val renderdoc = if(System.getProperty("scenery.AttachRenderdoc")?.toBoolean() == true) {
-            Renderdoc()
-        } else {
-            null
-        }
-
-        val server = System.getProperty("scenery.Server")?.toBoolean() ?: false
-        val serverAddress = System.getProperty("scenery.ServerAddress")
-        val mainPort = System.getProperty("scenery.MainPort")?.toIntOrNull() ?: 6040
-        val backchannelPort = System.getProperty("scenery.BackchannelPort")?.toIntOrNull() ?: 6041
-
-        if (!server && serverAddress != null) {
-            val subscriber = NodeSubscriber(hub,serverAddress,mainPort,backchannelPort)
-            hub.add(subscriber)
-            subscriber.startListening()
-            scene.postUpdate += {subscriber.networkUpdate(scene)}
-        } else if (server) {
-            applicationName += " [SERVER]"
-            val publisher = NodePublisher(hub, portMain = mainPort, portBackchannel = backchannelPort)
-            hub.add(publisher)
-            publisher.startPublishing()
-            publisher.register(scene)
-            scene.postUpdate += { publisher.scanForChanges()}
-        }
-
-
-        hub.add(SceneryElement.Statistics, stats)
-        hub.add(SceneryElement.Settings, settings)
-
-        settings.set("System.PID", getProcessID())
-
-        if (wantREPL) {
-            repl = REPL(hub, scijavaContext, scene, stats, hub)
-            repl?.addAccessibleObject(settings)
-        }
-
-        // initialize renderer, etc first in init, then setup key bindings
-        init()
 
         // wait for renderer
         while(renderer?.initialized == false) {
@@ -265,10 +216,10 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
                     .map { it.spatialOrNull()?.updateWorld(recursive = true, force = false); it }
             }
             scene.postUpdate.forEach { it.invoke() }
+            val activeCamera = scene.findObserver() ?: continue
 
             profiler?.begin("Render")
-            val activeCamera = scene.findObserver() ?: continue
-            if (renderer?.managesRenderLoop != false) {
+           if (renderer?.managesRenderLoop != false) {
                 renderer?.render(activeCamera, sceneObjects.await())
                 delay(1)
             } else {
@@ -279,7 +230,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
             // only run loop if we are either in standalone mode, or master
             // for details about the interpolation code, see
             // https://gafferongames.com/post/fix_your_timestep/
-            //if(server || serverAddress == null) {
+            if(server || serverAddress == null) {
                 val newTime = System.nanoTime()
                 lastFrameTime = frameTime
                 frameTime = (newTime - currentTime)/1e6f
@@ -313,7 +264,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
                     frameTimes.push((renderer?.lastFrameTime ?: 1.0f) / 100.0f)
                     scene.activeObserver?.deltaT = frameTimes.average().toFloat()
                 }
-            //}
+            }
 
             if (statsRequested && ticks % 100L == 0L) {
                 logger.info("\nStatistics:\n=============\n$stats")
@@ -485,6 +436,56 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
     }
 
     open fun main() {
+        System.getProperties().forEach { prop ->
+            val name = prop.key as? String ?: return@forEach
+            val value = prop.value as? String ?: return@forEach
+
+            if(name.startsWith("scenery.LogLevel.")) {
+                val className = name.substringAfter("scenery.LogLevel.")
+                logger.info("Setting logging level of class $className to $value")
+                System.setProperty("org.slf4j.simpleLogger.log.${className}", value)
+            }
+        }
+
+        hub.addApplication(this)
+        logger.info("Started application as PID ${getProcessID()} on ${Platform.get()}/${Platform.getArchitecture()}")
+        running = true
+
+        if(parseBoolean(System.getProperty("scenery.Profiler", "false"))) {
+            hub.add(RemoteryProfiler(hub))
+        }
+
+        val server = System.getProperty("scenery.Server")?.toBoolean() ?: false
+        val serverAddress = System.getProperty("scenery.ServerAddress")
+        val mainPort = System.getProperty("scenery.MainPort")?.toIntOrNull() ?: 6040
+        val backchannelPort = System.getProperty("scenery.BackchannelPort")?.toIntOrNull() ?: 6041
+
+        if (!server && serverAddress != null) {
+            val subscriber = NodeSubscriber(hub,serverAddress,mainPort,backchannelPort)
+            hub.add(subscriber)
+            subscriber.startListening()
+            scene.postUpdate += {subscriber.networkUpdate(scene)}
+        } else if (server) {
+            applicationName += " [SERVER]"
+            val publisher = NodePublisher(hub, portMain = mainPort, portBackchannel = backchannelPort)
+            hub.add(publisher)
+            publisher.startPublishing()
+            publisher.register(scene)
+            scene.postUpdate += { publisher.scanForChanges()}
+        }
+
+        hub.add(SceneryElement.Statistics, stats)
+        hub.add(SceneryElement.Settings, settings)
+
+        settings.set("System.PID", getProcessID())
+
+        if (wantREPL) {
+            repl = REPL(hub, scijavaContext, scene, stats, hub)
+            repl?.addAccessibleObject(settings)
+        }
+
+        // initialize renderer, etc first in init, then setup key bindings
+        init()
         runBlocking { sceneryMain() }
     }
 

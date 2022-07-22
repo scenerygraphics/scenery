@@ -144,6 +144,8 @@ open class Volume(
             volumeManager.renderingMethod = value
         }
 
+    var multiResolutionLevelLimits: Pair<Int, Int>? = null
+
     /** Plane equations for slicing planes mapped to origin */
     var slicingPlaneEquations = mapOf<Int, Vector4f>()
 
@@ -475,6 +477,13 @@ open class Volume(
      */
     open fun sampleRay(start: Vector3f, end: Vector3f): Pair<List<Float?>, Vector3f>? {
         return null
+    }
+
+    /**
+     * Returns the volume's physical (voxel) dimensions.
+     */
+    open fun getDimensions(): Vector3i {
+        return Vector3i(0)
     }
 
     companion object {
@@ -866,7 +875,7 @@ open class Volume(
         }
 
         /** Amount of supported slicing planes per volume, see also sampling shader segments */
-        private const val MAX_SUPPORTED_SLICING_PLANES = 16
+        internal const val MAX_SUPPORTED_SLICING_PLANES = 16
 
     }
 
