@@ -1,5 +1,7 @@
 package graphics.scenery
 
+import graphics.scenery.attribute.material.Material
+import graphics.scenery.geometry.GeometryType
 import org.joml.Vector3f
 
 /**
@@ -35,42 +37,53 @@ class AmbientLight(intensity: Float = 1.0f, emissionColor: Vector3f = Vector3f(1
 
     init {
         // fake geometry
-        this.vertices = BufferUtils.allocateFloatAndPut(
-            floatArrayOf(
-                -1.0f, -1.0f, 0.0f,
-                1.0f, -1.0f, 0.0f,
-                1.0f, 1.0f, 0.0f,
-                -1.0f, 1.0f, 0.0f))
+        geometry {
+            vertices = BufferUtils.allocateFloatAndPut(
+                floatArrayOf(
+                    -1.0f, -1.0f, 0.0f,
+                    1.0f, -1.0f, 0.0f,
+                    1.0f, 1.0f, 0.0f,
+                    -1.0f, 1.0f, 0.0f
+                )
+            )
 
-        this.normals = BufferUtils.allocateFloatAndPut(
-            floatArrayOf(
-                1.0f, 0.0f, 0.0f,
-                0.0f, 1.0f, 0.0f,
-                0.0f, 0.0f, 1.0f,
-                0.0f, 0.0f, 1.0f))
+            normals = BufferUtils.allocateFloatAndPut(
+                floatArrayOf(
+                    1.0f, 0.0f, 0.0f,
+                    0.0f, 1.0f, 0.0f,
+                    0.0f, 0.0f, 1.0f,
+                    0.0f, 0.0f, 1.0f
+                )
+            )
 
-        this.texcoords = BufferUtils.allocateFloatAndPut(
-            floatArrayOf(
-                0.0f, 0.0f,
-                1.0f, 0.0f,
-                1.0f, 1.0f,
-                0.0f, 1.0f))
+            texcoords = BufferUtils.allocateFloatAndPut(
+                floatArrayOf(
+                    0.0f, 0.0f,
+                    1.0f, 0.0f,
+                    1.0f, 1.0f,
+                    0.0f, 1.0f
+                )
+            )
 
-        this.indices = BufferUtils.allocateIntAndPut(
-            intArrayOf(0, 1, 2, 0, 2, 3))
+            indices = BufferUtils.allocateIntAndPut(
+                intArrayOf(0, 1, 2, 0, 2, 3)
+            )
 
-        this.geometryType = GeometryType.TRIANGLES
-        this.vertexSize = 3
-        this.texcoordSize = 2
+            geometryType = GeometryType.TRIANGLES
+            vertexSize = 3
+            texcoordSize = 2
+        }
 
-        material.blending.transparent = true
-        material.blending.colorBlending = Blending.BlendOp.add
-        material.blending.sourceColorBlendFactor = Blending.BlendFactor.One
-        material.blending.destinationColorBlendFactor = Blending.BlendFactor.One
-        material.blending.sourceAlphaBlendFactor = Blending.BlendFactor.One
-        material.blending.destinationAlphaBlendFactor = Blending.BlendFactor.One
-        material.blending.alphaBlending = Blending.BlendOp.add
-        material.cullingMode = Material.CullingMode.Front
-        material.depthTest = Material.DepthTest.Greater
+        material {
+            blending.transparent = true
+            blending.colorBlending = Blending.BlendOp.add
+            blending.sourceColorBlendFactor = Blending.BlendFactor.One
+            blending.destinationColorBlendFactor = Blending.BlendFactor.One
+            blending.sourceAlphaBlendFactor = Blending.BlendFactor.One
+            blending.destinationAlphaBlendFactor = Blending.BlendFactor.One
+            blending.alphaBlending = Blending.BlendOp.add
+            cullingMode = Material.CullingMode.Front
+            depthTest = Material.DepthTest.Greater
+        }
     }
 }
