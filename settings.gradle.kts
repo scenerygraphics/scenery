@@ -14,8 +14,6 @@ pluginManagement {
     }
 }
 
-enableFeaturePreview("VERSION_CATALOGS")
-
 rootProject.name = "scenery"
 
 gradle.rootProject {
