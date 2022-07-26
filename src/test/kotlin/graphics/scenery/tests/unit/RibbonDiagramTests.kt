@@ -8,6 +8,7 @@ import org.biojava.nbio.structure.Group
 import org.biojava.nbio.structure.secstruc.SecStrucElement
 import org.joml.Vector3f
 import org.junit.Test
+import org.lwjgl.system.Platform
 import kotlin.reflect.full.declaredMemberFunctions
 import kotlin.reflect.jvm.isAccessible
 import kotlin.test.assertEquals
@@ -105,15 +106,27 @@ class RibbonDiagramTests {
             "4xib", "4u0q", "6phf"
         )
 
+        var max = 0L
         val runtime = Runtime.getRuntime()
-        proteins.shuffled().take(20).forEach { pdbId ->
-            val used = (runtime.totalMemory()-runtime.freeMemory())/1024/1024
-            val free = runtime.freeMemory()/1024/1024
-            logger.info("Memory use: $used MB, $free MB free")
+        val onWindows = Platform.get() == Platform.WINDOWS
+
+        proteins.shuffled()/*.take(20)*/.forEach { pdbId ->
             val protein = Protein.fromID(pdbId)
             logger.info("Testing ${protein.structure.name} ...")
             RibbonDiagram(protein)
+            val m = runtime.maxMemory()/1024/1024
+            val used = (runtime.totalMemory()-runtime.freeMemory())/1024/1024
+            val free = runtime.freeMemory()/1024/1024
+            logger.info("Memory use: $used MB, $free MB free $m MB max")
+            max = maxOf(used, max)
+
+            // TODO: This is only here because of a weird CI issue that occurs only
+            // on Windows and wants to allocate huge bunches of memory.
+            if(onWindows) {
+                System.gc()
+            }
         }
+        logger.info("Max use was $max MB")
     }
 
     /**
