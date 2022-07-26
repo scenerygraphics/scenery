@@ -96,8 +96,6 @@ dependencies {
 
     api("sc.fiji:bigdataviewer-core:10.4.1")
     api("sc.fiji:bigdataviewer-vistools:1.0.0-beta-28")
-    api(githubRelease("JaneliaSciComp", "jhdf5", "jhdf5-19.04.1_fatjar", "sis-base-18.09.0.jar"))
-    api(githubRelease("JaneliaSciComp", "jhdf5", "jhdf5-19.04.1_fatjar", "sis-jhdf5-1654327451.jar"))
 
     //TODO revert to official BVV
     api("graphics.scenery:bigvolumeviewer:a6b021d")
@@ -130,25 +128,6 @@ dependencies {
 
 val isRelease: Boolean
     get() = System.getProperty("release") == "true"
-
-/**
- * Downloads a [file] from the given GitHub release, with [organization], [repository], and [release] tag given.
- */
-fun githubRelease(organization: String, repository: String, release: String, file: String): ConfigurableFileCollection {
-    val url = "https://github.com/$organization/$repository/releases/download/$release/$file"
-    val output = File("$projectDir/external-libs/$organization-$repository-$release-$file")
-    output.parentFile.mkdirs()
-
-    if(!output.exists()) {
-        val created = output.createNewFile()
-        val stream = URL(url).openStream()
-        val out = output.outputStream()
-        stream.copyTo(out)
-        out.close()
-        stream.close()
-    }
-    return files(output.absolutePath)
-}
 
 tasks {
 
@@ -295,7 +274,7 @@ tasks {
 
             val toSkip = listOf("pom-scijava")
             
-            configurations.implementation.allDependencies.forEach {
+            configurations.implementation.get().allDependencies.forEach {
                 val artifactId = it.name
 
                 if( !toSkip.contains(artifactId) ) {
