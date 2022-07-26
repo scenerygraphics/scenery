@@ -42,29 +42,36 @@ class RAIVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewerOpti
     }
 
     override fun generateBoundingBox(): OrientedBoundingBox {
-        val source = ds.sources.firstOrNull()
-        val sizes = if(source != null) {
-            val d = getDimensions()
-            d
-        } else {
-            Vector3f(1.0f, 1.0f, 1.0f)
-        }
-
         return OrientedBoundingBox(this,
             Vector3f(-0.0f, -0.0f, -0.0f),
-            sizes)
+            Vector3f(getDimensions()))
     }
 
 
+
     override fun localScale(): Vector3f {
-        val d = getDimensions()
-        logger.info("Sizes are $d")
+        val size = getDimensions()
+        logger.info("Sizes are $size")
+
 
         return Vector3f(
                 d.x() * pixelToWorldRatio / 10.0f,
                 -1.0f * d.y() * pixelToWorldRatio / 10.0f,
                 d.z() * pixelToWorldRatio / 10.0f
         )
+    }
+
+    override fun getDimensions(): Vector3i {
+        val source = ds.sources.firstOrNull()
+
+        return if(source != null) {
+            val s = source.spimSource.getSource(0, 0)
+            val min = Vector3i(s.min(0).toInt(), s.min(1).toInt(), s.min(2).toInt())
+            val max = Vector3i(s.max(0).toInt(), s.max(1).toInt(), s.max(2).toInt())
+            max.sub(min)
+        } else {
+            Vector3i(1, 1, 1)
+        }
     }
 
     override fun createSpatial(): VolumeSpatial {

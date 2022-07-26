@@ -366,7 +366,7 @@ class VolumeManager(
         val settings = hub?.get<Settings>() ?: return false
 
         val hmd = hub?.getWorkingHMDDisplay()?.wantsVR(settings)
-        val mvp = if(hmd != null) {
+        val vp = if(hmd != null) {
             Matrix4f(hmd.getEyeProjection(0, cam.nearPlaneDistance, cam.farPlaneDistance))
                 .mul(cam.spatial().getTransformation())
         } else {
@@ -386,7 +386,7 @@ class VolumeManager(
                 if (state.stack is MultiResolutionStack3D) {
                     val volume = outOfCoreVolumes[i]
 
-                    volume.init(state.stack, cam.width, mvp)
+                    volume.init(state.stack, cam.width, vp)
 
                     val tasks = volume.fillTasks
                     numTasks += tasks.size
@@ -490,7 +490,7 @@ class VolumeManager(
             currentProg.setViewportWidth(cam.width)
             currentProg.setEffectiveViewportSize(cam.width, cam.height)
             currentProg.setDegrade(farPlaneDegradation)
-            currentProg.setProjectionViewMatrix(mvp, maxAllowedStepInVoxels * minWorldVoxelSize)
+            currentProg.setProjectionViewMatrix(vp, maxAllowedStepInVoxels * minWorldVoxelSize)
             currentProg.use(context)
             currentProg.setUniforms(context)
             currentProg.bindSamplers(context)

@@ -4,36 +4,26 @@ import bdv.util.AxisOrder
 import graphics.scenery.*
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.backends.Renderer
-import graphics.scenery.numerics.Random
 import graphics.scenery.primitives.Cylinder
 import graphics.scenery.primitives.Line
 import graphics.scenery.utils.MaybeIntersects
-import graphics.scenery.utils.RingBuffer
 import graphics.scenery.utils.extensions.minus
-import graphics.scenery.utils.extensions.plus
-import graphics.scenery.volumes.Colormap
 import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.Volume
-import ij.IJ
-import ij.ImagePlus
-import net.imglib2.img.Img
-import net.imglib2.img.display.imagej.ImageJFunctions
+import net.imglib2.img.imageplus.ImagePlusImgFactory
+import net.imglib2.type.numeric.integer.UnsignedByteType
 import net.imglib2.type.numeric.integer.UnsignedShortType
 import org.joml.Vector3f
-import org.lwjgl.system.MemoryUtil
-import org.scijava.Context
-import org.scijava.ui.UIService
-import org.scijava.widget.FileWidget
 import tpietzsch.example2.VolumeViewerOptions
-import java.io.File
-import java.nio.ByteBuffer
-import java.nio.file.Paths
 import java.text.DecimalFormat
+import java.util.*
 import kotlin.concurrent.thread
 import kotlin.math.roundToInt
 
+
 class RAIVolumeSamplingExample: SceneryBase("RAIVolume Sampling example" , 1280, 720) {
     lateinit var volume: Volume
+    var playing = true
 
     override fun init() {
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
@@ -57,7 +47,7 @@ class RAIVolumeSamplingExample: SceneryBase("RAIVolume Sampling example" , 1280,
         scene.addChild(shell)
 
         val p1 = Icosphere(0.1f, 2)
-        p1.spatial().position = Vector3f(0.0f, 0.5f, -2.0f)
+        p1.spatial().position = Vector3f(0.0f, 0.5f, -4.0f)
         p1.material().diffuse = Vector3f(0.3f, 0.3f, 0.8f)
         scene.addChild(p1)
 
@@ -79,29 +69,41 @@ class RAIVolumeSamplingExample: SceneryBase("RAIVolume Sampling example" , 1280,
             connector.spatial().orientBetweenPoints(p1.spatial().position, p2.spatial().position, true, true)
         }
 
-        val imp: ImagePlus = IJ.openImage("https://imagej.nih.gov/ij/images/t1-head.zip")
-        val img: Img<UnsignedShortType> = ImageJFunctions.wrapShort(imp)
-        volume = Volume.fromRAI(img, UnsignedShortType(), AxisOrder.DEFAULT, "T1 head", hub, VolumeViewerOptions())
-        volume.spatial {
-            position = Vector3f(0.0f, 0.0f, 0.0f)
-            scale = Vector3f(1.0f, 1.0f, 1.0f)
-        }
-        volume.colormap = Colormap.get("viridis")
 
-//        val files = ArrayList<String>()
-//        files.add("E:\\dataset\\test")
-//        val folder = File(files.first())
-//        volume = Volume.fromPath(folder.toPath(),hub)
-//        volume.spatial()
-//        {
-//            //y: + up
-//            position = Vector3f(-1.0f, 5.0f, 0.0f)
-//            scale = Vector3f(10.0f, 10.0f,30.0f)
+        val file = "C://Users//lanru//Desktop//Pdu_H2BeGFP_CAAXmCherry.xml"
+
+//        val imp: ImagePlus = IJ.openImage("https://imagej.nih.gov/ij/images/t1-head.zip")
+        val img = ImagePlusImgFactory(UnsignedByteType ()).create(256, 256, 25)
+        val r= img.randomAccess()
+        val random = Random()
+        for (i in 0..250)
+        {
+            for(j in 0..250)
+            {
+                for(z in 0..20) {
+                    r.setPosition(i, 0)
+                    r.setPosition(j, 1)
+                    r.setPosition(z, 2)
+                    val t: UnsignedByteType = r.get()
+                    t.set(25)
+                }
+            }
+        }
+//        val img: Img<UnsignedShortType> = ImageJFunctions.wrapShort(imp)
+        volume = Volume.fromRAI(img, UnsignedByteType (), AxisOrder.DEFAULT, "T1 head", hub, VolumeViewerOptions())
+//        volume = Volume.fromXML(file,hub, VolumeViewerOptions())
+//        volume.spatial {
+//            position = Vector3f(0.0f, 5.0f, 0.0f)
+//            scale = Vector3f(7.5f, 7.5f, 7.5f)
 //        }
+//        volume.transferFunction = TransferFunction.ramp(0.001f, 1.0f, 0.004f)
 //        volume.colormap = Colormap.get("jet")
 
-
-        volume.transferFunction = TransferFunction.ramp(0.001f, 0.5f, 0.3f)
+        volume.spatial {
+            position = Vector3f(0.0f, 0.0f, 0.0f)
+            scale = Vector3f(0.5f, 0.5f, 0.5f)
+        }
+        volume.transferFunction = TransferFunction.ramp(0.1f, 1.0f, 0.004f)
         scene.addChild(volume)
 
 
@@ -114,11 +116,11 @@ class RAIVolumeSamplingExample: SceneryBase("RAIVolume Sampling example" , 1280,
 
         scene.export("rai.scenery")
 
-        val p3 = Icosphere(0.2f, 2)
+        val p3 = Icosphere(0.02f, 2)
         p3.material().diffuse = Vector3f(0.3f, 0.3f, 0.8f)
         scene.addChild(p3)
 
-        val p4 = Icosphere(0.2f, 2)
+        val p4 = Icosphere(0.02f, 2)
         p4.material().diffuse = Vector3f(0.3f, 0.8f, 0.3f)
         scene.addChild(p4)
 
@@ -129,9 +131,13 @@ class RAIVolumeSamplingExample: SceneryBase("RAIVolume Sampling example" , 1280,
                 Thread.sleep(200)
             }
             while(running) {
+                if (playing ) {
+                    volume.previousTimepoint()
+                }
                 val intersection = volume.spatial()
                     .intersectAABB(p1.spatial().position, (p2.spatial().position - p1.spatial().position).normalize())
                 if (intersection is MaybeIntersects.Intersection) {
+                    // println("there is intersection!")
                     val scale = volume.localScale()
                     val localEntry = (intersection.relativeEntry)// + Vector3f(1.0f)) * (1.0f/2.0f)
                     val localExit = (intersection.relativeExit)// + Vector3f(1.0f)) * (1.0f/2.0f)
@@ -141,7 +147,7 @@ class RAIVolumeSamplingExample: SceneryBase("RAIVolume Sampling example" , 1280,
                     logger.info(
                         "Ray intersects volume at world=${intersection.entry.toString(nf)}/${
                             intersection.exit.toString(
-                                nf 
+                                nf
                             )
                         } local=${localEntry.toString(nf)}/${localExit.toString(nf)} localScale=${scale.toString(nf)}"
                     )
@@ -161,6 +167,7 @@ class RAIVolumeSamplingExample: SceneryBase("RAIVolume Sampling example" , 1280,
                         l
                     }
                 }
+                Thread.sleep(20000)
             }
 
         }
@@ -168,6 +175,27 @@ class RAIVolumeSamplingExample: SceneryBase("RAIVolume Sampling example" , 1280,
 
     override fun inputSetup() {
         setupCameraModeSwitching()
+//        val toggleRenderingMode = object : ClickBehaviour {
+//            var modes = Volume.RenderingMethod.values()
+//            var currentMode = (scene.find("volume") as? Volume)!!.renderingMethod
+//
+//            override fun click(x: Int, y: Int) {
+//                currentMode = modes.getOrElse(modes.indexOf(currentMode) + 1 % modes.size) { Volume.RenderingMethod.AlphaBlending }
+//
+//                (scene.find("volume") as? Volume)?.renderingMethod = currentMode
+//                logger.info("Switched volume rendering mode to $currentMode")
+//            }
+//        }
+//
+//        val togglePlaying = ClickBehaviour { _, _ ->
+//            playing = !playing
+//        }
+//
+//        inputHandler?.addBehaviour("toggle_rendering_mode", toggleRenderingMode)
+//        inputHandler?.addKeyBinding("toggle_rendering_mode", "M")
+//
+//        inputHandler?.addBehaviour("toggle_playing", togglePlaying)
+//        inputHandler?.addKeyBinding("toggle_playing", "G")
     }
 
     companion object {

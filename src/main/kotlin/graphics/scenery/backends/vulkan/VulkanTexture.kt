@@ -428,8 +428,6 @@ open class VulkanTexture(val device: VulkanDevice,
 
                                 buffer.copyFrom(contents, keepMapped = true)
                                 image.copyFrom(this, buffer, genericTexture.getConsumableUpdates())
-
-                                genericTexture.clearConsumedUpdates()
                             } /*else {
                                 // TODO: Semantics, do we want UpdateableTextures to be only
                                 // updateable via updates, or shall they read from buffer on first init?
@@ -452,6 +450,9 @@ open class VulkanTexture(val device: VulkanDevice,
                 }
 
                 endCommandBuffer(this@VulkanTexture.device, commandPools.Standard, transferQueue, flush = true, dealloc = true, block = true)
+                // necessary to clear updates here, as the command buffer might still access the
+                // memory address of the texture update.
+                (gt as? UpdatableTexture)?.clearConsumedUpdates()
             }
         } else {
             val buffer = VulkanBuffer(device,

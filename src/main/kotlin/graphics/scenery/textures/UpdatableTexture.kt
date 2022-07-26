@@ -43,7 +43,11 @@ class UpdatableTexture(
 
     /** Clears all consumed updates */
     fun clearConsumedUpdates() {
-        updates.forEach { if(it.consumed && it.deallocate) { MemoryUtil.memFree(it.contents) } }
+        updates.forEach {
+            if((it.consumed && it.deallocate)) {
+                MemoryUtil.memFree(it.contents)
+            }
+        }
         updates.removeIf { it.consumed }
     }
 

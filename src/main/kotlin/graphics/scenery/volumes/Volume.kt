@@ -127,6 +127,8 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
     /** Modes how assigned slicing planes interact with the volume */
     var slicingMode = SlicingMode.None
 
+    var multiResolutionLevelLimits: Pair<Int, Int>? = null
+
     enum class SlicingMode(val id: Int){
         // Volume is rendered as it is
         None(0),
@@ -366,29 +368,12 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
         return null
     }
 
-    open fun getDimensions(timepoint: Int = 0, view: Int = 0, level: Int = 0): Vector3f {
-        return when(dataSource) {
-            is VolumeDataSource.SpimDataMinimalSource -> {
-                val s = viewerState.sources.getOrNull(view)?.spimSource?.getSource(timepoint, level) ?: throw IllegalStateException("No source known for $this, can't determine dimensions.")
-                val min = Vector3f(s.min(0).toFloat(), s.min(1).toFloat(), s.min(2).toFloat())
-                val max = Vector3f(s.max(0).toFloat(), s.max(1).toFloat(), s.max(2).toFloat())
-                max.minus(min)
-            }
-            is VolumeDataSource.RAISource<*> -> {
-                val s = dataSource.sources.getOrNull(view)?.spimSource?.getSource(0, 0) ?: throw IllegalStateException("No source known for $this, can't determine dimensions.")
-                //println( Vector3i(s.dimension(0).toInt(),s.dimension(1).toInt(),s.dimension(2).toInt()))
-                val min = Vector3f(s.min(0).toFloat(), s.min(1).toFloat(), s.min(2).toFloat())
-                val max = Vector3f(s.max(0).toFloat(), s.max(1).toFloat(), s.max(2).toFloat())
-                //println(max)
-                max.minus(min)
 
-                //Vector3i(s.dimension(0).toInt(),s.dimension(1).toInt(),s.dimension(2).toInt())
-            }
-            is VolumeDataSource.NullSource -> {
-                logger.warn("Querying dimensions of NullSource, returning (1,1,1)")
-                Vector3f(1.0f, 1.0f, 1.0f)
-            }
-        }
+    /**
+     * Returns the volume's physical (voxel) dimensions.
+     */
+    open fun getDimensions(): Vector3i {
+        return Vector3i(0)
     }
 
     companion object {

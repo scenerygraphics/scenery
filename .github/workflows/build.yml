@@ -11,11 +11,9 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            java: 8
-          - os: ubuntu-latest
             java: 11
           - os: ubuntu-latest
-            java: 16
+            java: 17
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2
@@ -42,11 +40,9 @@ jobs:
       matrix:
         include:
           - os: windows-latest
-            java: 8
-          - os: windows-latest
             java: 11
           - os: windows-latest
-            java: 16
+            java: 17
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2
@@ -69,11 +65,9 @@ jobs:
       matrix:
         include:
           - os: macos-latest
-            java: 8
-          - os: macos-latest
             java: 11
           - os: macos-latest
-            java: 16
+            java: 17
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2
