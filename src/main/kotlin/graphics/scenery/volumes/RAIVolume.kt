@@ -55,9 +55,9 @@ class RAIVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewerOpti
 
 
         return Vector3f(
-                d.x() * pixelToWorldRatio / 10.0f,
-                -1.0f * d.y() * pixelToWorldRatio / 10.0f,
-                d.z() * pixelToWorldRatio / 10.0f
+            size.x() * pixelToWorldRatio / 10.0f,
+                -1.0f * size.y() * pixelToWorldRatio / 10.0f,
+            size.z() * pixelToWorldRatio / 10.0f
         )
     }
 
@@ -106,7 +106,7 @@ class RAIVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewerOpti
 
     override fun sampleRay(rayStart: Vector3f, rayEnd: Vector3f): Pair<List<Float?>, Vector3f>? {
         val d = getDimensions()
-        val dimensions = Vector3f(d.x, d.y, d.z)
+        val dimensions = Vector3f(d.x.toFloat(), d.y.toFloat(), d.z.toFloat())
 
         val start = rayStart/dimensions
         val end = rayEnd/dimensions

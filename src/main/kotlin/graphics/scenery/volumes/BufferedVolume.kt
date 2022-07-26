@@ -229,18 +229,9 @@ class BufferedVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewe
      * Returns the list of samples (which might include `null` values in case a sample failed),
      * as well as the delta used along the ray, or null if the start/end coordinates are invalid.
      */
-<<<<<<< HEAD
-    override fun sampleRay(rayStart: Vector3f, rayEnd: Vector3f): Pair<List<Float?>, Vector3f>? {
-        val d = getDimensions()
-        val dimensions = Vector3f(d.x.toFloat(), d.y.toFloat(), d.z.toFloat())
 
-        val start = rayStart/dimensions
-        val end = rayEnd/dimensions
-=======
     override fun sampleRay(start: Vector3f, end: Vector3f): Pair<List<Float?>, Vector3f>? {
         val dimensions = Vector3f(getDimensions())
->>>>>>> 6d748a549b0f1bc602043a9556a8e649d2a57d8f
-
         if (start.x() < 0.0f || start.x() > 1.0f || start.y() < 0.0f || start.y() > 1.0f || start.z() < 0.0f || start.z() > 1.0f) {
             logger.debug("Invalid UV coords for ray start: {} -- will clamp values to [0.0, 1.0].", start)
         }
@@ -273,17 +264,12 @@ class BufferedVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewe
         } to delta
     }
 
-<<<<<<< HEAD
-    override fun getDimensions(timepoint: Int, view: Int, level: Int): Vector3f {
-        val source = (ds.sources.firstOrNull()?.spimSource as? TransformedSource)?.wrappedSource as? BufferSource<*> ?: throw IllegalStateException("No source found")
-        return Vector3f(source.width.toFloat(), source.height.toFloat(), source.depth.toFloat())
-=======
+
     /**
      * Returns the volume's physical (voxel) dimensions.
      */
     override fun getDimensions(): Vector3i {
         val source = ((ds.sources.first().spimSource as? TransformedSource)?.wrappedSource as? BufferSource) ?: throw IllegalStateException("No source found")
         return Vector3i(source.width, source.height, source.depth)
->>>>>>> 6d748a549b0f1bc602043a9556a8e649d2a57d8f
     }
 }
