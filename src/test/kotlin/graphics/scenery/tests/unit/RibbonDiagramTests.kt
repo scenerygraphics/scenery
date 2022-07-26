@@ -97,7 +97,7 @@ class RibbonDiagramTests {
             "2mue", "2m0j", "1q5w", "3gj8", "3sui", "6pby", "2m0k", "1r4a",
             "3fub", "6uku", "6v92", "2l2i", "1pyo", "4lcd", "6p9x", "6uun",
             "6v80", "6v7z", "4grw", "3mc5", "3mbw", "4tkw", "4u0i", "3mas",
-            "6znn", "1ctp", "3j92", "3jak", "1nb5", "3lk3", "1mdu", "3eks",
+            "6znn", "1ctp", /*"3j92",*/ "3jak", "1nb5", "3lk3", "1mdu", "3eks",
             "2ebv", "4gbj", "6v4e", "6v4h", "4m8n", "4ia1", "3ei2", "2rh1",
             "6ps3", "3v2y", "4pla", "3eml", "2seb", "2qej", "1d5m", "2wy8",
             "4idj", "2vr3", "2win", "6urh", "3ua7", "3mrn", "4z0x", "2rhk",
@@ -119,12 +119,6 @@ class RibbonDiagramTests {
             val free = runtime.freeMemory()/1024/1024
             logger.info("Memory use: $used MB, $free MB free $m MB max")
             max = maxOf(used, max)
-
-            // TODO: This is only here because of a weird CI issue that occurs only
-            // on Windows and wants to allocate huge bunches of memory.
-            if(onWindows) {
-                System.gc()
-            }
         }
         logger.info("Max use was $max MB")
     }
