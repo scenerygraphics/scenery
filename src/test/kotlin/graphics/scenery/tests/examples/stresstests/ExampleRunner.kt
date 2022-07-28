@@ -124,7 +124,6 @@ class ExampleRunner(
             // these examples require user input and/or files
             "LocalisationExample",
             "ReaderExample",
-            "BDVExample",
             "BigAndSmallVolumeExample",
             "VolumeSamplingExample",
             "VideoRecordingExample",
