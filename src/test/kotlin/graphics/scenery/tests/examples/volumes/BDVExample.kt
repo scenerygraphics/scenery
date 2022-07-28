@@ -17,6 +17,7 @@ import org.scijava.ui.UIService
 import org.scijava.ui.behaviour.ClickBehaviour
 import org.scijava.widget.FileWidget
 import tpietzsch.example2.VolumeViewerOptions
+import java.io.File
 import java.util.*
 import kotlin.math.roundToInt
 import kotlin.system.measureTimeMillis
@@ -30,22 +31,32 @@ class BDVExample: SceneryBase("BDV Rendering example", 1280, 720) {
     var volume: Volume? = null
     var maxCacheSize = 512
     val context = Context(UIService::class.java, OpService::class.java)
-    val ui = context.getService(UIService::class.java)
+    var ui: UIService? = null
     val ops = context.getService(OpService::class.java)
 
     override fun init() {
         val files = ArrayList<String>()
 
+        // we can either read a file given via a system property,
+        // or we open a dialog for the user to select a file.
         val fileFromProperty = System.getProperty("bdvXML")
         if(fileFromProperty != null) {
             files.add(fileFromProperty)
         } else {
-            val file = ui.chooseFile(null, FileWidget.OPEN_STYLE)
-            files.add(file.absolutePath)
-        }
+            // If we are running in headless mode, e.g. on CI, we don't
+            // try to show any UI, but set file to null.
+            var file = if(!settings.get<Boolean>("Headless", false)) {
+                ui = context.getService(UIService::class.java)
+                ui?.chooseFile(null, FileWidget.OPEN_STYLE)
+            } else {
+                null
+            }
 
-        if(files.size == 0) {
-            throw IllegalStateException("You have to select a file, sorry.")
+            // If file is null, we'll use one of our example datasets.
+            if(file == null) {
+                file = File(getDemoFilesPath() + "/volumes/t1-head.xml")
+            }
+            files.add(file.absolutePath)
         }
 
         logger.info("Loading BDV XML from ${files.first()}")
@@ -63,7 +74,15 @@ class BDVExample: SceneryBase("BDV Rendering example", 1280, 720) {
         val v = Volume.fromSpimData(XmlIoSpimDataMinimal().load(files.first()), hub, options)
         v.name = "volume"
         v.colormap = Colormap.get("hot")
-        v.transferFunction = TransferFunction.ramp(0.02f, 0.4f)
+
+        // we set some known properties here for the T1 head example dataset
+        if(files.first().endsWith("t1-head.xml")) {
+            cam.spatial().position = Vector3f(0.3f, -0.6f, 2.0f)
+            v.transferFunction = TransferFunction.ramp(0.01f, 0.8f)
+            v.spatial().scale = Vector3f(0.2f)
+            v.setTransferFunctionRange(0.0f, 2000.0f)
+        }
+
         v.viewerState.sources.firstOrNull()?.spimSource?.getSource(0, 0)?.let { rai ->
             var h: Any?
             val duration = measureTimeMillis {
