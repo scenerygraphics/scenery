@@ -1,6 +1,7 @@
 package graphics.scenery.backends.vulkan
 
 import graphics.scenery.backends.ShaderConsistencyException
+import graphics.scenery.backends.ShaderIntrospection
 import graphics.scenery.geometry.GeometryType
 import graphics.scenery.utils.LazyLogger
 import org.lwjgl.system.MemoryUtil.*
@@ -20,8 +21,8 @@ class VulkanPipeline(val device: VulkanDevice, val renderpass: VulkanRenderpass,
     enum class PipelineType { Graphics, Compute }
 
     var pipeline = HashMap<GeometryType, VulkanRenderer.Pipeline>()
-    var descriptorSpecs = LinkedHashMap<String, VulkanShaderModule.UBOSpec>()
-    var pushConstantSpecs = LinkedHashMap<String, VulkanShaderModule.PushConstantSpec>()
+    var descriptorSpecs = LinkedHashMap<String, ShaderIntrospection.UBOSpec>()
+    var pushConstantSpecs = LinkedHashMap<String, ShaderIntrospection.PushConstantSpec>()
 
     val inputAssemblyState: VkPipelineInputAssemblyStateCreateInfo = VkPipelineInputAssemblyStateCreateInfo.calloc()
         .sType(VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO)
@@ -217,7 +218,7 @@ class VulkanPipeline(val device: VulkanDevice, val renderpass: VulkanRenderpass,
         // derivative pipelines only make sense for graphics pipelines in our case
         if(onlyForTopology == null && pipelineCreateInfo is VkGraphicsPipelineCreateInfo.Buffer) {
             // create pipelines for other topologies as well
-            GeometryType.values().forEach { topology ->
+            GeometryType.values().filter { it != GeometryType.TRIANGLE_FAN }.forEach { topology ->
                 if (topology == GeometryType.TRIANGLES) {
                     return@forEach
                 }
@@ -267,7 +268,7 @@ class VulkanPipeline(val device: VulkanDevice, val renderpass: VulkanRenderpass,
         }
     }
 
-    fun orderedDescriptorSpecs(): List<MutableMap.MutableEntry<String, VulkanShaderModule.UBOSpec>> {
+    fun orderedDescriptorSpecs(): List<MutableMap.MutableEntry<String, ShaderIntrospection.UBOSpec>> {
         return descriptorSpecs.entries.sortedBy { it.value.binding }.sortedBy { it.value.set }
     }
 

@@ -1,15 +1,13 @@
 package graphics.scenery.backends.vulkan
 
 import graphics.scenery.*
-import graphics.scenery.backends.*
-import graphics.scenery.attribute.renderable.Renderable
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.attribute.renderable.DelegatesRenderable
-import graphics.scenery.spirvcrossj.Loader
-import graphics.scenery.spirvcrossj.libspirvcrossj
+import graphics.scenery.attribute.renderable.HasCustomRenderable
+import graphics.scenery.attribute.renderable.Renderable
+import graphics.scenery.backends.*
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.*
-import graphics.scenery.volumes.VolumeManager
 import io.github.classgraph.ClassGraph
 import kotlinx.coroutines.*
 import org.joml.*
@@ -31,6 +29,7 @@ import org.lwjgl.vulkan.KHRWin32Surface.VK_KHR_WIN32_SURFACE_EXTENSION_NAME
 import org.lwjgl.vulkan.KHRXlibSurface.VK_KHR_XLIB_SURFACE_EXTENSION_NAME
 import org.lwjgl.vulkan.MVKMacosSurface.VK_MVK_MACOS_SURFACE_EXTENSION_NAME
 import org.lwjgl.vulkan.VK10.*
+import java.awt.BorderLayout
 import java.awt.image.BufferedImage
 import java.awt.image.DataBufferByte
 import java.io.File
@@ -41,6 +40,7 @@ import java.util.*
 import java.util.concurrent.*
 import java.util.concurrent.locks.ReentrantLock
 import javax.imageio.ImageIO
+import javax.swing.JFrame
 import kotlin.concurrent.thread
 import kotlin.concurrent.withLock
 import kotlin.reflect.full.*
@@ -420,18 +420,6 @@ open class VulkanRenderer(hub: Hub,
         private const val MATERIAL_HAS_NORMAL = 0x0008
         private const val MATERIAL_HAS_ALPHAMASK = 0x0010
 
-        init {
-            Loader.loadNatives()
-            libspirvcrossj.initializeProcess()
-
-            Runtime.getRuntime().addShutdownHook(object: Thread() {
-                override fun run() {
-                    logger.debug("Finalizing libspirvcrossj")
-                    libspirvcrossj.finalizeProcess()
-                }
-            })
-        }
-
         fun getStrictValidation(): Pair<Boolean, List<Int>> {
             val strict = System.getProperty("scenery.VulkanRenderer.StrictValidation")
             val separated = strict?.split(",")?.asSequence()?.mapNotNull { it.toIntOrNull() }?.toList()
@@ -451,268 +439,293 @@ open class VulkanRenderer(hub: Hub,
     }
 
     init {
-        this.hub = hub
+        stackPush().use { stack ->
+            this.hub = hub
 
-        val hmd = hub.getWorkingHMDDisplay()
-        if (hmd != null) {
-            logger.debug("Setting window dimensions to bounds from HMD")
-            val bounds = hmd.getRenderTargetSize()
-            window.width = bounds.x() * 2
-            window.height = bounds.y()
-        } else {
-            window.width = windowWidth
-            window.height = windowHeight
-        }
-
-        this.applicationName = applicationName
-        this.scene = scene
-
-        this.settings = loadDefaultRendererSettings((hub.get(SceneryElement.Settings) as Settings))
-
-        logger.debug("Loading rendering config from $renderConfigFile")
-        this.renderConfigFile = renderConfigFile
-        this.renderConfig = RenderConfigReader().loadFromFile(renderConfigFile)
-
-        logger.info("Loaded ${renderConfig.name} (${renderConfig.description ?: "no description"})")
-
-        if((System.getenv("ENABLE_VULKAN_RENDERDOC_CAPTURE")?.toInt() == 1  || Renderdoc.renderdocAttached)&& validation) {
-            logger.warn("Validation Layers requested, but Renderdoc capture and Validation Layers are mutually incompatible. Disabling validations layers.")
-            validation = false
-        }
-
-        // explicitly create VK, to make GLFW pick up MoltenVK on OS X
-        if(ExtractsNatives.getPlatform() == ExtractsNatives.Platform.MACOS) {
-            try {
-                Configuration.VULKAN_EXPLICIT_INIT.set(true)
-                VK.create()
-            } catch (e: IllegalStateException) {
-                logger.warn("IllegalStateException during Vulkan initialisation")
-            }
-        }
-
-
-        // Create the Vulkan instance
-        val headlessRequested = System.getProperty("scenery.Headless")?.toBoolean() ?: false
-        instance = if(embedIn != null || headlessRequested) {
-            logger.debug("Running embedded or headless, skipping GLFW initialisation.")
-            createInstance(
-                null,
-                validation,
-                headless = headlessRequested,
-                embedded = embedIn != null
-            )
-        } else {
-            if (!glfwInit()) {
-                val buffer = PointerBuffer.allocateDirect(255)
-                val error = glfwGetError(buffer)
-
-                val description = if(error != 0) {
-                    buffer.stringUTF8
-                } else {
-                    "no error"
-                }
-                
-                throw RendererUnavailableException("Failed to initialize GLFW: $description ($error)")
-            }
-            if (!glfwVulkanSupported()) {
-                throw RendererUnavailableException("Failed to find Vulkan loader. Is Vulkan supported by your GPU and do you have the most recent graphics drivers installed?")
-            }
-
-            /* Look for instance extensions */
-            val requiredExtensions = glfwGetRequiredInstanceExtensions() ?: throw RendererUnavailableException("Failed to find list of required Vulkan extensions")
-            createInstance(requiredExtensions, validation)
-        }
-
-        debugCallbackHandle = if(validation) {
-            setupDebuggingDebugUtils(instance,
-                VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT
-                    or VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT
-                    or VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT
-                    or VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT,
-                debugCallbackUtils)
-        } else {
-            -1L
-        }
-
-        val requestedValidationLayers = if(validation) {
-            if(wantsOpenGLSwapchain) {
-                logger.warn("Requested OpenGL swapchain, validation layers disabled.")
-                emptyArray()
+            val hmd = hub.getWorkingHMDDisplay()
+            if (hmd != null) {
+                logger.debug("Setting window dimensions to bounds from HMD")
+                val bounds = hmd.getRenderTargetSize()
+                window.width = bounds.x() * 2
+                window.height = bounds.y()
             } else {
-                defaultValidationLayers
+                window.width = windowWidth
+                window.height = windowHeight
             }
-        } else {
-            emptyArray()
-        }
 
-        // get available swapchains, but remove default swapchain, will always be there as fallback
-        val start = System.nanoTime()
-        val swapchains = ClassGraph()
+            this.applicationName = applicationName
+            this.scene = scene
+
+            this.settings = loadDefaultRendererSettings((hub.get(SceneryElement.Settings) as Settings))
+
+            logger.debug("Loading rendering config from $renderConfigFile")
+            this.renderConfigFile = renderConfigFile
+            this.renderConfig = RenderConfigReader().loadFromFile(renderConfigFile)
+
+            logger.info("Loaded ${renderConfig.name} (${renderConfig.description ?: "no description"})")
+
+            if((System.getenv("ENABLE_VULKAN_RENDERDOC_CAPTURE")?.toInt() == 1  || Renderdoc.renderdocAttached)&& validation) {
+                logger.warn("Validation Layers requested, but Renderdoc capture and Validation Layers are mutually incompatible. Disabling validations layers.")
+                validation = false
+            }
+
+            // explicitly create VK, to make GLFW pick up MoltenVK on OS X
+            if(ExtractsNatives.getPlatform() == ExtractsNatives.Platform.MACOS) {
+                try {
+                    Configuration.VULKAN_EXPLICIT_INIT.set(true)
+                    VK.create()
+                } catch (e: IllegalStateException) {
+                    logger.warn("IllegalStateException during Vulkan initialisation")
+                }
+            }
+
+            val headlessRequested = System.getProperty("scenery.Headless")?.toBoolean() ?: false
+            // GLFW works kinda shaky on macOS, we create a JFrame here for a nicer experience then.
+            // That is of course unless [embedIn] is already set.
+            if(Platform.get() == Platform.MACOSX && embedIn == null && !headlessRequested) {
+                val mainFrame = JFrame(applicationName)
+                mainFrame.setSize(windowWidth, windowHeight)
+                mainFrame.layout = BorderLayout()
+
+                val sceneryPanel = SceneryJPanel()
+                mainFrame.add(sceneryPanel, BorderLayout.CENTER)
+                mainFrame.isVisible = true
+
+                embedIn = sceneryPanel
+            }
+
+            // Create the Vulkan instance
+            instance = if(embedIn != null || headlessRequested) {
+                logger.debug("Running embedded or headless, skipping GLFW initialisation.")
+
+                // macOS needs a Metal surface for embedding
+                val requiredExtensions = if(ExtractsNatives.getPlatform() == ExtractsNatives.Platform.MACOS && !headlessRequested) {
+                    stack.pointers(
+                        stack.UTF8(VK_KHR_SURFACE_EXTENSION_NAME),
+                        stack.UTF8(EXTMetalSurface.VK_EXT_METAL_SURFACE_EXTENSION_NAME)
+                    )
+                } else {
+                    null
+                }
+
+                createInstance(
+                    requiredExtensions,
+                    validation,
+                    headless = headlessRequested
+                )
+            } else {
+                if (!glfwInit()) {
+                    val buffer = PointerBuffer.allocateDirect(255)
+                    val error = glfwGetError(buffer)
+
+                    val description = if(error != 0) {
+                        buffer.stringUTF8
+                    } else {
+                        "no error"
+                    }
+
+                    throw RendererUnavailableException("Failed to initialize GLFW: $description ($error)")
+                }
+                if (!glfwVulkanSupported()) {
+                    throw RendererUnavailableException("Failed to find Vulkan loader. Is Vulkan supported by your GPU and do you have the most recent graphics drivers installed?")
+                }
+
+                /* Look for instance extensions */
+                val requiredExtensions = glfwGetRequiredInstanceExtensions() ?: throw RendererUnavailableException("Failed to find list of required Vulkan extensions")
+                createInstance(requiredExtensions, validation)
+            }
+
+            debugCallbackHandle = if(validation) {
+                setupDebuggingDebugUtils(instance,
+                    VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT
+                        or VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT
+                        or VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT
+                        or VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT,
+                    debugCallbackUtils)
+            } else {
+                -1L
+            }
+
+            val requestedValidationLayers = if(validation) {
+                if(wantsOpenGLSwapchain) {
+                    logger.warn("Requested OpenGL swapchain, validation layers disabled.")
+                    emptyArray()
+                } else {
+                    defaultValidationLayers
+                }
+            } else {
+                emptyArray()
+            }
+
+            // get available swapchains, but remove default swapchain, will always be there as fallback
+            val start = System.nanoTime()
+            val swapchains = ClassGraph()
                 .acceptPackages("graphics.scenery.backends.vulkan")
                 .enableClassInfo()
                 .scan()
                 .getClassesImplementing("graphics.scenery.backends.vulkan.Swapchain")
                 .filter { cls -> cls.simpleName != "VulkanSwapchain" }
                 .loadClasses()
-        val duration = System.nanoTime() - start
-        logger.debug("Finding swapchains took ${duration/10e6} ms")
+            val duration = System.nanoTime() - start
+            logger.debug("Finding swapchains took ${duration/10e6} ms")
 
-        logger.debug("Available special-purpose swapchains are: ${swapchains.joinToString { it.simpleName }}")
-        val selectedSwapchain = swapchains.firstOrNull { (it.kotlin.companionObjectInstance as SwapchainParameters).usageCondition.invoke(embedIn) }
-        val headless = (selectedSwapchain?.kotlin?.companionObjectInstance as? SwapchainParameters)?.headless ?: false
+            logger.debug("Available special-purpose swapchains are: ${swapchains.joinToString { it.simpleName }}")
+            val selectedSwapchain = swapchains.firstOrNull { (it.kotlin.companionObjectInstance as SwapchainParameters).usageCondition.invoke(embedIn) }
+            val headless = (selectedSwapchain?.kotlin?.companionObjectInstance as? SwapchainParameters)?.headless ?: false
 
-        device = VulkanDevice.fromPhysicalDevice(instance,
-            physicalDeviceFilter = { _, device -> "${device.vendor} ${device.name}".contains(System.getProperty("scenery.Renderer.Device", "DOES_NOT_EXIST"))},
-            additionalExtensions = { physicalDevice -> hub.getWorkingHMDDisplay()?.getVulkanDeviceExtensions(physicalDevice)?.toTypedArray() ?: arrayOf() },
-            validationLayers = requestedValidationLayers,
-            headless = headless,
-            debugEnabled = validation
-        )
+            device = VulkanDevice.fromPhysicalDevice(instance,
+                physicalDeviceFilter = { _, device -> "${device.vendor} ${device.name}".contains(System.getProperty("scenery.Renderer.Device", "DOES_NOT_EXIST"))},
+                additionalExtensions = { physicalDevice -> hub.getWorkingHMDDisplay()?.getVulkanDeviceExtensions(physicalDevice)?.toTypedArray() ?: arrayOf() },
+                validationLayers = requestedValidationLayers,
+                headless = headless,
+                debugEnabled = validation
+            )
 
-        logger.debug("Device creation done")
+            logger.debug("Device creation done")
 
-        if(device.deviceData.vendor.lowercase().contains("nvidia") && ExtractsNatives.getPlatform() == ExtractsNatives.Platform.WINDOWS) {
-            try {
-                gpuStats = NvidiaGPUStats()
-            } catch(e: NullPointerException) {
-                logger.warn("Could not initialize Nvidia GPU stats")
-                if(logger.isDebugEnabled) {
-                    logger.warn("Reason: ${e.message}, traceback follows:")
-                    e.printStackTrace()
-                }
-            }
-        }
-
-        queue = VU.createDeviceQueue(device, device.queues.graphicsQueue.first)
-        logger.debug("Creating transfer queue with ${device.queues.transferQueue.first} (vs ${device.queues.graphicsQueue})")
-        transferQueue = VU.createDeviceQueue(device, device.queues.transferQueue.first)
-
-        with(commandPools) {
-            Render = device.createCommandPool(device.queues.graphicsQueue.first)
-            Standard = device.createCommandPool(device.queues.graphicsQueue.first)
-            Compute = device.createCommandPool(device.queues.computeQueue.first)
-            Transfer = device.createCommandPool(device.queues.transferQueue.first)
-        }
-        logger.debug("Creating command pools done")
-
-        swapchainRecreator = SwapchainRecreator()
-        swapchain = when {
-            selectedSwapchain != null -> {
-                logger.info("Using swapchain ${selectedSwapchain.simpleName}")
-                val params = selectedSwapchain.kotlin.primaryConstructor!!.parameters.associate { param ->
-                    param to when(param.name) {
-                        "device" -> device
-                        "queue" -> queue
-                        "commandPools" -> commandPools
-                        "renderConfig" -> renderConfig
-                        "useSRGB" -> renderConfig.sRGB
-                        else -> null
-                    }
-                }.filter { it.value != null }
-
-                selectedSwapchain
-                    .kotlin
-                    .primaryConstructor!!
-                    .callBy(params) as Swapchain
-            }
-            else -> {
-                logger.info("Using default swapchain")
-                VulkanSwapchain(
-                    device, queue, commandPools,
-                    renderConfig = renderConfig, useSRGB = renderConfig.sRGB,
-                    vsync = !settings.get<Boolean>("Renderer.DisableVsync"),
-                    undecorated = settings.get("Renderer.ForceUndecoratedWindow"))
-            }
-        }.apply {
-            embedIn(embedIn)
-            window = createWindow(window, swapchainRecreator)
-        }
-
-        logger.debug("Created swapchain")
-        vertexDescriptors = prepareStandardVertexDescriptors()
-        logger.debug("Created vertex descriptors")
-
-        descriptorSetLayouts = prepareDefaultDescriptorSetLayouts(device)
-        logger.debug("Prepared default DSLs")
-        buffers = prepareDefaultBuffers(device)
-        logger.debug("Prepared default buffers")
-
-        prepareDescriptorSets(device)
-        logger.debug("Prepared default descriptor sets")
-        prepareDefaultTextures(device)
-        logger.debug("Prepared default textures")
-
-        heartbeatTimer.scheduleAtFixedRate(object : TimerTask() {
-            override fun run() {
-                if (window.shouldClose) {
-                    shouldClose = true
-                    return
-                }
-
-                fps = frames
-                frames = 0
-
-                if(!pushMode) {
-                    (hub.get(SceneryElement.Statistics) as? Statistics)?.add("Renderer.fps", fps, false)
-                }
-
-                gpuStats?.let {
-                    it.update(0)
-
-                    hub.get(SceneryElement.Statistics).let { s ->
-                        val stats = s as Statistics
-
-                        stats.add("GPU", it.get("GPU"), isTime = false)
-                        stats.add("GPU bus", it.get("Bus"), isTime = false)
-                        stats.add("GPU mem", it.get("AvailableDedicatedVideoMemory"), isTime = false)
-                    }
-
-                    if (settings.get("Renderer.PrintGPUStats")) {
-                        logger.info(it.utilisationToString())
-                        logger.info(it.memoryUtilisationToString())
+            if(device.deviceData.vendor.lowercase().contains("nvidia") && ExtractsNatives.getPlatform() == ExtractsNatives.Platform.WINDOWS) {
+                try {
+                    gpuStats = NvidiaGPUStats()
+                } catch(e: NullPointerException) {
+                    logger.warn("Could not initialize Nvidia GPU stats")
+                    if(logger.isDebugEnabled) {
+                        logger.warn("Reason: ${e.message}, traceback follows:")
+                        e.printStackTrace()
                     }
                 }
-
-                val validationsEnabled = if (validation) {
-                    " - VALIDATIONS ENABLED"
-                } else {
-                    ""
-                }
-
-                if(embedIn == null) {
-                    window.title = "$applicationName [${this@VulkanRenderer.javaClass.simpleName}, ${this@VulkanRenderer.renderConfig.name}] $validationsEnabled - $fps fps"
-                }
             }
-        }, 0, 1000)
 
-        lastTime = System.nanoTime()
-        time = 0.0f
+            queue = VU.createDeviceQueue(device, device.queues.graphicsQueue.first)
+            logger.debug("Creating transfer queue with ${device.queues.transferQueue.first} (vs ${device.queues.graphicsQueue})")
+            transferQueue = VU.createDeviceQueue(device, device.queues.transferQueue.first)
 
-        if(System.getProperty("scenery.RunFullscreen","false")?.toBoolean() == true) {
-            toggleFullscreen = true
+            with(commandPools) {
+                Render = device.createCommandPool(device.queues.graphicsQueue.first)
+                Standard = device.createCommandPool(device.queues.graphicsQueue.first)
+                Compute = device.createCommandPool(device.queues.computeQueue.first)
+                Transfer = device.createCommandPool(device.queues.transferQueue.first)
+            }
+            logger.debug("Creating command pools done")
+
+            swapchainRecreator = SwapchainRecreator()
+            swapchain = when {
+                selectedSwapchain != null -> {
+                    logger.info("Using swapchain ${selectedSwapchain.simpleName}")
+                    val params = selectedSwapchain.kotlin.primaryConstructor!!.parameters.associate { param ->
+                        param to when(param.name) {
+                            "device" -> device
+                            "queue" -> queue
+                            "commandPools" -> commandPools
+                            "renderConfig" -> renderConfig
+                            "useSRGB" -> renderConfig.sRGB
+                            else -> null
+                        }
+                    }.filter { it.value != null }
+
+                    selectedSwapchain
+                        .kotlin
+                        .primaryConstructor!!
+                        .callBy(params) as Swapchain
+                }
+                else -> {
+                    logger.info("Using default swapchain")
+                    VulkanSwapchain(
+                        device, queue, commandPools,
+                        renderConfig = renderConfig, useSRGB = renderConfig.sRGB,
+                        vsync = !settings.get<Boolean>("Renderer.DisableVsync"),
+                        undecorated = settings.get("Renderer.ForceUndecoratedWindow"))
+                }
+            }.apply {
+                embedIn(embedIn)
+                window = createWindow(window, swapchainRecreator)
+            }
+
+            logger.debug("Created swapchain")
+            vertexDescriptors = prepareStandardVertexDescriptors()
+            logger.debug("Created vertex descriptors")
+
+            descriptorSetLayouts = prepareDefaultDescriptorSetLayouts(device)
+            logger.debug("Prepared default DSLs")
+            buffers = prepareDefaultBuffers(device)
+            logger.debug("Prepared default buffers")
+
+            prepareDescriptorSets(device)
+            logger.debug("Prepared default descriptor sets")
+            prepareDefaultTextures(device)
+            logger.debug("Prepared default textures")
+
+            heartbeatTimer.scheduleAtFixedRate(object : TimerTask() {
+                override fun run() {
+                    if (window.shouldClose) {
+                        shouldClose = true
+                        return
+                    }
+
+                    fps = frames
+                    frames = 0
+
+                    if(!pushMode) {
+                        (hub.get(SceneryElement.Statistics) as? Statistics)?.add("Renderer.fps", fps, false)
+                    }
+
+                    gpuStats?.let {
+                        it.update(0)
+
+                        hub.get(SceneryElement.Statistics).let { s ->
+                            val stats = s as Statistics
+
+                            stats.add("GPU", it.get("GPU"), isTime = false)
+                            stats.add("GPU bus", it.get("Bus"), isTime = false)
+                            stats.add("GPU mem", it.get("AvailableDedicatedVideoMemory"), isTime = false)
+                        }
+
+                        if (settings.get("Renderer.PrintGPUStats")) {
+                            logger.info(it.utilisationToString())
+                            logger.info(it.memoryUtilisationToString())
+                        }
+                    }
+
+                    val validationsEnabled = if (validation) {
+                        " - VALIDATIONS ENABLED"
+                    } else {
+                        ""
+                    }
+
+                    if(embedIn == null) {
+                        window.title = "$applicationName [${this@VulkanRenderer.javaClass.simpleName}, ${this@VulkanRenderer.renderConfig.name}] $validationsEnabled - $fps fps"
+                    }
+                }
+            }, 0, 1000)
+
+            lastTime = System.nanoTime()
+            time = 0.0f
+
+            if(System.getProperty("scenery.RunFullscreen","false")?.toBoolean() == true) {
+                toggleFullscreen = true
+            }
+
+            geometryPool = VulkanBufferPool(
+                device,
+                usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT or VK_BUFFER_USAGE_INDEX_BUFFER_BIT or VK_BUFFER_USAGE_TRANSFER_DST_BIT
+            )
+
+            stagingPool = VulkanBufferPool(
+                device,
+                usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+                bufferSize = 64*1024*1024
+            )
+
+            initialized = true
+            logger.info("Renderer initialisation complete.")
         }
-
-        geometryPool = VulkanBufferPool(
-            device,
-            usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT or VK_BUFFER_USAGE_INDEX_BUFFER_BIT or VK_BUFFER_USAGE_TRANSFER_DST_BIT
-        )
-
-        stagingPool = VulkanBufferPool(
-            device,
-            usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-            properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-            bufferSize = 64*1024*1024
-        )
-
-        initialized = true
-        logger.info("Renderer initialisation complete.")
     }
 
     // source: http://stackoverflow.com/questions/34697828/parallel-operations-on-kotlin-collections
     // Thanks to Holger :-)
     @Suppress("UNUSED")
     fun <T, R> Iterable<T>.parallelMap(
-        numThreads: Int = Runtime.getRuntime().availableProcessors(),
+        numThreads: Int = java.lang.Runtime.getRuntime().availableProcessors(),
         exec: ExecutorService = Executors.newFixedThreadPool(numThreads),
         transform: (T) -> R): List<R> {
 
@@ -916,13 +929,13 @@ open class VulkanRenderer(hub: Hub,
         val materialUbo = VulkanUBO(device, backingBuffer = buffers.UBOs)
         with(materialUbo) {
             name = "MaterialProperties"
-            add("materialType", { material.materialTypeFromTextures(s) })
-            add("Ka", { material.ambient })
-            add("Kd", { material.diffuse })
-            add("Ks", { material.specular })
-            add("Roughness", { material.roughness})
-            add("Metallic", { material.metallic})
-            add("Opacity", { material.blending.opacity })
+            add("materialType", { node.materialOrNull()!!.materialTypeFromTextures(s) })
+            add("Ka", { node.materialOrNull()!!.ambient })
+            add("Kd", { node.materialOrNull()!!.diffuse })
+            add("Ks", { node.materialOrNull()!!.specular })
+            add("Roughness", { node.materialOrNull()!!.roughness})
+            add("Metallic", { node.materialOrNull()!!.metallic})
+            add("Opacity", { node.materialOrNull()!!.blending.opacity })
 
             createUniformBuffer()
             s.UBOs.put("MaterialProperties", materialPropertiesDescriptorSet.contents to this)
@@ -1216,7 +1229,7 @@ open class VulkanRenderer(hub: Hub,
         val map = ConcurrentHashMap<StandardSemaphores, Array<Long>>()
 
         StandardSemaphores.values().forEach {
-            map[it] = swapchain.images.map { i ->
+            map[it] = swapchain.images.map {
                 device.createSemaphore()
             }.toTypedArray()
         }
@@ -1816,9 +1829,9 @@ open class VulkanRenderer(hub: Hub,
         totalFrames++
     }
 
-    private fun createInstance(requiredExtensions: PointerBuffer? = null, enableValidations: Boolean = false, headless: Boolean = false, embedded: Boolean = false): VkInstance {
+    private fun createInstance(requiredExtensions: PointerBuffer? = null, enableValidations: Boolean = false, headless: Boolean = false): VkInstance {
         return stackPush().use { stack ->
-            val appInfo = VkApplicationInfo.callocStack(stack)
+            val appInfo = VkApplicationInfo.calloc(stack)
                 .sType(VK_STRUCTURE_TYPE_APPLICATION_INFO)
                 .pApplicationName(stack.UTF8(applicationName))
                 .pEngineName(stack.UTF8("scenery"))
@@ -1871,7 +1884,7 @@ open class VulkanRenderer(hub: Hub,
 
             enabledLayerNames.flip()
 
-            val createInfo = VkInstanceCreateInfo.callocStack(stack)
+            val createInfo = VkInstanceCreateInfo.calloc(stack)
                 .sType(VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO)
                 .pNext(NULL)
                 .pApplicationInfo(appInfo)
@@ -2191,10 +2204,9 @@ open class VulkanRenderer(hub: Hub,
             destroyNode(it, onShutdown = true)
         }
 
-        // The hub might contain elements that are both in the scene graph,
-        // and in the hub, e.g. a VolumeManager. We clean them here as well.
-        hub?.find { it is Node }?.forEach { (_, node) ->
-            (node as? Node)?.let { destroyNode(it, onShutdown = true) }
+        hub?.elements?.values?.forEach { elem ->
+            (elem as? HasCustomRenderable<*>)?.close()
+            (elem as? Node)?.let { destroyNode(it, onShutdown = true) }
         }
 
         scene.metadata.remove("DescriptorCache")

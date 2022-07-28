@@ -46,8 +46,7 @@ class REPL @JvmOverloads constructor(override var hub : Hub?, scijavaContext: Co
             interpreterWindow?.isVisible = false
             repl = interpreterWindow?.repl
         } else {
-            repl = ScriptREPL(context, System.out)
-            repl?.lang("Python")
+            repl = ScriptREPL(context, "Python", System.out)
             repl?.initialize()
         }
 

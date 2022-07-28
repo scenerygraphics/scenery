@@ -17,6 +17,14 @@ tasks {
         if (!gpuPresent) {
             filter { excludeTestsMatching("ExampleRunner") }
         } else {
+            val testGroup = System.getProperty("scenery.ExampleRunner.TestGroup", "unittest")
+            val testConfig = System.getProperty("scenery.ExampleRunner.Configurations", "None")
+
+            configure<JacocoTaskExtension> {
+                setDestinationFile(file("$buildDir/jacoco/jacocoTest.$testGroup.$testConfig.exec"))
+                println("Destination file for jacoco is $destinationFile (test, $testGroup, $testConfig)")
+            }
+
             filter { excludeTestsMatching("graphics.scenery.tests.unit.**") }
 
             // this should circumvent Nvidia's Vulkan cleanup issue
@@ -36,7 +44,6 @@ tasks {
             } else {
                 allJvmArgs + props.flatMap { (k, v) -> listOf("-D$k=$v") }
             }
-
         }
 
         finalizedBy(jacocoTestReport) // report is always generated after tests run
@@ -51,6 +58,27 @@ tasks {
         extensions.configure(JacocoTaskExtension::class) {
             setDestinationFile(layout.buildDirectory.file("jacoco/jacocoTest.$testGroup.exec").get().asFile)
         }
+    }
+
+    register("compileShader", JavaExec::class) {
+        group = "tools"
+        mainClass.set("graphics.scenery.backends.ShaderCompiler")
+        classpath = sourceSets["main"].runtimeClasspath
+
+    }
+
+    register("fullCodeCoverageReport", JacocoReport::class) {
+        executionData(fileTree(project.rootDir.absolutePath).include("**/build/jacoco/*.exec"))
+
+        sourceSets(sourceSets["main"], sourceSets["test"])
+
+        reports {
+            xml.required.set(true)
+            html.required.set(true)
+            csv.required.set(false)
+        }
+
+        dependsOn(test)
     }
 
     named<Jar>("jar") {
@@ -74,10 +102,9 @@ tasks {
 
     jacocoTestReport {
         reports {
-            xml.isEnabled = true
+            xml.required.set(true)
             html.apply {
-                isEnabled = false
-                //                destination = file("$buildDir/jacocoHtml")
+                required.set(false)
             }
         }
         dependsOn(test) // tests are required to run before generating the report
@@ -91,9 +118,9 @@ tasks {
             val exampleName = className.substringAfterLast(".")
             val exampleType = className.substringBeforeLast(".").substringAfterLast(".")
 
-            register<JavaExec>(name = className.substringAfterLast(".")) {
+            register<JavaExec>(name = exampleName) {
                 classpath = sourceSets.test.get().runtimeClasspath
-                main = className
+                mainClass.set(className)
                 group = "examples.$exampleType"
 
                 val props = System.getProperties().filter { (k, _) -> k.toString().startsWith("scenery.") }
@@ -104,6 +131,13 @@ tasks {
                 } else {
                     allJvmArgs + props.flatMap { (k, v) -> listOf("-D$k=$v") }
                 }
+
+                if(JavaVersion.current() > JavaVersion.VERSION_11) {
+                    allJvmArgs = allJvmArgs + listOf(
+                        "--add-opens=java.base/java.nio=ALL-UNNAMED",
+                        "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED"
+                    )
+                }
             }
         }
 
@@ -112,7 +146,7 @@ tasks {
         if (project.hasProperty("example")) {
             project.property("example")?.let { example ->
                 val file = sourceSets.test.get().allSource.files.first { "class $example" in it.readText() }
-                main = file.path.substringAfter("kotlin${File.separatorChar}").replace(File.separatorChar, '.').substringBefore(".kt")
+                mainClass.set(file.path.substringAfter("kotlin${File.separatorChar}").replace(File.separatorChar, '.').substringBefore(".kt"))
                 val props = System.getProperties().filter { (k, _) -> k.toString().startsWith("scenery.") }
 
                 val additionalArgs = System.getenv("SCENERY_JVM_ARGS")
@@ -122,7 +156,14 @@ tasks {
                     allJvmArgs + props.flatMap { (k, v) -> listOf("-D$k=$v") }
                 }
 
-                println("Will run example $example with classpath $classpath, main=$main")
+                if(JavaVersion.current() > JavaVersion.VERSION_11) {
+                    allJvmArgs = allJvmArgs + listOf(
+                        "--add-opens=java.base/java.nio=ALL-UNNAMED",
+                        "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED"
+                    )
+                }
+
+                println("Will run example $example with classpath $classpath, main=${mainClass.get()}")
                 println("JVM arguments passed to example: $allJvmArgs")
             }
         }

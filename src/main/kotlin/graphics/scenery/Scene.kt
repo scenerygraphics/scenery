@@ -58,21 +58,6 @@ open class Scene : DefaultNode("RootNode"), HasRenderable, HasMaterial, HasSpati
     }
 
     /**
-     * Adds a [Node] to the Scene, at the position given by [parent]
-     *
-     * @param[n] The node to add.
-     * @param[parent] The node to attach [n] to.
-     */
-    @Suppress("unused")
-    fun addNode(n: Node, parent: Node) {
-        if (n.name == "RootNode") {
-            throw IllegalStateException("Only one RootNode may exist per scenegraph. Please choose a different name.")
-        }
-
-        discover(this, { node -> node == parent }).first().addChild(n)
-    }
-
-    /**
      * Find the currently active observer in the Scene.
      *
      * TODO: Store once-found camera in [activeObserver]
@@ -212,11 +197,11 @@ open class Scene : DefaultNode("RootNode"), HasRenderable, HasMaterial, HasSpati
     /**
      * Performs a raycast to discover objects in this [Scene] that would be intersected
      * by a ray originating from [position], shot in [direction]. This method can
-     * be given a list of classes as [ignoredObjects], which will then be ignored for
-     * the raycast. If [debug] is true, a set of spheres is placed along the cast ray.
+     * be given a filter function to to ignore nodes for the raycast for nodes it retuns false for.
+     * If [debug] is true, a set of spheres is placed along the cast ray.
      */
     @JvmOverloads fun raycast(position: Vector3f, direction: Vector3f,
-                              ignoredObjects: List<Class<*>>,
+                              filter: (Node) -> Boolean = {true},
                               debug: Boolean = false): RaycastResult {
         if (debug) {
             val indicatorMaterial = DefaultMaterial()
@@ -224,31 +209,31 @@ open class Scene : DefaultNode("RootNode"), HasRenderable, HasMaterial, HasSpati
             indicatorMaterial.specular = Vector3f(1.0f, 0.2f, 0.2f)
             indicatorMaterial.ambient = Vector3f(0.0f, 0.0f, 0.0f)
 
-            for(it in 5..50) {
-                val s = Box(Vector3f(0.08f, 0.08f, 0.08f))
+            for(it in 1..20) {
+                val s = Box(Vector3f(0.03f))
                 s.setMaterial(indicatorMaterial)
                 s.spatial {
-                    this.position = position + direction * it.toFloat()
+                    this.position = position + direction * (it.toFloat() * 0.5f)
                 }
                 this.addChild(s)
             }
         }
 
         val matches = this.discover(this, { node ->
-            node.visible && !ignoredObjects.any{it.isAssignableFrom(node.javaClass)}
+            node.visible && filter(node)
         }).flatMap { (
             if (it is InstancedNode)
                 Stream.concat(Stream.of(it as Node), it.instances.map { instanceNode -> instanceNode as Node }.stream())
             else
                 Stream.of(it)).asSequence()
-        }.map {
-            Pair(it, it.spatialOrNull()?.intersectAABB(position, direction))
-        }.filter {
-            it.first !is InstancedNode
-        }.filter {
-            it.second is MaybeIntersects.Intersection && (it.second as MaybeIntersects.Intersection).distance > 0.0f
-        }.map {
-            RaycastMatch(it.first, (it.second as MaybeIntersects.Intersection).distance)
+        }.mapNotNull {
+            val p = Pair(it, it.spatialOrNull()?.intersectAABB(position, direction))
+            if(p.first !is InstancedNode && p.second is MaybeIntersects.Intersection
+                && (p.second as MaybeIntersects.Intersection).distance > 0.0f) {
+                RaycastMatch(p.first, (p.second as MaybeIntersects.Intersection).distance)
+            } else {
+                null
+            }
         }.sortedBy {
             it.distance
         }
@@ -261,9 +246,7 @@ open class Scene : DefaultNode("RootNode"), HasRenderable, HasMaterial, HasSpati
             m.specular = Vector3f(0.0f, 0.0f, 0.0f)
             m.ambient = Vector3f(0.0f, 0.0f, 0.0f)
 
-            matches.firstOrNull()?.let {
-                it.node.setMaterial(m)
-            }
+            matches.firstOrNull()?.node?.setMaterial(m)
         }
 
         return RaycastResult(matches, position, direction)

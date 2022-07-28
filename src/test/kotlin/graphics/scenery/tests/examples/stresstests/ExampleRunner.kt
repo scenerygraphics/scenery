@@ -6,18 +6,18 @@ import graphics.scenery.backends.Renderer
 import graphics.scenery.utils.ExtractsNatives
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.SystemHelpers
+import io.github.classgraph.ClassGraph
 import kotlinx.coroutines.*
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.reflections.Reflections
 import java.nio.file.Files
 import java.nio.file.Paths
 import kotlin.system.exitProcess
 import kotlin.test.assertFalse
-import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.ExperimentalTime
-import kotlin.time.milliseconds
 
 @OptIn(ExperimentalTime::class)
 @RunWith(Parameterized::class)
@@ -32,7 +32,7 @@ class ExampleRunner(
     @Test
     fun runExample() = runBlocking {
         logger.info("Running scenery example ${clazz.simpleName} with renderer $renderer and pipeline $pipeline")
-        var runtime = Duration.milliseconds(0)
+        var runtime = 0.milliseconds
 
         logger.info("Memory: ${Runtime.getRuntime().freeMemory().toFloat()/1024.0f/1024.0f}M/${Runtime.getRuntime().totalMemory().toFloat()/1024.0f/1024.0f}/${Runtime.getRuntime().maxMemory().toFloat()/1024.0f/1024.0f}M (free/total/max) available.")
 
@@ -42,7 +42,6 @@ class ExampleRunner(
 
         val rendererDirectory = "$directoryName/$renderer-${pipeline.substringBefore(".")}"
         val instance: SceneryBase = clazz.getConstructor().newInstance() as SceneryBase
-        var exampleRunnable: Job? = null
         var failure = false
 
         try {
@@ -55,7 +54,7 @@ class ExampleRunner(
                 exitProcess(-1)
             }
 
-            exampleRunnable = GlobalScope.launch(handler) {
+            val exampleRunnable = GlobalScope.launch(handler) {
                 instance.assertions[SceneryBase.AssertionCheckPoint.BeforeStart]?.forEach {
                     it.invoke()
                 }
@@ -110,9 +109,7 @@ class ExampleRunner(
         private val logger by LazyLogger()
 
         var maxRuntimePerTest =
-            Duration.minutes(System.getProperty("scenery.ExampleRunner.maxRuntimePerTest", "5").toInt())
-
-        val reflections = Reflections("graphics.scenery.tests")
+            System.getProperty("scenery.ExampleRunner.maxRuntimePerTest", "5").toInt().minutes
 
         // blacklist contains examples that require user interaction or additional devices
         val blocklist = mutableListOf(
@@ -121,6 +118,7 @@ class ExampleRunner(
             "TexturedCubeJavaExample",
             // these examples need additional hardware
             "VRControllerExample",
+            "VRVolumeCroppingExample",
             "EyeTrackingExample",
             "ARExample",
             // these examples require user input and/or files
@@ -141,14 +139,18 @@ class ExampleRunner(
         val testGroup: String = System.getProperty("scenery.ExampleRunner.TestGroup", "basic")
 
         // find all basic and advanced examples, exclude blacklist
-        val examples = reflections
-            .getSubTypesOf(SceneryBase::class.java)
+        val examples = ClassGraph()
+            .acceptPackages("graphics.scenery.tests")
+            .enableClassInfo()
+            .scan()
+            .getSubclasses(SceneryBase::class.java)
+            .loadClasses()
             .filter { !it.canonicalName.contains("stresstests")
                 && !it.canonicalName.contains("cluster")
                 && it.name.substringBeforeLast(".").contains(testGroup)
+                && !blocklist.contains(it.simpleName)
+                && (allowedTests?.contains(it.simpleName) ?: true)
             }
-            .filter { !blocklist.contains(it.simpleName) }.toMutableList()
-            .filter { allowedTests?.contains(it.simpleName) ?: true }
 
         val renderers = System.getProperty("scenery.Renderer")?.split(",") ?: when(ExtractsNatives.getPlatform()) {
             ExtractsNatives.Platform.WINDOWS,

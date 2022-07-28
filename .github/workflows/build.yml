@@ -3,155 +3,83 @@ name: build
 on: [ push ]
 
 jobs:
-  linux-jdk11:
-    name: 'Linux/JDK11'
-    runs-on: ubuntu-latest
-
+  linux-unittests:
+    name: 'Linux'
+    strategy:
+      # we disable fail-fast, as otherwise any failed job would cancel the others.
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            java: 11
+          - os: ubuntu-latest
+            java: 17
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2
       - uses: gradle/wrapper-validation-action@v1
-      - name: Set up JDK 11
+      - name: Set up JDK
         uses: actions/setup-java@v2
         with:
-          distribution: 'adopt-hotspot'
-          java-version: '11'
+          java-version: '${{ matrix.java }}'
+          distribution: 'temurin'
       #- name: Fix assistive technologies on Linux/JDK11
       #  run: sudo sed -i -e '/^assistive_technologies=/s/^/#/' /etc/java-*-openjdk/accessibility.properties
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
-      #      - name: Build with Gradle
-      #        run: ./gradlew build -x dokkaHtml -x dokkaHtmlJar
       - uses: burrunan/gradle-cache-action@v1
         name: Build scenery
         with:
-          arguments: build -x dokkaHtml -x dokkaHtmlJar -x javadoc -x dokkaJavadocJar
-  #      - name: Cleanup Gradle Cache
-  #        # Remove some files from the Gradle cache, so they aren't cached by GitHub Actions.
-  #        # Restoring these files from a GitHub Actions cache might cause problems for future builds.
-  #        run: |
-  #          rm -f ~/.gradle/caches/modules-2/modules-2.lock
-  #          rm -f ~/.gradle/caches/modules-2/gc.properties
-  linux-jdk8:
-    name: 'Linux/JDK8'
-    runs-on: ubuntu-latest
+          arguments: build -x dokkaHtml -x dokkaHtmlJar -x javadoc -x dokkaJavadocJar --info
 
+  windows-unittests:
+    name: 'Windows'
+    strategy:
+      # we disable fail-fast, as otherwise any failed job would cancel the others.
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            java: 11
+          - os: windows-latest
+            java: 17
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2
       - uses: gradle/wrapper-validation-action@v1
-      - name: Set up JDK 8
-        uses: actions/setup-java@v1
+      - name: Set up JDK
+        uses: actions/setup-java@v2
         with:
-          java-version: 8
+          java-version: '${{ matrix.java }}'
+          distribution: 'temurin'
+      - uses: burrunan/gradle-cache-action@v1
+        name: Build scenery
+        with:
+          arguments: build -x dokkaHtml -x dokkaHtmlJar -x javadoc -x dokkaJavadocJar --info
+
+  mac-unittests:
+    name: 'macOS'
+    strategy:
+      # we disable fail-fast, as otherwise any failed job would cancel the others.
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            java: 11
+          - os: macos-latest
+            java: 17
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v2
+      - uses: gradle/wrapper-validation-action@v1
+      - name: Set up JDK
+        uses: actions/setup-java@v2
+        with:
+          java-version: '${{ matrix.java }}'
+          distribution: 'temurin'
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
-      #      - name: Build with Gradle
-      #        run: ./gradlew build -x dokkaHtml -x dokkaHtmlJar
       - uses: burrunan/gradle-cache-action@v1
         name: Build scenery
         with:
-          arguments: build -x dokkaHtml -x dokkaHtmlJar -x javadoc -x dokkaJavadocJar
-  #      - name: Cleanup Gradle Cache
-  #        # Remove some files from the Gradle cache, so they aren't cached by GitHub Actions.
-  #        # Restoring these files from a GitHub Actions cache might cause problems for future builds.
-  #        run: |
-  #          rm -f ~/.gradle/caches/modules-2/modules-2.lock
-  #          rm -f ~/.gradle/caches/modules-2/gc.properties
-
-
-  windows-jdk11:
-    name: 'Windows/JDK11'
-    runs-on: windows-latest
-
-    steps:
-      - uses: actions/checkout@v2
-      - uses: gradle/wrapper-validation-action@v1
-      - name: Set up JDK 11
-        uses: actions/setup-java@v1
-        with:
-          java-version: 11
-      #      - name: Build with Gradle
-      #        run: .\gradlew.bat build -x dokkaHtml -x dokkaHtmlJar
-      - uses: burrunan/gradle-cache-action@v1
-        name: Build scenery
-        with:
-          arguments: build -x dokkaHtml -x dokkaHtmlJar -x javadoc -x dokkaJavadocJar
-  #      - name: Cleanup Gradle Cache
-  #        # Remove some files from the Gradle cache, so they aren't cached by GitHub Actions.
-  #        # Restoring these files from a GitHub Actions cache might cause problems for future builds.
-  #        run: |
-  #          rm -f ~/.gradle/caches/modules-2/modules-2.lock
-  #          rm -f ~/.gradle/caches/modules-2/gc.properties
-  windows-jdk8:
-    name: 'Windows/JDK8'
-    runs-on: windows-latest
-
-    steps:
-      - uses: actions/checkout@v2
-      - uses: gradle/wrapper-validation-action@v1
-      - name: Set up JDK 8 
-        uses: actions/setup-java@v1
-        with:
-          java-version: 8
-      #      - name: Build with Gradle
-      #        run: .\gradlew.bat build -x dokkaHtml -x dokkaHtmlJar
-      - uses: burrunan/gradle-cache-action@v1
-        name: Build scenery
-        with:
-          arguments: build -x dokkaHtml -x dokkaHtmlJar -x javadoc -x dokkaJavadocJar
-  #      - name: Cleanup Gradle Cache
-  #        # Remove some files from the Gradle cache, so they aren't cached by GitHub Actions.
-  #        # Restoring these files from a GitHub Actions cache might cause problems for future builds.
-  #        run: |
-  #          rm -f ~/.gradle/caches/modules-2/modules-2.lock
-  #          rm -f ~/.gradle/caches/modules-2/gc.properties
-
-  mac-jdk11:
-    name: 'macOS/JDK11'
-    runs-on: macos-latest
-
-    steps:
-      - uses: actions/checkout@v2
-      - uses: gradle/wrapper-validation-action@v1
-      - name: Set up JDK 1.11
-        uses: actions/setup-java@v1
-        with:
-          java-version: 11
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
-      #      - name: Build with Gradle
-      #        run: ./gradlew build -x dokkaHtml -x dokkaHtmlJar
-      - uses: burrunan/gradle-cache-action@v1
-        name: Build scenery
-        with:
-          arguments: build -x dokkaHtml -x dokkaHtmlJar -x javadoc -x dokkaJavadocJar
-#      - name: Cleanup Gradle Cache
-#        # Remove some files from the Gradle cache, so they aren't cached by GitHub Actions.
-#        # Restoring these files from a GitHub Actions cache might cause problems for future builds.
-#        run: |
-#          rm -f ~/.gradle/caches/modules-2/modules-2.lock
-#          rm -f ~/.gradle/caches/modules-2/gc.properties
-  mac-jdk8:
-    name: 'macOS/JDK8'
-    runs-on: macos-latest
-
-    steps:
-      - uses: actions/checkout@v2
-      - uses: gradle/wrapper-validation-action@v1
-      - name: Set up JDK 8
-        uses: actions/setup-java@v1
-        with:
-          java-version: 8
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
-      #      - name: Build with Gradle
-      #        run: ./gradlew build -x dokkaHtml -x dokkaHtmlJar
-      - uses: burrunan/gradle-cache-action@v1
-        name: Build scenery
-        with:
-          arguments: build -x dokkaHtml -x dokkaHtmlJar -x javadoc -x dokkaJavadocJar
-#      - name: Cleanup Gradle Cache
-#        # Remove some files from the Gradle cache, so they aren't cached by GitHub Actions.
-#        # Restoring these files from a GitHub Actions cache might cause problems for future builds.
-#        run: |
-#          rm -f ~/.gradle/caches/modules-2/modules-2.lock
-#          rm -f ~/.gradle/caches/modules-2/gc.properties
+          arguments: build -x dokkaHtml -x dokkaHtmlJar -x javadoc -x dokkaJavadocJar --info
