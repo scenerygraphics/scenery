@@ -31,4 +31,8 @@ interface HasCustomRenderable<T: Renderable>: Node {
     override fun renderableOrNull(): T {
         return this.renderable()
     }
+
+    fun close() {
+        this.renderable().close()
+    }
 }

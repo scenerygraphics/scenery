@@ -32,6 +32,7 @@ import org.scijava.ui.behaviour.*
 import org.scijava.ui.behaviour.io.InputTriggerConfig
 import java.awt.Component
 import java.awt.event.KeyEvent
+import java.awt.event.MouseEvent
 import java.io.File
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
@@ -425,7 +426,9 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
      */
     override fun getPosition(): Vector3f {
         val m = getPose()
-        return Vector3f(-1.0f * m.get(0, 3), -1.0f * m.get(1, 3), -1.0f * m.get(2, 3))
+        val d = Vector3f(-1.0f * m.get(3, 0), -1.0f * m.get(3, 1), -1.0f * m.get(3, 2))
+        // the position is already rotated by the orientation therefore we need to inverse that the get the absolute position
+        return d.rotate(getOrientation().conjugate())
     }
 
     /**
@@ -593,6 +596,17 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
             }
         }
 
+        if (keysDown.isNotEmpty()) {
+            // do a simulated mouse movement to trigger drag behavior updates
+            inputHandler.mouseMoved(
+                MouseEvent(
+                    object : Component() {}, MouseEvent.MOUSE_CLICKED, System.nanoTime(),
+                    0, 0, 0, 0, 0, 1, false, 0
+                )
+            )
+        }
+
+
         hub?.get<Statistics>()?.let { stats ->
             val timing = CompositorFrameTiming.calloc(1)
             if(VRCompositor_GetFrameTiming(timing)) {
@@ -663,15 +677,15 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
 
                 readyForSubmission = false
 
-                val texture = Texture.callocStack(stack)
+                val texture = Texture.calloc(stack)
                     .eColorSpace(EColorSpace_ColorSpace_Gamma)
                     .eType(ETextureType_TextureType_OpenGL)
                     .handle(textureId.toLong())
 
-                val boundsLeft = VRTextureBounds.callocStack(stack).set(0.0f, 0.0f, 0.5f, 1.0f)
+                val boundsLeft = VRTextureBounds.calloc(stack).set(0.0f, 0.0f, 0.5f, 1.0f)
                 val errorLeft = VRCompositor_Submit(EVREye_Eye_Left, texture, boundsLeft, 0)
 
-                val boundsRight = VRTextureBounds.callocStack(stack).set(0.5f, 0.0f, 1.0f, 1.0f)
+                val boundsRight = VRTextureBounds.calloc(stack).set(0.5f, 0.0f, 1.0f, 1.0f)
                 val errorRight = VRCompositor_Submit(EVREye_Eye_Right, texture, boundsRight, 0)
 
                 if (errorLeft != EVRCompositorError_VRCompositorError_None
@@ -694,7 +708,7 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
         }
 
         stackPush().use { stack ->
-            val textureData = VRVulkanTextureData.callocStack(stack)
+            val textureData = VRVulkanTextureData.calloc(stack)
                 .m_nImage(image)
                 .m_pInstance(instance.address())
                 .m_pPhysicalDevice(device.physicalDevice.address())
@@ -706,7 +720,7 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
                 .m_nFormat(format)
                 .m_nSampleCount(1)
 
-            val texture = Texture.callocStack(stack)
+            val texture = Texture.calloc(stack)
                 .handle(textureData.address())
                 .eColorSpace(EColorSpace_ColorSpace_Gamma)
                 .eType(ETextureType_TextureType_Vulkan)
@@ -717,7 +731,7 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
                 commandPool = device.createCommandPool(device.queues.graphicsQueue.first)
             }
 
-            val subresourceRange = VkImageSubresourceRange.callocStack(stack)
+            val subresourceRange = VkImageSubresourceRange.calloc(stack)
                 .aspectMask(VK_IMAGE_ASPECT_COLOR_BIT)
                 .baseMipLevel(0)
                 .levelCount(1)
@@ -738,11 +752,11 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
                 )
 
                 logger.trace("Submitting left...")
-                val boundsLeft = VRTextureBounds.callocStack(stack).set(0.0f, 0.0f, 0.5f, 1.0f)
+                val boundsLeft = VRTextureBounds.calloc(stack).set(0.0f, 0.0f, 0.5f, 1.0f)
                 val errorLeft = VRCompositor_Submit(EVREye_Eye_Left, texture, boundsLeft, EVRSubmitFlags_Submit_Default)
 
                 logger.trace("Submitting right...")
-                val boundsRight = VRTextureBounds.callocStack(stack).set(0.5f, 0.0f, 1.0f, 1.0f)
+                val boundsRight = VRTextureBounds.calloc(stack).set(0.5f, 0.0f, 1.0f, 1.0f)
                 val errorRight = VRCompositor_Submit(EVREye_Eye_Right, texture, boundsRight, EVRSubmitFlags_Submit_Default)
 
                 // NOTE: Here, an "unsupported texture type" error can be thrown if the required Vulkan

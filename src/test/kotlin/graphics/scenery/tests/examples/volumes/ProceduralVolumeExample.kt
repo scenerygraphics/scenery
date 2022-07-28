@@ -58,7 +58,7 @@ class ProceduralVolumeExample: SceneryBase("Procedural Volume Rendering Example"
         }
 
         volume.name = "volume"
-        volume.spatial().position = Vector3f(0.0f, 0.0f, 0.0f)
+        volume.spatial().position = Vector3f(0.0f, 5.0f, 0.0f)
         volume.colormap = Colormap.get("hot")
         volume.pixelToWorldRatio = 0.03f
 

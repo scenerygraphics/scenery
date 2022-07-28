@@ -40,18 +40,34 @@ unit-tests-no-gpu:
     - chmod +x gradlew
     - ./gradlew --stop # stop any deamon https://stackoverflow.com/a/58397542/1047713
   script:
+    - echo -e "\e[0Ksection_start:`date +%s`:build_section[collapsed=true]\r\e[0KGeneral build"
+    - ./gradlew build jacocoTestReport --info --full-stacktrace -x dokkaHtml -x dokkaHtmlJar -x javadoc -x dokkaJavadocJar
+    - echo -e "\e[0Ksection_end:`date +%s`:build_section\r\e[0K"
     # basic group
-    - ./gradlew build -i -S -x dokkaHtml -x dokkaHtmlJar -x javadoc -x dokkaJavadocJar -Pgpu=true -Dscenery.ExampleRunner.TestGroup=basic -Dscenery.ExampleRunner.Configurations=DeferredShading.yml
-    - ./gradlew build -i -S -x dokkaHtml -x dokkaHtmlJar -x javadoc -x dokkaJavadocJar -Pgpu=true -Dscenery.ExampleRunner.TestGroup=basic -Dscenery.ExampleRunner.Configurations=DeferredShadingStereo.yml
+    - echo -e "\e[0Ksection_start:`date +%s`:basic_section[collapsed=true]\r\e[0KBasic Test Group"
+    - ./gradlew test jacocoTestReport --info --full-stacktrace -Pgpu=true -Dscenery.ExampleRunner.TestGroup=basic -Dscenery.ExampleRunner.Configurations=DeferredShading.yml
+    - ./gradlew test jacocoTestReport --info --full-stacktrace -Pgpu=true -Dscenery.ExampleRunner.TestGroup=basic -Dscenery.ExampleRunner.Configurations=DeferredShadingStereo.yml
+    - echo -e "\e[0Ksection_end:`date +%s`:basic_section\r\e[0K"
     # advanced group
-    - ./gradlew build -i -S -x dokkaHtml -x dokkaHtmlJar -x javadoc -x dokkaJavadocJar -Pgpu=true -Dscenery.ExampleRunner.TestGroup=advanced -Dscenery.ExampleRunner.Configurations=DeferredShading.yml
-    - ./gradlew build -i -S -x dokkaHtml -x dokkaHtmlJar -x javadoc -x dokkaJavadocJar -Pgpu=true -Dscenery.ExampleRunner.TestGroup=advanced -Dscenery.ExampleRunner.Configurations=DeferredShadingStereo.yml
+    - echo -e "\e[0Ksection_start:`date +%s`:advanced_section[collapsed=true]\r\e[0KAdvanced Test Group"
+    - ./gradlew test jacocoTestReport --info --full-stacktrace -Pgpu=true -Dscenery.ExampleRunner.TestGroup=advanced -Dscenery.ExampleRunner.Configurations=DeferredShading.yml
+    - ./gradlew test jacocoTestReport --info --full-stacktrace -Pgpu=true -Dscenery.ExampleRunner.TestGroup=advanced -Dscenery.ExampleRunner.Configurations=DeferredShadingStereo.yml
+    - echo -e "\e[0Ksection_end:`date +%s`:advanced_section\r\e[0K"
     # compute group
-    - ./gradlew build -i -S -x dokkaHtml -x dokkaHtmlJar -x javadoc -x dokkaJavadocJar -Pgpu=true -Dscenery.ExampleRunner.TestGroup=compute -Dscenery.ExampleRunner.Configurations=DeferredShading.yml
-    - ./gradlew build -i -S -x dokkaHtml -x dokkaHtmlJar -x javadoc -x dokkaJavadocJar -Pgpu=true -Dscenery.ExampleRunner.TestGroup=compute -Dscenery.ExampleRunner.Configurations=DeferredShadingStereo.yml
+    - echo -e "\e[0Ksection_start:`date +%s`:compute_section[collapsed=true]\r\e[0KCompute Test Group"
+    - ./gradlew test jacocoTestReport --info --full-stacktrace -Pgpu=true -Dscenery.ExampleRunner.TestGroup=compute -Dscenery.ExampleRunner.Configurations=DeferredShading.yml
+    - ./gradlew test jacocoTestReport --info --full-stacktrace -Pgpu=true -Dscenery.ExampleRunner.TestGroup=compute -Dscenery.ExampleRunner.Configurations=DeferredShadingStereo.yml
+    - echo -e "\e[0Ksection_end:`date +%s`:compute_section\r\e[0K"
     # volumes group
-    - ./gradlew build -i -S -x dokkaHtml -x dokkaHtmlJar -x javadoc -x dokkaJavadocJar -Pgpu=true -Dscenery.ExampleRunner.TestGroup=volumes -Dscenery.ExampleRunner.Configurations=DeferredShading.yml
-    - ./gradlew build -i -S -x dokkaHtml -x dokkaHtmlJar -x javadoc -x dokkaJavadocJar -Pgpu=true -Dscenery.ExampleRunner.TestGroup=volumes -Dscenery.ExampleRunner.Configurations=DeferredShadingStereo.yml
+    - echo -e "\e[0Ksection_start:`date +%s`:volumes_section[collapsed=true]\r\e[0KVolumes Test Group"
+    - ./gradlew test jacocoTestReport --info --full-stacktrace -Pgpu=true -Dscenery.ExampleRunner.TestGroup=volumes -Dscenery.ExampleRunner.Configurations=DeferredShading.yml
+    - ./gradlew test jacocoTestReport --info --full-stacktrace -Pgpu=true -Dscenery.ExampleRunner.TestGroup=volumes -Dscenery.ExampleRunner.Configurations=DeferredShadingStereo.yml
+    - echo -e "\e[0Ksection_end:`date +%s`:volumes_section\r\e[0K"
+    # code coverage reporting
+    - echo -e "\e[0Ksection_start:`date +%s`:coverage_section[collapsed=true]\r\e[0KCode Coverage and Analysis"
+    # we keep the same arguments here as in the last test run to not startle Gradle into re-running the test task
+    - ./gradlew fullCodeCoverageReport sonarqube --info --full-stacktrace -Pgpu=true -Dscenery.ExampleRunner.TestGroup=volumes -Dscenery.ExampleRunner.Configurations=DeferredShadingStereo.yml
+    - echo -e "\e[0Ksection_end:`date +%s`:coverage_section\r\e[0K"
   artifacts:
     when: always
     expire_in: 48h
@@ -60,7 +76,7 @@ unit-tests-no-gpu:
       - "hs_err_*"
 
 scenery-nvidia:
-  image: scenerygraphics/nvidia-vulkan:1.2.170.0-ubuntu20.04
+  image: scenerygraphics/nvidia-vulkan:1.3.216.0-ubuntu20.04
   <<: *base-job-gpu
   after_script:
     - nvidia-smi

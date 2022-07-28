@@ -10,6 +10,7 @@ import graphics.scenery.geometry.GeometryType
 import graphics.scenery.attribute.HasDelegationType
 import graphics.scenery.attribute.DelegationType
 import graphics.scenery.attribute.renderable.Renderable
+import graphics.scenery.backends.ShaderIntrospection
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.Statistics
@@ -426,8 +427,8 @@ object VulkanScenePass {
      */
     private fun VkCommandBuffer.blitInputsForPass(pass: VulkanRenderpass, name: String, input: VulkanFramebuffer) {
         MemoryStack.stackPush().use { stack ->
-            val imageBlit = VkImageBlit.callocStack(1, stack)
-            val region = VkImageCopy.callocStack(1, stack)
+            val imageBlit = VkImageBlit.calloc(1, stack)
+            val region = VkImageCopy.calloc(1, stack)
 
             val attachmentList = if (name.contains(".")) {
                 input.attachments.filter { it.key == name.substringAfter(".") }
@@ -484,7 +485,7 @@ object VulkanScenePass {
                 imageBlit.dstOffsets(0).set(offsetX, offsetY, 0)
                 imageBlit.dstOffsets(1).set(sizeX, sizeY, 1)
 
-                val subresourceRange = VkImageSubresourceRange.callocStack(stack)
+                val subresourceRange = VkImageSubresourceRange.calloc(stack)
                     .aspectMask(type)
                     .baseMipLevel(0)
                     .levelCount(1)
@@ -566,7 +567,7 @@ object VulkanScenePass {
         }
     }
 
-    private fun setRequiredDescriptorSetsForNode(pass: VulkanRenderpass, node: Node, s: VulkanObjectState, specs: List<MutableMap.MutableEntry<String, VulkanShaderModule.UBOSpec>>, descriptorSets: Map<String, Long>): Pair<List<VulkanRenderer.DescriptorSet>, Boolean> {
+    private fun setRequiredDescriptorSetsForNode(pass: VulkanRenderpass, node: Node, s: VulkanObjectState, specs: List<MutableMap.MutableEntry<String, ShaderIntrospection.UBOSpec>>, descriptorSets: Map<String, Long>): Pair<List<VulkanRenderer.DescriptorSet>, Boolean> {
         var skip = false
         return specs.mapNotNull { (name, _) ->
             val ds = when {

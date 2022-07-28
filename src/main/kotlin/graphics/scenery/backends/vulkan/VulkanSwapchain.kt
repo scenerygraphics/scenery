@@ -189,7 +189,7 @@ open class VulkanSwapchain(open val device: VulkanDevice,
             val oldHandle = oldSwapchain?.handle
 
             // Get physical device surface properties and formats
-            val surfCaps = VkSurfaceCapabilitiesKHR.callocStack(stack)
+            val surfCaps = VkSurfaceCapabilitiesKHR.calloc(stack)
 
             VU.run("Getting surface capabilities",
                 { KHRSurface.vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device.physicalDevice, surface, surfCaps) })
@@ -240,7 +240,7 @@ open class VulkanSwapchain(open val device: VulkanDevice,
                 surfCaps.currentTransform()
             }
 
-            val swapchainCI = VkSwapchainCreateInfoKHR.callocStack(stack)
+            val swapchainCI = VkSwapchainCreateInfoKHR.calloc(stack)
                 .sType(KHRSwapchain.VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR)
                 .pNext(MemoryUtil.NULL)
                 .surface(surface)
@@ -284,7 +284,7 @@ open class VulkanSwapchain(open val device: VulkanDevice,
 
             val images = LongArray(imageCount.get(0))
             val imageViews = LongArray(imageCount.get(0))
-            val colorAttachmentView = VkImageViewCreateInfo.callocStack(stack)
+            val colorAttachmentView = VkImageViewCreateInfo.calloc(stack)
                 .sType(VK10.VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO)
                 .pNext(MemoryUtil.NULL)
                 .format(colorFormatAndSpace.colorFormat)
@@ -357,7 +357,7 @@ open class VulkanSwapchain(open val device: VulkanDevice,
             VK10.vkGetPhysicalDeviceQueueFamilyProperties(device.physicalDevice, queueFamilyPropertyCount, null)
 
             val queueCount = queueFamilyPropertyCount.get(0)
-            val queueProps = VkQueueFamilyProperties.callocStack(queueCount, stack)
+            val queueProps = VkQueueFamilyProperties.calloc(queueCount, stack)
             VK10.vkGetPhysicalDeviceQueueFamilyProperties(device.physicalDevice, queueFamilyPropertyCount, queueProps)
 
             // Iterate over each queue to learn whether it supports presenting:
@@ -404,15 +404,14 @@ open class VulkanSwapchain(open val device: VulkanDevice,
                 throw RuntimeException("Presentation queue != graphics queue")
             }
 
-            presentQueue = VkQueue(VU.getPointer("Get present queue",
-                { VK10.vkGetDeviceQueue(device.vulkanDevice, presentQueueNodeIndex, 0, this); VK10.VK_SUCCESS }, {}),
-                device.vulkanDevice)
+            logger.info("Present queue is ${presentQueueNodeIndex}, graphics queue is ${graphicsQueueNodeIndex}")
+            presentQueue = VU.createDeviceQueue(device, device.queues.graphicsQueue.first)
 
             // Get list of supported formats
             val formatCount = VU.getInts("Getting supported surface formats", 1,
                 { KHRSurface.vkGetPhysicalDeviceSurfaceFormatsKHR(device.physicalDevice, surface, this, null) })
 
-            val surfFormats = VkSurfaceFormatKHR.callocStack(formatCount.get(0), stack)
+            val surfFormats = VkSurfaceFormatKHR.calloc(formatCount.get(0), stack)
             VU.run("Query device physical surface formats",
                 { KHRSurface.vkGetPhysicalDeviceSurfaceFormatsKHR(device.physicalDevice, surface, formatCount, surfFormats) })
 

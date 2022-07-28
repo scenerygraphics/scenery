@@ -216,7 +216,7 @@ open class VulkanObjectState : NodeMetadata {
 
     /**
      * Returns the descriptor set named [textureSet] containing referring to the textures needed in a given [passname].
-     * If [textureSet] is not found for [passname], null is returned.
+     * If [textureSet] is not found for [passname], null is returne
      */
     fun getTextureDescriptorSet(passname: String, textureSet: String = ""): Long? {
         val texture = if(textureSet == "") {

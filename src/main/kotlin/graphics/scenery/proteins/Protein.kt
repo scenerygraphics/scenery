@@ -25,51 +25,46 @@ class Protein(val structure: Structure): Mesh("Protein") {
         private val proteinLogger by LazyLogger()
 
         fun fromID(id: String): Protein {
-                //print("Please enter the PDB-ID: ")
-                //val id = readLine()
-            try { StructureIO.getStructure(id) }
-            catch (struc: IOException) {
+            try {
+                StructureIO.getStructure(id)
+            } catch (ioe: IOException) {
                 proteinLogger.error("Something went wrong during the loading process of the pdb file, " +
                         "maybe a typo in the pdb entry or you chose a deprecated one?" +
                     "Here is the trace: \n" +
-                struc.printStackTrace())
-            }
-            catch(struc: StructureException) {
+                ioe.printStackTrace())
+                throw ioe
+            } catch(se: StructureException) {
                 proteinLogger.error("Something went wrong during the loading of the pdb file."+
                 "Here is the trace: \n" +
-                struc.printStackTrace())
-            }
-            catch(struc: NullPointerException) {
+                se.printStackTrace())
+                throw se
+            } catch(npe: NullPointerException) {
                 proteinLogger.error("Something is broken in BioJava. You can try to update the version.")
+                throw npe
             }
-            finally {
-                val struc = StructureIO.getStructure(id)
-                val protein = Protein(struc)
-                return protein
-            }
+
+            val structure = StructureIO.getStructure(id)
+            val protein = Protein(structure)
+            return protein
         }
 
         fun fromFile(path: String): Protein {
             val reader = PDBFileReader()
             //print("Please enter the path of your PDB-File: ")
             //val readPath = readLine()
-            try { reader.getStructure(path) }
-            catch (struc: InvalidPathException) {
-                proteinLogger.info("Path was invalid, maybe this helps: ${struc.reason} " +
-                    "or the index: ${struc.index}")
-            }
-            catch(struc: FileNotFoundException) {
+            try {
+                reader.getStructure(path)
+            } catch (ipe: InvalidPathException) {
+                proteinLogger.info("Path was invalid, maybe this helps: ${ipe.reason} " +
+                    "or the index: ${ipe.index}")
+                throw ipe
+            } catch(fnfe: FileNotFoundException) {
                 proteinLogger.error("The pdb file is not in the directory")
-            }
-            catch(struc: Exception) {
-                proteinLogger.error("Something about the pdb file is wrong. This is not an invalid path problem nor is" +
-                    "it a file-not-found-problem.")
+                throw fnfe
             }
 
-            finally {
-                val struc = reader.getStructure(path)
-                return Protein(struc)
-            }
+            val structure = reader.getStructure(path)
+            return Protein(structure)
         }
 
     }
