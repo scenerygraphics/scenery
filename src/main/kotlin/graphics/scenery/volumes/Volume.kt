@@ -371,6 +371,11 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
         return Vector3i(0)
     }
 
+    @JvmOverloads
+    open fun setTransferFunctionRange(min: Float, max: Float, forSetupId: Int = 0) {
+        converterSetups.getOrNull(forSetupId)?.setDisplayRange(min.toDouble(), max.toDouble())
+    }
+
     companion object {
         val setupId = AtomicInteger(0)
         val scifio: SCIFIO = SCIFIO()
