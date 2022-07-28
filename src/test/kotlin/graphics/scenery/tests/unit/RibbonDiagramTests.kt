@@ -8,6 +8,7 @@ import org.biojava.nbio.structure.Group
 import org.biojava.nbio.structure.secstruc.SecStrucElement
 import org.joml.Vector3f
 import org.junit.Test
+import org.lwjgl.system.Platform
 import kotlin.reflect.full.declaredMemberFunctions
 import kotlin.reflect.jvm.isAccessible
 import kotlin.test.assertEquals
@@ -96,7 +97,7 @@ class RibbonDiagramTests {
             "2mue", "2m0j", "1q5w", "3gj8", "3sui", "6pby", "2m0k", "1r4a",
             "3fub", "6uku", "6v92", "2l2i", "1pyo", "4lcd", "6p9x", "6uun",
             "6v80", "6v7z", "4grw", "3mc5", "3mbw", "4tkw", "4u0i", "3mas",
-            "6znn", "1ctp", "3j92", "3jak", "1nb5", "3lk3", "1mdu", "3eks",
+            "6znn", "1ctp", /*"3j92",*/ "3jak", "1nb5", "3lk3", "1mdu", "3eks",
             "2ebv", "4gbj", "6v4e", "6v4h", "4m8n", "4ia1", "3ei2", "2rh1",
             "6ps3", "3v2y", "4pla", "3eml", "2seb", "2qej", "1d5m", "2wy8",
             "4idj", "2vr3", "2win", "6urh", "3ua7", "3mrn", "4z0x", "2rhk",
@@ -105,15 +106,21 @@ class RibbonDiagramTests {
             "4xib", "4u0q", "6phf"
         )
 
+        var max = 0L
         val runtime = Runtime.getRuntime()
-        proteins.shuffled().take(20).forEach { pdbId ->
-            val used = (runtime.totalMemory()-runtime.freeMemory())/1024/1024
-            val free = runtime.freeMemory()/1024/1024
-            logger.info("Memory use: $used MB, $free MB free")
+        val onWindows = Platform.get() == Platform.WINDOWS
+
+        proteins.shuffled()/*.take(20)*/.forEach { pdbId ->
             val protein = Protein.fromID(pdbId)
             logger.info("Testing ${protein.structure.name} ...")
             RibbonDiagram(protein)
+            val m = runtime.maxMemory()/1024/1024
+            val used = (runtime.totalMemory()-runtime.freeMemory())/1024/1024
+            val free = runtime.freeMemory()/1024/1024
+            logger.info("Memory use: $used MB, $free MB free $m MB max")
+            max = maxOf(used, max)
         }
+        logger.info("Max use was $max MB")
     }
 
     /**
