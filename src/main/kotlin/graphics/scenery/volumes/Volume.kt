@@ -155,13 +155,19 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
         }
 
     sealed class VolumeDataSource {
-        class SpimDataMinimalSource(val spimData : SpimDataMinimal) : VolumeDataSource()
+        class SpimDataMinimalSource(
+            val spimData : SpimDataMinimal,
+            val sources: List<SourceAndConverter<*>>,
+            val converterSetups: ArrayList<ConverterSetup>,
+            val numTimepoints: Int
+            ) : VolumeDataSource()
         class RAISource<T: NumericType<T>>(
             val type: NumericType<T>,
             val sources: List<SourceAndConverter<T>>,
             val converterSetups: ArrayList<ConverterSetup>,
             val numTimepoints: Int,
-            val cacheControl: CacheControl? = null) : VolumeDataSource()
+            val cacheControl: CacheControl? = null,
+            val spimData: SpimDataMinimal? = null) : VolumeDataSource()
         class NullSource(val numTimepoints: Int): VolumeDataSource()
     }
 
@@ -183,19 +189,13 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
             is SpimDataMinimalSource -> {
                 val spimData = dataSource.spimData
 
-                val seq: AbstractSequenceDescription<*, *, *> = spimData.sequenceDescription
-                timepointCount = seq.timePoints.size() - 1
-                cacheControls.addCacheControl((seq.imgLoader as ViewerImgLoader).cacheControl)
+                timepointCount = dataSource.numTimepoints
+                cacheControls.addCacheControl((spimData.sequenceDescription.imgLoader as ViewerImgLoader).cacheControl)
 
                 // wraps legacy image formats (e.g., TIFF) if referenced in BDV XML
                 WrapBasicImgLoader.wrapImgLoaderIfNecessary(spimData)
-
-                val sources = ArrayList<SourceAndConverter<*>>()
-                // initialises setups and converters for all channels, and creates source.
-                // These are then stored in [converterSetups] and [sources_].
-                BigDataViewer.initSetups(spimData, converterSetups, sources)
-
-                viewerState = ViewerState(sources, timepointCount)
+                viewerState = ViewerState(dataSource.sources, timepointCount)
+                converterSetups.addAll(dataSource.converterSetups)
 
                 WrapBasicImgLoader.removeWrapperIfPresent(spimData)
             }
@@ -381,8 +381,25 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
             hub : Hub,
             options : VolumeViewerOptions = VolumeViewerOptions()
         ): Volume {
-            val ds = SpimDataMinimalSource(spimData)
-            return Volume(ds, options, hub)
+            val seq: AbstractSequenceDescription<*, *, *> = spimData.sequenceDescription
+
+            val timepointCount = seq.timePoints.size()
+            // wraps legacy image formats (e.g., TIFF) if referenced in BDV XML
+            WrapBasicImgLoader.wrapImgLoaderIfNecessary(spimData)
+
+            val converterSetups = ArrayList<ConverterSetup>()
+            val sources = ArrayList<SourceAndConverter<*>>()
+            // initialises setups and converters for all channels, and creates source.
+            // These are then stored in [converterSetups] and [sources_].
+            BigDataViewer.initSetups(spimData, converterSetups, sources)
+
+            WrapBasicImgLoader.removeWrapperIfPresent(spimData)
+            val ds = SpimDataMinimalSource(spimData,
+                sources,
+                converterSetups,
+                timepointCount
+            )
+            return RAIVolume(ds, options, hub)
         }
 
         @JvmStatic @JvmOverloads fun fromXML(
@@ -391,8 +408,7 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
             options : VolumeViewerOptions = VolumeViewerOptions()
         ): Volume {
             val spimData = XmlIoSpimDataMinimal().load(path)
-            val ds = SpimDataMinimalSource(spimData)
-            return Volume(ds, options, hub)
+            return fromSpimData(spimData, hub, options)
         }
 
         @JvmStatic @JvmOverloads fun <T: NumericType<T>> fromRAI(

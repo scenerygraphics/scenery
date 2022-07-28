@@ -1,30 +1,36 @@
 package graphics.scenery.volumes
 
 import bdv.tools.brightness.ConverterSetup
+import bdv.viewer.SourceAndConverter
 import graphics.scenery.Hub
 import graphics.scenery.OrientedBoundingBox
 import graphics.scenery.Origin
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.times
+import net.imglib2.type.numeric.NumericType
 import net.imglib2.type.numeric.integer.UnsignedByteType
 import org.joml.Matrix4f
 import org.joml.Vector3f
 import org.joml.Vector3i
 import tpietzsch.example2.VolumeViewerOptions
 
-class RAIVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewerOptions, hub: Hub): Volume(ds, options, hub) {
+class RAIVolume(val ds: VolumeDataSource, options: VolumeViewerOptions, hub: Hub): Volume(ds, options, hub) {
     private constructor() : this(VolumeDataSource.RAISource(UnsignedByteType(), emptyList(), ArrayList<ConverterSetup>(), 0, null), VolumeViewerOptions.options(), Hub()) {
 
     }
 
     init {
         name = "Volume (RAI source)"
-        if(ds.cacheControl != null) {
+        if((ds as? VolumeDataSource.RAISource<*>)?.cacheControl != null) {
             logger.debug("Adding cache control")
             cacheControls.addCacheControl(ds.cacheControl)
         }
 
-        timepointCount = ds.numTimepoints
+        timepointCount = when(ds) {
+            is VolumeDataSource.RAISource<*> -> ds.numTimepoints
+            is VolumeDataSource.SpimDataMinimalSource -> ds.numTimepoints
+            else -> throw UnsupportedOperationException("Can't determine timepoint count of ${ds.javaClass}")
+        }
 
         boundingBox = generateBoundingBox()
     }
@@ -46,8 +52,16 @@ class RAIVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewerOpti
         )
     }
 
+    private fun firstSource(): SourceAndConverter<out Any>? {
+        return when(ds) {
+            is VolumeDataSource.RAISource<*> -> ds.sources.firstOrNull()
+            is VolumeDataSource.SpimDataMinimalSource -> ds.sources.firstOrNull()
+            else -> throw UnsupportedOperationException("Can't handle data source of type ${ds.javaClass}")
+        }
+    }
+
     override fun getDimensions(): Vector3i {
-        val source = ds.sources.firstOrNull()
+        val source = firstSource()
 
         return if(source != null) {
             val s = source.spimSource.getSource(0, 0)
@@ -64,7 +78,7 @@ class RAIVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewerOpti
             override fun composeModel() {
                 @Suppress("SENSELESS_COMPARISON")
                 if (position != null && rotation != null && scale != null) {
-                    val source = ds.sources.firstOrNull()
+                    val source = firstSource()
 
                     val shift = if (source != null) {
                         val s = source.spimSource.getSource(0, 0)
