@@ -14,12 +14,7 @@ import graphics.scenery.controls.behaviours.FPSCameraControl
 import graphics.scenery.net.NodePublisher
 import graphics.scenery.net.NodeSubscriber
 import graphics.scenery.repl.REPL
-import graphics.scenery.utils.LazyLogger
-import graphics.scenery.utils.Profiler
-import graphics.scenery.utils.RemoteryProfiler
-import graphics.scenery.utils.Renderdoc
-import graphics.scenery.utils.SceneryPanel
-import graphics.scenery.utils.Statistics
+import graphics.scenery.utils.*
 import kotlinx.coroutines.*
 import org.lwjgl.system.Platform
 import org.scijava.Context
@@ -127,6 +122,8 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
     init {
         // will only be called on Linux, and only if it hasn't been called before.
         xinitThreads()
+        // will only run on M1 macOS
+        m1supportForjHDF5()
     }
 
     /**
@@ -587,6 +584,31 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
                 logger.debug("Running XInitThreads")
                 XLib.INSTANCE.XInitThreads()
                 xinitThreadsCalled = true
+            }
+        }
+
+        @JvmStatic fun m1supportForjHDF5() {
+            if(Platform.get() == Platform.MACOSX && Platform.getArchitecture() == Platform.Architecture.ARM64) {
+                val arch = System.getProperty("os.arch")
+                val os = System.getProperty("os.name")
+
+                var basepath = ""
+                logger.info("Downloading M1 support libraries for JHDF5...")
+                listOf("hdf5", "jhdf5").forEach { lib ->
+                    basepath = ExtractsNatives.nativesFromGithubRelease(
+                        "JaneliaSciComp",
+                        "jhdf5",
+                        "jhdf5-19.04.1_fatjar",
+                        "sis-jhdf5-1654327451.jar",
+                        "$arch-$os",
+                        lib,
+                        "jnilib"
+                    )
+                }
+
+                if(System.getProperty("native.libpath") == null) {
+                    System.setProperty("native.libpath", basepath)
+                }
             }
         }
     }
