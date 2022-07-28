@@ -134,8 +134,16 @@ tasks {
 
                 if(JavaVersion.current() > JavaVersion.VERSION_11) {
                     allJvmArgs = allJvmArgs + listOf(
+                        // from https://github.com/EsotericSoftware/kryo/blob/cb255af4f8df4f539778a325b8b4836d41f84de9/pom.xml#L435
+                        "--add-opens=java.base/java.lang=ALL-UNNAMED",
+                        "--add-opens=java.base/java.lang.invoke=ALL-UNNAMED",
+                        "--add-opens=java.base/java.net=ALL-UNNAMED",
                         "--add-opens=java.base/java.nio=ALL-UNNAMED",
-                        "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED"
+                        "--add-opens=java.base/java.time=ALL-UNNAMED",
+                        "--add-opens=java.base/java.util=ALL-UNNAMED",
+                        "--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED",
+                        "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
+                        "--add-opens=java.base/sun.util.calendar=ALL-UNNAMED"
                     )
                 }
             }
@@ -158,8 +166,16 @@ tasks {
 
                 if(JavaVersion.current() > JavaVersion.VERSION_11) {
                     allJvmArgs = allJvmArgs + listOf(
+                        // from https://github.com/EsotericSoftware/kryo/blob/cb255af4f8df4f539778a325b8b4836d41f84de9/pom.xml#L435
+                        "--add-opens=java.base/java.lang=ALL-UNNAMED",
+                        "--add-opens=java.base/java.lang.invoke=ALL-UNNAMED",
+                        "--add-opens=java.base/java.net=ALL-UNNAMED",
                         "--add-opens=java.base/java.nio=ALL-UNNAMED",
-                        "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED"
+                        "--add-opens=java.base/java.time=ALL-UNNAMED",
+                        "--add-opens=java.base/java.util=ALL-UNNAMED",
+                        "--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED",
+                        "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
+                        "--add-opens=java.base/sun.util.calendar=ALL-UNNAMED"
                     )
                 }
 
