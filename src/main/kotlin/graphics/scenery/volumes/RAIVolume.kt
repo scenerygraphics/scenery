@@ -2,6 +2,7 @@ package graphics.scenery.volumes
 
 import bdv.tools.brightness.ConverterSetup
 import bdv.tools.transformation.TransformedSource
+import bdv.viewer.SourceAndConverter
 import graphics.scenery.Hub
 import graphics.scenery.OrientedBoundingBox
 import graphics.scenery.Origin
@@ -9,10 +10,12 @@ import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
 import net.imglib2.type.numeric.NumericType
+import net.imglib2.type.numeric.RealType
 import net.imglib2.type.numeric.integer.*
 import net.imglib2.type.numeric.integer.UnsignedShortType
 import net.imglib2.type.numeric.real.DoubleType
 import net.imglib2.type.numeric.real.FloatType
+import net.imglib2.type.numeric.integer.UnsignedByteType
 import org.joml.Matrix4f
 import org.joml.Vector3f
 import org.joml.Vector3i
@@ -24,19 +27,23 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
 
-class RAIVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewerOptions, hub: Hub): Volume(ds, options, hub) {
+class RAIVolume(val ds: VolumeDataSource, options: VolumeViewerOptions, hub: Hub): Volume(ds, options, hub) {
     private constructor() : this(VolumeDataSource.RAISource(UnsignedByteType(), emptyList(), ArrayList<ConverterSetup>(), 0, null), VolumeViewerOptions.options(), Hub()) {
 
     }
 
     init {
         name = "Volume (RAI source)"
-        if(ds.cacheControl != null) {
+        if((ds as? VolumeDataSource.RAISource<*>)?.cacheControl != null) {
             logger.debug("Adding cache control")
             cacheControls.addCacheControl(ds.cacheControl)
         }
 
-        timepointCount = ds.numTimepoints
+        timepointCount = when(ds) {
+            is VolumeDataSource.RAISource<*> -> ds.numTimepoints
+            is VolumeDataSource.SpimDataMinimalSource -> ds.numTimepoints
+            else -> throw UnsupportedOperationException("Can't determine timepoint count of ${ds.javaClass}")
+        }
 
         boundingBox = generateBoundingBox()
     }
@@ -61,8 +68,16 @@ class RAIVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewerOpti
         )
     }
 
+    private fun firstSource(): SourceAndConverter<out Any>? {
+        return when(ds) {
+            is VolumeDataSource.RAISource<*> -> ds.sources.firstOrNull()
+            is VolumeDataSource.SpimDataMinimalSource -> ds.sources.firstOrNull()
+            else -> throw UnsupportedOperationException("Can't handle data source of type ${ds.javaClass}")
+        }
+    }
+
     override fun getDimensions(): Vector3i {
-        val source = ds.sources.firstOrNull()
+        val source = firstSource()
 
         return if(source != null) {
             val s = source.spimSource.getSource(0, 0)
@@ -79,7 +94,7 @@ class RAIVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewerOpti
             override fun composeModel() {
                 @Suppress("SENSELESS_COMPARISON")
                 if (position != null && rotation != null && scale != null) {
-                    val source = ds.sources.firstOrNull()
+                    val source = firstSource()
 
                     val shift = if (source != null) {
                         val s = source.spimSource.getSource(0, 0)
@@ -144,7 +159,7 @@ class RAIVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewerOpti
 
     }
 
-    private fun NumericType<*>.maxValue(): Float = when(this) {
+    private fun RealType<*>.maxValue(): Float = when(this) {
         is UnsignedByteType -> 255.0f
         is UnsignedShortType -> 65536.0f
         is FloatType -> 1.0f
@@ -157,20 +172,37 @@ class RAIVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewerOpti
         val absoluteCoords = Vector3f(uv.x() * d.x(), uv.y() * d.y(), uv.z() * d.z())
         val absoluteCoordsD = Vector3i(floor(absoluteCoords.x()).toInt(), floor(absoluteCoords.y()).toInt(), floor(absoluteCoords.z()).toInt())
 
-        val r = ds.sources.get(currentTimepoint).spimSource.getSource(currentTimepoint,0).randomAccess()
+        val r = when(ds) {
+            is VolumeDataSource.RAISource<*> -> ds.sources.get(currentTimepoint).spimSource.getSource(
+                currentTimepoint,
+                0
+            ).randomAccess()
+            is VolumeDataSource.SpimDataMinimalSource -> ds.sources.get(currentTimepoint).spimSource.getSource(
+                currentTimepoint,
+                0
+            ).randomAccess()
+            else -> throw UnsupportedOperationException("Can't handle data source of type ${ds.javaClass}")
+        }
         r.setPosition(absoluteCoordsD.x(),0)
         r.setPosition(absoluteCoordsD.y(),1)
         r.setPosition(absoluteCoordsD.z(),2)
 
         val value = r.get()
 
-         val finalresult = when(r.get()) {
-            is UnsignedShortType -> r.get().realFloat
-            else -> throw java.lang.IllegalStateException("Can't determine density for ${value.javaClass} data")
+        val finalresult = when(value) {
+            is UnsignedShortType -> value.realFloat
+            else -> throw java.lang.IllegalStateException("Can't determine density for ${value?.javaClass} data")
         }
 
-        val transferRangeMax = ds.converterSetups.firstOrNull()?.displayRangeMax?.toFloat() ?: ds.type.maxValue()
-        return finalresult/transferRangeMax
+
+        val transferRangeMax = when(ds)
+        {
+            is VolumeDataSource.RAISource<*> -> ds.converterSetups.firstOrNull()?.displayRangeMax?.toFloat()?:ds.type.maxValue()
+            is VolumeDataSource.SpimDataMinimalSource -> ds.converterSetups.firstOrNull()?.displayRangeMax?.toFloat()?:255.0f
+            else -> throw UnsupportedOperationException("Can't handle data source of type ${ds.javaClass}")
+
+        }
+        return finalresult/ transferRangeMax!!
         //return transferFunction.evaluate(finalresult/transferRangeMax)
     }
 
