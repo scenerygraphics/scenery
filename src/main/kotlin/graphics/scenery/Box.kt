@@ -1,8 +1,10 @@
 package graphics.scenery
 
 import graphics.scenery.attribute.material.Material
+import graphics.scenery.net.Networkable
 import graphics.scenery.utils.extensions.*
 import org.joml.Vector3f
+import java.lang.IllegalArgumentException
 import kotlin.jvm.JvmOverloads
 
 /**
@@ -133,6 +135,20 @@ open class Box @JvmOverloads constructor(val sizes: Vector3f = Vector3f(1.0f, 1.
         }
 
         boundingBox = generateBoundingBox()
+    }
+
+    override fun getConstructorParameters(): Any? {
+        return sizes to insideNormals
+    }
+
+    override fun constructWithParameters(parameters: Any, hub: Hub): Networkable {
+        val pair = parameters as Pair<*,*>
+        val sizes = pair.first as? Vector3f
+        val insideNormals = pair.second as? Boolean
+        if (sizes == null || insideNormals == null){
+            throw IllegalArgumentException()
+        }
+        return Box(sizes,insideNormals)
     }
 
     companion object {

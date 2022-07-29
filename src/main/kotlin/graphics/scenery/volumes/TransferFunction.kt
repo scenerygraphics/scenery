@@ -32,7 +32,7 @@ open class TransferFunction(val name: String = "") {
     @Transient protected val buffer: ByteBuffer = MemoryUtil.memCalloc(textureSize * 4 * textureHeight)
 
     /** Indicator whether the auxiliary texture needs to be reuploaded. */
-    var stale = true
+    @Transient var stale = true
         protected set
 
     /**

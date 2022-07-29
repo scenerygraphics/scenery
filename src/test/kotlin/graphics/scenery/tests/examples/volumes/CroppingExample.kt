@@ -1,6 +1,5 @@
 package graphics.scenery.tests.examples.volumes
 
-import bdv.util.AxisOrder
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.utils.extensions.minus
@@ -9,15 +8,9 @@ import graphics.scenery.utils.extensions.times
 import graphics.scenery.volumes.SlicingPlane
 import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.Volume
-import ij.IJ
-import ij.ImagePlus
-import net.imglib2.img.Img
-import net.imglib2.img.display.imagej.ImageJFunctions
-import net.imglib2.type.numeric.integer.UnsignedShortType
 import org.joml.Quaternionf
 import org.joml.Vector3f
 import org.scijava.ui.behaviour.ClickBehaviour
-import tpietzsch.example2.VolumeViewerOptions
 import kotlin.concurrent.thread
 import graphics.scenery.numerics.Random
 import graphics.scenery.attribute.material.Material
@@ -69,10 +62,9 @@ class CroppingExample : SceneryBase("Volume Cropping example", 1280, 720) {
         origin.material().diffuse = Vector3f(0.8f, 0.0f, 0.0f)
         scene.addChild(origin)
 
-        val imp: ImagePlus = IJ.openImage("https://imagej.nih.gov/ij/images/t1-head.zip")
-        val img: Img<UnsignedShortType> = ImageJFunctions.wrapShort(imp)
+        val volumeInitializer = IJVolumeInitializer("https://imagej.nih.gov/ij/images/t1-head.zip")
 
-        volume = Volume.fromRAI(img, UnsignedShortType(), AxisOrder.DEFAULT, "T1 head", hub, VolumeViewerOptions())
+        volume = Volume.forNetwork(volumeInitializer, hub)
         volume.transferFunction = TransferFunction.ramp(0.001f, 0.5f, 0.3f)
         scene.addChild(volume)
 
@@ -88,8 +80,7 @@ class CroppingExample : SceneryBase("Volume Cropping example", 1280, 720) {
                     scale = Vector3f(0.5f)
                 }
 
-                volume2 =
-                    Volume.fromRAI(img, UnsignedShortType(), AxisOrder.DEFAULT, "T1 head", hub, VolumeViewerOptions())
+                volume2 = Volume.forNetwork(volumeInitializer, hub)
                 volume2.transferFunction = TransferFunction.ramp(0.001f, 0.5f, 0.3f)
                 vol2Pivot.addChild(volume2)
 

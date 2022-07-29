@@ -61,7 +61,7 @@ class OrthoViewExample : SceneryBase("Ortho View example", 1280, 720) {
         bGrid.node = volume
         volume.addChild(bGrid)
 
-        createOrthoView(volume,"1")
+        createOrthoView(volume,"1",hub)
     }
 
     override fun inputSetup() {

@@ -125,8 +125,10 @@ class ExampleRunner(
             "LocalisationExample",
             "ReaderExample",
             "BigAndSmallVolumeExample",
+            "CroppingExample",
             "VolumeSamplingExample",
             "VideoRecordingExample",
+            "NetworkVolumeExample",
             // these examples don't render anything
             "AttributesExample",
             "DFTExample",
