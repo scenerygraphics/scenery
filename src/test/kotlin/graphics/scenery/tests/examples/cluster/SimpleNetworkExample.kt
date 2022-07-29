@@ -1,36 +1,48 @@
 package graphics.scenery.tests.examples.cluster
 
-import org.joml.Vector3f
 import graphics.scenery.*
+import graphics.scenery.attribute.material.DefaultMaterial
 import graphics.scenery.backends.Renderer
-import graphics.scenery.net.NodePublisher
-import graphics.scenery.net.NodeSubscriber
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.Image
+import org.joml.Vector3f
 import kotlin.concurrent.thread
 
 /**
  * Texture cube, but with network sync
  *
  * Start master with vm param:
- * -ea -Dscenery.master=true
+ * -Dscenery.Server=true
  *
- * Start slave with vm param:
- * -ea -Dscenery.master=false -Dscenery.MasterNode=tcp://127.0.0.1:6666
+ * For client see [SlimClient]
  */
 class SimpleNetworkExample : SceneryBase("SimpleNetworkExample", wantREPL = false) {
     override fun init() {
-        renderer = hub.add(SceneryElement.Renderer,
-            Renderer.createRenderer(hub, applicationName, scene, 512, 512))
+        renderer = hub.add(
+            SceneryElement.Renderer,
+            Renderer.createRenderer(hub, applicationName, scene, 512, 512)
+        )
 
         val box = Box(Vector3f(1.0f, 1.0f, 1.0f))
-        box.name = "le box du win"
-        box.material {
-            textures["diffuse"] = Texture.fromImage(Image.fromResource("../basic/textures/helix.png", SimpleNetworkExample::class.java))
-            metallic = 0.3f
-            roughness = 0.9f
+        with(box) {
+            name = "le box du win"
+            material {
+                textures["diffuse"] = Texture.fromImage(
+                    Image.fromResource(
+                        "../basic/textures/helix.png",
+                        SimpleNetworkExample::class.java
+                    )
+                )
+                metallic = 0.3f
+                roughness = 0.9f
+                //(this as DefaultMaterial).synchronizeTextures = false
+            }
+            spatial {
+                rotation.rotateY(0.5f)
+                needsUpdate = true
+            }
+            scene.addChild(this)
         }
-        scene.addChild(box)
 
         val light = PointLight(radius = 15.0f)
         light.spatial().position = Vector3f(0.0f, 0.0f, 2.0f)
@@ -38,27 +50,20 @@ class SimpleNetworkExample : SceneryBase("SimpleNetworkExample", wantREPL = fals
         light.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
         scene.addChild(light)
 
+
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
             spatial {
                 position = Vector3f(0.0f, 0.0f, 5.0f)
             }
             perspectiveCamera(50.0f, 512, 512)
-
+            wantsSync = true
             scene.addChild(this)
         }
 
-        val publisher = hub.get<NodePublisher>(SceneryElement.NodePublisher)
-        val subscriber = hub.get<NodeSubscriber>(SceneryElement.NodeSubscriber)
-
-        if (settings.get<Boolean>("master")){
-            publisher?.nodes?.put(13337, box)
-        }else{
-            subscriber?.nodes?.put(13337, box)
-        }
-
+        // box rotation
         thread {
-            while (running && settings.get<Boolean>("master")) {
+            while (running) {
                 box.spatial {
                     rotation.rotateY(0.01f)
                     needsUpdate = true
@@ -67,6 +72,16 @@ class SimpleNetworkExample : SceneryBase("SimpleNetworkExample", wantREPL = fals
                 Thread.sleep(20)
             }
         }
+
+        thread {
+            Thread.sleep(6000)
+            val ma = DefaultMaterial()
+            ma.diffuse = Vector3f(0f, 1f, 0f)
+            //box.setMaterial(ma)
+            box.spatial().needsUpdate = true
+            println("replacing Mat")
+        }
+
     }
 
     companion object {

@@ -17,7 +17,6 @@ import graphics.scenery.utils.extensions.times
  */
 class BileExample: SceneryBase("Bile Canaliculi example") {
     var hmd: TrackedStereoGlasses? = null
-    var publishedNodes = ArrayList<Node>()
 
     override fun init() {
         logger.warn("*** WARNING - EXPERIMENTAL ***")
@@ -76,20 +75,6 @@ class BileExample: SceneryBase("Bile Canaliculi example") {
             roughness = 0.5f
         }
         scene.addChild(bile)
-
-
-        publishedNodes.add(cam)
-        publishedNodes.add(bile)
-        publishedNodes.add(shell)
-
-        val publisher = hub.get<NodePublisher>(SceneryElement.NodePublisher)
-        val subscriber = hub.get<NodeSubscriber>(SceneryElement.NodeSubscriber)
-
-        publishedNodes.forEachIndexed { index, node ->
-            publisher?.nodes?.put(13337 + index, node)
-
-            subscriber?.nodes?.put(13337 + index, node)
-        }
     }
 
     companion object {

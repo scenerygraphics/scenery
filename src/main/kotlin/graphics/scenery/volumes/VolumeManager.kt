@@ -831,5 +831,29 @@ class VolumeManager(
     companion object {
         /** Static [ForkJoinPool] for fill task submission. */
         protected val forkJoinPool: ForkJoinPool = ForkJoinPool(max(1, Runtime.getRuntime().availableProcessors()))
+
+        fun regenerateVolumeManagerWithExtraVolume(volume: Volume, hub: Hub ) {
+            val vm = hub.get<VolumeManager>()
+            val volumes = ArrayList<Volume>(10)
+
+            if (vm != null) {
+                volumes.addAll(vm.nodes)
+                hub.remove(vm)
+            }
+            volume.volumeManager = if (vm != null) {
+                hub.add(VolumeManager(hub, vm.useCompute, vm.customSegments, vm.customBindings))
+            } else {
+                hub.add(VolumeManager(hub))
+            }
+            vm?.customTextures?.forEach {
+                volume.volumeManager.customTextures.add(it)
+                volume.volumeManager.material().textures[it] = vm.material().textures[it]!!
+            }
+            volume.volumeManager.add(volume)
+            volumes.forEach {
+                volume.volumeManager.add(it)
+                it.volumeManager = volume.volumeManager
+            }
+        }
     }
 }

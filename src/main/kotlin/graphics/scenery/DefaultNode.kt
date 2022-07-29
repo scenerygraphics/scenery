@@ -1,39 +1,50 @@
 package graphics.scenery
 
 import graphics.scenery.attribute.DefaultAttributesMap
+import graphics.scenery.net.Networkable
 import graphics.scenery.utils.LazyLogger
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
 import org.joml.Vector3f
-import java.sql.Timestamp
 import java.util.*
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.locks.ReentrantLock
 import java.util.function.Consumer
 import kotlin.collections.HashMap
+import kotlin.reflect.KClass
 import kotlin.reflect.KProperty1
 import kotlin.reflect.full.findAnnotation
 import kotlin.reflect.full.memberProperties
 import kotlin.reflect.jvm.isAccessible
 
-open class DefaultNode(override var name: String = "Node") : Node {
+open class DefaultNode(name: String = "Node") : Node, Networkable {
+    override var name = name
+        set(v) {
+            field = v
+            updateModifiedAt()
+        }
     @Transient override var children = CopyOnWriteArrayList<Node>()
     @Transient override var linkedNodes = CopyOnWriteArrayList<Node>()
     @Transient override var metadata: HashMap<String, Any> = HashMap()
     override var parent: Node? = null
-    override var createdAt = (Timestamp(Date().time).time)
     override var modifiedAt = 0L
+        get() {
+            if (lastAttributesHashCode != attributes.hashCode()){
+                field = System.nanoTime()
+                lastAttributesHashCode = attributes.hashCode()
+            }
+            return field
+        }
     override var discoveryBarrier = false
-    override var update: ArrayList<() -> Unit> = ArrayList()
-    override var postUpdate: ArrayList<() -> Unit> = ArrayList()
+    @Transient override var update: ArrayList<() -> Unit> = ArrayList()
+    @Transient override var postUpdate: ArrayList<() -> Unit> = ArrayList()
     override var visible: Boolean = true
         set(v) {
             children.forEach { it.visible = v }
             field = v
+            updateModifiedAt()
         }
-    override var initialized: Boolean = false
+    @Transient override var initialized: Boolean = false
     override var state : State = State.Ready
-    override var lock: ReentrantLock = ReentrantLock()
+    @Transient override var lock: ReentrantLock = ReentrantLock()
     override fun init(): Boolean {
         return true
     }
@@ -42,7 +53,7 @@ open class DefaultNode(override var name: String = "Node") : Node {
     override var boundingBox: OrientedBoundingBox? = null
     override val logger by LazyLogger()
 
-    private val attributes = DefaultAttributesMap()
+    @Transient private val attributes = DefaultAttributesMap()
 
     private var uuid: UUID = UUID.randomUUID()
     override fun getUuid(): UUID {
@@ -51,6 +62,9 @@ open class DefaultNode(override var name: String = "Node") : Node {
 
     override fun getAttributes() = attributes
 
+    override var networkID: Int = -1
+    private var lastAttributesHashCode = attributes.hashCode()
+
     override fun addChild(child: Node) {
         child.parent = this
         this.children.add(child)
@@ -58,15 +72,13 @@ open class DefaultNode(override var name: String = "Node") : Node {
         val scene = this.getScene() ?: return
         scene.sceneSize.incrementAndGet()
         if(scene.onChildrenAdded.isNotEmpty()) {
-            GlobalScope.launch {
-                scene.onChildrenAdded.forEach { it.value.invoke(this@DefaultNode, child) }
-            }
+            scene.onChildrenAdded.forEach { it.value.invoke(this@DefaultNode, child) }
         }
     }
 
     override fun removeChild(child: Node): Boolean {
         this.getScene()?.sceneSize?.decrementAndGet()
-        GlobalScope.launch { this@DefaultNode.getScene()?.onChildrenRemoved?.forEach { it.value.invoke(this@DefaultNode, child) } }
+        this@DefaultNode.getScene()?.onChildrenRemoved?.forEach { it.value.invoke(this@DefaultNode, child) }
 
         return this.children.remove(child).let { if (it) {child.parent = null}; it }
     }
@@ -74,12 +86,9 @@ open class DefaultNode(override var name: String = "Node") : Node {
     override fun removeChild(name: String): Boolean {
         for (c in this.children) {
             if (c.name.compareTo(name) == 0) {
-                c.parent = null
-                this.children.remove(c)
-                return true
+                return this.removeChild(c)
             }
         }
-
         return false
     }
 
@@ -180,6 +189,20 @@ open class DefaultNode(override var name: String = "Node") : Node {
                 map.get(name)
             }
         }
+    }
+
+    override fun update(fresh: Networkable, getNetworkable: (Int) -> Networkable, additionalData: Any?) {
+        if (fresh !is DefaultNode) throw IllegalArgumentException("Update called with object of foreign class")
+        visible = fresh.visible
+        name = fresh.name
+    }
+
+    override fun getSubcomponents(): List<Networkable> {
+        return attributes.attributes().mapNotNull { it as? Networkable }
+    }
+
+    override fun getAttributeClass(): KClass<out Any>? {
+        return null
     }
 
     override fun toString(): String {

@@ -161,8 +161,6 @@ class GiovannisExample: SceneryBase("Clustered Volume Rendering example, Giovann
         }
          */
 
-        scene.publishSubscribe(hub)
-
 //        if(settings.get<Boolean>("master")) {
 //            thread {
 //                while(running) {
