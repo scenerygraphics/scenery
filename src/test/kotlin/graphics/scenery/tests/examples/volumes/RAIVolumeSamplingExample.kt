@@ -73,6 +73,7 @@ class RAIVolumeSamplingExample: SceneryBase("RAIVolume Sampling example" , 1280,
         val file = "C://Users//lanru//Desktop//Pdu_H2BeGFP_CAAXmCherry.xml"
 
 //        val imp: ImagePlus = IJ.openImage("https://imagej.nih.gov/ij/images/t1-head.zip")
+
         val img = ImagePlusImgFactory(UnsignedByteType ()).create(256, 256, 25)
         val r= img.randomAccess()
         val random = Random()
@@ -89,8 +90,10 @@ class RAIVolumeSamplingExample: SceneryBase("RAIVolume Sampling example" , 1280,
                 }
             }
         }
+
 //        val img: Img<UnsignedShortType> = ImageJFunctions.wrapShort(imp)
         volume = Volume.fromRAI(img, UnsignedByteType (), AxisOrder.DEFAULT, "T1 head", hub, VolumeViewerOptions())
+        volume = Volume.fromXML("E:\\dataset\\Pdu_H2BeGFP_CAAXmCherry.xml",hub,VolumeViewerOptions())
 //        volume = Volume.fromXML(file,hub, VolumeViewerOptions())
 //        volume.spatial {
 //            position = Vector3f(0.0f, 5.0f, 0.0f)
