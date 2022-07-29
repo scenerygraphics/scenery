@@ -1,6 +1,7 @@
 package graphics.scenery.volumes
 
 import bdv.tools.brightness.ConverterSetup
+import bdv.viewer.SourceAndConverter
 import graphics.scenery.Hub
 import graphics.scenery.OrientedBoundingBox
 import graphics.scenery.Origin
@@ -12,7 +13,7 @@ import org.joml.Vector3f
 import org.joml.Vector3i
 import tpietzsch.example2.VolumeViewerOptions
 
-class RAIVolume(@Transient val ds: VolumeDataSource.RAISource<*>, options: VolumeViewerOptions, hub: Hub): Volume(
+class RAIVolume(@Transient val ds: VolumeDataSource, options: VolumeViewerOptions, hub: Hub): Volume(
     ds,
     options,
     hub
@@ -23,12 +24,16 @@ class RAIVolume(@Transient val ds: VolumeDataSource.RAISource<*>, options: Volum
 
     init {
         name = "Volume (RAI source)"
-        if(ds.cacheControl != null) {
+        if((ds as? VolumeDataSource.RAISource<*>)?.cacheControl != null) {
             logger.debug("Adding cache control")
             cacheControls.addCacheControl(ds.cacheControl)
         }
 
-        timepointCount = ds.numTimepoints
+        timepointCount = when(ds) {
+            is VolumeDataSource.RAISource<*> -> ds.numTimepoints
+            is VolumeDataSource.SpimDataMinimalSource -> ds.numTimepoints
+            else -> throw UnsupportedOperationException("Can't determine timepoint count of ${ds.javaClass}")
+        }
 
         boundingBox = generateBoundingBox()
     }
@@ -50,8 +55,16 @@ class RAIVolume(@Transient val ds: VolumeDataSource.RAISource<*>, options: Volum
         )
     }
 
+    private fun firstSource(): SourceAndConverter<out Any>? {
+        return when(ds) {
+            is VolumeDataSource.RAISource<*> -> ds.sources.firstOrNull()
+            is VolumeDataSource.SpimDataMinimalSource -> ds.sources.firstOrNull()
+            else -> throw UnsupportedOperationException("Can't handle data source of type ${ds.javaClass}")
+        }
+    }
+
     override fun getDimensions(): Vector3i {
-        val source = ds.sources.firstOrNull()
+        val source = firstSource()
 
         return if(source != null) {
             val s = source.spimSource.getSource(0, 0)
@@ -72,7 +85,7 @@ class RAIVolume(@Transient val ds: VolumeDataSource.RAISource<*>, options: Volum
             @Suppress("SENSELESS_COMPARISON")
             if (position != null && rotation != null && scale != null ) {
                 val volume = (node as? RAIVolume) ?: return
-                val source = volume.ds.sources.firstOrNull()
+                val source = volume.firstSource()
 
                 val shift = if (source != null) {
                     val s = source.spimSource.getSource(0, 0)
@@ -90,7 +103,6 @@ class RAIVolume(@Transient val ds: VolumeDataSource.RAISource<*>, options: Volum
                 if (volume.origin == Origin.Center) {
                     model.translate(shift)
                 }
-
             }
         }
     }

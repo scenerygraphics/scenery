@@ -64,7 +64,6 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sqrt
 import kotlin.properties.Delegates
-import kotlin.streams.toList
 
 @Suppress("DEPRECATION")
 open class Volume(
@@ -118,7 +117,7 @@ open class Volume(
     var colormap: Colormap = Colormap.get("viridis")
         set(m) {
             field = m
-            if (::volumeManager.isInitialized) {
+            if(::volumeManager.isInitialized) {
                 volumeManager.removeCachedColormapFor(this)
             }
             modifiedAt = System.nanoTime()
@@ -144,25 +143,22 @@ open class Volume(
             volumeManager.renderingMethod = value
         }
 
-    var multiResolutionLevelLimits: Pair<Int, Int>? = null
-
     /** Plane equations for slicing planes mapped to origin */
     var slicingPlaneEquations = mapOf<Int, Vector4f>()
 
     /** Modes how assigned slicing planes interact with the volume */
     var slicingMode = SlicingMode.None
 
-    enum class SlicingMode(val id: Int) {
+    var multiResolutionLevelLimits: Pair<Int, Int>? = null
+
+    enum class SlicingMode(val id: Int){
         // Volume is rendered as it is
         None(0),
-
         // Volume is cut along the assigned slicing plane and the lower half is rendered.
         // For multiple slicing planes the inner hull is rendered.
         Cropping(1),
-
         // Only a slice around the slicing planes is rendered with no transparency.
         Slicing(2),
-
         // The slice around the slicing planes is rendered with no transparency
         // while also the cropping rule applies for the rest of the volume.
         Both(3)
@@ -191,9 +187,16 @@ open class Volume(
         }
 
     sealed class VolumeDataSource {
-        open class SpimDataMinimalSource(val spimData: SpimDataMinimal) : VolumeDataSource()
-
-        class RAISource<T : NumericType<T>>(
+        class SpimDataMinimalSource(
+            @Transient
+            val spimData : SpimDataMinimal,
+            @Transient
+            val sources: List<SourceAndConverter<*>>,
+            @Transient
+            val converterSetups: ArrayList<ConverterSetup>,
+            val numTimepoints: Int
+            ) : VolumeDataSource()
+        class RAISource<T: NumericType<T>>(
             @Transient
             val type: NumericType<T>,
             @Transient
@@ -202,10 +205,10 @@ open class Volume(
             val converterSetups: ArrayList<ConverterSetup>,
             val numTimepoints: Int,
             @Transient
-            val cacheControl: CacheControl? = null
-        ) : VolumeDataSource()
-
-        object NullSource : VolumeDataSource()
+            val cacheControl: CacheControl? = null,
+            @Transient
+            val spimData: SpimDataMinimal? = null) : VolumeDataSource()
+        object  NullSource: VolumeDataSource()
     }
 
     /**
@@ -265,7 +268,7 @@ open class Volume(
 
             return when (this.type) {
                 VolumeType.TIFF -> fromPath(Paths.get(path), hub)
-                VolumeType.SPIM -> fromSpimFile(path, VolumeViewerOptions.options(),hub)
+                VolumeType.SPIM -> fromXML(path, hub, VolumeViewerOptions.options())
             }
         }
     }
@@ -284,40 +287,35 @@ open class Volume(
 
         addSpatial()
 
-        viewerState = when (dataSource) {
+        when (dataSource) {
             is SpimDataMinimalSource -> {
                 val spimData = dataSource.spimData
 
-                val seq: AbstractSequenceDescription<*, *, *> = spimData.sequenceDescription
-                timepointCount = seq.timePoints.size()
-                cacheControls.addCacheControl((seq.imgLoader as ViewerImgLoader).cacheControl)
+                timepointCount = dataSource.numTimepoints
+                cacheControls.addCacheControl((spimData.sequenceDescription.imgLoader as ViewerImgLoader).cacheControl)
 
                 // wraps legacy image formats (e.g., TIFF) if referenced in BDV XML
                 WrapBasicImgLoader.wrapImgLoaderIfNecessary(spimData)
-
-                val sources = ArrayList<SourceAndConverter<*>>()
-                // initialises setups and converters for all channels, and creates source.
-                // These are then stored in [converterSetups] and [sources_].
-                BigDataViewer.initSetups(spimData, converterSetups, sources)
-
+                viewerState = ViewerState(dataSource.sources, timepointCount)
+                converterSetups.addAll(dataSource.converterSetups)
 
                 WrapBasicImgLoader.removeWrapperIfPresent(spimData)
-                ViewerState(sources, timepointCount)
             }
 
             is VolumeDataSource.RAISource<*> -> {
-                val raiSource = dataSource
-                timepointCount = raiSource.numTimepoints
+                timepointCount = dataSource.numTimepoints
                 // FIXME: bigdataviewer-core > 9.0.0 doesn't enjoy having 0 timepoints anymore :-(
                 // We tell it here to have a least one, so far no ill side effects from that
-                converterSetups.addAll(raiSource.converterSetups)
-                ViewerState(raiSource.sources, max(1, timepointCount))
+                viewerState = ViewerState(dataSource.sources, max(1, timepointCount))
+                converterSetups.addAll(dataSource.converterSetups)
             }
+
             is VolumeDataSource.NullSource -> {
+                viewerState = ViewerState(emptyList(), 1)
                 timepointCount = 1
-                ViewerState(emptyList(), 1)
             }
         }
+
         viewerState.sources.forEach { s -> s.isActive = true }
         viewerState.displayMode = DisplayMode.FUSED
         converterSetups.forEach {
@@ -375,10 +373,10 @@ open class Volume(
         val fa = FloatArray(4 * MAX_SUPPORTED_SLICING_PLANES)
 
         slicingPlaneEquations.entries.take(MAX_SUPPORTED_SLICING_PLANES).forEachIndexed { i, entry ->
-            fa[0 + i * 4] = entry.value.x
-            fa[1 + i * 4] = entry.value.y
-            fa[2 + i * 4] = entry.value.z
-            fa[3 + i * 4] = entry.value.w
+            fa[0+i*4] = entry.value.x
+            fa[1+i*4] = entry.value.y
+            fa[2+i*4] = entry.value.z
+            fa[3+i*4] = entry.value.w
         }
 
         return fa
@@ -398,16 +396,16 @@ open class Volume(
 
     /** Goes to the [timepoint] given, returning the number of the updated timepoint. */
     open fun goToTimepoint(timepoint: Int): Int {
-        val tp = if (timepoint == -1) {
+        val tp = if(timepoint == -1) {
             timepointCount
         } else {
             timepoint
         }
         val current = viewerState.currentTimepoint
         currentTimepoint = min(max(tp, 0), timepointCount - 1)
-        logger.debug("Going to timepoint ${viewerState.currentTimepoint + 1} of $timepointCount")
+        logger.debug("Going to timepoint ${viewerState.currentTimepoint+1} of $timepointCount")
 
-        if (current != viewerState.currentTimepoint) {
+        if(current != viewerState.currentTimepoint) {
             volumeManager.notifyUpdate(this)
         }
 
@@ -486,20 +484,40 @@ open class Volume(
         return Vector3i(0)
     }
 
+    @JvmOverloads
+    open fun setTransferFunctionRange(min: Float, max: Float, forSetupId: Int = 0) {
+        converterSetups.getOrNull(forSetupId)?.setDisplayRange(min.toDouble(), max.toDouble())
+    }
+
     companion object {
         val setupId = AtomicInteger(0)
         val scifio: SCIFIO = SCIFIO()
         private val logger by LazyLogger()
 
-        @JvmStatic
-        @JvmOverloads
-        fun fromSpimData(
+        @JvmStatic @JvmOverloads fun fromSpimData(
             spimData: SpimDataMinimal,
-            hub: Hub,
-            options: VolumeViewerOptions = VolumeViewerOptions()
+            hub : Hub,
+            options : VolumeViewerOptions = VolumeViewerOptions()
         ): Volume {
-            val ds = SpimDataMinimalSource(spimData)
-            return Volume(ds, options, hub)
+            val seq: AbstractSequenceDescription<*, *, *> = spimData.sequenceDescription
+
+            val timepointCount = seq.timePoints.size()
+            // wraps legacy image formats (e.g., TIFF) if referenced in BDV XML
+            WrapBasicImgLoader.wrapImgLoaderIfNecessary(spimData)
+
+            val converterSetups = ArrayList<ConverterSetup>()
+            val sources = ArrayList<SourceAndConverter<*>>()
+            // initialises setups and converters for all channels, and creates source.
+            // These are then stored in [converterSetups] and [sources_].
+            BigDataViewer.initSetups(spimData, converterSetups, sources)
+
+            WrapBasicImgLoader.removeWrapperIfPresent(spimData)
+            val ds = SpimDataMinimalSource(spimData,
+                sources,
+                converterSetups,
+                timepointCount
+            )
+            return RAIVolume(ds, options, hub)
         }
 
         @JvmStatic
@@ -510,25 +528,13 @@ open class Volume(
 
         @JvmStatic
         @JvmOverloads
-        fun fromSpimFile(
-            file: String,
-            options: VolumeViewerOptions = VolumeViewerOptions(),
-            hub: Hub
-        ): Volume {
-            val ds = VolumeDataSource.SpimDataMinimalSource(XmlIoSpimDataMinimal().load(file))
-            return Volume(ds, options, hub)
-        }
-
-        @JvmStatic
-        @JvmOverloads
         fun fromXML(
             path: String,
             hub: Hub,
-            options: VolumeViewerOptions = VolumeViewerOptions()
+            options : VolumeViewerOptions = VolumeViewerOptions()
         ): Volume {
             val spimData = XmlIoSpimDataMinimal().load(path)
-            val ds = SpimDataMinimalSource(spimData)
-            return Volume(ds, options, hub)
+            return fromSpimData(spimData, hub, options)
         }
 
         @JvmStatic
@@ -576,9 +582,7 @@ open class Volume(
             return RAIVolume(ds, options, hub)
         }
 
-        @JvmStatic
-        @JvmOverloads
-        fun <T : NumericType<T>> fromSourceAndConverter(
+        @JvmStatic @JvmOverloads fun <T: NumericType<T>> fromSourceAndConverter(
             source: SourceAndConverter<T>,
             type: T,
             name: String,
@@ -593,8 +597,7 @@ open class Volume(
 
             @Suppress("UNCHECKED_CAST")
             val cacheControl = if (img is VolatileView<*, *>) {
-                val viewData: VolatileViewData<T, Volatile<T>> =
-                    (img as VolatileView<T, Volatile<T>>).volatileViewData
+                val viewData: VolatileViewData<T, Volatile<T>> = (img as VolatileView<T, Volatile<T>>).volatileViewData
                 viewData.cacheControl
             } else {
                 null
@@ -608,9 +611,7 @@ open class Volume(
         }
 
         @Deprecated("Please use the version that takes List<Timepoint> as input instead of this one.")
-        @JvmStatic
-        @JvmOverloads
-        fun <T : NumericType<T>> fromBuffer(
+        @JvmStatic @JvmOverloads fun <T: NumericType<T>> fromBuffer(
             volumes: LinkedHashMap<String, ByteBuffer>,
             width: Int,
             height: Int,
@@ -629,9 +630,7 @@ open class Volume(
             return fromBuffer(list, width, height, depth, type, hub, voxelDimensions, voxelUnit, options)
         }
 
-        @JvmStatic
-        @JvmOverloads
-        fun <T : NumericType<T>> fromBuffer(
+        @JvmStatic @JvmOverloads fun <T: NumericType<T>> fromBuffer(
             volumes: List<BufferedVolume.Timepoint>,
             width: Int,
             height: Int,
@@ -646,20 +645,11 @@ open class Volume(
             val sources: ArrayList<SourceAndConverter<T>> = ArrayList()
 
             val timepoints = CopyOnWriteArrayList<BufferedVolume.Timepoint>(volumes)
-            val s = BufferSource(
-                timepoints,
-                width,
-                height,
-                depth,
-                FinalVoxelDimensions(voxelUnit, *(voxelDimensions.map { it.toDouble() }.toDoubleArray())),
-                "",
-                type
-            )
+            val s = BufferSource(timepoints, width, height, depth, FinalVoxelDimensions(voxelUnit, *(voxelDimensions.map { it.toDouble() }.toDoubleArray())), "", type)
             val source: SourceAndConverter<T> = BigDataViewer.wrapWithTransformedSource(
-                SourceAndConverter<T>(s, BigDataViewer.createConverterToARGB(type))
-            )
-            converterSetups.add(BigDataViewer.createConverterSetup(source, setupId.getAndIncrement()))
-            sources.add(source)
+                    SourceAndConverter<T>(s, BigDataViewer.createConverterToARGB(type)))
+           converterSetups.add(BigDataViewer.createConverterSetup(source, setupId.getAndIncrement()))
+           sources.add(source)
 
             val ds = VolumeDataSource.RAISource<T>(type, sources, converterSetups, volumes.size)
             return BufferedVolume(ds, options, hub)
@@ -674,54 +664,47 @@ open class Volume(
          *
          * Returns the newly-allocated [ByteBuffer], or the one given in [intoBuffer], set to position 0.
          */
-        @JvmStatic
-        fun generateProceduralVolume(
-            size: Long, radius: Float = 0.0f,
-            seed: Long = Random.randomFromRange(0.0f, 133333337.0f).toLong(),
-            shift: Vector3f = Vector3f(0.0f),
-            intoBuffer: ByteBuffer? = null, use16bit: Boolean = false
-        ): ByteBuffer {
+        @JvmStatic fun generateProceduralVolume(size: Long, radius: Float = 0.0f,
+                                                seed: Long = Random.randomFromRange(0.0f, 133333337.0f).toLong(),
+                                                shift: Vector3f = Vector3f(0.0f),
+                                                intoBuffer: ByteBuffer? = null, use16bit: Boolean = false): ByteBuffer {
             val f = 3.0f / size
             val center = size / 2.0f + 0.5f
             val noise = OpenSimplexNoise(seed)
-            val (range, bytesPerVoxel) = if (use16bit) {
+            val (range, bytesPerVoxel) = if(use16bit) {
                 65535 to 2
             } else {
                 255 to 1
             }
-            val byteSize = (size * size * size * bytesPerVoxel).toInt()
+            val byteSize = (size*size*size*bytesPerVoxel).toInt()
 
             val buffer = intoBuffer ?: MemoryUtil.memAlloc(byteSize * bytesPerVoxel)
 
 //            (0 until byteSize/bytesPerVoxel).chunked(byteSize/4).forEachParallel { subList ->
-            (0 until byteSize / bytesPerVoxel).forEach {
+            (0 until byteSize/bytesPerVoxel).forEach {
 //                subList.forEach {
-                val x = it.rem(size)
-                val y = (it / size).rem(size)
-                val z = it / (size * size)
+                    val x = it.rem(size)
+                    val y = (it / size).rem(size)
+                    val z = it / (size * size)
 
-                val dx = center - x
-                val dy = center - y
-                val dz = center - z
+                    val dx = center - x
+                    val dy = center - y
+                    val dz = center - z
 
-                val offset = abs(noise.random3D((x + shift.x()) * f, (y + shift.y()) * f, (z + shift.z()) * f))
-                val d = sqrt(dx * dx + dy * dy + dz * dz) / size
+                    val offset = abs(noise.random3D((x + shift.x()) * f, (y + shift.y()) * f, (z + shift.z()) * f))
+                    val d = sqrt(dx * dx + dy * dy + dz * dz) / size
 
-                val result = if (radius > Math.ulp(1.0f)) {
-                    if (d - offset < radius) {
-                        ((d - offset) * range).toInt().toShort()
+                    val result = if(radius > Math.ulp(1.0f)) {
+                        if(d - offset < radius) { ((d-offset)*range).toInt().toShort() } else { 0 }
                     } else {
-                        0
+                        ((d - offset) * range).toInt().toShort()
                     }
-                } else {
-                    ((d - offset) * range).toInt().toShort()
-                }
 
-                if (use16bit) {
-                    buffer.asShortBuffer().put(it, result)
-                } else {
-                    buffer.put(it, result.toByte())
-                }
+                    if(use16bit) {
+                        buffer.asShortBuffer().put(it, result)
+                    } else {
+                        buffer.put(it, result.toByte())
+                    }
 //                }
             }
 
@@ -731,9 +714,8 @@ open class Volume(
         /**
          * Reads a volume from the given [file].
          */
-        @JvmStatic
-        fun fromPath(file: Path, hub: Hub): BufferedVolume {
-            if (file.normalize().toString().endsWith("raw")) {
+        @JvmStatic fun fromPath(file: Path, hub: Hub): BufferedVolume {
+            if(file.normalize().toString().endsWith("raw")) {
                 return fromPathRaw(file, hub)
             }
 
@@ -748,10 +730,10 @@ open class Volume(
                 dims.z = reader.getPlaneCount(0).toInt()
             }
 
-            val bytesPerVoxel = reader.openPlane(0, 0).imageMetadata.bitsPerPixel / 8
+            val bytesPerVoxel = reader.openPlane(0, 0).imageMetadata.bitsPerPixel/8
             reader.openPlane(0, 0).imageMetadata.pixelType
 
-            val type: NumericType<*> = when (reader.openPlane(0, 0).imageMetadata.pixelType) {
+            val type: NumericType<*> = when(reader.openPlane(0, 0).imageMetadata.pixelType) {
                 FormatTools.INT8 -> ByteType()
                 FormatTools.INT16 -> ShortType()
                 FormatTools.INT32 -> IntType()
@@ -763,14 +745,7 @@ open class Volume(
                 FormatTools.FLOAT -> FloatType()
 
                 else -> {
-                    logger.error(
-                        "Unknown scif.io pixel type ${
-                            reader.openPlane(
-                                0,
-                                0
-                            ).imageMetadata.pixelType
-                        }, assuming unsigned byte."
-                    )
+                    logger.error("Unknown scif.io pixel type ${reader.openPlane(0, 0).imageMetadata.pixelType}, assuming unsigned byte.")
                     UnsignedByteType()
                 }
             }
@@ -778,7 +753,7 @@ open class Volume(
             logger.debug("Loading $id from disk")
             val imageData: ByteBuffer = MemoryUtil.memAlloc((bytesPerVoxel * dims.x * dims.y * dims.z))
 
-            logger.debug("${file.fileName}: Allocated ${imageData.capacity()} bytes for $type ${8 * bytesPerVoxel}bit image of $dims")
+            logger.debug("${file.fileName}: Allocated ${imageData.capacity()} bytes for $type ${8*bytesPerVoxel}bit image of $dims")
 
             val start = System.nanoTime()
 
@@ -802,7 +777,7 @@ open class Volume(
             val volumes = CopyOnWriteArrayList<BufferedVolume.Timepoint>()
             volumes.add(BufferedVolume.Timepoint(id, imageData))
             // TODO: Kotlin compiler issue, see https://youtrack.jetbrains.com/issue/KT-37955
-            return when (type) {
+            return when(type) {
                 is ByteType -> fromBuffer(volumes, dims.x, dims.y, dims.z, ByteType(), hub)
                 is UnsignedByteType -> fromBuffer(volumes, dims.x, dims.y, dims.z, UnsignedByteType(), hub)
                 is ShortType -> fromBuffer(volumes, dims.x, dims.y, dims.z, ShortType(), hub)
@@ -819,16 +794,13 @@ open class Volume(
          *
          * Returns the new volume.
          */
-        @JvmStatic
-        fun fromPathRaw(file: Path, hub: Hub): BufferedVolume {
+        @JvmStatic fun fromPathRaw(file: Path, hub: Hub): BufferedVolume {
 
             val infoFile: Path
             val volumeFiles: List<Path>
 
-            if (Files.isDirectory(file)) {
-                volumeFiles = Files.list(file)
-                    .filter { it.toString().endsWith(".raw") && Files.isRegularFile(it) && Files.isReadable(it) }
-                    .toList()
+            if(Files.isDirectory(file)) {
+                volumeFiles = Files.list(file).filter { it.toString().endsWith(".raw") && Files.isRegularFile(it) && Files.isReadable(it) }.toList()
                 infoFile = file.resolve("stacks.info")
             } else {
                 volumeFiles = listOf(file)
@@ -850,8 +822,7 @@ open class Volume(
                     logger.debug("Loading $id from disk")
                     val buffer = ByteArray(1024 * 1024)
                     val stream = FileInputStream(v.toFile())
-                    val imageData: ByteBuffer =
-                        MemoryUtil.memAlloc((2 * dimensions.x * dimensions.y * dimensions.z))
+                    val imageData: ByteBuffer = MemoryUtil.memAlloc((2 * dimensions.x * dimensions.y * dimensions.z))
 
                     logger.debug("${v.fileName}: Allocated ${imageData.capacity()} bytes for UINT16 image of $dimensions")
 
@@ -879,21 +850,21 @@ open class Volume(
 
     }
 
-    open class VolumeSpatial(volume: Volume) : DefaultSpatial(volume) {
+    open class VolumeSpatial(val volume: Volume): DefaultSpatial(volume) {
         /**
          * Composes the world matrix for this volume node, taken voxel size and [pixelToWorldRatio]
          * into account.
          */
         override fun composeModel() {
             @Suppress("SENSELESS_COMPARISON")
-            if (position != null && rotation != null && scale != null) {
+            if(position != null && rotation != null && scale != null) {
                 model.translation(position)
                 model.mul(Matrix4f().set(this.rotation))
-                if ((node as? Volume)?.origin == Origin.Center) {
+                if(volume.origin == Origin.Center) {
                     model.translate(-2.0f, -2.0f, -2.0f)
                 }
                 model.scale(scale)
-                model.scale((node as? Volume)?.localScale())
+                model.scale(volume.localScale())
             }
         }
     }
