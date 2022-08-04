@@ -273,7 +273,21 @@ tasks {
                 "bigvolumeviewer")
 
             val toSkip = listOf("pom-scijava")
-            
+
+            fun groovy.util.Node.addExclusions(vararg name: String) {
+                val exclusions = this.appendNode("exclusions")
+                name.forEach { ga ->
+                    val group = ga.substringBefore(":")
+                    val artifact = ga.substringAfterLast(":")
+
+                    val n = exclusions.appendNode("exclusion")
+                    n.appendNode("groupId", group)
+                    n.appendNode("artifactId", artifact)
+                    
+                    println("Added exclusion on $group:$artifact")
+                }
+            }
+
             configurations.implementation.get().allDependencies.forEach {
                 val artifactId = it.name
 
@@ -298,15 +312,20 @@ tasks {
                     }
                     // from https://github.com/scenerygraphics/sciview/pull/399#issuecomment-904732945
                     if(artifactId == "formats-gpl") {
-                        val exclusions = dependencyNode.appendNode("exclusions")
-                        val jacksonCore = exclusions.appendNode("exclusion")
-                        jacksonCore.appendNode("groupId", "com.fasterxml.jackson.core")
-                        jacksonCore.appendNode("artifactId", "jackson-core")
-                        val jacksonAnnotations = exclusions.appendNode("exclusion")
-                        jacksonAnnotations.appendNode("groupId", "com.fasterxml.jackson.core")
-                        jacksonAnnotations.appendNode("artifactId", "jackson-annotations")
+                        dependencyNode.addExclusions(
+                            "com.fasterxml.jackson.core:jackson-core",
+                            "com.fasterxml.jackson.core:jackson-annotations"
+                        )
                     }
-                    //dependencyNode.appendNode("scope", it.scope)
+
+                    if(artifactId.startsWith("biojava")) {
+                        dependencyNode.addExclusions(
+                            "org.slf4j:slf4j-api",
+                            "org.slf4j:slf4j-simple",
+                            "org.apache.logging.log4j:log4j-slf4j-impl",
+                            "org.biojava.thirdparty:forester"
+                        )
+                    }
                 }
             }
 
