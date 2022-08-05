@@ -22,7 +22,7 @@ import kotlin.system.exitProcess
  * @author Justin Buerger <burger@mpi-cbg.de>
  */
 class VRSideChainsExample : SceneryBase(
-    VRSidecChainsExample::class.java.simpleName,
+    VRSideChainsExample::class.java.simpleName,
     windowWidth = 1920, windowHeight = 1200) {
     private lateinit var hmd: OpenVRHMD
     private lateinit var protein: Protein
@@ -183,7 +183,7 @@ class VRSideChainsExample : SceneryBase(
     companion object {
         @JvmStatic
         fun main(args: Array<String>) {
-            VRSidecChainsExample().main()
+            VRSideChainsExample().main()
         }
     }
 }
