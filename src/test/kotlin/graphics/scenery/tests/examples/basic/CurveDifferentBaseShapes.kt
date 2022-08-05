@@ -65,7 +65,7 @@ class CurveDifferentBaseShapes: SceneryBase("CurveDifferentBaseShapes", windowWi
 
         val bSpline = UniformBSpline(points)
         val splineSize = bSpline.splinePoints().size
-        val geo = Curve(bSpline) { shapeGenerator(splineSize) }
+        val geo = Curve(bSpline, false) { shapeGenerator(splineSize) }
 
         scene.addChild(geo)
 
