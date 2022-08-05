@@ -156,6 +156,14 @@ class RibbonDiagramTests {
         assertTrue { -36.8 < bb.min.z && -36.4 > bb.min.z }
     }
 
+    @Test
+    fun testSplinePointsToResidueNumber() {
+        val protein = Protein.fromID("4u68")
+        val ribbon = RibbonDiagram(protein)
+        val residuesCount = ribbon.children.flatMap { chain -> chain.children }.flatMap { it.children }.size
+        val allResidues = protein.structure.chains.flatMap { it.atomGroups }.filter { it.hasAminoAtoms() }
+        assertEquals(residuesCount, allResidues.size)
+    }
 
     //Inline function for the protein to access residues
     private fun Protein.getResidues(): ArrayList<ArrayList<Group>> {
