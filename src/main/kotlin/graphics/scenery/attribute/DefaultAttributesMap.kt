@@ -2,6 +2,7 @@ package graphics.scenery.attribute
 
 class DefaultAttributesMap: AttributesMap {
     private val attributes = HashMap<Class<*>, Any>()
+    fun attributes() = attributes.values.toList()
     override fun <T, U: T> put(attributeClass: Class<T>, attribute: U) {
         this.attributes.put(attributeClass, attribute as Any)
     }
@@ -13,4 +14,6 @@ class DefaultAttributesMap: AttributesMap {
         @Suppress("UNCHECKED_CAST")
         return this.attributes.remove(attributeClass) as U
     }
+
+    override fun hashCode(): Int = attributes.hashCode()
 }

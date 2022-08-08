@@ -27,7 +27,12 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
 
-class RAIVolume(val ds: VolumeDataSource, options: VolumeViewerOptions, hub: Hub): Volume(ds, options, hub) {
+
+class RAIVolume(@Transient val ds: VolumeDataSource, options: VolumeViewerOptions, hub: Hub): Volume(
+    ds,
+    options,
+    hub
+) {
     private constructor() : this(VolumeDataSource.RAISource(UnsignedByteType(), emptyList(), ArrayList<ConverterSetup>(), 0, null), VolumeViewerOptions.options(), Hub()) {
 
     }
@@ -90,28 +95,31 @@ class RAIVolume(val ds: VolumeDataSource, options: VolumeViewerOptions, hub: Hub
     }
 
     override fun createSpatial(): VolumeSpatial {
-        return object: VolumeSpatial(this) {
-            override fun composeModel() {
-                @Suppress("SENSELESS_COMPARISON")
-                if (position != null && rotation != null && scale != null) {
-                    val source = firstSource()
+        return RAIVolumeSpatial(this)
+    }
 
-                    val shift = if (source != null) {
-                        val s = source.spimSource.getSource(0, 0)
-                        val min = Vector3f(s.min(0).toFloat(), s.min(1).toFloat(), s.min(2).toFloat())
-                        val max = Vector3f(s.max(0).toFloat(), s.max(1).toFloat(), s.max(2).toFloat())
-                        (max - min) * (-0.5f)
-                    } else {
-                        Vector3f(0.0f, 0.0f, 0.0f)
-                    }
+    class RAIVolumeSpatial(volume: RAIVolume): VolumeSpatial(volume) {
+        override fun composeModel() {
+            @Suppress("SENSELESS_COMPARISON")
+            if (position != null && rotation != null && scale != null ) {
+                val volume = (node as? RAIVolume) ?: return
+                val source = volume.firstSource()
 
-                    model.translation(position)
-                    model.mul(Matrix4f().set(this.rotation))
-                    model.scale(scale)
-                    model.scale(localScale())
-                    if (origin == Origin.Center) {
-                        model.translate(shift)
-                    }
+                val shift = if (source != null) {
+                    val s = source.spimSource.getSource(0, 0)
+                    val min = Vector3f(s.min(0).toFloat(), s.min(1).toFloat(), s.min(2).toFloat())
+                    val max = Vector3f(s.max(0).toFloat(), s.max(1).toFloat(), s.max(2).toFloat())
+                    (max - min) * (-0.5f)
+                } else {
+                    Vector3f(0.0f, 0.0f, 0.0f)
+                }
+
+                model.translation(position)
+                model.mul(Matrix4f().set(this.rotation))
+                model.scale(scale)
+                model.scale(volume.localScale())
+                if (volume.origin == Origin.Center) {
+                    model.translate(shift)
                 }
             }
         }
@@ -159,7 +167,7 @@ class RAIVolume(val ds: VolumeDataSource, options: VolumeViewerOptions, hub: Hub
 
     }
 
-    private fun RealType<*>.maxValue(): Float = when(this) {
+    private fun NumericType<*>.maxValue(): Float = when(this) {
         is UnsignedByteType -> 255.0f
         is UnsignedShortType -> 65536.0f
         is FloatType -> 1.0f

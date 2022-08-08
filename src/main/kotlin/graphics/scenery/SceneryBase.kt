@@ -108,9 +108,8 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
         null
     }
 
-    val master = System.getProperty("scenery.master")?.toBoolean() ?: false
-    val masterAddress = System.getProperty("scenery.MasterNode")
-
+    val server = System.getProperty("scenery.Server")?.toBoolean() ?: false
+    val serverAddress = System.getProperty("scenery.ServerAddress")
 
     interface XLib: Library {
         fun XInitThreads()
@@ -172,7 +171,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
                 Thread.sleep(100)
             }
 
-            val isClient = !master && masterAddress != null
+            val isClient = !server && serverAddress != null
             if (!headless && !isClient) {
                 logger.debug("Client: $isClient, showing REPL window")
                 repl?.showConsoleWindow()
@@ -206,27 +205,29 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
             runtime = (System.nanoTime() - startTime) / 1000000f
             settings.set("System.Runtime", runtime)
 
-            val activeCamera = scene.findObserver() ?: continue
-
-            profiler?.begin("Render")
-            if (renderer?.managesRenderLoop != false) {
-                renderer?.render(activeCamera, sceneObjects.await())
-                delay(1)
-            } else {
-                stats.addTimed("render") { renderer?.render(activeCamera, sceneObjects.await()) ?: 0.0f }
-            }
+            scene.update.forEach { it.invoke() }
             sceneObjects = GlobalScope.async {
                 scene.discover(scene, { n ->
                         n.visible && n.state == State.Ready
                 }, useDiscoveryBarriers = true)
                     .map { it.spatialOrNull()?.updateWorld(recursive = true, force = false); it }
             }
+            scene.postUpdate.forEach { it.invoke() }
+            val activeCamera = scene.findObserver() ?: continue
+
+            profiler?.begin("Render")
+           if (renderer?.managesRenderLoop != false) {
+                renderer?.render(activeCamera, sceneObjects.await())
+                delay(1)
+            } else {
+                stats.addTimed("render") { renderer?.render(activeCamera, sceneObjects.await()) ?: 0.0f }
+            }
             profiler?.end()
 
             // only run loop if we are either in standalone mode, or master
             // for details about the interpolation code, see
             // https://gafferongames.com/post/fix_your_timestep/
-            if(master || masterAddress == null) {
+            if(server || serverAddress == null) {
                 val newTime = System.nanoTime()
                 lastFrameTime = frameTime
                 frameTime = (newTime - currentTime)/1e6f
@@ -451,42 +452,23 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
             hub.add(RemoteryProfiler(hub))
         }
 
+        val server = System.getProperty("scenery.Server")?.toBoolean() ?: false
+        val serverAddress = System.getProperty("scenery.ServerAddress")
+        val mainPort = System.getProperty("scenery.MainPort")?.toIntOrNull() ?: 6040
+        val backchannelPort = System.getProperty("scenery.BackchannelPort")?.toIntOrNull() ?: 6041
 
-        if (!master && masterAddress != null) {
-            thread {
-                logger.info("NodeSubscriber will connect to master at $masterAddress")
-                val subscriber = NodeSubscriber(hub, masterAddress)
-
-                hub.add(SceneryElement.NodeSubscriber, subscriber)
-                scene.discover(scene, { true }).forEachIndexed { index, node ->
-                    subscriber.nodes.put(index, node)
-                }
-
-                while (running && !shouldClose) {
-                    subscriber.process()
-                    Thread.sleep(2)
-                }
-                logger.debug("Closing subscriber")
-            }
-        } else if(master) {
-            applicationName += " [MASTER]"
-            thread {
-                val address = settings.get("NodePublisher.ListenAddress", "tcp://127.0.0.1:6666")
-                val p = NodePublisher(hub, address)
-
-                logger.info("NodePublisher listening on ${address.substringBeforeLast(":")}:${p.port}")
-                hub.add(SceneryElement.NodePublisher, p)
-
-                scene.discover(scene, { true }).forEachIndexed { index, node ->
-                    p.nodes.put(index, node)
-                }
-
-                while (running && !shouldClose) {
-                    p.publish()
-                    Thread.sleep(2)
-                }
-                logger.debug("Closing publisher")
-            }
+        if (!server && serverAddress != null) {
+            val subscriber = NodeSubscriber(hub,serverAddress,mainPort,backchannelPort)
+            hub.add(subscriber)
+            subscriber.startListening()
+            scene.postUpdate += {subscriber.networkUpdate(scene)}
+        } else if (server) {
+            applicationName += " [SERVER]"
+            val publisher = NodePublisher(hub, portMain = mainPort, portBackchannel = backchannelPort)
+            hub.add(publisher)
+            publisher.startPublishing()
+            publisher.register(scene)
+            scene.postUpdate += { publisher.scanForChanges()}
         }
 
         hub.add(SceneryElement.Statistics, stats)

@@ -5,6 +5,7 @@ import graphics.scenery.attribute.material.HasMaterial
 import graphics.scenery.attribute.renderable.HasRenderable
 import graphics.scenery.attribute.spatial.DefaultSpatial
 import graphics.scenery.attribute.spatial.HasCustomSpatial
+import graphics.scenery.net.Networkable
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
@@ -45,23 +46,50 @@ open class Camera : DefaultNode("Camera"), HasRenderable, HasMaterial, HasCustom
     var right: Vector3f = Vector3f(1.0f, 0.0f, 0.0f)
     /** FOV of the camera **/
     open var fov: Float = 70.0f
+        set(v) {
+            field = v
+            updateModifiedAt()
+        }
     /** Z buffer near plane */
     var nearPlaneDistance = 0.05f
+        set(v) {
+            field = v
+            updateModifiedAt()
+        }
     /** Z buffer far plane location */
     var farPlaneDistance = 1000.0f
+        set(v) {
+            field = v
+            updateModifiedAt()
+        }
     /** delta T from the renderer */
     var deltaT = 0.0f
     /** Projection the camera uses */
     var projectionType: ProjectionType = ProjectionType.Undefined
+        set(v) {
+            field = v
+            updateModifiedAt()
+        }
     /** Width of the projection */
     open var width: Int = 0
+        set(v) {
+            field = v
+            updateModifiedAt()
+        }
     /** Height of the projection */
     open var height: Int = 0
+        set(v) {
+            field = v
+            updateModifiedAt()
+        }
     /** View-space coordinate system e.g. for frustum culling. */
     var viewSpaceTripod: Tripod
         protected set
     /** Disables culling for this camera. */
     var disableCulling: Boolean = false
+
+    var wantsSync = true
+    override fun wantsSync(): Boolean = wantsSync
 
     init {
         this.nodeType = "Camera"
@@ -74,6 +102,21 @@ open class Camera : DefaultNode("Camera"), HasRenderable, HasMaterial, HasCustom
 
     override fun createSpatial(): CameraSpatial {
         return CameraSpatial(this)
+    }
+
+    override fun update(fresh: Networkable, getNetworkable: (Int) -> Networkable, additionalData: Any?) {
+        if (fresh !is Camera) throw IllegalArgumentException("Update called with object of foreign class")
+        super.update(fresh, getNetworkable, additionalData)
+
+        this.nearPlaneDistance = fresh.nearPlaneDistance
+        this.farPlaneDistance = fresh.farPlaneDistance
+        this.fov = fresh.fov
+
+        this.width = fresh.width
+        this.height = fresh.height
+
+        this.projectionType = fresh.projectionType
+
     }
 
     /**
@@ -323,6 +366,14 @@ open class Camera : DefaultNode("Camera"), HasRenderable, HasMaterial, HasCustom
 
 
     open class CameraSpatial(val camera: Camera): DefaultSpatial(camera) {
+
+        override fun update(fresh: Networkable, getNetworkable: (Int) -> Networkable, additionalData: Any?) {
+            if (fresh !is CameraSpatial) throw IllegalArgumentException("Update called with object of foreign class")
+            super.update(fresh, getNetworkable, additionalData)
+
+            this.projection = fresh.projection
+        }
+
         /** View matrix of the camera. Setting the view matrix will re-set the forward
          *  vector of the camera according to the given matrix.
          */

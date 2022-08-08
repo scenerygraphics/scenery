@@ -8,6 +8,21 @@ tasks {
 
     // https://docs.gradle.org/current/userguide/java_testing.html#test_filtering
     test {
+        if(JavaVersion.current() > JavaVersion.VERSION_11) {
+            allJvmArgs = allJvmArgs + listOf(
+                // kryo compatability
+                // from https://github.com/EsotericSoftware/kryo/blob/cb255af4f8df4f539778a325b8b4836d41f84de9/pom.xml#L435
+                "--add-opens=java.base/java.lang=ALL-UNNAMED",
+                "--add-opens=java.base/java.lang.invoke=ALL-UNNAMED",
+                "--add-opens=java.base/java.net=ALL-UNNAMED",
+                "--add-opens=java.base/java.nio=ALL-UNNAMED",
+                "--add-opens=java.base/java.time=ALL-UNNAMED",
+                "--add-opens=java.base/java.util=ALL-UNNAMED",
+                "--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED",
+                "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
+                "--add-opens=java.base/sun.util.calendar=ALL-UNNAMED"
+            )
+        }
         // apparently `testLotsOfProteins` needs also a lot of heap..
         maxHeapSize = "8G"
         // [Debug] before running every test, prints out its name
@@ -134,8 +149,17 @@ tasks {
 
                 if(JavaVersion.current() > JavaVersion.VERSION_11) {
                     allJvmArgs = allJvmArgs + listOf(
+                        // kryo compatability
+                        // from https://github.com/EsotericSoftware/kryo/blob/cb255af4f8df4f539778a325b8b4836d41f84de9/pom.xml#L435
+                        "--add-opens=java.base/java.lang=ALL-UNNAMED",
+                        "--add-opens=java.base/java.lang.invoke=ALL-UNNAMED",
+                        "--add-opens=java.base/java.net=ALL-UNNAMED",
                         "--add-opens=java.base/java.nio=ALL-UNNAMED",
-                        "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED"
+                        "--add-opens=java.base/java.time=ALL-UNNAMED",
+                        "--add-opens=java.base/java.util=ALL-UNNAMED",
+                        "--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED",
+                        "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
+                        "--add-opens=java.base/sun.util.calendar=ALL-UNNAMED"
                     )
                 }
             }
@@ -158,8 +182,17 @@ tasks {
 
                 if(JavaVersion.current() > JavaVersion.VERSION_11) {
                     allJvmArgs = allJvmArgs + listOf(
+                        // kryo compatability
+                        // from https://github.com/EsotericSoftware/kryo/blob/cb255af4f8df4f539778a325b8b4836d41f84de9/pom.xml#L435
+                        "--add-opens=java.base/java.lang=ALL-UNNAMED",
+                        "--add-opens=java.base/java.lang.invoke=ALL-UNNAMED",
+                        "--add-opens=java.base/java.net=ALL-UNNAMED",
                         "--add-opens=java.base/java.nio=ALL-UNNAMED",
-                        "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED"
+                        "--add-opens=java.base/java.time=ALL-UNNAMED",
+                        "--add-opens=java.base/java.util=ALL-UNNAMED",
+                        "--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED",
+                        "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
+                        "--add-opens=java.base/sun.util.calendar=ALL-UNNAMED"
                     )
                 }
 
