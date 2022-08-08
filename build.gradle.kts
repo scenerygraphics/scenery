@@ -143,8 +143,38 @@ tasks {
         sourceCompatibility = project.properties["jvmTarget"]?.toString() ?: "11"
     }
 
-
     withType<GenerateMavenPom>().configureEach {
+        fun groovy.util.Node.addExclusions(vararg name: String) {
+            val exclusions = this.appendNode("exclusions")
+            name.forEach { ga ->
+                val group = ga.substringBefore(":")
+                val artifact = ga.substringAfterLast(":")
+
+                val n = exclusions.appendNode("exclusion")
+                n.appendNode("groupId", group)
+                n.appendNode("artifactId", artifact)
+
+                println("Added exclusion on $group:$artifact")
+            }
+        }
+
+        fun groovy.util.Node.addDependency(
+            group: String,
+            artifact: String,
+            version: String,
+            classifier: String? = null,
+            scope: String? = null
+        ): groovy.util.Node {
+            val d = this.appendNode("dependency")
+            d.appendNode("groupId", group)
+            d.appendNode("artifactId", artifact)
+            d.appendNode("version", version)
+            classifier?.let { cl -> d.appendNode("classifier", cl) }
+            scope?.let { sc -> d.appendNode("scope", sc) }
+
+            return d
+        }
+
         val matcher = Regex("""generatePomFileFor(\w+)Publication""").matchEntire(name)
         val publicationName = matcher?.let { it.groupValues[1] }
 
@@ -193,42 +223,42 @@ tasks {
                         return@pkg
                     }
 
-                    val dependencyNode = dependenciesNode.appendNode("dependency")
-                    dependencyNode.appendNode("groupId", "org.lwjgl")
-                    dependencyNode.appendNode("artifactId", "lwjgl$lwjglProject")
-                    dependencyNode.appendNode("version", "\${lwjgl.version}")
-                    dependencyNode.appendNode("classifier", "$nativePlatform")
-                    dependencyNode.appendNode("scope", "runtime")
+                    dependenciesNode.addDependency(
+                        "org.lwjgl",
+                        "lwjgl$lwjglProject",
+                        "\${lwjgl.version}",
+                        classifier = "$nativePlatform",
+                        scope = "runtime")
                 }
             }
 
             // lwjgl-vulkan native for macos
-            val dependencyNodeLWJGLVulkan = dependenciesNode.appendNode("dependency")
-            dependencyNodeLWJGLVulkan.appendNode("groupId", "org.lwjgl")
-            dependencyNodeLWJGLVulkan.appendNode("artifactId", "lwjgl-vulkan")
-            dependencyNodeLWJGLVulkan.appendNode("version", "\${lwjgl.version}")
-            dependencyNodeLWJGLVulkan.appendNode("classifier", "natives-macos")
-            dependencyNodeLWJGLVulkan.appendNode("scope", "runtime")
+            dependenciesNode.addDependency(
+                "org.lwjgl",
+                "lwjgl-vulkan",
+                "\${lwjgl.version}",
+                classifier = "natives-macos",
+                scope = "runtime")
 
             // jvrpn natives
             lwjglNatives.filter { !it.contains("arm") }.forEach {
-                val dependencyNode = dependenciesNode.appendNode("dependency")
-                dependencyNode.appendNode("groupId", "graphics.scenery")
-                dependencyNode.appendNode("artifactId", "jvrpn")
-                dependencyNode.appendNode("version", "\${jvrpn.version}")
-                dependencyNode.appendNode("classifier", "$it")
-                dependencyNode.appendNode("scope", "runtime")
+                dependenciesNode.addDependency(
+                    "graphics.scenery",
+                    "jvrpn",
+                    "\${jvrpn.version}",
+                    classifier = it,
+                    scope = "runtime")
             }
             // add jvrpn property because it only has runtime native deps
             propertiesNode.appendNode("jvrpn.version", "1.2.0")
 
             // jinput natives
-            val dependencyNode = dependenciesNode.appendNode("dependency")
-            dependencyNode.appendNode("groupId", "net.java.jinput")
-            dependencyNode.appendNode("artifactId", "jinput")
-            dependencyNode.appendNode("version", "2.0.9")
-            dependencyNode.appendNode("classifier", "natives-all")
-            dependencyNode.appendNode("scope", "runtime")
+            dependenciesNode.addDependency(
+                "net.java.jinput",
+                "jinput",
+                "2.0.9",
+                classifier = "natives-all",
+                scope = "runtime")
 
             val versionedArtifacts = listOf(
                 "flatlaf",
@@ -273,12 +303,11 @@ tasks {
                 "bigvolumeviewer")
 
             val toSkip = listOf("pom-scijava")
-            
+
             configurations.implementation.get().allDependencies.forEach {
                 val artifactId = it.name
 
                 if( !toSkip.contains(artifactId) ) {
-                    
                     val propertyName = "$artifactId.version"
 
                     if( versionedArtifacts.contains(artifactId) ) {
@@ -286,27 +315,32 @@ tasks {
                         propertiesNode.appendNode(propertyName, it.version)
                     }
 
-                    val dependencyNode = dependenciesNode.appendNode("dependency")
-                    dependencyNode.appendNode("groupId", it.group)
-                    dependencyNode.appendNode("artifactId", artifactId)
-                    dependencyNode.appendNode("version", "\${$propertyName}")
+                    val node = dependenciesNode.addDependency(
+                        it.group!!,
+                        artifactId,
+                        "\${$propertyName}")
 
                     // Custom per artifact tweaks
                     println(artifactId)
                     if("\\-bom".toRegex().find(artifactId) != null) {
-                        dependencyNode.appendNode("type", "pom")
+                        node.appendNode("type", "pom")
                     }
                     // from https://github.com/scenerygraphics/sciview/pull/399#issuecomment-904732945
                     if(artifactId == "formats-gpl") {
-                        val exclusions = dependencyNode.appendNode("exclusions")
-                        val jacksonCore = exclusions.appendNode("exclusion")
-                        jacksonCore.appendNode("groupId", "com.fasterxml.jackson.core")
-                        jacksonCore.appendNode("artifactId", "jackson-core")
-                        val jacksonAnnotations = exclusions.appendNode("exclusion")
-                        jacksonAnnotations.appendNode("groupId", "com.fasterxml.jackson.core")
-                        jacksonAnnotations.appendNode("artifactId", "jackson-annotations")
+                        node.addExclusions(
+                            "com.fasterxml.jackson.core:jackson-core",
+                            "com.fasterxml.jackson.core:jackson-annotations"
+                        )
                     }
-                    //dependencyNode.appendNode("scope", it.scope)
+
+                    if(artifactId.startsWith("biojava")) {
+                        node.addExclusions(
+                            "org.slf4j:slf4j-api",
+                            "org.slf4j:slf4j-simple",
+                            "org.apache.logging.log4j:log4j-slf4j-impl",
+                            "org.biojava.thirdparty:forester"
+                        )
+                    }
                 }
             }
 
