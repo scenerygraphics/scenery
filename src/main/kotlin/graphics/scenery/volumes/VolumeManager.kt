@@ -29,6 +29,7 @@ import tpietzsch.backend.Texture
 import tpietzsch.backend.Texture3D
 import tpietzsch.cache.*
 import tpietzsch.example2.MultiVolumeShaderMip
+import tpietzsch.example2.TriConsumer
 import tpietzsch.example2.VolumeBlocks
 import tpietzsch.example2.VolumeShaderSignature
 import tpietzsch.multires.MultiResolutionStack3D
@@ -59,7 +60,7 @@ class VolumeManager(
     override var hub: Hub?,
     val useCompute: Boolean = false,
     val customSegments: Map<SegmentType, SegmentTemplate>? = null,
-    val customBindings: BiConsumer<Map<SegmentType, SegmentTemplate>, Map<SegmentType, Segment>>? = null
+    val customBindings: TriConsumer<Map<SegmentType, SegmentTemplate>, Map<SegmentType, Segment>, Int>? = null
 ) : DefaultNode("VolumeManager"), HasGeometry, HasRenderable, HasMaterial, Hubable, RequestRepaint {
 
     /**
@@ -268,7 +269,7 @@ class VolumeManager(
         segments[SegmentType.FragmentShader] = SegmentTemplate(
             this.javaClass,
             "BDVVolume.frag",
-            "intersectBoundingBox", "vis", "SampleVolume", "Convert", "Accumulate"
+            "intersectBoundingBox", "vis", "localNear", "localFar", "SampleVolume", "Convert", "Accumulate"
         )
         segments[SegmentType.MaxDepth] = SegmentTemplate(
             this.javaClass,
@@ -304,19 +305,45 @@ class VolumeManager(
         )
         segments[SegmentType.AccumulatorMultiresolution] = SegmentTemplate(
             "AccumulateBlockVolume.frag",
-            "vis", "sampleVolume", "convert"
+            "vis", "localNear", "localFar", "sampleVolume", "convert"
         )
         segments[SegmentType.Accumulator] = SegmentTemplate(
             "AccumulateSimpleVolume.frag",
-            "vis", "sampleVolume", "convert"
+            "vis", "localNear", "localFar", "sampleVolume", "convert"
         )
 
         customSegments?.forEach { type, segment -> segments[type] = segment }
 
+        var triggered = false
         val additionalBindings = customBindings
-            ?: BiConsumer { _: Map<SegmentType, SegmentTemplate>, instances: Map<SegmentType, Segment> ->
-                logger.debug("Connecting additional bindings")
+            ?: TriConsumer { _: Map<SegmentType, SegmentTemplate>, instances: Map<SegmentType, Segment>, i: Int ->
+                logger.info("Connecting additional bindings")
+
+                if(!triggered) {
+                    instances[SegmentType.FragmentShader]?.repeat("localNear", n)
+                    instances[SegmentType.FragmentShader]?.repeat("localFar", n)
+                    triggered = true
+                }
+
+                logger.info("Connecting localNear/localFar for $i")
+//                instances[SegmentType.FragmentShader]?.bind(
+//                    "localNear",
+//                    i,
+//                    instances[SegmentType.AccumulatorMultiresolution]
+//                )
+
+                instances[SegmentType.FragmentShader]?.bind("localNear", i, instances[SegmentType.Accumulator])
+
+//                instances[SegmentType.FragmentShader]?.bind(
+//                    "localFar",
+//                    i,
+//                    instances[SegmentType.AccumulatorMultiresolution]
+//                )
+
+                instances[SegmentType.FragmentShader]?.bind("localFar", i, instances[SegmentType.Accumulator])
+
                 instances[SegmentType.SampleMultiresolutionVolume]?.bind("convert", instances[SegmentType.Convert])
+
                 instances[SegmentType.SampleVolume]?.bind("convert", instances[SegmentType.Convert])
             }
 
