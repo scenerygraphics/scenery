@@ -38,9 +38,11 @@ import java.nio.IntBuffer
 import java.nio.LongBuffer
 import java.util.*
 import java.util.concurrent.*
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.locks.ReentrantLock
 import javax.imageio.ImageIO
 import javax.swing.JFrame
+import kotlin.collections.ArrayList
 import kotlin.concurrent.thread
 import kotlin.concurrent.withLock
 import kotlin.reflect.full.*
@@ -331,6 +333,8 @@ open class VulkanRenderer(hub: Hub,
     private var recordMovieOverwrite: Boolean = false
     override var pushMode: Boolean = false
 
+    val persistentTextureRequests = ArrayList<Pair<Texture, AtomicInteger>>()
+
     var scene: Scene = Scene()
     protected var sceneArray: HashSet<Node> = HashSet(256)
 
@@ -380,7 +384,6 @@ open class VulkanRenderer(hub: Hub,
     var fps = 0
         protected set
     protected var frames = 0
-    protected var totalFrames = 0L
     protected var renderDelay = 0L
     protected var heartbeatTimer = Timer()
     protected var gpuStats: GPUStats? = null
@@ -1345,6 +1348,21 @@ open class VulkanRenderer(hub: Hub,
             }
         }
 
+        persistentTextureRequests.forEach { (texture, indicator) ->
+            val ref = VulkanTexture.getReference(texture)
+            val buffer = texture.contents ?: return@forEach
+
+            if(ref != null) {
+                val start = System.nanoTime()
+                ref.copyTo(buffer)
+                val end = System.nanoTime()
+                logger.debug("The request textures of size ${texture.contents?.remaining()?.toFloat()?.div((1024f*1024f))} took: ${(end.toDouble()-start.toDouble())/1000000.0}")
+                indicator.incrementAndGet()
+            } else {
+                logger.error("In persistent texture requests: Texture not accessible")
+            }
+        }
+
         if (recordMovie || screenshotRequested || imageRequests.isNotEmpty()) {
             val request = try {
                 imageRequests.poll()
@@ -1504,6 +1522,10 @@ open class VulkanRenderer(hub: Hub,
 
         if(hub?.getWorkingHMDDisplay()?.hasCompositor() == true) {
             hub?.getWorkingHMDDisplay()?.wantsVR(settings)?.update()
+        }
+
+        postRenderLambdas.forEach {
+            it.invoke()
         }
 
         val presentDuration = System.nanoTime() - startPresent
