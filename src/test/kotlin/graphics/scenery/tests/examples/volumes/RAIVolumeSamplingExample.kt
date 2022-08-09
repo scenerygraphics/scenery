@@ -1,6 +1,5 @@
 package graphics.scenery.tests.examples.volumes
 
-import bdv.util.AxisOrder
 import graphics.scenery.*
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.backends.Renderer
@@ -8,11 +7,9 @@ import graphics.scenery.primitives.Cylinder
 import graphics.scenery.primitives.Line
 import graphics.scenery.utils.MaybeIntersects
 import graphics.scenery.utils.extensions.minus
+import graphics.scenery.volumes.Colormap
 import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.Volume
-import net.imglib2.img.imageplus.ImagePlusImgFactory
-import net.imglib2.type.numeric.integer.UnsignedByteType
-import net.imglib2.type.numeric.integer.UnsignedShortType
 import org.joml.Vector3f
 import tpietzsch.example2.VolumeViewerOptions
 import java.text.DecimalFormat
@@ -47,12 +44,12 @@ class RAIVolumeSamplingExample: SceneryBase("RAIVolume Sampling example" , 1280,
         scene.addChild(shell)
 
         val p1 = Icosphere(0.1f, 2)
-        p1.spatial().position = Vector3f(0.0f, 0.5f, -4.0f)
-        p1.material().diffuse = Vector3f(0.3f, 0.3f, 0.8f)
+        p1.spatial().position = Vector3f(0.0f, 0.5f, -5.0f)
+        p1.material().diffuse = Vector3f(0.3f, 0.3f, 2.8f)
         scene.addChild(p1)
 
         val p2 = Icosphere(0.1f, 2)
-        p2.spatial().position = Vector3f(0.0f,0.5f,2.0f)//Vector3f(0.0f, 0.5f, 2.0f)
+        p2.spatial().position = Vector3f(0.0f,0.5f,3.0f)//Vector3f(0.0f, 0.5f, 2.0f)
         p2.material().diffuse = Vector3f(0.3f, 0.8f, 0.3f)
 
         scene.addChild(p2)
@@ -93,7 +90,7 @@ class RAIVolumeSamplingExample: SceneryBase("RAIVolume Sampling example" , 1280,
 //        val img: Img<UnsignedShortType> = ImageJFunctions.wrapShort(imp)
 //        volume = Volume.fromRAI(img, UnsignedByteType (), AxisOrder.DEFAULT, "T1 head", hub, VolumeViewerOptions())
         volume = Volume.fromXML("E:\\dataset\\Pdu_H2BeGFP_CAAXmCherry.xml",hub,VolumeViewerOptions())
-//        volume = Volume.fromXML(file,hub, VolumeViewerOptions())
+
 //        volume.spatial {
 //            position = Vector3f(0.0f, 5.0f, 0.0f)
 //            scale = Vector3f(7.5f, 7.5f, 7.5f)
@@ -103,9 +100,18 @@ class RAIVolumeSamplingExample: SceneryBase("RAIVolume Sampling example" , 1280,
 
         volume.spatial {
             position = Vector3f(0.0f, 0.0f, 0.0f)
-            scale = Vector3f(0.5f, 0.5f, 0.5f)
+            scale = Vector3f(0.5f, 0.5f, 4.5f)
         }
-        volume.transferFunction = TransferFunction.ramp(0.1f, 1.0f, 0.004f)
+        volume.colormap = Colormap.get("jet")
+        val tf: TransferFunction = volume.transferFunction
+        tf.clear()
+        tf.addControlPoint(0.00f, 0.0f)
+        tf.addControlPoint(0.001f, 0.0f)
+        tf.addControlPoint(0.05f,1.0f)
+        tf.addControlPoint(1.00f, 1.0f)
+
+
+
         scene.addChild(volume)
 
 
@@ -118,12 +124,12 @@ class RAIVolumeSamplingExample: SceneryBase("RAIVolume Sampling example" , 1280,
 
         scene.export("rai.scenery")
 
-        val p3 = Icosphere(0.02f, 2)
-        p3.material().diffuse = Vector3f(0.3f, 0.3f, 0.8f)
+        val p3 = Icosphere(0.1f, 2)
+        p3.material().diffuse = Vector3f(0.3f, 0.5f, 0.8f)
         scene.addChild(p3)
 
-        val p4 = Icosphere(0.02f, 2)
-        p4.material().diffuse = Vector3f(0.3f, 0.8f, 0.3f)
+        val p4 = Icosphere(0.1f, 2)
+        p4.material().diffuse = Vector3f(0.3f, 0.5f, 0.3f)
         scene.addChild(p4)
 
 
@@ -139,10 +145,10 @@ class RAIVolumeSamplingExample: SceneryBase("RAIVolume Sampling example" , 1280,
                 val intersection = volume.spatial()
                     .intersectAABB(p1.spatial().position, (p2.spatial().position - p1.spatial().position).normalize())
                 if (intersection is MaybeIntersects.Intersection) {
-                    // println("there is intersection!")
+
                     val scale = volume.localScale()
-                    val localEntry = (intersection.relativeEntry)// + Vector3f(1.0f)) * (1.0f/2.0f)
-                    val localExit = (intersection.relativeExit)// + Vector3f(1.0f)) * (1.0f/2.0f)
+                    val localEntry = (intersection.relativeEntry)
+                    val localExit = (intersection.relativeExit)
                     p3.spatial().position = intersection.entry
                     p4.spatial().position = intersection.exit
                     val nf = DecimalFormat("0.0000")
@@ -169,7 +175,7 @@ class RAIVolumeSamplingExample: SceneryBase("RAIVolume Sampling example" , 1280,
                         l
                     }
                 }
-                Thread.sleep(20000)
+                Thread.sleep(200)
             }
 
         }
@@ -177,27 +183,6 @@ class RAIVolumeSamplingExample: SceneryBase("RAIVolume Sampling example" , 1280,
 
     override fun inputSetup() {
         setupCameraModeSwitching()
-//        val toggleRenderingMode = object : ClickBehaviour {
-//            var modes = Volume.RenderingMethod.values()
-//            var currentMode = (scene.find("volume") as? Volume)!!.renderingMethod
-//
-//            override fun click(x: Int, y: Int) {
-//                currentMode = modes.getOrElse(modes.indexOf(currentMode) + 1 % modes.size) { Volume.RenderingMethod.AlphaBlending }
-//
-//                (scene.find("volume") as? Volume)?.renderingMethod = currentMode
-//                logger.info("Switched volume rendering mode to $currentMode")
-//            }
-//        }
-//
-//        val togglePlaying = ClickBehaviour { _, _ ->
-//            playing = !playing
-//        }
-//
-//        inputHandler?.addBehaviour("toggle_rendering_mode", toggleRenderingMode)
-//        inputHandler?.addKeyBinding("toggle_rendering_mode", "M")
-//
-//        inputHandler?.addBehaviour("toggle_playing", togglePlaying)
-//        inputHandler?.addKeyBinding("toggle_playing", "G")
     }
 
     companion object {

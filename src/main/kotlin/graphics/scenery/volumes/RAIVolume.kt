@@ -181,11 +181,11 @@ class RAIVolume(@Transient val ds: VolumeDataSource, options: VolumeViewerOption
         val absoluteCoordsD = Vector3i(floor(absoluteCoords.x()).toInt(), floor(absoluteCoords.y()).toInt(), floor(absoluteCoords.z()).toInt())
 
         val r = when(ds) {
-            is VolumeDataSource.RAISource<*> -> ds.sources.get(currentTimepoint).spimSource.getSource(
+            is VolumeDataSource.RAISource<*> -> ds.sources.get(0).spimSource.getSource(
                 currentTimepoint,
                 0
             ).randomAccess()
-            is VolumeDataSource.SpimDataMinimalSource -> ds.sources.get(currentTimepoint).spimSource.getSource(
+            is VolumeDataSource.SpimDataMinimalSource -> ds.sources.get(0).spimSource.getSource(
                 currentTimepoint,
                 0
             ).randomAccess()
