@@ -13,6 +13,7 @@ import net.imglib2.type.numeric.integer.*
 import net.imglib2.type.numeric.real.DoubleType
 import net.imglib2.type.numeric.real.FloatType
 import org.lwjgl.system.MemoryStack.stackPush
+import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.*
@@ -570,60 +571,78 @@ open class VulkanTexture(val device: VulkanDevice,
     /**
      * Copies the first layer, first mipmap of the texture to [buffer].
      */
-    fun copyTo(buffer: ByteBuffer) {
-        if(tmpBuffer == null || (tmpBuffer != null && tmpBuffer?.size!! < image.maxSize)) {
-            tmpBuffer?.close()
-            tmpBuffer = VulkanBuffer(this@VulkanTexture.device,
-                image.maxSize,
-                VK_BUFFER_USAGE_TRANSFER_SRC_BIT or VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                wantAligned = false)
-        }
-
-        tmpBuffer?.let { b ->
-            with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
-                transitionLayout(image.image,
-                    VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, 1,
-                    srcStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-                    dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
-                    commandBuffer = this)
-
-                val type = VK_IMAGE_ASPECT_COLOR_BIT
-
-                val subresource = VkImageSubresourceLayers.calloc()
-                    .aspectMask(type)
-                    .mipLevel(0)
-                    .baseArrayLayer(0)
-                    .layerCount(1)
-
-                val regions = VkBufferImageCopy.calloc(1)
-                    .bufferRowLength(0)
-                    .bufferImageHeight(0)
-                    .imageOffset(VkOffset3D.calloc().set(0, 0, 0))
-                    .imageExtent(VkExtent3D.calloc().set(width, height, depth))
-                    .imageSubresource(subresource)
-
-                vkCmdCopyImageToBuffer(
-                    this,
-                    image.image,
-                    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                    b.vulkanBuffer,
-                    regions
-                )
-
-                transitionLayout(image.image,
-                    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                    VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 1,
-                    srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
-                    dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-                    commandBuffer = this)
-
-                endCommandBuffer(this@VulkanTexture.device, commandPools.Standard, transferQueue, flush = true, dealloc = true, block = true)
+    fun copyTo(buffer: ByteBuffer, inPlace: Boolean = false): ByteBuffer? {
+        stackPush().use { stack ->
+            val memoryProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_COHERENT_BIT or VK_MEMORY_PROPERTY_HOST_CACHED_BIT
+            if (tmpBuffer == null || (tmpBuffer != null && tmpBuffer?.size!! < image.maxSize) || (tmpBuffer?.requestedMemoryProperties != memoryProperties)) {
+                tmpBuffer?.close()
+                logger.debug("Reallocating temporary buffer")
+                tmpBuffer = VulkanBuffer(this@VulkanTexture.device,
+                    image.maxSize,
+                    VK_BUFFER_USAGE_TRANSFER_SRC_BIT or VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                    memoryProperties,
+                    wantAligned = true)
             }
 
-            b.copyTo(buffer)
+            tmpBuffer?.let { b ->
+                with(VU.newCommandBuffer(device, commandPools.Transfer, autostart = true)) {
+                    transitionLayout(image.image,
+                        from = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                        to = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                        srcStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                        srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                        dstStage = VK_PIPELINE_STAGE_HOST_BIT,
+                        dstAccessMask = VK_ACCESS_HOST_READ_BIT,
+                        commandBuffer = this)
+
+                    val type = VK_IMAGE_ASPECT_COLOR_BIT
+
+                    val subresource = VkImageSubresourceLayers.callocStack(stack)
+                        .aspectMask(type)
+                        .mipLevel(0)
+                        .baseArrayLayer(0)
+                        .layerCount(1)
+
+                    val regions = VkBufferImageCopy.callocStack(1, stack)
+                        .bufferRowLength(0)
+                        .bufferImageHeight(0)
+                        .imageOffset(VkOffset3D.callocStack(stack).set(0, 0, 0))
+                        .imageExtent(VkExtent3D.callocStack(stack).set(width, height, depth))
+                        .imageSubresource(subresource)
+
+                    vkCmdCopyImageToBuffer(
+                        this,
+                        image.image,
+                        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                        b.vulkanBuffer,
+                        regions
+                    )
+
+                    transitionLayout(image.image,
+                        from = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                        to = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                        srcStage = VK_PIPELINE_STAGE_HOST_BIT,
+                        srcAccessMask = VK_ACCESS_HOST_READ_BIT,
+                        dstStage = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,
+                        dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
+                        commandBuffer = this)
+
+                    endCommandBuffer(this@VulkanTexture.device, commandPools.Transfer, transferQueue, flush = true, dealloc = true, block = true)
+                }
+
+                val result = if(!inPlace) {
+                    b.copyTo(buffer)
+                    buffer
+                } else {
+                    val p = b.mapIfUnmapped()
+                    memByteBuffer(p.get(0), buffer.remaining())
+                }
+
+                return result
+            }
         }
+
+        return null
     }
 
     /**
