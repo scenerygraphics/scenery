@@ -53,7 +53,7 @@ class PersistentTextureRequestsExample : SceneryBase("PersistentTextureRequestsE
 
         val outputBuffer = MemoryUtil.memCalloc(1280*720*4)
         val outputTexture = Texture.fromImage(Image(outputBuffer, 1280, 720), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
-        volumeManager.material.textures["OutputRender"] = outputTexture
+        volumeManager.material().textures["OutputRender"] = outputTexture
 
         hub.add(volumeManager)
 
@@ -66,9 +66,9 @@ class PersistentTextureRequestsExample : SceneryBase("PersistentTextureRequestsE
 
         val box = Box(Vector3f(1.0f, 1.0f, 1.0f))
         box.name = "le box du win"
-        box.material.textures["diffuse"] = outputTexture
-        box.material.metallic = 0.0f
-        box.material.roughness = 1.0f
+        box.material().textures["diffuse"] = outputTexture
+        box.material().metallic = 0.0f
+        box.material().roughness = 1.0f
 
         scene.addChild(box)
 
@@ -87,7 +87,7 @@ class PersistentTextureRequestsExample : SceneryBase("PersistentTextureRequestsE
         }
 
         thread {
-            val opTexture = volumeManager.material.textures["OutputRender"]!!
+            val opTexture = volumeManager.material().textures["OutputRender"]!!
 
             var prevCounter = 0
 
