@@ -20,6 +20,7 @@ import org.lwjgl.system.MemoryStack
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.vulkan.*
 import java.util.*
+import kotlin.math.ceil
 
 /**
  * Helper object for scene pass command buffer recording.
@@ -224,9 +225,9 @@ object VulkanScenePass {
                 commandBuffer.device.deviceData.properties.limits().maxComputeWorkGroupCount().get(maxGroupCount)
 
                 val groupCount = intArrayOf(
-                    metadata.workSizes.x()/localSizes.first,
-                    metadata.workSizes.y()/localSizes.second,
-                    metadata.workSizes.z()/localSizes.third)
+                    ceil(metadata.workSizes.x().toFloat()/localSizes.first.toFloat()).toInt(),
+                    ceil(metadata.workSizes.y().toFloat()/localSizes.second.toFloat()).toInt(),
+                    ceil(metadata.workSizes.z().toFloat()/localSizes.third.toFloat()).toInt())
 
                 groupCount.forEachIndexed { i, gc ->
                     if(gc > maxGroupCount[i]) {
