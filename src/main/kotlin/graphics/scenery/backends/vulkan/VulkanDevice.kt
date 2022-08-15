@@ -534,10 +534,11 @@ open class VulkanDevice(
      * The shader stages to which the DSL should be visible can be set via [shaderStages].
      */
     fun createDescriptorSetLayout(types: List<Pair<Int, Int>>, binding: Int = 0, shaderStages: Int): Long {
-        val current = descriptorSetLayouts[DescriptorSetLayout(types, binding, shaderStages)]
-        if( current != null) {
-            return current
-        }
+        //TODO: Issue with descriptor sets being lost needs to be investigated
+//        val current = descriptorSetLayouts[DescriptorSetLayout(types, binding, shaderStages)]
+//        if( current != null) {
+//            return current
+//        }
 
         return stackPush().use { stack ->
             val layoutBinding = VkDescriptorSetLayoutBinding.calloc(types.size, stack)
