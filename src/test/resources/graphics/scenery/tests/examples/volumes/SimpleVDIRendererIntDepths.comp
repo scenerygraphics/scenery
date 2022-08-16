@@ -2,6 +2,10 @@
 #extension GL_EXT_debug_printf : enable
 #define USE_PRINTF 1
 
+layout(set = 3, binding = 0) uniform ShaderProperties {
+    float nw;
+};
+
 layout (local_size_x = 15, local_size_y = 15) in;
 layout (set = 0, binding = 0, rgba32f) uniform readonly image3D InputVDI;
 layout (set = 1, binding = 0, rgba8) uniform image2D OutputViewport;
@@ -36,7 +40,7 @@ float adjustOpacity(float a, float modifiedStepLength) {
 }
 
 void main() {
-    ivec2 debug_pixel = ivec2(578, 327);
+    ivec2 debug_pixel = ivec2(640, 360);
 
     ivec3 imageCoords  = imageSize(InputVDI);
 
@@ -45,7 +49,7 @@ void main() {
 
     int numSupersegments = imageCoords.r;
 
-    float nw = 0.000094;
+//    float nw = 0.000094;
 
     mat4 ViewOriginal = mat4(-0.86781174,  1.0376796E-4, -0.49694782,  2.299E+0,
     0.11692904,  0.9719932, -0.20398827, -1.3797543,
