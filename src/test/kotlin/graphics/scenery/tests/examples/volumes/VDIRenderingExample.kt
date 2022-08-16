@@ -76,12 +76,12 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
     val separateDepth = true
     val profileMemoryAccesses = false
     val compute = CustomNode()
-    val closeAfter = 10000L
+    val closeAfter = 45000L
     var dataset = "Kingsnake"
     var baseDataset = dataset
     val numOctreeLayers = 8.0
-    val numSupersegments = 20
-    var benchmarking = true
+    val numSupersegments = 30
+    var benchmarking = false
     val skipEmpty = false
     val viewNumber = 1
     val subsampling = false
@@ -91,14 +91,17 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
 
     val commSize = 4
     val rank = 0
-    val communicatorType = "_${commSize}_${rank}"
+//    val communicatorType = "_${commSize}_${rank}"
+    val communicatorType = ""
 
     val cam: Camera = DetachedHeadCamera(hmd)
 
 //    val camTarget = Vector3f(1.920E+0f, -1.920E+0f,  1.140E+0f)
-    //    val camTarget = Vector3f(1.920E+0f, -1.920E+0f,  2.899E+0f) //beechnut
+//        val camTarget = Vector3f(1.920E+0f, -1.920E+0f,  2.899E+0f) //beechnut
 //    val camTarget = Vector3f(1.920E+0f, -1.920E+0f,  1.800E+0f) //simulation
-    val camTarget = Vector3f(1.920E+0f, -1.920E+0f,  1.491E+0f) //kingsnake
+//    val camTarget = Vector3f(1.920E+0f, -1.920E+0f,  1.491E+0f) //kingsnake
+    val camTarget = Vector3f(1.920E+0f, -6.986E-1f,  6.855E-1f) //BonePlug
+
 
     private val vulkanProjectionFix =
         Matrix4f(
@@ -198,6 +201,12 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
             position = Vector3f( 4.622E+0f, -9.060E-1f, -1.047E+0f) //V1 for kingsnake
             rotation = Quaternionf( 5.288E-2, -9.096E-1, -1.222E-1,  3.936E-1)
 
+//            position = Vector3f(-2.607E+0f, -5.973E-1f,  2.415E+0f) // V1 for Beechnut
+//            rotation = Quaternionf(-9.418E-2, -7.363E-1, -1.048E-1, -6.618E-1)
+//
+//            position = Vector3f( 1.897E+0f, -5.994E-1f, -1.899E+0f) //V1 for Boneplug
+//            rotation = Quaternionf( 5.867E-5,  9.998E-1,  1.919E-2,  4.404E-3)
+
         }
 
         cam.farPlaneDistance = 20.0f
@@ -210,9 +219,9 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
         val octBuff: ByteArray?
 
 //        val basePath = "/home/aryaman/TestingData/"
-        val basePath = "/home/aryaman/TestingData/FromCluster/"
+//        val basePath = "/home/aryaman/TestingData/FromCluster/"
 //        val basePath = "/home/aryaman/Repositories/DistributedVis/cmake-build-debug/"
-//        val basePath = "/home/aryaman/Repositories/scenery-insitu/"
+        val basePath = "/home/aryaman/Repositories/scenery-insitu/"
 
         val file = FileInputStream(File(basePath + "${dataset}vdidump4"))
 //        val comp = GZIPInputStream(file, 65536)
@@ -221,9 +230,9 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
 
 //        val vdiType = "Composited"
 //        val vdiType = "SetOf"
-        val vdiType = "Final"
+//        val vdiType = "Final"
 //        val vdiType = "Sub"
-//        val vdiType = ""
+        val vdiType = ""
 
         if(separateDepth) {
             buff = File(basePath + "${dataset}${vdiType}VDI4_ndc_col").readBytes()

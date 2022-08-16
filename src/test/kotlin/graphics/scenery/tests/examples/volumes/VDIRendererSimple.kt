@@ -80,13 +80,14 @@ class VDIRendererSimple : SceneryBase("SimpleVDIRenderer", 1280, 720) {
 
         var dataset = "Kingsnake"
 
-        dataset += "_${commSize}_${rank}"
+//        dataset += "_${commSize}_${rank}"
 
 
 //        val basePath = "/home/aryaman/Repositories/DistributedVis/cmake-build-debug/"
 //        val basePath = "/home/aryaman/Repositories/scenery-insitu/"
+        val basePath = "/home/aryaman/Repositories/scenery_vdi/scenery/"
 //        val basePath = "/home/aryaman/TestingData/"
-        val basePath = "/home/aryaman/TestingData/FromCluster/"
+//        val basePath = "/home/aryaman/TestingData/FromCluster/"
 
         val file = FileInputStream(File(basePath + "${dataset}vdidump4"))
 //        val comp = GZIPInputStream(file, 65536)
@@ -96,8 +97,8 @@ class VDIRendererSimple : SceneryBase("SimpleVDIRenderer", 1280, 720) {
 //        val vdiType = "Sub"
 //        val vdiType = "Composited"
 //        val vdiType = "SetOf"
-        val vdiType = "Final"
-//        val vdiType = ""
+//        val vdiType = "Final"
+        val vdiType = ""
 
         if(separateDepth) {
             buff = File(basePath + "${dataset}${vdiType}VDI4_ndc_col").readBytes()
