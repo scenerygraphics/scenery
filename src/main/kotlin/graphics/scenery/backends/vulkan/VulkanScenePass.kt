@@ -212,6 +212,11 @@ object VulkanScenePass {
 
                 loadStoreTextures
                     .forEach { (name, _) ->
+                        val access = if(name == "InputVDI" || name == "DepthVDI") {
+                            VK10.VK_ACCESS_SHADER_READ_BIT
+                        } else {
+                            VK10.VK_ACCESS_SHADER_WRITE_BIT
+                        }
                         val texture = s.textures[name] ?: return@computeLoop
                         VulkanTexture.transitionLayout(texture.image.image,
                             from = VK10.VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
@@ -219,7 +224,8 @@ object VulkanScenePass {
                             srcStage = VK10.VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,
                             srcAccessMask = VK10.VK_ACCESS_SHADER_READ_BIT,
                             dstStage = VK10.VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-                            dstAccessMask = VK10.VK_ACCESS_SHADER_WRITE_BIT,
+//                            dstAccessMask = VK10.VK_ACCESS_SHADER_WRITE_BIT,
+                            dstAccessMask = access,
                             commandBuffer = this)
 
                     }
@@ -255,12 +261,18 @@ object VulkanScenePass {
                 drawCalls++
 
                 loadStoreTextures.forEach { (name, _) ->
+                    val access = if(name == "InputVDI" || name == "DepthVDI") {
+                        VK10.VK_ACCESS_SHADER_READ_BIT
+                    } else {
+                        VK10.VK_ACCESS_SHADER_WRITE_BIT
+                    }
                     val texture = s.textures[name] ?: return@computeLoop
                     VulkanTexture.transitionLayout(texture.image.image,
                         from = VK10.VK_IMAGE_LAYOUT_GENERAL,
                         to = VK10.VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                         srcStage = VK10.VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-                        srcAccessMask = VK10.VK_ACCESS_SHADER_WRITE_BIT,
+//                        srcAccessMask = VK10.VK_ACCESS_SHADER_WRITE_BIT,
+                        srcAccessMask = access,
                         dstStage = VK10.VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,
                         dstAccessMask = VK10.VK_ACCESS_SHADER_READ_BIT,
                         commandBuffer = this)
