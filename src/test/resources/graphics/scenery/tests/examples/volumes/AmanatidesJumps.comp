@@ -125,7 +125,9 @@ layout(set = 11, binding = 0, r32f) uniform image2D EmptyAfterLast;
 //ivec2 debug_pixel = ivec2(987, 437);
 
 //ivec2 debug_pixel = ivec2(610, 641);
-ivec2 debug_pixel = ivec2(640, 360);
+//ivec2 debug_pixel = ivec2(1273, 604);
+//ivec2 debug_pixel = ivec2(640, 360);
+ivec2 debug_pixel = ivec2(348, 230);
 
 //ivec2 debug_pixel = ivec2(35, 61);
 //ivec2 debug_pixel = ivec2(427, 465);
@@ -881,12 +883,12 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
 
     totalIntersectedLists++;
 
-    #if USE_PRINTF
-    if(gl_GlobalInvocationID.xy == debug_pixel) {
-        debugPrintfEXT("Intersecting list: (%d, %d). Start pt: (%f, %f, %f) and End pt: (%f, %f, %f)", theList,
-                                    start_point.xyz, end_point.xyz);
-    }
-    #endif
+//    #if USE_PRINTF
+//    if(gl_GlobalInvocationID.xy == debug_pixel) {
+//        debugPrintfEXT("Intersecting list: (%d, %d). Start pt: (%f, %f, %f) and End pt: (%f, %f, %f)", theList,
+//                                    start_point.xyz, end_point.xyz);
+//    }
+//    #endif
 
     //TODO: see whether the below is required
 
@@ -1575,32 +1577,9 @@ void main() {
         vec4 w_end = ivp_orig * n_end;
         w_end = w_end / w_end.w;
 
-        float sigma = distance(w_start, w_end);
-        sigma = sigma / 5.0;
-
-        #if USE_PRINTF
-        if(gl_GlobalInvocationID.xy == debug_pixel) {
-            debugPrintfEXT("Sigma is: %f and dist was: %f", sigma, dist);
-        }
-        #endif
-
-
-        int test = findZInterval_view(0.972486);
-
-        float test_ndc = cellToViewToNDC(3);
-
-        #if USE_PRINTF
-        if(gl_GlobalInvocationID.xy == debug_pixel) {
-            debugPrintfEXT("cell at z=0.972486: %d", test);
-            debugPrintfEXT("NDC at cell 3: %f", test_ndc);
-        }
-        #endif
-
         vec4 view_orig = ViewOriginal * newRay.wfront;
 
         view_orig = view_orig / view_orig.w;
-
-        dist = sigma;
 
         // find the first supersegment
 
@@ -1635,6 +1614,23 @@ void main() {
 
         float eps = 0.0001;
 
+        vec3 rayDirection = (ndc_far - ndc_near).xyz;
+
+        //TODO: is there a better way to do this?
+        if(rayDirection.x == 0) {
+            rayDirection.x = 0.000001;
+        } else if(rayDirection.y == 0) {
+            rayDirection.y = 0.000001;
+        } else if (rayDirection.z == 0) {
+            rayDirection.z = 0.000001;
+        }
+
+        rayDirection = normalize(rayDirection);
+
+        dir.xyz = rayDirection;
+        dir.w = 0;
+
+
         if(ndc_near.x < -1 || ndc_near.x > 1 || ndc_near.y < -1 || ndc_near.y > 1 || ndc_near.z < -1 || ndc_near.z > 1) {
             // the point is not in the original viewport
             #if USE_PRINTF
@@ -1643,8 +1639,6 @@ void main() {
             }
             #endif
 
-            vec3 rayDirection = (ndc_far - ndc_near).xyz;
-            rayDirection = normalize(rayDirection);
             float d1, d2;
             int a, b;
 
@@ -1711,16 +1705,6 @@ void main() {
     ivec2 currentList = firstList;
     u = first_entry_pt;
 
-    vec4 befNorm = final_exit_pt - first_entry_pt;
-    dir.xyz = normalize(befNorm.xyz);
-    dir.w = 0;
-
-    #if USE_PRINTF
-    if(gl_GlobalInvocationID.xy == debug_pixel) {
-        debugPrintfEXT("The direction of the ray is: (%f, %f, %f). Before norm it was: (%f, %f, %f, %f)", dir.xyz, befNorm);
-    }
-    #endif
-
     stepX = dir.x > 0 ? 1 : -1;
     stepY = dir.y > 0 ? 1 : -1;
     int stepZ = dir.z > 0 ? 1 : -1;
@@ -1728,11 +1712,11 @@ void main() {
     tdeltaX = abs((2.0 / windowWidth) / dir.x);
     tdeltaY = abs((2.0 / windowHeight) / dir.y);
 
-    #if USE_PRINTF
-    if(gl_GlobalInvocationID.xy == debug_pixel) {
-        debugPrintfEXT("tdeltaX: %f and tdeltaY: %f", tdeltaX, tdeltaY);
-    }
-    #endif
+//    #if USE_PRINTF
+//    if(gl_GlobalInvocationID.xy == debug_pixel) {
+//        debugPrintfEXT("tdeltaX: %f and tdeltaY: %f", tdeltaX, tdeltaY);
+//    }
+//    #endif
 
     const int MAX_X = 1;
     const int MIN_X = -1;
@@ -1751,7 +1735,9 @@ void main() {
     float cell_tdeltaZ = abs((2. / num_cells.z) / dir.z);
     #endif
 
-    vec4 end_point, start_point, end_traversal;
+    vec4 end_point = vec4(0);
+    vec4 start_point = vec4(0);
+    vec4 end_traversal = vec4(0);
     ivec2 start_list, next_list;
     ivec3 grid_cell, next_cell;
     float cell_tmaxX, cell_tmaxY, cell_tmaxZ;
@@ -1791,9 +1777,13 @@ void main() {
         vec3 next_cell_ndc = ((next_cell / vec3(num_cells)) * 2.0) - vec3(1.0);
         #endif
 
-        cell_tmaxX = dir.x != 0 ? abs((next_cell_ndc.x - start_point.x) / dir.x) : 10000000;
-        cell_tmaxY = dir.y != 0 ? abs((next_cell_ndc.y - start_point.y) / dir.y) : 10000000;
-        cell_tmaxZ = dir.z != 0 ? abs((next_cell_ndc.z - start_point.z) / dir.z) : 10000000;
+//        cell_tmaxX = dir.x != 0 ? abs((next_cell_ndc.x - start_point.x) / dir.x) : 10000000;
+//        cell_tmaxY = dir.y != 0 ? abs((next_cell_ndc.y - start_point.y) / dir.y) : 10000000;
+//        cell_tmaxZ = dir.z != 0 ? abs((next_cell_ndc.z - start_point.z) / dir.z) : 10000000;
+
+        cell_tmaxX = abs((next_cell_ndc.x - start_point.x) / dir.x);
+        cell_tmaxY = abs((next_cell_ndc.y - start_point.y) / dir.y);
+        cell_tmaxZ = abs((next_cell_ndc.z - start_point.z) / dir.z);
 
         float t = 0;
         end_traversal = vec4(0);
