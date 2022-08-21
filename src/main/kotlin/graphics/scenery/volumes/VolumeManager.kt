@@ -954,12 +954,17 @@ class VolumeManager(
         /** Static [ForkJoinPool] for fill task submission. */
         protected val forkJoinPool: ForkJoinPool = ForkJoinPool(max(1, Runtime.getRuntime().availableProcessors()))
 
+        /**
+         * Generates a [VolumeManager] with [volume] as its responsibility.
+         * If there is an existing [VolumeManager] the new one disposes of it and takes over its volumes.
+         * Volumes which are not  connected to a scene are thereby discarded.
+         */
         fun regenerateVolumeManagerWithExtraVolume(volume: Volume, hub: Hub ) {
             val vm = hub.get<VolumeManager>()
             val volumes = ArrayList<Volume>(10)
 
             if (vm != null) {
-                volumes.addAll(vm.nodes)
+                volumes.addAll(vm.nodes.filter {it.getScene() != null})
                 hub.remove(vm)
             }
             volume.volumeManager = if (vm != null) {
