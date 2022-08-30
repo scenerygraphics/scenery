@@ -13,6 +13,7 @@ import net.imglib2.type.numeric.integer.UnsignedByteType
 import net.imglib2.type.numeric.integer.UnsignedShortType
 import net.imglib2.type.numeric.real.FloatType
 import org.joml.Matrix4f
+import org.joml.Quaternionf
 import org.joml.Vector3f
 import org.joml.Vector3i
 import org.junit.Test
@@ -93,6 +94,22 @@ class VDIRendererSimple : SceneryBase("SimpleVDIRenderer", 1280, 720) {
 //        val comp = GZIPInputStream(file, 65536)
 
         val vdiData = VDIDataIO.read(file)
+
+        val cam: Camera = DetachedHeadCamera()
+        with(cam) {
+            spatial().position = Vector3f( 5.699E+0f, -4.935E-1f,  5.500E+0f)
+//            spatial().position = Vector3f( 6.284E+0f, -4.932E-1f, 4.787E+0f)
+            spatial().rotation = Quaternionf( 1.211E-1, -3.842E-1 ,-5.090E-2,  9.139E-1)
+//            spatial().rotation = Quaternionf( 1.162E-1, -4.624E-1, -6.126E-2,  8.769E-1)
+            perspectiveCamera(50.0f, 512, 512)
+
+            scene.addChild(this)
+        }
+        cam.farPlaneDistance = 20.0f
+
+//        vdiData.metadata.projection = cam.spatial().projection
+//        vdiData.metadata.view = cam.spatial().getTransformation()
+
 
 //        val vdiType = "Sub"
 //        val vdiType = "Composited"
@@ -184,13 +201,6 @@ class VDIRendererSimple : SceneryBase("SimpleVDIRenderer", 1280, 720) {
         light.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
         scene.addChild(light)
 
-        val cam: Camera = DetachedHeadCamera()
-        with(cam) {
-            spatial().position = Vector3f(0.0f, 0.0f, 5.0f)
-            perspectiveCamera(50.0f, 512, 512)
-
-            scene.addChild(this)
-        }
 
 //        thread {
 //            while (running) {
@@ -200,6 +210,25 @@ class VDIRendererSimple : SceneryBase("SimpleVDIRenderer", 1280, 720) {
 //
 //                Thread.sleep(20)
 //            }
+//        }
+
+//        thread{
+//            while (!renderer!!.firstImageReady) {
+//                Thread.sleep(50)
+//            }
+//
+//            logger.info("will write the screenshot")
+//            Thread.sleep(1000)
+//
+//            val baseDataset = "Rotstrat"
+//            val viewNumber = 2
+//            val communicatorType = "_16_0"
+//            val totalRotation = 10
+//
+//            val path = "/home/argupta/Repositories/scenery-insitu/benchmarking/${baseDataset}/View${viewNumber}/volume_rendering/reference_comp${windowWidth}_${windowHeight}_${totalRotation.toInt()}"
+//
+//            renderer!!.screenshot("$path.png")
+//
 //        }
     }
 
