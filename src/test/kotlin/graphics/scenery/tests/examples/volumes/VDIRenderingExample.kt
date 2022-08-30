@@ -101,6 +101,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
 //    val camTarget = Vector3f(1.920E+0f, -1.920E+0f,  1.800E+0f) //simulation
 //    val camTarget = Vector3f(1.920E+0f, -1.920E+0f,  1.491E+0f) //kingsnake
     val camTarget = Vector3f(1.920E+0f, -6.986E-1f,  6.855E-1f) //BonePlug
+//    val camTarget = Vector3f( 1.920E+0f, -1.920E+0f,  1.800E+0f) //Rostrat
 
 
     private val vulkanProjectionFix =
@@ -206,6 +207,18 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
 //
 //            position = Vector3f( 1.897E+0f, -5.994E-1f, -1.899E+0f) //V1 for Boneplug
 //            rotation = Quaternionf( 5.867E-5,  9.998E-1,  1.919E-2,  4.404E-3)
+
+//            position = Vector3f( 4.458E+0f, -9.057E-1f,  4.193E+0f) //V2 for Kingsnake
+//            rotation = Quaternionf( 1.238E-1, -3.649E-1,-4.902E-2,  9.215E-1)
+
+            position = Vector3f( 6.284E+0f, -4.932E-1f,  4.787E+0f) //V2 for Simulation
+            rotation = Quaternionf( 1.162E-1, -4.624E-1, -6.126E-2,  8.769E-1)
+//
+//            position = Vector3f( 1.897E+0f, -5.994E-1f, -1.899E+0f) //V1 for Boneplug
+//            rotation = Quaternionf( 5.867E-5,  9.998E-1,  1.919E-2,  4.404E-3)
+//
+//            position = Vector3f(4.505E+0f, -5.993E-1f,  6.627E-1f) //V2 for BonePlug
+//            rotation = Quaternionf(-1.353E-2,  7.101E-1,  1.361E-2, -7.039E-1)
 
         }
 
