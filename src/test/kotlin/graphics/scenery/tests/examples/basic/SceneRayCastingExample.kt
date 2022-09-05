@@ -4,12 +4,8 @@ import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.backends.Renderer
-import graphics.scenery.primitives.Line
 import graphics.scenery.primitives.Plane
-import graphics.scenery.textures.Texture
-import graphics.scenery.utils.Image
 import graphics.scenery.utils.extensions.plus
-import graphics.scenery.utils.extensions.times
 import org.scijava.ui.behaviour.ClickBehaviour
 import kotlin.concurrent.thread
 
@@ -18,7 +14,7 @@ import kotlin.concurrent.thread
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class RayCastingExample : SceneryBase("RayCastingExample") {
+class SceneRayCastingExample : SceneryBase("SceneRayCastingExample") {
     val cam: Camera = DetachedHeadCamera()
 
     override fun init() {
@@ -84,7 +80,7 @@ class RayCastingExample : SceneryBase("RayCastingExample") {
     companion object {
         @JvmStatic
         fun main(args: Array<String>) {
-            RayCastingExample().main()
+            SceneRayCastingExample().main()
         }
     }
 }
