@@ -18,7 +18,7 @@ import kotlin.concurrent.thread
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class TexturedCubeExampleRC : SceneryBase("TexturedCubeExampleRC") {
+class RayCastingExample : SceneryBase("RayCastingExample") {
     val cam: Camera = DetachedHeadCamera()
 
     override fun init() {
@@ -26,16 +26,6 @@ class TexturedCubeExampleRC : SceneryBase("TexturedCubeExampleRC") {
             SceneryElement.Renderer,
             Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
         )
-
-        val box = Box(Vector3f(1.0f, 1.0f, 1.0f))
-        box.name = "le box du win"
-        box.material {
-            textures["diffuse"] =
-                Texture.fromImage(Image.fromResource("textures/helix.png", TexturedCubeExample::class.java))
-            metallic = 0.3f
-            roughness = 0.9f
-        }
-        //scene.addChild(box)
 
         val plane = Plane(
             Vector3f(-0.5f,-0.5f,0f),
@@ -66,10 +56,6 @@ class TexturedCubeExampleRC : SceneryBase("TexturedCubeExampleRC") {
 
         thread {
             while (running) {
-                box.spatial {
-                    rotation.rotateY(0.01f)
-                    needsUpdate = true
-                }
 
                 Thread.sleep(20)
             }
@@ -82,13 +68,7 @@ class TexturedCubeExampleRC : SceneryBase("TexturedCubeExampleRC") {
         inputHandler?.addBehaviour(
             "sphereDragObject", object : ClickBehaviour {
                 override fun click(x: Int, y: Int) {
-                    val ray = cam.getNodesForScreenSpacePosition(x,y, listOf<Class<*>>(BoundingGrid::class.java), true)
-                    val line = scene.find("Line") as? Line
-                    if(line is Line)
-                    {
-                        line.addPoint(cam.spatial().position)
-                        line.addPoint(ray.initialPosition + ray.initialDirection.times(5.0f))
-                    }
+                    val ray = cam.getNodesForScreenSpacePosition(x,y, listOf<Class<*>>(BoundingGrid::class.java), true, true)
 
                     ray.matches.firstOrNull()?.let { hit ->
                         val node = hit.node as? Box ?: return //backside might get hit first
@@ -104,7 +84,7 @@ class TexturedCubeExampleRC : SceneryBase("TexturedCubeExampleRC") {
     companion object {
         @JvmStatic
         fun main(args: Array<String>) {
-            TexturedCubeExampleRC().main()
+            RayCastingExample().main()
         }
     }
 }
