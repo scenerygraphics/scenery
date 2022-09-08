@@ -30,7 +30,7 @@ import kotlin.concurrent.thread
 import kotlin.test.assertTrue
 
 /**
- * Texture cube, but with network sync * * Start master with vm param: * -ea -Dscenery.Server=true * * For client see [SlimClient]
+ * Client example, VM-Params to be set: -ea -Dscenery.Server=true
  */
 class RemoteRenderingClientExample : SceneryBase("Client", wantREPL = false) {
 

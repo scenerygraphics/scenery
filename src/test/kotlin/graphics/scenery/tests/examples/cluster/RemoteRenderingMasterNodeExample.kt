@@ -19,6 +19,11 @@ import kotlin.test.assertTrue
  * This example also shows a way (work in progress), to distibute the data coming from the client (transfer function, lights, ...)
  * to cluster nodes connected to the master node (this is an example of a master node)
  * The master node should still be able to render on its own, without dependency on the cluster
+ *
+ * VM-Params to be set: -ea -Dscenery.ServerAddress=tcp://127.0.0.1 -Dscenery.DirectDeserialize=false -Dscenery.RemoteCamera=false
+ * DirectDeserialize true means that the master takes care of the rendering
+ * RemoteCamera=true deprecated atm, originally was able to control whether the servers camera should be controllable or not
+ * (not possible now, because without camera ther is no screen for the rendering -> error
  */
 class RemoteRenderingMasterNodeExample : SceneryBase("Server", wantREPL = false) {
     override fun init() {
