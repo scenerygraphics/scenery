@@ -1993,7 +1993,7 @@ open class VulkanRenderer(hub: Hub,
     }
 
     private fun updateInstanceBuffers(sceneObjects: List<Node>) = runBlocking {
-        val instanceMasters = sceneObjects.filter { it is InstancedNode }.parallelMap { it as InstancedNode }
+        val instanceMasters = sceneObjects.filterIsInstance<InstancedNode>()
 
         instanceMasters.forEach { parent ->
             val metadata = parent.renderableOrNull()?.rendererMetadata()
