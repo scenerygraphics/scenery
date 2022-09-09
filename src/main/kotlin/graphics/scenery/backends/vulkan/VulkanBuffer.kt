@@ -171,8 +171,12 @@ open class VulkanBuffer(val device: VulkanDevice, var size: Long,
      * Advances this buffer to the next possible aligned position,
      * override the buffer's default alignment by setting [align] to
      * the desired value. Returns the new position.
+     *
+     * Note: 256 seems to be the safe value here, despite devices
+     * reporting values of 16 or 64 as minUniformBufferOffsetAlignment.
+     * So we take the maximum value of buffer alignment, or 256.
      */
-    fun advance(align: Long = this.alignment): Int {
+    fun advance(align: Long = maxOf(this.alignment, 256)): Int {
         val pos = stagingBuffer.position()
         val rem = pos.rem(align)
 
