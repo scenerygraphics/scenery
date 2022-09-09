@@ -1,0 +1,103 @@
+package graphics.scenery.tests.examples.volumes
+
+import graphics.scenery.*
+import org.joml.Vector3f
+import graphics.scenery.backends.Renderer
+import graphics.scenery.attribute.material.Material
+import graphics.scenery.utils.extensions.timesAssign
+import graphics.scenery.volumes.BufferedVolume
+import graphics.scenery.volumes.TransferFunction
+import graphics.scenery.volumes.Volume
+import net.imglib2.type.numeric.integer.UnsignedByteType
+import java.nio.ByteBuffer
+
+import kotlin.concurrent.thread
+
+/**
+ */
+class NetworkVolumeExample: SceneryBase("SpimData Rendering example", 1280, 720,false) {
+    lateinit var volume: Volume
+
+    override fun init() {
+        renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
+
+
+        //"C:\\Users\\JanCasus\\volumes\\HisYFP-SPIM.xml"
+        //"C:\\Users\\JanCasus\\volumes\\ct-scan.tif"
+
+
+        val drosophila = Volume.forNetwork(
+            Volume.VolumeFileSource(
+                Volume.VolumeFileSource.VolumePath.Given("C:\\Users\\JanCasus\\volumes\\drosophila.xml"),
+                Volume.VolumeFileSource.VolumeType.SPIM),
+            hub)
+
+        /*val t1head = Volume.forNetwork(
+            Volume.VolumeFileSource(
+                Volume.VolumeFileSource.VolumePath.Given("C:\\Users\\JanCasus\\volumes\\t1-head.tif"),
+                Volume.VolumeFileSource.VolumeType.DEFAULT),
+            hub)
+
+        // add the following, adjusted to you path to VM Options of both client and Server :
+        // -Dscenery.VolumeFile="C:\\Users\\JanCasus\\volumes\\t1-head.tif"
+        val consoleParam = Volume.forNetwork(
+            Volume.VolumeFileSource(
+                Volume.VolumeFileSource.VolumePath.Settings(),
+                Volume.VolumeFileSource.VolumeType.DEFAULT),
+            hub)
+
+        volume = consoleParam
+        scene.addChild(volume)
+        volume.transferFunction = TransferFunction.ramp(0.001f, 0.5f, 0.3f)
+        volume.spatial {
+            position.y += 3f
+            scale *= 3f
+            needsUpdate = true
+        }
+
+        thread {
+            while (false) {
+                Thread.sleep(5000)
+                volume.transferFunction = TransferFunction.ramp(0.001f, 0.5f, 0.3f)
+                println("updating volume data done")
+            }
+        }*/
+
+        val cam: Camera = DetachedHeadCamera()
+        with(cam) {
+            perspectiveCamera(50.0f, windowWidth, windowHeight)
+            spatial {
+                position = Vector3f(0.0f, 0.0f, 5.0f)
+            }
+            wantsSync = true
+            scene.addChild(this)
+        }
+
+        val shell = Box(Vector3f(10.0f, 10.0f, 10.0f), insideNormals = true)
+        shell.material {
+            cullingMode = Material.CullingMode.None
+            diffuse = Vector3f(0.2f, 0.2f, 0.2f)
+            specular = Vector3f(0.0f)
+            ambient = Vector3f(0.0f)
+        }
+        scene.addChild(shell)
+
+        Light.createLightTetrahedron<PointLight>(spread = 4.0f, radius = 15.0f, intensity = 0.5f)
+            .forEach { scene.addChild(it) }
+
+        val origin = Box(Vector3f(0.1f, 0.1f, 0.1f))
+        origin.material().diffuse = Vector3f(0.8f, 0.0f, 0.0f)
+        scene.addChild(origin)
+    }
+
+    override fun inputSetup() {
+        setupCameraModeSwitching()
+    }
+
+    companion object {
+        @JvmStatic
+        fun main(args: Array<String>) {
+            NetworkVolumeExample().main()
+        }
+    }
+}

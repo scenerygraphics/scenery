@@ -57,6 +57,7 @@ class VolumeExample: SceneryBase("Volume Rendering example", 1280, 720) {
         volume.transferFunction = TransferFunction.ramp(0.1f, 0.5f)
         scene.addChild(volume)
 
+
         val lights = (0 until 3).map {
             PointLight(radius = 15.0f)
         }

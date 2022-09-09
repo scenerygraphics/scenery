@@ -75,8 +75,6 @@ class ProteinComparisonExample: SceneryBase("Protein Comparison Example") {
         val grid2 = BoundingGrid()
         grid2.node = protein2
 
-        scene.publishSubscribe(hub)
-
         activeProtein = protein1
     }
 

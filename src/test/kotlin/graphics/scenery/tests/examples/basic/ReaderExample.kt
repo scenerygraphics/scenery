@@ -74,6 +74,7 @@ class ReaderExample : SceneryBase("ReaderExample", 1280, 720) {
 
         val lights = (0 until 4).map { PointLight(radius = 50.0f) }
 
+        /*
         loadedObject = if(files.isNotEmpty()) {
             when {
                 files.first().endsWith(".tiff") || files.first().endsWith(".tif") || files.first().endsWith(".raw")  -> {
@@ -90,7 +91,7 @@ class ReaderExample : SceneryBase("ReaderExample", 1280, 720) {
         } else {
             logger.warn("No file selected, returning empty node.")
             DefaultNode("empty")
-        }
+        }*/
 
         loadedFilename = files.firstOrNull()
         loadedObject.ifSpatial {

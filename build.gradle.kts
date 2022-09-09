@@ -113,7 +113,7 @@ dependencies {
     implementation("org.msgpack:jackson-dataformat-msgpack:0.9.0")
     api("graphics.scenery:jvrpn:1.2.0", lwjglNatives)
     implementation("io.scif:scifio")
-    implementation("org.bytedeco:ffmpeg:4.3.2-1.5.5", ffmpegNatives)
+    implementation("org.bytedeco:ffmpeg-platform:4.4-1.5.6")//, ffmpegNatives)
     implementation("io.github.classgraph:classgraph:4.8.137")
 
     implementation("info.picocli:picocli:4.6.2")

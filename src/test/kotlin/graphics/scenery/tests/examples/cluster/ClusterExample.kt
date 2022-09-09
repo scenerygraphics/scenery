@@ -32,7 +32,6 @@ import kotlin.math.roundToInt
  */
 class ClusterExample: SceneryBase("Clustered Volume Rendering example") {
     var hmd: TrackedStereoGlasses? = null
-    var publishedNodes = ArrayList<Node>()
 
     override fun init() {
         // Here you can use either a DTrack or VRPN device. Both need to be prefixed
@@ -137,23 +136,6 @@ class ClusterExample: SceneryBase("Clustered Volume Rendering example") {
         val l = PointLight(5.0f)
         l.spatial().position = Vector3f(0.0f, 2.0f, 2.0f)
         scene.addChild(l)
-
-        publishedNodes.add(cam)
-        spheres.forEach { publishedNodes.add(it) }
-        lights.forEach { publishedNodes.add(it) }
-        //publishedNodes.add(protein)
-        publishedNodes.add(l)
-        publishedNodes.add(volume)
-
-        val publisher = hub.get<NodePublisher>(SceneryElement.NodePublisher)
-        val subscriber = hub.get<NodeSubscriber>(SceneryElement.NodeSubscriber)
-
-        publishedNodes.forEachIndexed { index, node ->
-            publisher?.nodes?.put(13337 + index, node)
-            subscriber?.nodes?.put(13337 + index, node)
-        }
-
-        //scene.publishSubscribe(hub, { it != volume })
     }
 
     companion object {

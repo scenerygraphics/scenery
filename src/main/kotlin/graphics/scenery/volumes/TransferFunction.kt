@@ -12,7 +12,7 @@ import kotlin.math.min
 
 /** Transfer function class with an optional [name]. */
 open class TransferFunction(val name: String = "") {
-    private val logger by LazyLogger()
+    @delegate:Transient private val logger by LazyLogger()
 
     /**
      * Data class to contain control points for transfer functions.
@@ -32,7 +32,7 @@ open class TransferFunction(val name: String = "") {
     @Transient protected val buffer: ByteBuffer = MemoryUtil.memCalloc(textureSize * 4 * textureHeight)
 
     /** Indicator whether the auxiliary texture needs to be reuploaded. */
-    var stale = true
+    @Transient var stale = true
         protected set
 
     /**
@@ -175,6 +175,12 @@ open class TransferFunction(val name: String = "") {
     }
 
     companion object {
+
+        fun setStale(tf : TransferFunction, state : Boolean)
+        {
+            tf.stale = state
+        }
+
         /** Returns a flat transfer function that transfers all values */
         @JvmStatic @JvmOverloads fun flat(factor: Float = 1.0f): TransferFunction {
             val tf = TransferFunction("Flat")

@@ -45,8 +45,7 @@ class VideoDecodingExample : SceneryBase("VideoDecodingExample", 600, 600, wantR
         val plane = FullscreenObject()
         scene.addChild(plane)
 
-        settings.set("Renderer.HDR.Exposure", 0.05f)
-
+        settings.set("Renderer.HDR.Exposure", 0.1f)
         val videoDecoder = VideoDecoder(this::class.java.getResource("SampleVideo.mp4")?.sanitizedPath() ?: throw FileNotFoundException("Could not find sample file."))
 //        val videoDecoder = VideoDecoder("udp://${InetAddress.getLocalHost().hostAddress}:3337")
 //        val videoDecoder = VideoDecoder("/home/aryaman/Repositories/scenery-insitu/scenery-stream.sdp")

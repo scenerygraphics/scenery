@@ -157,7 +157,7 @@ class VideoEncoder(
                 outputFile = streamingAddress
                 logger.info("Using network streaming, serving at $streamingAddress")
 
-                "rtp" to av_guess_format("rtp", null, null)
+                "rtp" to av_guess_format("mpegts", null, null)
             } else {
                 "mp4" to av_guess_format("mp4", null, null)
             }

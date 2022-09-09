@@ -39,7 +39,7 @@ class FontRenderingExample: SceneryBase("FontRenderingExample", windowWidth = 12
         }
         scene.addChild(box)
 
-        val board = TextBoard()
+        val board = TextBoard("SourceSansPro-Regular.ttf", true)
         board.text = "hello world"
         board.name = "TextBoard"
         board.transparent = 0
