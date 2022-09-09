@@ -159,7 +159,7 @@ object VulkanNodeHelpers {
      * and allocates necessary command buffers from [commandPools] and submits to [queue]. Returns the [node]'s modified [VulkanObjectState].
      */
     fun updateInstanceBuffer(device: VulkanDevice, node: InstancedNode, state: VulkanObjectState, commandPools: VulkanRenderer.CommandPools, queue: VkQueue): VulkanObjectState {
-        logger.trace("Updating instance buffer for ${node.name}")
+        logger.trace("Updating instance buffer for {}", node.name)
 
         // parentNode.instances is a CopyOnWrite array list, and here we keep a reference to the original.
         // If it changes in the meantime, no problemo.
@@ -172,7 +172,7 @@ object VulkanNodeHelpers {
 
         // TODO make maxInstanceUpdateCount property of InstancedNode
         val maxUpdates = node.metadata["MaxInstanceUpdateCount"] as? AtomicInteger
-        if(maxUpdates?.get() ?: 1 < 1) {
+        if((maxUpdates?.get() ?: 1) < 1) {
             logger.debug("Instances updates blocked for ${node.name}, returning")
             return state
         }
