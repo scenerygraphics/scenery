@@ -111,6 +111,7 @@ dependencies {
     implementation("de.javakaffee:kryo-serializers:0.45")
     implementation("org.msgpack:msgpack-core:0.9.0")
     implementation("org.msgpack:jackson-dataformat-msgpack:0.9.0")
+    implementation("org.xerial.snappy:snappy-java:1.1.8.4")
     api("graphics.scenery:jvrpn:1.2.0", lwjglNatives)
     implementation("io.scif:scifio")
     implementation("org.bytedeco:ffmpeg:4.3.2-1.5.5", ffmpegNatives)
