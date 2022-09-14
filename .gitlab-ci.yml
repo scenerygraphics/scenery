@@ -6,6 +6,7 @@ cache:
     - pdb-store/
     - .gradle-user-home/
     - node_modules/
+    - screenshots/
 
 variables:
   JAVA_HOME: "/usr/lib/jvm/java-11-openjdk-amd64"
