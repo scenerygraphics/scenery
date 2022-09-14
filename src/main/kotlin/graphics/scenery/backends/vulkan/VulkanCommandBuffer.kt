@@ -4,7 +4,6 @@ import graphics.scenery.utils.LazyLogger
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.*
-import java.lang.RuntimeException
 import java.nio.LongBuffer
 
 /**
@@ -41,7 +40,7 @@ class VulkanCommandBuffer(val device: VulkanDevice, var commandBuffer: VkCommand
             VU.getLong("Create timestamp query pool",
                 { vkCreateQueryPool(device.vulkanDevice, queryPoolCreateInfo, null, this) },
                 { queryPoolCreateInfo.free() })
-        } catch (e: RuntimeException) {
+        } catch (e: VU.VulkanCommandException) {
             logger.warn("Failed to create query pool: $e")
             -1L
         }
