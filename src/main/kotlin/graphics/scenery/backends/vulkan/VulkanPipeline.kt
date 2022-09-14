@@ -27,7 +27,7 @@ class VulkanPipeline(val device: VulkanDevice, val renderpass: VulkanRenderpass,
     val inputAssemblyState: VkPipelineInputAssemblyStateCreateInfo = VkPipelineInputAssemblyStateCreateInfo.calloc()
         .sType(VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO)
         .topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST)
-        .primitiveRestartEnable(false)
+        .primitiveRestartEnable(true)
         .pNext(NULL)
 
     val rasterizationState: VkPipelineRasterizationStateCreateInfo = VkPipelineRasterizationStateCreateInfo.calloc()
@@ -182,7 +182,13 @@ class VulkanPipeline(val device: VulkanDevice, val renderpass: VulkanRenderpass,
                     .subpass(0)
 
                 if (onlyForTopology != null) {
-                    inputAssemblyState.topology(onlyForTopology.asVulkanTopology())
+                    val vulkanTopology = onlyForTopology.asVulkanTopology()
+                    inputAssemblyState.topology(vulkanTopology).pNext(NULL)
+
+                }
+
+                if(inputAssemblyState.topology() in topogoliesWithoutRestart) {
+                    inputAssemblyState.primitiveRestartEnable(false)
                 }
 
                 VU.getLong("vkCreateGraphicsPipelines for ${renderpass.name} ($vulkanRenderpass)", {
@@ -223,7 +229,12 @@ class VulkanPipeline(val device: VulkanDevice, val renderpass: VulkanRenderpass,
                     return@forEach
                 }
 
-                inputAssemblyState.topology(topology.asVulkanTopology()).pNext(NULL)
+                val vulkanTopology = topology.asVulkanTopology()
+                inputAssemblyState.topology(vulkanTopology).pNext(NULL)
+
+                if(vulkanTopology in topogoliesWithoutRestart) {
+                    inputAssemblyState.primitiveRestartEnable(false)
+                }
 
                 pipelineCreateInfo
                     .pInputAssemblyState(inputAssemblyState)
@@ -255,18 +266,7 @@ class VulkanPipeline(val device: VulkanDevice, val renderpass: VulkanRenderpass,
         })
     }
 
-    private fun GeometryType.asVulkanTopology(): Int {
-        return when(this) {
-            GeometryType.TRIANGLE_FAN -> VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN
-            GeometryType.TRIANGLES -> VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST
-            GeometryType.LINE -> VK_PRIMITIVE_TOPOLOGY_LINE_LIST
-            GeometryType.POINTS -> VK_PRIMITIVE_TOPOLOGY_POINT_LIST
-            GeometryType.LINES_ADJACENCY -> VK_PRIMITIVE_TOPOLOGY_LINE_LIST_WITH_ADJACENCY
-            GeometryType.LINE_STRIP_ADJACENCY -> VK_PRIMITIVE_TOPOLOGY_LINE_STRIP_WITH_ADJACENCY
-            GeometryType.POLYGON -> VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST
-            GeometryType.TRIANGLE_STRIP -> VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP
-        }
-    }
+
 
     fun orderedDescriptorSpecs(): List<MutableMap.MutableEntry<String, ShaderIntrospection.UBOSpec>> {
         return descriptorSpecs.entries.sortedBy { it.value.binding }.sortedBy { it.value.set }
@@ -297,5 +297,29 @@ class VulkanPipeline(val device: VulkanDevice, val renderpass: VulkanRenderpass,
         dynamicState.free()
         memFree(pDynamicStates)
         multisampleState.free()
+    }
+
+    companion object {
+        private val topogoliesWithoutRestart = listOf(
+            VK_PRIMITIVE_TOPOLOGY_POINT_LIST,
+            VK_PRIMITIVE_TOPOLOGY_LINE_LIST,
+            VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
+            VK_PRIMITIVE_TOPOLOGY_LINE_LIST_WITH_ADJACENCY,
+            VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST_WITH_ADJACENCY,
+            VK_PRIMITIVE_TOPOLOGY_PATCH_LIST
+        )
+
+        private fun GeometryType.asVulkanTopology(): Int {
+            return when(this) {
+                GeometryType.TRIANGLE_FAN -> VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN
+                GeometryType.TRIANGLES -> VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST
+                GeometryType.LINE -> VK_PRIMITIVE_TOPOLOGY_LINE_LIST
+                GeometryType.POINTS -> VK_PRIMITIVE_TOPOLOGY_POINT_LIST
+                GeometryType.LINES_ADJACENCY -> VK_PRIMITIVE_TOPOLOGY_LINE_LIST_WITH_ADJACENCY
+                GeometryType.LINE_STRIP_ADJACENCY -> VK_PRIMITIVE_TOPOLOGY_LINE_STRIP_WITH_ADJACENCY
+                GeometryType.POLYGON -> VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST
+                GeometryType.TRIANGLE_STRIP -> VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP
+            }
+        }
     }
 }
