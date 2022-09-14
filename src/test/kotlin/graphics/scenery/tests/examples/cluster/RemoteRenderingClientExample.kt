@@ -23,6 +23,9 @@ import org.joml.Vector2f
 import org.joml.Vector3f
 import org.joml.Vector3i
 import org.scijava.ui.behaviour.ClickBehaviour
+import org.zeromq.SocketType
+import org.zeromq.ZContext
+import org.zeromq.ZMQ
 import java.io.FileNotFoundException
 import java.net.InetAddress
 import java.nio.ByteBuffer
@@ -36,7 +39,7 @@ class RemoteRenderingClientExample : SceneryBase("Client", wantREPL = false) {
 
     var buffer: ByteBuffer = ByteBuffer.allocateDirect(0)
     var decodedFrameCount: Int = 0
-    var remoteRendering = true
+    var remoteRendering = false
 
     override fun init() {
         renderer = hub.add(
@@ -121,6 +124,38 @@ class RemoteRenderingClientExample : SceneryBase("Client", wantREPL = false) {
                 Thread.sleep(20)
             }
         }
+
+        thread {
+            listenForMessages()
+        }
+    }
+
+    private fun listenForMessages() {
+        val context = ZContext(4)
+        var subscriber: ZMQ.Socket = context.createSocket(SocketType.SUB)
+        val address = "tcp://localhost:6655"
+        subscriber.connect(address)
+        subscriber.subscribe(ZMQ.SUBSCRIPTION_ALL)
+
+        var buffer = ByteBuffer.allocateDirect(0)
+
+        while(true) {
+            val payload = subscriber.recv()
+            if (payload != null) {
+                if(buffer.capacity() != payload.size) {
+                    buffer = BufferUtils.allocateByteAndPut(payload)
+                } else {
+                    buffer.put(payload).flip()
+                }
+
+                logger.info("Received a payload: ${payload.toString(Charsets.US_ASCII)}")
+
+            } else {
+                logger.info("Payload received but is null")
+            }
+
+        }
+
     }
 
     private fun drawFrame(tex: ByteArray, width: Int, height: Int, plane: Billboard, frameIndex: Int) {
@@ -150,10 +185,10 @@ class RemoteRenderingClientExample : SceneryBase("Client", wantREPL = false) {
         super.main()
     }
 
-companion object {
-    @JvmStatic
-    fun main(args: Array<String>) {
-        RemoteRenderingClientExample().main()
+    companion object {
+        @JvmStatic
+        fun main(args: Array<String>) {
+            RemoteRenderingClientExample().main()
+        }
     }
-}
 }
