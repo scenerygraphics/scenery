@@ -5,6 +5,9 @@ import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.net.NodePublisher
 import graphics.scenery.net.NodeSubscriber
+import graphics.scenery.tests.examples.basic.TexturedCubeExample
+import graphics.scenery.textures.Texture
+import graphics.scenery.utils.Image
 import graphics.scenery.volumes.*
 import java.io.File
 import java.net.InetAddress
@@ -23,7 +26,7 @@ import kotlin.test.assertTrue
 class RemoteRenderingMasterNodeExample : SceneryBase("Server", wantREPL = false) {
     override fun init() {
         renderer = hub.add(SceneryElement.Renderer,
-            Renderer.createRenderer(hub, applicationName, scene, 512, 512))
+            Renderer.createRenderer(hub, applicationName, scene, 1024, 1024))
 
         //subscriber to the client (instead of using VM parameters, because we need to catch the payload coming from the client (server) and either send it further to
         // the clusters, or deserialize it here
@@ -71,6 +74,21 @@ class RemoteRenderingMasterNodeExample : SceneryBase("Server", wantREPL = false)
                 }
                 scene.addChild(this)
             }
+
+            val box = Box(Vector3f(1.0f, 1.0f, 1.0f))
+            box.name = "le box du win"
+            box.material {
+                textures["diffuse"] = Texture.fromImage(Image.fromResource("textures/helix.png", TexturedCubeExample::class.java))
+                metallic = 0.3f
+                roughness = 0.9f
+            }
+            scene.addChild(box)
+
+            val light = PointLight(radius = 15.0f)
+            light.spatial().position = Vector3f(0.0f, 0.0f, 2.0f)
+            light.intensity = 5.0f
+            light.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
+            scene.addChild(light)
 
             thread {
                 while (!sceneInitialized()) {
