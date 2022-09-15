@@ -74,7 +74,7 @@ class ShaderCompiler: AutoCloseable, Callable<ByteArray> {
 
         Shaderc.shaderc_compile_options_set_source_language(options, Shaderc.shaderc_source_language_glsl)
 
-        val shaderCode = if (target == Shaders.ShaderTarget.Vulkan) {
+        var shaderCode = if(target == Shaders.ShaderTarget.Vulkan) {
             Shaderc.shaderc_compile_options_set_target_env(options, Shaderc.shaderc_target_env_vulkan, Shaderc.shaderc_env_version_vulkan_1_2)
             Shaderc.shaderc_compile_options_set_target_spirv(options, Shaderc.shaderc_spirv_version_1_2)
             code
@@ -98,6 +98,8 @@ class ShaderCompiler: AutoCloseable, Callable<ByteArray> {
 
         if(debug) {
             Shaderc.shaderc_compile_options_set_generate_debug_info(options)
+            val extensionPos = shaderCode.indexOf("\n", shaderCode.indexOf("#version "))
+            shaderCode = shaderCode.replaceRange(extensionPos, extensionPos + 1, "\n#extension GL_EXT_debug_printf : enable\n")
         }
 
         val result = Shaderc.shaderc_compile_into_spv(
