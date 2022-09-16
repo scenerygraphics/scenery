@@ -15,6 +15,21 @@ uniform sampler3D volume;
 uniform sampler2D transferFunction;
 uniform sampler2D colorMap;
 
+float returnRawSample( vec4 wpos ) {
+    vec3 pos = (im * wpos).xyz + 0.5;
+    float rawsample = convert(texture( volume, pos / textureSize( volume, 0 ) ).r);
+
+    return rawsample;
+}
+
+float sampleTransferFunction( vec4 wpos )
+{
+    float rawsample = returnRawSample(wpos);
+    float tf = texture(transferFunction, vec2(rawsample + 0.001f, 0.5f)).r;
+
+    return tf;
+}
+
 vec4 sampleVolume( vec4 wpos )
 {
     bool cropping = slicingMode == 1 || slicingMode == 3;
@@ -41,11 +56,9 @@ vec4 sampleVolume( vec4 wpos )
         return vec4(0);
     }
 
+    float rawsample = returnRawSample(wpos);
+    float tf = sampleTransferFunction(wpos);
 
-    vec3 pos = (im * wpos).xyz + 0.5;
-
-    float rawsample = convert(texture( volume, pos / textureSize( volume, 0 ) ).r);
-    float tf = texture(transferFunction, vec2(rawsample + 0.001f, 0.5f)).r;
     vec3 cmapplied = texture(colorMap, vec2(rawsample + 0.001f, 0.5f)).rgb;
 
     int intransparent = int( slicing && isInSlice) ;
