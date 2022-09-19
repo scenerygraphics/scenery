@@ -229,7 +229,7 @@ open class Camera : DefaultNode("Camera"), HasRenderable, HasMaterial, HasCustom
      *
      * Returns (worldPos, worldDir)
      */
-    fun screenPointToRay(x: Int, y: Int, camOrigin : Boolean): Pair<Vector3f, Vector3f> {
+    fun screenPointToRay(x: Int, y: Int, camOrigin : Boolean = false): Pair<Vector3f, Vector3f> {
         // calculate aspect ratio, note here that both width and height
         // are integers and need to be converted before the division, otherwise
         // we end up with an incorrect (integer) result

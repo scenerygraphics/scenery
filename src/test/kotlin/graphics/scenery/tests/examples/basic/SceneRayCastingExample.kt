@@ -12,7 +12,10 @@ import kotlin.concurrent.thread
 /**
  * <Description>
  *
- * @author Ulrik Günther <hello@ulrik.is>
+ * @author Konrad Michel
+ *
+ * Example to test scene mouse picking via raycasting -> Using number key 1 to cast a ray into the scene. Debug-renders a line with cubes along the ray
+ * upon hit, the console pints some information about the hit object and some spatial data concerning the hit position and distance
  */
 class SceneRayCastingExample : SceneryBase("SceneRayCastingExample") {
     val cam: Camera = DetachedHeadCamera()
@@ -62,19 +65,19 @@ class SceneRayCastingExample : SceneryBase("SceneRayCastingExample") {
         super.inputSetup()
 
         inputHandler?.addBehaviour(
-            "sphereDragObject", object : ClickBehaviour {
+            "raycastPicking", object : ClickBehaviour {
                 override fun click(x: Int, y: Int) {
                     val ray = cam.getNodesForScreenSpacePosition(x,y, listOf<Class<*>>(BoundingGrid::class.java), true, true)
 
                     ray.matches.firstOrNull()?.let { hit ->
-                        val node = hit.node as? Box ?: return //backside might get hit first
+                        val node = hit.node as? Plane ?: return //backside might get hit first
                         val hitPos = ray.initialPosition + ray.initialDirection.normalize(hit.distance)
                         logger.info("Node: $node, HitPos: $hitPos, Distance: ${hit.distance}, Origin: ${ray.initialPosition}")
                     }
                 }
             }
         )
-        inputHandler?.addKeyBinding("sphereDragObject", "1")
+        inputHandler?.addKeyBinding("raycastPicking", "1")
     }
 
     companion object {
