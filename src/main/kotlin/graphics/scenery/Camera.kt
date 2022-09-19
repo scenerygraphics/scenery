@@ -194,12 +194,12 @@ open class Camera : DefaultNode("Camera"), HasRenderable, HasMaterial, HasCustom
     fun getNodesForScreenSpacePosition(
         x: Int, y: Int,
         ignoredObjects: List<Class<*>> = listOf<Class<*>>(BoundingGrid::class.java),
-        camOrigin: Boolean = false,
+        useCamOrigin: Boolean = false,
         debug: Boolean = false
     ): Scene.RaycastResult {
         return getNodesForScreenSpacePosition(x, y, { n: Node ->
             !ignoredObjects.any { it.isAssignableFrom(n.javaClass) }
-        }, camOrigin, debug)
+        }, useCamOrigin, debug)
     }
 
     /**
@@ -209,10 +209,10 @@ open class Camera : DefaultNode("Camera"), HasRenderable, HasMaterial, HasCustom
     fun getNodesForScreenSpacePosition(
         x: Int, y: Int,
         filter: (Node) -> Boolean,
-        camOrigin: Boolean = false,
+        useCamOrigin: Boolean = false,
         debug: Boolean = false
     ): Scene.RaycastResult {
-        val (worldPos, worldDir) = screenPointToRay(x, y, camOrigin)
+        val (worldPos, worldDir) = screenPointToRay(x, y, useCamOrigin)
 
         val scene = getScene()
         if(scene == null) {
@@ -229,7 +229,7 @@ open class Camera : DefaultNode("Camera"), HasRenderable, HasMaterial, HasCustom
      *
      * Returns (worldPos, worldDir)
      */
-    fun screenPointToRay(x: Int, y: Int, camOrigin : Boolean = false): Pair<Vector3f, Vector3f> {
+    fun screenPointToRay(x: Int, y: Int, useCamOrigin : Boolean = false): Pair<Vector3f, Vector3f> {
         // calculate aspect ratio, note here that both width and height
         // are integers and need to be converted before the division, otherwise
         // we end up with an incorrect (integer) result
@@ -247,7 +247,7 @@ open class Camera : DefaultNode("Camera"), HasRenderable, HasMaterial, HasCustom
 
         val worldDir = (worldPos - origin).normalize()
 
-        return if(camOrigin) {
+        return if(useCamOrigin) {
             Pair(origin, worldDir)
         } else {
             Pair(worldPos, worldDir)
