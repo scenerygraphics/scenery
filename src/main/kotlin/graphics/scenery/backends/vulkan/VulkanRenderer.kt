@@ -1859,8 +1859,21 @@ open class VulkanRenderer(hub: Hub,
         totalFrames++
     }
 
+    private fun getSupportedExtensions(): List<String> {
+        stackPush().use { stack ->
+            val count = stack.ints(1)
+            vkEnumerateInstanceExtensionProperties(null as? ByteBuffer, count, null)
+            val exts = VkExtensionProperties.calloc(count.get(0), stack)
+            vkEnumerateInstanceExtensionProperties(null as? ByteBuffer, count, exts)
+
+            return exts.map { it.extensionNameString() }
+        }
+    }
+
     private fun createInstance(requiredExtensions: PointerBuffer? = null, enableValidations: Boolean = false, headless: Boolean = false): VkInstance {
         return stackPush().use { stack ->
+            val supportedExtensions = getSupportedExtensions()
+
             val appInfo = VkApplicationInfo.calloc(stack)
                 .sType(VK_STRUCTURE_TYPE_APPLICATION_INFO)
                 .pApplicationName(stack.UTF8(applicationName))
@@ -1872,6 +1885,12 @@ open class VulkanRenderer(hub: Hub,
 
             if(enableValidations) {
                 additionalExts.add(VK_EXT_DEBUG_UTILS_EXTENSION_NAME)
+            }
+
+            if(supportedExtensions.contains("VK_KHR_portability_enumeration")
+                && !settings.get("Renderer.DisablePortabilityEnumeration", false)
+                && Platform.get() == Platform.MACOSX) {
+                additionalExts.add("VK_KHR_portability_enumeration")
             }
 
             val utf8Exts = additionalExts.map { stack.UTF8(it) }
@@ -1920,6 +1939,13 @@ open class VulkanRenderer(hub: Hub,
                 .pApplicationInfo(appInfo)
                 .ppEnabledExtensionNames(enabledExtensionNames)
                 .ppEnabledLayerNames(enabledLayerNames)
+
+            if(supportedExtensions.contains("VK_KHR_portability_enumeration")
+                && !settings.get("Renderer.DisablePortabilityEnumeration", false)
+                && Platform.get() == Platform.MACOSX) {
+                createInfo
+                    .flags(0x00000001) // VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR
+            }
 
             val extensions = (0 until enabledExtensionNames.remaining()).map {
                 memUTF8(enabledExtensionNames.get(it))
@@ -2023,7 +2049,7 @@ open class VulkanRenderer(hub: Hub,
     }
 
     private fun updateInstanceBuffers(sceneObjects: List<Node>) = runBlocking {
-        val instanceMasters = sceneObjects.filter { it is InstancedNode }.parallelMap { it as InstancedNode }
+        val instanceMasters = sceneObjects.filterIsInstance<InstancedNode>()
 
         instanceMasters.forEach { parent ->
             val metadata = parent.renderableOrNull()?.rendererMetadata()

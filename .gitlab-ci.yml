@@ -5,6 +5,8 @@ cache:
   paths:
     - pdb-store/
     - .gradle-user-home/
+    - node_modules/
+    - screenshots/
 
 variables:
   JAVA_HOME: "/usr/lib/jvm/java-11-openjdk-amd64"
@@ -82,7 +84,8 @@ scenery-nvidia:
   after_script:
     - nvidia-smi
     - tar cvjf results.tar.bz2 screenshots/
-    - ARGOS_COMMIT=$CI_COMMIT_SHA ARGOS_BRANCH=$CI_COMMIT_REF_NAME /node_modules/argos-cli/bin/argos upload screenshots/ --token $ARGOS_TOKEN || true
+    - npm install @argos-ci/cli
+    - ARGOS_COMMIT=$CI_COMMIT_SHA ARGOS_BRANCH=$CI_COMMIT_REF_NAME ./node_modules/\@argos-ci/cli/bin/argos-cli.js upload screenshots/ || true
   tags:
     - cuda
     - intel

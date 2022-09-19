@@ -182,22 +182,7 @@ object VulkanScenePass {
                     return@computeLoop
                 }
 
-                val requiredSets = sets.filter { it !is VulkanRenderer.DescriptorSet.None }.map { it.id }.toLongArray()
-                if(pass.vulkanMetadata.descriptorSets.capacity() < requiredSets.size) {
-                    logger.debug("Reallocating descriptor set storage")
-                    MemoryUtil.memFree(pass.vulkanMetadata.descriptorSets)
-                    pass.vulkanMetadata.descriptorSets = MemoryUtil.memAllocLong(requiredSets.size)
-                }
-
-                pass.vulkanMetadata.descriptorSets.position(0)
-                pass.vulkanMetadata.descriptorSets.limit(pass.vulkanMetadata.descriptorSets.capacity())
-                pass.vulkanMetadata.descriptorSets.put(requiredSets)
-                pass.vulkanMetadata.descriptorSets.flip()
-
-                pass.vulkanMetadata.uboOffsets.position(0)
-                pass.vulkanMetadata.uboOffsets.limit(pass.vulkanMetadata.uboOffsets.capacity())
-                pass.vulkanMetadata.uboOffsets.put(sets.filterIsInstance<VulkanRenderer.DescriptorSet.DynamicSet>().map { it.offset }.toIntArray())
-                pass.vulkanMetadata.uboOffsets.flip()
+                pass.setDescriptorSetsAndUBOOffsets(sets)
 
                 // allocate more vertexBufferOffsets than needed, set limit lateron
 //                pass.vulkanMetadata.uboOffsets.position(0)
@@ -370,22 +355,7 @@ object VulkanScenePass {
                     logger.debug("${node.name} requires DS ${specs.joinToString { "${it.key}, " }}")
                 }
 
-                val requiredSets = sets.filter { it !is VulkanRenderer.DescriptorSet.None }.map { it.id }.toLongArray()
-                if (pass.vulkanMetadata.descriptorSets.capacity() < requiredSets.size) {
-                    logger.debug("Reallocating descriptor set storage")
-                    MemoryUtil.memFree(pass.vulkanMetadata.descriptorSets)
-                    pass.vulkanMetadata.descriptorSets = MemoryUtil.memAllocLong(requiredSets.size)
-                }
-
-                pass.vulkanMetadata.descriptorSets.position(0)
-                pass.vulkanMetadata.descriptorSets.limit(pass.vulkanMetadata.descriptorSets.capacity())
-                pass.vulkanMetadata.descriptorSets.put(requiredSets)
-                pass.vulkanMetadata.descriptorSets.flip()
-
-                pass.vulkanMetadata.uboOffsets.position(0)
-                pass.vulkanMetadata.uboOffsets.limit(pass.vulkanMetadata.uboOffsets.capacity())
-                pass.vulkanMetadata.uboOffsets.put(sets.filter { it is VulkanRenderer.DescriptorSet.DynamicSet }.map { (it as VulkanRenderer.DescriptorSet.DynamicSet).offset }.toIntArray())
-                pass.vulkanMetadata.uboOffsets.flip()
+                pass.setDescriptorSetsAndUBOOffsets(sets)
 
                 if(pass.vulkanMetadata.descriptorSets.limit() > 0) {
                     VK10.vkCmdBindDescriptorSets(this, VK10.VK_PIPELINE_BIND_POINT_GRAPHICS,
@@ -421,6 +391,29 @@ object VulkanScenePass {
             commandBuffer.stale = false
             commandBuffer.endCommandBuffer()
         }
+    }
+
+    private fun VulkanRenderpass.setDescriptorSetsAndUBOOffsets(
+        sets: List<VulkanRenderer.DescriptorSet>,
+    ) {
+        val requiredSets = sets.filter { it !is VulkanRenderer.DescriptorSet.None }.map { it.id }.toLongArray()
+        if (this.vulkanMetadata.descriptorSets.capacity() < requiredSets.size) {
+            logger.debug("Reallocating descriptor set storage")
+            MemoryUtil.memFree(this.vulkanMetadata.descriptorSets)
+            this.vulkanMetadata.descriptorSets = MemoryUtil.memAllocLong(requiredSets.size)
+        }
+
+        this.vulkanMetadata.descriptorSets.position(0)
+        this.vulkanMetadata.descriptorSets.limit(this.vulkanMetadata.descriptorSets.capacity())
+        this.vulkanMetadata.descriptorSets.put(requiredSets)
+        this.vulkanMetadata.descriptorSets.flip()
+
+        this.vulkanMetadata.uboOffsets.position(0)
+        this.vulkanMetadata.uboOffsets.limit(this.vulkanMetadata.uboOffsets.capacity())
+        this.vulkanMetadata.uboOffsets.put(
+            sets.filterIsInstance<VulkanRenderer.DescriptorSet.DynamicSet>().map { it.offset }.toIntArray()
+        )
+        this.vulkanMetadata.uboOffsets.flip()
     }
 
     /**
