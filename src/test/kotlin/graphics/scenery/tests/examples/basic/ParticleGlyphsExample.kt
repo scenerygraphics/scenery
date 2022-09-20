@@ -7,66 +7,74 @@ import graphics.scenery.attribute.material.Material
 
 import graphics.scenery.primitives.ParticleGlyphs
 import graphics.scenery.utils.Statistics
+import graphics.scenery.utils.VideoEncodingQuality
+import graphics.scenery.utils.extensions.plus
 import org.joml.Vector2f
+import java.io.File
 import java.nio.FloatBuffer
 import kotlin.concurrent.thread
-import kotlin.math.PI
-import kotlin.math.cos
-import kotlin.math.pow
-import kotlin.math.sin
+import kotlin.math.*
 
 import kotlin.random.Random
+import kotlin.test.assertTrue
 
 class ParticleGlyphsExample : SceneryBase("ParticleGlyphsExample") {
     override fun init() {
         renderer = hub.add(SceneryElement.Renderer,
             Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
 
-        val hull = Box(Vector3f(250.0f, 250.0f, 250.0f), insideNormals = true)
+        val hull = Box(Vector3f(50.0f, 50.0f, 50.0f), insideNormals = true)
         hull.material {
             diffuse = Vector3f(0.07f, 0.07f, 0.07f)
             cullingMode = Material.CullingMode.Front
         }
         scene.addChild(hull)
 
-        val light1 = PointLight(radius = 200.0f)
-        light1.spatial().position = Vector3f(0.0f, 0.0f, 0.0f)
+        val light1 = PointLight(radius = 50.0f)
+        light1.spatial().position = Vector3f(10.0f, 10.0f, 10.0f)
         light1.intensity = 5.0f
-        light1.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
-        scene.addChild(light1)
+        light1.emissionColor = Vector3f(0.8f, 0.8f, 0.8f)
+        //scene.addChild(light1)
 
-        val light2 = PointLight(radius = 200.0f)
-        light2.spatial().position = Vector3f(100.0f, 100.0f, 100.0f)
+        val light2 = PointLight(radius = 50.0f)
+        light2.spatial().position = Vector3f(-10.0f, -10.0f, -10.0f)
         light2.intensity = 5.0f
-        light2.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
-        scene.addChild(light2)
+        light2.emissionColor = Vector3f(0.8f, 0.8f, 0.8f)
+        //scene.addChild(light2)
 
-        val light3 = PointLight(radius = 200.0f)
-        light3.spatial().position = Vector3f(0.0f, 0.0f, -100.0f)
-        light3.intensity = 5.0f
-        light3.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
-        scene.addChild(light3)
-
-
-        val particleNumber = 100000
+        val particleNumber = 200000
         val particlePos = FloatBuffer.allocate(particleNumber * 3)
         val particleProp = FloatBuffer.allocate(particleNumber * 2)
         val particleColor = FloatBuffer.allocate(particleNumber * 3)
-        repeat(particleNumber) {
-            particlePos.put(Random.nextDouble(-10.0, 10.0).toFloat())
-            particlePos.put(Random.nextDouble(-10.0, 10.0).toFloat())
-            particlePos.put(Random.nextDouble(-10.0, 10.0).toFloat())
 
-            particleProp.put(Random.nextDouble(0.01, 0.1).toFloat())
+        val particleDir = FloatBuffer.allocate(particleNumber * 3)
+        val particleVelocity = FloatBuffer.allocate(particleNumber)
+        repeat(particleNumber) {
+            particlePos.put(Random.nextDouble(-0.01, 0.01).toFloat())
+            particlePos.put(Random.nextDouble(-0.01, 0.01).toFloat())
+            particlePos.put(Random.nextDouble(-0.01, 0.01).toFloat())
+
+            particleProp.put(Random.nextDouble(0.01, 0.05).toFloat())
             particleProp.put(0.0f)
 
-            particleColor.put(Random.nextDouble(0.1, 1.0).toFloat())
-            particleColor.put(Random.nextDouble(0.1, 1.0).toFloat())
-            particleColor.put(Random.nextDouble(0.1, 1.0).toFloat())
+            val xDir = Random.nextDouble(-1.0, 1.0).toFloat()
+            val yDir = Random.nextDouble(-1.0, 1.0).toFloat()
+            val zDir = Random.nextDouble(-1.0, 1.0).toFloat()
+            particleDir.put(xDir)
+            particleDir.put(yDir)
+            particleDir.put(zDir)
+
+            val velocity = Random.nextDouble(0.0, 0.01).toFloat()
+            particleVelocity.put(velocity)
+
+            particleColor.put(abs(xDir) * (velocity * 10.0f))
+            particleColor.put(abs(yDir) * (velocity * 10.0f))
+            particleColor.put(abs(zDir) * (velocity * 10.0f))
         }
         particlePos.flip()
         particleProp.flip()
         particleColor.flip()
+
         val particleGlyphs = ParticleGlyphs(particlePos, particleProp, particleColor, false)
         particleGlyphs.name = "Particles"
         scene.addChild(particleGlyphs)
@@ -78,54 +86,100 @@ class ParticleGlyphsExample : SceneryBase("ParticleGlyphsExample") {
             position = camStart
         }
         cam.perspectiveCamera(60.0f, windowWidth, windowHeight)
+        cam.targeted = true
         cam.target = Vector3f(0.0f, 0.0f, 0.0f)
         scene.addChild(cam)
 
+        val light3 = PointLight(radius = 50.0f)
+        light3.spatial().position = camStart + Vector3f(0.0f, 1.0f, 0.0f)
+        light3.intensity = 16.0f
+        light3.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
+        scene.addChild(light3)
 
-        val velocity = 0.10
         thread {
             while(!scene.initialized) {
                 Thread.sleep(200)
             }
-
+            Thread.sleep(1000)
             while (running) {
-
                 val particleNewPos = FloatBuffer.allocate(particleNumber * 3)
-                val particleNewColor = FloatBuffer.allocate(particleNumber * 3)
-                val particleNewProp = FloatBuffer.allocate(particleNumber * 2)
                 particlePos.position(0)
-                particleColor.position(0)
-                particleProp.position(0)
+
+                particleDir.position(0)
+                particleVelocity.position(0)
+
                 repeat(particleNumber)
                 {
-                    particleNewPos.put(particlePos.get() + Random.nextDouble(-velocity, velocity).toFloat())
-                    particleNewPos.put(particlePos.get() + Random.nextDouble(-velocity, velocity).toFloat())
-                    particleNewPos.put(particlePos.get() + Random.nextDouble(-velocity, velocity).toFloat())
-
-                    particleNewColor.put(particleColor.get() + Random.nextDouble(0.1, 0.2).toFloat())
-                    particleNewColor.put(particleColor.get() + Random.nextDouble(0.1, 0.2).toFloat())
-                    particleNewColor.put(particleColor.get() + Random.nextDouble(0.1, 0.2).toFloat())
-
-                    particleNewProp.put(particleProp.get() + Random.nextDouble(-velocity, velocity).toFloat())
-                    particleNewProp.put(0.0f)
-
+                    val velocity = particleVelocity.get()
+                    particleNewPos.put(particlePos.get() + particleDir.get() * velocity)
+                    particleNewPos.put(particlePos.get() + particleDir.get() * velocity)
+                    particleNewPos.put(particlePos.get() + particleDir.get() * velocity)
                 }
                 particleNewPos.flip()
-                particleNewColor.flip()
-                particleNewProp.flip()
-
                 particlePos.flip()
-                particleColor.flip()
-                particleProp.flip()
-                particleGlyphs.updatePositions(particleNewPos)
-                particleGlyphs.updateProperties(particleNewProp, particleNewColor)
+                particlePos.put(particleNewPos)
+                particlePos.flip()
+                particleGlyphs.updatePositions(particlePos)
 
                 Thread.sleep(50)
             }
         }
 
+        var camPos = camStart
+        val velocityFactor = 0.01f
+        val velocity = 0.25f
+        var amount = 0.0f
+
+        /*thread {
+            while(!scene.initialized) {
+                Thread.sleep(200)
+            }
+            Thread.sleep(1000)
+
+            while(true) {
+                amount += velocity
+                camPos.x = sin(amount * velocityFactor) * camStartDist
+                camPos.z = cos(amount * velocityFactor) * camStartDist
+                cam.spatial {
+                    rotation.rotateY(-velocityFactor * 2.5f / 10.0f)
+                    position = camPos
+                }
+                light3.spatial()
+                {
+                    position = (cam.spatial().position) + Vector3f(0.0f, 1.0f, 0.0f)
+                }
+                Thread.sleep(20)
+            }
+        }
+
+        thread {
+            while(renderer?.firstImageReady == false) {
+                Thread.sleep(50)
+            }
+            settings.set("VideoEncoder.Quality", "High")
+            Thread.sleep(6000)
+            renderer?.recordMovie("./ParticleGlyphsExample.mp4")
+            Thread.sleep(15000)
+            renderer?.recordMovie()
+        }*/
     }
 
+    override fun main() {
+        // add assertions, these only get called when the example is called
+        // as part of scenery's integration tests
+        assertions[AssertionCheckPoint.AfterClose]?.add {
+            val f = File("./ParticleGlyphsExample.mp4")
+            try {
+                assertTrue(f.length() > 0, "Size of recorded video is larger than zero.")
+            } finally {
+                if(f.exists()) {
+                    f.delete()
+                }
+            }
+        }
+
+        super.main()
+    }
     companion object {
         @JvmStatic
         fun main(args: Array<String>) {
