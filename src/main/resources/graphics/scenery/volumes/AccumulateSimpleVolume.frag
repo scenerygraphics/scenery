@@ -1,4 +1,4 @@
-if (vis)
+if (vis && step > localNear && step < localFar)
 {
     vec4 x = sampleVolume(wpos);
     float newAlpha = x.a;
