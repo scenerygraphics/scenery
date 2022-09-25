@@ -23,6 +23,8 @@ import org.zeromq.ZMQ
 import org.zeromq.ZMQException
 import java.io.ByteArrayInputStream
 import java.nio.ByteBuffer
+import java.nio.charset.Charset
+import kotlin.concurrent.thread
 
 /**
  * @author Aryaman Gupta <argupta@mpi-cbg.de>
@@ -100,7 +102,10 @@ class VDIClient : SceneryBase("VDI Rendering", 1280, 720, wantREPL = false) {
         scene.addChild(plane)
         plane.material().textures["diffuse"] = compute.material().textures["OutputViewport"]!!
 
-        receiveAndUpdateVDI(compute)
+        thread {
+            receiveAndUpdateVDI(compute)
+        }
+
     }
 
     private fun receiveAndUpdateVDI(compute: CustomNode) {
@@ -120,61 +125,97 @@ class VDIClient : SceneryBase("VDI Rendering", 1280, 720, wantREPL = false) {
         val compressor = VDICompressor()
         val compressionTool = VDICompressor.CompressionTool.LZ4
 
-        val color = MemoryUtil.memCalloc(windowWidth * windowHeight * numSupersegments * 4 * 4)
-        val depth = MemoryUtil.memCalloc(windowWidth * windowHeight * numSupersegments * 2 * 4)
+        val colorSize = windowWidth * windowHeight * numSupersegments * 4 * 4
+        val depthSize = windowWidth * windowHeight * numSupersegments * 2 * 4
+
+        val decompressionBuffer = 1024
+
+        val color = MemoryUtil.memCalloc(colorSize + decompressionBuffer)
+        val depth = MemoryUtil.memCalloc(depthSize + decompressionBuffer)
 
         val compressedColor: ByteBuffer =
-            MemoryUtil.memAlloc(compressor.returnCompressBound(color.remaining().toLong(), compressionTool))
+            MemoryUtil.memAlloc(compressor.returnCompressBound(colorSize.toLong(), compressionTool))
         val compressedDepth: ByteBuffer =
-            MemoryUtil.memAlloc(compressor.returnCompressBound(depth.remaining().toLong(), compressionTool))
+            MemoryUtil.memAlloc(compressor.returnCompressBound(depthSize.toLong(), compressionTool))
 
 
         while(true) {
-            val payload = subscriber.recv()
-            if (payload != null) {
-                val metadata = ByteArrayInputStream(payload)
-                vdiData = VDIDataIO.read(metadata)
-            } else {
-                logger.info("Payload received but is null")
-            }
+//            val payload = subscriber.recv()
+//            logger.info("Received metadata message of size ${payload.size}")
+//            if (payload != null) {
+//                val metadata = ByteArrayInputStream(payload)
+//                vdiData = VDIDataIO.read(metadata)
+//                logger.info("Received metadata has nw: ${vdiData.metadata.nw}")
+//            } else {
+//                logger.info("Payload received but is null")
+//            }
+
+//            val a = subscriber.recv()
+//            logger.info("Receive sum: ${a.sum()}")
 
             var bytesRead = subscriber.recvByteBuffer(compressedColor, 0)
+            compressedColor.flip()
+            val temp = ByteArray(compressedColor.remaining())
+            compressedColor.get(temp)
+            compressedColor.rewind()
+            logger.info("Sum on recvd color ${temp.sum()}")
+            logger.info("Received compressed color buffer of size $bytesRead")
+
+            val bb = ByteBuffer.allocate(500)
+            bb.flip()
+
+//            bytesRead = subscriber.recvByteBuffer(bb, 0)
+//            val tempMiddle = ByteArray(bb.remaining())
+            val tempMiddle = subscriber.recv()
+//            bb.get(tempMiddle)
+
+            logger.info("Middle message received is: ${tempMiddle.toString(Charsets.US_ASCII)}")
+
             if (bytesRead != -1) {
-                val decompressedColorLength = compressor.decompress(color, compressedColor, compressionTool)
-                if (decompressedColorLength.toInt() != color.remaining()) {
-                    logger.warn("Error decompressing color message")
+                compressedColor.limit(bytesRead)
+                val decompressedColorLength = compressor.decompress(color, compressedColor.slice(), compressionTool)
+                compressedColor.limit(compressedColor.capacity())
+                if (decompressedColorLength.toInt() != colorSize) {
+                    logger.warn("Error decompressing color message. Decompressed length: $decompressedColorLength and desired size: $colorSize")
                 }
             } else {
                 logger.info("Error while receiving color bytebuffer")
             }
 
             bytesRead = subscriber.recvByteBuffer(compressedDepth, 0)
+            compressedDepth.position(0)
+            logger.info("Received compressed depth buffer of size $bytesRead")
             if (bytesRead != -1) {
-                val decompressedDepthLength = compressor.decompress(depth, compressedDepth, compressionTool)
-                if (decompressedDepthLength.toInt() != depth.remaining()) {
-                    logger.warn("Error decompressing depth message")
+                compressedDepth.limit(bytesRead)
+                val decompressedDepthLength = compressor.decompress(depth, compressedDepth.slice(), compressionTool)
+                compressedDepth.limit(compressedDepth.capacity())
+                if (decompressedDepthLength.toInt() != depthSize) {
+                    logger.warn("Error decompressing depth message. Decompressed length: $decompressedDepthLength and desired size: $depthSize")
                 }
             } else {
                 logger.info("Error while receiving color bytebuffer")
             }
 
-            compute.material().textures["InputVDI"] = Texture(Vector3i(numSupersegments, windowHeight, windowWidth), 4, contents = color, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
+            color.limit(color.remaining() - decompressionBuffer)
+            compute.material().textures["InputVDI"] = Texture(Vector3i(numSupersegments, windowHeight, windowWidth), 4, contents = color.slice(), usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
                 type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+            color.limit(color.capacity())
 
-
-            compute.material().textures["DepthVDI"] = Texture(Vector3i(2*numSupersegments, windowHeight, windowWidth),  channels = 1, contents = depth, usageType = hashSetOf(
+            depth.limit(depth.remaining() - decompressionBuffer)
+            compute.material().textures["DepthVDI"] = Texture(Vector3i(2*numSupersegments, windowHeight, windowWidth),  channels = 1, contents = depth.slice(), usageType = hashSetOf(
                 Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+            depth.limit(depth.capacity())
 
-            compute.ProjectionOriginal = Matrix4f(vdiData.metadata.projection).applyVulkanCoordinateSystem()
-            compute.invProjectionOriginal = Matrix4f(vdiData.metadata.projection).applyVulkanCoordinateSystem().invert()
-            compute.ViewOriginal = vdiData.metadata.view
-            compute.nw = vdiData.metadata.nw
-            compute.invViewOriginal = Matrix4f(vdiData.metadata.view).invert()
-            compute.invModel = Matrix4f(vdiData.metadata.model).invert()
-            compute.volumeDims = vdiData.metadata.volumeDimensions
-            compute.do_subsample = false
-
-            compute.visible = true
+//            compute.ProjectionOriginal = Matrix4f(vdiData.metadata.projection).applyVulkanCoordinateSystem()
+//            compute.invProjectionOriginal = Matrix4f(vdiData.metadata.projection).applyVulkanCoordinateSystem().invert()
+//            compute.ViewOriginal = vdiData.metadata.view
+//            compute.nw = vdiData.metadata.nw
+//            compute.invViewOriginal = Matrix4f(vdiData.metadata.view).invert()
+//            compute.invModel = Matrix4f(vdiData.metadata.model).invert()
+//            compute.volumeDims = vdiData.metadata.volumeDimensions
+//            compute.do_subsample = false
+//
+//            compute.visible = true
 
             logger.info("Received and updated VDI data")
         }
