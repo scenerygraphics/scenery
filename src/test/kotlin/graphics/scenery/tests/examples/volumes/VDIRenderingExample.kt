@@ -20,12 +20,15 @@ import graphics.scenery.volumes.vdi.VDIDataIO
 import net.imglib2.type.numeric.integer.UnsignedIntType
 import net.imglib2.type.numeric.integer.UnsignedShortType
 import net.imglib2.type.numeric.real.FloatType
+import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream
+import org.apache.commons.compress.compressors.snappy.SnappyCompressorInputStream
 import org.joml.Matrix4f
 import org.joml.Quaternionf
 import org.joml.Vector3f
 import org.joml.Vector3i
 import org.lwjgl.system.MemoryUtil
 import org.scijava.ui.behaviour.ClickBehaviour
+import org.xerial.snappy.SnappyFramedInputStream
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
@@ -70,13 +73,13 @@ class CustomNode : RichNode() {
     var max_samples = 50
 }
 
-class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = false) {
+class VDIRenderingExample : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = false) {
     var hmd: TrackedStereoGlasses? = null
 
     val separateDepth = true
     val profileMemoryAccesses = false
     val compute = CustomNode()
-    val closeAfter = 45000L
+    val closeAfter = 25000L
     var dataset = "Kingsnake"
     var baseDataset = dataset
     val numOctreeLayers = 8.0
@@ -211,8 +214,8 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
 //            position = Vector3f( 4.458E+0f, -9.057E-1f,  4.193E+0f) //V2 for Kingsnake
 //            rotation = Quaternionf( 1.238E-1, -3.649E-1,-4.902E-2,  9.215E-1)
 
-            position = Vector3f( 6.284E+0f, -4.932E-1f,  4.787E+0f) //V2 for Simulation
-            rotation = Quaternionf( 1.162E-1, -4.624E-1, -6.126E-2,  8.769E-1)
+//            position = Vector3f( 6.284E+0f, -4.932E-1f,  4.787E+0f) //V2 for Simulation
+//            rotation = Quaternionf( 1.162E-1, -4.624E-1, -6.126E-2,  8.769E-1)
 //
 //            position = Vector3f( 1.897E+0f, -5.994E-1f, -1.899E+0f) //V1 for Boneplug
 //            rotation = Quaternionf( 5.867E-5,  9.998E-1,  1.919E-2,  4.404E-3)
@@ -273,12 +276,12 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
         var colBuffer: ByteBuffer
         var depthBuffer: ByteBuffer?
 
-        colBuffer = MemoryUtil.memCalloc(windowHeight * windowWidth * numSupersegments * numLayers * 4 * 4)
+        colBuffer = MemoryUtil.memCalloc(vdiData.metadata.windowDimensions.y, vdiData.metadata.windowDimensions.x * numSupersegments * numLayers * 4 * 4)
         colBuffer.put(buff).flip()
 
         if(separateDepth) {
 //            depthBuffer = MemoryUtil.memCalloc(windowHeight * windowWidth * numSupersegments * 4 * 2 * 2)
-            depthBuffer = MemoryUtil.memCalloc(windowHeight * windowWidth * numSupersegments * 4 * 2) //TODO: IMP! This should be 2*2 for uint
+            depthBuffer = MemoryUtil.memCalloc(vdiData.metadata.windowDimensions.y, vdiData.metadata.windowDimensions.x * numSupersegments * 4 * 2) //TODO: IMP! This should be 2*2 for uint
             depthBuffer.put(depthBuff).flip()
         } else {
             depthBuffer = null
@@ -307,12 +310,12 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
                 textures["EmptyAfterLast"] = Texture.fromImage(Image(opNumAfterLast, windowWidth, windowHeight), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), channels = 1, mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
             }
 
-            textures["InputVDI"] = Texture(Vector3i(numLayers*numSupersegments, windowHeight, windowWidth), 4, contents = colBuffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
+            textures["InputVDI"] = Texture(Vector3i(numLayers*numSupersegments, vdiData.metadata.windowDimensions.y, vdiData.metadata.windowDimensions.x), 4, contents = colBuffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
                 type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
         }
 
         if(separateDepth) {
-            compute.material().textures["DepthVDI"] = Texture(Vector3i(2*numSupersegments, windowHeight, windowWidth),  channels = 1, contents = depthBuffer, usageType = hashSetOf(
+            compute.material().textures["DepthVDI"] = Texture(Vector3i(2*numSupersegments, vdiData.metadata.windowDimensions.y, vdiData.metadata.windowDimensions.x),  channels = 1, contents = depthBuffer, usageType = hashSetOf(
                 Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
 //            compute.material().textures["DepthVDI"] = Texture(Vector3i(2 * numSupersegments, windowHeight, windowWidth),  channels = 1, contents = depthBuffer, usageType = hashSetOf(
 //                Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)

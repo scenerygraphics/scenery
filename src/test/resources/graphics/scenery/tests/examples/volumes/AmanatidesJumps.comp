@@ -162,6 +162,7 @@ struct rayProperties {
 
 mat4 pv_orig, ivp_orig;
 int windowWidth, windowHeight;
+int vdiWidth, vdiHeight;
 
 rayProperties originalRay; // the ray (i.e. list) from the original VDI that is currently being intersected
 rayProperties newRay; // the ray from the new viewpoint that this kernel invocation is traversing
@@ -595,8 +596,8 @@ void linSearch(int rayX, int rayY, int start, int limit, float dist_to_orig, out
             break; // there are no more supersegments in this list, so break
         }
 
-        float ndc_x = float(rayX) / windowWidth * 2.0 - 1.0;
-        float ndc_y = float(rayY) / windowHeight * 2.0 - 1.0;
+        float ndc_x = float(rayX) / vdiWidth * 2.0 - 1.0;
+        float ndc_y = float(rayY) / vdiHeight * 2.0 - 1.0;
 
         vec2 uv = vec2(ndc_x, ndc_y);
 
@@ -647,8 +648,8 @@ void findListNumber(vec4 wpos, out ivec2 listNum, out vec4 NDC_orig) {
 
     vec2 tex_orig = (NDC_orig.xy + 1) / 2.0;
 
-    listNum.x = int(round(tex_orig.x * windowWidth)); //TODO: verify that this is correct. Maybe floor makes more sense?
-    listNum.y = int(round(tex_orig.y * windowHeight)); //TODO: verify that this is correct. Maybe floor makes more sense?
+    listNum.x = int(round(tex_orig.x * vdiWidth)); //TODO: verify that this is correct. Maybe floor makes more sense?
+    listNum.y = int(round(tex_orig.y * vdiHeight)); //TODO: verify that this is correct. Maybe floor makes more sense?
 }
 
 void nextSupersegmentInList(ivec2 theList, float exit_distance, bool dotPositive, out bool supseg_found, out int index, out float depthStart, out float depthEnd) {
@@ -929,8 +930,8 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
         return;
     }
 
-    float ndc_x = float(theList.x) / windowWidth * 2.0 - 1.0;
-    float ndc_y = float(theList.y) / windowHeight * 2.0 - 1.0;
+    float ndc_x = float(theList.x) / vdiWidth * 2.0 - 1.0;
+    float ndc_y = float(theList.y) / vdiHeight * 2.0 - 1.0;
 
     originalRay.coords = theList;
     originalRay.NDC_front = vec4( ndc_x, ndc_y, -1, 1 );
@@ -1172,8 +1173,8 @@ void traverse_subsample(vec4 world_entry, vec4 world_end, float total_distance, 
         vec2 tex = (npos.xy + 1) / 2.0;
 
         ivec2 list_coords;
-        list_coords.x = int(round(tex.x * windowWidth));
-        list_coords.y = int(round(tex.y * windowHeight));
+        list_coords.x = int(round(tex.x * vdiWidth));
+        list_coords.y = int(round(tex.y * vdiHeight));
 
         originalRay.coords = list_coords;
         originalRay.NDC_front = vec4( npos.xy, -1, 1 );
@@ -1266,8 +1267,8 @@ void traverse_cell(vec4 entry_point, ivec2 entry_list, vec3 cell_min, vec3 cell_
 
     float finalZ = dir.z > 0 ? cell_max.z : cell_min.z; //TODO: Should this be 0 instead of -1
 
-    float nextX_ndc = nextX / windowWidth * 2.0 - 1.0;
-    float nextY_ndc = nextY / windowHeight * 2.0 - 1.0;
+    float nextX_ndc = nextX / vdiWidth * 2.0 - 1.0;
+    float nextY_ndc = nextY / vdiHeight * 2.0 - 1.0;
 
     float tmaxX = dir.x != 0 ? abs((nextX_ndc - entry_point.x) / dir.x) : 10000000;
     float tmaxY = dir.y != 0 ? abs((nextY_ndc - entry_point.y) / dir.y) : 10000000;
@@ -1438,8 +1439,8 @@ ivec3 findGridCell(vec4 position) {
 ivec3 findGridCell(ivec2 theList, float depth) {
 
     ivec3 grid_cell;
-    grid_cell.x = int(floor((float(theList.x) / windowWidth) * num_cells.x));
-    grid_cell.y = int(floor((float(theList.y) / windowHeight) * num_cells.y));
+    grid_cell.x = int(floor((float(theList.x) / vdiWidth) * num_cells.x));
+    grid_cell.y = int(floor((float(theList.y) / vdiHeight) * num_cells.y));
 
     #if USE_VIEW_SPACE_CELLS
     grid_cell.z = findZInterval_view(depth);
@@ -1467,8 +1468,11 @@ void main() {
     windowWidth = imageCoords.x;
     windowHeight = imageCoords.y;
 
-    maxSupersegments = imageSize(InputVDI).r;
+    ivec3 vdiCoords = imageSize(InputVDI);
+    maxSupersegments = vdiCoords.x;
 //    maxSupersegments = 20;
+    vdiWidth = vdiCoords.z;
+    vdiHeight = vdiCoords.y;
 
     highp mat4 ipv = InverseViewMatrices[0] * InverseProjectionMatrix;
 
@@ -1500,7 +1504,7 @@ void main() {
 
     ivp_orig = invViewOriginal * invProjectionOriginal;
 
-    vec2 texcoord = gl_GlobalInvocationID.xy/vec2(windowWidth, windowHeight);
+    vec2 texcoord = gl_GlobalInvocationID.xy/vec2(windowWidth, windowHeight); //TODO: here the ww and wh need to remain as they are
     vec2 uv = texcoord * 2.0 - vec2(1.0);
     vec2 depthUV = (vrParameters.stereoEnabled ^ 1) * texcoord + vrParameters.stereoEnabled * vec2((texcoord.x/2.0 + currentEye.eye * 0.5), texcoord.y);
     depthUV = depthUV * 2.0 - vec2(1.0);
@@ -1569,7 +1573,7 @@ void main() {
         // calculate the value of an acceptable small step
         //calculate min width of a supseg list in NDC
         vec4 n_start = vec4(0, 0, 0, 1);
-        vec4 n_end = vec4((2. / max(windowHeight, windowWidth)), 0, 0, 1);
+        vec4 n_end = vec4((2. / max(vdiHeight, vdiWidth)), 0, 0, 1);
 
         vec4 w_start = ivp_orig * n_start;
         w_start = w_start / w_start.w;
@@ -1667,8 +1671,8 @@ void main() {
                 step = distance(l_pt_w, newRay.wfront) / distance(newRay.wfront, newRay.wback);
                 vec2 tex_orig = (l_pt.xy + 1) / 2.0;
 
-                firstList.x = int(round(tex_orig.x * windowWidth));
-                firstList.y = int(round(tex_orig.y * windowHeight));
+                firstList.x = int(round(tex_orig.x * vdiWidth));
+                firstList.y = int(round(tex_orig.y * vdiHeight));
 
                 first_entry_pt = l_pt;
                 final_exit_pt = f_pt;
@@ -1676,8 +1680,8 @@ void main() {
                 step = distance(f_pt_w, newRay.wfront) / distance(newRay.wfront, newRay.wback);
                 vec2 tex_orig = (f_pt.xy + 1) / 2.0;
 
-                firstList.x = int(round(tex_orig.x * windowWidth));
-                firstList.y = int(round(tex_orig.y * windowHeight));
+                firstList.x = int(round(tex_orig.x * vdiWidth));
+                firstList.y = int(round(tex_orig.y * vdiHeight));
 
                 first_entry_pt = f_pt;
                 final_exit_pt = l_pt;
@@ -1709,8 +1713,8 @@ void main() {
     stepY = dir.y > 0 ? 1 : -1;
     int stepZ = dir.z > 0 ? 1 : -1;
 
-    tdeltaX = abs((2.0 / windowWidth) / dir.x);
-    tdeltaY = abs((2.0 / windowHeight) / dir.y);
+    tdeltaX = abs((2.0 / vdiWidth) / dir.x);
+    tdeltaY = abs((2.0 / vdiHeight) / dir.y);
 
 //    #if USE_PRINTF
 //    if(gl_GlobalInvocationID.xy == debug_pixel) {
@@ -1757,8 +1761,8 @@ void main() {
 
         vec2 tex_orig = (start_point.xy + 1.0) / 2.0;
 
-        start_list.x = int(round(tex_orig.x * windowWidth));
-        start_list.y = int(round(tex_orig.y * windowHeight));
+        start_list.x = int(round(tex_orig.x * vdiWidth));
+        start_list.y = int(round(tex_orig.y * vdiHeight));
 
         next_list = start_list;
 
@@ -2006,8 +2010,8 @@ void main() {
                 end_point = first_entry_pt + t * dir;
                 tex_orig = (end_point.xy + 1.0)/2.0;
 
-                next_list.x = int(round(tex_orig.x * windowWidth));
-                next_list.y = int(round(tex_orig.y * windowHeight));
+                next_list.x = int(round(tex_orig.x * vdiWidth));
+                next_list.y = int(round(tex_orig.y * vdiHeight));
             } else {
                 end_point = end_traversal;
                 //we have next_list from the traversal method
