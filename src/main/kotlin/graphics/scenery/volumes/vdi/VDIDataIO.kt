@@ -21,6 +21,7 @@ class VDIDataIO {
                 temp.register(VDIData::class.java)
 //                temp.register(ByteBuffer::class.java, ByteBufferSerializer())
 //                temp.register(b.javaClass, ByteBufferSerializer())
+                temp.register(VDIBufferSizes::class.java)
                 temp.register(VDIMetadata::class.java)
                 temp.register(Matrix4f::class.java)
                 temp.register(Vector3f::class.java)

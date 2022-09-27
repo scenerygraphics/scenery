@@ -7,6 +7,7 @@ import java.nio.ByteBuffer
 
 data class VDIMetadata(
     val version: Int = 1,
+    var index: Int = 0,
     var projection: Matrix4f = Matrix4f(),
     var view: Matrix4f = Matrix4f(),
     val model: Matrix4f = Matrix4f(),
@@ -15,9 +16,15 @@ data class VDIMetadata(
     val nw: Float = 0f
 )
 
+data class VDIBufferSizes(
+    var colorSize: Long = 0,
+    var depthSize: Long = 0
+)
+
 data class VDIData(
 //    val vdiDepth: ByteBuffer = ByteBuffer.allocate(1),
 //    val vdiColor: ByteBuffer = ByteBuffer.allocate(1),
 //    val gridCells: ByteBuffer = ByteBuffer.allocate(1),
+    val bufferSizes: VDIBufferSizes = VDIBufferSizes(),
     val metadata: VDIMetadata = VDIMetadata()
 )
