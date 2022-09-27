@@ -17,7 +17,20 @@ uniform sampler2D colorMap;
 
 float returnRawSample( vec4 wpos ) {
     vec3 pos = (im * wpos).xyz + 0.5;
-    float rawsample = convert(texture( volume, pos / textureSize( volume, 0 ) ).r);
+
+    //    #if USE_PRINTF
+    //    if(pixel_coords.xy == debug_pixel) {
+    //        debugPrintfEXT("Sampling at pos: (%f, %f, %f). texture size: (%d, %d, %d)", pos.xyz, textureSize( volume, 0 ).xyz);
+    //    }
+    //    #endif
+
+    vec3 samplePos = pos / textureSize( volume, 0 );
+
+    if(samplePos.x > 1 || samplePos.y > 1 || samplePos.z > 1 || samplePos.x < 0 || samplePos.y < 0 || samplePos.z < 0) {
+        return 0;
+    }
+
+    float rawsample = convert(texture( volume, samplePos ).r);
 
     return rawsample;
 }
