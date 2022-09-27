@@ -25,6 +25,7 @@ import java.io.ByteArrayInputStream
 import java.nio.ByteBuffer
 import java.nio.charset.Charset
 import kotlin.concurrent.thread
+import kotlin.system.measureNanoTime
 
 /**
  * @author Aryaman Gupta <argupta@mpi-cbg.de>
@@ -109,7 +110,7 @@ class VDIClient : SceneryBase("VDI Rendering", 1280, 720, wantREPL = false) {
     }
 
     private fun receiveAndUpdateVDI(compute: CustomNode) {
-        val context = ZContext(4)
+        val context = ZContext(1)
         var subscriber: ZMQ.Socket = context.createSocket(SocketType.SUB)
         subscriber.setConflate(true)
 //        val address = "tcp://localhost:6655"
@@ -142,13 +143,23 @@ class VDIClient : SceneryBase("VDI Rendering", 1280, 720, wantREPL = false) {
 
         while(true) {
 
-            val payload = subscriber.recv()
+            val payload: ByteArray?
 
-            val metadataSize = 233 //hard coded for the moment
+            val receiveTime = measureNanoTime {
+                payload = subscriber.recv()
 
-            logger.info("Received payload of size ${payload.size}. Sum is: ${payload.sum()}")
+                logger.info("Received payload of size ${payload.size}. Sum is: ${payload.sum()}")
+            }
+
+            logger.info("Time taken for the receive: ${receiveTime/1e9}")
+
+
             if (payload != null) {
-                val metadata = ByteArrayInputStream(payload.sliceArray(0 until metadataSize))
+                val metadataSize = payload.sliceArray(0 until 3).toString(Charsets.US_ASCII).toInt() //hardcoded 3 digit number
+
+                logger.info("vdi data size is: $metadataSize")
+
+                val metadata = ByteArrayInputStream(payload.sliceArray(3 until (metadataSize + 3)))
                 vdiData = VDIDataIO.read(metadata)
                 logger.info("Received metadata has nw: ${vdiData.metadata.nw}")
                 logger.info("Index of received VDI: ${vdiData.metadata.index}")
@@ -156,9 +167,9 @@ class VDIClient : SceneryBase("VDI Rendering", 1280, 720, wantREPL = false) {
                 val compressedColorLength = vdiData.bufferSizes.colorSize
                 val compressedDepthLength = vdiData.bufferSizes.depthSize
 
-                compressedColor.put(payload.sliceArray(metadataSize until (metadataSize + compressedColorLength.toInt())))
+                compressedColor.put(payload.sliceArray((metadataSize + 3) until (metadataSize + 3 + compressedColorLength.toInt())))
                 compressedColor.flip()
-                compressedDepth.put(payload.sliceArray(metadataSize + compressedColorLength.toInt() until payload.size))
+                compressedDepth.put(payload.sliceArray((metadataSize + 3) + compressedColorLength.toInt() until payload.size))
                 compressedDepth.flip()
 
                 compressedColor.limit(compressedColorLength.toInt())
@@ -175,30 +186,31 @@ class VDIClient : SceneryBase("VDI Rendering", 1280, 720, wantREPL = false) {
                     logger.warn("Error decompressing depth message. Decompressed length: $decompressedDepthLength and desired size: $depthSize")
                 }
 
+                color.limit(color.remaining() - decompressionBuffer)
+                compute.material().textures["InputVDI"] = Texture(Vector3i(numSupersegments, windowHeight, windowWidth), 4, contents = color.slice(), usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
+                    type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+                color.limit(color.capacity())
+
+                depth.limit(depth.remaining() - decompressionBuffer)
+                compute.material().textures["DepthVDI"] = Texture(Vector3i(2*numSupersegments, windowHeight, windowWidth),  channels = 1, contents = depth.slice(), usageType = hashSetOf(
+                    Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+                depth.limit(depth.capacity())
+
+                compute.ProjectionOriginal = Matrix4f(vdiData.metadata.projection).applyVulkanCoordinateSystem()
+                compute.invProjectionOriginal = Matrix4f(vdiData.metadata.projection).applyVulkanCoordinateSystem().invert()
+                compute.ViewOriginal = vdiData.metadata.view
+                compute.nw = vdiData.metadata.nw
+                compute.invViewOriginal = Matrix4f(vdiData.metadata.view).invert()
+                compute.invModel = Matrix4f(vdiData.metadata.model).invert()
+                compute.volumeDims = vdiData.metadata.volumeDimensions
+                compute.do_subsample = false
+
+                compute.visible = true
+
             } else {
                 logger.info("Payload received but is null")
             }
 
-            color.limit(color.remaining() - decompressionBuffer)
-            compute.material().textures["InputVDI"] = Texture(Vector3i(numSupersegments, windowHeight, windowWidth), 4, contents = color.slice(), usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
-                type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
-            color.limit(color.capacity())
-
-            depth.limit(depth.remaining() - decompressionBuffer)
-            compute.material().textures["DepthVDI"] = Texture(Vector3i(2*numSupersegments, windowHeight, windowWidth),  channels = 1, contents = depth.slice(), usageType = hashSetOf(
-                Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
-            depth.limit(depth.capacity())
-
-//            compute.ProjectionOriginal = Matrix4f(vdiData.metadata.projection).applyVulkanCoordinateSystem()
-//            compute.invProjectionOriginal = Matrix4f(vdiData.metadata.projection).applyVulkanCoordinateSystem().invert()
-//            compute.ViewOriginal = vdiData.metadata.view
-//            compute.nw = vdiData.metadata.nw
-//            compute.invViewOriginal = Matrix4f(vdiData.metadata.view).invert()
-//            compute.invModel = Matrix4f(vdiData.metadata.model).invert()
-//            compute.volumeDims = vdiData.metadata.volumeDimensions
-//            compute.do_subsample = false
-//
-//            compute.visible = true
 
             logger.info("Received and updated VDI data")
         }
