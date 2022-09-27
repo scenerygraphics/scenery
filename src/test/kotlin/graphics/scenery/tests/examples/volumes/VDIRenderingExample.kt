@@ -71,6 +71,9 @@ class CustomNode : RichNode() {
 
     @ShaderProperty
     var max_samples = 50
+
+    @ShaderProperty
+    var sampling_factor = 0.1f
 }
 
 class VDIRenderingExample : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = false) {
@@ -85,12 +88,12 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = 
     val numOctreeLayers = 8.0
     val numSupersegments = 30
     var benchmarking = false
-    val skipEmpty = false
+    val skipEmpty = true
     val viewNumber = 1
-    val subsampling = false
+    val subsampling = true
     var subsampling_benchmarks = false
-    var desiredFrameRate = 30
-    var maxFrameRate = 90
+    var desiredFrameRate = 10
+    var maxFrameRate = 30
 
     val commSize = 4
     val rank = 0
@@ -102,8 +105,8 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = 
 //    val camTarget = Vector3f(1.920E+0f, -1.920E+0f,  1.140E+0f)
 //        val camTarget = Vector3f(1.920E+0f, -1.920E+0f,  2.899E+0f) //beechnut
 //    val camTarget = Vector3f(1.920E+0f, -1.920E+0f,  1.800E+0f) //simulation
-//    val camTarget = Vector3f(1.920E+0f, -1.920E+0f,  1.491E+0f) //kingsnake
-    val camTarget = Vector3f(1.920E+0f, -6.986E-1f,  6.855E-1f) //BonePlug
+    val camTarget = Vector3f(1.920E+0f, -1.920E+0f,  1.491E+0f) //kingsnake
+//    val camTarget = Vector3f(1.920E+0f, -6.986E-1f,  6.855E-1f) //BonePlug
 //    val camTarget = Vector3f( 1.920E+0f, -1.920E+0f,  1.800E+0f) //Rostrat
 
 
@@ -130,6 +133,11 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = 
         }
 
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
+
+        val effectiveWindowWidth: Int = (windowWidth * settings.get<Float>("Renderer.SupersamplingFactor")).toInt()
+        val effectiveWindowHeight: Int = (windowHeight * settings.get<Float>("Renderer.SupersamplingFactor")).toInt()
+
+        logger.warn("Got effective width as $effectiveWindowWidth and height as $effectiveWindowHeight")
 
         val light = PointLight(radius = 15.0f)
         light.spatial().position = Vector3f(0.0f, 0.0f, 2.0f)
@@ -265,13 +273,13 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = 
             octBuff = null
         }
 
-        val opBuffer = MemoryUtil.memCalloc(windowWidth * windowHeight * 4)
-        val opNumSteps = MemoryUtil.memCalloc(windowWidth * windowHeight * 4)
-        val opNumIntersect = MemoryUtil.memCalloc(windowWidth * windowHeight * 4)
-        val opNumEmptyL = MemoryUtil.memCalloc(windowWidth * windowHeight * 4)
-        val opNumSkipped = MemoryUtil.memCalloc(windowWidth * windowHeight * 4)
-        val opNumBefFirst = MemoryUtil.memCalloc(windowWidth * windowHeight * 4)
-        val opNumAfterLast = MemoryUtil.memCalloc(windowWidth * windowHeight * 4)
+        val opBuffer = MemoryUtil.memCalloc(effectiveWindowWidth * effectiveWindowHeight * 4)
+        val opNumSteps = MemoryUtil.memCalloc(effectiveWindowWidth * effectiveWindowHeight * 4)
+        val opNumIntersect = MemoryUtil.memCalloc(effectiveWindowWidth * effectiveWindowHeight * 4)
+        val opNumEmptyL = MemoryUtil.memCalloc(effectiveWindowWidth * effectiveWindowHeight * 4)
+        val opNumSkipped = MemoryUtil.memCalloc(effectiveWindowWidth * effectiveWindowHeight * 4)
+        val opNumBefFirst = MemoryUtil.memCalloc(effectiveWindowWidth * effectiveWindowHeight * 4)
+        val opNumAfterLast = MemoryUtil.memCalloc(effectiveWindowWidth * effectiveWindowHeight * 4)
 
         var colBuffer: ByteBuffer
         var depthBuffer: ByteBuffer?
@@ -280,7 +288,6 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = 
         colBuffer.put(buff).flip()
 
         if(separateDepth) {
-//            depthBuffer = MemoryUtil.memCalloc(windowHeight * windowWidth * numSupersegments * 4 * 2 * 2)
             depthBuffer = MemoryUtil.memCalloc(vdiData.metadata.windowDimensions.y, vdiData.metadata.windowDimensions.x * numSupersegments * 4 * 2) //TODO: IMP! This should be 2*2 for uint
             depthBuffer.put(depthBuff).flip()
         } else {
@@ -288,7 +295,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = 
         }
 
 //        val numVoxels = 2.0.pow(numOctreeLayers)
-        val numGridCells = Vector3f(windowWidth.toFloat() / 8f, windowHeight.toFloat() / 8f, numSupersegments.toFloat())
+        val numGridCells = Vector3f(vdiData.metadata.windowDimensions.x.toFloat() / 8f, vdiData.metadata.windowDimensions.y.toFloat() / 8f, numSupersegments.toFloat())
 //        val numGridCells = Vector3f(256f, 256f, 256f)
         val lowestLevel = MemoryUtil.memCalloc(numGridCells.x.toInt() * numGridCells.y.toInt() * numGridCells.z.toInt() * 4)
         if(skipEmpty) {
@@ -299,15 +306,15 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = 
 
 //        compute.setMaterial(ShaderMaterial(Shaders.ShadersFromFiles(arrayOf("EfficientVDIRaycast.comp"), this@VDIRenderingExample::class.java))) {
         compute.setMaterial(ShaderMaterial(Shaders.ShadersFromFiles(arrayOf("AmanatidesJumps.comp"), this@VDIRenderingExample::class.java))) {
-            textures["OutputViewport"] = Texture.fromImage(Image(opBuffer, windowWidth, windowHeight), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
+            textures["OutputViewport"] = Texture.fromImage(Image(opBuffer, effectiveWindowWidth, effectiveWindowHeight), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
 
             if (profileMemoryAccesses) {
-                textures["NumSteps"] = Texture.fromImage(Image(opNumSteps, windowWidth, windowHeight), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), channels = 1, mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
-                textures["NumIntersectedSupsegs"] = Texture.fromImage(Image(opNumIntersect, windowWidth, windowHeight), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), channels = 1, mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
-                textures["NumEmptyLists"] = Texture.fromImage(Image(opNumEmptyL, windowWidth, windowHeight), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), channels = 1, mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
-                textures["NumNotIntLists"] = Texture.fromImage(Image(opNumSkipped, windowWidth, windowHeight), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), channels = 1, mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
-                textures["EmptyBeforeFirst"] = Texture.fromImage(Image(opNumBefFirst, windowWidth, windowHeight), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), channels = 1, mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
-                textures["EmptyAfterLast"] = Texture.fromImage(Image(opNumAfterLast, windowWidth, windowHeight), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), channels = 1, mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+                textures["NumSteps"] = Texture.fromImage(Image(opNumSteps, effectiveWindowWidth, effectiveWindowHeight), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), channels = 1, mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+                textures["NumIntersectedSupsegs"] = Texture.fromImage(Image(opNumIntersect, effectiveWindowWidth, effectiveWindowHeight), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), channels = 1, mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+                textures["NumEmptyLists"] = Texture.fromImage(Image(opNumEmptyL, effectiveWindowWidth, effectiveWindowHeight), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), channels = 1, mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+                textures["NumNotIntLists"] = Texture.fromImage(Image(opNumSkipped, effectiveWindowWidth, effectiveWindowHeight), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), channels = 1, mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+                textures["EmptyBeforeFirst"] = Texture.fromImage(Image(opNumBefFirst, effectiveWindowWidth, effectiveWindowHeight), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), channels = 1, mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+                textures["EmptyAfterLast"] = Texture.fromImage(Image(opNumAfterLast, effectiveWindowWidth, effectiveWindowHeight), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), channels = 1, mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
             }
 
             textures["InputVDI"] = Texture(Vector3i(numLayers*numSupersegments, vdiData.metadata.windowDimensions.y, vdiData.metadata.windowDimensions.x), 4, contents = colBuffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
@@ -324,7 +331,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = 
             compute.material().textures["OctreeCells"] = Texture(Vector3i(numGridCells.x.toInt(), numGridCells.y.toInt(), numGridCells.z.toInt()), 1, type = UnsignedIntType(), contents = lowestLevel, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
         }
         compute.metadata["ComputeMetadata"] = ComputeMetadata(
-            workSizes = Vector3i(windowWidth, windowHeight, 1),
+            workSizes = Vector3i(effectiveWindowWidth, effectiveWindowHeight, 1),
             invocationType = InvocationType.Permanent
         )
 
@@ -414,8 +421,11 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = 
             Thread.sleep(200)
         }
 
-        var currentSamples = 50.0
+        var currentSamples = 92.0
         compute.max_samples = currentSamples.toInt()
+
+        var samplingFactor = 0.1f
+        compute.sampling_factor = samplingFactor
 
         compute.do_subsample = true
 
@@ -425,9 +435,14 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = 
             val fps = stats.get("Renderer.fps")!!
             val scaleFactor = fps.avg() / desiredFrameRate
             val newSamples = scaleFactor * currentSamples
+            val newSamplingFactor = scaleFactor * samplingFactor
+
             if((newSamples < (currentSamples - tolerance)) || (newSamples > (currentSamples + tolerance))) {
+                logger.info("fps was: ${fps.avg()}. Therefore, setting new samples to: $newSamples")
                 currentSamples = newSamples
+                samplingFactor = newSamplingFactor
                 compute.max_samples = currentSamples.toInt()
+                compute.sampling_factor = samplingFactor
             } else if(subsampling_benchmarks) {
                 r.screenshot("${path}_$desiredFrameRate.png")
                 //wait for screenshot
@@ -504,7 +519,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = 
         setupCameraModeSwitching()
 
         inputHandler?.addBehaviour("rotate_camera", ClickBehaviour { _, _ ->
-            rotateCamera(5f)
+            rotateCamera(10f)
         })
         inputHandler?.addKeyBinding("rotate_camera", "R")
     }
