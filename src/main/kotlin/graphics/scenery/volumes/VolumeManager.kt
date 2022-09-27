@@ -297,7 +297,7 @@ class VolumeManager(
             "SampleSimpleVolume.frag",
             "im", "sourcemax", "intersectBoundingBox",
             "volume", "transferFunction", "colorMap", "sampleVolume", "convert", "slicingPlanes",
-            "slicingMode", "usedSlicingPlanes"
+            "slicingMode", "usedSlicingPlanes", "returnRawSample", "sampleTransferFunction"
         )
         segments[SegmentType.Convert] = SegmentTemplate(
             "Converter.frag",
@@ -309,7 +309,7 @@ class VolumeManager(
         )
         segments[SegmentType.Accumulator] = SegmentTemplate(
             "AccumulateSimpleVolume.frag",
-            "vis", "localNear", "localFar", "sampleVolume", "convert"
+            "vis", "localNear", "localFar", "sampleVolume", "convert", "sampleTransferFunction"
         )
 
         customSegments?.forEach { type, segment -> segments[type] = segment }
@@ -345,6 +345,8 @@ class VolumeManager(
                 instances[SegmentType.SampleMultiresolutionVolume]?.bind("convert", instances[SegmentType.Convert])
 
                 instances[SegmentType.SampleVolume]?.bind("convert", instances[SegmentType.Convert])
+
+                instances[SegmentType.Accumulator]?.bind("sampleTransferFunction", instances[SegmentType.SampleVolume])
             }
 
         val newProgvol = MultiVolumeShaderMip(
