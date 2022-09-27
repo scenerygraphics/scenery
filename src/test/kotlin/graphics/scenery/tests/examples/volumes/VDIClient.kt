@@ -111,6 +111,7 @@ class VDIClient : SceneryBase("VDI Rendering", 1280, 720, wantREPL = false) {
     private fun receiveAndUpdateVDI(compute: CustomNode) {
         val context = ZContext(4)
         var subscriber: ZMQ.Socket = context.createSocket(SocketType.SUB)
+        subscriber.setConflate(true)
 //        val address = "tcp://localhost:6655"
         val address = "tcp://10.1.224.71:6655"
         try {
@@ -140,60 +141,42 @@ class VDIClient : SceneryBase("VDI Rendering", 1280, 720, wantREPL = false) {
 
 
         while(true) {
-//            val payload = subscriber.recv()
-//            logger.info("Received metadata message of size ${payload.size}")
-//            if (payload != null) {
-//                val metadata = ByteArrayInputStream(payload)
-//                vdiData = VDIDataIO.read(metadata)
-//                logger.info("Received metadata has nw: ${vdiData.metadata.nw}")
-//            } else {
-//                logger.info("Payload received but is null")
-//            }
 
-//            val a = subscriber.recv()
-//            logger.info("Receive sum: ${a.sum()}")
+            val payload = subscriber.recv()
 
-            var bytesRead = subscriber.recvByteBuffer(compressedColor, 0)
-            compressedColor.flip()
-            val temp = ByteArray(compressedColor.remaining())
-            compressedColor.get(temp)
-            compressedColor.rewind()
-            logger.info("Sum on recvd color ${temp.sum()}")
-            logger.info("Received compressed color buffer of size $bytesRead")
+            val metadataSize = 233 //hard coded for the moment
 
-            val bb = ByteBuffer.allocate(500)
-            bb.flip()
+            logger.info("Received payload of size ${payload.size}. Sum is: ${payload.sum()}")
+            if (payload != null) {
+                val metadata = ByteArrayInputStream(payload.sliceArray(0 until metadataSize))
+                vdiData = VDIDataIO.read(metadata)
+                logger.info("Received metadata has nw: ${vdiData.metadata.nw}")
+                logger.info("Index of received VDI: ${vdiData.metadata.index}")
 
-//            bytesRead = subscriber.recvByteBuffer(bb, 0)
-//            val tempMiddle = ByteArray(bb.remaining())
-            val tempMiddle = subscriber.recv()
-//            bb.get(tempMiddle)
+                val compressedColorLength = vdiData.bufferSizes.colorSize
+                val compressedDepthLength = vdiData.bufferSizes.depthSize
 
-            logger.info("Middle message received is: ${tempMiddle.toString(Charsets.US_ASCII)}")
+                compressedColor.put(payload.sliceArray(metadataSize until (metadataSize + compressedColorLength.toInt())))
+                compressedColor.flip()
+                compressedDepth.put(payload.sliceArray(metadataSize + compressedColorLength.toInt() until payload.size))
+                compressedDepth.flip()
 
-            if (bytesRead != -1) {
-                compressedColor.limit(bytesRead)
+                compressedColor.limit(compressedColorLength.toInt())
                 val decompressedColorLength = compressor.decompress(color, compressedColor.slice(), compressionTool)
                 compressedColor.limit(compressedColor.capacity())
                 if (decompressedColorLength.toInt() != colorSize) {
                     logger.warn("Error decompressing color message. Decompressed length: $decompressedColorLength and desired size: $colorSize")
                 }
-            } else {
-                logger.info("Error while receiving color bytebuffer")
-            }
 
-            bytesRead = subscriber.recvByteBuffer(compressedDepth, 0)
-            compressedDepth.position(0)
-            logger.info("Received compressed depth buffer of size $bytesRead")
-            if (bytesRead != -1) {
-                compressedDepth.limit(bytesRead)
+                compressedDepth.limit(compressedDepthLength.toInt())
                 val decompressedDepthLength = compressor.decompress(depth, compressedDepth.slice(), compressionTool)
                 compressedDepth.limit(compressedDepth.capacity())
                 if (decompressedDepthLength.toInt() != depthSize) {
                     logger.warn("Error decompressing depth message. Decompressed length: $decompressedDepthLength and desired size: $depthSize")
                 }
+
             } else {
-                logger.info("Error while receiving color bytebuffer")
+                logger.info("Payload received but is null")
             }
 
             color.limit(color.remaining() - decompressionBuffer)
