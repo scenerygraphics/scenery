@@ -372,26 +372,30 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
         settings.set("Renderer.SupersamplingFactor", factor)
         settings.set("Renderer.SupersamplingFactor", factor)
 
-        val effectiveWindowWidth: Int = (windowWidth * factor).toInt()
-        val effectiveWindowHeight: Int = (windowHeight * factor).toInt()
+        compute.visible = false
 
         (renderer as VulkanRenderer).swapchainRecreator.mustRecreate = true
+
+        Thread.sleep(5000)
+
+        val effectiveWindowWidth: Int = (windowWidth * factor).toInt()
+        val effectiveWindowHeight: Int = (windowHeight * factor).toInt()
 
         logger.info("effective window width has been set to: $effectiveWindowWidth and height to: $effectiveWindowHeight")
 
         val opBuffer = MemoryUtil.memCalloc(effectiveWindowWidth * effectiveWindowHeight * 4)
 
-        compute.setMaterial(ShaderMaterial(Shaders.ShadersFromFiles(arrayOf("AmanatidesJumps.comp"), this@VDIRenderingExample::class.java))) {
-            textures["OutputViewport"] = Texture.fromImage(
+        compute.material().textures["OutputViewport"] = Texture.fromImage(
                 Image(opBuffer, effectiveWindowWidth, effectiveWindowHeight),
                 usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture)
             )
-        }
 
         compute.metadata["ComputeMetadata"] = ComputeMetadata(
             workSizes = Vector3i(effectiveWindowWidth, effectiveWindowHeight, 1),
             invocationType = InvocationType.Permanent
         )
+
+        compute.visible = true
     }
 
     fun setStratifiedDownsampling(stratified: Boolean) {
