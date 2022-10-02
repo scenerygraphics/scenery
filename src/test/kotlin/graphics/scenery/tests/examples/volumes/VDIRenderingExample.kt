@@ -14,30 +14,20 @@ import graphics.scenery.utils.SystemHelpers
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
-import graphics.scenery.volumes.VolumeManager
-import graphics.scenery.volumes.vdi.VDIData
 import graphics.scenery.volumes.vdi.VDIDataIO
 import net.imglib2.type.numeric.integer.UnsignedIntType
-import net.imglib2.type.numeric.integer.UnsignedShortType
 import net.imglib2.type.numeric.real.FloatType
-import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream
-import org.apache.commons.compress.compressors.snappy.SnappyCompressorInputStream
 import org.joml.Matrix4f
 import org.joml.Quaternionf
 import org.joml.Vector3f
 import org.joml.Vector3i
 import org.lwjgl.system.MemoryUtil
 import org.scijava.ui.behaviour.ClickBehaviour
-import org.xerial.snappy.SnappyFramedInputStream
 import java.io.File
 import java.io.FileInputStream
-import java.io.FileOutputStream
 import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicInteger
-import java.util.zip.GZIPInputStream
-import java.util.zip.GZIPOutputStream
 import kotlin.concurrent.thread
-import kotlin.math.pow
 
 /**
  * @author Aryaman Gupta <argupta@mpi-cbg.de>
@@ -74,25 +64,29 @@ class CustomNode : RichNode() {
 
     @ShaderProperty
     var sampling_factor = 0.1f
+
+    @ShaderProperty
+    var stratified_downsampling = false
 }
 
-class VDIRenderingExample : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = false) {
+class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = false) {
     var hmd: TrackedStereoGlasses? = null
 
     val separateDepth = true
     val profileMemoryAccesses = false
     val compute = CustomNode()
-    val closeAfter = 25000L
-    var dataset = "Kingsnake"
+    val closeAfter = 60000L
+    val autoClose = false
+    var dataset = System.getProperty("VDIBenchmark.Dataset")?.toString()?: "Kingsnake"
     var baseDataset = dataset
     val numOctreeLayers = 8.0
     val numSupersegments = 30
     var benchmarking = false
     val skipEmpty = true
     val viewNumber = 1
-    val subsampling = true
+    val dynamicSubsampling = false
     var subsampling_benchmarks = false
-    var desiredFrameRate = 10
+    var desiredFrameRate = 70
     var maxFrameRate = 30
 
     val commSize = 4
@@ -102,12 +96,26 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = 
 
     val cam: Camera = DetachedHeadCamera(hmd)
 
-//    val camTarget = Vector3f(1.920E+0f, -1.920E+0f,  1.140E+0f)
-//        val camTarget = Vector3f(1.920E+0f, -1.920E+0f,  2.899E+0f) //beechnut
-//    val camTarget = Vector3f(1.920E+0f, -1.920E+0f,  1.800E+0f) //simulation
-    val camTarget = Vector3f(1.920E+0f, -1.920E+0f,  1.491E+0f) //kingsnake
-//    val camTarget = Vector3f(1.920E+0f, -6.986E-1f,  6.855E-1f) //BonePlug
-//    val camTarget = Vector3f( 1.920E+0f, -1.920E+0f,  1.800E+0f) //Rostrat
+    val camTarget = when (dataset) {
+        "Kingsnake" -> {
+            Vector3f(1.920E+0f, -1.920E+0f,  1.491E+0f)
+        }
+        "Beechnut" -> {
+            Vector3f(1.920E+0f, -1.920E+0f,  2.899E+0f)
+        }
+        "Simulation" -> {
+            Vector3f(1.920E+0f, -1.920E+0f,  1.800E+0f)
+        }
+        "BonePlug" -> {
+            Vector3f(1.920E+0f, -6.986E-1f,  6.855E-1f)
+        }
+        "Rotstrat" -> {
+            Vector3f( 1.920E+0f, -1.920E+0f,  1.800E+0f)
+        }
+        else -> {
+            Vector3f(0f)
+        }
+    }
 
 
     private val vulkanProjectionFix =
@@ -137,8 +145,6 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = 
         val effectiveWindowWidth: Int = (windowWidth * settings.get<Float>("Renderer.SupersamplingFactor")).toInt()
         val effectiveWindowHeight: Int = (windowHeight * settings.get<Float>("Renderer.SupersamplingFactor")).toInt()
 
-        logger.warn("Got effective width as $effectiveWindowWidth and height as $effectiveWindowHeight")
-
         val light = PointLight(radius = 15.0f)
         light.spatial().position = Vector3f(0.0f, 0.0f, 2.0f)
         light.intensity = 5.0f
@@ -153,80 +159,29 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = 
         }
 
         cam.spatial{
-            //The original viewpoint for procedural volume data
-//            position = Vector3f(3.213f, 8.264E-1f, -9.844E-1f)
-//            rotation = Quaternionf(3.049E-2, 9.596E-1, -1.144E-1, -2.553E-1)
 
-            //         optimized depth calculation working at this view point, opacity calculation looking reasonable
-//        rotation = Quaternionf(5.449E-2,  8.801E-1, -1.041E-1, -4.601E-1)
-//        position = Vector3f(6.639E+0f,  1.092E+0f, -1.584E-1f)
-
-//        same as previous
-//        cam.position = Vector3f(1.881E+0f,  5.558E+0f, -7.854E-1f)
-//        cam.rotation = Quaternionf(-2.733E-2, 9.552E-1, 2.793E-1, -9.365E-2)
-
-//        position = Vector3f(-3.435E+0f,  1.109E+0f,  6.433E+0f)
-//        rotation = Quaternionf(-3.985E-2,  5.315E-1, -2.510E-2,  8.457E-1)
-
-//        cam.position = Vector3f(3.729E+0f,  8.263E-1f, -6.808E-1f)
-//        cam.rotation = Quaternionf(2.731E-2,  9.596E-1, -9.999E-2, -2.616E-1)
-
-//        cam.position = Vector3f(3.729E+0f,  8.263E-1f, -6.808E-1f)
-//        cam.rotation = Quaternionf(1.499E-2,  9.660E-1, -5.738E-2, -2.517E-1)
-
-//        cam.position = Vector3f(4.374E+0f, 8.262E-1f,-3.773E-1f)
-//        cam.rotation = Quaternionf(2.247E-2,  9.707E-1, -1.003E-1, -2.171E-1)
-
-//        position = Vector3f( 3.853E+0f,  7.480E-1f, -9.672E-1f)
-//        rotation = Quaternionf( 4.521E-2,  9.413E-1, -1.398E-1, -3.040E-1)
-//
-//        cam.position = Vector3f( 3.853E+0f,  7.480E-1f, -9.672E-1f)
-//        cam.rotation = Quaternionf( 4.521E-2,  9.413E-1, -1.398E-1, -3.040E-1)
-
-//            position = Vector3f( 5.286E+0f,  8.330E-1f,  3.088E-1f) //This is the viewpoint at which I recorded 13 fps with float depths (Stagbeetle, 1070)
-//            rotation = Quaternionf( 4.208E-2,  9.225E-1, -1.051E-1, -3.690E-1)
-//
-//            position = Vector3f( 2.869E+0f,  8.955E-1f, -9.165E-1f)
-//            rotation = Quaternionf( 2.509E-2,  9.739E-1, -1.351E-1, -1.805E-1)
-
-            position = Vector3f(3.345E+0f, -8.651E-1f, -2.857E+0f)
-            rotation = Quaternionf(3.148E-2, -9.600E-1, -1.204E-1,  2.509E-1)
-
-            position = Vector3f(5.436E+0f, -8.650E-1f, -7.923E-1f)
-            rotation = Quaternionf(7.029E-2, -8.529E-1, -1.191E-1,  5.034E-1)
-
-            position = Vector3f(4.004E+0f, -1.398E+0f, -2.170E+0f) //this is the actual 0 degree
-            rotation = Quaternionf(-1.838E-2,  9.587E-1,  6.367E-2, -2.767E-1)
-
-            position = Vector3f(3.174E+0f, -1.326E+0f, -2.554E+0f)
-            rotation = Quaternionf(-1.276E-2,  9.791E-1,  6.503E-2, -1.921E-1)
-
-//            position = Vector3f(3.174E+0f, -1.326E+0f, -2.554E+0f)
-//            rotation = Quaternionf(-1.484E-2,  9.737E-1,  6.638E-2, -2.176E-1)
-
-//            position = Vector3f(-2.607E+0f, -5.973E-1f,  2.415E+0f) //this is the actual 0 degree (maybe beechnut)
-//            rotation = Quaternionf(-9.418E-2, -7.363E-1, -1.048E-1, -6.618E-1)
-
-//            position = Vector3f(4.908E+0f, -4.931E-1f, -2.563E+0f) //V1 for Simulation
-//            rotation = Quaternionf( 3.887E-2, -9.470E-1, -1.255E-1,  2.931E-1)
-
-            position = Vector3f( 4.622E+0f, -9.060E-1f, -1.047E+0f) //V1 for kingsnake
-            rotation = Quaternionf( 5.288E-2, -9.096E-1, -1.222E-1,  3.936E-1)
-
-//            position = Vector3f(-2.607E+0f, -5.973E-1f,  2.415E+0f) // V1 for Beechnut
-//            rotation = Quaternionf(-9.418E-2, -7.363E-1, -1.048E-1, -6.618E-1)
-//
-//            position = Vector3f( 1.897E+0f, -5.994E-1f, -1.899E+0f) //V1 for Boneplug
-//            rotation = Quaternionf( 5.867E-5,  9.998E-1,  1.919E-2,  4.404E-3)
+            if(dataset == "Kingsnake") {
+                position = Vector3f( 4.622E+0f, -9.060E-1f, -1.047E+0f) //V1 for kingsnake
+                rotation = Quaternionf( 5.288E-2, -9.096E-1, -1.222E-1,  3.936E-1)
+            } else if (dataset == "Beechnut") {
+                position = Vector3f(-2.607E+0f, -5.973E-1f,  2.415E+0f) // V1 for Beechnut
+                rotation = Quaternionf(-9.418E-2, -7.363E-1, -1.048E-1, -6.618E-1)
+            } else if (dataset == "Simulation") {
+                position = Vector3f(4.908E+0f, -4.931E-1f, -2.563E+0f) //V1 for Simulation
+                rotation = Quaternionf( 3.887E-2, -9.470E-1, -1.255E-1,  2.931E-1)
+            } else if (dataset == "BonePlug") {
+                position = Vector3f( 1.897E+0f, -5.994E-1f, -1.899E+0f) //V1 for Boneplug
+                rotation = Quaternionf( 5.867E-5,  9.998E-1,  1.919E-2,  4.404E-3)
+            } else if (dataset == "Rotstrat") {
+                position = Vector3f(4.908E+0f, -4.931E-1f, -2.563E+0f) //V1 for Simulation
+                rotation = Quaternionf( 3.887E-2, -9.470E-1, -1.255E-1,  2.931E-1)
+            }
 
 //            position = Vector3f( 4.458E+0f, -9.057E-1f,  4.193E+0f) //V2 for Kingsnake
 //            rotation = Quaternionf( 1.238E-1, -3.649E-1,-4.902E-2,  9.215E-1)
 
 //            position = Vector3f( 6.284E+0f, -4.932E-1f,  4.787E+0f) //V2 for Simulation
 //            rotation = Quaternionf( 1.162E-1, -4.624E-1, -6.126E-2,  8.769E-1)
-//
-//            position = Vector3f( 1.897E+0f, -5.994E-1f, -1.899E+0f) //V1 for Boneplug
-//            rotation = Quaternionf( 5.867E-5,  9.998E-1,  1.919E-2,  4.404E-3)
 //
 //            position = Vector3f(4.505E+0f, -5.993E-1f,  6.627E-1f) //V2 for BonePlug
 //            rotation = Quaternionf(-1.353E-2,  7.101E-1,  1.361E-2, -7.039E-1)
@@ -241,6 +196,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = 
         val buff: ByteArray
         val depthBuff: ByteArray?
         val octBuff: ByteArray?
+        val noiseData: ByteArray
 
 //        val basePath = "/home/aryaman/TestingData/"
 //        val basePath = "/home/aryaman/TestingData/FromCluster/"
@@ -273,6 +229,8 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = 
             octBuff = null
         }
 
+        noiseData = File(basePath + "NoiseTexture_Random.raw").readBytes()
+
         val opBuffer = MemoryUtil.memCalloc(effectiveWindowWidth * effectiveWindowHeight * 4)
         val opNumSteps = MemoryUtil.memCalloc(effectiveWindowWidth * effectiveWindowHeight * 4)
         val opNumIntersect = MemoryUtil.memCalloc(effectiveWindowWidth * effectiveWindowHeight * 4)
@@ -302,6 +260,10 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = 
             lowestLevel.put(octBuff).flip()
         }
 
+        val noiseTexture = MemoryUtil.memCalloc(1920*1080 * 4)
+
+        noiseTexture.put(noiseData).flip()
+
         compute.name = "compute node"
 
 //        compute.setMaterial(ShaderMaterial(Shaders.ShadersFromFiles(arrayOf("EfficientVDIRaycast.comp"), this@VDIRenderingExample::class.java))) {
@@ -330,6 +292,11 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = 
         if(skipEmpty) {
             compute.material().textures["OctreeCells"] = Texture(Vector3i(numGridCells.x.toInt(), numGridCells.y.toInt(), numGridCells.z.toInt()), 1, type = UnsignedIntType(), contents = lowestLevel, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
         }
+
+        compute.material().textures["NoiseTexture"] = Texture(Vector3i(1920, 1080, 1),  channels = 1, contents = noiseTexture, usageType = hashSetOf(
+            Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+
+
         compute.metadata["ComputeMetadata"] = ComputeMetadata(
             workSizes = Vector3i(effectiveWindowWidth, effectiveWindowHeight, 1),
             invocationType = InvocationType.Permanent
@@ -355,9 +322,12 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = 
         val plane = FullscreenObject()
         scene.addChild(plane)
         plane.material().textures["diffuse"] = compute.material().textures["OutputViewport"]!!
-        thread {
-            Thread.sleep(closeAfter)
-            renderer?.shouldClose = true
+
+        if(autoClose) {
+            thread {
+                Thread.sleep(closeAfter)
+                renderer?.shouldClose = true
+            }
         }
 
 //        val opTexture = compute.material.textures["OutputViewport"]!!
@@ -372,14 +342,6 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = 
 //                }
 //            }
 //        }
-        thread {
-            while(true)
-            {
-                Thread.sleep(2000)
-                println("${cam.spatial().position}")
-                println("${cam.spatial().rotation}")
-            }
-        }
 
         thread {
             if (profileMemoryAccesses) {
@@ -393,7 +355,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = 
         }
 
         thread {
-            if(subsampling) {
+            if(dynamicSubsampling) {
                 dynamicSubsampling()
             }
         }
@@ -403,6 +365,48 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = 
                 doBenchmarks()
             }
         }
+    }
+
+    fun downsampleImage(factor: Float) {
+
+        val effectiveWindowWidth: Int = (windowWidth * factor).toInt()
+        val effectiveWindowHeight: Int = (windowHeight * factor).toInt()
+
+        settings.set("Renderer.displayWidth", effectiveWindowWidth)
+        settings.set("Renderer.displayHeight", effectiveWindowHeight)
+
+
+        logger.info("effective window width has been set to: $effectiveWindowWidth and height to: $effectiveWindowHeight")
+
+        val opBuffer = MemoryUtil.memCalloc(effectiveWindowWidth * effectiveWindowHeight * 4)
+
+        compute.setMaterial(ShaderMaterial(Shaders.ShadersFromFiles(arrayOf("AmanatidesJumps.comp"), this@VDIRenderingExample::class.java))) {
+            textures["OutputViewport"] = Texture.fromImage(
+                Image(opBuffer, effectiveWindowWidth, effectiveWindowHeight),
+                usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture)
+            )
+        }
+
+        compute.metadata["ComputeMetadata"] = ComputeMetadata(
+            workSizes = Vector3i(effectiveWindowWidth, effectiveWindowHeight, 1),
+            invocationType = InvocationType.Permanent
+        )
+    }
+
+    fun setStratifiedDownsampling(stratified: Boolean) {
+        compute.stratified_downsampling = stratified
+    }
+
+    fun setDownsamplingFactor(factor: Float) {
+        compute.sampling_factor = factor
+    }
+
+    fun setMaxDownsampleSteps(steps: Int) {
+        compute.max_samples = steps
+    }
+
+    fun doDownsampling(downsample: Boolean) {
+        compute.do_subsample = downsample
     }
 
     private fun dynamicSubsampling() {
@@ -422,12 +426,15 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = 
         }
 
         var currentSamples = 92.0
-        compute.max_samples = currentSamples.toInt()
+        setMaxDownsampleSteps(currentSamples.toInt())
 
         var samplingFactor = 0.1f
-        compute.sampling_factor = samplingFactor
+        setDownsamplingFactor(samplingFactor)
 
-        compute.do_subsample = true
+        setStratifiedDownsampling(true)
+
+        doDownsampling(true)
+
 
         while(!r.shouldClose) {
             //gather some data
@@ -438,11 +445,11 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = 
             val newSamplingFactor = scaleFactor * samplingFactor
 
             if((newSamples < (currentSamples - tolerance)) || (newSamples > (currentSamples + tolerance))) {
-                logger.info("fps was: ${fps.avg()}. Therefore, setting new samples to: $newSamples")
+                logger.info("fps was: ${fps.avg()}. Therefore, setting new samples to: $newSamples OR new sampling factor to: $newSamplingFactor")
                 currentSamples = newSamples
                 samplingFactor = newSamplingFactor
-                compute.max_samples = currentSamples.toInt()
-                compute.sampling_factor = samplingFactor
+//                setMaxDownsampleSteps(currentSamples.toInt())
+                setDownsamplingFactor(samplingFactor)
             } else if(subsampling_benchmarks) {
                 r.screenshot("${path}_$desiredFrameRate.png")
                 //wait for screenshot
@@ -495,7 +502,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = 
         }
     }
 
-    private fun rotateCamera(degrees: Float) {
+    fun rotateCamera(degrees: Float) {
         cam.targeted = true
         val frameYaw = degrees / 180.0f * Math.PI.toFloat()
         val framePitch = 0f
@@ -522,6 +529,11 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = 
             rotateCamera(10f)
         })
         inputHandler?.addKeyBinding("rotate_camera", "R")
+
+        inputHandler?.addBehaviour("downsample_image", ClickBehaviour { _, _ ->
+            downsampleImage(0.5f)
+        })
+        inputHandler?.addKeyBinding("downsample_image", "O")
     }
 
 

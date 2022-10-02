@@ -4,7 +4,7 @@
 #define SEPARATE_DEPTH 1
 #define INT_DEPTHS 0
 #define PROFILE_MEM 0
-#define SKIP_EMPTY 0
+#define SKIP_EMPTY 1
 #define USE_VIEW_SPACE_CELLS 1
 
 #if USE_PRINTF
@@ -40,6 +40,7 @@ layout(set = 5, binding = 0) uniform ShaderProperties {
     bool do_subsample;
     int max_samples;
     float sampling_factor;
+    bool stratified_downsampling;
 };
 
 layout(push_constant) uniform currentEye_t {
@@ -56,6 +57,8 @@ layout(set = 3, binding = 0, rgba8) uniform image2D OutputViewport;
     layout (set = 4, binding = 0, r32f) uniform readonly image3D DepthVDI;
     #endif
 #endif
+
+layout (set = 7, binding = 0, r32f) uniform readonly image2D NoiseTexture;
 
 #if SKIP_EMPTY
 layout (set = 6, binding = 0, r32ui) uniform readonly uimage3D OctreeCells;
@@ -128,7 +131,7 @@ layout(set = 11, binding = 0, r32f) uniform image2D EmptyAfterLast;
 //ivec2 debug_pixel = ivec2(610, 641);
 //ivec2 debug_pixel = ivec2(1273, 604);
 //ivec2 debug_pixel = ivec2(640, 360);
-ivec2 debug_pixel = ivec2(960, 540);
+ivec2 debug_pixel = ivec2(1000, 640);
 
 //ivec2 debug_pixel = ivec2(35, 61);
 //ivec2 debug_pixel = ivec2(427, 465);
@@ -283,6 +286,8 @@ int totalIntersectedLists = 0;
 bool firstNotYetIntersected = true;
 
 ivec3 num_cells;
+
+float stratification_factor;
 
 //void binSearch(int rayX, int rayY, int start, int end, float dist_to_orig, out float depthStart, out float depthEnd, out int index, out bool supseg_found, out bool supseg_is_on_left) {
 //
@@ -1133,7 +1138,7 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
 //            }
 //            #endif
 
-            if(accumulatedColor.a > 0.95) {
+            if(accumulatedColor.a > 0.99) {
                 #if USE_PRINTF
                 if(gl_GlobalInvocationID.xy == debug_pixel) {
                     debugPrintfEXT("Breaking because alpha is: %f", accumulatedColor.a);
@@ -1165,8 +1170,17 @@ void traverse_subsample(vec4 world_entry, vec4 world_end, float total_distance, 
 
     float step = 0;
 
+    float normalized_jump = jump_size / total_distance;
+    float stratified_sample = (stratification_factor * normalized_jump);
+
+    #if USE_PRINTF
+    if(gl_GlobalInvocationID.xy == debug_pixel) {
+        debugPrintfEXT("Stratified sample size: %f", stratified_sample);
+    }
+    #endif
+
     for(int i = 1; i <= num_samples; i++) {
-        step = i * jump_size / total_distance;
+        step = (stratified_sample +  ((i - 1) * normalized_jump));
         vec4 wpos = mix(world_entry, world_end, step);
 
         vec4 npos = pv_orig * wpos;
@@ -1384,7 +1398,7 @@ void traverse_cell(vec4 entry_point, ivec2 entry_list, vec3 cell_min, vec3 cell_
     //        }
     //        #endif
 
-        if(finalColor.a > 0.95) {
+        if(finalColor.a > 0.99) {
             #if USE_PRINTF
             if(gl_GlobalInvocationID.xy == debug_pixel) {
                 debugPrintfEXT("Breaking because alpha is: %f", finalColor.a);
@@ -1471,35 +1485,34 @@ void main() {
 
     ivec3 vdiCoords = imageSize(InputVDI);
     maxSupersegments = vdiCoords.x;
-//    maxSupersegments = 20;
+
     vdiWidth = vdiCoords.z;
     vdiHeight = vdiCoords.y;
 
-    highp mat4 ipv = InverseViewMatrices[0] * InverseProjectionMatrix;
+    mat4 view;
 
-//    mat4 ViewOriginal = mat4(-0.86781174,  1.0376796E-4, -0.49694782,  2.299E+0,
-//    0.11692904,  0.9719932, -0.20398827, -1.3797543,
-//    0.48299563, -0.23512466, -0.8434963, -2.1878958,
-//    0.0,  0.0, 0.0,  1.000E+0);
-//    ViewOriginal = transpose(ViewOriginal);
+    view = (vrParameters.stereoEnabled ^ 1) * ViewMatrices[0] + (vrParameters.stereoEnabled * ViewMatrices[currentEye.eye]);
 
-//    mat4 invViewOriginal = mat4(-0.86781174,  0.11692904,  0.48299563,  3.2131748,
-//    1.0376796E-4,  0.9719932, -0.23512466,  0.826445,
-//    -0.49694782, -0.20398827, -0.8434963, -0.9844537,
-//    0.000E+0,  0.000E+0,  0.000E+0,  1.000E+0);
-//    invViewOriginal = transpose(invViewOriginal);
+    mat4 inverseProjection = (vrParameters.stereoEnabled ^ 1) * InverseProjectionMatrix + (vrParameters.stereoEnabled * vrParameters.inverseProjectionMatrices[currentEye.eye]);
+    mat4 inverseView = inverse(view); //TODO: Why not use InverseViewMatrices[] directly?
 
-//    mat4 ProjectionOriginal = mat4(1.1790146,  0.0,  0.0,  0.0,
-//    0.0, -2.1445067,  0.0,  0.0,
-//    0.0,  0.0, -1.0050251, -0.10050251,
-//    0.0,  0.0, -1.0,  0.0);
-//    ProjectionOriginal = transpose(ProjectionOriginal);
+    highp mat4 ipv = inverseView * inverseProjection;
 
-//    invProjectionOriginal = mat4(0.8481659,  0.000E+0,  0.000E+0, -0.000E+0,
-//    0.000E+0, -0.4663077,  0.000E+0,  0.000E+0,
-//    0.000E+0, -0.000E+0,  0.000E+0, -1.0,
-//    0.000E+0,  0.000E+0, -9.949999,  10.0);
-//    invProjectionOriginal = transpose(invProjectionOriginal);
+    #if USE_PRINTF
+    if(gl_GlobalInvocationID.xy == debug_pixel) {
+        debugPrintfEXT("Inv projection matrix is: (%f, %f, %f, %f)", inverseProjection[0].xyzw);
+        debugPrintfEXT("Inv projection matrix is: (%f, %f, %f, %f)", inverseProjection[1].xyzw);
+        debugPrintfEXT("Inv projection matrix is: (%f, %f, %f, %f)", inverseProjection[2].xyzw);
+        debugPrintfEXT("Inv projection matrix is: (%f, %f, %f, %f)", inverseProjection[3].xyzw);
+
+        debugPrintfEXT("Inv view matrix is: (%f, %f, %f, %f)", inverseView[0].xyzw);
+        debugPrintfEXT("Inv view matrix is: (%f, %f, %f, %f)", inverseView[1].xyzw);
+        debugPrintfEXT("Inv view matrix is: (%f, %f, %f, %f)", inverseView[2].xyzw);
+        debugPrintfEXT("Inv view matrix is: (%f, %f, %f, %f)", inverseView[3].xyzw);
+
+        debugPrintfEXT("stereo enabled: %d and current eye: %d", vrParameters.stereoEnabled, currentEye.eye);
+    }
+    #endif
 
     pv_orig = ProjectionOriginal * ViewOriginal;
 
@@ -1547,6 +1560,19 @@ void main() {
 
     dist = (tfar-tnear) / 5000.;
     dist = max(dist, 0.00001);
+
+    if(stratified_downsampling) {
+        stratification_factor = imageLoad(NoiseTexture, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y)).x;
+    } else {
+        stratification_factor = 1.;
+    }
+
+    #if USE_PRINTF
+    if(gl_GlobalInvocationID.xy == debug_pixel) {
+        debugPrintfEXT("Stratification factor: %f", stratification_factor);
+    }
+    #endif
+
 
     float step = tnear;
     float step_dbg = tnear;
@@ -2040,8 +2066,8 @@ void main() {
                 } else {
 //                    float fract =  (intersection_length) / length_in_non_empty;
                     float fract =  (supsegs_in_cell * intersection_length) / length_in_non_empty;
-                    int samples_in_cell = int(fract * max_samples); //TODO: should it be round()?
-//                    int samples_in_cell = int(fract * calculatedMaxSteps); //TODO: should it be round()?
+//                    int samples_in_cell = int(fract * max_samples); //TODO: should it be round()?
+                    int samples_in_cell = int(fract * calculatedMaxSteps); //TODO: should it be round()?
 
                     #if USE_PRINTF
                     if(gl_GlobalInvocationID.xy == debug_pixel) {
@@ -2058,7 +2084,7 @@ void main() {
 
             //TODO: add check for outside the volume even though still inside the VDI
 
-            if(finalColor.a > 0.95) {
+            if(finalColor.a > 0.99) {
                 #if USE_PRINTF
                 if(gl_GlobalInvocationID.xy == debug_pixel) {
                     debugPrintfEXT("Breaking because alpha is: %f", finalColor.a);
