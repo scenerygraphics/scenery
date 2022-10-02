@@ -369,12 +369,13 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
 
     fun downsampleImage(factor: Float) {
 
+        settings.set("Renderer.SupersamplingFactor", factor)
+        settings.set("Renderer.SupersamplingFactor", factor)
+
         val effectiveWindowWidth: Int = (windowWidth * factor).toInt()
         val effectiveWindowHeight: Int = (windowHeight * factor).toInt()
 
-        settings.set("Renderer.displayWidth", effectiveWindowWidth)
-        settings.set("Renderer.displayHeight", effectiveWindowHeight)
-
+        (renderer as VulkanRenderer).swapchainRecreator.mustRecreate = true
 
         logger.info("effective window width has been set to: $effectiveWindowWidth and height to: $effectiveWindowHeight")
 
