@@ -1,8 +1,10 @@
 package graphics.scenery.tests.examples.volumes
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.backends.Shaders
+import graphics.scenery.backends.vulkan.VulkanRenderer
 import graphics.scenery.compute.ComputeMetadata
 import graphics.scenery.compute.InvocationType
 import graphics.scenery.controls.TrackedStereoGlasses
@@ -17,6 +19,7 @@ import org.joml.Quaternionf
 import org.joml.Vector3f
 import org.joml.Vector3i
 import org.lwjgl.system.MemoryUtil
+import org.msgpack.jackson.dataformat.MessagePackFactory
 import org.zeromq.SocketType
 import org.zeromq.ZContext
 import org.zeromq.ZMQ
@@ -37,7 +40,9 @@ class VDIClient : SceneryBase("VDI Rendering", 1280, 720, wantREPL = false) {
 
     val compute = CustomNode()
 
-    val numSupersegments = 30
+    val context = ZContext(4)
+
+    val numSupersegments = 20
     val skipEmpty = false
 
     val subsampling = false
@@ -107,10 +112,44 @@ class VDIClient : SceneryBase("VDI Rendering", 1280, 720, wantREPL = false) {
             receiveAndUpdateVDI(compute)
         }
 
+        val objectMapper = ObjectMapper(MessagePackFactory())
+
+        var publisher: ZMQ.Socket = context.createSocket(SocketType.PUB)
+        publisher.isConflate = true
+
+        val address: String = "tcp://0.0.0.0:6665"
+        try {
+            publisher.bind(address)
+        } catch (e: ZMQException) {
+            logger.warn("Binding failed, trying random port: $e")
+        }
+
+        var prevPos = floatArrayOf(0f, 0f, 0f)
+        var prevRot = floatArrayOf(0f, 0f, 0f, 0f)
+
+        (renderer as VulkanRenderer).postRenderLambdas.add {
+            val list: MutableList<Any> = ArrayList()
+            val rotArray = floatArrayOf(cam.spatial().rotation.x, cam.spatial().rotation.y, cam.spatial().rotation.z, cam.spatial().rotation.w)
+            val posArray = floatArrayOf(cam.spatial().position.x(), cam.spatial().position.y(), cam.spatial().position.z())
+
+            if(!((rotArray.contentEquals(prevRot)) && (posArray.contentEquals(prevPos)))) {
+                list.add(rotArray)
+                list.add(posArray)
+
+                val bytes = objectMapper.writeValueAsBytes(list)
+
+                logger.info("Sent camera details")
+
+                publisher.send(bytes)
+
+                prevPos = posArray
+                prevRot = rotArray
+            }
+        }
+
     }
 
     private fun receiveAndUpdateVDI(compute: CustomNode) {
-        val context = ZContext(1)
         var subscriber: ZMQ.Socket = context.createSocket(SocketType.SUB)
         subscriber.setConflate(true)
 //        val address = "tcp://localhost:6655"
