@@ -95,6 +95,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
     val communicatorType = ""
 
     val cam: Camera = DetachedHeadCamera(hmd)
+    val plane = FullscreenObject()
 
     val camTarget = when (dataset) {
         "Kingsnake" -> {
@@ -319,7 +320,6 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
 
         scene.addChild(compute)
 
-        val plane = FullscreenObject()
         scene.addChild(plane)
         plane.material().textures["diffuse"] = compute.material().textures["OutputViewport"]!!
 
@@ -369,28 +369,35 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
 
     fun downsampleImage(factor: Float) {
 
+        settings.set("Renderer.SupersamplingFactor", factor)
+        settings.set("Renderer.SupersamplingFactor", factor)
+
+        (compute.metadata["ComputeMetadata"] as ComputeMetadata).active = false
+
+        (renderer as VulkanRenderer).swapchainRecreator.mustRecreate = true
+
+//        Thread.sleep(5000)
+
         val effectiveWindowWidth: Int = (windowWidth * factor).toInt()
         val effectiveWindowHeight: Int = (windowHeight * factor).toInt()
-
-        settings.set("Renderer.displayWidth", effectiveWindowWidth)
-        settings.set("Renderer.displayHeight", effectiveWindowHeight)
-
 
         logger.info("effective window width has been set to: $effectiveWindowWidth and height to: $effectiveWindowHeight")
 
         val opBuffer = MemoryUtil.memCalloc(effectiveWindowWidth * effectiveWindowHeight * 4)
 
-        compute.setMaterial(ShaderMaterial(Shaders.ShadersFromFiles(arrayOf("AmanatidesJumps.comp"), this@VDIRenderingExample::class.java))) {
-            textures["OutputViewport"] = Texture.fromImage(
+        compute.material().textures["OutputViewport"] = Texture.fromImage(
                 Image(opBuffer, effectiveWindowWidth, effectiveWindowHeight),
                 usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture)
             )
-        }
 
         compute.metadata["ComputeMetadata"] = ComputeMetadata(
             workSizes = Vector3i(effectiveWindowWidth, effectiveWindowHeight, 1),
             invocationType = InvocationType.Permanent
         )
+
+        (compute.metadata["ComputeMetadata"] as ComputeMetadata).active = true
+
+        plane.material().textures["diffuse"] = compute.material().textures["OutputViewport"]!!
     }
 
     fun setStratifiedDownsampling(stratified: Boolean) {

@@ -363,7 +363,7 @@ open class VulkanRenderer(hub: Hub,
 
     final override var window: SceneryWindow = SceneryWindow.UninitializedWindow()
 
-    protected val swapchainRecreator: SwapchainRecreator
+    val swapchainRecreator: SwapchainRecreator
     protected var pipelineCache: Long = -1L
     protected var vertexDescriptors = ConcurrentHashMap<VertexDataKinds, VertexDescription>()
     protected var sceneUBOs = ArrayList<Node>()
@@ -1354,7 +1354,7 @@ open class VulkanRenderer(hub: Hub,
                 val start = System.nanoTime()
                 texture.contents = ref.copyTo(buffer, true)
                 val end = System.nanoTime()
-                logger.info("The request textures of size ${texture.contents?.remaining()?.toFloat()?.div((1024f*1024f))} took: ${(end.toDouble()-start.toDouble())/10e9}")
+//                logger.info("The request textures of size ${texture.contents?.remaining()?.toFloat()?.div((1024f*1024f))} took: ${(end.toDouble()-start.toDouble())/10e9}")
                 indicator.incrementAndGet()
             } else {
                 logger.error("In persistent texture requests: Texture not accessible")

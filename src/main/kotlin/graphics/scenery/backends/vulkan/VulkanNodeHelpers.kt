@@ -318,6 +318,7 @@ object VulkanNodeHelpers {
                 }
             } else {
                 s.textures[type] = textureCache[texture]!!
+                descriptorUpdated = true
             }
         }
 
