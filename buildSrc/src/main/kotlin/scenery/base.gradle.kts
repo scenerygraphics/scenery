@@ -46,8 +46,8 @@ tasks {
             filter { excludeTestsMatching("graphics.scenery.tests.unit.**") }
 
             // this should circumvent Nvidia's Vulkan cleanup issue
-            maxParallelForks = 2
-            setForkEvery(4)
+            maxParallelForks = 1
+            setForkEvery(1)
 
             testLogging {
                 exceptionFormat = TestExceptionFormat.FULL
