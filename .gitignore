@@ -9,6 +9,7 @@
 .idea/
 *.iml
 *.ipr
+src/main/resources/
 
 # CMake
 cmake-build-*/
