@@ -10,7 +10,7 @@ import kotlin.concurrent.thread
 class VDIBenchmarkRunner {
 
     val benchmarkDatasets = listOf<String>("Kingsnake", "Beechnut", "Simulation")
-    val benchmarkViewpoints = listOf(0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50)
+    val benchmarkViewpoints = listOf(10, 15, 20, 30, 40, 45)
 
     fun OutputStream.appendEntry(entry: String) {
         val writer = bufferedWriter()
@@ -35,15 +35,15 @@ class VDIBenchmarkRunner {
         val bw = BufferedWriter(fw)
 
         val start = 1f
-        val until = 0.1f
-        val step = 0.1f
+        val until = 0.0f
+        val step = 0.2f
         val totalSteps = ((until - start)/step).toInt() + 1
 
         var stepCount = 0
 
         var factor = start
 
-        while (factor >= until) {
+        while (factor > until) {
             instance.downsampleImage(factor)
             Thread.sleep(2000) //allow the change to take place
             scaleSamplingFactor(dataset, "${viewpoint}_${stepCount}", false, instance, renderer, bw)
@@ -56,7 +56,7 @@ class VDIBenchmarkRunner {
     fun scaleSamplingFactor(dataset: String, screenshotName: String, stratified: Boolean, instance: VDIRenderingExample, renderer: Renderer, bw: BufferedWriter) {
         val start = 0.02f
         val until = 0.4f
-        val step = 0.02f
+        val step = 0.04f
         val totalSteps = ((until - start)/step).toInt() + 1
 
         var stepCount = 1
@@ -86,7 +86,7 @@ class VDIBenchmarkRunner {
         instance.setStratifiedDownsampling(stratified)
 
 
-        while (factor <= until) {
+        while (factor < until) {
 
             instance.setDownsamplingFactor(factor)
             Thread.sleep(1000) //allow the change to take place
