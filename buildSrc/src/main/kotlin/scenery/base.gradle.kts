@@ -44,7 +44,7 @@ tasks {
 
             // this should circumvent Nvidia's Vulkan cleanup issue
             maxParallelForks = 2
-            setForkEvery(8)
+            setForkEvery(4)
 
             // we only want the Vulkan renderer here, and all screenshot to be stored in the screenshots/ dir
             systemProperty("scenery.Renderer", "VulkanRenderer")
