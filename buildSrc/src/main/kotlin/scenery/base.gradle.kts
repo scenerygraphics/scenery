@@ -48,6 +48,7 @@ tasks {
             // this should circumvent Nvidia's Vulkan cleanup issue
             maxParallelForks = 1
             setForkEvery(1)
+            systemProperty("scenery.Workarounds.DontCloseVulkanInstances", "true")
 
             testLogging {
                 exceptionFormat = TestExceptionFormat.FULL
