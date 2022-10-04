@@ -330,6 +330,7 @@ object VulkanNodeHelpers {
         val isCompute = material is ShaderMaterial && ((material as? ShaderMaterial)?.isCompute() ?: false)
         if(!isCompute) {
             Texture.objectTextures.forEach {
+                s.defaultTexturesFor.clear()
                 if (!s.textures.containsKey(it)) {
                     s.textures.putIfAbsent(it, defaultTexture)
                     s.defaultTexturesFor.add(it)
