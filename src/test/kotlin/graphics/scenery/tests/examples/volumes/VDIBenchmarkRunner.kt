@@ -22,15 +22,38 @@ class VDIBenchmarkRunner {
         val fw = FileWriter("${dataset}_stratified.csv", true)
         val bw = BufferedWriter(fw)
 
-        scaleSamplingFactor(dataset, viewpoint, true, instance, renderer, bw)
+        scaleSamplingFactor(dataset, viewpoint.toString(), true, instance, renderer, bw)
 
         val fw_non_stratified = FileWriter("${dataset}_nonstratified.csv", true)
         val bw_non_stratified = BufferedWriter(fw_non_stratified)
 
-        scaleSamplingFactor(dataset, viewpoint, false, instance, renderer, bw_non_stratified)
+        scaleSamplingFactor(dataset, viewpoint.toString(), false, instance, renderer, bw_non_stratified)
     }
 
-    fun scaleSamplingFactor(dataset: String, viewpoint: Int, stratified: Boolean, instance: VDIRenderingExample, renderer: Renderer, bw: BufferedWriter) {
+    fun downsamplingBenchmarks(dataset: String, viewpoint: Int, instance: VDIRenderingExample, renderer: Renderer) {
+        val fw = FileWriter("${dataset}_${viewpoint}_downsampling.csv", true)
+        val bw = BufferedWriter(fw)
+
+        val start = 1f
+        val until = 0.1f
+        val step = 0.1f
+        val totalSteps = ((until - start)/step).toInt() + 1
+
+        var stepCount = 0
+
+        var factor = start
+
+        while (factor >= until) {
+            instance.downsampleImage(factor)
+            Thread.sleep(2000) //allow the change to take place
+            scaleSamplingFactor(dataset, "${viewpoint}_${stepCount}", false, instance, renderer, bw)
+            Thread.sleep(1000)
+            stepCount ++
+            factor -= step
+        }
+    }
+
+    fun scaleSamplingFactor(dataset: String, screenshotName: String, stratified: Boolean, instance: VDIRenderingExample, renderer: Renderer, bw: BufferedWriter) {
         val start = 0.02f
         val until = 0.4f
         val step = 0.02f
@@ -40,10 +63,28 @@ class VDIBenchmarkRunner {
 
         var factor = start
 
+        val stats = instance.hub.get<Statistics>()!!
+
+        //do a single step with no downsampling
+        instance.doDownsampling(false)
+        Thread.sleep(1000) //allow the change to take place
+
+        stats.clear("Renderer.fps")
+
+        Thread.sleep(4000) //collect data for some time
+
+        val fps = stats.get("Renderer.fps")!!.avg()
+
+        println("Recorded initial frame rate")
+
+        renderer.screenshot("VDI_${dataset}_${screenshotName}_Step0_${stratified}.png")
+
+        bw.append("$fps")
+        bw.append(", ")
+
         instance.doDownsampling(true)
         instance.setStratifiedDownsampling(stratified)
 
-        val stats = instance.hub.get<Statistics>()!!
 
         while (factor <= until) {
 
@@ -56,7 +97,7 @@ class VDIBenchmarkRunner {
 
             val fps = stats.get("Renderer.fps")!!.avg()
 
-            renderer.screenshot("VDI_${dataset}_${viewpoint}_Step${stepCount}_${stratified}.png")
+            renderer.screenshot("VDI_${dataset}_${screenshotName}_Step${stepCount}_${stratified}.png")
 
             bw.append("$fps")
 
@@ -95,7 +136,7 @@ class VDIBenchmarkRunner {
                     val rotation = viewpoint - previousViewpoint
                     instance.rotateCamera(rotation.toFloat())
 
-                    stratifiedBenchmarks(dataset, viewpoint, instance, renderer)
+                    downsamplingBenchmarks(dataset, viewpoint, instance, renderer)
                 }
 
 
