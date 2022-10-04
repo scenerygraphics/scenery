@@ -343,6 +343,7 @@ object VulkanNodeHelpers {
             Texture.objectTextures.forEach {
                 s.defaultTexturesFor.clear()
                 if (!s.textures.containsKey(it)) {
+                    s.defaultTexturesFor.clear()
                     s.textures.putIfAbsent(it, defaultTexture)
                     s.defaultTexturesFor.add(it)
                 }
