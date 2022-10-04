@@ -10,7 +10,7 @@ import kotlin.concurrent.thread
 class VDIBenchmarkRunner {
 
     val benchmarkDatasets = listOf<String>("Kingsnake", "Beechnut", "Simulation")
-    val benchmarkViewpoints = listOf(10, 15, 20, 30, 40, 45)
+    val benchmarkViewpoints = listOf(15, 30, 40, 45)
 
     fun OutputStream.appendEntry(entry: String) {
         val writer = bufferedWriter()
@@ -31,7 +31,7 @@ class VDIBenchmarkRunner {
     }
 
     fun downsamplingBenchmarks(dataset: String, viewpoint: Int, instance: VDIRenderingExample, renderer: Renderer) {
-        val fw = FileWriter("${dataset}_${viewpoint}_downsampling.csv", true)
+        val fw = FileWriter("benchmarking/downsampling/${dataset}_${viewpoint}_downsampling.csv", true)
         val bw = BufferedWriter(fw)
 
         val start = 1f
@@ -77,7 +77,7 @@ class VDIBenchmarkRunner {
 
         println("Recorded initial frame rate")
 
-        renderer.screenshot("VDI_${dataset}_${screenshotName}_Step0_${stratified}.png")
+        renderer.screenshot("benchmarking/downsampling/VDI_${dataset}_${screenshotName}_Step0_${stratified}.png")
 
         bw.append("$fps")
         bw.append(", ")
@@ -97,7 +97,7 @@ class VDIBenchmarkRunner {
 
             val fps = stats.get("Renderer.fps")!!.avg()
 
-            renderer.screenshot("VDI_${dataset}_${screenshotName}_Step${stepCount}_${stratified}.png")
+            renderer.screenshot("benchmarking/downsampling/VDI_${dataset}_${screenshotName}_Step${stepCount}_${stratified}.png")
 
             bw.append("$fps")
 
