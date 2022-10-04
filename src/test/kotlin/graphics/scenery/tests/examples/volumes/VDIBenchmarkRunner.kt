@@ -37,13 +37,13 @@ class VDIBenchmarkRunner {
         val start = 1f
         val until = 0.0f
         val step = 0.2f
-        val totalSteps = ((until - start)/step).toInt() + 1
+        val totalSteps = 5
 
         var stepCount = 0
 
         var factor = start
 
-        while (factor > until) {
+        while (stepCount < totalSteps) {
             instance.downsampleImage(factor)
             Thread.sleep(2000) //allow the change to take place
             scaleSamplingFactor(dataset, "${viewpoint}_${stepCount}", false, instance, renderer, bw)
@@ -57,7 +57,7 @@ class VDIBenchmarkRunner {
         val start = 0.02f
         val until = 0.4f
         val step = 0.04f
-        val totalSteps = ((until - start)/step).toInt() + 1
+        val totalSteps = ((until - start)/step).toInt()
 
         var stepCount = 1
 
