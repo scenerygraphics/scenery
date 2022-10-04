@@ -277,7 +277,8 @@ object VulkanNodeHelpers {
 
             logger.debug("${node.name} will have $type texture from $texture in slot $slot")
 
-            if (!textureCache.containsKey(texture)) {
+            val existing = textureCache[texture]
+            if (existing == null) {
                 try {
                     logger.debug("Loading texture {} for {}", texture, node.name)
 
@@ -317,7 +318,10 @@ object VulkanNodeHelpers {
                     logger.warn("Could not load texture for ${node.name}: $e")
                 }
             } else {
-                s.textures[type] = textureCache[texture]!!
+                if(s.textures[type] != existing) {
+                    descriptorUpdated = true
+                }
+                s.textures[type] = existing
             }
         }
 
