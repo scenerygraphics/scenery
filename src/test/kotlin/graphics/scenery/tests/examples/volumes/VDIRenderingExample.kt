@@ -95,6 +95,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
     val communicatorType = ""
 
     val cam: Camera = DetachedHeadCamera(hmd)
+    val plane = FullscreenObject()
 
     val camTarget = when (dataset) {
         "Kingsnake" -> {
@@ -319,7 +320,6 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
 
         scene.addChild(compute)
 
-        val plane = FullscreenObject()
         scene.addChild(plane)
         plane.material().textures["diffuse"] = compute.material().textures["OutputViewport"]!!
 
@@ -372,11 +372,11 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
         settings.set("Renderer.SupersamplingFactor", factor)
         settings.set("Renderer.SupersamplingFactor", factor)
 
-        compute.visible = false
+        (compute.metadata["ComputeMetadata"] as ComputeMetadata).active = false
 
         (renderer as VulkanRenderer).swapchainRecreator.mustRecreate = true
 
-        Thread.sleep(5000)
+//        Thread.sleep(5000)
 
         val effectiveWindowWidth: Int = (windowWidth * factor).toInt()
         val effectiveWindowHeight: Int = (windowHeight * factor).toInt()
@@ -395,7 +395,9 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
             invocationType = InvocationType.Permanent
         )
 
-        compute.visible = true
+        (compute.metadata["ComputeMetadata"] as ComputeMetadata).active = true
+
+        plane.material().textures["diffuse"] = compute.material().textures["OutputViewport"]!!
     }
 
     fun setStratifiedDownsampling(stratified: Boolean) {
