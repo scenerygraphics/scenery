@@ -2,7 +2,7 @@ package graphics.scenery.utils
 
 import java.util.concurrent.ConcurrentHashMap
 
-class TimestampedConcurrentHashMap<K, V: Timestamped>(initialCapacity: Int = 10) : ConcurrentHashMap<K, V>(initialCapacity) {
+class TimestampedConcurrentHashMap<K : Any, V: Timestamped>(initialCapacity: Int = 10) : ConcurrentHashMap<K, V>(initialCapacity) {
     private var added = ConcurrentHashMap<K, Long>()
 
     override fun put(key: K, value: V): V? {
