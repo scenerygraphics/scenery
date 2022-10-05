@@ -41,7 +41,7 @@ class CustomNodeSimple : RichNode() {
 }
 
 
-class VDIRendererSimple : SceneryBase("SimpleVDIRenderer", 1280, 720) {
+class VDIRendererSimple : SceneryBase("SimpleVDIRenderer", 512, 512) {
 
     private val vulkanProjectionFix =
         Matrix4f(
@@ -74,26 +74,26 @@ class VDIRendererSimple : SceneryBase("SimpleVDIRenderer", 1280, 720) {
         renderer = hub.add(SceneryElement.Renderer,
             Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
 
-        val numSupersegments = 20
+        val numSupersegments = 15
 
         val buff: ByteArray
         val depthBuff: ByteArray?
 
-        var dataset = "Kingsnake"
+        var dataset = "Engine"
 
 //        dataset += "_${commSize}_${rank}"
 
 
 //        val basePath = "/home/aryaman/Repositories/DistributedVis/cmake-build-debug/"
-//        val basePath = "/home/aryaman/Repositories/scenery-insitu/"
-        val basePath = "/home/aryaman/Repositories/scenery_vdi/scenery/"
+        val basePath = "/home/aryaman/Repositories/scenery-insitu/"
+//        val basePath = "/home/aryaman/Repositories/scenery_vdi/scenery/"
 //        val basePath = "/home/aryaman/TestingData/"
 //        val basePath = "/home/aryaman/TestingData/FromCluster/"
 
-        val file = FileInputStream(File(basePath + "${dataset}vdidump4"))
+//        val file = FileInputStream(File(basePath + "${dataset}vdidump4"))
 //        val comp = GZIPInputStream(file, 65536)
 
-        val vdiData = VDIDataIO.read(file)
+//        val vdiData = VDIDataIO.read(file)
 
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
@@ -153,7 +153,7 @@ class VDIRendererSimple : SceneryBase("SimpleVDIRenderer", 1280, 720) {
         val compute = CustomNodeSimple()
         compute.name = "compute node"
 
-        compute.setMaterial(ShaderMaterial(Shaders.ShadersFromFiles(arrayOf("SimpleVDIRenderer.comp"), this@VDIRendererSimple::class.java))) {
+        compute.setMaterial(ShaderMaterial(Shaders.ShadersFromFiles(arrayOf("SimpleVDITraversal.comp"), this@VDIRendererSimple::class.java))) {
 //        compute.setMaterial(ShaderMaterial(Shaders.ShadersFromFiles(arrayOf("SimpleVDIRendererIntDepths.comp"), this@VDIRendererSimple::class.java))) {
             textures["OutputViewport"] = Texture.fromImage(Image(outputBuffer, windowWidth, windowHeight), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
             textures["OutputViewport"]!!.mipmap = false
@@ -170,13 +170,13 @@ class VDIRendererSimple : SceneryBase("SimpleVDIRenderer", 1280, 720) {
             UnsignedByteType()
         }
 
-        compute.nw = vdiData.metadata.nw
-        compute.ViewOriginal = vdiData.metadata.view
-        compute.invViewOriginal = Matrix4f(vdiData.metadata.view).invert()
-        compute.ProjectionOriginal = Matrix4f(vdiData.metadata.projection).applyVulkanCoordinateSystem()
-        compute.invProjectionOriginal = Matrix4f(vdiData.metadata.projection).applyVulkanCoordinateSystem().invert()
-
-        logger.info("value of nw: ${vdiData.metadata.nw}")
+//        compute.nw = vdiData.metadata.nw
+//        compute.ViewOriginal = vdiData.metadata.view
+//        compute.invViewOriginal = Matrix4f(vdiData.metadata.view).invert()
+//        compute.ProjectionOriginal = Matrix4f(vdiData.metadata.projection).applyVulkanCoordinateSystem()
+//        compute.invProjectionOriginal = Matrix4f(vdiData.metadata.projection).applyVulkanCoordinateSystem().invert()
+//
+//        logger.info("value of nw: ${vdiData.metadata.nw}")
 
         compute.material().textures["InputVDI"] = Texture(Vector3i(numSupersegments*numLayers, windowHeight, windowWidth), 4, contents = colBuffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture)
             , type = bufType,
