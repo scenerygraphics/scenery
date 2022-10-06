@@ -28,13 +28,10 @@ class SwingUiNode(val swingBridgeFrame : SwingBridgeFrame) : Plane(
     init {
         //to also hit the backside
         this.material().cullingMode = Material.CullingMode.None
-        this.material {
-            textures["diffuse"] = Texture.fromImage(Image.fromStream(FileInputStream("C:\\Users\\Kodels Bier\\Desktop\\helix.png"), ".png", false))
-        }
 
         this.update += {
             this.spatial().scale = Vector3f(swingBridgeFrame.width.toFloat()/swingBridgeFrame.height.toFloat(), 1.0f, 1.0f)
-            updateUITexture()
+            //updateUITexture()
             spatial().needsUpdate = true
         }
     }
@@ -56,46 +53,33 @@ class SwingUiNode(val swingBridgeFrame : SwingBridgeFrame) : Plane(
 
         val swingX = (hitPosModel.x + 0.5f) * swingUiDimension.first
         val swingY = swingUiDimension.second - (hitPosModel.y + 0.5f) * swingUiDimension.second
-        println("Clicky at $swingX : $swingY")
         swingBridgeFrame.click(swingX.toInt(), swingY.toInt())
     }
 
     fun pressed(wPos: Vector3f) {
 
-        println("${this.spatial().model}")
-        println("${wPos.x},${wPos.y},${wPos.z}")
         val hitPosModel = Vector4f(wPos, 1f).mul(this.spatial().model.copy().invert())
-        println("${hitPosModel.x},${hitPosModel.y},${hitPosModel.z},${hitPosModel.w},")
 
         val swingX = (hitPosModel.x + 0.5f) * swingUiDimension.first
         val swingY = swingUiDimension.second - (hitPosModel.y + 0.5f) * swingUiDimension.second
-        println("Press at $swingX : $swingY")
         swingBridgeFrame.pressed(swingX.toInt(), swingY.toInt())
     }
 
     fun drag(wPos: Vector3f) {
 
-        println("${this.spatial().model}")
-        println("${wPos.x},${wPos.y},${wPos.z}")
         val hitPosModel = Vector4f(wPos, 1f).mul(this.spatial().model.copy().invert())
-        println("${hitPosModel.x},${hitPosModel.y},${hitPosModel.z},${hitPosModel.w},")
 
         val swingX = (hitPosModel.x + 0.5f) * swingUiDimension.first
         val swingY = swingUiDimension.second - (hitPosModel.y + 0.5f) * swingUiDimension.second
-        println("Drag at $swingX : $swingY")
         swingBridgeFrame.drag(swingX.toInt(), swingY.toInt())
     }
 
     fun released(wPos: Vector3f) {
 
-        println("${this.spatial().model}")
-        println("${wPos.x},${wPos.y},${wPos.z}")
         val hitPosModel = Vector4f(wPos, 1f).mul(this.spatial().model.copy().invert())
-        println("${hitPosModel.x},${hitPosModel.y},${hitPosModel.z},${hitPosModel.w},")
 
         val swingX = (hitPosModel.x + 0.5f) * swingUiDimension.first
         val swingY = swingUiDimension.second - (hitPosModel.y + 0.5f) * swingUiDimension.second
-        println("Release at $swingX : $swingY")
         swingBridgeFrame.released(swingX.toInt(), swingY.toInt())
     }
 

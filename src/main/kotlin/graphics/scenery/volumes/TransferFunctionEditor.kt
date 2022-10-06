@@ -46,7 +46,7 @@ import kotlin.system.measureTimeMillis
  * Able to generate a histogram and visualize it as well to help with TF-settings
  * Able to dynamically set the transfer function range -> changes histogram as well
  */
-class TransferFunctionUI(width : Int = 1000, height : Int = 1000, volume : Volume, debugFlag : Boolean = false) : SwingBridgeFrame("1DTransferFunctionEditor") {
+class TransferFunctionUI(width : Int = 1000, height : Int = 1000, volume : Volume, val mainFrame : SwingBridgeFrame = SwingBridgeFrame("1DTransferFunctionEditor"), debugFlag : Boolean = false) {
     data class MouseDragTarget(var seriesIndex : Int = -1, var itemIndex : Int = -1, var lastIndex : Int = -1, var x : Double = 0.0, var y : Double = 0.0)
     var converter : ConverterSetup
 
@@ -81,10 +81,10 @@ class TransferFunctionUI(width : Int = 1000, height : Int = 1000, volume : Volum
     private val maxValueLabel: JLabel
 
     init {
-        this.contentPane.preferredSize = Dimension(width, height)
-        this.contentPane.minimumSize = Dimension(width, height)
-        this.layout = MigLayout()
-        this.isVisible = true
+        mainFrame.contentPane.preferredSize = Dimension(width, height)
+        mainFrame.contentPane.minimumSize = Dimension(width, height)
+        mainFrame.layout = MigLayout()
+        mainFrame.isVisible = true
 
         //Debug Panel
         debugPanel = JPanel()
@@ -94,7 +94,7 @@ class TransferFunctionUI(width : Int = 1000, height : Int = 1000, volume : Volum
         textLabel = JLabel("InfoText: ", SwingConstants.LEFT)
         if(debugFlag)
         {
-            this.add(debugPanel, "cell 0 11")
+            mainFrame.add(debugPanel, "cell 0 11")
             debugPanel.add(clickLabel, "cell 0 0")
             debugPanel.add(dragLabel, "cell 0 1")
             debugPanel.add(textLabel, "cell 0 2")
@@ -160,7 +160,7 @@ class TransferFunctionUI(width : Int = 1000, height : Int = 1000, volume : Volum
         mainChart.horizontalAxisTrace = true
         mainChart.verticalAxisTrace = true
 
-        this.add(mainChart, "cell 0 0 12 8")
+        mainFrame.add(mainChart, "cell 0 0 12 8")
 
         mainChart.removeMouseMotionListener(mainChart)
         mainChart.addMouseListener(object : MouseListener {
@@ -259,7 +259,7 @@ class TransferFunctionUI(width : Int = 1000, height : Int = 1000, volume : Volum
         //Histogram Manipulation
         histogramInfoPanel = JPanel()
         histogramInfoPanel.layout = MigLayout()
-        this.add(histogramInfoPanel, "cell 8 8")
+        mainFrame.add(histogramInfoPanel, "cell 8 8")
 
         val genHistButton = JButton("Add Histogram")
         histogramInfoPanel.add(genHistButton, "cell 0 0")
@@ -285,7 +285,7 @@ class TransferFunctionUI(width : Int = 1000, height : Int = 1000, volume : Volum
         //Controlpoint Manipulation
         cpManipulationPanel = JPanel()
         cpManipulationPanel.layout = MigLayout()
-        this.add(cpManipulationPanel, "cell 0 8")
+        mainFrame.add(cpManipulationPanel, "cell 0 8")
 
         cpManipulationPanel.add(valueSpinner, "cell 0 0 3 1")
         cpManipulationPanel.add(alphaSpinner, "cell 1 0 3 1")
@@ -334,7 +334,7 @@ class TransferFunctionUI(width : Int = 1000, height : Int = 1000, volume : Volum
 
         rangeEditorPanel = JPanel()
         rangeEditorPanel.layout = MigLayout()
-        this.add(rangeEditorPanel, "cell 4 8 2 1")
+        mainFrame.add(rangeEditorPanel, "cell 4 8 2 1")
 
         rangeEditorPanel.add(JLabel("min:"), "cell 0 0")
         rangeEditorPanel.add(minText, "cell 1 0")
@@ -346,7 +346,7 @@ class TransferFunctionUI(width : Int = 1000, height : Int = 1000, volume : Volum
 
         updateSliderRange()
 
-        this.pack()
+        mainFrame.pack()
     }
     private fun updateSliderRange(){
         val min = minText.toInt()
@@ -421,26 +421,6 @@ class TransferFunctionUI(width : Int = 1000, height : Int = 1000, volume : Volum
         valueSpinner.value = 0
         alphaSpinner.value = 0
     }
-
-    /*@Plugin(type = Ops.Image.Histogram::class)
-    class HistogramCreate<T : RealType<T>?> :
-        AbstractUnaryFunctionOp<Iterable<T>?, Histogram1d<T>?>(), Ops.Image.Histogram {
-        @Parameter(required = false)
-        private val numBins = 256
-        private var minMaxFunc: UnaryFunctionOp<Iterable<T>, Pair<T, T>>? = null
-        var min : Double = 0.0
-        var max : Double = 100.0
-
-        override fun calculate(input: Iterable<T>?): Histogram1d<T> {
-            val histogram1d = Histogram1d(
-                Real1dBinMapper<T>(
-                    min, max, numBins.toLong(), false
-                )
-            )
-            histogram1d.countData(input)
-            return histogram1d
-        }
-    }*/
 
     private fun generateHistogramBins(volume : Volume, binCount : Double, volumeHistogramData : SimpleHistogramDataset) {
         volumeHistogramData.removeAllBins()

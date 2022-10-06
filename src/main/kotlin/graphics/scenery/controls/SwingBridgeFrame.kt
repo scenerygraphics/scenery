@@ -48,7 +48,6 @@ open class SwingBridgeFrame(title: String) : JFrame(title) {
             val compPoint = SwingUtilities.convertPoint(
                 this.contentPane, x, y, target
             )
-            println("SwingUI: simulating Click at ${compPoint.x},${compPoint.y} on $target")
 
             // entered
             target.dispatchEvent(
@@ -101,7 +100,6 @@ open class SwingBridgeFrame(title: String) : JFrame(title) {
             val compPoint = SwingUtilities.convertPoint(
                 this.contentPane, x, y, target
             )
-            println("SwingUI: simulating mouse Pressed at ${compPoint.x},${compPoint.y} on ${(target as? JButton)?.text}")
 
             // pressed
             target.dispatchEvent(
@@ -124,7 +122,6 @@ open class SwingBridgeFrame(title: String) : JFrame(title) {
                     target, 506, System.currentTimeMillis(), 0, compPoint.x, compPoint.y, 1, false, 1
                 )
             )
-            println("SwingUI: simulating mouse dragged at ${compPoint.x},${compPoint.y} on ${(target as? JButton)?.text}")
         }
 
     }
@@ -134,7 +131,6 @@ open class SwingBridgeFrame(title: String) : JFrame(title) {
             val compPoint = SwingUtilities.convertPoint(
                 this.contentPane, x, y, target
             )
-            println("SwingUI: simulating release at ${compPoint.x},${compPoint.y} on ${(target as? JButton)?.text}")
 
             // released
             target.dispatchEvent(

@@ -3,6 +3,7 @@ package graphics.scenery.tests.examples.volumes
 import bdv.spimdata.XmlIoSpimDataMinimal
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
+import graphics.scenery.controls.SwingBridgeFrame
 import graphics.scenery.controls.SwingUiNode
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
@@ -23,7 +24,7 @@ import java.io.File
  * A TransferFunctionEditor example to add, manipulate and remove control points of a volume's transfer function.
  * Further more able to generate a histogram representation of the volume data distribution to help with the transfer function setup.
  */
-class TransferFunctionEditorExample : SceneryBase("TransferFunctionEditor Example", 1280, 720) {
+class TransferFunctionEditorExample : SceneryBase("TransferFunctionEditor Example", 1280, 720, false) {
     var maxCacheSize = 512
     val cam: Camera = DetachedHeadCamera()
 
@@ -68,8 +69,10 @@ class TransferFunctionEditorExample : SceneryBase("TransferFunctionEditor Exampl
         v.setTransferFunctionRange(0.0f, 1000.0f)
         scene.addChild(v)
 
-        val tfUI = TransferFunctionUI(650, 500, v)
-        val swingUiNode = tfUI.uiNode
+
+        val bridge = SwingBridgeFrame("1DTransferFunctionEditor")
+        val tfUI = TransferFunctionUI(650, 500, v, bridge)
+        val swingUiNode = tfUI.mainFrame.uiNode
         swingUiNode.spatial() {
             position = Vector3f(1f,0f,0f)
         }
@@ -88,7 +91,6 @@ class TransferFunctionEditorExample : SceneryBase("TransferFunctionEditor Exampl
                     ray.matches.firstOrNull()?.let { hit ->
                         val node = hit.node as? SwingUiNode ?: return
                         val hitPos = ray.initialPosition + ray.initialDirection.normalize(hit.distance)
-                        logger.info("Distance: ${hit.distance}")
                         node.click(hitPos)
                     }
                 }
@@ -102,7 +104,6 @@ class TransferFunctionEditorExample : SceneryBase("TransferFunctionEditor Exampl
                     ray.matches.firstOrNull()?.let { hit ->
                         val node = hit.node as? SwingUiNode ?: return
                         val hitPos = ray.initialPosition + ray.initialDirection.normalize(hit.distance)
-                        logger.info("Pressed Distance: ${hit.distance}")
                         node.pressed(hitPos)
                     }
                 }
@@ -112,7 +113,6 @@ class TransferFunctionEditorExample : SceneryBase("TransferFunctionEditor Exampl
                     ray.matches.firstOrNull()?.let { hit ->
                         val node = hit.node as? SwingUiNode ?: return
                         val hitPos = ray.initialPosition + ray.initialDirection.normalize(hit.distance)
-                        logger.info("Dragged Distance: ${hit.distance}")
                         node.drag(hitPos)
                     }
                 }
@@ -120,9 +120,8 @@ class TransferFunctionEditorExample : SceneryBase("TransferFunctionEditor Exampl
                     val ray = cam.getNodesForScreenSpacePosition(x,y, listOf<Class<*>>(BoundingGrid::class.java))
 
                     ray.matches.firstOrNull()?.let { hit ->
-                        val node = hit.node as? SwingUiNode ?: return //backside might get hit first
+                        val node = hit.node as? SwingUiNode ?: return
                         val hitPos = ray.initialPosition + ray.initialDirection.normalize(hit.distance)
-                        logger.info("Released Distance: ${hit.distance}")
                         node.released(hitPos)
                     }
                 }
