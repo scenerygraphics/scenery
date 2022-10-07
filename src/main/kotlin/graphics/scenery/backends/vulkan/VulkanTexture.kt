@@ -10,6 +10,7 @@ import graphics.scenery.textures.UpdatableTexture
 import graphics.scenery.textures.UpdatableTexture.TextureUpdate
 import graphics.scenery.utils.Image
 import graphics.scenery.utils.lazyLogger
+import kotlinx.coroutines.*
 import net.imglib2.type.numeric.NumericType
 import net.imglib2.type.numeric.integer.*
 import net.imglib2.type.numeric.real.DoubleType
@@ -25,9 +26,10 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.file.Files
 import java.nio.file.Paths
+import kotlin.concurrent.thread
+import kotlin.io.path.readLines
 import kotlin.math.max
 import kotlin.math.roundToLong
-import kotlin.streams.toList
 
 /**
  * Vulkan Texture class. Creates a texture on the [device], with [width]x[height]x[depth],
@@ -44,7 +46,7 @@ open class VulkanTexture(val device: VulkanDevice,
                     val format: Int = VK_FORMAT_R8G8B8_SRGB, var mipLevels: Int = 1,
                     val minFilterLinear: Boolean = true, val maxFilterLinear: Boolean = true,
                     val usage: HashSet<Texture.UsageType> = hashSetOf(Texture.UsageType.Texture)) : AutoCloseable {
-    //protected val logger by LazyLogger()
+    protected val logger by lazyLogger()
 
     private var initialised: Boolean = false
 
@@ -301,6 +303,24 @@ open class VulkanTexture(val device: VulkanDevice,
 
     var tmpBuffer: VulkanBuffer? = null
 
+
+    fun CoroutineScope.launchPeriodicAsync(
+        repeatMillis: Long,
+        action: () -> Boolean
+    ) = this.async {
+        if (repeatMillis > 0) {
+            while (isActive) {
+                val result = action()
+                if(result) {
+                    break
+                }
+                delay(repeatMillis)
+            }
+        } else {
+            action()
+        }
+    }
+
     /**
      * Copies the data for this texture from a [ByteBuffer], [data].
      */
@@ -363,111 +383,165 @@ open class VulkanTexture(val device: VulkanDevice,
 
         logger.debug("Updating {} with {} miplevels", this, mipLevels)
         if (mipLevels == 1) {
-            with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
-                if(!initialised) {
-                    transitionLayout(stagingImage.image,
-                        VK_IMAGE_LAYOUT_PREINITIALIZED,
-                        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, mipLevels,
-                        srcStage = VK_PIPELINE_STAGE_HOST_BIT,
-                        dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
-                        commandBuffer = this)
+            val block = !(gt?.usageType?.contains(Texture.UsageType.AsyncLoad) ?: false)
+            val fence = if(!block) {
+                val f = device.createFence()
+
+                CoroutineScope(Dispatchers.Default).launchPeriodicAsync(100) {
+                    val done = vkGetFenceStatus(device.vulkanDevice, f) == VK_SUCCESS
+                    logger.info("Upload done: $done")
+
+                    if(done) {
+                        device.destroyFence(f)
+                    }
+
+                    done
                 }
 
-                if (depth == 1) {
-                    val dest = memAllocPointer(1)
-                    vkMapMemory(device, stagingImage.memory, 0, sourceBuffer.remaining() * 1L, 0, dest)
-                    memCopy(memAddress(sourceBuffer), dest.get(0), sourceBuffer.remaining().toLong())
-                    vkUnmapMemory(device, stagingImage.memory)
-                    memFree(dest)
+                f
+            } else {
+                null
+            }
 
-                    transitionLayout(image.image,
-                        VK_IMAGE_LAYOUT_UNDEFINED,
-                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, mipLevels,
-                        srcStage = VK_PIPELINE_STAGE_HOST_BIT,
-                        dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
-                        commandBuffer = this)
+            logger.info("Upload will block: $block running on $transferQueue vs $queue")
 
-                    image.copyFrom(this, stagingImage)
-
-                    transitionLayout(image.image,
-                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, mipLevels,
-                        srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
-                        dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-                        commandBuffer = this)
-
-                } else {
-                    val genericTexture = gt
-                    val requiredCapacity = if(genericTexture is UpdatableTexture && genericTexture.hasConsumableUpdates()) {
-                        genericTexture.getConsumableUpdates().map { it.contents.remaining() }.sum().toLong()
-                    } else {
-                        sourceBuffer.capacity().toLong()
-                    }
-
-                    logger.debug("{} has {} consumeable updates", this@VulkanTexture, (genericTexture as? UpdatableTexture)?.getConsumableUpdates()?.size)
-
-                    if(tmpBuffer == null || (tmpBuffer?.size ?: 0) < requiredCapacity) {
-                        logger.debug(
-                            "({}) Reallocating tmp buffer, old size={} new size = {} MiB",
-                            this@VulkanTexture,
-                            tmpBuffer?.size,
-                            requiredCapacity.toFloat()/1024.0f/1024.0f
+            val t = thread {
+                with(VU.newCommandBuffer(device, commandPools.Transfer, autostart = true)) {
+                    if (!initialised) {
+                        transitionLayout(
+                            stagingImage.image,
+                            VK_IMAGE_LAYOUT_PREINITIALIZED,
+                            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, mipLevels,
+                            srcStage = VK_PIPELINE_STAGE_HOST_BIT,
+                            dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                            commandBuffer = this
                         )
-                        tmpBuffer?.close()
-                        // reserve a bit more space if the texture is small, to avoid reallocations
-                        val reservedSize = if(requiredCapacity < 1024*1024*8) {
-                            (requiredCapacity * 1.33).roundToLong()
-                        } else {
-                            requiredCapacity
-                        }
-
-                        tmpBuffer = VulkanBuffer(this@VulkanTexture.device,
-                            max(reservedSize, 1024*1024),
-                            VK_BUFFER_USAGE_TRANSFER_SRC_BIT or VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                            wantAligned = false)
                     }
 
-                    tmpBuffer?.let { buffer ->
-                        transitionLayout(image.image,
+                    if (depth == 1) {
+                        val dest = memAllocPointer(1)
+                        vkMapMemory(device, stagingImage.memory, 0, sourceBuffer.remaining() * 1L, 0, dest)
+                        memCopy(memAddress(sourceBuffer), dest.get(0), sourceBuffer.remaining().toLong())
+                        vkUnmapMemory(device, stagingImage.memory)
+                        memFree(dest)
+
+                        transitionLayout(
+                            image.image,
                             VK_IMAGE_LAYOUT_UNDEFINED,
                             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, mipLevels,
                             srcStage = VK_PIPELINE_STAGE_HOST_BIT,
                             dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
-                            commandBuffer = this)
+                            commandBuffer = this
+                        )
 
-                        if(genericTexture is UpdatableTexture) {
-                            if(genericTexture.hasConsumableUpdates()) {
-                                val contents = genericTexture.getConsumableUpdates().map { it.contents }
+                        image.copyFrom(this, stagingImage)
 
-                                buffer.copyFrom(contents, keepMapped = true)
-                                image.copyFrom(this, buffer, genericTexture.getConsumableUpdates())
-                            } /*else {
+                        transitionLayout(
+                            image.image,
+                            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, mipLevels,
+                            srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                            dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                            commandBuffer = this
+                        )
+
+                    } else {
+                        val genericTexture = gt
+                        // block only if the texture has no async load flag
+                        val requiredCapacity =
+                            if (genericTexture is UpdatableTexture && genericTexture.hasConsumableUpdates()) {
+                                genericTexture.getConsumableUpdates().map { it.contents.remaining() }.sum().toLong()
+                            } else {
+                                sourceBuffer.capacity().toLong()
+                            }
+
+                        logger.debug(
+                            "{} has {} consumeable updates",
+                            this@VulkanTexture,
+                            (genericTexture as? UpdatableTexture)?.getConsumableUpdates()?.size
+                        )
+
+                        if(tmpBuffer == null || (tmpBuffer?.size ?: 0) < requiredCapacity) {
+                            logger.debug(
+                                "({}) Reallocating tmp buffer, old size={} new size = {} MiB",
+                                this@VulkanTexture,
+                                tmpBuffer?.size,
+                                requiredCapacity.toFloat()/1024.0f/1024.0f
+                            )
+                            tmpBuffer?.close()
+                            // reserve a bit more space if the texture is small, to avoid reallocations
+                            val reservedSize = if(requiredCapacity < 1024*1024*8) {
+                                (requiredCapacity * 1.33).roundToLong()
+                            } else {
+                                requiredCapacity
+                            }
+
+                            tmpBuffer = VulkanBuffer(this@VulkanTexture.device,
+                                                     max(reservedSize, 1024*1024),
+                                                     VK_BUFFER_USAGE_TRANSFER_SRC_BIT or VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                                                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                                                     wantAligned = false)
+                        }
+
+                        tmpBuffer?.let { buffer ->
+                            transitionLayout(
+                                image.image,
+                                VK_IMAGE_LAYOUT_UNDEFINED,
+                                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, mipLevels,
+                                srcStage = VK_PIPELINE_STAGE_HOST_BIT,
+                                dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                commandBuffer = this
+                            )
+
+                            if (genericTexture is UpdatableTexture) {
+                                if (genericTexture.hasConsumableUpdates()) {
+                                    val contents = genericTexture.getConsumableUpdates().map { it.contents }
+
+                                    buffer.copyFrom(contents, keepMapped = true)
+                                    image.copyFrom(this, buffer, genericTexture.getConsumableUpdates())
+                                } /*else {
                                 // TODO: Semantics, do we want UpdateableTextures to be only
                                 // updateable via updates, or shall they read from buffer on first init?
                                 buffer.copyFrom(sourceBuffer)
                                 image.copyFrom(this, buffer)
                             }*/
-                        } else {
-                            buffer.copyFrom(sourceBuffer)
-                            image.copyFrom(this, buffer)
+                            } else {
+                                buffer.copyFrom(sourceBuffer)
+                                image.copyFrom(this, buffer)
+                            }
+
+                            transitionLayout(
+                                image.image,
+                                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, mipLevels,
+                                srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                                commandBuffer = this
+                            )
                         }
 
-                        transitionLayout(image.image,
-                            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, mipLevels,
-                            srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
-                            dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-                            commandBuffer = this)
                     }
 
+                    endCommandBuffer(
+                        this@VulkanTexture.device,
+                        commandPools.Transfer,
+                        transferQueue,
+                        flush = true,
+                        dealloc = true,
+                        block = block,
+                        fence = fence
+                    )
+                    logger.info("Submitted")
                 }
-
-                endCommandBuffer(this@VulkanTexture.device, commandPools.Standard, transferQueue, flush = true, dealloc = true, block = true)
-                // necessary to clear updates here, as the command buffer might still access the
-                // memory address of the texture update.
-                (gt as? UpdatableTexture)?.clearConsumedUpdates()
             }
+
+            if(block) {
+                t.join()
+            }
+            // necessary to clear updates here, as the command buffer might still access the
+            // memory address of the texture update.
+            (gt as? UpdatableTexture)?.clearConsumedUpdates()
+            logger.info("Copy queueing done")
         } else {
             val buffer = VulkanBuffer(device,
                 sourceBuffer.limit().toLong(),
@@ -488,7 +562,14 @@ open class VulkanTexture(val device: VulkanDevice,
                     srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
                     dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT)
 
-                endCommandBuffer(this@VulkanTexture.device, commandPools.Standard, transferQueue, flush = true, dealloc = true, block = true)
+                endCommandBuffer(
+                    this@VulkanTexture.device,
+                    commandPools.Standard,
+                    transferQueue,
+                    flush = true,
+                    dealloc = true,
+                    block = false
+                )
             }
 
             val imageBlit = VkImageBlit.calloc(1)
@@ -563,7 +644,14 @@ open class VulkanTexture(val device: VulkanDevice,
                     mipTargetRange.free()
                 }
 
-                this@mipmapCreation.endCommandBuffer(this@VulkanTexture.device, commandPools.Standard, queue, flush = true, dealloc = true)
+                this@mipmapCreation.endCommandBuffer(
+                    this@VulkanTexture.device,
+                    commandPools.Standard,
+                    transferQueue,
+                    flush = true,
+                    dealloc = true,
+                    block = false
+                )
             }
 
             imageBlit.free()
@@ -584,60 +672,112 @@ open class VulkanTexture(val device: VulkanDevice,
     /**
      * Copies the first layer, first mipmap of the texture to [buffer].
      */
-    fun copyTo(buffer: ByteBuffer) {
-        if(tmpBuffer == null || (tmpBuffer?.size!! < image.maxSize)) {
-            tmpBuffer?.close()
-            tmpBuffer = VulkanBuffer(this@VulkanTexture.device,
-                image.maxSize,
-                VK_BUFFER_USAGE_TRANSFER_SRC_BIT or VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                wantAligned = false)
-        }
+    fun copyTo(buffer: ByteBuffer, inPlace: Boolean = false): ByteBuffer? {
+        stackPush().use { stack ->
+            val memoryProperties = (VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+                    or VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+                    or VK_MEMORY_PROPERTY_HOST_CACHED_BIT)
 
-        tmpBuffer?.let { b ->
-            with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
-                transitionLayout(image.image,
-                    VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, 1,
-                    srcStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-                    dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
-                    commandBuffer = this)
-
-                val type = VK_IMAGE_ASPECT_COLOR_BIT
-
-                val subresource = VkImageSubresourceLayers.calloc()
-                    .aspectMask(type)
-                    .mipLevel(0)
-                    .baseArrayLayer(0)
-                    .layerCount(1)
-
-                val regions = VkBufferImageCopy.calloc(1)
-                    .bufferRowLength(0)
-                    .bufferImageHeight(0)
-                    .imageOffset(VkOffset3D.calloc().set(0, 0, 0))
-                    .imageExtent(VkExtent3D.calloc().set(width, height, depth))
-                    .imageSubresource(subresource)
-
-                vkCmdCopyImageToBuffer(
-                    this,
-                    image.image,
-                    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                    b.vulkanBuffer,
-                    regions
-                )
-
-                transitionLayout(image.image,
-                    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                    VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 1,
-                    srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
-                    dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-                    commandBuffer = this)
-
-                endCommandBuffer(this@VulkanTexture.device, commandPools.Standard, transferQueue, flush = true, dealloc = true, block = true)
+            if (tmpBuffer == null
+                || (tmpBuffer?.size!! < image.maxSize)
+                || (tmpBuffer?.requestedMemoryProperties != memoryProperties)) {
+                tmpBuffer?.close()
+                logger.debug("Reallocating temporary buffer")
+                tmpBuffer = VulkanBuffer(this@VulkanTexture.device,
+                    image.maxSize,
+                    VK_BUFFER_USAGE_TRANSFER_SRC_BIT or VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                    memoryProperties,
+                    wantAligned = true)
             }
 
-            b.copyTo(buffer)
+            tmpBuffer?.let { b ->
+                with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
+                    logger.info("${System.nanoTime()}: Copying $width $height $depth")
+                    transitionLayout(image.image,
+                        from = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                        to = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                        srcStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                        srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                        dstStage = VK_PIPELINE_STAGE_HOST_BIT,
+                        dstAccessMask = VK_ACCESS_HOST_READ_BIT,
+                        commandBuffer = this)
+
+                    val type = VK_IMAGE_ASPECT_COLOR_BIT
+
+                    val subresource = VkImageSubresourceLayers.calloc(stack)
+                        .aspectMask(type)
+                        .mipLevel(0)
+                        .baseArrayLayer(0)
+                        .layerCount(1)
+
+                    val regions = VkBufferImageCopy.calloc(1, stack)
+                        .bufferRowLength(0)
+                        .bufferImageHeight(0)
+                        .imageOffset(VkOffset3D.calloc(stack).set(0, 0, 0))
+                        .imageExtent(VkExtent3D.calloc(stack).set(width, height, depth))
+                        .imageSubresource(subresource)
+
+                    vkCmdCopyImageToBuffer(
+                        this,
+                        image.image,
+                        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                        b.vulkanBuffer,
+                        regions
+                    )
+
+                    transitionLayout(image.image,
+                        from = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                        to = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                        srcStage = VK_PIPELINE_STAGE_HOST_BIT,
+                        srcAccessMask = VK_ACCESS_HOST_READ_BIT,
+                        dstStage = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,
+                        dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
+                        commandBuffer = this)
+
+                    val barrier = VkBufferMemoryBarrier.calloc(1, stack)
+                    barrier
+                        .sType(VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER)
+                        .buffer(b.vulkanBuffer)
+                        .srcAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
+                        .dstAccessMask(VK_ACCESS_HOST_READ_BIT)
+                        .size(VK_WHOLE_SIZE)
+
+                    vkCmdPipelineBarrier(
+                        this,
+                        VK_PIPELINE_STAGE_TRANSFER_BIT,
+                        VK_PIPELINE_STAGE_HOST_BIT,
+                        0,
+                        null,
+                        barrier,
+                        null
+                    )
+
+                    endCommandBuffer(
+                        this@VulkanTexture.device,
+                        commandPools.Standard,
+                        queue,
+                        flush = true,
+                        dealloc = true,
+                        block = true
+                    )
+                }
+
+                val result = if(!inPlace) {
+                    b.copyTo(buffer)
+                    buffer
+                } else {
+//                    val p = b.mapIfUnmapped()
+                    b.unmap()
+                    val p = b.map()
+                    logger.info("${System.nanoTime()}: Buffer has ${buffer.remaining()}")
+                    memByteBuffer(p.get(0), buffer.remaining())
+                }
+
+                return result
+            }
         }
+
+        return null
     }
 
     /**
@@ -822,7 +962,7 @@ open class VulkanTexture(val device: VulkanDevice,
             return if(type == "raw") {
                 val path = Paths.get(filename)
                 val infoFile = path.resolveSibling(path.fileName.toString().substringBeforeLast(".") + ".info")
-                val dimensions = Files.lines(infoFile).toList().first().split(",").map { it.toLong() }.toLongArray()
+                val dimensions = infoFile.readLines().first().split(",").map { it.toLong() }.toLongArray()
 
                 loadFromFileRaw(device,
                         commandPools, queue, transferQueue,
