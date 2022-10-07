@@ -406,6 +406,8 @@ object VulkanNodeHelpers {
                     val pipeline = pass.initializePipeline(shaderModules,
                         material.cullingMode,
                         material.depthTest,
+                        material.depthWrite,
+                        material.depthOp,
                         material.blending,
                         material.wireframe,
                         s.vertexDescription
