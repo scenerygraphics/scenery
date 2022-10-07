@@ -1834,7 +1834,7 @@ open class OpenGLRenderer(hub: Hub,
                         Material.CullingMode.FrontAndBack -> gl.glCullFace(GL4.GL_FRONT_AND_BACK)
                     }
 
-                   val depthTest = when(material.depthTest) {
+                   val depthTest = when(material.depthOp) {
                         Material.DepthTest.Less -> GL4.GL_LESS
                         Material.DepthTest.Greater -> GL4.GL_GREATER
                         Material.DepthTest.LessEqual -> GL4.GL_LEQUAL

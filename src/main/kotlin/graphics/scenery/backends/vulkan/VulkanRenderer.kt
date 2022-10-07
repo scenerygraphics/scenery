@@ -940,7 +940,7 @@ open class VulkanRenderer(hub: Hub,
         val materialUbo = VulkanUBO(device, backingBuffer = buffers.UBOs)
         with(materialUbo) {
             name = "MaterialProperties"
-            add("materialType", { node.materialOrNull()!!.materialTypeFromTextures(s) })
+            add("materialType", { node.materialOrNull()!!.materialTypeFromTextures(renderable.rendererMetadata()!!) })
             add("Ka", { node.materialOrNull()!!.ambient })
             add("Kd", { node.materialOrNull()!!.diffuse })
             add("Ks", { node.materialOrNull()!!.specular })

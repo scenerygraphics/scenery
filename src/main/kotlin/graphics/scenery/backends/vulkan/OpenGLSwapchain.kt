@@ -182,7 +182,7 @@ class OpenGLSwapchain(device: VulkanDevice,
         val fenceCreateInfo = VkFenceCreateInfo.calloc()
             .sType(VK10.VK_STRUCTURE_TYPE_FENCE_CREATE_INFO)
 
-        presentQueue = VU.createDeviceQueue(device, device.queues.graphicsQueue.first)
+        presentQueue = device.getQueue(device.queueIndices.graphicsQueue.first)
 
         val imgs = (0 until bufferCount).map {
             with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {

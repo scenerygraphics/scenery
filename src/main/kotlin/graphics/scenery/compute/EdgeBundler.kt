@@ -214,7 +214,7 @@ class EdgeBundler(override var hub: Hub?): Hubable {
         line.name = trackId.toString()
         line.material {
             blending.opacity = paramAlpha
-            depthTest = Material.DepthTest.Always
+            depthOp = Material.DepthTest.Always
         }
         line.spatial {
             position = Vector3f(0.0f, 0.0f, 0.0f)
