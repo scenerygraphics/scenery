@@ -714,7 +714,7 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
                 .m_pPhysicalDevice(device.physicalDevice.address())
                 .m_pDevice(device.vulkanDevice.address())
                 .m_pQueue(queue.address())
-                .m_nQueueFamilyIndex(device.queues.graphicsQueue.first)
+                .m_nQueueFamilyIndex(device.queueIndices.graphicsQueue.first)
                 .m_nWidth(width)
                 .m_nHeight(height)
                 .m_nFormat(format)
@@ -728,7 +728,7 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
             readyForSubmission = false
 
             if(commandPool == -1L) {
-                commandPool = device.createCommandPool(device.queues.graphicsQueue.first)
+                commandPool = device.createCommandPool(device.queueIndices.graphicsQueue.first)
             }
 
             val subresourceRange = VkImageSubresourceRange.calloc(stack)
