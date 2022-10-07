@@ -45,7 +45,9 @@ class ShaderMaterialSerializer: Serializer<ShaderMaterial>() {
         sm.textures = obj.textures
         sm.ambient = obj.ambient
         sm.blending = obj.blending
+        sm.depthOp = obj.depthOp
         sm.depthTest = obj.depthTest
+        sm.depthWrite = obj.depthWrite
         sm.metallic = obj.metallic
         sm.name = obj.name
         sm.roughness = obj.roughness
