@@ -42,7 +42,6 @@ open class Texture @JvmOverloads constructor(
     /** Usage type */
     val usageType: HashSet<UsageType> = hashSetOf(UsageType.Texture)
 
-
 ) : Serializable, Timestamped {
     init {
         contents?.let { c ->
@@ -104,7 +103,8 @@ open class Texture @JvmOverloads constructor(
 
     enum class UsageType {
         Texture,
-        LoadStoreImage
+        LoadStoreImage,
+        AsyncLoad
     }
 
     /** Companion object of [Texture], containing mainly constant defines */
