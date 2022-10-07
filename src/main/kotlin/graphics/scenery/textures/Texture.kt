@@ -51,7 +51,6 @@ open class Texture @JvmOverloads constructor(
     /** Hash set to indicate the state of the texture */
     val uploaded: AtomicInteger = AtomicInteger(0)
 
-
 ) : Serializable, Timestamped {
 
     enum class TextureState {

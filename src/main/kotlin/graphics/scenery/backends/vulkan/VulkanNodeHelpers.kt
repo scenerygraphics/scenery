@@ -263,7 +263,7 @@ object VulkanNodeHelpers {
      *
      * Returns a [Pair] of [Boolean], indicating whether contents or descriptor set have changed.
      */
-    fun loadTexturesForNode(device: VulkanDevice, node: Node, s: VulkanObjectState, defaultTextures: Map<String, VulkanTexture>, textureCache: MutableMap<Texture, VulkanTexture>, commandPools: VulkanRenderer.CommandPools, queue: VkQueue): Pair<Boolean, Boolean> {
+    fun loadTexturesForNode(device: VulkanDevice, node: Node, s: VulkanObjectState, defaultTextures: Map<String, VulkanTexture>, textureCache: MutableMap<Texture, VulkanTexture>, commandPools: VulkanRenderer.CommandPools, queue: VkQueue, transferQueue: VkQueue = queue): Pair<Boolean, Boolean> {
         val material = node.materialOrNull() ?: return Pair(false, false)
         val defaultTexture = defaultTextures["DefaultTexture"] ?: throw IllegalStateException("Default fallback texture does not exist.")
         // if a node is not yet initialized, we'll definitely require a new DS
@@ -282,7 +282,7 @@ object VulkanNodeHelpers {
             val existing = textureCache[texture]
             if (existing == null) {
                 try {
-                    logger.debug("Loading texture {} for {}", texture, node.name)
+                    logger.info("Loading texture {} for {}", texture, node.name)
 
                     val miplevels = if (generateMipmaps && texture.mipmap) {
                         floor(ln(min(texture.dimensions.x() * 1.0, texture.dimensions.y() * 1.0)) / ln(2.0)).toInt()
@@ -299,10 +299,11 @@ object VulkanNodeHelpers {
                         existingTexture
                     } else {
                         descriptorUpdated = true
-                        VulkanTexture(device, commandPools, queue, queue, texture, miplevels)
+                        VulkanTexture(device, commandPools, queue, transferQueue, texture, miplevels)
                     }
 
                     texture.contents?.let { contents ->
+                        logger.info("Copying contents of size ${contents.remaining()/1024/1024}M")
                         t.copyFrom(contents.duplicate())
                     }
 
