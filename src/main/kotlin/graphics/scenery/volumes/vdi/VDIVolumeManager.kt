@@ -62,7 +62,6 @@ class VDIVolumeManager {
                 }
                 val outputSubDepthBuffer = if(separateDepth) {
                     MemoryUtil.memCalloc(window.height*window.width*2*maxSupersegments*2 * 2)
-//                MemoryUtil.memCalloc(window.height*window.width*2*maxSupersegments*2)
                 } else {
                     MemoryUtil.memCalloc(0)
                 }
@@ -72,19 +71,25 @@ class VDIVolumeManager {
 
                 val thresholdBuffer = MemoryUtil.memCalloc(window.width * window.height * 4)
 
-                val outputSubVDIColor: Texture
                 val outputSubVDIDepth: Texture
-                val gridCells: Texture
-                val thresholds: Texture
 
-                outputSubVDIColor = if(colors32bit) {
+                val outputSubVDIColor: Texture = if(colors32bit) {
                     Texture.fromImage(
-                        Image(outputSubColorBuffer, numLayers * maxSupersegments, window.height, window.width), usage = hashSetOf(
-                            Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), channels = 4, mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+                        Image(outputSubColorBuffer, numLayers * maxSupersegments, window.height, window.width),
+                        usage = hashSetOf(
+                            Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture
+                        ),
+                        type = FloatType(),
+                        normalized = false,
+                        channels = 4
+                    )
                 } else {
                     Texture.fromImage(
-                        Image(outputSubColorBuffer, numLayers * maxSupersegments, window.height, window.width), usage = hashSetOf(
-                            Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
+                        Image(outputSubColorBuffer, numLayers * maxSupersegments, window.height, window.width),
+                        usage = hashSetOf(
+                            Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture
+                        )
+                    )
                 }
 
                 volumeManager.customTextures.add("OutputSubVDIColor")
@@ -92,21 +97,34 @@ class VDIVolumeManager {
 
                 if(separateDepth) {
                     outputSubVDIDepth = Texture.fromImage(
-                        Image(outputSubDepthBuffer, 2 * maxSupersegments, window.height, window.width),  usage = hashSetOf(
-                            Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), channels = 1, mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+                        Image(outputSubDepthBuffer, 2 * maxSupersegments, window.height, window.width),
+                        usage = hashSetOf(
+                            Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture
+                        ),
+                        type = FloatType(),
+                        normalized = false,
+                        channels = 1
+                    )
                     volumeManager.customTextures.add("OutputSubVDIDepth")
                     volumeManager.material().textures["OutputSubVDIDepth"] = outputSubVDIDepth
                 }
 
-                gridCells = Texture.fromImage(
-                    Image(lowestLevel, numGridCells.x.toInt(), numGridCells.y.toInt(), numGridCells.z.toInt()), channels = 1, type = UnsignedIntType(),
-                    usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
+                val gridCells: Texture = Texture.fromImage(
+                    Image(lowestLevel, numGridCells.x.toInt(), numGridCells.y.toInt(), numGridCells.z.toInt()),
+                    channels = 1,
+                    type = UnsignedIntType(),
+                    usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture)
+                )
                 volumeManager.customTextures.add("OctreeCells")
                 volumeManager.material().textures["OctreeCells"] = gridCells
 
-                thresholds = Texture.fromImage(
-                    Image(thresholdBuffer, window.width, window.height), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
-                    type = FloatType(), channels = 1, mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+                val thresholds: Texture = Texture.fromImage(
+                    Image(thresholdBuffer, window.width, window.height),
+                    usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
+                    type = FloatType(),
+                    normalized = false,
+                    channels = 1
+                )
                 volumeManager.customTextures.add("Thresholds")
                 volumeManager.material().textures["Thresholds"] = thresholds
 

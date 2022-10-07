@@ -332,18 +332,31 @@ class VolumeManager(
 //                    instances[SegmentType.AccumulatorMultiresolution]
 //                )
 
-                instances[SegmentType.FragmentShader]?.bind("localNear", i, instances[SegmentType.Accumulator])
-
-//                instances[SegmentType.FragmentShader]?.bind(
-//                    "localFar",
-//                    i,
-//                    instances[SegmentType.AccumulatorMultiresolution]
-//                )
-
-                instances[SegmentType.FragmentShader]?.bind("localFar", i, instances[SegmentType.Accumulator])
+                if(signatures[i].sourceStackType == SourceStacks.SourceStackType.MULTIRESOLUTION) {
+                    instances[SegmentType.FragmentShader]?.bind(
+                        "localNear",
+                        i,
+                        instances[SegmentType.AccumulatorMultiresolution]
+                    )
+                    instances[SegmentType.FragmentShader]?.bind(
+                        "localFar",
+                        i,
+                        instances[SegmentType.AccumulatorMultiresolution]
+                    )
+                } else {
+                    instances[SegmentType.FragmentShader]?.bind(
+                        "localNear",
+                        i,
+                        instances[SegmentType.Accumulator]
+                    )
+                    instances[SegmentType.FragmentShader]?.bind(
+                        "localFar",
+                        i,
+                        instances[SegmentType.Accumulator]
+                    )
+                }
 
                 instances[SegmentType.SampleMultiresolutionVolume]?.bind("convert", instances[SegmentType.Convert])
-
                 instances[SegmentType.SampleVolume]?.bind("convert", instances[SegmentType.Convert])
             }
 
