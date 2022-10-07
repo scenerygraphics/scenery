@@ -243,12 +243,11 @@ class SystemHelpers {
          */
         fun dumpToFile(buf: ByteBuffer, filename: String) {
             try {
+                val view = buf.duplicate().order(ByteOrder.LITTLE_ENDIAN)
                 val file = File(filename)
                 val channel = FileOutputStream(file, false).channel
-                channel.write(buf)
+                channel.write(view)
                 channel.close()
-
-                buf.flip()
             } catch (e: Exception) {
                 logger.error("Unable to dump byte buffer to $filename")
                 e.printStackTrace()

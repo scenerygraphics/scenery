@@ -113,7 +113,7 @@ open class HeadlessSwapchain(device: VulkanDevice,
         } else {
             VK10.VK_FORMAT_B8G8R8A8_UNORM
         }
-        presentQueue = VU.createDeviceQueue(device, device.queues.graphicsQueue.first)
+        presentQueue = device.getQueue(device.queueIndices.graphicsQueue.first)
 
         val textureImages = (0 until bufferCount).map {
             val t = VulkanTexture(device, commandPools, queue, queue, window.width, window.height, 1,

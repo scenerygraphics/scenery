@@ -378,7 +378,7 @@ class Hololens: TrackerInput, Display, Hubable {
      */
     override fun submitToCompositorVulkan(width: Int, height: Int, format: Int, instance: VkInstance, device: VulkanDevice, queue: VkQueue, image: Long) {
         if(hololensCommandPool == -1L) {
-            hololensCommandPool = device.createCommandPool(device.queues.graphicsQueue.first)
+            hololensCommandPool = device.createCommandPool(device.queueIndices.graphicsQueue.first)
         }
 
         if(leftProjection == null) {

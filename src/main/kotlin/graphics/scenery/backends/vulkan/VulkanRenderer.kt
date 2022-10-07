@@ -597,15 +597,17 @@ open class VulkanRenderer(hub: Hub,
                 }
             }
 
-            queue = VU.createDeviceQueue(device, device.queues.graphicsQueue.first)
-            logger.debug("Creating transfer queue with ${device.queues.transferQueue.first} (vs ${device.queues.graphicsQueue})")
-            transferQueue = VU.createDeviceQueue(device, device.queues.transferQueue.first)
+            queue = device.getQueue(device.queueIndices.graphicsQueue.first)
+            logger.info("Creating transfer queue with ${device.queueIndices.transferQueue.first} (vs ${device.queueIndices.graphicsQueue.first})")
+            transferQueue = device.getQueue(device.queueIndices.transferQueue.first)
+
+            logger.info("Have $queue and $transferQueue")
 
             with(commandPools) {
-                Render = device.createCommandPool(device.queues.graphicsQueue.first)
-                Standard = device.createCommandPool(device.queues.graphicsQueue.first)
-                Compute = device.createCommandPool(device.queues.computeQueue.first)
-                Transfer = device.createCommandPool(device.queues.transferQueue.first)
+                Render = device.createCommandPool(device.queueIndices.graphicsQueue.first)
+                Standard = device.createCommandPool(device.queueIndices.graphicsQueue.first)
+                Compute = device.createCommandPool(device.queueIndices.computeQueue.first)
+                Transfer = device.createCommandPool(device.queueIndices.transferQueue.first)
             }
             logger.debug("Creating command pools done")
 
@@ -921,7 +923,16 @@ open class VulkanRenderer(hub: Hub,
             }
         }
 
-        val (_, descriptorUpdated) = VulkanNodeHelpers.loadTexturesForNode(device, node, s, defaultTextures, textureCache, commandPools, queue)
+        val (_, descriptorUpdated) = VulkanNodeHelpers.loadTexturesForNode(
+            device,
+            node,
+            s,
+            defaultTextures,
+            textureCache,
+            commandPools,
+            queue,
+            transferQueue
+        )
         if(descriptorUpdated) {
             s.texturesToDescriptorSets(device,
                 renderpasses.filter { it.value.passConfig.type != RenderConfigReader.RenderpassType.quad },
@@ -1222,7 +1233,7 @@ open class VulkanRenderer(hub: Hub,
     }
 
     protected fun prepareDefaultTextures(device: VulkanDevice) {
-        val t = VulkanTexture.loadFromFile(device, commandPools, queue, queue,
+        val t = VulkanTexture.loadFromFile(device, commandPools, queue, transferQueue,
             Renderer::class.java.getResourceAsStream("DefaultTexture.png"), "png", true, true)
 
         // TODO: Do an asset manager or sth here?
@@ -1339,7 +1350,7 @@ open class VulkanRenderer(hub: Hub,
                 val ref = VulkanTexture.getReference(req.first)
 
                 if(ref != null) {
-                    ref.copyTo(buffer)
+                    ref.copyTo(buffer, false)
                     req.second.send(req.first)
                     req.second.close()
                     logger.info("Sent updated texture")
@@ -1634,7 +1645,16 @@ open class VulkanRenderer(hub: Hub,
                     }
 
                     val reloadTime = measureTimeMillis {
-                        val (texturesUpdatedForNode, descriptorUpdated) = VulkanNodeHelpers.loadTexturesForNode(device, node, metadata, defaultTextures, textureCache, commandPools, queue)
+                        val (texturesUpdatedForNode, descriptorUpdated) = VulkanNodeHelpers.loadTexturesForNode(
+                            device,
+                            node,
+                            metadata,
+                            defaultTextures,
+                            textureCache,
+                            commandPools,
+                            queue,
+                            transferQueue
+                        )
                         if(descriptorUpdated) {
                             metadata.texturesToDescriptorSets(device,
                                 renderpasses.filter { it.value.passConfig.type != RenderConfigReader.RenderpassType.quad },
