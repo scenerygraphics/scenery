@@ -38,7 +38,8 @@ open class VulkanDevice(
     /** Stores the Vulkan-internal device. */
     val vulkanDevice: VkDevice
     /** Stores available queue indices. */
-    val queues: Queues
+    val queueIndices: QueueIndices
+    private val queueProps: VkQueueFamilyProperties.Buffer
     /** Stores available extensions */
     val extensions = ArrayList<String>()
     /** Stores enabled features */
@@ -79,7 +80,7 @@ open class VulkanDevice(
      * @property[graphicsQueue] The index of the graphics queue
      * @property[computeQueue] The index of the compute queue
      */
-    data class Queues(val presentQueue: QueueIndexWithProperties, val transferQueue: QueueIndexWithProperties, val graphicsQueue: QueueIndexWithProperties, val computeQueue: QueueIndexWithProperties)
+    data class QueueIndices(val presentQueue: QueueIndexWithProperties, val transferQueue: QueueIndexWithProperties, val graphicsQueue: QueueIndexWithProperties, val computeQueue: QueueIndexWithProperties)
 
     init {
         val enabledFeatures = VkPhysicalDeviceFeatures.calloc()
@@ -87,29 +88,55 @@ open class VulkanDevice(
             val pQueueFamilyPropertyCount = stack.callocInt(1)
             vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, pQueueFamilyPropertyCount, null)
             val queueCount = pQueueFamilyPropertyCount.get(0)
-            val queueProps = VkQueueFamilyProperties.calloc(queueCount)
+            queueProps = VkQueueFamilyProperties.calloc(queueCount)
             vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, pQueueFamilyPropertyCount, queueProps)
 
-            var graphicsQueueFamilyIndex = 0
-            var transferQueueFamilyIndex = 0
-            var computeQueueFamilyIndex = 0
-            val presentQueueFamilyIndex = 0
+            var graphicsQueueFamilyIndex = -1
+            var transferQueueFamilyIndex = -1
+            var computeQueueFamilyIndex = -1
+            var presentQueueFamilyIndex = -1
             var index = 0
 
             while (index < queueCount) {
-                if (queueProps.get(index).queueFlags() and VK_QUEUE_GRAPHICS_BIT != 0) {
+                if (queueProps.get(index).queueFlags() and VK_QUEUE_GRAPHICS_BIT != 0 && graphicsQueueFamilyIndex == -1) {
                     graphicsQueueFamilyIndex = index
+                    presentQueueFamilyIndex = index
+                    index++
+                    continue
                 }
 
-                if (queueProps.get(index).queueFlags() and VK_QUEUE_TRANSFER_BIT != 0) {
+                if (queueProps.get(index).queueFlags() and VK_QUEUE_TRANSFER_BIT != 0 && transferQueueFamilyIndex == -1) {
                     transferQueueFamilyIndex = index
+                    index++
+                    continue
                 }
 
-                if (queueProps.get(index).queueFlags() and VK_QUEUE_COMPUTE_BIT != 0) {
+                if (queueProps.get(index).queueFlags() and VK_QUEUE_COMPUTE_BIT != 0 && computeQueueFamilyIndex == -1) {
                     computeQueueFamilyIndex = index
+                    index++
+                    continue
+                }
+
+                // if transfer and compute families end up on the same index, let's see
+                // if we can find more. Otherwise, we revert to the same index.
+                if(transferQueueFamilyIndex == graphicsQueueFamilyIndex) {
+                    transferQueueFamilyIndex = -1
+                }
+
+                if(computeQueueFamilyIndex == graphicsQueueFamilyIndex) {
+                    computeQueueFamilyIndex = -1
                 }
 
                 index++
+            }
+
+            // no distinct queues possible, revert to index 0 for the default queue
+            if(transferQueueFamilyIndex == -1) {
+                transferQueueFamilyIndex = graphicsQueueFamilyIndex
+            }
+
+            if(computeQueueFamilyIndex == -1) {
+                computeQueueFamilyIndex = graphicsQueueFamilyIndex
             }
 
             val requiredFamilies = listOf(
@@ -118,7 +145,7 @@ open class VulkanDevice(
                 computeQueueFamilyIndex)
                 .groupBy { it }
 
-            logger.info("Creating ${requiredFamilies.size} distinct queue groups")
+            logger.debug("Creating ${requiredFamilies.size} distinct queue groups")
 
             /**
              * Adjusts the queue count of a [VkDeviceQueueCreateInfo] struct to [num].
@@ -132,10 +159,10 @@ open class VulkanDevice(
 
             requiredFamilies.entries.forEachIndexed { i, (familyIndex, group) ->
                 val size = minOf(queueProps.get(familyIndex).queueCount(), group.size)
-                logger.debug("Adding queue with familyIndex=$familyIndex, size=$size")
+                logger.debug("Adding queue with familyIndex=$familyIndex, size=$size (group size ${group.size})")
 
                 val pQueuePriorities = stack.callocFloat(group.size)
-                for(pr in 0 until group.size) { pQueuePriorities.put(pr, 1.0f) }
+                for(pr in group.indices) { pQueuePriorities.put(pr, 1.0f) }
 
                 queueCreateInfo[i]
                     .sType(VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO)
@@ -218,7 +245,7 @@ open class VulkanDevice(
                 graphicsQueueFamilyIndex, computeQueueFamilyIndex, presentQueueFamilyIndex, transferQueueFamilyIndex, memoryProperties)
 
             Triple(VkDevice(device, physicalDevice, deviceCreateInfo),
-                Queues(
+                QueueIndices(
                     presentQueue = presentQueueFamilyIndex to queueProps[presentQueueFamilyIndex],
                     transferQueue = transferQueueFamilyIndex to queueProps[transferQueueFamilyIndex],
                     computeQueue = computeQueueFamilyIndex to queueProps[computeQueueFamilyIndex],
@@ -228,7 +255,7 @@ open class VulkanDevice(
         }
 
         vulkanDevice = result.first
-        queues = result.second
+        queueIndices = result.second
         memoryProperties = result.third
         features = enabledFeatures
 
@@ -355,6 +382,51 @@ open class VulkanDevice(
             logger.debug("Created semaphore {}", semaphore.toHexString().lowercase())
             semaphore
         }
+    }
+
+    private val queues = ConcurrentHashMap<Int, ArrayList<VkQueue>>()
+    /**
+     * Creates a new Vulkan queue on [device] with the queue family index [queueFamilyIndex] and returns the queue.
+     */
+    fun getQueue(queueFamilyIndex: Int): VkQueue {
+        val index = queues[queueFamilyIndex]?.size ?: 0
+
+        val availableQueues = queueProps[queueFamilyIndex].queueCount()
+
+        if(index + 1 > availableQueues) {
+            logger.warn("Don't have more queues available for index $queueFamilyIndex, returning existing queue.")
+            return queues[queueFamilyIndex]!!.last()
+        }
+
+        logger.debug("Requesting device queue of family $queueFamilyIndex with index $index")
+        val q = VU.getPointer("Getting device queue for queueFamilyIndex=$queueFamilyIndex",
+            { vkGetDeviceQueue(vulkanDevice, queueFamilyIndex, index, this); VK_SUCCESS }, {})
+
+        val queue = VkQueue(q, vulkanDevice)
+        queues.getOrPut(queueFamilyIndex) { arrayListOf() }?.add(queue)
+
+        return queue
+    }
+
+    /**
+     * Creates a new fence on this device, returning the handle.
+     */
+    fun createFence(): Long {
+        stackPush().use { stack ->
+            val fc = VkFenceCreateInfo.calloc(stack)
+                .sType(VK_STRUCTURE_TYPE_FENCE_CREATE_INFO)
+                .pNext(MemoryUtil.NULL)
+
+            return VU.getLong("Creating fence",
+                { vkCreateFence(vulkanDevice, fc, null, this) }, {})
+        }
+    }
+
+    /**
+     * Destroys a given [fence] that resides on this device.
+     */
+    fun destroyFence(fence: Long) {
+        vkDestroyFence(vulkanDevice, fence, null)
     }
 
     fun removeSemaphore(semaphore: Long) {

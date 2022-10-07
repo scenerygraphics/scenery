@@ -100,7 +100,9 @@ fun VkCommandBuffer.submit(queue: VkQueue, submitInfoPNext: Pointer? = null,
                 .pSignalSemaphores(signalSemaphores)
                 .pNext(submitInfoPNext?.address() ?: NULL)
 
-            if(waitSemaphores?.remaining() ?: 0 > 0 && waitSemaphores != null && waitDstStageMask != null) {
+            if((waitSemaphores?.remaining() ?: 0) > 0
+                && waitSemaphores != null
+                && waitDstStageMask != null) {
                 submitInfo
                     .waitSemaphoreCount(waitSemaphores.remaining())
                     .pWaitSemaphores(waitSemaphores)
@@ -496,16 +498,6 @@ class VU {
 
                 setImageLayout(commandBuffer, image, oldImageLayout, newImageLayout, range)
             }
-        }
-
-        /**
-         * Creates a new Vulkan queue on [device] with the queue family index [queueFamilyIndex] and returns the queue.
-         */
-        fun createDeviceQueue(device: VulkanDevice, queueFamilyIndex: Int): VkQueue {
-            val queue = getPointer("Getting device queue for queueFamilyIndex=$queueFamilyIndex",
-                { vkGetDeviceQueue(device.vulkanDevice, queueFamilyIndex, 0, this); VK_SUCCESS }, {})
-
-            return VkQueue(queue, device.vulkanDevice)
         }
 
         /**
