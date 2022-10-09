@@ -41,7 +41,7 @@ class CustomNodeSimple : RichNode() {
 }
 
 
-class VDIRendererSimple : SceneryBase("SimpleVDIRenderer", 1280, 720) {
+class VDIRendererSimple : SceneryBase("SimpleVDIRenderer", 512, 512) {
 
     private val vulkanProjectionFix =
         Matrix4f(
@@ -74,19 +74,19 @@ class VDIRendererSimple : SceneryBase("SimpleVDIRenderer", 1280, 720) {
         renderer = hub.add(SceneryElement.Renderer,
             Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
 
-        val numSupersegments = 20
+        val numSupersegments = 15
 
         val buff: ByteArray
         val depthBuff: ByteArray?
 
-        var dataset = "Kingsnake"
+        var dataset = "EngineCorrected"
 
 //        dataset += "_${commSize}_${rank}"
 
 
 //        val basePath = "/home/aryaman/Repositories/DistributedVis/cmake-build-debug/"
-//        val basePath = "/home/aryaman/Repositories/scenery-insitu/"
-        val basePath = "/home/aryaman/Repositories/scenery_vdi/scenery/"
+        val basePath = "/home/aryaman/Repositories/scenery-insitu/"
+//        val basePath = "/home/aryaman/Repositories/scenery_vdi/scenery/"
 //        val basePath = "/home/aryaman/TestingData/"
 //        val basePath = "/home/aryaman/TestingData/FromCluster/"
 
@@ -173,8 +173,8 @@ class VDIRendererSimple : SceneryBase("SimpleVDIRenderer", 1280, 720) {
         compute.nw = vdiData.metadata.nw
         compute.ViewOriginal = vdiData.metadata.view
         compute.invViewOriginal = Matrix4f(vdiData.metadata.view).invert()
-        compute.ProjectionOriginal = Matrix4f(vdiData.metadata.projection).applyVulkanCoordinateSystem()
-        compute.invProjectionOriginal = Matrix4f(vdiData.metadata.projection).applyVulkanCoordinateSystem().invert()
+        compute.ProjectionOriginal = Matrix4f(vdiData.metadata.projection)
+        compute.invProjectionOriginal = Matrix4f(vdiData.metadata.projection).invert()
 
         logger.info("value of nw: ${vdiData.metadata.nw}")
 

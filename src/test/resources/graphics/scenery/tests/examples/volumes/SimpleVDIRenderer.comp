@@ -52,7 +52,7 @@ float adjustOpacity(float a, float modifiedStepLength) {
 
 void main() {
 
-    ivec2 debug_pixel = ivec2(586, 553);
+    ivec2 debug_pixel = ivec2(300, 300);
 
     if(gl_GlobalInvocationID.xy == debug_pixel) {
         debugPrintfEXT("Value of nw: %f", nw);
@@ -169,12 +169,12 @@ void main() {
 
         float length_in_supseg = distance(supseg_start_w, supseg_end_w);
 
-//        #if USE_PRINTF
-//        if(gl_GlobalInvocationID.xy == debug_pixel) {
-//            debugPrintfEXT("NDC start point: (%f, %f, %f, %f) and NDC end point: (%f, %f, %f, %f).", vec4(ndc_x, ndc_y, depthHere, 1), vec4(ndc_x, ndc_y, depthEnd, 1));
-//            debugPrintfEXT("World start point: (%f, %f, %f, %f) and end point: (%f, %f, %f, %f). Length: %f", supseg_start_w.xyzw, supseg_end_w.xyzw, length_in_supseg);
-//        }
-//        #endif
+        #if USE_PRINTF
+        if(gl_GlobalInvocationID.xy == debug_pixel) {
+            debugPrintfEXT("NDC start point: (%f, %f, %f, %f) and NDC end point: (%f, %f, %f, %f).", vec4(ndc_x, ndc_y, depthHere, 1), vec4(ndc_x, ndc_y, depthEnd, 1));
+            debugPrintfEXT("World start point: (%f, %f, %f, %f) and end point: (%f, %f, %f, %f). Length: %f", supseg_start_w.xyzw, supseg_end_w.xyzw, length_in_supseg);
+        }
+        #endif
 
         float adj_alpha = adjustOpacity(newAlpha, length_in_supseg);
 
