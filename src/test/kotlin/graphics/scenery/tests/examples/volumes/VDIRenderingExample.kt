@@ -73,7 +73,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
     var hmd: TrackedStereoGlasses? = null
 
     val separateDepth = true
-    val profileMemoryAccesses = false
+    val profileMemoryAccesses = true
     val compute = CustomNode()
     val closeAfter = 60000L
     val autoClose = false
@@ -82,7 +82,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
     val numOctreeLayers = 8.0
     val numSupersegments = 30
     var benchmarking = false
-    val skipEmpty = true
+    val skipEmpty = false
     val viewNumber = 1
     val dynamicSubsampling = false
     var subsampling_benchmarks = false
@@ -235,10 +235,11 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
         val opBuffer = MemoryUtil.memCalloc(effectiveWindowWidth * effectiveWindowHeight * 4)
         val opNumSteps = MemoryUtil.memCalloc(effectiveWindowWidth * effectiveWindowHeight * 4)
         val opNumIntersect = MemoryUtil.memCalloc(effectiveWindowWidth * effectiveWindowHeight * 4)
-        val opNumEmptyL = MemoryUtil.memCalloc(effectiveWindowWidth * effectiveWindowHeight * 4)
-        val opNumSkipped = MemoryUtil.memCalloc(effectiveWindowWidth * effectiveWindowHeight * 4)
-        val opNumBefFirst = MemoryUtil.memCalloc(effectiveWindowWidth * effectiveWindowHeight * 4)
-        val opNumAfterLast = MemoryUtil.memCalloc(effectiveWindowWidth * effectiveWindowHeight * 4)
+        val opNumLists = MemoryUtil.memCalloc(effectiveWindowWidth * effectiveWindowHeight * 4)
+//        val opNumEmptyL = MemoryUtil.memCalloc(effectiveWindowWidth * effectiveWindowHeight * 4)
+//        val opNumSkipped = MemoryUtil.memCalloc(effectiveWindowWidth * effectiveWindowHeight * 4)
+//        val opNumBefFirst = MemoryUtil.memCalloc(effectiveWindowWidth * effectiveWindowHeight * 4)
+//        val opNumAfterLast = MemoryUtil.memCalloc(effectiveWindowWidth * effectiveWindowHeight * 4)
 
         var colBuffer: ByteBuffer
         var depthBuffer: ByteBuffer?
@@ -274,10 +275,11 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
             if (profileMemoryAccesses) {
                 textures["NumSteps"] = Texture.fromImage(Image(opNumSteps, effectiveWindowWidth, effectiveWindowHeight), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), channels = 1, mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
                 textures["NumIntersectedSupsegs"] = Texture.fromImage(Image(opNumIntersect, effectiveWindowWidth, effectiveWindowHeight), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), channels = 1, mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
-                textures["NumEmptyLists"] = Texture.fromImage(Image(opNumEmptyL, effectiveWindowWidth, effectiveWindowHeight), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), channels = 1, mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
-                textures["NumNotIntLists"] = Texture.fromImage(Image(opNumSkipped, effectiveWindowWidth, effectiveWindowHeight), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), channels = 1, mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
-                textures["EmptyBeforeFirst"] = Texture.fromImage(Image(opNumBefFirst, effectiveWindowWidth, effectiveWindowHeight), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), channels = 1, mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
-                textures["EmptyAfterLast"] = Texture.fromImage(Image(opNumAfterLast, effectiveWindowWidth, effectiveWindowHeight), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), channels = 1, mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+                textures["NumLists"] = Texture.fromImage(Image(opNumLists, effectiveWindowWidth, effectiveWindowHeight), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), channels = 1, mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+//                textures["NumEmptyLists"] = Texture.fromImage(Image(opNumEmptyL, effectiveWindowWidth, effectiveWindowHeight), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), channels = 1, mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+//                textures["NumNotIntLists"] = Texture.fromImage(Image(opNumSkipped, effectiveWindowWidth, effectiveWindowHeight), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), channels = 1, mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+//                textures["EmptyBeforeFirst"] = Texture.fromImage(Image(opNumBefFirst, effectiveWindowWidth, effectiveWindowHeight), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), channels = 1, mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+//                textures["EmptyAfterLast"] = Texture.fromImage(Image(opNumAfterLast, effectiveWindowWidth, effectiveWindowHeight), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), channels = 1, mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
             }
 
             textures["InputVDI"] = Texture(Vector3i(numLayers*numSupersegments, vdiData.metadata.windowDimensions.y, vdiData.metadata.windowDimensions.x), 4, contents = colBuffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
@@ -548,10 +550,11 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
     private fun manageDebugTextures() {
         var numStepsBuff: ByteBuffer?
         var numIntersectedBuff: ByteBuffer?
-        var numSkippedBuff: ByteBuffer?
-        var numEmptyLBuff: ByteBuffer?
-        var emptyBeforeFirstBuff: ByteBuffer?
-        var emptyAfterLastBuff: ByteBuffer?
+        var numLists: ByteBuffer?
+//        var numSkippedBuff: ByteBuffer?
+//        var numEmptyLBuff: ByteBuffer?
+//        var emptyBeforeFirstBuff: ByteBuffer?
+//        var emptyAfterLastBuff: ByteBuffer?
 
         while(renderer?.firstImageReady == false) {
             Thread.sleep(50)
@@ -560,56 +563,73 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
         logger.info("First image is ready")
 
         val numSteps = compute.material().textures["NumSteps"]!!
-        val firstAtomic = AtomicInteger(0)
+        val thirdAtomic = AtomicInteger(0)
+//
+        (renderer as? VulkanRenderer)?.persistentTextureRequests?.add (numSteps to thirdAtomic)
 
-        (renderer as? VulkanRenderer)?.persistentTextureRequests?.add (numSteps to firstAtomic)
+        val numIntersectedLists = compute.material().textures["NumLists"]!!
+        val firstAtomic = AtomicInteger(0)
+        (renderer as? VulkanRenderer)?.persistentTextureRequests?.add (numIntersectedLists to firstAtomic)
 
         val numIntersectedSupsegs = compute.material().textures["NumIntersectedSupsegs"]!!
         val secondAtomic = AtomicInteger(0)
         (renderer as? VulkanRenderer)?.persistentTextureRequests?.add (numIntersectedSupsegs to secondAtomic)
 
-        val numEmptyLists = compute.material().textures["NumEmptyLists"]!!
-        val thirdAtomic = AtomicInteger(0)
-        (renderer as? VulkanRenderer)?.persistentTextureRequests?.add (numEmptyLists to thirdAtomic)
+//        val numEmptyLists = compute.material().textures["NumEmptyLists"]!!
+//        val thirdAtomic = AtomicInteger(0)
+//        (renderer as? VulkanRenderer)?.persistentTextureRequests?.add (numEmptyLists to thirdAtomic)
 
-        val numNotIntLists = compute.material().textures["NumNotIntLists"]!!
-        val fourthAtomic = AtomicInteger(0)
-        (renderer as? VulkanRenderer)?.persistentTextureRequests?.add (numNotIntLists to fourthAtomic)
+//        val numNotIntLists = compute.material().textures["NumNotIntLists"]!!
+//        val fourthAtomic = AtomicInteger(0)
+//        (renderer as? VulkanRenderer)?.persistentTextureRequests?.add (numNotIntLists to fourthAtomic)
 
-        val emptyBeforeFirst = compute.material().textures["EmptyBeforeFirst"]!!
-        val fifthAtomic = AtomicInteger(0)
-        (renderer as? VulkanRenderer)?.persistentTextureRequests?.add (numNotIntLists to fifthAtomic)
+//        val emptyBeforeFirst = compute.material().textures["EmptyBeforeFirst"]!!
+//        val fifthAtomic = AtomicInteger(0)
+//        (renderer as? VulkanRenderer)?.persistentTextureRequests?.add (numNotIntLists to fifthAtomic)
 
-        val emptyAfterLast = compute.material().textures["EmptyAfterLast"]!!
-        val sixthAtomic = AtomicInteger(0)
-        (renderer as? VulkanRenderer)?.persistentTextureRequests?.add (numNotIntLists to sixthAtomic)
+//        val emptyAfterLast = compute.material().textures["EmptyAfterLast"]!!
+//        val sixthAtomic = AtomicInteger(0)
+//        (renderer as? VulkanRenderer)?.persistentTextureRequests?.add (numNotIntLists to sixthAtomic)
 
-        var prevAtomic = firstAtomic.get()
+        var prevAtomic1 = firstAtomic.get()
+        var prevAtomic2 = secondAtomic.get()
+        var prevAtomic3 = secondAtomic.get()
 
-        var cnt = 0
-        while (true) {
-            while(firstAtomic.get() == prevAtomic) {
+//        val angles = listOf(5f, 10f, 15f, 20f, 25f, 30f, 35f, 45f)
+        val angles = listOf(30f, 45f)
+
+        var curRotation = 0f
+
+        for (angle in angles) {
+            while(firstAtomic.get() == prevAtomic1 && secondAtomic.get() == prevAtomic2 && thirdAtomic.get() == prevAtomic3) {
                 Thread.sleep(20)
             }
-            prevAtomic = firstAtomic.get()
 
             numStepsBuff = numSteps.contents
             numIntersectedBuff = numIntersectedSupsegs.contents
-            numEmptyLBuff = numEmptyLists.contents
-            numSkippedBuff = numNotIntLists.contents
-            emptyBeforeFirstBuff = emptyBeforeFirst.contents
-            emptyAfterLastBuff = emptyAfterLast.contents
+            numLists = numIntersectedLists.contents
+//            numEmptyLBuff = numEmptyLists.contents
+//            numSkippedBuff = numNotIntLists.contents
+//            emptyBeforeFirstBuff = emptyBeforeFirst.contents
+//            emptyAfterLastBuff = emptyAfterLast.contents
 
-            if(cnt < 2) {
-                SystemHelpers.dumpToFile(numStepsBuff!!, "num_steps.raw")
-                SystemHelpers.dumpToFile(numSkippedBuff!!, "num_skipped.raw")
-                SystemHelpers.dumpToFile(numIntersectedBuff!!, "num_intersected.raw")
-                SystemHelpers.dumpToFile(numEmptyLBuff!!, "num_empty_lists.raw")
-                SystemHelpers.dumpToFile(emptyBeforeFirstBuff!!, "num_empty_before_first.raw")
-                SystemHelpers.dumpToFile(emptyAfterLastBuff!!, "num_empty_after_last.raw")
-                logger.info("Wrote VDI $cnt")
-            }
-            cnt++
+            SystemHelpers.dumpToFile(numStepsBuff!!, "num_steps${curRotation.toInt()}.raw")
+//            SystemHelpers.dumpToFile(numSkippedBuff!!, "num_skipped.raw")
+            SystemHelpers.dumpToFile(numIntersectedBuff!!, "${dataset}_num_intersected${curRotation.toInt()}.raw")
+            SystemHelpers.dumpToFile(numLists!!, "${dataset}_num_list${curRotation.toInt()}.raw")
+//            SystemHelpers.dumpToFile(numEmptyLBuff!!, "num_empty_lists.raw")
+//            SystemHelpers.dumpToFile(emptyBeforeFirstBuff!!, "num_empty_before_first.raw")
+//            SystemHelpers.dumpToFile(emptyAfterLastBuff!!, "num_empty_after_last.raw")
+            logger.info("Written the textures at angle $curRotation")
+
+            rotateCamera(angle - curRotation)
+            curRotation = angle
+
+            Thread.sleep(1000)
+
+            prevAtomic1 = firstAtomic.get()
+            prevAtomic2 = secondAtomic.get()
+            prevAtomic3 = thirdAtomic.get()
         }
     }
 

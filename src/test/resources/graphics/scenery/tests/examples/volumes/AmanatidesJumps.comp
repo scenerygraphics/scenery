@@ -3,8 +3,8 @@
 #define NDC 1
 #define SEPARATE_DEPTH 1
 #define INT_DEPTHS 0
-#define PROFILE_MEM 0
-#define SKIP_EMPTY 1
+#define PROFILE_MEM 1
+#define SKIP_EMPTY 0
 #define USE_VIEW_SPACE_CELLS 1
 
 #if USE_PRINTF
@@ -58,19 +58,20 @@ layout(set = 3, binding = 0, rgba8) uniform image2D OutputViewport;
     #endif
 #endif
 
-layout (set = 7, binding = 0, r32f) uniform readonly image2D NoiseTexture;
 
 #if SKIP_EMPTY
+layout (set = 7, binding = 0, r32f) uniform readonly image2D NoiseTexture;
 layout (set = 6, binding = 0, r32ui) uniform readonly uimage3D OctreeCells;
 #endif
 
 #if PROFILE_MEM
-layout(set = 6, binding = 0, r32f) uniform image2D NumSteps;
-layout(set = 7, binding = 0, r32f) uniform image2D NumIntersectedSupsegs;
-layout(set = 8, binding = 0, r32f) uniform image2D NumEmptyLists;
-layout(set = 9, binding = 0, r32f) uniform image2D NumNotIntLists;
-layout(set = 10, binding = 0, r32f) uniform image2D EmptyBeforeFirst;
-layout(set = 11, binding = 0, r32f) uniform image2D EmptyAfterLast;
+layout(set = 8, binding = 0, r32f) uniform image2D NumSteps;
+layout(set = 6, binding = 0, r32f) uniform image2D NumIntersectedSupsegs;
+layout(set = 7, binding = 0, r32f) uniform image2D NumLists;
+//layout(set = 8, binding = 0, r32f) uniform image2D NumEmptyLists;
+//layout(set = 9, binding = 0, r32f) uniform image2D NumNotIntLists;
+//layout(set = 10, binding = 0, r32f) uniform image2D EmptyBeforeFirst;
+//layout(set = 11, binding = 0, r32f) uniform image2D EmptyAfterLast;
 #endif
 
 //mat4 im_x_9_x_ = mat4(50.0, 0.0, 0.0, 0.0,
@@ -1561,11 +1562,13 @@ void main() {
     dist = (tfar-tnear) / 5000.;
     dist = max(dist, 0.00001);
 
+#if SKIP_EMPTY
     if(stratified_downsampling) {
         stratification_factor = imageLoad(NoiseTexture, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y)).x;
     } else {
         stratification_factor = 1.;
     }
+#endif
 
     #if USE_PRINTF
     if(gl_GlobalInvocationID.xy == debug_pixel) {
@@ -2131,11 +2134,12 @@ void main() {
 
 #if PROFILE_MEM
     imageStore(NumSteps, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), vec4(totalMemoryLoads, 0, 0, 0));
-    imageStore(NumEmptyLists, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), vec4(totalEmptyLists, 0, 0, 0));
+//    imageStore(NumEmptyLists, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), vec4(totalEmptyLists, 0, 0, 0));
     imageStore(NumIntersectedSupsegs, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), vec4(totalIntersectedSupsegs, 0, 0, 0));
-    imageStore(NumNotIntLists, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), vec4(totalNonIntersected, 0, 0, 0));
-    imageStore(EmptyBeforeFirst, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), vec4(totalBeforeFirst, 0, 0, 0));
-    imageStore(EmptyAfterLast, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), vec4(totalAfterLast, 0, 0, 0));
+    imageStore(NumLists, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), vec4(totalIntersectedLists, 0, 0, 0));
+//    imageStore(NumNotIntLists, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), vec4(totalNonIntersected, 0, 0, 0));
+//    imageStore(EmptyBeforeFirst, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), vec4(totalBeforeFirst, 0, 0, 0));
+//    imageStore(EmptyAfterLast, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), vec4(totalAfterLast, 0, 0, 0));
 #endif
 
 }
