@@ -42,16 +42,16 @@ interface Networkable : Serializable {
     var modifiedAt: Long
 
     /**
-     * Get sub components which are not part of the node graph eg. attributes
+     * Get subcomponents which are not part of the node graph eg. attributes
      */
     fun getSubcomponents(): List<Networkable> = emptyList()
 
     // only set for attributes
-    fun getAttributeClass(): KClass<out Any>?
+    fun getAttributeClass(): KClass<out Any>? = null
 
     fun wantsSync(): Boolean = true
 
-    //set by external
+    //set by framework
     var networkID: Int
 
     fun updateModifiedAt() {
