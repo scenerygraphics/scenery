@@ -11,6 +11,8 @@ import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.Statistics
 import graphics.scenery.volumes.VolumeManager
 import net.imglib2.img.basictypeaccess.array.ByteArray
+import org.biojava.nbio.structure.AtomImpl
+import org.biojava.nbio.structure.BondImpl
 import org.joml.Vector3f
 import org.objenesis.strategy.StdInstantiatorStrategy
 import org.slf4j.Logger
@@ -286,6 +288,8 @@ class NodePublisher(
             kryo.register(ByteArray::class.java, Imglib2ByteArraySerializer())
             kryo.register(ShaderMaterial::class.java, ShaderMaterialSerializer())
             kryo.register(java.util.zip.Inflater::class.java, IgnoreSerializer<Inflater>())
+            kryo.register(org.biojava.nbio.structure.BondImpl::class.java, IgnoreSerializer<BondImpl>())
+            kryo.register(org.biojava.nbio.structure.AtomImpl::class.java, IgnoreSerializer<AtomImpl>())
             kryo.register(VolumeManager::class.java, IgnoreSerializer<VolumeManager>())
             kryo.register(Vector3f::class.java, Vector3fSerializer())
 

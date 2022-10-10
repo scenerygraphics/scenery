@@ -37,7 +37,7 @@ class DemoReelExample: SceneryBase("Demo Reel") {
         logger.warn("This is an experimental example, which might need additional configuration on your computer")
         logger.warn("or might not work at all. You have been warned!")
 
-        hmd = hub.add(TrackedStereoGlasses("DTrack@10.1.2.201", screenConfig = "CAVEExample.yml"))
+        hmd = hub.add(TrackedStereoGlasses("DTrack:body-0@224.0.1.1:5001", screenConfig = "CAVEExample.yml"))
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, 2560, 1600))
 
         cam = DetachedHeadCamera(hmd)
@@ -61,7 +61,7 @@ class DemoReelExample: SceneryBase("Demo Reel") {
         }
         scene.addChild(shell)
 
-        Light.createLightTetrahedron<PointLight>(spread = 50.0f, intensity = 150.0f, radius = 150.0f)
+        Light.createLightTetrahedron<PointLight>(spread = 50.0f, intensity = 5.0f, radius = 150.0f)
             .forEach { scene.addChild(it) }
 
         // scene setup
@@ -69,17 +69,17 @@ class DemoReelExample: SceneryBase("Demo Reel") {
 
         val histoneVolume = Volume.fromPathRaw(
             Paths.get("$driveLetter:/ssd-backup-inauguration/CAVE_DATA/histones-isonet/stacks/default/"),
-            hub
+            hub,
         )
         histoneVolume.transferFunction = TransferFunction.ramp(0.1f, 1.0f)
         histoneVolume.colormap = Colormap.get("hot")
         histoneScene.addChild(histoneVolume)
         histoneScene.visible = false
-        scene.addChild(histoneScene)
+        //scene.addChild(histoneScene)
 
         val drosophilaVolume = Volume.fromPathRaw(
             Paths.get("$driveLetter:/ssd-backup-inauguration/CAVE_DATA/droso-royer-autopilot-transposed/"),
-            hub
+            hub,
         )
         drosophilaVolume.spatial {
             rotation.rotateX(1.57f)
@@ -88,7 +88,7 @@ class DemoReelExample: SceneryBase("Demo Reel") {
         drosophilaVolume.colormap = Colormap.get("hot")
         drosophilaScene.addChild(drosophilaVolume)
         drosophilaScene.visible = false
-        scene.addChild(drosophilaScene)
+        //scene.addChild(drosophilaScene)
 
         val retinaVolume = Volume.fromPathRaw(
             Paths.get("$driveLetter:/ssd-backup-inauguration/CAVE_DATA/retina_test2/"),
@@ -96,7 +96,7 @@ class DemoReelExample: SceneryBase("Demo Reel") {
         )
         retinaScene.addChild(retinaVolume)
         retinaScene.visible = false
-        scene.addChild(retinaScene)
+        //scene.addChild(retinaScene)
 
         val bile = Mesh()
         val canaliculi = Mesh()

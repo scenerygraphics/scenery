@@ -8,10 +8,7 @@ import graphics.scenery.controls.behaviours.*
 import graphics.scenery.utils.LazyLogger
 import io.github.classgraph.ClassGraph
 import net.java.games.input.Component
-import org.scijava.ui.behaviour.Behaviour
-import org.scijava.ui.behaviour.BehaviourMap
-import org.scijava.ui.behaviour.InputTrigger
-import org.scijava.ui.behaviour.InputTriggerMap
+import org.scijava.ui.behaviour.*
 import org.scijava.ui.behaviour.io.InputTriggerConfig
 import org.scijava.ui.behaviour.io.InputTriggerDescription
 import org.scijava.ui.behaviour.io.InputTriggerDescriptionsBuilder
@@ -20,6 +17,7 @@ import org.scijava.ui.behaviour.io.yaml.YamlConfigIO
 import org.scijava.ui.behaviour.util.Behaviours
 import java.io.*
 import javax.swing.JFrame
+import kotlin.system.exitProcess
 
 /**
  * Input orchestrator for ClearGL windows
@@ -223,8 +221,8 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?, for
      * Create behaviours and input mappings.
      */
         behaviourMap.put("mouse_control", FPSCameraControl({ scene.findObserver() }, window.width, window.height))
-        behaviourMap.put("gamepad_camera_control", GamepadRotationControl(listOf(Component.Identifier.Axis.Z, Component.Identifier.Axis.RZ)) { scene.findObserver() })
-        behaviourMap.put("gamepad_movement_control", GamepadMovementControl(listOf(Component.Identifier.Axis.X, Component.Identifier.Axis.Y)) { scene.findObserver() })
+        //behaviourMap.put("gamepad_camera_control", GamepadRotationControl(listOf(Component.Identifier.Axis.Z, Component.Identifier.Axis.RZ)) { scene.findObserver() })
+        behaviourMap.put("gamepad_movement_control", GamepadMovementControl(listOf(Component.Identifier.Axis.X, Component.Identifier.Axis.Y, Component.Identifier.Axis.Z)) { scene.findObserver() })
 
         //unused until some reasonable action (to the selection) would be provided
         //behaviourMap.put("select_command", SelectCommand("select_command", renderer, scene, { scene.findObserver() }))
@@ -250,6 +248,8 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?, for
         behaviourMap.put("record_movie", ToggleCommand(renderer, "recordMovie"))
 
         behaviourMap.put("toggle_vr", ToggleCommand(renderer, "toggleVR"))
+
+        behaviourMap.put("exit", ClickBehaviour { _, _ -> exitProcess(0) })
 
         val adder = config.inputTriggerAdder(inputMap, "all")
         adder.put("mouse_control") // put input trigger as defined in config
@@ -279,6 +279,8 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?, for
         adder.put("record_movie", "shift P")
 
         adder.put("toggle_vr", "shift V")
+
+        adder.put("exit", "shift X")
     }
 
     override fun close() {

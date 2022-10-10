@@ -115,12 +115,14 @@ class ScreenConfig {
             for ((_, screen) in config.screens) {
                 if (screen.match.type == ScreenMatcherType.Hostname) {
                     if (getHostname().lowercase() == screen.match.value) {
+                        logger.info("Screen matched via hostname: ${screen.match.value}")
                         return screen
                     }
                 }
 
                 if (screen.match.type == ScreenMatcherType.Property) {
                     if (System.getProperty("scenery.ScreenName") == screen.match.value) {
+                        logger.info("Screen matched via system property: ${screen.match.value}")
                         return screen
                     }
                 }

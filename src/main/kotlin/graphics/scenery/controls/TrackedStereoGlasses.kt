@@ -23,7 +23,7 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
 
     var tracker = initializeTracker(address)
     var currentOrientation = Matrix4f()
-    var ipd = 0.062f
+    var ipd = 0.055f
 
     var config: ScreenConfig.Config = ScreenConfig.loadFromFile(screenConfig)
     var screen: ScreenConfig.SingleScreenConfig? = null
@@ -35,7 +35,7 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
     override var events = TrackerInputEventHandlers()
 
     init {
-        logger.info("My screen is ${ScreenConfig.getScreen(config)}")
+        logger.info("My screen is ${ScreenConfig.getScreen(config)}/${config.name}")
         screen = ScreenConfig.getScreen(config)
         rotation = Quaternionf()
 
@@ -127,7 +127,7 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
      * @return True if the HMD has a compositor
      */
     override fun hasCompositor(): Boolean {
-        return false
+        return true
     }
 
     /**
@@ -159,7 +159,7 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
      * @param[image] The Vulkan texture image to be presented to the compositor
      */
     override fun submitToCompositorVulkan(width: Int, height: Int, format: Int, instance: VkInstance, device: VulkanDevice, queue: VkQueue, image: Long) {
-        logger.error("This Display implementation does not have a compositor. Incorrect configuration?")
+        //logger.error("This Display implementation does not have a compositor. Incorrect configuration?")
     }
 
     /**
@@ -208,7 +208,7 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
         val trackerPos = tracker.getPosition()
 
         currentOrientation.identity()
-        currentOrientation.translate(-trackerPos.x(), -trackerPos.y(), trackerPos.z())
+        currentOrientation.translation(-trackerPos.x(), -trackerPos.y(), trackerPos.z())//.transpose()
 
         return currentOrientation
     }

@@ -51,7 +51,7 @@ class DTrackTrackerInput(val host: String = "localhost", val port: Int = 5000, v
     protected val behaviourMap = BehaviourMap()
 
     init {
-        logger.debug("Connected to $host:$port.")
+        logger.info("Connected to $host:$port.")
 
         inputHandler.setBehaviourMap(behaviourMap)
         inputHandler.setInputMap(inputMap)
@@ -60,13 +60,13 @@ class DTrackTrackerInput(val host: String = "localhost", val port: Int = 5000, v
             throw IllegalStateException("DTrack initialisation error, could not talk to DTrack on $host, port $port.")
         }
 
-        logger.debug("Data interface for $host:$port is valid.")
+        logger.info("Data interface for $host:$port is valid.")
 
         if(!sdk.startMeasurement()) {
             throw IllegalStateException("Could not start DTrack measurement on $host, port $port.")
         }
 
-        logger.debug("Measurement for $host:$port has started.")
+        logger.info("Measurement for $host:$port has started.")
 
         connected = true
 
@@ -82,19 +82,19 @@ class DTrackTrackerInput(val host: String = "localhost", val port: Int = 5000, v
                         val rotation = sdk.getBody(bodyId).rot
 
                         val x = loc[0].toFloat()/1000.0f
-                        val y = loc[2].toFloat()/1000.0f
-                        val z = loc[1].toFloat()/1000.0f
+                        val y = loc[1].toFloat()/1000.0f
+                        val z = -loc[2].toFloat()/1000.0f
 
                         val state = bodyState.getOrPut( "body-$bodyId", {
                             DTrackBodyState(
                                 quality,
                                 Vector3f(x, y, z),
-                                Quaternionf().setFromUnnormalized(rotToMatrix3f(rotation))
+                                Quaternionf()//.setFromUnnormalized(rotToMatrix3f(rotation))
                             )
                         })
 
                         state.quality = quality
-                        state.rotation.setFromUnnormalized(rotToMatrix3f(rotation))
+                        state.rotation.set(0.0f, 0.0f, 0.0f, 1.0f)//.setFromUnnormalized(rotToMatrix3f(rotation))
                         state.position.set(x, y, z)
                     }
 
@@ -105,8 +105,8 @@ class DTrackTrackerInput(val host: String = "localhost", val port: Int = 5000, v
                         val rotation = flystick.rot
 
                         val x = loc[0].toFloat()/1000.0f
-                        val y = loc[2].toFloat()/1000.0f
-                        val z = loc[1].toFloat()/1000.0f
+                        val y = loc[1].toFloat()/1000.0f
+                        val z = loc[2].toFloat()/1000.0f
 
                         val joystickX = flystick.joystick[0].toFloat()
                         val joystickY = flystick.joystick[1].toFloat()
@@ -249,7 +249,8 @@ class DTrackTrackerInput(val host: String = "localhost", val port: Int = 5000, v
      * @returns Matrix4f with orientation
      */
     override fun getOrientation(): Quaternionf {
-        return bodyState[defaultBodyId]?.rotation ?: Quaternionf()
+        //return bodyState[defaultBodyId]?.rotation ?: Quaternionf()
+        return Quaternionf()
     }
 
     /**
