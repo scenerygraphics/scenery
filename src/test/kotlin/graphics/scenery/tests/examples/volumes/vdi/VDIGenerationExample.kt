@@ -1,53 +1,22 @@
 package graphics.scenery.tests.examples.volumes.vdi
 
-import bdv.tools.transformation.TransformedSource
-import bdv.util.AxisOrder
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
-import graphics.scenery.controls.TrackedStereoGlasses
-import graphics.scenery.attribute.material.Material
-import graphics.scenery.backends.Shaders
 import graphics.scenery.backends.vulkan.VulkanRenderer
-import graphics.scenery.backends.vulkan.VulkanTexture
-import graphics.scenery.compute.ComputeMetadata
-import graphics.scenery.compute.InvocationType
+import graphics.scenery.controls.TrackedStereoGlasses
 import graphics.scenery.textures.Texture
-import graphics.scenery.utils.Image
 import graphics.scenery.utils.SystemHelpers
-import graphics.scenery.utils.extensions.minus
-import graphics.scenery.utils.extensions.plus
-import graphics.scenery.utils.extensions.times
 import graphics.scenery.volumes.*
 import graphics.scenery.volumes.vdi.VDIData
-import graphics.scenery.volumes.vdi.VDIDataIO
 import graphics.scenery.volumes.vdi.VDIMetadata
 import graphics.scenery.volumes.vdi.VDIVolumeManager
-import ij.IJ
-import ij.ImagePlus
-import net.imglib2.img.Img
-import net.imglib2.img.display.imagej.ImageJFunctions
-import net.imglib2.type.numeric.integer.UnsignedByteType
-import net.imglib2.type.numeric.integer.UnsignedIntType
-import net.imglib2.type.numeric.integer.UnsignedShortType
-import net.imglib2.type.numeric.real.FloatType
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.joml.*
-import org.lwjgl.system.MemoryUtil
 import org.scijava.ui.behaviour.ClickBehaviour
-import tpietzsch.example2.VolumeViewerOptions
-import tpietzsch.shadergen.generate.SegmentTemplate
-import tpietzsch.shadergen.generate.SegmentType
-import java.io.File
-import java.io.FileInputStream
-import java.io.FileOutputStream
-import java.lang.Math
 import java.nio.ByteBuffer
-import java.nio.file.Files
-import java.nio.file.Path
-import java.nio.file.Paths
-import java.util.concurrent.CopyOnWriteArrayList
+import java.nio.ByteOrder
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.concurrent.thread
-import kotlin.streams.toList
 import kotlin.system.measureNanoTime
 
 /**
@@ -68,7 +37,7 @@ class VDIGenerationExample: SceneryBase("Volume Rendering", 1280, 720, wantREPL 
 
     override fun init() {
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
-        val volumeManager = VDIVolumeManager.create(generateVDIs, separateDepth, colors32bit = false, scene, hub)
+        val volumeManager = VDIVolumeManager.create(generateVDIs, separateDepth, colors32bit = true, scene, hub)
 
         with(cam) {
             perspectiveCamera(50.0f, windowWidth, windowHeight)
@@ -76,13 +45,12 @@ class VDIGenerationExample: SceneryBase("Volume Rendering", 1280, 720, wantREPL 
             scene.addChild(this)
         }
 
-        val imp: ImagePlus = IJ.openImage("https://imagej.nih.gov/ij/images/t1-head.zip")
-        val img: Img<UnsignedShortType> = ImageJFunctions.wrapShort(imp)
-
-        val volume = Volume.fromRAI(img, UnsignedShortType(), AxisOrder.DEFAULT, "T1 head", hub, VolumeViewerOptions())
+        val volume = Volume.fromXML(getDemoFilesPath() + "/volumes/t1-head.xml", hub)
         volume.transferFunction = TransferFunction.ramp(0.001f, 0.5f, 0.3f)
+        volume.setTransferFunctionRange(0.0f, 1500.0f)
         volume.name = "T1Head"
         volume.colormap = Colormap.get("hot")
+        volume.spatial().scale = Vector3f(0.3f, 0.3f, 0.6f)
         scene.addChild(volume)
 
         val lights = (0 until 3).map {
@@ -169,12 +137,12 @@ class VDIGenerationExample: SceneryBase("Volume Rendering", 1280, 720, wantREPL 
 
             prevColor = colorCnt.get()
             prevDepth = depthCnt.get()
-            subVDIColorBuffer = subVDIColor.contents!!.duplicate()
+            subVDIColorBuffer = subVDIColor.contents!!.duplicate().order(ByteOrder.LITTLE_ENDIAN)
             if(separateDepth) {
-                subVDIDepthBuffer = subVDIDepth!!.contents!!.duplicate()
+                subVDIDepthBuffer = subVDIDepth!!.contents!!.duplicate().order(ByteOrder.LITTLE_ENDIAN)
             }
-            gridCellsBuff = gridCells.contents!!.duplicate()
-            thresholdBuff = thresholds.contents!!.duplicate()
+            gridCellsBuff = gridCells.contents!!.duplicate().order(ByteOrder.LITTLE_ENDIAN)
+            thresholdBuff = thresholds.contents!!.duplicate().order(ByteOrder.LITTLE_ENDIAN)
 
             tGeneration.end = System.nanoTime()
 
@@ -203,17 +171,17 @@ class VDIGenerationExample: SceneryBase("Volume Rendering", 1280, 720, wantREPL 
                             view = camera.spatial().getTransformation(),
                             volumeDimensions = Vector3f(volumeManager.nodes.first().getDimensions()),
                             model = model,
-                            nw = volumeManager.nodes.first().volumeManager.shaderProperties["nw"] as Float,
+                            nw = volumeManager.shaderProperties["nw"] as Float,
                             windowDimensions = Vector2i(camera.width, camera.height)
                         )
                     )
 
                     val duration = measureNanoTime {
-                        val file = FileOutputStream(File("${fileName}.meta"))
+//                        val file = FileOutputStream(File("${fileName}.meta"))
 //                    val comp = GZIPOutputStream(file, 65536)
-                        VDIDataIO.write(vdiData, file)
-                        logger.info("written the dump")
-                        file.close()
+//                        VDIDataIO.write(vdiData, file)
+//                        logger.info("written the dump")
+//                        file.close()
                     }
                     logger.info("time taken (uncompressed): ${duration}")
                 }
@@ -232,7 +200,36 @@ class VDIGenerationExample: SceneryBase("Volume Rendering", 1280, 720, wantREPL 
                 logger.info("Wrote VDI $cnt")
             }
             cnt++
+
+            Thread.sleep(500)
         }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    override fun inputSetup() {
+        super.inputSetup()
+
+        inputHandler?.addBehaviour("save_texture", ClickBehaviour { _, _ ->
+            logger.info("Finding node")
+            val vm = hub.get<VolumeManager>()!!
+            val texture = vm.materialOrNull()?.textures?.get("OutputSubVDIColor") ?: return@ClickBehaviour
+            val r = renderer ?: return@ClickBehaviour
+            logger.info("Node found, saving texture")
+
+            val result = r.requestTexture(texture) { tex ->
+                logger.info("Received texture")
+
+                tex.contents?.let { buffer ->
+                    logger.info("Dumping to file")
+                    SystemHelpers.dumpToFile(buffer, "vdicolor-texture-${SystemHelpers.formatDateTime(delimiter = "_")}.raw")
+                    logger.info("File dumped")
+                }
+
+            }
+            result.getCompleted()
+
+        })
+        inputHandler?.addKeyBinding("save_texture", "E")
     }
 
     companion object {

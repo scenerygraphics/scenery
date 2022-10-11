@@ -1,3 +1,4 @@
+#extension GLSL_EXT_debug_printf : enable
 uniform vec2 viewportSize;
 uniform vec2 dsp;
 uniform float fwnw;
@@ -42,7 +43,7 @@ layout(push_constant) uniform currentEye_t {
 #define WORLD_ABS 0
 #define INT_DEPTHS 0
 
-#define USE_PRINTF 1
+#define USE_PRINTF 0
 
 #if USE_PRINTF
 #extension GL_EXT_debug_printf : enable
@@ -52,7 +53,7 @@ layout(local_size_x = 15, local_size_y = 15) in; //TODO: change to 16x16
 layout(set = 2, binding = 0) uniform sampler3D volumeCache;
 layout(set = 3, binding = 0, rgba32f) uniform image3D OutputSubVDIColor;
 layout(set = 4, binding = 0, r32f) uniform image3D OutputSubVDIDepth;
-layout (set = 8, binding = 0, r32ui) uniform uimage3D OctreeCells;
+//layout (set = 8, binding = 0, r32ui) uniform uimage3D OctreeCells;
 //layout (set = 9, binding = 0, r32f) uniform image2D Thresholds;
 
 #pragma scenery endverbatim
@@ -230,7 +231,7 @@ void writeSupersegment(int index, float start, float end, vec4 color) {
 //}
 
 void update_cell_count(ivec3 cell) {
-    uint ret = imageAtomicAdd(OctreeCells, cell, 1);
+//    uint ret = imageAtomicAdd(OctreeCells, cell, 1);
 
 //    if(gl_GlobalInvocationID.xy == debug_pixel) {
 //        debugPrintfEXT("Updated the cell: (%d, %d, %d). Prev value was: %u", cell.xyz, ret);
@@ -268,9 +269,9 @@ void main()
         debugPrintfEXT("doGeneration is: %d", doGeneration);
     }
     #endif
-    if(doGeneration == 0) {
-        return;
-    }
+//    if(doGeneration == 0) {
+//        return;
+//    }
 
     #if USE_PRINTF
     if(gl_GlobalInvocationID.xy == debug_pixel) {
@@ -286,7 +287,7 @@ void main()
     int windowWidth = imageCoords.b;
     int windowHeight = imageCoords.g;
 
-    num_cells = imageSize(OctreeCells).xyz;
+//    num_cells = imageSize(OctreeCells).xyz;
 
 
     ivec3 grid_cell = ivec3(0);
@@ -599,5 +600,10 @@ void main()
     //        }
     //    }
 
+    imageStore(OutputSubVDIColor, ivec3(1, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x), vec4(1.0, 0.5, 0.25, 1.0));
+    imageStore(OutputSubVDIColor, ivec3(2, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x), vec4(1.0, 0.5, 0.25, 1.0));
+    imageStore(OutputSubVDIColor, ivec3(3, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x), vec4(1.0, 0.5, 0.25, 1.0));
+    imageStore(OutputSubVDIColor, ivec3(4, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x), vec4(1.0, 0.5, 0.25, 1.0));
+    imageStore(OutputSubVDIColor, ivec3(5, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x), vec4(1.0, 0.5, 0.25, 1.0));
 //    imageStore(OutputRender, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), FragColor);
 }
