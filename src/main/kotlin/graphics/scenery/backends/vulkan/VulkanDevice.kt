@@ -129,6 +129,7 @@ open class VulkanDevice(
 
             val requiredFamilies = listOf(
                 graphicsQueueFamilyIndex,
+                presentQueueFamilyIndex,
                 transferQueueFamilyIndex,
                 computeQueueFamilyIndex)
                 .groupBy { it }
