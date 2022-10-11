@@ -265,7 +265,7 @@ open class Camera : DefaultNode("Camera"), HasRenderable, HasMaterial, HasCustom
      */
     fun canSee(node: Node): Boolean {
         // TODO: Figure out how to efficiently cull instances
-        if(disableCulling || node is InstancedNode || node is DisableFrustumCulling || true) {
+        if(disableCulling || node is InstancedNode || node is DisableFrustumCulling) {
             return true
         }
 
