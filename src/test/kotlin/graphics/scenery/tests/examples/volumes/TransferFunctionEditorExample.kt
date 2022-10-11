@@ -60,8 +60,8 @@ class TransferFunctionEditorExample : SceneryBase("TransferFunctionEditor Exampl
         val workingDirectoryPath = File("").absolutePath
 
         val options = VolumeViewerOptions().maxCacheSizeInMB(maxCacheSize)
-        val name = "t1-head"
-        val v = Volume.fromSpimData(XmlIoSpimDataMinimal().load("$workingDirectoryPath/src/main/resources/volumes/$name.xml"), hub, options)
+        val name = "RIDER"
+        val v = Volume.fromSpimData(XmlIoSpimDataMinimal().load("C:\\Users\\Kodels Bier\\Desktop\\volumes\\$name.xml"), hub, options)
         v.name = name
         v.colormap = Colormap.get("grays")
         cam.spatial().position = Vector3f(0.0f, 0.0f, 0.0f)
@@ -71,7 +71,7 @@ class TransferFunctionEditorExample : SceneryBase("TransferFunctionEditor Exampl
 
 
         val bridge = SwingBridgeFrame("1DTransferFunctionEditor")
-        val tfUI = TransferFunctionUI(650, 500, v, bridge)
+        val tfUI = TransferFunctionUI(650, 550, v, bridge)
         val swingUiNode = tfUI.mainFrame.uiNode
         swingUiNode.spatial() {
             position = Vector3f(1f,0f,0f)

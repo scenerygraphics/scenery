@@ -4,6 +4,7 @@ import bdv.tools.brightness.ConverterSetup
 import graphics.scenery.backends.Renderer.Companion.logger
 import graphics.scenery.controls.RangeSlider
 import graphics.scenery.controls.SwingBridgeFrame
+import graphics.scenery.utils.Image
 import net.imglib2.histogram.Histogram1d
 import net.imglib2.histogram.Real1dBinMapper
 import net.imglib2.type.numeric.integer.UnsignedByteType
@@ -25,17 +26,21 @@ import org.jfree.data.xy.XYSeries
 import org.jfree.data.xy.XYSeriesCollection
 import org.joml.Math
 import org.joml.Math.clamp
-import java.awt.*
+import java.awt.Color
+import java.awt.Dimension
 import java.awt.event.MouseEvent
 import java.awt.event.MouseListener
 import java.awt.event.MouseMotionListener
+import java.awt.image.BufferedImage
+import java.io.ByteArrayInputStream
 import java.io.File
+import java.nio.ByteBuffer
+import javax.imageio.ImageIO
 import javax.swing.*
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.pow
 import kotlin.math.roundToInt
-import kotlin.system.measureTimeMillis
 
 
 /**
@@ -62,43 +67,25 @@ class TransferFunctionUI(width : Int = 1000, height : Int = 1000, volume : Volum
     private val valueSpinner : JSpinner
     private val alphaSpinner : JSpinner
 
-    private val addButton : JButton
-    private val removeButton : JButton
-
-    //Debug
-    private val debugPanel : JPanel
-    private val clickLabel : JLabel
-    private val dragLabel : JLabel
-    private val textLabel : JLabel
-
     //RangeEditor
     private val rangeEditorPanel : JPanel
     private val minText: JTextField
     private val maxText: JTextField
     private val rangeSlider : RangeSlider
-
     private val minValueLabel: JLabel
     private val maxValueLabel: JLabel
 
+    //ColorMapEditor
+    private val colorMapEditor : JPanel
+
+
     init {
+        val workingDirectory = "${File("").absolutePath}"
         mainFrame.contentPane.preferredSize = Dimension(width, height)
         mainFrame.contentPane.minimumSize = Dimension(width, height)
         mainFrame.layout = MigLayout()
         mainFrame.isVisible = true
 
-        //Debug Panel
-        debugPanel = JPanel()
-        debugPanel.layout = MigLayout()
-        clickLabel = JLabel("ClickLabel: ", SwingConstants.LEFT)
-        dragLabel = JLabel("DragLabel: ", SwingConstants.LEFT)
-        textLabel = JLabel("InfoText: ", SwingConstants.LEFT)
-        if(debugFlag)
-        {
-            mainFrame.add(debugPanel, "cell 0 11")
-            debugPanel.add(clickLabel, "cell 0 0")
-            debugPanel.add(dragLabel, "cell 0 1")
-            debugPanel.add(textLabel, "cell 0 2")
-        }
 
         converter = volume.converterSetups.first()
 
@@ -149,6 +136,7 @@ class TransferFunctionUI(width : Int = 1000, height : Int = 1000, volume : Volum
         tfPlot.mapDatasetToDomainAxis(0, 0)
         tfPlot.mapDatasetToRangeAxis(1, 1)
         tfPlot.mapDatasetToDomainAxis(1, 1)
+
         val tfChart = JFreeChart("TransferFunction for ${volume.name}", tfPlot)
 
         mainChart = ChartPanel(tfChart)
@@ -180,9 +168,7 @@ class TransferFunctionUI(width : Int = 1000, height : Int = 1000, volume : Volum
                 if(item is XYItemEntity)
                 {
                     if (item.dataset is XYSeriesCollection) {
-                        if(debugFlag) {
-                            dragLabel.text = "DragLabel: Item: $item"
-                        }
+
                         mouseTargetCP.seriesIndex = item.seriesIndex
                         mouseTargetCP.itemIndex = item.item
                         mouseTargetCP.lastIndex = item.item
@@ -190,9 +176,6 @@ class TransferFunctionUI(width : Int = 1000, height : Int = 1000, volume : Volum
                         mouseTargetCP.x = tfPlot.getDomainAxis(0).java2DToValue(point.getX(), plotArea, tfPlot.domainAxisEdge)
                         mouseTargetCP.y = tfPlot.getRangeAxis(0).java2DToValue(point.getY(), plotArea, tfPlot.rangeAxisEdge)
                     }
-                }
-                if(debugFlag) {
-                    textLabel.text = "Attached ${mouseTargetCP.itemIndex}"
                 }
                 if(mouseTargetCP.itemIndex >= 0)
                 {
@@ -216,9 +199,6 @@ class TransferFunctionUI(width : Int = 1000, height : Int = 1000, volume : Volum
         alphaSpinner.maximumSize = Dimension(70, 25)
         mainChart.addChartMouseListener(object : ChartMouseListener {
             override fun chartMouseClicked(e: ChartMouseEvent) {
-                if(debugFlag) {
-                    clickLabel.text = "ClickLabel: Entity = ${e.entity}"
-                }
                 if(e.entity is XYItemEntity) {
                     val item = e.entity as XYItemEntity
                     //click on cp
@@ -230,6 +210,10 @@ class TransferFunctionUI(width : Int = 1000, height : Int = 1000, volume : Volum
                         mouseTargetCP.y = clamp(0.0, 1.0, item.dataset.getY(item.seriesIndex, item.item).toDouble())
                         valueSpinner.value = mouseTargetCP.x.toFloat()
                         alphaSpinner.value = mouseTargetCP.y.toFloat()
+                        if(e.trigger.isControlDown && mouseTargetCP.itemIndex != -1)
+                        {
+                            removeControlpoint(volume, mouseTargetCP)
+                        }
                     }
                     //click on histogram
                     else {
@@ -239,6 +223,10 @@ class TransferFunctionUI(width : Int = 1000, height : Int = 1000, volume : Volum
                         val y = tfPlot.getRangeAxis(0).java2DToValue(point.getY(), plotArea, tfPlot.rangeAxisEdge)
                         valueSpinner.value = clamp(0.0f, 1.0f, x.toFloat())
                         alphaSpinner.value = clamp(0.0f, 1.0f,y.toFloat())
+                        if(mouseTargetCP.itemIndex == -1)
+                        {
+                            addControlpoint(volume)
+                        }
                     }
                 }
                 //click on empty region
@@ -250,6 +238,10 @@ class TransferFunctionUI(width : Int = 1000, height : Int = 1000, volume : Volum
                     val y = tfPlot.getRangeAxis(0).java2DToValue(point.getY(), plotArea, tfPlot.rangeAxisEdge)
                     valueSpinner.value = clamp(0.0f, 1.0f, x.toFloat())
                     alphaSpinner.value = clamp(0.0f, 1.0f,y.toFloat())
+                    if(mouseTargetCP.itemIndex == -1)
+                    {
+                        addControlpoint(volume)
+                    }
                 }
             }
             override fun chartMouseMoved(e: ChartMouseEvent) {
@@ -285,31 +277,11 @@ class TransferFunctionUI(width : Int = 1000, height : Int = 1000, volume : Volum
         //Controlpoint Manipulation
         cpManipulationPanel = JPanel()
         cpManipulationPanel.layout = MigLayout()
-        mainFrame.add(cpManipulationPanel, "cell 0 8")
+        mainFrame.add(cpManipulationPanel, "cell 0 8 2 1")
 
-        cpManipulationPanel.add(valueSpinner, "cell 0 0 3 1")
-        cpManipulationPanel.add(alphaSpinner, "cell 1 0 3 1")
+        cpManipulationPanel.add(valueSpinner, "cell 0 0 1 1")
+        cpManipulationPanel.add(alphaSpinner, "cell 1 0 1 1")
 
-        addButton = JButton("CP +")
-        addButton.minimumSize = Dimension(70, 25)
-        addButton.maximumSize = Dimension(70, 25)
-        cpManipulationPanel.add(addButton, "cell 0 1")
-        addButton.addActionListener {
-            if(mouseTargetCP.itemIndex == -1)
-            {
-                addControlpoint(volume)
-            }
-        }
-
-        removeButton = JButton("CP -")
-        removeButton.minimumSize = Dimension(70, 25)
-        removeButton.maximumSize = Dimension(70, 25)
-        cpManipulationPanel.add(removeButton, "cell 1 1")
-        removeButton.addActionListener {
-            if (mouseTargetCP.itemIndex != -1) {
-                removeControlpoint(volume, mouseTargetCP)
-            }
-        }
 
         //Rangeeditor
         val initMinValue = max(converter.displayRangeMin.toInt(), 100)
@@ -345,6 +317,53 @@ class TransferFunctionUI(width : Int = 1000, height : Int = 1000, volume : Volum
         rangeEditorPanel.add(maxValueLabel, "cell 5 2")
 
         updateSliderRange()
+
+        //ColorMapEditor
+        val byteBuffer = ByteBuffer.allocate(1024 * 16 * 4)
+        val tmp = FloatArray(1024)
+        for(i in 0 until 1024)
+        {
+            tmp[i] = 0.5f
+        }
+        val fb = byteBuffer.asFloatBuffer()
+        for(i in 0 until 16)
+        {
+            fb.put(tmp)
+        }
+
+        colorMapEditor = JPanel()
+        colorMapEditor.layout = MigLayout()
+        mainFrame.add(colorMapEditor, "cell 0 10 1 1")
+        val colorChooser = JColorChooser(Color(1.0f, 0.0f, 1.0f))
+        //colorMapEditor.add(JLabel("${colorChooser.color}"), "cell 0 0 2 1")
+        //var tfImage = Image(volume.transferFunction.serialise(), volume.transferFunction.textureSize, volume.transferFunction.textureHeight)
+        //val byteArray = ByteArray(tfImage.contents.limit())
+        //tfImage.contents.get(byteArray)
+        //val byteArray = ByteArray(tfImage.contents.limit())
+        //byteBuffer.get(byteArray)
+        val colorMapChannels = 4
+        val colorMapWidth = 1024
+        val colorMapHeight = 16
+        val colorByteArray = ByteArray(colorMapWidth * colorMapHeight * colorMapChannels)
+        for(y in 0 until colorMapHeight)
+        {
+            for(x in 0 until colorMapWidth)
+            {
+                val pos = colorMapChannels*x + colorMapChannels*colorMapWidth*y
+                colorByteArray[pos + 0] = 0.toByte() //A
+                colorByteArray[pos + 1] = 0.toByte() //R
+                colorByteArray[pos + 2] = 0.toByte() //G
+                colorByteArray[pos + 3] = 255.toByte() //R
+            }
+        }
+        val colorMapImage = BufferedImage(colorMapWidth, colorMapHeight, BufferedImage.TYPE_4BYTE_ABGR)
+        colorMapImage.raster.setDataElements(0, 0, colorMapWidth, colorMapHeight, colorByteArray)
+        ImageIO.write(colorMapImage, "jpg", File("C:\\Users\\Kodels Bier\\Desktop\\volumes\\test.jpg"))
+        tfPlot.backgroundImage = colorMapImage
+        val tfImageIcon = ImageIcon("${File("").absolutePath}\\src\\main\\resources\\graphics\\scenery\\volumes\\colormap-hot.png")
+        val tfImageLabel = JLabel(tfImageIcon)
+        tfImageLabel.setSize(200, 100)
+        colorMapEditor.add(tfImageLabel, "cell 0 0 2 1")
 
         mainFrame.pack()
     }

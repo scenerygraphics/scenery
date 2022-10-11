@@ -31,7 +31,6 @@ class SwingUiNode(val swingBridgeFrame : SwingBridgeFrame) : Plane(
 
         this.update += {
             this.spatial().scale = Vector3f(swingBridgeFrame.width.toFloat()/swingBridgeFrame.height.toFloat(), 1.0f, 1.0f)
-            //updateUITexture()
             spatial().needsUpdate = true
         }
     }
