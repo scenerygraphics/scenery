@@ -43,7 +43,7 @@ layout(push_constant) uniform currentEye_t {
 #define WORLD_ABS 0
 #define INT_DEPTHS 0
 
-#define USE_PRINTF 0
+#define USE_PRINTF 1
 
 #if USE_PRINTF
 #extension GL_EXT_debug_printf : enable
@@ -605,5 +605,14 @@ void main()
     imageStore(OutputSubVDIColor, ivec3(3, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x), vec4(1.0, 0.5, 0.25, 1.0));
     imageStore(OutputSubVDIColor, ivec3(4, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x), vec4(1.0, 0.5, 0.25, 1.0));
     imageStore(OutputSubVDIColor, ivec3(5, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x), vec4(1.0, 0.5, 0.25, 1.0));
+
+    writeSupersegment(0, 0.1, 0.2, vec4(1));
+    writeSupersegment(1, 0.3, 0.5, vec4(1));
+
+    #if USE_PRINTF
+    if(gl_GlobalInvocationID.xy == debug_pixel) {
+        debugPrintfEXT("Wrote the test values!");
+    }
+    #endif
 //    imageStore(OutputRender, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), FragColor);
 }
