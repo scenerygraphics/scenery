@@ -23,9 +23,9 @@ import java.awt.image.*
 import java.io.FileInputStream
 import java.io.InputStream
 import java.nio.ByteBuffer
-import java.nio.file.Files
 import java.nio.file.Paths
 import kotlin.concurrent.thread
+import kotlin.io.path.readLines
 import kotlin.math.max
 import kotlin.math.roundToLong
 
@@ -965,7 +965,7 @@ open class VulkanTexture(val device: VulkanDevice,
             return if(type == "raw") {
                 val path = Paths.get(filename)
                 val infoFile = path.resolveSibling(path.fileName.toString().substringBeforeLast(".") + ".info")
-                val dimensions = Files.lines(infoFile).toList().first().split(",").map { it.toLong() }.toLongArray()
+                val dimensions = infoFile.readLines().first().split(",").map { it.toLong() }.toLongArray()
 
                 loadFromFileRaw(device,
                         commandPools, queue, transferQueue,
