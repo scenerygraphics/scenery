@@ -1,10 +1,10 @@
 package graphics.scenery.controls
 
+import graphics.scenery.backends.vulkan.VulkanNodeHelpers.logger
 import graphics.scenery.utils.Image
 import java.awt.Component
 import java.awt.event.*
 import java.awt.image.BufferedImage
-import javax.swing.JButton
 import javax.swing.JFrame
 import javax.swing.SwingUtilities
 
@@ -21,13 +21,11 @@ open class SwingBridgeFrame(title: String) : JFrame(title) {
     init {
         this.addKeyListener(object : KeyListener {
             override fun keyTyped(e : KeyEvent?) {
-                updateImage()
             }
             override fun keyPressed(e : KeyEvent?) {
                 updateImage()
             }
             override fun keyReleased(e : KeyEvent?) {
-                updateImage()
             }
         })
     }
@@ -61,6 +59,7 @@ open class SwingBridgeFrame(title: String) : JFrame(title) {
                     target, 501, System.currentTimeMillis() - 75, 1040, compPoint.x, compPoint.y, 1, false, 1
                 )
             )
+
             // released
             target.dispatchEvent(
                 MouseEvent(
@@ -84,13 +83,10 @@ open class SwingBridgeFrame(title: String) : JFrame(title) {
             target.dispatchEvent(
                 KeyEvent(this, 401, System.currentTimeMillis() - 100, 0, 0x31, '1')
             )
-
             //released
-            target.dispatchEvent(
-                KeyEvent(this, 402, System.currentTimeMillis() - 75, 0, 0x31, '1')
-            )
-
-            println("SwingUI: simulating Click after ${compPoint.x},${compPoint.y} on ${(target as? JButton)?.text}")
+            //target.dispatchEvent(
+            //    KeyEvent(this, 402, System.currentTimeMillis() - 75, 0, 0x31, '1')
+            //)
         }
     }
 
@@ -138,10 +134,15 @@ open class SwingBridgeFrame(title: String) : JFrame(title) {
                     target, 502, System.currentTimeMillis() - 50, 16, compPoint.x, compPoint.y, 1, false, 1
                 )
             )
+            target.dispatchEvent(
+                MouseEvent(
+                    target, 500, System.currentTimeMillis() - 25, 16, compPoint.x, compPoint.y, 1, false, 1
+                )
+            )
         }
     }
 
-    fun getScreen(): BufferedImage {
+    private fun getScreen(): BufferedImage {
         return getScreenShot(this.contentPane)
     }
 

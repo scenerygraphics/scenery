@@ -4,7 +4,6 @@ import bdv.tools.brightness.ConverterSetup
 import graphics.scenery.backends.Renderer.Companion.logger
 import graphics.scenery.controls.RangeSlider
 import graphics.scenery.controls.SwingBridgeFrame
-import graphics.scenery.utils.Image
 import net.imglib2.histogram.Histogram1d
 import net.imglib2.histogram.Real1dBinMapper
 import net.imglib2.type.numeric.integer.UnsignedByteType
@@ -26,16 +25,13 @@ import org.jfree.data.xy.XYSeries
 import org.jfree.data.xy.XYSeriesCollection
 import org.joml.Math
 import org.joml.Math.clamp
-import java.awt.Color
 import java.awt.Dimension
 import java.awt.event.MouseEvent
 import java.awt.event.MouseListener
 import java.awt.event.MouseMotionListener
 import java.awt.image.BufferedImage
-import java.io.ByteArrayInputStream
 import java.io.File
 import java.nio.ByteBuffer
-import javax.imageio.ImageIO
 import javax.swing.*
 import kotlin.math.abs
 import kotlin.math.max
@@ -51,7 +47,7 @@ import kotlin.math.roundToInt
  * Able to generate a histogram and visualize it as well to help with TF-settings
  * Able to dynamically set the transfer function range -> changes histogram as well
  */
-class TransferFunctionUI(width : Int = 1000, height : Int = 1000, volume : Volume, val mainFrame : SwingBridgeFrame = SwingBridgeFrame("1DTransferFunctionEditor"), debugFlag : Boolean = false) {
+class TransferFunctionUI(width : Int = 1000, height : Int = 1000, val volume : Volume, val mainFrame : SwingBridgeFrame = SwingBridgeFrame("1DTransferFunctionEditor"), debugFlag : Boolean = false) {
     data class MouseDragTarget(var seriesIndex : Int = -1, var itemIndex : Int = -1, var lastIndex : Int = -1, var x : Double = 0.0, var y : Double = 0.0)
     var converter : ConverterSetup
 
@@ -74,13 +70,7 @@ class TransferFunctionUI(width : Int = 1000, height : Int = 1000, volume : Volum
     private val rangeSlider : RangeSlider
     private val minValueLabel: JLabel
     private val maxValueLabel: JLabel
-
-    //ColorMapEditor
-    private val colorMapEditor : JPanel
-
-
     init {
-        val workingDirectory = "${File("").absolutePath}"
         mainFrame.contentPane.preferredSize = Dimension(width, height)
         mainFrame.contentPane.minimumSize = Dimension(width, height)
         mainFrame.layout = MigLayout()
@@ -121,8 +111,8 @@ class TransferFunctionUI(width : Int = 1000, height : Int = 1000, volume : Volum
         histXAxis.setRange(converter.displayRangeMin - (axisExtensionFactor*range), converter.displayRangeMax + (axisExtensionFactor*range))
 
         val histogramAxis = LogarithmicAxis("Histogram Bin Value")
-        var height = abs(1000.0 - 0.0)
-        histogramAxis.setRange(0.0 - (axisExtensionFactor/10.0 * height), 1000.0 + (axisExtensionFactor * height))
+        val height = abs(1000.0 - 0.0)
+        histogramAxis.setRange(0.0 - (axisExtensionFactor/100.0 * height), 1000.0 + (axisExtensionFactor * height))
         histogramAxis.allowNegativesFlag
 
         val tfYAxis = NumberAxis("TransferFunctionMapping")
@@ -147,6 +137,7 @@ class TransferFunctionUI(width : Int = 1000, height : Int = 1000, volume : Volum
         mainChart.isRangeZoomable = false
         mainChart.horizontalAxisTrace = true
         mainChart.verticalAxisTrace = true
+        tfPlot.backgroundImage = createTFImage()
 
         mainFrame.add(mainChart, "cell 0 0 12 8")
 
@@ -185,6 +176,7 @@ class TransferFunctionUI(width : Int = 1000, height : Int = 1000, volume : Volum
                     mouseTargetCP.x = tfPlot.getDomainAxis(0).java2DToValue(point.getX(), plotArea, tfPlot.domainAxisEdge)
                     mouseTargetCP.y = tfPlot.getRangeAxis(0).java2DToValue(point.getY(), plotArea, tfPlot.rangeAxisEdge)
                     updateControlpoint(volume, mouseTargetCP)
+                    tfPlot.backgroundImage = createTFImage()
                 }
             }
 
@@ -213,6 +205,7 @@ class TransferFunctionUI(width : Int = 1000, height : Int = 1000, volume : Volum
                         if(e.trigger.isControlDown && mouseTargetCP.itemIndex != -1)
                         {
                             removeControlpoint(volume, mouseTargetCP)
+                            tfPlot.backgroundImage = createTFImage()
                         }
                     }
                     //click on histogram
@@ -226,6 +219,7 @@ class TransferFunctionUI(width : Int = 1000, height : Int = 1000, volume : Volum
                         if(mouseTargetCP.itemIndex == -1)
                         {
                             addControlpoint(volume)
+                            tfPlot.backgroundImage = createTFImage()
                         }
                     }
                 }
@@ -241,6 +235,7 @@ class TransferFunctionUI(width : Int = 1000, height : Int = 1000, volume : Volum
                     if(mouseTargetCP.itemIndex == -1)
                     {
                         addControlpoint(volume)
+                        tfPlot.backgroundImage = createTFImage()
                     }
                 }
             }
@@ -259,7 +254,7 @@ class TransferFunctionUI(width : Int = 1000, height : Int = 1000, volume : Volum
         val volumeHistogramData = SimpleHistogramDataset("VolumeBin")
         volumeHistogramData.adjustForBinSize = false
         val resolutionStartExp = 8
-        var binResolution = 2.0.pow(resolutionStartExp)
+        val binResolution = 2.0.pow(resolutionStartExp)
 
         genHistButton.addActionListener {
             tfPlot.setDataset(1, volumeHistogramData)
@@ -268,7 +263,7 @@ class TransferFunctionUI(width : Int = 1000, height : Int = 1000, volume : Volum
             range = abs(converter.displayRangeMax - converter.displayRangeMin)
             histXAxis.setRange(converter.displayRangeMin - (axisExtensionFactor*range), converter.displayRangeMax + (axisExtensionFactor*range))
 
-            histogramAxis.setRange(0.0 - (axisExtensionFactor/10.0 * height), 1000.0 + (axisExtensionFactor * height))
+            histogramAxis.setRange(0.0 - (axisExtensionFactor/100.0 * height), 1000.0 + (axisExtensionFactor * height))
             tfPlot.setDomainAxis(1, histXAxis)
 
             mainChart.repaint()
@@ -318,54 +313,20 @@ class TransferFunctionUI(width : Int = 1000, height : Int = 1000, volume : Volum
 
         updateSliderRange()
 
-        //ColorMapEditor
-        val byteBuffer = ByteBuffer.allocate(1024 * 16 * 4)
-        val tmp = FloatArray(1024)
-        for(i in 0 until 1024)
-        {
-            tmp[i] = 0.5f
-        }
-        val fb = byteBuffer.asFloatBuffer()
-        for(i in 0 until 16)
-        {
-            fb.put(tmp)
-        }
-
-        colorMapEditor = JPanel()
-        colorMapEditor.layout = MigLayout()
-        mainFrame.add(colorMapEditor, "cell 0 10 1 1")
-        val colorChooser = JColorChooser(Color(1.0f, 0.0f, 1.0f))
-        //colorMapEditor.add(JLabel("${colorChooser.color}"), "cell 0 0 2 1")
-        //var tfImage = Image(volume.transferFunction.serialise(), volume.transferFunction.textureSize, volume.transferFunction.textureHeight)
-        //val byteArray = ByteArray(tfImage.contents.limit())
-        //tfImage.contents.get(byteArray)
-        //val byteArray = ByteArray(tfImage.contents.limit())
-        //byteBuffer.get(byteArray)
-        val colorMapChannels = 4
-        val colorMapWidth = 1024
-        val colorMapHeight = 16
-        val colorByteArray = ByteArray(colorMapWidth * colorMapHeight * colorMapChannels)
-        for(y in 0 until colorMapHeight)
-        {
-            for(x in 0 until colorMapWidth)
-            {
-                val pos = colorMapChannels*x + colorMapChannels*colorMapWidth*y
-                colorByteArray[pos + 0] = 0.toByte() //A
-                colorByteArray[pos + 1] = 0.toByte() //R
-                colorByteArray[pos + 2] = 0.toByte() //G
-                colorByteArray[pos + 3] = 255.toByte() //R
-            }
-        }
-        val colorMapImage = BufferedImage(colorMapWidth, colorMapHeight, BufferedImage.TYPE_4BYTE_ABGR)
-        colorMapImage.raster.setDataElements(0, 0, colorMapWidth, colorMapHeight, colorByteArray)
-        ImageIO.write(colorMapImage, "jpg", File("C:\\Users\\Kodels Bier\\Desktop\\volumes\\test.jpg"))
-        tfPlot.backgroundImage = colorMapImage
-        val tfImageIcon = ImageIcon("${File("").absolutePath}\\src\\main\\resources\\graphics\\scenery\\volumes\\colormap-hot.png")
-        val tfImageLabel = JLabel(tfImageIcon)
-        tfImageLabel.setSize(200, 100)
-        colorMapEditor.add(tfImageLabel, "cell 0 0 2 1")
-
         mainFrame.pack()
+    }
+
+    private fun createTFImage() : BufferedImage {
+        val tfBuffer = volume.transferFunction.serialise().asFloatBuffer()
+        val byteArray = ByteArray(tfBuffer.limit())
+        for(i in 0 until tfBuffer.limit())
+        {
+            byteArray[i] = (tfBuffer[i] * 255).toInt().toByte()
+        }
+        val tfImage = BufferedImage(volume.transferFunction.textureSize, volume.transferFunction.textureHeight, BufferedImage.TYPE_BYTE_GRAY)
+        tfImage.raster.setDataElements(0, 0, volume.transferFunction.textureSize, volume.transferFunction.textureHeight, byteArray)
+
+        return tfImage
     }
     private fun updateSliderRange(){
         val min = minText.toInt()

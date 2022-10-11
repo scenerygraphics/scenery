@@ -49,7 +49,7 @@ class TransferFunctionEditorExample : SceneryBase("TransferFunctionEditor Exampl
 
         with(cam) {
             spatial {
-                position = Vector3f(0.0f, 0.0f, 5.0f)
+                position = Vector3f(0.0f, 0.0f, 2.0f)
             }
             nearPlaneDistance = 0.01f
             perspectiveCamera(50.0f, windowWidth, windowHeight)
@@ -64,9 +64,9 @@ class TransferFunctionEditorExample : SceneryBase("TransferFunctionEditor Exampl
         val v = Volume.fromSpimData(XmlIoSpimDataMinimal().load("C:\\Users\\Kodels Bier\\Desktop\\volumes\\$name.xml"), hub, options)
         v.name = name
         v.colormap = Colormap.get("grays")
-        cam.spatial().position = Vector3f(0.0f, 0.0f, 0.0f)
+        v.spatial().position = Vector3f(0.0f, 0.0f, 0.0f)
         v.spatial().scale = Vector3f(0.1f)
-        v.setTransferFunctionRange(0.0f, 1000.0f)
+        v.setTransferFunctionRange(0.0f, 65000.0f)
         scene.addChild(v)
 
 
@@ -74,7 +74,7 @@ class TransferFunctionEditorExample : SceneryBase("TransferFunctionEditor Exampl
         val tfUI = TransferFunctionUI(650, 550, v, bridge)
         val swingUiNode = tfUI.mainFrame.uiNode
         swingUiNode.spatial() {
-            position = Vector3f(1f,0f,0f)
+            position = Vector3f(2f,0f,0f)
         }
 
         scene.addChild(swingUiNode)
@@ -83,10 +83,11 @@ class TransferFunctionEditorExample : SceneryBase("TransferFunctionEditor Exampl
     override fun inputSetup() {
         super.inputSetup()
 
+        val debugRaycast = false
         inputHandler?.addBehaviour(
             "sphereClickObject", object : ClickBehaviour {
                 override fun click(x: Int, y: Int) {
-                    val ray = cam.getNodesForScreenSpacePosition(x,y, listOf<Class<*>>(BoundingGrid::class.java))
+                    val ray = cam.getNodesForScreenSpacePosition(x,y, listOf<Class<*>>(BoundingGrid::class.java), debugRaycast)
 
                     ray.matches.firstOrNull()?.let { hit ->
                         val node = hit.node as? SwingUiNode ?: return
@@ -99,16 +100,16 @@ class TransferFunctionEditorExample : SceneryBase("TransferFunctionEditor Exampl
         inputHandler?.addBehaviour(
             "sphereDragObject", object : DragBehaviour {
                 override fun init(x:Int, y: Int) {
-                    val ray = cam.getNodesForScreenSpacePosition(x,y, listOf<Class<*>>(BoundingGrid::class.java))
+                    val ray = cam.getNodesForScreenSpacePosition(x,y, listOf<Class<*>>(BoundingGrid::class.java), debugRaycast)
 
                     ray.matches.firstOrNull()?.let { hit ->
                         val node = hit.node as? SwingUiNode ?: return
                         val hitPos = ray.initialPosition + ray.initialDirection.normalize(hit.distance)
-                        node.pressed(hitPos)
+                        //node.pressed(hitPos)
                     }
                 }
                 override fun drag(x: Int, y: Int) {
-                    val ray = cam.getNodesForScreenSpacePosition(x,y, listOf<Class<*>>(BoundingGrid::class.java))
+                    val ray = cam.getNodesForScreenSpacePosition(x,y, listOf<Class<*>>(BoundingGrid::class.java), debugRaycast)
 
                     ray.matches.firstOrNull()?.let { hit ->
                         val node = hit.node as? SwingUiNode ?: return
@@ -117,12 +118,12 @@ class TransferFunctionEditorExample : SceneryBase("TransferFunctionEditor Exampl
                     }
                 }
                 override fun end(x: Int, y: Int) {
-                    val ray = cam.getNodesForScreenSpacePosition(x,y, listOf<Class<*>>(BoundingGrid::class.java))
+                    val ray = cam.getNodesForScreenSpacePosition(x,y, listOf<Class<*>>(BoundingGrid::class.java), debugRaycast)
 
                     ray.matches.firstOrNull()?.let { hit ->
                         val node = hit.node as? SwingUiNode ?: return
                         val hitPos = ray.initialPosition + ray.initialDirection.normalize(hit.distance)
-                        node.released(hitPos)
+                        //node.released(hitPos)
                     }
                 }
             }

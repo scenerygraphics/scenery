@@ -7,7 +7,9 @@ import graphics.scenery.utils.Image
 import org.joml.Matrix4f
 import org.joml.Vector3f
 import org.joml.Vector4f
+import java.awt.Color
 import java.io.FileInputStream
+import java.io.InputStream
 
 /**
  * @author Jan Tiemann
@@ -21,14 +23,14 @@ class SwingUiNode(val swingBridgeFrame : SwingBridgeFrame) : Plane(
     Vector3f(0.5f,-0.5f,0.0f),
     Vector3f(0.5f,0.5f,0.0f)
 ) {
-
     var swingUiDimension = 0 to 0
-
 
     init {
         //to also hit the backside
         this.material().cullingMode = Material.CullingMode.None
-
+        this.material {
+            textures["diffuse"] = Texture.fromImage(Image.fromStream(FileInputStream("C:\\Users\\Kodels Bier\\Desktop\\volumes\\helix.png"), ".png", false))
+        }
         this.update += {
             this.spatial().scale = Vector3f(swingBridgeFrame.width.toFloat()/swingBridgeFrame.height.toFloat(), 1.0f, 1.0f)
             spatial().needsUpdate = true
@@ -43,9 +45,7 @@ class SwingUiNode(val swingBridgeFrame : SwingBridgeFrame) : Plane(
         }
     }
 
-    //from Jan
     fun Matrix4f.copy(): Matrix4f = Matrix4f(this)
-
     fun click(wPos: Vector3f) {
 
         val hitPosModel = Vector4f(wPos, 1f).mul(this.spatial().model.copy().invert())
