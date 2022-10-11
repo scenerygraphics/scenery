@@ -536,7 +536,7 @@ open class VulkanTexture(val device: VulkanDevice,
                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
                 wantAligned = false)
 
-            with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
+            with(VU.newCommandBuffer(device, commandPools.Transfer, autostart = true)) {
                 buffer.copyFrom(sourceBuffer)
 
                 transitionLayout(image.image, VK_IMAGE_LAYOUT_UNDEFINED,
@@ -551,11 +551,11 @@ open class VulkanTexture(val device: VulkanDevice,
 
                 endCommandBuffer(
                     this@VulkanTexture.device,
-                    commandPools.Standard,
+                    commandPools.Transfer,
                     transferQueue,
                     flush = true,
                     dealloc = true,
-                    block = false
+                    block = true
                 )
             }
 
@@ -634,10 +634,10 @@ open class VulkanTexture(val device: VulkanDevice,
                 this@mipmapCreation.endCommandBuffer(
                     this@VulkanTexture.device,
                     commandPools.Standard,
-                    transferQueue,
+                    queue,
                     flush = true,
                     dealloc = true,
-                    block = false
+                    block = true
                 )
             }
 
@@ -678,7 +678,7 @@ open class VulkanTexture(val device: VulkanDevice,
             }
 
             tmpBuffer?.let { b ->
-                with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
+                with(VU.newCommandBuffer(device, commandPools.Transfer, autostart = true)) {
                     logger.info("${System.nanoTime()}: Copying $width $height $depth")
                     transitionLayout(image.image,
                         from = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
@@ -741,8 +741,8 @@ open class VulkanTexture(val device: VulkanDevice,
 
                     endCommandBuffer(
                         this@VulkanTexture.device,
-                        commandPools.Standard,
-                        queue,
+                        commandPools.Transfer,
+                        transferQueue,
                         flush = true,
                         dealloc = true,
                         block = true
@@ -1054,17 +1054,24 @@ open class VulkanTexture(val device: VulkanDevice,
          */
         fun transitionLayout(image: Long, from: Int, to: Int, mipLevels: Int = 1,
                              subresourceRange: VkImageSubresourceRange? = null,
-                             srcStage: Int = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, dstStage: Int = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-                             srcAccessMask: Int, dstAccessMask: Int,
-                             commandBuffer: VkCommandBuffer, dependencyFlags: Int = 0, memoryBarrier: Boolean = false) {
+                             srcStage: Int = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                             dstStage: Int = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                             srcAccessMask: Int,
+                             dstAccessMask: Int,
+                             commandBuffer: VkCommandBuffer,
+                             dependencyFlags: Int = 0,
+                             memoryBarrier: Boolean = false,
+                             srcQueueFamilyIndex: Int = VK_QUEUE_FAMILY_IGNORED,
+                             dstQueueFamilyIndex: Int = VK_QUEUE_FAMILY_IGNORED
+                             ) {
             stackPush().use { stack ->
                 val barrier = VkImageMemoryBarrier.calloc(1, stack)
                     .sType(VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER)
                     .pNext(NULL)
                     .oldLayout(from)
                     .newLayout(to)
-                    .srcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
-                    .dstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+                    .srcQueueFamilyIndex(srcQueueFamilyIndex)
+                    .dstQueueFamilyIndex(dstQueueFamilyIndex)
                     .srcAccessMask(srcAccessMask)
                     .dstAccessMask(dstAccessMask)
                     .image(image)
