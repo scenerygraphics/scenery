@@ -217,12 +217,10 @@ open class VulkanRenderer(hub: Hub,
     }
 
     var debugCallbackUtils = callback@ { severity: Int, type: Int, callbackDataPointer: Long, _: Long ->
-        val dbg = if (type and VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT == VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT) {
-            " (performance)"
-        } else if(type and VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT == VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT) {
-            " (validation)"
-        } else {
-            ""
+        val dbg = when {
+            type and VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT == VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT -> " (performance)"
+            type and VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT == VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT -> " (validation)"
+            else -> ""
         }
 
         val callbackData = VkDebugUtilsMessengerCallbackDataEXT.create(callbackDataPointer)
@@ -236,6 +234,8 @@ open class VulkanRenderer(hub: Hub,
             VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT ->
                 logger.warn("!! $obj($objectType) Validation$dbg: $message")
             VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT ->
+                logger.info("!! $obj($objectType) Validation$dbg: $message")
+            VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT ->
                 logger.info("!! $obj($objectType) Validation$dbg: $message")
             else -> logger.info("!! $obj($objectType) Validation (unknown message type)$dbg: $message")
         }
