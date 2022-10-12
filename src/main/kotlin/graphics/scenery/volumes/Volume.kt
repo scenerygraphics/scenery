@@ -333,6 +333,10 @@ open class Volume(
         }
     }
 
+    override fun getAdditionalUpdateData(): Any? {
+        return converterSetups.map { it.displayRangeMin to it.displayRangeMax }.toList()
+    }
+
     override fun update(fresh: Networkable, getNetworkable: (Int) -> Networkable, additionalData: Any?) {
         if (fresh !is Volume) throw IllegalArgumentException("Update called with object of foreign class")
         super.update(fresh, getNetworkable, additionalData)
@@ -340,6 +344,11 @@ open class Volume(
         this.transferFunction = fresh.transferFunction
         this.slicingMode = fresh.slicingMode
         this.multiResolutionLevelLimits = fresh.multiResolutionLevelLimits
+
+        val displayRanges = additionalData as List<Pair<Double,Double>>
+        displayRanges.forEachIndexed{index, range ->
+            converterSetups[index].setDisplayRange(range.first,range.second)
+        }
 
         if (this.currentTimepoint != fresh.currentTimepoint) {
             this.goToTimepoint(fresh.currentTimepoint)
@@ -494,6 +503,7 @@ open class Volume(
     @JvmOverloads
     open fun setTransferFunctionRange(min: Float, max: Float, forSetupId: Int = 0) {
         converterSetups.getOrNull(forSetupId)?.setDisplayRange(min.toDouble(), max.toDouble())
+        updateModifiedAt()
     }
 
     companion object {
