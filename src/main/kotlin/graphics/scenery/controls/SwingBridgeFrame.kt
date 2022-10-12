@@ -19,6 +19,7 @@ open class SwingBridgeFrame(title: String) : JFrame(title) {
 
     val uiNode = SwingUiNode(this)
     var finalImage : Image? = null
+    var dragged = false
     init {
         this.addKeyListener(object : KeyListener {
             override fun keyTyped(e : KeyEvent?) {
@@ -58,10 +59,11 @@ open class SwingBridgeFrame(title: String) : JFrame(title) {
                 KeyEvent(this, 401, System.currentTimeMillis(), 0, 0x32, '2')
             )
         }
-        logger.info("Ctrl")
     }
 
     fun pressed(x:Int, y: Int) {
+
+        dragged = false
         SwingUtilities.invokeLater {
             val target = SwingUtilities.getDeepestComponentAt(this.contentPane, x, y)
             val compPoint = SwingUtilities.convertPoint(
@@ -79,20 +81,15 @@ open class SwingBridgeFrame(title: String) : JFrame(title) {
                     target, 501, System.currentTimeMillis() - 75, 1040, compPoint.x, compPoint.y, 1, false, 1
                 )
             )
-            // exited
-            /*target.dispatchEvent(
-                MouseEvent(
-                    target, 505, System.currentTimeMillis(), 0, compPoint.x, compPoint.y, 0, false, 0
-                )
-            )*/
+
             // key pressed
             target.dispatchEvent(
                 KeyEvent(this, 401, System.currentTimeMillis(), 0, 0x31, '1')
             )
         }
-        logger.info("Pressed")
     }
     fun drag(x: Int, y: Int) {
+        dragged = true
         SwingUtilities.invokeLater {
             val target = SwingUtilities.getDeepestComponentAt(this.contentPane, x, y)
             val compPoint = SwingUtilities.convertPoint(
@@ -110,10 +107,9 @@ open class SwingBridgeFrame(title: String) : JFrame(title) {
                 KeyEvent(this, 401, System.currentTimeMillis() - 100, 0, 0x31, '1')
             )
         }
-        logger.info("Dragged")
-
     }
     fun released(x:Int, y:Int) {
+        logger.info("$dragged")
         SwingUtilities.invokeLater {
             val target = SwingUtilities.getDeepestComponentAt(this.contentPane, x, y)
             val compPoint = SwingUtilities.convertPoint(
@@ -126,18 +122,27 @@ open class SwingBridgeFrame(title: String) : JFrame(title) {
                     target, 502, System.currentTimeMillis() - 50, 16, compPoint.x, compPoint.y, 1, false, 1
                 )
             )
-            //clicked
-            target.dispatchEvent(
-                MouseEvent(
-                    target, 500, System.currentTimeMillis() - 25, 16, compPoint.x, compPoint.y, 1, false, 1
+            if(!dragged)
+            {
+                logger.info("$dragged")
+                //clicked
+                target.dispatchEvent(
+                    MouseEvent(
+                        target, 500, System.currentTimeMillis() - 25, 16, compPoint.x, compPoint.y, 1, false, 1
+                    )
                 )
-            )
+            }
+            // exited
+            /*target.dispatchEvent(
+                MouseEvent(
+                    target, 505, System.currentTimeMillis(), 0, compPoint.x, compPoint.y, 0, false, 0
+                )
+            )*/
             //pressed
             target.dispatchEvent(
                 KeyEvent(this, 401, System.currentTimeMillis() - 100, 0, 0x31, '1')
             )
         }
-        logger.info("Released")
     }
 
     private fun getScreen(): BufferedImage {
