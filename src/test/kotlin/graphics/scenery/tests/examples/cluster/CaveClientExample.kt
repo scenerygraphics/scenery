@@ -11,8 +11,8 @@ import graphics.scenery.controls.TrackedStereoGlasses
  * example vm parameters:
  * -Dscenery.ServerAddress=tcp://127.0.0.1
  * -Dscenery.ScreenName="right"
- * -Dscenery.TackerAddress="DTrack:body-0@224.0.1.1:5001"
- * -Dscenery..ScreenConfig="CAVEExample.yml"
+ * -Dscenery.TrackerAddress="DTrack:body-0@224.0.1.1:5001"
+ * -Dscenery.ScreenConfig="CAVEExample.yml"
  *
  * @author Jan Tiemann
  */
@@ -24,12 +24,13 @@ class CaveClientExample(): SceneryBase("cave client", wantREPL = false) {
         logger.warn("This is an experimental example, which might need additional configuration on your computer")
         logger.warn("or might not work at all. You have been warned!")
 
-        val trackerAddress = System.getProperty("scenery.TackerAddress") ?: "fake:"
+
+        val trackerAddress = System.getProperty("scenery.TrackerAddress") ?: "fake:"
         val screenConfig = System.getProperty("scenery.ScreenConfig") ?: "CAVEExample.yml"
 
         hmd = hub.add(TrackedStereoGlasses(trackerAddress, screenConfig = screenConfig))
 
-        renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, 512, 320))
+        renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, 2560, 1600))
 
         val cam: Camera = DetachedHeadCamera(hmd)
         with(cam) {

@@ -1,29 +1,30 @@
 package graphics.scenery.tests.examples.cluster
 
-import org.joml.Vector3f
 import graphics.scenery.*
+import graphics.scenery.attribute.material.Material
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.TrackedStereoGlasses
-import graphics.scenery.attribute.material.Material
-import graphics.scenery.tests.examples.volumes.IJVolumeInitializer
+import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.extensions.times
 import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.Volume
+import org.joml.Vector3f
+import java.io.BufferedReader
+import java.io.InputStreamReader
+import java.nio.file.Paths
+import kotlin.concurrent.thread
+import kotlin.io.path.absolute
 
 /**
  * <Description>
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class CaveCubesExample: SceneryBase("Bile Canaliculi example", wantREPL = false) {
+class CaveCubesExample: SceneryBase("Bile Canaliculi example", wantREPL = true) {
     var hmd: TrackedStereoGlasses? = null
 
     override fun init() {
-        logger.warn("*** WARNING - EXPERIMENTAL ***")
-        logger.warn("This is an experimental example, which might need additional configuration on your computer")
-        logger.warn("or might not work at all. You have been warned!")
-
-        hmd = hub.add(TrackedStereoGlasses("fake:", screenConfig = "CAVEExample.yml"))
+        hmd = hub.add(TrackedStereoGlasses("DTrack:body-0@224.0.1.1:5001", screenConfig = "CAVEExample.yml"))
 
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, 512, 320))
 
@@ -34,7 +35,6 @@ class CaveCubesExample: SceneryBase("Bile Canaliculi example", wantREPL = false)
                 position = Vector3f(.0f, -0.4f, 5.0f)
             }
             perspectiveCamera(50.0f, windowWidth, windowHeight)
-
             scene.addChild(this)
         }
 
@@ -64,32 +64,52 @@ class CaveCubesExample: SceneryBase("Bile Canaliculi example", wantREPL = false)
             scene.addChild(lights[i])
         }
 
-        /*
-        val online = IJVolumeInitializer("https://imagej.nih.gov/ij/images/t1-head.zip")
-        val choice = online
-        val volume = Volume.forNetwork(choice, hub)
+        val volume = Volume.forNetwork(params = Volume.VolumeFileSource(
+            Volume.VolumeFileSource.VolumePath.Given("""Z:\datasets\droso-royer-autopilot-transposed-bdv\export-norange.xml"""),
+            //Volume.VolumeFileSource.VolumePath.Settings(),
+            Volume.VolumeFileSource.VolumeType.SPIM),hub)
         scene.addChild(volume)
-        volume.transferFunction = TransferFunction.ramp(0.001f, 0.5f, 0.3f)
+        volume.transferFunction = TransferFunction.ramp(0.001f, 0.8f)
+        volume.setTransferFunctionRange(10.0f, 500.0f)
+        volume.multiResolutionLevelLimits = 0 to 1
         volume.spatial {
-            position.y += 3f
-            scale = scale.times(3f)
+            scale = Vector3f(0.1f,2.0f,0.1f)
             needsUpdate = true
-        }*/
+        }
 
         listOf(Vector3f(0f,0f,-5f),
             Vector3f(5f,0f,0f),
             Vector3f(-5f,0f,0f),
             Vector3f(0f,0f,5f))
             .forEach {
-                scene.addChild(Box().apply {
+                scene.addChild(Box(Vector3f(0.1f)).apply {
                     spatial().position = it
                 })
             }
     }
 
     companion object {
+        private val logger by LazyLogger()
+
         @JvmStatic
         fun main(args: Array<String>) {
+            thread {
+                Runtime.getRuntime().addShutdownHook(thread(start = false) {
+                    Runtime.getRuntime().exec("C:\\Users\\mosaic\\Code\\scenery-base\\killall-java.bat",
+                        null, Paths.get(".").absolute().parent.parent.toFile())
+                })
+
+                Thread.sleep(5000)
+                val clusterLaunch = Runtime.getRuntime().exec("C:\\Users\\mosaic\\Code\\scenery-base\\run-cluster.bat graphics.scenery.tests.examples.cluster.CaveClientExample",
+                    null, Paths.get(".").absolute().parent.parent.toFile())
+
+                BufferedReader(InputStreamReader(clusterLaunch.inputStream)).use { input ->
+                    var line: String?
+                    while (input.readLine().also { line = it } != null) {
+                        logger.info("Cluster: $line")
+                    }
+                }
+            }
             CaveCubesExample().main()
         }
     }

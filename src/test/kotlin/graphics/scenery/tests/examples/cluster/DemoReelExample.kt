@@ -64,119 +64,81 @@ class DemoReelExample: SceneryBase("Demo Reel") {
         Light.createLightTetrahedron<PointLight>(spread = 50.0f, intensity = 5.0f, radius = 150.0f)
             .forEach { scene.addChild(it) }
 
-        // scene setup
-        val driveLetter = System.getProperty("scenery.DriveLetter", "E")
+        scene.addChild(Box())
+//
+//        // scene setup
+//        val driveLetter = System.getProperty("scenery.DriveLetter", "E")
+//
+//        val histoneVolume = Volume.fromPathRaw(
+//            Paths.get("$driveLetter:/ssd-backup-inauguration/CAVE_DATA/histones-isonet/stacks/default/"),
+//            hub,
+//        )
+//        histoneVolume.transferFunction = TransferFunction.ramp(0.1f, 1.0f)
+//        histoneVolume.colormap = Colormap.get("hot")
+//        histoneScene.addChild(histoneVolume)
+//        histoneScene.visible = false
+//        //scene.addChild(histoneScene)
+//
+//        val drosophilaVolume = Volume.fromPathRaw(
+//            Paths.get("$driveLetter:/ssd-backup-inauguration/CAVE_DATA/droso-royer-autopilot-transposed/"),
+//            hub,
+//        )
+//        drosophilaVolume.spatial {
+//            rotation.rotateX(1.57f)
+//        }
+//        drosophilaVolume.transferFunction = TransferFunction.ramp(0.1f, 1.0f)
+//        drosophilaVolume.colormap = Colormap.get("hot")
+//        drosophilaScene.addChild(drosophilaVolume)
+//        drosophilaScene.visible = false
+//        //scene.addChild(drosophilaScene)
+//
+//        val retinaVolume = Volume.fromPathRaw(
+//            Paths.get("$driveLetter:/ssd-backup-inauguration/CAVE_DATA/retina_test2/"),
+//            hub
+//        )
+//        retinaScene.addChild(retinaVolume)
+//        retinaScene.visible = false
+//        //scene.addChild(retinaScene)
+//
+//        val bile = Mesh()
+//        val canaliculi = Mesh()
+//        canaliculi.readFrom("$driveLetter:/ssd-backup-inauguration/meshes/bile-canaliculi.obj")
+//        canaliculi.spatial {
+//            scale = Vector3f(0.1f, 0.1f, 0.1f)
+//            position = Vector3f(-80.0f, -60.0f, 10.0f)
+//        }
+//        canaliculi.material {
+//            diffuse = Vector3f(0.5f, 0.7f, 0.1f)
+//        }
+//        bile.addChild(canaliculi)
+//
+//        val nuclei = Mesh()
+//        nuclei.readFrom("$driveLetter:/ssd-backup-inauguration/meshes/bile-nuclei.obj")
+//        nuclei.spatial {
+//            scale = Vector3f(0.1f, 0.1f, 0.1f)
+//            position = Vector3f(-80.0f, -60.0f, 10.0f)
+//        }
+//        nuclei.material {
+//            diffuse = Vector3f(0.8f, 0.8f, 0.8f)
+//        }
+//        bile.addChild(nuclei)
+//
+//        val sinusoidal = Mesh()
+//        sinusoidal.readFrom("$driveLetter:/ssd-backup-inauguration/meshes/bile-sinus.obj")
+//        sinusoidal.spatial {
+//            scale = Vector3f(0.1f, 0.1f, 0.1f)
+//            position = Vector3f(-80.0f, -60.0f, 10.0f)
+//        }
+//        sinusoidal.material {
+//            ambient = Vector3f(0.1f, 0.0f, 0.0f)
+//            diffuse = Vector3f(0.4f, 0.0f, 0.02f)
+//            specular = Vector3f(0.05f, 0f, 0f)
+//        }
+//        bile.addChild(sinusoidal)
+//        bileScene.addChild(bile)
+//        scene.addChild(bileScene)
 
-        val histoneVolume = Volume.fromPathRaw(
-            Paths.get("$driveLetter:/ssd-backup-inauguration/CAVE_DATA/histones-isonet/stacks/default/"),
-            hub,
-        )
-        histoneVolume.transferFunction = TransferFunction.ramp(0.1f, 1.0f)
-        histoneVolume.colormap = Colormap.get("hot")
-        histoneScene.addChild(histoneVolume)
-        histoneScene.visible = false
-        //scene.addChild(histoneScene)
 
-        val drosophilaVolume = Volume.fromPathRaw(
-            Paths.get("$driveLetter:/ssd-backup-inauguration/CAVE_DATA/droso-royer-autopilot-transposed/"),
-            hub,
-        )
-        drosophilaVolume.spatial {
-            rotation.rotateX(1.57f)
-        }
-        drosophilaVolume.transferFunction = TransferFunction.ramp(0.1f, 1.0f)
-        drosophilaVolume.colormap = Colormap.get("hot")
-        drosophilaScene.addChild(drosophilaVolume)
-        drosophilaScene.visible = false
-        //scene.addChild(drosophilaScene)
-
-        val retinaVolume = Volume.fromPathRaw(
-            Paths.get("$driveLetter:/ssd-backup-inauguration/CAVE_DATA/retina_test2/"),
-            hub
-        )
-        retinaScene.addChild(retinaVolume)
-        retinaScene.visible = false
-        //scene.addChild(retinaScene)
-
-        val bile = Mesh()
-        val canaliculi = Mesh()
-        canaliculi.readFrom("$driveLetter:/ssd-backup-inauguration/meshes/bile-canaliculi.obj")
-        canaliculi.spatial {
-            scale = Vector3f(0.1f, 0.1f, 0.1f)
-            position = Vector3f(-80.0f, -60.0f, 10.0f)
-        }
-        canaliculi.material {
-            diffuse = Vector3f(0.5f, 0.7f, 0.1f)
-        }
-        bile.addChild(canaliculi)
-
-        val nuclei = Mesh()
-        nuclei.readFrom("$driveLetter:/ssd-backup-inauguration/meshes/bile-nuclei.obj")
-        nuclei.spatial {
-            scale = Vector3f(0.1f, 0.1f, 0.1f)
-            position = Vector3f(-80.0f, -60.0f, 10.0f)
-        }
-        nuclei.material {
-            diffuse = Vector3f(0.8f, 0.8f, 0.8f)
-        }
-        bile.addChild(nuclei)
-
-        val sinusoidal = Mesh()
-        sinusoidal.readFrom("$driveLetter:/ssd-backup-inauguration/meshes/bile-sinus.obj")
-        sinusoidal.spatial {
-            scale = Vector3f(0.1f, 0.1f, 0.1f)
-            position = Vector3f(-80.0f, -60.0f, 10.0f)
-        }
-        sinusoidal.material {
-            ambient = Vector3f(0.1f, 0.0f, 0.0f)
-            diffuse = Vector3f(0.4f, 0.0f, 0.02f)
-            specular = Vector3f(0.05f, 0f, 0f)
-        }
-        bile.addChild(sinusoidal)
-        bileScene.addChild(bile)
-        scene.addChild(bileScene)
-
-        val publisher = hub.get<NodePublisher>(SceneryElement.NodePublisher)
-        val subscriber = hub.get<NodeSubscriber>(SceneryElement.NodeSubscriber)
-
-
-        val minDelay = 200
-
-        logger.info("Publisher is: $publisher")
-        if(publisher != null) {
-            thread {
-                while (!scene.initialized) {
-                    logger.info("Wainting for scene init")
-                    Thread.sleep(1000)
-                }
-
-                while (true) {
-                    var sleepDuration = 50L
-
-                    arrayOf(drosophilaScene, histoneScene).forEach {
-                        if(it.visible) {
-                            logger.info("Reading next volume for ${it.name} ...")
-                            val start = System.currentTimeMillis()
-
-                            val v = it.children[0]
-                            (v as? Volume)?.nextTimepoint()
-
-                            val timeToRead  = System.currentTimeMillis() - start
-
-                            if(it.name == "drosophila") {
-                                sleepDuration = Math.max(40,minDelay-timeToRead)
-                            }
-
-                            if(it.name == "histone") {
-                                sleepDuration = Math.max(30,minDelay-timeToRead)
-                            }
-                        }
-                    }
-
-                    Thread.sleep(sleepDuration)
-                }
-            }
-        }
     }
 
     /**
