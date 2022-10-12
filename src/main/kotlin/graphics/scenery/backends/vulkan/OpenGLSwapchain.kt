@@ -168,14 +168,15 @@ class OpenGLSwapchain(device: VulkanDevice,
         }
 
         // TODO: Figure out whether this sanity check was really ever useful
-//        val windowWidth = if(renderConfig.stereoEnabled && window.width < 10000) {
-//            window.width
-//        } else {
-//            window.width
-//        }
-        val windowWidth = window.width
+        if(renderConfig.stereoEnabled && window.width < 10000) {
+            //logger.info("Doubling resolution for fun and profit")
+            window.width = window.width*2
+        } else {
+            window.width
+        }
+        //val windowWidth = window.width
 
-        logger.info("Creating backing images with ${windowWidth}x${window.height}")
+        logger.info("Creating backing images with ${window.width}x${window.height}")
 
         val semaphoreCreateInfo = VkSemaphoreCreateInfo.calloc()
             .sType(VK10.VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO)
@@ -189,9 +190,9 @@ class OpenGLSwapchain(device: VulkanDevice,
             with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
 
                 val t = VulkanTexture(this@OpenGLSwapchain.device, commandPools, queue, queue,
-                    windowWidth, window.height, 1, format, 1)
+                    window.width, window.height, 1, format, 1)
 
-                val image = t.createImage(windowWidth, window.height, 1,
+                val image = t.createImage(window.width, window.height, 1,
                     format, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT or VK_IMAGE_USAGE_SAMPLED_BIT,
                     VK_IMAGE_TILING_OPTIMAL, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
                     1)
@@ -366,7 +367,7 @@ class OpenGLSwapchain(device: VulkanDevice,
             glDisable(GL_DEPTH_TEST)
 
             NVDrawVulkanImage.glDrawVkImageNV(images[presentedFrames.toInt() % bufferCount], 0,
-                0.0f, 0.0f, window.width.toFloat(), window.height.toFloat(), 0.0f,
+                0.0f, 0.0f, window.width.toFloat()/2.0f, window.height.toFloat(), 0.0f,
                 0.0f, 1.0f, 0.5f, 0.0f)
 
             glDrawBuffer(GL_BACK_RIGHT)
@@ -374,7 +375,7 @@ class OpenGLSwapchain(device: VulkanDevice,
             glDisable(GL_DEPTH_TEST)
 
             NVDrawVulkanImage.glDrawVkImageNV(images[presentedFrames.toInt() % bufferCount], 0,
-                0.0f, 0.0f, window.width.toFloat(), window.height.toFloat(), 0.0f,
+                0.0f, 0.0f, window.width.toFloat()/2.0f, window.height.toFloat(), 0.0f,
                 0.5f, 1.0f, 1.0f, 0.0f)
         } else {
             glClear(GL_COLOR_BUFFER_BIT)
@@ -452,7 +453,7 @@ class OpenGLSwapchain(device: VulkanDevice,
             val hmd = hub.getWorkingHMDDisplay()
 
             if (hmd != null) {
-                window.width = hmd.getRenderTargetSize().x() / 2
+                window.width = hmd.getRenderTargetSize().x()// / 2
                 window.height = hmd.getRenderTargetSize().y()
                 logger.info("Set fullscreen window dimensions to ${window.width}x${window.height} via HMD")
             }
