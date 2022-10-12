@@ -453,18 +453,18 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
         }
 
         val server = System.getProperty("scenery.Server")?.toBoolean() ?: false
-        val serverAddress = System.getProperty("scenery.ServerAddress")
+        val serverAddress = System.getProperty("scenery.ServerAddress") ?:"tcp://localhost"
         val mainPort = System.getProperty("scenery.MainPort")?.toIntOrNull() ?: 6040
         val backchannelPort = System.getProperty("scenery.BackchannelPort")?.toIntOrNull() ?: 6041
 
-        if (!server && serverAddress != null) {
+        if (!server) {
             val subscriber = NodeSubscriber(hub,serverAddress,mainPort,backchannelPort)
             hub.add(subscriber)
             subscriber.startListening()
             scene.postUpdate += {subscriber.networkUpdate(scene)}
         } else if (server) {
             applicationName += " [SERVER]"
-            val publisher = NodePublisher(hub, serverAddress?:"localhost", portMain = mainPort, portBackchannel = backchannelPort)
+            val publisher = NodePublisher(hub, serverAddress, portMain = mainPort, portBackchannel = backchannelPort)
             hub.add(publisher)
             publisher.startPublishing()
             publisher.register(scene)
