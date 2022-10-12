@@ -213,6 +213,38 @@ class NodePublisherNodeSubscriberTest {
         assertEquals(3f, mat?.diffuse?.z)
     }
 
+
+    @Test
+    fun updatePreregisterd() {
+
+        val box = Box().also { box ->
+            box.name = "box"
+            box.networkID = -2
+            scene1.addChild(box)
+        }
+        val box2 = Box().also { box2 ->
+            box2.name = "box"
+            box2.networkID = -2
+            scene2.addChild(box2)
+        }
+
+        sub.startListening()
+        pub.startPublishing()
+        pub.register(scene1)
+        Thread.sleep(1000)
+        sub.networkUpdate(scene2)
+
+        box.spatial().position = Vector3f(0f, 0f, 3f)
+        box.material().diffuse = Vector3f(0f, 0f, 3f)
+        pub.scanForChanges()
+        Thread.sleep(1000)
+        sub.networkUpdate(scene2)
+
+        val mat = box2.material()
+        assertEquals(3f, box2.spatial().position.z)
+        assertEquals(3f, mat.diffuse.z)
+    }
+
     @Test
     fun volume() {
         class VolInt: Volume.VolumeInitializer{
