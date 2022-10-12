@@ -151,6 +151,10 @@ open class Volume(
     var slicingMode = SlicingMode.None
 
     var multiResolutionLevelLimits: Pair<Int, Int>? = null
+        set(value) {
+            field = value
+            modifiedAt = System.nanoTime()
+        }
 
     enum class SlicingMode(val id: Int){
         // Volume is rendered as it is
@@ -173,16 +177,17 @@ open class Volume(
     var cacheControls = CacheControl.CacheControls()
 
     /** Current timepoint. */
-    var currentTimepoint: Int
+    var currentTimepoint: Int = 0
         get() {
             // despite IDEAs warning this might be not be false if kryo uses its de/serialization magic
             return if (dataSource == null || dataSource is VolumeDataSource.NullSource) {
                 0
             } else {
-                viewerState.currentTimepoint
+                field
             }
         }
         set(value) {
+            field = value
             viewerState.currentTimepoint = value
             modifiedAt = System.nanoTime()
         }
@@ -334,6 +339,7 @@ open class Volume(
         this.colormap = fresh.colormap
         this.transferFunction = fresh.transferFunction
         this.slicingMode = fresh.slicingMode
+        this.multiResolutionLevelLimits = fresh.multiResolutionLevelLimits
 
         if (this.currentTimepoint != fresh.currentTimepoint) {
             this.goToTimepoint(fresh.currentTimepoint)
