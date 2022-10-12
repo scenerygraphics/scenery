@@ -85,27 +85,27 @@ class TransferFunctionEditorExample : SceneryBase("TransferFunctionEditor Exampl
 
         val debugRaycast = false
         inputHandler?.addBehaviour(
-            "sphereClickObject", object : ClickBehaviour {
+            "ctrlClickObject", object : ClickBehaviour {
                 override fun click(x: Int, y: Int) {
                     val ray = cam.getNodesForScreenSpacePosition(x,y, listOf<Class<*>>(BoundingGrid::class.java), debugRaycast)
 
                     ray.matches.firstOrNull()?.let { hit ->
                         val node = hit.node as? SwingUiNode ?: return
                         val hitPos = ray.initialPosition + ray.initialDirection.normalize(hit.distance)
-                        node.click(hitPos)
+                        node.ctrlClick(hitPos)
                     }
                 }
             }
         )
         inputHandler?.addBehaviour(
-            "sphereDragObject", object : DragBehaviour {
+            "dragObject", object : DragBehaviour {
                 override fun init(x:Int, y: Int) {
                     val ray = cam.getNodesForScreenSpacePosition(x,y, listOf<Class<*>>(BoundingGrid::class.java), debugRaycast)
 
                     ray.matches.firstOrNull()?.let { hit ->
                         val node = hit.node as? SwingUiNode ?: return
                         val hitPos = ray.initialPosition + ray.initialDirection.normalize(hit.distance)
-                        //node.pressed(hitPos)
+                        node.pressed(hitPos)
                     }
                 }
                 override fun drag(x: Int, y: Int) {
@@ -123,13 +123,13 @@ class TransferFunctionEditorExample : SceneryBase("TransferFunctionEditor Exampl
                     ray.matches.firstOrNull()?.let { hit ->
                         val node = hit.node as? SwingUiNode ?: return
                         val hitPos = ray.initialPosition + ray.initialDirection.normalize(hit.distance)
-                        //node.released(hitPos)
+                        node.released(hitPos)
                     }
                 }
             }
         )
-        inputHandler?.addKeyBinding("sphereClickObject", "1")
-        inputHandler?.addKeyBinding("sphereDragObject", "1")
+        inputHandler?.addKeyBinding("ctrlClickObject", "2")
+        inputHandler?.addKeyBinding("dragObject", "1")
     }
 
 

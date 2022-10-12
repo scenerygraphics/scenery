@@ -1,7 +1,8 @@
 package graphics.scenery.controls
 
-import graphics.scenery.backends.vulkan.VulkanNodeHelpers.logger
+
 import graphics.scenery.utils.Image
+import graphics.scenery.utils.SystemHelpers.Companion.logger
 import java.awt.Component
 import java.awt.event.*
 import java.awt.image.BufferedImage
@@ -40,13 +41,32 @@ open class SwingBridgeFrame(title: String) : JFrame(title) {
         uiNode.updateUITexture()
     }
 
-    fun click(x: Int, y: Int) {
+    fun ctrlClick(x:Int, y: Int) {
         SwingUtilities.invokeLater {
             val target = SwingUtilities.getDeepestComponentAt(this.contentPane, x, y)
             val compPoint = SwingUtilities.convertPoint(
                 this.contentPane, x, y, target
             )
+            // ctrl clicked
+            target.dispatchEvent (
+                MouseEvent(
+                    target, 500, System.currentTimeMillis() - 25, InputEvent.CTRL_DOWN_MASK, compPoint.x, compPoint.y, 1, false, 1
+                )
+            )
+            //pressed
+            target.dispatchEvent (
+                KeyEvent(this, 401, System.currentTimeMillis(), 0, 0x32, '2')
+            )
+        }
+        logger.info("Ctrl")
+    }
 
+    fun pressed(x:Int, y: Int) {
+        SwingUtilities.invokeLater {
+            val target = SwingUtilities.getDeepestComponentAt(this.contentPane, x, y)
+            val compPoint = SwingUtilities.convertPoint(
+                this.contentPane, x, y, target
+            )
             // entered
             target.dispatchEvent(
                 MouseEvent(
@@ -59,51 +79,18 @@ open class SwingBridgeFrame(title: String) : JFrame(title) {
                     target, 501, System.currentTimeMillis() - 75, 1040, compPoint.x, compPoint.y, 1, false, 1
                 )
             )
-
-            // released
-            target.dispatchEvent(
-                MouseEvent(
-                    target, 502, System.currentTimeMillis() - 50, 16, compPoint.x, compPoint.y, 1, false, 1
-                )
-            )
-            // clicked
-            target.dispatchEvent(
-                MouseEvent(
-                    target, 500, System.currentTimeMillis() - 25, 16, compPoint.x, compPoint.y, 1, false, 1
-                )
-            )
             // exited
-            target.dispatchEvent(
+            /*target.dispatchEvent(
                 MouseEvent(
                     target, 505, System.currentTimeMillis(), 0, compPoint.x, compPoint.y, 0, false, 0
                 )
-            )
-
-            //pressed
+            )*/
+            // key pressed
             target.dispatchEvent(
-                KeyEvent(this, 401, System.currentTimeMillis() - 100, 0, 0x31, '1')
-            )
-            //released
-            //target.dispatchEvent(
-            //    KeyEvent(this, 402, System.currentTimeMillis() - 75, 0, 0x31, '1')
-            //)
-        }
-    }
-
-    fun pressed(x:Int, y: Int) {
-        SwingUtilities.invokeLater {
-            val target = SwingUtilities.getDeepestComponentAt(this.contentPane, x, y)
-            val compPoint = SwingUtilities.convertPoint(
-                this.contentPane, x, y, target
-            )
-
-            // pressed
-            target.dispatchEvent(
-                MouseEvent(
-                    target, 501, System.currentTimeMillis() - 75, 1040, compPoint.x, compPoint.y, 1, false, 1
-                )
+                KeyEvent(this, 401, System.currentTimeMillis(), 0, 0x31, '1')
             )
         }
+        logger.info("Pressed")
     }
     fun drag(x: Int, y: Int) {
         SwingUtilities.invokeLater {
@@ -118,7 +105,12 @@ open class SwingBridgeFrame(title: String) : JFrame(title) {
                     target, 506, System.currentTimeMillis(), 0, compPoint.x, compPoint.y, 1, false, 1
                 )
             )
+            //pressed
+            target.dispatchEvent(
+                KeyEvent(this, 401, System.currentTimeMillis() - 100, 0, 0x31, '1')
+            )
         }
+        logger.info("Dragged")
 
     }
     fun released(x:Int, y:Int) {
@@ -128,18 +120,24 @@ open class SwingBridgeFrame(title: String) : JFrame(title) {
                 this.contentPane, x, y, target
             )
 
-            // released
+            //released
             target.dispatchEvent(
                 MouseEvent(
                     target, 502, System.currentTimeMillis() - 50, 16, compPoint.x, compPoint.y, 1, false, 1
                 )
             )
+            //clicked
             target.dispatchEvent(
                 MouseEvent(
                     target, 500, System.currentTimeMillis() - 25, 16, compPoint.x, compPoint.y, 1, false, 1
                 )
             )
+            //pressed
+            target.dispatchEvent(
+                KeyEvent(this, 401, System.currentTimeMillis() - 100, 0, 0x31, '1')
+            )
         }
+        logger.info("Released")
     }
 
     private fun getScreen(): BufferedImage {

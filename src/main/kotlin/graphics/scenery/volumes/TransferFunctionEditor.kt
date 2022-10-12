@@ -368,15 +368,14 @@ class TransferFunctionUI(width : Int = 1000, height : Int = 1000, val volume : V
         val collection = chart.chart.xyPlot.getDataset(0) as XYSeriesCollection
         val series = collection.getSeries(targetCP.seriesIndex)
 
-        targetCP.x = Math.clamp(0.0, 1.0, targetCP.x)
-        targetCP.y = Math.clamp(0.0, 1.0, targetCP.y)
+        targetCP.x = clamp(0.0, 1.0, targetCP.x)
+        targetCP.y = clamp(0.0, 1.0, targetCP.y)
 
         series.remove(targetCP.itemIndex)
         series.add(targetCP.x, targetCP.y)
 
         val newTF = TransferFunction()
         for (i in 0 until series.itemCount) {
-            //logger.info("Index: $i; X: ${series.getX(i).toFloat()} Y: ${series.getY(i).toFloat()}")
             newTF.addControlPoint(series.getX(i).toFloat(), series.getY(i).toFloat())
         }
         volume.transferFunction = newTF
@@ -388,7 +387,7 @@ class TransferFunctionUI(width : Int = 1000, height : Int = 1000, val volume : V
         val collection = chart.chart.xyPlot.getDataset(0) as XYSeriesCollection
         val series = collection.getSeries(targetCP.seriesIndex)
 
-        //logger.info("Remove item with index: ${targetCP.lastIndex}")
+
         series.remove(targetCP.lastIndex)
         val newTF = TransferFunction()
         for (i in 0 until series.itemCount) {
@@ -414,18 +413,13 @@ class TransferFunctionUI(width : Int = 1000, height : Int = 1000, val volume : V
             var binEnd = -0.0000001
             val displayRange = abs(converter.displayRangeMax - converter.displayRangeMin)
             val binSize = displayRange / binCount
-            val valueSize = 1.0 / histogram.binCount.toDouble()
-            logger.info("JFreeBinSize = $binSize ; ValueSize = $valueSize ; Resolution = $binCount")
             histogram.forEachIndexed { index, longType ->
                 val relativeCount = (longType.get().toFloat() / histogram.totalCount().toFloat()) * histogram.binCount
                 val value = (((index.toDouble() / histogram.binCount.toDouble()) * (displayRange / histogram.binCount.toDouble()))) * histogram.binCount.toDouble()
 
-                logger.info(" Index = $index ; Value = $value")
-                //logger.info("Bin: %.3f; Index: $index; Count: ${relativeCount.roundToInt()}; $bar".format(value))
                 if (relativeCount.roundToInt() != 0 && (value) >= binEnd) {
                     val binStart = (((index) - (((index) % (histogram.binCount.toDouble()/binCount)))) / histogram.binCount.toDouble()) * displayRange
                     binEnd = binStart + binSize
-                    logger.info("BinStart = $binStart ; BinEnd = $binEnd")
                     val bin = SimpleHistogramBin(binStart, binEnd, true, false)
                     volumeHistogramData.addBin(bin)
                 }

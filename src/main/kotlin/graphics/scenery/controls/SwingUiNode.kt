@@ -28,9 +28,9 @@ class SwingUiNode(val swingBridgeFrame : SwingBridgeFrame) : Plane(
     init {
         //to also hit the backside
         this.material().cullingMode = Material.CullingMode.None
-        this.material {
+        /*this.material {
             textures["diffuse"] = Texture.fromImage(Image.fromStream(FileInputStream("C:\\Users\\Kodels Bier\\Desktop\\volumes\\helix.png"), ".png", false))
-        }
+        }*/
         this.update += {
             this.spatial().scale = Vector3f(swingBridgeFrame.width.toFloat()/swingBridgeFrame.height.toFloat(), 1.0f, 1.0f)
             spatial().needsUpdate = true
@@ -46,13 +46,13 @@ class SwingUiNode(val swingBridgeFrame : SwingBridgeFrame) : Plane(
     }
 
     fun Matrix4f.copy(): Matrix4f = Matrix4f(this)
-    fun click(wPos: Vector3f) {
+    fun ctrlClick(wPos: Vector3f) {
 
         val hitPosModel = Vector4f(wPos, 1f).mul(this.spatial().model.copy().invert())
 
         val swingX = (hitPosModel.x + 0.5f) * swingUiDimension.first
         val swingY = swingUiDimension.second - (hitPosModel.y + 0.5f) * swingUiDimension.second
-        swingBridgeFrame.click(swingX.toInt(), swingY.toInt())
+        swingBridgeFrame.ctrlClick(swingX.toInt(), swingY.toInt())
     }
 
     fun pressed(wPos: Vector3f) {
