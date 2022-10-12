@@ -376,6 +376,16 @@ tasks {
     named<ShadowJar>("shadowJar") {
         isZip64 = true
     }
+
+    task<Copy>("copyDeps") {
+        from(configurations.testRuntimeClasspath).into("$buildDir/dependencies")
+    }
+
+    task<Jar>("testJar") {
+        from(sourceSets.test.get().output)
+        archiveClassifier.set("tests")
+    }
+
 }
 
 val dokkaJavadocJar by tasks.register<Jar>("dokkaJavadocJar") {
