@@ -464,7 +464,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
             scene.postUpdate += {subscriber.networkUpdate(scene)}
         } else if (server) {
             applicationName += " [SERVER]"
-            val publisher = NodePublisher(hub, portMain = mainPort, portBackchannel = backchannelPort)
+            val publisher = NodePublisher(hub, serverAddress?:"localhost", portMain = mainPort, portBackchannel = backchannelPort)
             hub.add(publisher)
             publisher.startPublishing()
             publisher.register(scene)
