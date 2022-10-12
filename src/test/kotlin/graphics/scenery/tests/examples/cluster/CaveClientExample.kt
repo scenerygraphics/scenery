@@ -36,6 +36,7 @@ class CaveClientExample(): SceneryBase("cave client", wantREPL = false) {
             spatial {
                 position = Vector3f(.0f, -0.4f, 5.0f)
             }
+            networkID = -5
             perspectiveCamera(50.0f, windowWidth, windowHeight)
 
             scene.addChild(this)

@@ -112,7 +112,10 @@ class NodePublisher(
         }
 
         if (publishedObjects[node.networkID] == null) {
-            val wrapper = NetworkWrapper(generateNetworkID(), node, mutableListOf(parentId))
+            val wrapper = NetworkWrapper(
+                if (node.networkID < -1) node.networkID else generateNetworkID(),
+                // negative network id is reserved for preregistered objects
+                node, mutableListOf(parentId))
             addUpdateEvent(wrapper)
             publishedObjects[wrapper.networkID] = wrapper
         } else {

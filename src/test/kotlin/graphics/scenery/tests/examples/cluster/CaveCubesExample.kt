@@ -29,7 +29,7 @@ class CaveCubesExample: SceneryBase("Bile Canaliculi example", wantREPL = false)
 
         val cam: Camera = DetachedHeadCamera(hmd)
         with(cam) {
-            wantsSync = false
+            networkID = -5
             spatial {
                 position = Vector3f(.0f, -0.4f, 5.0f)
             }

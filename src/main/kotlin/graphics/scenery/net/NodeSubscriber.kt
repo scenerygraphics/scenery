@@ -190,8 +190,14 @@ class NodeSubscriber(
                     return
                 }
 
-                val newNode = event.constructorParameters?.let { networkable.constructWithParameters(it, hub!!) as Node
+                val newNode = if (networkable.networkID < -1) {
+                    scene.discover(scene,{ (it as? Networkable)?.networkID == networkable.networkID}).firstOrNull()
+                        ?: throw IllegalStateException("${networkable::class.simpleName} with preset " +
+                            "network id ${networkable.networkID} is missing in scene")
+                } else
+                    event.constructorParameters?.let { networkable.constructWithParameters(it, hub!!) as Node
                     }?: networkable
+
                 val newWrapped = NetworkWrapper(
                     networkWrapper.networkID,
                     newNode,
