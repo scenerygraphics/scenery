@@ -20,9 +20,10 @@ open class SwingBridgeFrame(title: String) : JFrame(title) {
 
     private val logger by LazyLogger()
     val uiNode = SwingUiNode(this)
-    var snapshotBuffer : ByteBuffer? = null
+    private var snapshotBuffer : ByteBuffer? = null
     var finalImage : Image? = null
-    var dragged = false
+    private var dragged = false
+    private var lastUpdate = 0L
 
     /**
      * Init function is used to add a KeyListener to trigger snapshot recreation of the SwingFrame in order to update the texture presented on the UI-Plane
@@ -31,10 +32,15 @@ open class SwingBridgeFrame(title: String) : JFrame(title) {
     init {
         //only keyPressed triggers an imageUpdate -> Image updates are slow, and dragging happens per tick -> the image update routine starts to lag when
         //the mouse is dragged over the UI
+        //the last update check happens to impede tick wise texture updates. Ones per frame is enough
         this.addKeyListener(object : KeyListener {
 
             override fun keyPressed(e : KeyEvent?) {
-                updateImage()
+                if(System.currentTimeMillis() - 16 >= lastUpdate)
+                {
+                    updateImage()
+                    lastUpdate = System.currentTimeMillis()
+                }
             }
 
             override fun keyTyped(e : KeyEvent?) {}
@@ -86,6 +92,8 @@ open class SwingBridgeFrame(title: String) : JFrame(title) {
     fun pressed(x:Int, y: Int) {
 
         dragged = false
+        lastUpdate = System.currentTimeMillis()
+
         SwingUtilities.invokeLater {
             val target = SwingUtilities.getDeepestComponentAt(this.contentPane, x, y)
             val compPoint = SwingUtilities.convertPoint(
@@ -115,6 +123,7 @@ open class SwingBridgeFrame(title: String) : JFrame(title) {
      */
     fun drag(x: Int, y: Int) {
         dragged = true
+
         SwingUtilities.invokeLater {
             val target = SwingUtilities.getDeepestComponentAt(this.contentPane, x, y)
             val compPoint = SwingUtilities.convertPoint(
@@ -138,6 +147,7 @@ open class SwingBridgeFrame(title: String) : JFrame(title) {
      */
     fun released(x:Int, y:Int) {
         logger.info("$dragged")
+        lastUpdate = 0
         SwingUtilities.invokeLater {
             val target = SwingUtilities.getDeepestComponentAt(this.contentPane, x, y)
             val compPoint = SwingUtilities.convertPoint(

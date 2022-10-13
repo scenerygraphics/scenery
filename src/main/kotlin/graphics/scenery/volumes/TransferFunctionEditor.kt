@@ -155,36 +155,6 @@ class TransferFunctionUI(width : Int = 1000, height : Int = 1000, val volume : V
             override fun mouseEntered(e : MouseEvent) {}
             override fun mouseExited(e : MouseEvent) {}
         })
-        mainChart.addMouseMotionListener(object : MouseMotionListener {
-            override fun mouseDragged(e : MouseEvent) {
-                val chart = e.component as ChartPanel
-                val point = mainChart.translateJava2DToScreen(e.point)
-                val item = chart.getEntityForPoint(point.x, point.y)
-                if(item is XYItemEntity)
-                {
-                    if (item.dataset is XYSeriesCollection) {
-
-                        mouseTargetCP.seriesIndex = item.seriesIndex
-                        mouseTargetCP.itemIndex = item.item
-                        mouseTargetCP.lastIndex = item.item
-                        val plotArea = mainChart.screenDataArea
-                        mouseTargetCP.x = tfPlot.getDomainAxis(0).java2DToValue(point.getX(), plotArea, tfPlot.domainAxisEdge)
-                        mouseTargetCP.y = tfPlot.getRangeAxis(0).java2DToValue(point.getY(), plotArea, tfPlot.rangeAxisEdge)
-                    }
-                }
-                if(mouseTargetCP.itemIndex >= 0)
-                {
-                    val point = mainChart.translateJava2DToScreen(e.point)
-                    val plotArea = mainChart.screenDataArea
-
-                    mouseTargetCP.x = tfPlot.getDomainAxis(0).java2DToValue(point.getX(), plotArea, tfPlot.domainAxisEdge)
-                    mouseTargetCP.y = tfPlot.getRangeAxis(0).java2DToValue(point.getY(), plotArea, tfPlot.rangeAxisEdge)
-                    updateControlpoint(volume, mouseTargetCP)
-                    tfPlot.backgroundImage = createTFImage()
-                }
-            }
-            override fun mouseMoved(e : MouseEvent) {}
-        })
 
         valueSpinner = JSpinner(SpinnerNumberModel(0.0f, 0.0f, 1.0f, 0.01f))
         valueSpinner.minimumSize = Dimension(70, 25)
@@ -192,6 +162,46 @@ class TransferFunctionUI(width : Int = 1000, height : Int = 1000, val volume : V
         alphaSpinner = JSpinner(SpinnerNumberModel(0.0f, 0.0f, 1.0f, 0.01f))
         alphaSpinner.minimumSize = Dimension(70, 25)
         alphaSpinner.maximumSize = Dimension(70, 25)
+
+        mainChart.addMouseMotionListener(object : MouseMotionListener {
+            override fun mouseDragged(e : MouseEvent) {
+                val chart = e.component as ChartPanel
+                val point = mainChart.translateJava2DToScreen(e.point)
+                val item = chart.getEntityForPoint(point.x, point.y)
+                //first check, if the clicked entity is part of the chart
+                if(item is XYItemEntity)
+                {
+                    //then check, if it's part of the transferFunction (being a control point)
+                    if (item.dataset is XYSeriesCollection) {
+
+                        mouseTargetCP.seriesIndex = item.seriesIndex
+                        mouseTargetCP.itemIndex = item.item
+                        mouseTargetCP.lastIndex = item.item
+                        //val plotArea = mainChart.screenDataArea
+                        //mouseTargetCP.x = tfPlot.getDomainAxis(0).java2DToValue(point.getX(), plotArea, tfPlot.domainAxisEdge)
+                        //mouseTargetCP.y = tfPlot.getRangeAxis(0).java2DToValue(point.getY(), plotArea, tfPlot.rangeAxisEdge)
+                        //valueSpinner.value = mouseTargetCP.x.toFloat()
+                        //alphaSpinner.value = mouseTargetCP.y.toFloat()
+                    }
+                }
+                //if the drag is performed while the current target is indeed set to be a CP, update it
+                if(mouseTargetCP.itemIndex >= 0)
+                {
+                    val point = mainChart.translateJava2DToScreen(e.point)
+                    val plotArea = mainChart.screenDataArea
+                    mouseTargetCP.x = tfPlot.getDomainAxis(0).java2DToValue(point.getX(), plotArea, tfPlot.domainAxisEdge)
+                    mouseTargetCP.y = tfPlot.getRangeAxis(0).java2DToValue(point.getY(), plotArea, tfPlot.rangeAxisEdge)
+                    valueSpinner.value = mouseTargetCP.x.toFloat()
+                    alphaSpinner.value = mouseTargetCP.y.toFloat()
+
+                    updateControlpoint(volume, mouseTargetCP)
+                    tfPlot.backgroundImage = createTFImage()
+                }
+            }
+            override fun mouseMoved(e : MouseEvent) {}
+        })
+
+
         mainChart.addChartMouseListener(object : ChartMouseListener {
             override fun chartMouseClicked(e: ChartMouseEvent) {
                 if(e.entity is XYItemEntity) {
@@ -396,6 +406,7 @@ class TransferFunctionUI(width : Int = 1000, height : Int = 1000, val volume : V
             newTF.addControlPoint(series.getX(i).toFloat(), series.getY(i).toFloat())
         }
         volume.transferFunction = newTF
+
         targetCP.lastIndex = -1
         valueSpinner.value = 0.0f
         alphaSpinner.value = 0.0f
