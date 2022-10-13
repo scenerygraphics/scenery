@@ -24,6 +24,10 @@ open class SwingBridgeFrame(title: String) : JFrame(title) {
     var finalImage : Image? = null
     var dragged = false
 
+    /**
+     * Init function is used to add a KeyListener to trigger snapshot recreation of the SwingFrame in order to update the texture presented on the UI-Plane
+     * inside the scene
+     */
     init {
         //only keyPressed triggers an imageUpdate -> Image updates are slow, and dragging happens per tick -> the image update routine starts to lag when
         //the mouse is dragged over the UI
@@ -38,6 +42,10 @@ open class SwingBridgeFrame(title: String) : JFrame(title) {
         })
     }
 
+    /**
+     * Creates a snapshot of the actual SwingFrame and converts it to a ByteBuffer. Tehn updates the texture of the 2DPlane that renders in the scene to present
+     * the UI
+     */
     private fun updateImage()
     {
         val bimage = this.getScreen()
@@ -152,7 +160,7 @@ open class SwingBridgeFrame(title: String) : JFrame(title) {
                     )
                 )
             }
-            // exited
+            // exited - currently disabled, may cause issues with switching window focuses
             /*target.dispatchEvent(
                 MouseEvent(
                     target, 505, System.currentTimeMillis(), 0, compPoint.x, compPoint.y, 0, false, 0
