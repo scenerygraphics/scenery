@@ -1,16 +1,12 @@
-package graphics.scenery.controls
+package graphics.scenery.UI
 
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.primitives.Plane
 import graphics.scenery.textures.Texture
-import graphics.scenery.utils.Image
 import org.joml.Matrix4f
 import org.joml.Vector2f
 import org.joml.Vector3f
 import org.joml.Vector4f
-import java.awt.Color
-import java.io.FileInputStream
-import java.io.InputStream
 
 /**
  * @author Jan Tiemann
@@ -29,9 +25,6 @@ class SwingUiNode(val swingBridgeFrame : SwingBridgeFrame) : Plane(
     init {
         //to also hit the backside
         this.material().cullingMode = Material.CullingMode.None
-        /*this.material {
-            textures["diffuse"] = Texture.fromImage(Image.fromStream(FileInputStream("C:\\Users\\Kodels Bier\\Desktop\\volumes\\helix.png"), ".png", false))
-        }*/
         this.update += {
             this.spatial().scale = Vector3f(swingBridgeFrame.width.toFloat()/swingBridgeFrame.height.toFloat(), 1.0f, 1.0f)
             spatial().needsUpdate = true
@@ -50,13 +43,14 @@ class SwingUiNode(val swingBridgeFrame : SwingBridgeFrame) : Plane(
         }
     }
 
-    fun Matrix4f.copy(): Matrix4f = Matrix4f(this)
+    //fun Matrix4f.copy(): Matrix4f = Matrix4f(this)
 
     /**
      * Converts a 3D world space position to a 2D coordinate relative to the plane
      */
     private fun worldSpaceToUISpace(wPos: Vector3f) : Vector2f {
-        val hitPosModel = Vector4f(wPos, 1f).mul(this.spatial().model.copy().invert())
+        val modelMat = Matrix4f(this.spatial().model).invert()
+        val hitPosModel = Vector4f(wPos, 1f).mul(modelMat)
 
         return  Vector2f((hitPosModel.x + 0.5f) * swingUiDimension.first, swingUiDimension.second - (hitPosModel.y + 0.5f) * swingUiDimension.second)
     }

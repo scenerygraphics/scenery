@@ -1,8 +1,8 @@
-package graphics.scenery.controls
+package graphics.scenery.UI
 
 
 import graphics.scenery.utils.Image
-import graphics.scenery.utils.SystemHelpers.Companion.logger
+import graphics.scenery.utils.LazyLogger
 import java.awt.Component
 import java.awt.event.*
 import java.awt.image.BufferedImage
@@ -17,20 +17,25 @@ import javax.swing.SwingUtilities
  */
 open class SwingBridgeFrame(title: String) : JFrame(title) {
 
+    private val logger by LazyLogger()
     val uiNode = SwingUiNode(this)
     var finalImage : Image? = null
     var dragged = false
+
     init {
+        //only keyPressed triggers an imageUpdate -> Image updates are slow, and dragging happens per tick -> the image update routine starts to lag when
+        //the mouse is dragged over the UI
         this.addKeyListener(object : KeyListener {
-            override fun keyTyped(e : KeyEvent?) {
-            }
+
             override fun keyPressed(e : KeyEvent?) {
                 updateImage()
             }
-            override fun keyReleased(e : KeyEvent?) {
-            }
+
+            override fun keyTyped(e : KeyEvent?) {}
+            override fun keyReleased(e : KeyEvent?) {}
         })
     }
+
     private fun updateImage()
     {
         val bimage = this.getScreen()

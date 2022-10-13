@@ -3,8 +3,8 @@ package graphics.scenery.tests.examples.volumes
 import bdv.spimdata.XmlIoSpimDataMinimal
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
-import graphics.scenery.controls.SwingBridgeFrame
-import graphics.scenery.controls.SwingUiNode
+import graphics.scenery.UI.SwingBridgeFrame
+import graphics.scenery.UI.SwingUiNode
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
 import graphics.scenery.volumes.Colormap
@@ -15,6 +15,7 @@ import org.scijava.ui.behaviour.ClickBehaviour
 import org.scijava.ui.behaviour.DragBehaviour
 import tpietzsch.example2.VolumeViewerOptions
 import java.io.File
+import java.nio.file.Paths
 
 
 /**
@@ -23,11 +24,18 @@ import java.io.File
  *
  * A TransferFunctionEditor example to add, manipulate and remove control points of a volume's transfer function.
  * Further more able to generate a histogram representation of the volume data distribution to help with the transfer function setup.
+ *
+ * Usage: To enable the UI on the plane click once (Key '1') while hovering over the plane. Key '1' used as normal Mouse-interactions (Clicking and dragging).
+ * Control Points can be dragged, added and removed. A remove happens via Ctrl-Clicking (In this example managed by using Key '2'.
  */
 class TransferFunctionEditorExample : SceneryBase("TransferFunctionEditor Example", 1280, 720, false) {
     var maxCacheSize = 512
     val cam: Camera = DetachedHeadCamera()
 
+    /**
+     * Sets up the example, containing 2 light sources (PointLight), a perspective camera and a volume.
+     * Also adds a SwingUINode containing a SwingBridgeFrame contained by a TransferFunctionUI to manipulate the Volume
+     */
     override fun init() {
 
         renderer = hub.add(
@@ -60,13 +68,14 @@ class TransferFunctionEditorExample : SceneryBase("TransferFunctionEditor Exampl
         val workingDirectoryPath = File("").absolutePath
 
         val options = VolumeViewerOptions().maxCacheSizeInMB(maxCacheSize)
-        val name = "RIDER"
-        val v = Volume.fromSpimData(XmlIoSpimDataMinimal().load("C:\\Users\\Kodels Bier\\Desktop\\volumes\\$name.xml"), hub, options)
+        val name = "t1-head"
+        //Currently only .xml volume formats are usable
+        val v = Volume.fromSpimData(XmlIoSpimDataMinimal().load(getDemoFilesPath() + "$name.xml"), hub, options)
         v.name = name
         v.colormap = Colormap.get("grays")
         v.spatial().position = Vector3f(0.0f, 0.0f, 0.0f)
         v.spatial().scale = Vector3f(0.1f)
-        v.setTransferFunctionRange(0.0f, 65000.0f)
+        v.setTransferFunctionRange(0.0f, 1000.0f)
         scene.addChild(v)
 
 
@@ -80,6 +89,9 @@ class TransferFunctionEditorExample : SceneryBase("TransferFunctionEditor Exampl
         scene.addChild(swingUiNode)
     }
 
+    /**
+     * Adds InputBehaviour -> MouseClick, Drag and Ctrl-Click to interact with the SwingUI using a Scenery Plane (SwingUINode)
+     */
     override fun inputSetup() {
         super.inputSetup()
 
@@ -132,8 +144,13 @@ class TransferFunctionEditorExample : SceneryBase("TransferFunctionEditor Exampl
         inputHandler?.addKeyBinding("dragObject", "1")
     }
 
-
+    /**
+     * Static object for running as application
+     */
     companion object {
+        /**
+         * Main method for the application, that instances and runs the example.
+         */
         @JvmStatic
         fun main(args: Array<String>) {
             TransferFunctionEditorExample().main()

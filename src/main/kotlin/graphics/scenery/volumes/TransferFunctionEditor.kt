@@ -1,9 +1,9 @@
 package graphics.scenery.volumes
 
 import bdv.tools.brightness.ConverterSetup
-import graphics.scenery.backends.Renderer.Companion.logger
-import graphics.scenery.controls.RangeSlider
-import graphics.scenery.controls.SwingBridgeFrame
+import graphics.scenery.UI.RangeSlider
+import graphics.scenery.UI.SwingBridgeFrame
+import graphics.scenery.utils.LazyLogger
 import net.imglib2.histogram.Histogram1d
 import net.imglib2.histogram.Real1dBinMapper
 import net.imglib2.type.numeric.integer.UnsignedByteType
@@ -23,15 +23,12 @@ import org.jfree.data.statistics.SimpleHistogramBin
 import org.jfree.data.statistics.SimpleHistogramDataset
 import org.jfree.data.xy.XYSeries
 import org.jfree.data.xy.XYSeriesCollection
-import org.joml.Math
 import org.joml.Math.clamp
 import java.awt.Dimension
 import java.awt.event.MouseEvent
 import java.awt.event.MouseListener
 import java.awt.event.MouseMotionListener
 import java.awt.image.BufferedImage
-import java.io.File
-import java.nio.ByteBuffer
 import javax.swing.*
 import kotlin.math.abs
 import kotlin.math.max
@@ -54,6 +51,9 @@ class TransferFunctionUI(width : Int = 1000, height : Int = 1000, val volume : V
      */
     data class MouseDragTarget(var seriesIndex : Int = -1, var itemIndex : Int = -1, var lastIndex : Int = -1, var x : Double = 0.0, var y : Double = 0.0)
     var converter : ConverterSetup
+
+    private val logger by LazyLogger()
+
 
     private val mouseTargetCP = MouseDragTarget()
 
@@ -183,7 +183,6 @@ class TransferFunctionUI(width : Int = 1000, height : Int = 1000, val volume : V
                     tfPlot.backgroundImage = createTFImage()
                 }
             }
-
             override fun mouseMoved(e : MouseEvent) {}
         })
 
@@ -243,8 +242,7 @@ class TransferFunctionUI(width : Int = 1000, height : Int = 1000, val volume : V
                     }
                 }
             }
-            override fun chartMouseMoved(e: ChartMouseEvent) {
-            }
+            override fun chartMouseMoved(e: ChartMouseEvent) {}
         })
 
         //Histogram Manipulation
