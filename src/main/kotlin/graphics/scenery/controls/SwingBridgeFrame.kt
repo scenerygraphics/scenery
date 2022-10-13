@@ -42,6 +42,10 @@ open class SwingBridgeFrame(title: String) : JFrame(title) {
         uiNode.updateUITexture()
     }
 
+    /**
+     * dispatches a mouse click event to the swing window the mouse is currently hovering over modified with a ctrl_down_mask to perform a Ctrl+MouseButton1
+     * Also dispatches a key('1')-pressed event to trigger a texture-update for the Plane that renders the SwingUI
+     */
     fun ctrlClick(x:Int, y: Int) {
         SwingUtilities.invokeLater {
             val target = SwingUtilities.getDeepestComponentAt(this.contentPane, x, y)
@@ -54,13 +58,16 @@ open class SwingBridgeFrame(title: String) : JFrame(title) {
                     target, 500, System.currentTimeMillis() - 25, InputEvent.CTRL_DOWN_MASK, compPoint.x, compPoint.y, 1, false, 1
                 )
             )
-            //pressed
+            //key pressed
             target.dispatchEvent (
                 KeyEvent(this, 401, System.currentTimeMillis(), 0, 0x32, '2')
             )
         }
     }
 
+    /**
+     * dispatches a mouse entered event, a press event and a key('1')-pressed event to trigger a texture-update for the Plane that renders the SwingUI
+     */
     fun pressed(x:Int, y: Int) {
 
         dragged = false
@@ -88,6 +95,9 @@ open class SwingBridgeFrame(title: String) : JFrame(title) {
             )
         }
     }
+    /**
+     * dispatches a mouse drag event and a key('1')-pressed event to trigger a texture-update for the Plane that renders the SwingUI
+     */
     fun drag(x: Int, y: Int) {
         dragged = true
         SwingUtilities.invokeLater {
@@ -108,6 +118,9 @@ open class SwingBridgeFrame(title: String) : JFrame(title) {
             )
         }
     }
+    /**
+     * dispatches a mouse released event, a mouse click event if no mouse drag happened between pressed and released and a key('1')-pressed event to trigger a texture-update for the Plane that renders the SwingUI
+     */
     fun released(x:Int, y:Int) {
         logger.info("$dragged")
         SwingUtilities.invokeLater {

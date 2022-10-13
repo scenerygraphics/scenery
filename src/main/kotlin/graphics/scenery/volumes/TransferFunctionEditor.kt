@@ -48,6 +48,10 @@ import kotlin.math.roundToInt
  * Able to dynamically set the transfer function range -> changes histogram as well
  */
 class TransferFunctionUI(width : Int = 1000, height : Int = 1000, val volume : Volume, val mainFrame : SwingBridgeFrame = SwingBridgeFrame("1DTransferFunctionEditor"), debugFlag : Boolean = false) {
+    /**
+     * MouseDragTarget is set when a ControlPoint has been clicked. The initial index is set to -1 and reset when the Controlpoint has been deleted
+     * The target gets passed into the different Controlpoint manipulation functions
+     */
     data class MouseDragTarget(var seriesIndex : Int = -1, var itemIndex : Int = -1, var lastIndex : Int = -1, var x : Double = 0.0, var y : Double = 0.0)
     var converter : ConverterSetup
 
