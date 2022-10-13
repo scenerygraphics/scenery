@@ -1,5 +1,6 @@
 package graphics.scenery
 
+import org.lwjgl.system.MemoryUtil
 import java.nio.*
 
 /**
@@ -20,7 +21,7 @@ class BufferUtils {
          * Allocates a new direct [FloatBuffer] with a capacity of [num] floats.
          */
         @JvmStatic fun allocateFloat(num: Int): FloatBuffer {
-            return ByteBuffer.allocateDirect(SIZE_FLOAT * num).order(ByteOrder.nativeOrder()).asFloatBuffer()
+            return MemoryUtil.memAlloc(SIZE_FLOAT * num).order(ByteOrder.nativeOrder()).asFloatBuffer()
         }
 
         /**
@@ -28,7 +29,7 @@ class BufferUtils {
          * of [array] and returns the flipped buffer.
          */
         @JvmStatic fun allocateFloatAndPut(array: FloatArray): FloatBuffer {
-            val b = ByteBuffer.allocateDirect(SIZE_FLOAT * array.size).order(ByteOrder.nativeOrder()).asFloatBuffer()
+            val b = MemoryUtil.memAlloc(SIZE_FLOAT * array.size).order(ByteOrder.nativeOrder()).asFloatBuffer()
             (b.put(array) as Buffer).flip()
 
             return b
@@ -38,7 +39,7 @@ class BufferUtils {
          * Allocates a new direct [IntBuffer] with a capacity of [num] ints.
          */
         @JvmStatic fun allocateInt(num: Int): IntBuffer {
-            return ByteBuffer.allocateDirect(SIZE_INT * num).order(ByteOrder.nativeOrder()).asIntBuffer()
+            return MemoryUtil.memAlloc(SIZE_INT * num).order(ByteOrder.nativeOrder()).asIntBuffer()
         }
 
         /**
@@ -46,7 +47,7 @@ class BufferUtils {
          * of [array] and returns the flipped buffer.
          */
         @JvmStatic fun allocateIntAndPut(array: IntArray): IntBuffer {
-            val b = ByteBuffer.allocateDirect(SIZE_INT * array.size).order(ByteOrder.nativeOrder()).asIntBuffer()
+            val b = MemoryUtil.memAlloc(SIZE_INT * array.size).order(ByteOrder.nativeOrder()).asIntBuffer()
             (b.put(array) as Buffer).flip()
 
             return b
@@ -56,7 +57,7 @@ class BufferUtils {
          * Allocates a new direct [ByteBuffer] with a capacity of [num] bytes.
          */
         @JvmStatic fun allocateByte(num: Int): ByteBuffer {
-            return ByteBuffer.allocateDirect(num).order(ByteOrder.nativeOrder())
+            return MemoryUtil.memAlloc(num).order(ByteOrder.nativeOrder())
         }
 
         /**
@@ -64,7 +65,7 @@ class BufferUtils {
          * of [array] and returns the flipped buffer.
          */
         @JvmStatic fun allocateByteAndPut(array: ByteArray): ByteBuffer {
-            val b = ByteBuffer.allocateDirect(array.size).order(ByteOrder.nativeOrder())
+            val b = MemoryUtil.memAlloc(array.size).order(ByteOrder.nativeOrder())
             b.put(array).flip()
 
             return b

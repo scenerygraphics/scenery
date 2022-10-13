@@ -4,6 +4,7 @@ import graphics.scenery.*
 import graphics.scenery.geometry.GeometryType
 import graphics.scenery.utils.extensions.minus
 import org.joml.Vector3f
+import org.lwjgl.system.MemoryUtil
 import java.io.Serializable
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
@@ -15,7 +16,7 @@ import java.util.*
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-interface Geometry : Serializable {
+interface Geometry : Serializable, AutoCloseable {
     /** How many elements does a vertex store? */
     var vertexSize: Int
     /** How many elements does a texture coordinate store? */
@@ -74,5 +75,11 @@ interface Geometry : Serializable {
         }
 
         this.normals = BufferUtils.allocateFloatAndPut(normals.toFloatArray())
+    }
+
+    override fun close() {
+        MemoryUtil.memFree(vertices)
+        MemoryUtil.memFree(normals)
+        MemoryUtil.memFree(texcoords)
     }
 }
