@@ -22,9 +22,13 @@ class SwingUiNode(val swingBridgeFrame : SwingBridgeFrame) : Plane(
 ) {
     var swingUiDimension = 0 to 0
 
+    /**
+     * Sets up the UINode with no CUllingMode.None for the Plane and adds the retexturing routing using the Snapshot of the attached SwingFrame (SwingBridgeFrame)
+     */
     init {
         //to also hit the backside
         this.material().cullingMode = Material.CullingMode.None
+
         this.update += {
             this.spatial().scale = Vector3f(swingBridgeFrame.width.toFloat()/swingBridgeFrame.height.toFloat(), 1.0f, 1.0f)
             spatial().needsUpdate = true
@@ -42,8 +46,6 @@ class SwingUiNode(val swingBridgeFrame : SwingBridgeFrame) : Plane(
             }
         }
     }
-
-    //fun Matrix4f.copy(): Matrix4f = Matrix4f(this)
 
     /**
      * Converts a 3D world space position to a 2D coordinate relative to the plane

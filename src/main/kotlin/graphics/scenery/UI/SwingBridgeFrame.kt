@@ -6,6 +6,7 @@ import graphics.scenery.utils.LazyLogger
 import java.awt.Component
 import java.awt.event.*
 import java.awt.image.BufferedImage
+import java.nio.ByteBuffer
 import javax.swing.JFrame
 import javax.swing.SwingUtilities
 
@@ -19,6 +20,7 @@ open class SwingBridgeFrame(title: String) : JFrame(title) {
 
     private val logger by LazyLogger()
     val uiNode = SwingUiNode(this)
+    var snapshotBuffer : ByteBuffer? = null
     var finalImage : Image? = null
     var dragged = false
 
@@ -40,8 +42,8 @@ open class SwingBridgeFrame(title: String) : JFrame(title) {
     {
         val bimage = this.getScreen()
         val flipped = Image.createFlipped(bimage)
-        val buffer = Image.bufferedImageToRGBABuffer(flipped)
-        finalImage = Image(buffer, bimage.width, bimage.height)
+        snapshotBuffer = Image.bufferedImageToRGBABuffer(flipped)
+        finalImage = Image(snapshotBuffer!!, bimage.width, bimage.height)
 
         uiNode.swingUiDimension = bimage.width to bimage.height
         uiNode.updateUITexture()
