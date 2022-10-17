@@ -1,25 +1,22 @@
 package graphics.scenery.tests.examples.volumes
 
-import bdv.spimdata.XmlIoSpimDataMinimal
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
-import graphics.scenery.UI.SwingBridgeFrame
-import graphics.scenery.UI.SwingUiNode
+import graphics.scenery.ui.SwingBridgeFrame
+import graphics.scenery.ui.SwingUiNode
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
 import graphics.scenery.volumes.Colormap
-import graphics.scenery.volumes.TransferFunctionUI
+import graphics.scenery.volumes.TransferFunctionEditor
 import graphics.scenery.volumes.Volume
 import org.joml.Vector3f
 import org.scijava.ui.behaviour.ClickBehaviour
 import org.scijava.ui.behaviour.DragBehaviour
 import tpietzsch.example2.VolumeViewerOptions
-import java.io.File
-import java.nio.file.Paths
 
 
 /**
- * @author Konrad Michel
+ * @author Konrad Michel <Konrad.Michel@mailbox.tu-dresden.de>
  * Example for scenery - swing bridge
  *
  * A TransferFunctionEditor example to add, manipulate and remove control points of a volume's transfer function.
@@ -65,13 +62,10 @@ class TransferFunctionEditorExample : SceneryBase("TransferFunctionEditor Exampl
             scene.addChild(this)
         }
 
-        val workingDirectoryPath = File("").absolutePath
-
         val options = VolumeViewerOptions().maxCacheSizeInMB(maxCacheSize)
-        val name = "t1-head"
         //Currently only .xml volume formats are usable
-        val v = Volume.fromSpimData(XmlIoSpimDataMinimal().load(getDemoFilesPath() + "$name.xml"), hub, options)
-        v.name = name
+        val v = Volume.fromXML(getDemoFilesPath()+ "\\t1-head.xml", hub, options)
+        v.name = "t1-head"
         v.colormap = Colormap.get("grays")
         v.spatial().position = Vector3f(0.0f, 0.0f, 0.0f)
         v.spatial().scale = Vector3f(0.1f)
@@ -80,7 +74,7 @@ class TransferFunctionEditorExample : SceneryBase("TransferFunctionEditor Exampl
 
 
         val bridge = SwingBridgeFrame("1DTransferFunctionEditor")
-        val tfUI = TransferFunctionUI(650, 550, v, bridge)
+        val tfUI = TransferFunctionEditor(650, 550, v, bridge)
         val swingUiNode = tfUI.mainFrame.uiNode
         swingUiNode.spatial() {
             position = Vector3f(2f,0f,0f)

@@ -1,4 +1,4 @@
-package graphics.scenery.UI
+package graphics.scenery.ui
 
 import javax.swing.JSlider
 

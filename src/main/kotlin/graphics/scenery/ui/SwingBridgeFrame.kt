@@ -1,4 +1,4 @@
-package graphics.scenery.UI
+package graphics.scenery.ui
 
 
 import graphics.scenery.utils.Image
@@ -11,8 +11,8 @@ import javax.swing.JFrame
 import javax.swing.SwingUtilities
 
 /**
- * @author Jan Tiemann
- * @author Konrad Michel
+ * @author Jan Tiemann <j.tiemann@hzdr.de>
+ * @author Konrad Michel <Konrad.Michel@mailbox.tu-dresden.de>
  *
  * Bridge to link the Swing window events with scenery key inputs in combination with SwingUiNode
  */
@@ -146,7 +146,6 @@ open class SwingBridgeFrame(title: String) : JFrame(title) {
      * dispatches a mouse released event, a mouse click event if no mouse drag happened between pressed and released and a key('1')-pressed event to trigger a texture-update for the Plane that renders the SwingUI
      */
     fun released(x:Int, y:Int) {
-        logger.info("$dragged")
         lastUpdate = 0
         SwingUtilities.invokeLater {
             val target = SwingUtilities.getDeepestComponentAt(this.contentPane, x, y)
@@ -162,7 +161,6 @@ open class SwingBridgeFrame(title: String) : JFrame(title) {
             )
             if(!dragged)
             {
-                logger.info("$dragged")
                 //clicked
                 target.dispatchEvent(
                     MouseEvent(

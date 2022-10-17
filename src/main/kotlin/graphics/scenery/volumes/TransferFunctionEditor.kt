@@ -1,8 +1,8 @@
 package graphics.scenery.volumes
 
 import bdv.tools.brightness.ConverterSetup
-import graphics.scenery.UI.RangeSlider
-import graphics.scenery.UI.SwingBridgeFrame
+import graphics.scenery.ui.RangeSlider
+import graphics.scenery.ui.SwingBridgeFrame
 import graphics.scenery.utils.LazyLogger
 import net.imglib2.histogram.Histogram1d
 import net.imglib2.histogram.Real1dBinMapper
@@ -37,14 +37,14 @@ import kotlin.math.roundToInt
 
 
 /**
- * @author Konrad Michel
- * @author Jan Tiemann
+ * @author Konrad Michel <Konrad.Michel@mailbox.tu-dresden.de>
+ * @author Jan Tiemann <j.tiemann@hzdr.de>
  *
  * A Swing UI transfer function manipulation tool, able to add, remove and manipulate the transfer function control points of a set volume interactively.
  * Able to generate a histogram and visualize it as well to help with TF-settings
  * Able to dynamically set the transfer function range -> changes histogram as well
  */
-class TransferFunctionUI(width : Int = 1000, height : Int = 1000, val volume : Volume, val mainFrame : SwingBridgeFrame = SwingBridgeFrame("1DTransferFunctionEditor"), debugFlag : Boolean = false) {
+class TransferFunctionEditor(width : Int = 1000, height : Int = 1000, val volume : Volume, val mainFrame : SwingBridgeFrame = SwingBridgeFrame("1DTransferFunctionEditor"), debugFlag : Boolean = false) {
     /**
      * MouseDragTarget is set when a ControlPoint has been clicked. The initial index is set to -1 and reset when the Controlpoint has been deleted
      * The target gets passed into the different Controlpoint manipulation functions

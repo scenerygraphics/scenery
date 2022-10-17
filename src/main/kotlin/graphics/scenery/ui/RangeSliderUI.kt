@@ -1,6 +1,5 @@
-package graphics.scenery.UI
+package graphics.scenery.ui
 
-import graphics.scenery.UI.RangeSlider
 import java.awt.*
 import java.awt.event.MouseEvent
 import java.awt.geom.Ellipse2D

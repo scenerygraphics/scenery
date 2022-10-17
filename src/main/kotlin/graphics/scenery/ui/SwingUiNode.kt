@@ -1,4 +1,4 @@
-package graphics.scenery.UI
+package graphics.scenery.ui
 
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.primitives.Plane
@@ -9,12 +9,12 @@ import org.joml.Vector3f
 import org.joml.Vector4f
 
 /**
- * @author Jan Tiemann
- * @author Konrad Michel
+ * @author Jan Tiemann <j.tiemann@hzdr.de>
+ * @author Konrad Michel <Konrad.Michel@mailbox.tu-dresden.de>
  *
  * Scene representation of a SwingFrame on a plane in form of a texture snapshot render of the frame in combination with SwingBridgeFrame
  */
-class SwingUiNode(val swingBridgeFrame : SwingBridgeFrame) : Plane(
+class SwingUiNode(private val swingBridgeFrame : SwingBridgeFrame) : Plane(
     Vector3f(-0.5f,-0.5f,0.0f),
     Vector3f(-0.5f,0.5f,0.0f),
     Vector3f(0.5f,-0.5f,0.0f),
@@ -23,7 +23,7 @@ class SwingUiNode(val swingBridgeFrame : SwingBridgeFrame) : Plane(
     var swingUiDimension = 0 to 0
 
     /**
-     * Sets up the UINode with no CUllingMode.None for the Plane and adds the retexturing routing using the Snapshot of the attached SwingFrame (SwingBridgeFrame)
+     * Sets up the UINode with no CullingMode.None for the Plane and adds the retexturing routing using the Snapshot of the attached SwingFrame (SwingBridgeFrame)
      */
     init {
         //to also hit the backside
