@@ -84,16 +84,15 @@ open class VRGrab(
         val diffTranslation = newPos - lastPos
         val diffRotation = Quaternionf(controllerSpatial.worldRotation()).mul(lastRotation.conjugate())
 
-        selected.forEach {
-            it.ifSpatial {
-                it.getAttributeOrNull(Grabable::class.java)?.let { grabable ->
-
+        selected.forEach { node ->
+            node.getAttributeOrNull(Grabable::class.java)?.let { grabable ->
+                (grabable.target ?: node.spatialOrNull())?.run {
                     //apply parent world rotation to diff if available
-                    position += it.parent?.spatialOrNull()?.worldRotation()?.let { q -> diffTranslation.rotate(q) }
+                    position += node.parent?.spatialOrNull()?.worldRotation()?.let { q -> diffTranslation.rotate(q) }
                         ?: diffTranslation
 
                     if (!grabable.lockRotation) {
-                        it.parent?.spatialOrNull()?.let { pSpatial ->
+                        node.parent?.spatialOrNull()?.let { pSpatial ->
                             // if there is a parent spatial
                             // reverse parent rotation, apply diff rotation, apply parent rotation again
                             val worldRotationCache = pSpatial.worldRotation()
@@ -106,7 +105,7 @@ open class VRGrab(
                             rotation.premul(diffRotation)
                         }
                     }
-                    onDrag?.invoke(it)
+                    onDrag?.invoke(node)
                     grabable.onDrag?.invoke()
                 }
             }
@@ -186,10 +185,12 @@ open class VRGrab(
  * @param onDrag called each frame of the interaction
  * @param onRelease called in the last frame of the interaction
  * @param lockRotation if set to true dragging will only change the position not rotation
+ * @param target set to apply movements not to this node but to another
  * */
 open class Grabable(
     val onGrab: (() -> Unit)? = null,
     val onDrag: (() -> Unit)? = null,
     val onRelease: (() -> Unit)? = null,
-    val lockRotation: Boolean = false
+    val lockRotation: Boolean = false,
+    val target: Spatial? = null
 )
