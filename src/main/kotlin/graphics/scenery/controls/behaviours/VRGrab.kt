@@ -10,6 +10,7 @@ import graphics.scenery.controls.TrackerRole
 import graphics.scenery.controls.behaviours.VRPress.Companion.createAndSet
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plus
+import graphics.scenery.utils.extensions.times
 import org.joml.Quaternionf
 import org.joml.Vector3f
 import org.scijava.ui.behaviour.DragBehaviour
@@ -86,10 +87,14 @@ open class VRGrab(
 
         selected.forEach { node ->
             node.getAttributeOrNull(Grabable::class.java)?.let { grabable ->
-                (grabable.target ?: node.spatialOrNull())?.run {
-                    //apply parent world rotation to diff if available
-                    position += node.parent?.spatialOrNull()?.worldRotation()?.let { q -> diffTranslation.rotate(q) }
-                        ?: diffTranslation
+                (grabable.target ?: node.spatialOrNull())?.let { spatial ->
+                    // apply parent world rotation to diff if available
+                    val translationWorld = (node.parent?.spatialOrNull()?.worldRotation()?.let { q -> diffTranslation.rotate(q) }
+                        ?: diffTranslation) * spatial.worldScale()
+
+                    val parentScale = node.parent?.spatialOrNull()?.worldScale() ?: Vector3f()
+
+                    spatial.position += translationWorld / parentScale
 
                     if (!grabable.lockRotation) {
                         node.parent?.spatialOrNull()?.let { pSpatial ->
@@ -100,9 +105,9 @@ open class VRGrab(
                                 .mul(diffRotation)
                                 .mul(worldRotationCache.conjugate())
 
-                            rotation.premul(newRotation)
-                        } ?: let {
-                            rotation.premul(diffRotation)
+                            spatial.rotation.premul(newRotation)
+                        } ?: spatial.let {
+                            spatial.rotation.premul(diffRotation)
                         }
                     }
                     onDrag?.invoke(node)
