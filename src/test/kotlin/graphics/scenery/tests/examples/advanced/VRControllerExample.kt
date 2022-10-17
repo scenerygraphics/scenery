@@ -109,6 +109,24 @@ class VRControllerExample : SceneryBase(
 
         boxes.forEach { scene.addChild(it) }
 
+        // scaled node - for grab testing
+        val scalePivot = RichNode().apply {
+            spatial {
+                scale = Vector3f(1/10f)
+                position = Vector3f(0.5f, 1.1f, 0f)
+            }
+            scene.addChild(this)
+        }
+        Sphere(0.05f).apply {
+            spatial {
+                scale = Vector3f(10f)
+            }
+            addAttribute(Grabable::class.java, Grabable())
+            addAttribute(Touchable::class.java, Touchable())
+            scalePivot.addChild(this)
+        }
+
+        // pressable sphere
         val pressableSphere = Sphere(0.1f)
         pressableSphere.spatial {
             position = Vector3f(0.5f, 1.0f, 0f)
@@ -146,6 +164,7 @@ class VRControllerExample : SceneryBase(
         pivot.addChild(longBox)
          */
 
+        // pen
         val pen = Box(Vector3f(0.05f, 0.13f, 0.05f))
         pen.spatial {
             position = Vector3f(-0.5f, 1.0f, 0f)
