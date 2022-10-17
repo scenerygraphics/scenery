@@ -119,6 +119,20 @@ class VRControllerExample : SceneryBase(
         )
         scene.addChild(pressableSphere)
 
+        // remote controlled node
+        val rcBox = Box(Vector3f(0.1f,0.05f,0.07f)).apply {
+            spatial().position = Vector3f(0f, 1.0f, 1.0f)
+            scene.addChild(this)
+
+        }
+        // remote control
+        Sphere(0.05f).apply {
+            spatial().position = Vector3f(0f, 1.0f, 0.5f)
+            addAttribute(Grabable::class.java, Grabable(target = rcBox.spatial()))
+            scene.addChild(this)
+
+        }
+
         /** Box with rotated parent to debug grabbing
         val pivot = RichNode()
         pivot.spatial().rotation.rotateLocalY(Math.PI.toFloat())
