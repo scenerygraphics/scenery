@@ -25,9 +25,11 @@ import org.lwjgl.system.MemoryUtil
 import org.scijava.ui.behaviour.ClickBehaviour
 import java.io.File
 import java.io.FileInputStream
+import java.lang.Float.max
 import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.concurrent.thread
+import kotlin.math.min
 
 /**
  * @author Aryaman Gupta <argupta@mpi-cbg.de>
@@ -73,7 +75,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
     var hmd: TrackedStereoGlasses? = null
 
     val separateDepth = true
-    val profileMemoryAccesses = true
+    val profileMemoryAccesses = false
     val compute = CustomNode()
     val closeAfter = 60000L
     val autoClose = false
@@ -82,11 +84,11 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
     val numOctreeLayers = 8.0
     val numSupersegments = 30
     var benchmarking = false
-    val skipEmpty = false
+    val skipEmpty = true
     val viewNumber = 1
-    val dynamicSubsampling = false
+    val dynamicSubsampling = true
     var subsampling_benchmarks = false
-    var desiredFrameRate = 70
+    var desiredFrameRate = 40
     var maxFrameRate = 30
 
     val commSize = 4
@@ -420,56 +422,47 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
 
     private fun dynamicSubsampling() {
         val r = (hub.get(SceneryElement.Renderer) as Renderer)
-        var stats = hub.get<Statistics>()!!
-        val tolerance = 5
 
-        val totalRotation = 30f
-        if(subsampling_benchmarks) {
-            rotateCamera(totalRotation)
-        }
+        val targetFrameTime = 1.0f / desiredFrameRate
 
-        val path = "benchmarking/${dataset}/View${viewNumber}/vdi$numSupersegments/subsampling/vdi${windowWidth}_${windowHeight}_${totalRotation.toInt()}"
+        var frameStart = System.nanoTime()
+        var frameEnd: Long
 
-        while(!r.firstImageReady) {
-            Thread.sleep(200)
-        }
+        var frameTime: Float
 
-        var currentSamples = 92.0
-        setMaxDownsampleSteps(currentSamples.toInt())
+        val kP = 50
+        val kI = 1
+        val kD = 1
 
-        var samplingFactor = 0.1f
-        setDownsamplingFactor(samplingFactor)
+        val loopCycle = 1
+        var totalLoss = 0
 
-        setStratifiedDownsampling(true)
+        var factor = 0.25f
 
         doDownsampling(true)
+        setDownsamplingFactor(factor)
 
+        var frameCount = 0
 
-        while(!r.shouldClose) {
-            //gather some data
-            Thread.sleep(2000)
-            val fps = stats.get("Renderer.fps")!!
-            val scaleFactor = fps.avg() / desiredFrameRate
-            val newSamples = scaleFactor * currentSamples
-            val newSamplingFactor = scaleFactor * samplingFactor
+        (r as VulkanRenderer).postRenderLambdas.add {
+            frameCount++
 
-            if((newSamples < (currentSamples - tolerance)) || (newSamples > (currentSamples + tolerance))) {
-                logger.info("fps was: ${fps.avg()}. Therefore, setting new samples to: $newSamples OR new sampling factor to: $newSamplingFactor")
-                currentSamples = newSamples
-                samplingFactor = newSamplingFactor
-//                setMaxDownsampleSteps(currentSamples.toInt())
-                setDownsamplingFactor(samplingFactor)
-            } else if(subsampling_benchmarks) {
-                r.screenshot("${path}_$desiredFrameRate.png")
-                //wait for screenshot
-                Thread.sleep(1000)
-                desiredFrameRate += 10
-                if(desiredFrameRate >= maxFrameRate) {
-                    subsampling_benchmarks = false
-                }
+            if(frameCount > 100) {
+                frameEnd = System.nanoTime()
+                frameTime = (frameEnd - frameStart)/1e9f
+                val error = frameTime - targetFrameTime
+
+                val output = kP * error
+
+                factor -= output
+
+                factor = max(0.005f, factor)
+
+                logger.info("error was: $error and therefore setting factor to: $factor")
+
+                setDownsamplingFactor(factor)
             }
-
-            stats.clear("Renderer.fps")
+            frameStart = System.nanoTime()
         }
 
     }
