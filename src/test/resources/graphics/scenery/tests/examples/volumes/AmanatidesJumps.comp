@@ -3,8 +3,8 @@
 #define NDC 1
 #define SEPARATE_DEPTH 1
 #define INT_DEPTHS 0
-#define PROFILE_MEM 1
-#define SKIP_EMPTY 0
+#define PROFILE_MEM 0
+#define SKIP_EMPTY 1
 #define USE_VIEW_SPACE_CELLS 1
 
 #if USE_PRINTF
