@@ -86,15 +86,16 @@ open class VRGrab(
 
         selected.forEach { node ->
             node.getAttributeOrNull(Grabable::class.java)?.let { grabable ->
-                (grabable.target ?: node.spatialOrNull())?.let { spatial ->
+                    val target = (grabable.target ?: node)
+                    target.spatialOrNull()?.let { spatial ->
                     // apply parent world rotation to diff if available
-                    val translationWorld = node.parent?.spatialOrNull()?.worldRotation()?.let { q -> diffTranslation.rotate(q) }
+                    val translationWorld = target.parent?.spatialOrNull()?.worldRotation()?.let { q -> diffTranslation.rotate(q) }
                         ?: diffTranslation
-                    val parentScale = node.parent?.spatialOrNull()?.worldScale() ?: Vector3f(1f)
+                    val parentScale = target.parent?.spatialOrNull()?.worldScale() ?: Vector3f(1f)
                     spatial.position += translationWorld / parentScale
 
                     if (!grabable.lockRotation) {
-                        node.parent?.spatialOrNull()?.let { pSpatial ->
+                        target.parent?.spatialOrNull()?.let { pSpatial ->
                             // if there is a parent spatial
                             // reverse parent rotation, apply diff rotation, apply parent rotation again
                             val worldRotationCache = pSpatial.worldRotation()
@@ -195,5 +196,5 @@ open class Grabable(
     val onDrag: (() -> Unit)? = null,
     val onRelease: (() -> Unit)? = null,
     val lockRotation: Boolean = false,
-    val target: Spatial? = null
+    val target: Node? = null
 )
