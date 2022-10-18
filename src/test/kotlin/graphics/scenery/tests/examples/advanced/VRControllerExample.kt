@@ -112,15 +112,12 @@ class VRControllerExample : SceneryBase(
         // scaled node - for grab testing
         val scalePivot = RichNode().apply {
             spatial {
-                scale = Vector3f(1/10f)
-                position = Vector3f(0.5f, 1.1f, 0f)
+                scale = Vector3f(1/100f)
+                position = Vector3f(0.5f, 1.5f, 0f)
             }
             scene.addChild(this)
         }
-        Sphere(0.05f).apply {
-            spatial {
-                scale = Vector3f(10f)
-            }
+        Sphere(10f).apply {
             addAttribute(Grabable::class.java, Grabable())
             addAttribute(Touchable::class.java, Touchable())
             scalePivot.addChild(this)

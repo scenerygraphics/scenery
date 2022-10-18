@@ -10,7 +10,6 @@ import graphics.scenery.controls.TrackerRole
 import graphics.scenery.controls.behaviours.VRPress.Companion.createAndSet
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plus
-import graphics.scenery.utils.extensions.times
 import org.joml.Quaternionf
 import org.joml.Vector3f
 import org.scijava.ui.behaviour.DragBehaviour
@@ -89,11 +88,9 @@ open class VRGrab(
             node.getAttributeOrNull(Grabable::class.java)?.let { grabable ->
                 (grabable.target ?: node.spatialOrNull())?.let { spatial ->
                     // apply parent world rotation to diff if available
-                    val translationWorld = (node.parent?.spatialOrNull()?.worldRotation()?.let { q -> diffTranslation.rotate(q) }
-                        ?: diffTranslation) * spatial.worldScale()
-
-                    val parentScale = node.parent?.spatialOrNull()?.worldScale() ?: Vector3f()
-
+                    val translationWorld = node.parent?.spatialOrNull()?.worldRotation()?.let { q -> diffTranslation.rotate(q) }
+                        ?: diffTranslation
+                    val parentScale = node.parent?.spatialOrNull()?.worldScale() ?: Vector3f(1f)
                     spatial.position += translationWorld / parentScale
 
                     if (!grabable.lockRotation) {
@@ -110,6 +107,7 @@ open class VRGrab(
                             spatial.rotation.premul(diffRotation)
                         }
                     }
+
                     onDrag?.invoke(node)
                     grabable.onDrag?.invoke()
                 }
