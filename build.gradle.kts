@@ -61,21 +61,32 @@ dependencies {
         "-remotery",
         "-spvc",
         "-shaderc"
-    ).forEach { lwjglProject ->
-        api("org.lwjgl:lwjgl$lwjglProject:$lwjglVersion")
+    ).forEach { p ->
+        api("org.lwjgl:lwjgl$p:$lwjglVersion")
 
         lwjglNatives.forEach { native ->
-            if (lwjglProject.endsWith("-vulkan")) {
-                if (!native.contains("linux") && !native.contains("win")) {
-                    runtimeOnly("org.lwjgl:lwjgl$lwjglProject:$lwjglVersion:$native")
+            when {
+                // Vulkan binaries are only necessary on macOS
+                p.endsWith("vulkan") -> {
+                    if(native.contains("macos")) {
+                        println("vulkan: org.lwjgl:lwjgl$p:$lwjglVersion:$native")
+                        runtimeOnly("org.lwjgl:lwjgl$p:$lwjglVersion:$native")
+                    }
                 }
-            }
-            else if (lwjglProject.endsWith("-openvr")) {
-                if (native.contains("linux") && native.contains("win")) {
-                    runtimeOnly("org.lwjgl:lwjgl$lwjglProject:$lwjglVersion:$native")
+
+                // OpenVR binaries are available on all scenery-supported platforms,
+                // apart from macOS/ARM64
+                p.endsWith("openvr") -> {
+                    if(!(native.contains("macos") && native.contains("arm64"))) {
+                        println("openvr: org.lwjgl:lwjgl$p:$lwjglVersion:$native")
+                        runtimeOnly("org.lwjgl:lwjgl$p:$lwjglVersion:$native")
+                    }
                 }
-            } else {
-                runtimeOnly("org.lwjgl:lwjgl$lwjglProject:$lwjglVersion:$native")
+
+                else -> {
+                    println("else: org.lwjgl:lwjgl$p:$lwjglVersion:$native")
+                    runtimeOnly("org.lwjgl:lwjgl$p:$lwjglVersion:$native")
+                }
             }
         }
     }
@@ -224,8 +235,14 @@ tasks {
                     "-vulkan",
                 ).forEach pkg@ { lwjglProject ->
                     // OpenVR does not have macOS binaries, Vulkan only has macOS binaries
-                    if((lwjglProject.contains("openvr") && nativePlatform.contains("mac"))
-                            || (lwjglProject.contains("vulkan") && !nativePlatform.contains("mac"))) {
+                    if(lwjglProject.contains("vulkan")
+                        && !nativePlatform.contains("mac")) {
+                        return@pkg
+                    }
+
+                    if(lwjglProject.contains("openvr")
+                        && nativePlatform.contains("mac")
+                        && nativePlatform.contains("arm64")) {
                         return@pkg
                     }
 
@@ -237,14 +254,6 @@ tasks {
                         scope = "runtime")
                 }
             }
-
-            // lwjgl-vulkan native for macos
-            dependenciesNode.addDependency(
-                "org.lwjgl",
-                "lwjgl-vulkan",
-                "\${lwjgl.version}",
-                classifier = "natives-macos",
-                scope = "runtime")
 
             // jvrpn natives
             lwjglNatives.filter { !it.contains("arm") }.forEach {

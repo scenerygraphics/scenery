@@ -11,6 +11,7 @@ import org.joml.Vector3i
 import java.io.Serializable
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.util.concurrent.Semaphore
 
 
 /**
@@ -40,7 +41,9 @@ open class Texture @JvmOverloads constructor(
     /** Linear or nearest neighbor filtering for scaling up. */
     var maxFilter: FilteringMode = FilteringMode.Linear,
     /** Usage type */
-    val usageType: HashSet<UsageType> = hashSetOf(UsageType.Texture)
+    val usageType: HashSet<UsageType> = hashSetOf(UsageType.Texture),
+    /** Mutex for data upload */
+    val mutex: Semaphore = Semaphore(1)
 
 ) : Serializable, Timestamped {
     init {

@@ -57,7 +57,7 @@ fun VkCommandBuffer.endCommandBuffer() {
  * the submission process.
  */
 fun VkCommandBuffer.endCommandBuffer(device: VulkanDevice, commandPool: Long,
-                                     queue: VkQueue?, flush: Boolean = true,
+                                     queue: VulkanDevice.QueueWithMutex, flush: Boolean = true,
                                      dealloc: Boolean = false,
                                      submitInfoPNext: Pointer? = null,
                                      signalSemaphores: LongBuffer? = null, waitSemaphores: LongBuffer? = null,
@@ -71,7 +71,7 @@ fun VkCommandBuffer.endCommandBuffer(device: VulkanDevice, commandPool: Long,
         throw AssertionError("Failed to end command buffer $this")
     }
 
-    if (flush && queue != null) {
+    if (flush) {
         this.submit(queue, submitInfoPNext, waitSemaphores = waitSemaphores, signalSemaphores = signalSemaphores, waitDstStageMask = waitDstStageMask, block = block, fence = fence)
     }
 
@@ -86,7 +86,7 @@ fun VkCommandBuffer.endCommandBuffer(device: VulkanDevice, commandPool: Long,
  * [submitInfoPNext], [signalSemaphores], [waitSemaphores] and [waitDstStageMask] can be used to further fine-grain
  * the submission process.
  */
-fun VkCommandBuffer.submit(queue: VkQueue, submitInfoPNext: Pointer? = null,
+fun VkCommandBuffer.submit(queue: VulkanDevice.QueueWithMutex, submitInfoPNext: Pointer? = null,
                            signalSemaphores: LongBuffer? = null, waitSemaphores: LongBuffer? = null,
                            waitDstStageMask: IntBuffer? = null,
                            block: Boolean = true, fence: Long? = null) {
@@ -111,10 +111,16 @@ fun VkCommandBuffer.submit(queue: VkQueue, submitInfoPNext: Pointer? = null,
             }
 
             if(block) {
-                vkQueueSubmit(queue, submitInfo, fence ?: VK_NULL_HANDLE)
-                vkQueueWaitIdle(queue)
+                queue.mutex.acquire()
+                vkQueueSubmit(queue.queue, submitInfo, fence ?: VK_NULL_HANDLE)
+                val r = vkQueueWaitIdle(queue.queue)
+                queue.mutex.release()
+                r
             } else {
-                vkQueueSubmit(queue, submitInfo, fence ?: VK_NULL_HANDLE)
+                queue.mutex.acquire()
+                val r = vkQueueSubmit(queue.queue, submitInfo, fence ?: VK_NULL_HANDLE)
+                queue.mutex.release()
+                r
             }
         }, { })
     }

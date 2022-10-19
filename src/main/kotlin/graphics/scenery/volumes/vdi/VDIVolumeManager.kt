@@ -21,19 +21,14 @@ class VDIVolumeManager {
     companion object {
         fun create(generateVDIs: Boolean, separateDepth: Boolean, colors32bit: Boolean, scene: Scene, hub: Hub): VolumeManager {
 
-            val settings = hub.get<Settings>()?: throw IllegalStateException("Settings instance required for creation of volume manager")
+            val settings = hub.get<Settings>()
+                ?: throw IllegalStateException("Settings instance required for creation of volume manager")
+            val window = hub.get<Renderer>()?.window
+                ?: throw IllegalStateException("Renderer and window need to be initialized before volume manager is created.")
 
             val maxSupersegments = settings.get("VDI.maxSupersegments", 20)
 
-
-            val raycastShader: String
-            val accumulateShader: String
-
-            val window = hub.get<Renderer>()?.window ?: throw IllegalStateException("Renderer and window need to be initialized before volume manager is created.")
-
             return if(generateVDIs) {
-                raycastShader = "VDIGenerator.comp"
-                accumulateShader = "AccumulateVDI.comp"
                 val numLayers = if(separateDepth) {
                     1
                 } else {
@@ -43,13 +38,18 @@ class VDIVolumeManager {
                 val volumeManager = VolumeManager(
                     hub, useCompute = true, customSegments = hashMapOf(
                         SegmentType.FragmentShader to SegmentTemplate(
-                            this::class.java,
-                            raycastShader,
+                            VDIVolumeManager::class.java,
+                            "VDIGenerator.comp",
                             "intersectBoundingBox", "vis", "localNear", "localFar", "SampleVolume", "Convert", "Accumulate",
                         ),
                         SegmentType.Accumulator to SegmentTemplate(
-                                this::class.java,
-                            accumulateShader,
+                            VDIVolumeManager::class.java,
+                            "AccumulateVDI.comp",
+                            "vis", "localNear", "localFar", "sampleVolume", "convert",
+                        ),
+                        SegmentType.AccumulatorMultiresolution to SegmentTemplate(
+                            VDIVolumeManager::class.java,
+                            "AccumulateVDIMultiresolution.comp",
                             "vis", "localNear", "localFar", "sampleVolume", "convert",
                         ),
                     ),
