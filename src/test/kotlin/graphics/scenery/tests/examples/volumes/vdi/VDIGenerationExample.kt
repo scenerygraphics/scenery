@@ -7,6 +7,7 @@ import graphics.scenery.controls.TrackedStereoGlasses
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.SystemHelpers
 import graphics.scenery.volumes.*
+import graphics.scenery.volumes.vdi.VDIBufferSizes
 import graphics.scenery.volumes.vdi.VDIData
 import graphics.scenery.volumes.vdi.VDIMetadata
 import graphics.scenery.volumes.vdi.VDIVolumeManager
@@ -166,6 +167,7 @@ class VDIGenerationExample: SceneryBase("Volume Rendering", 1280, 720, wantREPL 
                 val fileName = "${volumeManager.nodes.first().name}VDI${cnt}_ndc"
                 val total_duration = measureNanoTime {
                     val vdiData = VDIData(
+                        VDIBufferSizes(),
                         VDIMetadata(
                             projection = camera.spatial().projection,
                             view = camera.spatial().getTransformation(),
