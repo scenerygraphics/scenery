@@ -43,7 +43,7 @@ layout(push_constant) uniform currentEye_t {
 #define WORLD_ABS 0
 #define INT_DEPTHS 0
 
-#define USE_PRINTF 1
+#define USE_PRINTF 0
 
 #if USE_PRINTF
 #extension GL_EXT_debug_printf : enable
