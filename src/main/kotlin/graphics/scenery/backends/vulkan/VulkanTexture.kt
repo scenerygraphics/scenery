@@ -551,6 +551,7 @@ open class VulkanTexture(val device: VulkanDevice,
 
             if(block) {
                 t.join()
+                gt?.gpuMutex?.release()
             }
             // necessary to clear updates here, as the command buffer might still access the
             // memory address of the texture update.
