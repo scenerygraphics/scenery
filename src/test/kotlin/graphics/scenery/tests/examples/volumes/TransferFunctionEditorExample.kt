@@ -64,7 +64,7 @@ class TransferFunctionEditorExample : SceneryBase("TransferFunctionEditor Exampl
 
         val options = VolumeViewerOptions().maxCacheSizeInMB(maxCacheSize)
         //Currently only .xml volume formats are usable
-        val v = Volume.fromXML(getDemoFilesPath()+ "/t1-head.xml", hub, options)
+        val v = Volume.fromXML("models/volumes/t1-head.xml", hub, options)
         v.name = "t1-head"
         v.colormap = Colormap.get("grays")
         v.spatial().position = Vector3f(0.0f, 0.0f, 0.0f)
