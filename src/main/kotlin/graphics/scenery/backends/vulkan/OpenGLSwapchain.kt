@@ -37,7 +37,7 @@ import java.nio.LongBuffer
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class OpenGLSwapchain(device: VulkanDevice,
-                      queue: VkQueue,
+                      queue: VulkanDevice.QueueWithMutex,
                       commandPools: VulkanRenderer.CommandPools,
                       renderConfig: RenderConfigReader.RenderConfig,
                       useSRGB: Boolean = true,
@@ -398,7 +398,7 @@ class OpenGLSwapchain(device: VulkanDevice,
 //        NVDrawVulkanImage.glSignalVkSemaphoreNV(-1L)
 //        return (presentedFrames % 2) to -1L//.toInt()
         MemoryStack.stackPush().use { stack ->
-            VK10.vkQueueWaitIdle(queue)
+            VK10.vkQueueWaitIdle(queue.queue)
 
             val signal = stack.mallocLong(1)
             signal.put(0, imageAvailableSemaphores[currentImage])
@@ -491,7 +491,7 @@ class OpenGLSwapchain(device: VulkanDevice,
             throw IllegalStateException("Cannot use a window of type ${window.javaClass.simpleName}")
         }
 
-        vkQueueWaitIdle(queue)
+        vkQueueWaitIdle(queue.queue)
 
         closeSyncPrimitives()
 
