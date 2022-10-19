@@ -388,6 +388,9 @@ open class VulkanTexture(val device: VulkanDevice,
 
             logger.info("Upload will block: $block running on $transferQueue vs $queue")
 
+            // acquire GPU upload mutex
+            gt?.gpuMutex?.acquire()
+
             val t = thread {
                 with(VU.newCommandBuffer(device, commandPools.Transfer, autostart = true)) {
                     val fence = if(!block) {
@@ -399,6 +402,8 @@ open class VulkanTexture(val device: VulkanDevice,
 
                             if(done) {
                                 this@VulkanTexture.device.destroyFence(f)
+                                // release GPU upload mutex
+                                gt?.gpuMutex?.release()
 //                                vkFreeCommandBuffers(device, commandPools.Transfer, this)
                             }
 
