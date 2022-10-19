@@ -41,7 +41,7 @@ class CustomNodeSimple : RichNode() {
 }
 
 
-class VDIRendererSimple : SceneryBase("SimpleVDIRenderer", 512, 512) {
+class VDIRendererSimple : SceneryBase("SimpleVDIRenderer", 1280, 720) {
 
     private val vulkanProjectionFix =
         Matrix4f(
@@ -74,19 +74,19 @@ class VDIRendererSimple : SceneryBase("SimpleVDIRenderer", 512, 512) {
         renderer = hub.add(SceneryElement.Renderer,
             Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
 
-        val numSupersegments = 15
+        val numSupersegments = 20
 
         val buff: ByteArray
         val depthBuff: ByteArray?
 
-        var dataset = "Engine"
+        var dataset = "T1Head"
 
 //        dataset += "_${commSize}_${rank}"
 
 
 //        val basePath = "/home/aryaman/Repositories/DistributedVis/cmake-build-debug/"
-        val basePath = "/home/aryaman/Repositories/scenery-insitu/"
-//        val basePath = "/home/aryaman/Repositories/scenery_vdi/scenery/"
+//        val basePath = "/home/aryaman/Repositories/scenery-insitu/"
+        val basePath = "/home/aryaman/Repositories/scenery_vdi/scenery/"
 //        val basePath = "/home/aryaman/TestingData/"
 //        val basePath = "/home/aryaman/TestingData/FromCluster/"
 

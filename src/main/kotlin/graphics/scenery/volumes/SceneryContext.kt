@@ -18,6 +18,8 @@ import org.lwjgl.util.xxhash.XXHash
 import tpietzsch.backend.*
 import tpietzsch.cache.TextureCache
 import tpietzsch.example2.LookupTextureARGB
+import tpietzsch.example2.VolumeTextureU16
+import tpietzsch.example2.VolumeTextureU8
 import tpietzsch.shadergen.Shader
 import java.nio.Buffer
 import java.nio.ByteBuffer
@@ -345,11 +347,15 @@ open class SceneryContext(val node: VolumeManager, val useCompute: Boolean = fal
             else -> throw UnsupportedOperationException("Unknown internal format ${texture.texInternalFormat()}")
         }
 
-        val repeat = when(texture.texWrap()) {
+        var repeat = when(texture.texWrap()) {
             BVVTexture.Wrap.CLAMP_TO_BORDER_ZERO -> RepeatMode.ClampToBorder
             BVVTexture.Wrap.CLAMP_TO_EDGE -> RepeatMode.ClampToEdge
             BVVTexture.Wrap.REPEAT -> RepeatMode.Repeat
             else -> throw UnsupportedOperationException("Unknown wrapping mode: ${texture.texWrap()}")
+        }
+
+        if(texture is VolumeTextureU8 || texture is VolumeTextureU16) {
+            repeat = RepeatMode.ClampToEdge
         }
 
         val material = node.material()
