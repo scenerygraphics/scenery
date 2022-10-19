@@ -71,7 +71,7 @@ class CustomNode : RichNode() {
     var stratified_downsampling = false
 }
 
-class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = false) {
+class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDIBenchmark.WindowWidth")?.toInt()?: 1280, System.getProperty("VDIBenchmark.WindowHeight")?.toInt() ?: 780, wantREPL = false) {
     var hmd: TrackedStereoGlasses? = null
 
     val separateDepth = true
@@ -504,10 +504,18 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", 1280, 720, wantREPL = f
         }
     }
 
-    fun rotateCamera(degrees: Float) {
+    fun rotateCamera(degrees: Float, pitch: Boolean = false) {
         cam.targeted = true
-        val frameYaw = degrees / 180.0f * Math.PI.toFloat()
-        val framePitch = 0f
+        val frameYaw: Float
+        val framePitch: Float
+
+        if(pitch) {
+            framePitch = degrees / 180.0f * Math.PI.toFloat()
+            frameYaw = 0f
+        } else {
+            frameYaw = degrees / 180.0f * Math.PI.toFloat()
+            framePitch = 0f
+        }
 
         // first calculate the total rotation quaternion to be applied to the camera
         val yawQ = Quaternionf().rotateXYZ(0.0f, frameYaw, 0.0f).normalize()
