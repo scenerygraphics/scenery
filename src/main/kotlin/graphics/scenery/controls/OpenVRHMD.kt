@@ -701,7 +701,7 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
 
     override fun submitToCompositorVulkan(width: Int, height: Int, format: Int,
                                           instance: VkInstance, device: VulkanDevice,
-                                          queue: VkQueue, image: Long) {
+                                          queue: VulkanDevice.QueueWithMutex, image: Long) {
 //        update()
         if (disableSubmission || !readyForSubmission) {
             return
@@ -713,7 +713,7 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
                 .m_pInstance(instance.address())
                 .m_pPhysicalDevice(device.physicalDevice.address())
                 .m_pDevice(device.vulkanDevice.address())
-                .m_pQueue(queue.address())
+                .m_pQueue(queue.queue.address())
                 .m_nQueueFamilyIndex(device.queueIndices.graphicsQueue.first)
                 .m_nWidth(width)
                 .m_nHeight(height)

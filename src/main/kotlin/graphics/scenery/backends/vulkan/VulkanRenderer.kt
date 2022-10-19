@@ -155,7 +155,7 @@ open class VulkanRenderer(hub: Hub,
             if(lock.tryLock() && !shouldClose) {
                 logger.info("Recreating Swapchain at frame $frames (${swapchain.javaClass.simpleName})")
                 // create new swapchain with changed surface parameters
-                vkQueueWaitIdle(queue)
+                vkQueueWaitIdle(queue.queue)
 
                 with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
                     // Create the swapchain (this will also add a memory barrier to initialize the framebuffer images)
@@ -352,8 +352,8 @@ open class VulkanRenderer(hub: Hub,
     protected var debugCallbackHandle: Long = -1L
 
     // Create static Vulkan resources
-    protected var queue: VkQueue
-    protected var transferQueue: VkQueue
+    protected var queue: VulkanDevice.QueueWithMutex
+    protected var transferQueue: VulkanDevice.QueueWithMutex
 
     protected var swapchain: Swapchain
     protected var ph = PresentHelpers()
@@ -1305,7 +1305,7 @@ open class VulkanRenderer(hub: Hub,
         }
     }
 
-    private suspend fun submitFrame(queue: VkQueue, pass: VulkanRenderpass, commandBuffer: VulkanCommandBuffer, present: PresentHelpers) {
+    private suspend fun submitFrame(queue: VulkanDevice.QueueWithMutex, pass: VulkanRenderpass, commandBuffer: VulkanCommandBuffer, present: PresentHelpers) {
         if(swapchainRecreator.mustRecreate) {
             return
         }
@@ -1323,7 +1323,7 @@ open class VulkanRenderer(hub: Hub,
         val q = (swapchain as? VulkanSwapchain)?.presentQueue ?: queue
         // Submit to the graphics queue
 //        vkResetFences(device.vulkanDevice, swapchain.currentFence)
-        VU.run("Submit viewport render queue", { vkQueueSubmit(q, present.submitInfo, swapchain.currentFence) })
+        VU.run("Submit viewport render queue", { vkQueueSubmit(q.queue, present.submitInfo, swapchain.currentFence) })
 
         // submit to OpenVR if attached
         if(hub?.getWorkingHMDDisplay()?.hasCompositor() == true) {
@@ -1810,7 +1810,7 @@ open class VulkanRenderer(hub: Hub,
             }
 
 //            logger.info("Submitting pass $t waiting on semaphore ${target.waitSemaphores.get(0).toHexString()}")
-            VU.run("Submit pass $t render queue", { vkQueueSubmit(queue, si, commandBuffer.getFence() )})
+            VU.run("Submit pass $t render queue", { vkQueueSubmit(queue.queue, si, commandBuffer.getFence() )})
 
             commandBuffer.submitted = true
             waitSemaphore = targetSemaphore
@@ -2273,7 +2273,7 @@ open class VulkanRenderer(hub: Hub,
         initialized = false
 
         logger.info("Renderer teardown started.")
-        vkQueueWaitIdle(queue)
+        vkQueueWaitIdle(queue.queue)
 
         logger.debug("Closing nodes...")
         scene.discover(scene, { true }).forEach {
