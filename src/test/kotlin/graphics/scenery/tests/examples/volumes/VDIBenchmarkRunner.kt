@@ -53,6 +53,29 @@ class VDIBenchmarkRunner {
         }
     }
 
+    fun vdiRenderingBenchmarks(dataset: String, viewpoint: Int, instance: VDIRenderingExample, renderer: Renderer) {
+        val fw = FileWriter("benchmarking/${dataset}_${viewpoint}_vdiRendering.csv", true)
+        val bw = BufferedWriter(fw)
+
+        val stats = instance.hub.get<Statistics>()!!
+
+        Thread.sleep(1000) //allow the rotation to take place
+
+        stats.clear("Renderer.fps")
+
+        Thread.sleep(4000) //collect some data
+
+        val fps = stats.get("Renderer.fps")!!.avg()
+        val stdDev = stats.get("Renderer.fps")!!.stddev()
+
+        renderer.screenshot("benchmarking/VDI_${dataset}_${viewpoint}.png")
+
+        bw.append("$fps")
+        bw.append(", ")
+
+        bw.flush()
+    }
+
     fun scaleSamplingFactor(dataset: String, screenshotName: String, stratified: Boolean, instance: VDIRenderingExample, renderer: Renderer, bw: BufferedWriter) {
         val start = 0.02f
         val until = 0.4f
@@ -115,8 +138,17 @@ class VDIBenchmarkRunner {
 
 
     fun runVDIRendering() {
-        benchmarkDatasets.forEach { dataset->
-            System.setProperty("VDIBenchmark.Dataset", dataset)
+
+        val windowWidth = 1920
+        val windowHeight = 1080
+
+        benchmarkDatasets.forEach { dataName->
+
+            val dataset = "${dataName}_${windowWidth}_$windowHeight"
+
+            System.setProperty("VDIBenchmark.Dataset", dataName)
+            System.setProperty("VDIBenchmark.WindowWidth", windowWidth.toString())
+            System.setProperty("VDIBenchmark.WindowHeight", windowHeight.toString())
 
             val instance = VDIRenderingExample()
 
@@ -136,7 +168,7 @@ class VDIBenchmarkRunner {
                     val rotation = viewpoint - previousViewpoint
                     instance.rotateCamera(rotation.toFloat())
 
-                    downsamplingBenchmarks(dataset, viewpoint, instance, renderer)
+                    vdiRenderingBenchmarks(dataset, viewpoint, instance, renderer)
                 }
 
 
