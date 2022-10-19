@@ -2,17 +2,17 @@ if (vis && step > localNear && step < localFar)
 {
     vec4 x = sampleVolume(wpos);
 
+    #if AMBIENT_OCCLUSION
     if(ambientOcclusion && x.a != 0.) {
         float aoRays[numAORays];
         float totalAO = 0;
-        //    [[unroll]] for(int ray = 0; ray < numAORays; ray++) {
         for(int ray = 0; ray < numAORays; ray++) {
             aoRays[ray] = 0.;
 
             aoRays[ray] = (1. - sampleTransferFunction(vec4(wpos.xyz + dirs[ray] * 3 * minVoxelSize, 1)));
 
             for(int aoStep = 1; aoStep < numAOSteps; aoStep++) {
-                aoRays[ray] += (aoRays[ray]) * (1. - sampleTransferFunction(vec4(wpos.xyz + dirs[ray] * (aoStep + 3) * minVoxelSize, 1)));
+                aoRays[ray] = (aoRays[ray] + ((aoRays[ray] / aoStep) * (1. - sampleTransferFunction(vec4(wpos.xyz + dirs[ray] * (aoStep + 3) * minVoxelSize, 1)))));
             }
 
             totalAO += (aoRays[ray] / numAOSteps);
@@ -30,6 +30,7 @@ if (vis && step > localNear && step < localFar)
         //        x.rgb += vec3(totalAO);
         //        x.rgb /= (totalAO);
     }
+    #endif
     //    #if USE_PRINTF
     //    if(pixel_coords.xy == debug_pixel) {
     //        debugPrintfEXT("Step: %d, color of sample: (%f, %f, %f, %f) at position: (%f, %f, %f, %f)", i, x.rgba, wpos.xyzw);
