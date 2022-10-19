@@ -42,8 +42,10 @@ open class Texture @JvmOverloads constructor(
     var maxFilter: FilteringMode = FilteringMode.Linear,
     /** Usage type */
     val usageType: HashSet<UsageType> = hashSetOf(UsageType.Texture),
-    /** Mutex for data upload */
-    val mutex: Semaphore = Semaphore(1)
+    /** Mutex for texture data usage */
+    val mutex: Semaphore = Semaphore(1),
+    /** Mutex for GPU upload */
+    val gpuMutex: Semaphore = Semaphore(1)
 
 ) : Serializable, Timestamped {
     init {
