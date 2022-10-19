@@ -378,6 +378,9 @@ open class VulkanTexture(val device: VulkanDevice,
 
             logger.info("Upload will block: $block running on $transferQueue vs $queue")
 
+            // acquire GPU upload mutex
+            gt?.gpuMutex?.acquire()
+
             val t = thread {
                 with(VU.newCommandBuffer(device, commandPools.Transfer, autostart = true)) {
                     val fence = if(!block) {
@@ -389,6 +392,8 @@ open class VulkanTexture(val device: VulkanDevice,
 
                             if(done) {
                                 this@VulkanTexture.device.destroyFence(f)
+                                // release GPU upload mutex
+                                gt?.gpuMutex?.release()
 //                                vkFreeCommandBuffers(device, commandPools.Transfer, this)
                             }
 
@@ -534,6 +539,7 @@ open class VulkanTexture(val device: VulkanDevice,
 
             if(block) {
                 t.join()
+                gt?.gpuMutex?.release()
             }
             // necessary to clear updates here, as the command buffer might still access the
             // memory address of the texture update.
