@@ -312,7 +312,10 @@ class VolumeManager(
             "vis", "localNear", "localFar", "sampleVolume", "convert"
         )
 
-        customSegments?.forEach { type, segment -> segments[type] = segment }
+        customSegments?.forEach { (type, segment) ->
+            logger.debug("Assigning custom segment for $type")
+            segments[type] = segment
+        }
 
         var triggered = false
         val additionalBindings = customBindings
