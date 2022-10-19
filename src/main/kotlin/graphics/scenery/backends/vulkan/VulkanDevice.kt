@@ -13,6 +13,7 @@ import org.lwjgl.vulkan.VK11.VK_FORMAT_G16_B16_R16_3PLANE_444_UNORM
 import org.lwjgl.vulkan.VK11.VK_FORMAT_G8B8G8R8_422_UNORM
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.Semaphore
 
 typealias QueueIndexWithProperties = Pair<Int, VkQueueFamilyProperties>
 
@@ -374,11 +375,12 @@ open class VulkanDevice(
         }
     }
 
-    private val queues = ConcurrentHashMap<Int, ArrayList<VkQueue>>()
+    data class QueueWithMutex(val queue: VkQueue, val mutex: Semaphore = Semaphore(1))
+    private val queues = ConcurrentHashMap<Int, ArrayList<QueueWithMutex>>()
     /**
      * Creates a new Vulkan queue on [device] with the queue family index [queueFamilyIndex] and returns the queue.
      */
-    fun getQueue(queueFamilyIndex: Int): VkQueue {
+    fun getQueue(queueFamilyIndex: Int): QueueWithMutex {
         val index = queues[queueFamilyIndex]?.size ?: 0
 
         val availableQueues = queueProps[queueFamilyIndex].queueCount()
@@ -392,10 +394,10 @@ open class VulkanDevice(
         val q = VU.getPointer("Getting device queue for queueFamilyIndex=$queueFamilyIndex",
             { vkGetDeviceQueue(vulkanDevice, queueFamilyIndex, index, this); VK_SUCCESS }, {})
 
-        val queue = VkQueue(q, vulkanDevice)
-        queues.getOrPut(queueFamilyIndex) { arrayListOf() }?.add(queue)
+        val qm = QueueWithMutex(VkQueue(q, vulkanDevice))
+        queues.getOrPut(queueFamilyIndex) { arrayListOf() }?.add(qm)
 
-        return queue
+        return qm
     }
 
     /**

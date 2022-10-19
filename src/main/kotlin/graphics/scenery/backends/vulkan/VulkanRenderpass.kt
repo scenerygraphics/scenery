@@ -909,7 +909,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
             config: RenderConfigReader.RenderConfig,
             device: VulkanDevice,
             commandPools: VulkanRenderer.CommandPools,
-            queue: VkQueue,
+            queue: VulkanDevice.QueueWithMutex,
             vertexDescriptors: ConcurrentHashMap<VulkanRenderer.VertexDataKinds, VulkanRenderer.VertexDescription>,
             swapchain: Swapchain,
             windowWidth: Int,
