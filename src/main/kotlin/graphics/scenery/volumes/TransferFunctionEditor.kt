@@ -75,8 +75,8 @@ class TransferFunctionEditor(width : Int = 1000, height : Int = 1000, val volume
     private val minValueLabel: JLabel
     private val maxValueLabel: JLabel
     init {
-        mainFrame.contentPane.preferredSize = Dimension(width, height)
-        mainFrame.contentPane.minimumSize = Dimension(width, height)
+        mainFrame.preferredSize = Dimension(width, height)
+        mainFrame.minimumSize = Dimension(width, height)
         mainFrame.layout = MigLayout()
         mainFrame.isVisible = true
 
@@ -325,7 +325,7 @@ class TransferFunctionEditor(width : Int = 1000, height : Int = 1000, val volume
 
         updateSliderRange()
 
-        mainFrame.pack()
+        //mainFrame.pack()
     }
 
     private fun createTFImage() : BufferedImage {

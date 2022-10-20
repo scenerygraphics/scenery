@@ -8,6 +8,7 @@ import java.awt.event.*
 import java.awt.image.BufferedImage
 import java.nio.ByteBuffer
 import javax.swing.JFrame
+import javax.swing.JPanel
 import javax.swing.SwingUtilities
 
 /**
@@ -16,7 +17,7 @@ import javax.swing.SwingUtilities
  *
  * Bridge to link the Swing window events with scenery key inputs in combination with SwingUiNode
  */
-open class SwingBridgeFrame(title: String) : JFrame(title) {
+open class SwingBridgeFrame(title: String) : JPanel() {
 
     private val logger by LazyLogger()
     val uiNode = SwingUiNode(this)
@@ -69,9 +70,9 @@ open class SwingBridgeFrame(title: String) : JFrame(title) {
      */
     fun ctrlClick(x:Int, y: Int) {
         SwingUtilities.invokeLater {
-            val target = SwingUtilities.getDeepestComponentAt(this.contentPane, x, y)
+            val target = SwingUtilities.getDeepestComponentAt(this.rootPane, x, y)
             val compPoint = SwingUtilities.convertPoint(
-                this.contentPane, x, y, target
+                this.rootPane, x, y, target
             )
             // ctrl clicked
             target.dispatchEvent (
@@ -95,9 +96,9 @@ open class SwingBridgeFrame(title: String) : JFrame(title) {
         lastUpdate = System.currentTimeMillis()
 
         SwingUtilities.invokeLater {
-            val target = SwingUtilities.getDeepestComponentAt(this.contentPane, x, y)
+            val target = SwingUtilities.getDeepestComponentAt(this.rootPane, x, y)
             val compPoint = SwingUtilities.convertPoint(
-                this.contentPane, x, y, target
+                this.rootPane, x, y, target
             )
             // entered
             target.dispatchEvent(
@@ -125,9 +126,9 @@ open class SwingBridgeFrame(title: String) : JFrame(title) {
         dragged = true
 
         SwingUtilities.invokeLater {
-            val target = SwingUtilities.getDeepestComponentAt(this.contentPane, x, y)
+            val target = SwingUtilities.getDeepestComponentAt(this.rootPane, x, y)
             val compPoint = SwingUtilities.convertPoint(
-                this.contentPane, x, y, target
+                this.rootPane, x, y, target
             )
 
             // dragged
@@ -148,9 +149,9 @@ open class SwingBridgeFrame(title: String) : JFrame(title) {
     fun released(x:Int, y:Int) {
         lastUpdate = 0
         SwingUtilities.invokeLater {
-            val target = SwingUtilities.getDeepestComponentAt(this.contentPane, x, y)
+            val target = SwingUtilities.getDeepestComponentAt(this.rootPane, x, y)
             val compPoint = SwingUtilities.convertPoint(
-                this.contentPane, x, y, target
+                this.rootPane, x, y, target
             )
 
             //released
@@ -182,7 +183,7 @@ open class SwingBridgeFrame(title: String) : JFrame(title) {
     }
 
     private fun getScreen(): BufferedImage {
-        return getScreenShot(this.contentPane)
+        return getScreenShot(this.rootPane)
     }
 
     private fun getScreenShot(
