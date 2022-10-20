@@ -176,8 +176,8 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
                 position = Vector3f( 1.897E+0f, -5.994E-1f, -1.899E+0f) //V1 for Boneplug
                 rotation = Quaternionf( 5.867E-5,  9.998E-1,  1.919E-2,  4.404E-3)
             } else if (dataset == "Rotstrat") {
-                position = Vector3f(4.908E+0f, -4.931E-1f, -2.563E+0f) //V1 for Simulation
-                rotation = Quaternionf( 3.887E-2, -9.470E-1, -1.255E-1,  2.931E-1)
+                position = Vector3f(2.041E-1f, -5.253E+0f, -1.321E+0f) //V1 for Simulation
+                rotation = Quaternionf(9.134E-2, -9.009E-1,  3.558E-1, -2.313E-1)
             }
 
 //            position = Vector3f( 4.458E+0f, -9.057E-1f,  4.193E+0f) //V2 for Kingsnake
