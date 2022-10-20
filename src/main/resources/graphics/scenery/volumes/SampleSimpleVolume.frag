@@ -18,11 +18,7 @@ uniform sampler2D colorMap;
 float returnRawSample( vec4 wpos ) {
     vec3 pos = (im * wpos).xyz + 0.5;
 
-    //    #if USE_PRINTF
-    //    if(pixel_coords.xy == debug_pixel) {
-    //        debugPrintfEXT("Sampling at pos: (%f, %f, %f). texture size: (%d, %d, %d)", pos.xyz, textureSize( volume, 0 ).xyz);
-    //    }
-    //    #endif
+
 
     vec3 samplePos = pos / textureSize( volume, 0 );
 
@@ -32,13 +28,28 @@ float returnRawSample( vec4 wpos ) {
 
     float rawsample = convert(texture( volume, samplePos ).r);
 
+    rawsample = min(1., rawsample);
+    rawsample = max(0., rawsample);
+
+    #if USE_PRINTF
+    if((pixel_coords.xy == debug_pixel) ) {
+        debugPrintfEXT("Sampling at pos: (%f, %f, %f). texture size: (%d, %d, %d). Found raw: %f", pos.xyz, textureSize( volume, 0 ).xyz, rawsample);
+    }
+    #endif
+
     return rawsample;
 }
 
 float sampleTransferFunction( vec4 wpos )
 {
     float rawsample = returnRawSample(wpos);
-    float tf = texture(transferFunction, vec2(rawsample + 0.001f, 0.5f)).r;
+    float tf = texture(transferFunction, vec2(rawsample, 0.5f)).r;
+
+//    if(tf != 0) {
+//        if(pixel_coords.xy == debug_pixel) {
+//            debugPrintfEXT("Returned tf: %f and raw: %f", tf, rawsample);
+//        }
+//    }
 
     return tf;
 }
