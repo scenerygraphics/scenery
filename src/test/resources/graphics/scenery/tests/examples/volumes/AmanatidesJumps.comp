@@ -4,7 +4,7 @@
 #define SEPARATE_DEPTH 1
 #define INT_DEPTHS 0
 #define PROFILE_MEM 0
-#define SKIP_EMPTY 0
+#define SKIP_EMPTY 1
 #define USE_VIEW_SPACE_CELLS 1
 
 #if USE_PRINTF
@@ -37,6 +37,7 @@ layout(set = 5, binding = 0) uniform ShaderProperties {
     mat4 invModel;
     vec3 volumeDims;
     float nw;
+    float downImage;
     bool do_subsample;
     int max_samples;
     float sampling_factor;
@@ -1620,6 +1621,9 @@ void main() {
     windowWidth = imageCoords.x;
     windowHeight = imageCoords.y;
 
+    windowWidth = int(downImage * windowWidth);
+    windowHeight = int(downImage * windowHeight);
+
     ivec3 vdiCoords = imageSize(InputVDI);
     maxSupersegments = vdiCoords.x;
 
@@ -1656,6 +1660,11 @@ void main() {
     ivp_orig = invViewOriginal * invProjectionOriginal;
 
     vec2 texcoord = gl_GlobalInvocationID.xy/vec2(windowWidth, windowHeight); //TODO: here the ww and wh need to remain as they are
+
+    if((texcoord.x > 1) || (texcoord.y > 1)) {
+        return;
+    }
+
     vec2 uv = texcoord * 2.0 - vec2(1.0);
     vec2 depthUV = (vrParameters.stereoEnabled ^ 1) * texcoord + vrParameters.stereoEnabled * vec2((texcoord.x/2.0 + currentEye.eye * 0.5), texcoord.y);
     depthUV = depthUV * 2.0 - vec2(1.0);
