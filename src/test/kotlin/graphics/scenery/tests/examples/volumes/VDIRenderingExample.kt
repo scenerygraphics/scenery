@@ -92,7 +92,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
     val viewNumber = 1
     val dynamicSubsampling = true
     var subsampling_benchmarks = false
-    var desiredFrameRate = 100
+    var desiredFrameRate = 60
     var maxFrameRate = 30
 
     val commSize = 4
@@ -452,8 +452,11 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
         val loopCycle = 1
         var totalLoss = 0f
 
-        var downImage = 1.0f
+        var subsamplingFactor = 1.0f
         var prevFactor = 1.0f
+
+        val d_iChange = 0.5f
+        val d_rStart = 0.3f
 
         var frameCount = 0
 
@@ -483,18 +486,30 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
 
                 logger.info("Frame time: $frameTime, avg frame time: $avgFrameTime and target: $targetFrameTime and tolerance: $toleranceTime")
 
-                if(downImage < 1.0f) {
+                if(subsamplingFactor < 1.0f) {
                     totalLoss += error
                 }
 
                 val output = kP * error + kI * avgError
 
-                downImage -= output
+                subsamplingFactor -= output
 
-                downImage = max(0.001f, downImage)
-                downImage = min(1.0f, downImage)
+                subsamplingFactor = max(0.001f, subsamplingFactor)
+                subsamplingFactor = min(1.0f, subsamplingFactor)
 
-                logger.info("error was: $error, avg error: $avgError and therefore setting factor to: $downImage")
+                val downImage = max(d_iChange, subsamplingFactor)
+
+                logger.info("error was: $error, avg error: $avgError and therefore setting factor to: $subsamplingFactor")
+
+                if(subsamplingFactor < d_iChange) {
+                    val fUnit = abs(subsamplingFactor - 0.001f) / (d_iChange - 0.001f)
+                    val downRay = fUnit * (d_rStart - 0.01f) + 0.01f
+
+                    doDownsampling(true)
+                    setDownsamplingFactor(downRay)
+                } else {
+                    doDownsampling(false)
+                }
 
                 if(abs(downImage - prevFactor) > 0.1) {
                     logger.warn("changing the factor")
