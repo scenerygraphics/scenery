@@ -29,6 +29,7 @@ import java.lang.Float.max
 import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.concurrent.thread
+import kotlin.math.abs
 import kotlin.math.min
 
 /**
@@ -68,6 +69,9 @@ class CustomNode : RichNode() {
     var sampling_factor = 0.1f
 
     @ShaderProperty
+    var downImage = 0.5f
+
+    @ShaderProperty
     var stratified_downsampling = false
 }
 
@@ -88,7 +92,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
     val viewNumber = 1
     val dynamicSubsampling = true
     var subsampling_benchmarks = false
-    var desiredFrameRate = 40
+    var desiredFrameRate = 60
     var maxFrameRate = 30
 
     val commSize = 4
@@ -371,37 +375,42 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
         }
     }
 
-    fun downsampleImage(factor: Float) {
+    fun downsampleImage(factor: Float, wholeFrameBuffer: Boolean = false) {
 
-        settings.set("Renderer.SupersamplingFactor", factor)
-        settings.set("Renderer.SupersamplingFactor", factor)
+        if(wholeFrameBuffer) {
+            settings.set("Renderer.SupersamplingFactor", factor)
+            settings.set("Renderer.SupersamplingFactor", factor)
 
-        (compute.metadata["ComputeMetadata"] as ComputeMetadata).active = false
+            (compute.metadata["ComputeMetadata"] as ComputeMetadata).active = false
 
-        (renderer as VulkanRenderer).swapchainRecreator.mustRecreate = true
+            (renderer as VulkanRenderer).swapchainRecreator.mustRecreate = true
 
 //        Thread.sleep(5000)
 
-        val effectiveWindowWidth: Int = (windowWidth * factor).toInt()
-        val effectiveWindowHeight: Int = (windowHeight * factor).toInt()
+            val effectiveWindowWidth: Int = (windowWidth * factor).toInt()
+            val effectiveWindowHeight: Int = (windowHeight * factor).toInt()
 
-        logger.info("effective window width has been set to: $effectiveWindowWidth and height to: $effectiveWindowHeight")
+            logger.info("effective window width has been set to: $effectiveWindowWidth and height to: $effectiveWindowHeight")
 
-        val opBuffer = MemoryUtil.memCalloc(effectiveWindowWidth * effectiveWindowHeight * 4)
+            val opBuffer = MemoryUtil.memCalloc(effectiveWindowWidth * effectiveWindowHeight * 4)
 
-        compute.material().textures["OutputViewport"] = Texture.fromImage(
+            compute.material().textures["OutputViewport"] = Texture.fromImage(
                 Image(opBuffer, effectiveWindowWidth, effectiveWindowHeight),
                 usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture)
             )
 
-        compute.metadata["ComputeMetadata"] = ComputeMetadata(
-            workSizes = Vector3i(effectiveWindowWidth, effectiveWindowHeight, 1),
-            invocationType = InvocationType.Permanent
-        )
+            compute.metadata["ComputeMetadata"] = ComputeMetadata(
+                workSizes = Vector3i(effectiveWindowWidth, effectiveWindowHeight, 1),
+                invocationType = InvocationType.Permanent
+            )
 
-        (compute.metadata["ComputeMetadata"] as ComputeMetadata).active = true
+            (compute.metadata["ComputeMetadata"] as ComputeMetadata).active = true
 
-        plane.material().textures["diffuse"] = compute.material().textures["OutputViewport"]!!
+            plane.material().textures["diffuse"] = compute.material().textures["OutputViewport"]!!
+        } else {
+            compute.downImage = factor
+            plane.downImage = factor
+        }
     }
 
     fun setStratifiedDownsampling(stratified: Boolean) {
@@ -425,22 +434,29 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
 
         val targetFrameTime = 1.0f / desiredFrameRate
 
+        val toleranceFPS = 10f
+        val minFPS = desiredFrameRate - toleranceFPS
+        val toleranceTime = abs(targetFrameTime - (1.0f / minFPS))
+
         var frameStart = System.nanoTime()
         var frameEnd: Long
 
         var frameTime: Float
+        var avgFrameTime = 0f
+        var avgLength = 100
 
-        val kP = 50
-        val kI = 1
+        val kP = 0.7f
+        val kI = 1.5f
         val kD = 1
 
         val loopCycle = 1
-        var totalLoss = 0
+        var totalLoss = 0f
 
-        var factor = 0.25f
+        var subsamplingFactor = 1.0f
+        var prevFactor = 1.0f
 
-        doDownsampling(true)
-        setDownsamplingFactor(factor)
+        val d_iChange = 0.5f
+        val d_rStart = 0.3f
 
         var frameCount = 0
 
@@ -450,17 +466,56 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
             if(frameCount > 100) {
                 frameEnd = System.nanoTime()
                 frameTime = (frameEnd - frameStart)/1e9f
-                val error = frameTime - targetFrameTime
+                val error = if((frameTime >= (targetFrameTime - toleranceTime)) && (frameTime <= (targetFrameTime + toleranceTime))) {
+                    0f
+                } else {
+                    frameTime - targetFrameTime
+                }
 
-                val output = kP * error
+                avgFrameTime = if(avgFrameTime == 0f) {
+                    frameTime
+                } else {
+                    avgFrameTime - avgFrameTime/avgLength + frameTime/avgLength
+                }
 
-                factor -= output
+                val avgError = if((avgFrameTime >= (targetFrameTime - toleranceTime)) && (avgFrameTime <= (targetFrameTime + toleranceTime))) {
+                    0f
+                } else {
+                    avgFrameTime - targetFrameTime
+                }
 
-                factor = max(0.005f, factor)
+                logger.info("Frame time: $frameTime, avg frame time: $avgFrameTime and target: $targetFrameTime and tolerance: $toleranceTime")
 
-                logger.info("error was: $error and therefore setting factor to: $factor")
+                if(subsamplingFactor < 1.0f) {
+                    totalLoss += error
+                }
 
-                setDownsamplingFactor(factor)
+                val output = kP * error + kI * avgError
+
+                subsamplingFactor -= output
+
+                subsamplingFactor = max(0.001f, subsamplingFactor)
+                subsamplingFactor = min(1.0f, subsamplingFactor)
+
+                val downImage = max(d_iChange, subsamplingFactor)
+
+                logger.info("error was: $error, avg error: $avgError and therefore setting factor to: $subsamplingFactor")
+
+                if(subsamplingFactor < d_iChange) {
+                    val fUnit = abs(subsamplingFactor - 0.001f) / (d_iChange - 0.001f)
+                    val downRay = fUnit * (d_rStart - 0.01f) + 0.01f
+
+                    doDownsampling(true)
+                    setDownsamplingFactor(downRay)
+                } else {
+                    doDownsampling(false)
+                }
+
+                if(abs(downImage - prevFactor) > 0.1) {
+                    logger.warn("changing the factor")
+                    downsampleImage(downImage)
+                    prevFactor = downImage
+                }
             }
             frameStart = System.nanoTime()
         }
