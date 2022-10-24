@@ -54,7 +54,7 @@ class VDIBenchmarkRunner {
     }
 
     fun vdiRenderingBenchmarks(dataset: String, viewpoint: Int, instance: VDIRenderingExample, renderer: Renderer) {
-        val fw = FileWriter("benchmarking/${dataset}_${viewpoint}_vdiRendering.csv", true)
+        val fw = FileWriter("benchmarking/${dataset}_vdiRendering.csv", true)
         val bw = BufferedWriter(fw)
 
         val stats = instance.hub.get<Statistics>()!!
@@ -80,7 +80,7 @@ class VDIBenchmarkRunner {
         val start = 0.02f
         val until = 0.4f
         val step = 0.04f
-        val totalSteps = ((until - start)/step).toInt()
+        val totalSteps = ((until - start)/step).toInt() + 1
 
         var stepCount = 1
 
@@ -125,11 +125,11 @@ class VDIBenchmarkRunner {
             bw.append("$fps")
 
             factor += step
-            stepCount++
 
             if(stepCount != totalSteps) {
                 bw.append(", ")
             }
+            stepCount++
         }
         bw.newLine()
         bw.flush()
@@ -163,12 +163,15 @@ class VDIBenchmarkRunner {
                     Thread.sleep(50)
                 }
 
-                val previousViewpoint = 0
+                var previousViewpoint = 0
                 benchmarkViewpoints.forEach { viewpoint->
                     val rotation = viewpoint - previousViewpoint
-                    instance.rotateCamera(rotation.toFloat())
+                    previousViewpoint = viewpoint
 
-                    vdiRenderingBenchmarks(dataset, viewpoint, instance, renderer)
+                    val pitch = (dataName == "Simulation")
+                    instance.rotateCamera(rotation.toFloat(), pitch)
+
+                    downsamplingBenchmarks(dataset, viewpoint, instance, renderer)
                 }
 
 
