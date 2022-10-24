@@ -41,7 +41,7 @@ class SwingUiNode(private val swingBridgeFrame : SwingBridgeFrame) : Plane(
     fun updateUITexture() {
         swingBridgeFrame.finalImage?.let {
             this.material {
-                textures["diffuse"] = Texture.fromImage((it), Texture.RepeatMode.Repeat.all(), Texture.BorderColor.OpaqueBlack, true, true,
+                textures["diffuse"] = Texture.fromImage((it), Texture.RepeatMode.Repeat.all(), Texture.BorderColor.OpaqueWhite, true, true,
                     Texture.FilteringMode.NearestNeighbour, Texture.FilteringMode.NearestNeighbour, hashSetOf(Texture.UsageType.Texture))
             }
         }

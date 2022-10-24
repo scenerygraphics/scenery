@@ -6,7 +6,9 @@ import graphics.scenery.utils.LazyLogger
 import java.awt.Component
 import java.awt.event.*
 import java.awt.image.BufferedImage
+import java.io.File
 import java.nio.ByteBuffer
+import javax.imageio.ImageIO
 import javax.swing.JFrame
 import javax.swing.JPanel
 import javax.swing.SwingUtilities
@@ -17,27 +19,28 @@ import javax.swing.SwingUtilities
  *
  * Bridge to link the Swing window events with scenery key inputs in combination with SwingUiNode
  */
-open class SwingBridgeFrame(title: String) : JPanel() {
+open class SwingBridgeFrame(title: String) : JFrame(title) {
 
-    private val logger by LazyLogger()
     val uiNode = SwingUiNode(this)
-    private var snapshotBuffer : ByteBuffer? = null
-    var finalImage : Image? = null
+
     private var dragged = false
     private var lastUpdate = 0L
+    private var snapshotBuffer : ByteBuffer? = null
+    var finalImage : Image? = null
 
     /**
      * Init function is used to add a KeyListener to trigger snapshot recreation of the SwingFrame in order to update the texture presented on the UI-Plane
      * inside the scene
      */
     init {
+
         //only keyPressed triggers an imageUpdate -> Image updates are slow, and dragging happens per tick -> the image update routine starts to lag when
         //the mouse is dragged over the UI
         //the last update check happens to impede tick wise texture updates. Ones per frame is enough
         this.addKeyListener(object : KeyListener {
 
             override fun keyPressed(e : KeyEvent?) {
-                if(System.currentTimeMillis() - 16 >= lastUpdate)
+                if(System.currentTimeMillis() - 16.667 >= lastUpdate)
                 {
                     updateImage()
                     lastUpdate = System.currentTimeMillis()
@@ -55,7 +58,7 @@ open class SwingBridgeFrame(title: String) : JPanel() {
      */
     private fun updateImage()
     {
-        val bimage = this.getScreen()
+        val bimage = getScreen()
         val flipped = Image.createFlipped(bimage)
         snapshotBuffer = Image.bufferedImageToRGBABuffer(flipped)
         finalImage = Image(snapshotBuffer!!, bimage.width, bimage.height)
@@ -70,10 +73,8 @@ open class SwingBridgeFrame(title: String) : JPanel() {
      */
     fun ctrlClick(x:Int, y: Int) {
         SwingUtilities.invokeLater {
-            val target = SwingUtilities.getDeepestComponentAt(this.rootPane, x, y)
-            val compPoint = SwingUtilities.convertPoint(
-                this.rootPane, x, y, target
-            )
+            val target = SwingUtilities.getDeepestComponentAt(this.contentPane, x, y)
+            val compPoint = SwingUtilities.convertPoint(this.contentPane, x, y, target)
             // ctrl clicked
             target.dispatchEvent (
                 MouseEvent(
@@ -96,10 +97,8 @@ open class SwingBridgeFrame(title: String) : JPanel() {
         lastUpdate = System.currentTimeMillis()
 
         SwingUtilities.invokeLater {
-            val target = SwingUtilities.getDeepestComponentAt(this.rootPane, x, y)
-            val compPoint = SwingUtilities.convertPoint(
-                this.rootPane, x, y, target
-            )
+            val target = SwingUtilities.getDeepestComponentAt(this.contentPane, x, y)
+            val compPoint = SwingUtilities.convertPoint(this.contentPane, x, y, target)
             // entered
             target.dispatchEvent(
                 MouseEvent(
@@ -126,10 +125,8 @@ open class SwingBridgeFrame(title: String) : JPanel() {
         dragged = true
 
         SwingUtilities.invokeLater {
-            val target = SwingUtilities.getDeepestComponentAt(this.rootPane, x, y)
-            val compPoint = SwingUtilities.convertPoint(
-                this.rootPane, x, y, target
-            )
+            val target = SwingUtilities.getDeepestComponentAt(this.contentPane, x, y)
+            val compPoint = SwingUtilities.convertPoint(this.contentPane, x, y, target)
 
             // dragged
             target.dispatchEvent(
@@ -149,10 +146,8 @@ open class SwingBridgeFrame(title: String) : JPanel() {
     fun released(x:Int, y:Int) {
         lastUpdate = 0
         SwingUtilities.invokeLater {
-            val target = SwingUtilities.getDeepestComponentAt(this.rootPane, x, y)
-            val compPoint = SwingUtilities.convertPoint(
-                this.rootPane, x, y, target
-            )
+            val target = SwingUtilities.getDeepestComponentAt(this.contentPane, x, y)
+            val compPoint = SwingUtilities.convertPoint(this.contentPane, x, y, target)
 
             //released
             target.dispatchEvent(
@@ -182,16 +177,12 @@ open class SwingBridgeFrame(title: String) : JPanel() {
         }
     }
 
-    private fun getScreen(): BufferedImage {
-        return getScreenShot(this.rootPane)
+    private fun getScreen() : BufferedImage {
+        return getScreenShot(this.contentPane)
     }
 
-    private fun getScreenShot(
-        component: Component
-    ): BufferedImage {
-        val image = BufferedImage(
-            component.width, component.height, BufferedImage.TYPE_INT_RGB
-        )
+    private fun getScreenShot(component: Component) : BufferedImage {
+        val image = BufferedImage(component.width, component.height, BufferedImage.TYPE_INT_RGB)
         // call the Component's paint method, using
         // the Graphics object of the image.
         component.paint(image.graphics) // alternately use .printAll(..)

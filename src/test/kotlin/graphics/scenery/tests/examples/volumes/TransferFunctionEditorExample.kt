@@ -97,7 +97,7 @@ class TransferFunctionEditorExample : SceneryBase("TransferFunctionEditor Exampl
 
                     ray.matches.firstOrNull()?.let { hit ->
                         val node = hit.node as? SwingUiNode ?: return
-                        val hitPos = ray.initialPosition + ray.initialDirection.normalize(hit.distance)
+                        val hitPos = ray.initialPosition + ray.initialDirection * hit.distance
                         node.ctrlClick(hitPos)
                     }
                 }
@@ -110,7 +110,7 @@ class TransferFunctionEditorExample : SceneryBase("TransferFunctionEditor Exampl
 
                     ray.matches.firstOrNull()?.let { hit ->
                         val node = hit.node as? SwingUiNode ?: return
-                        val hitPos = ray.initialPosition + ray.initialDirection.normalize(hit.distance)
+                        val hitPos = ray.initialPosition + ray.initialDirection * hit.distance
                         node.pressed(hitPos)
                     }
                 }
@@ -119,7 +119,7 @@ class TransferFunctionEditorExample : SceneryBase("TransferFunctionEditor Exampl
 
                     ray.matches.firstOrNull()?.let { hit ->
                         val node = hit.node as? SwingUiNode ?: return
-                        val hitPos = ray.initialPosition + ray.initialDirection.normalize(hit.distance)
+                        val hitPos = ray.initialPosition + ray.initialDirection * hit.distance
                         node.drag(hitPos)
                     }
                 }
@@ -128,14 +128,14 @@ class TransferFunctionEditorExample : SceneryBase("TransferFunctionEditor Exampl
 
                     ray.matches.firstOrNull()?.let { hit ->
                         val node = hit.node as? SwingUiNode ?: return
-                        val hitPos = ray.initialPosition + ray.initialDirection.normalize(hit.distance)
+                        val hitPos = ray.initialPosition + ray.initialDirection * hit.distance
                         node.released(hitPos)
                     }
                 }
             }
         )
-        inputHandler?.addKeyBinding("ctrlClickObject", "2")
         inputHandler?.addKeyBinding("dragObject", "1")
+        inputHandler?.addKeyBinding("ctrlClickObject", "2")
     }
 
     /**
