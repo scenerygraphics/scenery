@@ -20,6 +20,15 @@ class VDINode : RichNode() {
     var invViewOriginal = Matrix4f()
 
     @ShaderProperty
+    var ViewOriginal2 = Matrix4f()
+
+    @ShaderProperty
+    var invViewOriginal2 = Matrix4f()
+
+    @ShaderProperty
+    var useSecondBuffer = false
+
+    @ShaderProperty
     var invModel = Matrix4f()
 
     @ShaderProperty

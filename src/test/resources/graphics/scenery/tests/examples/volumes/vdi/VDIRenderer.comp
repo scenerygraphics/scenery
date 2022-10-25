@@ -6,6 +6,7 @@
 #define PROFILE_MEM 0
 #define SKIP_EMPTY 0
 #define USE_VIEW_SPACE_CELLS 1
+#define DOUBLE_BUFFER 1
 
 #if USE_PRINTF
 #extension GL_EXT_debug_printf : enable
@@ -33,7 +34,10 @@ layout(set = 5, binding = 0) uniform ShaderProperties {
     mat4 ProjectionOriginal;
     mat4 invProjectionOriginal;
     mat4 ViewOriginal;
+    mat4 ViewOriginal2;
     mat4 invViewOriginal;
+    mat4 invViewOriginal2;
+    bool useSecondBuffer;
     mat4 invModel;
     vec3 volumeDims;
     float nw;
@@ -58,16 +62,21 @@ layout (set = 4, binding = 0, r32f) uniform readonly image3D DepthVDI;
 #endif
 #endif
 
+#if DOUBLE_BUFFER
+layout(set = 6, binding = 0, rgba32f) uniform readonly image3D InputVDI2;
+layout (set = 7, binding = 0, rg16ui) uniform readonly uimage3D DepthVDI2;
+#endif
+
 
 #if SKIP_EMPTY
-layout (set = 7, binding = 0, r32f) uniform readonly image2D NoiseTexture;
-layout (set = 6, binding = 0, r32ui) uniform readonly uimage3D OctreeCells;
+layout (set = 8, binding = 0, r32f) uniform readonly image2D NoiseTexture;
+layout (set = 9, binding = 0, r32ui) uniform readonly uimage3D OctreeCells;
 #endif
 
 #if PROFILE_MEM
-layout(set = 6, binding = 0, r32f) uniform image2D NumIntersectedSupsegs;
-layout(set = 7, binding = 0, r32f) uniform image2D NumLists;
 layout(set = 8, binding = 0, r32f) uniform image2D NumSteps;
+layout(set = 9, binding = 0, r32f) uniform image2D NumIntersectedSupsegs;
+layout(set = 10, binding = 0, r32f) uniform image2D NumLists;
 //layout(set = 8, binding = 0, r32f) uniform image2D NumEmptyLists;
 //layout(set = 9, binding = 0, r32f) uniform image2D NumNotIntLists;
 //layout(set = 10, binding = 0, r32f) uniform image2D EmptyBeforeFirst;
@@ -444,7 +453,16 @@ float getSupsegFront(ivec2 theList, int index) {
     //        #endif
     return step;
     #else
-    vec4 front = imageLoad(DepthVDI, ivec3(index*2, theList.y, theList.x));
+    vec4 front;
+    #if DOUBLE_BUFFER
+    if(useSecondBuffer) {
+        front = imageLoad(DepthVDI2, ivec3(index*2, theList.y, theList.x));
+    } else {
+        front = imageLoad(DepthVDI, ivec3(index*2, theList.y, theList.x));
+    }
+    #else
+    front = imageLoad(DepthVDI, ivec3(index*2, theList.y, theList.x));
+    #endif
     totalMemoryLoads++;
     //        #if USE_PRINTF
     //        if(gl_GlobalInvocationID.xy == debug_pixel) {
@@ -498,7 +516,16 @@ float getSupsegBack(ivec2 theList, int index) {
     //        #endif
     return step;
     #else
-    vec4 back = imageLoad(DepthVDI, ivec3(index*2 + 1, theList.y, theList.x));
+    vec4 back;
+    #if DOUBLE_BUFFER
+    if(useSecondBuffer) {
+        back = imageLoad(DepthVDI2, ivec3(index*2 + 1, theList.y, theList.x));
+    } else {
+        back = imageLoad(DepthVDI, ivec3(index*2 + 1, theList.y, theList.x));
+    }
+    #else
+        back = imageLoad(DepthVDI, ivec3(index*2 + 1, theList.y, theList.x));
+    #endif
     totalMemoryLoads++;
     //        #if USE_PRINTF
     //        if(gl_GlobalInvocationID.xy == debug_pixel) {
@@ -1045,7 +1072,17 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
         first_empty = true;
     }
         #else
-    vec4 check = imageLoad(DepthVDI, ivec3(1, theList.y, theList.x));
+    vec4 check;
+    #if DOUBLE_BUFFER
+    if(useSecondBuffer) {
+        check = imageLoad(DepthVDI2, ivec3(1, theList.y, theList.x));
+    } else {
+        check = imageLoad(DepthVDI, ivec3(1, theList.y, theList.x));
+    }
+    #else
+    check = imageLoad(DepthVDI, ivec3(1, theList.y, theList.x));
+    #endif
+
     totalMemoryLoads++;
     float firstBack = check.x;
     if(firstBack == 0) {
@@ -1253,7 +1290,16 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
             w_end_point *= 1./w_end_point.w;
 
             #if SEPARATE_DEPTH
-            vec4 supseg_col = imageLoad(InputVDI, ivec3(index, theList.y, theList.x));
+            vec4 supseg_col;
+            #if DOUBLE_BUFFER
+            if(useSecondBuffer) {
+                supseg_col = imageLoad(InputVDI2, ivec3(index, theList.y, theList.x));
+            } else {
+                supseg_col = imageLoad(InputVDI, ivec3(index, theList.y, theList.x));
+            }
+            #else
+            supseg_col = imageLoad(InputVDI, ivec3(index, theList.y, theList.x));
+            #endif
             totalMemoryLoads++;
             #else
             vec4 supseg_col = imageLoad(InputVDI, ivec3(index*3, theList.y, theList.x));
@@ -1381,7 +1427,16 @@ void traverse_subsample(vec4 world_entry, vec4 world_end, float total_distance, 
 
 
             #if SEPARATE_DEPTH
-            vec4 supseg_col = imageLoad(InputVDI, ivec3(index, list_coords.y, list_coords.x));
+            vec4 supseg_col;
+            #if DOUBLE_BUFFER
+            if(useSecondBuffer) {
+                supseg_col = imageLoad(InputVDI2, ivec3(index, list_coords.y, list_coords.x));
+            } else {
+                supseg_col = imageLoad(InputVDI, ivec3(index, list_coords.y, list_coords.x));
+            }
+            #else
+            supseg_col = imageLoad(InputVDI, ivec3(index, list_coords.y, list_coords.x));
+            #endif
             totalMemoryLoads++;
             #else
             vec4 supseg_col = imageLoad(InputVDI, ivec3(index*3, list_coords.y, list_coords.x));
@@ -1620,7 +1675,19 @@ int imgHeight = imageCoords.y;
 windowWidth = imageCoords.x;
 windowHeight = imageCoords.y;
 
-ivec3 vdiCoords = imageSize(InputVDI);
+ivec3 vdiCoords;
+
+#if DOUBLE_BUFFER
+if(useSecondBuffer) {
+    vdiCoords = imageSize(InputVDI2);
+} else {
+    vdiCoords = imageSize(InputVDI);
+}
+#else
+vdiCoords = imageSize(InputVDI);
+#endif
+
+
 maxSupersegments = vdiCoords.x;
 
 vdiWidth = vdiCoords.z;
@@ -1651,9 +1718,31 @@ highp mat4 ipv = inverseView * inverseProjection;
 //    }
 //    #endif
 
-pv_orig = ProjectionOriginal * ViewOriginal;
+mat4 matViewOrig;
+#if DOUBLE_BUFFER
+if(useSecondBuffer) {
+    matViewOrig = ViewOriginal2;
+} else {
+    matViewOrig = ViewOriginal;
+}
+#else
+matViewOrig = ViewOriginal;
+#endif
 
-ivp_orig = invViewOriginal * invProjectionOriginal;
+mat4 matInvViewOrig;
+#if DOUBLE_BUFFER
+if(useSecondBuffer) {
+    matInvViewOrig = invViewOriginal2;
+} else {
+    matInvViewOrig = invViewOriginal;
+}
+#else
+matInvViewOrig = invViewOriginal;
+#endif
+
+pv_orig = ProjectionOriginal * matViewOrig;
+
+ivp_orig = matInvViewOrig * invProjectionOriginal;
 
 vec2 texcoord = gl_GlobalInvocationID.xy/vec2(windowWidth, windowHeight); //TODO: here the ww and wh need to remain as they are
 vec2 uv = texcoord * 2.0 - vec2(1.0);
@@ -1747,7 +1836,7 @@ if(tnear > tfar) {
     vec4 w_end = ivp_orig * n_end;
     w_end = w_end / w_end.w;
 
-    vec4 view_orig = ViewOriginal * newRay.wfront;
+    vec4 view_orig = matViewOrig * newRay.wfront;
 
     view_orig = view_orig / view_orig.w;
 

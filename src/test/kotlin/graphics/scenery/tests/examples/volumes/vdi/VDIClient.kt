@@ -179,10 +179,26 @@ class VDIClient : SceneryBase("VDI Rendering", 1280, 720, wantREPL = false) {
         val compressedDepth: ByteBuffer =
             MemoryUtil.memAlloc(compressor.returnCompressBound(depthSize.toLong(), compressionTool))
 
+        var firstVDI = true
+
+        val emptyColor = MemoryUtil.memCalloc(4 * 4)
+        val emptyColorTexture = Texture(Vector3i(1, 1, 1), 4, contents = emptyColor, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
+            type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+
+        val emptyDepth = MemoryUtil.memCalloc(1 * 4)
+        val emptyDepthTexture = Texture(Vector3i(1, 1, 1), 1, contents = emptyDepth, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
+            type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+
+        compute.material().textures["InputVDI"] = emptyColorTexture
+        compute.material().textures["InputVDI2"] = emptyColorTexture
+        compute.material().textures["DepthVDI"] = emptyDepthTexture
+        compute.material().textures["DepthVDI2"] = emptyDepthTexture
 
         while(true) {
 
             val payload: ByteArray?
+
+            logger.info("Waiting for VDI")
 
             val receiveTime = measureNanoTime {
                 payload = subscriber.recv()
@@ -225,24 +241,52 @@ class VDIClient : SceneryBase("VDI Rendering", 1280, 720, wantREPL = false) {
                     logger.warn("Error decompressing depth message. Decompressed length: $decompressedDepthLength and desired size: $depthSize")
                 }
 
+                compute.ProjectionOriginal = Matrix4f(vdiData.metadata.projection).applyVulkanCoordinateSystem()
+                compute.invProjectionOriginal = Matrix4f(vdiData.metadata.projection).applyVulkanCoordinateSystem().invert()
+                compute.nw = vdiData.metadata.nw
+                compute.invModel = Matrix4f(vdiData.metadata.model).invert()
+                compute.volumeDims = vdiData.metadata.volumeDimensions
+                compute.do_subsample = false
+
                 color.limit(color.remaining() - decompressionBuffer)
-                compute.material().textures["InputVDI"] = Texture(Vector3i(numSupersegments, windowHeight, windowWidth), 4, contents = color.slice(), usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
+                val colorTexture = Texture(Vector3i(numSupersegments, windowHeight, windowWidth), 4, contents = color.slice(), usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture, Texture.UsageType.AsyncLoad),
                     type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
                 color.limit(color.capacity())
 
                 depth.limit(depth.remaining() - decompressionBuffer)
-                compute.material().textures["DepthVDI"] = Texture(Vector3i(2*numSupersegments, windowHeight, windowWidth),  channels = 1, contents = depth.slice(), usageType = hashSetOf(
-                    Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+                val depthTexture = Texture(Vector3i(2*numSupersegments, windowHeight, windowWidth),  channels = 1, contents = depth.slice(), usageType = hashSetOf(
+                    Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture, Texture.UsageType.AsyncLoad), type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
                 depth.limit(depth.capacity())
 
-                compute.ProjectionOriginal = Matrix4f(vdiData.metadata.projection).applyVulkanCoordinateSystem()
-                compute.invProjectionOriginal = Matrix4f(vdiData.metadata.projection).applyVulkanCoordinateSystem().invert()
-                compute.ViewOriginal = vdiData.metadata.view
-                compute.nw = vdiData.metadata.nw
-                compute.invViewOriginal = Matrix4f(vdiData.metadata.view).invert()
-                compute.invModel = Matrix4f(vdiData.metadata.model).invert()
-                compute.volumeDims = vdiData.metadata.volumeDimensions
-                compute.do_subsample = false
+                logger.info("Before assignment, color mutex is: ${colorTexture.gpuMutex.availablePermits()} and depth: ${depthTexture.gpuMutex.availablePermits()}")
+                logger.info("Before assignment, color mutex is: ${colorTexture.mutex.availablePermits()} and depth: ${depthTexture.mutex.availablePermits()}")
+
+                if(firstVDI || compute.useSecondBuffer) { //if this is the first VDI or the second buffer was being used so far
+                    compute.ViewOriginal = vdiData.metadata.view
+                    compute.invViewOriginal = Matrix4f(vdiData.metadata.view).invert()
+
+                    compute.material().textures["InputVDI"] = colorTexture
+                    compute.material().textures["DepthVDI"] = depthTexture
+                } else {
+                    compute.ViewOriginal2 = vdiData.metadata.view
+                    compute.invViewOriginal2 = Matrix4f(vdiData.metadata.view).invert()
+
+                    compute.material().textures["InputVDI2"] = colorTexture
+                    compute.material().textures["DepthVDI2"] = depthTexture
+                }
+
+                logger.info("color mutex is: ${colorTexture.gpuMutex.availablePermits()} and depth: ${depthTexture.gpuMutex.availablePermits()}")
+
+                while(!colorTexture.availableOnGPU() || !depthTexture.availableOnGPU()) {
+                    logger.info("Waiting for texture transfer. color: ${colorTexture.availableOnGPU()} and depth: ${depthTexture.availableOnGPU()}")
+                    Thread.sleep(50)
+                }
+
+//                if(!firstVDI) {
+//                    compute.useSecondBuffer = !compute.useSecondBuffer
+//                }
+
+//                firstVDI = false
 
                 compute.visible = true
 
