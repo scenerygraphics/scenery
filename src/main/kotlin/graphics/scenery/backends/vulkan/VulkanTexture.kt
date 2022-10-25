@@ -55,7 +55,7 @@ open class VulkanTexture(val device: VulkanDevice,
         protected set
 
     private var stagingImage: VulkanImage
-    private var gt: Texture? = null
+    var gt: Texture? = null
 
     /**
      * Wrapper class for holding on to raw Vulkan [image]s backed by [memory].
