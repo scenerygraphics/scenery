@@ -408,6 +408,8 @@ open class VulkanTexture(val device: VulkanDevice,
                                 // necessary to clear updates here, as the command buffer might still access the
                                 // memory address of the texture update.
                                 (gt as? UpdatableTexture)?.clearConsumedUpdates()
+                                gt?.state?.add(Texture.TextureState.Uploaded)
+                                gt?.state?.add(Texture.TextureState.AvailableForUse)
 
 //                                vkFreeCommandBuffers(device, commandPools.Transfer, this)
                             }
@@ -564,6 +566,9 @@ open class VulkanTexture(val device: VulkanDevice,
                 // memory address of the texture update.
                 (gt as? UpdatableTexture)?.clearConsumedUpdates()
             }
+            // necessary to clear updates here, as the command buffer might still access the
+            // memory address of the texture update.
+            (gt as? UpdatableTexture)?.clearConsumedUpdates()
         } else {
             val buffer = VulkanBuffer(device,
                 sourceBuffer.limit().toLong(),
