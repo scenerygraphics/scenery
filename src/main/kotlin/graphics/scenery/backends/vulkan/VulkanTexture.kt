@@ -53,7 +53,7 @@ open class VulkanTexture(val device: VulkanDevice,
         protected set
 
     private var stagingImage: VulkanImage
-    private var gt: Texture? = null
+    var gt: Texture? = null
 
     var renderBarrier: VkImageMemoryBarrier? = null
         protected set

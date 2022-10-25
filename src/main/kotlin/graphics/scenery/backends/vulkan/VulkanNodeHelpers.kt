@@ -279,7 +279,7 @@ object VulkanNodeHelpers {
             val existing = textureCache[texture]
             if (existing == null) {
                 try {
-                    logger.info("Loading texture {} for {}", texture, node.name)
+                    logger.debug("Loading texture {} for {}", texture, node.name)
 
                     val miplevels = if (generateMipmaps && texture.mipmap) {
                         floor(ln(min(texture.dimensions.x() * 1.0, texture.dimensions.y() * 1.0)) / ln(2.0)).toInt()
@@ -289,6 +289,7 @@ object VulkanNodeHelpers {
 
                     val existingTexture = s.textures[type]
                     val t: VulkanTexture = if (existingTexture != null && existingTexture.canBeReused(texture, miplevels, device)) {
+                        existingTexture.gt = texture
                         existingTexture
                     } else {
                         descriptorUpdated = true
