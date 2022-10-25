@@ -11,6 +11,8 @@ import java.io.Serializable
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.concurrent.Semaphore
+import java.util.concurrent.atomic.AtomicInteger
+import kotlin.collections.HashSet
 
 
 /**
@@ -46,7 +48,7 @@ open class Texture @JvmOverloads constructor(
     /** Mutex for GPU upload */
     val gpuMutex: Semaphore = Semaphore(1),
     /** Hash set to indicate the state of the texture */
-    val state: MutableSet<TextureState> = Collections.synchronizedSet(hashSetOf(TextureState.Created))
+    val uploaded: AtomicInteger = AtomicInteger(0)
 
 ) : Serializable, Timestamped {
 
@@ -81,6 +83,10 @@ open class Texture @JvmOverloads constructor(
                 throw IllegalStateException("Buffer for texture does not contain correct number of bytes. Actual: $remaining, expected: $expected for image of size $dimensions and $channels channels of type ${type.javaClass.simpleName}.")
             }
         }
+    }
+
+    fun availableOnGPU(): Boolean {
+        return (uploaded.get() > 0 && (gpuMutex.availablePermits() == 1))
     }
 
     /**
