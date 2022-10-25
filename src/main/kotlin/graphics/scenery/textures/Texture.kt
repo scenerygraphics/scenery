@@ -13,6 +13,7 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.*
 import java.util.concurrent.Semaphore
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.collections.HashSet
 
 
@@ -49,7 +50,7 @@ open class Texture @JvmOverloads constructor(
     /** Mutex for GPU upload */
     val gpuMutex: Semaphore = Semaphore(1),
     /** Hash set to indicate the state of the texture */
-    val state: MutableSet<TextureState> = Collections.synchronizedSet(hashSetOf(TextureState.Created))
+    val uploaded: AtomicInteger = AtomicInteger(0)
 
 ) : Serializable, Timestamped {
 
@@ -87,7 +88,7 @@ open class Texture @JvmOverloads constructor(
     }
 
     fun availableOnGPU(): Boolean {
-        return (state.contains(TextureState.Uploaded) && (gpuMutex.availablePermits() == 1))
+        return (uploaded.get() > 0 && (gpuMutex.availablePermits() == 1))
     }
 
     /**
