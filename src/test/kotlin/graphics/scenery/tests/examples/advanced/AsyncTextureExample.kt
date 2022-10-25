@@ -95,29 +95,21 @@ class AsyncTextureExample: SceneryBase("Async Texture example", 1280, 720) {
                 // Reassigning the texture here, together with its one update
                 p.material().textures["humongous"] = texture
 
-                thread {
-                    val startTime = System.nanoTime()
+                val startTime = System.nanoTime()
 
-                    // Here, we wait until the texture is marked as available on the GPU
-                    while(!texture.availableOnGPU()) {
-                        logger.info("Texture $index not available yet, uploaded=${texture.uploaded.get()}/permits=${texture.gpuMutex.availablePermits()}")
-                        Thread.sleep(10)
-                    }
-
-                    val waitTime = (System.nanoTime() - startTime).nanoseconds
-                    logger.info("Texture $index is available now, waited ${waitTime.inWholeMilliseconds} ms")
-
-                    // After the texture is available, we proceed to the next texture
-                    // in the RingBuffer, and reset the current texture's uploaded
-                    // AtomicInteger to 0
-                    next = true
-                    texture.uploaded.set(0)
+                // Here, we wait until the texture is marked as available on the GPU
+                while(!texture.availableOnGPU()) {
+                    logger.info("Texture $index not available yet, uploaded=${texture.uploaded.get()}/permits=${texture.gpuMutex.availablePermits()}")
+                    Thread.sleep(10)
                 }
 
-                // Block until current texture has become available
-                while(!next) {
-                    Thread.sleep(50)
-                }
+                val waitTime = (System.nanoTime() - startTime).nanoseconds
+                logger.info("Texture $index is available now, waited ${waitTime.inWholeMilliseconds} ms")
+
+                // After the texture is available, we proceed to the next texture
+                // in the RingBuffer, and reset the current texture's uploaded
+                // AtomicInteger to 0
+                texture.uploaded.set(0)
 
                 Thread.sleep(500)
             }
