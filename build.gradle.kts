@@ -111,8 +111,8 @@ dependencies {
     implementation("org.xerial.snappy:snappy-java:1.1.8.4")
     implementation("org.lwjgl:lwjgl-lz4:3.3.1")
     implementation("org.lwjgl:lwjgl-zstd:3.3.1")
-    implementation("org.lwjgl:lwjgl-lz4:3.3.1:natives-linux")
-    implementation("org.lwjgl:lwjgl-zstd:3.3.1:natives-linux")
+    implementation("org.lwjgl:lwjgl-lz4:3.3.1", lwjglNatives)
+    implementation("org.lwjgl:lwjgl-zstd:3.3.1", lwjglNatives)
 
     //TODO revert to official BVV
     api("graphics.scenery:bigvolumeviewer:7f36eda")
