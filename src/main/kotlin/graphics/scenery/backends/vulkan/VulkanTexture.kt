@@ -386,8 +386,6 @@ open class VulkanTexture(val device: VulkanDevice,
         if (mipLevels == 1) {
             val block = !(gt?.usageType?.contains(Texture.UsageType.AsyncLoad) ?: false)
 
-            logger.info("Upload will block: $block running on $transferQueue vs $queue")
-
             // acquire GPU upload mutex
             gt?.gpuMutex?.acquire()
 
@@ -404,6 +402,11 @@ open class VulkanTexture(val device: VulkanDevice,
                                 this@VulkanTexture.device.destroyFence(f)
                                 // release GPU upload mutex
                                 gt?.gpuMutex?.release()
+
+                                // mark as uploaded
+                                gt?.state?.add(Texture.TextureState.Uploaded)
+                                gt?.state?.add(Texture.TextureState.AvailableForUse)
+
 //                                vkFreeCommandBuffers(device, commandPools.Transfer, this)
                             }
 
@@ -546,7 +549,6 @@ open class VulkanTexture(val device: VulkanDevice,
                         block = block,
                         fence = fence
                     )
-                    logger.info("Submitted")
                 }
             }
 
@@ -557,7 +559,6 @@ open class VulkanTexture(val device: VulkanDevice,
             // necessary to clear updates here, as the command buffer might still access the
             // memory address of the texture update.
             (gt as? UpdatableTexture)?.clearConsumedUpdates()
-            logger.info("Copy queueing done")
         } else {
             val buffer = VulkanBuffer(device,
                 sourceBuffer.limit().toLong(),
