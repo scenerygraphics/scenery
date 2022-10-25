@@ -44,9 +44,18 @@ open class Texture @JvmOverloads constructor(
     /** Mutex for texture data usage */
     val mutex: Semaphore = Semaphore(1),
     /** Mutex for GPU upload */
-    val gpuMutex: Semaphore = Semaphore(1)
+    val gpuMutex: Semaphore = Semaphore(1),
+    /** Hash set to indicate the state of the texture */
+    val state: HashSet<TextureState> = hashSetOf(TextureState.Created)
 
 ) : Serializable, Timestamped {
+
+    enum class TextureState {
+        Created,
+        Uploaded,
+        AvailableForUse
+    }
+
     init {
         contents?.let { c ->
             val buffer = c.duplicate().order(ByteOrder.LITTLE_ENDIAN)
