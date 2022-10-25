@@ -10,7 +10,9 @@ import kotlin.concurrent.thread
 class VDIBenchmarkRunner {
 
     val benchmarkDatasets = listOf<String>("Kingsnake", "Beechnut", "Simulation")
-    val benchmarkViewpoints = listOf(15, 30, 40, 45)
+    val benchmarkViewpoints = listOf(5, 10, 15, 20, 25, 30, 35, 40)
+    val benchmarkSupersegments = listOf(20)
+    val benchmarkVos = listOf(0, 90, 180, 270)
 
     fun OutputStream.appendEntry(entry: String) {
         val writer = bufferedWriter()
@@ -53,13 +55,15 @@ class VDIBenchmarkRunner {
         }
     }
 
-    fun vdiRenderingBenchmarks(dataset: String, viewpoint: Int, instance: VDIRenderingExample, renderer: Renderer) {
-        val fw = FileWriter("benchmarking/${dataset}_vdiRendering.csv", true)
+    fun vdiRenderingBenchmarks(dataset: String, viewpoint: Int, instance: VDIRenderingExample, renderer: Renderer, skipEmpty: Boolean = false) {
+        val fw = FileWriter("benchmarking/${dataset}_vdiRendering_$skipEmpty.csv", true)
         val bw = BufferedWriter(fw)
 
         val stats = instance.hub.get<Statistics>()!!
 
-        Thread.sleep(1000) //allow the rotation to take place
+        instance.setEmptySpaceSkipping(skipEmpty)
+
+        Thread.sleep(2000) //allow the rotation and change in empty space skipping to take place
 
         stats.clear("Renderer.fps")
 
@@ -68,7 +72,7 @@ class VDIBenchmarkRunner {
         val fps = stats.get("Renderer.fps")!!.avg()
         val stdDev = stats.get("Renderer.fps")!!.stddev()
 
-        renderer.screenshot("benchmarking/VDI_${dataset}_${viewpoint}.png")
+        renderer.screenshot("benchmarking/VDI_${dataset}_${viewpoint}_$skipEmpty.png")
 
         bw.append("$fps")
         bw.append(", ")
@@ -142,47 +146,54 @@ class VDIBenchmarkRunner {
         val windowWidth = 1920
         val windowHeight = 1080
 
-        benchmarkDatasets.forEach { dataName->
+        benchmarkVos.forEach { vo ->
+            benchmarkSupersegments.forEach { ns ->
+                benchmarkDatasets.forEach { dataName->
 
-            val dataset = "${dataName}_${windowWidth}_$windowHeight"
+                    val dataset = "${dataName}_${windowWidth}_${windowHeight}_${ns}_$vo"
 
-            System.setProperty("VDIBenchmark.Dataset", dataName)
-            System.setProperty("VDIBenchmark.WindowWidth", windowWidth.toString())
-            System.setProperty("VDIBenchmark.WindowHeight", windowHeight.toString())
+                    System.setProperty("VDIBenchmark.Dataset", dataName)
+                    System.setProperty("VDIBenchmark.WindowWidth", windowWidth.toString())
+                    System.setProperty("VDIBenchmark.WindowHeight", windowHeight.toString())
+                    System.setProperty("VDIBenchmark.NumSupersegments", ns.toString())
+                    System.setProperty("VDIBenchmark.Vo", vo.toString())
 
-            val instance = VDIRenderingExample()
+                    val instance = VDIRenderingExample()
 
-            thread {
-                while (instance.hub.get(SceneryElement.Renderer)==null) {
-                    Thread.sleep(50)
+                    thread {
+                        while (instance.hub.get(SceneryElement.Renderer)==null) {
+                            Thread.sleep(50)
+                        }
+
+                        val renderer = (instance.hub.get(SceneryElement.Renderer) as Renderer)
+
+                        while (!renderer.firstImageReady) {
+                            Thread.sleep(50)
+                        }
+
+                        var previousViewpoint = 0
+                        benchmarkViewpoints.forEach { viewpoint->
+                            val rotation = viewpoint - previousViewpoint
+                            previousViewpoint = viewpoint
+
+                            val pitch = (dataName == "Simulation")
+                            instance.rotateCamera(rotation.toFloat(), pitch)
+
+                            vdiRenderingBenchmarks(dataset, viewpoint, instance, renderer, false)
+                            vdiRenderingBenchmarks(dataset, viewpoint, instance, renderer, true)
+                        }
+
+
+                        renderer.shouldClose = true
+
+                        instance.close()
+                    }
+
+                    instance.main()
+
+                    println("Got the control back")
                 }
-
-                val renderer = (instance.hub.get(SceneryElement.Renderer) as Renderer)
-
-                while (!renderer.firstImageReady) {
-                    Thread.sleep(50)
-                }
-
-                var previousViewpoint = 0
-                benchmarkViewpoints.forEach { viewpoint->
-                    val rotation = viewpoint - previousViewpoint
-                    previousViewpoint = viewpoint
-
-                    val pitch = (dataName == "Simulation")
-                    instance.rotateCamera(rotation.toFloat(), pitch)
-
-                    downsamplingBenchmarks(dataset, viewpoint, instance, renderer)
-                }
-
-
-                renderer.shouldClose = true
-
-                instance.close()
             }
-
-            instance.main()
-
-            println("Got the control back")
         }
     }
 
