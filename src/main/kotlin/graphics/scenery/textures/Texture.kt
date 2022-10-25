@@ -11,7 +11,9 @@ import org.joml.Vector3i
 import java.io.Serializable
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.util.*
 import java.util.concurrent.Semaphore
+import kotlin.collections.HashSet
 
 
 /**
@@ -82,6 +84,10 @@ open class Texture @JvmOverloads constructor(
                 throw IllegalStateException("Buffer for texture does not contain correct number of bytes. Actual: $remaining, expected: $expected for image of size $dimensions and $channels channels of type ${type.javaClass.simpleName}.")
             }
         }
+    }
+
+    fun availableOnGPU(): Boolean {
+        return (state.contains(TextureState.Uploaded) && (gpuMutex.availablePermits() == 1))
     }
 
     /**

@@ -68,7 +68,7 @@ class AsyncTextureExample: SceneryBase("Async Texture example", 1280, 720) {
             while(true) {
                 logger.info("Fiddling Permits available: ${texture.mutex.availablePermits()}")
                 logger.info("Upload Permits available: ${texture.gpuMutex.availablePermits()}")
-                logger.info("Available for use: ${texture.state.contains(Texture.TextureState.AvailableForUse)}")
+                logger.info("Available for use: ${texture.availableOnGPU()}")
                 Thread.sleep(50)
             }
         }
