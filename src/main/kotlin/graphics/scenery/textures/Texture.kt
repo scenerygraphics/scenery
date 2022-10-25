@@ -10,6 +10,7 @@ import org.joml.Vector3i
 import java.io.Serializable
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.util.*
 import java.util.concurrent.Semaphore
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.collections.HashSet
@@ -49,8 +50,7 @@ open class Texture @JvmOverloads constructor(
     val gpuMutex: Semaphore = Semaphore(1),
     /** Hash set to indicate the state of the texture */
     val uploaded: AtomicInteger = AtomicInteger(0),
-    val state: HashSet<TextureState> = hashSetOf(TextureState.Created)
-
+    val state: MutableSet<TextureState> = Collections.synchronizedSet(hashSetOf(TextureState.Created))
 ) : Serializable, Timestamped {
 
     enum class TextureState {
