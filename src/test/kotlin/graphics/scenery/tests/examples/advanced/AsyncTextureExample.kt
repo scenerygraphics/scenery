@@ -6,11 +6,14 @@ import graphics.scenery.backends.Renderer
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.primitives.Plane
 import graphics.scenery.textures.Texture
-import graphics.scenery.volumes.TransferFunction
+import graphics.scenery.textures.UpdatableTexture
+import graphics.scenery.utils.RingBuffer
 import graphics.scenery.volumes.Volume
+import net.imglib2.type.numeric.integer.UnsignedByteType
 import org.joml.Vector3i
 import org.lwjgl.system.MemoryUtil
 import kotlin.concurrent.thread
+import kotlin.time.Duration.Companion.nanoseconds
 
 /**
  * Example loading a large texture asynchronously
@@ -32,9 +35,9 @@ class AsyncTextureExample: SceneryBase("Async Texture example", 1280, 720) {
             scene.addChild(this)
         }
 
-        val volume = Volume.fromXML(getDemoFilesPath() + "/volumes/t1-head.xml", hub)
-        volume.transferFunction = TransferFunction.ramp(0.001f, 0.5f, 0.3f)
-        scene.addChild(volume)
+        val b = Box(Vector3f(0.5f))
+        b.material().diffuse = Vector3f(0.5f)
+        scene.addChild(b)
 
         val a = AmbientLight(1.0f)
         scene.addChild(a)
@@ -50,26 +53,73 @@ class AsyncTextureExample: SceneryBase("Async Texture example", 1280, 720) {
         Light.createLightTetrahedron<PointLight>(spread = 4.0f, radius = 15.0f, intensity = 0.5f)
             .forEach { scene.addChild(it) }
 
+
+        // We create textures and backing buffers separately,
+        // as UpdatableTexture are supposed to have contents = null at the moment
+        val textures = RingBuffer(2, cleanup = null, default = {
+            UpdatableTexture(
+                Vector3i(1024, 1024, 256),
+                channels = 1,
+                type = UnsignedByteType(),
+                usageType = hashSetOf(Texture.UsageType.Texture, Texture.UsageType.AsyncLoad, Texture.UsageType.LoadStoreImage),
+                contents = null
+            )
+        })
+
+        val backing = RingBuffer(2, cleanup = null, default = {
+            MemoryUtil.memAlloc(256*1024*1024)
+        })
+
         thread {
             Thread.sleep(5000)
-            logger.info("Allocating")
-            val humongous = MemoryUtil.memAlloc(1024*1024*1024)
-            val texture = Texture(
-                Vector3i(1024, 1024, 1024),
-                channels = 1,
-                contents = humongous,
-                mipmap = false,
-                usageType = hashSetOf(Texture.UsageType.Texture, Texture.UsageType.AsyncLoad)
-            )
-
-            logger.info("Assigning")
-            p.material().textures["HumongousTexture"] = texture
+            var next = false
 
             while(true) {
+                next = false
+                val index = textures.currentReadPosition
+                val texture = textures.get()
+
                 logger.info("Fiddling Permits available: ${texture.mutex.availablePermits()}")
                 logger.info("Upload Permits available: ${texture.gpuMutex.availablePermits()}")
                 logger.info("Available for use: ${texture.state.contains(Texture.TextureState.AvailableForUse)}")
                 Thread.sleep(50)
+
+                // We add a TextureUpdate that covers the whole texture,
+                // using one of the backing RingBuffers.
+                val update = UpdatableTexture.TextureUpdate(
+                    UpdatableTexture.TextureExtents(0, 0, 0, 1024, 1024, 256),
+                    backing.get()
+                )
+                texture.addUpdate(update)
+
+                // Reassigning the texture here, together with its one update
+                p.material().textures["humongous"] = texture
+
+                thread {
+                    val startTime = System.nanoTime()
+
+                    // Here, we wait until the texture is marked as available on the GPU
+                    while(!texture.availableOnGPU()) {
+                        logger.info("Texture $index not available yet, uploaded=${texture.uploaded.get()}/permits=${texture.gpuMutex.availablePermits()}")
+                        Thread.sleep(10)
+                    }
+
+                    val waitTime = (System.nanoTime() - startTime).nanoseconds
+                    logger.info("Texture $index is available now, waited ${waitTime.inWholeMilliseconds} ms")
+
+                    // After the texture is available, we proceed to the next texture
+                    // in the RingBuffer, and reset the current texture's uploaded
+                    // AtomicInteger to 0
+                    next = true
+                    texture.uploaded.set(0)
+                }
+
+                // Block until current texture has become available
+                while(!next) {
+                    Thread.sleep(50)
+                }
+
+                Thread.sleep(500)
             }
         }
     }
