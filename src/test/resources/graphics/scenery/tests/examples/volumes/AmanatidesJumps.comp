@@ -4,7 +4,6 @@
 #define SEPARATE_DEPTH 1
 #define INT_DEPTHS 0
 #define PROFILE_MEM 0
-#define SKIP_EMPTY 1
 #define USE_VIEW_SPACE_CELLS 1
 
 #if USE_PRINTF
@@ -41,6 +40,7 @@ layout(set = 5, binding = 0) uniform ShaderProperties {
     bool do_subsample;
     int max_samples;
     float sampling_factor;
+    bool skip_empty;
     bool stratified_downsampling;
 };
 
@@ -60,15 +60,13 @@ layout(set = 3, binding = 0, rgba8) uniform image2D OutputViewport;
 #endif
 
 
-#if SKIP_EMPTY
 layout (set = 7, binding = 0, r32f) uniform readonly image2D NoiseTexture;
 layout (set = 6, binding = 0, r32ui) uniform readonly uimage3D OctreeCells;
-#endif
 
 #if PROFILE_MEM
-layout(set = 6, binding = 0, r32f) uniform image2D NumIntersectedSupsegs;
-layout(set = 7, binding = 0, r32f) uniform image2D NumLists;
-layout(set = 8, binding = 0, r32f) uniform image2D NumSteps;
+layout(set = 8, binding = 0, r32f) uniform image2D NumIntersectedSupsegs;
+layout(set = 9, binding = 0, r32f) uniform image2D NumLists;
+layout(set = 10, binding = 0, r32f) uniform image2D NumSteps;
 //layout(set = 8, binding = 0, r32f) uniform image2D NumEmptyLists;
 //layout(set = 9, binding = 0, r32f) uniform image2D NumNotIntLists;
 //layout(set = 10, binding = 0, r32f) uniform image2D EmptyBeforeFirst;
@@ -1609,11 +1607,11 @@ void main() {
 
     ivec2 imageCoords  = imageSize(OutputViewport);
 
-    #if SKIP_EMPTY
-    num_cells = imageSize(OctreeCells).xyz;
-    #else
-    num_cells = ivec3(1);
-    #endif
+    if(skip_empty) {
+        num_cells = imageSize(OctreeCells).xyz;
+    } else {
+        num_cells = ivec3(1);
+    }
 
     int imgWidth = imageCoords.x;
     int imgHeight = imageCoords.y;
@@ -1707,13 +1705,11 @@ void main() {
     dist = (tfar-tnear) / 5000.;
     dist = max(dist, 0.00001);
 
-#if SKIP_EMPTY
     if(stratified_downsampling) {
         stratification_factor = imageLoad(NoiseTexture, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y)).x;
     } else {
         stratification_factor = 1.;
     }
-#endif
 
 //    #if USE_PRINTF
 //    if(gl_GlobalInvocationID.xy == debug_pixel) {
@@ -2075,9 +2071,13 @@ void main() {
 
             #endif
 
-            #if SKIP_EMPTY
+            uint grid_val;
 
-            uint grid_val = imageLoad(OctreeCells, grid_cell).r;
+            if(skip_empty) {
+                grid_val = imageLoad(OctreeCells, grid_cell).r;
+            } else {
+                grid_val = 1;
+            }
 
 //            #if USE_PRINTF
 //            if(gl_GlobalInvocationID.xy == debug_pixel) {
@@ -2086,10 +2086,6 @@ void main() {
 //            #endif
 
             if(grid_val > 0 && !do_subsample) {
-//            if(false) {
-            #else
-            if(!do_subsample) {
-            #endif
                 traverse_cell(start_point, start_list, cell_min, cell_max, end_traversal, next_list);
                 cell_traversed = true;
             }
@@ -2195,12 +2191,12 @@ void main() {
                 //we have next_list from the traversal method
             }
 
-            #if SKIP_EMPTY
-            uint supsegs_in_cell = imageLoad(OctreeCells, grid_cell).r;
-            #else
-            uint supsegs_in_cell = 0;
-            #endif
-
+            uint supsegs_in_cell;
+            if(skip_empty) {
+                supsegs_in_cell = imageLoad(OctreeCells, grid_cell).r;
+            } else {
+                supsegs_in_cell = 0;
+            }
 
             if(supsegs_in_cell > 0 && do_subsample) {
                 vec4 cell_start_w = ivp_orig * start_point;

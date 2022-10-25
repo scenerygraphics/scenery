@@ -72,6 +72,9 @@ class CustomNode : RichNode() {
     var downImage = 0.5f
 
     @ShaderProperty
+    var skip_empty = true
+
+    @ShaderProperty
     var stratified_downsampling = false
 }
 
@@ -86,11 +89,12 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
     var dataset = System.getProperty("VDIBenchmark.Dataset")?.toString()?: "Kingsnake"
     var baseDataset = dataset
     val numOctreeLayers = 8.0
-    val numSupersegments = 30
+    val numSupersegments = System.getProperty("VDIBenchmark.NumSupersegments")?.toInt()?: 30
+    val vo = System.getProperty("VDIBenchmark.Vo")?.toInt()?: 0
     var benchmarking = false
     val skipEmpty = true
     val viewNumber = 1
-    val dynamicSubsampling = true
+    val dynamicSubsampling = false
     var subsampling_benchmarks = false
     var desiredFrameRate = 60
     var maxFrameRate = 30
@@ -174,8 +178,8 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
                 position = Vector3f(-2.607E+0f, -5.973E-1f,  2.415E+0f) // V1 for Beechnut
                 rotation = Quaternionf(-9.418E-2, -7.363E-1, -1.048E-1, -6.618E-1)
             } else if (dataset == "Simulation") {
-                position = Vector3f(4.908E+0f, -4.931E-1f, -2.563E+0f) //V1 for Simulation
-                rotation = Quaternionf( 3.887E-2, -9.470E-1, -1.255E-1,  2.931E-1)
+                position = Vector3f(2.041E-1f, -5.253E+0f, -1.321E+0f) //V1 for Simulation
+                rotation = Quaternionf(9.134E-2, -9.009E-1,  3.558E-1, -2.313E-1)
             } else if (dataset == "BonePlug") {
                 position = Vector3f( 1.897E+0f, -5.994E-1f, -1.899E+0f) //V1 for Boneplug
                 rotation = Quaternionf( 5.867E-5,  9.998E-1,  1.919E-2,  4.404E-3)
@@ -210,7 +214,10 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
 //        val basePath = "/home/aryaman/Repositories/DistributedVis/cmake-build-debug/"
         val basePath = "/home/aryaman/Repositories/scenery-insitu/"
 
-        val file = FileInputStream(File(basePath + "${dataset}vdidump4"))
+//        val vdiParams = "_${windowWidth}_${windowHeight}_${numSupersegments}_${vo}_"
+        val vdiParams = ""
+
+        val file = FileInputStream(File(basePath + "${dataset}vdi${vdiParams}dump4"))
 //        val comp = GZIPInputStream(file, 65536)
 
         val vdiData = VDIDataIO.read(file)
@@ -222,8 +229,8 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
         val vdiType = ""
 
         if(separateDepth) {
-            buff = File(basePath + "${dataset}${vdiType}VDI4_ndc_col").readBytes()
-            depthBuff = File(basePath + "${dataset}${vdiType}VDI4_ndc_depth").readBytes()
+            buff = File(basePath + "${dataset}${vdiType}VDI${vdiParams}4_ndc_col").readBytes()
+            depthBuff = File(basePath + "${dataset}${vdiType}VDI${vdiParams}4_ndc_depth").readBytes()
 
         } else {
 
@@ -231,7 +238,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
             depthBuff = null
         }
         if(skipEmpty) {
-            octBuff = File(basePath + "${dataset}VDI4_ndc_octree").readBytes()
+            octBuff = File(basePath + "${dataset}VDI${vdiParams}4_ndc_octree").readBytes()
         } else {
             octBuff = null
         }
@@ -417,6 +424,10 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
         compute.stratified_downsampling = stratified
     }
 
+    fun setEmptySpaceSkipping(skip: Boolean) {
+        compute.skip_empty = skip
+    }
+
     fun setDownsamplingFactor(factor: Float) {
         compute.sampling_factor = factor
     }
@@ -426,6 +437,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
     }
 
     fun doDownsampling(downsample: Boolean) {
+        setEmptySpaceSkipping(true)
         compute.do_subsample = downsample
     }
 
