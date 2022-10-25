@@ -13,6 +13,7 @@ import net.imglib2.type.numeric.integer.UnsignedByteType
 import org.joml.Vector3i
 import org.lwjgl.system.MemoryUtil
 import kotlin.concurrent.thread
+import kotlin.system.measureTimeMillis
 import kotlin.time.Duration.Companion.nanoseconds
 
 /**
@@ -72,10 +73,8 @@ class AsyncTextureExample: SceneryBase("Async Texture example", 1280, 720) {
 
         thread {
             Thread.sleep(5000)
-            var next = false
 
             while(true) {
-                next = false
                 val index = textures.currentReadPosition
                 val texture = textures.get()
 
@@ -95,16 +94,15 @@ class AsyncTextureExample: SceneryBase("Async Texture example", 1280, 720) {
                 // Reassigning the texture here, together with its one update
                 p.material().textures["humongous"] = texture
 
-                val startTime = System.nanoTime()
-
-                // Here, we wait until the texture is marked as available on the GPU
-                while(!texture.availableOnGPU()) {
-                    logger.info("Texture $index not available yet, uploaded=${texture.uploaded.get()}/permits=${texture.gpuMutex.availablePermits()}")
-                    Thread.sleep(10)
+                val waitTime = measureTimeMillis {
+                    // Here, we wait until the texture is marked as available on the GPU
+                    while(!texture.availableOnGPU()) {
+                        logger.info("Texture $index not available yet, uploaded=${texture.uploaded.get()}/permits=${texture.gpuMutex.availablePermits()}")
+                        Thread.sleep(10)
+                    }
                 }
 
-                val waitTime = (System.nanoTime() - startTime).nanoseconds
-                logger.info("Texture $index is available now, waited ${waitTime.inWholeMilliseconds} ms")
+                logger.info("Texture $index is available now, waited $waitTime ms")
 
                 // After the texture is available, we proceed to the next texture
                 // in the RingBuffer, and reset the current texture's uploaded
