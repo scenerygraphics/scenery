@@ -3,8 +3,6 @@ package graphics.scenery.volumes
 import graphics.scenery.ui.RangeSlider
 import graphics.scenery.ui.SwingBridgeFrame
 import net.imglib2.histogram.Histogram1d
-import net.imglib2.histogram.Real1dBinMapper
-import net.imglib2.type.numeric.integer.UnsignedByteType
 import net.miginfocom.swing.MigLayout
 import org.jfree.chart.ChartMouseEvent
 import org.jfree.chart.ChartMouseListener
@@ -70,7 +68,7 @@ class TransferFunctionEditor(width : Int = 1000, height : Int = 1000, private va
     private val minValueLabel: JLabel
     private val maxValueLabel: JLabel
 
-    var volumeName = "VolumeName"
+    var name = "VolumeName"
 
     init {
         mainFrame.size = Dimension(width, height)
@@ -133,7 +131,7 @@ class TransferFunctionEditor(width : Int = 1000, height : Int = 1000, private va
         tfPlot.backgroundImageAlpha = 1.0f
         tfPlot.backgroundImage = createTFImage()
 
-        val tfChart = JFreeChart("TransferFunction for ${volumeName}", tfPlot)
+        val tfChart = JFreeChart("TransferFunction for ${name}", tfPlot)
         tfChart.removeLegend()
 
         mainChart = ChartPanel(tfChart)
@@ -421,10 +419,9 @@ class TransferFunctionEditor(width : Int = 1000, height : Int = 1000, private va
     private fun generateHistogramBins(binCount : Double, volumeHistogramData : SimpleHistogramDataset) {
         volumeHistogramData.removeAllBins()
 
-        val histogram : Histogram1d<*>
-        if((tfContainer as Volume).generateHistogram() != null)
+        val histogram = (tfContainer as? HasHistogram)?.generateHistogram()
+        if(histogram != null)
         {
-            histogram = tfContainer.generateHistogram()!!
             var binEnd = -0.0000001
             val displayRange = abs(tfContainer.maxDisplayRange - tfContainer.minDisplayRange)
             val binSize = displayRange / binCount
