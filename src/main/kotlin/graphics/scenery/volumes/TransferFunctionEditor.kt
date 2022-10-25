@@ -163,6 +163,7 @@ class TransferFunctionEditor(width : Int = 1000, height : Int = 1000, private va
         alphaLabel.minimumSize = Dimension(100, 25)
         alphaLabel.maximumSize = Dimension(100, 25)
 
+        var lastUpdate = 0L
         mainChart.addMouseMotionListener(object : MouseMotionListener {
             override fun mouseDragged(e : MouseEvent) {
                 val chart = e.component as ChartPanel
@@ -190,7 +191,11 @@ class TransferFunctionEditor(width : Int = 1000, height : Int = 1000, private va
                     alphaLabel.text = "Alpha: "+ "%.2f".format(mouseTargetCP.y.toFloat())
 
                     updateControlpoint(mouseTargetCP)
-                    tfPlot.backgroundImage = createTFImage()
+                    if(System.currentTimeMillis() - 16.667 >= lastUpdate)
+                    {
+                        tfPlot.backgroundImage = createTFImage()
+                        lastUpdate = System.currentTimeMillis()
+                    }
                 }
             }
             override fun mouseMoved(e : MouseEvent) {}
