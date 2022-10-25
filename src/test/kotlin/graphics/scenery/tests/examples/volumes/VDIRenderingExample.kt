@@ -78,7 +78,7 @@ class CustomNode : RichNode() {
     var stratified_downsampling = false
 }
 
-class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDIBenchmark.WindowWidth")?.toInt()?: 1280, System.getProperty("VDIBenchmark.WindowHeight")?.toInt() ?: 780, wantREPL = false) {
+class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDIBenchmark.WindowWidth")?.toInt()?: 1280, System.getProperty("VDIBenchmark.WindowHeight")?.toInt() ?: 720, wantREPL = false) {
     var hmd: TrackedStereoGlasses? = null
 
     val separateDepth = true
