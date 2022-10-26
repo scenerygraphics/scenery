@@ -468,7 +468,10 @@ open class VulkanTexture(val device: VulkanDevice,
                         )
 
                         if (tmpBuffer == null || (tmpBuffer?.size ?: 0) < requiredCapacity) {
-                            logger.info("(${this@VulkanTexture}) Reallocating tmp buffer, old size=${tmpBuffer?.size} new size = ${requiredCapacity.toFloat() / 1024.0f / 1024.0f} MiB")
+                            logger.debug("({}) Reallocating tmp buffer, old size={} new size = {} MiB",
+                                         this@VulkanTexture, tmpBuffer?.size,
+                                         requiredCapacity.toFloat() / 1024.0f / 1024.0f)
+
                             tmpBuffer?.close()
                             // reserve a bit more space if the texture is small, to avoid reallocations
                             val reservedSize = if (requiredCapacity < 1024 * 1024 * 8) {
@@ -505,7 +508,6 @@ open class VulkanTexture(val device: VulkanDevice,
                                     buffer.copyFrom(contents, keepMapped = true)
                                     image.copyFrom(this, buffer, genericTexture.getConsumableUpdates())
                                     genericTexture.mutex.release()
-                                    logger.info("Consumed $count updates")
                                 } /*else {
                                 // TODO: Semantics, do we want UpdateableTextures to be only
                                 // updateable via updates, or shall they read from buffer on first init?
