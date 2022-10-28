@@ -450,7 +450,6 @@ open class Volume(
 //            voxelSizes = source.spimSource.voxelDimensions ?: voxelSizes
 //        }
 
-        println("localScale is called")
         return Vector3f(
 //            voxelSizes.dimension(0).toFloat() * pixelToWorldRatio,
 //            voxelSizes.dimension(1).toFloat() * pixelToWorldRatio,
@@ -547,7 +546,7 @@ open class Volume(
 
         @JvmStatic
         @JvmOverloads
-        fun <T : NumericType<T>> fromRAI(
+        fun <T : RealType<T>> fromRAI(
             img: RandomAccessibleInterval<T>,
             type: T,
             axisOrder: AxisOrder = DEFAULT,
@@ -723,13 +722,20 @@ open class Volume(
         /**
          * Reads a volume from the given [file].
          */
-        @JvmStatic fun fromPath(file: Path, hub: Hub): BufferedVolume {
+        @JvmStatic fun fromPath(file: Path, hub: Hub, onlyLoadFirst: Int? = null): BufferedVolume {
             if(file.normalize().toString().endsWith("raw")) {
                 return fromPathRaw(file, hub)
             }
-            val volumeFiles: List<Path>
+            var volumeFiles: List<Path>
             if(Files.isDirectory(file)) {
-                volumeFiles = Files.list(file).filter { it.toString().endsWith(".tif") && Files.isRegularFile(it) && Files.isReadable(it) }.toList()
+                volumeFiles = Files
+                    .list(file)
+                    .filter { it.toString().endsWith(".tif") && Files.isRegularFile(it) && Files.isReadable(it) }
+                    .toList()
+
+                if(onlyLoadFirst != null) {
+                    volumeFiles = volumeFiles.subList(0, onlyLoadFirst)
+                }
 
             } else {
                 volumeFiles = listOf(file)

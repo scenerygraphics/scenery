@@ -70,7 +70,7 @@ class VolumeSamplingExample: SceneryBase("Volume Sampling example", 1280, 720) {
                 VolumeType.File
             }
             else {
-                println("procedural")
+                println("procedural now")
             VolumeType.Procedural
             }
         }
@@ -106,12 +106,12 @@ class VolumeSamplingExample: SceneryBase("Volume Sampling example", 1280, 720) {
         scene.addChild(shell)
 
         val p1 = Icosphere(0.2f, 2)
-        p1.spatial().position = Vector3f(-0.5f, 0.0f, -2.0f)
+        p1.spatial().position = Vector3f(-0.5f, 0.5f, -3.0f)
         p1.material().diffuse = Vector3f(0.3f, 0.3f, 0.8f)
         scene.addChild(p1)
 
         val p2 = Icosphere(0.2f, 2)
-        p2.spatial().position = Vector3f(0.0f, 0.5f, 2.0f)
+        p2.spatial().position = Vector3f(-0.5f, 0.5f, 3.0f)
         p2.material().diffuse = Vector3f(0.3f, 0.8f, 0.3f)
 
         scene.addChild(p2)
@@ -120,13 +120,13 @@ class VolumeSamplingExample: SceneryBase("Volume Sampling example", 1280, 720) {
         connector.material().diffuse = Vector3f(1.0f, 1.0f, 1.0f)
         scene.addChild(connector)
 
-        p1.update.add {
-            connector.spatial().orientBetweenPoints(p1.spatial().position, p2.spatial().position, true, true)
-        }
-
-        p2.update.add {
-            connector.spatial().orientBetweenPoints(p1.spatial().position, p2.spatial().position, true, true)
-        }
+//        p1.update.add {
+//            connector.spatial().orientBetweenPoints(p1.spatial().position, p2.spatial().position, true, true)
+//        }
+//
+//        p2.update.add {
+//            connector.spatial().orientBetweenPoints(p1.spatial().position, p2.spatial().position, true, true)
+//        }
 
         val volume = Volume.fromBuffer(emptyList(), volumeSize, volumeSize, volumeSize, UnsignedShortType(), hub)
         volume.name = "volume"

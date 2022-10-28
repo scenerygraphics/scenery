@@ -131,8 +131,8 @@ class RAIVolume(@Transient val ds: VolumeDataSource, options: VolumeViewerOption
         val d = getDimensions()
         val dimensions = Vector3f(d.x.toFloat(), d.y.toFloat(), d.z.toFloat())
 
-        val start = rayStart/dimensions
-        val end = rayEnd/dimensions
+        val start = rayStart
+        val end = rayEnd
 
         if (start.x() < 0.0f || start.x() > 1.0f || start.y() < 0.0f || start.y() > 1.0f || start.z() < 0.0f || start.z() > 1.0f) {
             logger.debug("Invalid UV coords for ray start: {} -- will clamp values to [0.0, 1.0].", start)
@@ -202,16 +202,16 @@ class RAIVolume(@Transient val ds: VolumeDataSource, options: VolumeViewerOption
             else -> throw java.lang.IllegalStateException("Can't determine density for ${value?.javaClass} data")
         }
 
-
         val transferRangeMax = when(ds)
         {
             is VolumeDataSource.RAISource<*> -> ds.converterSetups.firstOrNull()?.displayRangeMax?.toFloat()?:ds.type.maxValue()
             is VolumeDataSource.SpimDataMinimalSource -> ds.converterSetups.firstOrNull()?.displayRangeMax?.toFloat()?:255.0f
             else -> throw UnsupportedOperationException("Can't handle data source of type ${ds.javaClass}")
-
         }
-        return finalresult/ transferRangeMax!!
-        //return transferFunction.evaluate(finalresult/transferRangeMax)
+        //return finalresult/ transferRangeMax!!
+        val tf = transferFunction.evaluate(finalresult/transferRangeMax)
+        logger.info("Sampled at $uv: $finalresult/$transferRangeMax/$tf")
+        return tf
     }
 
 

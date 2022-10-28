@@ -103,7 +103,7 @@ class VRControllerExample : SceneryBase(
                 }
             }))
             obj.addAttribute(Grabable::class.java, Grabable())
-            obj.addAttribute(Selectable::class.java, Selectable(onSelect = {selectionStorage = obj}))
+//            obj.addAttribute(Selectable::class.java, Selectable(onSelect = {selectionStorage = obj}))
             obj
         }
 
@@ -129,6 +129,8 @@ class VRControllerExample : SceneryBase(
         pivot.addChild(longBox)
          */
 
+
+
         val pen = Box(Vector3f(0.05f, 0.13f, 0.05f))
         pen.spatial {
             position = Vector3f(-0.5f, 1.0f, 0f)
@@ -145,11 +147,11 @@ class VRControllerExample : SceneryBase(
             if (System.currentTimeMillis() - lastPenWriting > 50){
                 val ink = Sphere(0.03f)
                 ink.spatial().position=tip.spatial().worldPosition()
+                ink.addAttribute(Selectable::class.java, Selectable(onSelect = {selectionStorage = ink}))
                 scene.addChild(ink)
                 lastPenWriting = System.currentTimeMillis()
             }
         }))
-
 
         thread {
             while (!running) {
@@ -203,6 +205,7 @@ class VRControllerExample : SceneryBase(
 
         VRGrab.createAndSet(scene, hmd, listOf(OpenVRHMD.OpenVRButton.Side), listOf(TrackerRole.LeftHand,TrackerRole.RightHand))
         VRPress.createAndSet(scene, hmd, listOf(OpenVRHMD.OpenVRButton.Trigger), listOf(TrackerRole.LeftHand,TrackerRole.RightHand))
+
 
         VRSelect.createAndSet(scene,
             hmd,

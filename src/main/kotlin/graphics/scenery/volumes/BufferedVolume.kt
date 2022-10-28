@@ -15,6 +15,7 @@ import org.joml.Vector3i
 import org.lwjgl.system.MemoryUtil
 import tpietzsch.example2.VolumeViewerOptions
 import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.math.floor
 import kotlin.math.max
@@ -171,19 +172,19 @@ class BufferedVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewe
 
         val index = toIndex(absoluteCoordsD)
 
-        val contents = texture.contents
+        val contents = texture.contents.duplicate().order(ByteOrder.LITTLE_ENDIAN)
 
         if(contents.limit() < index*bpp) {
-            logger.debug("Absolute index ${index*bpp} for data type ${ds.type.javaClass.simpleName} from $uv exceeds data buffer limit of ${contents.limit()} (capacity=${contents.capacity()}), coords=$absoluteCoords/${dimensions}")
+            logger.warn("Absolute index ${index*bpp} for data type ${ds.type.javaClass.simpleName} from $uv exceeds data buffer limit of ${contents.limit()} (capacity=${contents.capacity()}), coords=$absoluteCoords/${dimensions}")
             return 0.0f
         }
 
 
         fun density(index:Int): Float {
             if(index*bpp >= contents.limit()) {
+                logger.warn("Sampling beyond limit")
                 return 0.0f
             }
-
             val s = when(ds.type) {
                 is ByteType -> contents.get(index).toFloat()
                 is UnsignedByteType -> contents.get(index).toUByte().toFloat()
@@ -197,7 +198,13 @@ class BufferedVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewe
             }
 
             val transferRangeMax = ds.converterSetups.firstOrNull()?.displayRangeMax?.toFloat() ?: ds.type.maxValue()
-            return transferFunction.evaluate(s/transferRangeMax)
+
+//            println("temp:" + s/transferRangeMax)
+//            return s/transferRangeMax
+
+            val final = transferFunction.evaluate(s/transferRangeMax)
+            logger.info("Sample at $index is $s, final is $final $transferRangeMax")
+            return final
         }
 
         return if(interpolate) {
