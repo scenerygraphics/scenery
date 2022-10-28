@@ -143,7 +143,7 @@ class VRControllerExample : SceneryBase(
         // remote control
         Sphere(0.05f).apply {
             spatial().position = Vector3f(0f, 1.0f, 0.5f)
-            addAttribute(Grabable::class.java, Grabable(target = rcBox.spatial()))
+            addAttribute(Grabable::class.java, Grabable(target = rcBox))
             scene.addChild(this)
 
         }
