@@ -111,7 +111,7 @@ dependencies {
     //TODO revert to official BVV
     api("graphics.scenery:bigvolumeviewer:7698a01")
 
-    implementation("com.github.LWJGLX:lwjgl3-awt:d8ffc63")
+    implementation("com.github.skalarproduktraum:lwjgl3-awt:d7a7369")
     implementation("org.janelia.saalfeldlab:n5")
     implementation("org.janelia.saalfeldlab:n5-imglib2")
     listOf("core", "structure", "modfinder").forEach {
