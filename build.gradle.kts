@@ -40,7 +40,7 @@ dependencies {
     implementation("org.jogamp.jogl:jogl-all:2.3.2", joglNatives)
     implementation("org.slf4j:slf4j-api:1.7.36")
     implementation("net.clearvolume:cleargl")
-    implementation("org.joml:joml:1.10.4")
+    implementation("org.joml:joml:1.10.5")
     implementation("net.java.jinput:jinput:2.0.9", "natives-all")
     implementation("org.jocl:jocl:2.0.4")
     implementation("org.scijava:scijava-common")
@@ -109,9 +109,8 @@ dependencies {
     api("sc.fiji:bigdataviewer-vistools:1.0.0-beta-28")
 
     //TODO revert to official BVV
-    api("graphics.scenery:bigvolumeviewer:a6b021d")
+    api("graphics.scenery:bigvolumeviewer:7698a01")
 
-//    implementation("com.github.LWJGLX:lwjgl3-awt:cfd741a6")
     implementation("com.github.skalarproduktraum:lwjgl3-awt:d7a7369")
     implementation("org.janelia.saalfeldlab:n5")
     implementation("org.janelia.saalfeldlab:n5-imglib2")
