@@ -129,7 +129,15 @@ class VRSelectionWheel(
             }
             return future
         }
+
+        /**
+         * Convert lambdas to wheel menu action.
+         */
         fun List<Pair<String, () -> Unit>>.toActions(): List<Action> = map { Action(it.first, action = it.second)}
+
+        /**
+         * Convert lambdas which take the spatial of the controller as an argument to wheel menu action.
+         */
         fun List<Pair<String, (Spatial) -> Unit>>.toActions(device: Spatial): List<Action> =
             map { Action(it.first) { it.second.invoke(device) } }
 

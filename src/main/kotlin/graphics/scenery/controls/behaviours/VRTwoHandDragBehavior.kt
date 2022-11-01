@@ -11,6 +11,9 @@ import org.scijava.ui.behaviour.DragBehaviour
 import java.util.concurrent.CompletableFuture
 import kotlin.concurrent.thread
 
+/**
+ * Abstract class to offer two hand drag behavior hooks.
+ */
 abstract class VRTwoHandDragBehavior(
     private val name: String,
     private val controller: Spatial,
@@ -92,6 +95,9 @@ abstract class VRTwoHandDragBehavior(
     }
 
 
+    /**
+     * Implementation of you drag behavior goes here. Time between current and last should be one frame.
+     */
     abstract fun dragDelta(
         currentPositionMain: Vector3f,
         currentPositionOff: Vector3f,

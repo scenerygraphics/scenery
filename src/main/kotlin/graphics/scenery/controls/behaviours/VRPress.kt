@@ -146,6 +146,11 @@ open class VRPress(
     }
 }
 
+/**
+ * Top level class for press able nodes in VR interaction.
+ *
+ *  See [SimplePressable] for functionality that was previously implemented under this name.
+ */
 sealed class Pressable
 
 /**
