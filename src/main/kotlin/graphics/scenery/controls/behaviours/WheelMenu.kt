@@ -30,6 +30,9 @@ class WheelMenu(
     val menuEntries: List<MenuEntry>
     var previous: WheelMenu? = null
 
+    /**
+     * Orientation of menu behavior
+     */
     enum class TrackingMode{
         /**
          * DoNotTrack

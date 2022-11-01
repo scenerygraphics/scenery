@@ -119,13 +119,12 @@ open class VRTouch(
             val touchable = node.getAttributeOrNull(Touchable::class.java)
             val material = node.materialOrNull()
 
-            if (touchable != null
-                && touchable.originalDiffuse == null
-                && touchable.onHoldChangeDiffuseTo != null
+            // if the following is set, some other VRTouch is already touching this
+            // and we don't want to interfere
+            if (touchable?.originalDiffuse == null
+                && touchable?.onHoldChangeDiffuseTo != null
                 && material != null
             ) {
-                // if this is set some other VRTouch is already touching this
-                // and we dont want to interfere
                 touchable.originalDiffuse = material.diffuse
                 material.diffuse = touchable.onHoldChangeDiffuseTo
             }
