@@ -2,6 +2,7 @@ package graphics.scenery.volumes
 
 import graphics.scenery.ui.RangeSlider
 import graphics.scenery.ui.SwingBridgeFrame
+import graphics.scenery.utils.LazyLogger
 import net.imglib2.histogram.Histogram1d
 import net.miginfocom.swing.MigLayout
 import org.jfree.chart.ChartMouseEvent
@@ -26,6 +27,8 @@ import java.awt.event.MouseEvent
 import java.awt.event.MouseListener
 import java.awt.event.MouseMotionListener
 import java.awt.image.BufferedImage
+import java.io.File
+import javax.imageio.ImageIO
 import javax.swing.*
 import kotlin.math.abs
 import kotlin.math.max
@@ -49,6 +52,8 @@ class TransferFunctionEditor(width : Int = 1000, height : Int = 1000, private va
     data class MouseDragTarget(var seriesIndex : Int = -1, var itemIndex : Int = -1, var lastIndex : Int = -1, var x : Double = 0.0, var y : Double = 0.0)
 
     private val mouseTargetCP = MouseDragTarget()
+
+    private val logger by LazyLogger()
 
     //TFEditor and Histogram
     val mainChart : JPanel
@@ -81,14 +86,6 @@ class TransferFunctionEditor(width : Int = 1000, height : Int = 1000, private va
         // MainChart manipulation
         val tfCollection = XYSeriesCollection()
         val tfPointSeries = XYSeries("ControlPoints", true, true)
-        //initial TF = flat
-        tfPointSeries.add(0.0, 0.0)
-        tfPointSeries.add(1.0, 1.0)
-        val newTF = TransferFunction()
-        for (i in 0 until tfPointSeries.itemCount) {
-            newTF.addControlPoint(tfPointSeries.getX(i).toFloat(), tfPointSeries.getY(i).toFloat())
-        }
-        tfContainer.transferFunction = newTF
 
         tfCollection.removeAllSeries()
         tfCollection.addSeries(tfPointSeries)
@@ -342,7 +339,7 @@ class TransferFunctionEditor(width : Int = 1000, height : Int = 1000, private va
         val byteArray = ByteArray(tfBuffer.limit())
         for(i in 0 until tfBuffer.limit())
         {
-            byteArray[i] = (tfBuffer[i] * 255).toInt().toByte()
+            byteArray[i] = (tfBuffer[i] * 255).toUInt().toByte()
         }
         val tfImage = BufferedImage(tfContainer.transferFunction.textureSize, tfContainer.transferFunction.textureHeight, BufferedImage.TYPE_BYTE_GRAY)
         tfImage.raster.setDataElements(0, 0, tfContainer.transferFunction.textureSize, tfContainer.transferFunction.textureHeight, byteArray)
