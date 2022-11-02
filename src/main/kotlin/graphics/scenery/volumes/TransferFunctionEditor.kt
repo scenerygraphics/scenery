@@ -86,14 +86,6 @@ class TransferFunctionEditor(width : Int = 1000, height : Int = 1000, val volume
         // MainChart manipulation
         val tfCollection = XYSeriesCollection()
         val tfPointSeries = XYSeries("ControlPoints", true, true)
-        //initial TF = flat
-        tfPointSeries.add(0.0, 0.0)
-        tfPointSeries.add(1.0, 1.0)
-        val newTF = TransferFunction()
-        for (i in 0 until tfPointSeries.itemCount) {
-            newTF.addControlPoint(tfPointSeries.getX(i).toFloat(), tfPointSeries.getY(i).toFloat())
-        }
-        volume.transferFunction = newTF
 
         tfCollection.removeAllSeries()
         tfCollection.addSeries(tfPointSeries)
