@@ -31,12 +31,6 @@ float returnRawSample( vec4 wpos ) {
     rawsample = min(1., rawsample);
     rawsample = max(0., rawsample);
 
-    #if USE_PRINTF
-    if((pixel_coords.xy == debug_pixel) ) {
-        debugPrintfEXT("Sampling at pos: (%f, %f, %f). texture size: (%d, %d, %d). Found raw: %f", pos.xyz, textureSize( volume, 0 ).xyz, rawsample);
-    }
-    #endif
-
     return rawsample;
 }
 
