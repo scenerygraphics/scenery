@@ -11,7 +11,7 @@ import graphics.scenery.attribute.material.Material
 class FullscreenObject : Mesh("FullscreenObject") {
 
     @ShaderProperty
-    var downImage = 0.5f
+    var downImage = 1f
 
     init {
         geometry {
