@@ -131,7 +131,7 @@ layout(set = 10, binding = 0, r32f) uniform image2D NumSteps;
 //ivec2 debug_pixel = ivec2(610, 641);
 //ivec2 debug_pixel = ivec2(1273, 604);
 //ivec2 debug_pixel = ivec2(640, 360);
-ivec2 debug_pixel = ivec2(1000, 640);
+ivec2 debug_pixel = ivec2(1167, 473);
 
 //ivec2 debug_pixel = ivec2(35, 61);
 //ivec2 debug_pixel = ivec2(427, 465);
@@ -1089,15 +1089,15 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
     orig_tnear = 1, orig_tfar = 0;
     float n, f;
 
-    bool vis = false;
-    intersectBoundingBox_x_11_x_( originalRay.wfront, originalRay.wback, n, f );
-
-    if ( n < f )
-    {
-        orig_tnear = min( orig_tnear, max( 0, n ) );
-        orig_tfar = max( orig_tfar, f );
-        vis = true;
-    }
+//    bool vis = false;
+//    intersectBoundingBox_x_11_x_( originalRay.wfront, originalRay.wback, n, f );
+//
+//    if ( n < f )
+//    {
+//        orig_tnear = min( orig_tnear, max( 0, n ) );
+//        orig_tfar = max( orig_tfar, f );
+//        vis = true;
+//    }
 
 //    #if USE_PRINTF
 //    if(gl_GlobalInvocationID.xy == debug_pixel && theList.x < 344) {
@@ -1107,15 +1107,15 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
 //    }
 //    #endif
 
-    if(!vis) { //todo: this check seems unnecessary because the list is not empty
-//        #if USE_PRINTF
-//        if(gl_GlobalInvocationID.xy == debug_pixel) {
-//            debugPrintfEXT("Returning because list does not intersect volume. n: %f, f: %f", n, f);
-//        }
-//        #endif
-        //this original ray (i.e., list) does not intersect the volume, so return
-        return;
-    }
+//    if(!vis) { //todo: this check seems unnecessary because the list is not empty
+////        #if USE_PRINTF
+////        if(gl_GlobalInvocationID.xy == debug_pixel) {
+////            debugPrintfEXT("Returning because list does not intersect volume. n: %f, f: %f", n, f);
+////        }
+////        #endif
+//        //this original ray (i.e., list) does not intersect the volume, so return
+//        return;
+//    }
 
     float dist_to_orig_n = start_point.z;
 
@@ -1125,7 +1125,7 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
     dotPositive = dist_to_orig_n <= exit_distance_n ? true: false;
 
     if(!dotPositive) {
-        accumulatedColor = vec4(1, 0, 0, 1);
+        accumulatedColor = vec4(0, 0, 0, 1);
 //        #if USE_PRINTF
 //        if(gl_GlobalInvocationID.xy == debug_pixel) {
 //            debugPrintfEXT("List: (%d, %d). Returning because dot product is negative.", theList);
@@ -1157,7 +1157,7 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
         int index;
 
         if(firstIteration) {
-            findFirstSupseg_binary(theList, dist_to_orig, exit_distance, supseg_found, index, depthStart, depthEnd);
+            findFirstSupseg_opt_seeded(theList, dist_to_orig, exit_distance, supseg_found, index, depthStart, depthEnd);
 //
 //            bool sf2;
 //            int ind2;
@@ -1210,12 +1210,12 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
 
         if(supseg_found) {
 
-//            #if USE_PRINTF
-//            if(gl_GlobalInvocationID.xy == debug_pixel) {
-//                debugPrintfEXT("Found supseg: (%d, %d), %d", theList, index);
-//                debugPrintfEXT("DepthStart: %f and DepthEnd: %f, while dto: %f and exit: %f ", temp_start, temp_end, dist_to_orig, exit_distance);
-//            }
-//            #endif
+            #if USE_PRINTF
+            if(gl_GlobalInvocationID.xy == debug_pixel) {
+                debugPrintfEXT("Found supseg: (%d, %d), %d", theList, index);
+                debugPrintfEXT("DepthStart: %f and DepthEnd: %f, while dto: %f and exit: %f ", temp_start, temp_end, dist_to_orig, exit_distance);
+            }
+            #endif
 
 //            #if USE_PRINTF
 //            if(temp_end <= temp_start) {
@@ -1266,13 +1266,13 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
             accumulatedColor.rgb = accumulatedColor.rgb + (1-accumulatedColor.a) * supseg_col.rgb * alpha;
             accumulatedColor.a = accumulatedColor.a + (1-accumulatedColor.a) * alpha;
 
-//            #if USE_PRINTF
-//            if(gl_GlobalInvocationID.xy == debug_pixel) {
+            #if USE_PRINTF
+            if(gl_GlobalInvocationID.xy == debug_pixel) {
 //                debugPrintfEXT("NDC start point: (%f, %f, %f, %f) and NDC end point: (%f, %f, %f, %f).", start_point.xyzw, end_point.xyzw);
 //                debugPrintfEXT("World start point: (%f, %f, %f, %f) and end point: (%f, %f, %f, %f). Length: %f", w_start_point.xyzw, w_end_point.xyzw, length_in_supseg);
-//                debugPrintfEXT("Accumulated color: (%f, %f, %f, %f)", accumulatedColor.rgba);
-//            }
-//            #endif
+                debugPrintfEXT("Accumulated color: (%f, %f, %f, %f)", accumulatedColor.rgba);
+            }
+            #endif
 
             if(accumulatedColor.a > 0.99) {
 //                #if USE_PRINTF
@@ -2079,11 +2079,11 @@ void main() {
                 grid_val = 1;
             }
 
-//            #if USE_PRINTF
-//            if(gl_GlobalInvocationID.xy == debug_pixel) {
-//                debugPrintfEXT("Checking the cell: (%d, %d, %d). value: %d", grid_cell.xyz, grid_val);
-//            }
-//            #endif
+            #if USE_PRINTF
+            if(gl_GlobalInvocationID.xy == debug_pixel) {
+                debugPrintfEXT("Checking the cell: (%d, %d, %d). value: %d", grid_cell.xyz, grid_val);
+            }
+            #endif
 
             if(grid_val > 0 && !do_subsample) {
                 traverse_cell(start_point, start_list, cell_min, cell_max, end_traversal, next_list);
@@ -2094,11 +2094,11 @@ void main() {
 
             if(!cell_traversed) {
 
-//                #if USE_PRINTF
-//                if (gl_GlobalInvocationID.xy == debug_pixel) {
-//                    debugPrintfEXT("cell_tmaxX: %f, cell_tmaxY: %f, cell_tmaxZ: %f", cell_tmaxX, cell_tmaxY, cell_tmaxZ);
-//                }
-//                #endif
+                #if USE_PRINTF
+                if (gl_GlobalInvocationID.xy == debug_pixel) {
+                    debugPrintfEXT("cell_tmaxX: %f, cell_tmaxY: %f, cell_tmaxZ: %f", cell_tmaxX, cell_tmaxY, cell_tmaxZ);
+                }
+                #endif
 
 
                 if(cell_tmaxX < cell_tmaxY) {
@@ -2268,11 +2268,11 @@ void main() {
     totalAfterLast = totalMemoryLoads - whenLast_Total;
 
     imageStore(OutputViewport, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), finalColor);
-//    #if USE_PRINTF
-//    if(gl_GlobalInvocationID.xy == debug_pixel) {
-//        debugPrintfEXT("Final!!! composited color is: (%f, %f, %f, %f)", finalColor.rgba);
-//    }
-//    #endif
+    #if USE_PRINTF
+    if(gl_GlobalInvocationID.xy == debug_pixel) {
+        debugPrintfEXT("Final!!! composited color is: (%f, %f, %f, %f)", finalColor.rgba);
+    }
+    #endif
 
 #if PROFILE_MEM
     imageStore(NumSteps, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), vec4(totalMemoryLoads, 0, 0, 0));
