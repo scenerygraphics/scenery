@@ -1,5 +1,6 @@
 package graphics.scenery.tests.examples.volumes
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.backends.Shaders
@@ -22,11 +23,16 @@ import org.joml.Quaternionf
 import org.joml.Vector3f
 import org.joml.Vector3i
 import org.lwjgl.system.MemoryUtil
+import org.msgpack.jackson.dataformat.MessagePackFactory
 import org.scijava.ui.behaviour.ClickBehaviour
+import java.io.BufferedWriter
 import java.io.File
 import java.io.FileInputStream
+import java.io.FileWriter
 import java.lang.Float.max
 import java.nio.ByteBuffer
+import java.nio.file.Files
+import java.nio.file.Paths
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.concurrent.thread
 import kotlin.math.abs
@@ -69,31 +75,45 @@ class CustomNode : RichNode() {
     var sampling_factor = 0.1f
 
     @ShaderProperty
-    var downImage = 0.5f
+    var downImage = 1f
+
+    @ShaderProperty
+    var skip_empty = true
 
     @ShaderProperty
     var stratified_downsampling = false
 }
 
-class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDIBenchmark.WindowWidth")?.toInt()?: 1280, System.getProperty("VDIBenchmark.WindowHeight")?.toInt() ?: 780, wantREPL = false) {
+class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDIBenchmark.WindowWidth")?.toInt()?: 1920, System.getProperty("VDIBenchmark.WindowHeight")?.toInt() ?: 1080, wantREPL = false) {
     var hmd: TrackedStereoGlasses? = null
 
     val separateDepth = true
     val profileMemoryAccesses = false
     val compute = CustomNode()
-    val closeAfter = 60000L
+    val closeAfter = 600000L
     val autoClose = false
-    var dataset = System.getProperty("VDIBenchmark.Dataset")?.toString()?: "Kingsnake"
+    var dataset = System.getProperty("VDIBenchmark.Dataset")?.toString()?: "Rayleigh_Taylor"
     var baseDataset = dataset
     val numOctreeLayers = 8.0
-    val numSupersegments = 30
+    val numSupersegments = System.getProperty("VDIBenchmark.NumSupersegments")?.toInt()?: 20
+    val vo = System.getProperty("VDIBenchmark.Vo")?.toInt()?: 0
     var benchmarking = false
     val skipEmpty = true
     val viewNumber = 1
-    val dynamicSubsampling = true
     var subsampling_benchmarks = false
-    var desiredFrameRate = 60
+    var desiredFrameRate = 85
     var maxFrameRate = 30
+
+    val dynamicSubsampling = false
+
+    val storeCamera = false
+    val storeFrameTime = true
+    val subsampleRay = false
+
+    var subsamplingFactorImage = 1.0f
+
+    var cameraMoving = false
+    var cameraStopped = false
 
     val commSize = 4
     val rank = 0
@@ -112,6 +132,9 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
         }
         "Simulation" -> {
             Vector3f(1.920E+0f, -1.920E+0f,  1.800E+0f)
+        }
+        "Rayleigh_Taylor" -> {
+            Vector3f(1.920E+0f, -1.920E+0f,  1.920E+0f)
         }
         "BonePlug" -> {
             Vector3f(1.920E+0f, -6.986E-1f,  6.855E-1f)
@@ -174,8 +197,11 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
                 position = Vector3f(-2.607E+0f, -5.973E-1f,  2.415E+0f) // V1 for Beechnut
                 rotation = Quaternionf(-9.418E-2, -7.363E-1, -1.048E-1, -6.618E-1)
             } else if (dataset == "Simulation") {
-                position = Vector3f(4.908E+0f, -4.931E-1f, -2.563E+0f) //V1 for Simulation
-                rotation = Quaternionf( 3.887E-2, -9.470E-1, -1.255E-1,  2.931E-1)
+                position = Vector3f(2.041E-1f, -5.253E+0f, -1.321E+0f) //V1 for Simulation
+                rotation = Quaternionf(9.134E-2, -9.009E-1,  3.558E-1, -2.313E-1)
+            } else if (dataset == "Rayleigh_Taylor") {
+                position = Vector3f( -2.300E+0f, -6.402E+0f,  1.100E+0f) //V1 for Rayleigh_Taylor
+                rotation = Quaternionf(2.495E-1, -7.098E-1,  3.027E-1, -5.851E-1)
             } else if (dataset == "BonePlug") {
                 position = Vector3f( 1.897E+0f, -5.994E-1f, -1.899E+0f) //V1 for Boneplug
                 rotation = Quaternionf( 5.867E-5,  9.998E-1,  1.919E-2,  4.404E-3)
@@ -210,7 +236,10 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
 //        val basePath = "/home/aryaman/Repositories/DistributedVis/cmake-build-debug/"
         val basePath = "/home/aryaman/Repositories/scenery-insitu/"
 
-        val file = FileInputStream(File(basePath + "${dataset}vdidump4"))
+        val vdiParams = "_${windowWidth}_${windowHeight}_${numSupersegments}_${vo}_"
+//        val vdiParams = "_${windowWidth}_${windowHeight}_"
+
+        val file = FileInputStream(File(basePath + "${dataset}vdi${vdiParams}dump4"))
 //        val comp = GZIPInputStream(file, 65536)
 
         val vdiData = VDIDataIO.read(file)
@@ -221,9 +250,11 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
 //        val vdiType = "Sub"
         val vdiType = ""
 
+        logger.info("Fetching file with params: $vdiParams")
+
         if(separateDepth) {
-            buff = File(basePath + "${dataset}${vdiType}VDI4_ndc_col").readBytes()
-            depthBuff = File(basePath + "${dataset}${vdiType}VDI4_ndc_depth").readBytes()
+            buff = File(basePath + "${dataset}${vdiType}VDI${vdiParams}4_ndc_col").readBytes()
+            depthBuff = File(basePath + "${dataset}${vdiType}VDI${vdiParams}4_ndc_depth").readBytes()
 
         } else {
 
@@ -231,7 +262,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
             depthBuff = null
         }
         if(skipEmpty) {
-            octBuff = File(basePath + "${dataset}VDI4_ndc_octree").readBytes()
+            octBuff = File(basePath + "${dataset}VDI${vdiParams}4_ndc_octree").readBytes()
         } else {
             octBuff = null
         }
@@ -362,6 +393,12 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
             benchmarking = false
         }
 
+//        thread {
+////            if(dynamicSubsampling) {
+//                dynamicSubsampling()
+////            }
+//        }
+
         thread {
             if(dynamicSubsampling) {
                 dynamicSubsampling()
@@ -369,9 +406,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
         }
 
         thread {
-            if(benchmarking) {
-                doBenchmarks()
-            }
+            camFlyThrough()
         }
     }
 
@@ -417,6 +452,10 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
         compute.stratified_downsampling = stratified
     }
 
+    fun setEmptySpaceSkipping(skip: Boolean) {
+        compute.skip_empty = skip
+    }
+
     fun setDownsamplingFactor(factor: Float) {
         compute.sampling_factor = factor
     }
@@ -426,6 +465,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
     }
 
     fun doDownsampling(downsample: Boolean) {
+        setEmptySpaceSkipping(true)
         compute.do_subsample = downsample
     }
 
@@ -434,95 +474,281 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
 
         val targetFrameTime = 1.0f / desiredFrameRate
 
-        val toleranceFPS = 10f
+        val toleranceFPS = 5f
         val minFPS = desiredFrameRate - toleranceFPS
         val toleranceTime = abs(targetFrameTime - (1.0f / minFPS))
 
-        var frameStart = System.nanoTime()
         var frameEnd: Long
 
         var frameTime: Float
         var avgFrameTime = 0f
         var avgLength = 100
 
-        val kP = 0.7f
-        val kI = 1.5f
+        val kP = 20.5f
+        val kI = 5.5f
+//        val kI = 0f
         val kD = 1
+
+        var subsampleAlongImage = true
 
         val loopCycle = 1
         var totalLoss = 0f
 
-        var subsamplingFactor = 1.0f
+        subsamplingFactorImage = 1.0f
+        var subsamplingFactorRay = 0.1f
         var prevFactor = 1.0f
 
-        val d_iChange = 0.5f
-        val d_rStart = 0.3f
+        val d_iChange = 0.0f
+        val d_rChange = 0.2f
 
         var frameCount = 0
 
+//        doDownsampling(true)
+//        setDownsamplingFactor(0.1f)
+
+        val frameTimeList = mutableListOf<Float>()
+
+//        renderer!!.recordMovie("/datapot/aryaman/owncloud/VDI_Benchmarks/VDI_basic.mp4")
+
+        Thread.sleep(5000)
+        var frameStart = System.nanoTime()
+
+        rotateCamera(20f)
+
         (r as VulkanRenderer).postRenderLambdas.add {
-            frameCount++
 
-            if(frameCount > 100) {
+            if (true) {
                 frameEnd = System.nanoTime()
-                frameTime = (frameEnd - frameStart)/1e9f
-                val error = if((frameTime >= (targetFrameTime - toleranceTime)) && (frameTime <= (targetFrameTime + toleranceTime))) {
-                    0f
-                } else {
-                    frameTime - targetFrameTime
+                frameTime = (frameEnd - frameStart) / 1e9f
+
+                if(cameraMoving) {
+                    frameCount++
+                    frameTimeList.add(frameTime)
                 }
 
-                avgFrameTime = if(avgFrameTime == 0f) {
-                    frameTime
-                } else {
-                    avgFrameTime - avgFrameTime/avgLength + frameTime/avgLength
+                if (frameCount == 500) {
+                    val fw = FileWriter("/datapot/aryaman/owncloud/VDI_Benchmarks/${dataset}_${dynamicSubsampling}_${subsampleRay}_frame_times.csv", false)
+                    val bw = BufferedWriter(fw)
+
+                    frameTimeList.forEach {
+                        bw.append("${it}, ")
+                    }
+
+                    bw.flush()
+
+                    logger.warn("The file has been written!")
+
+//                    renderer!!.recordMovie()
+                    Thread.sleep(1000)
+
+                    renderer!!.shouldClose = true
                 }
 
-                val avgError = if((avgFrameTime >= (targetFrameTime - toleranceTime)) && (avgFrameTime <= (targetFrameTime + toleranceTime))) {
-                    0f
-                } else {
-                    avgFrameTime - targetFrameTime
+                if(dynamicSubsampling) {
+                    val error =
+//                if((frameTime >= (targetFrameTime - toleranceTime)) && (frameTime <= (targetFrameTime + toleranceTime))) {
+//                    0f
+//                } else {
+                        frameTime - targetFrameTime
+//                }
+
+                    avgFrameTime = if (avgFrameTime == 0f) {
+                        frameTime
+                    } else {
+                        avgFrameTime - avgFrameTime / avgLength + frameTime / avgLength
+                    }
+
+                    val avgError =
+                        if ((avgFrameTime >= (targetFrameTime - toleranceTime)) && (avgFrameTime <= (targetFrameTime + toleranceTime))) {
+                            0f
+                        } else {
+                            avgFrameTime - targetFrameTime
+                        }
+
+//                logger.info("Frame time: $frameTime, avg frame time: $avgFrameTime and target: $targetFrameTime and tolerance: $toleranceTime")
+
+                    val output = kP * error + kI * avgError
+
+//                doDownsampling(false)
+
+                    subsamplingFactorImage -= output
+
+                    subsamplingFactorImage = max(0.05f, subsamplingFactorImage)
+                    subsamplingFactorImage = min(1.0f, subsamplingFactorImage)
+
+//                    val downImage = max(d_iChange, subsamplingFactorImage)
+                    val downImage = subsamplingFactorImage
+
+                    logger.info("Frame time: $frameTime. error was: $error, avg error: $avgError and therefore setting factor to: $subsamplingFactorImage")
+
+                    if (abs(downImage - prevFactor) > 0.05) {
+                        logger.warn("changing the factor")
+                        downsampleImage(downImage)
+                        prevFactor = downImage
+                    }
                 }
 
-                logger.info("Frame time: $frameTime, avg frame time: $avgFrameTime and target: $targetFrameTime and tolerance: $toleranceTime")
-
-                if(subsamplingFactor < 1.0f) {
-                    totalLoss += error
-                }
-
-                val output = kP * error + kI * avgError
-
-                subsamplingFactor -= output
-
-                subsamplingFactor = max(0.001f, subsamplingFactor)
-                subsamplingFactor = min(1.0f, subsamplingFactor)
-
-                val downImage = max(d_iChange, subsamplingFactor)
-
-                logger.info("error was: $error, avg error: $avgError and therefore setting factor to: $subsamplingFactor")
-
-                if(subsamplingFactor < d_iChange) {
-                    val fUnit = abs(subsamplingFactor - 0.001f) / (d_iChange - 0.001f)
-                    val downRay = fUnit * (d_rStart - 0.01f) + 0.01f
-
-                    doDownsampling(true)
-                    setDownsamplingFactor(downRay)
-                } else {
-                    doDownsampling(false)
-                }
-
-                if(abs(downImage - prevFactor) > 0.1) {
-                    logger.warn("changing the factor")
-                    downsampleImage(downImage)
-                    prevFactor = downImage
-                }
             }
             frameStart = System.nanoTime()
         }
-
     }
 
+    public fun camFlyThrough() {
+        val r = (hub.get(SceneryElement.Renderer) as Renderer)
 
+        while(!r.firstImageReady) {
+            Thread.sleep(200)
+        }
+
+        renderer!!.recordMovie("/datapot/aryaman/owncloud/VDI_Benchmarks/${dataset}_vdi.mp4")
+
+        Thread.sleep(1000)
+
+        val maxPitch = 10f
+        val maxYaw = 10f
+
+        val minYaw = -10f
+        val minPitch = -10f
+
+//        rotateCamera(40f, true)
+        var pitchRot = 0.12f
+        var yawRot = 0.075f
+
+        var totalYaw = 0f
+        var totalPitch = 0f
+
+//        rotateCamera(20f, true)
+
+        moveCamera(yawRot, pitchRot, maxYaw, maxPitch, minPitch, minYaw, totalYaw, totalPitch, 8000f)
+        logger.info("Moving to phase 2")
+        moveCamera(yawRot, pitchRot * 2, maxYaw, maxPitch * 2, minPitch * 2, minYaw, totalYaw, totalPitch, 2000f)
+
+        zoomCamera(0.99f, 1000f)
+        logger.info("Moving to phase 3")
+        moveCamera(yawRot * 3, pitchRot * 3, maxYaw, maxPitch, minPitch, minYaw, totalYaw, totalPitch, 8000f)
+
+        cameraMoving = true
+
+        if(subsampleRay) {
+            doDownsampling(true)
+            setDownsamplingFactor(0.2f)
+        }
+
+        moveCamera(yawRot *2, pitchRot * 5, 40f, 40f, -60f, -50f, totalYaw, totalPitch, 6000f)
+
+        Thread.sleep(1000)
+
+        renderer!!.recordMovie()
+    }
+
+    private fun moveCamera(yawRot: Float, pitchRot: Float, maxYaw: Float, maxPitch: Float, minPitch: Float, minYaw: Float, totalY: Float, totalP: Float, duration: Float) {
+
+        var totalYaw = totalY
+        var totalPitch = totalP
+
+        var yaw = yawRot
+        var pitch = pitchRot
+
+        val startTime = System.nanoTime()
+
+        var cnt = 0
+
+        val list: MutableList<Any> = ArrayList()
+        val listDi: MutableList<Any> = ArrayList()
+
+        while (true) {
+
+            cnt += 1
+
+            if(totalYaw < maxYaw && totalYaw > minYaw) {
+                rotateCamera(yaw)
+                totalYaw += yaw
+            } else {
+                yaw *= -1f
+                rotateCamera(yaw)
+                totalYaw += yaw
+            }
+
+            if (totalPitch < maxPitch && totalPitch > minPitch) {
+                rotateCamera(pitch, true)
+                totalPitch += pitch
+            } else {
+                pitch *= -1f
+                rotateCamera(pitch, true)
+                totalPitch += pitch
+            }
+            Thread.sleep(50)
+
+            val currentTime = System.nanoTime()
+
+            if ((currentTime - startTime)/1e6 > duration) {
+                break
+            }
+
+            if(cnt % 5 == 0 && storeCamera) {
+                //save the camera and Di
+
+                val rotArray = floatArrayOf(cam.spatial().rotation.x, cam.spatial().rotation.y, cam.spatial().rotation.z, cam.spatial().rotation.w)
+                val posArray = floatArrayOf(cam.spatial().position.x(), cam.spatial().position.y(), cam.spatial().position.z())
+
+                list.add(rotArray)
+                list.add(posArray)
+
+                listDi.add(subsamplingFactorImage)
+
+                logger.info("Added to the list $cnt")
+
+            }
+        }
+
+        val objectMapper = ObjectMapper(MessagePackFactory())
+
+        val bytes = objectMapper.writeValueAsBytes(list)
+
+        Files.write(Paths.get("${dataset}_${subsampleRay}_camera.txt"), bytes)
+
+        val bytesDi = objectMapper.writeValueAsBytes(listDi)
+
+        Files.write(Paths.get("${dataset}_${subsampleRay}_di.txt"), bytesDi)
+
+        logger.warn("The file has been written")
+    }
+
+    private fun recordCamera() {
+        val r = (hub.get(SceneryElement.Renderer) as Renderer)
+
+        while(!r.firstImageReady) {
+            Thread.sleep(200)
+        }
+
+        Thread.sleep(2000)
+
+        val list: MutableList<Any> = ArrayList()
+
+        val iterations = 200
+
+        for (i in 1..iterations) {
+
+            val rotArray = floatArrayOf(cam.spatial().rotation.x, cam.spatial().rotation.y, cam.spatial().rotation.z, cam.spatial().rotation.w)
+            val posArray = floatArrayOf(cam.spatial().position.x(), cam.spatial().position.y(), cam.spatial().position.z())
+
+            list.add(rotArray)
+            list.add(posArray)
+
+            logger.info("Added to the list $i")
+
+            Thread.sleep(50)
+        }
+
+        val objectMapper = ObjectMapper(MessagePackFactory())
+
+        val bytes = objectMapper.writeValueAsBytes(list)
+
+        Files.write(Paths.get("CameraPoses.txt"), bytes)
+
+        logger.warn("The file has been written")
+
+    }
 
     private fun doBenchmarks() {
         val r = (hub.get(SceneryElement.Renderer) as Renderer)
@@ -559,6 +785,23 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
         }
     }
 
+    fun zoomCamera(factor: Float, duration: Float) {
+        cam.targeted = true
+
+        val startTime = System.nanoTime()
+        while (true) {
+            val distance = (camTarget - cam.spatial().position).length()
+
+            cam.spatial().position = camTarget + cam.forward * distance * (-1.0f * factor)
+
+            Thread.sleep(50)
+
+            if((System.nanoTime() - startTime)/1e6 > duration) {
+                break
+            }
+        }
+    }
+
     fun rotateCamera(degrees: Float, pitch: Boolean = false) {
         cam.targeted = true
         val frameYaw: Float
@@ -576,14 +819,14 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
         val yawQ = Quaternionf().rotateXYZ(0.0f, frameYaw, 0.0f).normalize()
         val pitchQ = Quaternionf().rotateXYZ(framePitch, 0.0f, 0.0f).normalize()
 
-        logger.info("cam target: ${camTarget}")
+//        logger.info("cam target: ${camTarget}")
 
         val distance = (camTarget - cam.spatial().position).length()
         cam.spatial().rotation = pitchQ.mul(cam.spatial().rotation).mul(yawQ).normalize()
         cam.spatial().position = camTarget + cam.forward * distance * (-1.0f)
-        logger.info("new camera pos: ${cam.spatial().position}")
-        logger.info("new camera rotation: ${cam.spatial().rotation}")
-        logger.info("camera forward: ${cam.forward}")
+//        logger.info("new camera pos: ${cam.spatial().position}")
+//        logger.info("new camera rotation: ${cam.spatial().rotation}")
+//        logger.info("camera forward: ${cam.forward}")
     }
 
 
@@ -591,7 +834,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
         setupCameraModeSwitching()
 
         inputHandler?.addBehaviour("rotate_camera", ClickBehaviour { _, _ ->
-            rotateCamera(10f)
+            rotateCamera(1f)
         })
         inputHandler?.addKeyBinding("rotate_camera", "R")
 
