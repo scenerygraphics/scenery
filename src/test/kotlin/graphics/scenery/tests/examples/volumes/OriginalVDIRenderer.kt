@@ -86,8 +86,8 @@ class OriginalVDIRenderer : SceneryBase("Orig", 512, 512, wantREPL = false) {
     var dataset = System.getProperty("VDIBenchmark.Dataset")?.toString()?: "EngineCorrected"
     var baseDataset = dataset
     val numOctreeLayers = 8.0
-    val numSupersegments = 15
-    var benchmarking = false
+    val numSupersegments = 20
+    var benchmarking = true
     val skipEmpty = false
     val viewNumber = 1
     val dynamicSubsampling = false
@@ -139,27 +139,90 @@ class OriginalVDIRenderer : SceneryBase("Orig", 512, 512, wantREPL = false) {
         return m
     }
 
-    val invViews = listOf<Matrix4f>(
+    val engineInvViews = listOf<Matrix4f>(
+        Matrix4f(-0.941669f,	-0.025429f,	0.335579f,	0.000000f,
+            0.000000f,	0.997141f,	0.075559f,	0.000000f,
+            -0.336541f,	0.071151f,	-0.938977f,	0.000000f,
+//                    -313.645f,	74.846016f,	-822.299500f,	1.000000f
+            -0.3136f,	0.074846f,	-0.8223f,	1.000000f
+        ), //0
         Matrix4f(-0.985802f,	-0.012687f,	0.167429f,	0.000000f,
             0.000000f,	0.997141f,	0.075559f,	0.000000f,
             -0.167909f,	0.074486f,	-0.982984f,	0.000000f,
-            -165.515396f,	78.013527f,	-864.100708f,	1.000000f
+            -0.165515396f,	0.078013527f,	-0.864100708f,	1.000000f
         ),
         Matrix4f(-0.999983f,	0.000440f,	-0.005808f,	0.000000f,
             0.000000f,	0.997141f,	0.075559f,	0.000000f,
             0.005825f,	0.075558f,	-0.997124f,	0.000000f,
-            -12.356506f,	79.189362f,	-879.618042f,	1.000000f
+            -0.012356506f,	0.079189362f,	-0.879618042f,	1.000000f
         ),
         Matrix4f(-0.983780f,	0.013554f,	-0.178869f,	0.000000f,
             0.000000f,	0.997141f,	0.075559f,	0.000000f,
             0.179381f,	0.074333f,	-0.980967f,	0.000000f,
-            141.177628f,	78.337784f,	-868.379883f,	1.000000f
+            0.141177628f,	0.078337784f,	-0.868379883f,	1.000000f
         ),
         Matrix4f(-0.937685f,	0.026256f,	-0.346494f,	0.000000f,
             0.000000f,	0.997141f,	0.075559f,	0.000000f,
             0.347488f,	0.070850f,	-0.935004f,	0.000000f,
-            290.422150f,	75.484665f,	-830.727722f,	1.000000f
+            0.290422150f,	0.075484665f,	-0.830727722f,	1.000000f
         )
+    )
+
+    val raylTaylInvViews = listOf(
+        Matrix4f(-0.941669f,	-0.025429f,	0.335579f,	0.000000f,
+            0.000000f,	0.997141f,	0.075559f,	0.000000f,
+                -0.336541f,	0.071151f,	-0.938977f,	0.000000f,
+                -1.659809326f,	0.359451904f,	-4.578207520f,	1.000000f
+        ), //0
+        Matrix4f(-0.985802f, 	-0.012687f, 	0.167429f, 	0.000000f,
+            0.000000f, 	0.997141f, 	0.075559f, 	0.000000f,
+                -0.167909f, 	0.074486f, 	-0.982984f, 	0.000000f,
+                -0.837152344f, 	0.375958191f, 	-4.796038574f, 	1.000000f
+        ), //10
+        Matrix4f(-0.999983f, 	0.000440f, 	-0.005808f, 	0.000000f,
+            0.000000f, 	0.997141f, 	0.075559f, 	0.000000f,
+            0.005825f, 	0.075558f, 	-0.997124f, 	0.000000f,
+            0.010942230f, 	0.381419891f, 	-4.868115723f,	1.000000f
+        ), //20
+        Matrix4f(-0.983780f,	0.013554f,	-0.178869f,	0.000000f,
+            0.000000f,	0.997141f,	0.075559f,	0.000000f,
+            0.179381f,	0.074333f,	-0.980967f,	0.000000f,
+            0.858703186f,	0.375671051f,	-4.792249023f,	1.000000f
+        ), //30
+        Matrix4f(-0.937685f,	0.026256f,	-0.346494f,	0.000000f,
+            0.000000f,	0.997141f,	0.075559f,	0.000000f,
+            0.347488f,	0.070850f,	-0.935004f,	0.000000f,
+            1.680372925f,	0.358886353f,	-4.570744141f,	1.000000f
+        ) //40
+    )
+
+    val kingsnakeInvViews = listOf(
+        Matrix4f(-0.941669f,	-0.025429f,	0.335579f,	0.000000f,
+            0.000000f,	0.997141f,	0.075559f,	0.000000f,
+                -0.336541f,	0.071151f,	-0.938977f,	0.000000f,
+                -1.154997803f,	0.252724701f,	-3.169741943f,	1.000000f
+        ), //0
+        Matrix4f(-0.985802f,	-0.012687f,	0.167429f,	0.000000f,
+            0.000000f,	0.997141f,	0.075559f,	0.000000f,
+                -0.167909f,	0.074486f,	-0.982984f,	0.000000f,
+                -0.585288452f,	0.264228943f,	-3.321561768f,	1.000000f,
+        ), //10
+        Matrix4f(-0.999983f,	0.000440f,	-0.005808f,	0.000000f,
+            0.000000f,	0.997141f,	0.075559f,	0.000000f,
+            0.005825f,	0.075558f,	-0.997124f,	0.000000f,
+            0.002205204f,	0.268083435f,	-3.372429199f,	1.000000f
+        ), //20
+        Matrix4f(
+            -0.983780f,	0.013554f,	-0.178869f,	0.000000f,
+            0.000000f,	0.997141f,	0.075559f,	0.000000f,
+            0.179381f,	0.074333f,	-0.980967f,	0.000000f,
+            0.589631104f,	0.264171082f,	-3.320798340f,	1.000000f
+        ), //30
+        Matrix4f(-0.937685f,	0.026256f,	-0.346494f,	0.000000f,
+            0.000000f,	0.997141f,	0.075559f,	0.000000f,
+            0.347488f,	0.070850f,	-0.935004f,	0.000000f,
+            1.159141479f,	0.252610718f,	-3.168237793f,	1.000000f
+        )//40
     )
 
     override fun init () {
@@ -231,7 +294,7 @@ class OriginalVDIRenderer : SceneryBase("Orig", 512, 512, wantREPL = false) {
 //        val basePath = "/home/aryaman/TestingData/"
 //        val basePath = "/home/aryaman/TestingData/FromCluster/"
 //        val basePath = "/home/aryaman/Repositories/DistributedVis/cmake-build-debug/"
-        val basePath = "/home/aryaman/Repositories/scenery-insitu/"
+        val basePath = "/home/argupta/Repositories/scenery-insitu/"
 
         val file = FileInputStream(File(basePath + "${dataset}vdidump4"))
 //        val comp = GZIPInputStream(file, 65536)
@@ -259,7 +322,7 @@ class OriginalVDIRenderer : SceneryBase("Orig", 512, 512, wantREPL = false) {
             octBuff = null
         }
 
-        noiseData = File(basePath + "NoiseTexture_Random.raw").readBytes()
+//        noiseData = File(basePath + "NoiseTexture_Random.raw").readBytes()
 
         val opBuffer = MemoryUtil.memCalloc(effectiveWindowWidth * effectiveWindowHeight * 4)
         val opNumSteps = MemoryUtil.memCalloc(effectiveWindowWidth * effectiveWindowHeight * 4)
@@ -290,9 +353,9 @@ class OriginalVDIRenderer : SceneryBase("Orig", 512, 512, wantREPL = false) {
             lowestLevel.put(octBuff).flip()
         }
 
-        val noiseTexture = MemoryUtil.memCalloc(1920*1080 * 4)
+//        val noiseTexture = MemoryUtil.memCalloc(1920*1080 * 4)
 
-        noiseTexture.put(noiseData).flip()
+//        noiseTexture.put(noiseData).flip()
 
         compute.name = "compute node"
 
@@ -323,8 +386,8 @@ class OriginalVDIRenderer : SceneryBase("Orig", 512, 512, wantREPL = false) {
             compute.material().textures["OctreeCells"] = Texture(Vector3i(numGridCells.x.toInt(), numGridCells.y.toInt(), numGridCells.z.toInt()), 1, type = UnsignedIntType(), contents = lowestLevel, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
         }
 
-        compute.material().textures["NoiseTexture"] = Texture(Vector3i(1920, 1080, 1),  channels = 1, contents = noiseTexture, usageType = hashSetOf(
-            Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+//        compute.material().textures["NoiseTexture"] = Texture(Vector3i(1920, 1080, 1),  channels = 1, contents = noiseTexture, usageType = hashSetOf(
+//            Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
 
 
         compute.metadata["ComputeMetadata"] = ComputeMetadata(
@@ -341,13 +404,15 @@ class OriginalVDIRenderer : SceneryBase("Orig", 512, 512, wantREPL = false) {
         compute.volumeDims = vdiData.metadata.volumeDimensions
         compute.do_subsample = false
 
-        val inv_viewOrig = Matrix4f(-0.686240f,	0.025385f,	-0.726932f,	0.000000f,
-            0.000000f,	0.999391f,	0.034900f,	0.000000f,
-            0.727375f,	0.023949f,	-0.685822f,	0.000000f,
-            0.63026f,	0.03408f,	-0.61786f,	1.000000f
+//        val inv_viewOrig = Matrix4f(-0.686240f,	0.025385f,	-0.726932f,	0.000000f,
+//            0.000000f,	0.999391f,	0.034900f,	0.000000f,
+//            0.727375f,	0.023949f,	-0.685822f,	0.000000f,
+//            0.63026f,	0.03408f,	-0.61786f,	1.000000f
+//
+//
+//        )
 
-
-        )
+        val inv_viewOrig = engineInvViews[0]
 
         compute.invViewCurrent = inv_viewOrig
         compute.ViewCurrent = Matrix4f(inv_viewOrig).invert()
@@ -522,30 +587,28 @@ class OriginalVDIRenderer : SceneryBase("Orig", 512, 512, wantREPL = false) {
             Thread.sleep(200)
         }
 
+        Thread.sleep(2000)
+
         val rotationInterval = 5f
         var totalRotation = 0f
 
-        for(i in 1..9) {
-            val path = if(skipEmpty) {
-                "benchmarking/${baseDataset}/View${viewNumber}/vdi$numSupersegments/empty/vdi" + communicatorType + "_${windowWidth}_${windowHeight}_${totalRotation.toInt()}"
-            } else {
-                "benchmarking/${baseDataset}/View${viewNumber}/vdi$numSupersegments/vdi"+ communicatorType +"_${windowWidth}_${windowHeight}_${totalRotation.toInt()}"
-            }
+        for(i in 1..4) {
+            stats.clear("Renderer.fps")
+
+            val inv_viewOrig = engineInvViews[i]
+
+            compute.invViewCurrent = inv_viewOrig
+            compute.ViewCurrent = Matrix4f(inv_viewOrig).invert()
+
+            Thread.sleep(1500)
+
+            val fps = stats.get("Renderer.fps")!!
+             logger.info("At pos $i, the fps was: ${fps.avg()}")
+
+            val path = "benchmarking/Original${dataset}_${windowWidth}_${windowHeight}_$i"
             // take screenshot and wait for async writing
             r.screenshot("$path.png")
             Thread.sleep(1000L)
-            stats.clear("Renderer.fps")
-
-            // collect data for a few secs
-            Thread.sleep(1000)
-
-            // write out CSV with fps data
-            val fps = stats.get("Renderer.fps")!!
-            File("$path.csv").writeText("${fps.avg()};${fps.min()};${fps.max()};${fps.stddev()};${fps.data.size}")
-
-            rotateCamera(rotationInterval)
-            totalRotation = i * rotationInterval
-            Thread.sleep(1000)
         }
     }
 
