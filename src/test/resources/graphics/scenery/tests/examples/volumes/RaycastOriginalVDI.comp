@@ -1,5 +1,5 @@
 #version 450
-#define USE_PRINTF 1
+#define USE_PRINTF 0
 #define NDC 1
 #define SEPARATE_DEPTH 1
 #define INT_DEPTHS 0
@@ -2113,7 +2113,7 @@ void main() {
         calculatedMaxSteps = int(length_in_non_empty * sampling_factor);
     }
 
-    finalColor.xyz = pow(finalColor.xyz, vec3(1/2.2));
+//    finalColor.xyz = pow(finalColor.xyz, vec3(1/2.2));
 
     if(totalIntersectedSupsegs == 0) {
         totalBeforeFirst = totalMemoryLoads;
