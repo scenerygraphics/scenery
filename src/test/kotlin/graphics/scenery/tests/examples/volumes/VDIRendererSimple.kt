@@ -41,7 +41,7 @@ class CustomNodeSimple : RichNode() {
 }
 
 
-class VDIRendererSimple : SceneryBase("SimpleVDIRenderer", 512, 512) {
+class VDIRendererSimple : SceneryBase("SimpleVDIRenderer", 1920, 1080) {
 
     private val vulkanProjectionFix =
         Matrix4f(
@@ -74,14 +74,16 @@ class VDIRendererSimple : SceneryBase("SimpleVDIRenderer", 512, 512) {
         renderer = hub.add(SceneryElement.Renderer,
             Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
 
-        val numSupersegments = 15
+        val numSupersegments = 20
 
         val buff: ByteArray
         val depthBuff: ByteArray?
 
-        var dataset = "EngineCorrected"
+        var dataset = "Rayleigh_Taylor"
 
 //        dataset += "_${commSize}_${rank}"
+
+        val vdiParams = "_${windowWidth}_${windowHeight}_${numSupersegments}_0_"
 
 
 //        val basePath = "/home/aryaman/Repositories/DistributedVis/cmake-build-debug/"
@@ -90,10 +92,13 @@ class VDIRendererSimple : SceneryBase("SimpleVDIRenderer", 512, 512) {
 //        val basePath = "/home/aryaman/TestingData/"
 //        val basePath = "/home/aryaman/TestingData/FromCluster/"
 
-        val file = FileInputStream(File(basePath + "${dataset}vdidump4"))
+        val file = FileInputStream(File(basePath + "${dataset}vdi${vdiParams}dump4"))
 //        val comp = GZIPInputStream(file, 65536)
 
         val vdiData = VDIDataIO.read(file)
+
+        logger.info("View is: ${vdiData.metadata.view}")
+        logger.info("Proj is: ${vdiData.metadata.projection}")
 
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
@@ -118,8 +123,8 @@ class VDIRendererSimple : SceneryBase("SimpleVDIRenderer", 512, 512) {
         val vdiType = ""
 
         if(separateDepth) {
-            buff = File(basePath + "${dataset}${vdiType}VDI4_ndc_col").readBytes()
-            depthBuff = File(basePath + "${dataset}${vdiType}VDI4_ndc_depth").readBytes()
+            buff = File(basePath + "${dataset}${vdiType}VDI${vdiParams}4_ndc_col_working").readBytes()
+            depthBuff = File(basePath + "${dataset}${vdiType}VDI${vdiParams}4_ndc_depth_working").readBytes()
 
         } else {
             buff = File("/home/aryaman/Repositories/scenery-insitu/VDI10_ndc").readBytes()
