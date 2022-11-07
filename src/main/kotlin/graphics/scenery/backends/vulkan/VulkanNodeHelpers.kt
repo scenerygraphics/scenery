@@ -159,7 +159,7 @@ object VulkanNodeHelpers {
      * and allocates necessary command buffers from [commandPools] and submits to [queue]. Returns the [node]'s modified [VulkanObjectState].
      */
     fun updateInstanceBuffer(device: VulkanDevice, node: InstancedNode, state: VulkanObjectState, commandPools: VulkanRenderer.CommandPools, queue: VkQueue): VulkanObjectState {
-        logger.trace("Updating instance buffer for ${node.name}")
+        logger.trace("Updating instance buffer for {}", node.name)
 
         // parentNode.instances is a CopyOnWrite array list, and here we keep a reference to the original.
         // If it changes in the meantime, no problemo.
@@ -172,7 +172,7 @@ object VulkanNodeHelpers {
 
         // TODO make maxInstanceUpdateCount property of InstancedNode
         val maxUpdates = node.metadata["MaxInstanceUpdateCount"] as? AtomicInteger
-        if(maxUpdates?.get() ?: 1 < 1) {
+        if((maxUpdates?.get() ?: 1) < 1) {
             logger.debug("Instances updates blocked for ${node.name}, returning")
             return state
         }
@@ -277,7 +277,8 @@ object VulkanNodeHelpers {
 
             logger.debug("${node.name} will have $type texture from $texture in slot $slot")
 
-            if (!textureCache.containsKey(texture)) {
+            val existing = textureCache[texture]
+            if (existing == null) {
                 try {
                     logger.debug("Loading texture {} for {}", texture, node.name)
 
@@ -317,7 +318,10 @@ object VulkanNodeHelpers {
                     logger.warn("Could not load texture for ${node.name}: $e")
                 }
             } else {
-                s.textures[type] = textureCache[texture]!!
+                if(s.textures[type] != existing) {
+                    descriptorUpdated = true
+                }
+                s.textures[type] = existing
             }
         }
 
@@ -330,6 +334,7 @@ object VulkanNodeHelpers {
         val isCompute = material is ShaderMaterial && ((material as? ShaderMaterial)?.isCompute() ?: false)
         if(!isCompute) {
             Texture.objectTextures.forEach {
+                s.defaultTexturesFor.clear()
                 if (!s.textures.containsKey(it)) {
                     s.textures.putIfAbsent(it, defaultTexture)
                     s.defaultTexturesFor.add(it)
