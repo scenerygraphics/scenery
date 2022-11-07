@@ -9,7 +9,7 @@ import kotlin.concurrent.thread
 
 class VDIBenchmarkRunner {
 
-    val benchmarkDatasets = listOf<String>("Kingsnake", "Beechnut", "Simulation")
+    val benchmarkDatasets = listOf<String>("Kingsnake", "Rayleigh_Taylor", "Simulation")
     val benchmarkViewpoints = listOf(5, 10, 15, 20, 25, 30, 35, 40)
     val benchmarkSupersegments = listOf(20)
     val benchmarkVos = listOf(0, 90, 180, 270)
@@ -45,6 +45,8 @@ class VDIBenchmarkRunner {
 
         var factor = start
 
+        instance.setEmptySpaceSkipping(true)
+
         while (stepCount < totalSteps) {
             instance.downsampleImage(factor)
             Thread.sleep(2000) //allow the change to take place
@@ -56,7 +58,7 @@ class VDIBenchmarkRunner {
     }
 
     fun vdiRenderingBenchmarks(dataset: String, viewpoint: Int, instance: VDIRenderingExample, renderer: Renderer, skipEmpty: Boolean = false) {
-        val fw = FileWriter("benchmarking/${dataset}_vdiRendering_$skipEmpty.csv", true)
+        val fw = FileWriter("/datapot/aryaman/owncloud/VDI_Benchmarks/${dataset}_vdiRendering_$skipEmpty.csv", true)
         val bw = BufferedWriter(fw)
 
         val stats = instance.hub.get<Statistics>()!!
@@ -82,8 +84,8 @@ class VDIBenchmarkRunner {
 
     fun scaleSamplingFactor(dataset: String, screenshotName: String, stratified: Boolean, instance: VDIRenderingExample, renderer: Renderer, bw: BufferedWriter) {
         val start = 0.02f
-        val until = 0.4f
-        val step = 0.04f
+        val until = 0.6f
+        val step = 0.06f
         val totalSteps = ((until - start)/step).toInt() + 1
 
         var stepCount = 1
@@ -171,16 +173,17 @@ class VDIBenchmarkRunner {
                             Thread.sleep(50)
                         }
 
+                        val pitch = (dataName == "Simulation")
+                        instance.rotateCamera(vo.toFloat(), pitch)
+
                         var previousViewpoint = 0
                         benchmarkViewpoints.forEach { viewpoint->
                             val rotation = viewpoint - previousViewpoint
                             previousViewpoint = viewpoint
 
-                            val pitch = (dataName == "Simulation")
                             instance.rotateCamera(rotation.toFloat(), pitch)
 
                             vdiRenderingBenchmarks(dataset, viewpoint, instance, renderer, false)
-                            vdiRenderingBenchmarks(dataset, viewpoint, instance, renderer, true)
                         }
 
 
