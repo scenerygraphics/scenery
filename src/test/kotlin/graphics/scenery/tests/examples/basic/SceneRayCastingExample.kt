@@ -61,13 +61,16 @@ class SceneRayCastingExample : SceneryBase("SceneRayCastingExample") {
         }
     }
 
+    /**
+     * Adds key '1' ray casting to shoot a ray into the scene
+     */
     override fun inputSetup() {
         super.inputSetup()
 
         inputHandler?.addBehaviour(
             "raycastPicking", object : ClickBehaviour {
                 override fun click(x: Int, y: Int) {
-                    val ray = cam.getNodesForScreenSpacePosition(x,y, listOf<Class<*>>(BoundingGrid::class.java), true, true)
+                    val ray = cam.getNodesForScreenSpacePosition(x,y, listOf<Class<*>>(BoundingGrid::class.java), true)
 
                     ray.matches.firstOrNull()?.let { hit ->
                         val node = hit.node as? Plane ?: return //backside might get hit first
@@ -80,6 +83,9 @@ class SceneRayCastingExample : SceneryBase("SceneRayCastingExample") {
         inputHandler?.addKeyBinding("raycastPicking", "1")
     }
 
+    /**
+     * Static object for running as application
+     */
     companion object {
         @JvmStatic
         fun main(args: Array<String>) {

@@ -194,12 +194,11 @@ open class Camera : DefaultNode("Camera"), HasRenderable, HasMaterial, HasCustom
     fun getNodesForScreenSpacePosition(
         x: Int, y: Int,
         ignoredObjects: List<Class<*>> = listOf<Class<*>>(BoundingGrid::class.java),
-        useCamOrigin: Boolean = false,
         debug: Boolean = false
     ): Scene.RaycastResult {
         return getNodesForScreenSpacePosition(x, y, { n: Node ->
             !ignoredObjects.any { it.isAssignableFrom(n.javaClass) }
-        }, useCamOrigin, debug)
+        }, debug)
     }
 
     /**
@@ -209,10 +208,9 @@ open class Camera : DefaultNode("Camera"), HasRenderable, HasMaterial, HasCustom
     fun getNodesForScreenSpacePosition(
         x: Int, y: Int,
         filter: (Node) -> Boolean,
-        useCamOrigin: Boolean = false,
         debug: Boolean = false
     ): Scene.RaycastResult {
-        val (worldPos, worldDir) = screenPointToRay(x, y, useCamOrigin)
+        val (worldPos, worldDir) = screenPointToRay(x, y)
 
         val scene = getScene()
         if(scene == null) {
@@ -229,7 +227,7 @@ open class Camera : DefaultNode("Camera"), HasRenderable, HasMaterial, HasCustom
      *
      * Returns (worldPos, worldDir)
      */
-    fun screenPointToRay(x: Int, y: Int, useCamOrigin : Boolean = false): Pair<Vector3f, Vector3f> {
+    fun screenPointToRay(x: Int, y: Int): Pair<Vector3f, Vector3f> {
         // calculate aspect ratio, note here that both width and height
         // are integers and need to be converted before the division, otherwise
         // we end up with an incorrect (integer) result
@@ -242,16 +240,13 @@ open class Camera : DefaultNode("Camera"), HasRenderable, HasMaterial, HasCustom
         val posY = (1.0f - 2.0f * ((y + 0.5f)/height)) * tanFov
 
         // transform both origin points and screen-space positions with the view matrix to world space
-        val worldPos = spatial().viewToWorld(Vector3f(posX, posY, -1.0f)).xyz()
+        // changed z from -1.0f to - nearClippingDistance
+        val worldPos = spatial().viewToWorld(Vector3f(posX, posY, -nearPlaneDistance)).xyz()
         val origin = spatial().viewToWorld(Vector3f(0.0f)).xyz()
 
         val worldDir = (worldPos - origin).normalize()
 
-        return if(useCamOrigin) {
-            Pair(origin, worldDir)
-        } else {
-            Pair(worldPos, worldDir)
-        }
+        return Pair(worldPos, worldDir)
     }
 
     /**
