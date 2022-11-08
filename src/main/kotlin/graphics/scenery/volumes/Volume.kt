@@ -183,7 +183,6 @@ open class Volume(
             }
         }
         set(value) {
-            viewerState.numTimepoints = timepointCount
             viewerState.currentTimepoint = value
             modifiedAt = System.nanoTime()
             field = value
