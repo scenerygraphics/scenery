@@ -134,7 +134,7 @@ open class VRTouch(
          * Return to the original diffuse color after calling  [applySelectionColor].
          * Should do nothing if no previous call of [applySelectionColor] happend.
          */
-        fun unapplySelectionColor (node: Node) {
+        fun unapplySelectionColor(node: Node) {
             val touchable = node.getAttributeOrNull(Touchable::class.java)
             val material = node.materialOrNull()
 
