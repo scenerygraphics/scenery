@@ -37,7 +37,7 @@ open class VRGrab(
     protected val onGrab: ((Node) -> Unit)? = null,
     protected val onDrag: ((Node) -> Unit)? = null,
     protected val onRelease: ((Node) -> Unit)? = null
-) : DragBehaviour, Enableable{
+) : DragBehaviour, Enablable{
 
     override var enabled: Boolean = true
 
