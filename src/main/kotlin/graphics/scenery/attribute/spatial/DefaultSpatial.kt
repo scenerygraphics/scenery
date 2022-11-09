@@ -209,14 +209,12 @@ open class DefaultSpatial(@Transient protected var node: Node = DefaultNode()) :
         return false
     }
 
-    override fun worldPosition(v: Vector3f?): Vector3f {
-        val target = v ?: position
-        return if(node.parent is Scene && v == null) {
-            Vector3f(target)
+    override fun worldPosition(v: Vector3f?): Vector3f =
+        if(node.parent is Scene && v == null) {
+            Vector3f(position)
         } else {
-            world.transform(Vector4f().set(target, 1.0f)).xyz()
+            world.transform(Vector4f().set(v ?: Vector3f(), 1.0f)).xyz()
         }
-    }
 
     /**
      * Performs a intersection test with an axis-aligned bounding box of this [Node], where
