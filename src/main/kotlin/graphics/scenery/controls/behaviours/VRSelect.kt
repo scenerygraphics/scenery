@@ -5,9 +5,6 @@ import graphics.scenery.Scene
 import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.controls.TrackerRole
-import graphics.scenery.controls.behaviours.VRGrab.Companion.createAndSet
-import graphics.scenery.controls.behaviours.VRPress.Companion.createAndSet
-import graphics.scenery.controls.behaviours.VRSelect.Companion.createAndSet
 import graphics.scenery.primitives.Cylinder
 import graphics.scenery.primitives.LineBetweenNodes
 import graphics.scenery.utils.Wiggler

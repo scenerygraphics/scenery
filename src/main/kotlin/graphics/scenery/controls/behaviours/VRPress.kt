@@ -6,7 +6,6 @@ import graphics.scenery.attribute.spatial.Spatial
 import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.controls.TrackerRole
-import graphics.scenery.controls.behaviours.VRPress.Companion.createAndSet
 import org.scijava.ui.behaviour.DragBehaviour
 
 /**
