@@ -49,14 +49,14 @@ open class VRPress(
         }
         selected.forEach { node ->
             onPress?.let { it(node) }
-            node.getAttributeOrNull(Pressable::class.java)?.let { pressable ->
-                when (pressable) {
-                    is SimplePressable -> pressable
+            node.ifHasAttribute(Pressable::class.java) {
+                when (this) {
+                    is SimplePressable -> this
                     is PerButtonPressable -> {
-                        pressable.actions[button]
+                        this.actions[button]
                     }
-                }
-            }?.onPress?.invoke(controllerSpatial)
+                }?.onPress?.invoke(controllerSpatial)
+            }
         }
     }
 
@@ -68,14 +68,14 @@ open class VRPress(
      */
     override fun drag(x: Int, y: Int) {
         selected.forEach {
-            it.getAttributeOrNull(Pressable::class.java)?.let { pressable ->
-                when (pressable) {
-                    is SimplePressable -> pressable
+            it.ifHasAttribute(Pressable::class.java) {
+                when (this) {
+                    is SimplePressable -> this
                     is PerButtonPressable -> {
-                        pressable.actions[button]
+                        this.actions[button]
                     }
-                }
-            }?.onHold?.invoke(controllerSpatial)
+                }?.onHold?.invoke(controllerSpatial)
+            }
         }
     }
 
@@ -87,14 +87,14 @@ open class VRPress(
      */
     override fun end(x: Int, y: Int) {
         selected.forEach {
-            it.getAttributeOrNull(Pressable::class.java)?.let { pressable ->
-                when (pressable) {
-                    is SimplePressable -> pressable
+            it.ifHasAttribute(Pressable::class.java) {
+                when (this) {
+                    is SimplePressable -> this
                     is PerButtonPressable -> {
-                        pressable.actions[button]
+                        this.actions[button]
                     }
-                }
-            }?.onRelease?.invoke(controllerSpatial)
+                }?.onRelease?.invoke(controllerSpatial)
+            }
         }
         selected = emptyList()
     }
