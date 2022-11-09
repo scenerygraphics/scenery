@@ -267,28 +267,14 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
                         verticesVectors.add(curveGeometry[shapeIndex + 1][vertexIndex + 1])
                         verticesVectors.add(curveGeometry[shapeIndex + 1][vertexIndex])
                     }
+
+                    verticesVectors.add(curveGeometry[shapeIndex][shape.lastIndex])
+                    verticesVectors.add(curveGeometry[shapeIndex][0])
+                    verticesVectors.add(curveGeometry[shapeIndex + 1][shape.lastIndex])
+
                     verticesVectors.add(curveGeometry[shapeIndex][0])
                     verticesVectors.add(curveGeometry[shapeIndex + 1][0])
                     verticesVectors.add(curveGeometry[shapeIndex + 1][shape.lastIndex])
-
-
-                    /*
-                    Testing, delete following three lines afterwards
-                     */
-                    verticesVectors.add(curveGeometry[shapeIndex][0])
-                    verticesVectors.add(curveGeometry[shapeIndex + 1][shape.lastIndex])
-                    verticesVectors.add(curveGeometry[shapeIndex + 1][0])
-
-                    verticesVectors.add(curveGeometry[shapeIndex + 1][shape.lastIndex])
-                    verticesVectors.add(curveGeometry[shapeIndex][shape.lastIndex])
-                    verticesVectors.add(curveGeometry[shapeIndex][0])
-
-                    /*
-                    Testing, delete following three lines afterwards
-                     */
-                    verticesVectors.add(curveGeometry[shapeIndex + 1][shape.lastIndex])
-                    verticesVectors.add(curveGeometry[shapeIndex][0])
-                    verticesVectors.add(curveGeometry[shapeIndex][shape.lastIndex])
                 }
             } else {
                 throw IllegalArgumentException("The baseShapes must not differ in size!")
