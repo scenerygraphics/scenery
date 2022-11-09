@@ -9,7 +9,6 @@ import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.locks.ReentrantLock
 import java.util.function.Consumer
 import kotlin.collections.HashMap
-import kotlin.reflect.KClass
 import kotlin.reflect.KProperty1
 import kotlin.reflect.full.findAnnotation
 import kotlin.reflect.full.memberProperties
@@ -199,10 +198,6 @@ open class DefaultNode(name: String = "Node") : Node, Networkable {
 
     override fun getSubcomponents(): List<Networkable> {
         return attributes.attributes().mapNotNull { it as? Networkable }
-    }
-
-    override fun getAttributeClass(): KClass<out Any>? {
-        return null
     }
 
     override fun toString(): String {

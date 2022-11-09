@@ -71,7 +71,7 @@ class ExampleRunner(
             }
 
             delay(2000)
-            r.screenshot("$rendererDirectory/${clazz.simpleName}.png")
+            r.screenshot("$rendererDirectory/${clazz.simpleName}.png", overwrite = true)
             Thread.sleep(2000)
 
             logger.info("Sending close to ${clazz.simpleName}")

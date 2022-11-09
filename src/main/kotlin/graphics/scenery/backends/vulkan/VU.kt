@@ -173,6 +173,11 @@ fun Blending.BlendOp.toVulkan() = when (this) {
 class VU {
 
     /**
+     * Exception class to be thrown when a Vulkan command fails.
+     */
+    class VulkanCommandException(message: String) : RuntimeException(message)
+
+    /**
      * Companion object for [VU] to access methods statically.
      */
     companion object {
@@ -189,7 +194,7 @@ class VU {
                 LoggerFactory.getLogger("VulkanRenderer").error("Call to $name failed: ${translate(result)}")
 
                 if(result < 0) {
-                   throw RuntimeException("Call to $name failed: ${translate(result)}")
+                   throw VulkanCommandException("Call to $name failed: ${translate(result)}")
                 }
             }
 
@@ -209,7 +214,7 @@ class VU {
                 LoggerFactory.getLogger("VulkanRenderer").error("Call to $name failed: ${translate(result)}")
 
                 if(result < 0) {
-                    throw RuntimeException("Call to $name failed: ${translate(result)}")
+                    throw VulkanCommandException("Call to $name failed: ${translate(result)}")
                 }
             }
 
@@ -230,7 +235,7 @@ class VU {
                     LoggerFactory.getLogger("VulkanRenderer").error("Call to $name failed: ${translate(result)}")
 
                     if(result < 0) {
-                        throw RuntimeException("Call to $name failed: ${translate(result)}")
+                        throw VulkanCommandException("Call to $name failed: ${translate(result)}")
                     }
                 }
 
@@ -253,7 +258,7 @@ class VU {
                 LoggerFactory.getLogger("VulkanRenderer").error("Call to $name failed: ${translate(result)}")
 
                 if(result < 0) {
-                    throw RuntimeException("Call to $name failed: ${translate(result)}")
+                    throw VulkanCommandException("Call to $name failed: ${translate(result)}")
                 }
             }
 
@@ -275,7 +280,7 @@ class VU {
                     cleanup.invoke(receiver)
 
                     if(result < 0) {
-                        throw RuntimeException("Call to $name failed: ${translate(result)}")
+                        throw VulkanCommandException("Call to $name failed: ${translate(result)}")
                     }
                 }
 
@@ -301,7 +306,7 @@ class VU {
                     cleanup.invoke(receiver)
 
                     if(result < 0) {
-                        throw RuntimeException("Call to $name failed: ${translate(result)}")
+                        throw VulkanCommandException("Call to $name failed: ${translate(result)}")
                     }
                 }
 
@@ -323,7 +328,7 @@ class VU {
                     LoggerFactory.getLogger("VulkanRenderer").error("Call to $name failed: ${translate(result)}")
 
                     if(result < 0) {
-                        throw RuntimeException("Call to $name failed: ${translate(result)}")
+                        throw VulkanCommandException("Call to $name failed: ${translate(result)}")
                     }
                 }
 
@@ -346,7 +351,7 @@ class VU {
                 LoggerFactory.getLogger("VulkanRenderer").error("Call to $name failed: ${translate(result)}")
 
                 if(result < 0) {
-                    throw RuntimeException("Call to $name failed: ${translate(result)}")
+                    throw VulkanCommandException("Call to $name failed: ${translate(result)}")
                 }
             }
 
@@ -368,7 +373,7 @@ class VU {
                 cleanup.invoke(receiver)
 
                 if(result < 0) {
-                    throw RuntimeException("Call to $name failed: ${translate(result)}")
+                    throw VulkanCommandException("Call to $name failed: ${translate(result)}")
                 }
             }
 

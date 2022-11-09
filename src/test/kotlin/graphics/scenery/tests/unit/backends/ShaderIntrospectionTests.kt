@@ -194,7 +194,13 @@ void main()
         assertContains(binaryOutput, "uImage", false, "Debug SPIRV should contain first image name")
         assertContains(binaryOutput, "uSeparateTexture", false, "Debug SPIRV should contain second texture name")
         assertContains(binaryOutput, "uSampler", false, "Debug SPIRV should contain first sampler name")
-        assertContains(binaryOutput, code, false, "Debug SPIRV should contain full source")
+
+        // if debug is enabled, the shader compiler will automatically
+        // add the GL_EXT_debug_printf extension to the file.
+        val extensionPos = code.indexOf("\n", code.indexOf("#version "))
+        val shaderCodeWhenDebugEnabled = code.replaceRange(extensionPos, extensionPos + 1, "\n#extension GL_EXT_debug_printf : enable\n")
+
+        assertContains(binaryOutput, shaderCodeWhenDebugEnabled, false, "Debug SPIRV should contain full source")
 
         val si = ShaderIntrospection(bytecode.toIntArray())
         si.close()
