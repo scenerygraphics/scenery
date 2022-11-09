@@ -18,7 +18,7 @@ abstract class VRTwoHandDragBehavior(
     private val name: String,
     private val controller: Spatial,
     private val offhand: VRTwoHandDragOffhand,
-) : DragBehaviour, Enableable {
+) : DragBehaviour, Enablable {
 
     private val logger by LazyLogger()
 
