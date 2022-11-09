@@ -271,9 +271,24 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
                     verticesVectors.add(curveGeometry[shapeIndex + 1][0])
                     verticesVectors.add(curveGeometry[shapeIndex + 1][shape.lastIndex])
 
+
+                    /*
+                    Testing, delete following three lines afterwards
+                     */
+                    verticesVectors.add(curveGeometry[shapeIndex][0])
+                    verticesVectors.add(curveGeometry[shapeIndex + 1][shape.lastIndex])
+                    verticesVectors.add(curveGeometry[shapeIndex + 1][0])
+
                     verticesVectors.add(curveGeometry[shapeIndex + 1][shape.lastIndex])
                     verticesVectors.add(curveGeometry[shapeIndex][shape.lastIndex])
                     verticesVectors.add(curveGeometry[shapeIndex][0])
+
+                    /*
+                    Testing, delete following three lines afterwards
+                     */
+                    verticesVectors.add(curveGeometry[shapeIndex + 1][shape.lastIndex])
+                    verticesVectors.add(curveGeometry[shapeIndex][0])
+                    verticesVectors.add(curveGeometry[shapeIndex][shape.lastIndex])
                 }
             } else {
                 throw IllegalArgumentException("The baseShapes must not differ in size!")
@@ -323,7 +338,7 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
     }
 
     /**
-     * Each children of the curve must be, per definition, another Mesh. Therefore this class turns a List of
+     * Each child of the curve must be, per definition, another Mesh. Therefore, this class turns a List of
      * vertices into a Mesh.
      */
     class PartialCurve(verticesVectors: ArrayList<Vector3f>) : Mesh("PartialCurve") {
