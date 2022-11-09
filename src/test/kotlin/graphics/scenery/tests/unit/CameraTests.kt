@@ -98,7 +98,8 @@ class CameraTests {
     fun testCastRayFromScreenPos() {
         val s = Scene()
         val cam = Camera()
-        cam.perspectiveCamera(50.0f, 1280, 720, 0.01f, 1000.0f)
+        val nearPlaneLocation = 0.01f
+        cam.perspectiveCamera(50.0f, 1280, 720, nearPlaneLocation, 1000.0f)
         s.addChild(cam)
 
         cam.spatial {
@@ -111,7 +112,7 @@ class CameraTests {
         val epsilon = 0.001f
         assertEquals(0.0f, pos.x, epsilon, "Position X")
         assertEquals(0.0f, pos.y, epsilon, "Position Y")
-        assertEquals(-1.0f, pos.z, epsilon, "Position Z")
+        assertEquals(-nearPlaneLocation, pos.z, epsilon, "Position Z")
 
         assertEquals(0.0f, dir.x, epsilon, "Direction X")
         assertEquals(0.0f, dir.y, epsilon, "Direction Y")
