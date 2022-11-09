@@ -6,8 +6,6 @@ import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.controls.TrackedDevice
 import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.controls.TrackerRole
-import graphics.scenery.controls.behaviours.VRGrab.Companion.createAndSet
-import graphics.scenery.controls.behaviours.VRPress.Companion.createAndSet
 import org.joml.Vector3f
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Future
