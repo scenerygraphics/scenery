@@ -255,7 +255,7 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
                 return Pair(verticesVectors, normalVectors)
             }
             if (addCoverOrTop == 0) {
-                val newVerticesAndNormals = getCoverVertices(curveGeometry.last(), false)
+                val newVerticesAndNormals = getCoverVertices(curveGeometry.first(), true)
                 verticesVectors.addAll(newVerticesAndNormals.first)
                 normalVectors.addAll(newVerticesAndNormals.second)
             }
