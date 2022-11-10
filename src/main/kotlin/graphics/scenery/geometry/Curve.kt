@@ -314,7 +314,7 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
                     //normal calculation triangle 2
                     val normal2 = ((Vector3f(triangle2Point2).sub(Vector3f(triangle2Point1)))
                         .cross(Vector3f(triangle2Point3).sub(Vector3f(triangle2Point1)))).normalize()
-                    normalVectors.add(normal2)
+                    for(i in 1..3) { normalVectors.add(normal2) }
                 }
             } else {
                 throw IllegalArgumentException("The baseShapes must not differ in size!")
@@ -324,6 +324,8 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
                 verticesVectors.addAll(newVerticesAndNormals.first)
                 normalVectors.addAll(newVerticesAndNormals.second)
             }
+            println(normalVectors.size)
+            println(verticesVectors.size)
             return Pair(verticesVectors, normalVectors)
         }
 
@@ -362,17 +364,22 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
                         //compute normal
                         val normal = ((Vector3f(triangle[0]).sub(Vector3f(triangle[2])))
                             .cross(Vector3f(triangle[1]).sub(Vector3f(triangle[0])))).normalize()
-                        normalVectors.add(normal)
+                        for(i in 1..3) { normalVectors.add(normal) }
                     }
                     newList.add(triangle[0])
                 }
-                //to avoid gaps when the vertex number is odd
-                if(size%2==1) { newList.add(list.last()) }
 
-                val newVerticesAndNormals = getCoverVertices(newList, ccw)
-                verticesList.addAll(newVerticesAndNormals.first)
-                normalVectors.addAll(newVerticesAndNormals.second)
+                //check if the recursion has come to an end
+                if(newList.size >= 3) {
+                    //to avoid gaps when the vertex number is odd
+                    if (size % 2 == 1) {
+                        newList.add(list.last())
+                    }
 
+                    val newVerticesAndNormals = getCoverVertices(newList, ccw)
+                    verticesList.addAll(newVerticesAndNormals.first)
+                    normalVectors.addAll(newVerticesAndNormals.second)
+                }
             }
             return Pair(verticesList, normalVectors)
         }
@@ -384,6 +391,7 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
      */
     class PartialCurve(verticesVectors: ArrayList<Vector3f>, normalVectors: ArrayList<Vector3f>) : Mesh("PartialCurve") {
         init {
+            if(verticesVectors.size != verticesVectors.size) { println(" NOT right size for vertices/normals") }
             geometry {
                 vertices = BufferUtils.allocateFloat(verticesVectors.size * 3)
                 verticesVectors.forEach {
