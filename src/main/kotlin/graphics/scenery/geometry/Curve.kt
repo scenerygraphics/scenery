@@ -82,14 +82,14 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
                     0 -> {
                         0
                     }
-                    subShapes.size - 1 -> {
+                    subShapes.lastIndex -> {
                         2
                     }
                     else -> {
                         1
                     }
                 }
-                val trianglesAndNormals = calculateTriangles(arrayList, i)
+                val trianglesAndNormals = calculateTriangles(arrayList, addCoverOrTop = i)
                 val partialCurve = PartialCurve(trianglesAndNormals.first, trianglesAndNormals.second)
                 this.addChild(partialCurve)
             }
@@ -255,7 +255,7 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
                 return Pair(verticesVectors, normalVectors)
             }
             if (addCoverOrTop == 0) {
-                val newVerticesAndNormals = getCoverVertices(curveGeometry.last(), true)
+                val newVerticesAndNormals = getCoverVertices(curveGeometry.last(), false)
                 verticesVectors.addAll(newVerticesAndNormals.first)
                 normalVectors.addAll(newVerticesAndNormals.second)
             }
@@ -324,8 +324,6 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
                 verticesVectors.addAll(newVerticesAndNormals.first)
                 normalVectors.addAll(newVerticesAndNormals.second)
             }
-            println(normalVectors.size)
-            println(verticesVectors.size)
             return Pair(verticesVectors, normalVectors)
         }
 
@@ -391,7 +389,6 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
      */
     class PartialCurve(verticesVectors: ArrayList<Vector3f>, normalVectors: ArrayList<Vector3f>) : Mesh("PartialCurve") {
         init {
-            if(verticesVectors.size != verticesVectors.size) { println(" NOT right size for vertices/normals") }
             geometry {
                 vertices = BufferUtils.allocateFloat(verticesVectors.size * 3)
                 verticesVectors.forEach {
