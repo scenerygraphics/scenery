@@ -353,10 +353,10 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
                     } else {
                         for (i in 0..2) {
                             verticesList.add(triangle[i])
-                            //compute normal
-                            normalVectors.add(((Vector3f(triangle[0]).sub(Vector3f(triangle[2])))
-                                .cross(Vector3f(triangle[1]).sub(Vector3f(triangle[0])))).normalize())
                         }
+                        //compute normal
+                        normalVectors.add(((Vector3f(triangle[0]).sub(Vector3f(triangle[2])))
+                            .cross(Vector3f(triangle[1]).sub(Vector3f(triangle[0])))).normalize())
                     }
                     newList.add(triangle[0])
                 }
