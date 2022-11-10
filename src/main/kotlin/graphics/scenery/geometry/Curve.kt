@@ -325,17 +325,14 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
         private fun getCoverVertices(list: List<Vector3f>, ccw: Boolean): ArrayList<Vector3f> {
             val size = list.size
             val verticesList = ArrayList<Vector3f>(size + (size / 2))
-            val workList = ArrayList<Vector3f>(size)
-            workList.addAll(list)
+
             if (size >= 3) {
-                /* The algorithm must not stop before the last triangle. The next five lines ensure, therefore,
-                   that the last triangle, which contains the last point as well as the first point, is included.
-             */
-                when (size) {
-                    0 -> {  workList.add(list[0])
-                        workList.add(list[1]) }
-                    1 -> { workList.add(list[0]) }
-                }
+                val workList = ArrayList<Vector3f>(size)
+                workList.addAll(list)
+
+                //Ensures that the algorithm does not stop before the last triangle.
+                if(size%2 == 0) { workList.add(list[0]) }
+
                 val newList = ArrayList<Vector3f>((size + (size / 2)) / 2)
                 workList.windowed(3, 2) { triangle ->
                     if (ccw) {
@@ -349,6 +346,9 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
                     }
                     newList.add(triangle[0])
                 }
+                //to avoid gaps when the vertex number is odd
+                if(size%2==1) { newList.add(list.last()) }
+
                 verticesList.addAll(getCoverVertices(newList, ccw))
             }
             return verticesList
