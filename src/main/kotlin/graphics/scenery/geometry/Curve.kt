@@ -248,6 +248,7 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
          */
         fun calculateTriangles(curveGeometry: List<List<Vector3f>>, addCoverOrTop: Int = 2): ArrayList<Vector3f> {
             val verticesVectors = ArrayList<Vector3f>(curveGeometry.flatten().size * 6 + curveGeometry[0].size + 1)
+            val normalVectors = ArrayList<Vector3f>(verticesVectors.size/3)
             if (curveGeometry.isEmpty()) {
                 return verticesVectors
             }
@@ -259,22 +260,53 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
                 curveGeometry.dropLast(1).forEachIndexed { shapeIndex, shape ->
                     shape.dropLast(1).forEachIndexed { vertexIndex, _ ->
 
-                        verticesVectors.add(curveGeometry[shapeIndex][vertexIndex])
-                        verticesVectors.add(curveGeometry[shapeIndex][vertexIndex + 1])
-                        verticesVectors.add(curveGeometry[shapeIndex + 1][vertexIndex])
 
-                        verticesVectors.add(curveGeometry[shapeIndex][vertexIndex + 1])
-                        verticesVectors.add(curveGeometry[shapeIndex + 1][vertexIndex + 1])
-                        verticesVectors.add(curveGeometry[shapeIndex + 1][vertexIndex])
+                        val triangle1Point1 = curveGeometry[shapeIndex][vertexIndex]
+                        val triangle1Point2 = curveGeometry[shapeIndex][vertexIndex + 1]
+                        val triangle1Point3 = curveGeometry[shapeIndex + 1][vertexIndex]
+                        verticesVectors.add(triangle1Point1)
+                        verticesVectors.add(triangle1Point2)
+                        verticesVectors.add(triangle1Point3)
+
+                        //normal calculation triangle 1
+                        normalVectors.add(((Vector3f(triangle1Point2).sub(Vector3f(triangle1Point1)))
+                            .cross(Vector3f(triangle1Point3).sub(Vector3f(triangle1Point1)))).normalize())
+
+
+                        val triangle2Point1 = curveGeometry[shapeIndex][vertexIndex + 1]
+                        val triangle2Point2 = curveGeometry[shapeIndex + 1][vertexIndex + 1]
+                        val triangle2Point3 = curveGeometry[shapeIndex + 1][vertexIndex]
+                        verticesVectors.add(triangle2Point1)
+                        verticesVectors.add(triangle2Point2)
+                        verticesVectors.add(triangle2Point3)
+
+                        //normal calculation triangle 2
+                        normalVectors.add(((Vector3f(triangle2Point2).sub(Vector3f(triangle2Point1)))
+                            .cross(Vector3f(triangle2Point3).sub(Vector3f(triangle2Point1)))).normalize())
                     }
 
-                    verticesVectors.add(curveGeometry[shapeIndex][shape.lastIndex])
-                    verticesVectors.add(curveGeometry[shapeIndex][0])
-                    verticesVectors.add(curveGeometry[shapeIndex + 1][shape.lastIndex])
+                    val triangle1Point1 = curveGeometry[shapeIndex][shape.lastIndex]
+                    val triangle1Point2 = curveGeometry[shapeIndex][0]
+                    val triangle1Point3 = curveGeometry[shapeIndex + 1][shape.lastIndex]
+                    verticesVectors.add(triangle1Point1)
+                    verticesVectors.add(triangle1Point2)
+                    verticesVectors.add(triangle1Point3)
 
-                    verticesVectors.add(curveGeometry[shapeIndex][0])
-                    verticesVectors.add(curveGeometry[shapeIndex + 1][0])
-                    verticesVectors.add(curveGeometry[shapeIndex + 1][shape.lastIndex])
+                    //normal calculation triangle 1
+                    normalVectors.add(((Vector3f(triangle1Point2).sub(Vector3f(triangle1Point1)))
+                        .cross(Vector3f(triangle1Point3).sub(Vector3f(triangle1Point1)))).normalize())
+
+
+                    val triangle2Point1 = curveGeometry[shapeIndex][0]
+                    val triangle2Point2 = curveGeometry[shapeIndex + 1][0]
+                    val triangle2Point3 = curveGeometry[shapeIndex + 1][shape.lastIndex]
+                    verticesVectors.add(triangle2Point1)
+                    verticesVectors.add(triangle2Point2)
+                    verticesVectors.add(triangle2Point3)
+
+                    //normal calculation triangle 2
+                    normalVectors.add(((Vector3f(triangle2Point2).sub(Vector3f(triangle2Point1)))
+                        .cross(Vector3f(triangle2Point3).sub(Vector3f(triangle2Point1)))).normalize())
                 }
             } else {
                 throw IllegalArgumentException("The baseShapes must not differ in size!")
@@ -299,7 +331,7 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
                 /* The algorithm must not stop before the last triangle. The next five lines ensure, therefore,
                    that the last triangle, which contains the last point as well as the first point, is included.
              */
-                when (size % 1) {
+                when (size) {
                     0 -> {  workList.add(list[0])
                         workList.add(list[1]) }
                     1 -> { workList.add(list[0]) }
