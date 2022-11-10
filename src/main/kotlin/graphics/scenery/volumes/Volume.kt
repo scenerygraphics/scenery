@@ -173,7 +173,7 @@ open class Volume(
     var cacheControls = CacheControl.CacheControls()
 
     /** Current timepoint. */
-    var currentTimepoint: Int
+    var currentTimepoint: Int = 0
         get() {
             // despite IDEAs warning this might be not be false if kryo uses its de/serialization magic
             return if (dataSource == null || dataSource is VolumeDataSource.NullSource) {
@@ -185,6 +185,7 @@ open class Volume(
         set(value) {
             viewerState.currentTimepoint = value
             modifiedAt = System.nanoTime()
+            field = value
         }
 
     sealed class VolumeDataSource {
