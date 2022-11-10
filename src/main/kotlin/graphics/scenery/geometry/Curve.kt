@@ -89,7 +89,8 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
                         1
                     }
                 }
-                val partialCurve = PartialCurve(calculateTriangles(arrayList, i))
+                val trianglesAndNormals = calculateTriangles(arrayList, i)
+                val partialCurve = PartialCurve(trianglesAndNormals.first, trianglesAndNormals.second)
                 this.addChild(partialCurve)
             }
         }
@@ -148,7 +149,8 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
                 } else {
                     1
                 }
-                val partialCurve = PartialCurve(calculateTriangles(partialCurveGeometry, i))
+                val trianglesAndNormals = calculateTriangles(partialCurveGeometry, i)
+                val partialCurve = PartialCurve(trianglesAndNormals.first, trianglesAndNormals.second)
                 this.addChild(partialCurve)
             }
         }
@@ -242,18 +244,20 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
 
     companion object VerticesCalculation {
         /**
-         * This function calculates the triangles for the the rendering. It takes as a parameter
+         * This function calculates the triangles for the rendering. It takes as a parameter
          * the [curveGeometry] List which contains all the baseShapes transformed and translated
          * along the curve.
          */
-        fun calculateTriangles(curveGeometry: List<List<Vector3f>>, addCoverOrTop: Int = 2): ArrayList<Vector3f> {
+        fun calculateTriangles(curveGeometry: List<List<Vector3f>>, addCoverOrTop: Int = 2): Pair<ArrayList<Vector3f>, ArrayList<Vector3f>> {
             val verticesVectors = ArrayList<Vector3f>(curveGeometry.flatten().size * 6 + curveGeometry[0].size + 1)
             val normalVectors = ArrayList<Vector3f>(verticesVectors.size/3)
             if (curveGeometry.isEmpty()) {
-                return verticesVectors
+                return Pair(verticesVectors, normalVectors)
             }
             if (addCoverOrTop == 0) {
-                verticesVectors.addAll(getCoverVertices(curveGeometry[0], true))
+                val newVerticesAndNormals = getCoverVertices(curveGeometry.last(), true)
+                verticesVectors.addAll(newVerticesAndNormals.first)
+                normalVectors.addAll(newVerticesAndNormals.second)
             }
             //if none of the lists in the curveGeometry differ in size, distinctBy leaves only one element
             if (curveGeometry.distinctBy { it.size }.size == 1) {
@@ -312,9 +316,11 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
                 throw IllegalArgumentException("The baseShapes must not differ in size!")
             }
             if (addCoverOrTop == 2) {
-                verticesVectors.addAll(getCoverVertices(curveGeometry.last(), false))
+                val newVerticesAndNormals = getCoverVertices(curveGeometry.last(), false)
+                verticesVectors.addAll(newVerticesAndNormals.first)
+                normalVectors.addAll(newVerticesAndNormals.second)
             }
-            return verticesVectors
+            return Pair(verticesVectors, normalVectors)
         }
 
         /**
@@ -322,9 +328,10 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
         the bottom of a curve, the triangles should be arranged counterclockwise, for the top clockwise - this is signified
         by [ccw].
          */
-        private fun getCoverVertices(list: List<Vector3f>, ccw: Boolean): ArrayList<Vector3f> {
+        private fun getCoverVertices(list: List<Vector3f>, ccw: Boolean): Pair<ArrayList<Vector3f>, ArrayList<Vector3f>> {
             val size = list.size
             val verticesList = ArrayList<Vector3f>(size + (size / 2))
+            val normalVectors = ArrayList<Vector3f>(verticesList.size/3)
 
             if (size >= 3) {
                 val workList = ArrayList<Vector3f>(size)
@@ -339,9 +346,16 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
                         verticesList.add(triangle[0])
                         verticesList.add(triangle[2])
                         verticesList.add(triangle[1])
+
+                        //compute normal
+                        normalVectors.add(((Vector3f(triangle[2]).sub(Vector3f(triangle[0])))
+                            .cross(Vector3f(triangle[1]).sub(Vector3f(triangle[0])))).normalize())
                     } else {
                         for (i in 0..2) {
                             verticesList.add(triangle[i])
+                            //compute normal
+                            normalVectors.add(((Vector3f(triangle[0]).sub(Vector3f(triangle[2])))
+                                .cross(Vector3f(triangle[1]).sub(Vector3f(triangle[0])))).normalize())
                         }
                     }
                     newList.add(triangle[0])
@@ -349,9 +363,12 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
                 //to avoid gaps when the vertex number is odd
                 if(size%2==1) { newList.add(list.last()) }
 
-                verticesList.addAll(getCoverVertices(newList, ccw))
+                val newVerticesAndNormals = getCoverVertices(newList, ccw)
+                verticesList.addAll(newVerticesAndNormals.first)
+                normalVectors.addAll(newVerticesAndNormals.second)
+
             }
-            return verticesList
+            return Pair(verticesList, normalVectors)
         }
     }
 
@@ -359,7 +376,7 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
      * Each child of the curve must be, per definition, another Mesh. Therefore, this class turns a List of
      * vertices into a Mesh.
      */
-    class PartialCurve(verticesVectors: ArrayList<Vector3f>) : Mesh("PartialCurve") {
+    class PartialCurve(verticesVectors: ArrayList<Vector3f>, normalVectors: ArrayList<Vector3f>) : Mesh("PartialCurve") {
         init {
             geometry {
                 vertices = BufferUtils.allocateFloat(verticesVectors.size * 3)
@@ -368,7 +385,11 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
                 }
                 vertices.flip()
                 texcoords = BufferUtils.allocateFloat(verticesVectors.size * 2)
-                recalculateNormals()
+                normals = BufferUtils.allocateFloat(normalVectors.size*3)
+                normalVectors.forEach {
+                    normals.put(it.toFloatArray())
+                }
+                normals.flip()
 
                 boundingBox = generateBoundingBox()
             }
