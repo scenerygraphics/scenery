@@ -386,6 +386,10 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
             return Pair(verticesList, normalVectors)
         }
 
+        /**
+         * Computes the normals for each vertex then gives this list to the function [orderNormals] to give each of
+         * triangle vertices it's normal.
+         */
         private fun computeNormals(intermediateNormals: ArrayList<ArrayList<Vector3f>>, shapeSize: Int): ArrayList<Vector3f> {
             //TODO allocate the size
             val normalsOfvertices = ArrayList<ArrayList<Vector3f>>()
@@ -422,28 +426,21 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
                     val vertexNormal = Vector3f()
                     when(shapeIndex) {
                         0-> {
-                            vertexNormal.add(section[1][sectionIndex+1])
-                            vertexNormal.add(section[1][sectionIndex])
-                            vertexNormal.add(section[1].last())
-                            vertexNormal.add(section[0].last())
-                            vertexNormal.add(section[0].drop(1).last())
-                            vertexNormal.add(section[0][sectionIndex])
-                        }
-                        shapeSize-1 -> {
                             vertexNormal.add(section[1].first())
-                            vertexNormal.add(section[1][sectionIndex])
-                            vertexNormal.add(section[1][sectionIndex-1])
-                            vertexNormal.add(section[0][sectionIndex-1])
-                            vertexNormal.add(section[0][sectionIndex-2])
-                            vertexNormal.add(section[0][sectionIndex])
+                            vertexNormal.add(section[1].last())
+                            vertexNormal.add(section[1].drop(1).last())
+                            vertexNormal.add(section[0].last())
+                            vertexNormal.add(section[0].first())
+                            vertexNormal.add(section[0][sectionIndex+1])
                         }
                         else -> {
-                            vertexNormal.add(section[1][sectionIndex+1])
                             vertexNormal.add(section[1][sectionIndex])
                             vertexNormal.add(section[1][sectionIndex-1])
+                            vertexNormal.add(section[1][sectionIndex-2])
                             vertexNormal.add(section[0][sectionIndex-1])
-                            vertexNormal.add(section[0][sectionIndex-2])
                             vertexNormal.add(section[0][sectionIndex])
+                            vertexNormal.add(section[0][sectionIndex+1])
+
                         }
                     }
                     allSectionNormals.add(vertexNormal.normalize())
@@ -478,6 +475,9 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
             return orderNormals(normalsOfvertices)
         }
 
+        /**
+         * Orders the normals in the same structure as the triangle vertices.
+         */
         private fun orderNormals(verticesNormals: ArrayList<ArrayList<Vector3f>>): ArrayList<Vector3f> {
             //TODO allocate size
             val finalNormals = ArrayList<Vector3f>()
