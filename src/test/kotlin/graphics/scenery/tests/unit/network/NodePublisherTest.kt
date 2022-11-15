@@ -13,6 +13,7 @@ import graphics.scenery.net.NetworkWrapper
 import graphics.scenery.net.NodePublisher
 import org.joml.Vector3f
 import org.junit.Test
+import org.zeromq.ZContext
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import kotlin.test.assertEquals
@@ -22,8 +23,9 @@ class NodePublisherTest {
 
     @Test
     fun initialSceneDiscovery() {
+        val zContext = ZContext()
         val hub = Hub()
-        val pub = NodePublisher(hub)
+        val pub = NodePublisher(hub, context = zContext)
         pub.close()
 
         val scene = Scene()
@@ -47,12 +49,16 @@ class NodePublisherTest {
         assert(newEvents.any{it.wrapper.obj is Sphere})
         assert(newEvents.count{it.wrapper.obj is Material} == 2)
         assert(newEvents.count{it.wrapper.obj is Spatial} == 2)
+
+        pub.close().join()
+        zContext.destroy()
     }
 
     @Test
     fun registerUpdate() {
+        val zContext = ZContext()
         val hub = Hub()
-        val pub = NodePublisher(hub)
+        val pub = NodePublisher(hub, context = zContext)
         pub.close()
 
         val scene = Scene()
@@ -77,6 +83,9 @@ class NodePublisherTest {
         val event = results[0] as? NetworkEvent.Update
         assertNotNull(event)
         assertEquals(3f,(event.wrapper.obj as? Spatial)?.position?.z)
+
+        pub.close().join()
+        zContext.destroy()
     }
 
     @Test
