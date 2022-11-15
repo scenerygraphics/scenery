@@ -386,7 +386,7 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
             return Pair(verticesList, normalVectors)
         }
 
-        fun computeNormals(intermediateNormals: ArrayList<ArrayList<Vector3f>>, shapeSize: Int): ArrayList<Vector3f> {
+        private fun computeNormals(intermediateNormals: ArrayList<ArrayList<Vector3f>>, shapeSize: Int): ArrayList<Vector3f> {
             //TODO allocate the size
             val normalsOfvertices = ArrayList<ArrayList<Vector3f>>()
             //calculate normals for every vertex
@@ -478,7 +478,7 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
             return orderNormals(normalsOfvertices)
         }
 
-        fun orderNormals(verticesNormals: ArrayList<ArrayList<Vector3f>>): ArrayList<Vector3f> {
+        private fun orderNormals(verticesNormals: ArrayList<ArrayList<Vector3f>>): ArrayList<Vector3f> {
             //TODO allocate size
             val finalNormals = ArrayList<Vector3f>()
             verticesNormals.dropLast(1).forEachIndexed { shapeIndex, shape ->
