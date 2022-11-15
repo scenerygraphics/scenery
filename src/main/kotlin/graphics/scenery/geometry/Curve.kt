@@ -387,61 +387,25 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
         }
 
         fun computeNormals(intermediateNormals: ArrayList<ArrayList<Vector3f>>): ArrayList<Vector3f> {
-            //calculate normals for every section seperately TODO compute right list size
-            val curveNormals = ArrayList<Vector3f>(intermediateNormals.size*intermediateNormals[0].size)
-            intermediateNormals.forEachIndexed { index, intermediateNormalSection ->
-                when(index) {
-                    0 -> { //TODO
-                     }
-                    intermediateNormals.lastIndex -> {
-                        //TODO
-                    }
-                    else -> {
-                        for(i in 0 .. intermediateNormalSection.lastIndex) {
-
-                        }
-                    }
-                }
-            }
-            intermediateNormals.windowed(3, 1) { sectionNormals ->
-                //first triangle normals
-                val firstVertexNormal = Vector3f()
-                firstVertexNormal.add(sectionNormals[1][1])
-                firstVertexNormal.add(sectionNormals[0][0])
-                firstVertexNormal.add(sectionNormals[0][sectionNormals[0].lastIndex])
-                firstVertexNormal.add(sectionNormals[0][sectionNormals[0].lastIndex-1])
-                firstVertexNormal.add(sectionNormals[1][sectionNormals[1].lastIndex)
-                firstVertexNormal.add(sectionNormals[1][0])
-                curveNormals.add(firstVertexNormal.normalize())
-
-                for(i in 0 .. shapeSize) {
-                    var sectionIndex = 0
-                    var triangleIndex = 0
-                    for(vertexNumber in 1 .. 6) {
-                        when(vertexNumber) {
-                            1 -> {}
-                            2 -> {
-                                triangleIndex = 1
-                            }
-                            3 -> {
-                                sectionIndex = 1
-                                triangleIndex = 1
-                            }
-                            4 -> {
-                                sectionIndex = 0
-                                triangleIndex = 0
-                            }
-
-                        }
-                    }
-
-                }
-
+            //TODO allocate the size
+            val normalsOfvertices = ArrayList<ArrayList<Vector3f>>()
+            //calculate normals for every vertex
+            intermediateNormals.windowed(size = 2, 1) { section ->
+                //TODO allocate size
+                val allSectionNormals = ArrayList<Vector3f>()
 
             }
-            return curveNormals
-
+            //TODO order normals in the right structure
+            return orderNormals(normalsOfvertices)
         }
+
+        fun orderNormals(verticesNormals: ArrayList<ArrayList<Vector3f>>): ArrayList<Vector3f> {
+            //TODO allocate size
+            val finalNormals = ArrayList<Vector3f>()
+            //TODO algorithm
+            return finalNormals
+        }
+
     }
 
     /**
