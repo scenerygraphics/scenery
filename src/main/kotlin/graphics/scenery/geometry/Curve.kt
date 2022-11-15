@@ -319,7 +319,7 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
                     //add all triangle normals from this section
                     intermediateNormals.add(intermediateNormalSection)
                 }
-                normalVectors.addAll(computeNormals(intermediateNormals, curveGeometry[0].size))
+                normalVectors.addAll(computeNormals(intermediateNormals))
             } else {
                 throw IllegalArgumentException("The baseShapes must not differ in size!")
             }
@@ -386,16 +386,95 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
             return Pair(verticesList, normalVectors)
         }
 
-        fun computeNormals(intermediateNormals: ArrayList<ArrayList<Vector3f>>): ArrayList<Vector3f> {
+        fun computeNormals(intermediateNormals: ArrayList<ArrayList<Vector3f>>, shapeSize: Int): ArrayList<Vector3f> {
             //TODO allocate the size
             val normalsOfvertices = ArrayList<ArrayList<Vector3f>>()
             //calculate normals for every vertex
+            val firstSectionNormals = ArrayList<Vector3f>(shapeSize)
+            for(shapeIndex in 0 until shapeSize) {
+                val sectionIndex = shapeIndex*2
+                val vertexNormal = Vector3f()
+                when(shapeIndex) {
+                    0 -> {
+                        vertexNormal.add(intermediateNormals.first()[sectionIndex])
+                        vertexNormal.add(intermediateNormals.first()[sectionIndex+1])
+                        vertexNormal.add(intermediateNormals.first().last())
+                    }
+                    shapeSize-1 -> {
+                        vertexNormal.add(intermediateNormals.first()[sectionIndex])
+                        vertexNormal.add(intermediateNormals.first().first())
+                        vertexNormal.add(intermediateNormals.first()[sectionIndex-1])
+                    }
+                    else -> {
+                        vertexNormal.add(intermediateNormals.first()[sectionIndex])
+                        vertexNormal.add(intermediateNormals.first()[sectionIndex+1])
+                        vertexNormal.add(intermediateNormals.first()[sectionIndex-1])
+                    }
+                }
+                firstSectionNormals.add(vertexNormal.normalize())
+            }
+            normalsOfvertices.add(firstSectionNormals)
             intermediateNormals.windowed(size = 2, 1) { section ->
                 //TODO allocate size
                 val allSectionNormals = ArrayList<Vector3f>()
-
+                for(shapeIndex in 0 until shapeSize) {
+                    val sectionIndex = shapeIndex*2
+                    val vertexNormal = Vector3f()
+                    when(shapeIndex) {
+                        0-> {
+                            vertexNormal.add(section[1][sectionIndex+1])
+                            vertexNormal.add(section[1][sectionIndex])
+                            vertexNormal.add(section[1].last())
+                            vertexNormal.add(section[0].last())
+                            vertexNormal.add(section[0].drop(1).last())
+                            vertexNormal.add(section[0][sectionIndex])
+                        }
+                        shapeSize-1 -> {
+                            vertexNormal.add(section[1].first())
+                            vertexNormal.add(section[1][sectionIndex])
+                            vertexNormal.add(section[1][sectionIndex-1])
+                            vertexNormal.add(section[0][sectionIndex-1])
+                            vertexNormal.add(section[0][sectionIndex-2])
+                            vertexNormal.add(section[0][sectionIndex])
+                        }
+                        else -> {
+                            vertexNormal.add(section[1][sectionIndex+1])
+                            vertexNormal.add(section[1][sectionIndex])
+                            vertexNormal.add(section[1][sectionIndex-1])
+                            vertexNormal.add(section[0][sectionIndex-1])
+                            vertexNormal.add(section[0][sectionIndex-2])
+                            vertexNormal.add(section[0][sectionIndex])
+                        }
+                    }
+                    allSectionNormals.add(vertexNormal.normalize())
+                }
+                normalsOfvertices.add(allSectionNormals)
             }
-            //TODO order normals in the right structure
+            //TODO add normals for the last section
+            val lastSectionNormals = ArrayList<Vector3f>(shapeSize)
+            for(shapeIndex in 0 until shapeSize) {
+                val sectionIndex = shapeIndex*2
+                val vertexNormal = Vector3f()
+                when(shapeIndex) {
+                    0 -> {
+                        vertexNormal.add(intermediateNormals.last()[sectionIndex])
+                        vertexNormal.add(intermediateNormals.last()[sectionIndex+1])
+                        vertexNormal.add(intermediateNormals.last().last())
+                    }
+                    shapeSize-1 -> {
+                        vertexNormal.add(intermediateNormals.last()[sectionIndex])
+                        vertexNormal.add(intermediateNormals.last().first())
+                        vertexNormal.add(intermediateNormals.last()[sectionIndex-1])
+                    }
+                    else -> {
+                        vertexNormal.add(intermediateNormals.last()[sectionIndex])
+                        vertexNormal.add(intermediateNormals.last()[sectionIndex+1])
+                        vertexNormal.add(intermediateNormals.last()[sectionIndex-1])
+                    }
+                }
+                lastSectionNormals.add(vertexNormal.normalize())
+            }
+            normalsOfvertices.add(lastSectionNormals)
             return orderNormals(normalsOfvertices)
         }
 
