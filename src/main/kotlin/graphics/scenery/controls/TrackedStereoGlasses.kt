@@ -6,6 +6,8 @@ import graphics.scenery.backends.vulkan.VulkanDevice
 import graphics.scenery.Mesh
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.extensions.plus
+import graphics.scenery.utils.extensions.times
+import graphics.scenery.utils.extensions.xyzw
 import org.joml.*
 import org.lwjgl.vulkan.VkInstance
 import org.lwjgl.vulkan.VkPhysicalDevice
@@ -84,21 +86,16 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
             }
 
             val position = getPosition() + Vector3f(eyeShift, 0.0f, 0.0f)
-            val position4 = Vector4f(position.x(), position.y(), position.z(), 1.0f)
 
-            val result = screen.getTransform().transform(position4)
+            val result = screen.getTransform().transform(position.xyzw())
 
             val left = -result.x()
             val right = screen.width - result.x()
             val bottom = -result.y()
             val top = screen.height - result.y()
-            var near = -result.z()
+            val near = maxOf(-result.z(), 0.0001f)
 
-            if(near < 0.0001f) {
-                near = 0.0001f
-            }
-
-            val scaledNear = nearPlane / maxOf(near, 0.001f)
+            val scaledNear = nearPlane / near
 
             //logger.info(eye.toString() + ", " + screen.width + "/" + screen.height + " => " + near + " -> " + left + "/" + right + "/" + bottom + "/" + top + ", s=" + scaledNear)
 
@@ -210,6 +207,7 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
         currentOrientation.identity()
         currentOrientation.translation(-trackerPos.x(), -trackerPos.y(), trackerPos.z())//.transpose()
 
+        //logger.info("Returning $currentOrientation")
         return currentOrientation
     }
 

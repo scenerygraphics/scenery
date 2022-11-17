@@ -5,6 +5,7 @@ import graphics.scenery.Camera
 import graphics.scenery.Mesh
 import graphics.scenery.Node
 import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.extensions.times
 import kotlinx.coroutines.*
 import org.joml.*
 import org.scijava.ui.behaviour.*
@@ -19,7 +20,7 @@ import java.util.concurrent.ConcurrentHashMap
  *
  * @author Ulrik Guenther <hello@ulrik.is>
  */
-class DTrackTrackerInput(val host: String = "localhost", val port: Int = 5000, var defaultBodyId: String = "body-0"): TrackerInput {
+class DTrackTrackerInput(val host: String = "localhost", val port: Int = 5000, var defaultBodyId: String = "body-0", var positonScale: Vector3f = Vector3f(1f)): TrackerInput {
     private var sdk: DTrackSDK = DTrackSDK(InetAddress.getByName(host), port)
     private val logger by LazyLogger()
 
@@ -95,7 +96,7 @@ class DTrackTrackerInput(val host: String = "localhost", val port: Int = 5000, v
 
                         state.quality = quality
                         state.rotation.set(0.0f, 0.0f, 0.0f, 1.0f)//.setFromUnnormalized(rotToMatrix3f(rotation))
-                        state.position.set(x, y, z)
+                        state.position.set(x, y, z).mul(positonScale)
                     }
 
                     for(flystickId in 0 until sdk.numFlystick) {
@@ -277,7 +278,8 @@ class DTrackTrackerInput(val host: String = "localhost", val port: Int = 5000, v
      * @return HMD pose as Matrix4f
      */
     override fun getPose(): Matrix4f {
-        return Matrix4f().set(bodyState[defaultBodyId]?.rotation ?: Quaternionf())
+//        return Matrix4f().set(bodyState[defaultBodyId]?.rotation ?: Quaternionf())
+        return Matrix4f().translation((bodyState[defaultBodyId]?.position ?: Vector3f(0.0f)) * (-1.0f))
     }
 
     /**
