@@ -20,6 +20,8 @@ import org.lwjgl.system.Platform
 import org.scijava.Context
 import org.scijava.ui.behaviour.Behaviour
 import org.scijava.ui.behaviour.ClickBehaviour
+import java.io.BufferedReader
+import java.io.InputStreamReader
 import java.lang.Boolean.parseBoolean
 import java.lang.management.ManagementFactory
 import java.net.URL
@@ -27,6 +29,7 @@ import java.nio.file.Paths
 import java.util.*
 import java.util.concurrent.CountDownLatch
 import kotlin.concurrent.thread
+import kotlin.io.path.absolute
 
 /**
  * Base class to use scenery with, keeping the needed boilerplate
@@ -457,24 +460,29 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
         val mainPort = System.getProperty("scenery.MainPort")?.toIntOrNull() ?: 6040
         val backchannelPort = System.getProperty("scenery.BackchannelPort")?.toIntOrNull() ?: 6041
 
+        hub.add(SceneryElement.Statistics, stats)
+        hub.add(SceneryElement.Settings, settings)
+
+        settings.set("System.PID", getProcessID())
+
         if (!server && serverAddress != null) {
             val subscriber = NodeSubscriber(hub,serverAddress,mainPort,backchannelPort)
             hub.add(subscriber)
             subscriber.startListening()
             scene.postUpdate += {subscriber.networkUpdate(scene)}
         } else if (server) {
-            applicationName += " [SERVER]"
-            val publisher = NodePublisher(hub, serverAddress?:"localhost", portMain = mainPort, portBackchannel = backchannelPort)
+            if(settings.get("Cluster.Launch", false)) {
+                clusterLaunch()
+                applicationName += " [Cluster]"
+            }
+
+            applicationName += " [Server]"
+            val publisher = NodePublisher(hub, serverAddress ?: "localhost", portMain = mainPort, portBackchannel = backchannelPort)
             hub.add(publisher)
             publisher.startPublishing()
             publisher.register(scene)
             scene.postUpdate += { publisher.scanForChanges()}
         }
-
-        hub.add(SceneryElement.Statistics, stats)
-        hub.add(SceneryElement.Settings, settings)
-
-        settings.set("System.PID", getProcessID())
 
         if (wantREPL) {
             repl = REPL(hub, scijavaContext, scene, stats, hub)
@@ -489,6 +497,39 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
     fun waitForSceneInitialisation() {
         while(!sceneInitialized()) {
             Thread.sleep(200)
+        }
+    }
+
+    /**
+     * Launches scenery instances on a cluster, with launch and shutdown scripts
+     * determined from the settings Cluster.LaunchScript, and Cluster.ShutdownScript.
+     */
+    fun clusterLaunch() {
+        thread {
+            val settings = hub.get<Settings>() ?: throw IllegalStateException("Can't execute cluster launch without Settings object present in Hub")
+
+            val shutdownScript = settings.get("Cluster.ShutdownScript", "killall-java.bat")
+            val launchScript = settings.get("Cluster.LaunchScript", "run-cluster.bat")
+            val clusterWorkingDirectory = settings.get("Cluster.WorkingDirectory", ".")
+
+            logger.info("Using $launchScript as cluster launch script")
+
+            Runtime.getRuntime().addShutdownHook(thread(start = false) {
+                logger.info("Registering $shutdownScript as shutdown script")
+                Runtime.getRuntime().exec(shutdownScript,
+                    null, Paths.get(clusterWorkingDirectory).absolute().toFile())
+            })
+
+            Thread.sleep(5000)
+            val clusterLaunch = Runtime.getRuntime().exec("$launchScript ${this::class.java.canonicalName}",
+                null, Paths.get(clusterWorkingDirectory).absolute().toFile())
+
+            BufferedReader(InputStreamReader(clusterLaunch.inputStream)).use { input ->
+                var line: String?
+                while (input.readLine().also { line = it } != null && !shouldClose) {
+                    logger.info("Cluster: $line")
+                }
+            }
         }
     }
 
