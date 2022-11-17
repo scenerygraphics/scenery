@@ -84,7 +84,7 @@ class CustomNode : RichNode() {
     var stratified_downsampling = false
 }
 
-class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDIBenchmark.WindowWidth")?.toInt()?: 1920, System.getProperty("VDIBenchmark.WindowHeight")?.toInt() ?: 1080, wantREPL = false) {
+class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDIBenchmark.WindowWidth")?.toInt()?: 1280, System.getProperty("VDIBenchmark.WindowHeight")?.toInt() ?: 720, wantREPL = false) {
     var hmd: TrackedStereoGlasses? = null
 
     val separateDepth = true
@@ -92,13 +92,13 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
     val compute = CustomNode()
     val closeAfter = 600000L
     val autoClose = false
-    var dataset = System.getProperty("VDIBenchmark.Dataset")?.toString()?: "Rayleigh_Taylor"
+    var dataset = System.getProperty("VDIBenchmark.Dataset")?.toString()?: "Kingsnake"
     var baseDataset = dataset
     val numOctreeLayers = 8.0
     val numSupersegments = System.getProperty("VDIBenchmark.NumSupersegments")?.toInt()?: 20
     val vo = System.getProperty("VDIBenchmark.Vo")?.toInt()?: 0
     var benchmarking = false
-    val skipEmpty = true
+    val skipEmpty = false
     val viewNumber = 1
     var subsampling_benchmarks = false
     var desiredFrameRate = 85
@@ -117,8 +117,8 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
 
     val commSize = 4
     val rank = 0
-//    val communicatorType = "_${commSize}_${rank}"
-    val communicatorType = ""
+    val communicatorType = "_${commSize}_${rank}"
+//    val communicatorType = ""
 
     val cam: Camera = DetachedHeadCamera(hmd)
     val plane = FullscreenObject()
@@ -232,9 +232,9 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
         val noiseData: ByteArray
 
 //        val basePath = "/home/aryaman/TestingData/"
-//        val basePath = "/home/aryaman/TestingData/FromCluster/"
+        val basePath = "/home/aryaman/TestingData/FromCluster/"
 //        val basePath = "/home/aryaman/Repositories/DistributedVis/cmake-build-debug/"
-        val basePath = "/home/aryaman/Repositories/scenery-insitu/"
+//        val basePath = "/home/aryaman/Repositories/scenery-insitu/"
 
         val vdiParams = "_${windowWidth}_${windowHeight}_${numSupersegments}_${vo}_"
 //        val vdiParams = "_${windowWidth}_${windowHeight}_"
@@ -246,9 +246,9 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
 
 //        val vdiType = "Composited"
 //        val vdiType = "SetOf"
-//        val vdiType = "Final"
+        val vdiType = "Final"
 //        val vdiType = "Sub"
-        val vdiType = ""
+//        val vdiType = ""
 
         logger.info("Fetching file with params: $vdiParams")
 
@@ -263,8 +263,10 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
         }
         if(skipEmpty) {
             octBuff = File(basePath + "${dataset}VDI${vdiParams}4_ndc_octree").readBytes()
+            compute.skip_empty = true
         } else {
             octBuff = null
+            compute.skip_empty = false
         }
 
         noiseData = File(basePath + "NoiseTexture_Random.raw").readBytes()
@@ -329,9 +331,9 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
 //            compute.material().textures["DepthVDI"] = Texture(Vector3i(2 * numSupersegments, windowHeight, windowWidth),  channels = 1, contents = depthBuffer, usageType = hashSetOf(
 //                Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
         }
-        if(skipEmpty) {
+//        if(skipEmpty) {
             compute.material().textures["OctreeCells"] = Texture(Vector3i(numGridCells.x.toInt(), numGridCells.y.toInt(), numGridCells.z.toInt()), 1, type = UnsignedIntType(), contents = lowestLevel, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
-        }
+//        }
 
         compute.material().textures["NoiseTexture"] = Texture(Vector3i(1920, 1080, 1),  channels = 1, contents = noiseTexture, usageType = hashSetOf(
             Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
@@ -405,9 +407,9 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
             }
         }
 
-        thread {
-            camFlyThrough()
-        }
+//        thread {
+//            camFlyThrough()
+//        }
     }
 
     fun downsampleImage(factor: Float, wholeFrameBuffer: Boolean = false) {
