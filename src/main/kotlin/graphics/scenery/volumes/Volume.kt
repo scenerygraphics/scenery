@@ -869,12 +869,13 @@ open class Volume(
 
     }
 
-    open class VolumeSpatial(val volume: Volume): DefaultSpatial(volume) {
+    open class VolumeSpatial(volume: Volume): DefaultSpatial(volume) {
         /**
          * Composes the world matrix for this volume node, taken voxel size and [pixelToWorldRatio]
          * into account.
          */
         override fun composeModel() {
+            val volume = node as? Volume ?: return
             val shift = Vector3f(volume.getDimensions()) * (-0.5f)
 
             model.translation(position)
@@ -884,6 +885,10 @@ open class Volume(
             if (volume.origin == Origin.Center) {
                 model.translate(shift)
             }
+        }
+
+        override fun getConstructorParameters(): Any? {
+            return super.getConstructorParameters()
         }
     }
 }
