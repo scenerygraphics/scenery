@@ -1,7 +1,11 @@
 package graphics.scenery
 
 import graphics.scenery.utils.LazyLogger
+import java.io.File
+import java.io.FileInputStream
+import java.util.*
 import java.util.concurrent.ConcurrentHashMap
+
 
 /**
  * Flexible settings store for scenery. Stores a hash map of <String, Any>,
@@ -9,11 +13,35 @@ import java.util.concurrent.ConcurrentHashMap
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class Settings(override var hub: Hub? = null) : Hubable {
+class Settings(override var hub: Hub? = null, val propertiesFile: String = "scenery.properties") : Hubable {
     private var settingsStore = ConcurrentHashMap<String, Any>()
     private val logger by LazyLogger()
 
     init {
+        if(File(propertiesFile).exists()) {
+            // reads system properties from scenery.properties file
+            logger.info("Reading custom properties from $propertiesFile")
+            val propFile = FileInputStream(propertiesFile)
+            val p = Properties()
+            p.load(propFile)
+
+            p.forEach { prop, value ->
+                val key = prop as String
+                if (key.startsWith("scenery.")) {
+                    System.setProperty(key, value as String)
+                }
+            }
+
+            if (logger.isDebugEnabled) {
+                logger.debug("System properties are:")
+                System.getProperties().forEach { prop, value ->
+                    logger.debug("* $prop=$value")
+                }
+            }
+
+            propFile.close()
+        }
+
         val properties = System.getProperties()
         properties.forEach { p ->
             val key = p.key as? String ?: return@forEach
