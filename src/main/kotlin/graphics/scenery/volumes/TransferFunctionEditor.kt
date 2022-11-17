@@ -327,7 +327,7 @@ class TransferFunctionEditor(width : Int = 1000, height : Int = 1000, val volume
     }
 
     private fun createTFImage() : BufferedImage {
-        val tfBuffer = volume.transferFunction.serialise().order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer()
+        val tfBuffer = volume.transferFunction.serialise().asFloatBuffer()
         val byteArray = ByteArray(tfBuffer.limit())
         for(i in 0 until tfBuffer.limit())
         {
