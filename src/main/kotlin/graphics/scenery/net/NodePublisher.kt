@@ -95,8 +95,7 @@ class NodePublisher(
         scene.onChildrenRemoved["networkPublish"] = { parent, child -> detachNode(child,parent) }
         scene.onAttributeAdded["networkPublish"] = {node, attribute -> registerAttribute(node,attribute) }
 
-        // abusing the discover function for a tree walk
-        scene.discover(scene, { registerNode(it); false })
+        scene.children.forEach(::registerNode)
     }
 
     private fun registerNode(node: Node) {
@@ -139,6 +138,8 @@ class NodePublisher(
                 addUpdateEvent(new)
             }
         }
+
+        node.children.forEach(::registerNode)
     }
 
     private fun detachNode(node: Node, parent: Node) {

@@ -1,9 +1,6 @@
 package graphics.scenery.tests.unit.network
 
-import graphics.scenery.Box
-import graphics.scenery.DefaultNode
-import graphics.scenery.Hub
-import graphics.scenery.Scene
+import graphics.scenery.*
 import graphics.scenery.attribute.spatial.DefaultSpatial
 import graphics.scenery.net.NetworkEvent
 import graphics.scenery.net.NodePublisher
@@ -18,6 +15,7 @@ import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 
 /**
@@ -90,15 +88,37 @@ class NodePublisherNodeSubscriberTest {
     }
 
     @Test
-    fun integrationSimpleChildNode() {
+    fun integrationSimpleNode() {
+
+        sub.startListening()
+        pub.startPublishing()
+        pub.register(scene1)
 
         val box = Box()
         box.name = "box"
         scene1.addChild(box)
 
+        Thread.sleep(1000)
+        sub.networkUpdate(scene2)
+
+        assert(scene2.find("box") != null)
+    }
+
+    @Test
+    fun integrationSimpleChildNode() {
+
         sub.startListening()
         pub.startPublishing()
         pub.register(scene1)
+
+        val box = Box()
+        box.name = "box"
+        scene1.addChild(
+            DefaultNode().apply {
+                this.addChild(box)
+            }
+        )
+
         Thread.sleep(1000)
         sub.networkUpdate(scene2)
 
@@ -303,6 +323,39 @@ class NodePublisherNodeSubscriberTest {
         assertEquals(3f, result.position.x)
         //should not fail
         result.position = Vector3f(3f, 0f, 0f)
+    }
+
+    @Test
+    fun childConstructedWithParams(){
+        class VolInt: Volume.VolumeInitializer{
+            override fun initializeVolume(hub: Hub): Volume {
+                return Volume.fromBuffer(emptyList(), 5,5,5, UnsignedByteType(), hub)
+            }
+        }
+
+        sub.startListening()
+        pub.startPublishing()
+        pub.register(scene1)
+
+        val volume = Volume.forNetwork(
+            VolInt(),
+            hub1
+        )
+        scene1.addChild(
+            RichNode().apply {
+                this.name = "parent"
+                this.addChild(volume)
+            }
+        )
+
+        Thread.sleep(1000)
+        sub.networkUpdate(scene2)
+
+        val parent = scene2.find("parent")
+        assertNotNull(parent)
+        val volume2 = parent.children.firstOrNull()
+        assertNotNull(volume2)
+        assertIs<Volume>(volume2)
     }
 }
 
