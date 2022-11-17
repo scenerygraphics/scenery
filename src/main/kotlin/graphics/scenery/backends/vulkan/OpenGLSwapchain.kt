@@ -97,7 +97,7 @@ class OpenGLSwapchain(device: VulkanDevice,
             throw IllegalStateException("Window could not be created: ${buffer.stringUTF8}")
         }
         window = SceneryWindow.GLFWWindow(w).apply {
-            glfwSetWindowPos(w, 100, 100)
+            glfwSetWindowPos(w, 0, 0)
 
             // Handle canvas resize
             windowSizeCallback = object : GLFWWindowSizeCallback() {
@@ -431,7 +431,7 @@ class OpenGLSwapchain(device: VulkanDevice,
                 NULL,
                 0, 0,
                 window.width, window.height, GLFW_DONT_CARE)
-            glfwSetWindowPos(window.window, 100, 100)
+            glfwSetWindowPos(window.window, 0,0)
             glfwSetInputMode(window.window, GLFW_CURSOR, GLFW_CURSOR_NORMAL)
 
             swapchainRecreator.mustRecreate = true
