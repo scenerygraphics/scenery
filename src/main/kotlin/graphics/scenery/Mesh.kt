@@ -9,6 +9,7 @@ import graphics.scenery.attribute.material.Material
 import graphics.scenery.attribute.renderable.HasRenderable
 import graphics.scenery.attribute.spatial.HasSpatial
 import graphics.scenery.geometry.GeometryType
+import graphics.scenery.net.Networkable
 import graphics.scenery.primitives.PointCloud
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.Image
@@ -16,6 +17,7 @@ import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.SystemHelpers
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.times
+import graphics.scenery.volumes.Volume
 import org.joml.Vector3f
 import org.lwjgl.system.MemoryUtil
 import java.io.BufferedInputStream
@@ -847,5 +849,29 @@ open class Mesh(override var name: String = "Mesh") : DefaultNode(name), HasRend
         this.boundingBox = OrientedBoundingBox(this, boundingBox)
 
         return this
+    }
+
+    var initalizer: MeshInitializer? = null
+
+    override fun getConstructorParameters(): Any? {
+        return initalizer
+    }
+
+    override fun constructWithParameters(parameters: Any, hub: Hub): Networkable {
+        if (parameters is MeshInitializer) {
+            val mesh = Mesh().readFrom(parameters.path,parameters.useMaterial)
+            mesh.initalizer = parameters
+            return mesh
+        } else {
+            throw IllegalArgumentException("Mesh Initializer implementation as params expected")
+        }
+    }
+
+    class MeshInitializer(val path: String, val useMaterial: Boolean = true)
+
+    companion object{
+        fun forNetwork(path: String, useMaterial: Boolean = true,hub: Hub): Mesh{
+            return Mesh().constructWithParameters(MeshInitializer(path,useMaterial),hub) as Mesh
+        }
     }
 }
