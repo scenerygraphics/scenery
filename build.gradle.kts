@@ -116,10 +116,10 @@ dependencies {
     implementation("io.scif:scifio")
     implementation("org.bytedeco:ffmpeg:4.3.2-1.5.5", ffmpegNatives)
     implementation("io.github.classgraph:classgraph:4.8.137")
-    implementation("org.lwjgl:lwjgl-lz4:3.3.1")
-    implementation("org.lwjgl:lwjgl-zstd:3.3.1")
-    implementation("org.lwjgl:lwjgl-lz4:3.3.1:natives-linux")
-    implementation("org.lwjgl:lwjgl-zstd:3.3.1:natives-linux")
+    implementation("org.lwjgl:lwjgl-lz4:3.3.0")
+    implementation("org.lwjgl:lwjgl-zstd:3.3.0")
+    implementation("org.lwjgl:lwjgl-lz4:3.3.0:natives-linux")
+    implementation("org.lwjgl:lwjgl-zstd:3.3.0:natives-linux")
 
     implementation("info.picocli:picocli:4.6.2")
 
