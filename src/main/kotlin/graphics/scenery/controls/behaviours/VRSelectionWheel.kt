@@ -6,14 +6,15 @@ import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.controls.TrackerInput
 import graphics.scenery.controls.TrackerRole
-import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.Wiggler
 import org.scijava.ui.behaviour.DragBehaviour
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Future
 
 /**
- * A selection wheel to let the user choose between different actions.
+ * A fast selection wheel to let the user choose between different actions.
+ *
+ * Use the [createAndSet] method to create.
  *
  * The list of selectable actions can be changed dynamically.
  *
@@ -38,7 +39,8 @@ class VRSelectionWheel(
      */
     override fun init(x: Int, y: Int) {
 
-        activeWheel = WheelMenu(controller,hmd,actions)
+        activeWheel = WheelMenu(hmd, actions)
+        activeWheel?.spatial()?.position = controller.worldPosition()
 
         scene.addChild(activeWheel!!)
     }
@@ -48,15 +50,15 @@ class VRSelectionWheel(
      */
     override fun drag(x: Int, y: Int) {
 
-        val (closestSphere, distance) = activeWheel?.closestActionSphere() ?: return
+        val (closestSphere, distance) = activeWheel?.closestActionSphere(controller.worldPosition()) ?: return
 
         if (distance > cutoff) {
             activeWiggler?.deativate()
             activeWiggler = null
 
-        } else if (activeWiggler?.target != closestSphere.sphere.spatial()) {
+        } else if (activeWiggler?.target != closestSphere.representation.spatial()) {
             activeWiggler?.deativate()
-            activeWiggler = Wiggler(closestSphere.sphere.spatial(), 0.01f)
+            activeWiggler = Wiggler(closestSphere.representation.spatial(), 0.01f)
         }
 
     }
@@ -65,11 +67,14 @@ class VRSelectionWheel(
      * This function is called by the framework. Usually you don't need to call this.
      */
     override fun end(x: Int, y: Int) {
-        val (closestActionSphere, distance) = activeWheel?.closestActionSphere() ?: return
+        val (closestActionSphere, distance) = activeWheel?.closestActionSphere(controller.worldPosition()) ?: return
 
         if (distance < cutoff) {
-            val action = closestActionSphere.action as? Action
-            action?.action?.invoke()
+            when(val entry = closestActionSphere.action){
+                is Action -> entry.action()
+                is Switch -> entry.toggle()
+                else -> throw IllegalStateException("${entry.javaClass.simpleName} not implemented for Selection Wheel")
+            }
         }
 
         activeWiggler?.deativate()
@@ -92,8 +97,8 @@ class VRSelectionWheel(
             hmd: OpenVRHMD,
             button: List<OpenVRHMD.OpenVRButton>,
             controllerSide: List<TrackerRole>,
-            actions: List<Pair<String, () -> Unit>>,
-        ) : Future<VRSelectionWheel> {
+            actions: List<Pair<String, (Spatial) -> Unit>>,
+        ): Future<VRSelectionWheel> {
             val future = CompletableFuture<VRSelectionWheel>()
             hmd.events.onDeviceConnect.add { _, device, _ ->
                 if (device.type == TrackedDeviceType.Controller) {
@@ -105,7 +110,11 @@ class VRSelectionWheel(
                                     ?: throw IllegalArgumentException("The target controller needs a spatial."),
                                 scene,
                                 hmd,
-                                actions.toActions()
+                                actions.toActions(
+                                    controller.children.first().spatialOrNull() ?: throw IllegalArgumentException(
+                                        "The target controller needs a spatial."
+                                    )
+                                )
                             )
                             hmd.addBehaviour(name, vrToolSelector)
                             button.forEach {
@@ -118,7 +127,18 @@ class VRSelectionWheel(
             }
             return future
         }
-        fun List<Pair<String, () -> Unit>>.toActions(): List<Action> = map { Action(it.first, it.second)}
+
+        /**
+         * Convert lambdas to wheel menu action.
+         */
+        fun List<Pair<String, () -> Unit>>.toActions(): List<Action> = map { Action(it.first, action = it.second)}
+
+        /**
+         * Convert lambdas which take the spatial of the controller as an argument to wheel menu action.
+         */
+        fun List<Pair<String, (Spatial) -> Unit>>.toActions(device: Spatial): List<Action> =
+            map { Action(it.first) { it.second.invoke(device) } }
+
     }
 }
 

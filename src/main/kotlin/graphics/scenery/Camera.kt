@@ -240,10 +240,13 @@ open class Camera : DefaultNode("Camera"), HasRenderable, HasMaterial, HasCustom
         val posY = (1.0f - 2.0f * ((y + 0.5f)/height)) * tanFov
 
         // transform both origin points and screen-space positions with the view matrix to world space
-        val worldPos = spatial().viewToWorld(Vector3f(posX, posY, -1.0f)).xyz()
+        // screen is 1 unit away from the camera -> ray should start at nearPlaneDist and go through worldPos
         val origin = spatial().viewToWorld(Vector3f(0.0f)).xyz()
+        val screenPos = spatial().viewToWorld(Vector3f(posX, posY, -1.0f)).xyz()
 
-        val worldDir = (worldPos - origin).normalize()
+        val worldDir = (screenPos - origin).normalize()
+        val worldPos = origin + nearPlaneDistance * worldDir
+
         return Pair(worldPos, worldDir)
     }
 

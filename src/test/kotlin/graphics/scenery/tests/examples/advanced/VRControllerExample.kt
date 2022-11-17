@@ -68,7 +68,7 @@ class VRControllerExample : SceneryBase(
 
         val lights = Light.createLightTetrahedron<PointLight>(spread = 5.0f, radius = 8.0f)
         lights.forEach {
-            it.emissionColor = Random.random3DVectorFromRange(0.6f, 1.0f)
+            it.emissionColor = Random.random3DVectorFromRange(0.8f, 1.0f)
             scene.addChild(it)
         }
 
@@ -103,18 +103,50 @@ class VRControllerExample : SceneryBase(
                 }
             }))
             obj.addAttribute(Grabable::class.java, Grabable())
-            obj.addAttribute(Selectable::class.java, Selectable(onSelect = {selectionStorage = obj}))
+            obj.addAttribute(Selectable::class.java, Selectable(onSelect = { selectionStorage = obj }))
             obj
         }
 
         boxes.forEach { scene.addChild(it) }
 
+        // scaled node - for grab testing
+        val scalePivot = RichNode().apply {
+            spatial {
+                scale = Vector3f(1/100f)
+                position = Vector3f(0.5f, 1.5f, 0f)
+            }
+            scene.addChild(this)
+        }
+        Sphere(10f).apply {
+            addAttribute(Grabable::class.java, Grabable())
+            addAttribute(Touchable::class.java, Touchable())
+            scalePivot.addChild(this)
+        }
+
+        // pressable sphere
         val pressableSphere = Sphere(0.1f)
         pressableSphere.spatial {
             position = Vector3f(0.5f, 1.0f, 0f)
         }
-        pressableSphere.addAttribute(Pressable::class.java, Pressable(onRelease = {Wiggler(pressableSphere.spatial(),0.1f, 2000)}))
+        pressableSphere.addAttribute(
+            Pressable::class.java,
+            SimplePressable(onRelease = { Wiggler(pressableSphere.spatial(), 0.1f, 2000) })
+        )
         scene.addChild(pressableSphere)
+
+        // remote controlled node
+        val rcBox = Box(Vector3f(0.1f,0.05f,0.07f)).apply {
+            spatial().position = Vector3f(0f, 1.0f, 1.0f)
+            scene.addChild(this)
+
+        }
+        // remote control
+        Sphere(0.05f).apply {
+            spatial().position = Vector3f(0f, 1.0f, 0.5f)
+            addAttribute(Grabable::class.java, Grabable(target = rcBox))
+            scene.addChild(this)
+
+        }
 
         /** Box with rotated parent to debug grabbing
         val pivot = RichNode()
@@ -129,6 +161,7 @@ class VRControllerExample : SceneryBase(
         pivot.addChild(longBox)
          */
 
+        // pen
         val pen = Box(Vector3f(0.05f, 0.13f, 0.05f))
         pen.spatial {
             position = Vector3f(-0.5f, 1.0f, 0f)
@@ -141,14 +174,29 @@ class VRControllerExample : SceneryBase(
         pen.addChild(tip)
         var lastPenWriting = 0L
         pen.addAttribute(Grabable::class.java, Grabable())
-        pen.addAttribute(Pressable::class.java, Pressable(onHold = {
-            if (System.currentTimeMillis() - lastPenWriting > 50){
-                val ink = Sphere(0.03f)
-                ink.spatial().position=tip.spatial().worldPosition()
-                scene.addChild(ink)
-                lastPenWriting = System.currentTimeMillis()
-            }
-        }))
+        pen.addAttribute(
+            Pressable::class.java, PerButtonPressable(
+                mapOf(
+                    OpenVRHMD.OpenVRButton.Trigger to SimplePressable(onHold = {
+                        if (System.currentTimeMillis() - lastPenWriting > 50) {
+                            val ink = Sphere(0.03f)
+                            ink.spatial().position = tip.spatial().worldPosition()
+                            scene.addChild(ink)
+                            lastPenWriting = System.currentTimeMillis()
+                        }
+                    }),
+                    OpenVRHMD.OpenVRButton.A to SimplePressable(onHold = {
+                        if (System.currentTimeMillis() - lastPenWriting > 50) {
+                            val ink = Box(Vector3f(0.03f))
+                            ink.spatial().position = tip.spatial().worldPosition()
+                            scene.addChild(ink)
+                            lastPenWriting = System.currentTimeMillis()
+                        }
+
+                    })
+                )
+            )
+        )
 
 
         thread {
@@ -199,12 +247,23 @@ class VRControllerExample : SceneryBase(
         hmd.addKeyBinding("toggle_boxes", TrackerRole.RightHand, OpenVRHMD.OpenVRButton.A)
          */
 
-        VRTouch.createAndSet(scene,hmd, listOf(TrackerRole.RightHand,TrackerRole.LeftHand),true)
+        VRTouch.createAndSet(scene, hmd, listOf(TrackerRole.RightHand, TrackerRole.LeftHand), true)
 
-        VRGrab.createAndSet(scene, hmd, listOf(OpenVRHMD.OpenVRButton.Side), listOf(TrackerRole.LeftHand,TrackerRole.RightHand))
-        VRPress.createAndSet(scene, hmd, listOf(OpenVRHMD.OpenVRButton.Trigger), listOf(TrackerRole.LeftHand,TrackerRole.RightHand))
+        VRGrab.createAndSet(
+            scene,
+            hmd,
+            listOf(OpenVRHMD.OpenVRButton.Side),
+            listOf(TrackerRole.LeftHand, TrackerRole.RightHand)
+        )
+        VRPress.createAndSet(
+            scene,
+            hmd,
+            listOf(OpenVRHMD.OpenVRButton.Trigger, OpenVRHMD.OpenVRButton.A),
+            listOf(TrackerRole.LeftHand, TrackerRole.RightHand)
+        )
 
-        VRSelect.createAndSet(scene,
+        VRSelect.createAndSet(
+            scene,
             hmd,
             listOf(OpenVRHMD.OpenVRButton.Trigger),
             listOf(TrackerRole.LeftHand),
@@ -217,25 +276,28 @@ class VRControllerExample : SceneryBase(
                     w.deativate()
                 }
             },
-        true)
+            true
+        )
 
         // a selection without a general action. Executes just the [onSelect] function of the [Selectable]
-        VRSelect.createAndSet(scene,
+        VRSelect.createAndSet(
+            scene,
             hmd,
             listOf(OpenVRHMD.OpenVRButton.Trigger),
             listOf(TrackerRole.RightHand)
-            )
+        )
 
         VRScale.createAndSet(hmd, OpenVRHMD.OpenVRButton.Side) {
             selectionStorage?.ifSpatial { scale *= Vector3f(it) }
         }
 
-        val menu = VRSelectionWheel.createAndSet(scene, hmd,
-            listOf(OpenVRHMD.OpenVRButton.A), listOf(TrackerRole.LeftHand),
+        val menu = VRSelectionWheel.createAndSet(
+            scene, hmd,
+            listOf(OpenVRHMD.OpenVRButton.Menu), listOf(TrackerRole.LeftHand),
             listOf("Loading please wait" to {})
-            )
+        )
         thread {
-            Thread.sleep(5000) // or actually load something
+            sleep(5000) // or actually load something
             menu.get().actions = listOf(
                 "Toggle Shell" to {
                     hullbox.visible = !hullbox.visible
@@ -245,34 +307,53 @@ class VRControllerExample : SceneryBase(
                     boxes.forEach { it.visible = !it.visible }
                     logger.info("Boxes visible: ${boxes.first().visible}")
                 },
-                "test" to { print("test") },
+                "Tree Selection Wheel" to {
+                    val w = WheelMenu(hmd, listOf(
+                        Action("Test sub wheel") { println("test fix sub wheel") }
+                    ), true)
+                    w.spatial().position = menu.get().controller.worldPosition(Vector3f())
+                    scene.addChild(w)
+                },
                 "Toggle Push Left" to {
                     leftControllerPushes = !leftControllerPushes
                 }).toActions()
         }
 
-        VRTreeSelectionWheel.createAndSet(scene, hmd,
-            listOf(OpenVRHMD.OpenVRButton.A), listOf(TrackerRole.RightHand),
+        VRTreeSelectionWheel.createAndSet(
+            scene, hmd,
+            listOf(OpenVRHMD.OpenVRButton.Menu), listOf(TrackerRole.RightHand),
             listOf(
-                Action("dummy1") { println("A dummy entry has been pressed") },
-                SubWheel("Menu1", listOf(
-                    Action("dummy1-1",{println("A dummy entry has been pressed")}),
-                    Action("dummy1-2",{println("A dummy entry has been pressed")}),
-                    Action("dummy1-3",{println("A dummy entry has been pressed")})
-                )),
-                SubWheel("Menu2", listOf(
-                    Action("dummy2-1",{println("A dummy entry has been pressed")}),
-                    SubWheel("Menu2-1", listOf(
-                        Action("dummy2-1-1",{println("A dummy entry has been pressed")}),
-                        Action("dummy2-1-2",{println("A dummy entry has been pressed")}),
-                        Action("dummy2-1-3",{println("A dummy entry has been pressed")})
-                    )),
-                    Action("dummy2-3",{println("A dummy entry has been pressed")})
-                )),
-                Action("dummy2",{println("A dummy entry has been pressed")}),
-                Action("dummy3",{println("A dummy entry has been pressed")}),
-                Action("dummy4",{println("A dummy entry has been pressed")}),
-            ))
+                Switch("switch 1", false) { println("switch has been set to $it") },
+                Action("dummy1", false) { println("A dummy entry has been pressed") },
+                SubWheel(
+                    "Menu1", listOf(
+                        Action("dummy1-1") { println("A dummy entry has been pressed") },
+                        Action("dummy1-2") { println("A dummy entry has been pressed") },
+                        Action("dummy1-3") { println("A dummy entry has been pressed") }
+                    )
+                ),
+                SubWheel(
+                    "Menu2", listOf(
+                        Action("dummy2-1") { println("A dummy entry has been pressed") },
+                        SubWheel(
+                            "Menu2-1", listOf(
+                                Action("dummy2-1-1") { println("A dummy entry has been pressed") },
+                                Action("dummy2-1-2") { println("A dummy entry has been pressed") },
+                                Action("dummy2-1-3") { println("A dummy entry has been pressed") }
+                            )
+                        ),
+                        Action("dummy2-3") { println("A dummy entry has been pressed") }
+                    )
+                ),
+                Action("dummy2") { println("A dummy entry has been pressed") },
+                Action("dummy3") { println("A dummy entry has been pressed") },
+                Action("go to sleep") { thread {
+                    hmd.fadeToBlack()
+                    sleep(2000)
+                    hmd.fateToClear()
+                } },
+            )
+        )
     }
 
 

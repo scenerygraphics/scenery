@@ -73,6 +73,12 @@ class CameraTests {
         assertFalse { boxesBehind.all { cam.canSee(it) } }
     }
 
+    /**
+     * Tests [Camera.getNodesForScreenSpacePosition] by adding nodes in front of
+     * the camera and checking the number of nodes at a given
+     * screen position. The camera shoots a ray through 0|0 and should return the
+     * same number of nodes that where added to the scene (10), as it should hit all of them.
+     */
     @Test
     fun testPickFromScreenPos() {
         val s = Scene()
@@ -94,11 +100,18 @@ class CameraTests {
         assertEquals(10,results.matches.size)
     }
 
+    /**
+     * Tests [Camera.screenToPointRay] From the camera, rays should be generated in front of it,
+     * starting at the near clipping plane and going through an imaginary plane 1 Unit away from the camera.
+     * The planes size depends on the FOV and aspect ratio of the camera.
+     * The expected ray start in world space should be at 0|0|-nearPlaneDist with direction 0|0|-1.0
+     */
     @Test
     fun testCastRayFromScreenPos() {
         val s = Scene()
         val cam = Camera()
-        cam.perspectiveCamera(50.0f, 1280, 720, 0.01f, 1000.0f)
+        val nearPlaneLocation = 0.01f
+        cam.perspectiveCamera(50.0f, 1280, 720, nearPlaneLocation, 1000.0f)
         s.addChild(cam)
 
         cam.spatial {
@@ -111,7 +124,7 @@ class CameraTests {
         val epsilon = 0.001f
         assertEquals(0.0f, pos.x, epsilon, "Position X")
         assertEquals(0.0f, pos.y, epsilon, "Position Y")
-        assertEquals(-1.0f, pos.z, epsilon, "Position Z")
+        assertEquals(-nearPlaneLocation, pos.z, epsilon, "Position Z")
 
         assertEquals(0.0f, dir.x, epsilon, "Direction X")
         assertEquals(0.0f, dir.y, epsilon, "Direction Y")
