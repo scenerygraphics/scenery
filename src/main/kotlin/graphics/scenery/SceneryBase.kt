@@ -497,7 +497,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
      * determined from the settings Cluster.LaunchScript, and Cluster.ShutdownScript.
      */
     fun clusterLaunch() {
-        thread {
+        thread(isDaemon = true) {
             val settings = hub.get<Settings>() ?: throw IllegalStateException("Can't execute cluster launch without Settings object present in Hub")
 
             val shutdownScript = settings.get("Cluster.ShutdownScript", "killall-java.bat")
@@ -512,8 +512,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
                     null, Paths.get(clusterWorkingDirectory).absolute().toFile())
             })
 
-            Thread.sleep(5000)
-            val clusterLaunch = Runtime.getRuntime().exec("$launchScript ${this::class.java.canonicalName}",
+            val clusterLaunch = Runtime.getRuntime().exec("$launchScript graphics.scenery.tests.examples.cluster.CaveClientExample",
                 null, Paths.get(clusterWorkingDirectory).absolute().toFile())
 
             BufferedReader(InputStreamReader(clusterLaunch.inputStream)).use { input ->
