@@ -1,6 +1,5 @@
 package graphics.scenery
 
-import cleargl.ClearGLDefaultEventListener
 import org.joml.Vector3f
 import com.sun.jna.Library
 import com.sun.jna.Native
@@ -146,14 +145,6 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
 
     /**
      * Main routine for [SceneryBase]
-     *
-     * This routine will construct a internal [ClearGLDefaultEventListener], and initialize
-     * with the [init] function. Override this in your subclass and be sure to call `super.main()`.
-     *
-     * The [ClearGLDefaultEventListener] will take care of usually used window functionality, like
-     * resizing, closing, setting the OpenGL context, etc. It'll also read a keymap for the [InputHandler],
-     * based on the [applicationName], from the file `~/.[applicationName].bindings
-     *
      */
     open suspend fun sceneryMain() {
 
@@ -456,7 +447,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
         }
 
         val server = System.getProperty("scenery.Server")?.toBoolean() ?: false
-        val serverAddress = System.getProperty("scenery.ServerAddress")
+        val serverAddress = System.getProperty("scenery.ServerAddress") ?:"tcp://localhost"
         val mainPort = System.getProperty("scenery.MainPort")?.toIntOrNull() ?: 6040
         val backchannelPort = System.getProperty("scenery.BackchannelPort")?.toIntOrNull() ?: 6041
 
@@ -478,6 +469,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
 
             applicationName += " [Server]"
             val publisher = NodePublisher(hub, serverAddress ?: "localhost", portMain = mainPort, portBackchannel = backchannelPort)
+
             hub.add(publisher)
             publisher.startPublishing()
             publisher.register(scene)

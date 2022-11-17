@@ -113,8 +113,8 @@ class NodePublisher(
 
         if (publishedObjects[node.networkID] == null) {
             val wrapper = NetworkWrapper(
-                if (node.networkID < -1) node.networkID else generateNetworkID(),
                 // negative network id is reserved for preregistered objects
+                if (node.networkID < -1) node.networkID else generateNetworkID(),
                 node, mutableListOf(parentId))
             addUpdateEvent(wrapper)
             publishedObjects[wrapper.networkID] = wrapper
@@ -131,7 +131,10 @@ class NodePublisher(
                 subNetObj.parents.add(node.networkID)
                 eventQueue.add(NetworkEvent.NewRelation(node.networkID, subComponent.networkID))
             } else {
-                val new = NetworkWrapper(generateNetworkID(), subComponent, mutableListOf(node.networkID))
+                val new = NetworkWrapper(
+                    // negative network id is reserved for preregistered objects
+                    if (subComponent.networkID < -1) subComponent.networkID else generateNetworkID(),
+                    subComponent, mutableListOf(node.networkID))
                 publishedObjects[new.networkID] = new
                 addUpdateEvent(new)
             }
