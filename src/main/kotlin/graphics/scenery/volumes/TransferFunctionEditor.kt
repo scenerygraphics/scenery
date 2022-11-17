@@ -27,8 +27,6 @@ import java.awt.event.MouseEvent
 import java.awt.event.MouseListener
 import java.awt.event.MouseMotionListener
 import java.awt.image.BufferedImage
-import java.io.File
-import javax.imageio.ImageIO
 import javax.swing.*
 import kotlin.math.abs
 import kotlin.math.max

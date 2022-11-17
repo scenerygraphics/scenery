@@ -16,6 +16,8 @@ import kotlin.math.PI
 /**
  * Point and select nodes with the attribute [Selectable] with a VR controller.
  *
+ * Use the [createAndSet] method to create.
+ *
  * When triggered a ray will shoot out from the controller. The ray stops at the first collision with a node with a
  *  attribute and wiggles it to indicate a hit. Then when the user releases the trigger button [onSelect] and
  *  [Selectable.onSelect] of the node are called.

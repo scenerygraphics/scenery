@@ -4,6 +4,8 @@ import graphics.scenery.Settings
 import org.joml.Matrix4f
 import graphics.scenery.backends.vulkan.VulkanDevice
 import org.joml.Vector2i
+
+import org.joml.Vector4f
 import org.lwjgl.vulkan.VkInstance
 import org.lwjgl.vulkan.VkPhysicalDevice
 import org.lwjgl.vulkan.VkQueue
@@ -116,4 +118,12 @@ interface Display {
             null
         }
     }
+
+    /**
+     * Fades the view on the HMD to the specified color.
+     *
+     * The fade will take {@code seconds}, and the color values are between 0.0 and 1.0. This color is faded on top of the scene based on the alpha
+     * parameter. Removing the fade color instantly would be {@code FadeToColor( 0.0, 0.0, 0.0, 0.0, 0.0 )}. Values are in un-premultiplied alpha space.
+     */
+    fun fadeToColor(color: Vector4f, seconds: Float)
 }

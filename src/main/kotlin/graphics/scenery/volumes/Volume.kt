@@ -33,6 +33,7 @@ import graphics.scenery.net.Networkable
 import graphics.scenery.numerics.OpenSimplexNoise
 import graphics.scenery.numerics.Random
 import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.extensions.times
 import graphics.scenery.volumes.Volume.VolumeDataSource.SpimDataMinimalSource
 import io.scif.SCIFIO
 import io.scif.util.FormatTools
@@ -181,7 +182,7 @@ open class Volume(
     var cacheControls = CacheControl.CacheControls()
 
     /** Current timepoint. */
-    var currentTimepoint: Int
+    var currentTimepoint: Int = 0
         get() {
             // despite IDEAs warning this might be not be false if kryo uses its de/serialization magic
             return if (dataSource == null || dataSource is VolumeDataSource.NullSource) {
@@ -193,6 +194,7 @@ open class Volume(
         set(value) {
             viewerState.currentTimepoint = value
             modifiedAt = System.nanoTime()
+            field = value
         }
 
     sealed class VolumeDataSource {
@@ -879,15 +881,14 @@ open class Volume(
          * into account.
          */
         override fun composeModel() {
-            @Suppress("SENSELESS_COMPARISON")
-            if(position != null && rotation != null && scale != null) {
-                model.translation(position)
-                model.mul(Matrix4f().set(this.rotation))
-                if(volume.origin == Origin.Center) {
-                    model.translate(-2.0f, -2.0f, -2.0f)
-                }
-                model.scale(scale)
-                model.scale(volume.localScale())
+            val shift = Vector3f(volume.getDimensions()) * (-0.5f)
+
+            model.translation(position)
+            model.mul(Matrix4f().set(this.rotation))
+            model.scale(scale)
+            model.scale(volume.localScale())
+            if (volume.origin == Origin.Center) {
+                model.translate(shift)
             }
         }
     }

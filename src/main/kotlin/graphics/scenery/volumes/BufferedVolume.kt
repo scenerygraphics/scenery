@@ -68,6 +68,8 @@ class BufferedVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewe
         timepoints?.removeIf { it.name == name }
         timepoints?.add(Timepoint(name, buffer))
         timepointCount = timepoints?.size ?: 0
+        viewerState.numTimepoints = timepointCount
+
         volumeManager.notifyUpdate(this)
     }
 
@@ -81,6 +83,8 @@ class BufferedVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewe
             tp?.contents?.let { MemoryUtil.memFree(it) }
         }
         timepointCount = timepoints?.size ?: 0
+        viewerState.numTimepoints = timepointCount
+
         volumeManager.notifyUpdate(this)
         return result != null
     }
@@ -102,6 +106,9 @@ class BufferedVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewe
                 MemoryUtil.memFree(tp.contents)
             }
         }
+
+        timepointCount = timepoints?.size ?: 0
+        viewerState.numTimepoints = timepointCount
     }
 
     /**
@@ -122,6 +129,9 @@ class BufferedVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewe
                 MemoryUtil.memFree(tp.contents)
             }
         }
+
+        timepointCount = timepoints?.size ?: 0
+        viewerState.numTimepoints = timepointCount
     }
 
     /**

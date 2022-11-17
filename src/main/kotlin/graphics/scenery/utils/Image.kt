@@ -2,6 +2,7 @@ package graphics.scenery.utils
 
 import cleargl.TGAReader
 import graphics.scenery.volumes.Colormap
+import org.lwjgl.system.MemoryUtil
 import java.awt.Color
 import java.awt.color.ColorSpace
 import java.awt.geom.AffineTransform
@@ -140,7 +141,7 @@ open class Image(val contents: ByteBuffer, val width: Int, val height: Int, val 
 
             val data = (texImage.raster.dataBuffer as DataBufferByte).data
 
-            imageBuffer = ByteBuffer.allocateDirect(data.size)
+            imageBuffer = MemoryUtil.memAlloc(data.size)
             imageBuffer.order(ByteOrder.nativeOrder())
             imageBuffer.put(data, 0, data.size)
             imageBuffer.rewind()
