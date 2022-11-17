@@ -93,23 +93,6 @@ class CaveCubesExample: SceneryBase("Bile Canaliculi example", wantREPL = true) 
 
         @JvmStatic
         fun main(args: Array<String>) {
-            thread {
-                Runtime.getRuntime().addShutdownHook(thread(start = false) {
-                    Runtime.getRuntime().exec("C:\\Users\\mosaic\\Code\\scenery-base\\killall-java.bat",
-                        null, Paths.get(".").absolute().parent.parent.toFile())
-                })
-
-                Thread.sleep(5000)
-                val clusterLaunch = Runtime.getRuntime().exec("C:\\Users\\mosaic\\Code\\scenery-base\\run-cluster.bat graphics.scenery.tests.examples.cluster.CaveClientExample",
-                    null, Paths.get(".").absolute().parent.parent.toFile())
-
-                BufferedReader(InputStreamReader(clusterLaunch.inputStream)).use { input ->
-                    var line: String?
-                    while (input.readLine().also { line = it } != null) {
-                        logger.info("Cluster: $line")
-                    }
-                }
-            }
             CaveCubesExample().main()
         }
     }
