@@ -112,11 +112,7 @@ open class Camera : DefaultNode("Camera"), HasRenderable, HasMaterial, HasCustom
         this.farPlaneDistance = fresh.farPlaneDistance
         this.fov = fresh.fov
 
-        this.width = fresh.width
-        this.height = fresh.height
-
         this.projectionType = fresh.projectionType
-
     }
 
     /**
@@ -374,7 +370,7 @@ open class Camera : DefaultNode("Camera"), HasRenderable, HasMaterial, HasCustom
             if (fresh !is CameraSpatial) throw IllegalArgumentException("Update called with object of foreign class")
             super.update(fresh, getNetworkable, additionalData)
 
-            this.projection = fresh.projection
+            //this.projection = fresh.projection
         }
 
         /** View matrix of the camera. Setting the view matrix will re-set the forward
