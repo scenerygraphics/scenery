@@ -206,6 +206,7 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
 
         currentOrientation.identity()
         currentOrientation.translation(-trackerPos.x(), -trackerPos.y(), trackerPos.z())//.transpose()
+        currentOrientation.rotate(trackerOrientation)
 
         //logger.info("Returning $currentOrientation")
         return currentOrientation

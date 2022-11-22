@@ -90,12 +90,12 @@ class DTrackTrackerInput(val host: String = "localhost", val port: Int = 5000, v
                             DTrackBodyState(
                                 quality,
                                 Vector3f(x, y, z),
-                                Quaternionf()//.setFromUnnormalized(rotToMatrix3f(rotation))
+                                Quaternionf().setFromUnnormalized(rotToMatrix3f(rotation))
                             )
                         })
 
                         state.quality = quality
-                        state.rotation.set(0.0f, 0.0f, 0.0f, 1.0f)//.setFromUnnormalized(rotToMatrix3f(rotation))
+                        state.rotation.setFromUnnormalized(rotToMatrix3f(rotation))
                         state.position.set(x, y, z).mul(positonScale)
                     }
 
