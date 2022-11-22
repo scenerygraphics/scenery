@@ -2,6 +2,10 @@ package graphics.scenery.geometry
 
 import graphics.scenery.BufferUtils
 import graphics.scenery.Mesh
+import graphics.scenery.attribute.material.DefaultMaterial
+import graphics.scenery.attribute.material.Material
+import graphics.scenery.primitives.Arrow
+import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.toFloatArray
 import org.joml.*
 import kotlin.Float.Companion.MIN_VALUE
@@ -527,6 +531,23 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
                 boundingBox = generateBoundingBox()
             }
             boundingBox = generateBoundingBox()
+
+            //TODO delete
+            val matBright = DefaultMaterial()
+            matBright.diffuse  = Vector3f(0.0f, 1.0f, 0.0f)
+            matBright.ambient  = Vector3f(1.0f, 1.0f, 1.0f)
+            matBright.specular = Vector3f(1.0f, 1.0f, 1.0f)
+            matBright.cullingMode = Material.CullingMode.None
+            verticesVectors.forEachIndexed { index, vertex ->
+                val normal = normalVectors[index]
+                val a = Arrow(Vector3f() - vertex)  //shape of the vector itself
+                a.spatial {
+                    position = vertex                 //position/base of the vector
+                }
+                a.addAttribute(Material::class.java, matBright)                  //usual stuff follows...
+                a.edgeWidth = 0.5f
+                this.addChild(a)
+            }
         }
     }
 }
