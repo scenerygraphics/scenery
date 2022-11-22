@@ -333,14 +333,23 @@ open class Camera : DefaultNode("Camera"), HasRenderable, HasMaterial, HasCustom
      *
      * It will be shown for [duration] milliseconds, with a default of 3000.
      */
-    @JvmOverloads fun showMessage(message: String, distance: Float = 0.75f, size: Float = 0.05f, messageColor: Vector4f = Vector4f(1.0f), backgroundColor: Vector4f = Vector4f(0.0f), duration: Int = 3000) {
+    @JvmOverloads fun showMessage(message: String,
+                                  distance: Float = 0.75f,
+                                  size: Float = 0.05f,
+                                  messageColor: Vector4f = Vector4f(1.0f),
+                                  backgroundColor: Vector4f = Vector4f(0.0f),
+                                  transparent: Boolean = true,
+                                  offset: Vector2f? = null,
+                                  duration: Int = 3000,
+    ) {
         val tb = TextBoard()
         tb.fontColor = messageColor
         tb.backgroundColor = backgroundColor
+        tb.transparent = if(transparent) { 1 } else { 0 }
         tb.text = message
         tb.spatial {
             scale = Vector3f(size, size, size)
-            position = Vector3f(0.0f, 0.0f, -1.0f * distance)
+            position = Vector3f(0.0f + (offset?.x ?: 0.0f), 0.0f + (offset?.y ?: 0.0f), -1.0f * distance)
         }
 
         @Suppress("UNCHECKED_CAST")
