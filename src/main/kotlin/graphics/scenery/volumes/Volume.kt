@@ -887,9 +887,5 @@ open class Volume(
                 model.translate(shift)
             }
         }
-
-        override fun getConstructorParameters(): Any? {
-            return super.getConstructorParameters()
-        }
     }
 }
