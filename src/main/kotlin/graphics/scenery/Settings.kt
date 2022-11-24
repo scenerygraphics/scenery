@@ -1,6 +1,8 @@
 package graphics.scenery
 
 import graphics.scenery.utils.LazyLogger
+import java.io.FileInputStream
+import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -9,9 +11,11 @@ import java.util.concurrent.ConcurrentHashMap
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class Settings(override var hub: Hub? = null) : Hubable {
+class Settings(override var hub: Hub? = null, prefix : String = "scenery.", propertiesFile : String? = null) : Hubable {
     private var settingsStore = ConcurrentHashMap<String, Any>()
     private val logger by LazyLogger()
+
+    var settingsUpdateRoutines : HashMap<String, ArrayList<() -> Unit>> = HashMap()
 
     init {
         val properties = System.getProperties()
@@ -19,20 +23,38 @@ class Settings(override var hub: Hub? = null) : Hubable {
             val key = p.key as? String ?: return@forEach
             val value = p.value as? String ?: return@forEach
 
-            if(!key.startsWith("scenery.")) {
+            if(!key.startsWith(prefix)) {
                 return@forEach
             }
 
-            val setting = when {
-                value.lowercase() == "false" || value.lowercase() == "true" -> value.toBoolean()
-                value.lowercase().contains("f") && value.lowercase().replace("f", "").toFloatOrNull() != null -> value.lowercase().replace("f", "").toFloat()
-                value.lowercase().contains("l") && value.lowercase().replace("l", "").toLongOrNull() != null -> value.lowercase().replace("l", "").toLong()
-                value.toIntOrNull() != null -> value.toInt()
-                else -> value
-            }
-
-            set(key.substringAfter("scenery."), setting)
+            val parsed = parseType(value)
+            set(key.substringAfter(prefix), parsed)
         }
+
+        // Add properties from file, take given file or from params
+        val propertiesFile2 = getOrNull("propertiesFile") ?: propertiesFile
+        if (propertiesFile2 != null){
+            // put properties into settings
+            FileInputStream(propertiesFile2).use { input ->
+                val prop = Properties()
+                // load a properties file
+                prop.load(input)
+                prop.propertyNames().toList().forEach { propName ->
+                    setIfUnset(propName as String,parseType(prop.getProperty(propName)))
+                }
+            }
+        }
+    }
+
+    /**
+     * Parses the type from the incoming string, returns the casted value
+     */
+    fun parseType(value:String): Any = when {
+        value.lowercase() == "false" || value.lowercase() == "true" -> value.toBoolean()
+        value.lowercase().contains("f") && value.lowercase().replace("f", "").toFloatOrNull() != null -> value.lowercase().replace("f", "").toFloat()
+        value.lowercase().contains("l") && value.lowercase().replace("l", "").toLongOrNull() != null -> value.lowercase().replace("l", "").toLong()
+        value.toIntOrNull() != null -> value.toInt()
+        else -> value
     }
 
     /**
@@ -57,6 +79,20 @@ class Settings(override var hub: Hub? = null) : Hubable {
     }
 
     /**
+     * Query the settings store for a setting [name] and type T. If it can not be found or cast to T null is returned.
+     *
+     * @param[name] The name of the setting
+     * @return The setting as type T
+     */
+    fun <T> getOrNull(name: String): T? {
+        if(!settingsStore.containsKey(name)) {
+            logger.debug("Settings don't contain '$name'")
+        }
+        @Suppress("UNCHECKED_CAST")
+        return settingsStore[name] as? T
+    }
+
+    /**
      * Compatibility function for Java, see [get]. Returns the settings value for [name], if found.
      */
     @JvmOverloads fun <T> getProperty(name: String, default: T? = null): T{
@@ -72,6 +108,14 @@ class Settings(override var hub: Hub? = null) : Hubable {
         val s = settingsStore[name] as? T
         return s
             ?: (default ?: throw IllegalStateException("Cast of $name failed, the setting might not exist (current value: $s)"))
+    }
+
+    /**
+     * Calls a function, if set, from [settingsUpdateRoutines], for the given [setting]
+     * @param[setting] Name of the setting
+     */
+    private fun onValueChange(setting : String) {
+        settingsUpdateRoutines[setting]?.forEach { it.invoke() }
     }
 
     /**
@@ -97,6 +141,9 @@ class Settings(override var hub: Hub? = null) : Hubable {
         var current = settingsStore[name]
 
         if (current != null) {
+            if(current == contents)
+                return current
+
             val type: Class<*> = current.javaClass
 
             if (type != contents.javaClass) {
@@ -116,8 +163,17 @@ class Settings(override var hub: Hub? = null) : Hubable {
         } else {
             settingsStore[name] = contents
         }
+        onValueChange(name)
 
         return current ?: contents
+    }
+
+    fun addUpdateRoutine(setting : String, update: () -> Unit) {
+        if(!settingsUpdateRoutines.containsKey(setting)) {
+            settingsUpdateRoutines[setting] = arrayListOf(update)
+        } else {
+            settingsUpdateRoutines[setting]!! += update
+        }
     }
 
     /**
