@@ -346,6 +346,7 @@ open class Volume(
         this.transferFunction = fresh.transferFunction
         this.slicingMode = fresh.slicingMode
         this.multiResolutionLevelLimits = fresh.multiResolutionLevelLimits
+        this.origin = fresh.origin
 
         val displayRanges = additionalData as List<Pair<Double,Double>>
         displayRanges.forEachIndexed{index, range ->
@@ -876,13 +877,13 @@ open class Volume(
          */
         override fun composeModel() {
             val volume = node as? Volume ?: return
-            val shift = Vector3f(volume.getDimensions()) * (-0.5f)
 
             model.translation(position)
             model.mul(Matrix4f().set(this.rotation))
             model.scale(scale)
             model.scale(volume.localScale())
             if (volume.origin == Origin.Center) {
+                val shift = Vector3f(volume.getDimensions()) * (-0.5f)
                 model.translate(shift)
             }
         }
