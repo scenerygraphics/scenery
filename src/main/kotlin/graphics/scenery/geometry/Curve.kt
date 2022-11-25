@@ -430,7 +430,6 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
                     val vertexNormal = Vector3f()
                     when(shapeIndex) {
                         0-> {
-                            //ToDO the bug seems to be here
                             vertexNormal.add(section[1].first())
                             vertexNormal.add(section[1].last())
                             vertexNormal.add(section[1].drop(1).last())
@@ -496,27 +495,6 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
                     finalNormals.add(verticesNormals[shapeIndex + 1][vertexIndex + 1])
                     finalNormals.add(verticesNormals[shapeIndex + 1][vertexIndex])
                 }
-
-                /*
-                val triangle1Point1 = curveGeometry[shapeIndex][shape.lastIndex]
-                    val triangle1Point2 = curveGeometry[shapeIndex][0]
-                    val triangle1Point3 = curveGeometry[shapeIndex + 1][shape.lastIndex]
-                    verticesVectors.add(triangle1Point1)
-                    verticesVectors.add(triangle1Point2)
-                    verticesVectors.add(triangle1Point3)
-
-                    //normal calculation triangle 1
-                    val normal1 = ((Vector3f(triangle1Point3).sub(Vector3f(triangle1Point1)))
-                        .cross(Vector3f(triangle1Point2).sub(Vector3f(triangle1Point1))))
-                    intermediateNormalSection.add(normal1)
-
-                    val triangle2Point1 = curveGeometry[shapeIndex][0]
-                    val triangle2Point2 = curveGeometry[shapeIndex + 1][0]
-                    val triangle2Point3 = curveGeometry[shapeIndex + 1][shape.lastIndex]
-                    verticesVectors.add(triangle2Point1)
-                    verticesVectors.add(triangle2Point2)
-                    verticesVectors.add(triangle2Point3)
-                 */
                 finalNormals.add(verticesNormals[shapeIndex][shape.lastIndex])
                 finalNormals.add(verticesNormals[shapeIndex][0])
                 finalNormals.add(verticesNormals[shapeIndex + 1][shape.lastIndex])
