@@ -279,8 +279,8 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
                         verticesVectors.add(triangle1Point3)
 
                         //normal calculation triangle 1
-                        val normal1 = ((Vector3f(triangle1Point2).sub(Vector3f(triangle1Point1)))
-                            .cross(Vector3f(triangle1Point3).sub(Vector3f(triangle1Point1)))).normalize()
+                        val normal1 = ((Vector3f(triangle1Point3).sub(Vector3f(triangle1Point1)))
+                            .cross(Vector3f(triangle1Point2).sub(Vector3f(triangle1Point1))))
                         intermediateNormalSection.add(normal1)
 
                         val triangle2Point1 = curveGeometry[shapeIndex][vertexIndex + 1]
@@ -291,8 +291,8 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
                         verticesVectors.add(triangle2Point3)
 
                         //normal calculation triangle 2
-                        val normal2 = ((Vector3f(triangle2Point2).sub(Vector3f(triangle2Point1)))
-                            .cross(Vector3f(triangle2Point3).sub(Vector3f(triangle2Point1)))).normalize()
+                        val normal2 = ((Vector3f(triangle2Point3).sub(Vector3f(triangle2Point1)))
+                            .cross(Vector3f(triangle2Point2).sub(Vector3f(triangle2Point1))))
                         intermediateNormalSection.add(normal2)
                     }
 
@@ -304,20 +304,20 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
                     verticesVectors.add(triangle1Point3)
 
                     //normal calculation triangle 1
-                    val normal1 = ((Vector3f(triangle1Point2).sub(Vector3f(triangle1Point1)))
-                        .cross(Vector3f(triangle1Point3).sub(Vector3f(triangle1Point1)))).normalize()
+                    val normal1 = ((Vector3f(triangle1Point3).sub(Vector3f(triangle1Point1)))
+                        .cross(Vector3f(triangle1Point2).sub(Vector3f(triangle1Point1))))
                     intermediateNormalSection.add(normal1)
 
-                    val triangle2Point1 = curveGeometry[shapeIndex][0]
-                    val triangle2Point2 = curveGeometry[shapeIndex + 1][0]
+                    val triangle2Point1 = curveGeometry[shapeIndex + 1][0]
+                    val triangle2Point2 = curveGeometry[shapeIndex][0]
                     val triangle2Point3 = curveGeometry[shapeIndex + 1][shape.lastIndex]
                     verticesVectors.add(triangle2Point1)
                     verticesVectors.add(triangle2Point2)
                     verticesVectors.add(triangle2Point3)
 
                     //normal calculation triangle 2
-                    val normal2 = ((Vector3f(triangle2Point2).sub(Vector3f(triangle2Point1)))
-                        .cross(Vector3f(triangle2Point3).sub(Vector3f(triangle2Point1)))).normalize()
+                    val normal2 = ((Vector3f(triangle2Point3).sub(Vector3f(triangle2Point1)))
+                        .cross(Vector3f(triangle2Point2).sub(Vector3f(triangle2Point1))))
                     intermediateNormalSection.add(normal2)
 
                     //add all triangle normals from this section
@@ -396,7 +396,7 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
          */
         private fun computeNormals(intermediateNormals: ArrayList<ArrayList<Vector3f>>, shapeSize: Int): ArrayList<Vector3f> {
             //TODO allocate the size
-            val normalsOfvertices = ArrayList<ArrayList<Vector3f>>()
+            val normalsOfVertices = ArrayList<ArrayList<Vector3f>>()
             //calculate normals for every vertex
             val firstSectionNormals = ArrayList<Vector3f>(shapeSize)
             for(shapeIndex in 0 until shapeSize) {
@@ -414,14 +414,14 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
                         vertexNormal.add(intermediateNormals.first()[sectionIndex-1])
                     }
                     else -> {
-                        vertexNormal.add(intermediateNormals.first()[sectionIndex])
-                        vertexNormal.add(intermediateNormals.first()[sectionIndex+1])
                         vertexNormal.add(intermediateNormals.first()[sectionIndex-1])
+                        vertexNormal.add(intermediateNormals.first()[sectionIndex+1])
+                        vertexNormal.add(intermediateNormals.first()[sectionIndex])
                     }
                 }
                 firstSectionNormals.add(vertexNormal.normalize())
             }
-            normalsOfvertices.add(firstSectionNormals)
+            normalsOfVertices.add(firstSectionNormals)
             intermediateNormals.windowed(size = 2, 1) { section ->
                 //TODO allocate size
                 val allSectionNormals = ArrayList<Vector3f>()
@@ -444,12 +444,11 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
                             vertexNormal.add(section[0][sectionIndex-1])
                             vertexNormal.add(section[0][sectionIndex])
                             vertexNormal.add(section[0][sectionIndex+1])
-
                         }
                     }
                     allSectionNormals.add(vertexNormal.normalize())
                 }
-                normalsOfvertices.add(allSectionNormals)
+                normalsOfVertices.add(allSectionNormals)
             }
 
             val lastSectionNormals = ArrayList<Vector3f>(shapeSize)
@@ -475,8 +474,8 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
                 }
                 lastSectionNormals.add(vertexNormal.normalize())
             }
-            normalsOfvertices.add(lastSectionNormals)
-            return orderNormals(normalsOfvertices)
+            normalsOfVertices.add(lastSectionNormals)
+            return orderNormals(normalsOfVertices)
         }
 
         /**
@@ -533,21 +532,25 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
             boundingBox = generateBoundingBox()
 
             //TODO delete
+
             val matBright = DefaultMaterial()
             matBright.diffuse  = Vector3f(0.0f, 1.0f, 0.0f)
             matBright.ambient  = Vector3f(1.0f, 1.0f, 1.0f)
             matBright.specular = Vector3f(1.0f, 1.0f, 1.0f)
             matBright.cullingMode = Material.CullingMode.None
             verticesVectors.forEachIndexed { index, vertex ->
-                val normal = normalVectors[index]
-                val a = Arrow(Vector3f() - vertex)  //shape of the vector itself
-                a.spatial {
-                    position = vertex                 //position/base of the vector
+                if(index%10 == 0) {
+                    val normal = normalVectors[index]
+                    val a = Arrow(Vector3f() - normal)  //shape of the vector itself
+                    a.spatial {
+                        position = vertex                 //position/base of the vector
+                    }
+                    a.addAttribute(Material::class.java, matBright)                  //usual stuff follows...
+                    a.edgeWidth = 0.5f
+                    this.addChild(a)
                 }
-                a.addAttribute(Material::class.java, matBright)                  //usual stuff follows...
-                a.edgeWidth = 0.5f
-                this.addChild(a)
             }
+
         }
     }
 }
