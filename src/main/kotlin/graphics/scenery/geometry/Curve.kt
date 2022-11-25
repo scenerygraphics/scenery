@@ -308,8 +308,8 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
                         .cross(Vector3f(triangle1Point2).sub(Vector3f(triangle1Point1))))
                     intermediateNormalSection.add(normal1)
 
-                    val triangle2Point1 = curveGeometry[shapeIndex + 1][0]
-                    val triangle2Point2 = curveGeometry[shapeIndex][0]
+                    val triangle2Point1 = curveGeometry[shapeIndex][0]
+                    val triangle2Point2 = curveGeometry[shapeIndex + 1][0]
                     val triangle2Point3 = curveGeometry[shapeIndex + 1][shape.lastIndex]
                     verticesVectors.add(triangle2Point1)
                     verticesVectors.add(triangle2Point2)
@@ -430,6 +430,7 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
                     val vertexNormal = Vector3f()
                     when(shapeIndex) {
                         0-> {
+                            //ToDO the bug seems to be here
                             vertexNormal.add(section[1].first())
                             vertexNormal.add(section[1].last())
                             vertexNormal.add(section[1].drop(1).last())
