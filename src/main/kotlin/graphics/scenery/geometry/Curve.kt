@@ -11,7 +11,7 @@ import kotlin.math.acos
  * Constructs a geometry along the calculates points of a Spline.
  * The number n corresponds to the number of segments you wish to have between your control points.
  * The spline and the baseShape lambda must both have the same number of elements, otherwise, the curve is no
- * longer well defined. Concerning the individual baseShapes, no lines must cross for the body of the curve to
+ * longer well-defined. Concerning the individual baseShapes, no lines must cross for the body of the curve to
  * be visualized flawlessly. Furthermore, all baseShapes ought to be convex.
  *
  * @author  Justin Buerger <burger@mpi-cbg.de>
@@ -228,7 +228,7 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
         frenetFrameList.windowed(2,1).forEach { (firstFrame, secondFrame) ->
             val b = Vector3f(firstFrame.tangent).cross(secondFrame.tangent)
             secondFrame.normal = firstFrame.normal.normalize()
-            //if there is no substantial difference between two tangent vectors, the frenet frame need not to change
+            //if there is no substantial difference between two tangent vectors, the frenet frame need not change
             if (b.length() > 0.00001f) {
                 val firstNormal = firstFrame.normal
                 b.normalize()
@@ -249,15 +249,12 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
          * along the curve.
          */
         fun calculateTriangles(curveGeometry: List<List<Vector3f>>, addCoverOrTop: Int = 2): Pair<ArrayList<Vector3f>, ArrayList<Vector3f>> {
+            val verticesWithoutCover = ArrayList<Vector3f>(curveGeometry.flatten().size * 6)
             val verticesVectors = ArrayList<Vector3f>(curveGeometry.flatten().size * 6 + curveGeometry[0].size + 1)
+            val normalsWithoutCover = ArrayList<Vector3f>(verticesWithoutCover.size)
             val normalVectors = ArrayList<Vector3f>(verticesVectors.size)
             if (curveGeometry.isEmpty()) {
-                return Pair(verticesVectors, normalVectors)
-            }
-            if (addCoverOrTop == 0) {
-                val newVerticesAndNormals = getCoverVertices(curveGeometry.first(), true)
-                verticesVectors.addAll(newVerticesAndNormals.first)
-                normalVectors.addAll(newVerticesAndNormals.second)
+                return Pair(verticesVectors, normalsWithoutCover)
             }
             //if none of the lists in the curveGeometry differ in size, distinctBy leaves only one element
             if (curveGeometry.distinctBy { it.size }.size == 1) {
@@ -270,9 +267,9 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
                         val triangle1Point1 = curveGeometry[shapeIndex][vertexIndex]
                         val triangle1Point2 = curveGeometry[shapeIndex][vertexIndex + 1]
                         val triangle1Point3 = curveGeometry[shapeIndex + 1][vertexIndex]
-                        verticesVectors.add(triangle1Point1)
-                        verticesVectors.add(triangle1Point2)
-                        verticesVectors.add(triangle1Point3)
+                        verticesWithoutCover.add(triangle1Point1)
+                        verticesWithoutCover.add(triangle1Point2)
+                        verticesWithoutCover.add(triangle1Point3)
 
                         //normal calculation triangle 1
                         val normal1 = ((Vector3f(triangle1Point3).sub(Vector3f(triangle1Point1)))
@@ -282,22 +279,21 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
                         val triangle2Point1 = curveGeometry[shapeIndex][vertexIndex + 1]
                         val triangle2Point2 = curveGeometry[shapeIndex + 1][vertexIndex + 1]
                         val triangle2Point3 = curveGeometry[shapeIndex + 1][vertexIndex]
-                        verticesVectors.add(triangle2Point1)
-                        verticesVectors.add(triangle2Point2)
-                        verticesVectors.add(triangle2Point3)
+                        verticesWithoutCover.add(triangle2Point1)
+                        verticesWithoutCover.add(triangle2Point2)
+                        verticesWithoutCover.add(triangle2Point3)
 
                         //normal calculation triangle 2
                         val normal2 = ((Vector3f(triangle2Point3).sub(Vector3f(triangle2Point1)))
                             .cross(Vector3f(triangle2Point2).sub(Vector3f(triangle2Point1))))
                         intermediateNormalSection.add(normal2)
                     }
-
                     val triangle1Point1 = curveGeometry[shapeIndex][shape.lastIndex]
                     val triangle1Point2 = curveGeometry[shapeIndex][0]
                     val triangle1Point3 = curveGeometry[shapeIndex + 1][shape.lastIndex]
-                    verticesVectors.add(triangle1Point1)
-                    verticesVectors.add(triangle1Point2)
-                    verticesVectors.add(triangle1Point3)
+                    verticesWithoutCover.add(triangle1Point1)
+                    verticesWithoutCover.add(triangle1Point2)
+                    verticesWithoutCover.add(triangle1Point3)
 
                     //normal calculation triangle 1
                     val normal1 = ((Vector3f(triangle1Point3).sub(Vector3f(triangle1Point1)))
@@ -307,9 +303,9 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
                     val triangle2Point1 = curveGeometry[shapeIndex][0]
                     val triangle2Point2 = curveGeometry[shapeIndex + 1][0]
                     val triangle2Point3 = curveGeometry[shapeIndex + 1][shape.lastIndex]
-                    verticesVectors.add(triangle2Point1)
-                    verticesVectors.add(triangle2Point2)
-                    verticesVectors.add(triangle2Point3)
+                    verticesWithoutCover.add(triangle2Point1)
+                    verticesWithoutCover.add(triangle2Point2)
+                    verticesWithoutCover.add(triangle2Point3)
 
                     //normal calculation triangle 2
                     val normal2 = ((Vector3f(triangle2Point3).sub(Vector3f(triangle2Point1)))
@@ -319,16 +315,25 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
                     //add all triangle normals from this section
                     intermediateNormals.add(intermediateNormalSection)
                 }
-                normalVectors.addAll(computeNormals(intermediateNormals, curveGeometry.first().size))
+                normalsWithoutCover.addAll(computeNormals(intermediateNormals, curveGeometry.first().size))
+                if(addCoverOrTop == 0) {
+                    val newVerticesAndNormals = getCoverVertices(curveGeometry.first(), true,
+                        intermediateNormals.first().filterIndexed{index, _ -> index %2 == 0}.map { it.normalize() })
+                    verticesVectors.addAll(newVerticesAndNormals.first)
+                    normalVectors.addAll(newVerticesAndNormals.second)
+                }
+                verticesVectors.addAll(verticesWithoutCover)
+                normalVectors.addAll(normalsWithoutCover)
+                if (addCoverOrTop == 2) {
+                    val newVerticesAndNormals = getCoverVertices(curveGeometry.last(), false,
+                        intermediateNormals.last().filterIndexed{index, _ -> index %2 == 0}.map { it.normalize() })
+                    verticesVectors.addAll(newVerticesAndNormals.first)
+                    normalVectors.addAll(newVerticesAndNormals.second)
+                }
             } else {
                 throw IllegalArgumentException("The baseShapes must not differ in size!")
             }
-            if (addCoverOrTop == 2) {
-                val newVerticesAndNormals = getCoverVertices(curveGeometry.last(), false)
-                verticesVectors.addAll(newVerticesAndNormals.first)
-                normalVectors.addAll(newVerticesAndNormals.second)
-            }
-            return Pair(verticesVectors, normalVectors)
+            return Pair(verticesVectors, normalsWithoutCover)
         }
 
         /**
@@ -336,49 +341,69 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
         the bottom of a curve, the triangles should be arranged counterclockwise, for the top clockwise - this is signified
         by [ccw].
          */
-        private fun getCoverVertices(list: List<Vector3f>, ccw: Boolean): Pair<ArrayList<Vector3f>, ArrayList<Vector3f>> {
-            val size = list.size
+        private fun getCoverVertices(verticesList: List<Vector3f>, ccw: Boolean, perpendicularNormals: List<Vector3f>): Pair<ArrayList<Vector3f>, ArrayList<Vector3f>> {
+
+            //the direction of the cover triangle normals is the same for all triangles
+            val surfaceNormal = ((Vector3f(verticesList.last()).sub(Vector3f(verticesList.first())))
+                .cross(Vector3f(verticesList[verticesList.size/2]).sub(Vector3f(verticesList.first())))).normalize()
+            //compute the normal for each of the vertices at the beginning/end of the curve
+            val vertexNormals = perpendicularNormals.map { Vector3f(it.add(surfaceNormal)).normalize() }
+
+            return getCoverVerticesRecursive(verticesList, vertexNormals, ccw)
+        }
+
+        /**
+         * Recursive helper function saving the triangle vertices along with their normals for the Curve cover.
+         * The function takes packages of three consecutive vertices from the curves beginning/end and stores them as
+         * a triangle. The first triangle point is stored for the next iteration. The recursion runs until no more
+         * points are left.
+         */
+        private fun getCoverVerticesRecursive(vertices: List<Vector3f>, normals: List<Vector3f>, ccw: Boolean): Pair<ArrayList<Vector3f>, ArrayList<Vector3f>> {
+            val size = vertices.size
+            //the complete list at the end of the calculation
             val verticesList = ArrayList<Vector3f>(size + (size / 2))
-            val normalVectors = ArrayList<Vector3f>(verticesList.size/3)
+            val normalVectors = ArrayList<Vector3f>(verticesList.size)
 
-            if (size >= 3) {
-                val workList = ArrayList<Vector3f>(size)
-                workList.addAll(list)
-
+            if (verticesList.size >= 3) {
+                //working list for the respective iteration
+                val workList = ArrayList<Pair<Vector3f, Vector3f>>(vertices.size)
+                vertices.forEachIndexed { index, vertex -> workList.add(Pair(vertex, normals[index]))}
+                //list containing vertices for the next iteration
+                val newVertices = ArrayList<Vector3f>(vertices.size%3)
+                //list containing normals for the next ioteration
+                val newNormals = ArrayList<Vector3f>(newVertices.size)
                 //Ensures that the algorithm does not stop before the last triangle.
-                if(size%2 == 0) { workList.add(list[0]) }
+                if (size % 2 == 0) {
+                    workList.add(Pair(vertices.first(), normals.first()))
+                }
 
-                val newList = ArrayList<Vector3f>((size + (size / 2)) / 2)
                 workList.windowed(3, 2) { triangle ->
                     if (ccw) {
-                        verticesList.add(triangle[0])
-                        verticesList.add(triangle[2])
-                        verticesList.add(triangle[1])
-
-                        //compute normal
-                        val normal = ((Vector3f(triangle[2]).sub(Vector3f(triangle[0])))
-                            .cross(Vector3f(triangle[1]).sub(Vector3f(triangle[0])))).normalize()
-                        for(i in 1..3) { normalVectors.add(normal) }
+                        verticesList.add(triangle[0].first)
+                        verticesList.add(triangle[2].first)
+                        verticesList.add(triangle[1].first)
+                        normalVectors.add(triangle[0].second)
+                        normalVectors.add(triangle[2].second)
+                        normalVectors.add(triangle[1].second)
                     } else {
                         for (i in 0..2) {
-                            verticesList.add(triangle[i])
+                            verticesList.add(triangle[i].first)
+                            normalVectors.add(triangle[i].second)
                         }
-                        //compute normal
-                        val normal = ((Vector3f(triangle[0]).sub(Vector3f(triangle[2])))
-                            .cross(Vector3f(triangle[1]).sub(Vector3f(triangle[0])))).normalize()
-                        for(i in 1..3) { normalVectors.add(normal) }
+                        //add normals
                     }
-                    newList.add(triangle[0])
+                    newVertices.add(triangle[0].first)
+                    newNormals.add(triangle[0].second)
                 }
 
                 //check if the recursion has come to an end
-                if(newList.size >= 3) {
+                if (newVertices.size >= 3) {
                     //to avoid gaps when the vertex number is odd
                     if (size % 2 == 1) {
-                        newList.add(list.last())
+                        newVertices.add(vertices.last())
                     }
 
-                    val newVerticesAndNormals = getCoverVertices(newList, ccw)
+                    val newVerticesAndNormals = getCoverVerticesRecursive(newVertices, newNormals, ccw)
                     verticesList.addAll(newVerticesAndNormals.first)
                     normalVectors.addAll(newVerticesAndNormals.second)
                 }
