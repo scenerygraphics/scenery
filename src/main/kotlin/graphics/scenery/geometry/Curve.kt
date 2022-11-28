@@ -416,8 +416,7 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
          * triangle vertices it's normal.
          */
         private fun computeNormals(intermediateNormals: ArrayList<ArrayList<Vector3f>>, shapeSize: Int): ArrayList<Vector3f> {
-            //TODO allocate the size
-            val normalsOfVertices = ArrayList<ArrayList<Vector3f>>()
+            val normalsOfVertices = ArrayList<ArrayList<Vector3f>>(intermediateNormals.size*shapeSize + shapeSize)
             //calculate normals for every vertex
             val firstSectionNormals = ArrayList<Vector3f>(shapeSize)
             for(shapeIndex in 0 until shapeSize) {
@@ -444,8 +443,7 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
             }
             normalsOfVertices.add(firstSectionNormals)
             intermediateNormals.windowed(size = 2, 1) { section ->
-                //TODO allocate size
-                val allSectionNormals = ArrayList<Vector3f>()
+                val allSectionNormals = ArrayList<Vector3f>(shapeSize)
                 for(shapeIndex in 0 until shapeSize) {
                     val sectionIndex = shapeIndex*2
                     val vertexNormal = Vector3f()
@@ -503,8 +501,7 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
          * Orders the normals in the same structure as the triangle vertices.
          */
         private fun orderNormals(verticesNormals: ArrayList<ArrayList<Vector3f>>): ArrayList<Vector3f> {
-            //TODO allocate size
-            val finalNormals = ArrayList<Vector3f>()
+            val finalNormals = ArrayList<Vector3f>(verticesNormals.flatten().size*6 + verticesNormals.first().size)
             verticesNormals.dropLast(1).forEachIndexed { shapeIndex, shape ->
                 shape.dropLast(1).forEachIndexed { vertexIndex, _ ->
 
