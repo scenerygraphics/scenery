@@ -318,7 +318,7 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
                 normalsWithoutCover.addAll(computeNormals(intermediateNormals, curveGeometry.first().size))
                 if(addCoverOrTop == 0) {
                     val newVerticesAndNormals = getCoverVertices(curveGeometry.first(), true,
-                        intermediateNormals.first().filterIndexed{index, _ -> index %2 == 0}.map { it.normalize() })
+                        intermediateNormals.first().filterIndexed{index, _ -> index %2 == 1}.map { it.normalize() })
                     verticesVectors.addAll(newVerticesAndNormals.first)
                     normalVectors.addAll(newVerticesAndNormals.second)
                 }
@@ -343,10 +343,15 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
          */
         private fun getCoverVertices(verticesList: List<Vector3f>, ccw: Boolean, perpendicularNormals: List<Vector3f>): Pair<ArrayList<Vector3f>, ArrayList<Vector3f>> {
             //the direction of the cover triangle normals is the same for all triangles
-            val surfaceNormal = ((Vector3f(verticesList.last()).sub(Vector3f(verticesList.first())))
-                .cross(Vector3f(verticesList[verticesList.size/2]).sub(Vector3f(verticesList.first())))).normalize()
+            val surfaceNormal = if(!ccw) { ((Vector3f(verticesList.last()).sub(Vector3f(verticesList.first())))
+                .cross(Vector3f(verticesList[verticesList.size/2]).sub(Vector3f(verticesList.first())))).normalize() }
+            else { ((Vector3f(verticesList[verticesList.size/2]).sub(Vector3f(verticesList.first())))
+                .cross(Vector3f(verticesList.last()).sub(Vector3f(verticesList.first())))).normalize() }
             //compute the normal for each of the vertices at the beginning/end of the curve
-            val vertexNormals = perpendicularNormals.map { Vector3f(it).add(surfaceNormal).normalize() }
+            val vertexNormals = perpendicularNormals.mapIndexed { index, normal ->
+                if(index == 0)  { Vector3f(surfaceNormal).add(normal).add(perpendicularNormals.last()).normalize() }
+                else { Vector3f(surfaceNormal).add(normal).add(perpendicularNormals[index-1]).normalize() }
+            }
 
             return getCoverVerticesRecursive(verticesList, vertexNormals, ccw)
         }
@@ -538,7 +543,7 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
                 }
                 vertices.flip()
                 texcoords = BufferUtils.allocateFloat(verticesVectors.size * 2)
-                normals = BufferUtils.allocateFloat(normalVectors.size*3*3)
+                normals = BufferUtils.allocateFloat(normalVectors.size * 3 * 3)
                 normalVectors.forEach {
                     normals.put(it.toFloatArray())
                 }
