@@ -1,6 +1,7 @@
 package graphics.scenery
 
 import graphics.scenery.utils.LazyLogger
+import java.io.File
 import java.io.FileInputStream
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
@@ -16,6 +17,7 @@ class Settings(override var hub: Hub? = null, prefix : String = "scenery.", prop
     private val logger by LazyLogger()
 
     var settingsUpdateRoutines : HashMap<String, ArrayList<() -> Unit>> = HashMap()
+    val file : File?
 
     init {
         val properties = System.getProperties()
@@ -44,6 +46,9 @@ class Settings(override var hub: Hub? = null, prefix : String = "scenery.", prop
                 }
             }
         }
+
+        //temporary File
+        file = File(propertiesFile2)
     }
 
     /**
