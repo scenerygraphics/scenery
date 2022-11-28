@@ -105,6 +105,6 @@ class Helix (private val axis: MathLine, val spline: Spline, baseShape: () -> Li
     private fun calcMesh(section: List<List<Vector3f>>, i: Int): Mesh {
         //algorithms from the curve class, see Curve (line 219-322)
         val helixSectionVertices = Curve.calculateTriangles(section, i)
-        return Curve.PartialCurve(helixSectionVertices)
+        return Curve.PartialCurve(helixSectionVertices.first, helixSectionVertices.second)
     }
 }
