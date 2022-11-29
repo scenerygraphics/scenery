@@ -14,6 +14,7 @@ import org.joml.Vector3f
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
+import org.zeromq.ZContext
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
@@ -29,6 +30,7 @@ class NodePublisherNodeSubscriberTest {
     private lateinit var scene2: Scene
     private lateinit var pub: NodePublisher
     private lateinit var sub: NodeSubscriber
+    private lateinit var zContext: ZContext
 
     @Before
     fun init() {
@@ -40,20 +42,21 @@ class NodePublisherNodeSubscriberTest {
         scene2 = Scene()
         scene2.name = "scene2"
 
-        pub = NodePublisher(hub1, "tcp://127.0.0.1", 6660)
+        zContext = ZContext()
+        pub = NodePublisher(hub1, "tcp://127.0.0.1", 6660, context = zContext)
         hub1.add(pub)
 
-        sub = NodeSubscriber(hub2, ip = "tcp://127.0.0.1", 6660)
+        sub = NodeSubscriber(hub2, ip = "tcp://127.0.0.1", 6660, context = zContext)
         hub2.add(sub)
         Thread.sleep(300)
     }
 
     @After
     fun teardown() {
-        sub.stopListening()
-
-        pub.close()
-        sub.close()
+        val t = pub.close()
+        sub.close().join()
+        t.join()
+        zContext.destroy()
     }
 
     /**
@@ -78,8 +81,6 @@ class NodePublisherNodeSubscriberTest {
 
         scene1.name = "lol"
 
-        sub.startListening()
-        pub.startPublishing()
         pub.register(scene1)
         Thread.sleep(1000)
         sub.networkUpdate(scene2)
@@ -90,8 +91,6 @@ class NodePublisherNodeSubscriberTest {
     @Test
     fun integrationSimpleNode() {
 
-        sub.startListening()
-        pub.startPublishing()
         pub.register(scene1)
 
         val box = Box()
@@ -107,8 +106,6 @@ class NodePublisherNodeSubscriberTest {
     @Test
     fun integrationSimpleChildNode() {
 
-        sub.startListening()
-        pub.startPublishing()
         pub.register(scene1)
 
         val box = Box()
@@ -214,8 +211,6 @@ class NodePublisherNodeSubscriberTest {
         box.name = "box"
         scene1.addChild(box)
 
-        sub.startListening()
-        pub.startPublishing()
         pub.register(scene1)
         Thread.sleep(1000)
         sub.networkUpdate(scene2)
@@ -248,8 +243,6 @@ class NodePublisherNodeSubscriberTest {
             scene2.addChild(box2)
         }
 
-        sub.startListening()
-        pub.startPublishing()
         pub.register(scene1)
         Thread.sleep(1000)
         sub.networkUpdate(scene2)
@@ -267,9 +260,9 @@ class NodePublisherNodeSubscriberTest {
 
     @Test
     fun volume() {
-        class VolInt: Volume.VolumeInitializer{
+        class VolInt : Volume.VolumeInitializer {
             override fun initializeVolume(hub: Hub): Volume {
-                return Volume.fromBuffer(emptyList(), 5,5,5, UnsignedByteType(), hub)
+                return Volume.fromBuffer(emptyList(), 5, 5, 5, UnsignedByteType(), hub)
             }
 
         }
@@ -282,8 +275,6 @@ class NodePublisherNodeSubscriberTest {
         volume.transferFunction = TransferFunction.ramp(0.5f)
         scene1.addChild(volume)
 
-        sub.startListening()
-        pub.startPublishing()
         pub.register(scene1)
         Thread.sleep(1000)
         sub.networkUpdate(scene2)
@@ -333,8 +324,6 @@ class NodePublisherNodeSubscriberTest {
             }
         }
 
-        sub.startListening()
-        pub.startPublishing()
         pub.register(scene1)
 
         val volume = Volume.forNetwork(

@@ -21,6 +21,7 @@ import org.scijava.ui.behaviour.Behaviour
 import org.scijava.ui.behaviour.ClickBehaviour
 import java.io.BufferedReader
 import java.io.InputStreamReader
+import org.zeromq.ZContext
 import java.lang.Boolean.parseBoolean
 import java.lang.management.ManagementFactory
 import java.net.URL
@@ -301,6 +302,9 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
         inputHandler?.close()
         renderdoc?.close()
 
+        hub.get<NodePublisher>()?.close()
+        hub.get<NodeSubscriber>()?.close()
+
         hub.get<Profiler>()?.close()
         hub.get<Statistics>()?.close()
 
@@ -447,7 +451,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
         }
 
         val server = System.getProperty("scenery.Server")?.toBoolean() ?: false
-        val serverAddress = System.getProperty("scenery.ServerAddress") ?:"tcp://localhost"
+        val serverAddress = System.getProperty("scenery.ServerAddress") ?: "tcp://localhost"
         val mainPort = System.getProperty("scenery.MainPort")?.toIntOrNull() ?: 6040
         val backchannelPort = System.getProperty("scenery.BackchannelPort")?.toIntOrNull() ?: 6041
 
@@ -457,9 +461,8 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
         settings.set("System.PID", getProcessID())
 
         if (!server && serverAddress != null) {
-            val subscriber = NodeSubscriber(hub,serverAddress,mainPort,backchannelPort)
+            val subscriber = NodeSubscriber(hub, serverAddress, mainPort, backchannelPort, context = ZContext())
             hub.add(subscriber)
-            subscriber.startListening()
             scene.postUpdate += {subscriber.networkUpdate(scene)}
         } else if (server) {
             if(settings.get("Cluster.Launch", false)) {
@@ -468,10 +471,9 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
             }
 
             applicationName += " [Server]"
-            val publisher = NodePublisher(hub, serverAddress ?: "localhost", portMain = mainPort, portBackchannel = backchannelPort)
+            val publisher = NodePublisher(hub, serverAddress ?: "localhost", portMain = mainPort, portBackchannel = backchannelPort, context = ZContext())
 
             hub.add(publisher)
-            publisher.startPublishing()
             publisher.register(scene)
             scene.postUpdate += { publisher.scanForChanges()}
         }

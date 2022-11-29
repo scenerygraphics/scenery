@@ -27,9 +27,7 @@ import java.nio.ByteBuffer
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.LinkedBlockingQueue
-import java.util.concurrent.TimeUnit
 import java.util.zip.Inflater
-import kotlin.concurrent.thread
 
 /**
  * Server of scenery networking.
@@ -42,14 +40,14 @@ class NodePublisher(
     ip: String = "tcp://localhost",
     portMain: Int = 7777,
     portBackchannel: Int = 6666,
-    val context: ZContext = ZContext(4)
-) : Hubable {
+    val context: ZContext
+) : Agent(), Hubable {
     private val logger by LazyLogger()
 
     private val addressMain = "$ip:$portMain"
     private val addressBackchannel = "$ip:$portBackchannel"
 
-    private val timeout = 500
+    var timeout = 500
     private val publisher: ZMQ.Socket = context.createSocket(SocketType.PUB)
     var portMain: Int = try {
         publisher.bind(addressMain)
@@ -73,14 +71,13 @@ class NodePublisher(
     private val eventQueue = LinkedBlockingQueue<NetworkEvent>()
     private var index = 1
 
-    private var publishing = false
-    private var listeningForControl = false
-
     private fun generateNetworkID() = index++
 
     init {
         logger.info("Server opened main channel at $ip:${this.portMain} and back channel at $ip:${this.portBackchannel}")
         backchannelSubscriber.subscribe(ZMQ.SUBSCRIPTION_ALL)
+        backchannelSubscriber.receiveTimeOut = timeout
+        startAgent()
     }
 
     /**
@@ -92,8 +89,8 @@ class NodePublisher(
         addUpdateEvent(sceneNo)
 
         scene.onChildrenAdded["networkPublish"] = { _, child -> registerNode(child) }
-        scene.onChildrenRemoved["networkPublish"] = { parent, child -> detachNode(child,parent) }
-        scene.onAttributeAdded["networkPublish"] = {node, attribute -> registerAttribute(node,attribute) }
+        scene.onChildrenRemoved["networkPublish"] = { parent, child -> detachNode(child, parent) }
+        scene.onAttributeAdded["networkPublish"] = { node, attribute -> registerAttribute(node, attribute) }
 
         scene.children.forEach(::registerNode)
     }
@@ -150,16 +147,16 @@ class NodePublisher(
     }
 
     private fun registerAttribute(node: Node, attribute: Any) {
-        if (attribute !is Networkable){
+        if (attribute !is Networkable) {
             return
         }
-        if (!publishedObjects.containsKey(node.networkID)){
+        if (!publishedObjects.containsKey(node.networkID)) {
             // this relation and attribute will be published with the registration of the parent node
             return
         }
         val attributeWrapper = publishedObjects[attribute.networkID]
 
-        if (attributeWrapper == null){
+        if (attributeWrapper == null) {
             val new = NetworkWrapper(generateNetworkID(), attribute, mutableListOf(node.networkID))
             publishedObjects[new.networkID] = new
             addUpdateEvent(new)
@@ -181,29 +178,47 @@ class NodePublisher(
         }
     }
 
-    fun startPublishing() {
-        publishing = true
-        thread {
-            while (publishing) {
-                val event = eventQueue.poll(timeout.toLong(), TimeUnit.MILLISECONDS) ?: continue
-                if (!publishing) break // in case of shutdown while polling
-                if (event is NetworkEvent.RequestInitialization) {
-                    publishedObjects.forEach {
-                        addUpdateEvent(it.value)
-                    }
-                }
-                val start = System.nanoTime()
-                val payloadSize = sendEvent(event, kryo, publisher, logger)
-                val duration = (System.nanoTime() - start).toFloat()
-                (hub?.get(SceneryElement.Statistics) as? Statistics)?.add("Serialise.duration", duration)
-                (hub?.get(SceneryElement.Statistics) as? Statistics)?.add(
-                    "Serialise.payloadSize",
-                    payloadSize,
-                    isTime = false
-                )
+    override fun onLoop() {
+
+        val event = eventQueue.poll()
+        event?.let { processNextNetworkEvent(it) }
+
+        val payload = backchannelSubscriber.recv(ZMQ.DONTWAIT)
+        payload?.let { listenToControlChannel(it) }
+
+        if (event == null && payload == null) {
+            Thread.sleep(timeout.toLong())
+        }
+    }
+
+    private fun listenToControlChannel(payload: kotlin.ByteArray) {
+        try {
+            val bin = ByteArrayInputStream(payload)
+            val input = Input(bin)
+            val event = kryo.readClassAndObject(input) as? NetworkEvent
+                ?: throw IllegalStateException("Received unknown, not NetworkEvent payload")
+            eventQueue.add(event)
+
+        } catch (t: Throwable) {
+            t.printStackTrace()
+        }
+    }
+
+    private fun processNextNetworkEvent(event: NetworkEvent) {
+        if (event is NetworkEvent.RequestInitialization) {
+            publishedObjects.forEach {
+                addUpdateEvent(it.value)
             }
         }
-        startListeningControl()
+        val start = System.nanoTime()
+        val payloadSize = sendEvent(event, kryo, publisher, logger)
+        val duration = (System.nanoTime() - start).toFloat()
+        (hub?.get(SceneryElement.Statistics) as? Statistics)?.add("Serialise.duration", duration)
+        (hub?.get(SceneryElement.Statistics) as? Statistics)?.add(
+            "Serialise.payloadSize",
+            payloadSize,
+            isTime = false
+        )
     }
 
     private fun addUpdateEvent(wrapper: NetworkWrapper<*>) {
@@ -214,42 +229,17 @@ class NodePublisher(
         )
     }
 
-    fun startListeningControl() {
-        listeningForControl = true
-        backchannelSubscriber.receiveTimeOut = timeout
-        thread {
-            while (listeningForControl) {
-                try {
-                    val payload: kotlin.ByteArray = backchannelSubscriber.recv() ?: continue
-
-                    val bin = ByteArrayInputStream(payload)
-                    val input = Input(bin)
-                    val event = kryo.readClassAndObject(input) as? NetworkEvent
-                        ?: throw IllegalStateException("Received unknown, not NetworkEvent payload")
-                    eventQueue.add(event)
-
-                } catch (t: Throwable) {
-                    t.printStackTrace()
-                }
-            }
-        }
-    }
-
     fun debugPublish(send: (NetworkEvent) -> Unit) {
         while (eventQueue.isNotEmpty()) {
             send(eventQueue.poll())
         }
     }
 
-    fun close(waitForWorkerAndListeners: Boolean = false) {
-        publishing = false
-        listeningForControl = false
-        if (waitForWorkerAndListeners) {
-            Thread.sleep(timeout * 2L)
-        }
-        context.destroySocket(publisher)
-        context.destroySocket(backchannelSubscriber)
-        context.close()
+    override fun onClose() {
+        publisher.linger = 0
+        publisher.close()
+        backchannelSubscriber.linger = 0
+        backchannelSubscriber.close()
     }
 
     companion object {
