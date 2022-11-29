@@ -12,6 +12,7 @@ layout(location = 0) out vec4 FragColor;
 layout(set = 2, binding = 0) uniform ShaderProperties {
     float baseLineWidth;
     int type;
+    float lineLuminance;
 };
 
 vec4 grid(vec3 fragPos3D, float scale, bool drawAxis) {
@@ -91,7 +92,7 @@ void main() {
     vec4 color = vec4(0.0);
 
     if(type == 0) {
-        color = 0.5 * grid(R.xz, 2.0, baseLineWidth) + 0.5 * grid(R.xz, 0.5, baseLineWidth * 2);
+        color = lineLuminance * grid(R.xz, 2.0, baseLineWidth) + lineLuminance * grid(R.xz, 0.5, baseLineWidth * 2);
     } else if (type == 1) {
         color = checkerboard(R.xz, 1) * 0.3 + checkerboard(R.xz, 10) * 0.2;
     } else {
@@ -105,7 +106,7 @@ void main() {
 
     FragColor = color * spotlight;
 
-    if(FragColor.a < 0.01f) {
+    if(FragColor.a < 0.001f) {
         discard;
     }
 }

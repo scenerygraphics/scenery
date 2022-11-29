@@ -23,6 +23,9 @@ class InfinitePlane : Mesh("InfinitePlane"), DisableFrustumCulling, RenderingOrd
     @ShaderProperty
     var type = Type.Grid
 
+    @ShaderProperty
+    var lineLuminance: Float = 0.5f
+
     /** Infinite planes need to be rendered last */
     override var renderingOrder = Int.MAX_VALUE
 
