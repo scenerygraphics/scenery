@@ -101,14 +101,14 @@ void main()
 	float tnear = 1, tfar = 0, tmax = getMaxDepth( depthUV );
 	float n, f;
 
-	// $repeat:{vis,intersectBoundingBox|
+	// $repeat:{vis,skip,intersectBoundingBox|
 	bool vis = false;
 	intersectBoundingBox( wfront, wback, n, f );
 	f = min( tmax, f );
-	if ( n < f )
+	if ( n < f && skip == 0)
 	{
-		tnear = min( tnear, max( 0, n ) );
-		tfar = max( tfar, f );
+		tnear = min(tnear, max(0, n));
+		tfar = max(tfar, f);
 		vis = true;
 	}
 	// }$

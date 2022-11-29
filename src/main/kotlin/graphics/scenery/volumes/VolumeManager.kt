@@ -265,7 +265,7 @@ class VolumeManager(
         segments[SegmentType.FragmentShader] = SegmentTemplate(
             this.javaClass,
             "BDVVolume.frag",
-            "intersectBoundingBox", "vis", "SampleVolume", "Convert", "Accumulate"
+            "intersectBoundingBox", "vis", "skip", "SampleVolume", "Convert", "Accumulate"
         )
         segments[SegmentType.MaxDepth] = SegmentTemplate(
             this.javaClass,
@@ -287,13 +287,14 @@ class VolumeManager(
             "convert",
             "slicingPlanes",
             "slicingMode",
-            "usedSlicingPlanes"
+            "usedSlicingPlanes",
+            "skip"
         )
         segments[SegmentType.SampleVolume] = SegmentTemplate(
             "SampleSimpleVolume.frag",
             "im", "sourcemax", "intersectBoundingBox",
             "volume", "transferFunction", "colorMap", "sampleVolume", "convert", "slicingPlanes",
-            "slicingMode", "usedSlicingPlanes"
+            "slicingMode", "usedSlicingPlanes", "skip"
         )
         segments[SegmentType.Convert] = SegmentTemplate(
             "Converter.frag",
@@ -308,14 +309,20 @@ class VolumeManager(
             "vis", "sampleVolume", "convert"
         )
 
-        customSegments?.forEach { type, segment -> segments[type] = segment }
+        customSegments?.forEach { (type, segment) -> segments[type] = segment }
 
         val additionalBindings = customBindings
-        ?: TriConsumer { _: Map<SegmentType, SegmentTemplate>, instances: Map<SegmentType, Segment>, _: Int ->
-                logger.debug("Connecting additional bindings")
-                instances[SegmentType.SampleMultiresolutionVolume]?.bind("convert", instances[SegmentType.Convert])
-                instances[SegmentType.SampleVolume]?.bind("convert", instances[SegmentType.Convert])
+        ?: TriConsumer { _: Map<SegmentType, SegmentTemplate>, instances: Map<SegmentType, Segment>, i: Int ->
+            logger.debug("Connecting additional bindings")
+            instances[SegmentType.SampleMultiresolutionVolume]?.bind("convert", instances[SegmentType.Convert])
+            instances[SegmentType.SampleVolume]?.bind("convert", instances[SegmentType.Convert])
+
+            if(signatures[i].sourceStackType == SourceStacks.SourceStackType.MULTIRESOLUTION) {
+                instances[SegmentType.FragmentShader]?.bind("skip", i, instances[SegmentType.SampleMultiresolutionVolume])
+            } else {
+                instances[SegmentType.FragmentShader]?.bind("skip", i, instances[SegmentType.SampleVolume])
             }
+        }
 
         val newProgvol = MultiVolumeShaderMip(
             VolumeShaderSignature(signatures),
@@ -344,6 +351,14 @@ class VolumeManager(
             state = State.Ready
         } else {
             state = State.Created
+        }
+    }
+
+    private fun Boolean.toInt(): Int {
+        return if(this) {
+            1
+        } else {
+            0
         }
     }
 
@@ -463,8 +478,9 @@ class VolumeManager(
                     currentProg.registerCustomSampler(i, "colorMap", state.colorMap)
                     currentProg.setCustomFloatArrayUniformForVolume(i, "slicingPlanes", 4, state.node.slicingArray())
                     currentProg.setCustomUniformForVolume(i, "slicingMode", state.node.slicingMode.id)
-                    currentProg.setCustomUniformForVolume(i,"usedSlicingPlanes",
+                    currentProg.setCustomUniformForVolume(i, "usedSlicingPlanes",
                         min(state.node.slicingPlaneEquations.size, Volume.MAX_SUPPORTED_SLICING_PLANES))
+                    currentProg.setCustomUniformForVolume(i, "skip", (!state.node.visible).toInt())
 
                     context.bindTexture(state.transferFunction)
                     context.bindTexture(state.colorMap)
