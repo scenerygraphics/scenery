@@ -3,24 +3,30 @@ package graphics.scenery.tests.examples.cluster
 import graphics.scenery.*
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.backends.Renderer
-import graphics.scenery.controls.DTrackTrackerInput
-import graphics.scenery.controls.GamepadButton
-import graphics.scenery.controls.InputHandler
-import graphics.scenery.controls.TrackedStereoGlasses
+import graphics.scenery.controls.*
 import graphics.scenery.controls.behaviours.GamepadClickBehaviour
 import graphics.scenery.controls.behaviours.GamepadMovementControl
 import graphics.scenery.controls.behaviours.GamepadRotationControl
 import graphics.scenery.controls.behaviours.withCooldown
+import graphics.scenery.primitives.InfinitePlane
+import graphics.scenery.proteins.Protein
+import graphics.scenery.proteins.RibbonDiagram
+import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.times
+import graphics.scenery.utils.extensions.xyz
 import graphics.scenery.volumes.Colormap
+import graphics.scenery.volumes.SlicingPlane
 import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.Volume
 import net.java.games.input.Component
+import org.joml.AxisAngle4f
 import org.joml.Quaternionf
 import org.joml.Vector2f
 import org.joml.Vector3f
 import org.joml.Vector4f
 import org.scijava.ui.behaviour.ClickBehaviour
+import kotlin.concurrent.thread
+import kotlin.math.floor
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.ExperimentalTime
 
@@ -33,7 +39,7 @@ import kotlin.time.ExperimentalTime
 class CaveCubesExample: SceneryBase("Bile Canaliculi example", wantREPL = true) {
     var hmd: TrackedStereoGlasses? = null
     lateinit var activeObject: Node
-    lateinit var selectableObjects: List<Node>
+    lateinit var selectableObjects = ArrayList<Node>()
 
     override fun init() {
         val tsg = TrackedStereoGlasses("DTrack:body-0@224.0.1.1:5001", screenConfig = "CAVEExample.yml")
@@ -48,7 +54,7 @@ class CaveCubesExample: SceneryBase("Bile Canaliculi example", wantREPL = true) 
                 position = Vector3f(.0f, 0.0f, 10.0f)
                 networkID = -7
             }
-            perspectiveCamera(50.0f, windowWidth, windowHeight)
+            perspectiveCamera(50.0f, windowWidth, windowHeight, nearPlaneLocation = 0.1f, farPlaneLocation = 50.0f)
             scene.addChild(this)
         }
 
@@ -71,68 +77,131 @@ class CaveCubesExample: SceneryBase("Bile Canaliculi example", wantREPL = true) 
         retina.colormap = Colormap.get("hot")
         retina.transferFunction = TransferFunction.ramp(0.01f, 0.6f)
         retina.setTransferFunctionRange(200.0f, 36000.0f)
-        retina.origin = Origin.FrontBottomLeft
+        retina.origin = Origin.Center
         retina.spatial {
-            scale = Vector3f(2.0f,5.0f,10.0f)
+            scale = Vector3f(2.0f,5.0f,10.0f) * 0.1f
+            position = Vector3f(0.0f, 0.0f, 2.0f)
         }
         retina.name = "Mouse retina"
         scene.addChild(retina)
+        selectableObjects.add(retina)
 
-        val drosophila = Volume.forNetwork(params = Volume.VolumeFileSource(
-            Volume.VolumeFileSource.VolumePath.Given("""E:\datasets\droso-royer-autopilot-transposed-bdv\export-norange.xml"""),
-            Volume.VolumeFileSource.VolumeType.SPIM),hub)
+//        val drosophila = Volume.forNetwork(params = Volume.VolumeFileSource(
+//            Volume.VolumeFileSource.VolumePath.Given("""E:\datasets\droso-royer-autopilot-transposed-bdv\export-norange.xml"""),
+//            Volume.VolumeFileSource.VolumeType.SPIM),hub)
+//
+//        drosophila.colormap = Colormap.get("hot")
+//        drosophila.transferFunction = TransferFunction.ramp(0.01f, 0.6f)
+//        drosophila.setTransferFunctionRange(10.0f, 1200.0f)
+//        drosophila.origin = Origin.FrontBottomLeft
+//        drosophila.spatial {
+//            scale = Vector3f(0.1f,10.0f,0.1f) * 0.1f
+//            position = Vector3f(10.0f, 2.0f, 0.0f)
+//        }
+//        drosophila.name = "Drosophila timelapse"
+//        scene.addChild(drosophila)
+//        selectableObjects.add(drosophila)
 
-        drosophila.colormap = Colormap.get("hot")
-        drosophila.transferFunction = TransferFunction.ramp(0.01f, 0.6f)
-        drosophila.setTransferFunctionRange(10.0f, 1200.0f)
-        drosophila.origin = Origin.FrontBottomLeft
-        drosophila.spatial {
-            scale = Vector3f(0.1f,10.0f,0.1f)
-            position = Vector3f(0.0f, 0.0f, -15.0f)
-        }
-        drosophila.name = "Drosophila timelapse"
-        scene.addChild(drosophila)
-
-        val bileScene = RichNode()
         val bile = RichNode()
-        val canaliculi = Mesh.forNetwork("E:/datasets/bile/bile-canaliculi.obj", true, hub)
-        canaliculi.spatial {
-            scale = Vector3f(0.05f)
-            position = Vector3f(-160.0f, -120.0f, 10.0f)
-        }
-        canaliculi.material {
-            diffuse = Vector3f(0.5f, 0.7f, 0.1f)
-        }
-        bile.addChild(canaliculi)
+        bile.apply {
+            val canaliculi = Mesh.forNetwork("E:/datasets/bile/bile-canaliculi.obj", true, hub)
+            canaliculi.spatial {
+                scale = Vector3f(0.01f)
+                origin = Origin.Center
+            }
+            canaliculi.material {
+                diffuse = Vector3f(0.5f, 0.7f, 0.1f)
+            }
+            addChild(canaliculi)
 
-        val nuclei = Mesh.forNetwork("E:/datasets/bile/bile-nuclei.obj", true, hub)
-        nuclei.spatial {
-            scale = Vector3f(0.05f)
-            position = Vector3f(-160.0f, -120.0f, 10.0f)
-        }
-        nuclei.material {
-            diffuse = Vector3f(0.8f, 0.8f, 0.8f)
-        }
-        bile.addChild(nuclei)
+            val nuclei = Mesh.forNetwork("E:/datasets/bile/bile-nuclei.obj", true, hub)
+            nuclei.spatial {
+                scale = Vector3f(0.01f)
+                origin = Origin.Center
+            }
+            nuclei.material {
+                diffuse = Vector3f(0.8f, 0.8f, 0.8f)
+            }
+            addChild(nuclei)
 
-        val sinusoidal = Mesh.forNetwork("E:/datasets/bile/bile-sinus.obj", true, hub)
-        sinusoidal.spatial {
-            scale = Vector3f(0.05f)
-            position = Vector3f(-160.0f, -120.0f, 10.0f)
-        }
-        sinusoidal.material {
-            ambient = Vector3f(0.1f, 0.0f, 0.0f)
-            diffuse = Vector3f(0.4f, 0.0f, 0.02f)
-            specular = Vector3f(0.05f, 0f, 0f)
-        }
-        bile.addChild(sinusoidal)
+            val sinusoidal = Mesh.forNetwork("E:/datasets/bile/bile-sinus.obj", true, hub)
+            sinusoidal.spatial {
+                scale = Vector3f(0.01f)
+                origin = Origin.Center
+            }
+            sinusoidal.material {
+                ambient = Vector3f(0.1f, 0.0f, 0.0f)
+                diffuse = Vector3f(0.4f, 0.0f, 0.02f)
+                specular = Vector3f(0.05f, 0f, 0f)
+            }
+            addChild(sinusoidal)
 
-        bileScene.addChild(bile)
-        bileScene.name = "Bile Network"
-        scene.addChild(bileScene)
+            name = "Bile Network"
+        }
+        scene += bile
+        selectableObjects.add(bile)
 
-        activeObject = bileScene
-        selectableObjects = listOf(bileScene, drosophila, retina)
+        val ferry = RichNode()
+        ferry.name = "FERRY complex"
+        ferry.spatial().position = Vector3f(-5.0f, 2.0f, 0.0f)
+        val protein = RibbonDiagram(Protein.fromID("7nd2"))
+        protein.spatial().scale = Vector3f(0.01f)
+        ferry += protein
+
+        val cryoEM = Volume.forNetwork(params = Volume.VolumeFileSource(
+            Volume.VolumeFileSource.VolumePath.Given("""E:\datasets\ferry\emd_12273.tif"""),
+            Volume.VolumeFileSource.VolumeType.TIFF), hub)
+        cryoEM.spatial().apply {
+            scale = Vector3f(10.0f)
+            position = Vector3f(0.0f, 0.0f, 0.25f)
+        }
+        cryoEM.colormap = Colormap.get("grays")
+        cryoEM.transferFunction = TransferFunction.ramp(0.01f, 0.01f, 1.0f)
+        ferry += cryoEM
+        scene += ferry
+        selectableObjects.add(ferry)
+
+        val ambient = AmbientLight(0.1f)
+        scene += ambient
+
+        val floor = InfinitePlane()
+        floor.lineLuminance = 0.05f
+        scene += floor
+
+        activeObject = bile
+
+        val croppingHandle = Box(Vector3f(0.2f,0.01f,0.2f))
+        croppingHandle.spatial{
+            position = Vector3f(0f,1f,-0.5f)
+        }
+        scene += croppingHandle
+
+        val slicingPlane = SlicingPlane()
+        scene.findByClassname("Volume").forEach {
+            val vol = it as Volume
+            slicingPlane.addTargetVolume(vol)
+            vol.slicingMode = Volume.SlicingMode.None
+        }
+        croppingHandle.addChild(slicingPlane)
+        croppingHandle.update += {
+            val controllerPose = (tsg.tracker as? DTrackTrackerInput)?.getPose(TrackedDeviceType.Controller)
+            controllerPose?.firstOrNull()?.pose?.let {
+                val p = Vector3f()
+                val aa = AxisAngle4f()
+                it.getTranslation(p)
+                it.getRotation(aa)
+                val rot = Quaternionf(aa)
+
+                croppingHandle.spatial().position = Vector3f(p.x, p.y, p.z)
+                croppingHandle.spatial().rotation = rot
+            }
+        }
+
+        thread(isDaemon = true) {
+            Thread.sleep(10000)
+            selectableObjects.forEach { it.visible = false }
+            activeObject.visible = true
+        }
     }
 
     override fun inputSetup() {
@@ -148,9 +217,11 @@ class CaveCubesExample: SceneryBase("Bile Canaliculi example", wantREPL = true) 
                         }
                     }
 
+                    selectableObjects.forEach { it.visible = false }
                     // selects the new active protein
                     val nextIndex = (selectableObjects.indexOf(activeObject)+1) % (selectableObjects.size)
                     activeObject = selectableObjects[nextIndex]
+                    activeObject.visible = true
                     logger.info("New object is $activeObject ($nextIndex)")
 
                     scene.findObserver()?.showMessage("Now controlling ${activeObject.name}",
@@ -158,6 +229,9 @@ class CaveCubesExample: SceneryBase("Bile Canaliculi example", wantREPL = true) 
                         offset = Vector2f(0.0f, -0.25f),
                         transparent = true
                     )
+
+                    selectableObjects.filterIsInstance<Volume>().forEach { it.slicingMode = Volume.SlicingMode.None }
+                    (activeObject as? Volume)?.slicingMode = Volume.SlicingMode.Cropping
 
                     // highlights the newly active protein
                     activeObject.children.forEach {
