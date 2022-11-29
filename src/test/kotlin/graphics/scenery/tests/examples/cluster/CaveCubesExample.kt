@@ -39,7 +39,7 @@ import kotlin.time.ExperimentalTime
 class CaveCubesExample: SceneryBase("Bile Canaliculi example", wantREPL = true) {
     var hmd: TrackedStereoGlasses? = null
     lateinit var activeObject: Node
-    lateinit var selectableObjects = ArrayList<Node>()
+    var selectableObjects = ArrayList<Node>()
 
     override fun init() {
         val tsg = TrackedStereoGlasses("DTrack:body-0@224.0.1.1:5001", screenConfig = "CAVEExample.yml")
@@ -54,21 +54,11 @@ class CaveCubesExample: SceneryBase("Bile Canaliculi example", wantREPL = true) 
                 position = Vector3f(.0f, 0.0f, 10.0f)
                 networkID = -7
             }
-            perspectiveCamera(50.0f, windowWidth, windowHeight, nearPlaneLocation = 0.1f, farPlaneLocation = 50.0f)
+            perspectiveCamera(50.0f, windowWidth, windowHeight, nearPlaneLocation = 1.0f, farPlaneLocation = 200.0f)
             scene.addChild(this)
         }
 
-        val shell = Box(Vector3f(120.0f, 120.0f, 120.0f), insideNormals = true)
-        shell.material {
-            cullingMode = Material.CullingMode.Front
-            diffuse = Vector3f(0.0f, 0.0f, 0.0f)
-            specular = Vector3f(0.0f)
-            ambient = Vector3f(0.0f)
-        }
-        scene.addChild(shell)
-
-
-        val lights = Light.createLightTetrahedron<PointLight>(spread = 50.0f, intensity = 10.0f, radius = 100.0f)
+        val lights = Light.createLightTetrahedron<PointLight>(spread = 20.0f, intensity = 5.0f, radius = 200.0f)
         lights.forEach { scene.addChild(it) }
 
         val retina = Volume.forNetwork(params = Volume.VolumeFileSource(
@@ -80,7 +70,7 @@ class CaveCubesExample: SceneryBase("Bile Canaliculi example", wantREPL = true) 
         retina.origin = Origin.Center
         retina.spatial {
             scale = Vector3f(2.0f,5.0f,10.0f) * 0.1f
-            position = Vector3f(0.0f, 0.0f, 2.0f)
+            position = Vector3f(0.0f, 5.0f, 2.0f)
         }
         retina.name = "Mouse retina"
         scene.addChild(retina)
@@ -106,7 +96,7 @@ class CaveCubesExample: SceneryBase("Bile Canaliculi example", wantREPL = true) 
         bile.apply {
             val canaliculi = Mesh.forNetwork("E:/datasets/bile/bile-canaliculi.obj", true, hub)
             canaliculi.spatial {
-                scale = Vector3f(0.01f)
+                scale = Vector3f(0.005f)
                 origin = Origin.Center
             }
             canaliculi.material {
@@ -116,7 +106,7 @@ class CaveCubesExample: SceneryBase("Bile Canaliculi example", wantREPL = true) 
 
             val nuclei = Mesh.forNetwork("E:/datasets/bile/bile-nuclei.obj", true, hub)
             nuclei.spatial {
-                scale = Vector3f(0.01f)
+                scale = Vector3f(0.005f)
                 origin = Origin.Center
             }
             nuclei.material {
@@ -126,7 +116,7 @@ class CaveCubesExample: SceneryBase("Bile Canaliculi example", wantREPL = true) 
 
             val sinusoidal = Mesh.forNetwork("E:/datasets/bile/bile-sinus.obj", true, hub)
             sinusoidal.spatial {
-                scale = Vector3f(0.01f)
+                scale = Vector3f(0.005f)
                 origin = Origin.Center
             }
             sinusoidal.material {
@@ -138,15 +128,16 @@ class CaveCubesExample: SceneryBase("Bile Canaliculi example", wantREPL = true) 
 
             name = "Bile Network"
         }
+        bile.spatial().position = Vector3f(0.0f, 2.0f, 0.0f)
         scene += bile
         selectableObjects.add(bile)
 
         val ferry = RichNode()
         ferry.name = "FERRY complex"
         ferry.spatial().position = Vector3f(-5.0f, 2.0f, 0.0f)
-        val protein = RibbonDiagram(Protein.fromID("7nd2"))
-        protein.spatial().scale = Vector3f(0.01f)
-        ferry += protein
+//        val protein = RibbonDiagram(Protein.fromID("7nd2"))
+//        protein.spatial().scale = Vector3f(0.01f)
+//        ferry += protein
 
         val cryoEM = Volume.forNetwork(params = Volume.VolumeFileSource(
             Volume.VolumeFileSource.VolumePath.Given("""E:\datasets\ferry\emd_12273.tif"""),
@@ -174,7 +165,7 @@ class CaveCubesExample: SceneryBase("Bile Canaliculi example", wantREPL = true) 
         croppingHandle.spatial{
             position = Vector3f(0f,1f,-0.5f)
         }
-        scene += croppingHandle
+        cam += croppingHandle
 
         val slicingPlane = SlicingPlane()
         scene.findByClassname("Volume").forEach {
@@ -192,16 +183,16 @@ class CaveCubesExample: SceneryBase("Bile Canaliculi example", wantREPL = true) 
                 it.getRotation(aa)
                 val rot = Quaternionf(aa)
 
-                croppingHandle.spatial().position = Vector3f(p.x, p.y, p.z)
+                croppingHandle.spatial().position = cam.spatial().position - Vector3f(p.x, p.y, p.z)
                 croppingHandle.spatial().rotation = rot
             }
         }
-
-        thread(isDaemon = true) {
-            Thread.sleep(10000)
-            selectableObjects.forEach { it.visible = false }
-            activeObject.visible = true
-        }
+//
+//        thread(isDaemon = true) {
+//            Thread.sleep(10000)
+//            selectableObjects.forEach { it.visible = false }
+//            activeObject.visible = true
+//        }
     }
 
     override fun inputSetup() {
