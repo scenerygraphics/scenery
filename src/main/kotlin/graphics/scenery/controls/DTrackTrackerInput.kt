@@ -107,7 +107,7 @@ class DTrackTrackerInput(val host: String = "localhost", val port: Int = 5000, v
 
                         val x = loc[0].toFloat()/1000.0f
                         val y = loc[1].toFloat()/1000.0f
-                        val z = loc[2].toFloat()/1000.0f
+                        val z = -loc[2].toFloat()/1000.0f
 
                         val joystickX = flystick.joystick[0].toFloat()
                         val joystickY = flystick.joystick[1].toFloat()
@@ -282,13 +282,23 @@ class DTrackTrackerInput(val host: String = "localhost", val port: Int = 5000, v
         return Matrix4f().translation((bodyState[defaultBodyId]?.position ?: Vector3f(0.0f)) * (-1.0f))
     }
 
+    private fun DTrackBodyState.pose(): Matrix4f {
+        return Matrix4f().translation(this.position).rotate(this.rotation)
+    }
+
     /**
      * Returns a list of poses for the devices [type] given.
      *
      * @return Pose as Matrix4f
      */
     override fun getPose(type: TrackedDeviceType): List<TrackedDevice> {
-        return listOf(TrackedDevice(TrackedDeviceType.HMD, "DTrack", getPose(), System.nanoTime()))
+        return if(type == TrackedDeviceType.Controller) {
+            bodyState.filter { it.key.startsWith("flystick") }.map {
+                TrackedDevice(type, it.key, it.value.pose(), System.nanoTime())
+            }.toList()
+        } else {
+            listOf(TrackedDevice(TrackedDeviceType.HMD, "DTrack", getPose(), System.nanoTime()))
+        }
     }
 
     /**
