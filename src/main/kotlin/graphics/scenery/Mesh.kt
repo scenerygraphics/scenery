@@ -50,6 +50,11 @@ open class Mesh(override var name: String = "Mesh") : DefaultNode(name), HasRend
 
     var initalizer: MeshInitializer? = null
 
+    var wantsSync = true
+    override fun wantsSync(): Boolean {
+        return wantsSync
+    }
+
     /**
      * Reads geometry from a file given by [filename]. The extension of [filename] will determine
      * whether the file will be read by [readFromOBJ] or [readFromSTL].
