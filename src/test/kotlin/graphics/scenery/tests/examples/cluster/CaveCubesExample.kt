@@ -54,27 +54,30 @@ class CaveCubesExample: SceneryBase("Bile Canaliculi example", wantREPL = true) 
                 position = Vector3f(.0f, 0.0f, 10.0f)
                 networkID = -7
             }
-            perspectiveCamera(50.0f, windowWidth, windowHeight, nearPlaneLocation = 1.0f, farPlaneLocation = 200.0f)
+            perspectiveCamera(50.0f, windowWidth, windowHeight, nearPlaneLocation = 0.1f, farPlaneLocation = 200.0f)
             scene.addChild(this)
         }
 
-        val lights = Light.createLightTetrahedron<PointLight>(spread = 20.0f, intensity = 5.0f, radius = 200.0f)
-        lights.forEach { scene.addChild(it) }
+        val slicingPlane = SlicingPlane()
+//        val lights = Light.createLightTetrahedron<PointLight>(spread = 20.0f, intensity = 5.0f, radius = 200.0f)
+//        lights.forEach { scene.addChild(it) }
+        val light = PointLight(radius = 100.0f)
+        scene += light
 
-        val retina = Volume.forNetwork(params = Volume.VolumeFileSource(
-            Volume.VolumeFileSource.VolumePath.Given("""E:\datasets\retina_test2\retina_53_1024_1024.tif"""),
-            Volume.VolumeFileSource.VolumeType.TIFF),hub)
-        retina.colormap = Colormap.get("hot")
-        retina.transferFunction = TransferFunction.ramp(0.01f, 0.6f)
-        retina.setTransferFunctionRange(200.0f, 36000.0f)
-        retina.origin = Origin.Center
-        retina.spatial {
-            scale = Vector3f(2.0f,5.0f,10.0f) * 0.1f
-            position = Vector3f(0.0f, 5.0f, 2.0f)
-        }
-        retina.name = "Mouse retina"
-        scene.addChild(retina)
-        selectableObjects.add(retina)
+//        val retina = Volume.forNetwork(params = Volume.VolumeFileSource(
+//            Volume.VolumeFileSource.VolumePath.Given("""E:\datasets\retina_test2\retina_53_1024_1024.tif"""),
+//            Volume.VolumeFileSource.VolumeType.TIFF),hub)
+//        retina.colormap = Colormap.get("hot")
+//        retina.transferFunction = TransferFunction.ramp(0.01f, 0.6f)
+//        retina.setTransferFunctionRange(200.0f, 36000.0f)
+//        retina.origin = Origin.Center
+//        retina.spatial {
+//            scale = Vector3f(2.0f,5.0f,10.0f) * 0.1f
+//            position = Vector3f(5.0f, 1.0f, 0.0f)
+//        }
+//        retina.name = "Mouse retina"
+//        scene.addChild(retina)
+//        selectableObjects.add(retina)
 
 //        val drosophila = Volume.forNetwork(params = Volume.VolumeFileSource(
 //            Volume.VolumeFileSource.VolumePath.Given("""E:\datasets\droso-royer-autopilot-transposed-bdv\export-norange.xml"""),
@@ -135,9 +138,9 @@ class CaveCubesExample: SceneryBase("Bile Canaliculi example", wantREPL = true) 
         val ferry = RichNode()
         ferry.name = "FERRY complex"
         ferry.spatial().position = Vector3f(-5.0f, 2.0f, 0.0f)
-//        val protein = RibbonDiagram(Protein.fromID("7nd2"))
-//        protein.spatial().scale = Vector3f(0.01f)
-//        ferry += protein
+        val protein = RibbonDiagram(Protein.fromID("7nd2"))
+        protein.spatial().scale = Vector3f(0.01f)
+        ferry += protein
 
         val cryoEM = Volume.forNetwork(params = Volume.VolumeFileSource(
             Volume.VolumeFileSource.VolumePath.Given("""E:\datasets\ferry\emd_12273.tif"""),
@@ -146,6 +149,8 @@ class CaveCubesExample: SceneryBase("Bile Canaliculi example", wantREPL = true) 
             scale = Vector3f(10.0f)
             position = Vector3f(0.0f, 0.0f, 0.25f)
         }
+        slicingPlane.addTargetVolume(cryoEM)
+        cryoEM.slicingMode = Volume.SlicingMode.Cropping
         cryoEM.colormap = Colormap.get("grays")
         cryoEM.transferFunction = TransferFunction.ramp(0.01f, 0.01f, 1.0f)
         ferry += cryoEM
@@ -161,20 +166,22 @@ class CaveCubesExample: SceneryBase("Bile Canaliculi example", wantREPL = true) 
 
         activeObject = bile
 
-        val croppingHandle = Box(Vector3f(0.2f,0.01f,0.2f))
-        croppingHandle.spatial{
-            position = Vector3f(0f,1f,-0.5f)
-        }
+        val croppingHandle = Box(Vector3f(0.1f,0.005f,0.1f))
         cam += croppingHandle
 
-        val slicingPlane = SlicingPlane()
-        scene.findByClassname("Volume").forEach {
-            val vol = it as Volume
-            slicingPlane.addTargetVolume(vol)
-            vol.slicingMode = Volume.SlicingMode.None
-        }
+
+//        scene.findByClassname("Volume").forEach {
+//            val vol = it as Volume
+//            slicingPlane.addTargetVolume(vol)
+//            vol.slicingMode = Volume.SlicingMode.Cropping
+//        }
         croppingHandle.addChild(slicingPlane)
         croppingHandle.update += {
+            val headPose = (tsg.tracker as? DTrackTrackerInput)?.getPose()
+            var headPos = Vector3f()
+            headPose!!.getTranslation(headPos)
+            headPos *= (-1.0f)
+
             val controllerPose = (tsg.tracker as? DTrackTrackerInput)?.getPose(TrackedDeviceType.Controller)
             controllerPose?.firstOrNull()?.pose?.let {
                 val p = Vector3f()
@@ -183,16 +190,18 @@ class CaveCubesExample: SceneryBase("Bile Canaliculi example", wantREPL = true) 
                 it.getRotation(aa)
                 val rot = Quaternionf(aa)
 
-                croppingHandle.spatial().position = cam.spatial().position - Vector3f(p.x, p.y, p.z)
+                val diff = headPos - Vector3f(p.x, p.y, p.z)
+                croppingHandle.spatial().position = Vector3f(-diff.x, -diff.y, diff.z)
                 croppingHandle.spatial().rotation = rot
             }
         }
-//
-//        thread(isDaemon = true) {
-//            Thread.sleep(10000)
+
+        thread(isDaemon = true) {
+            Thread.sleep(1000)
 //            selectableObjects.forEach { it.visible = false }
 //            activeObject.visible = true
-//        }
+        scene
+        }
     }
 
     override fun inputSetup() {
@@ -201,13 +210,6 @@ class CaveCubesExample: SceneryBase("Bile Canaliculi example", wantREPL = true) 
         val selectObjects = object : GamepadClickBehaviour {
             override fun click(p0: Int, p1: Int) {
                 withCooldown(200.milliseconds) {
-                    // finds the currently active protein, un-highlights it
-                    activeObject.children.forEach {
-                        if (it is BoundingGrid) {
-                            it.gridColor = Vector3f(0.0f, 0.0f, 0.0f)
-                        }
-                    }
-
                     selectableObjects.forEach { it.visible = false }
                     // selects the new active protein
                     val nextIndex = (selectableObjects.indexOf(activeObject)+1) % (selectableObjects.size)
@@ -220,16 +222,6 @@ class CaveCubesExample: SceneryBase("Bile Canaliculi example", wantREPL = true) 
                         offset = Vector2f(0.0f, -0.25f),
                         transparent = true
                     )
-
-                    selectableObjects.filterIsInstance<Volume>().forEach { it.slicingMode = Volume.SlicingMode.None }
-                    (activeObject as? Volume)?.slicingMode = Volume.SlicingMode.Cropping
-
-                    // highlights the newly active protein
-                    activeObject.children.forEach {
-                        if (it is BoundingGrid) {
-                            it.gridColor = Vector3f(1.0f, 0.0f, 0.0f)
-                        }
-                    }
                 }
             }
         }
@@ -259,7 +251,7 @@ class CaveCubesExample: SceneryBase("Bile Canaliculi example", wantREPL = true) 
             }
         }
             called "scale_up"
-            boundTo GamepadButton.Button4)
+            boundTo GamepadButton.Button5)
 
         inputHandler += (object: GamepadClickBehaviour {
             override fun click(p0: Int, p1: Int) {
@@ -270,7 +262,7 @@ class CaveCubesExample: SceneryBase("Bile Canaliculi example", wantREPL = true) 
             }
         }
             called "scale_down"
-            boundTo GamepadButton.Button5)
+            boundTo GamepadButton.Button4)
 
         inputHandler += (object: GamepadClickBehaviour {
             override fun click(p0: Int, p1: Int) {
