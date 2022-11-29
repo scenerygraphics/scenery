@@ -60,6 +60,7 @@ import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.io.path.isDirectory
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
@@ -735,7 +736,7 @@ open class Volume(
          * Reads a volume from the given [file].
          */
         @JvmStatic fun fromPath(file: Path, hub: Hub): BufferedVolume {
-            if(file.normalize().toString().endsWith("raw")) {
+            if(file.normalize().toString().endsWith("raw") || Files.isDirectory(file)) {
                 return fromPathRaw(file, hub)
             }
 
