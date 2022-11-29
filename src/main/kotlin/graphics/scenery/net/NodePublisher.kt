@@ -27,7 +27,9 @@ import java.nio.ByteBuffer
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.TimeUnit
 import java.util.zip.Inflater
+import kotlin.concurrent.thread
 
 /**
  * Server of scenery networking.
@@ -41,13 +43,13 @@ class NodePublisher(
     portMain: Int = 7777,
     portBackchannel: Int = 6666,
     val context: ZContext
-) : Agent(), Hubable {
+) : Hubable {
     private val logger by LazyLogger()
 
     private val addressMain = "$ip:$portMain"
     private val addressBackchannel = "$ip:$portBackchannel"
 
-    var timeout = 500
+    var timeout = 100
     private val publisher: ZMQ.Socket = context.createSocket(SocketType.PUB)
     var portMain: Int = try {
         publisher.bind(addressMain)
@@ -71,13 +73,17 @@ class NodePublisher(
     private val eventQueue = LinkedBlockingQueue<NetworkEvent>()
     private var index = 1
 
+    private val publishWorker = PublishWorker(this)
+    private val backchannelWorker = BackchannelWorker(this)
+
     private fun generateNetworkID() = index++
 
     init {
         logger.info("Server opened main channel at $ip:${this.portMain} and back channel at $ip:${this.portBackchannel}")
         backchannelSubscriber.subscribe(ZMQ.SUBSCRIPTION_ALL)
         backchannelSubscriber.receiveTimeOut = timeout
-        startAgent()
+        publishWorker.startAgent()
+        backchannelWorker.startAgent()
     }
 
     /**
@@ -122,6 +128,9 @@ class NodePublisher(
         }
 
         node.getSubcomponents().forEach { subComponent ->
+            if (!subComponent.wantsSync()){
+                return@forEach
+            }
             val subNetObj = publishedObjects[subComponent.networkID]
             if (subNetObj != null) {
                 subNetObj.parents.add(node.networkID)
@@ -178,48 +187,6 @@ class NodePublisher(
         }
     }
 
-    override fun onLoop() {
-
-        val event = eventQueue.poll()
-        event?.let { processNextNetworkEvent(it) }
-
-        val payload = backchannelSubscriber.recv(ZMQ.DONTWAIT)
-        payload?.let { listenToControlChannel(it) }
-
-        if (event == null && payload == null) {
-            Thread.sleep(timeout.toLong())
-        }
-    }
-
-    private fun listenToControlChannel(payload: kotlin.ByteArray) {
-        try {
-            val bin = ByteArrayInputStream(payload)
-            val input = Input(bin)
-            val event = kryo.readClassAndObject(input) as? NetworkEvent
-                ?: throw IllegalStateException("Received unknown, not NetworkEvent payload")
-            eventQueue.add(event)
-
-        } catch (t: Throwable) {
-            t.printStackTrace()
-        }
-    }
-
-    private fun processNextNetworkEvent(event: NetworkEvent) {
-        if (event is NetworkEvent.RequestInitialization) {
-            publishedObjects.forEach {
-                addUpdateEvent(it.value)
-            }
-        }
-        val start = System.nanoTime()
-        val payloadSize = sendEvent(event, kryo, publisher, logger)
-        val duration = (System.nanoTime() - start).toFloat()
-        (hub?.get(SceneryElement.Statistics) as? Statistics)?.add("Serialise.duration", duration)
-        (hub?.get(SceneryElement.Statistics) as? Statistics)?.add(
-            "Serialise.payloadSize",
-            payloadSize,
-            isTime = false
-        )
-    }
 
     private fun addUpdateEvent(wrapper: NetworkWrapper<*>) {
         eventQueue.add(
@@ -235,11 +202,70 @@ class NodePublisher(
         }
     }
 
-    override fun onClose() {
-        publisher.linger = 0
-        publisher.close()
-        backchannelSubscriber.linger = 0
-        backchannelSubscriber.close()
+    fun close(): Thread = thread {
+        val pw = publishWorker.close()
+        val bw = backchannelWorker.close()
+        pw.join()
+        bw.join()
+    }
+
+    private class PublishWorker(val parent: NodePublisher): Agent(){
+        override fun onLoop() {
+            val event = parent.eventQueue.poll(parent.timeout.toLong(),TimeUnit.MILLISECONDS)
+            event?.let { processNextNetworkEvent(it) }
+        }
+
+        private fun processNextNetworkEvent(event: NetworkEvent) {
+            if (event is NetworkEvent.RequestInitialization) {
+                parent.publishedObjects.forEach {
+                    parent.addUpdateEvent(it.value)
+                }
+            }
+            val start = System.nanoTime()
+            val payloadSize = sendEvent(event, parent.kryo, parent.publisher, parent.logger)
+            val duration = (System.nanoTime() - start).toFloat()
+            (parent.hub?.get(SceneryElement.Statistics) as? Statistics)?.add("Serialise.duration", duration)
+            (parent.hub?.get(SceneryElement.Statistics) as? Statistics)?.add(
+                "Serialise.payloadSize",
+                payloadSize,
+                isTime = false
+            )
+        }
+
+        override fun onClose() {
+            parent.publisher.linger = 0
+            parent.publisher.close()
+        }
+
+    }
+
+    private class BackchannelWorker(val parent: NodePublisher): Agent(){
+        override fun onLoop() {
+            val payload = parent.backchannelSubscriber.recv()
+            payload?.let { listenToControlChannel(it) }
+
+            if (payload == null) {
+                Thread.sleep(parent.timeout.toLong())
+            }
+        }
+
+        private fun listenToControlChannel(payload: kotlin.ByteArray) {
+            try {
+                val bin = ByteArrayInputStream(payload)
+                val input = Input(bin)
+                val event = parent.kryo.readClassAndObject(input) as? NetworkEvent
+                    ?: throw IllegalStateException("Received unknown, not NetworkEvent payload")
+                parent.eventQueue.add(event)
+
+            } catch (t: Throwable) {
+                t.printStackTrace()
+            }
+        }
+
+        override fun onClose() {
+            parent.backchannelSubscriber.linger = 0
+            parent.backchannelSubscriber.close()
+        }
     }
 
     companion object {
