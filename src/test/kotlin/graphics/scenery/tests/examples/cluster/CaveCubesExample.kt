@@ -1,7 +1,6 @@
 package graphics.scenery.tests.examples.cluster
 
 import graphics.scenery.*
-import graphics.scenery.attribute.material.Material
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.*
 import graphics.scenery.controls.behaviours.GamepadClickBehaviour
@@ -13,7 +12,6 @@ import graphics.scenery.proteins.Protein
 import graphics.scenery.proteins.RibbonDiagram
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.times
-import graphics.scenery.utils.extensions.xyz
 import graphics.scenery.volumes.Colormap
 import graphics.scenery.volumes.SlicingPlane
 import graphics.scenery.volumes.TransferFunction
@@ -23,10 +21,6 @@ import org.joml.AxisAngle4f
 import org.joml.Quaternionf
 import org.joml.Vector2f
 import org.joml.Vector3f
-import org.joml.Vector4f
-import org.scijava.ui.behaviour.ClickBehaviour
-import kotlin.concurrent.thread
-import kotlin.math.floor
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.ExperimentalTime
 
@@ -64,20 +58,22 @@ class CaveCubesExample: SceneryBase("Bile Canaliculi example", wantREPL = true) 
         val light = PointLight(radius = 100.0f)
         scene += light
 
-//        val retina = Volume.forNetwork(params = Volume.VolumeFileSource(
-//            Volume.VolumeFileSource.VolumePath.Given("""E:\datasets\retina_test2\retina_53_1024_1024.tif"""),
-//            Volume.VolumeFileSource.VolumeType.TIFF),hub)
-//        retina.colormap = Colormap.get("hot")
-//        retina.transferFunction = TransferFunction.ramp(0.01f, 0.6f)
-//        retina.setTransferFunctionRange(200.0f, 36000.0f)
-//        retina.origin = Origin.Center
-//        retina.spatial {
-//            scale = Vector3f(2.0f,5.0f,10.0f) * 0.1f
-//            position = Vector3f(5.0f, 1.0f, 0.0f)
-//        }
-//        retina.name = "Mouse retina"
-//        scene.addChild(retina)
-//        selectableObjects.add(retina)
+        val retina = Volume.forNetwork(params = Volume.VolumeFileSource(
+            Volume.VolumeFileSource.VolumePath.Given("""E:\datasets\retina_test2\retina_53_1024_1024.tif"""),
+            Volume.VolumeFileSource.VolumeType.TIFF),hub)
+        retina.colormap = Colormap.get("hot")
+        retina.transferFunction = TransferFunction.ramp(0.01f, 0.6f)
+        retina.setTransferFunctionRange(200.0f, 36000.0f)
+        retina.slicingMode = Volume.SlicingMode.Cropping
+        slicingPlane.addTargetVolume(retina)
+        retina.origin = Origin.Center
+        retina.spatial {
+            scale = Vector3f(2.0f,5.0f,10.0f) * 0.3f
+            position = Vector3f(5.0f, 1.0f, 0.0f)
+        }
+        retina.name = "Mouse retina"
+        scene.addChild(retina)
+        selectableObjects.add(retina)
 
 //        val drosophila = Volume.forNetwork(params = Volume.VolumeFileSource(
 //            Volume.VolumeFileSource.VolumePath.Given("""E:\datasets\droso-royer-autopilot-transposed-bdv\export-norange.xml"""),
@@ -137,7 +133,7 @@ class CaveCubesExample: SceneryBase("Bile Canaliculi example", wantREPL = true) 
 
         val ferry = RichNode()
         ferry.name = "FERRY complex"
-        ferry.spatial().position = Vector3f(-5.0f, 2.0f, 0.0f)
+        ferry.spatial().position = Vector3f(-5.0f, 1.0f, 0.0f)
         val protein = RibbonDiagram(Protein.fromID("7nd2"))
         protein.spatial().scale = Vector3f(0.01f)
         ferry += protein
@@ -194,13 +190,6 @@ class CaveCubesExample: SceneryBase("Bile Canaliculi example", wantREPL = true) 
                 croppingHandle.spatial().position = Vector3f(-diff.x, -diff.y, diff.z)
                 croppingHandle.spatial().rotation = rot
             }
-        }
-
-        thread(isDaemon = true) {
-            Thread.sleep(1000)
-//            selectableObjects.forEach { it.visible = false }
-//            activeObject.visible = true
-        scene
         }
     }
 
