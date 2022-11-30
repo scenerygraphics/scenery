@@ -60,6 +60,7 @@ import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.concurrent.thread
 import kotlin.io.path.isDirectory
 import kotlin.math.abs
 import kotlin.math.max
@@ -67,6 +68,7 @@ import kotlin.math.min
 import kotlin.math.sqrt
 import kotlin.properties.Delegates
 import kotlin.streams.toList
+import kotlin.time.Duration.Companion.nanoseconds
 
 @Suppress("DEPRECATION")
 open class Volume(
@@ -182,7 +184,7 @@ open class Volume(
     var currentTimepoint: Int = 0
         get() {
             // despite IDEAs warning this might be not be false if kryo uses its de/serialization magic
-            return if (dataSource == null || dataSource is VolumeDataSource.NullSource) {
+            return if (dataSource is VolumeDataSource.NullSource) {
                 0
             } else {
                 field
@@ -192,7 +194,6 @@ open class Volume(
             field = value
             viewerState.currentTimepoint = value
             modifiedAt = System.nanoTime()
-            field = value
         }
 
     sealed class VolumeDataSource {
@@ -354,6 +355,7 @@ open class Volume(
             converterSetups[index].setDisplayRange(range.first,range.second)
         }
 
+        logger.info("Going to timepoint ${fresh.currentTimepoint} of ${this.timepointCount}")
         if (this.currentTimepoint != fresh.currentTimepoint) {
             this.goToTimepoint(fresh.currentTimepoint)
         }
@@ -836,34 +838,42 @@ open class Volume(
             logger.debug("Got ${volumeFiles.size} volumes")
 
             val volumes = CopyOnWriteArrayList<BufferedVolume.Timepoint>()
-            volumeFiles.forEach { v ->
-                val id = v.fileName.toString()
-                val buffer: ByteBuffer by lazy {
+            val volume = fromBuffer(volumes, dimensions.x, dimensions.y, dimensions.z, UnsignedShortType(), hub)
 
-                    logger.debug("Loading $id from disk")
-                    val buffer = ByteArray(1024 * 1024)
-                    val stream = FileInputStream(v.toFile())
-                    val imageData: ByteBuffer = MemoryUtil.memAlloc((2 * dimensions.x * dimensions.y * dimensions.z))
+            thread(isDaemon = true) {
+                val start = System.nanoTime()
+                volumeFiles.forEach { v ->
+                    val id = v.fileName.toString()
+                    val buffer: ByteBuffer by lazy {
 
-                    logger.debug("${v.fileName}: Allocated ${imageData.capacity()} bytes for UINT16 image of $dimensions")
+                        logger.debug("Loading $id from disk")
+                        val buffer = ByteArray(32 * 1024 * 1024)
+                        val stream = FileInputStream(v.toFile())
+                        val imageData: ByteBuffer = MemoryUtil.memAlloc((2 * dimensions.x * dimensions.y * dimensions.z))
 
-                    val start = System.nanoTime()
-                    var bytesRead = stream.read(buffer, 0, buffer.size)
-                    while (bytesRead > -1) {
-                        imageData.put(buffer, 0, bytesRead)
-                        bytesRead = stream.read(buffer, 0, buffer.size)
+                        logger.debug("${v.fileName}: Allocated ${imageData.capacity()} bytes for UINT16 image of $dimensions")
+
+                        val start = System.nanoTime()
+                        var bytesRead = stream.read(buffer, 0, buffer.size)
+                        while (bytesRead > -1) {
+                            imageData.put(buffer, 0, bytesRead)
+                            bytesRead = stream.read(buffer, 0, buffer.size)
+                        }
+                        val duration = (System.nanoTime() - start) / 10e5
+                        logger.debug("Reading $id took $duration ms")
+                        stream.close()
+
+                        imageData.flip()
+                        imageData
                     }
-                    val duration = (System.nanoTime() - start) / 10e5
-                    logger.debug("Reading took $duration ms")
-
-                    imageData.flip()
-                    imageData
+                    volume.addTimepoint(id, buffer)
                 }
 
-                volumes.add(BufferedVolume.Timepoint(id, buffer))
+                val duration = (System.nanoTime() - start).nanoseconds
+                logger.info("Reading ${volumeFiles.size} volume files for ${volume.name} completed in ${duration.inWholeSeconds}s (${duration.inWholeMilliseconds/volumeFiles.size} ms avg.)")
             }
 
-            return fromBuffer(volumes, dimensions.x, dimensions.y, dimensions.z, UnsignedShortType(), hub)
+            return volume
         }
 
         /** Amount of supported slicing planes per volume, see also sampling shader segments */
