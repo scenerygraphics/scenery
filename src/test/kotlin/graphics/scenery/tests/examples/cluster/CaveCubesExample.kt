@@ -12,15 +12,13 @@ import graphics.scenery.proteins.Protein
 import graphics.scenery.proteins.RibbonDiagram
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.times
-import graphics.scenery.volumes.Colormap
-import graphics.scenery.volumes.SlicingPlane
-import graphics.scenery.volumes.TransferFunction
-import graphics.scenery.volumes.Volume
+import graphics.scenery.volumes.*
 import net.java.games.input.Component
 import org.joml.AxisAngle4f
 import org.joml.Quaternionf
 import org.joml.Vector2f
 import org.joml.Vector3f
+import kotlin.concurrent.thread
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.ExperimentalTime
 
@@ -75,21 +73,23 @@ class CaveCubesExample: SceneryBase("Bile Canaliculi example", wantREPL = true) 
         scene.addChild(retina)
         selectableObjects.add(retina)
 
-//        val drosophila = Volume.forNetwork(params = Volume.VolumeFileSource(
-//            Volume.VolumeFileSource.VolumePath.Given("""E:\datasets\droso-royer-autopilot-transposed-bdv\export-norange.xml"""),
-//            Volume.VolumeFileSource.VolumeType.SPIM),hub)
-//
-//        drosophila.colormap = Colormap.get("hot")
-//        drosophila.transferFunction = TransferFunction.ramp(0.01f, 0.6f)
-//        drosophila.setTransferFunctionRange(10.0f, 1200.0f)
-//        drosophila.origin = Origin.FrontBottomLeft
-//        drosophila.spatial {
-//            scale = Vector3f(0.1f,10.0f,0.1f) * 0.1f
-//            position = Vector3f(10.0f, 2.0f, 0.0f)
-//        }
-//        drosophila.name = "Drosophila timelapse"
-//        scene.addChild(drosophila)
-//        selectableObjects.add(drosophila)
+        val drosophila = Volume.forNetwork(params = Volume.VolumeFileSource(
+            Volume.VolumeFileSource.VolumePath.Given("""E:\ssd-backup-inauguration\CAVE_DATA\droso-royer-autopilot-transposed"""),
+            Volume.VolumeFileSource.VolumeType.TIFF),hub)
+
+        drosophila.colormap = Colormap.get("hot")
+        drosophila.transferFunction = TransferFunction.ramp(0.01f, 0.6f)
+        drosophila.setTransferFunctionRange(20.0f, 1200.0f)
+        drosophila.origin = Origin.Center
+        drosophila.spatial {
+            scale = Vector3f(1.0f, 5.0f, 1.0f)
+            position = Vector3f(10.0f, 1.0f, 0.0f)
+        }
+        drosophila.name = "Drosophila timelapse"
+        drosophila.slicingMode = Volume.SlicingMode.Cropping
+        slicingPlane.addTargetVolume(drosophila)
+        scene.addChild(drosophila)
+        selectableObjects.add(drosophila)
 
         val bile = RichNode()
         bile.apply {
@@ -139,19 +139,21 @@ class CaveCubesExample: SceneryBase("Bile Canaliculi example", wantREPL = true) 
         ferry += protein
 
         val cryoEM = Volume.forNetwork(params = Volume.VolumeFileSource(
-            Volume.VolumeFileSource.VolumePath.Given("""E:\datasets\ferry\emd_12273.tif"""),
+            Volume.VolumeFileSource.VolumePath.Given("""E:\datasets\ferry\emd_12273_cropped.tif"""),
             Volume.VolumeFileSource.VolumeType.TIFF), hub)
         cryoEM.spatial().apply {
             scale = Vector3f(10.0f)
-            position = Vector3f(0.0f, 0.0f, 0.25f)
+            position = Vector3f(0.0f, 0.0f, 0.05f)
         }
         slicingPlane.addTargetVolume(cryoEM)
         cryoEM.slicingMode = Volume.SlicingMode.Cropping
         cryoEM.colormap = Colormap.get("grays")
-        cryoEM.transferFunction = TransferFunction.ramp(0.01f, 0.01f, 1.0f)
+        cryoEM.transferFunction = TransferFunction.ramp(0.01f, 1f, 1.0f)
         ferry += cryoEM
         scene += ferry
         selectableObjects.add(ferry)
+
+        TransferFunctionEditor(volume = cryoEM)
 
         val ambient = AmbientLight(0.1f)
         scene += ambient
@@ -195,6 +197,7 @@ class CaveCubesExample: SceneryBase("Bile Canaliculi example", wantREPL = true) 
 
     override fun inputSetup() {
         val inputHandler = (hub.get(SceneryElement.Input) as? InputHandler) ?: return
+        var playerThread: Thread? = null
 
         val selectObjects = object : GamepadClickBehaviour {
             override fun click(p0: Int, p1: Int) {
@@ -234,7 +237,7 @@ class CaveCubesExample: SceneryBase("Bile Canaliculi example", wantREPL = true) 
         inputHandler += (object: GamepadClickBehaviour {
             override fun click(p0: Int, p1: Int) {
                 activeObject.spatialOrNull()?.let { spatial ->
-                    spatial.scale = spatial.scale * 1.2f
+                    spatial.scale = spatial.scale * 1.05f
                     logger.info("Scaling up $activeObject")
                 }
             }
@@ -244,8 +247,36 @@ class CaveCubesExample: SceneryBase("Bile Canaliculi example", wantREPL = true) 
 
         inputHandler += (object: GamepadClickBehaviour {
             override fun click(p0: Int, p1: Int) {
+                if(!activeObject.name.startsWith("Drosophila")) {
+                    return
+                }
+
+                playerThread = if(playerThread == null) {
+                    thread {
+                        while(!Thread.interrupted()) {
+                            val vol = (scene.find("Drosophila timelapse") as? Volume) ?: continue
+                            if(vol.currentTimepoint == vol.timepointCount -1) {
+                                vol.goToFirstTimepoint()
+                            } else {
+                                vol.nextTimepoint()
+                            }
+
+                            Thread.sleep(100)
+                        }
+                    }
+                } else {
+                    (playerThread as? Thread)?.interrupt()
+                    null
+                }
+            }
+        }
+            called "play_pause_volume"
+            boundTo GamepadButton.Button2)
+
+        inputHandler += (object: GamepadClickBehaviour {
+            override fun click(p0: Int, p1: Int) {
                 activeObject.spatialOrNull()?.let { spatial ->
-                    spatial.scale = spatial.scale / 1.2f
+                    spatial.scale = spatial.scale / 1.05f
                     logger.info("Scaling down $activeObject")
                 }
             }
@@ -256,7 +287,11 @@ class CaveCubesExample: SceneryBase("Bile Canaliculi example", wantREPL = true) 
         inputHandler += (object: GamepadClickBehaviour {
             override fun click(p0: Int, p1: Int) {
                 activeObject.spatialOrNull()?.let { spatial ->
-                    spatial.scale = Vector3f(1.0f)
+                    if(activeObject.name.startsWith("Drosophila")) {
+                        spatial.scale = Vector3f(1.0f, 5.0f, 1.0f)
+                    } else {
+                        spatial.scale = Vector3f(1.0f)
+                    }
                     spatial.rotation = Quaternionf()
 
                     scene.findObserver()?.showMessage("Resetting ${activeObject.name}",
