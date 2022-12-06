@@ -91,7 +91,7 @@ class Settings(override var hub: Hub? = null, prefix : String = "scenery.", prop
     /**
      * Parses the type from the incoming string, returns the casted value
      */
-    private fun parseType(value:String): Any = when {
+    fun parseType(value:String): Any = when {
         value.lowercase() == "false" || value.lowercase() == "true" -> value.toBoolean()
         value.lowercase().contains(".") && value.lowercase().toFloatOrNull() != null -> value.lowercase().toFloat()
         value.lowercase().contains("f") && value.lowercase().replace("f", "").toFloatOrNull() != null -> value.lowercase().replace("f", "").toFloat()
