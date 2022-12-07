@@ -5,6 +5,7 @@
 #define INT_DEPTHS 0
 #define PROFILE_MEM 0
 #define USE_VIEW_SPACE_CELLS 1
+#define RLE 1
 
 #if USE_PRINTF
 #extension GL_EXT_debug_printf : enable
@@ -36,6 +37,8 @@ layout(set = 5, binding = 0) uniform ShaderProperties {
     mat4 invModel;
     vec3 volumeDims;
     float nw;
+    int vdiWidth;
+    int vdiHeight;
     float downImage;
     bool do_subsample;
     int max_samples;
@@ -51,22 +54,21 @@ layout(push_constant) uniform currentEye_t {
 layout (local_size_x = 16, local_size_y = 16) in;
 layout(set = 2, binding = 0, rgba32f) uniform readonly image3D InputVDI;
 layout(set = 3, binding = 0, rgba8) uniform image2D OutputViewport;
-#if SEPARATE_DEPTH
-    #if INT_DEPTHS
-    layout (set = 4, binding = 0, rg16ui) uniform readonly uimage3D DepthVDI;
-    #else
-    layout (set = 4, binding = 0, r32f) uniform readonly image3D DepthVDI;
-    #endif
-#endif
+layout (set = 4, binding = 0, r32f) uniform readonly image3D DepthVDI;
 
 
 layout (set = 7, binding = 0, r32f) uniform readonly image2D NoiseTexture;
 layout (set = 6, binding = 0, r32ui) uniform readonly uimage3D OctreeCells;
 
+#if RLE
+layout (set = 8, binding = 0, r32i) uniform iimage2D SupersegmentsGenerated;
+layout (set = 9, binding = 0, r32i) uniform iimage2D PrefixSums;
+#endif
+
 #if PROFILE_MEM
-layout(set = 8, binding = 0, r32f) uniform image2D NumIntersectedSupsegs;
-layout(set = 9, binding = 0, r32f) uniform image2D NumLists;
-layout(set = 10, binding = 0, r32f) uniform image2D NumSteps;
+layout(set = 10, binding = 0, r32f) uniform image2D NumIntersectedSupsegs;
+layout(set = 11, binding = 0, r32f) uniform image2D NumLists;
+layout(set = 12, binding = 0, r32f) uniform image2D NumSteps;
 //layout(set = 8, binding = 0, r32f) uniform image2D NumEmptyLists;
 //layout(set = 9, binding = 0, r32f) uniform image2D NumNotIntLists;
 //layout(set = 10, binding = 0, r32f) uniform image2D EmptyBeforeFirst;
@@ -166,7 +168,6 @@ struct rayProperties {
 
 mat4 pv_orig, ivp_orig;
 int windowWidth, windowHeight;
-int vdiWidth, vdiHeight;
 
 rayProperties originalRay; // the ray (i.e. list) from the original VDI that is currently being intersected
 rayProperties newRay; // the ray from the new viewpoint that this kernel invocation is traversing
@@ -409,107 +410,53 @@ int findZInterval_view(float z_ndc) {
     return interval_num;
 }
 
+int bufferWidth = 0;
+int bufferHeight = 0;
+int bufferDepth = 0;
+
+#if RLE
+ivec3 supersegmentIndices(ivec2 theList, int index) {
+    int linearized = imageLoad(PrefixSums, theList).x + index;
+
+    int z_ = linearized / (bufferWidth * bufferHeight);
+
+    int remainder = linearized % (bufferWidth * bufferHeight);
+
+    int y_ = remainder / bufferWidth;
+    int x_ = remainder % bufferWidth;
+
+    return ivec3(x_, y_, z_);
+}
+#endif
 
 float getSupsegFront(ivec2 theList, int index) {
-
-//    #if USE_PRINTF
-//    if(gl_GlobalInvocationID.xy == debug_pixel) {
-//        debugPrintfEXT("Searching for front face of (%d, %d), %d", theList, index);
-//    }
-//    #endif
-
-//    if(!(index >= 0 && index < maxSupersegments)) { //TODO: error checks need to be disabled everywhere!
-//        //This is an error!
-//        #if USE_PRINTF
-//        if(gl_GlobalInvocationID.xy == debug_pixel) { //TODO: generalize
-//            debugPrintfEXT("Searching for front face of incorrect supersegment index! List: (%d, %d) and index requested: %d", theList, index);
-//        }
-//        #endif
-//        return -1;
-//    }
-
-    #if SEPARATE_DEPTH
-        #if INT_DEPTHS
-        uint front_index = imageLoad(DepthVDI, ivec3(index, theList.y, theList.x)).x;
-        totalMemoryLoads++;
-        if(front_index == 0 && index != 0) {
-            return 0.0;
-        }
-        float step = orig_tnear + nw * front_index;
-//        #if USE_PRINTF
-//        if(gl_GlobalInvocationID.xy == debug_pixel) {
-//            debugPrintfEXT("Searching for front depth of: (%d, %d), %d. Found jump num: %u, therefore returning: %f. orig_tnear: %f, nw: %f", theList, index, front_index, step, orig_tnear, nw);
-//        }
-//        #endif
-        return step;
-        #else
-        vec4 front = imageLoad(DepthVDI, ivec3(index*2, theList.y, theList.x));
-        totalMemoryLoads++;
-//        #if USE_PRINTF
-//        if(gl_GlobalInvocationID.xy == debug_pixel) {
-//            debugPrintfEXT("Searching for front depth of: (%d, %d), %d. returning: %f", theList, index, front.x);
-//        }
-//        #endif
-        return front.x;
-        #endif
+    #if RLE
+    ivec3 bufferIndices = supersegmentIndices(theList, index);
+    vec4 front = imageLoad(DepthVDI, ivec3(bufferIndices.x * 2, bufferIndices.y, bufferIndices.z));
     #else
-    vec4 front = imageLoad(InputVDI, ivec3(index*3 + 1, theList.y, theList.x));
-    totalMemoryLoads++;
-    return DecodeFloatRGBA(front);
+    vec4 front = imageLoad(DepthVDI, ivec3(index*2, theList.y, theList.x));
     #endif
+    totalMemoryLoads++;
+    return front.x;
 }
 
 float getSupsegBack(ivec2 theList, int index) {
-
-//    #if USE_PRINTF
-//    if(gl_GlobalInvocationID.xy == debug_pixel && theList.x < 343) {
-//        debugPrintfEXT("Searching for back face of (%d, %d), %d", theList, index);
-//    }
-//    #endif
-
-//    if(!(index >= 0 && index < maxSupersegments)) {
-//        //This is an error!
-//        #if USE_PRINTF
-//        if(gl_GlobalInvocationID.xy == debug_pixel) { //TODO: generalize
-//            debugPrintfEXT("Searching for back face of incorrect supersegment index! List: (%d, %d) and index requested: %d", theList, index);
-//        }
-//        #endif
-//        return -1;
-//    }
-
-    #if SEPARATE_DEPTH
-        #if INT_DEPTHS
-        uint back_index = imageLoad(DepthVDI, ivec3(index, theList.y, theList.x)).y;
-//        #if USE_PRINTF
-//        if(gl_GlobalInvocationID.xy == debug_pixel && theList.x < 343) {
-//            debugPrintfEXT("Obtained back index: %d", back_index);
-//        }
-//        #endif
-        totalMemoryLoads++;
-        if(back_index == 0) {
-            return 0.0;
-        }
-        float step = orig_tnear + nw * back_index;
-//        #if USE_PRINTF
-//        if(gl_GlobalInvocationID.xy == debug_pixel && theList.x < 343) {
-//            debugPrintfEXT("Searching for back depth of: (%d, %d), %d. Found jump num: %u, therefore returning: %f", theList, index, back_index, step);
-//        }
-//        #endif
-        return step;
-        #else
-        vec4 back = imageLoad(DepthVDI, ivec3(index*2 + 1, theList.y, theList.x));
-        totalMemoryLoads++;
-//        #if USE_PRINTF
-//        if(gl_GlobalInvocationID.xy == debug_pixel) {
-//            debugPrintfEXT("Searching for back depth of: (%d, %d), %d. returning: %f", theList, index, back.x);
-//        }
-//        #endif
-        return back.x;
-        #endif
+    #if RLE
+    ivec3 bufferIndices = supersegmentIndices(theList, index);
+    vec4 back = imageLoad(DepthVDI, ivec3(bufferIndices.x * 2 + 1, bufferIndices.y, bufferIndices.z));
     #else
-    vec4 back = imageLoad(InputVDI, ivec3(index*3 + 2, theList.y, theList.x));
+    vec4 back = imageLoad(DepthVDI, ivec3(index*2 + 1, theList.y, theList.x));
+    #endif
     totalMemoryLoads++;
-    return DecodeFloatRGBA(back);
+    return back.x;
+}
+
+vec4 getSupsegColor(ivec2 theList, int index) {
+    #if RLE
+    ivec3 bufferIndices = supersegmentIndices(theList, index);
+    return imageLoad(InputVDI, bufferIndices).rgba;
+    #else
+    return imageLoad(InputVDI, ivec3(index, theList.y, theList.x)).rgba;
     #endif
 }
 
@@ -1036,25 +983,16 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
     //TODO: see whether the below is required
 
     bool first_empty = false;
-    #if SEPARATE_DEPTH
-        #if INT_DEPTHS
-        uint check = imageLoad(DepthVDI, ivec3(0, theList.y, theList.x)).y;
-        totalMemoryLoads++;
-        if(check == 0) {
-            first_empty = true;
-        }
-        #else
-        vec4 check = imageLoad(DepthVDI, ivec3(1, theList.y, theList.x));
-        totalMemoryLoads++;
-        float firstBack = check.x;
-        if(firstBack == 0) {
-            first_empty = true;
-        }
-        #endif
+
+    #if RLE
+    maxSupersegments = imageLoad(SupersegmentsGenerated, theList).x;
+    if(maxSupersegments == 0) {
+        first_empty = true;
+    }
     #else
-    vec4 check = imageLoad(InputVDI, ivec3(2, theList.y, theList.x));
+    vec4 check = imageLoad(DepthVDI, ivec3(1, theList.y, theList.x));
     totalMemoryLoads++;
-    float firstBack = DecodeFloatRGBA(check);
+    float firstBack = check.x;
     if(firstBack == 0) {
         first_empty = true;
     }
@@ -1251,13 +1189,8 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
             vec4 w_end_point = ivp_orig * end_point;
             w_end_point *= 1./w_end_point.w;
 
-            #if SEPARATE_DEPTH
-            vec4 supseg_col = imageLoad(InputVDI, ivec3(index, theList.y, theList.x));
+            vec4 supseg_col = getSupsegColor(theList.xy, index);
             totalMemoryLoads++;
-            #else
-            vec4 supseg_col = imageLoad(InputVDI, ivec3(index*3, theList.y, theList.x));
-            totalMemoryLoads++;
-            #endif
 
             float length_in_supseg = distance(w_start_point, w_end_point);
 
@@ -1379,13 +1312,8 @@ void traverse_subsample(vec4 world_entry, vec4 world_end, float total_distance, 
             supseg_end_w *= 1. / supseg_end_w.w;
 
 
-            #if SEPARATE_DEPTH
-            vec4 supseg_col = imageLoad(InputVDI, ivec3(index, list_coords.y, list_coords.x));
+            vec4 supseg_col = getSupsegColor(list_coords, index);
             totalMemoryLoads++;
-            #else
-            vec4 supseg_col = imageLoad(InputVDI, ivec3(index*3, list_coords.y, list_coords.x));
-            totalMemoryLoads++;
-            #endif
 
             float alpha = adjustOpacity(supseg_col.a, jump_size);
             finalColor.rgb = finalColor.rgb + (1-finalColor.a) * supseg_col.rgb * alpha;
@@ -1624,9 +1552,6 @@ void main() {
 
     ivec3 vdiCoords = imageSize(InputVDI);
     maxSupersegments = vdiCoords.x;
-
-    vdiWidth = vdiCoords.z;
-    vdiHeight = vdiCoords.y;
 
     mat4 view;
 
