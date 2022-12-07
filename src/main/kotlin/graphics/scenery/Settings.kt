@@ -59,10 +59,11 @@ class Settings(override var hub: Hub? = null, prefix : String = "scenery.", prop
                 // load a properties file
                 prop.load(input)
                 prop.propertyNames().toList().forEach { propName ->
-                    setIfUnset(propName as String,parseType(prop.getProperty(propName)))
+                    set(propName as String, parseType(prop.getProperty(propName)))
                 }
             }
             propertiesFile = file
+            logger.info("New Properties loaded from $file")
         }
         else
         {
