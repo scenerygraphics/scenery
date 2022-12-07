@@ -94,7 +94,9 @@ class Settings(override var hub: Hub? = null, prefix : String = "scenery.", prop
      */
     fun parseType(value:String): Any = when {
         value.lowercase() == "false" || value.lowercase() == "true" -> value.toBoolean()
+        value.lowercase().contains(".") && value.lowercase().toFloatOrNull() != null -> value.lowercase().toFloat()
         value.lowercase().contains("f") && value.lowercase().replace("f", "").toFloatOrNull() != null -> value.lowercase().replace("f", "").toFloat()
+        value.lowercase().contains(".") && value.lowercase().contains("f") && value.lowercase().replace("f", "").toFloatOrNull() != null -> value.lowercase().replace("f", "").toFloat()
         value.lowercase().contains("l") && value.lowercase().replace("l", "").toLongOrNull() != null -> value.lowercase().replace("l", "").toLong()
         value.toIntOrNull() != null -> value.toInt()
         else -> value
