@@ -20,10 +20,12 @@ open class VRUICursor(
     protected val name: String,
     protected val controller: Node,
     protected val scene: Scene
-) : DragBehaviour, ClickBehaviour {
+) : DragBehaviour {
 
     private val laser = Cylinder(0.0025f, 3f, 20)
-    private val selectionIndicator: LineBetweenNodes
+
+    private var pressed : Boolean
+    private var lastDragTime = 0L
 
     private val logger by LazyLogger()
 
@@ -39,17 +41,10 @@ open class VRUICursor(
         }
 
         controller.addChild(laser)
-        selectionIndicator = LineBetweenNodes(
-            laser.spatial(), laser.spatial(),
-            transparent = false,
-            simple = true
-        )
-        selectionIndicator.visible = false
-        scene.addChild(selectionIndicator)
-        logger.info("hi")
+        pressed = false
     }
 
-    override fun click(x: Int, y: Int) {
+    /*override fun click(x: Int, y: Int) {
         val ray = scene.raycast(
             controller.spatialOrNull()!!.worldPosition(),
             laser.spatial().worldRotation().transform(Vector3f(0f, 1f, 0f))
@@ -61,61 +56,70 @@ open class VRUICursor(
             logger.info("CtrlClicked on $hitPos")
         }
         logger.info("CtrlClick")
-    }
+    }*/
 
     /**
      * Activates the target las0r.
      */
     override fun init(x: Int, y: Int) {
-        laser.material().diffuse = Vector3f(0.0f, 1.0f, 0.0f)
+        logger.info("$pressed")
+        if(!pressed)
+        {
+            laser.material().diffuse = Vector3f(0.0f, 1.0f, 0.0f)
+            pressed = true
 
-        val ray = scene.raycast(
-            controller.spatialOrNull()!!.worldPosition(),
-            laser.spatial().worldRotation().transform(Vector3f(0f, 1f, 0f))
-        )
-        ray.matches.firstOrNull()?.let { hit ->
-            val node = hit.node as? SwingUiNode ?: hit.node.parent as? SwingUiNode ?: return //backside might get hit first
-            val hitPos = ray.initialPosition + ray.initialDirection.normalize(hit.distance)
-            node.pressed(hitPos)
-            logger.info("Pressed on $hitPos")
+            val ray = scene.raycast(
+                controller.spatialOrNull()!!.worldPosition(),
+                laser.spatial().worldRotation().transform(Vector3f(0f, 3f, 0f))
+            )
+            ray.matches.firstOrNull()?.let { hit ->
+                val node = hit.node as? SwingUiNode ?: hit.node.parent as? SwingUiNode ?: return //backside might get hit first
+                val hitPos = ray.initialPosition + ray.initialDirection.normalize(hit.distance)
+                node.pressed(hitPos)
+                logger.info("Pressed on $hitPos")
+            }
         }
-        logger.info("Pressed")
-
     }
 
     /**
      * Adjust the length of the target laser visualisation.
      */
     override fun drag(x: Int, y: Int) {
-        val ray = scene.raycast(
-            controller.spatialOrNull()!!.worldPosition(),
-            laser.spatial().worldRotation().transform(Vector3f(0f, 1f, 0f))
-        )
-        var distance : Float? = null
-        ray.matches.firstOrNull()?.let { hit ->
-            hit.node.getAttributeOrNull(Selectable::class.java) != null
-            val node = hit.node as? SwingUiNode ?: hit.node.parent as? SwingUiNode ?: return //backside might get hit first
-            val hitPos = ray.initialPosition + ray.initialDirection.normalize(hit.distance)
-            distance = hit.distance
-            node.drag(hitPos)
-            logger.info("dragged on $hitPos")
+        logger.info("$pressed")
+
+        if(System.currentTimeMillis() - lastDragTime > 20)
+        {
+            val ray = scene.raycast(
+                controller.spatialOrNull()!!.worldPosition(),
+                laser.spatial().worldRotation().transform(Vector3f(0f, 3f, 0f))
+            )
+            var distance : Float? = null
+            ray.matches.firstOrNull()?.let { hit ->
+                hit.node.getAttributeOrNull(Selectable::class.java) != null
+                val node = hit.node as? SwingUiNode ?: hit.node.parent as? SwingUiNode ?: return //backside might get hit first
+                val hitPos = ray.initialPosition + ray.initialDirection.normalize(hit.distance)
+                distance = hit.distance
+                node.drag(hitPos)
+                logger.info("dragged on $hitPos")
+            }
+            logger.info("Dragged")
+            laser.spatial().scale.y = distance ?: 1000f
+            lastDragTime = System.currentTimeMillis()
         }
-        logger.info("Dragged")
-
-
-        laser.spatial().scale.y = distance ?: 1000f
     }
 
     /**
      * Performs the selection
      */
     override fun end(x: Int, y: Int) {
+        logger.info("$pressed")
+
         laser.material().diffuse = Vector3f(1.0f, 0.0f, 0.0f)
         logger.info("Released")
-
+/*
         val ray = scene.raycast(
             controller.spatialOrNull()!!.worldPosition(),
-            laser.spatial().worldRotation().transform(Vector3f(0f, 1f, 0f))
+            laser.spatial().worldRotation().transform(Vector3f(0f, 3f, 0f))
         )
         ray.matches.firstOrNull()?.let { hit ->
             val node = hit.node as? SwingUiNode ?: hit.node.parent as? SwingUiNode ?: return //backside might get hit first
@@ -123,7 +127,8 @@ open class VRUICursor(
             node.released(hitPos)
             logger.info("Released on $hitPos")
         }
-
+*/
+        pressed = false
     }
 
     companion object {
