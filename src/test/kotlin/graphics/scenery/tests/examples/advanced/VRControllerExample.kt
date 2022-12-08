@@ -13,6 +13,7 @@ import graphics.scenery.utils.Wiggler
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
 import org.joml.Vector3f
+import org.scijava.ui.behaviour.ClickBehaviour
 import java.lang.Thread.sleep
 import kotlin.concurrent.thread
 import kotlin.system.exitProcess
@@ -239,13 +240,14 @@ class VRControllerExample : SceneryBase(
 
         /** example of click input
         // Now we add another behaviour for toggling visibility of the boxes
+        */
         hmd.addBehaviour("toggle_boxes", ClickBehaviour { _, _ ->
         boxes.forEach { it.visible = !it.visible }
         logger.info("Boxes visible: ${boxes.first().visible}")
         })
         // ...and bind that to the A button of the left-hand controller.
         hmd.addKeyBinding("toggle_boxes", TrackerRole.RightHand, OpenVRHMD.OpenVRButton.A)
-         */
+
 
         VRTouch.createAndSet(scene, hmd, listOf(TrackerRole.RightHand, TrackerRole.LeftHand), true)
 

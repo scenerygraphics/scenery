@@ -1,10 +1,12 @@
 package graphics.scenery.tests.examples.volumes
 
 import graphics.scenery.*
+import graphics.scenery.attribute.material.Material
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.controls.TrackerRole
+import graphics.scenery.numerics.Random
 import graphics.scenery.ui.SwingBridgeFrame
 import graphics.scenery.ui.SwingUiNode
 import graphics.scenery.utils.extensions.plus
@@ -17,6 +19,7 @@ import org.joml.Vector3f
 import org.scijava.ui.behaviour.ClickBehaviour
 import org.scijava.ui.behaviour.DragBehaviour
 import tpietzsch.example2.VolumeViewerOptions
+import java.lang.Thread.sleep
 import kotlin.concurrent.thread
 import kotlin.system.exitProcess
 
@@ -32,7 +35,7 @@ import kotlin.system.exitProcess
  */
 class VRTransferFunctionEditorExample : SceneryBase("VRTransferFunctionEditor Example", 1280, 720, false) {
     var maxCacheSize = 512
-    val cam: Camera = DetachedHeadCamera()
+    var cam: Camera = DetachedHeadCamera()
 
     private lateinit var hmd : OpenVRHMD
 
@@ -49,57 +52,54 @@ class VRTransferFunctionEditorExample : SceneryBase("VRTransferFunctionEditor Ex
         }
 
         hub.add(SceneryElement.HMDInput, hmd)
-        renderer = hub.add(
-            SceneryElement.Renderer,
-            Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
-        )
+
+        renderer = hub.add( SceneryElement.Renderer, Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
         renderer?.toggleVR()
 
-        val light = PointLight(radius = 15.0f)
-        light.spatial().position = Vector3f(2.0f, 0.0f, 2.0f)*2f
-        light.intensity = 15.0f
-        light.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
-        scene.addChild(light)
 
-        val light2 = PointLight(radius = 15.0f)
-        light2.spatial().position = Vector3f(-2.0f, 0.0f, -2.0f)*2f
-        light2.intensity = 15.0f
-        light2.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
-        scene.addChild(light2)
+        cam = DetachedHeadCamera(hmd)
+        cam.spatial().position = Vector3f(0.0f, 0.0f, 0.0f)
+        cam.perspectiveCamera(50.0f, windowWidth, windowHeight)
+        scene.addChild(cam)
 
-        with(cam) {
-            spatial {
-                position = Vector3f(0.0f, 0.0f, 2.0f)
-            }
-            nearPlaneDistance = 0.01f
-            perspectiveCamera(50.0f, windowWidth, windowHeight)
-
-            scene.addChild(this)
+        val lights = Light.createLightTetrahedron<PointLight>(spread = 5.0f, radius = 8.0f)
+        lights.forEach {
+            it.emissionColor = Random.random3DVectorFromRange(0.8f, 1.0f)
+            scene.addChild(it)
         }
+
+        val hullbox = Box(Vector3f(20.0f, 20.0f, 20.0f), insideNormals = true)
+        hullbox.material {
+            ambient = Vector3f(0.6f, 0.6f, 0.6f)
+            diffuse = Vector3f(0.4f, 0.4f, 0.4f)
+            specular = Vector3f(0.0f, 0.0f, 0.0f)
+            cullingMode = Material.CullingMode.Front
+        }
+        scene.addChild(hullbox)
 
         val options = VolumeViewerOptions().maxCacheSizeInMB(maxCacheSize)
         //Currently only .xml volume formats are usable
         val v = Volume.fromXML("models/volumes/t1-head.xml", hub, options)
         v.name = "t1-head"
         v.colormap = Colormap.get("grays")
-        v.spatial().position = Vector3f(0.0f, 0.0f, 0.0f)
+        v.spatial().position = Vector3f(-1.0f, 1.2f, -2.0f)
         v.spatial().scale = Vector3f(0.1f)
         v.setTransferFunctionRange(0.0f, 1000.0f)
         scene.addChild(v)
-
 
         val bridge = SwingBridgeFrame("1DTransferFunctionEditor")
         val tfUI = TransferFunctionEditor(650, 550, v, bridge)
         val swingUiNode = tfUI.mainFrame.uiNode
         swingUiNode.spatial() {
-            position = Vector3f(2f,0f,0f)
+            position = Vector3f(1.0f,1.2f,-2.0f)
         }
-
         scene.addChild(swingUiNode)
+
+
 
         thread {
             while (!running) {
-                Thread.sleep(200)
+                sleep(200)
             }
 
             hmd.events.onDeviceConnect.add { hmd, device, timestamp ->
@@ -121,56 +121,6 @@ class VRTransferFunctionEditorExample : SceneryBase("VRTransferFunctionEditor Ex
     override fun inputSetup() {
         super.inputSetup()
 
-        val debugRaycast = false
-
-        //First add the click behaviour to interact with the menu via mouse (simulated via keyboard)
-        inputHandler?.addBehaviour(
-            "ctrlClickObject", object : ClickBehaviour {
-                override fun click(x: Int, y: Int) {
-                    val ray = cam.getNodesForScreenSpacePosition(x,y, listOf<Class<*>>(BoundingGrid::class.java), debugRaycast)
-
-                    ray.matches.firstOrNull()?.let { hit ->
-                        val node = hit.node as? SwingUiNode ?: return
-                        val hitPos = ray.initialPosition + ray.initialDirection * hit.distance
-                        node.ctrlClick(hitPos)
-                    }
-                }
-            }
-        )
-        inputHandler?.addBehaviour(
-            "dragObject", object : DragBehaviour {
-                override fun init(x:Int, y: Int) {
-                    val ray = cam.getNodesForScreenSpacePosition(x,y, listOf<Class<*>>(BoundingGrid::class.java), debugRaycast)
-
-                    ray.matches.firstOrNull()?.let { hit ->
-                        val node = hit.node as? SwingUiNode ?: return
-                        val hitPos = ray.initialPosition + ray.initialDirection * hit.distance
-                        node.pressed(hitPos)
-                    }
-                }
-                override fun drag(x: Int, y: Int) {
-                    val ray = cam.getNodesForScreenSpacePosition(x,y, listOf<Class<*>>(BoundingGrid::class.java), debugRaycast)
-
-                    ray.matches.firstOrNull()?.let { hit ->
-                        val node = hit.node as? SwingUiNode ?: return
-                        val hitPos = ray.initialPosition + ray.initialDirection * hit.distance
-                        node.drag(hitPos)
-                    }
-                }
-                override fun end(x: Int, y: Int) {
-                    val ray = cam.getNodesForScreenSpacePosition(x,y, listOf<Class<*>>(BoundingGrid::class.java), debugRaycast)
-
-                    ray.matches.firstOrNull()?.let { hit ->
-                        val node = hit.node as? SwingUiNode ?: return
-                        val hitPos = ray.initialPosition + ray.initialDirection * hit.distance
-                        node.released(hitPos)
-                    }
-                }
-            }
-        )
-        inputHandler?.addKeyBinding("dragObject", "1")
-        inputHandler?.addKeyBinding("ctrlClickObject", "2")
-
         // We first grab the default movement actions from scenery's input handler,
         // and re-bind them on the right-hand controller's trackpad or joystick.
         inputHandler?.let { handler ->
@@ -188,25 +138,8 @@ class VRTransferFunctionEditorExample : SceneryBase("VRTransferFunctionEditor Ex
             }
         }
 
-        //now remap the click behaviour for the editor interaction to VR input
-        // We first grab the default movement actions from scenery's input handler,
-        // and re-bind them on the right-hand controller's trackpad or joystick.
-        inputHandler?.let { handler ->
-            hashMapOf(
-                "dragObject" to OpenVRHMD.keyBinding(TrackerRole.RightHand, OpenVRHMD.OpenVRButton.Trigger),
-                "ctrlClickObject" to OpenVRHMD.keyBinding(TrackerRole.RightHand, OpenVRHMD.OpenVRButton.A)
-            ).forEach { (name, key) ->
-                handler.getBehaviour(name)?.let { b ->
-                    logger.info("Adding behaviour $name bound to $key to HMD")
-                    hmd.addBehaviour(name, b)
-                    hmd.addKeyBinding(name, key)
-                }
-            }
-        }
-
-        VRUICursor.createAndSet(scene,hmd,
-           listOf( OpenVRHMD.OpenVRButton.Trigger, OpenVRHMD.OpenVRButton.A),
-           listOf(TrackerRole.LeftHand,TrackerRole.RightHand))
+        VRUICursor.createAndSet(scene, hmd, listOf( OpenVRHMD.OpenVRButton.Trigger, OpenVRHMD.OpenVRButton.A),
+            listOf(TrackerRole.LeftHand, TrackerRole.RightHand))
     }
 
     /**
