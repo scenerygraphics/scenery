@@ -1,8 +1,7 @@
 #version 450
 #extension GL_EXT_debug_printf : enable
-#define SEPARATE_DEPTH 1
-#define INT_DEPTHS 0
 #define USE_PRINTF 1
+#define RLE 1
 
 layout(set = 3, binding = 0) uniform ShaderProperties {
     mat4 ProjectionOriginal;
@@ -10,17 +9,17 @@ layout(set = 3, binding = 0) uniform ShaderProperties {
     mat4 ViewOriginal;
     mat4 invViewOriginal;
     float nw;
+    int windowWidth;
+    int windowHeight;
 };
 
 layout (local_size_x = 16, local_size_y = 16) in;
 layout (set = 0, binding = 0, rgba32f) uniform readonly image3D InputVDI;
 layout (set = 1, binding = 0, rgba8) uniform image2D OutputViewport;
-#if SEPARATE_DEPTH
-    #if INT_DEPTHS
-    layout (set = 2, binding = 0, rg16ui) uniform readonly uimage3D DepthVDI;
-    #else
-    layout (set = 2, binding = 0, rg32f) uniform readonly image3D DepthVDI;
-    #endif
+layout (set = 2, binding = 0, rg32f) uniform readonly image3D DepthVDI;
+#if RLE
+layout (set = 4, binding = 0, r32i) uniform iimage2D SupersegmentsGenerated;
+layout (set = 5, binding = 0, r32i) uniform iimage2D PrefixSums;
 #endif
 
 vec2 decode(vec4 c){
@@ -50,6 +49,58 @@ float adjustOpacity(float a, float modifiedStepLength) {
     return 1.0 - pow((1.0 - a), modifiedStepLength);
 }
 
+int totalMemoryLoads = 0;
+
+int bufferWidth = 0;
+int bufferHeight = 0;
+int bufferDepth = 0;
+
+#if RLE
+ivec3 supersegmentIndices(ivec2 theList, int index) {
+    int linearized = imageLoad(PrefixSums, theList).x + index;
+
+    int z_ = linearized / (bufferWidth * bufferHeight);
+
+    int remainder = linearized % (bufferWidth * bufferHeight);
+
+    int y_ = remainder / bufferWidth;
+    int x_ = remainder % bufferWidth;
+
+    return ivec3(x_, y_, z_);
+}
+#endif
+
+float getSupsegFront(ivec2 theList, int index) {
+    #if RLE
+    ivec3 bufferIndices = supersegmentIndices(theList, index);
+    vec4 front = imageLoad(DepthVDI, ivec3(bufferIndices.x * 2, bufferIndices.y, bufferIndices.z));
+    #else
+    vec4 front = imageLoad(DepthVDI, ivec3(index*2, theList.y, theList.x));
+    #endif
+    totalMemoryLoads++;
+    return front.x;
+}
+
+float getSupsegBack(ivec2 theList, int index) {
+    #if RLE
+    ivec3 bufferIndices = supersegmentIndices(theList, index);
+    vec4 back = imageLoad(DepthVDI, ivec3(bufferIndices.x * 2 + 1, bufferIndices.y, bufferIndices.z));
+    #else
+    vec4 back = imageLoad(DepthVDI, ivec3(index*2 + 1, theList.y, theList.x));
+    #endif
+    totalMemoryLoads++;
+    return back.x;
+}
+
+vec4 getSupsegColor(ivec2 theList, int index) {
+    #if RLE
+    ivec3 bufferIndices = supersegmentIndices(theList, index);
+    return imageLoad(InputVDI, bufferIndices).rgba;
+    #else
+    return imageLoad(InputVDI, ivec3(index, theList.y, theList.x)).rgba;
+    #endif
+}
+
 void main() {
 
     ivec2 debug_pixel = ivec2(586, 553);
@@ -58,40 +109,16 @@ void main() {
         debugPrintfEXT("Value of nw: %f", nw);
     }
 
+    #if RLE
+    int numSupersegments = imageLoad(SupersegmentsGenerated, ivec2(gl_GlobalInvocationID.xy)).x;
     ivec3 imageCoords  = imageSize(InputVDI);
-
-    int windowHeight = imageCoords.g;
-    int windowWidth = imageCoords.b;
-
-#if SEPARATE_DEPTH
+    bufferWidth = imageCoords.x;
+    bufferHeight = imageCoords.y;
+    bufferDepth = imageCoords.z;
+    #else
+    ivec3 imageCoords  = imageSize(InputVDI);
     int numSupersegments = imageCoords.r;
-#else
-    int numSupersegments = imageCoords.r / 3;
-#endif
-
-//    mat4 ViewOriginal = mat4(-0.86781174,  1.0376796E-4, -0.49694782,  2.299E+0,
-//    0.11692904,  0.9719932, -0.20398827, -1.3797543,
-//    0.48299563, -0.23512466, -0.8434963, -2.1878958,
-//    0.0,  0.0, 0.0,  1.000E+0);
-//    ViewOriginal = transpose(ViewOriginal);
-//
-//    mat4 invViewOriginal = mat4(-0.86781174,  0.11692904,  0.48299563,  3.2131748,
-//    1.0376796E-4,  0.9719932, -0.23512466,  0.826445,
-//    -0.49694782, -0.20398827, -0.8434963, -0.9844537,
-//    0.000E+0,  0.000E+0,  0.000E+0,  1.000E+0);
-//    invViewOriginal = transpose(invViewOriginal);
-//
-//    mat4 ProjectionOriginal = mat4(1.206285,  0.0,  0.0,  0.0,
-//    0.0, -2.1445067,  0.0,  0.0,
-//    0.0,  0.0, -1.0050251, -0.10050251,
-//    0.0,  0.0, -1.0,  0.0);
-//    ProjectionOriginal = transpose(ProjectionOriginal);
-//
-//    mat4 invProjectionOriginal = mat4(0.8289915,  0.000E+0,  0.000E+0, -0.000E+0,
-//    0.000E+0, -0.4663077,  0.000E+0,  0.000E+0,
-//    0.000E+0, -0.000E+0,  0.000E+0, -1.0,
-//    0.000E+0,  0.000E+0, -9.949999,  10.0);
-//    invProjectionOriginal = transpose(invProjectionOriginal);
+    #endif
 
     mat4 pv_orig = ProjectionOriginal * ViewOriginal;
 
@@ -99,7 +126,7 @@ void main() {
 
     vec4 v = vec4(0);
 
-    vec2 texcoord = gl_GlobalInvocationID.xy/vec2(imageCoords.b, imageCoords.g);
+    vec2 texcoord = gl_GlobalInvocationID.xy/vec2(windowWidth, windowHeight);
     vec2 uv = texcoord * 2.0 - vec2(1.0);
 
     // NDC of frag on near and far plane
@@ -116,29 +143,14 @@ void main() {
     vec4 maxV = vec4(0);
 
     for(int i = 0; i < numSupersegments; i++) {
-        #if SEPARATE_DEPTH
-            vec4 x = imageLoad(InputVDI, ivec3(i, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x));
-        #else
-            vec4 x = imageLoad(InputVDI, ivec3(i*3, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x));
-        #endif
+
+        vec4 x = getSupsegColor(ivec2(gl_GlobalInvocationID.xy), i);
 
         vec3 newColor = x.rgb;
         float newAlpha = x.a;
 
-        #if SEPARATE_DEPTH
-            vec4 d = imageLoad(DepthVDI, ivec3(i*2, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x)); //Start point of this supersegment
-            vec4 dNext = imageLoad(DepthVDI, ivec3(i*2+1, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x)); //End point of this supersegment
-
-            float depthHere = d.x;
-            float depthEnd = dNext.x;
-
-        #else
-            vec4 d = imageLoad(InputVDI, ivec3(i*3+1, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x)); //Start point of this supersegment
-            vec4 dNext = imageLoad(InputVDI, ivec3(i*3+2, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x)); //End point of this supersegment
-            float depthHere = DecodeFloatRGBA(d);
-            float depthEnd = DecodeFloatRGBA(dNext);
-
-        #endif
+        float depthHere = getSupsegFront(ivec2(gl_GlobalInvocationID.xy), i);
+        float depthEnd = getSupsegBack(ivec2(gl_GlobalInvocationID.xy), i);
 
         if(gl_GlobalInvocationID.xy == debug_pixel) {
             debugPrintfEXT("Supseg %d! Start is: %f, end is: %f. a: %f", i, depthHere, depthEnd, newAlpha);

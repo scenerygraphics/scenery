@@ -9,6 +9,7 @@ import graphics.scenery.compute.InvocationType
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.Image
 import graphics.scenery.volumes.vdi.VDIDataIO
+import net.imglib2.type.numeric.integer.IntType
 import net.imglib2.type.numeric.integer.UnsignedByteType
 import net.imglib2.type.numeric.integer.UnsignedShortType
 import net.imglib2.type.numeric.real.FloatType
@@ -22,6 +23,7 @@ import java.io.File
 import java.io.FileInputStream
 import java.nio.ByteBuffer
 import kotlin.concurrent.thread
+import kotlin.math.ceil
 
 class CustomNodeSimple : RichNode() {
     @ShaderProperty
@@ -38,6 +40,12 @@ class CustomNodeSimple : RichNode() {
 
     @ShaderProperty
     var nw = 0f
+
+    @ShaderProperty
+    var windowWidth: Int = 0
+
+    @ShaderProperty
+    var windowHeight: Int = 0
 }
 
 
@@ -60,7 +68,9 @@ class VDIRendererSimple : SceneryBase("SimpleVDIRenderer", 1280, 720) {
     val separateDepth = true
     val colors32bit = true
 
-    val commSize = 4
+    val runLengthEncoded = true
+
+    val commSize = 1
     val rank = 0
 
     override fun init() {
@@ -79,21 +89,24 @@ class VDIRendererSimple : SceneryBase("SimpleVDIRenderer", 1280, 720) {
         val buff: ByteArray
         val depthBuff: ByteArray?
 
-        var dataset = "T1Head"
+        var dataset = "Kingsnake"
 
 //        dataset += "_${commSize}_${rank}"
 
 
 //        val basePath = "/home/aryaman/Repositories/DistributedVis/cmake-build-debug/"
-//        val basePath = "/home/aryaman/Repositories/scenery-insitu/"
-        val basePath = "/home/aryaman/Repositories/scenery_vdi/scenery/"
+        val basePath = "/home/aryaman/Repositories/scenery-insitu/"
+//        val basePath = "/home/aryaman/Repositories/scenery_vdi/scenery/"
 //        val basePath = "/home/aryaman/TestingData/"
 //        val basePath = "/home/aryaman/TestingData/FromCluster/"
 
-//        val file = FileInputStream(File(basePath + "${dataset}vdidump4"))
+        val vdiParams = "_${windowWidth}_${windowHeight}_${numSupersegments}_0_"
+//        val vdiParams = ""
+
+        val file = FileInputStream(File(basePath + "${dataset}vdi${vdiParams}dump4"))
 //        val comp = GZIPInputStream(file, 65536)
 
-//        val vdiData = VDIDataIO.read(file)
+        val vdiData = VDIDataIO.read(file)
 
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
@@ -117,43 +130,49 @@ class VDIRendererSimple : SceneryBase("SimpleVDIRenderer", 1280, 720) {
 //        val vdiType = "Final"
         val vdiType = ""
 
-        if(separateDepth) {
-            buff = File(basePath + "${dataset}${vdiType}VDI4_ndc_col").readBytes()
-            depthBuff = File(basePath + "${dataset}${vdiType}VDI4_ndc_depth").readBytes()
 
+
+        if(runLengthEncoded) {
+            buff = File(basePath + "${dataset}${vdiType}VDI${vdiParams}4_ndc_col_rle").readBytes()
+            depthBuff = File(basePath + "${dataset}${vdiType}VDI${vdiParams}4_ndc_depth_rle").readBytes()
         } else {
-            buff = File("/home/aryaman/Repositories/scenery-insitu/VDI10_ndc").readBytes()
-            depthBuff = null
+            buff = File(basePath + "${dataset}${vdiType}VDI${vdiParams}4_ndc_col").readBytes()
+            depthBuff = File(basePath + "${dataset}${vdiType}VDI${vdiParams}4_ndc_depth").readBytes()
         }
+
+        val totalMaxSupersegments = numSupersegments * windowWidth * windowHeight
 
         var colBuffer: ByteBuffer
         var depthBuffer: ByteBuffer?
 //        colBuffer = ByteBuffer.wrap(buff)
 //        depthBuffer = ByteBuffer.wrap(depthBuff)
-        colBuffer = if(colors32bit) {
-            MemoryUtil.memCalloc(windowHeight * windowWidth * numSupersegments * numLayers * 4 * 4)
+        colBuffer = if(runLengthEncoded) {
+            MemoryUtil.memCalloc(512 * 512 * ceil((totalMaxSupersegments / (512*512)).toDouble()).toInt() * 4 * 4)
         } else {
-            MemoryUtil.memCalloc(windowHeight * windowWidth * numSupersegments * numLayers * 4)
+            MemoryUtil.memCalloc(windowHeight * windowWidth * numSupersegments * numLayers * 4 * 4)
         }
+
         colBuffer.put(buff).flip()
         logger.info("Length of color buffer is ${buff.size} and associated bytebuffer capacity is ${colBuffer.capacity()} it has remaining: ${colBuffer.remaining()}")
         logger.info("Col sum is ${buff.sum()}")
 
-        if(separateDepth) {
-            depthBuffer = MemoryUtil.memCalloc(windowHeight * windowWidth * numSupersegments * 2 * 2 * 2)
-            depthBuffer.put(depthBuff).flip()
-            logger.info("Length of depth buffer is ${depthBuff!!.size} and associated bytebuffer capacity is ${depthBuffer.capacity()} it has remaining ${depthBuffer.remaining()}")
-            logger.info("Depth sum is ${depthBuff.sum()}")
+
+        depthBuffer = if(runLengthEncoded) {
+            MemoryUtil.memCalloc(2 * 512 * 512 * ceil((totalMaxSupersegments / (512*512)).toDouble()).toInt() * 4)
         } else {
-            depthBuffer = null
+            MemoryUtil.memCalloc(windowHeight * windowWidth * numSupersegments * 2 * 2 * 2)
         }
+        depthBuffer.put(depthBuff).flip()
+        logger.info("Length of depth buffer is ${depthBuff!!.size} and associated bytebuffer capacity is ${depthBuffer.capacity()} it has remaining ${depthBuffer.remaining()}")
+        logger.info("Depth sum is ${depthBuff.sum()}")
 
         val outputBuffer = MemoryUtil.memCalloc(windowHeight * windowWidth * 4)
 
         val compute = CustomNodeSimple()
         compute.name = "compute node"
 
-        compute.setMaterial(ShaderMaterial(Shaders.ShadersFromFiles(arrayOf("SimpleVDITraversal.comp"), this@VDIRendererSimple::class.java))) {
+//        compute.setMaterial(ShaderMaterial(Shaders.ShadersFromFiles(arrayOf("SimpleVDITraversal.comp"), this@VDIRendererSimple::class.java))) {
+        compute.setMaterial(ShaderMaterial(Shaders.ShadersFromFiles(arrayOf("SimpleVDIRenderer.comp"), this@VDIRendererSimple::class.java))) {
 //        compute.setMaterial(ShaderMaterial(Shaders.ShadersFromFiles(arrayOf("SimpleVDIRendererIntDepths.comp"), this@VDIRendererSimple::class.java))) {
             textures["OutputViewport"] = Texture.fromImage(Image(outputBuffer, windowWidth, windowHeight), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
             textures["OutputViewport"]!!.mipmap = false
@@ -170,23 +189,56 @@ class VDIRendererSimple : SceneryBase("SimpleVDIRenderer", 1280, 720) {
             UnsignedByteType()
         }
 
-//        compute.nw = vdiData.metadata.nw
-//        compute.ViewOriginal = vdiData.metadata.view
-//        compute.invViewOriginal = Matrix4f(vdiData.metadata.view).invert()
-//        compute.ProjectionOriginal = Matrix4f(vdiData.metadata.projection).applyVulkanCoordinateSystem()
-//        compute.invProjectionOriginal = Matrix4f(vdiData.metadata.projection).applyVulkanCoordinateSystem().invert()
-//
-//        logger.info("value of nw: ${vdiData.metadata.nw}")
+        compute.windowWidth = windowWidth
+        compute.windowHeight = windowHeight
 
-        compute.material().textures["InputVDI"] = Texture(Vector3i(numSupersegments*numLayers, windowHeight, windowWidth), 4, contents = colBuffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture)
-            , type = bufType,
-            mipmap = false,
+        compute.nw = vdiData.metadata.nw
+        compute.ViewOriginal = vdiData.metadata.view
+        compute.invViewOriginal = Matrix4f(vdiData.metadata.view).invert()
+        compute.ProjectionOriginal = Matrix4f(vdiData.metadata.projection).applyVulkanCoordinateSystem()
+        compute.invProjectionOriginal = Matrix4f(vdiData.metadata.projection).applyVulkanCoordinateSystem().invert()
+
+        logger.info("value of nw: ${vdiData.metadata.nw}")
+
+        if(runLengthEncoded) {
+            compute.material().textures["InputVDI"] = Texture(Vector3i(numLayers * 512, 512, ceil((totalMaxSupersegments / (512*512)).toDouble()).toInt()), 4, contents = colBuffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture)
+                , type = bufType,
+                mipmap = false,
 //            normalized = false,
-            minFilter = Texture.FilteringMode.NearestNeighbour,
-            maxFilter = Texture.FilteringMode.NearestNeighbour
-        )
-        compute.material().textures["DepthVDI"] = Texture(Vector3i(2 * numSupersegments, windowHeight, windowWidth),  channels = 1, contents = depthBuffer, usageType = hashSetOf(
-            Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+                minFilter = Texture.FilteringMode.NearestNeighbour,
+                maxFilter = Texture.FilteringMode.NearestNeighbour
+            )
+            compute.material().textures["DepthVDI"] = Texture(Vector3i(2 * 512, 512, ceil((totalMaxSupersegments / (512*512)).toDouble()).toInt()),  channels = 1, contents = depthBuffer, usageType = hashSetOf(
+                Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+
+        } else {
+            compute.material().textures["InputVDI"] = Texture(Vector3i(numSupersegments*numLayers, windowHeight, windowWidth), 4, contents = colBuffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture)
+                , type = bufType,
+                mipmap = false,
+//            normalized = false,
+                minFilter = Texture.FilteringMode.NearestNeighbour,
+                maxFilter = Texture.FilteringMode.NearestNeighbour
+            )
+            compute.material().textures["DepthVDI"] = Texture(Vector3i(2 * numSupersegments, windowHeight, windowWidth),  channels = 1, contents = depthBuffer, usageType = hashSetOf(
+                Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+        }
+
+        if(runLengthEncoded) {
+            val prefixArray: ByteArray = File(basePath + "${dataset}${vdiType}VDI${vdiParams}4_ndc_prefix").readBytes()
+            val countArray: ByteArray = File(basePath + "${dataset}${vdiType}VDI${vdiParams}4_ndc_supersegments_generated").readBytes()
+
+            val prefixBuffer = MemoryUtil.memCalloc(windowHeight * windowWidth * 4)
+            val countBuffer = MemoryUtil.memCalloc(windowWidth * windowHeight * 4)
+
+            prefixBuffer.put(prefixArray).flip()
+            countBuffer.put(countArray).flip()
+
+            compute.material().textures["PrefixSums"] = Texture(Vector3i(windowWidth, windowHeight, 1), 1, contents = prefixBuffer, usageType = hashSetOf(
+                Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = IntType(), mipmap = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+            compute.material().textures["SupersegmentsGenerated"] = Texture(Vector3i(windowWidth, windowHeight, 1), 1, contents = countBuffer, usageType = hashSetOf(
+                Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = IntType(), mipmap = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+
+        }
 
         scene.addChild(compute)
 
