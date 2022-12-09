@@ -1,5 +1,5 @@
 #version 450
-#define USE_PRINTF 0
+#define USE_PRINTF 1
 #define NDC 1
 #define SEPARATE_DEPTH 1
 #define INT_DEPTHS 0
@@ -133,7 +133,7 @@ layout(set = 12, binding = 0, r32f) uniform image2D NumSteps;
 //ivec2 debug_pixel = ivec2(610, 641);
 //ivec2 debug_pixel = ivec2(1273, 604);
 //ivec2 debug_pixel = ivec2(640, 360);
-ivec2 debug_pixel = ivec2(1167, 473);
+ivec2 debug_pixel = ivec2(640, 360);
 
 //ivec2 debug_pixel = ivec2(35, 61);
 //ivec2 debug_pixel = ivec2(427, 465);
@@ -645,10 +645,13 @@ void findFirstSupseg_opt_seeded(ivec2 theList, float dist_to_orig, float exit_di
 
     int bin_search_end = -1;
     int bin_search_start = -1;
-
+#if RLE
+    if(prevIndex < 0 || prevIndex > (maxSupersegments - 1)) {
+#else
     if(prevIndex < 0) {
+#endif
     	bin_search_end = maxSupersegments - 1;
-	bin_search_start = 0;
+	    bin_search_start = 0;
     } else {
 
         uint backs_u[4];
@@ -823,12 +826,12 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
 
     totalIntersectedLists++;
 
-//    #if USE_PRINTF
-//    if(gl_GlobalInvocationID.xy == debug_pixel) {
-//        debugPrintfEXT("Intersecting list: (%d, %d). Start pt: (%f, %f, %f) and End pt: (%f, %f, %f)", theList,
-//                                    start_point.xyz, end_point.xyz);
-//    }
-//    #endif
+    #if USE_PRINTF
+    if(gl_GlobalInvocationID.xy == debug_pixel) {
+        debugPrintfEXT("Intersecting list: (%d, %d). Start pt: (%f, %f, %f) and End pt: (%f, %f, %f)", theList,
+                                    start_point.xyz, end_point.xyz);
+    }
+    #endif
 
     //TODO: see whether the below is required
 
@@ -852,11 +855,11 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
         //the first supersegment is empty, so empty list
         totalEmptyLists++;
         totalNonIntersected++;
-//        #if USE_PRINTF
-//        if(gl_GlobalInvocationID.xy == debug_pixel) {
-//            debugPrintfEXT("Returning because first element was 0. The list no. was: (%d, %d)", theList);
-//        }
-//        #endif
+        #if USE_PRINTF
+        if(gl_GlobalInvocationID.xy == debug_pixel) {
+            debugPrintfEXT("Returning because first element was 0. The list no. was: (%d, %d)", theList);
+        }
+        #endif
         return;
     }
 
@@ -965,12 +968,12 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
             nextSupersegmentInList(theList, exit_distance, dotPositive, supseg_found, index, depthStart, depthEnd);
         }
 
-//        #if USE_PRINTF
-//        if(gl_GlobalInvocationID.xy == debug_pixel) {
-//            debugPrintfEXT("For list: (%d, %d). Found supseg %d index %d. Start depth: %f and end depth: %f", theList, supseg_found, index, depthStart, depthEnd);
-//            debugPrintfEXT("In this list, there have been %d memory loads.", totalMemoryLoads - total_steps_before);
-//        }
-//        #endif
+        #if USE_PRINTF
+        if(gl_GlobalInvocationID.xy == debug_pixel) {
+            debugPrintfEXT("For list: (%d, %d). Found supseg %d index %d. Start depth: %f and end depth: %f", theList, supseg_found, index, depthStart, depthEnd);
+            debugPrintfEXT("In this list, there have been %d memory loads.", totalMemoryLoads - total_steps_before);
+        }
+        #endif
 
 //        if(gl_GlobalInvocationID.xy == debug_pixel && supseg_found && index == prevIndex) {
 //        if(gl_GlobalInvocationID.xy == debug_pixel && theList == prevList && supseg_found && index == prevIndex) {
@@ -1400,8 +1403,15 @@ void main() {
     windowWidth = int(downImage * windowWidth);
     windowHeight = int(downImage * windowHeight);
 
+    #if RLE
+    ivec3 bufferCoords  = imageSize(InputVDI);
+    bufferWidth = bufferCoords.x;
+    bufferHeight = bufferCoords.y;
+    bufferDepth = bufferCoords.z;
+    #else
     ivec3 vdiCoords = imageSize(InputVDI);
     maxSupersegments = vdiCoords.x;
+    #endif
 
     mat4 view;
 
