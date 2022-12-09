@@ -1,11 +1,13 @@
 [![scenery logo](./artwork/logo-light-small.png)](./artwork/logo-light.png)  
 
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/graphics.scenery/scenery/badge.svg)](https://maven-badges.herokuapp.com/maven-central/graphics.scenery/scenery) 
-[![DOI](https://zenodo.org/badge/49890276.svg)](https://zenodo.org/badge/latestdoi/49890276) 
-[![Join the chat at https://gitter.im/scenerygraphics/SciView](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/scenerygraphics/SciView?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge) 
-// [![pipeline status](https://gitlab.com/hzdr/crp/scenery/badges/master/pipeline.svg)](https://gitlab.com/hzdr/crp/scenery/-/commits/master)
+[![DOI](https://zenodo.org/badge/49890276.svg)](https://zenodo.org/badge/latestdoi/49890276)
+[![Join the scenery+sciview Zulip chat](https://img.shields.io/badge/zulip-join_chat-brightgreen.svg)](https://imagesc.zulipchat.com/#narrow/stream/327495-scenery.2Bsciview) 
+
+
+[![pipeline status](https://gitlab.com/hzdr/crp/scenery/badges/master/pipeline.svg)](https://gitlab.com/hzdr/crp/scenery/-/commits/master)
 [![Build Status](https://github.com/scenerygraphics/scenery/workflows/build/badge.svg)](https://github.com/scenerygraphics/scenery/actions?workflow=build)
-[![Codacy Badge](https://api.codacy.com/project/badge/Grade/3940e961b2fc41b5a6d17e2b4fff333b)](https://www.codacy.com/app/skalarproduktraum/scenery)  
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/2178c074ae254f3694529bff94528747)](https://www.codacy.com/gh/scenerygraphics/scenery/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=scenerygraphics/scenery&amp;utm_campaign=Badge_Grade)
 
 # scenery  // Flexible VR Visualisation for Volumetric and Geometric Data on the Java VM
 
