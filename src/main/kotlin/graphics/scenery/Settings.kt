@@ -77,7 +77,7 @@ class Settings(override var hub: Hub? = null, prefix : String = "scenery.", prop
     fun saveProperties(file : File? = null)
     {
         val props = Properties()
-        this.getAllSettings().forEach { setting ->
+        this.getAllSettings().sortedDescending().forEach { setting ->
             props.setProperty(setting, this.getOrNull<String?>(setting).toString())
         }
         val out : FileOutputStream
