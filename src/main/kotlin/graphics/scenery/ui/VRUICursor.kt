@@ -62,7 +62,7 @@ open class VRUICursor(
      * Activates the target las0r.
      */
     override fun init(x: Int, y: Int) {
-        logger.info("$pressed")
+        logger.info("PressedInit = $pressed")
         if(!pressed)
         {
             laser.material().diffuse = Vector3f(0.0f, 1.0f, 0.0f)
@@ -72,10 +72,10 @@ open class VRUICursor(
                 controller.spatialOrNull()!!.worldPosition(),
                 laser.spatial().worldRotation().transform(Vector3f(0f, 3f, 0f))
             )
-            ray.matches.firstOrNull()?.let { hit ->
-                val node = hit.node as? SwingUiNode ?: hit.node.parent as? SwingUiNode ?: return //backside might get hit first
+            ray.matches.firstOrNull({it.node is SwingUiNode})?.let { hit ->
+                val node = hit.node as? SwingUiNode ?: return //backside might get hit first
                 val hitPos = ray.initialPosition + ray.initialDirection.normalize(hit.distance)
-                node.pressed(hitPos)
+                //node.pressed(hitPos)
                 logger.info("Pressed on $hitPos")
             }
         }
@@ -85,7 +85,7 @@ open class VRUICursor(
      * Adjust the length of the target laser visualisation.
      */
     override fun drag(x: Int, y: Int) {
-        logger.info("$pressed")
+        logger.info("PressedDrag = $pressed")
 
         if(System.currentTimeMillis() - lastDragTime > 20)
         {
@@ -94,12 +94,11 @@ open class VRUICursor(
                 laser.spatial().worldRotation().transform(Vector3f(0f, 3f, 0f))
             )
             var distance : Float? = null
-            ray.matches.firstOrNull()?.let { hit ->
-                hit.node.getAttributeOrNull(Selectable::class.java) != null
-                val node = hit.node as? SwingUiNode ?: hit.node.parent as? SwingUiNode ?: return //backside might get hit first
+            ray.matches.firstOrNull({it.node is SwingUiNode})?.let { hit ->
+                val node = hit.node as? SwingUiNode ?: return
                 val hitPos = ray.initialPosition + ray.initialDirection.normalize(hit.distance)
                 distance = hit.distance
-                node.drag(hitPos)
+                //node.drag(hitPos)
                 logger.info("dragged on $hitPos")
             }
             logger.info("Dragged")
@@ -112,22 +111,22 @@ open class VRUICursor(
      * Performs the selection
      */
     override fun end(x: Int, y: Int) {
-        logger.info("$pressed")
+        logger.info("PressedEnd = $pressed")
 
         laser.material().diffuse = Vector3f(1.0f, 0.0f, 0.0f)
         logger.info("Released")
-/*
+
         val ray = scene.raycast(
             controller.spatialOrNull()!!.worldPosition(),
-            laser.spatial().worldRotation().transform(Vector3f(0f, 3f, 0f))
+            laser.spatial().worldRotation().transform(Vector3f(0f, 1f, 0f))
         )
-        ray.matches.firstOrNull()?.let { hit ->
-            val node = hit.node as? SwingUiNode ?: hit.node.parent as? SwingUiNode ?: return //backside might get hit first
+        ray.matches.firstOrNull({it.node is SwingUiNode})?.let { hit ->
+            val node = hit.node as? SwingUiNode ?: return@let//backside might get hit first
             val hitPos = ray.initialPosition + ray.initialDirection.normalize(hit.distance)
             node.released(hitPos)
             logger.info("Released on $hitPos")
         }
-*/
+
         pressed = false
     }
 
@@ -146,14 +145,14 @@ open class VRUICursor(
                 if (device.type == TrackedDeviceType.Controller) {
                     device.model?.let { controller ->
                         if (controllerSide.contains(device.role)) {
+                            val name = "VRUiCursor:${hmd.trackingSystemName}:${device.role}"
+                            val behaviour = VRUICursor(
+                                name,
+                                controller.children.first(),
+                                scene
+                            )
+                            hmd.addBehaviour(name, behaviour)
                             buttons.forEach { button ->
-                                val name = "VRUiCursor:${hmd.trackingSystemName}:${device.role}:$button"
-                                val behaviour = VRUICursor(
-                                    name,
-                                    controller.children.first(),
-                                    scene
-                                )
-                                hmd.addBehaviour(name, behaviour)
                                 hmd.addKeyBinding(name, device.role, button)
                             }
                         }

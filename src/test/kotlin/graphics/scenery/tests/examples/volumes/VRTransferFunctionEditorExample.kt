@@ -138,8 +138,18 @@ class VRTransferFunctionEditorExample : SceneryBase("VRTransferFunctionEditor Ex
             }
         }
 
-        VRUICursor.createAndSet(scene, hmd, listOf( OpenVRHMD.OpenVRButton.Trigger, OpenVRHMD.OpenVRButton.A),
-            listOf(TrackerRole.LeftHand, TrackerRole.RightHand))
+        VRUICursor.createAndSet(scene, hmd, listOf( OpenVRHMD.OpenVRButton.Trigger),
+            listOf(TrackerRole.RightHand))
+
+        hmd.events.onDeviceConnect.add { _, device, _ ->
+            if (device.type == TrackedDeviceType.Controller) {
+                device.model?.let { controller ->
+                    hmd.addBehaviour("aa", ClickBehaviour { x, y -> logger.warn("lol") })
+                    hmd.addKeyBinding("aa", device.role, OpenVRHMD.OpenVRButton.Menu)
+
+                    }
+                }
+            }
     }
 
     /**

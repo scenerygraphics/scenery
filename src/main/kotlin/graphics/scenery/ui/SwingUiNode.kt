@@ -32,6 +32,9 @@ class SwingUiNode(private val swingBridgeFrame : SwingBridgeFrame) : Plane(
         this.update += {
             this.spatial().scale = Vector3f(swingBridgeFrame.width.toFloat()/swingBridgeFrame.height.toFloat(), 1.0f, 1.0f)
             spatial().needsUpdate = true
+
+            if(swingBridgeFrame.needsUpdate)
+                swingBridgeFrame.updateImage()
         }
     }
 
@@ -70,6 +73,7 @@ class SwingUiNode(private val swingBridgeFrame : SwingBridgeFrame) : Plane(
      * Calls the pressed method of the attached swingBridgeFrame to simulate a MouseButton1_pressed on the SwingFrame
      */
     fun pressed(wPos: Vector3f) {
+        logger.info("Pressed")
 
         val swingPos = worldSpaceToUISpace(wPos)
         swingBridgeFrame.pressed(swingPos.x.toInt(), swingPos.y.toInt())
@@ -79,6 +83,7 @@ class SwingUiNode(private val swingBridgeFrame : SwingBridgeFrame) : Plane(
      * Calls the drag method of the attached swingBridgeFrame to simulate a MouseButton1 drag on the SwingFrame
      */
     fun drag(wPos: Vector3f) {
+        logger.info("Drag")
 
         val swingPos = worldSpaceToUISpace(wPos)
         swingBridgeFrame.drag(swingPos.x.toInt(), swingPos.y.toInt())
@@ -89,6 +94,7 @@ class SwingUiNode(private val swingBridgeFrame : SwingBridgeFrame) : Plane(
      */
     fun released(wPos: Vector3f) {
 
+        logger.info("Released")
         val swingPos = worldSpaceToUISpace(wPos)
         swingBridgeFrame.released(swingPos.x.toInt(), swingPos.y.toInt())
     }

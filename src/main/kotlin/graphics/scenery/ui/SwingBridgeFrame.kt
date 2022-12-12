@@ -27,6 +27,7 @@ open class SwingBridgeFrame(title: String) : JFrame(title) {
     private var lastUpdate = 0L
     private var snapshotBuffer : ByteBuffer? = null
     var finalImage : Image? = null
+    var needsUpdate = false
 
     /**
      * Init function is used to add a KeyListener to trigger snapshot recreation of the SwingFrame in order to update the texture presented on the UI-Plane
@@ -42,7 +43,7 @@ open class SwingBridgeFrame(title: String) : JFrame(title) {
             override fun keyPressed(e : KeyEvent?) {
                 if(System.currentTimeMillis() - 16.667 >= lastUpdate)
                 {
-                    updateImage()
+                    needsUpdate = true
                     lastUpdate = System.currentTimeMillis()
                 }
             }
@@ -56,7 +57,7 @@ open class SwingBridgeFrame(title: String) : JFrame(title) {
      * Creates a snapshot of the actual SwingFrame and converts it to a ByteBuffer. Tehn updates the texture of the 2DPlane that renders in the scene to present
      * the UI
      */
-    private fun updateImage()
+    fun updateImage()
     {
         val bimage = getScreen()
         val flipped = Image.createFlipped(bimage)
@@ -65,6 +66,7 @@ open class SwingBridgeFrame(title: String) : JFrame(title) {
 
         uiNode.swingUiDimension = bimage.width to bimage.height
         uiNode.updateUITexture()
+        needsUpdate = false
     }
 
     /**
@@ -131,7 +133,7 @@ open class SwingBridgeFrame(title: String) : JFrame(title) {
             // dragged
             target.dispatchEvent(
                 MouseEvent(
-                    target, 506, System.currentTimeMillis(), 0, compPoint.x, compPoint.y, 1, false, 1
+                    target, 506, System.currentTimeMillis() - 60, 0, compPoint.x, compPoint.y, 1, false, 1
                 )
             )
             //pressed
