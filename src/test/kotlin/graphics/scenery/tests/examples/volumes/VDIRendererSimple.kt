@@ -140,7 +140,11 @@ class VDIRendererSimple : SceneryBase("SimpleVDIRenderer", 1280, 720) {
             depthBuff = File(basePath + "${dataset}${vdiType}VDI${vdiParams}4_ndc_depth").readBytes()
         }
 
-        val totalMaxSupersegments = numSupersegments * windowWidth * windowHeight
+        val totalMaxSupersegments = if(runLengthEncoded) {
+            buff.size / (4*4).toFloat()
+        } else {
+            (numSupersegments * windowWidth * windowHeight).toFloat()
+        }
 
         var colBuffer: ByteBuffer
         var depthBuffer: ByteBuffer?
@@ -153,6 +157,7 @@ class VDIRendererSimple : SceneryBase("SimpleVDIRenderer", 1280, 720) {
         }
 
         colBuffer.put(buff).flip()
+        colBuffer.limit(colBuffer.capacity())
         logger.info("Length of color buffer is ${buff.size} and associated bytebuffer capacity is ${colBuffer.capacity()} it has remaining: ${colBuffer.remaining()}")
         logger.info("Col sum is ${buff.sum()}")
 
@@ -163,6 +168,7 @@ class VDIRendererSimple : SceneryBase("SimpleVDIRenderer", 1280, 720) {
             MemoryUtil.memCalloc(windowHeight * windowWidth * numSupersegments * 2 * 2 * 2)
         }
         depthBuffer.put(depthBuff).flip()
+        depthBuffer.limit(depthBuffer.capacity())
         logger.info("Length of depth buffer is ${depthBuff!!.size} and associated bytebuffer capacity is ${depthBuffer.capacity()} it has remaining ${depthBuffer.remaining()}")
         logger.info("Depth sum is ${depthBuff.sum()}")
 

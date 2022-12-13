@@ -96,7 +96,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
     var hmd: TrackedStereoGlasses? = null
 
     val separateDepth = true
-    val runLengthEncoded = true
+    val runLengthEncoded = false
     val profileMemoryAccesses = false
     val compute = CustomNode()
     val closeAfter = 600000L
@@ -288,7 +288,11 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
 //        val opNumBefFirst = MemoryUtil.memCalloc(effectiveWindowWidth * effectiveWindowHeight * 4)
 //        val opNumAfterLast = MemoryUtil.memCalloc(effectiveWindowWidth * effectiveWindowHeight * 4)
 
-        val totalMaxSupersegments = numSupersegments * windowWidth * windowHeight
+        val totalMaxSupersegments = if(runLengthEncoded) {
+            buff.size / (4*4).toFloat()
+        } else {
+            (numSupersegments * windowWidth * windowHeight).toFloat()
+        }
 
         var colBuffer: ByteBuffer
         var depthBuffer: ByteBuffer?
@@ -299,6 +303,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
             MemoryUtil.memCalloc(windowHeight * windowWidth * numSupersegments * numLayers * 4 * 4)
         }
         colBuffer.put(buff).flip()
+        colBuffer.limit(colBuffer.capacity())
 
         depthBuffer = if(runLengthEncoded) {
             MemoryUtil.memCalloc(2 * 512 * 512 * ceil((totalMaxSupersegments / (512*512)).toDouble()).toInt() * 4)
@@ -306,6 +311,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
             MemoryUtil.memCalloc(windowHeight * windowWidth * numSupersegments * 2 * 2 * 2)
         }
         depthBuffer.put(depthBuff).flip()
+        depthBuffer.limit(depthBuffer.capacity())
 
 //        val numVoxels = 2.0.pow(numOctreeLayers)
         val numGridCells = Vector3f(vdiData.metadata.windowDimensions.x.toFloat() / 8f, vdiData.metadata.windowDimensions.y.toFloat() / 8f, numSupersegments.toFloat())
@@ -885,7 +891,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
         setupCameraModeSwitching()
 
         inputHandler?.addBehaviour("rotate_camera", ClickBehaviour { _, _ ->
-            rotateCamera(1f)
+            rotateCamera(10f)
         })
         inputHandler?.addKeyBinding("rotate_camera", "R")
 
