@@ -74,6 +74,9 @@ class CustomNode : RichNode() {
     var vdiHeight: Int = 0
 
     @ShaderProperty
+    var totalGeneratedSupsegs: Int = 0
+
+    @ShaderProperty
     var do_subsample = false
 
     @ShaderProperty
@@ -96,7 +99,8 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
     var hmd: TrackedStereoGlasses? = null
 
     val separateDepth = true
-    val runLengthEncoded = false
+    val runLengthEncoded = true
+    val recordMovie = false
     val profileMemoryAccesses = false
     val compute = CustomNode()
     val closeAfter = 600000L
@@ -124,7 +128,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
     var cameraMoving = false
     var cameraStopped = false
 
-    val commSize = 4
+    val commSize = 1
     val rank = 0
     val communicatorType = "_${commSize}_${rank}"
 //    val communicatorType = ""
@@ -238,13 +242,13 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
         val buff: ByteArray
         val depthBuff: ByteArray?
         val octBuff: ByteArray?
-        val noiseData: ByteArray
 
 //        val basePath = "/home/aryaman/TestingData/"
 //        val basePath = "/home/aryaman/TestingData/FromCluster/"
 //        val basePath = "/scratch/ws/1/argupta-vdi_generation/vdi_dumps/"
 //        val basePath = "/home/aryaman/Repositories/DistributedVis/cmake-build-debug/"
         val basePath = "/home/aryaman/Repositories/scenery-insitu/"
+//        val basePath = "/scratch/ws/1/argupta-vdi_generation/vdi_dumps/"
 
         val vdiParams = "_${windowWidth}_${windowHeight}_${numSupersegments}_${vo}_"
 //        val vdiParams = "_${windowWidth}_${windowHeight}_"
@@ -270,14 +274,12 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
             depthBuff = File(basePath + "${dataset}${vdiType}VDI${vdiParams}4_ndc_depth").readBytes()
         }
         if(skipEmpty) {
-            octBuff = File(basePath + "${dataset}VDI${vdiParams}4_ndc_octree").readBytes()
+            octBuff = File(basePath + "${dataset}VDI${vdiParams}2_ndc_octree").readBytes()
             compute.skip_empty = true
         } else {
             octBuff = null
             compute.skip_empty = false
         }
-
-        noiseData = File(basePath + "NoiseTexture_Random.raw").readBytes()
 
         val opBuffer = MemoryUtil.memCalloc(effectiveWindowWidth * effectiveWindowHeight * 4)
         val opNumSteps = MemoryUtil.memCalloc(effectiveWindowWidth * effectiveWindowHeight * 4)
@@ -321,10 +323,6 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
             lowestLevel.put(octBuff).flip()
         }
 
-        val noiseTexture = MemoryUtil.memCalloc(1920*1080 * 4)
-
-        noiseTexture.put(noiseData).flip()
-
         compute.name = "compute node"
 
 //        compute.setMaterial(ShaderMaterial(Shaders.ShadersFromFiles(arrayOf("EfficientVDIRaycast.comp"), this@VDIRenderingExample::class.java))) {
@@ -367,27 +365,19 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
 
         if(runLengthEncoded) {
             val prefixArray: ByteArray = File(basePath + "${dataset}${vdiType}VDI${vdiParams}4_ndc_prefix").readBytes()
-            val countArray: ByteArray = File(basePath + "${dataset}${vdiType}VDI${vdiParams}4_ndc_supersegments_generated").readBytes()
 
             val prefixBuffer = MemoryUtil.memCalloc(windowHeight * windowWidth * 4)
-            val countBuffer = MemoryUtil.memCalloc(windowWidth * windowHeight * 4)
 
             prefixBuffer.put(prefixArray).flip()
-            countBuffer.put(countArray).flip()
 
             compute.material().textures["PrefixSums"] = Texture(Vector3i(windowWidth, windowHeight, 1), 1, contents = prefixBuffer, usageType = hashSetOf(
                 Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = IntType(), mipmap = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
-            compute.material().textures["SupersegmentsGenerated"] = Texture(Vector3i(windowWidth, windowHeight, 1), 1, contents = countBuffer, usageType = hashSetOf(
-                Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = IntType(), mipmap = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+            compute.totalGeneratedSupsegs = totalMaxSupersegments.toInt()
         }
 
 //        if(skipEmpty) {
             compute.material().textures["OctreeCells"] = Texture(Vector3i(numGridCells.x.toInt(), numGridCells.y.toInt(), numGridCells.z.toInt()), 1, type = UnsignedIntType(), contents = lowestLevel, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
 //        }
-
-        compute.material().textures["NoiseTexture"] = Texture(Vector3i(1920, 1080, 1),  channels = 1, contents = noiseTexture, usageType = hashSetOf(
-            Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
-
 
         compute.metadata["ComputeMetadata"] = ComputeMetadata(
             workSizes = Vector3i(effectiveWindowWidth, effectiveWindowHeight, 1),
@@ -423,7 +413,11 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
             }
         }
 
-//        renderer?.recordMovie("/scratch/ws/1/argupta-vdi_generation/VDIRenderingTest.mp4")
+        if(recordMovie) {
+//            settings.set("VideoEncoder.Quality", "Ultra")
+            renderer?.recordMovie("VDIRenderingTest.mp4")
+        }
+
 
 //        val opTexture = compute.material.textures["OutputViewport"]!!
 //        var cnt = AtomicInteger(0)
@@ -461,14 +455,18 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
             }
         }
 
-//        thread {
-//            camFlyThrough()
-//        }
+        if(recordMovie) {
+            thread {
+                camFlyThrough()
+            }
 
-//        thread {
-//            Thread.sleep(15000)
-//            renderer?.recordMovie()
-//        }
+            thread {
+                Thread.sleep(15000)
+                logger.info("The movie should be written!")
+                renderer?.recordMovie()
+            }
+        }
+
     }
 
     fun downsampleImage(factor: Float, wholeFrameBuffer: Boolean = false) {
@@ -758,17 +756,20 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
             }
         }
 
-        val objectMapper = ObjectMapper(MessagePackFactory())
+        if(storeCamera) {
+            val objectMapper = ObjectMapper(MessagePackFactory())
 
-        val bytes = objectMapper.writeValueAsBytes(list)
+            val bytes = objectMapper.writeValueAsBytes(list)
 
-        Files.write(Paths.get("${dataset}_${subsampleRay}_camera.txt"), bytes)
+            Files.write(Paths.get("${dataset}_${subsampleRay}_camera.txt"), bytes)
 
-        val bytesDi = objectMapper.writeValueAsBytes(listDi)
+            val bytesDi = objectMapper.writeValueAsBytes(listDi)
 
-        Files.write(Paths.get("${dataset}_${subsampleRay}_di.txt"), bytesDi)
+            Files.write(Paths.get("${dataset}_${subsampleRay}_di.txt"), bytesDi)
 
-        logger.warn("The file has been written")
+            logger.warn("The file has been written")
+        }
+
     }
 
     private fun recordCamera() {

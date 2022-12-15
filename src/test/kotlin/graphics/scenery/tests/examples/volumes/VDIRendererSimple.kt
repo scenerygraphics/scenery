@@ -3,7 +3,6 @@ package graphics.scenery.tests.examples.volumes
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.backends.Shaders
-import graphics.scenery.backends.vulkan.VulkanRenderer
 import graphics.scenery.compute.ComputeMetadata
 import graphics.scenery.compute.InvocationType
 import graphics.scenery.textures.Texture
@@ -11,18 +10,15 @@ import graphics.scenery.utils.Image
 import graphics.scenery.volumes.vdi.VDIDataIO
 import net.imglib2.type.numeric.integer.IntType
 import net.imglib2.type.numeric.integer.UnsignedByteType
-import net.imglib2.type.numeric.integer.UnsignedShortType
 import net.imglib2.type.numeric.real.FloatType
 import org.joml.Matrix4f
 import org.joml.Quaternionf
 import org.joml.Vector3f
 import org.joml.Vector3i
-import org.junit.Test
 import org.lwjgl.system.MemoryUtil
 import java.io.File
 import java.io.FileInputStream
 import java.nio.ByteBuffer
-import kotlin.concurrent.thread
 import kotlin.math.ceil
 
 class CustomNodeSimple : RichNode() {
@@ -46,6 +42,12 @@ class CustomNodeSimple : RichNode() {
 
     @ShaderProperty
     var windowHeight: Int = 0
+
+    @ShaderProperty
+    var totalGeneratedSupsegs: Int = 0
+//
+//    @ShaderProperty
+//    var array: IntArray = IntArray(3)
 }
 
 
@@ -70,7 +72,7 @@ class VDIRendererSimple : SceneryBase("SimpleVDIRenderer", 1280, 720) {
 
     val runLengthEncoded = true
 
-    val commSize = 1
+    val commSize = 2
     val rank = 0
 
     override fun init() {
@@ -91,14 +93,14 @@ class VDIRendererSimple : SceneryBase("SimpleVDIRenderer", 1280, 720) {
 
         var dataset = "Kingsnake"
 
-//        dataset += "_${commSize}_${rank}"
+        dataset += "_${commSize}_${rank}"
 
 
 //        val basePath = "/home/aryaman/Repositories/DistributedVis/cmake-build-debug/"
-        val basePath = "/home/aryaman/Repositories/scenery-insitu/"
+//        val basePath = "/home/aryaman/Repositories/scenery-insitu/"
 //        val basePath = "/home/aryaman/Repositories/scenery_vdi/scenery/"
 //        val basePath = "/home/aryaman/TestingData/"
-//        val basePath = "/home/aryaman/TestingData/FromCluster/"
+        val basePath = "/home/aryaman/TestingData/FromCluster/"
 
         val vdiParams = "_${windowWidth}_${windowHeight}_${numSupersegments}_0_"
 //        val vdiParams = ""
@@ -126,9 +128,9 @@ class VDIRendererSimple : SceneryBase("SimpleVDIRenderer", 1280, 720) {
 
 //        val vdiType = "Sub"
 //        val vdiType = "Composited"
-//        val vdiType = "SetOf"
+        val vdiType = "SetOf"
 //        val vdiType = "Final"
-        val vdiType = ""
+//        val vdiType = ""
 
 
 
@@ -197,12 +199,18 @@ class VDIRendererSimple : SceneryBase("SimpleVDIRenderer", 1280, 720) {
 
         compute.windowWidth = windowWidth
         compute.windowHeight = windowHeight
+        compute.totalGeneratedSupsegs = totalMaxSupersegments.toInt()
 
         compute.nw = vdiData.metadata.nw
         compute.ViewOriginal = vdiData.metadata.view
         compute.invViewOriginal = Matrix4f(vdiData.metadata.view).invert()
         compute.ProjectionOriginal = Matrix4f(vdiData.metadata.projection).applyVulkanCoordinateSystem()
         compute.invProjectionOriginal = Matrix4f(vdiData.metadata.projection).applyVulkanCoordinateSystem().invert()
+//
+//        compute.array[0] = 345
+//        compute.array[0] = 2485
+//        compute.array[0] = 65
+
 
         logger.info("value of nw: ${vdiData.metadata.nw}")
 
@@ -231,19 +239,13 @@ class VDIRendererSimple : SceneryBase("SimpleVDIRenderer", 1280, 720) {
 
         if(runLengthEncoded) {
             val prefixArray: ByteArray = File(basePath + "${dataset}${vdiType}VDI${vdiParams}4_ndc_prefix").readBytes()
-            val countArray: ByteArray = File(basePath + "${dataset}${vdiType}VDI${vdiParams}4_ndc_supersegments_generated").readBytes()
 
             val prefixBuffer = MemoryUtil.memCalloc(windowHeight * windowWidth * 4)
-            val countBuffer = MemoryUtil.memCalloc(windowWidth * windowHeight * 4)
 
             prefixBuffer.put(prefixArray).flip()
-            countBuffer.put(countArray).flip()
 
             compute.material().textures["PrefixSums"] = Texture(Vector3i(windowWidth, windowHeight, 1), 1, contents = prefixBuffer, usageType = hashSetOf(
                 Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = IntType(), mipmap = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
-            compute.material().textures["SupersegmentsGenerated"] = Texture(Vector3i(windowWidth, windowHeight, 1), 1, contents = countBuffer, usageType = hashSetOf(
-                Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = IntType(), mipmap = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
-
         }
 
         scene.addChild(compute)

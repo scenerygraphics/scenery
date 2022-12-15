@@ -39,6 +39,7 @@ layout(set = 5, binding = 0) uniform ShaderProperties {
     float nw;
     int vdiWidth;
     int vdiHeight;
+    int totalGeneratedSupsegs;
     float downImage;
     bool do_subsample;
     int max_samples;
@@ -55,20 +56,17 @@ layout (local_size_x = 16, local_size_y = 16) in;
 layout(set = 2, binding = 0, rgba32f) uniform readonly image3D InputVDI;
 layout(set = 3, binding = 0, rgba8) uniform image2D OutputViewport;
 layout (set = 4, binding = 0, r32f) uniform readonly image3D DepthVDI;
-
-
-layout (set = 7, binding = 0, r32f) uniform readonly image2D NoiseTexture;
 layout (set = 6, binding = 0, r32ui) uniform readonly uimage3D OctreeCells;
 
 #if RLE
-layout (set = 8, binding = 0, r32i) uniform iimage2D SupersegmentsGenerated;
-layout (set = 9, binding = 0, r32i) uniform iimage2D PrefixSums;
+layout (set = 7, binding = 0, r32i) uniform iimage2D SupersegmentsGenerated;
+layout (set = 8, binding = 0, r32i) uniform iimage2D PrefixSums;
 #endif
 
 #if PROFILE_MEM
-layout(set = 10, binding = 0, r32f) uniform image2D NumIntersectedSupsegs;
-layout(set = 11, binding = 0, r32f) uniform image2D NumLists;
-layout(set = 12, binding = 0, r32f) uniform image2D NumSteps;
+layout(set = 9, binding = 0, r32f) uniform image2D NumIntersectedSupsegs;
+layout(set = 10, binding = 0, r32f) uniform image2D NumLists;
+layout(set = 11, binding = 0, r32f) uniform image2D NumSteps;
 //layout(set = 8, binding = 0, r32f) uniform image2D NumEmptyLists;
 //layout(set = 9, binding = 0, r32f) uniform image2D NumNotIntLists;
 //layout(set = 10, binding = 0, r32f) uniform image2D EmptyBeforeFirst;
@@ -838,7 +836,27 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
     bool first_empty = false;
 
     #if RLE
-    maxSupersegments = imageLoad(SupersegmentsGenerated, theList).x;
+    if(theList.x >= vdiWidth || theList.y >= vdiHeight) {
+        //this is an invalid list
+        maxSupersegments = 0;
+    } else if(theList.x < (vdiWidth - 1)) {
+        //this is not a corner list
+        maxSupersegments = imageLoad(PrefixSums, ivec2(theList.x + 1, theList.y)).x - imageLoad(PrefixSums, ivec2(theList.xy)).x;
+    } else if(theList.x == (vdiWidth - 1) && theList.y == (vdiHeight - 1)) {
+        //this is the final list, ie corner and last
+        maxSupersegments = totalGeneratedSupsegs - imageLoad(PrefixSums, ivec2(theList.xy)).x;
+    } else {
+        //this is a corner list but not the last
+        maxSupersegments = imageLoad(PrefixSums, ivec2(0, theList.y + 1)).x - imageLoad(PrefixSums, ivec2(theList.xy)).x;
+    }
+
+    int correctNum = imageLoad(SupersegmentsGenerated, theList).x;
+
+    if(maxSupersegments != correctNum) {
+        debugPrintfEXT("Error! maxSupersegs: %d, correct: %d, for list (%d, %d)", maxSupersegments, correctNum, theList.xy);
+    }
+
+
     if(maxSupersegments == 0) {
         first_empty = true;
     }
@@ -1490,11 +1508,7 @@ void main() {
     dist = (tfar-tnear) / 5000.;
     dist = max(dist, 0.00001);
 
-    if(stratified_downsampling) {
-        stratification_factor = imageLoad(NoiseTexture, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y)).x;
-    } else {
-        stratification_factor = 1.;
-    }
+    stratification_factor = 1.;
 
 //    #if USE_PRINTF
 //    if(gl_GlobalInvocationID.xy == debug_pixel) {

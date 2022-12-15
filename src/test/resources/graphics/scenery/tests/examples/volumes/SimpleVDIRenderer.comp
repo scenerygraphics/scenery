@@ -11,6 +11,8 @@ layout(set = 3, binding = 0) uniform ShaderProperties {
     float nw;
     int windowWidth;
     int windowHeight;
+    int totalGeneratedSupsegs;
+    int array[50];
 };
 
 layout (local_size_x = 16, local_size_y = 16) in;
@@ -18,8 +20,7 @@ layout (set = 0, binding = 0, rgba32f) uniform readonly image3D InputVDI;
 layout (set = 1, binding = 0, rgba8) uniform image2D OutputViewport;
 layout (set = 2, binding = 0, rg32f) uniform readonly image3D DepthVDI;
 #if RLE
-layout (set = 4, binding = 0, r32i) uniform iimage2D SupersegmentsGenerated;
-layout (set = 5, binding = 0, r32i) uniform iimage2D PrefixSums;
+layout (set = 4, binding = 0, r32i) uniform iimage2D PrefixSums;
 #endif
 
 vec2 decode(vec4 c){
@@ -103,14 +104,31 @@ vec4 getSupsegColor(ivec2 theList, int index) {
 
 void main() {
 
-    ivec2 debug_pixel = ivec2(586, 553);
+    ivec2 debug_pixel = ivec2(640, 520);
 
     if(gl_GlobalInvocationID.xy == debug_pixel) {
         debugPrintfEXT("Value of nw: %f", nw);
+//        debugPrintfEXT("The elements are: %d, %d, %d", array[0], array[1], array[2]);
     }
 
     #if RLE
-    int numSupersegments = imageLoad(SupersegmentsGenerated, ivec2(gl_GlobalInvocationID.xy)).x;
+    int numSupersegments;
+
+    if(gl_GlobalInvocationID.x < (windowWidth - 1)) {
+        //this is not a corner list
+        numSupersegments = imageLoad(PrefixSums, ivec2(gl_GlobalInvocationID.x + 1, gl_GlobalInvocationID.y)).x - imageLoad(PrefixSums, ivec2(gl_GlobalInvocationID.xy)).x;
+        if(gl_GlobalInvocationID.xy == debug_pixel) {
+            debugPrintfEXT("Prefix at next pixel: %d, this: %d", imageLoad(PrefixSums, ivec2(gl_GlobalInvocationID.x + 1, gl_GlobalInvocationID.y)).x,
+            imageLoad(PrefixSums, ivec2(gl_GlobalInvocationID.xy)).x);
+        }
+    } else if(gl_GlobalInvocationID.x == (windowWidth - 1) && gl_GlobalInvocationID.y == (windowHeight - 1)) {
+        //this is the final list, ie corner and last
+        numSupersegments = totalGeneratedSupsegs - imageLoad(PrefixSums, ivec2(gl_GlobalInvocationID.xy)).x;
+    } else {
+        //this is a corner list but not the last
+        numSupersegments = imageLoad(PrefixSums, ivec2(0, gl_GlobalInvocationID.y + 1)).x - imageLoad(PrefixSums, ivec2(gl_GlobalInvocationID.xy)).x;
+    }
+
     ivec3 imageCoords  = imageSize(InputVDI);
     bufferWidth = imageCoords.x;
     bufferHeight = imageCoords.y;
