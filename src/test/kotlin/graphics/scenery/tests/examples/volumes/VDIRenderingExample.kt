@@ -370,7 +370,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
 
             prefixBuffer.put(prefixArray).flip()
 
-            compute.material().textures["PrefixSums"] = Texture(Vector3i(windowWidth, windowHeight, 1), 1, contents = prefixBuffer, usageType = hashSetOf(
+            compute.material().textures["PrefixSums"] = Texture(Vector3i(windowHeight, windowWidth, 1), 1, contents = prefixBuffer, usageType = hashSetOf(
                 Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = IntType(), mipmap = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
             compute.totalGeneratedSupsegs = totalMaxSupersegments.toInt()
         }
@@ -414,7 +414,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
         }
 
         if(recordMovie) {
-//            settings.set("VideoEncoder.Quality", "Ultra")
+            settings.set("VideoEncoder.Quality", "Ultra")
             renderer?.recordMovie("VDIRenderingTest.mp4")
         }
 

@@ -45,9 +45,9 @@ class CustomNodeSimple : RichNode() {
 
     @ShaderProperty
     var totalGeneratedSupsegs: Int = 0
-//
-//    @ShaderProperty
-//    var array: IntArray = IntArray(3)
+
+    @ShaderProperty
+    var array: FloatArray = FloatArray(16)
 }
 
 
@@ -93,14 +93,14 @@ class VDIRendererSimple : SceneryBase("SimpleVDIRenderer", 1280, 720) {
 
         var dataset = "Kingsnake"
 
-        dataset += "_${commSize}_${rank}"
+//        dataset += "_${commSize}_${rank}"
 
 
 //        val basePath = "/home/aryaman/Repositories/DistributedVis/cmake-build-debug/"
-//        val basePath = "/home/aryaman/Repositories/scenery-insitu/"
+        val basePath = "/home/aryaman/Repositories/scenery-insitu/"
 //        val basePath = "/home/aryaman/Repositories/scenery_vdi/scenery/"
 //        val basePath = "/home/aryaman/TestingData/"
-        val basePath = "/home/aryaman/TestingData/FromCluster/"
+//        val basePath = "/home/aryaman/TestingData/FromCluster/"
 
         val vdiParams = "_${windowWidth}_${windowHeight}_${numSupersegments}_0_"
 //        val vdiParams = ""
@@ -128,9 +128,9 @@ class VDIRendererSimple : SceneryBase("SimpleVDIRenderer", 1280, 720) {
 
 //        val vdiType = "Sub"
 //        val vdiType = "Composited"
-        val vdiType = "SetOf"
+//        val vdiType = "SetOf"
 //        val vdiType = "Final"
-//        val vdiType = ""
+        val vdiType = ""
 
 
 
@@ -206,10 +206,15 @@ class VDIRendererSimple : SceneryBase("SimpleVDIRenderer", 1280, 720) {
         compute.invViewOriginal = Matrix4f(vdiData.metadata.view).invert()
         compute.ProjectionOriginal = Matrix4f(vdiData.metadata.projection).applyVulkanCoordinateSystem()
         compute.invProjectionOriginal = Matrix4f(vdiData.metadata.projection).applyVulkanCoordinateSystem().invert()
+
+//        compute.array = floatArrayOf(3f, 5f, 7f)
+
+        compute.array[1] = 2485f
+        compute.array[0] = 345f
+        compute.array[2] = 65f
+        compute.array[3] = 65f
 //
-//        compute.array[0] = 345
-//        compute.array[0] = 2485
-//        compute.array[0] = 65
+//        compute.array.set(1, 4455f)
 
 
         logger.info("value of nw: ${vdiData.metadata.nw}")
@@ -244,7 +249,7 @@ class VDIRendererSimple : SceneryBase("SimpleVDIRenderer", 1280, 720) {
 
             prefixBuffer.put(prefixArray).flip()
 
-            compute.material().textures["PrefixSums"] = Texture(Vector3i(windowWidth, windowHeight, 1), 1, contents = prefixBuffer, usageType = hashSetOf(
+            compute.material().textures["PrefixSums"] = Texture(Vector3i(windowHeight, windowWidth, 1), 1, contents = prefixBuffer, usageType = hashSetOf(
                 Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = IntType(), mipmap = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
         }
 
