@@ -19,6 +19,7 @@ import org.lwjgl.system.MemoryUtil
 import java.io.File
 import java.io.FileInputStream
 import java.nio.ByteBuffer
+import kotlin.concurrent.thread
 import kotlin.math.ceil
 
 class CustomNodeSimple : RichNode() {
@@ -47,7 +48,7 @@ class CustomNodeSimple : RichNode() {
     var totalGeneratedSupsegs: Int = 0
 
     @ShaderProperty
-    var array: FloatArray = FloatArray(16)
+    var array: FloatArray = FloatArray(256)
 }
 
 
@@ -72,7 +73,7 @@ class VDIRendererSimple : SceneryBase("SimpleVDIRenderer", 1280, 720) {
 
     val runLengthEncoded = true
 
-    val commSize = 2
+    val commSize = 1
     val rank = 0
 
     override fun init() {
@@ -200,6 +201,7 @@ class VDIRendererSimple : SceneryBase("SimpleVDIRenderer", 1280, 720) {
         compute.windowWidth = windowWidth
         compute.windowHeight = windowHeight
         compute.totalGeneratedSupsegs = totalMaxSupersegments.toInt()
+//        compute.totalGeneratedSupsegs = 2433894 // if the buffer also contains some extra 0s
 
         compute.nw = vdiData.metadata.nw
         compute.ViewOriginal = vdiData.metadata.view
@@ -295,6 +297,18 @@ class VDIRendererSimple : SceneryBase("SimpleVDIRenderer", 1280, 720) {
 //            renderer!!.screenshot("$path.png")
 //
 //        }
+
+        thread {
+
+            while(true) {
+                Thread.sleep(2000)
+
+                logger.info(compute.array.joinToString(","))
+
+                compute.array[0] = 2 * compute.array[0]
+                compute.array[2] = 5f
+            }
+        }
     }
 
     companion object {

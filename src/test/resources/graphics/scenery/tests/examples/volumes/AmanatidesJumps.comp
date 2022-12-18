@@ -835,18 +835,18 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
     bool first_empty = false;
 
     #if RLE
-    if(theList.x >= vdiHeight || theList.y >= vdiWidth) {
+    if(theList.x >= vdiWidth || theList.y >= vdiHeight) {
         //this is an invalid list
         maxSupersegments = 0;
-    } else if(theList.x < (vdiHeight - 1)) {
+    } else if(theList.y < (vdiHeight - 1)) {
         //this is not a corner list
         maxSupersegments = imageLoad(PrefixSums, ivec2(theList.y + 1, theList.x)).x - imageLoad(PrefixSums, ivec2(theList.yx)).x;
-    } else if(theList.x == (vdiHeight - 1) && theList.y == (vdiWidth - 1)) {
+    } else if(theList.y == (vdiHeight - 1) && theList.x == (vdiWidth - 1)) {
         //this is the final list, ie corner and last
         maxSupersegments = totalGeneratedSupsegs - imageLoad(PrefixSums, ivec2(theList.yx)).x;
     } else {
         //this is a corner list but not the last
-        maxSupersegments = imageLoad(PrefixSums, ivec2(theList.y + 1, 0)).x - imageLoad(PrefixSums, ivec2(theList.yx)).x;
+        maxSupersegments = imageLoad(PrefixSums, ivec2(0, theList.x+1)).x - imageLoad(PrefixSums, ivec2(theList.yx)).x;
     }
 
     if(maxSupersegments == 0) {
