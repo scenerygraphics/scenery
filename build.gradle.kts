@@ -39,7 +39,8 @@ dependencies {
     implementation("org.jogamp.gluegen:gluegen-rt:2.3.2", joglNatives)
     implementation("org.jogamp.jogl:jogl-all:2.3.2", joglNatives)
     implementation("org.slf4j:slf4j-api:1.7.36")
-    implementation("net.clearvolume:cleargl")
+    api("net.clearvolume:cleargl")
+    api("net.imglib2:imglib2")
     implementation("org.joml:joml:1.10.5")
     implementation("net.java.jinput:jinput:2.0.9", "natives-all")
     implementation("org.jocl:jocl:2.0.4")
@@ -48,7 +49,7 @@ dependencies {
     implementation("org.scijava:ui-behaviour")
     implementation("org.scijava:scripting-javascript")
     implementation("org.scijava:scripting-jython")
-    implementation("net.java.dev.jna:jna-platform:5.11.0")
+    implementation("net.java.dev.jna:jna-platform:5.8.0")
 
     val lwjglVersion = "3.3.1"
     listOf("",

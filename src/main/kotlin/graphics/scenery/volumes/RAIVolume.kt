@@ -174,6 +174,9 @@ class RAIVolume(@Transient val ds: VolumeDataSource, options: VolumeViewerOption
         else -> 1.0f
     }
 
+    /**
+    This sample function is not finished yet, transferRangeMax function should be improved to fit different data type
+     **/
     override fun sample(uv: Vector3f, interpolate: Boolean): Float? {
          val d = getDimensions()
 
@@ -208,7 +211,7 @@ class RAIVolume(@Transient val ds: VolumeDataSource, options: VolumeViewerOption
             is VolumeDataSource.SpimDataMinimalSource -> ds.converterSetups.firstOrNull()?.displayRangeMax?.toFloat()?:255.0f
             else -> throw UnsupportedOperationException("Can't handle data source of type ${ds.javaClass}")
         }
-        //return finalresult/ transferRangeMax!!
+
         val tf = transferFunction.evaluate(finalresult/transferRangeMax)
         logger.info("Sampled at $uv: $finalresult/$transferRangeMax/$tf")
         return tf
