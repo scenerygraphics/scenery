@@ -109,6 +109,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
     var baseDataset = dataset
     val numOctreeLayers = 8.0
     val numSupersegments = System.getProperty("VDIBenchmark.NumSupersegments")?.toInt()?: 20
+    val distributedVDI = System.getProperty("VDIBenchmark.Distributed")?.toBoolean()?: false
     val vo = System.getProperty("VDIBenchmark.Vo")?.toInt()?: 0
     var benchmarking = false
     val skipEmpty = false
@@ -129,7 +130,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
     var cameraMoving = false
     var cameraStopped = false
 
-    val commSize = 1
+    val commSize = System.getProperty("VDIBenchmark.DistributedSize")?.toInt()?: 1
     val rank = 0
     val communicatorType = "_${commSize}_${rank}"
 //    val communicatorType = ""
