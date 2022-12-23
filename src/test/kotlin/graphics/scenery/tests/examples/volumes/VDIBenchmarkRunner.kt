@@ -13,6 +13,7 @@ class VDIBenchmarkRunner {
     val benchmarkViewpoints = listOf(5, 10, 15, 20, 25, 30, 35, 40)
     val benchmarkSupersegments = listOf(20)
     val benchmarkVos = listOf(0, 90, 180, 270)
+    val benchmarkPEs = listOf(1, 4, 8, 24, 32)
 
     fun OutputStream.appendEntry(entry: String) {
         val writer = bufferedWriter()
@@ -57,29 +58,35 @@ class VDIBenchmarkRunner {
         }
     }
 
-    fun vdiRenderingBenchmarks(dataset: String, viewpoint: Int, instance: VDIRenderingExample, renderer: Renderer, skipEmpty: Boolean = false) {
-        val fw = FileWriter("/datapot/aryaman/owncloud/VDI_Benchmarks/${dataset}_vdiRendering_$skipEmpty.csv", true)
-        val bw = BufferedWriter(fw)
+    fun vdiRenderingBenchmarks(dataset: String, viewpoint: Int, instance: VDIRenderingExample, renderer: Renderer, skipEmpty: Boolean = false, onlyScreenshots: Boolean = false) {
+        if(!onlyScreenshots) {
+            val fw = FileWriter("/datapot/aryaman/owncloud/VDI_Benchmarks/${dataset}_vdiRendering_$skipEmpty.csv", true)
+            val bw = BufferedWriter(fw)
 
-        val stats = instance.hub.get<Statistics>()!!
+            val stats = instance.hub.get<Statistics>()!!
 
-        instance.setEmptySpaceSkipping(skipEmpty)
+            instance.setEmptySpaceSkipping(skipEmpty)
 
-        Thread.sleep(2000) //allow the rotation and change in empty space skipping to take place
+            Thread.sleep(2000) //allow the rotation and change in empty space skipping to take place
 
-        stats.clear("Renderer.fps")
+            stats.clear("Renderer.fps")
 
-        Thread.sleep(4000) //collect some data
+            Thread.sleep(4000) //collect some data
 
-        val fps = stats.get("Renderer.fps")!!.avg()
-        val stdDev = stats.get("Renderer.fps")!!.stddev()
+            val fps = stats.get("Renderer.fps")!!.avg()
+            val stdDev = stats.get("Renderer.fps")!!.stddev()
 
-        renderer.screenshot("benchmarking/VDI_${dataset}_${viewpoint}_$skipEmpty.png")
+            bw.append("$fps")
+            bw.append(", ")
 
-        bw.append("$fps")
-        bw.append(", ")
+            bw.flush()
+        }
 
-        bw.flush()
+        if(onlyScreenshots) {
+            Thread.sleep(2000) //allow the rotation to take place
+        }
+
+        renderer.screenshot("/datapot/aryaman/owncloud/VDI_Benchmarks/DistributedVDis/VDI_${dataset}_${viewpoint}_$skipEmpty.png")
     }
 
     fun scaleSamplingFactor(dataset: String, screenshotName: String, stratified: Boolean, instance: VDIRenderingExample, renderer: Renderer, bw: BufferedWriter) {
@@ -141,58 +148,78 @@ class VDIBenchmarkRunner {
         bw.flush()
     }
 
+    fun runTest(dataName: String, dataset: String, vo: Int) {
+        val instance = VDIRenderingExample()
 
+        thread {
+            while (instance.hub.get(SceneryElement.Renderer)==null) {
+                Thread.sleep(50)
+            }
+
+            val renderer = (instance.hub.get(SceneryElement.Renderer) as Renderer)
+
+            while (!renderer.firstImageReady) {
+                Thread.sleep(50)
+            }
+
+            val pitch = (dataName == "Simulation")
+            instance.rotateCamera(vo.toFloat(), pitch)
+
+            var previousViewpoint = 0
+            benchmarkViewpoints.forEach { viewpoint->
+                val rotation = viewpoint - previousViewpoint
+                previousViewpoint = viewpoint
+
+                instance.rotateCamera(rotation.toFloat(), pitch)
+
+                vdiRenderingBenchmarks(dataset, viewpoint, instance, renderer, false, true)
+            }
+
+
+            renderer.shouldClose = true
+
+            instance.close()
+        }
+
+        instance.main()
+    }
 
     fun runVDIRendering() {
 
         val windowWidth = 1920
         val windowHeight = 1080
 
+        val distributed = true
+
         benchmarkVos.forEach { vo ->
             benchmarkSupersegments.forEach { ns ->
                 benchmarkDatasets.forEach { dataName->
 
-                    val dataset = "${dataName}_${windowWidth}_${windowHeight}_${ns}_$vo"
+                    if(distributed) {
+                        benchmarkPEs.forEach { pe ->
+                            val dataset = "${dataName}_${windowWidth}_${windowHeight}_${ns}_$vo"
 
-                    System.setProperty("VDIBenchmark.Dataset", dataName)
-                    System.setProperty("VDIBenchmark.WindowWidth", windowWidth.toString())
-                    System.setProperty("VDIBenchmark.WindowHeight", windowHeight.toString())
-                    System.setProperty("VDIBenchmark.NumSupersegments", ns.toString())
-                    System.setProperty("VDIBenchmark.Vo", vo.toString())
+                            System.setProperty("VDIBenchmark.DistributedVDI", "true")
+                            System.setProperty("VDIBenchmark.DistributedSize", pe.toString())
+                            System.setProperty("VDIBenchmark.DistributedRank", "0")
+                            System.setProperty("VDIBenchmark.Dataset", dataName)
+                            System.setProperty("VDIBenchmark.WindowWidth", windowWidth.toString())
+                            System.setProperty("VDIBenchmark.WindowHeight", windowHeight.toString())
+                            System.setProperty("VDIBenchmark.NumSupersegments", ns.toString())
+                            System.setProperty("VDIBenchmark.Vo", vo.toString())
 
-                    val instance = VDIRenderingExample()
-
-                    thread {
-                        while (instance.hub.get(SceneryElement.Renderer)==null) {
-                            Thread.sleep(50)
+                            runTest(dataName, dataset, vo)
                         }
+                    } else {
+                        val dataset = "${dataName}_${windowWidth}_${windowHeight}_${ns}_$vo"
+                        System.setProperty("VDIBenchmark.Dataset", dataName)
+                        System.setProperty("VDIBenchmark.WindowWidth", windowWidth.toString())
+                        System.setProperty("VDIBenchmark.WindowHeight", windowHeight.toString())
+                        System.setProperty("VDIBenchmark.NumSupersegments", ns.toString())
+                        System.setProperty("VDIBenchmark.Vo", vo.toString())
 
-                        val renderer = (instance.hub.get(SceneryElement.Renderer) as Renderer)
-
-                        while (!renderer.firstImageReady) {
-                            Thread.sleep(50)
-                        }
-
-                        val pitch = (dataName == "Simulation")
-                        instance.rotateCamera(vo.toFloat(), pitch)
-
-                        var previousViewpoint = 0
-                        benchmarkViewpoints.forEach { viewpoint->
-                            val rotation = viewpoint - previousViewpoint
-                            previousViewpoint = viewpoint
-
-                            instance.rotateCamera(rotation.toFloat(), pitch)
-
-                            vdiRenderingBenchmarks(dataset, viewpoint, instance, renderer, false)
-                        }
-
-
-                        renderer.shouldClose = true
-
-                        instance.close()
+                        runTest(dataName, dataset, vo)
                     }
-
-                    instance.main()
 
                     println("Got the control back")
                 }
