@@ -440,7 +440,7 @@ class VideoEncoder(
 
         if(scalingContext == null) {
             scalingContext = swscale.sws_getContext(
-                frameWidth, frameHeight, AV_PIX_FMT_RGBA,
+                frameWidth, frameHeight, AV_PIX_FMT_BGRA,
                 actualFrameWidth, actualFrameHeight, codecContext.pix_fmt(), swscale.SWS_BICUBIC,
                 null, null, emptyScalingParams)
         }

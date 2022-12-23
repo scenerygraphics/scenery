@@ -16,6 +16,7 @@ import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
 import graphics.scenery.volumes.vdi.VDIDataIO
+import net.imglib2.type.numeric.integer.IntType
 import net.imglib2.type.numeric.integer.UnsignedIntType
 import net.imglib2.type.numeric.real.FloatType
 import org.joml.Matrix4f
@@ -36,6 +37,7 @@ import java.nio.file.Paths
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.concurrent.thread
 import kotlin.math.abs
+import kotlin.math.ceil
 import kotlin.math.min
 
 /**
@@ -66,6 +68,15 @@ class CustomNode : RichNode() {
     var nw = 0f
 
     @ShaderProperty
+    var vdiWidth: Int = 0
+
+    @ShaderProperty
+    var vdiHeight: Int = 0
+
+    @ShaderProperty
+    var totalGeneratedSupsegs: Int = 0
+
+    @ShaderProperty
     var do_subsample = false
 
     @ShaderProperty
@@ -84,21 +95,23 @@ class CustomNode : RichNode() {
     var stratified_downsampling = false
 }
 
-class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDIBenchmark.WindowWidth")?.toInt()?: 1920, System.getProperty("VDIBenchmark.WindowHeight")?.toInt() ?: 1080, wantREPL = false) {
+class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDIBenchmark.WindowWidth")?.toInt()?: 1280, System.getProperty("VDIBenchmark.WindowHeight")?.toInt() ?: 720, wantREPL = false) {
     var hmd: TrackedStereoGlasses? = null
 
     val separateDepth = true
+    val runLengthEncoded = true
+    val recordMovie = false
     val profileMemoryAccesses = false
     val compute = CustomNode()
     val closeAfter = 600000L
     val autoClose = false
-    var dataset = System.getProperty("VDIBenchmark.Dataset")?.toString()?: "Rayleigh_Taylor"
+    var dataset = System.getProperty("VDIBenchmark.Dataset")?.toString()?: "Kingsnake"
     var baseDataset = dataset
     val numOctreeLayers = 8.0
     val numSupersegments = System.getProperty("VDIBenchmark.NumSupersegments")?.toInt()?: 20
     val vo = System.getProperty("VDIBenchmark.Vo")?.toInt()?: 0
     var benchmarking = false
-    val skipEmpty = true
+    val skipEmpty = false
     val viewNumber = 1
 
     var subsampling_benchmarks = false
@@ -116,10 +129,10 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
     var cameraMoving = false
     var cameraStopped = false
 
-    val commSize = 4
+    val commSize = 1
     val rank = 0
-//    val communicatorType = "_${commSize}_${rank}"
-    val communicatorType = ""
+    val communicatorType = "_${commSize}_${rank}"
+//    val communicatorType = ""
 
     val cam: Camera = DetachedHeadCamera(hmd)
     val plane = FullscreenObject()
@@ -141,6 +154,9 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
             Vector3f(1.920E+0f, -6.986E-1f,  6.855E-1f)
         }
         "Rotstrat" -> {
+            Vector3f( 1.920E+0f, -1.920E+0f,  1.800E+0f)
+        }
+        "Isotropic" -> {
             Vector3f( 1.920E+0f, -1.920E+0f,  1.800E+0f)
         }
         else -> {
@@ -207,10 +223,12 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
                 position = Vector3f( 1.897E+0f, -5.994E-1f, -1.899E+0f) //V1 for Boneplug
                 rotation = Quaternionf( 5.867E-5,  9.998E-1,  1.919E-2,  4.404E-3)
             } else if (dataset == "Rotstrat") {
-                position = Vector3f(2.041E-1f, -5.253E+0f, -1.321E+0f) //V1 for Simulation
-                rotation = Quaternionf(9.134E-2, -9.009E-1,  3.558E-1, -2.313E-1)
+                    position = Vector3f( 2.799E+0f, -6.156E+0f, -2.641E+0f) //V1 for Rotstrat
+                    rotation = Quaternionf(-3.585E-2, -9.257E-1,  3.656E-1,  9.076E-2)
+            } else  if (dataset == "Isotropic") {
+                    position = Vector3f( 2.799E+0f, -6.156E+0f, -2.641E+0f) //V1 for Isotropic
+                    rotation = Quaternionf(-3.585E-2, -9.257E-1,  3.656E-1,  9.076E-2)
             }
-
 //            position = Vector3f( 4.458E+0f, -9.057E-1f,  4.193E+0f) //V2 for Kingsnake
 //            rotation = Quaternionf( 1.238E-1, -3.649E-1,-4.902E-2,  9.215E-1)
 
@@ -225,17 +243,18 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
         cam.farPlaneDistance = 20.0f
         cam.target = camTarget
 
-        dataset += communicatorType
+//        dataset += communicatorType
 
         val buff: ByteArray
         val depthBuff: ByteArray?
         val octBuff: ByteArray?
-        val noiseData: ByteArray
 
 //        val basePath = "/home/aryaman/TestingData/"
 //        val basePath = "/home/aryaman/TestingData/FromCluster/"
+//        val basePath = "/scratch/ws/1/argupta-vdi_generation/vdi_dumps/"
 //        val basePath = "/home/aryaman/Repositories/DistributedVis/cmake-build-debug/"
         val basePath = "/home/aryaman/Repositories/scenery-insitu/"
+//        val basePath = "/scratch/ws/1/argupta-vdi_generation/vdi_dumps/"
 
         val vdiParams = "_${windowWidth}_${windowHeight}_${numSupersegments}_${vo}_"
 
@@ -253,22 +272,20 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
 
         logger.info("Fetching file with params: $vdiParams")
 
-        if(separateDepth) {
+        if(runLengthEncoded) {
+            buff = File(basePath + "${dataset}${vdiType}VDI${vdiParams}4_ndc_col_rle").readBytes()
+            depthBuff = File(basePath + "${dataset}${vdiType}VDI${vdiParams}4_ndc_depth_rle").readBytes()
+        } else {
             buff = File(basePath + "${dataset}${vdiType}VDI${vdiParams}4_ndc_col").readBytes()
             depthBuff = File(basePath + "${dataset}${vdiType}VDI${vdiParams}4_ndc_depth").readBytes()
-
-        } else {
-
-            buff = File(basePath + "${dataset}VDI10_ndc").readBytes()
-            depthBuff = null
         }
         if(skipEmpty) {
-            octBuff = File(basePath + "${dataset}VDI${vdiParams}4_ndc_octree").readBytes()
+            octBuff = File(basePath + "${dataset}VDI${vdiParams}2_ndc_octree").readBytes()
+            compute.skip_empty = true
         } else {
             octBuff = null
+            compute.skip_empty = false
         }
-
-        noiseData = File(basePath + "NoiseTexture_Random.raw").readBytes()
 
         val opBuffer = MemoryUtil.memCalloc(effectiveWindowWidth * effectiveWindowHeight * 4)
         val opNumSteps = MemoryUtil.memCalloc(effectiveWindowWidth * effectiveWindowHeight * 4)
@@ -279,18 +296,30 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
 //        val opNumBefFirst = MemoryUtil.memCalloc(effectiveWindowWidth * effectiveWindowHeight * 4)
 //        val opNumAfterLast = MemoryUtil.memCalloc(effectiveWindowWidth * effectiveWindowHeight * 4)
 
+        val totalMaxSupersegments = if(runLengthEncoded) {
+            buff.size / (4*4).toFloat()
+        } else {
+            (numSupersegments * windowWidth * windowHeight).toFloat()
+        }
+
         var colBuffer: ByteBuffer
         var depthBuffer: ByteBuffer?
 
-        colBuffer = MemoryUtil.memCalloc(vdiData.metadata.windowDimensions.y, vdiData.metadata.windowDimensions.x * numSupersegments * numLayers * 4 * 4)
-        colBuffer.put(buff).flip()
-
-        if(separateDepth) {
-            depthBuffer = MemoryUtil.memCalloc(vdiData.metadata.windowDimensions.y, vdiData.metadata.windowDimensions.x * numSupersegments * 4 * 2) //TODO: IMP! This should be 2*2 for uint
-            depthBuffer.put(depthBuff).flip()
+        colBuffer = if(runLengthEncoded) {
+            MemoryUtil.memCalloc(512 * 512 * ceil((totalMaxSupersegments / (512*512)).toDouble()).toInt() * 4 * 4)
         } else {
-            depthBuffer = null
+            MemoryUtil.memCalloc(windowHeight * windowWidth * numSupersegments * numLayers * 4 * 4)
         }
+        colBuffer.put(buff).flip()
+        colBuffer.limit(colBuffer.capacity())
+
+        depthBuffer = if(runLengthEncoded) {
+            MemoryUtil.memCalloc(2 * 512 * 512 * ceil((totalMaxSupersegments / (512*512)).toDouble()).toInt() * 4)
+        } else {
+            MemoryUtil.memCalloc(windowHeight * windowWidth * numSupersegments * 2 * 2 * 2)
+        }
+        depthBuffer.put(depthBuff).flip()
+        depthBuffer.limit(depthBuffer.capacity())
 
 //        val numVoxels = 2.0.pow(numOctreeLayers)
         val numGridCells = Vector3f(vdiData.metadata.windowDimensions.x.toFloat() / 8f, vdiData.metadata.windowDimensions.y.toFloat() / 8f, numSupersegments.toFloat())
@@ -299,10 +328,6 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
         if(skipEmpty) {
             lowestLevel.put(octBuff).flip()
         }
-
-        val noiseTexture = MemoryUtil.memCalloc(1920*1080 * 4)
-
-        noiseTexture.put(noiseData).flip()
 
         compute.name = "compute node"
 
@@ -319,24 +344,46 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
 //                textures["EmptyBeforeFirst"] = Texture.fromImage(Image(opNumBefFirst, effectiveWindowWidth, effectiveWindowHeight), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), channels = 1, mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
 //                textures["EmptyAfterLast"] = Texture.fromImage(Image(opNumAfterLast, effectiveWindowWidth, effectiveWindowHeight), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), channels = 1, mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
             }
-
-            textures["InputVDI"] = Texture(Vector3i(numLayers*numSupersegments, vdiData.metadata.windowDimensions.y, vdiData.metadata.windowDimensions.x), 4, contents = colBuffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
-                type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
         }
 
-        if(separateDepth) {
-            compute.material().textures["DepthVDI"] = Texture(Vector3i(2*numSupersegments, vdiData.metadata.windowDimensions.y, vdiData.metadata.windowDimensions.x),  channels = 1, contents = depthBuffer, usageType = hashSetOf(
+        if(runLengthEncoded) {
+            compute.material().textures["InputVDI"] = Texture(Vector3i(numLayers * 512, 512, ceil((totalMaxSupersegments / (512*512)).toDouble()).toInt()), 4, contents = colBuffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture)
+                , type = FloatType(),
+                mipmap = false,
+//            normalized = false,
+                minFilter = Texture.FilteringMode.NearestNeighbour,
+                maxFilter = Texture.FilteringMode.NearestNeighbour
+            )
+            compute.material().textures["DepthVDI"] = Texture(Vector3i(2 * 512, 512, ceil((totalMaxSupersegments / (512*512)).toDouble()).toInt()),  channels = 1, contents = depthBuffer, usageType = hashSetOf(
                 Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
-//            compute.material().textures["DepthVDI"] = Texture(Vector3i(2 * numSupersegments, windowHeight, windowWidth),  channels = 1, contents = depthBuffer, usageType = hashSetOf(
-//                Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+
+        } else {
+            compute.material().textures["InputVDI"] = Texture(Vector3i(numSupersegments*numLayers, windowHeight, windowWidth), 4, contents = colBuffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture)
+                , type = FloatType(),
+                mipmap = false,
+//            normalized = false,
+                minFilter = Texture.FilteringMode.NearestNeighbour,
+                maxFilter = Texture.FilteringMode.NearestNeighbour
+            )
+            compute.material().textures["DepthVDI"] = Texture(Vector3i(2 * numSupersegments, windowHeight, windowWidth),  channels = 1, contents = depthBuffer, usageType = hashSetOf(
+                Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
         }
-        if(skipEmpty) {
+
+        if(runLengthEncoded) {
+            val prefixArray: ByteArray = File(basePath + "${dataset}${vdiType}VDI${vdiParams}4_ndc_prefix").readBytes()
+
+            val prefixBuffer = MemoryUtil.memCalloc(windowHeight * windowWidth * 4)
+
+            prefixBuffer.put(prefixArray).flip()
+
+            compute.material().textures["PrefixSums"] = Texture(Vector3i(windowHeight, windowWidth, 1), 1, contents = prefixBuffer, usageType = hashSetOf(
+                Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = IntType(), mipmap = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+            compute.totalGeneratedSupsegs = totalMaxSupersegments.toInt()
+        }
+
+//        if(skipEmpty) {
             compute.material().textures["OctreeCells"] = Texture(Vector3i(numGridCells.x.toInt(), numGridCells.y.toInt(), numGridCells.z.toInt()), 1, type = UnsignedIntType(), contents = lowestLevel, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
-        }
-
-        compute.material().textures["NoiseTexture"] = Texture(Vector3i(1920, 1080, 1),  channels = 1, contents = noiseTexture, usageType = hashSetOf(
-            Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
-
+//        }
 
         compute.metadata["ComputeMetadata"] = ComputeMetadata(
             workSizes = Vector3i(effectiveWindowWidth, effectiveWindowHeight, 1),
@@ -347,6 +394,8 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
         compute.invProjectionOriginal = Matrix4f(vdiData.metadata.projection).applyVulkanCoordinateSystem().invert()
         compute.ViewOriginal = vdiData.metadata.view
         compute.nw = vdiData.metadata.nw
+        compute.vdiWidth = vdiData.metadata.windowDimensions.x
+        compute.vdiHeight = vdiData.metadata.windowDimensions.y
         compute.invViewOriginal = Matrix4f(vdiData.metadata.view).invert()
         compute.invModel = Matrix4f(vdiData.metadata.model).invert()
         compute.volumeDims = vdiData.metadata.volumeDimensions
@@ -369,6 +418,12 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
                 renderer?.shouldClose = true
             }
         }
+
+        if(recordMovie) {
+            settings.set("VideoEncoder.Quality", "Ultra")
+            renderer?.recordMovie("VDIRenderingTest.mp4")
+        }
+
 
 //        val opTexture = compute.material.textures["OutputViewport"]!!
 //        var cnt = AtomicInteger(0)
@@ -406,9 +461,18 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
             }
         }
 
-        thread {
-            camFlyThrough()
+        if(recordMovie) {
+            thread {
+                camFlyThrough()
+            }
+
+            thread {
+                Thread.sleep(15000)
+                logger.info("The movie should be written!")
+                renderer?.recordMovie()
+            }
         }
+
     }
 
     fun downsampleImage(factor: Float, wholeFrameBuffer: Boolean = false) {
@@ -601,8 +665,6 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
             Thread.sleep(200)
         }
 
-        renderer!!.recordMovie("/datapot/aryaman/owncloud/VDI_Benchmarks/${dataset}_vdi.mp4")
-
         Thread.sleep(1000)
 
         val maxPitch = 10f
@@ -638,8 +700,6 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
         moveCamera(yawRot *2, pitchRot * 5, 40f, 40f, -60f, -50f, totalYaw, totalPitch, 6000f)
 
         Thread.sleep(1000)
-
-        renderer!!.recordMovie()
     }
 
     private fun moveCamera(yawRot: Float, pitchRot: Float, maxYaw: Float, maxPitch: Float, minPitch: Float, minYaw: Float, totalY: Float, totalP: Float, duration: Float) {
@@ -702,17 +762,20 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
             }
         }
 
-        val objectMapper = ObjectMapper(MessagePackFactory())
+        if(storeCamera) {
+            val objectMapper = ObjectMapper(MessagePackFactory())
 
-        val bytes = objectMapper.writeValueAsBytes(list)
+            val bytes = objectMapper.writeValueAsBytes(list)
 
-        Files.write(Paths.get("${dataset}_${subsampleRay}_camera.txt"), bytes)
+            Files.write(Paths.get("${dataset}_${subsampleRay}_camera.txt"), bytes)
 
-        val bytesDi = objectMapper.writeValueAsBytes(listDi)
+            val bytesDi = objectMapper.writeValueAsBytes(listDi)
 
-        Files.write(Paths.get("${dataset}_${subsampleRay}_di.txt"), bytesDi)
+            Files.write(Paths.get("${dataset}_${subsampleRay}_di.txt"), bytesDi)
 
-        logger.warn("The file has been written")
+            logger.warn("The file has been written")
+        }
+
     }
 
     private fun recordCamera() {
@@ -835,7 +898,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
         setupCameraModeSwitching()
 
         inputHandler?.addBehaviour("rotate_camera", ClickBehaviour { _, _ ->
-            rotateCamera(1f)
+            rotateCamera(10f)
         })
         inputHandler?.addKeyBinding("rotate_camera", "R")
 

@@ -1,10 +1,11 @@
 #version 450
-#define USE_PRINTF 0
+#define USE_PRINTF 1
 #define NDC 1
 #define SEPARATE_DEPTH 1
 #define INT_DEPTHS 0
 #define PROFILE_MEM 0
 #define USE_VIEW_SPACE_CELLS 1
+#define RLE 1
 
 #if USE_PRINTF
 #extension GL_EXT_debug_printf : enable
@@ -36,6 +37,9 @@ layout(set = 5, binding = 0) uniform ShaderProperties {
     mat4 invModel;
     vec3 volumeDims;
     float nw;
+    int vdiWidth;
+    int vdiHeight;
+    int totalGeneratedSupsegs;
     float downImage;
     bool do_subsample;
     int max_samples;
@@ -51,22 +55,17 @@ layout(push_constant) uniform currentEye_t {
 layout (local_size_x = 16, local_size_y = 16) in;
 layout(set = 2, binding = 0, rgba32f) uniform readonly image3D InputVDI;
 layout(set = 3, binding = 0, rgba8) uniform image2D OutputViewport;
-#if SEPARATE_DEPTH
-    #if INT_DEPTHS
-    layout (set = 4, binding = 0, rg16ui) uniform readonly uimage3D DepthVDI;
-    #else
-    layout (set = 4, binding = 0, r32f) uniform readonly image3D DepthVDI;
-    #endif
-#endif
-
-
-layout (set = 7, binding = 0, r32f) uniform readonly image2D NoiseTexture;
+layout (set = 4, binding = 0, r32f) uniform readonly image3D DepthVDI;
 layout (set = 6, binding = 0, r32ui) uniform readonly uimage3D OctreeCells;
 
+#if RLE
+layout (set = 7, binding = 0, r32i) uniform iimage2D PrefixSums;
+#endif
+
 #if PROFILE_MEM
-layout(set = 8, binding = 0, r32f) uniform image2D NumIntersectedSupsegs;
-layout(set = 9, binding = 0, r32f) uniform image2D NumLists;
-layout(set = 10, binding = 0, r32f) uniform image2D NumSteps;
+layout(set = 9, binding = 0, r32f) uniform image2D NumIntersectedSupsegs;
+layout(set = 10, binding = 0, r32f) uniform image2D NumLists;
+layout(set = 11, binding = 0, r32f) uniform image2D NumSteps;
 //layout(set = 8, binding = 0, r32f) uniform image2D NumEmptyLists;
 //layout(set = 9, binding = 0, r32f) uniform image2D NumNotIntLists;
 //layout(set = 10, binding = 0, r32f) uniform image2D EmptyBeforeFirst;
@@ -131,7 +130,7 @@ layout(set = 10, binding = 0, r32f) uniform image2D NumSteps;
 //ivec2 debug_pixel = ivec2(610, 641);
 //ivec2 debug_pixel = ivec2(1273, 604);
 //ivec2 debug_pixel = ivec2(640, 360);
-ivec2 debug_pixel = ivec2(1167, 473);
+ivec2 debug_pixel = ivec2(640, 360);
 
 //ivec2 debug_pixel = ivec2(35, 61);
 //ivec2 debug_pixel = ivec2(427, 465);
@@ -166,7 +165,6 @@ struct rayProperties {
 
 mat4 pv_orig, ivp_orig;
 int windowWidth, windowHeight;
-int vdiWidth, vdiHeight;
 
 rayProperties originalRay; // the ray (i.e. list) from the original VDI that is currently being intersected
 rayProperties newRay; // the ray from the new viewpoint that this kernel invocation is traversing
@@ -289,97 +287,6 @@ ivec3 num_cells;
 
 float stratification_factor;
 
-//void binSearch(int rayX, int rayY, int start, int end, float dist_to_orig, out float depthStart, out float depthEnd, out int index, out bool supseg_found, out bool supseg_is_on_left) {
-//
-//    supseg_found = false;
-//    int low = start;
-//    int high = end;
-//
-//    bool firstIteration = true;
-//
-//    while(low <= high) {
-////        if(prevIndex != -1 && firstIteration) {
-////            firstIteration = false;
-////            index = prevIndex;
-//////            #if USE_PRINTF
-//////            if(gl_GlobalInvocationID.xy == debug_pixel) {
-//////                debugPrintfEXT("List: (%d, %d). Starting with the prev index: %d", rayX, rayY, prevIndex);
-//////            }
-//////            #endif
-////        } else {
-//            index = (low + high)/2;
-////        }
-//        #if SEPARATE_DEPTH
-//        vec4 d = imageLoad(DepthVDI, ivec3(index*2, rayY, rayX)); //Start point of mid supersegment
-//        totalMemoryLoads++;
-//        depthStart = d.x;
-//        #else
-//        vec4 d = imageLoad(InputVDI, ivec3(index*3 + 1, rayY, rayX)); //Start point of mid supersegment
-//        totalMemoryLoads++;
-//        depthStart = DecodeFloatRGBA(d);
-//        #endif
-//
-//
-//        if(index != 0 && depthStart == 0.0) {
-//            //this supersegment has not been filled
-//            high = index - 1;
-//            continue;
-//        }
-//
-////        #if NDC
-////        depthStart = ndc_to_w(depthStart);
-////        #endif
-//
-////        #if USE_PRINTF
-////        if(gl_GlobalInvocationID.xy == debug_pixel) {
-////            debugPrintfEXT("Checking element %d. D_s: %f, d_t_o: %f", index, depthStart, dist_to_orig);
-////        }
-////        #endif
-//
-//        if(depthStart > dist_to_orig) { //this supersegment is ahead of the sample point
-//            high = index - 1;
-//        } else {
-//            #if SEPARATE_DEPTH
-//            vec4 dNext = imageLoad(DepthVDI, ivec3(index*2+1, rayY, rayX)); //End point of this supersegment
-//            totalMemoryLoads++;
-//            depthEnd = dNext.x;
-//            #else
-//            vec4 dNext = imageLoad(InputVDI, ivec3(index*3 + 2, rayY, rayX)); //End point of this supersegment
-//            totalMemoryLoads++;
-//            depthEnd = DecodeFloatRGBA(dNext);
-//            #endif
-//
-////            #if NDC
-////            depthEnd = ndc_to_w(depthEnd);
-////            #endif
-//
-//            if(dist_to_orig <= depthEnd) {
-//                // this is the supersegment
-//                supseg_found = true;
-////                #if USE_PRINTF
-////                if(gl_GlobalInvocationID.xy == debug_pixel) {
-////                    debugPrintfEXT("End depth is: %f", depthEnd);
-////                }
-////                #endif
-//                break;
-//            } else {
-////                #if USE_PRINTF
-////                if(gl_GlobalInvocationID.xy == debug_pixel) {
-////                    debugPrintfEXT("Increasing value of low");
-////                }
-////                #endif
-//                low = index+1;
-//            }
-//        }
-//    }
-//    supseg_is_on_left = (depthStart < dist_to_orig);
-////    #if USE_PRINTF
-////    if(gl_GlobalInvocationID.xy == debug_pixel) {
-////        debugPrintfEXT("Returning supseg: %d, found: %d: ", index, supseg_found);
-////    }
-////    #endif
-//}
-
 float near_plane = 0.1; //TODO: get from the CPU
 float far_plane = 20.0;
 
@@ -409,107 +316,53 @@ int findZInterval_view(float z_ndc) {
     return interval_num;
 }
 
+int bufferWidth = 0;
+int bufferHeight = 0;
+int bufferDepth = 0;
+
+#if RLE
+ivec3 supersegmentIndices(ivec2 theList, int index) {
+    int linearized = imageLoad(PrefixSums, theList.yx).x + index;
+
+    int z_ = linearized / (bufferWidth * bufferHeight);
+
+    int remainder = linearized % (bufferWidth * bufferHeight);
+
+    int y_ = remainder / bufferWidth;
+    int x_ = remainder % bufferWidth;
+
+    return ivec3(x_, y_, z_);
+}
+#endif
 
 float getSupsegFront(ivec2 theList, int index) {
-
-//    #if USE_PRINTF
-//    if(gl_GlobalInvocationID.xy == debug_pixel) {
-//        debugPrintfEXT("Searching for front face of (%d, %d), %d", theList, index);
-//    }
-//    #endif
-
-//    if(!(index >= 0 && index < maxSupersegments)) { //TODO: error checks need to be disabled everywhere!
-//        //This is an error!
-//        #if USE_PRINTF
-//        if(gl_GlobalInvocationID.xy == debug_pixel) { //TODO: generalize
-//            debugPrintfEXT("Searching for front face of incorrect supersegment index! List: (%d, %d) and index requested: %d", theList, index);
-//        }
-//        #endif
-//        return -1;
-//    }
-
-    #if SEPARATE_DEPTH
-        #if INT_DEPTHS
-        uint front_index = imageLoad(DepthVDI, ivec3(index, theList.y, theList.x)).x;
-        totalMemoryLoads++;
-        if(front_index == 0 && index != 0) {
-            return 0.0;
-        }
-        float step = orig_tnear + nw * front_index;
-//        #if USE_PRINTF
-//        if(gl_GlobalInvocationID.xy == debug_pixel) {
-//            debugPrintfEXT("Searching for front depth of: (%d, %d), %d. Found jump num: %u, therefore returning: %f. orig_tnear: %f, nw: %f", theList, index, front_index, step, orig_tnear, nw);
-//        }
-//        #endif
-        return step;
-        #else
-        vec4 front = imageLoad(DepthVDI, ivec3(index*2, theList.y, theList.x));
-        totalMemoryLoads++;
-//        #if USE_PRINTF
-//        if(gl_GlobalInvocationID.xy == debug_pixel) {
-//            debugPrintfEXT("Searching for front depth of: (%d, %d), %d. returning: %f", theList, index, front.x);
-//        }
-//        #endif
-        return front.x;
-        #endif
+    #if RLE
+    ivec3 bufferIndices = supersegmentIndices(theList, index);
+    vec4 front = imageLoad(DepthVDI, ivec3(bufferIndices.x * 2, bufferIndices.y, bufferIndices.z));
     #else
-    vec4 front = imageLoad(InputVDI, ivec3(index*3 + 1, theList.y, theList.x));
-    totalMemoryLoads++;
-    return DecodeFloatRGBA(front);
+    vec4 front = imageLoad(DepthVDI, ivec3(index*2, theList.y, theList.x));
     #endif
+    totalMemoryLoads++;
+    return front.x;
 }
 
 float getSupsegBack(ivec2 theList, int index) {
-
-//    #if USE_PRINTF
-//    if(gl_GlobalInvocationID.xy == debug_pixel && theList.x < 343) {
-//        debugPrintfEXT("Searching for back face of (%d, %d), %d", theList, index);
-//    }
-//    #endif
-
-//    if(!(index >= 0 && index < maxSupersegments)) {
-//        //This is an error!
-//        #if USE_PRINTF
-//        if(gl_GlobalInvocationID.xy == debug_pixel) { //TODO: generalize
-//            debugPrintfEXT("Searching for back face of incorrect supersegment index! List: (%d, %d) and index requested: %d", theList, index);
-//        }
-//        #endif
-//        return -1;
-//    }
-
-    #if SEPARATE_DEPTH
-        #if INT_DEPTHS
-        uint back_index = imageLoad(DepthVDI, ivec3(index, theList.y, theList.x)).y;
-//        #if USE_PRINTF
-//        if(gl_GlobalInvocationID.xy == debug_pixel && theList.x < 343) {
-//            debugPrintfEXT("Obtained back index: %d", back_index);
-//        }
-//        #endif
-        totalMemoryLoads++;
-        if(back_index == 0) {
-            return 0.0;
-        }
-        float step = orig_tnear + nw * back_index;
-//        #if USE_PRINTF
-//        if(gl_GlobalInvocationID.xy == debug_pixel && theList.x < 343) {
-//            debugPrintfEXT("Searching for back depth of: (%d, %d), %d. Found jump num: %u, therefore returning: %f", theList, index, back_index, step);
-//        }
-//        #endif
-        return step;
-        #else
-        vec4 back = imageLoad(DepthVDI, ivec3(index*2 + 1, theList.y, theList.x));
-        totalMemoryLoads++;
-//        #if USE_PRINTF
-//        if(gl_GlobalInvocationID.xy == debug_pixel) {
-//            debugPrintfEXT("Searching for back depth of: (%d, %d), %d. returning: %f", theList, index, back.x);
-//        }
-//        #endif
-        return back.x;
-        #endif
+    #if RLE
+    ivec3 bufferIndices = supersegmentIndices(theList, index);
+    vec4 back = imageLoad(DepthVDI, ivec3(bufferIndices.x * 2 + 1, bufferIndices.y, bufferIndices.z));
     #else
-    vec4 back = imageLoad(InputVDI, ivec3(index*3 + 2, theList.y, theList.x));
+    vec4 back = imageLoad(DepthVDI, ivec3(index*2 + 1, theList.y, theList.x));
+    #endif
     totalMemoryLoads++;
-    return DecodeFloatRGBA(back);
+    return back.x;
+}
+
+vec4 getSupsegColor(ivec2 theList, int index) {
+    #if RLE
+    ivec3 bufferIndices = supersegmentIndices(theList, index);
+    return imageLoad(InputVDI, bufferIndices).rgba;
+    #else
+    return imageLoad(InputVDI, ivec3(index, theList.y, theList.x)).rgba;
     #endif
 }
 
@@ -607,65 +460,6 @@ void binSearch(ivec2 theList, float dist_to_orig, int start, int end, out bool s
             } else {
                 high = index - 1;
             }
-        }
-    }
-}
-
-
-void linSearch(int rayX, int rayY, int start, int limit, float dist_to_orig, out float depthStart, out float depthEnd, out int index, out bool supseg_found) {
-
-    supseg_found = false;
-
-    for(index = start; index < limit; index++) {
-        //Find which supersegment along this ray
-
-        #if SEPARATE_DEPTH
-        vec4 d = imageLoad(DepthVDI, ivec3(index*2, rayY, rayX)); //Start point of mid supersegment
-        totalMemoryLoads++;
-        depthStart = d.x;
-        #else
-        vec4 d = imageLoad(InputVDI, ivec3(index*3 + 1, rayY, rayX)); //Start point of mid supersegment
-        totalMemoryLoads++;
-        depthStart = DecodeFloatRGBA(d);
-        #endif
-
-        if(index!=0 && depthStart == 0.0) {
-            break; // there are no more supersegments in this list, so break
-        }
-
-        float ndc_x = float(rayX) / vdiWidth * 2.0 - 1.0;
-        float ndc_y = float(rayY) / vdiHeight * 2.0 - 1.0;
-
-        vec2 uv = vec2(ndc_x, ndc_y);
-
-        #if NDC
-        depthStart = ndc_to_w(uv, depthStart);
-        #endif
-
-        //d
-        if(dist_to_orig >= depthStart)
-        {
-            #if SEPARATE_DEPTH
-            vec4 dNext = imageLoad(DepthVDI, ivec3(index*2+1, rayY, rayX)); //End point of this supersegment
-            totalMemoryLoads++;
-            depthEnd = dNext.x;
-            #else
-            vec4 dNext = imageLoad(InputVDI, ivec3(index*3 + 2, rayY, rayX)); //End point of this supersegment
-            totalMemoryLoads++;
-            depthEnd = DecodeFloatRGBA(dNext);
-            #endif
-
-            #if NDC
-            depthEnd = ndc_to_w(uv, depthEnd);
-            #endif
-
-            if(dist_to_orig <= depthEnd) {
-                // We have found the supersegment
-                supseg_found = true;
-                break;
-            }
-        } else {
-            break; // this supersegment is already further from wfront than this sample point, so no point checking subsequent ones
         }
     }
 }
@@ -848,10 +642,13 @@ void findFirstSupseg_opt_seeded(ivec2 theList, float dist_to_orig, float exit_di
 
     int bin_search_end = -1;
     int bin_search_start = -1;
-
+#if RLE
+    if(prevIndex < 0 || prevIndex > (maxSupersegments - 1)) {
+#else
     if(prevIndex < 0) {
+#endif
     	bin_search_end = maxSupersegments - 1;
-	bin_search_start = 0;
+	    bin_search_start = 0;
     } else {
 
         uint backs_u[4];
@@ -1026,35 +823,39 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
 
     totalIntersectedLists++;
 
-//    #if USE_PRINTF
-//    if(gl_GlobalInvocationID.xy == debug_pixel) {
-//        debugPrintfEXT("Intersecting list: (%d, %d). Start pt: (%f, %f, %f) and End pt: (%f, %f, %f)", theList,
-//                                    start_point.xyz, end_point.xyz);
-//    }
-//    #endif
+    #if USE_PRINTF
+    if(gl_GlobalInvocationID.xy == debug_pixel) {
+        debugPrintfEXT("Intersecting list: (%d, %d). Start pt: (%f, %f, %f) and End pt: (%f, %f, %f)", theList,
+                                    start_point.xyz, end_point.xyz);
+    }
+    #endif
 
     //TODO: see whether the below is required
 
     bool first_empty = false;
-    #if SEPARATE_DEPTH
-        #if INT_DEPTHS
-        uint check = imageLoad(DepthVDI, ivec3(0, theList.y, theList.x)).y;
-        totalMemoryLoads++;
-        if(check == 0) {
-            first_empty = true;
-        }
-        #else
-        vec4 check = imageLoad(DepthVDI, ivec3(1, theList.y, theList.x));
-        totalMemoryLoads++;
-        float firstBack = check.x;
-        if(firstBack == 0) {
-            first_empty = true;
-        }
-        #endif
+
+    #if RLE
+    if(theList.x >= vdiWidth || theList.y >= vdiHeight) {
+        //this is an invalid list
+        maxSupersegments = 0;
+    } else if(theList.y < (vdiHeight - 1)) {
+        //this is not a corner list
+        maxSupersegments = imageLoad(PrefixSums, ivec2(theList.y + 1, theList.x)).x - imageLoad(PrefixSums, ivec2(theList.yx)).x;
+    } else if(theList.y == (vdiHeight - 1) && theList.x == (vdiWidth - 1)) {
+        //this is the final list, ie corner and last
+        maxSupersegments = totalGeneratedSupsegs - imageLoad(PrefixSums, ivec2(theList.yx)).x;
+    } else {
+        //this is a corner list but not the last
+        maxSupersegments = imageLoad(PrefixSums, ivec2(0, theList.x+1)).x - imageLoad(PrefixSums, ivec2(theList.yx)).x;
+    }
+
+    if(maxSupersegments == 0) {
+        first_empty = true;
+    }
     #else
-    vec4 check = imageLoad(InputVDI, ivec3(2, theList.y, theList.x));
+    vec4 check = imageLoad(DepthVDI, ivec3(1, theList.y, theList.x));
     totalMemoryLoads++;
-    float firstBack = DecodeFloatRGBA(check);
+    float firstBack = check.x;
     if(firstBack == 0) {
         first_empty = true;
     }
@@ -1064,11 +865,11 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
         //the first supersegment is empty, so empty list
         totalEmptyLists++;
         totalNonIntersected++;
-//        #if USE_PRINTF
-//        if(gl_GlobalInvocationID.xy == debug_pixel) {
-//            debugPrintfEXT("Returning because first element was 0. The list no. was: (%d, %d)", theList);
-//        }
-//        #endif
+        #if USE_PRINTF
+        if(gl_GlobalInvocationID.xy == debug_pixel) {
+            debugPrintfEXT("Returning because first element was 0. The list no. was: (%d, %d)", theList);
+        }
+        #endif
         return;
     }
 
@@ -1177,12 +978,12 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
             nextSupersegmentInList(theList, exit_distance, dotPositive, supseg_found, index, depthStart, depthEnd);
         }
 
-//        #if USE_PRINTF
-//        if(gl_GlobalInvocationID.xy == debug_pixel) {
-//            debugPrintfEXT("For list: (%d, %d). Found supseg %d index %d. Start depth: %f and end depth: %f", theList, supseg_found, index, depthStart, depthEnd);
-//            debugPrintfEXT("In this list, there have been %d memory loads.", totalMemoryLoads - total_steps_before);
-//        }
-//        #endif
+        #if USE_PRINTF
+        if(gl_GlobalInvocationID.xy == debug_pixel) {
+            debugPrintfEXT("For list: (%d, %d). Found supseg %d index %d. Start depth: %f and end depth: %f", theList, supseg_found, index, depthStart, depthEnd);
+            debugPrintfEXT("In this list, there have been %d memory loads.", totalMemoryLoads - total_steps_before);
+        }
+        #endif
 
 //        if(gl_GlobalInvocationID.xy == debug_pixel && supseg_found && index == prevIndex) {
 //        if(gl_GlobalInvocationID.xy == debug_pixel && theList == prevList && supseg_found && index == prevIndex) {
@@ -1251,13 +1052,8 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
             vec4 w_end_point = ivp_orig * end_point;
             w_end_point *= 1./w_end_point.w;
 
-            #if SEPARATE_DEPTH
-            vec4 supseg_col = imageLoad(InputVDI, ivec3(index, theList.y, theList.x));
+            vec4 supseg_col = getSupsegColor(theList.xy, index);
             totalMemoryLoads++;
-            #else
-            vec4 supseg_col = imageLoad(InputVDI, ivec3(index*3, theList.y, theList.x));
-            totalMemoryLoads++;
-            #endif
 
             float length_in_supseg = distance(w_start_point, w_end_point);
 
@@ -1379,13 +1175,8 @@ void traverse_subsample(vec4 world_entry, vec4 world_end, float total_distance, 
             supseg_end_w *= 1. / supseg_end_w.w;
 
 
-            #if SEPARATE_DEPTH
-            vec4 supseg_col = imageLoad(InputVDI, ivec3(index, list_coords.y, list_coords.x));
+            vec4 supseg_col = getSupsegColor(list_coords, index);
             totalMemoryLoads++;
-            #else
-            vec4 supseg_col = imageLoad(InputVDI, ivec3(index*3, list_coords.y, list_coords.x));
-            totalMemoryLoads++;
-            #endif
 
             float alpha = adjustOpacity(supseg_col.a, jump_size);
             finalColor.rgb = finalColor.rgb + (1-finalColor.a) * supseg_col.rgb * alpha;
@@ -1622,11 +1413,15 @@ void main() {
     windowWidth = int(downImage * windowWidth);
     windowHeight = int(downImage * windowHeight);
 
+    #if RLE
+    ivec3 bufferCoords  = imageSize(InputVDI);
+    bufferWidth = bufferCoords.x;
+    bufferHeight = bufferCoords.y;
+    bufferDepth = bufferCoords.z;
+    #else
     ivec3 vdiCoords = imageSize(InputVDI);
     maxSupersegments = vdiCoords.x;
-
-    vdiWidth = vdiCoords.z;
-    vdiHeight = vdiCoords.y;
+    #endif
 
     mat4 view;
 
@@ -1705,11 +1500,7 @@ void main() {
     dist = (tfar-tnear) / 5000.;
     dist = max(dist, 0.00001);
 
-    if(stratified_downsampling) {
-        stratification_factor = imageLoad(NoiseTexture, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y)).x;
-    } else {
-        stratification_factor = 1.;
-    }
+    stratification_factor = 1.;
 
 //    #if USE_PRINTF
 //    if(gl_GlobalInvocationID.xy == debug_pixel) {
