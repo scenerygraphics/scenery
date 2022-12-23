@@ -130,7 +130,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
     var cameraStopped = false
 
     val commSize = System.getProperty("VDIBenchmark.DistributedSize")?.toInt()?: 1
-    val rank = 0
+    val rank = System.getProperty("VDIBenchmark.DistributedRank")?.toInt()?: 0
     val communicatorType = "_${commSize}_${rank}"
 //    val communicatorType = ""
 
@@ -243,7 +243,9 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
         cam.farPlaneDistance = 20.0f
         cam.target = camTarget
 
-//        dataset += communicatorType
+        if(distributedVDI) {
+            dataset += communicatorType
+        }
 
         val buff: ByteArray
         val depthBuff: ByteArray?
