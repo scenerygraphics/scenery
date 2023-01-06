@@ -1342,10 +1342,6 @@ open class VulkanRenderer(hub: Hub,
             }
         }
 
-        postRenderLambdas.forEach {
-            it.invoke()
-        }
-
         persistentTextureRequests.forEach{ (texture, indicator) ->
             val ref = VulkanTexture.getReference(texture)
             val buffer = texture.contents ?: return@forEach
@@ -1359,6 +1355,10 @@ open class VulkanRenderer(hub: Hub,
             } else {
                 logger.error("In persistent texture requests: Texture not accessible")
             }
+        }
+
+        postRenderLambdas.forEach {
+            it.invoke()
         }
 
         if (parallelRenderingMode || recordMovie || screenshotRequested || imageRequests.isNotEmpty()) {
