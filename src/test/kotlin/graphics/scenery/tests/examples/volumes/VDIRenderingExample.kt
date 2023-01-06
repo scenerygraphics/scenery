@@ -115,8 +115,10 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
     val skipEmpty = false
     val viewNumber = 1
 
-    var subsampling_benchmarks = false
-    var desiredFrameRate = 85
+    var dynamicBenchmark = true
+    var subsampling_benchmarks = true
+    var desiredFrameRate = 72
+
     var maxFrameRate = 30
 
     val dynamicSubsampling = false
@@ -283,7 +285,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
             depthBuff = File(basePath + "${dataset}${vdiType}VDI${vdiParams}4_ndc_depth").readBytes()
         }
         if(skipEmpty) {
-            octBuff = File(basePath + "${dataset}VDI${vdiParams}2_ndc_octree").readBytes()
+            octBuff = File(basePath + "${dataset}VDI${vdiParams}4_ndc_octree").readBytes()
             compute.skip_empty = true
         } else {
             octBuff = null
@@ -423,8 +425,10 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
         }
 
         if(recordMovie) {
+            settings.set("VideoEncoder.Format", "HEVC")
+            settings.set("VideoEncoder.Bitrate", 2000)
             settings.set("VideoEncoder.Quality", "Ultra")
-            renderer?.recordMovie("VDIRenderingTest.mp4")
+            renderer?.recordMovie("${dataset}VDIRenderingTest.mp4")
         }
 
 
@@ -459,8 +463,8 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
 //        }
 
         thread {
-            if(dynamicSubsampling) {
-                dynamicSubsampling()
+            if(dynamicBenchmark) {
+                dynamicProfiling()
             }
         }
 
@@ -470,7 +474,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
             }
 
             thread {
-                Thread.sleep(15000)
+                Thread.sleep(10000)
                 logger.info("The movie should be written!")
                 renderer?.recordMovie()
             }
@@ -537,7 +541,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
         compute.do_subsample = downsample
     }
 
-    private fun dynamicSubsampling() {
+    private fun dynamicProfiling() {
         val r = (hub.get(SceneryElement.Renderer) as Renderer)
 
         val targetFrameTime = 1.0f / desiredFrameRate
@@ -580,19 +584,31 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
 
         Thread.sleep(5000)
         var frameStart = System.nanoTime()
+        var firstFrame = true
 
-        rotateCamera(20f)
+        (r as VulkanRenderer).postRenderLambdas.add {
+            if(frameCount%10 == 0) {
+                rotateCamera(1f, dataset=="Simulation")
+            }
+            if(frameCount == 100) {
+                if(subsampleRay) {
+                    doDownsampling(true)
+                    setDownsamplingFactor(0.3f)
+                    logger.info("Downsampling factor set")
+                }
+            }
+        }
 
         (r as VulkanRenderer).postRenderLambdas.add {
 
-            if (true) {
+            if (!firstFrame) {
                 frameEnd = System.nanoTime()
                 frameTime = (frameEnd - frameStart) / 1e9f
 
-                if(cameraMoving) {
-                    frameCount++
-                    frameTimeList.add(frameTime)
-                }
+
+                frameCount++
+                frameTimeList.add(frameTime)
+
 
                 if (frameCount == 500) {
                     val fw = FileWriter("/datapot/aryaman/owncloud/VDI_Benchmarks/${dataset}_${dynamicSubsampling}_${subsampleRay}_frame_times.csv", false)
@@ -603,7 +619,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
                     }
 
                     bw.flush()
-
+//
                     logger.warn("The file has been written!")
 
 //                    renderer!!.recordMovie()
@@ -655,9 +671,11 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
                         prevFactor = downImage
                     }
                 }
-
             }
+
             frameStart = System.nanoTime()
+            firstFrame = false
+
         }
     }
 
@@ -904,6 +922,11 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
             rotateCamera(10f)
         })
         inputHandler?.addKeyBinding("rotate_camera", "R")
+
+        inputHandler?.addBehaviour("rotate_camera_pitch", ClickBehaviour { _, _ ->
+            recordCamera()
+        })
+        inputHandler?.addKeyBinding("rotate_camera_pitch", "T")
 
         inputHandler?.addBehaviour("downsample_image", ClickBehaviour { _, _ ->
             downsampleImage(0.5f)

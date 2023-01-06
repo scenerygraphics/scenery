@@ -33,6 +33,7 @@ import java.util.*
 import java.util.concurrent.ConcurrentLinkedQueue
 import kotlin.math.absoluteValue
 import kotlin.math.roundToLong
+import kotlin.time.Duration.Companion.nanoseconds
 
 /**
  * H264 encoder class
@@ -329,6 +330,9 @@ class VideoEncoder(
 
             ready = true
 
+            var startTime = System.nanoTime()
+            var endTime = System.nanoTime()
+
             while(!finished) {
                 if(frameQueue.isEmpty()) {
                     delay(5)
@@ -344,6 +348,10 @@ class VideoEncoder(
 
                         encode(currentFrame)
                         MemoryUtil.memFree(currentFrame.data)
+
+                        endTime = System.nanoTime()
+                        val duration = (endTime - startTime)/1e9
+                        logger.info("Time taken for the whole frame: ${duration}")
                     }
 
                     // encoding step for the final, empty frame, plus deallocation steps
@@ -363,6 +371,9 @@ class VideoEncoder(
                         swscale.sws_freeContext(scalingContext)
                     }
                 }
+
+                startTime = System.nanoTime()
+
             }
         }
 
@@ -388,6 +399,8 @@ class VideoEncoder(
         }
 
         GlobalScope.launch {
+            val startTime = System.nanoTime()
+
             if(start == 0L) {
                 start = System.currentTimeMillis()
             }
@@ -411,6 +424,10 @@ class VideoEncoder(
             } else {
                 frameQueue.add(QueuedFrame.FinalFrame())
             }
+
+            val endTime = System.nanoTime()
+
+            logger.info("Time taken to queue the frame: ${(endTime-startTime)/1e9}")
         }
     }
 
