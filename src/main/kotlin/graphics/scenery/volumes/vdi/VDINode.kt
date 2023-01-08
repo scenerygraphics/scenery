@@ -48,4 +48,7 @@ class VDINode : RichNode() {
 
     @ShaderProperty
     var stratified_downsampling = false
+
+    @ShaderProperty
+    var printData = false
 }

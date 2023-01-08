@@ -9,11 +9,16 @@ import graphics.scenery.compute.ComputeMetadata
 import graphics.scenery.compute.InvocationType
 import graphics.scenery.controls.TrackedStereoGlasses
 import graphics.scenery.textures.Texture
+import graphics.scenery.textures.UpdatableTexture
 import graphics.scenery.utils.DataCompressor
 import graphics.scenery.utils.Image
+import graphics.scenery.utils.extensions.minus
+import graphics.scenery.utils.extensions.plus
+import graphics.scenery.utils.extensions.times
 import graphics.scenery.volumes.vdi.VDIData
 import graphics.scenery.volumes.vdi.VDIDataIO
 import graphics.scenery.volumes.vdi.VDINode
+import net.imglib2.type.numeric.integer.UnsignedByteType
 import net.imglib2.type.numeric.real.FloatType
 import org.joml.Matrix4f
 import org.joml.Quaternionf
@@ -21,6 +26,7 @@ import org.joml.Vector3f
 import org.joml.Vector3i
 import org.lwjgl.system.MemoryUtil
 import org.msgpack.jackson.dataformat.MessagePackFactory
+import org.scijava.ui.behaviour.ClickBehaviour
 import org.zeromq.SocketType
 import org.zeromq.ZContext
 import org.zeromq.ZMQ
@@ -29,13 +35,14 @@ import java.io.ByteArrayInputStream
 import java.nio.ByteBuffer
 import kotlin.concurrent.thread
 import kotlin.system.measureNanoTime
+import kotlin.system.measureTimeMillis
 
 /**
  * @author Aryaman Gupta <argupta@mpi-cbg.de>
  */
 
 
-class VDIClient : SceneryBase("VDI Rendering", 1280, 720, wantREPL = false) {
+class VDIClient : SceneryBase("VDI Rendering", 700, 700, wantREPL = false) {
     var hmd: TrackedStereoGlasses? = null
 
     val compute = VDINode()
@@ -48,6 +55,9 @@ class VDIClient : SceneryBase("VDI Rendering", 1280, 720, wantREPL = false) {
     val subsampling = false
     var desiredFrameRate = 30
     var maxFrameRate = 90
+
+    var startPrinting = false
+    var sendCamera = false
 
     private val vulkanProjectionFix =
         Matrix4f(
@@ -117,7 +127,7 @@ class VDIClient : SceneryBase("VDI Rendering", 1280, 720, wantREPL = false) {
         var publisher: ZMQ.Socket = context.createSocket(SocketType.PUB)
         publisher.isConflate = true
 
-        val address: String = "tcp://0.0.0.0:6665"
+        val address: String = "tcp://0.0.0.0:6655"
         try {
             publisher.bind(address)
         } catch (e: ZMQException) {
@@ -132,27 +142,63 @@ class VDIClient : SceneryBase("VDI Rendering", 1280, 720, wantREPL = false) {
             val rotArray = floatArrayOf(cam.spatial().rotation.x, cam.spatial().rotation.y, cam.spatial().rotation.z, cam.spatial().rotation.w)
             val posArray = floatArrayOf(cam.spatial().position.x(), cam.spatial().position.y(), cam.spatial().position.z())
 
-            if(!((rotArray.contentEquals(prevRot)) && (posArray.contentEquals(prevPos)))) {
+            if(!((rotArray.contentEquals(prevRot)) && (posArray.contentEquals(prevPos))) && sendCamera) {
                 list.add(rotArray)
                 list.add(posArray)
 
                 val bytes = objectMapper.writeValueAsBytes(list)
 
-                logger.info("Sent camera details")
+                logger.info("Sent camera details\n position: ${cam.spatial().position}\nrotation: ${cam.spatial().rotation}")
 
                 publisher.send(bytes)
 
                 prevPos = posArray
                 prevRot = rotArray
+
+//                sendCamera = false
             }
+
+
+            compute.printData = startPrinting
+            startPrinting = false
+        }
+    }
+
+    fun rotateCamera(degrees: Float, pitch: Boolean = false) {
+        val camTarget = Vector3f(1.920E+0f, -1.920E+0f,  1.491E+0f)
+
+        val cam = scene.findObserver()!!
+        cam.targeted = true
+        val frameYaw: Float
+        val framePitch: Float
+
+        if(pitch) {
+            framePitch = degrees / 180.0f * Math.PI.toFloat()
+            frameYaw = 0f
+        } else {
+            frameYaw = degrees / 180.0f * Math.PI.toFloat()
+            framePitch = 0f
         }
 
+        // first calculate the total rotation quaternion to be applied to the camera
+        val yawQ = Quaternionf().rotateXYZ(0.0f, frameYaw, 0.0f).normalize()
+        val pitchQ = Quaternionf().rotateXYZ(framePitch, 0.0f, 0.0f).normalize()
+
+//        logger.info("cam target: ${camTarget}")
+
+        val distance = (camTarget - cam.spatial().position).length()
+        cam.spatial().rotation = pitchQ.mul(cam.spatial().rotation).mul(yawQ).normalize()
+        cam.spatial().position = camTarget + cam.forward * distance * (-1.0f)
+//        logger.info("new camera pos: ${cam.spatial().position}")
+//        logger.info("new camera rotation: ${cam.spatial().rotation}")
+//        logger.info("camera forward: ${cam.forward}")
     }
 
     private fun receiveAndUpdateVDI(compute: VDINode) {
         var subscriber: ZMQ.Socket = context.createSocket(SocketType.SUB)
         subscriber.setConflate(true)
 //        val address = "tcp://localhost:6655"
+//        val address = "tcp://172.24.150.81:6655"
         val address = "tcp://10.1.224.71:6655"
         try {
             subscriber.connect(address)
@@ -193,6 +239,34 @@ class VDIClient : SceneryBase("VDI Rendering", 1280, 720, wantREPL = false) {
         compute.material().textures["InputVDI2"] = emptyColorTexture
         compute.material().textures["DepthVDI"] = emptyDepthTexture
         compute.material().textures["DepthVDI2"] = emptyDepthTexture
+
+//        val colorTexture = UpdatableTexture(
+//            Vector3i(1024, 1024, 256),
+//            channels = 1,
+//            type = UnsignedByteType(),
+//            usageType = hashSetOf(Texture.UsageType.Texture, Texture.UsageType.AsyncLoad, Texture.UsageType.LoadStoreImage),
+//            contents = null
+//        )
+//
+//        val colorUpdate = UpdatableTexture.TextureUpdate(
+//            UpdatableTexture.TextureExtents(0, 0, 0, 1024, 1024, 256),
+//            MemoryUtil.memAlloc(256*1024*1024)
+//        )
+//        colorTexture.addUpdate(colorUpdate)
+//
+//        compute.material().textures["InputVDI"] = colorTexture
+//
+//        val waitTime = measureTimeMillis {
+//            // Here, we wait until the texture is marked as available on the GPU
+//            while(!colorTexture.availableOnGPU()) {
+//                logger.info("Texture not available yet, uploaded=${colorTexture.uploaded.get()}/permits=${colorTexture.gpuMutex.availablePermits()}")
+//                Thread.sleep(10)
+//            }
+//        }
+//
+//        logger.info("Texture is available now, waited $waitTime ms")
+
+        compute.visible = true
 
         while(true) {
 
@@ -249,13 +323,27 @@ class VDIClient : SceneryBase("VDI Rendering", 1280, 720, wantREPL = false) {
                 compute.do_subsample = false
 
                 color.limit(color.remaining() - decompressionBuffer)
-                val colorTexture = Texture(Vector3i(numSupersegments, windowHeight, windowWidth), 4, contents = color.slice(), usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture, Texture.UsageType.AsyncLoad),
+                val colorTexture = UpdatableTexture(Vector3i(numSupersegments, windowHeight, windowWidth), 4, contents = null, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture, Texture.UsageType.AsyncLoad),
                     type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+
+                val colorUpdate = UpdatableTexture.TextureUpdate(
+                    UpdatableTexture.TextureExtents(0, 0, 0, numSupersegments, windowHeight, windowWidth),
+                    color.slice()
+                )
+                colorTexture.addUpdate(colorUpdate)
+
                 color.limit(color.capacity())
 
                 depth.limit(depth.remaining() - decompressionBuffer)
-                val depthTexture = Texture(Vector3i(2*numSupersegments, windowHeight, windowWidth),  channels = 1, contents = depth.slice(), usageType = hashSetOf(
+                val depthTexture = UpdatableTexture(Vector3i(2*numSupersegments, windowHeight, windowWidth),  channels = 1, contents = null, usageType = hashSetOf(
                     Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture, Texture.UsageType.AsyncLoad), type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+
+                val depthUpdate = UpdatableTexture.TextureUpdate(
+                    UpdatableTexture.TextureExtents(0, 0, 0, 2 * numSupersegments, windowHeight, windowWidth),
+                    depth.slice()
+                )
+                depthTexture.addUpdate(depthUpdate)
+
                 depth.limit(depth.capacity())
 
                 logger.info("Before assignment, color mutex is: ${colorTexture.gpuMutex.availablePermits()} and depth: ${depthTexture.gpuMutex.availablePermits()}")
@@ -267,26 +355,32 @@ class VDIClient : SceneryBase("VDI Rendering", 1280, 720, wantREPL = false) {
 
                     compute.material().textures["InputVDI"] = colorTexture
                     compute.material().textures["DepthVDI"] = depthTexture
+
+                    logger.info("Uploading data for buffer 1")
                 } else {
                     compute.ViewOriginal2 = vdiData.metadata.view
                     compute.invViewOriginal2 = Matrix4f(vdiData.metadata.view).invert()
 
                     compute.material().textures["InputVDI2"] = colorTexture
                     compute.material().textures["DepthVDI2"] = depthTexture
+
+                    logger.info("Uploading data for buffer 2")
                 }
 
-                logger.info("color mutex is: ${colorTexture.gpuMutex.availablePermits()} and depth: ${depthTexture.gpuMutex.availablePermits()}")
+//                logger.info("color mutex is: ${colorTexture.gpuMutex.availablePermits()} and depth: ${depthTexture.gpuMutex.availablePermits()}")
 
                 while(!colorTexture.availableOnGPU() || !depthTexture.availableOnGPU()) {
                     logger.info("Waiting for texture transfer. color: ${colorTexture.availableOnGPU()} and depth: ${depthTexture.availableOnGPU()}")
-                    Thread.sleep(50)
+                    Thread.sleep(1000)
                 }
 
-//                if(!firstVDI) {
-//                    compute.useSecondBuffer = !compute.useSecondBuffer
-//                }
+                logger.warn("Data has been detected to be uploaded to GPU")
 
-//                firstVDI = false
+                if(!firstVDI) {
+                    compute.useSecondBuffer = !compute.useSecondBuffer
+                }
+
+                firstVDI = false
 
                 compute.visible = true
 
@@ -296,7 +390,28 @@ class VDIClient : SceneryBase("VDI Rendering", 1280, 720, wantREPL = false) {
 
 
             logger.info("Received and updated VDI data")
+
+//            Thread.sleep(2000)
         }
+    }
+
+    override fun inputSetup() {
+        setupCameraModeSwitching()
+
+        inputHandler?.addBehaviour("send_camera", ClickBehaviour { _, _ ->
+            sendCamera = true
+        })
+        inputHandler?.addKeyBinding("send_camera", "O")
+
+        inputHandler?.addBehaviour("print_debug", ClickBehaviour { _, _ ->
+            startPrinting = true
+        })
+        inputHandler?.addKeyBinding("print_debug", "H")
+
+        inputHandler?.addBehaviour("rotate_camera", ClickBehaviour { r_, _ ->
+            rotateCamera(10f)
+        })
+        inputHandler?.addKeyBinding("rotate_camera", "R")
     }
 
     companion object {
