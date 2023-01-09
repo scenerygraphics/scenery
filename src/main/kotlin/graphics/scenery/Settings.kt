@@ -213,6 +213,9 @@ class Settings(override var hub: Hub? = null, prefix : String = "scenery.", prop
         return current ?: contents
     }
 
+    /**
+     * Adds an update routine lambda to a specific setting [setting], which is called when the setting changes inside the [settingsStore]
+     */
     fun addUpdateRoutine(setting : String, update: () -> Unit) {
         if(!settingsUpdateRoutines.containsKey(setting)) {
             settingsUpdateRoutines[setting] = arrayListOf(update)
