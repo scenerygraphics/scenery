@@ -4,8 +4,8 @@
 #define SEPARATE_DEPTH 1
 #define INT_DEPTHS 0
 #define PROFILE_MEM 0
-#define SKIP_EMPTY 0
 #define USE_VIEW_SPACE_CELLS 1
+#define RLE 0
 #define DOUBLE_BUFFER 1
 
 #if USE_PRINTF
@@ -41,6 +41,10 @@ layout(set = 5, binding = 0) uniform ShaderProperties {
     mat4 invModel;
     vec3 volumeDims;
     float nw;
+    int vdiWidth;
+    int vdiHeight;
+    int totalGeneratedSupsegs;
+    float downImage;
     bool do_subsample;
     int max_samples;
     float sampling_factor;
@@ -55,24 +59,20 @@ layout(push_constant) uniform currentEye_t {
 layout (local_size_x = 16, local_size_y = 16) in;
 layout(set = 2, binding = 0, rgba32f) uniform readonly image3D InputVDI;
 layout(set = 3, binding = 0, rgba8) uniform image2D OutputViewport;
-#if SEPARATE_DEPTH
-#if INT_DEPTHS
-layout (set = 4, binding = 0, rg16ui) uniform readonly uimage3D DepthVDI;
-#else
 layout (set = 4, binding = 0, r32f) uniform readonly image3D DepthVDI;
-#endif
+layout (set = 6, binding = 0, r32ui) uniform readonly uimage3D OctreeCells;
+
+#if RLE
+layout (set = 7, binding = 0, r32i) uniform iimage2D PrefixSums;
 #endif
 
 #if DOUBLE_BUFFER
-layout(set = 6, binding = 0, rgba32f) uniform readonly image3D InputVDI2;
-layout (set = 7, binding = 0, r32f) uniform readonly image3D DepthVDI2;
+layout(set = 7, binding = 0, rgba32f) uniform readonly image3D InputVDI2;
+layout (set = 8, binding = 0, r32f) uniform readonly image3D DepthVDI2;
+layout (set = 9, binding = 0, r32ui) uniform readonly uimage3D OctreeCells2;
 #endif
 
 
-#if SKIP_EMPTY
-layout (set = 8, binding = 0, r32f) uniform readonly image2D NoiseTexture;
-layout (set = 9, binding = 0, r32ui) uniform readonly uimage3D OctreeCells;
-#endif
 
 #if PROFILE_MEM
 layout(set = 8, binding = 0, r32f) uniform image2D NumSteps;
@@ -156,14 +156,14 @@ const vec4 bitDec = 1./bitEnc;
 //}
 
 float adjustOpacity(float a, float modifiedStepLength) {
-    //    modifiedStepLength = max(1.0, modifiedStepLength);
+//    modifiedStepLength = max(1.0, modifiedStepLength);
     float b = pow((1.0 - a), modifiedStepLength);
-    //    #if USE_PRINTF
-    //    if(gl_GlobalInvocationID.xy == debug_pixel) {
-    //        debugPrintfEXT("Modified step length is: %f and b is: %f",
-    //            modifiedStepLength, b);
-    //    }
-    //    #endif
+//    #if USE_PRINTF
+//    if(gl_GlobalInvocationID.xy == debug_pixel) {
+//        debugPrintfEXT("Modified step length is: %f and b is: %f",
+//            modifiedStepLength, b);
+//    }
+//    #endif
     return 1.0 - b;
 }
 
@@ -177,7 +177,6 @@ struct rayProperties {
 
 mat4 pv_orig, ivp_orig;
 int windowWidth, windowHeight;
-int vdiWidth, vdiHeight;
 
 rayProperties originalRay; // the ray (i.e. list) from the original VDI that is currently being intersected
 rayProperties newRay; // the ray from the new viewpoint that this kernel invocation is traversing
@@ -300,97 +299,6 @@ ivec3 num_cells;
 
 float stratification_factor;
 
-//void binSearch(int rayX, int rayY, int start, int end, float dist_to_orig, out float depthStart, out float depthEnd, out int index, out bool supseg_found, out bool supseg_is_on_left) {
-//
-//    supseg_found = false;
-//    int low = start;
-//    int high = end;
-//
-//    bool firstIteration = true;
-//
-//    while(low <= high) {
-////        if(prevIndex != -1 && firstIteration) {
-////            firstIteration = false;
-////            index = prevIndex;
-//////            #if USE_PRINTF
-//////            if(gl_GlobalInvocationID.xy == debug_pixel) {
-//////                debugPrintfEXT("List: (%d, %d). Starting with the prev index: %d", rayX, rayY, prevIndex);
-//////            }
-//////            #endif
-////        } else {
-//            index = (low + high)/2;
-////        }
-//        #if SEPARATE_DEPTH
-//        vec4 d = imageLoad(DepthVDI, ivec3(index*2, rayY, rayX)); //Start point of mid supersegment
-//        totalMemoryLoads++;
-//        depthStart = d.x;
-//        #else
-//        vec4 d = imageLoad(InputVDI, ivec3(index*3 + 1, rayY, rayX)); //Start point of mid supersegment
-//        totalMemoryLoads++;
-//        depthStart = DecodeFloatRGBA(d);
-//        #endif
-//
-//
-//        if(index != 0 && depthStart == 0.0) {
-//            //this supersegment has not been filled
-//            high = index - 1;
-//            continue;
-//        }
-//
-////        #if NDC
-////        depthStart = ndc_to_w(depthStart);
-////        #endif
-//
-////        #if USE_PRINTF
-////        if(gl_GlobalInvocationID.xy == debug_pixel) {
-////            debugPrintfEXT("Checking element %d. D_s: %f, d_t_o: %f", index, depthStart, dist_to_orig);
-////        }
-////        #endif
-//
-//        if(depthStart > dist_to_orig) { //this supersegment is ahead of the sample point
-//            high = index - 1;
-//        } else {
-//            #if SEPARATE_DEPTH
-//            vec4 dNext = imageLoad(DepthVDI, ivec3(index*2+1, rayY, rayX)); //End point of this supersegment
-//            totalMemoryLoads++;
-//            depthEnd = dNext.x;
-//            #else
-//            vec4 dNext = imageLoad(InputVDI, ivec3(index*3 + 2, rayY, rayX)); //End point of this supersegment
-//            totalMemoryLoads++;
-//            depthEnd = DecodeFloatRGBA(dNext);
-//            #endif
-//
-////            #if NDC
-////            depthEnd = ndc_to_w(depthEnd);
-////            #endif
-//
-//            if(dist_to_orig <= depthEnd) {
-//                // this is the supersegment
-//                supseg_found = true;
-////                #if USE_PRINTF
-////                if(gl_GlobalInvocationID.xy == debug_pixel) {
-////                    debugPrintfEXT("End depth is: %f", depthEnd);
-////                }
-////                #endif
-//                break;
-//            } else {
-////                #if USE_PRINTF
-////                if(gl_GlobalInvocationID.xy == debug_pixel) {
-////                    debugPrintfEXT("Increasing value of low");
-////                }
-////                #endif
-//                low = index+1;
-//            }
-//        }
-//    }
-//    supseg_is_on_left = (depthStart < dist_to_orig);
-////    #if USE_PRINTF
-////    if(gl_GlobalInvocationID.xy == debug_pixel) {
-////        debugPrintfEXT("Returning supseg: %d, found: %d: ", index, supseg_found);
-////    }
-////    #endif
-//}
-
 float near_plane = 0.1; //TODO: get from the CPU
 float far_plane = 20.0;
 
@@ -420,40 +328,27 @@ int findZInterval_view(float z_ndc) {
     return interval_num;
 }
 
+int bufferWidth = 0;
+int bufferHeight = 0;
+int bufferDepth = 0;
+
+#if RLE
+ivec3 supersegmentIndices(ivec2 theList, int index) {
+    int linearized = imageLoad(PrefixSums, theList.yx).x + index;
+
+    int z_ = linearized / (bufferWidth * bufferHeight);
+
+    int remainder = linearized % (bufferWidth * bufferHeight);
+
+    int y_ = remainder / bufferWidth;
+    int x_ = remainder % bufferWidth;
+
+    return ivec3(x_, y_, z_);
+}
+#endif
 
 float getSupsegFront(ivec2 theList, int index) {
 
-    //    #if USE_PRINTF
-    //    if(gl_GlobalInvocationID.xy == debug_pixel) {
-    //        debugPrintfEXT("Searching for front face of (%d, %d), %d", theList, index);
-    //    }
-    //    #endif
-
-    //    if(!(index >= 0 && index < maxSupersegments)) { //TODO: error checks need to be disabled everywhere!
-    //        //This is an error!
-    //        #if USE_PRINTF
-    //        if(gl_GlobalInvocationID.xy == debug_pixel) { //TODO: generalize
-    //            debugPrintfEXT("Searching for front face of incorrect supersegment index! List: (%d, %d) and index requested: %d", theList, index);
-    //        }
-    //        #endif
-    //        return -1;
-    //    }
-
-    #if SEPARATE_DEPTH
-    #if INT_DEPTHS
-    uint front_index = imageLoad(DepthVDI, ivec3(index, theList.y, theList.x)).x;
-    totalMemoryLoads++;
-    if(front_index == 0 && index != 0) {
-        return 0.0;
-    }
-    float step = orig_tnear + nw * front_index;
-    //        #if USE_PRINTF
-    //        if(gl_GlobalInvocationID.xy == debug_pixel) {
-    //            debugPrintfEXT("Searching for front depth of: (%d, %d), %d. Found jump num: %u, therefore returning: %f. orig_tnear: %f, nw: %f", theList, index, front_index, step, orig_tnear, nw);
-    //        }
-    //        #endif
-    return step;
-    #else
     vec4 front;
     #if DOUBLE_BUFFER
     if(useSecondBuffer) {
@@ -465,104 +360,44 @@ float getSupsegFront(ivec2 theList, int index) {
     front = imageLoad(DepthVDI, ivec3(index*2, theList.y, theList.x));
     #endif
     totalMemoryLoads++;
-    //        #if USE_PRINTF
-    //        if(gl_GlobalInvocationID.xy == debug_pixel) {
-    //            debugPrintfEXT("Searching for front depth of: (%d, %d), %d. returning: %f", theList, index, front.x);
-    //        }
-    //        #endif
     return front.x;
-    #endif
-    #else
-    vec4 front = imageLoad(InputVDI, ivec3(index*3 + 1, theList.y, theList.x));
-    totalMemoryLoads++;
-    return DecodeFloatRGBA(front);
-    #endif
 }
 
 float getSupsegBack(ivec2 theList, int index) {
-
-    //    #if USE_PRINTF
-    //    if(gl_GlobalInvocationID.xy == debug_pixel && theList.x < 343) {
-    //        debugPrintfEXT("Searching for back face of (%d, %d), %d", theList, index);
-    //    }
-    //    #endif
-
-    //    if(!(index >= 0 && index < maxSupersegments)) {
-    //        //This is an error!
-    //        #if USE_PRINTF
-    //        if(gl_GlobalInvocationID.xy == debug_pixel) { //TODO: generalize
-    //            debugPrintfEXT("Searching for back face of incorrect supersegment index! List: (%d, %d) and index requested: %d", theList, index);
-    //        }
-    //        #endif
-    //        return -1;
-    //    }
-
-    #if SEPARATE_DEPTH
-    #if INT_DEPTHS
-    uint back_index = imageLoad(DepthVDI, ivec3(index, theList.y, theList.x)).y;
-    //        #if USE_PRINTF
-    //        if(gl_GlobalInvocationID.xy == debug_pixel && theList.x < 343) {
-    //            debugPrintfEXT("Obtained back index: %d", back_index);
-    //        }
-    //        #endif
-    totalMemoryLoads++;
-    if(back_index == 0) {
-        return 0.0;
-    }
-    float step = orig_tnear + nw * back_index;
-    //        #if USE_PRINTF
-    //        if(gl_GlobalInvocationID.xy == debug_pixel && theList.x < 343) {
-    //            debugPrintfEXT("Searching for back depth of: (%d, %d), %d. Found jump num: %u, therefore returning: %f", theList, index, back_index, step);
-    //        }
-    //        #endif
-    return step;
-    #else
     vec4 back;
     #if DOUBLE_BUFFER
     if(useSecondBuffer) {
         back = imageLoad(DepthVDI2, ivec3(index*2 + 1, theList.y, theList.x));
-//        #if USE_PRINTF
-//        if(gl_GlobalInvocationID.xy == debug_pixel) {
-//            debugPrintfEXT("Buffer 2. Searching for back depth of: (%d, %d), %d. Found: %f", theList, index, back.x);
-//        }
-//        #endif
     } else {
         back = imageLoad(DepthVDI, ivec3(index*2 + 1, theList.y, theList.x));
-//        #if USE_PRINTF
-//        if(gl_GlobalInvocationID.xy == debug_pixel) {
-//            debugPrintfEXT("Buffer 1. Searching for back depth of: (%d, %d), %d. Found: %f", theList, index, back.x);
-//        }
-//        #endif
     }
     #else
         back = imageLoad(DepthVDI, ivec3(index*2 + 1, theList.y, theList.x));
     #endif
     totalMemoryLoads++;
-    //        #if USE_PRINTF
-    //        if(gl_GlobalInvocationID.xy == debug_pixel) {
-    //            debugPrintfEXT("Searching for back depth of: (%d, %d), %d. returning: %f", theList, index, back.x);
-    //        }
-    //        #endif
     return back.x;
-    #endif
+}
+
+vec4 getSupsegColor(ivec2 theList, int index) {
+    #if RLE
+    ivec3 bufferIndices = supersegmentIndices(theList, index);
+    return imageLoad(InputVDI, bufferIndices).rgba;
     #else
-    vec4 back = imageLoad(InputVDI, ivec3(index*3 + 2, theList.y, theList.x));
-    totalMemoryLoads++;
-    return DecodeFloatRGBA(back);
+    return imageLoad(InputVDI, ivec3(index, theList.y, theList.x)).rgba;
     #endif
 }
 
 float getPrecedingDepth(ivec2 theList, int index) {
 
-    //    if(!(index >= 0 && index < maxSupersegments)) {
-    //        //This is an error!
-    //        #if USE_PRINTF
-    //        if(gl_GlobalInvocationID.xy == debug_pixel) { //TODO: generalize
-    //            debugPrintfEXT("Searching for back face of incorrect supersegment index! List: (%d, %d) and index requested: %d", theList, index);
-    //        }
-    //        #endif
-    //        return -1;
-    //    }
+//    if(!(index >= 0 && index < maxSupersegments)) {
+//        //This is an error!
+//        #if USE_PRINTF
+//        if(gl_GlobalInvocationID.xy == debug_pixel) { //TODO: generalize
+//            debugPrintfEXT("Searching for back face of incorrect supersegment index! List: (%d, %d) and index requested: %d", theList, index);
+//        }
+//        #endif
+//        return -1;
+//    }
 
     float ret = getSupsegBack(theList, index - 1);
 
@@ -576,40 +411,40 @@ float getPrecedingDepth(ivec2 theList, int index) {
 
 void binSearch_lin(ivec2 theList, float dist_to_orig, int start, int end, out bool supseg_found, out int index, out float depthStart, out float depthEnd) {
 
-    //    #if USE_PRINTF
-    //    if(gl_GlobalInvocationID.xy == debug_pixel) {
-    //        debugPrintfEXT("Performing bin search for list: (%d, %d) from %d to %d ", theList, start, end);
-    //    }
-    //    #endif
+//    #if USE_PRINTF
+//    if(gl_GlobalInvocationID.xy == debug_pixel) {
+//        debugPrintfEXT("Performing bin search for list: (%d, %d) from %d to %d ", theList, start, end);
+//    }
+//    #endif
 
 
     supseg_found = false;
     int low = start;
     int high = end;
 
-    for (int i = start ; i <= end ; i++) {
-        depthEnd = getSupsegBack(theList, i);
+   for (int i = start ; i <= end ; i++) {
+   	depthEnd = getSupsegBack(theList, i);
 
-        if(depthEnd == 0.0) {
-            supseg_found = false;
-            break;
-        }
+	if(depthEnd == 0.0) {
+        	supseg_found = false;
+                break;
+	}
 
         if(depthEnd >= dist_to_orig) { //this supersegment is behind the sample point
-            supseg_found = true;
-            index = i;
-            break;
+               	supseg_found = true;
+               	index = i;
+                break;
         }
-    }
+   }
 }
 
 void binSearch(ivec2 theList, float dist_to_orig, int start, int end, out bool supseg_found, out int index, out float depthStart, out float depthEnd) {
 
-    //    #if USE_PRINTF
-    //    if(gl_GlobalInvocationID.xy == debug_pixel) {
-    //        debugPrintfEXT("Performing bin search for list: (%d, %d) from %d to %d ", theList, start, end);
-    //    }
-    //    #endif
+//    #if USE_PRINTF
+//    if(gl_GlobalInvocationID.xy == debug_pixel) {
+//        debugPrintfEXT("Performing bin search for list: (%d, %d) from %d to %d ", theList, start, end);
+//    }
+//    #endif
 
 
     supseg_found = false;
@@ -619,12 +454,12 @@ void binSearch(ivec2 theList, float dist_to_orig, int start, int end, out bool s
     while(low <= high) {
 
         index = (low + high)/2;
-        //
-        //        #if USE_PRINTF
-        //        if(gl_GlobalInvocationID.xy == debug_pixel) {
-        //            debugPrintfEXT("High is: %d, low is: %d and index is: %d", high, low, index);
-        //        }
-        //        #endif
+//
+//        #if USE_PRINTF
+//        if(gl_GlobalInvocationID.xy == debug_pixel) {
+//            debugPrintfEXT("High is: %d, low is: %d and index is: %d", high, low, index);
+//        }
+//        #endif
 
         depthEnd = getSupsegBack(theList, index);
 
@@ -646,65 +481,6 @@ void binSearch(ivec2 theList, float dist_to_orig, int start, int end, out bool s
             } else {
                 high = index - 1;
             }
-        }
-    }
-}
-
-
-void linSearch(int rayX, int rayY, int start, int limit, float dist_to_orig, out float depthStart, out float depthEnd, out int index, out bool supseg_found) {
-
-    supseg_found = false;
-
-    for(index = start; index < limit; index++) {
-        //Find which supersegment along this ray
-
-        #if SEPARATE_DEPTH
-        vec4 d = imageLoad(DepthVDI, ivec3(index*2, rayY, rayX)); //Start point of mid supersegment
-        totalMemoryLoads++;
-        depthStart = d.x;
-        #else
-        vec4 d = imageLoad(InputVDI, ivec3(index*3 + 1, rayY, rayX)); //Start point of mid supersegment
-        totalMemoryLoads++;
-        depthStart = DecodeFloatRGBA(d);
-        #endif
-
-        if(index!=0 && depthStart == 0.0) {
-            break; // there are no more supersegments in this list, so break
-        }
-
-        float ndc_x = float(rayX) / vdiWidth * 2.0 - 1.0;
-        float ndc_y = float(rayY) / vdiHeight * 2.0 - 1.0;
-
-        vec2 uv = vec2(ndc_x, ndc_y);
-
-        #if NDC
-        depthStart = ndc_to_w(uv, depthStart);
-        #endif
-
-        //d
-        if(dist_to_orig >= depthStart)
-        {
-            #if SEPARATE_DEPTH
-            vec4 dNext = imageLoad(DepthVDI, ivec3(index*2+1, rayY, rayX)); //End point of this supersegment
-            totalMemoryLoads++;
-            depthEnd = dNext.x;
-            #else
-            vec4 dNext = imageLoad(InputVDI, ivec3(index*3 + 2, rayY, rayX)); //End point of this supersegment
-            totalMemoryLoads++;
-            depthEnd = DecodeFloatRGBA(dNext);
-        #endif
-
-        #if NDC
-            depthEnd = ndc_to_w(uv, depthEnd);
-            #endif
-
-            if(dist_to_orig <= depthEnd) {
-                // We have found the supersegment
-                supseg_found = true;
-                break;
-            }
-        } else {
-            break; // this supersegment is already further from wfront than this sample point, so no point checking subsequent ones
         }
     }
 }
@@ -808,7 +584,7 @@ void findFirstSupseg_seeded(ivec2 theList, float dist_to_orig, float exit_distan
                     binSearch(theList, dist_to_orig, 0, prevIndex - 1, supseg_found, index, depthStart, depthEnd);
                 }
             } else if (prevIndex >= 1) {
-                binSearch(theList, dist_to_orig, 0, prevIndex - 1, supseg_found, index, depthStart, depthEnd);
+                 binSearch(theList, dist_to_orig, 0, prevIndex - 1, supseg_found, index, depthStart, depthEnd);
             }
 
         } else {
@@ -914,12 +690,12 @@ void findFirstSupseg_opt_seeded(ivec2 theList, float dist_to_orig, float exit_di
         {
             bin_search_end = maxSupersegments - 1;
             bin_search_start = prevIndex + 1;
-        }
+	    }
         else if (interval == 2)
         {
-            bin_search_end = prevIndex - 1;
-            bin_search_start = 0;
-        }
+		    bin_search_end = prevIndex - 1;
+		    bin_search_start = 0;
+	    }
         else
         {
             if (nzeros_back == 1)
@@ -938,7 +714,7 @@ void findFirstSupseg_opt_seeded(ivec2 theList, float dist_to_orig, float exit_di
 
     if (bin_search_end != -1)
     {
-        binSearch(theList, dist_to_orig, bin_search_start, bin_search_end, supseg_found, index, depthStart, depthEnd);
+    	binSearch(theList, dist_to_orig, bin_search_start, bin_search_end, supseg_found, index, depthStart, depthEnd);
     }
 
     depthStart = getSupsegFront(theList, index);
@@ -947,11 +723,11 @@ void findFirstSupseg_opt_seeded(ivec2 theList, float dist_to_orig, float exit_di
         supseg_found = false;
     }
 
-    //    #if USE_PRINTF
-    //    if(gl_GlobalInvocationID.xy == debug_pixel) {
-    //        debugPrintfEXT("In thelist: (%d, %d) found the index: %d", theList.xy, index);
-    //    }
-    //    #endif
+//    #if USE_PRINTF
+//    if(gl_GlobalInvocationID.xy == debug_pixel) {
+//        debugPrintfEXT("In thelist: (%d, %d) found the index: %d", theList.xy, index);
+//    }
+//    #endif
 }
 
 void findFirstSupseg_opt(ivec2 theList, float dist_to_orig, float exit_distance, out bool supseg_found, out int index, out float depthStart, out float depthEnd) {
@@ -1016,9 +792,9 @@ void findFirstSupseg_opt(ivec2 theList, float dist_to_orig, float exit_distance,
             {
                 if (nzeros_back >= 2)
                 {
-                    supseg_found = true;
-                    index = prevIndex;
-                    depthEnd = backs[2];
+                        supseg_found = true;
+                        index = prevIndex;
+                        depthEnd = backs[2];
                 }
                 else
                 {
@@ -1030,9 +806,9 @@ void findFirstSupseg_opt(ivec2 theList, float dist_to_orig, float exit_distance,
             {
                 if (nzeros_back >= 1)
                 {
-                    supseg_found = true;
-                    index = prevIndex - 1;
-                    depthEnd = backs[1];
+                        supseg_found = true;
+                        index = prevIndex - 1;
+                            depthEnd = backs[1];
                 }
                 else
                 {
@@ -1054,23 +830,23 @@ void findFirstSupseg_opt(ivec2 theList, float dist_to_orig, float exit_distance,
         supseg_found = false;
     }
 
-    //    #if USE_PRINTF
-    //    if(gl_GlobalInvocationID.xy == debug_pixel && supseg_found) { //TODO: generalize
-    //       debugPrintfEXT("In thelist: (%d, %d) found the index: %d", theList.xy, index);
-    //    }
-    //    #endif
+//    #if USE_PRINTF
+//    if(gl_GlobalInvocationID.xy == debug_pixel && supseg_found) { //TODO: generalize
+//       debugPrintfEXT("In thelist: (%d, %d) found the index: %d", theList.xy, index);
+//    }
+//    #endif
 }
 
 void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout vec4 accumulatedColor) {
 
     totalIntersectedLists++;
 
-    //    #if USE_PRINTF
-    //    if(gl_GlobalInvocationID.xy == debug_pixel) {
-    //        debugPrintfEXT("Intersecting list: (%d, %d). Start pt: (%f, %f, %f) and End pt: (%f, %f, %f)", theList,
-    //                                    start_point.xyz, end_point.xyz);
-    //    }
-    //    #endif
+    #if USE_PRINTF
+    if(gl_GlobalInvocationID.xy == debug_pixel) {
+        debugPrintfEXT("Intersecting list: (%d, %d). Start pt: (%f, %f, %f) and End pt: (%f, %f, %f)", theList,
+                                    start_point.xyz, end_point.xyz);
+    }
+    #endif
 
     //TODO: see whether the below is required
 
@@ -1107,17 +883,17 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
     if(firstBack == 0) {
         first_empty = true;
     }
-        #endif
+    #endif
 
     if(first_empty) {
         //the first supersegment is empty, so empty list
         totalEmptyLists++;
         totalNonIntersected++;
-        //        #if USE_PRINTF
-        //        if(gl_GlobalInvocationID.xy == debug_pixel) {
-        //            debugPrintfEXT("Returning because first element was 0. The list no. was: (%d, %d)", theList);
-        //        }
-        //        #endif
+        #if USE_PRINTF
+        if(gl_GlobalInvocationID.xy == debug_pixel) {
+            debugPrintfEXT("Returning because first element was 0. The list no. was: (%d, %d)", theList);
+        }
+        #endif
         return;
     }
 
@@ -1138,33 +914,33 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
     orig_tnear = 1, orig_tfar = 0;
     float n, f;
 
-    bool vis = false;
-    intersectBoundingBox_x_11_x_( originalRay.wfront, originalRay.wback, n, f );
+//    bool vis = false;
+//    intersectBoundingBox_x_11_x_( originalRay.wfront, originalRay.wback, n, f );
+//
+//    if ( n < f )
+//    {
+//        orig_tnear = min( orig_tnear, max( 0, n ) );
+//        orig_tfar = max( orig_tfar, f );
+//        vis = true;
+//    }
 
-    if ( n < f )
-    {
-        orig_tnear = min( orig_tnear, max( 0, n ) );
-        orig_tfar = max( orig_tfar, f );
-        vis = true;
-    }
+//    #if USE_PRINTF
+//    if(gl_GlobalInvocationID.xy == debug_pixel && theList.x < 344) {
+//        debugPrintfEXT("Original ray nfront: (%f, %f, %f, %f) nback: (%f, %f, %f, %f)", originalRay.NDC_front.xyzw, originalRay.NDC_back.xyzw);
+//        debugPrintfEXT("Original ray wfront: (%f, %f, %f, %f) wback: (%f, %f, %f, %f)", originalRay.wfront.xyzw, originalRay.wback.xyzw);
+//        debugPrintfEXT("tnear: %f and tfar: %f", orig_tnear, orig_tfar);
+//    }
+//    #endif
 
-    //    #if USE_PRINTF
-    //    if(gl_GlobalInvocationID.xy == debug_pixel && theList.x < 344) {
-    //        debugPrintfEXT("Original ray nfront: (%f, %f, %f, %f) nback: (%f, %f, %f, %f)", originalRay.NDC_front.xyzw, originalRay.NDC_back.xyzw);
-    //        debugPrintfEXT("Original ray wfront: (%f, %f, %f, %f) wback: (%f, %f, %f, %f)", originalRay.wfront.xyzw, originalRay.wback.xyzw);
-    //        debugPrintfEXT("tnear: %f and tfar: %f", orig_tnear, orig_tfar);
-    //    }
-    //    #endif
-
-    if(!vis) { //todo: this check seems unnecessary because the list is not empty
-        //        #if USE_PRINTF
-        //        if(gl_GlobalInvocationID.xy == debug_pixel) {
-        //            debugPrintfEXT("Returning because list does not intersect volume. n: %f, f: %f", n, f);
-        //        }
-        //        #endif
-        //this original ray (i.e., list) does not intersect the volume, so return
-        return;
-    }
+//    if(!vis) { //todo: this check seems unnecessary because the list is not empty
+////        #if USE_PRINTF
+////        if(gl_GlobalInvocationID.xy == debug_pixel) {
+////            debugPrintfEXT("Returning because list does not intersect volume. n: %f, f: %f", n, f);
+////        }
+////        #endif
+//        //this original ray (i.e., list) does not intersect the volume, so return
+//        return;
+//    }
 
     float dist_to_orig_n = start_point.z;
 
@@ -1174,12 +950,12 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
     dotPositive = dist_to_orig_n <= exit_distance_n ? true: false;
 
     if(!dotPositive) {
-        accumulatedColor = vec4(1, 0, 0, 1);
-        //        #if USE_PRINTF
-        //        if(gl_GlobalInvocationID.xy == debug_pixel) {
-        //            debugPrintfEXT("List: (%d, %d). Returning because dot product is negative.", theList);
-        //        }
-        //        #endif
+        accumulatedColor = vec4(0, 0, 0, 1);
+//        #if USE_PRINTF
+//        if(gl_GlobalInvocationID.xy == debug_pixel) {
+//            debugPrintfEXT("List: (%d, %d). Returning because dot product is negative.", theList);
+//        }
+//        #endif
         return;
         //TODO: implement code path for inverted ray direction
     }
@@ -1206,45 +982,45 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
         int index;
 
         if(firstIteration) {
-            findFirstSupseg_binary(theList, dist_to_orig, exit_distance, supseg_found, index, depthStart, depthEnd);
-            //
-            //            bool sf2;
-            //            int ind2;
-            //            float ds2;
-            //            float de2;
-            //            findFirstSupseg2(theList, dist_to_orig, exit_distance, sf2, ind2, ds2, de2);
-            //
-            //            if(ind2 != index) {
-            //                #if USE_PRINTF
-            //                if(gl_GlobalInvocationID.xy == debug_pixel) {
-            //                    debugPrintfEXT("Got different values: ind2: %d and index: %d. supseg_found: %d and sf2: %d", ind2, index, supseg_found, sf2);
-            //                    }
-            //                #endif
-            //            }
+            findFirstSupseg_opt_seeded(theList, dist_to_orig, exit_distance, supseg_found, index, depthStart, depthEnd);
+//
+//            bool sf2;
+//            int ind2;
+//            float ds2;
+//            float de2;
+//            findFirstSupseg2(theList, dist_to_orig, exit_distance, sf2, ind2, ds2, de2);
+//
+//            if(ind2 != index) {
+//                #if USE_PRINTF
+//                if(gl_GlobalInvocationID.xy == debug_pixel) {
+//                    debugPrintfEXT("Got different values: ind2: %d and index: %d. supseg_found: %d and sf2: %d", ind2, index, supseg_found, sf2);
+//                    }
+//                #endif
+//            }
             firstIteration = false;
         } else {
             nextSupersegmentInList(theList, exit_distance, dotPositive, supseg_found, index, depthStart, depthEnd);
         }
 
-        //        #if USE_PRINTF
-        //        if(gl_GlobalInvocationID.xy == debug_pixel) {
-        //            debugPrintfEXT("For list: (%d, %d). Found supseg %d index %d. Start depth: %f and end depth: %f", theList, supseg_found, index, depthStart, depthEnd);
-        //            debugPrintfEXT("In this list, there have been %d memory loads.", totalMemoryLoads - total_steps_before);
-        //        }
-        //        #endif
+        #if USE_PRINTF
+        if(gl_GlobalInvocationID.xy == debug_pixel) {
+            debugPrintfEXT("For list: (%d, %d). Found supseg %d index %d. Start depth: %f and end depth: %f", theList, supseg_found, index, depthStart, depthEnd);
+            debugPrintfEXT("In this list, there have been %d memory loads.", totalMemoryLoads - total_steps_before);
+        }
+        #endif
 
-        //        if(gl_GlobalInvocationID.xy == debug_pixel && supseg_found && index == prevIndex) {
-        //        if(gl_GlobalInvocationID.xy == debug_pixel && theList == prevList && supseg_found && index == prevIndex) {
-        //            #if USE_PRINTF
-        //                debugPrintfEXT("This is an ERROR! For list: (%d, %d), found index: %d again. Invoc ID was: (%d, %d)", theList.x, theList.y, index, gl_GlobalInvocationID.xy);
-        //            #endif
-        //            break;
-        //        }
+//        if(gl_GlobalInvocationID.xy == debug_pixel && supseg_found && index == prevIndex) {
+//        if(gl_GlobalInvocationID.xy == debug_pixel && theList == prevList && supseg_found && index == prevIndex) {
+//            #if USE_PRINTF
+//                debugPrintfEXT("This is an ERROR! For list: (%d, %d), found index: %d again. Invoc ID was: (%d, %d)", theList.x, theList.y, index, gl_GlobalInvocationID.xy);
+//            #endif
+//            break;
+//        }
 
         prevList = theList;
-        //        if(supseg_found) {
+//        if(supseg_found) {
         prevIndex = index;
-        //        }
+//        }
 
         float temp_start = depthStart;
         float temp_end = depthEnd;
@@ -1259,19 +1035,19 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
 
         if(supseg_found) {
 
-            //            #if USE_PRINTF
-            //            if(gl_GlobalInvocationID.xy == debug_pixel) {
-            //                debugPrintfEXT("Found supseg: (%d, %d), %d", theList, index);
-            //                debugPrintfEXT("DepthStart: %f and DepthEnd: %f, while dto: %f and exit: %f ", temp_start, temp_end, dist_to_orig, exit_distance);
-            //            }
-            //            #endif
+            #if USE_PRINTF
+            if(gl_GlobalInvocationID.xy == debug_pixel) {
+                debugPrintfEXT("Found supseg: (%d, %d), %d", theList, index);
+                debugPrintfEXT("DepthStart: %f and DepthEnd: %f, while dto: %f and exit: %f ", temp_start, temp_end, dist_to_orig, exit_distance);
+            }
+            #endif
 
-            //            #if USE_PRINTF
-            //            if(temp_end <= temp_start) {
-            //                debugPrintfEXT("This is an error! Found supseg: (%d, %d), %d", theList, index);
-            //                debugPrintfEXT("DepthStart: %f and DepthEnd: %f, while dto: %f and exit: %f ", temp_start, temp_end, dist_to_orig, exit_distance);
-            //            }
-            //            #endif
+//            #if USE_PRINTF
+//            if(temp_end <= temp_start) {
+//                debugPrintfEXT("This is an error! Found supseg: (%d, %d), %d", theList, index);
+//                debugPrintfEXT("DepthStart: %f and DepthEnd: %f, while dto: %f and exit: %f ", temp_start, temp_end, dist_to_orig, exit_distance);
+//            }
+//            #endif
 
 
             if(firstNotYetIntersected) {
@@ -1300,7 +1076,6 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
             vec4 w_end_point = ivp_orig * end_point;
             w_end_point *= 1./w_end_point.w;
 
-            #if SEPARATE_DEPTH
             vec4 supseg_col;
             #if DOUBLE_BUFFER
             if(useSecondBuffer) {
@@ -1312,10 +1087,6 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
             supseg_col = imageLoad(InputVDI, ivec3(index, theList.y, theList.x));
             #endif
             totalMemoryLoads++;
-            #else
-            vec4 supseg_col = imageLoad(InputVDI, ivec3(index*3, theList.y, theList.x));
-            totalMemoryLoads++;
-            #endif
 
             float length_in_supseg = distance(w_start_point, w_end_point);
 
@@ -1324,20 +1095,20 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
             accumulatedColor.rgb = accumulatedColor.rgb + (1-accumulatedColor.a) * supseg_col.rgb * alpha;
             accumulatedColor.a = accumulatedColor.a + (1-accumulatedColor.a) * alpha;
 
-            //            #if USE_PRINTF
-            //            if(gl_GlobalInvocationID.xy == debug_pixel) {
-            //                debugPrintfEXT("NDC start point: (%f, %f, %f, %f) and NDC end point: (%f, %f, %f, %f).", start_point.xyzw, end_point.xyzw);
-            //                debugPrintfEXT("World start point: (%f, %f, %f, %f) and end point: (%f, %f, %f, %f). Length: %f", w_start_point.xyzw, w_end_point.xyzw, length_in_supseg);
-            //                debugPrintfEXT("Accumulated color: (%f, %f, %f, %f)", accumulatedColor.rgba);
-            //            }
-            //            #endif
+            #if USE_PRINTF
+            if(gl_GlobalInvocationID.xy == debug_pixel) {
+//                debugPrintfEXT("NDC start point: (%f, %f, %f, %f) and NDC end point: (%f, %f, %f, %f).", start_point.xyzw, end_point.xyzw);
+//                debugPrintfEXT("World start point: (%f, %f, %f, %f) and end point: (%f, %f, %f, %f). Length: %f", w_start_point.xyzw, w_end_point.xyzw, length_in_supseg);
+                debugPrintfEXT("Accumulated color: (%f, %f, %f, %f)", accumulatedColor.rgba);
+            }
+            #endif
 
             if(accumulatedColor.a > 0.99) {
-                //                #if USE_PRINTF
-                //                if(gl_GlobalInvocationID.xy == debug_pixel) {
-                //                    debugPrintfEXT("Breaking because alpha is: %f", accumulatedColor.a);
-                //                }
-                //                #endif
+//                #if USE_PRINTF
+//                if(gl_GlobalInvocationID.xy == debug_pixel) {
+//                    debugPrintfEXT("Breaking because alpha is: %f", accumulatedColor.a);
+//                }
+//                #endif
                 break;
             }
 
@@ -1349,7 +1120,7 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
         totalNonIntersected += (totalMemoryLoads - total_steps_before);
     }
 
-    //    prevIndex = -1;
+//    prevIndex = -1;
 
 }
 
@@ -1367,11 +1138,11 @@ void traverse_subsample(vec4 world_entry, vec4 world_end, float total_distance, 
     float normalized_jump = jump_size / total_distance;
     float stratified_sample = (stratification_factor * normalized_jump);
 
-    //    #if USE_PRINTF
-    //    if(gl_GlobalInvocationID.xy == debug_pixel) {
-    //        debugPrintfEXT("Stratified sample size: %f", stratified_sample);
-    //    }
-    //    #endif
+//    #if USE_PRINTF
+//    if(gl_GlobalInvocationID.xy == debug_pixel) {
+//        debugPrintfEXT("Stratified sample size: %f", stratified_sample);
+//    }
+//    #endif
 
     for(int i = 1; i <= num_samples; i++) {
         step = (stratified_sample +  ((i - 1) * normalized_jump));
@@ -1437,7 +1208,6 @@ void traverse_subsample(vec4 world_entry, vec4 world_end, float total_distance, 
             supseg_end_w *= 1. / supseg_end_w.w;
 
 
-            #if SEPARATE_DEPTH
             vec4 supseg_col;
             #if DOUBLE_BUFFER
             if(useSecondBuffer) {
@@ -1449,10 +1219,6 @@ void traverse_subsample(vec4 world_entry, vec4 world_end, float total_distance, 
             supseg_col = imageLoad(InputVDI, ivec3(index, list_coords.y, list_coords.x));
             #endif
             totalMemoryLoads++;
-            #else
-            vec4 supseg_col = imageLoad(InputVDI, ivec3(index*3, list_coords.y, list_coords.x));
-            totalMemoryLoads++;
-            #endif
 
             float alpha = adjustOpacity(supseg_col.a, jump_size);
             finalColor.rgb = finalColor.rgb + (1-finalColor.a) * supseg_col.rgb * alpha;
@@ -1460,20 +1226,20 @@ void traverse_subsample(vec4 world_entry, vec4 world_end, float total_distance, 
         }
     }
 
-    //    #if USE_PRINTF
-    //    if(gl_GlobalInvocationID.xy == debug_pixel) {
-    //        debugPrintfEXT("A cell of length: %f was traversed in %d steps. This required %d memory accesses.", total_distance, num_samples, totalMemoryLoads-total_before);
-    //    }
-    //    #endif
+//    #if USE_PRINTF
+//    if(gl_GlobalInvocationID.xy == debug_pixel) {
+//        debugPrintfEXT("A cell of length: %f was traversed in %d steps. This required %d memory accesses.", total_distance, num_samples, totalMemoryLoads-total_before);
+//    }
+//    #endif
 }
 
 void traverse_cell(vec4 entry_point, ivec2 entry_list, vec3 cell_min, vec3 cell_max, out vec4 end_point, out ivec2 nextList) {
 
-    //    #if USE_PRINTF
-    //    if(gl_GlobalInvocationID.xy == debug_pixel) {
-    //        debugPrintfEXT("Traversing cell with min: (%f, %f, %f) and max: (%f, %f, %f). Entry point: (%f, %f, %f, %f)", cell_min.xyz, cell_max.xyz, entry_point.xyzw);
-    //    }
-    //    #endif
+//    #if USE_PRINTF
+//    if(gl_GlobalInvocationID.xy == debug_pixel) {
+//        debugPrintfEXT("Traversing cell with min: (%f, %f, %f) and max: (%f, %f, %f). Entry point: (%f, %f, %f, %f)", cell_min.xyz, cell_max.xyz, entry_point.xyzw);
+//    }
+//    #endif
 
     const float max_x = max(cell_max.x, cell_min.x);
     const float min_x = min(cell_max.x, cell_min.x);
@@ -1492,18 +1258,18 @@ void traverse_cell(vec4 entry_point, ivec2 entry_list, vec3 cell_min, vec3 cell_
     float tmaxY = dir.y != 0 ? abs((nextY_ndc - entry_point.y) / dir.y) : 10000000;
     float tmaxZ = dir.z != 0 ? abs((finalZ - entry_point.z) / dir.z) : 10000000;
 
-    //    if(gl_GlobalInvocationID.xy == debug_pixel && !(tmaxX >= 0 && tmaxY >= 0 && tmaxZ >= 0)) {
-    //    #if USE_PRINTF
-    //        debugPrintfEXT("Invoc id is: (%d, %d)", gl_GlobalInvocationID.xy);
-    //        debugPrintfEXT("This is an ERROR at initialization! tmaxX: %f, tmaxY: %f, tmaxZ: %f", tmaxX, tmaxY, tmaxZ);
-    //    #endif
-    //    }
+//    if(gl_GlobalInvocationID.xy == debug_pixel && !(tmaxX >= 0 && tmaxY >= 0 && tmaxZ >= 0)) {
+//    #if USE_PRINTF
+//        debugPrintfEXT("Invoc id is: (%d, %d)", gl_GlobalInvocationID.xy);
+//        debugPrintfEXT("This is an ERROR at initialization! tmaxX: %f, tmaxY: %f, tmaxZ: %f", tmaxX, tmaxY, tmaxZ);
+//    #endif
+//    }
 
-    //    #if USE_PRINTF
-    //    if(gl_GlobalInvocationID.xy == debug_pixel) {
-    //        debugPrintfEXT("tmaxX: %f, tmaxY: %f, tmaxZ: %f", tmaxX, tmaxY, tmaxZ);
-    //    }
-    //    #endif
+//    #if USE_PRINTF
+//    if(gl_GlobalInvocationID.xy == debug_pixel) {
+//        debugPrintfEXT("tmaxX: %f, tmaxY: %f, tmaxZ: %f", tmaxX, tmaxY, tmaxZ);
+//    }
+//    #endif
 
     ivec2 currentList = entry_list;
 
@@ -1520,17 +1286,17 @@ void traverse_cell(vec4 entry_point, ivec2 entry_list, vec3 cell_min, vec3 cell_
         //        }
         //        #endif
 
-        //        if(!(tmaxX >= 0 && tmaxY >= 0 && tmaxZ >= 0)) {
-        //            #if USE_PRINTF
-        //            //            if(gl_GlobalInvocationID.xy == debug_pixel) {
-        //            debugPrintfEXT("Invoc id is: (%d, %d)", gl_GlobalInvocationID.xy);
-        //            debugPrintfEXT("This is an ERROR! tmaxX: %f, tmaxY: %f, tmaxZ: %f", tmaxX, tmaxY, tmaxZ);
-        //            //                debugPrintfEXT("First point: (%f, %f, %f, %f). Ray dir is: (%f, %f, %f)", first_entry_pt, dir.xyz);
-        //
-        //            //            }
-        //            #endif
-        //            break;
-        //        }
+//        if(!(tmaxX >= 0 && tmaxY >= 0 && tmaxZ >= 0)) {
+//            #if USE_PRINTF
+//            //            if(gl_GlobalInvocationID.xy == debug_pixel) {
+//            debugPrintfEXT("Invoc id is: (%d, %d)", gl_GlobalInvocationID.xy);
+//            debugPrintfEXT("This is an ERROR! tmaxX: %f, tmaxY: %f, tmaxZ: %f", tmaxX, tmaxY, tmaxZ);
+//            //                debugPrintfEXT("First point: (%f, %f, %f, %f). Ray dir is: (%f, %f, %f)", first_entry_pt, dir.xyz);
+//
+//            //            }
+//            #endif
+//            break;
+//        }
 
         float incr = 0;
 
@@ -1587,37 +1353,37 @@ void traverse_cell(vec4 entry_point, ivec2 entry_list, vec3 cell_min, vec3 cell_
         findSupsegsInList(currentList, start_point, end_point, finalColor);
 
         if(terminate) {
-            //            #if USE_PRINTF
-            //            if(gl_GlobalInvocationID.xy == debug_pixel) {
-            //                debugPrintfEXT("Breaking because end pt is outside. It is: (%f, %f, %f)", end_point.xyz);
-            //            }
-            //            #endif
+//            #if USE_PRINTF
+//            if(gl_GlobalInvocationID.xy == debug_pixel) {
+//                debugPrintfEXT("Breaking because end pt is outside. It is: (%f, %f, %f)", end_point.xyz);
+//            }
+//            #endif
             break;
         }
 
-        //        #if USE_PRINTF
-        //        if(gl_GlobalInvocationID.xy == debug_pixel) {
-        //            debugPrintfEXT("After finding supsegs in list: (%d, %d), the color is: (%f, %f, %f, %f)", currentList, finalColor);
-        //        }
-        //        #endif
+    //        #if USE_PRINTF
+    //        if(gl_GlobalInvocationID.xy == debug_pixel) {
+    //            debugPrintfEXT("After finding supsegs in list: (%d, %d), the color is: (%f, %f, %f, %f)", currentList, finalColor);
+    //        }
+    //        #endif
 
         if(finalColor.a > 0.99) {
-            //            #if USE_PRINTF
-            //            if(gl_GlobalInvocationID.xy == debug_pixel) {
-            //                debugPrintfEXT("Breaking because alpha is: %f", finalColor.a);
-            //            }
-            //            #endif
+//            #if USE_PRINTF
+//            if(gl_GlobalInvocationID.xy == debug_pixel) {
+//                debugPrintfEXT("Breaking because alpha is: %f", finalColor.a);
+//            }
+//            #endif
             break;
         }
 
-        //        if(tmaxZ <= tmaxX && tmaxZ <= tmaxY) { // the next jump should be along z, therefore outside the VDI
-        //            #if USE_PRINTF
-        //            if(gl_GlobalInvocationID.xy == debug_pixel) {
-        //                debugPrintfEXT("Breaking because tmaxZ is the lowest. tmaxX: %f, tmaxY: %f, tmaxZ: %f", tmaxX, tmaxY, tmaxZ);
-        //            }
-        //            #endif
-        //            break;
-        //        }
+    //        if(tmaxZ <= tmaxX && tmaxZ <= tmaxY) { // the next jump should be along z, therefore outside the VDI
+    //            #if USE_PRINTF
+    //            if(gl_GlobalInvocationID.xy == debug_pixel) {
+    //                debugPrintfEXT("Breaking because tmaxZ is the lowest. tmaxX: %f, tmaxY: %f, tmaxZ: %f", tmaxX, tmaxY, tmaxZ);
+    //            }
+    //            #endif
+    //            break;
+    //        }
 
         currentList = nextList;
         start_point = end_point;
@@ -1625,9 +1391,9 @@ void traverse_cell(vec4 entry_point, ivec2 entry_list, vec3 cell_min, vec3 cell_
 }
 
 float cellToViewToNDC(int cell_z) {
-    //    float lambda = float(cell_z) / float(num_cells);
-    //    float view_z = near_plane * (1. - lambda) + lambda * far_plane;
-    //    view_z = -1 * view_z;
+//    float lambda = float(cell_z) / float(num_cells);
+//    float view_z = near_plane * (1. - lambda) + lambda * far_plane;
+//    view_z = -1 * view_z;
 
     float dist_from_near = cell_z * ((far_plane - near_plane) / float(num_cells.z));
     float view_z = dist_from_near + near_plane;
@@ -1672,63 +1438,70 @@ ivec3 findGridCell(ivec2 theList, float depth) {
 void main() {
 //    im_x_9_x_ = transpose(im_x_9_x_);
 
-ivec2 imageCoords  = imageSize(OutputViewport);
+    ivec2 imageCoords  = imageSize(OutputViewport);
 
-#if SKIP_EMPTY
-num_cells = imageSize(OctreeCells).xyz;
-#else
-num_cells = ivec3(1);
-#endif
+    if(skip_empty) {
+        #if DOUBLE_BUFFER
+        if(useSecondBuffer){
+            num_cells = imageSize(OctreeCells2).xyz;
+        } else {
+            num_cells = imageSize(OctreeCells).xyz;
+        }
+        #else
+        num_cells = imageSize(OctreeCells).xyz;
+        #endif
+    } else {
+        num_cells = ivec3(1);
+    }
 
-int imgWidth = imageCoords.x;
-int imgHeight = imageCoords.y;
+    int imgWidth = imageCoords.x;
+    int imgHeight = imageCoords.y;
 
-windowWidth = imageCoords.x;
-windowHeight = imageCoords.y;
+    windowWidth = imageCoords.x;
+    windowHeight = imageCoords.y;
 
-ivec3 vdiCoords;
+    windowWidth = int(downImage * windowWidth);
+    windowHeight = int(downImage * windowHeight);
+
+    ivec3 vdiCoords;
 
 
-#if DOUBLE_BUFFER
-if(useSecondBuffer) {
+    #if DOUBLE_BUFFER
+    if(useSecondBuffer) {
+
+            #if USE_PRINTF
+            if(gl_GlobalInvocationID.xy == debug_pixel && printData) {
+                debugPrintfEXT("The second buffer should be used now!!");
+            }
+            #endif
+
+
+        vdiCoords = imageSize(InputVDI2);
+    } else {
+
 
         #if USE_PRINTF
         if(gl_GlobalInvocationID.xy == debug_pixel && printData) {
-            debugPrintfEXT("The second buffer should be used now!!");
+            debugPrintfEXT("The first buffer should be used now!!");
         }
         #endif
 
-
-    vdiCoords = imageSize(InputVDI2);
-} else {
-
-
-    #if USE_PRINTF
-    if(gl_GlobalInvocationID.xy == debug_pixel && printData) {
-        debugPrintfEXT("The first buffer should be used now!!");
+        vdiCoords = imageSize(InputVDI);
     }
+    #else
+    vdiCoords = imageSize(InputVDI);
     #endif
 
-    vdiCoords = imageSize(InputVDI);
-}
-#else
-vdiCoords = imageSize(InputVDI);
-#endif
 
+    maxSupersegments = vdiCoords.x;
+    mat4 view;
 
-maxSupersegments = vdiCoords.x;
+    view = (vrParameters.stereoEnabled ^ 1) * ViewMatrices[0] + (vrParameters.stereoEnabled * ViewMatrices[currentEye.eye]);
 
-vdiWidth = vdiCoords.z;
-vdiHeight = vdiCoords.y;
+    mat4 inverseProjection = (vrParameters.stereoEnabled ^ 1) * InverseProjectionMatrix + (vrParameters.stereoEnabled * vrParameters.inverseProjectionMatrices[currentEye.eye]);
+    mat4 inverseView = inverse(view); //TODO: Why not use InverseViewMatrices[] directly?
 
-mat4 view;
-
-view = (vrParameters.stereoEnabled ^ 1) * ViewMatrices[0] + (vrParameters.stereoEnabled * ViewMatrices[currentEye.eye]);
-
-mat4 inverseProjection = (vrParameters.stereoEnabled ^ 1) * InverseProjectionMatrix + (vrParameters.stereoEnabled * vrParameters.inverseProjectionMatrices[currentEye.eye]);
-mat4 inverseView = inverse(view); //TODO: Why not use InverseViewMatrices[] directly?
-
-highp mat4 ipv = inverseView * inverseProjection;
+    highp mat4 ipv = inverseView * inverseProjection;
 
 //    #if USE_PRINTF
 //    if(gl_GlobalInvocationID.xy == debug_pixel) {
@@ -1746,99 +1519,76 @@ highp mat4 ipv = inverseView * inverseProjection;
 //    }
 //    #endif
 
-mat4 matViewOrig;
-#if DOUBLE_BUFFER
-if(useSecondBuffer) {
-    matViewOrig = ViewOriginal2;
-} else {
+    mat4 matViewOrig;
+    #if DOUBLE_BUFFER
+    if(useSecondBuffer) {
+        matViewOrig = ViewOriginal2;
+    } else {
+        matViewOrig = ViewOriginal;
+    }
+    #else
     matViewOrig = ViewOriginal;
-}
-#else
-matViewOrig = ViewOriginal;
-#endif
-
-mat4 matInvViewOrig;
-#if DOUBLE_BUFFER
-if(useSecondBuffer) {
-    matInvViewOrig = invViewOriginal2;
-} else {
-    matInvViewOrig = invViewOriginal;
-}
-#else
-matInvViewOrig = invViewOriginal;
-#endif
-
-#if USE_PRINTF
-if(gl_GlobalInvocationID.xy == debug_pixel && printData) {
-
-    debugPrintfEXT("Inv view matrix is: (%f, %f, %f, %f)", inverseView[0].xyzw);
-    debugPrintfEXT("Inv view matrix is: (%f, %f, %f, %f)", inverseView[1].xyzw);
-    debugPrintfEXT("Inv view matrix is: (%f, %f, %f, %f)", inverseView[2].xyzw);
-    debugPrintfEXT("Inv view matrix is: (%f, %f, %f, %f)", inverseView[3].xyzw);
-
-
-    debugPrintfEXT("VDI Inv view matrix is: (%f, %f, %f, %f)", matInvViewOrig[0].xyzw);
-    debugPrintfEXT("VDI Inv view matrix is: (%f, %f, %f, %f)", matInvViewOrig[1].xyzw);
-    debugPrintfEXT("VDI Inv view matrix is: (%f, %f, %f, %f)", matInvViewOrig[2].xyzw);
-    debugPrintfEXT("VDI Inv view matrix is: (%f, %f, %f, %f)", matInvViewOrig[3].xyzw);
-
-}
-#endif
-
-pv_orig = ProjectionOriginal * matViewOrig;
-
-ivp_orig = matInvViewOrig * invProjectionOriginal;
-
-vec2 texcoord = gl_GlobalInvocationID.xy/vec2(windowWidth, windowHeight); //TODO: here the ww and wh need to remain as they are
-vec2 uv = texcoord * 2.0 - vec2(1.0);
-vec2 depthUV = (vrParameters.stereoEnabled ^ 1) * texcoord + vrParameters.stereoEnabled * vec2((texcoord.x/2.0 + currentEye.eye * 0.5), texcoord.y);
-depthUV = depthUV * 2.0 - vec2(1.0);
-
-newRay.coords.xy = ivec2(gl_GlobalInvocationID.xy);
-
-// NDC of frag on near and far plane
-newRay.NDC_front = vec4( uv, -1, 1 );
-newRay.NDC_back = vec4( uv, 1, 1 );
-
-// calculate eye ray in world space
-newRay.wfront = ipv * newRay.NDC_front;
-newRay.wfront *= 1.0 / newRay.wfront.w;
-newRay.wback = ipv * newRay.NDC_back;
-newRay.wback *= 1 / newRay.wback.w;
-
-front_orig = pv_orig * newRay.wfront; // start point of ray in NDC coordinates of original viewpoint
-front_orig *= 1.0 / front_orig.w;
-back_orig = pv_orig * newRay.wback; // end point of ray in NDC coordinates of original viewpoint
-back_orig *= 1.0 / back_orig.w;
-
-// -- bounding box intersection for all volumes ----------
-float tnear = 1, tfar = 0, tmax = 0; //getMaxDepth( depthUV );
-float n, f;
-
-bool vis = false;
-intersectBoundingBox_x_11_x_( newRay.wfront, newRay.wback, n, f );
-//    f = min( tmax, f );
-if ( n < f )
-{
-    tnear = min( tnear, max( 0, n ) );
-    tfar = max( tfar, f );
-    vis = true;
-}
-if(!vis) {
-    imageStore(OutputViewport, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), vec4(0));
-    return;
-}
-
-dist = (tfar-tnear) / 5000.;
-dist = max(dist, 0.00001);
-
-#if SKIP_EMPTY
-if(stratified_downsampling) {
-    stratification_factor = imageLoad(NoiseTexture, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y)).x;
-} else {
-    stratification_factor = 1.;
-}
     #endif
+
+    mat4 matInvViewOrig;
+    #if DOUBLE_BUFFER
+    if(useSecondBuffer) {
+        matInvViewOrig = invViewOriginal2;
+    } else {
+        matInvViewOrig = invViewOriginal;
+    }
+    #else
+    matInvViewOrig = invViewOriginal;
+    #endif
+
+    pv_orig = ProjectionOriginal * matViewOrig;
+
+    ivp_orig = matInvViewOrig * invProjectionOriginal;
+
+    vec2 texcoord = gl_GlobalInvocationID.xy/vec2(windowWidth, windowHeight); //TODO: here the ww and wh need to remain as they are
+    vec2 uv = texcoord * 2.0 - vec2(1.0);
+    vec2 depthUV = (vrParameters.stereoEnabled ^ 1) * texcoord + vrParameters.stereoEnabled * vec2((texcoord.x/2.0 + currentEye.eye * 0.5), texcoord.y);
+    depthUV = depthUV * 2.0 - vec2(1.0);
+
+    newRay.coords.xy = ivec2(gl_GlobalInvocationID.xy);
+
+    // NDC of frag on near and far plane
+    newRay.NDC_front = vec4( uv, -1, 1 );
+    newRay.NDC_back = vec4( uv, 1, 1 );
+
+    // calculate eye ray in world space
+    newRay.wfront = ipv * newRay.NDC_front;
+    newRay.wfront *= 1.0 / newRay.wfront.w;
+    newRay.wback = ipv * newRay.NDC_back;
+    newRay.wback *= 1 / newRay.wback.w;
+
+    front_orig = pv_orig * newRay.wfront; // start point of ray in NDC coordinates of original viewpoint
+    front_orig *= 1.0 / front_orig.w;
+    back_orig = pv_orig * newRay.wback; // end point of ray in NDC coordinates of original viewpoint
+    back_orig *= 1.0 / back_orig.w;
+
+    // -- bounding box intersection for all volumes ----------
+    float tnear = 1, tfar = 0, tmax = 0; //getMaxDepth( depthUV );
+    float n, f;
+
+    bool vis = false;
+    intersectBoundingBox_x_11_x_( newRay.wfront, newRay.wback, n, f );
+    //    f = min( tmax, f );
+    if ( n < f )
+    {
+        tnear = min( tnear, max( 0, n ) );
+        tfar = max( tfar, f );
+        vis = true;
+    }
+    if(!vis) {
+        imageStore(OutputViewport, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), vec4(0));
+        return;
+    }
+
+    dist = (tfar-tnear) / 5000.;
+    dist = max(dist, 0.00001);
+
+    stratification_factor = 1.;
 
 //    #if USE_PRINTF
 //    if(gl_GlobalInvocationID.xy == debug_pixel) {
@@ -1847,157 +1597,157 @@ if(stratified_downsampling) {
 //    #endif
 
 
-float step = tnear;
-float step_dbg = tnear;
+    float step = tnear;
+    float step_dbg = tnear;
 
-bool firstSample = true;
-vec4 start_sample = vec4(-1);
-float supseg_start = 0, supseg_end = 0;
-float sup_start_dbg = 0, sup_end_dbg = 0;
+    bool firstSample = true;
+    vec4 start_sample = vec4(-1);
+    float supseg_start = 0, supseg_end = 0;
+    float sup_start_dbg = 0, sup_end_dbg = 0;
 //    float depthStart = 0, depthEnd = 0;
-vec4 supseg_col = vec4(0);
+    vec4 supseg_col = vec4(0);
 
-vec4 first_entry_pt, final_exit_pt;
-vec4 next_point;
+    vec4 first_entry_pt, final_exit_pt;
+    vec4 next_point;
 
-bool supseg_found = false, sup_found_dbg = false;
-int index, ind_dbg;
-ivec2 listCoords, list_dbg;
-int cnt = 0;
-ivec2 firstList, nlist_dbg;
-if(tnear > tfar) {
-    finalColor = vec4(0, 0, 0, 1);
-    return;
-} else {
-
-    // calculate the value of an acceptable small step
-    //calculate min width of a supseg list in NDC
-    vec4 n_start = vec4(0, 0, 0, 1);
-    vec4 n_end = vec4((2. / max(vdiHeight, vdiWidth)), 0, 0, 1);
-
-    vec4 w_start = ivp_orig * n_start;
-    w_start = w_start / w_start.w;
-
-    vec4 w_end = ivp_orig * n_end;
-    w_end = w_end / w_end.w;
-
-    vec4 view_orig = matViewOrig * newRay.wfront;
-
-    view_orig = view_orig / view_orig.w;
-
-    // find the first supersegment
-
-    vec4 wnear = mix(newRay.wfront, newRay.wback, tnear);
-
-    //if this point is within original viewport, then this is the starting point for raycasting
-    //if not, we need to find the first point in this direction that is in the original viewport
-    vec4 ndc_near = pv_orig * wnear;
-    ndc_near *= 1. / ndc_near.w;
-    first_entry_pt = ndc_near;
-
-    vec4 wfar = mix(newRay.wfront, newRay.wback, tfar);
-
-    vec4 ndc_far = pv_orig * wfar;
-    ndc_far *= 1. / ndc_far.w;
-    final_exit_pt = ndc_far;
-
-    //        #if USE_PRINTF
-    //        if(gl_GlobalInvocationID.xy == debug_pixel) {
-    //            debugPrintfEXT("NDC start and end of the ray: (%f, %f, %f) and (%f, %f, %f)", newRay.NDC_front.xyz, newRay.NDC_back.xyz);
-    //            debugPrintfEXT("After intersecting with volume, ndc_near: (%f, %f, %f) and ndc_far (%f, %f, %f)", ndc_near.xyz, ndc_far.xyz);
-    //        }
-    //        #endif
-
-    //        float first_step;
-    //        ivec2 firstList;
-    //
-    //        ivec2 first_intersect;
-    //        float ds1, de1;
-    //        int first_ind;
-    //        bool found_first;
-
-    float eps = 0.0001;
-
-    vec3 rayDirection = (ndc_far - ndc_near).xyz;
-
-    //TODO: is there a better way to do this?
-    if(rayDirection.x == 0) {
-        rayDirection.x = 0.000001;
-    } else if(rayDirection.y == 0) {
-        rayDirection.y = 0.000001;
-    } else if (rayDirection.z == 0) {
-        rayDirection.z = 0.000001;
-    }
-
-    rayDirection = normalize(rayDirection);
-
-    dir.xyz = rayDirection;
-    dir.w = 0;
-
-
-    if(ndc_near.x < -1 || ndc_near.x > 1 || ndc_near.y < -1 || ndc_near.y > 1 || ndc_near.z < -1 || ndc_near.z > 1) {
-        // the point is not in the original viewport
-        #if USE_PRINTF
-        //            if(gl_GlobalInvocationID.xy == debug_pixel) {
-        //                debugPrintfEXT("This point is not in the original viewport. Step val: %f,  ndc_near: (%f, %f, %f), ndc_far:(%f, %f, %f)", tnear, ndc_near.xyz, ndc_near.xyz);
-        //                debugPrintfEXT("This point is not in the original viewport. Step val:");
-        //            }
-        #endif
-
-        float d1, d2;
-        int a, b;
-
-        // intersect the NDC frustum of the original viewpoint
-        intersectBox( ndc_near.xyz, rayDirection, vec3(-1.), vec3(1.), d1, d2, a, b);
-
-        if(d1 > d2) {
-            //an error has occurred. This ray either doesn't pass through the original viewport or
-            // passes right at the edge, and floating point error is making the alg. believe it misses
-
-            //TODO: check ray (496, 0) from original viewpoint. It should pass through viewport, but just misses it
-
-            imageStore(OutputViewport, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), vec4(0));
-            return;
-        }
-
-        vec4 f_pt = vec4(ndc_near.xyz + rayDirection * d1, 1);
-        vec4 l_pt = vec4(ndc_near.xyz + rayDirection * d2, 1);
-
-        vec4 f_pt_w = ivp_orig * f_pt;
-        f_pt_w *= 1. / f_pt_w.w;
-        vec4 l_pt_w = ivp_orig * l_pt;
-        l_pt_w *= 1. / l_pt_w.w;
-
-        if(distance(f_pt_w, newRay.wfront) > distance(l_pt_w, newRay.wfront)) {
-            step = distance(l_pt_w, newRay.wfront) / distance(newRay.wfront, newRay.wback);
-            vec2 tex_orig = (l_pt.xy + 1) / 2.0;
-
-            firstList.x = int(round(tex_orig.x * vdiWidth));
-            firstList.y = int(round(tex_orig.y * vdiHeight));
-
-            first_entry_pt = l_pt;
-            final_exit_pt = f_pt;
-        } else {
-            step = distance(f_pt_w, newRay.wfront) / distance(newRay.wfront, newRay.wback);
-            vec2 tex_orig = (f_pt.xy + 1) / 2.0;
-
-            firstList.x = int(round(tex_orig.x * vdiWidth));
-            firstList.y = int(round(tex_orig.y * vdiHeight));
-
-            first_entry_pt = f_pt;
-            final_exit_pt = l_pt;
-        }
-
+    bool supseg_found = false, sup_found_dbg = false;
+    int index, ind_dbg;
+    ivec2 listCoords, list_dbg;
+    int cnt = 0;
+    ivec2 firstList, nlist_dbg;
+    if(tnear > tfar) {
+        finalColor = vec4(0, 0, 0, 1);
+        return;
     } else {
-        vec4 ndc;
-        findListNumber(wnear, firstList, ndc);
-        step = tnear;
+
+        // calculate the value of an acceptable small step
+        //calculate min width of a supseg list in NDC
+        vec4 n_start = vec4(0, 0, 0, 1);
+        vec4 n_end = vec4((2. / max(vdiHeight, vdiWidth)), 0, 0, 1);
+
+        vec4 w_start = ivp_orig * n_start;
+        w_start = w_start / w_start.w;
+
+        vec4 w_end = ivp_orig * n_end;
+        w_end = w_end / w_end.w;
+
+        vec4 view_orig = ViewOriginal * newRay.wfront;
+
+        view_orig = view_orig / view_orig.w;
+
+        // find the first supersegment
+
+        vec4 wnear = mix(newRay.wfront, newRay.wback, tnear);
+
+        //if this point is within original viewport, then this is the starting point for raycasting
+        //if not, we need to find the first point in this direction that is in the original viewport
+        vec4 ndc_near = pv_orig * wnear;
+        ndc_near *= 1. / ndc_near.w;
+        first_entry_pt = ndc_near;
+
+        vec4 wfar = mix(newRay.wfront, newRay.wback, tfar);
+
+        vec4 ndc_far = pv_orig * wfar;
+        ndc_far *= 1. / ndc_far.w;
+        final_exit_pt = ndc_far;
+
+//        #if USE_PRINTF
+//        if(gl_GlobalInvocationID.xy == debug_pixel) {
+//            debugPrintfEXT("NDC start and end of the ray: (%f, %f, %f) and (%f, %f, %f)", newRay.NDC_front.xyz, newRay.NDC_back.xyz);
+//            debugPrintfEXT("After intersecting with volume, ndc_near: (%f, %f, %f) and ndc_far (%f, %f, %f)", ndc_near.xyz, ndc_far.xyz);
+//        }
+//        #endif
+
+//        float first_step;
+//        ivec2 firstList;
+//
+//        ivec2 first_intersect;
+//        float ds1, de1;
+//        int first_ind;
+//        bool found_first;
+
+        float eps = 0.0001;
+
+        vec3 rayDirection = (ndc_far - ndc_near).xyz;
+
+        //TODO: is there a better way to do this?
+        if(rayDirection.x == 0) {
+            rayDirection.x = 0.000001;
+        } else if(rayDirection.y == 0) {
+            rayDirection.y = 0.000001;
+        } else if (rayDirection.z == 0) {
+            rayDirection.z = 0.000001;
+        }
+
+        rayDirection = normalize(rayDirection);
+
+        dir.xyz = rayDirection;
+        dir.w = 0;
+
+
+        if(ndc_near.x < -1 || ndc_near.x > 1 || ndc_near.y < -1 || ndc_near.y > 1 || ndc_near.z < -1 || ndc_near.z > 1) {
+            // the point is not in the original viewport
+            #if USE_PRINTF
+//            if(gl_GlobalInvocationID.xy == debug_pixel) {
+//                debugPrintfEXT("This point is not in the original viewport. Step val: %f,  ndc_near: (%f, %f, %f), ndc_far:(%f, %f, %f)", tnear, ndc_near.xyz, ndc_near.xyz);
+//                debugPrintfEXT("This point is not in the original viewport. Step val:");
+//            }
+            #endif
+
+            float d1, d2;
+            int a, b;
+
+            // intersect the NDC frustum of the original viewpoint
+            intersectBox( ndc_near.xyz, rayDirection, vec3(-1.), vec3(1.), d1, d2, a, b);
+
+            if(d1 > d2) {
+                //an error has occurred. This ray either doesn't pass through the original viewport or
+                // passes right at the edge, and floating point error is making the alg. believe it misses
+
+                //TODO: check ray (496, 0) from original viewpoint. It should pass through viewport, but just misses it
+
+                imageStore(OutputViewport, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), vec4(0));
+                return;
+            }
+
+            vec4 f_pt = vec4(ndc_near.xyz + rayDirection * d1, 1);
+            vec4 l_pt = vec4(ndc_near.xyz + rayDirection * d2, 1);
+
+            vec4 f_pt_w = ivp_orig * f_pt;
+            f_pt_w *= 1. / f_pt_w.w;
+            vec4 l_pt_w = ivp_orig * l_pt;
+            l_pt_w *= 1. / l_pt_w.w;
+
+            if(distance(f_pt_w, newRay.wfront) > distance(l_pt_w, newRay.wfront)) {
+                step = distance(l_pt_w, newRay.wfront) / distance(newRay.wfront, newRay.wback);
+                vec2 tex_orig = (l_pt.xy + 1) / 2.0;
+
+                firstList.x = int(round(tex_orig.x * vdiWidth));
+                firstList.y = int(round(tex_orig.y * vdiHeight));
+
+                first_entry_pt = l_pt;
+                final_exit_pt = f_pt;
+            } else {
+                step = distance(f_pt_w, newRay.wfront) / distance(newRay.wfront, newRay.wback);
+                vec2 tex_orig = (f_pt.xy + 1) / 2.0;
+
+                firstList.x = int(round(tex_orig.x * vdiWidth));
+                firstList.y = int(round(tex_orig.y * vdiHeight));
+
+                first_entry_pt = f_pt;
+                final_exit_pt = l_pt;
+            }
+
+        } else {
+            vec4 ndc;
+            findListNumber(wnear, firstList, ndc);
+            step = tnear;
+        }
+
+        front_orig = first_entry_pt;
+        back_orig = final_exit_pt;
+
     }
-
-    front_orig = first_entry_pt;
-    back_orig = final_exit_pt;
-
-}
 
 //    #if USE_PRINTF
 //    if(gl_GlobalInvocationID.xy == debug_pixel) {
@@ -2007,15 +1757,15 @@ if(tnear > tfar) {
 //    }
 //    #endif
 
-ivec2 currentList = firstList;
-u = first_entry_pt;
+    ivec2 currentList = firstList;
+    u = first_entry_pt;
 
-stepX = dir.x > 0 ? 1 : -1;
-stepY = dir.y > 0 ? 1 : -1;
-int stepZ = dir.z > 0 ? 1 : -1;
+    stepX = dir.x > 0 ? 1 : -1;
+    stepY = dir.y > 0 ? 1 : -1;
+    int stepZ = dir.z > 0 ? 1 : -1;
 
-tdeltaX = abs((2.0 / vdiWidth) / dir.x);
-tdeltaY = abs((2.0 / vdiHeight) / dir.y);
+    tdeltaX = abs((2.0 / vdiWidth) / dir.x);
+    tdeltaY = abs((2.0 / vdiHeight) / dir.y);
 
 //    #if USE_PRINTF
 //    if(gl_GlobalInvocationID.xy == debug_pixel) {
@@ -2023,198 +1773,206 @@ tdeltaY = abs((2.0 / vdiHeight) / dir.y);
 //    }
 //    #endif
 
-const int MAX_X = 1;
-const int MIN_X = -1;
+    const int MAX_X = 1;
+    const int MIN_X = -1;
 
-const int MAX_Y = 1;
-const int MIN_Y = -1;
+    const int MAX_Y = 1;
+    const int MIN_Y = -1;
 
-const int MAX_Z = 1;
-const int MIN_Z = -1;
+    const int MAX_Z = 1;
+    const int MIN_Z = -1;
 
-float cell_tdeltaX = abs((2. / num_cells.x) / dir.x);
-float cell_tdeltaY = abs((2. / num_cells.y) / dir.y);
-#if USE_VIEW_SPACE_CELLS
-float cell_tdeltaZ = 0;
-#else
-float cell_tdeltaZ = abs((2. / num_cells.z) / dir.z);
-#endif
-
-vec4 end_point = vec4(0);
-vec4 start_point = vec4(0);
-vec4 end_traversal = vec4(0);
-ivec2 start_list, next_list;
-ivec3 grid_cell, next_cell;
-float cell_tmaxX, cell_tmaxY, cell_tmaxZ;
-bool finalIteration = false;
-
-int num_traversed = 0;
-
-int num_octree_traversals = 1;
-if(do_subsample) {
-    num_octree_traversals = 2;
-}
-float length_in_non_empty = 0;
-
-int calculatedMaxSteps = 0;
-
-for(int trav = 1; trav <= num_octree_traversals; trav++) {
-
-    start_point = first_entry_pt;
-
-    vec2 tex_orig = (start_point.xy + 1.0) / 2.0;
-
-    start_list.x = int(round(tex_orig.x * vdiWidth));
-    start_list.y = int(round(tex_orig.y * vdiHeight));
-
-    next_list = start_list;
-
-    //    ivec3 grid_cell = findGridCell(start_list, start_point.z);
-    grid_cell = findGridCell(start_point);
-    next_cell = grid_cell;
-    next_cell.x += (stepX == 1 ? 1 : 0);
-    next_cell.y += (stepY == 1 ? 1 : 0);
-    next_cell.z += (stepZ == 1 ? 1 : 0);
-
+    float cell_tdeltaX = abs((2. / num_cells.x) / dir.x);
+    float cell_tdeltaY = abs((2. / num_cells.y) / dir.y);
     #if USE_VIEW_SPACE_CELLS
-    vec3 next_cell_ndc;
-    next_cell_ndc.xy = ((next_cell.xy / vec2(num_cells.xy)) * 2.0) - vec2(1.0);
-    next_cell_ndc.z = cellToViewToNDC(next_cell.z);
+    float cell_tdeltaZ = 0;
     #else
-    vec3 next_cell_ndc = ((next_cell / vec3(num_cells)) * 2.0) - vec3(1.0);
+    float cell_tdeltaZ = abs((2. / num_cells.z) / dir.z);
     #endif
 
-    //        cell_tmaxX = dir.x != 0 ? abs((next_cell_ndc.x - start_point.x) / dir.x) : 10000000;
-    //        cell_tmaxY = dir.y != 0 ? abs((next_cell_ndc.y - start_point.y) / dir.y) : 10000000;
-    //        cell_tmaxZ = dir.z != 0 ? abs((next_cell_ndc.z - start_point.z) / dir.z) : 10000000;
+    vec4 end_point = vec4(0);
+    vec4 start_point = vec4(0);
+    vec4 end_traversal = vec4(0);
+    ivec2 start_list, next_list;
+    ivec3 grid_cell, next_cell;
+    float cell_tmaxX, cell_tmaxY, cell_tmaxZ;
+    bool finalIteration = false;
 
-    cell_tmaxX = abs((next_cell_ndc.x - start_point.x) / dir.x);
-    cell_tmaxY = abs((next_cell_ndc.y - start_point.y) / dir.y);
-    cell_tmaxZ = abs((next_cell_ndc.z - start_point.z) / dir.z);
+    int num_traversed = 0;
 
-    float t = 0;
-    end_traversal = vec4(0);
+    int num_octree_traversals = 1;
+    if(do_subsample) {
+        num_octree_traversals = 2;
+    }
+    float length_in_non_empty = 0;
 
-    finalIteration = false;
-    bool cell_traversed = false;
+    int calculatedMaxSteps = 0;
 
-    while(!finalIteration) { //looping over the cells of the lowest level of the octree
+    for(int trav = 1; trav <= num_octree_traversals; trav++) {
 
-        if(cell_traversed) {
-            //if the new cell is to start at the end point of the previous traversal, then we need to check whether the
-            //previous traversal took us to a different grid cell along z
+        start_point = first_entry_pt;
 
-            //            ivec3 grid_at_end = findGridCell(start_list, start_point.z);
-            if(start_point.x < MIN_X || start_point.x > MAX_X || start_point.y < MIN_Y || start_point.y > MAX_Y || start_point.z < MIN_Z || start_point.z > MAX_Z) {
-                break;
-            }
+        vec2 tex_orig = (start_point.xy + 1.0) / 2.0;
 
-            ivec3 grid_at_end = findGridCell(start_point);
+        start_list.x = int(round(tex_orig.x * vdiWidth));
+        start_list.y = int(round(tex_orig.y * vdiHeight));
 
-            if(grid_at_end.x != grid_cell.x) {
-                t = cell_tmaxX;
-                //                    if(grid_at_end.x >= num_cells.x || grid_at_end.x < 0) { // TODO: only one comparison is required depending on stepX
-                //                        finalIteration = true;
-                //                        #if USE_PRINTF
-                //                        if(gl_GlobalInvocationID.xy == debug_pixel) {
-                //                            debugPrintfEXT("This is final iteration because new x val: %d:", grid_at_end.x);
-                //                        }
-                //                        #endif
-                //                    }
-                cell_tmaxX += cell_tdeltaX;
-            }
+        next_list = start_list;
 
-            if(grid_at_end.y != grid_cell.y) {
-                t = cell_tmaxY;
-                //                    if(grid_at_end.y >= num_cells.y || grid_at_end.y < 0) {
-                //                        finalIteration = true;
-                //                        #if USE_PRINTF
-                //                        if(gl_GlobalInvocationID.xy == debug_pixel) {
-                //                            debugPrintfEXT("This is final iteration because new y val: %d:", grid_at_end.y);
-                //                        }
-                //                        #endif
-                //                    }
-                cell_tmaxY += cell_tdeltaY;
-            }
-
-            if(grid_at_end.z != grid_cell.z) {
-                t = cell_tmaxZ;
-                //                    if(grid_at_end.z >= num_cells.z || grid_at_end.z < 0) { // TODO: only one comparison is required depending on stepX
-                //                        finalIteration = true;
-                //                        #if USE_PRINTF
-                //                        if(gl_GlobalInvocationID.xy == debug_pixel) {
-                //                            debugPrintfEXT("This is final iteration because new z val: %d:", grid_at_end.z);
-                //                        }
-                //                        #endif
-                //                    }
-                #if USE_VIEW_SPACE_CELLS
-                float current_z_ndc = cellToViewToNDC(grid_at_end.z);
-                int next_z = grid_at_end.z + (stepZ == 1 ? 1 : -1);
-                float next_z_ndc = cellToViewToNDC(next_z);
-                cell_tdeltaZ = dir.z != 0 ? abs((next_z_ndc - current_z_ndc) / dir.z) : 10000000;
-                #if USE_PRINTF
-                if(gl_GlobalInvocationID.xy == debug_pixel) {
-                    debugPrintfEXT("current z: %d, next z: %d, delta obtained: %f, prev tmaxZ was: %f", grid_cell.z, grid_at_end.z, cell_tdeltaZ, cell_tmaxZ);
-                }
-                    #endif
-                    #endif
-                cell_tmaxZ += cell_tdeltaZ;
-            }
-
-
-            grid_cell = grid_at_end;
-
-
-        }
-
-        //            ivec3 grid_test = findGridCell(start_point);
-        //
-        //            #if USE_PRINTF
-        //            if(gl_GlobalInvocationID.xy == debug_pixel) {
-        //                debugPrintfEXT("Current grid cell is: (%d, %d, %d) while start point lies in: (%d, %d, %d)", grid_cell.xyz, grid_test.xyz);
-        //            }
-        //            #endif
-
-        cell_traversed = false;
-
+        //    ivec3 grid_cell = findGridCell(start_list, start_point.z);
+        grid_cell = findGridCell(start_point);
+        next_cell = grid_cell;
+        next_cell.x += (stepX == 1 ? 1 : 0);
+        next_cell.y += (stepY == 1 ? 1 : 0);
+        next_cell.z += (stepZ == 1 ? 1 : 0);
 
         #if USE_VIEW_SPACE_CELLS
-
-        vec3 cell_min;
-        cell_min.xy = vec2(grid_cell.xy / vec2(num_cells.xy));
-        cell_min.xy = (cell_min.xy * 2.) - 1.;
-        cell_min.z = cellToViewToNDC(grid_cell.z);
-
-        vec3 cell_max;
-        cell_max.xy = vec2((grid_cell.xy+vec2(1.)) / vec2(num_cells.xy));
-        cell_max.xy = (cell_max.xy * 2.) - 1.;
-        cell_max.z = cellToViewToNDC(grid_cell.z + 1);
-
+        vec3 next_cell_ndc;
+        next_cell_ndc.xy = ((next_cell.xy / vec2(num_cells.xy)) * 2.0) - vec2(1.0);
+        next_cell_ndc.z = cellToViewToNDC(next_cell.z);
         #else
-
-        vec3 cell_min = vec3(grid_cell / vec3(num_cells));
-        cell_min = (cell_min * 2.) - 1.;
-
-        vec3 cell_max = vec3((grid_cell+vec3(1.)) / vec3(num_cells));
-        cell_max = (cell_max * 2.) - 1.;
-
+        vec3 next_cell_ndc = ((next_cell / vec3(num_cells)) * 2.0) - vec3(1.0);
         #endif
 
-        #if SKIP_EMPTY
+//        cell_tmaxX = dir.x != 0 ? abs((next_cell_ndc.x - start_point.x) / dir.x) : 10000000;
+//        cell_tmaxY = dir.y != 0 ? abs((next_cell_ndc.y - start_point.y) / dir.y) : 10000000;
+//        cell_tmaxZ = dir.z != 0 ? abs((next_cell_ndc.z - start_point.z) / dir.z) : 10000000;
 
-        uint grid_val = imageLoad(OctreeCells, grid_cell).r;
+        cell_tmaxX = abs((next_cell_ndc.x - start_point.x) / dir.x);
+        cell_tmaxY = abs((next_cell_ndc.y - start_point.y) / dir.y);
+        cell_tmaxZ = abs((next_cell_ndc.z - start_point.z) / dir.z);
 
-        //            #if USE_PRINTF
-        //            if(gl_GlobalInvocationID.xy == debug_pixel) {
-        //                debugPrintfEXT("Checking the cell: (%d, %d, %d). value: %d", grid_cell.xyz, grid_val);
-        //            }
-        //            #endif
+        float t = 0;
+        end_traversal = vec4(0);
 
-        if(grid_val > 0 && !do_subsample) {
-            //            if(false) {
+        finalIteration = false;
+        bool cell_traversed = false;
+
+        while(!finalIteration) { //looping over the cells of the lowest level of the octree
+
+            if(cell_traversed) {
+                //if the new cell is to start at the end point of the previous traversal, then we need to check whether the
+                //previous traversal took us to a different grid cell along z
+
+    //            ivec3 grid_at_end = findGridCell(start_list, start_point.z);
+                if(start_point.x < MIN_X || start_point.x > MAX_X || start_point.y < MIN_Y || start_point.y > MAX_Y || start_point.z < MIN_Z || start_point.z > MAX_Z) {
+                    break;
+                }
+
+                ivec3 grid_at_end = findGridCell(start_point);
+
+                if(grid_at_end.x != grid_cell.x) {
+                    t = cell_tmaxX;
+//                    if(grid_at_end.x >= num_cells.x || grid_at_end.x < 0) { // TODO: only one comparison is required depending on stepX
+//                        finalIteration = true;
+//                        #if USE_PRINTF
+//                        if(gl_GlobalInvocationID.xy == debug_pixel) {
+//                            debugPrintfEXT("This is final iteration because new x val: %d:", grid_at_end.x);
+//                        }
+//                        #endif
+//                    }
+                    cell_tmaxX += cell_tdeltaX;
+                }
+
+                if(grid_at_end.y != grid_cell.y) {
+                    t = cell_tmaxY;
+//                    if(grid_at_end.y >= num_cells.y || grid_at_end.y < 0) {
+//                        finalIteration = true;
+//                        #if USE_PRINTF
+//                        if(gl_GlobalInvocationID.xy == debug_pixel) {
+//                            debugPrintfEXT("This is final iteration because new y val: %d:", grid_at_end.y);
+//                        }
+//                        #endif
+//                    }
+                    cell_tmaxY += cell_tdeltaY;
+                }
+
+                if(grid_at_end.z != grid_cell.z) {
+                    t = cell_tmaxZ;
+//                    if(grid_at_end.z >= num_cells.z || grid_at_end.z < 0) { // TODO: only one comparison is required depending on stepX
+//                        finalIteration = true;
+//                        #if USE_PRINTF
+//                        if(gl_GlobalInvocationID.xy == debug_pixel) {
+//                            debugPrintfEXT("This is final iteration because new z val: %d:", grid_at_end.z);
+//                        }
+//                        #endif
+//                    }
+                    #if USE_VIEW_SPACE_CELLS
+                    float current_z_ndc = cellToViewToNDC(grid_at_end.z);
+                    int next_z = grid_at_end.z + (stepZ == 1 ? 1 : -1);
+                    float next_z_ndc = cellToViewToNDC(next_z);
+                    cell_tdeltaZ = dir.z != 0 ? abs((next_z_ndc - current_z_ndc) / dir.z) : 10000000;
+                    #if USE_PRINTF
+                    if(gl_GlobalInvocationID.xy == debug_pixel) {
+                        debugPrintfEXT("current z: %d, next z: %d, delta obtained: %f, prev tmaxZ was: %f", grid_cell.z, grid_at_end.z, cell_tdeltaZ, cell_tmaxZ);
+                    }
+                    #endif
+                    #endif
+                    cell_tmaxZ += cell_tdeltaZ;
+                }
+
+
+                grid_cell = grid_at_end;
+
+
+            }
+
+//            ivec3 grid_test = findGridCell(start_point);
+//
+//            #if USE_PRINTF
+//            if(gl_GlobalInvocationID.xy == debug_pixel) {
+//                debugPrintfEXT("Current grid cell is: (%d, %d, %d) while start point lies in: (%d, %d, %d)", grid_cell.xyz, grid_test.xyz);
+//            }
+//            #endif
+
+            cell_traversed = false;
+
+
+            #if USE_VIEW_SPACE_CELLS
+
+            vec3 cell_min;
+            cell_min.xy = vec2(grid_cell.xy / vec2(num_cells.xy));
+            cell_min.xy = (cell_min.xy * 2.) - 1.;
+            cell_min.z = cellToViewToNDC(grid_cell.z);
+
+            vec3 cell_max;
+            cell_max.xy = vec2((grid_cell.xy+vec2(1.)) / vec2(num_cells.xy));
+            cell_max.xy = (cell_max.xy * 2.) - 1.;
+            cell_max.z = cellToViewToNDC(grid_cell.z + 1);
+
             #else
-            if(!do_subsample) {
+
+            vec3 cell_min = vec3(grid_cell / vec3(num_cells));
+            cell_min = (cell_min * 2.) - 1.;
+
+            vec3 cell_max = vec3((grid_cell+vec3(1.)) / vec3(num_cells));
+            cell_max = (cell_max * 2.) - 1.;
+
+            #endif
+
+            uint grid_val;
+
+            if(skip_empty) {
+                #if DOUBLE_BUFFER
+                if(useSecondBuffer) {
+                    grid_val = imageLoad(OctreeCells2, grid_cell).r;
+                } else {
+                    grid_val = imageLoad(OctreeCells, grid_cell).r;
+                }
+                #else
+                grid_val = imageLoad(OctreeCells, grid_cell).r;
                 #endif
+            } else {
+                grid_val = 1;
+            }
+
+            #if USE_PRINTF
+            if(gl_GlobalInvocationID.xy == debug_pixel) {
+                debugPrintfEXT("Checking the cell: (%d, %d, %d). value: %d", grid_cell.xyz, grid_val);
+            }
+            #endif
+
+            if(grid_val > 0 && !do_subsample) {
                 traverse_cell(start_point, start_list, cell_min, cell_max, end_traversal, next_list);
                 cell_traversed = true;
             }
@@ -2223,11 +1981,11 @@ for(int trav = 1; trav <= num_octree_traversals; trav++) {
 
             if(!cell_traversed) {
 
-                //                #if USE_PRINTF
-                //                if (gl_GlobalInvocationID.xy == debug_pixel) {
-                //                    debugPrintfEXT("cell_tmaxX: %f, cell_tmaxY: %f, cell_tmaxZ: %f", cell_tmaxX, cell_tmaxY, cell_tmaxZ);
-                //                }
-                //                #endif
+                #if USE_PRINTF
+                if (gl_GlobalInvocationID.xy == debug_pixel) {
+                    debugPrintfEXT("cell_tmaxX: %f, cell_tmaxY: %f, cell_tmaxZ: %f", cell_tmaxX, cell_tmaxY, cell_tmaxZ);
+                }
+                #endif
 
 
                 if(cell_tmaxX < cell_tmaxY) {
@@ -2241,7 +1999,7 @@ for(int trav = 1; trav <= num_octree_traversals; trav++) {
                             if(gl_GlobalInvocationID.xy == debug_pixel) {
                                 debugPrintfEXT("This is final iteration because new x val: %d:", grid_cell.x);
                             }
-                                #endif
+                            #endif
                         }
                         cell_tmaxX += cell_tdeltaX;
                     } else {
@@ -2254,18 +2012,18 @@ for(int trav = 1; trav <= num_octree_traversals; trav++) {
                             if(gl_GlobalInvocationID.xy == debug_pixel) {
                                 debugPrintfEXT("This is final iteration because new z val: %d:", grid_cell.z);
                             }
-                                #endif
+                            #endif
                         }
-                            #if USE_VIEW_SPACE_CELLS
+                        #if USE_VIEW_SPACE_CELLS
                         int next_z = grid_cell.z + (stepZ == 1 ? 1 : -1);
                         float current_z_ndc = cellToViewToNDC(grid_cell.z);
                         float next_z_ndc = cellToViewToNDC(next_z);
                         cell_tdeltaZ = dir.z != 0 ? abs((next_z_ndc - current_z_ndc) / dir.z) : 10000000;
-                        //                        #if USE_PRINTF
-                        //                        if(gl_GlobalInvocationID.xy == debug_pixel) {
-                        //                            debugPrintfEXT("current z: %d, next z: %d, delta obtained: %f, prev tmaxZ was: %f", grid_cell.z, next_z, cell_tdeltaZ, cell_tmaxZ);
-                        //                        }
-                        //                        #endif
+//                        #if USE_PRINTF
+//                        if(gl_GlobalInvocationID.xy == debug_pixel) {
+//                            debugPrintfEXT("current z: %d, next z: %d, delta obtained: %f, prev tmaxZ was: %f", grid_cell.z, next_z, cell_tdeltaZ, cell_tmaxZ);
+//                        }
+//                        #endif
                         #endif
                         cell_tmaxZ += cell_tdeltaZ;
                     }
@@ -2280,7 +2038,7 @@ for(int trav = 1; trav <= num_octree_traversals; trav++) {
                             if(gl_GlobalInvocationID.xy == debug_pixel) {
                                 debugPrintfEXT("This is final iteration because new y val: %d:", grid_cell.y);
                             }
-                                #endif
+                            #endif
                         }
                         cell_tmaxY += cell_tdeltaY;
                     } else {
@@ -2293,18 +2051,18 @@ for(int trav = 1; trav <= num_octree_traversals; trav++) {
                             if(gl_GlobalInvocationID.xy == debug_pixel) {
                                 debugPrintfEXT("This is final iteration because new z val: %d:", grid_cell.z);
                             }
-                                #endif
+                            #endif
                         }
-                            #if USE_VIEW_SPACE_CELLS
+                        #if USE_VIEW_SPACE_CELLS
                         int next_z = grid_cell.z + (stepZ == 1 ? 1 : -1);
                         float current_z_ndc = cellToViewToNDC(grid_cell.z);
                         float next_z_ndc = cellToViewToNDC(next_z);
                         cell_tdeltaZ = dir.z != 0 ? abs((next_z_ndc - current_z_ndc) / dir.z) : 10000000;
-                        //                        #if USE_PRINTF
-                        //                        if(gl_GlobalInvocationID.xy == debug_pixel) {
-                        //                            debugPrintfEXT("current z: %d, next z: %d, delta obtained: %f, prev tmaxZ was: %f", grid_cell.z, next_z, cell_tdeltaZ, cell_tmaxZ);
-                        //                        }
-                        //                        #endif
+//                        #if USE_PRINTF
+//                        if(gl_GlobalInvocationID.xy == debug_pixel) {
+//                            debugPrintfEXT("current z: %d, next z: %d, delta obtained: %f, prev tmaxZ was: %f", grid_cell.z, next_z, cell_tdeltaZ, cell_tmaxZ);
+//                        }
+//                        #endif
                         #endif
                         cell_tmaxZ += cell_tdeltaZ;
                     }
@@ -2320,12 +2078,20 @@ for(int trav = 1; trav <= num_octree_traversals; trav++) {
                 //we have next_list from the traversal method
             }
 
-                #if SKIP_EMPTY
-            uint supsegs_in_cell = imageLoad(OctreeCells, grid_cell).r;
-            #else
-            uint supsegs_in_cell = 0;
-            #endif
-
+            uint supsegs_in_cell;
+            if(skip_empty) {
+                #if DOUBLE_BUFFER
+                if(useSecondBuffer) {
+                    supsegs_in_cell = imageLoad(OctreeCells2, grid_cell).r;
+                } else {
+                    supsegs_in_cell = imageLoad(OctreeCells, grid_cell).r;
+                }
+                #else
+                supsegs_in_cell = imageLoad(OctreeCells, grid_cell).r;
+                #endif
+            } else {
+                supsegs_in_cell = 0;
+            }
 
             if(supsegs_in_cell > 0 && do_subsample) {
                 vec4 cell_start_w = ivp_orig * start_point;
@@ -2335,20 +2101,20 @@ for(int trav = 1; trav <= num_octree_traversals; trav++) {
                 cell_end_w *= 1. / cell_end_w.w;
                 float intersection_length = distance(cell_start_w, cell_end_w);
                 if(trav == 1) {
-                    //                    length_in_non_empty += intersection_length;
+//                    length_in_non_empty += intersection_length;
                     length_in_non_empty += supsegs_in_cell * intersection_length;
                 } else {
-                    //                    float fract =  (intersection_length) / length_in_non_empty;
+//                    float fract =  (intersection_length) / length_in_non_empty;
                     float fract =  (supsegs_in_cell * intersection_length) / length_in_non_empty;
-                    //                    int samples_in_cell = int(fract * max_samples); //TODO: should it be round()?
+//                    int samples_in_cell = int(fract * max_samples); //TODO: should it be round()?
                     int samples_in_cell = int(fract * calculatedMaxSteps); //TODO: should it be round()?
 
                     #if USE_PRINTF
                     if(gl_GlobalInvocationID.xy == debug_pixel) {
                         debugPrintfEXT("Cell: (%d, %d, %d), intersection length: %f and supseg count: %d. Steps: %d will be taken. Max samples: %d and overall length_in_non_empty: %f calculated max steps: %d", grid_cell.xyz, intersection_length,
-                        int(supsegs_in_cell), samples_in_cell, max_samples, length_in_non_empty, calculatedMaxSteps);
+                            int(supsegs_in_cell), samples_in_cell, max_samples, length_in_non_empty, calculatedMaxSteps);
                     }
-                        #endif
+                    #endif
 
                     traverse_subsample(cell_start_w, cell_end_w, intersection_length, samples_in_cell);
                     num_traversed++;
@@ -2363,7 +2129,7 @@ for(int trav = 1; trav <= num_octree_traversals; trav++) {
                 if(gl_GlobalInvocationID.xy == debug_pixel) {
                     debugPrintfEXT("Breaking because alpha is: %f", finalColor.a);
                 }
-                    #endif
+                #endif
                 break;
             }
 
@@ -2379,38 +2145,38 @@ for(int trav = 1; trav <= num_octree_traversals; trav++) {
         totalBeforeFirst = totalMemoryLoads;
     }
 
-    //    #if USE_PRINTF
-    //    if(gl_GlobalInvocationID.xy == debug_pixel) {
-    //        debugPrintfEXT("Total cells sampled was: %d", num_traversed);
-    //        debugPrintfEXT("Total memory loads was: %d", totalMemoryLoads);
-    //        debugPrintfEXT("Total empty lists was: %d", totalEmptyLists);
-    //        debugPrintfEXT("Total intersected supsegs was: %d", totalIntersectedSupsegs);
-    //        debugPrintfEXT("Total samples taken in lists that were not intersected: %d", totalNonIntersected);
-    //        debugPrintfEXT("Total intersected lists: %d", totalIntersectedLists);
-    //        debugPrintfEXT("Total before first: %d", totalBeforeFirst);
-    //        debugPrintfEXT("Total after last: %d", totalAfterLast);
-    //        debugPrintfEXT("For pixel: (%d, %d), final color is: (%f, %f, %f, %f)", gl_GlobalInvocationID.xy, finalColor);
-    //    }
-    //    #endif
+//    #if USE_PRINTF
+//    if(gl_GlobalInvocationID.xy == debug_pixel) {
+//        debugPrintfEXT("Total cells sampled was: %d", num_traversed);
+//        debugPrintfEXT("Total memory loads was: %d", totalMemoryLoads);
+//        debugPrintfEXT("Total empty lists was: %d", totalEmptyLists);
+//        debugPrintfEXT("Total intersected supsegs was: %d", totalIntersectedSupsegs);
+//        debugPrintfEXT("Total samples taken in lists that were not intersected: %d", totalNonIntersected);
+//        debugPrintfEXT("Total intersected lists: %d", totalIntersectedLists);
+//        debugPrintfEXT("Total before first: %d", totalBeforeFirst);
+//        debugPrintfEXT("Total after last: %d", totalAfterLast);
+//        debugPrintfEXT("For pixel: (%d, %d), final color is: (%f, %f, %f, %f)", gl_GlobalInvocationID.xy, finalColor);
+//    }
+//    #endif
 
-    //    finalColor = vec4(totalMemoryLoads/2500.0, 0, 0, 1);
+//    finalColor = vec4(totalMemoryLoads/2500.0, 0, 0, 1);
     totalAfterLast = totalMemoryLoads - whenLast_Total;
 
     imageStore(OutputViewport, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), finalColor);
-    //    #if USE_PRINTF
-    //    if(gl_GlobalInvocationID.xy == debug_pixel) {
-    //        debugPrintfEXT("Final!!! composited color is: (%f, %f, %f, %f)", finalColor.rgba);
-    //    }
-    //    #endif
+    #if USE_PRINTF
+    if(gl_GlobalInvocationID.xy == debug_pixel) {
+        debugPrintfEXT("Final!!! composited color is: (%f, %f, %f, %f)", finalColor.rgba);
+    }
+    #endif
 
-    #if PROFILE_MEM
+#if PROFILE_MEM
     imageStore(NumSteps, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), vec4(totalMemoryLoads, 0, 0, 0));
-    //    imageStore(NumEmptyLists, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), vec4(totalEmptyLists, 0, 0, 0));
+//    imageStore(NumEmptyLists, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), vec4(totalEmptyLists, 0, 0, 0));
     imageStore(NumIntersectedSupsegs, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), vec4(totalIntersectedSupsegs, 0, 0, 0));
     imageStore(NumLists, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), vec4(totalIntersectedLists, 0, 0, 0));
-    //    imageStore(NumNotIntLists, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), vec4(totalNonIntersected, 0, 0, 0));
-    //    imageStore(EmptyBeforeFirst, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), vec4(totalBeforeFirst, 0, 0, 0));
-    //    imageStore(EmptyAfterLast, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), vec4(totalAfterLast, 0, 0, 0));
-    #endif
+//    imageStore(NumNotIntLists, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), vec4(totalNonIntersected, 0, 0, 0));
+//    imageStore(EmptyBeforeFirst, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), vec4(totalBeforeFirst, 0, 0, 0));
+//    imageStore(EmptyAfterLast, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), vec4(totalAfterLast, 0, 0, 0));
+#endif
 
 }

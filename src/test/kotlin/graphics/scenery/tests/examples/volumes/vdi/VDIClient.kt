@@ -19,6 +19,7 @@ import graphics.scenery.volumes.vdi.VDIData
 import graphics.scenery.volumes.vdi.VDIDataIO
 import graphics.scenery.volumes.vdi.VDINode
 import net.imglib2.type.numeric.integer.UnsignedByteType
+import net.imglib2.type.numeric.integer.UnsignedIntType
 import net.imglib2.type.numeric.real.FloatType
 import org.joml.Matrix4f
 import org.joml.Quaternionf
@@ -88,6 +89,10 @@ class VDIClient : SceneryBase("VDI Rendering", 700, 700, wantREPL = false) {
         cam.spatial {
             position = Vector3f(4.622E+0f, -9.060E-1f, -1.047E+0f) //V1 for kingsnake
             rotation = Quaternionf(5.288E-2, -9.096E-1, -1.222E-1, 3.936E-1)
+
+            position = Vector3f(2.041E-1f, -5.253E+0f, -1.321E+0f) //V1 for Simulation
+            rotation = Quaternionf(9.134E-2, -9.009E-1,  3.558E-1, -2.313E-1)
+
 
 //            position = Vector3f(-2.607E+0f, -5.973E-1f,  2.415E+0f) // V1 for Beechnut
 //            rotation = Quaternionf(-9.418E-2, -7.363E-1, -1.048E-1, -6.618E-1)
@@ -214,6 +219,7 @@ class VDIClient : SceneryBase("VDI Rendering", 700, 700, wantREPL = false) {
 
         val colorSize = windowWidth * windowHeight * numSupersegments * 4 * 4
         val depthSize = windowWidth * windowHeight * numSupersegments * 2 * 4
+        val accelSize = (windowWidth/8) * (windowHeight/8) * numSupersegments * 4
 
         val decompressionBuffer = 1024
 
@@ -224,6 +230,8 @@ class VDIClient : SceneryBase("VDI Rendering", 700, 700, wantREPL = false) {
             MemoryUtil.memAlloc(compressor.returnCompressBound(colorSize.toLong(), compressionTool))
         val compressedDepth: ByteBuffer =
             MemoryUtil.memAlloc(compressor.returnCompressBound(depthSize.toLong(), compressionTool))
+        val accelGridBuffer =
+            MemoryUtil.memAlloc(accelSize)
 
         var firstVDI = true
 
@@ -235,10 +243,18 @@ class VDIClient : SceneryBase("VDI Rendering", 700, 700, wantREPL = false) {
         val emptyDepthTexture = Texture(Vector3i(1, 1, 1), 1, contents = emptyDepth, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
             type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
 
+        val emptyAccel = MemoryUtil.memCalloc(4)
+        val emptyAccelTexture = Texture(
+            Vector3i(1, 1, 1), 1, contents = emptyAccel, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
+            type = UnsignedIntType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour
+        )
+
         compute.material().textures["InputVDI"] = emptyColorTexture
         compute.material().textures["InputVDI2"] = emptyColorTexture
         compute.material().textures["DepthVDI"] = emptyDepthTexture
         compute.material().textures["DepthVDI2"] = emptyDepthTexture
+        compute.material().textures["OctreeCells"] = emptyAccelTexture
+        compute.material().textures["OctreeCells2"] = emptyAccelTexture
 
 //        val colorTexture = UpdatableTexture(
 //            Vector3i(1024, 1024, 256),
@@ -298,8 +314,9 @@ class VDIClient : SceneryBase("VDI Rendering", 700, 700, wantREPL = false) {
 
                 compressedColor.put(payload.sliceArray((metadataSize + 3) until (metadataSize + 3 + compressedColorLength.toInt())))
                 compressedColor.flip()
-                compressedDepth.put(payload.sliceArray((metadataSize + 3) + compressedColorLength.toInt() until payload.size))
+                compressedDepth.put(payload.sliceArray((metadataSize + 3) + compressedColorLength.toInt() until (metadataSize + 3) + compressedColorLength.toInt() + compressedDepthLength.toInt()))
                 compressedDepth.flip()
+                accelGridBuffer.put(payload.sliceArray((metadataSize + 3) + compressedColorLength.toInt() + compressedDepthLength.toInt() until payload.size))
 
                 compressedColor.limit(compressedColorLength.toInt())
                 val decompressedColorLength = compressor.decompress(color, compressedColor.slice(), compressionTool)
@@ -344,6 +361,15 @@ class VDIClient : SceneryBase("VDI Rendering", 700, 700, wantREPL = false) {
                 )
                 depthTexture.addUpdate(depthUpdate)
 
+                val accelTexture = UpdatableTexture(Vector3i(windowWidth / 8, windowHeight / 8, numSupersegments),  channels = 1, contents = null, usageType = hashSetOf(
+                    Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture, Texture.UsageType.AsyncLoad), type = UnsignedIntType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+
+                val accelUpdate = UpdatableTexture.TextureUpdate(
+                    UpdatableTexture.TextureExtents(0, 0, 0, windowWidth / 8, windowHeight / 8, numSupersegments),
+                    accelGridBuffer
+                )
+                accelTexture.addUpdate(accelUpdate)
+
                 depth.limit(depth.capacity())
 
                 logger.info("Before assignment, color mutex is: ${colorTexture.gpuMutex.availablePermits()} and depth: ${depthTexture.gpuMutex.availablePermits()}")
@@ -355,6 +381,7 @@ class VDIClient : SceneryBase("VDI Rendering", 700, 700, wantREPL = false) {
 
                     compute.material().textures["InputVDI"] = colorTexture
                     compute.material().textures["DepthVDI"] = depthTexture
+                    compute.material().textures["OctreeCells"] = accelTexture
 
                     logger.info("Uploading data for buffer 1")
                 } else {
@@ -363,6 +390,7 @@ class VDIClient : SceneryBase("VDI Rendering", 700, 700, wantREPL = false) {
 
                     compute.material().textures["InputVDI2"] = colorTexture
                     compute.material().textures["DepthVDI2"] = depthTexture
+                    compute.material().textures["OctreeCells2"] = accelTexture
 
                     logger.info("Uploading data for buffer 2")
                 }
