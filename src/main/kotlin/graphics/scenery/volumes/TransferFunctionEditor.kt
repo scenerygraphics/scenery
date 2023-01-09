@@ -328,7 +328,7 @@ class TransferFunctionEditor(private val tfContainer : HasTransferFunction, val 
 
         updateSliderRange()
 
-        //mainFrame.pack()
+        mainFrame.pack()
     }
 
     private fun createTFImage() : BufferedImage {
