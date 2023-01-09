@@ -14,7 +14,7 @@ import kotlin.concurrent.thread
  * Example to show the use of a custom settings object, loaded into the SettingsEditor as a graphical visualization.
  * Also shows how to use settings updateRoutines.
  */
-class SettingsEditorExample : SceneryBase("SettingsEditorExample") {
+class SettingsEditorExample : SceneryBase("SettingsEditorExample", 1024, 1024, false) {
     override fun init() {
         renderer = hub.add(SceneryElement.Renderer,
             Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
