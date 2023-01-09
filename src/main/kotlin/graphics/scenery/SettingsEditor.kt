@@ -19,7 +19,7 @@ import javax.swing.table.DefaultTableModel
  * Allows saving and loading of settings into a .properties file
  * Allows refreshing of the settings table in order to show changes to settings values that happened during runtime.
  */
-class SettingsEditor(width : Int = 1000, height : Int = 1000, var settings : Settings, private val mainFrame : JFrame = JFrame("SettingsEditor")) {
+class SettingsEditor(var settings : Settings, private val mainFrame : JFrame = JFrame("SettingsEditor"), width : Int = 480, height : Int = 500) {
 
     private val logger by LazyLogger()
 

@@ -53,7 +53,7 @@ class SettingsEditorExample : SceneryBase("SettingsEditorExample") {
                 logger.info("Changed 'RotationSpeedChange' is ${cubeSettings.getProperty<String>("RotationSpeedChange")}")
             } )
 
-        val settingsEditor = SettingsEditor(480, 500, cubeSettings)
+        val settingsEditor = SettingsEditor(cubeSettings)
 
 
         thread {
