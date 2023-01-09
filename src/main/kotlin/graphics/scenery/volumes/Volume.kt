@@ -754,9 +754,9 @@ open class Volume(
             }
 
             logger.debug("Loading $id from disk")
+            logger.info("${file.fileName}: Allocated ${bytesPerVoxel * dims.x * dims.y * dims.z/1024/1024} MiB for $type ${8*bytesPerVoxel}bit image of $dims")
             val imageData: ByteBuffer = MemoryUtil.memAlloc((bytesPerVoxel * dims.x * dims.y * dims.z))
 
-            logger.debug("${file.fileName}: Allocated ${imageData.capacity()} bytes for $type ${8*bytesPerVoxel}bit image of $dims")
 
             val start = System.nanoTime()
 
@@ -780,7 +780,7 @@ open class Volume(
             val volumes = CopyOnWriteArrayList<BufferedVolume.Timepoint>()
             volumes.add(BufferedVolume.Timepoint(id, imageData))
             // TODO: Kotlin compiler issue, see https://youtrack.jetbrains.com/issue/KT-37955
-            return when(type) {
+            val volume = when(type) {
                 is ByteType -> fromBuffer(volumes, dims.x, dims.y, dims.z, ByteType(), hub)
                 is UnsignedByteType -> fromBuffer(volumes, dims.x, dims.y, dims.z, UnsignedByteType(), hub)
                 is ShortType -> fromBuffer(volumes, dims.x, dims.y, dims.z, ShortType(), hub)
@@ -790,6 +790,12 @@ open class Volume(
                 is FloatType -> fromBuffer(volumes, dims.x, dims.y, dims.z, FloatType(), hub)
                 else -> throw UnsupportedOperationException("Image type ${type.javaClass.simpleName} not supported for volume data.")
             }
+
+            reader.metadata.table.forEach { key, value ->
+                volume.metadata[key] = value
+            }
+
+            return volume
         }
 
         /**
