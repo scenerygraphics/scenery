@@ -43,7 +43,7 @@ import kotlin.system.measureNanoTime
  */
 
 
-class VDIClient : SceneryBase("VDI Rendering", 400, 400, wantREPL = false) {
+class VDIClient : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = false) {
     var hmd: TrackedStereoGlasses? = null
 
     val compute = VDINode()
@@ -241,7 +241,7 @@ class VDIClient : SceneryBase("VDI Rendering", 400, 400, wantREPL = false) {
         val numGridCells = Vector3f(vdiData.metadata.windowDimensions.x.toFloat() / 8f, vdiData.metadata.windowDimensions.y.toFloat() / 8f, numSupersegments.toFloat())
 
         val accelTexture = UpdatableTexture(Vector3i(numGridCells.x.toInt(), numGridCells.y.toInt(), numGridCells.z.toInt()),  channels = 1, contents = null, usageType = hashSetOf(
-            Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture, Texture.UsageType.AsyncLoad), type = UnsignedIntType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+            Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture, Texture.UsageType.AsyncLoad), type = UnsignedIntType(), mipmap = false, normalized = true, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
 
         val gridArray = ByteArray(accelSize)
         accelGridBuffer.get(gridArray)
@@ -346,7 +346,7 @@ class VDIClient : SceneryBase("VDI Rendering", 400, 400, wantREPL = false) {
         val emptyAccel = MemoryUtil.memCalloc(4)
         val emptyAccelTexture = Texture(
             Vector3i(1, 1, 1), 1, contents = emptyAccel, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
-            type = UnsignedIntType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour
+            type = UnsignedIntType(), mipmap = false, normalized = true, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour
         )
 
         compute.material().textures["InputVDI"] = emptyColorTexture
