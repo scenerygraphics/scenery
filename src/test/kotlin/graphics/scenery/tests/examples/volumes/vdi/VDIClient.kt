@@ -51,7 +51,7 @@ class VDIClient : SceneryBase("VDI Rendering", 400, 400, wantREPL = false) {
     val context = ZContext(4)
 
     val numSupersegments = 20
-    val skipEmpty = false
+    val skipEmpty = true
     val vdiStreaming = false
 
     val subsampling = false
@@ -241,19 +241,7 @@ class VDIClient : SceneryBase("VDI Rendering", 400, 400, wantREPL = false) {
         val numGridCells = Vector3f(vdiData.metadata.windowDimensions.x.toFloat() / 8f, vdiData.metadata.windowDimensions.y.toFloat() / 8f, numSupersegments.toFloat())
 
         val accelTexture = UpdatableTexture(Vector3i(numGridCells.x.toInt(), numGridCells.y.toInt(), numGridCells.z.toInt()),  channels = 1, contents = null, usageType = hashSetOf(
-            Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture, Texture.UsageType.AsyncLoad), type = UnsignedIntType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
-
-        val gridArray = ByteArray(accelSize)
-        accelGridBuffer.get(gridArray)
-        accelGridBuffer.flip()
-
-        val gridUInt = accelGridBuffer.asIntBuffer()
-
-        val atPos = gridUInt.get(24 * 50 * 24 + 2 * 50 * 50).toUInt()
-
-        logger.warn("the value is : $atPos")
-
-        logger.warn("Sum at receipt: ${gridArray.sum()}")
+            Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture, Texture.UsageType.AsyncLoad), type = UnsignedIntType(), mipmap = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
 
         val accelUpdate = UpdatableTexture.TextureUpdate(
             UpdatableTexture.TextureExtents(0, 0, 0, windowWidth / 8, windowHeight / 8, numSupersegments),
@@ -341,12 +329,12 @@ class VDIClient : SceneryBase("VDI Rendering", 400, 400, wantREPL = false) {
 
         val emptyDepth = MemoryUtil.memCalloc(1 * 4)
         val emptyDepthTexture = Texture(Vector3i(1, 1, 1), 1, contents = emptyDepth, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
-            type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+            type = FloatType(), mipmap = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
 
         val emptyAccel = MemoryUtil.memCalloc(4)
         val emptyAccelTexture = Texture(
             Vector3i(1, 1, 1), 1, contents = emptyAccel, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
-            type = UnsignedIntType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour
+            type = UnsignedIntType(), mipmap = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour
         )
 
         compute.material().textures["InputVDI"] = emptyColorTexture
