@@ -86,9 +86,11 @@ open class VulkanTexture(val device: VulkanDevice,
                 bufferImageCopy.bufferOffset(bufferOffset)
 
                 if(update != null) {
+                    logger.info("Copying ${update.extents} to ${buffer.vulkanBuffer.toHexString()}")
                     bufferImageCopy.imageExtent().set(update.extents.w, update.extents.h, update.extents.d)
                     bufferImageCopy.imageOffset().set(update.extents.x, update.extents.y, update.extents.z)
                 } else {
+                    logger.info("Copying ${width}x${height}x$depth to ${buffer.vulkanBuffer.toHexString()}")
                     bufferImageCopy.imageExtent().set(width, height, depth)
                     bufferImageCopy.imageOffset().set(0, 0, 0)
                 }
@@ -111,7 +113,7 @@ open class VulkanTexture(val device: VulkanDevice,
          * within a given [commandBuffer].
          */
         fun copyFrom(commandBuffer: VkCommandBuffer, buffer: VulkanBuffer, updates: List<TextureUpdate>, bufferOffset: Long = 0) {
-            logger.debug("Got {} texture updates for {}", updates.size, this)
+            logger.info("Got {} texture updates for {}", updates.size, this)
             with(commandBuffer) {
                 val bufferImageCopy = VkBufferImageCopy.calloc(1)
                 var offset = bufferOffset
@@ -128,6 +130,7 @@ open class VulkanTexture(val device: VulkanDevice,
                     bufferImageCopy.imageExtent().set(update.extents.w, update.extents.h, update.extents.d)
                     bufferImageCopy.imageOffset().set(update.extents.x, update.extents.y, update.extents.z)
 
+                    logger.info("Copying ${update.extents} to ${buffer.vulkanBuffer.toHexString()}")
                     vkCmdCopyBufferToImage(this,
                         buffer.vulkanBuffer,
                         this@VulkanImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
@@ -380,7 +383,8 @@ open class VulkanTexture(val device: VulkanDevice,
             gt?.gpuMutex?.acquire()
 
             val t = thread {
-                with(VU.newCommandBuffer(device, commandPools.Transfer, autostart = true)) {
+                val threadLocalPool = device.createCommandPool(device.queueIndices.transferQueue.first)
+                with(VU.newCommandBuffer(device, threadLocalPool, autostart = true)) {
                     val fence = if(!block) {
                         val f = this@VulkanTexture.device.createFence()
 
@@ -526,7 +530,7 @@ open class VulkanTexture(val device: VulkanDevice,
                                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                                 VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, mipLevels,
                                 srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
-                                dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                                dstStage = VK_PIPELINE_STAGE_HOST_BIT,
                                 commandBuffer = this
                             )
                         }
@@ -535,10 +539,11 @@ open class VulkanTexture(val device: VulkanDevice,
 
                     endCommandBuffer(
                         this@VulkanTexture.device,
-                        commandPools.Transfer,
+                        threadLocalPool,
                         transferQueue,
                         flush = true,
-                        dealloc = !block,
+                        // FIXME: make deallocation work again when running async
+                        dealloc = false,
                         block = block,
                         fence = fence
                     )
