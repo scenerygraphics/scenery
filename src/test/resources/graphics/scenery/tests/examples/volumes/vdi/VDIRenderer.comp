@@ -48,6 +48,7 @@ layout(set = 5, binding = 0) uniform ShaderProperties {
     bool do_subsample;
     int max_samples;
     float sampling_factor;
+    bool skip_empty;
     bool stratified_downsampling;
     bool printData;
 };
@@ -142,7 +143,7 @@ layout(set = 10, binding = 0, r32f) uniform image2D NumLists;
 //ivec2 debug_pixel = ivec2(610, 641);
 //ivec2 debug_pixel = ivec2(1273, 604);
 //ivec2 debug_pixel = ivec2(640, 360);
-ivec2 debug_pixel = ivec2(256, 256);
+ivec2 debug_pixel = ivec2(200, 200);
 
 //ivec2 debug_pixel = ivec2(35, 61);
 //ivec2 debug_pixel = ivec2(427, 465);
@@ -1235,11 +1236,11 @@ void traverse_subsample(vec4 world_entry, vec4 world_end, float total_distance, 
 
 void traverse_cell(vec4 entry_point, ivec2 entry_list, vec3 cell_min, vec3 cell_max, out vec4 end_point, out ivec2 nextList) {
 
-//    #if USE_PRINTF
-//    if(gl_GlobalInvocationID.xy == debug_pixel) {
-//        debugPrintfEXT("Traversing cell with min: (%f, %f, %f) and max: (%f, %f, %f). Entry point: (%f, %f, %f, %f)", cell_min.xyz, cell_max.xyz, entry_point.xyzw);
-//    }
-//    #endif
+    #if USE_PRINTF
+    if(gl_GlobalInvocationID.xy == debug_pixel) {
+        debugPrintfEXT("Traversing cell with min: (%f, %f, %f) and max: (%f, %f, %f). Entry point: (%f, %f, %f, %f)", cell_min.xyz, cell_max.xyz, entry_point.xyzw);
+    }
+    #endif
 
     const float max_x = max(cell_max.x, cell_min.x);
     const float min_x = min(cell_max.x, cell_min.x);
