@@ -723,6 +723,7 @@ class VDIClient : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = false) {
         var accelGridBuff: ByteBuffer? = null
 
         val basePath = "/home/aryaman/Repositories/scenery-insitu/"
+//        val basePath = "e:/vdis/Simulation/"
 
         if(!vdiStreaming) {
             val vdiParams = "_${windowWidth}_${windowHeight}_${numSupersegments}_0_"

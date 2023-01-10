@@ -106,7 +106,8 @@ class VideoDecoder(val filename: String) {
                 return@thread
             }
 
-            val codec = avcodec_find_decoder(codecCtx.codec_id())
+//            val codec = avcodec_find_decoder(codecCtx.codec_id())
+            val codec = avcodec_find_decoder_by_name("h264_cuvid")
             if (codec == null) {
                 logger.error("Unsupported codec for video file")
                 error = true
