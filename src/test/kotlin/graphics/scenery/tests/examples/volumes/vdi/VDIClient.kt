@@ -51,7 +51,7 @@ class VDIClient : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = false) {
     val context = ZContext(4)
 
     val numSupersegments = 20
-    val skipEmpty = false
+    val skipEmpty = true
     val vdiStreaming = false
 
     val subsampling = false
@@ -341,12 +341,12 @@ class VDIClient : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = false) {
 
         val emptyDepth = MemoryUtil.memCalloc(1 * 4)
         val emptyDepthTexture = Texture(Vector3i(1, 1, 1), 1, contents = emptyDepth, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
-            type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+            type = FloatType(), mipmap = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
 
         val emptyAccel = MemoryUtil.memCalloc(4)
         val emptyAccelTexture = Texture(
             Vector3i(1, 1, 1), 1, contents = emptyAccel, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
-            type = UnsignedIntType(), mipmap = false, normalized = true, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour
+            type = UnsignedIntType(), mipmap = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour
         )
 
         compute.material().textures["InputVDI"] = emptyColorTexture
