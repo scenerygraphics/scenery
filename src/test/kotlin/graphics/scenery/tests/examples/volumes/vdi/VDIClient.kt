@@ -118,8 +118,6 @@ class VDIClient : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = false) {
     override fun init() {
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
 
-        val cam: Camera = DetachedHeadCamera(hmd)
-
         with(cam) {
             spatial().position = Vector3f(-4.365f, 0.38f, 0.62f)
             perspectiveCamera(50.0f, windowWidth, windowHeight)
@@ -233,9 +231,9 @@ class VDIClient : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = false) {
             }
         }
 
-        thread {
-            camFlyThrough()
-        }
+//        thread {
+//            camFlyThrough()
+//        }
     }
 
     fun downsampleImage(factor: Float, wholeFrameBuffer: Boolean = false) {
@@ -510,9 +508,6 @@ class VDIClient : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = false) {
     }
 
     fun rotateCamera(degrees: Float, pitch: Boolean = false) {
-        val camTarget = Vector3f(1.920E+0f, -1.920E+0f,  1.491E+0f)
-
-        val cam = scene.findObserver()!!
         cam.targeted = true
         val frameYaw: Float
         val framePitch: Float
@@ -854,7 +849,7 @@ class VDIClient : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = false) {
         inputHandler?.addKeyBinding("print_debug", "H")
 
         inputHandler?.addBehaviour("rotate_camera", ClickBehaviour { r_, _ ->
-            rotateCamera(10f)
+            rotateCamera(10f, true)
         })
         inputHandler?.addKeyBinding("rotate_camera", "R")
     }
