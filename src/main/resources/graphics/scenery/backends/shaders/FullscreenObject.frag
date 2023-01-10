@@ -12,11 +12,15 @@ layout(location = 0) in VertexData {
 
 layout(location = 0) out vec4 FragColor;
 
+layout(set = 4, binding = 0) uniform ShaderProperties {
+    float downImage;
+};
+
 const int NUM_OBJECT_TEXTURES = 6;
 layout(set = 3, binding = 0) uniform sampler2D ObjectTextures[NUM_OBJECT_TEXTURES];
 
 void main()
 {
-    FragColor = vec4(texture(ObjectTextures[1], Vertex.textureCoord.xy).rgb, 1.0);
+    FragColor = vec4(texture(ObjectTextures[1], Vertex.textureCoord.xy * (downImage)).rgb, 1.0);
 }
 

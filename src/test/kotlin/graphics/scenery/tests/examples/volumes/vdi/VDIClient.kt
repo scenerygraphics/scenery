@@ -31,11 +31,13 @@ import org.zeromq.SocketType
 import org.zeromq.ZContext
 import org.zeromq.ZMQ
 import org.zeromq.ZMQException
-import java.io.ByteArrayInputStream
-import java.io.File
-import java.io.FileInputStream
+import java.io.*
 import java.nio.ByteBuffer
+import java.nio.file.Files
+import java.nio.file.Paths
 import kotlin.concurrent.thread
+import kotlin.math.abs
+import kotlin.math.min
 import kotlin.system.measureNanoTime
 
 /**
@@ -47,6 +49,7 @@ class VDIClient : SceneryBase("VDI Rendering", 400, 400, wantREPL = false) {
     var hmd: TrackedStereoGlasses? = null
 
     val compute = VDINode()
+    val plane = FullscreenObject()
 
     val context = ZContext(4)
 
@@ -60,6 +63,43 @@ class VDIClient : SceneryBase("VDI Rendering", 400, 400, wantREPL = false) {
 
     var startPrinting = false
     var sendCamera = false
+
+    var subsamplingFactorImage = 1.0f
+
+    val dataset = "Simulation"
+
+    val dynamicSubsampling = false
+
+    val subsampleRay = false
+
+    val cam: Camera = DetachedHeadCamera(hmd)
+
+    val camTarget = when (dataset) {
+        "Kingsnake" -> {
+            Vector3f(1.920E+0f, -1.920E+0f,  1.491E+0f)
+        }
+        "Beechnut" -> {
+            Vector3f(1.920E+0f, -1.920E+0f,  2.899E+0f)
+        }
+        "Simulation" -> {
+            Vector3f(1.920E+0f, -1.920E+0f,  1.800E+0f)
+        }
+        "Rayleigh_Taylor" -> {
+            Vector3f(1.920E+0f, -1.920E+0f,  1.920E+0f)
+        }
+        "BonePlug" -> {
+            Vector3f(1.920E+0f, -6.986E-1f,  6.855E-1f)
+        }
+        "Rotstrat" -> {
+            Vector3f( 1.920E+0f, -1.920E+0f,  1.800E+0f)
+        }
+        "Isotropic" -> {
+            Vector3f( 1.920E+0f, -1.920E+0f,  1.800E+0f)
+        }
+        else -> {
+            Vector3f(0f)
+        }
+    }
 
     private val vulkanProjectionFix =
         Matrix4f(
@@ -88,11 +128,28 @@ class VDIClient : SceneryBase("VDI Rendering", 400, 400, wantREPL = false) {
         }
 
         cam.spatial {
-            position = Vector3f(4.622E+0f, -9.060E-1f, -1.047E+0f) //V1 for kingsnake
-            rotation = Quaternionf(5.288E-2, -9.096E-1, -1.222E-1, 3.936E-1)
-
-//            position = Vector3f(2.041E-1f, -5.253E+0f, -1.321E+0f) //V1 for Simulation
-//            rotation = Quaternionf(9.134E-2, -9.009E-1,  3.558E-1, -2.313E-1)
+            if(dataset == "Kingsnake") {
+                position = Vector3f( 4.622E+0f, -9.060E-1f, -1.047E+0f) //V1 for kingsnake
+                rotation = Quaternionf( 5.288E-2, -9.096E-1, -1.222E-1,  3.936E-1)
+            } else if (dataset == "Beechnut") {
+                position = Vector3f(-2.607E+0f, -5.973E-1f,  2.415E+0f) // V1 for Beechnut
+                rotation = Quaternionf(-9.418E-2, -7.363E-1, -1.048E-1, -6.618E-1)
+            } else if (dataset == "Simulation") {
+                position = Vector3f(2.041E-1f, -5.253E+0f, -1.321E+0f) //V1 for Simulation
+                rotation = Quaternionf(9.134E-2, -9.009E-1,  3.558E-1, -2.313E-1)
+            } else if (dataset == "Rayleigh_Taylor") {
+                position = Vector3f( -2.300E+0f, -6.402E+0f,  1.100E+0f) //V1 for Rayleigh_Taylor
+                rotation = Quaternionf(2.495E-1, -7.098E-1,  3.027E-1, -5.851E-1)
+            } else if (dataset == "BonePlug") {
+                position = Vector3f( 1.897E+0f, -5.994E-1f, -1.899E+0f) //V1 for Boneplug
+                rotation = Quaternionf( 5.867E-5,  9.998E-1,  1.919E-2,  4.404E-3)
+            } else if (dataset == "Rotstrat") {
+                position = Vector3f( 2.799E+0f, -6.156E+0f, -2.641E+0f) //V1 for Rotstrat
+                rotation = Quaternionf(-3.585E-2, -9.257E-1,  3.656E-1,  9.076E-2)
+            } else  if (dataset == "Isotropic") {
+                position = Vector3f( 2.799E+0f, -6.156E+0f, -2.641E+0f) //V1 for Isotropic
+                rotation = Quaternionf(-3.585E-2, -9.257E-1,  3.656E-1,  9.076E-2)
+            }
 
 
 //            position = Vector3f(-2.607E+0f, -5.973E-1f,  2.415E+0f) // V1 for Beechnut
@@ -120,7 +177,6 @@ class VDIClient : SceneryBase("VDI Rendering", 400, 400, wantREPL = false) {
 
         scene.addChild(compute)
 
-        val plane = FullscreenObject()
         scene.addChild(plane)
         plane.material().textures["diffuse"] = compute.material().textures["OutputViewport"]!!
 
@@ -174,6 +230,281 @@ class VDIClient : SceneryBase("VDI Rendering", 400, 400, wantREPL = false) {
                 Thread.sleep(2000)
                 logger.info("cam pos: ${cam.spatial().position}")
                 logger.info("cam rot: ${cam.spatial().rotation}")
+            }
+        }
+
+        thread {
+            camFlyThrough()
+        }
+    }
+
+    fun downsampleImage(factor: Float, wholeFrameBuffer: Boolean = false) {
+        compute.downImage = factor
+        plane.downImage = factor
+    }
+
+    fun setStratifiedDownsampling(stratified: Boolean) {
+        compute.stratified_downsampling = stratified
+    }
+
+    fun setEmptySpaceSkipping(skip: Boolean) {
+        compute.skip_empty = skip
+    }
+
+    fun setDownsamplingFactor(factor: Float) {
+        compute.sampling_factor = factor
+    }
+
+    fun setMaxDownsampleSteps(steps: Int) {
+        compute.max_samples = steps
+    }
+
+    fun doDownsampling(downsample: Boolean) {
+        setEmptySpaceSkipping(true)
+        compute.do_subsample = downsample
+    }
+
+    private fun dynamicProfiling() {
+        val r = (hub.get(SceneryElement.Renderer) as Renderer)
+
+        val targetFrameTime = 1.0f / desiredFrameRate
+
+        val toleranceFPS = 5f
+        val minFPS = desiredFrameRate - toleranceFPS
+        val toleranceTime = abs(targetFrameTime - (1.0f / minFPS))
+
+        var frameEnd: Long
+
+        var frameTime: Float
+        var avgFrameTime = 0f
+        var avgLength = 100
+
+        val kP = 20.5f
+        val kI = 5.5f
+//        val kI = 0f
+        val kD = 1
+
+        var subsampleAlongImage = true
+
+        val loopCycle = 1
+        var totalLoss = 0f
+
+        subsamplingFactorImage = 1.0f
+        var subsamplingFactorRay = 0.1f
+        var prevFactor = 1.0f
+
+        val d_iChange = 0.0f
+        val d_rChange = 0.2f
+
+        var frameCount = 0
+
+//        doDownsampling(true)
+//        setDownsamplingFactor(0.1f)
+
+        val frameTimeList = mutableListOf<Float>()
+
+//        renderer!!.recordMovie("/datapot/aryaman/owncloud/VDI_Benchmarks/VDI_basic.mp4")
+
+        Thread.sleep(5000)
+        var frameStart = System.nanoTime()
+        var firstFrame = true
+
+        (r as VulkanRenderer).postRenderLambdas.add {
+            if(frameCount%10 == 0) {
+                rotateCamera(1f, dataset=="Simulation")
+            }
+            if(frameCount == 100) {
+                if(subsampleRay) {
+                    doDownsampling(true)
+                    setDownsamplingFactor(0.3f)
+                    logger.info("Downsampling factor set")
+                }
+            }
+        }
+
+        (r as VulkanRenderer).postRenderLambdas.add {
+
+            if (!firstFrame) {
+                frameEnd = System.nanoTime()
+                frameTime = (frameEnd - frameStart) / 1e9f
+
+
+                frameCount++
+                frameTimeList.add(frameTime)
+
+
+                if (frameCount == 500) {
+                    val fw = FileWriter("/datapot/aryaman/owncloud/VDI_Benchmarks/${dataset}_${dynamicSubsampling}_${subsampleRay}_frame_times.csv", false)
+                    val bw = BufferedWriter(fw)
+
+                    frameTimeList.forEach {
+                        bw.append("${it}, ")
+                    }
+
+                    bw.flush()
+//
+                    logger.warn("The file has been written!")
+
+//                    renderer!!.recordMovie()
+                    Thread.sleep(1000)
+
+                    renderer!!.shouldClose = true
+                }
+
+                if(dynamicSubsampling) {
+                    val error =
+//                if((frameTime >= (targetFrameTime - toleranceTime)) && (frameTime <= (targetFrameTime + toleranceTime))) {
+//                    0f
+//                } else {
+                        frameTime - targetFrameTime
+//                }
+
+                    avgFrameTime = if (avgFrameTime == 0f) {
+                        frameTime
+                    } else {
+                        avgFrameTime - avgFrameTime / avgLength + frameTime / avgLength
+                    }
+
+                    val avgError =
+                        if ((avgFrameTime >= (targetFrameTime - toleranceTime)) && (avgFrameTime <= (targetFrameTime + toleranceTime))) {
+                            0f
+                        } else {
+                            avgFrameTime - targetFrameTime
+                        }
+
+//                logger.info("Frame time: $frameTime, avg frame time: $avgFrameTime and target: $targetFrameTime and tolerance: $toleranceTime")
+
+                    val output = kP * error + kI * avgError
+
+//                doDownsampling(false)
+
+                    subsamplingFactorImage -= output
+
+                    subsamplingFactorImage = java.lang.Float.max(0.05f, subsamplingFactorImage)
+                    subsamplingFactorImage = min(1.0f, subsamplingFactorImage)
+
+//                    val downImage = max(d_iChange, subsamplingFactorImage)
+                    val downImage = subsamplingFactorImage
+
+                    logger.info("Frame time: $frameTime. error was: $error, avg error: $avgError and therefore setting factor to: $subsamplingFactorImage")
+
+                    if (abs(downImage - prevFactor) > 0.05) {
+                        logger.warn("changing the factor")
+                        downsampleImage(downImage)
+                        prevFactor = downImage
+                    }
+                }
+            }
+
+            frameStart = System.nanoTime()
+            firstFrame = false
+
+        }
+    }
+
+    public fun camFlyThrough() {
+        val r = (hub.get(SceneryElement.Renderer) as Renderer)
+
+        while(!r.firstImageReady) {
+            Thread.sleep(200)
+        }
+
+        Thread.sleep(1000)
+
+        val maxPitch = 10f
+        val maxYaw = 10f
+
+        val minYaw = -10f
+        val minPitch = -10f
+
+//        rotateCamera(40f, true)
+        var pitchRot = 0.12f
+        var yawRot = 0.075f
+
+        var totalYaw = 0f
+        var totalPitch = 0f
+
+//        rotateCamera(20f, true)
+
+        moveCamera(yawRot, pitchRot * 2, maxYaw, maxPitch * 2, minPitch * 2, minYaw, totalYaw, totalPitch, 2000f)
+        logger.info("Moving to phase 2")
+        moveCamera(yawRot, pitchRot * 2, maxYaw, maxPitch * 2, minPitch * 2, minYaw, totalYaw, totalPitch, 2000f)
+
+        Thread.sleep(1000)
+
+        zoomCamera(0.99f, 1000f)
+        logger.info("Moving to phase 3")
+        moveCamera(yawRot * 3, pitchRot * 3, maxYaw, maxPitch, minPitch, minYaw, totalYaw, totalPitch, 4000f)
+//
+//        if(subsampleRay) {
+//            doDownsampling(true)
+//            setDownsamplingFactor(0.2f)
+//        }
+//
+//        moveCamera(yawRot *2, pitchRot * 5, 40f, 40f, -60f, -50f, totalYaw, totalPitch, 6000f)
+
+        Thread.sleep(1000)
+    }
+
+    private fun moveCamera(yawRot: Float, pitchRot: Float, maxYaw: Float, maxPitch: Float, minPitch: Float, minYaw: Float, totalY: Float, totalP: Float, duration: Float) {
+
+        var totalYaw = totalY
+        var totalPitch = totalP
+
+        var yaw = yawRot
+        var pitch = pitchRot
+
+        val startTime = System.nanoTime()
+
+        var cnt = 0
+
+        val list: MutableList<Any> = ArrayList()
+        val listDi: MutableList<Any> = ArrayList()
+
+        while (true) {
+
+            cnt += 1
+
+            if(totalYaw < maxYaw && totalYaw > minYaw) {
+                rotateCamera(yaw)
+                totalYaw += yaw
+            } else {
+                yaw *= -1f
+                rotateCamera(yaw)
+                totalYaw += yaw
+            }
+
+            if (totalPitch < maxPitch && totalPitch > minPitch) {
+                rotateCamera(pitch, true)
+                totalPitch += pitch
+            } else {
+                pitch *= -1f
+                rotateCamera(pitch, true)
+                totalPitch += pitch
+            }
+            Thread.sleep(50)
+
+            val currentTime = System.nanoTime()
+
+            if ((currentTime - startTime)/1e6 > duration) {
+                break
+            }
+        }
+    }
+
+    fun zoomCamera(factor: Float, duration: Float) {
+        cam.targeted = true
+
+        val startTime = System.nanoTime()
+        while (true) {
+            val distance = (camTarget - cam.spatial().position).length()
+
+            cam.spatial().position = camTarget + cam.forward * distance * (-1.0f * factor)
+
+            Thread.sleep(50)
+
+            if((System.nanoTime() - startTime)/1e6 > duration) {
+                break
             }
         }
     }
@@ -380,7 +711,6 @@ class VDIClient : SceneryBase("VDI Rendering", 400, 400, wantREPL = false) {
         var accelGridBuff: ByteBuffer? = null
 
         val basePath = "/home/aryaman/Repositories/scenery-insitu/"
-        val dataset = "Kingsnake"
 
         if(!vdiStreaming) {
             val vdiParams = "_${windowWidth}_${windowHeight}_${numSupersegments}_0_"

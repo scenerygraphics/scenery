@@ -9,6 +9,10 @@ import graphics.scenery.attribute.material.Material
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class FullscreenObject : Mesh("FullscreenObject") {
+
+    @ShaderProperty
+    var downImage = 1f
+
     init {
         geometry {
             // fake geometry
