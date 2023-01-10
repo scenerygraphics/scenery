@@ -38,6 +38,15 @@ class VDINode : RichNode() {
     var nw = 0f
 
     @ShaderProperty
+    var vdiWidth: Int = 0
+
+    @ShaderProperty
+    var vdiHeight: Int = 0
+
+    @ShaderProperty
+    var totalGeneratedSupsegs: Int = 0
+
+    @ShaderProperty
     var do_subsample = false
 
     @ShaderProperty
@@ -47,8 +56,14 @@ class VDINode : RichNode() {
     var sampling_factor = 0.1f
 
     @ShaderProperty
+    var downImage = 1f
+
+    @ShaderProperty
+    var skip_empty = true
+
+    @ShaderProperty
     var stratified_downsampling = false
 
     @ShaderProperty
-    var printData = false
+    var printData = true
 }
