@@ -1,5 +1,6 @@
 package graphics.scenery.tests.examples.volumes.vdi
 
+import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
@@ -55,7 +56,7 @@ class VDIClient : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = false) {
 
     val numSupersegments = 20
     val skipEmpty = true
-    val vdiStreaming = false
+    val vdiStreaming = true
 
     val subsampling = false
     var desiredFrameRate = 30
@@ -71,6 +72,11 @@ class VDIClient : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = false) {
     val dynamicSubsampling = false
 
     val subsampleRay = false
+
+    val storeCamera = false
+    val loadCamera = true
+
+    var firstVDI = true
 
     val cam: Camera = DetachedHeadCamera(hmd)
 
@@ -208,8 +214,6 @@ class VDIClient : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = false) {
 
                 val bytes = objectMapper.writeValueAsBytes(list)
 
-                logger.info("Sent camera details\n position: ${cam.spatial().position}\nrotation: ${cam.spatial().rotation}")
-
                 publisher.send(bytes)
 
                 prevPos = posArray
@@ -231,9 +235,11 @@ class VDIClient : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = false) {
             }
         }
 
-//        thread {
-//            camFlyThrough()
-//        }
+        if(storeCamera || loadCamera) {
+            thread {
+                camFlyThrough()
+            }
+        }
     }
 
     fun downsampleImage(factor: Float, wholeFrameBuffer: Boolean = false) {
@@ -400,6 +406,130 @@ class VDIClient : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = false) {
         }
     }
 
+    private fun stringToQuaternion(inputString: String): Quaternionf {
+        val elements = inputString.removeSurrounding("[", "]").split(",").map { it.toFloat() }
+        return Quaternionf(elements[0], elements[1], elements[2], elements[3])
+    }
+
+    private fun stringToVector3f(inputString: String): Vector3f {
+        val mElements = inputString.removeSurrounding("[", "]").split(",").map { it.toFloat() }
+        return Vector3f(mElements[0], mElements[1], mElements[2])
+    }
+
+    fun followCamera() {
+        val posBytes = Files.readAllBytes(Paths.get("${dataset}camera_pos.txt"))
+        val rotBytes = Files.readAllBytes(Paths.get("${dataset}camera_rot.txt"))
+
+        val objectMapper = ObjectMapper(MessagePackFactory())
+
+        val list_pos: List<Any> = objectMapper.readValue(posBytes, object : TypeReference<List<Any>>() {})
+        val list_rot: List<Any> = objectMapper.readValue(rotBytes, object : TypeReference<List<Any>>() {})
+
+        var frameCount = 0
+
+        val frameTimeList = mutableListOf<Float>()
+        var frameStart = System.nanoTime()
+        var firstFrame = true
+        var frameEnd: Long
+        var frameTime: Float
+
+        (renderer as VulkanRenderer).postRenderLambdas.add {
+
+            cam.spatial().position = stringToVector3f(list_pos[frameCount].toString())
+            cam.spatial().rotation = stringToQuaternion(list_rot[frameCount].toString())
+
+            if (!firstFrame) {
+                frameEnd = System.nanoTime()
+                frameTime = (frameEnd - frameStart) / 1e9f
+
+                frameTimeList.add(frameTime)
+
+                if(frameCount == 1999) {
+                    val fw = FileWriter("/home/aryaman/ownCloud/VDI_Benchmarks/${dataset}_${dynamicSubsampling}_${subsampleRay}_frame_times.csv", false)
+                    val bw = BufferedWriter(fw)
+
+                    frameTimeList.forEach {
+                        bw.append("${it}, ")
+                    }
+
+                    bw.flush()
+//
+                    logger.warn("The file has been written!")
+
+//                    renderer!!.recordMovie()
+                    Thread.sleep(1000)
+
+                    renderer!!.shouldClose = true
+                }
+            }
+
+            firstFrame = false
+
+            frameCount++
+        }
+    }
+
+    fun recordCamera() {
+        val list_pos: MutableList<Any> = ArrayList()
+        val list_rot: MutableList<Any> = ArrayList()
+
+        var frameCount = 0
+        val totalFrames = 2000
+
+        (renderer as VulkanRenderer).postRenderLambdas.add {
+            if(frameCount < totalFrames) {
+                val rotArray = floatArrayOf(cam.spatial().rotation.x, cam.spatial().rotation.y, cam.spatial().rotation.z, cam.spatial().rotation.w)
+                val posArray = floatArrayOf(cam.spatial().position.x(), cam.spatial().position.y(), cam.spatial().position.z())
+
+                list_pos.add(posArray)
+                list_rot.add(rotArray)
+            }
+
+            if(frameCount == totalFrames) {
+                val objectMapper = ObjectMapper(MessagePackFactory())
+
+                val bytesPos = objectMapper.writeValueAsBytes(list_pos)
+
+                Files.write(Paths.get("${dataset}camera_pos.txt"), bytesPos)
+
+                val bytesRot = objectMapper.writeValueAsBytes(list_rot)
+                Files.write(Paths.get("${dataset}camera_rot.txt"), bytesRot)
+
+                logger.warn("Files have been written!")
+
+            }
+            frameCount++
+        }
+        lookAround()
+
+        //rotate somewhat
+        var cnt = 0
+        while (cnt < 100) {
+            rotateCamera(0.3f, true)
+            Thread.sleep(75)
+            cnt++
+        }
+
+        zoomCamera(0.99f, 1000f)
+
+        lookAround()
+
+        zoomCamera(1.01f, 1000f)
+
+        //fast rotation
+        cnt = 0
+        while (cnt < 200) {
+            rotateCamera(1.2f)
+            Thread.sleep(40)
+            cnt++
+        }
+
+        lookAround()
+
+
+        Thread.sleep(1000)
+    }
+
     public fun camFlyThrough() {
         val r = (hub.get(SceneryElement.Renderer) as Renderer)
 
@@ -409,39 +539,42 @@ class VDIClient : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = false) {
 
         Thread.sleep(1000)
 
-        val maxPitch = 10f
-        val maxYaw = 10f
+        while(firstVDI) {
+            Thread.sleep(100)
+        }
 
-        val minYaw = -10f
-        val minPitch = -10f
+        if(storeCamera) {
+            recordCamera()
+        } else if(loadCamera) {
+            followCamera()
+        }
+    }
 
-//        rotateCamera(40f, true)
-        var pitchRot = 0.12f
-        var yawRot = 0.075f
-
-        var totalYaw = 0f
-        var totalPitch = 0f
-
-//        rotateCamera(20f, true)
-
-        moveCamera(yawRot, pitchRot * 2, maxYaw, maxPitch * 2, minPitch * 2, minYaw, totalYaw, totalPitch, 2000f)
-        logger.info("Moving to phase 2")
-        moveCamera(yawRot, pitchRot * 2, maxYaw, maxPitch * 2, minPitch * 2, minYaw, totalYaw, totalPitch, 2000f)
-
-        Thread.sleep(1000)
-
-        zoomCamera(0.99f, 1000f)
-        logger.info("Moving to phase 3")
-        moveCamera(yawRot * 3, pitchRot * 3, maxYaw, maxPitch, minPitch, minYaw, totalYaw, totalPitch, 4000f)
-//
-//        if(subsampleRay) {
-//            doDownsampling(true)
-//            setDownsamplingFactor(0.2f)
-//        }
-//
-//        moveCamera(yawRot *2, pitchRot * 5, 40f, 40f, -60f, -50f, totalYaw, totalPitch, 6000f)
-
-        Thread.sleep(1000)
+    private fun lookAround() {
+        var cnt = 0
+        while (cnt < 20) {
+            rotateCamera(0.3f, true)
+            Thread.sleep(75)
+            cnt++
+        }
+        cnt = 0
+        while (cnt < 20) {
+            rotateCamera(0.3f)
+            Thread.sleep(75)
+            cnt++
+        }
+        cnt = 0
+        while (cnt < 20) {
+            rotateCamera(-0.35f, true)
+            Thread.sleep(75)
+            cnt++
+        }
+        cnt = 0
+        while (cnt < 20) {
+            rotateCamera(-0.25f)
+            Thread.sleep(75)
+            cnt++
+        }
     }
 
     private fun moveCamera(yawRot: Float, pitchRot: Float, maxYaw: Float, maxPitch: Float, minPitch: Float, minYaw: Float, totalY: Float, totalP: Float, duration: Float) {
@@ -491,6 +624,7 @@ class VDIClient : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = false) {
     }
 
     fun zoomCamera(factor: Float, duration: Float) {
+        logger.info("zooming camera")
         cam.targeted = true
 
         val startTime = System.nanoTime()
@@ -569,18 +703,6 @@ class VDIClient : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = false) {
         val accelTexture = UpdatableTexture(Vector3i(numGridCells.x.toInt(), numGridCells.y.toInt(), numGridCells.z.toInt()),  channels = 1, contents = null, usageType = hashSetOf(
             Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture, Texture.UsageType.AsyncLoad), type = UnsignedIntType(), mipmap = false, normalized = true, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
 
-        val gridArray = ByteArray(accelSize)
-        accelGridBuffer.get(gridArray)
-        accelGridBuffer.flip()
-
-        val gridUInt = accelGridBuffer.asIntBuffer()
-
-        val atPos = gridUInt.get(24 * 50 * 24 + 2 * 50 * 50).toUInt()
-
-        logger.warn("the value is : $atPos")
-
-        logger.warn("Sum at receipt: ${gridArray.sum()}")
-
         val accelUpdate = UpdatableTexture.TextureUpdate(
             UpdatableTexture.TextureExtents(0, 0, 0, windowWidth / 8, windowHeight / 8, numSupersegments),
             accelGridBuffer
@@ -617,7 +739,7 @@ class VDIClient : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = false) {
             Thread.sleep(1000)
         }
 
-        logger.warn("Data has been detected to be uploaded to GPU")
+        logger.debug("Data has been detected to be uploaded to GPU")
 
         if(!firstVDI) {
             compute.useSecondBuffer = !compute.useSecondBuffer
@@ -658,8 +780,6 @@ class VDIClient : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = false) {
             MemoryUtil.memAlloc(compressor.returnCompressBound(depthSize.toLong(), compressionTool))
         val accelGridBuffer =
             MemoryUtil.memAlloc(accelSize)
-
-        var firstVDI = true
 
         val emptyColor = MemoryUtil.memCalloc(4 * 4)
         val emptyColorTexture = Texture(Vector3i(1, 1, 1), 4, contents = emptyColor, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
@@ -845,14 +965,29 @@ class VDIClient : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = false) {
         inputHandler?.addKeyBinding("send_camera", "O")
 
         inputHandler?.addBehaviour("print_debug", ClickBehaviour { _, _ ->
-            startPrinting = true
+            rotateCamera(0.3f)
         })
         inputHandler?.addKeyBinding("print_debug", "H")
 
         inputHandler?.addBehaviour("rotate_camera", ClickBehaviour { r_, _ ->
-            rotateCamera(10f, true)
+            rotateCamera(0.3f, true)
         })
         inputHandler?.addKeyBinding("rotate_camera", "R")
+
+        inputHandler?.addBehaviour("rotate_camera_yaw_negative", ClickBehaviour { _, _ ->
+            rotateCamera(-0.3f)
+        })
+        inputHandler?.addKeyBinding("rotate_camera_yaw_negative", "N")
+
+        inputHandler?.addBehaviour("rotate_camera_pitch_negative", ClickBehaviour { r_, _ ->
+            rotateCamera(-0.3f, true)
+        })
+        inputHandler?.addKeyBinding("rotate_camera_pitch_negative", "B")
+
+        inputHandler?.addBehaviour("zoom", ClickBehaviour { r_, _ ->
+            zoomCamera(0.99f, 100f)
+        })
+        inputHandler?.addKeyBinding("zoom", "Z")
     }
 
     companion object {
