@@ -23,6 +23,7 @@ import kotlin.time.Duration.Companion.nanoseconds
  */
 class AsyncTextureExample: SceneryBase("Async Texture example", 1280, 720) {
     lateinit var volume: Volume
+    private val size = Vector3i(2000,1024,1024)
 
     override fun init() {
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
@@ -59,7 +60,7 @@ class AsyncTextureExample: SceneryBase("Async Texture example", 1280, 720) {
         // as UpdatableTexture are supposed to have contents = null at the moment
         val textures = RingBuffer(2, cleanup = null, default = {
             UpdatableTexture(
-                Vector3i(1024, 1024, 256),
+                size,
                 channels = 1,
                 type = UnsignedByteType(),
                 usageType = hashSetOf(Texture.UsageType.Texture, Texture.UsageType.AsyncLoad, Texture.UsageType.LoadStoreImage),
@@ -68,7 +69,7 @@ class AsyncTextureExample: SceneryBase("Async Texture example", 1280, 720) {
         })
 
         val backing = RingBuffer(2, cleanup = null, default = {
-            MemoryUtil.memAlloc(256*1024*1024)
+            MemoryUtil.memAlloc(size.x*size.y*size.z)
         })
 
         thread {
@@ -86,7 +87,7 @@ class AsyncTextureExample: SceneryBase("Async Texture example", 1280, 720) {
                 // We add a TextureUpdate that covers the whole texture,
                 // using one of the backing RingBuffers.
                 val update = UpdatableTexture.TextureUpdate(
-                    UpdatableTexture.TextureExtents(0, 0, 0, 1024, 1024, 256),
+                    UpdatableTexture.TextureExtents(0, 0, 0, size.x, size.y, size.z),
                     backing.get()
                 )
                 texture.addUpdate(update)
