@@ -351,7 +351,7 @@ class VideoEncoder(
 
                         endTime = System.nanoTime()
                         val duration = (endTime - startTime)/1e9
-                        logger.info("Time taken for the whole frame: ${duration}")
+//                        logger.info("Time taken for the whole frame: ${duration}")
                     }
 
                     // encoding step for the final, empty frame, plus deallocation steps
@@ -427,7 +427,7 @@ class VideoEncoder(
 
             val endTime = System.nanoTime()
 
-            logger.info("Time taken to queue the frame: ${(endTime-startTime)/1e9}")
+//            logger.info("Time taken to queue the frame: ${(endTime-startTime)/1e9}")
         }
     }
 
