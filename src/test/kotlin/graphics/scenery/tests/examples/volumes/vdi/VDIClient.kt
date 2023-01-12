@@ -46,7 +46,7 @@ import kotlin.system.measureNanoTime
  */
 
 
-class VDIClient : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = false) {
+class VDIClient : SceneryBase("VDI Rendering", 1280, 720, wantREPL = false) {
     var hmd: TrackedStereoGlasses? = null
 
     val compute = VDINode()
@@ -63,7 +63,7 @@ class VDIClient : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = false) {
     var maxFrameRate = 90
 
     var startPrinting = false
-    var sendCamera = false
+    var sendCamera = true
 
     var subsamplingFactorImage = 1.0f
 
@@ -75,6 +75,8 @@ class VDIClient : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = false) {
 
     val storeCamera = false
     val loadCamera = true
+
+    val recordVideo = false
 
     var firstVDI = true
 
@@ -184,6 +186,18 @@ class VDIClient : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = false) {
         scene.addChild(plane)
         plane.material().textures["diffuse"] = compute.material().textures["OutputViewport"]!!
 
+        if(recordVideo) {
+//            settings.set("VideoEncoder.Format", "HEVC")
+            settings.set("VideoEncoder.Bitrate", 20000000)
+            renderer?.recordMovie("${dataset}VDIRendering.mp4")
+
+            thread {
+                Thread.sleep(50000)
+                renderer?.recordMovie()
+            }
+
+        }
+
         thread {
             receiveAndUpdateVDI(compute)
         }
@@ -208,7 +222,7 @@ class VDIClient : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = false) {
             val rotArray = floatArrayOf(cam.spatial().rotation.x, cam.spatial().rotation.y, cam.spatial().rotation.z, cam.spatial().rotation.w)
             val posArray = floatArrayOf(cam.spatial().position.x(), cam.spatial().position.y(), cam.spatial().position.z())
 
-            if(!((rotArray.contentEquals(prevRot)) && (posArray.contentEquals(prevPos))) && sendCamera) {
+            if(!((rotArray.contentEquals(prevRot)) && (posArray.contentEquals(prevPos)))) {
                 list.add(rotArray)
                 list.add(posArray)
 
@@ -225,14 +239,6 @@ class VDIClient : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = false) {
 
             compute.printData = startPrinting
             startPrinting = false
-        }
-
-        thread {
-            while (true) {
-                Thread.sleep(2000)
-                logger.info("cam pos: ${cam.spatial().position}")
-                logger.info("cam rot: ${cam.spatial().rotation}")
-            }
         }
 
         if(storeCamera || loadCamera) {
@@ -445,7 +451,7 @@ class VDIClient : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = false) {
                 frameTimeList.add(frameTime)
 
                 if(frameCount == 1999) {
-                    val fw = FileWriter("/home/aryaman/ownCloud/VDI_Benchmarks/${dataset}_${dynamicSubsampling}_${subsampleRay}_frame_times.csv", false)
+                    val fw = FileWriter("/home/aryaman/ownCloud/VDI_Benchmarks/${dataset}_${windowHeight}_${dynamicSubsampling}_${subsampleRay}_frame_times.csv", false)
                     val bw = BufferedWriter(fw)
 
                     frameTimeList.forEach {
@@ -466,10 +472,12 @@ class VDIClient : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = false) {
             firstFrame = false
 
             frameCount++
+
+            frameStart = System.nanoTime()
         }
     }
 
-    fun recordCamera() {
+    fun  recordCamera() {
         val list_pos: MutableList<Any> = ArrayList()
         val list_rot: MutableList<Any> = ArrayList()
 
@@ -502,6 +510,9 @@ class VDIClient : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = false) {
         }
         lookAround()
 
+        //zoom out a little
+        zoomCamera(1.01f, 500f)
+
         //rotate somewhat
         var cnt = 0
         while (cnt < 100) {
@@ -510,17 +521,38 @@ class VDIClient : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = false) {
             cnt++
         }
 
-        zoomCamera(0.99f, 1000f)
+        zoomCamera(0.99f, 750f)
 
         lookAround()
 
-        zoomCamera(1.01f, 1000f)
+        zoomCamera(1.01f, 250f)
 
         //fast rotation
         cnt = 0
-        while (cnt < 200) {
-            rotateCamera(1.2f)
-            Thread.sleep(40)
+        while (cnt < 50) {
+            rotateCamera(1f)
+            Thread.sleep(45)
+            cnt++
+        }
+
+        cnt = 0
+        while (cnt < 50) {
+            rotateCamera(1f, true)
+            Thread.sleep(45)
+            cnt++
+        }
+
+        cnt = 0
+        while (cnt < 50) {
+            rotateCamera(-1f, true)
+            Thread.sleep(45)
+            cnt++
+        }
+
+        cnt = 0
+        while (cnt < 50) {
+            rotateCamera(1f)
+            Thread.sleep(45)
             cnt++
         }
 
