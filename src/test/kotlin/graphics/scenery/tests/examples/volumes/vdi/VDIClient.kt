@@ -46,7 +46,7 @@ import kotlin.system.measureNanoTime
  */
 
 
-class VDIClient : SceneryBase("VDI Rendering", 1280, 720, wantREPL = false) {
+class VDIClient : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = false) {
     var hmd: TrackedStereoGlasses? = null
 
     val compute = VDINode()
@@ -508,24 +508,30 @@ class VDIClient : SceneryBase("VDI Rendering", 1280, 720, wantREPL = false) {
             }
             frameCount++
         }
-        lookAround()
-
-        //zoom out a little
-        zoomCamera(1.01f, 500f)
 
         //rotate somewhat
         var cnt = 0
-        while (cnt < 100) {
+        while (cnt < 50) {
             rotateCamera(0.3f, true)
             Thread.sleep(75)
             cnt++
         }
 
-        zoomCamera(0.99f, 750f)
+        lookAround()
+
+        zoomCamera(0.99f, 1000f)
 
         lookAround()
 
-        zoomCamera(1.01f, 250f)
+        zoomCamera(1.01f, 1000f)
+
+        //rotate somewhat (yaw)
+        cnt = 0
+        while (cnt < 75) {
+            rotateCamera(0.3f)
+            Thread.sleep(75)
+            cnt++
+        }
 
         //fast rotation
         cnt = 0
@@ -542,12 +548,21 @@ class VDIClient : SceneryBase("VDI Rendering", 1280, 720, wantREPL = false) {
             cnt++
         }
 
+        zoomCamera(1.08f, 150f)
+
         cnt = 0
         while (cnt < 50) {
             rotateCamera(-1f, true)
             Thread.sleep(45)
             cnt++
         }
+
+        zoomCamera(0.92f, 150f)
+
+        lookAround()
+
+        zoomCamera(0.99f, 1000f)
+
 
         cnt = 0
         while (cnt < 50) {
@@ -557,6 +572,19 @@ class VDIClient : SceneryBase("VDI Rendering", 1280, 720, wantREPL = false) {
         }
 
         lookAround()
+
+        cnt = 0
+        while (cnt < 100) {
+            rotateCamera(0.3f, true)
+            Thread.sleep(75)
+            cnt++
+        }
+
+        zoomCamera(0.99f, 750f)
+
+        lookAround()
+
+        zoomCamera(1.01f, 250f)
 
 
         Thread.sleep(1000)
@@ -586,25 +614,25 @@ class VDIClient : SceneryBase("VDI Rendering", 1280, 720, wantREPL = false) {
         var cnt = 0
         while (cnt < 20) {
             rotateCamera(0.3f, true)
-            Thread.sleep(75)
+            Thread.sleep(50)
             cnt++
         }
         cnt = 0
         while (cnt < 20) {
             rotateCamera(0.3f)
-            Thread.sleep(75)
+            Thread.sleep(50)
             cnt++
         }
         cnt = 0
         while (cnt < 20) {
             rotateCamera(-0.35f, true)
-            Thread.sleep(75)
+            Thread.sleep(50)
             cnt++
         }
         cnt = 0
         while (cnt < 20) {
             rotateCamera(-0.25f)
-            Thread.sleep(75)
+            Thread.sleep(50)
             cnt++
         }
     }
@@ -741,9 +769,6 @@ class VDIClient : SceneryBase("VDI Rendering", 1280, 720, wantREPL = false) {
         )
         accelTexture.addUpdate(accelUpdate)
 
-        logger.info("Before assignment, color mutex is: ${colorTexture.gpuMutex.availablePermits()} and depth: ${depthTexture.gpuMutex.availablePermits()}")
-        logger.info("Before assignment, color mutex is: ${colorTexture.mutex.availablePermits()} and depth: ${depthTexture.mutex.availablePermits()}")
-
         if(firstVDI || compute.useSecondBuffer) { //if this is the first VDI or the second buffer was being used so far
             compute.ViewOriginal = vdiData.metadata.view
             compute.invViewOriginal = Matrix4f(vdiData.metadata.view).invert()
@@ -764,11 +789,9 @@ class VDIClient : SceneryBase("VDI Rendering", 1280, 720, wantREPL = false) {
             logger.info("Uploading data for buffer 2")
         }
 
-//                logger.info("color mutex is: ${colorTexture.gpuMutex.availablePermits()} and depth: ${depthTexture.gpuMutex.availablePermits()}")
-
         while(!colorTexture.availableOnGPU() || !depthTexture.availableOnGPU()) {
-            logger.info("Waiting for texture transfer. color: ${colorTexture.availableOnGPU()} and depth: ${depthTexture.availableOnGPU()}")
-            Thread.sleep(1000)
+            logger.debug("Waiting for texture transfer. color: ${colorTexture.availableOnGPU()} and depth: ${depthTexture.availableOnGPU()}")
+            Thread.sleep(10)
         }
 
         logger.debug("Data has been detected to be uploaded to GPU")
@@ -915,8 +938,6 @@ class VDIClient : SceneryBase("VDI Rendering", 1280, 720, wantREPL = false) {
 
                 val receiveTime = measureNanoTime {
                     payload = subscriber.recv()
-
-                    logger.info("Received payload of size ${payload.size}. Sum is: ${payload.sum()}")
                 }
 
                 logger.info("Time taken for the receive: ${receiveTime/1e9}")
@@ -925,11 +946,9 @@ class VDIClient : SceneryBase("VDI Rendering", 1280, 720, wantREPL = false) {
                 if (payload != null) {
                     val metadataSize = payload.sliceArray(0 until 3).toString(Charsets.US_ASCII).toInt() //hardcoded 3 digit number
 
-                    logger.info("vdi data size is: $metadataSize")
 
                     val metadata = ByteArrayInputStream(payload.sliceArray(3 until (metadataSize + 3)))
                     vdiData = VDIDataIO.read(metadata)
-                    logger.info("Received metadata has nw: ${vdiData.metadata.nw}")
                     logger.info("Index of received VDI: ${vdiData.metadata.index}")
 
                     val compressedColorLength = vdiData.bufferSizes.colorSize
@@ -939,8 +958,6 @@ class VDIClient : SceneryBase("VDI Rendering", 1280, 720, wantREPL = false) {
                     compressedColor.flip()
                     compressedDepth.put(payload.sliceArray((metadataSize + 3) + compressedColorLength.toInt() until (metadataSize + 3) + compressedColorLength.toInt() + compressedDepthLength.toInt()))
                     compressedDepth.flip()
-
-                    logger.info("bytes to be put into grid buffer: ${(payload.size - ((metadataSize + 3) + compressedColorLength.toInt() + compressedDepthLength.toInt()))}")
 
                     accelGridBuffer.put(payload.sliceArray((metadataSize + 3) + compressedColorLength.toInt() + compressedDepthLength.toInt() until payload.size))
                     accelGridBuffer.flip()
