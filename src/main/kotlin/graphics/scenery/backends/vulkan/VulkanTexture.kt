@@ -86,11 +86,11 @@ open class VulkanTexture(val device: VulkanDevice,
                 bufferImageCopy.bufferOffset(bufferOffset)
 
                 if(update != null) {
-                    logger.info("Copying ${update.extents} to ${buffer.vulkanBuffer.toHexString()}")
+                    logger.debug("Copying ${update.extents} to ${buffer.vulkanBuffer.toHexString()}")
                     bufferImageCopy.imageExtent().set(update.extents.w, update.extents.h, update.extents.d)
                     bufferImageCopy.imageOffset().set(update.extents.x, update.extents.y, update.extents.z)
                 } else {
-                    logger.info("Copying ${width}x${height}x$depth to ${buffer.vulkanBuffer.toHexString()}")
+                    logger.debug("Copying ${width}x${height}x$depth to ${buffer.vulkanBuffer.toHexString()}")
                     bufferImageCopy.imageExtent().set(width, height, depth)
                     bufferImageCopy.imageOffset().set(0, 0, 0)
                 }
