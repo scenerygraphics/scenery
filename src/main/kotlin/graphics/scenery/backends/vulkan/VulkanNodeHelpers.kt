@@ -303,7 +303,7 @@ object VulkanNodeHelpers {
                     }
 
                     texture.contents?.let { contents ->
-                        logger.info("Copying contents of size ${contents.remaining()/1024/1024}M")
+                        logger.debug("Copying contents of size ${contents.remaining()/1024/1024}M")
                         t.copyFrom(contents.duplicate())
                     }
 
