@@ -113,7 +113,7 @@ open class VulkanTexture(val device: VulkanDevice,
          * within a given [commandBuffer].
          */
         fun copyFrom(commandBuffer: VkCommandBuffer, buffer: VulkanBuffer, updates: List<TextureUpdate>, bufferOffset: Long = 0) {
-            logger.info("Got {} texture updates for {}", updates.size, this)
+            logger.debug("Got {} texture updates for {}", updates.size, this)
             with(commandBuffer) {
                 val bufferImageCopy = VkBufferImageCopy.calloc(1)
                 var offset = bufferOffset
@@ -130,7 +130,7 @@ open class VulkanTexture(val device: VulkanDevice,
                     bufferImageCopy.imageExtent().set(update.extents.w, update.extents.h, update.extents.d)
                     bufferImageCopy.imageOffset().set(update.extents.x, update.extents.y, update.extents.z)
 
-                    logger.info("Copying ${update.extents} to ${buffer.vulkanBuffer.toHexString()}")
+                    logger.debug("Copying ${update.extents} to ${buffer.vulkanBuffer.toHexString()}")
                     vkCmdCopyBufferToImage(this,
                         buffer.vulkanBuffer,
                         this@VulkanImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
