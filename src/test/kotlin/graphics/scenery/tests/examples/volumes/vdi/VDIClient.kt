@@ -1027,15 +1027,21 @@ class VDIClient : SceneryBase("VDI Rendering", 1280, 720, wantREPL = false) {
         })
         inputHandler?.addKeyBinding("rotate_camera", "R")
 
-        inputHandler?.addBehaviour("rotate_camera_yaw_negative", ClickBehaviour { _, _ ->
-            rotateCamera(-0.3f)
+        inputHandler?.addBehaviour("start_subsample", ClickBehaviour { _, _ ->
+            if(subsampleRay && dynamicSubsampling) {
+                doDownsampling(true)
+                setDownsamplingFactor(0.3f)
+                logger.warn("Downsampling factor set")
+            } else {
+                logger.warn("subsample ray is set to false")
+            }
         })
-        inputHandler?.addKeyBinding("rotate_camera_yaw_negative", "N")
+        inputHandler?.addKeyBinding("start_subsample", "N")
 
-        inputHandler?.addBehaviour("rotate_camera_pitch_negative", ClickBehaviour { r_, _ ->
-            rotateCamera(-0.3f, true)
+        inputHandler?.addBehaviour("stop_subsample", ClickBehaviour { r_, _ ->
+            doDownsampling(false)
         })
-        inputHandler?.addKeyBinding("rotate_camera_pitch_negative", "B")
+        inputHandler?.addKeyBinding("stop_subsample", "B")
 
         inputHandler?.addBehaviour("zoom", ClickBehaviour { r_, _ ->
             zoomCamera(0.99f, 100f)
