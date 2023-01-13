@@ -346,6 +346,7 @@ class VDIClient : SceneryBase("VDI Rendering", 1280, 720, wantREPL = false) {
 
                 if(newVDI) {
                     vdiLatencyList.add(frameTime)
+                    newVDI = false
                 } else {
                     vdiLatencyList.add(0f)
                 }
