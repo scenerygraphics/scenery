@@ -12,6 +12,7 @@ import graphics.scenery.volumes.Volume
 import net.imglib2.type.numeric.integer.UnsignedByteType
 import org.joml.Vector3i
 import org.lwjgl.system.MemoryUtil
+import java.io.File
 import kotlin.concurrent.thread
 import kotlin.system.measureTimeMillis
 import kotlin.time.Duration.Companion.nanoseconds
@@ -23,10 +24,19 @@ import kotlin.time.Duration.Companion.nanoseconds
  */
 class AsyncTextureExample: SceneryBase("Async Texture example", 1280, 720) {
     lateinit var volume: Volume
-    private val size = Vector3i(2000,1024,1024)
+    private val size = Vector3i(512,1024,1024)
+    var previous = 0L
+    var frametimes = ArrayList<Int>()
 
     override fun init() {
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
+        renderer?.postRenderLambdas?.add {
+            val now = System.nanoTime()
+            val duration = (now - previous).nanoseconds
+            previous = now
+
+            frametimes.add(duration.inWholeMilliseconds.toInt())
+        }
 
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
@@ -108,6 +118,11 @@ class AsyncTextureExample: SceneryBase("Async Texture example", 1280, 720) {
                 Thread.sleep(500)
             }
         }
+    }
+
+    fun dumpTimes() {
+        val f = File("timings-${getProcessID()}.csv")
+        f.writeText(frametimes.joinToString(";"))
     }
 
     override fun inputSetup() {
