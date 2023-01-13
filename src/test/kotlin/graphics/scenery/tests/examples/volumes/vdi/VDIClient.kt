@@ -36,6 +36,7 @@ import java.io.*
 import java.nio.ByteBuffer
 import java.nio.file.Files
 import java.nio.file.Paths
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.concurrent.thread
 import kotlin.math.abs
 import kotlin.math.min
@@ -46,7 +47,7 @@ import kotlin.system.measureNanoTime
  */
 
 
-class VDIClient : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = false) {
+class VDIClient : SceneryBase("VDI Rendering", 400, 400, wantREPL = false) {
     var hmd: TrackedStereoGlasses? = null
 
     val compute = VDINode()
@@ -73,8 +74,13 @@ class VDIClient : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = false) {
 
     val subsampleRay = false
 
-    val storeCamera = false
-    val loadCamera = true
+    val storeCamera = true
+    val loadCamera = false
+
+    val saveImages = false
+    val imageFrequency = 10
+
+    val totalFrames = 2000
 
     val recordVideo = false
 
@@ -192,7 +198,7 @@ class VDIClient : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = false) {
             renderer?.recordMovie("${dataset}VDIRendering.mp4")
 
             thread {
-                Thread.sleep(50000)
+                Thread.sleep(56000)
                 renderer?.recordMovie()
             }
 
@@ -444,14 +450,18 @@ class VDIClient : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = false) {
             cam.spatial().position = stringToVector3f(list_pos[frameCount].toString())
             cam.spatial().rotation = stringToQuaternion(list_rot[frameCount].toString())
 
+            if(saveImages && (frameCount % imageFrequency == 0)) {
+                renderer?.screenshot("/home/aryaman/ownCloud/VDI_Benchmarks/Remote_${dataset}VDI_${windowHeight}_${frameCount}_${dynamicSubsampling}_${subsampleRay}.png")
+            }
+
             if (!firstFrame) {
                 frameEnd = System.nanoTime()
                 frameTime = (frameEnd - frameStart) / 1e9f
 
                 frameTimeList.add(frameTime)
 
-                if(frameCount == 1999) {
-                    val fw = FileWriter("/home/aryaman/ownCloud/VDI_Benchmarks/${dataset}_${windowHeight}_${dynamicSubsampling}_${subsampleRay}_frame_times.csv", false)
+                if((frameCount == totalFrames - 1) && !saveImages) {
+                    val fw = FileWriter("/home/aryaman/ownCloud/VDI_Benchmarks/${dataset}VDI_${windowHeight}_${dynamicSubsampling}_${subsampleRay}_frame_times.csv", false)
                     val bw = BufferedWriter(fw)
 
                     frameTimeList.forEach {
@@ -482,7 +492,6 @@ class VDIClient : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = false) {
         val list_rot: MutableList<Any> = ArrayList()
 
         var frameCount = 0
-        val totalFrames = 2000
 
         (renderer as VulkanRenderer).postRenderLambdas.add {
             if(frameCount < totalFrames) {
@@ -498,10 +507,10 @@ class VDIClient : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = false) {
 
                 val bytesPos = objectMapper.writeValueAsBytes(list_pos)
 
-                Files.write(Paths.get("${dataset}camera_pos.txt"), bytesPos)
+                Files.write(Paths.get("/home/aryaman/ownCloud/VDI_Benchmarks/CameraPose/${dataset}camera_pos.txt"), bytesPos)
 
                 val bytesRot = objectMapper.writeValueAsBytes(list_rot)
-                Files.write(Paths.get("${dataset}camera_rot.txt"), bytesRot)
+                Files.write(Paths.get("/home/aryaman/ownCloud/VDI_Benchmarks/CameraPose/${dataset}camera_rot.txt"), bytesRot)
 
                 logger.warn("Files have been written!")
 
@@ -509,67 +518,64 @@ class VDIClient : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = false) {
             frameCount++
         }
 
+
+        //Phase 1: steady navigation 8 seconds
+
         //rotate somewhat
         var cnt = 0
         while (cnt < 50) {
-            rotateCamera(0.3f, true)
-            Thread.sleep(75)
+            rotateCamera(0.32f, true)
+            Thread.sleep(80)
             cnt++
         }
 
         lookAround()
 
-        zoomCamera(0.99f, 1000f)
+        //Phase 2: fast rotation
+        cnt = 0
+        while (cnt < 60) {
+            rotateCamera(1.2f, true)
+            Thread.sleep(45)
+            cnt++
+        }
+
+        cnt = 0
+        while (cnt < 60) {
+            rotateCamera(1.2f, false)
+            Thread.sleep(45)
+            cnt++
+        }
+
+        cnt = 0
+        while (cnt < 40) {
+            rotateCamera(1.2f, true)
+            Thread.sleep(45)
+            cnt++
+        }
+
+        Thread.sleep(45 * 20 - 10)
+
+
+        //Phase 3: zoom in and look at some detail
+
+        zoomCamera(0.99f, 2000f)
 
         lookAround()
 
-        zoomCamera(1.01f, 1000f)
+        zoomCamera(1.01f, 2000f)
 
-        //rotate somewhat (yaw)
-        cnt = 0
-        while (cnt < 75) {
-            rotateCamera(0.3f)
-            Thread.sleep(75)
-            cnt++
-        }
-
-        //fast rotation
-        cnt = 0
-        while (cnt < 50) {
-            rotateCamera(1f)
-            Thread.sleep(45)
-            cnt++
-        }
-
-        cnt = 0
-        while (cnt < 50) {
-            rotateCamera(1f, true)
-            Thread.sleep(45)
-            cnt++
-        }
-
-        zoomCamera(1.08f, 150f)
-
-        cnt = 0
-        while (cnt < 50) {
-            rotateCamera(-1f, true)
-            Thread.sleep(45)
-            cnt++
-        }
-
-        zoomCamera(0.92f, 150f)
+        //Phase 4: more steady navigation
 
         lookAround()
 
-        zoomCamera(0.99f, 1000f)
-
 
         cnt = 0
         while (cnt < 50) {
-            rotateCamera(1f)
-            Thread.sleep(45)
+            rotateCamera(0.32f, true)
+            Thread.sleep(80)
             cnt++
         }
+
 
         lookAround()
 
@@ -962,11 +968,18 @@ class VDIClient : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = false) {
                     accelGridBuffer.put(payload.sliceArray((metadataSize + 3) + compressedColorLength.toInt() + compressedDepthLength.toInt() until payload.size))
                     accelGridBuffer.flip()
 
-                    compressedColor.limit(compressedColorLength.toInt())
-                    val decompressedColorLength = compressor.decompress(color, compressedColor.slice(), compressionTool)
-                    compressedColor.limit(compressedColor.capacity())
-                    if (decompressedColorLength.toInt() != colorSize) {
-                        logger.warn("Error decompressing color message. Decompressed length: $decompressedColorLength and desired size: $colorSize")
+                    val colorDone = AtomicInteger(0)
+
+                    thread {
+                        compressedColor.limit(compressedColorLength.toInt())
+                        val decompressedColorLength = compressor.decompress(color, compressedColor.slice(), compressionTool)
+                        compressedColor.limit(compressedColor.capacity())
+                        if (decompressedColorLength.toInt() != colorSize) {
+                            logger.warn("Error decompressing color message. Decompressed length: $decompressedColorLength and desired size: $colorSize")
+                        }
+
+                        colorDone.incrementAndGet()
+
                     }
 
                     compressedDepth.limit(compressedDepthLength.toInt())
@@ -974,6 +987,10 @@ class VDIClient : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = false) {
                     compressedDepth.limit(compressedDepth.capacity())
                     if (decompressedDepthLength.toInt() != depthSize) {
                         logger.warn("Error decompressing depth message. Decompressed length: $decompressedDepthLength and desired size: $depthSize")
+                    }
+
+                    while (colorDone.get() == 0) {
+                        Thread.sleep(20)
                     }
 
                     color.limit(color.remaining() - decompressionBuffer)
