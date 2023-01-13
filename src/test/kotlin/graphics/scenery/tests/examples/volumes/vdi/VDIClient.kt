@@ -685,6 +685,10 @@ class VDIClient : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = false) {
             accelTexture.addUpdate(accelUpdate)
 
             logger.info("Uploading data for buffer 1")
+            while(!colorTexture.availableOnGPU() || !depthTexture.availableOnGPU()) {
+                logger.debug("Waiting for texture transfer. color: ${colorTexture.availableOnGPU()} and depth: ${depthTexture.availableOnGPU()}")
+                Thread.sleep(10)
+            }
         } else {
             compute.ViewOriginal2 = vdiData.metadata.view
             compute.invViewOriginal2 = Matrix4f(vdiData.metadata.view).invert()
@@ -694,11 +698,10 @@ class VDIClient : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = false) {
             accelTexture2.addUpdate(accelUpdate)
 
             logger.info("Uploading data for buffer 2")
-        }
-
-        while(!colorTexture.availableOnGPU() || !depthTexture.availableOnGPU()) {
-            logger.debug("Waiting for texture transfer. color: ${colorTexture.availableOnGPU()} and depth: ${depthTexture.availableOnGPU()}")
-            Thread.sleep(10)
+            while(!colorTexture2.availableOnGPU() || !depthTexture2.availableOnGPU()) {
+                logger.debug("Waiting for texture transfer. color: ${colorTexture2.availableOnGPU()} and depth: ${depthTexture2.availableOnGPU()}")
+                Thread.sleep(10)
+            }
         }
 
         logger.debug("Data has been detected to be uploaded to GPU")
