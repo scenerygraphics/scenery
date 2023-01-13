@@ -508,10 +508,14 @@ open class VulkanTexture(val device: VulkanDevice,
                                     val contents = genericTexture.getConsumableUpdates().map { it.contents }
                                     val count = contents.size
 
+                                    val start = System.nanoTime()
                                     genericTexture.mutex.acquire()
                                     buffer.copyFrom(contents, keepMapped = true)
                                     image.copyFrom(this, buffer, genericTexture.getConsumableUpdates())
                                     genericTexture.mutex.release()
+                                    val end = System.nanoTime()
+
+                                    copyTime = (end-start)/1e9f
                                 } /*else {
                                 // TODO: Semantics, do we want UpdateableTextures to be only
                                 // updateable via updates, or shall they read from buffer on first init?
@@ -954,6 +958,8 @@ open class VulkanTexture(val device: VulkanDevice,
      */
     companion object {
         @JvmStatic private val logger by LazyLogger()
+
+        public var copyTime = 0f
 
         private val cache = HashMap<Texture, VulkanTexture>()
 

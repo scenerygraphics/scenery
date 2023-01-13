@@ -6,6 +6,7 @@ import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.backends.Shaders
 import graphics.scenery.backends.vulkan.VulkanRenderer
+import graphics.scenery.backends.vulkan.VulkanTexture
 import graphics.scenery.compute.ComputeMetadata
 import graphics.scenery.compute.InvocationType
 import graphics.scenery.controls.TrackedStereoGlasses
@@ -337,6 +338,9 @@ class VDIClient : SceneryBase("VDI Rendering", 1280, 720, wantREPL = false) {
             if (!firstFrame) {
                 frameEnd = System.nanoTime()
                 frameTime = (frameEnd - frameStart) / 1e9f
+
+                frameTime -= VulkanTexture.copyTime
+                VulkanTexture.copyTime = 0f
 
                 frameTimeList.add(frameTime)
 
