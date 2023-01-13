@@ -713,6 +713,9 @@ class VDIClient : SceneryBase("VDI Rendering", 1920, 1080, wantREPL = false) {
     }
 
     private fun receiveAndUpdateVDI(compute: VDINode) {
+        while(!renderer?.firstImageReady!!) {
+            Thread.sleep(50)
+        }
         var subscriber: ZMQ.Socket = context.createSocket(SocketType.SUB)
         subscriber.setConflate(true)
 //        val address = "tcp://localhost:6655"
