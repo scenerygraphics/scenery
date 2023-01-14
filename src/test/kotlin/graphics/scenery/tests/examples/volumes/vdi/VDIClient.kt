@@ -339,9 +339,6 @@ class VDIClient : SceneryBase("VDI Rendering", 1280, 720, wantREPL = false) {
                 frameEnd = System.nanoTime()
                 frameTime = (frameEnd - frameStart) / 1e9f
 
-                frameTime -= VulkanTexture.copyTime
-                VulkanTexture.copyTime = 0f
-
                 frameTimeList.add(frameTime)
 
                 if(newVDI) {
