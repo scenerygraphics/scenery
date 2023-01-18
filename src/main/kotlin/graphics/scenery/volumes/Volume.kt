@@ -34,8 +34,10 @@ import graphics.scenery.numerics.OpenSimplexNoise
 import graphics.scenery.numerics.Random
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.extensions.times
+import graphics.scenery.utils.forEachIndexedAsync
 import graphics.scenery.volumes.Volume.VolumeDataSource.SpimDataMinimalSource
 import io.scif.SCIFIO
+import io.scif.filters.ReaderFilter
 import io.scif.util.FormatTools
 import mpicbg.spim.data.generic.sequence.AbstractSequenceDescription
 import mpicbg.spim.data.sequence.FinalVoxelDimensions
@@ -55,9 +57,11 @@ import org.scijava.io.location.FileLocation
 import tpietzsch.example2.VolumeViewerOptions
 import java.io.FileInputStream
 import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.abs
@@ -287,6 +291,8 @@ open class Volume(
 
     init {
         name = "Volume"
+
+        hub.get<Settings>()?.setIfUnset("Volume.ParallelReads", true)
 
         addSpatial()
 
@@ -760,22 +766,52 @@ open class Volume(
 
             val start = System.nanoTime()
 
-//            if(reader.openPlane(0, 0).imageMetadata.isLittleEndian) {
             logger.debug("Volume is little endian")
-            (0 until reader.getPlaneCount(0)).forEach { plane ->
-                imageData.put(reader.openPlane(0, plane).bytes)
+            val planeSize = bytesPerVoxel * dims.x * dims.y
+
+            // Only do parallel reads if the settings indicate we want to do that
+            if(hub.get<Settings>()?.get("Volume.ParallelReads", true) == true) {
+                // Cache scifio's ReaderFilters per-thread, as their initialisation is expensive
+                val readers = ConcurrentHashMap<Thread, ReaderFilter>()
+
+                // Each plane (read: z-slice) will be read by an async Job.
+                // These jobs are distributed among worker threads. This is the reason
+                // why the current thread object serves as an index to the [readers] hash map.
+                (0 until reader.getPlaneCount(0)).forEachIndexedAsync { index, plane ->
+                    val thread = Thread.currentThread()
+                    val myReader = readers.getOrPut(thread) {
+                        scifio.initializer().initializeReader(FileLocation(file.toFile()))
+                    }
+                    logger.info("${readers.size} readers available")
+
+                    val bytes = myReader.openPlane(0, plane).bytes
+                    // In order to prevent mess-ups, we're working on a duplicate of [imageData]
+                    // here, so it's position(), remaining() etc. remain at the original, correct values.
+                    val view = imageData.duplicate().order(ByteOrder.LITTLE_ENDIAN)
+
+                    // For writing the image data to the view, we move the buffer's position
+                    // to the place where the plane's data needs to be.
+                    view.position(index * planeSize)
+                    view.put(bytes)
+                }
+
+                val duration = (System.nanoTime() - start) / 10e5
+                logger.debug("Reading took $duration ms, used $readers parallel readers.")
+                readers.forEach { it.value.close() }
+                readers.clear()
+            } else {
+                (0 until reader.getPlaneCount(0)).forEach { plane ->
+                    // Same as above, with the difference that we only use one reader to
+                    // simply read bytes Plane-wise sequentially, and add them to the buffer.
+                    val bytes = reader.openPlane(0, plane).bytes
+                    val view = imageData.duplicate().order(ByteOrder.LITTLE_ENDIAN)
+                    view.put(bytes)
+                }
+
+                val duration = (System.nanoTime() - start) / 10e5
+                logger.debug("Reading took $duration ms, no parallel readers.")
             }
-//            } else {
-//                logger.info("Volume is big endian")
-//                (0 until reader.getPlaneCount(0)).forEach { plane ->
-//                    imageData.put(swapEndianUnsafe(reader.openPlane(0, plane).bytes))
-//                }
-//            }
 
-            val duration = (System.nanoTime() - start) / 10e5
-            logger.debug("Reading took $duration ms")
-
-            imageData.flip()
 
             val volumes = CopyOnWriteArrayList<BufferedVolume.Timepoint>()
             volumes.add(BufferedVolume.Timepoint(id, imageData))
