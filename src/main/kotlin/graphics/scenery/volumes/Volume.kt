@@ -64,6 +64,7 @@ import java.nio.file.Paths
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.io.path.name
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
@@ -292,7 +293,7 @@ open class Volume(
     init {
         name = "Volume"
 
-        hub.get<Settings>()?.setIfUnset("Volume.ParallelReads", true)
+        hub.get<Settings>()?.setIfUnset("Volume.ParallelReads", false)
 
         addSpatial()
 
@@ -769,8 +770,12 @@ open class Volume(
             logger.debug("Volume is little endian")
             val planeSize = bytesPerVoxel * dims.x * dims.y
 
-            // Only do parallel reads if the settings indicate we want to do that
-            if(hub.get<Settings>()?.get("Volume.ParallelReads", true) == true) {
+            // Only do parallel reads if the settings indicate we want to do that,
+            // or if the file is a NIFTi file, or contains more than 200 planes.
+            val parallelReadingRequested = hub.get<Settings>()?.get("Volume.ParallelReads", false) ?: false
+                    || file.name.lowercase().endsWith(".nii.gz")
+
+            if(parallelReadingRequested) {
                 // Cache scifio's ReaderFilters per-thread, as their initialisation is expensive
                 val readers = ConcurrentHashMap<Thread, ReaderFilter>()
 
@@ -782,7 +787,6 @@ open class Volume(
                     val myReader = readers.getOrPut(thread) {
                         scifio.initializer().initializeReader(FileLocation(file.toFile()))
                     }
-                    logger.info("${readers.size} readers available")
 
                     val bytes = myReader.openPlane(0, plane).bytes
                     // In order to prevent mess-ups, we're working on a duplicate of [imageData]
@@ -796,7 +800,7 @@ open class Volume(
                 }
 
                 val duration = (System.nanoTime() - start) / 10e5
-                logger.debug("Reading took $duration ms, used $readers parallel readers.")
+                logger.debug("Reading took $duration ms, used ${readers.size} parallel readers.")
                 readers.forEach { it.value.close() }
                 readers.clear()
             } else {
