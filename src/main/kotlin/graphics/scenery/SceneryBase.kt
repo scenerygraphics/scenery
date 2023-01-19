@@ -116,7 +116,13 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
         fun XInitThreads()
 
         companion object {
-            val INSTANCE = Native.loadLibrary("X11", XLib::class.java) as XLib
+            lateinit var INSTANCE: XLib
+
+            init {
+                if(Platform.get() == Platform.LINUX) {
+                    INSTANCE = Native.loadLibrary("X11", XLib::class.java) as XLib
+                }
+            }
         }
     }
 
