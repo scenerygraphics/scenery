@@ -26,7 +26,7 @@ open class SwingBridgeFrame(title: String) : JFrame(title) {
     private var dragged = false
     private var lastUpdate = 0L
     private var snapshotBuffer : ByteBuffer? = null
-    var finalImage : Image? = null
+    var snapshotImage : Image? = null
 
     /**
      * Init function is used to add a KeyListener to trigger snapshot recreation of the SwingFrame in order to update the texture presented on the UI-Plane
@@ -53,7 +53,7 @@ open class SwingBridgeFrame(title: String) : JFrame(title) {
     }
 
     /**
-     * Creates a snapshot of the actual SwingFrame and converts it to a ByteBuffer. Tehn updates the texture of the 2DPlane that renders in the scene to present
+     * Creates a snapshot of the actual SwingFrame and converts it to a ByteBuffer. Then updates the texture of the 2DPlane that renders in the scene to present
      * the UI
      */
     private fun updateImage()
@@ -61,7 +61,7 @@ open class SwingBridgeFrame(title: String) : JFrame(title) {
         val bimage = getScreen()
         val flipped = Image.createFlipped(bimage)
         snapshotBuffer = Image.bufferedImageToRGBABuffer(flipped)
-        finalImage = Image(snapshotBuffer!!, bimage.width, bimage.height)
+        snapshotImage = Image(snapshotBuffer!!, bimage.width, bimage.height)
 
         uiNode.swingUiDimension = bimage.width to bimage.height
         uiNode.updateUITexture()
