@@ -51,21 +51,27 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
                        val scijavaContext: Context? = null) {
 
     /** The scene used by the renderer in the application */
-    protected var scene: Scene = Scene()
+    var scene: Scene = Scene()
+        protected set
     /** REPL for the application, can be initialised in the [init] function */
-    protected var repl: REPL? = null
+    var repl: REPL? = null
+        protected set
     /** Frame number for counting FPS */
     protected var ticks = 0L
     /** The default renderer for this application, see [Renderer] */
-    protected var renderer: Renderer? = null
+    var renderer: Renderer? = null
+        protected set
     /** The Hub used by the application, see [Hub] */
     var hub: Hub = Hub()
     /** Global settings storage */
-    protected var settings: Settings = Settings()
+    var settings: Settings = Settings()
+        protected set
     /** ui-behaviour input handler */
-    protected var inputHandler: InputHandler? = null
+    var inputHandler: InputHandler? = null
+        protected set
     /** [Statistics] object to collect runtime stats on various routines. */
-    protected var stats: Statistics = Statistics(hub)
+    var stats: Statistics = Statistics(hub)
+        protected set
 
     /** State variable for registering a new renderer */
     data class NewRendererParameters(val rendererType: String, val hub: Hub,
