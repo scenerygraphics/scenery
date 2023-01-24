@@ -144,7 +144,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
      * e.g. for [Scene] construction and [Renderer] initialisation.
      */
     open fun init() {
-
+        renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
     }
 
     /**
