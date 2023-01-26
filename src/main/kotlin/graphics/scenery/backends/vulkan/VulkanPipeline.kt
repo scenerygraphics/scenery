@@ -313,7 +313,7 @@ class VulkanPipeline(val device: VulkanDevice, val renderpass: VulkanRenderpass,
             return when(this) {
                 GeometryType.TRIANGLE_FAN -> VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN
                 GeometryType.TRIANGLES -> VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST
-                GeometryType.LINE -> VK_PRIMITIVE_TOPOLOGY_LINE_LIST
+                GeometryType.LINE -> VK_PRIMITIVE_TOPOLOGY_LINE_STRIP
                 GeometryType.POINTS -> VK_PRIMITIVE_TOPOLOGY_POINT_LIST
                 GeometryType.LINES_ADJACENCY -> VK_PRIMITIVE_TOPOLOGY_LINE_LIST_WITH_ADJACENCY
                 GeometryType.LINE_STRIP_ADJACENCY -> VK_PRIMITIVE_TOPOLOGY_LINE_STRIP_WITH_ADJACENCY
