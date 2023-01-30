@@ -13,7 +13,7 @@ import java.util.concurrent.ConcurrentHashMap
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class Settings(override var hub: Hub? = null, prefix : String = "scenery.", propertiesFilePath : String? = null) : Hubable {
+class Settings(override var hub: Hub? = null, val prefix : String = "scenery.", propertiesFilePath : String? = null) : Hubable {
     private var settingsStore = ConcurrentHashMap<String, Any>()
     private val logger by LazyLogger()
 
