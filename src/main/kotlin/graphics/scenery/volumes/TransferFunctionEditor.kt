@@ -41,7 +41,7 @@ import kotlin.math.roundToInt
  * Able to generate a histogram and visualize it as well to help with TF-settings
  * Able to dynamically set the transfer function range -> changes histogram as well
  */
-class TransferFunctionEditor(private val tfContainer : HasTransferFunction, val mainFrame : SwingBridgeFrame = SwingBridgeFrame("1DTransferFunctionEditor"), width : Int = 650, height : Int = 550) {
+class TransferFunctionEditor @JvmOverloads constructor(private val tfContainer : HasTransferFunction, val mainFrame : SwingBridgeFrame = SwingBridgeFrame("1DTransferFunctionEditor"), width : Int = 650, height : Int = 550) {
     /**
      * MouseDragTarget is set when a ControlPoint has been clicked. The initial index is set to -1 and reset when the Controlpoint has been deleted
      * The target gets passed into the different Controlpoint manipulation functions
