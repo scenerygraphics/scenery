@@ -2,15 +2,11 @@ package graphics.scenery.ui
 
 
 import graphics.scenery.utils.Image
-import graphics.scenery.utils.LazyLogger
 import java.awt.Component
 import java.awt.event.*
 import java.awt.image.BufferedImage
-import java.io.File
 import java.nio.ByteBuffer
-import javax.imageio.ImageIO
 import javax.swing.JFrame
-import javax.swing.JPanel
 import javax.swing.SwingUtilities
 
 /**
@@ -21,7 +17,7 @@ import javax.swing.SwingUtilities
  */
 open class SwingBridgeFrame(title: String) : JFrame(title) {
 
-    val uiNode = SwingUiNode(this)
+    val uiNode = SwingUINode(this)
 
     private var dragged = false
     private var lastUpdate = 0L

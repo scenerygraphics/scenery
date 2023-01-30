@@ -3,7 +3,7 @@ package graphics.scenery.tests.examples.volumes
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.ui.SwingBridgeFrame
-import graphics.scenery.ui.SwingUiNode
+import graphics.scenery.ui.SwingUINode
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
 import graphics.scenery.volumes.Colormap
@@ -97,7 +97,7 @@ class TransferFunctionEditorExample : SceneryBase("TransferFunctionEditor Exampl
                     val ray = cam.getNodesForScreenSpacePosition(x,y, listOf<Class<*>>(BoundingGrid::class.java), debugRaycast)
 
                     ray.matches.firstOrNull()?.let { hit ->
-                        val node = hit.node as? SwingUiNode ?: return
+                        val node = hit.node as? SwingUINode ?: return
                         val hitPos = ray.initialPosition + ray.initialDirection * hit.distance
                         node.ctrlClick(hitPos)
                     }
@@ -110,7 +110,7 @@ class TransferFunctionEditorExample : SceneryBase("TransferFunctionEditor Exampl
                     val ray = cam.getNodesForScreenSpacePosition(x,y, listOf<Class<*>>(BoundingGrid::class.java), debugRaycast)
 
                     ray.matches.firstOrNull()?.let { hit ->
-                        val node = hit.node as? SwingUiNode ?: return
+                        val node = hit.node as? SwingUINode ?: return
                         val hitPos = ray.initialPosition + ray.initialDirection * hit.distance
                         node.pressed(hitPos)
                     }
@@ -119,7 +119,7 @@ class TransferFunctionEditorExample : SceneryBase("TransferFunctionEditor Exampl
                     val ray = cam.getNodesForScreenSpacePosition(x,y, listOf<Class<*>>(BoundingGrid::class.java), debugRaycast)
 
                     ray.matches.firstOrNull()?.let { hit ->
-                        val node = hit.node as? SwingUiNode ?: return
+                        val node = hit.node as? SwingUINode ?: return
                         val hitPos = ray.initialPosition + ray.initialDirection * hit.distance
                         node.drag(hitPos)
                     }
@@ -128,7 +128,7 @@ class TransferFunctionEditorExample : SceneryBase("TransferFunctionEditor Exampl
                     val ray = cam.getNodesForScreenSpacePosition(x,y, listOf<Class<*>>(BoundingGrid::class.java), debugRaycast)
 
                     ray.matches.firstOrNull()?.let { hit ->
-                        val node = hit.node as? SwingUiNode ?: return
+                        val node = hit.node as? SwingUINode ?: return
                         val hitPos = ray.initialPosition + ray.initialDirection * hit.distance
                         node.released(hitPos)
                     }
