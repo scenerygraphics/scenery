@@ -116,6 +116,8 @@ class ExampleRunner(
             // these examples don't work in headless mode
             "SwingTexturedCubeExample",
             "TexturedCubeJavaExample",
+
+            "SettingsEditorExample",
             // these examples need additional hardware
             "VRControllerExample",
             "VRSideChainsExample",
