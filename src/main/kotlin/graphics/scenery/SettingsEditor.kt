@@ -19,7 +19,7 @@ import javax.swing.table.DefaultTableModel
  * Allows saving and loading of settings into a .properties file
  * Allows refreshing of the settings table in order to show changes to settings values that happened during runtime.
  */
-class SettingsEditor(var settings : Settings, private val mainFrame : JFrame = JFrame("SettingsEditor"), width : Int = 480, height : Int = 500) {
+class SettingsEditor @JvmOverloads constructor(var settings : Settings, private val mainFrame : JFrame = JFrame("SettingsEditor"), width : Int = 480, height : Int = 500) {
 
     private val logger by LazyLogger()
 
@@ -33,13 +33,9 @@ class SettingsEditor(var settings : Settings, private val mainFrame : JFrame = J
     private val saveButton : JButton
     private val loadButton : JButton
 
-    private var selectedSettingFile = settings.propertiesFile
     private val refreshButton : JButton
-    private var newSettingLoaded = false
-    private var lastModified = 0L
 
     init {
-        lastModified = selectedSettingFile.lastModified()
 
         mainFrame.size = Dimension(width, height)
         mainFrame.preferredSize = Dimension(width, height)
@@ -128,12 +124,12 @@ class SettingsEditor(var settings : Settings, private val mainFrame : JFrame = J
         fileInspector.fileSelectionMode = JFileChooser.FILES_ONLY
         fileInspector.currentDirectory = File(File("").absolutePath)
 
+        fileInspector.selectedFile
+
         val returnVal = fileInspector.showOpenDialog(loadButton)
         if(returnVal == JFileChooser.APPROVE_OPTION)
         {
-            settings.loadPropertiesFile(fileInspector.selectedFile)
-            lastModified = selectedSettingFile.lastModified()
-            newSettingLoaded = true
+            settings.loadProperties(fileInspector.selectedFile.inputStream())
 
             refreshSettings()
         }
@@ -146,18 +142,7 @@ class SettingsEditor(var settings : Settings, private val mainFrame : JFrame = J
      */
     private fun refreshSettings()
     {
-        if((lastModified != selectedSettingFile.lastModified()) xor newSettingLoaded)
-        {
-            settings.loadPropertiesFile(selectedSettingFile)
-            logger.info("loading $selectedSettingFile")
-            lastModified = selectedSettingFile.lastModified()
-
-            updateSettingsTable()
-        }
-        else
-        {
-            updateSettingsTable()
-        }
+        updateSettingsTable()
     }
 
     /**
@@ -178,8 +163,7 @@ class SettingsEditor(var settings : Settings, private val mainFrame : JFrame = J
             if(path.extension != "properties")
                 path = File( path.absolutePath + ".properties")
 
-            settings.saveProperties(path)
-            selectedSettingFile = path
+            settings.saveProperties(path.absolutePath)
         }
     }
 
@@ -198,7 +182,6 @@ class SettingsEditor(var settings : Settings, private val mainFrame : JFrame = J
             tableContents.addRow(arrayOf("$key", "${settings.get<String>(key)}"))
         }
         settingsTable.rowSorter.toggleSortOrder(0)
-        newSettingLoaded = false
     }
 
     /**

@@ -1,24 +1,25 @@
 package graphics.scenery
 
 import graphics.scenery.utils.LazyLogger
-import java.io.File
-import java.io.FileInputStream
-import java.io.FileOutputStream
+import java.io.*
+import java.nio.charset.Charset
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.io.path.Path
+import kotlin.io.path.outputStream
 
 /**
  * Flexible settings store for scenery. Stores a hash map of <String, Any>,
  * which one can query for a specific setting and type then.
  *
  * @author Ulrik Günther <hello@ulrik.is>
+ * @author Konrad Michel <Konrad.Michel@mailbox.tu-dresden.de>
  */
-class Settings(override var hub: Hub? = null, val prefix : String = "scenery.", propertiesFilePath : String? = null) : Hubable {
+class Settings(override var hub: Hub? = null, val prefix : String = "scenery.", inputPropertiesStream : InputStream? = null) : Hubable {
     private var settingsStore = ConcurrentHashMap<String, Any>()
     private val logger by LazyLogger()
 
     var settingsUpdateRoutines : HashMap<String, ArrayList<() -> Unit>> = HashMap()
-    lateinit var propertiesFile : File
 
     init {
         val properties = System.getProperties()
@@ -34,14 +35,9 @@ class Settings(override var hub: Hub? = null, val prefix : String = "scenery.", 
             set(key.substringAfter(prefix), parsed)
         }
 
-        // Add properties from file, take given file or from params
-        val propertiesFile2 = getOrNull("propertiesFile") ?: propertiesFilePath
-        if (propertiesFile2 != null) {
-            // put properties into settings
-           loadPropertiesFile(File(propertiesFile2))
-        }
-        else {
-            propertiesFile = File(File("").absolutePath + "properties.properties")
+        if(inputPropertiesStream != null)
+        {
+            loadProperties(inputPropertiesStream)
         }
 
     }
@@ -50,41 +46,29 @@ class Settings(override var hub: Hub? = null, val prefix : String = "scenery.", 
      * Loads the .properties [file]
      * Currently not clearing the old settings -> Overwrites the already set and add new ones. Old stay untouched, if not set by new settings
      */
-    fun loadPropertiesFile(file : File)
+    fun loadProperties(inputStream : InputStream)
     {
-        if(file.extension == "properties")
-        {
-            FileInputStream(file).use { input ->
-                val prop = Properties()
-                // load a properties file
-                prop.load(input)
-                prop.propertyNames().toList().forEach { propName ->
-                    set(propName as String, parseType(prop.getProperty(propName)))
-                }
-            }
-            propertiesFile = file
-            logger.info("New Properties loaded from $file")
-        }
-        else
-        {
-            logger.warn("${file.absolutePath} is no propertiesFile!")
+        val prop = Properties()
+        prop.load(inputStream)
+        prop.propertyNames().toList().forEach { propName ->
+            set(propName as String, parseType(prop.getProperty(propName)))
         }
     }
 
     /**
-     * Saves the currently set settings into [file] if set, or the [propertiesFile] set in [this]
+     * Saves the currently set settings into [path] if set, or the default properties location (root) set in [this]
      */
-    fun saveProperties(file : File? = null)
+    fun saveProperties(path : String? = null)
     {
         val props = Properties()
         this.getAllSettings().sortedDescending().forEach { setting ->
             props.setProperty(setting, this.getOrNull<String?>(setting).toString())
         }
-        val out : FileOutputStream
-        if(file != null)
-            out = FileOutputStream(file)
+        val out : OutputStream
+        if(path != null)
+            out = Path(path).outputStream()
         else
-            out = FileOutputStream(propertiesFile)
+            out = Path(File("").absolutePath + "properties.properties").outputStream()
 
         props.store(out, null)
     }
