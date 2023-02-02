@@ -35,7 +35,7 @@ class OpenCLContext(override var hub: Hub?, devicePreference: String = System.ge
         val platformPref = devicePreference.substringBefore(",").toInt()
         val devicePref = devicePreference.substringAfter(",").toInt()
 
-        val deviceType = CL_DEVICE_TYPE_ALL
+        val deviceType = CL_DEVICE_TYPE_GPU
         // Enable exceptions and subsequently omit error checks in this sample
         setExceptionsEnabled(true)
 
