@@ -92,11 +92,12 @@ class OpenCLContext(override var hub: Hub?, devicePreference: String = System.ge
     @Suppress("unused")
     fun loadKernel(source: String, name: String): OpenCLContext {
         if(!kernels.containsKey(name)) {
-            CL.setExceptionsEnabled(true)
             // Create the program from the source code
             val error = intArrayOf(0)
             val program = clCreateProgramWithSource(context, 1, arrayOf(source), null, error)
-            logger.warn("Return value was ${error[0]}")
+            if(error[0] != CL_SUCCESS) {
+                logger.warn("clCreateProgramWithSource returned ${error[0]}")
+            }
 
             // Build the program
             clBuildProgram(program, 1, arrayOf(device), "", null, null)

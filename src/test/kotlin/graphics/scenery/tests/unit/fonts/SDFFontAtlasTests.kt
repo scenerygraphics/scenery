@@ -23,8 +23,10 @@ class SDFFontAtlasTests {
         val logger by LazyLogger()
         @JvmStatic @BeforeClass
         fun checkOpenCLAvailability() {
-            val hasOpenCL: Boolean = if (System.getenv("GITHUB_ACTIONS").toBoolean() && Platform.get() == Platform.MACOSX) {
-                logger.warn("Disabled OpenCL because Github Actions on macOS does not support accelerated OpenCL contexts.")
+            val openCLUnavailable = ((System.getenv("GITHUB_ACTIONS").toBoolean() && Platform.get() == Platform.MACOSX)
+                    || System.getenv("DISABLE_SDF_OPENCL").toBoolean())
+            val hasOpenCL: Boolean = if (openCLUnavailable) {
+                logger.warn("Disabled OpenCL because Github Actions on macOS does not support accelerated OpenCL contexts, or because explicitly disabled.")
                 false
             } else {
                 try {
