@@ -99,7 +99,7 @@ class OpenCLContext(override var hub: Hub?, devicePreference: String = System.ge
             logger.warn("Return value was ${error[0]}")
 
             // Build the program
-            clBuildProgram(program, 0, null, null, null, null)
+            clBuildProgram(program, 1, arrayOf(device), "", null, null)
 
             // Create the kernel
             val kernel = clCreateKernel(program, name, null)
