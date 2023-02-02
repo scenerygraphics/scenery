@@ -41,6 +41,8 @@ unit-tests-no-gpu:
     - clinfo || true
     - if [ ! -d "$MODEL_DIR" ]; then wget -q https://ulrik.is/scenery-demo-models.zip && unzip -q scenery-demo-models.zip; fi
     - chmod +x gradlew
+    # Disable distance field creation for fonts via OpenCL, due to likely Nvidia driver bug on Linux
+    - export DISABLE_SDF_OPENCL=true
     - ./gradlew --stop # stop any deamon https://stackoverflow.com/a/58397542/1047713
   script:
     - echo -e "\e[0Ksection_start:`date +%s`:build_section[collapsed=true]\r\e[0KGeneral build"
