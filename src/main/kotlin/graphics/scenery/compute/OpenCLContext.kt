@@ -140,7 +140,7 @@ class OpenCLContext(override var hub: Hub?, devicePreference: String = System.ge
             }
 
             // Build the program
-            clBuildProgram(program, 1, arrayOf(device), "-cl-std=CL1.1 -Werror", null, null)
+            clBuildProgram(program, 1, arrayOf(device), "-cl-std=CL1.1 -cl-nv-verbose -Werror", null, null)
 
             // Create the kernel
             val kernel = clCreateKernel(program, name, null)
