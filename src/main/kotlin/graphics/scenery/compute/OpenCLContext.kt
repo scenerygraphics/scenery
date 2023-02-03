@@ -134,17 +134,18 @@ class OpenCLContext(override var hub: Hub?, devicePreference: String = System.ge
         if(!kernels.containsKey(name)) {
             // Create the program from the source code
             val error = intArrayOf(0)
+            logger.info("Program length is ${source.length}")
             val program = clCreateProgramWithSource(context, 1, arrayOf(source), longArrayOf(source.length.toLong()), error)
             if(error[0] != CL_SUCCESS) {
                 logger.warn("clCreateProgramWithSource returned ${error[0]}")
             }
 
             // Build the program
-//            clBuildProgram(program, 1, arrayOf(device), "-cl-std=CL1.1 -cl-nv-verbose -Werror", null, null)
-            clCompileProgram(program, 1, arrayOf(device), "-cl-nv-verbose", 0, null, null, null, null)
-            logger.info("Program compiled")
-            clLinkProgram(context, 1, arrayOf(device), null, 1, arrayOf(program), null, null, null)
-            logger.info("Program linked")
+            clBuildProgram(program, 1, arrayOf(device), "-Werror", null, null)
+//            clCompileProgram(program, 1, arrayOf(device), null, 0, null, null, null, null)
+//            logger.info("Program compiled")
+//            clLinkProgram(context, 1, arrayOf(device), null, 1, arrayOf(program), null, null, null)
+//            logger.info("Program linked")
 
             // Create the kernel
             val kernel = clCreateKernel(program, name, null)
