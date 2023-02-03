@@ -43,6 +43,10 @@ class OpenCLContext(override var hub: Hub?, devicePreference: String = System.ge
         val platforms = query<cl_platform_id> { l, a, n ->
             clGetPlatformIDs(l, a, n)
         }
+        logger.info("Found OpenCL platforms:")
+        platforms.filterNotNull().forEachIndexed { i, platform ->
+            logger.info("$i: ${getString(platform, CL_PLATFORM_NAME)}, version ${getString(platform, CL_PLATFORM_VERSION)} ${getString(platform, CL_PLATFORM_VENDOR)}")
+        }
         val platform = platforms[platformPref]
 
         // Initialize the context properties
@@ -53,6 +57,10 @@ class OpenCLContext(override var hub: Hub?, devicePreference: String = System.ge
         val devices = query({ l, a, n ->
             clGetDeviceIDs(platform, deviceType, l, a, n)
         }, { cl_device_id() })
+        logger.info("Found OpenCL devices:")
+        devices.forEachIndexed { i, dev ->
+            logger.info("$i: ${getString(dev, CL_DEVICE_NAME)} running ${getString(dev, CL_DEVICE_VERSION)}")
+        }
         device = devices[devicePref]
 
         logger.info("Selected device: ${getString(device, CL_DEVICE_NAME)} running ${getString(device, CL_DEVICE_VERSION)}")
@@ -62,9 +70,30 @@ class OpenCLContext(override var hub: Hub?, devicePreference: String = System.ge
             contextProperties, 1, arrayOf(device),
             null, null, null)
 
+        val versionString = getString(device, CL_DEVICE_VERSION)
+        val version = try {
+            val v = versionString
+                .substring(versionString.indexOf("OpenCL") + 6)
+                .trimEnd().trim()
+            v.split(".").zipWithNext { f, s -> f.toInt() to s.toInt() }.first()
+        } catch(e: Exception) {
+            logger.warn("Unable to parse OpenCL version $versionString, assuming OpenCL 1.0")
+            1 to 0
+        }
+
         // Create a command-queue for the selected device
-        @Suppress("DEPRECATION")
-        queue = clCreateCommandQueue(context, device, 0, null)
+        val err = intArrayOf(0)
+        queue = if(version.first > 1) {
+            clCreateCommandQueueWithProperties(context, device, null, err)
+        } else {
+            // clCreateCommandQueue is deprecated in OpenCL 2.0, but still necessary for 1.x
+            @Suppress("DEPRECATION")
+            clCreateCommandQueue(context, device, 0, err)
+        }
+
+        if(err[0] != CL_SUCCESS) {
+            throw IllegalStateException("Unable to create OpenCL command queue, error ${err[0]}")
+        }
     }
 
     /**
@@ -84,6 +113,25 @@ class OpenCLContext(override var hub: Hub?, devicePreference: String = System.ge
         // Create a string from the buffer (excluding the trailing \0 byte)
         return String(buffer, 0, buffer.size-1)
     }
+
+    /**
+     * Returns the device info for [platform], specifically the parameter
+     * named [paramName].
+     */
+    private fun getString(platform: cl_platform_id, paramName: Int): String
+    {
+        // Obtain the length of the string that will be queried
+        val size = LongArray(1)
+        clGetPlatformInfo(platform, paramName, 0, null, size)
+
+        // Create a buffer of the appropriate size and fill it with the info
+        val buffer = ByteArray(size[0].toInt())
+        clGetPlatformInfo(platform, paramName, buffer.size.toLong(), Pointer.to(buffer), null)
+
+        // Create a string from the buffer (excluding the trailing \0 byte)
+        return String(buffer, 0, buffer.size-1)
+    }
+
 
     /**
      * Loads an OpenCL kernel from a String [source], storing it under [name], and returning

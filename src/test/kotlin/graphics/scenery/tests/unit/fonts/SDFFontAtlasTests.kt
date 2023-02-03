@@ -31,7 +31,8 @@ class SDFFontAtlasTests {
             } else {
                 try {
                     val hub = Hub()
-                    OpenCLContext(hub)
+                    val context = OpenCLContext(hub)
+                    context.close()
                     true
                 } catch (e: UnsatisfiedLinkError) {
                     logger.warn("Disabled OpenCL because of UnsatisfiedLinkError ($e)")
