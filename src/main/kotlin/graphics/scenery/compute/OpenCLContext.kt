@@ -30,6 +30,10 @@ class OpenCLContext(override var hub: Hub?, devicePreference: String = System.ge
     var queue: cl_command_queue
 
     init {
+        if(System.getenv("GITLAB_CI").toBoolean()) {
+            throw UnsupportedOperationException("OpenCL disabled on Gitlab CI due to Nvidia Docker issue.")
+        }
+
         hub?.add(SceneryElement.OpenCLContext, this)
 
         val platformPref = devicePreference.substringBefore(",").toInt()

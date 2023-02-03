@@ -73,8 +73,7 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
         } catch (e: Exception) {
             logger.debug("Cached atlas not found or not readable (because $e), creating anew, could take a little moment ...")
 
-            var ocl: OpenCLContext?
-            ocl = try {
+            val ocl: OpenCLContext? = try {
                 OpenCLContext(hub)
             } catch (e: UnsatisfiedLinkError) {
                 logger.warn("Failed to initialised OpenCL libraries: $e")
