@@ -141,7 +141,7 @@ class OpenCLContext(override var hub: Hub?, devicePreference: String = System.ge
 
             // Build the program
 //            clBuildProgram(program, 1, arrayOf(device), "-cl-std=CL1.1 -cl-nv-verbose -Werror", null, null)
-            clCompileProgram(program, 1, arrayOf(device), null, 0, null, null, null, null)
+            clCompileProgram(program, 1, arrayOf(device), "-cl-nv-verbose", 0, null, null, null, null)
             logger.info("Program compiled")
             clLinkProgram(context, 1, arrayOf(device), null, 1, arrayOf(program), null, null, null)
             logger.info("Program linked")
