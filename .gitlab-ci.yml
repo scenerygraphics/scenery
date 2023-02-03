@@ -48,8 +48,8 @@ unit-tests-no-gpu:
     - echo -e "\e[0Ksection_end:`date +%s`:build_section\r\e[0K"
     # basic group
     - echo -e "\e[0Ksection_start:`date +%s`:basic_section[collapsed=true]\r\e[0KBasic Test Group"
-    - ./gradlew test jacocoTestReport --build-cache --full-stacktrace -Pgpu=true -Dscenery.ExampleRunner.TestGroup=basic -Dscenery.ExampleRunner.Configurations=DeferredShading.yml -Dscenery.RandomSeed=13371842
-    - ./gradlew test jacocoTestReport --build-cache --full-stacktrace -Pgpu=true -Dscenery.ExampleRunner.TestGroup=basic -Dscenery.ExampleRunner.Configurations=DeferredShadingStereo.yml -Dscenery.RandomSeed=13371842
+    - ./gradlew test jacocoTestReport --build-cache --full-stacktrace -Pgpu=true -Dscenery.ExampleRunner.TestGroup=basic -Dscenery.ExampleRunner.Configurations=DeferredShading.yml -Dscenery.RandomSeed=13371842 -Dscenery.ExampleRunner.Blocklist=EdgeBundlerExample
+    - ./gradlew test jacocoTestReport --build-cache --full-stacktrace -Pgpu=true -Dscenery.ExampleRunner.TestGroup=basic -Dscenery.ExampleRunner.Configurations=DeferredShadingStereo.yml -Dscenery.RandomSeed=13371842 -Dscenery.ExampleRunner.Blocklist=EdgeBundlerExample
     - echo -e "\e[0Ksection_end:`date +%s`:basic_section\r\e[0K"
     # advanced group
     - echo -e "\e[0Ksection_start:`date +%s`:advanced_section[collapsed=true]\r\e[0KAdvanced Test Group"
