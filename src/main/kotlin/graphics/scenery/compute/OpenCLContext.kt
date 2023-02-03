@@ -70,20 +70,12 @@ class OpenCLContext(override var hub: Hub?, devicePreference: String = System.ge
             contextProperties, 1, arrayOf(device),
             null, null, null)
 
-        val versionString = getString(device, CL_DEVICE_VERSION)
-        val version = try {
-            val v = versionString
-                .substring(versionString.indexOf("OpenCL") + 6)
-                .trimEnd().trim()
-            v.split(".").zipWithNext { f, s -> f.toInt() to s.toInt() }.first()
-        } catch(e: Exception) {
-            logger.warn("Unable to parse OpenCL version $versionString, assuming OpenCL 1.0")
-            1 to 0
-        }
+
+        val isOpenCL2orGreater = getString(device, CL_DEVICE_VERSION).contains("OpenCL 2.")
 
         // Create a command-queue for the selected device
         val err = intArrayOf(0)
-        queue = if(version.first > 1) {
+        queue = if(isOpenCL2orGreater) {
             clCreateCommandQueueWithProperties(context, device, null, err)
         } else {
             // clCreateCommandQueue is deprecated in OpenCL 2.0, but still necessary for 1.x
