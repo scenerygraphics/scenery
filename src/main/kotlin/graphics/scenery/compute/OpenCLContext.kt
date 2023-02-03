@@ -134,7 +134,7 @@ class OpenCLContext(override var hub: Hub?, devicePreference: String = System.ge
         if(!kernels.containsKey(name)) {
             // Create the program from the source code
             val error = intArrayOf(0)
-            val program = clCreateProgramWithSource(context, 1, arrayOf(source), null, error)
+            val program = clCreateProgramWithSource(context, 1, arrayOf(source), longArrayOf(source.length.toLong()), error)
             if(error[0] != CL_SUCCESS) {
                 logger.warn("clCreateProgramWithSource returned ${error[0]}")
             }
