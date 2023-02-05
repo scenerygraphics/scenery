@@ -515,17 +515,6 @@ class RibbonDiagram(val protein: Protein, private val displaySS: Boolean = false
         fun Atom.getVector(): Vector3f {
             return Vector3f(this.x.toFloat(), this.y.toFloat(), this.z.toFloat())
         }
-
-        /**
-         * Extension Function to make Dummy Points not too far away from the original points - the spline
-         * doesn't include the first and the last controlpoint, which in our case would mean to lose the first
-         * and the last residue, hence, this function.
-         */
-        private fun Vector3f.randomFromVector(): Vector3f {
-            return Vector3f(Random.randomFromRange(this.x() - 0.1f, this.x() + 0.1f),
-                    Random.randomFromRange(this.y() - 0.1f, this.y() + 0.1f),
-                    Random.randomFromRange(this.z() - 0.1f, this.z() + 0.1f))
-        }
     }
 
     /**
