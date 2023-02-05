@@ -432,7 +432,7 @@ class RibbonDiagram(val protein: Protein, private val displaySS: Boolean = false
                     guidePointsWithoutDummy[3].widthFactor != 0f) {
                 guidePointsWithoutDummy[0].widthFactor = guidePointsWithoutDummy[1].widthFactor
             }
-            //if there is a width factor is still assigned at the and, also assign it to the last point
+            //if there is a width factor is still assigned at the end, also assign it to the last point
             if (guidePointsWithoutDummy.dropLast(1).last().widthFactor != 0f &&
                     guidePointsWithoutDummy.dropLast(2).last().widthFactor != 0f &&
                     guidePointsWithoutDummy.dropLast(3).last().widthFactor != 0f) {
@@ -446,7 +446,10 @@ class RibbonDiagram(val protein: Protein, private val displaySS: Boolean = false
             for (i in 0..count) {
                 guidePointsWithoutDummy[i].ssLength++
             }
-            val dummyVecBeg = caBegin.randomFromVector()
+            // spline calculation needs a beginning point. In this case, we simply take the vector from the second to
+            // the first point and add it to the first curve point. Thus, we create a new starting point of the curve
+            val dummyVecBeg = Vector3f(caBegin).add(Vector3f(caBegin).min(Vector3f(aminoList[1].getAtom("CA").getVector()))
+                .normalize().mul(0.1f))
             guidePoints.add(
                 GuidePoint(dummyVecBeg, guidePointsWithoutDummy[0].cVec, guidePointsWithoutDummy[0].dVec,
                     guidePointsWithoutDummy[0].offset, guidePointsWithoutDummy[0].widthFactor, aminoList[0], aminoList[0],
@@ -468,7 +471,10 @@ class RibbonDiagram(val protein: Protein, private val displaySS: Boolean = false
                     aminoList.last(), aminoList.last(), SecStrucType.bend,
                     guidePointsWithoutDummy.last().ssLength)
             )
-            val dummyVecEnd = caEnd.randomFromVector()
+            // spline calculation needs a finishing point. In this case, we simply take the vector from the second last
+            // to the last point and add it to the end curve point. Thus, we create a new ending point of the curve
+            val dummyVecEnd = Vector3f(caEnd).add(Vector3f(aminoList.dropLast(1).last().getAtom("CA").getVector()).min(Vector3f(caEnd))
+                .normalize().mul(0.5f))
             guidePoints.add(
                 GuidePoint(dummyVecEnd,
                     guidePointsWithoutDummy.last().cVec, guidePointsWithoutDummy.last().dVec,
