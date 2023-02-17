@@ -15,6 +15,7 @@ plugins {
 //    scenery.docs
     scenery.publish
     scenery.sign
+    id("com.github.elect86.sciJava") version "0.0.4"
     jacoco
     id("com.github.johnrengelman.shadow") version "7.1.0"
 }
@@ -23,7 +24,6 @@ repositories {
     mavenCentral()
     maven("https://maven.scijava.org/content/groups/public")
     maven("https://jitpack.io")
-    maven("https://raw.githubusercontent.com/kotlin-graphics/mary/master")
     mavenLocal()
 }
 
@@ -51,16 +51,15 @@ dependencies {
 
     val lwjglVersion = "3.3.1"
     listOf("",
-           "-glfw",
-           "-jemalloc",
-           "-vulkan",
-           "-opengl",
-           "-openvr",
-           "-xxhash",
-           "-remotery",
-           "-spvc",
-           "-shaderc",
-           "-stb"
+        "-glfw",
+        "-jemalloc",
+        "-vulkan",
+        "-opengl",
+        "-openvr",
+        "-xxhash",
+        "-remotery",
+        "-spvc",
+        "-shaderc"
     ).forEach { p ->
         api("org.lwjgl:lwjgl$p:$lwjglVersion")
 
@@ -69,7 +68,7 @@ dependencies {
                 // Vulkan binaries are only necessary on macOS
                 p.endsWith("vulkan") -> {
                     if(native.contains("macos")) {
-                        println("vulkan: org.lwjgl:lwjgl$p:$lwjglVersion:$native")
+                        // println("vulkan: org.lwjgl:lwjgl$p:$lwjglVersion:$native")
                         runtimeOnly("org.lwjgl:lwjgl$p:$lwjglVersion:$native")
                     }
                 }
@@ -78,13 +77,13 @@ dependencies {
                 // apart from macOS/ARM64
                 p.endsWith("openvr") -> {
                     if(!(native.contains("macos") && native.contains("arm64"))) {
-                        println("openvr: org.lwjgl:lwjgl$p:$lwjglVersion:$native")
+                        // println("openvr: org.lwjgl:lwjgl$p:$lwjglVersion:$native")
                         runtimeOnly("org.lwjgl:lwjgl$p:$lwjglVersion:$native")
                     }
                 }
 
                 else -> {
-                    println("else: org.lwjgl:lwjgl$p:$lwjglVersion:$native")
+                    // println("else: org.lwjgl:lwjgl$p:$lwjglVersion:$native")
                     runtimeOnly("org.lwjgl:lwjgl$p:$lwjglVersion:$native")
                 }
             }
@@ -129,17 +128,11 @@ dependencies {
     testImplementation(kotlin("test-junit"))
     //    implementation("com.github.kotlin-graphics:assimp:25c68811")
 
+//    testImplementation(misc.junit4)
     testImplementation("org.slf4j:slf4j-simple:1.7.36")
     testImplementation("net.imagej:imagej")
     testImplementation("net.imagej:ij")
     testImplementation("net.imglib2:imglib2-ij")
-
-    listOf("core", "glfw", "gl").forEach {
-        implementation("kotlin.graphics:imgui-$it:1.79+04")
-    }
-    implementation("kotlin.graphics:glm:0.9.9.1-3+23")
-    implementation("kotlin.graphics:kool:0.9.0+23")
-    implementation("kotlin.graphics:uno-core:0.7.9+35")
 }
 
 val isRelease: Boolean
@@ -335,7 +328,7 @@ tasks {
                         "\${$propertyName}")
 
                     // Custom per artifact tweaks
-                    println(artifactId)
+                    // println(artifactId)
                     if("\\-bom".toRegex().find(artifactId) != null) {
                         node.appendNode("type", "pom")
                     }
