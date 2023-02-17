@@ -4,7 +4,7 @@ import graphics.scenery.SceneryBase
 import graphics.scenery.SceneryElement
 import graphics.scenery.backends.Renderer
 import graphics.scenery.utils.ExtractsNatives
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import graphics.scenery.utils.SystemHelpers
 import io.github.classgraph.ClassGraph
 import kotlinx.coroutines.*
@@ -27,7 +27,7 @@ class ExampleRunner(
     private val renderer: String,
     private val pipeline: String
 ) {
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
 
     @Test
     fun runExample() = runBlocking {
@@ -106,7 +106,7 @@ class ExampleRunner(
     }
 
     companion object {
-        private val logger by LazyLogger()
+        private val logger by lazyLogger()
 
         var maxRuntimePerTest =
             System.getProperty("scenery.ExampleRunner.maxRuntimePerTest", "5").toInt().minutes

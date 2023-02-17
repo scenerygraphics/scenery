@@ -76,7 +76,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
     protected var registerNewRenderer: NewRendererParameters? = null
 
     /** Logger for this application, will be instantiated upon first use. */
-    protected val logger by LazyLogger(System.getProperty("scenery.LogLevel", "info"))
+    protected val logger by lazyLogger(System.getProperty("scenery.LogLevel", "info"))
 
     /** An optional update function to call during the main loop. */
     var updateFunction: (() -> Any)? = null
@@ -526,7 +526,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
     }
 
     companion object {
-        private val logger by LazyLogger(System.getProperty("scenery.LogLevel", "info"))
+        private val logger by lazyLogger(System.getProperty("scenery.LogLevel", "info"))
         private var xinitThreadsCalled: Boolean = false
 
         /**

@@ -52,6 +52,11 @@ class TexturedCubeExample : SceneryBase("TexturedCubeExample") {
                 Thread.sleep(20)
             }
         }
+
+        thread {
+            Thread.sleep(5000)
+            System.gc()
+        }
     }
 
     companion object {

@@ -7,7 +7,7 @@ import graphics.scenery.textures.Texture.RepeatMode
 import graphics.scenery.textures.UpdatableTexture.TextureUpdate
 import graphics.scenery.backends.ShaderType
 import graphics.scenery.textures.UpdatableTexture
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import net.imglib2.type.numeric.NumericType
 import net.imglib2.type.numeric.integer.UnsignedByteType
 import net.imglib2.type.numeric.integer.UnsignedShortType
@@ -33,7 +33,7 @@ import tpietzsch.backend.Texture as BVVTexture
  * @author Tobias Pietzsch <pietzsch@mpi-cbg.de>
  */
 open class SceneryContext(val node: VolumeManager, val useCompute: Boolean = false) : GpuContext {
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
 
     data class BindingState(var binding: Int, var uniformName: String?, var reallocate: Boolean = false)
 

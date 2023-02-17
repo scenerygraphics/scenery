@@ -1,6 +1,6 @@
 package graphics.scenery.geometry
 
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import graphics.scenery.utils.extensions.xyz
 import org.joml.Matrix4f
 import org.joml.Vector3f
@@ -22,7 +22,7 @@ import java.lang.IllegalArgumentException
  */
 class UniformBSpline(protected val controlPoints: ArrayList<Vector3f>, val n: Int = 100): Spline {
 
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
     /**
      * This is a list of the equidistant parameters at which the curve is calculated.
      */

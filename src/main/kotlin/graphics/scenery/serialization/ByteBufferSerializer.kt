@@ -4,11 +4,11 @@ import com.esotericsoftware.kryo.Kryo
 import com.esotericsoftware.kryo.Serializer
 import com.esotericsoftware.kryo.io.Input
 import com.esotericsoftware.kryo.io.Output
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import java.nio.ByteBuffer
 
 class ByteBufferSerializer: Serializer<ByteBuffer>() {
-    val logger by LazyLogger()
+    val logger by lazyLogger()
 
     override fun write(kryo: Kryo, output: Output, buffer: ByteBuffer) {
         kryo.writeClass(output, buffer.javaClass)

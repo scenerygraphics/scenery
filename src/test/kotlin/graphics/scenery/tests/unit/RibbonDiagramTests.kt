@@ -3,7 +3,7 @@ package graphics.scenery.tests.unit
 import graphics.scenery.geometry.DummySpline
 import graphics.scenery.proteins.Protein
 import graphics.scenery.proteins.RibbonDiagram
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.biojava.nbio.structure.Group
 import org.biojava.nbio.structure.secstruc.SecStrucElement
 import org.joml.Vector3f
@@ -21,7 +21,7 @@ import kotlin.test.assertTrue
  * @author Justin Buerger, burger@mpi-cbg.com
  */
 class RibbonDiagramTests {
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
 
     /**
      * Tests coherence of curve size and number of residues.
