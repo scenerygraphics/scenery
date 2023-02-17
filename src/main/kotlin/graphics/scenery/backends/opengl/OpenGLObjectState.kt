@@ -2,7 +2,7 @@ package graphics.scenery.backends.opengl
 
 import cleargl.GLTexture
 import graphics.scenery.NodeMetadata
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import java.nio.ByteBuffer
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
@@ -16,7 +16,7 @@ import kotlin.collections.HashSet
  *  default consumers.
  */
 class OpenGLObjectState : NodeMetadata {
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
     /** List of consumers of this metadata, e.g. [OpenGLRenderer] */
     override val consumers: MutableList<String> = ArrayList()
 

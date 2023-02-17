@@ -20,7 +20,7 @@ import org.lwjgl.util.remotery.Remotery.rmt_SetCurrentThreadName
  */
 class RemoteryProfiler(override var hub : Hub?) : Hubable, Profiler, AutoCloseable {
     private var instance = PointerBuffer.allocateDirect(1)
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
 
     init {
         val error = rmt_CreateGlobalInstance(instance)

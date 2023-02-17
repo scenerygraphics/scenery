@@ -45,7 +45,7 @@ enum class RenderdocVersion(val versionNumber: Int) {
  * @author Ulrik Guenther <hello@ulrik.is>
  */
 class Renderdoc : AutoCloseable {
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
 
     init {
         logger.info("Initialising Renderdoc")

@@ -5,7 +5,7 @@ import graphics.scenery.Hub
 import graphics.scenery.Hubable
 import graphics.scenery.Node
 import graphics.scenery.Scene
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.zeromq.SocketType
 import org.zeromq.ZContext
 import org.zeromq.ZMQ
@@ -26,7 +26,7 @@ class NodeSubscriber(
     val context: ZContext,
     startNetworkActivity: Boolean = true //disables network stuff for testing
 ) : Agent(), Hubable {
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
     val kryo = NodePublisher.freeze()
 
     private val addressSubscribe = "$ip:$portPublish"

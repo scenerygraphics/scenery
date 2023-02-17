@@ -1,7 +1,7 @@
 package graphics.scenery.backends.vulkan
 
 import graphics.scenery.backends.*
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.VK10.*
 import org.lwjgl.vulkan.VkPipelineShaderStageCreateInfo
@@ -26,7 +26,7 @@ import java.util.concurrent.ConcurrentHashMap
  */
 
 open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, val sp: ShaderPackage) {
-    protected val logger by LazyLogger()
+    protected val logger by lazyLogger()
     var shader: VkPipelineShaderStageCreateInfo
     var shaderModule: Long
     var uboSpecs = LinkedHashMap<String, ShaderIntrospection.UBOSpec>()
