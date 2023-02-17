@@ -8,7 +8,6 @@ import graphics.scenery.attribute.renderable.Renderable
 import graphics.scenery.backends.*
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.*
-import io.github.classgraph.ClassGraph
 import kotlinx.coroutines.*
 import org.joml.*
 import org.lwjgl.PointerBuffer
@@ -420,6 +419,12 @@ open class VulkanRenderer(hub: Hub,
         private const val MATERIAL_HAS_NORMAL = 0x0008
         private const val MATERIAL_HAS_ALPHAMASK = 0x0010
 
+        private val availableSwapchains = mutableListOf(
+            SwingSwapchain::class.java,
+            HeadlessSwapchain::class.java,
+            OpenGLSwapchain::class.java
+        )
+
         fun getStrictValidation(): Pair<Boolean, List<Int>> {
             val strict = System.getProperty("scenery.VulkanRenderer.StrictValidation")
             val separated = strict?.split(",")?.asSequence()?.mapNotNull { it.toIntOrNull() }?.toList()
@@ -432,6 +437,14 @@ open class VulkanRenderer(hub: Hub,
                 else -> false to emptyList()
             }
         }
+
+        /**
+         * Registers a new special-purpose swapchain with the Vulkan renderer.
+         */
+        fun registerSwapchain(swapchain: Class<VulkanSwapchain>) {
+            availableSwapchains.add(swapchain)
+        }
+
     }
 
     fun getCurrentScene(): Scene {
@@ -558,19 +571,8 @@ open class VulkanRenderer(hub: Hub,
             }
 
             // get available swapchains, but remove default swapchain, will always be there as fallback
-            val start = System.nanoTime()
-            val swapchains = ClassGraph()
-                .acceptPackages("graphics.scenery.backends.vulkan")
-                .enableClassInfo()
-                .scan()
-                .getClassesImplementing("graphics.scenery.backends.vulkan.Swapchain")
-                .filter { cls -> cls.simpleName != "VulkanSwapchain" }
-                .loadClasses()
-            val duration = System.nanoTime() - start
-            logger.debug("Finding swapchains took ${duration/10e6} ms")
-
-            logger.debug("Available special-purpose swapchains are: ${swapchains.joinToString { it.simpleName }}")
-            val selectedSwapchain = swapchains.firstOrNull { (it.kotlin.companionObjectInstance as SwapchainParameters).usageCondition.invoke(embedIn) }
+            logger.debug("Available special-purpose swapchains are: ${availableSwapchains.joinToString { it.simpleName }}")
+            val selectedSwapchain = availableSwapchains.firstOrNull { (it.kotlin.companionObjectInstance as SwapchainParameters).usageCondition.invoke(embedIn) }
             val headless = (selectedSwapchain?.kotlin?.companionObjectInstance as? SwapchainParameters)?.headless ?: false
 
             device = VulkanDevice.fromPhysicalDevice(instance,
