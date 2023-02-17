@@ -72,20 +72,10 @@ open class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?
                 }
 
                 else -> {
-                    val start = System.nanoTime()
-                    val handlers = ClassGraph()
-                        .acceptPackages("graphics.scenery.controls")
-                        .enableClassInfo()
-                        .enableAnnotationInfo()
-                        .scan()
-                        .getClassesWithAnnotation("graphics.scenery.controls.CanHandleInputFor")
-                        .loadClasses()
-                    val duration = System.nanoTime() - start
-
                     if (logger.isDebugEnabled) {
-                        logger.debug("Found potential input handlers (${duration / 10e6} ms): ${handlers.joinToString { "${it.simpleName} -> ${it.getAnnotation(CanHandleInputFor::class.java).windowTypes.joinToString()}" }}")
+                        logger.debug("Found potential input handlers ${availableInputHandlers.joinToString { "${it.simpleName} -> ${it.getAnnotation(CanHandleInputFor::class.java).windowTypes.joinToString()}" }}")
                     }
-                    val candidate = handlers.find { it.getAnnotation(CanHandleInputFor::class.java).windowTypes.contains(window::class) }
+                    val candidate = availableInputHandlers.find { it.getAnnotation(CanHandleInputFor::class.java).windowTypes.contains(window::class) }
                     handler = candidate?.getConstructor(Hub::class.java)?.newInstance(hub) as MouseAndKeyHandlerBase?
                     handler?.attach(hub, window, inputMap, behaviourMap)
                 }
@@ -364,4 +354,22 @@ open class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?
 
     data class NamedBehaviourWithKeyBinding(val name: String, val behaviour: Behaviour, val key: String)
 
+    /**
+     * Helper objects etc. for the [InputHandler] class.
+     */
+    companion object {
+        private val availableInputHandlers = mutableListOf<Class<*>>(
+            GLFWMouseAndKeyHandler::class.java,
+            JOGLMouseAndKeyHandler::class.java,
+            SwingMouseAndKeyHandler::class.java
+        )
+
+        /**
+         * Registers a new input handler, [handler], for custom usage.
+         */
+        fun registerInputHandler(handler: Class<*>) {
+            availableInputHandlers.add(handler)
+        }
+
+    }
 }
