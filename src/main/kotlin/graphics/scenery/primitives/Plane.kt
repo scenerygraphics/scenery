@@ -17,17 +17,17 @@ open class Plane(sizes: Vector3f) : Mesh() {
             this.scale = sizes
         }
         this.name = "plane"
-        val side = 2.0f
+        val side = 1.0f
         val side2 = side / 2.0f
 
         geometry {
             vertices = BufferUtils.allocateFloatAndPut(
                 floatArrayOf(
                     // Front
-                    -side2, -side2, side2,
-                    side2, -side2, side2,
-                    side2, side2, side2,
-                    -side2, side2, side2
+                    -side2, -side2, 0.0f,
+                    side2, -side2, 0.0f,
+                    side2, side2, 0.0f,
+                    -side2, side2, 0.0f
                 )
             )
 
