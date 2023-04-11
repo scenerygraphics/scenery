@@ -24,13 +24,13 @@ interface Geometry : Serializable {
     var geometryType: GeometryType
 
     /** Array of the vertices. This buffer is _required_, but may empty. */
-    var vertices: FloatBuffer
+    var vertices: FloatBuffer // delegates to Buffers::buffers[Positions]
     /** Array of the normals. This buffer is _required_, and may _only_ be empty if [vertices] is empty as well. */
-    var normals: FloatBuffer
+    var normals: FloatBuffer // delegates to Buffers::buffers[Normals]
     /** Array of the texture coordinates. Texture coordinates are optional. */
-    var texcoords: FloatBuffer
+    var texcoords: FloatBuffer // delegates to Buffers::buffers[TexCoords]
     /** Array of the indices to create an indexed mesh. Optional, but advisable to use to minimize the number of submitted vertices. */
-    var indices: IntBuffer
+    var indices: IntBuffer // delegates to Buffers::buffers[Indices]
     /** Whether the object is dirty and somehow needs to be updated. Used by renderers. */
     var dirty: Boolean
 

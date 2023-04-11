@@ -2,6 +2,7 @@ package graphics.scenery
 
 import graphics.scenery.geometry.GeometryType
 import graphics.scenery.attribute.AttributesMap
+import graphics.scenery.attribute.Buffers
 import graphics.scenery.attribute.geometry.Geometry
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.attribute.renderable.Renderable
@@ -117,6 +118,14 @@ interface Node : Networkable {
 
     fun renderableOrNull(): Renderable? {
         return ifRenderable {}
+    }
+
+    fun ifBuffers(block: Buffers.() -> Unit) : Buffers? {
+        return ifHasAttribute(Buffers::class.java, block)
+    }
+
+    fun buffersOrNull(): Buffers? {
+        return ifBuffers {}
     }
 
     fun ifMaterial(block: Material.() -> Unit): Material? {
