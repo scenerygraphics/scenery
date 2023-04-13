@@ -62,7 +62,7 @@ open class Line @JvmOverloads constructor(var capacity: Int = 50, transparent: B
             if(simple) {
                 geometryType = GeometryType.LINE
             } else {
-                geometryType = GeometryType.LINE_STRIP_ADJACENCY
+                geometryType = GeometryType.LINE_STRIP
                 activateTransparency(transparent)
             }
 
