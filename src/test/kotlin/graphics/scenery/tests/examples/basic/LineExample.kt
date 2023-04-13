@@ -34,11 +34,6 @@ class LineExample : SceneryBase("LineExample", wantREPL = false) {
         scene.addChild(hull)
 
         val line = Line(transparent = false)
-        // Topology when simple = false -> Line_Strip_Adjecency
-        // First Point 0 and last Point n-1 only available in Geometry shader. 'Lines' between
-        // Point 0 and Point 1 & Point n-2 and Point n-1 will not be rendered.
-        // So: Point 1 here defines the start of the line, and the first Line will be rendered between
-        // Point 1 and Point 2 AFTER another point has been added, going from (0, 0, 0) to (5, 5, 5)
         line.addPoint(Vector3f(-5.0f, -5.0f, -5.0f))
         line.addPoint(Vector3f(0.0f, 0.0f, 0.0f))
         line.addPoint(Vector3f(5.0f, 5.0f, 5.0f))
@@ -56,40 +51,8 @@ class LineExample : SceneryBase("LineExample", wantREPL = false) {
             position = Vector3f(0.0f, 0.0f, 0.0f)
         }
 
-        line.edgeWidth = 1f
+        line.edgeWidth = 0.02f
         scene.addChild(line)
-
-
-        val sphereS = Sphere(0.3f)
-        sphereS.material {
-            ambient = Vector3f(1.0f, 0.0f, 0.0f)
-            diffuse = Vector3f(1.0f, 0.0f, 0.0f)
-            specular = Vector3f(1.0f, 1.0f, 1.0f)
-        }
-        sphereS.spatial{
-            position = Vector3f(-5.0f, -5.0f, -5.0f)
-        }
-        val sphereZ = Sphere(0.3f)
-        sphereZ.material {
-            ambient = Vector3f(1.0f, 0.0f, 0.0f)
-            diffuse = Vector3f(0.0f, 1.0f, 0.0f)
-            specular = Vector3f(1.0f, 1.0f, 1.0f)
-        }
-        sphereZ.spatial{
-            position = Vector3f(0.0f, 0.0f, 0.0f)
-        }
-        val sphereE = Sphere(0.3f)
-        sphereE.material {
-            ambient = Vector3f(1.0f, 0.0f, 0.0f)
-            diffuse = Vector3f(0.0f, 0.0f, 1.0f)
-            specular = Vector3f(1.0f, 1.0f, 1.0f)
-        }
-        sphereE.spatial{
-            position = Vector3f(5.0f, 5.0f, 5.0f)
-        }
-        //scene.addChild(sphereS)
-        //scene.addChild(sphereZ)
-        //scene.addChild(sphereE)
 
 
         val lights = (0 until 2).map {

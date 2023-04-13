@@ -1,6 +1,6 @@
 #version 450 core
 
-layout(lines_adjacency) in;
+layout(lines) in;
 layout(triangle_strip, max_vertices=4) out;
 
 layout(location = 0) in VertexDataIn {
@@ -38,8 +38,11 @@ layout(push_constant) uniform currentEye_t {
 } currentEye;
 
 void main() {
-    vec3 p1 = VertexIn[1].Position.xyz / VertexIn[1].Position.w;
-    vec3 p2 = VertexIn[2].Position.xyz / VertexIn[2].Position.w;
+    //vec3 p1 = VertexIn[0].Position.xyz / VertexIn[0].Position.w;
+    //vec3 p2 = VertexIn[1].Position.xyz / VertexIn[1].Position.w;
+
+    vec3 p1 = gl_in[0].gl_Position.xyz / gl_in[0].gl_Position.w;
+    vec3 p2 = gl_in[1].gl_Position.xyz / gl_in[1].gl_Position.w;
 
     // tangent
     vec2 t = normalize(p1.xy - p2.xy);
@@ -61,25 +64,25 @@ void main() {
     gl_Position = a;
     Vertex.Position = gl_Position.xyz;
     Vertex.Normal = N;
-    Vertex.Color = VertexIn[1].Color;
+    Vertex.Color = VertexIn[0].Color;
     EmitVertex();
 
     gl_Position = b;
     Vertex.Position = gl_Position.xyz;
     Vertex.Normal = N;
-    Vertex.Color = VertexIn[1].Color;
+    Vertex.Color = VertexIn[0].Color;
     EmitVertex();
 
     gl_Position = c;
     Vertex.Position = gl_Position.xyz;
     Vertex.Normal = N;
-    Vertex.Color = VertexIn[2].Color;
+    Vertex.Color = VertexIn[1].Color;
     EmitVertex();
 
     gl_Position = d;
     Vertex.Position = gl_Position.xyz;
     Vertex.Normal = N;
-    Vertex.Color = VertexIn[2].Color;
+    Vertex.Color = VertexIn[1].Color;
     EmitVertex();
 
     EndPrimitive();
