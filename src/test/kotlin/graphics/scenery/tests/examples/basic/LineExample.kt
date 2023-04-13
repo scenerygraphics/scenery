@@ -6,6 +6,9 @@ import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
 import graphics.scenery.primitives.Line
 import graphics.scenery.attribute.material.Material
+import org.jdom2.internal.SystemProperty
+import org.joml.Vector4f
+import java.util.Properties
 import kotlin.concurrent.thread
 
 /**
@@ -17,7 +20,7 @@ import kotlin.concurrent.thread
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class LineExample : SceneryBase("LineExample") {
+class LineExample : SceneryBase("LineExample", wantREPL = false) {
     protected var lineAnimating = true
 
     override fun init() {
@@ -31,9 +34,18 @@ class LineExample : SceneryBase("LineExample") {
         scene.addChild(hull)
 
         val line = Line(transparent = false)
+        // Topology when simple = false -> Line_Strip_Adjecency
+        // First Point 0 and last Point n-1 only available in Geometry shader. 'Lines' between
+        // Point 0 and Point 1 & Point n-2 and Point n-1 will not be rendered.
+        // So: Point 1 here defines the start of the line, and the first Line will be rendered between
+        // Point 1 and Point 2 AFTER another point has been added, going from (0, 0, 0) to (5, 5, 5)
         line.addPoint(Vector3f(-5.0f, -5.0f, -5.0f))
         line.addPoint(Vector3f(0.0f, 0.0f, 0.0f))
         line.addPoint(Vector3f(5.0f, 5.0f, 5.0f))
+
+        line.startColor = Vector4f(1.0f, 0.0f, 0.0f, 1.0f)
+        line.lineColor = Vector4f(0.0f, 1.0f, 0.0f, 1.0f)
+        line.endColor = Vector4f(0.0f, 0.0f, 1.0f, 1.0f)
 
         line.material {
             ambient = Vector3f(1.0f, 0.0f, 0.0f)
@@ -44,13 +56,45 @@ class LineExample : SceneryBase("LineExample") {
             position = Vector3f(0.0f, 0.0f, 0.0f)
         }
 
-        line.edgeWidth = 0.02f
-
+        line.edgeWidth = 1f
         scene.addChild(line)
 
+
+        val sphereS = Sphere(0.3f)
+        sphereS.material {
+            ambient = Vector3f(1.0f, 0.0f, 0.0f)
+            diffuse = Vector3f(1.0f, 0.0f, 0.0f)
+            specular = Vector3f(1.0f, 1.0f, 1.0f)
+        }
+        sphereS.spatial{
+            position = Vector3f(-5.0f, -5.0f, -5.0f)
+        }
+        val sphereZ = Sphere(0.3f)
+        sphereZ.material {
+            ambient = Vector3f(1.0f, 0.0f, 0.0f)
+            diffuse = Vector3f(0.0f, 1.0f, 0.0f)
+            specular = Vector3f(1.0f, 1.0f, 1.0f)
+        }
+        sphereZ.spatial{
+            position = Vector3f(0.0f, 0.0f, 0.0f)
+        }
+        val sphereE = Sphere(0.3f)
+        sphereE.material {
+            ambient = Vector3f(1.0f, 0.0f, 0.0f)
+            diffuse = Vector3f(0.0f, 0.0f, 1.0f)
+            specular = Vector3f(1.0f, 1.0f, 1.0f)
+        }
+        sphereE.spatial{
+            position = Vector3f(5.0f, 5.0f, 5.0f)
+        }
+        //scene.addChild(sphereS)
+        //scene.addChild(sphereZ)
+        //scene.addChild(sphereE)
+
+
         val lights = (0 until 2).map {
-            val l = PointLight(radius = 4.0f)
-            l.intensity = 1.0f
+            val l = PointLight(radius = 10.0f)
+            l.intensity = 2.0f
             l.emissionColor = Random.random3DVectorFromRange(0.2f, 0.8f)
 
             scene.addChild(l)

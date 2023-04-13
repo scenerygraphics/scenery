@@ -40,11 +40,11 @@ layout(set = 3, binding = 0) uniform MaterialProperties {
 
 layout(set = 4, binding = 0) uniform ShaderProperties {
     vec4 startColor;
-vec4 endColor;
-vec4 lineColor;
-int capLength;
-int vertexCount;
-float edgeWidth;
+    vec4 endColor;
+    vec4 lineColor;
+    int capLength;
+    int vertexCount;
+    float edgeWidth;
     float interpolationState;
 };
 
@@ -54,6 +54,6 @@ void main()
 {
     // mix together line colors and black background.
     // everything apart from the lines should be transparent.
-    FragColor = vec4(Material.Kd, Material.Opacity);
+    FragColor = vec4(Vertex.Color);
     //FragColor = vec4(Vertex.Normal, 0.5);
 }

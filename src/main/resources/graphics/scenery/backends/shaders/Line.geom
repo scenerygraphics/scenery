@@ -38,8 +38,8 @@ layout(push_constant) uniform currentEye_t {
 } currentEye;
 
 void main() {
-    vec3 p1 = VertexIn[0].Position.xyz / VertexIn[0].Position.w;
-    vec3 p2 = VertexIn[1].Position.xyz / VertexIn[1].Position.w;
+    vec3 p1 = VertexIn[1].Position.xyz / VertexIn[1].Position.w;
+    vec3 p2 = VertexIn[2].Position.xyz / VertexIn[2].Position.w;
 
     // tangent
     vec2 t = normalize(p1.xy - p2.xy);
@@ -47,7 +47,7 @@ void main() {
     vec2 n = vec2(-t.y, t.x) * edgeWidth;
 
     if ( p1.z < 0 || p2.z < 0 || p1.z > 1 || p2.z > 1 )  {
-            return;
+        return;
     }
 
     vec4 a = vec4( p1.xy + 0.5*n, p1.z, 1.0);
@@ -61,25 +61,25 @@ void main() {
     gl_Position = a;
     Vertex.Position = gl_Position.xyz;
     Vertex.Normal = N;
-    Vertex.Color = VertexIn[0].Color;
+    Vertex.Color = VertexIn[1].Color;
     EmitVertex();
 
     gl_Position = b;
     Vertex.Position = gl_Position.xyz;
     Vertex.Normal = N;
-    Vertex.Color = VertexIn[0].Color;
+    Vertex.Color = VertexIn[1].Color;
     EmitVertex();
 
     gl_Position = c;
     Vertex.Position = gl_Position.xyz;
     Vertex.Normal = N;
-    Vertex.Color = VertexIn[0].Color;
+    Vertex.Color = VertexIn[2].Color;
     EmitVertex();
 
     gl_Position = d;
     Vertex.Position = gl_Position.xyz;
     Vertex.Normal = N;
-    Vertex.Color = VertexIn[0].Color;
+    Vertex.Color = VertexIn[2].Color;
     EmitVertex();
 
     EndPrimitive();

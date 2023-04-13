@@ -65,13 +65,17 @@ void main()
 
     Vertex.Color = lineColor;
 
-//   if(gl_VertexID < capLength) {
-   if(0 < capLength) {
+    // Topology when simple = false -> Line_Strip_Adjecency
+    // First Point 0 and last Point n-1 only available in Geometry shader. 'Lines' between
+    // Point 0 and Point 1 & Point n-2 and Point n-1 will not be rendered.
+    if(0 < gl_VertexIndex && gl_VertexIndex <= capLength) {
+    //if(0 < capLength) {
         Vertex.Color = startColor;
-   }
+    }
 
-//   if(gl_VertexID > vertexCount-capLength) {
-   if(vertexCount > vertexCount-capLength) {
-        Vertex.Color = endColor;
-   }
+    if(vertexCount > gl_VertexIndex && gl_VertexIndex >= vertexCount-1-capLength) {
+       //if (vertexCount > vertexCount-capLength) {
+       Vertex.Color = endColor;
+    }
+
 }

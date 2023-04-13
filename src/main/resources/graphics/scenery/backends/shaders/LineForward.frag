@@ -53,5 +53,5 @@ void main()
 {
     // mix together line colors and black background.
     // everything apart from the lines should be transparent.
-    FragColor = vec4(Material.Kd, Material.Opacity);
+    FragColor = vec4(Vertex.Color);
 }
