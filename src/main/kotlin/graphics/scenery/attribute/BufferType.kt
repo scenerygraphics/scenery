@@ -1,28 +1,14 @@
 package graphics.scenery.attribute
 
+import graphics.scenery.backends.UBO
+import net.imglib2.type.numeric.NumericType
+
 /**
- * Enum to identify the BufferType inside the HashMap of [Buffers]
- * Containing VertexBuffer elements: [Position], [Color], [UVCoordinates], [Normals]
- * Containing IndexBuffer: [Index]
- * Containing SSBO: [ShaderStorage]
+ *
  */
 
-enum class BufferType {
-    //We can either do this as enum, but the user then must add to it here, for example for colors or custom stuff -> it also needs to be added inside the delegate
-    // Buffers interface and be added to the setter override to cast the bytebuffer to the correct type -> maybe have a unordered map that maps a type to
-    // a lambda which gets called in the setter, containing the type and casting ?
-    /**
-     * VertexBuffer elements
-     */
-    Position, UVCoordinates, Normals, Color,
+sealed class BufferType {
 
-    /**
-     * IndexBuffer
-     */
-    Index,
-
-    /**
-     * ShaderStorageBuffer
-     */
-    ShaderStorage
+    data class Primitive<T : NumericType<T>>(var type : T) : BufferType()
+    data class Custom(var contents : UBO, var size : Int) : BufferType()
 }

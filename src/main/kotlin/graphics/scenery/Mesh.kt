@@ -34,10 +34,10 @@ import java.nio.file.Files
  * @author Ulrik Günther <hello@ulrik.is>
  */
 open class Mesh(override var name: String = "Mesh") : DefaultNode(name), HasRenderable, HasMaterial, HasSpatial,
-    HasGeometry { //rather HasBuffers?
+    HasGeometry {
 
     init {
-        addGeometry() // add Buffers() -> calls DefaultBuffers constructor, same as geometry does now
+        addGeometry()
         addRenderable()
         addMaterial()
         addSpatial()
