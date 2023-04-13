@@ -34,7 +34,7 @@ layout(set = 2, binding = 0) uniform Matrices {
     int isBillboard;
 } ubo;
 
-layout(set = 4, binding = 0) uniform ShaderProperties {
+layout(set = 3, binding = 0) uniform ShaderProperties {
     vec4 startColor;
     vec4 endColor;
     vec4 lineColor;

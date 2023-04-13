@@ -33,10 +33,10 @@ const int MATERIAL_HAS_SPECULAR = 0x0004;
 const int MATERIAL_HAS_NORMAL =   0x0008;
 const int MATERIAL_HAS_ALPHAMASK = 0x0010;
 
-layout(set = 3, binding = 0) uniform MaterialProperties {
+/*layout(set = 3, binding = 0) uniform MaterialProperties {
     int materialType;
     MaterialInfo Material;
-};
+};*/
 
 layout(set = 4, binding = 0) uniform ShaderProperties {
     vec4 startColor;

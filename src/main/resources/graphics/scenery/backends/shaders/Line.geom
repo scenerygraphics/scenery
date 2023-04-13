@@ -38,9 +38,6 @@ layout(push_constant) uniform currentEye_t {
 } currentEye;
 
 void main() {
-    //vec3 p1 = VertexIn[0].Position.xyz / VertexIn[0].Position.w;
-    //vec3 p2 = VertexIn[1].Position.xyz / VertexIn[1].Position.w;
-
     vec3 p1 = gl_in[0].gl_Position.xyz / gl_in[0].gl_Position.w;
     vec3 p2 = gl_in[1].gl_Position.xyz / gl_in[1].gl_Position.w;
 
