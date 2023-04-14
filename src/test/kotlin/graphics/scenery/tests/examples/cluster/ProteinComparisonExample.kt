@@ -9,10 +9,12 @@ import graphics.scenery.controls.behaviours.GamepadRotationControl
 import graphics.scenery.controls.behaviours.GamepadClickBehaviour
 import graphics.scenery.controls.behaviours.GamepadMovementControl
 import graphics.scenery.controls.behaviours.withCooldown
+import graphics.scenery.proteins.Protein
+import graphics.scenery.proteins.RibbonDiagram
 import net.java.games.input.Component
 import org.joml.Vector3f
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.ExperimentalTime
-import kotlin.time.milliseconds
 
 /**
  * Example for visually comparing two proteins. A gamepad can be used for navigation,
@@ -35,7 +37,7 @@ class ProteinComparisonExample: SceneryBase("Protein Comparison Example") {
 
         cam = DetachedHeadCamera(hmd)
         with(cam) {
-            position = Vector3f(0.0f, 0.0f, 2.0f)
+            spatial().position = Vector3f(0.0f, 0.0f, 2.0f)
             perspectiveCamera(50.0f, windowWidth, windowHeight, 0.02f, 500.0f)
 
             scene.addChild(this)
@@ -43,7 +45,7 @@ class ProteinComparisonExample: SceneryBase("Protein Comparison Example") {
 
         // box setup
         val shell = Box.hulledBox(Vector3f(10.0f))
-        shell.material.diffuse = Vector3f(1.0f)
+        shell.material().diffuse = Vector3f(1.0f)
         scene.addChild(shell)
 
         // lighting setup
@@ -51,9 +53,11 @@ class ProteinComparisonExample: SceneryBase("Protein Comparison Example") {
         lights.forEach { scene.addChild(it) }
 
         val protein1 = RibbonDiagram(Protein.fromID("2zzm"))
-        protein1.name = protein1.protein.structure.name.toLowerCase()
-        protein1.scale = Vector3f(0.04f)
-        protein1.position = Vector3f(2.0f, 0.0f, 0.0f)
+        protein1.name = protein1.protein.structure.name.lowercase()
+        protein1.spatial {
+            scale = Vector3f(0.04f)
+            position = Vector3f(2.0f, 0.0f, 0.0f)
+        }
         scene.addChild(protein1)
 
         val grid1 = BoundingGrid()
@@ -61,15 +65,15 @@ class ProteinComparisonExample: SceneryBase("Protein Comparison Example") {
         grid1.gridColor = Vector3f(1.0f, 0.0f, 0.0f)
 
         val protein2 = RibbonDiagram(Protein.fromID("4yvj"))
-        protein2.name = protein2.protein.structure.name.toLowerCase()
-        protein2.scale = Vector3f(0.04f)
-        protein2.position = Vector3f(-2.0f, 0.0f, 1.5f)
+        protein2.name = protein2.protein.structure.name.lowercase()
+        protein2.spatial {
+            scale = Vector3f(0.04f)
+            position = Vector3f(-2.0f, 0.0f, 1.5f)
+        }
         scene.addChild(protein2)
 
         val grid2 = BoundingGrid()
         grid2.node = protein2
-
-        scene.publishSubscribe(hub)
 
         activeProtein = protein1
     }

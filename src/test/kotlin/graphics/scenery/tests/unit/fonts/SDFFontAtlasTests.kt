@@ -23,8 +23,10 @@ class SDFFontAtlasTests {
         val logger by LazyLogger()
         @JvmStatic @BeforeClass
         fun checkOpenCLAvailability() {
-            val hasOpenCL: Boolean = if (System.getenv("GITHUB_ACTIONS").toBoolean() && Platform.get() == Platform.MACOSX) {
-                logger.warn("Disabled OpenCL because Github Actions on macOS does not support accelerated OpenCL contexts.")
+            val openCLunavailable = ((System.getenv("GITHUB_ACTIONS").toBoolean() && Platform.get() == Platform.MACOSX)
+                    || System.getenv("GITLAB_CI").toBoolean())
+            val hasOpenCL: Boolean = if (openCLunavailable) {
+                logger.warn("Disabled OpenCL because Github Actions on macOS does not support accelerated OpenCL contexts, or because running on Gitlab CI Docker.")
                 false
             } else {
                 try {
@@ -65,8 +67,8 @@ class SDFFontAtlasTests {
         }
 
         val mesh = sdf.createMeshForString("hello world")
-        assertTrue(mesh.vertices.remaining() > 0)
-        assertTrue(mesh.normals.remaining() > 0)
-        assertTrue(mesh.texcoords.remaining() > 0)
+        assertTrue(mesh.geometry().vertices.remaining() > 0)
+        assertTrue(mesh.geometry().normals.remaining() > 0)
+        assertTrue(mesh.geometry().texcoords.remaining() > 0)
     }
 }

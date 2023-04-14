@@ -26,13 +26,13 @@ object menu {
                 ImGui.text("bounding box: $it")
             }
             val date = SimpleDateFormat("dd.MM''yy HH:mm")
-            ImGui.text("created: ${date.format(createdAt)}, modified: ${date.format(modifiedAt)}")
+//            ImGui.text("created: ${date.format(createdAt)}, modified: ${date.format(modifiedAt)}")
             ImGui.text("discoveryBarrier: $discoveryBarrier")
 //            ImGui.text("metadata")
 //            for ((k, v) in metadata)
 //                ImGui.text("\t[$k] = $v")
             ImGui.text("needsUpdate: $needsUpdate, -world: $needsUpdateWorld")
-            ImGui.text("uuid: $uuid, wantsComposeModel: $wantsComposeModel")
+            ImGui.text("wantsComposeModel: $wantsComposeModel")
             for (child in children)
                 child.print()
         }

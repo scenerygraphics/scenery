@@ -15,7 +15,6 @@ import org.scijava.ui.behaviour.InputTriggerMap
 import org.scijava.ui.behaviour.io.InputTriggerConfig
 import org.scijava.ui.behaviour.io.InputTriggerDescription
 import org.scijava.ui.behaviour.io.InputTriggerDescriptionsBuilder
-import org.scijava.ui.behaviour.io.gui.CommandDescriptionBuilder
 import org.scijava.ui.behaviour.io.gui.VisualEditorPanel
 import org.scijava.ui.behaviour.io.yaml.YamlConfigIO
 import org.scijava.ui.behaviour.util.Behaviours
@@ -322,9 +321,11 @@ open class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?
      */
     @JvmOverloads fun openKeybindingsGuiEditor(editorTitle: String = "scenery's Key bindings editor", filename: String, context: String = "all"): VisualEditorPanel {
         //setup content for the Visual Editor
-        val cdb = CommandDescriptionBuilder()
-        behaviourMap.keys().forEach { b -> cdb.addCommand(b, context, "") }
-        val editorPanel = VisualEditorPanel(config, cdb.get())
+        // TODO: Figure out where this class went
+        //val cdb = CommandDescriptionProvider()
+        //behaviourMap.keys().forEach { b -> cdb.addCommand(b, context, "") }
+        //val editorPanel = VisualEditorPanel(config, cdb.get())
+        val editorPanel = VisualEditorPanel(config, null)
 
         //show the Editor
         val frame = JFrame(editorTitle)

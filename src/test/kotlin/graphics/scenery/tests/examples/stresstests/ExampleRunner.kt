@@ -6,169 +6,194 @@ import graphics.scenery.backends.Renderer
 import graphics.scenery.utils.ExtractsNatives
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.SystemHelpers
+import io.github.classgraph.ClassGraph
 import kotlinx.coroutines.*
 import org.junit.Test
-import org.reflections.Reflections
+import org.junit.runner.RunWith
+import org.junit.runners.Parameterized
 import java.nio.file.Files
 import java.nio.file.Paths
 import kotlin.system.exitProcess
 import kotlin.test.assertFalse
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.ExperimentalTime
-import kotlin.time.milliseconds
-import kotlin.time.minutes
 
-/**
- * Experimental test runner that saves screenshots of all discovered tests.
- *
- * @author Ulrik Guenther <hello@ulrik.is>
- */
-@ExperimentalCoroutinesApi
-@ExperimentalTime
-class ExampleRunner {
-    val logger by LazyLogger()
+@OptIn(ExperimentalTime::class)
+@RunWith(Parameterized::class)
+class ExampleRunner(
+    private val clazz: Class<*>,
+    private val clazzName: String,
+    private val renderer: String,
+    private val pipeline: String
+) {
+    private val logger by LazyLogger()
 
-    @Volatile private var failure = false
+    @Test
+    fun runExample() = runBlocking {
+        logger.info("Running scenery example ${clazz.simpleName} with renderer $renderer and pipeline $pipeline")
+        var runtime = 0.milliseconds
 
-    private var maxRuntimePerTest = System.getProperty("scenery.ExampleRunner.maxRuntimePerTest", "5").toInt().minutes
-    @Volatile private var runtime = 0.milliseconds
+        logger.info("Memory: ${Runtime.getRuntime().freeMemory().toFloat()/1024.0f/1024.0f}M/${Runtime.getRuntime().totalMemory().toFloat()/1024.0f/1024.0f}/${Runtime.getRuntime().maxMemory().toFloat()/1024.0f/1024.0f}M (free/total/max) available.")
 
-    /**
-     * Runs all examples in the class path and bails out on the first exception encountered.
-     * Examples are run using both renderers and stereo and non-stereo render paths. Examples
-     * are run in random order.
-     */
-    @Test fun runAllExamples() = runBlocking {
-        val reflections = Reflections("graphics.scenery.tests")
+        System.setProperty("scenery.Headless", "true")
+        System.setProperty("scenery.Renderer", renderer)
+        System.setProperty("scenery.Renderer.Config", pipeline)
+
+        val rendererDirectory = "$directoryName/$renderer-${pipeline.substringBefore(".")}"
+        val instance: SceneryBase = clazz.getConstructor().newInstance() as SceneryBase
+        var failure = false
+
+        try {
+            val handler = CoroutineExceptionHandler { _, e ->
+                logger.error("${clazz.simpleName}: Received exception $e")
+                logger.error("Stack trace: ${e.stackTraceToString()}")
+
+                failure = true
+                // we fail very hard here to prevent process clogging the CI
+                exitProcess(-1)
+            }
+
+            val exampleRunnable = GlobalScope.launch(handler) {
+                instance.assertions[SceneryBase.AssertionCheckPoint.BeforeStart]?.forEach {
+                    it.invoke()
+                }
+                instance.main()
+            }
+
+            while (!instance.running || !instance.sceneInitialized() || instance.hub.get(SceneryElement.Renderer) == null) {
+                delay(200)
+            }
+            val r = (instance.hub.get(SceneryElement.Renderer) as Renderer)
+
+            while(!r.firstImageReady) {
+                delay(200)
+            }
+
+            delay(2000)
+            r.screenshot("$rendererDirectory/${clazz.simpleName}.png", overwrite = true)
+            Thread.sleep(2000)
+
+            logger.info("Sending close to ${clazz.simpleName}")
+            instance.close()
+            instance.assertions[SceneryBase.AssertionCheckPoint.AfterClose]?.forEach {
+                it.invoke()
+            }
+
+            while (instance.running && !failure) {
+                if (runtime > maxRuntimePerTest) {
+                    exampleRunnable.cancelAndJoin()
+                    logger.error("Maximum runtime of $maxRuntimePerTest exceeded, aborting test run.")
+                    failure = true
+                }
+
+                runtime += 200.milliseconds
+                delay(200)
+            }
+
+            if(failure) {
+                exampleRunnable.cancelAndJoin()
+            } else {
+                exampleRunnable.join()
+            }
+        } catch (e: ThreadDeath) {
+            logger.info("JOGL threw ThreadDeath")
+        }
+
+        logger.info("${clazz.simpleName} closed.")
+
+        assertFalse(failure, "ExampleRunner aborted due to exceptions in tests or exceeding maximum per-test runtime of $maxRuntimePerTest.")
+    }
+
+    companion object {
+        private val logger by LazyLogger()
+
+        var maxRuntimePerTest =
+            System.getProperty("scenery.ExampleRunner.maxRuntimePerTest", "5").toInt().minutes
 
         // blacklist contains examples that require user interaction or additional devices
         val blocklist = mutableListOf(
-            "LocalisationExample",
+            // these examples don't work in headless mode
             "SwingTexturedCubeExample",
             "TexturedCubeJavaExample",
-            "XwingLiverExample",
+            // these examples need additional hardware
             "VRControllerExample",
+            "VRSideChainsExample",
+            "VRVolumeCroppingExample",
             "EyeTrackingExample",
             "ARExample",
+            // these examples require user input and/or files
+            "LocalisationExample",
             "ReaderExample",
-            "BDVExample",
             "BigAndSmallVolumeExample",
+            "CroppingExample",
             "VolumeSamplingExample",
-            "SwingTexturedCubeExample",
             "VideoRecordingExample",
-            // TODO: this has a bug apparently coming from BVV
-            "FlybrainOutOfCoreExample"
-        )
+            "NetworkVolumeExample",
+            // these examples don't render anything
+            "AttributesExample",
+            "DFTExample",
+            "DFTMDExample"
+        ) + System.getProperty("scenery.ExampleRunner.Blocklist", "").split(",")
 
-        blocklist.addAll(System.getProperty("scenery.ExampleRunner.Blocklist", "").split(","))
         val allowedTests = System.getProperty("scenery.ExampleRunner.AllowedTests")?.split(",")
 
-        // find all basic and advanced examples, exclude blacklist
-        val examples = reflections
-            .getSubTypesOf(SceneryBase::class.java)
-            .filter { !it.canonicalName.contains("stresstests") && !it.canonicalName.contains("cluster") }
-            .filter { !blocklist.contains(it.simpleName) }.toMutableList()
-            .filter { allowedTests?.contains(it.simpleName) ?: true }
+        val testGroup: String = System.getProperty("scenery.ExampleRunner.TestGroup", "basic")
 
-        val rendererProperty = System.getProperty("scenery.Renderer")
-        val renderers = rendererProperty?.split(",") ?: when(ExtractsNatives.getPlatform()) {
+        // find all basic and advanced examples, exclude blacklist
+        val examples = ClassGraph()
+            .acceptPackages("graphics.scenery.tests")
+            .enableClassInfo()
+            .scan()
+            .getSubclasses(SceneryBase::class.java)
+            .loadClasses()
+            .filter { !it.canonicalName.contains("stresstests")
+                && !it.canonicalName.contains("cluster")
+                && it.name.substringBeforeLast(".").contains(testGroup)
+                && !blocklist.contains(it.simpleName)
+                && (allowedTests?.contains(it.simpleName) ?: true)
+            }
+
+        val renderers = System.getProperty("scenery.Renderer")?.split(",") ?: when(ExtractsNatives.getPlatform()) {
             ExtractsNatives.Platform.WINDOWS,
             ExtractsNatives.Platform.LINUX -> listOf("VulkanRenderer", "OpenGLRenderer")
             ExtractsNatives.Platform.MACOS -> listOf("OpenGLRenderer")
             ExtractsNatives.Platform.UNKNOWN -> {
-                logger.error("Don't know what to do on this platform, sorry."); return@runBlocking
+                throw UnsupportedOperationException("Don't know what to do on this platform, sorry.")
             }
         }
 
-        val configurations = listOf("DeferredShading.yml", "DeferredShadingStereo.yml")
+        val configurations = System.getProperty("scenery.ExampleRunner.Configurations")?.split(",") ?: listOf("DeferredShading.yml", "DeferredShadingStereo.yml")
 
         val directoryName = System.getProperty("scenery.ExampleRunner.OutputDir") ?: "ExampleRunner-${SystemHelpers.formatDateTime(delimiter = "_")}"
-        Files.createDirectory(Paths.get(directoryName))
 
-        logger.info("ExampleRunner: Running ${examples.size} examples with ${configurations.size} configurations. Memory: ${Runtime.getRuntime().freeMemory().toFloat()/1024.0f/1024.0f}M/${Runtime.getRuntime().totalMemory().toFloat()/1024.0f/1024.0f}/${Runtime.getRuntime().maxMemory().toFloat()/1024.0f/1024.0f}M (free/total/max) available.")
-        System.setProperty("scenery.RandomSeed", "31337")
-
-        renderers.shuffled().forEach { renderer ->
-            System.setProperty("scenery.Renderer", renderer)
-
-            configurations.shuffled().forEach { config ->
-                System.setProperty("scenery.Renderer.Config", config)
-
-                val rendererDirectory = "$directoryName/$renderer-${config.substringBefore(".")}"
-                Files.createDirectory(Paths.get(rendererDirectory))
-
-                examples.shuffled().forEachIndexed { i, example ->
-                    runtime = 0.milliseconds
-
-                    logger.info("Running ${example.simpleName} with $renderer ($i/${examples.size}) ...")
-                    logger.info("Memory: ${Runtime.getRuntime().freeMemory().toFloat()/1024.0f/1024.0f}M/${Runtime.getRuntime().totalMemory().toFloat()/1024.0f/1024.0f}/${Runtime.getRuntime().maxMemory().toFloat()/1024.0f/1024.0f}M (free/total/max) available.")
-
-                    if (!example.simpleName.contains("JavaFX")) {
-                        System.setProperty("scenery.Headless", "true")
+        @Parameterized.Parameters(name = "{index}: {1} ({2}/{3})")
+        @JvmStatic
+        fun availableExamples(): Collection<Array<*>> {
+            val configs = examples.flatMap { example ->
+                renderers.flatMap { renderer ->
+                    configurations.map { config ->
+                        logger.debug("Adding ${example.simpleName} with $renderer/$config")
+                        arrayOf(example, example.simpleName, renderer, config)
                     }
+                }
+            }
 
-                    val instance = example.getConstructor().newInstance()
-                    val exampleRunnable: Job?
+            logger.info("Discovered ${renderers.size} renderers with ${configurations.size} different pipelines, for ${examples.size} examples from group $testGroup, resulting in ${configs.size} run configurations.")
 
-                    try {
-                        val handler = CoroutineExceptionHandler { _, e ->
-                            logger.error("${example.simpleName}: Received exception $e")
-                            logger.error("Stack trace: ${e.stackTraceToString()}")
+            return configs
+        }
 
-                            failure = true
-                            // we fail very hard here to prevent process clogging the CI
-                            throw e
-                        }
-
-                        exampleRunnable = GlobalScope.launch(handler) {
-                            instance.assertions[SceneryBase.AssertionCheckPoint.BeforeStart]?.forEach {
-                                it.invoke()
-                            }
-                            instance.main()
-                        }
-
-                        while (!instance.running || !instance.sceneInitialized() || instance.hub.get(SceneryElement.Renderer) == null) {
-                            delay(200)
-                        }
-                        val r = (instance.hub.get(SceneryElement.Renderer) as Renderer)
-
-                        while(!r.firstImageReady) {
-                            delay(200)
-                        }
-
-                        r.screenshot("$rendererDirectory/${example.simpleName}.png")
-                        Thread.sleep(2000)
-
-                        logger.info("Sending close to ${example.simpleName}")
-                        instance.close()
-                        instance.assertions[SceneryBase.AssertionCheckPoint.AfterClose]?.forEach {
-                            it.invoke()
-                        }
-
-                        while (instance.running && !failure) {
-                            if (runtime > maxRuntimePerTest) {
-                                exampleRunnable.cancelAndJoin()
-                                logger.error("Maximum runtime of $maxRuntimePerTest exceeded, aborting test run.")
-                                failure = true
-                            }
-
-                            runtime += 200.milliseconds
-                            delay(200)
-                        }
-
-                        if(failure) {
-                            exampleRunnable.cancelAndJoin()
-                        } else {
-                            exampleRunnable.join()
-                        }
-                    } catch (e: ThreadDeath) {
-                        logger.info("JOGL threw ThreadDeath")
-                    }
-
-                    logger.info("${example.simpleName} closed ($renderer ran ${i + 1}/${examples.size} so far).")
-
-                    assertFalse(failure, "ExampleRunner aborted due to exceptions in tests or exceeding maximum per-test runtime of $maxRuntimePerTest.")
+        @Parameterized.BeforeParam
+        @JvmStatic
+        fun createOutputDirectory() {
+            renderers.forEach { renderer ->
+                configurations.forEach { config ->
+                    val rendererDirectory = "$directoryName/$renderer-${config.substringBefore(".")}"
+                    Files.createDirectories(Paths.get(rendererDirectory))
                 }
             }
         }
     }
+
 }

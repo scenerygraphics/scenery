@@ -1,18 +1,18 @@
 package graphics.scenery.backends.vulkan
 
-import graphics.scenery.Node
 import graphics.scenery.textures.Texture
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.*
 import graphics.scenery.NodeMetadata
 import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.backends.RendererFlags
+import graphics.scenery.attribute.renderable.Renderable
 import graphics.scenery.utils.LazyLogger
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.time.DurationUnit
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTime
-import kotlin.time.measureTimedValue
 
 /**
  * Vulkan Object State class. Saves texture, UBO, pipeline and vertex buffer state.
@@ -83,7 +83,7 @@ open class VulkanObjectState : NodeMetadata {
      * The set will be allocated from [descriptorPool].
      */
     @OptIn(ExperimentalTime::class)
-    fun texturesToDescriptorSets(device: VulkanDevice, passes: Map<String, VulkanRenderpass>, node: Node) {
+    fun texturesToDescriptorSets(device: VulkanDevice, passes: Map<String, VulkanRenderpass>, renderable: Renderable) {
         val updateDuration = measureTime {
             val textures = textures.entries.groupBy { Texture.objectTextures.contains(it.key) }
             val objectTextures = textures[true]
@@ -98,7 +98,7 @@ open class VulkanObjectState : NodeMetadata {
                 if (descriptorSetLayoutObjectTextures != null && objectTextures != null && objectTextures.isNotEmpty()) {
                     textureDescriptorSets[pass.passConfig.type.name to "ObjectTextures"] = createOrUpdateTextureDescriptorSet(
                         "ObjectTextures",
-                        node,
+                        renderable,
                         pass,
                         Texture.objectTextures.map { ot -> objectTextures.first { it.key == ot } },
                         descriptorSetLayoutObjectTextures,
@@ -116,7 +116,7 @@ open class VulkanObjectState : NodeMetadata {
                 }
 
                 others?.mapNotNull { texture ->
-                    pass.getDescriptorSetLayoutForTexture(texture.key, node)
+                    pass.getDescriptorSetLayoutForTexture(texture.key, renderable)
                 }?.groupBy {
                     it.first
                 }?.forEach {
@@ -128,7 +128,7 @@ open class VulkanObjectState : NodeMetadata {
                     val firstTextureName = textureNames.first()
                     val texturesForSet = textureNames.mapNotNull { t -> others.firstOrNull() { it.key == t } }
 
-                    val ds = createOrUpdateTextureDescriptorSet(firstTextureName, node, pass, texturesForSet, dsl, device)
+                    val ds = createOrUpdateTextureDescriptorSet(firstTextureName, renderable, pass, texturesForSet, dsl, device)
 
                     texturesForSet.forEach { (textureName, _) ->
                         textureDescriptorSets[pass.passConfig.type.name to textureName] = ds
@@ -137,17 +137,17 @@ open class VulkanObjectState : NodeMetadata {
             }
         }
 
-        logger.trace("DS update took {} ms", updateDuration.inMilliseconds)
+        logger.trace("DS update took {} ms", updateDuration.toDouble(DurationUnit.MILLISECONDS))
     }
 
     fun clearTextureDescriptorSets() {
         textureDescriptorSets.clear()
     }
 
-    private fun createOrUpdateTextureDescriptorSet(name: String, node: Node, pass: VulkanRenderpass, textures: List<MutableMap.MutableEntry<String, VulkanTexture>>, descriptorSetLayout: Long, device: VulkanDevice): Long {
+    private fun createOrUpdateTextureDescriptorSet(name: String, renderable: Renderable, pass: VulkanRenderpass, textures: List<MutableMap.MutableEntry<String, VulkanTexture>>, descriptorSetLayout: Long, device: VulkanDevice): Long {
         val cacheKey = TextureKey(device.vulkanDevice, descriptorSetLayout, textures)
         val passName = pass.passConfig.type.name
-        val pipeline = pass.getActivePipeline(node)
+        val pipeline = pass.getActivePipeline(renderable)
 
         val existing = cache[cacheKey]
 
@@ -216,7 +216,7 @@ open class VulkanObjectState : NodeMetadata {
 
     /**
      * Returns the descriptor set named [textureSet] containing referring to the textures needed in a given [passname].
-     * If [textureSet] is not found for [passname], null is returned.
+     * If [textureSet] is not found for [passname], null is returne
      */
     fun getTextureDescriptorSet(passname: String, textureSet: String = ""): Long? {
         val texture = if(textureSet == "") {

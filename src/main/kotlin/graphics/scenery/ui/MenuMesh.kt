@@ -1,41 +1,30 @@
 package graphics.scenery.ui
 
 import glm_.L
-import glm_.b
-import glm_.f
 import glm_.i
 import glm_.vec2.Vec2
-import glm_.vec2.Vec2d
 import glm_.vec2.Vec2i
 import glm_.vec4.Vec4
 import graphics.scenery.Hub
-import graphics.scenery.Material
 import graphics.scenery.Mesh
 import graphics.scenery.ShaderMaterial
+import graphics.scenery.attribute.material.Material
+import graphics.scenery.attribute.renderable.DefaultRenderable
+import graphics.scenery.attribute.renderable.Renderable
 import graphics.scenery.backends.Renderer
 import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.backends.ShaderType
-import graphics.scenery.controls.GLFWMouseAndKeyHandler
-import graphics.scenery.controls.InputHandler
 import graphics.scenery.textures.Texture
 import imgui.*
 import imgui.classes.Context
 import imgui.impl.glfw.ImplGlfw
-import imgui.impl.mouseCursors
-import imgui.impl.mouseJustPressed
-import imgui.impl.time
 import kool.*
 import kool.lib.fill
 import org.joml.Vector2f
 import org.joml.Vector2i
 import org.joml.Vector3i
-import org.lwjgl.glfw.GLFW
 import org.lwjgl.system.MemoryUtil.*
-import uno.glfw.GlfwCursor
 import uno.glfw.GlfwWindow
-import uno.glfw.Joystick
-import uno.glfw.glfw
-import java.nio.ByteBuffer
 
 class MenuMesh(val hub: Hub) : Mesh("Menu") {
 
@@ -68,31 +57,35 @@ class MenuMesh(val hub: Hub) : Mesh("Menu") {
     // Setup Platform/Renderer bindings
     val implGlfw = ImplGlfw(window, true, vrTexSize)
 
-    override fun preDraw(): Boolean {
-        //        if(!stale) {
-        //            return true
-        //        }
+    override fun createRenderable(): Renderable {
+        return object : DefaultRenderable(this) {
+            override fun preDraw(): Boolean {
+                //        if(!stale) {
+                //            return true
+                //        }
 
-        // setup time step and input states
-        //        implGlfwNewFrame()
-        implGlfw.newFrame()
+                // setup time step and input states
+                //        implGlfwNewFrame()
+                implGlfw.newFrame()
 
-        ImGui.run {
+                ImGui.run {
 
-            newFrame()
+                    newFrame()
 
-            dsl.withFont(this@MenuMesh.font) {
+                    dsl.withFont(this@MenuMesh.font) {
 
-                // 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
-                if (showDemoWindow)
-                    showDemoWindow(::showDemoWindow)
+                        // 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
+                        if(showDemoWindow)
+                            showDemoWindow(::showDemoWindow)
 
-                menu(getScene()!!)
+                        menu(getScene()!!)
 
+                    }
+                }
+
+                return renderImgui()
             }
         }
-
-        return renderImgui()
     }
 
     fun renderImgui(): Boolean {
@@ -151,12 +144,19 @@ class MenuMesh(val hub: Hub) : Mesh("Menu") {
                 logger.info("Adding new node for ${drawList._ownerName}")
                 MenuNode(drawList._ownerName).also {
                     it.vertexSize = 2
-                    it.material = ShaderMaterial.fromClass(MenuNode::class.java, listOf(ShaderType.VertexShader, ShaderType.FragmentShader))
-                    it.material.textures["sTexture"] = fontMap
-                    it.material.blending.transparent = true
-                    it.material.blending.setOverlayBlending()
-                    it.material.cullingMode = Material.CullingMode.None
-                    it.material.depthTest = Material.DepthTest.Always
+                    it.setMaterial(
+                        ShaderMaterial.fromClass(
+                            MenuNode::class.java,
+                            listOf(ShaderType.VertexShader, ShaderType.FragmentShader)
+                        ))
+
+                    it.ifMaterial {
+                        textures["sTexture"] = fontMap
+                        blending.transparent = true
+                        blending.setOverlayBlending()
+                        cullingMode = Material.CullingMode.None
+                        depthTest = Material.DepthTest.Always
+                    }
                     addChild(it)
                 }
             }

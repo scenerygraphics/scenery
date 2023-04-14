@@ -10,6 +10,7 @@ import graphics.scenery.utils.ExtractsNatives
 import graphics.scenery.utils.ExtractsNatives.Platform.*
 import graphics.scenery.utils.LazyLogger
 import net.java.games.input.*
+import org.lwjgl.system.Platform
 import org.scijava.ui.behaviour.*
 import java.awt.Toolkit
 import java.awt.event.KeyEvent
@@ -142,51 +143,58 @@ open class MouseAndKeyHandlerBase : ControllerListener, ExtractsNatives {
             }
         }
 
-        try {
-            val platformJars = getNativeJars("jinput-platform", hint = ExtractsNatives.getPlatform().getPlatformJinputLibraryName())
-            logger.debug("Native JARs for JInput: ${platformJars.joinToString(", ")}")
-            val path = extractLibrariesFromJar(platformJars, load = false)
-            System.setProperty("net.java.games.input.librarypath", path)
+        // JInput is not available on ARM32/64
+        if(Platform.getArchitecture() == Platform.Architecture.X64) {
+            try {
+                val platformJars = getNativeJars("jinput-platform", hint = ExtractsNatives.getPlatform().getPlatformJinputLibraryName())
+                logger.debug("Native JARs for JInput: ${platformJars.joinToString(", ")}")
+                val path = extractLibrariesFromJar(platformJars, load = false)
+                System.setProperty("net.java.games.input.librarypath", path)
 
-            ControllerEnvironment.getDefaultEnvironment().controllers.forEach {
-                if (it.type == Controller.Type.STICK || it.type == Controller.Type.GAMEPAD) {
-                    this.controller = it
-                    logger.info("Added gamepad controller: $it")
-                }
-            }
-        } catch (e: Exception) {
-            logger.warn("Could not initialize JInput: ${e.message}")
-            logger.debug("Traceback: ${e.stackTrace}")
-        }
-
-        controllerThread = thread {
-            var queue: EventQueue
-            val event = Event()
-
-            while (!shouldClose) {
-                controller?.let { c ->
-                    c.poll()
-
-                    queue = c.eventQueue
-
-                    while (queue.getNextEvent(event)) {
-                        controllerEvent(event)
+                ControllerEnvironment.getDefaultEnvironment().controllers.forEach {
+                    if (it.type == Controller.Type.STICK || it.type == Controller.Type.GAMEPAD) {
+                        this.controller = it
+                        logger.info("Added gamepad controller: $it")
                     }
                 }
+            } catch(ule: UnsatisfiedLinkError) {
+                logger.warn("Could not initialize JInput due to an UnsatisfiedLinkError: ${ule.message}")
+                logger.warn("This could be to either your platform not being supported by JInput, or the JInput natives missing from the classpath.")
+                logger.debug("Traceback: ${ule.stackTrace}")
+            } catch (e: Exception) {
+                logger.warn("Could not initialize JInput: ${e.message}")
+                logger.debug("Traceback: ${e.stackTrace}")
+            }
 
-                gamepads.forEach { gamepad ->
-                    for (it in controllerAxisDown) {
-                        val b = gamepad.behaviour
-                        if (b is GamepadBehaviour) {
-                            if (abs(it.value) > 0.02f && b.axis.contains(it.key)) {
-                                logger.trace("Triggering ${it.key} because axis is down (${it.value})")
-                                b.axisEvent(it.key, it.value)
+            controllerThread = thread {
+                var queue: EventQueue
+                val event = Event()
+
+                while (!shouldClose) {
+                    controller?.let { c ->
+                        c.poll()
+
+                        queue = c.eventQueue
+
+                        while (queue.getNextEvent(event)) {
+                            controllerEvent(event)
+                        }
+                    }
+
+                    gamepads.forEach { gamepad ->
+                        for (it in controllerAxisDown) {
+                            val b = gamepad.behaviour
+                            if (b is GamepadBehaviour) {
+                                if (abs(it.value) > 0.02f && b.axis.contains(it.key)) {
+                                    logger.trace("Triggering ${it.key} because axis is down (${it.value})")
+                                    b.axisEvent(it.key, it.value)
+                                }
                             }
                         }
                     }
-                }
 
-                Thread.sleep(this.CONTROLLER_HEARTBEAT)
+                    Thread.sleep(this.CONTROLLER_HEARTBEAT)
+                }
             }
         }
     }

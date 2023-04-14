@@ -31,12 +31,12 @@ import org.scijava.ui.behaviour.*
 import org.scijava.ui.behaviour.io.InputTriggerConfig
 import java.awt.Component
 import java.awt.event.KeyEvent
+import java.awt.event.MouseEvent
 import java.io.File
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
 import java.nio.LongBuffer
 import java.nio.charset.Charset
-import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.absoluteValue
 
@@ -424,7 +424,9 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
      */
     override fun getPosition(): Vector3f {
         val m = getPose()
-        return Vector3f(-1.0f * m.get(0, 3), -1.0f * m.get(1, 3), -1.0f * m.get(2, 3))
+        val d = Vector3f(-1.0f * m.get(3, 0), -1.0f * m.get(3, 1), -1.0f * m.get(3, 2))
+        // the position is already rotated by the orientation therefore we need to inverse that the get the absolute position
+        return d.rotate(getOrientation().conjugate())
     }
 
     /**
@@ -592,6 +594,17 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
             }
         }
 
+        if (keysDown.isNotEmpty()) {
+            // do a simulated mouse movement to trigger drag behavior updates
+            inputHandler.mouseMoved(
+                MouseEvent(
+                    object : Component() {}, MouseEvent.MOUSE_CLICKED, System.nanoTime(),
+                    0, 0, 0, 0, 0, 1, false, 0
+                )
+            )
+        }
+
+
         hub?.get<Statistics>()?.let { stats ->
             val timing = CompositorFrameTiming.calloc(1)
             if(VRCompositor_GetFrameTiming(timing)) {
@@ -662,15 +675,15 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
 
                 readyForSubmission = false
 
-                val texture = Texture.callocStack(stack)
+                val texture = Texture.calloc(stack)
                     .eColorSpace(EColorSpace_ColorSpace_Gamma)
                     .eType(ETextureType_TextureType_OpenGL)
                     .handle(textureId.toLong())
 
-                val boundsLeft = VRTextureBounds.callocStack(stack).set(0.0f, 0.0f, 0.5f, 1.0f)
+                val boundsLeft = VRTextureBounds.calloc(stack).set(0.0f, 0.0f, 0.5f, 1.0f)
                 val errorLeft = VRCompositor_Submit(EVREye_Eye_Left, texture, boundsLeft, 0)
 
-                val boundsRight = VRTextureBounds.callocStack(stack).set(0.5f, 0.0f, 1.0f, 1.0f)
+                val boundsRight = VRTextureBounds.calloc(stack).set(0.5f, 0.0f, 1.0f, 1.0f)
                 val errorRight = VRCompositor_Submit(EVREye_Eye_Right, texture, boundsRight, 0)
 
                 if (errorLeft != EVRCompositorError_VRCompositorError_None
@@ -693,7 +706,7 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
         }
 
         stackPush().use { stack ->
-            val textureData = VRVulkanTextureData.callocStack(stack)
+            val textureData = VRVulkanTextureData.calloc(stack)
                 .m_nImage(image)
                 .m_pInstance(instance.address())
                 .m_pPhysicalDevice(device.physicalDevice.address())
@@ -705,7 +718,7 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
                 .m_nFormat(format)
                 .m_nSampleCount(1)
 
-            val texture = Texture.callocStack(stack)
+            val texture = Texture.calloc(stack)
                 .handle(textureData.address())
                 .eColorSpace(EColorSpace_ColorSpace_Gamma)
                 .eType(ETextureType_TextureType_Vulkan)
@@ -716,7 +729,7 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
                 commandPool = device.createCommandPool(device.queues.graphicsQueue.first)
             }
 
-            val subresourceRange = VkImageSubresourceRange.callocStack(stack)
+            val subresourceRange = VkImageSubresourceRange.calloc(stack)
                 .aspectMask(VK_IMAGE_ASPECT_COLOR_BIT)
                 .baseMipLevel(0)
                 .levelCount(1)
@@ -737,11 +750,11 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
                 )
 
                 logger.trace("Submitting left...")
-                val boundsLeft = VRTextureBounds.callocStack(stack).set(0.0f, 0.0f, 0.5f, 1.0f)
+                val boundsLeft = VRTextureBounds.calloc(stack).set(0.0f, 0.0f, 0.5f, 1.0f)
                 val errorLeft = VRCompositor_Submit(EVREye_Eye_Left, texture, boundsLeft, EVRSubmitFlags_Submit_Default)
 
                 logger.trace("Submitting right...")
-                val boundsRight = VRTextureBounds.callocStack(stack).set(0.5f, 0.0f, 1.0f, 1.0f)
+                val boundsRight = VRTextureBounds.calloc(stack).set(0.5f, 0.0f, 1.0f, 1.0f)
                 val errorRight = VRCompositor_Submit(EVREye_Eye_Right, texture, boundsRight, EVRSubmitFlags_Submit_Default)
 
                 // NOTE: Here, an "unsupported texture type" error can be thrown if the required Vulkan
@@ -943,9 +956,13 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
                 mesh.readFrom(path)
 
                 if (type == TrackedDeviceType.Controller) {
-                    mesh.material.diffuse = Vector3f(0.1f, 0.1f, 0.1f)
+                    mesh.ifMaterial {
+                        diffuse = Vector3f(0.1f, 0.1f, 0.1f)
+                    }
                     mesh.children.forEach { c ->
-                        c.material.diffuse = Vector3f(0.1f, 0.1f, 0.1f)
+                        c.ifMaterial {
+                            diffuse = Vector3f(0.1f, 0.1f, 0.1f)
+                        }
                     }
                 }
             }
@@ -1061,19 +1078,45 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
             this.getPose(TrackedDeviceType.Controller).firstOrNull { it.name == device.name }?.let { controller ->
 
                 node.metadata["TrackedDevice"] = controller
-                node.wantsComposeModel = false
-                node.model.identity()
-                camera?.let {
-                    node.model.translate(it.position)
-                }
-                node.model.mul(controller.pose)
+                node.ifSpatial {
+                    wantsComposeModel = false
+                    model.identity()
+                    camera?.let {
+                        model.translate(it.spatial().position)
+                    }
+                    model.mul(controller.pose)
 
 //                logger.info("Updating pose of $controller, ${node.model}")
 
-                node.needsUpdate = false
-                node.needsUpdateWorld = true
+                    needsUpdate = false
+                    needsUpdateWorld = true
+                }
             }
         }
+    }
+
+    /**
+     * Fades the view on the HMD to the black.
+     */
+    fun fadeToBlack(seconds: Float = 0.1f) {
+        fadeToColor(color = Vector4f(0f,0f,0f,1f), seconds)
+    }
+
+    /**
+     * Removes any previously overlayed color.
+     */
+    fun fateToClear(seconds: Float = 0.1f) {
+        fadeToColor(color = Vector4f(0f), seconds)
+    }
+
+    /**
+     * Fades the view on the HMD to the specified color.
+     *
+     * The fade will take [seconds], and the color values are between 0.0 and 1.0. This color is faded on top of the scene based on the alpha
+     * parameter. Removing the fade color instantly would be fadeToColor( 0.0, 0.0, 0.0, 0.0, 0.0 ). Values are in un-premultiplied alpha space.
+     */
+    override fun fadeToColor(color: Vector4f, seconds: Float) {
+        VRCompositor_FadeToColor(seconds, color.x, color.y, color.z, color.w, false)
     }
 
     /**

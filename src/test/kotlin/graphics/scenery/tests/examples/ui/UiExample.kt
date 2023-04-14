@@ -25,9 +25,9 @@ class UiExample : SceneryBase("TexturedCubeExample") {
 
         val box = Box(Vector3f(1.0f, 1.0f, 1.0f))
         box.name = "le box du win"
-        box.material.textures["diffuse"] = Texture.fromImage(Image.fromResource("textures/helix.png", TexturedCubeExample::class.java))
-        box.material.metallic = 0.3f
-        box.material.roughness = 0.9f
+        box.material().textures["diffuse"] = Texture.fromImage(Image.fromResource("textures/helix.png", TexturedCubeExample::class.java))
+        box.material().metallic = 0.3f
+        box.material().roughness = 0.9f
         scene.addChild(box)
 
         val light = PointLight(radius = 15.0f)
