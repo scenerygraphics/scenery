@@ -251,9 +251,6 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
          */
         fun calculateTriangles(curveGeometry: List<List<Vector3f>>, addCoverOrTop: Int = 2): Pair<FloatBuffer,FloatBuffer> {
             val verticesWithoutCoverBuffer = BufferUtils.allocateFloat((curveGeometry.dropLast(1).drop(1).flatten().size * 6 + (curveGeometry.last().size + curveGeometry.first().size)*3)*3)
-            //val verticesWithoutCover = ArrayList<Vector3f>(curveGeometry.flatten().size * 6)
-            //val verticesVectors = ArrayList<Vector3f>(curveGeometry.dropLast(1).drop(1).flatten().size * 6 +
-                //(curveGeometry.last().size + curveGeometry.first().size)*3 + curveGeometry.first().computeCoverVerticesCount(addCoverOrTop))
             val verticesBuffer = BufferUtils.allocateFloat((curveGeometry.dropLast(1).drop(1).flatten().size * 6 + (curveGeometry.last().size + curveGeometry.first().size)*3 +
                 curveGeometry.first().computeCoverVerticesCount(addCoverOrTop))*3)
             val normalsBuffer = BufferUtils.allocateFloat((curveGeometry.dropLast(1).drop(1).flatten().size * 6 +
@@ -272,9 +269,7 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
                         val triangle1Point1 = curveGeometry[shapeIndex][vertexIndex]
                         val triangle1Point2 = curveGeometry[shapeIndex][vertexIndex + 1]
                         val triangle1Point3 = curveGeometry[shapeIndex + 1][vertexIndex]
-//                        verticesWithoutCover.add(triangle1Point1)
-//                        verticesWithoutCover.add(triangle1Point2)
-//                        verticesWithoutCover.add(triangle1Point3)
+
                         verticesWithoutCoverBuffer.put(triangle1Point1.toFloatArray())
                         verticesWithoutCoverBuffer.put(triangle1Point2.toFloatArray())
                         verticesWithoutCoverBuffer.put(triangle1Point3.toFloatArray())
@@ -287,9 +282,6 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
                         val triangle2Point1 = curveGeometry[shapeIndex][vertexIndex + 1]
                         val triangle2Point2 = curveGeometry[shapeIndex + 1][vertexIndex + 1]
                         val triangle2Point3 = curveGeometry[shapeIndex + 1][vertexIndex]
-                        /*verticesWithoutCover.add(triangle2Point1)
-                        verticesWithoutCover.add(triangle2Point2)
-                        verticesWithoutCover.add(triangle2Point3)*/
 
                         verticesWithoutCoverBuffer.put(triangle2Point1.toFloatArray())
                         verticesWithoutCoverBuffer.put(triangle2Point2.toFloatArray())
@@ -303,9 +295,6 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
                     val triangle1Point1 = curveGeometry[shapeIndex][shape.lastIndex]
                     val triangle1Point2 = curveGeometry[shapeIndex][0]
                     val triangle1Point3 = curveGeometry[shapeIndex + 1][shape.lastIndex]
-                   /* verticesWithoutCover.add(triangle1Point1)
-                    verticesWithoutCover.add(triangle1Point2)
-                    verticesWithoutCover.add(triangle1Point3)*/
 
                     verticesWithoutCoverBuffer.put(triangle1Point1.toFloatArray())
                     verticesWithoutCoverBuffer.put(triangle1Point2.toFloatArray())
@@ -319,9 +308,6 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
                     val triangle2Point1 = curveGeometry[shapeIndex][0]
                     val triangle2Point2 = curveGeometry[shapeIndex + 1][0]
                     val triangle2Point3 = curveGeometry[shapeIndex + 1][shape.lastIndex]
-                    /*verticesWithoutCover.add(triangle2Point1)
-                    verticesWithoutCover.add(triangle2Point2)
-                    verticesWithoutCover.add(triangle2Point3)*/
 
                     verticesWithoutCoverBuffer.put(triangle2Point1.toFloatArray())
                     verticesWithoutCoverBuffer.put(triangle2Point2.toFloatArray())
@@ -594,6 +580,4 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
             boundingBox = generateBoundingBox()
         }
     }
-
-
 }
