@@ -24,7 +24,7 @@ interface Geometry : Buffers, Serializable {
     /** The [GeometryType] of the [Node] */
     var geometryType: GeometryType
 
-    //linked hashmap for ordered
+    //vertices should be renamed to positions!
     /** Array of the vertices. This buffer is _required_, but may empty. */
     var vertices: FloatBuffer
     /** Array of the normals. This buffer is _required_, and may _only_ be empty if [vertices] is empty as well. */
