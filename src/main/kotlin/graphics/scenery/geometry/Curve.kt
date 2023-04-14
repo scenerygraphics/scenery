@@ -562,7 +562,6 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
                 }
                 vertices.flip()
                 texcoords = BufferUtils.allocateFloat(verticesVectors.size * 2)
-                println("this is my capacity: ${normalVectors.capacity()}, this still hasn't been filled: ${normalVectors.remaining()}, lastly, this is the total necesseray capacity: ${verticesVectors.size}")
                 normals = normalVectors.duplicate()
                 normals.flip()
 
