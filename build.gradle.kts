@@ -25,6 +25,7 @@ repositories {
     maven("https://jitpack.io")
     maven("https://raw.githubusercontent.com/kotlin-graphics/mary/master")
     mavenLocal()
+    flatDir { dirs("imgui") }
 }
 
 dependencies {
@@ -68,7 +69,7 @@ dependencies {
             when {
                 // Vulkan binaries are only necessary on macOS
                 p.endsWith("vulkan") -> {
-                    if(native.contains("macos")) {
+                    if (native.contains("macos")) {
                         println("vulkan: org.lwjgl:lwjgl$p:$lwjglVersion:$native")
                         runtimeOnly("org.lwjgl:lwjgl$p:$lwjglVersion:$native")
                     }
@@ -77,7 +78,7 @@ dependencies {
                 // OpenVR binaries are available on all scenery-supported platforms,
                 // apart from macOS/ARM64
                 p.endsWith("openvr") -> {
-                    if(!(native.contains("macos") && native.contains("arm64"))) {
+                    if (!(native.contains("macos") && native.contains("arm64"))) {
                         println("openvr: org.lwjgl:lwjgl$p:$lwjglVersion:$native")
                         runtimeOnly("org.lwjgl:lwjgl$p:$lwjglVersion:$native")
                     }
@@ -135,11 +136,9 @@ dependencies {
     testImplementation("net.imglib2:imglib2-ij")
 
     listOf("core", "glfw", "gl").forEach {
-        implementation("kotlin.graphics:imgui-$it:1.79+04")
+//        implementation("kotlin.graphics:imgui-$it:1.89.2")
     }
-    implementation("kotlin.graphics:glm:0.9.9.1-3+23")
-    implementation("kotlin.graphics:kool:0.9.0+23")
-    implementation("kotlin.graphics:uno-core:0.7.9+35")
+    implementation("kotlin.graphics:imgui:1.89.2-all")
 }
 
 val isRelease: Boolean
@@ -213,7 +212,7 @@ tasks {
             scijavaRepo.appendNode("id", "scijava.public")
             scijavaRepo.appendNode("url", "https://maven.scijava.org/content/groups/public")
 
-            
+
             // Update the dependencies and properties
             val dependenciesNode = asNode().appendNode("dependencies")
             val propertiesNode = asNode().appendNode("properties")
@@ -232,14 +231,14 @@ tasks {
                     "-spvc",
                     "-shaderc",
                     "-vulkan",
-                ).forEach pkg@ { lwjglProject ->
+                ).forEach pkg@{ lwjglProject ->
                     // OpenVR does not have macOS binaries, Vulkan only has macOS binaries
-                    if(lwjglProject.contains("vulkan")
+                    if (lwjglProject.contains("vulkan")
                         && !nativePlatform.contains("mac")) {
                         return@pkg
                     }
 
-                    if(lwjglProject.contains("openvr")
+                    if (lwjglProject.contains("openvr")
                         && nativePlatform.contains("mac")
                         && nativePlatform.contains("arm64")) {
                         return@pkg
@@ -321,10 +320,10 @@ tasks {
             configurations.implementation.get().allDependencies.forEach {
                 val artifactId = it.name
 
-                if( !toSkip.contains(artifactId) ) {
+                if (!toSkip.contains(artifactId)) {
                     val propertyName = "$artifactId.version"
 
-                    if( versionedArtifacts.contains(artifactId) ) {
+                    if (versionedArtifacts.contains(artifactId)) {
                         // add "<artifactid.version>[version]</artifactid.version>" to pom
                         propertiesNode.appendNode(propertyName, it.version)
                     }
@@ -336,18 +335,18 @@ tasks {
 
                     // Custom per artifact tweaks
                     println(artifactId)
-                    if("\\-bom".toRegex().find(artifactId) != null) {
+                    if ("\\-bom".toRegex().find(artifactId) != null) {
                         node.appendNode("type", "pom")
                     }
                     // from https://github.com/scenerygraphics/sciview/pull/399#issuecomment-904732945
-                    if(artifactId == "formats-gpl") {
+                    if (artifactId == "formats-gpl") {
                         node.addExclusions(
                             "com.fasterxml.jackson.core:jackson-core",
                             "com.fasterxml.jackson.core:jackson-annotations"
                         )
                     }
 
-                    if(artifactId.startsWith("biojava")) {
+                    if (artifactId.startsWith("biojava")) {
                         node.addExclusions(
                             "org.slf4j:slf4j-api",
                             "org.slf4j:slf4j-simple",
@@ -362,7 +361,7 @@ tasks {
             var depEndIdx = "</dependencyManagement>".toRegex().find(asString())?.range?.last
             if (depStartIdx != null) {
                 if (depEndIdx != null) {
-                    asString().replace(depStartIdx, depEndIdx+1, "")
+                    asString().replace(depStartIdx, depEndIdx + 1, "")
                 }
             }
 
@@ -370,7 +369,7 @@ tasks {
             depEndIdx = "</dependencies>".toRegex().find(asString())?.range?.last
             if (depStartIdx != null) {
                 if (depEndIdx != null) {
-                    asString().replace(depStartIdx, depEndIdx+1, "")
+                    asString().replace(depStartIdx, depEndIdx + 1, "")
                 }
             }
         }
@@ -386,7 +385,7 @@ tasks {
             }
         }
     }
-    
+
     named<ShadowJar>("shadowJar") {
         isZip64 = true
     }
@@ -405,7 +404,7 @@ val dokkaHtmlJar by tasks.register<Jar>("dokkaHtmlJar") {
 }
 
 artifacts {
-    if(isRelease) {
+    if (isRelease) {
         archives(dokkaJavadocJar)
         archives(dokkaHtmlJar)
     }
@@ -423,7 +422,7 @@ plugins.withType<JacocoPlugin>() {
 
 // disable Gradle metadata file creation on Jitpack, as jitpack modifies
 // the metadata file, resulting in broken metadata with missing native dependencies.
-if(System.getenv("JITPACK") != null) {
+if (System.getenv("JITPACK") != null) {
     tasks.withType<GenerateModuleMetadata> {
         enabled = false
     }
