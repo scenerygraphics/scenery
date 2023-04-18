@@ -6,6 +6,7 @@ import graphics.scenery.attribute.renderable.DelegatesRenderable
 import graphics.scenery.attribute.renderable.HasCustomRenderable
 import graphics.scenery.attribute.renderable.Renderable
 import graphics.scenery.backends.*
+import graphics.scenery.backends.dlss.DLSS
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.*
 import io.github.classgraph.ClassGraph
@@ -178,6 +179,15 @@ open class VulkanRenderer(hub: Hub,
 
                     flow = flowAndPasses.first
                     flowAndPasses.second.forEach { (k, v) -> renderpasses.put(k, v) }
+
+                    val dlss = hub?.get<DLSS>()
+
+                    renderpasses.forEach {
+                        with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
+                            val size = it.value.passConfig.viewportSize
+                            dlss?.createFeature(device, this, optimalSettings =  dlss.getOptimalSettings(DLSS.DLSSPreset.MaxPerformance, (window.width * size.first).toInt(), (window.height * size.second).toInt()))
+                        }
+                    }
 
                     semaphores.forEach { it.value.forEach { semaphore -> device.removeSemaphore(semaphore) }}
                     semaphores = prepareStandardSemaphores(device)
@@ -438,9 +448,11 @@ open class VulkanRenderer(hub: Hub,
         return scene
     }
 
+    val dlss: DLSS
     init {
         stackPush().use { stack ->
             this.hub = hub
+            this.dlss = DLSS(hub)
 
             val hmd = hub.getWorkingHMDDisplay()
             if (hmd != null) {
@@ -575,7 +587,17 @@ open class VulkanRenderer(hub: Hub,
 
             device = VulkanDevice.fromPhysicalDevice(instance,
                 physicalDeviceFilter = { _, device -> "${device.vendor} ${device.name}".contains(System.getProperty("scenery.Renderer.Device", "DOES_NOT_EXIST"))},
-                additionalExtensions = { physicalDevice -> hub.getWorkingHMDDisplay()?.getVulkanDeviceExtensions(physicalDevice)?.toTypedArray() ?: arrayOf() },
+                additionalExtensions = { physicalDevice ->
+                    val exts = arrayListOf<String>()
+                    hub.getWorkingHMDDisplay()?.getVulkanDeviceExtensions(physicalDevice)?.toTypedArray()?.let {
+                        exts.addAll(it)
+                    }
+                    dlss.getRequiredDeviceExtensions(instance, physicalDevice)
+                    // TODO: Ask Nvidia why these extensions need to be requested explicitly
+                    exts.add("VK_KHR_buffer_device_address")
+                    exts.add("VK_NVX_binary_import")
+                    exts.toTypedArray()
+                },
                 validationLayers = requestedValidationLayers,
                 headless = headless,
                 debugEnabled = validation
@@ -638,6 +660,15 @@ open class VulkanRenderer(hub: Hub,
             }.apply {
                 embedIn(embedIn)
                 window = createWindow(window, swapchainRecreator)
+            }
+
+            logger.info("Preparing DLSS")
+            dlss.init(133337L, instance.address(), device.physicalDevice.address(), device.vulkanDevice.address())
+            if(dlss.getDLSSSupported()) {
+                val dlssSettings = dlss.getOptimalSettings(DLSS.DLSSPreset.MaxPerformance, windowWidth, windowHeight)
+                logger.info("Optimal DLSS settings are: $dlssSettings")
+
+                hub.add(dlss)
             }
 
             logger.debug("Created swapchain")
@@ -1840,8 +1871,11 @@ open class VulkanRenderer(hub: Hub,
         }
     }
 
+
     private fun createInstance(requiredExtensions: PointerBuffer? = null, enableValidations: Boolean = false, headless: Boolean = false): VkInstance {
         return stackPush().use { stack ->
+            val dlssInstanceExtensions = dlss.getRequiredInstanceExtensions()
+
             val supportedExtensions = getSupportedExtensions()
 
             val appInfo = VkApplicationInfo.calloc(stack)
@@ -1851,6 +1885,9 @@ open class VulkanRenderer(hub: Hub,
                 .apiVersion(VK_MAKE_VERSION(1, 1, 0))
 
             val additionalExts = ArrayList<String>()
+            dlssInstanceExtensions.forEach {
+                additionalExts.add(it.extensionNameString())
+            }
             hub?.getWorkingHMDDisplay()?.getVulkanInstanceExtensions()?.forEach { additionalExts.add(it) }
 
             if(enableValidations) {

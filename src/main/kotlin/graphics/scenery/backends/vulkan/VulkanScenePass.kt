@@ -11,6 +11,7 @@ import graphics.scenery.attribute.HasDelegationType
 import graphics.scenery.attribute.DelegationType
 import graphics.scenery.attribute.renderable.Renderable
 import graphics.scenery.backends.ShaderIntrospection
+import graphics.scenery.backends.dlss.DLSS
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.Statistics
@@ -144,6 +145,7 @@ object VulkanScenePass {
 
         // command buffer cannot be null here anymore, otherwise this is clearly in error
         with(commandBuffer.prepareAndStartRecording(commandPools.Render)) {
+
             if(pass.passConfig.blitInputs) {
                 for ((name, input) in pass.inputs) {
                     this.blitInputsForPass(pass, name, input)
