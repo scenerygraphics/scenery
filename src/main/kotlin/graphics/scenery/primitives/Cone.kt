@@ -27,18 +27,6 @@ class Cone(val radius: Float, val height: Float, val segments: Int, axis: Vector
     val axis: Vector3f = Vector3f(axis).normalize()
 
     init {
-        /*  Its either geometry {} or with geometry buffer instanced delegating to Buffers ( or DefaultBuffers? )
-            buffers {
-                Buffers.buffers = addToMapwithKey[Positions] = BufferUtils.allocateBytes(2 * 3 * segments * 3) (the delegation setter override casts ByteBuffer to be FloatBuffer
-                Buffers.buffers = addToMapwithKey[Normals] = BufferUtils.allocateBytes(2 * 3 * segments * 3) (the delegation setter override casts ByteBuffer to be FloatBuffer
-                Buffers.buffers = addToMapwithKey[TexCoords] = BufferUtils.allocateBytes(2 * 3 * segments * 3) (the delegation setter override casts ByteBuffer to be FloatBuffer
-
-                Buffers.buffers = addToMapwithKey[CustomType] = BufferUtils.allocateBytes(2 * 3 * segments * 3) (the delegation setter override casts ByteBuffer to be WichedType
-
-            }
-
-         */
-
         geometry {
             vertices = BufferUtils.allocateFloat(2 * 3 * segments * 3)
             normals = BufferUtils.allocateFloat(2 * 3 * segments * 3)
