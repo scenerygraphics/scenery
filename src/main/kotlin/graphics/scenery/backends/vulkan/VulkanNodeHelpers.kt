@@ -154,6 +154,33 @@ object VulkanNodeHelpers {
         return state
     }
 
+    fun updateShaderStorageBuffers(
+    device: VulkanDevice,
+    node: Node,
+    key: String,
+    state: VulkanObjectState,
+    stagingPool: VulkanBufferPool,
+    ssboUploadPool: VulkanBufferPool,
+    ssboDownloadPool: VulkanBufferPool,
+    commandPools: VulkanRenderer.CommandPools,
+    queue: VkQueue
+    ): VulkanObjectState {
+        val buffers = node.buffersOrNull() ?: return state
+        val ssboOriginal = buffers.buffers[key] ?: return state
+        val ssbo = ssboOriginal.duplicate()
+        // TODO: catch if key/description  not present instead of returning
+        val description = buffers.description[key] ?: return state
+
+
+        if(ssbo.remaining() < 0)
+            return state
+
+
+
+
+        return state
+    }
+
     /**
      * Updates instance buffers for a given [node] on [device]. Modifies the [node]'s [state]
      * and allocates necessary command buffers from [commandPools] and submits to [queue]. Returns the [node]'s modified [VulkanObjectState].
@@ -352,7 +379,14 @@ object VulkanNodeHelpers {
      *
      * Returns true if the node has been given a custom shader, and false if not.
      */
-    fun initializeCustomShadersForNode(device: VulkanDevice, node: Node, addInitializer: Boolean = true, renderpasses: Map<String, VulkanRenderpass>, lateResizeInitializers: MutableMap<Renderable, () -> Any>, buffers: VulkanRenderer.DefaultBuffers): Boolean {
+    fun initializeCustomShadersForNode(
+        device: VulkanDevice,
+        node: Node,
+        addInitializer: Boolean = true,
+        renderpasses: Map<String, VulkanRenderpass>,
+        lateResizeInitializers: MutableMap<Renderable, () -> Any>,
+        buffers: VulkanRenderer.DefaultBuffers)
+    : Boolean {
 
         val renderable = node.renderableOrNull() ?: return false
         val material = node.materialOrNull() ?: return false

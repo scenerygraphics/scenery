@@ -31,6 +31,7 @@ open class DefaultGeometry(private var node: Node): Geometry {
     @delegate:Transient override var normals: FloatBuffer by buffers
     @delegate:Transient override var texcoords: FloatBuffer by buffers
     @delegate:Transient override var indices: IntBuffer by buffers
+    override var dirtySSBOs = false
     override var vertexSize = 3
     override var texcoordSize = 2
     override var dirty: Boolean = true
