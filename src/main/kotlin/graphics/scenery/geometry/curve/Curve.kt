@@ -17,18 +17,22 @@ import kotlin.math.acos
  * be visualized flawlessly. Furthermore, all baseShapes ought to be convex.
  *
  * @author  Justin Buerger <burger@mpi-cbg.de>
- * @param [spline] the spline along which the geometry will be rendered
  * @param [baseShape] a lambda which returns all the baseShapes along the curve
- * @param [firstPerpendicularVector] vector to which the first frenet tangent shall be perpendicular to.
+ * @param [spline] the spline along which the geometry will be rendered
  * @param [partitionAlongControlpoints] flag to indicate that the curve should be divided into subcurves, one for each
  * controlpoint, note that this option prohibits the use of different baseShapes
  */
 
-class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private val firstPerpendicularVector: Vector3f = Vector3f(0f, 0f, 0f),
-            baseShape: () -> List<List<Vector3f>>): Mesh("CurveGeometry") {
-    val chain = spline.splinePoints()
-    private val sectionVertices = spline.verticesCountPerSection()
+class Curve(baseShape: () -> List<List<Vector3f>>, spline: Spline,
+            private val firstPerpendicularVector: Vector3f = Vector3f(0f, 0f, 0f),
+            partitionAlongControlpoints: Boolean = true): Mesh("CurveGeometry") {
+
+
     private val countList = ArrayList<Int>(50).toMutableList()
+    private val frenetFrameCalculator = FrenetFrameCalculator(spline, firstPerpendicularVector)
+    private val frames = frenetFrameCalculator.computeFrenetFrames()
+    private val sectionVertices = spline.verticesCountPerSection()
+
 
     /*
      * This function renders the spline.
@@ -38,10 +42,10 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
      * a banister.
      */
     init {
-        if (chain.isEmpty()) {
+        if (frames.isEmpty()) {
             logger.warn("The spline provided for the Curve is empty.")
         }
-        val bases = computeFrenetFrames(chain as ArrayList<Vector3f>).map { (t, n, b, tr) ->
+        val bases = frames.map { (t, n, b, tr) ->
             val inverseMatrix = Matrix3f(b.x(), n.x(), t.x(),
                     b.y(), n.y(), t.y(),
                     b.z(), n.z(), t.z()).invert()
@@ -158,91 +162,6 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
         }
     }
 
-    /**
-     * This function calculates the tangent at a given index.
-     * [i] index of the curve (not the geometry!)
-     */
-    private fun getTangent(i: Int): Vector3f {
-        if(chain.size >= 3) {
-            val tangent = Vector3f()
-            when (i) {
-                0 -> { ((chain[1].sub(chain[0], tangent)).normalize()) }
-                1 -> { ((chain[2].sub(chain[0], tangent)).normalize()) }
-                chain.lastIndex - 1 -> { ((chain[i + 1].sub(chain[i - 1], tangent)).normalize()) }
-                chain.lastIndex -> { ((chain[i].sub(chain[i - 1], tangent)).normalize()) }
-                else -> {
-                    chain[i+1].sub(chain[i-1], tangent).normalize()
-                }
-            }
-            return tangent
-        }
-        else {
-            throw Exception("The spline deosn't provide enough points")
-        }
-    }
-
-    /**
-     * Data class to store Frenet frames (wandering coordinate systems), consisting of [tangent], [normal], [binormal]
-     */
-    data class FrenetFrame(val tangent: Vector3f, var normal: Vector3f, var binormal: Vector3f, val translation: Vector3f)
-    /**
-     * This function returns the frenet frames along the curve. This is essentially a new
-     * coordinate system which represents the form of the curve. For details concerning the
-     * calculation see: http://www.cs.indiana.edu/pub/techreports/TR425.pdf
-     */
-    fun computeFrenetFrames(curve: ArrayList<Vector3f>): List<FrenetFrame> {
-
-        val frenetFrameList = ArrayList<FrenetFrame>(curve.size)
-
-        if(curve.isEmpty()) {
-            return frenetFrameList
-        }
-
-        //adds all the tangent vectors
-        curve.forEachIndexed { index, _ ->
-            val frenetFrame = FrenetFrame(getTangent(index), Vector3f(), Vector3f(), curve[index])
-            frenetFrameList.add(frenetFrame)
-        }
-        var min = MIN_VALUE
-        val vec = Vector3f(0f, 0f, 0f)
-        vec.set(firstPerpendicularVector)
-        if(vec == Vector3f(0f, 0f, 0f)) {
-            val normal = Vector3f()
-            if (frenetFrameList[0].tangent.x() <= min) {
-                min = frenetFrameList[0].tangent.x()
-                normal.set(1f, 0f, 0f)
-            }
-            if (frenetFrameList[0].tangent.y() <= min) {
-                min = frenetFrameList[0].tangent.y()
-                normal.set(0f, 1f, 0f)
-            }
-            if (frenetFrameList[0].tangent.z() <= min) {
-                normal.set(0f, 0f, 1f)
-            } else {
-                normal.set(1f, 0f, 0f).normalize()
-            }
-            frenetFrameList[0].tangent.cross(normal, vec).normalize()
-        }
-        else { vec.normalize() }
-        frenetFrameList[0].tangent.cross(vec, frenetFrameList[0].normal).normalize()
-        frenetFrameList[0].tangent.cross(frenetFrameList[0].normal, frenetFrameList[0].binormal).normalize()
-
-        frenetFrameList.windowed(2,1).forEach { (firstFrame, secondFrame) ->
-            val b = Vector3f(firstFrame.tangent).cross(secondFrame.tangent)
-            secondFrame.normal = firstFrame.normal.normalize()
-            //if there is no substantial difference between two tangent vectors, the frenet frame need not change
-            if (b.length() > 0.00001f) {
-                val firstNormal = firstFrame.normal
-                b.normalize()
-                val theta = acos(firstFrame.tangent.dot(secondFrame.tangent).coerceIn(-1f, 1f))
-                val q = Quaternionf(AxisAngle4f(theta, b)).normalize()
-                secondFrame.normal = q.transform(Vector3f(firstNormal)).normalize()
-            }
-            secondFrame.tangent.cross(secondFrame.normal, secondFrame.binormal).normalize()
-        }
-        return frenetFrameList.filterNot { it.binormal.toFloatArray().all { value -> value.isNaN() } &&
-                it.normal.toFloatArray().all{ value -> value.isNaN()}}
-    }
 
     companion object VerticesCalculation {
         /**
