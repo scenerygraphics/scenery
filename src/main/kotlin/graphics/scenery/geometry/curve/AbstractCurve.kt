@@ -57,15 +57,17 @@ abstract class AbstractCurve (spline: Spline,
                 nb.z(), nn.z(), nt.z(), 0f,
                 tr.x(), tr.y(), tr.z(), 1f)
         }
-        val transformedBaseShapes = ArrayList<List<Vector3f>>(baseShapes.size)
-        baseShapes.forEachIndexed { index, shape ->
+        val transformedBaseShapes = ArrayList<List<Vector3f>>(bases.size)
+        bases.forEachIndexed {index, base ->
+            val shape = if(baseShapes.size==1) { baseShapes.first() } else { baseShapes[index] }
             val transformedShape = ArrayList<Vector3f>(shape.size)
             shape.forEach { point ->
                 val transformedPoint = Vector3f()
-                bases[index].transformPosition(point, transformedPoint)
+                base.transformPosition(point, transformedPoint)
                 transformedShape.add(transformedPoint)
             }
             transformedBaseShapes.add(transformedShape)
+
         }
 
         if(partitionAlongControlpoints) {
