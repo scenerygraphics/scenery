@@ -1,7 +1,8 @@
-package graphics.scenery.geometry
+package graphics.scenery.geometry.curve
 
 import graphics.scenery.BufferUtils
 import graphics.scenery.Mesh
+import graphics.scenery.geometry.Spline
 import graphics.scenery.utils.extensions.toFloatArray
 import org.joml.*
 import java.nio.FloatBuffer
@@ -559,25 +560,6 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
                 if (odd) { subListSize ++ }
             }
             return coverVerticesCount*3
-        }
-    }
-
-    /**
-     * Each child of the curve must be, per definition, another Mesh. Therefore, this class turns a List of
-     * vertices into a Mesh.
-     */
-    class PartialCurve(verticesBuffer: FloatBuffer, normalVectors: FloatBuffer) : Mesh("PartialCurve") {
-        init {
-            geometry {
-                vertices = verticesBuffer.duplicate()
-                vertices.flip()
-                texcoords = BufferUtils.allocateFloat(verticesBuffer.capacity() * 2)
-                normals = normalVectors.duplicate()
-                normals.flip()
-
-                boundingBox = generateBoundingBox()
-            }
-            boundingBox = generateBoundingBox()
         }
     }
 }
