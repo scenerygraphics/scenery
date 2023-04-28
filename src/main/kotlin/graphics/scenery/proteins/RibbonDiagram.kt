@@ -1,12 +1,13 @@
 package graphics.scenery.proteins
 
-import graphics.scenery.geometry.Curve
+import graphics.scenery.geometry.curve.Curve
 import graphics.scenery.geometry.DummySpline
 import graphics.scenery.geometry.Spline
 import graphics.scenery.geometry.UniformBSpline
 import org.joml.*
 import graphics.scenery.numerics.Random
 import graphics.scenery.Mesh
+import graphics.scenery.geometry.curve.CurveSingleShape
 import org.biojava.nbio.structure.Atom
 import org.biojava.nbio.structure.Group
 import org.biojava.nbio.structure.secstruc.SecStrucCalc
@@ -233,11 +234,10 @@ class RibbonDiagram(val protein: Protein, private val displaySS: Boolean = false
                             if (i + (sectionVerticesCount + 1) * j <= helpSpline.lastIndex) {
                                 splineOffset++
                                 subSpline.add(helpSpline[i + (sectionVerticesCount+1) * j])
-                                ssSubList.add(octagon)
                             }
                         }
                     }
-                    val coilCurve = Curve(DummySpline(subSpline, sectionVerticesCount)) { baseShape(ssSubList) }
+                    val coilCurve = CurveSingleShape(DummySpline(subSpline, sectionVerticesCount), octagon)
                     if(displaySS) { coils.addChild(coilCurve) }
                     else { subParent.addChild(coilCurve) }
                 }
