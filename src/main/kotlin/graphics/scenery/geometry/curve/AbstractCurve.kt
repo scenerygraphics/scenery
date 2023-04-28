@@ -20,10 +20,8 @@ import org.joml.*
 
 abstract class AbstractCurve (spline: Spline,
              firstPerpendicularVector: Vector3f = Vector3f(0f, 0f, 0f),
-             partitionAlongControlpoints: Boolean = true): Mesh("CurveGeometry"), CurveInterface {
+             partitionAlongControlpoints: Boolean = true, baseShapes: List<List<Vector3f>>): Mesh("CurveGeometry"), CurveInterface {
 
-
-    abstract val baseShapes: List<List<Vector3f>>
     private val countList = ArrayList<Int>(50).toMutableList()
     private val frenetFrameCalculator = FrenetFrameCalculator(spline, firstPerpendicularVector)
     private val frames = frenetFrameCalculator.computeFrenetFrames()

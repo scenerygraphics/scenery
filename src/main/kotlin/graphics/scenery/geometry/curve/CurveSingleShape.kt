@@ -7,10 +7,7 @@ import org.joml.*
  * Curve implementing the baseShapes with only a single shape, allowing for more efficient storage
  */
 
-class CurveSingleShape (spline: Spline, firstPerpendicularVector: Vector3f = Vector3f(0f, 0f, 0f),
-             partitionAlongControlpoints: Boolean = true, baseShape: List<Vector3f>):
-    AbstractCurve(spline, firstPerpendicularVector, partitionAlongControlpoints) {
-
-    //invokation of the baseShapes
-    override val baseShapes: List<List<Vector3f>> = listOf(baseShape)
-}
+class CurveSingleShape (spline: Spline, baseShape: List<Vector3f>,
+                        firstPerpendicularVector: Vector3f = Vector3f(0f, 0f, 0f),
+                        partitionAlongControlpoints: Boolean = true):
+    AbstractCurve(spline, firstPerpendicularVector, partitionAlongControlpoints, listOf(baseShape)) {}
