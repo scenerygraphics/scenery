@@ -1,8 +1,9 @@
 package graphics.scenery.proteins
 
-import graphics.scenery.geometry.Curve
 import graphics.scenery.geometry.Spline
 import graphics.scenery.Mesh
+import graphics.scenery.geometry.curve.CurveInterface
+import graphics.scenery.geometry.curve.PartialCurve
 import org.joml.*
 
 /**
@@ -13,9 +14,9 @@ import org.joml.*
  *
  * @author  Justin Buerger <burger@mpi-cbg.de>
  */
-class Helix (private val axis: MathLine, val spline: Spline, baseShape: () -> List<Vector3f>): Mesh("Helix") {
+class Helix (private val axis: MathLine, val spline: Spline, baseShapes: () -> List<Vector3f>): Mesh("Helix") {
     val splinePoints = spline.splinePoints()
-    private val shape = baseShape.invoke()
+    private val shapes = baseShapes.invoke()
     private val axisVector = axis.direction
     private val axisPoint = axis.position
 
@@ -94,7 +95,7 @@ class Helix (private val axis: MathLine, val spline: Spline, baseShape: () -> Li
                 xAxis.y(), yAxis.y(), zAxis.y(), 0f,
                 xAxis.z(), yAxis.z(), zAxis.z(), 0f,
                 point.x(), point.y(), point.z(), 1f)
-            transformedShapes.add(shape.map { shapePoint ->
+            transformedShapes.add(shapes.map { shapePoint ->
                 val transformedPoint = Vector3f()
                 transformMatrix.transformPosition(shapePoint, transformedPoint)
             })
@@ -104,7 +105,7 @@ class Helix (private val axis: MathLine, val spline: Spline, baseShape: () -> Li
 
     private fun calcMesh(section: List<List<Vector3f>>, i: Int): Mesh {
         //algorithms from the curve class, see Curve (line 219-322)
-        val helixSectionVertices = Curve.calculateTriangles(section, i)
-        return Curve.PartialCurve(helixSectionVertices.first, helixSectionVertices.second)
+        val helixSectionVertices = CurveInterface.calculateTriangles(section, i)
+        return PartialCurve(helixSectionVertices.first, helixSectionVertices.second)
     }
 }
