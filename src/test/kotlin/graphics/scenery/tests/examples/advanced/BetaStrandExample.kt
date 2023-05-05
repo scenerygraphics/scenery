@@ -3,7 +3,7 @@ package graphics.scenery.tests.examples.advanced
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.geometry.CatmullRomSpline
-import graphics.scenery.geometry.Curve
+import graphics.scenery.geometry.curve.Curve
 import graphics.scenery.numerics.Random
 import graphics.scenery.attribute.material.Material
 import org.joml.Vector3f
