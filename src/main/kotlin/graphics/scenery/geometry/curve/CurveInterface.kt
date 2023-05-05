@@ -6,19 +6,18 @@ import org.joml.Vector3f
 import java.nio.FloatBuffer
 
 interface CurveInterface {
-
     companion object VerticesCalculation {
         /**
          * This function calculates the triangles for the rendering. It takes as a parameter
          * the [curveGeometry] List which contains all the baseShapes transformed and translated
          * along the curve.
          */
-        fun calculateTriangles(curveGeometry: List<List<Vector3f>>, addCoverOrTop: Int = 2): Pair<FloatBuffer,FloatBuffer> {
+        fun calculateTriangles(curveGeometry: List<List<Vector3f>>, cover: CurveCover = CurveCover.None): Pair<FloatBuffer,FloatBuffer> {
             val verticesWithoutCoverBuffer = BufferUtils.allocateFloat((curveGeometry.dropLast(1).drop(1).flatten().size * 6 + (curveGeometry.last().size + curveGeometry.first().size)*3)*3)
             val verticesBuffer = BufferUtils.allocateFloat((curveGeometry.dropLast(1).drop(1).flatten().size * 6 + (curveGeometry.last().size + curveGeometry.first().size)*3 +
-                curveGeometry.first().computeCoverVerticesCount(addCoverOrTop))*3)
+                curveGeometry.first().computeCoverVerticesCount(cover))*3)
             val normalsBuffer = BufferUtils.allocateFloat((curveGeometry.dropLast(1).drop(1).flatten().size * 6 +
-                (curveGeometry.last().size + curveGeometry.first().size)*3 + curveGeometry.first().computeCoverVerticesCount(addCoverOrTop))*3)
+                (curveGeometry.last().size + curveGeometry.first().size)*3 + curveGeometry.first().computeCoverVerticesCount(cover))*3)
             if (curveGeometry.isEmpty()) {
                 return Pair(verticesBuffer, normalsBuffer)
             }
@@ -87,7 +86,7 @@ interface CurveInterface {
                 }
 
                 //add the vertices and normals to the first cover to the final buffers
-                if(addCoverOrTop == 0) {
+                if(cover == CurveCover.Top || cover == CurveCover.Both) {
                     val newVerticesAndNormals = getCoverVertices(curveGeometry.first(), true,
                         intermediateNormals.first().filterIndexed{index, _ -> index %2 == 1}.map { it.normalize() })
                     newVerticesAndNormals.first.forEach {
@@ -104,7 +103,7 @@ interface CurveInterface {
                 val curveNormals = computeNormals(intermediateNormals, curveGeometry.first().size)
                 curveNormals.rewind()
                 normalsBuffer.put(curveNormals)
-                if (addCoverOrTop == 2) {
+                if (cover == CurveCover.Bottom || cover == CurveCover.Both) {
                     val newVerticesAndNormals = getCoverVertices(curveGeometry.last(), false,
                         intermediateNormals.last().filterIndexed{index, _ -> index %2 == 0}.map { it.normalize() })
                     newVerticesAndNormals.first.forEach {
@@ -312,8 +311,8 @@ interface CurveInterface {
             }
             return finalNormalsBuffer
         }
-        fun <T> List<T>.computeCoverVerticesCount(addCoverOrTop: Int): Int {
-            if(addCoverOrTop == 1)  {return  0 }
+        fun <T> List<T>.computeCoverVerticesCount(cover: CurveCover): Int {
+            if(cover == CurveCover.None)  {return  0 }
             var coverVerticesCount = 0
             var subListSize = this.size
             while(subListSize > 2) {
