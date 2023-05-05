@@ -65,13 +65,9 @@ abstract class AbstractCurve (spline: Spline,
                 transformedShape.add(transformedPoint)
             }
             transformedBaseShapes.add(transformedShape)
-
         }
 
         if(partitionAlongControlpoints) {
-            if(transformedBaseShapes.size < sectionVertices +1) {
-                println(transformedBaseShapes.size)
-            }
             val subShapes = transformedBaseShapes.windowed(sectionVertices+1, sectionVertices+1, true)
             subShapes.forEachIndexed { index, list ->
                 //fill gaps
@@ -96,63 +92,72 @@ abstract class AbstractCurve (spline: Spline,
             }
         }
         else {
-            var partialCurveSize = 1
-            baseShapes.windowed(2, 1) { frame ->
-                when (frame[0].size) {
-                    frame[1].size -> {
-                        partialCurveSize++
-                    }
-                    else -> {
-                        countList.add(partialCurveSize)
-                        partialCurveSize = 1
-                    }
-                }
-            }
-            countList.add(partialCurveSize)
-            var position = 0
-            var lastShapeUnique = false
-            if (countList.last() == 1) {
-                countList.removeAt(countList.lastIndex)
-                lastShapeUnique = true
-            }
-
-            countList.forEachIndexed { index, count ->
-                val partialCurveGeometry = ArrayList<List<Vector3f>>(count)
-                for (j in 0 until count) {
-                    partialCurveGeometry.add(transformedBaseShapes[position])
-                    position++
-                }
-                val helpPosition = position
-                //fill the gaps between the different shapes
-                if (helpPosition < bases.lastIndex) {
-                    val shape = baseShapes[helpPosition - 1]
-                    val shapeVertexList = ArrayList<Vector3f>(shape.size)
-                    shape.forEach {
-                        val vec = Vector3f()
-                        shapeVertexList.add(bases[helpPosition].transformPosition(it, vec))
-                    }
-                    partialCurveGeometry.add(shapeVertexList)
-                }
-                //edge case: the last shape is different from its predecessor
-                if (lastShapeUnique && helpPosition == bases.lastIndex) {
-                    val shape = baseShapes[helpPosition - 1]
-                    val shapeVertexList = ArrayList<Vector3f>(shape.size)
-                    shape.forEach {
-                        val vec = Vector3f()
-                        shapeVertexList.add(bases[helpPosition].transformPosition(it, vec))
-                    }
-                    partialCurveGeometry.add(shapeVertexList)
-                }
-                val i = if (index == 0) {
-                    0
-                } else if (index == countList.size - 1) {
-                    2
-                } else {
-                    1
-                }
-                val trianglesAndNormals = CurveInterface.calculateTriangles(partialCurveGeometry, i)
+            //case of a single baseShape by construction
+            if (baseShapes.size == 1 && bases.size > 1) {
+                val trianglesAndNormals = CurveInterface.calculateTriangles(transformedBaseShapes)
                 val partialCurve = PartialCurve(trianglesAndNormals.first, trianglesAndNormals.second)
                 this.addChild(partialCurve)
+            }
+            else {
+                var partialCurveSize = 1
+                baseShapes.windowed(2, 1) { frame ->
+                    when (frame[0].size) {
+                        frame[1].size -> {
+                            partialCurveSize++
+                        }
+
+                        else -> {
+                            countList.add(partialCurveSize)
+                            partialCurveSize = 1
+                        }
+                    }
+                }
+                countList.add(partialCurveSize)
+                var position = 0
+                var lastShapeUnique = false
+                if (countList.last() == 1) {
+                    countList.removeAt(countList.lastIndex)
+                    lastShapeUnique = true
+                }
+
+                countList.forEachIndexed { index, count ->
+                    val partialCurveGeometry = ArrayList<List<Vector3f>>(count)
+                    for (j in 0 until count) {
+                        partialCurveGeometry.add(transformedBaseShapes[position])
+                        position++
+                    }
+                    val helpPosition = position
+                    //fill the gaps between the different shapes
+                    if (helpPosition < bases.lastIndex) {
+                        val shape = baseShapes[helpPosition - 1]
+                        val shapeVertexList = ArrayList<Vector3f>(shape.size)
+                        shape.forEach {
+                            val vec = Vector3f()
+                            shapeVertexList.add(bases[helpPosition].transformPosition(it, vec))
+                        }
+                        partialCurveGeometry.add(shapeVertexList)
+                    }
+                    //edge case: the last shape is different from its predecessor
+                    if (lastShapeUnique && helpPosition == bases.lastIndex) {
+                        val shape = baseShapes[helpPosition - 1]
+                        val shapeVertexList = ArrayList<Vector3f>(shape.size)
+                        shape.forEach {
+                            val vec = Vector3f()
+                            shapeVertexList.add(bases[helpPosition].transformPosition(it, vec))
+                        }
+                        partialCurveGeometry.add(shapeVertexList)
+                    }
+                    val i = if (index == 0) {
+                        0
+                    } else if (index == countList.size - 1) {
+                        2
+                    } else {
+                        1
+                    }
+                    val trianglesAndNormals = CurveInterface.calculateTriangles(partialCurveGeometry, i)
+                    val partialCurve = PartialCurve(trianglesAndNormals.first, trianglesAndNormals.second)
+                    this.addChild(partialCurve)
+                }
             }
         }
     }
