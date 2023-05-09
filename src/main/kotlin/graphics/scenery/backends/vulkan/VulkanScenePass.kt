@@ -586,6 +586,10 @@ object VulkanScenePass {
                             VulkanRenderer.DescriptorSet.DynamicSet(s.UBOs.getValue(name).first, offset = s.UBOs.getValue(name).second.offsets.get(0), setName = name)
                         s.UBOs.containsKey("${pass.name}-$name") ->
                             VulkanRenderer.DescriptorSet.DynamicSet(s.UBOs.getValue("${pass.name}-$name").first, offset = s.UBOs.getValue("${pass.name}-$name").second.offsets.get(0), setName = name)
+                        // TODO: Check if dynamic or simpe set required
+                        // TODO: ALso RenderPass related name required?
+                        s.SSBOs.containsKey(name) ->
+                            VulkanRenderer.DescriptorSet.Set(s.SSBOs.getValue(name).first, setName = name)
                         s.getTextureDescriptorSet(pass.passConfig.type.name, name) != null ->
                             VulkanRenderer.DescriptorSet.setOrNull(s.getTextureDescriptorSet(pass.passConfig.type.name, name), name)
                         else -> VulkanRenderer.DescriptorSet.None
