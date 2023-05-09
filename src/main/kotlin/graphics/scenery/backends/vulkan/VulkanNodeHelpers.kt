@@ -160,8 +160,7 @@ object VulkanNodeHelpers {
     key: String,
     state: VulkanObjectState,
     stagingPool: VulkanBufferPool,
-    ssboUploadPool: VulkanBufferPool,
-    ssboDownloadPool: VulkanBufferPool,
+    ssboPool: VulkanBufferPool,
     commandPools: VulkanRenderer.CommandPools,
     queue: VkQueue
     ): VulkanObjectState {
@@ -509,6 +508,7 @@ object VulkanNodeHelpers {
         .memberProperties
         .filter { it.findAnnotation<ShaderProperty>() != null }
         .count() > 0
+
 
     /**
      * Returns true if the current VulkanTexture can be reused to store the information in the [Texture]

@@ -1,7 +1,7 @@
 package graphics.scenery.attribute.geometry
 
 import graphics.scenery.*
-import graphics.scenery.attribute.Buffers
+import graphics.scenery.attribute.buffers.Buffers
 import graphics.scenery.geometry.GeometryType
 import graphics.scenery.utils.extensions.minus
 import org.joml.Vector3f

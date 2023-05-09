@@ -2,15 +2,13 @@ package graphics.scenery
 
 import graphics.scenery.geometry.GeometryType
 import graphics.scenery.attribute.AttributesMap
-import graphics.scenery.attribute.Buffers
+import graphics.scenery.attribute.buffers.Buffers
 import graphics.scenery.attribute.geometry.Geometry
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.attribute.renderable.Renderable
 import graphics.scenery.attribute.spatial.Spatial
 import graphics.scenery.net.Networkable
 import graphics.scenery.utils.MaybeIntersects
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
 import net.imglib2.Localizable
 import net.imglib2.RealLocalizable
 import org.joml.Matrix4f

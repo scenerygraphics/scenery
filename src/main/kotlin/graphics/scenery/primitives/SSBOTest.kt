@@ -4,19 +4,15 @@ import graphics.scenery.BufferUtils
 import graphics.scenery.Hub
 import graphics.scenery.Mesh
 import graphics.scenery.OrientedBoundingBox
-import graphics.scenery.attribute.BufferType
-import graphics.scenery.attribute.Buffers
-import graphics.scenery.attribute.HasBuffers
-import graphics.scenery.attribute.material.Material
+import graphics.scenery.attribute.buffers.BufferType
+import graphics.scenery.attribute.buffers.Buffers
+import graphics.scenery.attribute.buffers.HasBuffers
 import graphics.scenery.backends.UBO
 import graphics.scenery.net.Networkable
-import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.extensions.*
 import org.joml.Vector3f
 import org.joml.Vector4f
 import java.lang.IllegalArgumentException
-import java.nio.ByteBuffer
-import java.nio.FloatBuffer
 import kotlin.jvm.JvmOverloads
 
 /**
@@ -41,12 +37,12 @@ open class SSBOTest @JvmOverloads constructor(val sizes: Vector3f = Vector3f(1.0
             side2 * sizes.z())
 
         buffers {
-            buffers["ssboIn"] = BufferUtils.allocateByte(0)
+            buffers["ssboUpload"] = BufferUtils.allocateByte(0)
 
             // This UBO describes the layout as in the respective shader
             val ubo = UBO()
             ubo.add("Color1", { Vector4f(1.0f, 1.0f, 0.6f, 1.0f) })
-            description["ssboIn"] = Buffers.Description(BufferType.Custom(ubo), ubo.getSize())
+            description["ssboUpload"] = Buffers.Description(BufferType.Custom(ubo), ubo.getSize())
         }
 
         geometry {

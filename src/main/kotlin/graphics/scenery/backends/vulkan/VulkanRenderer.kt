@@ -814,7 +814,7 @@ open class VulkanRenderer(hub: Hub,
             // TODO: Decide: either update each SSBO separately like now OR batch them and update them together
             val keys = buffers.keys
             keys.forEach {
-                if(it.lowercase().contains("ssbo"))
+                if(it.lowercase().contains("ssboUpload"))
                 {
                     if(buffers[it]?.remaining()!! > 0) {
                         renderable.rendererMetadata()?.let { s ->
@@ -825,6 +825,21 @@ open class VulkanRenderer(hub: Hub,
                                 s,
                                 stagingPool,
                                 ssboUploadPool,
+                                commandPools,
+                                queue
+                            )
+                        }
+                    }
+                } else if(it.lowercase().contains("ssboDownload"))
+                {
+                    if(buffers[it]?.remaining()!! > 0) {
+                        renderable.rendererMetadata()?.let { s ->
+                            VulkanNodeHelpers.updateShaderStorageBuffers(
+                                device,
+                                node,
+                                it,
+                                s,
+                                stagingPool,
                                 ssboDownloadPool,
                                 commandPools,
                                 queue
@@ -891,7 +906,6 @@ open class VulkanRenderer(hub: Hub,
 
         s.flags.add(RendererFlags.Seen)
 
-        //TODO: Maybe move to ifBuffers -> get set vertex attributes form there dynamically
         node.ifGeometry {
             logger.debug("Initializing geometry for ${node.name} (${vertices.remaining() / vertexSize} vertices/${indices.remaining()} indices)")
             // determine vertex input type
@@ -1697,6 +1711,7 @@ open class VulkanRenderer(hub: Hub,
                             updateNodeSSBOs(node)
                             dirtySSBOs = false
 
+                            //TODO: check if cmd-rerecording is necessary
                             rerecordingCauses.add(node.name)
                             forceRerecording = true
                         }

@@ -3,8 +3,8 @@ package graphics.scenery.attribute.geometry
 import graphics.scenery.BufferUtils
 import graphics.scenery.Node
 import graphics.scenery.OrientedBoundingBox
-import graphics.scenery.attribute.BufferType
-import graphics.scenery.attribute.Buffers
+import graphics.scenery.attribute.buffers.BufferType
+import graphics.scenery.attribute.buffers.Buffers
 import graphics.scenery.geometry.GeometryType
 import graphics.scenery.utils.LazyLogger
 import net.imglib2.type.numeric.integer.IntType

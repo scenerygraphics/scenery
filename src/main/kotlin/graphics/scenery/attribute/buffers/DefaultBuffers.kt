@@ -1,5 +1,6 @@
-package graphics.scenery.attribute
+package graphics.scenery.attribute.buffers
 
+import graphics.scenery.attribute.buffers.Buffers
 import java.nio.Buffer
 
 open class DefaultBuffers : Buffers {

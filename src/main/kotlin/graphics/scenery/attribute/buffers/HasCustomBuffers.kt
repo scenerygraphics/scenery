@@ -1,4 +1,4 @@
-package graphics.scenery.attribute
+package graphics.scenery.attribute.buffers
 
 import graphics.scenery.Node
 
