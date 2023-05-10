@@ -25,6 +25,7 @@ import org.scijava.ui.behaviour.DragBehaviour
  *
  * @param targets Only nodes in this list may be dragged. They must have a [Grabable] attribute.
  * @param multiTarget If this is true all targets which collide with [controllerHitbox] will be dragged otherwise only one.
+ * @param holdToDrag if true user has to hold the button pressed to continue dragging, otherwise the target will stick to the controller.
  *
  * @author Jan Tiemann
  */
@@ -33,6 +34,7 @@ open class VRGrab(
     protected val controllerHitbox: Node,
     protected val targets: () -> List<Node>,
     protected val multiTarget: Boolean = false,
+    protected val holdToDrag: Boolean = true,
     protected val onGrab: ((Node) -> Unit)? = null,
     protected val onDrag: ((Node) -> Unit)? = null,
     protected val onRelease: ((Node) -> Unit)? = null
@@ -56,6 +58,11 @@ open class VRGrab(
      */
     override fun init(x: Int, y: Int) {
         if (!enabled) return
+        if (!holdToDrag && selected.isNotEmpty()){
+            releaseDragging()
+            return
+        }
+
         selected = targets().filter { box -> controllerHitbox.spatialOrNull()?.intersects(box) ?: false }
         if (!multiTarget) {
             selected = selected.take(1)
@@ -126,6 +133,12 @@ open class VRGrab(
      */
     override fun end(x: Int, y: Int) {
         if (!enabled) return
+        if (holdToDrag) {
+            releaseDragging()
+        }
+    }
+
+    private fun releaseDragging() {
         selected.forEach {
             onRelease?.invoke(it)
             it.getAttributeOrNull(Grabable::class.java)?.onRelease?.invoke()
@@ -147,6 +160,7 @@ open class VRGrab(
             hmd: OpenVRHMD,
             button: List<OpenVRHMD.OpenVRButton>,
             controllerSide: List<TrackerRole>,
+            holdToDrag: Boolean = true,
             onGrab: ((Node, TrackedDevice) -> Unit)? = { _, device -> (hmd as? OpenVRHMD)?.vibrate(device) },
             onDrag: ((Node, TrackedDevice) -> Unit)? = null,
             onRelease: ((Node, TrackedDevice) -> Unit)? = null
@@ -162,6 +176,7 @@ open class VRGrab(
                                 controller.children.first(),
                                 { scene.discover(scene, { n -> n.getAttributeOrNull(Grabable::class.java) != null }) },
                                 false,
+                                holdToDrag,
                                 { n -> onGrab?.invoke(n, device) },
                                 { n -> onDrag?.invoke(n, device) },
                                 { n -> onRelease?.invoke(n, device) }
