@@ -45,7 +45,7 @@ class NodePublisher(
     private val addressMain = "$ip:$portMain"
     private val addressBackchannel = "$ip:$portBackchannel"
 
-    var timeout = 500
+    var timeout = 15 // -> 60fps
     private val publisher: ZMQ.Socket = context.createSocket(SocketType.PUB)
     var portMain: Int = try {
         publisher.bind(addressMain)
@@ -173,7 +173,6 @@ class NodePublisher(
 
         val event = eventQueue.poll()
         event?.let { processNextNetworkEvent(it) }
-
         val payload = backchannelSubscriber.recv(ZMQ.DONTWAIT)
         payload?.let { listenToControlChannel(it) }
 
