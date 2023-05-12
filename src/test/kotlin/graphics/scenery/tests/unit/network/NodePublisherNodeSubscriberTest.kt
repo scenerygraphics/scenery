@@ -142,6 +142,11 @@ class NodePublisherNodeSubscriberTest {
 
     @Test
     fun integrationMoveAttribute() {
+        //stop agent threads
+        val p = pub.close()
+        sub.close().join()
+        p.join()
+
         val node1 = Box()
         node1.name = "eins"
         val node2 = Box()
