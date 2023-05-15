@@ -50,6 +50,12 @@ open class VRGrab(
     protected var lastPos = Vector3f()
     protected var lastRotation = Quaternionf()
 
+    private val dragFunction = {this.drag(-42,0)}
+
+    init {
+        if (!holdToDrag && multiTarget) throw IllegalArgumentException("holdToDrag cant be false if multiTarget is true.")
+    }
+
     /**
      * Called on the first frame this behavior is triggered.
      *
@@ -73,6 +79,9 @@ open class VRGrab(
         selected.forEach {
             onGrab?.invoke(it)
             it.getAttributeOrNull(Grabable::class.java)?.onGrab?.invoke()
+            if (!holdToDrag){
+                it.update += dragFunction
+            }
         }
         lastPos = controllerSpatial.worldPosition()
         lastRotation = controllerSpatial.worldRotation()
@@ -86,6 +95,7 @@ open class VRGrab(
      */
     override fun drag(x: Int, y: Int) {
         if (!enabled) return
+        if (!holdToDrag && x != -42) return //magic number
         val newPos = controllerHitbox.spatialOrNull()?.worldPosition() ?: Vector3f()
         val diffTranslation = newPos - lastPos
         val diffRotation = Quaternionf(controllerSpatial.worldRotation()).mul(lastRotation.conjugate())
