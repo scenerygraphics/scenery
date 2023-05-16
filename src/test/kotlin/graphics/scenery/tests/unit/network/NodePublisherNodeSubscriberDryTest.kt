@@ -32,6 +32,10 @@ class NodePublisherNodeSubscriberDryTest {
     private lateinit var sub: NodeSubscriber
     private lateinit var zContext: ZContext
 
+    /**
+     * Starts [NodePublisher] and [NodeSubscriber] and immediately cancels their worker threads. All tests now need to
+     * trigger the sync by debug functions.
+     */
     @Before
     fun init() {
         hub1 = Hub()
@@ -53,17 +57,18 @@ class NodePublisherNodeSubscriberDryTest {
         val p = pub.close()
         sub.close().join()
         p.join()
-
-        //Thread.sleep(300)
     }
 
+    /**
+     * Cleans the zcontext.
+     */
     @After
     fun teardown() {
         zContext.destroy()
     }
 
     /**
-     * Instead of network use debug listen and publish
+     * Instead of network use debug listen and publish to sync simple box.
      */
     @Test
     fun integrationSkippingNetwork() {
@@ -79,6 +84,9 @@ class NodePublisherNodeSubscriberDryTest {
         assert(scene2.find("box") != null)
     }
 
+    /**
+     * First sync then remove a node.
+     */
     @Test
     fun integrationNodeRemoval() {
         val node1 = DefaultNode("eins")
@@ -94,6 +102,9 @@ class NodePublisherNodeSubscriberDryTest {
         assert(scene2.find("eins") == null)
     }
 
+    /**
+     * Change nodes parent and sync.
+     */
     @Test
     fun integrationMoveNodeInGraph() {
         val node1 = DefaultNode("eins")
@@ -115,6 +126,9 @@ class NodePublisherNodeSubscriberDryTest {
         assertNotNull(eins)
     }
 
+    /**
+     * Add attribute from one node to another.
+     */
     @Test
     fun integrationMoveAttribute() {
 
@@ -139,6 +153,9 @@ class NodePublisherNodeSubscriberDryTest {
         assert(eins?.materialOrNull() == zwei?.materialOrNull())
     }
 
+    /**
+     * Sync texture.
+     */
     @Test
     fun additionalDataTexture() {
         val box = Box(Vector3f(1.0f, 1.0f, 1.0f))
@@ -162,6 +179,9 @@ class NodePublisherNodeSubscriberDryTest {
 
     }
 
+    /**
+     * test serialization.
+     */
     @Test
     fun delegateSerializationAndUpdate() {
 
