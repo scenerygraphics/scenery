@@ -29,6 +29,9 @@ class NodePublisherNodeSubscriberTest {
     private lateinit var sub: NodeSubscriber
     private lateinit var zContext: ZContext
 
+    /**
+     * Starts [NodePublisher] and [NodeSubscriber] and waits a bit to let everything setup.
+     */
     @Before
     fun init() {
         hub1 = Hub()
@@ -49,6 +52,9 @@ class NodePublisherNodeSubscriberTest {
         Thread.sleep(300)
     }
 
+    /**
+     * Securely shuts down the network components and ZMQ context.
+     */
     @After
     fun teardown() {
         val t = pub.close()
@@ -57,6 +63,9 @@ class NodePublisherNodeSubscriberTest {
         zContext.destroy()
     }
 
+    /**
+     * Sync a simple node.
+     */
     @Test
     fun integrationSimpleChildNode() {
 
@@ -71,6 +80,9 @@ class NodePublisherNodeSubscriberTest {
         assert(scene2.find("box") != null)
     }
 
+    /**
+     * Test updates of diffuse and position
+     */
     @Test
     fun update() {
 
@@ -95,6 +107,9 @@ class NodePublisherNodeSubscriberTest {
         assertEquals(3f, mat?.diffuse?.z)
     }
 
+    /**
+     * Tests sync of transfer functions of volumes.
+     */
     @Test
     fun volume() {
         class VolInt : Volume.VolumeInitializer {
@@ -138,6 +153,9 @@ class NodePublisherNodeSubscriberTest {
         assert(testVol2.spatial().position.z == 3f)
     }
 
+    /**
+     * Tests sync of scene names.
+     */
     @Test
     fun integrationSceneName() {
 
