@@ -231,10 +231,16 @@ open class VulkanObjectState {
                 .pImageInfo(d[i])
                 .descriptorType(type)
                 .descriptorCount(1)
+
+            // ObjectTextures is handled as an array texture, we set the array element here accordingly,
+            // if the [name] given matches.
             if(name == "ObjectTextures") {
                 wd[i].dstArrayElement(i)
             }
-            if(binding > 0) {
+
+            // ObjectTextures will have an invalid (-1L) binding given, to indicate they're an array texture.
+            // For other custom textures, the binding will be >= 0.
+            if(binding >= 0) {
                 wd[i].dstBinding(binding.toInt())
             }
 
