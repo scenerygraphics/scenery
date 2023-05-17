@@ -276,8 +276,11 @@ open class VulkanObjectState {
 
         return set
     }
-
-    data class TextureKey(val device: VkDevice, val dsl: Long, val textures: List<Triple<String, VulkanTexture, Long>>)
+    private data class TextureKey(
+        val device: VkDevice,
+        val dsl: Long,
+        val textures: List<Triple<String, VulkanTexture, Long>>
+    )
 
     /**
      * Utility class for [VulkanObjectState].
@@ -285,7 +288,7 @@ open class VulkanObjectState {
     companion object {
         protected val logger by LazyLogger()
 
-        protected val cache = HashMap<TextureKey, Long>()
+        private val cache = HashMap<TextureKey, Long>()
 
         /**
          * Returns the array index of a texture [type].
