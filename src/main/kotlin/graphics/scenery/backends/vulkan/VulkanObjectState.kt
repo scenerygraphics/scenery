@@ -1,9 +1,9 @@
 package graphics.scenery.backends.vulkan
 
+import graphics.scenery.ShaderMaterial
 import graphics.scenery.textures.Texture
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.*
-import graphics.scenery.NodeMetadata
 import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.backends.RendererFlags
 import graphics.scenery.attribute.renderable.Renderable
@@ -19,11 +19,8 @@ import kotlin.time.measureTime
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-open class VulkanObjectState : NodeMetadata {
+open class VulkanObjectState {
     protected val logger by LazyLogger()
-
-    /** Consumers for this metadata object. */
-    override val consumers: MutableList<String> = ArrayList(setOf("VulkanRenderer"))
 
     /** Whether this metadata object has been fully initialised. */
     var initialized = false
