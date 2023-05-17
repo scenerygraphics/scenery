@@ -82,6 +82,8 @@ open class VulkanObjectState {
     @OptIn(ExperimentalTime::class)
     fun texturesToDescriptorSets(device: VulkanDevice, passes: Map<String, VulkanRenderpass>, renderable: Renderable) {
         val updateDuration = measureTime {
+            // this groups textures by the ones being members of the ObjectTextures array
+            // and the ones being not.
             val textures = textures.entries.groupBy { Texture.objectTextures.contains(it.key) }
             val objectTextures = textures[true]
             val others = textures[false]
@@ -92,19 +94,27 @@ open class VulkanObjectState {
                 }
 
                 val descriptorSetLayoutObjectTextures = pass.descriptorSetLayouts["ObjectTextures"]
-                if (descriptorSetLayoutObjectTextures != null && objectTextures != null && objectTextures.isNotEmpty()) {
+                if (descriptorSetLayoutObjectTextures != null && !objectTextures.isNullOrEmpty()) {
+                    val specs = Texture.objectTextures.map { ot ->
+                        val entry = objectTextures.first { it.key == ot }
+                        Triple(entry.key, entry.value, -1L)
+                    }
+
                     textureDescriptorSets[pass.passConfig.type.name to "ObjectTextures"] = createOrUpdateTextureDescriptorSet(
                         "ObjectTextures",
                         renderable,
                         pass,
-                        Texture.objectTextures.map { ot -> objectTextures.first { it.key == ot } },
+                        specs,
                         descriptorSetLayoutObjectTextures,
                         device)
                 } else {
-                    if (pass.passConfig.type == RenderConfigReader.RenderpassType.geometry) {
+                    // we warn only if the associated renderable is used in graphics mode, not in compute mode.
+                    // compute mode nodes are not automatically assumed to have ObjectTextures available.
+                    val renderableForCompute = (renderable.parent.materialOrNull() as? ShaderMaterial)?.isCompute() ?: false
+                    if (pass.passConfig.type == RenderConfigReader.RenderpassType.geometry && !renderableForCompute) {
                         logger.warn("$this: DSL for ObjectTextures not found for pass $passName")
                     } else {
-                        logger.debug("$this: DSL for ObjectTextures not found for pass $passName")
+                        logger.debug("{}: DSL for ObjectTextures not found for pass {}", this, passName)
                     }
                 }
 
@@ -112,23 +122,39 @@ open class VulkanObjectState {
                     logger.trace("Pass descriptor sets are {}", pass.descriptorSetLayouts.keys.joinToString(","))
                 }
 
+                // non-ObjectTextures textures are handled separately,
+                // a new descriptor set is created for each set declared in the shader.
                 others?.mapNotNull { texture ->
                     pass.getDescriptorSetLayoutForTexture(texture.key, renderable)
-                }?.groupBy {
-                    it.first
-                }?.forEach {
-                    val dsl = it.key
-                    val textureNames = it.value.first().second
-                        .sortedBy { spec -> spec.binding }
-                        .map { spec -> spec.name }
+                }?.forEach {(dsl, specList) ->
+                    val sets = specList.groupBy { it.set }
+                    sets.forEach { (set, specs) ->
+                        val textureNames = specs.map { it.name }
+                        val firstTextureName = textureNames.first()
+                        val texturesForSet = specs
+                            .sortedBy { it.binding }
+                            .mapNotNull { textureSpec ->
+                                val entry = others.firstOrNull { it.key == textureSpec.name }
+                                if(entry != null) {
+                                    Triple(entry.key, entry.value, textureSpec.binding)
+                                } else {
+                                    null
+                                }
+                            }
 
-                    val firstTextureName = textureNames.first()
-                    val texturesForSet = textureNames.mapNotNull { t -> others.firstOrNull() { it.key == t } }
+                        val ds = createOrUpdateTextureDescriptorSet(
+                            firstTextureName,
+                            renderable,
+                            pass,
+                            texturesForSet,
+                            dsl,
+                            device
+                        )
 
-                    val ds = createOrUpdateTextureDescriptorSet(firstTextureName, renderable, pass, texturesForSet, dsl, device)
-
-                    texturesForSet.forEach { (textureName, _) ->
-                        textureDescriptorSets[pass.passConfig.type.name to textureName] = ds
+                        texturesForSet.forEach { (textureName, _) ->
+                            textureDescriptorSets[pass.passConfig.type.name to textureName] = ds
+                            logger.debug("DS for $textureName (set=$set) is ${ds.toHexString()}, associated with $firstTextureName")
+                        }
                     }
                 }
             }
@@ -141,7 +167,14 @@ open class VulkanObjectState {
         textureDescriptorSets.clear()
     }
 
-    private fun createOrUpdateTextureDescriptorSet(name: String, renderable: Renderable, pass: VulkanRenderpass, textures: List<MutableMap.MutableEntry<String, VulkanTexture>>, descriptorSetLayout: Long, device: VulkanDevice): Long {
+    private fun createOrUpdateTextureDescriptorSet(
+        name: String,
+        renderable: Renderable,
+        pass: VulkanRenderpass,
+        textures: List<Triple<String, VulkanTexture, Long>>,
+        descriptorSetLayout: Long,
+        device: VulkanDevice
+    ): Long {
         val cacheKey = TextureKey(device.vulkanDevice, descriptorSetLayout, textures)
         val passName = pass.passConfig.type.name
         val pipeline = pass.getActivePipeline(renderable)
@@ -177,27 +210,33 @@ open class VulkanObjectState {
         val wd = VkWriteDescriptorSet.calloc(textures.count())
         var i = 0
 
-        textures.forEach { texture ->
-            val (type, layout) = if(pipeline.type == VulkanPipeline.PipelineType.Compute && texture.value.usage.contains(Texture.UsageType.LoadStoreImage)) {
+        textures.forEach { (textureName, vulkanTexture, binding) ->
+            val isStorageImage = pipeline.type == VulkanPipeline.PipelineType.Compute
+                    && vulkanTexture.usage.contains(Texture.UsageType.LoadStoreImage)
+            val (type, layout) = if(isStorageImage) {
                 VK10.VK_DESCRIPTOR_TYPE_STORAGE_IMAGE to VK10.VK_IMAGE_LAYOUT_GENERAL
             } else {
                 VK10.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER to VK10.VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
             }
 
             d[i]
-                .imageView(texture.value.image.view)
-                .sampler(texture.value.image.sampler)
+                .imageView(vulkanTexture.image.view)
+                .sampler(vulkanTexture.image.sampler)
                 .imageLayout(layout)
 
             wd[i]
                 .sType(VK10.VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET)
                 .pNext(NULL)
                 .dstSet(descriptorSet)
-                .dstBinding(0)
-                .dstArrayElement(i)
                 .pImageInfo(d[i])
                 .descriptorType(type)
                 .descriptorCount(1)
+            if(name == "ObjectTextures") {
+                wd[i].dstArrayElement(i)
+            }
+            if(binding > 0) {
+                wd[i].dstBinding(binding.toInt())
+            }
 
             i++
         }
@@ -232,7 +271,7 @@ open class VulkanObjectState {
         return set
     }
 
-    data class TextureKey(val device: VkDevice, val dsl: Long, val textures: List<MutableMap.MutableEntry<String, VulkanTexture>>)
+    data class TextureKey(val device: VkDevice, val dsl: Long, val textures: List<Triple<String, VulkanTexture, Long>>)
 
     /**
      * Utility class for [VulkanObjectState].
