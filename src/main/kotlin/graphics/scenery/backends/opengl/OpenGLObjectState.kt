@@ -1,7 +1,6 @@
 package graphics.scenery.backends.opengl
 
 import cleargl.GLTexture
-import graphics.scenery.NodeMetadata
 import graphics.scenery.utils.LazyLogger
 import java.nio.ByteBuffer
 import java.util.*
@@ -15,10 +14,8 @@ import kotlin.collections.HashSet
  * @constructor Creates an empty OpenGLObjectState, with [OpenGLRenderer] as
  *  default consumers.
  */
-class OpenGLObjectState : NodeMetadata {
+class OpenGLObjectState {
     private val logger by LazyLogger()
-    /** List of consumers of this metadata, e.g. [OpenGLRenderer] */
-    override val consumers: MutableList<String> = ArrayList()
 
     /** IDs of buffers that may be additionally required. */
     val additionalBufferIds = Hashtable<String, Int>()
@@ -53,10 +50,6 @@ class OpenGLObjectState : NodeMetadata {
     var materialHash: Int = -1
     /** Last reload time for textures */
     var texturesLastSeen = 0L
-
-    init {
-        consumers.add("OpenGLRenderer")
-    }
 
     /**
      * Returns the UBO given by [name] if it exists, otherwise null.
