@@ -89,10 +89,10 @@ dependencies {
             }
         }
     }
-    implementation("com.fasterxml.jackson.core:jackson-databind:2.13.4.1")
-    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.13.3")
-    implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.13.3")
-    implementation("org.zeromq:jeromq:0.5.2")
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.15.0")
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.15.0")
+    implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.15.0")
+    implementation("org.zeromq:jeromq:0.5.3")
     implementation("com.esotericsoftware:kryo:5.3.0")
     implementation("de.javakaffee:kryo-serializers:0.45")
     implementation("org.msgpack:msgpack-core:0.9.1")
