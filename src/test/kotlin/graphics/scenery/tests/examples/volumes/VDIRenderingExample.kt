@@ -95,11 +95,11 @@ class CustomNode : RichNode() {
     var stratified_downsampling = false
 }
 
-class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDIBenchmark.WindowWidth")?.toInt()?: 1280, System.getProperty("VDIBenchmark.WindowHeight")?.toInt() ?: 720, wantREPL = false) {
+class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDIBenchmark.WindowWidth")?.toInt()?: 1920, System.getProperty("VDIBenchmark.WindowHeight")?.toInt() ?: 1080, wantREPL = false) {
     var hmd: TrackedStereoGlasses? = null
 
     val separateDepth = true
-    val runLengthEncoded = true
+    val runLengthEncoded = false
     val recordMovie = false
     val profileMemoryAccesses = false
     val compute = CustomNode()
@@ -112,7 +112,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
     val distributedVDI = System.getProperty("VDIBenchmark.Distributed")?.toBoolean()?: false
     val vo = System.getProperty("VDIBenchmark.Vo")?.toInt()?: 0
     var benchmarking = false
-    val skipEmpty = false
+    val skipEmpty = true
     val viewNumber = 1
     var subsampling_benchmarks = false
     var desiredFrameRate = 85
@@ -229,11 +229,11 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
                     position = Vector3f( 2.799E+0f, -6.156E+0f, -2.641E+0f) //V1 for Isotropic
                     rotation = Quaternionf(-3.585E-2, -9.257E-1,  3.656E-1,  9.076E-2)
             }
-//            position = Vector3f( 4.458E+0f, -9.057E-1f,  4.193E+0f) //V2 for Kingsnake
-//            rotation = Quaternionf( 1.238E-1, -3.649E-1,-4.902E-2,  9.215E-1)
+//            position = Vector3f(  3.957E+0f, -2.345E-1f,  4.062E+0f) //V2 for Kingsnake
+//            rotation = Quaternionf( 2.220E-1f, -3.197E-1f, -7.732E-2f,  9.179E-1f)
 
-//            position = Vector3f( 6.284E+0f, -4.932E-1f,  4.787E+0f) //V2 for Simulation
-//            rotation = Quaternionf( 1.162E-1, -4.624E-1, -6.126E-2,  8.769E-1)
+//            position = Vector3f( -1.293E+0f, -2.344E-1f,  8.316E-1f) //V2 for Simulation
+//            rotation = Quaternionf( -1.486E-1f, -7.532E-1f, -1.822E-1f, -6.143E-1f)
 //
 //            position = Vector3f(4.505E+0f, -5.993E-1f,  6.627E-1f) //V2 for BonePlug
 //            rotation = Quaternionf(-1.353E-2,  7.101E-1,  1.361E-2, -7.039E-1)
@@ -255,7 +255,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
 //        val basePath = "/home/aryaman/TestingData/FromCluster/"
 //        val basePath = "/scratch/ws/1/argupta-vdi_generation/vdi_dumps/"
 //        val basePath = "/home/aryaman/Repositories/DistributedVis/cmake-build-debug/"
-        val basePath = "/home/aryaman/Repositories/scenery-insitu/"
+        val basePath = "E:\\vdis\\"
 //        val basePath = "/scratch/ws/1/argupta-vdi_generation/vdi_dumps/"
 
         val vdiParams = "_${windowWidth}_${windowHeight}_${numSupersegments}_${vo}_"
@@ -282,8 +282,8 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
             depthBuff = File(basePath + "${dataset}${vdiType}VDI${vdiParams}4_ndc_depth").readBytes()
         }
         if(skipEmpty) {
-            octBuff = File(basePath + "${dataset}VDI${vdiParams}2_ndc_octree").readBytes()
-            compute.skip_empty = true
+            octBuff = File(basePath + "${dataset}VDI${vdiParams}4_ndc_octree").readBytes()
+            compute.skip_empty = false
         } else {
             octBuff = null
             compute.skip_empty = false
@@ -296,6 +296,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
 //        val opNumEmptyL = MemoryUtil.memCalloc(effectiveWindowWidth * effectiveWindowHeight * 4)
 //        val opNumSkipped = MemoryUtil.memCalloc(effectiveWindowWidth * effectiveWindowHeight * 4)
 //        val opNumBefFirst = MemoryUtil.memCalloc(effectiveWindowWidth * effectiveWindowHeight * 4)
+
 //        val opNumAfterLast = MemoryUtil.memCalloc(effectiveWindowWidth * effectiveWindowHeight * 4)
 
         val totalMaxSupersegments = if(runLengthEncoded) {
@@ -324,7 +325,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
         depthBuffer.limit(depthBuffer.capacity())
 
 //        val numVoxels = 2.0.pow(numOctreeLayers)
-        val numGridCells = Vector3f(vdiData.metadata.windowDimensions.x.toFloat() / 8f, vdiData.metadata.windowDimensions.y.toFloat() / 8f, numSupersegments.toFloat())
+        val numGridCells = Vector3f(1920.0f/ 8f, 1080.0f / 8f, numSupersegments.toFloat())
 //        val numGridCells = Vector3f(256f, 256f, 256f)
         val lowestLevel = MemoryUtil.memCalloc(numGridCells.x.toInt() * numGridCells.y.toInt() * numGridCells.z.toInt() * 4)
         if(skipEmpty) {
@@ -702,6 +703,11 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
         moveCamera(yawRot *2, pitchRot * 5, 40f, 40f, -60f, -50f, totalYaw, totalPitch, 6000f)
 
         Thread.sleep(1000)
+        thread{
+
+            logger.info(cam.spatial().position.toString())
+            logger.info(cam.spatial().rotation.toString())
+        }
     }
 
     private fun moveCamera(yawRot: Float, pitchRot: Float, maxYaw: Float, maxPitch: Float, minPitch: Float, minYaw: Float, totalY: Float, totalP: Float, duration: Float) {
@@ -901,8 +907,17 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
 
         inputHandler?.addBehaviour("rotate_camera", ClickBehaviour { _, _ ->
             rotateCamera(10f)
+
         })
         inputHandler?.addKeyBinding("rotate_camera", "R")
+        inputHandler?.addBehaviour("get_coords", ClickBehaviour { _, _ ->
+
+                logger.info(cam.spatial().position.toString())
+                logger.info(cam.spatial().rotation.toString())
+
+
+        })
+        inputHandler?.addKeyBinding("get_coords", "C")
 
         inputHandler?.addBehaviour("downsample_image", ClickBehaviour { _, _ ->
             downsampleImage(0.5f)

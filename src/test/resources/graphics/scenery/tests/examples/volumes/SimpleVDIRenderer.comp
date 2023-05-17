@@ -1,7 +1,7 @@
 #version 450
 #extension GL_EXT_debug_printf : enable
 #define USE_PRINTF 1
-#define RLE 1
+#define RLE 0
 
 layout(set = 3, binding = 0) uniform ShaderProperties {
     mat4 ProjectionOriginal;
@@ -56,7 +56,7 @@ int bufferWidth = 0;
 int bufferHeight = 0;
 int bufferDepth = 0;
 
-ivec2 debug_pixel = ivec2(482, 719);
+ivec2 debug_pixel = ivec2(794, 837);
 
 #if RLE
 ivec3 supersegmentIndices(ivec2 theList, int index) {
@@ -113,10 +113,10 @@ vec4 getSupsegColor(ivec2 theList, int index) {
 void main() {
 
 
-    if(gl_GlobalInvocationID.xy == debug_pixel) {
+    /*if(gl_GlobalInvocationID.xy == debug_pixel) {
         debugPrintfEXT("Value of nw: %f", nw);
         debugPrintfEXT("The elements are: %f, %f, %f", array[1], array[2], array[0]);
-    }
+    }*/
 
     #if RLE
     int numSupersegments;
@@ -152,7 +152,13 @@ void main() {
     mat4 pv_orig = ProjectionOriginal * ViewOriginal;
 
     mat4 ivp_orig = invViewOriginal * invProjectionOriginal;
+    if(gl_GlobalInvocationID.xy==debug_pixel){
+        debugPrintfEXT("ivp (%f, %f, %f, %f)\n", ivp_orig[0]);
+        debugPrintfEXT("ivp (%f, %f, %f, %f)\n", ivp_orig[1]);
+        debugPrintfEXT("ivp (%f, %f, %f, %f)\n", ivp_orig[2]);
+        debugPrintfEXT("ivp (%f, %f, %f, %f)\n", ivp_orig[3]);
 
+    }
     vec4 v = vec4(0);
 
     vec2 texcoord = gl_GlobalInvocationID.xy/vec2(windowWidth, windowHeight);
@@ -182,7 +188,7 @@ void main() {
         float depthEnd = getSupsegBack(ivec2(gl_GlobalInvocationID.xy), i);
 
         if(gl_GlobalInvocationID.xy == debug_pixel) {
-            debugPrintfEXT("Supseg %d! Start is: %f, end is: %f. a: %f", i, depthHere, depthEnd, newAlpha);
+            debugPrintfEXT("Supseg %d! Start is: %f, end is: %f. a: %f\n", i, depthHere, depthEnd, newAlpha);
         }
 
         if(i!=0 && depthHere == 0.0) {
@@ -196,7 +202,7 @@ void main() {
         }
 
         if(depthEnd <= depthHere) {
-            debugPrintfEXT("This is an error!! Start: %f, end is: %f. a: %f. Invoc coords: (%d, %d)", depthHere, depthEnd, newAlpha, gl_GlobalInvocationID.xy);
+            debugPrintfEXT("This is an error!! Start: %f, end is: %f. a: %f. Invoc coords: (%d, %d)\n", depthHere, depthEnd, newAlpha, gl_GlobalInvocationID.xy);
         }
 
         float ndc_x = (float(gl_GlobalInvocationID.x) / float(windowWidth)) * 2.0 - 1.0;
@@ -221,7 +227,7 @@ void main() {
 
         #if USE_PRINTF
         if(gl_GlobalInvocationID.xy == debug_pixel) {
-            debugPrintfEXT("Supseg: %d. Color is: (%f, %f, %f). Opacity: %f and adj opacity: %f. Supseg length: %f", i, newColor.rgb, newAlpha, adj_alpha, distance(supseg_start_w, supseg_end_w));
+            debugPrintfEXT("Supseg: %d. Color is: (%f, %f, %f). Opacity: %f and adj opacity: %f. Supseg length: %f\n", i, newColor.rgb, newAlpha, adj_alpha, distance(supseg_start_w, supseg_end_w));
         }
         #endif
 
@@ -229,7 +235,7 @@ void main() {
         v.a = v.a + (1.0f - v.a) * adj_alpha;
 
         if(gl_GlobalInvocationID.xy == debug_pixel) {
-            debugPrintfEXT("accumulated color so far: (%f, %f, %f, %f)", v.rgba);
+            debugPrintfEXT("accumulated color so far: (%f, %f, %f, %f)\n", v.rgba);
         }
 
 //            if(depthHere >= depthEnd) {
@@ -244,14 +250,14 @@ void main() {
 //    v.a = 1;
 
     if(gl_GlobalInvocationID.xy == debug_pixel) {
-        debugPrintfEXT("For pixel: (%d, %d), final accumulated color is (before attenuation): (%f, %f, %f, %f)", debug_pixel.xy, v.rgba);
+        debugPrintfEXT("For pixel: (%d, %d), final accumulated color is (before attenuation): (%f, %f, %f, %f)\n", debug_pixel.xy, v.rgba);
     }
 
     v.xyz = pow(v.xyz, vec3(1/2.2));
 //v = vec4(1);
 
     if(gl_GlobalInvocationID.xy == debug_pixel) {
-        debugPrintfEXT("For pixel: (%d, %d), final accumulated color (after attenuation) is: (%f, %f, %f, %f)", debug_pixel.xy, v.rgba);
+        debugPrintfEXT("For pixel: (%d, %d), final accumulated color (after attenuation) is: (%f, %f, %f, %f)\n", debug_pixel.xy, v.rgba);
     }
 
 //    if(gl_GlobalInvocationID.y > 900) {

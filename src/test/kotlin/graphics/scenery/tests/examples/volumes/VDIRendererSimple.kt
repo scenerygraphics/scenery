@@ -52,7 +52,7 @@ class CustomNodeSimple : RichNode() {
 }
 
 
-class VDIRendererSimple : SceneryBase("SimpleVDIRenderer", 1280, 720) {
+class VDIRendererSimple : SceneryBase("SimpleVDIRenderer", 1920, 1080) {
 
     private val vulkanProjectionFix =
         Matrix4f(
@@ -71,7 +71,7 @@ class VDIRendererSimple : SceneryBase("SimpleVDIRenderer", 1280, 720) {
     val separateDepth = true
     val colors32bit = true
 
-    val runLengthEncoded = true
+    val runLengthEncoded = false
 
     val commSize = 1
     val rank = 0
@@ -98,7 +98,7 @@ class VDIRendererSimple : SceneryBase("SimpleVDIRenderer", 1280, 720) {
 
 
 //        val basePath = "/home/aryaman/Repositories/DistributedVis/cmake-build-debug/"
-        val basePath = "/home/aryaman/Repositories/scenery-insitu/"
+        val basePath = "E:\\vdis\\kingsnake\\"
 //        val basePath = "/home/aryaman/Repositories/scenery_vdi/scenery/"
 //        val basePath = "/home/aryaman/TestingData/"
 //        val basePath = "/home/aryaman/TestingData/FromCluster/"
@@ -289,7 +289,8 @@ class VDIRendererSimple : SceneryBase("SimpleVDIRenderer", 1280, 720) {
 //
 //            val baseDataset = "Rotstrat"
 //            val viewNumber = 2
-//            val communicatorType = "_16_0"
+//            val communicatorType = "
+    //            _16_0"
 //            val totalRotation = 10
 //
 //            val path = "/home/argupta/Repositories/scenery-insitu/benchmarking/${baseDataset}/View${viewNumber}/volume_rendering/reference_comp${windowWidth}_${windowHeight}_${totalRotation.toInt()}"
@@ -298,17 +299,17 @@ class VDIRendererSimple : SceneryBase("SimpleVDIRenderer", 1280, 720) {
 //
 //        }
 
-        thread {
+       /* thread {
 
             while(true) {
                 Thread.sleep(2000)
 
-                logger.info(compute.array.joinToString(","))
+//                logger.info(compute.array.joinToString(","))
 
                 compute.array[0] = 2 * compute.array[0]
                 compute.array[2] = 5f
             }
-        }
+        }*/
     }
 
     companion object {

@@ -18,7 +18,8 @@ data class VDIMetadata(
 
 data class VDIBufferSizes(
     var colorSize: Long = 0,
-    var depthSize: Long = 0
+    var depthSize: Long = 0,
+    var accelGridSize: Long = 0
 )
 
 data class VDIData(

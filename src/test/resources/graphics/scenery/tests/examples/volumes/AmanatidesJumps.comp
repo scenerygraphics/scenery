@@ -1,14 +1,15 @@
 #version 450
-#define USE_PRINTF 1
+#define USE_PRINTF 0
 #define NDC 1
 #define SEPARATE_DEPTH 1
 #define INT_DEPTHS 0
 #define PROFILE_MEM 0
 #define USE_VIEW_SPACE_CELLS 1
-#define RLE 1
-
+#define RLE 0
+#extension GL_EXT_debug_printf : disable
+#define RAY_INVERSION_ENABLE 1
 #if USE_PRINTF
-#extension GL_EXT_debug_printf : enable
+#extension GL_EXT_debug_printf : disable
 #endif
 
 layout(set = 0, binding = 0) uniform VRParameters {
@@ -130,9 +131,10 @@ layout(set = 11, binding = 0, r32f) uniform image2D NumSteps;
 //ivec2 debug_pixel = ivec2(610, 641);
 //ivec2 debug_pixel = ivec2(1273, 604);
 //ivec2 debug_pixel = ivec2(640, 360);
-ivec2 debug_pixel = ivec2(640, 360);
+//ivec2 debug_pixel = ivec2(1171,1026);
 
-//ivec2 debug_pixel = ivec2(35, 61);
+
+ivec2 debug_pixel = ivec2(1108, 854);
 //ivec2 debug_pixel = ivec2(427, 465);
 //ivec2 debug_pixel = ivec2(424, 539);
 
@@ -434,14 +436,16 @@ void binSearch(ivec2 theList, float dist_to_orig, int start, int end, out bool s
 
         index = (low + high)/2;
 //
-//        #if USE_PRINTF
-//        if(gl_GlobalInvocationID.xy == debug_pixel) {
-//            debugPrintfEXT("High is: %d, low is: %d and index is: %d", high, low, index);
-//        }
-//        #endif
+        /*#if USE_PRINTF
+        if(gl_GlobalInvocationID.xy == debug_pixel) {
+            debugPrintfEXT("High is: %d, low is: %d and index is: %d", high, low, index);
+        }
+        #endif*/
 
         depthEnd = getSupsegBack(theList, index);
-
+        /*if(gl_GlobalInvocationID.xy == debug_pixel) {
+            debugPrintfEXT("depthend%f",depthEnd);
+        }*/
         if(depthEnd == 0.0) { //TODO: improve empty detection mechanism
             //this supersegment has not been filled
             high = index - 1;
@@ -454,7 +458,7 @@ void binSearch(ivec2 theList, float dist_to_orig, int start, int end, out bool s
             float prevEnd = getPrecedingDepth(theList, index);
 
             if(prevEnd < dist_to_orig) {
-                // this is the supersegment
+                // this is    the supersegment
                 supseg_found = true;
                 break;
             } else {
@@ -463,7 +467,62 @@ void binSearch(ivec2 theList, float dist_to_orig, int start, int end, out bool s
         }
     }
 }
+#if RAY_INVERSION_ENABLE
+void binSearch2(ivec2 theList, float dist_to_orig, int start, int end, out bool supseg_found, out int index, out float depthStart, out float depthEnd) {
 
+//        #if USE_PRINTF
+//        if(gl_GlobalInvocationID.xy == debug_pixel) {
+//            debugPrintfEXT("Performing bin search for list: (%d, %d) from %d to %d ", theList, start, end);
+//        }
+//        #endif
+
+
+    supseg_found = false;
+    int low = start;
+    int high = end;
+
+    while(low <= high) {
+
+        index = (low + high)/2;
+        //
+//                #if USE_PRINTF
+//                if(gl_GlobalInvocationID.xy == debug_pixel) {
+//                    debugPrintfEXT("High is: %d, low is: %d and index is: %d", high, low, index);
+//                }
+//                #endif
+
+        depthStart = getSupsegFront(theList, index);
+//        if(gl_GlobalInvocationID.xy == debug_pixel) {
+//            debugPrintfEXT("DepthStart%f", depthStart);
+//        }
+
+        if(depthStart == 0.0) { //TODO: improve empty detection mechanism
+            //this supersegment has not been filled
+            high = index - 1;
+            continue;
+        }
+        if(depthStart > dist_to_orig) { //this supersegment is behind the sample point
+            high = index - 1;
+        } else {
+            float nextStart = (index<maxSupersegments-1)?getSupsegFront(theList, index+1):5000.;
+//            if(gl_GlobalInvocationID.xy == debug_pixel) {
+//                debugPrintfEXT("nextStart is%f", nextStart);
+//            }
+            if(nextStart==0.0){
+                supseg_found=true;
+                break;
+            }
+            if(nextStart > dist_to_orig) {
+                // this is the supersegment
+                supseg_found = true;
+                break;
+            } else {
+                low = index + 1;
+            }
+        }
+    }
+}
+#endif
 void findListNumber(vec4 wpos, out ivec2 listNum, out vec4 NDC_orig) {
     //For this sample point, calculate ray number from original VDI
     NDC_orig = pv_orig * wpos;
@@ -506,13 +565,22 @@ void nextSupersegmentInList(ivec2 theList, float exit_distance, bool dotPositive
         if(prevIndex == 0) {
             return;
         }
+        /*#if USE_PRINTF
+         if(gl_GlobalInvocationID.xy == debug_pixel) {
+            debugPrintfEXT("finding next supersegment");
+        }
+        #endif*/
 
         index = prevIndex - 1;
 
         depthEnd = getSupsegBack(theList, index);
 
         if(depthEnd > exit_distance) {
-            // we have found our next supseg
+            #if USE_PRINTF
+             if(gl_GlobalInvocationID.xy == debug_pixel) {
+                        debugPrintfEXT("found next supersegment\n");
+                    }
+            #endif
             supseg_found = true;
             depthStart = getSupsegFront(theList, index);
         }
@@ -636,10 +704,13 @@ void findFirstSupseg(ivec2 theList, float dist_to_orig, float exit_distance, out
     }
 
 }
-
-void findFirstSupseg_opt_seeded(ivec2 theList, float dist_to_orig, float exit_distance, out bool supseg_found, out int index, out float depthStart, out float depthEnd) {
+void findFirstSupseg_opt_seeded(ivec2 theList, float dist_to_orig, float exit_distance, bool dotPositive, out bool supseg_found, out int index, out float depthStart, out float depthEnd) {
     supseg_found = false;
-
+#if USE_PRINTF
+    if(gl_GlobalInvocationID.xy == debug_pixel) {
+        debugPrintfEXT("prevIdx: %d\n", prevIndex);
+    }
+#endif
     int bin_search_end = -1;
     int bin_search_start = -1;
 #if RLE
@@ -651,65 +722,148 @@ void findFirstSupseg_opt_seeded(ivec2 theList, float dist_to_orig, float exit_di
 	    bin_search_start = 0;
     } else {
 
-        uint backs_u[4];
+            uint backs_u[4];
 
-        float backs_f[4];
+            float backs_f[4];
 
-        float backs[2];
+            float backs[2];
 
 
-        backs[1] = getSupsegBack(theList, prevIndex);
-        backs[0] = getSupsegBack(theList, prevIndex - 1);
+            backs[1] = getSupsegBack(theList, prevIndex);
+            backs[0] = getSupsegBack(theList, prevIndex - 1);
 
-        backs[0] = ((prevIndex - 1) >= 0)?backs[0]:-5000;
+            backs[0] = ((prevIndex - 1) >= 0)?backs[0]:-5000;
 
-        backs[1] = (backs[1] == 0)?5000:backs[1];
+            backs[1] = (backs[1] == 0)?5000:backs[1];
 
-        int interval = int(backs[1] >= dist_to_orig) + int(backs[0] >= dist_to_orig);
-        int nzeros_back = int(backs[1] < 4995); //keeping a little wiggle room for floating point comparison
+            int interval = int(backs[1] >= dist_to_orig) + int(backs[0] >= dist_to_orig);
+            int nzeros_back = int(backs[1] < 4995);//keeping a little wiggle room for floating point comparison
 
-        if (interval == 0)
-        {
-            bin_search_end = maxSupersegments - 1;
-            bin_search_start = prevIndex + 1;
-	    }
-        else if (interval == 2)
-        {
-		    bin_search_end = prevIndex - 1;
-		    bin_search_start = 0;
-	    }
-        else
-        {
-            if (nzeros_back == 1)
+            #if RAY_INVERSION_ENABLE
+
+            float fronts[2];
+        fronts[1]=getSupsegFront(theList, prevIndex);
+        fronts[0]=getSupsegFront(theList, prevIndex+1);
+        fronts[0]=((fronts[0] == 0) || (prevIndex+1<=maxSupersegments-1))?5000:fronts[0];
+        fronts[1] = (fronts[1]==0)?-5000:fronts[1];
+        int interval_f = int(fronts[1]<=dist_to_orig)+int(fronts[0]<=dist_to_orig);
+        if(!dotPositive){
+            if(interval_f==0){
+                bin_search_start = 0;
+                bin_search_end=prevIndex-1;
+            }else if(interval_f ==2){
+                    bin_search_start = prevIndex+1;
+                    bin_search_end=maxSupersegments-1;
+            }else{
+                if(fronts[0]<4995){
+                    supseg_found=true;
+                    index=prevIndex;
+                    depthStart=fronts[1];
+                }else{
+                    bin_search_start=prevIndex;
+                    bin_search_end=maxSupersegments-1;
+                }
+
+            }
+        } else{
+            if (interval == 0)
             {
-                supseg_found = true;
-                index = prevIndex;
-                depthEnd = backs[1];
+                bin_search_end = maxSupersegments - 1;
+                bin_search_start = prevIndex + 1;
+            }
+            else if (interval == 2)
+            {
+                bin_search_end = prevIndex - 1;
+                bin_search_start = 0;
             }
             else
             {
-                bin_search_end = maxSupersegments - 1;
-                bin_search_start = 0;
+                if (nzeros_back == 1)
+                {
+                    supseg_found = true;
+                    index = prevIndex;
+                    depthEnd = backs[1];
+                }
+                else
+                {
+                    #if USE_PRINTF
+                        if(gl_GlobalInvocationID.xy==debug_pixel){
+                            debugPrintfEXT("wrong!\n");
+                        }
+                    #endif
+                    bin_search_end = maxSupersegments - 1;
+                    bin_search_start = 0;
+                }
             }
         }
-    }
+#else
 
+            if (interval == 0)
+            {
+                bin_search_end = maxSupersegments - 1;
+                bin_search_start = prevIndex + 1;
+            }
+            else if (interval == 2)
+            {
+                bin_search_end = prevIndex - 1;
+                bin_search_start = 0;
+            }
+            else
+            {
+                if (nzeros_back == 1)
+                {
+                    supseg_found = true;
+                    index = prevIndex;
+                    depthEnd = backs[1];
+                }
+                else
+                {
+                    bin_search_end = maxSupersegments - 1;
+                    bin_search_start = 0;
+                }
+            }
+        #endif
+}
+        #if USE_PRINTF
+        if(gl_GlobalInvocationID.xy == debug_pixel) {
+            debugPrintfEXT("trying to binsearch theList: (%d, %d), dist_to_orig%f, bin_search_start%d, bin_search_end%d, maxSupersegments%d",theList, dist_to_orig, bin_search_start, bin_search_end, maxSupersegments);
+        }
+        #endif
     if (bin_search_end != -1)
     {
-    	binSearch(theList, dist_to_orig, bin_search_start, bin_search_end, supseg_found, index, depthStart, depthEnd);
+        #if RAY_INVERSION_ENABLE
+        if(!dotPositive){
+        #if USE_PRINTF
+            if(gl_GlobalInvocationID.xy == debug_pixel) {
+                debugPrintfEXT("binsearch2 theList: (%d, %d), dist_to_orig%f, bin_search_start%d, bin_search_end%d, maxSupersegments%d",theList, dist_to_orig, bin_search_start, bin_search_end, maxSupersegments);
+            }
+        #endif
+            binSearch2(theList, dist_to_orig, bin_search_start, bin_search_end, supseg_found, index, depthStart, depthEnd);
+        }else{
+            #if USE_PRINTF
+            if(gl_GlobalInvocationID.xy == debug_pixel) {
+                debugPrintfEXT("binsearch theList: (%d, %d), dist_to_orig%f, bin_search_start%d, bin_search_end%d, maxSupersegments%d\n",theList, dist_to_orig, bin_search_start, bin_search_end, maxSupersegments);
+            }
+            #endif
+            binSearch(theList, dist_to_orig, bin_search_start, bin_search_end, supseg_found, index, depthStart, depthEnd);
+        }
+        #else
+        binSearch(theList, dist_to_orig, bin_search_start, bin_search_end, supseg_found, index, depthStart, depthEnd);
+        #endif
     }
 
     depthStart = getSupsegFront(theList, index);
-
-    if(depthStart > exit_distance) {
+#if RAY_INVERSION_ENABLE
+    depthEnd = getSupsegBack(theList, index);
+    if((dotPositive && depthStart > exit_distance) || (!dotPositive && depthEnd<exit_distance)) {
         supseg_found = false;
     }
+#else
+    if(depthStart > exit_distance) {
+            supseg_found = false;
+        }
+#endif
 
-//    #if USE_PRINTF
-//    if(gl_GlobalInvocationID.xy == debug_pixel) {
-//        debugPrintfEXT("In thelist: (%d, %d) found the index: %d", theList.xy, index);
-//    }
-//    #endif
 }
 
 void findFirstSupseg_opt(ivec2 theList, float dist_to_orig, float exit_distance, out bool supseg_found, out int index, out float depthStart, out float depthEnd) {
@@ -825,7 +979,7 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
 
     #if USE_PRINTF
     if(gl_GlobalInvocationID.xy == debug_pixel) {
-        debugPrintfEXT("Intersecting list: (%d, %d). Start pt: (%f, %f, %f) and End pt: (%f, %f, %f)", theList,
+        debugPrintfEXT("Intersecting list: (%d, %d). Start pt: (%f, %f, %f) and End pt: (%f, %f, %f)\n", theList,
                                     start_point.xyz, end_point.xyz);
     }
     #endif
@@ -855,6 +1009,9 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
     #else
     vec4 check = imageLoad(DepthVDI, ivec3(1, theList.y, theList.x));
     totalMemoryLoads++;
+    /*if(gl_GlobalInvocationID.xy == debug_pixel) {
+        debugPrintfEXT("checking if list is empty%f", check.x);
+    }*/
     float firstBack = check.x;
     if(firstBack == 0) {
         first_empty = true;
@@ -923,8 +1080,10 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
     float exit_distance_n = end_point.z;
 
     bool dotPositive;
+    //TODO: check for dir.z?
     dotPositive = dist_to_orig_n <= exit_distance_n ? true: false;
 
+#if !RAY_INVERSION_ENABLE
     if(!dotPositive) {
         accumulatedColor = vec4(0, 0, 0, 1);
 //        #if USE_PRINTF
@@ -935,6 +1094,7 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
         return;
         //TODO: implement code path for inverted ray direction
     }
+#endif
 
     float dist_to_orig_w = ndc_to_w(vec2(ndc_x, ndc_y), dist_to_orig_n);
     float exit_distance_w = ndc_to_w(vec2(ndc_x, ndc_y), exit_distance_n);
@@ -958,7 +1118,12 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
         int index;
 
         if(firstIteration) {
-            findFirstSupseg_opt_seeded(theList, dist_to_orig, exit_distance, supseg_found, index, depthStart, depthEnd);
+            #if USE_PRINTF
+            if(gl_GlobalInvocationID.xy == debug_pixel) {
+                debugPrintfEXT("first Iteration\n");
+            }
+            #endif
+            findFirstSupseg_opt_seeded(theList, dist_to_orig, exit_distance,dotPositive, supseg_found, index, depthStart, depthEnd);
 //
 //            bool sf2;
 //            int ind2;
@@ -976,12 +1141,17 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
             firstIteration = false;
         } else {
             nextSupersegmentInList(theList, exit_distance, dotPositive, supseg_found, index, depthStart, depthEnd);
+            #if USE_PRINTF
+            if(gl_GlobalInvocationID.xy == debug_pixel) {
+                debugPrintfEXT("!first Iteration, found next supseg %d\n", index);
+            }
+            #endif
         }
 
         #if USE_PRINTF
         if(gl_GlobalInvocationID.xy == debug_pixel) {
-            debugPrintfEXT("For list: (%d, %d). Found supseg %d index %d. Start depth: %f and end depth: %f", theList, supseg_found, index, depthStart, depthEnd);
-            debugPrintfEXT("In this list, there have been %d memory loads.", totalMemoryLoads - total_steps_before);
+            debugPrintfEXT("For list: (%d, %d). Found supseg %d index %d. Start depth: %f and end depth: %f\n", theList, supseg_found, index, depthStart, depthEnd);
+//            debugPrintfEXT("In this list, there have been %d memory loads.", totalMemoryLoads - total_steps_before);
         }
         #endif
 
@@ -1013,11 +1183,10 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
 
             #if USE_PRINTF
             if(gl_GlobalInvocationID.xy == debug_pixel) {
-                debugPrintfEXT("Found supseg: (%d, %d), %d", theList, index);
-                debugPrintfEXT("DepthStart: %f and DepthEnd: %f, while dto: %f and exit: %f ", temp_start, temp_end, dist_to_orig, exit_distance);
+                debugPrintfEXT("Found supseg: (%d, %d), %d\n", theList, index);
+                debugPrintfEXT("DepthStart: %f and DepthEnd: %f, while dto: %f and exit: %f\n", temp_start, temp_end, dist_to_orig, exit_distance);
             }
             #endif
-
 //            #if USE_PRINTF
 //            if(temp_end <= temp_start) {
 //                debugPrintfEXT("This is an error! Found supseg: (%d, %d), %d", theList, index);
@@ -1044,11 +1213,21 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
 
             float end_t = (depthEnd - u.z) / dir.z;
 
+#if RAY_INVERSION_ENABLE
+            if(dir.z<0){
+                vec4 start_point = u - dir * start_t;
+                vec4 end_point = u - dir * end_t;
+            }else{
+                start_point = u + dir * start_t;
+                end_point = u + dir * end_t;
+            }
+#else
             vec4 start_point = u + dir * start_t;
+            vec4 end_point = u + dir * end_t;
+#endif
             vec4 w_start_point = ivp_orig * start_point;
             w_start_point *= 1./w_start_point.w;
 
-            vec4 end_point = u + dir * end_t;
             vec4 w_end_point = ivp_orig * end_point;
             w_end_point *= 1./w_end_point.w;
 
@@ -1058,14 +1237,21 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
             float length_in_supseg = distance(w_start_point, w_end_point);
 
             float alpha = adjustOpacity(supseg_col.a, length_in_supseg);
+            #if USE_PRINTF
+            if(gl_GlobalInvocationID.xy == debug_pixel) {
+                debugPrintfEXT("Accumulated color: (%f, %f, %f, %f)", accumulatedColor.rgba);
+            }
+            #endif
 
             accumulatedColor.rgb = accumulatedColor.rgb + (1-accumulatedColor.a) * supseg_col.rgb * alpha;
             accumulatedColor.a = accumulatedColor.a + (1-accumulatedColor.a) * alpha;
 
             #if USE_PRINTF
             if(gl_GlobalInvocationID.xy == debug_pixel) {
-//                debugPrintfEXT("NDC start point: (%f, %f, %f, %f) and NDC end point: (%f, %f, %f, %f).", start_point.xyzw, end_point.xyzw);
-//                debugPrintfEXT("World start point: (%f, %f, %f, %f) and end point: (%f, %f, %f, %f). Length: %f", w_start_point.xyzw, w_end_point.xyzw, length_in_supseg);
+                debugPrintfEXT("supsegCol: (%f, %f, %f, %f), alpha: %f", supseg_col.xyzw, alpha);
+
+                debugPrintfEXT("NDC start point: (%f, %f, %f, %f) and NDC end point: (%f, %f, %f, %f).", start_point.xyzw, end_point.xyzw);
+                debugPrintfEXT("World start point: (%f, %f, %f, %f) and end point: (%f, %f, %f, %f). Length: %f", w_start_point.xyzw, w_end_point.xyzw, length_in_supseg);
                 debugPrintfEXT("Accumulated color: (%f, %f, %f, %f)", accumulatedColor.rgba);
             }
             #endif
@@ -1193,11 +1379,11 @@ void traverse_subsample(vec4 world_entry, vec4 world_end, float total_distance, 
 
 void traverse_cell(vec4 entry_point, ivec2 entry_list, vec3 cell_min, vec3 cell_max, out vec4 end_point, out ivec2 nextList) {
 
-//    #if USE_PRINTF
-//    if(gl_GlobalInvocationID.xy == debug_pixel) {
-//        debugPrintfEXT("Traversing cell with min: (%f, %f, %f) and max: (%f, %f, %f). Entry point: (%f, %f, %f, %f)", cell_min.xyz, cell_max.xyz, entry_point.xyzw);
-//    }
-//    #endif
+    /*#if USE_PRINTF
+    if(gl_GlobalInvocationID.xy == debug_pixel) {
+        debugPrintfEXT("Traversing cell with min: (%f, %f, %f) and max: (%f, %f, %f). Entry point: (%f, %f, %f, %f)", cell_min.xyz, cell_max.xyz, entry_point.xyzw);
+    }
+    #endif*/
 
     const float max_x = max(cell_max.x, cell_min.x);
     const float min_x = min(cell_max.x, cell_min.x);
@@ -1223,11 +1409,14 @@ void traverse_cell(vec4 entry_point, ivec2 entry_list, vec3 cell_min, vec3 cell_
 //    #endif
 //    }
 
-//    #if USE_PRINTF
-//    if(gl_GlobalInvocationID.xy == debug_pixel) {
-//        debugPrintfEXT("tmaxX: %f, tmaxY: %f, tmaxZ: %f", tmaxX, tmaxY, tmaxZ);
-//    }
-//    #endif
+    #if USE_PRINTF
+    if(gl_GlobalInvocationID.xy == debug_pixel) {
+        debugPrintfEXT("tmaxX: %f, tmaxY: %f, tmaxZ: %f\n", tmaxX, tmaxY, tmaxZ);
+    }
+    if(gl_GlobalInvocationID.xy == debug_pixel) {
+        debugPrintfEXT("Dirx: %f, diry: %f, dirz: %f\n", dir.x, dir.y, dir.z);
+    }
+    #endif
 
     ivec2 currentList = entry_list;
 
@@ -1238,11 +1427,11 @@ void traverse_cell(vec4 entry_point, ivec2 entry_list, vec3 cell_min, vec3 cell_
 
     while ( !finalIteration ) // loop over all the lists intersected by this ray
     {
-        //        #if USE_PRINTF
-        //        if(gl_GlobalInvocationID.xy == debug_pixel) {
-        //            debugPrintfEXT("Looping for list: (%d, %d)", currentList);
-        //        }
-        //        #endif
+                #if USE_PRINTF
+                if(gl_GlobalInvocationID.xy == debug_pixel) {
+                    debugPrintfEXT("Looping for list: (%d, %d)\n", currentList);
+                }
+                #endif
 
 //        if(!(tmaxX >= 0 && tmaxY >= 0 && tmaxZ >= 0)) {
 //            #if USE_PRINTF
@@ -1307,15 +1496,14 @@ void traverse_cell(vec4 entry_point, ivec2 entry_list, vec3 cell_min, vec3 cell_
                 terminate = true;
             }
         }
-
         findSupsegsInList(currentList, start_point, end_point, finalColor);
 
         if(terminate) {
-//            #if USE_PRINTF
-//            if(gl_GlobalInvocationID.xy == debug_pixel) {
-//                debugPrintfEXT("Breaking because end pt is outside. It is: (%f, %f, %f)", end_point.xyz);
-//            }
-//            #endif
+            #if USE_PRINTF
+            if(gl_GlobalInvocationID.xy == debug_pixel) {
+                debugPrintfEXT("Breaking because end pt is outside. It is: (%f, %f, %f)", end_point.xyz);
+            }
+            #endif
             break;
         }
 
@@ -1877,17 +2065,29 @@ void main() {
             #endif
 
             if(grid_val > 0 && !do_subsample) {
+                #if USE_PRINTF
+                if(gl_GlobalInvocationID.xy == debug_pixel) {
+                    debugPrintfEXT("traversing the cell: (%d, %d, %d), cell min: (%f, %f, %f), cell max: (%f, %f, %f), start point: (%f, %f, %f). value: %d\n", grid_cell.xyz, cell_min.xyz, cell_max.xyz, start_point.xyz, grid_val);
+                }
+                #endif
+
                 traverse_cell(start_point, start_list, cell_min, cell_max, end_traversal, next_list);
+                #if USE_PRINTF
+                if(gl_GlobalInvocationID.xy == debug_pixel) {
+                    debugPrintfEXT("end point: (%f, %f, %f)", end_point.xyz);
+                }
+                #endif
                 cell_traversed = true;
             }
 
             //TODO: the next section can probably be skipped if the cell has been traversed
 
+            // changed this from always true to !cell_traversed
             if(!cell_traversed) {
 
                 #if USE_PRINTF
                 if (gl_GlobalInvocationID.xy == debug_pixel) {
-                    debugPrintfEXT("cell_tmaxX: %f, cell_tmaxY: %f, cell_tmaxZ: %f", cell_tmaxX, cell_tmaxY, cell_tmaxZ);
+                    debugPrintfEXT("cell_tmaxX: %f, cell_tmaxY: %f, cell_tmaxZ: %f\n", cell_tmaxX, cell_tmaxY, cell_tmaxZ);
                 }
                 #endif
 
