@@ -68,7 +68,7 @@ dependencies {
                 // Vulkan binaries are only necessary on macOS
                 p.endsWith("vulkan") -> {
                     if(native.contains("macos")) {
-                        // println("vulkan: org.lwjgl:lwjgl$p:$lwjglVersion:$native")
+                        logger.info("vulkan: org.lwjgl:lwjgl$p:$lwjglVersion:$native")
                         runtimeOnly("org.lwjgl:lwjgl$p:$lwjglVersion:$native")
                     }
                 }
@@ -77,19 +77,19 @@ dependencies {
                 // apart from macOS/ARM64
                 p.endsWith("openvr") -> {
                     if(!(native.contains("macos") && native.contains("arm64"))) {
-                        // println("openvr: org.lwjgl:lwjgl$p:$lwjglVersion:$native")
+                        logger.info("openvr: org.lwjgl:lwjgl$p:$lwjglVersion:$native")
                         runtimeOnly("org.lwjgl:lwjgl$p:$lwjglVersion:$native")
                     }
                 }
 
                 else -> {
-                    // println("else: org.lwjgl:lwjgl$p:$lwjglVersion:$native")
+                    logger.info("else: org.lwjgl:lwjgl$p:$lwjglVersion:$native")
                     runtimeOnly("org.lwjgl:lwjgl$p:$lwjglVersion:$native")
                 }
             }
         }
     }
-    implementation("com.fasterxml.jackson.core:jackson-databind:2.13.3")
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.13.4.1")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.13.3")
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.13.3")
     implementation("org.zeromq:jeromq:0.5.2")
@@ -163,7 +163,7 @@ tasks {
                 n.appendNode("groupId", group)
                 n.appendNode("artifactId", artifact)
 
-                println("Added exclusion on $group:$artifact")
+                logger.warn("Added exclusion on $group:$artifact")
             }
         }
 
@@ -328,7 +328,6 @@ tasks {
                         "\${$propertyName}")
 
                     // Custom per artifact tweaks
-                    // println(artifactId)
                     if("\\-bom".toRegex().find(artifactId) != null) {
                         node.appendNode("type", "pom")
                     }
