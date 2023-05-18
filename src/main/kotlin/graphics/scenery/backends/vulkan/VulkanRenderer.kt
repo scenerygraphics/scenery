@@ -814,7 +814,7 @@ open class VulkanRenderer(hub: Hub,
             // TODO: Decide: either update each SSBO separately like now OR batch them and update them together
             val keys = buffers.keys
             keys.forEach {
-                if(it.lowercase().contains("ssboUpload"))
+                if(it.lowercase().contains("ssbo") && it.lowercase().contains("upload"))
                 {
                     if(buffers[it]?.remaining()!! > 0) {
                         renderable.rendererMetadata()?.let { s ->
@@ -830,7 +830,7 @@ open class VulkanRenderer(hub: Hub,
                             )
                         }
                     }
-                } else if(it.lowercase().contains("ssboDownload"))
+                } else if(it.lowercase().contains("ssbo") && it.lowercase().contains("download"))
                 {
                     if(buffers[it]?.remaining()!! > 0) {
                         renderable.rendererMetadata()?.let { s ->
