@@ -1,6 +1,7 @@
 package graphics.scenery
 
 import graphics.scenery.attribute.material.Material
+import graphics.scenery.net.Networkable
 import graphics.scenery.utils.extensions.xyz
 import org.joml.Vector3f
 import org.joml.Vector4f
@@ -14,7 +15,7 @@ import org.joml.Vector4f
  * @author Ulrik Günther <hello@ulrik.is>
  * @constructor Creates a PointLight with default settings, e.g. white emission color.
  */
-class PointLight(radius: Float = 5.0f) : Light("PointLight") {
+class PointLight(val radius: Float = 5.0f) : Light("PointLight") {
     private var proxySphere = Sphere(radius * 1.1f, 10)
     /** The intensity of the point light. Bound to [0.0, 1.0] if using non-HDR rendering. */
     @ShaderProperty
@@ -87,5 +88,23 @@ class PointLight(radius: Float = 5.0f) : Light("PointLight") {
             cullingMode = Material.CullingMode.Front
             depthTest = Material.DepthTest.Greater
         }
+    }
+
+    override fun update(fresh: Networkable, getNetworkable: (Int) -> Networkable, additionalData: Any?) {
+        if (fresh !is PointLight) throw IllegalArgumentException("Update called with object of foreign class")
+        super.update(fresh, getNetworkable, additionalData)
+
+        this.lightRadius = fresh.lightRadius
+    }
+
+
+    override fun getConstructorParameters(): Any? {
+        return radius
+    }
+
+    override fun constructWithParameters(parameters: Any, hub: Hub): Networkable {
+        val radius = parameters as? Float ?:
+            throw java.lang.IllegalArgumentException()
+        return PointLight(radius)
     }
 }

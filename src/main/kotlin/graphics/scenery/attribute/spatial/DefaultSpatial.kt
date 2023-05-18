@@ -1,32 +1,61 @@
 package graphics.scenery.attribute.spatial
 
+import graphics.scenery.DefaultNode
 import graphics.scenery.Node
 import graphics.scenery.Scene
+import graphics.scenery.net.Networkable
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.MaybeIntersects
 import graphics.scenery.utils.extensions.*
 import net.imglib2.Localizable
 import net.imglib2.RealLocalizable
-import org.joml.Matrix4f
-import org.joml.Quaternionf
-import org.joml.Vector3f
-import org.joml.Vector4f
+import org.joml.*
 import java.lang.Float.max
 import java.lang.Float.min
-import kotlin.properties.Delegates
+import kotlin.reflect.KClass
 import kotlin.reflect.KProperty
 
-open class DefaultSpatial(private var node: Node): Spatial {
-    override var world: Matrix4f by Delegates.observable(Matrix4f().identity()) { property, old, new -> propertyChanged(property, old, new) }
-    override var model: Matrix4f by Delegates.observable(Matrix4f().identity()) { property, old, new -> propertyChanged(property, old, new) }
-    override var view: Matrix4f by Delegates.observable(Matrix4f().identity()) { property, old, new -> propertyChanged(property, old, new) }
-    override var projection: Matrix4f by Delegates.observable(Matrix4f().identity()) { property, old, new -> propertyChanged(property, old, new) }
-    override var scale: Vector3f by Delegates.observable(Vector3f(1.0f, 1.0f, 1.0f)) { property, old, new -> propertyChanged(property, old, new) }
-    override var rotation: Quaternionf by Delegates.observable(Quaternionf(0.0f, 0.0f, 0.0f, 1.0f)) { property, old, new -> propertyChanged(property, old, new) }
-    override var position: Vector3f by Delegates.observable(Vector3f(0.0f, 0.0f, 0.0f)) { property, old, new -> propertyChanged(property, old, new) }
+open class DefaultSpatial(@Transient protected var node: Node = DefaultNode()) : Spatial {
+    override var world: Matrix4f = Matrix4f().identity()
+        set(value) {
+            propertyChanged(::world, field, value)
+            field = value
+        }
+    override var model: Matrix4f = Matrix4f().identity()
+        set(value) {
+            propertyChanged(::model, field, value)
+            field = value
+        }
+    override var view: Matrix4f = Matrix4f().identity()
+        set(value) {
+            propertyChanged(::view, field, value)
+            field = value
+        }
+    override var projection: Matrix4f = Matrix4f().identity()
+        set(value) {
+            propertyChanged(::projection, field, value)
+            field = value
+        }
+    override var scale: Vector3f = Vector3f(1.0f, 1.0f, 1.0f)
+        set(value) {
+            propertyChanged(::scale, field, value)
+            field = value
+        }
+    override var rotation: Quaternionf = Quaternionf(0.0f, 0.0f, 0.0f, 1.0f)
+        set(value) {
+            propertyChanged(::rotation, field, value)
+            field = value
+        }
+    override var position: Vector3f = Vector3f(0.0f, 0.0f, 0.0f)
+        set(value) {
+            propertyChanged(::position, field, value)
+            field = value
+        }
     override var wantsComposeModel = true
-    override var needsUpdate = true
-    override var needsUpdateWorld = true
+    @Transient override var needsUpdate = true
+    @Transient override var needsUpdateWorld = true
+
+    override var modifiedAt = 0L
 
     val logger by LazyLogger()
 
@@ -34,18 +63,21 @@ open class DefaultSpatial(private var node: Node): Spatial {
     override fun <R> propertyChanged(property: KProperty<*>, old: R, new: R, custom: String) {
         if(property.name == "rotation"
             || property.name == "position"
-            || property.name  == "scale"
-            || property.name == custom) {
+            || property.name == "scale"
+            || property.name == custom
+        ) {
             needsUpdate = true
             needsUpdateWorld = true
         }
+        updateModifiedAt()
     }
 
-    @Synchronized override fun updateWorld(recursive: Boolean, force: Boolean) {
+    @Synchronized
+    override fun updateWorld(recursive: Boolean, force: Boolean) {
         node.update.forEach { it.invoke() }
 
         if ((needsUpdate or force)) {
-            if(wantsComposeModel) {
+            if (wantsComposeModel) {
                 this.composeModel()
             }
 
@@ -61,6 +93,8 @@ open class DefaultSpatial(private var node: Node): Spatial {
                 world.set(p.spatialOrNull()?.world)
                 world.mul(this.model)
             }
+
+            modifiedAt = System.nanoTime()
         }
 
         if (recursive) {
@@ -70,7 +104,7 @@ open class DefaultSpatial(private var node: Node): Spatial {
             node.linkedNodes.forEach { it.spatialOrNull()?.updateWorld(true, needsUpdateWorld) }
         }
 
-        if(needsUpdateWorld) {
+        if (needsUpdateWorld) {
             needsUpdateWorld = false
         }
 
@@ -79,11 +113,21 @@ open class DefaultSpatial(private var node: Node): Spatial {
 
     override fun worldScale(): Vector3f {
         val wm = world
-        val sx = Vector3f(wm[0,0],wm[0,1],wm[0,2]).length()
-        val sy = Vector3f(wm[1,0],wm[1,1],wm[1,2]).length()
-        val sz = Vector3f(wm[2,0],wm[2,1],wm[2,2]).length()
+        val sx = Vector3f(wm[0, 0], wm[0, 1], wm[0, 2]).length()
+        val sy = Vector3f(wm[1, 0], wm[1, 1], wm[1, 2]).length()
+        val sz = Vector3f(wm[2, 0], wm[2, 1], wm[2, 2]).length()
 
-        return Vector3f(sx,sy,sz)
+        return Vector3f(sx, sy, sz)
+    }
+
+    override fun worldRotation(): Quaternionf{
+
+        // unscale rotation part of matrix
+        val scale = worldScale()
+        val iScale = Vector3f(1/scale.x,1/scale.y,1/scale.z)
+        val m = Matrix3f(world)
+        m.scale(iScale)
+        return Quaternionf().setFromNormalized(m)
     }
 
     /**
@@ -97,7 +141,8 @@ open class DefaultSpatial(private var node: Node): Spatial {
             model.translationRotateScale(
                 Vector3f(position.x(), position.y(), position.z()),
                 this.rotation,
-                Vector3f(this.scale.x(), this.scale.y(), this.scale.z()))
+                Vector3f(this.scale.x(), this.scale.y(), this.scale.z())
+            )
         }
     }
 
@@ -126,7 +171,7 @@ open class DefaultSpatial(private var node: Node): Spatial {
         val max = node.getMaximumBoundingBox().max.xyzw()
 
         val maxDimension = (max - min).max()
-        val scaling = sideLength/maxDimension
+        val scaling = sideLength / maxDimension
 
         if((scaleUp && scaling > 1.0f) || scaling <= 1.0f) {
             this.scale = Vector3f(scaling, scaling, scaling)
@@ -164,14 +209,12 @@ open class DefaultSpatial(private var node: Node): Spatial {
         return false
     }
 
-    override fun worldPosition(v: Vector3f?): Vector3f {
-        val target = v ?: position
-        return if(node.parent is Scene && v == null) {
-            Vector3f(target)
+    override fun worldPosition(v: Vector3f?): Vector3f =
+        if(node.parent is Scene && v == null) {
+            Vector3f(position)
         } else {
-            world.transform(Vector4f().set(target, 1.0f)).xyz()
+            world.transform(Vector4f().set(v ?: Vector3f(), 1.0f)).xyz()
         }
-    }
 
     /**
      * Performs a intersection test with an axis-aligned bounding box of this [Node], where
@@ -194,7 +237,8 @@ open class DefaultSpatial(private var node: Node): Spatial {
             return MaybeIntersects.NoIntersection()
         }
 
-        val invDir = Vector3f(1 / (dir.x() + Float.MIN_VALUE), 1 / (dir.y() + Float.MIN_VALUE), 1 / (dir.z() + Float.MIN_VALUE))
+        val invDir =
+            Vector3f(1 / (dir.x() + Float.MIN_VALUE), 1 / (dir.y() + Float.MIN_VALUE), 1 / (dir.z() + Float.MIN_VALUE))
 
         val t1 = (min.x() - origin.x()) * invDir.x()
         val t2 = (max.x() - origin.x()) * invDir.x()
@@ -252,11 +296,11 @@ open class DefaultSpatial(private var node: Node): Spatial {
     }
 
     override fun move(distance: Float, d: Int) {
-        setPosition( getFloatPosition(d) + distance, d )
+        setPosition(getFloatPosition(d) + distance, d)
     }
 
     override fun move(distance: Double, d: Int) {
-        setPosition( getDoublePosition(d) + distance, d )
+        setPosition(getDoublePosition(d) + distance, d)
     }
 
     override fun move(distance: RealLocalizable?) {
@@ -266,19 +310,19 @@ open class DefaultSpatial(private var node: Node): Spatial {
     }
 
     override fun move(distance: FloatArray?) {
-        distance?.get(0)?.let { move(it, 0 ) }
-        distance?.get(1)?.let { move(it, 1 ) }
-        distance?.get(2)?.let { move(it, 2 ) }
+        distance?.get(0)?.let { move(it, 0) }
+        distance?.get(1)?.let { move(it, 1) }
+        distance?.get(2)?.let { move(it, 2) }
     }
 
     override fun move(distance: DoubleArray?) {
-        distance?.get(0)?.let { move(it, 0 ) }
-        distance?.get(1)?.let { move(it, 1 ) }
-        distance?.get(2)?.let { move(it, 2 ) }
+        distance?.get(0)?.let { move(it, 0) }
+        distance?.get(1)?.let { move(it, 1) }
+        distance?.get(2)?.let { move(it, 2) }
     }
 
     override fun move(distance: Int, d: Int) {
-        move( distance.toLong(), d )
+        move(distance.toLong(), d)
     }
 
     override fun move(distance: Long, d: Int) {
@@ -292,15 +336,15 @@ open class DefaultSpatial(private var node: Node): Spatial {
     }
 
     override fun move(distance: IntArray?) {
-        distance?.get(0)?.let { move(it, 0 ) }
-        distance?.get(1)?.let { move(it, 1 ) }
-        distance?.get(2)?.let { move(it, 2 ) }
+        distance?.get(0)?.let { move(it, 0) }
+        distance?.get(1)?.let { move(it, 1) }
+        distance?.get(2)?.let { move(it, 2) }
     }
 
     override fun move(distance: LongArray?) {
-        distance?.get(0)?.let { move(it, 0 ) }
-        distance?.get(1)?.let { move(it, 1 ) }
-        distance?.get(2)?.let { move(it, 2 ) }
+        distance?.get(0)?.let { move(it, 0) }
+        distance?.get(1)?.let { move(it, 1) }
+        distance?.get(2)?.let { move(it, 2) }
     }
 
     override fun numDimensions(): Int {
@@ -308,7 +352,7 @@ open class DefaultSpatial(private var node: Node): Spatial {
     }
 
     override fun fwd(d: Int) {
-        move( 1, d)
+        move(1, d)
     }
 
     override fun getDoublePosition(d: Int): Double {
@@ -316,35 +360,35 @@ open class DefaultSpatial(private var node: Node): Spatial {
     }
 
     override fun setPosition(pos: RealLocalizable) {
-        position.setComponent( 0, pos.getFloatPosition(0) )
-        position.setComponent( 1, pos.getFloatPosition(1) )
-        position.setComponent( 2, pos.getFloatPosition(2) )
+        position.setComponent(0, pos.getFloatPosition(0))
+        position.setComponent(1, pos.getFloatPosition(1))
+        position.setComponent(2, pos.getFloatPosition(2))
     }
 
     override fun setPosition(pos: FloatArray?) {
-        pos?.get(0)?.let { setPosition(it, 0 ) }
-        pos?.get(1)?.let { setPosition(it, 1 ) }
-        pos?.get(2)?.let { setPosition(it, 2 ) }
+        pos?.get(0)?.let { setPosition(it, 0) }
+        pos?.get(1)?.let { setPosition(it, 1) }
+        pos?.get(2)?.let { setPosition(it, 2) }
     }
 
     override fun setPosition(pos: DoubleArray?) {
-        pos?.get(0)?.let { setPosition(it, 0 ) }
-        pos?.get(1)?.let { setPosition(it, 1 ) }
-        pos?.get(2)?.let { setPosition(it, 2 ) }
+        pos?.get(0)?.let { setPosition(it, 0) }
+        pos?.get(1)?.let { setPosition(it, 1) }
+        pos?.get(2)?.let { setPosition(it, 2) }
     }
 
     override fun setPosition(pos: Float, d: Int) {
-        position.setComponent( d, pos )
+        position.setComponent(d, pos)
     }
 
     override fun setPosition(pos: Double, d: Int) {
-        setPosition( pos.toFloat(), d )
+        setPosition(pos.toFloat(), d)
     }
 
     override fun setPosition(pos: Localizable?) {
-        pos?.getIntPosition(0)?.let { setPosition(it, 0 ) }
-        pos?.getIntPosition(1)?.let { setPosition(it, 1 ) }
-        pos?.getIntPosition(2)?.let { setPosition(it, 2 ) }
+        pos?.getIntPosition(0)?.let { setPosition(it, 0) }
+        pos?.getIntPosition(1)?.let { setPosition(it, 1) }
+        pos?.getIntPosition(2)?.let { setPosition(it, 2) }
     }
 
     override fun setPosition(pos: IntArray?) {
@@ -367,4 +411,24 @@ open class DefaultSpatial(private var node: Node): Spatial {
         setPosition(position.toFloat(), d)
     }
 
+    override fun getAdditionalUpdateData(): Any? {
+        return node.networkID
+    }
+
+    override fun update(fresh: Networkable, getNetworkable: (Int) -> Networkable, additionalData: Any?) {
+        if (fresh !is DefaultSpatial) {
+            throw IllegalArgumentException("Got wrong type to update ${this::class.simpleName} ")
+        }
+        this.node = getNetworkable(additionalData as Int) as Node
+
+        position = fresh.position
+        rotation = fresh.rotation
+        scale = fresh.scale
+    }
+
+    override fun getAttributeClass(): KClass<out Any> {
+        return Spatial::class
+    }
+
+    override var networkID: Int = 0
 }

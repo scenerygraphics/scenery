@@ -1,15 +1,12 @@
 package graphics.scenery.controls
 
-import org.joml.Matrix4f
-import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Display
 import graphics.scenery.backends.vulkan.*
 import graphics.scenery.Mesh
 import graphics.scenery.utils.LazyLogger
 import kotlinx.coroutines.*
-import org.joml.Quaternionf
-import org.joml.Vector2i
+import org.joml.*
 import org.lwjgl.system.MemoryStack
 import org.lwjgl.system.MemoryUtil.memAllocInt
 import org.lwjgl.system.MemoryUtil.memAllocLong
@@ -448,7 +445,7 @@ class Hololens: TrackerInput, Display, Hubable {
             currentCommandBuffer.commandBuffer.commandBuffer = with(VU.newCommandBuffer(device, hololensCommandPool, autostart = true)) {
                 MemoryStack.stackPush().use { stack ->
                     logger.info("Blitting image of size ${width}x$height")
-                    val imageBlit = VkImageBlit.callocStack(1, stack)
+                    val imageBlit = VkImageBlit.calloc(1, stack)
                     val type = VK_IMAGE_ASPECT_COLOR_BIT
 
                     imageBlit.srcSubresource().set(type, 0, 0, 1)
@@ -459,7 +456,7 @@ class Hololens: TrackerInput, Display, Hubable {
                     imageBlit.dstOffsets(0).set(0, 0, 0)
                     imageBlit.dstOffsets(1).set(hololensDisplaySize.x().toInt(), hololensDisplaySize.y().toInt(), 1)
 
-                    val subresourceRange = VkImageSubresourceRange.callocStack(stack)
+                    val subresourceRange = VkImageSubresourceRange.calloc(stack)
                         .aspectMask(type)
                         .baseMipLevel(0)
                         .levelCount(1)
@@ -572,6 +569,10 @@ class Hololens: TrackerInput, Display, Hubable {
      */
     override fun getHeadToEyeTransform(eye: Int): Matrix4f {
         return headToEyeTransforms[eye]
+    }
+
+    override fun fadeToColor(color: Vector4f, seconds: Float) {
+        TODO("Not yet implemented")
     }
 
     override fun getTrackedDevices(ofType: TrackedDeviceType): Map<String, TrackedDevice> {

@@ -16,8 +16,6 @@ import graphics.scenery.attribute.DelegationType
 import graphics.scenery.attribute.geometry.Geometry
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.attribute.renderable.Renderable
-import graphics.scenery.spirvcrossj.Loader
-import graphics.scenery.spirvcrossj.libspirvcrossj
 import graphics.scenery.textures.Texture
 import graphics.scenery.textures.Texture.BorderColor
 import graphics.scenery.textures.Texture.RepeatMode
@@ -123,7 +121,7 @@ open class OpenGLRenderer(hub: Hub,
     private var screenshotRequested = false
     private var screenshotOverwriteExisting = false
     private var screenshotFilename = ""
-    private var encoder: H264Encoder? = null
+    private var encoder: VideoEncoder? = null
     private var recordMovie = false
     private var movieFilename = ""
 
@@ -330,18 +328,6 @@ open class OpenGLRenderer(hub: Hub,
         private const val MATERIAL_HAS_SPECULAR = 0x0004
         private const val MATERIAL_HAS_NORMAL = 0x0008
         private const val MATERIAL_HAS_ALPHAMASK = 0x0010
-
-        init {
-            Loader.loadNatives()
-            libspirvcrossj.initializeProcess()
-
-            Runtime.getRuntime().addShutdownHook(object: Thread() {
-                override fun run() {
-                    logger.debug("Finalizing libspirvcrossj")
-                    libspirvcrossj.finalizeProcess()
-                }
-            })
-        }
     }
 
     /**
@@ -788,7 +774,9 @@ open class OpenGLRenderer(hub: Hub,
 
         ShaderType.values().forEach { type ->
             try {
-                val m = OpenGLShaderModule.getFromCacheOrCreate(gl, "main", shaders.get(Shaders.ShaderTarget.OpenGL, type))
+                // we still request Vulkan shaders here, albeit working on OpenGL, as the shaders
+                // are written for Vulkan and will be converted on-the-fly by [OpenGLShaderModule].
+                val m = OpenGLShaderModule.getFromCacheOrCreate(gl, "main", shaders.get(Shaders.ShaderTarget.Vulkan, type))
                 modules[m.shaderType] = m
             } catch (e: ShaderNotFoundException) {
                 if(shaders is Shaders.ShadersFromFiles) {
@@ -863,7 +851,17 @@ open class OpenGLRenderer(hub: Hub,
         try {
 
             scene.discover(scene, { _ -> true }).forEach {
-                destroyNode(it)
+                destroyNode(it, onShutdown = true)
+            }
+
+            // The hub might contain elements that are both in the scene graph,
+            // and in the hub, e.g. a VolumeManager. We clean them here as well.
+            hub?.find { it is Node }?.forEach { (_, node) ->
+                (node as? Node)?.let { destroyNode(it, onShutdown = true) }
+            }
+
+            hub?.elements?.values?.forEach {
+                (it as? Node)?.renderableOrNull()?.close()
             }
 
             scene.initialized = false
@@ -1559,7 +1557,7 @@ open class OpenGLRenderer(hub: Hub,
         return state
     }
 
-    protected fun destroyNode(node: Node) {
+    protected fun destroyNode(node: Node, onShutdown: Boolean = false) {
         node.ifRenderable {
             this.metadata.remove("OpenGLRenderer")
             val s = this.metadata["OpenGLRenderer"] as? OpenGLObjectState ?: return@ifRenderable
@@ -1572,6 +1570,12 @@ open class OpenGLRenderer(hub: Hub,
             }
 
             node.metadata.remove("OpenGLRenderer")
+
+            if(onShutdown) {
+                s.textures.forEach { (_, texture) ->
+                    texture.delete()
+                }
+            }
 
             initialized = false
         }
@@ -2119,7 +2123,7 @@ open class OpenGLRenderer(hub: Hub,
                 }, false)
 
                 val supersamplingFactor = getSupersamplingFactor(cglWindow)
-                encoder = H264Encoder(
+                encoder = VideoEncoder(
                     (supersamplingFactor * window.width).toInt(),
                     (supersamplingFactor * window.height).toInt(),
                     file.absolutePath,
@@ -2360,13 +2364,13 @@ open class OpenGLRenderer(hub: Hub,
 
         with(materialUbo) {
             name = "MaterialProperties"
-            add("materialType", { material.materialToMaterialType(s) })
-            add("Ka", { material.ambient })
-            add("Kd", { material.diffuse })
-            add("Ks", { material.specular })
-            add("Roughness", { material.roughness })
-            add("Metallic", { material.metallic })
-            add("Opacity", { material.blending.opacity })
+            add("materialType", { node.materialOrNull()!!.materialToMaterialType(s) })
+            add("Ka", { node.materialOrNull()!!.ambient })
+            add("Kd", { node.materialOrNull()!!.diffuse })
+            add("Ks", { node.materialOrNull()!!.specular })
+            add("Roughness", { node.materialOrNull()!!.roughness })
+            add("Metallic", { node.materialOrNull()!!.metallic })
+            add("Opacity", { node.materialOrNull()!!.blending.opacity })
 
             s.UBOs.put("MaterialProperties", this)
         }

@@ -5,6 +5,7 @@ import graphics.scenery.attribute.material.HasMaterial
 import graphics.scenery.attribute.renderable.HasRenderable
 import graphics.scenery.attribute.spatial.DefaultSpatial
 import graphics.scenery.attribute.spatial.HasCustomSpatial
+import graphics.scenery.net.Networkable
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
@@ -45,23 +46,50 @@ open class Camera : DefaultNode("Camera"), HasRenderable, HasMaterial, HasCustom
     var right: Vector3f = Vector3f(1.0f, 0.0f, 0.0f)
     /** FOV of the camera **/
     open var fov: Float = 70.0f
+        set(v) {
+            field = v
+            updateModifiedAt()
+        }
     /** Z buffer near plane */
     var nearPlaneDistance = 0.05f
+        set(v) {
+            field = v
+            updateModifiedAt()
+        }
     /** Z buffer far plane location */
     var farPlaneDistance = 1000.0f
+        set(v) {
+            field = v
+            updateModifiedAt()
+        }
     /** delta T from the renderer */
     var deltaT = 0.0f
     /** Projection the camera uses */
     var projectionType: ProjectionType = ProjectionType.Undefined
+        set(v) {
+            field = v
+            updateModifiedAt()
+        }
     /** Width of the projection */
     open var width: Int = 0
+        set(v) {
+            field = v
+            updateModifiedAt()
+        }
     /** Height of the projection */
     open var height: Int = 0
+        set(v) {
+            field = v
+            updateModifiedAt()
+        }
     /** View-space coordinate system e.g. for frustum culling. */
     var viewSpaceTripod: Tripod
         protected set
     /** Disables culling for this camera. */
     var disableCulling: Boolean = false
+
+    var wantsSync = true
+    override fun wantsSync(): Boolean = wantsSync
 
     init {
         this.nodeType = "Camera"
@@ -74,6 +102,21 @@ open class Camera : DefaultNode("Camera"), HasRenderable, HasMaterial, HasCustom
 
     override fun createSpatial(): CameraSpatial {
         return CameraSpatial(this)
+    }
+
+    override fun update(fresh: Networkable, getNetworkable: (Int) -> Networkable, additionalData: Any?) {
+        if (fresh !is Camera) throw IllegalArgumentException("Update called with object of foreign class")
+        super.update(fresh, getNetworkable, additionalData)
+
+        this.nearPlaneDistance = fresh.nearPlaneDistance
+        this.farPlaneDistance = fresh.farPlaneDistance
+        this.fov = fresh.fov
+
+        this.width = fresh.width
+        this.height = fresh.height
+
+        this.projectionType = fresh.projectionType
+
     }
 
     /**
@@ -147,9 +190,26 @@ open class Camera : DefaultNode("Camera"), HasRenderable, HasMaterial, HasCustom
      * Returns the list of objects (as [Scene.RaycastResult]) under the screen space position
      * indicated by [x] and [y], sorted by their distance to the observer.
      */
-    @JvmOverloads fun getNodesForScreenSpacePosition(x: Int, y: Int,
-                                                       ignoredObjects: List<Class<*>> = emptyList(),
-                                                       debug: Boolean = false): Scene.RaycastResult {
+    @JvmOverloads
+    fun getNodesForScreenSpacePosition(
+        x: Int, y: Int,
+        ignoredObjects: List<Class<*>> = listOf<Class<*>>(BoundingGrid::class.java),
+        debug: Boolean = false
+    ): Scene.RaycastResult {
+        return getNodesForScreenSpacePosition(x, y, { n: Node ->
+            !ignoredObjects.any { it.isAssignableFrom(n.javaClass) }
+        }, debug)
+    }
+
+    /**
+     * Returns the list of objects (as [Scene.RaycastResult]) under the screen space position
+     * indicated by [x] and [y], sorted by their distance to the observer.
+     */
+    fun getNodesForScreenSpacePosition(
+        x: Int, y: Int,
+        filter: (Node) -> Boolean,
+        debug: Boolean = false
+    ): Scene.RaycastResult {
         val (worldPos, worldDir) = screenPointToRay(x, y)
 
         val scene = getScene()
@@ -158,7 +218,7 @@ open class Camera : DefaultNode("Camera"), HasRenderable, HasMaterial, HasCustom
             return Scene.RaycastResult(emptyList(), worldPos, worldDir)
         }
 
-        return scene.raycast(worldPos, worldDir, ignoredObjects, debug)
+        return scene.raycast(worldPos, worldDir, filter, debug)
     }
 
     /**
@@ -168,22 +228,25 @@ open class Camera : DefaultNode("Camera"), HasRenderable, HasMaterial, HasCustom
      * Returns (worldPos, worldDir)
      */
     fun screenPointToRay(x: Int, y: Int): Pair<Vector3f, Vector3f> {
-        val view = (if (targeted) target - spatial().position else  forward).normalize()
-        var h = Vector3f(view).cross(up).normalize()
-        var v = Vector3f(h).cross(view)
+        // calculate aspect ratio, note here that both width and height
+        // are integers and need to be converted before the division, otherwise
+        // we end up with an incorrect (integer) result
+        val aspect: Float = width.toFloat() / height.toFloat()
+        val tanFov = tan(fov / 2.0f * PI.toFloat()/180.0f)
 
-        val fov = fov * Math.PI / 180.0f
-        val lengthV = tan(fov / 2.0).toFloat() * nearPlaneDistance
-        val lengthH = lengthV * (width / height)
+        // shift the x and y coordinates to a [-1, 1] coordinate system,
+        // with 0,0 being center
+        val posX = (2.0f * (( x + 0.5f)/width) - 1) * tanFov * aspect
+        val posY = (1.0f - 2.0f * ((y + 0.5f)/height)) * tanFov
 
-        v *= lengthV
-        h *= lengthH
+        // transform both origin points and screen-space positions with the view matrix to world space
+        // screen is 1 unit away from the camera -> ray should start at nearPlaneDist and go through worldPos
+        val origin = spatial().viewToWorld(Vector3f(0.0f)).xyz()
+        val screenPos = spatial().viewToWorld(Vector3f(posX, posY, -1.0f)).xyz()
 
-        val posX = (x - width / 2.0f) / (width / 2.0f)
-        val posY = -1.0f * (y - height / 2.0f) / (height / 2.0f)
+        val worldDir = (screenPos - origin).normalize()
+        val worldPos = origin + nearPlaneDistance * worldDir
 
-        val worldPos = spatial().position + view * nearPlaneDistance + h * posX + v * posY
-        val worldDir = (worldPos - spatial().position).normalize()
         return Pair(worldPos, worldDir)
     }
 
@@ -306,6 +369,14 @@ open class Camera : DefaultNode("Camera"), HasRenderable, HasMaterial, HasCustom
 
 
     open class CameraSpatial(val camera: Camera): DefaultSpatial(camera) {
+
+        override fun update(fresh: Networkable, getNetworkable: (Int) -> Networkable, additionalData: Any?) {
+            if (fresh !is CameraSpatial) throw IllegalArgumentException("Update called with object of foreign class")
+            super.update(fresh, getNetworkable, additionalData)
+
+            this.projection = fresh.projection
+        }
+
         /** View matrix of the camera. Setting the view matrix will re-set the forward
          *  vector of the camera according to the given matrix.
          */

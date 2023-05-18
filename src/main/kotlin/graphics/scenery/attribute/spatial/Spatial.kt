@@ -1,6 +1,7 @@
 package graphics.scenery.attribute.spatial
 
 import graphics.scenery.Node
+import graphics.scenery.net.Networkable
 import graphics.scenery.utils.MaybeIntersects
 import net.imglib2.RealLocalizable
 import net.imglib2.RealPositionable
@@ -9,7 +10,7 @@ import org.joml.Quaternionf
 import org.joml.Vector3f
 import kotlin.reflect.KProperty
 
-interface Spatial: RealLocalizable, RealPositionable {
+interface Spatial: RealLocalizable, RealPositionable, Networkable {
     /** Model matrix **/
     var model: Matrix4f
     /** World transform matrix */
@@ -52,6 +53,13 @@ interface Spatial: RealLocalizable, RealPositionable {
      * @return world scale
      */
     fun worldScale(): Vector3f
+
+    /**
+     * Extracts the rotation component from the world matrix
+     *
+     * Is not correct for world matrices with shear or are anisotropic!
+     */
+    fun worldRotation(): Quaternionf
 
     fun intersectAABB(origin: Vector3f, dir: Vector3f): MaybeIntersects
 

@@ -4,6 +4,7 @@ import graphics.scenery.primitives.TextBoard
 import graphics.scenery.attribute.renderable.DefaultRenderable
 import graphics.scenery.attribute.renderable.Renderable
 import graphics.scenery.attribute.material.Material
+import graphics.scenery.net.Networkable
 import graphics.scenery.utils.extensions.*
 import org.joml.Vector3f
 import org.joml.Vector4f
@@ -28,18 +29,34 @@ open class BoundingGrid : Mesh("Bounding Grid") {
     /** Grid color for the bounding grid. */
     @ShaderProperty
     var gridColor: Vector3f = Vector3f(1.0f, 1.0f, 1.0f)
+        set(value) {
+            field = value
+            updateModifiedAt()
+        }
 
     /** Number of lines per grid axis. */
     @ShaderProperty
     var numLines: Int = 10
+        set(value) {
+            field = value
+            updateModifiedAt()
+        }
 
     /** Line width for the grid. */
     @ShaderProperty
     var lineWidth: Float = 1.2f
+        set(value) {
+            field = value
+            updateModifiedAt()
+        }
 
     /** Whether to show only the ticks on the grid, or show the full grid. */
     @ShaderProperty
     var ticksOnly: Int = 1
+        set(value) {
+            field = value
+            updateModifiedAt()
+        }
 
     /** Slack around transparent objects, 2% by default. */
     var slack = 0.02f
@@ -50,6 +67,8 @@ open class BoundingGrid : Mesh("Bounding Grid") {
             updateNode(field, value)
             field = value
         }
+
+    override var modifiedAt: Long = 0
 
     /** Stores the hash of the [node]'s bounding box to keep an eye on it. */
     protected var nodeBoundingBoxHash: Int = -1
@@ -163,6 +182,15 @@ open class BoundingGrid : Mesh("Bounding Grid") {
                 name = "Bounding Grid of ${node.name}"
             } ?: logger.error("Bounding box of $b is null")
         }
+    }
+
+    override fun update(fresh: Networkable, getNetworkable: (Int) -> Networkable, additionalData: Any?) {
+        super.update(fresh, getNetworkable, additionalData)
+        if (fresh !is BoundingGrid) throw IllegalArgumentException("Update called with object of foreign class")
+        this.gridColor = fresh.gridColor
+        this.lineWidth = fresh.lineWidth
+        this.numLines = fresh.numLines
+        this.ticksOnly = fresh.ticksOnly
     }
 
     /**

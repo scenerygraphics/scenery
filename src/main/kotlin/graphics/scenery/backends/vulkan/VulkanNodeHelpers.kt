@@ -159,7 +159,7 @@ object VulkanNodeHelpers {
      * and allocates necessary command buffers from [commandPools] and submits to [queue]. Returns the [node]'s modified [VulkanObjectState].
      */
     fun updateInstanceBuffer(device: VulkanDevice, node: InstancedNode, state: VulkanObjectState, commandPools: VulkanRenderer.CommandPools, queue: VkQueue): VulkanObjectState {
-        logger.trace("Updating instance buffer for ${node.name}")
+        logger.trace("Updating instance buffer for {}", node.name)
 
         // parentNode.instances is a CopyOnWrite array list, and here we keep a reference to the original.
         // If it changes in the meantime, no problemo.
@@ -172,7 +172,7 @@ object VulkanNodeHelpers {
 
         // TODO make maxInstanceUpdateCount property of InstancedNode
         val maxUpdates = node.metadata["MaxInstanceUpdateCount"] as? AtomicInteger
-        if(maxUpdates?.get() ?: 1 < 1) {
+        if((maxUpdates?.get() ?: 1) < 1) {
             logger.debug("Instances updates blocked for ${node.name}, returning")
             return state
         }
@@ -277,7 +277,8 @@ object VulkanNodeHelpers {
 
             logger.debug("${node.name} will have $type texture from $texture in slot $slot")
 
-            if (!textureCache.containsKey(texture)) {
+            val existing = textureCache[texture]
+            if (existing == null) {
                 try {
                     logger.debug("Loading texture {} for {}", texture, node.name)
 
@@ -317,8 +318,15 @@ object VulkanNodeHelpers {
                     logger.warn("Could not load texture for ${node.name}: $e")
                 }
             } else {
-                s.textures[type] = textureCache[texture]!!
+                if(s.textures[type] != existing) {
+                    descriptorUpdated = true
+                }
+                s.textures[type] = existing
             }
+        }
+
+        if(material.textures.isEmpty()) {
+            s.textures.clear()
         }
 
         s.texturesLastSeen = now
@@ -326,6 +334,7 @@ object VulkanNodeHelpers {
         val isCompute = material is ShaderMaterial && ((material as? ShaderMaterial)?.isCompute() ?: false)
         if(!isCompute) {
             Texture.objectTextures.forEach {
+                s.defaultTexturesFor.clear()
                 if (!s.textures.containsKey(it)) {
                     s.textures.putIfAbsent(it, defaultTexture)
                     s.defaultTexturesFor.add(it)
@@ -365,16 +374,15 @@ object VulkanNodeHelpers {
 
         renderable.rendererMetadata()?.let { s ->
             renderpasses.filter { it.value.passConfig.type == RenderConfigReader.RenderpassType.geometry || it.value.passConfig.type == RenderConfigReader.RenderpassType.lights }
-                .map { pass ->
-                    val shaders = when {
-                        material is ShaderMaterial -> {
-                            logger.debug("Initializing preferred pipeline for ${node.name} from ShaderMaterial")
+                .map { (passName, pass) ->
+                    val shaders = when (material) {
+                        is ShaderMaterial -> {
+                            logger.debug("Initializing preferred pipeline for ${node.name} in pass $passName from ShaderMaterial")
                             material.shaders
                         }
-
                         else -> {
-                            logger.debug("Initializing pass-default shader preferred pipeline for ${node.name}")
-                            Shaders.ShadersFromFiles(pass.value.passConfig.shaders.map { "shaders/$it" }.toTypedArray())
+                            logger.debug("Initializing pass-default shader preferred pipeline for ${node.name} in pass $passName")
+                            Shaders.ShadersFromFiles(pass.passConfig.shaders.map { "shaders/$it" }.toTypedArray())
                         }
                     }
 
@@ -394,54 +402,14 @@ object VulkanNodeHelpers {
                         }
                     }
 
-                    pass.value.initializeInputAttachmentDescriptorSetLayouts(shaderModules)
-                    pass.value.initializePipeline("preferred-${renderable.getUuid()}",
-                        shaderModules, settings = { pipeline ->
-                        when(material.cullingMode) {
-                            Material.CullingMode.None -> pipeline.rasterizationState.cullMode(VK10.VK_CULL_MODE_NONE)
-                            Material.CullingMode.Front -> pipeline.rasterizationState.cullMode(VK10.VK_CULL_MODE_FRONT_BIT)
-                            Material.CullingMode.Back -> pipeline.rasterizationState.cullMode(VK10.VK_CULL_MODE_BACK_BIT)
-                            Material.CullingMode.FrontAndBack -> pipeline.rasterizationState.cullMode(VK10.VK_CULL_MODE_FRONT_AND_BACK)
-                        }
-
-                        when(material.depthTest) {
-                            Material.DepthTest.Equal -> pipeline.depthStencilState.depthCompareOp(VK10.VK_COMPARE_OP_EQUAL)
-                            Material.DepthTest.Less -> pipeline.depthStencilState.depthCompareOp(VK10.VK_COMPARE_OP_LESS)
-                            Material.DepthTest.Greater -> pipeline.depthStencilState.depthCompareOp(VK10.VK_COMPARE_OP_GREATER)
-                            Material.DepthTest.LessEqual -> pipeline.depthStencilState.depthCompareOp(VK10.VK_COMPARE_OP_LESS_OR_EQUAL)
-                            Material.DepthTest.GreaterEqual -> pipeline.depthStencilState.depthCompareOp(VK10.VK_COMPARE_OP_GREATER_OR_EQUAL)
-                            Material.DepthTest.Always -> pipeline.depthStencilState.depthCompareOp(VK10.VK_COMPARE_OP_ALWAYS)
-                            Material.DepthTest.Never -> pipeline.depthStencilState.depthCompareOp(VK10.VK_COMPARE_OP_NEVER)
-                        }
-
-                        if(material.wireframe) {
-                            pipeline.rasterizationState.polygonMode(VK10.VK_POLYGON_MODE_LINE)
-                        } else {
-                            pipeline.rasterizationState.polygonMode(VK10.VK_POLYGON_MODE_FILL)
-                        }
-
-                        if(material.blending.transparent) {
-                            with(material.blending) {
-                                val blendStates = pipeline.colorBlendState.pAttachments()
-                                for (attachment in 0 until (blendStates?.capacity() ?: 0)) {
-                                    val state = blendStates?.get(attachment)
-
-                                    @Suppress("SENSELESS_COMPARISON", "IfThenToSafeAccess")
-                                    if (state != null) {
-                                        state.blendEnable(true)
-                                            .colorBlendOp(colorBlending.toVulkan())
-                                            .srcColorBlendFactor(sourceColorBlendFactor.toVulkan())
-                                            .dstColorBlendFactor(destinationColorBlendFactor.toVulkan())
-                                            .alphaBlendOp(alphaBlending.toVulkan())
-                                            .srcAlphaBlendFactor(sourceAlphaBlendFactor.toVulkan())
-                                            .dstAlphaBlendFactor(destinationAlphaBlendFactor.toVulkan())
-                                            .colorWriteMask(VK10.VK_COLOR_COMPONENT_R_BIT or VK10.VK_COLOR_COMPONENT_G_BIT or VK10.VK_COLOR_COMPONENT_B_BIT or VK10.VK_COLOR_COMPONENT_A_BIT)
-                                    }
-                                }
-                            }
-                        }
-                    },
-                        vertexInputType = s.vertexDescription)
+                    val pipeline = pass.initializePipeline(shaderModules,
+                        material.cullingMode,
+                        material.depthTest,
+                        material.blending,
+                        material.wireframe,
+                        s.vertexDescription
+                    )
+                    pass.registerPipelineForNode(pipeline, renderable)
                 }
 
 

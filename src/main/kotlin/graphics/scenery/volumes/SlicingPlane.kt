@@ -2,23 +2,30 @@ package graphics.scenery.volumes
 
 import graphics.scenery.DefaultNode
 import graphics.scenery.attribute.spatial.HasSpatial
+import graphics.scenery.net.Networkable
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.times
 import graphics.scenery.utils.extensions.xyz
 import org.joml.Vector3f
 import org.joml.Vector4f
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Non-geometry node to handle slicing plane behavior.
  * Default position is the XZ-plane through the origin.
  */
-class SlicingPlane(override var name: String = "Slicing Plane") : DefaultNode(name), HasSpatial {
-    private var slicedVolumes = listOf<Volume>()
+class SlicingPlane(name: String = "Slicing Plane") : DefaultNode(name), HasSpatial {
+    // kryo doesn't understand kotlins empty constructors
+    constructor() : this("Slicing Plane")
+
+    var slicedVolumes = listOf<Volume>()
+        private set
+
+    private val slicerID = counter.getAndIncrement()
 
     init {
         addSpatial()
         postUpdate.add {
-
             if (slicedVolumes.isEmpty()) {
                 return@add
             }
@@ -39,17 +46,52 @@ class SlicingPlane(override var name: String = "Slicing Plane") : DefaultNode(na
                     Vector4f(projectedNull, projectedNull.lengthSquared() * if (pn.dot(projectedNull) < 0) -1 else 1)
                 }
 
-            slicedVolumes.forEach { it.slicingPlaneEquations += this to planeEq }
+            slicedVolumes.forEach { it.slicingPlaneEquations += slicerID to planeEq }
         }
     }
 
     fun addTargetVolume(volume: Volume) {
         slicedVolumes = slicedVolumes + volume
+        updateModifiedAt()
     }
 
     fun removeTargetVolume(volume: Volume) {
         slicedVolumes = slicedVolumes - volume
-        volume.slicingPlaneEquations = volume.slicingPlaneEquations.minus(this)
+        volume.slicingPlaneEquations = volume.slicingPlaneEquations.minus(slicerID)
+        updateModifiedAt()
+    }
+
+    override fun update(fresh: Networkable, getNetworkable: (Int) -> Networkable, additionalData: Any?) {
+        super.update(fresh, getNetworkable, additionalData)
+        if (fresh !is SlicingPlane) {
+            throw IllegalArgumentException("Got wrong type to update ${this::class.simpleName} ")
+        }
+
+        val freshTargets = fresh.slicedVolumes.map { getNetworkable(it.networkID) as Volume }.toList()
+
+        if (this == fresh) {
+            // this happens at initialisation because we are not using a our constructor but the deserialized object
+            // from the server
+            this.slicedVolumes = emptyList()
+            // now also fresh.slicedVolumes is empty
+        }
+
+        // remove old
+        slicedVolumes.forEach { oldVolume ->
+            if (!freshTargets.any { it.networkID == oldVolume.networkID }) {
+                removeTargetVolume(oldVolume)
+            }
+        }
+        // add new
+        freshTargets.forEach { newVolume ->
+            if (!slicedVolumes.any { it.networkID == newVolume.networkID }) {
+                addTargetVolume(newVolume)
+            }
+        }
+    }
+
+    companion object {
+        private val counter = AtomicInteger(0)
     }
 
 }

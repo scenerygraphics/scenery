@@ -10,6 +10,7 @@ import graphics.scenery.geometry.GeometryType
 import graphics.scenery.attribute.HasDelegationType
 import graphics.scenery.attribute.DelegationType
 import graphics.scenery.attribute.renderable.Renderable
+import graphics.scenery.backends.ShaderIntrospection
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.Statistics
@@ -180,22 +181,7 @@ object VulkanScenePass {
                     return@computeLoop
                 }
 
-                val requiredSets = sets.filter { it !is VulkanRenderer.DescriptorSet.None }.map { it.id }.toLongArray()
-                if(pass.vulkanMetadata.descriptorSets.capacity() < requiredSets.size) {
-                    logger.debug("Reallocating descriptor set storage")
-                    MemoryUtil.memFree(pass.vulkanMetadata.descriptorSets)
-                    pass.vulkanMetadata.descriptorSets = MemoryUtil.memAllocLong(requiredSets.size)
-                }
-
-                pass.vulkanMetadata.descriptorSets.position(0)
-                pass.vulkanMetadata.descriptorSets.limit(pass.vulkanMetadata.descriptorSets.capacity())
-                pass.vulkanMetadata.descriptorSets.put(requiredSets)
-                pass.vulkanMetadata.descriptorSets.flip()
-
-                pass.vulkanMetadata.uboOffsets.position(0)
-                pass.vulkanMetadata.uboOffsets.limit(pass.vulkanMetadata.uboOffsets.capacity())
-                pass.vulkanMetadata.uboOffsets.put(sets.filterIsInstance<VulkanRenderer.DescriptorSet.DynamicSet>().map { it.offset }.toIntArray())
-                pass.vulkanMetadata.uboOffsets.flip()
+                pass.setDescriptorSetsAndUBOOffsets(sets)
 
                 // allocate more vertexBufferOffsets than needed, set limit lateron
 //                pass.vulkanMetadata.uboOffsets.position(0)
@@ -368,22 +354,7 @@ object VulkanScenePass {
                     logger.debug("${node.name} requires DS ${specs.joinToString { "${it.key}, " }}")
                 }
 
-                val requiredSets = sets.filter { it !is VulkanRenderer.DescriptorSet.None }.map { it.id }.toLongArray()
-                if (pass.vulkanMetadata.descriptorSets.capacity() < requiredSets.size) {
-                    logger.debug("Reallocating descriptor set storage")
-                    MemoryUtil.memFree(pass.vulkanMetadata.descriptorSets)
-                    pass.vulkanMetadata.descriptorSets = MemoryUtil.memAllocLong(requiredSets.size)
-                }
-
-                pass.vulkanMetadata.descriptorSets.position(0)
-                pass.vulkanMetadata.descriptorSets.limit(pass.vulkanMetadata.descriptorSets.capacity())
-                pass.vulkanMetadata.descriptorSets.put(requiredSets)
-                pass.vulkanMetadata.descriptorSets.flip()
-
-                pass.vulkanMetadata.uboOffsets.position(0)
-                pass.vulkanMetadata.uboOffsets.limit(pass.vulkanMetadata.uboOffsets.capacity())
-                pass.vulkanMetadata.uboOffsets.put(sets.filter { it is VulkanRenderer.DescriptorSet.DynamicSet }.map { (it as VulkanRenderer.DescriptorSet.DynamicSet).offset }.toIntArray())
-                pass.vulkanMetadata.uboOffsets.flip()
+                pass.setDescriptorSetsAndUBOOffsets(sets)
 
                 if(pass.vulkanMetadata.descriptorSets.limit() > 0) {
                     VK10.vkCmdBindDescriptorSets(this, VK10.VK_PIPELINE_BIND_POINT_GRAPHICS,
@@ -421,13 +392,36 @@ object VulkanScenePass {
         }
     }
 
+    private fun VulkanRenderpass.setDescriptorSetsAndUBOOffsets(
+        sets: List<VulkanRenderer.DescriptorSet>,
+    ) {
+        val requiredSets = sets.filter { it !is VulkanRenderer.DescriptorSet.None }.map { it.id }.toLongArray()
+        if (this.vulkanMetadata.descriptorSets.capacity() < requiredSets.size) {
+            logger.debug("Reallocating descriptor set storage")
+            MemoryUtil.memFree(this.vulkanMetadata.descriptorSets)
+            this.vulkanMetadata.descriptorSets = MemoryUtil.memAllocLong(requiredSets.size)
+        }
+
+        this.vulkanMetadata.descriptorSets.position(0)
+        this.vulkanMetadata.descriptorSets.limit(this.vulkanMetadata.descriptorSets.capacity())
+        this.vulkanMetadata.descriptorSets.put(requiredSets)
+        this.vulkanMetadata.descriptorSets.flip()
+
+        this.vulkanMetadata.uboOffsets.position(0)
+        this.vulkanMetadata.uboOffsets.limit(this.vulkanMetadata.uboOffsets.capacity())
+        this.vulkanMetadata.uboOffsets.put(
+            sets.filterIsInstance<VulkanRenderer.DescriptorSet.DynamicSet>().map { it.offset }.toIntArray()
+        )
+        this.vulkanMetadata.uboOffsets.flip()
+    }
+
     /**
      * Blits [input] with [name] into the current [pass]' framebuffer.
      */
     private fun VkCommandBuffer.blitInputsForPass(pass: VulkanRenderpass, name: String, input: VulkanFramebuffer) {
         MemoryStack.stackPush().use { stack ->
-            val imageBlit = VkImageBlit.callocStack(1, stack)
-            val region = VkImageCopy.callocStack(1, stack)
+            val imageBlit = VkImageBlit.calloc(1, stack)
+            val region = VkImageCopy.calloc(1, stack)
 
             val attachmentList = if (name.contains(".")) {
                 input.attachments.filter { it.key == name.substringAfter(".") }
@@ -484,7 +478,7 @@ object VulkanScenePass {
                 imageBlit.dstOffsets(0).set(offsetX, offsetY, 0)
                 imageBlit.dstOffsets(1).set(sizeX, sizeY, 1)
 
-                val subresourceRange = VkImageSubresourceRange.callocStack(stack)
+                val subresourceRange = VkImageSubresourceRange.calloc(stack)
                     .aspectMask(type)
                     .baseMipLevel(0)
                     .levelCount(1)
@@ -566,7 +560,7 @@ object VulkanScenePass {
         }
     }
 
-    private fun setRequiredDescriptorSetsForNode(pass: VulkanRenderpass, node: Node, s: VulkanObjectState, specs: List<MutableMap.MutableEntry<String, VulkanShaderModule.UBOSpec>>, descriptorSets: Map<String, Long>): Pair<List<VulkanRenderer.DescriptorSet>, Boolean> {
+    private fun setRequiredDescriptorSetsForNode(pass: VulkanRenderpass, node: Node, s: VulkanObjectState, specs: List<MutableMap.MutableEntry<String, ShaderIntrospection.UBOSpec>>, descriptorSets: Map<String, Long>): Pair<List<VulkanRenderer.DescriptorSet>, Boolean> {
         var skip = false
         return specs.mapNotNull { (name, _) ->
             val ds = when {

@@ -29,6 +29,7 @@ import tpietzsch.backend.Texture
 import tpietzsch.backend.Texture3D
 import tpietzsch.cache.*
 import tpietzsch.example2.MultiVolumeShaderMip
+import tpietzsch.example2.TriConsumer
 import tpietzsch.example2.VolumeBlocks
 import tpietzsch.example2.VolumeShaderSignature
 import tpietzsch.multires.MultiResolutionStack3D
@@ -59,7 +60,7 @@ class VolumeManager(
     override var hub: Hub?,
     val useCompute: Boolean = false,
     val customSegments: Map<SegmentType, SegmentTemplate>? = null,
-    val customBindings: BiConsumer<Map<SegmentType, SegmentTemplate>, Map<SegmentType, Segment>>? = null
+    val customBindings: TriConsumer<Map<SegmentType, SegmentTemplate>, Map<SegmentType, Segment>, Int>? = null
 ) : DefaultNode("VolumeManager"), HasGeometry, HasRenderable, HasMaterial, Hubable, RequestRepaint {
 
     /**
@@ -140,7 +141,7 @@ class VolumeManager(
         addGeometry {
             this.geometryType = GeometryType.TRIANGLES
         }
-        logger.info("Created new volume manager with compute=$useCompute, segments=$customSegments, bindings=$customBindings")
+        logger.debug("Created new volume manager with compute=$useCompute, segments=$customSegments, bindings=$customBindings")
 
         addMaterial()
 
@@ -285,13 +286,14 @@ class VolumeManager(
             "sampleVolume",
             "convert",
             "slicingPlanes",
-            "slicingMode"
+            "slicingMode",
+            "usedSlicingPlanes"
         )
         segments[SegmentType.SampleVolume] = SegmentTemplate(
             "SampleSimpleVolume.frag",
             "im", "sourcemax", "intersectBoundingBox",
             "volume", "transferFunction", "colorMap", "sampleVolume", "convert", "slicingPlanes",
-            "slicingMode"
+            "slicingMode", "usedSlicingPlanes"
         )
         segments[SegmentType.Convert] = SegmentTemplate(
             "Converter.frag",
@@ -309,7 +311,7 @@ class VolumeManager(
         customSegments?.forEach { type, segment -> segments[type] = segment }
 
         val additionalBindings = customBindings
-            ?: BiConsumer { _: Map<SegmentType, SegmentTemplate>, instances: Map<SegmentType, Segment> ->
+        ?: TriConsumer { _: Map<SegmentType, SegmentTemplate>, instances: Map<SegmentType, Segment>, _: Int ->
                 logger.debug("Connecting additional bindings")
                 instances[SegmentType.SampleMultiresolutionVolume]?.bind("convert", instances[SegmentType.Convert])
                 instances[SegmentType.SampleVolume]?.bind("convert", instances[SegmentType.Convert])
@@ -353,7 +355,7 @@ class VolumeManager(
     protected fun updateBlocks(context: SceneryContext): Boolean {
         val currentProg = progvol
         if (currentProg == null) {
-            logger.info("Not updating blocks, no prog")
+            logger.debug("Not updating blocks, no prog")
             return false
         }
 
@@ -365,7 +367,7 @@ class VolumeManager(
         val settings = hub?.get<Settings>() ?: return false
 
         val hmd = hub?.getWorkingHMDDisplay()?.wantsVR(settings)
-        val mvp = if(hmd != null) {
+        val vp = if(hmd != null) {
             Matrix4f(hmd.getEyeProjection(0, cam.nearPlaneDistance, cam.farPlaneDistance))
                 .mul(cam.spatial().getTransformation())
         } else {
@@ -385,7 +387,7 @@ class VolumeManager(
                 if (state.stack is MultiResolutionStack3D) {
                     val volume = outOfCoreVolumes[i]
 
-                    volume.init(state.stack, cam.width, mvp)
+                    volume.init(state.stack, cam.width, vp)
 
                     val tasks = volume.fillTasks
                     numTasks += tasks.size
@@ -461,6 +463,8 @@ class VolumeManager(
                     currentProg.registerCustomSampler(i, "colorMap", state.colorMap)
                     currentProg.setCustomFloatArrayUniformForVolume(i, "slicingPlanes", 4, state.node.slicingArray())
                     currentProg.setCustomUniformForVolume(i, "slicingMode", state.node.slicingMode.id)
+                    currentProg.setCustomUniformForVolume(i,"usedSlicingPlanes",
+                        min(state.node.slicingPlaneEquations.size, Volume.MAX_SUPPORTED_SLICING_PLANES))
 
                     context.bindTexture(state.transferFunction)
                     context.bindTexture(state.colorMap)
@@ -487,7 +491,7 @@ class VolumeManager(
             currentProg.setViewportWidth(cam.width)
             currentProg.setEffectiveViewportSize(cam.width, cam.height)
             currentProg.setDegrade(farPlaneDegradation)
-            currentProg.setProjectionViewMatrix(mvp, maxAllowedStepInVoxels * minWorldVoxelSize)
+            currentProg.setProjectionViewMatrix(vp, maxAllowedStepInVoxels * minWorldVoxelSize)
             currentProg.use(context)
             currentProg.setUniforms(context)
             currentProg.bindSamplers(context)
@@ -744,11 +748,8 @@ class VolumeManager(
         needAtLeastNumVolumes(renderStacksStates.size)
     }
 
-    @Synchronized
-    fun remove(node: Volume) {
-        logger.debug("Removing $node to OOC nodes")
-        nodes.remove(node)
-
+    private fun replace() {
+        logger.debug("Replacing volume manager with ${nodes.size} volumes managed")
         val volumes = nodes.toMutableList()
         val current = hub?.get<VolumeManager>()
         if(current != null) {
@@ -762,9 +763,18 @@ class VolumeManager(
         }
         volumes.forEach {
             vm.add(it)
+            it.volumeManager = vm
         }
 
         hub?.add(vm)
+    }
+
+    @Synchronized
+    fun remove(node: Volume) {
+        logger.debug("Removing $node to OOC nodes")
+        nodes.remove(node)
+
+        replace()
     }
 
     protected val updated = HashSet<Volume>()
@@ -812,9 +822,39 @@ class VolumeManager(
         renderStateUpdated = true
     }
 
+    override fun close() {
+        logger.debug("Closing VolumeManager")
+
+        replace()
+    }
+
     /** Companion object for Volume */
     companion object {
         /** Static [ForkJoinPool] for fill task submission. */
         protected val forkJoinPool: ForkJoinPool = ForkJoinPool(max(1, Runtime.getRuntime().availableProcessors()))
+
+        fun regenerateVolumeManagerWithExtraVolume(volume: Volume, hub: Hub ) {
+            val vm = hub.get<VolumeManager>()
+            val volumes = ArrayList<Volume>(10)
+
+            if (vm != null) {
+                volumes.addAll(vm.nodes)
+                hub.remove(vm)
+            }
+            volume.volumeManager = if (vm != null) {
+                hub.add(VolumeManager(hub, vm.useCompute, vm.customSegments, vm.customBindings))
+            } else {
+                hub.add(VolumeManager(hub))
+            }
+            vm?.customTextures?.forEach {
+                volume.volumeManager.customTextures.add(it)
+                volume.volumeManager.material().textures[it] = vm.material().textures[it]!!
+            }
+            volume.volumeManager.add(volume)
+            volumes.forEach {
+                volume.volumeManager.add(it)
+                it.volumeManager = volume.volumeManager
+            }
+        }
     }
 }

@@ -1,6 +1,6 @@
 # scenery REPL python init file
 from graphics.scenery.volumes import TransferFunction, Colormap, Volume
-from org.joml import *
+from org.joml import Vector2f, Vector3f, Vector4f, Vector2i, Vector3i, Vector4i, Matrix3f, Matrix4f, Matrix4x3f
 from graphics.scenery import *
 from graphics.scenery.utils import *
 from graphics.scenery.net import *
