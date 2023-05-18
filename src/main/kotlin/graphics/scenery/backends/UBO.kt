@@ -56,6 +56,7 @@ open class UBO {
             is Boolean, is java.lang.Boolean -> 4
             is Enum<*> -> 4
             is FloatArray -> element.size * 4
+            is IntArray -> element.size * 4
             else -> { logger.error("Don't know how to determine size of $element"); 0 }
         }
     }
@@ -86,6 +87,7 @@ open class UBO {
             is Matrix4f -> 14
 
             is FloatArray -> 15
+            is IntArray -> 16
             else -> { logger.error("Don't know how to determine object ID of $this/${this.javaClass.simpleName}"); -1 }
         }
     }
@@ -117,7 +119,8 @@ open class UBO {
                 is Boolean -> Pair(4, 4)
                 is Enum<*> -> Pair(4, 4)
 
-                is FloatArray -> Pair(4*element.size, 4*4)
+                is FloatArray -> Pair(16*element.size, 4*4)
+                is IntArray -> Pair(16*element.size, 4*4)
 
                 else -> {
                     logger.error("Unknown VulkanUBO member type: ${element.javaClass.simpleName}")
@@ -246,7 +249,25 @@ open class UBO {
                 is Boolean -> data.asIntBuffer().put(0, value.toInt())
                 is Enum<*> -> data.asIntBuffer().put(0, value.ordinal)
 
-                is FloatArray -> data.asFloatBuffer().put(value)
+                is FloatArray -> {
+                    // std140 rules demand 16 byte stride for arrays
+                    val fb = data.asFloatBuffer()
+                    val padding = floatArrayOf(0.0f, 0.0f, 0.0f)
+                    value.forEach { f ->
+                        fb.put(f)
+                        fb.put(padding)
+                    }
+                }
+
+                is IntArray -> {
+                    // std140 rules demand 16 byte stride for arrays
+                    val ib = data.asIntBuffer()
+                    val padding = intArrayOf(0, 0, 0)
+                    value.forEach { i ->
+                        ib.put(i)
+                        ib.put(padding)
+                    }
+                }
             }
 
             data.position(pos + size)
