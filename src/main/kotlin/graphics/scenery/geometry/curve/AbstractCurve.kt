@@ -24,7 +24,7 @@ abstract class AbstractCurve (spline: Spline,
 
     private val countList = ArrayList<Int>(50).toMutableList()
     private val frenetFrameCalculator = FrenetFrameCalculator(spline, firstPerpendicularVector)
-    private val frames = frenetFrameCalculator.computeFrenetFrames()
+    val frames = frenetFrameCalculator.computeFrenetFrames()
     private val sectionVertices = spline.verticesCountPerSection()
 
 
