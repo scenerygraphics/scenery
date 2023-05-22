@@ -250,9 +250,10 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
          * along the curve.
          */
         fun calculateTriangles(curveGeometry: List<List<Vector3f>>, addCoverOrTop: Int = 2): Pair<FloatBuffer,FloatBuffer> {
-            val verticesWithoutCoverBuffer = BufferUtils.allocateFloat((curveGeometry.dropLast(1).drop(1).flatten().size * 6 + (curveGeometry.last().size + curveGeometry.first().size)*3)*3)
-            val verticesBuffer = BufferUtils.allocateFloat((curveGeometry.dropLast(1).drop(1).flatten().size * 6 + (curveGeometry.last().size + curveGeometry.first().size)*3 +
-                curveGeometry.first().computeCoverVerticesCount(addCoverOrTop))*3)
+            val verticesSize = (curveGeometry.sumOf{ it.size }*6 - (curveGeometry.last().size* 3 + curveGeometry.first().size*3))*3
+            val verticesWithoutCoverBuffer = BufferUtils.allocateFloat(verticesSize)
+            val verticesBuffer = BufferUtils.allocateFloat(verticesSize +
+                curveGeometry.first().computeCoverVerticesCount(addCoverOrTop)*3)
             val normalsBuffer = BufferUtils.allocateFloat((curveGeometry.dropLast(1).drop(1).flatten().size * 6 +
                 (curveGeometry.last().size + curveGeometry.first().size)*3 + curveGeometry.first().computeCoverVerticesCount(addCoverOrTop))*3)
             if (curveGeometry.isEmpty()) {
@@ -260,7 +261,7 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
             }
             //if none of the lists in the curveGeometry differ in size, distinctBy leaves only one element
             if (curveGeometry.distinctBy { it.size }.size == 1) {
-                val intermediateNormals = ArrayList<ArrayList<Vector3f>>(curveGeometry.flatten().size/curveGeometry[0].size)
+                val intermediateNormals = ArrayList<ArrayList<Vector3f>>(curveGeometry.sumOf { it.size }/curveGeometry[0].size)
                 curveGeometry.dropLast(1).forEachIndexed { shapeIndex, shape ->
 
                     val intermediateNormalSection = ArrayList<Vector3f>(shape.size)
@@ -525,7 +526,8 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
          * Orders the normals in the same structure as the triangle vertices.
          */
         private fun orderNormals(verticesNormals: ArrayList<ArrayList<Vector3f>>): FloatBuffer {
-            val finalNormalsBuffer = BufferUtils.allocateFloat((verticesNormals.drop(1).dropLast(1).flatten().size*6 + verticesNormals.last().size* 3 + verticesNormals.first().size*3)*3)
+            val finalNormalsSize = (verticesNormals.sumOf{ it.size }*6 - (verticesNormals.last().size* 3 + verticesNormals.first().size*3))*3
+            val finalNormalsBuffer = BufferUtils.allocateFloat(finalNormalsSize)
             verticesNormals.dropLast(1).forEachIndexed { shapeIndex, shape ->
                 shape.dropLast(1).forEachIndexed { vertexIndex, _ ->
 

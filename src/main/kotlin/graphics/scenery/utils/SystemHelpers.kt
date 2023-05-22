@@ -4,13 +4,10 @@ import java.io.File
 import java.io.FileOutputStream
 import java.lang.reflect.InvocationTargetException
 import java.net.URI
-import java.net.URL
-import java.net.URLEncoder
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.file.*
 import java.text.SimpleDateFormat
-import java.time.Instant
 import java.util.*
 
 /**
@@ -21,7 +18,7 @@ import java.util.*
  */
 class SystemHelpers {
     companion object {
-        val logger by LazyLogger()
+        val logger by lazyLogger()
 
         /**
          * Sets environment variables during runtime of the process. This code is fractally nasty,

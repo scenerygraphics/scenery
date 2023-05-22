@@ -1,6 +1,6 @@
 package graphics.scenery.backends.vulkan
 
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.system.Struct
 import org.lwjgl.vulkan.*
@@ -25,7 +25,7 @@ open class VulkanFramebuffer(protected val device: VulkanDevice,
                              var height: Int,
                              val commandBuffer: VkCommandBuffer,
                              var shouldClear: Boolean = true, val sRGB: Boolean = false): AutoCloseable {
-    protected val logger by LazyLogger()
+    protected val logger by lazyLogger()
 
     /** Raw Vulkan framebuffer reference. */
     var framebuffer = memAllocLong(1)

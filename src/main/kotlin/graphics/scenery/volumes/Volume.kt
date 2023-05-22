@@ -32,7 +32,7 @@ import graphics.scenery.attribute.spatial.HasCustomSpatial
 import graphics.scenery.net.Networkable
 import graphics.scenery.numerics.OpenSimplexNoise
 import graphics.scenery.numerics.Random
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import graphics.scenery.utils.extensions.times
 import graphics.scenery.utils.forEachIndexedAsync
 import graphics.scenery.volumes.Volume.VolumeDataSource.SpimDataMinimalSource
@@ -502,7 +502,7 @@ open class Volume(
     companion object {
         val setupId = AtomicInteger(0)
         val scifio: SCIFIO = SCIFIO()
-        private val logger by LazyLogger()
+        private val logger by lazyLogger()
 
         @JvmStatic @JvmOverloads fun fromSpimData(
             spimData: SpimDataMinimal,
