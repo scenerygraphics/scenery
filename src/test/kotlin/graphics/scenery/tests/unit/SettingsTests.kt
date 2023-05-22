@@ -2,7 +2,7 @@ package graphics.scenery.tests.unit
 
 import graphics.scenery.Hub
 import graphics.scenery.Settings
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.junit.Test
 import kotlin.random.Random
 import kotlin.test.assertEquals
@@ -15,7 +15,7 @@ import kotlin.test.assertTrue
  * @author Ulrik Guenther <hello@ulrik.is>
  */
 class SettingsTests {
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
 
     private fun prepareSettings(): Settings {
         val hub = Hub()

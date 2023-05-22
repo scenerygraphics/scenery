@@ -7,7 +7,7 @@ import com.esotericsoftware.kryo.util.DefaultInstantiatorStrategy
 import de.javakaffee.kryoserializers.UUIDSerializer
 import graphics.scenery.*
 import graphics.scenery.serialization.*
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import graphics.scenery.utils.Statistics
 import graphics.scenery.volumes.VolumeManager
 import net.imglib2.img.basictypeaccess.array.ByteArray
@@ -40,7 +40,7 @@ class NodePublisher(
     portBackchannel: Int = 6666,
     val context: ZContext
 ) : Agent(), Hubable {
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
 
     private val addressMain = "$ip:$portMain"
     private val addressBackchannel = "$ip:$portBackchannel"

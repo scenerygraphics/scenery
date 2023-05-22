@@ -3,10 +3,9 @@ package graphics.scenery.controls.behaviours
 import graphics.scenery.BoundingGrid
 import graphics.scenery.Camera
 import graphics.scenery.Node
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.joml.Quaternionf
 import org.scijava.ui.behaviour.DragBehaviour
-import kotlin.reflect.KProperty
 
 /**
  * Control behavior for rotating a Node
@@ -23,7 +22,7 @@ open class MouseRotate(
     protected val mouseSpeed: () -> Float = { 0.25f }
 ) : DragBehaviour, WithCameraDelegateBase(camera) {
 
-    protected val logger by LazyLogger()
+    protected val logger by lazyLogger()
 
     protected var currentNode: Node? = null
     private var lastX = 0

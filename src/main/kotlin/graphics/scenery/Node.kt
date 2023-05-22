@@ -8,13 +8,12 @@ import graphics.scenery.attribute.renderable.Renderable
 import graphics.scenery.attribute.spatial.Spatial
 import graphics.scenery.net.Networkable
 import graphics.scenery.utils.MaybeIntersects
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
 import net.imglib2.Localizable
 import net.imglib2.RealLocalizable
 import org.joml.Matrix4f
 import org.joml.Quaternionf
 import org.joml.Vector3f
+import org.slf4j.Logger
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
 import java.util.*
@@ -51,7 +50,7 @@ interface Node : Networkable {
     /** Initialisation function for the object */
     fun init(): Boolean
 
-    val logger: org.slf4j.Logger
+    val logger: Logger
 
     /** bounding box **/
     var boundingBox: OrientedBoundingBox?
@@ -214,7 +213,8 @@ interface Node : Networkable {
      */
     fun getShaderProperty(name: String): Any?
 
-    companion object NodeHelpers {
+    companion object {
+
         /**
          * Depth-first search for elements in a Scene.
          *

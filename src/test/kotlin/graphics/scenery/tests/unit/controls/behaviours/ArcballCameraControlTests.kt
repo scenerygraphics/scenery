@@ -5,10 +5,9 @@ import graphics.scenery.Camera
 import graphics.scenery.DetachedHeadCamera
 import graphics.scenery.Hub
 import graphics.scenery.Scene
-import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.controls.behaviours.ArcballCameraControl
 import graphics.scenery.tests.unit.backends.FauxRenderer
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.joml.Quaternionf
 import org.junit.Assert
 import org.junit.Test
@@ -24,7 +23,7 @@ import kotlin.test.assertNotNull
  * @author Aryaman Gupta <aryaman1994@gmail.com>
  */
 class ArcballCameraControlTests {
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
     private val seqLength = 100
 
     private fun prepareArcballCameraControl(scene: Scene) : ArcballCameraControl {
