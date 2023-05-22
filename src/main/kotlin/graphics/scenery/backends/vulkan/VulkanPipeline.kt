@@ -3,7 +3,7 @@ package graphics.scenery.backends.vulkan
 import graphics.scenery.backends.ShaderConsistencyException
 import graphics.scenery.backends.ShaderIntrospection
 import graphics.scenery.geometry.GeometryType
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.*
@@ -15,7 +15,7 @@ import java.nio.IntBuffer
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class VulkanPipeline(val device: VulkanDevice, val renderpass: VulkanRenderpass, val vulkanRenderpass: Long, val pipelineCache: Long? = null): AutoCloseable {
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
     var type: PipelineType = PipelineType.Graphics
 
     enum class PipelineType { Graphics, Compute }

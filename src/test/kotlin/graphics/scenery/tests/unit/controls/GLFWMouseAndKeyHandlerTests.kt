@@ -10,7 +10,7 @@ import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.controls.GLFWMouseAndKeyHandler
 import graphics.scenery.controls.InputHandler
 import graphics.scenery.tests.unit.backends.FauxRenderer
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.junit.Test
 import org.lwjgl.glfw.GLFW.*
 import org.scijava.ui.behaviour.ClickBehaviour
@@ -29,7 +29,7 @@ import kotlin.test.assertTrue
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class GLFWMouseAndKeyHandlerTests {
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
 
     private fun prepareInputHandler(preparedWindow: SceneryWindow? = null): Triple<InputHandler, Scene, GLFWMouseAndKeyHandler> {
         val h = Hub()

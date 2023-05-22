@@ -16,7 +16,6 @@ plugins {
     scenery.publish
     scenery.sign
     id("com.github.elect86.sciJava") version "0.0.4"
-    id("org.sonarqube") version "3.3"
     jacoco
     id("com.github.johnrengelman.shadow") version "7.1.0"
 }
@@ -69,7 +68,7 @@ dependencies {
                 // Vulkan binaries are only necessary on macOS
                 p.endsWith("vulkan") -> {
                     if(native.contains("macos")) {
-                        println("vulkan: org.lwjgl:lwjgl$p:$lwjglVersion:$native")
+                        logger.info("vulkan: org.lwjgl:lwjgl$p:$lwjglVersion:$native")
                         runtimeOnly("org.lwjgl:lwjgl$p:$lwjglVersion:$native")
                     }
                 }
@@ -78,13 +77,13 @@ dependencies {
                 // apart from macOS/ARM64
                 p.endsWith("openvr") -> {
                     if(!(native.contains("macos") && native.contains("arm64"))) {
-                        println("openvr: org.lwjgl:lwjgl$p:$lwjglVersion:$native")
+                        logger.info("openvr: org.lwjgl:lwjgl$p:$lwjglVersion:$native")
                         runtimeOnly("org.lwjgl:lwjgl$p:$lwjglVersion:$native")
                     }
                 }
 
                 else -> {
-                    println("else: org.lwjgl:lwjgl$p:$lwjglVersion:$native")
+                    logger.info("else: org.lwjgl:lwjgl$p:$lwjglVersion:$native")
                     runtimeOnly("org.lwjgl:lwjgl$p:$lwjglVersion:$native")
                 }
             }
@@ -164,7 +163,7 @@ tasks {
                 n.appendNode("groupId", group)
                 n.appendNode("artifactId", artifact)
 
-                println("Added exclusion on $group:$artifact")
+                logger.warn("Added exclusion on $group:$artifact")
             }
         }
 
@@ -329,7 +328,6 @@ tasks {
                         "\${$propertyName}")
 
                     // Custom per artifact tweaks
-                    println(artifactId)
                     if("\\-bom".toRegex().find(artifactId) != null) {
                         node.appendNode("type", "pom")
                     }
@@ -410,15 +408,6 @@ jacoco {
 }
 
 java.withSourcesJar()
-
-sonarqube {
-    properties {
-        property("sonar.projectKey", "scenerygraphics_scenery")
-        property("sonar.organization", "scenerygraphics-1")
-        property("sonar.host.url", "https://sonarcloud.io")
-        property("sonar.coverage.jacoco.xmlReportPaths", "build/reports/jacoco/fullCodeCoverageReport/fullCodeCoverageReport.xml")
-    }
-}
 
 plugins.withType<JacocoPlugin>() {
     tasks["test"].finalizedBy("jacocoTestReport")

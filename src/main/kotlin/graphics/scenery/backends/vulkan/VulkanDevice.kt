@@ -1,7 +1,7 @@
 package graphics.scenery.backends.vulkan
 
 import graphics.scenery.backends.vulkan.VulkanDevice.DescriptorPool.Companion.maxSets
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.lwjgl.system.MemoryStack.stackPush
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.MemoryUtil.memUTF8
@@ -31,7 +31,7 @@ open class VulkanDevice(
     val debugEnabled: Boolean = false
 ) {
 
-    protected val logger by LazyLogger()
+    protected val logger by lazyLogger()
     /** Stores available memory types on the device. */
     val memoryProperties: VkPhysicalDeviceMemoryProperties
     /** Stores the Vulkan-internal device. */
@@ -768,7 +768,7 @@ open class VulkanDevice(
      * Utility functions for [VulkanDevice].
      */
     companion object {
-        val logger by LazyLogger()
+        val logger by lazyLogger()
 
         /**
          * Data class for defining device/driver-specific workarounds.

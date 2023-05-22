@@ -1,6 +1,6 @@
 package graphics.scenery.backends
 
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.lwjgl.util.shaderc.Shaderc
 import picocli.CommandLine
 import java.io.File
@@ -13,7 +13,7 @@ import kotlin.system.exitProcess
  */
 @CommandLine.Command(name = "CompileShader", mixinStandardHelpOptions = true, description = ["Compiles GLSL shader code to SPIRV bytecode."])
 class ShaderCompiler: AutoCloseable, Callable<ByteArray> {
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
 
     protected val compiler = Shaderc.shaderc_compiler_initialize()
 
