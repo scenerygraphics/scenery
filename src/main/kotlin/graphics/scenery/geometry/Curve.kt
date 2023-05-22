@@ -249,8 +249,9 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
          * along the curve.
          */
         fun calculateTriangles(curveGeometry: List<List<Vector3f>>, addCoverOrTop: Int = 2): Pair<ArrayList<Vector3f>, ArrayList<Vector3f>> {
-            val verticesWithoutCover = ArrayList<Vector3f>(curveGeometry.flatten().size * 6)
-            val verticesVectors = ArrayList<Vector3f>(curveGeometry.flatten().size * 6 + curveGeometry[0].size + 1)
+            val listSize = curveGeometry.sumOf { it.size } * 6
+            val verticesWithoutCover = ArrayList<Vector3f>(listSize)
+            val verticesVectors = ArrayList<Vector3f>(listSize + curveGeometry[0].size + 1)
             val normalsWithoutCover = ArrayList<Vector3f>(verticesWithoutCover.size)
             val normalVectors = ArrayList<Vector3f>(verticesVectors.size)
             if (curveGeometry.isEmpty()) {
@@ -258,7 +259,7 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
             }
             //if none of the lists in the curveGeometry differ in size, distinctBy leaves only one element
             if (curveGeometry.distinctBy { it.size }.size == 1) {
-                val intermediateNormals = ArrayList<ArrayList<Vector3f>>(curveGeometry.flatten().size/curveGeometry[0].size)
+                val intermediateNormals = ArrayList<ArrayList<Vector3f>>(curveGeometry.sumOf { it.size }/curveGeometry[0].size)
                 curveGeometry.dropLast(1).forEachIndexed { shapeIndex, shape ->
 
                     val intermediateNormalSection = ArrayList<Vector3f>(shape.size)
@@ -505,9 +506,10 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
          * Orders the normals in the same structure as the triangle vertices.
          */
         private fun orderNormals(verticesNormals: ArrayList<ArrayList<Vector3f>>): ArrayList<Vector3f> {
-            val finalNormals = ArrayList<Vector3f>(verticesNormals.flatten().size*6 + verticesNormals.first().size)
-            verticesNormals.dropLast(1).forEachIndexed { shapeIndex, shape ->
-                shape.dropLast(1).forEachIndexed { vertexIndex, _ ->
+            val finalSize = verticesNormals.sumOf { it.size } * 6 + verticesNormals.first().size
+            val finalNormals = ArrayList<Vector3f>(finalSize)
+            verticesNormals.subList(0, verticesNormals.size-1).forEachIndexed { shapeIndex, shape ->
+                shape.subList(0, shape.size-1).forEachIndexed { vertexIndex, _ ->
 
                     finalNormals.add(verticesNormals[shapeIndex][vertexIndex])
                     finalNormals.add(verticesNormals[shapeIndex][vertexIndex + 1])
@@ -539,13 +541,15 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
             geometry {
                 vertices = BufferUtils.allocateFloat(verticesVectors.size * 3)
                 verticesVectors.forEach {
-                    vertices.put(it.toFloatArray())
+                    it.get(vertices)
+                    vertices.position(vertices.position()+3)
                 }
                 vertices.flip()
                 texcoords = BufferUtils.allocateFloat(verticesVectors.size * 2)
-                normals = BufferUtils.allocateFloat(normalVectors.size * 3 * 3)
+                normals = BufferUtils.allocateFloat(normalVectors.size * 3)
                 normalVectors.forEach {
-                    normals.put(it.toFloatArray())
+                    it.get(normals)
+                    normals.position(normals.position()+3)
                 }
                 normals.flip()
 
