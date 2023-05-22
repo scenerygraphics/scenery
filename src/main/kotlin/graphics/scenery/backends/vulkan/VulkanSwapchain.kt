@@ -3,7 +3,7 @@ package graphics.scenery.backends.vulkan
 import graphics.scenery.Hub
 import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.backends.SceneryWindow
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import graphics.scenery.utils.SceneryPanel
 import org.lwjgl.glfw.GLFW.*
 import org.lwjgl.glfw.GLFWVulkan
@@ -36,7 +36,7 @@ open class VulkanSwapchain(open val device: VulkanDevice,
                            open val useSRGB: Boolean = true,
                            open val vsync: Boolean = false,
                            open val undecorated: Boolean = false) : Swapchain {
-    protected val logger by LazyLogger()
+    protected val logger by lazyLogger()
 
     /** Swapchain handle. */
     override var handle: Long = 0L

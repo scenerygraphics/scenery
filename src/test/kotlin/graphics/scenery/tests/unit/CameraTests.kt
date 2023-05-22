@@ -4,7 +4,7 @@ import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.numerics.Random
 import graphics.scenery.primitives.TextBoard
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -16,7 +16,7 @@ import kotlin.test.assertTrue
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class CameraTests {
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
 
     /**
      * Tests [Camera.showMessage] by showing a message, expecting

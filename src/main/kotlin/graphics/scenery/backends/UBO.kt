@@ -3,7 +3,7 @@ package graphics.scenery.backends
 import cleargl.GLMatrix
 import cleargl.GLVector
 import gnu.trove.map.hash.TIntObjectHashMap
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.joml.*
 import org.lwjgl.system.MemoryUtil
 import java.nio.ByteBuffer
@@ -24,7 +24,7 @@ open class UBO {
 
     protected var members = LinkedHashMap<String, () -> Any>()
     protected var memberOffsets = HashMap<String, Int>()
-    protected val logger by LazyLogger()
+    protected val logger by lazyLogger()
 
     /** Hash value of all the members, gets updated by [populate()] */
     var hash: Int = 0

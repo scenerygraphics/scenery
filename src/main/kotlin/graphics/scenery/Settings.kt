@@ -1,6 +1,6 @@
 package graphics.scenery
 
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -11,7 +11,7 @@ import java.util.concurrent.ConcurrentHashMap
  */
 class Settings(override var hub: Hub? = null) : Hubable {
     private var settingsStore = ConcurrentHashMap<String, Any>()
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
 
     init {
         val properties = System.getProperties()

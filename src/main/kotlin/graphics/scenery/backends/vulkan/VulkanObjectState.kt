@@ -7,7 +7,7 @@ import graphics.scenery.NodeMetadata
 import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.backends.RendererFlags
 import graphics.scenery.attribute.renderable.Renderable
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.DurationUnit
@@ -20,7 +20,7 @@ import kotlin.time.measureTime
  * @author Ulrik Günther <hello@ulrik.is>
  */
 open class VulkanObjectState : NodeMetadata {
-    protected val logger by LazyLogger()
+    protected val logger by lazyLogger()
 
     /** Consumers for this metadata object. */
     override val consumers: MutableList<String> = ArrayList(setOf("VulkanRenderer"))
@@ -241,7 +241,7 @@ open class VulkanObjectState : NodeMetadata {
      * Utility class for [VulkanObjectState].
      */
     companion object {
-        protected val logger by LazyLogger()
+        protected val logger by lazyLogger()
 
         protected val cache = HashMap<TextureKey, Long>()
 

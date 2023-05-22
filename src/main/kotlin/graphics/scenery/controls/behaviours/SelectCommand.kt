@@ -4,9 +4,8 @@ import graphics.scenery.BoundingGrid
 import graphics.scenery.Camera
 import graphics.scenery.Scene
 import graphics.scenery.backends.Renderer
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.scijava.ui.behaviour.ClickBehaviour
-import kotlin.reflect.KProperty
 
 /**
  * Raycasting-based selection command. Needs to be given a
@@ -29,7 +28,7 @@ open class SelectCommand @JvmOverloads constructor(protected val name: String,
                                                    var ignoredObjects: List<Class<*>> = listOf<Class<*>>(BoundingGrid::class.java),
                                                    protected var action: ((Scene.RaycastResult, Int, Int) -> Unit) = { _, _, _ -> Unit }) : ClickBehaviour,
     WithCameraDelegateBase(camera) {
-    protected val logger by LazyLogger()
+    protected val logger by lazyLogger()
 
 
     /**

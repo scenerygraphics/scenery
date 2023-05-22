@@ -4,7 +4,7 @@ import graphics.scenery.Camera
 import graphics.scenery.Scene
 import graphics.scenery.primitives.Line
 import graphics.scenery.primitives.TextBoard
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.joml.Vector2f
 import org.joml.Vector3f
 import org.joml.Vector4f
@@ -22,7 +22,7 @@ class Ruler(private val name: String, private val camera: () -> Camera?, private
     //position on the mouse click; start of the line
     private val origin = Vector3f()
     private val finalLength = Vector3f()
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
     private val cam = camera.invoke()
 
     /** Setup the line and delete the old one */

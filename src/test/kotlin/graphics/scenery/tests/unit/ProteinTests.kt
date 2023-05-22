@@ -1,11 +1,10 @@
 package graphics.scenery.tests.unit
 
 import graphics.scenery.proteins.Protein
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFails
-import kotlin.test.assertTrue
 
 /**
  * Unit test for the Protein class
@@ -13,7 +12,7 @@ import kotlin.test.assertTrue
  * @author  Justin Buerger <burger@mpi-cbg.de>
  */
 class ProteinTests {
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
 
     @Test
     fun testInvalidPath() {

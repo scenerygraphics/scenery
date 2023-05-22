@@ -133,7 +133,7 @@ class StackedVolumesExample : SceneryBase("Stacking Procedural Volume Rendering 
 
         thread {
             val volumeBuffer =
-                RingBuffer<ByteBuffer>(2) { memAlloc((volumeSize * volumeSize * volumeSize * bitsPerVoxel / 8).toInt()) }
+                RingBuffer(2, default = { memAlloc((volumeSize * volumeSize * volumeSize * bitsPerVoxel / 8).toInt()) })
 
             val seed = Random.randomFromRange(0.0f, 133333337.0f).toLong()
             var shift = Vector3f(0.0f)

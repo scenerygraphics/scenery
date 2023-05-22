@@ -2,11 +2,10 @@ package graphics.scenery.tests.unit
 
 import org.joml.Vector3f
 import graphics.scenery.Box
-import graphics.scenery.Node
 import graphics.scenery.RichNode
 import graphics.scenery.Scene
 import graphics.scenery.numerics.Random
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.junit.Test
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.roundToInt
@@ -18,7 +17,7 @@ import kotlin.test.assertEquals
  * @author Ulrik Guenther <hello@ulrik.is>
  */
 class SceneTests {
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
 
     @Test
     fun testRaycast() {
