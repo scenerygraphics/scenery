@@ -4,6 +4,7 @@ import graphics.scenery.BufferUtils
 import graphics.scenery.Mesh
 import graphics.scenery.utils.extensions.toFloatArray
 import org.joml.*
+import java.nio.FloatBuffer
 import kotlin.Float.Companion.MIN_VALUE
 import kotlin.math.acos
 
@@ -248,14 +249,15 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
          * the [curveGeometry] List which contains all the baseShapes transformed and translated
          * along the curve.
          */
-        fun calculateTriangles(curveGeometry: List<List<Vector3f>>, addCoverOrTop: Int = 2): Pair<ArrayList<Vector3f>, ArrayList<Vector3f>> {
-            val listSize = curveGeometry.sumOf { it.size } * 6
-            val verticesWithoutCover = ArrayList<Vector3f>(listSize)
-            val verticesVectors = ArrayList<Vector3f>(listSize + curveGeometry[0].size + 1)
-            val normalsWithoutCover = ArrayList<Vector3f>(verticesWithoutCover.size)
-            val normalVectors = ArrayList<Vector3f>(verticesVectors.size)
+        fun calculateTriangles(curveGeometry: List<List<Vector3f>>, addCoverOrTop: Int = 2): Pair<FloatBuffer,FloatBuffer> {
+            val verticesSize = (curveGeometry.sumOf{ it.size }*6 - (curveGeometry.last().size* 3 + curveGeometry.first().size*3))*3
+            val verticesWithoutCoverBuffer = BufferUtils.allocateFloat(verticesSize)
+            val verticesBuffer = BufferUtils.allocateFloat(verticesSize +
+                curveGeometry.first().computeCoverVerticesCount(addCoverOrTop)*3)
+            val normalsBuffer = BufferUtils.allocateFloat((curveGeometry.dropLast(1).drop(1).flatten().size * 6 +
+                (curveGeometry.last().size + curveGeometry.first().size)*3 + curveGeometry.first().computeCoverVerticesCount(addCoverOrTop))*3)
             if (curveGeometry.isEmpty()) {
-                return Pair(verticesVectors, normalsWithoutCover)
+                return Pair(verticesBuffer, normalsBuffer)
             }
             //if none of the lists in the curveGeometry differ in size, distinctBy leaves only one element
             if (curveGeometry.distinctBy { it.size }.size == 1) {
@@ -268,9 +270,10 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
                         val triangle1Point1 = curveGeometry[shapeIndex][vertexIndex]
                         val triangle1Point2 = curveGeometry[shapeIndex][vertexIndex + 1]
                         val triangle1Point3 = curveGeometry[shapeIndex + 1][vertexIndex]
-                        verticesWithoutCover.add(triangle1Point1)
-                        verticesWithoutCover.add(triangle1Point2)
-                        verticesWithoutCover.add(triangle1Point3)
+
+                        verticesWithoutCoverBuffer.put(triangle1Point1.toFloatArray())
+                        verticesWithoutCoverBuffer.put(triangle1Point2.toFloatArray())
+                        verticesWithoutCoverBuffer.put(triangle1Point3.toFloatArray())
 
                         //normal calculation triangle 1
                         val normal1 = ((Vector3f(triangle1Point3).sub(Vector3f(triangle1Point1)))
@@ -280,9 +283,10 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
                         val triangle2Point1 = curveGeometry[shapeIndex][vertexIndex + 1]
                         val triangle2Point2 = curveGeometry[shapeIndex + 1][vertexIndex + 1]
                         val triangle2Point3 = curveGeometry[shapeIndex + 1][vertexIndex]
-                        verticesWithoutCover.add(triangle2Point1)
-                        verticesWithoutCover.add(triangle2Point2)
-                        verticesWithoutCover.add(triangle2Point3)
+
+                        verticesWithoutCoverBuffer.put(triangle2Point1.toFloatArray())
+                        verticesWithoutCoverBuffer.put(triangle2Point2.toFloatArray())
+                        verticesWithoutCoverBuffer.put(triangle2Point3.toFloatArray())
 
                         //normal calculation triangle 2
                         val normal2 = ((Vector3f(triangle2Point3).sub(Vector3f(triangle2Point1)))
@@ -292,9 +296,10 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
                     val triangle1Point1 = curveGeometry[shapeIndex][shape.lastIndex]
                     val triangle1Point2 = curveGeometry[shapeIndex][0]
                     val triangle1Point3 = curveGeometry[shapeIndex + 1][shape.lastIndex]
-                    verticesWithoutCover.add(triangle1Point1)
-                    verticesWithoutCover.add(triangle1Point2)
-                    verticesWithoutCover.add(triangle1Point3)
+
+                    verticesWithoutCoverBuffer.put(triangle1Point1.toFloatArray())
+                    verticesWithoutCoverBuffer.put(triangle1Point2.toFloatArray())
+                    verticesWithoutCoverBuffer.put(triangle1Point3.toFloatArray())
 
                     //normal calculation triangle 1
                     val normal1 = ((Vector3f(triangle1Point3).sub(Vector3f(triangle1Point1)))
@@ -304,9 +309,10 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
                     val triangle2Point1 = curveGeometry[shapeIndex][0]
                     val triangle2Point2 = curveGeometry[shapeIndex + 1][0]
                     val triangle2Point3 = curveGeometry[shapeIndex + 1][shape.lastIndex]
-                    verticesWithoutCover.add(triangle2Point1)
-                    verticesWithoutCover.add(triangle2Point2)
-                    verticesWithoutCover.add(triangle2Point3)
+
+                    verticesWithoutCoverBuffer.put(triangle2Point1.toFloatArray())
+                    verticesWithoutCoverBuffer.put(triangle2Point2.toFloatArray())
+                    verticesWithoutCoverBuffer.put(triangle2Point3.toFloatArray())
 
                     //normal calculation triangle 2
                     val normal2 = ((Vector3f(triangle2Point3).sub(Vector3f(triangle2Point1)))
@@ -316,25 +322,39 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
                     //add all triangle normals from this section
                     intermediateNormals.add(intermediateNormalSection)
                 }
-                normalsWithoutCover.addAll(computeNormals(intermediateNormals, curveGeometry.first().size))
+
+                //add the vertices and normals to the first cover to the final buffers
                 if(addCoverOrTop == 0) {
                     val newVerticesAndNormals = getCoverVertices(curveGeometry.first(), true,
                         intermediateNormals.first().filterIndexed{index, _ -> index %2 == 1}.map { it.normalize() })
-                    verticesVectors.addAll(newVerticesAndNormals.first)
-                    normalVectors.addAll(newVerticesAndNormals.second)
+                   newVerticesAndNormals.first.forEach {
+                       verticesBuffer.put(it.toFloatArray())
+                   }
+                    newVerticesAndNormals.second.forEach {
+                        normalsBuffer.put(it.toFloatArray())
+                    }
                 }
-                verticesVectors.addAll(verticesWithoutCover)
-                normalVectors.addAll(normalsWithoutCover)
+
+                //add the vertices and normals of the curve's body to the buffers
+                verticesWithoutCoverBuffer.rewind()
+                verticesBuffer.put(verticesWithoutCoverBuffer)
+                val curveNormals = computeNormals(intermediateNormals, curveGeometry.first().size)
+                curveNormals.rewind()
+                normalsBuffer.put(curveNormals)
                 if (addCoverOrTop == 2) {
                     val newVerticesAndNormals = getCoverVertices(curveGeometry.last(), false,
                         intermediateNormals.last().filterIndexed{index, _ -> index %2 == 0}.map { it.normalize() })
-                    verticesVectors.addAll(newVerticesAndNormals.first)
-                    normalVectors.addAll(newVerticesAndNormals.second)
+                    newVerticesAndNormals.first.forEach {
+                        verticesBuffer.put(it.toFloatArray())
+                    }
+                    newVerticesAndNormals.second.forEach {
+                        normalsBuffer.put(it.toFloatArray())
+                    }
                 }
             } else {
                 throw IllegalArgumentException("The baseShapes must not differ in size!")
             }
-            return Pair(verticesVectors, normalVectors)
+            return Pair(verticesBuffer, normalsBuffer)
         }
 
         /**
@@ -420,7 +440,7 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
          * Computes the normals for each vertex then gives this list to the function [orderNormals] to give each of
          * triangle vertices it's normal.
          */
-        private fun computeNormals(intermediateNormals: ArrayList<ArrayList<Vector3f>>, shapeSize: Int): ArrayList<Vector3f> {
+        private fun computeNormals(intermediateNormals: ArrayList<ArrayList<Vector3f>>, shapeSize: Int): FloatBuffer {
             val normalsOfVertices = ArrayList<ArrayList<Vector3f>>(intermediateNormals.size*shapeSize + shapeSize)
             //calculate normals for every vertex
             val firstSectionNormals = ArrayList<Vector3f>(shapeSize)
@@ -505,52 +525,60 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
         /**
          * Orders the normals in the same structure as the triangle vertices.
          */
-        private fun orderNormals(verticesNormals: ArrayList<ArrayList<Vector3f>>): ArrayList<Vector3f> {
-            val finalSize = verticesNormals.sumOf { it.size } * 6 + verticesNormals.first().size
-            val finalNormals = ArrayList<Vector3f>(finalSize)
-            verticesNormals.subList(0, verticesNormals.size-1).forEachIndexed { shapeIndex, shape ->
-                shape.subList(0, shape.size-1).forEachIndexed { vertexIndex, _ ->
+        private fun orderNormals(verticesNormals: ArrayList<ArrayList<Vector3f>>): FloatBuffer {
+            val finalNormalsSize = (verticesNormals.sumOf{ it.size }*6 - (verticesNormals.last().size* 3 + verticesNormals.first().size*3))*3
+            val finalNormalsBuffer = BufferUtils.allocateFloat(finalNormalsSize)
+            verticesNormals.dropLast(1).forEachIndexed { shapeIndex, shape ->
+                shape.dropLast(1).forEachIndexed { vertexIndex, _ ->
 
-                    finalNormals.add(verticesNormals[shapeIndex][vertexIndex])
-                    finalNormals.add(verticesNormals[shapeIndex][vertexIndex + 1])
-                    finalNormals.add(verticesNormals[shapeIndex + 1][vertexIndex])
+                    finalNormalsBuffer.put(verticesNormals[shapeIndex][vertexIndex].toFloatArray())
+                    finalNormalsBuffer.put(verticesNormals[shapeIndex][vertexIndex + 1].toFloatArray())
+                    finalNormalsBuffer.put(verticesNormals[shapeIndex +1][vertexIndex].toFloatArray())
 
-                    finalNormals.add(verticesNormals[shapeIndex][vertexIndex + 1])
-                    finalNormals.add(verticesNormals[shapeIndex + 1][vertexIndex + 1])
-                    finalNormals.add(verticesNormals[shapeIndex + 1][vertexIndex])
+                    finalNormalsBuffer.put(verticesNormals[shapeIndex][vertexIndex + 1].toFloatArray())
+                    finalNormalsBuffer.put(verticesNormals[shapeIndex + 1][vertexIndex + 1].toFloatArray())
+                    finalNormalsBuffer.put(verticesNormals[shapeIndex + 1][vertexIndex].toFloatArray())
                 }
-                finalNormals.add(verticesNormals[shapeIndex][shape.lastIndex])
-                finalNormals.add(verticesNormals[shapeIndex][0])
-                finalNormals.add(verticesNormals[shapeIndex + 1][shape.lastIndex])
 
-                finalNormals.add(verticesNormals[shapeIndex][0])
-                finalNormals.add(verticesNormals[shapeIndex + 1][0])
-                finalNormals.add(verticesNormals[shapeIndex + 1][shape.lastIndex])
+                finalNormalsBuffer.put(verticesNormals[shapeIndex][shape.lastIndex].toFloatArray())
+                finalNormalsBuffer.put(verticesNormals[shapeIndex][0].toFloatArray())
+                finalNormalsBuffer.put(verticesNormals[shapeIndex + 1][shape.lastIndex].toFloatArray())
+
+                finalNormalsBuffer.put(verticesNormals[shapeIndex][0].toFloatArray())
+                finalNormalsBuffer.put(verticesNormals[shapeIndex + 1][0].toFloatArray())
+                finalNormalsBuffer.put(verticesNormals[shapeIndex + 1][shape.lastIndex].toFloatArray())
             }
-            return finalNormals
+            return finalNormalsBuffer
         }
 
+        /**
+         * Computes the number of vertices for the triangles which cover up the curve's respective ends.
+         */
+        fun <T> List<T>.computeCoverVerticesCount(addCoverOrTop: Int): Int {
+            if(addCoverOrTop == 1)  {return  0 }
+            var coverVerticesCount = 0
+            var subListSize = this.size
+            while(subListSize > 2) {
+                val odd = subListSize%2 == 1
+                subListSize /= 2
+                coverVerticesCount += subListSize
+                if (odd) { subListSize ++ }
+            }
+            return coverVerticesCount*3
+        }
     }
 
     /**
      * Each child of the curve must be, per definition, another Mesh. Therefore, this class turns a List of
      * vertices into a Mesh.
      */
-    class PartialCurve(verticesVectors: ArrayList<Vector3f>, normalVectors: ArrayList<Vector3f>) : Mesh("PartialCurve") {
+    class PartialCurve(verticesBuffer: FloatBuffer, normalVectors: FloatBuffer) : Mesh("PartialCurve") {
         init {
             geometry {
-                vertices = BufferUtils.allocateFloat(verticesVectors.size * 3)
-                verticesVectors.forEach {
-                    it.get(vertices)
-                    vertices.position(vertices.position()+3)
-                }
+                vertices = verticesBuffer.duplicate()
                 vertices.flip()
-                texcoords = BufferUtils.allocateFloat(verticesVectors.size * 2)
-                normals = BufferUtils.allocateFloat(normalVectors.size * 3)
-                normalVectors.forEach {
-                    it.get(normals)
-                    normals.position(normals.position()+3)
-                }
+                texcoords = BufferUtils.allocateFloat(verticesBuffer.capacity() * 2)
+                normals = normalVectors.duplicate()
                 normals.flip()
 
                 boundingBox = generateBoundingBox()
