@@ -550,6 +550,10 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
             }
             return finalNormalsBuffer
         }
+
+        /**
+         * Computes the number of vertices for the triangles which cover up the curve's respective ends.
+         */
         fun <T> List<T>.computeCoverVerticesCount(addCoverOrTop: Int): Int {
             if(addCoverOrTop == 1)  {return  0 }
             var coverVerticesCount = 0
