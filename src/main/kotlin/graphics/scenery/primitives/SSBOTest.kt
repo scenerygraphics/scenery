@@ -41,7 +41,7 @@ open class SSBOTest @JvmOverloads constructor(val sizes: Vector3f = Vector3f(1.0
 
             // This UBO describes the layout as in the respective shader
             val ubo = UBO()
-            ubo.add("Color1", { Vector4f(1.0f, 1.0f, 0.6f, 1.0f) })
+            ubo.add("Color1", { Vector4f(1.0f) })
             description["ssboUpload"] = Buffers.Description(BufferType.Custom(ubo), ubo.getSize())
         }
 

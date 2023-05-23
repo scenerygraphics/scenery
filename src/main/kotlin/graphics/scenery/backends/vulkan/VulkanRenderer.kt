@@ -947,32 +947,39 @@ open class VulkanRenderer(hub: Hub,
                 defaultBuffers.UBOs))
         }
 
-        // TODO: Add SSBO support here
-        /*
         node.ifBuffers {
             logger.debug("Initializing ssbos for ${node.name}")
-            // check if SSBO is present
-
-            // for every present SSBO get name, layout, size
-
-            // add to layout
-            // TODO: check if layout matches shader layout
-
-            // update descriptor sets
-
-            s = VulkanNodeHelpers.createShaderStorageBuffer(device, node, s, stagingPool, /*ssbosPool*/, commandPools, queue)
+            val keys = buffers.keys
+            // TODO: change binding according to SSBO number/index, when multiple SSBOs are present -> double check with ShaderIntrospection
+            // TODO: inside update, the descriptor sets get created
+            keys.forEach {
+                if(it.lowercase().contains("ssbo") && it.lowercase().contains("upload"))
+                {
+                    s = VulkanNodeHelpers.updateShaderStorageBuffers(
+                        device,
+                        node,
+                        it,
+                        s,
+                        stagingPool,
+                        ssboUploadPool,
+                        commandPools,
+                        queue
+                    )
+                } else if(it.lowercase().contains("ssbo") && it.lowercase().contains("download"))
+                {
+                    s = VulkanNodeHelpers.updateShaderStorageBuffers(
+                        device,
+                        node,
+                        it,
+                        s,
+                        stagingPool,
+                        ssboDownloadPool,
+                        commandPools,
+                        queue
+                    )
+                }
+            }
         }
-         */
-
-        /*
-        TODO : Get list of set SSBOs, read type (input or output) and potencially layout
-        val ssboDescriptorSet = getdescriptorCache().getOrPut("SSBOs") {
-            SimpleTimestamped(device.createDescriptorSet(
-                descriptorSetLayouts["SSBOs"]!!, count,
-                buffers.UBOs))
-        }
-
-         */
 
         val matricesUbo = VulkanUBO(device, backingBuffer = defaultBuffers.UBOs)
         with(matricesUbo) {
@@ -1704,6 +1711,7 @@ open class VulkanRenderer(hub: Hub,
                     }
 
                     node.ifBuffers {
+                        //TODO: check if cmd-rerecording is necessary
                         if(dirtySSBOs) {
                             logger.debug("Force command buffer re-recording, as SSBOs for {} has been updated", node.name)
 
@@ -1711,7 +1719,6 @@ open class VulkanRenderer(hub: Hub,
                             updateNodeSSBOs(node)
                             dirtySSBOs = false
 
-                            //TODO: check if cmd-rerecording is necessary
                             rerecordingCauses.add(node.name)
                             forceRerecording = true
                         }

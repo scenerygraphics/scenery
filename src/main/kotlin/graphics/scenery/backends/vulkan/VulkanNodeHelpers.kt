@@ -1,6 +1,7 @@
 package graphics.scenery.backends.vulkan
 
 import graphics.scenery.*
+import graphics.scenery.attribute.buffers.BufferType
 import graphics.scenery.backends.*
 import graphics.scenery.attribute.renderable.Renderable
 import graphics.scenery.attribute.material.Material
@@ -9,6 +10,7 @@ import graphics.scenery.textures.UpdatableTexture
 import graphics.scenery.utils.LazyLogger
 import org.lwjgl.system.jemalloc.JEmalloc
 import org.lwjgl.vulkan.VK10
+import org.lwjgl.vulkan.VK10.*
 import org.lwjgl.vulkan.VkBufferCopy
 import org.lwjgl.vulkan.VkQueue
 import java.nio.ByteBuffer
@@ -165,16 +167,53 @@ object VulkanNodeHelpers {
     queue: VkQueue
     ): VulkanObjectState {
         val buffers = node.buffersOrNull() ?: return state
-        val ssboOriginal = buffers.buffers[key] ?: return state
-        val ssbo = ssboOriginal.duplicate()
-        // TODO: catch if key/description  not present instead of returning
+        val ssboOriginalBuffer = buffers.buffers[key] ?: return state
+        val ssboDuplBuffer = ssboOriginalBuffer.duplicate()
+
+        val ssboSize = ssboDuplBuffer.remaining()
+
         val description = buffers.description[key] ?: return state
+        /*
+        // TODO: How do I check this?
+        if(description.BufferType != BufferType.Custom(UBO))
+            return state
+         */
 
-
-        if(ssbo.remaining() < 0)
+        if(ssboSize < 0)
             return state
 
+        // TODO: BIGTIME! Update gets called during node init and during the update loop -> figure out how to handle seperaet cases
+        //  -> if backing buffer is already present, if descriptor is already present /dsl is the same!
 
+        state.SSBOBackingBuffers[key] = VulkanBuffer(device, ssboSize.toLong(),
+            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT)
+
+        val dsl = device.createDescriptorSetLayout(
+            listOf(Pair(VK10.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1)),
+            0,
+            VK10.VK_SHADER_STAGE_ALL
+        )
+
+        val ssboUbo = VulkanUBO(device, state.SSBOBackingBuffers[key])
+
+        // TODO: get the content from ssboDuplBuffer, but them into a staging buffer and upload them into the backing buffer, which then is
+        // used during vkUpdateDescriptorSet?
+        val stagingBuffer = VulkanBuffer(device,
+            (1.2 * ssboSize).toLong(),
+            VK10.VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+            VK10.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+            wantAligned = true)
+
+        ssboUbo.updateBackingBuffer(stagingBuffer)
+        ssboUbo.createUniformBuffer()
+
+
+
+        val ds = device.createDescriptorSet(
+            dsl, 1, ssboUbo.descriptor)
+
+        state.requiredDescriptorSets[key] = ds
+        state.SSBOs[key] = ds to ssboUbo
 
 
         return state
