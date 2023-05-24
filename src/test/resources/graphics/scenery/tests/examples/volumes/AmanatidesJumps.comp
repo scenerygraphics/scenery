@@ -73,70 +73,7 @@ layout(set = 11, binding = 0, r32f) uniform image2D NumSteps;
 //layout(set = 11, binding = 0, r32f) uniform image2D EmptyAfterLast;
 #endif
 
-//mat4 im_x_9_x_ = mat4(50.0, 0.0, 0.0, 0.0,
-//0.0, 50.0, 0.0, 0.0,
-//0.0, 0.0, 50.0, 0.0,
-//1.0, 1.0, 1.0, 1.0);
-
-//mat4 im_x_9_x_ = mat4 (33.33334, 0.00, 0.00, 0.00,
-//0.00, 33.33334, 0.00, 0.00,
-//0.00, 0.00, 33.33334, -66.66667,
-//0.00, 0.00, 0.00, 1.00);
-//
-////vec3 volumeDims = vec3(131.0, 131.0, 131.0);
-//vec3 volumeDims = vec3(128.0, 128.0, 128.0);
-
-//for stagbeetle:
-//mat4 invModel = mat4 (216.666672, -0.000000, -0.000000, 0.000000,
-//-0.000000, -216.666672, -0.000000, 0.000000,
-//-0.000000, -0.000000, 216.666672, 0.000000,
-//-0.000000, 866.666687, -433.333344, 1.000000);
-
-//vec3 volumeDims = vec3(832.0, 832.0, 494.0);
-
-//mat4 invProjectionOriginal;
-
-//for kingsnake:
-//mat4 im_x_9_x_ = mat4 (266.666687, -0.000000, -0.000000, 0.000000,
-//-0.000000, -266.666687, -0.000000, 0.000000,
-//-0.000000, -0.000000, 266.666687, 0.000000,
-//-0.000000, 1066.666748, -533.333374, 1.000000);
-//
-//vec3 volumeDims = vec3(1024.000000, 1024.000000, 795.000000);
-
-//ivec2 debug_pixel = ivec2(640, 360);
-//ivec2 debug_pixel = ivec2(490, 560);
-//ivec2 debug_pixel = ivec2(275, 700);
-//ivec2 debug_pixel = ivec2(524, 149);
-//ivec2 debug_pixel = ivec2(548, 404);
-//ivec2 debug_pixel = ivec2(524, 348);
-//ivec2 debug_pixel = ivec2(326, 191);
-//ivec2 debug_pixel = ivec2(46, 243);
-//ivec2 debug_pixel = ivec2(231, 251);
-//ivec2 debug_pixel = ivec2(611, 520);
-//ivec2 debug_pixel = ivec2(515, 503);
-
-// pixel with lists being skipped
-//ivec2 debug_pixel = ivec2(417, 133);
-//ivec2 debug_pixel = ivec2(524, 164);
-//ivec2 debug_pixel = ivec2(415, 131);
-//ivec2 debug_pixel = ivec2(448, 127);
-//ivec2 debug_pixel = ivec2(200, 600);
-//ivec2 debug_pixel = ivec2(600, 600);
-//ivec2 debug_pixel = ivec2(534, 416);
-//ivec2 debug_pixel = ivec2(433, 577);
-//ivec2 debug_pixel = ivec2(729, 282);
-//ivec2 debug_pixel = ivec2(987, 437);
-
-//ivec2 debug_pixel = ivec2(610, 641);
-//ivec2 debug_pixel = ivec2(1273, 604);
-//ivec2 debug_pixel = ivec2(640, 360);
-//ivec2 debug_pixel = ivec2(1171,1026);
-
-
 ivec2 debug_pixel = ivec2(1108, 854);
-//ivec2 debug_pixel = ivec2(427, 465);
-//ivec2 debug_pixel = ivec2(424, 539);
 
 const vec4 bitEnc = vec4(1.,255.,65025.,16581375.);
 const vec4 bitDec = 1./bitEnc;
@@ -148,12 +85,6 @@ const vec4 bitDec = 1./bitEnc;
 float adjustOpacity(float a, float modifiedStepLength) {
 //    modifiedStepLength = max(1.0, modifiedStepLength);
     float b = pow((1.0 - a), modifiedStepLength);
-//    #if USE_PRINTF
-//    if(gl_GlobalInvocationID.xy == debug_pixel) {
-//        debugPrintfEXT("Modified step length is: %f and b is: %f",
-//            modifiedStepLength, b);
-//    }
-//    #endif
     return 1.0 - b;
 }
 
@@ -178,8 +109,7 @@ float orig_tnear;
 float orig_tfar;
 //float nw = 0.000116;
 
-float ndc_to_w(vec2 uv, float n_depth)
-{
+float ndc_to_w(vec2 uv, float n_depth){
     //TODO: possible optimization by converting only the z coordinate to view space and comparing with f and n
     if(n_depth >= 1.0) {
         return 1.0;
@@ -199,8 +129,7 @@ float ndc_to_w(vec2 uv, float n_depth)
     return w_depth;
 }
 
-float w_to_ndc(float w_step)
-{
+float w_to_ndc(float w_step){
     vec4 wpos = mix(originalRay.wfront, originalRay.wback, w_step);
 
     vec4 n_pos = pv_orig * wpos;
@@ -211,8 +140,7 @@ float w_to_ndc(float w_step)
 
 // intersect ray with a box
 // http://www.siggraph.org/education/materials/HyperGraph/raytrace/rtinter3.htm
-void intersectBox( vec3 r_o, vec3 r_d, vec3 boxmin, vec3 boxmax, out float tnear, out float tfar, out int comp1, out int comp2 )
-{
+void intersectBox( vec3 r_o, vec3 r_d, vec3 boxmin, vec3 boxmax, out float tnear, out float tfar, out int comp1, out int comp2 ){
     // compute intersection of ray with all six bbox planes
     vec3 invR = 1 / r_d; // TODO: shouldn't r_d be a unit vector? And what if any component is 0?
     vec3 tbot = invR * ( boxmin - r_o );
@@ -261,8 +189,7 @@ void intersectBox( vec3 r_o, vec3 r_d, vec3 boxmin, vec3 boxmax, out float tnear
     }
 }
 
-void intersectBoundingBox_x_11_x_( vec4 wfront, vec4 wback, out float tnear, out float tfar )
-{
+void intersectBoundingBox_x_11_x_( vec4 wfront, vec4 wback, out float tnear, out float tfar ){
     vec4 mfront = invModel * wfront;
     vec4 mback = invModel * wback;
     int a, b;
@@ -390,76 +317,28 @@ float getPrecedingDepth(ivec2 theList, int index) {
 
 }
 
-void binSearch_lin(ivec2 theList, float dist_to_orig, int start, int end, out bool supseg_found, out int index, out float depthStart, out float depthEnd) {
-
-//    #if USE_PRINTF
-//    if(gl_GlobalInvocationID.xy == debug_pixel) {
-//        debugPrintfEXT("Performing bin search for list: (%d, %d) from %d to %d ", theList, start, end);
-//    }
-//    #endif
-
-
-    supseg_found = false;
-    int low = start;
-    int high = end;
-
-   for (int i = start ; i <= end ; i++) {
-   	depthEnd = getSupsegBack(theList, i);
-
-	if(depthEnd == 0.0) {
-        	supseg_found = false;
-                break;
-	}
-
-        if(depthEnd >= dist_to_orig) { //this supersegment is behind the sample point
-               	supseg_found = true;
-               	index = i;
-                break;
-        }
-   }
-}
-
 void binSearch(ivec2 theList, float dist_to_orig, int start, int end, out bool supseg_found, out int index, out float depthStart, out float depthEnd) {
-
-//    #if USE_PRINTF
-//    if(gl_GlobalInvocationID.xy == debug_pixel) {
-//        debugPrintfEXT("Performing bin search for list: (%d, %d) from %d to %d ", theList, start, end);
-//    }
-//    #endif
-
-
     supseg_found = false;
     int low = start;
     int high = end;
 
     while(low <= high) {
-
         index = (low + high)/2;
-//
-        /*#if USE_PRINTF
-        if(gl_GlobalInvocationID.xy == debug_pixel) {
-            debugPrintfEXT("High is: %d, low is: %d and index is: %d", high, low, index);
-        }
-        #endif*/
-
         depthEnd = getSupsegBack(theList, index);
-        /*if(gl_GlobalInvocationID.xy == debug_pixel) {
-            debugPrintfEXT("depthend%f",depthEnd);
-        }*/
         if(depthEnd == 0.0) { //TODO: improve empty detection mechanism
             //this supersegment has not been filled
             high = index - 1;
             continue;
         }
-
         if(depthEnd < dist_to_orig) { //this supersegment is behind the sample point
             low = index + 1;
         } else {
             float prevEnd = getPrecedingDepth(theList, index);
 
             if(prevEnd < dist_to_orig) {
-                // this is    the supersegment
+                // this is the supersegment
                 supseg_found = true;
+//                depthStart = getSupsegFront(theList, index);
                 break;
             } else {
                 high = index - 1;
@@ -469,33 +348,12 @@ void binSearch(ivec2 theList, float dist_to_orig, int start, int end, out bool s
 }
 #if RAY_INVERSION_ENABLE
 void binSearch2(ivec2 theList, float dist_to_orig, int start, int end, out bool supseg_found, out int index, out float depthStart, out float depthEnd) {
-
-//        #if USE_PRINTF
-//        if(gl_GlobalInvocationID.xy == debug_pixel) {
-//            debugPrintfEXT("Performing bin search for list: (%d, %d) from %d to %d ", theList, start, end);
-//        }
-//        #endif
-
-
     supseg_found = false;
     int low = start;
     int high = end;
-
     while(low <= high) {
-
         index = (low + high)/2;
-        //
-//                #if USE_PRINTF
-//                if(gl_GlobalInvocationID.xy == debug_pixel) {
-//                    debugPrintfEXT("High is: %d, low is: %d and index is: %d", high, low, index);
-//                }
-//                #endif
-
         depthStart = getSupsegFront(theList, index);
-//        if(gl_GlobalInvocationID.xy == debug_pixel) {
-//            debugPrintfEXT("DepthStart%f", depthStart);
-//        }
-
         if(depthStart == 0.0) { //TODO: improve empty detection mechanism
             //this supersegment has not been filled
             high = index - 1;
@@ -505,9 +363,6 @@ void binSearch2(ivec2 theList, float dist_to_orig, int start, int end, out bool 
             high = index - 1;
         } else {
             float nextStart = (index<maxSupersegments-1)?getSupsegFront(theList, index+1):5000.;
-//            if(gl_GlobalInvocationID.xy == debug_pixel) {
-//                debugPrintfEXT("nextStart is%f", nextStart);
-//            }
             if(nextStart==0.0){
                 supseg_found=true;
                 break;
@@ -526,36 +381,26 @@ void binSearch2(ivec2 theList, float dist_to_orig, int start, int end, out bool 
 void findListNumber(vec4 wpos, out ivec2 listNum, out vec4 NDC_orig) {
     //For this sample point, calculate ray number from original VDI
     NDC_orig = pv_orig * wpos;
-
     NDC_orig *= 1/NDC_orig.w; //TODO: check
-
     if(NDC_orig.x < -1 || NDC_orig.x > 1 || NDC_orig.y < -1 || NDC_orig.y > 1 || NDC_orig.z < -1 || NDC_orig.z > 1)
     {
         listNum = ivec2(-1, -1);
         NDC_orig = vec4(-1.);
         return; // This sample point is not in the original viewport and therefore cannot be in the VDI
     }
-
     vec2 tex_orig = (NDC_orig.xy + 1) / 2.0;
-
     listNum.x = int(round(tex_orig.x * vdiWidth)); //TODO: verify that this is correct. Maybe floor makes more sense?
     listNum.y = int(round(tex_orig.y * vdiHeight)); //TODO: verify that this is correct. Maybe floor makes more sense?
 }
 
 void nextSupersegmentInList(ivec2 theList, float exit_distance, bool dotPositive, out bool supseg_found, out int index, out float depthStart, out float depthEnd) {
-
     supseg_found = false;
-
-
     if(dotPositive) {
         if(prevIndex == maxSupersegments - 1) {
             return;
         }
-
         index = prevIndex + 1;
-
         depthStart = getSupsegFront(theList, index);
-
         if(depthStart < exit_distance && depthStart != 0) {
             // we have found our next supseg
             supseg_found = true;
@@ -565,21 +410,13 @@ void nextSupersegmentInList(ivec2 theList, float exit_distance, bool dotPositive
         if(prevIndex == 0) {
             return;
         }
-        /*#if USE_PRINTF
-         if(gl_GlobalInvocationID.xy == debug_pixel) {
-            debugPrintfEXT("finding next supersegment");
-        }
-        #endif*/
-
         index = prevIndex - 1;
-
         depthEnd = getSupsegBack(theList, index);
-
         if(depthEnd > exit_distance) {
             #if USE_PRINTF
-             if(gl_GlobalInvocationID.xy == debug_pixel) {
-                        debugPrintfEXT("found next supersegment\n");
-                    }
+             if(gl_GlobalInvocationID.xy == debug_pixel){
+                debugPrintfEXT("found next supersegment\n");
+            }
             #endif
             supseg_found = true;
             depthStart = getSupsegFront(theList, index);
@@ -596,57 +433,6 @@ const int maxSteps = 1000;
 int totalSteps = 0;
 
 vec4 u, dir;
-
-void findFirstSupseg_binary(ivec2 theList, float dist_to_orig, float exit_distance, out bool supseg_found, out int index, out float depthStart, out float depthEnd) {
-    supseg_found = false;
-
-    binSearch(theList, dist_to_orig, 0, maxSupersegments - 1, supseg_found, index, depthStart, depthEnd);
-
-    depthStart = getSupsegFront(theList, index);
-
-    if(depthStart > exit_distance) {
-        supseg_found = false;
-    }
-
-}
-
-void findFirstSupseg_seeded(ivec2 theList, float dist_to_orig, float exit_distance, out bool supseg_found, out int index, out float depthStart, out float depthEnd) {
-    supseg_found = false;
-
-
-    if(prevIndex == -1) {
-        binSearch(theList, dist_to_orig, 0, maxSupersegments - 1, supseg_found, index, depthStart, depthEnd);
-    } else {
-
-        if(getSupsegBack(theList, prevIndex) == 0 || getSupsegBack(theList, prevIndex) >= dist_to_orig) {
-            //the supersegment we are searching for, if present, lies on the left of prevIndex
-            //we can check the end-point of the preceding supersegment
-            if((getPrecedingDepth(theList, prevIndex) < dist_to_orig) ) { //check if prevIndex is a candidate
-                if(getSupsegBack(theList, prevIndex) != 0) { // if prevIndex was filled, it is the supseg we are searching for
-                    supseg_found = true;
-                    index = prevIndex;
-                    depthEnd = getSupsegBack(theList, index);
-
-                } else {
-                    binSearch(theList, dist_to_orig, 0, prevIndex - 1, supseg_found, index, depthStart, depthEnd);
-                }
-            } else if (prevIndex >= 1) {
-                 binSearch(theList, dist_to_orig, 0, prevIndex - 1, supseg_found, index, depthStart, depthEnd);
-            }
-
-        } else {
-            binSearch(theList, dist_to_orig, prevIndex + 1, maxSupersegments - 1, supseg_found, index, depthStart, depthEnd);
-        }
-
-    }
-
-    depthStart = getSupsegFront(theList, index);
-
-    if(depthStart > exit_distance) {
-        supseg_found = false;
-    }
-
-}
 
 void findFirstSupseg(ivec2 theList, float dist_to_orig, float exit_distance, out bool supseg_found, out int index, out float depthStart, out float depthEnd) {
     supseg_found = false;
@@ -713,42 +499,24 @@ void findFirstSupseg_opt_seeded(ivec2 theList, float dist_to_orig, float exit_di
 #endif
     int bin_search_end = -1;
     int bin_search_start = -1;
+    bool condition;
 #if RLE
-    if(prevIndex < 0 || prevIndex > (maxSupersegments - 1)) {
+    condition = prevIndex < 0 || prevIndex > (maxSupersegments - 1);
 #else
-    if(prevIndex < 0) {
+    condition = prevIndex < 0;
 #endif
+    if(condition){
     	bin_search_end = maxSupersegments - 1;
 	    bin_search_start = 0;
     } else {
-
-            uint backs_u[4];
-
-            float backs_f[4];
-
-            float backs[2];
-
-
-            backs[1] = getSupsegBack(theList, prevIndex);
-            backs[0] = getSupsegBack(theList, prevIndex - 1);
-
-            backs[0] = ((prevIndex - 1) >= 0)?backs[0]:-5000;
-
-            backs[1] = (backs[1] == 0)?5000:backs[1];
-
-            int interval = int(backs[1] >= dist_to_orig) + int(backs[0] >= dist_to_orig);
-            int nzeros_back = int(backs[1] < 4995);//keeping a little wiggle room for floating point comparison
-
-            #if RAY_INVERSION_ENABLE
-
-            float fronts[2];
-        fronts[1]=getSupsegFront(theList, prevIndex);
-        fronts[0]=getSupsegFront(theList, prevIndex+1);
-        fronts[0]=((fronts[0] == 0) || (prevIndex+1<=maxSupersegments-1))?5000:fronts[0];
-        fronts[1] = (fronts[1]==0)?-5000:fronts[1];
-        int interval_f = int(fronts[1]<=dist_to_orig)+int(fronts[0]<=dist_to_orig);
+#if RAY_INVERSION_ENABLE
+        float sides[2];
         if(!dotPositive){
-            if(interval_f==0){
+            sides[0]=getSupsegFront(theList, prevIndex);
+            sides[1]=getSupsegFront(theList, prevIndex+1);
+            sides[1]=((sides[1] == 0) || (prevIndex<=maxSupersegments-2))?5000:sides[1];
+            sides[0] = (sides[0]==0)?-5000:sides[0];
+            /*if(interval_f==0){
                 bin_search_start = 0;
                 bin_search_end=prevIndex-1;
             }else if(interval_f ==2){
@@ -764,9 +532,13 @@ void findFirstSupseg_opt_seeded(ivec2 theList, float dist_to_orig, float exit_di
                     bin_search_end=maxSupersegments-1;
                 }
 
-            }
+            }*/
         } else{
-            if (interval == 0)
+            sides[1] = getSupsegBack(theList, prevIndex);
+            sides[0] = getSupsegBack(theList, prevIndex - 1);
+            sides[0] = ((prevIndex - 1) >= 0)?sides[0]:-5000;
+            sides[1] = (sides[1] == 0)?5000:sides[1];
+            /*if (interval == 0)
             {
                 bin_search_end = maxSupersegments - 1;
                 bin_search_start = prevIndex + 1;
@@ -778,11 +550,11 @@ void findFirstSupseg_opt_seeded(ivec2 theList, float dist_to_orig, float exit_di
             }
             else
             {
-                if (nzeros_back == 1)
+                if (sides[1]<4995)
                 {
                     supseg_found = true;
                     index = prevIndex;
-                    depthEnd = backs[1];
+                    depthEnd = sides[1];
                 }
                 else
                 {
@@ -792,12 +564,36 @@ void findFirstSupseg_opt_seeded(ivec2 theList, float dist_to_orig, float exit_di
                         }
                     #endif
                     bin_search_end = maxSupersegments - 1;
-                    bin_search_start = 0;
+                    bin_search_start = prevIndex-1;
                 }
+            }*/
+        }
+        int interval = int(sides[1]>=dist_to_orig)+int(sides[0]>=dist_to_orig);
+        if(interval==2){
+            bin_search_start = 0;
+            bin_search_end=prevIndex-1;
+        }else if(interval ==0){
+            bin_search_start = prevIndex+1;
+            bin_search_end=maxSupersegments-1;
+        }else{
+            if(sides[1]<4995){
+                supseg_found=true;
+                index=prevIndex;
+                depthStart=sides[1];
+            }else{
+                bin_search_start=prevIndex-int(dotPositive);
+                bin_search_end=maxSupersegments-1;
             }
+
         }
 #else
-
+        float backs[2];
+        backs[1] = getSupsegBack(theList, prevIndex);
+        backs[0] = getSupsegBack(theList, prevIndex - 1);
+        backs[0] = ((prevIndex - 1) >= 0)?backs[0]:-5000;
+        backs[1] = (backs[1] == 0)?5000:backs[1];
+        int interval = int(backs[1] >= dist_to_orig) + int(backs[0] >= dist_to_orig);
+        int nzeros_back = int(backs[1] < 4995);
             if (interval == 0)
             {
                 bin_search_end = maxSupersegments - 1;
@@ -819,10 +615,10 @@ void findFirstSupseg_opt_seeded(ivec2 theList, float dist_to_orig, float exit_di
                 else
                 {
                     bin_search_end = maxSupersegments - 1;
-                    bin_search_start = 0;
+                    bin_search_start = prevIndex-1;
                 }
             }
-        #endif
+#endif
 }
         #if USE_PRINTF
         if(gl_GlobalInvocationID.xy == debug_pixel) {
@@ -839,6 +635,9 @@ void findFirstSupseg_opt_seeded(ivec2 theList, float dist_to_orig, float exit_di
             }
         #endif
             binSearch2(theList, dist_to_orig, bin_search_start, bin_search_end, supseg_found, index, depthStart, depthEnd);
+            depthEnd = getSupsegBack(theList, index);
+            if(depthEnd<exit_distance) supseg_found=false;
+            return;
         }else{
             #if USE_PRINTF
             if(gl_GlobalInvocationID.xy == debug_pixel) {
@@ -846,131 +645,27 @@ void findFirstSupseg_opt_seeded(ivec2 theList, float dist_to_orig, float exit_di
             }
             #endif
             binSearch(theList, dist_to_orig, bin_search_start, bin_search_end, supseg_found, index, depthStart, depthEnd);
+            depthStart = getSupsegFront(theList, index);
+            if(depthStart>exit_distance) supseg_found=false;
+            return;
         }
         #else
         binSearch(theList, dist_to_orig, bin_search_start, bin_search_end, supseg_found, index, depthStart, depthEnd);
         #endif
     }
-
+    #if RAY_INVERSION_ENABLE
+        depthEnd = getSupsegBack(theList, index);
+        depthStart = getSupsegFront(theList, index);
+        if((dotPositive && depthStart > exit_distance) || (!dotPositive && depthEnd<exit_distance)) {
+            supseg_found = false;
+        }
+    #else
     depthStart = getSupsegFront(theList, index);
-#if RAY_INVERSION_ENABLE
-    depthEnd = getSupsegBack(theList, index);
-    if((dotPositive && depthStart > exit_distance) || (!dotPositive && depthEnd<exit_distance)) {
-        supseg_found = false;
-    }
-#else
     if(depthStart > exit_distance) {
             supseg_found = false;
         }
 #endif
 
-}
-
-void findFirstSupseg_opt(ivec2 theList, float dist_to_orig, float exit_distance, out bool supseg_found, out int index, out float depthStart, out float depthEnd) {
-    supseg_found = false;
-
-    int bin_search_end = -1;
-    int bin_search_start = -1;
-
-
-    if(prevIndex == -1) {
-        bin_search_end = maxSupersegments - 1;
-        bin_search_start = 0;
-    } else {
-
-        uint backs_u[4];
-
-        float backs_f[4];
-
-        float backs[4];
-
-        backs[3] = getSupsegBack(theList, prevIndex + 1);
-        backs[2] = getSupsegBack(theList, prevIndex);
-        backs[1] = getSupsegBack(theList, prevIndex - 1);
-        backs[0] = getSupsegBack(theList, prevIndex - 2);
-
-        backs[3] =  (prevIndex < (maxSupersegments - 1))?backs[3]:5000;   // 5000 very very far +inf
-        backs[1] = ((prevIndex - 1) >= 0)?backs[1]:-5000;
-        backs[0] = ((prevIndex - 2) >= 0)?backs[0]:-5000;
-
-        backs[3] = (backs[3] == 0)?5000:backs[3];
-        backs[2] = (backs[2] == 0)?5000:backs[2];
-        backs[1] = (backs[1] == 0)?5000:backs[1];
-
-        int interval = int(backs[3] >= dist_to_orig) + int(backs[2] >= dist_to_orig) + int(backs[1] >= dist_to_orig) + int(backs[0] >= dist_to_orig);
-        int nzeros_back = int(backs[3] != 5000) + int(backs[2] != 5000) + int(backs[1] != 5000);
-
-        if (interval == 0) {
-            bin_search_end = maxSupersegments - 1;
-            bin_search_start = prevIndex + 2;
-        }
-        else if (interval == 4) {
-            bin_search_end = prevIndex - 2;
-            bin_search_start = 0;
-        }
-        else
-        {
-            if (interval == 1)
-            {
-                if (nzeros_back >= 3)
-                {
-                    supseg_found = true;
-                    index = prevIndex + 1;
-                    depthEnd = backs[3];
-                }
-                else
-                {
-                    bin_search_end = prevIndex - 1;
-                    bin_search_start = 0;
-                }
-            }
-            else if (interval == 2)
-            {
-                if (nzeros_back >= 2)
-                {
-                        supseg_found = true;
-                        index = prevIndex;
-                        depthEnd = backs[2];
-                }
-                else
-                {
-                    bin_search_end = prevIndex - 1;
-                    bin_search_start = 0;
-                }
-            }
-            else if (interval == 3)
-            {
-                if (nzeros_back >= 1)
-                {
-                        supseg_found = true;
-                        index = prevIndex - 1;
-                            depthEnd = backs[1];
-                }
-                else
-                {
-                    bin_search_end = prevIndex - 2;
-                    bin_search_start = 0;
-                }
-            }
-        }
-    }
-
-    if (bin_search_end != -1)
-    {
-        binSearch(theList, dist_to_orig, bin_search_start, bin_search_end, supseg_found, index, depthStart, depthEnd);
-    }
-
-    depthStart = getSupsegFront(theList, index);
-
-    if(depthStart > exit_distance) {
-        supseg_found = false;
-    }
-
-//    #if USE_PRINTF
-//    if(gl_GlobalInvocationID.xy == debug_pixel && supseg_found) { //TODO: generalize
-//       debugPrintfEXT("In thelist: (%d, %d) found the index: %d", theList.xy, index);
-//    }
-//    #endif
 }
 
 void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout vec4 accumulatedColor) {
@@ -1081,7 +776,7 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
 
     bool dotPositive;
     //TODO: check for dir.z?
-    dotPositive = dist_to_orig_n <= exit_distance_n ? true: false;
+    dotPositive = (dir.z>=0) ? true: false;
 
 #if !RAY_INVERSION_ENABLE
     if(!dotPositive) {
@@ -1214,13 +909,10 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
             float end_t = (depthEnd - u.z) / dir.z;
 
 #if RAY_INVERSION_ENABLE
-            if(dir.z<0){
-                vec4 start_point = u - dir * start_t;
-                vec4 end_point = u - dir * end_t;
-            }else{
-                start_point = u + dir * start_t;
-                end_point = u + dir * end_t;
-            }
+            if(dotPositive)
+            {start_point = u + dir * start_t;
+            end_point = u + dir * end_t;}
+
 #else
             vec4 start_point = u + dir * start_t;
             vec4 end_point = u + dir * end_t;
@@ -1566,21 +1258,6 @@ ivec3 findGridCell(vec4 position) {
     return grid_coords;
 }
 
-ivec3 findGridCell(ivec2 theList, float depth) {
-
-    ivec3 grid_cell;
-    grid_cell.x = int(floor((float(theList.x) / vdiWidth) * num_cells.x));
-    grid_cell.y = int(floor((float(theList.y) / vdiHeight) * num_cells.y));
-
-    #if USE_VIEW_SPACE_CELLS
-    grid_cell.z = findZInterval_view(depth);
-    #else
-    grid_cell.z = findZInterval_ndc(depth);
-    #endif
-
-    return grid_cell;
-}
-
 void main() {
 //    im_x_9_x_ = transpose(im_x_9_x_);
 
@@ -1635,7 +1312,6 @@ void main() {
 //        debugPrintfEXT("stereo enabled: %d and current eye: %d", vrParameters.stereoEnabled, currentEye.eye);
 //    }
 //    #endif
-
     pv_orig = ProjectionOriginal * ViewOriginal;
 
     ivp_orig = invViewOriginal * invProjectionOriginal;
@@ -1690,13 +1366,6 @@ void main() {
 
     stratification_factor = 1.;
 
-//    #if USE_PRINTF
-//    if(gl_GlobalInvocationID.xy == debug_pixel) {
-//        debugPrintfEXT("Stratification factor: %f", stratification_factor);
-//    }
-//    #endif
-
-
     float step = tnear;
     float step_dbg = tnear;
 
@@ -1719,7 +1388,6 @@ void main() {
         finalColor = vec4(0, 0, 0, 1);
         return;
     } else {
-
         // calculate the value of an acceptable small step
         //calculate min width of a supseg list in NDC
         vec4 n_start = vec4(0, 0, 0, 1);
@@ -1849,14 +1517,6 @@ void main() {
 
     }
 
-//    #if USE_PRINTF
-//    if(gl_GlobalInvocationID.xy == debug_pixel) {
-//        //            debugPrintfEXT("Front orig is: (%f, %f, %f) and back_orig is: (%f, %f, %f). F_pt is: (%f, %f, %f) and l_pt is: (%f, %f, %df).", front_orig.xyz, back_orig.xyz, f_pt.xyz, l_pt.xyz);
-//        //            debugPrintfEXT("The first list passed is: (%d, %d)", firstList);
-//        debugPrintfEXT("Cur step: %f. tnear: %f, tfar: %f", step, tnear, tfar);
-//    }
-//    #endif
-
     ivec2 currentList = firstList;
     u = first_entry_pt;
 
@@ -1866,12 +1526,6 @@ void main() {
 
     tdeltaX = abs((2.0 / vdiWidth) / dir.x);
     tdeltaY = abs((2.0 / vdiHeight) / dir.y);
-
-//    #if USE_PRINTF
-//    if(gl_GlobalInvocationID.xy == debug_pixel) {
-//        debugPrintfEXT("tdeltaX: %f and tdeltaY: %f", tdeltaX, tdeltaY);
-//    }
-//    #endif
 
     const int MAX_X = 1;
     const int MIN_X = -1;
@@ -2257,7 +1911,7 @@ void main() {
 
 //    finalColor = vec4(totalMemoryLoads/2500.0, 0, 0, 1);
     totalAfterLast = totalMemoryLoads - whenLast_Total;
-
+//    finalColor = vec4(0);
     imageStore(OutputViewport, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), finalColor);
     #if USE_PRINTF
     if(gl_GlobalInvocationID.xy == debug_pixel) {
