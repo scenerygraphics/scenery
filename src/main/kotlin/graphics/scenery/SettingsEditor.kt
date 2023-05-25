@@ -21,7 +21,7 @@ import javax.swing.table.DefaultTableModel
  */
 class SettingsEditor @JvmOverloads constructor(var settings : Settings, private val mainFrame : JFrame = JFrame("SettingsEditor"), width : Int = 480, height : Int = 500) {
 
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
 
     private val settingsTable : JTable
     private var tableContents : DefaultTableModel
