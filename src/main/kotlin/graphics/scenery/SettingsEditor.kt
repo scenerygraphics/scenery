@@ -1,7 +1,7 @@
 package graphics.scenery
 
 
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import net.miginfocom.swing.MigLayout
 import java.awt.Dimension
 import java.awt.event.KeyEvent
