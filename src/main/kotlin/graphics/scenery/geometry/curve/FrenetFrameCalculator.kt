@@ -2,6 +2,7 @@ package graphics.scenery.geometry.curve
 
 import graphics.scenery.geometry.Spline
 import graphics.scenery.utils.extensions.toFloatArray
+import graphics.scenery.utils.lazyLogger
 import org.joml.AxisAngle4f
 import org.joml.Quaternionf
 import org.joml.Vector3f
@@ -82,8 +83,8 @@ class FrenetFrameCalculator(spline: Spline, private val firstPerpendicularVector
      * [i] index of the curve (not the geometry!)
      */
     private fun getTangent(i: Int): Vector3f {
+        val tangent = Vector3f()
         if(chain.size >= 3) {
-            val tangent = Vector3f()
             when (i) {
                 0 -> { ((chain[1].sub(chain[0], tangent)).normalize()) }
                 1 -> { ((chain[2].sub(chain[0], tangent)).normalize()) }
@@ -96,7 +97,9 @@ class FrenetFrameCalculator(spline: Spline, private val firstPerpendicularVector
             return tangent
         }
         else {
-            throw Exception("The spline deosn't provide enough points")
+            val frenetLogger by lazyLogger()
+            frenetLogger.error("The chain size is too small.")
+            return tangent
         }
     }
 }
