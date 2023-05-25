@@ -1,7 +1,7 @@
 package graphics.scenery.backends.vulkan
 
 import graphics.scenery.backends.vulkan.VulkanDevice.DescriptorPool.Companion.maxSets
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.lwjgl.system.MemoryStack.stackPush
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.MemoryUtil.memUTF8
@@ -31,7 +31,7 @@ open class VulkanDevice(
     val debugEnabled: Boolean = false
 ) {
 
-    protected val logger by LazyLogger()
+    protected val logger by lazyLogger()
     /** Stores available memory types on the device. */
     val memoryProperties: VkPhysicalDeviceMemoryProperties
     /** Stores the Vulkan-internal device. */
@@ -40,6 +40,8 @@ open class VulkanDevice(
     val queues: Queues
     /** Stores available extensions */
     val extensions = ArrayList<String>()
+    /** Stores enabled features */
+    val features: VkPhysicalDeviceFeatures
 
     private val descriptorPools = ArrayList<DescriptorPool>(5)
 
@@ -57,7 +59,15 @@ open class VulkanDevice(
      * @property[apiVersion] The Vulkan API version supported by the device, represented as string.
      * @property[type] The [DeviceType] of the GPU.
      */
-    data class DeviceData(val vendor: String, val name: String, val driverVersion: String, val apiVersion: String, val type: DeviceType, val properties: VkPhysicalDeviceProperties, val formats: Map<Int, VkFormatProperties>) {
+    data class DeviceData(
+        val vendor: String,
+        val name: String,
+        val driverVersion: String,
+        val apiVersion: String,
+        val type: DeviceType,
+        val properties: VkPhysicalDeviceProperties,
+        val formats: Map<Int, VkFormatProperties>
+    ) {
         fun toFullString() = "$vendor $name ($type, driver version $driverVersion, Vulkan API $apiVersion)"
     }
 
@@ -71,6 +81,7 @@ open class VulkanDevice(
     data class Queues(val presentQueue: QueueIndexWithProperties, val transferQueue: QueueIndexWithProperties, val graphicsQueue: QueueIndexWithProperties, val computeQueue: QueueIndexWithProperties)
 
     init {
+        val enabledFeatures = VkPhysicalDeviceFeatures.calloc()
         val result = stackPush().use { stack ->
             val pQueueFamilyPropertyCount = stack.callocInt(1)
             vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, pQueueFamilyPropertyCount, null)
@@ -163,7 +174,6 @@ open class VulkanDevice(
 
 
             // all enabled features here have >99% availability according to http://vulkan.gpuinfo.org/listfeatures.php
-            val enabledFeatures = VkPhysicalDeviceFeatures.calloc(stack)
             vkGetPhysicalDeviceFeatures(physicalDevice, enabledFeatures)
             if(!enabledFeatures.samplerAnisotropy()
                 || !enabledFeatures.largePoints()
@@ -209,6 +219,7 @@ open class VulkanDevice(
         vulkanDevice = result.first
         queues = result.second
         memoryProperties = result.third
+        features = enabledFeatures
 
         extensions.addAll(extensionsQuery.invoke(physicalDevice))
         extensions.add(KHRSwapchain.VK_KHR_SWAPCHAIN_EXTENSION_NAME)
@@ -768,7 +779,7 @@ open class VulkanDevice(
      * Utility functions for [VulkanDevice].
      */
     companion object {
-        val logger by LazyLogger()
+        val logger by lazyLogger()
 
         /**
          * Data class for defining device/driver-specific workarounds.

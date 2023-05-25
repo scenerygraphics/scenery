@@ -1,10 +1,9 @@
 package graphics.scenery.volumes
 
 import graphics.scenery.utils.Image
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import net.imagej.lut.LUTService
 import net.imglib2.display.ColorTable
-import org.joml.Vector3f
 import org.joml.Vector4f
 import org.scijava.plugin.Parameter
 import java.io.FileNotFoundException
@@ -53,7 +52,7 @@ class Colormap(val buffer: ByteBuffer, val width: Int, val height: Int) {
     }
 
     companion object {
-        val logger by LazyLogger()
+        val logger by lazyLogger()
 
         @Parameter
         protected var lutService: LUTService? = null
