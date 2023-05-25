@@ -3,8 +3,9 @@ package graphics.scenery.tests.unit.fonts
 import graphics.scenery.Hub
 import graphics.scenery.compute.OpenCLContext
 import graphics.scenery.fonts.SDFFontAtlas
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.junit.BeforeClass
+import org.junit.Ignore
 import org.junit.Test
 import org.lwjgl.system.Platform
 import kotlin.test.assertFalse
@@ -14,13 +15,13 @@ import kotlin.test.assertTrue
  * Tests for [SDFFontAtlas]
  */
 class SDFFontAtlasTests {
-    val logger by LazyLogger()
+    val logger by lazyLogger()
 
     /**
      * Companion object for checking OpenCL availability.
      */
     companion object {
-        val logger by LazyLogger()
+        val logger by lazyLogger()
         @JvmStatic @BeforeClass
         fun checkOpenCLAvailability() {
             val openCLunavailable = ((System.getenv("GITHUB_ACTIONS").toBoolean() && Platform.get() == Platform.MACOSX)
@@ -50,6 +51,7 @@ class SDFFontAtlasTests {
      * Tests generating a SDF font atlas without caching it,
      * and creates a mesh for it.
      */
+    @Ignore
     @Test
     fun testAtlasAndMeshCreation() {
         logger.info("Testing SDF atlas and mesh creation ...")

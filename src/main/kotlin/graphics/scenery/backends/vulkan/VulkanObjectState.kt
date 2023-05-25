@@ -7,7 +7,7 @@ import org.lwjgl.vulkan.*
 import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.backends.RendererFlags
 import graphics.scenery.attribute.renderable.Renderable
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.DurationUnit
@@ -20,7 +20,7 @@ import kotlin.time.measureTime
  * @author Ulrik Günther <hello@ulrik.is>
  */
 open class VulkanObjectState {
-    protected val logger by LazyLogger()
+    protected val logger by lazyLogger()
 
     /** Whether this metadata object has been fully initialised. */
     var initialized = false
@@ -286,7 +286,7 @@ open class VulkanObjectState {
      * Utility class for [VulkanObjectState].
      */
     companion object {
-        protected val logger by LazyLogger()
+        protected val logger by lazyLogger()
 
         private val cache = HashMap<TextureKey, Long>()
 

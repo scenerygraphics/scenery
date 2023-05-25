@@ -10,7 +10,7 @@ import graphics.scenery.SceneryElement
 import graphics.scenery.Settings
 import graphics.scenery.controls.behaviours.SelectCommand
 import graphics.scenery.tests.unit.backends.FauxRenderer
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.joml.Vector3f
 import org.junit.Ignore
 import org.junit.Test
@@ -19,7 +19,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertSame
 
 class SelectionTests {
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
 
     /**
      * Tests initialisation of [SelectCommand].
