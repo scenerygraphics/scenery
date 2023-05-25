@@ -2,10 +2,8 @@ import org.gradle.kotlin.dsl.api
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import scenery.*
 import java.net.URL
-import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 plugins {
-    java
     // kotlin and dokka versions are now managed in settings.gradle.kts and gradle.properties
     kotlin("jvm")
     kotlin("kapt")
@@ -15,23 +13,22 @@ plugins {
 //    scenery.docs
     scenery.publish
     scenery.sign
-    id("com.github.elect86.sciJava") version "0.0.4"
+//    id("com.github.elect86.sciJava") version "0.0.4"
     jacoco
-    id("com.github.johnrengelman.shadow") version "7.1.0"
+    id("com.github.johnrengelman.shadow") version "8.1.1"
 }
 
 repositories {
     mavenCentral()
     maven("https://maven.scijava.org/content/groups/public")
     maven("https://jitpack.io")
-    mavenLocal()
+//    mavenLocal()
 }
 
 dependencies {
     implementation(platform("org.scijava:pom-scijava:31.1.0"))
     annotationProcessor("org.scijava:scijava-common:2.88.1")
 
-    implementation(kotlin("stdlib-jdk8"))
     implementation(kotlin("reflect"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.2")
 
@@ -187,8 +184,8 @@ tasks {
             return d
         }
 
-        val matcher = Regex("""generatePomFileFor(\w+)Publication""").matchEntire(name)
-        val publicationName = matcher?.let { it.groupValues[1] }
+//        val matcher = Regex("""generatePomFileFor(\w+)Publication""").matchEntire(name)
+//        val publicationName = matcher?.let { it.groupValues[1] }
 
         pom.properties.empty()
 
@@ -209,7 +206,7 @@ tasks {
             scijavaRepo.appendNode("id", "scijava.public")
             scijavaRepo.appendNode("url", "https://maven.scijava.org/content/groups/public")
 
-            
+
             // Update the dependencies and properties
             val dependenciesNode = asNode().appendNode("dependencies")
             val propertiesNode = asNode().appendNode("properties")
@@ -381,8 +378,8 @@ tasks {
             }
         }
     }
-    
-    named<ShadowJar>("shadowJar") {
+
+    shadowJar {
         isZip64 = true
     }
 }
@@ -406,14 +403,12 @@ artifacts {
     }
 }
 
-jacoco {
-    toolVersion = "0.8.8"
-}
+jacoco.toolVersion = "0.8.8"
 
 java.withSourcesJar()
 
-plugins.withType<JacocoPlugin>() {
-    tasks["test"].finalizedBy("jacocoTestReport")
+plugins.withType<JacocoPlugin> {
+    tasks.test { finalizedBy("jacocoTestReport") }
 }
 
 // disable Gradle metadata file creation on Jitpack, as jitpack modifies
@@ -423,4 +418,3 @@ if(System.getenv("JITPACK") != null) {
         enabled = false
     }
 }
-
