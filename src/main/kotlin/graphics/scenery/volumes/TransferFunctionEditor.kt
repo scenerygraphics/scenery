@@ -2,7 +2,7 @@ package graphics.scenery.volumes
 
 import graphics.scenery.ui.RangeSlider
 import graphics.scenery.ui.SwingBridgeFrame
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import net.miginfocom.swing.MigLayout
 import org.jfree.chart.ChartMouseEvent
 import org.jfree.chart.ChartMouseListener
@@ -50,7 +50,7 @@ class TransferFunctionEditor @JvmOverloads constructor(private val tfContainer :
 
     private val mouseTargetCP = MouseDragTarget()
 
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
 
     //TFEditor and Histogram
     val mainChart : JPanel
