@@ -1,7 +1,7 @@
 package graphics.scenery.backends.opengl
 
 import cleargl.GLTexture
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import java.nio.ByteBuffer
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
@@ -15,7 +15,7 @@ import kotlin.collections.HashSet
  *  default consumers.
  */
 class OpenGLObjectState {
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
 
     /** IDs of buffers that may be additionally required. */
     val additionalBufferIds = Hashtable<String, Int>()

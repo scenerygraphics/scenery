@@ -4,7 +4,7 @@ import graphics.scenery.Camera
 import graphics.scenery.Scene
 import graphics.scenery.Mesh
 import graphics.scenery.backends.Renderer
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.joml.Vector2f
 import org.joml.Vector3f
 import org.scijava.ui.behaviour.ClickBehaviour
@@ -21,7 +21,7 @@ open class MeshAdder constructor(protected val name: String,
                                  protected val camera: () -> Camera?,
                                  meshLambda: () -> Mesh
 ) : ClickBehaviour {
-    protected val logger by LazyLogger()
+    protected val logger by lazyLogger()
 
     protected val cam: Camera? by CameraDelegate()
 
