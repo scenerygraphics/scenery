@@ -43,6 +43,8 @@ import mpicbg.spim.data.generic.sequence.AbstractSequenceDescription
 import mpicbg.spim.data.sequence.FinalVoxelDimensions
 import net.imglib2.RandomAccessibleInterval
 import net.imglib2.Volatile
+import net.imglib2.histogram.Histogram1d
+import net.imglib2.histogram.Real1dBinMapper
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.numeric.ARGBType
 import net.imglib2.type.numeric.NumericType
@@ -81,7 +83,7 @@ open class Volume(
     hub: Hub
 ) : DefaultNode("Volume"),
     DelegatesRenderable, DelegatesGeometry, DelegatesMaterial, DisableFrustumCulling,
-    HasCustomSpatial<Volume.VolumeSpatial> {
+    HasCustomSpatial<Volume.VolumeSpatial>, HasTransferFunction, HasHistogram {
 
     // without this line the *java* serialization framework kryo does not recognize the parameter-less constructor
     // and uses dark magic to instanciate this class
@@ -114,11 +116,17 @@ open class Volume(
     val viewerState: ViewerState
 
     /** The transfer function to use for the volume. Flat by default. */
-    var transferFunction: TransferFunction = TransferFunction.flat(0.5f)
+    override var transferFunction: TransferFunction = TransferFunction.flat(0.5f)
         set(m) {
             field = m
             modifiedAt = System.nanoTime()
         }
+    override var minDisplayRange: Float
+        get() = converterSetups.getOrNull(0)?.displayRangeMin?.toFloat() ?: throw IllegalStateException()
+        set(value) { setTransferFunctionRange(value, maxDisplayRange) }
+    override var maxDisplayRange: Float
+        get() = converterSetups.getOrNull(0)?.displayRangeMax?.toFloat() ?: throw IllegalStateException()
+        set(value) { setTransferFunctionRange(minDisplayRange, value) }
 
     /** The color map for the volume. */
     var colormap: Colormap = Colormap.get("viridis")
@@ -371,6 +379,20 @@ open class Volume(
 
     override fun createSpatial(): VolumeSpatial {
         return VolumeSpatial(this)
+    }
+
+    /**
+     * Return a histogram over the set minDisplayRange and maxDisplayRange of the volumes viewState source (currently only using spimSource)
+     */
+    override fun generateHistogram(): Histogram1d<*>? {
+        var histogram : Histogram1d<*>? = null
+
+        this.viewerState.sources.firstOrNull()?.spimSource?.getSource(0, 0)?.let { rai ->
+            histogram = Histogram1d(Real1dBinMapper<UnsignedByteType>(minDisplayRange.toDouble(), maxDisplayRange.toDouble(), 1024, false))
+            (histogram as Histogram1d<UnsignedByteType>).countData(rai as Iterable<UnsignedByteType>)
+        }
+
+        return histogram
     }
 
     /**
