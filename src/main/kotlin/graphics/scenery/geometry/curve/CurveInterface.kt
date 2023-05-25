@@ -5,6 +5,9 @@ import graphics.scenery.utils.extensions.toFloatArray
 import org.joml.Vector3f
 import java.nio.FloatBuffer
 
+/**
+ * Interface providing the functionality of creating a geometry which evolves along a spline object.
+ */
 interface CurveInterface {
     companion object VerticesCalculation {
         /**
