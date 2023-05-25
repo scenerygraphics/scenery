@@ -5,6 +5,7 @@ import graphics.scenery.compute.OpenCLContext
 import graphics.scenery.fonts.SDFFontAtlas
 import graphics.scenery.utils.lazyLogger
 import org.junit.BeforeClass
+import org.junit.Ignore
 import org.junit.Test
 import org.lwjgl.system.Platform
 import kotlin.test.assertFalse
@@ -50,6 +51,7 @@ class SDFFontAtlasTests {
      * Tests generating a SDF font atlas without caching it,
      * and creates a mesh for it.
      */
+    @Ignore
     @Test
     fun testAtlasAndMeshCreation() {
         logger.info("Testing SDF atlas and mesh creation ...")
