@@ -1,7 +1,6 @@
 package graphics.scenery.geometry.curve
 
 import graphics.scenery.BufferUtils
-import graphics.scenery.geometry.curve.CurveInterface.VerticesCalculation.computeCoverVerticesCount
 import graphics.scenery.utils.extensions.toFloatArray
 import org.joml.Vector3f
 import java.nio.FloatBuffer
@@ -17,7 +16,7 @@ interface CurveInterface {
             val sizeWithoutCover = (curveGeometry.sumOf{ it.size }*6 - (curveGeometry.last().size* 3 + curveGeometry.first().size*3))*3
             val sizeWithCover = if(cover == CurveCover.Both) {sizeWithoutCover + curveGeometry.first().computeCoverVerticesCount(cover)*3 +
                 curveGeometry.last().computeCoverVerticesCount(cover)*3} else {sizeWithoutCover + curveGeometry.first().computeCoverVerticesCount(cover)*3}
-            val verticesWithoutCoverBuffer = BufferUtils.allocateFloat(verticesSize)
+            val verticesWithoutCoverBuffer = BufferUtils.allocateFloat(sizeWithoutCover)
             val verticesBuffer = BufferUtils.allocateFloat(sizeWithCover)
             val normalsBuffer = BufferUtils.allocateFloat(sizeWithCover)
             if (curveGeometry.isEmpty()) {
