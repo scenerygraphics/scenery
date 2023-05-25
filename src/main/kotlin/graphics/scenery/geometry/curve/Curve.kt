@@ -9,4 +9,4 @@ import org.joml.*
 
 class Curve (spline: Spline, firstPerpendicularVector: Vector3f = Vector3f(0f, 0f, 0f),
              partitionAlongControlpoints: Boolean = true, baseShape: () -> List<List<Vector3f>>):
-    AbstractCurve(spline, firstPerpendicularVector, partitionAlongControlpoints, baseShape.invoke()) {}
+    AbstractCurve(spline, firstPerpendicularVector, partitionAlongControlpoints, baseShape.invoke())
