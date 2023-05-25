@@ -593,7 +593,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
                 val os = System.getProperty("os.name")
 
                 var basepath = ""
-                logger.info("Downloading M1 support libraries for JHDF5...")
+                logger.debug("Downloading M1 support libraries for JHDF5, if not already existing...")
                 listOf("hdf5", "jhdf5").forEach { lib ->
                     basepath = ExtractsNatives.nativesFromGithubRelease(
                         "JaneliaSciComp",
