@@ -2,6 +2,7 @@ package graphics.scenery.utils
 
 import cleargl.TGAReader
 import graphics.scenery.volumes.Colormap
+import org.lwjgl.system.MemoryUtil
 import java.awt.Color
 import java.awt.color.ColorSpace
 import java.awt.geom.AffineTransform
@@ -23,7 +24,7 @@ import javax.imageio.ImageIO
 open class Image(val contents: ByteBuffer, val width: Int, val height: Int, val depth: Int = 1) {
 
     companion object {
-        protected val logger by LazyLogger()
+        protected val logger by lazyLogger()
 
         private val StandardAlphaColorModel = ComponentColorModel(
             ColorSpace.getInstance(ColorSpace.CS_sRGB),
@@ -53,7 +54,7 @@ open class Image(val contents: ByteBuffer, val width: Int, val height: Int, val 
             val pixels: IntArray
             val buffer: ByteArray
 
-            if (extension.toLowerCase().endsWith("tga")) {
+            if (extension.lowercase().endsWith("tga")) {
                 try {
                     val reader = BufferedInputStream(stream)
                     buffer = ByteArray(stream.available())
@@ -103,7 +104,7 @@ open class Image(val contents: ByteBuffer, val width: Int, val height: Int, val 
          * [path] is expected to end in an extension (e.g., ".png"), such that the file type can be determined.
          */
         @JvmStatic fun fromResource(path: String, baseClass: Class<*>): Image {
-            return fromStream(baseClass.getResourceAsStream(path), path.substringAfterLast(".").toLowerCase())
+            return fromStream(baseClass.getResourceAsStream(path), path.substringAfterLast(".").lowercase())
         }
 
         /**
@@ -140,7 +141,7 @@ open class Image(val contents: ByteBuffer, val width: Int, val height: Int, val 
 
             val data = (texImage.raster.dataBuffer as DataBufferByte).data
 
-            imageBuffer = ByteBuffer.allocateDirect(data.size)
+            imageBuffer = MemoryUtil.memAlloc(data.size)
             imageBuffer.order(ByteOrder.nativeOrder())
             imageBuffer.put(data, 0, data.size)
             imageBuffer.rewind()

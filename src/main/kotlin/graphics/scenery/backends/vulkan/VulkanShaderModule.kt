@@ -1,13 +1,7 @@
 package graphics.scenery.backends.vulkan
 
-import graphics.scenery.backends.ShaderConsistencyException
-import graphics.scenery.backends.ShaderPackage
-import graphics.scenery.backends.ShaderType
-import graphics.scenery.backends.Shaders
-import graphics.scenery.spirvcrossj.CompilerGLSL
-import graphics.scenery.spirvcrossj.Decoration
-import graphics.scenery.spirvcrossj.ExecutionMode
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.backends.*
+import graphics.scenery.utils.lazyLogger
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.VK10.*
 import org.lwjgl.vulkan.VkPipelineShaderStageCreateInfo
@@ -32,41 +26,16 @@ import java.util.concurrent.ConcurrentHashMap
  */
 
 open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, val sp: ShaderPackage) {
-    protected val logger by LazyLogger()
+    protected val logger by lazyLogger()
     var shader: VkPipelineShaderStageCreateInfo
     var shaderModule: Long
-    var uboSpecs = LinkedHashMap<String, UBOSpec>()
-    var pushConstantSpecs = LinkedHashMap<String, PushConstantSpec>()
+    var uboSpecs = LinkedHashMap<String, ShaderIntrospection.UBOSpec>()
+    var pushConstantSpecs = LinkedHashMap<String, ShaderIntrospection.PushConstantSpec>()
     val type: ShaderType = sp.type
     val localSize: Triple<Int, Int, Int>
     private var deallocated: Boolean = false
     private var signature: ShaderSignature
 
-    /**
-     * Specification of UBO members, storing [name], [index] in the buffer, [offset] from the beginning,
-     * and size of the member as [range].
-     */
-    data class UBOMemberSpec(val name: String, val index: Long, val offset: Long, val range: Long)
-
-    /** Types an UBO can have */
-    enum class UBOSpecType {
-        UniformBuffer,
-        SampledImage1D, SampledImage2D, SampledImage3D,
-        Image1D, Image2D, Image3D,
-        StorageBuffer, StorageBufferDynamic
-    }
-
-    /**
-     * Specification of an UBO, storing [name], descriptor [set], [binding], [type], and a set of [members].
-     * Can be an array, in that case, [size] > 1.
-     */
-    data class UBOSpec(val name: String, var set: Long, var binding: Long, val type: UBOSpecType, val members: LinkedHashMap<String, UBOMemberSpec>, val size: Int = 1)
-
-    /**
-     * Specification for push constants, containing [name] and [members].
-     */
-
-    data class PushConstantSpec(val name: String, val members: LinkedHashMap<String, UBOMemberSpec>)
 
     private data class ShaderSignature(val device: VulkanDevice, val p: ShaderPackage)
 
@@ -78,214 +47,95 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, val 
             throw IllegalStateException("Shader Package is expected to have SPIRV bytecode at this point")
         }
 
-        val spirv = sp.getSPIRVBytecode()
+        val spirv = sp.getSPIRVOpcodes()!!
 
-        val compiler = CompilerGLSL(spirv)
+        val intro = ShaderIntrospection(spirv)
 
-        val uniformBuffers = compiler.shaderResources.uniformBuffers
-        val pushConstants = compiler.shaderResources.pushConstantBuffers
+        val localSizes = intro.localSizes()
 
-        val x = compiler.getExecutionModeArgument(ExecutionMode.ExecutionModeLocalSize, 0).toInt()
-        val y = compiler.getExecutionModeArgument(ExecutionMode.ExecutionModeLocalSize, 1).toInt()
-        val z = compiler.getExecutionModeArgument(ExecutionMode.ExecutionModeLocalSize, 2).toInt()
+        logger.debug("Local size: $localSizes")
 
-        logger.debug("Local size: $x $y $z")
-
-        if((x == 0 || y == 0 || y == 0) && type == ShaderType.ComputeShader) {
-            logger.error("Compute local sizes $x, $y, $z must not be zero, setting to 1.")
+        if((localSizes.x == 0 || localSizes.y == 0 || localSizes.z == 0) && type == ShaderType.ComputeShader) {
+            logger.error("Compute local sizes $localSizes must not be zero, setting to 1.")
         }
 
-        localSize = Triple(maxOf(x, 1), maxOf(y, 1), maxOf(z, 1))
+        localSize = Triple(maxOf(localSizes.x, 1), maxOf(localSizes.y, 1), maxOf(localSizes.z, 1))
 
-        for(i in 0 until uniformBuffers.capacity()) {
-            val res = uniformBuffers.get(i)
-            logger.debug("${res.name}, set=${compiler.getDecoration(res.id, Decoration.DecorationDescriptorSet)}, binding=${compiler.getDecoration(res.id, Decoration.DecorationBinding)}")
-
-            val members = LinkedHashMap<String, UBOMemberSpec>()
-            val activeRanges = compiler.getActiveBufferRanges(res.id)
-
-            // record all members of the UBO struct, order by index, and store them to UBOSpec.members
-            // for further use
-            members.putAll((0 until activeRanges.capacity()).map {
-                val range = activeRanges.get(it)
-                val name = compiler.getMemberName(res.baseTypeId, range.index)
-
-                name to UBOMemberSpec(
-                    compiler.getMemberName(res.baseTypeId, range.index),
-                    range.index,
-                    range.offset,
-                    range.range)
-            }.sortedBy { it.second.index })
-
-            val ubo = UBOSpec(res.name,
-                set = compiler.getDecoration(res.id, Decoration.DecorationDescriptorSet),
-                binding = compiler.getDecoration(res.id, Decoration.DecorationBinding),
-                type = UBOSpecType.UniformBuffer,
-                members = members)
-
+        intro.uniformBuffers().forEach { ubo ->
             // only add the UBO spec if it doesn't already exist, and has more than 0 members
             // SPIRV UBOs may have 0 members, if they are not used in the actual shader code
-            if(!uboSpecs.contains(res.name) && ubo.members.size > 0) {
-                uboSpecs[res.name] = ubo
+            if(!uboSpecs.contains(ubo.name) && ubo.members.size > 0) {
+                uboSpecs[ubo.name] = ubo
             }
         }
 
-        for(i in 0 until pushConstants.capacity()) {
-            val res = pushConstants.get(i)
-            val activeRanges = compiler.getActiveBufferRanges(res.id)
-            val members = LinkedHashMap<String, UBOMemberSpec>()
-
-            logger.debug("Push constant: ${res.name}, id=${compiler.getDecoration(res.id, Decoration.DecorationConstant)}")
-
-            members.putAll((0 until activeRanges.capacity()).map {
-                val range = activeRanges.get(it)
-                val name = compiler.getMemberName(res.baseTypeId, range.index)
-
-                name to UBOMemberSpec(
-                    compiler.getMemberName(res.baseTypeId, range.index),
-                    range.index,
-                    range.offset,
-                    range.range
-                )
-            }.sortedBy { it.second.index })
-
-            val pcs = PushConstantSpec(res.name,
-                members = members)
-
-            if(!pushConstantSpecs.contains(res.name) && pcs.members.size > 0) {
-                pushConstantSpecs[res.name] = pcs
+        intro.pushContants().forEach { pcs ->
+            if(!pushConstantSpecs.contains(pcs.name) && pcs.members.size > 0) {
+                pushConstantSpecs[pcs.name] = pcs
             }
         }
 
-        /* Updated version:
-       for(i in 0..compiler.shaderResources.sampledImages.size()-1) {
-        // inputs are summarized into one descriptor set
-            val res = compiler.shaderResources.sampledImages.get(i.toInt())
-            logger.info("Adding textures ${res.name} with set=${compiler.getDecoration(res.id, Decoration.DecorationDescriptorSet)}")
-
-            // FIXME: Here we assume at the moment that we either have only input textures (from framebuffers), or only object textures
-            val name = if(res.name == "ObjectTextures" || res.name == "VolumeTextures") {
-                "ObjectTextures"
-            } else {
-                "inputs"
-            }
-
-            uboSpecs.put(res.name, UBOSpec(name,
-                    set = compiler.getDecoration(res.id, Decoration.DecorationDescriptorSet),
-                    binding = 0,
-                    members = LinkedHashMap<String, UBOMemberSpec>()))
-         */
         // inputs are summarized into one descriptor set
         val inputSets = mutableSetOf<Long>()
-        (0 until compiler.shaderResources.sampledImages.capacity()).forEach { samplerId ->
-            val res = compiler.shaderResources.sampledImages.get(samplerId)
-            val setId = compiler.getDecoration(res.id, Decoration.DecorationDescriptorSet)
-            val type = compiler.getType(res.typeId)
 
-            val arraySize = if(type.array.capacity() > 0) {
-                type.array.get(0).toInt()
-            } else {
-                1
-            }
-
-            val samplerType = type.image.type
-            val samplerDim = type.image.dim
-
-            val name = if(res.name.startsWith("Input")) {
-                if(!inputSets.contains(setId)) {
-                    inputSets.add(setId)
+        intro.sampledImages().forEach { sampledImage ->
+            val name = if (sampledImage.name.startsWith("Input")) {
+                if (!inputSets.contains(sampledImage.set)) {
+                    inputSets.add(sampledImage.set)
                 }
 
-                "Inputs-$setId"
+                "Inputs-${sampledImage.set}"
             } else {
-                res.name
+                sampledImage.name
             }
 
-            if(uboSpecs.containsKey(name)) {
-                logger.debug("Adding inputs member ${res.name}/$name type=${type.basetype}, a=$arraySize, type=$samplerType, dim=$samplerDim")
+            if (uboSpecs.containsKey(name)) {
+                logger.debug("Adding inputs member ${sampledImage.name}/$name type=${sampledImage.type}, arraySize=${sampledImage.size}.")
                 uboSpecs[name]?.let { spec ->
-                    spec.members[res.name] = UBOMemberSpec(res.name, spec.members.size.toLong(), 0L, 0L)
-                    spec.binding = minOf(spec.binding, compiler.getDecoration(res.id, Decoration.DecorationBinding))
+                    spec.members[sampledImage.name] =
+                        ShaderIntrospection.UBOMemberSpec(sampledImage.name, spec.members.size.toLong(), 0L, 0L)
+                    spec.binding = minOf(spec.binding, sampledImage.binding)
                 }
             } else {
-                val bindingId = compiler.getDecoration(res.id, Decoration.DecorationBinding)
-                logger.debug("Adding inputs UBO, ${res.name}/$name, set=$setId, binding=$bindingId, type=${type.basetype}, a=$arraySize, type=$samplerType, dim=$samplerDim")
-                uboSpecs[name] = UBOSpec(name,
-                    set = setId,
-                    binding = bindingId,
-                    type = when(samplerDim) {
-                        0 -> UBOSpecType.SampledImage1D
-                        1 -> UBOSpecType.SampledImage2D
-                        2 -> UBOSpecType.SampledImage3D
-                        else -> throw IllegalArgumentException("samplerDim cannot be $samplerDim.")
-                    },
-                    members = LinkedHashMap(),
-                    size = arraySize)
+                logger.debug("Adding inputs UBO, ${sampledImage.name}, set=${sampledImage.set}, binding=${sampledImage.binding}, type=${sampledImage.type}, a=${sampledImage.size}")
+                uboSpecs[name] = sampledImage
 
                 if(name.startsWith("Inputs")) {
-                    uboSpecs[name]?.members?.put(res.name, UBOMemberSpec(res.name, 0L, 0L, 0L))
+                    uboSpecs[name]?.members?.put(sampledImage.name,
+                        ShaderIntrospection.UBOMemberSpec(sampledImage.name, 0L, 0L, 0L)
+                    )
                 }
             }
         }
 
-        (0 until compiler.shaderResources.storageImages.capacity()).forEach { imageId ->
-            val res = compiler.shaderResources.storageImages.get(imageId)
-            val setId = compiler.getDecoration(res.id, Decoration.DecorationDescriptorSet)
-            val type = compiler.getType(res.typeId)
+        intro.storageImages().forEach { storageImage ->
+            val name = storageImage.name
 
-            val arraySize = if(type.array.capacity() > 0) {
-                type.array.get(0).toInt()
+            if (uboSpecs.containsKey(storageImage.name)) {
+                logger.debug("Adding inputs member ${storageImage.name}/$name type=${storageImage.type}, arraySize=${storageImage.size}.")
+                uboSpecs[name]?.let { spec ->
+                    spec.members[storageImage.name] =
+                        ShaderIntrospection.UBOMemberSpec(storageImage.name, spec.members.size.toLong(), 0L, 0L)
+                    spec.binding = minOf(spec.binding, storageImage.binding)
+                }
             } else {
-                1
+                logger.debug("Adding inputs UBO, ${storageImage.name}, set=${storageImage.set}, binding=${storageImage.binding}, type=${storageImage.type}, a=${storageImage.size}")
+
+                uboSpecs[storageImage.name] = storageImage
+                if(name.startsWith("Inputs")) {
+                    uboSpecs[name]?.members?.put(storageImage.name,
+                        ShaderIntrospection.UBOMemberSpec(storageImage.name, 0L, 0L, 0L)
+                    )
+                }
             }
+        }
 
-            val imageType = type.image.type
-            val imageDim = type.image.dim
-
-//            val name = if(res.name.startsWith("Input") || res.name.startsWith("Output")) {
-//                if(!inputSets.contains(setId)) {
-//                    inputSets.add(setId)
-//                }
-//
-//                "Inputs-$setId"
-//            } else {
-//                res.name
+//        val inputs = compiler.shaderResources.stageInputs
+//        if(inputs.capacity() > 0) {
+//            for (i in 0 until inputs.capacity()) {
+//                logger.debug("${sp.toShortString()}: ${inputs.get(i).name}")
 //            }
-            val name = res.name
-
-            if(uboSpecs.containsKey(name)) {
-                logger.debug("Adding image load/store member ${res.name}/$name type=${type.basetype}, a=$arraySize, type=$imageType, dim=$imageDim")
-                uboSpecs[name]?.let { spec ->
-                    spec.members[res.name] = UBOMemberSpec(res.name, spec.members.size.toLong(), 0L, 0L)
-                    spec.binding = minOf(spec.binding, compiler.getDecoration(res.id, Decoration.DecorationBinding))
-                }
-            } else {
-                val bindingId = compiler.getDecoration(res.id, Decoration.DecorationBinding)
-                logger.debug("Adding image load/store UBO, ${res.name}/$name, set=$setId, binding=$bindingId, type=${type.basetype}, a=$arraySize, type=$imageType, dim=$imageDim")
-                uboSpecs[name] = UBOSpec(name,
-                    set = setId,
-                    binding = bindingId,
-                    type = when(imageDim) {
-                        0 -> UBOSpecType.Image1D
-                        1 -> UBOSpecType.Image2D
-                        2 -> UBOSpecType.Image3D
-                        else -> throw IllegalArgumentException("samplerDim cannot be $imageDim.")
-                    },
-                    members = LinkedHashMap(),
-                    size = arraySize)
-
-                if(name.startsWith("Inputs")) {
-                    uboSpecs[name]?.members?.put(res.name, UBOMemberSpec(res.name, 0L, 0L, 0L))
-                }
-            }
-        }
-
-        val inputs = compiler.shaderResources.stageInputs
-        if(inputs.capacity() > 0) {
-            for (i in 0 until inputs.capacity()) {
-                logger.debug("${sp.toShortString()}: ${inputs.get(i).name}")
-            }
-        }
+//        }
 
         // consistency check to not have the same set used multiple twice
         uboSpecs.entries

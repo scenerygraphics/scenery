@@ -3,7 +3,7 @@ package graphics.scenery.tests.unit.controls
 import graphics.scenery.Mesh
 import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.controls.TrackedDeviceType
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.junit.BeforeClass
 import org.junit.Test
 import kotlin.test.assertFalse
@@ -16,18 +16,32 @@ import kotlin.test.assertTrue
  * @author Ulrik Guenther <hello@ulrik.is>
  */
 class OpenVRHMDTests {
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
 
     /**
      * Companion object for checking whether OpenVR is installed.
      */
     companion object {
+        private val logger by lazyLogger()
+
+        /**
+         * Checks if OpenVR and associated libraries are available, skips
+         * tests if not.
+         */
         @JvmStatic @BeforeClass
         fun checkForOpenVR() {
-            val hmd = OpenVRHMD()
-            org.junit.Assume.assumeTrue(hmd.initializedAndWorking())
+            var hmd: OpenVRHMD? = null
+            try {
+                hmd = OpenVRHMD()
+            } catch (e: Throwable) {
+                logger.warn("Skipping test, could not initialise OpenVR because of $e")
+            }
+
+            org.junit.Assume.assumeTrue(hmd?.initializedAndWorking() ?: false)
+            logger.info("OpenVR initialised correctly, continuing tests.")
         }
     }
+    
     private fun initialiseAndWait(): OpenVRHMD {
         val hmd = OpenVRHMD()
         while(!hmd.initializedAndWorking()) {

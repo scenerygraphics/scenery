@@ -6,11 +6,12 @@ import graphics.scenery.backends.opengl.OpenGLRenderer
 import graphics.scenery.backends.vulkan.VulkanRenderer
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.ExtractsNatives
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import graphics.scenery.utils.SceneryPanel
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.selects.select
+import org.lwjgl.system.Platform
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -127,7 +128,7 @@ abstract class Renderer : Hubable {
      */
     @Suppress("UNUSED")
     fun toggleVR() {
-        val logger by LazyLogger()
+        val logger by lazyLogger()
         logger.info("Toggling VR!")
         val isStereo = renderConfigFile.substringBeforeLast(".").indexOf("Stereo") != -1
 
@@ -235,7 +236,7 @@ abstract class Renderer : Hubable {
      * Factory methods for creating renderers.
      */
     companion object {
-        val logger by LazyLogger()
+        val logger by lazyLogger()
 
         /**
          * Creates a new [Renderer] instance, based on what is available on the current platform, or set via
@@ -265,6 +266,10 @@ abstract class Renderer : Hubable {
                 preference == null &&
                     (ExtractsNatives.getPlatform() == ExtractsNatives.Platform.LINUX
                         || ExtractsNatives.getPlatform() == ExtractsNatives.Platform.WINDOWS) -> "VulkanRenderer"
+
+                preference == null &&
+                    ExtractsNatives.getPlatform() == ExtractsNatives.Platform.MACOS &&
+                    Platform.getArchitecture() == Platform.Architecture.ARM64 -> "VulkanRenderer"
 
                 preference == null &&
                     ExtractsNatives.getPlatform() == ExtractsNatives.Platform.MACOS -> "OpenGLRenderer"

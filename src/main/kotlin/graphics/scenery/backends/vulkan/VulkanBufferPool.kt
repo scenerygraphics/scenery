@@ -1,6 +1,6 @@
 package graphics.scenery.backends.vulkan
 
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.lwjgl.vulkan.VK10
 import java.util.concurrent.CopyOnWriteArrayList
 
@@ -20,7 +20,7 @@ class VulkanBufferPool(
     val properties: Int = VK10.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 ) {
 
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
     protected val backingStore = CopyOnWriteArrayList<VulkanBufferAllocation>()
 
     /**

@@ -1,8 +1,8 @@
 package graphics.scenery.tests.unit
 
-import graphics.scenery.*
 import graphics.scenery.numerics.Random
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.proteins.Axis
+import graphics.scenery.utils.lazyLogger
 import org.joml.Vector3f
 import org.junit.Test
 import kotlin.math.absoluteValue
@@ -15,7 +15,7 @@ import kotlin.test.assertTrue
  * @author  Justin Buerger <burger@mpi-cbg.de>
  */
 class AxisTests {
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
 
     /**
      * Tests what happens when the axis gets a list of less then four points as a parameter

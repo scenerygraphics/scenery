@@ -21,7 +21,7 @@ class SceneryJPanel : JPanel(), SceneryPanel {
     /** Updates the backing buffer of the window. Does nothing for Swing. */
     override fun update(buffer: ByteBuffer, id: Int) { }
 
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
 
     /** Width of the panel, cannot be reset. */
     @Suppress("UNUSED_PARAMETER")

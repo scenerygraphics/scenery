@@ -5,10 +5,9 @@ import graphics.scenery.Camera
 import graphics.scenery.DetachedHeadCamera
 import graphics.scenery.Hub
 import graphics.scenery.Scene
-import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.controls.behaviours.ArcballCameraControl
 import graphics.scenery.tests.unit.backends.FauxRenderer
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.joml.Quaternionf
 import org.junit.Assert
 import org.junit.Test
@@ -24,7 +23,7 @@ import kotlin.test.assertNotNull
  * @author Aryaman Gupta <aryaman1994@gmail.com>
  */
 class ArcballCameraControlTests {
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
     private val seqLength = 100
 
     private fun prepareArcballCameraControl(scene: Scene) : ArcballCameraControl {
@@ -44,7 +43,7 @@ class ArcballCameraControlTests {
 
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
-            position = Vector3f(0.0f, 0.0f, 5.0f)
+            spatial().position = Vector3f(0.0f, 0.0f, 5.0f)
             perspectiveCamera(50.0f, 512, 512)
             scene.addChild(this)
         }
@@ -66,7 +65,9 @@ class ArcballCameraControlTests {
 
         /*TODO: Generate multiple test sequences*/
         for(i in 1..seqLength) {
-            printWriter.println("[$i, $x, $y, ${cam.rotation.x}, ${cam.rotation.y}, ${cam.rotation.z}, ${cam.rotation.w}, ${cam.position.x()}, ${cam.position.y()}, ${cam.position.z()}]")
+            cam.spatial {
+                printWriter.println("[$i, $x, $y, ${rotation.x}, ${rotation.y}, ${rotation.z}, ${rotation.w}, ${position.x()}, ${position.y()}, ${position.z()}]")
+            }
             val deltaX = kotlin.random.Random.nextInt(-movementRange, movementRange)
             val deltaY = kotlin.random.Random.nextInt(-movementRange, movementRange)
 
@@ -100,7 +101,7 @@ class ArcballCameraControlTests {
 
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
-            position = Vector3f(0.0f, 0.0f, 5.0f)
+            spatial().position = Vector3f(0.0f, 0.0f, 5.0f)
             perspectiveCamera(50.0f, 512, 512)
             scene.addChild(this)
         }
@@ -124,8 +125,8 @@ class ArcballCameraControlTests {
             val expectedRotation = Quaternionf(numbers[3], numbers[4], numbers[5], numbers[6])
             val expectedPosition = Vector3f(numbers[7], numbers[8], numbers[9])
 
-            Assert.assertEquals("Computed camera rotation is incorrect", expectedRotation, cam.rotation)
-            Assert.assertEquals("Computed camera position is incorrect", expectedPosition, cam.position)
+            Assert.assertEquals("Computed camera rotation is incorrect", expectedRotation, cam.spatial().rotation)
+            Assert.assertEquals("Computed camera position is incorrect", expectedPosition, cam.spatial().position)
         }
     }
 }

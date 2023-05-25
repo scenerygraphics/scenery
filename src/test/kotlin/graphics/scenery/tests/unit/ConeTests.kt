@@ -1,10 +1,10 @@
 package graphics.scenery.tests.unit
 
 import org.joml.Vector3f
-import graphics.scenery.Cone
+import graphics.scenery.primitives.Cone
 import graphics.scenery.Scene
 import graphics.scenery.numerics.Random
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.junit.Test
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
@@ -16,7 +16,7 @@ import kotlin.test.assertTrue
  * @author Ulrik Guenther <hello@ulrik.is>
  */
 class ConeTests {
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
 
     /**
      * Tests the creation of cones and their bounding boxes.
@@ -35,7 +35,7 @@ class ConeTests {
 
         val c = Cone(radius, height, 4 * segments, axisN)
         s.addChild(c)
-        c.updateWorld(true)
+        c.spatial().updateWorld(true)
 
         val bb = c.boundingBox
 

@@ -31,11 +31,10 @@ package graphics.scenery.controls.behaviours
 import graphics.scenery.BoundingGrid
 import graphics.scenery.Camera
 import graphics.scenery.Node
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.joml.Vector3f
 import org.scijava.ui.behaviour.DragBehaviour
 import org.scijava.ui.behaviour.ScrollBehaviour
-import kotlin.reflect.KProperty
 
 /**
  * Drag nodes along the viewplane by mouse.
@@ -53,7 +52,7 @@ open class MouseDragPlane(
     protected val fpsSpeedSlow: () -> Float = { 0.05f }
 ) : DragBehaviour, ScrollBehaviour, WithCameraDelegateBase(camera) {
 
-    protected val logger by LazyLogger()
+    protected val logger by lazyLogger()
 
     protected var currentNode: Node? = null
     private var lastX = 0
@@ -87,11 +86,13 @@ open class MouseDragPlane(
         cam?.let {
             if (targetedNode == null || !targetedNode.lock.tryLock()) return
 
-            it.right.mul((x - lastX) * fpsSpeedSlow() * mouseSpeed(), dragPosUpdater)
-            targetedNode.position.add(dragPosUpdater)
-            it.up.mul((lastY - y) * fpsSpeedSlow() * mouseSpeed(), dragPosUpdater)
-            targetedNode.position.add(dragPosUpdater)
-            targetedNode.needsUpdate = true
+            targetedNode.ifSpatial {
+                it.right.mul((x - lastX) * fpsSpeedSlow() * mouseSpeed(), dragPosUpdater)
+                position.add(dragPosUpdater)
+                it.up.mul((lastY - y) * fpsSpeedSlow() * mouseSpeed(), dragPosUpdater)
+                position.add(dragPosUpdater)
+                needsUpdate = true
+            }
 
             targetedNode.lock.unlock()
 
@@ -114,8 +115,10 @@ open class MouseDragPlane(
                 wheelRotation.toFloat() * fpsSpeedSlow() * mouseSpeed(),
                 scrollPosUpdater
             )
-            targetedNode.position.add(scrollPosUpdater)
-            targetedNode.needsUpdate = true
+            targetedNode.ifSpatial {
+                position.add(scrollPosUpdater)
+                needsUpdate = true
+            }
 
             targetedNode.lock.unlock()
         }

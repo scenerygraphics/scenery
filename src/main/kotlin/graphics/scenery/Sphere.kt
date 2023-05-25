@@ -2,8 +2,6 @@ package graphics.scenery
 
 import org.joml.Vector2f
 import org.joml.Vector3f
-import java.nio.FloatBuffer
-import java.nio.IntBuffer
 import java.util.*
 import kotlin.math.*
 
@@ -14,7 +12,7 @@ import kotlin.math.*
  * @param[radius] The radius of the sphere
  * @param[segments] Number of segments in latitude and longitude.
  */
-open class Sphere(val radius: Float, val segments: Int) : Mesh("sphere") {
+open class Sphere(val radius: Float = 1.0f, val segments: Int = 8) : Mesh("sphere") {
     init {
         val vbuffer = ArrayList<Float>(segments*segments*2*3)
         val nbuffer = ArrayList<Float>(segments*segments*2*3)
@@ -99,9 +97,11 @@ open class Sphere(val radius: Float, val segments: Int) : Mesh("sphere") {
             }
         }
 
-        vertices = BufferUtils.allocateFloatAndPut(vbuffer.toFloatArray())
-        normals = BufferUtils.allocateFloatAndPut(nbuffer.toFloatArray())
-        texcoords = BufferUtils.allocateFloatAndPut(tbuffer.toFloatArray())
+        geometry {
+            vertices = BufferUtils.allocateFloatAndPut(vbuffer.toFloatArray())
+            normals = BufferUtils.allocateFloatAndPut(nbuffer.toFloatArray())
+            texcoords = BufferUtils.allocateFloatAndPut(tbuffer.toFloatArray())
+        }
 
         boundingBox = generateBoundingBox()
     }

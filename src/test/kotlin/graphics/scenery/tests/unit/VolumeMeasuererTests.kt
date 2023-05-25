@@ -1,8 +1,8 @@
 package graphics.scenery.tests.unit
 
-import graphics.scenery.Cylinder
 import graphics.scenery.Icosphere
 import graphics.scenery.VolumeMeasurer
+import graphics.scenery.primitives.Cylinder
 import org.junit.Test
 import kotlin.test.assertEquals
 

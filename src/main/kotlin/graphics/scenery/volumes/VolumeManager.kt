@@ -7,6 +7,15 @@ import bdv.tools.transformation.TransformedSource
 import bdv.viewer.RequestRepaint
 import bdv.viewer.state.SourceState
 import graphics.scenery.*
+import graphics.scenery.geometry.GeometryType
+import graphics.scenery.attribute.geometry.Geometry
+import graphics.scenery.attribute.geometry.DefaultGeometry
+import graphics.scenery.attribute.geometry.HasGeometry
+import graphics.scenery.attribute.material.HasMaterial
+import graphics.scenery.attribute.material.Material
+import graphics.scenery.attribute.renderable.DefaultRenderable
+import graphics.scenery.attribute.renderable.HasRenderable
+import graphics.scenery.attribute.renderable.Renderable
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.numeric.ARGBType
 import net.imglib2.type.numeric.integer.UnsignedByteType
@@ -20,6 +29,7 @@ import tpietzsch.backend.Texture
 import tpietzsch.backend.Texture3D
 import tpietzsch.cache.*
 import tpietzsch.example2.MultiVolumeShaderMip
+import tpietzsch.example2.TriConsumer
 import tpietzsch.example2.VolumeBlocks
 import tpietzsch.example2.VolumeShaderSignature
 import tpietzsch.multires.MultiResolutionStack3D
@@ -50,51 +60,9 @@ class VolumeManager(
     override var hub: Hub?,
     val useCompute: Boolean = false,
     val customSegments: Map<SegmentType, SegmentTemplate>? = null,
-    val customBindings: BiConsumer<Map<SegmentType, SegmentTemplate>, Map<SegmentType, Segment>>? = null
-) : Node(), Hubable, HasGeometry, RequestRepaint {
-    /** How many elements does a vertex store? */
-    override val vertexSize: Int = 3
+    val customBindings: TriConsumer<Map<SegmentType, SegmentTemplate>, Map<SegmentType, Segment>, Int>? = null
+) : DefaultNode("VolumeManager"), HasGeometry, HasRenderable, HasMaterial, Hubable, RequestRepaint {
 
-    /** How many elements does a texture coordinate store? */
-    override val texcoordSize: Int = 2
-
-    /** The [GeometryType] of the [Node] */
-    override var geometryType: GeometryType = GeometryType.TRIANGLES
-
-    /** Array of the vertices. This buffer is _required_, but may empty. */
-    override var vertices: FloatBuffer = BufferUtils.allocateFloatAndPut(
-        floatArrayOf(
-            -1.0f, -1.0f, 0.0f,
-            1.0f, -1.0f, 0.0f,
-            1.0f, 1.0f, 0.0f,
-            -1.0f, 1.0f, 0.0f
-        )
-    )
-
-    /** Array of the normals. This buffer is _required_, and may _only_ be empty if [vertices] is empty as well. */
-    override var normals: FloatBuffer = BufferUtils.allocateFloatAndPut(
-        floatArrayOf(
-            1.0f, 0.0f, 0.0f,
-            0.0f, 1.0f, 0.0f,
-            0.0f, 0.0f, 1.0f,
-            0.0f, 0.0f, 1.0f
-        )
-    )
-
-    /** Array of the texture coordinates. Texture coordinates are optional. */
-    override var texcoords: FloatBuffer = BufferUtils.allocateFloatAndPut(
-        floatArrayOf(
-            0.0f, 0.0f,
-            1.0f, 0.0f,
-            1.0f, 1.0f,
-            0.0f, 1.0f
-        )
-    )
-
-    /** Array of the indices to create an indexed mesh. Optional, but advisable to use to minimize the number of submitted vertices. */
-    override var indices: IntBuffer = BufferUtils.allocateIntAndPut(
-        intArrayOf(0, 1, 2, 0, 2, 3)
-    )
     /**
      *  The rendering method used in the shader, can be
      *
@@ -161,13 +129,21 @@ class VolumeManager(
     // or for all VolumeManager-managed nodes?
     var renderingMethod = Volume.RenderingMethod.AlphaBlending
 
+    /** List of custom-created textures not to be cleared automatically */
+    var customTextures = arrayListOf<String>()
+
     init {
-        state = State.Created
-        name = "VolumeManager"
+        addRenderable {
+            state = State.Created
+        }
+
         // fake geometry
+        addGeometry {
+            this.geometryType = GeometryType.TRIANGLES
+        }
+        logger.debug("Created new volume manager with compute=$useCompute, segments=$customSegments, bindings=$customBindings")
 
-
-        this.geometryType = GeometryType.TRIANGLES
+        addMaterial()
 
         currentVolumeCount = 0 to 0
 
@@ -189,7 +165,9 @@ class VolumeManager(
             updateProgram(context)
         }
 
-        preDraw()
+        renderable {
+            preDraw()
+        }
     }
 
     @Synchronized
@@ -198,17 +176,25 @@ class VolumeManager(
         shaderProperties["transform"] = Matrix4f()
         shaderProperties["viewportSize"] = Vector2f()
         shaderProperties["dsp"] = Vector2f()
-        material.textures.clear()
+        val oldKeys = material().textures.filter { it.key !in customTextures }.keys
+        val texturesToKeep = material().textures.filter { it.key in customTextures }
+        oldKeys.forEach {
+            material().textures.remove(it)
+        }
 
-        material = ShaderMaterial(context.factory)
-        material.cullingMode = Material.CullingMode.None
-        material.blending.transparent = true
-        material.blending.sourceColorBlendFactor = Blending.BlendFactor.One
-        material.blending.destinationColorBlendFactor = Blending.BlendFactor.OneMinusSrcAlpha
-        material.blending.sourceAlphaBlendFactor = Blending.BlendFactor.One
-        material.blending.destinationAlphaBlendFactor = Blending.BlendFactor.OneMinusSrcAlpha
-        material.blending.colorBlending = Blending.BlendOp.add
-        material.blending.alphaBlending = Blending.BlendOp.add
+        setMaterial(ShaderMaterial(context.factory)){
+            texturesToKeep.forEach { (k, v) ->
+                textures[k] = v
+            }
+            cullingMode = Material.CullingMode.None
+            blending.transparent = true
+            blending.sourceColorBlendFactor = Blending.BlendFactor.One
+            blending.destinationColorBlendFactor = Blending.BlendFactor.OneMinusSrcAlpha
+            blending.sourceAlphaBlendFactor = Blending.BlendFactor.One
+            blending.destinationAlphaBlendFactor = Blending.BlendFactor.OneMinusSrcAlpha
+            blending.colorBlending = Blending.BlendOp.add
+            blending.alphaBlending = Blending.BlendOp.add
+        }
     }
 
     @Synchronized
@@ -300,13 +286,14 @@ class VolumeManager(
             "sampleVolume",
             "convert",
             "slicingPlanes",
-            "slicingMode"
+            "slicingMode",
+            "usedSlicingPlanes"
         )
         segments[SegmentType.SampleVolume] = SegmentTemplate(
             "SampleSimpleVolume.frag",
             "im", "sourcemax", "intersectBoundingBox",
             "volume", "transferFunction", "colorMap", "sampleVolume", "convert", "slicingPlanes",
-            "slicingMode"
+            "slicingMode", "usedSlicingPlanes"
         )
         segments[SegmentType.Convert] = SegmentTemplate(
             "Converter.frag",
@@ -324,7 +311,7 @@ class VolumeManager(
         customSegments?.forEach { type, segment -> segments[type] = segment }
 
         val additionalBindings = customBindings
-            ?: BiConsumer { _: Map<SegmentType, SegmentTemplate>, instances: Map<SegmentType, Segment> ->
+        ?: TriConsumer { _: Map<SegmentType, SegmentTemplate>, instances: Map<SegmentType, Segment>, _: Int ->
                 logger.debug("Connecting additional bindings")
                 instances[SegmentType.SampleMultiresolutionVolume]?.bind("convert", instances[SegmentType.Convert])
                 instances[SegmentType.SampleVolume]?.bind("convert", instances[SegmentType.Convert])
@@ -360,23 +347,6 @@ class VolumeManager(
         }
     }
 
-    private fun clearKeysAndTextures() {
-        val oldKeys = this.material.textures.keys()
-            .asSequence()
-            .filter { it.contains("_") }
-        logger.info("Removing texture keys ${oldKeys.joinToString(",")}")
-        oldKeys.map {
-            this.material.textures.remove(it)
-        }
-
-        val oldProps = this.shaderProperties.keys
-            .filter { it.contains("_x_") }
-        logger.info("Removing shader props ${oldProps.joinToString(",")}")
-        oldProps.map {
-            this.shaderProperties.remove(it)
-        }
-    }
-
     /**
      * Updates the currently-used set of blocks using [context] to
      * facilitate the updates on the GPU.
@@ -385,7 +355,7 @@ class VolumeManager(
     protected fun updateBlocks(context: SceneryContext): Boolean {
         val currentProg = progvol
         if (currentProg == null) {
-            logger.info("Not updating blocks, no prog")
+            logger.debug("Not updating blocks, no prog")
             return false
         }
 
@@ -397,12 +367,12 @@ class VolumeManager(
         val settings = hub?.get<Settings>() ?: return false
 
         val hmd = hub?.getWorkingHMDDisplay()?.wantsVR(settings)
-        val mvp = if(hmd != null) {
+        val vp = if(hmd != null) {
             Matrix4f(hmd.getEyeProjection(0, cam.nearPlaneDistance, cam.farPlaneDistance))
-                .mul(cam.getTransformation())
+                .mul(cam.spatial().getTransformation())
         } else {
-            Matrix4f(cam.projection)
-                .mul(cam.getTransformation())
+            Matrix4f(cam.spatial().projection)
+                .mul(cam.spatial().getTransformation())
         }
 
         // TODO: original might result in NULL, is this intended?
@@ -417,7 +387,7 @@ class VolumeManager(
                 if (state.stack is MultiResolutionStack3D) {
                     val volume = outOfCoreVolumes[i]
 
-                    volume.init(state.stack, cam.width, mvp)
+                    volume.init(state.stack, cam.width, vp)
 
                     val tasks = volume.fillTasks
                     numTasks += tasks.size
@@ -457,6 +427,7 @@ class VolumeManager(
             }
 
             ProcessFillTasks.parallel(textureCache, pboChain, context, forkJoinPool, fillTasks)
+//            ProcessFillTasks.sequential(textureCache, pboChain, context, fillTasks)
         }
 
         // TODO: is repaint necessary?
@@ -492,6 +463,8 @@ class VolumeManager(
                     currentProg.registerCustomSampler(i, "colorMap", state.colorMap)
                     currentProg.setCustomFloatArrayUniformForVolume(i, "slicingPlanes", 4, state.node.slicingArray())
                     currentProg.setCustomUniformForVolume(i, "slicingMode", state.node.slicingMode.id)
+                    currentProg.setCustomUniformForVolume(i,"usedSlicingPlanes",
+                        min(state.node.slicingPlaneEquations.size, Volume.MAX_SUPPORTED_SLICING_PLANES))
 
                     context.bindTexture(state.transferFunction)
                     context.bindTexture(state.colorMap)
@@ -518,7 +491,7 @@ class VolumeManager(
             currentProg.setViewportWidth(cam.width)
             currentProg.setEffectiveViewportSize(cam.width, cam.height)
             currentProg.setDegrade(farPlaneDegradation)
-            currentProg.setProjectionViewMatrix(mvp, maxAllowedStepInVoxels * minWorldVoxelSize)
+            currentProg.setProjectionViewMatrix(vp, maxAllowedStepInVoxels * minWorldVoxelSize)
             currentProg.use(context)
             currentProg.setUniforms(context)
             currentProg.bindSamplers(context)
@@ -575,9 +548,9 @@ class VolumeManager(
         val multiResCount = renderStacksStates.count { it.stack is MultiResolutionStack3D }
         val regularCount = renderStacksStates.count { it.stack is SimpleStack3D }
 
-        val multiResMatch = material.textures.count { it.key.startsWith("volumeCache") } == 1
-            && material.textures.count { it.key.startsWith("lutSampler_") } >= multiResCount
-        val regularMatch = material.textures.count { it.key.startsWith("volume_") } >= regularCount
+        val multiResMatch = material().textures.count { it.key.startsWith("volumeCache") } == 1
+            && material().textures.count { it.key.startsWith("lutSampler_") } >= multiResCount
+        val regularMatch = material().textures.count { it.key.startsWith("volume_") } >= regularCount
         val counts = listOf("sourcemax", "offset", "scale", "im").map { key ->
             key to shaderProperties.keys.count {
                 it.contains("${key}_x_")
@@ -595,7 +568,7 @@ class VolumeManager(
             logger.debug(
                 "ReadyToRender: $multiResCount->$multiResMatch/$regularCount->$regularMatch\n " +
                     " * ShaderProperties: ${shaderProperties.keys.joinToString(",")}\n " +
-                    " * Textures: ${material.textures.keys.joinToString(",")}\n " +
+                    " * Textures: ${material().textures.keys.joinToString(",")}\n " +
                     " * Counts: ${counts.joinToString(",") { "${it.first}=${it.second}" }}"
             )
         }
@@ -611,47 +584,83 @@ class VolumeManager(
 
     }
 
-    /**
-     * Pre-draw routine to be called by the rendered just before drawing.
-     * Updates texture cache and used blocks.
-     */
-    override fun preDraw(): Boolean {
-        logger.debug("Running predraw")
-        context.bindTexture(textureCache)
+    override fun createRenderable(): Renderable {
+        return object: DefaultRenderable(this) {
+            /**
+             * Pre-draw routine to be called by the rendered just before drawing.
+             * Updates texture cache and used blocks.
+             */
+            override fun preDraw(): Boolean {
+                logger.debug("Running predraw")
+                context.bindTexture(textureCache)
 
-        if (nodes.any { it.transferFunction.stale }) {
-            transferFunctionTextures.clear()
-            val keys = material.textures.filter { it.key.startsWith("transferFunction") }.keys
-            keys.forEach { material.textures.remove(it) }
-            renderStateUpdated = true
-        }
-
-        if (renderStateUpdated) {
-            updateRenderState()
-            needAtLeastNumVolumes(renderStacksStates.size)
-            renderStateUpdated = false
-        }
-
-        var repaint = true
-        val blockUpdateDuration = measureTimeMillis {
-            if (!freezeRequiredBlocks) {
-                try {
-                    updateBlocks(context)
-                } catch (e: RuntimeException) {
-                    logger.warn("Probably ran out of data, corrupt BDV file? $e")
-                    e.printStackTrace()
+                if (nodes.any { it.transferFunction.stale }) {
+                    transferFunctionTextures.clear()
+                    val keys = material().textures.filter { it.key.startsWith("transferFunction") }.keys
+                    keys.forEach { material().textures.remove(it) }
+                    renderStateUpdated = true
                 }
+
+                if (renderStateUpdated) {
+                    updateRenderState()
+                    needAtLeastNumVolumes(renderStacksStates.size)
+                    renderStateUpdated = false
+                }
+
+                var repaint = true
+                val blockUpdateDuration = measureTimeMillis {
+                    if (!freezeRequiredBlocks) {
+                        try {
+                            updateBlocks(context)
+                        } catch (e: RuntimeException) {
+                            logger.warn("Probably ran out of data, corrupt BDV file? $e")
+                            e.printStackTrace()
+                        }
+                    }
+                }
+
+                logger.debug("Block updates took {}ms", blockUpdateDuration)
+
+                context.runDeferredBindings()
+                if (repaint) {
+                    context.runTextureUpdates()
+                }
+
+                return readyToRender()
             }
         }
+    }
 
-        logger.debug("Block updates took {}ms", blockUpdateDuration)
-
-        context.runDeferredBindings()
-        if (repaint) {
-            context.runTextureUpdates()
+    override fun createGeometry(): Geometry {
+        return object : DefaultGeometry(this) {
+            override var vertices: FloatBuffer = BufferUtils.allocateFloatAndPut(
+                floatArrayOf(
+                    -1.0f, -1.0f, 0.0f,
+                    1.0f, -1.0f, 0.0f,
+                    1.0f, 1.0f, 0.0f,
+                    -1.0f, 1.0f, 0.0f
+                )
+            )
+            override var normals: FloatBuffer = BufferUtils.allocateFloatAndPut(
+                floatArrayOf(
+                    1.0f, 0.0f, 0.0f,
+                    0.0f, 1.0f, 0.0f,
+                    0.0f, 0.0f, 1.0f,
+                    0.0f, 0.0f, 1.0f
+                )
+            )
+            override var texcoords: FloatBuffer = BufferUtils.allocateFloatAndPut(
+                floatArrayOf(
+                    0.0f, 0.0f,
+                    1.0f, 0.0f,
+                    1.0f, 1.0f,
+                    0.0f, 1.0f
+                )
+            )
+            override var indices: IntBuffer = BufferUtils.allocateIntAndPut(
+                intArrayOf(0, 1, 2, 0, 2, 3)
+            )
         }
-
-        return readyToRender()
     }
 
     /**
@@ -739,22 +748,33 @@ class VolumeManager(
         needAtLeastNumVolumes(renderStacksStates.size)
     }
 
-    @Synchronized
-    fun remove(node: Volume) {
-        logger.debug("Removing $node to OOC nodes")
-        node.delegate = null
-        nodes.remove(node)
-
+    private fun replace() {
+        logger.debug("Replacing volume manager with ${nodes.size} volumes managed")
         val volumes = nodes.toMutableList()
-        hub?.get<VolumeManager>()?.let { hub?.remove(it) }
+        val current = hub?.get<VolumeManager>()
+        if(current != null) {
+            hub?.remove(current)
+        }
 
-        val vm = VolumeManager(hub, useCompute)
+        val vm = VolumeManager(hub, useCompute, current?.customSegments, current?.customBindings)
+        current?.customTextures?.forEach {
+            vm.customTextures.add(it)
+            vm.material().textures[it] = current.material().textures[it]!!
+        }
         volumes.forEach {
             vm.add(it)
-            it.delegate = vm
+            it.volumeManager = vm
         }
 
         hub?.add(vm)
+    }
+
+    @Synchronized
+    fun remove(node: Volume) {
+        logger.debug("Removing $node to OOC nodes")
+        nodes.remove(node)
+
+        replace()
     }
 
     protected val updated = HashSet<Volume>()
@@ -790,7 +810,7 @@ class VolumeManager(
         prog.clear()
 //        updateRenderState()
 //        needAtLeastNumVolumes(renderStacks.size)
-        preDraw()
+        renderable().preDraw()
     }
 
     fun removeCachedColormapFor(node: Volume) {
@@ -802,9 +822,39 @@ class VolumeManager(
         renderStateUpdated = true
     }
 
+    override fun close() {
+        logger.debug("Closing VolumeManager")
+
+        replace()
+    }
+
     /** Companion object for Volume */
     companion object {
         /** Static [ForkJoinPool] for fill task submission. */
-        protected val forkJoinPool: ForkJoinPool = ForkJoinPool(max(1, Runtime.getRuntime().availableProcessors() / 2))
+        protected val forkJoinPool: ForkJoinPool = ForkJoinPool(max(1, Runtime.getRuntime().availableProcessors()))
+
+        fun regenerateVolumeManagerWithExtraVolume(volume: Volume, hub: Hub ) {
+            val vm = hub.get<VolumeManager>()
+            val volumes = ArrayList<Volume>(10)
+
+            if (vm != null) {
+                volumes.addAll(vm.nodes)
+                hub.remove(vm)
+            }
+            volume.volumeManager = if (vm != null) {
+                hub.add(VolumeManager(hub, vm.useCompute, vm.customSegments, vm.customBindings))
+            } else {
+                hub.add(VolumeManager(hub))
+            }
+            vm?.customTextures?.forEach {
+                volume.volumeManager.customTextures.add(it)
+                volume.volumeManager.material().textures[it] = vm.material().textures[it]!!
+            }
+            volume.volumeManager.add(volume)
+            volumes.forEach {
+                volume.volumeManager.add(it)
+                it.volumeManager = volume.volumeManager
+            }
+        }
     }
 }

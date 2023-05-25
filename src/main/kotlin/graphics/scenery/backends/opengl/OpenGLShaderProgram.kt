@@ -6,8 +6,9 @@ import cleargl.GLShaderType
 import cleargl.GLUniform
 import com.jogamp.opengl.GL4
 import gnu.trove.map.hash.THashMap
+import graphics.scenery.backends.ShaderIntrospection
 import graphics.scenery.backends.ShaderType
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 
 /**
  * Class to handle OpenGL shader programs, for a context [gl], consisting of [OpenGLShaderModule] [modules].
@@ -15,12 +16,12 @@ import graphics.scenery.utils.LazyLogger
  * @author Ulrik Guenther <hello@ulrik.is>
  */
 open class OpenGLShaderProgram(var gl: GL4, val modules: HashMap<ShaderType, OpenGLShaderModule>) {
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
 
     /** The ClearGL program object */
     var program: GLProgram
     /** UBO specifications defined by the compiled shader modules. */
-    val uboSpecs = LinkedHashMap<String, OpenGLShaderModule.UBOSpec>()
+    val uboSpecs = LinkedHashMap<String, ShaderIntrospection.UBOSpec>()
     private val blockIndices = THashMap<String, Int>()
 
     /** THe OpenGL-internal id of this shader program */

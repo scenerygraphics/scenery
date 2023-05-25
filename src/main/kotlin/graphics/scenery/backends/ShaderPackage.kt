@@ -1,9 +1,11 @@
 package graphics.scenery.backends
 
-import graphics.scenery.BufferUtils
-import graphics.scenery.spirvcrossj.IntVec
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
+import graphics.scenery.utils.SystemHelpers.Companion.toIntArray
+import org.lwjgl.system.MemoryUtil
+import java.nio.IntBuffer
 import java.util.*
+import kotlin.experimental.and
 
 /**
  * Data class to contain packages of shader source code and SPIRV byte code.
@@ -19,7 +21,7 @@ data class ShaderPackage(val baseClass: Class<*>,
                          val spirv: ByteArray?,
                          val code: String?,
                          var priority: SourceSPIRVPriority) {
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
 
     init {
         val sourceNewer = if(code != null) {
@@ -51,20 +53,13 @@ data class ShaderPackage(val baseClass: Class<*>,
     /**
      * Returns the glslang-digestible SPIRV bytecode from this package.
      */
-    fun getSPIRVBytecode(): IntVec? {
-        val bytecode = IntVec()
-
-        if(spirv == null) {
-            return null
+    fun getSPIRVOpcodes(): IntArray? {
+        var i = 0
+        spirv?.let { spv ->
+            return spv.toIntArray()
         }
 
-        val buffer = BufferUtils.allocateByteAndPut(spirv).asIntBuffer()
-
-        while(buffer.hasRemaining()) {
-            bytecode.add(1L*buffer.get())
-        }
-
-        return bytecode
+        return null
     }
 
     /**

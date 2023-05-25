@@ -8,8 +8,9 @@ import graphics.scenery.controls.behaviours.GamepadBehaviour
 import graphics.scenery.controls.behaviours.GamepadClickBehaviour
 import graphics.scenery.utils.ExtractsNatives
 import graphics.scenery.utils.ExtractsNatives.Platform.*
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import net.java.games.input.*
+import org.lwjgl.system.Platform
 import org.scijava.ui.behaviour.*
 import java.awt.Toolkit
 import java.awt.event.KeyEvent
@@ -18,6 +19,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.logging.Level
 import kotlin.concurrent.thread
+import kotlin.math.abs
 
 /**
  * Base class for MouseAndKeyHandlers
@@ -25,7 +27,7 @@ import kotlin.concurrent.thread
  * @author Ulrik Günther <hello@ulrik.is>
  */
 open class MouseAndKeyHandlerBase : ControllerListener, ExtractsNatives {
-    protected val logger by LazyLogger()
+    protected val logger by lazyLogger()
     /** ui-behaviour input trigger map */
     protected lateinit var inputTriggerMap: InputTriggerMap
 
@@ -45,7 +47,7 @@ open class MouseAndKeyHandlerBase : ControllerListener, ExtractsNatives {
     private var controllerAxisDown: ConcurrentHashMap<Component.Identifier, Float> = ConcurrentHashMap()
     private val gamepads = CopyOnWriteArrayList<BehaviourEntry<Behaviour>>()
     private val CONTROLLER_HEARTBEAT = 5L
-    private val CONTROLLER_DOWN_THRESHOLD = 0.95f
+    private val CONTROLLER_DOWN_THRESHOLD = 0.5f
 
     protected var shouldClose = false
 
@@ -141,51 +143,58 @@ open class MouseAndKeyHandlerBase : ControllerListener, ExtractsNatives {
             }
         }
 
-        try {
-            val platformJars = getNativeJars("jinput-platform", hint = ExtractsNatives.getPlatform().getPlatformJinputLibraryName())
-            logger.debug("Native JARs for JInput: ${platformJars.joinToString(", ")}")
-            val path = extractLibrariesFromJar(platformJars, load = false)
-            System.setProperty("net.java.games.input.librarypath", path)
+        // JInput is not available on ARM32/64
+        if(Platform.getArchitecture() == Platform.Architecture.X64) {
+            try {
+                val platformJars = getNativeJars("jinput-platform", hint = ExtractsNatives.getPlatform().getPlatformJinputLibraryName())
+                logger.debug("Native JARs for JInput: ${platformJars.joinToString(", ")}")
+                val path = extractLibrariesFromJar(platformJars, load = false)
+                System.setProperty("net.java.games.input.librarypath", path)
 
-            ControllerEnvironment.getDefaultEnvironment().controllers.forEach {
-                if (it.type == Controller.Type.STICK || it.type == Controller.Type.GAMEPAD) {
-                    this.controller = it
-                    logger.info("Added gamepad controller: $it")
-                }
-            }
-        } catch (e: Exception) {
-            logger.warn("Could not initialize JInput: ${e.message}")
-            logger.debug("Traceback: ${e.stackTrace}")
-        }
-
-        controllerThread = thread {
-            var queue: EventQueue
-            val event = Event()
-
-            while (!shouldClose) {
-                controller?.let { c ->
-                    c.poll()
-
-                    queue = c.eventQueue
-
-                    while (queue.getNextEvent(event)) {
-                        controllerEvent(event)
+                ControllerEnvironment.getDefaultEnvironment().controllers.forEach {
+                    if (it.type == Controller.Type.STICK || it.type == Controller.Type.GAMEPAD) {
+                        this.controller = it
+                        logger.info("Added gamepad controller: $it")
                     }
                 }
+            } catch(ule: UnsatisfiedLinkError) {
+                logger.warn("Could not initialize JInput due to an UnsatisfiedLinkError: ${ule.message}")
+                logger.warn("This could be to either your platform not being supported by JInput, or the JInput natives missing from the classpath.")
+                logger.debug("Traceback: ${ule.stackTrace}")
+            } catch (e: Exception) {
+                logger.warn("Could not initialize JInput: ${e.message}")
+                logger.debug("Traceback: ${e.stackTrace}")
+            }
 
-                gamepads.forEach { gamepad ->
-                    for (it in controllerAxisDown) {
-                        val b = gamepad.behaviour
-                        if (b is GamepadBehaviour) {
-                            if (Math.abs(it.value) > 0.02f && b.axis.contains(it.key)) {
-                                logger.info("Triggering ${it.key} because axis is down (${it.value})")
-                                b.axisEvent(it.key, it.value)
+            controllerThread = thread {
+                var queue: EventQueue
+                val event = Event()
+
+                while (!shouldClose) {
+                    controller?.let { c ->
+                        c.poll()
+
+                        queue = c.eventQueue
+
+                        while (queue.getNextEvent(event)) {
+                            controllerEvent(event)
+                        }
+                    }
+
+                    gamepads.forEach { gamepad ->
+                        for (it in controllerAxisDown) {
+                            val b = gamepad.behaviour
+                            if (b is GamepadBehaviour) {
+                                if (abs(it.value) > 0.02f && b.axis.contains(it.key)) {
+                                    logger.trace("Triggering ${it.key} because axis is down (${it.value})")
+                                    b.axisEvent(it.key, it.value)
+                                }
                             }
                         }
                     }
-                }
 
-                Thread.sleep(this.CONTROLLER_HEARTBEAT)
+                    Thread.sleep(this.CONTROLLER_HEARTBEAT)
+                }
             }
         }
     }
@@ -314,15 +323,27 @@ open class MouseAndKeyHandlerBase : ControllerListener, ExtractsNatives {
         }
     }
 
-    private fun controllerButtonToKeyCode(id: Component.Identifier): Int? {
+    private fun controllerButtonToKeyCode(id: Component.Identifier, value: Float): Int? {
         return when(id.name) {
-            "0" -> KeyEvent.VK_0
-            "1" -> KeyEvent.VK_1
-            "2" -> KeyEvent.VK_2
-            "3" -> KeyEvent.VK_3
-            "4" -> KeyEvent.VK_4
-            "5" -> KeyEvent.VK_5
-            "6" -> KeyEvent.VK_6
+            GamepadButton.Button0.ordinal.toString() -> KeyEvent.VK_0
+            GamepadButton.Button1.ordinal.toString()-> KeyEvent.VK_1
+            GamepadButton.Button2.ordinal.toString() -> KeyEvent.VK_2
+            GamepadButton.Button3.ordinal.toString() -> KeyEvent.VK_3
+            GamepadButton.Button4.ordinal.toString() -> KeyEvent.VK_4
+            GamepadButton.Button5.ordinal.toString() -> KeyEvent.VK_5
+            GamepadButton.Button6.ordinal.toString() -> KeyEvent.VK_6
+            GamepadButton.Button7.ordinal.toString() -> KeyEvent.VK_7
+            GamepadButton.Button8.ordinal.toString() -> KeyEvent.VK_8
+
+            "pov" -> {
+                when (value) {
+                    0.25f -> KeyEvent.VK_NUMPAD8
+                    0.5f -> KeyEvent.VK_NUMPAD6
+                    0.75f -> KeyEvent.VK_NUMPAD2
+                    1.0f -> KeyEvent.VK_NUMPAD4
+                    else -> null
+                }
+            }
             else -> null
         }
     }
@@ -336,26 +357,43 @@ open class MouseAndKeyHandlerBase : ControllerListener, ExtractsNatives {
      * @param[event] The incoming controller event
      */
     fun controllerEvent(event: Event) {
+        logger.trace("Event: $event/identifier=${event.component.identifier}")
         for (gamepad in gamepads) {
-            if (event.component.isAnalog && Math.abs(event.component.pollData) < CONTROLLER_DOWN_THRESHOLD) {
-                logger.trace("${event.component.identifier} over threshold, removing")
-                controllerAxisDown.put(event.component.identifier, 0.0f)
+            if (event.component.isAnalog) {
+                if (abs(event.component.pollData) < CONTROLLER_DOWN_THRESHOLD) {
+                    logger.trace("${event.component.identifier} over threshold, removing")
+                    controllerAxisDown[event.component.identifier] = 0.0f
+                } else {
+                    controllerAxisDown[event.component.identifier] = event.component.pollData
+                }
             } else {
-                controllerAxisDown.put(event.component.identifier, event.component.pollData)
+                val button = controllerButtonToKeyCode(event.component.identifier, event.value)
+
+                if (event.component.identifier != Component.Identifier.Axis.POV && button != null) {
+                    if (event.value < 0.1f) {
+                        pressedGamepadKeys.remove(button)
+                    }
+                    if (event.value > 0.9f) {
+                        pressedGamepadKeys.add(button)
+                    }
+                } else {
+                    if(button == null) {
+                        listOf(0.25f, 0.5f, 0.75f, 1.0f).forEach { value ->
+                            controllerButtonToKeyCode(Component.Identifier.Axis.POV, value)?.let {
+                                pressedGamepadKeys.remove(it)
+                            }
+                        }
+                    } else {
+                        if (event.value > 0.05f) {
+                            pressedGamepadKeys.add(button)
+                        } else {
+                            pressedGamepadKeys.remove(button)
+                        }
+                    }
+                }
             }
 
-            val button = controllerButtonToKeyCode(event.component.identifier)
-            if(!event.component.isAnalog && button != null) {
-                if(event.value < 0.1f) {
-                    pressedGamepadKeys.remove(button)
-                }
-                if(event.value > 0.9f) {
-                    pressedGamepadKeys.add(button)
-                }
-            }
-
-            val b = gamepad.behaviour
-            when(b) {
+            when(val b = gamepad.behaviour) {
                 is GamepadBehaviour -> {
                     if (b.axis.contains(event.component.identifier)) {
                         b.axisEvent(event.component.identifier, event.component.pollData)

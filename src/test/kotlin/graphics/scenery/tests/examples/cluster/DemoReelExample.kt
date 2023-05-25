@@ -7,6 +7,8 @@ import graphics.scenery.controls.InputHandler
 import graphics.scenery.controls.TrackedStereoGlasses
 import graphics.scenery.net.NodePublisher
 import graphics.scenery.net.NodeSubscriber
+import graphics.scenery.Mesh
+import graphics.scenery.attribute.material.Material
 import graphics.scenery.volumes.Colormap
 import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.Volume
@@ -21,7 +23,6 @@ import kotlin.concurrent.thread
  */
 class DemoReelExample: SceneryBase("Demo Reel") {
     var hmd: TrackedStereoGlasses? = null
-    var publishedNodes = ArrayList<Node>()
 
     var cam = DetachedHeadCamera()
     var bileScene = Mesh(name = "bile")
@@ -41,7 +42,9 @@ class DemoReelExample: SceneryBase("Demo Reel") {
 
         cam = DetachedHeadCamera(hmd)
         with(cam) {
-            position = Vector3f(0.0f, 0.0f, 55.0f)
+            spatial {
+                position = Vector3f(0.0f, 0.0f, 55.0f)
+            }
             perspectiveCamera(50.0f, windowWidth, windowHeight, 0.02f, 500.0f)
             disableCulling = true
 
@@ -50,10 +53,12 @@ class DemoReelExample: SceneryBase("Demo Reel") {
 
         // box setup
         val shell = Box(Vector3f(120.0f, 120.0f, 120.0f), insideNormals = true)
-        shell.material.cullingMode = Material.CullingMode.Front
-        shell.material.diffuse = Vector3f(0.0f, 0.0f, 0.0f)
-        shell.material.specular = Vector3f(0.0f)
-        shell.material.ambient = Vector3f(0.0f)
+        shell.material {
+            cullingMode = Material.CullingMode.Front
+            diffuse = Vector3f(0.0f, 0.0f, 0.0f)
+            specular = Vector3f(0.0f)
+            ambient = Vector3f(0.0f)
+        }
         scene.addChild(shell)
 
         Light.createLightTetrahedron<PointLight>(spread = 50.0f, intensity = 150.0f, radius = 150.0f)
@@ -76,7 +81,9 @@ class DemoReelExample: SceneryBase("Demo Reel") {
             Paths.get("$driveLetter:/ssd-backup-inauguration/CAVE_DATA/droso-royer-autopilot-transposed/"),
             hub
         )
-        drosophilaVolume.rotation.rotateX(1.57f)
+        drosophilaVolume.spatial {
+            rotation.rotateX(1.57f)
+        }
         drosophilaVolume.transferFunction = TransferFunction.ramp(0.1f, 1.0f)
         drosophilaVolume.colormap = Colormap.get("hot")
         drosophilaScene.addChild(drosophilaVolume)
@@ -94,50 +101,44 @@ class DemoReelExample: SceneryBase("Demo Reel") {
         val bile = Mesh()
         val canaliculi = Mesh()
         canaliculi.readFrom("$driveLetter:/ssd-backup-inauguration/meshes/bile-canaliculi.obj")
-        canaliculi.scale = Vector3f(0.1f, 0.1f, 0.1f)
-        canaliculi.position = Vector3f(-80.0f, -60.0f, 10.0f)
-        canaliculi.material.diffuse = Vector3f(0.5f, 0.7f, 0.1f)
+        canaliculi.spatial {
+            scale = Vector3f(0.1f, 0.1f, 0.1f)
+            position = Vector3f(-80.0f, -60.0f, 10.0f)
+        }
+        canaliculi.material {
+            diffuse = Vector3f(0.5f, 0.7f, 0.1f)
+        }
         bile.addChild(canaliculi)
 
         val nuclei = Mesh()
         nuclei.readFrom("$driveLetter:/ssd-backup-inauguration/meshes/bile-nuclei.obj")
-        nuclei.scale = Vector3f(0.1f, 0.1f, 0.1f)
-        nuclei.position = Vector3f(-80.0f, -60.0f, 10.0f)
-        nuclei.material.diffuse = Vector3f(0.8f, 0.8f, 0.8f)
+        nuclei.spatial {
+            scale = Vector3f(0.1f, 0.1f, 0.1f)
+            position = Vector3f(-80.0f, -60.0f, 10.0f)
+        }
+        nuclei.material {
+            diffuse = Vector3f(0.8f, 0.8f, 0.8f)
+        }
         bile.addChild(nuclei)
 
         val sinusoidal = Mesh()
         sinusoidal.readFrom("$driveLetter:/ssd-backup-inauguration/meshes/bile-sinus.obj")
-        sinusoidal.scale = Vector3f(0.1f, 0.1f, 0.1f)
-        sinusoidal.position = Vector3f(-80.0f, -60.0f, 10.0f)
-        sinusoidal.material.ambient = Vector3f(0.1f, 0.0f, 0.0f)
-        sinusoidal.material.diffuse = Vector3f(0.4f, 0.0f, 0.02f)
-        sinusoidal.material.specular = Vector3f(0.05f, 0f, 0f)
+        sinusoidal.spatial {
+            scale = Vector3f(0.1f, 0.1f, 0.1f)
+            position = Vector3f(-80.0f, -60.0f, 10.0f)
+        }
+        sinusoidal.material {
+            ambient = Vector3f(0.1f, 0.0f, 0.0f)
+            diffuse = Vector3f(0.4f, 0.0f, 0.02f)
+            specular = Vector3f(0.05f, 0f, 0f)
+        }
         bile.addChild(sinusoidal)
         bileScene.addChild(bile)
         scene.addChild(bileScene)
 
-        publishedNodes.add(cam)
-        publishedNodes.add(drosophilaVolume)
-        publishedNodes.add(drosophilaScene)
-
-        publishedNodes.add(histoneVolume)
-        publishedNodes.add(histoneScene)
-
-        publishedNodes.add(bile)
-        publishedNodes.add(canaliculi)
-        publishedNodes.add(nuclei)
-        publishedNodes.add(sinusoidal)
-        publishedNodes.add(bileScene)
-
         val publisher = hub.get<NodePublisher>(SceneryElement.NodePublisher)
         val subscriber = hub.get<NodeSubscriber>(SceneryElement.NodeSubscriber)
 
-        publishedNodes.forEachIndexed { index, node ->
-            publisher?.nodes?.put(13337 + index, node)
-
-            subscriber?.nodes?.put(13337 + index, node)
-        }
 
         val minDelay = 200
 
@@ -189,7 +190,7 @@ class DemoReelExample: SceneryBase("Demo Reel") {
             scenes.filter { it.name == sceneName }.forEach { scene -> scene.runRecursive { it.visible = true } }
             scenes.filter { it.name != sceneName }.forEach { scene -> scene.runRecursive { it.visible = false } }
 
-            scene.findObserver()?.position = Vector3f(0.0f, 0.0f, 3.0f)
+            scene.findObserver()?.spatial()?.position = Vector3f(0.0f, 0.0f, 3.0f)
         }
 
         inputHandler.addBehaviour("goto_scene_bile", gotoScene("bile"))

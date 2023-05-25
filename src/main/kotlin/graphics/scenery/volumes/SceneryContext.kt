@@ -7,14 +7,13 @@ import graphics.scenery.textures.Texture.RepeatMode
 import graphics.scenery.textures.UpdatableTexture.TextureUpdate
 import graphics.scenery.backends.ShaderType
 import graphics.scenery.textures.UpdatableTexture
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import net.imglib2.type.numeric.NumericType
 import net.imglib2.type.numeric.integer.UnsignedByteType
 import net.imglib2.type.numeric.integer.UnsignedShortType
 import net.imglib2.type.numeric.real.FloatType
 import org.joml.*
 import org.lwjgl.system.MemoryUtil
-import org.lwjgl.util.xxhash.XXHash
 import tpietzsch.backend.*
 import tpietzsch.cache.TextureCache
 import tpietzsch.example2.LookupTextureARGB
@@ -25,8 +24,6 @@ import java.nio.ByteOrder
 import java.nio.FloatBuffer
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.ExperimentalTime
-import kotlin.time.measureTime
-import kotlin.time.measureTimedValue
 import tpietzsch.backend.Texture as BVVTexture
 
 /**
@@ -36,7 +33,7 @@ import tpietzsch.backend.Texture as BVVTexture
  * @author Tobias Pietzsch <pietzsch@mpi-cbg.de>
  */
 open class SceneryContext(val node: VolumeManager, val useCompute: Boolean = false) : GpuContext {
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
 
     data class BindingState(var binding: Int, var uniformName: String?, var reallocate: Boolean = false)
 
@@ -352,8 +349,9 @@ open class SceneryContext(val node: VolumeManager, val useCompute: Boolean = fal
             else -> throw UnsupportedOperationException("Unknown wrapping mode: ${texture.texWrap()}")
         }
 
+        val material = node.material()
         if (texture is TextureCache) {
-            if(currentlyBoundCache != null && node.material.textures["volumeCache"] == currentlyBoundCache && dimensionsMatch(texture, node.material.textures["volumeCache"])) {
+            if(currentlyBoundCache != null && material.textures["volumeCache"] == currentlyBoundCache && dimensionsMatch(texture, material.textures["volumeCache"])) {
                 return 0
             }
 
@@ -370,7 +368,7 @@ open class SceneryContext(val node: VolumeManager, val useCompute: Boolean = fal
                 minFilter = Texture.FilteringMode.Linear,
                 maxFilter = Texture.FilteringMode.Linear)
 
-            node.material.textures["volumeCache"] = gt
+            material.textures["volumeCache"] = gt
 
             currentlyBoundCache = gt
         } else {
@@ -383,9 +381,9 @@ open class SceneryContext(val node: VolumeManager, val useCompute: Boolean = fal
                     && currentlyBoundLuts[lut] != null
                     && node.material.textures[lut] == currentlyBoundLuts[lut])) {
                  */
-                if (!(node.material.textures[name] != null
+                if (!(material.textures[name] != null
                     && currentlyBoundTextures[name] != null
-                    && node.material.textures[name] == currentlyBoundTextures[name])) {
+                    && material.textures[name] == currentlyBoundTextures[name])) {
                     val contents = when(texture) {
                         is LookupTextureARGB -> null
                         is VolumeManager.SimpleTexture2D -> texture.data
@@ -409,7 +407,7 @@ open class SceneryContext(val node: VolumeManager, val useCompute: Boolean = fal
                         minFilter = filterLinear,
                         maxFilter = filterLinear)
 
-                    node.material.textures[name] = gt
+                    material.textures[name] = gt
 
                     currentlyBoundTextures[name] = gt
                 }
@@ -526,7 +524,7 @@ open class SceneryContext(val node: VolumeManager, val useCompute: Boolean = fal
         bindings[texture]?.reallocate = true
     }
 
-    private data class SubImageUpdate(val xoffset: Int, val yoffset: Int, val zoffset: Int, val width: Int, val height: Int, val depth: Int, val contents: ByteBuffer, val reallocate: Boolean = false)
+    private data class SubImageUpdate(val xoffset: Int, val yoffset: Int, val zoffset: Int, val width: Int, val height: Int, val depth: Int, val contents: ByteBuffer, val reallocate: Boolean = false, val deallocate: Boolean = false)
     private var cachedUpdates = ConcurrentHashMap<BVVTexture, MutableList<SubImageUpdate>>()
 
     private data class UpdateParameters(val xoffset: Int, val yoffset: Int, val zoffset: Int, val width: Int, val height: Int, val depth: Int, val hash: Long)
@@ -541,7 +539,8 @@ open class SceneryContext(val node: VolumeManager, val useCompute: Boolean = fal
             val name = texture?.uniformName
 
             if(texture != null && name != null) {
-                val gt = node.material.textures[name] as? UpdatableTexture ?: throw IllegalStateException("Texture for $name is null or not updateable")
+                val material = node.material()
+                val gt = material.textures[name] as? UpdatableTexture ?: throw IllegalStateException("Texture for $name is null or not updateable")
 
                 logger.debug("Running ${updates.size} texture updates for $texture")
                 updates.forEach { update ->
@@ -559,19 +558,19 @@ open class SceneryContext(val node: VolumeManager, val useCompute: Boolean = fal
                                 gt.normalized = false
                             }
 
-                            node.material.textures[name] = gt
+                            material.textures[name] = gt
                         }
 
                         val textureUpdate = TextureUpdate(
                             TextureExtents(update.xoffset, update.yoffset, update.zoffset, update.width, update.height, update.depth),
-                            update.contents, deallocate = false)
+                            update.contents, deallocate = update.deallocate)
                         gt.addUpdate(textureUpdate)
 
                         texture.reallocate = false
                     } else {
                         val textureUpdate = TextureUpdate(
                             TextureExtents(update.xoffset, update.yoffset, update.zoffset, update.width, update.height, update.depth),
-                            update.contents, deallocate = false)
+                            update.contents, deallocate = update.deallocate)
 
                         gt.addUpdate(textureUpdate)
                     }
@@ -613,7 +612,7 @@ open class SceneryContext(val node: VolumeManager, val useCompute: Boolean = fal
         tmp.put(tmpStorage)
         tmp.flip()
 
-        val update = SubImageUpdate(xoffset, yoffset, zoffset, width, height, depth, tmp)
+        val update = SubImageUpdate(xoffset, yoffset, zoffset, width, height, depth, tmp, deallocate = true)
         cachedUpdates.getOrPut(texture, { ArrayList(10) }).add(update)
     }
 

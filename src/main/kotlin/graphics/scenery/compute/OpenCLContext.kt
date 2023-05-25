@@ -3,7 +3,7 @@ package graphics.scenery.compute
 import graphics.scenery.Hub
 import graphics.scenery.Hubable
 import graphics.scenery.SceneryElement
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.jocl.*
 import org.jocl.CL.*
 import java.io.File
@@ -22,7 +22,7 @@ import java.util.concurrent.ConcurrentHashMap
  */
 
 class OpenCLContext(override var hub: Hub?, devicePreference: String = System.getProperty("scenery.OpenCLDevice", "0,0")) : Hubable, AutoCloseable {
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
 
     var device: cl_device_id
     private var kernels = ConcurrentHashMap<String, cl_kernel>()
@@ -30,6 +30,10 @@ class OpenCLContext(override var hub: Hub?, devicePreference: String = System.ge
     var queue: cl_command_queue
 
     init {
+        if(System.getenv("GITLAB_CI").toBoolean()) {
+            throw UnsupportedOperationException("OpenCL disabled on Gitlab CI due to Nvidia Docker issue.")
+        }
+
         hub?.add(SceneryElement.OpenCLContext, this)
 
         val platformPref = devicePreference.substringBefore(",").toInt()

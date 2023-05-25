@@ -1,6 +1,6 @@
 package graphics.scenery.backends.vulkan
 
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.system.Struct
 import org.lwjgl.vulkan.*
@@ -25,7 +25,7 @@ open class VulkanFramebuffer(protected val device: VulkanDevice,
                              var height: Int,
                              val commandBuffer: VkCommandBuffer,
                              var shouldClear: Boolean = true, val sRGB: Boolean = false): AutoCloseable {
-    protected val logger by LazyLogger()
+    protected val logger by lazyLogger()
 
     /** Raw Vulkan framebuffer reference. */
     var framebuffer = memAllocLong(1)
@@ -102,11 +102,11 @@ open class VulkanFramebuffer(protected val device: VulkanDevice,
          */
         override fun close() {
             if(descriptorSetLayout != -1L) {
-                vkDestroyDescriptorSetLayout(device.vulkanDevice, descriptorSetLayout, null)
+                device.removeDescriptorSetLayout(descriptorSetLayout)
             }
             loadStoreDescriptorSetLayout?.let {
                 if (loadStoreDescriptorSetLayout != -1L) {
-                    vkDestroyDescriptorSetLayout(device.vulkanDevice, it, null)
+                    device.removeDescriptorSetLayout(it)
                 }
             }
 
@@ -755,8 +755,8 @@ open class VulkanFramebuffer(protected val device: VulkanDevice,
         if(initialized) {
             attachments.values.forEach { it.close() }
 
-            vkDestroyDescriptorSetLayout(device.vulkanDevice, outputDescriptorSetLayout, null)
-            vkDestroyDescriptorSetLayout(device.vulkanDevice, imageLoadStoreDescriptorSetLayout, null)
+            device.removeDescriptorSetLayout(outputDescriptorSetLayout)
+            device.removeDescriptorSetLayout(imageLoadStoreDescriptorSetLayout)
 
             vkDestroyRenderPass(device.vulkanDevice, renderPass.get(0), null)
             memFree(renderPass)
