@@ -1,5 +1,11 @@
 package graphics.scenery
 
+import graphics.scenery.primitives.TextBoard
+import graphics.scenery.attribute.material.HasMaterial
+import graphics.scenery.attribute.renderable.HasRenderable
+import graphics.scenery.attribute.spatial.DefaultSpatial
+import graphics.scenery.attribute.spatial.HasCustomSpatial
+import graphics.scenery.net.Networkable
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
@@ -20,7 +26,7 @@ import kotlin.math.tan
  * @constructor Creates a new camera with default position and right-handed
  *  coordinate system.
  */
-open class Camera : Node("Camera") {
+open class Camera : DefaultNode("Camera"), HasRenderable, HasMaterial, HasCustomSpatial<Camera.CameraSpatial> {
 
     /** Enum class for camera projection types */
     enum class ProjectionType {
@@ -40,70 +46,83 @@ open class Camera : Node("Camera") {
     var right: Vector3f = Vector3f(1.0f, 0.0f, 0.0f)
     /** FOV of the camera **/
     open var fov: Float = 70.0f
+        set(v) {
+            field = v
+            updateModifiedAt()
+        }
     /** Z buffer near plane */
     var nearPlaneDistance = 0.05f
+        set(v) {
+            field = v
+            updateModifiedAt()
+        }
     /** Z buffer far plane location */
     var farPlaneDistance = 1000.0f
+        set(v) {
+            field = v
+            updateModifiedAt()
+        }
     /** delta T from the renderer */
     var deltaT = 0.0f
     /** Projection the camera uses */
     var projectionType: ProjectionType = ProjectionType.Undefined
+        set(v) {
+            field = v
+            updateModifiedAt()
+        }
     /** Width of the projection */
     open var width: Int = 0
+        set(v) {
+            field = v
+            updateModifiedAt()
+        }
     /** Height of the projection */
     open var height: Int = 0
+        set(v) {
+            field = v
+            updateModifiedAt()
+        }
     /** View-space coordinate system e.g. for frustum culling. */
     var viewSpaceTripod: Tripod
         protected set
     /** Disables culling for this camera. */
     var disableCulling: Boolean = false
 
-    /** View matrix of the camera. Setting the view matrix will re-set the forward
-     *  vector of the camera according to the given matrix.
-     */
-    override var view: Matrix4f = Matrix4f().identity()
-        set(m) {
-            m.let {
-                this.right = Vector3f(m.get(0, 0), m.get(1, 0), m.get(2, 0)).normalize()
-                this.up = Vector3f(m.get(0, 1), m.get(1, 1), m.get(2, 1)).normalize()
-                this.forward = Vector3f(m.get(0, 2), m.get(1, 2), m.get(2, 2)).normalize() * -1.0f
-
-                this.viewSpaceTripod = cameraTripod()
-
-                this.needsUpdate = true
-                this.needsUpdateWorld = true
-
-                if(!targeted) {
-                    this.target = this.position + this.forward
-                }
-            }
-            field = m
-        }
-
-    /** Rotation of the camera. The rotation is applied after the view matrix */
-    override var rotation: Quaternionf = Quaternionf(0.0f, 0.0f, 0.0f, 1.0f)
-        set(q) {
-            q.let {
-                field = q
-                val m = Matrix4f().set(q)
-                this.forward = Vector3f(m.get(0, 2), m.get(1, 2), m.get(2, 2)).normalize() * -1.0f
-                this.viewSpaceTripod = cameraTripod()
-
-                this.needsUpdate = true
-                this.needsUpdateWorld = true
-            }
-        }
+    var wantsSync = true
+    override fun wantsSync(): Boolean = wantsSync
 
     init {
         this.nodeType = "Camera"
         this.viewSpaceTripod = cameraTripod()
         this.name = "Camera-${counter.incrementAndGet()}"
+        addSpatial()
+        addRenderable()
+        addMaterial()
+    }
+
+    override fun createSpatial(): CameraSpatial {
+        return CameraSpatial(this)
+    }
+
+    override fun update(fresh: Networkable, getNetworkable: (Int) -> Networkable, additionalData: Any?) {
+        if (fresh !is Camera) throw IllegalArgumentException("Update called with object of foreign class")
+        super.update(fresh, getNetworkable, additionalData)
+
+        this.nearPlaneDistance = fresh.nearPlaneDistance
+        this.farPlaneDistance = fresh.farPlaneDistance
+        this.fov = fresh.fov
+
+        this.width = fresh.width
+        this.height = fresh.height
+
+        this.projectionType = fresh.projectionType
+
     }
 
     /**
      * Class to contain local coordinate systems with [x], [y], and [z] axis.
      */
-    data class Tripod(val x: Vector3f, val y: Vector3f, val z: Vector3f)
+    data class Tripod(val x: Vector3f = Vector3f(1.0f, 0.0f, 0.0f), val y: Vector3f = Vector3f(0.0f, 1.0f, 0.0f), val z: Vector3f = Vector3f(0.0f, 0.0f, 1.0f))
 
     /**
      * Returns the current aspect ratio
@@ -138,12 +157,14 @@ open class Camera : Node("Camera") {
         this.width = width
         this.height = height
 
-        this.projection = Matrix4f().perspective(
-            this.fov / 180.0f * Math.PI.toFloat(),
-            width.toFloat() / height.toFloat(),
-            this.nearPlaneDistance,
-            this.farPlaneDistance
-        )
+        spatial {
+            this.projection = Matrix4f().perspective(
+                this@Camera.fov / 180.0f * Math.PI.toFloat(),
+                width.toFloat() / height.toFloat(),
+                this@Camera.nearPlaneDistance,
+                this@Camera.farPlaneDistance
+            )
+        }
 
         this.projectionType = ProjectionType.Perspective
     }
@@ -159,90 +180,36 @@ open class Camera : Node("Camera") {
         this.width = width
         this.height = height
 
-        this.projection = Matrix4f().orthoSymmetric(width.toFloat(), height.toFloat(), nearPlaneLocation, farPlaneLocation)
+        spatial {
+            this.projection = Matrix4f().orthoSymmetric(width.toFloat(), height.toFloat(), nearPlaneLocation, farPlaneLocation)
+        }
         this.projectionType = ProjectionType.Orthographic
-    }
-
-    /**
-     * Returns this camera's transformation matrix.
-     */
-    open fun getTransformation(): Matrix4f {
-        val tr = Matrix4f().translate(this.position * (-1.0f))
-        val r = Matrix4f().set(this.rotation)
-
-        return r * tr
-    }
-
-    /**
-     * Returns this camera's transformation matrix, including a
-     * [preRotation] that is applied before the camera's transformation.
-     */
-    open fun getTransformation(preRotation: Quaternionf): Matrix4f {
-        val tr = Matrix4f().translate(this.position * (-1.0f))
-        val r = Matrix4f().set(preRotation * this.rotation)
-
-        return r * tr
-    }
-
-    /**
-     * Returns this camera's transformation for eye with index [eye].
-     */
-    open fun getTransformationForEye(eye: Int): Matrix4f {
-        val tr = Matrix4f().translate(this.position * (-1.0f))
-        val r = Matrix4f().set(this.rotation)
-
-        return r * tr
-    }
-
-    /**
-     * Transforms a 3D vector from view space to world coordinates.
-     *
-     * @param v - The vector to be transformed into world space.
-     * @return Vector3f - [v] transformed into world space.
-     */
-    fun viewToWorld(v: Vector3f): Vector4f =
-        Matrix4f(this.view).invert().transform(Vector4f(v.x(), v.y(), v.z(), 1.0f))
-
-    /**
-     * Transforms a 4D vector from view space to world coordinates.
-     *
-     * @param v - The vector to be transformed into world space.
-     * @return Vector3f - [v] transformed into world space.
-     */
-    fun viewToWorld(v: Vector4f): Vector4f =
-        Matrix4f(this.view).invert().transform(v)
-
-    /**
-     * Transforms a 2D [vector] in screen space to view space and returns this 3D vector.
-     */
-    fun viewportToView(vector: Vector2f): Vector3f {
-        return Matrix4f(projection).invert().transform(Vector4f(vector.x, vector.y, 0.0f, 1.0f)).xyz()
-    }
-
-    /**
-     * Transforms a 2D/3D [vector] from NDC coordinates to world coordinates.
-     * If the vector is 2D, [nearPlaneDistance] is assumed for the Z value, otherwise
-     * the Z value from the vector is taken.
-     */
-    fun viewportToWorld(vector: Vector2f): Vector3f {
-        val pv = Matrix4f(projection)
-        pv.mul(getTransformation())
-        val ipv = Matrix4f(pv).invert()
-
-        var worldSpace = ipv.transform(Vector4f(vector.x(), vector.y(), 0.0f, 1.0f))
-
-        worldSpace = worldSpace.times(1.0f/worldSpace.w())
-//        worldSpace.set(2, offset)
-        return worldSpace.xyz()
     }
 
     /**
      * Returns the list of objects (as [Scene.RaycastResult]) under the screen space position
      * indicated by [x] and [y], sorted by their distance to the observer.
      */
-    @JvmOverloads fun getNodesForScreenSpacePosition(x: Int, y: Int,
-                                                       ignoredObjects: List<Class<*>> = emptyList(),
-                                                       debug: Boolean = false): Scene.RaycastResult {
+    @JvmOverloads
+    fun getNodesForScreenSpacePosition(
+        x: Int, y: Int,
+        ignoredObjects: List<Class<*>> = listOf<Class<*>>(BoundingGrid::class.java),
+        debug: Boolean = false
+    ): Scene.RaycastResult {
+        return getNodesForScreenSpacePosition(x, y, { n: Node ->
+            !ignoredObjects.any { it.isAssignableFrom(n.javaClass) }
+        }, debug)
+    }
+
+    /**
+     * Returns the list of objects (as [Scene.RaycastResult]) under the screen space position
+     * indicated by [x] and [y], sorted by their distance to the observer.
+     */
+    fun getNodesForScreenSpacePosition(
+        x: Int, y: Int,
+        filter: (Node) -> Boolean,
+        debug: Boolean = false
+    ): Scene.RaycastResult {
         val (worldPos, worldDir) = screenPointToRay(x, y)
 
         val scene = getScene()
@@ -251,7 +218,7 @@ open class Camera : Node("Camera") {
             return Scene.RaycastResult(emptyList(), worldPos, worldDir)
         }
 
-        return scene.raycast(worldPos, worldDir, ignoredObjects, debug)
+        return scene.raycast(worldPos, worldDir, filter, debug)
     }
 
     /**
@@ -261,22 +228,25 @@ open class Camera : Node("Camera") {
      * Returns (worldPos, worldDir)
      */
     fun screenPointToRay(x: Int, y: Int): Pair<Vector3f, Vector3f> {
-        val view = (if (targeted) target - position else  forward).normalize()
-        var h = Vector3f(view).cross(up).normalize()
-        var v = Vector3f(h).cross(view)
+        // calculate aspect ratio, note here that both width and height
+        // are integers and need to be converted before the division, otherwise
+        // we end up with an incorrect (integer) result
+        val aspect: Float = width.toFloat() / height.toFloat()
+        val tanFov = tan(fov / 2.0f * PI.toFloat()/180.0f)
 
-        val fov = fov * Math.PI / 180.0f
-        val lengthV = tan(fov / 2.0).toFloat() * nearPlaneDistance
-        val lengthH = lengthV * (width / height)
+        // shift the x and y coordinates to a [-1, 1] coordinate system,
+        // with 0,0 being center
+        val posX = (2.0f * (( x + 0.5f)/width) - 1) * tanFov * aspect
+        val posY = (1.0f - 2.0f * ((y + 0.5f)/height)) * tanFov
 
-        v *= lengthV
-        h *= lengthH
+        // transform both origin points and screen-space positions with the view matrix to world space
+        // screen is 1 unit away from the camera -> ray should start at nearPlaneDist and go through worldPos
+        val origin = spatial().viewToWorld(Vector3f(0.0f)).xyz()
+        val screenPos = spatial().viewToWorld(Vector3f(posX, posY, -1.0f)).xyz()
 
-        val posX = (x - width / 2.0f) / (width / 2.0f)
-        val posY = -1.0f * (y - height / 2.0f) / (height / 2.0f)
+        val worldDir = (screenPos - origin).normalize()
+        val worldPos = origin + nearPlaneDistance * worldDir
 
-        val worldPos = position + view * nearPlaneDistance + h * posX + v * posY
-        val worldDir = (worldPos - position).normalize()
         return Pair(worldPos, worldDir)
     }
 
@@ -298,7 +268,7 @@ open class Camera : Node("Camera") {
      */
     fun canSee(node: Node): Boolean {
         // TODO: Figure out how to efficiently cull instances
-        if(disableCulling || node.instances.size > 0 || node is DisableFrustumCulling) {
+        if(disableCulling || node is InstancedNode || node is DisableFrustumCulling) {
             return true
         }
 
@@ -309,7 +279,7 @@ open class Camera : Node("Camera") {
         val sphereX = 1.0f/cos(angleX)
         val (x, y, z) = viewSpaceTripod
 
-        val v = bs.origin - position
+        val v = bs.origin - spatial().position
         var result = true
 
         // check whether the sphere is within the Z bounds
@@ -372,8 +342,10 @@ open class Camera : Node("Camera") {
         tb.fontColor = messageColor
         tb.backgroundColor = backgroundColor
         tb.text = message
-        tb.scale = Vector3f(size, size, size)
-        tb.position = Vector3f(0.0f, 0.0f, -1.0f * distance)
+        tb.spatial {
+            scale = Vector3f(size, size, size)
+            position = Vector3f(0.0f, 0.0f, -1.0f * distance)
+        }
 
         @Suppress("UNCHECKED_CAST")
         val messages = metadata.getOrPut("messages", { mutableListOf<Node>() }) as? MutableList<Node>?
@@ -391,12 +363,163 @@ open class Camera : Node("Camera") {
         }
     }
 
-    override fun composeModel() {
-        model = getTransformation().invert()
-    }
-
     companion object {
         protected val counter = AtomicInteger(0)
+    }
+
+
+    open class CameraSpatial(val camera: Camera): DefaultSpatial(camera) {
+
+        override fun update(fresh: Networkable, getNetworkable: (Int) -> Networkable, additionalData: Any?) {
+            if (fresh !is CameraSpatial) throw IllegalArgumentException("Update called with object of foreign class")
+            super.update(fresh, getNetworkable, additionalData)
+
+            this.projection = fresh.projection
+        }
+
+        /** View matrix of the camera. Setting the view matrix will re-set the forward
+         *  vector of the camera according to the given matrix.
+         */
+        override var view: Matrix4f = Matrix4f().identity()
+            set(m) {
+                m.let {
+                    camera.right = Vector3f(m.get(0, 0), m.get(1, 0), m.get(2, 0)).normalize()
+                    camera.up = Vector3f(m.get(0, 1), m.get(1, 1), m.get(2, 1)).normalize()
+                    camera.forward = Vector3f(m.get(0, 2), m.get(1, 2), m.get(2, 2)).normalize() * -1.0f
+
+                    camera.viewSpaceTripod = camera.cameraTripod()
+
+                    this.needsUpdate = true
+                    this.needsUpdateWorld = true
+
+                    if(!camera.targeted) {
+                        camera.target = this.position + camera.forward
+                    }
+                }
+                field = m
+            }
+
+        /** Rotation of the camera. The rotation is applied after the view matrix */
+        override var rotation: Quaternionf = Quaternionf(0.0f, 0.0f, 0.0f, 1.0f)
+            set(q) {
+                q.let {
+                    field = q
+                    val m = Matrix4f().set(q)
+                    camera.forward = Vector3f(m.get(0, 2), m.get(1, 2), m.get(2, 2)).normalize() * -1.0f
+                    camera.viewSpaceTripod = camera.cameraTripod()
+
+                    this.needsUpdate = true
+                    this.needsUpdateWorld = true
+                }
+            }
+
+        override fun composeModel() {
+            model = getTransformation().invert()
+        }
+
+        /**
+         * Returns this camera's transformation matrix.
+         */
+        open fun getTransformation(): Matrix4f {
+            val tr = Matrix4f().translate(this.position * (-1.0f))
+            val r = Matrix4f().set(this.rotation)
+
+            return r * tr
+        }
+
+        /**
+         * Returns this camera's transformation matrix, including a
+         * [preRotation] that is applied before the camera's transformation.
+         */
+        open fun getTransformation(preRotation: Quaternionf): Matrix4f {
+            val tr = Matrix4f().translate(this.position * (-1.0f))
+            val r = Matrix4f().set(preRotation * this.rotation)
+
+            return r * tr
+        }
+
+        /**
+         * Returns this camera's transformation for eye with index [eye].
+         */
+        open fun getTransformationForEye(eye: Int): Matrix4f {
+            val tr = Matrix4f().translate(this.position * (-1.0f))
+            val r = Matrix4f().set(this.rotation)
+
+            return r * tr
+        }
+
+        /**
+         * Transforms a 3D vector from view space to world coordinates.
+         *
+         * @param v - The vector to be transformed into world space.
+         * @return Vector3f - [v] transformed into world space.
+         */
+        fun viewToWorld(v: Vector3f): Vector4f =
+            Matrix4f(this.view).invert().transform(Vector4f(v.x(), v.y(), v.z(), 1.0f))
+
+        /**
+         * Transforms a 4D vector from view space to world coordinates.
+         *
+         * @param v - The vector to be transformed into world space.
+         * @return Vector3f - [v] transformed into world space.
+         */
+        fun viewToWorld(v: Vector4f): Vector4f =
+            Matrix4f(view).invert().transform(v)
+
+        /**
+         * Transforms a 2D [vector] in screen space to view space and returns this 3D vector.
+         */
+        fun viewportToView(vector: Vector2f): Vector3f {
+            return Matrix4f(projection).invert().transform(Vector4f(vector.x, vector.y, 0.0f, 1.0f)).xyz()
+        }
+
+        /**
+         * Transforms a 2D/3D [vector] from NDC coordinates to world coordinates.
+         * If the vector is 2D, [nearPlaneDistance] is assumed for the Z value, otherwise
+         * the Z value from the vector is taken.
+         */
+        fun viewportToWorld(vector: Vector2f): Vector3f {
+            val pv = Matrix4f(projection)
+            pv.mul(getTransformation())
+            val ipv = Matrix4f(pv).invert()
+
+            var worldSpace = ipv.transform(Vector4f(vector.x(), vector.y(), 0.0f, 1.0f))
+
+            worldSpace = worldSpace.times(1.0f/worldSpace.w())
+//        worldSpace.set(2, offset)
+            return worldSpace.xyz()
+        }
+
+    }
+
+    @Deprecated(message = "", replaceWith = ReplaceWith("spatial().viewportToWorld(vector)"))
+    fun viewportToWorld(vector: Vector2f): Vector3f {
+        return spatial().viewportToWorld(vector)
+    }
+
+    @Deprecated(message = "", replaceWith = ReplaceWith("spatial().viewportToView(vector)"))
+    fun viewportToView(vector: Vector2f): Vector3f {
+        return spatial().viewportToView(vector)
+    }
+
+    @Deprecated(message = "", replaceWith = ReplaceWith("spatial().viewToWorld(vector)"))
+    fun viewToWorld(vector: Vector4f): Vector4f {
+        return spatial().viewToWorld(vector)
+    }
+
+    @Deprecated(message = "", replaceWith = ReplaceWith("spatial().viewToWorld(vector)"))
+    fun viewToWorld(vector: Vector3f): Vector4f {
+        return spatial().viewToWorld(vector)
+    }
+
+    @Deprecated(message = "", replaceWith = ReplaceWith("spatial().getTransformationForEye(eye)"))
+    fun getTransformationForEye(eye: Int): Matrix4f {
+        return spatial().getTransformationForEye(eye)
+    }
+
+    @Deprecated(message = "", replaceWith = ReplaceWith("spatial().getTransformation(preRotation)"))
+    open fun getTransformation(preRotation: Quaternionf): Matrix4f {
+        return spatial().getTransformation(preRotation)
     }
 }
 

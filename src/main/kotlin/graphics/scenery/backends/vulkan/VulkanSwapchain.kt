@@ -3,7 +3,7 @@ package graphics.scenery.backends.vulkan
 import graphics.scenery.Hub
 import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.backends.SceneryWindow
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import graphics.scenery.utils.SceneryPanel
 import org.lwjgl.glfw.GLFW.*
 import org.lwjgl.glfw.GLFWVulkan
@@ -36,7 +36,7 @@ open class VulkanSwapchain(open val device: VulkanDevice,
                            open val useSRGB: Boolean = true,
                            open val vsync: Boolean = false,
                            open val undecorated: Boolean = false) : Swapchain {
-    protected val logger by LazyLogger()
+    protected val logger by lazyLogger()
 
     /** Swapchain handle. */
     override var handle: Long = 0L
@@ -189,7 +189,7 @@ open class VulkanSwapchain(open val device: VulkanDevice,
             val oldHandle = oldSwapchain?.handle
 
             // Get physical device surface properties and formats
-            val surfCaps = VkSurfaceCapabilitiesKHR.callocStack(stack)
+            val surfCaps = VkSurfaceCapabilitiesKHR.calloc(stack)
 
             VU.run("Getting surface capabilities",
                 { KHRSurface.vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device.physicalDevice, surface, surfCaps) })
@@ -240,7 +240,7 @@ open class VulkanSwapchain(open val device: VulkanDevice,
                 surfCaps.currentTransform()
             }
 
-            val swapchainCI = VkSwapchainCreateInfoKHR.callocStack(stack)
+            val swapchainCI = VkSwapchainCreateInfoKHR.calloc(stack)
                 .sType(KHRSwapchain.VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR)
                 .pNext(MemoryUtil.NULL)
                 .surface(surface)
@@ -284,7 +284,7 @@ open class VulkanSwapchain(open val device: VulkanDevice,
 
             val images = LongArray(imageCount.get(0))
             val imageViews = LongArray(imageCount.get(0))
-            val colorAttachmentView = VkImageViewCreateInfo.callocStack(stack)
+            val colorAttachmentView = VkImageViewCreateInfo.calloc(stack)
                 .sType(VK10.VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO)
                 .pNext(MemoryUtil.NULL)
                 .format(colorFormatAndSpace.colorFormat)
@@ -323,8 +323,8 @@ open class VulkanSwapchain(open val device: VulkanDevice,
                     imageViews[i] = VU.getLong("create image view",
                         { VK10.vkCreateImageView(this@VulkanSwapchain.device.vulkanDevice, colorAttachmentView, null, this) }, {})
 
-                    imageAvailableSemaphores.add(VU.getLong("image available semaphore", { vkCreateSemaphore(this@VulkanSwapchain.device.vulkanDevice, semaphoreCreateInfo, null, this) }, {}))
-                    imageRenderedSemaphores.add(VU.getLong("image ready semaphore", { vkCreateSemaphore(this@VulkanSwapchain.device.vulkanDevice, semaphoreCreateInfo, null, this) }, {}))
+                    imageAvailableSemaphores.add(this@VulkanSwapchain.device.createSemaphore())
+                    imageRenderedSemaphores.add(this@VulkanSwapchain.device.createSemaphore())
                     fences.add(VU.getLong("Swapchain image fence", { vkCreateFence(this@VulkanSwapchain.device.vulkanDevice, fenceCreateInfo, null, this)}, {}))
                     imageUseFences.add(VU.getLong("Swapchain image usage fence", { vkCreateFence(this@VulkanSwapchain.device.vulkanDevice, fenceCreateInfo, null, this)}, {}))
                     inFlight.add(null)
@@ -357,7 +357,7 @@ open class VulkanSwapchain(open val device: VulkanDevice,
             VK10.vkGetPhysicalDeviceQueueFamilyProperties(device.physicalDevice, queueFamilyPropertyCount, null)
 
             val queueCount = queueFamilyPropertyCount.get(0)
-            val queueProps = VkQueueFamilyProperties.callocStack(queueCount, stack)
+            val queueProps = VkQueueFamilyProperties.calloc(queueCount, stack)
             VK10.vkGetPhysicalDeviceQueueFamilyProperties(device.physicalDevice, queueFamilyPropertyCount, queueProps)
 
             // Iterate over each queue to learn whether it supports presenting:
@@ -404,15 +404,14 @@ open class VulkanSwapchain(open val device: VulkanDevice,
                 throw RuntimeException("Presentation queue != graphics queue")
             }
 
-            presentQueue = VkQueue(VU.getPointer("Get present queue",
-                { VK10.vkGetDeviceQueue(device.vulkanDevice, presentQueueNodeIndex, 0, this); VK10.VK_SUCCESS }, {}),
-                device.vulkanDevice)
+            logger.info("Present queue is ${presentQueueNodeIndex}, graphics queue is ${graphicsQueueNodeIndex}")
+            presentQueue = VU.createDeviceQueue(device, device.queues.graphicsQueue.first)
 
             // Get list of supported formats
             val formatCount = VU.getInts("Getting supported surface formats", 1,
                 { KHRSurface.vkGetPhysicalDeviceSurfaceFormatsKHR(device.physicalDevice, surface, this, null) })
 
-            val surfFormats = VkSurfaceFormatKHR.callocStack(formatCount.get(0), stack)
+            val surfFormats = VkSurfaceFormatKHR.calloc(formatCount.get(0), stack)
             VU.run("Query device physical surface formats",
                 { KHRSurface.vkGetPhysicalDeviceSurfaceFormatsKHR(device.physicalDevice, surface, formatCount, surfFormats) })
 
@@ -581,9 +580,9 @@ open class VulkanSwapchain(open val device: VulkanDevice,
      * Closes associated semaphores and fences.
      */
     protected fun closeSyncPrimitives() {
-        imageAvailableSemaphores.forEach { VK10.vkDestroySemaphore(device.vulkanDevice, it, null) }
+        imageAvailableSemaphores.forEach { device.removeSemaphore(it) }
         imageAvailableSemaphores.clear()
-        imageRenderedSemaphores.forEach { VK10.vkDestroySemaphore(device.vulkanDevice, it, null) }
+        imageRenderedSemaphores.forEach { device.removeSemaphore(it) }
         imageRenderedSemaphores.clear()
 
         fences.forEach { VK10.vkDestroyFence(device.vulkanDevice, it, null) }
@@ -604,9 +603,9 @@ open class VulkanSwapchain(open val device: VulkanDevice,
         KHRSwapchain.vkDestroySwapchainKHR(device.vulkanDevice, handle, null)
         vkDestroySurfaceKHR(device.instance, surface, null)
 
-        imageAvailableSemaphores.forEach { vkDestroySemaphore(device.vulkanDevice, it, null) }
+        imageAvailableSemaphores.forEach { device.removeSemaphore(it) }
         imageAvailableSemaphores.clear()
-        imageRenderedSemaphores.forEach { vkDestroySemaphore(device.vulkanDevice, it, null) }
+        imageRenderedSemaphores.forEach { device.removeSemaphore(it) }
         imageRenderedSemaphores.clear()
 
         fences.forEach { vkDestroyFence(device.vulkanDevice, it, null) }

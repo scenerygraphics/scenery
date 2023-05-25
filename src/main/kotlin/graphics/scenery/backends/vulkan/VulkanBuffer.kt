@@ -1,6 +1,6 @@
 package graphics.scenery.backends.vulkan
 
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.lwjgl.PointerBuffer
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.MemoryUtil.*
@@ -23,7 +23,7 @@ import kotlin.math.roundToInt
 open class VulkanBuffer(val device: VulkanDevice, var size: Long,
                    val usage: Int, val requestedMemoryProperties: Int = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
                    val wantAligned: Boolean = true, var suballocation: VulkanSuballocation? = null): AutoCloseable {
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
     private var currentPosition = 0L
     private var currentPointer: PointerBuffer? = null
 
@@ -171,8 +171,12 @@ open class VulkanBuffer(val device: VulkanDevice, var size: Long,
      * Advances this buffer to the next possible aligned position,
      * override the buffer's default alignment by setting [align] to
      * the desired value. Returns the new position.
+     *
+     * Note: 256 seems to be the safe value here, despite devices
+     * reporting values of 16 or 64 as minUniformBufferOffsetAlignment.
+     * So we take the maximum value of buffer alignment, or 256.
      */
-    fun advance(align: Long = this.alignment): Int {
+    fun advance(align: Long = maxOf(this.alignment, 256)): Int {
         val pos = stagingBuffer.position()
         val rem = pos.rem(align)
 

@@ -1,17 +1,36 @@
 package graphics.scenery
 
-import org.joml.Vector3f
+import com.esotericsoftware.kryo.Kryo
+import com.esotericsoftware.kryo.io.Input
+import com.esotericsoftware.kryo.io.Output
+import de.javakaffee.kryoserializers.UUIDSerializer
+import graphics.scenery.attribute.material.DefaultMaterial
+import graphics.scenery.attribute.material.HasMaterial
+import graphics.scenery.attribute.renderable.HasRenderable
+import graphics.scenery.attribute.spatial.HasSpatial
+import graphics.scenery.net.Networkable
+import graphics.scenery.net.NodePublisher
+import graphics.scenery.net.NodeSubscriber
+import graphics.scenery.serialization.*
 import graphics.scenery.utils.MaybeIntersects
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
+import graphics.scenery.volumes.VolumeManager
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import net.imglib2.img.basictypeaccess.array.ByteArray
+import org.joml.Vector3f
+import java.io.FileInputStream
+import java.io.FileOutputStream
+import java.nio.ByteBuffer
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
-import kotlin.collections.ArrayList
+import java.util.stream.Stream
+import kotlin.streams.asSequence
+import kotlin.system.measureTimeMillis
 
 /**
  * Scene class. A Scene is a special kind of [Node] that can only exist once per graph,
@@ -19,33 +38,30 @@ import kotlin.collections.ArrayList
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-open class Scene : Node("RootNode") {
+open class Scene : DefaultNode("RootNode"), HasRenderable, HasMaterial, HasSpatial {
 
     /** Temporary storage of the active observer ([Camera]) of the Scene. */
+    @Transient
     var activeObserver: Camera? = null
 
     internal var sceneSize: AtomicLong = AtomicLong(0L)
 
-    /** Callbacks to be called when a child is added to the scene */
+    /** Callbacks to be called when a child is added to the scene (Parent,Child)*/
+    @Transient
     var onChildrenAdded = ConcurrentHashMap<String, (Node, Node) -> Unit>()
-    /** Callbacks to be called when a child is removed from the scene */
+    /** Callbacks to be called when a child is removed from the scene (Parent,Child)*/
+    @Transient
     var onChildrenRemoved = ConcurrentHashMap<String, (Node, Node) -> Unit>()
+    /** Callbacks to be called when an attribute is added to a node (Node,Attribute)*/
+    @Transient
+    var onAttributeAdded = ConcurrentHashMap<String, (Node, Any) -> Unit>()
     /** Callbacks to be called when a child is removed from the scene */
     var onNodePropertiesChanged = ConcurrentHashMap<String, (Node) -> Unit>()
 
-    /**
-     * Adds a [Node] to the Scene, at the position given by [parent]
-     *
-     * @param[n] The node to add.
-     * @param[parent] The node to attach [n] to.
-     */
-    @Suppress("unused")
-    fun addNode(n: Node, parent: Node) {
-        if (n.name == "RootNode") {
-            throw IllegalStateException("Only one RootNode may exist per scenegraph. Please choose a different name.")
-        }
-
-        discover(this, { node -> node == parent }).first().addChild(n)
+    init {
+        addRenderable()
+        addMaterial()
+        addSpatial()
     }
 
     /**
@@ -188,34 +204,43 @@ open class Scene : Node("RootNode") {
     /**
      * Performs a raycast to discover objects in this [Scene] that would be intersected
      * by a ray originating from [position], shot in [direction]. This method can
-     * be given a list of classes as [ignoredObjects], which will then be ignored for
-     * the raycast. If [debug] is true, a set of spheres is placed along the cast ray.
+     * be given a filter function to to ignore nodes for the raycast for nodes it retuns false for.
+     * If [debug] is true, a set of spheres is placed along the cast ray.
      */
     @JvmOverloads fun raycast(position: Vector3f, direction: Vector3f,
-                              ignoredObjects: List<Class<*>>,
+                              filter: (Node) -> Boolean = {true},
                               debug: Boolean = false): RaycastResult {
         if (debug) {
-            val indicatorMaterial = Material()
+            val indicatorMaterial = DefaultMaterial()
             indicatorMaterial.diffuse = Vector3f(1.0f, 0.2f, 0.2f)
             indicatorMaterial.specular = Vector3f(1.0f, 0.2f, 0.2f)
             indicatorMaterial.ambient = Vector3f(0.0f, 0.0f, 0.0f)
 
-            for(it in 5..50) {
-                val s = Box(Vector3f(0.08f, 0.08f, 0.08f))
-                s.material = indicatorMaterial
-                s.position = position + direction * it.toFloat()
+            for(it in 1..20) {
+                val s = Box(Vector3f(0.03f))
+                s.setMaterial(indicatorMaterial)
+                s.spatial {
+                    this.position = position + direction * (it.toFloat() * 0.5f)
+                }
                 this.addChild(s)
             }
         }
 
         val matches = this.discover(this, { node ->
-            node.visible && !ignoredObjects.any{it.isAssignableFrom(node.javaClass)}
-        }).map {
-            Pair(it, it.intersectAABB(position, direction))
-        }.filter {
-            it.second is MaybeIntersects.Intersection && (it.second as MaybeIntersects.Intersection).distance > 0.0f
-        }.map {
-            RaycastMatch(it.first, (it.second as MaybeIntersects.Intersection).distance)
+            node.visible && filter(node)
+        }).flatMap { (
+            if (it is InstancedNode)
+                Stream.concat(Stream.of(it as Node), it.instances.map { instanceNode -> instanceNode as Node }.stream())
+            else
+                Stream.of(it)).asSequence()
+        }.mapNotNull {
+            val p = Pair(it, it.spatialOrNull()?.intersectAABB(position, direction))
+            if(p.first !is InstancedNode && p.second is MaybeIntersects.Intersection
+                && (p.second as MaybeIntersects.Intersection).distance > 0.0f) {
+                RaycastMatch(p.first, (p.second as MaybeIntersects.Intersection).distance)
+            } else {
+                null
+            }
         }.sortedBy {
             it.distance
         }
@@ -223,16 +248,67 @@ open class Scene : Node("RootNode") {
         if (debug) {
             logger.info(matches.joinToString(", ") { "${it.node.name} at distance ${it.distance}" })
 
-            val m = Material()
+            val m = DefaultMaterial()
             m.diffuse = Vector3f(1.0f, 0.0f, 0.0f)
             m.specular = Vector3f(0.0f, 0.0f, 0.0f)
             m.ambient = Vector3f(0.0f, 0.0f, 0.0f)
 
-            matches.firstOrNull()?.let {
-                it.node.material = m
-            }
+            matches.firstOrNull()?.node?.setMaterial(m)
         }
 
         return RaycastResult(matches, position, direction)
+    }
+
+    fun export(filename: String) {
+        var size = 0L
+        val duration = measureTimeMillis {
+            val kryo = freeze()
+
+            val output = Output(FileOutputStream(filename))
+            kryo.writeObject(output, this)
+            size = output.total()
+            output.close()
+
+        }
+
+        logger.info("Written scene to $filename (${"%.2f".format(size/1024.0f)} KiB) in ${duration}ms")
+    }
+
+
+    override fun update(fresh: Networkable, getNetworkable: (Int) -> Networkable, additionalData: Any?) {
+        super.update(fresh, getNetworkable, additionalData)
+        if (fresh !is Scene) throw IllegalArgumentException("Update called with object of foreign class")
+
+    }
+
+    companion object {
+        @JvmStatic
+        fun import(filename: String): Scene {
+            val kryo = freeze()
+            val input = Input(FileInputStream(filename))
+            val scene = kryo.readObject(input, Scene::class.java)
+            scene.discover(scene, { true }).forEach { it.initialized = false }
+            scene.initialized = false
+
+            return scene
+        }
+
+        fun freeze(): Kryo {
+            val kryo = Kryo()
+            kryo.isRegistrationRequired = false
+            kryo.references = true
+            kryo.register(UUID::class.java, UUIDSerializer())
+            kryo.register(OrientedBoundingBox::class.java, OrientedBoundingBoxSerializer())
+            kryo.register(Triple::class.java, TripleSerializer())
+            kryo.register(ByteBuffer::class.java, ByteBufferSerializer())
+            val tmp = ByteBuffer.allocateDirect(1)
+            kryo.register(tmp.javaClass, ByteBufferSerializer())
+            kryo.register(ByteArray::class.java, Imglib2ByteArraySerializer())
+            kryo.register(ShaderMaterial::class.java, ShaderMaterialSerializer())
+            kryo.register(java.util.zip.Inflater::class.java, IgnoreSerializer<java.util.zip.Inflater>())
+            kryo.register(VolumeManager::class.java, IgnoreSerializer<VolumeManager>())
+
+            return kryo
+        }
     }
 }

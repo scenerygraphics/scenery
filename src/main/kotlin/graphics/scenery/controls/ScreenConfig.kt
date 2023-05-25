@@ -7,7 +7,7 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import graphics.scenery.utils.JsonDeserialisers
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import graphics.scenery.utils.extensions.minus
 import java.nio.file.Files
 import java.nio.file.Paths
@@ -104,7 +104,7 @@ class ScreenConfig {
      * ScreenConfig companion class for static functions
      */
     companion object {
-        private val logger by LazyLogger()
+        private val logger by lazyLogger()
 
         /**
          * Matches a single screen to the [config] given.
@@ -114,7 +114,7 @@ class ScreenConfig {
         @JvmStatic fun getScreen(config: Config): SingleScreenConfig? {
             for ((_, screen) in config.screens) {
                 if (screen.match.type == ScreenMatcherType.Hostname) {
-                    if (getHostname().toLowerCase() == screen.match.value) {
+                    if (getHostname().lowercase() == screen.match.value) {
                         return screen
                     }
                 }
@@ -144,13 +144,13 @@ class ScreenConfig {
             val mapper = ObjectMapper(YAMLFactory())
             mapper.registerModule(KotlinModule())
 
-            var stream = this::class.java.getResourceAsStream(path)
+            var stream = ScreenConfig::class.java.getResourceAsStream(path)
 
             if (stream == null) {
                 val p = Paths.get(path)
 
                 return if (!Files.exists(p)) {
-                    stream = this::class.java.getResourceAsStream("CAVEExample.yml")
+                    stream = ScreenConfig::class.java.getResourceAsStream("CAVEExample.yml")
                     logger.warn("Screen configuration not found at $path, returning default configuration.")
                     mapper.readValue(stream, ScreenConfig.Config::class.java)
                 } else {

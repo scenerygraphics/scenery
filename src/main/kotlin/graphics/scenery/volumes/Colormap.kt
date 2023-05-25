@@ -1,10 +1,9 @@
 package graphics.scenery.volumes
 
 import graphics.scenery.utils.Image
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import net.imagej.lut.LUTService
 import net.imglib2.display.ColorTable
-import org.joml.Vector3f
 import org.joml.Vector4f
 import org.scijava.plugin.Parameter
 import java.io.FileNotFoundException
@@ -20,6 +19,10 @@ import kotlin.math.roundToInt
  * Class for holding RGBA colormaps for volumes
  */
 class Colormap(val buffer: ByteBuffer, val width: Int, val height: Int) {
+
+    private constructor() : this(ByteBuffer.allocate(0), 0, 0) {
+
+    }
 
     /**
      * Returns the value of the colormap, sampled at [position].
@@ -49,7 +52,7 @@ class Colormap(val buffer: ByteBuffer, val width: Int, val height: Int) {
     }
 
     companion object {
-        val logger by LazyLogger()
+        val logger by lazyLogger()
 
         @Parameter
         protected var lutService: LUTService? = null
@@ -73,7 +76,7 @@ class Colormap(val buffer: ByteBuffer, val width: Int, val height: Int) {
          */
         @JvmStatic fun fromStream(stream: InputStream, extension: String): Colormap {
             val image = Image.fromStream(stream, extension)
-            logger.info("Read image from $stream with ${image.contents.remaining()} bytes, size=${image.width}x${image.height}")
+            logger.debug("Read image from $stream with ${image.contents.remaining()} bytes, size=${image.width}x${image.height}")
             return Colormap(image.contents, image.width, image.height)
         }
 
@@ -98,7 +101,7 @@ class Colormap(val buffer: ByteBuffer, val width: Int, val height: Int) {
             }
             byteBuffer.flip()
 
-            logger.info("Using ImageJ colormap $colorTable with size ${colorTable.length}x$copies")
+            logger.debug("Using ImageJ colormap $colorTable with size ${colorTable.length}x$copies")
             return fromBuffer(byteBuffer, colorTable.length, copies)
         }
 
@@ -139,8 +142,8 @@ class Colormap(val buffer: ByteBuffer, val width: Int, val height: Int) {
                 return fromColorTable(colorTable)
             } catch (e: IOException) {
                 logger.debug("LUT $name not found as ImageJ colormap, trying stream")
-                logger.info("Using colormap $name from stream")
-                val resource = this::class.java.getResourceAsStream("colormap-$name.png")
+                logger.debug("Using colormap $name from stream")
+                val resource = Colormap::class.java.getResourceAsStream("colormap-$name.png")
                     ?: throw FileNotFoundException("Could not find color map for name $name (colormap-$name.png)")
 
                 return fromStream(resource, "png")

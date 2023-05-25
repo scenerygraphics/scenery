@@ -2,7 +2,7 @@ package graphics.scenery.controls.behaviours
 
 import com.jogamp.opengl.math.FloatUtil.sqrt
 import graphics.scenery.Camera
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
@@ -10,7 +10,6 @@ import org.joml.*
 import org.scijava.ui.behaviour.DragBehaviour
 import org.scijava.ui.behaviour.ScrollBehaviour
 import java.util.function.Supplier
-import kotlin.reflect.KProperty
 
 /**
  * Targeted ArcBall control
@@ -31,7 +30,7 @@ import kotlin.reflect.KProperty
  */
 open class RollingBallCameraControl(private val name: String, camera: () -> Camera?, private val w: Int, private val h: Int, var target: () -> Vector3f) : DragBehaviour, ScrollBehaviour,
     WithCameraDelegateBase(camera) {
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
     private var lastX = w / 2
     private var lastY = h / 2
     private var firstEntered = true
@@ -41,7 +40,7 @@ open class RollingBallCameraControl(private val name: String, camera: () -> Came
         set(value) {
             field = value
 
-            cam?.let { node -> node.position = target.invoke() + node.forward * value * (-1.0f) }
+            cam?.let { node -> node.spatial().position = target.invoke() + node.forward * value * (-1.0f) }
         }
 
     /** multiplier for zooming in and out */
@@ -114,61 +113,65 @@ open class RollingBallCameraControl(private val name: String, camera: () -> Came
                 return
             }
 
-            val R = 1.0f
-            val dx: Float = (x - lastX).toFloat()/w
-            val dy: Float = (lastY - y).toFloat()/h
+            node.ifSpatial {
 
-            lastX = x
-            lastY = y
+                val R = 1.0f
+                val dx: Float = (x - lastX).toFloat()/w
+                val dy: Float = (lastY - y).toFloat()/h
 
-            val dr = sqrt(dx*dx + dy*dy)
-            val cosTheta = R/sqrt(R*R + dr*dr)
-            val sinTheta = dr/sqrt(R*R + dr*dr)
+                lastX = x
+                lastY = y
 
-            val m = Matrix3f(
-                cosTheta + (dx/dr)*(dx/dr)*(1.0f - cosTheta), -(dx/dr)*(dy/dr)*(1.0f-cosTheta), (dx/dr)*sinTheta,
-                -(dx/dr)*(dy/dr)*(1-cosTheta), cosTheta + (dx/dr)*(dx/dr)*(1-cosTheta), (dy/dr) * sinTheta,
-                -(dx/dr)*sinTheta, -(dy/dr)*sinTheta, cosTheta
-            )
+                val dr = sqrt(dx*dx + dy*dy)
+                val cosTheta = R/sqrt(R*R + dr*dr)
+                val sinTheta = dr/sqrt(R*R + dr*dr)
 
-            val tr = m.m00 + m.m11 + m.m22
+                val m = Matrix3f(
+                    cosTheta + (dx/dr)*(dx/dr)*(1.0f - cosTheta), -(dx/dr)*(dy/dr)*(1.0f-cosTheta), (dx/dr)*sinTheta,
+                    -(dx/dr)*(dy/dr)*(1-cosTheta), cosTheta + (dx/dr)*(dx/dr)*(1-cosTheta), (dy/dr) * sinTheta,
+                    -(dx/dr)*sinTheta, -(dy/dr)*sinTheta, cosTheta
+                )
 
-            val q = with(m) {
-                if (tr > 0) {
-                    val s = sqrt(tr + 1.0f) * 2; // S=4*qw
-                    Quaternionf(
-                        (m21 - m12) / s,
-                        (m02 - m20) / s,
-                        (m10 - m01) / s,
-                        0.25f * s)
-                } else if ((m.m00 > m.m11) && (m00 > m22)) {
-                    val s = sqrt (1.0f + m00 - m11 - m22) * 2; // S=4*qx
-                    Quaternionf(
-                        0.25f * s,
-                        (m01 + m10) / s,
-                        (m02 + m20) / s,
-                        (m21 - m12) / s)
-                } else if (m11 > m22) {
-                    val s = sqrt (1.0f + m11 - m00 - m22) * 2; // S=4*qy
-                    Quaternionf(
-                        (m01 + m10) / s,
-                        0.25f * s,
-                        (m12 + m21) / s,
-                        (m02 - m20) / s)
-                } else {
-                    val s = sqrt (1.0f + m22 - m00 - m11) * 2; // S=4*qz
-                    Quaternionf(
-                        (m02 + m20) / s,
-                        (m12 + m21) / s,
-                        0.25f * s,
-                        (m10 - m01) / s)
+                val tr = m.m00 + m.m11 + m.m22
+
+                val q = with(m) {
+                    if (tr > 0) {
+                        val s = sqrt(tr + 1.0f) * 2; // S=4*qw
+                        Quaternionf(
+                            (m21 - m12) / s,
+                            (m02 - m20) / s,
+                            (m10 - m01) / s,
+                            0.25f * s)
+                    } else if ((m.m00 > m.m11) && (m00 > m22)) {
+                        val s = sqrt (1.0f + m00 - m11 - m22) * 2; // S=4*qx
+                        Quaternionf(
+                            0.25f * s,
+                            (m01 + m10) / s,
+                            (m02 + m20) / s,
+                            (m21 - m12) / s)
+                    } else if (m11 > m22) {
+                        val s = sqrt (1.0f + m11 - m00 - m22) * 2; // S=4*qy
+                        Quaternionf(
+                            (m01 + m10) / s,
+                            0.25f * s,
+                            (m12 + m21) / s,
+                            (m02 - m20) / s)
+                    } else {
+                        val s = sqrt (1.0f + m22 - m00 - m11) * 2; // S=4*qz
+                        Quaternionf(
+                            (m02 + m20) / s,
+                            (m12 + m21) / s,
+                            0.25f * s,
+                            (m10 - m01) / s)
+                    }
                 }
+
+                distance = (target.invoke() - position).length()
+                node.target = target.invoke()
+                rotation = q.mul(rotation)
+                position = target.invoke() + node.forward * distance * (-1.0f)
             }
 
-            distance = (target.invoke() - node.position).length()
-            node.target = target.invoke()
-            node.rotation = q.mul(node.rotation)
-            node.position = target.invoke() + node.forward * distance * (-1.0f)
 
             node.lock.unlock()
         }
@@ -194,7 +197,7 @@ open class RollingBallCameraControl(private val name: String, camera: () -> Came
         if (distance >= maximumDistance) distance = maximumDistance
         if (distance <= minimumDistance) distance = minimumDistance
 
-        cam?.let { node -> node.position = target.invoke() + node.forward * distance * (-1.0f) }
+        cam?.let { node -> node.spatialOrNull()?.position = target.invoke() + node.forward * distance * (-1.0f) }
     }
 
 }

@@ -1,6 +1,6 @@
 package graphics.scenery.controls.behaviours
 
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.scijava.ui.behaviour.ClickBehaviour
 import java.lang.reflect.InvocationTargetException
 
@@ -12,17 +12,15 @@ import java.lang.reflect.InvocationTargetException
  * containing the receiver, method, and current value).
  *
  * @author Ulrik Günther <hello@ulrik.is>
- * @property[name] The name of the behaviour.
  * @property[values] The enum properties to use.
  * @property[receiver] The receiving object.
  * @property[method] The name of the single-parameter method to invoke.
  */
-class EnumCycleCommand<T: Enum<*>>(private val name: String,
-                                   private val enumClass: Class<T>,
+class EnumCycleCommand<T: Enum<*>>(private val enumClass: Class<T>,
                                    private val receiver: Any,
                                    private val method: String) : ClickBehaviour {
 
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
     private var currentIndex = 0
 
     /**

@@ -1,9 +1,6 @@
 package graphics.scenery.backends
 
-import graphics.scenery.BufferUtils
-import graphics.scenery.spirvcrossj.*
-import graphics.scenery.utils.LazyLogger
-import java.nio.ByteBuffer
+import graphics.scenery.utils.lazyLogger
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -11,8 +8,8 @@ import java.util.concurrent.ConcurrentHashMap
  *
  * @author Ulrik Guenther <hello@ulrik.is>
  */
-sealed class Shaders {
-    val logger by LazyLogger()
+sealed class Shaders() {
+    val logger by lazyLogger()
     var stale: Boolean = false
     val type: HashSet<ShaderType> = hashSetOf()
 
@@ -47,7 +44,7 @@ sealed class Shaders {
                            val clazz: Class<*> = Renderer::class.java) : Shaders() {
         init {
             type.addAll(shaders.map {
-                val extension = it.toLowerCase().substringBeforeLast(".spv").substringAfterLast(".").trim()
+                val extension = it.lowercase().substringBeforeLast(".spv").substringAfterLast(".").trim()
                 when(extension) {
                     "vert" -> ShaderType.VertexShader
                     "frag" -> ShaderType.FragmentShader
@@ -192,12 +189,21 @@ sealed class Shaders {
 
     protected fun compile(shaderPackage: ShaderPackage, type: ShaderType, target: ShaderTarget, base: Class<*>): ShaderPackage {
         val sourceCode: String
-        val spirv = if(shaderPackage.spirv != null && shaderPackage.priority == SourceSPIRVPriority.SPIRVPriority) {
+        val debug = System.getProperty("scenery.ShaderCompiler.Debug", "false").toBoolean()
+        val strict = System.getProperty("scenery.ShaderCompiler.Strict", "false").toBoolean()
+
+        val priority = if(debug) {
+            SourceSPIRVPriority.SourcePriority
+        } else {
+            shaderPackage.priority
+        }
+
+        val spirv: ByteArray = if(shaderPackage.spirv != null && priority == SourceSPIRVPriority.SPIRVPriority) {
             val pair = compileFromSPIRVBytecode(shaderPackage, target)
             sourceCode = pair.second
             pair.first
-        } else if(shaderPackage.code != null && shaderPackage.priority == SourceSPIRVPriority.SourcePriority) {
-            val pair = compileFromSource(shaderPackage, shaderPackage.code, type, target, base)
+        } else if(shaderPackage.code != null && priority == SourceSPIRVPriority.SourcePriority) {
+            val pair = compileFromSource(shaderPackage, shaderPackage.code, type, target, base, debug, strict)
             sourceCode = pair.second
             pair.first
         } else {
@@ -208,112 +214,39 @@ sealed class Shaders {
             type,
             shaderPackage.spirvPath,
             shaderPackage.codePath,
-            spirv.toByteArray(),
+            spirv,
             sourceCode,
-            shaderPackage.priority)
+            priority)
 
         return p
     }
 
-    private fun compileFromSource(shaderPackage: ShaderPackage, code: String, type: ShaderType, target: ShaderTarget, base: Class<*>): Pair<IntVec, String> {
+    private fun compileFromSource(shaderPackage: ShaderPackage, code: String, type: ShaderType, target: ShaderTarget, base: Class<*>, debug: Boolean = false, strict: Boolean = false): Pair<ByteArray, String> {
         logger.debug("Compiling ${shaderPackage.codePath} to SPIR-V...")
         // code needs to be compiled first
-        val program = TProgram()
-        val defaultResources = libspirvcrossj.getDefaultTBuiltInResource()
-        val shaderType = when (type) {
-            ShaderType.VertexShader -> EShLanguage.EShLangVertex
-            ShaderType.FragmentShader -> EShLanguage.EShLangFragment
-            ShaderType.GeometryShader -> EShLanguage.EShLangGeometry
-            ShaderType.TessellationControlShader -> EShLanguage.EShLangTessControl
-            ShaderType.TessellationEvaluationShader -> EShLanguage.EShLangTessEvaluation
-            ShaderType.ComputeShader -> EShLanguage.EShLangCompute
-        }
 
-
-        val shader = TShader(shaderType)
-
-        var messages = EShMessages.EShMsgDefault
-        messages = messages or EShMessages.EShMsgVulkanRules
-        messages = messages or EShMessages.EShMsgSpvRules
-
-        val shaderCode = if (target == ShaderTarget.Vulkan) {
-            arrayOf(code)
-        } else {
-            val extensionEnd = code.indexOf("\n", code.findLastAnyOf(listOf("#extension", "#versions"))?.first ?: 0)
-            arrayOf(code.substring(0, extensionEnd) + "\n#define OPENGL\n" + code.substring(extensionEnd))
-        }
-
-        shader.setStrings(shaderCode, shaderCode.size)
-        shader.setAutoMapBindings(true)
-
-        val compileFail = !shader.parse(defaultResources, 450, false, messages)
-        if (compileFail) {
-            logger.error("Error in shader compilation of ${shaderPackage.codePath} for ${base.simpleName}: ${shader.infoLog}")
-            logger.error("Shader code was: \n${shaderCode.joinToString("\n").split("\n").mapIndexed { index, s -> "${index+1}\t:  $s" }.joinToString("\n")}")
-        }
-
-        program.addShader(shader)
-
-        val linkFail = !program.link(EShMessages.EShMsgDefault) || !program.mapIO()
-
-        val intVec = if (!linkFail && !compileFail) {
-            val tmp = IntVec()
-            libspirvcrossj.glslangToSpv(program.getIntermediate(shaderType), tmp)
-
-            tmp
-        } else {
-            logger.error("Error in shader linking of ${shaderPackage.codePath} for ${base.simpleName}: ${program.infoLog}")
-            throw ShaderCompilationException("Error compiling shader file ${shaderPackage.codePath}")
-        }
-        return Pair(intVec, code)
+        val compiler = ShaderCompiler()
+        val bytecode = compiler.compile(code, type, target, "main", debug, strict, ShaderCompiler.OptimisationLevel.None, shaderPackage.codePath, base.simpleName)
+        compiler.close()
+        return Pair(bytecode, code)
     }
 
-    private fun compileFromSPIRVBytecode(shaderPackage: ShaderPackage, target: ShaderTarget): Pair<IntVec, String> {
-        val bytecode = shaderPackage.getSPIRVBytecode() ?: throw IllegalStateException("SPIRV bytecode not found")
-        logger.debug("Using SPIRV version, ${bytecode.size} opcodes")
-        val compiler = CompilerGLSL(bytecode)
+    private fun compileFromSPIRVBytecode(shaderPackage: ShaderPackage, target: ShaderTarget): Pair<ByteArray, String> {
+        val bytecode = shaderPackage.spirv ?: throw IllegalStateException("SPIRV bytecode not found")
+        val opcodes = shaderPackage.getSPIRVOpcodes()!!
+        logger.debug("Using SPIRV version, ${bytecode.size/4} opcodes")
 
-        val options = CompilerGLSL.Options()
-        when (target) {
+        val introspection = when (target) {
             ShaderTarget.Vulkan -> {
-                options.version = 450
-                options.es = false
-                options.vulkanSemantics = true
+                ShaderIntrospection(opcodes, vulkanSemantics = true, version = 450)
             }
             ShaderTarget.OpenGL -> {
-                options.version = 410
-                options.es = false
-                options.vulkanSemantics = false
+                ShaderIntrospection(opcodes, vulkanSemantics = false, version = 410)
             }
         }
-        compiler.commonOptions = options
-        val sourceCode = compiler.compile()
+
+        val sourceCode = introspection.compile()
 
         return Pair(bytecode, sourceCode)
-    }
-
-    /**
-     * Converts an glslang-compatible IntVec to a [ByteBuffer].
-     */
-    protected fun IntVec.toByteBuffer(): ByteBuffer {
-        val buf = BufferUtils.allocateByte(this.size*4)
-        val ib = buf.asIntBuffer()
-
-        for (i in 0 until this.size) {
-            ib.put(this[i].toInt())
-        }
-
-        return buf
-    }
-
-    /**
-     * Converts an glslang-compatible IntVec to a [ByteArray].
-     */
-    protected fun IntVec.toByteArray(): ByteArray {
-        val buf = this.toByteBuffer()
-        val array = ByteArray(buf.capacity())
-        buf.get(array, 0, array.size)
-
-        return array
     }
 }

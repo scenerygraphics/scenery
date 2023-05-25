@@ -12,9 +12,12 @@ float random (vec2 st) {
 
 void main() {
     vec4 color = imageLoad(InputColor, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y)).rgba;
-    if(random(floor(gl_GlobalInvocationID.xy/512.0*5.0)) > 0.5) {
+    float rnd = random(floor(gl_GlobalInvocationID.xy/512.0*5.0));
+    if(rnd > 0.5 && rnd < 0.9) {
         imageStore(OutputViewport, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), 2*color.bgra);
-    } else {
+    } else if(rnd <= 0.5 ){
         imageStore(OutputViewport, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), color.rgba);
+    } else {
+        imageStore(OutputViewport, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), vec4(1.0, 0.0, 0.0, 1.0));
     }
 }

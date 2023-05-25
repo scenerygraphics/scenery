@@ -3,7 +3,8 @@ package graphics.scenery.controls
 import graphics.scenery.*
 import graphics.scenery.backends.Display
 import graphics.scenery.backends.vulkan.VulkanDevice
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.Mesh
+import graphics.scenery.utils.lazyLogger
 import graphics.scenery.utils.extensions.plus
 import org.joml.*
 import org.lwjgl.vulkan.VkInstance
@@ -17,7 +18,7 @@ import org.lwjgl.vulkan.VkQueue
  */
 class TrackedStereoGlasses(var address: String = "device@localhost:5500", var screenConfig: String = "CAVEExample.yml") : Display, TrackerInput, Hubable {
 
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
     override var hub: Hub? = null
 
     var tracker = initializeTracker(address)
@@ -52,7 +53,7 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
 
             address.startsWith("DTrack:") -> {
                 val host = address.substringAfter("@").substringBeforeLast(":")
-                val device = address.substringAfter("DTrack:").substringBefore("@").toIntOrNull() ?: 0
+                val device = address.substringAfter("DTrack:").substringBefore("@")
                 val port = address.substringAfterLast(":").toIntOrNull() ?: 5000
 
                 DTrackTrackerInput(host, port, device)
@@ -288,6 +289,11 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
         }
 
         return shift
+    }
+
+    override fun fadeToColor(color: Vector4f, seconds: Float) {
+        TODO("Not yet implemented")
+        // Ulrik: this could be easily implemented with a cam-attached plane that fades, and is removed after the fade 👍
     }
 
     override fun loadModelForMesh(type: TrackedDeviceType, mesh: Mesh): Mesh {

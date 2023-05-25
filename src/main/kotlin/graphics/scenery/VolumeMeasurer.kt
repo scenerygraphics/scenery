@@ -1,6 +1,7 @@
 package graphics.scenery
 
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.geometry.GeometryType
+import graphics.scenery.utils.lazyLogger
 import kotlin.math.absoluteValue
 
 /**
@@ -10,7 +11,7 @@ import kotlin.math.absoluteValue
  * @author  Justin Buerger <burger@mpi-cbg.de>
  */
 class VolumeMeasurer {
-    val logger by LazyLogger()
+    val logger by lazyLogger()
 
     /**
      * calculates the volume of a given [mesh] and returns its volume with double precision
@@ -45,10 +46,10 @@ class VolumeMeasurer {
             //the clockwise ordering in triangle strips makes it necessary.
             val volume = ((-i1 + i2 + i3 - i4 - i5 + i6)/6f).absoluteValue
             subVolumes.add(volume)
-            if(arraySize%9 == 0 && mesh.geometryType == GeometryType.TRIANGLES) {
+            if(arraySize%9 == 0 && mesh.geometry().geometryType == GeometryType.TRIANGLES) {
                 i += 9
             }
-            else if (arraySize%3 == 0 && mesh.geometryType == GeometryType.TRIANGLE_STRIP) {
+            else if (arraySize%3 == 0 && mesh.geometry().geometryType == GeometryType.TRIANGLE_STRIP) {
                 if(i < arraySize-9) {
                     i += 3
                 }

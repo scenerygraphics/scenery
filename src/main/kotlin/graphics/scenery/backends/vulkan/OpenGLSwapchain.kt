@@ -8,8 +8,8 @@ import com.sun.jna.platform.win32.WinDef
 import graphics.scenery.Hub
 import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.backends.SceneryWindow
-import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.SceneryPanel
+import org.lwjgl.PointerBuffer
 import org.lwjgl.glfw.GLFW.*
 import org.lwjgl.glfw.GLFWNativeGLX.glfwGetGLXWindow
 import org.lwjgl.glfw.GLFWNativeWin32.glfwGetWin32Window
@@ -90,8 +90,14 @@ class OpenGLSwapchain(device: VulkanDevice,
             GLFW_FALSE
         })
 
-        window = SceneryWindow.GLFWWindow(glfwCreateWindow(win.width, win.height, "scenery", MemoryUtil.NULL, MemoryUtil.NULL)).apply {
-            glfwSetWindowPos(window, 100, 100)
+        val w = glfwCreateWindow(win.width, win.height, "scenery", MemoryUtil.NULL, MemoryUtil.NULL)
+        if(w == null) {
+            val buffer = PointerBuffer.allocateDirect(255)
+            glfwGetError(buffer)
+            throw IllegalStateException("Window could not be created: ${buffer.stringUTF8}")
+        }
+        window = SceneryWindow.GLFWWindow(w).apply {
+            glfwSetWindowPos(w, 100, 100)
 
             // Handle canvas resize
             windowSizeCallback = object : GLFWWindowSizeCallback() {
@@ -160,11 +166,13 @@ class OpenGLSwapchain(device: VulkanDevice,
             window.height = 1600
         }
 
-        val windowWidth = if(renderConfig.stereoEnabled && window.width < 10000) {
-            window.width
-        } else {
-            window.width
-        }
+        // TODO: Figure out whether this sanity check was really ever useful
+//        val windowWidth = if(renderConfig.stereoEnabled && window.width < 10000) {
+//            window.width
+//        } else {
+//            window.width
+//        }
+        val windowWidth = window.width
 
         logger.info("Creating backing images with ${windowWidth}x${window.height}")
 
@@ -194,8 +202,8 @@ class OpenGLSwapchain(device: VulkanDevice,
 
                 val view = t.createImageView(image, format)
 
-                imageAvailableSemaphores.add(VU.getLong("image available semaphore", { VK10.vkCreateSemaphore(this@OpenGLSwapchain.device.vulkanDevice, semaphoreCreateInfo, null, this) }, {}))
-                imageRenderedSemaphores.add(VU.getLong("image ready semaphore", { VK10.vkCreateSemaphore(this@OpenGLSwapchain.device.vulkanDevice, semaphoreCreateInfo, null, this) }, {}))
+                imageAvailableSemaphores.add(this@OpenGLSwapchain.device.createSemaphore())
+                imageRenderedSemaphores.add(this@OpenGLSwapchain.device.createSemaphore())
                 fences.add(VU.getLong("Swapchain image fence", { VK10.vkCreateFence(this@OpenGLSwapchain.device.vulkanDevice, fenceCreateInfo, null, this) }, {}))
                 imageUseFences.add(VU.getLong("Swapchain image usage fence", { VK10.vkCreateFence(this@OpenGLSwapchain.device.vulkanDevice, fenceCreateInfo, null, this) }, {}))
                 inFlight.add(null)
@@ -443,8 +451,8 @@ class OpenGLSwapchain(device: VulkanDevice,
             val hmd = hub.getWorkingHMDDisplay()
 
             if (hmd != null) {
-                window.width = hmd.getRenderTargetSize().x().toInt() / 2
-                window.height = hmd.getRenderTargetSize().y().toInt()
+                window.width = hmd.getRenderTargetSize().x() / 2
+                window.height = hmd.getRenderTargetSize().y()
                 logger.info("Set fullscreen window dimensions to ${window.width}x${window.height}")
             }
 
