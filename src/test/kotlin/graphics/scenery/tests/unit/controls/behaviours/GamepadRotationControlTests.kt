@@ -8,7 +8,7 @@ import graphics.scenery.Scene
 import graphics.scenery.controls.behaviours.GamepadRotationControl
 import graphics.scenery.numerics.Random
 import graphics.scenery.tests.unit.backends.FauxRenderer
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import net.java.games.input.Component
 import org.junit.Assert
 import org.junit.Test
@@ -23,7 +23,7 @@ import kotlin.test.assertNotNull
  * @author Aryaman Gupta <aryaman1994@gmail.com>
  */
 class GamepadRotationControlTests {
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
 
     private fun prepareGamepadCameraControl(scene: Scene) : GamepadRotationControl {
         val hub: Hub = Hub()

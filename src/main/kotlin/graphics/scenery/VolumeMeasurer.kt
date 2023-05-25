@@ -1,7 +1,7 @@
 package graphics.scenery
 
 import graphics.scenery.geometry.GeometryType
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import kotlin.math.absoluteValue
 
 /**
@@ -11,7 +11,7 @@ import kotlin.math.absoluteValue
  * @author  Justin Buerger <burger@mpi-cbg.de>
  */
 class VolumeMeasurer {
-    val logger by LazyLogger()
+    val logger by lazyLogger()
 
     /**
      * calculates the volume of a given [mesh] and returns its volume with double precision

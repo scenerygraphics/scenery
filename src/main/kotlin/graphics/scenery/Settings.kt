@@ -1,6 +1,6 @@
 package graphics.scenery
 
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import java.io.*
 import java.nio.charset.Charset
 import java.util.*
@@ -17,7 +17,7 @@ import kotlin.io.path.outputStream
  */
 class Settings(override var hub: Hub? = null, val prefix : String = "scenery.", inputPropertiesStream : InputStream? = null) : Hubable {
     private var settingsStore = ConcurrentHashMap<String, Any>()
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
 
     var settingsUpdateRoutines : HashMap<String, ArrayList<() -> Unit>> = HashMap()
 

@@ -21,7 +21,7 @@ interface ExtractsNatives {
     }
 
     companion object {
-        private val logger by LazyLogger()
+        private val logger by lazyLogger()
         /**
          * Returns the platform based on the os.name system property.
          */

@@ -5,7 +5,7 @@ import graphics.scenery.attribute.spatial.Spatial
 import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.controls.TrackerRole
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.joml.Vector3f
 import org.scijava.ui.behaviour.DragBehaviour
 import java.util.concurrent.CompletableFuture
@@ -20,7 +20,7 @@ abstract class VRTwoHandDragBehavior(
     private val offhand: VRTwoHandDragOffhand,
 ) : DragBehaviour, Enablable {
 
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
 
     // --- two hand drag behavior ---
     //TODO fix make order of presses irrelevant, waits on issue #432

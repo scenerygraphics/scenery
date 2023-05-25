@@ -1,6 +1,6 @@
 package graphics.scenery.backends
 
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import graphics.scenery.utils.SystemHelpers.Companion.toIntArray
 import org.lwjgl.system.MemoryUtil
 import java.nio.IntBuffer
@@ -21,7 +21,7 @@ data class ShaderPackage(val baseClass: Class<*>,
                          val spirv: ByteArray?,
                          val code: String?,
                          var priority: SourceSPIRVPriority) {
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
 
     init {
         val sourceNewer = if(code != null) {

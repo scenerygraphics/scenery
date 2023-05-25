@@ -3,7 +3,7 @@ package graphics.scenery.tests.unit
 import graphics.scenery.geometry.DummySpline
 import graphics.scenery.proteins.Protein
 import graphics.scenery.proteins.RibbonDiagram
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.biojava.nbio.structure.Group
 import org.biojava.nbio.structure.secstruc.SecStrucElement
 import org.joml.Vector3f
@@ -21,7 +21,7 @@ import kotlin.test.assertTrue
  * @author Justin Buerger, burger@mpi-cbg.com
  */
 class RibbonDiagramTests {
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
 
     /**
      * Tests coherence of curve size and number of residues.
@@ -114,13 +114,17 @@ class RibbonDiagramTests {
             val protein = Protein.fromID(pdbId)
             logger.info("Testing ${protein.structure.name} ...")
             RibbonDiagram(protein)
-            val m = runtime.maxMemory()/1024/1024
+            val available = runtime.maxMemory()/1024/1024
             val used = (runtime.totalMemory()-runtime.freeMemory())/1024/1024
             val free = runtime.freeMemory()/1024/1024
-            logger.info("Memory use: $used MB, $free MB free $m MB max")
+            logger.info("Memory use: $used MB, $free MB free $available MB available, $max MB max used so far")
             max = maxOf(used, max)
+
+            // Ugly, but we try to GC here, as some proteins accrue large string allocations
+            // stemming from the Biojava CIF/PDB parser.
+            System.gc()
         }
-        logger.info("Max use was $max MB")
+        logger.info("Max memory use was $max MB")
     }
 
     /**
