@@ -475,7 +475,7 @@ class RibbonDiagram(val protein: Protein, private val displaySS: Boolean = false
             // spline calculation needs a finishing point. In this case, we simply take the vector from the second last
             // to the last point and add it to the end curve point. Thus, we create a new ending point of the curve
             val dummyVecEnd = Vector3f(caEnd)
-            dummyVecEnd.add((Vector3f(aminoList.dropLast(1).last().getAtom("CA").getVector()).min(caEnd))
+            dummyVecEnd.add((aminoList.dropLast(1).last().getAtom("CA").getVector().min(caEnd))
                 .normalize().mul(0.5f))
             guidePoints.add(
                 GuidePoint(dummyVecEnd,
