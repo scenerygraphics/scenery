@@ -11,6 +11,7 @@ import graphics.scenery.volumes.Volume
 import graphics.scenery.volumes.VolumeManager
 import ij.IJ
 import ij.ImagePlus
+import kool.ByteBuffer
 import net.imglib2.img.Img
 import net.imglib2.img.display.imagej.ImageJFunctions
 import net.imglib2.type.numeric.integer.UnsignedShortType
@@ -40,7 +41,7 @@ class CustomVolumeManagerExample : SceneryBase("CustomVolumeManagerExample") {
             ))
         volumeManager.customTextures.add("OutputRender")
 
-        val outputBuffer = MemoryUtil.memCalloc(1280*720*4)
+        val outputBuffer = ByteBuffer(1280*720*4)
         val outputTexture = Texture.fromImage(Image(outputBuffer, 1280, 720), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
         volumeManager.material().textures["OutputRender"] = outputTexture
 

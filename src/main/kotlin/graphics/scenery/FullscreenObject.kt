@@ -2,6 +2,8 @@ package graphics.scenery
 
 import graphics.scenery.geometry.GeometryType
 import graphics.scenery.attribute.material.Material
+import kool.floatBufferOf
+import kool.toFloatBuffer
 
 /**
  *
@@ -12,12 +14,11 @@ class FullscreenObject : Mesh("FullscreenObject") {
     init {
         geometry {
             // fake geometry
-            this.vertices = BufferUtils.allocateFloatAndPut(
-                floatArrayOf(
+            this.vertices = floatBufferOf(
                     -1.0f, -1.0f, 0.0f,
                     1.0f, -1.0f, 0.0f,
                     1.0f, 1.0f, 0.0f,
-                    -1.0f, 1.0f, 0.0f))
+                    -1.0f, 1.0f, 0.0f)
 
             this.normals = BufferUtils.allocateFloatAndPut(
                 floatArrayOf(

@@ -1,10 +1,19 @@
 package graphics.scenery
 
+import graphics.scenery.utils.Face
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
 import graphics.scenery.utils.extensions.xy
+import graphics.scenery.utils.inc
+import graphics.scenery.utils.set
+import kool.FloatBuffer
+import kool.IntBuffer
+import kool.adr
+import kool.toPtr
+import org.joml.Vector2f
 import org.joml.Vector3f
+import org.lwjgl.system.MemoryUtil
 import java.util.*
 import kotlin.math.*
 
@@ -16,15 +25,15 @@ import kotlin.math.*
  * @param[subdivisions] Number of subdivisions of the base icosahedron
  */
 open class Icosphere(val radius: Float, val subdivisions: Int) : Mesh("Icosphere") {
-    fun MutableList<Vector3f>.addVertex(vararg v: Float) {
-        this.add(Vector3f(v))
+    fun MutableList<Vector3f>.addVertex(x: Float, y: Float, z: Float) {
+        this += Vector3f(x, y, z)
     }
 
-    fun MutableList<Triple<Int, Int, Int>>.addFace(i: Int, j: Int, k: Int) {
-        this.add(kotlin.Triple(i, j, k))
+    fun MutableList<Face>.addFace(i: Int, j: Int, k: Int) {
+        this += Triple(i, j, k)
     }
 
-    protected fun createBaseVertices(vertices: MutableList<Vector3f>, indices: MutableList<Triple<Int, Int, Int>>) {
+    protected fun createBaseVertices(vertices: MutableList<Vector3f>, indices: MutableList<Face>) {
         val s = sqrt((5.0f - sqrt(5.0f)) / 10.0f)
         val t = sqrt((5.0f + sqrt(5.0f)) / 10.0f)
 
@@ -73,11 +82,11 @@ open class Icosphere(val radius: Float, val subdivisions: Int) : Mesh("Icosphere
 
     protected fun refineTriangles(recursionLevel: Int,
                                   vertices: MutableList<Vector3f>,
-                                  indices: MutableList<Triple<Int, Int, Int>>): MutableList<Triple<Int, Int, Int>> {
+                                  indices: MutableList<Face>): MutableList<Face> {
         // refine triangles
         var faces = indices
-        (0 until recursionLevel).forEach {
-            val faces2 = ArrayList<Triple<Int, Int, Int>>(indices.size * 3)
+        repeat(recursionLevel) {
+            val faces2 = ArrayList<Face>(indices.size * 3)
 
             for (triangle in faces) {
                 // replace triangle by 4 triangles
@@ -124,7 +133,7 @@ open class Icosphere(val radius: Float, val subdivisions: Int) : Mesh("Icosphere
         val i = this.addVertex(middle)
 
         // store it, return index
-        middlePointIndexCache.put(key, i)
+        middlePointIndexCache[key] = i
         return i
     }
 
@@ -136,17 +145,20 @@ open class Icosphere(val radius: Float, val subdivisions: Int) : Mesh("Icosphere
 
     init {
         val vertexBuffer = ArrayList<Vector3f>()
-        val indexBuffer = ArrayList<Triple<Int, Int, Int>>()
+        val indexBuffer = ArrayList<Face>()
 
         createBaseVertices(vertexBuffer, indexBuffer)
         val faces = refineTriangles(subdivisions, vertexBuffer, indexBuffer)
 
         geometry {
 
-            vertices = BufferUtils.allocateFloat(faces.size * 3 * 3)
-            normals = BufferUtils.allocateFloat(faces.size * 3 * 3)
-            texcoords = BufferUtils.allocateFloat(faces.size * 3 * 2)
-            indices = BufferUtils.allocateInt(0)
+            vertices = FloatBuffer(faces.size * 3 * 3)
+            normals = FloatBuffer(faces.size * 3 * 3)
+            texcoords = FloatBuffer(faces.size * 3 * 2)
+            indices = IntBuffer(0)
+            var pVtx = vertices.adr.toPtr<Vector3f>()
+            var pNorm = normals.adr.toPtr<Vector3f>()
+            var pTxc = texcoords.adr.toPtr<Vector2f>()
 
             faces.forEach { f ->
                 val v1 = vertexBuffer[f.first]
@@ -156,13 +168,13 @@ open class Icosphere(val radius: Float, val subdivisions: Int) : Mesh("Icosphere
                 val uv2 = vertexToUV(v2.normalize())
                 val uv3 = vertexToUV(v3.normalize())
 
-                (v1 * radius).get(vertices).position(vertices.position() + 3)
-                (v2 * radius).get(vertices).position(vertices.position() + 3)
-                (v3 * radius).get(vertices).position(vertices.position() + 3)
+                pVtx++[0] = v1 * radius
+                pVtx++[0] = v2 * radius
+                pVtx++[0] = v3 * radius
 
-                v1.get(normals).position(normals.position() + 3)
-                v2.get(normals).position(normals.position() + 3)
-                v3.get(normals).position(normals.position() + 3)
+                pNorm++[0] = v1
+                pNorm++[0] = v2
+                pNorm++[0] = v3
 
                 val uvNormal = (uv2 - uv1).cross(uv3 - uv1)
                 if(uvNormal.z() < 0.0f) {
@@ -177,14 +189,10 @@ open class Icosphere(val radius: Float, val subdivisions: Int) : Mesh("Icosphere
                     }
                 }
 
-                uv1.xy().get(texcoords).position(texcoords.position() + 2)
-                uv2.xy().get(texcoords).position(texcoords.position() + 2)
-                uv3.xy().get(texcoords).position(texcoords.position() + 2)
+                pTxc++[0] = uv1.xy()
+                pTxc++[0] = uv2.xy()
+                pTxc++[0] = uv3.xy()
             }
-
-            vertices.flip()
-            normals.flip()
-            texcoords.flip()
         }
 
         boundingBox = generateBoundingBox()

@@ -91,7 +91,7 @@ interface Node : Networkable {
 
     @Throws(IllegalStateException::class)
     fun <T, U: T> getAttribute(attributeType: Class<T>) : U {
-        return getAttributeOrNull<T, U>(attributeType) ?: throw IllegalStateException("Node doesn't have attribute named " + attributeType)
+        return getAttributeOrNull<T, U>(attributeType) ?: throw IllegalStateException("Node doesn't have attribute named $attributeType")
     }
 
     fun ifSpatial(block: Spatial.() -> Unit): Spatial? {
