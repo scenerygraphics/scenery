@@ -448,7 +448,8 @@ class RibbonDiagram(val protein: Protein, private val displaySS: Boolean = false
             }
             // spline calculation needs a beginning point. In this case, we simply take the vector from the second to
             // the first point and add it to the first curve point. Thus, we create a new starting point of the curve
-            val dummyVecBeg = Vector3f(caBegin).add(Vector3f(caBegin).min(Vector3f(aminoList[1].getAtom("CA").getVector()))
+            val dummyVecBeg = Vector3f(caBegin)
+            dummyVecBeg.add((Vector3f(caBegin).min(aminoList[1].getAtom("CA").getVector()))
                 .normalize().mul(0.1f))
             guidePoints.add(
                 GuidePoint(dummyVecBeg, guidePointsWithoutDummy[0].cVec, guidePointsWithoutDummy[0].dVec,
@@ -473,7 +474,8 @@ class RibbonDiagram(val protein: Protein, private val displaySS: Boolean = false
             )
             // spline calculation needs a finishing point. In this case, we simply take the vector from the second last
             // to the last point and add it to the end curve point. Thus, we create a new ending point of the curve
-            val dummyVecEnd = Vector3f(caEnd).add(Vector3f(aminoList.dropLast(1).last().getAtom("CA").getVector()).min(Vector3f(caEnd))
+            val dummyVecEnd = Vector3f(caEnd)
+            dummyVecEnd.add((Vector3f(aminoList.dropLast(1).last().getAtom("CA").getVector()).min(caEnd))
                 .normalize().mul(0.5f))
             guidePoints.add(
                 GuidePoint(dummyVecEnd,
