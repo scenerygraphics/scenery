@@ -20,7 +20,7 @@ interface NVAPI : StdCallLibrary {
 }
 
 class NvidiaGPUStats: GPUStats {
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
 
     override val utilisations: HashMap<String, Float> = HashMap()
 

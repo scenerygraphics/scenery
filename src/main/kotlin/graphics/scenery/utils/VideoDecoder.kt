@@ -27,7 +27,7 @@ import kotlin.concurrent.thread
 
 class VideoDecoder(val filename: String) {
 
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
     private val formatContext = AVFormatContext(null)
     private val pkt = AVPacket()
     private var vidStreamIdx = -1

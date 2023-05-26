@@ -3,7 +3,7 @@ package graphics.scenery.tests.unit
 import org.joml.*
 import graphics.scenery.numerics.Random
 import graphics.scenery.geometry.UniformBSpline
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.junit.Test
 import kotlin.math.roundToInt
 import kotlin.test.assertEquals
@@ -17,7 +17,7 @@ import kotlin.test.assertTrue
  * @author  Justin Buerger <burger@mpi-cbg.de>
  */
 class UniformBSplineTests {
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
 
     /**
      * Tests if the Uniform B-Spline object has actually the number of points defined in the class.
