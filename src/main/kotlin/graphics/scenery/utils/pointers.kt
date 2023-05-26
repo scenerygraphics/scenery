@@ -10,13 +10,13 @@ operator fun Ptr<Vector3f>.get(index: Int): Vector3f {
     return Vector3f(unsafe.getFloat(ofs), unsafe.getFloat(ofs + 4), unsafe.getFloat(ofs + 8))
 }
 operator fun Ptr<Vector3f>.set(index: Int, v: Vector3f) {
-    val ofs = adr.toLong() + index shl 2
+    val ofs = adr.toLong() + (index shl 2)
     unsafe.putFloat(ofs, v.x)
     unsafe.putFloat(ofs + 4, v.y)
     unsafe.putFloat(ofs + 8, v.z)
 }
 operator fun Ptr<Vector2f>.set(index: Int, v: Vector2f) {
-    val ofs = adr.toLong() + index shl 2
+    val ofs = adr.toLong() + (index shl 2)
     unsafe.putFloat(ofs, v.x)
     unsafe.putFloat(ofs + 4, v.y)
 }
