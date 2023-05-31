@@ -131,7 +131,7 @@ class VolumeManager(
 
     /** List of custom-created textures not to be cleared automatically */
     var customTextures = arrayListOf<String>()
-
+    var customUniforms = arrayListOf<String>()
     init {
         addRenderable {
             state = State.Created
