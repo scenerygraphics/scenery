@@ -45,7 +45,6 @@ class VDIGenerationExample : SceneryBase("Volume Manager Switching Example", 512
     override fun init() {
 
         // Step 1: Create Volume
-
         renderer = hub.add(
             SceneryElement.Renderer,
             Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
@@ -71,166 +70,25 @@ class VDIGenerationExample : SceneryBase("Volume Manager Switching Example", 512
         volume.transferFunction = TransferFunction.ramp(0.1f, 0.5f)
         scene.addChild(volume)
 
-        logger.warn("1111111111 volume VM: " + hub.get<VolumeManager>()?.getUuid())
-        logger.warn("1111111111 volume VM nodes: "+hub.get<VolumeManager>()?.nodes)
-        logger.warn("1111111111 "+scene.children.toString())
+
 
         // Step 2: Create VDI Volume Manager
-
-
         val vdiVolumeManager =  vdiFull(windowWidth, windowHeight, maxSupersegments, scene, hub)
         logger.warn("222222222 vdi VM " + vdiVolumeManager.getUuid().toString())
         logger.warn("222222222 vdi VM in init: " + hub.get<VolumeManager>()?.getUuid())
-//        logger.warn("222222222 vdi VM nodes: "+vdiVolumeManager?.nodes)
-//        logger.warn("222222222 "+scene.children[2].getUuid().toString())
 
-//
 //        // Step 3: add volume to vdi vm
         hub.get<VolumeManager>()?.add(volume)
-        logger.warn("3333333333 vdi VM: " + hub.get<VolumeManager>()?.getUuid())
-        logger.warn("3333333333 vdi VM nodes: "+hub.get<VolumeManager>()?.nodes)
 
         // Step 4: Vdi volume manager add volume
         vdiVolumeManager.add(volume)
-        logger.warn("1111111111 "+scene.children.toString())
-        logger.warn("4444444444 vdi VM: " + hub.get<VolumeManager>()?.getUuid())
 
         // Step 5: Vdi volume manager add volume
         hub.add(vdiVolumeManager)
-        logger.warn("5555555555555 vdi VM: " + hub.get<VolumeManager>()?.getUuid())
 
         // Step 3: Store VDI Generated
-        data class Timer(var start: Long, var end: Long)
+        storeVDI(vdiVolumeManager)
 
-        val storeVDIs = true
-        var subVDIDepthBuffer: ByteBuffer? = null
-        var subVDIColorBuffer: ByteBuffer?
-        var gridCellsBuff: ByteBuffer?
-        var thresholdBuff: ByteBuffer? = null
-        var numGeneratedBuff: ByteBuffer? = null
-        var prefixBuff: ByteBuffer? = null
-        val separateDepth = true
-        val world_abs = false
-
-        val volumeList = ArrayList<BufferedVolume>()
-        val VDIsGenerated = AtomicInteger(0)
-
-        val dataset = System.getProperty("VolumeBenchmark.Dataset")?.toString()?: "Simulation"
-        val vo = System.getProperty("VolumeBenchmark.Vo")?.toFloat()?.toInt() ?: 0
-
-
-        while(renderer?.firstImageReady == false) {
-//        while(renderer?.firstImageReady == false || volumeManager.shaderProperties.isEmpty()) {
-            Thread.sleep(50)
-        }
-
-        val subVDIColor = vdiVolumeManager.material().textures["OutputSubVDIColor"]!!
-        val colorCnt = AtomicInteger(0)
-
-        (renderer as? VulkanRenderer)?.persistentTextureRequests?.add (subVDIColor to colorCnt)
-
-        val depthCnt = AtomicInteger(0)
-        var subVDIDepth: Texture? = null
-
-        if(separateDepth) {
-            subVDIDepth = vdiVolumeManager.material().textures["OutputSubVDIDepth"]!!
-            (renderer as? VulkanRenderer)?.persistentTextureRequests?.add (subVDIDepth to depthCnt)
-        }
-
-        val gridCells = vdiVolumeManager.material().textures["OctreeCells"]!!
-        val gridTexturesCnt = AtomicInteger(0)
-
-        (renderer as? VulkanRenderer)?.persistentTextureRequests?.add (gridCells to gridTexturesCnt)
-
-        var thresholdsTexture: Texture? = null
-        var numGeneratedTexture: Texture? = null
-
-        var prevColor = colorCnt.get()
-        var prevDepth = depthCnt.get()
-
-        var cnt = 0
-
-        val tGeneration = Timer(0, 0)
-
-        val publisher = createPublisher()
-
-        val objectMapper = ObjectMapper(MessagePackFactory())
-
-        var compressedColor:  ByteBuffer? = null
-        var compressedDepth: ByteBuffer? = null
-
-        val compressor = VDICompressor()
-        val compressionTool = VDICompressor.CompressionTool.LZ4
-
-        var firstFrame = true
-
-        lateinit var volumeCommons: VolumeCommons
-        volumeCommons = VolumeCommons(windowWidth, windowHeight, dataset, logger)
-
-        while (storeVDIs) { //TODO: convert VDI storage also to postRenderLambda
-            tGeneration.start = System.nanoTime()
-            while(colorCnt.get() == prevColor || depthCnt.get() == prevDepth) {
-                Thread.sleep(5)
-            }
-            prevColor = colorCnt.get()
-            prevDepth = depthCnt.get()
-            subVDIColorBuffer = subVDIColor.contents
-            if(separateDepth) {
-                subVDIDepthBuffer = subVDIDepth!!.contents
-            }
-            gridCellsBuff = gridCells.contents
-
-            tGeneration.end = System.nanoTime()
-
-            val timeTaken = (tGeneration.end - tGeneration.start)/1e9
-
-            logger.info("Time taken for generation (only correct if VDIs were not being written to disk): ${timeTaken}")
-
-            val camera = cam
-
-            val model = volumeList.first().spatial().world
-
-            val vdiData = VDIData(
-                VDIBufferSizes(),
-                VDIMetadata(
-                    index = cnt,
-                    projection = camera.spatial().projection,
-                    view = camera.spatial().getTransformation(),
-                    volumeDimensions = volumeCommons.volumeDims,
-                    model = model,
-                    nw = volumeList.first().volumeManager.shaderProperties["nw"] as Float,
-                    windowDimensions = Vector2i(camera.width, camera.height)
-                )
-            )
-
-            if(storeVDIs) {
-                if(cnt == 4) { //store the 4th VDI
-                    val file = FileOutputStream(File("${dataset}vdi_${windowWidth}_${windowHeight}_${maxSupersegments}_${vo}_dump$cnt"))
-                    //                    val comp = GZIPOutputStream(file, 65536)
-                    VDIDataIO.write(vdiData, file)
-                    logger.info("written the dump")
-                    file.close()
-
-                    var fileName = ""
-                    if(world_abs) {
-                        fileName = "${dataset}VDI_${windowWidth}_${windowHeight}_${maxSupersegments}_${vo}_${cnt}_world_new"
-                    } else {
-                        fileName = "${dataset}VDI_${windowWidth}_${windowHeight}_${maxSupersegments}_${vo}_${cnt}_ndc"
-                    }
-                    if(separateDepth) {
-                        SystemHelpers.dumpToFile(subVDIColorBuffer!!, "${fileName}_col")
-                        SystemHelpers.dumpToFile(subVDIDepthBuffer!!, "${fileName}_depth")
-                        SystemHelpers.dumpToFile(gridCellsBuff!!, "${fileName}_octree")
-                    } else {
-                        SystemHelpers.dumpToFile(subVDIColorBuffer!!, fileName)
-                        SystemHelpers.dumpToFile(gridCellsBuff!!, "${fileName}_octree")
-                    }
-                    logger.info("Wrote VDI $cnt")
-                    VDIsGenerated.incrementAndGet()
-                }
-            }
-            cnt++
-        }
 
 
     }
@@ -318,8 +176,134 @@ class VDIGenerationExample : SceneryBase("Volume Manager Switching Example", 512
         return volumeManager
     }
 
+    private fun storeVDI(vdiVolumeManager: VolumeManager) {
+        data class Timer(var start: Long, var end: Long)
 
-    private fun createPublisher() : ZMQ.Socket {
+        val storeVDIs = true
+        var subVDIDepthBuffer: ByteBuffer? = null
+        var subVDIColorBuffer: ByteBuffer?
+        var gridCellsBuff: ByteBuffer?
+        val separateDepth = true
+        val world_abs = false
+
+        val volumeList = ArrayList<BufferedVolume>()
+        val VDIsGenerated = AtomicInteger(0)
+
+        val dataset = System.getProperty("VolumeBenchmark.Dataset")?.toString() ?: "Simulation"
+        val vo = System.getProperty("VolumeBenchmark.Vo")?.toFloat()?.toInt() ?: 0
+
+        while (renderer?.firstImageReady == false) {
+            while (renderer?.firstImageReady == false || vdiVolumeManager.shaderProperties.isEmpty()) {
+                Thread.sleep(50)
+            }
+
+            val subVDIColor = vdiVolumeManager.material().textures["OutputSubVDIColor"]!!
+            val colorCnt = AtomicInteger(0)
+
+            (renderer as? VulkanRenderer)?.persistentTextureRequests?.add(subVDIColor to colorCnt)
+
+            val depthCnt = AtomicInteger(0)
+            var subVDIDepth: Texture? = null
+
+            if (separateDepth) {
+                subVDIDepth = vdiVolumeManager.material().textures["OutputSubVDIDepth"]!!
+                (renderer as? VulkanRenderer)?.persistentTextureRequests?.add(subVDIDepth to depthCnt)
+            }
+
+            val gridCells = vdiVolumeManager.material().textures["OctreeCells"]!!
+            val gridTexturesCnt = AtomicInteger(0)
+
+            (renderer as? VulkanRenderer)?.persistentTextureRequests?.add(gridCells to gridTexturesCnt)
+
+            var prevColor = colorCnt.get()
+            var prevDepth = depthCnt.get()
+
+            var cnt = 0
+
+            val tGeneration = Timer(0, 0)
+
+            val publisher = createPublisher()
+
+            val objectMapper = ObjectMapper(MessagePackFactory())
+
+            var compressedColor: ByteBuffer? = null
+            var compressedDepth: ByteBuffer? = null
+
+            val compressor = VDICompressor()
+            val compressionTool = VDICompressor.CompressionTool.LZ4
+
+            var firstFrame = true
+
+            var volumeCommons: VolumeCommons = VolumeCommons(windowWidth, windowHeight, dataset, logger)
+
+            while (storeVDIs) { //TODO: convert VDI storage also to postRenderLambda
+
+                tGeneration.start = System.nanoTime()
+                while (colorCnt.get() == prevColor || depthCnt.get() == prevDepth) {
+                    Thread.sleep(5)
+                }
+                prevColor = colorCnt.get()
+                prevDepth = depthCnt.get()
+                subVDIColorBuffer = subVDIColor.contents
+                if (separateDepth) {
+                    subVDIDepthBuffer = subVDIDepth!!.contents
+                }
+                gridCellsBuff = gridCells.contents
+
+                tGeneration.end = System.nanoTime()
+
+                val timeTaken = (tGeneration.end - tGeneration.start) / 1e9
+
+                logger.info("Time taken for generation (only correct if VDIs were not being written to disk): ${timeTaken}")
+
+                val model = volumeList.first().spatial().world
+
+                val vdiData = VDIData(
+                    VDIBufferSizes(),
+                    VDIMetadata(
+                        index = cnt,
+//                        projection = camera.spatial().projection,
+//                        view = camera.spatial().getTransformation(),
+                        volumeDimensions = volumeCommons.volumeDims,
+                        model = model,
+                        nw = volumeList.first().volumeManager.shaderProperties["nw"] as Float,
+//                        windowDimensions = Vector2i(camera.width, camera.height)
+                    )
+                )
+
+                if (storeVDIs) {
+                    if (cnt == 4) { //store the 4th VDI
+                        val file = FileOutputStream(File("${dataset}vdi_${windowWidth}_${windowHeight}_${maxSupersegments}_${vo}_dump$cnt"))
+                        //                    val comp = GZIPOutputStream(file, 65536)
+                        VDIDataIO.write(vdiData, file)
+                        logger.info("written the dump")
+                        file.close()
+
+                        var fileName = ""
+                        if (world_abs) {
+                            fileName = "${dataset}VDI_${windowWidth}_${windowHeight}_${maxSupersegments}_${vo}_${cnt}_world_new"
+                        } else {
+                            fileName = "${dataset}VDI_${windowWidth}_${windowHeight}_${maxSupersegments}_${vo}_${cnt}_ndc"
+                        }
+                        if (separateDepth) {
+                            SystemHelpers.dumpToFile(subVDIColorBuffer!!, "${fileName}_col")
+                            SystemHelpers.dumpToFile(subVDIDepthBuffer!!, "${fileName}_depth")
+                            SystemHelpers.dumpToFile(gridCellsBuff!!, "${fileName}_octree")
+                        } else {
+                            SystemHelpers.dumpToFile(subVDIColorBuffer!!, fileName)
+                            SystemHelpers.dumpToFile(gridCellsBuff!!, "${fileName}_octree")
+                        }
+                        logger.info("Wrote VDI $cnt")
+                        VDIsGenerated.incrementAndGet()
+                    }
+                }
+                cnt++
+            }
+        }
+    }
+
+
+        fun createPublisher() : ZMQ.Socket {
         var publisher: ZMQ.Socket = context.createSocket(SocketType.PUB)
         publisher.isConflate = true
 
@@ -334,13 +318,6 @@ class VDIGenerationExample : SceneryBase("Volume Manager Switching Example", 512
 
         return publisher
     }
-
-
-
-
-
-
-
 
     companion object {
         @JvmStatic
