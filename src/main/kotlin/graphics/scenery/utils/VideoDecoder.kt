@@ -2,6 +2,7 @@ package graphics.scenery.utils
 
 import org.bytedeco.ffmpeg.avcodec.AVPacket
 import org.bytedeco.ffmpeg.avformat.AVFormatContext
+import org.bytedeco.ffmpeg.avutil.AVDictionary
 import org.bytedeco.ffmpeg.avutil.AVFrame
 import org.bytedeco.ffmpeg.global.avcodec.*
 import org.bytedeco.ffmpeg.global.avformat.*
@@ -56,7 +57,12 @@ class VideoDecoder(val filename: String) {
 
             val videoPath = filename
 
-            ret = avformat_open_input(formatContext, videoPath, null, null)
+            // We need an options dictionary here, so the sdp files produced
+            // by [VideoEncoder] are ingestible again
+            val d = AVDictionary()
+            av_dict_set(d, "protocol_whitelist", "file,udp,rtp", 0);
+
+            ret = avformat_open_input(formatContext, videoPath, null, d)
             if (ret < 0) {
                 eVal = ret
                 logger.error("Open video file $videoPath failed. Error code: $eVal")
@@ -92,10 +98,8 @@ class VideoDecoder(val filename: String) {
                 return@thread
             } else {
                 logger.debug(
-                    "Video stream %d with resolution %dx%d\n", vidStreamIdx,
-                    formatContext.streams(i).codecpar().width(),
-                    formatContext.streams(i).codecpar().height()
-                )
+                    "Video stream $vidStreamIdx with resolution resolution ${formatContext.streams(i).codecpar().width()}x" +
+                        "${formatContext.streams(i).codecpar().height()}\n")
             }
 
             ret = avcodec_parameters_to_context(codecCtx, formatContext.streams(vidStreamIdx).codecpar())
@@ -107,6 +111,7 @@ class VideoDecoder(val filename: String) {
             }
 
             val codec = avcodec_find_decoder(codecCtx.codec_id())
+//          TODO: for h264 hardware decoding on Nvidia: val codec = avcodec_find_decoder_by_name("h264_cuvid")
             if (codec == null) {
                 logger.error("Unsupported codec for video file")
                 error = true
