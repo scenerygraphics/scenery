@@ -87,6 +87,9 @@ open class Volume(
 
     // without this line the *java* serialization framework kryo does not recognize the parameter-less constructor
     // and uses dark magic to instanciate this class
+
+    var wantsSync = true
+    override fun wantsSync(): Boolean = wantsSync
     constructor() : this(VolumeDataSource.NullSource, hub = Hub("dummyVolumeHub"))
 
     var initalizer: VolumeInitializer? = null
