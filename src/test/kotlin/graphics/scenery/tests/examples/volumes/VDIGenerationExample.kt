@@ -43,7 +43,8 @@ class VDIGenerationExample : SceneryBase("Volume Manager Switching Example", 512
 
     override fun init() {
 
-        // Step 1: Create Volume
+        // Step 1: Create rendere, volume and camera
+
         renderer = hub.add(
             SceneryElement.Renderer,
             Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
@@ -72,17 +73,16 @@ class VDIGenerationExample : SceneryBase("Volume Manager Switching Example", 512
         // Step 2: Create VDI Volume Manager
         val vdiVolumeManager =  vdiFull(windowWidth, windowHeight, maxSupersegments, scene, hub)
 
-        //step 3: switch volume"s volume manager
+        //step 3: switch the volume's current volume manager to VDI volume manager
         volume.volumeManager = vdiVolumeManager
 
-        // Step 4: Vdi volume manager add volume
+        // Step 4: add the volume to VDI volume manager
         vdiVolumeManager.add(volume)
 
-        // Step 5: Vdi volume manager add volume
+        // Step 5: add the VDI volume manager to the hub
         hub.add(vdiVolumeManager)
 
-
-        // Step 3: Store VDI Generated
+        // Step 6: Store VDI Generated
         thread {
             val volumeDimensions = volume.getDimensions()
             storeVDI(vdiVolumeManager, cam, volumeDimensions )
@@ -101,7 +101,6 @@ class VDIGenerationExample : SceneryBase("Volume Manager Switching Example", 512
                     "intersectBoundingBox", "vis", "localNear", "localFar", "SampleVolume", "Convert", "Accumulate",
                 ),
                 SegmentType.Accumulator to SegmentTemplate(
-//                                this.javaClass,
                     accumulateShader,
                     "vis", "localNear", "localFar", "sampleVolume", "convert",
                 ),
@@ -118,25 +117,21 @@ class VDIGenerationExample : SceneryBase("Volume Manager Switching Example", 512
 
         val outputSubDepthBuffer = MemoryUtil.memCalloc(windowHeight*windowWidth*2*maxSupersegments*2 * 2)
 
-//            val numGridCells = 2.0.pow(numOctreeLayers)
         val numGridCells = Vector3f(windowWidth.toFloat() / 8f, windowHeight.toFloat() / 8f, maxSupersegments.toFloat())
-//            val numGridCells = Vector3f(256f, 256f, 256f)
+
         val lowestLevel = MemoryUtil.memCalloc(numGridCells.x.toInt() * numGridCells.y.toInt() * numGridCells.z.toInt() * 4)
 
         val outputSubVDIColor: Texture = Texture.fromImage(
-            Image(outputSubColorBuffer, maxSupersegments, windowHeight, windowWidth), usage = hashSetOf(
-            Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), channels = 4, mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+            Image(outputSubColorBuffer, maxSupersegments, windowHeight, windowWidth), usage = hashSetOf( Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
+            type = FloatType(), channels = 4, mipmap = false,  normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
         volumeManager.customTextures.add("OutputSubVDIColor")
         volumeManager.material().textures["OutputSubVDIColor"] = outputSubVDIColor
 
         val outputSubVDIDepth: Texture = Texture.fromImage(
-            Image(outputSubDepthBuffer, 2 * maxSupersegments, windowHeight, windowWidth),  usage = hashSetOf(
-            Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), channels = 1, mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
-//                    Image(outputSubDepthBuffer, 2*maxSupersegments, windowHeight, windowWidth),  usage = hashSetOf(
-//                        Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), channels = 1, mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+            Image(outputSubDepthBuffer, 2 * maxSupersegments, windowHeight, windowWidth),  usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
+            type = FloatType(), channels = 1, mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
         volumeManager.customTextures.add("OutputSubVDIDepth")
         volumeManager.material().textures["OutputSubVDIDepth"] = outputSubVDIDepth
-
 
         val gridCells: Texture = Texture.fromImage(
             Image(lowestLevel, numGridCells.x.toInt(), numGridCells.y.toInt(), numGridCells.z.toInt()), channels = 1, type = UnsignedIntType(),
@@ -175,8 +170,7 @@ class VDIGenerationExample : SceneryBase("Volume Manager Switching Example", 512
         val VDIsGenerated = AtomicInteger(0)
 
         while (renderer?.firstImageReady == false) {
-//            while (renderer?.firstImageReady == false || vdiVolumeManager.shaderProperties.isEmpty()) {
-                Thread.sleep(50)
+            Thread.sleep(50)
         }
 
         val vdiColor = vdiVolumeManager.material().textures["OutputSubVDIColor"]!!
