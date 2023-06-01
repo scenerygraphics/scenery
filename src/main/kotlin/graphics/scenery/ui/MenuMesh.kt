@@ -28,7 +28,7 @@ import uno.glfw.GlfwWindow
 
 class MenuMesh(val hub: Hub) : Mesh("Menu") {
 
-    var showDemoWindow = false
+    var showDemoWindow = true
 
     // Setup Dear ImGui context
     val ctx = Context()
@@ -51,11 +51,11 @@ class MenuMesh(val hub: Hub) : Mesh("Menu") {
     var vtx = ByteBuffer(1024)
     var idx = IntBuffer(256)
 
-    val window = GlfwWindow.from((hub.get<Renderer>()!!.window as SceneryWindow.GLFWWindow).window)
+    val window = hub.get<Renderer>()!!.window//GlfwWindow.from((hub.get<Renderer>()!!.window as SceneryWindow.GLFWWindow).window)
     val menus = mutableMapOf<String, MenuNode>() // TODO switch to Int key
 
     // Setup Platform/Renderer bindings
-    val implGlfw = ImplGlfw(window, true, vrTexSize)
+    val impl = ImplScenery(window, true, vrTexSize)
 
     override fun createRenderable(): Renderable {
         return object : DefaultRenderable(this) {
@@ -66,7 +66,7 @@ class MenuMesh(val hub: Hub) : Mesh("Menu") {
 
                 // setup time step and input states
                 //        implGlfwNewFrame()
-                implGlfw.newFrame()
+                impl.newFrame()
 
                 ImGui.run {
 
@@ -78,7 +78,7 @@ class MenuMesh(val hub: Hub) : Mesh("Menu") {
                         if(showDemoWindow)
                             showDemoWindow(::showDemoWindow)
 
-                        menu(getScene()!!)
+//                        menu(getScene()!!)
 
                     }
                 }
