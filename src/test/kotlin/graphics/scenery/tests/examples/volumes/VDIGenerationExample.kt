@@ -36,6 +36,11 @@ class VDIGenerationExample : SceneryBase("Volume Manager Switching Example", 512
     val maxSupersegments = System.getProperty("VolumeBenchmark.NumSupersegments")?.toInt()?: 20
     val context: ZContext = ZContext(4)
 
+    val separateDepth = true
+    val world_abs = false
+    var cnt = 0
+
+
     override fun init() {
 
         // Step 1: Create Volume
@@ -64,15 +69,11 @@ class VDIGenerationExample : SceneryBase("Volume Manager Switching Example", 512
         volume.transferFunction = TransferFunction.ramp(0.1f, 0.5f)
         scene.addChild(volume)
 
-
-
         // Step 2: Create VDI Volume Manager
         val vdiVolumeManager =  vdiFull(windowWidth, windowHeight, maxSupersegments, scene, hub)
-        logger.warn("222222222 vdi VM " + vdiVolumeManager.getUuid().toString())
-        logger.warn("222222222 vdi VM in init: " + hub.get<VolumeManager>()?.getUuid())
 
-//        // Step 3: add volume to vdi vm
-        hub.get<VolumeManager>()?.add(volume)
+        //step 3: switch volume"s volume manager
+        volume.volumeManager = vdiVolumeManager
 
         // Step 4: Vdi volume manager add volume
         vdiVolumeManager.add(volume)
@@ -80,13 +81,11 @@ class VDIGenerationExample : SceneryBase("Volume Manager Switching Example", 512
         // Step 5: Vdi volume manager add volume
         hub.add(vdiVolumeManager)
 
-        //step 6: creae vdiVolumeData
-
 
         // Step 3: Store VDI Generated
         thread {
             val volumeDimensions = volume.getDimensions()
-            storeVDI(vdiVolumeManager, cam, volumeDimensions)
+            storeVDI(vdiVolumeManager, cam, volumeDimensions )
         }
 
     }
@@ -165,18 +164,15 @@ class VDIGenerationExample : SceneryBase("Volume Manager Switching Example", 512
 
     private fun storeVDI(vdiVolumeManager: VolumeManager, camera: Camera, volumeDimensions: Vector3i) {
         data class Timer(var start: Long, var end: Long)
+        val tGeneration = Timer(0, 0)
 
         var vdiDepthBuffer: ByteBuffer? = null
         var vdiColorBuffer: ByteBuffer?
         var gridCellsBuff: ByteBuffer?
-        val separateDepth = true
-        val world_abs = false
 
         val volumeList = ArrayList<BufferedVolume>()
+        volumeList.add(vdiVolumeManager.nodes.first() as BufferedVolume)
         val VDIsGenerated = AtomicInteger(0)
-
-        val dataset = System.getProperty("VolumeBenchmark.Dataset")?.toString() ?: "Simulation"
-        val vo = System.getProperty("VolumeBenchmark.Vo")?.toFloat()?.toInt() ?: 0
 
         while (renderer?.firstImageReady == false) {
 //            while (renderer?.firstImageReady == false || vdiVolumeManager.shaderProperties.isEmpty()) {
@@ -198,12 +194,9 @@ class VDIGenerationExample : SceneryBase("Volume Manager Switching Example", 512
         val gridTexturesCnt = AtomicInteger(0)
         (renderer as? VulkanRenderer)?.persistentTextureRequests?.add(gridCells to gridTexturesCnt)
 
+
         var prevColor = colorCnt.get()
         var prevDepth = depthCnt.get()
-
-        var cnt = 0
-
-        val tGeneration = Timer(0, 0)
 
         while (cnt<5) { //TODO: convert VDI storage also to postRenderLambda
 
@@ -233,7 +226,7 @@ class VDIGenerationExample : SceneryBase("Volume Manager Switching Example", 512
                     index = cnt,
                     projection = camera.spatial().projection,
                     view = camera.spatial().getTransformation(),
-                    volumeDimensions = volumeDimensions as Vector3f,
+                    volumeDimensions = Vector3f(volumeDimensions.x.toFloat(),volumeDimensions.y.toFloat(),volumeDimensions.z.toFloat()),
                     model = model,
                     nw = volumeList.first().volumeManager.shaderProperties["nw"] as Float,
                     windowDimensions = Vector2i(camera.width, camera.height)
@@ -242,8 +235,7 @@ class VDIGenerationExample : SceneryBase("Volume Manager Switching Example", 512
 
             if (cnt == 4) { //store the 4th VDI
 
-                val file = FileOutputStream(File("VDI__dump$cnt"))
-                //val comp = GZIPOutputStream(file, 65536)
+                val file = FileOutputStream(File("VDI_dump$cnt"))
                 VDIDataIO.write(vdiData, file)
                 logger.info("written the dump")
                 file.close()
@@ -258,12 +250,10 @@ class VDIGenerationExample : SceneryBase("Volume Manager Switching Example", 512
                     SystemHelpers.dumpToFile(vdiDepthBuffer!!, "${fileName}_depth")
                     SystemHelpers.dumpToFile(gridCellsBuff!!, "${fileName}_octree")
                 }
-
                 logger.info("Wrote VDI $cnt")
                 VDIsGenerated.incrementAndGet()
             }
-        cnt++
-
+            cnt++
         }
     }
 
