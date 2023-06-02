@@ -83,9 +83,24 @@ class VDIGenerationExample : SceneryBase("Volume Manager Switching Example", 512
         hub.add(vdiVolumeManager)
 
         // Step 6: Store VDI Generated
+        val volumeDimensions3i = Vector3f(volume.getDimensions().x.toFloat(),volume.getDimensions().y.toFloat(),volume.getDimensions().z.toFloat())
+        val model = volume.spatial().world
+
+            val vdiData = VDIData(
+                VDIBufferSizes(),
+                VDIMetadata(
+                    index = cnt,
+                    projection = cam.spatial().projection,
+                    view = cam.spatial().getTransformation(),
+                    volumeDimensions = volumeDimensions3i,
+                    model = model,
+                    nw = volume.volumeManager.shaderProperties["nw"] as Float,
+                    windowDimensions = Vector2i(cam.width, cam.height)
+                )
+            )
+
         thread {
-            val volumeDimensions = volume.getDimensions()
-            storeVDI(vdiVolumeManager, cam, volumeDimensions )
+            storeVDI(vdiVolumeManager, vdiData )
         }
 
     }
@@ -157,7 +172,7 @@ class VDIGenerationExample : SceneryBase("Volume Manager Switching Example", 512
         return volumeManager
     }
 
-    private fun storeVDI(vdiVolumeManager: VolumeManager, camera: Camera, volumeDimensions: Vector3i) {
+    private fun storeVDI(vdiVolumeManager: VolumeManager, vdiData: VDIData) {
         data class Timer(var start: Long, var end: Long)
         val tGeneration = Timer(0, 0)
 
@@ -195,6 +210,7 @@ class VDIGenerationExample : SceneryBase("Volume Manager Switching Example", 512
         while (cnt<5) { //TODO: convert VDI storage also to postRenderLambda
 
             tGeneration.start = System.nanoTime()
+
             while (colorCnt.get() == prevColor || depthCnt.get() == prevDepth) {
                 Thread.sleep(5)
             }
@@ -212,20 +228,7 @@ class VDIGenerationExample : SceneryBase("Volume Manager Switching Example", 512
 
             logger.info("Time taken for generation (only correct if VDIs were not being written to disk): ${timeTaken}")
 
-            val model = volumeList.first().spatial().world
-
-            val vdiData = VDIData(
-                VDIBufferSizes(),
-                VDIMetadata(
-                    index = cnt,
-                    projection = camera.spatial().projection,
-                    view = camera.spatial().getTransformation(),
-                    volumeDimensions = Vector3f(volumeDimensions.x.toFloat(),volumeDimensions.y.toFloat(),volumeDimensions.z.toFloat()),
-                    model = model,
-                    nw = volumeList.first().volumeManager.shaderProperties["nw"] as Float,
-                    windowDimensions = Vector2i(camera.width, camera.height)
-                )
-            )
+            vdiData.metadata.index = cnt
 
             if (cnt == 4) { //store the 4th VDI
 
