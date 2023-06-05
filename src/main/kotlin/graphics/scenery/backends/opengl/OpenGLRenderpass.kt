@@ -4,7 +4,7 @@ import cleargl.GLFramebuffer
 import org.joml.Vector3f
 import graphics.scenery.Settings
 import graphics.scenery.backends.RenderConfigReader
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import graphics.scenery.utils.StickyBoolean
 import org.joml.Vector2f
 import org.joml.Vector4f
@@ -17,7 +17,7 @@ import java.util.concurrent.ConcurrentHashMap
  * @author Ulrik Guenther <hello@ulrik.is>
  */
 class OpenGLRenderpass(var passName: String = "", var passConfig: RenderConfigReader.RenderpassConfig) {
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
 
     /** OpenGL metadata */
     var openglMetadata: OpenGLMetadata = OpenGLMetadata()

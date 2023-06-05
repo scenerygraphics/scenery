@@ -62,7 +62,7 @@ class VideoEncoder(
     override var hub: Hub? = null,
     val networked: Boolean = hub?.get<Settings>()?.get("VideoEncoder.StreamVideo", false) ?: false
 ): Hubable {
-    protected val logger by LazyLogger()
+    protected val logger by lazyLogger()
     protected lateinit var frame: AVFrame
     protected lateinit var tmpframe: AVFrame
 

@@ -1,6 +1,6 @@
 package graphics.scenery.volumes
 
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import net.imglib2.RandomAccessibleInterval
 import net.imglib2.type.numeric.ARGBType
 import net.imglib2.type.numeric.integer.UnsignedByteType
@@ -18,7 +18,7 @@ import java.util.function.Consumer
 import kotlin.collections.HashMap
 
 open class SceneryStackManager: SimpleStackManager {
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
     private val texturesU8 : HashMap<Int, VolumeTextureU8> = HashMap()
     private val texturesU16 : HashMap<Int, VolumeTextureU16> = HashMap()
     private val texturesRGBA8 : HashMap<Int, VolumeTextureRGBA8> = HashMap()

@@ -6,7 +6,7 @@ import com.jogamp.opengl.GL4
 import graphics.scenery.backends.ShaderIntrospection
 import graphics.scenery.backends.ShaderPackage
 import graphics.scenery.backends.ShaderType
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import java.util.concurrent.ConcurrentHashMap
 
 
@@ -16,7 +16,7 @@ import java.util.concurrent.ConcurrentHashMap
  * @author Ulrik Günther <hello@ulrik.is>
  */
 open class OpenGLShaderModule(gl: GL4, entryPoint: String, sp: ShaderPackage) {
-    protected val logger by LazyLogger()
+    protected val logger by lazyLogger()
 
     var shader: GLShader
         private set

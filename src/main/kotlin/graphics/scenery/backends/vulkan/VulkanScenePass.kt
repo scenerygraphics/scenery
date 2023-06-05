@@ -12,7 +12,7 @@ import graphics.scenery.attribute.DelegationType
 import graphics.scenery.attribute.renderable.Renderable
 import graphics.scenery.backends.ShaderIntrospection
 import graphics.scenery.textures.Texture
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import graphics.scenery.utils.Statistics
 import kotlinx.coroutines.runBlocking
 import org.joml.Vector3i
@@ -27,7 +27,7 @@ import java.util.*
  * @author Ulrik Guenther <hello@ulrik.is>
  */
 object VulkanScenePass {
-    val logger by LazyLogger()
+    val logger by lazyLogger()
 
     /**
      * Records a new scene command buffer.

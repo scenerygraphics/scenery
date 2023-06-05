@@ -27,13 +27,16 @@ class ComputeShaderExample : SceneryBase("ComputeShaderExample") {
         renderer = hub.add(SceneryElement.Renderer,
             Renderer.createRenderer(hub, applicationName, scene, 512, 512))
 
-        val helix = Texture.fromImage(Image.fromResource("textures/helix.png", TexturedCubeExample::class.java), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
+        val helix = Texture.fromImage(Image.fromResource("textures/helix.png", TexturedCubeExample::class.java),
+                                      usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
         val buffer = MemoryUtil.memCalloc(helix.dimensions.x * helix.dimensions.y * helix.dimensions.z * 4)
 
         val compute = RichNode()
         compute.name = "compute node"
-        compute.setMaterial(ShaderMaterial(Shaders.ShadersFromFiles(arrayOf("BGRAMosaic.comp"), this@ComputeShaderExample::class.java))) {
-            textures["OutputViewport"] = Texture.fromImage(Image(buffer, helix.dimensions.x, helix.dimensions.y, helix.dimensions.z), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
+        val computeTexture = Texture.fromImage(Image(buffer, helix.dimensions.x, helix.dimensions.y, helix.dimensions.z),
+                                               usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
+        compute.setMaterial(ShaderMaterial.fromFiles(this::class.java, "BGRAMosaic.comp")) {
+            textures["OutputViewport"] = computeTexture
             textures["InputColor"] = helix
         }
         compute.metadata["ComputeMetadata"] = ComputeMetadata(
@@ -46,7 +49,7 @@ class ComputeShaderExample : SceneryBase("ComputeShaderExample") {
         val box = Box(Vector3f(1.0f, 1.0f, 1.0f))
         box.name = "le box du win"
         box.material {
-            textures["diffuse"] = compute.material().textures["OutputViewport"]!!
+            textures["diffuse"] = computeTexture
             metallic = 0.3f
             roughness = 0.9f
         }

@@ -5,7 +5,7 @@ import graphics.scenery.*
 import graphics.scenery.primitives.Line
 import graphics.scenery.primitives.LinePair
 import graphics.scenery.attribute.material.Material
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.jocl.cl_mem
 import java.io.File
 import java.lang.Float.MAX_VALUE
@@ -103,7 +103,7 @@ class PointWithMeta(var x: Float = 0.0f, var y: Float = 0.0f, var z: Float = 0.0
  * @author Johannes Waschke <jowaschke@cbs.mpg.de>
  */
 class EdgeBundler(override var hub: Hub?): Hubable {
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
 
     init {
         hub?.add(this)

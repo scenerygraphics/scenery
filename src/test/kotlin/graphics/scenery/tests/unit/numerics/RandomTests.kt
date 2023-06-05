@@ -1,10 +1,9 @@
 package graphics.scenery.tests.unit.numerics
 
 import graphics.scenery.numerics.Random
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import graphics.scenery.utils.extensions.toFloatArray
 import org.junit.Test
-import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
@@ -14,7 +13,7 @@ import kotlin.test.assertTrue
  */
 
 class RandomTests {
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
 
     @Test
     fun testRandomFromRange() {

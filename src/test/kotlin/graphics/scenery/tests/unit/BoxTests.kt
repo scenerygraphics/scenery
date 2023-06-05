@@ -3,7 +3,7 @@ package graphics.scenery.tests.unit
 import graphics.scenery.Box
 import graphics.scenery.Scene
 import graphics.scenery.numerics.Random
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.junit.Test
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
@@ -14,7 +14,7 @@ import kotlin.test.assertTrue
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class BoxTests {
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
 
     @Test
     fun testCreation() {

@@ -13,7 +13,7 @@ import graphics.scenery.backends.vulkan.VulkanDevice
 import graphics.scenery.backends.vulkan.VulkanTexture
 import graphics.scenery.backends.vulkan.endCommandBuffer
 import graphics.scenery.utils.JsonDeserialisers
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import graphics.scenery.utils.Statistics
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -51,7 +51,7 @@ import kotlin.math.absoluteValue
 open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = true) : TrackerInput, Display, Hubable {
 
     /** slf4j logger instance */
-    protected val logger by LazyLogger()
+    protected val logger by lazyLogger()
     /** The Hub to use for communication */
     override var hub: Hub? = null
 
@@ -1200,7 +1200,7 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
     }
 
     companion object {
-        private val logger by LazyLogger()
+        private val logger by lazyLogger()
 
         protected val keyMap: HashMap<Pair<TrackerRole, OpenVRButton>, AWTKey> = hashMapOf(
             (TrackerRole.LeftHand to OpenVRButton.Left) to AWTKey(KeyEvent.VK_H),

@@ -8,7 +8,7 @@ import graphics.scenery.attribute.renderable.Renderable
 import graphics.scenery.Settings
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.backends.*
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import graphics.scenery.utils.RingBuffer
 import org.joml.Vector2f
 import org.joml.Vector4f
@@ -34,7 +34,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
                        val vertexDescriptors: ConcurrentHashMap<VulkanRenderer.VertexDataKinds, VulkanRenderer.VertexDescription>,
                        val ringBufferSize: Int = 2): AutoCloseable {
 
-    protected val logger by LazyLogger()
+    protected val logger by lazyLogger()
 
     /** [VulkanFramebuffer] inputs of this render pass */
     val inputs = ConcurrentHashMap<String, VulkanFramebuffer>()
@@ -874,7 +874,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
     }
 
     companion object {
-        val logger by LazyLogger()
+        val logger by lazyLogger()
         var pipelineCache = -1L
 
         fun createPipelineCache(device: VulkanDevice) {

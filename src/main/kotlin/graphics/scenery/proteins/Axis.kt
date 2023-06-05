@@ -1,6 +1,6 @@
 package graphics.scenery.proteins
 
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.joml.Vector3f
 import kotlin.math.sqrt
 
@@ -13,7 +13,7 @@ import kotlin.math.sqrt
 class Axis(positions: List<Vector3f?>) {
     val direction = Vector3f()
     val position = Vector3f()
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
     init {
         if(positions.size >= 4) {
             val axisPoints = calculateAxisPoints(positions)

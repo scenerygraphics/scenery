@@ -7,7 +7,7 @@ import graphics.scenery.numerics.Random
 import graphics.scenery.Mesh
 import graphics.scenery.attribute.material.DefaultMaterial
 import graphics.scenery.attribute.material.Material
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import graphics.scenery.utils.extensions.compare
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.toFloatArray
@@ -28,7 +28,7 @@ import kotlin.test.assertTrue
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class NodeTests {
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
 
     /**
      * Tests matrix propagation through the scene graph.

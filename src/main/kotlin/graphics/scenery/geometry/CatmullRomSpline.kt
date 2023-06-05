@@ -1,7 +1,7 @@
 package graphics.scenery.geometry
 
 import graphics.scenery.numerics.Random
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
 import org.joml.Vector3f
@@ -22,7 +22,7 @@ import kotlin.math.pow
 class CatmullRomSpline(private val controlPoints: List<Vector3f>, private val n: Int = 100, private val alpha: Float = 0.5f,
                        private val addRandomLastAndFirstPoint: Boolean = false): Spline {
 
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
 
     /**
      * Calculates the parameter t; t is an intermediate product for the calculation of the spline

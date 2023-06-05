@@ -1,10 +1,9 @@
 package graphics.scenery.volumes
 
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.lwjgl.system.MemoryUtil
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
-import java.util.ArrayList
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.math.abs
 import kotlin.math.max
@@ -12,7 +11,7 @@ import kotlin.math.min
 
 /** Transfer function class with an optional [name]. */
 open class TransferFunction(val name: String = "") {
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
 
     /**
      * Data class to contain control points for transfer functions.

@@ -2,10 +2,8 @@ import org.gradle.kotlin.dsl.api
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import scenery.*
 import java.net.URL
-import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 plugins {
-    java
     // kotlin and dokka versions are now managed in settings.gradle.kts and gradle.properties
     kotlin("jvm")
     kotlin("kapt")
@@ -15,8 +13,9 @@ plugins {
 //    scenery.docs
     scenery.publish
     scenery.sign
+//    id("com.github.elect86.sciJava") version "0.0.4"
     jacoco
-    id("com.github.johnrengelman.shadow") version "7.1.0"
+    id("com.github.johnrengelman.shadow") version "8.1.1"
 }
 
 repositories {
@@ -32,7 +31,6 @@ dependencies {
     implementation(platform("org.scijava:pom-scijava:31.1.0"))
     annotationProcessor("org.scijava:scijava-common:2.88.1")
 
-    implementation(kotlin("stdlib-jdk8"))
     implementation(kotlin("reflect"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.2")
 
@@ -69,8 +67,8 @@ dependencies {
             when {
                 // Vulkan binaries are only necessary on macOS
                 p.endsWith("vulkan") -> {
-                    if (native.contains("macos")) {
-                        println("vulkan: org.lwjgl:lwjgl$p:$lwjglVersion:$native")
+                    if(native.contains("macos")) {
+                        logger.info("vulkan: org.lwjgl:lwjgl$p:$lwjglVersion:$native")
                         runtimeOnly("org.lwjgl:lwjgl$p:$lwjglVersion:$native")
                     }
                 }
@@ -78,14 +76,14 @@ dependencies {
                 // OpenVR binaries are available on all scenery-supported platforms,
                 // apart from macOS/ARM64
                 p.endsWith("openvr") -> {
-                    if (!(native.contains("macos") && native.contains("arm64"))) {
-                        println("openvr: org.lwjgl:lwjgl$p:$lwjglVersion:$native")
+                    if(!(native.contains("macos") && native.contains("arm64"))) {
+                        logger.info("openvr: org.lwjgl:lwjgl$p:$lwjglVersion:$native")
                         runtimeOnly("org.lwjgl:lwjgl$p:$lwjglVersion:$native")
                     }
                 }
 
                 else -> {
-                    println("else: org.lwjgl:lwjgl$p:$lwjglVersion:$native")
+                    logger.info("else: org.lwjgl:lwjgl$p:$lwjglVersion:$native")
                     runtimeOnly("org.lwjgl:lwjgl$p:$lwjglVersion:$native")
                 }
             }
@@ -139,6 +137,8 @@ dependencies {
 //        implementation("kotlin.graphics:imgui-$it:1.89.2")
     }
     implementation("kotlin.graphics:imgui:1.89.2-all")
+    implementation("org.jfree:jfreechart:1.5.0")
+    implementation("net.imagej:imagej-ops:0.45.5")
 }
 
 val isRelease: Boolean
@@ -169,7 +169,7 @@ tasks {
                 n.appendNode("groupId", group)
                 n.appendNode("artifactId", artifact)
 
-                println("Added exclusion on $group:$artifact")
+                logger.warn("Added exclusion on $group:$artifact")
             }
         }
 
@@ -190,8 +190,8 @@ tasks {
             return d
         }
 
-        val matcher = Regex("""generatePomFileFor(\w+)Publication""").matchEntire(name)
-        val publicationName = matcher?.let { it.groupValues[1] }
+//        val matcher = Regex("""generatePomFileFor(\w+)Publication""").matchEntire(name)
+//        val publicationName = matcher?.let { it.groupValues[1] }
 
         pom.properties.empty()
 
@@ -334,8 +334,7 @@ tasks {
                         "\${$propertyName}")
 
                     // Custom per artifact tweaks
-                    println(artifactId)
-                    if ("\\-bom".toRegex().find(artifactId) != null) {
+                    if("\\-bom".toRegex().find(artifactId) != null) {
                         node.appendNode("type", "pom")
                     }
                     // from https://github.com/scenerygraphics/sciview/pull/399#issuecomment-904732945
@@ -386,7 +385,7 @@ tasks {
         }
     }
 
-    named<ShadowJar>("shadowJar") {
+    shadowJar {
         isZip64 = true
     }
 }
@@ -410,14 +409,12 @@ artifacts {
     }
 }
 
-jacoco {
-    toolVersion = "0.8.8"
-}
+jacoco.toolVersion = "0.8.8"
 
 java.withSourcesJar()
 
-plugins.withType<JacocoPlugin>() {
-    tasks["test"].finalizedBy("jacocoTestReport")
+plugins.withType<JacocoPlugin> {
+    tasks.test { finalizedBy("jacocoTestReport") }
 }
 
 // disable Gradle metadata file creation on Jitpack, as jitpack modifies
@@ -427,4 +424,3 @@ if (System.getenv("JITPACK") != null) {
         enabled = false
     }
 }
-

@@ -6,7 +6,7 @@ import graphics.scenery.Scene
 import graphics.scenery.Settings
 import graphics.scenery.controls.InputHandler
 import graphics.scenery.tests.unit.backends.FauxRenderer
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.junit.Test
 import org.scijava.ui.behaviour.ClickBehaviour
 import org.scijava.ui.behaviour.InputTrigger
@@ -20,7 +20,7 @@ import kotlin.test.assertTrue
  * @author Ulrik Guenther <hello@ulrik.is>
  */
 class InputHandlerTests {
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
 
     private fun prepareInputHandler(): InputHandler {
         val hub = Hub()

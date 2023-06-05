@@ -8,7 +8,7 @@ import graphics.scenery.controls.behaviours.GamepadBehaviour
 import graphics.scenery.controls.behaviours.GamepadClickBehaviour
 import graphics.scenery.utils.ExtractsNatives
 import graphics.scenery.utils.ExtractsNatives.Platform.*
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import net.java.games.input.*
 import org.lwjgl.system.Platform
 import org.scijava.ui.behaviour.*
@@ -27,7 +27,7 @@ import kotlin.math.abs
  * @author Ulrik Günther <hello@ulrik.is>
  */
 open class MouseAndKeyHandlerBase : ControllerListener, ExtractsNatives {
-    protected val logger by LazyLogger()
+    protected val logger by lazyLogger()
     /** ui-behaviour input trigger map */
     protected lateinit var inputTriggerMap: InputTriggerMap
 

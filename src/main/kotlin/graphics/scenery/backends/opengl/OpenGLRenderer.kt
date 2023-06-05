@@ -87,7 +87,7 @@ open class OpenGLRenderer(hub: Hub,
                           final override var embedIn: SceneryPanel? = null,
                           var embedInDrawable: GLAutoDrawable? = null) : Renderer(), Hubable, ClearGLEventListener {
     /** slf4j logger */
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
     private val className = this.javaClass.simpleName
     /** [GL4] instance handed over, coming from [ClearGLDefaultEventListener]*/
     private lateinit var gl: GL4

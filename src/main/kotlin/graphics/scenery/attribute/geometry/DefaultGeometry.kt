@@ -4,7 +4,7 @@ import graphics.scenery.BufferUtils
 import graphics.scenery.Node
 import graphics.scenery.OrientedBoundingBox
 import graphics.scenery.geometry.GeometryType
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.joml.Vector3f
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
@@ -18,7 +18,7 @@ open class DefaultGeometry(private var node: Node): Geometry {
     override var texcoordSize = 2
     override var dirty: Boolean = true
     override var geometryType = GeometryType.TRIANGLES
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
     override fun generateBoundingBox(children: List<Node>): OrientedBoundingBox? {
         val vertexBufferView = vertices.asReadOnlyBuffer()
         val boundingBoxCoords = floatArrayOf(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f)

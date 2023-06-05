@@ -6,7 +6,7 @@ import graphics.scenery.backends.opengl.OpenGLRenderer
 import graphics.scenery.backends.vulkan.VulkanRenderer
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.ExtractsNatives
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import graphics.scenery.utils.SceneryPanel
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
@@ -123,7 +123,7 @@ abstract class Renderer : Hubable {
      */
     @Suppress("UNUSED")
     fun toggleVR() {
-        val logger by LazyLogger()
+        val logger by lazyLogger()
         logger.info("Toggling VR!")
         val isStereo = renderConfigFile.substringBeforeLast(".").indexOf("Stereo") != -1
 
@@ -226,7 +226,7 @@ abstract class Renderer : Hubable {
      * Factory methods for creating renderers.
      */
     companion object {
-        val logger by LazyLogger()
+        val logger by lazyLogger()
 
         /**
          * Creates a new [Renderer] instance, based on what is available on the current platform, or set via

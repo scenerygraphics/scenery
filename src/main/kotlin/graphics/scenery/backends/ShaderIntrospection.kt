@@ -1,7 +1,7 @@
 package graphics.scenery.backends
 
 import graphics.scenery.backends.vulkan.toHexString
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.joml.Vector3i
 import org.lwjgl.system.MemoryStack.stackPush
 import org.lwjgl.system.MemoryUtil
@@ -23,7 +23,7 @@ class ShaderIntrospection(
     val vulkanSemantics: Boolean = true,
     val version: Int = 450
 ): AutoCloseable {
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
 
     protected val resources: Long
     protected val compiler: Long

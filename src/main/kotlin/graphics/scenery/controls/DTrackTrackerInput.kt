@@ -4,7 +4,7 @@ import art.DTrackSDK
 import graphics.scenery.Camera
 import graphics.scenery.Mesh
 import graphics.scenery.Node
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import kotlinx.coroutines.*
 import org.joml.*
 import org.scijava.ui.behaviour.*
@@ -21,7 +21,7 @@ import java.util.concurrent.ConcurrentHashMap
  */
 class DTrackTrackerInput(val host: String = "localhost", val port: Int = 5000, var defaultBodyId: String = "body-0"): TrackerInput {
     private var sdk: DTrackSDK = DTrackSDK(InetAddress.getByName(host), port)
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
 
     var numBodies: Int = 0
         protected set

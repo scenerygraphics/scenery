@@ -1,7 +1,7 @@
 package graphics.scenery.tests.unit.backends
 
 import graphics.scenery.backends.*
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.junit.Test
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
@@ -12,7 +12,7 @@ import kotlin.test.assertNotNull
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class ShadersTests {
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
 
     /**
      * Tests correct behaviour in the case a requested shader type is not found in a [Shaders] package.

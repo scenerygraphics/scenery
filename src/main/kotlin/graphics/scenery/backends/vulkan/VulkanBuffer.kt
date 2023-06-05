@@ -1,6 +1,6 @@
 package graphics.scenery.backends.vulkan
 
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.lwjgl.PointerBuffer
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.MemoryUtil.*
@@ -23,7 +23,7 @@ import kotlin.math.roundToInt
 open class VulkanBuffer(val device: VulkanDevice, var size: Long,
                    val usage: Int, val requestedMemoryProperties: Int = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
                    val wantAligned: Boolean = true, var suballocation: VulkanSuballocation? = null): AutoCloseable {
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
     private var currentPosition = 0L
     private var currentPointer: PointerBuffer? = null
 

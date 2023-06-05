@@ -1,7 +1,6 @@
 package graphics.scenery.backends
 
-import graphics.scenery.utils.LazyLogger
-import org.lwjgl.util.shaderc.Shaderc
+import graphics.scenery.utils.lazyLogger
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -10,7 +9,7 @@ import java.util.concurrent.ConcurrentHashMap
  * @author Ulrik Guenther <hello@ulrik.is>
  */
 sealed class Shaders() {
-    val logger by LazyLogger()
+    val logger by lazyLogger()
     var stale: Boolean = false
     val type: HashSet<ShaderType> = hashSetOf()
 

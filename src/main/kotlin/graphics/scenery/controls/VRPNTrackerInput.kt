@@ -5,7 +5,7 @@ import org.joml.Vector3f
 import graphics.scenery.Camera
 import graphics.scenery.Mesh
 import graphics.scenery.Node
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import graphics.scenery.utils.extensions.times
 import org.joml.Quaternionf
 import vrpn.Loader
@@ -20,7 +20,7 @@ import java.util.*
 */
 
 class VRPNTrackerInput(trackerAddress: String = "device@localhost:5500") : TrackerInput {
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
 
     var tracker: TrackerRemote? = null
 

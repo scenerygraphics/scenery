@@ -24,7 +24,7 @@ import javax.imageio.ImageIO
 open class Image(val contents: ByteBuffer, val width: Int, val height: Int, val depth: Int = 1) {
 
     companion object {
-        protected val logger by LazyLogger()
+        protected val logger by lazyLogger()
 
         private val StandardAlphaColorModel = ComponentColorModel(
             ColorSpace.getInstance(ColorSpace.CS_sRGB),

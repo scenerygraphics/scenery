@@ -1,6 +1,6 @@
 package graphics.scenery.controls.behaviours
 
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.scijava.ui.behaviour.ClickBehaviour
 import java.lang.reflect.InvocationTargetException
 
@@ -20,7 +20,7 @@ class EnumCycleCommand<T: Enum<*>>(private val enumClass: Class<T>,
                                    private val receiver: Any,
                                    private val method: String) : ClickBehaviour {
 
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
     private var currentIndex = 0
 
     /**

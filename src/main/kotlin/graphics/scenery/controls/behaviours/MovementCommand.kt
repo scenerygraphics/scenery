@@ -2,7 +2,7 @@ package graphics.scenery.controls.behaviours
 
 import graphics.scenery.Camera
 import graphics.scenery.Node
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
@@ -20,7 +20,7 @@ import kotlin.reflect.KProperty
 open class MovementCommand(private val direction: String, private var n: () -> Node?) : ClickBehaviour {
 
     private val node: Node? by NodeDelegate()
-    private val logger: Logger by LazyLogger()
+    private val logger: Logger by lazyLogger()
 
     protected inner class NodeDelegate {
         /** Returns the [graphics.scenery.Node] resulting from the evaluation of [n] */

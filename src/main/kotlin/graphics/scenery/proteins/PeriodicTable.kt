@@ -2,7 +2,7 @@ package graphics.scenery.proteins
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.joml.Vector3f
 import kotlin.collections.ArrayList
 
@@ -34,7 +34,7 @@ open class PeriodicTable {
     data class PeriodicTableau(@JsonProperty("Table") val table: ChemTable)
 
     val elementList = ArrayList<ChemicalElement>()
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
 
     init {
         //parsing the json file

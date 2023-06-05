@@ -3,7 +3,7 @@ package graphics.scenery.controls.behaviours
 import graphics.scenery.BoundingGrid
 import graphics.scenery.Camera
 import graphics.scenery.Node
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
@@ -23,7 +23,7 @@ open class MouseDragSphere(
     var filter: (Node) -> Boolean
 ) : DragBehaviour, WithCameraDelegateBase(camera) {
 
-    protected val logger by LazyLogger()
+    protected val logger by lazyLogger()
 
     protected var currentNode: Node? = null
     protected var currentHit: Vector3f = Vector3f()

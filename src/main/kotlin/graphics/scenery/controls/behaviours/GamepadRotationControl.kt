@@ -2,7 +2,7 @@ package graphics.scenery.controls.behaviours
 
 import graphics.scenery.Camera
 import graphics.scenery.Node
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import net.java.games.input.Component
 import org.joml.Quaternionf
 import kotlin.math.abs
@@ -24,7 +24,7 @@ open class GamepadRotationControl(override val axis: List<Component.Identifier>,
     private var lastX: Float = 0.0f
     private var lastY: Float = 0.0f
     private var firstEntered = true
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
 
     /** The [graphics.scenery.Node] this behaviour class controls */
     protected var node: Node? by NodeDelegate()

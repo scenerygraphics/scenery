@@ -5,12 +5,9 @@ import graphics.scenery.backends.ShaderIntrospection
 import graphics.scenery.backends.ShaderType
 import graphics.scenery.backends.Shaders
 import graphics.scenery.tests.examples.compute.ComputeShaderExample
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import graphics.scenery.utils.SystemHelpers.Companion.toIntArray
 import org.junit.Test
-import java.io.File
-import java.nio.ByteBuffer
-import kotlin.experimental.and
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
 
@@ -20,7 +17,7 @@ import kotlin.test.assertEquals
  * @author Ulrik Guenther <hello@ulrik.is>
  */
 class ShaderIntrospectionTests {
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
 
     /**
      * Tests creation and teardown behaviour.

@@ -1,8 +1,7 @@
 package graphics.scenery.controls.behaviours
 
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.scijava.ui.behaviour.ClickBehaviour
-import org.slf4j.LoggerFactory
 import java.lang.reflect.InvocationTargetException
 
 /**
@@ -15,7 +14,7 @@ import java.lang.reflect.InvocationTargetException
  */
 class ToggleCommand(private val receiver: Any, private val method: String) : ClickBehaviour {
 
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
 
     /**
      * This function is called upon arrival of an event that concerns

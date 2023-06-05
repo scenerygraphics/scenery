@@ -7,7 +7,7 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import graphics.scenery.utils.JsonDeserialisers
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import graphics.scenery.utils.extensions.minus
 import java.nio.file.Files
 import java.nio.file.Paths
@@ -104,7 +104,7 @@ class ScreenConfig {
      * ScreenConfig companion class for static functions
      */
     companion object {
-        private val logger by LazyLogger()
+        private val logger by lazyLogger()
 
         /**
          * Matches a single screen to the [config] given.

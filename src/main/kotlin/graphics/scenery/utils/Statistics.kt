@@ -18,7 +18,7 @@ import java.util.concurrent.TimeUnit
  * @author Ulrik Guenther <hello@ulrik.is>
  */
 class Statistics(override var hub: Hub?) : Hubable {
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
     private val dataSize = 100
     private val threadContext = Executors.newSingleThreadExecutor()
 

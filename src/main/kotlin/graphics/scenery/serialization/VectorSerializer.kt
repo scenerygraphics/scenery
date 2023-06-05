@@ -4,11 +4,11 @@ import com.esotericsoftware.kryo.Kryo
 import com.esotericsoftware.kryo.Serializer
 import com.esotericsoftware.kryo.io.Input
 import com.esotericsoftware.kryo.io.Output
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.joml.Vector3f
 
 class Vector3fSerializer: Serializer<Vector3f>() {
-    val logger by LazyLogger()
+    val logger by lazyLogger()
     override fun write(kryo: Kryo, output: Output, vector: Vector3f) {
         kryo.writeClassAndObject(output, floatArrayOf(vector.x, vector.y, vector.z))
 //        logger.info("Serialized ${vector.x}/${vector.y}/${vector.z}")

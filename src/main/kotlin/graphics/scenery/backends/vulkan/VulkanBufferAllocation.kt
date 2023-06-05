@@ -1,6 +1,6 @@
 package graphics.scenery.backends.vulkan
 
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 
 typealias VulkanBufferUsage = Int
 /**
@@ -29,7 +29,7 @@ class VulkanBufferAllocation(val usage: VulkanBufferUsage,
                              val buffer: VulkanBuffer,
                              val alignment: Int,
                              private val suballocations: ArrayList<VulkanSuballocation> = ArrayList<VulkanSuballocation>()) {
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
 
     /**
      * Adds a new [suballocation].

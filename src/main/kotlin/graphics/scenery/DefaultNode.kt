@@ -2,7 +2,7 @@ package graphics.scenery
 
 import graphics.scenery.attribute.DefaultAttributesMap
 import graphics.scenery.net.Networkable
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.joml.Vector3f
 import java.util.*
 import java.util.concurrent.CopyOnWriteArrayList
@@ -50,7 +50,7 @@ open class DefaultNode(name: String = "Node") : Node, Networkable {
 
     override var nodeType = "Node"
     override var boundingBox: OrientedBoundingBox? = null
-    override val logger by LazyLogger()
+    override val logger by lazyLogger()
 
     @Transient private val attributes = DefaultAttributesMap()
 

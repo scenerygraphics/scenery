@@ -1,7 +1,7 @@
 package graphics.scenery.tests.unit
 
 import graphics.scenery.Mesh
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -12,7 +12,7 @@ import kotlin.test.assertNotNull
  * @author Aryaman Gupta <aryaman1994@gmail.com>
  */
 class MeshTests {
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
 
     /**
      * Tests reading a [Mesh] from an OBJ file and verifies correct input and
