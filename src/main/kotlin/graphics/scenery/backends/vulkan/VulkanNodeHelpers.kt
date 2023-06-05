@@ -7,7 +7,7 @@ import graphics.scenery.attribute.material.Material
 import graphics.scenery.textures.Texture
 import graphics.scenery.textures.UpdatableTexture
 import graphics.scenery.ui.MenuNode
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.lwjgl.system.jemalloc.JEmalloc
 import org.lwjgl.vulkan.VK10
 import org.lwjgl.vulkan.VkBufferCopy
@@ -27,7 +27,7 @@ import kotlin.reflect.full.memberProperties
  * @author Ulrik Guenther <hello@ulrik.is>
  */
 object VulkanNodeHelpers {
-    val logger by LazyLogger()
+    val logger by lazyLogger()
 
     /**
      * Creates vertex buffers for a given [node] on [device].

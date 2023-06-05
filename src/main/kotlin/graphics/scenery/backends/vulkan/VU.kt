@@ -1,8 +1,7 @@
 package graphics.scenery.backends.vulkan
 
 import graphics.scenery.Blending
-import graphics.scenery.backends.RenderConfigReader
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.lwjgl.PointerBuffer
 import org.lwjgl.system.MemoryStack.stackPush
 import org.lwjgl.system.MemoryUtil.*
@@ -181,7 +180,7 @@ class VU {
      * Companion object for [VU] to access methods statically.
      */
     companion object {
-        private val logger by LazyLogger()
+        private val logger by lazyLogger()
 
         /**
          * Runs a lambda [function] containing a Vulkan call, and checks it for errors. Allowed error codes

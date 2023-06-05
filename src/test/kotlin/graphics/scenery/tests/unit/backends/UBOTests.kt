@@ -4,7 +4,7 @@ import org.joml.Matrix4f
 import org.joml.Vector3f
 import graphics.scenery.backends.UBO
 import graphics.scenery.numerics.Random
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import graphics.scenery.utils.VideoEncodingQuality
 import graphics.scenery.utils.extensions.compare
 import graphics.scenery.utils.extensions.plus
@@ -26,7 +26,7 @@ import kotlin.test.assertTrue
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class UBOTests {
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
 
     /**
      * Tests UBO serialisation in-order of the members

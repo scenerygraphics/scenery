@@ -8,7 +8,7 @@ import graphics.scenery.controls.TrackerInput
 import graphics.scenery.net.NodePublisher
 import graphics.scenery.net.NodeSubscriber
 import graphics.scenery.repl.REPL
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import graphics.scenery.utils.Statistics
 import java.util.concurrent.ConcurrentHashMap
 
@@ -19,7 +19,7 @@ import java.util.concurrent.ConcurrentHashMap
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class Hub(val name: String = "default") {
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
     /** Hash map storage for all the [SceneryElement] and their instances */
     val elements: ConcurrentHashMap<SceneryElement, Any> = ConcurrentHashMap()
 

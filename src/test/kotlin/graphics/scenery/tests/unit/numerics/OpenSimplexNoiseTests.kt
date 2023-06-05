@@ -1,7 +1,7 @@
 package graphics.scenery.tests.unit.numerics
 
 import graphics.scenery.numerics.OpenSimplexNoise
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.junit.Assert
 import org.junit.Test
 import java.util.zip.GZIPInputStream
@@ -16,7 +16,7 @@ import kotlin.random.Random
  * @author Ulrik Guenther <hello@ulrik.is>
  */
 class OpenSimplexNoiseTests {
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
 
     @Test
     fun test1DNoise() {
