@@ -31,20 +31,18 @@ import java.nio.ByteBuffer
 import kotlin.concurrent.thread
 
 
-class VDIGenerationExample : SceneryBase("Volume Manager Switching Example", 512, 512) {
+class VDIGenerationExample : SceneryBase("Volume Generation Example", 512, 512) {
 
     val maxSupersegments = System.getProperty("VolumeBenchmark.NumSupersegments")?.toInt()?: 20
     val context: ZContext = ZContext(4)
 
-    val separateDepth = true
     val world_abs = false
     var cnt = 0
 
 
     override fun init() {
 
-        // Step 1: Create rendere, volume and camera
-
+        // Step 1: Create renderer, volume and camera
         renderer = hub.add(
             SceneryElement.Renderer,
             Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
@@ -72,6 +70,7 @@ class VDIGenerationExample : SceneryBase("Volume Manager Switching Example", 512
 
         // Step 2: Create VDI Volume Manager
         val vdiVolumeManager =  vdiFull(windowWidth, windowHeight, maxSupersegments, scene, hub)
+//        val vdiVolumeManager = VDIVolumeManager( hub, windowWidth, windowHeight, maxSupersegments, scene).createVDIVolumeManger()
 
         //step 3: switch the volume's current volume manager to VDI volume manager
         volume.volumeManager = vdiVolumeManager
@@ -192,12 +191,10 @@ class VDIGenerationExample : SceneryBase("Volume Manager Switching Example", 512
         val colorCnt = AtomicInteger(0)
         (renderer as? VulkanRenderer)?.persistentTextureRequests?.add(vdiColor to colorCnt)
 
+        val vdiDepth = vdiVolumeManager.material().textures["OutputSubVDIDepth"]!!
         val depthCnt = AtomicInteger(0)
-        var vdiDepth: Texture? = null
-        if (separateDepth) {
-            vdiDepth = vdiVolumeManager.material().textures["OutputSubVDIDepth"]!!
-            (renderer as? VulkanRenderer)?.persistentTextureRequests?.add(vdiDepth to depthCnt)
-        }
+        (renderer as? VulkanRenderer)?.persistentTextureRequests?.add(vdiDepth to depthCnt)
+
 
         val gridCells = vdiVolumeManager.material().textures["OctreeCells"]!!
         val gridTexturesCnt = AtomicInteger(0)
@@ -217,9 +214,8 @@ class VDIGenerationExample : SceneryBase("Volume Manager Switching Example", 512
             prevColor = colorCnt.get()
             prevDepth = depthCnt.get()
             vdiColorBuffer = vdiColor.contents
-            if (separateDepth) {
-                vdiDepthBuffer = vdiDepth!!.contents
-            }
+            vdiDepthBuffer = vdiDepth!!.contents
+
             gridCellsBuff = gridCells.contents
 
             tGeneration.end = System.nanoTime()
@@ -237,16 +233,11 @@ class VDIGenerationExample : SceneryBase("Volume Manager Switching Example", 512
                 logger.info("written the dump")
                 file.close()
 
-                var fileName = ""
-                if (!world_abs) {
-                    fileName = "VDI_${cnt}_ndc"
-                }
+                var fileName = "VDI_${cnt}_ndc"
+                SystemHelpers.dumpToFile(vdiColorBuffer!!, "${fileName}_col")
+                SystemHelpers.dumpToFile(vdiDepthBuffer!!, "${fileName}_depth")
+                SystemHelpers.dumpToFile(gridCellsBuff!!, "${fileName}_octree")
 
-                if (separateDepth) {
-                    SystemHelpers.dumpToFile(vdiColorBuffer!!, "${fileName}_col")
-                    SystemHelpers.dumpToFile(vdiDepthBuffer!!, "${fileName}_depth")
-                    SystemHelpers.dumpToFile(gridCellsBuff!!, "${fileName}_octree")
-                }
                 logger.info("Wrote VDI $cnt")
                 VDIsGenerated.incrementAndGet()
             }
