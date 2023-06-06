@@ -265,7 +265,7 @@ class VolumeManager(
         segments[SegmentType.FragmentShader] = SegmentTemplate(
             this.javaClass,
             "BDVVolume.frag",
-            "intersectBoundingBox", "vis", "SampleVolume", "Convert", "Accumulate"
+            "intersectBoundingBox", "vis", "localNear", "localFar", "SampleVolume", "Convert", "Accumulate"
         )
         segments[SegmentType.MaxDepth] = SegmentTemplate(
             this.javaClass,
@@ -301,19 +301,46 @@ class VolumeManager(
         )
         segments[SegmentType.AccumulatorMultiresolution] = SegmentTemplate(
             "AccumulateBlockVolume.frag",
-            "vis", "sampleVolume", "convert"
+            "vis", "localNear", "localFar", "sampleVolume", "convert"
         )
         segments[SegmentType.Accumulator] = SegmentTemplate(
             "AccumulateSimpleVolume.frag",
-            "vis", "sampleVolume", "convert"
+            "vis", "localNear", "localFar", "sampleVolume", "convert"
         )
 
         customSegments?.forEach { type, segment -> segments[type] = segment }
 
+        var triggered = false
         val additionalBindings = customBindings
-        ?: TriConsumer { _: Map<SegmentType, SegmentTemplate>, instances: Map<SegmentType, Segment>, _: Int ->
-                logger.debug("Connecting additional bindings")
+
+            ?: TriConsumer { _: Map<SegmentType, SegmentTemplate>, instances: Map<SegmentType, Segment>, i: Int ->
+                logger.info("Connecting additional bindings")
+
+                if(!triggered) {
+                    instances[SegmentType.FragmentShader]?.repeat("localNear", n)
+                    instances[SegmentType.FragmentShader]?.repeat("localFar", n)
+                    triggered = true
+                }
+
+                logger.info("Connecting localNear/localFar for $i")
+//                instances[SegmentType.FragmentShader]?.bind(
+//                    "localNear",
+//                    i,
+//                    instances[SegmentType.AccumulatorMultiresolution]
+//                )
+
+                instances[SegmentType.FragmentShader]?.bind("localNear", i, instances[SegmentType.Accumulator])
+
+//                instances[SegmentType.FragmentShader]?.bind(
+//                    "localFar",
+//                    i,
+//                    instances[SegmentType.AccumulatorMultiresolution]
+//                )
+
+                instances[SegmentType.FragmentShader]?.bind("localFar", i, instances[SegmentType.Accumulator])
+
                 instances[SegmentType.SampleMultiresolutionVolume]?.bind("convert", instances[SegmentType.Convert])
+
                 instances[SegmentType.SampleVolume]?.bind("convert", instances[SegmentType.Convert])
             }
 
