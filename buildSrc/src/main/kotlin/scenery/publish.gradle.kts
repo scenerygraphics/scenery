@@ -96,6 +96,10 @@ publishing {
                 //                artifact("${rootProject.name}-${rootProject.version}-sources.jar")
                 //                artifact("${rootProject.name}-${rootProject.version}-javadoc.jar")
             }
+
+            // skip shadow jar from publishing. Workaround for https://github.com/johnrengelman/shadow/issues/651
+            val javaComponent = components["java"] as AdhocComponentWithVariants
+            javaComponent.withVariantsFromConfiguration(configurations["shadowRuntimeElements"]) { skip()
         }
     }
 
