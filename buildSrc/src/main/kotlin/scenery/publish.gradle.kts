@@ -4,6 +4,7 @@ package scenery
 plugins {
     `maven-publish`
     //    id("org.jetbrains.dokka")
+    id("com.github.johnrengelman.shadow")
 }
 
 val sceneryUrl = "http://scenery.graphics"
@@ -99,19 +100,20 @@ publishing {
 
             // skip shadow jar from publishing. Workaround for https://github.com/johnrengelman/shadow/issues/651
             val javaComponent = components["java"] as AdhocComponentWithVariants
-            javaComponent.withVariantsFromConfiguration(configurations["shadowRuntimeElements"]) { skip()
+            javaComponent.withVariantsFromConfiguration(configurations["shadowRuntimeElements"]) { skip() }
         }
     }
 
     repositories.maven {
         name = "sonatype"
-        credentials(PasswordCredentials::class)
+//        credentials(PasswordCredentials::class)
 
         val releaseRepo = "https://oss.sonatype.org/service/local/staging/deploy/maven2/"
         val snapshotRepo = "https://oss.sonatype.org/content/repositories/snapshots/"
 
-        val snapshot = rootProject.version.toString().endsWith("SNAPSHOT")
-        url = uri(if (snapshot) snapshotRepo else releaseRepo)
+//        val snapshot = rootProject.version.toString().endsWith("SNAPSHOT")
+//        url = uri(if (snapshot) snapshotRepo else releaseRepo)
+        url = uri(".")
         //            url = URI("https://oss.sonatype.org/service/local/staging/deploy/maven2")
     }
 }

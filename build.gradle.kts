@@ -15,7 +15,7 @@ plugins {
     scenery.sign
 //    id("com.github.elect86.sciJava") version "0.0.4"
     jacoco
-    id("com.github.johnrengelman.shadow") version "8.1.1"
+    id("com.github.johnrengelman.shadow")
 }
 
 repositories {
