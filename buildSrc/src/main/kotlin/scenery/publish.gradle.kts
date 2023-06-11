@@ -1,13 +1,36 @@
 package scenery
 
+import java.net.URL
+
 // configuration of the Maven artifacts
 plugins {
     `maven-publish`
-    //    id("org.jetbrains.dokka")
+    id("org.jetbrains.dokka")
 }
 
 val sceneryUrl = "http://scenery.graphics"
 
+
+tasks {
+    dokkaHtml {
+        dokkaSourceSets.configureEach {
+            sourceLink {
+                localDirectory.set(file("src/main/kotlin"))
+                remoteUrl.set(URL("https://github.com/scenerygraphics/scenery/tree/master/src/main/kotlin"))
+                remoteLineSuffix.set("#L")
+            }
+        }
+    }
+    dokkaJavadoc {
+        dokkaSourceSets.configureEach {
+            sourceLink {
+                localDirectory.set(file("src/main/kotlin"))
+                remoteUrl.set(URL("https://github.com/scenerygraphics/scenery/tree/master/src/main/kotlin"))
+                remoteLineSuffix.set("#L")
+            }
+        }
+    }
+}
 publishing {
     publications {
         create<MavenPublication>("maven") {
@@ -17,6 +40,21 @@ publishing {
 
             from(components["java"])
 
+            val dokkaJavadocJar by tasks.register<Jar>("dokkaJavadocJar") {
+                dependsOn(tasks.dokkaJavadoc)
+                from(tasks.dokkaJavadoc.flatMap { it.outputDirectory })
+                archiveClassifier.set("javadoc")
+            }
+
+            val dokkaHtmlJar by tasks.register<Jar>("dokkaHtmlJar") {
+                dependsOn(tasks.dokkaHtml)
+                from(tasks.dokkaHtml.flatMap { it.outputDirectory })
+                archiveClassifier.set("html-doc")
+            }
+
+
+            artifact(dokkaJavadocJar)
+            artifact(dokkaHtmlJar)
             // TODO, resolved dependencies versions? https://docs.gradle.org/current/userguide/publishing_maven.html#publishing_maven:resolved_dependencies
 
             pom {
@@ -93,8 +131,9 @@ publishing {
                     //                        <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
                     //                    </repository>
                 }
-                //                artifact("${rootProject.name}-${rootProject.version}-sources.jar")
-                //                artifact("${rootProject.name}-${rootProject.version}-javadoc.jar")
+
+//                artifact("${rootProject.name}-${rootProject.version}-sources.jar")
+//                artifact("${rootProject.name}-${rootProject.version}-javadoc.jar")
             }
         }
     }
