@@ -2,23 +2,12 @@ package graphics.scenery.tests.examples.volumes
 
 import graphics.scenery.*
 import graphics.scenery.volumes.VolumeManager
-import tpietzsch.shadergen.generate.SegmentTemplate
-import tpietzsch.shadergen.generate.SegmentType
 import graphics.scenery.backends.Renderer
-import graphics.scenery.backends.Shaders
-import graphics.scenery.compute.ComputeMetadata
-import graphics.scenery.compute.InvocationType
-import graphics.scenery.textures.Texture
-import graphics.scenery.utils.Image
 import graphics.scenery.volumes.Colormap
 import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.Volume
 import graphics.scenery.volumes.vdi.*
-import net.imglib2.type.numeric.integer.UnsignedIntType
-import net.imglib2.type.numeric.real.FloatType
 import org.joml.Vector3f
-import org.joml.Vector3i
-import org.lwjgl.system.MemoryUtil
 import java.nio.file.Paths
 import java.util.concurrent.atomic.AtomicInteger
 import graphics.scenery.backends.vulkan.VulkanRenderer
@@ -36,9 +25,7 @@ class VDIGenerationExample : SceneryBase("Volume Generation Example", 512, 512) 
     val maxSupersegments = System.getProperty("VolumeBenchmark.NumSupersegments")?.toInt()?: 20
     val context: ZContext = ZContext(4)
 
-    val world_abs = false
     var cnt = 0
-
 
     override fun init() {
 
@@ -53,7 +40,6 @@ class VDIGenerationExample : SceneryBase("Volume Generation Example", 512, 512) 
                 position = Vector3f(0.0f, 0.5f, 5.0f)
             }
             perspectiveCamera(50.0f, windowWidth, windowHeight)
-
             scene.addChild(this)
         }
 
@@ -69,8 +55,7 @@ class VDIGenerationExample : SceneryBase("Volume Generation Example", 512, 512) 
         scene.addChild(volume)
 
         // Step 2: Create VDI Volume Manager
-        val vdiVolumeManager =  vdiFull(windowWidth, windowHeight, maxSupersegments, scene, hub)
-//        val vdiVolumeManager = VDIVolumeManager( hub, windowWidth, windowHeight, maxSupersegments, scene).createVDIVolumeManger()
+        val vdiVolumeManager = VDIVolumeManager( hub, windowWidth, windowHeight, maxSupersegments, scene).createVDIVolumeManger()
 
         //step 3: switch the volume's current volume manager to VDI volume manager
         volume.volumeManager = vdiVolumeManager
@@ -99,78 +84,11 @@ class VDIGenerationExample : SceneryBase("Volume Generation Example", 512, 512) 
             )
 
         thread {
-            storeVDI(vdiVolumeManager, vdiData )
+            storeVDI(vdiVolumeManager, vdiData)
         }
 
+
     }
-
-    private fun instantiateVolumeManager(raycastShader: String, accumulateShader: String, hub: Hub): VolumeManager {
-
-        return VolumeManager(
-            hub, useCompute = true,
-            customSegments = hashMapOf(
-                SegmentType.FragmentShader to SegmentTemplate(
-                    this::class.java,
-                    raycastShader,
-                    "intersectBoundingBox", "vis", "localNear", "localFar", "SampleVolume", "Convert", "Accumulate",
-                ),
-                SegmentType.Accumulator to SegmentTemplate(
-                    accumulateShader,
-                    "vis", "localNear", "localFar", "sampleVolume", "convert",
-                ),
-            ),
-        )
-    }
-
-    private fun vdiFull(windowWidth: Int, windowHeight: Int, maxSupersegments: Int, scene: Scene, hub: Hub): VolumeManager {
-        val raycastShader = "VDIGenerator.comp"
-        val accumulateShader = "AccumulateVDI.comp"
-        val volumeManager = instantiateVolumeManager(raycastShader, accumulateShader, hub)
-
-        val outputSubColorBuffer = MemoryUtil.memCalloc(windowHeight*windowWidth*4*maxSupersegments * 4)
-
-        val outputSubDepthBuffer = MemoryUtil.memCalloc(windowHeight*windowWidth*2*maxSupersegments*2 * 2)
-
-        val numGridCells = Vector3f(windowWidth.toFloat() / 8f, windowHeight.toFloat() / 8f, maxSupersegments.toFloat())
-
-        val lowestLevel = MemoryUtil.memCalloc(numGridCells.x.toInt() * numGridCells.y.toInt() * numGridCells.z.toInt() * 4)
-
-        val outputSubVDIColor: Texture = Texture.fromImage(
-            Image(outputSubColorBuffer, maxSupersegments, windowHeight, windowWidth), usage = hashSetOf( Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
-            type = FloatType(), channels = 4, mipmap = false,  normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
-        volumeManager.customTextures.add("OutputSubVDIColor")
-        volumeManager.material().textures["OutputSubVDIColor"] = outputSubVDIColor
-
-        val outputSubVDIDepth: Texture = Texture.fromImage(
-            Image(outputSubDepthBuffer, 2 * maxSupersegments, windowHeight, windowWidth),  usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
-            type = FloatType(), channels = 1, mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
-        volumeManager.customTextures.add("OutputSubVDIDepth")
-        volumeManager.material().textures["OutputSubVDIDepth"] = outputSubVDIDepth
-
-        val gridCells: Texture = Texture.fromImage(
-            Image(lowestLevel, numGridCells.x.toInt(), numGridCells.y.toInt(), numGridCells.z.toInt()), channels = 1, type = UnsignedIntType(),
-            usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
-        volumeManager.customTextures.add("OctreeCells")
-        volumeManager.material().textures["OctreeCells"] = gridCells
-
-        volumeManager.customUniforms.add("doGeneration")
-        volumeManager.shaderProperties["doGeneration"] = true
-
-        val compute = RichNode()
-        compute.setMaterial(ShaderMaterial(Shaders.ShadersFromFiles(arrayOf("GridCellsToZero.comp"), this::class.java)))
-
-        compute.metadata["ComputeMetadata"] = ComputeMetadata(
-            workSizes = Vector3i(numGridCells.x.toInt(), numGridCells.y.toInt(), 1),
-            invocationType = InvocationType.Permanent
-        )
-
-        compute.material().textures["GridCells"] = gridCells
-
-        scene.addChild(compute)
-
-        return volumeManager
-    }
-
     private fun storeVDI(vdiVolumeManager: VolumeManager, vdiData: VDIData) {
         data class Timer(var start: Long, var end: Long)
         val tGeneration = Timer(0, 0)
@@ -182,7 +100,6 @@ class VDIGenerationExample : SceneryBase("Volume Generation Example", 512, 512) 
         val volumeList = ArrayList<BufferedVolume>()
         volumeList.add(vdiVolumeManager.nodes.first() as BufferedVolume)
         val VDIsGenerated = AtomicInteger(0)
-
         while (renderer?.firstImageReady == false) {
             Thread.sleep(50)
         }
@@ -200,7 +117,6 @@ class VDIGenerationExample : SceneryBase("Volume Generation Example", 512, 512) 
         val gridTexturesCnt = AtomicInteger(0)
         (renderer as? VulkanRenderer)?.persistentTextureRequests?.add(gridCells to gridTexturesCnt)
 
-
         var prevColor = colorCnt.get()
         var prevDepth = depthCnt.get()
 
@@ -213,10 +129,12 @@ class VDIGenerationExample : SceneryBase("Volume Generation Example", 512, 512) 
             }
             prevColor = colorCnt.get()
             prevDepth = depthCnt.get()
+
+
             vdiColorBuffer = vdiColor.contents
             vdiDepthBuffer = vdiDepth!!.contents
-
             gridCellsBuff = gridCells.contents
+
 
             tGeneration.end = System.nanoTime()
 
@@ -232,6 +150,13 @@ class VDIGenerationExample : SceneryBase("Volume Generation Example", 512, 512) 
                 VDIDataIO.write(vdiData, file)
                 logger.info("written the dump")
                 file.close()
+
+//                logger.warn("***************Gridcells************************")
+//                logger.warn(gridCells.contents?.remaining()?.let { ByteArray(it) }.contentToString())
+//                logger.warn("***************vdicolor************************")
+//                logger.warn(vdiColor.contents?.remaining()?.let { ByteArray(it) }.contentToString())
+//                logger.warn("***************vdidepth************************")
+//                logger.warn(vdiDepth.contents?.remaining()?.let { ByteArray(it) }.contentToString())
 
                 var fileName = "VDI_${cnt}_ndc"
                 SystemHelpers.dumpToFile(vdiColorBuffer!!, "${fileName}_col")
