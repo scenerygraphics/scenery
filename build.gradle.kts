@@ -10,12 +10,11 @@ plugins {
     id("org.jetbrains.dokka")
 
     scenery.base
-//    scenery.docs
     scenery.publish
     scenery.sign
 //    id("com.github.elect86.sciJava") version "0.0.4"
     jacoco
-    id("com.github.johnrengelman.shadow") version "8.1.1"
+    id("com.github.johnrengelman.shadow") apply false
 }
 
 repositories {
@@ -139,7 +138,6 @@ val isRelease: Boolean
     get() = System.getProperty("release") == "true"
 
 tasks {
-
     withType<KotlinCompile>().all {
         kotlinOptions {
             jvmTarget = project.properties["jvmTarget"]?.toString() ?: "11"
@@ -379,27 +377,15 @@ tasks {
         }
     }
 
-    shadowJar {
-        isZip64 = true
+    dokkaJavadoc {
+        enabled = isRelease
     }
-}
 
-val dokkaJavadocJar by tasks.register<Jar>("dokkaJavadocJar") {
-    dependsOn(tasks.dokkaJavadoc)
-    from(tasks.dokkaJavadoc.get().outputDirectory.get())
-    archiveClassifier.set("javadoc")
-}
-
-val dokkaHtmlJar by tasks.register<Jar>("dokkaHtmlJar") {
-    dependsOn(tasks.dokkaHtml)
-    from(tasks.dokkaHtml.get().outputDirectory.get())
-    archiveClassifier.set("html-doc")
-}
-
-artifacts {
-    if(isRelease) {
-        archives(dokkaJavadocJar)
-        archives(dokkaHtmlJar)
+    if(project.properties["buildFatJAR"] == true) {
+        apply(plugin = "com.github.johnrengelman.shadow")
+        jar {
+            isZip64 = true
+        }
     }
 }
 
