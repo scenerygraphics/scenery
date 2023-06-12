@@ -1,6 +1,7 @@
 package graphics.scenery.backends.vulkan
 
 import graphics.scenery.*
+import graphics.scenery.attribute.buffers.BufferType
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.attribute.renderable.DelegatesRenderable
 import graphics.scenery.attribute.renderable.HasCustomRenderable
@@ -812,42 +813,24 @@ open class VulkanRenderer(hub: Hub,
 
     fun updateNodeSSBOs(node: Node) {
         val renderable = node.renderableOrNull() ?: return
+        var s: VulkanObjectState = renderable.rendererMetadata() ?: throw IllegalStateException("Node ${node.name} does not contain metadata object")
         node.ifBuffers {
-            // TODO: Decide: either update each SSBO separately like now OR batch them and update them together
-            val keys = buffers.keys
-            keys.forEach {
-                if(it.lowercase().contains("ssbo") && it.lowercase().contains("upload"))
+            // TODO: Work with upload and download pool? What happens if both upload and download want to be used in one buffer? Exclude this possibility?
+            buffers.forEach { (name, description) ->
+                val type = description.type
+                if(type is BufferType.Custom)
                 {
-                    if(buffers[it]?.remaining()!! > 0) {
-                        renderable.rendererMetadata()?.let { s ->
-                            VulkanNodeHelpers.updateShaderStorageBuffers(
-                                device,
-                                node,
-                                it,
-                                s,
-                                stagingPool,
-                                ssboUploadPool,
-                                commandPools,
-                                queue
-                            )
-                        }
-                    }
-                } else if(it.lowercase().contains("ssbo") && it.lowercase().contains("download"))
-                {
-                    if(buffers[it]?.remaining()!! > 0) {
-                        renderable.rendererMetadata()?.let { s ->
-                            VulkanNodeHelpers.updateShaderStorageBuffers(
-                                device,
-                                node,
-                                it,
-                                s,
-                                stagingPool,
-                                ssboDownloadPool,
-                                commandPools,
-                                queue
-                            )
-                        }
-                    }
+                    s = VulkanNodeHelpers.updateShaderStorageBuffers(
+                        device,
+                        node,
+                        name,
+                        s,
+                        stagingPool,
+                        ssboUploadPool,
+                        ssboDownloadPool,
+                        commandPools,
+                        queue
+                    )
                 }
             }
         }
@@ -951,30 +934,19 @@ open class VulkanRenderer(hub: Hub,
 
         node.ifBuffers {
             logger.debug("Initializing ssbos for ${node.name}")
-            val keys = buffers.keys
             // TODO: change binding according to SSBO number/index, when multiple SSBOs are present -> double check with ShaderIntrospection
             // TODO: inside update, the descriptor sets get created
-            keys.forEach {
-                if(it.lowercase().contains("ssbo") && it.lowercase().contains("upload"))
+            buffers.forEach { (name, description) ->
+                val type = description.type
+                if(type is BufferType.Custom)
                 {
                     s = VulkanNodeHelpers.updateShaderStorageBuffers(
                         device,
                         node,
-                        it,
+                        name,
                         s,
                         stagingPool,
                         ssboUploadPool,
-                        commandPools,
-                        queue
-                    )
-                } else if(it.lowercase().contains("ssbo") && it.lowercase().contains("download"))
-                {
-                    s = VulkanNodeHelpers.updateShaderStorageBuffers(
-                        device,
-                        node,
-                        it,
-                        s,
-                        stagingPool,
                         ssboDownloadPool,
                         commandPools,
                         queue

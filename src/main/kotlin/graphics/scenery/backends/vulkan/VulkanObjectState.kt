@@ -44,7 +44,7 @@ open class VulkanObjectState {
 
     //Like this here?
     var SSBOs = LinkedHashMap<String, Pair<Long, VulkanUBO>>()
-    var SSBOBackingBuffers = LinkedHashMap<String, VulkanBuffer>()
+    var SSBOBuffers = LinkedHashMap<String, VulkanBuffer>()
 
     /** [VulkanTexture]s used by the [graphics.scenery.Node] this metadata object is attached to. */
     var textures = ConcurrentHashMap<String, VulkanTexture>()

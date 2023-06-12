@@ -2,12 +2,16 @@ package graphics.scenery.backends.vulkan
 
 import graphics.scenery.*
 import graphics.scenery.attribute.buffers.BufferType
+import graphics.scenery.attribute.buffers.Buffers
 import graphics.scenery.backends.*
 import graphics.scenery.attribute.renderable.Renderable
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.textures.Texture
 import graphics.scenery.textures.UpdatableTexture
 import graphics.scenery.utils.lazyLogger
+import org.lwjgl.system.MemoryStack
+import org.lwjgl.system.MemoryStack.stackPush
+import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.jemalloc.JEmalloc
 import org.lwjgl.vulkan.VK10
 import org.lwjgl.vulkan.VK10.*
@@ -159,61 +163,96 @@ object VulkanNodeHelpers {
     fun updateShaderStorageBuffers(
     device: VulkanDevice,
     node: Node,
-    key: String,
+    name: String,
     state: VulkanObjectState,
     stagingPool: VulkanBufferPool,
-    ssboPool: VulkanBufferPool,
+    ssboUploadPool: VulkanBufferPool,
+    ssboDownloadPool: VulkanBufferPool,
     commandPools: VulkanRenderer.CommandPools,
     queue: VkQueue
     ): VulkanObjectState {
         val buffers = node.buffersOrNull() ?: return state
-        val ssboOriginalBuffer = buffers.buffers[key] ?: return state
-        val ssboDuplBuffer = ssboOriginalBuffer.duplicate()
-
-        val ssboSize = ssboDuplBuffer.remaining()
-
-        val description = buffers.description[key] ?: return state
-        /*
-        // TODO: How do I check this?
-        if(description.BufferType != BufferType.Custom(UBO))
+        val description = buffers.buffers[name] ?: return state
+        val type = description.type
+        val usage = description.usage
+        if(type !is BufferType.Custom) {
             return state
-         */
+        }
+        val backingBuffer = description.buffer.duplicate()
 
-        if(ssboSize < 0)
+        val ssboSize = backingBuffer.remaining()
+        if(ssboSize <= 0)
             return state
 
-        // TODO: BIGTIME! Update gets called during node init and during the update loop -> figure out how to handle seperaet cases
-        //  -> if backing buffer is already present, if descriptor is already present /dsl is the same!
+        // Create a buffer that can be copied from out of the buffers buffer (or use it directly)
 
-        state.SSBOBackingBuffers[key] = VulkanBuffer(device, ssboSize.toLong(),
-            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT)
 
-        val dsl = device.createDescriptorSetLayout(
-            listOf(Pair(VK10.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1)),
-            0,
-            VK10.VK_SHADER_STAGE_ALL
-        )
 
-        val ssboUbo = VulkanUBO(device, state.SSBOBackingBuffers[key])
+        var stagingUpdated = false
+        // TODO: get the content from backingBuffer, put them into a stagingBuffer and upload them into the vulkanBuffer, which then is used during vkUpdateDescriptorSet?
+        val ssboStagingBuffer = state.SSBOBuffers[name+"Staging"]
+        val stagingBuffer = if(ssboStagingBuffer != null && ssboStagingBuffer.size >= ssboSize) {
+            ssboStagingBuffer
+        } else {
+            logger.debug("Creating new SSBO Staging Buffer")
 
-        // TODO: get the content from ssboDuplBuffer, but them into a staging buffer and upload them into the backing buffer, which then is
-        // used during vkUpdateDescriptorSet?
-        val stagingBuffer = VulkanBuffer(device,
-            (1.2 * ssboSize).toLong(),
-            VK10.VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-            VK10.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-            wantAligned = true)
+            val buffer = stagingPool.createBuffer(ssboSize)
+            state.SSBOBuffers[name+"Staging"] = buffer
+            stagingUpdated = true
+            buffer
+        }
 
+
+
+        val ssboUbo = VulkanUBO(device, state.SSBOBuffers[name+"Staging"])
         ssboUbo.updateBackingBuffer(stagingBuffer)
         ssboUbo.createUniformBuffer()
 
 
+        val ssboBufferCurrent = state.SSBOBuffers[name]
+        val ssboBuffer = if(ssboBufferCurrent != null
+            && ssboBufferCurrent.size >= ssboSize
+            && ssboBufferCurrent.size < ssboSize * 1.2
+        ) {
+            ssboBufferCurrent
+        } else {
+            logger.debug("Creating new SSBO Staging Buffer")
+            val buffer = when(usage)
+            {
+                hashSetOf(Buffers.BufferUsage.Upload) -> ssboUploadPool.createBuffer(ssboSize)
+                hashSetOf(Buffers.BufferUsage.Download) -> ssboDownloadPool.createBuffer(ssboSize)
+                else -> ssboUploadPool.createBuffer(ssboSize)
+            }
+            state.SSBOBuffers[name] = buffer
+            buffer
+        }
 
-        val ds = device.createDescriptorSet(
-            dsl, 1, ssboUbo.descriptor)
+        stackPush().use { stack ->
+            with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
+                val copyRegion = VkBufferCopy.calloc(1, stack)
+                    .size(ssboSize * 1L)
 
-        state.requiredDescriptorSets[key] = ds
-        state.SSBOs[key] = ds to ssboUbo
+                VK10.vkCmdCopyBuffer(
+                    this,
+                    stagingBuffer.vulkanBuffer,
+                    ssboBuffer.vulkanBuffer,
+                    copyRegion
+                )
+
+                this.endCommandBuffer(device, commandPools.Standard, queue, flush = true, dealloc = true)
+            }
+        }
+
+        var ds = state.requiredDescriptorSets[name]
+        if(stagingUpdated || ds == null)
+        {
+            val dsl = device.createDescriptorSetLayout(listOf(Pair(VK10.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1)), 0, VK10.VK_SHADER_STAGE_ALL)
+            // TODO: How do I set the descriptor set number???
+            ds = device.createDescriptorSet(
+                dsl, 1, ssboUbo.descriptor, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER)
+            state.requiredDescriptorSets[name] = ds
+        }
+        state.SSBOs[name] = ds to ssboUbo
 
 
         return state
