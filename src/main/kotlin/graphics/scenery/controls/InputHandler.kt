@@ -359,7 +359,6 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?, for
     companion object {
         private val availableInputHandlers = mutableListOf<Class<*>>(
             GLFWMouseAndKeyHandler::class.java,
-            JOGLMouseAndKeyHandler::class.java,
             SwingMouseAndKeyHandler::class.java
         )
 

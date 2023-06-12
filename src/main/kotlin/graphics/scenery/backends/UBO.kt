@@ -1,7 +1,5 @@
 package graphics.scenery.backends
 
-import cleargl.GLMatrix
-import cleargl.GLVector
 import gnu.trove.map.hash.TIntObjectHashMap
 import graphics.scenery.utils.lazyLogger
 import org.joml.*
@@ -67,8 +65,6 @@ open class UBO {
     @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
     protected fun Any.objectId(): Int {
         return when(this) {
-            is GLVector -> 0
-            is GLMatrix -> 1
             is Float, is java.lang.Float -> 2
             is Double, is java.lang.Double -> 3
             is Int, is Integer -> 4

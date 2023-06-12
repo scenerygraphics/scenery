@@ -16,11 +16,6 @@ open class SceneryWindow {
     class UninitializedWindow : SceneryWindow()
     /** GLFW window, with [window] being the pointer to GLFW's window object. */
     class GLFWWindow(var window: Long): SceneryWindow()
-    /** ClearGL (JOGL) window, with [window] being the reference to a [cleargl.ClearGLWindow]. */
-    class ClearGLWindow(var window: cleargl.ClearGLWindow): SceneryWindow()
-    /** JOGL GLAutoDrawable, with [drawable] being the reference to a [GLAutoDrawable]. */
-    class JOGLDrawable(var drawable: GLAutoDrawable): SceneryWindow()
-
     /** Swing window with [panel] being the [SceneryJPanel] */
     class SwingWindow(var panel: SceneryJPanel): SceneryWindow()
     /** Headless window with no chrome whatsoever. */
@@ -46,7 +41,6 @@ open class SceneryWindow {
             when(this) {
                 is UninitializedWindow -> {}
                 is GLFWWindow -> glfwSetWindowTitle(window, value)
-                is ClearGLWindow -> window.windowTitle = value
                 is SwingWindow -> {
                     val window = SwingUtilities.getWindowAncestor(panel)
                     if(window != null) {
