@@ -12,12 +12,12 @@ import kotlin.concurrent.thread
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class TexturedCubeExample : SceneryBase("TexturedCubeExample") {
+class TexturedCubeExample : SceneryBase("TexturedCubeExample", wantREPL = false) {
     override fun init() {
         renderer = hub.add(SceneryElement.Renderer,
             Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
 
-        val box = Box(Vector3f(1.0f, 1.0f, 1.0f))
+        val box = Box(Vector3f(1.0f, 1.0f, 2.0f))
         box.name = "le box du win"
         box.material {
             textures["diffuse"] = Texture.fromImage(Image.fromResource("textures/helix.png", TexturedCubeExample::class.java))

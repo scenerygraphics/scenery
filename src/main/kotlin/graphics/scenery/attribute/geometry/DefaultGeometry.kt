@@ -3,22 +3,41 @@ package graphics.scenery.attribute.geometry
 import graphics.scenery.BufferUtils
 import graphics.scenery.Node
 import graphics.scenery.OrientedBoundingBox
+import graphics.scenery.attribute.buffers.BufferType
+import graphics.scenery.attribute.buffers.Buffers
 import graphics.scenery.geometry.GeometryType
-import graphics.scenery.utils.lazyLogger
+import graphics.scenery.utils.LazyLogger
+import net.imglib2.type.numeric.integer.IntType
+import net.imglib2.type.numeric.real.FloatType
 import org.joml.Vector3f
+import java.nio.Buffer
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
 
 open class DefaultGeometry(private var node: Node): Geometry {
-    @Transient override var vertices: FloatBuffer = BufferUtils.allocateFloat(0)
-    @Transient override var normals: FloatBuffer = BufferUtils.allocateFloat(0)
-    @Transient override var texcoords: FloatBuffer = BufferUtils.allocateFloat(0)
-    @Transient override var indices: IntBuffer = BufferUtils.allocateInt(0)
+    override var buffers: MutableMap<String, Buffer> = mutableMapOf(
+        "vertices" to BufferUtils.allocateFloat(0),
+        "normals" to BufferUtils.allocateFloat(0),
+        "texcoords" to BufferUtils.allocateFloat(0),
+        "indices" to BufferUtils.allocateInt(0)
+    )
+    override var description: LinkedHashMap<String, Buffers.Description> = linkedMapOf(
+        "vertices" to Buffers.Description(BufferType.Primitive(FloatType()), 3),
+        "normals" to Buffers.Description(BufferType.Primitive(FloatType()), 3),
+        "texcoords" to Buffers.Description(BufferType.Primitive(FloatType()), 2),
+        "indices" to Buffers.Description(BufferType.Primitive(IntType()), 1),
+    )
+    @delegate:Transient override var vertices: FloatBuffer by buffers
+    @delegate:Transient override var normals: FloatBuffer by buffers
+    @delegate:Transient override var texcoords: FloatBuffer by buffers
+    @delegate:Transient override var indices: IntBuffer by buffers
+    override var dirtySSBOs = false
     override var vertexSize = 3
     override var texcoordSize = 2
     override var dirty: Boolean = true
     override var geometryType = GeometryType.TRIANGLES
-    private val logger by lazyLogger()
+
+    private val logger by LazyLogger()
     override fun generateBoundingBox(children: List<Node>): OrientedBoundingBox? {
         val vertexBufferView = vertices.asReadOnlyBuffer()
         val boundingBoxCoords = floatArrayOf(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f)

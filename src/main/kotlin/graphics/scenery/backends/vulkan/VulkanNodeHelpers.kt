@@ -1,14 +1,20 @@
 package graphics.scenery.backends.vulkan
 
 import graphics.scenery.*
+import graphics.scenery.attribute.buffers.BufferType
+import graphics.scenery.attribute.buffers.Buffers
 import graphics.scenery.backends.*
 import graphics.scenery.attribute.renderable.Renderable
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.textures.Texture
 import graphics.scenery.textures.UpdatableTexture
 import graphics.scenery.utils.lazyLogger
+import org.lwjgl.system.MemoryStack
+import org.lwjgl.system.MemoryStack.stackPush
+import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.jemalloc.JEmalloc
 import org.lwjgl.vulkan.VK10
+import org.lwjgl.vulkan.VK10.*
 import org.lwjgl.vulkan.VkBufferCopy
 import org.lwjgl.vulkan.VkQueue
 import java.nio.ByteBuffer
@@ -150,6 +156,104 @@ object VulkanNodeHelpers {
 
         JEmalloc.je_free(stridedBuffer)
         stagingBuffer.close()
+
+        return state
+    }
+
+    fun updateShaderStorageBuffers(
+    device: VulkanDevice,
+    node: Node,
+    name: String,
+    state: VulkanObjectState,
+    stagingPool: VulkanBufferPool,
+    ssboUploadPool: VulkanBufferPool,
+    ssboDownloadPool: VulkanBufferPool,
+    commandPools: VulkanRenderer.CommandPools,
+    queue: VkQueue
+    ): VulkanObjectState {
+        val buffers = node.buffersOrNull() ?: return state
+        val description = buffers.buffers[name] ?: return state
+        val type = description.type
+        val usage = description.usage
+        if(type !is BufferType.Custom) {
+            return state
+        }
+        val backingBuffer = description.buffer.duplicate()
+
+        val ssboSize = backingBuffer.remaining()
+        if(ssboSize <= 0)
+            return state
+
+        // Create a buffer that can be copied from out of the buffers buffer (or use it directly)
+
+
+
+        var stagingUpdated = false
+        // TODO: get the content from backingBuffer, put them into a stagingBuffer and upload them into the vulkanBuffer, which then is used during vkUpdateDescriptorSet?
+        val ssboStagingBuffer = state.SSBOBuffers[name+"Staging"]
+        val stagingBuffer = if(ssboStagingBuffer != null && ssboStagingBuffer.size >= ssboSize) {
+            ssboStagingBuffer
+        } else {
+            logger.debug("Creating new SSBO Staging Buffer")
+
+            val buffer = stagingPool.createBuffer(ssboSize)
+            state.SSBOBuffers[name+"Staging"] = buffer
+            stagingUpdated = true
+            buffer
+        }
+
+
+
+        val ssboUbo = VulkanUBO(device, state.SSBOBuffers[name+"Staging"])
+        ssboUbo.updateBackingBuffer(stagingBuffer)
+        ssboUbo.createUniformBuffer()
+
+
+        val ssboBufferCurrent = state.SSBOBuffers[name]
+        val ssboBuffer = if(ssboBufferCurrent != null
+            && ssboBufferCurrent.size >= ssboSize
+            && ssboBufferCurrent.size < ssboSize * 1.2
+        ) {
+            ssboBufferCurrent
+        } else {
+            logger.debug("Creating new SSBO Staging Buffer")
+            val buffer = when(usage)
+            {
+                hashSetOf(Buffers.BufferUsage.Upload) -> ssboUploadPool.createBuffer(ssboSize)
+                hashSetOf(Buffers.BufferUsage.Download) -> ssboDownloadPool.createBuffer(ssboSize)
+                else -> ssboUploadPool.createBuffer(ssboSize)
+            }
+            state.SSBOBuffers[name] = buffer
+            buffer
+        }
+
+        stackPush().use { stack ->
+            with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
+                val copyRegion = VkBufferCopy.calloc(1, stack)
+                    .size(ssboSize * 1L)
+
+                VK10.vkCmdCopyBuffer(
+                    this,
+                    stagingBuffer.vulkanBuffer,
+                    ssboBuffer.vulkanBuffer,
+                    copyRegion
+                )
+
+                this.endCommandBuffer(device, commandPools.Standard, queue, flush = true, dealloc = true)
+            }
+        }
+
+        var ds = state.requiredDescriptorSets[name]
+        if(stagingUpdated || ds == null)
+        {
+            val dsl = device.createDescriptorSetLayout(listOf(Pair(VK10.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1)), 0, VK10.VK_SHADER_STAGE_ALL)
+            // TODO: How do I set the descriptor set number???
+            ds = device.createDescriptorSet(
+                dsl, 1, ssboUbo.descriptor, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER)
+            state.requiredDescriptorSets[name] = ds
+        }
+        state.SSBOs[name] = ds to ssboUbo
+
 
         return state
     }
@@ -352,7 +456,14 @@ object VulkanNodeHelpers {
      *
      * Returns true if the node has been given a custom shader, and false if not.
      */
-    fun initializeCustomShadersForNode(device: VulkanDevice, node: Node, addInitializer: Boolean = true, renderpasses: Map<String, VulkanRenderpass>, lateResizeInitializers: MutableMap<Renderable, () -> Any>, buffers: VulkanRenderer.DefaultBuffers): Boolean {
+    fun initializeCustomShadersForNode(
+        device: VulkanDevice,
+        node: Node,
+        addInitializer: Boolean = true,
+        renderpasses: Map<String, VulkanRenderpass>,
+        lateResizeInitializers: MutableMap<Renderable, () -> Any>,
+        buffers: VulkanRenderer.DefaultBuffers)
+    : Boolean {
 
         val renderable = node.renderableOrNull() ?: return false
         val material = node.materialOrNull() ?: return false
@@ -475,6 +586,7 @@ object VulkanNodeHelpers {
         .memberProperties
         .filter { it.findAnnotation<ShaderProperty>() != null }
         .count() > 0
+
 
     /**
      * Returns true if the current VulkanTexture can be reused to store the information in the [Texture]

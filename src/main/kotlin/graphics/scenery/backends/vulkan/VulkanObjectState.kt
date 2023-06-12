@@ -10,6 +10,7 @@ import graphics.scenery.attribute.renderable.Renderable
 import graphics.scenery.utils.lazyLogger
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.collections.LinkedHashMap
 import kotlin.time.DurationUnit
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTime
@@ -40,6 +41,10 @@ open class VulkanObjectState {
 
     /** UBOs required by the [graphics.scenery.Node] this metadata object is attached to. */
     var UBOs = LinkedHashMap<String, Pair<Long, VulkanUBO>>()
+
+    //Like this here?
+    var SSBOs = LinkedHashMap<String, Pair<Long, VulkanUBO>>()
+    var SSBOBuffers = LinkedHashMap<String, VulkanBuffer>()
 
     /** [VulkanTexture]s used by the [graphics.scenery.Node] this metadata object is attached to. */
     var textures = ConcurrentHashMap<String, VulkanTexture>()

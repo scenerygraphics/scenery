@@ -1,6 +1,7 @@
 package graphics.scenery.attribute.geometry
 
 import graphics.scenery.*
+import graphics.scenery.attribute.buffers.Buffers
 import graphics.scenery.geometry.GeometryType
 import graphics.scenery.utils.extensions.minus
 import org.joml.Vector3f
@@ -15,7 +16,7 @@ import java.util.*
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-interface Geometry : Serializable {
+interface Geometry : Buffers, Serializable {
     /** How many elements does a vertex store? */
     var vertexSize: Int
     /** How many elements does a texture coordinate store? */
@@ -23,6 +24,7 @@ interface Geometry : Serializable {
     /** The [GeometryType] of the [Node] */
     var geometryType: GeometryType
 
+    //vertices should be renamed to positions!
     /** Array of the vertices. This buffer is _required_, but may empty. */
     var vertices: FloatBuffer
     /** Array of the normals. This buffer is _required_, and may _only_ be empty if [vertices] is empty as well. */

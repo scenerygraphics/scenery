@@ -107,10 +107,11 @@ open class VulkanUBO(val device: VulkanDevice, var backingBuffer: VulkanBuffer? 
         node.instancedProperties.forEach { members.putIfAbsent(it.key, it.value) }
     }
 
+    // TODO: Refactor UBO and SSBO
     /**
      * Creates a [UBODescriptor] for this UBO and returns it.
      */
-    fun createUniformBuffer(): UBODescriptor {
+    fun createUniformBuffer(vkBufferUsage : Int = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT): UBODescriptor {
         backingBuffer?.let { buffer ->
             descriptor.memory = buffer.memory
             descriptor.allocationSize = buffer.size
@@ -123,7 +124,7 @@ open class VulkanUBO(val device: VulkanDevice, var backingBuffer: VulkanBuffer? 
 
         ownedBackingBuffer = VulkanBuffer(device,
             this.getSize() * 1L,
-            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+            vkBufferUsage,
             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
             wantAligned = true)
 
