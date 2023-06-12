@@ -9,7 +9,6 @@ import org.lwjgl.system.MemoryUtil
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.*
-import kotlin.collections.LinkedHashMap
 import kotlin.math.max
 
 /**
@@ -249,7 +248,9 @@ open class UBO {
                 is Boolean -> data.asIntBuffer().put(0, value.toInt())
                 is Enum<*> -> data.asIntBuffer().put(0, value.ordinal)
 
-                is FloatArray -> {
+                is FloatArray -> if (value.size % 4 == 0) {
+                    data.asFloatBuffer().put(value)
+                } else {
                     // std140 rules demand 16 byte stride for arrays
                     val fb = data.asFloatBuffer()
                     val padding = floatArrayOf(0.0f, 0.0f, 0.0f)
@@ -259,7 +260,9 @@ open class UBO {
                     }
                 }
 
-                is IntArray -> {
+                is IntArray -> if (value.size % 4 == 0) {
+                    data.asIntBuffer().put(value)
+                } else {
                     // std140 rules demand 16 byte stride for arrays
                     val ib = data.asIntBuffer()
                     val padding = intArrayOf(0, 0, 0)
