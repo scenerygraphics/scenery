@@ -21,6 +21,7 @@ repositories {
     mavenCentral()
     maven("https://maven.scijava.org/content/groups/public")
     maven("https://jitpack.io")
+    maven("https://raw.githubusercontent.com/kotlin-graphics/mary/master")
 //    mavenLocal()
 }
 
@@ -132,6 +133,8 @@ dependencies {
 
     implementation("org.jfree:jfreechart:1.5.0")
     implementation("net.imagej:imagej-ops:0.45.5")
+
+    implementation("kotlin.graphics:kool:0.9.79")
 }
 
 val isRelease: Boolean

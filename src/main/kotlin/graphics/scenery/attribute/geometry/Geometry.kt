@@ -3,6 +3,10 @@ package graphics.scenery.attribute.geometry
 import graphics.scenery.*
 import graphics.scenery.geometry.GeometryType
 import graphics.scenery.utils.extensions.minus
+import graphics.scenery.utils.get
+import graphics.scenery.utils.inc
+import graphics.scenery.utils.set
+import kool.*
 import org.joml.Vector3f
 import java.io.Serializable
 import java.nio.FloatBuffer
@@ -41,38 +45,22 @@ interface Geometry : Serializable {
      * STL's facet storage format into account.
      */
     fun recalculateNormals() {
-        val vertexBufferView = vertices.asReadOnlyBuffer()
-        var i = 0
-        val normals = ArrayList<Float>()
+        var pVtx = vertices.adr.toPtr<Vector3f>()
+        var pNorm = normals.adr.toPtr<Vector3f>()
 
-        while (i < vertexBufferView.limit() - 1) {
-            val v1 = Vector3f(vertexBufferView[i], vertexBufferView[i + 1], vertexBufferView[i + 2])
-            i += 3
-
-            val v2 = Vector3f(vertexBufferView[i], vertexBufferView[i + 1], vertexBufferView[i + 2])
-            i += 3
-
-            val v3 = Vector3f(vertexBufferView[i], vertexBufferView[i + 1], vertexBufferView[i + 2])
-            i += 3
+        for (i in vertices.indices step 3) {
+            val v1 = pVtx++[0]
+            val v2 = pVtx++[0]
+            val v3 = pVtx++[0]
 
             val a = v2 - v1
             val b = v3 - v1
 
             val n = a.cross(b).normalize()
 
-            normals.add(n.x())
-            normals.add(n.y())
-            normals.add(n.z())
-
-            normals.add(n.x())
-            normals.add(n.y())
-            normals.add(n.z())
-
-            normals.add(n.x())
-            normals.add(n.y())
-            normals.add(n.z())
+            pNorm++[0] = n
+            pNorm++[0] = n
+            pNorm++[0] = n
         }
-
-        this.normals = BufferUtils.allocateFloatAndPut(normals.toFloatArray())
     }
 }

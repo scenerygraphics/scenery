@@ -2,6 +2,7 @@ package graphics.scenery.tests.unit
 
 import graphics.scenery.BufferUtils
 import graphics.scenery.utils.lazyLogger
+import kool.FloatBuffer
 import org.junit.Test
 import java.nio.ByteOrder
 import kotlin.test.assertEquals
@@ -23,7 +24,7 @@ class BufferUtilsTests {
     fun testAllocateFloat() {
         logger.info("Testing allocation of a new direct float buffer ...")
         val size = kotlin.random.Random.nextInt(1, 10000)
-        val floatBuf = BufferUtils.allocateFloat(size)
+        val floatBuf = FloatBuffer(size)
 
         assertEquals(size, floatBuf.capacity(), "Float buffer capacity was expected to be $size, but is ${floatBuf.capacity()}")
         assertEquals (ByteOrder.nativeOrder(), floatBuf.order(), "Float buffer was expected to be in ${ByteOrder.nativeOrder()}, but is ${floatBuf.order()}")
