@@ -31,10 +31,7 @@ dependencies {
     implementation(kotlin("reflect"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.2")
 
-    implementation("org.jogamp.gluegen:gluegen-rt:2.3.2", joglNatives)
-    implementation("org.jogamp.jogl:jogl-all:2.3.2", joglNatives)
     implementation("org.slf4j:slf4j-api:1.7.36")
-    implementation("net.clearvolume:cleargl")
     implementation("org.joml:joml:1.10.5")
     implementation("net.java.jinput:jinput:2.0.9", "natives-all")
     implementation("org.jocl:jocl:2.0.4")
@@ -288,8 +285,6 @@ tasks {
                 "jogl-minimal",
                 "jinput",
                 "pom-scijava",
-                "gluegen-rt",
-                "jogl-all",
                 "jna-platform",
                 "lwjgl-bom",
                 "jackson-module-kotlin",
