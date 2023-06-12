@@ -77,6 +77,7 @@ import kotlin.reflect.full.memberProperties
  * @author Ulrik Günther <hello@ulrik.is>
  */
 
+@Deprecated("The OpenGL renderer is deprecated, not maintained anymore and will be removed in one of the next releases.")
 @Suppress("MemberVisibilityCanBePrivate")
 open class OpenGLRenderer(hub: Hub,
                           applicationName: String,
@@ -338,6 +339,13 @@ open class OpenGLRenderer(hub: Hub,
     init {
 
         logger.info("Initializing OpenGL Renderer...")
+
+        logger.warn("*** DEPRECATION WARNING ***")
+        logger.warn("scenery's OpenGL renderer is deprecated and not maintained anymore. " +
+                            "It will be removed in one of the next releases. The new Vulkan renderer" +
+                            "is not stable enough and available on all supported platforms. Make sure your" +
+                            "graphics drivers are up to date and use the Vulkan renderer instead.")
+
         this.hub = hub
         this.settings = loadDefaultRendererSettings(hub.get(SceneryElement.Settings) as Settings)
         this.window.width = width
