@@ -39,10 +39,10 @@ open class Sphere(val radius: Float = 1.0f, val segments: Int = 8, val insideNor
                 val n11 = Vector3f(v11[0], v11[1], v11[2]).normalize().mul(flip)
                 val n10 = Vector3f(v10[0], v10[1], v10[2]).normalize().mul(flip)
 
-                val uv00 = if (flip == 1.0f) uvOnSphere(n00) else uvOnSphere(n00.times(-1f))
-                val uv01 = if (flip == 1.0f) uvOnSphere(n01) else uvOnSphere(n01.times(-1f))
-                val uv11 = if (flip == 1.0f) uvOnSphere(n11) else uvOnSphere(n11.times(-1f))
-                val uv10 = if (flip == 1.0f) uvOnSphere(n10) else uvOnSphere(n10.times(-1f))
+                val uv00 = uvOnSphere(n00.times(flip))
+                val uv01 = uvOnSphere(n01.times(flip))
+                val uv11 = uvOnSphere(n11.times(flip))
+                val uv10 = uvOnSphere(n10.times(flip))
 
                 when {
                     i == 0 -> {
