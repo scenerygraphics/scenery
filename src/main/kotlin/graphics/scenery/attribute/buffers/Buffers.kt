@@ -19,6 +19,7 @@ interface Buffers : Serializable {
         Download
     }
 
+
     /**
      * [usage] is currently a hashset to provide buffers to be both upload and download buffers -> maybe exclude this possibility to prevent
      * an increase in code in the renderer backend?
