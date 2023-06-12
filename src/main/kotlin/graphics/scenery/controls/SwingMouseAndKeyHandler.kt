@@ -432,30 +432,17 @@ class SwingMouseAndKeyHandler(var hub: Hub? = null) : MouseAndKeyHandlerBase(), 
         val handler: MouseAndKeyHandlerBase
         when (window) {
             is SceneryWindow.SwingWindow -> {
-                val component = window.panel.component
-                val cglWindow = window.panel.cglWindow
+                handler = SwingMouseAndKeyHandler(hub)
 
-                if (component is NewtCanvasAWT && cglWindow != null) {
-                    handler = JOGLMouseAndKeyHandler(hub)
+                handler.setInputMap(inputMap)
+                handler.setBehaviourMap(behaviourMap)
 
-                    handler.setInputMap(inputMap)
-                    handler.setBehaviourMap(behaviourMap)
-
-                    cglWindow.addKeyListener(handler)
-                    cglWindow.addMouseListener(handler)
-                } else {
-                    handler = SwingMouseAndKeyHandler(hub)
-
-                    handler.setInputMap(inputMap)
-                    handler.setBehaviourMap(behaviourMap)
-
-                    val ancestor = window.panel.component
-                    ancestor?.addKeyListener(handler)
-                    ancestor?.addMouseListener(handler)
-                    ancestor?.addMouseMotionListener(handler)
-                    ancestor?.addMouseWheelListener(handler)
-                    ancestor?.addFocusListener(handler)
-                }
+                val ancestor = window.panel.component
+                ancestor?.addKeyListener(handler)
+                ancestor?.addMouseListener(handler)
+                ancestor?.addMouseMotionListener(handler)
+                ancestor?.addMouseWheelListener(handler)
+                ancestor?.addFocusListener(handler)
             }
 
             is SceneryWindow.HeadlessWindow -> {

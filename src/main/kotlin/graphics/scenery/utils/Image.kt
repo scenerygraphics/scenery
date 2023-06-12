@@ -1,6 +1,5 @@
 package graphics.scenery.utils
 
-import cleargl.TGAReader
 import graphics.scenery.volumes.Colormap
 import org.lwjgl.system.MemoryUtil
 import java.awt.Color
@@ -10,6 +9,7 @@ import java.awt.image.*
 import java.io.BufferedInputStream
 import java.io.IOException
 import java.io.InputStream
+import java.lang.RuntimeException
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.*
@@ -61,11 +61,10 @@ open class Image(val contents: ByteBuffer, val width: Int, val height: Int, val 
                     reader.read(buffer)
                     reader.close()
 
-                    pixels = TGAReader.read(buffer, TGAReader.ARGB)
-                    val width = TGAReader.getWidth(buffer)
-                    val height = TGAReader.getHeight(buffer)
-                    bi = BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB)
-                    bi.setRGB(0, 0, width, height, pixels, 0, width)
+                    // TODO: reintroduce TGA support
+                    throw RuntimeException("TGA currently unsupported")
+//                    bi = BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB)
+//                    bi.setRGB(0, 0, width, height, pixels, 0, width)
                 } catch (e: IOException) {
                     Colormap.logger.error("Could not read image from TGA. ${e.message}")
                     bi = BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB)
