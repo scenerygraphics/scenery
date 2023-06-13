@@ -61,10 +61,11 @@ open class Image(val contents: ByteBuffer, val width: Int, val height: Int, val 
                     reader.read(buffer)
                     reader.close()
 
-                    // TODO: reintroduce TGA support
-                    throw RuntimeException("TGA currently unsupported")
-//                    bi = BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB)
-//                    bi.setRGB(0, 0, width, height, pixels, 0, width)
+                    pixels = TGAReader.read(buffer, TGAReader.ARGB)
+                    val width = TGAReader.getWidth(buffer)
+                    val height = TGAReader.getHeight(buffer)
+                    bi = BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB)
+                    bi.setRGB(0, 0, width, height, pixels, 0, width)
                 } catch (e: IOException) {
                     Colormap.logger.error("Could not read image from TGA. ${e.message}")
                     bi = BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB)
