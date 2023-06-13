@@ -272,19 +272,13 @@ abstract class Renderer : Hubable {
 
             return try {
                 VulkanRenderer(hub, applicationName, scene, windowWidth, windowHeight, embedIn, config) as Renderer
-            } catch (e: RendererUnavailableException) {
-                logger.debug("Full exception: {}", e)
-                if(logger.isDebugEnabled) {
-                    e.printStackTrace()
-                }
-                throw RuntimeException("Vulkan unavailable ($e, ${e.cause}, ${e.message}), falling back to OpenGL.")
             } catch (e: UnsatisfiedLinkError) {
                 logger.debug("Full exception: {}", e)
                 if(logger.isDebugEnabled) {
                     e.printStackTrace()
                 }
 
-                throw RuntimeException("Vulkan unavailable (${e.cause}, ${e.message}), Vulkan runtime not installed. Falling back to OpenGL.")
+                throw RendererUnavailableException("Vulkan unavailable due to an UnsatisfiedLinkError (${e.cause}, ${e.message}), this could be due to the Vulkan runtime not being installed, or a missing dependency.")
             }
         }
     }
