@@ -45,7 +45,6 @@ import java.nio.IntBuffer
 import java.util.*
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.ForkJoinPool
-import java.util.function.BiConsumer
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.system.measureTimeMillis
@@ -287,13 +286,15 @@ class VolumeManager(
             "convert",
             "slicingPlanes",
             "slicingMode",
-            "usedSlicingPlanes"
+            "usedSlicingPlanes",
+            "sceneGraphVisibility"
         )
         segments[SegmentType.SampleVolume] = SegmentTemplate(
             "SampleSimpleVolume.frag",
             "im", "sourcemax", "intersectBoundingBox",
             "volume", "transferFunction", "colorMap", "sampleVolume", "convert", "slicingPlanes",
-            "slicingMode", "usedSlicingPlanes"
+            "slicingMode", "usedSlicingPlanes",
+            "sceneGraphVisibility"
         )
         segments[SegmentType.Convert] = SegmentTemplate(
             "Converter.frag",
@@ -301,20 +302,23 @@ class VolumeManager(
         )
         segments[SegmentType.AccumulatorMultiresolution] = SegmentTemplate(
             "AccumulateBlockVolume.frag",
-            "vis", "sampleVolume", "convert"
+            "vis", "sampleVolume", "convert", "sceneGraphVisibility"
         )
         segments[SegmentType.Accumulator] = SegmentTemplate(
             "AccumulateSimpleVolume.frag",
-            "vis", "sampleVolume", "convert"
+            "vis", "sampleVolume", "convert", "sceneGraphVisibility"
         )
 
         customSegments?.forEach { type, segment -> segments[type] = segment }
 
         val additionalBindings = customBindings
-        ?: TriConsumer { _: Map<SegmentType, SegmentTemplate>, instances: Map<SegmentType, Segment>, _: Int ->
+            ?: TriConsumer { _: Map<SegmentType, SegmentTemplate>, instances: Map<SegmentType, Segment>, i: Int ->
                 logger.debug("Connecting additional bindings")
+
                 instances[SegmentType.SampleMultiresolutionVolume]?.bind("convert", instances[SegmentType.Convert])
                 instances[SegmentType.SampleVolume]?.bind("convert", instances[SegmentType.Convert])
+                instances[SegmentType.SampleVolume]?.bind("sceneGraphVisibility", instances[SegmentType.Accumulator])
+                instances[SegmentType.SampleMultiresolutionVolume]?.bind("sceneGraphVisibility", instances[SegmentType.AccumulatorMultiresolution])
             }
 
         val newProgvol = MultiVolumeShaderMip(
@@ -465,6 +469,7 @@ class VolumeManager(
                     currentProg.setCustomUniformForVolume(i, "slicingMode", state.node.slicingMode.id)
                     currentProg.setCustomUniformForVolume(i,"usedSlicingPlanes",
                         min(state.node.slicingPlaneEquations.size, Volume.MAX_SUPPORTED_SLICING_PLANES))
+                    currentProg.setCustomUniformForVolume(i, "sceneGraphVisibility", if (state.node.visible) 1 else 0)
 
                     context.bindTexture(state.transferFunction)
                     context.bindTexture(state.colorMap)
