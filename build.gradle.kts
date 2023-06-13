@@ -101,7 +101,10 @@ dependencies {
     api("sc.fiji:bigdataviewer-vistools:1.0.0-beta-28")
 
     //TODO revert to official BVV
-    api("graphics.scenery:bigvolumeviewer:7698a01")
+    api("graphics.scenery:bigvolumeviewer:7698a01") {
+        exclude("org.jogamp.gluegen", "gluegen-rt")
+        exclude("org.jogamp.jogl", "jogl-all")
+    }
 
     implementation("com.github.skalarproduktraum:lwjgl3-awt:d7a7369")
     implementation("org.janelia.saalfeldlab:n5")
