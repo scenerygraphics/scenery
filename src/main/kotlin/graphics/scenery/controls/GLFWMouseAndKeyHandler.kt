@@ -1,11 +1,6 @@
 package graphics.scenery.controls
 
-import com.jogamp.newt.event.InputEvent
-import com.jogamp.newt.event.KeyEvent
-import com.jogamp.newt.event.MouseEvent
-import com.jogamp.newt.event.WindowEvent
 import graphics.scenery.Hub
-import graphics.scenery.backends.Renderer
 import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.utils.ExtractsNatives
 import org.lwjgl.glfw.GLFW.*
@@ -16,6 +11,11 @@ import org.lwjgl.glfw.GLFWScrollCallback
 import org.scijava.ui.behaviour.BehaviourMap
 import org.scijava.ui.behaviour.InputTrigger
 import org.scijava.ui.behaviour.InputTriggerMap
+import java.awt.Component
+import java.awt.event.InputEvent
+import java.awt.event.KeyEvent
+import java.awt.event.MouseEvent
+import java.awt.event.MouseWheelEvent
 
 /**
  * Input handling class for GLFW-based windows.
@@ -30,39 +30,56 @@ open class GLFWMouseAndKeyHandler(var hub: Hub?) : MouseAndKeyHandlerBase(), Aut
     /** scroll speed multiplier to combat OS idiosyncrasies */
     private var scrollSpeedMultiplier = 1.0f
 
-    val window by lazy { hub!!.get<Renderer>()!!.window as SceneryWindow.GLFWWindow }
-
     var cursorCallback = object : GLFWCursorPosCallback() {
         override fun invoke(window: Long, xpos: Double, ypos: Double) {
-            mouseMoved(MouseEvent(MouseEvent.EVENT_MOUSE_MOVED,
-                                  this,
-                                  System.nanoTime(),
-                                  0,
-                                  xpos.toInt(),
-                                  ypos.toInt(),
-                                  0, 0,
-                                  floatArrayOf(0.0f, 0.0f, 0.0f), 1.0f))
+            mouseMoved(MouseEvent(
+                fakeComponent,
+                MouseEvent.MOUSE_MOVED,
+                System.nanoTime(),
+                0,
+                xpos.toInt(),
+                ypos.toInt(),
+                0, false,
+                0))
         }
+    }
+
+    private fun Int.glfwToSwingMods(): Int {
+        var mask = 0
+
+        if(this and GLFW_MOD_ALT != 0) {
+            mask = mask or KeyEvent.ALT_DOWN_MASK
+        }
+        if(this and GLFW_MOD_CONTROL != 0) {
+            mask = mask or KeyEvent.CTRL_DOWN_MASK
+        }
+        if(this and GLFW_MOD_SHIFT != 0) {
+            mask = mask or KeyEvent.SHIFT_DOWN_MASK
+        }
+        if(this and GLFW_MOD_SUPER != 0) {
+            mask = mask or KeyEvent.META_DOWN_MASK
+        }
+
+        return mask
     }
 
     var keyCallback = object : GLFWKeyCallback() {
         override fun invoke(window: Long, key: Int, scancode: Int, action: Int, mods: Int) {
-            val type = when (action) {
-                GLFW_PRESS -> KeyEvent.EVENT_KEY_PRESSED
-                GLFW_RELEASE -> KeyEvent.EVENT_KEY_RELEASED
-                GLFW_REPEAT -> KeyEvent.EVENT_KEY_PRESSED
-                else -> KeyEvent.EVENT_KEY_PRESSED
+            val type = when(action) {
+                GLFW_PRESS -> KeyEvent.KEY_PRESSED
+                GLFW_RELEASE -> KeyEvent.KEY_RELEASED
+                GLFW_REPEAT -> KeyEvent.KEY_PRESSED
+                else -> KeyEvent.KEY_PRESSED
             }
 
-            val event = KeyEvent.create(
+            val event = KeyEvent(
+                fakeComponent,
                 type,
-                this,
                 System.nanoTime(),
-                mods,
-                key.toShort(),
-                scancode.toShort(),
-                ' '
-                                       )
+                mods.glfwToSwingMods(),
+                key,
+                KeyEvent.CHAR_UNDEFINED
+            )
 
             when (action) {
                 GLFW_PRESS -> keyPressed(event)
@@ -77,14 +94,14 @@ open class GLFWMouseAndKeyHandler(var hub: Hub?) : MouseAndKeyHandlerBase(), Aut
     var mouseCallback = object : GLFWMouseButtonCallback() {
         override fun invoke(window: Long, key: Int, action: Int, mods: Int) {
             val type = when (action) {
-                GLFW_PRESS -> MouseEvent.EVENT_MOUSE_PRESSED
-                GLFW_RELEASE -> MouseEvent.EVENT_MOUSE_RELEASED
-                else -> MouseEvent.EVENT_MOUSE_CLICKED
+                GLFW_PRESS -> MouseEvent.MOUSE_PRESSED
+                GLFW_RELEASE -> MouseEvent.MOUSE_RELEASED
+                else -> MouseEvent.MOUSE_CLICKED
             }
 
             var clickCount = 1
 
-            if (action == GLFW_PRESS) {
+            if(action == GLFW_PRESS) {
                 val now = System.nanoTime()
                 val diff = (now - clickBefore) / 10e5
 
@@ -95,51 +112,54 @@ open class GLFWMouseAndKeyHandler(var hub: Hub?) : MouseAndKeyHandlerBase(), Aut
                 clickBefore = now
             }
 
-            val event = MouseEvent(type,
-                                   this,
-                                   System.nanoTime(),
-                                   0,
-                                   mouseX,
-                                   mouseY,
-                                   clickCount.toShort(), 0,
-                                   floatArrayOf(0.0f, 0.0f, 0.0f), 1.0f)
+            val event = MouseEvent(
+                fakeComponent,
+                type,
+                System.nanoTime(),
+                mods.glfwToSwingMods(),
+                mouseX,
+                mouseY,
+                clickCount,
+                false,
+                key
+            )
 
 
             when (action) {
-                GLFW_PRESS -> {
-                    mousePressed(event); }
-                GLFW_RELEASE -> {
-                    mouseReleased(event); }
+                GLFW_PRESS -> { mousePressed(event); }
+                GLFW_RELEASE -> { mouseReleased(event); }
             }
         }
     }
 
     var scrollCallback = object : GLFWScrollCallback() {
         override fun invoke(window: Long, xoffset: Double, yoffset: Double) {
-            mouseWheelMoved(MouseEvent(MouseEvent.EVENT_MOUSE_WHEEL_MOVED,
-                                       this,
-                                       System.nanoTime(),
-                                       0,
-                                       0,
-                                       0,
-                                       0, 0,
-                                       floatArrayOf(xoffset.toFloat() * scrollSpeedMultiplier, yoffset.toFloat() * scrollSpeedMultiplier, 0.0f), 1.0f))
+            mouseWheelMoved(MouseWheelEvent(
+                fakeComponent,
+                MouseWheelEvent.MOUSE_WHEEL,
+                System.nanoTime(),
+                0,
+                0,
+                0,
+                0, false, 0,
+                (xoffset.toFloat()*scrollSpeedMultiplier).toInt(), 0)
+            )
         }
 
     }
 
     init {
-        os = if (System.getProperty("os.name").lowercase().indexOf("windows") != -1) {
+        os = if(System.getProperty("os.name").lowercase().indexOf("windows") != -1) {
             "windows"
-        } else if (System.getProperty("os.name").lowercase().indexOf("mac") != -1) {
+        } else if(System.getProperty("os.name").lowercase().indexOf("mac") != -1) {
             "mac"
-        } else if (System.getProperty("os.name").lowercase().indexOf("linux") != -1) {
+        } else if(System.getProperty("os.name").lowercase().indexOf("linux") != -1) {
             "linux"
         } else {
             "unknown"
         }
 
-        scrollSpeedMultiplier = if (os == "mac") {
+        scrollSpeedMultiplier = if(os == "mac") {
             1.0f
         } else {
             10.0f
@@ -152,27 +172,32 @@ open class GLFWMouseAndKeyHandler(var hub: Hub?) : MouseAndKeyHandlerBase(), Aut
      * @param[e] The input event to evaluate.
      */
     private fun getMask(e: InputEvent, initial: Int = 0): Int {
-        val modifiers = e.modifiers
+        val modifiers = e.modifiersEx
         var mask = initial
 
         /*
 		 * For scrolling AWT uses the SHIFT_DOWN_MASK to indicate horizontal scrolling.
 		 * We keep track of whether the SHIFT key was actually pressed for disambiguation.
 		 */
-        if (modifiers and GLFW_MOD_SHIFT == 1)
+        if (modifiers and InputEvent.SHIFT_DOWN_MASK != 0) {
             mask = mask or (1 shl 6)
+        }
 
         /*
 		 * On OS X AWT sets the META_DOWN_MASK to for right clicks. We keep
 		 * track of whether the META key was actually pressed for
 		 * disambiguation.
 		 */
-        if (modifiers and GLFW_MOD_ALT == 1) {
+        if (modifiers and InputEvent.ALT_DOWN_MASK != 0) {
+            mask = mask or (1 shl 9)
+        }
+
+        if (modifiers and InputEvent.META_DOWN_MASK != 0) {
             mask = mask or (1 shl 8)
         }
 
-        if (modifiers and GLFW_MOD_SUPER == 1) {
-            logger.warn("Windows key not supported")
+        if (modifiers and InputEvent.CTRL_DOWN_MASK != 0) {
+            mask = mask or (1 shl 7)
         }
 
         /*
@@ -185,14 +210,14 @@ open class GLFWMouseAndKeyHandler(var hub: Hub?) : MouseAndKeyHandlerBase(), Aut
 		 * ...but only if its not a MouseWheelEvent because OS X sets button
 		 * modifiers if ALT or META modifiers are pressed.
 		 */
-        if (e is MouseEvent && (e.rotation[0] < 0.001f || e.rotation[1] < 0.001f)) {
-            if (modifiers and InputEvent.BUTTON1_MASK != 0) {
+        if (e is MouseEvent) {
+            if (modifiers and InputEvent.BUTTON1_DOWN_MASK != 0) {
                 mask = mask or (1 shl 10)
             }
-            if (modifiers and InputEvent.BUTTON2_MASK != 0) {
+            if (modifiers and InputEvent.BUTTON2_DOWN_MASK != 0) {
                 mask = mask or (1 shl 11)
             }
-            if (modifiers and InputEvent.BUTTON3_MASK != 0) {
+            if (modifiers and InputEvent.BUTTON3_DOWN_MASK != 0) {
                 mask = mask or (1 shl 12)
             }
         }
@@ -205,7 +230,7 @@ open class GLFWMouseAndKeyHandler(var hub: Hub?) : MouseAndKeyHandlerBase(), Aut
             mask = mask or InputTrigger.DOUBLE_CLICK_MASK
         } // mouse
 
-        if (e is MouseEvent && e.eventType == MouseEvent.EVENT_MOUSE_WHEEL_MOVED) {
+        if (e is MouseWheelEvent && e.id == MouseWheelEvent.MOUSE_WHEEL) {
             mask = mask or InputTrigger.SCROLL_MASK
             mask = mask and (1 shl 10).inv()
         }
@@ -243,6 +268,8 @@ open class GLFWMouseAndKeyHandler(var hub: Hub?) : MouseAndKeyHandlerBase(), Aut
         update()
     }
 
+    fun Int.toBinaryString() = Integer.toBinaryString(this)
+
     /**
      * Called when the mouse is clicked, updates state
      *
@@ -258,6 +285,9 @@ open class GLFWMouseAndKeyHandler(var hub: Hub?) : MouseAndKeyHandlerBase(), Aut
 
         val clickMask = mask and InputTrigger.DOUBLE_CLICK_MASK.inv()
         for (click in buttonClicks) {
+//            logger.trace("behav = ${click.buttons.mask.toBinaryString()}")
+//            logger.trace("event = ${mask.toBinaryString()}")
+//            logger.trace("click = ${clickMask.toBinaryString()}")
             if (click.buttons.matches(mask, pressedKeys) || clickMask != mask && click.buttons.matches(clickMask, pressedKeys)) {
                 click.behaviour.click(x, y)
             }
@@ -269,13 +299,13 @@ open class GLFWMouseAndKeyHandler(var hub: Hub?) : MouseAndKeyHandlerBase(), Aut
      *
      * @param[e] The incoming mouse event
      */
-    fun mouseWheelMoved(e: MouseEvent) {
+    fun mouseWheelMoved(e: MouseWheelEvent) {
         update()
 
         val mask = getMask(e)
         val x = e.x
         val y = e.y
-        val wheelRotation = e.rotation
+        val wheelRotation = e.wheelRotation
 
         /*
 		 * AWT uses the SHIFT_DOWN_MASK to indicate horizontal scrolling. We
@@ -284,15 +314,15 @@ open class GLFWMouseAndKeyHandler(var hub: Hub?) : MouseAndKeyHandlerBase(), Aut
 		 * the SHIFT key is not pressed. With SHIFT pressed, everything is
 		 * treated as vertical scrolling.
 		 */
-        val exShiftMask = e.getModifiers() and InputEvent.SHIFT_MASK != 0
-        val isHorizontal = !shiftPressed && exShiftMask && wheelRotation[1] == 0.0f
+        val exShiftMask = e.getModifiersEx() and InputEvent.SHIFT_DOWN_MASK != 0
+        val isHorizontal = !shiftPressed && exShiftMask
 
         for (scroll in scrolls) {
             if (scroll.buttons.matches(mask, pressedKeys)) {
-                if (isHorizontal) {
-                    scroll.behaviour.scroll(wheelRotation[0].toDouble(), isHorizontal, x, y)
+                if(isHorizontal) {
+                    scroll.behaviour.scroll(wheelRotation.toDouble(), isHorizontal, x, y)
                 } else {
-                    scroll.behaviour.scroll(wheelRotation[1].toDouble(), isHorizontal, x, y)
+                    scroll.behaviour.scroll(wheelRotation.toDouble(), isHorizontal, x, y)
                 }
             }
         }
@@ -340,8 +370,6 @@ open class GLFWMouseAndKeyHandler(var hub: Hub?) : MouseAndKeyHandlerBase(), Aut
         update()
     }
 
-    infix fun getMouseButton(button: Int): Int = glfwGetMouseButton(window.window, button)
-
     /**
      * Called when the mouse is pressed, updates state and masks, evaluates drags
      *
@@ -375,7 +403,6 @@ open class GLFWMouseAndKeyHandler(var hub: Hub?) : MouseAndKeyHandlerBase(), Aut
     fun keyPressed(e: KeyEvent) {
         update()
 
-        logger.trace("Key pressed: ${e.keyCode}")
         /*if (e.modifiers and GLFW_MOD_SHIFT == 1) {
             shiftPressed = true
         } else if (e.modifiers and GLFW_MOD_ALT == 1) {
@@ -383,10 +410,10 @@ open class GLFWMouseAndKeyHandler(var hub: Hub?) : MouseAndKeyHandlerBase(), Aut
         } else if (e.modifiers and GLFW_MOD_CONTROL == 1) {
             winPressed = true
         }*/
-        if (e.keyCode.toInt() != GLFW_KEY_LEFT_ALT &&
-            e.keyCode.toInt() != GLFW_KEY_LEFT_CONTROL &&
-            e.keyCode.toInt() != GLFW_KEY_LEFT_SHIFT) {
-            val inserted = pressedKeys.add(e.keyCode.toInt())
+        if (e.keyCode != KeyEvent.VK_ALT &&
+            e.keyCode != KeyEvent.VK_CONTROL &&
+            e.keyCode != KeyEvent.VK_SHIFT) {
+            val inserted = pressedKeys.add(e.keyCode)
 
             /*
 			 * Create mask and deal with double-click on keys.
@@ -396,11 +423,11 @@ open class GLFWMouseAndKeyHandler(var hub: Hub?) : MouseAndKeyHandlerBase(), Aut
             var doubleClick = false
             if (inserted) {
                 // double-click on keys.
-                val lastPressTime = keyPressTimes.get(e.keyCode.toInt())
+                val lastPressTime = keyPressTimes.get(e.keyCode)
                 if (lastPressTime.toInt() != -1 && e.`when` - lastPressTime < DOUBLE_CLICK_INTERVAL)
                     doubleClick = true
 
-                keyPressTimes.put(e.keyCode.toInt(), e.`when`)
+                keyPressTimes.put(e.keyCode, e.`when`)
             }
             val doubleClickMask = mask or InputTrigger.DOUBLE_CLICK_MASK
 
@@ -413,7 +440,7 @@ open class GLFWMouseAndKeyHandler(var hub: Hub?) : MouseAndKeyHandlerBase(), Aut
 
             for (click in keyClicks) {
                 logger.trace(click.buttons.mask.toString() + " vs " + mask.toString())
-                logger.trace(click.buttons.pressedKeys.toString() + " vs " + pressedKeys.toString())
+                logger.trace(click.buttons.pressedKeys.toString() +  " vs " + pressedKeys.toString() )
                 if (click.buttons.matches(mask, pressedKeys) || doubleClick && click.buttons.matches(doubleClickMask, pressedKeys)) {
                     click.behaviour.click(mouseX, mouseY)
                 }
@@ -438,38 +465,12 @@ open class GLFWMouseAndKeyHandler(var hub: Hub?) : MouseAndKeyHandlerBase(), Aut
         } else if (e.keyCode != KeyEvent.VK_ALT &&
             e.keyCode != KeyEvent.VK_CONTROL &&
             e.keyCode != KeyEvent.VK_ALT_GRAPH) {
-            pressedKeys.remove(e.keyCode.toInt())
+            pressedKeys.remove(e.keyCode)
 
             for (drag in activeKeyDrags)
                 drag.behaviour.end(mouseX, mouseY)
             activeKeyDrags.clear()
         }
-    }
-
-    /**
-     * Called when the window lost focus. Clears pressed keys
-     *
-     * @param[e] The incoming window update event
-     */
-    @Suppress("UNUSED_PARAMETER")
-    fun windowLostFocus(e: WindowEvent?) {
-        pressedKeys.clear()
-        shiftPressed = false
-        metaPressed = false
-        winPressed = false
-    }
-
-    /**
-     * Called when a window regains focus, clears pressed keys
-     *
-     * @param[e] The incoming window update event
-     */
-    @Suppress("UNUSED_PARAMETER")
-    fun windowGainedFocus(e: WindowEvent?) {
-        pressedKeys.clear()
-        shiftPressed = false
-        metaPressed = false
-        winPressed = false
     }
 
     override fun close() {
@@ -482,7 +483,7 @@ open class GLFWMouseAndKeyHandler(var hub: Hub?) : MouseAndKeyHandlerBase(), Aut
 
     override fun attach(hub: Hub?, window: SceneryWindow, inputMap: InputTriggerMap, behaviourMap: BehaviourMap): MouseAndKeyHandlerBase {
         val handler: MouseAndKeyHandlerBase
-        when (window) {
+        when(window) {
             is SceneryWindow.GLFWWindow -> {
                 this.hub = hub
                 handler = this
@@ -508,5 +509,9 @@ open class GLFWMouseAndKeyHandler(var hub: Hub?) : MouseAndKeyHandlerBase(), Aut
         }
 
         return handler
+    }
+
+    companion object {
+        internal val fakeComponent = object: Component() {}
     }
 }

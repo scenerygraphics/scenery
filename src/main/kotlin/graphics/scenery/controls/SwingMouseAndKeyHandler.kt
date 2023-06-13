@@ -29,8 +29,6 @@
  */
 package graphics.scenery.controls
 
-import org.joml.Vector3f
-import com.jogamp.newt.awt.NewtCanvasAWT
 import gnu.trove.set.TIntSet
 import graphics.scenery.Hub
 import graphics.scenery.Settings
@@ -84,23 +82,26 @@ class SwingMouseAndKeyHandler(var hub: Hub? = null) : MouseAndKeyHandlerBase(), 
 		 * For scrolling AWT uses the SHIFT_DOWN_MASK to indicate horizontal scrolling.
 		 * We keep track of whether the SHIFT key was actually pressed for disambiguation.
 		 */
-        if (globalKeys.shiftPressed())
+        if (globalKeys.shiftPressed()) {
             mask = mask or InputEvent.SHIFT_DOWN_MASK
-        else
+        } else {
             mask = mask and InputEvent.SHIFT_DOWN_MASK.inv()
+        }
 
         /*
 		 * On OS X AWT sets the META_DOWN_MASK to for right clicks. We keep
 		 * track of whether the META key was actually pressed for
 		 * disambiguation.
 		 */
-        if (globalKeys.metaPressed())
+        if (globalKeys.metaPressed()) {
             mask = mask or InputEvent.META_DOWN_MASK
-        else
+        } else {
             mask = mask and InputEvent.META_DOWN_MASK.inv()
+        }
 
-        if (globalKeys.winPressed())
+        if (globalKeys.winPressed()) {
             mask = mask or InputTrigger.WIN_DOWN_MASK
+        }
 
         /*
 		 * We add the button modifiers to modifiersEx such that the
