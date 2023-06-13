@@ -42,6 +42,7 @@ dependencies {
     implementation("org.scijava:scripting-jython")
     implementation("net.java.dev.jna:jna-platform:5.11.0")
 
+
     val lwjglVersion = "3.3.1"
     listOf("",
         "-glfw",
@@ -102,8 +103,8 @@ dependencies {
 
     //TODO revert to official BVV
     api("graphics.scenery:bigvolumeviewer:7698a01") {
-        exclude("org.jogamp.gluegen", "gluegen-rt")
-        exclude("org.jogamp.jogl", "jogl-all")
+        exclude("org.jogamp.gluegen", "gluegen-rt-main")
+        exclude("org.jogamp.jogl", "jogl-all-main")
     }
 
     implementation("com.github.skalarproduktraum:lwjgl3-awt:d7a7369")
