@@ -25,8 +25,8 @@ repositories {
 }
 
 dependencies {
-    implementation(platform("org.scijava:pom-scijava:31.1.0"))
-    annotationProcessor("org.scijava:scijava-common:2.88.1")
+    implementation(platform("org.scijava:pom-scijava:35.1.1"))
+    annotationProcessor("org.scijava:scijava-common:2.94.1")
 
     implementation(kotlin("reflect"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.2")
