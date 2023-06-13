@@ -71,6 +71,9 @@ class DetachedHeadCamera(@Transient var tracker: TrackerInput? = null) : Camera(
             return tracker?.getWorkingTracker()?.getOrientation() ?: Quaternionf(0.0f, 0.0f, 0.0f, 1.0f)
         }
 
+        /**
+         * Sets the TrackerInput's orientation to a given Quaternion.
+         */
         operator fun setValue(thisRef: Any?, property: KProperty<*>, value: Quaternionf) {
             throw UnsupportedOperationException()
         }

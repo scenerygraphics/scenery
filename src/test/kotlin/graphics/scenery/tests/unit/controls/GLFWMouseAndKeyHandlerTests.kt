@@ -9,6 +9,7 @@ import graphics.scenery.controls.GLFWMouseAndKeyHandler
 import graphics.scenery.controls.GLFWMouseAndKeyHandler.Companion.fakeComponent
 import graphics.scenery.controls.InputHandler
 import graphics.scenery.tests.unit.backends.FauxRenderer
+import graphics.scenery.utils.extensions.toBinaryString
 import graphics.scenery.utils.lazyLogger
 import org.junit.Test
 import org.lwjgl.glfw.GLFW.*
@@ -204,8 +205,6 @@ class GLFWMouseAndKeyHandlerTests {
 
         return events
     }
-
-    fun Int.toBinaryString() = Integer.toBinaryString(this)
 
     /**
      * Tests the click handlers with a series of events and modifier keys.

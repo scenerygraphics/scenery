@@ -3,6 +3,7 @@ package graphics.scenery.controls
 import graphics.scenery.Hub
 import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.utils.ExtractsNatives
+import graphics.scenery.utils.extensions.toBinaryString
 import org.lwjgl.glfw.GLFW.*
 import org.lwjgl.glfw.GLFWCursorPosCallback
 import org.lwjgl.glfw.GLFWKeyCallback
@@ -268,8 +269,6 @@ open class GLFWMouseAndKeyHandler(var hub: Hub?) : MouseAndKeyHandlerBase(), Aut
         update()
     }
 
-    fun Int.toBinaryString() = Integer.toBinaryString(this)
-
     /**
      * Called when the mouse is clicked, updates state
      *
@@ -285,9 +284,11 @@ open class GLFWMouseAndKeyHandler(var hub: Hub?) : MouseAndKeyHandlerBase(), Aut
 
         val clickMask = mask and InputTrigger.DOUBLE_CLICK_MASK.inv()
         for (click in buttonClicks) {
-//            logger.trace("behav = ${click.buttons.mask.toBinaryString()}")
-//            logger.trace("event = ${mask.toBinaryString()}")
-//            logger.trace("click = ${clickMask.toBinaryString()}")
+            if(logger.isTraceEnabled) {
+                logger.trace("behav = {}", click.buttons.mask.toBinaryString())
+                logger.trace("event = {}", mask.toBinaryString())
+                logger.trace("click = {}", clickMask.toBinaryString())
+            }
             if (click.buttons.matches(mask, pressedKeys) || clickMask != mask && click.buttons.matches(clickMask, pressedKeys)) {
                 click.behaviour.click(x, y)
             }
