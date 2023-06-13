@@ -1,6 +1,5 @@
 package graphics.scenery.backends
 
-import com.jogamp.opengl.GLAutoDrawable
 import graphics.scenery.utils.SceneryJPanel
 import org.lwjgl.glfw.GLFW.*
 import javax.swing.JFrame
