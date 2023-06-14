@@ -10,7 +10,6 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.selects.select
 import org.lwjgl.system.Platform
-import java.lang.RuntimeException
 import java.util.concurrent.ConcurrentLinkedQueue
 
 /**

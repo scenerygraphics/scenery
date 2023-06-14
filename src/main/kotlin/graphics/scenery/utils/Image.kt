@@ -9,7 +9,6 @@ import java.awt.image.*
 import java.io.BufferedInputStream
 import java.io.IOException
 import java.io.InputStream
-import java.lang.RuntimeException
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.*
