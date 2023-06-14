@@ -6,6 +6,19 @@ import bdv.tools.brightness.ConverterSetup
 import bdv.tools.transformation.TransformedSource
 import bdv.viewer.RequestRepaint
 import bdv.viewer.state.SourceState
+import bvv.core.backend.Texture
+import bvv.core.backend.Texture3D
+import bvv.core.cache.*
+import bvv.core.render.VolumeBlocks
+import bvv.core.render.VolumeShaderSignature
+import bvv.core.multires.MultiResolutionStack3D
+import bvv.core.multires.SimpleStack3D
+import bvv.core.multires.SourceStacks
+import bvv.core.multires.Stack3D
+import bvv.core.render.MultiVolumeShaderMip
+import bvv.core.shadergen.generate.Segment
+import bvv.core.shadergen.generate.SegmentTemplate
+import bvv.core.shadergen.generate.SegmentType
 import graphics.scenery.*
 import graphics.scenery.geometry.GeometryType
 import graphics.scenery.attribute.geometry.Geometry
@@ -25,26 +38,13 @@ import net.imglib2.type.volatiles.VolatileUnsignedByteType
 import net.imglib2.type.volatiles.VolatileUnsignedShortType
 import org.joml.Matrix4f
 import org.joml.Vector2f
-import tpietzsch.backend.Texture
-import tpietzsch.backend.Texture3D
-import tpietzsch.cache.*
-import tpietzsch.example2.MultiVolumeShaderMip
-import tpietzsch.example2.TriConsumer
-import tpietzsch.example2.VolumeBlocks
-import tpietzsch.example2.VolumeShaderSignature
-import tpietzsch.multires.MultiResolutionStack3D
-import tpietzsch.multires.SimpleStack3D
-import tpietzsch.multires.SourceStacks
-import tpietzsch.multires.Stack3D
-import tpietzsch.shadergen.generate.Segment
-import tpietzsch.shadergen.generate.SegmentTemplate
-import tpietzsch.shadergen.generate.SegmentType
 import java.nio.ByteBuffer
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
 import java.util.*
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.ForkJoinPool
+import java.util.function.BiConsumer
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.system.measureTimeMillis
@@ -59,7 +59,7 @@ class VolumeManager(
     override var hub: Hub?,
     val useCompute: Boolean = false,
     val customSegments: Map<SegmentType, SegmentTemplate>? = null,
-    val customBindings: TriConsumer<Map<SegmentType, SegmentTemplate>, Map<SegmentType, Segment>, Int>? = null
+    val customBindings: BiConsumer<Map<SegmentType, SegmentTemplate>, Map<SegmentType, Segment>>? = null
 ) : DefaultNode("VolumeManager"), HasGeometry, HasRenderable, HasMaterial, Hubable, RequestRepaint {
 
     /**
@@ -309,10 +309,10 @@ class VolumeManager(
             "vis", "sampleVolume", "convert", "sceneGraphVisibility"
         )
 
-        customSegments?.forEach { type, segment -> segments[type] = segment }
+        customSegments?.forEach { (type, segment) -> segments[type] = segment }
 
         val additionalBindings = customBindings
-            ?: TriConsumer { _: Map<SegmentType, SegmentTemplate>, instances: Map<SegmentType, Segment>, i: Int ->
+            ?: BiConsumer { _: Map<SegmentType, SegmentTemplate>, instances: Map<SegmentType, Segment> ->
                 logger.debug("Connecting additional bindings")
 
                 instances[SegmentType.SampleMultiresolutionVolume]?.bind("convert", instances[SegmentType.Convert])
@@ -463,13 +463,13 @@ class VolumeManager(
                 .forEachIndexed { i, state ->
                     val s = state.stack
                     currentProg.setConverter(i, state.converterSetup)
-                    currentProg.registerCustomSampler(i, "transferFunction", state.transferFunction)
-                    currentProg.registerCustomSampler(i, "colorMap", state.colorMap)
-                    currentProg.setCustomFloatArrayUniformForVolume(i, "slicingPlanes", 4, state.node.slicingArray())
-                    currentProg.setCustomUniformForVolume(i, "slicingMode", state.node.slicingMode.id)
-                    currentProg.setCustomUniformForVolume(i,"usedSlicingPlanes",
+                    currentProg.setUniform(i, "transferFunction", state.transferFunction)
+                    currentProg.setUniform(i, "colorMap", state.colorMap)
+                    currentProg.setUniform(i, "slicingPlanes", 4, state.node.slicingArray())
+                    currentProg.setUniform(i, "slicingMode", state.node.slicingMode.id)
+                    currentProg.setUniform(i,"usedSlicingPlanes",
                         min(state.node.slicingPlaneEquations.size, Volume.MAX_SUPPORTED_SLICING_PLANES))
-                    currentProg.setCustomUniformForVolume(i, "sceneGraphVisibility", if (state.node.visible) 1 else 0)
+                    currentProg.setUniform(i, "sceneGraphVisibility", if (state.node.visible) 1 else 0)
 
                     context.bindTexture(state.transferFunction)
                     context.bindTexture(state.colorMap)
