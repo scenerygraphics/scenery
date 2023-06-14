@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalStdlibApi::class)
+
 package graphics.scenery.backends.vulkan
 
 import graphics.scenery.textures.Texture
@@ -315,7 +317,7 @@ open class VulkanTexture(val device: VulkanDevice,
         gt?.let { gt ->
             if (gt.channels == 3) {
                 logger.debug("Loading RGB texture, padding channels to 4 to fit RGBA")
-                val pixelByteSize = when (gt.type) {
+                val channelBytes = when (gt.type) {
                     is UnsignedByteType -> 1
                     is ByteType -> 1
                     is UnsignedShortType -> 2
@@ -326,6 +328,8 @@ open class VulkanTexture(val device: VulkanDevice,
                     is DoubleType -> 8
                     else -> throw UnsupportedOperationException("Don't know how to handle textures of type ${gt.type.javaClass.simpleName}")
                 }
+                val oldPixelBytes = 3 * channelBytes
+                val newPixelBytes = 4 * channelBytes
 
                 val storage = memAlloc(data.remaining() / 3 * 4)
 //                val view = data.duplicate().order(ByteOrder.LITTLE_ENDIAN)
@@ -374,7 +378,7 @@ open class VulkanTexture(val device: VulkanDevice,
 //                        storage.put(i * newPixelBytes * channelBytes + 3 * channelBytes, alpha[b])
                 }
 
-                storage.flip()
+//                storage.flip()
                 deallocate = true
                 sourceBuffer = storage
             } else {
