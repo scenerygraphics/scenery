@@ -25,7 +25,7 @@ import kotlin.math.acos
 
 class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private val firstPerpendicularVector: Vector3f = Vector3f(0f, 0f, 0f),
             baseShape: () -> List<List<Vector3f>>): Mesh("CurveGeometry") {
-    val chain = spline.splinePoints()
+    val splinePoints = spline.splinePoints()
     private val sectionVertices = spline.verticesCountPerSection()
     private val countList = ArrayList<Int>(50).toMutableList()
 
@@ -37,10 +37,10 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
      * a banister.
      */
     init {
-        if (chain.isEmpty()) {
+        if (splinePoints.isEmpty()) {
             logger.warn("The spline provided for the Curve is empty.")
         }
-        val bases = computeFrenetFrames(chain as ArrayList<Vector3f>).map { (t, n, b, tr) ->
+        val bases = computeFrenetFrames(splinePoints as ArrayList<Vector3f>).map { (t, n, b, tr) ->
             val inverseMatrix = Matrix3f(b.x(), n.x(), t.x(),
                     b.y(), n.y(), t.y(),
                     b.z(), n.z(), t.z()).invert()
@@ -72,7 +72,7 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
             if(transformedBaseShapes.size < sectionVertices +1) {
                 println(transformedBaseShapes.size)
             }
-            val subShapes = transformedBaseShapes.windowed(sectionVertices+1, sectionVertices+1, true)
+            val subShapes = transformedBaseShapes.windowed(sectionVertices, sectionVertices, true)
             subShapes.forEachIndexed { index, list ->
                 //fill gaps
                 val arrayList = list as ArrayList
@@ -162,15 +162,15 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
      * [i] index of the curve (not the geometry!)
      */
     private fun getTangent(i: Int): Vector3f {
-        if(chain.size >= 3) {
+        if(splinePoints.size >= 3) {
             val tangent = Vector3f()
             when (i) {
-                0 -> { ((chain[1].sub(chain[0], tangent)).normalize()) }
-                1 -> { ((chain[2].sub(chain[0], tangent)).normalize()) }
-                chain.lastIndex - 1 -> { ((chain[i + 1].sub(chain[i - 1], tangent)).normalize()) }
-                chain.lastIndex -> { ((chain[i].sub(chain[i - 1], tangent)).normalize()) }
+                0 -> { ((splinePoints[1].sub(splinePoints[0], tangent)).normalize()) }
+                1 -> { ((splinePoints[2].sub(splinePoints[0], tangent)).normalize()) }
+                splinePoints.lastIndex - 1 -> { ((splinePoints[i + 1].sub(splinePoints[i - 1], tangent)).normalize()) }
+                splinePoints.lastIndex -> { ((splinePoints[i].sub(splinePoints[i - 1], tangent)).normalize()) }
                 else -> {
-                    chain[i+1].sub(chain[i-1], tangent).normalize()
+                    splinePoints[i+1].sub(splinePoints[i-1], tangent).normalize()
                 }
             }
             return tangent
@@ -189,17 +189,17 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
      * coordinate system which represents the form of the curve. For details concerning the
      * calculation see: http://www.cs.indiana.edu/pub/techreports/TR425.pdf
      */
-    fun computeFrenetFrames(curve: ArrayList<Vector3f>): List<FrenetFrame> {
+    fun computeFrenetFrames(splinePoints: ArrayList<Vector3f>): List<FrenetFrame> {
 
-        val frenetFrameList = ArrayList<FrenetFrame>(curve.size)
+        val frenetFrameList = ArrayList<FrenetFrame>(splinePoints.size)
 
-        if(curve.isEmpty()) {
+        if(splinePoints.isEmpty()) {
             return frenetFrameList
         }
 
         //adds all the tangent vectors
-        curve.forEachIndexed { index, _ ->
-            val frenetFrame = FrenetFrame(getTangent(index), Vector3f(), Vector3f(), curve[index])
+        splinePoints.forEachIndexed { index, _ ->
+            val frenetFrame = FrenetFrame(getTangent(index), Vector3f(), Vector3f(), splinePoints[index])
             frenetFrameList.add(frenetFrame)
         }
         var min = MIN_VALUE
