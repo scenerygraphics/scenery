@@ -1,71 +1,352 @@
-if (vis)
+if (vis && step > localNear && step < localFar)
 {
+    transparentSample = false;
     vec4 x = sampleVolume(wpos);
-    float newAlpha = x.a;
-    vec3 newColor = x.rgb;
 
-    vec4 ndcPos = pv * wpos;
-    ndcPos *= 1. / ndcPos.w;
+    //    #if USE_PRINTF
+    //    if(gl_GlobalInvocationID.xy == debug_pixel && thresh_found) {
+    //        debugPrintfEXT("Step: %d, color of sample: (%f, %f, %f, %f) at position: (%f, %f, %f, %f)", i, x.rgba, wpos.xyzw);
+    //    }
+    //    #endif
 
-    float ndc_step = ndcPos.z;
+    //TODO: the below check should be removed for efficiency
+    if(x.r > -0.5 || lastSample) { // we need to process this sample only if it is from a volume that actually exists at this sample point
+        //        #if USE_PRINTF
+        //        if(gl_GlobalInvocationID.xy == debug_pixel && thresh_found) {
+        //            debugPrintfEXT("Step: %d, color of sample: (%f, %f, %f, %f) at position: (%f, %f, %f, %f)", i, x.rgba, wpos.xyzw);
+        //        }
+        //        #endif
 
-    if(newAlpha < minOpacity) {
-        transparentSample = true;
-    }
+        float newAlpha = x.a;
+        float w = adjustOpacity(newAlpha, length(wpos - wprev)); //TODO: jump length can be precalculated
 
-    if(supersegmentIsOpen) {
+        vec3 newColor = x.rgb;
 
-//        imageStore(OutputSubVDIColor, ivec3(3 * supersegmentNum + 1, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x), vec4(0));
-//        imageStore(OutputSubVDIColor, ivec3(3 * supersegmentNum + 2, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x), vec4(0));
-//        imageStore(OutputSubVDIColor, ivec3(3 * supersegmentNum, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x), vec4(0));
-//        supersegmentNum++;
-
-//        float segLen = step - supSegStartPoint;
-        float segLen = ndc_step - supSegStartPoint;
-        vec4 supersegmentAdjusted;
-        supersegmentAdjusted.rgb = curV.rgb / curV.a;
-//        supersegmentAdjusted.a = adjustOpacity(curV.a, 1.0/segLen);
-        supersegmentAdjusted.a = curV.a;
-//        supersegmentAdjusted = x;
-        float diff = diffPremultiplied(supersegmentAdjusted, x);
-
-        bool newSupSeg = false;
-        if(diff >= newSupSegThresh) {
-            newSupSeg = true;
+        if(w <= minOpacity) {
+            transparentSample = true;
         }
 
-        if(lastSample || ((newSupSeg || transparentSample) && !lastSupersegment)) {
+        //        #if USE_PRINTF
+        //        if(gl_GlobalInvocationID.xy == debug_pixel && lastSample) {
+        //            debugPrintfEXT("lastsample is: (%f, %f, %f, %f). Is transparent? %d", x.rgba, transparentSample);
+        //        }
+        //        #endif
+
+        if(supersegmentIsOpen) {
+
+            //        imageStore(OutputSubVDIColor, ivec3(3 * supersegmentNum + 1, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x), vec4(0));
+            //        imageStore(OutputSubVDIColor, ivec3(3 * supersegmentNum + 2, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x), vec4(0));
+            //        imageStore(OutputSubVDIColor, ivec3(3 * supersegmentNum, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x), vec4(0));
+            //        supersegmentNum++;
+
+            //        float segLen = step - supSegStartPoint;
+            //        float segLen = ndc_step - supSegStartPoint;
+            //            float segLen = length(wprev - supseg_start_w);
+            //            #if USE_PRINTF
+            //            if(gl_GlobalInvocationID.xy == debug_pixel &&  (w_prev_non_transp != wprev) && thresh_found) {
+            //                debugPrintfEXT("Supseg_num: %d. w_prev_non_transp: (%f, %f, %f, %f), wprev: (%f, %f, %f, %f).", supersegmentNum, w_prev_non_transp.xyzw, wprev.xyzw);
+            //            }
+            //            #endif
+
+            vec4 jump_pos = mix(wfront, wback, nw * steps_in_supseg); //TODO: jump length of single step can be precalculated and scaled to num steps in supseg
+
+            float segLen = length(jump_pos - wfront);
+            supersegmentAdjusted.rgb = curV.rgb / curV.a;
+            supersegmentAdjusted.a = adjustOpacity(curV.a, 1.0/segLen);
+            //        supersegmentAdjusted.a = curV.a;
+            //        supersegmentAdjusted = x;
+
+            vec4 withSample; // the supersegment with the sample accumulated
+            withSample.rgb = curV.rgb + (1 - curV.a) * newColor * w;
+            withSample.a = curV.a + (1 - curV.a) * w;
+
+            vec4 next_jump_pos = mix(wfront, wback, nw * (steps_in_supseg + 1));
+            float segLen_withSample = length(next_jump_pos - wfront);
+
+            vec4 withSample_adjusted;
+            withSample_adjusted.rgb = withSample.rgb / withSample.a;
+            withSample_adjusted.a = adjustOpacity(withSample.a, 1.0/segLen_withSample);
+
+            float diff = diffPremultiplied(supersegmentAdjusted, x);
+            //            float diff = diffPremultiplied(supersegmentAdjusted, vec4(newColor, w));
+            //            float diff = diffPremultiplied(supersegmentAdjusted, withSample_adjusted);
+
+            bool newSupSeg = false;
+            if(diff >= newSupSegThresh) {
+                newSupSeg = true;
+                //                #if USE_PRINTF
+                //                if(gl_GlobalInvocationID.xy == debug_pixel && thresh_found) {
+                //                    debugPrintfEXT("Termination criteria reached for %dth time, color of supseg was: (%f, %f, %f, %f)", num_terminations, supersegmentAdjusted.rgba);
+                //                    debugPrintfEXT("Length used for opacity correction: %f and steps in supseg: %d", segLen, steps_in_supseg);
+                //                    debugPrintfEXT("Sample value was: (%f, %f, %f, %f) and after adjusting: (%f, %f, %f, %f)", x.rgba, vec4(newColor, w));
+                //
+                //                    float inv = 1.0/segLen;
+                //                    float p = pow((1.0 - curV.a), inv);
+                //                    debugPrintfEXT("Opacity before adjusting was: %f and inv: %f and p: %f", curV.a, inv, p);
+                //
+                //                }
+                //                #endif
+            }
+
+            //            if(((newSupSeg) || transparentSample)  && !(lastSupersegment && supsegs_written)) { //closing a supersegment
+            if((newSupSeg)) { //closing a supersegment
+                num_terminations++;
+                //                #if USE_PRINTF
+                //                if(gl_GlobalInvocationID.xy == debug_pixel) {
+                //                    debugPrintfEXT("Closing supseg with steps_trunc_trans: %d", steps_trunc_trans);
+                //                }
+                //                #endif
+                supersegmentIsOpen = false;
+                //            supSegEndPoint = step;
+
+                vec4 jump_pos_trunc = mix(wfront, wback, nw * steps_trunc_trans); //TODO: jump length of single step can be precalculated and scaled to num steps in supseg
+
+                float segLen_trunc = length(jump_pos - wfront);
+                //                float segLen_trunc = length(jump_pos_trunc - wfront);
+                supersegmentAdjusted.rgb = curV.rgb / curV.a; //TODO: this perhaps does not need to be recalculated here
+                supersegmentAdjusted.a = adjustOpacity(curV.a, 1.0/segLen_trunc);
+
+                #if WORLD_ABS
+                vec3 diff = w_prev_non_transp.xyz - ro_world.xyz;
+                if(!(abs(rd_world.x) < 0.05)) {
+                    supSegEndPoint = diff.x / (rd_world.x);
+                } else if (!(abs(rd_world.y) < 0.05)) {
+                    supSegEndPoint = diff.y / (rd_world.y);
+                } else {
+                    supSegEndPoint = diff.z / (rd_world.z);
+                }
+                #else
+                #if INT_DEPTHS
+                //                    #if USE_PRINTF
+                //                    if(gl_GlobalInvocationID.xy == debug_pixel && thresh_found) {
+                //                        debugPrintfEXT("Supseg: %d. Recording end point as : %d. ndc at this stage: %f", supersegmentNum, (supSegStartPoint + steps_in_supseg), ndc_step);
+                //                    }
+                //                    #endif
+                supSegEndPoint = supSegStartPoint + steps_trunc_trans;
+                #else
+                supSegEndPoint = ndc_step;
+                #endif
+                #endif
+                steps_in_supseg = 0;
+                steps_trunc_trans = 0;
+
+                if(thresh_found) {
+
+                    if(!supsegs_written) {
+                        writeSupersegment(supersegmentNum, supSegStartPoint, supSegEndPoint, supersegmentAdjusted);
+
+                        #if INT_DEPTHS
+                        float start_step = tnear + nw * supSegStartPoint;
+                        vec4 start_w = mix(wfront, wback, start_step);
+
+                        float end_step = tnear + nw * supSegEndPoint;
+                        vec4 end_w = mix(wfront, wback, end_step);
+                        #else
+                        vec4 start_w = ipv * vec4(uv, supSegStartPoint, 1);
+                        start_w *= 1. / start_w.w;
+
+                        vec4 end_w = ipv * vec4(uv, supSegEndPoint, 1);
+                        end_w *= 1. / end_w.w;
+
+                        #endif
+
+                        vec4 start_v = ViewMatrices[0] * start_w;
+                        vec4 end_v = ViewMatrices[0] * end_w;
+
+                        int start_cell = findZInterval_view(start_v.z);
+                        int end_cell = findZInterval_view(end_v.z);
+
+                        for(int j = start_cell; j <= end_cell; j++) {
+                            grid_cell.z = j;
+                            update_cell_count(grid_cell);
+                        }
+                    }
+
+                    supersegmentNum++;
+                }
+            }
+        }
+
+        //        if( (!lastSample) && (!supersegmentIsOpen) && (!transparentSample) ) { //opening a supersegment
+        if( (!supersegmentIsOpen) && (!transparentSample) ) { //opening a supersegment
+
+            //            #if USE_PRINTF
+            //            if(gl_GlobalInvocationID.xy == debug_pixel && thresh_found) {
+            //                debugPrintfEXT("Opening supseg: %d. Sample value was: (%f, %f, %f, %f). Step number: %d", supersegmentNum, x.rgba, i);
+            //            }
+            //            #endif
+
+            supersegmentIsOpen = true;
+            //        supSegStartPoint = step;
+            #if WORLD_ABS
+            vec3 diff = w_prev_non_transp.xyz - ro_world.xyz;
+            if(!(abs(rd_world.x) < 0.05)) {
+                supSegStartPoint = diff.x / (rd_world.x);
+            } else if (!(abs(rd_world.y) < 0.05)) {
+                supSegStartPoint = diff.y / (rd_world.y);
+            } else {
+                supSegStartPoint = diff.z / (rd_world.z);
+            }
+            #else
+            #if INT_DEPTHS
+            //                #if USE_PRINTF
+            //                if(gl_GlobalInvocationID.xy == debug_pixel && thresh_found) {
+            //                    debugPrintfEXT("Supseg: %d. Recording start point as : %d. ndc at this stage: %f", supersegmentNum, i, ndc_step);
+            //                }
+            //                #endif
+
+            supSegStartPoint = i;
+            #else
+            vec4 ndcStart = pv * wpos;
+            ndcStart *= 1. / ndcStart.w;
+            float start_step = ndcStart.z;
+            supSegStartPoint = start_step;
+            #endif
+            #endif
+            supseg_start_w = wpos;
+            curV = vec4( 0 ); //TODO: should this be x instead?
+        }
+
+        //        if(!transparentSample) {
+        if(supersegmentIsOpen) {
+
+            //    float w = newAlpha;
+            curV.rgb = curV.rgb + (1 - curV.a) * newColor * w;
+            curV.a = curV.a + (1 - curV.a) * w;
+
+            if(supsegs_written) {
+                vec4 supseg_color = imageLoad(OutputSubVDIColor, ivec3(supersegmentNum, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x));
+                float diff = diffPremultiplied(supseg_color, x);
+                quantization_error += diff;
+
+                //                #if USE_PRINTF
+                //                if(gl_GlobalInvocationID.xy == debug_pixel) {
+                //                    debugPrintfEXT("Step: %d. Supseg: (%f, %f, %f, %f), sample: (%f, %f, %f, %f), diff: %f", i, supseg_color.rgba, x.rgba, diff);
+                //                }
+                //                #endif
+            }
+
+            //                #if USE_PRINTF
+            //                if(gl_GlobalInvocationID.xy == debug_pixel && thresh_found) {
+            //                    debugPrintfEXT("Step: %d. Supseg: %d color so far: (%f, %f, %f, %f)", i, supersegmentNum, curV.rgba);
+            //                }
+            //                #endif
+
+            steps_in_supseg++;
+
+            if(!transparentSample) {
+                steps_trunc_trans = steps_in_supseg;
+                w_prev_non_transp = wpos;
+
+                float step_next = step + nw;
+                vec4 wnext = mix(wfront, wback, step_next);
+
+                ndcPos = pv * wnext;
+                ndcPos *= 1. / ndcPos.w;
+                ndc_step = ndcPos.z;
+            }
+
+        }
+
+        v.rgb = v.rgb + (1.0f - v.a) * newColor * w; //TODO Remove
+        v.a = v.a + (1.0f - v.a) * w;
+
+
+        if(lastSample && supersegmentIsOpen) { //close the supersegment after the last sample is accumulated
+
+            //            #if USE_PRINTF
+            //            if(gl_GlobalInvocationID.xy == debug_pixel) {
+            //                debugPrintfEXT("Closing supseg (last sample) with steps_trunc_trans: %d", steps_trunc_trans);
+            //            }
+            //            #endif
+
+            vec4 jump_pos = mix(wfront, wback, nw * steps_trunc_trans);
+
+            float segLen = length(jump_pos - wfront);
+            supersegmentAdjusted.rgb = curV.rgb / curV.a;
+            supersegmentAdjusted.a = adjustOpacity(curV.a, 1.0/segLen);
+
+            //            #if USE_PRINTF
+            //            if(gl_GlobalInvocationID.xy == debug_pixel && thresh_found) {
+            //                debugPrintfEXT("jump_pos: (%f, %f, %f, %f), wfront: (%f, %f, %f, %f), seglen: %f, supersegmentAdjusted: (%f, %f, %f, %f). curV was: (%f, %f, %f, %f)", jump_pos.xyzw, wfront.xyzw, segLen, supersegmentAdjusted.rgba, curV.rgba);
+            //            }
+            //            #endif
+
+            num_terminations++;
+            //                #if USE_PRINTF
+            //                if(gl_GlobalInvocationID.xy == debug_pixel) {
+            //                    debugPrintfEXT("Closing supseg");
+            //                }
+            //                #endif
             supersegmentIsOpen = false;
-//            supSegEndPoint = step;
+            //            supSegEndPoint = step;
+
+            #if WORLD_ABS
+            vec3 diff = w_prev_non_transp.xyz - ro_world.xyz;
+            if(!(abs(rd_world.x) < 0.05)) {
+                supSegEndPoint = diff.x / (rd_world.x);
+            } else if (!(abs(rd_world.y) < 0.05)) {
+                supSegEndPoint = diff.y / (rd_world.y);
+            } else {
+                supSegEndPoint = diff.z / (rd_world.z);
+            }
+            #else
+            #if INT_DEPTHS
+            supSegEndPoint = supSegStartPoint + steps_trunc_trans;
+            #else
             supSegEndPoint = ndc_step;
-            vec4 encodedDepthStart;
-            vec4 encodedDepthEnd;
-            encodedDepthStart = EncodeFloatRGBA(supSegStartPoint);
-            encodedDepthEnd = EncodeFloatRGBA(supSegEndPoint);
-//            encodedDepths = encode(supSegStartPoint, supSegEndPoint);
-            imageStore(OutputSubVDIColor, ivec3(3 * supersegmentNum + 1, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x), encodedDepthStart);
-            imageStore(OutputSubVDIColor, ivec3(3 * supersegmentNum + 2, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x), encodedDepthEnd);
-            imageStore(OutputSubVDIColor, ivec3(3 * supersegmentNum, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x), supersegmentAdjusted);
-            supersegmentNum++;
+            #endif
+            #endif
+            steps_in_supseg = 0;
+
+            if(thresh_found) {
+
+                if(!supsegs_written) {
+                    writeSupersegment(supersegmentNum, supSegStartPoint, supSegEndPoint, supersegmentAdjusted);
+
+                    #if INT_DEPTHS
+                    float start_step = tnear + nw * supSegStartPoint;
+                    vec4 start_w = mix(wfront, wback, start_step);
+
+                    float end_step = tnear + nw * supSegEndPoint;
+                    vec4 end_w = mix(wfront, wback, end_step);
+                    #else
+                    vec4 start_w = ipv * vec4(uv, supSegStartPoint, 1);
+                    start_w *= 1. / start_w.w;
+
+                    vec4 end_w = ipv * vec4(uv, supSegEndPoint, 1);
+                    end_w *= 1. / end_w.w;
+                    #endif
+
+                    vec4 start_v = ViewMatrices[0] * start_w;
+                    vec4 end_v = ViewMatrices[0] * end_w;
+
+                    int start_cell = findZInterval_view(start_v.z);
+                    int end_cell = findZInterval_view(end_v.z);
+
+                    for(int j = start_cell; j <= end_cell; j++) {
+                        grid_cell.z = j;
+                        update_cell_count(grid_cell);
+                    }
+                }
+
+                supersegmentNum++;
+            }
         }
+
+        //        #if USE_PRINTF
+        //        if(gl_GlobalInvocationID.xy == debug_pixel && thresh_found) {
+        //            debugPrintfEXT("Accumulated so far: within supseg: (%f, %f, %f, %f) overall: (%f, %f, %f, %f)", curV.rgba, v.rgba);
+        //        }
+        //        #endif
+
+
+        //        }
+
+
+        //    if(v.a >= 1.0f) {
+        //        break;
+        //    }
+
     }
-
-    if( (!lastSample) && (!supersegmentIsOpen) && (!transparentSample) ) {
-        supersegmentIsOpen = true;
-//        supSegStartPoint = step;
-        supSegStartPoint = ndc_step;
-        curV = vec4( 0 );
-    }
-
-//    float w = adjustOpacity(newAlpha, nw + step * fwnw);
-    float w = newAlpha;
-    curV.rgb = curV.rgb + (1 - curV.a) * newColor * w;
-    curV.a = curV.a + (1 - curV.a) * w;
-
-    v.rgb = v.rgb + (1.0f - v.a) * newColor * newAlpha; //TODO Remove
-    v.a = v.a + (1.0f - v.a) * newAlpha;
-
-//    if(v.a >= 1.0f) {
-//        break;
-//    }
 }
