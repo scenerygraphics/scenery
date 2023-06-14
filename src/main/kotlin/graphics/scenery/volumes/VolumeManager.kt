@@ -44,6 +44,7 @@ import java.nio.IntBuffer
 import java.util.*
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.ForkJoinPool
+import java.util.function.BiConsumer
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.system.measureTimeMillis
@@ -462,13 +463,13 @@ class VolumeManager(
                 .forEachIndexed { i, state ->
                     val s = state.stack
                     currentProg.setConverter(i, state.converterSetup)
-                    currentProg.registerCustomSampler(i, "transferFunction", state.transferFunction)
-                    currentProg.registerCustomSampler(i, "colorMap", state.colorMap)
-                    currentProg.setCustomFloatArrayUniformForVolume(i, "slicingPlanes", 4, state.node.slicingArray())
-                    currentProg.setCustomUniformForVolume(i, "slicingMode", state.node.slicingMode.id)
-                    currentProg.setCustomUniformForVolume(i,"usedSlicingPlanes",
+                    currentProg.setUniform(i, "transferFunction", state.transferFunction)
+                    currentProg.setUniform(i, "colorMap", state.colorMap)
+                    currentProg.setUniform(i, "slicingPlanes", 4, state.node.slicingArray())
+                    currentProg.setUniform(i, "slicingMode", state.node.slicingMode.id)
+                    currentProg.setUniform(i,"usedSlicingPlanes",
                         min(state.node.slicingPlaneEquations.size, Volume.MAX_SUPPORTED_SLICING_PLANES))
-                    currentProg.setCustomUniformForVolume(i, "sceneGraphVisibility", if (state.node.visible) 1 else 0)
+                    currentProg.setUniform(i, "sceneGraphVisibility", if (state.node.visible) 1 else 0)
 
                     context.bindTexture(state.transferFunction)
                     context.bindTexture(state.colorMap)
