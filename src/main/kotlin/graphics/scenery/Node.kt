@@ -21,6 +21,7 @@ import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.locks.ReentrantLock
 import java.util.function.Consumer
 import kotlin.collections.ArrayList
+import kotlin.collections.Collection
 
 interface Node : Networkable {
     var name: String
@@ -142,6 +143,23 @@ interface Node : Networkable {
      *
      * @param[child] The child to attach to this node.
      */
+    operator fun plusAssign(child: Node) = addChild(child)
+
+    /**
+     * Attaches the given children nodes to this node.
+     *
+     * @param[children] The children to attach to this node.
+     */
+    operator fun plusAssign(children: Collection<Node>) {
+        for (child in children)
+            addChild(child)
+    }
+
+    /**
+     * Attaches a child node to this node.
+     *
+     * @param[child] The child to attach to this node.
+     */
     fun addChild(child: Node)
 
     /**
@@ -185,12 +203,12 @@ interface Node : Networkable {
      */
     fun generateBoundingBox(): OrientedBoundingBox? {
         val geometry = geometryOrNull()
-        if(geometry == null) {
+        return if(geometry == null) {
             logger.warn("$name: Assuming 3rd party BB generation")
-            return boundingBox
+            boundingBox
         } else {
             boundingBox = geometry.generateBoundingBox(children)
-            return boundingBox
+            boundingBox
         }
     }
 

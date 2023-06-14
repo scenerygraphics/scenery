@@ -6,6 +6,8 @@ import graphics.scenery.utils.extensions.xyz
 import org.joml.Vector3f
 import org.joml.Vector4f
 
+inline fun PointLight(radius: Float = 5.0f, block: PointLight.() -> Unit): PointLight = PointLight(radius).apply(block)
+
 /**
  * Point light class.
  *

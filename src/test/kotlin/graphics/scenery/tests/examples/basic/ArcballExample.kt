@@ -19,8 +19,7 @@ class ArcballExample : SceneryBase("ArcballExample") {
     override fun init() {
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, 1024, 1024))
 
-        val cam: Camera = DetachedHeadCamera()
-        with(cam) {
+        val cam: Camera = DetachedHeadCamera {
             spatial {
                 position = Vector3f(0.0f, 0.0f, 2.5f)
             }
@@ -28,51 +27,48 @@ class ArcballExample : SceneryBase("ArcballExample") {
 
             targeted = true
             target = Vector3f(0.0f, 0.0f, 0.0f)
-
-            scene.addChild(this)
         }
+        scene += cam
 
-        val camlight = PointLight(3.0f)
-        camlight.intensity = 5.0f
-        cam.addChild(camlight)
+        val camlight = PointLight(3.0f) {
+            intensity = 5.0f
+        }
+        cam += camlight
 
-        val box = Box(Vector3f(1.0f, 1.0f, 1.0f))
-
-        with(box) {
+        val box = Box(Vector3f(1.0f, 1.0f, 1.0f)) {
             spatial {
                 position = Vector3f(0.0f, 0.0f, 0.0f)
             }
             material {
                 ambient = Vector3f(1.0f, 0.0f, 0.0f)
                 diffuse = Vector3f(0.0f, 1.0f, 0.0f)
-                textures["diffuse"] = Texture.fromImage(Image.fromResource("textures/helix.png", TexturedCubeExample::class.java))
+                textures["diffuse"] = Image.fromResource<TexturedCubeExample>("textures/helix.png").toTexture()
                 specular = Vector3f(1.0f, 1.0f, 1.0f)
             }
-
-            scene.addChild(this)
         }
+        scene += box
 
-        val lights = (0..2).map {
-            PointLight(radius = 15.0f)
-        }.map { light ->
-            light.spatial {
-                position = Random.random3DVectorFromRange(-3.0f, 3.0f)
+        val lights = List(3) {
+            PointLight(radius = 15.0f) {
+                spatial {
+                    position = Random.random3DVectorFromRange(-3.0f, 3.0f)
+                }
+                emissionColor = Random.random3DVectorFromRange(0.2f, 0.8f)
+                intensity = Random.randomFromRange(0.1f, 0.8f)
             }
-            light.emissionColor = Random.random3DVectorFromRange(0.2f, 0.8f)
-            light.intensity = Random.randomFromRange(0.1f, 0.8f)
-            light
         }
 
-        val floor = Box(Vector3f(500.0f, 0.05f, 500.0f))
-        floor.spatial {
-            position = Vector3f(0.0f, -1.0f, 0.0f)
+        val floor = Box(Vector3f(500.0f, 0.05f, 500.0f)) {
+            spatial {
+                position = Vector3f(0.0f, -1.0f, 0.0f)
+            }
+            material {
+                diffuse = Vector3f(1.0f, 1.0f, 1.0f)
+            }
         }
-        floor.material {
-            diffuse = Vector3f(1.0f, 1.0f, 1.0f)
-        }
-        scene.addChild(floor)
+        scene += floor
 
-        lights.forEach(scene::addChild)
+        scene += lights
     }
 
     override fun inputSetup() {

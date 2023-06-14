@@ -13,6 +13,8 @@ import kotlin.math.PI
 import kotlin.math.atan
 import kotlin.reflect.KProperty
 
+inline fun DetachedHeadCamera(block: DetachedHeadCamera.() -> Unit): DetachedHeadCamera = DetachedHeadCamera().apply(block)
+
 /**
  * Detached Head Camera is a Camera subclass that tracks the head orientation
  * in addition to general orientation - useful for HMDs
