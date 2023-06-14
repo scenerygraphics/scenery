@@ -174,20 +174,27 @@ class RibbonDiagram(val protein: Protein, private val displaySS: Boolean = false
             val guideIndex = guidePointsOffset
             val guide = guidePointList[guidePointsOffset]
             val count = getCount(guidePointList.drop(guidePointsOffset))
+            //next guide point
+            guidePointsOffset += count
             //one subSpline for each secondary structure
             val subSpline = ArrayList<Vector3f>(sectionVerticesCount * (count+1))
             val ssSubList = ArrayList<List<Vector3f>>(sectionVerticesCount * (count+1))
             val helpSpline = splinePoints.drop(1).drop(splineOffset)
-            guidePointsOffset++
+
+            //configure subspline and spline offset
+            for (i in 0 until(count + 1) * sectionVerticesCount) {
+                splineOffset++
+                subSpline.add(helpSpline[i])
+                if(i == (count + 1) * sectionVerticesCount -1 && i < helpSpline.lastIndex) {
+                    subSpline.add(helpSpline[i+1])
+                }
+            }
+
+            //size of the secondary structure
+            val sheetSize = (count + 1) * (sectionVerticesCount) + 1
 
             //the beta sheets are visualized with arrows
             if(guide.type.isBetaStrand){
-                    val sheetSize = (count + 1) * (sectionVerticesCount)
-                    for (i in 0 until(count + 1) * sectionVerticesCount) {
-                        splineOffset++
-                        subSpline.add(helpSpline[i])
-                    }
-                    guidePointsOffset += count
                     val seventyPercent = (sheetSize * 0.70).toInt()
                     for (j in 0 until seventyPercent) {
                         ssSubList.add(reversedRectangle)
@@ -206,19 +213,11 @@ class RibbonDiagram(val protein: Protein, private val displaySS: Boolean = false
                     else { subParent.addChild(betaCurve) }
                 }
             else {
-                guidePointsOffset += count
-                for (j in 0..count) {
-                    for (i in 0  until sectionVerticesCount) {
-                        if (i + sectionVerticesCount * j <= helpSpline.lastIndex) {
-                            splineOffset++
-                            subSpline.add(helpSpline[i + sectionVerticesCount*j])
-                            if(guide.type == SecStrucType.helix4 && count >= 3) {
-                                ssSubList.add(rectangle)
-                            }
-                            else {
-                                ssSubList.add(octagon)
-                            }
-                        }
+                for(j in 0 until sheetSize) {
+                    if (guide.type == SecStrucType.helix4 && count >= 3) {
+                        ssSubList.add(rectangle)
+                    } else {
+                        ssSubList.add(octagon)
                     }
                 }
                 if (guide.type == SecStrucType.helix4 && count >= 3){
