@@ -1,5 +1,6 @@
 package graphics.scenery.tests.examples.volumes
 
+import bvv.core.VolumeViewerOptions
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.ui.SwingBridgeFrame
@@ -12,7 +13,6 @@ import graphics.scenery.volumes.Volume
 import org.joml.Vector3f
 import org.scijava.ui.behaviour.ClickBehaviour
 import org.scijava.ui.behaviour.DragBehaviour
-import tpietzsch.example2.VolumeViewerOptions
 
 
 /**

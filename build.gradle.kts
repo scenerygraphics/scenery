@@ -20,7 +20,7 @@ plugins {
 repositories {
     mavenCentral()
     maven("https://maven.scijava.org/content/groups/public")
-    maven("https://jitpack.io")
+//    maven("https://jitpack.io")
 //    mavenLocal()
 }
 
@@ -100,11 +100,9 @@ dependencies {
 
     api("sc.fiji:bigdataviewer-core:10.4.1")
     api("sc.fiji:bigdataviewer-vistools:1.0.0-beta-28")
-
-    //TODO revert to official BVV
-    api("graphics.scenery:bigvolumeviewer:7698a01") {
-        exclude("org.jogamp.gluegen", "gluegen-rt-main")
-        exclude("org.jogamp.jogl", "jogl-all-main")
+    api("sc.fiji:bigvolumeviewer:0.3.1") {
+        exclude("org.jogamp.gluegen", "gluegen-rt")
+        exclude("org.jogamp.jogl", "jogl-all")
     }
 
     implementation("com.github.skalarproduktraum:lwjgl3-awt:d7a7369")
@@ -197,9 +195,6 @@ tasks {
             parent.appendNode("relativePath")
 
             val repositories = asNode().appendNode("repositories")
-            val jitpackRepo = repositories.appendNode("repository")
-            jitpackRepo.appendNode("id", "jitpack.io")
-            jitpackRepo.appendNode("url", "https://jitpack.io")
 
             val scijavaRepo = repositories.appendNode("repository")
             scijavaRepo.appendNode("id", "scijava.public")

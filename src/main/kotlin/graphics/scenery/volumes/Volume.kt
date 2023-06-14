@@ -19,6 +19,7 @@ import bdv.viewer.DisplayMode
 import bdv.viewer.Source
 import bdv.viewer.SourceAndConverter
 import bdv.viewer.state.ViewerState
+import bvv.core.VolumeViewerOptions
 import graphics.scenery.*
 import graphics.scenery.attribute.DelegationType
 import graphics.scenery.attribute.geometry.DelegatesGeometry
@@ -56,7 +57,6 @@ import org.joml.Vector3i
 import org.joml.Vector4f
 import org.lwjgl.system.MemoryUtil
 import org.scijava.io.location.FileLocation
-import tpietzsch.example2.VolumeViewerOptions
 import java.io.FileInputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
