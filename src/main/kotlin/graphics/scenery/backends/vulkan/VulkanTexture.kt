@@ -20,6 +20,7 @@ import org.lwjgl.vulkan.VkImageCreateInfo
 import java.io.FileInputStream
 import java.io.InputStream
 import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import java.nio.file.Files
 import java.nio.file.Paths
 import kotlin.math.max
@@ -327,15 +328,50 @@ open class VulkanTexture(val device: VulkanDevice,
                 }
 
                 val storage = memAlloc(data.remaining() / 3 * 4)
-                val view = data.duplicate()
-                val tmp = ByteArray(pixelByteSize * 3)
-                val alpha = (0 until pixelByteSize).map { 255.toByte() }.toByteArray()
-
+//                val view = data.duplicate().order(ByteOrder.LITTLE_ENDIAN)
+                val tmp = ByteArray(channelBytes * 3)
+                val alpha = when(gt.type) {
+                    is UnsignedByteType -> (0 until channelBytes).map { 255.toByte() }.toByteArray()
+                    is ByteType -> (0 until channelBytes).map { 255.toByte() }.toByteArray()
+                    is UnsignedShortType -> byteArrayOf(0xff.toByte(), 0xff.toByte())
+                    is ShortType -> byteArrayOf(0xff.toByte(), 0xff.toByte())
+                    is UnsignedIntType -> byteArrayOf(0x3f, 0x80.toByte(), 0x00, 0x00)
+                    is IntType -> byteArrayOf(0x3f, 0x80.toByte(), 0x00, 0x00)
+                    is FloatType -> byteArrayOf(0x3f, 0x80.toByte(), 0x00, 0x00)
+                    is DoubleType -> byteArrayOf(0x3f, 0x80.toByte(), 0x00, 0x00, 0x00, 0x00, 0x00)
+                    else -> throw UnsupportedOperationException("Don't know how to handle textures of type ${gt.type.javaClass.simpleName}")
+                }
+//
+                logger.info("storage remaining: ${storage.remaining()}")
+//                logger.info("view remaining:    ${view.remaining()}")
+                logger.info("GT Type: ${gt.type} with ByteSize $channelBytes and alpha value ${alpha.contentToString()}")
+                logger.info("tmp size: ${tmp.size}")
+                var cycle = 0
                 // pad buffer to 4 channels
-                while (view.hasRemaining()) {
-                    view.get(tmp, 0, 3)
+                /*while (view.hasRemaining()) {
+                    if (cycle%100000 == 0) {
+                        logger.info("cycle: $cycle")
+                        logger.info("remaining storage: ${storage.remaining()}")
+                        logger.info("remaining view:    ${view.remaining()}")
+                    }
+
+                    //if(view.remaining() < 1000 || storage.remaining() < 1000) {
+                    //    logger.info("remaining storage: ${storage.remaining()}")
+                    //    logger.info("remaining view:    ${view.remaining()}")
+                    //}
+                    view.get(tmp, 0, tmp.size)
                     storage.put(tmp)
                     storage.put(alpha)
+                    cycle++
+                }*/
+                for (i in 0..< 4096 * 2048) {
+                    for (b in 0..< 3 * channelBytes) {
+                        if(i > 100663284)
+                            println("${i * oldPixelBytes + b}")
+                        storage.put(i * newPixelBytes + b, data[i * oldPixelBytes + b])
+                    }
+//                    for(b in 0 ..< channelBytes)
+//                        storage.put(i * newPixelBytes * channelBytes + 3 * channelBytes, alpha[b])
                 }
 
                 storage.flip()

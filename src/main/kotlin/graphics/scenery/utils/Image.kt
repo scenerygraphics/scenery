@@ -2,6 +2,8 @@ package graphics.scenery.utils
 
 import cleargl.TGAReader
 import graphics.scenery.volumes.Colormap
+import net.imglib2.type.numeric.NumericType
+import net.imglib2.type.numeric.integer.UnsignedByteType
 import org.lwjgl.system.MemoryUtil
 import java.awt.Color
 import java.awt.color.ColorSpace
@@ -21,7 +23,7 @@ import javax.imageio.ImageIO
  *
  * @author Ulrik Guenther <hello@ulrik.is>
  */
-open class Image(val contents: ByteBuffer, val width: Int, val height: Int, val depth: Int = 1) {
+open class Image(val contents: ByteBuffer, val width: Int, val height: Int, val depth: Int = 1, var type: NumericType<*> = UnsignedByteType()) {
 
     companion object {
         protected val logger by lazyLogger()

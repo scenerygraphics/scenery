@@ -55,7 +55,8 @@ dependencies {
         "-xxhash",
         "-remotery",
         "-spvc",
-        "-shaderc"
+        "-shaderc",
+        "-tinyexr"
     ).forEach { p ->
         api("org.lwjgl:lwjgl$p:$lwjglVersion")
 
