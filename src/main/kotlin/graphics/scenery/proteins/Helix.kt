@@ -23,7 +23,7 @@ class Helix (private val axis: MathLine, val spline: Spline, baseShape: () -> Li
     init {
         val sectionVerticesCount = spline.verticesCountPerSection()
         val transformedShapes = calculateTransformedShapes()
-        val subShapes = transformedShapes.windowed(sectionVerticesCount +1, sectionVerticesCount+1, true)
+        val subShapes = transformedShapes.windowed(sectionVerticesCount, sectionVerticesCount, true)
         subShapes.forEachIndexed { index, list ->
             //fill gaps
             val arrayList = list as ArrayList
