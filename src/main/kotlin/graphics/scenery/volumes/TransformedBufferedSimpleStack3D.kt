@@ -1,10 +1,10 @@
 package graphics.scenery.volumes
 
+import bvv.core.multires.SimpleStack3D
 import graphics.scenery.Node
 import net.imglib2.RandomAccessibleInterval
 import net.imglib2.realtransform.AffineTransform3D
 import org.joml.Matrix4f
-import tpietzsch.multires.SimpleStack3D
 import java.nio.ByteBuffer
 
 /**
