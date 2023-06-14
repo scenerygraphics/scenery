@@ -50,8 +50,7 @@ class VolumeClient : SceneryBase("Volume Client", 512 , 512) {
 
         //Until we add the missing parameters for dummy volume to become a volume
          val bridge = SwingBridgeFrame("TransferFunctionEditor")
-         val tfUI = TransferFunctionEditorForDummyVolume(dummyVolume, bridge)
-//       val tfUI = TransferFunctionEditor(volume, bridge)
+       val tfUI = TransferFunctionEditor(dummyVolume, bridge)
           tfUI.name = dummyVolume.name
         val swingUiNode = tfUI.mainFrame.uiNode
         swingUiNode.spatial() {
