@@ -30,18 +30,20 @@ class Helix (private val axis: MathLine, val spline: Spline, baseShape: () -> Li
             if(index != subShapes.size -1) {
                 arrayList.add(subShapes[index+1][0])
             }
-            val i = when (index) {
-                0 -> {
+            val i = when  {
+                index == 0 -> {
                     0
                 }
-                subShapes.size - 1 -> {
+                index == subShapes.lastIndex || (subShapes.last().size == 1 && index == subShapes.lastIndex-1) -> {
                     2
                 }
                 else -> {
                     1
                 }
             }
-            this.addChild(calcMesh(arrayList, i))
+            if(list.size > 1) {
+                this.addChild(calcMesh(arrayList, i))
+            }
         }
     }
 

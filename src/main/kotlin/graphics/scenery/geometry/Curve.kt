@@ -76,20 +76,22 @@ class Curve(spline: Spline, partitionAlongControlpoints: Boolean = true, private
                 if(index != subShapes.size -1) {
                     arrayList.add(subShapes[index+1][0])
                 }
-                val i = when (index) {
-                    0 -> {
+                val i = when  {
+                    index == 0 -> {
                         0
                     }
-                    subShapes.lastIndex -> {
+                    index == subShapes.lastIndex || (subShapes.last().size == 1 && index == subShapes.lastIndex-1) -> {
                         2
                     }
                     else -> {
                         1
                     }
                 }
-                val trianglesAndNormals = calculateTriangles(arrayList, addCoverOrTop = i)
-                val partialCurve = PartialCurve(trianglesAndNormals.first, trianglesAndNormals.second)
-                this.addChild(partialCurve)
+                if(list.size > 1) {
+                    val trianglesAndNormals = calculateTriangles(arrayList, addCoverOrTop = i)
+                    val partialCurve = PartialCurve(trianglesAndNormals.first, trianglesAndNormals.second)
+                    this.addChild(partialCurve)
+                }
             }
         }
         else {
