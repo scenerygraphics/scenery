@@ -28,6 +28,10 @@ class UniformBSpline(protected val controlPoints: ArrayList<Vector3f>, val n: In
      * This is a list of the equidistant parameters at which the curve is calculated.
      */
     private val tList = ArrayList<Vector4f>(n+1)
+
+    /**
+     * This is the list of polynomial parameters for each spline section
+     */
     private val parameters = Matrix4f(
         0f, 1f, 4f, 1f,
         0f, 3f, 0f, -3f,
@@ -70,6 +74,11 @@ class UniformBSpline(protected val controlPoints: ArrayList<Vector3f>, val n: In
 
     /**
      * Calculates the partial Spline of four consecutive points.
+     *
+     * [includeFirstPoint] is necessary to check whether we are computing the very first spline section. Splines are
+     * defined to be continuous (even differentiable) at the transitions between sections. So, one can
+     * define (mathematically) the parameter t piecewise in open intervals (0 <= t <= 1, 1 <= t <= 2, ...). However, in the
+     * implementation we need to make sure that the transition points won't be added twice.
      */
     private fun partialSpline(p1: Vector3f, p2: Vector3f, p3: Vector3f, p4: Vector3f, includeFirstPoint: Boolean = false):
         ArrayList<Vector3f> {
@@ -81,7 +90,8 @@ class UniformBSpline(protected val controlPoints: ArrayList<Vector3f>, val n: In
 
         val partialSpline = ArrayList<Vector3f>(n)
         tList.forEachIndexed {index, it ->
-            if(index != 0 || includeFirstPoint) {
+            //last index as the list of spline points is reversed later -> corresponds to the first point
+            if(index != tList.lastIndex || includeFirstPoint) {
                 val vec = Vector4f(it)
                 val between = parameters.transform(vec).mul(1 / 6f)
                 val point = pointMatrix.transform(Vector4f(between))
