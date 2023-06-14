@@ -1,6 +1,7 @@
 package graphics.scenery.volumes
 
 import bdv.tools.transformation.TransformedSource
+import bvv.core.VolumeViewerOptions
 import graphics.scenery.Hub
 import graphics.scenery.OrientedBoundingBox
 import graphics.scenery.utils.extensions.minus
@@ -12,7 +13,6 @@ import net.imglib2.type.numeric.real.FloatType
 import org.joml.Vector3f
 import org.joml.Vector3i
 import org.lwjgl.system.MemoryUtil
-import tpietzsch.example2.VolumeViewerOptions
 import java.nio.ByteBuffer
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.math.floor

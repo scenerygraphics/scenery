@@ -1,6 +1,9 @@
 package graphics.scenery.tests.examples.compute
 
 import bdv.util.AxisOrder
+import bvv.core.VolumeViewerOptions
+import bvv.core.shadergen.generate.SegmentTemplate
+import bvv.core.shadergen.generate.SegmentType
 import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
@@ -15,9 +18,6 @@ import net.imglib2.img.Img
 import net.imglib2.img.display.imagej.ImageJFunctions
 import net.imglib2.type.numeric.integer.UnsignedShortType
 import org.lwjgl.system.MemoryUtil
-import tpietzsch.example2.VolumeViewerOptions
-import tpietzsch.shadergen.generate.SegmentTemplate
-import tpietzsch.shadergen.generate.SegmentType
 
 /**
  * Example showing using a custom [graphics.scenery.volumes.VolumeManager] with

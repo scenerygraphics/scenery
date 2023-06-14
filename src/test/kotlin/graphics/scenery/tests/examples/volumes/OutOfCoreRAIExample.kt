@@ -2,6 +2,7 @@ package graphics.scenery.tests.examples.volumes
 
 import bdv.util.AxisOrder
 import bdv.util.volatiles.VolatileViews
+import bvv.core.VolumeViewerOptions
 import org.joml.Vector3f
 import graphics.scenery.Camera
 import graphics.scenery.DetachedHeadCamera
@@ -21,7 +22,6 @@ import org.janelia.saalfeldlab.n5.GzipCompression
 import org.janelia.saalfeldlab.n5.N5FSReader
 import org.janelia.saalfeldlab.n5.N5FSWriter
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils
-import tpietzsch.example2.VolumeViewerOptions
 import java.nio.file.Files
 
 
