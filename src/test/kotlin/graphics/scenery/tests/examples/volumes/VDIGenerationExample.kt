@@ -168,6 +168,7 @@ class VDIGenerationExample : SceneryBase("Volume Generation Example", 512, 512) 
             }
             cnt++
         }
+        this.close()
     }
 
 
