@@ -9,7 +9,7 @@ import graphics.scenery.utils.extensions.times
 import org.joml.Vector3f
 import java.lang.IllegalArgumentException
 
-open class DummyVolume(val counterStart : Int = 0) : DefaultNode("DummyVolume"),HasTransferFunction {
+class DummyVolume(val counterStart : Int = 0) : DefaultNode("DummyVolume"),HasTransferFunction {
     override var transferFunction: TransferFunction = TransferFunction.flat(0.5f)
         set(m) {
             field = m
@@ -18,13 +18,23 @@ open class DummyVolume(val counterStart : Int = 0) : DefaultNode("DummyVolume"),
     var counter = 0
 
     val converterSetups = ArrayList<ConverterSetup>()
-    override var minDisplayRange: Float
-        get() = converterSetups.getOrNull(0)?.displayRangeMin?.toFloat() ?: throw IllegalStateException()
-        set(value) { setTransferFunctionRange(value, maxDisplayRange) }
-    override var maxDisplayRange: Float
-        get() = converterSetups.getOrNull(0)?.displayRangeMax?.toFloat() ?: throw IllegalStateException()
-        set(value) { setTransferFunctionRange(minDisplayRange, value) }
-
+    override var minDisplayRange: Float = 0.0f
+        get() = field
+        set(value) {
+            setTransferFunctionRange(value, maxDisplayRange)
+            field = value
+        }
+    override var maxDisplayRange: Float = 65535F
+        get() = field
+        set(value) {
+            setTransferFunctionRange(minDisplayRange, value)
+            field = value
+        }
+    var colormap: Colormap = Colormap.get("viridis")
+        set(m) {
+            field = m
+            modifiedAt = System.nanoTime()
+        }
     init {
         name = "DummyVolume"
         counter = counterStart
@@ -34,6 +44,9 @@ open class DummyVolume(val counterStart : Int = 0) : DefaultNode("DummyVolume"),
         if (fresh !is DummyVolume) throw IllegalArgumentException("Update called with object of foreign class")
         super.update(fresh, getNetworkable, additionalData)
         this.transferFunction = fresh.transferFunction
+        this.minDisplayRange = fresh.minDisplayRange
+        this.maxDisplayRange = fresh.maxDisplayRange
+        this.colormap = fresh.colormap
         this.counter = fresh.counter
     }
 
