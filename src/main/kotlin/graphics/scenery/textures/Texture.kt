@@ -1,6 +1,5 @@
 package graphics.scenery.textures
 
-import cleargl.GLTypeEnum
 import graphics.scenery.utils.Image
 import graphics.scenery.utils.Timestamped
 import net.imglib2.type.numeric.NumericType

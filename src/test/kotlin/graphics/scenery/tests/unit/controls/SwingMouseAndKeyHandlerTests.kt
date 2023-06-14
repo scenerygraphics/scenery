@@ -221,12 +221,12 @@ class SwingMouseAndKeyHandlerTests {
 
             val modifiers = listOf(
                 "",
-//                "ctrl",
+                "ctrl",
 //                "ctrl alt",
 //                "ctrl shift",
 //                "ctrl alt shift",
 //                "alt shift",
-//                "alt",
+                "alt",
 // TODO: Meta handling seems broken on OSX, investigate!
 //                "meta",
                 "shift").random()

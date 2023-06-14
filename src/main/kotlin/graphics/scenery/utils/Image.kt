@@ -1,6 +1,5 @@
 package graphics.scenery.utils
 
-import cleargl.TGAReader
 import graphics.scenery.volumes.Colormap
 import org.lwjgl.system.MemoryUtil
 import java.awt.Color

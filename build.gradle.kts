@@ -25,16 +25,13 @@ repositories {
 }
 
 dependencies {
-    implementation(platform("org.scijava:pom-scijava:31.1.0"))
-    annotationProcessor("org.scijava:scijava-common:2.88.1")
+    implementation(platform("org.scijava:pom-scijava:35.1.1"))
+    annotationProcessor("org.scijava:scijava-common:2.94.1")
 
     implementation(kotlin("reflect"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.2")
 
-    implementation("org.jogamp.gluegen:gluegen-rt:2.3.2", joglNatives)
-    implementation("org.jogamp.jogl:jogl-all:2.3.2", joglNatives)
     implementation("org.slf4j:slf4j-api:1.7.36")
-    implementation("net.clearvolume:cleargl")
     implementation("org.joml:joml:1.10.5")
     implementation("net.java.jinput:jinput:2.0.9", "natives-all")
     implementation("org.jocl:jocl:2.0.4")
@@ -44,6 +41,7 @@ dependencies {
     implementation("org.scijava:scripting-javascript")
     implementation("org.scijava:scripting-jython")
     implementation("net.java.dev.jna:jna-platform:5.11.0")
+
 
     val lwjglVersion = "3.3.1"
     listOf("",
@@ -104,7 +102,10 @@ dependencies {
     api("sc.fiji:bigdataviewer-vistools:1.0.0-beta-28")
 
     //TODO revert to official BVV
-    api("graphics.scenery:bigvolumeviewer:7698a01")
+    api("graphics.scenery:bigvolumeviewer:7698a01") {
+        exclude("org.jogamp.gluegen", "gluegen-rt-main")
+        exclude("org.jogamp.jogl", "jogl-all-main")
+    }
 
     implementation("com.github.skalarproduktraum:lwjgl3-awt:d7a7369")
     implementation("org.janelia.saalfeldlab:n5")
@@ -288,8 +289,6 @@ tasks {
                 "jogl-minimal",
                 "jinput",
                 "pom-scijava",
-                "gluegen-rt",
-                "jogl-all",
                 "jna-platform",
                 "lwjgl-bom",
                 "jackson-module-kotlin",
