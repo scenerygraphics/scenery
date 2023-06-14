@@ -175,36 +175,15 @@ class RibbonDiagram(val protein: Protein, private val displaySS: Boolean = false
             val guide = guidePointList[guidePointsOffset]
             val count = getCount(guidePointList.drop(guidePointsOffset))
             //one subSpline for each secondary structure
-            val subSpline = ArrayList<Vector3f>(sectionVerticesCount * count)
-            val ssSubList = ArrayList<List<Vector3f>>(sectionVerticesCount * count)
-            val helpSpline = splinePoints.drop(splineOffset)
+            val subSpline = ArrayList<Vector3f>(sectionVerticesCount * (count+1))
+            val ssSubList = ArrayList<List<Vector3f>>(sectionVerticesCount * (count+1))
+            val helpSpline = splinePoints.drop(1).drop(splineOffset)
             guidePointsOffset++
-            when {
-                (guide.type == SecStrucType.helix4 && count >= 3) -> {
-                    guidePointsOffset += count
-                    val caList = ArrayList<Vector3f?>(count)
-                    for(k in 0 .. count) {
-                        caList.add(guidePointList[guideIndex+k].nextResidue?.getAtom("CA")?.getVector())
-                    }
-                    val axis = Axis(caList)
-                    for (j in 0..count) {
-                        for (i in 0..sectionVerticesCount) {
-                            if (i + (sectionVerticesCount + 1) * j <= helpSpline.lastIndex) {
-                                splineOffset++
-                                subSpline.add(helpSpline[i + (sectionVerticesCount + 1) * j])
-                                ssSubList.add(rectangle)
-                            }
-                        }
-                    }
-                    val axisLine = MathLine(axis.direction, axis.position)
-                    val helixCurve = Helix(axisLine, DummySpline(subSpline, sectionVerticesCount)) { rectangle }
-                    if(displaySS) { alphas.addChild(helixCurve) }
-                    else { subParent.addChild(helixCurve) }
-                }
-                //the beta sheets are visualized with arrows
-                (guide.type.isBetaStrand) -> {
-                    val sheetSize = (count + 1) * (sectionVerticesCount + 1)
-                    for (i in 0 until (count + 1) * (sectionVerticesCount + 1)) {
+
+            //the beta sheets are visualized with arrows
+            if(guide.type.isBetaStrand){
+                    val sheetSize = (count + 1) * (sectionVerticesCount)
+                    for (i in 0 until(count + 1) * sectionVerticesCount) {
                         splineOffset++
                         subSpline.add(helpSpline[i])
                     }
@@ -214,7 +193,7 @@ class RibbonDiagram(val protein: Protein, private val displaySS: Boolean = false
                         ssSubList.add(reversedRectangle)
                     }
                     val thirtyPercent = sheetSize - seventyPercent
-                    for (j in thirtyPercent downTo 1) {
+                    for (j in  thirtyPercent downTo 1) {
                         val y = 1.65f * j / thirtyPercent
                         val x = 0.1f
                         ssSubList.add(arrayListOf(Vector3f(x, y, 0f),
@@ -222,24 +201,44 @@ class RibbonDiagram(val protein: Protein, private val displaySS: Boolean = false
                                 Vector3f(-x, -y, 0f),
                                 Vector3f(x, -y, 0f)))
                     }
-                    val betaCurve = Curve(DummySpline(subSpline, sectionVerticesCount)) { baseShape(ssSubList) }
+                    val betaCurve = Curve(DummySpline(subSpline, sectionVerticesCount), partitionAlongControlpoints = false) { baseShape(ssSubList) }
                     if(displaySS) { betas.addChild(betaCurve) }
                     else { subParent.addChild(betaCurve) }
                 }
-                else -> {
-                    guidePointsOffset += count
-                    for (j in 0..count) {
-                        for (i in 0..sectionVerticesCount) {
-                            if (i + (sectionVerticesCount + 1) * j <= helpSpline.lastIndex) {
-                                splineOffset++
-                                subSpline.add(helpSpline[i + (sectionVerticesCount+1) * j])
+            else {
+                guidePointsOffset += count
+                for (j in 0..count) {
+                    for (i in 0  until sectionVerticesCount) {
+                        if (i + sectionVerticesCount * j <= helpSpline.lastIndex) {
+                            splineOffset++
+                            subSpline.add(helpSpline[i + sectionVerticesCount*j])
+                            if(guide.type == SecStrucType.helix4 && count >= 3) {
+                                ssSubList.add(rectangle)
+                            }
+                            else {
                                 ssSubList.add(octagon)
                             }
                         }
                     }
+                }
+                if (guide.type == SecStrucType.helix4 && count >= 3){
+                    val caList = ArrayList<Vector3f?>(count)
+                    for(k in 0 .. count) {
+                        caList.add(guidePointList[guideIndex+k].nextResidue?.getAtom("CA")?.getVector())
+                    }
+                    val axis = Axis(caList)
+                    val axisLine = MathLine(axis.direction, axis.position)
+                    val helixCurve = Helix(axisLine, DummySpline(subSpline, sectionVerticesCount)) { rectangle }
+                    if(displaySS) { alphas.addChild(helixCurve) }
+                    else { subParent.addChild(helixCurve) }
+                }
+                else {
                     val coilCurve = Curve(DummySpline(subSpline, sectionVerticesCount)) { baseShape(ssSubList) }
-                    if(displaySS) { coils.addChild(coilCurve) }
-                    else { subParent.addChild(coilCurve) }
+                    if (displaySS) {
+                        coils.addChild(coilCurve)
+                    } else {
+                        subParent.addChild(coilCurve)
+                    }
                 }
             }
         }
