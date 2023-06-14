@@ -10,6 +10,7 @@ plugins {
 
 val sceneryUrl = "http://scenery.graphics"
 
+val snapshot = rootProject.version.toString().endsWith("SNAPSHOT")
 
 tasks {
     dokkaHtml {
@@ -89,7 +90,7 @@ publishing {
                     }
                     contributor {
                         name.set("Tobias Pietzsch")
-                        url.set("https://imagej.net/User:Pietzsch")
+                        url.set("https://imagej.net/people/tpietzsch")
                         properties.set(mapOf("id" to "tpietzsch"))
                     }
                     contributor {
@@ -104,12 +105,17 @@ publishing {
                         name.set("Aryaman Gupta")
                         properties.set(mapOf("id" to "aryaman-gupta"))
                     }
+                    contributor {
+                        name.set("Curtis Rueden")
+                        url.set("https://imagej.net/people/ctrueden")
+                        properties.set(mapOf("id" to "ctrueden"))
+                    }
                 }
                 mailingLists { mailingList { name.set("none") } }
                 scm {
-                    connection.set("scm:git:git://github.com/scenerygraphics/scenery")
+                    connection.set("scm:git:https://github.com/scenerygraphics/scenery")
                     developerConnection.set("scm:git:git@github.com:scenerygraphics/scenery")
-                    tag.set("scenery-0.7.0-beta-7") // TODO differs from version
+                    tag.set(if(snapshot) "HEAD" else "scenery-${rootProject.version}")
                     url.set(sceneryUrl)
                 }
                 issueManagement {
@@ -117,8 +123,8 @@ publishing {
                     url.set("https://github.com/scenerygraphics/scenery/issues")
                 }
                 ciManagement {
-                    system.set("Travis")
-                    url.set("https://travis-ci.org/scenerygraphics/scenery/")
+                    system.set("GitHub Actions")
+                    url.set("https://github.com/scenerygraphics/scenery/actions")
                 }
                 distributionManagement {
                     // https://stackoverflow.com/a/21760035/1047713
@@ -145,7 +151,6 @@ publishing {
         val releaseRepo = "https://oss.sonatype.org/service/local/staging/deploy/maven2/"
         val snapshotRepo = "https://oss.sonatype.org/content/repositories/snapshots/"
 
-        val snapshot = rootProject.version.toString().endsWith("SNAPSHOT")
         url = uri(if (snapshot) snapshotRepo else releaseRepo)
         //            url = URI("https://oss.sonatype.org/service/local/staging/deploy/maven2")
     }
