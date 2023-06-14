@@ -175,17 +175,19 @@ object VulkanNodeHelpers {
         val description = buffers.buffers[name] ?: return state
         val type = description.type
         val usage = description.usage
-        if(type !is BufferType.Custom) {
+        val layout = if(type is BufferType.Primitive<*>) {
             return state
+        } else {
+            type as BufferType.Custom
+            type.layout
         }
+        // view into the byteBuffer
         val backingBuffer = description.buffer.duplicate()
+        backingBuffer as ByteBuffer
 
         val ssboSize = backingBuffer.remaining()
         if(ssboSize <= 0)
             return state
-
-        // Create a buffer that can be copied from out of the buffers buffer (or use it directly)
-
 
 
         var stagingUpdated = false
@@ -201,7 +203,7 @@ object VulkanNodeHelpers {
             stagingUpdated = true
             buffer
         }
-
+        stagingBuffer.copyFrom(backingBuffer)
 
 
         val ssboUbo = VulkanUBO(device, state.SSBOBuffers[name+"Staging"])
@@ -216,11 +218,11 @@ object VulkanNodeHelpers {
         ) {
             ssboBufferCurrent
         } else {
-            logger.debug("Creating new SSBO Staging Buffer")
+            logger.debug("Creating new SSBO Buffer")
             val buffer = when(usage)
             {
-                hashSetOf(Buffers.BufferUsage.Upload) -> ssboUploadPool.createBuffer(ssboSize)
-                hashSetOf(Buffers.BufferUsage.Download) -> ssboDownloadPool.createBuffer(ssboSize)
+                Buffers.BufferUsage.Upload -> ssboUploadPool.createBuffer(ssboSize)
+                Buffers.BufferUsage.Download -> ssboDownloadPool.createBuffer(ssboSize)
                 else -> ssboUploadPool.createBuffer(ssboSize)
             }
             state.SSBOBuffers[name] = buffer
@@ -252,6 +254,7 @@ object VulkanNodeHelpers {
                 dsl, 1, ssboUbo.descriptor, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER)
             state.requiredDescriptorSets[name] = ds
         }
+        // TODO check if the backing VulkanUBO already exists
         state.SSBOs[name] = ds to ssboUbo
 
 

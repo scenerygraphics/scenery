@@ -2,29 +2,34 @@ package graphics.scenery.attribute.buffers
 
 
 import graphics.scenery.BufferUtils
+import graphics.scenery.attribute.geometry.DefaultGeometry
 import graphics.scenery.backends.UBO
 import net.imglib2.type.numeric.NumericType
 import org.joml.Vector4f
 import java.io.Serializable
 import java.nio.Buffer
 import java.nio.ByteBuffer
+import java.nio.FloatBuffer
+import kotlin.reflect.KProperty
 
 interface Buffers : Serializable {
 
     var buffers : MutableMap<String, BufferDescription>
+
     var dirtySSBOs : Boolean
 
     enum class BufferUsage {
         Upload,
-        Download
+        Download,
+        UploadAndDownload
     }
-
 
     /**
      * [usage] is currently a hashset to provide buffers to be both upload and download buffers -> maybe exclude this possibility to prevent
      * an increase in code in the renderer backend?
      */
-    data class BufferDescription(val buffer: Buffer, val type : BufferType, val usage: HashSet<BufferUsage>, val size : Int)
+    data class BufferDescription(var buffer: Buffer, val type : BufferType, val usage: BufferUsage, val size : Int) {
+    }
 
 
     /**
@@ -32,12 +37,13 @@ interface Buffers : Serializable {
      * stands for the element count, and [stride] refers to the total byte length per element. The layout of the element is represented internally by a UBO.
      * Its layout can be manipulated by the lambda, using layout.add{}.
      */
-    fun addCustom(name: String, usage: HashSet<BufferUsage>, elements: Int, stride: Int, block: () -> Unit) : BufferDescription {
+    fun addCustom(name: String, usage: BufferUsage, elements: Int, stride: Int, block: (UBO, Buffer) -> Unit) : BufferDescription {
 
         val layout = UBO()
         val totalSize = elements * stride
         val buffer = BufferUtils.allocateByte(totalSize)
         val description = BufferDescription(buffer, BufferType.Custom(layout), usage, totalSize)
+        block(layout, buffer)
         buffers[name] = description
 
         return description
@@ -51,7 +57,7 @@ interface Buffers : Serializable {
 
         val totalSize = elements * stride
         val buffer = BufferUtils.allocateByte(totalSize)
-        val description = BufferDescription(buffer, BufferType.Primitive(type), hashSetOf(BufferUsage.Upload), totalSize)
+        val description = BufferDescription(buffer, BufferType.Primitive(type), BufferUsage.Upload, totalSize)
         buffers[name] = description
 
         return description

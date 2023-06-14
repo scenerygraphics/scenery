@@ -39,12 +39,12 @@ open class SSBOTest @JvmOverloads constructor(val sizes: Vector3f = Vector3f(1.0
         buffers {
             // size is by default determined by the UBO layout, but can be given as optional parameter.
             // elements is mandatory
-            val bufferDescription = addCustom("ssboUpload", hashSetOf(Buffers.BufferUsage.Upload), elements = 1000, stride = 32) {
+            addCustom("ssboUpload", Buffers.BufferUsage.Upload, elements = 1000, stride = 32) { layout, buffer ->
                 // layout points to an UBO object, but should not be named ubo
-                //layout.add("Color1", { Vector4f(1.0f) })
+                layout.add("Color1", { Vector4f(1.0f) })
 
                 // buffer would return a view of the ByteBuffer used for backing
-                //buffer.put(...)
+                buffer
             }
 
         }
