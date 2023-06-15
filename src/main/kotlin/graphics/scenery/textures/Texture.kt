@@ -125,7 +125,7 @@ open class Texture @JvmOverloads constructor(
             usage: HashSet<UsageType> = hashSetOf(UsageType.Texture)
         ): Texture {
             return Texture(Vector3i(image.width, image.height, image.depth),
-                4, UnsignedByteType(), image.contents, repeatUVW, borderColor, normalized, mipmap, usageType = usage, minFilter = minFilter, maxFilter = maxFilter)
+                4, image.type, image.contents, repeatUVW, borderColor, normalized, mipmap, usageType = usage, minFilter = minFilter, maxFilter = maxFilter)
         }
     }
 
