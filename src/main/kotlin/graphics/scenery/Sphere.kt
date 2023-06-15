@@ -13,7 +13,7 @@ import kotlin.math.*
  * @param[radius] The radius of the sphere
  * @param[segments] Number of segments in latitude and longitude.
  */
-open class Sphere(val radius: Float = 1.0f, val segments: Int = 8, val insideNormals: Boolean = false) : Mesh("sphere") {
+open class Sphere(val radius: Float = 1.0f, val segments: Int = 8, val insideNormals: Boolean = false, val mirrorUVs: Boolean = false) : Mesh("sphere") {
     init {
         val vbuffer = ArrayList<Float>(segments*segments*2*3)
         val nbuffer = ArrayList<Float>(segments*segments*2*3)
@@ -43,6 +43,13 @@ open class Sphere(val radius: Float = 1.0f, val segments: Int = 8, val insideNor
                 val uv01 = uvOnSphere(n01.times(flip))
                 val uv11 = uvOnSphere(n11.times(flip))
                 val uv10 = uvOnSphere(n10.times(flip))
+
+                if (mirrorUVs) {
+                    uv00.x = -(uv00.x - 1)
+                    uv01.x = -(uv01.x - 1)
+                    uv11.x = -(uv11.x - 1)
+                    uv10.x = -(uv10.x - 1)
+                }
 
                 when {
                     i == 0 -> {
