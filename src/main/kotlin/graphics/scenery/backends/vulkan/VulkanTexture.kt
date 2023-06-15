@@ -304,6 +304,7 @@ open class VulkanTexture(val device: VulkanDevice,
     /**
      * Copies the data for this texture from a [ByteBuffer], [data].
      */
+    @OptIn(ExperimentalUnsignedTypes::class)
     fun copyFrom(data: ByteBuffer): VulkanTexture {
         if (depth == 1 && data.remaining() > stagingImage.maxSize) {
             logger.warn("Allocated image size for $this (${stagingImage.maxSize}) less than copy source size ${data.remaining()}.")
@@ -332,14 +333,14 @@ open class VulkanTexture(val device: VulkanDevice,
                 val view = data.duplicate().order(ByteOrder.LITTLE_ENDIAN)
                 val tmp = ByteArray(channelBytes * 3)
                 val alpha = when(gt.type) {
-                    is UnsignedByteType -> (0 until channelBytes).map { 255.toByte() }.toByteArray()
-                    is ByteType -> (0 until channelBytes).map { 255.toByte() }.toByteArray()
-                    is UnsignedShortType -> byteArrayOf(0xff.toByte(), 0xff.toByte())
-                    is ShortType -> byteArrayOf(0xff.toByte(), 0xff.toByte())
-                    is UnsignedIntType -> byteArrayOf(0x3f, 0x80.toByte(), 0x00, 0x00)
-                    is IntType -> byteArrayOf(0x3f, 0x80.toByte(), 0x00, 0x00)
-                    is FloatType -> byteArrayOf(0x3f, 0x80.toByte(), 0x00, 0x00)
-                    is DoubleType -> byteArrayOf(0x3f, 0x80.toByte(), 0x00, 0x00, 0x00, 0x00, 0x00)
+                    is UnsignedByteType -> ubyteArrayOf(0xffu)
+                    is ByteType -> ubyteArrayOf(0xffu)
+                    is UnsignedShortType -> ubyteArrayOf(0xffu, 0xffu)
+                    is ShortType -> ubyteArrayOf(0xffu, 0xffu)
+                    is UnsignedIntType -> ubyteArrayOf(0x3fu, 0x80u, 0x00u, 0x00u)
+                    is IntType -> ubyteArrayOf(0xffu, 0xffu, 0x00u, 0x00u)
+                    is FloatType -> ubyteArrayOf(0x3fu, 0x80u, 0x00u, 0x00u)
+                    is DoubleType -> ubyteArrayOf(0x3fu, 0xf0u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u)
                     else -> throw UnsupportedOperationException("Don't know how to handle textures of type ${gt.type.javaClass.simpleName}")
                 }
 
@@ -348,7 +349,7 @@ open class VulkanTexture(val device: VulkanDevice,
 
                     view.get(tmp, 0, tmp.size)
                     storage.put(tmp)
-                    storage.put(alpha)
+                    storage.put(alpha.toByteArray())
                 }
 
                 storage.flip()

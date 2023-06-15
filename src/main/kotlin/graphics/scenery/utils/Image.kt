@@ -12,6 +12,7 @@ import org.lwjgl.util.tinyexr.EXRHeader
 import org.lwjgl.util.tinyexr.EXRImage
 import org.lwjgl.util.tinyexr.EXRVersion
 import org.lwjgl.util.tinyexr.TinyEXR
+import org.lwjgl.util.tinyexr.TinyEXR.FreeEXRImage
 import java.awt.Color
 import java.awt.color.ColorSpace
 import java.awt.geom.AffineTransform
@@ -73,37 +74,22 @@ open class Image(val contents: ByteBuffer, val width: Int, val height: Int, val 
             val buffer: ByteArray
 
             when {
-
-                extension.lowercase().endsWith("tga") -> {
-                    try {
-                        val reader = BufferedInputStream(stream)
-                        buffer = ByteArray(stream.available())
-                        reader.read(buffer)
-                        reader.close()
-
-                        pixels = TGAReader.read(buffer, TGAReader.ARGB)
-                        val width = TGAReader.getWidth(buffer)
-                        val height = TGAReader.getHeight(buffer)
-                        bi = BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB)
-                        bi.setRGB(0, 0, width, height, pixels, 0, width)
-                    } catch (e: IOException) {
-                        Colormap.logger.error("Could not read image from TGA. ${e.message}")
-                        bi = BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB)
-                        bi.setRGB(0, 0, 1, 1, intArrayOf(255, 0, 0), 0, 1)
-                    }
-
-                }
-
                 extension.lowercase().endsWith("exr") -> {
                     val memory: ByteBuffer
+
                     try {
                         val array = stream.readAllBytes()
                         memory = MemoryUtil.memAlloc(array.size)
                         memory.put(array)
                         memory.flip()
                     } catch (e: IOException) {
-                        throw RuntimeException(e)
+                        logger.error("Failed to read EXR file ${e}.")
+                        if(logger.isDebugEnabled) {
+                            e.printStackTrace()
+                        }
+                        throw e
                     }
+
                     var result: Int
                     val image: EXRImage
                     val header: EXRHeader
@@ -165,15 +151,14 @@ open class Image(val contents: ByteBuffer, val width: Int, val height: Int, val 
                     logger.debug("Number of channels: " + image.num_channels())
                     logger.debug("Number of tiles: " + image.num_tiles())
 
-                    //FreeEXRImage(image)
-                    TinyEXR.FreeEXRHeader(header)
-
-                    val pb = image.images()!!
+                    val pb = image.images()
+                        ?: throw UnsupportedOperationException("No images found. Image is likely tiled image which is currently not supported.")
                     val size = image.width()*image.height()
                     val bb = MemoryUtil.memAlloc(size*4*4)
                     val tmp = ByteBuffer.allocate(4)
-                    for (i in size-1 downTo 0) {
-                        for (c in 0..2) {
+
+                    for(i in size-1 downTo 0) {
+                        for(c in 0..2) {
                             val b = MemoryUtil.memByteBuffer(pb[c]+i*4, 4)
                             tmp.put(0, b.get(3))
                             tmp.put(1, b.get(2))
@@ -183,36 +168,61 @@ open class Image(val contents: ByteBuffer, val width: Int, val height: Int, val 
                         }
                         bb.putFloat(1.0f)
                     }
+
                     bb.flip()
+
+                    FreeEXRImage(image)
+                    TinyEXR.FreeEXRHeader(header)
+
+                    stream.close()
 
                     return Image(bb, image.width(), image.height(), type = FloatType())
                 }
 
                 else -> {
-                    try {
-                        val reader = BufferedInputStream(stream)
-                        bi = ImageIO.read(stream)
-                        reader.close()
+                    if(extension.lowercase().endsWith("tga")) {
+                        try {
+                            val reader = BufferedInputStream(stream)
+                            buffer = ByteArray(stream.available())
+                            reader.read(buffer)
+                            reader.close()
 
-                    } catch (e: IOException) {
-                        Colormap.logger.error("Could not read image: ${e.message}")
-                        bi = BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB)
-                        bi.setRGB(0, 0, 1, 1, intArrayOf(255, 0, 0), 0, 1)
+                            pixels = TGAReader.read(buffer, TGAReader.ARGB)
+                            val width = TGAReader.getWidth(buffer)
+                            val height = TGAReader.getHeight(buffer)
+                            bi = BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB)
+                            bi.setRGB(0, 0, width, height, pixels, 0, width)
+                        } catch (e: IOException) {
+                            Colormap.logger.error("Could not read image from TGA. ${e.message}")
+                            bi = BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB)
+                            bi.setRGB(0, 0, 1, 1, intArrayOf(255, 0, 0), 0, 1)
+                        }
+
+                    } else {
+                        try {
+                            val reader = BufferedInputStream(stream)
+                            bi = ImageIO.read(stream)
+                            reader.close()
+                        } catch (e: IOException) {
+                            Colormap.logger.error("Could not read image: ${e.message}")
+                            bi = BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB)
+                            bi.setRGB(0, 0, 1, 1, intArrayOf(255, 0, 0), 0, 1)
+                        }
                     }
+
+                    stream.close()
+
+                    if(flip) {
+                        // convert to OpenGL UV space
+                        flippedImage = createFlipped(bi)
+                        imageData = bufferedImageToRGBABuffer(flippedImage)
+                    } else {
+                        imageData = bufferedImageToRGBABuffer(bi)
+                    }
+
+                    return Image(imageData, bi.width, bi.height)
                 }
             }
-
-            stream.close()
-
-            if(flip) {
-                // convert to OpenGL UV space
-                flippedImage = createFlipped(bi)
-                imageData = bufferedImageToRGBABuffer(flippedImage)
-            } else {
-                imageData = bufferedImageToRGBABuffer(bi)
-            }
-
-            return Image(imageData, bi.width, bi.height)
         }
 
         /**
