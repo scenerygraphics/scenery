@@ -144,6 +144,7 @@ class RibbonDiagram(val protein: Protein, private val displaySS: Boolean = false
         reversedRectangle.add(Vector3f(-0.1f, 0.8f, 0f))
         reversedRectangle.add(Vector3f(-0.1f, -0.8f, 0f))
         reversedRectangle.add(Vector3f(0.1f, -0.8f, 0f))
+        //offset by one to exclude the dummy guide point in the beginning
         var guidePointsOffset = 1
         //offset to divide the spline into partial splines for the secondary structures
         var splineOffset = 0
@@ -172,27 +173,31 @@ class RibbonDiagram(val protein: Protein, private val displaySS: Boolean = false
         val alphas = Mesh("alpha")
         val betas = Mesh("beta")
         val coils = Mesh("coil")
+        //last index because the next guide point is always included to ensure connectedness, and -1 because
+        //of the last dummy guide point for the spline calculation
         while (guidePointsOffset < guidePointList.lastIndex - 1) {
             val guideIndex = guidePointsOffset
-            val guide = guidePointList[guidePointsOffset]
-            val count = getCount(guidePointList.drop(guidePointsOffset))
+            val guide = guidePointList[guideIndex]
+            val count = getCount(guidePointList.drop(guideIndex)) + 1
             //one subSpline for each secondary structure
-            val subSpline = ArrayList<Vector3f>(sectionVerticesCount * (count+1))
-            val ssSubList = ArrayList<List<Vector3f>>(sectionVerticesCount * (count+1))
+            val subSpline = ArrayList<Vector3f>(sectionVerticesCount * count)
+            val ssSubList = ArrayList<List<Vector3f>>(sectionVerticesCount * count)
 
             val helpSpline = splinePoints.drop(splineOffset)
-            //next guide point
-            guidePointsOffset++
+            //offset guide points
+            guidePointsOffset += count
 
+
+            //TODO remove after debugging
             if(splineOffset > splinePoints.size*0.9){
                 print("")
             }
             //configure subspline and spline offset
-            for (i in 0 until (count + 1) * sectionVerticesCount) {
+            for (i in 0 until count  * sectionVerticesCount) {
                 if(i <= helpSpline.lastIndex) {
                     splineOffset++
                     subSpline.add(helpSpline[i])
-                    if (i == (count + 1) * sectionVerticesCount - 1 && i < helpSpline.lastIndex) {
+                    if (i == count * sectionVerticesCount - 1 && i < helpSpline.lastIndex) {
                         subSpline.add(helpSpline[i + 1])
                     }
                 }
@@ -201,7 +206,7 @@ class RibbonDiagram(val protein: Protein, private val displaySS: Boolean = false
             //size of the secondary structure
             //no next subspline for the last subspline
             val sheetOffset = if(splineOffset < splinePoints.size) {1} else {0}
-            val sheetSize = (count + 1) * (sectionVerticesCount) + sheetOffset
+            val sheetSize = count * sectionVerticesCount + sheetOffset
 
             //the beta sheets are visualized with arrows
             if(guide.type.isBetaStrand){
@@ -224,15 +229,15 @@ class RibbonDiagram(val protein: Protein, private val displaySS: Boolean = false
                 }
             else {
                 for(j in 0 until sheetSize) {
-                    if (guide.type == SecStrucType.helix4 && count >= 3) {
+                    if (guide.type == SecStrucType.helix4 && count >= 4) {
                         ssSubList.add(rectangle)
                     } else {
                         ssSubList.add(octagon)
                     }
                 }
-                if (guide.type == SecStrucType.helix4 && count >= 3){
+                if (guide.type == SecStrucType.helix4 && count >= 4){
                     val caList = ArrayList<Vector3f?>(count)
-                    for(k in 0 .. count) {
+                    for(k in 0 until count) {
                         caList.add(guidePointList[guideIndex+k].nextResidue?.getAtom("CA")?.getVector())
                     }
                     val axis = Axis(caList)
@@ -250,8 +255,6 @@ class RibbonDiagram(val protein: Protein, private val displaySS: Boolean = false
                     }
                 }
             }
-            //offset guide points
-            guidePointsOffset += count
         }
         if(displaySS) {
         subParent.addChild(alphas)
