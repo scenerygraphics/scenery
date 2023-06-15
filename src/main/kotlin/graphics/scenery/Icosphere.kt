@@ -15,7 +15,7 @@ import kotlin.math.*
  * @param[radius] The radius of the sphere
  * @param[subdivisions] Number of subdivisions of the base icosahedron
  */
-open class Icosphere(val radius: Float, val subdivisions: Int, val insideNormals: Boolean = false) : Mesh("Icosphere") {
+open class Icosphere(val radius: Float, val subdivisions: Int, val insideNormals: Boolean = false, mirrorUVs: Boolean = false) : Mesh("Icosphere") {
     fun MutableList<Vector3f>.addVertex(vararg v: Float) {
         this.add(Vector3f(v))
     }
@@ -176,6 +176,13 @@ open class Icosphere(val radius: Float, val subdivisions: Int, val insideNormals
                     if(uv3.x() < 0.25f) {
                         uv3.x = uv3.x() + 1.0f
                     }
+                }
+
+                //TODO{@Ulrik fix mirroring on pole faces}
+                if (mirrorUVs) {
+                    uv1.x = -(uv1.x - 1)
+                    uv2.x = -(uv2.x - 1)
+                    uv3.x = -(uv3.x - 1)
                 }
 
                 uv1.xy().get(texcoords).position(texcoords.position() + 2)
