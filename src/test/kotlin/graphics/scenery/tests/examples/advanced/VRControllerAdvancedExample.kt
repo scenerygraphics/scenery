@@ -244,7 +244,8 @@ class VRControllerAdvancedExample : SceneryBase(
             listOf(TrackerRole.LeftHand, TrackerRole.RightHand)
         )
 
-        // point at something to execute an action with the left trigger button
+        // point at something to execute an action with the left trigger button and
+        // execute the [onSelect] function of the [Selectable]
         VRSelect.createAndSet(
             scene,
             hmd,
@@ -253,13 +254,8 @@ class VRControllerAdvancedExample : SceneryBase(
             { n ->
                 // this is just some action to show a successful selection.
                 // Party Cube!
-                val w = Wiggler(n.spatialOrNull()!!, 1.0f)
-                thread {
-                    sleep(2 * 1000)
-                    w.deativate()
-                }
-            },
-            true
+                Wiggler(n.spatialOrNull()!!, 0.3f,2000)
+            }
         )
 
         // a selection without an action. Executes just the [onSelect] function of the [Selectable]
@@ -268,14 +264,14 @@ class VRControllerAdvancedExample : SceneryBase(
             scene,
             hmd,
             listOf(OpenVRHMD.OpenVRButton.Trigger),
-            listOf(TrackerRole.RightHand)
+            listOf(TrackerRole.RightHand),
+            showIndicator = true
         )
 
         // hold both side buttons to scale the selection
         VRScale.createAndSet(hmd, OpenVRHMD.OpenVRButton.Side) {
             selectionStorage?.ifSpatial { scale *= Vector3f(it) }
         }
-
 
         // open a menu with sub menus with the left menu/B button
         VRTreeSelectionWheel.createAndSet(
