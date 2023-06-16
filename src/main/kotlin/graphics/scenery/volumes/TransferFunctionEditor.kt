@@ -1,8 +1,6 @@
 package graphics.scenery.volumes
 
 import graphics.scenery.ui.RangeSlider
-import graphics.scenery.ui.SwingBridgeFrame
-import graphics.scenery.utils.lazyLogger
 import net.miginfocom.swing.MigLayout
 import org.jfree.chart.ChartMouseEvent
 import org.jfree.chart.ChartMouseListener
@@ -41,44 +39,45 @@ import kotlin.math.roundToInt
  * Able to generate a histogram and visualize it as well to help with TF-settings
  * Able to dynamically set the transfer function range -> changes histogram as well
  */
-class TransferFunctionEditor @JvmOverloads constructor(private val tfContainer : HasTransferFunction, val mainFrame : SwingBridgeFrame = SwingBridgeFrame("1DTransferFunctionEditor"), width : Int = 650, height : Int = 550) {
+class TransferFunctionEditor constructor(
+    private val tfContainer: HasTransferFunction,
+    volumeName: String = "Volume"
+): JPanel() {
     /**
      * MouseDragTarget is set when a ControlPoint has been clicked. The initial index is set to -1 and reset when the Controlpoint has been deleted
      * The target gets passed into the different Controlpoint manipulation functions
      */
-    data class MouseDragTarget(var seriesIndex : Int = -1, var itemIndex : Int = -1, var lastIndex : Int = -1, var x : Double = 0.0, var y : Double = 0.0)
+    data class MouseDragTarget(
+        var seriesIndex: Int = -1,
+        var itemIndex: Int = -1,
+        var lastIndex: Int = -1,
+        var x: Double = 0.0,
+        var y: Double = 0.0
+    )
 
     private val mouseTargetCP = MouseDragTarget()
 
-    private val logger by lazyLogger()
-
     //TFEditor and Histogram
-    val mainChart : JPanel
-    private val histogramInfoPanel : JPanel
+    val mainChart: JPanel
+    private val histogramInfoPanel: JPanel
 
     //AddCP
-    private val cpManipulationPanel : JPanel
+    private val cpManipulationPanel: JPanel
 
-    private val valueLabel : JLabel
-    private val alphaLabel : JLabel
+    private val valueLabel: JLabel
+    private val alphaLabel: JLabel
 
     //RangeEditor
-    private val rangeEditorPanel : JPanel
+    private val rangeEditorPanel: JPanel
     private val minText: JTextField
     private val maxText: JTextField
-    private val rangeSlider : RangeSlider
+    private val rangeSlider: RangeSlider
     private val minValueLabel: JLabel
     private val maxValueLabel: JLabel
 
-    var name = "VolumeName"
 
     init {
-        mainFrame.size = Dimension(width, height)
-        mainFrame.preferredSize = Dimension(width, height)
-        mainFrame.minimumSize = Dimension(width, height)
-        mainFrame.layout = MigLayout()
-        mainFrame.isVisible = true
-
+        layout = MigLayout()
 
         // MainChart manipulation
         val tfCollection = XYSeriesCollection()
@@ -101,12 +100,18 @@ class TransferFunctionEditor @JvmOverloads constructor(private val tfContainer :
         val histXAxis = NumberAxis()
         var range = abs(tfContainer.maxDisplayRange - tfContainer.minDisplayRange)
         val axisExtensionFactor = 0.02
-        histXAxis.setRange(tfContainer.minDisplayRange - (axisExtensionFactor*range), tfContainer.maxDisplayRange + (axisExtensionFactor*range))
+        histXAxis.setRange(
+            tfContainer.minDisplayRange - (axisExtensionFactor * range),
+            tfContainer.maxDisplayRange + (axisExtensionFactor * range)
+        )
 
         val histogramAxis = LogarithmicAxis("")
         histogramAxis.isMinorTickMarksVisible = true
         val histHeight = abs(1000.0 - 0.0)
-        histogramAxis.setRange(0.0 - (axisExtensionFactor/100.0 * histHeight), 1000.0 + (axisExtensionFactor * histHeight))
+        histogramAxis.setRange(
+            0.0 - (axisExtensionFactor / 100.0 * histHeight),
+            1000.0 + (axisExtensionFactor * histHeight)
+        )
         histogramAxis.allowNegativesFlag
 
         val tfYAxis = NumberAxis()
@@ -125,7 +130,7 @@ class TransferFunctionEditor @JvmOverloads constructor(private val tfContainer :
         tfPlot.backgroundImageAlpha = 1.0f
         tfPlot.backgroundImage = createTFImage()
 
-        val tfChart = JFreeChart("TransferFunction for ${name}", tfPlot)
+        val tfChart = JFreeChart("TransferFunction for ${volumeName}", tfPlot)
         tfChart.removeLegend()
 
         mainChart = ChartPanel(tfChart)
@@ -137,17 +142,18 @@ class TransferFunctionEditor @JvmOverloads constructor(private val tfContainer :
         mainChart.horizontalAxisTrace = true
         mainChart.verticalAxisTrace = true
 
-        mainFrame.add(mainChart, "cell 0 0 12 8")
+        add(mainChart, "cell 0 0 12 8")
 
         mainChart.removeMouseMotionListener(mainChart)
         mainChart.addMouseListener(object : MouseListener {
-            override fun mouseReleased(e : MouseEvent) {
+            override fun mouseReleased(e: MouseEvent) {
                 mouseTargetCP.itemIndex = -1
             }
-            override fun mousePressed(e : MouseEvent) {}
-            override fun mouseClicked(e : MouseEvent) {}
-            override fun mouseEntered(e : MouseEvent) {}
-            override fun mouseExited(e : MouseEvent) {}
+
+            override fun mousePressed(e: MouseEvent) {}
+            override fun mouseClicked(e: MouseEvent) {}
+            override fun mouseEntered(e: MouseEvent) {}
+            override fun mouseExited(e: MouseEvent) {}
         })
 
         valueLabel = JLabel("Value: 0,00")
@@ -159,13 +165,12 @@ class TransferFunctionEditor @JvmOverloads constructor(private val tfContainer :
 
         var lastUpdate = 0L
         mainChart.addMouseMotionListener(object : MouseMotionListener {
-            override fun mouseDragged(e : MouseEvent) {
+            override fun mouseDragged(e: MouseEvent) {
                 val chart = e.component as ChartPanel
                 val point = mainChart.translateJava2DToScreen(e.point)
                 val item = chart.getEntityForPoint(point.x, point.y)
                 //first check, if the clicked entity is part of the chart
-                if(item is XYItemEntity)
-                {
+                if (item is XYItemEntity) {
                     //then check, if it's part of the transferFunction (being a control point)
                     if (item.dataset is XYSeriesCollection) {
 
@@ -175,30 +180,30 @@ class TransferFunctionEditor @JvmOverloads constructor(private val tfContainer :
                     }
                 }
                 //if the drag is performed while the current target is indeed set to be a CP, update it
-                if(mouseTargetCP.itemIndex >= 0)
-                {
+                if (mouseTargetCP.itemIndex >= 0) {
                     val point = mainChart.translateJava2DToScreen(e.point)
                     val plotArea = mainChart.screenDataArea
-                    mouseTargetCP.x = tfPlot.getDomainAxis(0).java2DToValue(point.getX(), plotArea, tfPlot.domainAxisEdge)
+                    mouseTargetCP.x =
+                        tfPlot.getDomainAxis(0).java2DToValue(point.getX(), plotArea, tfPlot.domainAxisEdge)
                     mouseTargetCP.y = tfPlot.getRangeAxis(0).java2DToValue(point.getY(), plotArea, tfPlot.rangeAxisEdge)
-                    valueLabel.text = "Value: "+ "%.2f".format(mouseTargetCP.x.toFloat())
-                    alphaLabel.text = "Alpha: "+ "%.2f".format(mouseTargetCP.y.toFloat())
+                    valueLabel.text = "Value: " + "%.2f".format(mouseTargetCP.x.toFloat())
+                    alphaLabel.text = "Alpha: " + "%.2f".format(mouseTargetCP.y.toFloat())
 
                     updateControlpoint(mouseTargetCP)
-                    if(System.currentTimeMillis() - 16.667 >= lastUpdate)
-                    {
+                    if (System.currentTimeMillis() - 16.667 >= lastUpdate) {
                         tfPlot.backgroundImage = createTFImage()
                         lastUpdate = System.currentTimeMillis()
                     }
                 }
             }
-            override fun mouseMoved(e : MouseEvent) {}
+
+            override fun mouseMoved(e: MouseEvent) {}
         })
 
 
         mainChart.addChartMouseListener(object : ChartMouseListener {
             override fun chartMouseClicked(e: ChartMouseEvent) {
-                if(e.entity is XYItemEntity) {
+                if (e.entity is XYItemEntity) {
                     val item = e.entity as XYItemEntity
                     //click on cp
                     if (item.dataset is XYSeriesCollection) {
@@ -207,10 +212,9 @@ class TransferFunctionEditor @JvmOverloads constructor(private val tfContainer :
                         mouseTargetCP.lastIndex = item.item
                         mouseTargetCP.x = clamp(0.0, 1.0, item.dataset.getX(item.seriesIndex, item.item).toDouble())
                         mouseTargetCP.y = clamp(0.0, 1.0, item.dataset.getY(item.seriesIndex, item.item).toDouble())
-                        valueLabel.text = "Value: "+ "%.2f".format(mouseTargetCP.x.toFloat())
-                        alphaLabel.text = "Alpha: "+ "%.2f".format(mouseTargetCP.y.toFloat())
-                        if(e.trigger.isControlDown && mouseTargetCP.itemIndex != -1)
-                        {
+                        valueLabel.text = "Value: " + "%.2f".format(mouseTargetCP.x.toFloat())
+                        alphaLabel.text = "Alpha: " + "%.2f".format(mouseTargetCP.y.toFloat())
+                        if (e.trigger.isControlDown && mouseTargetCP.itemIndex != -1) {
                             removeControlpoint(mouseTargetCP)
                             tfPlot.backgroundImage = createTFImage()
                         }
@@ -219,42 +223,55 @@ class TransferFunctionEditor @JvmOverloads constructor(private val tfContainer :
                     else {
                         val point = mainChart.translateJava2DToScreen(e.trigger.point)
                         val plotArea = mainChart.screenDataArea
-                        mouseTargetCP.x = clamp(0.0, 1.0, tfPlot.getDomainAxis(0).java2DToValue(point.getX(), plotArea, tfPlot.domainAxisEdge))
-                        mouseTargetCP.y = clamp(0.0, 1.0, tfPlot.getRangeAxis(0).java2DToValue(point.getY(), plotArea, tfPlot.rangeAxisEdge))
-                        valueLabel.text = "Value: "+ "%.2f".format(mouseTargetCP.x.toFloat())
-                        alphaLabel.text = "Alpha: "+ "%.2f".format(mouseTargetCP.y.toFloat())
-                        if(mouseTargetCP.itemIndex == -1)
-                        {
+                        mouseTargetCP.x = clamp(
+                            0.0,
+                            1.0,
+                            tfPlot.getDomainAxis(0).java2DToValue(point.getX(), plotArea, tfPlot.domainAxisEdge)
+                        )
+                        mouseTargetCP.y = clamp(
+                            0.0,
+                            1.0,
+                            tfPlot.getRangeAxis(0).java2DToValue(point.getY(), plotArea, tfPlot.rangeAxisEdge)
+                        )
+                        valueLabel.text = "Value: " + "%.2f".format(mouseTargetCP.x.toFloat())
+                        alphaLabel.text = "Alpha: " + "%.2f".format(mouseTargetCP.y.toFloat())
+                        if (mouseTargetCP.itemIndex == -1) {
                             addControlpoint(mouseTargetCP)
                             tfPlot.backgroundImage = createTFImage()
                         }
                     }
                 }
                 //click on empty region
-                else
-                {
+                else {
                     val point = mainChart.translateJava2DToScreen(e.trigger.point)
                     val plotArea = mainChart.screenDataArea
-                    mouseTargetCP.x = clamp(0.0, 1.0, tfPlot.getDomainAxis(0).java2DToValue(point.getX(), plotArea, tfPlot.domainAxisEdge))
-                    mouseTargetCP.y = clamp(0.0, 1.0, tfPlot.getRangeAxis(0).java2DToValue(point.getY(), plotArea, tfPlot.rangeAxisEdge))
-                    valueLabel.text = "Value: "+ "%.2f".format(mouseTargetCP.x.toFloat())
-                    alphaLabel.text = "Alpha: "+ "%.2f".format(mouseTargetCP.y.toFloat())
-                    if(mouseTargetCP.itemIndex == -1)
-                    {
+                    mouseTargetCP.x = clamp(
+                        0.0,
+                        1.0,
+                        tfPlot.getDomainAxis(0).java2DToValue(point.getX(), plotArea, tfPlot.domainAxisEdge)
+                    )
+                    mouseTargetCP.y = clamp(
+                        0.0,
+                        1.0,
+                        tfPlot.getRangeAxis(0).java2DToValue(point.getY(), plotArea, tfPlot.rangeAxisEdge)
+                    )
+                    valueLabel.text = "Value: " + "%.2f".format(mouseTargetCP.x.toFloat())
+                    alphaLabel.text = "Alpha: " + "%.2f".format(mouseTargetCP.y.toFloat())
+                    if (mouseTargetCP.itemIndex == -1) {
                         addControlpoint(mouseTargetCP)
                         tfPlot.backgroundImage = createTFImage()
                     }
                 }
             }
+
             override fun chartMouseMoved(e: ChartMouseEvent) {}
         })
-
 
 
         //Histogram Manipulation
         histogramInfoPanel = JPanel()
         histogramInfoPanel.layout = MigLayout()
-        mainFrame.add(histogramInfoPanel, "cell 10 8")
+        add(histogramInfoPanel, "cell 10 8")
 
         val genHistButton = JButton("Add Histogram")
         histogramInfoPanel.add(genHistButton, "cell 0 0")
@@ -265,16 +282,21 @@ class TransferFunctionEditor @JvmOverloads constructor(private val tfContainer :
         val binResolution = 2.0.pow(resolutionStartExp)
 
 
-        if(tfContainer is HasHistogram)
-        {
+        if (tfContainer is HasHistogram) {
             genHistButton.addActionListener {
                 tfPlot.setDataset(1, volumeHistogramData)
                 tfPlot.setRangeAxis(1, histogramAxis)
                 generateHistogramBins(binResolution, volumeHistogramData)
                 range = abs(tfContainer.maxDisplayRange - tfContainer.minDisplayRange)
-                histXAxis.setRange(tfContainer.minDisplayRange - (axisExtensionFactor*range), tfContainer.maxDisplayRange + (axisExtensionFactor*range))
+                histXAxis.setRange(
+                    tfContainer.minDisplayRange - (axisExtensionFactor * range),
+                    tfContainer.maxDisplayRange + (axisExtensionFactor * range)
+                )
 
-                histogramAxis.setRange(0.0 - (axisExtensionFactor/100.0 * histHeight), 1000.0 + (axisExtensionFactor * histHeight))
+                histogramAxis.setRange(
+                    0.0 - (axisExtensionFactor / 100.0 * histHeight),
+                    1000.0 + (axisExtensionFactor * histHeight)
+                )
                 tfPlot.setDomainAxis(1, histXAxis)
 
                 mainChart.repaint()
@@ -282,12 +304,10 @@ class TransferFunctionEditor @JvmOverloads constructor(private val tfContainer :
         }
 
 
-
-
         //Controlpoint Manipulation
         cpManipulationPanel = JPanel()
         cpManipulationPanel.layout = MigLayout()
-        mainFrame.add(cpManipulationPanel, "cell 0 8 2 2")
+        add(cpManipulationPanel, "cell 0 8 2 2")
 
         cpManipulationPanel.add(valueLabel, "cell 0 0 2 1")
         cpManipulationPanel.add(alphaLabel, "cell 0 1 2 1")
@@ -316,7 +336,7 @@ class TransferFunctionEditor @JvmOverloads constructor(private val tfContainer :
 
         rangeEditorPanel = JPanel()
         rangeEditorPanel.layout = MigLayout()
-        mainFrame.add(rangeEditorPanel, "cell 8 8 2 1")
+        add(rangeEditorPanel, "cell 8 8 2 1")
 
         rangeEditorPanel.add(JLabel("min:"), "cell 0 0")
         rangeEditorPanel.add(minText, "cell 1 0")
@@ -327,42 +347,51 @@ class TransferFunctionEditor @JvmOverloads constructor(private val tfContainer :
         rangeEditorPanel.add(maxValueLabel, "cell 5 2")
 
         updateSliderRange()
-
-        mainFrame.pack()
     }
 
-    private fun createTFImage() : BufferedImage {
+    private fun createTFImage(): BufferedImage {
         val tfBuffer = tfContainer.transferFunction.serialise().asFloatBuffer()
         val byteArray = ByteArray(tfBuffer.limit())
-        for(i in 0 until tfBuffer.limit())
-        {
+        for (i in 0 until tfBuffer.limit()) {
             byteArray[i] = (tfBuffer[i] * 255).toUInt().toByte()
         }
-        val tfImage = BufferedImage(tfContainer.transferFunction.textureSize, tfContainer.transferFunction.textureHeight, BufferedImage.TYPE_BYTE_GRAY)
-        tfImage.raster.setDataElements(0, 0, tfContainer.transferFunction.textureSize, tfContainer.transferFunction.textureHeight, byteArray)
+        val tfImage = BufferedImage(
+            tfContainer.transferFunction.textureSize,
+            tfContainer.transferFunction.textureHeight,
+            BufferedImage.TYPE_BYTE_GRAY
+        )
+        tfImage.raster.setDataElements(
+            0,
+            0,
+            tfContainer.transferFunction.textureSize,
+            tfContainer.transferFunction.textureHeight,
+            byteArray
+        )
 
         return tfImage
     }
-    private fun updateSliderRange(){
+
+    private fun updateSliderRange() {
         val min = minText.toInt()
         val max = maxText.toInt()
-        if (min != null && max != null){
+        if (min != null && max != null) {
             rangeSlider.minimum = min
             rangeSlider.maximum = max
         }
         updateConverter()
     }
-    private fun updateConverter(){
+
+    private fun updateConverter() {
         minValueLabel.text = rangeSlider.value.toString()
         maxValueLabel.text = rangeSlider.upperValue.toString()
 
         tfContainer.minDisplayRange = rangeSlider.value.toFloat()
         tfContainer.maxDisplayRange = rangeSlider.upperValue.toFloat()
     }
+
     private fun JTextField.toInt() = text.toIntOrNull()
 
-    private fun addControlpoint(targetCP : MouseDragTarget)
-    {
+    private fun addControlpoint(targetCP: MouseDragTarget) {
         val chart = mainChart as ChartPanel
         val collection = chart.chart.xyPlot.getDataset(0) as XYSeriesCollection
         val series = collection.getSeries("ControlPoints")
@@ -377,8 +406,7 @@ class TransferFunctionEditor @JvmOverloads constructor(private val tfContainer :
         tfContainer.transferFunction = newTF
     }
 
-    private fun updateControlpoint(targetCP : MouseDragTarget)
-    {
+    private fun updateControlpoint(targetCP: MouseDragTarget) {
         val chart = mainChart as ChartPanel
         val collection = chart.chart.xyPlot.getDataset(0) as XYSeriesCollection
         val series = collection.getSeries(targetCP.seriesIndex)
@@ -396,8 +424,7 @@ class TransferFunctionEditor @JvmOverloads constructor(private val tfContainer :
         tfContainer.transferFunction = newTF
     }
 
-    private fun removeControlpoint(targetCP: MouseDragTarget)
-    {
+    private fun removeControlpoint(targetCP: MouseDragTarget) {
         val chart = mainChart as ChartPanel
         val collection = chart.chart.xyPlot.getDataset(0) as XYSeriesCollection
         val series = collection.getSeries(targetCP.seriesIndex)
@@ -415,22 +442,23 @@ class TransferFunctionEditor @JvmOverloads constructor(private val tfContainer :
         alphaLabel.text = "Alpha: 0,00"
     }
 
-    private fun generateHistogramBins(binCount : Double, volumeHistogramData : SimpleHistogramDataset) {
+    private fun generateHistogramBins(binCount: Double, volumeHistogramData: SimpleHistogramDataset) {
         volumeHistogramData.removeAllBins()
 
         val histogram = (tfContainer as? HasHistogram)?.generateHistogram()
-        if(histogram != null)
-        {
+        if (histogram != null) {
             var binEnd = -0.0000001
             val displayRange = abs(tfContainer.maxDisplayRange - tfContainer.minDisplayRange)
             val binSize = displayRange / binCount
             histogram.forEachIndexed { index, longType ->
 
                 val relativeCount = (longType.get().toFloat() / histogram.totalCount().toFloat()) * histogram.binCount
-                val value = (((index.toDouble() / histogram.binCount.toDouble()) * (displayRange / histogram.binCount.toDouble()))) * histogram.binCount.toDouble()
+                val value =
+                    (((index.toDouble() / histogram.binCount.toDouble()) * (displayRange / histogram.binCount.toDouble()))) * histogram.binCount.toDouble()
 
                 if (relativeCount.roundToInt() != 0 && (value) >= binEnd) {
-                    val binStart = (((index) - (((index) % (histogram.binCount.toDouble()/binCount)))) / histogram.binCount.toDouble()) * displayRange
+                    val binStart =
+                        (((index) - (((index) % (histogram.binCount.toDouble() / binCount)))) / histogram.binCount.toDouble()) * displayRange
                     binEnd = binStart + binSize
                     val bin = SimpleHistogramBin(binStart, binEnd, true, false)
                     volumeHistogramData.addBin(bin)
@@ -439,6 +467,16 @@ class TransferFunctionEditor @JvmOverloads constructor(private val tfContainer :
                     volumeHistogramData.addObservation(value)
                 }
             }
+        }
+    }
+
+    companion object{
+        fun showTFFrame(tfContainer: HasTransferFunction, volumeName: String = "Volume"){
+            val frame = JFrame()
+            val tfe = TransferFunctionEditor(tfContainer,volumeName)
+            frame.add(tfe)
+            frame.pack()
+            frame.isVisible = true
         }
     }
 }

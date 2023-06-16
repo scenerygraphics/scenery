@@ -74,9 +74,12 @@ class TransferFunctionEditorExample : SceneryBase("TransferFunctionEditor Exampl
 
 
         val bridge = SwingBridgeFrame("1DTransferFunctionEditor")
-        val tfUI = TransferFunctionEditor(v, bridge)
+        val tfUI = TransferFunctionEditor(v)
+        bridge.add(tfUI)
+        bridge.pack()
+        bridge.isVisible = true
         tfUI.name = v.name
-        val swingUiNode = tfUI.mainFrame.uiNode
+        val swingUiNode = bridge.uiNode
         swingUiNode.spatial() {
             position = Vector3f(2f,0f,0f)
         }
