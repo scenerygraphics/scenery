@@ -16,6 +16,7 @@ const val BUFFER_OFFSET_UNINTIALISED = -1337
  * @author Ulrik Günther <hello@ulrik.is>
  */
 open class VulkanUBO(val device: VulkanDevice, var backingBuffer: VulkanBuffer? = null): AutoCloseable, UBO() {
+
     /** [UBODescriptor] for this UBO, containing size, memory pointer, etc. */
     var descriptor = UBODescriptor()
         private set
@@ -24,6 +25,14 @@ open class VulkanUBO(val device: VulkanDevice, var backingBuffer: VulkanBuffer? 
     private var closed = false
     private var ownedBackingBuffer: VulkanBuffer? = null
     private var stagingMemory: ByteBuffer? = null
+
+    constructor(device: VulkanDevice, backingBuffer: VulkanBuffer? = null, ubo : UBO) : this(device, backingBuffer) {
+        this.name = ubo.name
+        this.members = ubo.members // TODO check me if this is fine or need to `.clone()`
+        this.memberOffsets = ubo.memberOffsets
+
+        // TODO: check if the hash needs to be retrieved as well or not
+    }
 
     /**
      * UBO descriptor class, wrapping memory pointers,

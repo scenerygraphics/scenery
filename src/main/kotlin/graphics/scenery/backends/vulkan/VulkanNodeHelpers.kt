@@ -191,12 +191,12 @@ object VulkanNodeHelpers {
 
 
         var stagingUpdated = false
-        // TODO: get the content from backingBuffer, put them into a stagingBuffer and upload them into the vulkanBuffer, which then is used during vkUpdateDescriptorSet?
         val ssboStagingBuffer = state.SSBOBuffers[name+"Staging"]
         val stagingBuffer = if(ssboStagingBuffer != null && ssboStagingBuffer.size >= ssboSize) {
             ssboStagingBuffer
         } else {
             logger.debug("Creating new SSBO Staging Buffer")
+            state.SSBOBuffers[name+"Staging"]?.close()
 
             val buffer = stagingPool.createBuffer(ssboSize)
             state.SSBOBuffers[name+"Staging"] = buffer
@@ -204,11 +204,6 @@ object VulkanNodeHelpers {
             buffer
         }
         stagingBuffer.copyFrom(backingBuffer)
-
-
-        val ssboUbo = VulkanUBO(device, state.SSBOBuffers[name+"Staging"])
-        ssboUbo.updateBackingBuffer(stagingBuffer)
-        ssboUbo.createUniformBuffer()
 
 
         val ssboBufferCurrent = state.SSBOBuffers[name]
@@ -219,6 +214,7 @@ object VulkanNodeHelpers {
             ssboBufferCurrent
         } else {
             logger.debug("Creating new SSBO Buffer")
+            state.SSBOBuffers[name]?.close()
             val buffer = when(usage)
             {
                 Buffers.BufferUsage.Upload -> ssboUploadPool.createBuffer(ssboSize)
@@ -245,11 +241,14 @@ object VulkanNodeHelpers {
             }
         }
 
+        val ssboUbo = VulkanUBO(device, ubo = layout)
+        ssboUbo.updateBackingBuffer(ssboBuffer)
+        ssboUbo.createUniformBuffer(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT)
+
         var ds = state.requiredDescriptorSets[name]
         if(stagingUpdated || ds == null)
         {
-            val dsl = device.createDescriptorSetLayout(listOf(Pair(VK10.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1)), 0, VK10.VK_SHADER_STAGE_ALL)
-            // TODO: How do I set the descriptor set number???
+            val dsl = device.createDescriptorSetLayout(listOf(Pair(VK10.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1)), 0, VK10.VK_SHADER_STAGE_FRAGMENT_BIT)
             ds = device.createDescriptorSet(
                 dsl, 1, ssboUbo.descriptor, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER)
             state.requiredDescriptorSets[name] = ds

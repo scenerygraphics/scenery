@@ -83,7 +83,11 @@ open class DefaultGeometry(private var node: Node): Geometry {
 
 }
 
-operator fun <V1 : Buffer> Map<in String, Buffers.BufferDescription>.getValue(thisRef: Any?, property: KProperty<*>): V1 = @Suppress("UNCHECKED_CAST") (get(property.name) as V1)
+operator fun <V1 : Buffer> Map<in String, Buffers.BufferDescription>.getValue(thisRef: Any?, property: KProperty<*>): V1 {
+    val buf = get(property.name) as Buffers.BufferDescription
+    @Suppress("UNCHECKED_CAST")
+    return buf.buffer as V1
+}
 
 operator fun MutableMap<in String, Buffers.BufferDescription>.setValue(thisRef: Any?, property: KProperty<*>, value: FloatBuffer) {
     this[property.name]!!.buffer = value

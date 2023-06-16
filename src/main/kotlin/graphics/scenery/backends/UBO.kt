@@ -22,8 +22,8 @@ open class UBO {
     /** Name of this UBO */
     var name = ""
 
-    protected var members = LinkedHashMap<String, () -> Any>()
-    protected var memberOffsets = HashMap<String, Int>()
+    internal var members = LinkedHashMap<String, () -> Any>()
+    internal var memberOffsets = HashMap<String, Int>()
     protected val logger by lazyLogger()
 
     /** Hash value of all the members, gets updated by [populate()] */

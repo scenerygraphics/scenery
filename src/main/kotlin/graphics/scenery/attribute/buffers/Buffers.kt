@@ -2,15 +2,10 @@ package graphics.scenery.attribute.buffers
 
 
 import graphics.scenery.BufferUtils
-import graphics.scenery.attribute.geometry.DefaultGeometry
 import graphics.scenery.backends.UBO
 import net.imglib2.type.numeric.NumericType
-import org.joml.Vector4f
 import java.io.Serializable
 import java.nio.Buffer
-import java.nio.ByteBuffer
-import java.nio.FloatBuffer
-import kotlin.reflect.KProperty
 
 interface Buffers : Serializable {
 
