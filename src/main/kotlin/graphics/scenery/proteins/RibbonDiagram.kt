@@ -175,7 +175,7 @@ class RibbonDiagram(val protein: Protein, private val displaySS: Boolean = false
         //configure offset for helix computation below
         var guidePointOffset = 1
         //iterate through all secondary structure sections
-        ssSections.forEachIndexed { index, section ->
+        ssSections.forEach { section ->
             val type = section.type
             val length = section.length
             val subSpline = section.subSpline
