@@ -24,10 +24,18 @@ class RainbowRibbonExample: SceneryBase("RainbowRibbon", windowWidth = 1280, win
 
         val rowSize = 20f
 
-        val protein = Protein.fromID("2zzm")
+        val protein = Protein.fromID("2zzt")
 
         val ribbon = RibbonDiagram(protein)
 
+        ribbon.children.forEach { child1 ->
+            child1.materialOrNull()?.wireframe = true
+            child1.children.forEach { child2 ->
+                child2.children.forEach { child3 ->
+                    //child3.materialOrNull()?.wireframe = true
+                }
+            }
+        }
         scene.addChild(ribbon)
 
         val ambient = AmbientLight()
