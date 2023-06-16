@@ -171,41 +171,26 @@ class RibbonDiagram(val protein: Protein, private val displaySS: Boolean = false
         val coils = Mesh("coil")
 
         //exclude dummy points for spline calculation
-        val ssSections = getSecondaryStructureLengths(guidePointList.drop(1).dropLast(1))
+        val ssSections = getSecondaryStructureLengths(guidePointList.drop(1).dropLast(1), splinePoints, sectionVerticesCount)
         //configure offset for helix computation below
         var guidePointOffset = 1
         //iterate through all secondary structure sections
-        for(section in ssSections) {
+        ssSections.forEachIndexed { index, section ->
             val type = section.type
-            val count = section.length
+            val length = section.length
+            val subSpline = section.subSpline
             val guidePointIndex = guidePointOffset
-            val splineOffset = guidePointIndex*sectionVerticesCount
+            val ssSubList = ArrayList<List<Vector3f>>(sectionVerticesCount * length)
 
-            //one subSpline for each secondary structure
-            val subSpline = ArrayList<Vector3f>(sectionVerticesCount * count)
-            val ssSubList = ArrayList<List<Vector3f>>(sectionVerticesCount * count)
-            //configure subspline
-            for(i in 0 until count*sectionVerticesCount +1) {
-                if(i+splineOffset <= splinePoints.lastIndex) {
-                    subSpline.add(splinePoints[splineOffset + i])
-                }
-            }
-            //size of the secondary structure
-            //no next subspline for the last subspline
-            val sheetOffset = if (splineOffset < splinePoints.size) {
-                1
-            } else {
-                0
-            }
-            val sheetSize = count * sectionVerticesCount + sheetOffset
+            val iterationLength = subSpline.size
 
             //the beta sheets are visualized with arrows
             if (type.isBetaStrand) {
-                val seventyPercent = (sheetSize * 0.70).toInt()
+                val seventyPercent = (iterationLength * 0.70).toInt()
                 for (j in 0 until seventyPercent) {
                     ssSubList.add(reversedRectangle)
                 }
-                val thirtyPercent = sheetSize - seventyPercent
+                val thirtyPercent = iterationLength - seventyPercent
                 for (j in thirtyPercent downTo 1) {
                     val y = 1.65f * j / thirtyPercent
                     val x = 0.1f
@@ -228,16 +213,16 @@ class RibbonDiagram(val protein: Protein, private val displaySS: Boolean = false
                     subParent.addChild(betaCurve)
                 }
             } else {
-                for (j in 0 until sheetSize) {
-                    if (type == SecStrucType.helix4 && count >= 4) {
+                for (j in 0 until iterationLength) {
+                    if (type == SecStrucType.helix4 && length >= 4) {
                         ssSubList.add(rectangle)
                     } else {
                         ssSubList.add(octagon)
                     }
                 }
-                if (type == SecStrucType.helix4 && count >= 4) {
-                    val caList = ArrayList<Vector3f?>(count)
-                    for (k in 0 until count) {
+                if (type == SecStrucType.helix4 && length >= 4) {
+                    val caList = ArrayList<Vector3f?>(length)
+                    for (k in 0 until length) {
                         caList.add(guidePointList[guidePointIndex + k].nextResidue?.getAtom("CA")?.getVector())
                     }
                     val axis = Axis(caList)
@@ -262,7 +247,7 @@ class RibbonDiagram(val protein: Protein, private val displaySS: Boolean = false
                 subParent.addChild(betas)
                 subParent.addChild(coils)
             }
-            guidePointOffset += count
+            guidePointOffset += length
         }
         return subParent
      }
@@ -538,52 +523,59 @@ class RibbonDiagram(val protein: Protein, private val displaySS: Boolean = false
         }
     }
 
-    /**
-     * Counts the secondary structure length.
-     */
-    private fun getCount(guidePointList: List<GuidePoint>): Int {
-        var count = 1
-            guidePointList.forEachIndexed { index, guide ->
-                if (index < guidePointList.lastIndex) {
-                    val nextGuide = guidePointList[index + 1]
-                    //Secondary structures which are not sheets or helices are summarized
-                    if (guide.type == SecStrucType.helix4 && nextGuide.type == SecStrucType.helix4 ||
-                            guide.type.isBetaStrand && nextGuide.type.isBetaStrand ||
-                            (guide.type != SecStrucType.helix4 && nextGuide.type != SecStrucType.helix4
-                                    && !guide.type.isBetaStrand && !nextGuide.type.isBetaStrand)){
-                        count++
-                    } else {
-                        return count
-                    }
-                }
-            }
-        return count
-    }
-    data class SSsection(val type: SecStrucType, val length: Int)
 
-    private fun getSecondaryStructureLengths(guidePointList: List<GuidePoint>): List<SSsection> {
+    /**
+     * We only differentiate between sheets, helices, and coils
+     */
+    enum class SimplifiedType { sheet, helix, coil }
+
+    /**
+     * Stores a section of a secondary structure
+     */
+    data class SSsection(val type: SecStrucType, val length: Int, val subSpline: List<Vector3f>)
+
+    /**
+     * Counts the secondary structure length and puts together the subspline
+     */
+    private fun getSecondaryStructureLengths(guidePoints: List<GuidePoint>, splinePoints: List<Vector3f>, sectionCount: Int):
+        List<SSsection> {
         // we do not know in advance how many secondary structures there will be in the chain
-        val ssSections = ArrayList<SSsection>(guidePointList.size/5)
-        var ssCount = 1
-        var ssType = guidePointList[0].type
-        for( i in 1 .. guidePointList.lastIndex) {
-            val nextType = guidePointList[i].type
-            if(ssType == SecStrucType.helix4 || ssType.isBetaStrand) {
-                if (nextType == ssType) {
-                    ssCount++
-                } else {
-                    ssSections.add(SSsection(ssType, ssCount))
-                    ssType = nextType
-                    ssCount = 1
-                    //edge case of last type being unique
-                    if(i == guidePointList.lastIndex) {
-                        ssSections.add(SSsection(ssType, ssCount))
+        val ssSections = ArrayList<SSsection>(guidePoints.size/5)
+        var splineOffset = 0
+        var guidePointOffset = 0
+        while(guidePointOffset < guidePoints.lastIndex-1) {
+            val guide = guidePoints[guidePointOffset]
+            val type = guide.type
+            val length = if(type.isBetaStrand || type == SecStrucType.helix4)
+                { guide.ssLength+1 }
+                else {
+                    //fuse together the coils
+                    val immutableOffset = guidePointOffset
+                    var thisLength = guide.ssLength+1
+                    var nextGuide = guidePoints[immutableOffset + thisLength]
+                    while(!nextGuide.type.isBetaStrand && nextGuide.type != SecStrucType.helix4 && immutableOffset + thisLength < guidePoints.lastIndex-1) {
+                        thisLength += (nextGuide.ssLength)
+                        thisLength ++
+                        nextGuide = guidePoints[immutableOffset + thisLength]
                     }
+                    thisLength
+                }
+            val subSplineLength = sectionCount*length
+            val subSpline = ArrayList<Vector3f>(subSplineLength+1)
+            val immutableSplineOffset = splineOffset
+            for(i in 0 .. subSplineLength) {
+                val index = immutableSplineOffset + i
+                if(index <= splinePoints.lastIndex) {
+                    subSpline.add(splinePoints[index])
+                }
+
+                else {
+                    break
                 }
             }
-            else {
-                ssCount++
-            }
+            guidePointOffset += length
+            splineOffset += subSplineLength
+            ssSections.add(SSsection(guide.type, length, subSpline))
         }
         return ssSections
     }
