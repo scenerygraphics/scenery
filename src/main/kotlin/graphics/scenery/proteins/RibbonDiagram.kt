@@ -543,7 +543,7 @@ class RibbonDiagram(val protein: Protein, private val displaySS: Boolean = false
         val ssSections = ArrayList<SSsection>(guidePoints.size/5)
         var splineOffset = 0
         var guidePointOffset = 0
-        while(guidePointOffset < guidePoints.lastIndex-1) {
+        while(guidePointOffset < guidePoints.lastIndex) {
             val guide = guidePoints[guidePointOffset]
             val type = guide.type
             val length = if(type.isBetaStrand || type == SecStrucType.helix4)
@@ -553,7 +553,7 @@ class RibbonDiagram(val protein: Protein, private val displaySS: Boolean = false
                     val immutableOffset = guidePointOffset
                     var thisLength = guide.ssLength+1
                     var nextGuide = guidePoints[immutableOffset + thisLength]
-                    while(!nextGuide.type.isBetaStrand && nextGuide.type != SecStrucType.helix4 && immutableOffset + thisLength < guidePoints.lastIndex-1) {
+                    while(!nextGuide.type.isBetaStrand && nextGuide.type != SecStrucType.helix4 && immutableOffset + thisLength < guidePoints.lastIndex) {
                         thisLength += (nextGuide.ssLength)
                         thisLength ++
                         nextGuide = guidePoints[immutableOffset + thisLength]
