@@ -579,7 +579,14 @@ open class VulkanRenderer(hub: Hub,
             val headless = (selectedSwapchain?.kotlin?.companionObjectInstance as? SwapchainParameters)?.headless ?: false
 
             device = VulkanDevice.fromPhysicalDevice(instance,
-                physicalDeviceFilter = { _, device -> "${device.vendor} ${device.name}".contains(System.getProperty("scenery.Renderer.Device", "DOES_NOT_EXIST"))},
+                physicalDeviceFilter = { index, device ->
+                    val namePreference = System.getProperty("scenery.Renderer.Device", "DOES_NOT_EXIST")
+                    val idPreference = System.getProperty("scenery.Renderer.DeviceId", "DOES_NOT_EXIST").toIntOrNull()
+                    when {
+                        idPreference != null -> index == idPreference
+                        else -> "${device.vendor} ${device.name}".contains(namePreference)
+                    }
+                },
                 additionalExtensions = { physicalDevice -> hub.getWorkingHMDDisplay()?.getVulkanDeviceExtensions(physicalDevice)?.toTypedArray() ?: arrayOf() },
                 validationLayers = requestedValidationLayers,
                 headless = headless,
