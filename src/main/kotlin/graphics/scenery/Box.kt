@@ -7,6 +7,8 @@ import org.joml.Vector3f
 import java.lang.IllegalArgumentException
 import kotlin.jvm.JvmOverloads
 
+inline fun Box(sizes: Vector3f = Vector3f(1.0f, 1.0f, 1.0f), insideNormals: Boolean = false, block: Box.() -> Unit): Box = Box(sizes, insideNormals).apply(block)
+
 /**
  * Constructs a Box [Node] with the dimensions given in [sizes]
  *

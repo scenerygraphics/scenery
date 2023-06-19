@@ -1,6 +1,9 @@
 package graphics.scenery.utils
 
+import graphics.scenery.textures.Texture
 import graphics.scenery.volumes.Colormap
+import net.imglib2.type.numeric.integer.UnsignedByteType
+import org.joml.Vector3i
 import org.lwjgl.system.MemoryUtil
 import java.awt.Color
 import java.awt.color.ColorSpace
@@ -22,6 +25,17 @@ import javax.imageio.ImageIO
  */
 open class Image(val contents: ByteBuffer, val width: Int, val height: Int, val depth: Int = 1) {
 
+    fun toTexture(
+        repeatUVW: Triple<Texture.RepeatMode, Texture.RepeatMode, Texture.RepeatMode> = Texture.RepeatMode.Repeat.all(),
+        borderColor: Texture.BorderColor = Texture.BorderColor.OpaqueBlack,
+        normalized: Boolean = true,
+        mipmap: Boolean = true,
+        minFilter: Texture.FilteringMode = Texture.FilteringMode.Linear,
+        maxFilter: Texture.FilteringMode = Texture.FilteringMode.Linear,
+        usage: HashSet<Texture.UsageType> = hashSetOf(Texture.UsageType.Texture)
+    ): Texture {
+        return Texture(Vector3i(width, height, depth),4, UnsignedByteType(), contents, repeatUVW, borderColor, normalized, mipmap, usageType = usage, minFilter = minFilter, maxFilter = maxFilter)
+    }
     companion object {
         protected val logger by lazyLogger()
 
@@ -96,6 +110,14 @@ open class Image(val contents: ByteBuffer, val width: Int, val height: Int, val 
             }
 
             return Image(imageData, bi.width, bi.height)
+        }
+
+        /**
+         * Creates an Image from a resource given in [path], with [baseClass] as basis for the search path.
+         * [path] is expected to end in an extension (e.g., ".png"), such that the file type can be determined.
+         */
+        inline fun <reified K> fromResource(path: String): Image {
+            return fromStream(K::class.java.getResourceAsStream(path), path.substringAfterLast(".").lowercase())
         }
 
         /**
