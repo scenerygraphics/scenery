@@ -10,4 +10,5 @@ interface HasTransferFunction {
     var transferFunction : TransferFunction
     var minDisplayRange : Float
     var maxDisplayRange : Float
+    var range: Pair<Float, Float>
 }
