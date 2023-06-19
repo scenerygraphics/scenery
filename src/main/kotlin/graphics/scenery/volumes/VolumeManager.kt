@@ -775,11 +775,11 @@ class VolumeManager(
         needAtLeastNumVolumes(renderStacksStates.size)
     }
 
-    private fun replace() {
+    fun replace(toReplace: VolumeManager? = null): VolumeManager {
         logger.debug("Replacing volume manager with ${nodes.size} volumes managed")
         val volumes = nodes.toMutableList()
-        val current = hub?.get<VolumeManager>()
-        if(current != null) {
+        val current = toReplace ?: hub?.get<VolumeManager>()
+        if (current != null) {
             hub?.remove(current)
         }
 
@@ -794,6 +794,29 @@ class VolumeManager(
         }
 
         hub?.add(vm)
+        return vm
+    }
+
+    fun replaceSelf(): VolumeManager {
+        logger.debug("Replacing volume manager with ${nodes.size} volumes managed")
+        val volumes = nodes.toMutableList()
+        val current = hub?.get<VolumeManager>()
+        if (current != null) {
+            hub?.remove(current)
+        }
+
+        val vm = VolumeManager(hub, useCompute, current?.customSegments, current?.customBindings)
+        current?.customTextures?.forEach {
+            vm.customTextures.add(it)
+            vm.material().textures[it] = current.material().textures[it]!!
+        }
+        volumes.forEach {
+            vm.add(it)
+            it.volumeManager = vm
+        }
+
+        hub?.add(vm)
+        return vm
     }
 
     @Synchronized
