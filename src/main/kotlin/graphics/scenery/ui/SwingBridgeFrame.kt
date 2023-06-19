@@ -3,10 +3,13 @@ package graphics.scenery.ui
 
 import graphics.scenery.utils.Image
 import java.awt.Component
+import java.awt.Dimension
+import java.awt.Panel
 import java.awt.event.*
 import java.awt.image.BufferedImage
 import java.nio.ByteBuffer
 import javax.swing.JFrame
+import javax.swing.JPanel
 import javax.swing.SwingUtilities
 
 /**
@@ -46,6 +49,16 @@ open class SwingBridgeFrame(title: String) : JFrame(title) {
             override fun keyTyped(e : KeyEvent?) {}
             override fun keyReleased(e : KeyEvent?) {}
         })
+    }
+
+    /**
+     * This add function wraps frame.add.
+     * It also packs the [panel] and makes it visible.
+     */
+    fun addPanel(panel: JPanel) {
+        this.add(panel)
+        this.pack()
+        this.isVisible = true
     }
 
     /**
