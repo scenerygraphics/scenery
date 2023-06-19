@@ -20,9 +20,7 @@ import org.jfree.data.xy.XYSeries
 import org.jfree.data.xy.XYSeriesCollection
 import org.joml.Math.clamp
 import java.awt.Dimension
-import java.awt.event.MouseEvent
-import java.awt.event.MouseListener
-import java.awt.event.MouseMotionListener
+import java.awt.event.*
 import java.awt.image.BufferedImage
 import javax.swing.*
 import kotlin.math.abs
@@ -59,7 +57,6 @@ class TransferFunctionEditor constructor(
 
     //TFEditor and Histogram
     val mainChart: JPanel
-    private val histogramInfoPanel: JPanel
 
     //AddCP
     private val cpManipulationPanel: JPanel
@@ -77,7 +74,7 @@ class TransferFunctionEditor constructor(
 
 
     init {
-        layout = MigLayout()
+        layout = MigLayout("flowy")
 
         // MainChart manipulation
         val tfCollection = XYSeriesCollection()
@@ -130,26 +127,27 @@ class TransferFunctionEditor constructor(
         tfPlot.backgroundImageAlpha = 1.0f
         tfPlot.backgroundImage = createTFImage()
 
-        val tfChart = JFreeChart("TransferFunction for ${volumeName}", tfPlot)
+        val tfChart = JFreeChart("", tfPlot)
         tfChart.removeLegend()
 
         mainChart = ChartPanel(tfChart)
         mainChart.preferredSize = Dimension(600, 400)
-        mainChart.minimumSize = mainChart.preferredSize
         mainChart.isMouseWheelEnabled = false
         mainChart.isDomainZoomable = false
         mainChart.isRangeZoomable = false
         mainChart.horizontalAxisTrace = true
         mainChart.verticalAxisTrace = true
 
-        add(mainChart, "cell 0 0 12 8")
+        mainChart.minimumDrawWidth = 0
+        mainChart.minimumDrawHeight = 0
+
+        add(mainChart, "grow")
 
         mainChart.removeMouseMotionListener(mainChart)
         mainChart.addMouseListener(object : MouseListener {
             override fun mouseReleased(e: MouseEvent) {
                 mouseTargetCP.itemIndex = -1
             }
-
             override fun mousePressed(e: MouseEvent) {}
             override fun mouseClicked(e: MouseEvent) {}
             override fun mouseEntered(e: MouseEvent) {}
@@ -157,11 +155,7 @@ class TransferFunctionEditor constructor(
         })
 
         valueLabel = JLabel("Value: 0,00")
-        valueLabel.minimumSize = Dimension(100, 25)
-        valueLabel.maximumSize = Dimension(100, 25)
         alphaLabel = JLabel("Alpha: 0,00")
-        alphaLabel.minimumSize = Dimension(100, 25)
-        alphaLabel.maximumSize = Dimension(100, 25)
 
         var lastUpdate = 0L
         mainChart.addMouseMotionListener(object : MouseMotionListener {
@@ -182,7 +176,7 @@ class TransferFunctionEditor constructor(
                 //if the drag is performed while the current target is indeed set to be a CP, update it
                 if (mouseTargetCP.itemIndex >= 0) {
                     val point = mainChart.translateJava2DToScreen(e.point)
-                    val plotArea = mainChart.screenDataArea
+                    val plotArea = mainChart.chartRenderingInfo.plotInfo.dataArea
                     mouseTargetCP.x =
                         tfPlot.getDomainAxis(0).java2DToValue(point.getX(), plotArea, tfPlot.domainAxisEdge)
                     mouseTargetCP.y = tfPlot.getRangeAxis(0).java2DToValue(point.getY(), plotArea, tfPlot.rangeAxisEdge)
@@ -196,7 +190,6 @@ class TransferFunctionEditor constructor(
                     }
                 }
             }
-
             override fun mouseMoved(e: MouseEvent) {}
         })
 
@@ -222,7 +215,7 @@ class TransferFunctionEditor constructor(
                     //click on histogram
                     else {
                         val point = mainChart.translateJava2DToScreen(e.trigger.point)
-                        val plotArea = mainChart.screenDataArea
+                        val plotArea = mainChart.chartRenderingInfo.plotInfo.dataArea
                         mouseTargetCP.x = clamp(
                             0.0,
                             1.0,
@@ -244,7 +237,7 @@ class TransferFunctionEditor constructor(
                 //click on empty region
                 else {
                     val point = mainChart.translateJava2DToScreen(e.trigger.point)
-                    val plotArea = mainChart.screenDataArea
+                    val plotArea = mainChart.chartRenderingInfo.plotInfo.dataArea
                     mouseTargetCP.x = clamp(
                         0.0,
                         1.0,
@@ -263,24 +256,18 @@ class TransferFunctionEditor constructor(
                     }
                 }
             }
-
             override fun chartMouseMoved(e: ChartMouseEvent) {}
         })
 
 
         //Histogram Manipulation
-        histogramInfoPanel = JPanel()
-        histogramInfoPanel.layout = MigLayout()
-        add(histogramInfoPanel, "cell 10 8")
-
         val genHistButton = JButton("Add Histogram")
-        histogramInfoPanel.add(genHistButton, "cell 0 0")
+        add(genHistButton, "growx")
 
         val volumeHistogramData = SimpleHistogramDataset("VolumeBin")
         volumeHistogramData.adjustForBinSize = false
         val resolutionStartExp = 8
         val binResolution = 2.0.pow(resolutionStartExp)
-
 
         if (tfContainer is HasHistogram) {
             genHistButton.addActionListener {
@@ -306,20 +293,21 @@ class TransferFunctionEditor constructor(
 
         //Controlpoint Manipulation
         cpManipulationPanel = JPanel()
-        cpManipulationPanel.layout = MigLayout()
-        add(cpManipulationPanel, "cell 0 8 2 2")
+        cpManipulationPanel.layout = MigLayout("flowx, fill", "[left, 50%]5[left, 50%]")
+        add(cpManipulationPanel, "growx")
 
-        cpManipulationPanel.add(valueLabel, "cell 0 0 2 1")
-        cpManipulationPanel.add(alphaLabel, "cell 0 1 2 1")
+        cpManipulationPanel.add(valueLabel)
+        cpManipulationPanel.add(alphaLabel)
 
 
         //Rangeeditor
         val initMinValue = max(tfContainer.minDisplayRange.toInt(), 100)
-        minText = JTextField("0", 5)
+        minText = JTextField(initMinValue.toString())
         minValueLabel = JLabel(initMinValue.toString())
 
         val initMaxValue = max(tfContainer.maxDisplayRange.toInt(), 100)
-        maxText = JTextField(initMaxValue.toString(), 5)
+        maxText = JTextField(initMaxValue.toString())
+        maxText.horizontalAlignment = SwingConstants.RIGHT
         maxValueLabel = JLabel(initMaxValue.toString())
 
         rangeSlider = RangeSlider()
@@ -335,16 +323,17 @@ class TransferFunctionEditor constructor(
         }
 
         rangeEditorPanel = JPanel()
-        rangeEditorPanel.layout = MigLayout()
-        add(rangeEditorPanel, "cell 8 8 2 1")
+        rangeEditorPanel.layout = MigLayout("fill",
+            "[left, 10%]5[right, 40%]5[left, 10%]5[right, 40%]")
+        add(rangeEditorPanel, "grow")
 
-        rangeEditorPanel.add(JLabel("min:"), "cell 0 0")
-        rangeEditorPanel.add(minText, "cell 1 0")
-        rangeEditorPanel.add(JLabel("max:"), "cell 4 0")
-        rangeEditorPanel.add(maxText, "cell 5 0")
-        rangeEditorPanel.add(rangeSlider, "cell 0 1 7 1")
-        rangeEditorPanel.add(minValueLabel, "cell 1 2")
-        rangeEditorPanel.add(maxValueLabel, "cell 5 2")
+        rangeEditorPanel.add(JLabel("min:"), "shrinkx")
+        rangeEditorPanel.add(minText, "growx")
+        rangeEditorPanel.add(JLabel("max:"), "shrinkx")
+        rangeEditorPanel.add(maxText, "growx, wrap")
+        rangeEditorPanel.add(rangeSlider, "spanx, growx, wrap")
+        rangeEditorPanel.add(minValueLabel, "spanx 2, left")
+        rangeEditorPanel.add(maxValueLabel, "spanx 2, right")
 
         updateSliderRange()
     }
