@@ -18,6 +18,7 @@ class VolumeServerExample : SceneryBase ("Volume Server Example", 512, 512) {
     var hmd: TrackedStereoGlasses? = null
 
     override fun init() {
+        Thread.sleep(5000)
         renderer = hub.add(
             SceneryElement.Renderer,
             Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
