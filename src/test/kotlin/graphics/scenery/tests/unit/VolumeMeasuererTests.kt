@@ -30,6 +30,6 @@ class VolumeMeasurerTests {
     fun testVolumeCylinder() {
         val c = Cylinder(2f, 10f, 5)
         val volume = VolumeMeasurer().calculateVolume(c)
-        assertEquals(volume, 63.40377712249756)
+        assertEquals(volume, 63.40377712249756, absoluteTolerance = 0.00001)
     }
 }
