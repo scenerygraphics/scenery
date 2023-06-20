@@ -50,6 +50,12 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: gradle/wrapper-validation-action@v1
+      - name: configure Pagefile
+        uses: al-cheb/configure-pagefile-action@v1.2
+        with:
+          minimum-size: 8GB
+          maximum-size: 32GB
+          disk-root: "D:"
       - name: Set up JDK
         uses: actions/setup-java@v3
         with:
