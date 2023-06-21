@@ -18,7 +18,7 @@ import kotlin.math.sin
  * @param[segments] Number of segments in latitude and longitude.
  */
 
-class Cylinder(var radius: Float, var height: Float, var segments: Int, fillCaps: Boolean = false, smoothSides: Boolean = false) : Mesh("cylinder") {
+open class Cylinder @JvmOverloads constructor(var radius: Float, var height: Float, var segments: Int, fillCaps: Boolean = false, smoothSides: Boolean = false) : Mesh("cylinder") {
     init {
         geometry {
             geometryType = GeometryType.TRIANGLES
@@ -32,7 +32,7 @@ class Cylinder(var radius: Float, var height: Float, var segments: Int, fillCaps
             val vTop = Vector3f(0f, height, 0f)
             val vBottom = Vector3f(0f, 0f, 0f)
 
-            for (i: Int in 0..segments-1) {
+            for (i: Int in 0 until segments) {
                 val theta = i * delta
                 val theta1 = (i + 1) * delta
                 val texcoord = i / segments.toFloat()
