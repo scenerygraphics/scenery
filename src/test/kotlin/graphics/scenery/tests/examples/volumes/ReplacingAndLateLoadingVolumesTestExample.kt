@@ -1,6 +1,7 @@
 package graphics.scenery.tests.examples.volumes
 
 import bdv.util.AxisOrder
+import bvv.core.VolumeViewerOptions
 import graphics.scenery.*
 import org.joml.Vector3f
 import graphics.scenery.backends.Renderer
@@ -13,7 +14,6 @@ import ij.ImagePlus
 import net.imglib2.img.Img
 import net.imglib2.img.display.imagej.ImageJFunctions
 import net.imglib2.type.numeric.integer.UnsignedShortType
-import tpietzsch.example2.VolumeViewerOptions
 import kotlin.concurrent.thread
 
 /**
