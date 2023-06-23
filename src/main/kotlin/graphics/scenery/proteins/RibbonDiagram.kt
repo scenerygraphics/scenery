@@ -204,9 +204,7 @@ class RibbonDiagram(val protein: Protein, private val displaySS: Boolean = false
                     )
                 }
                 val betaCurve = Curve(
-                    DummySpline(subSpline, sectionVerticesCount),
-                    partitionAlongControlpoints = false
-                ) { baseShape(ssSubList) }
+                    DummySpline(subSpline, sectionVerticesCount)) { baseShape(ssSubList) }
                 if (displaySS) {
                     betas.addChild(betaCurve)
                 } else {
