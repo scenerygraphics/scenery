@@ -160,6 +160,9 @@ class RibbonDiagramTests {
         assertTrue { -36.8 < bb.min.z && -36.4 > bb.min.z }
     }
 
+    /**
+     * Checks if the number of residues in the ribbon diagram corresponds to the actual number of protein residues
+     */
     @Test
     fun testSplinePointsToResidueNumber() {
         val protein = Protein.fromID("4u68")
@@ -167,6 +170,19 @@ class RibbonDiagramTests {
         val residuesCount = ribbon.children.flatMap { chain -> chain.children }.flatMap { it.children }.size
         val allResidues = protein.structure.chains.flatMap { it.atomGroups }.filter { it.hasAminoAtoms() }
         assertEquals(residuesCount, allResidues.size)
+    }
+
+    /**
+     * Checks that the important parts of proteins remain unchanged during ribbon diagram calculation
+     */
+    @Test
+    fun testUnchangedProtein() {
+        val protein = Protein.fromID("4u68")
+        val protein2 = Protein.fromID("4u68")
+        val ribbon = RibbonDiagram(protein)
+        val allResidues = protein.structure.chains.flatMap { it.atomGroups }.filter { it.hasAminoAtoms() }
+        val allResidues2 = protein2.structure.chains.flatMap { it.atomGroups }.filter { it.hasAminoAtoms() }
+        assertEquals(allResidues2.size, allResidues.size)
     }
 
     //Inline function for the protein to access residues
