@@ -43,7 +43,8 @@ class RibbonDiagramTests {
                 allPlantPoints += spline.splinePoints().size
             }
         }
-        assertEquals(allPlantPoints, (46) * (10 + 1))
+        //the protein has 46 residues, each section has ten spline points, and the whole spline one starting point
+        assertEquals(allPlantPoints, (46) * (10) +1)
     }
 
     /**
@@ -102,7 +103,7 @@ class RibbonDiagramTests {
             "6ps3", "3v2y", "4pla", "3eml", "2seb", "2qej", "1d5m", "2wy8",
             "4idj", "2vr3", "2win", "6urh", "3ua7", "3mrn", "4z0x", "2rhk",
             "6pdx", "6urm", "2x4q", "1r0n", "2ff6", "4i7b", "3bs5", "5chl",
-            "5f84", "4uuz", "4v98", "4wsi", "4u68", "4aa1", "5jvs", "6hom",
+            "5f84", "4uuz", "4v98", "4wsi", "4u68", "2qho", "5jvs", "6hom",
             "4xib", "4u0q", "6phf"
         )
 
