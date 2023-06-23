@@ -99,23 +99,23 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
     var hmd: TrackedStereoGlasses? = null
 
     val separateDepth = true
-    val runLengthEncoded = true
+    val runLengthEncoded = System.getProperty("VDIBenchmark.RLE")?.toBoolean()?: false
     val recordMovie = false
     val profileMemoryAccesses = false
     val compute = CustomNode()
     val closeAfter = 600000L
     val autoClose = false
-    var dataset = System.getProperty("VDIBenchmark.Dataset")?.toString()?: "Kingsnake"
+    var dataset = System.getProperty("VDIBenchmark.Dataset")?.toString()?: "Rayleigh_Taylor"
     var baseDataset = dataset
     val numOctreeLayers = 8.0
     val numSupersegments = System.getProperty("VDIBenchmark.NumSupersegments")?.toInt()?: 20
-    val distributedVDI = System.getProperty("VDIBenchmark.Distributed")?.toBoolean()?: false
+    val distributedVDI = System.getProperty("VDIBenchmark.Distributed")?.toBoolean()?: true
     val vo = System.getProperty("VDIBenchmark.Vo")?.toInt()?: 0
     var benchmarking = false
     val skipEmpty = false
     val viewNumber = 1
 
-    var dynamicBenchmark = true
+    var dynamicBenchmark = false
     var subsampling_benchmarks = true
     var desiredFrameRate = 72
 
@@ -132,7 +132,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
     var cameraMoving = false
     var cameraStopped = false
 
-    val commSize = System.getProperty("VDIBenchmark.DistributedSize")?.toInt()?: 1
+    val commSize = System.getProperty("VDIBenchmark.DistributedSize")?.toInt()?: 4
     val rank = System.getProperty("VDIBenchmark.DistributedRank")?.toInt()?: 0
     val communicatorType = "_${commSize}_${rank}"
 //    val communicatorType = ""
@@ -157,10 +157,10 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
             Vector3f(1.920E+0f, -6.986E-1f,  6.855E-1f)
         }
         "Rotstrat" -> {
-            Vector3f( 1.920E+0f, -1.920E+0f,  1.800E+0f)
+            Vector3f( 1.920E+0f, -1.920E+0f,  1.920E+0f)
         }
         "Isotropic" -> {
-            Vector3f( 1.920E+0f, -1.920E+0f,  1.800E+0f)
+            Vector3f(  1.920E+0f, -1.920E+0f,  1.912E+0f)
         }
         else -> {
             Vector3f(0f)
@@ -226,11 +226,11 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
                 position = Vector3f( 1.897E+0f, -5.994E-1f, -1.899E+0f) //V1 for Boneplug
                 rotation = Quaternionf( 5.867E-5,  9.998E-1,  1.919E-2,  4.404E-3)
             } else if (dataset == "Rotstrat") {
-                    position = Vector3f( 2.799E+0f, -6.156E+0f, -2.641E+0f) //V1 for Rotstrat
-                    rotation = Quaternionf(-3.585E-2, -9.257E-1,  3.656E-1,  9.076E-2)
+                position = Vector3f( 7.234E+0f, -2.031E+0f,  4.331E+0f) //V1 for Rotstrat
+                rotation = Quaternionf(8.013E-3,  5.417E-1, -5.146E-3, -8.405E-1)
             } else  if (dataset == "Isotropic") {
-                    position = Vector3f( 2.799E+0f, -6.156E+0f, -2.641E+0f) //V1 for Isotropic
-                    rotation = Quaternionf(-3.585E-2, -9.257E-1,  3.656E-1,  9.076E-2)
+                position = Vector3f( -2.662E+0f, -1.730E+0f, -2.030E+0f) //V1 for Isotropic
+                rotation = Quaternionf(9.088E-1, -6.552E-3, -4.170E-1,  1.429E-2)
             }
 //            position = Vector3f( 4.458E+0f, -9.057E-1f,  4.193E+0f) //V2 for Kingsnake
 //            rotation = Quaternionf( 1.238E-1, -3.649E-1,-4.902E-2,  9.215E-1)
@@ -255,10 +255,10 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
         val octBuff: ByteArray?
 
 //        val basePath = "/home/aryaman/TestingData/"
-//        val basePath = "/home/aryaman/TestingData/FromCluster/"
+        val basePath = "/home/aryaman/TestingData/FromCluster/"
 //        val basePath = "/scratch/ws/1/argupta-vdi_generation/vdi_dumps/"
 //        val basePath = "/home/aryaman/Repositories/DistributedVis/cmake-build-debug/"
-        val basePath = "/home/aryaman/Repositories/scenery-insitu/"
+//        val basePath = "/home/aryaman/Repositories/scenery-insitu/"
 //        val basePath = "/scratch/ws/1/argupta-vdi_generation/vdi_dumps/"
 
         val vdiParams = "_${windowWidth}_${windowHeight}_${numSupersegments}_${vo}_"
@@ -271,9 +271,9 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
 
 //        val vdiType = "Composited"
 //        val vdiType = "SetOf"
-//        val vdiType = "Final"
+        val vdiType = "Final"
 //        val vdiType = "Sub"
-        val vdiType = ""
+//        val vdiType = ""
 
         logger.info("Fetching file with params: $vdiParams")
 
@@ -480,6 +480,12 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
             }
         }
 
+        thread {
+            Thread.sleep(2000)
+            logger.info("${cam.spatial().position}")
+            logger.info("${cam.spatial().rotation}")
+        }
+
     }
 
     fun downsampleImage(factor: Float, wholeFrameBuffer: Boolean = false) {
@@ -675,7 +681,38 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
 
             frameStart = System.nanoTime()
             firstFrame = false
+        }
+    }
 
+    private fun lookAround(speedFactor: Long = 1L) {
+        val waitTime: Long = 5 * speedFactor
+        val iterations = 100
+
+        logger.info("starting look around")
+
+        var cnt = 0
+        while (cnt < iterations) {
+            rotateCamera(-0.2f, true)
+            Thread.sleep(waitTime)
+            cnt++
+        }
+        cnt = 0
+        while (cnt < iterations) {
+            rotateCamera(0.2f)
+            Thread.sleep(waitTime)
+            cnt++
+        }
+        cnt = 0
+        while (cnt < iterations) {
+            rotateCamera(0.2f, true)
+            Thread.sleep(waitTime)
+            cnt++
+        }
+        cnt = 0
+        while (cnt < 100) {
+            rotateCamera(-0.2f)
+            Thread.sleep(waitTime)
+            cnt++
         }
     }
 
@@ -686,39 +723,68 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
             Thread.sleep(200)
         }
 
-        Thread.sleep(1000)
+        Thread.sleep(20000)
+//        renderer!!.recordMovie("/datapot/aryaman/owncloud/VDI_Benchmarks/${dataset}_VDI.mp4")
 
-        val maxPitch = 10f
-        val maxYaw = 10f
+        var speedFactor = 2L
 
-        val minYaw = -10f
-        val minPitch = -10f
+        lookAround(speedFactor)
+//        lookAround(speedFactor)
 
-//        rotateCamera(40f, true)
-        var pitchRot = 0.12f
-        var yawRot = 0.075f
-
-        var totalYaw = 0f
-        var totalPitch = 0f
-
-//        rotateCamera(20f, true)
-
-        moveCamera(yawRot, pitchRot, maxYaw, maxPitch, minPitch, minYaw, totalYaw, totalPitch, 8000f)
-        logger.info("Moving to phase 2")
-        moveCamera(yawRot, pitchRot * 2, maxYaw, maxPitch * 2, minPitch * 2, minYaw, totalYaw, totalPitch, 2000f)
-
-        zoomCamera(0.99f, 1000f)
-        logger.info("Moving to phase 3")
-        moveCamera(yawRot * 3, pitchRot * 3, maxYaw, maxPitch, minPitch, minYaw, totalYaw, totalPitch, 8000f)
-
-        cameraMoving = true
-
-        if(subsampleRay) {
-            doDownsampling(true)
-            setDownsamplingFactor(0.2f)
+        var cnt = 0
+        while (cnt < 25) {
+            rotateCamera(0.2f)
+            Thread.sleep(5 * speedFactor)
+            cnt++
         }
 
-        moveCamera(yawRot *2, pitchRot * 5, 40f, 40f, -60f, -50f, totalYaw, totalPitch, 6000f)
+        Thread.sleep(2000)
+
+//        r.screenshot("/datapot/aryaman/owncloud/Final_PacificVis_Supplement/${dataset}_VDI_first.png")
+//
+//        Thread.sleep(4000)
+
+        cnt = 0
+        while (cnt < 125) {
+            rotateCamera(0.2f)
+            Thread.sleep(5 * speedFactor)
+            cnt++
+        }
+
+        speedFactor = 3L
+
+        lookAround()
+        Thread.sleep(2000)
+
+//        zoomCamera(0.995f, 1000f, speedFactor)
+
+        Thread.sleep(500)
+
+//        r.screenshot("/datapot/aryaman/owncloud/Final_PacificVis_Supplement/${dataset}_VDI_second.png")
+
+//        Thread.sleep(4000)
+
+//        lookAround(speedFactor)
+
+//        r.recordMovie()
+
+//        lookAround()
+//
+//        cnt = 0
+//        while (cnt < 100) {
+//            rotateCamera(-0.32f, true)
+//            Thread.sleep(80)
+//            cnt++
+//        }
+//
+//        Thread.sleep(2500)
+//
+//        r.screenshot("/datapot/aryaman/owncloud/Final_PacificVis_Supplement/${dataset}_VDI_second.png")
+//
+//        Thread.sleep(2500)
+//
+//        lookAround()
+        Thread.sleep(2500)
 
         Thread.sleep(1000)
     }
@@ -870,7 +936,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
         }
     }
 
-    fun zoomCamera(factor: Float, duration: Float) {
+    fun zoomCamera(factor: Float, duration: Float, speedFactor: Long = 1) {
         cam.targeted = true
 
         val startTime = System.nanoTime()
@@ -879,7 +945,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
 
             cam.spatial().position = camTarget + cam.forward * distance * (-1.0f * factor)
 
-            Thread.sleep(50)
+            Thread.sleep(50 * speedFactor)
 
             if((System.nanoTime() - startTime)/1e6 > duration) {
                 break
@@ -919,12 +985,12 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
         setupCameraModeSwitching()
 
         inputHandler?.addBehaviour("rotate_camera", ClickBehaviour { _, _ ->
-            rotateCamera(10f)
+            rotateCamera(5f, dataset.contains("Simulation"))
         })
         inputHandler?.addKeyBinding("rotate_camera", "R")
 
         inputHandler?.addBehaviour("rotate_camera_pitch", ClickBehaviour { _, _ ->
-            recordCamera()
+            rotateCamera(10f, true)
         })
         inputHandler?.addKeyBinding("rotate_camera_pitch", "T")
 
