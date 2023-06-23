@@ -5,7 +5,7 @@
 #define INT_DEPTHS 0
 #define PROFILE_MEM 0
 #define USE_VIEW_SPACE_CELLS 1
-#define RLE 1
+#define RLE 0
 
 #if USE_PRINTF
 #extension GL_EXT_debug_printf : enable
@@ -63,9 +63,9 @@ layout (set = 7, binding = 0, r32i) uniform iimage2D PrefixSums;
 #endif
 
 #if PROFILE_MEM
-layout(set = 9, binding = 0, r32f) uniform image2D NumIntersectedSupsegs;
-layout(set = 10, binding = 0, r32f) uniform image2D NumLists;
-layout(set = 11, binding = 0, r32f) uniform image2D NumSteps;
+layout(set = 7, binding = 0, r32f) uniform image2D NumIntersectedSupsegs;
+layout(set = 8, binding = 0, r32f) uniform image2D NumLists;
+layout(set = 9, binding = 0, r32f) uniform image2D NumSteps;
 //layout(set = 8, binding = 0, r32f) uniform image2D NumEmptyLists;
 //layout(set = 9, binding = 0, r32f) uniform image2D NumNotIntLists;
 //layout(set = 10, binding = 0, r32f) uniform image2D EmptyBeforeFirst;
@@ -130,7 +130,7 @@ layout(set = 11, binding = 0, r32f) uniform image2D NumSteps;
 //ivec2 debug_pixel = ivec2(610, 641);
 //ivec2 debug_pixel = ivec2(1273, 604);
 //ivec2 debug_pixel = ivec2(640, 360);
-ivec2 debug_pixel = ivec2(640, 360);
+ivec2 debug_pixel = ivec2(799, 462);
 
 //ivec2 debug_pixel = ivec2(35, 61);
 //ivec2 debug_pixel = ivec2(427, 465);
@@ -698,7 +698,7 @@ void findFirstSupseg_opt_seeded(ivec2 theList, float dist_to_orig, float exit_di
     {
     	binSearch(theList, dist_to_orig, bin_search_start, bin_search_end, supseg_found, index, depthStart, depthEnd);
     }
-
+    //TODO: check whether the following couple of lines should be inside the previous bracket section
     depthStart = getSupsegFront(theList, index);
 
     if(depthStart > exit_distance) {
