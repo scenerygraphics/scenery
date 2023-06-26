@@ -7,7 +7,11 @@ import glm_.f
 import glm_.vec2.Vec2
 import glm_.vec2.Vec2d
 import glm_.vec2.Vec2i
+import graphics.scenery.Hub
+import graphics.scenery.SceneryElement
 import graphics.scenery.backends.SceneryWindow
+import graphics.scenery.controls.InputHandler
+import graphics.scenery.utils.lazyLogger
 import imgui.*
 import imgui.ImGui.mainViewport
 import imgui.ImGui.mouseCursor
@@ -18,10 +22,14 @@ import org.lwjgl.glfw.GLFW.*
 import org.lwjgl.glfw.GLFWGamepadState
 import org.lwjgl.system.MemoryUtil.NULL
 import org.lwjgl.system.Platform
+import org.scijava.ui.behaviour.ClickBehaviour
+import org.scijava.ui.behaviour.ScrollBehaviour
 import uno.glfw.*
 import uno.glfw.GlfwWindow.CursorMode
+import kotlin.concurrent.thread
 
-class ImplScenery(val window: SceneryWindow, val installCallbacks: Boolean = true, val vrTexSize: Vec2i? = null) {
+class ImplScenery(val window: SceneryWindow, val hub: Hub, val installCallbacks: Boolean = true, val vrTexSize: Vec2i? = null) {
+    val logger by lazyLogger()
     init {
         with(io) {
             assert(backendPlatformUserData == null) { "Already initialized a platform backend!" }
@@ -48,6 +56,41 @@ class ImplScenery(val window: SceneryWindow, val installCallbacks: Boolean = tru
             // Set platform dependent data in viewport
 //            if (Platform.get() == Platform.WINDOWS)
 //                mainViewport.platformHandleRaw = window.hwnd
+
+            if(installCallbacks) {
+                thread {
+                    // These now use scenery's input system.
+                    // Two options here how to streamline this:
+                    // 1. remove/add the behaviour's bindings on-demand
+                    // 2. use ui-behaviour's Contexts. I'd have to ask Tobi or Curtis how to do that
+                    var h = hub.get<InputHandler>()
+                    while(h == null) {
+                        h = hub.get<InputHandler>()
+                        Thread.sleep(50)
+                    }
+                    val inputHandler = h
+                    inputHandler.addBehaviour("imgui_mouse_down", ClickBehaviour { mouseX, mouseY ->
+                        io.addMousePosEvent(mouseX.toFloat(), mouseY.toFloat())
+                        io.addMouseButtonEvent(0, true)
+                        Thread.sleep(2)
+                        io.addMouseButtonEvent(0, false)
+                    })
+                    inputHandler.addBehaviour(
+                        "imgui_scroll",
+                        ScrollBehaviour { wheelRotation, isHorizontal, mouseX, mouseY ->
+                            val multiplier = 0.01f
+                            if(isHorizontal) {
+                                io.addMouseWheelEvent(multiplier * wheelRotation.toFloat(), 0.0f)
+                            } else {
+                                io.addMouseWheelEvent(0.0f, multiplier * wheelRotation.toFloat())
+                            }
+                        })
+                    inputHandler.addKeyBinding("imgui_scroll", "scroll")
+                    inputHandler.addKeyBinding("imgui_mouse_down", "button1")
+
+                    logger.info("Callbacks installed")
+                }
+            }
         }
     }
 
@@ -73,9 +116,17 @@ class ImplScenery(val window: SceneryWindow, val installCallbacks: Boolean = tru
         updateGamepads()
     }
 
-    fun updateMouseData() {}
+    fun updateMouseData() {
+        val inputHandler = hub.get(SceneryElement.Input) as InputHandler
+        val x = (inputHandler.handler?.mouseX ?: 0).toFloat()
+        val y = (inputHandler.handler?.mouseY ?: 0).toFloat()
+        data.lastValidMousePos.put(x, y)
+        io.addMousePosEvent(x, y)
+    }
 
-    fun updateMouseCursor() {}
+    fun updateMouseCursor() {
+        io.mouseDrawCursor = true
+    }
 
     fun updateGamepads() {}
 
@@ -87,8 +138,8 @@ class ImplScenery(val window: SceneryWindow, val installCallbacks: Boolean = tru
 
         lateinit var instance: ImplScenery
 
-        fun init(window: SceneryWindow, installCallbacks: Boolean = true, vrTexSize: Vec2i? = null) {
-            instance = ImplScenery(window, installCallbacks, vrTexSize)
+        fun init(window: SceneryWindow, hub: Hub, installCallbacks: Boolean = true, vrTexSize: Vec2i? = null) {
+            instance = ImplScenery(window, hub, installCallbacks, vrTexSize)
         }
 
         fun newFrame() = instance.newFrame()
