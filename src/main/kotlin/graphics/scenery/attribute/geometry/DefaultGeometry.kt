@@ -18,10 +18,10 @@ import kotlin.reflect.KProperty
 open class DefaultGeometry(private var node: Node): Geometry {
 
     override var buffers: MutableMap<String, Buffers.BufferDescription> = mutableMapOf(
-        "vertices" to Buffers.BufferDescription(BufferUtils.allocateFloat(0), BufferType.Primitive(FloatType()), Buffers.BufferUsage.Upload, 3),
-        "normals" to Buffers.BufferDescription(BufferUtils.allocateFloat(0), BufferType.Primitive(FloatType()), Buffers.BufferUsage.Upload, 3),
-        "texcoords" to Buffers.BufferDescription(BufferUtils.allocateFloat(0), BufferType.Primitive(FloatType()), Buffers.BufferUsage.Upload, 3),
-        "indices" to Buffers.BufferDescription(BufferUtils.allocateInt(0), BufferType.Primitive(IntType()), Buffers.BufferUsage.Upload, 1)
+        "vertices" to Buffers.BufferDescription(BufferUtils.allocateFloat(0), BufferType.Primitive(FloatType()), Buffers.BufferUsage.Upload),
+        "normals" to Buffers.BufferDescription(BufferUtils.allocateFloat(0), BufferType.Primitive(FloatType()), Buffers.BufferUsage.Upload),
+        "texcoords" to Buffers.BufferDescription(BufferUtils.allocateFloat(0), BufferType.Primitive(FloatType()), Buffers.BufferUsage.Upload),
+        "indices" to Buffers.BufferDescription(BufferUtils.allocateInt(0), BufferType.Primitive(IntType()), Buffers.BufferUsage.Upload)
     )
 
     @delegate:Transient override var vertices: FloatBuffer by buffers

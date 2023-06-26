@@ -2,8 +2,10 @@ package graphics.scenery.tests.examples.advanced
 
 import org.joml.Vector3f
 import graphics.scenery.*
+import graphics.scenery.attribute.material.Material
 import graphics.scenery.backends.Renderer
 import graphics.scenery.primitives.SSBOTest
+import graphics.scenery.tests.examples.basic.TexturedCubeExample
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.Image
 import kotlin.concurrent.thread
@@ -18,7 +20,23 @@ class SSBOExample : SceneryBase("SSBOExample", wantREPL = false) {
         renderer = hub.add(SceneryElement.Renderer,
             Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
 
-        val light = PointLight(radius = 15.0f)
+        val hull = Box(Vector3f(10.0f, 10.0f, 10.0f), insideNormals = true)
+        hull.material {
+            diffuse = Vector3f(0.2f, 0.2f, 0.2f)
+            cullingMode = Material.CullingMode.Front
+        }
+        scene.addChild(hull)
+
+        val box = Box(Vector3f(1.0f, 1.0f, 1.0f))
+        box.name = "le box du win"
+        box.material {
+            diffuse = Vector3f(1.0f, 0.5f, 0.9f)
+            metallic = 0.3f
+            roughness = 0.9f
+        }
+        scene.addChild(box)
+
+        val light = PointLight(radius = 20.0f)
         light.spatial().position = Vector3f(0.0f, 0.0f, 2.0f)
         light.intensity = 5.0f
         light.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
@@ -35,9 +53,7 @@ class SSBOExample : SceneryBase("SSBOExample", wantREPL = false) {
         }
 
         val ssboTestObj = SSBOTest()
-        //Do buffer filling here
         scene.addChild(ssboTestObj)
-
 
         thread {
             while (running) {

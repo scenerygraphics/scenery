@@ -8,10 +8,13 @@ import graphics.scenery.attribute.geometry.HasGeometry
 import graphics.scenery.attribute.material.HasMaterial
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.attribute.renderable.HasRenderable
+import graphics.scenery.attribute.spatial.HasSpatial
 import graphics.scenery.backends.ShaderType
 import graphics.scenery.backends.UBO
 import graphics.scenery.geometry.GeometryType
 import graphics.scenery.net.Networkable
+import graphics.scenery.textures.Texture
+import graphics.scenery.utils.Image
 import graphics.scenery.utils.extensions.*
 import org.joml.Vector3f
 import org.joml.Vector4f
@@ -26,43 +29,32 @@ import kotlin.jvm.JvmOverloads
  * @property[sizes] The x/y/z sizes of the box
  */
 open class SSBOTest @JvmOverloads constructor(val sizes: Vector3f = Vector3f(1.0f, 1.0f, 1.0f), val insideNormals: Boolean = false)
-    : DefaultNode("SSBOTest"), HasRenderable, HasMaterial, HasGeometry, HasBuffers {
+    : Mesh("SSBOTest"), HasBuffers {
 
     init {
-        addMaterial()
         material {
             val newMaterial: Material
             newMaterial = ShaderMaterial.fromFiles(
-                "Default.vert",
+                "DefaultDeferred.vert",
                 "SSBOTest.frag"
             )
-            newMaterial.blending.opacity = 1.0f
-            newMaterial.blending.setOverlayBlending()
-
-            material {
+            setMaterial(newMaterial) {
                 newMaterial.diffuse = diffuse
                 newMaterial.specular = specular
                 newMaterial.ambient = ambient
                 newMaterial.metallic = metallic
                 newMaterial.roughness = roughness
-            }
-            setMaterial(newMaterial) {
+
+                blending.opacity = 1.0f
                 blending.transparent = false
+                blending.setOverlayBlending()
+
                 cullingMode = Material.CullingMode.None
             }
         }
-        val side = 1.0f
-        val side2 = side / 2.0f
 
-        boundingBox = OrientedBoundingBox(this,
-            -side2 * sizes.x(),
-            -side2 * sizes.y(),
-            -side2 * sizes.z(),
-            side2 * sizes.x(),
-            side2 * sizes.y(),
-            side2 * sizes.z())
-
-        addBuffers {
+        addBuffers()
+        buffers {
             // size is by default determined by the UBO layout, but can be given as optional parameter.
             // elements is mandatory
             addCustom("ssboUpload", Buffers.BufferUsage.Upload, elements = 1, stride = 16) { layout, buffer ->
@@ -76,11 +68,11 @@ open class SSBOTest @JvmOverloads constructor(val sizes: Vector3f = Vector3f(1.0
                 buffer.putFloat(1.0f)
                 buffer.flip()
             }
-
         }
 
-        addGeometry {
-
+        val side = 1.0f
+        val side2 = side / 2.0f
+        geometry {
             geometryType = GeometryType.TRIANGLES
 
             vertices = BufferUtils.allocateFloatAndPut(floatArrayOf(
@@ -188,8 +180,15 @@ open class SSBOTest @JvmOverloads constructor(val sizes: Vector3f = Vector3f(1.0
                 0.0f, 1.0f
             ))
         }
+
+        boundingBox = OrientedBoundingBox(this,
+            -side2 * sizes.x(),
+            -side2 * sizes.y(),
+            -side2 * sizes.z(),
+            side2 * sizes.x(),
+            side2 * sizes.y(),
+            side2 * sizes.z())
         boundingBox = generateBoundingBox()
-        addRenderable()
     }
 
     fun updateSSBO(key : String, index : Int, entry : UBO) {

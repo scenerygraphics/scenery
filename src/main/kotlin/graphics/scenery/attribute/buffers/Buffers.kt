@@ -23,7 +23,7 @@ interface Buffers : Serializable {
      * [usage] is currently a hashset to provide buffers to be both upload and download buffers -> maybe exclude this possibility to prevent
      * an increase in code in the renderer backend?
      */
-    data class BufferDescription(var buffer: Buffer, val type : BufferType, val usage: BufferUsage, val size : Int) {
+    data class BufferDescription(var buffer: Buffer, val type : BufferType, val usage: BufferUsage, val elements: Int = 0, val size : Int = 0) {
     }
 
 
@@ -37,7 +37,7 @@ interface Buffers : Serializable {
         val layout = UBO()
         val totalSize = elements * stride
         val buffer = BufferUtils.allocateByte(totalSize)
-        val description = BufferDescription(buffer, BufferType.Custom(layout), usage, totalSize)
+        val description = BufferDescription(buffer, BufferType.Custom(layout), usage, elements, totalSize)
         block(layout, buffer)
         buffers[name] = description
 
@@ -52,7 +52,7 @@ interface Buffers : Serializable {
 
         val totalSize = elements * stride
         val buffer = BufferUtils.allocateByte(totalSize)
-        val description = BufferDescription(buffer, BufferType.Primitive(type), BufferUsage.Upload, totalSize)
+        val description = BufferDescription(buffer, BufferType.Primitive(type), BufferUsage.Upload, elements, totalSize)
         buffers[name] = description
 
         return description

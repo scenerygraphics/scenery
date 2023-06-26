@@ -186,16 +186,20 @@ object VulkanNodeHelpers {
         backingBuffer as ByteBuffer
 
         val ssboSize = backingBuffer.remaining()
+        logger.info("SSBO Size: $ssboSize")
         if(ssboSize <= 0)
             return state
 
 
+        // TODO: staging might not be worth caching
         var stagingUpdated = false
         val ssboStagingBuffer = state.SSBOBuffers[name+"Staging"]
         val stagingBuffer = if(ssboStagingBuffer != null && ssboStagingBuffer.size >= ssboSize) {
+            logger.info("Using old stagind SSBO")
             ssboStagingBuffer
         } else {
             logger.debug("Creating new SSBO Staging Buffer")
+            logger.info("Creating new SSBO Staging Buffer")
             state.SSBOBuffers[name+"Staging"]?.close()
 
             val buffer = stagingPool.createBuffer(ssboSize)
@@ -208,13 +212,15 @@ object VulkanNodeHelpers {
 
         val ssboBufferCurrent = state.SSBOBuffers[name]
         val ssboBuffer = if(ssboBufferCurrent != null
-            && ssboBufferCurrent.size >= ssboSize
-            && ssboBufferCurrent.size < ssboSize * 1.2
+            && ssboBufferCurrent.size == ssboSize.toLong()
         ) {
+            logger.info("Using oldSSBO")
             ssboBufferCurrent
         } else {
             logger.debug("Creating new SSBO Buffer")
+            logger.info("Creating new SSBO Buffer, oldSize: ${ssboBufferCurrent?.size}, newSize: $ssboSize")
             state.SSBOBuffers[name]?.close()
+
             val buffer = when(usage)
             {
                 Buffers.BufferUsage.Upload -> ssboUploadPool.createBuffer(ssboSize)
@@ -248,9 +254,9 @@ object VulkanNodeHelpers {
         var ds = state.requiredDescriptorSets[name]
         if(stagingUpdated || ds == null)
         {
-            val dsl = device.createDescriptorSetLayout(listOf(Pair(VK10.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1)), 0, VK10.VK_SHADER_STAGE_FRAGMENT_BIT)
+            val dsl = device.createDescriptorSetLayout(listOf(Pair(VK10.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, description.elements)), 1, VK10.VK_SHADER_STAGE_FRAGMENT_BIT)
             ds = device.createDescriptorSet(
-                dsl, 1, ssboUbo.descriptor, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER)
+                dsl, description.elements, ssboUbo.descriptor, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER)
             state.requiredDescriptorSets[name] = ds
         }
         // TODO check if the backing VulkanUBO already exists
