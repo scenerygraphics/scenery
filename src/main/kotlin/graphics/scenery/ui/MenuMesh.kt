@@ -14,6 +14,7 @@ import graphics.scenery.attribute.renderable.Renderable
 import graphics.scenery.backends.Renderer
 import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.backends.ShaderType
+import graphics.scenery.controls.InputHandler
 import graphics.scenery.textures.Texture
 import imgui.*
 import imgui.classes.Context
@@ -55,7 +56,7 @@ class MenuMesh(val hub: Hub) : Mesh("Menu") {
     val menus = mutableMapOf<String, MenuNode>() // TODO switch to Int key
 
     // Setup Platform/Renderer bindings
-    val impl = ImplScenery(window, true, vrTexSize)
+    val impl = ImplScenery(window, hub, true, vrTexSize)
 
     override fun createRenderable(): Renderable {
         return object : DefaultRenderable(this) {
@@ -75,8 +76,9 @@ class MenuMesh(val hub: Hub) : Mesh("Menu") {
                     dsl.withFont(this@MenuMesh.font) {
 
                         // 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
-                        if(showDemoWindow)
+                        if(showDemoWindow) {
                             showDemoWindow(::showDemoWindow)
+                        }
 
 //                        menu(getScene()!!)
 

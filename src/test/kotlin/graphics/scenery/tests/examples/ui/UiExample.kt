@@ -7,6 +7,9 @@ import graphics.scenery.tests.examples.basic.TexturedCubeExample
 import graphics.scenery.textures.Texture
 import graphics.scenery.ui.MenuMesh
 import graphics.scenery.utils.Image
+import imgui.ImGui
+import imgui.ImGui.begin
+import imgui.Jdsl.*
 import kotlin.concurrent.thread
 
 /**
@@ -20,8 +23,6 @@ class UiExample : SceneryBase("TexturedCubeExample") {
         renderer = hub.add(SceneryElement.Renderer, Renderer.createRenderer(hub, applicationName, scene,
                                                                             2560, 1440))
 
-        val menu = MenuMesh(hub)
-        scene.addChild(menu)
 
         val box = Box(Vector3f(1.0f, 1.0f, 1.0f))
         box.name = "le box du win"
@@ -43,6 +44,17 @@ class UiExample : SceneryBase("TexturedCubeExample") {
 
             scene.addChild(this)
         }
+
+        /* I'd like to be able to do:
+        val menu = MenuMesh(hub) {
+            with(ImGui) {
+               // do imgui stuff
+            }
+        }
+        */
+
+        val menu = MenuMesh(hub)
+        scene.addChild(menu)
 
         thread {
             while (running) {
