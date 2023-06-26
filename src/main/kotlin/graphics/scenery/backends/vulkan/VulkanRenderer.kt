@@ -363,6 +363,8 @@ open class VulkanRenderer(hub: Hub,
     protected var geometryPool: VulkanBufferPool
     protected var ssboUploadPool: VulkanBufferPool
     protected var ssboDownloadPool: VulkanBufferPool
+    // not using a separate staging pool: SSBO content overflows into VertexAttribute upload TODO: investigate why
+    protected var ssboStagingPool: VulkanBufferPool
     protected var stagingPool: VulkanBufferPool
     protected var semaphores = ConcurrentHashMap<StandardSemaphores, Array<Long>>()
 
@@ -716,12 +718,21 @@ open class VulkanRenderer(hub: Hub,
 
             ssboUploadPool = VulkanBufferPool(
                 device,
-                usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT or VK_BUFFER_USAGE_TRANSFER_DST_BIT
+                usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT or VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                bufferSize = 1024*1024
             )
 
             ssboDownloadPool = VulkanBufferPool(
                 device,
-                usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT or VK_BUFFER_USAGE_TRANSFER_SRC_BIT
+                usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT or VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                bufferSize = 1024*1024
+            )
+
+            ssboStagingPool = VulkanBufferPool(
+                device,
+                usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+                bufferSize = 64*1024*1024
             )
 
 
@@ -824,7 +835,7 @@ open class VulkanRenderer(hub: Hub,
                         node,
                         name,
                         s,
-                        stagingPool,
+                        ssboStagingPool,
                         ssboUploadPool,
                         ssboDownloadPool,
                         commandPools,
@@ -937,17 +948,17 @@ open class VulkanRenderer(hub: Hub,
                 val type = description.type
                 if(type is BufferType.Custom)
                 {
-                    /*s = VulkanNodeHelpers.updateShaderStorageBuffers(
+                    s = VulkanNodeHelpers.updateShaderStorageBuffers(
                         device,
                         node,
                         name,
                         s,
-                        stagingPool,
+                        ssboStagingPool,
                         ssboUploadPool,
                         ssboDownloadPool,
                         commandPools,
                         queue
-                    )*/
+                    )
                 }
             }
         }

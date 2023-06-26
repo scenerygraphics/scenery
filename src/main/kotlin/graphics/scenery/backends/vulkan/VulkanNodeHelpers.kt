@@ -186,7 +186,6 @@ object VulkanNodeHelpers {
         backingBuffer as ByteBuffer
 
         val ssboSize = backingBuffer.remaining()
-        logger.info("SSBO Size: $ssboSize")
         if(ssboSize <= 0)
             return state
 
@@ -195,11 +194,9 @@ object VulkanNodeHelpers {
         var stagingUpdated = false
         val ssboStagingBuffer = state.SSBOBuffers[name+"Staging"]
         val stagingBuffer = if(ssboStagingBuffer != null && ssboStagingBuffer.size >= ssboSize) {
-            logger.info("Using old stagind SSBO")
             ssboStagingBuffer
         } else {
             logger.debug("Creating new SSBO Staging Buffer")
-            logger.info("Creating new SSBO Staging Buffer")
             state.SSBOBuffers[name+"Staging"]?.close()
 
             val buffer = stagingPool.createBuffer(ssboSize)
@@ -211,14 +208,10 @@ object VulkanNodeHelpers {
 
 
         val ssboBufferCurrent = state.SSBOBuffers[name]
-        val ssboBuffer = if(ssboBufferCurrent != null
-            && ssboBufferCurrent.size == ssboSize.toLong()
-        ) {
-            logger.info("Using oldSSBO")
+        val ssboBuffer = if(ssboBufferCurrent != null && ssboBufferCurrent.size >= ssboSize.toLong()) {
             ssboBufferCurrent
         } else {
             logger.debug("Creating new SSBO Buffer")
-            logger.info("Creating new SSBO Buffer, oldSize: ${ssboBufferCurrent?.size}, newSize: $ssboSize")
             state.SSBOBuffers[name]?.close()
 
             val buffer = when(usage)
@@ -254,7 +247,7 @@ object VulkanNodeHelpers {
         var ds = state.requiredDescriptorSets[name]
         if(stagingUpdated || ds == null)
         {
-            val dsl = device.createDescriptorSetLayout(listOf(Pair(VK10.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, description.elements)), 1, VK10.VK_SHADER_STAGE_FRAGMENT_BIT)
+            val dsl = device.createDescriptorSetLayout(listOf(Pair(VK10.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, description.elements)), 0, VK10.VK_SHADER_STAGE_FRAGMENT_BIT)
             ds = device.createDescriptorSet(
                 dsl, description.elements, ssboUbo.descriptor, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER)
             state.requiredDescriptorSets[name] = ds

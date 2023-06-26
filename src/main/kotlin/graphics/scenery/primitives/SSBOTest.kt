@@ -64,7 +64,7 @@ open class SSBOTest @JvmOverloads constructor(val sizes: Vector3f = Vector3f(1.0
                 // buffer would return a view of the ByteBuffer used for backing
                 buffer.putFloat(1.0f)
                 buffer.putFloat(0.4f)
-                buffer.putFloat(0f)
+                buffer.putFloat(0.6f)
                 buffer.putFloat(1.0f)
                 buffer.flip()
             }

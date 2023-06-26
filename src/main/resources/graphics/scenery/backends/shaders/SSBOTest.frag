@@ -33,7 +33,7 @@ struct SSBO {
     vec4 Color1;
 };
 
-layout(std140, set = 2, binding = 1) readonly buffer ssboUpload{
+layout(std140, set = 7, binding = 0) readonly buffer ssboUpload{
     SSBO ssboData[];
 }ssboUploadBuffer;
 
@@ -121,8 +121,8 @@ vec2 EncodeOctaH( vec3 n )
 }
 
 void main() {
-    DiffuseAlbedo.rgb = vec3(1.0, 1.0, 1.0);
-    DiffuseAlbedo.a = 0.0f;
+    DiffuseAlbedo.rgb = ssboUploadBuffer.ssboData[0].Color1.rgb;
+    DiffuseAlbedo.a = ssboUploadBuffer.ssboData[0].Color1.a;
 
     NormalsMaterial.rg = EncodeOctaH(Vertex.Normal);
     NormalsMaterial.ba = vec2(Material.Roughness, Material.Metallic);

@@ -27,15 +27,6 @@ class SSBOExample : SceneryBase("SSBOExample", wantREPL = false) {
         }
         scene.addChild(hull)
 
-        val box = Box(Vector3f(1.0f, 1.0f, 1.0f))
-        box.name = "le box du win"
-        box.material {
-            diffuse = Vector3f(1.0f, 0.5f, 0.9f)
-            metallic = 0.3f
-            roughness = 0.9f
-        }
-        scene.addChild(box)
-
         val light = PointLight(radius = 20.0f)
         light.spatial().position = Vector3f(0.0f, 0.0f, 2.0f)
         light.intensity = 5.0f

@@ -27,6 +27,7 @@ open class VulkanBuffer(val device: VulkanDevice, var size: Long,
     private var currentPosition = 0L
     private var currentPointer: PointerBuffer? = null
 
+
     /** Buffer alignment, 256 bytes by default (Vulkan standard) */
     var alignment: Long = 256
         private set
