@@ -1,5 +1,6 @@
 package graphics.scenery
 
+import graphics.scenery.utils.extensions.times
 import org.joml.Vector2f
 import org.joml.Vector3f
 import java.util.*
@@ -12,11 +13,13 @@ import kotlin.math.*
  * @param[radius] The radius of the sphere
  * @param[segments] Number of segments in latitude and longitude.
  */
-open class Sphere(val radius: Float = 1.0f, val segments: Int = 8) : Mesh("sphere") {
+open class Sphere(val radius: Float = 1.0f, val segments: Int = 8, val insideNormals: Boolean = false) : Mesh("sphere") {
     init {
         val vbuffer = ArrayList<Float>(segments*segments*2*3)
         val nbuffer = ArrayList<Float>(segments*segments*2*3)
         val tbuffer = ArrayList<Float>(segments*segments*2*2)
+
+        val flip: Float = if(insideNormals) { -1.0f } else { 1.0f }
 
         for (i in 0 until segments) {
             val theta0: Float = PI.toFloat() * i.toFloat() / segments
@@ -31,15 +34,15 @@ open class Sphere(val radius: Float = 1.0f, val segments: Int = 8) : Mesh("spher
                 val v11 = vertexOnSphere(radius, theta1, phi1)
                 val v10 = vertexOnSphere(radius, theta1, phi0)
 
-                val n00 = Vector3f(v00[0], v00[1], v00[2]).normalize()
-                val n01 = Vector3f(v01[0], v01[1], v01[2]).normalize()
-                val n11 = Vector3f(v11[0], v11[1], v11[2]).normalize()
-                val n10 = Vector3f(v10[0], v10[1], v10[2]).normalize()
+                val n00 = Vector3f(v00[0], v00[1], v00[2]).normalize().mul(flip)
+                val n01 = Vector3f(v01[0], v01[1], v01[2]).normalize().mul(flip)
+                val n11 = Vector3f(v11[0], v11[1], v11[2]).normalize().mul(flip)
+                val n10 = Vector3f(v10[0], v10[1], v10[2]).normalize().mul(flip)
 
-                val uv00 = uvOnSphere(n00)
-                val uv01 = uvOnSphere(n01)
-                val uv11 = uvOnSphere(n11)
-                val uv10 = uvOnSphere(n10)
+                val uv00 = uvOnSphere(n00.times(flip))
+                val uv01 = uvOnSphere(n01.times(flip))
+                val uv11 = uvOnSphere(n11.times(flip))
+                val uv10 = uvOnSphere(n10.times(flip))
 
                 when {
                     i == 0 -> {
