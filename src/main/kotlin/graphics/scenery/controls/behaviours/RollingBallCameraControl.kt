@@ -1,6 +1,5 @@
 package graphics.scenery.controls.behaviours
 
-import com.jogamp.opengl.math.FloatUtil.sqrt
 import graphics.scenery.Camera
 import graphics.scenery.utils.lazyLogger
 import graphics.scenery.utils.extensions.minus
@@ -10,6 +9,7 @@ import org.joml.*
 import org.scijava.ui.behaviour.DragBehaviour
 import org.scijava.ui.behaviour.ScrollBehaviour
 import java.util.function.Supplier
+import kotlin.math.sqrt
 
 /**
  * Targeted ArcBall control

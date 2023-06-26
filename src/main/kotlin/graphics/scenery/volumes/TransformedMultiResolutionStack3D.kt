@@ -1,9 +1,9 @@
 package graphics.scenery.volumes
 
+import bvv.core.multires.MultiResolutionStack3D
+import bvv.core.multires.ResolutionLevel3D
 import net.imglib2.realtransform.AffineTransform3D
 import org.joml.Matrix4f
-import tpietzsch.multires.MultiResolutionStack3D
-import tpietzsch.multires.ResolutionLevel3D
 
 /**
  * Class for wrapping [MultiResolutionStack3D] [stack]s with custom transformations

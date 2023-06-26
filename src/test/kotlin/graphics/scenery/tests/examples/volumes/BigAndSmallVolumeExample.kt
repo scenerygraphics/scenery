@@ -1,6 +1,7 @@
 package graphics.scenery.tests.examples.volumes
 
 import bdv.spimdata.XmlIoSpimDataMinimal
+import bvv.core.VolumeViewerOptions
 import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
@@ -12,7 +13,6 @@ import org.scijava.Context
 import org.scijava.ui.UIService
 import org.scijava.ui.behaviour.ClickBehaviour
 import org.scijava.widget.FileWidget
-import tpietzsch.example2.VolumeViewerOptions
 import java.nio.ByteBuffer
 import java.util.*
 
