@@ -1,4 +1,4 @@
-package graphics.scenery.volumes.vdi
+package graphics.scenery.utils
 
 import org.xerial.snappy.Snappy
 import java.nio.ByteBuffer
@@ -8,7 +8,7 @@ import org.lwjgl.util.lz4.LZ4.*
 import org.lwjgl.util.lz4.LZ4Frame.LZ4F_getErrorName
 import org.lwjgl.util.lz4.LZ4Frame.LZ4F_isError
 
-class VDICompressor {
+class DataCompressor {
 
     enum class CompressionTool {
         ZSTD,
