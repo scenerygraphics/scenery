@@ -9,7 +9,7 @@ import graphics.scenery.volumes.vdi.VDIDataIO
 import graphics.scenery.backends.vulkan.VulkanRenderer
 import graphics.scenery.volumes.*
 import graphics.scenery.volumes.vdi.VDIBufferSizes
-import graphics.scenery.volumes.vdi.VDICompressor
+import graphics.scenery.utils.DataCompressor
 import graphics.scenery.volumes.vdi.VDIData
 import graphics.scenery.volumes.vdi.VDIMetadata
 import org.joml.Quaternionf
@@ -106,8 +106,8 @@ class VDIStreamingExample : SceneryBase("VDI Streaming Example", 1080, 1080) {
         var compressedColor:  ByteBuffer? = null
         var compressedDepth: ByteBuffer? = null
 
-        val compressor = VDICompressor()
-        val compressionTool = VDICompressor.CompressionTool.LZ4
+        val compressor = DataCompressor()
+        val compressionTool = DataCompressor.CompressionTool.LZ4
 
         var vdiColorBuffer: ByteBuffer?
         var vdiDepthBuffer: ByteBuffer? = null
