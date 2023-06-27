@@ -23,7 +23,6 @@ repositories {
     maven("https://jitpack.io")
     maven("https://raw.githubusercontent.com/kotlin-graphics/mary/master")
     mavenLocal()
-    flatDir { dirs("imgui") }
 }
 
 val lwjglArtifacts = listOf(
@@ -138,7 +137,7 @@ dependencies {
     listOf("core", "glfw", "gl").forEach {
 //        implementation("kotlin.graphics:imgui-$it:1.89.2")
     }
-    implementation("kotlin.graphics:imgui:1.89.2-all")
+    implementation("kotlin.graphics:imgui:1.89.6")
     implementation("org.jfree:jfreechart:1.5.0")
     implementation("net.imagej:imagej-ops:0.45.5")
 }
