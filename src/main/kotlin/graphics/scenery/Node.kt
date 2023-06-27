@@ -1,11 +1,11 @@
 package graphics.scenery
 
-import graphics.scenery.geometry.GeometryType
 import graphics.scenery.attribute.AttributesMap
 import graphics.scenery.attribute.geometry.Geometry
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.attribute.renderable.Renderable
 import graphics.scenery.attribute.spatial.Spatial
+import graphics.scenery.geometry.GeometryType
 import graphics.scenery.net.Networkable
 import graphics.scenery.utils.MaybeIntersects
 import net.imglib2.Localizable
@@ -20,8 +20,15 @@ import java.util.*
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.locks.ReentrantLock
 import java.util.function.Consumer
-import kotlin.collections.ArrayList
 
+/**
+ * Class describing a [Node] of a [Scene], inherits from [Renderable]
+ *
+ * @author Ulrik Günther <hello@ulrik.is>
+ * @constructor Creates a node with default settings, e.g. identity matrices
+ *  for model, view, projection, etc.
+ * @property[name] The name of the [Node]
+ */
 interface Node : Networkable {
     var name: String
     var nodeType: String
