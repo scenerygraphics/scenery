@@ -20,8 +20,9 @@ plugins {
 repositories {
     mavenCentral()
     maven("https://maven.scijava.org/content/groups/public")
-//    maven("https://jitpack.io")
-//    mavenLocal()
+    maven("https://jitpack.io")
+    maven("https://raw.githubusercontent.com/kotlin-graphics/mary/master")
+    mavenLocal()
 }
 
 val lwjglArtifacts = listOf(
@@ -35,7 +36,8 @@ val lwjglArtifacts = listOf(
         "lwjgl-remotery",
         "lwjgl-spvc",
         "lwjgl-shaderc",
-        "lwjgl-tinyexr"
+        "lwjgl-tinyexr",
+        "lwjgl-stb"
 )
 
 dependencies {
@@ -127,12 +129,12 @@ dependencies {
     testImplementation(kotlin("test-junit"))
     //    implementation("com.github.kotlin-graphics:assimp:25c68811")
 
-//    testImplementation(misc.junit4)
     testImplementation("org.slf4j:slf4j-simple:1.7.36")
     testImplementation("net.imagej:imagej")
     testImplementation("net.imagej:ij")
     testImplementation("net.imglib2:imglib2-ij")
 
+    implementation("kotlin.graphics:imgui:1.89.6")
     implementation("org.jfree:jfreechart:1.5.0")
     implementation("net.imagej:imagej-ops:0.45.5")
 }
@@ -214,12 +216,12 @@ tasks {
             lwjglNatives.forEach { nativePlatform ->
                 lwjglArtifacts.forEach pkg@ { lwjglProject ->
                     // OpenVR does not have macOS binaries, Vulkan only has macOS binaries
-                    if(lwjglProject.contains("vulkan")
+                    if (lwjglProject.contains("vulkan")
                         && !nativePlatform.contains("mac")) {
                         return@pkg
                     }
 
-                    if(lwjglProject.contains("openvr")
+                    if (lwjglProject.contains("openvr")
                         && nativePlatform.contains("mac")
                         && nativePlatform.contains("arm64")) {
                         return@pkg
@@ -289,10 +291,10 @@ tasks {
             configurations.implementation.get().allDependencies.forEach {
                 val artifactId = it.name
 
-                if( !toSkip.contains(artifactId) ) {
+                if (!toSkip.contains(artifactId)) {
                     val propertyName = "$artifactId.version"
 
-                    if( versionedArtifacts.contains(artifactId) ) {
+                    if (versionedArtifacts.contains(artifactId)) {
                         // add "<artifactid.version>[version]</artifactid.version>" to pom
                         propertiesNode.appendNode(propertyName, it.version)
                     }
@@ -307,14 +309,14 @@ tasks {
                         node.appendNode("type", "pom")
                     }
                     // from https://github.com/scenerygraphics/sciview/pull/399#issuecomment-904732945
-                    if(artifactId == "formats-gpl") {
+                    if (artifactId == "formats-gpl") {
                         node.addExclusions(
                             "com.fasterxml.jackson.core:jackson-core",
                             "com.fasterxml.jackson.core:jackson-annotations"
                         )
                     }
 
-                    if(artifactId.startsWith("biojava")) {
+                    if (artifactId.startsWith("biojava")) {
                         node.addExclusions(
                             "org.slf4j:slf4j-api",
                             "org.slf4j:slf4j-simple",
@@ -329,7 +331,7 @@ tasks {
             var depEndIdx = "</dependencyManagement>".toRegex().find(asString())?.range?.last
             if (depStartIdx != null) {
                 if (depEndIdx != null) {
-                    asString().replace(depStartIdx, depEndIdx+1, "")
+                    asString().replace(depStartIdx, depEndIdx + 1, "")
                 }
             }
 
@@ -337,7 +339,7 @@ tasks {
             depEndIdx = "</dependencies>".toRegex().find(asString())?.range?.last
             if (depStartIdx != null) {
                 if (depEndIdx != null) {
-                    asString().replace(depStartIdx, depEndIdx+1, "")
+                    asString().replace(depStartIdx, depEndIdx + 1, "")
                 }
             }
         }
@@ -376,7 +378,7 @@ plugins.withType<JacocoPlugin> {
 
 // disable Gradle metadata file creation on Jitpack, as jitpack modifies
 // the metadata file, resulting in broken metadata with missing native dependencies.
-if(System.getenv("JITPACK") != null) {
+if (System.getenv("JITPACK") != null) {
     tasks.withType<GenerateModuleMetadata> {
         enabled = false
     }

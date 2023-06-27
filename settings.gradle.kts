@@ -15,6 +15,8 @@ pluginManagement {
     }
 }
 
+includeBuild("../imgui")
+
 //buildscript {
 //    val dokkaVersion: String by settings
 //

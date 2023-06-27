@@ -71,9 +71,9 @@ class ImplScenery(val window: SceneryWindow, val hub: Hub, val installCallbacks:
                     val inputHandler = h
                     inputHandler.addBehaviour("imgui_mouse_down", ClickBehaviour { mouseX, mouseY ->
                         io.addMousePosEvent(mouseX.toFloat(), mouseY.toFloat())
-                        io.addMouseButtonEvent(0, true)
+                        io.addMouseButtonEvent(MouseButton.Left, true)
                         Thread.sleep(2)
-                        io.addMouseButtonEvent(0, false)
+                        io.addMouseButtonEvent(MouseButton.Left, false)
                     })
                     inputHandler.addBehaviour(
                         "imgui_scroll",
