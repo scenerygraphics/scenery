@@ -1,3 +1,5 @@
+//import addGeneratedCatalog
+
 pluginManagement {
     val kotlinVersion: String by settings
     val dokkaVersion: String by settings
@@ -15,18 +17,14 @@ pluginManagement {
     }
 }
 
-//buildscript {
-//    val dokkaVersion: String by settings
-//
-//    dependencies {
-//        classpath("org.jetbrains.dokka:dokka-gradle-plugin:$dokkaVersion")
-//    }
-//
-//    repositories {
-//        mavenCentral()
-//        gradlePluginPortal()
-//    }
-//}
+includeBuild("../gradle-catalog")
+
+dependencyResolutionManagement {
+    versionCatalogs {
+//        addGeneratedCatalog()
+        create("libs").from("org.scijava:gradle-catalog")
+    }
+}
 
 rootProject.name = "scenery"
 
