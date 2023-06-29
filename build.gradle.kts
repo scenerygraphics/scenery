@@ -40,6 +40,8 @@ val lwjglArtifacts = listOf(
 
 dependencies {
     val scijavaParentPomVersion = project.properties["scijavaParentPOMVersion"]
+    val lwjglVersion = project.properties["lwjglVersion"]
+
     implementation(platform("org.scijava:pom-scijava:$scijavaParentPomVersion"))
     annotationProcessor("org.scijava:scijava-common:2.94.1")
 
@@ -58,7 +60,6 @@ dependencies {
     implementation("net.java.dev.jna:jna-platform:5.11.0")
 
 
-    val lwjglVersion = "3.3.1"
     lwjglArtifacts.forEach { artifact ->
         api("org.lwjgl:$artifact:$lwjglVersion")
 
