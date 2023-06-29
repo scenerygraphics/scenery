@@ -59,12 +59,9 @@ class RAIVolume(@Transient val ds: VolumeDataSource, options: VolumeViewerOption
             Vector3f(getDimensions()))
     }
 
-
-
     override fun localScale(): Vector3f {
         val size = getDimensions()
         logger.info("Sizes are $size")
-
 
         return Vector3f(
             size.x() * pixelToWorldRatio / 10.0f,
@@ -126,7 +123,6 @@ class RAIVolume(@Transient val ds: VolumeDataSource, options: VolumeViewerOption
     }
 
 
-
     override fun sampleRay(rayStart: Vector3f, rayEnd: Vector3f): Pair<List<Float?>, Vector3f>? {
         val d = getDimensions()
         val dimensions = Vector3f(d.x.toFloat(), d.y.toFloat(), d.z.toFloat())
@@ -134,24 +130,24 @@ class RAIVolume(@Transient val ds: VolumeDataSource, options: VolumeViewerOption
         val start = rayStart
         val end = rayEnd
 
-        if (start.x() < 0.0f || start.x() > 1.0f || start.y() < 0.0f || start.y() > 1.0f || start.z() < 0.0f || start.z() > 1.0f) {
+        if (start.x !in 0.0f..1.0f || start.y !in 0.0f..1.0f || start.z !in 0.0f..1.0f) {
             logger.debug("Invalid UV coords for ray start: {} -- will clamp values to [0.0, 1.0].", start)
         }
 
-        if (end.x() < 0.0f || end.x() > 1.0f || end.y() < 0.0f || end.y() > 1.0f || end.z() < 0.0f || end.z() > 1.0f) {
+        if (end.x !in 0.0f..1.0f || end.y !in 0.0f..1.0f || end.z !in 0.0f..1.0f) {
             logger.debug("Invalid UV coords for ray end: {} -- will clamp values to [0.0, 1.0].", end)
         }
 
         val startClamped = Vector3f(
-            min(max(start.x(), 0.0f), 1.0f),
-            min(max(start.y(), 0.0f), 1.0f),
-            min(max(start.z(), 0.0f), 1.0f)
+            start.x.coerceIn(0.0f, 1.0f),
+            start.y.coerceIn(0.0f, 1.0f),
+            start.z.coerceIn(0.0f, 1.0f)
         )
 
         val endClamped = Vector3f(
-            min(max(end.x(), 0.0f), 1.0f),
-            min(max(end.y(), 0.0f), 1.0f),
-            min(max(end.z(), 0.0f), 1.0f)
+            end.x.coerceIn(0.0f, 1.0f),
+            end.y.coerceIn(0.0f, 1.0f),
+            end.z.coerceIn(0.0f, 1.0f)
         )
 
         val direction = (endClamped - startClamped)
