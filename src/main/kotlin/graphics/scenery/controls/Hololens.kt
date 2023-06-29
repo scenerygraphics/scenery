@@ -1,15 +1,12 @@
 package graphics.scenery.controls
 
-import org.joml.Matrix4f
-import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Display
 import graphics.scenery.backends.vulkan.*
 import graphics.scenery.Mesh
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import kotlinx.coroutines.*
-import org.joml.Quaternionf
-import org.joml.Vector2i
+import org.joml.*
 import org.lwjgl.system.MemoryStack
 import org.lwjgl.system.MemoryUtil.memAllocInt
 import org.lwjgl.system.MemoryUtil.memAllocLong
@@ -39,7 +36,7 @@ import kotlin.math.PI
 class Hololens: TrackerInput, Display, Hubable {
     override var hub: Hub? = null
 
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
 
     private val identityQuat = Quaternionf()
     private val nullVector = Vector3f(0.0f)
@@ -572,6 +569,10 @@ class Hololens: TrackerInput, Display, Hubable {
      */
     override fun getHeadToEyeTransform(eye: Int): Matrix4f {
         return headToEyeTransforms[eye]
+    }
+
+    override fun fadeToColor(color: Vector4f, seconds: Float) {
+        TODO("Not yet implemented")
     }
 
     override fun getTrackedDevices(ofType: TrackedDeviceType): Map<String, TrackedDevice> {

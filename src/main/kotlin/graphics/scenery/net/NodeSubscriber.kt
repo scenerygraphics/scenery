@@ -5,16 +5,12 @@ import graphics.scenery.Hub
 import graphics.scenery.Hubable
 import graphics.scenery.Node
 import graphics.scenery.Scene
-import graphics.scenery.utils.LazyLogger
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import graphics.scenery.utils.lazyLogger
 import org.zeromq.SocketType
 import org.zeromq.ZContext
 import org.zeromq.ZMQ
 import java.io.ByteArrayInputStream
 import java.util.concurrent.LinkedBlockingQueue
-import kotlin.concurrent.thread
 
 
 /**
@@ -27,10 +23,10 @@ class NodeSubscriber(
     ip: String = "tcp://localhost",
     portPublish: Int = 7777,
     portBackchannel: Int = 6666,
-    val context: ZContext = ZContext(4),
-    startNetworkActivity: Boolean = true
-) : Hubable {
-    private val logger by LazyLogger()
+    val context: ZContext,
+    startNetworkActivity: Boolean = true //disables network stuff for testing
+) : Agent(), Hubable {
+    private val logger by lazyLogger()
     val kryo = NodePublisher.freeze()
 
     private val addressSubscribe = "$ip:$portPublish"
@@ -39,10 +35,10 @@ class NodeSubscriber(
     var backchannel: ZMQ.Socket = context.createSocket(SocketType.PUB)
 
     private val networkObjects = hashMapOf<Int, NetworkWrapper<*>>()
+
     /** This is the hand-of point between the network thread and update/main-loop thread */
     private val eventQueue = LinkedBlockingQueue<NetworkEvent>()
     private val waitingOnNetworkable = mutableMapOf<Int, List<Pair<NetworkEvent, WaitReason>>>()
-    private var listening = false
 
     init {
         if (startNetworkActivity) {
@@ -50,49 +46,33 @@ class NodeSubscriber(
                 logger.info("Client connected to main channel at $addressSubscribe")
             }
             subscriber.subscribe(ZMQ.SUBSCRIPTION_ALL)
+            subscriber.receiveTimeOut = 100
             if (backchannel.connect(addressBackchannel)) {
                 logger.info("Client connected to back channel at $addressBackchannel")
             }
-            GlobalScope.launch {
-                delay(1000)
-                NodePublisher.sendEvent(NetworkEvent.RequestInitialization, kryo, backchannel, logger)
-            }
+            startAgent()
+            NodePublisher.sendEvent(NetworkEvent.RequestInitialization, kryo, backchannel, logger)
         }
     }
 
-    /**
-     * Starts the listening thread.
-     */
-    internal fun startListening() {
-        listening = true
-        subscriber.receiveTimeOut = 100
-        thread {
-            while (listening) {
-                try {
-                    val payload: ByteArray = subscriber.recv() ?: continue
+    override fun onLoop() {
+        try {
+            val payload: ByteArray = subscriber.recv() ?: return
 
-                    val bin = ByteArrayInputStream(payload)
-                    val input = Input(bin)
-                    val event = kryo.readClassAndObject(input) as? NetworkEvent
-                        ?: throw IllegalStateException("Received unknown, not NetworkEvent payload")
-                    eventQueue.add(event)
-                } catch (t: Throwable) {
-                    t.printStackTrace()
-                }
-            }
+            val bin = ByteArrayInputStream(payload)
+            val input = Input(bin)
+            val event = kryo.readClassAndObject(input) as? NetworkEvent
+                ?: throw IllegalStateException("Received unknown, not NetworkEvent payload")
+            eventQueue.add(event)
+        } catch (t: Throwable) {
+            t.printStackTrace()
         }
-    }
-
-    /**
-     * Stops the listening thread.
-     */
-    internal fun stopListening() {
-        listening = false
     }
 
     /**
      * Used in Unit test
      */
+    @Suppress("unused")
     private fun debugListen(event: NetworkEvent) {
         eventQueue.add(event)
     }
@@ -190,8 +170,9 @@ class NodeSubscriber(
                     return
                 }
 
-                val newNode = event.constructorParameters?.let { networkable.constructWithParameters(it, hub!!) as Node
-                    }?: networkable
+                val newNode = event.constructorParameters?.let {
+                    networkable.constructWithParameters(it, hub!!) as Node
+                } ?: networkable
                 val newWrapped = NetworkWrapper(
                     networkWrapper.networkID,
                     newNode,
@@ -201,7 +182,7 @@ class NodeSubscriber(
 
                 networkObjects[networkWrapper.networkID] = newWrapped
                 // update relations (and other values if created client site with constructor params)
-                processUpdateEvent(event,scene)
+                processUpdateEvent(event, scene)
 
                 parent.addChild(newNode)
                 networkable = newNode
@@ -225,7 +206,7 @@ class NodeSubscriber(
 
                 networkObjects[networkWrapper.networkID] = newWrapped
                 // update relations (and other values if created client site with constructor params)
-                processUpdateEvent(event,scene)
+                processUpdateEvent(event, scene)
                 networkable = newAttribute
 
                 networkWrapper.parents
@@ -255,7 +236,7 @@ class NodeSubscriber(
         missingChildren?.forEach { childEvent ->
             val reason = childEvent.second
             val event = childEvent.first
-            when{
+            when {
                 reason == WaitReason.UpdateRelation && event is NetworkEvent.Update ->
                     processUpdateEvent(event, scene)
                 reason == WaitReason.Parent && event is NetworkEvent.NewRelation ->
@@ -273,11 +254,11 @@ class NodeSubscriber(
         }
     }
 
-    fun close() {
-        stopListening()
-        context.destroySocket(subscriber)
-        context.destroySocket(backchannel)
-        context.close()
+    override fun onClose() {
+        subscriber.linger = 0
+        subscriber.close()
+        backchannel.linger = 0
+        backchannel.close()
     }
 
     private enum class WaitReason {

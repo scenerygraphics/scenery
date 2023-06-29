@@ -1,6 +1,7 @@
 package graphics.scenery.volumes
 
 import bdv.tools.transformation.TransformedSource
+import bvv.core.VolumeViewerOptions
 import graphics.scenery.Hub
 import graphics.scenery.OrientedBoundingBox
 import graphics.scenery.utils.extensions.minus
@@ -13,7 +14,6 @@ import net.imglib2.type.numeric.real.FloatType
 import org.joml.Vector3f
 import org.joml.Vector3i
 import org.lwjgl.system.MemoryUtil
-import tpietzsch.example2.VolumeViewerOptions
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.concurrent.CopyOnWriteArrayList
@@ -69,6 +69,8 @@ class BufferedVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewe
         timepoints?.removeIf { it.name == name }
         timepoints?.add(Timepoint(name, buffer))
         timepointCount = timepoints?.size ?: 0
+        viewerState.numTimepoints = timepointCount
+
         volumeManager.notifyUpdate(this)
     }
 
@@ -82,6 +84,8 @@ class BufferedVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewe
             tp?.contents?.let { MemoryUtil.memFree(it) }
         }
         timepointCount = timepoints?.size ?: 0
+        viewerState.numTimepoints = timepointCount
+
         volumeManager.notifyUpdate(this)
         return result != null
     }
@@ -103,6 +107,9 @@ class BufferedVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewe
                 MemoryUtil.memFree(tp.contents)
             }
         }
+
+        timepointCount = timepoints?.size ?: 0
+        viewerState.numTimepoints = timepointCount
     }
 
     /**
@@ -123,6 +130,9 @@ class BufferedVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewe
                 MemoryUtil.memFree(tp.contents)
             }
         }
+
+        timepointCount = timepoints?.size ?: 0
+        viewerState.numTimepoints = timepointCount
     }
 
     /**

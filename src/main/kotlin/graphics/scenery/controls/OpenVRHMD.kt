@@ -12,9 +12,8 @@ import graphics.scenery.backends.vulkan.VU
 import graphics.scenery.backends.vulkan.VulkanDevice
 import graphics.scenery.backends.vulkan.VulkanTexture
 import graphics.scenery.backends.vulkan.endCommandBuffer
-import graphics.scenery.Mesh
 import graphics.scenery.utils.JsonDeserialisers
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import graphics.scenery.utils.Statistics
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -38,7 +37,6 @@ import java.nio.FloatBuffer
 import java.nio.IntBuffer
 import java.nio.LongBuffer
 import java.nio.charset.Charset
-import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.absoluteValue
 
@@ -53,7 +51,7 @@ import kotlin.math.absoluteValue
 open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = true) : TrackerInput, Display, Hubable {
 
     /** slf4j logger instance */
-    protected val logger by LazyLogger()
+    protected val logger by lazyLogger()
     /** The Hub to use for communication */
     override var hub: Hub? = null
 
@@ -1098,6 +1096,30 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
     }
 
     /**
+     * Fades the view on the HMD to the black.
+     */
+    fun fadeToBlack(seconds: Float = 0.1f) {
+        fadeToColor(color = Vector4f(0f,0f,0f,1f), seconds)
+    }
+
+    /**
+     * Removes any previously overlayed color.
+     */
+    fun fateToClear(seconds: Float = 0.1f) {
+        fadeToColor(color = Vector4f(0f), seconds)
+    }
+
+    /**
+     * Fades the view on the HMD to the specified color.
+     *
+     * The fade will take [seconds], and the color values are between 0.0 and 1.0. This color is faded on top of the scene based on the alpha
+     * parameter. Removing the fade color instantly would be fadeToColor( 0.0, 0.0, 0.0, 0.0, 0.0 ). Values are in un-premultiplied alpha space.
+     */
+    override fun fadeToColor(color: Vector4f, seconds: Float) {
+        VRCompositor_FadeToColor(seconds, color.x, color.y, color.z, color.w, false)
+    }
+
+    /**
      * Adds a behaviour to the map of behaviours, making them available for key bindings
      *
      * @param[behaviourName] The name of the behaviour
@@ -1178,7 +1200,7 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
     }
 
     companion object {
-        private val logger by LazyLogger()
+        private val logger by lazyLogger()
 
         protected val keyMap: HashMap<Pair<TrackerRole, OpenVRButton>, AWTKey> = hashMapOf(
             (TrackerRole.LeftHand to OpenVRButton.Left) to AWTKey(KeyEvent.VK_H),

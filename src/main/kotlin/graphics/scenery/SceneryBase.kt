@@ -1,6 +1,5 @@
 package graphics.scenery
 
-import cleargl.ClearGLDefaultEventListener
 import org.joml.Vector3f
 import com.sun.jna.Library
 import com.sun.jna.Native
@@ -20,6 +19,7 @@ import org.lwjgl.system.Platform
 import org.scijava.Context
 import org.scijava.ui.behaviour.Behaviour
 import org.scijava.ui.behaviour.ClickBehaviour
+import org.zeromq.ZContext
 import java.lang.Boolean.parseBoolean
 import java.lang.management.ManagementFactory
 import java.net.URL
@@ -27,6 +27,7 @@ import java.nio.file.Paths
 import java.util.*
 import java.util.concurrent.CountDownLatch
 import kotlin.concurrent.thread
+import kotlin.time.Duration.Companion.nanoseconds
 
 /**
  * Base class to use scenery with, keeping the needed boilerplate
@@ -74,7 +75,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
     protected var registerNewRenderer: NewRendererParameters? = null
 
     /** Logger for this application, will be instantiated upon first use. */
-    protected val logger by LazyLogger(System.getProperty("scenery.LogLevel", "info"))
+    protected val logger by lazyLogger(System.getProperty("scenery.LogLevel", "info"))
 
     /** An optional update function to call during the main loop. */
     var updateFunction: (() -> Any)? = null
@@ -162,30 +163,12 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
 
         loadInputHandler(renderer)
 
-        // start & show REPL -- note: REPL will only exist if not running in headless mode
-        repl?.start()
-        thread {
-            val r = renderer ?: return@thread
-
-            while(!r.firstImageReady) {
-                Thread.sleep(100)
-            }
-
-            val isClient = !server && serverAddress != null
-            if (!headless && !isClient) {
-                logger.debug("Client: $isClient, showing REPL window")
-                repl?.showConsoleWindow()
-            }
-        }
-
         val statsRequested = parseBoolean(System.getProperty("scenery.PrintStatistics", "false"))
 
         // setup additional key bindings, if requested by the user
         inputSetup()
 
         val startTime = System.nanoTime()
-
-
 
         var frameTime = 0.0f
         var lastFrameTime: Float
@@ -287,7 +270,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
                 val width = r.width
                 val height = r.height
 
-                val newRenderer = Renderer.createRenderer(hub, applicationName, scene, width, height, embed, null, config)
+                val newRenderer = Renderer.createRenderer(hub, applicationName, scene, width, height, embed, config)
                 hub.add(SceneryElement.Renderer, newRenderer)
                 loadInputHandler(newRenderer)
 
@@ -306,6 +289,9 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
         running = false
         inputHandler?.close()
         renderdoc?.close()
+
+        hub.get<NodePublisher>()?.close()
+        hub.get<NodeSubscriber>()?.close()
 
         hub.get<Profiler>()?.close()
         hub.get<Statistics>()?.close()
@@ -389,10 +375,20 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
      */
     fun loadInputHandler(renderer: Renderer?) {
         renderer?.let {
-            repl?.addAccessibleObject(it)
-
             inputHandler = InputHandler(scene, it, hub)
             inputHandler?.useDefaultBindings(System.getProperty("user.home") + "/.$applicationName.bindings")
+
+            if(wantREPL) {
+                inputHandler?.addBehaviour("show_repl", ClickBehaviour { _, _ ->
+                    repl = REPL(hub, scijavaContext, scene, stats, hub)
+                    repl?.addAccessibleObject(settings)
+                    repl?.addAccessibleObject(inputHandler!!)
+                    repl?.addAccessibleObject(it)
+                    repl?.showConsoleWindow()
+                })
+
+                inputHandler?.addKeyBinding("show_repl", "shift R")
+            }
         }
     }
 
@@ -433,6 +429,16 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
     }
 
     open fun main() {
+        thread {
+            val start = System.nanoTime()
+            while(renderer?.firstImageReady != true) {
+                Thread.sleep(5)
+            }
+
+            val duration = (System.nanoTime() - start).nanoseconds
+            logger.info("Full startup took ${duration.inWholeMilliseconds}ms")
+        }
+
         System.getProperties().forEach { prop ->
             val name = prop.key as? String ?: return@forEach
             val value = prop.value as? String ?: return@forEach
@@ -458,15 +464,13 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
         val backchannelPort = System.getProperty("scenery.BackchannelPort")?.toIntOrNull() ?: 6041
 
         if (!server && serverAddress != null) {
-            val subscriber = NodeSubscriber(hub,serverAddress,mainPort,backchannelPort)
+            val subscriber = NodeSubscriber(hub,serverAddress,mainPort,backchannelPort, context = ZContext())
             hub.add(subscriber)
-            subscriber.startListening()
             scene.postUpdate += {subscriber.networkUpdate(scene)}
         } else if (server) {
             applicationName += " [SERVER]"
-            val publisher = NodePublisher(hub, portMain = mainPort, portBackchannel = backchannelPort)
+            val publisher = NodePublisher(hub, portMain = mainPort, portBackchannel = backchannelPort, context = ZContext())
             hub.add(publisher)
-            publisher.startPublishing()
             publisher.register(scene)
             scene.postUpdate += { publisher.scanForChanges()}
         }
@@ -475,11 +479,6 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
         hub.add(SceneryElement.Settings, settings)
 
         settings.set("System.PID", getProcessID())
-
-        if (wantREPL) {
-            repl = REPL(hub, scijavaContext, scene, stats, hub)
-            repl?.addAccessibleObject(settings)
-        }
 
         // initialize renderer, etc first in init, then setup key bindings
         init()
@@ -526,7 +525,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
     }
 
     companion object {
-        private val logger by LazyLogger(System.getProperty("scenery.LogLevel", "info"))
+        private val logger by lazyLogger(System.getProperty("scenery.LogLevel", "info"))
         private var xinitThreadsCalled: Boolean = false
 
         /**
@@ -593,7 +592,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
                 val os = System.getProperty("os.name")
 
                 var basepath = ""
-                logger.info("Downloading M1 support libraries for JHDF5...")
+                logger.debug("Downloading M1 support libraries for JHDF5, if not already existing...")
                 listOf("hdf5", "jhdf5").forEach { lib ->
                     basepath = ExtractsNatives.nativesFromGithubRelease(
                         "JaneliaSciComp",

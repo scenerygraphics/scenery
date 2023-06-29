@@ -1,6 +1,5 @@
 package graphics.scenery.tests.examples.volumes
 
-import com.jogamp.opengl.math.FloatUtil.sin
 import graphics.scenery.*
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.backends.Renderer
@@ -16,9 +15,8 @@ import net.imglib2.type.numeric.integer.UnsignedShortType
 import org.joml.Vector3f
 import org.lwjgl.system.MemoryUtil.memAlloc
 import org.scijava.ui.behaviour.ClickBehaviour
-import java.io.Console
-import java.nio.ByteBuffer
 import kotlin.concurrent.thread
+import kotlin.math.sin
 
 /**
  * Stacking and slicing Volumes based on [ProceduralVolumeExample]
@@ -133,7 +131,7 @@ class StackedVolumesExample : SceneryBase("Stacking Procedural Volume Rendering 
 
         thread {
             val volumeBuffer =
-                RingBuffer<ByteBuffer>(2) { memAlloc((volumeSize * volumeSize * volumeSize * bitsPerVoxel / 8).toInt()) }
+                RingBuffer(2, default = { memAlloc((volumeSize * volumeSize * volumeSize * bitsPerVoxel / 8).toInt()) })
 
             val seed = Random.randomFromRange(0.0f, 133333337.0f).toLong()
             var shift = Vector3f(0.0f)

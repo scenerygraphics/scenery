@@ -2,45 +2,50 @@ import org.gradle.kotlin.dsl.api
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import scenery.*
 import java.net.URL
-import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 plugins {
-    java
     // kotlin and dokka versions are now managed in settings.gradle.kts and gradle.properties
     kotlin("jvm")
     kotlin("kapt")
     id("org.jetbrains.dokka")
 
     scenery.base
-//    scenery.docs
     scenery.publish
     scenery.sign
-    id("com.github.elect86.sciJava") version "0.0.4"
-    id("org.sonarqube") version "3.3"
+//    id("com.github.elect86.sciJava") version "0.0.4"
     jacoco
-    id("com.github.johnrengelman.shadow") version "7.1.0"
+    id("com.github.johnrengelman.shadow") apply false
 }
 
 repositories {
     mavenCentral()
     maven("https://maven.scijava.org/content/groups/public")
-    maven("https://jitpack.io")
-    mavenLocal()
+//    maven("https://jitpack.io")
+//    mavenLocal()
 }
 
-dependencies {
-    implementation(platform("org.scijava:pom-scijava:31.1.0"))
-    annotationProcessor("org.scijava:scijava-common:2.88.1")
+val lwjglArtifacts = listOf(
+        "lwjgl",
+        "lwjgl-glfw",
+        "lwjgl-jemalloc",
+        "lwjgl-vulkan",
+        "lwjgl-opengl",
+        "lwjgl-openvr",
+        "lwjgl-xxhash",
+        "lwjgl-remotery",
+        "lwjgl-spvc",
+        "lwjgl-shaderc",
+        "lwjgl-tinyexr"
+)
 
-    implementation(kotlin("stdlib-jdk8"))
+dependencies {
+    implementation(platform("org.scijava:pom-scijava:35.1.1"))
+    annotationProcessor("org.scijava:scijava-common:2.94.1")
+
     implementation(kotlin("reflect"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.2")
 
-    implementation("org.jogamp.gluegen:gluegen-rt:2.3.2", joglNatives)
-    implementation("org.jogamp.jogl:jogl-all:2.3.2", joglNatives)
     implementation("org.slf4j:slf4j-api:1.7.36")
-    api("net.clearvolume:cleargl")
-    api("net.imglib2:imglib2")
     implementation("org.joml:joml:1.10.5")
     implementation("net.java.jinput:jinput:2.0.9", "natives-all")
     implementation("org.jocl:jocl:2.0.4")
@@ -51,42 +56,33 @@ dependencies {
     implementation("org.scijava:scripting-jython")
     implementation("net.java.dev.jna:jna-platform:5.8.0")
 
+
     val lwjglVersion = "3.3.1"
-    listOf("",
-        "-glfw",
-        "-jemalloc",
-        "-vulkan",
-        "-opengl",
-        "-openvr",
-        "-xxhash",
-        "-remotery",
-        "-spvc",
-        "-shaderc"
-    ).forEach { p ->
-        api("org.lwjgl:lwjgl$p:$lwjglVersion")
+    lwjglArtifacts.forEach { artifact ->
+        api("org.lwjgl:$artifact:$lwjglVersion")
 
         lwjglNatives.forEach { native ->
             when {
                 // Vulkan binaries are only necessary on macOS
-                p.endsWith("vulkan") -> {
+                artifact.endsWith("vulkan") -> {
                     if(native.contains("macos")) {
-                        println("vulkan: org.lwjgl:lwjgl$p:$lwjglVersion:$native")
-                        runtimeOnly("org.lwjgl:lwjgl$p:$lwjglVersion:$native")
+                        logger.info("vulkan: org.lwjgl:$artifact:$lwjglVersion:$native")
+                        runtimeOnly("org.lwjgl:$artifact:$lwjglVersion:$native")
                     }
                 }
 
                 // OpenVR binaries are available on all scenery-supported platforms,
                 // apart from macOS/ARM64
-                p.endsWith("openvr") -> {
+                artifact.endsWith("openvr") -> {
                     if(!(native.contains("macos") && native.contains("arm64"))) {
-                        println("openvr: org.lwjgl:lwjgl$p:$lwjglVersion:$native")
-                        runtimeOnly("org.lwjgl:lwjgl$p:$lwjglVersion:$native")
+                        logger.info("openvr: org.lwjgl:$artifact:$lwjglVersion:$native")
+                        runtimeOnly("org.lwjgl:$artifact:$lwjglVersion:$native")
                     }
                 }
 
                 else -> {
-                    println("else: org.lwjgl:lwjgl$p:$lwjglVersion:$native")
-                    runtimeOnly("org.lwjgl:lwjgl$p:$lwjglVersion:$native")
+                    logger.info("else: org.lwjgl:$artifact:$lwjglVersion:$native")
+                    runtimeOnly("org.lwjgl:$artifact:$lwjglVersion:$native")
                 }
             }
         }
@@ -108,9 +104,10 @@ dependencies {
 
     api("sc.fiji:bigdataviewer-core:10.4.1")
     api("sc.fiji:bigdataviewer-vistools:1.0.0-beta-28")
-
-    //TODO revert to official BVV
-    api("graphics.scenery:bigvolumeviewer:7698a01")
+    api("sc.fiji:bigvolumeviewer:0.3.1") {
+        exclude("org.jogamp.gluegen", "gluegen-rt")
+        exclude("org.jogamp.jogl", "jogl-all")
+    }
 
     implementation("com.github.skalarproduktraum:lwjgl3-awt:d7a7369")
 
@@ -136,13 +133,15 @@ dependencies {
     testImplementation("net.imagej:imagej")
     testImplementation("net.imagej:ij")
     testImplementation("net.imglib2:imglib2-ij")
+
+    implementation("org.jfree:jfreechart:1.5.0")
+    implementation("net.imagej:imagej-ops:0.45.5")
 }
 
 val isRelease: Boolean
     get() = System.getProperty("release") == "true"
 
 tasks {
-
     withType<KotlinCompile>().all {
         kotlinOptions {
             jvmTarget = project.properties["jvmTarget"]?.toString() ?: "11"
@@ -166,7 +165,7 @@ tasks {
                 n.appendNode("groupId", group)
                 n.appendNode("artifactId", artifact)
 
-                println("Added exclusion on $group:$artifact")
+                logger.warn("Added exclusion on $group:$artifact")
             }
         }
 
@@ -187,8 +186,8 @@ tasks {
             return d
         }
 
-        val matcher = Regex("""generatePomFileFor(\w+)Publication""").matchEntire(name)
-        val publicationName = matcher?.let { it.groupValues[1] }
+//        val matcher = Regex("""generatePomFileFor(\w+)Publication""").matchEntire(name)
+//        val publicationName = matcher?.let { it.groupValues[1] }
 
         pom.properties.empty()
 
@@ -201,15 +200,12 @@ tasks {
             parent.appendNode("relativePath")
 
             val repositories = asNode().appendNode("repositories")
-            val jitpackRepo = repositories.appendNode("repository")
-            jitpackRepo.appendNode("id", "jitpack.io")
-            jitpackRepo.appendNode("url", "https://jitpack.io")
 
             val scijavaRepo = repositories.appendNode("repository")
             scijavaRepo.appendNode("id", "scijava.public")
             scijavaRepo.appendNode("url", "https://maven.scijava.org/content/groups/public")
 
-            
+
             // Update the dependencies and properties
             val dependenciesNode = asNode().appendNode("dependencies")
             val propertiesNode = asNode().appendNode("properties")
@@ -217,18 +213,7 @@ tasks {
 
             // lwjgl natives
             lwjglNatives.forEach { nativePlatform ->
-                listOf(
-                    "",
-                    "-glfw",
-                    "-jemalloc",
-                    "-opengl",
-                    "-openvr",
-                    "-xxhash",
-                    "-remotery",
-                    "-spvc",
-                    "-shaderc",
-                    "-vulkan",
-                ).forEach pkg@ { lwjglProject ->
+                lwjglArtifacts.forEach pkg@ { lwjglProject ->
                     // OpenVR does not have macOS binaries, Vulkan only has macOS binaries
                     if(lwjglProject.contains("vulkan")
                         && !nativePlatform.contains("mac")) {
@@ -270,7 +255,7 @@ tasks {
                 classifier = "natives-all",
                 scope = "runtime")
 
-            val versionedArtifacts = listOf(
+            val versionedArtifacts = mutableListOf(
                 "flatlaf",
                 "kotlin-stdlib-common",
                 "kotlin-stdlib",
@@ -293,24 +278,12 @@ tasks {
                 "jogl-minimal",
                 "jinput",
                 "pom-scijava",
-                "gluegen-rt",
-                "jogl-all",
                 "jna-platform",
                 "lwjgl-bom",
                 "jackson-module-kotlin",
                 "jackson-dataformat-yaml",
                 "kryo",
-                "lwjgl",
-                "lwjgl-glfw",
-                "lwjgl-jemalloc",
-                "lwjgl-vulkan",
-                "lwjgl-opengl",
-                "lwjgl-openvr",
-                "lwjgl-xxhash",
-                "lwjgl-remotery",
-                "lwjgl-spvc",
-                "lwjgl-shaderc",
-                "bigvolumeviewer")
+                ) + lwjglArtifacts
 
             val toSkip = listOf("pom-scijava")
 
@@ -331,7 +304,6 @@ tasks {
                         "\${$propertyName}")
 
                     // Custom per artifact tweaks
-                    println(artifactId)
                     if("\\-bom".toRegex().find(artifactId) != null) {
                         node.appendNode("type", "pom")
                     }
@@ -382,48 +354,25 @@ tasks {
             }
         }
     }
-    
-    named<ShadowJar>("shadowJar") {
-        isZip64 = true
+
+    dokkaJavadoc {
+        enabled = isRelease
+    }
+
+    if(project.properties["buildFatJAR"] == true) {
+        apply(plugin = "com.github.johnrengelman.shadow")
+        jar {
+            isZip64 = true
+        }
     }
 }
 
-val dokkaJavadocJar by tasks.register<Jar>("dokkaJavadocJar") {
-    dependsOn(tasks.dokkaJavadoc)
-    from(tasks.dokkaJavadoc.get().outputDirectory.get())
-    archiveClassifier.set("javadoc")
-}
-
-val dokkaHtmlJar by tasks.register<Jar>("dokkaHtmlJar") {
-    dependsOn(tasks.dokkaHtml)
-    from(tasks.dokkaHtml.get().outputDirectory.get())
-    archiveClassifier.set("html-doc")
-}
-
-artifacts {
-    if(isRelease) {
-        archives(dokkaJavadocJar)
-        archives(dokkaHtmlJar)
-    }
-}
-
-jacoco {
-    toolVersion = "0.8.8"
-}
+jacoco.toolVersion = "0.8.8"
 
 java.withSourcesJar()
 
-sonarqube {
-    properties {
-        property("sonar.projectKey", "scenerygraphics_scenery")
-        property("sonar.organization", "scenerygraphics-1")
-        property("sonar.host.url", "https://sonarcloud.io")
-        property("sonar.coverage.jacoco.xmlReportPaths", "build/reports/jacoco/fullCodeCoverageReport/fullCodeCoverageReport.xml")
-    }
-}
-
-plugins.withType<JacocoPlugin>() {
-    tasks["test"].finalizedBy("jacocoTestReport")
+plugins.withType<JacocoPlugin> {
+    tasks.test { finalizedBy("jacocoTestReport") }
 }
 
 // disable Gradle metadata file creation on Jitpack, as jitpack modifies
@@ -433,4 +382,3 @@ if(System.getenv("JITPACK") != null) {
         enabled = false
     }
 }
-

@@ -8,6 +8,7 @@ import graphics.scenery.Hub
 import graphics.scenery.Scene
 import graphics.scenery.net.*
 import org.junit.Test
+import org.zeromq.ZContext
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import kotlin.test.assertEquals
@@ -26,7 +27,8 @@ class NodeSubscriberTest {
         box.name = "box"
         scene1.addChild(box)
 
-        val sub = NodeSubscriber(hub2)
+        val zContext = ZContext()
+        val sub = NodeSubscriber(hub2, context = zContext)
         hub2.add(sub)
 
         sub.debugListen(NetworkEvent.Update(NetworkWrapper(1,scene1, mutableListOf())))
@@ -34,6 +36,9 @@ class NodeSubscriberTest {
 
         sub.networkUpdate(scene2)
         assert(scene2.find("box") != null)
+
+        sub.close().join()
+        zContext.destroy()
     }
 
 
@@ -53,7 +58,8 @@ class NodeSubscriberTest {
         box.name = "box"
         scene1.addChild(box)
 
-        val sub = NodeSubscriber(hub2)
+        val zContext = ZContext()
+        val sub = NodeSubscriber(hub2, context = zContext)
         hub2.add(sub)
 
         sub.debugListen(NetworkEvent.Update(NetworkWrapper(2,box, mutableListOf(1))))
@@ -61,6 +67,9 @@ class NodeSubscriberTest {
 
         sub.networkUpdate(scene2)
         assert(scene2.find("box") != null)
+
+        sub.close().join()
+        zContext.destroy()
     }
 
     @Test
@@ -76,7 +85,8 @@ class NodeSubscriberTest {
         box.spatial().position.x = 30f
         scene1.addChild(box)
 
-        val sub = NodeSubscriber(hub2)
+        val zContext = ZContext()
+        val sub = NodeSubscriber(hub2, context = zContext)
         hub2.add(sub)
 
         sub.debugListen(NetworkEvent.Update(NetworkWrapper(1,scene1, mutableListOf())))
@@ -100,6 +110,9 @@ class NodeSubscriberTest {
         sub.networkUpdate(scene2)
         val box2 = scene2.find("box")
         assertEquals(30f, box2?.spatialOrNull()?.position?.x)
+
+        sub.close().join()
+        zContext.destroy()
     }
 
     @Test
@@ -112,7 +125,8 @@ class NodeSubscriberTest {
             }
         }
 
-        val sub = NodeSubscriber(null,startNetworkActivity = false)
+        val zContext = ZContext()
+        val sub = NodeSubscriber(null,startNetworkActivity = false, context = zContext)
         val scene = Scene()
         val node = UpdateNode()
 
@@ -129,6 +143,8 @@ class NodeSubscriberTest {
         sub.debugListen(NetworkEvent.Update(NetworkWrapper(10,otherNode, mutableListOf(1))))
         sub.networkUpdate(scene)
         assert(node.updated)
+
+        zContext.destroy()
     }
 }
 

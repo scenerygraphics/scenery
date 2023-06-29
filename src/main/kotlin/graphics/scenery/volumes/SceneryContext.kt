@@ -1,5 +1,10 @@
 package graphics.scenery.volumes
 
+import bvv.core.backend.*
+import bvv.core.backend.Texture as BVVTexture
+import bvv.core.cache.TextureCache
+import bvv.core.render.LookupTextureARGB
+import bvv.core.shadergen.Shader
 import graphics.scenery.textures.Texture
 import graphics.scenery.textures.Texture.BorderColor
 import graphics.scenery.textures.UpdatableTexture.TextureExtents
@@ -7,24 +12,19 @@ import graphics.scenery.textures.Texture.RepeatMode
 import graphics.scenery.textures.UpdatableTexture.TextureUpdate
 import graphics.scenery.backends.ShaderType
 import graphics.scenery.textures.UpdatableTexture
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import net.imglib2.type.numeric.NumericType
 import net.imglib2.type.numeric.integer.UnsignedByteType
 import net.imglib2.type.numeric.integer.UnsignedShortType
 import net.imglib2.type.numeric.real.FloatType
 import org.joml.*
 import org.lwjgl.system.MemoryUtil
-import tpietzsch.backend.*
-import tpietzsch.cache.TextureCache
-import tpietzsch.example2.LookupTextureARGB
-import tpietzsch.shadergen.Shader
 import java.nio.Buffer
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.FloatBuffer
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.ExperimentalTime
-import tpietzsch.backend.Texture as BVVTexture
 
 /**
  * Context class for interaction with BigDataViewer-generated shaders.
@@ -33,7 +33,7 @@ import tpietzsch.backend.Texture as BVVTexture
  * @author Tobias Pietzsch <pietzsch@mpi-cbg.de>
  */
 open class SceneryContext(val node: VolumeManager, val useCompute: Boolean = false) : GpuContext {
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
 
     data class BindingState(var binding: Int, var uniformName: String?, var reallocate: Boolean = false)
 

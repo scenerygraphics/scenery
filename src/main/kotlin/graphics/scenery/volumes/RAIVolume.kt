@@ -1,8 +1,8 @@
 package graphics.scenery.volumes
 
 import bdv.tools.brightness.ConverterSetup
-import bdv.tools.transformation.TransformedSource
 import bdv.viewer.SourceAndConverter
+import bvv.core.VolumeViewerOptions
 import graphics.scenery.Hub
 import graphics.scenery.OrientedBoundingBox
 import graphics.scenery.Origin
@@ -10,23 +10,13 @@ import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
 import net.imglib2.type.numeric.NumericType
-import net.imglib2.type.numeric.RealType
 import net.imglib2.type.numeric.integer.*
-import net.imglib2.type.numeric.integer.UnsignedShortType
-import net.imglib2.type.numeric.real.DoubleType
 import net.imglib2.type.numeric.real.FloatType
-import net.imglib2.type.numeric.integer.UnsignedByteType
 import org.joml.Matrix4f
 import org.joml.Vector3f
 import org.joml.Vector3i
-import tpietzsch.example2.VolumeViewerOptions
-import java.nio.ByteBuffer
-import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.math.floor
-import kotlin.math.max
-import kotlin.math.min
 import kotlin.math.roundToInt
-
 
 class RAIVolume(@Transient val ds: VolumeDataSource, options: VolumeViewerOptions, hub: Hub): Volume(
     ds,
@@ -212,6 +202,4 @@ class RAIVolume(@Transient val ds: VolumeDataSource, options: VolumeViewerOption
         logger.info("Sampled at $uv: $finalresult/$transferRangeMax/$tf")
         return tf
     }
-
-
 }

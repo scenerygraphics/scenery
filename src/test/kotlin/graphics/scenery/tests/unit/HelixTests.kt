@@ -4,7 +4,7 @@ import graphics.scenery.numerics.Random
 import graphics.scenery.geometry.CatmullRomSpline
 import graphics.scenery.proteins.Helix
 import graphics.scenery.proteins.MathLine
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.joml.Vector3f
 import org.junit.Test
 import kotlin.math.absoluteValue
@@ -20,7 +20,7 @@ import kotlin.test.assertTrue
  */
 
 class HelixTests {
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
 
     /**
      * Test that a null vector can never be a direction vector.

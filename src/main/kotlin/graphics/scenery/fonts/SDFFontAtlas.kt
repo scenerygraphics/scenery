@@ -5,7 +5,7 @@ import graphics.scenery.geometry.GeometryType
 import graphics.scenery.Hub
 import graphics.scenery.Mesh
 import graphics.scenery.compute.OpenCLContext
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import graphics.scenery.utils.SystemHelpers
 import org.jocl.cl_mem
 import org.joml.Vector4f
@@ -36,7 +36,7 @@ import kotlin.collections.LinkedHashMap
  * @constructor Generates a SDF of the given font
  */
 open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSize: Int = 512, val maxDistance: Int = 10, var cache: Boolean = true) {
-    protected val logger by LazyLogger()
+    protected val logger by lazyLogger()
     /** default charset for the SDF font atlas, default is ASCII charset */
     var charset = (32..127)
     /** Hash map of the char linked to it's width and a byte buffer with the SDF of the char */
@@ -73,8 +73,7 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
         } catch (e: Exception) {
             logger.debug("Cached atlas not found or not readable (because $e), creating anew, could take a little moment ...")
 
-            var ocl: OpenCLContext?
-            ocl = try {
+            val ocl: OpenCLContext? = try {
                 OpenCLContext(hub)
             } catch (e: UnsatisfiedLinkError) {
                 logger.warn("Failed to initialised OpenCL libraries: $e")

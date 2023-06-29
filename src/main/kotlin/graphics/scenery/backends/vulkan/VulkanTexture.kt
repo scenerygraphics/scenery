@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalStdlibApi::class)
+
 package graphics.scenery.backends.vulkan
 
 import graphics.scenery.textures.Texture
@@ -7,7 +9,7 @@ import graphics.scenery.textures.Texture.RepeatMode
 import graphics.scenery.textures.UpdatableTexture
 import graphics.scenery.textures.UpdatableTexture.TextureUpdate
 import graphics.scenery.utils.Image
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import net.imglib2.type.numeric.NumericType
 import net.imglib2.type.numeric.integer.*
 import net.imglib2.type.numeric.real.DoubleType
@@ -17,11 +19,10 @@ import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.*
 import org.lwjgl.vulkan.VkImageCreateInfo
-import java.awt.color.ColorSpace
-import java.awt.image.*
 import java.io.FileInputStream
 import java.io.InputStream
 import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import java.nio.file.Files
 import java.nio.file.Paths
 import kotlin.math.max
@@ -53,9 +54,6 @@ open class VulkanTexture(val device: VulkanDevice,
 
     private var stagingImage: VulkanImage
     private var gt: Texture? = null
-
-    var renderBarrier: VkImageMemoryBarrier? = null
-        protected set
 
     /**
      * Wrapper class for holding on to raw Vulkan [image]s backed by [memory].
@@ -227,9 +225,9 @@ open class VulkanTexture(val device: VulkanDevice,
         commandPools,
         queue,
         transferQueue,
-        texture.dimensions.x().toInt(),
-        texture.dimensions.y().toInt(),
-        texture.dimensions.z().toInt(),
+        texture.dimensions.x(),
+        texture.dimensions.y(),
+        texture.dimensions.z(),
         texture.toVulkanFormat(),
         mipLevels, texture.minFilter == Texture.FilteringMode.Linear, texture.maxFilter == Texture.FilteringMode.Linear, usage = texture.usageType) {
         gt = texture
@@ -306,12 +304,12 @@ open class VulkanTexture(val device: VulkanDevice,
     /**
      * Copies the data for this texture from a [ByteBuffer], [data].
      */
+    @OptIn(ExperimentalUnsignedTypes::class)
     fun copyFrom(data: ByteBuffer): VulkanTexture {
         if (depth == 1 && data.remaining() > stagingImage.maxSize) {
             logger.warn("Allocated image size for $this (${stagingImage.maxSize}) less than copy source size ${data.remaining()}.")
             return this
         }
-
 
         var deallocate = false
         var sourceBuffer = data
@@ -319,7 +317,7 @@ open class VulkanTexture(val device: VulkanDevice,
         gt?.let { gt ->
             if (gt.channels == 3) {
                 logger.debug("Loading RGB texture, padding channels to 4 to fit RGBA")
-                val pixelByteSize = when (gt.type) {
+                val channelBytes = when (gt.type) {
                     is UnsignedByteType -> 1
                     is ByteType -> 1
                     is UnsignedShortType -> 2
@@ -332,15 +330,26 @@ open class VulkanTexture(val device: VulkanDevice,
                 }
 
                 val storage = memAlloc(data.remaining() / 3 * 4)
-                val view = data.duplicate()
-                val tmp = ByteArray(pixelByteSize * 3)
-                val alpha = (0 until pixelByteSize).map { 255.toByte() }.toByteArray()
+                val view = data.duplicate().order(ByteOrder.LITTLE_ENDIAN)
+                val tmp = ByteArray(channelBytes * 3)
+                val alpha = when(gt.type) {
+                    is UnsignedByteType -> ubyteArrayOf(0xffu)
+                    is ByteType -> ubyteArrayOf(0xffu)
+                    is UnsignedShortType -> ubyteArrayOf(0xffu, 0xffu)
+                    is ShortType -> ubyteArrayOf(0xffu, 0xffu)
+                    is UnsignedIntType -> ubyteArrayOf(0x3fu, 0x80u, 0x00u, 0x00u)
+                    is IntType -> ubyteArrayOf(0xffu, 0xffu, 0x00u, 0x00u)
+                    is FloatType -> ubyteArrayOf(0x3fu, 0x80u, 0x00u, 0x00u)
+                    is DoubleType -> ubyteArrayOf(0x3fu, 0xf0u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u)
+                    else -> throw UnsupportedOperationException("Don't know how to handle textures of type ${gt.type.javaClass.simpleName}")
+                }
 
                 // pad buffer to 4 channels
                 while (view.hasRemaining()) {
-                    view.get(tmp, 0, 3)
+
+                    view.get(tmp, 0, tmp.size)
                     storage.put(tmp)
-                    storage.put(alpha)
+                    storage.put(alpha.toByteArray())
                 }
 
                 storage.flip()
@@ -398,7 +407,12 @@ open class VulkanTexture(val device: VulkanDevice,
                     logger.debug("{} has {} consumeable updates", this@VulkanTexture, (genericTexture as? UpdatableTexture)?.getConsumableUpdates()?.size)
 
                     if(tmpBuffer == null || (tmpBuffer?.size ?: 0) < requiredCapacity) {
-                        logger.debug("(${this@VulkanTexture}) Reallocating tmp buffer, old size=${tmpBuffer?.size} new size = ${requiredCapacity.toFloat()/1024.0f/1024.0f} MiB")
+                        logger.debug(
+                            "({}) Reallocating tmp buffer, old size={} new size = {} MiB",
+                            this@VulkanTexture,
+                            tmpBuffer?.size,
+                            requiredCapacity.toFloat()/1024.0f/1024.0f
+                        )
                         tmpBuffer?.close()
                         // reserve a bit more space if the texture is small, to avoid reallocations
                         val reservedSize = if(requiredCapacity < 1024*1024*8) {
@@ -573,7 +587,7 @@ open class VulkanTexture(val device: VulkanDevice,
      * Copies the first layer, first mipmap of the texture to [buffer].
      */
     fun copyTo(buffer: ByteBuffer) {
-        if(tmpBuffer == null || (tmpBuffer != null && tmpBuffer?.size!! < image.maxSize)) {
+        if(tmpBuffer == null || (tmpBuffer?.size!! < image.maxSize)) {
             tmpBuffer?.close()
             tmpBuffer = VulkanBuffer(this@VulkanTexture.device,
                 image.maxSize,
@@ -785,25 +799,9 @@ open class VulkanTexture(val device: VulkanDevice,
      * Utility methods for [VulkanTexture].
      */
     companion object {
-        @JvmStatic private val logger by LazyLogger()
+        @JvmStatic private val logger by lazyLogger()
 
         private val cache = HashMap<Texture, VulkanTexture>()
-
-        private val StandardAlphaColorModel = ComponentColorModel(
-            ColorSpace.getInstance(ColorSpace.CS_sRGB),
-            intArrayOf(8, 8, 8, 8),
-            true,
-            false,
-            ComponentColorModel.TRANSLUCENT,
-            DataBuffer.TYPE_BYTE)
-
-        private val StandardColorModel = ComponentColorModel(
-            ColorSpace.getInstance(ColorSpace.CS_sRGB),
-            intArrayOf(8, 8, 8, 0),
-            false,
-            false,
-            ComponentColorModel.OPAQUE,
-            DataBuffer.TYPE_BYTE)
 
         fun getReference(texture: Texture): VulkanTexture? {
             return cache.get(texture)
@@ -901,7 +899,8 @@ open class VulkanTexture(val device: VulkanDevice,
                 device,
                 commandPools, queue, transferQueue,
                 dimensions[0].toInt(), dimensions[1].toInt(), dimensions[2].toInt(),
-                VK_FORMAT_R16_UINT, 1, true, true)
+                VK_FORMAT_R16_UINT, 1, minFilterLinear = true, maxFilterLinear = true
+            )
 
             tex.copyFrom(imageData)
 

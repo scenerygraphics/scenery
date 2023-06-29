@@ -19,6 +19,7 @@ import bdv.viewer.DisplayMode
 import bdv.viewer.Source
 import bdv.viewer.SourceAndConverter
 import bdv.viewer.state.ViewerState
+import bvv.core.VolumeViewerOptions
 import graphics.scenery.*
 import graphics.scenery.attribute.DelegationType
 import graphics.scenery.attribute.geometry.DelegatesGeometry
@@ -32,15 +33,19 @@ import graphics.scenery.attribute.spatial.HasCustomSpatial
 import graphics.scenery.net.Networkable
 import graphics.scenery.numerics.OpenSimplexNoise
 import graphics.scenery.numerics.Random
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import graphics.scenery.utils.extensions.times
+import graphics.scenery.utils.forEachIndexedAsync
 import graphics.scenery.volumes.Volume.VolumeDataSource.SpimDataMinimalSource
 import io.scif.SCIFIO
+import io.scif.filters.ReaderFilter
 import io.scif.util.FormatTools
 import mpicbg.spim.data.generic.sequence.AbstractSequenceDescription
 import mpicbg.spim.data.sequence.FinalVoxelDimensions
 import net.imglib2.RandomAccessibleInterval
 import net.imglib2.Volatile
+import net.imglib2.histogram.Histogram1d
+import net.imglib2.histogram.Real1dBinMapper
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.numeric.ARGBType
 import net.imglib2.type.numeric.NumericType
@@ -52,21 +57,22 @@ import org.joml.Vector3i
 import org.joml.Vector4f
 import org.lwjgl.system.MemoryUtil
 import org.scijava.io.location.FileLocation
-import tpietzsch.example2.VolumeViewerOptions
 import java.io.FileInputStream
 import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.io.path.name
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sqrt
 import kotlin.properties.Delegates
 import kotlin.streams.toList
-import graphics.scenery.utils.extensions.minus
 import net.imglib2.type.numeric.RealType
 
 @Suppress("DEPRECATION")
@@ -78,7 +84,7 @@ open class Volume(
     hub: Hub
 ) : DefaultNode("Volume"),
     DelegatesRenderable, DelegatesGeometry, DelegatesMaterial, DisableFrustumCulling,
-    HasCustomSpatial<Volume.VolumeSpatial> {
+    HasCustomSpatial<Volume.VolumeSpatial>, HasTransferFunction, HasHistogram {
 
     // without this line the *java* serialization framework kryo does not recognize the parameter-less constructor
     // and uses dark magic to instanciate this class
@@ -111,11 +117,25 @@ open class Volume(
     val viewerState: ViewerState
 
     /** The transfer function to use for the volume. Flat by default. */
-    var transferFunction: TransferFunction = TransferFunction.flat(0.5f)
+    override var transferFunction: TransferFunction = TransferFunction.flat(0.5f)
         set(m) {
             field = m
             modifiedAt = System.nanoTime()
         }
+    override var minDisplayRange: Float
+        get() = converterSetups.getOrNull(0)?.displayRangeMin?.toFloat() ?: throw IllegalStateException()
+        set(value) { setTransferFunctionRange(value, maxDisplayRange) }
+    override var maxDisplayRange: Float
+        get() = converterSetups.getOrNull(0)?.displayRangeMax?.toFloat() ?: throw IllegalStateException()
+        set(value) { setTransferFunctionRange(minDisplayRange, value) }
+
+    override var range: Pair<Float, Float>
+        get() = when(dataSource) {
+            VolumeDataSource.NullSource -> 0.0f to 0.0f
+            is VolumeDataSource.RAISource<*> -> dataSource.type.toRange()
+            is SpimDataMinimalSource -> (dataSource.sources.first().spimSource.type as NumericType<*>).toRange()
+        }
+        set(value) { logger.warn("Cannot set data range, it is automatically determined.") }
 
     /** The color map for the volume. */
     var colormap: Colormap = Colormap.get("viridis")
@@ -176,7 +196,7 @@ open class Volume(
     var cacheControls = CacheControl.CacheControls()
 
     /** Current timepoint. */
-    var currentTimepoint: Int
+    var currentTimepoint: Int = 0
         get() {
             // despite IDEAs warning this might be not be false if kryo uses its de/serialization magic
             return if (dataSource == null || dataSource is VolumeDataSource.NullSource) {
@@ -188,6 +208,7 @@ open class Volume(
         set(value) {
             viewerState.currentTimepoint = value
             modifiedAt = System.nanoTime()
+            field = value
         }
 
     sealed class VolumeDataSource {
@@ -290,6 +311,8 @@ open class Volume(
     init {
         name = "Volume"
 
+        hub.get<Settings>()?.setIfUnset("Volume.ParallelReads", false)
+
         addSpatial()
 
         when (dataSource) {
@@ -332,6 +355,18 @@ open class Volume(
         }
     }
 
+    private fun NumericType<*>.toRange(): Pair<Float, Float> {
+        return when(this) {
+            is UnsignedByteType -> 0.0f to 255.0f
+            is ByteType -> -127.0f to 128.0f
+            is UnsignedShortType -> 0.0f to 65535.0f
+            is ShortType -> -32768.0f to 32767.0f
+            is FloatType -> 0.0f to 1.0f
+            else -> 0.0f to 1.0f
+        }
+    }
+
+
     override fun update(fresh: Networkable, getNetworkable: (Int) -> Networkable, additionalData: Any?) {
         if (fresh !is Volume) throw IllegalArgumentException("Update called with object of foreign class")
         super.update(fresh, getNetworkable, additionalData)
@@ -366,6 +401,20 @@ open class Volume(
 
     override fun createSpatial(): VolumeSpatial {
         return VolumeSpatial(this)
+    }
+
+    /**
+     * Return a histogram over the set minDisplayRange and maxDisplayRange of the volumes viewState source (currently only using spimSource)
+     */
+    override fun generateHistogram(): Histogram1d<*>? {
+        var histogram : Histogram1d<*>? = null
+
+        this.viewerState.sources.firstOrNull()?.spimSource?.getSource(0, 0)?.let { rai ->
+            histogram = Histogram1d(Real1dBinMapper<UnsignedByteType>(minDisplayRange.toDouble(), maxDisplayRange.toDouble(), 1024, false))
+            (histogram as Histogram1d<UnsignedByteType>).countData(rai as Iterable<UnsignedByteType>)
+        }
+
+        return histogram
     }
 
     /**
@@ -498,7 +547,7 @@ open class Volume(
     companion object {
         val setupId = AtomicInteger(0)
         val scifio: SCIFIO = SCIFIO()
-        private val logger by LazyLogger()
+        private val logger by lazyLogger()
 
         @JvmStatic @JvmOverloads fun fromSpimData(
             spimData: SpimDataMinimal,
@@ -722,7 +771,8 @@ open class Volume(
         /**
          * Reads a volume from the given [file].
          */
-        @JvmStatic fun fromPath(file: Path, hub: Hub, onlyLoadFirst: Int? = null): BufferedVolume {
+        @JvmStatic @JvmOverloads
+        fun fromPath(file: Path, hub: Hub, onlyLoadFirst: Int? = null): BufferedVolume {
             if(file.normalize().toString().endsWith("raw")) {
                 return fromPathRaw(file, hub)
             }
@@ -741,23 +791,25 @@ open class Volume(
                 volumeFiles = listOf(file)
             }
 
-            var volumes = CopyOnWriteArrayList<BufferedVolume.Timepoint>()
+            val volumes = CopyOnWriteArrayList<BufferedVolume.Timepoint>()
             val dims = Vector3i()
 
-            var type: NumericType<*> = ByteType()
+            var type: NumericType<*>? = null
+            var reader: ReaderFilter? = null
             volumeFiles.forEach { v ->
                 val id = v.fileName.toString()
-                System.out.println(v.toFile().toString());
-                val reader = scifio.initializer().initializeReader(FileLocation(v.toFile()))
-                with(reader.openPlane(0, 0)) {
+                logger.debug("Reading v.toFile().toString()")
+                val localReader = scifio.initializer().initializeReader(FileLocation(v.toFile()))
+                with(localReader.openPlane(0, 0)) {
                     dims.x = lengths[0].toInt()
                     dims.y = lengths[1].toInt()
-                    dims.z = reader.getPlaneCount(0).toInt()
+                    dims.z = localReader.getPlaneCount(0).toInt()
                 }
-                val bytesPerVoxel = reader.openPlane(0, 0).imageMetadata.bitsPerPixel / 8
-                reader.openPlane(0, 0).imageMetadata.pixelType
+                if(reader == null) {
+                    reader = localReader
+                }
 
-                type = when (reader.openPlane(0, 0).imageMetadata.pixelType) {
+                type = when (localReader.openPlane(0, 0).imageMetadata.pixelType) {
                     FormatTools.INT8 -> ByteType()
                     FormatTools.INT16 -> ShortType()
                     FormatTools.INT32 -> IntType()
@@ -769,31 +821,81 @@ open class Volume(
                     FormatTools.FLOAT -> FloatType()
 
                     else -> {
-                        logger.error("Unknown scif.io pixel type ${reader.openPlane(0, 0).imageMetadata.pixelType}, assuming unsigned byte.")
+                        logger.error("Unknown scif.io pixel type ${localReader.openPlane(0, 0).imageMetadata.pixelType}, assuming unsigned byte.")
                         UnsignedByteType()
                     }
                 }
 
+                val bytesPerVoxel = localReader.openPlane(0, 0).imageMetadata.bitsPerPixel / 8
+                localReader.openPlane(0, 0).imageMetadata.pixelType
+
                 logger.debug("Loading $id from disk")
                 val imageData: ByteBuffer = MemoryUtil.memAlloc((bytesPerVoxel * dims.x * dims.y * dims.z))
 
-                logger.debug("${file.fileName}: Allocated ${imageData.capacity()} bytes for $type ${8 * bytesPerVoxel}bit image of $dims")
-
-                val start = System.nanoTime()
+                logger.debug(
+                    "{}: Allocated {} bytes for {} {}bit image of {}",
+                    file.fileName,
+                    imageData.capacity(),
+                    type,
+                    8 * bytesPerVoxel,
+                    dims
+                )
 
                 logger.debug("Volume is little endian")
-                (0 until reader.getPlaneCount(0)).forEach { plane ->
-                    imageData.put(reader.openPlane(0, plane).bytes)
+                val planeSize = bytesPerVoxel * dims.x * dims.y
+
+                // Only do parallel reads if the settings indicate we want to do that,
+                // or if the file is a NIFTi file, or contains more than 200 planes.
+                val parallelReadingRequested = hub.get<Settings>()?.get("Volume.ParallelReads", false) ?: false
+                        || file.name.lowercase().endsWith(".nii.gz")
+
+                val start = System.nanoTime()
+                if(parallelReadingRequested) {
+                    // Cache scifio's ReaderFilters per-thread, as their initialisation is expensive
+                    val readers = ConcurrentHashMap<Thread, ReaderFilter>()
+
+                    // Each plane (read: z-slice) will be read by an async Job.
+                    // These jobs are distributed among worker threads. This is the reason
+                    // why the current thread object serves as an index to the [readers] hash map.
+                    (0 until localReader.getPlaneCount(0)).forEachIndexedAsync { index, plane ->
+                        val thread = Thread.currentThread()
+                        val myReader = readers.getOrPut(thread) {
+                            scifio.initializer().initializeReader(FileLocation(file.toFile()))
+                        }
+
+                        val bytes = myReader.openPlane(0, plane).bytes
+                        // In order to prevent mess-ups, we're working on a duplicate of [imageData]
+                        // here, so it's position(), remaining() etc. remain at the original, correct values.
+                        val view = imageData.duplicate().order(ByteOrder.LITTLE_ENDIAN)
+
+                        // For writing the image data to the view, we move the buffer's position
+                        // to the place where the plane's data needs to be.
+                        view.position(index * planeSize)
+                        view.put(bytes)
+                    }
+
+                    val duration = (System.nanoTime() - start) / 10e5
+                    logger.debug("Reading took $duration ms, used ${readers.size} parallel readers.")
+                    readers.forEach { it.value.close() }
+                    readers.clear()
+                } else {
+                    (0 until localReader.getPlaneCount(0)).forEach { plane ->
+                        // Same as above, with the difference that we only use one reader to
+                        // simply read bytes Plane-wise sequentially, and add them to the buffer.
+                        val bytes = localReader.openPlane(0, plane).bytes
+                        val view = imageData.duplicate().order(ByteOrder.LITTLE_ENDIAN)
+                        view.put(bytes)
+                    }
+
+                    val duration = (System.nanoTime() - start) / 10e5
+                    logger.debug("Reading took $duration ms, no parallel readers.")
                 }
-
-                val duration = (System.nanoTime() - start) / 10e5
-                logger.debug("Reading took $duration ms")
-
-                imageData.flip()
-                volumes.add(BufferedVolume.Timepoint(id, imageData))
             }
 
-            return when (type) {
+
+
+            // TODO: Kotlin compiler issue, see https://youtrack.jetbrains.com/issue/KT-37955
+            val volume = when(type) {
                 is ByteType -> fromBuffer(volumes, dims.x, dims.y, dims.z, ByteType(), hub)
                 is UnsignedByteType -> fromBuffer(volumes, dims.x, dims.y, dims.z, UnsignedByteType(), hub)
                 is ShortType -> fromBuffer(volumes, dims.x, dims.y, dims.z, ShortType(), hub)
@@ -801,8 +903,15 @@ open class Volume(
                 is IntType -> fromBuffer(volumes, dims.x, dims.y, dims.z, IntType(), hub)
                 is UnsignedIntType -> fromBuffer(volumes, dims.x, dims.y, dims.z, UnsignedIntType(), hub)
                 is FloatType -> fromBuffer(volumes, dims.x, dims.y, dims.z, FloatType(), hub)
-                else -> throw UnsupportedOperationException("Image type ${type.javaClass.simpleName} not supported for volume data.")
+                else -> throw UnsupportedOperationException("Image type ${type?.javaClass?.simpleName} not supported for volume data.")
             }
+
+            reader?.metadata?.table?.forEach { key, value ->
+                logger.debug("Populating volume metadata")
+                volume.metadata[key] = value
+            }
+
+            return volume
         }
 
         /**
