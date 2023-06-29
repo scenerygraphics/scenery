@@ -39,7 +39,8 @@ val lwjglArtifacts = listOf(
 )
 
 dependencies {
-    implementation(platform("org.scijava:pom-scijava:35.1.1"))
+    val scijavaParentPomVersion = project.properties["scijavaParentPOMVersion"]
+    implementation(platform("org.scijava:pom-scijava:$scijavaParentPomVersion"))
     annotationProcessor("org.scijava:scijava-common:2.94.1")
 
     implementation(kotlin("reflect"))
@@ -191,11 +192,12 @@ tasks {
         pom.properties.empty()
 
         pom.withXml {
+            val scijavaParentPomVersion = project.properties["scijavaParentPOMVersion"]
             // Add parent to the generated pom
             val parent = asNode().appendNode("parent")
             parent.appendNode("groupId", "org.scijava")
             parent.appendNode("artifactId", "pom-scijava")
-            parent.appendNode("version", "31.1.0")
+            parent.appendNode("version", "$scijavaParentPomVersion")
             parent.appendNode("relativePath")
 
             val repositories = asNode().appendNode("repositories")
