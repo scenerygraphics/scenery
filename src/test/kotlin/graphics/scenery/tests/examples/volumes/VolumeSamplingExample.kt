@@ -1,38 +1,27 @@
 package graphics.scenery.tests.examples.volumes
 
-import bdv.util.AxisOrder
-import org.joml.Vector3f
 import graphics.scenery.*
+import graphics.scenery.attribute.material.Material
 import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
 import graphics.scenery.primitives.Cylinder
 import graphics.scenery.primitives.Line
-import graphics.scenery.attribute.material.Material
 import graphics.scenery.utils.MaybeIntersects
 import graphics.scenery.utils.RingBuffer
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plus
-import graphics.scenery.utils.extensions.times
 import graphics.scenery.volumes.Colormap
 import graphics.scenery.volumes.Volume
-import ij.IJ
-import ij.ImagePlus
-import net.imglib2.img.Img
-import net.imglib2.img.display.imagej.ImageJFunctions
-import net.imglib2.type.numeric.integer.UnsignedByteType
 import net.imglib2.type.numeric.integer.UnsignedShortType
+import org.joml.Vector3f
 import org.lwjgl.system.MemoryUtil.memAlloc
 import org.scijava.Context
 import org.scijava.ui.UIService
 import org.scijava.ui.behaviour.ClickBehaviour
 import org.scijava.widget.FileWidget
-import tpietzsch.example2.VolumeViewerOptions
 import java.io.File
-import java.nio.ByteBuffer
 import java.text.DecimalFormat
-import java.text.NumberFormat
 import kotlin.concurrent.thread
-import kotlin.math.roundToInt
 
 /**
  * Example that renders procedurally generated volumes and samples from it.

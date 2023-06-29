@@ -9,9 +9,8 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import graphics.scenery.Camera
 import graphics.scenery.Node
 import graphics.scenery.backends.Display
-import graphics.scenery.utils.LazyLogger
-import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
+import graphics.scenery.utils.lazyLogger
 import kotlinx.coroutines.*
 import org.joml.Math.sqrt
 import org.joml.Vector3f
@@ -35,7 +34,7 @@ class PupilEyeTrackerNew(val calibrationType: CalibrationType, val host: String 
     /** Shall we do a screen-space or world-space calibration? */
     enum class CalibrationType {WorldSpace}
 
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
 
     private val zmqContext = ZContext(4)
     private val req = zmqContext.createSocket(ZMQ.REQ)

@@ -1,5 +1,6 @@
 package graphics.scenery.tests.examples.volumes
 
+import bvv.core.VolumeViewerOptions
 import graphics.scenery.*
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.backends.Renderer
@@ -11,7 +12,6 @@ import graphics.scenery.volumes.Colormap
 import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.Volume
 import org.joml.Vector3f
-import tpietzsch.example2.VolumeViewerOptions
 import java.text.DecimalFormat
 import java.util.*
 import kotlin.concurrent.thread
@@ -95,7 +95,7 @@ class RAIVolumeSamplingExample: SceneryBase("RAIVolume Sampling example" , 1280,
 /**
         test code 2: load volume from file
  **/
-        volume = Volume.fromXML("E:\\dataset\\Pdu_H2BeGFP_CAAXmCherry.xml",hub,VolumeViewerOptions())
+        volume = Volume.fromXML("E:\\dataset\\Pdu_H2BeGFP_CAAXmCherry.xml", hub, VolumeViewerOptions())
 
         volume.spatial {
             position = Vector3f(0.0f, 0.0f, 0.0f)

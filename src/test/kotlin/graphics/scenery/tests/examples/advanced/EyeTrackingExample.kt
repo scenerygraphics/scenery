@@ -1,6 +1,5 @@
 package graphics.scenery.tests.examples.advanced
 
-import cleargl.GLVector
 import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
@@ -9,9 +8,6 @@ import graphics.scenery.controls.eyetracking.PupilEyeTrackerNew
 import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.numerics.Random
 import graphics.scenery.attribute.material.Material
-import graphics.scenery.utils.extensions.plus
-import graphics.scenery.utils.extensions.times
-import org.joml.Vector2f
 import org.scijava.ui.behaviour.ClickBehaviour
 import kotlin.concurrent.thread
 
