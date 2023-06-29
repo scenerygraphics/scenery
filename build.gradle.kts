@@ -230,9 +230,9 @@ tasks {
 
                     dependenciesNode.addDependency(
                         "org.lwjgl",
-                        "lwjgl$lwjglProject",
+                        lwjglProject,
                         "\${lwjgl.version}",
-                        classifier = "$nativePlatform",
+                        classifier = nativePlatform,
                         scope = "runtime")
                 }
             }
@@ -285,6 +285,7 @@ tasks {
                 "jackson-module-kotlin",
                 "jackson-dataformat-yaml",
                 "kryo",
+                "bigvolumeviewer"
                 ) + lwjglArtifacts
 
             val toSkip = listOf("pom-scijava")
@@ -314,6 +315,13 @@ tasks {
                         node.addExclusions(
                             "com.fasterxml.jackson.core:jackson-core",
                             "com.fasterxml.jackson.core:jackson-annotations"
+                        )
+                    }
+
+                    if(artifactId == "bigvolumeviewer") {
+                        node.addExclusions(
+                            "org.jogamp.gluegen:gluegen-rt",
+                            "org.jogamp.jogl:jogl-all"
                         )
                     }
 
