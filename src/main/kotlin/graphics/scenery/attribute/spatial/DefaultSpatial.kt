@@ -234,10 +234,6 @@ open class DefaultSpatial(@Transient protected var node: Node = DefaultNode()) :
         val min = world.transform(bbmin)
         val max = world.transform(bbmax)
 
-//        println("min" + min)
-//        println("max" + max)
-//        println("origin" + origin)
-
         // skip if inside the bounding box
         if(origin.isInside(min.xyz(), max.xyz())) {
             return MaybeIntersects.NoIntersection()

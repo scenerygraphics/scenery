@@ -205,7 +205,6 @@ open class Volume(
             @Transient
             val type: NumericType<T>,
             @Transient
-
             val sources: List<SourceAndConverter<T>>,
             @Transient
             val converterSetups: ArrayList<ConverterSetup>,
@@ -277,7 +276,6 @@ open class Volume(
                 VolumeType.SPIM -> fromXML(path, hub, VolumeViewerOptions.options())
             }
         }
-
     }
 
     /**
@@ -482,7 +480,6 @@ open class Volume(
         return null
     }
 
-
     /**
      * Returns the volume's physical (voxel) dimensions.
      */
@@ -543,7 +540,6 @@ open class Volume(
             val spimData = XmlIoSpimDataMinimal().load(path)
             return fromSpimData(spimData, hub, options)
         }
-
 
         @JvmStatic
         @JvmOverloads
@@ -804,7 +800,6 @@ open class Volume(
                 is FloatType -> fromBuffer(volumes, dims.x, dims.y, dims.z, FloatType(), hub)
                 else -> throw UnsupportedOperationException("Image type ${type.javaClass.simpleName} not supported for volume data.")
             }
-
         }
 
         /**

@@ -120,13 +120,13 @@ class VolumeSamplingExample: SceneryBase("Volume Sampling example", 1280, 720) {
         connector.material().diffuse = Vector3f(1.0f, 1.0f, 1.0f)
         scene.addChild(connector)
 
-//        p1.update.add {
-//            connector.spatial().orientBetweenPoints(p1.spatial().position, p2.spatial().position, true, true)
-//        }
-//
-//        p2.update.add {
-//            connector.spatial().orientBetweenPoints(p1.spatial().position, p2.spatial().position, true, true)
-//        }
+        p1.update.add {
+            connector.spatial().orientBetweenPoints(p1.spatial().position, p2.spatial().position, true, true)
+        }
+
+        p2.update.add {
+            connector.spatial().orientBetweenPoints(p1.spatial().position, p2.spatial().position, true, true)
+        }
 
         val volume = Volume.fromBuffer(emptyList(), volumeSize, volumeSize, volumeSize, UnsignedShortType(), hub)
         volume.name = "volume"

@@ -428,7 +428,6 @@ interface Node : Networkable {
         return this.spatialOrNull()!!.orientBetweenPoints(p1, p2, rescale, reposition)
     }
 
-
     @Deprecated(message = "Moved to attribute spatial(), see AttributesExample for usage details", replaceWith = ReplaceWith("spatial().orientBetweenPoints(p1, p2, rescale)"))
     fun orientBetweenPoints(p1: Vector3f, p2: Vector3f, rescale: Boolean): Quaternionf {
         return this.spatialOrNull()!!.orientBetweenPoints(p1, p2, rescale, false)

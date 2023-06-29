@@ -103,7 +103,7 @@ class VRControllerExample : SceneryBase(
                 }
             }))
             obj.addAttribute(Grabable::class.java, Grabable())
-//            obj.addAttribute(Selectable::class.java, Selectable(onSelect = {selectionStorage = obj}))
+            obj.addAttribute(Selectable::class.java, Selectable(onSelect = {selectionStorage = obj}))
             obj
         }
 
@@ -128,8 +128,6 @@ class VRControllerExample : SceneryBase(
         longBox.addAttribute(Grabable::class.java, Grabable())
         pivot.addChild(longBox)
          */
-
-
 
         val pen = Box(Vector3f(0.05f, 0.13f, 0.05f))
         pen.spatial {

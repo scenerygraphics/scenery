@@ -968,7 +968,7 @@ open class VulkanRenderer(hub: Hub,
         }
 
         if(onShutdown) {
-//            renderable?.rendererMetadata()?.textures?.forEach { it.value.close() }
+            renderable?.rendererMetadata()?.textures?.forEach { it.value.close() }
         }
         renderable?.metadata?.remove("VulkanRenderer")
     }
