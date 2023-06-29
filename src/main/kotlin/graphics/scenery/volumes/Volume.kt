@@ -295,12 +295,15 @@ open class Volume(
         when (dataSource) {
             is SpimDataMinimalSource -> {
                 val spimData = dataSource.spimData
+
                 timepointCount = dataSource.numTimepoints
                 cacheControls.addCacheControl((spimData.sequenceDescription.imgLoader as ViewerImgLoader).cacheControl)
+
                 // wraps legacy image formats (e.g., TIFF) if referenced in BDV XML
                 WrapBasicImgLoader.wrapImgLoaderIfNecessary(spimData)
                 viewerState = ViewerState(dataSource.sources, timepointCount)
                 converterSetups.addAll(dataSource.converterSetups)
+
                 WrapBasicImgLoader.removeWrapperIfPresent(spimData)
             }
 

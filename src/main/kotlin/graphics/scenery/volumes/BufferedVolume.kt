@@ -162,8 +162,6 @@ class BufferedVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewe
         val absoluteCoordsD = Vector3f(floor(absoluteCoords.x()), floor(absoluteCoords.y()), floor(absoluteCoords.z()))
         val diff = absoluteCoords - absoluteCoordsD
 
-//        logger.info("Sampling at $uv -> $absoluteCoords -> $absoluteCoordsD")
-
         fun toIndex(absoluteCoords: Vector3f): Int = (
             absoluteCoords.x().roundToInt().dec()
                 + (dimensions.x() * absoluteCoords.y()).roundToInt().dec()
@@ -198,9 +196,6 @@ class BufferedVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewe
             }
 
             val transferRangeMax = ds.converterSetups.firstOrNull()?.displayRangeMax?.toFloat() ?: ds.type.maxValue()
-
-//            println("temp:" + s/transferRangeMax)
-//            return s/transferRangeMax
 
             val final = transferFunction.evaluate(s/transferRangeMax)
             logger.info("Sample at $index is $s, final is $final $transferRangeMax")
@@ -274,7 +269,6 @@ class BufferedVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewe
             sample(startClamped + (delta * it.toFloat()))
         } to delta
     }
-
 
     /**
      * Returns the volume's physical (voxel) dimensions.

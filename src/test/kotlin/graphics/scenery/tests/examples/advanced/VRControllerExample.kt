@@ -151,6 +151,7 @@ class VRControllerExample : SceneryBase(
             }
         }))
 
+
         thread {
             while (!running) {
                 sleep(200)

@@ -46,7 +46,6 @@ class EyeTrackingExample: SceneryBase("Eye Tracking Example", windowWidth = 1280
         cam.disableCulling = true
 
         referenceTarget.visible = false
-
         referenceTarget.ifMaterial {
             roughness = 1.0f
             metallic = 0.5f
