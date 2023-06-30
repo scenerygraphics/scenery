@@ -51,7 +51,6 @@ import java.util.*
 @Suppress("DEPRECATION")
 @CanHandleInputFor([SceneryWindow.SwingWindow::class])
 class SwingMouseAndKeyHandler(var hub: Hub? = null) : MouseAndKeyHandlerBase(), KeyListener, MouseListener, MouseWheelListener, MouseMotionListener, FocusListener {
-
     /*
 	 * Event handling. Forwards to registered behaviours.
 	 */
@@ -433,7 +432,8 @@ class SwingMouseAndKeyHandler(var hub: Hub? = null) : MouseAndKeyHandlerBase(), 
         val handler: MouseAndKeyHandlerBase
         when (window) {
             is SceneryWindow.SwingWindow -> {
-                handler = SwingMouseAndKeyHandler(hub)
+                this.hub = hub
+                handler = this
 
                 handler.setInputMap(inputMap)
                 handler.setBehaviourMap(behaviourMap)

@@ -1,6 +1,7 @@
 package graphics.scenery.controls
 
 import graphics.scenery.Hub
+import graphics.scenery.backends.Renderer
 import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.utils.ExtractsNatives
 import graphics.scenery.utils.extensions.toBinaryString
@@ -30,6 +31,8 @@ open class GLFWMouseAndKeyHandler(var hub: Hub?) : MouseAndKeyHandlerBase(), Aut
 
     /** scroll speed multiplier to combat OS idiosyncrasies */
     private var scrollSpeedMultiplier = 1.0f
+
+    val window by lazy { hub!!.get<Renderer>()!!.window as SceneryWindow.GLFWWindow }
 
     var cursorCallback = object : GLFWCursorPosCallback() {
         override fun invoke(window: Long, xpos: Double, ypos: Double) {
@@ -102,7 +105,7 @@ open class GLFWMouseAndKeyHandler(var hub: Hub?) : MouseAndKeyHandlerBase(), Aut
 
             var clickCount = 1
 
-            if(action == GLFW_PRESS) {
+            if (action == GLFW_PRESS) {
                 val now = System.nanoTime()
                 val diff = (now - clickBefore) / 10e5
 
@@ -124,7 +127,6 @@ open class GLFWMouseAndKeyHandler(var hub: Hub?) : MouseAndKeyHandlerBase(), Aut
                 false,
                 key
             )
-
 
             when (action) {
                 GLFW_PRESS -> { mousePressed(event); }
@@ -150,17 +152,17 @@ open class GLFWMouseAndKeyHandler(var hub: Hub?) : MouseAndKeyHandlerBase(), Aut
     }
 
     init {
-        os = if(System.getProperty("os.name").lowercase().indexOf("windows") != -1) {
+        os = if (System.getProperty("os.name").lowercase().indexOf("windows") != -1) {
             "windows"
-        } else if(System.getProperty("os.name").lowercase().indexOf("mac") != -1) {
+        } else if (System.getProperty("os.name").lowercase().indexOf("mac") != -1) {
             "mac"
-        } else if(System.getProperty("os.name").lowercase().indexOf("linux") != -1) {
+        } else if (System.getProperty("os.name").lowercase().indexOf("linux") != -1) {
             "linux"
         } else {
             "unknown"
         }
 
-        scrollSpeedMultiplier = if(os == "mac") {
+        scrollSpeedMultiplier = if (os == "mac") {
             1.0f
         } else {
             10.0f
@@ -371,6 +373,8 @@ open class GLFWMouseAndKeyHandler(var hub: Hub?) : MouseAndKeyHandlerBase(), Aut
         update()
     }
 
+    infix fun getMouseButton(button: Int): Int = glfwGetMouseButton(window.window, button)
+
     /**
      * Called when the mouse is pressed, updates state and masks, evaluates drags
      *
@@ -441,7 +445,7 @@ open class GLFWMouseAndKeyHandler(var hub: Hub?) : MouseAndKeyHandlerBase(), Aut
 
             for (click in keyClicks) {
                 logger.trace(click.buttons.mask.toString() + " vs " + mask.toString())
-                logger.trace(click.buttons.pressedKeys.toString() +  " vs " + pressedKeys.toString() )
+                logger.trace(click.buttons.pressedKeys.toString() + " vs " + pressedKeys.toString())
                 if (click.buttons.matches(mask, pressedKeys) || doubleClick && click.buttons.matches(doubleClickMask, pressedKeys)) {
                     click.behaviour.click(mouseX, mouseY)
                 }
@@ -484,7 +488,7 @@ open class GLFWMouseAndKeyHandler(var hub: Hub?) : MouseAndKeyHandlerBase(), Aut
 
     override fun attach(hub: Hub?, window: SceneryWindow, inputMap: InputTriggerMap, behaviourMap: BehaviourMap): MouseAndKeyHandlerBase {
         val handler: MouseAndKeyHandlerBase
-        when(window) {
+        when (window) {
             is SceneryWindow.GLFWWindow -> {
                 this.hub = hub
                 handler = this

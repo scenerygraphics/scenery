@@ -26,7 +26,7 @@ import kotlin.math.abs
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-open class MouseAndKeyHandlerBase : ControllerListener, ExtractsNatives {
+abstract class MouseAndKeyHandlerBase : ControllerListener, ExtractsNatives {
     protected val logger by lazyLogger()
     /** ui-behaviour input trigger map */
     protected lateinit var inputTriggerMap: InputTriggerMap
@@ -80,7 +80,7 @@ open class MouseAndKeyHandlerBase : ControllerListener, ExtractsNatives {
      * Which keys are currently pressed. This does not include modifier keys
      * Control, Shift, Alt, AltGr, Meta.
      */
-    protected val pressedKeys = TIntHashSet(5, 0.5f, -1)
+    val pressedKeys = TIntHashSet(5, 0.5f, -1)
 
     /**
      * When keys where pressed
@@ -93,29 +93,34 @@ open class MouseAndKeyHandlerBase : ControllerListener, ExtractsNatives {
      * scrolling. We keep track of whether the SHIFT key was actually pressed
      * for disambiguation.
      */
-    protected var shiftPressed = false
+    var shiftPressed = false
+        protected set
 
     /**
      * Whether the META key is currently pressed. We need this, because on OS X
      * AWT sets the META_DOWN_MASK to for right clicks. We keep track of whether
      * the META key was actually pressed for disambiguation.
      */
-    protected var metaPressed = false
+    var metaPressed = false
+        protected set
 
     /**
      * Whether the WINDOWS key is currently pressed.
      */
-    protected var winPressed = false
+    var winPressed = false
+        protected set
 
     /**
      * The current mouse coordinates, updated through [.mouseMoved].
      */
-    protected var mouseX: Int = 0
+    var mouseX: Int = 0
+        protected set
 
     /**
      * The current mouse coordinates, updated through [.mouseMoved].
      */
-    protected var mouseY: Int = 0
+    var mouseY: Int = 0
+        protected set
 
     /**
      * Active [DragBehaviour]s initiated by mouse button press.
@@ -263,8 +268,8 @@ open class MouseAndKeyHandlerBase : ControllerListener, ExtractsNatives {
         buttonClicks.clear()
         keyClicks.clear()
 
-        for ((buttons, value) in inputTriggerMap.allBindings) {
-            val behaviourKeys = value ?: continue
+        for ((buttons, values) in inputTriggerMap.allBindings) {
+            val behaviourKeys = values ?: continue
 
             for (behaviourKey in behaviourKeys) {
                 val behaviour = behaviours.get(behaviourKey) ?: continue
