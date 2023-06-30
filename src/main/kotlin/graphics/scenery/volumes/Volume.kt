@@ -213,7 +213,6 @@ open class Volume(
 
     sealed class VolumeDataSource {
         class SpimDataMinimalSource(
-
             @Transient
             val spimData : SpimDataMinimal,
             @Transient
@@ -464,7 +463,6 @@ open class Volume(
         }
 
         modifiedAt = System.nanoTime()
-        logger.info("tp=${viewerState.currentTimepoint} vs $timepoint")
         return viewerState.currentTimepoint
     }
 
@@ -572,7 +570,6 @@ open class Volume(
                 converterSetups,
                 timepointCount
             )
-
             return RAIVolume(ds, options, hub)
         }
 

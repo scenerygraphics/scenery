@@ -252,13 +252,11 @@ open class DefaultSpatial(@Transient protected var node: Node = DefaultNode()) :
 
         // we are in front of the AABB
         if (tmax < 0) {
-//            println("we are in front of AABB")
             return MaybeIntersects.NoIntersection()
         }
 
         // we have missed the AABB
         if (tmin > tmax) {
-//            println("we have missed the AABB")
             return MaybeIntersects.NoIntersection()
         }
 

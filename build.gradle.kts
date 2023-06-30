@@ -54,7 +54,7 @@ dependencies {
     implementation("org.scijava:ui-behaviour")
     implementation("org.scijava:scripting-javascript")
     implementation("org.scijava:scripting-jython")
-    implementation("net.java.dev.jna:jna-platform:5.8.0")
+    implementation("net.java.dev.jna:jna-platform:5.11.0")
 
 
     val lwjglVersion = "3.3.1"
@@ -110,7 +110,6 @@ dependencies {
     }
 
     implementation("com.github.skalarproduktraum:lwjgl3-awt:d7a7369")
-
     implementation("org.janelia.saalfeldlab:n5")
     implementation("org.janelia.saalfeldlab:n5-imglib2")
     listOf("core", "structure", "modfinder").forEach {
@@ -381,4 +380,7 @@ if(System.getenv("JITPACK") != null) {
     tasks.withType<GenerateModuleMetadata> {
         enabled = false
     }
+}
+kotlin {
+    jvmToolchain(11)
 }

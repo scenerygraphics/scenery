@@ -12,6 +12,7 @@ import graphics.scenery.volumes.Colormap
 import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.Volume
 import org.joml.Vector3f
+import java.nio.file.Paths
 import java.text.DecimalFormat
 import java.util.*
 import kotlin.concurrent.thread
@@ -66,36 +67,7 @@ class RAIVolumeSamplingExample: SceneryBase("RAIVolume Sampling example" , 1280,
             connector.spatial().orientBetweenPoints(p1.spatial().position, p2.spatial().position, true, true)
         }
 
-/**
-        test code 1: create an image with specific value
-**/
-//        val imp: ImagePlus = IJ.openImage("https://imagej.nih.gov/ij/images/t1-head.zip")
-
-//        val img = ImagePlusImgFactory(UnsignedByteType ()).create(256, 256, 25)
-//        val r= img.randomAccess()
-//        val random = Random()
-//        for (i in 0..250)
-//        {
-//            for(j in 0..250)
-//            {
-//                for(z in 0..20) {
-//                    r.setPosition(i, 0)
-//                    r.setPosition(j, 1)
-//                    r.setPosition(z, 2)
-//                    val t: UnsignedByteType = r.get()
-//                    t.set(25)
-//                }
-//            }
-//        }
-
-//        val img: Img<UnsignedShortType> = ImageJFunctions.wrapShort(imp)
-//        volume = Volume.fromRAI(img, UnsignedByteType (), AxisOrder.DEFAULT, "T1 head", hub, VolumeViewerOptions())
-
-
-/**
-        test code 2: load volume from file
- **/
-        volume = Volume.fromXML("E:\\dataset\\Pdu_H2BeGFP_CAAXmCherry.xml", hub, VolumeViewerOptions())
+        volume = Volume.fromXML(Paths.get(getDemoFilesPath() + "/volumes/box-iso/").toString(), hub, VolumeViewerOptions())
 
         volume.spatial {
             position = Vector3f(0.0f, 0.0f, 0.0f)
@@ -108,8 +80,6 @@ class RAIVolumeSamplingExample: SceneryBase("RAIVolume Sampling example" , 1280,
         tf.addControlPoint(0.001f, 0.0f)
         tf.addControlPoint(0.05f,1.0f)
         tf.addControlPoint(1.00f, 1.0f)
-
-
 
         scene.addChild(volume)
 
@@ -130,7 +100,6 @@ class RAIVolumeSamplingExample: SceneryBase("RAIVolume Sampling example" , 1280,
         val p4 = Icosphere(0.1f, 2)
         p4.material().diffuse = Vector3f(0.3f, 0.5f, 0.3f)
         scene.addChild(p4)
-
 
 
         thread {
@@ -176,7 +145,6 @@ class RAIVolumeSamplingExample: SceneryBase("RAIVolume Sampling example" , 1280,
                 }
                 Thread.sleep(200)
             }
-
         }
     }
 
