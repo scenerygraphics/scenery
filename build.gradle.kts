@@ -136,12 +136,7 @@ dependencies {
     implementation("org.jfree:jfreechart:1.5.0")
     implementation("net.imagej:imagej-ops:0.45.5")
 
-    listOf("core", "glfw", "gl").forEach {
-        implementation("kotlin.graphics:imgui-$it:1.79+04")
-    }
-    implementation("kotlin.graphics:glm:0.9.9.1-3+23")
-    implementation("kotlin.graphics:kool:0.9.0+23")
-    implementation("kotlin.graphics:uno-core:0.7.9+35")
+    implementation("kotlin.graphics:imgui:1.89.6")
 }
 
 val isRelease: Boolean

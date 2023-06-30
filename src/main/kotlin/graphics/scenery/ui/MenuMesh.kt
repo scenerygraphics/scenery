@@ -12,20 +12,27 @@ import graphics.scenery.attribute.material.Material
 import graphics.scenery.attribute.renderable.DefaultRenderable
 import graphics.scenery.attribute.renderable.Renderable
 import graphics.scenery.backends.Renderer
-import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.backends.ShaderType
-import graphics.scenery.controls.InputHandler
 import graphics.scenery.textures.Texture
-import imgui.*
+import imgui.ImGui
 import imgui.classes.Context
-import imgui.impl.glfw.ImplGlfw
+import imgui.dsl
 import kool.*
-import kool.lib.fill
 import org.joml.Vector2f
 import org.joml.Vector2i
 import org.joml.Vector3i
-import org.lwjgl.system.MemoryUtil.*
-import uno.glfw.GlfwWindow
+import org.lwjgl.system.MemoryUtil.memAddress
+import org.lwjgl.system.MemoryUtil.memCopy
+import kotlin.collections.any
+import kotlin.collections.component1
+import kotlin.collections.component2
+import kotlin.collections.forEach
+import kotlin.collections.getOrPut
+import kotlin.collections.listOf
+import kotlin.collections.mutableMapOf
+import kotlin.collections.plusAssign
+import kotlin.collections.retainAll
+import kotlin.collections.set
 
 class MenuMesh(val hub: Hub) : Mesh("Menu") {
 
@@ -122,8 +129,8 @@ class MenuMesh(val hub: Hub) : Mesh("Menu") {
             idx.free()
             idx = IntBuffer(indexSize * 2)
         }
-        var vtxPtr = vtx.adr
-        var idxPtr = idx.adr
+        var vtxPtr = vtx.adr.toLong()
+        var idxPtr = idx.adr.toLong()
 
         //        run {
         //            val i = 0
@@ -190,7 +197,7 @@ class MenuMesh(val hub: Hub) : Mesh("Menu") {
             globalIdxOffset += drawList.idxBuffer.rem
             globalVtxOffset += drawList.vtxBuffer.rem
 
-            memCopy(drawList.vtxBuffer.data.adr, vtxPtr, drawList.vtxBuffer.size * DrawVertSize.L)
+            memCopy(drawList.vtxBuffer.data.adr.toLong(), vtxPtr, drawList.vtxBuffer.size * DrawVertSize.L)
             memCopy(memAddress(drawList.idxBuffer), idxPtr, drawList.idxBuffer.remaining() * Integer.BYTES.L)
             vtxPtr += drawList.vtxBuffer.size * DrawVertSize.L
             idxPtr += drawList.idxBuffer.remaining() * Integer.BYTES

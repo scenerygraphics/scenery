@@ -1,11 +1,7 @@
 package graphics.scenery.ui
 
-import imgui.ImGui.io
-import glm_.bool
-import glm_.c
 import glm_.f
 import glm_.vec2.Vec2
-import glm_.vec2.Vec2d
 import glm_.vec2.Vec2i
 import graphics.scenery.Hub
 import graphics.scenery.SceneryElement
@@ -13,19 +9,10 @@ import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.controls.InputHandler
 import graphics.scenery.utils.lazyLogger
 import imgui.*
-import imgui.ImGui.mainViewport
-import imgui.ImGui.mouseCursor
-import imgui.Key
-import imgui.MouseButton
-import imgui.windowsIme.imeListener
-import org.lwjgl.glfw.GLFW.*
-import org.lwjgl.glfw.GLFWGamepadState
-import org.lwjgl.system.MemoryUtil.NULL
-import org.lwjgl.system.Platform
+import imgui.ImGui.io
 import org.scijava.ui.behaviour.ClickBehaviour
 import org.scijava.ui.behaviour.ScrollBehaviour
-import uno.glfw.*
-import uno.glfw.GlfwWindow.CursorMode
+import uno.glfw.GlfwWindow
 import kotlin.concurrent.thread
 
 class ImplScenery(val window: SceneryWindow, val hub: Hub, val installCallbacks: Boolean = true, val vrTexSize: Vec2i? = null) {
@@ -71,9 +58,9 @@ class ImplScenery(val window: SceneryWindow, val hub: Hub, val installCallbacks:
                     val inputHandler = h
                     inputHandler.addBehaviour("imgui_mouse_down", ClickBehaviour { mouseX, mouseY ->
                         io.addMousePosEvent(mouseX.toFloat(), mouseY.toFloat())
-                        io.addMouseButtonEvent(0, true)
+                        io.addMouseButtonEvent(MouseButton.Left, true)
                         Thread.sleep(2)
-                        io.addMouseButtonEvent(0, false)
+                        io.addMouseButtonEvent(MouseButton.Left, false)
                     })
                     inputHandler.addBehaviour(
                         "imgui_scroll",
