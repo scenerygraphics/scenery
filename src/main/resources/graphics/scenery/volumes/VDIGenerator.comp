@@ -42,7 +42,7 @@ layout(push_constant) uniform currentEye_t {
 #define WORLD_ABS 0
 #define INT_DEPTHS 0
 
-#define USE_PRINTF 0
+#define USE_PRINTF 1
 
 #define RLE_INFO 0
 
@@ -62,7 +62,7 @@ layout (set = 10, binding = 0, r32i) uniform iimage2D SupersegmentsGenerated;
 
 #pragma scenery endverbatim
 
-ivec2 debug_pixel = ivec2(640, 360);
+ivec2 debug_pixel = ivec2(360, 360);
 
 // intersect ray with a box
 // http://www.siggraph.org/education/materials/HyperGraph/raytrace/rtinter3.htm
@@ -263,8 +263,17 @@ bool thresh_found = false;
 
 void main()
 {
+
+    if(gl_GlobalInvocationID.xy == debug_pixel) {
+        debugPrintfEXT("The value of doGeneration: %d", doGeneration);
+        //        debugPrintfEXT("front: (%f, %f, %f, %f) back: (%f, %f, %f, %f).", front.xyzw, back.xyzw);
+        //        debugPrintfEXT("wfront: (%f, %f, %f, %f) wback: (%f, %f, %f, %f).", wfront.xyzw, wback.xyzw);
+    }
+
     if(!doGeneration) {
         return;
+    } else {
+//        debugPrintfEXT("Its true!");
     }
 
     //    #if USE_PRINTF
@@ -369,11 +378,11 @@ void main()
     {
         vec4 fb = wback - wfront;
         int numSteps =
-        //        ( fwnw > 0.00001 )
-        //        ? int ( log( ( tfar * fwnw + nw ) / ( tnear * fwnw + nw ) ) / log ( 1 + fwnw ) )
-        //        :
-        //        int ( trunc( ( tfar - tnear ) / nw + 1 ) );
-        int ( trunc( ( tfar - tnear ) / nw ) );
+                ( fwnw > 0.00001 )
+                ? int ( log( ( tfar * fwnw + nw ) / ( tnear * fwnw + nw ) ) / log ( 1 + fwnw ) )
+                :
+                int ( trunc( ( tfar - tnear ) / nw + 1 ) );
+//        int ( trunc( ( tfar - tnear ) / nw ) );
 
         #if USE_PRINTF
         if(gl_GlobalInvocationID.xy == debug_pixel) {
