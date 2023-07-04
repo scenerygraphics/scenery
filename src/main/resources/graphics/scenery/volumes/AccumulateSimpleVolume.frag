@@ -1,6 +1,11 @@
 if (vis && step > localNear && step < localFar)
 {
     vec4 x = sampleVolume(wpos);
+
+    if(pixel_coords == ivec2(360, 360) && x.a>0) {
+        debugPrintfEXT("color of sample: (%f, %f, %f, %f)", x.rgba);
+    }
+
     float newAlpha = x.a;
     vec3 newColor = x.rgb;
 
