@@ -21,13 +21,11 @@ import java.io.File
 import java.io.FileInputStream
 import java.nio.ByteBuffer
 
-class VDIRenderingExample : SceneryBase("VDI Rendering Example", 720, 720) {
+class VDIRenderingExample : SceneryBase("VDI Rendering Example", 512, 512) {
 
     var hmd: TrackedStereoGlasses? = null
     val vdiNode = VDINode()
 
-    val separateDepth = true
-//    val runLengthEncoded = false
     val skipEmpty = false
 
     val numSupersegments = 20
@@ -59,14 +57,13 @@ class VDIRenderingExample : SceneryBase("VDI Rendering Example", 720, 720) {
 
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
-            spatial().position = Vector3f( 5.699E+0f, -4.935E-1f,  5.500E+0f)
-            spatial().rotation = Quaternionf( 1.211E-1, -3.842E-1 ,-5.090E-2,  9.139E-1)
+            spatial().position = Vector3f(0.0f, 0.5f, 5.0f)
             perspectiveCamera(50.0f, windowWidth, windowWidth)
             scene.addChild(this)
         }
 
         //Step 2: read files
-        val buff: ByteArray?
+        val colorBuff: ByteArray?
         val depthBuff: ByteArray?
         val octBuff: ByteArray?
 
@@ -74,7 +71,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering Example", 720, 720) {
         val vdiData = VDIDataIO.read(file)
         logger.info("Fetching file...")
 
-        buff = File("VDI_4_ndc_col").readBytes()
+        colorBuff = File("VDI_4_ndc_col").readBytes()
         depthBuff = File("VDI_4_ndc_depth").readBytes()
         octBuff = File("VDI_4_ndc_octree").readBytes()
 
@@ -83,18 +80,16 @@ class VDIRenderingExample : SceneryBase("VDI Rendering Example", 720, 720) {
         val depthBuffer: ByteBuffer?
         val opBuffer = MemoryUtil.memCalloc(windowWidth * windowHeight * 4)
 
-        val totalMaxSupersegments = (numSupersegments * windowWidth * windowHeight).toFloat()
-
         colBuffer = MemoryUtil.memCalloc(windowHeight * windowWidth * numSupersegments * numLayers * 4 * 4)
-        colBuffer.put(buff).flip()
+        colBuffer.put(colorBuff).flip()
         colBuffer.limit(colBuffer.capacity())
-        logger.info("Length of color buffer is ${buff.size} and associated bytebuffer capacity is ${colBuffer.capacity()} it has remaining: ${colBuffer.remaining()}")
-        logger.info("Col sum is ${buff.sum()}")
+        logger.info("Length of color buffer is ${colorBuff.size} and associated bytebuffer capacity is ${colBuffer.capacity()} it has remaining: ${colBuffer.remaining()}")
+        logger.info("Col sum is ${colorBuff.sum()}")
 
         depthBuffer = MemoryUtil.memCalloc(windowHeight * windowWidth * numSupersegments * 2 * 2 * 2)
         depthBuffer.put(depthBuff).flip()
         depthBuffer.limit(depthBuffer.capacity())
-        logger.info("Length of depth buffer is ${depthBuff!!.size} and associated bytebuffer capacity is ${depthBuffer.capacity()} it has remaining ${depthBuffer.remaining()}")
+        logger.info("Length of depth buffer is ${depthBuff.size} and associated bytebuffer capacity is ${depthBuffer.capacity()} it has remaining: ${depthBuffer.remaining()}")
         logger.info("Depth sum is ${depthBuff.sum()}")
 
         val numGridCells = Vector3f(vdiData.metadata.windowDimensions.x/ 8f, vdiData.metadata.windowDimensions.y/ 8f, numSupersegments.toFloat())
@@ -138,6 +133,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering Example", 720, 720) {
         vdiNode.invModel = Matrix4f(vdiData.metadata.model).invert()
         vdiNode.volumeDims = vdiData.metadata.volumeDimensions
         vdiNode.do_subsample = false
+        vdiNode.skip_empty = skipEmpty
 
 
         logger.info("Projection: ${Matrix4f(vdiData.metadata.projection).applyVulkanCoordinateSystem()}")
