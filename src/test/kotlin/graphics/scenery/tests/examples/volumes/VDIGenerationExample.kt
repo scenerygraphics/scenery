@@ -22,7 +22,7 @@ import kotlin.concurrent.thread
 
 class VDIGenerationExample : SceneryBase("Volume Generation Example", 512, 512) {
 
-    val maxSupersegments = System.getProperty("VolumeBenchmark.NumSupersegments")?.toInt()?: 20
+    val maxSupersegments = 20
     val context: ZContext = ZContext(4)
 
     var cnt = 0
@@ -63,6 +63,7 @@ class VDIGenerationExample : SceneryBase("Volume Generation Example", 512, 512) 
         // Step 4: add the volume to VDI volume manager
         vdiVolumeManager.add(volume)
         volume.volumeManager.shaderProperties["doGeneration"] = true
+
         // Step 5: add the VDI volume manager to the hub
         hub.add(vdiVolumeManager)
 
@@ -84,7 +85,7 @@ class VDIGenerationExample : SceneryBase("Volume Generation Example", 512, 512) 
         )
 
         thread {
-//            storeVDI(vdiVolumeManager, vdiData)
+            storeVDI(vdiVolumeManager, vdiData)
         }
 
 
@@ -93,7 +94,7 @@ class VDIGenerationExample : SceneryBase("Volume Generation Example", 512, 512) 
         data class Timer(var start: Long, var end: Long)
         val tGeneration = Timer(0, 0)
 
-        var vdiDepthBuffer: ByteBuffer? = null
+        var vdiDepthBuffer: ByteBuffer?
         var vdiColorBuffer: ByteBuffer?
         var gridCellsBuff: ByteBuffer?
 
@@ -120,7 +121,7 @@ class VDIGenerationExample : SceneryBase("Volume Generation Example", 512, 512) 
         var prevColor = colorCnt.get()
         var prevDepth = depthCnt.get()
 
-        while (cnt<5) { //TODO: convert VDI storage also to postRenderLambda
+        while (cnt<6) { //TODO: convert VDI storage also to postRenderLambda
 
             tGeneration.start = System.nanoTime()
 
@@ -132,7 +133,7 @@ class VDIGenerationExample : SceneryBase("Volume Generation Example", 512, 512) 
 
 
             vdiColorBuffer = vdiColor.contents
-            vdiDepthBuffer = vdiDepth!!.contents
+            vdiDepthBuffer = vdiDepth.contents
             gridCellsBuff = gridCells.contents
 
 
@@ -152,11 +153,12 @@ class VDIGenerationExample : SceneryBase("Volume Generation Example", 512, 512) 
                 file.close()
 
 //                logger.warn("***************Gridcells************************")
-//                logger.warn(gridCells.contents?.remaining()?.let { ByteArray(it) }.contentToString())
-//                logger.warn("***************vdicolor************************")
-//                logger.warn(vdiColor.contents?.remaining()?.let { ByteArray(it) }.contentToString())
-//                logger.warn("***************vdidepth************************")
-//                logger.warn(vdiDepth.contents?.remaining()?.let { ByteArray(it) }.contentToString())
+//                while (gridCells.contents?.hasRemaining() == true){
+//                    var str = gridCells.contents?.get()
+//                    var pos = gridCells.contents?.position()
+//                    if (str?.toInt() != 0)
+//                        logger.warn("$pos - $str")
+//                }
 
                 var fileName = "VDI_${cnt}_ndc"
                 SystemHelpers.dumpToFile(vdiColorBuffer!!, "${fileName}_col")
