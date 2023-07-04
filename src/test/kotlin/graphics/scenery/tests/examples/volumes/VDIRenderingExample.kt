@@ -8,9 +8,8 @@ import graphics.scenery.compute.InvocationType
 import graphics.scenery.controls.TrackedStereoGlasses
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.Image
-import graphics.scenery.volumes.VolumeManager
 import graphics.scenery.volumes.vdi.VDIDataIO
-import net.imglib2.type.numeric.integer.UnsignedByteType
+import graphics.scenery.volumes.vdi.VDINode
 import net.imglib2.type.numeric.integer.UnsignedIntType
 import net.imglib2.type.numeric.real.FloatType
 import org.joml.Matrix4f
@@ -21,60 +20,8 @@ import org.lwjgl.system.MemoryUtil
 import java.io.File
 import java.io.FileInputStream
 import java.nio.ByteBuffer
-import kotlin.math.ceil
 
-class VDINode : RichNode() {
-
-    @ShaderProperty
-    var ProjectionOriginal = Matrix4f()
-
-    @ShaderProperty
-    var invProjectionOriginal = Matrix4f()
-
-    @ShaderProperty
-    var ViewOriginal = Matrix4f()
-
-    @ShaderProperty
-    var invViewOriginal = Matrix4f()
-
-    @ShaderProperty
-    var invModel = Matrix4f()
-
-    @ShaderProperty
-    var volumeDims = Vector3f()
-
-    @ShaderProperty
-    var nw = 0f
-
-    @ShaderProperty
-    var vdiWidth: Int = 0
-
-    @ShaderProperty
-    var vdiHeight: Int = 0
-
-    @ShaderProperty
-    var totalGeneratedSupsegs: Int = 0
-
-    @ShaderProperty
-    var do_subsample = false
-
-    @ShaderProperty
-    var max_samples = 50
-
-    @ShaderProperty
-    var sampling_factor = 0.1f
-
-    @ShaderProperty
-    var downImage = 1f
-
-    @ShaderProperty
-    var skip_empty = true
-
-    @ShaderProperty
-    var stratified_downsampling = false
-}
-
-class VDIRenderingExample : SceneryBase("VDI Rendering Example", 1080, 1080) {
+class VDIRenderingExample : SceneryBase("VDI Rendering Example", 720, 720) {
 
     var hmd: TrackedStereoGlasses? = null
     val vdiNode = VDINode()
