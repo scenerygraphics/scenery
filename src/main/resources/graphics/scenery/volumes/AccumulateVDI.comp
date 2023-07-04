@@ -3,11 +3,11 @@ if (vis && step > localNear && step < localFar)
     transparentSample = false;
     vec4 x = sampleVolume(wpos);
 
-    //    #if USE_PRINTF
-    //    if(gl_GlobalInvocationID.xy == debug_pixel && thresh_found) {
-    //        debugPrintfEXT("Step: %d, color of sample: (%f, %f, %f, %f) at position: (%f, %f, %f, %f)", i, x.rgba, wpos.xyzw);
-    //    }
-    //    #endif
+        #if USE_PRINTF
+        if(gl_GlobalInvocationID.xy == debug_pixel && x.a>0) {
+            debugPrintfEXT("Step: %d, color of sample: (%f, %f, %f, %f) at position: (%f, %f, %f, %f)", i, x.rgba, wpos.xyzw);
+        }
+        #endif
 
     //TODO: the below check should be removed for efficiency
     if(x.r > -0.5 || lastSample) { // we need to process this sample only if it is from a volume that actually exists at this sample point
