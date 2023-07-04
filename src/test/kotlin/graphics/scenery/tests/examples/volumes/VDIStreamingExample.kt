@@ -27,7 +27,7 @@ import java.io.*
 import kotlin.system.measureNanoTime
 import org.msgpack.jackson.dataformat.MessagePackFactory
 
-class VDIStreamingExample : SceneryBase("VDI Streaming Example", 1080, 1080) {
+class VDIStreamingExample : SceneryBase("VDI Streaming Example", 512, 512) {
 
     val cam: Camera = DetachedHeadCamera()
     val context: ZContext = ZContext(4)
@@ -225,8 +225,8 @@ class VDIStreamingExample : SceneryBase("VDI Streaming Example", 1080, 1080) {
     private fun createPublisher() : ZMQ.Socket {
         var publisher: ZMQ.Socket = context.createSocket(SocketType.PUB)
         publisher.isConflate = true
-
-        val address = "tcp://0.0.0.0:6655"
+        val address = "tcp://localhost:6655"
+//        val address = "tcp://0.0.0.0:6655"
         val port = try {
             publisher.bind(address)
             address.substringAfterLast(":").toInt()
