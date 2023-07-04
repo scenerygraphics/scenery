@@ -11,6 +11,10 @@ import org.joml.Vector3i
 import java.io.Serializable
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.util.*
+import java.util.concurrent.Semaphore
+import java.util.concurrent.atomic.AtomicInteger
+import kotlin.collections.HashSet
 
 
 /**
@@ -40,10 +44,22 @@ open class Texture @JvmOverloads constructor(
     /** Linear or nearest neighbor filtering for scaling up. */
     var maxFilter: FilteringMode = FilteringMode.Linear,
     /** Usage type */
-    val usageType: HashSet<UsageType> = hashSetOf(UsageType.Texture)
+    val usageType: HashSet<UsageType> = hashSetOf(UsageType.Texture),
+    /** Mutex for texture data usage */
+    val mutex: Semaphore = Semaphore(1),
+    /** Mutex for GPU upload */
+    val gpuMutex: Semaphore = Semaphore(1),
+    /** Hash set to indicate the state of the texture */
+    val uploaded: AtomicInteger = AtomicInteger(0)
 
 
 ) : Serializable, Timestamped {
+
+    enum class TextureState {
+        Created,
+        Uploaded,
+        AvailableForUse
+    }
     init {
         contents?.let { c ->
             val buffer = c.duplicate().order(ByteOrder.LITTLE_ENDIAN)
@@ -69,6 +85,10 @@ open class Texture @JvmOverloads constructor(
                 throw IllegalStateException("Buffer for texture does not contain correct number of bytes. Actual: $remaining, expected: $expected for image of size $dimensions and $channels channels of type ${type.javaClass.simpleName}.")
             }
         }
+    }
+
+    fun availableOnGPU(): Boolean {
+        return (uploaded.get() > 0 && (gpuMutex.availablePermits() == 1))
     }
 
     /**
@@ -104,7 +124,8 @@ open class Texture @JvmOverloads constructor(
 
     enum class UsageType {
         Texture,
-        LoadStoreImage
+        LoadStoreImage,
+        AsyncLoad
     }
 
     /** Companion object of [Texture], containing mainly constant defines */
