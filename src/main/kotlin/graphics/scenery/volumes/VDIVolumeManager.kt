@@ -9,6 +9,7 @@ import graphics.scenery.compute.ComputeMetadata
 import graphics.scenery.compute.InvocationType
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.Image
+import graphics.scenery.utils.lazyLogger
 import net.imglib2.type.numeric.integer.IntType
 import net.imglib2.type.numeric.integer.UnsignedIntType
 import net.imglib2.type.numeric.real.FloatType
@@ -21,8 +22,9 @@ import java.nio.ByteBuffer
 import kotlin.math.ceil
 
 class VDIVolumeManager ( var hub: Hub, val windowWidth: Int, val windowHeight: Int, val maxSupersegments: Int,val scene: Scene, val vdiFull: Boolean = true)
-
 {
+    private val logger by lazyLogger()
+
     fun createVDIVolumeManger() : VolumeManager {
         if (vdiFull)
             return vdiFull(windowWidth, windowHeight, maxSupersegments, scene, hub)
