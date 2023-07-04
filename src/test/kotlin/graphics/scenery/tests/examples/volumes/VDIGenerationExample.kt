@@ -62,7 +62,7 @@ class VDIGenerationExample : SceneryBase("Volume Generation Example", 512, 512) 
 
         // Step 4: add the volume to VDI volume manager
         vdiVolumeManager.add(volume)
-
+        volume.volumeManager.shaderProperties["doGeneration"] = true
         // Step 5: add the VDI volume manager to the hub
         hub.add(vdiVolumeManager)
 
@@ -70,21 +70,21 @@ class VDIGenerationExample : SceneryBase("Volume Generation Example", 512, 512) 
         val volumeDimensions3i = Vector3f(volume.getDimensions().x.toFloat(),volume.getDimensions().y.toFloat(),volume.getDimensions().z.toFloat())
         val model = volume.spatial().world
 
-            val vdiData = VDIData(
-                VDIBufferSizes(),
-                VDIMetadata(
-                    index = cnt,
-                    projection = cam.spatial().projection,
-                    view = cam.spatial().getTransformation(),
-                    volumeDimensions = volumeDimensions3i,
-                    model = model,
-                    nw = volume.volumeManager.shaderProperties["nw"] as Float,
-                    windowDimensions = Vector2i(cam.width, cam.height)
-                )
+        val vdiData = VDIData(
+            VDIBufferSizes(),
+            VDIMetadata(
+                index = cnt,
+                projection = cam.spatial().projection,
+                view = cam.spatial().getTransformation(),
+                volumeDimensions = volumeDimensions3i,
+                model = model,
+                nw = volume.volumeManager.shaderProperties["nw"] as Float,
+                windowDimensions = Vector2i(cam.width, cam.height)
             )
+        )
 
         thread {
-            storeVDI(vdiVolumeManager, vdiData)
+//            storeVDI(vdiVolumeManager, vdiData)
         }
 
 
