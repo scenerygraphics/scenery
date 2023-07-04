@@ -18,7 +18,7 @@ class VolumeServerExample : SceneryBase ("Volume Server Example", 512, 512) {
     var hmd: TrackedStereoGlasses? = null
 
     override fun init() {
-        Thread.sleep(5000)
+        Thread.sleep(3000)
         renderer = hub.add(
             SceneryElement.Renderer,
             Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
@@ -57,28 +57,30 @@ class VolumeServerExample : SceneryBase ("Volume Server Example", 512, 512) {
 //                logger.info("Displaying current server scene objects: " + scene.children.toString())
                 if (dummyVolume != null && clientCam != null ) {
                     volume.transferFunction = dummyVolume.transferFunction
+                    volume.maxDisplayRange = dummyVolume.maxDisplayRange
+                    volume.minDisplayRange = dummyVolume.minDisplayRange
                 }
             }
         }
 
-    //settings.set("VideoEncoder.StreamVideo", true)
-        //settings.set("VideoEncoder.StreamingAddress", "rtp://127.0.0.1:5004")
-        //renderer?.recordMovie()
+    settings.set("VideoEncoder.StreamVideo", true)
+        settings.set("VideoEncoder.StreamingAddress", "rtp://127.0.0.2:5004")
+        renderer?.recordMovie()
 
 
-        //thread {
-        //    while(true) {
-        //        volume.spatial {
-        //            rotation = rotation.rotateY(0.003f)
-        //        }
-        //        Thread.sleep(5)
-        //    }
-        //}
+        thread {
+            while(true) {
+                volume.spatial {
+                    rotation = rotation.rotateY(0.003f)
+                }
+                Thread.sleep(5)
+            }
+        }
     }
 
-//    override fun inputSetup() {
-//        setupCameraModeSwitching()
-//    }
+    override fun inputSetup() {
+        setupCameraModeSwitching()
+    }
 
     companion object {
         @JvmStatic
