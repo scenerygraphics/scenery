@@ -33,7 +33,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.concurrent.thread
 import kotlin.system.measureNanoTime
 
-class VDIClient : SceneryBase("VDI Rendering", 1080, 1080, wantREPL = false) {
+class VDIClient : SceneryBase("VDI Rendering", 512, 512, wantREPL = false) {
 
     var hmd: TrackedStereoGlasses? = null
 
@@ -45,34 +45,16 @@ class VDIClient : SceneryBase("VDI Rendering", 1080, 1080, wantREPL = false) {
     val numSupersegments = 20
     val skipEmpty = true
     val vdiStreaming = true
-
-    val subsampling = false
-    var desiredFrameRate = 45
-
     var startPrinting = false
-    var sendCamera = true
-
-    var subsamplingFactorImage = 1.0f
-
-    var newVDI = false
 
     val dataset = "Simulation"
 
-    val dynamicSubsampling = false
-
-    val subsampleRay = false
-
-    val storeCamera = false
-    val loadCamera = true
-
-    val saveImages = false
-    val imageFrequency = 10
-
-    val totalFrames = 2000
-
+    var newVDI = false
     val recordVideo = false
-
     var firstVDI = true
+
+
+
 
     val cam: Camera = DetachedHeadCamera(hmd)
 
@@ -169,8 +151,6 @@ class VDIClient : SceneryBase("VDI Rendering", 1080, 1080, wantREPL = false) {
 
                 prevPos = posArray
                 prevRot = rotArray
-
-//                sendCamera = false
             }
 
             compute.printData = startPrinting
@@ -261,9 +241,9 @@ class VDIClient : SceneryBase("VDI Rendering", 1080, 1080, wantREPL = false) {
 
         var subscriber: ZMQ.Socket = context.createSocket(SocketType.SUB)
         subscriber.setConflate(true)
-//        val address = "tcp://localhost:6655"
+        val address = "tcp://localhost:6655"
 //        val address = "tcp://172.24.150.81:6655"
-        val address = "tcp://10.1.224.71:6655"
+//        val address = "tcp://10.1.224.71:6655"
         try {
             subscriber.connect(address)
         } catch (e: ZMQException) {
@@ -470,5 +450,10 @@ class VDIClient : SceneryBase("VDI Rendering", 1080, 1080, wantREPL = false) {
             }
         }
     }
-
+    companion object {
+        @JvmStatic
+        fun main(args: Array<String>) {
+            VDIClient().main()
+        }
+    }
 }
