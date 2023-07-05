@@ -67,7 +67,7 @@ class RAIVolumeSamplingExample: SceneryBase("RAIVolume Sampling example" , 1280,
             connector.spatial().orientBetweenPoints(p1.spatial().position, p2.spatial().position, true, true)
         }
 
-        volume = Volume.fromXML(Paths.get(getDemoFilesPath() + "/volumes/box-iso/").toString(), hub, VolumeViewerOptions())
+        volume = Volume.fromXML(Paths.get(getDemoFilesPath() + "/volumes/t1-head.xml").toString(), hub, VolumeViewerOptions())
 
         volume.spatial {
             position = Vector3f(0.0f, 0.0f, 0.0f)
@@ -90,8 +90,6 @@ class RAIVolumeSamplingExample: SceneryBase("RAIVolume Sampling example" , 1280,
         val origin = Box(Vector3f(0.1f, 0.1f, 0.1f))
         origin.material().diffuse = Vector3f(0.8f, 0.0f, 0.0f)
         scene.addChild(origin)
-
-        scene.export("rai.scenery")
 
         val p3 = Icosphere(0.1f, 2)
         p3.material().diffuse = Vector3f(0.3f, 0.5f, 0.8f)
@@ -120,7 +118,7 @@ class RAIVolumeSamplingExample: SceneryBase("RAIVolume Sampling example" , 1280,
                     p3.spatial().position = intersection.entry
                     p4.spatial().position = intersection.exit
                     val nf = DecimalFormat("0.0000")
-                    logger.info(
+                    logger.debug(
                         "Ray intersects volume at world=${intersection.entry.toString(nf)}/${
                             intersection.exit.toString(
                                 nf
@@ -129,7 +127,7 @@ class RAIVolumeSamplingExample: SceneryBase("RAIVolume Sampling example" , 1280,
                     )
 
                     val (samples, _) = volume.sampleRay(localEntry, localExit) ?: null to null
-                    logger.info("Samples: ${samples?.joinToString(",") ?: "(no samples returned)"}")
+                    logger.debug("Samples: ${samples?.joinToString(",") ?: "(no samples returned)"}")
 
                     if (samples == null) {
                         continue
