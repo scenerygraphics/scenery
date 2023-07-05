@@ -120,6 +120,7 @@ class ExampleRunner(
             "TransferFunctionEditorExample",
             // these examples need additional hardware
             "VRControllerExample",
+            "VRControllerAdvancedExample",
             "VRSideChainsExample",
             "VRVolumeCroppingExample",
             "EyeTrackingExample",
