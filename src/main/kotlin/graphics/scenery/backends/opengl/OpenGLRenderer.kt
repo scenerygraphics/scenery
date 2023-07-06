@@ -21,6 +21,7 @@ import graphics.scenery.textures.Texture.BorderColor
 import graphics.scenery.textures.Texture.RepeatMode
 import graphics.scenery.textures.UpdatableTexture
 import graphics.scenery.utils.*
+import graphics.scenery.volumes.vdi.VDIData
 import kotlinx.coroutines.*
 import net.imglib2.type.numeric.NumericType
 import net.imglib2.type.numeric.integer.*
@@ -29,6 +30,7 @@ import net.imglib2.type.numeric.real.FloatType
 import org.joml.*
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.Platform
+import org.zeromq.ZContext
 import java.awt.BorderLayout
 import java.awt.Dimension
 import java.awt.image.DataBufferInt
@@ -2924,6 +2926,8 @@ open class OpenGLRenderer(hub: Hub,
             recordMovie = true
         }
     }
+
+    override fun streamVDI(vdiData: VDIData, oIPAddress: String, context: ZContext) {}
 
     private fun Blending.BlendFactor.toOpenGL() = when (this) {
         Blending.BlendFactor.Zero -> GL4.GL_ZERO
