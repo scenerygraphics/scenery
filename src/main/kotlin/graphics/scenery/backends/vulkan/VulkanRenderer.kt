@@ -1,5 +1,7 @@
 package graphics.scenery.backends.vulkan
 
+import com.fasterxml.jackson.core.type.TypeReference
+import com.fasterxml.jackson.databind.ObjectMapper
 import graphics.scenery.*
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.attribute.renderable.DelegatesRenderable
@@ -8,6 +10,11 @@ import graphics.scenery.attribute.renderable.Renderable
 import graphics.scenery.backends.*
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.*
+import graphics.scenery.volumes.VolumeManager
+import graphics.scenery.volumes.vdi.VDIBufferSizes
+import graphics.scenery.volumes.vdi.VDIData
+import graphics.scenery.volumes.vdi.VDIDataIO
+import graphics.scenery.volumes.vdi.VDIMetadata
 import kotlinx.coroutines.*
 import org.joml.*
 import org.lwjgl.PointerBuffer
@@ -28,9 +35,15 @@ import org.lwjgl.vulkan.KHRWin32Surface.VK_KHR_WIN32_SURFACE_EXTENSION_NAME
 import org.lwjgl.vulkan.KHRXlibSurface.VK_KHR_XLIB_SURFACE_EXTENSION_NAME
 import org.lwjgl.vulkan.MVKMacosSurface.VK_MVK_MACOS_SURFACE_EXTENSION_NAME
 import org.lwjgl.vulkan.VK10.*
+import org.msgpack.jackson.dataformat.MessagePackFactory
+import org.zeromq.SocketType
+import org.zeromq.ZContext
+import org.zeromq.ZMQ
+import org.zeromq.ZMQException
 import java.awt.BorderLayout
 import java.awt.image.BufferedImage
 import java.awt.image.DataBufferByte
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.nio.ByteBuffer
 import java.nio.IntBuffer
@@ -45,6 +58,7 @@ import javax.swing.JFrame
 import kotlin.concurrent.thread
 import kotlin.concurrent.withLock
 import kotlin.reflect.full.*
+import kotlin.system.measureNanoTime
 import kotlin.system.measureTimeMillis
 import kotlin.time.ExperimentalTime
 
@@ -1295,6 +1309,196 @@ open class VulkanRenderer(hub: Hub,
         }
     }
 
+    override fun streamVDI(IPAddress: String, cam: Camera, volumeDimensions3i : Vector3f, model: Matrix4f, context: ZContext){
+
+        var cnt = 0
+        val maxSupersegments = 20
+
+        var vdiVolumeManager = hub?.get<VolumeManager>() as VolumeManager
+
+        val vdiData = VDIData(
+            VDIBufferSizes(),
+            VDIMetadata(
+                index = cnt,
+                projection = cam.spatial().projection,
+                view = cam.spatial().getTransformation(),
+                volumeDimensions = volumeDimensions3i,
+                model = model,
+                nw = vdiVolumeManager.shaderProperties["nw"] as Float,
+                windowDimensions = Vector2i(cam.width, cam.height)
+            )
+        )
+
+        var firstFrame = true
+
+        val windowWidth = vdiData.metadata.windowDimensions.x
+        val windowHeight = vdiData.metadata.windowDimensions.y
+
+        val publisher = createPublisher(context, IPAddress)
+
+        var compressedColor:  ByteBuffer? = null
+        var compressedDepth: ByteBuffer? = null
+        val compressor = DataCompressor()
+        val compressionTool = DataCompressor.CompressionTool.LZ4
+
+        var vdiColorBuffer: ByteBuffer?
+        var vdiDepthBuffer: ByteBuffer? = null
+        var gridCellsBuff: ByteBuffer?
+
+        val vdiColor = vdiVolumeManager.material().textures["OutputSubVDIColor"]!!
+        val colorCnt = AtomicInteger(0)
+        (this as? VulkanRenderer)?.persistentTextureRequests?.add(vdiColor to colorCnt)
+
+        val vdiDepth = vdiVolumeManager.material().textures["OutputSubVDIDepth"]!!
+        val depthCnt = AtomicInteger(0)
+        (this as? VulkanRenderer)?.persistentTextureRequests?.add(vdiDepth to depthCnt)
+
+
+        val gridCells = vdiVolumeManager.material().textures["OctreeCells"]!!
+        val gridTexturesCnt = AtomicInteger(0)
+        (this as? VulkanRenderer)?.persistentTextureRequests?.add(gridCells to gridTexturesCnt)
+
+        (this as? VulkanRenderer)?.postRenderLambdas?.add {
+
+            if (!firstFrame) {
+
+                vdiColorBuffer = vdiColor.contents
+                vdiDepthBuffer = vdiDepth!!.contents
+                gridCellsBuff = gridCells.contents
+
+                val colorSize = windowHeight * windowWidth * maxSupersegments * 4 * 4
+                val depthSize = windowWidth * windowHeight * maxSupersegments * 4 * 2
+                val accelSize = (windowWidth / 8) * (windowHeight / 8) * maxSupersegments * 4
+
+                if (vdiColorBuffer!!.remaining() != colorSize || vdiDepthBuffer!!.remaining() != depthSize || gridCellsBuff!!.remaining() != accelSize) {
+                    Renderer.logger.warn("Skipping transmission this frame due to inconsistency in buffer size")
+                }
+
+                val compressionTime = measureNanoTime {
+                    if (compressedColor == null) {
+                        compressedColor =
+                            memAlloc(compressor.returnCompressBound(colorSize.toLong(), compressionTool))
+                    }
+                    val compressedColorLength =
+                        compressor.compress(compressedColor!!, vdiColorBuffer!!, 3, compressionTool)
+                    compressedColor!!.limit(compressedColorLength.toInt())
+                    vdiData.bufferSizes.colorSize = compressedColorLength
+
+                    if (compressedDepth == null) {
+                        compressedDepth =
+                            memAlloc(
+                                compressor.returnCompressBound(
+                                    depthSize.toLong(),
+                                    compressionTool
+                                )
+                            )
+                    }
+                    val compressedDepthLength =
+                        compressor.compress(compressedDepth!!, vdiDepthBuffer!!, 3, compressionTool)
+                    compressedDepth!!.limit(compressedDepthLength.toInt())
+                    vdiData.bufferSizes.depthSize = compressedDepthLength
+                }
+
+                Renderer.logger.info("Time taken in compressing VDI: ${compressionTime / 1e9}")
+
+                val publishTime = measureNanoTime {
+                    val metadataOut = ByteArrayOutputStream()
+                    VDIDataIO.write(vdiData, metadataOut)
+
+                    val metadataBytes = metadataOut.toByteArray()
+                    Renderer.logger.info("Size of VDI data is: ${metadataBytes.size}")
+
+                    val vdiDataSize = metadataBytes.size.toString().toByteArray(Charsets.US_ASCII)
+
+                    var messageLength = vdiDataSize.size + metadataBytes.size + compressedColor!!.remaining()
+                    messageLength += compressedDepth!!.remaining()
+                    messageLength += accelSize as Int
+
+                    val message = ByteArray(messageLength)
+                    vdiDataSize.copyInto(message)
+
+                    metadataBytes.copyInto(message, vdiDataSize.size)
+
+                    compressedColor!!.slice()
+                        .get(message, vdiDataSize.size + metadataBytes.size, compressedColor!!.remaining())
+
+                    compressedDepth!!.slice().get(
+                        message,
+                        vdiDataSize.size + metadataBytes.size + compressedColor!!.remaining(),
+                        compressedDepth!!.remaining()
+                    )
+
+                    vdiData.bufferSizes.accelGridSize = accelSize.toLong()
+
+                    gridCellsBuff!!.get(message, vdiDataSize.size + metadataBytes.size + compressedColor!!.remaining() +
+                        compressedDepth!!.remaining(), gridCellsBuff!!.remaining())
+                    gridCellsBuff!!.flip()
+
+                    compressedDepth!!.limit(compressedDepth!!.capacity())
+                    compressedColor!!.limit(compressedColor!!.capacity())
+
+                    val sent = publisher.send(message)
+                    if (!sent) {
+                        Renderer.logger.warn("There was a ZeroMQ error in queuing the message to send")
+                    }
+                }
+                Renderer.logger.info("Whole publishing process took: ${publishTime / 1e9}")
+            }
+            firstFrame = false
+        }
+        setupSubscription(context,IPAddress)
+    }
+
+    private fun createPublisher(context: ZContext, IPAddress : String) : ZMQ.Socket {
+        var publisher: ZMQ.Socket = context.createSocket(SocketType.PUB)
+        publisher.isConflate = true
+        val address = IPAddress
+        val port = try {
+            logger.warn(IPAddress)
+            publisher.bind(address)
+            address.substringAfterLast(":").toInt()
+        } catch (e: ZMQException) {
+            Renderer.logger.warn("Binding failed, trying random port: $e")
+            publisher.bindToRandomPort(address.substringBeforeLast(":"))
+        }
+        return publisher
+    }
+
+    fun setupSubscription(context: ZContext, IPAddress: String) {
+        val subscriber: ZMQ.Socket = context.createSocket(SocketType.SUB)
+        subscriber.isConflate = true
+        val address = IPAddress
+        try {
+            subscriber.connect(address)
+        } catch (e: ZMQException) {
+            Renderer.logger.warn("ZMQ Binding failed.")
+        }
+        subscriber.subscribe(ZMQ.SUBSCRIPTION_ALL)
+
+        val objectMapper = ObjectMapper(MessagePackFactory())
+        var frameCount = 0
+        var firstFrame = true
+
+        (this as? VulkanRenderer)?.postRenderLambdas?.add {
+            if(!firstFrame) {
+
+                Renderer.logger.info("rendering is running!")
+                val start = System.nanoTime()
+                val payload = subscriber.recv(0)
+                val end = System.nanoTime()
+
+                Renderer.logger.info("Time waiting for message: ${(end-start)/1e9}")
+
+                if (payload != null) {
+                    val deserialized: List<Any> =
+                        objectMapper.readValue(payload, object : TypeReference<List<Any>>() {})
+                    Renderer.logger.info("Applying the camera change: $frameCount!")
+                }
+                frameCount++
+            }
+            firstFrame = false
+        }
+    }
     private suspend fun submitFrame(queue: VkQueue, pass: VulkanRenderpass, commandBuffer: VulkanCommandBuffer, present: PresentHelpers) {
         if(swapchainRecreator.mustRecreate) {
             return
