@@ -1,19 +1,36 @@
 package graphics.scenery.backends
 
+import com.fasterxml.jackson.core.type.TypeReference
+import com.fasterxml.jackson.databind.ObjectMapper
 import com.jogamp.opengl.GLAutoDrawable
 import graphics.scenery.*
 import graphics.scenery.backends.opengl.OpenGLRenderer
 import graphics.scenery.backends.vulkan.VulkanRenderer
 import graphics.scenery.textures.Texture
+import graphics.scenery.utils.DataCompressor
 import graphics.scenery.utils.ExtractsNatives
 import graphics.scenery.utils.lazyLogger
 import graphics.scenery.utils.SceneryPanel
+import graphics.scenery.volumes.VolumeManager
+import graphics.scenery.volumes.vdi.VDIData
+import graphics.scenery.volumes.vdi.VDIDataIO
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.selects.select
+import org.joml.Matrix4f
+import org.joml.Vector3f
+import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.Platform
+import org.msgpack.jackson.dataformat.MessagePackFactory
+import org.zeromq.SocketType
+import org.zeromq.ZContext
+import org.zeromq.ZMQ
+import org.zeromq.ZMQException
+import java.io.ByteArrayOutputStream
+import java.nio.ByteBuffer
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.system.measureNanoTime
 
 /**
  * Renderer interface. Defines the minimal set of functions a renderer has to implement.
@@ -88,6 +105,16 @@ abstract class Renderer : Hubable {
      * @param[filename] The filename where to save the screenshot.
      */
     abstract fun recordMovie(filename: String = "", overwrite: Boolean = false)
+
+    /**
+     * Streams a video to the mentioned IP address.
+     */
+    fun streamVDI() {
+        streamVDI("",Camera(), Vector3f(), Matrix4f() ,ZContext())
+    }
+
+    abstract fun streamVDI(IPAddress: String = "", cam: Camera, volumeDimensions3i : Vector3f, model: Matrix4f, context: ZContext)
+
 
     /**
      * Reshapes the window to the given sizes.
