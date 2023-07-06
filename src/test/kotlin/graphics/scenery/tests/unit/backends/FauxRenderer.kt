@@ -5,6 +5,8 @@ import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.backends.Renderer
 import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.utils.SceneryPanel
+import graphics.scenery.volumes.vdi.VDIData
+import org.zeromq.ZContext
 
 /**
  * Faux renderer class used for testing only.
@@ -95,4 +97,7 @@ class FauxRenderer(override var hub: Hub?, var scene: Scene, preparedWindow: Sce
             logger.info("Stopped recording movie")
         }
     }
+
+    override fun streamVDI(vdiData: VDIData, oIPAddress: String, context: ZContext) {}
+
 }
