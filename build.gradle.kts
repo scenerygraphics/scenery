@@ -134,7 +134,7 @@ dependencies {
     testImplementation("net.imglib2:imglib2-ij")
 
     implementation("org.jfree:jfreechart:1.5.0")
-    implementation("net.imagej:imagej-ops:0.45.5")
+    implementation("net.imagej:imagej-ops:2.0.0")
 }
 
 val isRelease: Boolean
