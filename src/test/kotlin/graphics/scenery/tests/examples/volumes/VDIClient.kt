@@ -33,10 +33,11 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.concurrent.thread
 import kotlin.system.measureNanoTime
 
-class VDIClient : SceneryBase("VDI Rendering", 512, 512, wantREPL = false) {
+class VDIClient : SceneryBase("VDI Client", 512, 512, wantREPL = false) {
 
     var hmd: TrackedStereoGlasses? = null
 
+    val cam: Camera = DetachedHeadCamera(hmd)
     val compute = VDINode()
     val plane = FullscreenObject()
 
@@ -45,18 +46,9 @@ class VDIClient : SceneryBase("VDI Rendering", 512, 512, wantREPL = false) {
     val numSupersegments = 20
     val skipEmpty = true
     val vdiStreaming = true
-    var startPrinting = false
-
-    val dataset = "Simulation"
-
     var newVDI = false
     val recordVideo = false
     var firstVDI = true
-
-
-
-
-    val cam: Camera = DetachedHeadCamera(hmd)
 
     private val vulkanProjectionFix =
         Matrix4f(
@@ -109,7 +101,7 @@ class VDIClient : SceneryBase("VDI Rendering", 512, 512, wantREPL = false) {
         if (recordVideo) {
 //          settings.set("VideoEncoder.Format", "HEVC")
             settings.set("VideoEncoder.Bitrate", 20000000)
-            renderer?.recordMovie("${dataset}VDIRendering.mp4")
+            renderer?.recordMovie("VDIRendering.mp4")
 
             thread {
                 Thread.sleep(56000)
@@ -132,31 +124,6 @@ class VDIClient : SceneryBase("VDI Rendering", 512, 512, wantREPL = false) {
         } catch (e: ZMQException) {
             logger.warn("Binding failed, trying random port: $e")
         }
-
-        var prevPos = floatArrayOf(0f, 0f, 0f)
-        var prevRot = floatArrayOf(0f, 0f, 0f, 0f)
-
-        (renderer as VulkanRenderer).postRenderLambdas.add {
-            val list: MutableList<Any> = ArrayList()
-            val rotArray = floatArrayOf(cam.spatial().rotation.x, cam.spatial().rotation.y, cam.spatial().rotation.z, cam.spatial().rotation.w)
-            val posArray = floatArrayOf(cam.spatial().position.x(), cam.spatial().position.y(), cam.spatial().position.z())
-
-            if (!((rotArray.contentEquals(prevRot)) && (posArray.contentEquals(prevPos)))) {
-                list.add(rotArray)
-                list.add(posArray)
-
-                val bytes = objectMapper.writeValueAsBytes(list)
-
-                publisher.send(bytes)
-
-                prevPos = posArray
-                prevRot = rotArray
-            }
-
-            compute.printData = startPrinting
-            startPrinting = false
-        }
-
     }
 
     fun updateTextures(color: ByteBuffer, depth: ByteBuffer, accelGridBuffer: ByteBuffer, vdiData: VDIData, accelSize: Int, firstVDI: Boolean) {
@@ -242,8 +209,6 @@ class VDIClient : SceneryBase("VDI Rendering", 512, 512, wantREPL = false) {
         var subscriber: ZMQ.Socket = context.createSocket(SocketType.SUB)
         subscriber.setConflate(true)
         val address = "tcp://localhost:6655"
-//        val address = "tcp://172.24.150.81:6655"
-//        val address = "tcp://10.1.224.71:6655"
         try {
             subscriber.connect(address)
         } catch (e: ZMQException) {
@@ -344,20 +309,19 @@ class VDIClient : SceneryBase("VDI Rendering", 512, 512, wantREPL = false) {
         var depthBuffer: ByteBuffer? = null
         var accelGridBuff: ByteBuffer? = null
 
-        val basePath = "/home/aryaman/Repositories/scenery-insitu/"
-//        val basePath = "e:/vdis/Simulation/"
+        val basePath = "/home/salhi/Repositories/scenery-insitu/"
 
         if(!vdiStreaming) {
             val vdiParams = "_${windowWidth}_${windowHeight}_${numSupersegments}_0_"
 
-            val file = FileInputStream(File(basePath + "${dataset}vdi${vdiParams}dump4"))
+            val file = FileInputStream(File(basePath + "vdi${vdiParams}dump4"))
 
             vdiData = VDIDataIO.read(file)
 
             //preparing the files for loading from disk
-            buff = File(basePath + "${dataset}VDI${vdiParams}4_ndc_col").readBytes()
-            depthBuff = File(basePath + "${dataset}VDI${vdiParams}4_ndc_depth").readBytes()
-            octBuff = File(basePath + "${dataset}VDI${vdiParams}4_ndc_octree").readBytes()
+            buff = File(basePath + "VDI${vdiParams}4_ndc_col").readBytes()
+            depthBuff = File(basePath + "VDI${vdiParams}4_ndc_depth").readBytes()
+            octBuff = File(basePath + "VDI${vdiParams}4_ndc_octree").readBytes()
 
             colBuffer = MemoryUtil.memCalloc(windowHeight * windowWidth * numSupersegments * 4 * 4)
             colBuffer.put(buff).flip()
