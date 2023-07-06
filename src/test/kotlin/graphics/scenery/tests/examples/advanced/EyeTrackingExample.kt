@@ -4,7 +4,7 @@ import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.OpenVRHMD
-import graphics.scenery.controls.eyetracking.PupilEyeTrackerNew
+import graphics.scenery.controls.eyetracking.PupilEyeTracker
 import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.numerics.Random
 import graphics.scenery.attribute.material.Material
@@ -17,7 +17,7 @@ import kotlin.concurrent.thread
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class EyeTrackingExample: SceneryBase("Eye Tracking Example", windowWidth = 1280, windowHeight = 720) {
-    val pupilTracker = PupilEyeTrackerNew(calibrationType = PupilEyeTrackerNew.CalibrationType.WorldSpace)
+    val pupilTracker = PupilEyeTracker(calibrationType = PupilEyeTracker.CalibrationType.WorldSpace)
     val hmd = OpenVRHMD(seated = false, useCompositor = true)
     val referenceTarget = Icosphere(0.004f, 2)
     val calibrationTarget = Icosphere(0.02f, 2)
@@ -154,7 +154,7 @@ class EyeTrackingExample: SceneryBase("Eye Tracking Example", windowWidth = 1280
                     pupilTracker.onGazeReceived = when (pupilTracker.calibrationType) {
 
 
-                        PupilEyeTrackerNew.CalibrationType.WorldSpace -> { gaze ->
+                        PupilEyeTracker.CalibrationType.WorldSpace -> { gaze ->
                             when {
                                 gaze.confidence < confidenceThreshold -> referenceTarget.ifMaterial { diffuse = Vector3f(0.8f, 0.0f, 0.0f) }
                                 gaze.confidence > confidenceThreshold -> referenceTarget.ifMaterial { diffuse = Vector3f(0.0f, 0.5f, 0.5f) }

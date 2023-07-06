@@ -51,7 +51,7 @@ class RAIVolume(@Transient val ds: VolumeDataSource, options: VolumeViewerOption
 
     override fun localScale(): Vector3f {
         val size = getDimensions()
-        logger.info("Sizes are $size")
+        logger.debug("Sizes are $size")
 
         return Vector3f(
             size.x() * pixelToWorldRatio / 10.0f,
@@ -144,7 +144,7 @@ class RAIVolume(@Transient val ds: VolumeDataSource, options: VolumeViewerOption
         val maxSteps = (Vector3f(direction).mul(dimensions).length() * 2.0f).roundToInt()
         val delta = direction * (1.0f / maxSteps.toFloat())
 
-        logger.info("Sampling from $startClamped to ${startClamped + maxSteps.toFloat() * delta}")
+        logger.debug("Sampling from $startClamped to ${startClamped + maxSteps.toFloat() * delta}")
         direction.normalize()
 
         return (0 until maxSteps).map {
@@ -199,7 +199,7 @@ class RAIVolume(@Transient val ds: VolumeDataSource, options: VolumeViewerOption
         }
 
         val tf = transferFunction.evaluate(finalresult/transferRangeMax)
-        logger.info("Sampled at $uv: $finalresult/$transferRangeMax/$tf")
+        logger.debug("Sampled at $uv: $finalresult/$transferRangeMax/$tf")
         return tf
     }
 }
