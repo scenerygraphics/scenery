@@ -32,7 +32,7 @@ import java.util.*
  */
 class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "localhost", val port: Int = System.getProperty("scenery.PupilEyeTracker.Port", "50020").toIntOrNull() ?: 50020) {
     /** Shall we do a screen-space or world-space calibration? */
-    enum class CalibrationType {WorldSpace}
+    enum class CalibrationType { WorldSpace }
 
     private val logger by lazyLogger()
 
@@ -62,8 +62,8 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
 
                     val norm_pos: FloatArray = floatArrayOf(),
                     val gaze_point_3d: FloatArray? = floatArrayOf(),
-                    val gaze_direction:FloatArray? = floatArrayOf(),
-                    val gaze_distance:Float = 0.0f,
+                    val gaze_direction: FloatArray? = floatArrayOf(),
+                    val gaze_distance: Float = 0.0f,
                     val eye_centers_3d: HashMap<Int, FloatArray>? = hashMapOf(),
                     val gaze_normals_3d: HashMap<Int, FloatArray>? = hashMapOf()) {
 
@@ -196,7 +196,7 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
                             val msg = ZMsg.recvMsg(socket)
                             val msgType = msg.popString()
 
-                            when(msgType) {
+                            when (msgType) {
                                 "notify.calibration.successful" -> {
                                     logger.info("Calibration successful.")
                                     calibrating = false
@@ -216,8 +216,8 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
                                     val confidence = (dict["confidence"] as Double).toFloat()
                                     val eyeId = dict["id"] as Int
 
-                                    if(confidence > 0.8) {
-                                        when(eyeId) {
+                                    if (confidence > 0.8) {
+                                        when (eyeId) {
                                             0 -> currentPupilDatumLeft = dict
                                             1 -> currentPupilDatumRight = dict
                                         }
@@ -234,27 +234,27 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
                                 "gaze.3d.01." -> {
                                     val bytes = msg.pop().data
                                     val g = objectMapper.readValue(bytes, Gaze::class.java)
-                                    if(g.confidence > gazeConfidenceThreshold) {
+                                    if (g.confidence > gazeConfidenceThreshold) {
 
-                                        if(msgType.contains(".01.")) {
+                                        if (msgType.contains(".01.")) {
 
                                             val p = g.gaze_point_3d ?: floatArrayOf(0.0f, 0.0f, 0.0f)
-                                            var vp = Vector3f(p[0], p[1]*(1.0f), p[2])
+                                            var vp = Vector3f(p[0], p[1] * (1.0f), p[2])
 
-                                            if(vp.z>= 0.0f) {
+                                            if (vp.z >= 0.0f) {
 //                                                logger.info("Inverting gaze direction")
                                                 vp *= (-1.0f)
                                             }
 
-                                            vp = vp * (1.0f/pupilToSceneryRatio)
-                                            val distance = sqrt(vp.x*vp.x+vp.y*vp.y+vp.z*vp.z)
+                                            vp = vp * (1.0f / pupilToSceneryRatio)
+                                            val distance = sqrt(vp.x * vp.x + vp.y * vp.y + vp.z * vp.z)
                                             val ng = Gaze(
                                                 g.confidence,
                                                 g.timestamp,
                                                 2,
                                                 g.norm_pos,
                                                 floatArrayOf(vp.x, vp.y, vp.z),
-                                                floatArrayOf(vp.normalize().x,vp.normalize().y,vp.normalize().z),
+                                                floatArrayOf(vp.normalize().x, vp.normalize().y, vp.normalize().z),
                                                 distance,
                                                 g.eye_centers_3d,
                                                 g.gaze_normals_3d
@@ -273,20 +273,20 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
                                             val p = g.gaze_point_3d ?: floatArrayOf(0.0f, 0.0f, 0.0f)
                                             var vp = Vector3f(p[0], p[1], p[2])
 
-                                            if(vp.z>= 0.0f) {
+                                            if (vp.z >= 0.0f) {
 //                                                logger.info("Inverting gaze direction")
                                                 vp *= (-1.0f)
                                             }
 
-                                            vp *= (1.0f/pupilToSceneryRatio)
-                                            val distance = sqrt(vp.x*vp.x+vp.y*vp.y+vp.z*vp.z)
+                                            vp *= (1.0f / pupilToSceneryRatio)
+                                            val distance = sqrt(vp.x * vp.x + vp.y * vp.y + vp.z * vp.z)
                                             val ng = Gaze(
                                                 g.confidence,
                                                 g.timestamp,
                                                 msgType.substringAfterLast("d.").replace(".", "").toInt(),
                                                 g.norm_pos,
                                                 floatArrayOf(vp.x, vp.y, vp.z),
-                                                floatArrayOf(vp.normalize().x,vp.normalize().y,vp.normalize().z),
+                                                floatArrayOf(vp.normalize().x, vp.normalize().y, vp.normalize().z),
                                                 distance,
                                                 g.eye_centers_3d,
                                                 g.gaze_normals_3d

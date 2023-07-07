@@ -381,6 +381,3 @@ if(System.getenv("JITPACK") != null) {
         enabled = false
     }
 }
-kotlin {
-    jvmToolchain(11)
-}

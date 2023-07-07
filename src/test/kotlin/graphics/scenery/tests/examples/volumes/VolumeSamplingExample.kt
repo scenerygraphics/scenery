@@ -12,6 +12,7 @@ import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.volumes.Colormap
 import graphics.scenery.volumes.Volume
+import net.imglib2.type.numeric.integer.UnsignedByteType
 import net.imglib2.type.numeric.integer.UnsignedShortType
 import org.joml.Vector3f
 import org.lwjgl.system.MemoryUtil.memAlloc
@@ -47,27 +48,29 @@ class VolumeSamplingExample: SceneryBase("Volume Sampling example", 1280, 720) {
 
         val files = ArrayList<String>()
         val fileFromProperty = System.getProperty("dataset")
-        volumeType = if(fileFromProperty != null) {
+        volumeType = if (fileFromProperty != null) {
             files.add(fileFromProperty)
             VolumeType.File
         } else {
             val c = Context()
             val ui = c.getService(UIService::class.java)
             val file = ui.chooseFile(null, FileWidget.DIRECTORY_STYLE)
-            if(file != null) {
+            if (file != null) {
                 files.add(file.absolutePath)
                 VolumeType.File
-            }
-            else {
-                println("procedural now")
-            VolumeType.Procedural
+            } else {
+                logger.info("procedural now")
+                VolumeType.Procedural
             }
         }
 
-        if(volumeType == VolumeType.File) {
+        if (volumeType == VolumeType.File) {
             val folder = File(files.first())
             val stackfiles = folder.listFiles()
-            volumes = stackfiles.filter { it.isFile && it.name.lowercase().endsWith("raw") || it.name.substringAfterLast(".").lowercase().startsWith("tif") }.map { it.absolutePath }.sorted()
+            volumes = stackfiles.filter {
+                it.isFile && it.name.lowercase().endsWith("raw") || it.name.substringAfterLast(".").lowercase()
+                    .startsWith("tif")
+            }.map { it.absolutePath }.sorted()
         }
 
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
