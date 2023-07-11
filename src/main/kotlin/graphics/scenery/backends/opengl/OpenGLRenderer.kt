@@ -2927,7 +2927,7 @@ open class OpenGLRenderer(hub: Hub,
         }
     }
 
-    override fun streamVDI(vdiData: VDIData, oIPAddress: String, context: ZContext) {}
+    override fun streamVDI(IPAddress: String, cam: Camera, volumeDimensions3i : Vector3f, model: Matrix4f, context: ZContext){}
 
     private fun Blending.BlendFactor.toOpenGL() = when (this) {
         Blending.BlendFactor.Zero -> GL4.GL_ZERO
