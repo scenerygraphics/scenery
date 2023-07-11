@@ -99,10 +99,8 @@ class VDIClient : SceneryBase("VDI Client", 512, 512, wantREPL = false) {
 
         //Step 4: calling record movie function
         if (recordVideo) {
-//          settings.set("VideoEncoder.Format", "HEVC")
             settings.set("VideoEncoder.Bitrate", 20000000)
             renderer?.recordMovie("VDIRendering.mp4")
-
             thread {
                 Thread.sleep(56000)
                 renderer?.recordMovie()
@@ -112,17 +110,6 @@ class VDIClient : SceneryBase("VDI Client", 512, 512, wantREPL = false) {
         //Step 5: call receive and update VDI
         thread {
             receiveAndUpdateVDI(compute)
-        }
-
-        //Step 6: create connection
-        val objectMapper = ObjectMapper(MessagePackFactory())
-        var publisher: ZMQ.Socket = context.createSocket(SocketType.PUB)
-        publisher.isConflate = true
-        val address: String = "tcp://0.0.0.0:6655"
-        try {
-            publisher.bind(address)
-        } catch (e: ZMQException) {
-            logger.warn("Binding failed, trying random port: $e")
         }
     }
 
