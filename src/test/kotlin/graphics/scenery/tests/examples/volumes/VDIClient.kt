@@ -1,11 +1,9 @@
 package graphics.scenery.tests.examples.volumes
 
 import graphics.scenery.SceneryBase
-import com.fasterxml.jackson.databind.ObjectMapper
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.backends.Shaders
-import graphics.scenery.backends.vulkan.VulkanRenderer
 import graphics.scenery.compute.ComputeMetadata
 import graphics.scenery.compute.InvocationType
 import graphics.scenery.controls.TrackedStereoGlasses
@@ -22,7 +20,6 @@ import org.joml.Matrix4f
 import org.joml.Vector3f
 import org.joml.Vector3i
 import org.lwjgl.system.MemoryUtil
-import org.msgpack.jackson.dataformat.MessagePackFactory
 import org.zeromq.SocketType
 import org.zeromq.ZContext
 import org.zeromq.ZMQ
@@ -36,18 +33,15 @@ import kotlin.system.measureNanoTime
 class VDIClient : SceneryBase("VDI Client", 512, 512, wantREPL = false) {
 
     var hmd: TrackedStereoGlasses? = null
-
     val cam: Camera = DetachedHeadCamera(hmd)
     val compute = VDINode()
     val plane = FullscreenObject()
-
     val context = ZContext(4)
 
     val numSupersegments = 20
     val skipEmpty = true
     val vdiStreaming = true
     var newVDI = false
-    val recordVideo = false
     var firstVDI = true
 
     private val vulkanProjectionFix =
@@ -76,7 +70,6 @@ class VDIClient : SceneryBase("VDI Client", 512, 512, wantREPL = false) {
             scene.addChild(this)
         }
         cam.farPlaneDistance = 20.0f
-
         val opBuffer = MemoryUtil.memCalloc(windowWidth * windowHeight * 4)
 
         //Step 2: Create vdi node and it's propertie
@@ -84,12 +77,10 @@ class VDIClient : SceneryBase("VDI Client", 512, 512, wantREPL = false) {
         compute.setMaterial(ShaderMaterial(Shaders.ShadersFromFiles(arrayOf("VDIRenderer.comp"), this@VDIClient::class.java)))
         compute.material().textures["OutputViewport"] = Texture.fromImage(Image(opBuffer, windowWidth, windowHeight),
             usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
-
         compute.metadata["ComputeMetadata"] = ComputeMetadata(
             workSizes = Vector3i(windowWidth, windowHeight, 1),
             invocationType = InvocationType.Permanent
         )
-
         compute.visible = false
         scene.addChild(compute)
 
@@ -97,23 +88,13 @@ class VDIClient : SceneryBase("VDI Client", 512, 512, wantREPL = false) {
         scene.addChild(plane)
         plane.material().textures["diffuse"] = compute.material().textures["OutputViewport"]!!
 
-        //Step 4: calling record movie function
-        if (recordVideo) {
-            settings.set("VideoEncoder.Bitrate", 20000000)
-            renderer?.recordMovie("VDIRendering.mp4")
-            thread {
-                Thread.sleep(56000)
-                renderer?.recordMovie()
-            }
-        }
-
-        //Step 5: call receive and update VDI
+        //Step 4: call receive and update VDI
         thread {
             receiveAndUpdateVDI(compute)
         }
     }
 
-    fun updateTextures(color: ByteBuffer, depth: ByteBuffer, accelGridBuffer: ByteBuffer, vdiData: VDIData, accelSize: Int, firstVDI: Boolean) {
+    fun updateTextures(color: ByteBuffer, depth: ByteBuffer, accelGridBuffer: ByteBuffer, vdiData: VDIData, firstVDI: Boolean) {
 
         compute.ProjectionOriginal = Matrix4f(vdiData.metadata.projection).applyVulkanCoordinateSystem()
         compute.invProjectionOriginal = Matrix4f(vdiData.metadata.projection).applyVulkanCoordinateSystem().invert()
@@ -192,7 +173,6 @@ class VDIClient : SceneryBase("VDI Client", 512, 512, wantREPL = false) {
         while (!renderer!!.firstImageReady) {
             Thread.sleep(100)
         }
-
         var subscriber: ZMQ.Socket = context.createSocket(SocketType.SUB)
         subscriber.setConflate(true)
         val address = "tcp://localhost:6655"
@@ -380,7 +360,7 @@ class VDIClient : SceneryBase("VDI Client", 512, 512, wantREPL = false) {
                     color.limit(color.remaining() - decompressionBuffer)
                     depth.limit(depth.remaining() - decompressionBuffer)
 
-                    updateTextures(color.slice(), depth.slice(), accelGridBuffer, vdiData, accelSize, firstVDI)
+                    updateTextures(color.slice(), depth.slice(), accelGridBuffer, vdiData, firstVDI)
 
                     color.limit(color.capacity())
                     depth.limit(depth.capacity())
@@ -395,7 +375,7 @@ class VDIClient : SceneryBase("VDI Client", 512, 512, wantREPL = false) {
                 logger.info("Received and updated VDI data")
             } else {
                 Thread.sleep(1000)
-                updateTextures(colBuffer!!, depthBuffer!!, accelGridBuff!!, vdiData, accelSize, firstVDI)
+                updateTextures(colBuffer!!, depthBuffer!!, accelGridBuff!!, vdiData, firstVDI)
                 firstVDI = false
                 compute.visible = true
             }
