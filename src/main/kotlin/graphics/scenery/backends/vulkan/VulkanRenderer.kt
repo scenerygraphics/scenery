@@ -1451,7 +1451,7 @@ open class VulkanRenderer(hub: Hub,
     private fun createPublisher(context: ZContext, IPAddress : String) : ZMQ.Socket {
         var publisher: ZMQ.Socket = context.createSocket(SocketType.PUB)
         publisher.isConflate = true
-        val address = "tcp://0.0.0.0:6655"
+        val address = IPAddress
         val port = try {
             logger.warn(IPAddress)
             publisher.bind(address)
