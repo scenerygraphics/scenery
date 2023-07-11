@@ -6,6 +6,8 @@ import graphics.scenery.backends.Renderer
 import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.utils.SceneryPanel
 import graphics.scenery.volumes.vdi.VDIData
+import org.joml.Matrix4f
+import org.joml.Vector3f
 import org.zeromq.ZContext
 
 /**
@@ -98,6 +100,6 @@ class FauxRenderer(override var hub: Hub?, var scene: Scene, preparedWindow: Sce
         }
     }
 
-    override fun streamVDI(vdiData: VDIData, oIPAddress: String, context: ZContext) {}
+    override fun streamVDI(IPAddress: String , cam: Camera, volumeDimensions3i : Vector3f, model: Matrix4f, context: ZContext) {}
 
 }
