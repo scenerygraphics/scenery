@@ -1446,13 +1446,12 @@ open class VulkanRenderer(hub: Hub,
             }
             firstFrame = false
         }
-        setupSubscription(context,IPAddress)
     }
 
     private fun createPublisher(context: ZContext, IPAddress : String) : ZMQ.Socket {
         var publisher: ZMQ.Socket = context.createSocket(SocketType.PUB)
         publisher.isConflate = true
-        val address = IPAddress
+        val address = "tcp://0.0.0.0:6655"
         val port = try {
             logger.warn(IPAddress)
             publisher.bind(address)
@@ -1464,41 +1463,6 @@ open class VulkanRenderer(hub: Hub,
         return publisher
     }
 
-    fun setupSubscription(context: ZContext, IPAddress: String) {
-        val subscriber: ZMQ.Socket = context.createSocket(SocketType.SUB)
-        subscriber.isConflate = true
-        val address = IPAddress
-        try {
-            subscriber.connect(address)
-        } catch (e: ZMQException) {
-            Renderer.logger.warn("ZMQ Binding failed.")
-        }
-        subscriber.subscribe(ZMQ.SUBSCRIPTION_ALL)
-
-        val objectMapper = ObjectMapper(MessagePackFactory())
-        var frameCount = 0
-        var firstFrame = true
-
-        (this as? VulkanRenderer)?.postRenderLambdas?.add {
-            if(!firstFrame) {
-
-                Renderer.logger.info("rendering is running!")
-                val start = System.nanoTime()
-                val payload = subscriber.recv(0)
-                val end = System.nanoTime()
-
-                Renderer.logger.info("Time waiting for message: ${(end-start)/1e9}")
-
-                if (payload != null) {
-                    val deserialized: List<Any> =
-                        objectMapper.readValue(payload, object : TypeReference<List<Any>>() {})
-                    Renderer.logger.info("Applying the camera change: $frameCount!")
-                }
-                frameCount++
-            }
-            firstFrame = false
-        }
-    }
     private suspend fun submitFrame(queue: VkQueue, pass: VulkanRenderpass, commandBuffer: VulkanCommandBuffer, present: PresentHelpers) {
         if(swapchainRecreator.mustRecreate) {
             return
