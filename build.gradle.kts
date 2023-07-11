@@ -39,7 +39,10 @@ val lwjglArtifacts = listOf(
 )
 
 dependencies {
-    implementation(platform("org.scijava:pom-scijava:35.1.1"))
+    val scijavaParentPomVersion = project.properties["scijavaParentPOMVersion"]
+    val lwjglVersion = project.properties["lwjglVersion"]
+
+    implementation(platform("org.scijava:pom-scijava:$scijavaParentPomVersion"))
     annotationProcessor("org.scijava:scijava-common:2.94.1")
 
     implementation(kotlin("reflect"))
@@ -57,7 +60,6 @@ dependencies {
     implementation("net.java.dev.jna:jna-platform:5.11.0")
 
 
-    val lwjglVersion = "3.3.1"
     lwjglArtifacts.forEach { artifact ->
         api("org.lwjgl:$artifact:$lwjglVersion")
 
@@ -191,11 +193,12 @@ tasks {
         pom.properties.empty()
 
         pom.withXml {
+            val scijavaParentPomVersion = project.properties["scijavaParentPOMVersion"]
             // Add parent to the generated pom
             val parent = asNode().appendNode("parent")
             parent.appendNode("groupId", "org.scijava")
             parent.appendNode("artifactId", "pom-scijava")
-            parent.appendNode("version", "31.1.0")
+            parent.appendNode("version", "$scijavaParentPomVersion")
             parent.appendNode("relativePath")
 
             val repositories = asNode().appendNode("repositories")
@@ -227,9 +230,9 @@ tasks {
 
                     dependenciesNode.addDependency(
                         "org.lwjgl",
-                        "lwjgl$lwjglProject",
+                        lwjglProject,
                         "\${lwjgl.version}",
-                        classifier = "$nativePlatform",
+                        classifier = nativePlatform,
                         scope = "runtime")
                 }
             }
@@ -282,6 +285,7 @@ tasks {
                 "jackson-module-kotlin",
                 "jackson-dataformat-yaml",
                 "kryo",
+                "bigvolumeviewer"
                 ) + lwjglArtifacts
 
             val toSkip = listOf("pom-scijava")
@@ -311,6 +315,13 @@ tasks {
                         node.addExclusions(
                             "com.fasterxml.jackson.core:jackson-core",
                             "com.fasterxml.jackson.core:jackson-annotations"
+                        )
+                    }
+
+                    if(artifactId == "bigvolumeviewer") {
+                        node.addExclusions(
+                            "org.jogamp.gluegen:gluegen-rt",
+                            "org.jogamp.jogl:jogl-all"
                         )
                     }
 
