@@ -40,10 +40,9 @@ class VolumeClient : SceneryBase("Volume Client", 512 , 512) {
             scene.addChild(this)
         }
 
-
         val bridge = SwingBridgeFrame("TransferFunctionEditor")
         val tfUI = TransferFunctionEditor(dummyVolume, bridge)
-          tfUI.name = dummyVolume.name
+        tfUI.name = dummyVolume.name
         val swingUiNode = tfUI.mainFrame.uiNode
         swingUiNode.spatial() {
             position = Vector3f(2f,0f,0f)
@@ -56,10 +55,8 @@ class VolumeClient : SceneryBase("Volume Client", 512 , 512) {
             scene.addChild(this)
         }
 
-
         val videoDecoder = VideoDecoder("scenery-stream.sdp")
         logger.info("video decoder object created")
-        var i : Int = 0;
         thread {
             while (!sceneInitialized()) {
                 Thread.sleep(200)
@@ -70,12 +67,9 @@ class VolumeClient : SceneryBase("Volume Client", 512 , 512) {
             while (videoDecoder.nextFrameExists) {
                 val image = videoDecoder.decodeFrame()  /* the decoded image is returned as a ByteArray, and can now be processed.
                                                         Here, it is simply displayed in fullscreen */
-
-                i += 1
                 if(image != null) { // image can be null, e.g. when the decoder encounters invalid information between frames
                     drawFrame(image, videoDecoder.videoWidth, videoDecoder.videoHeight, plane, decodedFrameCount)
                     decodedFrameCount++
-                    logger.warn("scene "+i);
                 }
             }
             decodedFrameCount -= 1
