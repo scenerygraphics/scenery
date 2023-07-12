@@ -6,10 +6,7 @@ import graphics.scenery.controls.TrackedStereoGlasses
 import graphics.scenery.tests.examples.cluster.SimpleNetworkExample
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.Image
-import graphics.scenery.volumes.Colormap
-import graphics.scenery.volumes.DummyVolume
-import graphics.scenery.volumes.TransferFunction
-import graphics.scenery.volumes.Volume
+import graphics.scenery.volumes.*
 import org.joml.Vector3f
 import java.nio.file.Paths
 import kotlin.concurrent.thread
@@ -18,7 +15,6 @@ class VolumeServerExample : SceneryBase ("Volume Server Example", 512, 512) {
     var hmd: TrackedStereoGlasses? = null
 
     override fun init() {
-        Thread.sleep(3000)
         renderer = hub.add(
             SceneryElement.Renderer,
             Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
@@ -31,7 +27,6 @@ class VolumeServerExample : SceneryBase ("Volume Server Example", 512, 512) {
                     position = Vector3f(0.0f, 0.0f, 5.0f)
                 }
                 perspectiveCamera(50.0f, 512, 512)
-
                 scene.addChild(this)
             }
         }
@@ -47,14 +42,15 @@ class VolumeServerExample : SceneryBase ("Volume Server Example", 512, 512) {
         volume.transferFunction = TransferFunction.ramp(0.1f, 0.5f)
         scene.addChild(volume)
 
-
+        settings.set("VideoEncoder.StreamVideo", true)
+        settings.set("VideoEncoder.StreamingAddress", "rtp://127.0.0.2:5004")
+        renderer?.recordMovie()
 
         thread {
             while (true) {
+                Thread.sleep(3000)
                 val dummyVolume = scene.find("DummyVolume") as? DummyVolume
                 val clientCam = scene.find("ClientCamera") as? DetachedHeadCamera
-//                Thread.sleep(10)
-//                logger.info("Displaying current server scene objects: " + scene.children.toString())
                 if (dummyVolume != null && clientCam != null ) {
                     volume.transferFunction = dummyVolume.transferFunction
                     volume.maxDisplayRange = dummyVolume.maxDisplayRange
@@ -62,11 +58,6 @@ class VolumeServerExample : SceneryBase ("Volume Server Example", 512, 512) {
                 }
             }
         }
-
-    settings.set("VideoEncoder.StreamVideo", true)
-        settings.set("VideoEncoder.StreamingAddress", "rtp://127.0.0.2:5004")
-        renderer?.recordMovie()
-
 
         thread {
             while(true) {
