@@ -55,6 +55,11 @@ class VolumeClient : SceneryBase("Volume Client", 512 , 512) {
             scene.addChild(this)
         }
 
+        decodeVideo(plane)
+
+    }
+
+    private fun decodeVideo(plane: FullscreenObject){
         val videoDecoder = VideoDecoder("scenery-stream.sdp")
         logger.info("video decoder object created")
         thread {
