@@ -72,7 +72,8 @@ class VDIStreamingExample : SceneryBase("VDI Streaming Example", 512, 512) {
         val volumeDimensions3i = Vector3f(volume.getDimensions().x.toFloat(),volume.getDimensions().y.toFloat(),volume.getDimensions().z.toFloat())
         val model = volume.spatial().world
 
-        renderer?.streamVDI("",cam,volumeDimensions3i,model,context)
+        renderer?.streamVDI("tcp://0.0.0.0:6655",cam,volumeDimensions3i,model,context)
+
     }
 
     companion object {
