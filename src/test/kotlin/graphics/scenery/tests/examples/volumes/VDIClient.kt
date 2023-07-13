@@ -81,7 +81,7 @@ class VDIClient : SceneryBase("VDI Client", 512, 512, wantREPL = false) {
             workSizes = Vector3i(windowWidth, windowHeight, 1),
             invocationType = InvocationType.Permanent
         )
-        compute.visible = false
+        compute.visible = true
         scene.addChild(compute)
 
         //Step3: set plane properties
