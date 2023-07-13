@@ -411,6 +411,11 @@ open class VulkanRenderer(hub: Hub,
             0.0f,  0.0f, 0.5f, 0.0f,
             0.0f,  0.0f, 0.5f, 1.0f)
 
+    override var vdiStreaming: Boolean = true
+        get() = field
+        set(value) { field = value}
+
+
     final override var renderConfigFile: String = ""
         set(config) {
             field = config
@@ -1311,7 +1316,7 @@ open class VulkanRenderer(hub: Hub,
         }
     }
 
-    override fun streamVDI(IPAddress: String, cam: Camera, volumeDimensions3i : Vector3f, model: Matrix4f, context: ZContext){
+    override fun streamVDI(IPAddress: String, cam: Camera, volumeDimensions3i : Vector3f, model: Matrix4f, context: ZContext) {
 
         var cnt = 0
         val maxSupersegments = 20
@@ -1362,8 +1367,7 @@ open class VulkanRenderer(hub: Hub,
 
         (this as? VulkanRenderer)?.postRenderLambdas?.add {
 
-            if (!firstFrame) {
-
+            if (!firstFrame && vdiStreaming) {
                 vdiColorBuffer = vdiColor.contents
                 vdiDepthBuffer = vdiDepth!!.contents
                 gridCellsBuff = gridCells.contents
@@ -1445,6 +1449,7 @@ open class VulkanRenderer(hub: Hub,
                     }
                 }
                 Renderer.logger.info("Whole publishing process took: ${publishTime / 1e9}")
+
             }
             firstFrame = false
         }
