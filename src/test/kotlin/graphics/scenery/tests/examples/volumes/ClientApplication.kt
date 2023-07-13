@@ -5,7 +5,10 @@ import graphics.scenery.backends.Renderer
 import graphics.scenery.backends.Shaders
 import graphics.scenery.compute.ComputeMetadata
 import graphics.scenery.compute.InvocationType
+import graphics.scenery.controls.InputHandler
 import graphics.scenery.controls.TrackedStereoGlasses
+import graphics.scenery.controls.behaviours.ArcballCameraControl
+import graphics.scenery.controls.behaviours.FPSCameraControl
 import graphics.scenery.textures.Texture
 import graphics.scenery.textures.UpdatableTexture
 import graphics.scenery.ui.SwingBridgeFrame
@@ -25,6 +28,7 @@ import org.joml.Matrix4f
 import org.joml.Vector3f
 import org.joml.Vector3i
 import org.lwjgl.system.MemoryUtil
+import org.scijava.ui.behaviour.ClickBehaviour
 import org.zeromq.SocketType
 import org.zeromq.ZContext
 import org.zeromq.ZMQ
@@ -41,16 +45,18 @@ class ClientApplication : SceneryBase("Client Application", 512, 512)  {
 
     var hmd: TrackedStereoGlasses? = null
     var buffer: ByteBuffer = ByteBuffer.allocateDirect(0)
-
     val context = ZContext(4)
 
     val numSupersegments = 20
     val skipEmpty = true
-    val vdiStreaming = true
+    var vdiStreaming = true
     var newVDI = false
     var firstVDI = true
+    var firstVDIStream = true
+    var currentlyVolumeRendering = false
 
     val compute = VDINode()
+    val switch = EmptyNode()
 
     val vulkanProjectionFix =
         Matrix4f(
@@ -58,231 +64,136 @@ class ClientApplication : SceneryBase("Client Application", 512, 512)  {
             0.0f, -1.0f, 0.0f, 0.0f,
             0.0f, 0.0f, 0.5f, 0.0f,
             0.0f, 0.0f, 0.5f, 1.0f)
-
     fun Matrix4f.applyVulkanCoordinateSystem(): Matrix4f {
         val m = Matrix4f(vulkanProjectionFix)
         m.mul(this)
         return m
     }
-
-
     override fun init() {
 
-        //Step 1: Create necessary components
+        //Step 1: Create necessary common components
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
 
-        var currentlyVolumeRendering = false
-        val switch = EmptyNode()
-        scene.addChild(switch)
-
-        thread {
-            while (true){
-                logger.warn("will be sleeping in 10 seconds")
-                Thread.sleep(1000)
-                logger.warn("changed switch to ${!switch.value}")
-               if (!currentlyVolumeRendering){
-                   logger.warn("accepting rendered volume video")
-                   val cam: Camera = DetachedHeadCamera()
-                   with(cam) {
-                       name = "ClientCamera"
-                       spatial {
-                           position = Vector3f(0.0f, 0.0f, 5.0f)
-                       }
-                       wantsSync = true
-                       scene.addChild(this)
-                   }
-
-                     val dummyVolume = DummyVolume()
-                     with(dummyVolume) {
-                         name = "DummyVolume"
-                         transferFunction = TransferFunction.ramp(0.001f, 0.5f, 0.3f)
-                         scene.addChild(this)
-                     }
-
-                     val bridge = SwingBridgeFrame("TransferFunctionEditor")
-                     val tfUI = TransferFunctionEditor(dummyVolume, bridge)
-                     tfUI.name = dummyVolume.name
-                     val swingUiNode = tfUI.mainFrame.uiNode
-                     swingUiNode.spatial() {
-                         position = Vector3f(2f,0f,0f)
-                     }
-
-                     val plane = FullscreenObject()
-                     with(plane){
-                         name = "plane"
-                         wantsSync = false
-                         scene.addChild(this)
-                     }
-
-                     val videoDecoder = VideoDecoder("scenery-stream.sdp")
-                     var decodedFrameCount: Int = 0
-
-                     thread {
-                         while (!sceneInitialized()) {
-                             Thread.sleep(200)
-                         }
-                         decodedFrameCount = 1
-                         while (videoDecoder.nextFrameExists) {
-                             val image = videoDecoder.decodeFrame()  /* the decoded image is returned as a ByteArray, and can now be processed.
-                                                                     Here, it is simply displayed in fullscreen */
-                             if(image != null) { // image can be null, e.g. when the decoder encounters invalid information between frames
-                                 drawFrame(image, videoDecoder.videoWidth, videoDecoder.videoHeight, plane)
-                                 decodedFrameCount++
-                             }
-                         }
-                         decodedFrameCount -= 1
-                         logger.info("Done decoding and displaying $decodedFrameCount frames.")
-                     }
-
-                    currentlyVolumeRendering = true
-                    switch.value = true
-                    switch.value = false
-               }
-                Thread.sleep(10000)
-                switch.value = true
-                switch.value = false
-                Thread.sleep(10000)
-                switch.value = true
-                switch.value = false
-                currentlyVolumeRendering = !currentlyVolumeRendering
-
-//                else if (currentlyVolumeRendering && switch.value){
-//                    val cam: Camera = DetachedHeadCamera(hmd)
-//                    with(cam) {
-//                        spatial {
-//                            position = Vector3f(0.0f, 0.5f, 5.0f)
-//                        }
-//                        perspectiveCamera(50.0f, windowWidth, windowHeight)
-//                        scene.addChild(this)
-//                    }
-//                    cam.farPlaneDistance = 20.0f
-//                    val opBuffer = MemoryUtil.memCalloc(windowWidth * windowHeight * 4)
-//
-//                    //Step 2: Create vdi node and it's propertie
-//                    compute.name = "vdi node"
-//                    compute.setMaterial(ShaderMaterial(Shaders.ShadersFromFiles(arrayOf("VDIRenderer.comp"), this@ClientApplication::class.java)))
-//                    compute.material().textures["OutputViewport"] = Texture.fromImage(Image(opBuffer, windowWidth, windowHeight),
-//                        usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
-//                    compute.metadata["ComputeMetadata"] = ComputeMetadata(
-//                        workSizes = Vector3i(windowWidth, windowHeight, 1),
-//                        invocationType = InvocationType.Permanent
-//                    )
-//                    compute.visible = false
-//                    scene.addChild(compute)
-//
-//                    //Step3: set plane properties
-//                    val plane = FullscreenObject()
-//                    scene.addChild(plane)
-//                    plane.material().textures["diffuse"] = compute.material().textures["OutputViewport"]!!
-//
-//                    thread {
-//                        receiveAndUpdateVDI(compute)
-//                    }
-//
-//                    currentlyVolumeRendering = true
-//                    switch.value = false
-//                }
-
+        val cam: Camera = DetachedHeadCamera()
+        with(cam) {
+            name = "ClientCamera"
+            spatial {
+                position = Vector3f(0.0f, 0.0f, 5.0f)
             }
+            perspectiveCamera(50.0f, 512, 512)
+            scene.addChild(this)
         }
 
-        //What to do: switch between two main components: create a function for each component:
-        //component 1: volume video decoding, transfer function and dummy volume sync
-        //Component 2: VDI stream start and decoding
+        val plane = FullscreenObject()
+        with(plane){
+            name = "plane"
+            plane.wantsSync = false
+            scene.addChild(this)
+        }
 
-        //How to switch: the approach
-        // First: make sure that each component work on its own as it is supposed to do
-        // Second: create a switch button - figure out how to add such thing: Go back to scenery base
-        // Third: create teh switch mechanism : the two vars thing : standardVolumeRendering - VDIGenerationStreaming
+        //Step 2: Create necessary video-streaming  components
+        val dummyVolume = DummyVolume()
+        with(dummyVolume) {
+            name = "DummyVolume"
+            transferFunction = TransferFunction.ramp(0.001f, 0.5f, 0.3f)
+            scene.addChild(this)
+        }
 
-        //Component 1: volume decoding and transfer function management
-//        val cam: Camera = DetachedHeadCamera(hmd)
-//        with(cam) {
-//            name = "ClientCamera"
-//            spatial {
-//                position = Vector3f(0.0f, 0.0f, 5.0f)
-//            }
-//            wantsSync = true
-//            scene.addChild(this)
-//        }
-//        cam.farPlaneDistance = 20.0f
-//
-//        val dummyVolume = DummyVolume()
-//        with(dummyVolume) {
-//            name = "DummyVolume"
-//            transferFunction = TransferFunction.ramp(0.001f, 0.5f, 0.3f)
-//            scene.addChild(this)
-//        }
-//
-//        val bridge = SwingBridgeFrame("TransferFunctionEditor")
-//        val tfUI = TransferFunctionEditor(dummyVolume, bridge)
-//        tfUI.name = dummyVolume.name
-//        val swingUiNode = tfUI.mainFrame.uiNode
-//        swingUiNode.spatial() {
-//            position = Vector3f(2f,0f,0f)
-//        }
-//
-//        val plane = FullscreenObject()
-//        with(plane){
-//            name = "plane"
-//            wantsSync = false
-//            scene.addChild(this)
-//        }
-//
-//        val videoDecoder = VideoDecoder("scenery-stream.sdp")
-//        var decodedFrameCount: Int = 0
-//
-//        thread {
-//            while (!sceneInitialized()) {
-//                Thread.sleep(200)
-//            }
-//            decodedFrameCount = 1
-//            while (videoDecoder.nextFrameExists) {
-//                val image = videoDecoder.decodeFrame()  /* the decoded image is returned as a ByteArray, and can now be processed.
-//                                                        Here, it is simply displayed in fullscreen */
-//                if(image != null) { // image can be null, e.g. when the decoder encounters invalid information between frames
-//                    drawFrame(image, videoDecoder.videoWidth, videoDecoder.videoHeight, plane)
-//                    decodedFrameCount++
-//                }
-//            }
-//            decodedFrameCount -= 1
-//            logger.info("Done decoding and displaying $decodedFrameCount frames.")
-//        }
+        val bridge = SwingBridgeFrame("TransferFunctionEditor")
+        val tfUI = TransferFunctionEditor(dummyVolume, bridge)
+        tfUI.name = dummyVolume.name
+        val swingUiNode = tfUI.mainFrame.uiNode
+        swingUiNode.spatial() {
+            position = Vector3f(2f,0f,0f)
+        }
 
-        //Component 2: vdi receiption
-//        val cam: Camera = DetachedHeadCamera(hmd)
-//        with(cam) {
-//            spatial {
-//                position = Vector3f(0.0f, 0.5f, 5.0f)
-//            }
-//            perspectiveCamera(50.0f, windowWidth, windowHeight)
-//            scene.addChild(this)
-//        }
-//        cam.farPlaneDistance = 20.0f
-//        val opBuffer = MemoryUtil.memCalloc(windowWidth * windowHeight * 4)
-//
-//        //Step 2: Create vdi node and it's propertie
-//        compute.name = "vdi node"
-//        compute.setMaterial(ShaderMaterial(Shaders.ShadersFromFiles(arrayOf("VDIRenderer.comp"), this@ClientApplication::class.java)))
-//        compute.material().textures["OutputViewport"] = Texture.fromImage(Image(opBuffer, windowWidth, windowHeight),
-//            usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
-//        compute.metadata["ComputeMetadata"] = ComputeMetadata(
-//            workSizes = Vector3i(windowWidth, windowHeight, 1),
-//            invocationType = InvocationType.Permanent
-//        )
-//        compute.visible = false
-//        scene.addChild(compute)
-//
-//        //Step3: set plane properties
-//        val plane = FullscreenObject()
-//        scene.addChild(plane)
-//        plane.material().textures["diffuse"] = compute.material().textures["OutputViewport"]!!
-//
-//        thread {
-//            receiveAndUpdateVDI(compute)
-//        }
+        val videoDecoder = VideoDecoder("scenery-stream.sdp")
+        logger.info("video decoder object created")
+
+
+        //Step 3: Create necessary vdi-streaming  components
+        val opBuffer = MemoryUtil.memCalloc(windowWidth * windowHeight * 4)
+        compute.name = "vdi node"
+        compute.setMaterial(ShaderMaterial(Shaders.ShadersFromFiles(arrayOf("VDIRenderer.comp"), this@ClientApplication::class.java)))
+        compute.material().textures["OutputViewport"] = Texture.fromImage(Image(opBuffer, windowWidth, windowHeight),
+            usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
+        compute.metadata["ComputeMetadata"] = ComputeMetadata(
+            workSizes = Vector3i(windowWidth, windowHeight, 1),
+            invocationType = InvocationType.Permanent
+        )
+        compute.visible = true
+
+        //Step 4: add Empty Node to scene
+        scene.addChild(switch)
+
+        //Step 5: switching code
+        switch.value = "toVR"
+        thread {
+            while (true){
+                if (!tfUI.switchTo.equals(""))
+                    switch.value = tfUI.switchTo
+
+                logger.warn("${tfUI.switchTo}")
+                if (!currentlyVolumeRendering && switch.value.equals("toVR")){
+                    logger.warn("Volume Rendering")
+
+                    vdiStreaming = false
+                    currentlyVolumeRendering = true
+
+                    plane.wantsSync = false
+                    scene.removeChild(compute)
+
+                    decodeVideo(videoDecoder,plane)
+                }
+               else if (currentlyVolumeRendering && switch.value.equals("toVDI")){
+                    logger.warn("VDI streaming")
+
+                    vdiStreaming = true
+                    currentlyVolumeRendering = false
+
+                    scene.addChild(compute)
+
+                    cam.farPlaneDistance = 20.0f
+                    plane.wantsSync = true
+                    plane.material().textures["diffuse"] = compute.material().textures["OutputViewport"]!!
+
+                    logger.warn("VDI streaming 3")
+                    if (firstVDIStream){
+                       thread {
+                           receiveAndUpdateVDI(compute)
+                       }
+                       firstVDIStream = false
+                    }
+                }
+            }
+        }
     }
 
+    //try creating lplane for each
+    //or everything for each then remove from view
+
+    private fun decodeVideo(videoDecoder: VideoDecoder , plane: FullscreenObject){
+        var decodedFrameCount: Int = 0
+
+        thread {
+            while (!sceneInitialized()) {
+                Thread.sleep(200)
+            }
+            decodedFrameCount = 1
+
+            logger.warn("new decoding")
+            while (videoDecoder.nextFrameExists) {
+                val image = videoDecoder.decodeFrame()  /* the decoded image is returned as a ByteArray, and can now be processed.
+                                                                   Here, it is simply displayed in fullscreen */
+                if(image != null) { // image can be null, e.g. when the decoder encounters invalid information between frames
+                    drawFrame(image, videoDecoder.videoWidth, videoDecoder.videoHeight, plane)
+                    decodedFrameCount++
+                }
+            }
+            decodedFrameCount -= 1
+            logger.info("Done decoding and displaying $decodedFrameCount frames.")
+        }
+    }
     private fun drawFrame(tex: ByteArray, width: Int, height: Int, plane: FullscreenObject) {
         if(buffer.capacity() == 0) {
             buffer = BufferUtils.allocateByteAndPut(tex)
@@ -478,37 +389,36 @@ class ClientApplication : SceneryBase("Client Application", 512, 512)  {
 
         val basePath = "/home/salhi/Repositories/scenery-insitu/"
 
-        if(!vdiStreaming) {
-            val vdiParams = "_${windowWidth}_${windowHeight}_${numSupersegments}_0_"
-
-            val file = FileInputStream(File(basePath + "vdi${vdiParams}dump4"))
-
-            vdiData = VDIDataIO.read(file)
-
-            //preparing the files for loading from disk
-            buff = File(basePath + "VDI${vdiParams}4_ndc_col").readBytes()
-            depthBuff = File(basePath + "VDI${vdiParams}4_ndc_depth").readBytes()
-            octBuff = File(basePath + "VDI${vdiParams}4_ndc_octree").readBytes()
-
-            colBuffer = MemoryUtil.memCalloc(windowHeight * windowWidth * numSupersegments * 4 * 4)
-            colBuffer.put(buff).flip()
-            colBuffer.limit(colBuffer.capacity())
-
-            depthBuffer = MemoryUtil.memCalloc(windowHeight * windowWidth * numSupersegments * 2 * 2 * 2)
-            depthBuffer.put(depthBuff).flip()
-            depthBuffer.limit(depthBuffer.capacity())
-
-            val numGridCells = Vector3f(vdiData.metadata.windowDimensions.x.toFloat() / 8f, vdiData.metadata.windowDimensions.y.toFloat() / 8f, numSupersegments.toFloat())
-            accelGridBuff = MemoryUtil.memCalloc(numGridCells.x.toInt() * numGridCells.y.toInt() * numGridCells.z.toInt() * 4)
-            if(skipEmpty) {
-                accelGridBuff.put(octBuff).flip()
-            }
-            compute.skip_empty = skipEmpty
-        }
+//        if(!vdiStreaming) {
+//            val vdiParams = "_${windowWidth}_${windowHeight}_${numSupersegments}_0_"
+//
+//            val file = FileInputStream(File(basePath + "vdi${vdiParams}dump4"))
+//
+//            vdiData = VDIDataIO.read(file)
+//
+//            //preparing the files for loading from disk
+//            buff = File(basePath + "VDI${vdiParams}4_ndc_col").readBytes()
+//            depthBuff = File(basePath + "VDI${vdiParams}4_ndc_depth").readBytes()
+//            octBuff = File(basePath + "VDI${vdiParams}4_ndc_octree").readBytes()
+//
+//            colBuffer = MemoryUtil.memCalloc(windowHeight * windowWidth * numSupersegments * 4 * 4)
+//            colBuffer.put(buff).flip()
+//            colBuffer.limit(colBuffer.capacity())
+//
+//            depthBuffer = MemoryUtil.memCalloc(windowHeight * windowWidth * numSupersegments * 2 * 2 * 2)
+//            depthBuffer.put(depthBuff).flip()
+//            depthBuffer.limit(depthBuffer.capacity())
+//
+//            val numGridCells = Vector3f(vdiData.metadata.windowDimensions.x.toFloat() / 8f, vdiData.metadata.windowDimensions.y.toFloat() / 8f, numSupersegments.toFloat())
+//            accelGridBuff = MemoryUtil.memCalloc(numGridCells.x.toInt() * numGridCells.y.toInt() * numGridCells.z.toInt() * 4)
+//            if(skipEmpty) {
+//                accelGridBuff.put(octBuff).flip()
+//            }
+//            compute.skip_empty = skipEmpty
+//        }
 
         while(true) {
             if(vdiStreaming) {
-
                 val payload: ByteArray?
                 logger.info("Waiting for VDI")
 
@@ -571,7 +481,6 @@ class ClientApplication : SceneryBase("Client Application", 512, 512)  {
                 } else {
                     logger.info("Payload received but is null")
                 }
-
                 logger.info("Received and updated VDI data")
             } else {
                 Thread.sleep(1000)
@@ -582,6 +491,9 @@ class ClientApplication : SceneryBase("Client Application", 512, 512)  {
         }
     }
 
+    override fun inputSetup() {
+        setupCameraModeSwitching()
+    }
     companion object {
         @JvmStatic
         fun main(args: Array<String>) {
