@@ -106,6 +106,9 @@ abstract class Renderer : Hubable {
      */
     abstract fun recordMovie(filename: String = "", overwrite: Boolean = false)
 
+    /** param to determinate the state of vdi streaming */
+    abstract var vdiStreaming : Boolean
+
     /**
      * Streams a video to the mentioned IP address.
      */
