@@ -41,7 +41,7 @@ import kotlin.math.roundToInt
  * Able to generate a histogram and visualize it as well to help with TF-settings
  * Able to dynamically set the transfer function range -> changes histogram as well
  */
-class TransferFunctionEditor @JvmOverloads constructor(private val tfContainer : HasTransferFunction, val mainFrame : SwingBridgeFrame = SwingBridgeFrame("1DTransferFunctionEditor"), width : Int = 650, height : Int = 550) {
+class TransferFunctionEditor @JvmOverloads constructor(private val tfContainer : HasTransferFunction, val mainFrame : SwingBridgeFrame = SwingBridgeFrame("1DTransferFunctionEditor"), width : Int = 650, height : Int = 620) {
     /**
      * MouseDragTarget is set when a ControlPoint has been clicked. The initial index is set to -1 and reset when the Controlpoint has been deleted
      * The target gets passed into the different Controlpoint manipulation functions
@@ -69,6 +69,10 @@ class TransferFunctionEditor @JvmOverloads constructor(private val tfContainer :
     private val rangeSlider : RangeSlider
     private val minValueLabel: JLabel
     private val maxValueLabel: JLabel
+
+    //ModeEditor
+    private val modePanel : JPanel
+    var switchTo = ""
 
     var name = "VolumeName"
 
@@ -250,6 +254,28 @@ class TransferFunctionEditor @JvmOverloads constructor(private val tfContainer :
         })
 
 
+        //Mode manipulatiom
+        modePanel = JPanel()
+        modePanel.layout = MigLayout()
+        mainFrame.add(modePanel, "cell 10 10")
+
+        val mode = JLabel("Current mode: Volume Rendering")
+        modePanel.add(mode, "cell 0 0")
+
+        val modeButton = JButton("Switch mode")
+        modePanel.add(modeButton, "cell 0 1")
+
+        modeButton.addActionListener {
+            if (switchTo.equals("toVDI")){
+                switchTo = "toVR"
+                mode.text = "Current mode: Volume Rendering"
+            }
+            else if (switchTo.equals("toVR") || switchTo.equals("")){
+                switchTo = "toVDI"
+                mode.text = "Current mode: VDI Streaming"
+            }
+            mainChart.repaint()
+        }
 
         //Histogram Manipulation
         histogramInfoPanel = JPanel()
