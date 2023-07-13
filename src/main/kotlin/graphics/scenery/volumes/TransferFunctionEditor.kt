@@ -1,6 +1,7 @@
 package graphics.scenery.volumes
 
 import graphics.scenery.ui.RangeSlider
+import graphics.scenery.ui.SwingBridgeFrame
 import net.miginfocom.swing.MigLayout
 import org.jfree.chart.ChartMouseEvent
 import org.jfree.chart.ChartMouseListener
@@ -29,7 +30,6 @@ import java.awt.event.MouseEvent
 import java.awt.event.MouseListener
 import java.awt.event.MouseMotionListener
 import java.awt.image.BufferedImage
-import java.text.NumberFormat
 import javax.swing.*
 import kotlin.math.abs
 import kotlin.math.max
@@ -45,10 +45,7 @@ import kotlin.math.roundToInt
  * Able to generate a histogram and visualize it as well to help with TF-settings
  * Able to dynamically set the transfer function range -> changes histogram as well
  */
-class TransferFunctionEditor constructor(
-    private val tfContainer: HasTransferFunction,
-    volumeName: String = "Volume"
-): JPanel() {
+class TransferFunctionEditor @JvmOverloads constructor(private val tfContainer : HasTransferFunction, val mainFrame : SwingBridgeFrame = SwingBridgeFrame("1DTransferFunctionEditor"), width : Int = 650, height : Int = 620): JPanel() {
     /**
      * MouseDragTarget is set when a ControlPoint has been clicked. The initial index is set to -1 and reset when the Controlpoint has been deleted
      * The target gets passed into the different Controlpoint manipulation functions
@@ -74,7 +71,6 @@ class TransferFunctionEditor constructor(
     private val minValueLabel: JLabel
     private val maxValueLabel: JLabel
 
-
     private class ValueAlphaTooltipGenerator : XYToolTipGenerator {
         override fun generateToolTip(dataset: XYDataset, series: Int, category: Int): String {
             val x: Number = dataset.getXValue(series, category)
@@ -83,6 +79,11 @@ class TransferFunctionEditor constructor(
         }
     }
 
+    //ModeEditor
+    private val modePanel : JPanel
+    var switchTo = ""
+
+    var name = "VolumeName"
 
     init {
         layout = MigLayout("flowy")
@@ -276,6 +277,29 @@ class TransferFunctionEditor constructor(
             }
             override fun chartMouseMoved(e: ChartMouseEvent) {}
         })
+
+        //Mode manipulatiom
+        modePanel = JPanel()
+        modePanel.layout = MigLayout()
+        mainFrame.add(modePanel, "cell 10 10")
+
+        val mode = JLabel("Current mode: Volume Rendering")
+        modePanel.add(mode, "cell 0 0")
+
+        val modeButton = JButton("Switch mode")
+        modePanel.add(modeButton, "cell 0 1")
+
+        modeButton.addActionListener {
+            if (switchTo.equals("toVDI")){
+                switchTo = "toVR"
+                mode.text = "Current mode: Volume Rendering"
+            }
+            else if (switchTo.equals("toVR") || switchTo.equals("")){
+                switchTo = "toVDI"
+                mode.text = "Current mode: VDI Streaming"
+            }
+            mainChart.repaint()
+        }
 
         //Histogram Manipulation
         val genHistButton = JCheckBox("Show Histogram")
@@ -479,7 +503,7 @@ class TransferFunctionEditor constructor(
     companion object{
         fun showTFFrame(tfContainer: HasTransferFunction, volumeName: String = "Volume"){
             val frame = JFrame()
-            val tfe = TransferFunctionEditor(tfContainer,volumeName)
+            val tfe = TransferFunctionEditor(tfContainer)
             frame.add(tfe)
             frame.pack()
             frame.isVisible = true
