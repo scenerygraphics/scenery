@@ -127,6 +127,10 @@ open class OpenGLRenderer(hub: Hub,
     private var recordMovie = false
     private var movieFilename = ""
 
+    override var vdiStreaming: Boolean = true
+        get() = field
+        set(value) { field = value}
+
     /**
      * Activate or deactivate push-based rendering mode (render only on scene changes
      * or input events). Push mode is activated if [pushMode] is true.
