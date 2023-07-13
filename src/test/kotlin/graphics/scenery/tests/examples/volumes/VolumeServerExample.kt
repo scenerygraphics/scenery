@@ -48,7 +48,6 @@ class VolumeServerExample : SceneryBase ("Volume Server Example", 512, 512) {
 
         thread {
             while (true) {
-                Thread.sleep(3000)
                 val dummyVolume = scene.find("DummyVolume") as? DummyVolume
                 val clientCam = scene.find("ClientCamera") as? DetachedHeadCamera
                 if (dummyVolume != null && clientCam != null ) {
