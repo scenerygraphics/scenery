@@ -91,6 +91,11 @@ class FauxRenderer(override var hub: Hub?, var scene: Scene, preparedWindow: Sce
     override var renderConfigFile: String = ""
 
     private var recordMovie = false
+
+    override var vdiStreaming: Boolean = true
+        get() = field
+        set(value) { field = value}
+
     override fun recordMovie(filename: String, overwrite: Boolean) {
         if(recordMovie) {
             logger.info("Recording movie to $filename")
