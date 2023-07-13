@@ -6,7 +6,7 @@ import graphics.scenery.net.Networkable
 
 class EmptyNode : DefaultNode("EmptyNode"),Networkable {
 
-    var value : Boolean = false
+    var value : String = ""
         set(value){
             field = value
             modifiedAt = System.nanoTime()
