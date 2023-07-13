@@ -2,11 +2,7 @@ package graphics.scenery.volumes
 
 import bdv.tools.brightness.ConverterSetup
 import graphics.scenery.*
-import graphics.scenery.attribute.material.Material
 import graphics.scenery.net.Networkable
-import graphics.scenery.utils.extensions.minus
-import graphics.scenery.utils.extensions.times
-import org.joml.Vector3f
 import java.lang.IllegalArgumentException
 
 class DummyVolume(val counterStart : Int = 0) : DefaultNode("DummyVolume"),HasTransferFunction {
@@ -23,12 +19,14 @@ class DummyVolume(val counterStart : Int = 0) : DefaultNode("DummyVolume"),HasTr
         set(value) {
             setTransferFunctionRange(value, maxDisplayRange)
             field = value
+            modifiedAt = System.nanoTime()
         }
     override var maxDisplayRange: Float = 65535F
         get() = field
         set(value) {
             setTransferFunctionRange(minDisplayRange, value)
             field = value
+            modifiedAt = System.nanoTime()
         }
     var colormap: Colormap = Colormap.get("viridis")
         set(m) {
