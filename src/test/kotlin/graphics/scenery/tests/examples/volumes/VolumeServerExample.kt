@@ -54,6 +54,7 @@ class VolumeServerExample : SceneryBase ("Volume Server Example", 512, 512) {
                     volume.transferFunction = dummyVolume.transferFunction
                     volume.maxDisplayRange = dummyVolume.maxDisplayRange
                     volume.minDisplayRange = dummyVolume.minDisplayRange
+                    volume.colormap = dummyVolume.colormap
                 }
             }
         }
