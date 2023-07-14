@@ -83,21 +83,22 @@ class ServerApplication : SceneryBase("Volume Server Example", 512, 512) {
 
                             currentlyVolumeRendering = !currentlyVolumeRendering
 
-                        } else if (currentlyVolumeRendering && switchMode.value.equals("toVDI")) {
+                        }
+                        else if (currentlyVolumeRendering && switchMode.value.equals("toVDI")) {
 
                             logger.warn("VDI Streaming")
 
                             renderer?.recordMovie()
                             vdiVolumeManager.replace(vdiVolumeManager)
 
-                            renderer?.vdiStreaming = true
-
-                            if (firstVDI) {
-                                val volumeDimensions3i = Vector3f(volume.getDimensions().x.toFloat(), volume.getDimensions().y.toFloat(), volume.getDimensions().z.toFloat())
-                                val model = volume.spatial().world
-                                renderer?.streamVDI("tcp://0.0.0.0:6655", cam, volumeDimensions3i, model, context)
-                                firstVDI = false
-                            }
+//                            renderer?.vdiStreaming = true
+//
+//                            if (firstVDI) {
+//                                val volumeDimensions3i = Vector3f(volume.getDimensions().x.toFloat(), volume.getDimensions().y.toFloat(), volume.getDimensions().z.toFloat())
+//                                val model = volume.spatial().world
+//                                renderer?.streamVDI("tcp://0.0.0.0:6655", cam, volumeDimensions3i, model, context)
+//                                firstVDI = false
+//                            }
 
                             currentlyVolumeRendering = !currentlyVolumeRendering
                         }
