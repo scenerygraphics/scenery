@@ -90,7 +90,7 @@ dependencies {
         }
     }
     implementation("com.fasterxml.jackson.core:jackson-databind:2.13.3")
-    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.13.3")
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.15.2")
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.13.3")
     implementation("org.zeromq:jeromq:0.5.3")
     implementation("com.esotericsoftware:kryo:5.5.0")
