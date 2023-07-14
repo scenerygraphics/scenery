@@ -251,4 +251,8 @@ class VideoDecoder(val filename: String) {
 
         return String(buffer, 0, buffer.indexOfFirst { it == 0.toByte() })
     }
+
+    fun close () {
+        avformat_close_input(formatContext)
+    }
 }
