@@ -74,6 +74,9 @@ class TransferFunctionEditor @JvmOverloads constructor(private val tfContainer :
     private val modePanel : JPanel
     var switchTo = ""
 
+    //ColormapEditor
+    private val colormapPanel : JPanel
+
     var name = "VolumeName"
 
     init {
@@ -252,6 +255,31 @@ class TransferFunctionEditor @JvmOverloads constructor(private val tfContainer :
             }
             override fun chartMouseMoved(e: ChartMouseEvent) {}
         })
+
+        //ColorMap manipulation
+        colormapPanel = JPanel()
+        colormapPanel.layout = MigLayout()
+        mainFrame.add(colormapPanel, "cell 0 10")
+
+        val list = Colormap.list()
+        val box = JComboBox<String>()
+        for (s in list)
+            box.addItem(s)
+        colormapPanel.add(box, "cell 4 0")
+
+        if (tfContainer is DummyVolume){
+            box.selectedItem = tfContainer.colormap
+            val currentColormap = JLabel("colormap: ${box.selectedItem}")
+            colormapPanel.add(currentColormap, "cell 0 0")
+        }
+
+        box.addActionListener{
+            val item : String = box.selectedItem as String
+            if (tfContainer is DummyVolume){
+                tfContainer.colormap = Colormap.get(item)
+                mainChart.repaint()
+            }
+        }
 
 
         //Mode manipulatiom
