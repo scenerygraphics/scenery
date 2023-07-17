@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalStdlibApi::class)
+
 package graphics.scenery.backends.vulkan
 
 import graphics.scenery.textures.Texture
@@ -20,6 +22,7 @@ import org.lwjgl.vulkan.VkImageCreateInfo
 import java.io.FileInputStream
 import java.io.InputStream
 import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import java.nio.file.Files
 import java.nio.file.Paths
 import kotlin.math.max
@@ -301,12 +304,12 @@ open class VulkanTexture(val device: VulkanDevice,
     /**
      * Copies the data for this texture from a [ByteBuffer], [data].
      */
+    @OptIn(ExperimentalUnsignedTypes::class)
     fun copyFrom(data: ByteBuffer): VulkanTexture {
         if (depth == 1 && data.remaining() > stagingImage.maxSize) {
             logger.warn("Allocated image size for $this (${stagingImage.maxSize}) less than copy source size ${data.remaining()}.")
             return this
         }
-
 
         var deallocate = false
         var sourceBuffer = data
@@ -314,7 +317,7 @@ open class VulkanTexture(val device: VulkanDevice,
         gt?.let { gt ->
             if (gt.channels == 3) {
                 logger.debug("Loading RGB texture, padding channels to 4 to fit RGBA")
-                val pixelByteSize = when (gt.type) {
+                val channelBytes = when (gt.type) {
                     is UnsignedByteType -> 1
                     is ByteType -> 1
                     is UnsignedShortType -> 2
@@ -327,15 +330,26 @@ open class VulkanTexture(val device: VulkanDevice,
                 }
 
                 val storage = memAlloc(data.remaining() / 3 * 4)
-                val view = data.duplicate()
-                val tmp = ByteArray(pixelByteSize * 3)
-                val alpha = (0 until pixelByteSize).map { 255.toByte() }.toByteArray()
+                val view = data.duplicate().order(ByteOrder.LITTLE_ENDIAN)
+                val tmp = ByteArray(channelBytes * 3)
+                val alpha = when(gt.type) {
+                    is UnsignedByteType -> ubyteArrayOf(0xffu)
+                    is ByteType -> ubyteArrayOf(0xffu)
+                    is UnsignedShortType -> ubyteArrayOf(0xffu, 0xffu)
+                    is ShortType -> ubyteArrayOf(0xffu, 0xffu)
+                    is UnsignedIntType -> ubyteArrayOf(0x3fu, 0x80u, 0x00u, 0x00u)
+                    is IntType -> ubyteArrayOf(0xffu, 0xffu, 0x00u, 0x00u)
+                    is FloatType -> ubyteArrayOf(0x3fu, 0x80u, 0x00u, 0x00u)
+                    is DoubleType -> ubyteArrayOf(0x3fu, 0xf0u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u)
+                    else -> throw UnsupportedOperationException("Don't know how to handle textures of type ${gt.type.javaClass.simpleName}")
+                }
 
                 // pad buffer to 4 channels
                 while (view.hasRemaining()) {
-                    view.get(tmp, 0, 3)
+
+                    view.get(tmp, 0, tmp.size)
                     storage.put(tmp)
-                    storage.put(alpha)
+                    storage.put(alpha.toByteArray())
                 }
 
                 storage.flip()

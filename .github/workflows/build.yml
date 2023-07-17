@@ -1,6 +1,12 @@
 name: build
 
-on: [ push ]
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
 
 jobs:
   linux-unittests:
@@ -27,7 +33,7 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
       - name: Build scenery
-        run: ./gradlew build -x dokkaHtml -x dokkaHtmlJar -x javadoc -x dokkaJavadocJar --info --no-daemon
+        run: ./gradlew build -x dokkaHtml -x dokkaHtmlJar -x javadoc -x dokkaJavadocJar --no-daemon
 
   windows-unittests:
     name: 'Windows'
@@ -44,6 +50,12 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: gradle/wrapper-validation-action@v1
+      - name: configure Pagefile
+        uses: al-cheb/configure-pagefile-action@v1.3
+        with:
+          minimum-size: 8GB
+          maximum-size: 32GB
+          disk-root: "D:"
       - name: Set up JDK
         uses: actions/setup-java@v3
         with:
@@ -51,7 +63,7 @@ jobs:
           distribution: 'temurin'
           cache: 'gradle'
       - name: Build scenery
-        run: ./gradlew build -x dokkaHtml -x dokkaHtmlJar -x javadoc -x dokkaJavadocJar --info --no-daemon
+        run: ./gradlew build -x dokkaHtml -x dokkaHtmlJar -x javadoc -x dokkaJavadocJar --no-daemon
 
   mac-unittests:
     name: 'macOS'
@@ -77,4 +89,4 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
       - name: Build scenery
-        run: ./gradlew build -x dokkaHtml -x dokkaHtmlJar -x javadoc -x dokkaJavadocJar --info --no-daemon
+        run: ./gradlew build -x dokkaHtml -x dokkaHtmlJar -x javadoc -x dokkaJavadocJar --no-daemon

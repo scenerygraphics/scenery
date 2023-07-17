@@ -19,6 +19,7 @@ import bdv.viewer.DisplayMode
 import bdv.viewer.Source
 import bdv.viewer.SourceAndConverter
 import bdv.viewer.state.ViewerState
+import bvv.core.VolumeViewerOptions
 import graphics.scenery.*
 import graphics.scenery.attribute.DelegationType
 import graphics.scenery.attribute.geometry.DelegatesGeometry
@@ -56,7 +57,6 @@ import org.joml.Vector3i
 import org.joml.Vector4f
 import org.lwjgl.system.MemoryUtil
 import org.scijava.io.location.FileLocation
-import tpietzsch.example2.VolumeViewerOptions
 import java.io.FileInputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -130,6 +130,14 @@ open class Volume(
     override var maxDisplayRange: Float
         get() = converterSetups.getOrNull(0)?.displayRangeMax?.toFloat() ?: throw IllegalStateException()
         set(value) { setTransferFunctionRange(minDisplayRange, value) }
+
+    override var range: Pair<Float, Float>
+        get() = when(dataSource) {
+            VolumeDataSource.NullSource -> 0.0f to 0.0f
+            is VolumeDataSource.RAISource<*> -> dataSource.type.toRange()
+            is SpimDataMinimalSource -> (dataSource.sources.first().spimSource.type as NumericType<*>).toRange()
+        }
+        set(value) { logger.warn("Cannot set data range, it is automatically determined.") }
 
     /** The color map for the volume. */
     var colormap: Colormap = Colormap.get("viridis")
@@ -347,6 +355,18 @@ open class Volume(
             VolumeManager.regenerateVolumeManagerWithExtraVolume(this,hub)
         }
     }
+
+    private fun NumericType<*>.toRange(): Pair<Float, Float> {
+        return when(this) {
+            is UnsignedByteType -> 0.0f to 255.0f
+            is ByteType -> -127.0f to 128.0f
+            is UnsignedShortType -> 0.0f to 65535.0f
+            is ShortType -> -32768.0f to 32767.0f
+            is FloatType -> 0.0f to 1.0f
+            else -> 0.0f to 1.0f
+        }
+    }
+
 
     override fun update(fresh: Networkable, getNetworkable: (Int) -> Networkable, additionalData: Any?) {
         if (fresh !is Volume) throw IllegalArgumentException("Update called with object of foreign class")

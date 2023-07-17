@@ -1,7 +1,5 @@
 package graphics.scenery.backends
 
-import cleargl.GLMatrix
-import cleargl.GLVector
 import gnu.trove.map.hash.TIntObjectHashMap
 import graphics.scenery.utils.lazyLogger
 import org.joml.*
@@ -9,7 +7,6 @@ import org.lwjgl.system.MemoryUtil
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.*
-import kotlin.collections.LinkedHashMap
 import kotlin.math.max
 
 /**
@@ -67,8 +64,6 @@ open class UBO {
     @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
     protected fun Any.objectId(): Int {
         return when(this) {
-            is GLVector -> 0
-            is GLMatrix -> 1
             is Float, is java.lang.Float -> 2
             is Double, is java.lang.Double -> 3
             is Int, is Integer -> 4
@@ -249,7 +244,9 @@ open class UBO {
                 is Boolean -> data.asIntBuffer().put(0, value.toInt())
                 is Enum<*> -> data.asIntBuffer().put(0, value.ordinal)
 
-                is FloatArray -> {
+                is FloatArray -> if (value.size % 4 == 0) {
+                    data.asFloatBuffer().put(value)
+                } else {
                     // std140 rules demand 16 byte stride for arrays
                     val fb = data.asFloatBuffer()
                     val padding = floatArrayOf(0.0f, 0.0f, 0.0f)
@@ -259,7 +256,9 @@ open class UBO {
                     }
                 }
 
-                is IntArray -> {
+                is IntArray -> if (value.size % 4 == 0) {
+                    data.asIntBuffer().put(value)
+                } else {
                     // std140 rules demand 16 byte stride for arrays
                     val ib = data.asIntBuffer()
                     val padding = intArrayOf(0, 0, 0)

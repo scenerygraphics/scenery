@@ -2,6 +2,7 @@ package graphics.scenery.volumes
 
 import bdv.tools.brightness.ConverterSetup
 import bdv.viewer.SourceAndConverter
+import bvv.core.VolumeViewerOptions
 import graphics.scenery.Hub
 import graphics.scenery.OrientedBoundingBox
 import graphics.scenery.Origin
@@ -11,7 +12,6 @@ import net.imglib2.type.numeric.integer.UnsignedByteType
 import org.joml.Matrix4f
 import org.joml.Vector3f
 import org.joml.Vector3i
-import tpietzsch.example2.VolumeViewerOptions
 
 class RAIVolume(@Transient val ds: VolumeDataSource, options: VolumeViewerOptions, hub: Hub): Volume(
     ds,

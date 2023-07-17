@@ -42,7 +42,7 @@ THE SOFTWARE.
 class RangeSliderUI(b: RangeSlider?) : BasicSliderUI(b) {
 
     /** Color of selected range.  */
-    private val rangeColor = Color.GREEN
+    private val rangeColor = Color.DARK_GRAY
 
     /** Location and size of thumb for upper value.  */
     private var upperThumbRect: Rectangle? = null
@@ -251,9 +251,9 @@ class RangeSliderUI(b: RangeSlider?) : BasicSliderUI(b) {
             RenderingHints.VALUE_ANTIALIAS_ON
         )
         g2d.translate(knobBounds.x, knobBounds.y)
-        g2d.color = Color.CYAN
+        g2d.color = Color.GRAY
         g2d.fill(thumbShape)
-        g2d.color = Color.BLUE
+        g2d.color = Color.DARK_GRAY
         g2d.draw(thumbShape)
 
         // Dispose graphics.
@@ -280,9 +280,9 @@ class RangeSliderUI(b: RangeSlider?) : BasicSliderUI(b) {
             RenderingHints.VALUE_ANTIALIAS_ON
         )
         g2d.translate(knobBounds.x, knobBounds.y)
-        g2d.color = Color.PINK
+        g2d.color = Color.GRAY
         g2d.fill(thumbShape)
-        g2d.color = Color.RED
+        g2d.color = Color.DARK_GRAY
         g2d.draw(thumbShape)
 
         // Dispose graphics.

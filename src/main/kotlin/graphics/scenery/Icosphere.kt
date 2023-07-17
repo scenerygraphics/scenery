@@ -9,13 +9,13 @@ import java.util.*
 import kotlin.math.*
 
 /**
- * Constructs a Icosphere with the given [radius] and number of [subdivisions].
+ * Constructs an Icosphere with the given [radius] and number of [subdivisions].
  *
  * @author Ulrik Günther <hello@ulrik.is>, based on code by Andreas Kahler, http://blog.andreaskahler.com/2009/06/creating-icosphere-mesh-in-code.html
  * @param[radius] The radius of the sphere
  * @param[subdivisions] Number of subdivisions of the base icosahedron
  */
-open class Icosphere(val radius: Float, val subdivisions: Int) : Mesh("Icosphere") {
+open class Icosphere(val radius: Float, val subdivisions: Int, val insideNormals: Boolean = false) : Mesh("Icosphere") {
     fun MutableList<Vector3f>.addVertex(vararg v: Float) {
         this.add(Vector3f(v))
     }
@@ -140,6 +140,7 @@ open class Icosphere(val radius: Float, val subdivisions: Int) : Mesh("Icosphere
 
         createBaseVertices(vertexBuffer, indexBuffer)
         val faces = refineTriangles(subdivisions, vertexBuffer, indexBuffer)
+        val flip: Float = if(insideNormals) { -1.0f } else { 1.0f }
 
         geometry {
 
@@ -160,9 +161,9 @@ open class Icosphere(val radius: Float, val subdivisions: Int) : Mesh("Icosphere
                 (v2 * radius).get(vertices).position(vertices.position() + 3)
                 (v3 * radius).get(vertices).position(vertices.position() + 3)
 
-                v1.get(normals).position(normals.position() + 3)
-                v2.get(normals).position(normals.position() + 3)
-                v3.get(normals).position(normals.position() + 3)
+                v1.times(flip).get(normals).position(normals.position() + 3)
+                v2.times(flip).get(normals).position(normals.position() + 3)
+                v3.times(flip).get(normals).position(normals.position() + 3)
 
                 val uvNormal = (uv2 - uv1).cross(uv3 - uv1)
                 if(uvNormal.z() < 0.0f) {

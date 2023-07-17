@@ -1,4 +1,9 @@
-if (vis && step > localNear && step < localFar)
+// sceneGraphVisibility should be in main BDVVolume.frag but doing per
+// volume uniforms there is wonky and doing them here in a shader segment works better
+uniform int sceneGraphVisibility;
+
+vis = vis && bool(sceneGraphVisibility);
+if (vis)
 {
     vec4 x = sampleVolume(wpos);
 

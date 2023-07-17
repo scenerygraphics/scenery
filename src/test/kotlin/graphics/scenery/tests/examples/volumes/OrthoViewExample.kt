@@ -1,6 +1,7 @@
 package graphics.scenery.tests.examples.volumes
 
 import bdv.util.AxisOrder
+import bvv.core.VolumeViewerOptions
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.attribute.material.Material
@@ -11,7 +12,6 @@ import net.imglib2.img.Img
 import net.imglib2.img.display.imagej.ImageJFunctions
 import net.imglib2.type.numeric.integer.UnsignedShortType
 import org.joml.Vector3f
-import tpietzsch.example2.VolumeViewerOptions
 
 /**
  * Volume Ortho View Example using the "BDV Rendering Example loading a RAII"

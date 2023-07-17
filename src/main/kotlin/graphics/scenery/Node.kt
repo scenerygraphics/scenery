@@ -172,6 +172,7 @@ interface Node : Networkable {
 
     /**
      *  Runs an operation recursively on the node itself and all child nodes.
+     *  Copies the list of children first. So manipulation on [children] is allowed.
      *
      *  @param[func] A lambda accepting a [Node], representing this node and its potential children.
      */

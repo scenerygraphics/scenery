@@ -120,13 +120,15 @@ open class DefaultNode(name: String = "Node") : Node, Networkable {
     override fun runRecursive(func: (Node) -> Unit) {
         func.invoke(this)
 
-        children.forEach { it.runRecursive(func) }
+        //use toArray to force a copy of children list
+        children.toArray().forEach { (it as Node).runRecursive(func) }
     }
 
     override fun runRecursive(func: Consumer<Node>) {
         func.accept(this)
 
-        children.forEach { it.runRecursive(func) }
+        //use toArray to force a copy of children list
+        children.toArray().forEach { (it as Node).runRecursive(func) }
     }
 
     @Transient private val shaderPropertyFieldCache = HashMap<String, KProperty1<DefaultNode, *>>()

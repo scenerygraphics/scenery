@@ -1,6 +1,5 @@
 package graphics.scenery
 
-import com.jogamp.opengl.math.Quaternion
 import graphics.scenery.backends.Display
 import graphics.scenery.controls.TrackerInput
 import graphics.scenery.utils.extensions.plus
@@ -72,7 +71,10 @@ class DetachedHeadCamera(@Transient var tracker: TrackerInput? = null) : Camera(
             return tracker?.getWorkingTracker()?.getOrientation() ?: Quaternionf(0.0f, 0.0f, 0.0f, 1.0f)
         }
 
-        operator fun setValue(thisRef: Any?, property: KProperty<*>, value: Quaternion) {
+        /**
+         * Sets the TrackerInput's orientation to a given Quaternion.
+         */
+        operator fun setValue(thisRef: Any?, property: KProperty<*>, value: Quaternionf) {
             throw UnsupportedOperationException()
         }
     }
@@ -88,7 +90,7 @@ class DetachedHeadCamera(@Transient var tracker: TrackerInput? = null) : Camera(
             return tracker?.getWorkingTracker()?.getPosition() ?: Vector3f(0.0f, 0.0f, 0.0f)
         }
 
-        operator fun setValue(thisRef: Any?, property: KProperty<*>, value: Quaternion) {
+        operator fun setValue(thisRef: Any?, property: KProperty<*>, value: Quaternionf) {
             throw UnsupportedOperationException()
         }
     }

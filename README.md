@@ -40,7 +40,7 @@ Documentation for scenery is published at [docs.scenery.graphics/scenery/](https
 
 In case you use scenery in a scientific publication, please cite this paper:
 
-* Ulrik Günther, Tobias Pietzsch, Aryaman Gupta, Kyle I.S. Harrington, Pavel Tomancak, Stefan Gumhold, and Ivo F. Sbalzarini: scenery — Flexible Virtual Reality Visualisation on the Java VM. _IEEE VIS 2019 (accepted, [arXiv:1906.06726](https://arxiv.org/abs/1906.06726))_.
+* Ulrik Günther, Tobias Pietzsch, Aryaman Gupta, Kyle I.S. Harrington, Pavel Tomancak, Stefan Gumhold, and Ivo F. Sbalzarini: scenery — Flexible Virtual Reality Visualisation on the Java VM. _IEEE VIS 2019 (DOI: [10.1109/VISUAL.2019.8933605](https://doi.org/10.1109/VISUAL.2019.8933605), Preprint: [arXiv:1906.06726](https://arxiv.org/abs/1906.06726))_.
 
 If you want to refer to a specific scenery version, e.g. for reproducibility, also can additionally cite the [DOI of the scenery version you used](https://zenodo.org/record/3228395).
 
@@ -74,16 +74,6 @@ If a gamepad is connected (such as a PlayStation 3 or 4 controller), the hats ca
 
 All keybindings are also listed in the [InputHandler class](./src/main/kotlin/graphics/scenery/controls/InputHandler.kt#L198).
 
-## Selecting a renderer
-
-On Windows and Linux, scenery defaults to using the high-performance Vulkan renderer, while on macOS, it'll default to the OpenGL renderer.
-
-If you would like to override this, set the system property `scenery.Renderer` to either `VulkanRenderer` or `OpenGLRenderer`. 
-
-If you want to use Vulkan validation layers, or select a different graphics card than the primary one, please consult the [VulkanRenderer README](./src/main/kotlin/graphics/scenery/backends/vulkan/README.md).
-
-scenery has been tested with MoltenVK on macOS, but there are some major issues remaining before Vulkan can also be used on macOS.
-
 ## Building
 
 Into a directory of your choice, clone the Git repository of scenery:
@@ -94,7 +84,7 @@ git clone https://github.com/scenerygraphics/scenery
 
 Then, change to the newly created `scenery` directory, and run `mvn clean install` to build and install both packages into your local Maven repository.
 
-Alternatively, scenery's Maven project can be imported into IntelliJ or Eclipse. Please note that Eclipse needs the [Kotlin plugin from JetBrains](https://github.com/JetBrains/kotlin-eclipse) to work correctly.
+Alternatively, scenery's Gradle project can be imported into IntelliJ or Eclipse. Please note that Eclipse needs the [Kotlin plugin from JetBrains](https://github.com/JetBrains/kotlin-eclipse) to work correctly.
 
 If you want to compile the provided shader files offline on your own, please make sure you have the [latest Vulkan SDK from LunarG](https://vulkan.lunarg.com) installed. At least version 1.1.70 is required.
 
@@ -115,13 +105,7 @@ Add scenery and ClearGL to your project's `pom.xml`:
   <dependency>
     <groupId>graphics.scenery</groupId>
     <artifactId>scenery</artifactId>
-    <version>0.7.0-beta-7</version>
-  </dependency>
-
-  <dependency>
-    <groupId>net.clearvolume</groupId>
-    <artifactId>cleargl</artifactId>
-    <version>2.2.9</version>
+    <version>0.9.0</version>
   </dependency>
 </dependencies>
 ```
@@ -152,32 +136,32 @@ You can then use any commit from the repository as scenery version, e.g.:
 
 ### Using _scenery_ in a Gradle project
 
-Add scenery and ClearGL to your project's `build.gradle`:
+Add scenery to your project's `build.gradle`:
 
-```groovy
-compile group: 'graphics.scenery', name: 'scenery', version:
-'0.7.0-beta-7'
-compile group: 'net.clearvolume', name: 'cleargl', version: '2.2.9'
+```kotlin
+dependencies {
+    // ...
+    api("graphics.scenery:scenery:0.9.0")
+}
 ```
 
 #### Non-release builds / jitpack
 
 To use jitpack, add jitpack.io to your repositories in `build.gradle`:
 
-```groovy
-allprojects {
-		repositories {
-			...
-			maven { url 'https://jitpack.io' }
-		}
-	}
+```kotlin
+repositories {
+    // ...
+    maven("https://jitpack.io")
+}
 ```
 
 You can then use any commit from the repository as scenery version, e.g.:
 
-```groovy
+```kotlin
 dependencies {
-  implementation 'com.github.scenerygraphics:scenery:ff4c8ddd'
+    // ...
+    api("com.github.scenerygraphics:scenery:ff4c8ddd")
 }
 ```
 
@@ -189,41 +173,4 @@ To configure the logging level that scenery uses, set the system property `scene
 
 ## GPU compatibility
 
-scenery has been tested with a number of different systems and GPUs. If you have a setup that is not listed in the following table - or marked as untested - please submit a PR with the setup added.
-
-✅ Works
-⛔ Does not work
-⬜ Untested
-🚫 Unsupported configuration (e.g. no driver support)
-
-| GPU | Windows, OpenGL | Windows, Vulkan | Linux, OpenGL | Linux, Vulkan | Mac OS X, OpenGL |
-|:--|:--|:--|:--|:--|:--|
-| AMD Radeon HD 7850 (Pitcairn XT) | ✅ | ✅ | ⬜ | ⬜ | ⬜ |
-| AMD Radeon R5 M230 (Caicos Pro) | ⛔ | ✅ | ⬜ | ⬜ | ⬜ |
-| AMD Radeon R9 390 (Hawaii Pro) | ✅ | ✅ | ⬜ | ⬜ | ⬜ |
-| AMD Radeon R9 Nano (Fiji XT) | ✅ | ✅ | ⬜ | ⬜ | ⬜ |
-| AMD Radeon R9 M370X (Strato Pro) | ⬜ | ⬜ | ⬜ | ⬜ | ✅ |
-| AMD Radeon RX 5700 XT (Navi 10) | ✅ | ✅ | ⬜ | ⬜	 | ⬜	 |
-| AMD FirePro W9100 (Hawaii XT) | ✅ | ✅ | ⬜ | ⬜ | ⬜ |
-| Intel HD Graphics 4400 (Haswell) | ✅ | 🚫 | ✅ | ✅ | ⬜ |
-| Intel HD Graphics 5500 (Broadwell) | ⬜ | 🚫 | ✅ | ⬜ | ⬜ |
-| Intel HD Graphics 530 (Skylake) | ⬜ | ⬜ | ✅ | ✅ | ⬜ |
-| Intel Iris Plus Graphics (Ice Lake) | ✅ | ✅ | ⬜ | ⬜ | ⬜ |
-| Nvidia Geforce GTX 1650 Max-Q (Turing)  | ✅ | ✅ | ⬜ | ⬜	 | ⬜	 |
-| Nvidia GeForce RTX 2080 Ti (Turing) | ✅ | ✅ | ⬜ | ⬜	 | ⬜	 |
-| Nvidia GeForce RTX 2070 (Turing) | ✅ | ✅ | ⬜ | ⬜	 | ⬜	 |
-| Nvidia Geforce Titan X (Maxwell) | ✅ | ✅ | ✅ | ✅ | ⬜	 |
-| Nvidia Titan Xp (Pascal) | ✅ | ✅ | ⬜ | ⬜	 | ⬜	 |
-| Nvidia Geforce 1080 Ti (Pascal) | ✅ | ✅ | ✅ | ✅ | ⬜	 |
-| Nvidia Geforce 1070 (Pascal) | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Nvidia Geforce 1050 Ti (Pascal) | ⬜ | ✅ | ✅ | ✅ | ⬜ |
-| Nvidia Geforce 960 (Maxwell) | ✅ | ✅ | ⬜ | ⬜ | ⬜ |
-| Nvidia Quadro K6000 (Kepler) | ✅ | ✅ | ⬜ | ⬜ | ⬜ |
-| Nvidia Quadro P5000 (Pascal) | ⬜ | ⬜ | ✅ | ⬜ | ⬜ |
-| Nvidia Geforce 980M (Maxwell) | ⬜ | ✅ | ⬜ | ⬜ | ⬜ |
-| Nvidia Geforce 960M (Maxwell) | ⬜ | ✅ | ✅ | ✅ | ⬜ |
-| Nvidia Geforce 750M (Kepler) | ✅  | ✅  | ⬜ | ⬜ | ✅  |
-| Nvidia Geforce 650M (Kepler) | ⬜  | ⬜  | ⬜ | ⬜ | ✅  |
-
-
-Please also note that Nvidia's Vulkan drivers before version 382.33 have a bug that prevents scenery's Vulkan renderer from working correctly.
+[scenery has been tested with a number of different systems and GPUs](https://docs.scenery.graphics/scenery/gpu-compatibility). It should in general work with any current GPU with up-to-date, Vulkan-compatible drivers and installed Vulkan runtime. On macOS, scenery makes use of [MoltenVK](https://github.com/KhronosGroup/MoltenVK) to translate between scenery's Vulkan renderer and macOS' Metal API.

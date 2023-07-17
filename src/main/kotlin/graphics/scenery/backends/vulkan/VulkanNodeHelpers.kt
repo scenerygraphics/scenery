@@ -316,6 +316,7 @@ object VulkanNodeHelpers {
                     }
                 } catch (e: Exception) {
                     logger.warn("Could not load texture for ${node.name}: $e")
+                    e.printStackTrace()
                 }
             } else {
                 if(s.textures[type] != existing) {

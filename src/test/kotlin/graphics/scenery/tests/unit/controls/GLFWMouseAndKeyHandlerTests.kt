@@ -1,22 +1,26 @@
 package graphics.scenery.tests.unit.controls
 
-import com.jogamp.newt.event.KeyEvent
-import com.jogamp.newt.event.MouseEvent
 import graphics.scenery.Box
 import graphics.scenery.Hub
 import graphics.scenery.Scene
 import graphics.scenery.Settings
 import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.controls.GLFWMouseAndKeyHandler
+import graphics.scenery.controls.GLFWMouseAndKeyHandler.Companion.fakeComponent
 import graphics.scenery.controls.InputHandler
 import graphics.scenery.tests.unit.backends.FauxRenderer
+import graphics.scenery.utils.extensions.toBinaryString
 import graphics.scenery.utils.lazyLogger
 import org.junit.Test
 import org.lwjgl.glfw.GLFW.*
 import org.scijava.ui.behaviour.ClickBehaviour
 import org.scijava.ui.behaviour.DragBehaviour
 import org.scijava.ui.behaviour.ScrollBehaviour
+import java.awt.event.KeyEvent
+import java.awt.event.MouseEvent
+import java.awt.event.MouseWheelEvent
 import java.lang.Math.pow
+import kotlin.math.pow
 import kotlin.random.Random
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -69,32 +73,32 @@ class GLFWMouseAndKeyHandlerTests {
         val (inputHandler, _, glfwHandler) = prepareInputHandler()
 
         repeat(100) {
-            val key = Random.nextInt(0x41, 0x5A).toShort()
+            val key = Random.nextInt(0x41, 0x5A)
             var keyPressed = false
 
             // we create a press and release event here, otherwise
             // the keys are assumed to be down simultaneously
-            val pressEvent = KeyEvent.create(
-                KeyEvent.EVENT_KEY_PRESSED,
-                {},
+            val pressEvent = KeyEvent(
+                fakeComponent,
+                KeyEvent.KEY_PRESSED,
                 System.nanoTime(),
                 0,
                 key,
-                key,
-                KeyEvent.NULL_CHAR
+                key.toChar(),
+                KeyEvent.KEY_LOCATION_UNKNOWN
             )
 
-            val releaseEvent = KeyEvent.create(
-                KeyEvent.EVENT_KEY_RELEASED,
-                {},
+            val releaseEvent = KeyEvent(
+                fakeComponent,
+                KeyEvent.KEY_PRESSED,
                 System.nanoTime(),
                 0,
                 key,
-                key,
-                KeyEvent.NULL_CHAR
+                key.toChar(),
+                KeyEvent.KEY_LOCATION_UNKNOWN
             )
 
-            val char = java.awt.event.KeyEvent.getKeyText(key.toInt())
+            val char = KeyEvent.getKeyText(key)
 
             inputHandler.addBehaviour("keyPressed_$char", ClickBehaviour { _, _ ->
                 keyPressed = true
@@ -111,15 +115,15 @@ class GLFWMouseAndKeyHandlerTests {
     private fun String.toMask(): Int {
         var mask = 0
         if(this.contains("shift")) {
-            mask = mask or GLFW_MOD_SHIFT
+            mask = mask or KeyEvent.SHIFT_DOWN_MASK
         }
 
         if(this.contains("alt")) {
-            mask = mask or GLFW_MOD_ALT
+            mask = mask or KeyEvent.ALT_DOWN_MASK
         }
 
         if(this.contains("ctrl")) {
-            mask = mask or GLFW_MOD_CONTROL
+            mask = mask or KeyEvent.CTRL_DOWN_MASK
         }
 
         return mask
@@ -128,81 +132,74 @@ class GLFWMouseAndKeyHandlerTests {
     private fun String.toEvents(): List<Pair<KeyEvent, KeyEvent>> {
         val events = mutableListOf<Pair<KeyEvent, KeyEvent>>()
         if(this.contains("shift")) {
-            events.add(KeyEvent.create(
-                KeyEvent.EVENT_KEY_PRESSED,
-                {},
+            events.add(KeyEvent(
+                fakeComponent,
+                KeyEvent.KEY_PRESSED,
                 System.nanoTime(),
                 0,
-                GLFW_KEY_LEFT_SHIFT.toShort(),
-                GLFW_KEY_LEFT_SHIFT.toShort(),
-                KeyEvent.NULL_CHAR
-            ) to KeyEvent.create(KeyEvent.EVENT_KEY_RELEASED,
-                {},
+                KeyEvent.VK_SHIFT,
+                KeyEvent.CHAR_UNDEFINED
+            ) to KeyEvent(
+                fakeComponent,
+                KeyEvent.KEY_RELEASED,
                 System.nanoTime(),
                 0,
-                GLFW_KEY_LEFT_SHIFT.toShort(),
-                GLFW_KEY_LEFT_SHIFT.toShort(),
-                KeyEvent.NULL_CHAR
+                KeyEvent.VK_SHIFT,
+                KeyEvent.CHAR_UNDEFINED
             ))
         }
 
         if(this.contains("alt")) {
-            events.add(KeyEvent.create(
-                KeyEvent.EVENT_KEY_PRESSED,
-                {},
+            events.add(KeyEvent(
+                fakeComponent,
+                KeyEvent.KEY_PRESSED,
                 System.nanoTime(),
                 0,
-                GLFW_KEY_LEFT_ALT.toShort(),
-                GLFW_KEY_LEFT_ALT.toShort(),
-                KeyEvent.NULL_CHAR
-            ) to KeyEvent.create(
-                KeyEvent.EVENT_KEY_RELEASED,
-                {},
+                KeyEvent.VK_ALT,
+                KeyEvent.CHAR_UNDEFINED
+            ) to KeyEvent(
+                fakeComponent,
+                KeyEvent.KEY_RELEASED,
                 System.nanoTime(),
                 0,
-                GLFW_KEY_LEFT_ALT.toShort(),
-                GLFW_KEY_LEFT_ALT.toShort(),
-                KeyEvent.NULL_CHAR
+                KeyEvent.VK_ALT,
+                KeyEvent.CHAR_UNDEFINED
             ))
         }
 
         if(this.contains("ctrl")) {
-            events.add(KeyEvent.create(
-                KeyEvent.EVENT_KEY_PRESSED,
-                {},
+            events.add(KeyEvent(
+                fakeComponent,
+                KeyEvent.KEY_PRESSED,
                 System.nanoTime(),
                 0,
-                GLFW_KEY_LEFT_CONTROL.toShort(),
-                GLFW_KEY_LEFT_CONTROL.toShort(),
-                KeyEvent.NULL_CHAR
-            ) to KeyEvent.create(
-                KeyEvent.EVENT_KEY_RELEASED,
-                {},
+                KeyEvent.VK_CONTROL,
+                KeyEvent.CHAR_UNDEFINED
+            ) to KeyEvent(
+                fakeComponent,
+                KeyEvent.KEY_RELEASED,
                 System.nanoTime(),
                 0,
-                GLFW_KEY_LEFT_CONTROL.toShort(),
-                GLFW_KEY_LEFT_CONTROL.toShort(),
-                KeyEvent.NULL_CHAR
+                KeyEvent.VK_CONTROL,
+                KeyEvent.CHAR_UNDEFINED
             ))
         }
 
         if(this.contains("meta")) {
-            events.add(KeyEvent.create(
-                KeyEvent.EVENT_KEY_PRESSED,
-                {},
+            events.add(KeyEvent(
+                fakeComponent,
+                KeyEvent.KEY_PRESSED,
                 System.nanoTime(),
                 0,
-                GLFW_KEY_LEFT_SUPER.toShort(),
-                GLFW_KEY_LEFT_SUPER.toShort(),
-                KeyEvent.NULL_CHAR
-            ) to KeyEvent.create(
-                KeyEvent.EVENT_KEY_RELEASED,
-                {},
+                KeyEvent.VK_META,
+                KeyEvent.CHAR_UNDEFINED
+            ) to KeyEvent(
+                fakeComponent,
+                KeyEvent.KEY_RELEASED,
                 System.nanoTime(),
                 0,
-                GLFW_KEY_LEFT_SUPER.toShort(),
-                GLFW_KEY_LEFT_SUPER.toShort(),
-                KeyEvent.NULL_CHAR
+                KeyEvent.VK_META,
+                KeyEvent.CHAR_UNDEFINED
             ))
         }
 
@@ -218,49 +215,50 @@ class GLFWMouseAndKeyHandlerTests {
         val (inputHandler, _, glfwHandler) = prepareInputHandler()
 
         repeat(100) { i ->
-            val button = Random.nextInt(1, 4).toShort()
+            val button = Random.nextInt(1, 4)
             var keyPressed = false
 
             val modifiers = listOf(
                 "",
-//                "ctrl",
-//                "ctrl alt",
-//                "ctrl shift",
-//                "ctrl alt shift",
-//                "alt shift",
-//                "alt",
-                "shift").random()
+                "ctrl",
+                "ctrl alt",
+                "ctrl shift",
+                "ctrl alt shift",
+                "alt shift",
+                "alt",
+                "shift"
+            ).random()
 
-            val modifiersFull = pow(2.0, 4.0+button).toInt() or modifiers.toMask()
+            val modifiersFull = (1 shl 9+button) or modifiers.toMask()
             val modifierEvents = modifiers.toEvents()
 
             // we create a press and release event here, otherwise
             // the keys are assumed to be down simultaneously
-            val clickCount = Random.nextInt(1, 3).toShort()
+            val clickCount = Random.nextInt(1, 3)
             val point = Pair(Random.nextInt(0, 8192), Random.nextInt(0, 8192))
-            val clickEvent = MouseEvent(MouseEvent.EVENT_MOUSE_CLICKED,
-                {},
+            val clickEvent = MouseEvent(
+                fakeComponent,
+                MouseEvent.MOUSE_CLICKED,
                 System.nanoTime(),
                 modifiersFull,
                 point.first,
                 point.second,
                 clickCount,
-                button,
-                floatArrayOf(0.0f, 0.0f, 0.0f),
-                1.0f)
+                false,
+                button)
 
             val clicks = when(clickCount) {
-                1.toShort() -> ""
+                1 -> ""
                 else -> "double-click "
             }
 
             val buttonString = when(button) {
-                1.toShort() -> "button1"
-                2.toShort() -> "button2"
+                1 -> "button1"
+                2 -> "button2"
                 else -> "button3"
             }
 
-            logger.debug("Mask is $modifiersFull, modifiers=$modifiers")
+            logger.debug("Mask is ${modifiersFull.toBinaryString()}, modifiers=$modifiers")
 
             modifierEvents.forEach {
                 glfwHandler.keyPressed(it.first)
@@ -273,15 +271,18 @@ class GLFWMouseAndKeyHandlerTests {
             })
             inputHandler.addKeyBinding("mousePressed_$i", "$modifiers $clicks$buttonString")
 
+            logger.debug("Mouse clicked ($clickCount) for $modifiers $clicks $buttonString")
             glfwHandler.mouseClicked(clickEvent)
 
             modifierEvents.forEach {
                 glfwHandler.keyReleased(it.second)
             }
 
+            inputHandler.removeKeyBinding("mousePressed_$i")
+            inputHandler.removeBehaviour("mousePressed_$i")
+
             assertEquals(point, actualPoint, "Expected click points to be equal")
             assertTrue(keyPressed, "Expected mouse to be clicked for $button/count=$clickCount, '$modifiers $clicks$buttonString'")
-            logger.debug("Mouse clicked for $modifiers $clicks $buttonString")
         }
     }
 
@@ -312,21 +313,24 @@ class GLFWMouseAndKeyHandlerTests {
             // the keys are assumed to be down simultaneously
             val point = Pair(Random.nextInt(0, 8192), Random.nextInt(0, 8192))
             val scroll = when(Random.nextInt(0, 3)) {
-                0 -> Pair(Random.nextFloat(), 0.0f)
-                1 -> Pair(0.0f, Random.nextFloat())
-                else -> Pair(Random.nextFloat(), Random.nextFloat())
+                0 -> Pair(Random.nextInt(), 0)
+                1 -> Pair(0, Random.nextInt())
+                else -> Pair(Random.nextInt(), Random.nextInt())
             }
 
-            val scrollEvent = MouseEvent(MouseEvent.EVENT_MOUSE_WHEEL_MOVED,
-                {},
+            val scrollEvent = MouseWheelEvent(
+                fakeComponent,
+                MouseWheelEvent.MOUSE_WHEEL,
                 System.nanoTime(),
                 modifiers.toMask(),
                 point.first,
                 point.second,
                 0,
-                0,
-                floatArrayOf(scroll.first, scroll.second, 0.0f),
-                1.0f)
+                false,
+                MouseWheelEvent.WHEEL_UNIT_SCROLL,
+                scroll.first,
+                0
+            )
 
             logger.debug("Mask is ${modifiers.toMask()}, modifiers=$modifiers")
 
@@ -362,7 +366,7 @@ class GLFWMouseAndKeyHandlerTests {
 
         repeat(100) { i ->
             // FIXME: Why does button 2 not work?
-            val button = Random.nextInt(1, 2).toShort()
+            val button = Random.nextInt(1, 2)
             var dragStart = Pair(0, 0)
             var dragEnd = Pair(0, 0)
 
@@ -385,47 +389,50 @@ class GLFWMouseAndKeyHandlerTests {
             val start = Pair(Random.nextInt(0, 8192), Random.nextInt(0, 8192))
             val end = Pair(Random.nextInt(0, 8192), Random.nextInt(0, 8192))
 
-            val clickEvent = MouseEvent(MouseEvent.EVENT_MOUSE_PRESSED,
-                {},
+            val clickEvent = MouseEvent(
+                fakeComponent,
+                MouseEvent.MOUSE_PRESSED,
                 System.nanoTime(),
                 modifiersFull,
                 start.first,
                 start.second,
-                0,
-                button,
-                floatArrayOf(0.0f, 0.0f, 0.0f),
-                1.0f)
+                1,
+                false,
+                button
+            )
 
             val moveEvents = (0.. Random.nextInt(5, 10)).map {
-                MouseEvent(MouseEvent.EVENT_MOUSE_MOVED,
-                    {},
+                MouseEvent(
+                    fakeComponent,
+                    MouseEvent.MOUSE_MOVED,
                     System.nanoTime(),
                     modifiersFull,
-                    Random.nextInt(0, 8192),
-                    Random.nextInt(0, 8192),
+                    start.first,
+                    start.second,
                     0,
-                    button,
-                    floatArrayOf(0.0f, 0.0f, 0.0f),
-                    1.0f)
+                    false,
+                    0
+                )
             }
 
             val dragCount = moveEvents.size
             var actualDrags = 0
 
-            val releaseEvent = MouseEvent(MouseEvent.EVENT_MOUSE_RELEASED,
-                {},
+            val releaseEvent = MouseEvent(
+                fakeComponent,
+                MouseEvent.MOUSE_RELEASED,
                 System.nanoTime(),
-                modifiersRelease,
+                modifiersFull,
                 end.first,
                 end.second,
-                0,
-                button,
-                floatArrayOf(0.0f, 0.0f, 0.0f),
-                1.0f)
+                1,
+                false,
+                button
+            )
 
             val buttonString = when(button) {
-                1.toShort() -> "button1"
-                2.toShort() -> "button2"
+                1 -> "button1"
+                2 -> "button2"
                 else -> "button3"
             }
 

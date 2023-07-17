@@ -11,6 +11,17 @@ tasks {
 
     // https://docs.gradle.org/current/userguide/java_testing.html#test_filtering
     test {
+        testLogging {
+            events(TestLogEvent.PASSED, TestLogEvent.SKIPPED, TestLogEvent.FAILED)
+
+            showExceptions = true
+            exceptionFormat = TestExceptionFormat.FULL
+            showCauses = true
+            showStackTraces = true
+
+            showStandardStreams = false
+        }
+
         if(JavaVersion.current() > JavaVersion.VERSION_11) {
             allJvmArgs = allJvmArgs + listOf(
                 // kryo compatability

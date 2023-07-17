@@ -1,7 +1,6 @@
 package graphics.scenery.numerics
 
 import org.joml.Vector3f
-import com.jogamp.opengl.math.Quaternion
 import org.joml.Quaternionf
 import org.joml.Vector2f
 import org.joml.Vector4f

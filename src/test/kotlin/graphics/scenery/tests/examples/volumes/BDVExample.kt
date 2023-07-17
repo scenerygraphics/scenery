@@ -1,6 +1,7 @@
 package graphics.scenery.tests.examples.volumes
 
 import bdv.spimdata.XmlIoSpimDataMinimal
+import bvv.core.VolumeViewerOptions
 import org.joml.Vector3f
 import graphics.scenery.Camera
 import graphics.scenery.DetachedHeadCamera
@@ -16,7 +17,6 @@ import org.scijava.Context
 import org.scijava.ui.UIService
 import org.scijava.ui.behaviour.ClickBehaviour
 import org.scijava.widget.FileWidget
-import tpietzsch.example2.VolumeViewerOptions
 import java.io.File
 import java.util.*
 import kotlin.math.roundToInt
