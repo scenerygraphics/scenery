@@ -205,7 +205,7 @@ class BufferedVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewe
                 else -> throw java.lang.IllegalStateException("Can't determine density for ${ds.type.javaClass.simpleName} data")
             }
 
-            val transferRangeMax = ds.converterSetups.firstOrNull()?.displayRangeMax?.toFloat() ?: ds.type.maxValue()
+            val transferRangeMax = range.second
 
             val final = transferFunction.evaluate(s/transferRangeMax)
             logger.info("Sample at $index is $s, final is $final $transferRangeMax")
@@ -227,12 +227,6 @@ class BufferedVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewe
         }
     }
 
-    private fun NumericType<*>.maxValue(): Float = when(this) {
-        is UnsignedByteType -> 255.0f
-        is UnsignedShortType -> 65536.0f
-        is FloatType -> 1.0f
-        else -> 1.0f
-    }
 
     private fun lerp(t: Float, v0: Float, v1: Float): Float {
         return (1.0f - t) * v0 + t * v1
