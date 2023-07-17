@@ -1,6 +1,5 @@
 package graphics.scenery.textures
 
-import cleargl.GLTypeEnum
 import graphics.scenery.utils.Image
 import graphics.scenery.utils.Timestamped
 import net.imglib2.type.numeric.NumericType
@@ -148,7 +147,7 @@ open class Texture @JvmOverloads constructor(
             channels: Int = 4
         ): Texture {
             return Texture(Vector3i(image.width, image.height, image.depth),
-                channels, type, image.contents, repeatUVW, borderColor, normalized, mipmap, usageType = usage, minFilter = minFilter, maxFilter = maxFilter)
+                4, image.type, image.contents, repeatUVW, borderColor, normalized, mipmap, usageType = usage, minFilter = minFilter, maxFilter = maxFilter)
         }
     }
 

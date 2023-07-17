@@ -1,6 +1,5 @@
 package graphics.scenery
 
-import cleargl.ClearGLDefaultEventListener
 import org.joml.Vector3f
 import com.sun.jna.Library
 import com.sun.jna.Native
@@ -271,7 +270,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
                 val width = r.width
                 val height = r.height
 
-                val newRenderer = Renderer.createRenderer(hub, applicationName, scene, width, height, embed, null, config)
+                val newRenderer = Renderer.createRenderer(hub, applicationName, scene, width, height, embed, config)
                 hub.add(SceneryElement.Renderer, newRenderer)
                 loadInputHandler(newRenderer)
 

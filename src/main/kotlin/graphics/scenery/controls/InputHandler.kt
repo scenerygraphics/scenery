@@ -309,12 +309,7 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?, for
      * are written to a file with a given [filename] in the user's home directory.
      */
     @JvmOverloads fun openKeybindingsGuiEditor(editorTitle: String = "scenery's Key bindings editor", filename: String, context: String = "all"): VisualEditorPanel {
-        //setup content for the Visual Editor
-        // TODO: Figure out where this class went
-        //val cdb = CommandDescriptionProvider()
-        //behaviourMap.keys().forEach { b -> cdb.addCommand(b, context, "") }
-        //val editorPanel = VisualEditorPanel(config, cdb.get())
-        val editorPanel = VisualEditorPanel(config, null)
+        val editorPanel = VisualEditorPanel(config)
 
         //show the Editor
         val frame = JFrame(editorTitle)
@@ -359,7 +354,6 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?, for
     companion object {
         private val availableInputHandlers = mutableListOf<Class<*>>(
             GLFWMouseAndKeyHandler::class.java,
-            JOGLMouseAndKeyHandler::class.java,
             SwingMouseAndKeyHandler::class.java
         )
 
