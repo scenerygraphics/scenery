@@ -496,15 +496,11 @@ open class VulkanRenderer(hub: Hub,
             // GLFW works kinda shaky on macOS, we create a JFrame here for a nicer experience then.
             // That is of course unless [embedIn] is already set.
             if(Platform.get() == Platform.MACOSX && embedIn == null && !headlessRequested) {
-                val mainFrame = JFrame(applicationName)
-                mainFrame.setSize(windowWidth, windowHeight)
-                mainFrame.layout = BorderLayout()
-
-                val sceneryPanel = SceneryJPanel()
-                mainFrame.add(sceneryPanel, BorderLayout.CENTER)
-                mainFrame.isVisible = true
-
-                embedIn = sceneryPanel
+                embedIn = SwingSwapchain.createApplicationFrame(
+                    applicationName,
+                    windowWidth,
+                    windowHeight
+                )
             }
 
             // Create the Vulkan instance
@@ -571,8 +567,12 @@ open class VulkanRenderer(hub: Hub,
             }
 
             // get available swapchains, but remove default swapchain, will always be there as fallback
-            logger.debug("Available special-purpose swapchains are: ${availableSwapchains.joinToString { it.simpleName }}")
-            val selectedSwapchain = availableSwapchains.firstOrNull { (it.kotlin.companionObjectInstance as SwapchainParameters).usageCondition.invoke(embedIn) }
+            logger.info("Available special-purpose swapchains are: ${availableSwapchains.joinToString { it.simpleName }}")
+            val selectedSwapchain = availableSwapchains.firstOrNull() {
+                val result = (it.kotlin.companionObjectInstance as SwapchainParameters).usageCondition.invoke(embedIn)
+                logger.debug("Swapchain usage condition result for ${it.simpleName} is $result")
+                result
+            }
             val headless = (selectedSwapchain?.kotlin?.companionObjectInstance as? SwapchainParameters)?.headless ?: false
 
             device = VulkanDevice.fromPhysicalDevice(instance,
@@ -624,6 +624,8 @@ open class VulkanRenderer(hub: Hub,
                         }
                     }.filter { it.value != null }
 
+                    // The cast is actually necessary, despite the IDE saying otherwise
+                    @Suppress("USELESS_CAST")
                     selectedSwapchain
                         .kotlin
                         .primaryConstructor!!
@@ -642,7 +644,7 @@ open class VulkanRenderer(hub: Hub,
                 window = createWindow(window, swapchainRecreator)
             }
 
-            logger.debug("Created swapchain")
+            logger.debug("Created swapchain with image size ${window.width}x${window.height}")
             vertexDescriptors = prepareStandardVertexDescriptors()
             logger.debug("Created vertex descriptors")
 

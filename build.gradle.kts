@@ -41,7 +41,7 @@ val lwjglArtifacts = listOf(
 dependencies {
     val scijavaParentPomVersion = project.properties["scijavaParentPOMVersion"]
     val lwjglVersion = project.properties["lwjglVersion"]
-
+    
     implementation(platform("org.scijava:pom-scijava:$scijavaParentPomVersion"))
     annotationProcessor("org.scijava:scijava-common:2.94.1")
 
@@ -51,7 +51,7 @@ dependencies {
     implementation("org.slf4j:slf4j-api:1.7.36")
     implementation("org.joml:joml:1.10.5")
     implementation("net.java.jinput:jinput:2.0.9", "natives-all")
-    implementation("org.jocl:jocl:2.0.4")
+    implementation("org.jocl:jocl:2.0.5")
     implementation("org.scijava:scijava-common")
     implementation("org.scijava:script-editor")
     implementation("org.scijava:ui-behaviour")
@@ -92,19 +92,19 @@ dependencies {
     implementation("com.fasterxml.jackson.core:jackson-databind:2.13.3")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.13.3")
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.13.3")
-    implementation("org.zeromq:jeromq:0.5.2")
-    implementation("com.esotericsoftware:kryo:5.3.0")
+    implementation("org.zeromq:jeromq:0.5.3")
+    implementation("com.esotericsoftware:kryo:5.5.0")
     implementation("de.javakaffee:kryo-serializers:0.45")
     implementation("org.msgpack:msgpack-core:0.9.1")
     implementation("org.msgpack:jackson-dataformat-msgpack:0.9.1")
     api("graphics.scenery:jvrpn:1.2.0", lwjglNatives.filter { !it.contains("arm") }.toTypedArray())
     implementation("io.scif:scifio")
     implementation("org.bytedeco:ffmpeg:5.0-1.5.7", ffmpegNatives)
-    implementation("io.github.classgraph:classgraph:4.8.147")
+    implementation("io.github.classgraph:classgraph:4.8.161")
 
     implementation("info.picocli:picocli:4.6.3")
 
-    api("sc.fiji:bigdataviewer-core:10.4.1")
+    api("sc.fiji:bigdataviewer-core:10.4.7")
     api("sc.fiji:bigdataviewer-vistools:1.0.0-beta-28")
     api("sc.fiji:bigvolumeviewer:0.3.1") {
         exclude("org.jogamp.gluegen", "gluegen-rt")
