@@ -85,6 +85,9 @@ class RAIVolume(@Transient val ds: VolumeDataSource, options: VolumeViewerOption
         return RAIVolumeSpatial(this)
     }
 
+    /**
+    *   Extension of [VolumeSpatial] for RAI volumes
+     */
     class RAIVolumeSpatial(volume: RAIVolume): VolumeSpatial(volume) {
         override fun composeModel() {
             @Suppress("SENSELESS_COMPARISON")
