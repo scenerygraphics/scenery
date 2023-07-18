@@ -1,9 +1,9 @@
 package graphics.scenery.volumes
 
+import bvv.core.multires.SimpleStack3D
 import java.nio.ByteBuffer
 import net.imglib2.RandomAccessibleInterval
 import net.imglib2.realtransform.AffineTransform3D
-import tpietzsch.multires.SimpleStack3D
 
 open class BufferedSimpleStack3D<T>(internal val backingBuffer : ByteBuffer, internal val type : T, val dimensions : IntArray) : SimpleStack3D<T> {
 
