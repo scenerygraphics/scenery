@@ -105,6 +105,6 @@ class FauxRenderer(override var hub: Hub?, var scene: Scene, preparedWindow: Sce
         }
     }
 
-    override fun streamVDI(IPAddress: String , cam: Camera, volumeDimensions3i : Vector3f, model: Matrix4f, context: ZContext) {}
+    override fun streamVDI(IPAddress: String , cam: Camera, volumeDimensions3i : Vector3f, model: Matrix4f, context: ZContext, maxSupersegments : Int) {}
 
 }
