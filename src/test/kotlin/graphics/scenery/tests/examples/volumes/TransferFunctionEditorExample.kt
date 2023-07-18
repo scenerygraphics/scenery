@@ -1,5 +1,6 @@
 package graphics.scenery.tests.examples.volumes
 
+import bvv.core.VolumeViewerOptions
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.ui.SwingBridgeFrame
@@ -12,7 +13,6 @@ import graphics.scenery.volumes.Volume
 import org.joml.Vector3f
 import org.scijava.ui.behaviour.ClickBehaviour
 import org.scijava.ui.behaviour.DragBehaviour
-import tpietzsch.example2.VolumeViewerOptions
 
 
 /**
@@ -64,7 +64,7 @@ class TransferFunctionEditorExample : SceneryBase("TransferFunctionEditor Exampl
 
         val options = VolumeViewerOptions().maxCacheSizeInMB(maxCacheSize)
         //Currently only .xml volume formats are usable
-        val v = Volume.fromXML("models/volumes/t1-head.xml", hub, options)
+        val v = Volume.fromXML(getDemoFilesPath() + "/volumes/t1-head.xml", hub, options)
         v.name = "t1-head"
         v.colormap = Colormap.get("grays")
         v.spatial().position = Vector3f(0.0f, 0.0f, 0.0f)
@@ -74,9 +74,10 @@ class TransferFunctionEditorExample : SceneryBase("TransferFunctionEditor Exampl
 
 
         val bridge = SwingBridgeFrame("1DTransferFunctionEditor")
-        val tfUI = TransferFunctionEditor(v, bridge)
+        val tfUI = TransferFunctionEditor(v)
+        bridge.addPanel(tfUI)
         tfUI.name = v.name
-        val swingUiNode = tfUI.mainFrame.uiNode
+        val swingUiNode = bridge.uiNode
         swingUiNode.spatial() {
             position = Vector3f(2f,0f,0f)
         }
