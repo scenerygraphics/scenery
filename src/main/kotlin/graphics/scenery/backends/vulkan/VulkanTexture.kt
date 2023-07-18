@@ -1,5 +1,3 @@
-@file:OptIn(ExperimentalStdlibApi::class)
-
 package graphics.scenery.backends.vulkan
 
 import graphics.scenery.textures.Texture
@@ -24,7 +22,6 @@ import java.io.FileInputStream
 import java.io.InputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
-import java.nio.file.Files
 import java.nio.file.Paths
 import kotlin.concurrent.thread
 import kotlin.io.path.readLines
@@ -46,7 +43,7 @@ open class VulkanTexture(val device: VulkanDevice,
                     val format: Int = VK_FORMAT_R8G8B8_SRGB, var mipLevels: Int = 1,
                     val minFilterLinear: Boolean = true, val maxFilterLinear: Boolean = true,
                     val usage: HashSet<Texture.UsageType> = hashSetOf(Texture.UsageType.Texture)) : AutoCloseable {
-    protected val logger by lazyLogger()
+//    protected val logger by lazyLogger()
 
     private var initialised: Boolean = false
 
