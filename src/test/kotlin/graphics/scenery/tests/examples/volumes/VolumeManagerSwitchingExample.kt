@@ -2,11 +2,8 @@ package graphics.scenery.tests.examples.volumes
 
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
-import graphics.scenery.controls.TrackedStereoGlasses
 import graphics.scenery.volumes.*
 import org.joml.Vector3f
-import tpietzsch.shadergen.generate.SegmentTemplate
-import tpietzsch.shadergen.generate.SegmentType
 import java.nio.file.Paths
 import kotlin.concurrent.thread
 
