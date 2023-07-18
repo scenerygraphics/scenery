@@ -51,7 +51,7 @@ import kotlin.math.min
  * @param [protein] the polypeptide you wish to visualize, stored in the class Protein
  */
 
-class RibbonDiagram(val protein: Protein, private val displaySS: Boolean = false): Mesh("ribbon") {
+class RibbonDiagram(val protein: Protein, private val showSecondaryStructures: Boolean = false): Mesh("ribbon") {
 
     /*
      *[structure] the structure of the protein stored in the class Structure of BioJava
@@ -102,7 +102,7 @@ class RibbonDiagram(val protein: Protein, private val displaySS: Boolean = false
             val guidePointList = calculateGuidePoints(aminoList, secStruc)
             val spline = ribbonSpline(guidePointList)
             val subProtein = subShapes(guidePointList, spline)
-            if(!displaySS) {
+            if(!showSecondaryStructures) {
                 val rainbow = Rainbow()
                 rainbow.colorVector(subProtein)
             }
@@ -120,7 +120,8 @@ class RibbonDiagram(val protein: Protein, private val displaySS: Boolean = false
 
         //the very first point of the spline is neglected as this makes the size of the point list divisible by the
         //section vertices count
-        val splinePoints = spline.splinePoints().map{ it.sub(centroid) }.drop(1)
+        val splinePointCentered = spline.splinePoints().map{ it.sub(centroid) }
+        val splinePoints = splinePointCentered.subList(0, splinePointCentered.lastIndex-1)
 
         val rectangle = ArrayList<Vector3f>(4)
         rectangle.add(Vector3f(0.9f, 0f, 0f))
@@ -205,7 +206,7 @@ class RibbonDiagram(val protein: Protein, private val displaySS: Boolean = false
                 }
                 val betaCurve = Curve(
                     DummySpline(subSpline, sectionVerticesCount)) { baseShape(ssSubList) }
-                if (displaySS) {
+                if (showSecondaryStructures) {
                     betas.addChild(betaCurve)
                 } else {
                     subParent.addChild(betaCurve)
@@ -226,21 +227,21 @@ class RibbonDiagram(val protein: Protein, private val displaySS: Boolean = false
                     val axis = Axis(caList)
                     val axisLine = MathLine(axis.direction, axis.position)
                     val helixCurve = Helix(axisLine, DummySpline(subSpline, sectionVerticesCount)) { rectangle }
-                    if (displaySS) {
+                    if (showSecondaryStructures) {
                         alphas.addChild(helixCurve)
                     } else {
                         subParent.addChild(helixCurve)
                     }
                 } else {
                     val coilCurve = Curve(DummySpline(subSpline, sectionVerticesCount)) { baseShape(ssSubList) }
-                    if (displaySS) {
+                    if (showSecondaryStructures) {
                         coils.addChild(coilCurve)
                     } else {
                         subParent.addChild(coilCurve)
                     }
                 }
             }
-            if (displaySS) {
+            if (showSecondaryStructures) {
                 subParent.addChild(alphas)
                 subParent.addChild(betas)
                 subParent.addChild(coils)
@@ -521,24 +522,18 @@ class RibbonDiagram(val protein: Protein, private val displaySS: Boolean = false
         }
     }
 
-
-    /**
-     * We only differentiate between sheets, helices, and coils
-     */
-    enum class SimplifiedType { sheet, helix, coil }
-
     /**
      * Stores a section of a secondary structure
      */
-    data class SSsection(val type: SecStrucType, val length: Int, val subSpline: List<Vector3f>)
+    data class SecondaryStructureSection(val type: SecStrucType, val length: Int, val subSpline: List<Vector3f>)
 
     /**
      * Counts the secondary structure length and puts together the subspline
      */
     private fun getSecondaryStructureLengths(guidePoints: List<GuidePoint>, splinePoints: List<Vector3f>, sectionCount: Int):
-        List<SSsection> {
+        List<SecondaryStructureSection> {
         // we do not know in advance how many secondary structures there will be in the chain
-        val ssSections = ArrayList<SSsection>(guidePoints.size/5)
+        val ssSections = ArrayList<SecondaryStructureSection>(guidePoints.size/5)
         var splineOffset = 0
         var guidePointOffset = 0
         while(guidePointOffset < guidePoints.lastIndex) {
@@ -573,7 +568,7 @@ class RibbonDiagram(val protein: Protein, private val displaySS: Boolean = false
             }
             guidePointOffset += length
             splineOffset += subSplineLength
-            ssSections.add(SSsection(guide.type, length, subSpline))
+            ssSections.add(SecondaryStructureSection(guide.type, length, subSpline))
         }
         return ssSections
     }
