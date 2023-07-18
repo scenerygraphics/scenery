@@ -1316,10 +1316,9 @@ open class VulkanRenderer(hub: Hub,
         }
     }
 
-    override fun streamVDI(IPAddress: String, cam: Camera, volumeDimensions3i : Vector3f, model: Matrix4f, context: ZContext) {
+    override fun streamVDI(IPAddress: String, cam: Camera, volumeDimensions3i : Vector3f, model: Matrix4f, context: ZContext, maxSupersegments : Int = 20) {
 
         var cnt = 0
-        val maxSupersegments = 20
 
         var vdiVolumeManager = hub?.get<VolumeManager>() as VolumeManager
 
