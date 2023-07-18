@@ -112,7 +112,7 @@ abstract class Renderer : Hubable {
         streamVDI("",Camera(), Vector3f(), Matrix4f() ,ZContext())
     }
 
-    abstract fun streamVDI(IPAddress: String = "", cam: Camera, volumeDimensions3i : Vector3f, model: Matrix4f, context: ZContext)
+    abstract fun streamVDI(IPAddress: String = "", cam: Camera, volumeDimensions3i : Vector3f, model: Matrix4f, context: ZContext, maxSupersegments : Int = 20)
 
 
     /**
