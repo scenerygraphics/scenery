@@ -1,5 +1,7 @@
 package graphics.scenery.volumes
 
+import bvv.core.shadergen.generate.SegmentTemplate
+import bvv.core.shadergen.generate.SegmentType
 import graphics.scenery.Hub
 import graphics.scenery.RichNode
 import graphics.scenery.Scene
@@ -16,15 +18,12 @@ import net.imglib2.type.numeric.real.FloatType
 import org.joml.Vector3f
 import org.joml.Vector3i
 import org.lwjgl.system.MemoryUtil
-import tpietzsch.shadergen.generate.SegmentTemplate
-import tpietzsch.shadergen.generate.SegmentType
 import java.nio.ByteBuffer
 import kotlin.math.ceil
 
 class VDIVolumeManager ( var hub: Hub, val windowWidth: Int, val windowHeight: Int, val maxSupersegments: Int,val scene: Scene, val vdiFull: Boolean = true)
 {
     private val logger by lazyLogger()
-
     fun createVDIVolumeManger() : VolumeManager {
         if (vdiFull)
             return vdiFull(windowWidth, windowHeight, maxSupersegments, scene, hub)
@@ -44,7 +43,7 @@ class VDIVolumeManager ( var hub: Hub, val windowWidth: Int, val windowHeight: I
                 ),
                 SegmentType.Accumulator to SegmentTemplate(
                     accumulateShader,
-                    "vis", "localNear", "localFar", "sampleVolume", "convert",
+                    "vis", "localNear", "localFar", "sampleVolume", "convert", "sceneGraphVisibility"
                 ),
             ),
         )
@@ -55,7 +54,7 @@ class VDIVolumeManager ( var hub: Hub, val windowWidth: Int, val windowHeight: I
         val accumulateShader = "AccumulateVDI.comp"
         val volumeManager = instantiateVolumeManager(raycastShader, accumulateShader, hub)
 
-        val outputSubColorBuffer = MemoryUtil.memCalloc(windowHeight*windowWidth*4*maxSupersegments * 4)
+        val outputSubColorBuffer = MemoryUtil.memCalloc(windowHeight*windowWidth*4*maxSupersegments)
 
         val outputSubDepthBuffer = MemoryUtil.memCalloc(windowHeight*windowWidth*2*maxSupersegments*2 * 2)
 
