@@ -28,6 +28,12 @@ class DummyVolume(val counterStart : Int = 0) : DefaultNode("DummyVolume"),HasTr
             field = value
             modifiedAt = System.nanoTime()
         }
+    override var range: Pair<Float, Float> = Pair<Float, Float>(minDisplayRange,maxDisplayRange)
+        get() = field
+        set(m) {
+            field = m
+            modifiedAt = System.nanoTime()
+        }
     var colormap: Colormap = Colormap.get("viridis")
         set(m) {
             field = m
