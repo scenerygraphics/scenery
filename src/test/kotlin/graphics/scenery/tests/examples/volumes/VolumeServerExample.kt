@@ -3,9 +3,6 @@ package graphics.scenery.tests.examples.volumes
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.TrackedStereoGlasses
-import graphics.scenery.tests.examples.cluster.SimpleNetworkExample
-import graphics.scenery.textures.Texture
-import graphics.scenery.utils.Image
 import graphics.scenery.volumes.*
 import org.joml.Vector3f
 import java.nio.file.Paths
