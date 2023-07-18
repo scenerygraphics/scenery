@@ -84,7 +84,7 @@ class ClientApplication : SceneryBase("Client Application", 512, 512)  {
         val dummyVolume = DummyVolume()
         with(dummyVolume) {
             name = "DummyVolume"
-            transferFunction = TransferFunction.ramp(0.001f, 0.5f, 0.3f)
+            transferFunction = TransferFunction.ramp(0.1f, 0.5f)
             scene.addChild(this)
         }
 
@@ -94,10 +94,11 @@ class ClientApplication : SceneryBase("Client Application", 512, 512)  {
             VRPlane.wantsSync = false
         }
 
-        val bridge = SwingBridgeFrame("TransferFunctionEditor")
-        val tfUI = TransferFunctionEditor(dummyVolume, bridge)
+        val bridge = SwingBridgeFrame("1DTransferFunctionEditor")
+        val tfUI = TransferFunctionEditor(dummyVolume)
+        bridge.addPanel(tfUI)
         tfUI.name = dummyVolume.name
-        val swingUiNode = tfUI.mainFrame.uiNode
+        val swingUiNode = bridge.uiNode
         swingUiNode.spatial() {
             position = Vector3f(2f,0f,0f)
         }
