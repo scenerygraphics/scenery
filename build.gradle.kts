@@ -92,7 +92,11 @@ dependencies {
     implementation("com.fasterxml.jackson.core:jackson-databind:2.13.3")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.13.3")
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.13.3")
-
+    implementation("org.xerial.snappy:snappy-java:1.1.8.4")
+    implementation("org.lwjgl:lwjgl-lz4:3.3.0")
+    implementation("org.lwjgl:lwjgl-zstd:3.3.0")
+    implementation("org.lwjgl:lwjgl-lz4:3.3.0:natives-linux")
+    implementation("org.lwjgl:lwjgl-zstd:3.3.0:natives-linux")
     implementation("org.zeromq:jeromq:0.5.3")
     implementation("com.esotericsoftware:kryo:5.5.0")
 
