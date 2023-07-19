@@ -1316,7 +1316,7 @@ open class VulkanRenderer(hub: Hub,
         }
     }
 
-    override fun streamVDI(IPAddress: String, cam: Camera, volumeDimensions3i : Vector3f, model: Matrix4f, context: ZContext, maxSupersegments : Int = 20) {
+    override fun streamVDI(IPAddress: String, cam: Camera, volumeDimensions3i : Vector3f, model: Matrix4f, context: ZContext, maxSupersegments : Int) {
 
         var cnt = 0
 
