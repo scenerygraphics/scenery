@@ -1,6 +1,9 @@
 package graphics.scenery.tests.examples.compute
 
 import bdv.util.AxisOrder
+import bvv.core.VolumeViewerOptions
+import bvv.core.shadergen.generate.SegmentTemplate
+import bvv.core.shadergen.generate.SegmentType
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.backends.vulkan.VulkanRenderer
@@ -17,9 +20,6 @@ import net.imglib2.img.display.imagej.ImageJFunctions
 import net.imglib2.type.numeric.integer.UnsignedShortType
 import org.joml.Vector3f
 import org.lwjgl.system.MemoryUtil
-import tpietzsch.example2.VolumeViewerOptions
-import tpietzsch.shadergen.generate.SegmentTemplate
-import tpietzsch.shadergen.generate.SegmentType
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.concurrent.thread
 import kotlin.test.assertEquals
@@ -53,7 +53,7 @@ class PersistentTextureRequestsExample : SceneryBase("PersistentTextureRequestsE
 
         val outputBuffer = MemoryUtil.memCalloc(1280*720*4)
         val outputTexture = Texture.fromImage(Image(outputBuffer, 1280, 720), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
-        volumeManager.material.textures["OutputRender"] = outputTexture
+        volumeManager.material().textures["OutputRender"] = outputTexture
 
         hub.add(volumeManager)
 
@@ -66,9 +66,9 @@ class PersistentTextureRequestsExample : SceneryBase("PersistentTextureRequestsE
 
         val box = Box(Vector3f(1.0f, 1.0f, 1.0f))
         box.name = "le box du win"
-        box.material.textures["diffuse"] = outputTexture
-        box.material.metallic = 0.0f
-        box.material.roughness = 1.0f
+        box.material().textures["diffuse"] = outputTexture
+        box.material().metallic = 0.0f
+        box.material().roughness = 1.0f
 
         scene.addChild(box)
 
@@ -87,7 +87,7 @@ class PersistentTextureRequestsExample : SceneryBase("PersistentTextureRequestsE
         }
 
         thread {
-            val opTexture = volumeManager.material.textures["OutputRender"]!!
+            val opTexture = volumeManager.material().textures["OutputRender"]!!
 
             var prevCounter = 0
 
