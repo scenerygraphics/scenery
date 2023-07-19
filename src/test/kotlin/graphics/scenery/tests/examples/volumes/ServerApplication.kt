@@ -62,9 +62,8 @@ class ServerApplication : SceneryBase("Volume Server Example", 512, 512) {
         //Step 4: render volume first time
         renderVolume(volume)
 
-        //Step 5: switch between different volume managers
+        //Step 5: switch between different modes
         var currentlyVolumeRendering = true
-        var firstVDI = true
 
         thread {
                 while (true) {
@@ -77,7 +76,6 @@ class ServerApplication : SceneryBase("Volume Server Example", 512, 512) {
                             logger.warn("Volume Rendering")
 
                             renderer?.vdiStreaming = false
-
                             standardVolumeManager.replace(standardVolumeManager)
                             renderVolume(volume)
 
@@ -120,6 +118,7 @@ class ServerApplication : SceneryBase("Volume Server Example", 512, 512) {
                     volume.transferFunction = dummyVolume.transferFunction
                     volume.maxDisplayRange = dummyVolume.maxDisplayRange
                     volume.minDisplayRange = dummyVolume.minDisplayRange
+                    volume.colormap = dummyVolume.colormap
                 }
             }
         }
