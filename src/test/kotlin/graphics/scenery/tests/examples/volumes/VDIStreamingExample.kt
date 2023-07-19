@@ -1,31 +1,13 @@
 package graphics.scenery.tests.examples.volumes
 
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.core.type.TypeReference
 import graphics.scenery.Camera
 import graphics.scenery.DetachedHeadCamera
 import graphics.scenery.SceneryBase
 import graphics.scenery.backends.Renderer
-import graphics.scenery.volumes.vdi.VDIDataIO
-import graphics.scenery.backends.vulkan.VulkanRenderer
 import graphics.scenery.volumes.*
-import graphics.scenery.volumes.vdi.VDIBufferSizes
-import graphics.scenery.utils.DataCompressor
-import graphics.scenery.volumes.vdi.VDIData
-import graphics.scenery.volumes.vdi.VDIMetadata
-import org.joml.Vector2i
 import org.joml.Vector3f
-import java.nio.ByteBuffer
 import java.nio.file.Paths
-import java.util.concurrent.atomic.AtomicInteger
-import org.lwjgl.system.MemoryUtil
-import org.zeromq.SocketType
 import org.zeromq.ZContext
-import org.zeromq.ZMQ
-import org.zeromq.ZMQException
-import java.io.*
-import kotlin.system.measureNanoTime
-import org.msgpack.jackson.dataformat.MessagePackFactory
 
 class VDIStreamingExample : SceneryBase("VDI Streaming Example", 512, 512) {
 
