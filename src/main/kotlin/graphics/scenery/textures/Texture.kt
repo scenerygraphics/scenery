@@ -48,8 +48,9 @@ open class Texture @JvmOverloads constructor(
     val mutex: Semaphore = Semaphore(1),
     /** Mutex for GPU upload */
     val gpuMutex: Semaphore = Semaphore(1),
-    /** Hash set to indicate the state of the texture */
+    /** Atomic integer to indicate GPU upload state */
     val uploaded: AtomicInteger = AtomicInteger(0),
+    /** Hash set to indicate the state of the texture */
     val state: MutableSet<TextureState> = Collections.synchronizedSet(hashSetOf(TextureState.Created))
 ) : Serializable, Timestamped {
 
