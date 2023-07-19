@@ -6,11 +6,11 @@
 #define PROFILE_MEM 0
 #define USE_VIEW_SPACE_CELLS 1
 #define RLE 0
-#extension GL_EXT_debug_printf : disable
 #define RAY_INVERSION_ENABLE 1
-#if USE_PRINTF
-#extension GL_EXT_debug_printf : disable
-#endif
+#extension GL_EXT_debug_printf : enable
+//#if USE_PRINTF
+//#extension GL_EXT_debug_printf : enable
+//#endif
 
 layout(set = 0, binding = 0) uniform VRParameters {
     mat4 projectionMatrices[2];
@@ -53,7 +53,7 @@ layout(push_constant) uniform currentEye_t {
     int eye;
 } currentEye;
 
-layout (local_size_x = 16, local_size_y = 16) in;
+layout (local_size_x = 32, local_size_y = 1) in;
 layout(set = 2, binding = 0, rgba32f) uniform readonly image3D InputVDI;
 layout(set = 3, binding = 0, rgba8) uniform image2D OutputViewport;
 layout (set = 4, binding = 0, r32f) uniform readonly image3D DepthVDI;
@@ -72,8 +72,8 @@ layout(set = 11, binding = 0, r32f) uniform image2D NumSteps;
 //layout(set = 10, binding = 0, r32f) uniform image2D EmptyBeforeFirst;
 //layout(set = 11, binding = 0, r32f) uniform image2D EmptyAfterLast;
 #endif
-
-ivec2 debug_pixel = ivec2(1108, 854);
+layout(set=7, binding = 0, r16ui) uniform uimage2D PixelCoords;
+ivec2 debug_pixel = ivec2(0, 0);
 
 const vec4 bitEnc = vec4(1.,255.,65025.,16581375.);
 const vec4 bitDec = 1./bitEnc;
@@ -1290,43 +1290,62 @@ void main() {
 
     mat4 view;
 
-    view = (vrParameters.stereoEnabled ^ 1) * ViewMatrices[0] + (vrParameters.stereoEnabled * ViewMatrices[currentEye.eye]);
 
+
+    view = (vrParameters.stereoEnabled ^ 1) * ViewMatrices[0] + (vrParameters.stereoEnabled * ViewMatrices[currentEye.eye]);
+    if(gl_GlobalInvocationID.xy==debug_pixel){
+        debugPrintfEXT("current eye is: %d", currentEye.eye);
+    }
     mat4 inverseProjection = (vrParameters.stereoEnabled ^ 1) * InverseProjectionMatrix + (vrParameters.stereoEnabled * vrParameters.inverseProjectionMatrices[currentEye.eye]);
     mat4 inverseView = inverse(view); //TODO: Why not use InverseViewMatrices[] directly?
-
+//    mat4 inverseView = (vrParameters.stereoEnabled ^ 1) * InverseViewMatrices[0] + (vrParameters.stereoEnabled * InverseViewMatrices[currentEye.eye]);
     highp mat4 ipv = inverseView * inverseProjection;
 
 //    #if USE_PRINTF
-//    if(gl_GlobalInvocationID.xy == debug_pixel) {
-//        debugPrintfEXT("Inv projection matrix is: (%f, %f, %f, %f)", inverseProjection[0].xyzw);
-//        debugPrintfEXT("Inv projection matrix is: (%f, %f, %f, %f)", inverseProjection[1].xyzw);
-//        debugPrintfEXT("Inv projection matrix is: (%f, %f, %f, %f)", inverseProjection[2].xyzw);
-//        debugPrintfEXT("Inv projection matrix is: (%f, %f, %f, %f)", inverseProjection[3].xyzw);
-//
-//        debugPrintfEXT("Inv view matrix is: (%f, %f, %f, %f)", inverseView[0].xyzw);
-//        debugPrintfEXT("Inv view matrix is: (%f, %f, %f, %f)", inverseView[1].xyzw);
-//        debugPrintfEXT("Inv view matrix is: (%f, %f, %f, %f)", inverseView[2].xyzw);
-//        debugPrintfEXT("Inv view matrix is: (%f, %f, %f, %f)", inverseView[3].xyzw);
-//
-//        debugPrintfEXT("stereo enabled: %d and current eye: %d", vrParameters.stereoEnabled, currentEye.eye);
-//    }
+    if(gl_GlobalInvocationID.xy == debug_pixel) {
+        debugPrintfEXT("Inv projection matrix is: (%f, %f, %f, %f)", inverseProjection[0].xyzw);
+        debugPrintfEXT("Inv projection matrix is: (%f, %f, %f, %f)", inverseProjection[1].xyzw);
+        debugPrintfEXT("Inv projection matrix is: (%f, %f, %f, %f)", inverseProjection[2].xyzw);
+        debugPrintfEXT("Inv projection matrix is: (%f, %f, %f, %f)", inverseProjection[3].xyzw);
+
+        debugPrintfEXT("Inv view matrix is: (%f, %f, %f, %f)", inverseView[0].xyzw);
+        debugPrintfEXT("Inv view matrix is: (%f, %f, %f, %f)", inverseView[1].xyzw);
+        debugPrintfEXT("Inv view matrix is: (%f, %f, %f, %f)", inverseView[2].xyzw);
+        debugPrintfEXT("Inv view matrix is: (%f, %f, %f, %f)", inverseView[3].xyzw);
+
+        debugPrintfEXT("stereo enabled: %d and current eye: %d", vrParameters.stereoEnabled, currentEye.eye);
+    }
 //    #endif
     pv_orig = ProjectionOriginal * ViewOriginal;
 
     ivp_orig = invViewOriginal * invProjectionOriginal;
 
-    vec2 texcoord = gl_GlobalInvocationID.xy/vec2(windowWidth, windowHeight); //TODO: here the ww and wh need to remain as they are
+    uint XCoordMask = 2*(gl_GlobalInvocationID.y);
+    uint YCoordMask = XCoordMask+1;
+//    uint p = gl_GlobalInvocationID.x+gl_GlobalInvocationID.y*289;
+//    if(p>9237){
+//        return;
+//    }
+//    uint X = imageLoad(PixelCoords,ivec2(p,0)).x-240;
+//    uint Y= imageLoad(PixelCoords, ivec2(p,0)).y-135;
+    ivec2 coordinates=ivec2(gl_GlobalInvocationID.xy);
+//    imageStore(OutputViewport, ivec2(int(gl_GlobalInvocationID.x), int(gl_GlobalInvocationID.y)), vec4(1,0,0,0));
+    //    imageStore(OutputViewport, ivec2(20,5), vec4(1,0,0,0));
+
+//    return;
+
+    vec2 texcoord = coordinates.xy/vec2(windowWidth, windowHeight); //TODO: here the ww and wh need to remain as they are
 
     if((texcoord.x > 1) || (texcoord.y > 1)) {
         return;
     }
 
     vec2 uv = texcoord * 2.0 - vec2(1.0);
+    //these 2 lines are useless
     vec2 depthUV = (vrParameters.stereoEnabled ^ 1) * texcoord + vrParameters.stereoEnabled * vec2((texcoord.x/2.0 + currentEye.eye * 0.5), texcoord.y);
     depthUV = depthUV * 2.0 - vec2(1.0);
 
-    newRay.coords.xy = ivec2(gl_GlobalInvocationID.xy);
+    newRay.coords.xy = coordinates;
 
     // NDC of frag on near and far plane
     newRay.NDC_front = vec4( uv, -1, 1 );
@@ -1357,7 +1376,7 @@ void main() {
         vis = true;
     }
     if(!vis) {
-        imageStore(OutputViewport, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), vec4(0));
+        imageStore(OutputViewport, coordinates, vec4(0));
         return;
     }
 
@@ -1474,7 +1493,7 @@ void main() {
 
                 //TODO: check ray (496, 0) from original viewpoint. It should pass through viewport, but just misses it
 
-                imageStore(OutputViewport, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), vec4(0));
+                imageStore(OutputViewport, coordinates, vec4(0));
                 return;
             }
 
@@ -1912,12 +1931,13 @@ void main() {
 //    finalColor = vec4(totalMemoryLoads/2500.0, 0, 0, 1);
     totalAfterLast = totalMemoryLoads - whenLast_Total;
 //    finalColor = vec4(0);
-    imageStore(OutputViewport, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), finalColor);
-    #if USE_PRINTF
+    imageStore(OutputViewport, coordinates, finalColor);
+//    #if USE_PRINTF
+    debug_pixel=ivec2(222,108);
     if(gl_GlobalInvocationID.xy == debug_pixel) {
         debugPrintfEXT("Final!!! composited color is: (%f, %f, %f, %f)", finalColor.rgba);
     }
-    #endif
+//    #endif
 
 #if PROFILE_MEM
     imageStore(NumSteps, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), vec4(totalMemoryLoads, 0, 0, 0));

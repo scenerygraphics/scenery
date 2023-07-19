@@ -5,6 +5,7 @@ import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.backends.vulkan.VulkanRenderer
+import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.Image
 import graphics.scenery.utils.SystemHelpers
@@ -23,6 +24,7 @@ import tpietzsch.shadergen.generate.SegmentTemplate
 import tpietzsch.shadergen.generate.SegmentType
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.concurrent.thread
+import kotlin.system.exitProcess
 
 /**
  * Example showing using a custom [graphics.scenery.volumes.VolumeManager] with
@@ -31,9 +33,18 @@ import kotlin.concurrent.thread
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class CustomVolumeManagerExample : SceneryBase("CustomVolumeManagerExample") {
+    lateinit var hmd: OpenVRHMD
+
     override fun init() {
+        hmd = OpenVRHMD(useCompositor = true)
+        if(!hmd.initializedAndWorking()) {
+            logger.error("This demo is intended to show the use of OpenVR controllers, but no OpenVR-compatible HMD could be initialized.")
+            exitProcess(1)
+        }
+        hub.add(SceneryElement.HMDInput, hmd)
         renderer = hub.add(SceneryElement.Renderer,
             Renderer.createRenderer(hub, applicationName, scene, 1280, 720))
+        renderer?.toggleVR()
 
         val volumeManager = VolumeManager(hub,
             useCompute = true,
@@ -51,12 +62,12 @@ class CustomVolumeManagerExample : SceneryBase("CustomVolumeManagerExample") {
 
         hub.add(volumeManager)
 
-        val imp: ImagePlus = IJ.openImage("https://imagej.nih.gov/ij/images/t1-head.zip")
-        val img: Img<UnsignedShortType> = ImageJFunctions.wrapShort(imp)
+//        val imp: ImagePlus = IJ.openImage("https://imagej.nih.gov/ij/images/t1-head.zip")
+//        val img: Img<UnsignedShortType> = ImageJFunctions.wrapShort(imp)
 
-        val volume = Volume.fromRAI(img, UnsignedShortType(), AxisOrder.DEFAULT, "T1 head", hub, VolumeViewerOptions())
-        volume.transferFunction = TransferFunction.ramp(0.001f, 0.5f, 0.3f)
-        scene.addChild(volume)
+//        val volume = Volume.fromRAI(img, UnsignedShortType(), AxisOrder.DEFAULT, "T1 head", hub, VolumeViewerOptions())
+//        volume.transferFunction = TransferFunction.ramp(0.001f, 0.5f, 0.3f)
+//        scene.addChild(volume)
 
         val box = Box(Vector3f(1.0f, 1.0f, 1.0f))
         box.name = "le box du win"
@@ -74,7 +85,7 @@ class CustomVolumeManagerExample : SceneryBase("CustomVolumeManagerExample") {
         light.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
         scene.addChild(light)
 
-        val cam: Camera = DetachedHeadCamera()
+        val cam: Camera = DetachedHeadCamera(hmd)
         with(cam) {
             spatial {
                 position = Vector3f(0.0f, 0.0f, 5.0f)

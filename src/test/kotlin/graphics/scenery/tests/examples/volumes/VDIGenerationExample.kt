@@ -39,8 +39,8 @@ class VDIGenerationExample : SceneryBase("VDI Generation") {
     val old_viewpoint = true
 
     override fun init() {
-        windowWidth = 1280
-        windowHeight = 720
+        windowWidth = 960
+        windowHeight = 540
 
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
 

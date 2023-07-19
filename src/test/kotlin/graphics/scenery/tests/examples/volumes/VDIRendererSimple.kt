@@ -52,7 +52,7 @@ class CustomNodeSimple : RichNode() {
 }
 
 
-class VDIRendererSimple : SceneryBase("SimpleVDIRenderer", 1920, 1080) {
+class VDIRendererSimple : SceneryBase("SimpleVDIRenderer", 960, 540) {
 
     private val vulkanProjectionFix =
         Matrix4f(

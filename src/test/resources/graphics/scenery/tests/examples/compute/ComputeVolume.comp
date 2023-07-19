@@ -76,7 +76,10 @@ void main()
     vec2 uv = texcoord * 2.0 - vec2(1.0);
     vec2 depthUV = (vrParameters.stereoEnabled ^ 1) * texcoord + vrParameters.stereoEnabled * vec2((texcoord.x/2.0 + currentEye.eye * 0.5), texcoord.y);
     depthUV = depthUV * 2.0 - vec2(1.0);
-
+    if(currentEye.eye==1){
+        imageStore(OutputRender, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), vec4(1.0,0.0,0.0,0.0));
+        return;
+    }
     vec4 FragColor = vec4(0.0);
 
     // NDC of frag on near and far plane

@@ -6,6 +6,7 @@ import graphics.scenery.attribute.material.Material
 import graphics.scenery.backends.Renderer
 import graphics.scenery.backends.vulkan.VulkanRenderer
 import graphics.scenery.backends.vulkan.VulkanTexture
+import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.numerics.Random
 import graphics.scenery.tests.examples.volumes.VolumeExample
 import graphics.scenery.textures.Texture
@@ -60,10 +61,15 @@ class ComputeProceduralVolumeExample: SceneryBase("Volume Rendering example", 12
     var totalTime: Long = 0
     var gpuSendTime: Long = 0
     var rendPrev: Long = 0
+    lateinit var hmd: OpenVRHMD
 
     override fun init() {
+        hmd = OpenVRHMD(useCompositor = true)
+        hub.add(SceneryElement.HMDInput, hmd)
+
         logger.info("In init function")
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
+        renderer?.toggleVR()
 
         logger.info("Init 1")
 
@@ -86,7 +92,7 @@ class ComputeProceduralVolumeExample: SceneryBase("Volume Rendering example", 12
 
         logger.info("Init 3")
 
-        val cam: Camera = DetachedHeadCamera()
+        val cam: Camera = DetachedHeadCamera(hmd)
         with(cam) {
             position = Vector3f(0.0f, 0.5f, 5.0f)
             perspectiveCamera(50.0f, windowWidth, windowHeight)

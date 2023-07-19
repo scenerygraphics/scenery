@@ -7,7 +7,9 @@ import graphics.scenery.backends.Shaders
 import graphics.scenery.backends.vulkan.VulkanRenderer
 import graphics.scenery.compute.ComputeMetadata
 import graphics.scenery.compute.InvocationType
+import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.controls.TrackedStereoGlasses
+import graphics.scenery.tests.examples.basic.TexturedCubeExample
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.Image
 import graphics.scenery.utils.Statistics
@@ -16,8 +18,12 @@ import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
 import graphics.scenery.volumes.vdi.VDIDataIO
+import net.imagej.ops.Ops.Create.IntegerType
+import net.imglib2.type.numeric.integer.ByteType
 import net.imglib2.type.numeric.integer.IntType
+import net.imglib2.type.numeric.integer.UnsignedByteType
 import net.imglib2.type.numeric.integer.UnsignedIntType
+import net.imglib2.type.numeric.integer.UnsignedShortType
 import net.imglib2.type.numeric.real.FloatType
 import org.joml.Matrix4f
 import org.joml.Quaternionf
@@ -39,6 +45,7 @@ import kotlin.concurrent.thread
 import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.min
+import kotlin.system.exitProcess
 
 /**
  * @author Aryaman Gupta <argupta@mpi-cbg.de>
@@ -96,7 +103,8 @@ class CustomNode : RichNode() {
 }
 
 class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDIBenchmark.WindowWidth")?.toInt()?: 1920, System.getProperty("VDIBenchmark.WindowHeight")?.toInt() ?: 1080, wantREPL = false) {
-    var hmd: TrackedStereoGlasses? = null
+//    var hmd: TrackedStereoGlasses? = null
+    private lateinit var hmd: OpenVRHMD
 
     val separateDepth = true
     val runLengthEncoded = false
@@ -134,9 +142,12 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
     val communicatorType = "_${commSize}_${rank}"
 //    val communicatorType = ""
 
-    val cam: Camera = DetachedHeadCamera(hmd)
-    val plane = FullscreenObject()
+//    val cam: Camera = DetachedHeadCamera(hmd)
+    lateinit var cam: Camera
 
+    val plane = FullscreenObject()
+    var offsetX:Int = 240
+    var offsetY = 135
     val camTarget = when (dataset) {
         "Kingsnake" -> {
             Vector3f(1.920E+0f, -1.920E+0f,  1.491E+0f)
@@ -186,9 +197,18 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
         } else {
             3
         }
+        hmd = OpenVRHMD(useCompositor = true)
 
+        if(!hmd.initializedAndWorking()) {
+            logger.error("This demo is intended to show the use of OpenVR controllers, but no OpenVR-compatible HMD could be initialized.")
+            exitProcess(1)
+        }
+
+        hub.add(SceneryElement.HMDInput, hmd)
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
+        renderer?.toggleVR()
 
+        cam=DetachedHeadCamera(hmd)
         val effectiveWindowWidth: Int = (windowWidth * settings.get<Float>("Renderer.SupersamplingFactor")).toInt()
         val effectiveWindowHeight: Int = (windowHeight * settings.get<Float>("Renderer.SupersamplingFactor")).toInt()
 
@@ -307,6 +327,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
 
         var colBuffer: ByteBuffer
         var depthBuffer: ByteBuffer?
+        var StipBuffer: ByteBuffer
 
         colBuffer = if(runLengthEncoded) {
             MemoryUtil.memCalloc(512 * 512 * ceil((totalMaxSupersegments / (512*512)).toDouble()).toInt() * 4 * 4)
@@ -315,6 +336,14 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
         }
         colBuffer.put(buff).flip()
         colBuffer.limit(colBuffer.capacity())
+
+        StipBuffer = if(runLengthEncoded) {
+            MemoryUtil.memCalloc(512 * 512 * ceil((totalMaxSupersegments / (512*512)).toDouble()).toInt() * 4 * 4)
+        } else {
+            MemoryUtil.memCalloc(windowHeight * windowWidth * numSupersegments * numLayers * 4 * 4)
+        }
+        StipBuffer.put(buff).flip()
+        StipBuffer.limit(StipBuffer.capacity())
 
         depthBuffer = if(runLengthEncoded) {
             MemoryUtil.memCalloc(2 * 512 * 512 * ceil((totalMaxSupersegments / (512*512)).toDouble()).toInt() * 4)
@@ -325,7 +354,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
         depthBuffer.limit(depthBuffer.capacity())
 
 //        val numVoxels = 2.0.pow(numOctreeLayers)
-        val numGridCells = Vector3f(1920.0f/ 8f, 1080.0f / 8f, numSupersegments.toFloat())
+        val numGridCells = Vector3f(windowWidth/ 8f, windowHeight / 8f, numSupersegments.toFloat())
 //        val numGridCells = Vector3f(256f, 256f, 256f)
         val lowestLevel = MemoryUtil.memCalloc(numGridCells.x.toInt() * numGridCells.y.toInt() * numGridCells.z.toInt() * 4)
         if(skipEmpty) {
@@ -334,9 +363,11 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
 
         compute.name = "compute node"
 
+
 //        compute.setMaterial(ShaderMaterial(Shaders.ShadersFromFiles(arrayOf("EfficientVDIRaycast.comp"), this@VDIRenderingExample::class.java))) {
         compute.setMaterial(ShaderMaterial(Shaders.ShadersFromFiles(arrayOf("AmanatidesJumps.comp"), this@VDIRenderingExample::class.java))) {
             textures["OutputViewport"] = Texture.fromImage(Image(opBuffer, effectiveWindowWidth, effectiveWindowHeight), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
+//            textures["PixelCoords"] = Texture.fromImage(Image.fromResource("textures/stippleMap.png", TexturedCubeExample::class.java))
 
             if (profileMemoryAccesses) {
                 textures["NumSteps"] = Texture.fromImage(Image(opNumSteps, effectiveWindowWidth, effectiveWindowHeight), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), channels = 1, mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
@@ -388,8 +419,132 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
             compute.material().textures["OctreeCells"] = Texture(Vector3i(numGridCells.x.toInt(), numGridCells.y.toInt(), numGridCells.z.toInt()), 1, type = UnsignedIntType(), contents = lowestLevel, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
 //        }
 
+
+        val PixArray: ByteArray = File("E:\\FoveatedRendering\\FoveatedVolumeRendering\\points_960x540_9237.bin").readBytes()
+//        val PixArray = byteArrayOf(110, 120, 10, 50)
+        val PixBuffer = MemoryUtil.memCalloc(36948)
+
+        PixBuffer.put(PixArray).flip()
+        compute.material().textures["PixelCoords"] = Texture(
+            Vector3i(9237, 1, 1),
+            2,
+            contents = PixBuffer,
+            usageType = hashSetOf(
+                Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture
+            ),
+            type = UnsignedShortType(),
+
+            mipmap = false,
+            normalized = false,
+            minFilter = Texture.FilteringMode.NearestNeighbour,
+            maxFilter = Texture.FilteringMode.NearestNeighbour
+        )
+        plane.material().textures["PixelCoords"] = Texture(
+            Vector3i(9237, 1, 1),
+            2,
+            contents = PixBuffer,
+            usageType = hashSetOf(
+                Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture
+            ),
+            type = UnsignedShortType(),
+
+            mipmap = false,
+            normalized = false,
+            minFilter = Texture.FilteringMode.NearestNeighbour,
+            maxFilter = Texture.FilteringMode.NearestNeighbour
+        )
+
+        val p2mArray: ByteArray = File("E:\\FoveatedRendering\\FoveatedVolumeRendering\\m2p_960x540_9237.bin").readBytes()
+//        val PixArray = byteArrayOf(110, 120, 10, 50)
+
+        val p2mBuffer = MemoryUtil.memCalloc(9237*2)
+
+        p2mBuffer.put(p2mArray).flip()
+        plane.material().textures["m2p"] = Texture(
+            Vector3i(9237, 1, 1),
+            1,
+            contents = p2mBuffer,
+            usageType = hashSetOf(
+                Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture
+            ),
+            type = UnsignedShortType(),
+
+            mipmap = false,
+            normalized = false,
+            minFilter = Texture.FilteringMode.NearestNeighbour,
+            maxFilter = Texture.FilteringMode.NearestNeighbour
+        )
+//        compute.material().textures["PixelCoords"] = Texture.fromImage(Image.fromResource("stippleMap.png",
+//            VDIRenderingExample::class.java),usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
+
+        val IndicesArray: ByteArray = File("E:\\FoveatedRendering\\FoveatedVolumeRendering\\nim_960x540_9237.bin").readBytes()
+//        val PixArray = byteArrayOf(110, 120, 10, 50)
+
+        val IndicesBuffer = MemoryUtil.memCalloc(16588800)
+
+        IndicesBuffer.put(IndicesArray).flip()
+        plane.material().textures["Indices"] = Texture(
+
+            Vector3i(1920/2, 1080/2, 16),
+            1,
+            contents = IndicesBuffer,
+            usageType = hashSetOf(
+                Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture
+            ),
+            type = UnsignedShortType(),
+
+            mipmap = false,
+            normalized = false,
+            minFilter = Texture.FilteringMode.NearestNeighbour,
+            maxFilter = Texture.FilteringMode.NearestNeighbour
+        )
+        val sparseMap: ByteArray = File("E:\\FoveatedRendering\\FoveatedVolumeRendering\\sparse_map.bin").readBytes()
+//        val PixArray = byteArrayOf(110, 120, 10, 50)
+        logger.info(sparseMap[960].toString());
+        logger.info(sparseMap[961].toString());
+
+        val sparseBuffer = MemoryUtil.memCalloc(518400)
+
+        sparseBuffer.put(sparseMap).flip()
+
+        plane.material().textures["sparseMap"] = Texture(
+
+            Vector3i(1920, 270, 1),
+            1,
+            contents = sparseBuffer,
+            usageType = hashSetOf(
+                Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture
+            ),
+            type = UnsignedByteType(),
+            mipmap = false,
+            normalized = false,
+            minFilter = Texture.FilteringMode.NearestNeighbour,
+            maxFilter = Texture.FilteringMode.NearestNeighbour
+        )
+        val WeightsArray: ByteArray = File("E:\\FoveatedRendering\\FoveatedVolumeRendering\\nwm_960x540_9237.bin").readBytes()
+//        val PixArray = byteArrayOf(110, 120, 10, 50)
+
+        val WeightsBuffer = MemoryUtil.memCalloc(16588800*2)
+
+        WeightsBuffer.put(WeightsArray).flip()
+        plane.material().textures["Weights"] = Texture(
+            Vector3i(1920/2, 1080/2, 16),
+            1,
+            contents = WeightsBuffer,
+            usageType = hashSetOf(
+                Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture
+            ),
+            type = FloatType(),
+
+            mipmap = false,
+            normalized = false,
+            minFilter = Texture.FilteringMode.NearestNeighbour,
+            maxFilter = Texture.FilteringMode.NearestNeighbour
+        )
+
         compute.metadata["ComputeMetadata"] = ComputeMetadata(
-            workSizes = Vector3i(effectiveWindowWidth, effectiveWindowHeight, 1),
+            workSizes = Vector3i(1920, 1080
+                , 1),
             invocationType = InvocationType.Permanent
         )
 
@@ -414,7 +569,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
 
         scene.addChild(plane)
         plane.material().textures["diffuse"] = compute.material().textures["OutputViewport"]!!
-
+        plane.material().textures["FoveatedTexture"] = compute.material().textures["OutputViewport"]!!
         if(autoClose) {
             thread {
                 Thread.sleep(closeAfter)
@@ -900,7 +1055,9 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
 //        logger.info("new camera rotation: ${cam.spatial().rotation}")
 //        logger.info("camera forward: ${cam.forward}")
     }
-
+    fun focusUp(stride: Int){
+        offsetX -= stride
+    }
 
     override fun inputSetup() {
         setupCameraModeSwitching()
@@ -909,7 +1066,11 @@ class VDIRenderingExample : SceneryBase("VDI Rendering", System.getProperty("VDI
             rotateCamera(10f)
 
         })
+        inputHandler?.addBehaviour("focusUp", ClickBehaviour {_, _ ->
+            focusUp(10)
+        })
         inputHandler?.addKeyBinding("rotate_camera", "R")
+        inputHandler?.addKeyBinding("focusUp", "U")
         inputHandler?.addBehaviour("get_coords", ClickBehaviour { _, _ ->
 
                 logger.info(cam.spatial().position.toString())
