@@ -19,6 +19,7 @@ import bvv.core.render.MultiVolumeShaderMip
 import bvv.core.shadergen.generate.Segment
 import bvv.core.shadergen.generate.SegmentTemplate
 import bvv.core.shadergen.generate.SegmentType
+import bvv.core.util.TriConsumer
 import graphics.scenery.*
 import graphics.scenery.geometry.GeometryType
 import graphics.scenery.attribute.geometry.Geometry
@@ -59,7 +60,7 @@ class VolumeManager(
     override var hub: Hub?,
     val useCompute: Boolean = false,
     val customSegments: Map<SegmentType, SegmentTemplate>? = null,
-    val customBindings: BiConsumer<Map<SegmentType, SegmentTemplate>, Map<SegmentType, Segment>>? = null
+    val customBindings: TriConsumer<Map<SegmentType, SegmentTemplate>, Map<SegmentType, Segment>, Int>? = null
 ) : DefaultNode("VolumeManager"), HasGeometry, HasRenderable, HasMaterial, Hubable, RequestRepaint {
 
     /**
@@ -306,17 +307,24 @@ class VolumeManager(
         )
         segments[SegmentType.Accumulator] = SegmentTemplate(
             "AccumulateSimpleVolume.frag",
-            "vis", "sampleVolume", "convert", "sceneGraphVisibility"
+            "vis", "localNear", "localFar", "sampleVolume", "convert", "sceneGraphVisibility"
         )
 
         customSegments?.forEach { (type, segment) -> segments[type] = segment }
 
         var triggered = false
         val additionalBindings = customBindings
+            ?: TriConsumer { _: Map<SegmentType, SegmentTemplate>, instances: Map<SegmentType, Segment>, i: Int ->
+                logger.info("Connecting additional bindings")
 
-            ?: BiConsumer { _: Map<SegmentType, SegmentTemplate>, instances: Map<SegmentType, Segment> ->
-                logger.debug("Connecting additional bindings")
+                if (!triggered) {
+                    instances[SegmentType.FragmentShader]?.repeat("localNear", n)
+                    instances[SegmentType.FragmentShader]?.repeat("localFar", n)
+                    triggered = true
+                }
 
+                instances[SegmentType.FragmentShader]?.bind("localNear", i, instances[SegmentType.Accumulator])
+                instances[SegmentType.FragmentShader]?.bind("localFar", i, instances[SegmentType.Accumulator])
 
                 instances[SegmentType.SampleMultiresolutionVolume]?.bind("convert", instances[SegmentType.Convert])
 
