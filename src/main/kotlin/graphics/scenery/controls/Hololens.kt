@@ -226,7 +226,7 @@ class Hololens: TrackerInput, Display, Hubable {
      * @param[queue] The Vulkan command queue to use.
      * @param[commandPool] The Vulkan command pool to use.
      */
-    private fun getSharedHandleVulkanTexture(sharedHandleAddress: Long, width: Int, height: Int, format: Int, device: VulkanDevice, queue: VkQueue, commandPool: Long): Pair<VulkanTexture.VulkanImage, Long>? {
+    private fun getSharedHandleVulkanTexture(sharedHandleAddress: Long, width: Int, height: Int, format: Int, device: VulkanDevice, queue: VulkanDevice.QueueWithMutex, commandPool: Long): Pair<VulkanTexture.VulkanImage, Long>? {
         logger.info("Registered D3D shared texture handle as ${sharedHandleAddress.toHexString()}/${sharedHandleAddress.toString(16)}")
 
         // VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_IMAGE_BIT_NV does not seem to work here
@@ -376,9 +376,9 @@ class Hololens: TrackerInput, Display, Hubable {
      * @param[queue] Vulkan queue
      * @param[image] The Vulkan texture image to be presented to the compositor
      */
-    override fun submitToCompositorVulkan(width: Int, height: Int, format: Int, instance: VkInstance, device: VulkanDevice, queue: VkQueue, image: Long) {
+    override fun submitToCompositorVulkan(width: Int, height: Int, format: Int, instance: VkInstance, device: VulkanDevice, queue: VulkanDevice.QueueWithMutex, image: Long) {
         if(hololensCommandPool == -1L) {
-            hololensCommandPool = device.createCommandPool(device.queues.graphicsQueue.first)
+            hololensCommandPool = device.createCommandPool(device.queueIndices.graphicsQueue.first)
         }
 
         if(leftProjection == null) {

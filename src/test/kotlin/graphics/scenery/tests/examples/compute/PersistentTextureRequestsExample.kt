@@ -73,6 +73,7 @@ class PersistentTextureRequestsExample : SceneryBase("PersistentTextureRequestsE
         scene.addChild(box)
 
         val light = PointLight(radius = 15.0f)
+
         light.spatial().position = Vector3f(0.0f, 0.0f, 2.0f)
         light.intensity = 5.0f
         light.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
@@ -141,3 +142,4 @@ class PersistentTextureRequestsExample : SceneryBase("PersistentTextureRequestsE
         }
     }
 }
+

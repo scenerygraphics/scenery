@@ -158,7 +158,7 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
      * @param[queueFamilyIndex] Queue family index
      * @param[image] The Vulkan texture image to be presented to the compositor
      */
-    override fun submitToCompositorVulkan(width: Int, height: Int, format: Int, instance: VkInstance, device: VulkanDevice, queue: VkQueue, image: Long) {
+    override fun submitToCompositorVulkan(width: Int, height: Int, format: Int, instance: VkInstance, device: VulkanDevice, queue: VulkanDevice.QueueWithMutex, image: Long) {
         logger.error("This Display implementation does not have a compositor. Incorrect configuration?")
     }
 

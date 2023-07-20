@@ -1,6 +1,7 @@
 package graphics.scenery.backends
 
 import graphics.scenery.utils.lazyLogger
+import org.lwjgl.system.MemoryUtil
 import org.lwjgl.util.shaderc.Shaderc
 import picocli.CommandLine
 import java.io.File
@@ -102,16 +103,24 @@ class ShaderCompiler: AutoCloseable, Callable<ByteArray> {
             shaderCode = shaderCode.replaceRange(extensionPos, extensionPos + 1, "\n#extension GL_EXT_debug_printf : enable\n")
         }
 
+        val shaderCodeBytes = MemoryUtil.memUTF8(shaderCode, false)
+        val shaderPathBytes = MemoryUtil.memUTF8(path ?: "compile.glsl")
+        val entryPointBytes = MemoryUtil.memUTF8(entryPoint)
+
         val result = Shaderc.shaderc_compile_into_spv(
             compiler,
-            shaderCode,
+            shaderCodeBytes,
             shaderType,
-            path ?: "compile.glsl",
-            entryPoint,
+            shaderPathBytes,
+            entryPointBytes,
             options
         )
 
         Shaderc.shaderc_compile_options_release(options)
+
+        MemoryUtil.memFree(shaderCodeBytes)
+        MemoryUtil.memFree(shaderPathBytes)
+        MemoryUtil.memFree(entryPointBytes)
 
         if (Shaderc.shaderc_result_get_compilation_status(result) != Shaderc.shaderc_compilation_status_success) {
             val log = Shaderc.shaderc_result_get_error_message(result)
