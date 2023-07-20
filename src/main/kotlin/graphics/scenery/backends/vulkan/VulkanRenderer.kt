@@ -168,7 +168,7 @@ open class VulkanRenderer(hub: Hub,
             if(lock.tryLock() && !shouldClose) {
                 logger.info("Recreating Swapchain at frame $frames (${swapchain.javaClass.simpleName})")
                 // create new swapchain with changed surface parameters
-                vkQueueWaitIdle(queue)
+                vkQueueWaitIdle(queue.queue)
 
                 with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
                     // Create the swapchain (this will also add a memory barrier to initialize the framebuffer images)
@@ -233,12 +233,10 @@ open class VulkanRenderer(hub: Hub,
     }
 
     var debugCallbackUtils = callback@ { severity: Int, type: Int, callbackDataPointer: Long, _: Long ->
-        val dbg = if (type and VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT == VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT) {
-            " (performance)"
-        } else if(type and VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT == VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT) {
-            " (validation)"
-        } else {
-            ""
+        val dbg = when {
+            type and VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT == VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT -> " (performance)"
+            type and VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT == VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT -> " (validation)"
+            else -> ""
         }
 
         val callbackData = VkDebugUtilsMessengerCallbackDataEXT.create(callbackDataPointer)
@@ -252,6 +250,8 @@ open class VulkanRenderer(hub: Hub,
             VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT ->
                 logger.warn("!! $obj($objectType) Validation$dbg: $message")
             VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT ->
+                logger.info("!! $obj($objectType) Validation$dbg: $message")
+            VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT ->
                 logger.info("!! $obj($objectType) Validation$dbg: $message")
             else -> logger.info("!! $obj($objectType) Validation (unknown message type)$dbg: $message")
         }
@@ -365,8 +365,8 @@ open class VulkanRenderer(hub: Hub,
     protected var debugCallbackHandle: Long = -1L
 
     // Create static Vulkan resources
-    protected var queue: VkQueue
-    protected var transferQueue: VkQueue
+    protected var queue: VulkanDevice.QueueWithMutex
+    protected var transferQueue: VulkanDevice.QueueWithMutex
 
     protected var swapchain: Swapchain
     protected var ph = PresentHelpers()
@@ -626,15 +626,17 @@ open class VulkanRenderer(hub: Hub,
                 }
             }
 
-            queue = VU.createDeviceQueue(device, device.queues.graphicsQueue.first)
-            logger.debug("Creating transfer queue with ${device.queues.transferQueue.first} (vs ${device.queues.graphicsQueue})")
-            transferQueue = VU.createDeviceQueue(device, device.queues.transferQueue.first)
+            queue = device.getQueue(device.queueIndices.graphicsQueue.first)
+            logger.info("Creating transfer queue with ${device.queueIndices.transferQueue.first} (vs ${device.queueIndices.graphicsQueue.first})")
+            transferQueue = device.getQueue(device.queueIndices.transferQueue.first)
+
+            logger.info("Have $queue and $transferQueue")
 
             with(commandPools) {
-                Render = device.createCommandPool(device.queues.graphicsQueue.first)
-                Standard = device.createCommandPool(device.queues.graphicsQueue.first)
-                Compute = device.createCommandPool(device.queues.computeQueue.first)
-                Transfer = device.createCommandPool(device.queues.transferQueue.first)
+                Render = device.createCommandPool(device.queueIndices.graphicsQueue.first)
+                Standard = device.createCommandPool(device.queueIndices.graphicsQueue.first)
+                Compute = device.createCommandPool(device.queueIndices.computeQueue.first)
+                Transfer = device.createCommandPool(device.queueIndices.transferQueue.first)
             }
             logger.debug("Creating command pools done")
 
@@ -950,7 +952,16 @@ open class VulkanRenderer(hub: Hub,
             }
         }
 
-        val (_, descriptorUpdated) = VulkanNodeHelpers.loadTexturesForNode(device, node, s, defaultTextures, textureCache, commandPools, queue)
+        val (_, descriptorUpdated) = VulkanNodeHelpers.loadTexturesForNode(
+            device,
+            node,
+            s,
+            defaultTextures,
+            textureCache,
+            commandPools,
+            queue,
+            transferQueue
+        )
         if(descriptorUpdated) {
             s.texturesToDescriptorSets(device,
                 renderpasses.filter { it.value.passConfig.type != RenderConfigReader.RenderpassType.quad },
@@ -962,7 +973,7 @@ open class VulkanRenderer(hub: Hub,
         val materialUbo = VulkanUBO(device, backingBuffer = buffers.UBOs)
         with(materialUbo) {
             name = "MaterialProperties"
-            add("materialType", { node.materialOrNull()!!.materialTypeFromTextures(s) })
+            add("materialType", { node.materialOrNull()!!.materialTypeFromTextures(renderable.rendererMetadata()!!) })
             add("Ka", { node.materialOrNull()!!.ambient })
             add("Kd", { node.materialOrNull()!!.diffuse })
             add("Ks", { node.materialOrNull()!!.specular })
@@ -1251,7 +1262,7 @@ open class VulkanRenderer(hub: Hub,
     }
 
     protected fun prepareDefaultTextures(device: VulkanDevice) {
-        val t = VulkanTexture.loadFromFile(device, commandPools, queue, queue,
+        val t = VulkanTexture.loadFromFile(device, commandPools, queue, transferQueue,
             Renderer::class.java.getResourceAsStream("DefaultTexture.png"), "png", true, true)
 
         // TODO: Do an asset manager or sth here?
@@ -1469,7 +1480,7 @@ open class VulkanRenderer(hub: Hub,
         return publisher
     }
 
-    private suspend fun submitFrame(queue: VkQueue, pass: VulkanRenderpass, commandBuffer: VulkanCommandBuffer, present: PresentHelpers) {
+    private suspend fun submitFrame(queue: VulkanDevice.QueueWithMutex, pass: VulkanRenderpass, commandBuffer: VulkanCommandBuffer, present: PresentHelpers) {
         if(swapchainRecreator.mustRecreate) {
             return
         }
@@ -1487,7 +1498,7 @@ open class VulkanRenderer(hub: Hub,
         val q = (swapchain as? VulkanSwapchain)?.presentQueue ?: queue
         // Submit to the graphics queue
 //        vkResetFences(device.vulkanDevice, swapchain.currentFence)
-        VU.run("Submit viewport render queue", { vkQueueSubmit(q, present.submitInfo, swapchain.currentFence) })
+        VU.run("Submit viewport render queue", { vkQueueSubmit(q.queue, present.submitInfo, swapchain.currentFence) })
 
         // submit to OpenVR if attached
         if(hub?.getWorkingHMDDisplay()?.hasCompositor() == true) {
@@ -1521,7 +1532,7 @@ open class VulkanRenderer(hub: Hub,
                 val ref = VulkanTexture.getReference(req.first)
 
                 if(ref != null) {
-                    ref.copyTo(buffer)
+                    ref.copyTo(buffer, false)
                     req.second.send(req.first)
                     req.second.close()
                     logger.info("Sent updated texture")
@@ -1706,6 +1717,10 @@ open class VulkanRenderer(hub: Hub,
         if(hub?.getWorkingHMDDisplay()?.hasCompositor() == true) {
             hub?.getWorkingHMDDisplay()?.wantsVR(settings)?.update()
         }
+        
+        postRenderLambdas.forEach {
+            it.invoke()
+        }
 
         postRenderLambdas.forEach {
             it.invoke()
@@ -1835,7 +1850,16 @@ open class VulkanRenderer(hub: Hub,
                     }
 
                     val reloadTime = measureTimeMillis {
-                        val (texturesUpdatedForNode, descriptorUpdated) = VulkanNodeHelpers.loadTexturesForNode(device, node, metadata, defaultTextures, textureCache, commandPools, queue)
+                        val (texturesUpdatedForNode, descriptorUpdated) = VulkanNodeHelpers.loadTexturesForNode(
+                            device,
+                            node,
+                            metadata,
+                            defaultTextures,
+                            textureCache,
+                            commandPools,
+                            queue,
+                            transferQueue
+                        )
                         if(descriptorUpdated) {
                             metadata.texturesToDescriptorSets(device,
                                 renderpasses.filter { it.value.passConfig.type != RenderConfigReader.RenderpassType.quad },
@@ -1965,7 +1989,7 @@ open class VulkanRenderer(hub: Hub,
             }
 
 //            logger.info("Submitting pass $t waiting on semaphore ${target.waitSemaphores.get(0).toHexString()}")
-            VU.run("Submit pass $t render queue", { vkQueueSubmit(queue, si, commandBuffer.getFence() )})
+            VU.run("Submit pass $t render queue", { vkQueueSubmit(queue.queue, si, commandBuffer.getFence() )})
 
             commandBuffer.submitted = true
             waitSemaphore = targetSemaphore
@@ -2428,7 +2452,7 @@ open class VulkanRenderer(hub: Hub,
         initialized = false
 
         logger.info("Renderer teardown started.")
-        vkQueueWaitIdle(queue)
+        vkQueueWaitIdle(queue.queue)
 
         logger.debug("Closing nodes...")
         scene.discover(scene, { true }).forEach {

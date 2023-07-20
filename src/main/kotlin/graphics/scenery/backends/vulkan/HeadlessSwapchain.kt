@@ -19,7 +19,7 @@ import java.nio.LongBuffer
  * @author Ulrik Günther <hello@ulrik.is>
  */
 open class HeadlessSwapchain(device: VulkanDevice,
-                        queue: VkQueue,
+                        queue: VulkanDevice.QueueWithMutex,
                         commandPools: VulkanRenderer.CommandPools,
                         renderConfig: RenderConfigReader.RenderConfig,
                         useSRGB: Boolean = true,
@@ -113,7 +113,7 @@ open class HeadlessSwapchain(device: VulkanDevice,
         } else {
             VK10.VK_FORMAT_B8G8R8A8_UNORM
         }
-        presentQueue = VU.createDeviceQueue(device, device.queues.graphicsQueue.first)
+        presentQueue = device.getQueue(device.queueIndices.graphicsQueue.first)
 
         val textureImages = (0 until bufferCount).map {
             val t = VulkanTexture(device, commandPools, queue, queue, window.width, window.height, 1,
@@ -173,7 +173,7 @@ open class HeadlessSwapchain(device: VulkanDevice,
      */
     override fun next(timeout: Long): Pair<Long, Long>? {
         MemoryStack.stackPush().use { stack ->
-            VK10.vkQueueWaitIdle(presentQueue)
+            VK10.vkQueueWaitIdle(presentQueue.queue)
 
             val signal = stack.mallocLong(1)
             signal.put(0, imageAvailableSemaphores[currentImage])
@@ -256,7 +256,7 @@ open class HeadlessSwapchain(device: VulkanDevice,
                 flush = true, dealloc = true)
         }
 
-        VK10.vkQueueWaitIdle(queue)
+        VK10.vkQueueWaitIdle(queue.queue)
 
         resizeHandler.queryResize()
         currentImage = (currentImage + 1) % images.size
@@ -291,7 +291,7 @@ open class HeadlessSwapchain(device: VulkanDevice,
      * Closes the swapchain, deallocating all resources.
      */
     override fun close() {
-        vkQueueWaitIdle(queue)
+        vkQueueWaitIdle(queue.queue)
         presentInfo.free()
 
         MemoryUtil.memFree(swapchainImage)

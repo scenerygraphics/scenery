@@ -48,10 +48,10 @@ open class Texture @JvmOverloads constructor(
     val mutex: Semaphore = Semaphore(1),
     /** Mutex for GPU upload */
     val gpuMutex: Semaphore = Semaphore(1),
+    /** Atomic integer to indicate GPU upload state */
+    val uploaded: AtomicInteger = AtomicInteger(0),
     /** Hash set to indicate the state of the texture */
-    val uploaded: AtomicInteger = AtomicInteger(0)
-
-
+    val state: MutableSet<TextureState> = Collections.synchronizedSet(hashSetOf(TextureState.Created))
 ) : Serializable, Timestamped {
 
     enum class TextureState {
@@ -59,6 +59,7 @@ open class Texture @JvmOverloads constructor(
         Uploaded,
         AvailableForUse
     }
+
     init {
         contents?.let { c ->
             val buffer = c.duplicate().order(ByteOrder.LITTLE_ENDIAN)
