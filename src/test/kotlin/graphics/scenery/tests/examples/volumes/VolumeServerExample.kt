@@ -3,13 +3,21 @@ package graphics.scenery.tests.examples.volumes
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.TrackedStereoGlasses
+import graphics.scenery.tests.examples.cluster.SlimClient
 import graphics.scenery.volumes.*
 import org.joml.Vector3f
 import java.nio.file.Paths
 import kotlin.concurrent.thread
 
+/**
+ * volume with network sync
+ *
+ * Start master with vm param:
+ * -Dscenery.Server=true
+ *
+ * For client see [VolumeClient]
+ */
 class VolumeServerExample : SceneryBase ("Volume Server Example", 512, 512) {
-    var hmd: TrackedStereoGlasses? = null
 
     override fun init() {
         renderer = hub.add(
