@@ -32,8 +32,7 @@ import kotlin.system.measureNanoTime
 
 class VDIClient : SceneryBase("VDI Client", 512, 512, wantREPL = false) {
 
-    var hmd: TrackedStereoGlasses? = null
-    val cam: Camera = DetachedHeadCamera(hmd)
+    val cam: Camera = DetachedHeadCamera()
     val compute = VDINode()
     val plane = FullscreenObject()
     val context = ZContext(4)
