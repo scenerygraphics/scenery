@@ -148,7 +148,7 @@ open class Texture @JvmOverloads constructor(
             channels: Int = 4
         ): Texture {
             return Texture(Vector3i(image.width, image.height, image.depth),
-                4, image.type, image.contents, repeatUVW, borderColor, normalized, mipmap, usageType = usage, minFilter = minFilter, maxFilter = maxFilter)
+                channels, image.type, image.contents, repeatUVW, borderColor, normalized, mipmap, usageType = usage, minFilter = minFilter, maxFilter = maxFilter)
         }
     }
 
