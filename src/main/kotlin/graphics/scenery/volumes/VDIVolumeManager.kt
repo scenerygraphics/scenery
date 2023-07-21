@@ -54,7 +54,7 @@ class VDIVolumeManager ( var hub: Hub, val windowWidth: Int, val windowHeight: I
         val accumulateShader = "AccumulateVDI.comp"
         val volumeManager = instantiateVolumeManager(raycastShader, accumulateShader, hub)
 
-        val outputSubColorBuffer = MemoryUtil.memCalloc(windowHeight*windowWidth*4*maxSupersegments)
+        val outputSubColorBuffer = MemoryUtil.memCalloc(windowHeight*windowWidth*4*maxSupersegments*4)
 
         val outputSubDepthBuffer = MemoryUtil.memCalloc(windowHeight*windowWidth*2*maxSupersegments*2 * 2)
 
@@ -63,19 +63,19 @@ class VDIVolumeManager ( var hub: Hub, val windowWidth: Int, val windowHeight: I
         val lowestLevel = MemoryUtil.memCalloc(numGridCells.x.toInt() * numGridCells.y.toInt() * numGridCells.z.toInt() * 4)
 
         val outputSubVDIColor: Texture = Texture.fromImage(
-            Image(outputSubColorBuffer, maxSupersegments, windowHeight, windowWidth), usage = hashSetOf( Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
+            Image(outputSubColorBuffer, maxSupersegments, windowHeight, windowWidth, FloatType()), usage = hashSetOf( Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
             type = FloatType(), channels = 4, mipmap = false,  normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
         volumeManager.customTextures.add("OutputSubVDIColor")
         volumeManager.material().textures["OutputSubVDIColor"] = outputSubVDIColor
 
         val outputSubVDIDepth: Texture = Texture.fromImage(
-            Image(outputSubDepthBuffer, 2 * maxSupersegments, windowHeight, windowWidth),  usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
+            Image(outputSubDepthBuffer, 2 * maxSupersegments, windowHeight, windowWidth, FloatType()),  usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
             type = FloatType(), channels = 1, mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
         volumeManager.customTextures.add("OutputSubVDIDepth")
         volumeManager.material().textures["OutputSubVDIDepth"] = outputSubVDIDepth
 
         val gridCells: Texture = Texture.fromImage(
-            Image(lowestLevel, numGridCells.x.toInt(), numGridCells.y.toInt(), numGridCells.z.toInt()), channels = 1, type = UnsignedIntType(),
+            Image(lowestLevel, numGridCells.x.toInt(), numGridCells.y.toInt(), numGridCells.z.toInt(), UnsignedIntType()), channels = 1, type = UnsignedIntType(),
             usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
         volumeManager.customTextures.add("OctreeCells")
         volumeManager.material().textures["OctreeCells"] = gridCells
