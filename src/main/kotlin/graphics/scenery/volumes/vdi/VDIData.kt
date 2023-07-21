@@ -3,7 +3,6 @@ package graphics.scenery.volumes.vdi
 import org.joml.Matrix4f
 import org.joml.Vector2i
 import org.joml.Vector3f
-import java.nio.ByteBuffer
 
 data class VDIMetadata(
     val version: Int = 1,
@@ -23,9 +22,6 @@ data class VDIBufferSizes(
 )
 
 data class VDIData(
-//    val vdiDepth: ByteBuffer = ByteBuffer.allocate(1),
-//    val vdiColor: ByteBuffer = ByteBuffer.allocate(1),
-//    val gridCells: ByteBuffer = ByteBuffer.allocate(1),
     val bufferSizes: VDIBufferSizes = VDIBufferSizes(),
     val metadata: VDIMetadata = VDIMetadata()
 )
