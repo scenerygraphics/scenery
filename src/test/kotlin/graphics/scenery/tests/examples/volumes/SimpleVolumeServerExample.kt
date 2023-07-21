@@ -15,7 +15,7 @@ import kotlin.concurrent.thread
  *
  * For client see [SimpleVolumeClient]
  */
-class VolumeServerExample : SceneryBase ("Volume Server Example", 512, 512) {
+class SimpleVolumeServerExample : SceneryBase ("Volume Server Example", 512, 512) {
 
     override fun init() {
         renderer = hub.add(
@@ -78,7 +78,7 @@ class VolumeServerExample : SceneryBase ("Volume Server Example", 512, 512) {
     companion object {
         @JvmStatic
         fun main(args: Array<String>) {
-            VolumeServerExample().main()
+            SimpleVolumeServerExample().main()
         }
     }
 }
