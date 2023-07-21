@@ -1,18 +1,13 @@
 package graphics.scenery.tests.examples.volumes
 
 import graphics.scenery.utils.lazyLogger
-import graphics.scenery.volumes.vdi.VDIDataIO
 import org.junit.Test
 import java.io.File
-import java.io.FileInputStream
 import kotlin.test.assertTrue
 
 class VDIsTest {
-
-     private val logger by lazyLogger()
-
      /**
-      * Tests the generation of VDIs
+      * Tests VDI generation
       */
      @Test
      fun testGeneration() {
@@ -38,7 +33,5 @@ class VDIsTest {
          assertTrue(depth.contentEquals(testDepth))
          assertTrue(oct.contentEquals(testOct))
 
-
      }
-
 }
