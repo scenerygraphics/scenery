@@ -1,11 +1,10 @@
 package graphics.scenery.tests.examples.volumes
 
-import graphics.scenery.utils.lazyLogger
 import org.junit.Test
 import java.io.File
 import kotlin.test.assertTrue
 
-class VDIsTest {
+class VDIGenerationTest {
      /**
       * Tests VDI generation
       */
