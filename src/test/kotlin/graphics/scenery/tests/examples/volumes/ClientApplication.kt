@@ -91,9 +91,9 @@ class ClientApplication : SceneryBase("Client Application", 512, 512)  {
         }
 
         val bridge = SwingBridgeFrame("1DTransferFunctionEditor")
-        val tfUI = TransferFunctionEditor(dummyVolume)
-        bridge.addPanel(tfUI)
-        tfUI.name = dummyVolume.name
+        val transferFunctionUI = TransferFunctionEditor(dummyVolume)
+        bridge.addPanel(transferFunctionUI)
+        transferFunctionUI.name = dummyVolume.name
         val swingUiNode = bridge.uiNode
         swingUiNode.spatial() {
             position = Vector3f(2f,0f,0f)
@@ -129,8 +129,8 @@ class ClientApplication : SceneryBase("Client Application", 512, 512)  {
                     logger.info("$count")
                 }
 
-                if (tfUI.switchTo != "")
-                    switch.value = tfUI.switchTo
+                if (transferFunctionUI.switchTo != "")
+                    switch.value = transferFunctionUI.switchTo
 
                 if (!currentlyVolumeRendering && switch.value.equals("toVR")){
 
