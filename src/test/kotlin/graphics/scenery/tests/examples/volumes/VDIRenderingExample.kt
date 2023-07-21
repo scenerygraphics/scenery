@@ -23,7 +23,6 @@ import java.nio.ByteBuffer
 
 class VDIRenderingExample : SceneryBase("VDI Rendering Example", 512, 512) {
 
-    var hmd: TrackedStereoGlasses? = null
     val vdiNode = VDINode()
 
     val skipEmpty = false
