@@ -71,7 +71,7 @@ class ServerApplication : SceneryBase("Volume Server Example", 512, 512) {
 
                     if (!currentlyVolumeRendering && switchMode.value.equals("toVR")) {
 
-                        logger.warn("Volume Rendering")
+                        logger.info("Volume Rendering")
 
                         renderer?.vdiStreaming = false
                         standardVolumeManager.replace(standardVolumeManager)
@@ -82,7 +82,7 @@ class ServerApplication : SceneryBase("Volume Server Example", 512, 512) {
                     }
                     else if (currentlyVolumeRendering && switchMode.value.equals("toVDI")) {
 
-                        logger.warn("VDI Streaming")
+                        logger.info("VDI Streaming")
 
                         renderer?.recordMovie()
                         vdiVolumeManager.replace(vdiVolumeManager)
@@ -105,7 +105,7 @@ class ServerApplication : SceneryBase("Volume Server Example", 512, 512) {
 
     fun renderVolume(volume: Volume) {
         settings.set("VideoEncoder.StreamVideo", true)
-        settings.set("VideoEncoder.StreamingAddress", "rtp://127.0.0.2:5004")
+        settings.set("VideoEncoder.StreamingAddress", "rtp://127.0.0.1:5004")
         renderer?.recordMovie()
         thread {
             while (true) {
