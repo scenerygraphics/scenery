@@ -107,11 +107,9 @@ class ClientApplication : SceneryBase("Client Application", 512, 512)  {
         compute.name = "vdi node"
         compute.setMaterial(ShaderMaterial(Shaders.ShadersFromFiles(arrayOf("VDIRenderer.comp"), this@ClientApplication::class.java)))
         compute.material().textures["OutputViewport"] = Texture.fromImage(Image(opBuffer, windowWidth, windowHeight),
-            usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
-        compute.metadata["ComputeMetadata"] = ComputeMetadata(
-            workSizes = Vector3i(windowWidth, windowHeight, 1),
-            invocationType = InvocationType.Permanent
-        )
+                    usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
+        compute.metadata["ComputeMetadata"] = ComputeMetadata(workSizes = Vector3i(windowWidth, windowHeight, 1),
+                    invocationType = InvocationType.Permanent)
         compute.visible = true
 
         val VDIPlane = FullscreenObject()
@@ -138,6 +136,7 @@ class ClientApplication : SceneryBase("Client Application", 512, 512)  {
                     switch.value = tfUI.switchTo
 
                 if (!currentlyVolumeRendering && switch.value.equals("toVR")){
+
                     logger.warn("Volume Rendering")
 
                     vdiStreaming = false
@@ -148,12 +147,11 @@ class ClientApplication : SceneryBase("Client Application", 512, 512)  {
                     thread {
                         decodeVideo(videoPlane)
                     }
-
                     currentlyVolumeRendering = true
-
                 }
                else if (currentlyVolumeRendering && switch.value.equals("toVDI")){
-                    logger.warn("VDI streaming")
+
+                   logger.warn("VDI streaming")
 
                     vdiStreaming = true
                     scene.addChild(VDIPlane)
@@ -167,9 +165,7 @@ class ClientApplication : SceneryBase("Client Application", 512, 512)  {
                        }
                        firstVDIStream = false
                     }
-
                     currentlyVolumeRendering = false
-
                 }
             }
         }
@@ -182,7 +178,6 @@ class ClientApplication : SceneryBase("Client Application", 512, 512)  {
         while (!sceneInitialized()) {
             Thread.sleep(200)
         }
-
         decodedFrameCount = 1
         logger.info("Decoding and displaying frames")
         while (!vdiStreaming && videoDecoder.nextFrameExists) {
@@ -220,17 +215,14 @@ class ClientApplication : SceneryBase("Client Application", 512, 512)  {
 
         val colorTexture = UpdatableTexture(Vector3i(numSupersegments, windowHeight, windowWidth), 4, contents = null, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture, Texture.UsageType.AsyncLoad),
             type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
-
         val colorUpdate = UpdatableTexture.TextureUpdate(
             UpdatableTexture.TextureExtents(0, 0, 0, numSupersegments, windowHeight, windowWidth),
             color.slice()
         )
         colorTexture.addUpdate(colorUpdate)
 
-
         val depthTexture = UpdatableTexture(Vector3i(2 * numSupersegments, windowHeight, windowWidth), channels = 1, contents = null, usageType = hashSetOf(
             Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture, Texture.UsageType.AsyncLoad), type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
-
         val depthUpdate = UpdatableTexture.TextureUpdate(
             UpdatableTexture.TextureExtents(0, 0, 0, 2 * numSupersegments, windowHeight, windowWidth),
             depth.slice()
@@ -238,10 +230,8 @@ class ClientApplication : SceneryBase("Client Application", 512, 512)  {
         depthTexture.addUpdate(depthUpdate)
 
         val numGridCells = Vector3f(vdiData.metadata.windowDimensions.x.toFloat() / 8f, vdiData.metadata.windowDimensions.y.toFloat() / 8f, numSupersegments.toFloat())
-
         val accelTexture = UpdatableTexture(Vector3i(numGridCells.x.toInt(), numGridCells.y.toInt(), numGridCells.z.toInt()), channels = 1, contents = null, usageType = hashSetOf(
             Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture, Texture.UsageType.AsyncLoad), type = UnsignedIntType(), mipmap = false, normalized = true, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
-
         val accelUpdate = UpdatableTexture.TextureUpdate(
             UpdatableTexture.TextureExtents(0, 0, 0, windowWidth / 8, windowHeight / 8, numSupersegments),
             accelGridBuffer
@@ -282,7 +272,6 @@ class ClientApplication : SceneryBase("Client Application", 512, 512)  {
     }
 
     private fun receiveAndUpdateVDI(compute: VDINode) {
-
         while (!renderer!!.firstImageReady) {
             Thread.sleep(100)
         }
@@ -480,7 +469,8 @@ class ClientApplication : SceneryBase("Client Application", 512, 512)  {
                     firstVDI = false
                     compute.visible = true
 
-                } else {
+                }
+                else {
                     logger.info("Payload received but is null")
                 }
                 logger.info("Received and updated VDI data")

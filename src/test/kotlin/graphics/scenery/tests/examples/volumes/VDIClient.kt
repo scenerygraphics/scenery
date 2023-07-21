@@ -368,10 +368,10 @@ class VDIClient : SceneryBase("VDI Client", 512, 512, wantREPL = false) {
                     firstVDI = false
                     compute.visible = true
 
-                } else {
+                }
+                else {
                     logger.info("Payload received but is null")
                 }
-
                 logger.info("Received and updated VDI data")
             } else {
                 Thread.sleep(1000)

@@ -83,12 +83,9 @@ class VDIGenerationExample : SceneryBase("Volume Generation Example", 512, 512) 
                 windowDimensions = Vector2i(cam.width, cam.height)
             )
         )
-
         thread {
             storeVDI(vdiVolumeManager, vdiData)
         }
-
-
     }
     private fun storeVDI(vdiVolumeManager: VolumeManager, vdiData: VDIData) {
         data class Timer(var start: Long, var end: Long)
@@ -128,14 +125,13 @@ class VDIGenerationExample : SceneryBase("Volume Generation Example", 512, 512) 
             while (colorCnt.get() == prevColor || depthCnt.get() == prevDepth) {
                 Thread.sleep(5)
             }
+
             prevColor = colorCnt.get()
             prevDepth = depthCnt.get()
-
 
             vdiColorBuffer = vdiColor.contents
             vdiDepthBuffer = vdiDepth.contents
             gridCellsBuff = gridCells.contents
-
 
             tGeneration.end = System.nanoTime()
 
@@ -151,14 +147,6 @@ class VDIGenerationExample : SceneryBase("Volume Generation Example", 512, 512) 
                 VDIDataIO.write(vdiData, file)
                 logger.info("written the dump")
                 file.close()
-
-//                logger.warn("***************Gridcells************************")
-//                while (gridCells.contents?.hasRemaining() == true){
-//                    var str = gridCells.contents?.get()
-//                    var pos = gridCells.contents?.position()
-//                    if (str?.toInt() != 0)
-//                        logger.warn("$pos - $str")
-//                }
 
                 var fileName = "VDI_${cnt}_ndc"
                 SystemHelpers.dumpToFile(vdiColorBuffer!!, "${fileName}_col")
@@ -180,5 +168,4 @@ class VDIGenerationExample : SceneryBase("Volume Generation Example", 512, 512) 
             VDIGenerationExample().main()
         }
     }
-
 }

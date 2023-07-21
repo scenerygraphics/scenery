@@ -787,7 +787,8 @@ class VolumeManager(
         logger.debug("Replacing volume manager with ${nodes.size} volumes managed")
         val volumes = nodes.toMutableList()
         val current = toReplace ?: hub?.get<VolumeManager>()
-        if (current != null) {
+
+        if(current != null) {
             hub?.remove(current)
         }
 
@@ -796,6 +797,7 @@ class VolumeManager(
             vm.customTextures.add(it)
             vm.material().textures[it] = current.material().textures[it]!!
         }
+
         volumes.forEach {
             vm.add(it)
             it.volumeManager = vm
