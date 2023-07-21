@@ -7,6 +7,13 @@ import org.joml.Vector3f
 import java.nio.file.Paths
 import kotlin.concurrent.thread
 
+/**
+ * The `VolumeManagerSwitchingExample` class demonstrates how to switch between two different volume managers.
+ *
+ *  It creates a VDI volume manager for the volume and switches between the VDI volume manager and the standard
+ *  volume manager at regular intervals using the replace function.
+ *
+ */
 class VolumeManagerSwitchingExample : SceneryBase("Volume Manager Switching Example", 512, 512) {
 
     val maxSupersegments = System.getProperty("VolumeBenchmark.NumSupersegments")?.toInt()?: 20
