@@ -87,10 +87,10 @@ class ClientApplication : SceneryBase("Client Application", 512, 512)  {
             scene.addChild(this)
         }
 
-        val VRPlane = FullscreenObject()
-        with(VRPlane){
+        val videoPlane = FullscreenObject()
+        with(videoPlane){
             name = "VRplane"
-            VRPlane.wantsSync = false
+            videoPlane.wantsSync = false
         }
 
         val bridge = SwingBridgeFrame("1DTransferFunctionEditor")
@@ -141,12 +141,12 @@ class ClientApplication : SceneryBase("Client Application", 512, 512)  {
                     logger.warn("Volume Rendering")
 
                     vdiStreaming = false
-                    scene.addChild(VRPlane)
+                    scene.addChild(videoPlane)
                     scene.removeChild(compute)
                     scene.removeChild(VDIPlane)
 
                     thread {
-                        decodeVideo(VRPlane)
+                        decodeVideo(videoPlane)
                     }
 
                     currentlyVolumeRendering = true
@@ -158,7 +158,7 @@ class ClientApplication : SceneryBase("Client Application", 512, 512)  {
                     vdiStreaming = true
                     scene.addChild(VDIPlane)
                     scene.addChild(compute)
-                    scene.removeChild(VRPlane)
+                    scene.removeChild(videoPlane)
                     cam.farPlaneDistance = 20.0f
 
                     if (firstVDIStream){
