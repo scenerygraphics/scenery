@@ -37,17 +37,14 @@ import kotlin.system.measureNanoTime
 
 class ClientApplication : SceneryBase("Client Application", 512, 512)  {
 
-    var hmd: TrackedStereoGlasses? = null
     var buffer: ByteBuffer = ByteBuffer.allocateDirect(0)
     val context = ZContext(4)
 
     val numSupersegments = 20
-    val skipEmpty = true
     var vdiStreaming = true
     var newVDI = false
     var firstVDI = true
     var firstVDIStream = true
-    var firstVR = true
     var currentlyVolumeRendering = false
 
     val compute = VDINode()
@@ -377,36 +374,6 @@ class ClientApplication : SceneryBase("Client Application", 512, 512)  {
         var colBuffer: ByteBuffer? = null
         var depthBuffer: ByteBuffer? = null
         var accelGridBuff: ByteBuffer? = null
-
-        val basePath = "/home/salhi/Repositories/scenery-insitu/"
-
-//        if(!vdiStreaming) {
-//            val vdiParams = "_${windowWidth}_${windowHeight}_${numSupersegments}_0_"
-//
-//            val file = FileInputStream(File(basePath + "vdi${vdiParams}dump4"))
-//
-//            vdiData = VDIDataIO.read(file)
-//
-//            //preparing the files for loading from disk
-//            buff = File(basePath + "VDI${vdiParams}4_ndc_col").readBytes()
-//            depthBuff = File(basePath + "VDI${vdiParams}4_ndc_depth").readBytes()
-//            octBuff = File(basePath + "VDI${vdiParams}4_ndc_octree").readBytes()
-//
-//            colBuffer = MemoryUtil.memCalloc(windowHeight * windowWidth * numSupersegments * 4 * 4)
-//            colBuffer.put(buff).flip()
-//            colBuffer.limit(colBuffer.capacity())
-//
-//            depthBuffer = MemoryUtil.memCalloc(windowHeight * windowWidth * numSupersegments * 2 * 2 * 2)
-//            depthBuffer.put(depthBuff).flip()
-//            depthBuffer.limit(depthBuffer.capacity())
-//
-//            val numGridCells = Vector3f(vdiData.metadata.windowDimensions.x.toFloat() / 8f, vdiData.metadata.windowDimensions.y.toFloat() / 8f, numSupersegments.toFloat())
-//            accelGridBuff = MemoryUtil.memCalloc(numGridCells.x.toInt() * numGridCells.y.toInt() * numGridCells.z.toInt() * 4)
-//            if(skipEmpty) {
-//                accelGridBuff.put(octBuff).flip()
-//            }
-//            compute.skip_empty = skipEmpty
-//        }
 
         while(true) {
             if(vdiStreaming) {
