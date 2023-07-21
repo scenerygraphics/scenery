@@ -16,7 +16,6 @@ class VolumeServerExample : SceneryBase ("Volume Server Example", 512, 512) {
             SceneryElement.Renderer,
             Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
 
-        logger.warn(Settings().get("RemoteCamera",false).toString())
         if(!Settings().get("RemoteCamera",false)) {
             val cam: Camera = DetachedHeadCamera()
             with(cam) {
