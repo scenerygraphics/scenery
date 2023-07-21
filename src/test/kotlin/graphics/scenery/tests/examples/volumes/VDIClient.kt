@@ -39,7 +39,6 @@ class VDIClient : SceneryBase("VDI Client", 512, 512, wantREPL = false) {
 
     val numSupersegments = 20
     val skipEmpty = true
-    val vdiStreaming = true
     var newVDI = false
     var firstVDI = true
 
@@ -268,116 +267,72 @@ class VDIClient : SceneryBase("VDI Client", 512, 512, wantREPL = false) {
         }
         logger.info("done with initial textures")
 
-        val buff: ByteArray
-        val depthBuff: ByteArray
-        val octBuff: ByteArray
-        var colBuffer: ByteBuffer? = null
-        var depthBuffer: ByteBuffer? = null
-        var accelGridBuff: ByteBuffer? = null
-
-        val basePath = "/home/salhi/Repositories/scenery-insitu/"
-
-        if(!vdiStreaming) {
-            val vdiParams = "_${windowWidth}_${windowHeight}_${numSupersegments}_0_"
-
-            val file = FileInputStream(File(basePath + "vdi${vdiParams}dump4"))
-
-            vdiData = VDIDataIO.read(file)
-
-            //preparing the files for loading from disk
-            buff = File(basePath + "VDI${vdiParams}4_ndc_col").readBytes()
-            depthBuff = File(basePath + "VDI${vdiParams}4_ndc_depth").readBytes()
-            octBuff = File(basePath + "VDI${vdiParams}4_ndc_octree").readBytes()
-
-            colBuffer = MemoryUtil.memCalloc(windowHeight * windowWidth * numSupersegments * 4 * 4)
-            colBuffer.put(buff).flip()
-            colBuffer.limit(colBuffer.capacity())
-
-            depthBuffer = MemoryUtil.memCalloc(windowHeight * windowWidth * numSupersegments * 2 * 2 * 2)
-            depthBuffer.put(depthBuff).flip()
-            depthBuffer.limit(depthBuffer.capacity())
-
-            val numGridCells = Vector3f(vdiData.metadata.windowDimensions.x.toFloat() / 8f, vdiData.metadata.windowDimensions.y.toFloat() / 8f, numSupersegments.toFloat())
-            accelGridBuff = MemoryUtil.memCalloc(numGridCells.x.toInt() * numGridCells.y.toInt() * numGridCells.z.toInt() * 4)
-            if(skipEmpty) {
-                accelGridBuff.put(octBuff).flip()
-            }
-            compute.skip_empty = skipEmpty
-        }
-
         while(true) {
-            if(vdiStreaming) {
 
-                val payload: ByteArray?
-                logger.info("Waiting for VDI")
+               val payload: ByteArray?
+               logger.info("Waiting for VDI")
 
-                val receiveTime = measureNanoTime {
-                    payload = subscriber.recv()
-                }
-                logger.info("Time taken for the receive: ${receiveTime/1e9}")
+               val receiveTime = measureNanoTime {
+                   payload = subscriber.recv()
+               }
+               logger.info("Time taken for the receive: ${receiveTime/1e9}")
 
-                if (payload != null) {
-                    val metadataSize = payload.sliceArray(0 until 3).toString(Charsets.US_ASCII).toInt() //hardcoded 3 digit number
-                    val metadata = ByteArrayInputStream(payload.sliceArray(3 until (metadataSize + 3)))
-                    vdiData = VDIDataIO.read(metadata)
-                    logger.info("Index of received VDI: ${vdiData.metadata.index}")
+               if (payload != null) {
+                   val metadataSize = payload.sliceArray(0 until 3).toString(Charsets.US_ASCII).toInt() //hardcoded 3 digit number
+                   val metadata = ByteArrayInputStream(payload.sliceArray(3 until (metadataSize + 3)))
+                   vdiData = VDIDataIO.read(metadata)
+                   logger.info("Index of received VDI: ${vdiData.metadata.index}")
 
-                    val compressedColorLength = vdiData.bufferSizes.colorSize
-                    val compressedDepthLength = vdiData.bufferSizes.depthSize
+                   val compressedColorLength = vdiData.bufferSizes.colorSize
+                   val compressedDepthLength = vdiData.bufferSizes.depthSize
 
-                    compressedColor.put(payload.sliceArray((metadataSize + 3) until (metadataSize + 3 + compressedColorLength.toInt())))
-                    compressedColor.flip()
-                    compressedDepth.put(payload.sliceArray((metadataSize + 3) + compressedColorLength.toInt() until (metadataSize + 3) + compressedColorLength.toInt() + compressedDepthLength.toInt()))
-                    compressedDepth.flip()
+                   compressedColor.put(payload.sliceArray((metadataSize + 3) until (metadataSize + 3 + compressedColorLength.toInt())))
+                   compressedColor.flip()
+                   compressedDepth.put(payload.sliceArray((metadataSize + 3) + compressedColorLength.toInt() until (metadataSize + 3) + compressedColorLength.toInt() + compressedDepthLength.toInt()))
+                   compressedDepth.flip()
 
-                    accelGridBuffer.put(payload.sliceArray((metadataSize + 3) + compressedColorLength.toInt() + compressedDepthLength.toInt() until payload.size))
-                    accelGridBuffer.flip()
+                   accelGridBuffer.put(payload.sliceArray((metadataSize + 3) + compressedColorLength.toInt() + compressedDepthLength.toInt() until payload.size))
+                   accelGridBuffer.flip()
 
-                    val colorDone = AtomicInteger(0)
+                   val colorDone = AtomicInteger(0)
 
-                    thread {
-                        compressedColor.limit(compressedColorLength.toInt())
-                        val decompressedColorLength = compressor.decompress(color, compressedColor.slice(), compressionTool)
-                        compressedColor.limit(compressedColor.capacity())
-                        if (decompressedColorLength.toInt() != colorSize) {
-                            logger.warn("Error decompressing color message. Decompressed length: $decompressedColorLength and desired size: $colorSize")
-                        }
-                        colorDone.incrementAndGet()
-                    }
+                   thread {
+                       compressedColor.limit(compressedColorLength.toInt())
+                       val decompressedColorLength = compressor.decompress(color, compressedColor.slice(), compressionTool)
+                       compressedColor.limit(compressedColor.capacity())
+                       if (decompressedColorLength.toInt() != colorSize) {
+                           logger.warn("Error decompressing color message. Decompressed length: $decompressedColorLength and desired size: $colorSize")
+                       }
+                       colorDone.incrementAndGet()
+                   }
 
-                    compressedDepth.limit(compressedDepthLength.toInt())
-                    val decompressedDepthLength = compressor.decompress(depth, compressedDepth.slice(), compressionTool)
-                    compressedDepth.limit(compressedDepth.capacity())
-                    if (decompressedDepthLength.toInt() != depthSize) {
-                        logger.warn("Error decompressing depth message. Decompressed length: $decompressedDepthLength and desired size: $depthSize")
-                    }
+                   compressedDepth.limit(compressedDepthLength.toInt())
+                   val decompressedDepthLength = compressor.decompress(depth, compressedDepth.slice(), compressionTool)
+                   compressedDepth.limit(compressedDepth.capacity())
+                   if (decompressedDepthLength.toInt() != depthSize) {
+                       logger.warn("Error decompressing depth message. Decompressed length: $decompressedDepthLength and desired size: $depthSize")
+                   }
 
-                    while (colorDone.get() == 0) {
-                        Thread.sleep(20)
-                    }
+                   while (colorDone.get() == 0) {
+                       Thread.sleep(20)
+                   }
 
-                    color.limit(color.remaining() - decompressionBuffer)
-                    depth.limit(depth.remaining() - decompressionBuffer)
+                   color.limit(color.remaining() - decompressionBuffer)
+                   depth.limit(depth.remaining() - decompressionBuffer)
 
-                    updateTextures(color.slice(), depth.slice(), accelGridBuffer, vdiData, firstVDI)
+                   updateTextures(color.slice(), depth.slice(), accelGridBuffer, vdiData, firstVDI)
 
-                    color.limit(color.capacity())
-                    depth.limit(depth.capacity())
+                   color.limit(color.capacity())
+                   depth.limit(depth.capacity())
 
-                    firstVDI = false
-                    compute.visible = true
+                   firstVDI = false
+                   compute.visible = true
 
-                }
-                else {
-                    logger.info("Payload received but is null")
-                }
-                logger.info("Received and updated VDI data")
-            } else {
-                Thread.sleep(1000)
-                updateTextures(colBuffer!!, depthBuffer!!, accelGridBuff!!, vdiData, firstVDI)
-                firstVDI = false
-                compute.visible = true
-            }
+               }
+               else {
+                   logger.info("Payload received but is null")
+               }
+               logger.info("Received and updated VDI data")
         }
     }
     companion object {
