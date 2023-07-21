@@ -106,7 +106,6 @@ class VDIRenderingExample : SceneryBase("VDI Rendering Example", 512, 512) {
             textures["OutputViewport"] = Texture.fromImage(Image(opBuffer, windowWidth, windowHeight), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
         }
 
-
         vdiNode.material().textures["InputVDI"] = Texture(Vector3i(numSupersegments*numLayers, windowHeight, windowWidth), 4, contents = colBuffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture)
             , type = FloatType(),
             mipmap = false,
@@ -146,7 +145,6 @@ class VDIRenderingExample : SceneryBase("VDI Rendering Example", 512, 512) {
         val plane = FullscreenObject()
         plane.material().textures["diffuse"] = vdiNode.material().textures["OutputViewport"]!!
         scene.addChild(plane)
-
     }
 
     companion object {
@@ -155,6 +153,4 @@ class VDIRenderingExample : SceneryBase("VDI Rendering Example", 512, 512) {
             VDIRenderingExample().main()
         }
     }
-
-
 }

@@ -10,17 +10,16 @@ import java.nio.file.Paths
 import kotlin.concurrent.thread
 
 class ServerApplication : SceneryBase("Volume Server Example", 512, 512) {
+
     var hmd: TrackedStereoGlasses? = null
     val maxSupersegments = 20
     val context: ZContext = ZContext(4)
     lateinit var cam : Camera
+    var firstVDI = true
 
     override fun init() {
-
         //Step 1: Create common elements for VDI streaming and volumeRendering
-        renderer = hub.add(
-            SceneryElement.Renderer,
-            Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
+        renderer = hub.add( SceneryElement.Renderer, Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
 
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
@@ -41,7 +40,6 @@ class ServerApplication : SceneryBase("Volume Server Example", 512, 512) {
 
         volume.transferFunction = TransferFunction.ramp(0.1f, 0.5f)
         scene.addChild(volume)
-
 
         //Step 2: create a volume manager for vdi and add the volume to it:
         val vdiVolumeManager = VDIVolumeManager(hub, windowWidth, windowHeight, maxSupersegments, scene).createVDIVolumeManger()
@@ -66,44 +64,43 @@ class ServerApplication : SceneryBase("Volume Server Example", 512, 512) {
         var currentlyVolumeRendering = true
 
         thread {
-                while (true) {
-                    val switchMode = scene.find("EmptyNode") as? EmptyNode
+            while (true) {
+                val switchMode = scene.find("EmptyNode") as? EmptyNode
 
-                    if (switchMode != null) {
+                if (switchMode != null) {
 
-                        if (!currentlyVolumeRendering && switchMode.value.equals("toVR")) {
+                    if (!currentlyVolumeRendering && switchMode.value.equals("toVR")) {
 
-                            logger.warn("Volume Rendering")
+                        logger.warn("Volume Rendering")
 
-                            renderer?.vdiStreaming = false
-                            standardVolumeManager.replace(standardVolumeManager)
-                            renderVolume(volume)
+                        renderer?.vdiStreaming = false
+                        standardVolumeManager.replace(standardVolumeManager)
+                        renderVolume(volume)
 
-                            currentlyVolumeRendering = !currentlyVolumeRendering
+                        currentlyVolumeRendering = !currentlyVolumeRendering
 
-                        }
-                        else if (currentlyVolumeRendering && switchMode.value.equals("toVDI")) {
-
-                            logger.warn("VDI Streaming")
-
-                            renderer?.recordMovie()
-                            vdiVolumeManager.replace(vdiVolumeManager)
-
-//                            renderer?.vdiStreaming = true
-//
-//                            if (firstVDI) {
-//                                val volumeDimensions3i = Vector3f(volume.getDimensions().x.toFloat(), volume.getDimensions().y.toFloat(), volume.getDimensions().z.toFloat())
-//                                val model = volume.spatial().world
-//                                renderer?.streamVDI("tcp://0.0.0.0:6655", cam, volumeDimensions3i, model, context)
-//                                firstVDI = false
-//                            }
-
-                            currentlyVolumeRendering = !currentlyVolumeRendering
-                        }
                     }
+                    else if (currentlyVolumeRendering && switchMode.value.equals("toVDI")) {
 
+                        logger.warn("VDI Streaming")
+
+                        renderer?.recordMovie()
+                        vdiVolumeManager.replace(vdiVolumeManager)
+
+                        renderer?.vdiStreaming = true
+
+                        if (firstVDI) {
+                            val volumeDimensions3i = Vector3f(volume.getDimensions().x.toFloat(), volume.getDimensions().y.toFloat(), volume.getDimensions().z.toFloat())
+                            val model = volume.spatial().world
+                            renderer?.streamVDI("tcp://0.0.0.0:6655", cam, volumeDimensions3i, model, context)
+                            firstVDI = false
+                        }
+
+                        currentlyVolumeRendering = !currentlyVolumeRendering
+                    }
                 }
             }
+        }
     }
 
     fun renderVolume(volume: Volume) {
