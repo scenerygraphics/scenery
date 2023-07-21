@@ -85,9 +85,7 @@ void main()
 	vec2 uv = Vertex.textureCoord * 2.0 - vec2(1.0);
 	vec2 depthUV = (vrParameters.stereoEnabled ^ 1) * Vertex.textureCoord + vrParameters.stereoEnabled * vec2((Vertex.textureCoord.x/2.0 + currentEye.eye * 0.5), Vertex.textureCoord.y);
 	depthUV = depthUV * 2.0 - vec2(1.0);
-
-	ivec2 pixel_coords = ivec2(Vertex.textureCoord.x * 720, Vertex.textureCoord.y * 720);
-
+	
 	// NDC of frag on near and far plane
 	vec4 front = vec4( uv, -1, 1 );
 	vec4 back = vec4( uv, 1, 1 );
@@ -162,9 +160,6 @@ void main()
         v.xyz = pow(v.xyz, vec3(1/2.2));
 		FragColor = v;
 
-		if(pixel_coords == ivec2(360, 360)) {
-			debugPrintfEXT("Final color: (%f, %f, %f, %f)", FragColor.rgba);
-		}
 
 		if(v.w < 0.001f) {
             discard;
