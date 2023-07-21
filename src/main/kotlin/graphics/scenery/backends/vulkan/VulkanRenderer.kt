@@ -1355,6 +1355,7 @@ open class VulkanRenderer(hub: Hub,
 
         var compressedColor:  ByteBuffer? = null
         var compressedDepth: ByteBuffer? = null
+
         val compressor = DataCompressor()
         val compressionTool = DataCompressor.CompressionTool.LZ4
 
@@ -1390,76 +1391,55 @@ open class VulkanRenderer(hub: Hub,
                     Renderer.logger.warn("Skipping transmission this frame due to inconsistency in buffer size")
                 }
 
-                val compressionTime = measureNanoTime {
-                    if (compressedColor == null) {
-                        compressedColor =
-                            memAlloc(compressor.returnCompressBound(colorSize.toLong(), compressionTool))
-                    }
-                    val compressedColorLength =
-                        compressor.compress(compressedColor!!, vdiColorBuffer!!, 3, compressionTool)
-                    compressedColor!!.limit(compressedColorLength.toInt())
-                    vdiData.bufferSizes.colorSize = compressedColorLength
-
-                    if (compressedDepth == null) {
-                        compressedDepth =
-                            memAlloc(
-                                compressor.returnCompressBound(
-                                    depthSize.toLong(),
-                                    compressionTool
-                                )
-                            )
-                    }
-                    val compressedDepthLength =
-                        compressor.compress(compressedDepth!!, vdiDepthBuffer!!, 3, compressionTool)
-                    compressedDepth!!.limit(compressedDepthLength.toInt())
-                    vdiData.bufferSizes.depthSize = compressedDepthLength
+                if (compressedColor == null) {
+                    compressedColor = memAlloc(compressor.returnCompressBound(colorSize.toLong(), compressionTool))
                 }
 
-                Renderer.logger.info("Time taken in compressing VDI: ${compressionTime / 1e9}")
+                val compressedColorLength = compressor.compress(compressedColor!!, vdiColorBuffer!!, 3, compressionTool)
+                compressedColor!!.limit(compressedColorLength.toInt())
+                vdiData.bufferSizes.colorSize = compressedColorLength
 
-                val publishTime = measureNanoTime {
-                    val metadataOut = ByteArrayOutputStream()
-                    VDIDataIO.write(vdiData, metadataOut)
-
-                    val metadataBytes = metadataOut.toByteArray()
-                    Renderer.logger.info("Size of VDI data is: ${metadataBytes.size}")
-
-                    val vdiDataSize = metadataBytes.size.toString().toByteArray(Charsets.US_ASCII)
-
-                    var messageLength = vdiDataSize.size + metadataBytes.size + compressedColor!!.remaining()
-                    messageLength += compressedDepth!!.remaining()
-                    messageLength += accelSize as Int
-
-                    val message = ByteArray(messageLength)
-                    vdiDataSize.copyInto(message)
-
-                    metadataBytes.copyInto(message, vdiDataSize.size)
-
-                    compressedColor!!.slice()
-                        .get(message, vdiDataSize.size + metadataBytes.size, compressedColor!!.remaining())
-
-                    compressedDepth!!.slice().get(
-                        message,
-                        vdiDataSize.size + metadataBytes.size + compressedColor!!.remaining(),
-                        compressedDepth!!.remaining()
-                    )
-
-                    vdiData.bufferSizes.accelGridSize = accelSize.toLong()
-
-                    gridCellsBuff!!.get(message, vdiDataSize.size + metadataBytes.size + compressedColor!!.remaining() +
-                        compressedDepth!!.remaining(), gridCellsBuff!!.remaining())
-                    gridCellsBuff!!.flip()
-
-                    compressedDepth!!.limit(compressedDepth!!.capacity())
-                    compressedColor!!.limit(compressedColor!!.capacity())
-
-                    val sent = publisher.send(message)
-                    if (!sent) {
-                        Renderer.logger.warn("There was a ZeroMQ error in queuing the message to send")
-                    }
+                if (compressedDepth == null) {
+                    compressedDepth = memAlloc(compressor.returnCompressBound(depthSize.toLong(), compressionTool))
                 }
-                Renderer.logger.info("Whole publishing process took: ${publishTime / 1e9}")
 
+                val compressedDepthLength = compressor.compress(compressedDepth!!, vdiDepthBuffer!!, 3, compressionTool)
+                compressedDepth!!.limit(compressedDepthLength.toInt())
+                vdiData.bufferSizes.depthSize = compressedDepthLength
+
+                val metadataOut = ByteArrayOutputStream()
+                VDIDataIO.write(vdiData, metadataOut)
+
+                val metadataBytes = metadataOut.toByteArray()
+                Renderer.logger.info("Size of VDI data is: ${metadataBytes.size}")
+
+                val vdiDataSize = metadataBytes.size.toString().toByteArray(Charsets.US_ASCII)
+
+                var messageLength = vdiDataSize.size + metadataBytes.size + compressedColor!!.remaining()
+                messageLength += compressedDepth!!.remaining()
+                messageLength += accelSize as Int
+
+                val message = ByteArray(messageLength)
+                vdiDataSize.copyInto(message)
+
+                metadataBytes.copyInto(message, vdiDataSize.size)
+
+                compressedColor!!.slice().get(message, vdiDataSize.size + metadataBytes.size, compressedColor!!.remaining())
+                compressedDepth!!.slice().get(message,vdiDataSize.size + metadataBytes.size + compressedColor!!.remaining(), compressedDepth!!.remaining())
+
+                vdiData.bufferSizes.accelGridSize = accelSize.toLong()
+
+                gridCellsBuff!!.get(message, vdiDataSize.size + metadataBytes.size + compressedColor!!.remaining() +
+                    compressedDepth!!.remaining(), gridCellsBuff!!.remaining())
+                gridCellsBuff!!.flip()
+
+                compressedDepth!!.limit(compressedDepth!!.capacity())
+                compressedColor!!.limit(compressedColor!!.capacity())
+
+                val sent = publisher.send(message)
+                if (!sent) {
+                    Renderer.logger.warn("There was a ZeroMQ error in queuing the message to send")
+                }
             }
             firstFrame = false
         }
