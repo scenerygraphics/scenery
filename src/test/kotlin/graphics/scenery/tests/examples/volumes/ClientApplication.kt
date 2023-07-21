@@ -126,7 +126,7 @@ class ClientApplication : SceneryBase("Client Application", 512, 512)  {
                 count++
                 if(count%100000000000 == 0.toLong()){
                     count = 0
-                    logger.warn("$count")
+                    logger.info("$count")
                 }
 
                 if (tfUI.switchTo != "")
@@ -134,7 +134,7 @@ class ClientApplication : SceneryBase("Client Application", 512, 512)  {
 
                 if (!currentlyVolumeRendering && switch.value.equals("toVR")){
 
-                    logger.warn("Volume Rendering")
+                    logger.info("Volume Rendering")
 
                     vdiStreaming = false
                     scene.addChild(videoPlane)
@@ -148,7 +148,7 @@ class ClientApplication : SceneryBase("Client Application", 512, 512)  {
                 }
                else if (currentlyVolumeRendering && switch.value.equals("toVDI")){
 
-                   logger.warn("VDI streaming")
+                   logger.info("VDI streaming")
 
                     vdiStreaming = true
                     scene.addChild(VDIPlane)
@@ -199,7 +199,7 @@ class ClientApplication : SceneryBase("Client Application", 512, 512)  {
         }
     }
 
-    fun updateTextures(color: ByteBuffer, depth: ByteBuffer, accelGridBuffer: ByteBuffer, vdiData: VDIData, firstVDI: Boolean) {
+    private fun updateTextures(color: ByteBuffer, depth: ByteBuffer, accelGridBuffer: ByteBuffer, vdiData: VDIData, firstVDI: Boolean) {
 
         compute.ProjectionOriginal = Matrix4f(vdiData.metadata.projection).applyVulkanCoordinateSystem()
         compute.invProjectionOriginal = Matrix4f(vdiData.metadata.projection).applyVulkanCoordinateSystem().invert()
