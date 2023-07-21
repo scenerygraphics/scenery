@@ -49,7 +49,6 @@ class ClientApplication : SceneryBase("Client Application", 512, 512)  {
     var firstVDIStream = true
     var firstVR = true
     var currentlyVolumeRendering = false
-    var videoDecoding = true
 
     val compute = VDINode()
     val switch = EmptyNode()
@@ -132,7 +131,8 @@ class ClientApplication : SceneryBase("Client Application", 512, 512)  {
                 count++
                 if(count%100000000000 == 0.toLong()){
                     count = 0
-                    logger.warn("$count") }
+                    logger.warn("$count")
+                }
 
                 if (tfUI.switchTo != "")
                     switch.value = tfUI.switchTo
@@ -144,7 +144,6 @@ class ClientApplication : SceneryBase("Client Application", 512, 512)  {
                     scene.addChild(VRPlane)
                     scene.removeChild(compute)
                     scene.removeChild(VDIPlane)
-                    videoDecoding = true
 
                     thread {
                         decodeVideo(VRPlane)
@@ -156,12 +155,11 @@ class ClientApplication : SceneryBase("Client Application", 512, 512)  {
                else if (currentlyVolumeRendering && switch.value.equals("toVDI")){
                     logger.warn("VDI streaming")
 
-                    videoDecoding = false
+                    vdiStreaming = true
                     scene.addChild(VDIPlane)
                     scene.addChild(compute)
                     scene.removeChild(VRPlane)
                     cam.farPlaneDistance = 20.0f
-                    vdiStreaming = true
 
                     if (firstVDIStream){
                        thread {
@@ -187,7 +185,7 @@ class ClientApplication : SceneryBase("Client Application", 512, 512)  {
 
         decodedFrameCount = 1
         logger.info("Decoding and displaying frames")
-        while (videoDecoding && videoDecoder.nextFrameExists) {
+        while (!vdiStreaming && videoDecoder.nextFrameExists) {
             val image = videoDecoder.decodeFrame()
             if(image != null) { // image can be null, e.g. when the decoder encounters invalid information between frames
                 drawFrame(image, videoDecoder.videoWidth, videoDecoder.videoHeight, plane)
