@@ -11,7 +11,15 @@ import org.joml.Vector3i
 import java.nio.ByteBuffer
 import kotlin.concurrent.thread
 
-
+/**
+ *  Empty scene to receive content via network and update the content via transferFunction editor and dummy volume
+ *
+ * Start with vm param:
+ * -ea -Dscenery.ServerAddress=tcp://127.0.0.1 [-Dscenery.RemoteCamera=false|true]
+ *
+ * Explanation:
+ * - RemoteCamera: (default false) Has to be set to true if the camera of the server provided scene should be used.
+ */
 class VolumeClient : SceneryBase("Volume Client", 512 , 512) {
 
     var buffer: ByteBuffer = ByteBuffer.allocateDirect(0)
