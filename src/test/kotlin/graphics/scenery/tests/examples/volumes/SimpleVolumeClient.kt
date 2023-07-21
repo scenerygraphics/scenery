@@ -20,7 +20,7 @@ import kotlin.concurrent.thread
  * Explanation:
  * - RemoteCamera: (default false) Has to be set to true if the camera of the server provided scene should be used.
  */
-class VolumeClient : SceneryBase("Volume Client", 512 , 512) {
+class SimpleVolumeClient : SceneryBase("Volume Client", 512 , 512) {
 
     var buffer: ByteBuffer = ByteBuffer.allocateDirect(0)
     var decodedFrameCount: Int = 0
@@ -110,7 +110,7 @@ class VolumeClient : SceneryBase("Volume Client", 512 , 512) {
     companion object {
         @JvmStatic
         fun main(args: Array<String>) {
-            VolumeClient().main()
+            SimpleVolumeClient().main()
         }
     }
 
