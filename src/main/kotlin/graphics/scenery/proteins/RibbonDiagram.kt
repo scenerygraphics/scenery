@@ -121,7 +121,9 @@ class RibbonDiagram(val protein: Protein, private val showSecondaryStructures: B
         //the very first point of the spline is neglected as this makes the size of the point list divisible by the
         //section vertices count
         val splinePointCentered = spline.splinePoints().map{ it.sub(centroid) }
-        val splinePoints = splinePointCentered.subList(0, splinePointCentered.lastIndex)
+        val splinePoints = if(splinePointCentered.isNotEmpty())
+                                { splinePointCentered.subList(0, splinePointCentered.lastIndex) }
+                            else{splinePointCentered}
 
         val rectangle = ArrayList<Vector3f>(4)
         rectangle.add(Vector3f(0.9f, 0f, 0f))
