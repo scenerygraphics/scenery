@@ -177,6 +177,9 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?, for
      * @param[bindingConfigFile] The filename to read the configuration from.
      */
     fun useDefaultBindings(bindingConfigFile: String) {
+        if(System.getProperty("scenery.Headless").toBoolean() == true) {
+            return
+        }
         // Load YAML config
         var reader: Reader
 
