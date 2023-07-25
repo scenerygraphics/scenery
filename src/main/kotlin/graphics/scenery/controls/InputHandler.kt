@@ -3,6 +3,7 @@ package graphics.scenery.controls
 import graphics.scenery.*
 import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.backends.Renderer
+import graphics.scenery.backends.RenderingQuality
 import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.controls.behaviours.*
 import graphics.scenery.utils.lazyLogger
@@ -235,7 +236,7 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?, for
         behaviourMap.put("toggle_debug", ToggleCommand(renderer, "toggleDebug"))
         behaviourMap.put("toggle_fullscreen", ToggleCommand(renderer, "toggleFullscreen"))
         behaviourMap.put("screenshot", ToggleCommand(renderer, "screenshot"))
-        behaviourMap.put("set_rendering_quality", EnumCycleCommand(RenderConfigReader.RenderingQuality::class.java, renderer, "setRenderingQuality"))
+        behaviourMap.put("set_rendering_quality", EnumCycleCommand(RenderingQuality::class.java, renderer, "setRenderingQuality"))
         behaviourMap.put("record_movie", ToggleCommand(renderer, "recordMovie"))
 
         behaviourMap.put("toggle_vr", ToggleCommand(renderer, "toggleVR"))

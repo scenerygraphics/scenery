@@ -1,6 +1,7 @@
 package graphics.scenery.backends.vulkan
 
 import graphics.scenery.Hub
+import graphics.scenery.backends.RenderConfig
 import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.backends.Renderer
 import graphics.scenery.backends.SceneryWindow
@@ -35,7 +36,7 @@ import javax.swing.SwingUtilities
 open class SwingSwapchain(override val device: VulkanDevice,
                           override val queue: VulkanDevice.QueueWithMutex,
                           override val commandPools: VulkanRenderer.CommandPools,
-                          override val renderConfig: RenderConfigReader.RenderConfig,
+                          override val renderConfig: RenderConfig,
                           override val useSRGB: Boolean = true,
                           override val vsync: Boolean = true,
                           override val undecorated: Boolean = false) : VulkanSwapchain(device, queue, commandPools, renderConfig, useSRGB, vsync, undecorated) {
