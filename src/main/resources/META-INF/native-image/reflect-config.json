@@ -1,0 +1,2395 @@
+[
+{
+  "name":"java.nio.Buffer",
+  "allDeclaredFields":true
+},
+{
+  "name":"java.nio.ByteBuffer",
+  "allDeclaredFields":true
+},
+{
+  "name":"java.nio.DirectByteBuffer",
+  "allDeclaredFields":true
+},
+{
+  "name":"java.nio.DirectCharBufferU",
+  "allDeclaredFields":true
+},
+{
+  "name":"java.nio.DirectDoubleBufferU",
+  "allDeclaredFields":true
+},
+{
+  "name":"java.nio.DirectFloatBufferU",
+  "allDeclaredFields":true
+},
+{
+  "name":"java.nio.DirectIntBufferU",
+  "allDeclaredFields":true
+},
+{
+  "name":"java.nio.DirectLongBufferU",
+  "allDeclaredFields":true
+},
+{
+  "name":"java.nio.DirectShortBufferU",
+  "allDeclaredFields":true
+},
+{
+  "name":"java.nio.MappedByteBuffer",
+  "allDeclaredFields":true
+},
+{
+  "name":"org.lwjgl.PointerBuffer",
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allDeclaredConstructors":true,
+  "allDeclaredClasses":true
+},
+{
+  "name":"org.lwjgl.glfw.GLFW",
+  "allDeclaredFields":true
+},
+{
+  "name":"org.lwjgl.glfw.GLFWVidMode",
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allDeclaredConstructors":true,
+  "allDeclaredClasses":true
+},
+{
+  "name":"org.lwjgl.system.CallbackI",
+  "queriedMethods":[{"name":"callback","parameterTypes":["long","long"] }]
+},
+{
+  "name":"org.lwjgl.system.CustomBuffer",
+  "fields":[
+    {"name":"capacity"}, 
+    {"name":"container"}, 
+    {"name":"limit"}, 
+    {"name":"mark"}, 
+    {"name":"position"}
+  ]
+},
+{
+  "name":"org.lwjgl.system.Pointer$Default",
+  "fields":[{"name":"address"}]
+},
+{
+  "name":"org.lwjgl.system.Struct",
+  "fields":[{"name":"container"}]
+},
+{
+  "name":"org.lwjgl.system.libffi.FFICIF",
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allDeclaredConstructors":true,
+  "allDeclaredClasses":true
+},
+{
+  "name":"org.lwjgl.system.libffi.FFIClosure",
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allDeclaredConstructors":true,
+  "allDeclaredClasses":true
+},
+{
+  "name":"org.lwjgl.system.libffi.FFIType",
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allDeclaredConstructors":true,
+  "allDeclaredClasses":true
+},
+{
+  "name":"sun.misc.Unsafe",
+  "allDeclaredFields":true
+},
+{
+  "name":"org.lwjgl.util.spvc.SpvcBufferRange",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.util.spvc.SpvcBufferRange$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.util.spvc.SpvcReflectedResource",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.util.spvc.SpvcReflectedResource$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkOffset2D",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkOffset2D$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkExtent2D",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkExtent2D$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkClearDepthStencilValue",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkClearDepthStencilValue$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkClearColorValue",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkClearColorValue$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkQueryPoolCreateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkFenceCreateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkMemoryBarrier",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkSemaphoreCreateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkFenceCreateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkPresentInfoKHR",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkSurfaceCapabilitiesKHR",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkSwapchainCreateInfoKHR",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkImageViewCreateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkSemaphoreCreateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkFenceCreateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkQueueFamilyProperties",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkSurfaceFormatKHR",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkImageBlit",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkImageCopy",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkImageSubresourceRange",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkSubmitInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkVertexInputAttributeDescription",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkVertexInputAttributeDescription",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkVertexInputAttributeDescription",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkVertexInputBindingDescription",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkPipelineVertexInputStateCreateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkVertexInputBindingDescription",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkPipelineVertexInputStateCreateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkImageSubresourceLayers",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkBufferImageCopy",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkOffset3D",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkExtent3D",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkSubmitInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkExtensionProperties",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkApplicationInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkInstanceCreateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkDebugUtilsMessengerCreateInfoEXT",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkDebugReportCallbackCreateInfoEXT",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkMemoryRequirements",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkBufferCreateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkMemoryAllocateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkAttachmentDescription",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkSamplerCreateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkExtent3D",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkImageCreateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkMemoryRequirements",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkMemoryAllocateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkImageSubresourceRange",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkImageViewCreateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkAttachmentDescription",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkAttachmentReference",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkAttachmentReference",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkSubpassDescription",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkSubpassDependency",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkRenderPassCreateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkFramebufferCreateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkFormatProperties",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkDescriptorSetAllocateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkDescriptorImageInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkWriteDescriptorSet",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkRect2D",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkViewport",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkRect2D",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkRenderPassBeginInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkPipelineColorBlendAttachmentState",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkPipelineColorBlendAttachmentState",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkPipelineCacheCreateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkClearValue",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkPipelineInputAssemblyStateCreateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkPipelineRasterizationStateCreateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkPipelineColorBlendAttachmentState",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkPipelineColorBlendStateCreateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkPipelineViewportStateCreateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkPipelineDynamicStateCreateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkPipelineDepthStencilStateCreateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkPipelineMultisampleStateCreateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkPushConstantRange",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkPipelineLayoutCreateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkPipelineShaderStageCreateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkGraphicsPipelineCreateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkComputePipelineCreateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkPhysicalDeviceFeatures",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkQueueFamilyProperties",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkDeviceQueueCreateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkDeviceCreateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkPhysicalDeviceMemoryProperties",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkCommandPoolCreateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkSemaphoreCreateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkDescriptorPoolSize",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkDescriptorPoolCreateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkDescriptorSetAllocateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkDescriptorBufferInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkWriteDescriptorSet",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkDescriptorSetAllocateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkDescriptorBufferInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkWriteDescriptorSet",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkDescriptorBufferInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkWriteDescriptorSet",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkDescriptorSetLayoutBinding",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkDescriptorSetLayoutCreateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkDescriptorSetAllocateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkWriteDescriptorSet",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkDescriptorImageInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkDebugUtilsObjectNameInfoEXT",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkPhysicalDeviceProperties",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkFormatProperties",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkFenceCreateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkImageSubresourceLayers",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkBufferImageCopy",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkOffset3D",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkExtent3D",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkShaderModuleCreateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkPipelineShaderStageCreateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkSubmitInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkImageMemoryBarrier",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkImageSubresourceRange",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkCommandBufferAllocateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkCommandBufferBeginInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkDescriptorBufferInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkWriteDescriptorSet",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkBufferImageCopy",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkBufferImageCopy",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkImageSubresourceLayers",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkImageCopy",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkImageCreateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkMemoryRequirements",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkMemoryAllocateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkImageBlit",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkImageSubresourceRange",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkImageSubresourceRange",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkImageSubresourceLayers",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkBufferImageCopy",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkOffset3D",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkExtent3D",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkImageSubresourceRange",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkImageViewCreateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkSamplerCreateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkImageMemoryBarrier",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkMemoryBarrier",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkImageMemoryBarrier",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkBufferCopy",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkBufferCopy",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkQueryPoolCreateInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkFenceCreateInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkMemoryBarrier$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkSemaphoreCreateInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkFenceCreateInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkPresentInfoKHR$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkSurfaceCapabilitiesKHR$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkSwapchainCreateInfoKHR$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkImageViewCreateInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkSemaphoreCreateInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkFenceCreateInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkQueueFamilyProperties$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkSurfaceFormatKHR$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkImageBlit$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkImageCopy$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkImageSubresourceRange$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkSubmitInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkVertexInputAttributeDescription$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkVertexInputAttributeDescription$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkVertexInputAttributeDescription$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkVertexInputBindingDescription$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkPipelineVertexInputStateCreateInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkVertexInputBindingDescription$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkPipelineVertexInputStateCreateInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkImageSubresourceLayers$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkBufferImageCopy$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkOffset3D$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkExtent3D$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkSubmitInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkExtensionProperties$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkApplicationInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkInstanceCreateInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkDebugUtilsMessengerCreateInfoEXT$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkDebugReportCallbackCreateInfoEXT$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkMemoryRequirements$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkBufferCreateInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkMemoryAllocateInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkAttachmentDescription$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkSamplerCreateInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkExtent3D$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkImageCreateInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkMemoryRequirements$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkMemoryAllocateInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkImageSubresourceRange$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkImageViewCreateInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkAttachmentDescription$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkAttachmentReference$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkAttachmentReference$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkSubpassDescription$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkSubpassDependency$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkRenderPassCreateInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkFramebufferCreateInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkFormatProperties$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkDescriptorSetAllocateInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkDescriptorImageInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkWriteDescriptorSet$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkRect2D$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkViewport$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkRect2D$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkRenderPassBeginInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkPipelineColorBlendAttachmentState$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkPipelineColorBlendAttachmentState$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkPipelineCacheCreateInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkClearValue$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkPipelineInputAssemblyStateCreateInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkPipelineRasterizationStateCreateInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkPipelineColorBlendAttachmentState$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkPipelineColorBlendStateCreateInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkPipelineViewportStateCreateInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkPipelineDynamicStateCreateInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkPipelineDepthStencilStateCreateInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkPipelineMultisampleStateCreateInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkPushConstantRange$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkPipelineLayoutCreateInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkPipelineShaderStageCreateInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkGraphicsPipelineCreateInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkComputePipelineCreateInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkPhysicalDeviceFeatures$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkQueueFamilyProperties$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkDeviceQueueCreateInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkDeviceCreateInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkPhysicalDeviceMemoryProperties$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkCommandPoolCreateInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkSemaphoreCreateInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkDescriptorPoolSize$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkDescriptorPoolCreateInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkDescriptorSetAllocateInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkDescriptorBufferInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkWriteDescriptorSet$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkDescriptorSetAllocateInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkDescriptorBufferInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkWriteDescriptorSet$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkDescriptorBufferInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkWriteDescriptorSet$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkDescriptorSetLayoutBinding$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkDescriptorSetLayoutCreateInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkDescriptorSetAllocateInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkWriteDescriptorSet$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkDescriptorImageInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkDebugUtilsObjectNameInfoEXT$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkPhysicalDeviceProperties$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkFormatProperties$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkFenceCreateInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkImageSubresourceLayers$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkBufferImageCopy$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkOffset3D$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkExtent3D$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkShaderModuleCreateInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkPipelineShaderStageCreateInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkSubmitInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkImageMemoryBarrier$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkImageSubresourceRange$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkCommandBufferAllocateInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkCommandBufferBeginInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkDescriptorBufferInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkWriteDescriptorSet$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkBufferImageCopy$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkBufferImageCopy$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkImageSubresourceLayers$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkImageCopy$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkImageCreateInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkMemoryRequirements$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkMemoryAllocateInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkImageBlit$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkImageSubresourceRange$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkImageSubresourceRange$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkImageSubresourceLayers$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkBufferImageCopy$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkOffset3D$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkExtent3D$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkImageSubresourceRange$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkImageViewCreateInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkSamplerCreateInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkImageMemoryBarrier$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkMemoryBarrier$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkImageMemoryBarrier$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkBufferCopy$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkBufferCopy$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkClearValue",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkClearValue$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkFramebufferCreateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkFramebufferCreateInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkRenderPassCreateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkRenderPassCreateInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkSubpassDependency",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkSubpassDependency$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkSubpassDescription",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkSubpassDescription$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkAttachmentReference",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkAttachmentReference$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkDescriptorImageInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkDescriptorImageInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkAttachmentDescription",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkAttachmentDescription$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkRenderPassBeginInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkRenderPassBeginInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkViewport",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkViewport$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkRect2D",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkRect2D$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkQueryPoolCreateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkQueryPoolCreateInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkPipelineCacheCreateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkPipelineCacheCreateInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkSemaphoreCreateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkSemaphoreCreateInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkFenceCreateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkFenceCreateInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkSubmitInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkImageCopy",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkImageCopy$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkExtensionProperties",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkExtensionProperties$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name": "kotlin.reflect.jvm.internal.ReflectionFactoryImpl",
+  "allDeclaredConstructors":true
+},
+{
+  "name": "kotlin.KotlinVersion",
+  "allPublicMethods": true,
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allDeclaredConstructors":true
+},
+{
+  "name": "kotlin.KotlinVersion[]"
+},
+{
+  "name": "kotlin.KotlinVersion$Companion"
+},
+{
+  "name": "kotlin.KotlinVersion$Companion[]"
+},
+{
+  "name": "graphics.scenery.backends.vulkan.HeadlessSwapchain",
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allDeclaredConstructors":true,
+  "allDeclaredClasses":true
+},
+{
+  "name": "graphics.scenery.backends.vulkan.SwingSwapchain",
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allDeclaredConstructors":true,
+  "allDeclaredClasses":true
+},
+{
+  "name": "graphics.scenery.backends.RenderConfig",
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allDeclaredConstructors":true,
+  "allDeclaredClasses":true
+},
+{
+  "name": "graphics.scenery.backends.RendertargetConfig",
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allDeclaredConstructors":true,
+  "allDeclaredClasses":true
+},
+{
+  "name": "graphics.scenery.backends.RenderpassConfig",
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allDeclaredConstructors":true,
+  "allDeclaredClasses":true
+},
+{
+  "name": "graphics.scenery.backends.RendertargetBinding",
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allDeclaredConstructors":true,
+  "allDeclaredClasses":true
+},
+{
+  "name": "graphics.scenery.utils.JsonDeserialisers$FloatPairDeserializer",
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allDeclaredConstructors":true,
+  "allDeclaredClasses":true
+},
+{
+  "name": "graphics.scenery.utils.JsonDeserialisers$VREyeDeserializer",
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allDeclaredConstructors":true,
+  "allDeclaredClasses":true
+},
+{
+  "name": "graphics.scenery.utils.JsonDeserialisers$VectorDeserializer",
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allDeclaredConstructors":true,
+  "allDeclaredClasses":true
+},
+{
+  "name": "graphics.scenery.utils.JsonDeserialisers$BindingDeserializer",
+  "allDeclaredFields":true,
+  "allDeclaredMethods":true,
+  "allDeclaredConstructors":true,
+  "allDeclaredClasses":true
+},
+{
+  "name":"[F"
+},
+{
+  "name":"[Lcom.fasterxml.jackson.databind.deser.Deserializers;"
+},
+{
+  "name":"[Lcom.fasterxml.jackson.databind.deser.KeyDeserializers;"
+},
+{
+  "name":"[Lcom.fasterxml.jackson.databind.deser.ValueInstantiators;"
+},
+{
+  "name":"[Lcom.fasterxml.jackson.databind.ser.Serializers;"
+},
+{
+  "name":"com.apple.laf.AquaKeyBindings",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"com.apple.laf.AquaLookAndFeel",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"com.apple.laf.AquaMnemonicHandler$AltProcessor",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"com.apple.laf.AquaPanelUI",
+  "methods":[
+    {"name":"<init>","parameterTypes":[] }, 
+    {"name":"createUI","parameterTypes":["javax.swing.JComponent"] }
+  ]
+},
+{
+  "name":"com.apple.laf.AquaRootPaneUI",
+  "methods":[
+    {"name":"<init>","parameterTypes":[] }, 
+    {"name":"createUI","parameterTypes":["javax.swing.JComponent"] }
+  ]
+},
+{
+  "name":"com.fasterxml.jackson.databind.ext.Java7HandlersImpl",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"com.fasterxml.jackson.databind.ext.Java7SupportImpl",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"graphics.scenery.Blending"
+},
+{
+  "name":"graphics.scenery.Blending$BlendFactor",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true
+},
+{
+  "name":"graphics.scenery.Blending$BlendOp",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true
+},
+{
+  "name":"graphics.scenery.Hub"
+},
+{
+  "name":"graphics.scenery.backends.RenderConfig",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true,
+  "queryAllDeclaredConstructors":true,
+  "methods":[{"name":"<init>","parameterTypes":["java.lang.String","boolean","java.lang.String","boolean","java.util.Map","java.util.LinkedHashMap","java.util.Map","int","kotlin.jvm.internal.DefaultConstructorMarker"] }]
+},
+{
+  "name":"graphics.scenery.backends.RenderOrder",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true
+},
+{
+  "name":"graphics.scenery.backends.RenderingQuality",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true
+},
+{
+  "name":"graphics.scenery.backends.RenderpassConfig",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true,
+  "queryAllDeclaredConstructors":true,
+  "methods":[{"name":"<init>","parameterTypes":["graphics.scenery.backends.RenderpassType","boolean","boolean","boolean","boolean","graphics.scenery.backends.RenderOrder","boolean","graphics.scenery.Blending$BlendOp","graphics.scenery.Blending$BlendOp","graphics.scenery.Blending$BlendFactor","graphics.scenery.Blending$BlendFactor","graphics.scenery.Blending$BlendFactor","graphics.scenery.Blending$BlendFactor","java.util.List","java.util.List","graphics.scenery.backends.RendertargetBinding","java.util.Map","kotlin.Pair","kotlin.Pair","kotlin.Pair","org.joml.Vector4f","float","int","int","kotlin.jvm.internal.DefaultConstructorMarker"] }]
+},
+{
+  "name":"graphics.scenery.backends.RenderpassType",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true
+},
+{
+  "name":"graphics.scenery.backends.RendertargetBinding"
+},
+{
+  "name":"graphics.scenery.backends.RendertargetConfig",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true,
+  "queryAllDeclaredConstructors":true,
+  "methods":[
+    {"name":"<init>","parameterTypes":["kotlin.Pair","java.util.Map"] }, 
+    {"name":"<init>","parameterTypes":["kotlin.Pair","java.util.Map","int","kotlin.jvm.internal.DefaultConstructorMarker"] }
+  ]
+},
+{
+  "name":"graphics.scenery.backends.SceneryWindow"
+},
+{
+  "name":"graphics.scenery.backends.TargetFormat",
+  "allDeclaredFields":true,
+  "queryAllDeclaredMethods":true
+},
+{
+  "name":"graphics.scenery.backends.vulkan.Swapchain"
+},
+{
+  "name":"graphics.scenery.backends.vulkan.SwingSwapchain",
+  "fields":[{"name":"Companion"}],
+  "methods":[{"name":"<init>","parameterTypes":["graphics.scenery.backends.vulkan.VulkanDevice","org.lwjgl.vulkan.VkQueue","graphics.scenery.backends.vulkan.VulkanRenderer$CommandPools","graphics.scenery.backends.RenderConfig","boolean","boolean","boolean","int","kotlin.jvm.internal.DefaultConstructorMarker"] }],
+  "queriedMethods":[{"name":"<init>","parameterTypes":["graphics.scenery.backends.vulkan.VulkanDevice","org.lwjgl.vulkan.VkQueue","graphics.scenery.backends.vulkan.VulkanRenderer$CommandPools","graphics.scenery.backends.RenderConfig","boolean","boolean","boolean"] }]
+},
+{
+  "name":"graphics.scenery.backends.vulkan.SwingSwapchain$Companion"
+},
+{
+  "name":"graphics.scenery.backends.vulkan.VulkanDevice"
+},
+{
+  "name":"graphics.scenery.backends.vulkan.VulkanRenderer"
+},
+{
+  "name":"graphics.scenery.backends.vulkan.VulkanRenderer$CommandPools"
+},
+{
+  "name":"graphics.scenery.backends.vulkan.VulkanRenderer$SwapchainRecreator"
+},
+{
+  "name":"graphics.scenery.backends.vulkan.VulkanSwapchain"
+},
+{
+  "name":"graphics.scenery.backends.vulkan.VulkanSwapchain$ColorFormatAndSpace"
+},
+{
+  "name":"graphics.scenery.utils.JsonDeserialisers$BindingDeserializer",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"graphics.scenery.utils.JsonDeserialisers$FloatPairDeserializer",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"graphics.scenery.utils.JsonDeserialisers$VREyeDeserializer",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"graphics.scenery.utils.JsonDeserialisers$VectorDeserializer",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"graphics.scenery.utils.SceneryPanel"
+},
+{
+  "name":"java.awt.SequencedEvent"
+},
+{
+  "name":"java.awt.SystemColor",
+  "fields":[
+    {"name":"activeCaption"}, 
+    {"name":"activeCaptionBorder"}, 
+    {"name":"activeCaptionText"}, 
+    {"name":"control"}, 
+    {"name":"controlDkShadow"}, 
+    {"name":"controlHighlight"}, 
+    {"name":"controlLtHighlight"}, 
+    {"name":"controlShadow"}, 
+    {"name":"controlText"}, 
+    {"name":"desktop"}, 
+    {"name":"inactiveCaption"}, 
+    {"name":"inactiveCaptionBorder"}, 
+    {"name":"inactiveCaptionText"}, 
+    {"name":"info"}, 
+    {"name":"infoText"}, 
+    {"name":"menu"}, 
+    {"name":"menuText"}, 
+    {"name":"scrollbar"}, 
+    {"name":"text"}, 
+    {"name":"textHighlight"}, 
+    {"name":"textHighlightText"}, 
+    {"name":"textInactiveText"}, 
+    {"name":"textText"}, 
+    {"name":"window"}, 
+    {"name":"windowBorder"}, 
+    {"name":"windowText"}
+  ]
+},
+{
+  "name":"java.awt.Toolkit",
+  "fields":[{"name":"eventListener"}]
+},
+{
+  "name":"java.awt.event.KeyEvent",
+  "fields":[
+    {"name":"VK_CONTEXT_MENU"}, 
+    {"name":"VK_F10"}
+  ]
+},
+{
+  "name":"java.io.ObjectInputStream"
+},
+{
+  "name":"java.io.Serializable",
+  "allDeclaredFields":true,
+  "allDeclaredClasses":true,
+  "queryAllDeclaredMethods":true
+},
+{
+  "name":"java.lang.AutoCloseable",
+  "allDeclaredFields":true,
+  "allDeclaredClasses":true,
+  "queryAllDeclaredMethods":true
+},
+{
+  "name":"java.lang.Class"
+},
+{
+  "name":"java.lang.ClassValue"
+},
+{
+  "name":"java.lang.Comparable",
+  "allDeclaredFields":true,
+  "allDeclaredClasses":true,
+  "queryAllDeclaredMethods":true
+},
+{
+  "name":"java.lang.Enum",
+  "allDeclaredFields":true,
+  "allDeclaredClasses":true,
+  "queryAllDeclaredMethods":true
+},
+{
+  "name":"java.lang.Object"
+},
+{
+  "name":"java.lang.String"
+},
+{
+  "name":"java.lang.reflect.Executable",
+  "methods":[{"name":"getParameters","parameterTypes":[] }]
+},
+{
+  "name":"java.lang.reflect.Method"
+},
+{
+  "name":"java.lang.reflect.Parameter",
+  "methods":[{"name":"getName","parameterTypes":[] }]
+},
+{
+  "name":"java.nio.Buffer",
+  "allDeclaredFields":true
+},
+{
+  "name":"java.nio.ByteBuffer",
+  "allDeclaredFields":true
+},
+{
+  "name":"java.nio.DirectByteBuffer",
+  "allDeclaredFields":true,
+  "unsafeAllocated":true
+},
+{
+  "name":"java.nio.DirectCharBufferU",
+  "allDeclaredFields":true
+},
+{
+  "name":"java.nio.DirectDoubleBufferU",
+  "allDeclaredFields":true
+},
+{
+  "name":"java.nio.DirectFloatBufferU",
+  "allDeclaredFields":true,
+  "unsafeAllocated":true
+},
+{
+  "name":"java.nio.DirectIntBufferU",
+  "allDeclaredFields":true,
+  "unsafeAllocated":true
+},
+{
+  "name":"java.nio.DirectLongBufferU",
+  "allDeclaredFields":true,
+  "unsafeAllocated":true
+},
+{
+  "name":"java.nio.DirectShortBufferU",
+  "allDeclaredFields":true
+},
+{
+  "name":"java.nio.IntBuffer"
+},
+{
+  "name":"java.nio.LongBuffer"
+},
+{
+  "name":"java.nio.MappedByteBuffer",
+  "allDeclaredFields":true
+},
+{
+  "name":"java.security.MessageDigestSpi"
+},
+{
+  "name":"java.security.SecureRandomParameters"
+},
+{
+  "name":"java.sql.Date"
+},
+{
+  "name":"java.sql.Timestamp"
+},
+{
+  "name":"java.util.ArrayList"
+},
+{
+  "name":"java.util.LinkedHashMap"
+},
+{
+  "name":"java.util.List"
+},
+{
+  "name":"java.util.Map"
+},
+{
+  "name":"java.util.Queue"
+},
+{
+  "name":"java.util.concurrent.ScheduledThreadPoolExecutor",
+  "queriedMethods":[{"name":"setRemoveOnCancelPolicy","parameterTypes":["boolean"] }]
+},
+{
+  "name":"javax.imageio.spi.ImageReaderSpi"
+},
+{
+  "name":"javax.imageio.spi.ImageReaderWriterSpi",
+  "queriedMethods":[
+    {"name":"getFileSuffixes","parameterTypes":[] }, 
+    {"name":"getFormatNames","parameterTypes":[] }, 
+    {"name":"getMIMETypes","parameterTypes":[] }
+  ]
+},
+{
+  "name":"javax.imageio.spi.ImageWriterSpi"
+},
+{
+  "name":"javax.swing.JFrame"
+},
+{
+  "name":"kotlin.Metadata",
+  "queryAllDeclaredMethods":true,
+  "methods":[
+    {"name":"bv","parameterTypes":[] }, 
+    {"name":"d1","parameterTypes":[] }, 
+    {"name":"d2","parameterTypes":[] }, 
+    {"name":"k","parameterTypes":[] }, 
+    {"name":"mv","parameterTypes":[] }, 
+    {"name":"pn","parameterTypes":[] }, 
+    {"name":"xi","parameterTypes":[] }, 
+    {"name":"xs","parameterTypes":[] }
+  ]
+},
+{
+  "name":"kotlin.Pair"
+},
+{
+  "name":"kotlin.Unit"
+},
+{
+  "name":"kotlin.enums.EnumEntries"
+},
+{
+  "name":"kotlin.jvm.internal.DefaultConstructorMarker"
+},
+{
+  "name":"kotlin.reflect.jvm.internal.ReflectionFactoryImpl",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"kotlin.reflect.jvm.internal.impl.resolve.scopes.DescriptorKindFilter",
+  "allPublicFields":true
+},
+{
+  "name":"org.joml.Matrix2f",
+  "fields":[
+    {"name":"m00"}, 
+    {"name":"m01"}, 
+    {"name":"m10"}, 
+    {"name":"m11"}
+  ]
+},
+{
+  "name":"org.joml.Matrix3d",
+  "fields":[
+    {"name":"m00"}, 
+    {"name":"m01"}, 
+    {"name":"m02"}, 
+    {"name":"m10"}, 
+    {"name":"m11"}, 
+    {"name":"m12"}, 
+    {"name":"m20"}, 
+    {"name":"m21"}, 
+    {"name":"m22"}
+  ]
+},
+{
+  "name":"org.joml.Matrix3f",
+  "fields":[
+    {"name":"m00"}, 
+    {"name":"m01"}, 
+    {"name":"m02"}, 
+    {"name":"m10"}, 
+    {"name":"m11"}, 
+    {"name":"m12"}, 
+    {"name":"m20"}, 
+    {"name":"m21"}, 
+    {"name":"m22"}
+  ]
+},
+{
+  "name":"org.joml.Matrix3x2f",
+  "fields":[
+    {"name":"m00"}, 
+    {"name":"m01"}, 
+    {"name":"m10"}, 
+    {"name":"m11"}, 
+    {"name":"m20"}, 
+    {"name":"m21"}
+  ]
+},
+{
+  "name":"org.joml.Matrix4d",
+  "fields":[
+    {"name":"m00"}, 
+    {"name":"m01"}, 
+    {"name":"m02"}, 
+    {"name":"m03"}, 
+    {"name":"m10"}, 
+    {"name":"m11"}, 
+    {"name":"m12"}, 
+    {"name":"m13"}, 
+    {"name":"m20"}, 
+    {"name":"m21"}, 
+    {"name":"m22"}, 
+    {"name":"m23"}, 
+    {"name":"m30"}, 
+    {"name":"m31"}, 
+    {"name":"m32"}, 
+    {"name":"m33"}
+  ]
+},
+{
+  "name":"org.joml.Matrix4f",
+  "fields":[
+    {"name":"m00"}, 
+    {"name":"m01"}, 
+    {"name":"m02"}, 
+    {"name":"m03"}, 
+    {"name":"m10"}, 
+    {"name":"m11"}, 
+    {"name":"m12"}, 
+    {"name":"m13"}, 
+    {"name":"m20"}, 
+    {"name":"m21"}, 
+    {"name":"m22"}, 
+    {"name":"m23"}, 
+    {"name":"m30"}, 
+    {"name":"m31"}, 
+    {"name":"m32"}, 
+    {"name":"m33"}
+  ]
+},
+{
+  "name":"org.joml.Matrix4x3f",
+  "fields":[
+    {"name":"m00"}, 
+    {"name":"m01"}, 
+    {"name":"m02"}, 
+    {"name":"m10"}, 
+    {"name":"m11"}, 
+    {"name":"m12"}, 
+    {"name":"m20"}, 
+    {"name":"m21"}, 
+    {"name":"m22"}, 
+    {"name":"m30"}, 
+    {"name":"m31"}, 
+    {"name":"m32"}
+  ]
+},
+{
+  "name":"org.joml.Quaternionf",
+  "fields":[
+    {"name":"w"}, 
+    {"name":"x"}, 
+    {"name":"y"}, 
+    {"name":"z"}
+  ]
+},
+{
+  "name":"org.joml.Vector2f",
+  "fields":[
+    {"name":"x"}, 
+    {"name":"y"}
+  ]
+},
+{
+  "name":"org.joml.Vector2i",
+  "fields":[
+    {"name":"x"}, 
+    {"name":"y"}
+  ]
+},
+{
+  "name":"org.joml.Vector3f",
+  "fields":[
+    {"name":"x"}, 
+    {"name":"y"}, 
+    {"name":"z"}
+  ]
+},
+{
+  "name":"org.joml.Vector3i",
+  "fields":[
+    {"name":"x"}, 
+    {"name":"y"}, 
+    {"name":"z"}
+  ]
+},
+{
+  "name":"org.joml.Vector4f",
+  "fields":[
+    {"name":"w"}, 
+    {"name":"x"}, 
+    {"name":"y"}, 
+    {"name":"z"}
+  ]
+},
+{
+  "name":"org.joml.Vector4i",
+  "fields":[
+    {"name":"w"}, 
+    {"name":"x"}, 
+    {"name":"y"}, 
+    {"name":"z"}
+  ]
+},
+{
+  "name":"org.lwjgl.PointerBuffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.glfw.GLFWWindowSizeCallback"
+},
+{
+  "name":"org.lwjgl.system.CallbackI",
+  "queriedMethods":[{"name":"callback","parameterTypes":["long","long"] }]
+},
+{
+  "name":"org.lwjgl.system.CustomBuffer",
+  "fields":[
+    {"name":"capacity"}, 
+    {"name":"container"}, 
+    {"name":"limit"}, 
+    {"name":"mark"}, 
+    {"name":"position"}
+  ]
+},
+{
+  "name":"org.lwjgl.system.Pointer$Default",
+  "fields":[{"name":"address"}]
+},
+{
+  "name":"org.lwjgl.system.Struct",
+  "fields":[{"name":"container"}]
+},
+{
+  "name":"org.lwjgl.system.jawt.JAWT",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.system.jawt.JAWTDrawingSurface",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.system.jawt.JAWTDrawingSurfaceInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.system.jawt.JAWTRectangle",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.system.jemalloc.JEmallocAllocator",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"org.lwjgl.system.libffi.FFICIF",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.system.libffi.FFIClosure",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.system.libffi.FFIType",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkApplicationInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkBufferCreateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkBufferImageCopy",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkBufferImageCopy$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkCommandBufferAllocateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkCommandBufferBeginInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkCommandPoolCreateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkDescriptorBufferInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkDescriptorBufferInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkDescriptorPoolCreateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkDescriptorPoolSize",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkDescriptorPoolSize$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkDescriptorSetAllocateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkDescriptorSetLayoutBinding",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkDescriptorSetLayoutBinding$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkDescriptorSetLayoutCreateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkDeviceCreateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkDeviceQueueCreateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkDeviceQueueCreateInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkExtensionProperties",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkExtensionProperties$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkExtent3D",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkFormatProperties",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkImageBlit",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkImageBlit$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkImageCreateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkImageMemoryBarrier",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkImageMemoryBarrier$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkImageSubresourceLayers",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkImageSubresourceRange",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkImageViewCreateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkInstanceCreateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkMemoryAllocateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkMemoryRequirements",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkMemoryType",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkMetalSurfaceCreateInfoEXT",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkOffset3D",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkPhysicalDeviceFeatures",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkPhysicalDeviceMemoryProperties",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkPhysicalDeviceProperties",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkPipelineVertexInputStateCreateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkPresentInfoKHR",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkQueue"
+},
+{
+  "name":"org.lwjgl.vulkan.VkQueueFamilyProperties",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkQueueFamilyProperties$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkSamplerCreateInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkSubmitInfo",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkSubmitInfo$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkVertexInputAttributeDescription",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkVertexInputAttributeDescription$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkVertexInputBindingDescription",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkVertexInputBindingDescription$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkWriteDescriptorSet",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.lwjgl.vulkan.VkWriteDescriptorSet$Buffer",
+  "unsafeAllocated":true
+},
+{
+  "name":"org.slf4j.Logger"
+},
+{
+  "name":"sun.awt.CGraphicsEnvironment",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"sun.java2d.loops.OpaqueCopyAnyToArgb",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"sun.java2d.loops.OpaqueCopyArgbToAny",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"sun.java2d.loops.SetDrawLineANY",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"sun.java2d.loops.SetDrawPathANY",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"sun.java2d.loops.SetDrawPolygonsANY",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"sun.java2d.loops.SetDrawRectANY",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"sun.java2d.loops.SetFillPathANY",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"sun.java2d.loops.SetFillRectANY",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"sun.java2d.loops.SetFillSpansANY",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"sun.java2d.marlin.DMarlinRenderingEngine",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"sun.lwawt.macosx.LWCToolkit",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"sun.misc.Unsafe",
+  "allDeclaredFields":true,
+  "queriedMethods":[
+    {"name":"getLong","parameterTypes":["java.lang.Object","long"] }, 
+    {"name":"putLong","parameterTypes":["java.lang.Object","long","long"] }
+  ]
+},
+{
+  "name":"sun.security.provider.NativePRNG",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"sun.security.provider.SHA",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+}
+]
