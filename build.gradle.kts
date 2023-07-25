@@ -1,3 +1,5 @@
+import com.github.jengelman.gradle.plugins.shadow.ShadowJavaPlugin
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import org.gradle.kotlin.dsl.api
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import scenery.*
@@ -14,7 +16,7 @@ plugins {
     scenery.sign
 //    id("com.github.elect86.sciJava") version "0.0.4"
     jacoco
-    id("com.github.johnrengelman.shadow") apply false
+    id("com.github.johnrengelman.shadow")// apply false
 }
 
 repositories {
@@ -142,7 +144,7 @@ dependencies {
     //    implementation("com.github.kotlin-graphics:assimp:25c68811")
 
 //    testImplementation(misc.junit4)
-    testImplementation("org.slf4j:slf4j-simple:1.7.36")
+    implementation("org.slf4j:slf4j-simple:1.7.36")
     testImplementation("net.imagej:imagej")
     testImplementation("net.imagej:ij")
     testImplementation("net.imglib2:imglib2-ij")
@@ -397,12 +399,13 @@ tasks {
         enabled = isRelease
     }
 
-    if(project.properties["buildFatJAR"] == true) {
-        apply(plugin = "com.github.johnrengelman.shadow")
-        jar {
-            isZip64 = true
-        }
+    "shadowJar"(ShadowJar::class) {
+        isZip64 = true
     }
+
+//    if(project.properties["buildFatJAR"] != null) {
+//        apply(plugin = "com.github.johnrengelman.shadow")
+//    }
 }
 
 jacoco.toolVersion = "0.8.11"
