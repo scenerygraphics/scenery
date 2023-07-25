@@ -13,6 +13,7 @@ import graphics.scenery.controls.behaviours.FPSCameraControl
 import graphics.scenery.net.NodePublisher
 import graphics.scenery.net.NodeSubscriber
 import graphics.scenery.repl.REPL
+import graphics.scenery.textures.Texture
 import graphics.scenery.utils.*
 import kotlinx.coroutines.*
 import org.lwjgl.system.Platform
@@ -305,6 +306,10 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
      * @param[keybinding] The key to trigger the switching.
      */
     fun setupCameraModeSwitching(keybinding: String = "C") {
+        if(System.getProperty("scenery.Headless").toBoolean() == true) {
+            return
+        }
+
         val windowWidth = renderer?.window?.width ?: 512
         val windowHeight = renderer?.window?.height ?: 512
 
@@ -605,6 +610,57 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
                     System.setProperty("native.libpath", basepath)
                 }
             }
+        }
+
+        @JvmStatic fun main(args: Array<String>) {
+            class TexturedCubeExample : SceneryBase("TexturedCubeExample", wantREPL = false) {
+                override fun init() {
+                    renderer = hub.add(
+                        SceneryElement.Renderer,
+                        Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
+                    )
+
+                    val box = Box(Vector3f(1.0f, 1.0f, 1.0f))
+                    box.name = "le box du win"
+                    box.material {
+//                        textures["diffuse"] =
+//                            Texture.fromImage(Image.fromResource("textures/helix.png", TexturedCubeExample::class.java))
+                        metallic = 0.3f
+                        roughness = 0.9f
+                    }
+                    scene.addChild(box)
+
+                    val light = PointLight(radius = 15.0f)
+                    light.spatial().position = Vector3f(0.0f, 0.0f, 2.0f)
+                    light.intensity = 5.0f
+                    light.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
+                    scene.addChild(light)
+
+                    val cam: Camera = DetachedHeadCamera()
+                    with(cam) {
+                        spatial {
+                            position = Vector3f(0.0f, 0.0f, 5.0f)
+                        }
+                        perspectiveCamera(50.0f, 512, 512)
+
+                        scene.addChild(this)
+                    }
+
+                    thread {
+                        while(running) {
+                            box.spatial {
+                                rotation.rotateY(0.01f)
+                                needsUpdate = true
+                            }
+
+                            Thread.sleep(20)
+                        }
+                    }
+                }
+            }
+
+            val tce = TexturedCubeExample()
+            tce.main()
         }
     }
 }
