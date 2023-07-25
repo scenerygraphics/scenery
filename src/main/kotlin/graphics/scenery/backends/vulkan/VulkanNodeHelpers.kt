@@ -360,7 +360,7 @@ object VulkanNodeHelpers {
         if(!(material.blending.transparent || material is ShaderMaterial || material.cullingMode != Material.CullingMode.Back || material.wireframe)) {
             logger.debug("Using default renderpass material for ${node.name}")
             renderpasses
-                .filter { it.value.passConfig.type == RenderConfigReader.RenderpassType.geometry || it.value.passConfig.type == RenderConfigReader.RenderpassType.lights }
+                .filter { it.value.passConfig.type == RenderpassType.geometry || it.value.passConfig.type == RenderpassType.lights }
                 .forEach {
                     it.value.removePipeline(renderable)
                 }
@@ -374,7 +374,7 @@ object VulkanNodeHelpers {
         }
 
         renderable.rendererMetadata()?.let { s ->
-            renderpasses.filter { it.value.passConfig.type == RenderConfigReader.RenderpassType.geometry || it.value.passConfig.type == RenderConfigReader.RenderpassType.lights }
+            renderpasses.filter { it.value.passConfig.type == RenderpassType.geometry || it.value.passConfig.type == RenderpassType.lights }
                 .map { (passName, pass) ->
                     val shaders = when (material) {
                         is ShaderMaterial -> {
@@ -416,7 +416,7 @@ object VulkanNodeHelpers {
 
             if (renderable.needsShaderPropertyUBO()) {
                 renderpasses.filter {
-                    (it.value.passConfig.type == RenderConfigReader.RenderpassType.geometry || it.value.passConfig.type == RenderConfigReader.RenderpassType.lights) &&
+                    (it.value.passConfig.type == RenderpassType.geometry || it.value.passConfig.type == RenderpassType.lights) &&
                         it.value.passConfig.renderTransparent == material.blending.transparent
                 }.forEach { pass ->
                     val dsl = pass.value.initializeShaderPropertyDescriptorSetLayout()
@@ -454,7 +454,7 @@ object VulkanNodeHelpers {
 
                     if(reloaded) {
                         renderable.rendererMetadata()?.texturesToDescriptorSets(device,
-                            renderpasses.filter { pass -> pass.value.passConfig.type != RenderConfigReader.RenderpassType.quad },
+                            renderpasses.filter { pass -> pass.value.passConfig.type != RenderpassType.quad },
                             renderable)
                     }
                 }

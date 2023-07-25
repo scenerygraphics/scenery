@@ -1,6 +1,7 @@
 package graphics.scenery.backends.vulkan
 
 import graphics.scenery.Hub
+import graphics.scenery.backends.RenderConfig
 import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.backends.ResizeHandler
 import graphics.scenery.backends.SceneryWindow
@@ -19,12 +20,12 @@ import java.nio.LongBuffer
  * @author Ulrik Günther <hello@ulrik.is>
  */
 open class HeadlessSwapchain(device: VulkanDevice,
-                        queue: VkQueue,
-                        commandPools: VulkanRenderer.CommandPools,
-                        renderConfig: RenderConfigReader.RenderConfig,
-                        useSRGB: Boolean = true,
-                        @Suppress("unused") val useFramelock: Boolean = false,
-                        @Suppress("unused") val bufferCount: Int = 2) : VulkanSwapchain(device, queue, commandPools, renderConfig, useSRGB) {
+                             queue: VkQueue,
+                             commandPools: VulkanRenderer.CommandPools,
+                             renderConfig: RenderConfig,
+                             useSRGB: Boolean = true,
+                             @Suppress("unused") val useFramelock: Boolean = false,
+                             @Suppress("unused") val bufferCount: Int = 2) : VulkanSwapchain(device, queue, commandPools, renderConfig, useSRGB) {
     protected var initialized = false
     protected lateinit var sharingBuffer: VulkanBuffer
     protected lateinit var imageBuffer: ByteBuffer
