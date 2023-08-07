@@ -20,7 +20,7 @@ import java.nio.ByteBuffer
 import kotlin.concurrent.thread
 
 
-class VDIGenerationExample : SceneryBase("Volume Generation Example", 512, 512) {
+class VDIGenerationExample : SceneryBase("Volume Generation Example", 1280, 720) {
 
     val maxSupersegments = 20
     val context: ZContext = ZContext(4)
@@ -37,21 +37,33 @@ class VDIGenerationExample : SceneryBase("Volume Generation Example", 512, 512) 
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
             spatial {
-                position = Vector3f(0.0f, 0.5f, 5.0f)
+                position = Vector3f( 4.622E+0f, -9.060E-1f, -1.047E+0f)
+                rotation = Quaternionf( 5.288E-2, -9.096E-1, -1.222E-1,  3.936E-1)
             }
             perspectiveCamera(50.0f, windowWidth, windowHeight)
             scene.addChild(this)
         }
 
-        val volume = Volume.fromPathRaw(Paths.get(getDemoFilesPath() + "/volumes/box-iso/"), hub)
+        val volume = Volume.fromPathRaw(Paths.get(System.getenv("DATASET_PATH")), hub, is16bit = false)
         volume.name = "volume"
-        volume.colormap = Colormap.get("viridis")
+        volume.colormap = Colormap.get("hot")
+
+        val pixelToWorld = 0.00375f
+
+        volume.pixelToWorldRatio = pixelToWorld
+
         volume.spatial {
-            position = Vector3f(0.0f, 0.0f, -3.5f)
-            rotation = rotation.rotateXYZ(0.05f, 0.05f, 0.05f)
-            scale = Vector3f(20.0f, 20.0f, 20.0f)
+            position = Vector3f(0.0f, 0.0f, 0f)
         }
-        volume.transferFunction = TransferFunction.ramp(0.1f, 0.5f)
+
+        volume.origin = Origin.FrontBottomLeft
+
+        val tf = TransferFunction()
+        tf.addControlPoint(0.0f, 0.0f)
+        tf.addControlPoint(0.43f, 0.0f)
+        tf.addControlPoint(0.5f, 0.5f)
+
+        volume.transferFunction = tf
         scene.addChild(volume)
 
         // Step 2: Create VDI Volume Manager

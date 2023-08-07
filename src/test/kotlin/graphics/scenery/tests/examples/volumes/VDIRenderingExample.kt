@@ -17,11 +17,15 @@ import org.joml.Quaternionf
 import org.joml.Vector3f
 import org.joml.Vector3i
 import org.lwjgl.system.MemoryUtil
+import org.scijava.ui.behaviour.ClickBehaviour
 import java.io.File
 import java.io.FileInputStream
 import java.nio.ByteBuffer
+import graphics.scenery.utils.extensions.minus
+import graphics.scenery.utils.extensions.plus
+import graphics.scenery.utils.extensions.times
 
-class VDIRenderingExample : SceneryBase("VDI Rendering Example", 512, 512) {
+class VDIRenderingExample : SceneryBase("VDI Rendering Example", 1280, 720) {
 
     val vdiNode = VDINode()
 
@@ -29,6 +33,10 @@ class VDIRenderingExample : SceneryBase("VDI Rendering Example", 512, 512) {
 
     val numSupersegments = 20
     val numLayers = 1
+
+    var hmd: TrackedStereoGlasses? = null
+    val cam: Camera = DetachedHeadCamera(hmd)
+    val camTarget = Vector3f(1.920E+0f, -1.920E+0f,  1.491E+0f)
 
     private val vulkanProjectionFix =
         Matrix4f(
@@ -54,9 +62,9 @@ class VDIRenderingExample : SceneryBase("VDI Rendering Example", 512, 512) {
         light.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
         scene.addChild(light)
 
-        val cam: Camera = DetachedHeadCamera()
         with(cam) {
-            spatial().position = Vector3f(0.0f, 0.5f, 5.0f)
+            spatial().position = Vector3f( 4.622E+0f, -9.060E-1f, -1.047E+0f)
+            spatial().rotation = Quaternionf( 5.288E-2, -9.096E-1, -1.222E-1,  3.936E-1)
             perspectiveCamera(50.0f, windowWidth, windowWidth)
             scene.addChild(this)
         }
@@ -144,6 +152,42 @@ class VDIRenderingExample : SceneryBase("VDI Rendering Example", 512, 512) {
         val plane = FullscreenObject()
         plane.material().textures["diffuse"] = vdiNode.material().textures["OutputViewport"]!!
         scene.addChild(plane)
+    }
+
+    fun rotateCamera(degrees: Float, pitch: Boolean = false) {
+        cam.targeted = true
+        val frameYaw: Float
+        val framePitch: Float
+
+        if(pitch) {
+            framePitch = degrees / 180.0f * Math.PI.toFloat()
+            frameYaw = 0f
+        } else {
+            frameYaw = degrees / 180.0f * Math.PI.toFloat()
+            framePitch = 0f
+        }
+
+        // first calculate the total rotation quaternion to be applied to the camera
+        val yawQ = Quaternionf().rotateXYZ(0.0f, frameYaw, 0.0f).normalize()
+        val pitchQ = Quaternionf().rotateXYZ(framePitch, 0.0f, 0.0f).normalize()
+
+//        logger.info("cam target: ${camTarget}")
+
+        val distance = (camTarget - cam.spatial().position).length()
+        cam.spatial().rotation = pitchQ.mul(cam.spatial().rotation).mul(yawQ).normalize()
+        cam.spatial().position = camTarget + cam.forward * distance * (-1.0f)
+//        logger.info("new camera pos: ${cam.spatial().position}")
+//        logger.info("new camera rotation: ${cam.spatial().rotation}")
+//        logger.info("camera forward: ${cam.forward}")
+    }
+
+    override fun inputSetup() {
+
+        inputHandler?.addBehaviour("rotate_camera", ClickBehaviour { _, _ ->
+            rotateCamera(10f)
+
+        })
+        inputHandler?.addKeyBinding("rotate_camera", "R")
     }
 
     companion object {
