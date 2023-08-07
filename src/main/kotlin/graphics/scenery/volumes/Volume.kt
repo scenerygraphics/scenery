@@ -943,7 +943,7 @@ open class Volume(
          *
          * Returns the new volume.
          */
-        @JvmStatic fun fromPathRaw(file: Path, hub: Hub): BufferedVolume {
+        @JvmStatic fun fromPathRaw(file: Path, hub: Hub, is16bit: Boolean = true): BufferedVolume {
 
             val infoFile: Path
             val volumeFiles: List<Path>
@@ -971,9 +971,14 @@ open class Volume(
                     logger.debug("Loading $id from disk")
                     val buffer = ByteArray(1024 * 1024)
                     val stream = FileInputStream(v.toFile())
-                    val imageData: ByteBuffer = MemoryUtil.memAlloc((2 * dimensions.x * dimensions.y * dimensions.z))
+                    val numBytes = if(is16bit) {
+                        2
+                    } else {
+                        1
+                    }
+                    val imageData: ByteBuffer = MemoryUtil.memAlloc((numBytes * dimensions.x * dimensions.y * dimensions.z))
 
-                    logger.debug("${v.fileName}: Allocated ${imageData.capacity()} bytes for UINT16 image of $dimensions")
+                    logger.debug("${v.fileName}: Allocated ${imageData.capacity()} bytes for image of $dimensions containing $numBytes per voxel")
 
                     val start = System.nanoTime()
                     var bytesRead = stream.read(buffer, 0, buffer.size)
@@ -991,7 +996,11 @@ open class Volume(
                 volumes.add(BufferedVolume.Timepoint(id, buffer))
             }
 
-            return fromBuffer(volumes, dimensions.x, dimensions.y, dimensions.z, UnsignedShortType(), hub)
+            return if(is16bit) {
+                Volume.fromBuffer(volumes, dimensions.x, dimensions.y, dimensions.z, UnsignedShortType(), hub)
+            } else {
+                Volume.fromBuffer(volumes, dimensions.x, dimensions.y, dimensions.z, UnsignedByteType(), hub)
+            }
         }
 
         /** Amount of supported slicing planes per volume, see also sampling shader segments */
