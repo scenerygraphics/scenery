@@ -6,10 +6,11 @@ import graphics.scenery.utils.extensions.plus
 import kotlin.concurrent.thread
 
 /**
- * It wiggles a [Node].
+ * It wiggles a Node.
  */
 class Wiggler(val target: Spatial, val range: Float = 0.02f, val lifeTimeMillis: Int? = null) {
-    private var active = true
+    var active = true
+        private set
     private val created = System.currentTimeMillis()
 
     init {
@@ -26,7 +27,6 @@ class Wiggler(val target: Spatial, val range: Float = 0.02f, val lifeTimeMillis:
                 Thread.sleep(5)
             }
             target.position = originalPosition
-
         }
     }
 
