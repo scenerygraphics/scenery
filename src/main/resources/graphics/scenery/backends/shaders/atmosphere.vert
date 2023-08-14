@@ -39,9 +39,6 @@ layout(push_constant) uniform currentEye_t {
 } currentEye;
 
 
-varying vec3 vPosition;
-
-
 void main()
 {
     mat4 mv;
@@ -59,8 +56,6 @@ void main()
 
     gl_PointSize = 1.0;
     gl_Position = nMVP * vec4(vertexPosition, 1.0);
-
-    vPosition = vertexPosition;
 }
 
 
