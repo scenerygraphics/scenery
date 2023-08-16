@@ -46,7 +46,7 @@ dependencies {
     annotationProcessor("org.scijava:scijava-common:2.94.1")
 
     implementation(kotlin("reflect"))
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.2")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
 
     implementation("org.slf4j:slf4j-api:1.7.36")
     implementation("org.joml:joml:1.10.5")
