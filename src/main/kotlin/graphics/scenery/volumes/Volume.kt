@@ -19,6 +19,7 @@ import bdv.viewer.DisplayMode
 import bdv.viewer.Source
 import bdv.viewer.SourceAndConverter
 import bdv.viewer.state.ViewerState
+import bvv.core.VolumeViewerOptions
 import graphics.scenery.*
 import graphics.scenery.attribute.DelegationType
 import graphics.scenery.attribute.geometry.DelegatesGeometry
@@ -32,7 +33,7 @@ import graphics.scenery.attribute.spatial.HasCustomSpatial
 import graphics.scenery.net.Networkable
 import graphics.scenery.numerics.OpenSimplexNoise
 import graphics.scenery.numerics.Random
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import graphics.scenery.utils.extensions.times
 import graphics.scenery.utils.forEachIndexedAsync
 import graphics.scenery.volumes.Volume.VolumeDataSource.SpimDataMinimalSource
@@ -43,6 +44,8 @@ import mpicbg.spim.data.generic.sequence.AbstractSequenceDescription
 import mpicbg.spim.data.sequence.FinalVoxelDimensions
 import net.imglib2.RandomAccessibleInterval
 import net.imglib2.Volatile
+import net.imglib2.histogram.Histogram1d
+import net.imglib2.histogram.Real1dBinMapper
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.numeric.ARGBType
 import net.imglib2.type.numeric.NumericType
@@ -54,7 +57,6 @@ import org.joml.Vector3i
 import org.joml.Vector4f
 import org.lwjgl.system.MemoryUtil
 import org.scijava.io.location.FileLocation
-import tpietzsch.example2.VolumeViewerOptions
 import java.io.FileInputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -81,7 +83,7 @@ open class Volume(
     hub: Hub
 ) : DefaultNode("Volume"),
     DelegatesRenderable, DelegatesGeometry, DelegatesMaterial, DisableFrustumCulling,
-    HasCustomSpatial<Volume.VolumeSpatial> {
+    HasCustomSpatial<Volume.VolumeSpatial>, HasTransferFunction, HasHistogram {
 
     // without this line the *java* serialization framework kryo does not recognize the parameter-less constructor
     // and uses dark magic to instanciate this class
@@ -114,11 +116,25 @@ open class Volume(
     val viewerState: ViewerState
 
     /** The transfer function to use for the volume. Flat by default. */
-    var transferFunction: TransferFunction = TransferFunction.flat(0.5f)
+    override var transferFunction: TransferFunction = TransferFunction.flat(0.5f)
         set(m) {
             field = m
             modifiedAt = System.nanoTime()
         }
+    override var minDisplayRange: Float
+        get() = converterSetups.getOrNull(0)?.displayRangeMin?.toFloat() ?: throw IllegalStateException()
+        set(value) { setTransferFunctionRange(value, maxDisplayRange) }
+    override var maxDisplayRange: Float
+        get() = converterSetups.getOrNull(0)?.displayRangeMax?.toFloat() ?: throw IllegalStateException()
+        set(value) { setTransferFunctionRange(minDisplayRange, value) }
+
+    override var range: Pair<Float, Float>
+        get() = when(dataSource) {
+            VolumeDataSource.NullSource -> 0.0f to 0.0f
+            is VolumeDataSource.RAISource<*> -> dataSource.type.toRange()
+            is SpimDataMinimalSource -> (dataSource.sources.first().spimSource.type as NumericType<*>).toRange()
+        }
+        set(value) { logger.warn("Cannot set data range, it is automatically determined.") }
 
     /** The color map for the volume. */
     var colormap: Colormap = Colormap.get("viridis")
@@ -337,6 +353,18 @@ open class Volume(
         }
     }
 
+    private fun NumericType<*>.toRange(): Pair<Float, Float> {
+        return when(this) {
+            is UnsignedByteType -> 0.0f to 255.0f
+            is ByteType -> -127.0f to 128.0f
+            is UnsignedShortType -> 0.0f to 65535.0f
+            is ShortType -> -32768.0f to 32767.0f
+            is FloatType -> 0.0f to 1.0f
+            else -> 0.0f to 1.0f
+        }
+    }
+
+
     override fun update(fresh: Networkable, getNetworkable: (Int) -> Networkable, additionalData: Any?) {
         if (fresh !is Volume) throw IllegalArgumentException("Update called with object of foreign class")
         super.update(fresh, getNetworkable, additionalData)
@@ -371,6 +399,20 @@ open class Volume(
 
     override fun createSpatial(): VolumeSpatial {
         return VolumeSpatial(this)
+    }
+
+    /**
+     * Return a histogram over the set minDisplayRange and maxDisplayRange of the volumes viewState source (currently only using spimSource)
+     */
+    override fun generateHistogram(): Histogram1d<*>? {
+        var histogram : Histogram1d<*>? = null
+
+        this.viewerState.sources.firstOrNull()?.spimSource?.getSource(0, 0)?.let { rai ->
+            histogram = Histogram1d(Real1dBinMapper<UnsignedByteType>(minDisplayRange.toDouble(), maxDisplayRange.toDouble(), 1024, false))
+            (histogram as Histogram1d<UnsignedByteType>).countData(rai as Iterable<UnsignedByteType>)
+        }
+
+        return histogram
     }
 
     /**
@@ -502,7 +544,7 @@ open class Volume(
     companion object {
         val setupId = AtomicInteger(0)
         val scifio: SCIFIO = SCIFIO()
-        private val logger by LazyLogger()
+        private val logger by lazyLogger()
 
         @JvmStatic @JvmOverloads fun fromSpimData(
             spimData: SpimDataMinimal,

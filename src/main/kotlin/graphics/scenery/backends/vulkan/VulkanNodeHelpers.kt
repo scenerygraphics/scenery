@@ -6,7 +6,7 @@ import graphics.scenery.attribute.renderable.Renderable
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.textures.Texture
 import graphics.scenery.textures.UpdatableTexture
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.lwjgl.system.jemalloc.JEmalloc
 import org.lwjgl.vulkan.VK10
 import org.lwjgl.vulkan.VkBufferCopy
@@ -26,7 +26,7 @@ import kotlin.reflect.full.memberProperties
  * @author Ulrik Guenther <hello@ulrik.is>
  */
 object VulkanNodeHelpers {
-    val logger by LazyLogger()
+    val logger by lazyLogger()
 
     /**
      * Creates vertex buffers for a given [node] on [device].
@@ -316,6 +316,7 @@ object VulkanNodeHelpers {
                     }
                 } catch (e: Exception) {
                     logger.warn("Could not load texture for ${node.name}: $e")
+                    e.printStackTrace()
                 }
             } else {
                 if(s.textures[type] != existing) {

@@ -1,8 +1,7 @@
 package graphics.scenery.controls.behaviours
 
-import com.jogamp.opengl.math.FloatUtil.sqrt
 import graphics.scenery.Camera
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
@@ -10,6 +9,7 @@ import org.joml.*
 import org.scijava.ui.behaviour.DragBehaviour
 import org.scijava.ui.behaviour.ScrollBehaviour
 import java.util.function.Supplier
+import kotlin.math.sqrt
 
 /**
  * Targeted ArcBall control
@@ -30,7 +30,7 @@ import java.util.function.Supplier
  */
 open class RollingBallCameraControl(private val name: String, camera: () -> Camera?, private val w: Int, private val h: Int, var target: () -> Vector3f) : DragBehaviour, ScrollBehaviour,
     WithCameraDelegateBase(camera) {
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
     private var lastX = w / 2
     private var lastY = h / 2
     private var firstEntered = true

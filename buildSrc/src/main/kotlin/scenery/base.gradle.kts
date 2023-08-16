@@ -11,6 +11,17 @@ tasks {
 
     // https://docs.gradle.org/current/userguide/java_testing.html#test_filtering
     test {
+        testLogging {
+            events(TestLogEvent.PASSED, TestLogEvent.SKIPPED, TestLogEvent.FAILED)
+
+            showExceptions = true
+            exceptionFormat = TestExceptionFormat.FULL
+            showCauses = true
+            showStackTraces = true
+
+            showStandardStreams = false
+        }
+
         if(JavaVersion.current() > JavaVersion.VERSION_11) {
             allJvmArgs = allJvmArgs + listOf(
                 // kryo compatability
@@ -77,25 +88,25 @@ tasks {
         finalizedBy(jacocoTestReport) // report is always generated after tests run
     }
 
-    register("testGpu", Test::class) { // lets take this for comfortability in local development
+    register<Test>("testGpu") { // lets take this for comfortability in local development
         maxHeapSize = "8G"
         group = "verification"
         filter { includeTestsMatching("ExampleRunner") }
 
         val testGroup = System.getProperty("scenery.ExampleRunner.TestGroup", "basic")
-        extensions.configure(JacocoTaskExtension::class) {
+        extensions.configure<JacocoTaskExtension> {
             setDestinationFile(layout.buildDirectory.file("jacoco/jacocoTest.$testGroup.exec").get().asFile)
         }
     }
 
-    register("compileShader", JavaExec::class) {
+    register<JavaExec>("compileShader") {
         group = "tools"
         mainClass.set("graphics.scenery.backends.ShaderCompiler")
         classpath = sourceSets["main"].runtimeClasspath
 
     }
 
-    register("fullCodeCoverageReport", JacocoReport::class) {
+    register<JacocoReport>("fullCodeCoverageReport") {
         executionData(fileTree(project.rootDir.absolutePath).include("**/build/jacoco/*.exec"))
 
         sourceSets(sourceSets["main"], sourceSets["test"])
@@ -119,10 +130,10 @@ tasks {
              *      otherwise: a reference to a file containing the current commit hash     */
             val head = file(gitFolder + "HEAD").readText().split(":") // .git/HEAD
             val isCommit = head.size == 1 // e5a7c79edabbf7dd39888442df081b1c9d8e88fd
-            // def isRef = head.length > 1     // ref: refs/heads/master
+            // def isRef = head.length > 1     // ref: refs/heads/main
             when {
                 isCommit -> head[0] // e5a7c79edabb
-                else -> file(gitFolder + head[1].trim()) // .git/refs/heads/master
+                else -> file(gitFolder + head[1].trim()) // .git/refs/heads/main
                     .readText()
             }.trim().take(digit)
         }
@@ -131,9 +142,7 @@ tasks {
     jacocoTestReport {
         reports {
             xml.required.set(true)
-            html.apply {
-                required.set(false)
-            }
+            html.required.set(false)
         }
         dependsOn(test) // tests are required to run before generating the report
     }

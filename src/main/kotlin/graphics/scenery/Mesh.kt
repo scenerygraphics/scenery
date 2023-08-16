@@ -12,7 +12,7 @@ import graphics.scenery.geometry.GeometryType
 import graphics.scenery.primitives.PointCloud
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.Image
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import graphics.scenery.utils.SystemHelpers
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.times
@@ -79,7 +79,7 @@ open class Mesh(override var name: String = "Mesh") : DefaultNode(name), HasRend
      * @return A HashMap storing material name and [Material].
      */
     fun readFromMTL(filename: String): HashMap<String, Material> {
-        val logger by LazyLogger()
+        val logger by lazyLogger()
 
         val materials = HashMap<String, Material>()
 
@@ -223,7 +223,7 @@ open class Mesh(override var name: String = "Mesh") : DefaultNode(name), HasRend
      * @param[flipNormals] Whether to flip the normals after reading them.
      */
     fun readFromOBJ(filename: String, importMaterials: Boolean = true, flipNormals: Boolean = false, useObjGroups: Boolean = true): Mesh {
-        val logger by LazyLogger()
+        val logger by lazyLogger()
 
         var name = ""
 
@@ -659,7 +659,7 @@ open class Mesh(override var name: String = "Mesh") : DefaultNode(name), HasRend
      * @param[filename] The filename to read from.
      */
     fun readFromSTL(filename: String): Mesh {
-        val logger by LazyLogger()
+        val logger by lazyLogger()
 
         var name = ""
         val vbuffer = ArrayList<Float>()

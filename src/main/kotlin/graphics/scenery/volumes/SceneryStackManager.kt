@@ -1,6 +1,10 @@
 package graphics.scenery.volumes
 
-import graphics.scenery.utils.LazyLogger
+import bvv.core.backend.GpuContext
+import bvv.core.backend.Texture3D
+import bvv.core.multires.SimpleStack3D
+import bvv.core.render.*
+import graphics.scenery.utils.lazyLogger
 import net.imglib2.RandomAccessibleInterval
 import net.imglib2.type.numeric.ARGBType
 import net.imglib2.type.numeric.integer.UnsignedByteType
@@ -8,17 +12,13 @@ import net.imglib2.type.numeric.integer.UnsignedShortType
 import net.imglib2.util.Intervals
 import net.imglib2.view.Views
 import org.joml.Vector3f
-import tpietzsch.backend.GpuContext
-import tpietzsch.backend.Texture3D
-import tpietzsch.example2.*
-import tpietzsch.multires.SimpleStack3D
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.function.Consumer
 import kotlin.collections.HashMap
 
 open class SceneryStackManager: SimpleStackManager {
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
     private val texturesU8 : HashMap<Int, VolumeTextureU8> = HashMap()
     private val texturesU16 : HashMap<Int, VolumeTextureU16> = HashMap()
     private val texturesRGBA8 : HashMap<Int, VolumeTextureRGBA8> = HashMap()
