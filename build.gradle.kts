@@ -96,7 +96,7 @@ dependencies {
     implementation("com.esotericsoftware:kryo:5.5.0")
     implementation("de.javakaffee:kryo-serializers:0.45")
     implementation("org.msgpack:msgpack-core:0.9.5")
-    implementation("org.msgpack:jackson-dataformat-msgpack:0.9.1")
+    implementation("org.msgpack:jackson-dataformat-msgpack:0.9.5")
     api("graphics.scenery:jvrpn:1.2.0", lwjglNatives.filter { !it.contains("arm") }.toTypedArray())
     implementation("io.scif:scifio")
     implementation("org.bytedeco:ffmpeg:5.0-1.5.7", ffmpegNatives)
