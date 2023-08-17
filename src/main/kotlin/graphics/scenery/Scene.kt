@@ -9,8 +9,6 @@ import graphics.scenery.attribute.material.HasMaterial
 import graphics.scenery.attribute.renderable.HasRenderable
 import graphics.scenery.attribute.spatial.HasSpatial
 import graphics.scenery.net.Networkable
-import graphics.scenery.net.NodePublisher
-import graphics.scenery.net.NodeSubscriber
 import graphics.scenery.serialization.*
 import graphics.scenery.utils.MaybeIntersects
 import graphics.scenery.utils.extensions.plus
