@@ -1,6 +1,5 @@
 package graphics.scenery.utils
 
-import cleargl.ClearGLWindow
 import graphics.scenery.backends.ResizeHandler
 import graphics.scenery.backends.SceneryWindow
 import java.awt.Component
@@ -37,9 +36,6 @@ class SceneryJPanel : JPanel(), SceneryPanel {
 
     /** Embedded component that receives the actual rendering, e.g. via a native surface. */
     var component: Component? = null
-
-    /** [ClearGLWindow] the [OpenGLRenderer] is rendering to. */
-    var cglWindow: ClearGLWindow? = null
 
     /** Displayed frames so far. */
     override var displayedFrames: Long = 0L

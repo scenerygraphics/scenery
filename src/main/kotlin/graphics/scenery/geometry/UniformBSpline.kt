@@ -2,6 +2,7 @@ package graphics.scenery.geometry
 
 import graphics.scenery.utils.lazyLogger
 import graphics.scenery.utils.extensions.xyz
+import org.joml.Matrix3f
 import org.joml.Matrix4f
 import org.joml.Vector3f
 import org.joml.Vector4f
@@ -27,16 +28,23 @@ class UniformBSpline(protected val controlPoints: ArrayList<Vector3f>, val n: In
      * This is a list of the equidistant parameters at which the curve is calculated.
      */
     private val tList = ArrayList<Vector4f>(n+1)
+
+    /**
+     * This is the list of polynomial parameters for each spline section
+     */
+    private val parameters = Matrix4f(
+        0f, 1f, 4f, 1f,
+        0f, 3f, 0f, -3f,
+        0f, 3f, -6f, 3f,
+        1f, -3f, 3f, -1f)
+
     /**
      * Computes the actual tList.
      */
     init {
-        for(i in 0..n) {
-            val t = i/n.toFloat()
-            val tVector = Vector4f((1-t)*(1-t)*(1-t)/6,
-                    (3*t*t*t - 6*t*t +4)/6,
-                    (-3*t*t*t + 3*t*t + 3*t +1)/6,
-                    t*t*t/6)
+        for(i in 0 .. n) {
+            val t = i.toFloat()/n.toFloat()
+            val tVector = Vector4f(1f, t, t*t, t*t*t)
             tList.add(tVector)
         }
     }
@@ -46,39 +54,51 @@ class UniformBSpline(protected val controlPoints: ArrayList<Vector3f>, val n: In
      */
     override fun splinePoints(): ArrayList<Vector3f> {
         //checks if the controlpoints contain only a list of the same vectors
-        if(controlPoints.toSet().size == 1) {
-            throw IllegalArgumentException("The UniformBSpline got a list of the same points.")
+        if(controlPoints.toSet().size != controlPoints.size) {
+            throw IllegalArgumentException("The UniformBSpline contains identical points.")
         }
         return if(controlPoints.size < 4) {
             logger.warn("The list of controlPoints provided for the Uniform BSpline is empty or has less than four points.")
             ArrayList()
         }
         else {
-            val curvePoints = ArrayList<Vector3f>((controlPoints.size - 3) * (n + 1))
+            val splinePoints = ArrayList<Vector3f>((controlPoints.size - 3) * n + 1)
             controlPoints.dropLast(3).forEachIndexed { index, _ ->
-                val spline = partialSpline(controlPoints[index], controlPoints[index + 1],
-                        controlPoints[index + 2], controlPoints[index + 3])
-                curvePoints.addAll(spline)
+                val spline = partialSpline(controlPoints[index], controlPoints[index+1], controlPoints[index+2],
+                    controlPoints[index+3], index == 0)
+                splinePoints.addAll(spline)
             }
-            return curvePoints
+            return splinePoints
         }
     }
 
     /**
      * Calculates the partial Spline of four consecutive points.
+     *
+     * [includeFirstPoint] is necessary to check whether we are computing the very first spline section. Splines are
+     * defined to be continuous (even differentiable) at the transitions between sections. So, one can
+     * define (mathematically) the parameter t piecewise in open intervals (0 <= t <= 1, 1 <= t <= 2, ...). However, in the
+     * implementation we need to make sure that the transition points won't be added twice.
      */
-    private fun partialSpline(p1: Vector3f, p2: Vector3f, p3: Vector3f, p4: Vector3f): ArrayList<Vector3f> {
+    private fun partialSpline(p1: Vector3f, p2: Vector3f, p3: Vector3f, p4: Vector3f, includeFirstPoint: Boolean = false):
+        ArrayList<Vector3f> {
         val pointMatrix = Matrix4f(
-                p1.x(), p1.y(), p1.z(), 0f,
-                p2.x(), p2.y(), p2.z(), 0f,
-                p3.x(), p3.y(), p3.z(), 0f,
-                p4.x(), p4.y(), p4.z(), 0f)
+            p1.x, p1.y, p1.z, 0f,
+            p2.x, p2.y, p2.z, 0f,
+            p3.x, p3.y, p3.z, 0f,
+            p4.x, p4.y, p4.z, 0f)
+
         val partialSpline = ArrayList<Vector3f>(n)
-        tList.forEach {
-            val vec = Vector4f(it)
-            val transformVec = pointMatrix.transform(vec)
-            partialSpline.add(transformVec.xyz())
+        tList.forEachIndexed {index, it ->
+            //last index as the list of spline points is reversed later -> corresponds to the first point
+            if(index != tList.lastIndex || includeFirstPoint) {
+                val vec = Vector4f(it)
+                val between = parameters.transform(vec).mul(1 / 6f)
+                val point = pointMatrix.transform(Vector4f(between))
+                partialSpline.add(point.xyz())
+            }
         }
+        partialSpline.reverse()
         return(partialSpline)
     }
 
