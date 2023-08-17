@@ -38,7 +38,6 @@ layout(push_constant) uniform currentEye_t {
     int eye;
 } currentEye;
 
-
 void main()
 {
     mat4 mv;
