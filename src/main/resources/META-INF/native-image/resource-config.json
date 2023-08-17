@@ -2,22 +2,25 @@
   "resources":{
     "includes":[
       {
-        "pattern":".*yml$"
+        "pattern":".*\\.yml$"
       },
       {
-        "pattern":".*spv$"
+        "pattern":".*\\.spv$"
       },
       {
-        "pattern":".*frag$"
+        "pattern":".*\\.frag$"
       },
       {
-        "pattern":".*vert$"
+        "pattern":".*\\.vert$"
       },
       {
-        "pattern":".*comp$"
+        "pattern":".*\\.comp$"
       },
       {
-        "pattern":".*geom$"
+        "pattern":".*\\.geom$"
+      },
+      {
+        "pattern":"\\Qgraphics/scenery/backends/shaders/HBAO.frag\\E"
       },
       {
         "pattern":"\\Qkotlin/kotlin.kotlin_builtins\\E"
