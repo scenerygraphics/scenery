@@ -83,6 +83,10 @@ layout(push_constant) uniform currentEye_t {
 
 layout(set = 4, binding = 0) uniform sampler2D ObjectTextures[NUM_OBJECT_TEXTURES];
 
+layout(set = 5, binding = 0) uniform ShaderProperties {
+    vec3 sunPos;
+};
+
 // courtesy of Christian Schueler - http://www.thetenthplanet.de/archives/1180
 mat3 TBN(vec3 N, vec3 position, vec2 uv) {
     vec3 dp1 = dFdx(position);
@@ -253,24 +257,24 @@ void main() {
 
     NormalsMaterial.ba = vec2(Material.Roughness, Material.Metallic);
 
-    if((materialType & MATERIAL_HAS_AMBIENT) == MATERIAL_HAS_AMBIENT) {
-        //DiffuseAlbedo.rgb = texture(ObjectTextures[0], VertexIn.TexCoord).rgb;
-    }
-
-    if((materialType & MATERIAL_HAS_DIFFUSE) == MATERIAL_HAS_DIFFUSE) {
-        DiffuseAlbedo.rgb = texture(ObjectTextures[1], Vertex.TexCoord).rgb;
-    }
-
-    if((materialType & MATERIAL_HAS_SPECULAR) == MATERIAL_HAS_SPECULAR) {
-        DiffuseAlbedo.a = texture(ObjectTextures[2], Vertex.TexCoord).r;
-        NormalsMaterial.b = texture(ObjectTextures[2], Vertex.TexCoord).r;
-    }
-
-    if((materialType & MATERIAL_HAS_ALPHAMASK) == MATERIAL_HAS_ALPHAMASK) {
-        if(texture(ObjectTextures[4], Vertex.TexCoord).r < 0.1f) {
-            discard;
-        }
-    }
+    //if((materialType & MATERIAL_HAS_AMBIENT) == MATERIAL_HAS_AMBIENT) {
+    //    //DiffuseAlbedo.rgb = texture(ObjectTextures[0], VertexIn.TexCoord).rgb;
+    //}
+//
+    //if((materialType & MATERIAL_HAS_DIFFUSE) == MATERIAL_HAS_DIFFUSE) {
+    //    DiffuseAlbedo.rgb = texture(ObjectTextures[1], Vertex.TexCoord).rgb;
+    //}
+//
+    //if((materialType & MATERIAL_HAS_SPECULAR) == MATERIAL_HAS_SPECULAR) {
+    //    DiffuseAlbedo.a = texture(ObjectTextures[2], Vertex.TexCoord).r;
+    //    NormalsMaterial.b = texture(ObjectTextures[2], Vertex.TexCoord).r;
+    //}
+//
+    //if((materialType & MATERIAL_HAS_ALPHAMASK) == MATERIAL_HAS_ALPHAMASK) {
+    //    if(texture(ObjectTextures[4], Vertex.TexCoord).r < 0.1f) {
+    //        discard;
+    //    }
+    //}
     /*
     Normals are encoded as Octahedron Normal Vectors, or Spherical Normal Vectors, which saves on storage as well as read/write processing of one
     component. If using Spherical Encoding, do not forget to use spherical decode function in DeferredLighting shader.
@@ -288,17 +292,17 @@ void main() {
     //    }
 
     vec3 color = atmosphere(
-    normalize(Vertex.FragPosition),           // normalized ray direction
-    vec3(0,6372e3,0),               // ray origin
-    vec3(0, 0.5, -1),               // position of the sun
-    22.0,                           // intensity of the sun
-    6371e3,                         // radius of the planet in meters
-    6471e3,                         // radius of the atmosphere in meters
-    vec3(5.5e-6, 13.0e-6, 22.4e-6), // Rayleigh scattering coefficient
-    21e-6,                          // Mie scattering coefficient
-    8e3,                            // Rayleigh scale height
-    1.2e3,                          // Mie scale height
-    0.758                           // Mie preferred scattering direction
+        normalize(Vertex.FragPosition), // normalized ray direction
+        vec3(0,6372e3,0),               // ray origin
+        sunPos,                         // position of the sun
+        22.0,                           // intensity of the sun
+        6371e3,                         // radius of the planet in meters
+        6471e3,                         // radius of the atmosphere in meters
+        vec3(5.5e-6, 13.0e-6, 22.4e-6), // Rayleigh scattering coefficient
+        21e-6,                          // Mie scattering coefficient
+        8e3,                            // Rayleigh scale height
+        1.2e3,                          // Mie scale height
+        0.758                           // Mie preferred scattering direction
     );
 
     // Apply exposure.
