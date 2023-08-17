@@ -4,7 +4,10 @@ import graphics.scenery.*
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
+import graphics.scenery.primitives.Line
 import org.joml.Vector3f
+import kotlin.concurrent.thread
+import kotlin.math.sin
 
 /**
  * <Description>
@@ -13,7 +16,10 @@ import org.joml.Vector3f
  * @author Samuel Pantze
  */
 
-class AtmosphereExample : SceneryBase("Cylinder Test") {
+//@ShaderProperty
+//var sunPos = Vector3f(0f, 0.5f, -1f)
+
+class AtmosphereExample : SceneryBase("Atmosphere Example") {
     override fun init() {
         renderer = hub.add(
             SceneryElement.Renderer,
@@ -40,13 +46,31 @@ class AtmosphereExample : SceneryBase("Cylinder Test") {
             light
         }
 
-        val background = Icosphere(10f, 2, true)
+
+
+        val background = object: Icosphere(10f, 2, true) {
+            @ShaderProperty var sunPos = Vector3f(0.0f, 0.5f, -1.0f)
+        }
 
         background.setMaterial(ShaderMaterial.fromFiles("atmosphere.frag", "atmosphere.vert"))
         background.material{
             cullingMode = Material.CullingMode.Front
         }
         scene.addChild(background)
+
+
+        thread {
+            var ticks = 0L
+            while (true) {
+                background.sunPos = Vector3f(
+                    0f,
+                    sin(ticks / 1000f),
+                    -1f
+                )
+                ticks++
+                Thread.sleep(50)
+            }
+        }
 
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
