@@ -590,6 +590,9 @@ open class Volume(
             return fromSpimData(spimData, hub, options)
         }
 
+        /**
+         * Creates a [RAIVolume] object from [RandomAccessibleInterval] data.
+         */
         @JvmStatic
         @JvmOverloads
         fun <T : RealType<T>> fromRAI(
@@ -636,6 +639,9 @@ open class Volume(
             return RAIVolume(ds, options, hub)
         }
 
+        /**
+         * Creates a [RAIVolume] object from a given [SourceAndConverter] source from BigDataViewer.
+         */
         @JvmStatic @JvmOverloads fun <T: RealType<T>> fromSourceAndConverter(
             source: SourceAndConverter<T>,
             type: T,
@@ -664,6 +670,11 @@ open class Volume(
             return volume
         }
 
+        /**
+         * Overloaded method that creates a [BufferedVolume] with timepoints from a hashmap of Strings and ByteBuffers.
+         * Volume dimensions can be set with [width], [height] and [depth].
+         * [voxelDimensions] can be set with a float array. The method also takes VolumeViewerOptions as [options].
+         */
         @Deprecated("Please use the version that takes List<Timepoint> as input instead of this one.")
         @JvmStatic @JvmOverloads fun <T: RealType<T>> fromBuffer(
             volumes: LinkedHashMap<String, ByteBuffer>,
@@ -684,6 +695,11 @@ open class Volume(
             return fromBuffer(list, width, height, depth, type, hub, voxelDimensions, voxelUnit, options)
         }
 
+        /**
+         * Returns a [BufferedVolume] from a list of BufferedVolume timepoints.
+         * Volume dimensions can be set with [width], [height] and [depth].
+         * [voxelDimensions] can be set with a float array. The method also takes VolumeViewerOptions as [options].
+         */
         @JvmStatic @JvmOverloads fun <T: RealType<T>> fromBuffer(
             volumes: List<BufferedVolume.Timepoint>,
             width: Int,
@@ -699,7 +715,15 @@ open class Volume(
             val sources: ArrayList<SourceAndConverter<T>> = ArrayList()
 
             val timepoints = CopyOnWriteArrayList<BufferedVolume.Timepoint>(volumes)
-            val s = BufferSource(timepoints, width, height, depth, FinalVoxelDimensions(voxelUnit, *(voxelDimensions.map { it.toDouble() }.toDoubleArray())), "", type)
+            val s = BufferSource(
+                timepoints,
+                width,
+                height,
+                depth,
+                FinalVoxelDimensions(voxelUnit, *(voxelDimensions.map { it.toDouble() }.toDoubleArray())),
+                "",
+                type
+            )
             val source: SourceAndConverter<T> = BigDataViewer.wrapWithTransformedSource(
                     SourceAndConverter<T>(s, BigDataViewer.createConverterToARGB(type)))
            converterSetups.add(BigDataViewer.createConverterSetup(source, setupId.getAndIncrement()))

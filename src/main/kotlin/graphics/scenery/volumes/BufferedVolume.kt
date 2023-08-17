@@ -144,23 +144,22 @@ class BufferedVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewe
     @OptIn(ExperimentalUnsignedTypes::class)
     override fun sample(uv: Vector3f, interpolate: Boolean): Float? {
         var texture = timepoints?.get(currentTimepoint)
-       if(texture == null)
-       {
-             texture = timepoints?.lastOrNull() ?: throw IllegalStateException("Could not find timepoint")
+        if (texture == null) {
+            texture = timepoints?.lastOrNull() ?: throw IllegalStateException("Could not find timepoint")
         }
         val d = getDimensions()
         val dimensions = Vector3f(d.x.toFloat(), d.y.toFloat(), d.z.toFloat())
 
-        val bpp = when(ds.type) {
+        val bpp = when (ds.type) {
             is UnsignedByteType, is ByteType -> 1
             is UnsignedShortType, is ShortType -> 2
-            is UnsignedIntType, is IntType ->4
+            is UnsignedIntType, is IntType -> 4
             is FloatType -> 4
             is DoubleType -> 8
             else -> throw IllegalStateException("Data type ${ds.type.javaClass.simpleName} is not supported for sampling")
         }
 
-        if(uv.x() < 0.0f || uv.x() > 1.0f || uv.y() < 0.0f || uv.y() > 1.0f || uv.z() < 0.0f || uv.z() > 1.0f) {
+        if (uv.x() < 0.0f || uv.x() > 1.0f || uv.y() < 0.0f || uv.y() > 1.0f || uv.z() < 0.0f || uv.z() > 1.0f) {
             logger.warn("Invalid UV coords for volume access: $uv")
             return null
         }
@@ -182,18 +181,18 @@ class BufferedVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewe
 
         val contents = texture.contents.duplicate().order(ByteOrder.LITTLE_ENDIAN)
 
-        if(contents.limit() < index*bpp) {
-            logger.warn("Absolute index ${index*bpp} for data type ${ds.type.javaClass.simpleName} from $uv exceeds data buffer limit of ${contents.limit()} (capacity=${contents.capacity()}), coords=$absoluteCoords/${dimensions}")
+        if (contents.limit() < index * bpp) {
+            logger.warn("Absolute index ${index * bpp} for data type ${ds.type.javaClass.simpleName} from $uv exceeds data buffer limit of ${contents.limit()} (capacity=${contents.capacity()}), coords=$absoluteCoords/${dimensions}")
             return 0.0f
         }
 
 
-        fun density(index:Int): Float {
-            if(index*bpp >= contents.limit()) {
+        fun density(index: Int): Float {
+            if (index * bpp >= contents.limit()) {
                 logger.warn("Sampling beyond limit")
                 return 0.0f
             }
-            val s = when(ds.type) {
+            val s = when (ds.type) {
                 is ByteType -> contents.get(index).toFloat()
                 is UnsignedByteType -> contents.get(index).toUByte().toFloat()
                 is ShortType -> contents.asShortBuffer().get(index).toFloat()
@@ -207,18 +206,30 @@ class BufferedVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewe
 
             val transferRangeMax = range.second
 
-            val final = transferFunction.evaluate(s/transferRangeMax)
+            val final = transferFunction.evaluate(s / transferRangeMax)
             logger.info("Sample at $index is $s, final is $final $transferRangeMax")
             return final
         }
 
-        return if(interpolate) {
+        return if (interpolate) {
             val offset = 1.0f
 
             val d00 = lerp(diff.x(), density(index), density(toIndex(absoluteCoordsD + Vector3f(offset, 0.0f, 0.0f))))
-            val d10 = lerp(diff.x(), density(toIndex(absoluteCoordsD + Vector3f(0.0f, offset, 0.0f))), density(toIndex(absoluteCoordsD + Vector3f(offset, offset, 0.0f))))
-            val d01 = lerp(diff.x(), density(toIndex(absoluteCoordsD + Vector3f(0.0f, 0.0f, offset))), density(toIndex(absoluteCoordsD + Vector3f(offset, 0.0f, offset))))
-            val d11 = lerp(diff.x(), density(toIndex(absoluteCoordsD + Vector3f(0.0f, offset, offset))), density(toIndex(absoluteCoordsD + Vector3f(offset, offset, offset))))
+            val d10 = lerp(
+                diff.x(),
+                density(toIndex(absoluteCoordsD + Vector3f(0.0f, offset, 0.0f))),
+                density(toIndex(absoluteCoordsD + Vector3f(offset, offset, 0.0f)))
+            )
+            val d01 = lerp(
+                diff.x(),
+                density(toIndex(absoluteCoordsD + Vector3f(0.0f, 0.0f, offset))),
+                density(toIndex(absoluteCoordsD + Vector3f(offset, 0.0f, offset)))
+            )
+            val d11 = lerp(
+                diff.x(),
+                density(toIndex(absoluteCoordsD + Vector3f(0.0f, offset, offset))),
+                density(toIndex(absoluteCoordsD + Vector3f(offset, offset, offset)))
+            )
             val d0 = lerp(diff.y(), d00, d10)
             val d1 = lerp(diff.y(), d01, d11)
             lerp(diff.z(), d0, d1)

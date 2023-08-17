@@ -30,7 +30,7 @@ import java.util.*
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "localhost", val port: Int = System.getProperty("scenery.PupilEyeTracker.Port", "50020").toIntOrNull() ?: 50020) {
+class PupilEyeTracker(val calibrationType: CalibrationType = CalibrationType.WorldSpace, val host: String = "localhost", val port: Int = System.getProperty("scenery.PupilEyeTracker.Port", "50020").toIntOrNull() ?: 50020) {
     /** Shall we do a screen-space or world-space calibration? */
     enum class CalibrationType { WorldSpace }
 
