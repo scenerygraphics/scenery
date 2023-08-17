@@ -1,10 +1,9 @@
 package graphics.scenery.tests.examples.basic
 
 import graphics.scenery.*
-import graphics.scenery.attribute.material.Material
 import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
-import graphics.scenery.primitives.Line
+import graphics.scenery.primitives.Atmosphere
 import org.joml.Vector3f
 import kotlin.concurrent.thread
 import kotlin.math.sin
@@ -46,29 +45,19 @@ class AtmosphereExample : SceneryBase("Atmosphere Example") {
             light
         }
 
-
-
-        val background = object: Icosphere(10f, 2, true) {
-            @ShaderProperty var sunPos = Vector3f(0.0f, 0.5f, -1.0f)
-        }
-
-        background.setMaterial(ShaderMaterial.fromFiles("atmosphere.frag", "atmosphere.vert"))
-        background.material{
-            cullingMode = Material.CullingMode.Front
-        }
-        scene.addChild(background)
-
+        val atmos = Atmosphere()
+        scene.addChild(atmos)
 
         thread {
             var ticks = 0L
             while (true) {
-                background.sunPos = Vector3f(
+                atmos.sunPos = Vector3f(
                     0f,
-                    sin(ticks / 1000f),
+                    sin(ticks / 100f)/2+0.5f,
                     -1f
                 )
                 ticks++
-                Thread.sleep(50)
+                Thread.sleep(20)
             }
         }
 
