@@ -485,7 +485,8 @@ object VulkanNodeHelpers {
         }
 
         renderable.rendererMetadata()?.let { s ->
-            renderpasses.filter { it.value.passConfig.type == RenderConfigReader.RenderpassType.geometry || it.value.passConfig.type == RenderConfigReader.RenderpassType.lights }
+            renderpasses.filter { it.value.passConfig.type == RenderConfigReader.RenderpassType.geometry
+                || it.value.passConfig.type == RenderConfigReader.RenderpassType.lights }
                 .map { (passName, pass) ->
                     val shaders = when (material) {
                         is ShaderMaterial -> {
