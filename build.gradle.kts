@@ -55,7 +55,6 @@ dependencies {
     implementation("org.scijava:scijava-common")
     implementation("org.scijava:script-editor")
     implementation("org.scijava:ui-behaviour")
-    implementation("org.scijava:scripting-javascript")
     implementation("org.scijava:scripting-jython")
     implementation("net.java.dev.jna:jna-platform:5.11.0")
 
