@@ -381,6 +381,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
             if(wantREPL) {
                 inputHandler?.addBehaviour("show_repl", ClickBehaviour { _, _ ->
                     repl = REPL(hub, scijavaContext, scene, stats, hub)
+                    repl?.start()
                     repl?.addAccessibleObject(settings)
                     repl?.addAccessibleObject(inputHandler!!)
                     repl?.addAccessibleObject(it)

@@ -97,7 +97,6 @@ class REPL @JvmOverloads constructor(override var hub : Hub?, scijavaContext: Co
      * Launches the REPL and evaluates any set startup code.
      */
     fun start() {
-        repl?.lang("Python (Jython)")
         eval(startupScriptCode)
     }
 
