@@ -11,6 +11,7 @@ import org.lwjgl.vulkan.EXTDebugUtils.vkSetDebugUtilsObjectNameEXT
 import org.lwjgl.vulkan.VK10.*
 import org.lwjgl.vulkan.VK11.VK_FORMAT_G16_B16_R16_3PLANE_444_UNORM
 import org.lwjgl.vulkan.VK11.VK_FORMAT_G8B8G8R8_422_UNORM
+import java.nio.ByteBuffer
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 
@@ -25,7 +26,7 @@ open class VulkanDevice(
     val instance: VkInstance,
     val physicalDevice: VkPhysicalDevice,
     val deviceData: DeviceData,
-    extensionsQuery: (VkPhysicalDevice) -> Array<String> = { arrayOf() },
+    extensionsQuery: (VkPhysicalDevice) -> MutableList<String> = { mutableListOf() },
     validationLayers: Array<String> = arrayOf(),
     val headless: Boolean = false,
     val debugEnabled: Boolean = false
@@ -143,7 +144,17 @@ open class VulkanDevice(
                     .queueCount(size)
             }
 
+            val extensionPropertyCount = intArrayOf(0)
+            vkEnumerateDeviceExtensionProperties(physicalDevice, null as? ByteBuffer?, extensionPropertyCount, null)
+            val extensionProperties = VkExtensionProperties.calloc(extensionPropertyCount[0], stack)
+            vkEnumerateDeviceExtensionProperties(physicalDevice, null as? ByteBuffer?, extensionPropertyCount, extensionProperties)
+
             val extensionsRequested = extensionsQuery.invoke(physicalDevice)
+            extensionProperties.forEach {
+                if(it.extensionNameString() == "VK_KHR_portability_subset") {
+                    extensionsRequested += "VK_KHR_portability_subset"
+                }
+            }
             logger.debug("Requested extensions: ${extensionsRequested.joinToString(", ")} ${extensionsRequested.size}")
             val utf8Exts = extensionsRequested.map { stack.UTF8(it) }
 
@@ -868,7 +879,7 @@ open class VulkanDevice(
          * such that one can filter for certain vendors, e.g.
          */
         @JvmStatic fun fromPhysicalDevice(instance: VkInstance, physicalDeviceFilter: (Int, DeviceData) -> Boolean,
-                                          additionalExtensions: (VkPhysicalDevice) -> Array<String> = { arrayOf() },
+                                          additionalExtensions: (VkPhysicalDevice) -> MutableList<String> = { mutableListOf() },
                                           validationLayers: Array<String> = arrayOf(),
                                           headless: Boolean = false, debugEnabled: Boolean = false): VulkanDevice {
 
