@@ -2,10 +2,14 @@ package graphics.scenery.tests.examples.basic
 
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
+import graphics.scenery.controls.behaviours.SelectCommand
 import graphics.scenery.numerics.Random
 import graphics.scenery.primitives.Atmosphere
+import org.joml.Quaternionfc
 import org.joml.Vector3f
 import kotlin.concurrent.thread
+import kotlin.math.PI
+import kotlin.math.cos
 import kotlin.math.sin
 
 /**
@@ -19,6 +23,9 @@ import kotlin.math.sin
 //var sunPos = Vector3f(0f, 0.5f, -1f)
 
 class AtmosphereExample : SceneryBase("Atmosphere Example") {
+
+    private val atmos = Atmosphere()
+
     override fun init() {
         renderer = hub.add(
             SceneryElement.Renderer,
@@ -45,28 +52,29 @@ class AtmosphereExample : SceneryBase("Atmosphere Example") {
             light
         }
 
-        val atmos = Atmosphere()
         scene.addChild(atmos)
 
-        thread {
-            var ticks = 0L
-            while (true) {
-                atmos.sunPos = Vector3f(
-                    0f,
-                    sin(ticks / 100f)/2+0.5f,
-                    -1f
-                )
-                ticks++
-                Thread.sleep(20)
-            }
-        }
+        //thread {
+        //    var ticks = 0L
+        //    while (true) {
+        //        val x = (cos(ticks / 100f))
+        //        val z = (sin(ticks / 100f))
+        //        atmos.sunPos = Vector3f(
+        //            1f,
+        //            1f,
+        //            1f
+        //        )
+        //        ticks++
+        //        Thread.sleep(20)
+        //    }
+        //}
 
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
             spatial {
                 position = Vector3f(0.0f, 0.0f, 5.0f)
             }
-            perspectiveCamera(70.0f, 512, 512)
+            perspectiveCamera(70.0f, 512, 768)
             scene.addChild(this)
         }
     }
@@ -75,6 +83,22 @@ class AtmosphereExample : SceneryBase("Atmosphere Example") {
         super.inputSetup()
 
         setupCameraModeSwitching()
+
+        val moveSun: (Scene.RaycastResult, Int, Int) -> Unit = { result, x, y ->
+            result.initialDirection .let {
+                atmos.sunPos = it.normalize()
+            }
+        }
+
+        renderer?.let { r ->
+            inputHandler?.addBehaviour(
+                "moveSun", SelectCommand(
+                    "moveSun", r, scene,
+                    { scene.findObserver() }, action = moveSun, debugRaycast = false
+                )
+            )
+        }
+        inputHandler?.addKeyBinding("moveSun", "ctrl button2")
     }
 
     companion object {
