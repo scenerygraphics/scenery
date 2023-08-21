@@ -1106,6 +1106,11 @@ open class VulkanTexture(val device: VulkanDevice,
             }
         }
 
+        /**
+         * For a given [Texture], this function returns the corresponding
+         * Vulkan texture format, based on the [Texture]'s format and channels,
+         * and whether it's a normalized format, or not.
+         */
         fun Texture.toVulkanFormat(): Int {
             var format = when(this.type) {
                 is ByteType -> when(this.channels) {
@@ -1183,6 +1188,9 @@ open class VulkanTexture(val device: VulkanDevice,
             return format
         }
 
+        /**
+         * Returns a given Vulkan format ID as String representation.
+         */
         fun Int.formatToString(): String = when(this) {
             0 -> "VK_FORMAT_UNDEFINED"
             1 -> "VK_FORMAT_R4G4_UNORM_PACK8"
