@@ -2,6 +2,7 @@ package graphics.scenery.backends.vulkan
 
 import graphics.scenery.Hub
 import graphics.scenery.backends.RenderConfigReader
+import graphics.scenery.backends.Renderer
 import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.utils.SceneryJPanel
 import graphics.scenery.utils.SceneryPanel
@@ -158,11 +159,11 @@ open class SwingSwapchain(override val device: VulkanDevice,
         override var headless = false
         override var usageCondition = { p: SceneryPanel? ->
             when {
-                System.getProperty("scenery.Headless", "false").toBoolean() -> false
+                System.getProperty(Renderer.HEADLESS_PROPERTY_NAME, "false").toBoolean() -> false
                 System.getProperty("scenery.Renderer.UseAWT", "false").toBoolean() -> true
                 p is SceneryJPanel -> true
                 Platform.get() == Platform.MACOSX
-                        && !System.getProperty("scenery.Headless", "false").toBoolean() -> true
+                        && !System.getProperty(Renderer.HEADLESS_PROPERTY_NAME, "false").toBoolean() -> true
                 else -> false
             }
         }

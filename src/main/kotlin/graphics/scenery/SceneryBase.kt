@@ -102,7 +102,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
         AssertionCheckPoint.AfterClose to arrayListOf()
     )
 
-    val headless = parseBoolean(System.getProperty("scenery.Headless", "false"))
+    val headless = parseBoolean(System.getProperty(Renderer.HEADLESS_PROPERTY_NAME, "false"))
     val renderdoc = if(System.getProperty("scenery.AttachRenderdoc")?.toBoolean() == true) {
         Renderdoc()
     } else {
