@@ -5,12 +5,7 @@ import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.behaviours.SelectCommand
 import graphics.scenery.numerics.Random
 import graphics.scenery.primitives.Atmosphere
-import org.joml.Quaternionfc
 import org.joml.Vector3f
-import kotlin.concurrent.thread
-import kotlin.math.PI
-import kotlin.math.cos
-import kotlin.math.sin
 
 /**
  * <Description>
@@ -38,8 +33,12 @@ class AtmosphereExample : SceneryBase("Atmosphere Example") {
         }
         scene.addChild((ball))
 
+        //val sunlight = DirectionalLight(Vector3f(0f, 0.5f, -1f))
+        //sunlight.intensity = 2f
+        //scene.addChild(sunlight)
+
         val lights = (1 until 5).map {
-            val light = PointLight(20f)
+            val light = PointLight(10f)
             val spread = 2f
             light.spatial().position = Vector3f(
                 Random.randomFromRange(-spread, spread),
@@ -47,7 +46,7 @@ class AtmosphereExample : SceneryBase("Atmosphere Example") {
                 Random.randomFromRange(-spread, spread),
             )
             light.intensity = 1f
-            light.emissionColor = Vector3f(1f, 0.9f, 0.8f)
+            //light.emissionColor = Vector3f(1f, 0.9f, 0.8f)
             scene.addChild(light)
             light
         }
@@ -98,7 +97,7 @@ class AtmosphereExample : SceneryBase("Atmosphere Example") {
                 )
             )
         }
-        inputHandler?.addKeyBinding("moveSun", "ctrl button2")
+        inputHandler?.addKeyBinding("moveSun", "double-click button1")
     }
 
     companion object {
