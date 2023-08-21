@@ -9,6 +9,7 @@ layout(location = 0) in VertexData {
 
 layout(location = 0) out vec4 NormalsMaterial;
 layout(location = 1) out vec4 DiffuseAlbedo;
+layout(location = 3) out vec4 Emission;     // RGB + strength
 
 const float PI = 3.14159265358979323846264;
 const int NUM_OBJECT_TEXTURES = 6;
@@ -140,6 +141,9 @@ void main() {
 
     DiffuseAlbedo.rgb = Material.Kd;
     DiffuseAlbedo.a = 0.0f;
+
+    Emission.rgb = Material.Kd;
+    Emission.a = 0f;
 
     NormalsMaterial.ba = vec2(Material.Roughness, Material.Metallic);
 
