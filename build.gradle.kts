@@ -111,7 +111,12 @@ dependencies {
         exclude("org.jogamp.jogl", "jogl-all")
     }
 
-    implementation("com.github.skalarproduktraum:lwjgl3-awt:d7a7369")
+    implementation("com.github.lwjglx:lwjgl3-awt:bc8daf5") {
+        // we exclude the LWJGL binaries here, as the lwjgl3-awt POM uses
+        // Maven properties for natives, which is not supported by Gradle
+        exclude("org.lwjgl", "lwjgl-bom")
+        exclude("org.lwjgl", "lwjgl")
+    }
     implementation("org.janelia.saalfeldlab:n5")
     implementation("org.janelia.saalfeldlab:n5-imglib2")
     listOf("core", "structure", "modfinder").forEach {
