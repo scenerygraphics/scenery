@@ -1,6 +1,7 @@
 package graphics.scenery.tests.unit.repl
 
 import graphics.scenery.Hub
+import graphics.scenery.backends.Renderer
 import graphics.scenery.repl.REPL
 import graphics.scenery.utils.lazyLogger
 import org.junit.BeforeClass
@@ -20,7 +21,7 @@ class REPLTests {
     companion object {
         @JvmStatic @BeforeClass
         fun setHeadless() {
-            System.setProperty("scenery.Headless", "true")
+            System.setProperty(Renderer.HEADLESS_PROPERTY_NAME, "true")
         }
     }
 
