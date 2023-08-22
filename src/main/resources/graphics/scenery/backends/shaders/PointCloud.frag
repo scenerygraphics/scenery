@@ -32,11 +32,6 @@ layout(set = 2, binding = 0) uniform Matrices {
 	int isBillboard;
 } ubo;
 
-layout(set = 3, binding = 0) uniform MaterialProperties {
-    int materialType;
-    MaterialInfo Material;
-};
-
 /*
     ObjectTextures[0] - ambient
     ObjectTextures[1] - diffuse
@@ -46,7 +41,7 @@ layout(set = 3, binding = 0) uniform MaterialProperties {
     ObjectTextures[5] - displacement
 */
 
-layout(set = 4, binding = 0) uniform sampler2D ObjectTextures[NUM_OBJECT_TEXTURES];
+layout(set = 3, binding = 0) uniform sampler2D ObjectTextures[NUM_OBJECT_TEXTURES];
 
 void main() {
     if( Vertex.TexCoord.x < 10e-6 && Vertex.TexCoord.y  < 10e-6 ) {
