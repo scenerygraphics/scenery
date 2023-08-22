@@ -492,7 +492,7 @@ open class VulkanRenderer(hub: Hub,
                 }
             }
 
-            val headlessRequested = System.getProperty("scenery.Headless")?.toBoolean() ?: false
+            val headlessRequested = System.getProperty(Renderer.HEADLESS_PROPERTY_NAME)?.toBoolean() ?: false
             // GLFW works kinda shaky on macOS, we create a JFrame here for a nicer experience then.
             // That is of course unless [embedIn] is already set.
             if(Platform.get() == Platform.MACOSX && embedIn == null && !headlessRequested) {
@@ -577,7 +577,7 @@ open class VulkanRenderer(hub: Hub,
 
             device = VulkanDevice.fromPhysicalDevice(instance,
                 physicalDeviceFilter = { _, device -> "${device.vendor} ${device.name}".contains(System.getProperty("scenery.Renderer.Device", "DOES_NOT_EXIST"))},
-                additionalExtensions = { physicalDevice -> hub.getWorkingHMDDisplay()?.getVulkanDeviceExtensions(physicalDevice)?.toTypedArray() ?: arrayOf() },
+                additionalExtensions = { physicalDevice -> hub.getWorkingHMDDisplay()?.getVulkanDeviceExtensions(physicalDevice)?.toMutableList() ?: mutableListOf() },
                 validationLayers = requestedValidationLayers,
                 headless = headless,
                 debugEnabled = validation
@@ -1287,7 +1287,12 @@ open class VulkanRenderer(hub: Hub,
         }
     }
 
-    private suspend fun submitFrame(queue: VkQueue, pass: VulkanRenderpass, commandBuffer: VulkanCommandBuffer, present: PresentHelpers) {
+    private suspend fun submitFrame(
+        queue: VkQueue,
+        pass: VulkanRenderpass,
+        commandBuffer: VulkanCommandBuffer,
+        present: PresentHelpers
+    ) {
         if(swapchainRecreator.mustRecreate) {
             return
         }
@@ -1296,7 +1301,7 @@ open class VulkanRenderer(hub: Hub,
         present.submitInfo
             .sType(VK_STRUCTURE_TYPE_SUBMIT_INFO)
             .pNext(NULL)
-            .waitSemaphoreCount(present.waitSemaphore.capacity())
+            .waitSemaphoreCount(present.waitSemaphore.limit())
             .pWaitSemaphores(present.waitSemaphore)
             .pWaitDstStageMask(present.waitStages)
             .pCommandBuffers(present.commandBuffers)
@@ -1305,7 +1310,9 @@ open class VulkanRenderer(hub: Hub,
         val q = (swapchain as? VulkanSwapchain)?.presentQueue ?: queue
         // Submit to the graphics queue
 //        vkResetFences(device.vulkanDevice, swapchain.currentFence)
-        VU.run("Submit viewport render queue", { vkQueueSubmit(q, present.submitInfo, swapchain.currentFence) })
+        VU.run("Submit viewport render queue", {
+            vkQueueSubmit(q, present.submitInfo, swapchain.currentFence)
+        })
 
         // submit to OpenVR if attached
         if(hub?.getWorkingHMDDisplay()?.hasCompositor() == true) {
@@ -1802,11 +1809,23 @@ open class VulkanRenderer(hub: Hub,
         viewportPass.updateShaderParameters()
 
         ph.commandBuffers.put(0, viewportCommandBuffer.commandBuffer!!)
-        ph.waitStages.put(0, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT or VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT)
-        ph.waitStages.put(1, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT or VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT)
         ph.signalSemaphore.put(0, semaphores.getValue(StandardSemaphores.RenderComplete)[currentFrame])
-        ph.waitSemaphore.put(0, waitSemaphore)
-        ph.waitSemaphore.put(1, swapchain.imageAvailableSemaphore)
+
+        // for single-pass render pipelines, waitSemaphore might not be valid, as
+        // there was no previous pass.
+        if(waitSemaphore == -1L) {
+            ph.waitStages.limit(1)
+            ph.waitSemaphore.limit(1)
+            ph.waitStages.put(0, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT or VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT)
+            ph.waitSemaphore.put(0, swapchain.imageAvailableSemaphore)
+        } else {
+            ph.waitStages.limit(2)
+            ph.waitSemaphore.limit(2)
+            ph.waitStages.put(0, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT or VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT)
+            ph.waitSemaphore.put(0, waitSemaphore)
+            ph.waitStages.put(1, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT or VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT)
+            ph.waitSemaphore.put(1, swapchain.imageAvailableSemaphore)
+        }
         profiler?.end()
 
         profiler?.begin("Renderer.SubmitFrame")

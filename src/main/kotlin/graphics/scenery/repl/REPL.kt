@@ -2,6 +2,7 @@ package graphics.scenery.repl
 
 import graphics.scenery.Hub
 import graphics.scenery.Hubable
+import graphics.scenery.backends.Renderer
 import net.imagej.lut.LUTService
 import org.scijava.Context
 import org.scijava.`object`.ObjectService
@@ -33,7 +34,7 @@ class REPL @JvmOverloads constructor(override var hub : Hub?, scijavaContext: Co
     /** The [startupScript] will be searched for in the resources of this class. */
     protected var startupScriptClass: Class<*> = REPL::class.java
     /** Whether we are running headless or not */
-    protected val headless = (System.getProperty("scenery.Headless", "false")?.toBoolean() ?: false) || (System.getProperty("java.awt.headless", "false")?.toBoolean() ?: false)
+    protected val headless = (System.getProperty(Renderer.HEADLESS_PROPERTY_NAME, "false")?.toBoolean() ?: false) || (System.getProperty("java.awt.headless", "false")?.toBoolean() ?: false)
 
     /** Language preference for the REPL */
     protected val languagePreference = "Python (Jython)"
@@ -96,7 +97,6 @@ class REPL @JvmOverloads constructor(override var hub : Hub?, scijavaContext: Co
      * Launches the REPL and evaluates any set startup code.
      */
     fun start() {
-        repl?.lang("Python (Jython)")
         eval(startupScriptCode)
     }
 

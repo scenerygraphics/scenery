@@ -43,10 +43,10 @@ dependencies {
     val lwjglVersion = project.properties["lwjglVersion"]
     
     implementation(platform("org.scijava:pom-scijava:$scijavaParentPomVersion"))
-    annotationProcessor("org.scijava:scijava-common:2.94.1")
+    annotationProcessor("org.scijava:scijava-common:2.96.0")
 
     implementation(kotlin("reflect"))
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.2")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
 
     implementation("org.slf4j:slf4j-api:1.7.36")
     implementation("org.joml:joml:1.10.5")
@@ -55,7 +55,6 @@ dependencies {
     implementation("org.scijava:scijava-common")
     implementation("org.scijava:script-editor")
     implementation("org.scijava:ui-behaviour")
-    implementation("org.scijava:scripting-javascript")
     implementation("org.scijava:scripting-jython")
     implementation("net.java.dev.jna:jna-platform:5.11.0")
 
@@ -95,23 +94,28 @@ dependencies {
     implementation("org.zeromq:jeromq:0.5.3")
     implementation("com.esotericsoftware:kryo:5.5.0")
     implementation("de.javakaffee:kryo-serializers:0.45")
-    implementation("org.msgpack:msgpack-core:0.9.1")
+    implementation("org.msgpack:msgpack-core:0.9.5")
     implementation("org.msgpack:jackson-dataformat-msgpack:0.9.1")
     api("graphics.scenery:jvrpn:1.2.0", lwjglNatives.filter { !it.contains("arm") }.toTypedArray())
     implementation("io.scif:scifio")
     implementation("org.bytedeco:ffmpeg:5.0-1.5.7", ffmpegNatives)
     implementation("io.github.classgraph:classgraph:4.8.161")
 
-    implementation("info.picocli:picocli:4.6.3")
+    implementation("info.picocli:picocli:4.7.4")
 
-    api("sc.fiji:bigdataviewer-core:10.4.7")
+    api("sc.fiji:bigdataviewer-core:10.4.9")
     api("sc.fiji:bigdataviewer-vistools:1.0.0-beta-28")
     api("sc.fiji:bigvolumeviewer:0.3.1") {
         exclude("org.jogamp.gluegen", "gluegen-rt")
         exclude("org.jogamp.jogl", "jogl-all")
     }
 
-    implementation("com.github.skalarproduktraum:lwjgl3-awt:d7a7369")
+    implementation("com.github.lwjglx:lwjgl3-awt:bc8daf5") {
+        // we exclude the LWJGL binaries here, as the lwjgl3-awt POM uses
+        // Maven properties for natives, which is not supported by Gradle
+        exclude("org.lwjgl", "lwjgl-bom")
+        exclude("org.lwjgl", "lwjgl")
+    }
     implementation("org.janelia.saalfeldlab:n5")
     implementation("org.janelia.saalfeldlab:n5-imglib2")
     listOf("core", "structure", "modfinder").forEach {
@@ -359,7 +363,7 @@ tasks {
         dokkaSourceSets.configureEach {
             sourceLink {
                 localDirectory.set(file("src/main/kotlin"))
-                remoteUrl.set(URL("https://github.com/scenerygraphics/scenery/tree/master/src/main/kotlin"))
+                remoteUrl.set(URL("https://github.com/scenerygraphics/scenery/tree/main/src/main/kotlin"))
                 remoteLineSuffix.set("#L")
             }
         }
