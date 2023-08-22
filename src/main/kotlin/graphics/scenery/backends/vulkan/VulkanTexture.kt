@@ -448,8 +448,10 @@ open class VulkanTexture(val device: VulkanDevice,
                                 image.copyFrom(this, buffer)
                             }*/
                         } else {
-                            buffer.copyFrom(sourceBuffer)
-                            image.copyFrom(this, buffer)
+                            if(sourceBuffer.remaining() > 0) {
+                                buffer.copyFrom(sourceBuffer)
+                                image.copyFrom(this, buffer)
+                            }
                         }
 
                         transitionLayout(image.image,
