@@ -102,7 +102,7 @@ tasks {
     register<JavaExec>("compileShader") {
         group = "tools"
         mainClass.set("graphics.scenery.backends.ShaderCompiler")
-        classpath = sourceSets["main"].runtimeClasspath
+        classpath = sourceSets["test"].runtimeClasspath
 
     }
 

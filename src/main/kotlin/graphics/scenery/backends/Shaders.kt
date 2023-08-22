@@ -226,7 +226,7 @@ sealed class Shaders() {
         // code needs to be compiled first
 
         val compiler = ShaderCompiler()
-        val bytecode = compiler.compile(code, type, target, "main", debug, strict, ShaderCompiler.OptimisationLevel.None, shaderPackage.codePath, base.simpleName)
+        val bytecode = compiler.compile(code, type, target, "main", debug, strict, ShaderCompiler.OptimisationLevel.NoOptimisation, shaderPackage.codePath, base.simpleName)
         compiler.close()
         return Pair(bytecode, code)
     }
