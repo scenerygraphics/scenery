@@ -8,13 +8,14 @@ layout(location = 0) in VertexData {
     vec3 Normal;
     vec2 TexCoord;
 } Vertex;
+//layout(location = 3) in float Emission;
 
 layout(location = 0) out vec4 FragColor;
 
 layout(set = 3, binding = 0) uniform sampler2D InputNormalsMaterial;
 layout(set = 3, binding = 1) uniform sampler2D InputDiffuseAlbedo;
 layout(set = 3, binding = 2) uniform sampler2D InputZBuffer;
-layout(set = 3, binding = 3) uniform sampler2D InputEmission;
+//layout(set = 3, binding = 3) uniform sampler2D InputEmission;
 layout(set = 4, binding = 0) uniform sampler2D InputOcclusion;
 
 struct Light {
@@ -61,6 +62,8 @@ layout(set = 5, binding = 0, std140) uniform ShaderProperties {
     vec3 worldPosition;
     vec3 emissionColor;
     int lightType;
+    // self-lighting property of a material
+    float emissive;
 };
 
 layout(set = 6, binding = 0, std140) uniform ShaderParameters {
@@ -486,7 +489,7 @@ void main()
 	vec3 N = DecodeOctaH(texture(InputNormalsMaterial, textureCoord).rg);
 
 	vec4 Albedo = texture(InputDiffuseAlbedo, textureCoord).rgba;
-    vec4 emission = texture(InputEmission, textureCoord).rgba;
+    //vec4 emission = texture(InputEmission, textureCoord).rgba;
 	float Specular = texture(InputDiffuseAlbedo, textureCoord).a;
 	vec2 MaterialParams = texture(InputNormalsMaterial, textureCoord).ba;
 
@@ -541,6 +544,12 @@ void main()
 
     vec3 specular = vec3(0.0f);
     vec3 diffuse = vec3(0.0f);
+
+    // remove ambient occlusion if the object is emissive;
+    // otherwise ambient occlusion would be part of the diffuse emission texture
+    if(emissive > 0.0f) {
+        lightOcclusion = 1.0f;
+    }
 
     if(reflectanceModel == 1) {
         // Diffuse
@@ -617,9 +626,14 @@ void main()
             lighting = vec3(MaterialParams.rg, 0.0);
         }
     } else {
-        // The alpha channel acts as strength multiplier for the emission
-        vec3 scaledEmission = emission.rgb * emission.a;
-        lighting = (diffuse + specular) * lightAttenuation + scaledEmission;
+
+        // remove lightAttenuation and specularity when the object is emissive
+        if (emissive > 0.0f) {
+            lighting = diffuse * emissive;
+        }
+        else {
+            lighting = (diffuse + specular) * lightAttenuation + diffuse * emissive;
+        }
     }
 
     // check if occluded

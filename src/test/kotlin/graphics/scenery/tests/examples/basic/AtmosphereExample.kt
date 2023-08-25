@@ -2,6 +2,7 @@ package graphics.scenery.tests.examples.basic
 
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
+import graphics.scenery.controls.behaviours.MouseDragSphere
 import graphics.scenery.controls.behaviours.SelectCommand
 import graphics.scenery.numerics.Random
 import graphics.scenery.primitives.Atmosphere
@@ -83,6 +84,8 @@ class AtmosphereExample : SceneryBase("Atmosphere Example") {
 
         setupCameraModeSwitching()
 
+
+
         val moveSun: (Scene.RaycastResult, Int, Int) -> Unit = { result, x, y ->
             result.initialDirection .let {
                 atmos.sunPos = it.normalize()
@@ -91,13 +94,21 @@ class AtmosphereExample : SceneryBase("Atmosphere Example") {
 
         renderer?.let { r ->
             inputHandler?.addBehaviour(
-                "moveSun", SelectCommand(
-                    "moveSun", r, scene,
+                "clickSun", SelectCommand(
+                    "clickSun", r, scene,
                     { scene.findObserver() }, action = moveSun, debugRaycast = false
                 )
             )
+            inputHandler?.addKeyBinding("clickSun", "double-click button1")
         }
-        inputHandler?.addKeyBinding("moveSun", "double-click button1")
+
+
+        inputHandler?.addBehaviour(
+            "dragSun", MouseDragSphere(
+                "dragSun",
+                { scene.findObserver() }, debugRaycast = false, rotateAroundCenter = true))
+        inputHandler?.addKeyBinding("dragSun", "ctrl button1")
+
     }
 
     companion object {

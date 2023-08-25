@@ -15,7 +15,7 @@ import org.joml.Vector4f
  * @author Ulrik Günther <hello@ulrik.is>
  * @constructor Creates a PointLight with default settings, e.g. white emission color.
  */
-class PointLight(val radius: Float = 5.0f) : Light("PointLight") {
+open class PointLight(val radius: Float = 5.0f) : Light("PointLight") {
     private var proxySphere = Sphere(radius * 1.1f, 10)
     /** The intensity of the point light. Bound to [0.0, 1.0] if using non-HDR rendering. */
     @ShaderProperty
@@ -27,6 +27,11 @@ class PointLight(val radius: Float = 5.0f) : Light("PointLight") {
 
     @ShaderProperty
     override val lightType: LightType = LightType.PointLight
+
+    /** Introduces self-lighting emission for the parent object's material.
+     * This attribute should only be used when the [PointLight] acts as a proxy for the corresponding @ShaderProperty. */
+    @ShaderProperty
+    var emissive: Float = 1f
 
     /** Maximum radius in world units */
     @Suppress("unused") // will be serialised into ShaderProperty buffer
