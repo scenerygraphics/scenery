@@ -7,6 +7,8 @@ import graphics.scenery.utils.lazyLogger
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
+import org.joml.Matrix4f
+import org.joml.Quaternionf
 import org.joml.Vector3f
 import org.scijava.ui.behaviour.DragBehaviour
 
@@ -20,7 +22,8 @@ open class MouseDragSphere(
     protected val name: String,
     camera: () -> Camera?,
     protected var debugRaycast: Boolean = false,
-    var filter: (Node) -> Boolean
+    var filter: (Node) -> Boolean,
+    var rotateAroundCenter: Boolean = false,
 ) : DragBehaviour, WithCameraDelegateBase(camera) {
 
     protected val logger by lazyLogger()
@@ -33,9 +36,10 @@ open class MouseDragSphere(
         name: String,
         camera: () -> Camera?,
         debugRaycast: Boolean = false,
-        ignoredObjects: List<Class<*>> = listOf<Class<*>>(BoundingGrid::class.java)
+        ignoredObjects: List<Class<*>> = listOf<Class<*>>(BoundingGrid::class.java),
+        rotateAroundCenter: Boolean = false
     ) : this(name, camera, debugRaycast, { n: Node ->
-        !ignoredObjects.any { it.isAssignableFrom(n.javaClass) }})
+        !ignoredObjects.any { it.isAssignableFrom(n.javaClass) }}, rotateAroundCenter)
 
 
     override fun init(x: Int, y: Int) {
@@ -64,7 +68,23 @@ open class MouseDragSphere(
                 val movement = newHit - currentHit
 
                 it.ifSpatial {
-                    val newPos = position + movement / worldScale()
+                    val newPos = if (rotateAroundCenter) {
+                        // Calculate the rotation around (0, 0, 0)
+                        val center = Vector3f(0f, 0f, 0f)
+                        val currentPos = position / worldScale()
+                        logger.info("center: $center, currentPos: $currentPos")
+                        val axis = currentPos.normalize()
+                        val angle = currentPos.angle(center)
+                        logger.info("axis: $axis, angle: $angle")
+                        val rotationQuaternion = Quaternionf()
+                        rotationQuaternion.setAngleAxis(angle.toDouble(), axis.x.toDouble(), axis.y.toDouble(), axis.z.toDouble())
+
+                        val rotatedMovement = rotationQuaternion.transform(movement)
+                        position + rotatedMovement / worldScale()
+                    } else {
+                        // Rotation around camera's center
+                        position + movement / worldScale()
+                    }
 
                     currentNode?.spatialOrNull()?.position = newPos
                     currentHit = newHit
