@@ -36,7 +36,6 @@ layout(location = 0) in VertexData {
     vec3 FragPosition;
 } Vertex;
 
-
 const int MATERIAL_HAS_DIFFUSE =  0x0001;
 const int MATERIAL_HAS_AMBIENT =  0x0002;
 const int MATERIAL_HAS_SPECULAR = 0x0004;

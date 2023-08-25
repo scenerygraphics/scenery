@@ -2,7 +2,9 @@ package graphics.scenery.primitives
 
 import graphics.scenery.*
 import graphics.scenery.attribute.material.Material
+import graphics.scenery.utils.extensions.times
 import org.joml.Vector3f
+import org.scijava.ui.behaviour.DragBehaviour
 
 /**
  * Implementation of a Nishita sky shader, applied to an [Icosphere] that wraps around the scene.
@@ -17,11 +19,25 @@ open class Atmosphere(name: String = "Atmosphere", sunPos: Vector3f = Vector3f(0
     @ShaderProperty
     var sunPos = sunPos
 
+
+
     init {
         setMaterial(ShaderMaterial.fromClass(this::class.java))
         material{
             cullingMode = Material.CullingMode.Front
         }
 
+        /** Proxy point light to pass the emissive value as @Shaderproperty to the deferred lighting shader. */
+        val point = PointLight(1f)
+        point.spatial().position = Vector3f()
+        point.intensity = 0f
+        point.emissive = 1f
+        logger.info(point.emissive.toString())
+        addChild(point)
+
+
+        val sunProxy = Box(Vector3f(0.5f))
+        sunProxy.spatial().position = sunPos.normalize() * (radius)
+        addChild(sunProxy)
     }
 }
