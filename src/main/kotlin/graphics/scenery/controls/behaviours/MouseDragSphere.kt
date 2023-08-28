@@ -11,6 +11,7 @@ import org.joml.Matrix4f
 import org.joml.Quaternionf
 import org.joml.Vector3f
 import org.scijava.ui.behaviour.DragBehaviour
+import kotlin.math.atan2
 
 /**
  * Drag nodes roughly along a sphere around the camera by mouse.
@@ -23,7 +24,7 @@ open class MouseDragSphere(
     camera: () -> Camera?,
     protected var debugRaycast: Boolean = false,
     var filter: (Node) -> Boolean,
-    var rotateAroundCenter: Boolean = false,
+    private var rotateAroundCenter: Boolean = false,
 ) : DragBehaviour, WithCameraDelegateBase(camera) {
 
     protected val logger by lazyLogger()
@@ -64,28 +65,21 @@ open class MouseDragSphere(
                 val (rayStart, rayDir) = cam.screenPointToRay(x, y)
                 rayDir.normalize()
                 val newHit = rayStart + rayDir * distance
-
                 val movement = newHit - currentHit
 
                 it.ifSpatial {
                     val newPos = if (rotateAroundCenter) {
                         // Calculate the rotation around (0, 0, 0)
-                        val center = Vector3f(0f, 0f, 0f)
                         val currentPos = position / worldScale()
-                        logger.info("center: $center, currentPos: $currentPos")
-                        val axis = currentPos.normalize()
-                        val angle = currentPos.angle(center)
-                        logger.info("axis: $axis, angle: $angle")
-                        val rotationQuaternion = Quaternionf()
-                        rotationQuaternion.setAngleAxis(angle.toDouble(), axis.x.toDouble(), axis.y.toDouble(), axis.z.toDouble())
+                        val axis = currentPos.cross(movement, Vector3f()).normalize()
+                        val angle = atan2(movement.length(), currentPos.length())//currentPos.angle(center)
+                        val rotationQuaternion = Quaternionf().identity().rotateAxis(angle, axis)
 
-                        val rotatedMovement = rotationQuaternion.transform(movement)
-                        position + rotatedMovement / worldScale()
+                        rotationQuaternion.transform(currentPos, Vector3f())
                     } else {
                         // Rotation around camera's center
                         position + movement / worldScale()
                     }
-
                     currentNode?.spatialOrNull()?.position = newPos
                     currentHit = newHit
                 }
