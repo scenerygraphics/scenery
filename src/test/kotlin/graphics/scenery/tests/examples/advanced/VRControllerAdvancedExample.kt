@@ -2,6 +2,7 @@ package graphics.scenery.tests.examples.advanced
 
 import graphics.scenery.*
 import graphics.scenery.attribute.material.Material
+import graphics.scenery.attribute.spatial.HasSpatial
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.controls.TrackedDeviceType
@@ -135,7 +136,7 @@ class VRControllerAdvancedExample : SceneryBase(
         }
         pressableSphere.addAttribute(
             Pressable::class.java,
-            SimplePressable(onRelease = { Wiggler(pressableSphere.spatial(), 0.1f, 2000) })
+            SimplePressable(onRelease = { Wiggler(pressableSphere, 0.1f, 2000) })
         )
         scene.addChild(pressableSphere)
 
@@ -252,9 +253,10 @@ class VRControllerAdvancedExample : SceneryBase(
             listOf(OpenVRHMD.OpenVRButton.Trigger),
             listOf(TrackerRole.LeftHand),
             { n ->
+                if (n !is HasSpatial) return@createAndSet
                 // this is just some action to show a successful selection.
                 // Party Cube!
-                Wiggler(n.spatialOrNull()!!, 0.3f,2000)
+                Wiggler(n, 0.3f,2000)
             }
         )
 

@@ -2,6 +2,7 @@ package graphics.scenery.controls.behaviours
 
 import graphics.scenery.Node
 import graphics.scenery.Scene
+import graphics.scenery.attribute.spatial.HasSpatial
 import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.controls.TrackerRole
@@ -80,15 +81,15 @@ open class VRSelect(
 
         laser.spatial().scale.y = hit?.distance ?: 1000f
 
-        val hitSpatial = hit?.node?.spatialOrNull()
+        val hitNode = hit?.node as? HasSpatial
 
-        if (hitSpatial != activeWiggler?.target) {
+        if (hitNode != activeWiggler?.target) {
             //new target or null
             activeWiggler?.deativate()
             activeWiggler = null
 
-            if (hitSpatial != null) {
-                activeWiggler = Wiggler(hitSpatial)
+            if (hitNode != null) {
+                activeWiggler = Wiggler(hitNode)
             }
         }
     }
