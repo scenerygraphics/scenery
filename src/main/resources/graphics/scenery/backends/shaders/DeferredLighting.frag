@@ -8,7 +8,6 @@ layout(location = 0) in VertexData {
     vec3 Normal;
     vec2 TexCoord;
 } Vertex;
-//layout(location = 3) in float Emission;
 
 layout(location = 0) out vec4 FragColor;
 

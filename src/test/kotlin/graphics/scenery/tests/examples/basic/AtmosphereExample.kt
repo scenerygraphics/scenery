@@ -7,6 +7,7 @@ import graphics.scenery.controls.behaviours.SelectCommand
 import graphics.scenery.numerics.Random
 import graphics.scenery.primitives.Atmosphere
 import org.joml.Vector3f
+import kotlin.concurrent.thread
 
 /**
  * <Description>
@@ -20,7 +21,7 @@ import org.joml.Vector3f
 
 class AtmosphereExample : SceneryBase("Atmosphere Example") {
 
-    private val atmos = Atmosphere()
+    private val atmos = Atmosphere(radius = 10f)
 
     override fun init() {
         renderer = hub.add(
@@ -106,7 +107,8 @@ class AtmosphereExample : SceneryBase("Atmosphere Example") {
         inputHandler?.addBehaviour(
             "dragSun", MouseDragSphere(
                 "dragSun",
-                { scene.findObserver() }, debugRaycast = false, rotateAroundCenter = true))
+                { scene.findObserver() }, debugRaycast = false, rotateAroundCenter = true,
+                filter = { node -> node.name == "sunProxy" }))
         inputHandler?.addKeyBinding("dragSun", "ctrl button1")
 
     }
