@@ -15,7 +15,7 @@ layout(location = 1) out vec4 DiffuseAlbedo;
 const float PI = 3.14159265358979323846264;
 const int NUM_OBJECT_TEXTURES = 6;
 #define iSteps 16
-#define jSteps 8
+#define jSteps 2
 
 layout(set = 0, binding = 0) uniform VRParameters {
     mat4 projectionMatrices[2];

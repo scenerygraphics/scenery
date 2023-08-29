@@ -2,6 +2,7 @@ package graphics.scenery.tests.examples.basic
 
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
+import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.controls.behaviours.MouseDragSphere
 import graphics.scenery.controls.behaviours.SelectCommand
 import graphics.scenery.numerics.Random
@@ -11,7 +12,7 @@ import kotlin.concurrent.thread
 
 /**
  * <Description>
- * A basic example that shows how the atmosphere shader can be applied to a scene.
+ * A basic example that shows how the atmosphere object can be applied to a scene.
  *
  * @author Samuel Pantze
  */
@@ -19,14 +20,26 @@ import kotlin.concurrent.thread
 //@ShaderProperty
 //var sunPos = Vector3f(0f, 0.5f, -1f)
 
-class AtmosphereExample : SceneryBase("Atmosphere Example") {
+class AtmosphereExample : SceneryBase("Atmosphere Example",
+    windowWidth = 1024, windowHeight = 768) {
 
-    private val atmos = Atmosphere(radius = 10f)
+    /** Whether to run this example in VR mode. */
+    private val useVR = false
+
+    private val atmos = Atmosphere()
+    private lateinit var hmd: OpenVRHMD
 
     override fun init() {
+
         renderer = hub.add(
             SceneryElement.Renderer,
             Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
+
+        if (useVR) {
+            hmd = OpenVRHMD(useCompositor = true)
+            hub.add(SceneryElement.HMDInput, hmd)
+            renderer?.toggleVR()
+        }
 
         val ball = Icosphere(0.5f, 2)
         ball.material {
@@ -70,7 +83,7 @@ class AtmosphereExample : SceneryBase("Atmosphere Example") {
         //    }
         //}
 
-        val cam: Camera = DetachedHeadCamera()
+        val cam: Camera = if (useVR) {DetachedHeadCamera(hmd)} else {DetachedHeadCamera()}
         with(cam) {
             spatial {
                 position = Vector3f(0.0f, 0.0f, 5.0f)
