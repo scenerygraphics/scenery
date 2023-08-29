@@ -2,35 +2,31 @@ package graphics.scenery.primitives
 
 import graphics.scenery.*
 import graphics.scenery.attribute.material.Material
-import graphics.scenery.controls.behaviours.WithCameraDelegateBase
 import graphics.scenery.utils.extensions.times
 import org.joml.Quaternionf
 import org.joml.Vector3f
-import org.scijava.ui.behaviour.DragBehaviour
-import java.time.LocalTime
+import java.lang.Math.toRadians
+import java.time.LocalDateTime
 import kotlin.concurrent.thread
-import kotlin.math.PI
+import kotlin.math.asin
 import kotlin.math.cos
 import kotlin.math.sin
-import kotlin.math.sqrt
-import kotlin.time.times
 
 /**
  * Implementation of a Nishita sky shader, applied to an [Icosphere] that wraps around the scene.
  * The shader code is ported from Rye Terrells [repository](https://github.com/wwwtyro/glsl-atmosphere).
- * @param name Name of the object. Default is `Atmosphere`.
- * @param sunPos Vector3f of the sun position. Default is `(0f, 0.5f, -1f)`.
- * @param radius Radius of the icosphere. Default is `10f`.
+ * @param initSunPos [Vector3f] of the sun position. Defaults to sun elevation of the current local time.
+ * @param radius Radius of the icosphere. Default is `100f`.
  */
-open class Atmosphere(initSunPos: Vector3f = Vector3f(0.0f, 0.5f, -1.0f), radius : Float = 10f) :
+open class Atmosphere(initSunPos: Vector3f = Vector3f(0f, 0f, 0f), radius : Float = 100f) :
     Icosphere(radius, 2, insideNormals = true) {
 
     @ShaderProperty
-    var sunPos = initSunPos
+    var sunPos: Vector3f
 
     val sunProxy = Icosphere(0.05f * radius, 2)
 
-    val sunLight = DirectionalLight(sunPos)
+    //val sunLight = DirectionalLight(sunPos)
 
     init {
         this.name = "Atmosphere"
@@ -39,7 +35,15 @@ open class Atmosphere(initSunPos: Vector3f = Vector3f(0.0f, 0.5f, -1.0f), radius
             cullingMode = Material.CullingMode.Front
         }
 
-        sunPos = getSunPosFromTime(LocalTime.now())
+        // Only use time-based elevation when the formal parameter is empty
+        if (initSunPos.length() == 0f) {
+            // Override by passing LocalDateTime.of($year, $month, $day, $hour, $minute)
+            sunPos = getSunPosFromTime()
+        } else {
+            sunPos = initSunPos
+        }
+
+
 
         /** Proxy point light to pass the emissive value as @Shaderproperty to the deferred lighting shader. */
         val point = PointLight(1f)
@@ -52,7 +56,7 @@ open class Atmosphere(initSunPos: Vector3f = Vector3f(0.0f, 0.5f, -1.0f), radius
         sunProxy.spatial().position = sunPos.normalize(Vector3f()) * (radius)
         addChild(sunProxy)
 
-        sunLight.emissionColor = Vector3f(1f, 0.9f, 0.7f)
+        //sunLight.emissionColor = Vector3f(1f, 0.9f, 0.7f)
         //addChild(sunLight)
         sunProxy.postUpdate += {
             sunPos = sunProxy.spatial().position
@@ -63,18 +67,26 @@ open class Atmosphere(initSunPos: Vector3f = Vector3f(0.0f, 0.5f, -1.0f), radius
 
     }
 
-    fun getSunPosFromTime(localTime: LocalTime): Vector3f {
-        val localHour = localTime.hour.toFloat() + localTime.minute.toFloat() / 60f
-        // Calculate the solar declination (δ) in radians
-        val declination = -23.45f * PI.toFloat() / 180f * cos(2f * PI.toFloat() * (localHour + 12f) / 365f)
-        // Calculate the hour angle (H) in radians
-        val hourAngle = (localHour - 12f) * 15f * PI.toFloat() / 180f
+    /** Turn the current local time into a sun elevation angle, encoded as [Vector3f].
+     * @param localTime local time parameter, defaults to [LocalDateTime.now].
+     * @param latitude Your latitude in degrees, defaults to 15.0 (central germany).
+     */
+    private fun getSunPosFromTime(
+        localTime: LocalDateTime = LocalDateTime.now(),
+        latitude: Double = 15.0): Vector3f {
+        val dayOfYear = localTime.dayOfYear.toDouble()
+        val declination = -23.45 * cos(360.0 / 365.0 * ( dayOfYear + 10 )) // Rough approximation
+        val hourAngle = (localTime.hour + localTime.minute / 60.0 - 12) * 15 // Angle from solar noon
 
-        // Calculate the sun's orientation vector components
-        val x = cos(declination) * cos(hourAngle)
-        val y = -sin(declination)
-        val z = cos(declination) * sin(hourAngle)
-        return Vector3f(x, y, z).normalize()
+        val sunElevation = asin(
+            sin(toRadians(declination))
+               * sin(toRadians(latitude))
+               + cos(toRadians(declination))
+               * cos(toRadians(latitude))
+               * cos(toRadians(hourAngle))
+        )
+        logger.info("sun elevation: $sunElevation")
+        // Create a vector with the elevation angle as the Y component
+        return Vector3f(0.0f, sin(sunElevation).toFloat(), -1.0f).normalize()
     }
-
 }
