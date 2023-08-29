@@ -11,6 +11,7 @@ import graphics.scenery.controls.behaviours.*
 import graphics.scenery.controls.behaviours.VRSelectionWheel.Companion.toActions
 import graphics.scenery.numerics.Random
 import graphics.scenery.utils.Wiggler
+import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
 import org.joml.Vector3f
@@ -47,7 +48,7 @@ class VRControllerAdvancedExample : SceneryBase(
     private lateinit var hmd: OpenVRHMD
     private lateinit var boxes: List<Node>
     private lateinit var hullbox: Box
-    private var leftControllerPushes = true
+    private var controllerPushes = false
     private var selectionStorage: Node? = null
 
     override fun init() {
@@ -98,12 +99,11 @@ class VRControllerAdvancedExample : SceneryBase(
              * that box is slightly nudged in the direction
              * of the controller's velocity.*/
             obj.addAttribute(Touchable::class.java, Touchable(onTouch = { device ->
-                if (leftControllerPushes) {
-                    if (device.role == TrackerRole.LeftHand) {
-                        obj.ifSpatial {
-                            position = (device.velocity ?: Vector3f(0.0f)) * 0.05f + position
-                        }
+            if (controllerPushes) {
+                    obj.ifSpatial {
+                        position += (worldPosition() - device.spatial().worldPosition()) * 0.1f
                     }
+
                 }
             }))
             // marks the object as grabable by [VRGrab]
@@ -336,8 +336,8 @@ class VRControllerAdvancedExample : SceneryBase(
                     w.spatial().position = menu.get().controller.worldPosition(Vector3f())
                     scene.addChild(w)
                 },
-                "Toggle Push Left" to {
-                    leftControllerPushes = !leftControllerPushes
+                "Toggle Push" to {
+                    controllerPushes = !controllerPushes
                 }).toActions()
         }
     }
