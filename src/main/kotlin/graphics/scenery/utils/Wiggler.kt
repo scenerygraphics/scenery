@@ -12,6 +12,7 @@ class Wiggler(val target: HasSpatial, val range: Float = 0.02f, private val life
     var active = true
         private set
     private var created = System.currentTimeMillis()
+    private var thread: Thread? = null
 
     init {
         val old = target.getAttributeOrNull(Wiggler::class.java)
@@ -20,7 +21,7 @@ class Wiggler(val target: HasSpatial, val range: Float = 0.02f, private val life
             old.created = System.currentTimeMillis()
         } else {
             target.addAttribute(Wiggler::class.java,this)
-            thread {
+            thread = thread {
                 target.spatial {
                     val originalPosition = position
                     while (active) {
@@ -39,7 +40,8 @@ class Wiggler(val target: HasSpatial, val range: Float = 0.02f, private val life
         }
     }
 
-    fun deativate() {
+    fun deativate(): Thread? {
         active = false
+        return thread
     }
 }
