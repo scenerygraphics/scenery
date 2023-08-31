@@ -20,9 +20,8 @@ import java.nio.ByteBuffer
 import kotlin.concurrent.thread
 
 
-class VDIGenerationExample : SceneryBase("Volume Generation Example", 512, 512) {
+class VDIGenerationExample(wWidth: Int = 100, wHeight: Int = 100, val maxSupersegments: Int = 5) : SceneryBase("Volume Generation Example", wWidth, wHeight) {
 
-    val maxSupersegments = 20
     val context: ZContext = ZContext(4)
 
     var cnt = 0
@@ -87,6 +86,7 @@ class VDIGenerationExample : SceneryBase("Volume Generation Example", 512, 512) 
             storeVDI(vdiVolumeManager, vdiData)
         }
     }
+
     private fun storeVDI(vdiVolumeManager: VolumeManager, vdiData: VDIData) {
         data class Timer(var start: Long, var end: Long)
         val tGeneration = Timer(0, 0)
