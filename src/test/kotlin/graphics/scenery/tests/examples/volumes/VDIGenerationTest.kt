@@ -11,14 +11,14 @@ class VDIGenerationTest {
      @Test
      fun testGeneration() {
          //Step 1 : load the correct VDI files from desk
-         val path = "/home/argupta/Desktop/scenery/src/test/resources/graphics/scenery/tests/unit/volumes"
+         val path = "src/test/resources/graphics/scenery/tests/unit/volumes"
          val testContent = File("${path}/Test_VDI_dump4").readBytes()
          val testColor = File("${path}/Test_VDI_4_ndc_col").readBytes()
          val testDepth = File("${path}/Test_VDI_4_ndc_depth").readBytes()
          val testOct = File("${path}/Test_VDI_4_ndc_octree").readBytes()
 
          //Step 2 : run VDI generation example and generate files
-         VDIGenerationExample.main(emptyArray())
+         VDIGenerationExample(100, 100, 5).main()
 
          //Step 3 : load just generated VDI files
          val content = File("VDI_dump4").readBytes()
