@@ -1,7 +1,7 @@
 package graphics.scenery.controls.behaviours
 
 /**
- * Data Class for [VRSelectionWheel] and [VRTreeSelectionWheel]
+ * Data Class for [VRFastSelectionWheel] and [VRTreeSelectionWheel]
  */
 sealed class WheelEntry(val name: String)
 

@@ -14,7 +14,7 @@ import org.joml.Vector4f
 import kotlin.math.PI
 
 /**
- * WheelMenu used by [VRSelectionWheel] and [VRTreeSelectionWheel].
+ * WheelMenu used by [VRFastSelectionWheel] and [VRTreeSelectionWheel].
  * But can be used standalone
  * Handles the nodes and their positioning of the menu items.
  *
