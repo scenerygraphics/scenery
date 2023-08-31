@@ -23,11 +23,11 @@ import java.util.concurrent.Future
  *
  * @author Jan Tiemann
  */
-class VRSelectionWheel(
+class VRFastSelectionWheel(
     val controller: Spatial,
     val scene: Scene,
     val hmd: TrackerInput,
-    var actions: List<Action>,
+    var actions: List<WheelEntry>,
     val cutoff: Float = 0.1f,
 ) : DragBehaviour {
     private var activeWheel: WheelMenu? = null
@@ -38,6 +38,7 @@ class VRSelectionWheel(
      * This function is called by the framework. Usually you don't need to call this.
      */
     override fun init(x: Int, y: Int) {
+        if (actions.any{it is SubWheel}) throw NotImplementedError("Fast selection wheels don't support submenus.")
 
         activeWheel = WheelMenu(hmd, actions)
         activeWheel?.spatial()?.position = controller.worldPosition()
@@ -73,7 +74,7 @@ class VRSelectionWheel(
             when(val entry = closestActionSphere.action){
                 is Action -> entry.action()
                 is Switch -> entry.toggle()
-                else -> throw IllegalStateException("${entry.javaClass.simpleName} not implemented for Selection Wheel")
+                else -> throw NotImplementedError("${entry.javaClass.simpleName} not implemented for Selection Wheel")
             }
         }
 
@@ -98,14 +99,14 @@ class VRSelectionWheel(
             button: List<OpenVRHMD.OpenVRButton>,
             controllerSide: List<TrackerRole>,
             actions: List<Pair<String, (Spatial) -> Unit>>,
-        ): Future<VRSelectionWheel> {
-            val future = CompletableFuture<VRSelectionWheel>()
+        ): Future<VRFastSelectionWheel> {
+            val future = CompletableFuture<VRFastSelectionWheel>()
             hmd.events.onDeviceConnect.add { _, device, _ ->
                 if (device.type == TrackedDeviceType.Controller) {
                     device.model?.let { controller ->
                         if (controllerSide.contains(device.role)) {
                             val name = "VRSelectionWheel:${hmd.trackingSystemName}:${device.role}:$button"
-                            val vrToolSelector = VRSelectionWheel(
+                            val vrToolSelector = VRFastSelectionWheel(
                                 controller.children.first().spatialOrNull()
                                     ?: throw IllegalArgumentException("The target controller needs a spatial."),
                                 scene,
