@@ -102,7 +102,7 @@ open class VRGrab(
 
         selected.forEach { node ->
             node.getAttributeOrNull(Grabable::class.java)?.let { grabable ->
-                    val target = (grabable.target ?: node)
+                    val target = (grabable.target() ?: node)
                     target.spatialOrNull()?.let { spatial ->
                     // apply parent world rotation to diff if available
                     val translationWorld = target.parent?.spatialOrNull()?.worldRotation()?.let { q -> diffTranslation.rotate(q) }
@@ -216,9 +216,9 @@ open class VRGrab(
  * @param target set to apply movements not to this node but to another
  * */
 open class Grabable(
-    val onGrab: (() -> Unit)? = null,
-    val onDrag: (() -> Unit)? = null,
-    val onRelease: (() -> Unit)? = null,
-    val lockRotation: Boolean = false,
-    val target: Node? = null
+    var onGrab: (() -> Unit)? = null,
+    var onDrag: (() -> Unit)? = null,
+    var onRelease: (() -> Unit)? = null,
+    var lockRotation: Boolean = false,
+    var target: () -> Node? = {null}
 )
