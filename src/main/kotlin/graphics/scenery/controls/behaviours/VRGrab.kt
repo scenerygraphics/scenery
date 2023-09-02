@@ -152,6 +152,7 @@ open class VRGrab(
         selected.forEach {
             onRelease?.invoke(it)
             it.getAttributeOrNull(Grabable::class.java)?.onRelease?.invoke()
+            it.update -= dragFunction
         }
         selected = emptyList()
     }
