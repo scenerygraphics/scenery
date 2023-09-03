@@ -65,13 +65,12 @@ void main()
 
     Vertex.Color = lineColor;
 
-//   if(gl_VertexID < capLength) {
-   if(0 < capLength) {
+    if(gl_VertexIndex == 0) {
         Vertex.Color = startColor;
-   }
+    }
 
-//   if(gl_VertexID > vertexCount-capLength) {
-   if(vertexCount > vertexCount-capLength) {
-        Vertex.Color = endColor;
-   }
+    if(gl_VertexIndex == (vertexCount - 1)) {
+       Vertex.Color = endColor;
+    }
+
 }

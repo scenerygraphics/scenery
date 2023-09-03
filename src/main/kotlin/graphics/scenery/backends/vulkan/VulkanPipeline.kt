@@ -311,6 +311,7 @@ class VulkanPipeline(val device: VulkanDevice, val renderpass: VulkanRenderpass,
             VK_PRIMITIVE_TOPOLOGY_POINT_LIST,
             VK_PRIMITIVE_TOPOLOGY_LINE_LIST,
             VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
+            VK_PRIMITIVE_TOPOLOGY_LINE_STRIP,
             VK_PRIMITIVE_TOPOLOGY_LINE_LIST_WITH_ADJACENCY,
             VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST_WITH_ADJACENCY,
             VK_PRIMITIVE_TOPOLOGY_PATCH_LIST
@@ -323,6 +324,7 @@ class VulkanPipeline(val device: VulkanDevice, val renderpass: VulkanRenderpass,
                 GeometryType.LINE -> VK_PRIMITIVE_TOPOLOGY_LINE_LIST
                 GeometryType.POINTS -> VK_PRIMITIVE_TOPOLOGY_POINT_LIST
                 GeometryType.LINES_ADJACENCY -> VK_PRIMITIVE_TOPOLOGY_LINE_LIST_WITH_ADJACENCY
+                GeometryType.LINE_STRIP -> VK_PRIMITIVE_TOPOLOGY_LINE_STRIP
                 GeometryType.LINE_STRIP_ADJACENCY -> VK_PRIMITIVE_TOPOLOGY_LINE_STRIP_WITH_ADJACENCY
                 GeometryType.POLYGON -> VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST
                 GeometryType.TRIANGLE_STRIP -> VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP

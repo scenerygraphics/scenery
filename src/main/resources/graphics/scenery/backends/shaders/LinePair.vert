@@ -34,7 +34,7 @@ layout(set = 2, binding = 0) uniform Matrices {
     int isBillboard;
 } ubo;
 
-layout(set = 4, binding = 0) uniform ShaderProperties {
+layout(set = 3, binding = 0) uniform ShaderProperties {
     vec4 startColor;
     vec4 endColor;
     vec4 lineColor;
@@ -69,13 +69,13 @@ void main()
 
     Vertex.Color = lineColor;
 
-    //   if(gl_VertexID < capLength) {
-    if(0 < capLength) {
+    if(gl_VertexIndex < capLength) {
+    //if(0 < capLength) {
         Vertex.Color = startColor;
     }
 
-    //   if(gl_VertexID > vertexCount-capLength) {
-    if(vertexCount > vertexCount-capLength) {
+    if(gl_VertexIndex > vertexCount-capLength) {
+    //if(vertexCount > vertexCount-capLength) {
         Vertex.Color = endColor;
     }
 }

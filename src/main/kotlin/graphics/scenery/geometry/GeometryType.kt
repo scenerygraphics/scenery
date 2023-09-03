@@ -23,6 +23,8 @@ enum class GeometryType {
     LINE,
     /** Draw vertices as lines, with adjacency information. */
     LINES_ADJACENCY,
+    /** Draw vertices as lines. */
+    LINE_STRIP,
     /** Draw vertices as line strips, with adjacency information. */
     LINE_STRIP_ADJACENCY
 }

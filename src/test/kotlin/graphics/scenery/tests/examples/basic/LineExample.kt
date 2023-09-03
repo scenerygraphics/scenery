@@ -6,6 +6,9 @@ import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
 import graphics.scenery.primitives.Line
 import graphics.scenery.attribute.material.Material
+import org.jdom2.internal.SystemProperty
+import org.joml.Vector4f
+import java.util.Properties
 import kotlin.concurrent.thread
 
 /**
@@ -17,7 +20,7 @@ import kotlin.concurrent.thread
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class LineExample : SceneryBase("LineExample") {
+class LineExample : SceneryBase("LineExample", wantREPL = false) {
     protected var lineAnimating = true
 
     override fun init() {
@@ -35,6 +38,10 @@ class LineExample : SceneryBase("LineExample") {
         line.addPoint(Vector3f(0.0f, 0.0f, 0.0f))
         line.addPoint(Vector3f(5.0f, 5.0f, 5.0f))
 
+        line.startColor = Vector4f(1.0f, 0.0f, 0.0f, 1.0f)
+        line.lineColor = Vector4f(0.0f, 1.0f, 0.0f, 1.0f)
+        line.endColor = Vector4f(0.0f, 0.0f, 1.0f, 1.0f)
+
         line.material {
             ambient = Vector3f(1.0f, 0.0f, 0.0f)
             diffuse = Vector3f(1.0f, 1.0f, 1.0f)
@@ -45,12 +52,12 @@ class LineExample : SceneryBase("LineExample") {
         }
 
         line.edgeWidth = 0.02f
-
         scene.addChild(line)
 
+
         val lights = (0 until 2).map {
-            val l = PointLight(radius = 4.0f)
-            l.intensity = 1.0f
+            val l = PointLight(radius = 10.0f)
+            l.intensity = 2.0f
             l.emissionColor = Random.random3DVectorFromRange(0.2f, 0.8f)
 
             scene.addChild(l)
