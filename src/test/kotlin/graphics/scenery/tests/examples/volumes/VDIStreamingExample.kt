@@ -5,14 +5,16 @@ import graphics.scenery.DetachedHeadCamera
 import graphics.scenery.SceneryBase
 import graphics.scenery.backends.Renderer
 import graphics.scenery.volumes.*
+import graphics.scenery.volumes.vdi.VDIStreamer
 import org.joml.Vector3f
 import java.nio.file.Paths
 import org.zeromq.ZContext
+import kotlin.math.max
 
 class VDIStreamingExample : SceneryBase("VDI Streaming Example", 512, 512) {
 
     val cam: Camera = DetachedHeadCamera()
-    val context: ZContext = ZContext(4)
+
     val maxSupersegments = 20
     override fun init() {
 
@@ -51,11 +53,15 @@ class VDIStreamingExample : SceneryBase("VDI Streaming Example", 512, 512) {
         hub.add(vdiVolumeManager)
 
         //Step  6: transmitting the VDI
-        val volumeDimensions3i = Vector3f(volume.getDimensions().x.toFloat(),volume.getDimensions().y.toFloat(),volume.getDimensions().z.toFloat())
+        val volumeDimensions = Vector3f(volume.getDimensions().x.toFloat(),volume.getDimensions().y.toFloat(),volume.getDimensions().z.toFloat())
         val model = volume.spatial().world
 
-        renderer?.streamVDI("tcp://0.0.0.0:6655",cam,volumeDimensions3i,model,context)
+        val vdiStreamer = VDIStreamer()
 
+        vdiStreamer.vdiStreaming = true
+        vdiStreamer.streamVDI("tcp://0.0.0.0:6655", cam, volumeDimensions, model, maxSupersegments, vdiVolumeManager,
+            renderer!!
+        )
     }
 
     companion object {
