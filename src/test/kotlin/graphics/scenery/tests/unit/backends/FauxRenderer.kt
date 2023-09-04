@@ -5,10 +5,6 @@ import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.backends.Renderer
 import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.utils.SceneryPanel
-import graphics.scenery.volumes.vdi.VDIData
-import org.joml.Matrix4f
-import org.joml.Vector3f
-import org.zeromq.ZContext
 
 /**
  * Faux renderer class used for testing only.
@@ -92,10 +88,6 @@ class FauxRenderer(override var hub: Hub?, var scene: Scene, preparedWindow: Sce
 
     private var recordMovie = false
 
-    override var vdiStreaming: Boolean = true
-        get() = field
-        set(value) { field = value}
-
     override fun recordMovie(filename: String, overwrite: Boolean) {
         if(recordMovie) {
             logger.info("Recording movie to $filename")
@@ -104,7 +96,4 @@ class FauxRenderer(override var hub: Hub?, var scene: Scene, preparedWindow: Sce
             logger.info("Stopped recording movie")
         }
     }
-
-    override fun streamVDI(IPAddress: String , cam: Camera, volumeDimensions3i : Vector3f, model: Matrix4f, context: ZContext, maxSupersegments : Int) {}
-
 }
