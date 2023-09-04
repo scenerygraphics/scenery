@@ -4,6 +4,7 @@ import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.TrackedStereoGlasses
 import graphics.scenery.volumes.*
+import graphics.scenery.volumes.vdi.VDIStreamer
 import org.joml.Vector3f
 import org.zeromq.ZContext
 import java.nio.file.Paths
@@ -63,6 +64,8 @@ class ServerApplication : SceneryBase("Volume Server Example", 512, 512) {
         //Step 5: switch between different modes
         var currentlyVolumeRendering = true
 
+        val vdiStreamer = VDIStreamer()
+
         thread {
             while (true) {
                 val switchMode = scene.find("EmptyNode") as? EmptyNode
@@ -73,7 +76,7 @@ class ServerApplication : SceneryBase("Volume Server Example", 512, 512) {
 
                         logger.info("Volume Rendering")
 
-                        renderer?.vdiStreaming = false
+                        vdiStreamer.vdiStreaming = false
                         standardVolumeManager.replace(standardVolumeManager)
                         renderVolume(volume)
 
@@ -87,12 +90,13 @@ class ServerApplication : SceneryBase("Volume Server Example", 512, 512) {
                         renderer?.recordMovie()
                         vdiVolumeManager.replace(vdiVolumeManager)
 
-                        renderer?.vdiStreaming = true
+                        vdiStreamer.vdiStreaming = true
 
                         if (firstVDI) {
                             val volumeDimensions3i = Vector3f(volume.getDimensions().x.toFloat(), volume.getDimensions().y.toFloat(), volume.getDimensions().z.toFloat())
                             val model = volume.spatial().world
-                            renderer?.streamVDI("tcp://0.0.0.0:6655", cam, volumeDimensions3i, model, context)
+                            //TODO: confirming that vdiVolumeManager is the vm attached to hub
+                            vdiStreamer.streamVDI("tcp://0.0.0.0:6655", cam, volumeDimensions3i, model, maxSupersegments, vdiVolumeManager, renderer!!)
                             firstVDI = false
                         }
 
