@@ -148,10 +148,9 @@ class VDIGenerationExample(wWidth: Int = 100, wHeight: Int = 100, val maxSuperse
                 logger.info("written the dump")
                 file.close()
 
-                var fileName = "VDI_${cnt}_ndc"
-                SystemHelpers.dumpToFile(vdiColorBuffer!!, "${fileName}_col")
-                SystemHelpers.dumpToFile(vdiDepthBuffer!!, "${fileName}_depth")
-                SystemHelpers.dumpToFile(gridCellsBuff!!, "${fileName}_octree")
+                SystemHelpers.dumpToFile(vdiColorBuffer!!, "VDI_col")
+                SystemHelpers.dumpToFile(vdiDepthBuffer!!, "VDI_depth")
+                SystemHelpers.dumpToFile(gridCellsBuff!!, "VDI_octree")
 
                 logger.info("Wrote VDI $cnt")
                 VDIsGenerated.incrementAndGet()
