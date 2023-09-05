@@ -9,8 +9,7 @@ layout(location = 0) in VertexData {
 
 layout(location = 0) out vec4 NormalsMaterial;
 layout(location = 1) out vec4 DiffuseAlbedo;
-//layout(location = 3) out float Emission;
-//layout(set = 7, binding = 0) uniform float emissive;
+layout(location = 3) out vec4 Emission;
 
 const float PI = 3.14159265358979323846264;
 const int NUM_OBJECT_TEXTURES = 6;
@@ -51,6 +50,8 @@ struct MaterialInfo {
     float Roughness;
     float Metallic;
     float Opacity;
+    vec3 Emissive;
+    float EmissiveStrength;
 };
 
 const int MATERIAL_HAS_DIFFUSE =  0x0001;
@@ -310,10 +311,12 @@ void main() {
     // Apply exposure.
     color = 1.0 - exp(-1.0 * color);
 
-    float EmissionStrength = 1.0;
+    //float EmissionStrength = 1.0;
 
     //DiffuseAlbedo = vec4(0.5, 0.5, 1.0, 1.0);
     DiffuseAlbedo = vec4(color, 1.0);
+    Emission.rgb = color;
+    Emission.a = Material.EmissiveStrength;
     //emissive = EmissionStrength; //vec4(color, EmissionStrength);
     NormalsMaterial.rg = EncodedNormal;
 }

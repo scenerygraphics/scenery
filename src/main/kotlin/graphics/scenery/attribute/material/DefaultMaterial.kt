@@ -35,6 +35,16 @@ open class DefaultMaterial : Material, Networkable {
             field = value
             updateModifiedAt()
         }
+    override var emissive: Vector3f = Vector3f(0.0f, 0.0f, 0.0f)
+        set(value) {
+            field = value
+            updateModifiedAt()
+        }
+    override var emissiveStrength: Float = 0.0f
+        set(value) {
+            field = value
+            updateModifiedAt()
+        }
     override var blending: Blending = Blending()
     @Volatile
     @Transient

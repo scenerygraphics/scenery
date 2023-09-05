@@ -8,6 +8,7 @@ rendertargets:
       NormalsMaterial: RGBA_Float16
       DiffuseAlbedo: RGBA_UInt8
       ZBuffer: Depth32
+      Emission: RGBA_Float16
   ForwardBuffer:
     attachments:
       Color: RGBA_Float16
