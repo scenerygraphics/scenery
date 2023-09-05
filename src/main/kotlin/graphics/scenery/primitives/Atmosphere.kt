@@ -3,11 +3,9 @@ package graphics.scenery.primitives
 import graphics.scenery.*
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.utils.extensions.times
-import org.joml.Quaternionf
 import org.joml.Vector3f
 import java.lang.Math.toRadians
 import java.time.LocalDateTime
-import kotlin.concurrent.thread
 import kotlin.math.asin
 import kotlin.math.cos
 import kotlin.math.sin
@@ -33,6 +31,7 @@ open class Atmosphere(initSunPos: Vector3f = Vector3f(0f, 0f, 0f), radius : Floa
         setMaterial(ShaderMaterial.fromClass(this::class.java))
         material {
             cullingMode = Material.CullingMode.Front
+            emissiveStrength = 1f
         }
 
         // Only use time-based elevation when the formal parameter is empty
@@ -46,11 +45,11 @@ open class Atmosphere(initSunPos: Vector3f = Vector3f(0f, 0f, 0f), radius : Floa
 
 
         /** Proxy point light to pass the emissive value as @Shaderproperty to the deferred lighting shader. */
-        val point = PointLight(1f)
-        point.spatial().position = Vector3f()
-        point.intensity = 0f
-        point.emissive = 1f
-        addChild(point)
+        //val point = PointLight(1f)
+        //point.spatial().position = Vector3f()
+        //point.intensity = 0f
+        //point.emissive = 1f
+        //addChild(point)
 
         sunProxy.name = "sunProxy"
         sunProxy.spatial().position = sunPos.normalize(Vector3f()) * (radius)
@@ -89,4 +88,5 @@ open class Atmosphere(initSunPos: Vector3f = Vector3f(0f, 0f, 0f), radius : Floa
         // Create a vector with the elevation angle as the Y component
         return Vector3f(0.0f, sin(sunElevation).toFloat(), -1.0f).normalize()
     }
+
 }

@@ -37,6 +37,9 @@ interface Material {
     var roughness: Float
     /** Metallicity, 0.0 is non-metal, 1.0 is full metal */
     var metallic: Float
+    /** Emission of the material and corresponding strength */
+    var emissive: Vector3f
+    var emissiveStrength: Float
 
     /** Blending settings for this material. See [Blending]. */
     var blending: Blending

@@ -943,6 +943,8 @@ open class VulkanRenderer(hub: Hub,
             add("Roughness", { node.materialOrNull()!!.roughness})
             add("Metallic", { node.materialOrNull()!!.metallic})
             add("Opacity", { node.materialOrNull()!!.blending.opacity })
+            add("Emissive", { node.materialOrNull()!!.emissive })
+            add("EmissiveStrength", { node.materialOrNull()!!.emissiveStrength })
 
             createUniformBuffer()
             s.UBOs.put("MaterialProperties", materialPropertiesDescriptorSet.contents to this)

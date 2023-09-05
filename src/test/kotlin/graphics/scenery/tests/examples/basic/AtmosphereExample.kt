@@ -68,21 +68,6 @@ class AtmosphereExample : SceneryBase("Atmosphere Example",
 
         scene.addChild(atmos)
 
-        //thread {
-        //    var ticks = 0L
-        //    while (true) {
-        //        val x = (cos(ticks / 100f))
-        //        val z = (sin(ticks / 100f))
-        //        atmos.sunPos = Vector3f(
-        //            1f,
-        //            1f,
-        //            1f
-        //        )
-        //        ticks++
-        //        Thread.sleep(20)
-        //    }
-        //}
-
         val cam: Camera = if (useVR) {DetachedHeadCamera(hmd)} else {DetachedHeadCamera()}
         with(cam) {
             spatial {
@@ -97,8 +82,6 @@ class AtmosphereExample : SceneryBase("Atmosphere Example",
         super.inputSetup()
 
         setupCameraModeSwitching()
-
-
 
         val moveSun: (Scene.RaycastResult, Int, Int) -> Unit = { result, x, y ->
             result.initialDirection .let {
