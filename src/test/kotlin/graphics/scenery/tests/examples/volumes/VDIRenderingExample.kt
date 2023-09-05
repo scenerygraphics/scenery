@@ -21,7 +21,7 @@ import java.io.File
 import java.io.FileInputStream
 import java.nio.ByteBuffer
 
-class VDIRenderingExample : SceneryBase("VDI Rendering Example", 512, 512) {
+class VDIRenderingExample : SceneryBase("VDI Rendering Example", 1920, 1080) {
 
     val vdiNode = VDINode()
 
@@ -70,9 +70,9 @@ class VDIRenderingExample : SceneryBase("VDI Rendering Example", 512, 512) {
         val vdiData = VDIDataIO.read(file)
         logger.info("Fetching file...")
 
-        colorBuff = File("VDI_4_ndc_col").readBytes()
-        depthBuff = File("VDI_4_ndc_depth").readBytes()
-        octBuff = File("VDI_4_ndc_octree").readBytes()
+        colorBuff = File("VDI_col").readBytes()
+        depthBuff = File("VDI_depth").readBytes()
+        octBuff = File("VDI_octree").readBytes()
 
         //Step  3: assigning buffer values
         val colBuffer: ByteBuffer
