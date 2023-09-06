@@ -1,6 +1,6 @@
 #version 450
 #define USE_PRINTF 1
-#define PROFILE_MEM 0
+
 #extension GL_EXT_debug_printf : disable
 #if USE_PRINTF
 #extension GL_EXT_debug_printf : enable
@@ -52,16 +52,6 @@ layout(set = 2, binding = 0, rgba32f) uniform readonly image3D InputVDI;
 layout(set = 3, binding = 0, rgba8) uniform image2D OutputViewport;
 layout (set = 4, binding = 0, r32f) uniform readonly image3D DepthVDI;
 layout (set = 6, binding = 0, r32ui) uniform readonly uimage3D OctreeCells;
-
-#if PROFILE_MEM
-layout(set = 9, binding = 0, r32f) uniform image2D NumIntersectedSupsegs;
-layout(set = 10, binding = 0, r32f) uniform image2D NumLists;
-layout(set = 11, binding = 0, r32f) uniform image2D NumSteps;
-//layout(set = 8, binding = 0, r32f) uniform image2D NumEmptyLists;
-//layout(set = 9, binding = 0, r32f) uniform image2D NumNotIntLists;
-//layout(set = 10, binding = 0, r32f) uniform image2D EmptyBeforeFirst;
-//layout(set = 11, binding = 0, r32f) uniform image2D EmptyAfterLast;
-#endif
 
 ivec2 debug_pixel = ivec2(400, 410);
 
@@ -191,17 +181,6 @@ int prevIndex = -1;
 
 int maxSupersegments;
 
-int totalMemoryLoads = 0;
-int totalEmptyLists = 0;
-int totalIntersectedSupsegs = 0;
-int totalNonIntersected = 0;
-int totalBeforeFirst = 0;
-int totalAfterLast = 0;
-int whenLast_Total = 0; // how many memory loads were performed by the time the last supseg was intersected?
-int totalIntersectedLists = 0;
-
-bool firstNotYetIntersected = true;
-
 ivec3 num_cells;
 
 float stratification_factor;
@@ -241,13 +220,11 @@ int bufferDepth = 0;
 
 float getSupsegFront(ivec2 theList, int index) {
     vec4 front = imageLoad(DepthVDI, ivec3(index*2, theList.y, theList.x));
-    totalMemoryLoads++;
     return front.x;
 }
 
 float getSupsegBack(ivec2 theList, int index) {
     vec4 back = imageLoad(DepthVDI, ivec3(index*2 + 1, theList.y, theList.x));
-    totalMemoryLoads++;
     return back.x;
 }
 
@@ -546,8 +523,6 @@ void findFirstSupseg_opt_seeded(ivec2 theList, float dist_to_orig, float exit_di
 
 void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout vec4 accumulatedColor) {
 
-    totalIntersectedLists++;
-
     #if USE_PRINTF
     if(gl_GlobalInvocationID.xy == debug_pixel) {
         debugPrintfEXT("Intersecting list: (%d, %d). Start pt: (%f, %f, %f) and End pt: (%f, %f, %f)\n", theList,
@@ -560,7 +535,6 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
     bool first_empty = false;
 
     vec4 check = imageLoad(DepthVDI, ivec3(1, theList.y, theList.x));
-    totalMemoryLoads++;
     /*if(gl_GlobalInvocationID.xy == debug_pixel) {
         debugPrintfEXT("checking if list is empty%f", check.x);
     }*/
@@ -571,8 +545,6 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
 
     if(first_empty) {
         //the first supersegment is empty, so empty list
-        totalEmptyLists++;
-        totalNonIntersected++;
         #if USE_PRINTF
         if(gl_GlobalInvocationID.xy == debug_pixel) {
             debugPrintfEXT("Returning because first element was 0. The list no. was: (%d, %d)", theList);
@@ -610,7 +582,6 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
 
     bool supseg_found = false;
     int supsegs_in_list = 0;
-    int total_steps_before = totalMemoryLoads - 1; //subtract the first empty supseg check that is performed to determine an empty list
 
     bool firstIteration = true;
 
@@ -638,7 +609,6 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
             #if USE_PRINTF
         if(gl_GlobalInvocationID.xy == debug_pixel) {
             debugPrintfEXT("For list: (%d, %d). Found supseg %d index %d. Start depth: %f and end depth: %f\n", theList, supseg_found, index, depthStart, depthEnd);
-            //            debugPrintfEXT("In this list, there have been %d memory loads.", totalMemoryLoads - total_steps_before);
         }
             #endif
         prevList = theList;
@@ -664,12 +634,6 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
                 debugPrintfEXT("DepthStart: %f and DepthEnd: %f, while dto: %f and exit: %f\n", temp_start, temp_end, dist_to_orig, exit_distance);
             }
                 #endif
-            if(firstNotYetIntersected) {
-                totalBeforeFirst = total_steps_before;
-                firstNotYetIntersected = false;
-            }
-            whenLast_Total = totalMemoryLoads;
-            totalIntersectedSupsegs++;
             supsegs_in_list++;
 
 
@@ -686,7 +650,6 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
             w_end_point *= 1./w_end_point.w;
 
             vec4 supseg_col = getSupsegColor(theList.xy, index);
-            totalMemoryLoads++;
 
             float length_in_supseg = distance(w_start_point, w_end_point);
 
@@ -721,10 +684,6 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
         }
 
     } while(supseg_found);
-
-    if(supsegs_in_list == 0) {
-        totalNonIntersected += (totalMemoryLoads - total_steps_before);
-    }
 }
 
 int stepX, stepY;
@@ -732,7 +691,6 @@ float tdeltaX, tdeltaY; //the delta intercepts for the ray on the supseg lists
 vec4 finalColor = vec4(0);
 
 void traverse_subsample(vec4 world_entry, vec4 world_end, float total_distance, int num_samples) {
-    int total_before = totalMemoryLoads;
 
     float jump_size = total_distance / float(num_samples);
 
@@ -792,8 +750,6 @@ void traverse_subsample(vec4 world_entry, vec4 world_end, float total_distance, 
         findFirstSupseg(list_coords, dist_to_orig, dist_to_orig, supseg_found, index, depth_start, depth_end);
 
         if(supseg_found) {
-            totalIntersectedSupsegs++;
-            totalIntersectedLists++;
 
             vec4 supseg_start_w = ivp_orig * vec4(npos.xy, depth_start, 1);
             supseg_start_w *= 1. / supseg_start_w.w;
@@ -803,19 +759,12 @@ void traverse_subsample(vec4 world_entry, vec4 world_end, float total_distance, 
 
 
             vec4 supseg_col = getSupsegColor(list_coords, index);
-            totalMemoryLoads++;
 
             float alpha = adjustOpacity(supseg_col.a, jump_size);
             finalColor.rgb = finalColor.rgb + (1-finalColor.a) * supseg_col.rgb * alpha;
             finalColor.a = finalColor.a + (1-finalColor.a) * alpha;
         }
     }
-
-    //    #if USE_PRINTF
-    //    if(gl_GlobalInvocationID.xy == debug_pixel) {
-    //        debugPrintfEXT("A cell of length: %f was traversed in %d steps. This required %d memory accesses.", total_distance, num_samples, totalMemoryLoads-total_before);
-    //    }
-    //    #endif
 }
 
 void traverse_cell(vec4 entry_point, ivec2 entry_list, vec3 cell_min, vec3 cell_max, out vec4 end_point, out ivec2 nextList) {
@@ -1495,42 +1444,12 @@ void main() {
 
     finalColor.xyz = pow(finalColor.xyz, vec3(1/2.2));
 
-    if(totalIntersectedSupsegs == 0) {
-        totalBeforeFirst = totalMemoryLoads;
-    }
-
-    //    #if USE_PRINTF
-    //    if(gl_GlobalInvocationID.xy == debug_pixel) {
-    //        debugPrintfEXT("Total cells sampled was: %d", num_traversed);
-    //        debugPrintfEXT("Total memory loads was: %d", totalMemoryLoads);
-    //        debugPrintfEXT("Total empty lists was: %d", totalEmptyLists);
-    //        debugPrintfEXT("Total intersected supsegs was: %d", totalIntersectedSupsegs);
-    //        debugPrintfEXT("Total samples taken in lists that were not intersected: %d", totalNonIntersected);
-    //        debugPrintfEXT("Total intersected lists: %d", totalIntersectedLists);
-    //        debugPrintfEXT("Total before first: %d", totalBeforeFirst);
-    //        debugPrintfEXT("Total after last: %d", totalAfterLast);
-    //        debugPrintfEXT("For pixel: (%d, %d), final color is: (%f, %f, %f, %f)", gl_GlobalInvocationID.xy, finalColor);
-    //    }
-    //    #endif
-
-    //    finalColor = vec4(totalMemoryLoads/2500.0, 0, 0, 1);
-    totalAfterLast = totalMemoryLoads - whenLast_Total;
-    //    finalColor = vec4(0);
     imageStore(OutputViewport, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), finalColor);
+
     #if USE_PRINTF
     if(gl_GlobalInvocationID.xy == debug_pixel) {
         debugPrintfEXT("Final!!! composited color is: (%f, %f, %f, %f)", finalColor.rgba);
     }
-        #endif
-
-        #if PROFILE_MEM
-    imageStore(NumSteps, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), vec4(totalMemoryLoads, 0, 0, 0));
-    //    imageStore(NumEmptyLists, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), vec4(totalEmptyLists, 0, 0, 0));
-    imageStore(NumIntersectedSupsegs, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), vec4(totalIntersectedSupsegs, 0, 0, 0));
-    imageStore(NumLists, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), vec4(totalIntersectedLists, 0, 0, 0));
-    //    imageStore(NumNotIntLists, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), vec4(totalNonIntersected, 0, 0, 0));
-    //    imageStore(EmptyBeforeFirst, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), vec4(totalBeforeFirst, 0, 0, 0));
-    //    imageStore(EmptyAfterLast, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), vec4(totalAfterLast, 0, 0, 0));
     #endif
 
 }
