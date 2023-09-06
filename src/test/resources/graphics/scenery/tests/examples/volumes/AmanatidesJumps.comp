@@ -1,10 +1,8 @@
 #version 450
 #define USE_PRINTF 1
-#define NDC 1
 #define PROFILE_MEM 0
 #define USE_VIEW_SPACE_CELLS 1
 #extension GL_EXT_debug_printf : disable
-#define RAY_INVERSION_ENABLE 1
 #if USE_PRINTF
 #extension GL_EXT_debug_printf : enable
 #endif
@@ -604,19 +602,6 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
     bool dotPositive;
     //TODO: check for dir.z?
     dotPositive = (dir.z>=0) ? true: false;
-
-    #if !RAY_INVERSION_ENABLE
-    if(!dotPositive) {
-        accumulatedColor = vec4(0, 0, 0, 1);
-        //        #if USE_PRINTF
-        //        if(gl_GlobalInvocationID.xy == debug_pixel) {
-        //            debugPrintfEXT("List: (%d, %d). Returning because dot product is negative.", theList);
-        //        }
-        //        #endif
-        return;
-        //TODO: implement code path for inverted ray direction
-    }
-        #endif
 
     float dist_to_orig_w = ndc_to_w(vec2(ndc_x, ndc_y), dist_to_orig_n);
     float exit_distance_w = ndc_to_w(vec2(ndc_x, ndc_y), exit_distance_n);
