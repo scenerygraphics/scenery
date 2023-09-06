@@ -1,8 +1,6 @@
 #version 450
 #define USE_PRINTF 1
 #define NDC 1
-#define SEPARATE_DEPTH 1
-#define INT_DEPTHS 0
 #define PROFILE_MEM 0
 #define USE_VIEW_SPACE_CELLS 1
 #extension GL_EXT_debug_printf : disable
@@ -623,13 +621,8 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
     float dist_to_orig_w = ndc_to_w(vec2(ndc_x, ndc_y), dist_to_orig_n);
     float exit_distance_w = ndc_to_w(vec2(ndc_x, ndc_y), exit_distance_n);
 
-    #if INT_DEPTHS
-    float dist_to_orig = dist_to_orig_w;
-    float exit_distance = exit_distance_w;
-    #else
     float dist_to_orig = dist_to_orig_n;
     float exit_distance = exit_distance_n;
-    #endif
 
     bool supseg_found = false;
     int supsegs_in_list = 0;
@@ -695,10 +688,6 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
             totalIntersectedSupsegs++;
             supsegs_in_list++;
 
-            #if INT_DEPTHS
-            depthStart = w_to_ndc(depthStart); //if the distances were calculated in w space, we need to convert to a coordinate system that has constant value of z along the supseg face, which makes it easy to detrmine where exactly the ray has intersected the supseg
-            depthEnd = w_to_ndc(depthEnd);
-            #endif
 
             float start_t = (depthStart - u.z) / dir.z;
             float end_t = (depthEnd - u.z) / dir.z;
@@ -814,22 +803,13 @@ void traverse_subsample(vec4 world_entry, vec4 world_end, float total_distance, 
         int index;
         float depth_start, depth_end;
 
-        #if INT_DEPTHS
-        float dist_to_orig = ndc_to_w(npos.xy, npos.z);
-        #else
         float dist_to_orig = npos.z;
-        #endif
 
         findFirstSupseg(list_coords, dist_to_orig, dist_to_orig, supseg_found, index, depth_start, depth_end);
 
         if(supseg_found) {
             totalIntersectedSupsegs++;
             totalIntersectedLists++;
-
-            #if INT_DEPTHS
-            depth_start = w_to_ndc(depth_start);
-            depth_end = w_to_ndc(depth_end);
-            #endif
 
             vec4 supseg_start_w = ivp_orig * vec4(npos.xy, depth_start, 1);
             supseg_start_w *= 1. / supseg_start_w.w;
