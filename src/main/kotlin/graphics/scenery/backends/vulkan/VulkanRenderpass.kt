@@ -410,17 +410,19 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
         }
     }
 
+    val shaders = Shaders.ShadersFromFiles(passConfig.shaders.map { "shaders/$it" }.toTypedArray())
     /**
      * Initialiases the default [VulkanPipeline] for this renderpass.
      */
     fun initializeDefaultPipeline() {
-        val shaders = Shaders.ShadersFromFiles(passConfig.shaders.map { "shaders/$it" }.toTypedArray())
         val shaderModules = ShaderType.values().mapNotNull { type ->
             try {
                 VulkanShaderModule.getFromCacheOrCreate(device, "main", shaders.get(Shaders.ShaderTarget.Vulkan, type))
             } catch (e: ShaderNotFoundException) {
                 logger.debug("Shader not found: $type - this is normal if there are no errors reported")
                 null
+            } finally {
+                shaders.stale = false
             }
         }
 
