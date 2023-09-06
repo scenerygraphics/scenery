@@ -139,7 +139,7 @@ dependencies {
     testImplementation("net.imagej:ij")
     testImplementation("net.imglib2:imglib2-ij")
 
-    implementation("org.jfree:jfreechart:1.5.0")
+    implementation("org.jfree:jfreechart:1.5.4")
     implementation("net.imagej:imagej-ops:0.45.5")
 }
 
