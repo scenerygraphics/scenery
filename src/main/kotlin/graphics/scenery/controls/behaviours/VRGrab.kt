@@ -184,7 +184,7 @@ open class VRGrab(
                             val name = "VRGrab:${hmd.trackingSystemName}:${device.role}:$button"
                             val grabBehaviour = VRGrab(
                                 name,
-                                controller.children.first(),
+                                controller.children.firstOrNull { it.name == "collider"}?: controller.children.first(),
                                 { scene.discover(scene, { n -> n.getAttributeOrNull(Grabable::class.java) != null }) },
                                 false,
                                 holdToDrag,

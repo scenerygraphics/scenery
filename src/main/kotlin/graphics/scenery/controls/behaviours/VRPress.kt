@@ -121,7 +121,7 @@ open class VRPress(
                                 val name = "VRDPress:${hmd.trackingSystemName}:${device.role}:$button"
                                 val pressBehaviour = VRPress(
                                     name,
-                                    controller.children.first(),
+                                    controller.children.firstOrNull { it.name == "collider"}?: controller.children.first(),
                                     {
                                         scene.discover(
                                             scene,
