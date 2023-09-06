@@ -39,7 +39,7 @@ object VRTouch {
                         val name = "VRDPress:${hmd.trackingSystemName}:${device.role}"
                         val touchBehaviour = Touch(
                             name,
-                            controller.children.first() as HasSpatial,
+                            (controller.children.firstOrNull { it.name == "collider"}?: controller.children.first()) as HasSpatial,
                             { scene.discover(scene, { n -> n.getAttributeOrNull(Touchable::class.java) != null }) },
                             if (vibrate) fun() { (hmd as? OpenVRHMD)?.vibrate(device); onTouch?.invoke() } else onTouch)
                         future.complete(touchBehaviour)
