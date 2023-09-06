@@ -3,6 +3,7 @@ package graphics.scenery
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
+import org.joml.Intersectionf
 import org.joml.Vector3f
 import java.lang.Math.max
 import java.lang.Math.min
@@ -30,6 +31,21 @@ open class OrientedBoundingBox(val n: Node, val min: Vector3f, val max: Vector3f
      */
     constructor(n: Node, boundingBox: FloatArray) : this(n, Vector3f(boundingBox[0], boundingBox[2], boundingBox[4]), Vector3f(boundingBox[1], boundingBox[3], boundingBox[5]))
 
+    val center: Vector3f
+        get() {
+            val worldMin = n.spatialOrNull()!!.worldPosition(min)
+            val worldMax = n.spatialOrNull()!!.worldPosition(max)
+
+            return worldMin + (worldMax - worldMin) * 0.5f
+        }
+
+    val halfSize: Vector3f
+        get() {
+            return (max - min) * 0.5f
+        }
+
+
+
     /**
      * Returns the maximum bounding sphere of this bounding box.
      */
@@ -55,8 +71,24 @@ open class OrientedBoundingBox(val n: Node, val min: Vector3f, val max: Vector3f
      * Checks this [OrientedBoundingBox] for intersection with [other], and returns
      * true if the bounding boxes do intersect.
      */
-    fun intersects(other: OrientedBoundingBox): Boolean {
-        return other.getBoundingSphere().radius + getBoundingSphere().radius > (other.getBoundingSphere().origin - getBoundingSphere().origin).length()
+    @JvmOverloads
+    fun intersects(other: OrientedBoundingBox, fine: Boolean = false): Boolean {
+        return if(fine) {
+            Intersectionf.testObOb(
+                this.center,
+                this.n.spatialOrNull()!!.localX,
+                this.n.spatialOrNull()!!.localY,
+                this.n.spatialOrNull()!!.localZ,
+                this.halfSize,
+                other.center,
+                other.n.spatialOrNull()!!.localX,
+                other.n.spatialOrNull()!!.localY,
+                other.n.spatialOrNull()!!.localZ,
+                other.halfSize
+            )
+        } else {
+            other.getBoundingSphere().radius + getBoundingSphere().radius > (other.getBoundingSphere().origin - getBoundingSphere().origin).length()
+        }
     }
 
     /**

@@ -5,6 +5,8 @@ import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.attribute.material.DefaultMaterial
 import graphics.scenery.attribute.material.Material
+import graphics.scenery.numerics.Random
+import org.joml.AxisAngle4f
 import kotlin.concurrent.thread
 
 /**
@@ -25,10 +27,13 @@ class IntersectionExample: SceneryBase("IntersectionExample") {
             metallic = 1.0f
         }
 
-        val box = Box(Vector3f(1.0f, 1.0f, 1.0f))
+//        val box = Box(Random.random3DVectorFromRange(0.1f, 1.0f))
+        val box = Icosphere(1.0f, 2)
+//        val box = Box()
         box.name = "le box du win"
 
-        val box2 = Box(Vector3f(1.0f, 1.0f, 1.0f))
+//        val box2 = Box()
+        val box2 = Box(Random.random3DVectorFromRange(0.1f, 1.0f))
 
         with(box) {
             box.addAttribute(Material::class.java, boxmaterial)
@@ -50,6 +55,9 @@ class IntersectionExample: SceneryBase("IntersectionExample") {
         light.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
         scene.addChild(light)
 
+        val ambientLight = AmbientLight(0.1f)
+        scene.addChild(ambientLight)
+
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
             spatial {
@@ -61,12 +69,16 @@ class IntersectionExample: SceneryBase("IntersectionExample") {
         }
 
         thread {
+            val aa = AxisAngle4f(0.1f, Random.random3DVectorFromRange(0.2f, 0.8f).normalize())
             while (true) {
-                if (box.spatial().intersects(box2)) {
+                if (box.spatial().intersects(box2, true)) {
                     box.material().diffuse = Vector3f(1.0f, 0.0f, 0.0f)
                 } else {
                     box.material().diffuse = Vector3f(0.0f, 1.0f, 0.0f)
                 }
+
+                aa.angle += 0.01f
+                box2.spatial().rotation = box2.spatial().rotation.rotationAxis(aa)
 
                 Thread.sleep(20)
             }
