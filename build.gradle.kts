@@ -337,6 +337,16 @@ tasks {
                             "org.biojava.thirdparty:forester"
                         )
                     }
+
+                    if(artifactId.startsWith("lwjgl3-awt")) {
+                        node.addExclusions(
+                            "org.lwjgl:lwjgl",
+                            "org.lwjgl:lwjgl-bom",
+                            "org.lwjgl:lwjgl-opengl",
+                            "org.lwjgl:lwjgl-vulkan",
+                            "org.lwjgl:lwjgl-jawt"
+                        )
+                    }
                 }
             }
 
