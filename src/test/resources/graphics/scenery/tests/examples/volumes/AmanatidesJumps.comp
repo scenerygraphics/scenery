@@ -55,15 +55,7 @@ layout (set = 6, binding = 0, r32ui) uniform readonly uimage3D OctreeCells;
 
 ivec2 debug_pixel = ivec2(400, 410);
 
-const vec4 bitEnc = vec4(1.,255.,65025.,16581375.);
-const vec4 bitDec = 1./bitEnc;
-#define DecodeFloatRGBA(v) dot(v,bitDec)
-//float DecodeFloatRGBA (vec4 v) {
-//    return dot(v, bitDec);
-//}
-
 float adjustOpacity(float a, float modifiedStepLength) {
-    //    modifiedStepLength = max(1.0, modifiedStepLength);
     float b = pow((1.0 - a), modifiedStepLength);
     return 1.0 - b;
 }
@@ -87,36 +79,6 @@ vec4 back_orig; // the end point of newRay in the perspective space of the origi
 
 float orig_tnear;
 float orig_tfar;
-//float nw = 0.000116;
-
-float ndc_to_w(vec2 uv, float n_depth){
-    //TODO: possible optimization by converting only the z coordinate to view space and comparing with f and n
-    if(n_depth >= 1.0) {
-        return 1.0;
-    }
-
-    if(n_depth <= -1.0) {
-        return 0.0;
-    }
-
-    vec4 ndc_start = vec4(uv, n_depth, 1.0);
-
-    vec4 w_start = ivp_orig * ndc_start;
-    w_start *= 1.0 / w_start.w;
-
-    float w_depth = distance(w_start, originalRay.wfront) / distance(originalRay.wfront, originalRay.wback);
-
-    return w_depth;
-}
-
-float w_to_ndc(float w_step){
-    vec4 wpos = mix(originalRay.wfront, originalRay.wback, w_step);
-
-    vec4 n_pos = pv_orig * wpos;
-    n_pos *= 1.0 / n_pos.w;
-
-    return n_pos.z;
-}
 
 // intersect ray with a box
 // http://www.siggraph.org/education/materials/HyperGraph/raytrace/rtinter3.htm
@@ -573,9 +535,6 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
     bool dotPositive;
     //TODO: check for dir.z?
     dotPositive = (dir.z>=0) ? true: false;
-
-    float dist_to_orig_w = ndc_to_w(vec2(ndc_x, ndc_y), dist_to_orig_n);
-    float exit_distance_w = ndc_to_w(vec2(ndc_x, ndc_y), exit_distance_n);
 
     float dist_to_orig = dist_to_orig_n;
     float exit_distance = exit_distance_n;
