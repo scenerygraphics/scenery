@@ -73,7 +73,7 @@ class VRTreeSelectionWheel(
                         if (controllerSide.contains(device.role)) {
                             val name = "VRTreeSelectionWheel:${hmd.trackingSystemName}:${device.role}:$button"
                             val vrToolSelector = VRTreeSelectionWheel(
-                                controller.children.first().spatialOrNull()
+                                (controller.children.firstOrNull { it.name == "collider"}?: controller.children.first()).spatialOrNull()
                                     ?: throw IllegalArgumentException("The target controller needs a spatial."),
                                 scene,
                                 hmd,
