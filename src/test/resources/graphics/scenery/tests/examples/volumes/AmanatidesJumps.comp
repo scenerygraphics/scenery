@@ -5,7 +5,6 @@
 #define INT_DEPTHS 0
 #define PROFILE_MEM 0
 #define USE_VIEW_SPACE_CELLS 1
-#define RLE 0
 #extension GL_EXT_debug_printf : disable
 #define RAY_INVERSION_ENABLE 1
 #if USE_PRINTF
@@ -58,10 +57,6 @@ layout(set = 2, binding = 0, rgba32f) uniform readonly image3D InputVDI;
 layout(set = 3, binding = 0, rgba8) uniform image2D OutputViewport;
 layout (set = 4, binding = 0, r32f) uniform readonly image3D DepthVDI;
 layout (set = 6, binding = 0, r32ui) uniform readonly uimage3D OctreeCells;
-
-#if RLE
-layout (set = 7, binding = 0, r32i) uniform iimage2D PrefixSums;
-#endif
 
 #if PROFILE_MEM
 layout(set = 9, binding = 0, r32f) uniform image2D NumIntersectedSupsegs;
@@ -249,50 +244,20 @@ int bufferWidth = 0;
 int bufferHeight = 0;
 int bufferDepth = 0;
 
-#if RLE
-ivec3 supersegmentIndices(ivec2 theList, int index) {
-    int linearized = imageLoad(PrefixSums, theList.yx).x + index;
-
-    int z_ = linearized / (bufferWidth * bufferHeight);
-
-    int remainder = linearized % (bufferWidth * bufferHeight);
-
-    int y_ = remainder / bufferWidth;
-    int x_ = remainder % bufferWidth;
-
-    return ivec3(x_, y_, z_);
-}
-    #endif
-
 float getSupsegFront(ivec2 theList, int index) {
-    #if RLE
-    ivec3 bufferIndices = supersegmentIndices(theList, index);
-    vec4 front = imageLoad(DepthVDI, ivec3(bufferIndices.x * 2, bufferIndices.y, bufferIndices.z));
-    #else
     vec4 front = imageLoad(DepthVDI, ivec3(index*2, theList.y, theList.x));
-    #endif
     totalMemoryLoads++;
     return front.x;
 }
 
 float getSupsegBack(ivec2 theList, int index) {
-    #if RLE
-    ivec3 bufferIndices = supersegmentIndices(theList, index);
-    vec4 back = imageLoad(DepthVDI, ivec3(bufferIndices.x * 2 + 1, bufferIndices.y, bufferIndices.z));
-    #else
     vec4 back = imageLoad(DepthVDI, ivec3(index*2 + 1, theList.y, theList.x));
-    #endif
     totalMemoryLoads++;
     return back.x;
 }
 
 vec4 getSupsegColor(ivec2 theList, int index) {
-    #if RLE
-    ivec3 bufferIndices = supersegmentIndices(theList, index);
-    return imageLoad(InputVDI, bufferIndices).rgba;
-    #else
     return imageLoad(InputVDI, ivec3(index, theList.y, theList.x)).rgba;
-    #endif
 }
 
 float getPrecedingDepth(ivec2 theList, int index) {
@@ -513,11 +478,7 @@ void findFirstSupseg_opt_seeded(ivec2 theList, float dist_to_orig, float exit_di
     int bin_search_end = -1;
     int bin_search_start = -1;
     bool condition;
-    #if RLE
-    condition = prevIndex < 0 || prevIndex > (maxSupersegments - 1);
-    #else
     condition = prevIndex < 0;
-    #endif
     if(condition){
         bin_search_end = maxSupersegments - 1;
         bin_search_start = 0;
@@ -603,25 +564,6 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
 
     bool first_empty = false;
 
-    #if RLE
-    if(theList.x >= vdiWidth || theList.y >= vdiHeight) {
-        //this is an invalid list
-        maxSupersegments = 0;
-    } else if(theList.y < (vdiHeight - 1)) {
-        //this is not a corner list
-        maxSupersegments = imageLoad(PrefixSums, ivec2(theList.y + 1, theList.x)).x - imageLoad(PrefixSums, ivec2(theList.yx)).x;
-    } else if(theList.y == (vdiHeight - 1) && theList.x == (vdiWidth - 1)) {
-        //this is the final list, ie corner and last
-        maxSupersegments = totalGeneratedSupsegs - imageLoad(PrefixSums, ivec2(theList.yx)).x;
-    } else {
-        //this is a corner list but not the last
-        maxSupersegments = imageLoad(PrefixSums, ivec2(0, theList.x+1)).x - imageLoad(PrefixSums, ivec2(theList.yx)).x;
-    }
-
-    if(maxSupersegments == 0) {
-        first_empty = true;
-    }
-        #else
     vec4 check = imageLoad(DepthVDI, ivec3(1, theList.y, theList.x));
     totalMemoryLoads++;
     /*if(gl_GlobalInvocationID.xy == debug_pixel) {
@@ -631,7 +573,6 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
     if(firstBack == 0) {
         first_empty = true;
     }
-        #endif
 
     if(first_empty) {
         //the first supersegment is empty, so empty list
@@ -1074,26 +1015,22 @@ ivec3 findGridCell(vec4 position) {
 }
 
 void main() {
+
     ivec2 imageCoords  = imageSize(OutputViewport);
+
     if(skip_empty) {
         num_cells = imageSize(OctreeCells).xyz;
     } else {
         num_cells = ivec3(1);
     }
+
     windowWidth = imageCoords.x;
     windowHeight = imageCoords.y;
     windowWidth = int(downImage * windowWidth);
     windowHeight = int(downImage * windowHeight);
 
-    #if RLE
-    ivec3 bufferCoords  = imageSize(InputVDI);
-    bufferWidth = bufferCoords.x;
-    bufferHeight = bufferCoords.y;
-    bufferDepth = bufferCoords.z;
-    #else
     ivec3 vdiCoords = imageSize(InputVDI);
     maxSupersegments = vdiCoords.x;
-    #endif
 
     mat4 view;
 
@@ -1614,7 +1551,7 @@ void main() {
         calculatedMaxSteps = int(length_in_non_empty * sampling_factor);
     }
 
-    finalColor.xyz = pow(finalColor.xyz, vec3(1/2.2));
+//    finalColor.xyz = pow(finalColor.xyz, vec3(1/2.2));
 
     if(totalIntersectedSupsegs == 0) {
         totalBeforeFirst = totalMemoryLoads;
