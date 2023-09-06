@@ -51,6 +51,28 @@ open class DefaultSpatial(@Transient protected var node: Node = DefaultNode()) :
             propertyChanged(::position, field, value)
             field = value
         }
+
+    /** Local X vector */
+    override val localX: Vector3f
+        get() {
+            val v = Vector3f(1.0f, 0.0f, 0.0f)
+            return world.transformDirection(v).normalize()
+        }
+
+    /** Local Y vector */
+    override val localY: Vector3f
+        get() {
+            val v = Vector3f(0.0f, 1.0f, 0.0f)
+            return world.transformDirection(v).normalize()
+        }
+
+    /** Local Z vector */
+    override val localZ: Vector3f
+        get() {
+            val v = Vector3f(0.0f, 0.0f, 1.0f)
+            return world.transformDirection(v).normalize()
+        }
+
     override var wantsComposeModel = true
     @Transient override var needsUpdate = true
     @Transient override var needsUpdateWorld = true
@@ -199,10 +221,10 @@ open class DefaultSpatial(@Transient protected var node: Node = DefaultNode()) :
     }
 
 
-    override fun intersects(other: Node): Boolean {
+    override fun intersects(other: Node, fine: Boolean): Boolean {
         node.boundingBox?.let { ownOBB ->
             other.boundingBox?.let { otherOBB ->
-                return ownOBB.intersects(otherOBB)
+                return ownOBB.intersects(otherOBB, fine)
             }
         }
 
