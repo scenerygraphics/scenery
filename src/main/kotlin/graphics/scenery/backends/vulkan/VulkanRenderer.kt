@@ -1702,6 +1702,11 @@ open class VulkanRenderer(hub: Hub,
             }
         }
 
+        if(renderpasses.any { it.value.shaders.stale }) {
+            logger.info("Rebuilding swapchain due to stale shaders")
+            swapchainRecreator.mustRecreate = true
+        }
+
         profiler?.begin("Renderer.BeginFrame")
         val presentedFrames = swapchain.presentedFrames()
         // return if neither UBOs were updated, nor the scene was modified
@@ -1742,6 +1747,7 @@ open class VulkanRenderer(hub: Hub,
                 RenderConfigReader.RenderpassType.quad -> VulkanPostprocessPass.record(target, commandBuffer, commandPools, sceneUBOs, descriptorSets)
                 RenderConfigReader.RenderpassType.compute -> VulkanComputePass.record(target, commandBuffer, commandPools, sceneUBOs, descriptorSets)
             }
+
 
             stats?.add("VulkanRenderer.$t.recordCmdBuffer", System.nanoTime() - start)
 
@@ -2221,8 +2227,11 @@ open class VulkanRenderer(hub: Hub,
         settings.getAllSettings().forEach {
             if (it.lowercase().contains("debug")) {
                 try {
-                    val property = settings.get<Int>(it).toggle()
-                    settings.set(it, property)
+                    val property = settings.get<Int>(it)
+                    val range = settings.get<Int>(it + "Range", 9)
+                    val new = (property+1) % range
+                    settings.set(it, new)
+                    logger.info("$it: $property -> $new")
 
                 } catch(e: Exception) {
                     logger.warn("$it is a property that is not togglable.")
