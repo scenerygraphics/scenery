@@ -27,22 +27,21 @@ class IntersectionExample: SceneryBase("IntersectionExample") {
             metallic = 1.0f
         }
 
-//        val box = Box(Random.random3DVectorFromRange(0.1f, 1.0f))
-        val box = Icosphere(1.0f, 2)
-//        val box = Box()
-        box.name = "le box du win"
+        val sphere = Icosphere(0.5f, 2)
+        sphere.name = "le box du win"
 
-//        val box2 = Box()
         val box2 = Box(Random.random3DVectorFromRange(0.1f, 1.0f))
 
-        with(box) {
-            box.addAttribute(Material::class.java, boxmaterial)
+        with(sphere) {
+            sphere.addAttribute(Material::class.java, boxmaterial)
             scene.addChild(this)
         }
 
         with(box2) {
             spatial {
-                position = Vector3f(-1.5f, 0.0f, 0.0f)
+                // shift box2 such that it'll always slightly intersect the sphere
+                val shift = -1.0f * (box2.boundingBox?.getBoundingSphere()?.radius ?: 0.5f) * 0.9f
+                position = Vector3f(shift, 0.0f, 0.0f)
             }
             box2.addAttribute(Material::class.java,  boxmaterial)
             scene.addChild(this)
@@ -71,10 +70,10 @@ class IntersectionExample: SceneryBase("IntersectionExample") {
         thread {
             val aa = AxisAngle4f(0.1f, Random.random3DVectorFromRange(0.2f, 0.8f).normalize())
             while (true) {
-                if (box.spatial().intersects(box2, true)) {
-                    box.material().diffuse = Vector3f(1.0f, 0.0f, 0.0f)
+                if (sphere.spatial().intersects(box2, true)) {
+                    sphere.material().diffuse = Vector3f(1.0f, 0.0f, 0.0f)
                 } else {
-                    box.material().diffuse = Vector3f(0.0f, 1.0f, 0.0f)
+                    sphere.material().diffuse = Vector3f(0.0f, 1.0f, 0.0f)
                 }
 
                 aa.angle += 0.01f
