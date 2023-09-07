@@ -48,6 +48,9 @@ class AtmosphereExample : SceneryBase("Atmosphere Example",
         }
         scene.addChild((ball))
 
+        val ambientLight = AmbientLight(0.1f)
+        scene.addChild(ambientLight)
+
         //val sunlight = DirectionalLight(Vector3f(0f, 0.5f, -1f))
         //sunlight.intensity = 2f
         //scene.addChild(sunlight)
@@ -66,6 +69,7 @@ class AtmosphereExample : SceneryBase("Atmosphere Example",
             light
         }
 
+        atmos.attachBehaviors(inputHandler, scene)
         scene.addChild(atmos)
 
         val cam: Camera = if (useVR) {DetachedHeadCamera(hmd)} else {DetachedHeadCamera()}
@@ -83,29 +87,21 @@ class AtmosphereExample : SceneryBase("Atmosphere Example",
 
         setupCameraModeSwitching()
 
-        val moveSun: (Scene.RaycastResult, Int, Int) -> Unit = { result, x, y ->
-            result.initialDirection .let {
-                atmos.sunPos = it.normalize()
-            }
-        }
-
-        renderer?.let { r ->
-            inputHandler?.addBehaviour(
-                "clickSun", SelectCommand(
-                    "clickSun", r, scene,
-                    { scene.findObserver() }, action = moveSun, debugRaycast = false
-                )
-            )
-            inputHandler?.addKeyBinding("clickSun", "double-click button1")
-        }
-
-
-        inputHandler?.addBehaviour(
-            "dragSun", MouseDragSphere(
-                "dragSun",
-                { scene.findObserver() }, debugRaycast = false, rotateAroundCenter = true,
-                filter = { node -> node.name == "sunProxy" }))
-        inputHandler?.addKeyBinding("dragSun", "ctrl button1")
+        //val moveSun: (Scene.RaycastResult, Int, Int) -> Unit = { result, x, y ->
+        //    result.initialDirection .let {
+        //        atmos.sunPos = it.normalize()
+        //    }
+        //}
+//
+        //renderer?.let { r ->
+        //    inputHandler?.addBehaviour(
+        //        "clickSun", SelectCommand(
+        //            "clickSun", r, scene,
+        //            { scene.findObserver() }, action = moveSun, debugRaycast = false
+        //        )
+        //    )
+        //    inputHandler?.addKeyBinding("clickSun", "double-click button1")
+        //}
 
     }
 

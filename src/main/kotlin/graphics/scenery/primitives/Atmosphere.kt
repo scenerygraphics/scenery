@@ -2,6 +2,8 @@ package graphics.scenery.primitives
 
 import graphics.scenery.*
 import graphics.scenery.attribute.material.Material
+import graphics.scenery.controls.InputHandler
+import graphics.scenery.controls.behaviours.MouseDragSphere
 import graphics.scenery.utils.extensions.times
 import org.joml.Vector3f
 import java.lang.Math.toRadians
@@ -16,13 +18,13 @@ import kotlin.math.sin
  * @param initSunPos [Vector3f] of the sun position. Defaults to sun elevation of the current local time.
  * @param radius Radius of the icosphere. Default is `100f`.
  */
-open class Atmosphere(initSunPos: Vector3f = Vector3f(0f, 0f, 0f), radius : Float = 100f) :
+open class Atmosphere(initSunPos: Vector3f? = null, radius : Float = 1f) :
     Icosphere(radius, 2, insideNormals = true) {
 
     @ShaderProperty
     var sunPos: Vector3f
 
-    val sunProxy = Icosphere(0.05f * radius, 2)
+    val sunProxy = Icosphere(0.1f * radius, 2)
 
     //val sunLight = DirectionalLight(sunPos)
 
@@ -31,16 +33,13 @@ open class Atmosphere(initSunPos: Vector3f = Vector3f(0f, 0f, 0f), radius : Floa
         setMaterial(ShaderMaterial.fromClass(this::class.java))
         material {
             cullingMode = Material.CullingMode.Front
-            emissiveStrength = 1f
+            emissiveStrength = 0.2f
+            depthTest = Material.DepthTest.LessEqual
         }
 
         // Only use time-based elevation when the formal parameter is empty
-        if (initSunPos.length() == 0f) {
-            // Override by passing LocalDateTime.of($year, $month, $day, $hour, $minute)
-            sunPos = getSunPosFromTime()
-        } else {
-            sunPos = initSunPos
-        }
+        sunPos = initSunPos ?: // Override by passing LocalDateTime.of($year, $month, $day, $hour, $minute)
+            getSunPosFromTime()
 
 
 
@@ -53,6 +52,7 @@ open class Atmosphere(initSunPos: Vector3f = Vector3f(0f, 0f, 0f), radius : Floa
 
         sunProxy.name = "sunProxy"
         sunProxy.spatial().position = sunPos.normalize(Vector3f()) * (radius)
+        sunProxy.material().cullingMode = Material.CullingMode.FrontAndBack
         addChild(sunProxy)
 
         //sunLight.emissionColor = Vector3f(1f, 0.9f, 0.7f)
@@ -89,4 +89,19 @@ open class Atmosphere(initSunPos: Vector3f = Vector3f(0f, 0f, 0f), radius : Floa
         return Vector3f(0.0f, sin(sunElevation).toFloat(), -1.0f).normalize()
     }
 
+    /** Add sun dragging behavior to the inputhandler of the passed scene.*/
+    fun attachBehaviors(inputHandler: InputHandler?, scene: Scene) {
+        inputHandler?.addBehaviour(
+            "dragSun", MouseDragSphere(
+                "dragSun",
+                { scene.findObserver() }, debugRaycast = false, rotateAroundCenter = true,
+                filter = { node -> node.name == "sunProxy" })
+        )
+        inputHandler?.addKeyBinding("dragSun", "ctrl button1")
+
+    }
+
 }
+
+//TODO coroutine to update suntimepos
+//TODO sunProxy vertex shader to disregard movement

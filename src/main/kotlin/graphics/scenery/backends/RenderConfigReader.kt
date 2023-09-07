@@ -93,7 +93,7 @@ class RenderConfigReader {
      */
     data class RendertargetConfig(
         @JsonDeserialize(using = JsonDeserialisers.FloatPairDeserializer::class) var size: Pair<Float, Float> = Pair(1.0f, 1.0f),
-        val attachments: Map<String, TargetFormat> = emptyMap()
+        val attachments: LinkedHashMap<String, TargetFormat> = LinkedHashMap()
     )
 
     data class RendertargetBinding(
