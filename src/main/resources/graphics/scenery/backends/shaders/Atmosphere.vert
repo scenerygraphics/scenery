@@ -44,17 +44,18 @@ void main()
     mat4 nMVP;
     mat4 projectionMatrix;
 
-    mv = (vrParameters.stereoEnabled ^ 1) * ViewMatrices[0] * ubo.ModelMatrix + (vrParameters.stereoEnabled * ViewMatrices[currentEye.eye] * ubo.ModelMatrix);
+    mv = (vrParameters.stereoEnabled ^ 1) * ViewMatrices[0] + (vrParameters.stereoEnabled * ViewMatrices[currentEye.eye]);
     projectionMatrix = (vrParameters.stereoEnabled ^ 1) * ProjectionMatrix + vrParameters.stereoEnabled * vrParameters.projectionMatrices[currentEye.eye];
 
     nMVP = projectionMatrix*mv;
+    nMVP[3] = vec4(0.0f, 0.0f, 0.0f, 1.0f);
 
     Vertex.FragPosition = vec3(ubo.ModelMatrix * vec4(vertexPosition, 1.0));
     Vertex.Normal = mat3(ubo.NormalMatrix) * normalize(vertexNormal);
     Vertex.TexCoord = vertexTexCoord;
 
     gl_PointSize = 1.0;
-    gl_Position = nMVP * vec4(vertexPosition, 1.0);
+    vec4 ndc = nMVP * vec4(vertexPosition, 1.0);
+    gl_Position = ndc.xyww;
 }
-
 
