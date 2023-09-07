@@ -221,10 +221,17 @@ open class DefaultSpatial(@Transient protected var node: Node = DefaultNode()) :
     }
 
 
-    override fun intersects(other: Node, fine: Boolean): Boolean {
+    /**
+     * Checks whether this node's bounding box intersects the one of [other] using a simple bounding sphere test.
+     * If [precise] is true, the intersection test will be performed using oriented bounding boxes (OBBs),
+     * otherwise, a faster, but less precise bounding sphere test is performed.
+     *
+     * If any of the nodes to test do not have a bounding box defined, the result will be false.
+     */
+    override fun intersects(other: Node, precise: Boolean): Boolean {
         node.boundingBox?.let { ownOBB ->
             other.boundingBox?.let { otherOBB ->
-                return ownOBB.intersects(otherOBB, fine)
+                return ownOBB.intersects(otherOBB, precise)
             }
         }
 
