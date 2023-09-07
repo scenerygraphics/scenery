@@ -9,7 +9,7 @@ layout(location = 0) in VertexData {
 
 layout(location = 0) out vec4 NormalsMaterial;
 layout(location = 1) out vec4 DiffuseAlbedo;
-layout(location = 3) out vec4 Emission;
+layout(location = 2) out vec4 Emission;
 
 const float PI = 3.14159265358979323846264;
 const int NUM_OBJECT_TEXTURES = 6;

@@ -13,8 +13,8 @@ layout(location = 0) out vec4 FragColor;
 
 layout(set = 3, binding = 0) uniform sampler2D InputNormalsMaterial;
 layout(set = 3, binding = 1) uniform sampler2D InputDiffuseAlbedo;
-layout(set = 3, binding = 2) uniform sampler2D InputZBuffer;
-layout(set = 3, binding = 3) uniform sampler2D InputEmission;
+layout(set = 3, binding = 3) uniform sampler2D InputZBuffer;
+layout(set = 3, binding = 2) uniform sampler2D InputEmission;
 layout(set = 4, binding = 0) uniform sampler2D InputOcclusion;
 
 struct Light {
@@ -631,7 +631,7 @@ void main()
         //    lighting = ;
         //}
         //else {
-            lighting = (diffuse + specular) * lightAttenuation;// + Emissive.rgb * Emissive.a;
+            lighting = (diffuse + specular) * lightAttenuation + Emissive.rgb * Emissive.a;
         }
     //}
 
