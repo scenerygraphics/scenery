@@ -20,6 +20,7 @@ class Helix (private val axis: MathLine, val spline: Spline, baseShapes: () -> L
     private val shapes = baseShapes.invoke()
     private val axisVector = axis.direction
     private val axisPoint = axis.position
+    private val geometryCalculator = CurveGeometryCalculation
 
 
     init {
@@ -106,7 +107,7 @@ class Helix (private val axis: MathLine, val spline: Spline, baseShapes: () -> L
 
     private fun calcMesh(section: List<List<Vector3f>>, cover: CurveCover): Mesh {
         //algorithms from the curve calculation
-        val helixSectionVertices = CurveGeometryCalculation.calculateTriangles(section, cover)
+        val helixSectionVertices = geometryCalculator.calculateTriangles(section, cover)
         return PartialCurve(helixSectionVertices.first, helixSectionVertices.second)
     }
 }

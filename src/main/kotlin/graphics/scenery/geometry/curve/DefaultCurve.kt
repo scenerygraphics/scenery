@@ -25,10 +25,12 @@ class DefaultCurve(override val spline: Spline,
 
     override val frenetFrames: () -> List<FrenetFrame> =
         { FrenetFrameCalculator.computeFrenetFrames(spline, firstPerpendicularVector3f) }
+    private val geometryCalculator = CurveGeometryCalculation
     init {
         val pointsPerSection = spline.pointsPerSection()
         val transformedBaseShapes = transformedBaseShapes(baseShapes.invoke(), frenetFrames.invoke())
         val subShapes = transformedBaseShapes.windowed(pointsPerSection + 1, pointsPerSection + 1, true)
+
         subShapes.forEachIndexed { index, list ->
             //fill gaps
             val arrayList = list as ArrayList
@@ -48,7 +50,7 @@ class DefaultCurve(override val spline: Spline,
                     CurveCover.None
                 }
             }
-            val trianglesAndNormals = CurveGeometryCalculation.calculateTriangles(arrayList, cover = cover)
+            val trianglesAndNormals = geometryCalculator.calculateTriangles(arrayList, cover = cover)
             val partialCurve = PartialCurve(trianglesAndNormals.first, trianglesAndNormals.second)
             this.addChild(partialCurve)
         }
