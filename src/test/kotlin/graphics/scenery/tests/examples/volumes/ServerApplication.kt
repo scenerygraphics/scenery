@@ -94,9 +94,9 @@ class ServerApplication : SceneryBase("Volume Server Example", 512, 512) {
 
                         if (firstVDI) {
                             val volumeDimensions3i = Vector3f(volume.getDimensions().x.toFloat(), volume.getDimensions().y.toFloat(), volume.getDimensions().z.toFloat())
-                            val model = volume.spatial().world
+
                             //TODO: confirming that vdiVolumeManager is the vm attached to hub
-                            vdiStreamer.streamVDI("tcp://0.0.0.0:6655", cam, volumeDimensions3i, model, maxSupersegments, vdiVolumeManager, renderer!!)
+                            vdiStreamer.streamVDI("tcp://0.0.0.0:6655", cam, volumeDimensions3i, volume, maxSupersegments, vdiVolumeManager, renderer!!)
                             firstVDI = false
                         }
 

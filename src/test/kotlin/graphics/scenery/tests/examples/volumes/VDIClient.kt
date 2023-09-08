@@ -6,7 +6,6 @@ import graphics.scenery.backends.Renderer
 import graphics.scenery.backends.Shaders
 import graphics.scenery.compute.ComputeMetadata
 import graphics.scenery.compute.InvocationType
-import graphics.scenery.controls.TrackedStereoGlasses
 import graphics.scenery.textures.Texture
 import graphics.scenery.textures.UpdatableTexture
 import graphics.scenery.utils.DataCompressor
@@ -33,7 +32,7 @@ import kotlin.system.measureNanoTime
 class VDIClient : SceneryBase("VDI Client", 512, 512, wantREPL = false) {
 
     val cam: Camera = DetachedHeadCamera()
-    val compute = VDINode()
+    val vdiNode = VDINode()
     val plane = FullscreenObject()
     val context = ZContext(4)
 
@@ -70,38 +69,63 @@ class VDIClient : SceneryBase("VDI Client", 512, 512, wantREPL = false) {
         cam.farPlaneDistance = 20.0f
         val opBuffer = MemoryUtil.memCalloc(windowWidth * windowHeight * 4)
 
-        //Step 2: Create vdi node and it's propertie
-        compute.name = "vdi node"
-        compute.setMaterial(ShaderMaterial(Shaders.ShadersFromFiles(arrayOf("VDIRenderer.comp"), this@VDIClient::class.java)))
-        compute.material().textures["OutputViewport"] = Texture.fromImage(Image(opBuffer, windowWidth, windowHeight),
+        //Step 2: Create vdi node and its properties
+        vdiNode.name = "vdi node"
+        vdiNode.setMaterial(ShaderMaterial(Shaders.ShadersFromFiles(arrayOf("AmanatidesJumps.comp"), this@VDIClient::class.java)))
+        vdiNode.material().textures["OutputViewport"] = Texture.fromImage(Image(opBuffer, windowWidth, windowHeight),
             usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
-        compute.metadata["ComputeMetadata"] = ComputeMetadata(
+        vdiNode.metadata["ComputeMetadata"] = ComputeMetadata(
             workSizes = Vector3i(windowWidth, windowHeight, 1),
             invocationType = InvocationType.Permanent
         )
-        compute.visible = true
-        scene.addChild(compute)
+        vdiNode.visible = true
+        scene.addChild(vdiNode)
+
+        //Attaching empty textures as placeholders for VDIs before actual VDIs arrive so that rendering can begin
+        val emptyColor = MemoryUtil.memCalloc(4 * 4)
+        val emptyColorTexture = Texture(Vector3i(1, 1, 1), 4, contents = emptyColor, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
+            type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+
+        val emptyDepth = MemoryUtil.memCalloc(1 * 4)
+        val emptyDepthTexture = Texture(Vector3i(1, 1, 1), 1, contents = emptyDepth, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
+            type = FloatType(), mipmap = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+
+        val emptyAccel = MemoryUtil.memCalloc(4)
+        val emptyAccelTexture = Texture(
+            Vector3i(1, 1, 1), 1, contents = emptyAccel, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
+            type = UnsignedIntType(), mipmap = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour
+        )
+
+        vdiNode.material().textures["InputVDI"] = emptyColorTexture
+        vdiNode.material().textures["InputVDI2"] = emptyColorTexture
+        vdiNode.material().textures["DepthVDI"] = emptyDepthTexture
+        vdiNode.material().textures["DepthVDI2"] = emptyDepthTexture
+        vdiNode.material().textures["OctreeCells"] = emptyAccelTexture
+        vdiNode.material().textures["OctreeCells2"] = emptyAccelTexture
+
+        vdiNode.skip_empty = false
+        vdiNode.visible = true
 
         //Step3: set plane properties
         scene.addChild(plane)
-        plane.material().textures["diffuse"] = compute.material().textures["OutputViewport"]!!
+        plane.material().textures["diffuse"] = vdiNode.material().textures["OutputViewport"]!!
 
         //Step 4: call receive and update VDI
         thread {
-            receiveAndUpdateVDI(compute)
+            receiveAndUpdateVDI(vdiNode)
         }
     }
 
     fun updateTextures(color: ByteBuffer, depth: ByteBuffer, accelGridBuffer: ByteBuffer, vdiData: VDIData, firstVDI: Boolean) {
 
-        compute.ProjectionOriginal = Matrix4f(vdiData.metadata.projection).applyVulkanCoordinateSystem()
-        compute.invProjectionOriginal = Matrix4f(vdiData.metadata.projection).applyVulkanCoordinateSystem().invert()
-        compute.nw = vdiData.metadata.nw
-        compute.invModel = Matrix4f(vdiData.metadata.model).invert()
-        compute.volumeDims = vdiData.metadata.volumeDimensions
-        compute.do_subsample = false
-        compute.vdiWidth = vdiData.metadata.windowDimensions.x
-        compute.vdiHeight = vdiData.metadata.windowDimensions.y
+        vdiNode.ProjectionOriginal = Matrix4f(vdiData.metadata.projection).applyVulkanCoordinateSystem()
+        vdiNode.invProjectionOriginal = Matrix4f(vdiData.metadata.projection).applyVulkanCoordinateSystem().invert()
+        vdiNode.nw = vdiData.metadata.nw
+        vdiNode.invModel = Matrix4f(vdiData.metadata.model).invert()
+        vdiNode.volumeDims = vdiData.metadata.volumeDimensions
+        vdiNode.do_subsample = false
+        vdiNode.vdiWidth = vdiData.metadata.windowDimensions.x
+        vdiNode.vdiHeight = vdiData.metadata.windowDimensions.y
 
         val colorTexture = UpdatableTexture(Vector3i(numSupersegments, windowHeight, windowWidth), 4, contents = null, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture, Texture.UsageType.AsyncLoad),
             type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
@@ -133,22 +157,22 @@ class VDIClient : SceneryBase("VDI Client", 512, 512, wantREPL = false) {
         )
         accelTexture.addUpdate(accelUpdate)
 
-        if (firstVDI || compute.useSecondBuffer) { //if this is the first VDI or the second buffer was being used so far
-            compute.ViewOriginal = vdiData.metadata.view
-            compute.invViewOriginal = Matrix4f(vdiData.metadata.view).invert()
+        if (firstVDI || vdiNode.useSecondBuffer) { //if this is the first VDI or the second buffer was being used so far
+            vdiNode.ViewOriginal = vdiData.metadata.view
+            vdiNode.invViewOriginal = Matrix4f(vdiData.metadata.view).invert()
 
-            compute.material().textures["InputVDI"] = colorTexture
-            compute.material().textures["DepthVDI"] = depthTexture
-            compute.material().textures["OctreeCells"] = accelTexture
+            vdiNode.material().textures["InputVDI"] = colorTexture
+            vdiNode.material().textures["DepthVDI"] = depthTexture
+            vdiNode.material().textures["OctreeCells"] = accelTexture
 
             logger.info("Uploading data for buffer 1")
         } else {
-            compute.ViewOriginal2 = vdiData.metadata.view
-            compute.invViewOriginal2 = Matrix4f(vdiData.metadata.view).invert()
+            vdiNode.ViewOriginal2 = vdiData.metadata.view
+            vdiNode.invViewOriginal2 = Matrix4f(vdiData.metadata.view).invert()
 
-            compute.material().textures["InputVDI2"] = colorTexture
-            compute.material().textures["DepthVDI2"] = depthTexture
-            compute.material().textures["OctreeCells2"] = accelTexture
+            vdiNode.material().textures["InputVDI2"] = colorTexture
+            vdiNode.material().textures["DepthVDI2"] = depthTexture
+            vdiNode.material().textures["OctreeCells2"] = accelTexture
 
             logger.info("Uploading data for buffer 2")
         }
@@ -162,17 +186,17 @@ class VDIClient : SceneryBase("VDI Client", 512, 512, wantREPL = false) {
         newVDI = true
 
         if (!firstVDI) {
-            compute.useSecondBuffer = !compute.useSecondBuffer
+            vdiNode.useSecondBuffer = !vdiNode.useSecondBuffer
         }
     }
 
-    private fun receiveAndUpdateVDI(compute: VDINode) {
+    private fun receiveAndUpdateVDI(vdiNode: VDINode) {
 
         while (!renderer!!.firstImageReady) {
             Thread.sleep(100)
         }
-        var subscriber: ZMQ.Socket = context.createSocket(SocketType.SUB)
-        subscriber.setConflate(true)
+        val subscriber: ZMQ.Socket = context.createSocket(SocketType.SUB)
+        subscriber.isConflate = true
         val address = "tcp://localhost:6655"
         try {
             subscriber.connect(address)
@@ -181,7 +205,46 @@ class VDIClient : SceneryBase("VDI Client", 512, 512, wantREPL = false) {
         }
         subscriber.subscribe(ZMQ.SUBSCRIPTION_ALL)
 
-        var vdiData = VDIData()
+        //upload one texture to buffer 2
+        val numGridCells = Vector3f(windowWidth.toFloat() / 8f, windowHeight.toFloat() / 8f, numSupersegments.toFloat())
+
+        val initColor = MemoryUtil.memAlloc(numSupersegments * windowHeight * windowWidth * 4 * 4)
+        val initDepth = MemoryUtil.memAlloc(2 * numSupersegments * windowHeight * windowWidth * 4)
+        val initAccel = MemoryUtil.memAlloc(numGridCells.x.toInt() * numGridCells.y.toInt() * numGridCells.z.toInt() * 4)
+
+        val initialColorTexture = UpdatableTexture(Vector3i(numSupersegments, windowHeight, windowWidth), 4, contents = null, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture, Texture.UsageType.AsyncLoad),
+            type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+        val initialcolorUpdate = UpdatableTexture.TextureUpdate(
+            UpdatableTexture.TextureExtents(0, 0, 0, numSupersegments, windowHeight, windowWidth),
+            initColor
+        )
+        initialColorTexture.addUpdate(initialcolorUpdate)
+
+        val initialDepthTexture = UpdatableTexture(Vector3i(2*numSupersegments, windowHeight, windowWidth),  channels = 1, contents = null, usageType = hashSetOf(
+            Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture, Texture.UsageType.AsyncLoad), type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+        val initialDepthUpdate = UpdatableTexture.TextureUpdate(
+            UpdatableTexture.TextureExtents(0, 0, 0, 2 * numSupersegments, windowHeight, windowWidth),
+            initDepth
+        )
+        initialDepthTexture.addUpdate(initialDepthUpdate)
+
+        val initialAccelTexture = UpdatableTexture(Vector3i(numGridCells.x.toInt(), numGridCells.y.toInt(), numGridCells.z.toInt()),  channels = 1, contents = null, usageType = hashSetOf(
+            Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture, Texture.UsageType.AsyncLoad), type = UnsignedIntType(), mipmap = false, normalized = true, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+        val initalAccelUpdate = UpdatableTexture.TextureUpdate(
+            UpdatableTexture.TextureExtents(0, 0, 0, windowWidth / 8, windowHeight / 8, numSupersegments),
+            initAccel
+        )
+        initialAccelTexture.addUpdate(initalAccelUpdate)
+
+        vdiNode.material().textures["InputVDI2"] = initialColorTexture
+        vdiNode.material().textures["DepthVDI2"] = initialDepthTexture
+        vdiNode.material().textures["OctreeCells2"] = initialAccelTexture
+
+        while(!initialColorTexture.availableOnGPU() || !initialDepthTexture.availableOnGPU() ||     !initialAccelTexture.availableOnGPU()) {
+            logger.debug("Waiting for texture transfer.")
+            Thread.sleep(10)
+        }
+        logger.info("done with initial textures")
 
         val compressor = DataCompressor()
         val compressionTool = DataCompressor.CompressionTool.LZ4
@@ -202,70 +265,7 @@ class VDIClient : SceneryBase("VDI Client", 512, 512, wantREPL = false) {
         val accelGridBuffer =
             MemoryUtil.memAlloc(accelSize)
 
-        val emptyColor = MemoryUtil.memCalloc(4 * 4)
-        val emptyColorTexture = Texture(Vector3i(1, 1, 1), 4, contents = emptyColor, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
-            type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
-
-        val emptyDepth = MemoryUtil.memCalloc(1 * 4)
-        val emptyDepthTexture = Texture(Vector3i(1, 1, 1), 1, contents = emptyDepth, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
-            type = FloatType(), mipmap = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
-
-        val emptyAccel = MemoryUtil.memCalloc(4)
-        val emptyAccelTexture = Texture(
-            Vector3i(1, 1, 1), 1, contents = emptyAccel, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
-            type = UnsignedIntType(), mipmap = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour
-        )
-
-        compute.material().textures["InputVDI"] = emptyColorTexture
-        compute.material().textures["InputVDI2"] = emptyColorTexture
-        compute.material().textures["DepthVDI"] = emptyDepthTexture
-        compute.material().textures["DepthVDI2"] = emptyDepthTexture
-        compute.material().textures["OctreeCells"] = emptyAccelTexture
-        compute.material().textures["OctreeCells2"] = emptyAccelTexture
-
-        compute.visible = true
-
-        //upload one texture to buffer 2
-        val numGridCells = Vector3f(windowWidth.toFloat() / 8f, windowHeight.toFloat() / 8f, numSupersegments.toFloat())
-
-        val initColor = MemoryUtil.memAlloc(numSupersegments * windowHeight * windowWidth * 4 * 4)
-        val initDepth = MemoryUtil.memAlloc(2 * numSupersegments * windowHeight * windowWidth * 4)
-        val initAccel = MemoryUtil.memAlloc(numGridCells.x.toInt() * numGridCells.y.toInt() * numGridCells.z.toInt() * 4)
-
-        val initialColorTexture = UpdatableTexture(Vector3i(numSupersegments, windowHeight, windowWidth), 4, contents = null, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture, Texture.UsageType.AsyncLoad),
-            type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
-        val initialcolorUpdate = UpdatableTexture.TextureUpdate(
-            UpdatableTexture.TextureExtents(0, 0, 0, numSupersegments, windowHeight, windowWidth),
-            initColor
-        )
-        initialColorTexture.addUpdate(initialcolorUpdate)
-
-
-        val initialDepthTexture = UpdatableTexture(Vector3i(2*numSupersegments, windowHeight, windowWidth),  channels = 1, contents = null, usageType = hashSetOf(
-            Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture, Texture.UsageType.AsyncLoad), type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
-        val initialDepthUpdate = UpdatableTexture.TextureUpdate(
-            UpdatableTexture.TextureExtents(0, 0, 0, 2 * numSupersegments, windowHeight, windowWidth),
-            initDepth
-        )
-        initialDepthTexture.addUpdate(initialDepthUpdate)
-
-        val initialAccelTexture = UpdatableTexture(Vector3i(numGridCells.x.toInt(), numGridCells.y.toInt(), numGridCells.z.toInt()),  channels = 1, contents = null, usageType = hashSetOf(
-            Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture, Texture.UsageType.AsyncLoad), type = UnsignedIntType(), mipmap = false, normalized = true, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
-        val initalAccelUpdate = UpdatableTexture.TextureUpdate(
-            UpdatableTexture.TextureExtents(0, 0, 0, windowWidth / 8, windowHeight / 8, numSupersegments),
-            initAccel
-        )
-        initialAccelTexture.addUpdate(initalAccelUpdate)
-
-        compute.material().textures["InputVDI2"] = initialColorTexture
-        compute.material().textures["DepthVDI2"] = initialDepthTexture
-        compute.material().textures["OctreeCells2"] = initialAccelTexture
-
-        while(!initialColorTexture.availableOnGPU() || !initialDepthTexture.availableOnGPU() ||     !initialAccelTexture.availableOnGPU()) {
-            logger.debug("Waiting for texture transfer.")
-            Thread.sleep(10)
-        }
-        logger.info("done with initial textures")
+        var vdiData: VDIData
 
         while(true) {
 
@@ -278,6 +278,7 @@ class VDIClient : SceneryBase("VDI Client", 512, 512, wantREPL = false) {
                logger.info("Time taken for the receive: ${receiveTime/1e9}")
 
                if (payload != null) {
+                   //TODO: the next section reading and decompressing the VDI should be placed in its own function
                    val metadataSize = payload.sliceArray(0 until 3).toString(Charsets.US_ASCII).toInt() //hardcoded 3 digit number
                    val metadata = ByteArrayInputStream(payload.sliceArray(3 until (metadataSize + 3)))
                    vdiData = VDIDataIO.read(metadata)
@@ -326,7 +327,7 @@ class VDIClient : SceneryBase("VDI Client", 512, 512, wantREPL = false) {
                    depth.limit(depth.capacity())
 
                    firstVDI = false
-                   compute.visible = true
+                   vdiNode.visible = true
 
                }
                else {
