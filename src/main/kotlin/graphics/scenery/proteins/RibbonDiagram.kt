@@ -6,6 +6,7 @@ import graphics.scenery.geometry.UniformBSpline
 import org.joml.*
 import graphics.scenery.numerics.Random
 import graphics.scenery.Mesh
+import graphics.scenery.geometry.curve.BaseShapesFromSingleShape
 import graphics.scenery.geometry.curve.DefaultCurve
 import org.biojava.nbio.structure.Atom
 import org.biojava.nbio.structure.Group
@@ -236,7 +237,9 @@ class RibbonDiagram(val protein: Protein, private val displaySS: Boolean = false
                             }
                         }
                     }
-                    val coilCurve = CurveSingleShape(DummySpline(subSpline, sectionVerticesCount), octagon)
+                    val coilSpline = DummySpline(subSpline, sectionVerticesCount)
+                    val coilCurve = DefaultCurve(coilSpline,
+                        { BaseShapesFromSingleShape.shapes(octagon, coilSpline.splinePoints().size) })
                     if(displaySS) { coils.addChild(coilCurve) }
                     else { subParent.addChild(coilCurve) }
                 }
