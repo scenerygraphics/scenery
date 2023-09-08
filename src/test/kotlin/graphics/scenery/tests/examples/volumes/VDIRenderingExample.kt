@@ -133,11 +133,24 @@ class VDIRenderingExample : SceneryBase("VDI Rendering Example", 512, 512) {
         vdiNode.do_subsample = false
         vdiNode.skip_empty = skipEmpty
 
+        //Attaching empty textures as placeholders for 2nd VDI buffer, which is unused here
+        val emptyColor = MemoryUtil.memCalloc(4 * 4)
+        val emptyColorTexture = Texture(Vector3i(1, 1, 1), 4, contents = emptyColor, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
+            type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
 
-        logger.info("Projection: ${Matrix4f(vdiData.metadata.projection).applyVulkanCoordinateSystem()}")
-        logger.info("View: ${vdiData.metadata.view}")
-        logger.info("Actual view: ${cam.spatial().getTransformation()}")
-        logger.info("nw: ${vdiData.metadata.nw}")
+        val emptyDepth = MemoryUtil.memCalloc(1 * 4)
+        val emptyDepthTexture = Texture(Vector3i(1, 1, 1), 1, contents = emptyDepth, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
+            type = FloatType(), mipmap = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+
+        val emptyAccel = MemoryUtil.memCalloc(4)
+        val emptyAccelTexture = Texture(
+            Vector3i(1, 1, 1), 1, contents = emptyAccel, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
+            type = UnsignedIntType(), mipmap = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour
+        )
+
+        vdiNode.material().textures["InputVDI2"] = emptyColorTexture
+        vdiNode.material().textures["DepthVDI2"] = emptyDepthTexture
+        vdiNode.material().textures["OctreeCells2"] = emptyAccelTexture
 
         scene.addChild(vdiNode)
 
