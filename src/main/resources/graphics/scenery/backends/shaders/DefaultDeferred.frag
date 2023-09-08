@@ -48,8 +48,7 @@ struct MaterialInfo {
     float Roughness;
     float Metallic;
     float Opacity;
-    vec3 Emissive;
-    float EmissiveStrength;
+    vec4 Emissive;
 };
 
 const int MATERIAL_HAS_DIFFUSE =  0x0001;

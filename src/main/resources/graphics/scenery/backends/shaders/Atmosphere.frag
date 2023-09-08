@@ -50,8 +50,7 @@ struct MaterialInfo {
     float Roughness;
     float Metallic;
     float Opacity;
-    vec3 Emissive;
-    float EmissiveStrength;
+    vec4 Emissive;
 };
 
 const int MATERIAL_HAS_DIFFUSE =  0x0001;
@@ -316,7 +315,7 @@ void main() {
     //DiffuseAlbedo = vec4(0.5, 0.5, 1.0, 1.0);
     DiffuseAlbedo = vec4(color, 1.0);
     Emission.rgb = color;
-    Emission.a = Material.EmissiveStrength;
+    Emission.a = Material.Emissive.a;
     //emissive = EmissionStrength; //vec4(color, EmissionStrength);
     NormalsMaterial.rg = EncodedNormal;
 }
