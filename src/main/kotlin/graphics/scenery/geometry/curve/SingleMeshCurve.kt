@@ -23,7 +23,7 @@ class SingleMeshCurve(override val spline: Spline,
 ): FrenetOrientedCurve, Mesh("DefaultCurve") {
 
     override val frenetFrames: () -> List<FrenetFrame> =
-        { FrenetFrameCalculator.computeFrenetFrames(spline, firstPerpendicularVector3f) }
+        { FrenetFrameCalculation.computeFrenetFrames(spline, firstPerpendicularVector3f) }
     private val shapes = baseShapes.invoke()
     private val countList = ArrayList<Int>(countDifferentShapes).toMutableList()
     private val geometryCalculator = CurveGeometryCalculation

@@ -14,7 +14,7 @@ import kotlin.math.acos
  * @param spline: spline along which the frenet frames are to be calculated
  * @param [firstPerpendicularVector] vector to which the first frenet tangent shall be perpendicular to.
  */
-object FrenetFrameCalculator{
+object FrenetFrameCalculation{
     /**
      * This function returns the frenet frames along the curve. This is essentially a new
      * coordinate system which represents the form of the curve. For details concerning the

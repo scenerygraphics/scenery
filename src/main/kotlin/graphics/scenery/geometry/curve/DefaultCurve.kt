@@ -24,7 +24,7 @@ class DefaultCurve(override val spline: Spline,
 ): FrenetOrientedCurve, Mesh("DefaultCurve") {
 
     override val frenetFrames: () -> List<FrenetFrame> =
-        { FrenetFrameCalculator.computeFrenetFrames(spline, firstPerpendicularVector3f) }
+        { FrenetFrameCalculation.computeFrenetFrames(spline, firstPerpendicularVector3f) }
     private val geometryCalculator = CurveGeometryCalculation
     init {
         val pointsPerSection = spline.pointsPerSection()
