@@ -9,7 +9,10 @@ import org.joml.Vector3f
  * The number n corresponds to the number of segments you wish to have between your control points.
  * The spline and the baseShape lambda must both have the same number of elements, otherwise, the curve is no
  * longer well-defined. Concerning the individual baseShapes, no lines must cross for the body of the curve to
- * be visualized flawlessly. Furthermore, all baseShapes ought to be convex.
+ * be visualized flawlessly.
+ *
+ * In this implementation, for each section of a curve (for every spline point a section is created) an individual mesh
+ * is added to [this] class as a child.
  *
  * @author  Justin Buerger <burger@mpi-cbg.de>
  * @param [baseShape] a lambda which returns all the baseShapes along the curve
