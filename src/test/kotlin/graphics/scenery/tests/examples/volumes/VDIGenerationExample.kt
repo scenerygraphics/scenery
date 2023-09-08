@@ -20,7 +20,7 @@ import java.nio.ByteBuffer
 import kotlin.concurrent.thread
 
 
-class VDIGenerationExample(wWidth: Int = 100, wHeight: Int = 100, val maxSupersegments: Int = 5) : SceneryBase("Volume Generation Example", wWidth, wHeight) {
+class VDIGenerationExample(wWidth: Int = 512, wHeight: Int = 512, val maxSupersegments: Int = 20) : SceneryBase("Volume Generation Example", wWidth, wHeight) {
 
     val context: ZContext = ZContext(4)
 
