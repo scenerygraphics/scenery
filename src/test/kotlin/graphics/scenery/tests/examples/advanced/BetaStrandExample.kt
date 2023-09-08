@@ -3,9 +3,9 @@ package graphics.scenery.tests.examples.advanced
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.geometry.CatmullRomSpline
-import graphics.scenery.geometry.curve.Curve
 import graphics.scenery.numerics.Random
 import graphics.scenery.attribute.material.Material
+import graphics.scenery.geometry.curve.DefaultCurve
 import org.joml.Vector3f
 
 /**
@@ -59,7 +59,7 @@ class BetaStrandExample: SceneryBase("BetaStrandExample", windowWidth = 1280, wi
 
         val catmullRom = CatmullRomSpline(points, 30)
         val splineSize = catmullRom.splinePoints().size
-        val geo = Curve(catmullRom) { betaStrand(splineSize) }
+        val geo = DefaultCurve(catmullRom, { betaStrand(splineSize) })
 
         scene.addChild(geo)
 

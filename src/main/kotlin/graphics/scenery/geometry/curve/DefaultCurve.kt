@@ -4,6 +4,19 @@ import graphics.scenery.Mesh
 import graphics.scenery.geometry.Spline
 import org.joml.Vector3f
 
+/**
+ * Constructs a geometry along the calculates points of a Spline.
+ * The number n corresponds to the number of segments you wish to have between your control points.
+ * The spline and the baseShape lambda must both have the same number of elements, otherwise, the curve is no
+ * longer well-defined. Concerning the individual baseShapes, no lines must cross for the body of the curve to
+ * be visualized flawlessly. Furthermore, all baseShapes ought to be convex.
+ *
+ * @author  Justin Buerger <burger@mpi-cbg.de>
+ * @param [baseShape] a lambda which returns all the baseShapes along the curve
+ * @param [spline] the spline along which the geometry will be rendered
+ * @param [partitionAlongControlpoints] flag to indicate that the curve should be divided into subcurves, one for each
+ * controlpoint, note that this option prohibits the use of different baseShapes
+ */
 class DefaultCurve(override val spline: Spline,
                    override val baseShapes: () -> List<List<Vector3f>>,
                    override val firstPerpendicularVector3f: Vector3f= Vector3f(0f, 0f, 0f),

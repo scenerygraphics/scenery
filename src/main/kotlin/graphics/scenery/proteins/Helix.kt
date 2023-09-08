@@ -3,7 +3,7 @@ package graphics.scenery.proteins
 import graphics.scenery.geometry.Spline
 import graphics.scenery.Mesh
 import graphics.scenery.geometry.curve.CurveCover
-import graphics.scenery.geometry.curve.CurveInterface
+import graphics.scenery.geometry.curve.CurveGeometryCalculation
 import graphics.scenery.geometry.curve.PartialCurve
 import org.joml.*
 
@@ -23,7 +23,7 @@ class Helix (private val axis: MathLine, val spline: Spline, baseShapes: () -> L
 
 
     init {
-        val sectionVerticesCount = spline.verticesCountPerSection()
+        val sectionVerticesCount = spline.pointsPerSection()
         val transformedShapes = calculateTransformedShapes()
         val subShapes = transformedShapes.windowed(sectionVerticesCount +1, sectionVerticesCount+1, true)
         subShapes.forEachIndexed { index, list ->
@@ -105,8 +105,8 @@ class Helix (private val axis: MathLine, val spline: Spline, baseShapes: () -> L
     }
 
     private fun calcMesh(section: List<List<Vector3f>>, cover: CurveCover): Mesh {
-        //algorithms from the curve class, see Curve (line 219-322)
-        val helixSectionVertices = CurveInterface.calculateTriangles(section, cover)
+        //algorithms from the curve calculation
+        val helixSectionVertices = CurveGeometryCalculation.calculateTriangles(section, cover)
         return PartialCurve(helixSectionVertices.first, helixSectionVertices.second)
     }
 }

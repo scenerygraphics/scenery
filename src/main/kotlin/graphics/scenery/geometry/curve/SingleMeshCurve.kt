@@ -17,7 +17,7 @@ class SingleMeshCurve(override val spline: Spline,
         //case of a single baseShape by construction
         if (countDifferentShapes == 1) {
             val transformedBaseShapes = transformedBaseShapes(baseShapes.invoke(), frenetFrames.invoke())
-            val trianglesAndNormals = CurveInterface.calculateTriangles(transformedBaseShapes, cover = CurveCover.Both)
+            val trianglesAndNormals = CurveGeometryCalculation.calculateTriangles(transformedBaseShapes, cover = CurveCover.Both)
             val partialCurve = PartialCurve(trianglesAndNormals.first, trianglesAndNormals.second)
             this.addChild(partialCurve)
         }
@@ -39,7 +39,7 @@ class SingleMeshCurve(override val spline: Spline,
             //if there is only one baseShape, the countlist will have size one, making the computation simpler
             if (countList.size == 1) {
                 val transformedBaseShapes = transformedBaseShapes(baseShapes.invoke(), frenetFrames.invoke())
-                val trianglesAndNormals = CurveInterface.calculateTriangles(transformedBaseShapes, cover = CurveCover.Both)
+                val trianglesAndNormals = CurveGeometryCalculation.calculateTriangles(transformedBaseShapes, cover = CurveCover.Both)
                 val partialCurve = PartialCurve(trianglesAndNormals.first, trianglesAndNormals.second)
                 this.addChild(partialCurve)
             }
@@ -83,7 +83,7 @@ class SingleMeshCurve(override val spline: Spline,
                         }
                     }
                     val transformedShapes = transformedBaseShapes(shapes, frames)
-                    val trianglesAndNormals = CurveInterface.calculateTriangles(transformedShapes, cover = cover)
+                    val trianglesAndNormals = CurveGeometryCalculation.calculateTriangles(transformedShapes, cover = cover)
                     val partialCurve = PartialCurve(trianglesAndNormals.first, trianglesAndNormals.second)
                     this.addChild(partialCurve)
                 }

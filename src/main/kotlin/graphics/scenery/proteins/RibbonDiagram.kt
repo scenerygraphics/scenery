@@ -1,13 +1,12 @@
 package graphics.scenery.proteins
 
-import graphics.scenery.geometry.curve.Curve
 import graphics.scenery.geometry.DummySpline
 import graphics.scenery.geometry.Spline
 import graphics.scenery.geometry.UniformBSpline
 import org.joml.*
 import graphics.scenery.numerics.Random
 import graphics.scenery.Mesh
-import graphics.scenery.geometry.curve.CurveSingleShape
+import graphics.scenery.geometry.curve.DefaultCurve
 import org.biojava.nbio.structure.Atom
 import org.biojava.nbio.structure.Group
 import org.biojava.nbio.structure.secstruc.SecStrucCalc
@@ -223,7 +222,7 @@ class RibbonDiagram(val protein: Protein, private val displaySS: Boolean = false
                                 Vector3f(-x, -y, 0f),
                                 Vector3f(x, -y, 0f)))
                     }
-                    val betaCurve = Curve(DummySpline(subSpline, sectionVerticesCount)) { baseShape(ssSubList) }
+                    val betaCurve = DefaultCurve(DummySpline(subSpline, sectionVerticesCount), { baseShape(ssSubList) })
                     if(displaySS) { betas.addChild(betaCurve) }
                     else { subParent.addChild(betaCurve) }
                 }

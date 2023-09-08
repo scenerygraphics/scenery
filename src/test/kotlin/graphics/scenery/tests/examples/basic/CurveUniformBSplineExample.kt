@@ -3,10 +3,10 @@ package graphics.scenery.tests.examples.basic
 import org.joml.*
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
-import graphics.scenery.geometry.curve.Curve
 import graphics.scenery.geometry.UniformBSpline
 import graphics.scenery.numerics.Random
 import graphics.scenery.attribute.material.Material
+import graphics.scenery.geometry.curve.DefaultCurve
 
 /**
  * Just a quick example a UniformBSpline with a triangle as a baseShape.
@@ -45,7 +45,7 @@ class CurveUniformBSplineExample: SceneryBase("CurveUniformBSplineExample", wind
 
         val bSpline = UniformBSpline(points)
         val splineSize = bSpline.splinePoints().size
-        val geo = Curve(bSpline) { triangle(splineSize) }
+        val geo = DefaultCurve(bSpline,{ triangle(splineSize) })
 
         scene.addChild(geo)
 

@@ -3,10 +3,10 @@ package graphics.scenery.tests.examples.basic
 import org.joml.*
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
-import graphics.scenery.geometry.curve.Curve
 import graphics.scenery.geometry.UniformBSpline
 import graphics.scenery.numerics.Random
 import graphics.scenery.attribute.material.Material
+import graphics.scenery.geometry.curve.SingleMeshCurve
 
 /**
  * Example of a curve with different baseShapes.
@@ -65,7 +65,7 @@ class CurveDifferentBaseShapes: SceneryBase("CurveDifferentBaseShapes", windowWi
 
         val bSpline = UniformBSpline(points)
         val splineSize = bSpline.splinePoints().size
-        val geo = Curve(bSpline, partitionAlongControlpoints = false) { shapeGenerator(splineSize) }
+        val geo = SingleMeshCurve(bSpline, { shapeGenerator(splineSize) }, countDifferentShapes = 3)
 
         scene.addChild(geo)
 

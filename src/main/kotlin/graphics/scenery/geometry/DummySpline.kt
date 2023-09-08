@@ -22,7 +22,7 @@ class DummySpline(private val controlPoints: List<Vector3f>, val sectionVertices
         return controlPoints
     }
 
-    override fun verticesCountPerSection(): Int {
+    override fun pointsPerSection(): Int {
         return sectionVerticesCount
     }
 }
