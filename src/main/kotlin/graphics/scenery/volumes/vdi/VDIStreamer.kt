@@ -5,6 +5,7 @@ import graphics.scenery.backends.Renderer
 import graphics.scenery.backends.vulkan.VulkanRenderer
 import graphics.scenery.utils.DataCompressor
 import graphics.scenery.utils.lazyLogger
+import graphics.scenery.volumes.Volume
 import graphics.scenery.volumes.VolumeManager
 import org.joml.Matrix4f
 import org.joml.Vector2i
@@ -40,32 +41,27 @@ class VDIStreamer {
             publisher.bind(address)
             address.substringAfterLast(":").toInt()
         } catch (e: ZMQException) {
-            Renderer.logger.warn("Binding failed, trying random port: $e")
+            logger.warn("Binding failed, trying random port: $e")
             publisher.bindToRandomPort(address.substringBeforeLast(":"))
         }
         return publisher
     }
 
-    fun streamVDI(ipAddress: String, cam: Camera, volumeDim: Vector3f, model: Matrix4f,
+    fun streamVDI(ipAddress: String, cam: Camera, volumeDim: Vector3f, volume: Volume,
                   maxSupersegments : Int, vdiVolumeManager: VolumeManager, renderer: Renderer) {
 
         val vdiData = VDIData(
             VDIBufferSizes(),
             VDIMetadata(
-                index = vdisStreamed,
-                projection = cam.spatial().projection,
-                view = cam.spatial().getTransformation(),
                 volumeDimensions = volumeDim,
-                model = model,
                 nw = vdiVolumeManager.shaderProperties["nw"] as Float,
-                windowDimensions = Vector2i(cam.width, cam.height)
             )
         )
 
         var firstFrame = true
 
-        val windowWidth = vdiData.metadata.windowDimensions.x
-        val windowHeight = vdiData.metadata.windowDimensions.y
+        val windowWidth = cam.width
+        val windowHeight = cam.height
 
         val publisher = createPublisher(context, ipAddress)
 
@@ -76,7 +72,7 @@ class VDIStreamer {
         val compressionTool = DataCompressor.CompressionTool.LZ4
 
         var vdiColorBuffer: ByteBuffer?
-        var vdiDepthBuffer: ByteBuffer? = null
+        var vdiDepthBuffer: ByteBuffer?
         var gridCellsBuff: ByteBuffer?
 
         val vdiColor = vdiVolumeManager.material().textures["OutputSubVDIColor"]!!
@@ -90,13 +86,22 @@ class VDIStreamer {
 
         val gridCells = vdiVolumeManager.material().textures["OctreeCells"]!!
         val gridTexturesCnt = AtomicInteger(0)
-        renderer.persistentTextureRequests?.add(gridCells to gridTexturesCnt)
+        renderer.persistentTextureRequests.add(gridCells to gridTexturesCnt)
 
-        renderer.postRenderLambdas?.add {
+        renderer.postRenderLambdas.add {
 
             if (!firstFrame && vdiStreaming) {
+
+                val model = volume.spatial().world
+
+                vdiData.metadata.model = model
+                vdiData.metadata.index = vdisStreamed
+                vdiData.metadata.projection = cam.spatial().projection
+                vdiData.metadata.view = cam.spatial().getTransformation()
+                vdiData.metadata.windowDimensions = Vector2i(cam.width, cam.height)
+
                 vdiColorBuffer = vdiColor.contents
-                vdiDepthBuffer = vdiDepth!!.contents
+                vdiDepthBuffer = vdiDepth.contents
                 gridCellsBuff = gridCells.contents
 
                 val colorSize = windowHeight * windowWidth * maxSupersegments * 4 * 4
@@ -104,7 +109,7 @@ class VDIStreamer {
                 val accelSize = (windowWidth / 8) * (windowHeight / 8) * maxSupersegments * 4
 
                 if (vdiColorBuffer!!.remaining() != colorSize || vdiDepthBuffer!!.remaining() != depthSize || gridCellsBuff!!.remaining() != accelSize) {
-                    Renderer.logger.warn("Skipping transmission this frame due to inconsistency in buffer size")
+                    logger.warn("Skipping transmission this frame due to inconsistency in buffer size")
                 }
 
                 if (compressedColor == null) {
@@ -129,7 +134,7 @@ class VDIStreamer {
                 VDIDataIO.write(vdiData, metadataOut)
 
                 val metadataBytes = metadataOut.toByteArray()
-                Renderer.logger.info("Size of VDI data is: ${metadataBytes.size}")
+                logger.info("Size of VDI data is: ${metadataBytes.size}")
 
                 val vdiDataSize = metadataBytes.size.toString().toByteArray(Charsets.US_ASCII)
 
@@ -148,7 +153,7 @@ class VDIStreamer {
                 vdiData.bufferSizes.accelGridSize = accelSize.toLong()
 
                 gridCellsBuff!!.get(message, vdiDataSize.size + metadataBytes.size + compressedColor!!.remaining() +
-                    compressedDepth!!.remaining(), gridCellsBuff!!.remaining())
+                        compressedDepth!!.remaining(), gridCellsBuff!!.remaining())
                 gridCellsBuff!!.flip()
 
                 compressedDepth!!.limit(compressedDepth!!.capacity())
@@ -156,7 +161,7 @@ class VDIStreamer {
 
                 val sent = publisher.send(message)
                 if (!sent) {
-                    Renderer.logger.warn("There was a ZeroMQ error in queuing the message to send")
+                    logger.warn("There was a ZeroMQ error in queuing the VDI")
                 } else {
                     vdisStreamed += 1
                 }
