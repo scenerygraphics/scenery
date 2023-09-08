@@ -8,7 +8,7 @@ import org.joml.Vector3f
 /**
  * Curve interface for curves whose base shapes need to be oriented along the curve.
  */
-interface FrenetOrientedCurve: CurveInterfaceNew {
+interface FrenetOrientedCurve: Curve {
     /**
      * Frenet frame for each spline point
      */

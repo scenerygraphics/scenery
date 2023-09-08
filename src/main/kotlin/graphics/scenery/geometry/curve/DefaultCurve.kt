@@ -14,8 +14,6 @@ import org.joml.Vector3f
  * @author  Justin Buerger <burger@mpi-cbg.de>
  * @param [baseShape] a lambda which returns all the baseShapes along the curve
  * @param [spline] the spline along which the geometry will be rendered
- * @param [partitionAlongControlpoints] flag to indicate that the curve should be divided into subcurves, one for each
- * controlpoint, note that this option prohibits the use of different baseShapes
  */
 class DefaultCurve(override val spline: Spline,
                    override val baseShapes: () -> List<List<Vector3f>>,

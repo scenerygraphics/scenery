@@ -8,7 +8,7 @@ import org.joml.Vector3f
  *
  * @author Justin Buerger
  */
-interface CurveInterfaceNew {
+interface Curve {
 
     /**
      * Spline object along which the curve is rendered.
