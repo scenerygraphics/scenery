@@ -21,7 +21,7 @@ import java.io.File
 import java.io.FileInputStream
 import java.nio.ByteBuffer
 
-class VDIRenderingExample : SceneryBase("VDI Rendering Example", 1920, 1080) {
+class VDIRenderingExample : SceneryBase("VDI Rendering Example", 512, 512) {
 
     val vdiNode = VDINode()
 
