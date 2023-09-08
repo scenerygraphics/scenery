@@ -102,8 +102,7 @@ tasks {
     register<JavaExec>("compileShader") {
         group = "tools"
         mainClass.set("graphics.scenery.backends.ShaderCompiler")
-        classpath = sourceSets["test"].runtimeClasspath
-
+        classpath = sourceSets["main"].runtimeClasspath
     }
 
     register<JacocoReport>("fullCodeCoverageReport") {
