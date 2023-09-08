@@ -9,9 +9,9 @@ data class VDIMetadata(
     var index: Int = 0,
     var projection: Matrix4f = Matrix4f(),
     var view: Matrix4f = Matrix4f(),
-    val model: Matrix4f = Matrix4f(),
+    var model: Matrix4f = Matrix4f(),
     val volumeDimensions: Vector3f = Vector3f(),
-    val windowDimensions: Vector2i = Vector2i(),
+    var windowDimensions: Vector2i = Vector2i(),
     val nw: Float = 0f
 )
 
