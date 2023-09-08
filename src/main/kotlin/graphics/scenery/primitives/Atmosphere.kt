@@ -6,6 +6,7 @@ import graphics.scenery.controls.InputHandler
 import graphics.scenery.controls.behaviours.MouseDragSphere
 import graphics.scenery.utils.extensions.times
 import org.joml.Vector3f
+import org.joml.Vector4f
 import java.lang.Math.toRadians
 import java.time.LocalDateTime
 import kotlin.math.asin
@@ -26,6 +27,8 @@ open class Atmosphere(initSunPos: Vector3f? = null, radius : Float = 1f) :
 
     val sunProxy = Icosphere(0.1f * radius, 2)
 
+    val atmosStrength = 0.2f
+
     //val sunLight = DirectionalLight(sunPos)
 
     init {
@@ -33,12 +36,13 @@ open class Atmosphere(initSunPos: Vector3f? = null, radius : Float = 1f) :
         setMaterial(ShaderMaterial.fromClass(this::class.java))
         material {
             cullingMode = Material.CullingMode.Front
-            emissiveStrength = 0.2f
             depthTest = Material.DepthTest.LessEqual
+            emissive = Vector4f(0f, 0f, 0f, atmosStrength)
         }
 
         // Only use time-based elevation when the formal parameter is empty
-        sunPos = initSunPos ?: // Override by passing LocalDateTime.of($year, $month, $day, $hour, $minute)
+        // Override by passing LocalDateTime.of($year, $month, $day, $hour, $minute)
+        sunPos = initSunPos ?:
             getSunPosFromTime()
 
 
