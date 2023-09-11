@@ -32,6 +32,7 @@ open class PointLight(val radius: Float = 5.0f) : Light("PointLight") {
      * This attribute should only be used when the [PointLight] acts as a proxy for the corresponding @ShaderProperty. */
     //@ShaderProperty
     //var emissive: Float = 1f
+    //TODO Remove this part
 
     /** Maximum radius in world units */
     @Suppress("unused") // will be serialised into ShaderProperty buffer
@@ -90,7 +91,7 @@ open class PointLight(val radius: Float = 5.0f) : Light("PointLight") {
             blending.sourceAlphaBlendFactor = Blending.BlendFactor.One
             blending.destinationAlphaBlendFactor = Blending.BlendFactor.One
             blending.alphaBlending = Blending.BlendOp.add
-            cullingMode = Material.CullingMode.Front
+            cullingMode = Material.CullingMode.FrontAndBack
             depthTest = Material.DepthTest.Greater
         }
     }
