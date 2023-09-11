@@ -19,15 +19,15 @@ import kotlin.math.sin
  * @param initSunPos [Vector3f] of the sun position. Defaults to sun elevation of the current local time.
  * @param radius Radius of the icosphere. Default is `100f`.
  */
-open class Atmosphere(initSunPos: Vector3f? = null, radius : Float = 1f) :
-    Icosphere(radius, 2, insideNormals = true) {
+open class Atmosphere(initSunPos: Vector3f? = null) :
+    Icosphere(10f, 2, insideNormals = true) {
 
     @ShaderProperty
     var sunPos: Vector3f
 
-    val sunProxy = Icosphere(0.1f * radius, 2)
+    val sunProxy = Icosphere(1f, 2)
 
-    val atmosStrength = 0.2f
+    var atmosStrength = 2f
 
     //val sunLight = DirectionalLight(sunPos)
 
@@ -56,7 +56,7 @@ open class Atmosphere(initSunPos: Vector3f? = null, radius : Float = 1f) :
 
         sunProxy.name = "sunProxy"
         sunProxy.spatial().position = sunPos.normalize(Vector3f()) * (radius)
-        sunProxy.material().cullingMode = Material.CullingMode.FrontAndBack
+        //sunProxy.material().cullingMode = Material.CullingMode.FrontAndBack
         addChild(sunProxy)
 
         //sunLight.emissionColor = Vector3f(1f, 0.9f, 0.7f)
