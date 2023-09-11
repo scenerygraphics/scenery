@@ -69,7 +69,7 @@ class AtmosphereExample : SceneryBase("Atmosphere Example",
             light
         }
 
-        atmos.attachBehaviors(inputHandler, scene)
+        //atmos.atmosStrength = 1f
         scene.addChild(atmos)
 
         val cam: Camera = if (useVR) {DetachedHeadCamera(hmd)} else {DetachedHeadCamera()}
@@ -87,22 +87,8 @@ class AtmosphereExample : SceneryBase("Atmosphere Example",
 
         setupCameraModeSwitching()
 
-        //val moveSun: (Scene.RaycastResult, Int, Int) -> Unit = { result, x, y ->
-        //    result.initialDirection .let {
-        //        atmos.sunPos = it.normalize()
-        //    }
-        //}
-//
-        //renderer?.let { r ->
-        //    inputHandler?.addBehaviour(
-        //        "clickSun", SelectCommand(
-        //            "clickSun", r, scene,
-        //            { scene.findObserver() }, action = moveSun, debugRaycast = false
-        //        )
-        //    )
-        //    inputHandler?.addKeyBinding("clickSun", "double-click button1")
-        //}
 
+        atmos.attachBehaviors(inputHandler, scene)
     }
 
     companion object {

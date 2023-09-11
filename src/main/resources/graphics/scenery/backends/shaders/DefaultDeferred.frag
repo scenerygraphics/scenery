@@ -143,8 +143,7 @@ void main() {
     DiffuseAlbedo.rgb = Material.Kd;
     DiffuseAlbedo.a = 0.0f;
 
-    Emission.rgb = Material.Emissive;
-    Emission.a = Material.EmissiveStrength;
+    Emission = Material.Emissive;
 
     NormalsMaterial.ba = vec2(Material.Roughness, Material.Metallic);
 
