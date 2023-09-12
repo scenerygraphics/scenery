@@ -9,6 +9,7 @@ import org.joml.Vector3f
 import org.joml.Vector4f
 import java.lang.Math.toRadians
 import java.time.LocalDateTime
+import kotlin.io.path.Path
 import kotlin.math.asin
 import kotlin.math.cos
 import kotlin.math.sin
@@ -27,7 +28,7 @@ open class Atmosphere(initSunPos: Vector3f? = null) :
 
     val sunProxy = Icosphere(1f, 2)
 
-    var atmosStrength = 2f
+    var atmosStrength = 0.0f
 
     //val sunLight = DirectionalLight(sunPos)
 
@@ -35,8 +36,8 @@ open class Atmosphere(initSunPos: Vector3f? = null) :
         this.name = "Atmosphere"
         setMaterial(ShaderMaterial.fromClass(this::class.java))
         material {
-            cullingMode = Material.CullingMode.Front
-            depthTest = Material.DepthTest.LessEqual
+            //cullingMode = Material.CullingMode.Front
+            //depthTest = Material.DepthTest.LessEqual
             emissive = Vector4f(0f, 0f, 0f, atmosStrength)
         }
 
@@ -55,6 +56,7 @@ open class Atmosphere(initSunPos: Vector3f? = null) :
         //addChild(point)
 
         sunProxy.name = "sunProxy"
+        sunProxy.setMaterial(ShaderMaterial.fromFiles("DefaultDeferred.frag", "sunProxy.vert"))
         sunProxy.spatial().position = sunPos.normalize(Vector3f()) * (radius)
         //sunProxy.material().cullingMode = Material.CullingMode.FrontAndBack
         addChild(sunProxy)
