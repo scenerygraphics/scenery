@@ -8,7 +8,7 @@ import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.controls.TrackerRole
 import graphics.scenery.controls.behaviours.*
-import graphics.scenery.controls.behaviours.VRSelectionWheel.Companion.toActions
+import graphics.scenery.controls.behaviours.VRFastSelectionWheel.Companion.toActions
 import graphics.scenery.numerics.Random
 import graphics.scenery.utils.Wiggler
 import graphics.scenery.utils.extensions.minus
@@ -149,7 +149,7 @@ class VRControllerAdvancedExample : SceneryBase(
         // remote control
         Sphere(0.05f).apply {
             spatial().position = Vector3f(0f, 1.0f, 0.5f)
-            addAttribute(Grabable::class.java, Grabable(target = rcBox))
+            addAttribute(Grabable::class.java, Grabable(target = {rcBox}))
             scene.addChild(this)
 
         }
@@ -313,7 +313,7 @@ class VRControllerAdvancedExample : SceneryBase(
         )
 
         // open a menu where the actions are changed after initialisation with the left menu/B button
-        val menu = VRSelectionWheel.createAndSet(
+        val menu = VRFastSelectionWheel.createAndSet(
             scene, hmd,
             listOf(OpenVRHMD.OpenVRButton.Menu), listOf(TrackerRole.LeftHand),
             listOf("Loading please wait" to {})
