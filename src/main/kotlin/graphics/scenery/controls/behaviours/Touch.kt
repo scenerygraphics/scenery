@@ -38,7 +38,7 @@ open class Touch(
             }
 
             val hit = targets().filter { node ->
-                toucher.spatialOrNull()?.intersects(node) ?: false
+                toucher.spatialOrNull()?.intersects(node,true) ?: false
             }.toList()
 
             if (hit.isNotEmpty()) {

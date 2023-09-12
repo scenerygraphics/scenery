@@ -69,7 +69,7 @@ open class VRGrab(
             return
         }
 
-        selected = targets().filter { box -> controllerHitbox.spatialOrNull()?.intersects(box) ?: false }
+        selected = targets().filter { box -> controllerHitbox.spatialOrNull()?.intersects(box, true) ?: false }
         if (!multiTarget) {
             selected = selected.take(1)
         }

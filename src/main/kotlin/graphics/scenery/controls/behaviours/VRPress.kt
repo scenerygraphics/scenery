@@ -42,7 +42,7 @@ open class VRPress(
      * @param y invalid - residue from parent behavior. Use [controllerSpatial] instead.
      */
     override fun init(x: Int, y: Int) {
-        selected = targets().filter { box -> controllerHitbox.spatialOrNull()?.intersects(box) ?: false }
+        selected = targets().filter { box -> controllerHitbox.spatialOrNull()?.intersects(box, true) ?: false }
         if (!multiTarget) {
             selected = selected.take(1)
         }
