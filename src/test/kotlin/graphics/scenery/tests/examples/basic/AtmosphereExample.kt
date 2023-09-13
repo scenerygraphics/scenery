@@ -3,12 +3,9 @@ package graphics.scenery.tests.examples.basic
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.OpenVRHMD
-import graphics.scenery.controls.behaviours.MouseDragSphere
-import graphics.scenery.controls.behaviours.SelectCommand
 import graphics.scenery.numerics.Random
 import graphics.scenery.primitives.Atmosphere
 import org.joml.Vector3f
-import kotlin.concurrent.thread
 
 /**
  * <Description>
@@ -16,17 +13,15 @@ import kotlin.concurrent.thread
  *
  * @author Samuel Pantze
  */
-
-//@ShaderProperty
-//var sunPos = Vector3f(0f, 0.5f, -1f)
-
 class AtmosphereExample : SceneryBase("Atmosphere Example",
     windowWidth = 1024, windowHeight = 768) {
 
     /** Whether to run this example in VR mode. */
     private val useVR = false
 
-    private val atmos = Atmosphere()
+
+    private var atmos = Atmosphere(atmosStrength = 0.3f)
+
     private lateinit var hmd: OpenVRHMD
 
     override fun init() {
@@ -69,17 +64,25 @@ class AtmosphereExample : SceneryBase("Atmosphere Example",
             light
         }
 
-        //atmos.atmosStrength = 1f
-        scene.addChild(atmos)
-
-        val cam: Camera = if (useVR) {DetachedHeadCamera(hmd)} else {DetachedHeadCamera()}
+        val cam = if (useVR) {DetachedHeadCamera(hmd)} else {DetachedHeadCamera()}
         with(cam) {
             spatial {
                 position = Vector3f(0.0f, 0.0f, 5.0f)
             }
-            perspectiveCamera(70.0f, 512, 768)
+            perspectiveCamera(120.0f, 512, 768)
             scene.addChild(this)
         }
+
+        //atmos = Atmosphere()
+        logger.info("sun pos 1: ${atmos.sunProxy.spatial().position}")
+        atmos.attachToCam(cam)
+
+        scene.addChild(atmos)
+        logger.info("sun pos 2: ${atmos.sunProxy.spatial().position}")
+
+//        cam.postUpdate += {
+//            atmos.updateProxy(cam)
+//        }
     }
 
     override fun inputSetup() {

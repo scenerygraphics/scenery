@@ -40,14 +40,16 @@ layout(push_constant) uniform currentEye_t {
 
 void main()
 {
-    mat4 mv;
+    mat4 viewMatrix;
     mat4 nMVP;
     mat4 projectionMatrix;
 
-    mv = (vrParameters.stereoEnabled ^ 1) * ViewMatrices[0] * ubo.ModelMatrix + (vrParameters.stereoEnabled * ViewMatrices[currentEye.eye]) * ubo.ModelMatrix;
+    viewMatrix = (vrParameters.stereoEnabled ^ 1) * ViewMatrices[0] + (vrParameters.stereoEnabled * ViewMatrices[currentEye.eye]);
+    //viewMatrix[3] = vec4(0.0f, 0.0f, 0.0f, 1.0f);
     projectionMatrix = (vrParameters.stereoEnabled ^ 1) * ProjectionMatrix + vrParameters.stereoEnabled * vrParameters.projectionMatrices[currentEye.eye];
 
-    nMVP = projectionMatrix*mv;
+
+    nMVP = projectionMatrix * viewMatrix * ubo.ModelMatrix;
     //nMVP[3] = vec4(0.0f, 0.0f, 0.0f, 1.0f);
 
     Vertex.FragPosition = vec3(ubo.ModelMatrix * vec4(vertexPosition, 1.0));

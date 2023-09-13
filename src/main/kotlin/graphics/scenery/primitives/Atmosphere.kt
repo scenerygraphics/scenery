@@ -1,15 +1,15 @@
 package graphics.scenery.primitives
 
 import graphics.scenery.*
-import graphics.scenery.attribute.material.Material
 import graphics.scenery.controls.InputHandler
 import graphics.scenery.controls.behaviours.MouseDragSphere
+import graphics.scenery.utils.extensions.minus
+import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
 import org.joml.Vector3f
 import org.joml.Vector4f
 import java.lang.Math.toRadians
 import java.time.LocalDateTime
-import kotlin.io.path.Path
 import kotlin.math.asin
 import kotlin.math.cos
 import kotlin.math.sin
@@ -20,15 +20,14 @@ import kotlin.math.sin
  * @param initSunPos [Vector3f] of the sun position. Defaults to sun elevation of the current local time.
  * @param radius Radius of the icosphere. Default is `100f`.
  */
-open class Atmosphere(initSunPos: Vector3f? = null) :
+open class Atmosphere(initSunPos: Vector3f? = null, atmosStrength: Float = 1.0f, latitude: Double = 15.0) :
     Icosphere(10f, 2, insideNormals = true) {
-
+    //TODO update docs
     @ShaderProperty
-    var sunPos: Vector3f
+    var sunDir: Vector3f
 
+    var latitude: Double = latitude
     val sunProxy = Icosphere(1f, 2)
-
-    var atmosStrength = 0.0f
 
     //val sunLight = DirectionalLight(sunPos)
 
@@ -43,7 +42,7 @@ open class Atmosphere(initSunPos: Vector3f? = null) :
 
         // Only use time-based elevation when the formal parameter is empty
         // Override by passing LocalDateTime.of($year, $month, $day, $hour, $minute)
-        sunPos = initSunPos ?:
+        sunDir = initSunPos?.normalize() ?:
             getSunPosFromTime()
 
 
@@ -56,17 +55,17 @@ open class Atmosphere(initSunPos: Vector3f? = null) :
         //addChild(point)
 
         sunProxy.name = "sunProxy"
-        sunProxy.setMaterial(ShaderMaterial.fromFiles("DefaultDeferred.frag", "sunProxy.vert"))
-        sunProxy.spatial().position = sunPos.normalize(Vector3f()) * (radius)
+        //sunProxy.setMaterial(ShaderMaterial.fromFiles("DefaultDeferred.frag", "sunProxy.vert"))
+        sunProxy.spatial().position = sunDir * 10f
         //sunProxy.material().cullingMode = Material.CullingMode.FrontAndBack
-        addChild(sunProxy)
+        //addChild(sunProxy)
 
         //sunLight.emissionColor = Vector3f(1f, 0.9f, 0.7f)
         //addChild(sunLight)
         sunProxy.postUpdate += {
-            sunPos = sunProxy.spatial().position
+            sunDir = sunProxy.spatial().position
             //sunLight.spatial().position = sunPos
-            //sunLight.spatial().rotation = Quaternionf().set(sunPos.x, sunPos.y, sunPos.z, 0f)
+//            //sunLight.spatial().rotation = Quaternionf().set(sunPos.x, sunPos.y, sunPos.z, 0f)
         }
 
 
@@ -78,7 +77,7 @@ open class Atmosphere(initSunPos: Vector3f? = null) :
      */
     private fun getSunPosFromTime(
         localTime: LocalDateTime = LocalDateTime.now(),
-        latitude: Double = 15.0): Vector3f {
+        latitude: Double = this.latitude): Vector3f {
         val dayOfYear = localTime.dayOfYear.toDouble()
         val declination = -23.45 * cos(360.0 / 365.0 * ( dayOfYear + 10 )) // Rough approximation
         val hourAngle = (localTime.hour + localTime.minute / 60.0 - 12) * 15 // Angle from solar noon
@@ -100,13 +99,23 @@ open class Atmosphere(initSunPos: Vector3f? = null) :
         inputHandler?.addBehaviour(
             "dragSun", MouseDragSphere(
                 "dragSun",
-                { scene.findObserver() }, debugRaycast = false, rotateAroundCenter = true,
+                { scene.findObserver() }, debugRaycast = false, rotateAroundCenter = false,
                 filter = { node -> node.name == "sunProxy" })
         )
         inputHandler?.addKeyBinding("dragSun", "ctrl button1")
 
     }
 
+    fun attachToCam(camera: Camera) {
+        camera.addChild(sunProxy)
+    }
+
+    fun updateProxy(camera: Camera) {
+        val camPos = camera.spatial().position
+        sunProxy.spatial().position = camPos + sunDir * 10f
+        //sunDir = (sunProxy.spatial().position - camPos).normalize()
+        logger.info("updated sunproxy to ${sunProxy.spatial().position}")
+    }
 }
 
 //TODO coroutine to update suntimepos
