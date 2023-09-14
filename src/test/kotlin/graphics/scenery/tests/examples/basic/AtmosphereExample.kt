@@ -3,6 +3,7 @@ package graphics.scenery.tests.examples.basic
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.OpenVRHMD
+import graphics.scenery.controls.behaviours.ToggleCommand
 import graphics.scenery.numerics.Random
 import graphics.scenery.primitives.Atmosphere
 import org.joml.Vector3f
@@ -73,16 +74,10 @@ class AtmosphereExample : SceneryBase("Atmosphere Example",
             scene.addChild(this)
         }
 
-        //atmos = Atmosphere()
-        logger.info("sun pos 1: ${atmos.sunProxy.spatial().position}")
-        atmos.attachToCam(cam)
+        logger.info("sunproxy pos: ${atmos.sunProxy.spatial().position}")
 
         scene.addChild(atmos)
-        logger.info("sun pos 2: ${atmos.sunProxy.spatial().position}")
 
-//        cam.postUpdate += {
-//            atmos.updateProxy(cam)
-//        }
     }
 
     override fun inputSetup() {
@@ -90,8 +85,11 @@ class AtmosphereExample : SceneryBase("Atmosphere Example",
 
         setupCameraModeSwitching()
 
+        renderer?.let { r ->
+            inputHandler?.addBehaviour("moveSun", atmos.moveSun())
+        }
 
-        atmos.attachBehaviors(inputHandler, scene)
+        atmos.moveSun()
     }
 
     companion object {
