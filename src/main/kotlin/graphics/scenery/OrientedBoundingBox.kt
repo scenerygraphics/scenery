@@ -41,10 +41,10 @@ open class OrientedBoundingBox(val n: Node, val min: Vector3f, val max: Vector3f
 
     val halfSize: Vector3f
         get() {
-            return (max - min) * 0.5f
+            val scale = Vector3f()
+            n.spatialOrNull()!!.world.getScale(scale)
+            return ((max - min) * 0.5f) * scale
         }
-
-
 
     /**
      * Returns the maximum bounding sphere of this bounding box.
