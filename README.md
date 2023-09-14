@@ -88,6 +88,13 @@ Alternatively, scenery's Gradle project can be imported into IntelliJ or Eclipse
 
 If you want to compile the provided shader files offline on your own, please make sure you have the [latest Vulkan SDK from LunarG](https://vulkan.lunarg.com) installed. At least version 1.1.70 is required.
 
+### Run with JVM 17
+
+To run scenery with JVM 17 you need to use the following parameters: 
+```shell
+--add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED
+```
+
 ## Using _scenery_ in a project
 
 ### Maven artifacts
