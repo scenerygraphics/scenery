@@ -4,8 +4,12 @@ package graphics.scenery.attribute.buffers
 import graphics.scenery.BufferUtils
 import graphics.scenery.backends.UBO
 import net.imglib2.type.numeric.NumericType
+import org.joml.Vector4f
+import org.lwjgl.glfw.GLFWImage
 import java.io.Serializable
 import java.nio.Buffer
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 
 interface Buffers : Serializable {
 
@@ -23,9 +27,7 @@ interface Buffers : Serializable {
      * [usage] is currently a hashset to provide buffers to be both upload and download buffers -> maybe exclude this possibility to prevent
      * an increase in code in the renderer backend?
      */
-    data class BufferDescription(var buffer: Buffer, val type : BufferType, val usage: BufferUsage, val elements: Int = 0, val size : Int = 0) {
-    }
-
+    data class BufferDescription(var buffer: Buffer, val type : BufferType, val usage: BufferUsage, val elements: Int = 0, val size : Int = 0)
 
     /**
      * This function adds a custom layout buffer [name] to the [Buffers] attribute. [usage] refers to the memory usage/data flow of data from and to the GPU. [elements]
@@ -44,6 +46,8 @@ interface Buffers : Serializable {
         return description
     }
 
+    // TODO: Get rid of primitive type -> no need for them. A primitive buffer is uploaded using a layout as well. Layout then just contains one entry of type.
+    // There is no need for anything else
     /**
      * This function adds a primitive layout buffer [name] to the [Buffers] attribute. [type] is a [NumericType] that will be filled into the buffer.
      * [elements] stands for the element count, and [stride] for the size in bytes of the type.
@@ -56,5 +60,23 @@ interface Buffers : Serializable {
         buffers[name] = description
 
         return description
+    }
+
+    fun updateSSBOEntry(name : String, index : Int, layoutEntry : String = "", value : Any) {
+
+        buffers[name]?.let {
+            //check if index is within buffer (index < it?.elements)
+            when (it.type) {
+                is BufferType.Primitive<*> -> {
+                }
+
+                is BufferType.Custom -> {
+                    val layout = it.type.layout
+                    (it.buffer.duplicate() as ByteBuffer).order(ByteOrder.LITTLE_ENDIAN).run {
+                        layout.populate(this, index.toLong(), linkedMapOf(layoutEntry to {value}))
+                    }
+                }
+            }
+        }
     }
 }

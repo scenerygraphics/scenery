@@ -8,7 +8,9 @@ import graphics.scenery.primitives.SSBOTest
 import graphics.scenery.tests.examples.basic.TexturedCubeExample
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.Image
+import org.joml.Vector4f
 import kotlin.concurrent.thread
+import kotlin.math.sin
 
 /**
  * <Description>
@@ -29,7 +31,7 @@ class SSBOExample : SceneryBase("SSBOExample", wantREPL = false) {
 
         val light = PointLight(radius = 20.0f)
         light.spatial().position = Vector3f(0.0f, 0.0f, 2.0f)
-        light.intensity = 5.0f
+        light.intensity = 1.0f
         light.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
         scene.addChild(light)
 
@@ -47,9 +49,19 @@ class SSBOExample : SceneryBase("SSBOExample", wantREPL = false) {
         scene.addChild(ssboTestObj)
 
         thread {
+            var x = 0.0f
+            var y = 0.0f
+            var z = 0.0f
+            var runner = 0
             while (running) {
                 //do buffer updating here
+                runner++
                 Thread.sleep(20)
+                x = (sin(runner / 100.0f) + 1.0f) / 2.0f
+                ssboTestObj.buffers {
+                    updateSSBOEntry("ssboUpload", 0, "Color1", Vector4f(x, y, z, 1.0f))
+                }
+
             }
         }
     }

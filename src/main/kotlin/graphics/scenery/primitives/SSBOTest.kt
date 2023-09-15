@@ -62,9 +62,9 @@ open class SSBOTest @JvmOverloads constructor(val sizes: Vector3f = Vector3f(1.0
                 layout.add("Color1", { Vector4f(1.0f) })
                 buffer as ByteBuffer
                 // buffer would return a view of the ByteBuffer used for backing
-                buffer.putFloat(1.0f)
-                buffer.putFloat(0.4f)
-                buffer.putFloat(0.6f)
+                buffer.putFloat(0.0f)
+                buffer.putFloat(0.1f)
+                buffer.putFloat(0.1f)
                 buffer.putFloat(1.0f)
                 buffer.flip()
             }
@@ -191,11 +191,9 @@ open class SSBOTest @JvmOverloads constructor(val sizes: Vector3f = Vector3f(1.0
         boundingBox = generateBoundingBox()
     }
 
-    fun updateSSBO(key : String, index : Int, entry : UBO) {
+    fun updateSSBOEntry(name : String, index : Int, layoutEntry : String, value : Any) {
         buffers {
-            if (buffers.containsKey(key)) {
-                // TODO: change/update buffers[key] at [index] to [entry]
-            }
+            updateSSBOEntry(name, index, layoutEntry, value)
         }
     }
 

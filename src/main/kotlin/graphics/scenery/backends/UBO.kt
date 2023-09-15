@@ -37,7 +37,7 @@ open class UBO {
     }
 
     /**
-     * Returns the size of [element] inside an uniform buffer.
+     * Returns the size of [element] inside a uniform buffer.
      */
     @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
     protected fun sizeOf(element: Any): Int {

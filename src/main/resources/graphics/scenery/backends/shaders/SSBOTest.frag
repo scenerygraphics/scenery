@@ -29,14 +29,6 @@ const int MATERIAL_HAS_SPECULAR = 0x0004;
 const int MATERIAL_HAS_NORMAL =   0x0008;
 const int MATERIAL_HAS_ALPHAMASK = 0x0010;
 
-struct SSBO {
-    vec4 Color1;
-};
-
-layout(std140, set = 7, binding = 0) readonly buffer ssboUpload{
-    SSBO ssboData[];
-}ssboUploadBuffer;
-
 layout(set = 2, binding = 0) uniform Matrices {
     mat4 ModelMatrix;
     mat4 NormalMatrix;
@@ -48,41 +40,12 @@ layout(set = 3, binding = 0) uniform MaterialProperties {
     MaterialInfo Material;
 };
 
-/*
-    ObjectTextures[0] - ambient
-    ObjectTextures[1] - diffuse
-    ObjectTextures[2] - specular
-    ObjectTextures[3] - normal
-    ObjectTextures[4] - alpha
-    ObjectTextures[5] - displacement
-*/
-
-layout(set = 4, binding = 0) uniform ShaderProperties {
-    vec4 startColor;
-    vec4 endColor;
-    vec4 lineColor;
-    int capLength;
-    int vertexCount;
-    float edgeWidth;
+struct SSBO {
+    vec4 Color1;
 };
-
-// courtesy of Christian Schueler - www.thetenthplanet.de/archives/1180
-mat3 TBN(vec3 N, vec3 position, vec2 uv) {
-    vec3 dp1 = dFdx(position);
-    vec3 dp2 = dFdy(position);
-    vec2 duv1 = dFdx(uv);
-    vec2 duv2 = dFdy(uv);
-
-    vec3 dp2Perpendicular = cross(dp2, N);
-    vec3 dp1Perpendicular = cross(N, dp1);
-
-    vec3 T = dp2Perpendicular * duv1.x + dp1Perpendicular * duv2.x;
-    vec3 B = dp2Perpendicular * duv1.y + dp1Perpendicular * duv2.y;
-
-    float invmax = 1.0f/sqrt(max(dot(T, T), dot(B, B)));
-
-    return transpose(mat3(T * invmax, B * invmax, N));
-}
+layout(std140, set = 4, binding = 0) readonly buffer ssboUpload{
+    SSBO ssboData[];
+}ssboUploadBuffer;
 
 /*
 Encodes a three component unit vector into a 2 component vector. The z component of the vector is stored, along with
