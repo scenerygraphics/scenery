@@ -3,7 +3,6 @@ package graphics.scenery.tests.examples.basic
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.OpenVRHMD
-import graphics.scenery.controls.behaviours.ToggleCommand
 import graphics.scenery.numerics.Random
 import graphics.scenery.primitives.Atmosphere
 import org.joml.Vector3f
@@ -21,7 +20,7 @@ class AtmosphereExample : SceneryBase("Atmosphere Example",
     private val useVR = false
 
 
-    private var atmos = Atmosphere(atmosStrength = 0.3f)
+    private var atmos = Atmosphere(emissionStrength = 0.3f)
 
     private lateinit var hmd: OpenVRHMD
 
@@ -76,6 +75,7 @@ class AtmosphereExample : SceneryBase("Atmosphere Example",
 
         logger.info("sunproxy pos: ${atmos.sunProxy.spatial().position}")
 
+
         scene.addChild(atmos)
 
     }
@@ -85,11 +85,9 @@ class AtmosphereExample : SceneryBase("Atmosphere Example",
 
         setupCameraModeSwitching()
 
-        renderer?.let { r ->
-            inputHandler?.addBehaviour("moveSun", atmos.moveSun())
-        }
-
-        atmos.moveSun()
+        inputHandler?.let { atmos.attachRotateBehaviours(it) }
+        logger.info(inputHandler?.getAllBehaviours().toString())
+        logger.info(inputHandler?.getAllBindings().toString())
     }
 
     companion object {
