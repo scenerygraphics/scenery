@@ -46,10 +46,6 @@ class AtmosphereExample : SceneryBase("Atmosphere Example",
         val ambientLight = AmbientLight(0.1f)
         scene.addChild(ambientLight)
 
-        //val sunlight = DirectionalLight(Vector3f(0f, 0.5f, -1f))
-        //sunlight.intensity = 2f
-        //scene.addChild(sunlight)
-
         val lights = (1 until 5).map {
             val light = PointLight(10f)
             val spread = 2f
@@ -82,8 +78,6 @@ class AtmosphereExample : SceneryBase("Atmosphere Example",
         setupCameraModeSwitching()
 
         inputHandler?.let { atmos.attachRotateBehaviours(it) }
-        logger.info(inputHandler?.getAllBehaviours().toString())
-        logger.info(inputHandler?.getAllBindings().toString())
     }
 
     companion object {

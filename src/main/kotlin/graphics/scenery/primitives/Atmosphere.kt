@@ -4,6 +4,7 @@ import graphics.scenery.*
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.controls.InputHandler
 import kotlinx.coroutines.*
+import org.joml.Quaternionf
 import org.joml.Vector3f
 import org.joml.Vector4f
 import org.scijava.ui.behaviour.ClickBehaviour
@@ -28,9 +29,10 @@ open class Atmosphere(initSunDir: Vector3f? = null, emissionStrength: Float = 0.
 
     //val sunProxy = Icosphere(1f, 2)
 
-    private var sunDirEnabledManual: Boolean = false
+//    private var sunLight: DirectionalLight
+//    private var ambiLight: AmbientLight
 
-    //val sunLight = DirectionalLight(sunPos)
+    private var sunDirEnabledManual: Boolean = false
 
     init {
         this.name = "Atmosphere"
@@ -50,7 +52,7 @@ open class Atmosphere(initSunDir: Vector3f? = null, emissionStrength: Float = 0.
             sunDirEnabledManual = true
         }
 
-        // Spawn a coroutine to update the
+        // Spawn a coroutine to update the sun direction
         val job = CoroutineScope(Dispatchers.Default).launch {
             while (!sunDirEnabledManual) {
                 sunDir = getSunDirFromTime()
@@ -59,8 +61,13 @@ open class Atmosphere(initSunDir: Vector3f? = null, emissionStrength: Float = 0.
             }
         }
 
-        //sunLight.emissionColor = Vector3f(1f, 0.9f, 0.7f)
-        //addChild(sunLight)
+//        sunLight = DirectionalLight(sunDir)
+//        sunLight.emissionColor = Vector3f(1f, 0.9f, 0.4f)
+//        addChild(sunLight)
+
+//        ambiLight = AmbientLight()
+//        ambiLight.intensity = 0.3f
+//        ambiLight.emissionColor = Vector3f(0.3f, 0.4f, 0.6f)
     }
 
     /** Turn the current local time into a sun elevation angle, encoded as [Vector3f].
@@ -106,15 +113,19 @@ open class Atmosphere(initSunDir: Vector3f? = null, emissionStrength: Float = 0.
         // Define a HashMap to map arrow key dimension strings to rotation angles and axes
         val arrowKeyMappings = HashMap<String, Pair<Float, Vector3f>>()
         logger.info("moving $arrowKey")
-        arrowKeyMappings["up"] = Pair(increment, Vector3f(1f, 0f, 0f))
-        arrowKeyMappings["down"] = Pair(-increment, Vector3f(1f, 0f, 0f))
-        arrowKeyMappings["left"] = Pair(increment, Vector3f(0f, 1f, 0f))
-        arrowKeyMappings["right"] = Pair(-increment, Vector3f(0f, 1f, 0f))
+        arrowKeyMappings["T"] = Pair(increment, Vector3f(1f, 0f, 0f))
+        arrowKeyMappings["G"] = Pair(-increment, Vector3f(1f, 0f, 0f))
+        arrowKeyMappings["F"] = Pair(increment, Vector3f(0f, 1f, 0f))
+        arrowKeyMappings["H"] = Pair(-increment, Vector3f(0f, 1f, 0f))
 
         val mapping = arrowKeyMappings[arrowKey]
         if (mapping != null) {
             val (angle, axis) = mapping
-            sunDir.rotateAxis(toRadians(angle.toDouble()).toFloat(), axis.x, axis.y, axis.z)
+            val rotation = Quaternionf().rotationAxis(toRadians(angle.toDouble()).toFloat(), axis.x, axis.y, axis.z)
+            sunDir.rotate(rotation)
+//            sunLight.spatial().rotation = Quaternionf(sunDir.x, sunDir.y, sunDir.z, 0f)
+//            sunLight.intensity = sunDir.y * 4f
+//            ambiLight.intensity = sunDir.y * 0.3f
         }
     }
 
@@ -122,15 +133,15 @@ open class Atmosphere(initSunDir: Vector3f? = null, emissionStrength: Float = 0.
      * @param mask Mask key to be used in combination with the arrow keys; defaults to Ctrl.
      * @param increment Increment value for the rotation in degrees, defaults to 10°. */
     fun attachRotateBehaviours(inputHandler: InputHandler, mask: String = "ctrl", increment: Float = 10f) {
-        val directions = listOf("up", "down", "left", "right")
-//        val directions = listOf("T", "G", "F", "H")
+//        val directions = listOf("UP", "DOWN", "LEFT", "RIGHT")
+        val directions = listOf("T", "G", "F", "H")
 
         for (direction in directions) {
             val clickBehaviour = ClickBehaviour { _, _ -> moveSun(direction, increment) }
             val bindingName = "move_sun_$direction"
-            logger.debug("Attaching behaviour $bindingName to key ${direction.uppercase()}")
+            logger.debug("Attaching behaviour $bindingName to key $direction")
             inputHandler.addBehaviour(bindingName, clickBehaviour)
-            inputHandler.addKeyBinding(bindingName, "$mask ${direction.uppercase()}")
+            inputHandler.addKeyBinding(bindingName, "$mask $direction")
         }
     }
 }
