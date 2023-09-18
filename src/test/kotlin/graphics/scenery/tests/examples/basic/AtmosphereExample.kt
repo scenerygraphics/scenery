@@ -73,11 +73,7 @@ class AtmosphereExample : SceneryBase("Atmosphere Example",
             scene.addChild(this)
         }
 
-        logger.info("sunproxy pos: ${atmos.sunProxy.spatial().position}")
-
-
         scene.addChild(atmos)
-
     }
 
     override fun inputSetup() {
