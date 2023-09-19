@@ -613,13 +613,14 @@ open class VulkanRenderer(hub: Hub,
             swapchain = when {
                 selectedSwapchain != null -> {
                     logger.info("Using swapchain ${selectedSwapchain.simpleName}")
-                    val params = selectedSwapchain.kotlin.primaryConstructor!!.parameters.associate { param ->
-                        param to when(param.name) {
+                    val params = selectedSwapchain.kotlin.primaryConstructor!!.parameters.associateWith { param ->
+                        when(param.name) {
                             "device" -> device
                             "queue" -> queue
                             "commandPools" -> commandPools
                             "renderConfig" -> renderConfig
                             "useSRGB" -> renderConfig.sRGB
+                            "vsync" -> !settings.get<Boolean>("Renderer.DisableVsync")
                             else -> null
                         }
                     }.filter { it.value != null }
