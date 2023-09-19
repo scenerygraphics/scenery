@@ -691,13 +691,13 @@ open class VulkanRenderer(hub: Hub,
                     }
 
                     val validationsEnabled = if (validation) {
-                        " - VALIDATIONS ENABLED"
+                        ", validation layers enabled"
                     } else {
                         ""
                     }
 
-                    if(embedIn == null) {
-                        window.title = "$applicationName [${this@VulkanRenderer.javaClass.simpleName}, ${this@VulkanRenderer.renderConfig.name}] $validationsEnabled - $fps fps"
+                    if(embedIn == null || (embedIn as? SceneryJPanel)?.owned == true) {
+                        window.title = "$applicationName [${this@VulkanRenderer.renderConfig.name}$validationsEnabled] $fps fps"
                     }
                 }
             }, 0, 1000)
