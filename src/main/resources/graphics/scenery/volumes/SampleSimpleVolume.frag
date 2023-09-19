@@ -17,37 +17,46 @@ uniform sampler2D colorMap;
 
 vec4 sampleVolume( vec4 wpos )
 {
-    bool cropping = slicingMode == 1 || slicingMode == 3;
-    bool slicing = slicingMode == 2 || slicingMode == 3;
+    if(usedSlicingPlanes == 0) {
+        vec3 pos = (im * wpos).xyz + 0.5;
 
-    bool isCropped = false;
-    bool isInSlice = false;
+        float rawsample = convert(texture(volume, pos / textureSize(volume, 0)).r);
+        float tf = texture(transferFunction, vec2(rawsample + 0.001f, 0.5f)).r;
+        vec3 cmapplied = texture(colorMap, vec2(rawsample + 0.001f, 0.5f)).rgb;
 
-    for(int i = 0; i < usedSlicingPlanes; i++){
-        vec4 slicingPlane = slicingPlanes[i];
-        float dv = slicingPlane.x * wpos.x + slicingPlane.y * wpos.y + slicingPlane.z * wpos.z;
+        return vec4(cmapplied, tf);
+    } else {
+        bool cropping = slicingMode == 1 || slicingMode == 3;
+        bool slicing = slicingMode == 2 || slicingMode == 3;
 
-        // compare position to slicing plane
-        // negative w inverts the comparision
-        isCropped = isCropped || (slicingPlane.w >= 0 && dv > slicingPlane.w) || (slicingPlane.w < 0 && dv < abs(slicingPlane.w));
+        bool isCropped = false;
+        bool isInSlice = false;
 
-        float dist = abs(dv - abs(slicingPlane.w)) / length(slicingPlane.xyz);
-        isInSlice = isInSlice || dist < 0.02f;
+        for (int i = 0; i < usedSlicingPlanes; i++){
+            vec4 slicingPlane = slicingPlanes[i];
+            float dv = slicingPlane.x * wpos.x + slicingPlane.y * wpos.y + slicingPlane.z * wpos.z;
+
+            // compare position to slicing plane
+            // negative w inverts the comparision
+            isCropped = isCropped || (slicingPlane.w >= 0 && dv > slicingPlane.w) || (slicingPlane.w < 0 && dv < abs(slicingPlane.w));
+
+            float dist = abs(dv - abs(slicingPlane.w)) / length(slicingPlane.xyz);
+            isInSlice = isInSlice || dist < 0.02f;
+        }
+
+        if ((!cropping && slicing && !isInSlice)
+        || (cropping && !slicing && isCropped)
+        || (cropping && slicing && !(!isCropped || isInSlice))){
+            return vec4(0);
+        }
+
+        vec3 pos = (im * wpos).xyz + 0.5;
+
+        float rawsample = convert(texture(volume, pos / textureSize(volume, 0)).r);
+        float tf = texture(transferFunction, vec2(rawsample + 0.001f, 0.5f)).r;
+        vec3 cmapplied = texture(colorMap, vec2(rawsample + 0.001f, 0.5f)).rgb;
+
+        int intransparent = int(slicing && isInSlice);
+        return mix(vec4(cmapplied, tf), vec4(cmapplied*tf, 1.0), intransparent);
     }
-
-    if (   (!cropping && slicing && !isInSlice)
-        || ( cropping && !slicing && isCropped)
-        || ( cropping && slicing && !(!isCropped || isInSlice ))){
-        return vec4(0);
-    }
-
-
-    vec3 pos = (im * wpos).xyz + 0.5;
-
-    float rawsample = convert(texture( volume, pos / textureSize( volume, 0 ) ).r);
-    float tf = texture(transferFunction, vec2(rawsample + 0.001f, 0.5f)).r;
-    vec3 cmapplied = texture(colorMap, vec2(rawsample + 0.001f, 0.5f)).rgb;
-
-    int intransparent = int( slicing && isInSlice) ;
-    return vec4(cmapplied*tf,1) * intransparent + vec4(cmapplied, tf) * (1-intransparent);
 }

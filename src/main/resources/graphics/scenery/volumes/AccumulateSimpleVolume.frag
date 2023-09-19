@@ -6,11 +6,9 @@ vis = vis && bool(sceneGraphVisibility);
 if (vis)
 {
     vec4 x = sampleVolume(wpos);
-    float newAlpha = x.a;
-    vec3 newColor = x.rgb;
 
-    v.rgb = v.rgb + (1.0f - v.a) * newColor * newAlpha;
-    v.a = v.a + (1.0f - v.a) * newAlpha;
+    v.rgb = v.rgb + (1.0f - v.a) * x.rgb * x.a;
+    v.a = v.a + (1.0f - v.a) * x.a;
 
     if(v.a >= 1.0f) {
         break;
