@@ -52,22 +52,23 @@ open class Atmosphere(initSunDir: Vector3f? = null, emissionStrength: Float = 0.
             sunDirEnabledManual = true
         }
 
+//        sunLight = DirectionalLight(sunDir)
+//        sunLight.emissionColor = Vector3f(1f, 0.8f, 0.7f)
+//        addChild(sunLight)
+
+//        ambiLight = AmbientLight()
+//        ambiLight.intensity = 0.2f
+//        ambiLight.emissionColor = Vector3f(0.3f, 0.4f, 0.6f)
+
         // Spawn a coroutine to update the sun direction
         val job = CoroutineScope(Dispatchers.Default).launch {
             while (!sunDirEnabledManual) {
                 sunDir = getSunDirFromTime()
+//                updateLights()
                 // Wait 30 seconds
                 delay(30 * 1000)
             }
         }
-
-//        sunLight = DirectionalLight(sunDir)
-//        sunLight.emissionColor = Vector3f(1f, 0.9f, 0.4f)
-//        addChild(sunLight)
-
-//        ambiLight = AmbientLight()
-//        ambiLight.intensity = 0.3f
-//        ambiLight.emissionColor = Vector3f(0.3f, 0.4f, 0.6f)
     }
 
     /** Turn the current local time into a sun elevation angle, encoded as [Vector3f].
@@ -108,41 +109,48 @@ open class Atmosphere(initSunDir: Vector3f? = null, emissionStrength: Float = 0.
         // Indicate that the user switched to manual sun direction controls
         if (!sunDirEnabledManual) {
             sunDirEnabledManual = true
-            logger.debug("Switched to manual sun direction.")
+            logger.info("Switched to manual sun direction.")
         }
         // Define a HashMap to map arrow key dimension strings to rotation angles and axes
         val arrowKeyMappings = HashMap<String, Pair<Float, Vector3f>>()
-        logger.info("moving $arrowKey")
-        arrowKeyMappings["T"] = Pair(increment, Vector3f(1f, 0f, 0f))
-        arrowKeyMappings["G"] = Pair(-increment, Vector3f(1f, 0f, 0f))
-        arrowKeyMappings["F"] = Pair(increment, Vector3f(0f, 1f, 0f))
-        arrowKeyMappings["H"] = Pair(-increment, Vector3f(0f, 1f, 0f))
+        arrowKeyMappings["UP"] = Pair(increment, Vector3f(1f, 0f, 0f))
+        arrowKeyMappings["DOWN"] = Pair(-increment, Vector3f(1f, 0f, 0f))
+        arrowKeyMappings["LEFT"] = Pair(increment, Vector3f(0f, 1f, 0f))
+        arrowKeyMappings["RIGHT"] = Pair(-increment, Vector3f(0f, 1f, 0f))
 
         val mapping = arrowKeyMappings[arrowKey]
         if (mapping != null) {
             val (angle, axis) = mapping
             val rotation = Quaternionf().rotationAxis(toRadians(angle.toDouble()).toFloat(), axis.x, axis.y, axis.z)
             sunDir.rotate(rotation)
-//            sunLight.spatial().rotation = Quaternionf(sunDir.x, sunDir.y, sunDir.z, 0f)
-//            sunLight.intensity = sunDir.y * 4f
-//            ambiLight.intensity = sunDir.y * 0.3f
+//            updateLights()
         }
     }
 
     /** Attach Up, Down, Left, Right key mappings to the inputhandler to rotate the sun in increments.
-     * @param mask Mask key to be used in combination with the arrow keys; defaults to Ctrl.
-     * @param increment Increment value for the rotation in degrees, defaults to 10°. */
-    fun attachRotateBehaviours(inputHandler: InputHandler, mask: String = "ctrl", increment: Float = 10f) {
-//        val directions = listOf("UP", "DOWN", "LEFT", "RIGHT")
-        val directions = listOf("T", "G", "F", "H")
-
-        for (direction in directions) {
-            val clickBehaviour = ClickBehaviour { _, _ -> moveSun(direction, increment) }
-            val bindingName = "move_sun_$direction"
-            logger.debug("Attaching behaviour $bindingName to key $direction")
-            inputHandler.addBehaviour(bindingName, clickBehaviour)
-            inputHandler.addKeyBinding(bindingName, "$mask $direction")
+     * Keybinds are Ctrl + cursor keys for fast movement and Ctrl + Shift + cursor keys for slow movement.
+     * @param increment Increment value for the rotation in degrees, defaults to 20°. Slow movement is 10% of [increment]. */
+    fun attachRotateBehaviours(inputHandler: InputHandler, increment: Float = 20f) {
+        val incMap = mapOf(
+            "fast" to increment,
+            "slow" to increment / 10
+        )
+        for (speed in listOf("fast", "slow")) {
+            for (direction in listOf("UP", "DOWN", "LEFT", "RIGHT")) {
+                val clickBehaviour = ClickBehaviour { _, _ -> incMap[speed]?.let { moveSun(direction, it) } }
+                val bindingName = "move_sun_${direction}_$speed"
+                val bindingKey = if (speed == "slow") "ctrl shift $direction" else "ctrl $direction"
+                logger.debug("Attaching behaviour $bindingName to key $direction")
+                inputHandler.addBehaviour(bindingName, clickBehaviour)
+                inputHandler.addKeyBinding(bindingName, bindingKey)
+            }
         }
     }
+
+//    private fun updateLights() {
+//        sunLight.spatial().rotation = Quaternionf(sunDir.x, sunDir.y, sunDir.z, 0f)
+//        sunLight.intensity = sunDir.y * 4f
+//        ambiLight.intensity = sunDir.y * 0.3f
+//    }
 }
 
