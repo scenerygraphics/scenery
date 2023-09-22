@@ -96,10 +96,11 @@ sealed class Shaders() {
             val base = baseClass.first()
             val pathPrefix = base.second
 
-            val f = File(codePath)
+            val localFiles = listOf(File(codePath), File("shaders/$codePath"))
             val paths = ShaderPaths(spirvPath, codePath)
+            val f = localFiles.find { it.exists() }
 
-            val (spirvFromFile, codeFromFile) = if(f.exists()) {
+            val (spirvFromFile, codeFromFile) = if(f != null && f.exists()) {
                 logger.warn("Using $codePath from filesystem, will ignore compiled or packaged version.")
                 changeTimes.putIfAbsent(ShaderPaths(spirvPath, codePath), f.lastModified())
 
