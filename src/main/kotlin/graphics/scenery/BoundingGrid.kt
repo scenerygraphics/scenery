@@ -23,7 +23,7 @@ import java.util.*
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-open class BoundingGrid : Mesh("Bounding Grid") {
+open class BoundingGrid : Mesh("Bounding Grid"), RenderingOrder {
     protected var labels = HashMap<String, TextBoard>()
 
     /** Grid color for the bounding grid. */
@@ -44,7 +44,7 @@ open class BoundingGrid : Mesh("Bounding Grid") {
 
     /** Line width for the grid. */
     @ShaderProperty
-    var lineWidth: Float = 1.2f
+    var lineWidth: Float = 1.0f
         set(value) {
             field = value
             updateModifiedAt()
@@ -52,11 +52,24 @@ open class BoundingGrid : Mesh("Bounding Grid") {
 
     /** Whether to show only the ticks on the grid, or show the full grid. */
     @ShaderProperty
-    var ticksOnly: Int = 1
+    var ticksOnly: Int = 0
+        set(value) {
+            field = value
+            if(ticksOnly == 0) {
+                material().cullingMode = Material.CullingMode.Front
+            } else {
+                material().cullingMode = Material.CullingMode.None
+            }
+            updateModifiedAt()
+        }
+
+    @ShaderProperty
+    protected var boundingBoxSize: Vector3f = Vector3f(1.0f)
         set(value) {
             field = value
             updateModifiedAt()
         }
+
 
     /** Slack around transparent objects, 2% by default. */
     var slack = 0.02f
@@ -76,9 +89,20 @@ open class BoundingGrid : Mesh("Bounding Grid") {
     init {
         setMaterial(ShaderMaterial.fromFiles("DefaultForward.vert", "BoundingGrid.frag")) {
             blending.transparent = true
-            blending.opacity = 0.8f
-            blending.setOverlayBlending()
-            cullingMode = Material.CullingMode.Front
+            blending.opacity = 1.0f
+            blending.sourceColorBlendFactor = Blending.BlendFactor.One
+            blending.destinationColorBlendFactor = Blending.BlendFactor.OneMinusSrcAlpha
+            blending.sourceAlphaBlendFactor = Blending.BlendFactor.One
+            blending.destinationAlphaBlendFactor = Blending.BlendFactor.OneMinusSrcAlpha
+            blending.colorBlending = Blending.BlendOp.add
+            blending.alphaBlending = Blending.BlendOp.add
+
+            if(ticksOnly > 0) {
+                cullingMode = Material.CullingMode.None
+            } else {
+                cullingMode = Material.CullingMode.Back
+            }
+            depthTest = Material.DepthTest.LessEqual
         }
 
         labels = hashMapOf(
@@ -88,7 +112,7 @@ open class BoundingGrid : Mesh("Bounding Grid") {
             "z" to TextBoard()
         )
 
-        labels.forEach { s, fontBoard ->
+        labels.forEach { (s, fontBoard) ->
             fontBoard.text = s
             fontBoard.fontColor = Vector4f(1.0f, 1.0f, 1.0f, 1.0f)
             fontBoard.backgroundColor = Vector4f(0.0f, 0.0f, 0.0f, 1.0f)
@@ -146,8 +170,9 @@ open class BoundingGrid : Mesh("Bounding Grid") {
             }
 
             val b = Box(max - min)
+            boundingBoxSize = max - min
 
-            logger.debug("Bounding box of $node is $maxBoundingBox")
+            logger.debug("Bounding box of {} is {}", node, maxBoundingBox)
 
             val center = (max - min)*0.5f
 
@@ -166,10 +191,24 @@ open class BoundingGrid : Mesh("Bounding Grid") {
 
             boundingBox?.let { bb ->
                 // label coordinates are relative to the bounding box
-                labels["0"]?.spatial()?.position = bb.min - Vector3f(0.1f, 0.0f, 0.0f)
-                labels["x"]?.spatial()?.position = Vector3f(2.0f * bb.max.x() + 0.1f, 0.01f, 0.01f) - center
-                labels["y"]?.spatial()?.position = Vector3f(-0.1f, 2.0f * bb.max.y(), 0.01f) - center
-                labels["z"]?.spatial()?.position = Vector3f(-0.1f, 0.01f, 2.0f * bb.max.z()) - center
+                val hs = 2.0f * bb.halfSize
+
+                labels["0"]?.spatial()?.position = bb.min - 0.02f * hs
+                labels["x"]?.spatial()?.position = Vector3f(2.0f * bb.max.x() + 0.02f* hs.x, -0.02f * hs.y, -0.02f * hs.z) - center
+                labels["y"]?.spatial()?.position = Vector3f(-0.02f * hs.x, 2.0f * bb.max.y() , 0.02f * hs.z) - center
+                labels["z"]?.spatial()?.position = Vector3f(-0.02f * hs.x, -0.02f * hs.y, 2.0f * bb.max.z() + 0.02f * hs.z) - center
+
+                val scale = Vector3f()
+                this.spatial().world.getScale(scale)
+                val fontScale = 0.3f
+                val invScale = Vector3f(1.0f/maxOf(scale.x, 0.0001f) * fontScale,
+                                        1.0f/maxOf(scale.y, 0.0001f) * fontScale,
+                                        1.0f/maxOf(scale.z, 0.0001f) * fontScale)
+
+                labels["0"]?.spatial()?.scale = invScale
+                labels["x"]?.spatial()?.scale = invScale
+                labels["y"]?.spatial()?.scale = invScale
+                labels["z"]?.spatial()?.scale = invScale
 
                 spatial {
                     needsUpdate = true
@@ -192,6 +231,8 @@ open class BoundingGrid : Mesh("Bounding Grid") {
         this.numLines = fresh.numLines
         this.ticksOnly = fresh.ticksOnly
     }
+
+    override var renderingOrder: Int = Int.MAX_VALUE
 
     /**
      * Returns this bounding box' coordinates and associated [Node] as String.
