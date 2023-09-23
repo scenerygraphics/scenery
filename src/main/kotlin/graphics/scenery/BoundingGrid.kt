@@ -52,7 +52,7 @@ open class BoundingGrid : Mesh("Bounding Grid"), RenderingOrder {
 
     /** Whether to show only the ticks on the grid, or show the full grid. */
     @ShaderProperty
-    var ticksOnly: Int = 0
+    var ticksOnly: Int = 1
         set(value) {
             field = value
             if(ticksOnly == 0) {
@@ -208,6 +208,7 @@ open class BoundingGrid : Mesh("Bounding Grid"), RenderingOrder {
                 labels["0"]?.spatial()?.scale = invScale
                 labels["x"]?.spatial()?.scale = invScale
                 labels["y"]?.spatial()?.scale = invScale
+                labels["y"]?.spatial()?.scale?.timesAssign(-1.0f)
                 labels["z"]?.spatial()?.scale = invScale
 
                 spatial {
