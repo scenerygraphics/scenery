@@ -65,7 +65,7 @@ class JsonDeserialisers {
             return when (p.text.trim().trimEnd()) {
                 "LeftEye" -> 0
                 "RightEye" -> 1
-                else -> -1
+                else -> 0
             }
         }
     }

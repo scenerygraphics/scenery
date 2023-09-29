@@ -15,7 +15,7 @@ import kotlin.math.*
  * @param[radius] The radius of the sphere
  * @param[subdivisions] Number of subdivisions of the base icosahedron
  */
-open class Icosphere(val radius: Float, val subdivisions: Int, val insideNormals: Boolean = false) : Mesh("Icosphere") {
+open class Icosphere @JvmOverloads constructor(val radius: Float, val subdivisions: Int, val insideNormals: Boolean = false) : Mesh("Icosphere") {
     fun MutableList<Vector3f>.addVertex(vararg v: Float) {
         this.add(Vector3f(v))
     }

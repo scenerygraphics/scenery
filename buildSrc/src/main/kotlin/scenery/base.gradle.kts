@@ -103,7 +103,6 @@ tasks {
         group = "tools"
         mainClass.set("graphics.scenery.backends.ShaderCompiler")
         classpath = sourceSets["main"].runtimeClasspath
-
     }
 
     register<JacocoReport>("fullCodeCoverageReport") {

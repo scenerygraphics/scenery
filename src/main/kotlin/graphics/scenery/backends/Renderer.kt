@@ -226,6 +226,9 @@ abstract class Renderer : Hubable {
     companion object {
         val logger by lazyLogger()
 
+        /** (System) property name to declare a scenery instance headless */
+        const val HEADLESS_PROPERTY_NAME = "scenery.Headless"
+
         /**
          * Creates a new [Renderer] instance, based on what is available on the current platform, or set via
          * the scenery.Renderer system property.
