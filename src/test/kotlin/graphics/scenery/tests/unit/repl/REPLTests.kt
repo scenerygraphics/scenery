@@ -1,8 +1,9 @@
 package graphics.scenery.tests.unit.repl
 
 import graphics.scenery.Hub
+import graphics.scenery.backends.Renderer
 import graphics.scenery.repl.REPL
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.junit.BeforeClass
 import org.junit.Test
 import kotlin.test.assertEquals
@@ -14,13 +15,13 @@ import kotlin.test.assertNotNull
  * @author Ulrik Guenther <hello@ulrik.is>
  */
 class REPLTests {
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
 
     /** Companion object for test setup */
     companion object {
         @JvmStatic @BeforeClass
         fun setHeadless() {
-            System.setProperty("scenery.Headless", "true")
+            System.setProperty(Renderer.HEADLESS_PROPERTY_NAME, "true")
         }
     }
 

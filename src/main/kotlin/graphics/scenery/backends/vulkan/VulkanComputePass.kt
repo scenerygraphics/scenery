@@ -1,10 +1,10 @@
 package graphics.scenery.backends.vulkan
 
-import graphics.scenery.GeometryType
+import graphics.scenery.geometry.GeometryType
 import graphics.scenery.Node
 import graphics.scenery.backends.vulkan.VulkanPostprocessPass.setRequiredDescriptorSetsPostprocess
 import graphics.scenery.compute.ComputeMetadata
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.joml.Vector3i
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.vulkan.KHRSwapchain
@@ -16,7 +16,7 @@ import org.lwjgl.vulkan.VK10
  * @author Ulrik Guenther <hello@ulrik.is>
  */
 object VulkanComputePass {
-    val logger by LazyLogger()
+    val logger by lazyLogger()
 
     /**
      * Records a new compute render [pass] into the [commandBuffer] given. Eventual further buffers

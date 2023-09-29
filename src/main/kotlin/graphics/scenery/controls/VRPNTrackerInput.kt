@@ -2,15 +2,12 @@ package graphics.scenery.controls
 
 import org.joml.Matrix4f
 import org.joml.Vector3f
-import com.jogamp.opengl.math.Quaternion
 import graphics.scenery.Camera
 import graphics.scenery.Mesh
 import graphics.scenery.Node
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import graphics.scenery.utils.extensions.times
 import org.joml.Quaternionf
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 import vrpn.Loader
 import vrpn.TrackerRemote
 import vrpn.TrackerRemoteListener
@@ -22,8 +19,8 @@ import java.util.*
 * @author Ulrik Günther <hello@ulrik.is>
 */
 
-class VRPNTrackerInput(trackerAddress: String = "device@locahost:5500") : TrackerInput {
-    private val logger by LazyLogger()
+class VRPNTrackerInput(trackerAddress: String = "device@localhost:5500") : TrackerInput {
+    private val logger by lazyLogger()
 
     var tracker: TrackerRemote? = null
 

@@ -4,9 +4,8 @@ import graphics.scenery.BoundingGrid
 import graphics.scenery.Camera
 import graphics.scenery.Scene
 import graphics.scenery.backends.Renderer
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.scijava.ui.behaviour.ClickBehaviour
-import kotlin.reflect.KProperty
 
 /**
  * Raycasting-based selection command. Needs to be given a
@@ -24,26 +23,12 @@ import kotlin.reflect.KProperty
 open class SelectCommand @JvmOverloads constructor(protected val name: String,
                                                    protected val renderer: Renderer,
                                                    protected val scene: Scene,
-                                                   protected val camera: () -> Camera?,
+                                                   camera: () -> Camera?,
                                                    protected var debugRaycast: Boolean = false,
                                                    var ignoredObjects: List<Class<*>> = listOf<Class<*>>(BoundingGrid::class.java),
-                                                   protected var action: ((Scene.RaycastResult, Int, Int) -> Unit) = { _, _, _ -> Unit }) : ClickBehaviour {
-    protected val logger by LazyLogger()
-
-    protected val cam: Camera? by CameraDelegate()
-
-    /** Camera delegate class, converting lambdas to Cameras. */
-    protected inner class CameraDelegate {
-        /** Returns the [graphics.scenery.Camera] resulting from the evaluation of [camera] */
-        operator fun getValue(thisRef: Any?, property: KProperty<*>): Camera? {
-            return camera.invoke()
-        }
-
-        /** Setting the value is not supported */
-        operator fun setValue(thisRef: Any?, property: KProperty<*>, value: Camera?) {
-            throw UnsupportedOperationException()
-        }
-    }
+                                                   protected var action: ((Scene.RaycastResult, Int, Int) -> Unit) = { _, _, _ -> Unit }) : ClickBehaviour,
+    WithCameraDelegateBase(camera) {
+    protected val logger by lazyLogger()
 
 
     /**

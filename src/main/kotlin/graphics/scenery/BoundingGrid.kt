@@ -1,7 +1,11 @@
 package graphics.scenery
 
+import graphics.scenery.primitives.TextBoard
+import graphics.scenery.attribute.renderable.DefaultRenderable
+import graphics.scenery.attribute.renderable.Renderable
+import graphics.scenery.attribute.material.Material
+import graphics.scenery.net.Networkable
 import graphics.scenery.utils.extensions.*
-import graphics.scenery.volumes.Volume
 import org.joml.Vector3f
 import org.joml.Vector4f
 import java.util.*
@@ -25,18 +29,34 @@ open class BoundingGrid : Mesh("Bounding Grid") {
     /** Grid color for the bounding grid. */
     @ShaderProperty
     var gridColor: Vector3f = Vector3f(1.0f, 1.0f, 1.0f)
+        set(value) {
+            field = value
+            updateModifiedAt()
+        }
 
     /** Number of lines per grid axis. */
     @ShaderProperty
     var numLines: Int = 10
+        set(value) {
+            field = value
+            updateModifiedAt()
+        }
 
     /** Line width for the grid. */
     @ShaderProperty
     var lineWidth: Float = 1.2f
+        set(value) {
+            field = value
+            updateModifiedAt()
+        }
 
     /** Whether to show only the ticks on the grid, or show the full grid. */
     @ShaderProperty
     var ticksOnly: Int = 1
+        set(value) {
+            field = value
+            updateModifiedAt()
+        }
 
     /** Slack around transparent objects, 2% by default. */
     var slack = 0.02f
@@ -44,31 +64,22 @@ open class BoundingGrid : Mesh("Bounding Grid") {
     /** The [Node] this bounding grid is attached to. Set to null to remove. */
     var node: Node? = null
         set(value) {
-            if(value == null) {
-                field?.removeChild(this)
-                field?.updateWorld(true)
-
-                field = value
-            } else {
-                field = value
-                node?.removeChild(this)
-                updateFromNode()
-                value.addChild(this)
-
-                value.updateWorld(true)
-            }
+            updateNode(field, value)
+            field = value
         }
+
+    override var modifiedAt: Long = 0
 
     /** Stores the hash of the [node]'s bounding box to keep an eye on it. */
     protected var nodeBoundingBoxHash: Int = -1
 
     init {
-        material = ShaderMaterial.fromFiles("DefaultForward.vert", "BoundingGrid.frag")
-        material.blending.transparent = true
-        material.blending.opacity = 0.8f
-        material.blending.setOverlayBlending()
-        material.cullingMode = Material.CullingMode.Front
-
+        setMaterial(ShaderMaterial.fromFiles("DefaultForward.vert", "BoundingGrid.frag")) {
+            blending.transparent = true
+            blending.opacity = 0.8f
+            blending.setOverlayBlending()
+            cullingMode = Material.CullingMode.Front
+        }
 
         labels = hashMapOf(
             "0" to TextBoard(),
@@ -82,21 +93,39 @@ open class BoundingGrid : Mesh("Bounding Grid") {
             fontBoard.fontColor = Vector4f(1.0f, 1.0f, 1.0f, 1.0f)
             fontBoard.backgroundColor = Vector4f(0.0f, 0.0f, 0.0f, 1.0f)
             fontBoard.transparent = 1
-            fontBoard.scale = Vector3f(0.3f, 0.3f, 0.3f)
+            fontBoard.spatial {
+                scale = Vector3f(0.3f, 0.3f, 0.3f)
+            }
 
             this.addChild(fontBoard)
         }
     }
 
-    override fun preDraw(): Boolean {
-        super.preDraw()
+    override fun createRenderable(): Renderable {
+        return object : DefaultRenderable(this) {
+            override fun preDraw(): Boolean {
+                super.preDraw()
+                if (node?.getMaximumBoundingBox().hashCode() != nodeBoundingBoxHash) {
+                    logger.debug(
+                        "Updating bounding box (${
+                            node?.getMaximumBoundingBox().hashCode()
+                        } vs $nodeBoundingBoxHash"
+                    )
+                    updateNode(node, node)
+                }
 
-        if(node?.getMaximumBoundingBox()?.hashCode() != nodeBoundingBoxHash) {
-            logger.info("Updating bounding box (${node?.getMaximumBoundingBox()?.hashCode()} vs $nodeBoundingBoxHash")
-            node = node
+                return true
+            }
         }
+    }
 
-        return true
+    private fun updateNode(oldNode: Node?, newNode: Node?) {
+        if(newNode != null) {
+            oldNode?.removeChild(this)
+            updateFromNode()
+            newNode.addChild(this)
+            newNode.spatialOrNull()?.updateWorld(true)
+        }
     }
 
     protected fun updateFromNode() {
@@ -108,10 +137,12 @@ open class BoundingGrid : Mesh("Bounding Grid") {
             var min = maxBoundingBox.min
             var max = maxBoundingBox.max
 
-            logger.debug("Node ${node.name} is transparent: ${node.material.blending.transparent}")
-            if(node.material.blending.transparent || (node is DelegatesRendering && node.delegate?.material?.blending?.transparent == true)) {
-                min = min * (1.0f + slack)
-                max = max * (1.0f + slack)
+            node.ifMaterial {
+                logger.debug("Node ${node.name} is transparent: ${blending.transparent}")
+                if(blending.transparent) {
+                    min = min * (1.0f + slack)
+                    max = max * (1.0f + slack)
+                }
             }
 
             val b = Box(max - min)
@@ -120,29 +151,46 @@ open class BoundingGrid : Mesh("Bounding Grid") {
 
             val center = (max - min)*0.5f
 
-            this.vertices = b.vertices
-            this.normals = b.normals
-            this.texcoords = b.texcoords
-            this.indices = b.indices
-
             this.boundingBox = b.boundingBox
-            this.position = maxBoundingBox.min + center
+
+            val bGeometry = b.geometry()
+            geometry {
+                vertices = bGeometry.vertices
+                normals = bGeometry.normals
+                texcoords = bGeometry.texcoords
+                indices = bGeometry.indices
+            }
+            spatial {
+                position = maxBoundingBox.min + center
+            }
 
             boundingBox?.let { bb ->
                 // label coordinates are relative to the bounding box
-                labels["0"]?.position = bb.min - Vector3f(0.1f, 0.0f, 0.0f)
-                labels["x"]?.position = Vector3f(2.0f * bb.max.x() + 0.1f, 0.01f, 0.01f) - center
-                labels["y"]?.position = Vector3f(-0.1f, 2.0f * bb.max.y(), 0.01f) - center
-                labels["z"]?.position = Vector3f(-0.1f, 0.01f, 2.0f * bb.max.z()) - center
+                labels["0"]?.spatial()?.position = bb.min - Vector3f(0.1f, 0.0f, 0.0f)
+                labels["x"]?.spatial()?.position = Vector3f(2.0f * bb.max.x() + 0.1f, 0.01f, 0.01f) - center
+                labels["y"]?.spatial()?.position = Vector3f(-0.1f, 2.0f * bb.max.y(), 0.01f) - center
+                labels["z"]?.spatial()?.position = Vector3f(-0.1f, 0.01f, 2.0f * bb.max.z()) - center
 
-                this.needsUpdate = true
-                this.needsUpdateWorld = true
-
-                this.dirty = true
+                spatial {
+                    needsUpdate = true
+                    needsUpdateWorld = true
+                }
+                geometry {
+                    dirty = true
+                }
 
                 name = "Bounding Grid of ${node.name}"
             } ?: logger.error("Bounding box of $b is null")
         }
+    }
+
+    override fun update(fresh: Networkable, getNetworkable: (Int) -> Networkable, additionalData: Any?) {
+        super.update(fresh, getNetworkable, additionalData)
+        if (fresh !is BoundingGrid) throw IllegalArgumentException("Update called with object of foreign class")
+        this.gridColor = fresh.gridColor
+        this.lineWidth = fresh.lineWidth
+        this.numLines = fresh.numLines
+        this.ticksOnly = fresh.ticksOnly
     }
 
     /**

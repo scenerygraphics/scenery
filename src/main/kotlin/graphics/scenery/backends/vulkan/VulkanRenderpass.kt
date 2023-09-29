@@ -1,11 +1,14 @@
 package graphics.scenery.backends.vulkan
 
+import graphics.scenery.*
 import org.joml.Vector3f
-import graphics.scenery.GeometryType
+import graphics.scenery.geometry.GeometryType
 import graphics.scenery.Node
+import graphics.scenery.attribute.renderable.Renderable
 import graphics.scenery.Settings
+import graphics.scenery.attribute.material.Material
 import graphics.scenery.backends.*
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import graphics.scenery.utils.RingBuffer
 import org.joml.Vector2f
 import org.joml.Vector4f
@@ -31,7 +34,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
                        val vertexDescriptors: ConcurrentHashMap<VulkanRenderer.VertexDataKinds, VulkanRenderer.VertexDescription>,
                        val ringBufferSize: Int = 2): AutoCloseable {
 
-    protected val logger by LazyLogger()
+    protected val logger by lazyLogger()
 
     /** [VulkanFramebuffer] inputs of this render pass */
     val inputs = ConcurrentHashMap<String, VulkanFramebuffer>()
@@ -87,21 +90,15 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
         default = { VulkanCommandBuffer(device, null, true) })
 
     /** This renderpasses' semaphore */
-    var semaphore: Long
+    var semaphore: Long = -1L
         get() {
             return semaphoreBacking.get()
         }
 
     private var semaphoreBacking = RingBuffer(size = ringBufferSize,
-        default = {
-            val semaphoreCreateInfo = VkSemaphoreCreateInfo.calloc()
-            .sType(VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO)
-            .pNext(NULL)
-            .flags(0)
-
-            VU.getLong("vkCreateSemaphore",
-                { vkCreateSemaphore(device.vulkanDevice, semaphoreCreateInfo, null, this) }, {})
-        })
+        default = { device.createSemaphore() },
+        cleanup = { device.removeSemaphore(it) }
+    )
 
     /** This renderpasses' [RenderConfigReader.RenderpassConfig]. */
     var passConfig: RenderConfigReader.RenderpassConfig = config.renderpasses.getValue(name)
@@ -165,14 +162,6 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
         protected set
 
     init {
-        val semaphoreCreateInfo = VkSemaphoreCreateInfo.calloc()
-            .sType(VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO)
-            .pNext(NULL)
-            .flags(0)
-
-        semaphore = VU.getLong("vkCreateSemaphore",
-            { vkCreateSemaphore(device.vulkanDevice, semaphoreCreateInfo, null, this) }, {})
-
         recreated = System.nanoTime()
     }
 
@@ -374,9 +363,9 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
         }
     }
 
-    fun getDescriptorSetLayoutForTexture(name: String, node: Node): Pair<Long, List<VulkanShaderModule.UBOSpec>>? {
+    fun getDescriptorSetLayoutForTexture(name: String, renderable: Renderable): Pair<Long, List<ShaderIntrospection.UBOSpec>>? {
         logger.debug("Looking for texture name $name in descriptor specs")
-        val set = getActivePipeline(node).descriptorSpecs.entries
+        val set = getActivePipeline(renderable).descriptorSpecs.entries
             .groupBy { it.value.set }
             .toSortedMap()
             .filter { it.value.any { spec -> spec.value.name == name } }
@@ -393,10 +382,10 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
     /**
      * Returns the order of shader properties as a map for a given [node] as required by the shader file.
      */
-    fun getShaderPropertyOrder(node: Node): Map<String, Int> {
+    fun getShaderPropertyOrder(renderable: Renderable): Map<String, Int> {
         // this creates a shader property UBO for items marked @ShaderProperty in node
-        logger.debug("specs: ${this.pipelines.getValue("preferred-${node.uuid}").descriptorSpecs}")
-        val shaderPropertiesSpec = this.pipelines.getValue("preferred-${node.uuid}").descriptorSpecs.filter { it.key == "ShaderProperties" }.map { it.value.members }
+        logger.debug("specs: ${this.pipelines.getValue("preferred-${renderable.getUuid()}").descriptorSpecs}")
+        val shaderPropertiesSpec = this.pipelines.getValue("preferred-${renderable.getUuid()}").descriptorSpecs.filter { it.key == "ShaderProperties" }.map { it.value.members }
 
         if(shaderPropertiesSpec.count() == 0) {
             logger.debug("Warning: Shader file uses no declared shader properties, despite the class declaring them.")
@@ -421,17 +410,19 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
         }
     }
 
+    val shaders = Shaders.ShadersFromFiles(passConfig.shaders.map { "shaders/$it" }.toTypedArray())
     /**
      * Initialiases the default [VulkanPipeline] for this renderpass.
      */
     fun initializeDefaultPipeline() {
-        val shaders = Shaders.ShadersFromFiles(passConfig.shaders.map { "shaders/$it" }.toTypedArray())
         val shaderModules = ShaderType.values().mapNotNull { type ->
             try {
                 VulkanShaderModule.getFromCacheOrCreate(device, "main", shaders.get(Shaders.ShaderTarget.Vulkan, type))
             } catch (e: ShaderNotFoundException) {
                 logger.debug("Shader not found: $type - this is normal if there are no errors reported")
                 null
+            } finally {
+                shaders.stale = false
             }
         }
 
@@ -439,6 +430,183 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
         initializePipeline("default", shaderModules)
     }
 
+
+    private data class PipelineConfig(
+        val shaderModules: HashSet<VulkanShaderModule>,
+        val cullingMode: Material.CullingMode,
+        val depthTest: Material.DepthTest,
+        val blending: Blending,
+        val wireframe: Boolean,
+        val vertexDescription: VulkanRenderer.VertexDescription
+    )
+
+    private val configuredPipelines = ConcurrentHashMap<PipelineConfig, VulkanPipeline>()
+
+    private fun VulkanPipeline.applyPipelineConfig(config: PipelineConfig): VulkanPipeline {
+        when(config.cullingMode) {
+            Material.CullingMode.None -> rasterizationState.cullMode(VK_CULL_MODE_NONE)
+            Material.CullingMode.Front -> rasterizationState.cullMode(VK_CULL_MODE_FRONT_BIT)
+            Material.CullingMode.Back -> rasterizationState.cullMode(VK_CULL_MODE_BACK_BIT)
+            Material.CullingMode.FrontAndBack -> rasterizationState.cullMode(VK_CULL_MODE_FRONT_AND_BACK)
+        }
+
+        when(config.depthTest) {
+            Material.DepthTest.Equal -> depthStencilState.depthCompareOp(VK_COMPARE_OP_EQUAL)
+            Material.DepthTest.Less -> depthStencilState.depthCompareOp(VK_COMPARE_OP_LESS)
+            Material.DepthTest.Greater -> depthStencilState.depthCompareOp(VK_COMPARE_OP_GREATER)
+            Material.DepthTest.LessEqual -> depthStencilState.depthCompareOp(VK_COMPARE_OP_LESS_OR_EQUAL)
+            Material.DepthTest.GreaterEqual -> depthStencilState.depthCompareOp(VK_COMPARE_OP_GREATER_OR_EQUAL)
+            Material.DepthTest.Always -> depthStencilState.depthCompareOp(VK_COMPARE_OP_ALWAYS)
+            Material.DepthTest.Never -> depthStencilState.depthCompareOp(VK_COMPARE_OP_NEVER)
+        }
+
+        if(config.wireframe) {
+            rasterizationState.polygonMode(VK_POLYGON_MODE_LINE)
+        } else {
+            rasterizationState.polygonMode(VK_POLYGON_MODE_FILL)
+        }
+
+        if(config.blending.transparent) {
+            with(config.blending) {
+                val blendStates = colorBlendState.pAttachments()
+                for (attachment in 0 until (blendStates?.capacity() ?: 0)) {
+                    val state = blendStates?.get(attachment)
+
+                    @Suppress("SENSELESS_COMPARISON", "IfThenToSafeAccess")
+                    if (state != null) {
+                        state.blendEnable(true)
+                            .colorBlendOp(colorBlending.toVulkan())
+                            .srcColorBlendFactor(sourceColorBlendFactor.toVulkan())
+                            .dstColorBlendFactor(destinationColorBlendFactor.toVulkan())
+                            .alphaBlendOp(alphaBlending.toVulkan())
+                            .srcAlphaBlendFactor(sourceAlphaBlendFactor.toVulkan())
+                            .dstAlphaBlendFactor(destinationAlphaBlendFactor.toVulkan())
+                            .colorWriteMask(VK_COLOR_COMPONENT_R_BIT or VK_COLOR_COMPONENT_G_BIT or VK_COLOR_COMPONENT_B_BIT or VK_COLOR_COMPONENT_A_BIT)
+                    }
+                }
+            }
+        }
+
+        return this
+    }
+
+    fun registerPipelineForNode(pipeline: VulkanPipeline, renderable: Renderable) {
+        pipelines["preferred-${renderable.getUuid()}"] = pipeline
+    }
+
+    fun initializePipeline(shaderModules: List<VulkanShaderModule>, cullingMode: Material.CullingMode, depthTest: Material.DepthTest, blending: Blending, wireframe: Boolean, vertexDescription: VulkanRenderer.VertexDescription?): VulkanPipeline {
+        val config = PipelineConfig(hashSetOf(*shaderModules.toTypedArray()),
+            cullingMode,
+            depthTest,
+            blending,
+            wireframe,
+            vertexDescription ?: vertexDescriptors.getValue(VulkanRenderer.VertexDataKinds.PositionNormalTexcoord))
+
+        return configuredPipelines.getOrPut(config) {
+            initializeInputAttachmentDescriptorSetLayouts(shaderModules)
+            val reqDescriptorLayouts = ArrayList<Long>()
+
+            val framebuffer = output.values.first()
+            val p = VulkanPipeline(device, this, framebuffer.renderPass.get(0), pipelineCache)
+
+            p.addShaderStages(shaderModules)
+
+            logger.debug("${descriptorSetLayouts.count()} DSLs are available: ${descriptorSetLayouts.keys.joinToString(", ")}")
+
+            val blendMasks = VkPipelineColorBlendAttachmentState.calloc(framebuffer.colorAttachmentCount())
+            (0 until framebuffer.colorAttachmentCount()).forEach {
+                if (passConfig.renderTransparent) {
+                    blendMasks[it]
+                        .blendEnable(true)
+                        .colorBlendOp(passConfig.colorBlendOp.toVulkan())
+                        .srcColorBlendFactor(passConfig.srcColorBlendFactor.toVulkan())
+                        .dstColorBlendFactor(passConfig.dstColorBlendFactor.toVulkan())
+                        .alphaBlendOp(passConfig.alphaBlendOp.toVulkan())
+                        .srcAlphaBlendFactor(passConfig.srcAlphaBlendFactor.toVulkan())
+                        .dstAlphaBlendFactor(passConfig.dstAlphaBlendFactor.toVulkan())
+                        .colorWriteMask(VK_COLOR_COMPONENT_R_BIT or VK_COLOR_COMPONENT_G_BIT or VK_COLOR_COMPONENT_B_BIT or VK_COLOR_COMPONENT_A_BIT)
+                } else {
+                    blendMasks[it]
+                        .blendEnable(false)
+                        .colorWriteMask(0xF)
+                }
+            }
+
+            p.colorBlendState.pAttachments()?.free()
+            p.colorBlendState
+                .sType(VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO)
+                .pNext(NULL)
+                .pAttachments(blendMasks)
+
+            p.depthStencilState
+                .depthTestEnable(passConfig.depthTestEnabled)
+                .depthWriteEnable(passConfig.depthWriteEnabled)
+
+            p.descriptorSpecs.entries
+                .groupBy { it.value.set }
+                .toSortedMap()
+                .forEach { (setId, group) ->
+                    logger.debug(
+                        "${this.name}: Initialising DSL for set $setId with ${
+                            group.sortedBy { it.value.binding }
+                                .joinToString(", ") { "${it.value.name} (${it.value.set}/${it.value.binding})" }
+                        } (${group.size} members)"
+                    )
+                    reqDescriptorLayouts.add(
+                        initializeDescriptorSetLayoutForSpecs(
+                            setId,
+                            group.sortedBy { it.value.binding })
+                    )
+                }
+
+            p.applyPipelineConfig(config)
+
+            if (logger.isDebugEnabled) {
+                logger.debug(
+                    "DS are: ${
+                        p.descriptorSpecs.entries.sortedBy { it.value.binding }.sortedBy { it.value.set }
+                            .joinToString { "${it.key} (set=${it.value.set}, binding=${it.value.binding}, type=${it.value.type})" }
+                    }")
+            }
+
+            logger.debug("Required DSLs: ${reqDescriptorLayouts.joinToString { it.toHexString() }}")
+
+            when {
+                (passConfig.type == RenderConfigReader.RenderpassType.quad && vertexDescription != null)
+                    && shaderModules.first().type != ShaderType.ComputeShader -> {
+                    p.rasterizationState.cullMode(VK_CULL_MODE_FRONT_BIT)
+                    p.rasterizationState.frontFace(VK_FRONT_FACE_COUNTER_CLOCKWISE)
+
+                    p.createPipelines(
+                        vi = vertexDescriptors.getValue(VulkanRenderer.VertexDataKinds.None).state,
+                        descriptorSetLayouts = reqDescriptorLayouts,
+                        onlyForTopology = GeometryType.TRIANGLES
+                    )
+                }
+
+                (passConfig.type == RenderConfigReader.RenderpassType.geometry
+                    || passConfig.type == RenderConfigReader.RenderpassType.lights)
+                    && shaderModules.first().type != ShaderType.ComputeShader && vertexDescription != null -> {
+                    p.createPipelines(
+                        vi = vertexDescription.state,
+                        descriptorSetLayouts = reqDescriptorLayouts
+                    )
+                }
+
+                passConfig.type == RenderConfigReader.RenderpassType.compute
+                    || shaderModules.first().type == ShaderType.ComputeShader -> {
+                    p.createPipelines(
+                        descriptorSetLayouts = reqDescriptorLayouts,
+                        type = VulkanPipeline.PipelineType.Compute,
+                        vi = null
+                    )
+                }
+            }
+
+            logger.debug("Prepared pipeline for $name")
+            p
+        }
+    }
     /**
      * Initialiases a custom [VulkanPipeline] with [pipelineName], built out of the [shaders] for a specific [vertexInputType].
      * The pipeline settings are customizable using the lambda [settings].
@@ -541,7 +709,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
         vulkanMetadata.renderLists.keys.forEach { it.stale = true }
     }
 
-    private fun initializeDescriptorSetLayoutForSpecs(setId: Long, specs: List<MutableMap.MutableEntry<String, VulkanShaderModule.UBOSpec>>): Long {
+    private fun initializeDescriptorSetLayoutForSpecs(setId: Long, specs: List<MutableMap.MutableEntry<String, ShaderIntrospection.UBOSpec>>): Long {
         val contents = specs.map { s ->
             val spec = s.value
             logger.debug("$name: Looking at ${spec.name} with size ${spec.size} and ${spec.members.size} members")
@@ -554,9 +722,9 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
                     listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1))
 
                 spec.name.startsWith("Input")
-                    && (spec.type == VulkanShaderModule.UBOSpecType.SampledImage1D
-                    || spec.type == VulkanShaderModule.UBOSpecType.SampledImage2D
-                    || spec.type == VulkanShaderModule.UBOSpecType.SampledImage3D) ->
+                    && (spec.type == ShaderIntrospection.UBOSpecType.SampledImage1D
+                    || spec.type == ShaderIntrospection.UBOSpecType.SampledImage2D
+                    || spec.type == ShaderIntrospection.UBOSpecType.SampledImage3D) ->
                     if(spec.members.isNotEmpty()) {
                         spec.members.map { Pair(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1) }.toList()
                     } else {
@@ -564,9 +732,9 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
                     }
 
                 spec.name.startsWith("Input")
-                    && (spec.type == VulkanShaderModule.UBOSpecType.Image1D
-                    || spec.type == VulkanShaderModule.UBOSpecType.Image2D
-                    || spec.type == VulkanShaderModule.UBOSpecType.Image3D) ->
+                    && (spec.type == ShaderIntrospection.UBOSpecType.Image1D
+                    || spec.type == ShaderIntrospection.UBOSpecType.Image2D
+                    || spec.type == ShaderIntrospection.UBOSpecType.Image3D) ->
                     if(spec.members.isNotEmpty()) {
                         spec.members.map { Pair(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1) }.toList()
                     } else {
@@ -574,9 +742,9 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
                     }
 
                 spec.name.startsWith("Output")
-                    && (spec.type == VulkanShaderModule.UBOSpecType.Image1D
-                    || spec.type == VulkanShaderModule.UBOSpecType.Image2D
-                    || spec.type == VulkanShaderModule.UBOSpecType.Image3D) ->
+                    && (spec.type == ShaderIntrospection.UBOSpecType.Image1D
+                    || spec.type == ShaderIntrospection.UBOSpecType.Image2D
+                    || spec.type == ShaderIntrospection.UBOSpecType.Image3D) ->
                     if(spec.members.isNotEmpty()) {
                         spec.members.map { Pair(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1) }.toList()
                     } else {
@@ -589,20 +757,20 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
                 spec.name == "ShaderProperties" ->
                     listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1))
 
-                spec.type == VulkanShaderModule.UBOSpecType.StorageBuffer ->
+                spec.type == ShaderIntrospection.UBOSpecType.StorageBuffer ->
                     listOf(Pair(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, spec.size))
 
-                spec.type == VulkanShaderModule.UBOSpecType.StorageBufferDynamic ->
+                spec.type == ShaderIntrospection.UBOSpecType.StorageBufferDynamic ->
                     listOf(Pair(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, spec.size))
 
-                spec.type == VulkanShaderModule.UBOSpecType.Image1D
-                    || spec.type == VulkanShaderModule.UBOSpecType.Image2D
-                    || spec.type == VulkanShaderModule.UBOSpecType.Image3D ->
+                spec.type == ShaderIntrospection.UBOSpecType.Image1D
+                    || spec.type == ShaderIntrospection.UBOSpecType.Image2D
+                    || spec.type == ShaderIntrospection.UBOSpecType.Image3D ->
                     listOf(Pair(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, maxOf(1, spec.size)))
 
-                spec.type == VulkanShaderModule.UBOSpecType.SampledImage1D
-                    || spec.type == VulkanShaderModule.UBOSpecType.SampledImage2D
-                    || spec.type == VulkanShaderModule.UBOSpecType.SampledImage3D ->
+                spec.type == ShaderIntrospection.UBOSpecType.SampledImage1D
+                    || spec.type == ShaderIntrospection.UBOSpecType.SampledImage2D
+                    || spec.type == ShaderIntrospection.UBOSpecType.SampledImage3D ->
                     listOf(Pair(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, maxOf(1, spec.size)))
 
                 else ->
@@ -648,18 +816,18 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
     fun getWritePosition() = commandBufferBacking.currentWritePosition - 1
 
     /**
-     * Returns the active [VulkanPipeline] for [forNode], if it has a preferred pipeline,
+     * Returns the active [VulkanPipeline] for [forRenderable], if it has a preferred pipeline,
      * or the default one if not.
      */
-    fun getActivePipeline(forNode: Node): VulkanPipeline {
-        return pipelines.getOrDefault("preferred-${forNode.uuid}", getDefaultPipeline())
+    fun getActivePipeline(forRenderable: Renderable): VulkanPipeline {
+        return pipelines.getOrDefault("preferred-${forRenderable.getUuid()}", getDefaultPipeline())
     }
 
     /**
-     * Removes any preferred [VulkanPipeline] for the node given in [forNode].
+     * Removes any preferred [VulkanPipeline] for the node given in [forRenderable].
      */
-    fun removePipeline(forNode: Node): Boolean {
-        return pipelines.remove("preferred-${forNode.uuid}") != null
+    fun removePipeline(forRenderable: Renderable): Boolean {
+        return pipelines.remove("preferred-${forRenderable.getUuid()}") != null
     }
 
     /**
@@ -675,16 +843,17 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
     override fun close() {
         logger.debug("Closing renderpass $name...")
         output.forEach { it.value.close() }
-        pipelines.forEach { it.value.close() }
+        configuredPipelines.forEach { it.value.close() }
+        pipelines.clear()
         UBOs.forEach { it.value.close() }
         ownDescriptorSetLayouts.forEach {
             logger.debug("Destroying DSL ${it.toHexString()}")
-            vkDestroyDescriptorSetLayout(device.vulkanDevice, it, null)
+            device.removeDescriptorSetLayout(it)
         }
         descriptorSetLayouts.clear()
         oldDescriptorSetLayouts.forEach {
             logger.debug("Destroying GC'd DSL ${it.first} ${it.second.toHexString()}")
-            vkDestroyDescriptorSetLayout(device.vulkanDevice, it.second, null)
+            device.removeDescriptorSetLayout(it.second)
         }
         oldDescriptorSetLayouts.clear()
 
@@ -698,19 +867,16 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
         commandBufferBacking.reset()
 
         logger.debug("Destroying semaphores")
-        if(semaphore != -1L) {
-            vkDestroySemaphore(device.vulkanDevice, semaphore, null)
-            memFree(waitSemaphores)
-            memFree(signalSemaphores)
-            memFree(waitStages)
-            memFree(submitCommandBuffers)
+        semaphoreBacking.close()
 
-            semaphore = -1L
-        }
+        memFree(waitSemaphores)
+        memFree(signalSemaphores)
+        memFree(waitStages)
+        memFree(submitCommandBuffers)
     }
 
     companion object {
-        val logger by LazyLogger()
+        val logger by lazyLogger()
         var pipelineCache = -1L
 
         fun createPipelineCache(device: VulkanDevice) {
@@ -819,12 +985,8 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
                     if (passConfig.output.name == "Viewport") {
                         // create viewport renderpass with swapchain image-derived framebuffer
                         pass.isViewportRenderpass = true
-                        width = if(config.stereoEnabled) {
-                            windowWidth// * 2
-                        } else {
-                            windowWidth
-                        }
 
+                        width = windowWidth
                         height = windowHeight
 
                         swapchain.images.forEachIndexed { i, _ ->

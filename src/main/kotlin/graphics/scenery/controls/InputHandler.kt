@@ -5,8 +5,7 @@ import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.backends.Renderer
 import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.controls.behaviours.*
-import graphics.scenery.utils.LazyLogger
-import io.github.classgraph.ClassGraph
+import graphics.scenery.utils.lazyLogger
 import net.java.games.input.Component
 import org.scijava.ui.behaviour.Behaviour
 import org.scijava.ui.behaviour.BehaviourMap
@@ -15,7 +14,6 @@ import org.scijava.ui.behaviour.InputTriggerMap
 import org.scijava.ui.behaviour.io.InputTriggerConfig
 import org.scijava.ui.behaviour.io.InputTriggerDescription
 import org.scijava.ui.behaviour.io.InputTriggerDescriptionsBuilder
-import org.scijava.ui.behaviour.io.gui.CommandDescriptionBuilder
 import org.scijava.ui.behaviour.io.gui.VisualEditorPanel
 import org.scijava.ui.behaviour.io.yaml.YamlConfigIO
 import org.scijava.ui.behaviour.util.Behaviours
@@ -34,7 +32,7 @@ import javax.swing.JFrame
  */
 class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?, forceHandler: Class<*>? = null) : Hubable, AutoCloseable {
     /** logger for the InputHandler **/
-    internal val logger by LazyLogger()
+    internal val logger by lazyLogger()
 
     /** ui-behaviour input trigger map, stores what actions (key presses, etc) trigger which actions. */
     internal val inputMap = InputTriggerMap()
@@ -73,20 +71,10 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?, for
                 }
 
                 else -> {
-                    val start = System.nanoTime()
-                    val handlers = ClassGraph()
-                        .acceptPackages("graphics.scenery.controls")
-                        .enableClassInfo()
-                        .enableAnnotationInfo()
-                        .scan()
-                        .getClassesWithAnnotation("graphics.scenery.controls.CanHandleInputFor")
-                        .loadClasses()
-                    val duration = System.nanoTime() - start
-
                     if (logger.isDebugEnabled) {
-                        logger.debug("Found potential input handlers (${duration / 10e6} ms): ${handlers.joinToString { "${it.simpleName} -> ${it.getAnnotation(CanHandleInputFor::class.java).windowTypes.joinToString()}" }}")
+                        logger.debug("Found potential input handlers ${availableInputHandlers.joinToString { "${it.simpleName} -> ${it.getAnnotation(CanHandleInputFor::class.java).windowTypes.joinToString()}" }}")
                     }
-                    val candidate = handlers.find { it.getAnnotation(CanHandleInputFor::class.java).windowTypes.contains(window::class) }
+                    val candidate = availableInputHandlers.find { it.getAnnotation(CanHandleInputFor::class.java).windowTypes.contains(window::class) }
                     handler = candidate?.getConstructor(Hub::class.java)?.newInstance(hub) as MouseAndKeyHandlerBase?
                     handler?.attach(hub, window, inputMap, behaviourMap)
                 }
@@ -223,34 +211,34 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?, for
         /*
      * Create behaviours and input mappings.
      */
-        behaviourMap.put("mouse_control", FPSCameraControl("mouse_control", { scene.findObserver() }, window.width, window.height))
-        behaviourMap.put("gamepad_camera_control", GamepadCameraControl("gamepad_camera_control", listOf(Component.Identifier.Axis.Z, Component.Identifier.Axis.RZ)) { scene.findObserver() })
-        behaviourMap.put("gamepad_movement_control", GamepadMovementControl("gamepad_movement_control", listOf(Component.Identifier.Axis.X, Component.Identifier.Axis.Y)) { scene.findObserver() })
+        behaviourMap.put("mouse_control", FPSCameraControl({ scene.findObserver() }, window.width, window.height))
+        behaviourMap.put("gamepad_camera_control", GamepadRotationControl(listOf(Component.Identifier.Axis.Z, Component.Identifier.Axis.RZ)) { scene.findObserver() })
+        behaviourMap.put("gamepad_movement_control", GamepadMovementControl(listOf(Component.Identifier.Axis.X, Component.Identifier.Axis.Y)) { scene.findObserver() })
 
         //unused until some reasonable action (to the selection) would be provided
         //behaviourMap.put("select_command", SelectCommand("select_command", renderer, scene, { scene.findObserver() }))
 
-        behaviourMap.put("move_forward", MovementCommand("move_forward", "forward", { scene.findObserver() }, slowMovementSpeed))
-        behaviourMap.put("move_back", MovementCommand("move_back", "back", { scene.findObserver() }, slowMovementSpeed))
-        behaviourMap.put("move_left", MovementCommand("move_left", "left", { scene.findObserver() }, slowMovementSpeed))
-        behaviourMap.put("move_right", MovementCommand("move_right", "right", { scene.findObserver() }, slowMovementSpeed))
-        behaviourMap.put("move_up", MovementCommand("move_up", "up", { scene.findObserver() }, slowMovementSpeed))
-        behaviourMap.put("move_down", MovementCommand("move_down", "down", { scene.findObserver() }, slowMovementSpeed))
+        behaviourMap.put("move_forward", MovementCommand("forward", { scene.findObserver() }, slowMovementSpeed))
+        behaviourMap.put("move_back", MovementCommand("back", { scene.findObserver() }, slowMovementSpeed))
+        behaviourMap.put("move_left", MovementCommand("left", { scene.findObserver() }, slowMovementSpeed))
+        behaviourMap.put("move_right", MovementCommand("right", { scene.findObserver() }, slowMovementSpeed))
+        behaviourMap.put("move_up", MovementCommand("up", { scene.findObserver() }, slowMovementSpeed))
+        behaviourMap.put("move_down", MovementCommand("down", { scene.findObserver() }, slowMovementSpeed))
 
-        behaviourMap.put("move_forward_fast", MovementCommand("move_forward", "forward", { scene.findObserver() }, fastMovementSpeed))
-        behaviourMap.put("move_back_fast", MovementCommand("move_back", "back", { scene.findObserver() }, fastMovementSpeed))
-        behaviourMap.put("move_left_fast", MovementCommand("move_left", "left", { scene.findObserver() }, fastMovementSpeed))
-        behaviourMap.put("move_right_fast", MovementCommand("move_right", "right", { scene.findObserver() }, fastMovementSpeed))
-        behaviourMap.put("move_up_fast", MovementCommand("move_up", "up", { scene.findObserver() }, fastMovementSpeed))
-        behaviourMap.put("move_down_fast", MovementCommand("move_down", "down", { scene.findObserver() }, fastMovementSpeed))
+        behaviourMap.put("move_forward_fast", MovementCommand("forward", { scene.findObserver() }, fastMovementSpeed))
+        behaviourMap.put("move_back_fast", MovementCommand("back", { scene.findObserver() }, fastMovementSpeed))
+        behaviourMap.put("move_left_fast", MovementCommand("left", { scene.findObserver() }, fastMovementSpeed))
+        behaviourMap.put("move_right_fast", MovementCommand("right", { scene.findObserver() }, fastMovementSpeed))
+        behaviourMap.put("move_up_fast", MovementCommand("up", { scene.findObserver() }, fastMovementSpeed))
+        behaviourMap.put("move_down_fast", MovementCommand("down", { scene.findObserver() }, fastMovementSpeed))
 
-        behaviourMap.put("toggle_debug", ToggleCommand("toggle_debug", renderer, "toggleDebug"))
-        behaviourMap.put("toggle_fullscreen", ToggleCommand("toggle_fullscreen", renderer, "toggleFullscreen"))
-        behaviourMap.put("screenshot", ToggleCommand("screenshot", renderer, "screenshot"))
-        behaviourMap.put("set_rendering_quality", EnumCycleCommand("set_rendering_quality", RenderConfigReader.RenderingQuality::class.java, renderer, "setRenderingQuality"))
-        behaviourMap.put("record_movie", ToggleCommand("record_movie", renderer, "recordMovie"))
+        behaviourMap.put("toggle_debug", ToggleCommand(renderer, "toggleDebug"))
+        behaviourMap.put("toggle_fullscreen", ToggleCommand(renderer, "toggleFullscreen"))
+        behaviourMap.put("screenshot", ToggleCommand(renderer, "screenshot"))
+        behaviourMap.put("set_rendering_quality", EnumCycleCommand(RenderConfigReader.RenderingQuality::class.java, renderer, "setRenderingQuality"))
+        behaviourMap.put("record_movie", ToggleCommand(renderer, "recordMovie"))
 
-        behaviourMap.put("toggle_vr", ToggleCommand("toggle_vr", renderer, "toggleVR"))
+        behaviourMap.put("toggle_vr", ToggleCommand(renderer, "toggleVR"))
 
         val adder = config.inputTriggerAdder(inputMap, "all")
         adder.put("mouse_control") // put input trigger as defined in config
@@ -321,10 +309,7 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?, for
      * are written to a file with a given [filename] in the user's home directory.
      */
     @JvmOverloads fun openKeybindingsGuiEditor(editorTitle: String = "scenery's Key bindings editor", filename: String, context: String = "all"): VisualEditorPanel {
-        //setup content for the Visual Editor
-        val cdb = CommandDescriptionBuilder()
-        behaviourMap.keys().forEach { b -> cdb.addCommand(b, context, "") }
-        val editorPanel = VisualEditorPanel(config, cdb.get())
+        val editorPanel = VisualEditorPanel(config)
 
         //show the Editor
         val frame = JFrame(editorTitle)
@@ -349,5 +334,35 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?, for
 
         //return reference on the Editor, so that users can hook own extra stuff
         return editorPanel
+    }
+    
+    operator fun plusAssign(behaviourAndBinding: NamedBehaviourWithKeyBinding) {
+        addBehaviour(behaviourAndBinding.name, behaviourAndBinding.behaviour)
+        addKeyBinding(behaviourAndBinding.name, behaviourAndBinding.key)
+    }
+
+    operator fun minusAssign(name: String) {
+        removeBehaviour(name)
+        removeKeyBinding(name)
+    }
+
+    data class NamedBehaviourWithKeyBinding(val name: String, val behaviour: Behaviour, val key: String)
+
+    /**
+     * Helper objects etc. for the [InputHandler] class.
+     */
+    companion object {
+        private val availableInputHandlers = mutableListOf<Class<*>>(
+            GLFWMouseAndKeyHandler::class.java,
+            SwingMouseAndKeyHandler::class.java
+        )
+
+        /**
+         * Registers a new input handler, [handler], for custom usage.
+         */
+        fun registerInputHandler(handler: Class<*>) {
+            availableInputHandlers.add(handler)
+        }
+
     }
 }

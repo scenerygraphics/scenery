@@ -2,6 +2,7 @@ package graphics.scenery.tests.examples.volumes
 
 import bdv.util.AxisOrder
 import bdv.util.volatiles.VolatileViews
+import bvv.core.VolumeViewerOptions
 import org.joml.Vector3f
 import graphics.scenery.Camera
 import graphics.scenery.DetachedHeadCamera
@@ -21,7 +22,6 @@ import org.janelia.saalfeldlab.n5.GzipCompression
 import org.janelia.saalfeldlab.n5.N5FSReader
 import org.janelia.saalfeldlab.n5.N5FSWriter
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils
-import tpietzsch.example2.VolumeViewerOptions
 import java.nio.file.Files
 
 
@@ -39,7 +39,7 @@ class OutOfCoreRAIExample: SceneryBase("Out-of-core RAI Rendering example", 1280
 
         val cam: Camera = DetachedHeadCamera()
         cam.perspectiveCamera(50.0f, windowWidth, windowHeight)
-        cam.position = Vector3f(0.0f, 0.0f, 7.0f)
+        cam.spatial().position = Vector3f(0.0f, 0.0f, 7.0f)
         scene.addChild(cam)
 
         // download example TIFF stack, T1 head example from NIH
@@ -71,7 +71,7 @@ class OutOfCoreRAIExample: SceneryBase("Out-of-core RAI Rendering example", 1280
         )
         volume.converterSetups.first().setDisplayRange(25.0, 512.0)
         volume.transferFunction = TransferFunction.ramp(0.01f, 0.03f)
-        volume.scale = Vector3f(1.0f, 1.0f, 3.0f)
+        volume.spatial().scale = Vector3f(1.0f, 1.0f, 3.0f)
         scene.addChild(volume)
 
         val lights = (0 until 3).map {
@@ -79,7 +79,7 @@ class OutOfCoreRAIExample: SceneryBase("Out-of-core RAI Rendering example", 1280
         }
 
         lights.mapIndexed { i, light ->
-            light.position = Vector3f(2.0f * i - 4.0f,  i - 1.0f, 0.0f)
+            light.spatial().position = Vector3f(2.0f * i - 4.0f,  i - 1.0f, 0.0f)
             light.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
             light.intensity = 50.0f
             scene.addChild(light)

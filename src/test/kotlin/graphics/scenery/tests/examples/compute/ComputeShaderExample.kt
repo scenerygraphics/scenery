@@ -27,14 +27,18 @@ class ComputeShaderExample : SceneryBase("ComputeShaderExample") {
         renderer = hub.add(SceneryElement.Renderer,
             Renderer.createRenderer(hub, applicationName, scene, 512, 512))
 
-        val helix = Texture.fromImage(Image.fromResource("textures/helix.png", TexturedCubeExample::class.java), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
+        val helix = Texture.fromImage(Image.fromResource("textures/helix.png", TexturedCubeExample::class.java),
+                                      usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
         val buffer = MemoryUtil.memCalloc(helix.dimensions.x * helix.dimensions.y * helix.dimensions.z * 4)
 
-        val compute = Node()
+        val compute = RichNode()
         compute.name = "compute node"
-        compute.material = ShaderMaterial(Shaders.ShadersFromFiles(arrayOf("BGRAMosaic.comp"), this::class.java))
-        compute.material.textures["OutputViewport"] = Texture.fromImage(Image(buffer, helix.dimensions.x, helix.dimensions.y, helix.dimensions.z), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
-        compute.material.textures["InputColor"] = helix
+        val computeTexture = Texture.fromImage(Image(buffer, helix.dimensions.x, helix.dimensions.y, helix.dimensions.z),
+                                               usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
+        compute.setMaterial(ShaderMaterial.fromFiles(this::class.java, "BGRAMosaic.comp")) {
+            textures["OutputViewport"] = computeTexture
+            textures["InputColor"] = helix
+        }
         compute.metadata["ComputeMetadata"] = ComputeMetadata(
             workSizes = Vector3i(512, 512, 1),
             invocationType = InvocationType.Once
@@ -44,21 +48,25 @@ class ComputeShaderExample : SceneryBase("ComputeShaderExample") {
 
         val box = Box(Vector3f(1.0f, 1.0f, 1.0f))
         box.name = "le box du win"
-        box.material.textures["diffuse"] = compute.material.textures["OutputViewport"]!!
-        box.material.metallic = 0.3f
-        box.material.roughness = 0.9f
+        box.material {
+            textures["diffuse"] = computeTexture
+            metallic = 0.3f
+            roughness = 0.9f
+        }
 
         scene.addChild(box)
 
         val light = PointLight(radius = 15.0f)
-        light.position = Vector3f(0.0f, 0.0f, 2.0f)
+        light.spatial().position = Vector3f(0.0f, 0.0f, 2.0f)
         light.intensity = 5.0f
         light.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
         scene.addChild(light)
 
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
-            position = Vector3f(0.0f, 0.0f, 5.0f)
+            cam.spatial {
+                position = Vector3f(0.0f, 0.0f, 5.0f)
+            }
             perspectiveCamera(50.0f, 512, 512)
 
             scene.addChild(this)
@@ -66,8 +74,10 @@ class ComputeShaderExample : SceneryBase("ComputeShaderExample") {
 
         thread {
             while (running) {
-                box.rotation.rotateY(0.01f)
-                box.needsUpdate = true
+                box.spatial {
+                    rotation.rotateY(0.01f)
+                    needsUpdate = true
+                }
 //                box.material.textures["diffuse"] = compute.material.textures["OutputViewport"]!!
 
                 Thread.sleep(20)
@@ -82,7 +92,7 @@ class ComputeShaderExample : SceneryBase("ComputeShaderExample") {
         inputHandler?.addBehaviour("save_texture", ClickBehaviour { _, _ ->
             logger.info("Finding node")
             val node = scene.find("compute node") ?: return@ClickBehaviour
-            val texture = node.material.textures["OutputViewport"]!!
+            val texture = node.materialOrNull()?.textures?.get("OutputViewport") ?: return@ClickBehaviour
             val r = renderer ?: return@ClickBehaviour
             logger.info("Node found, saving texture")
 

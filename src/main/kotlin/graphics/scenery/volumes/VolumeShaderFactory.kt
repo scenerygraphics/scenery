@@ -1,7 +1,7 @@
 package graphics.scenery.volumes
 
+import bvv.core.shadergen.Shader
 import graphics.scenery.backends.*
-import tpietzsch.shadergen.Shader
 import kotlin.IllegalStateException
 import kotlin.math.max
 
@@ -213,6 +213,8 @@ open class VolumeShaderFactory(val compute: Boolean = false) : Shaders.ShaderFac
         }
 
         return listOf(
+            "#version 450 core",
+            "#extension GL_ARB_separate_shader_objects: enable",
             "// preprocessor statements",
             preprocessorStatements.distinct().joinToString("\n"),
             "// VolumeShaderFactory: inputs",

@@ -47,12 +47,8 @@ vec3 DecodeOctaH( vec2 encN )
 
 void main() {
     const vec2 textureCoord = gl_FragCoord.xy/vec2(displayWidth, displayHeight);
-    const ivec2 ssC = ivec2(gl_FragCoord.xy);
     const float indices[9] = {-4, -3, -2, -1, 0, +1, +2, +3, +4};
     const vec2 step = Direction/vec2(displayWidth, displayHeight).xy;
-
-//    FragColor = vec4(texture(InputOcclusion, textureCoord).rgb, 1.0);
-//    return;
 
     vec3 normal[9];
     vec4 res = vec4(0.0);

@@ -2,6 +2,7 @@ package graphics.scenery.repl
 
 import graphics.scenery.Hub
 import graphics.scenery.Hubable
+import graphics.scenery.backends.Renderer
 import net.imagej.lut.LUTService
 import org.scijava.Context
 import org.scijava.`object`.ObjectService
@@ -33,8 +34,10 @@ class REPL @JvmOverloads constructor(override var hub : Hub?, scijavaContext: Co
     /** The [startupScript] will be searched for in the resources of this class. */
     protected var startupScriptClass: Class<*> = REPL::class.java
     /** Whether we are running headless or not */
-    protected val headless = (System.getProperty("scenery.Headless", "false")?.toBoolean() ?: false) || (System.getProperty("java.awt.headless", "false")?.toBoolean() ?: false)
+    protected val headless = (System.getProperty(Renderer.HEADLESS_PROPERTY_NAME, "false")?.toBoolean() ?: false) || (System.getProperty("java.awt.headless", "false")?.toBoolean() ?: false)
 
+    /** Language preference for the REPL */
+    protected val languagePreference = "Python (Jython)"
 
     init {
         hub?.add(this)
@@ -42,12 +45,11 @@ class REPL @JvmOverloads constructor(override var hub : Hub?, scijavaContext: Co
         context = scijavaContext ?: Context(ObjectService::class.java, LUTService::class.java)
 
         if(!headless) {
-            interpreterWindow = InterpreterWindow(context)
+            interpreterWindow = InterpreterWindow(context, languagePreference)
             interpreterWindow?.isVisible = false
             repl = interpreterWindow?.repl
         } else {
-            repl = ScriptREPL(context, System.out)
-            repl?.lang("Python")
+            repl = ScriptREPL(context, languagePreference, System.out)
             repl?.initialize()
         }
 
@@ -95,7 +97,6 @@ class REPL @JvmOverloads constructor(override var hub : Hub?, scijavaContext: Co
      * Launches the REPL and evaluates any set startup code.
      */
     fun start() {
-        repl?.lang("Python")
         eval(startupScriptCode)
     }
 

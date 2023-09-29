@@ -1,10 +1,10 @@
 package graphics.scenery.volumes
 
+import bvv.core.multires.SimpleStack3D
 import graphics.scenery.Node
 import net.imglib2.RandomAccessibleInterval
 import net.imglib2.realtransform.AffineTransform3D
 import org.joml.Matrix4f
-import tpietzsch.multires.SimpleStack3D
 import java.nio.ByteBuffer
 
 /**
@@ -22,7 +22,7 @@ class TransformedBufferedSimpleStack3D<T>(val stack: SimpleStack3D<T>, backingBu
     override fun getSourceTransform(): AffineTransform3D {
         val w = AffineTransform3D()
         val arr = FloatArray(16)
-        Matrix4f(node.world).transpose().get(arr)
+        Matrix4f(node.spatialOrNull()?.world).transpose().get(arr)
 
         w.set(*arr.map { it.toDouble() }.toDoubleArray())
         return w.concatenate(actualSourceTransform)

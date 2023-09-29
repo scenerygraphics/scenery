@@ -1,6 +1,5 @@
 package graphics.scenery.textures
 
-import cleargl.GLTypeEnum
 import graphics.scenery.utils.Image
 import graphics.scenery.utils.Timestamped
 import net.imglib2.type.numeric.NumericType
@@ -20,13 +19,13 @@ import java.nio.ByteOrder
  */
 open class Texture @JvmOverloads constructor(
     /** Dimensions of the texture in pixels */
-    var dimensions: Vector3i,
+    var dimensions: Vector3i = Vector3i(16, 16, 0),
     /** The texture's number of channels */
     var channels: Int = 4,
     /** [GLTypeEnum] declaring the data type stored in [contents] */
     var type: NumericType<*> = UnsignedByteType(),
     /** Byte contents of the texture */
-    @Transient var contents: ByteBuffer?,
+    var contents: ByteBuffer? = null,
     /** Shall the texture be repeated on the U/V/W coordinates? */
     var repeatUVW: Triple<RepeatMode, RepeatMode, RepeatMode> = Triple(RepeatMode.Repeat, RepeatMode.Repeat, RepeatMode.Repeat),
     /** Texture border color */
@@ -125,7 +124,7 @@ open class Texture @JvmOverloads constructor(
             usage: HashSet<UsageType> = hashSetOf(UsageType.Texture)
         ): Texture {
             return Texture(Vector3i(image.width, image.height, image.depth),
-                4, UnsignedByteType(), image.contents, repeatUVW, borderColor, normalized, mipmap, usageType = usage, minFilter = minFilter, maxFilter = maxFilter)
+                4, image.type, image.contents, repeatUVW, borderColor, normalized, mipmap, usageType = usage, minFilter = minFilter, maxFilter = maxFilter)
         }
     }
 

@@ -7,6 +7,7 @@ import java.nio.file.Files
 import java.util.jar.JarFile
 import java.io.ByteArrayOutputStream
 import java.io.IOException
+import java.net.URL
 
 
 /**
@@ -20,11 +21,12 @@ interface ExtractsNatives {
     }
 
     companion object {
+        private val logger by lazyLogger()
         /**
          * Returns the platform based on the os.name system property.
          */
         @JvmStatic fun getPlatform(): Platform {
-            val os = System.getProperty("os.name").toLowerCase()
+            val os = System.getProperty("os.name").lowercase()
 
             return when {
                 os.contains("win") -> Platform.WINDOWS
@@ -34,6 +36,55 @@ interface ExtractsNatives {
             }
 
         }
+
+        /**
+         * Downloads a [file] from a given GitHub [organization]'s [repository]'s [release],
+         * and puts it into ~/.scenery. This function was written for M1 support for JHDF5.
+         *
+         * Returns the base path to use for native file loading.
+         */
+        internal fun nativesFromGithubRelease(
+            organization: String,
+            repository: String,
+            release: String,
+            file: String,
+            archAndOS: String,
+            library: String,
+            ext: String
+        ): String {
+            val url = "https://github.com/$organization/$repository/releases/download/$release/$file"
+            val output = File(System.getProperty("user.home") + "/.scenery/native/$file")
+            if(!output.exists()) {
+                output.parentFile.mkdirs()
+
+                if (!output.exists()) {
+                    val created = output.createNewFile()
+                    val stream = URL(url).openStream()
+                    val out = output.outputStream()
+                    stream.copyTo(out)
+                    out.close()
+                    stream.close()
+                }
+            }
+
+            val basepath = File(System.getProperty("user.home") + "/.scenery/native/")
+            val target = File(System.getProperty("user.home") + "/.scenery/native/$library/$archAndOS/lib$library.$ext")
+            target.parentFile.mkdirs()
+            return if(target.exists()) {
+                basepath.absolutePath
+            } else {
+                val jarFile = JarFile(output)
+                val name = "native/$library/$archAndOS/lib$library.$ext"
+                logger.info("name is $name")
+                val entry = jarFile.getJarEntry("native/$library/$archAndOS/lib$library.$ext")
+                val stream = target.outputStream().buffered()
+                stream.write(jarFile.getInputStream(entry).buffered().readAllBytes())
+                stream.close()
+                jarFile.close()
+                basepath.absolutePath
+            }
+        }
+
     }
 
     /**
@@ -80,7 +131,7 @@ interface ExtractsNatives {
             Platform.MACOS to listOf("dylib", "jnilib"))
 
         logger.debug("Got back ${paths.joinToString(", ")}")
-        paths.filter { it.toLowerCase().endsWith("jar") }.forEach {
+        paths.filter { it.lowercase().endsWith("jar") }.forEach {
             logger.debug("Extracting $it...")
 
             val jar = JarFile(it)

@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalStdlibApi::class)
+
 package graphics.scenery.backends.vulkan
 
 import graphics.scenery.textures.Texture
@@ -7,7 +9,7 @@ import graphics.scenery.textures.Texture.RepeatMode
 import graphics.scenery.textures.UpdatableTexture
 import graphics.scenery.textures.UpdatableTexture.TextureUpdate
 import graphics.scenery.utils.Image
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import net.imglib2.type.numeric.NumericType
 import net.imglib2.type.numeric.integer.*
 import net.imglib2.type.numeric.real.DoubleType
@@ -17,11 +19,10 @@ import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.*
 import org.lwjgl.vulkan.VkImageCreateInfo
-import java.awt.color.ColorSpace
-import java.awt.image.*
 import java.io.FileInputStream
 import java.io.InputStream
 import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import java.nio.file.Files
 import java.nio.file.Paths
 import kotlin.math.max
@@ -53,9 +54,6 @@ open class VulkanTexture(val device: VulkanDevice,
 
     private var stagingImage: VulkanImage
     private var gt: Texture? = null
-
-    var renderBarrier: VkImageMemoryBarrier? = null
-        protected set
 
     /**
      * Wrapper class for holding on to raw Vulkan [image]s backed by [memory].
@@ -177,7 +175,7 @@ open class VulkanTexture(val device: VulkanDevice,
         }
 
         override fun toString(): String {
-            return "VulkanImage (${this.image.toHexString()}, ${width}x${height}x${depth}, format=$format, maxSize=${this.maxSize})"
+            return "VulkanImage (${this.image.toHexString()}, ${width}x${height}x${depth}, format=${format.formatToString()}, maxSize=${this.maxSize})"
         }
     }
 
@@ -227,9 +225,9 @@ open class VulkanTexture(val device: VulkanDevice,
         commandPools,
         queue,
         transferQueue,
-        texture.dimensions.x().toInt(),
-        texture.dimensions.y().toInt(),
-        texture.dimensions.z().toInt(),
+        texture.dimensions.x(),
+        texture.dimensions.y(),
+        texture.dimensions.z(),
         texture.toVulkanFormat(),
         mipLevels, texture.minFilter == Texture.FilteringMode.Linear, texture.maxFilter == Texture.FilteringMode.Linear, usage = texture.usageType) {
         gt = texture
@@ -306,12 +304,12 @@ open class VulkanTexture(val device: VulkanDevice,
     /**
      * Copies the data for this texture from a [ByteBuffer], [data].
      */
+    @OptIn(ExperimentalUnsignedTypes::class)
     fun copyFrom(data: ByteBuffer): VulkanTexture {
         if (depth == 1 && data.remaining() > stagingImage.maxSize) {
             logger.warn("Allocated image size for $this (${stagingImage.maxSize}) less than copy source size ${data.remaining()}.")
             return this
         }
-
 
         var deallocate = false
         var sourceBuffer = data
@@ -319,7 +317,7 @@ open class VulkanTexture(val device: VulkanDevice,
         gt?.let { gt ->
             if (gt.channels == 3) {
                 logger.debug("Loading RGB texture, padding channels to 4 to fit RGBA")
-                val pixelByteSize = when (gt.type) {
+                val channelBytes = when (gt.type) {
                     is UnsignedByteType -> 1
                     is ByteType -> 1
                     is UnsignedShortType -> 2
@@ -332,15 +330,25 @@ open class VulkanTexture(val device: VulkanDevice,
                 }
 
                 val storage = memAlloc(data.remaining() / 3 * 4)
-                val view = data.duplicate()
-                val tmp = ByteArray(pixelByteSize * 3)
-                val alpha = (0 until pixelByteSize).map { 255.toByte() }.toByteArray()
+                val view = data.duplicate().order(ByteOrder.LITTLE_ENDIAN)
+                val tmp = ByteArray(channelBytes * 3)
+                val alpha = when(gt.type) {
+                    is UnsignedByteType -> ubyteArrayOf(0xffu)
+                    is ByteType -> ubyteArrayOf(0xffu)
+                    is UnsignedShortType -> ubyteArrayOf(0xffu, 0xffu)
+                    is ShortType -> ubyteArrayOf(0xffu, 0xffu)
+                    is UnsignedIntType -> ubyteArrayOf(0x3fu, 0x80u, 0x00u, 0x00u)
+                    is IntType -> ubyteArrayOf(0xffu, 0xffu, 0x00u, 0x00u)
+                    is FloatType -> ubyteArrayOf(0x3fu, 0x80u, 0x00u, 0x00u)
+                    is DoubleType -> ubyteArrayOf(0x3fu, 0xf0u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u)
+                    else -> throw UnsupportedOperationException("Don't know how to handle textures of type ${gt.type.javaClass.simpleName}")
+                }
 
                 // pad buffer to 4 channels
                 while (view.hasRemaining()) {
-                    view.get(tmp, 0, 3)
+                    view.get(tmp, 0, tmp.size)
                     storage.put(tmp)
-                    storage.put(alpha)
+                    storage.put(alpha.toByteArray())
                 }
 
                 storage.flip()
@@ -398,7 +406,12 @@ open class VulkanTexture(val device: VulkanDevice,
                     logger.debug("{} has {} consumeable updates", this@VulkanTexture, (genericTexture as? UpdatableTexture)?.getConsumableUpdates()?.size)
 
                     if(tmpBuffer == null || (tmpBuffer?.size ?: 0) < requiredCapacity) {
-                        logger.debug("(${this@VulkanTexture}) Reallocating tmp buffer, old size=${tmpBuffer?.size} new size = ${requiredCapacity.toFloat()/1024.0f/1024.0f} MiB")
+                        logger.debug(
+                            "({}) Reallocating tmp buffer, old size={} new size = {} MiB",
+                            this@VulkanTexture,
+                            tmpBuffer?.size,
+                            requiredCapacity.toFloat()/1024.0f/1024.0f
+                        )
                         tmpBuffer?.close()
                         // reserve a bit more space if the texture is small, to avoid reallocations
                         val reservedSize = if(requiredCapacity < 1024*1024*8) {
@@ -428,8 +441,6 @@ open class VulkanTexture(val device: VulkanDevice,
 
                                 buffer.copyFrom(contents, keepMapped = true)
                                 image.copyFrom(this, buffer, genericTexture.getConsumableUpdates())
-
-                                genericTexture.clearConsumedUpdates()
                             } /*else {
                                 // TODO: Semantics, do we want UpdateableTextures to be only
                                 // updateable via updates, or shall they read from buffer on first init?
@@ -437,8 +448,10 @@ open class VulkanTexture(val device: VulkanDevice,
                                 image.copyFrom(this, buffer)
                             }*/
                         } else {
-                            buffer.copyFrom(sourceBuffer)
-                            image.copyFrom(this, buffer)
+                            if(sourceBuffer.remaining() > 0) {
+                                buffer.copyFrom(sourceBuffer)
+                                image.copyFrom(this, buffer)
+                            }
                         }
 
                         transitionLayout(image.image,
@@ -452,6 +465,9 @@ open class VulkanTexture(val device: VulkanDevice,
                 }
 
                 endCommandBuffer(this@VulkanTexture.device, commandPools.Standard, transferQueue, flush = true, dealloc = true, block = true)
+                // necessary to clear updates here, as the command buffer might still access the
+                // memory address of the texture update.
+                (gt as? UpdatableTexture)?.clearConsumedUpdates()
             }
         } else {
             val buffer = VulkanBuffer(device,
@@ -570,7 +586,7 @@ open class VulkanTexture(val device: VulkanDevice,
      * Copies the first layer, first mipmap of the texture to [buffer].
      */
     fun copyTo(buffer: ByteBuffer) {
-        if(tmpBuffer == null || (tmpBuffer != null && tmpBuffer?.size!! < image.maxSize)) {
+        if(tmpBuffer == null || (tmpBuffer?.size!! < image.maxSize)) {
             tmpBuffer?.close()
             tmpBuffer = VulkanBuffer(this@VulkanTexture.device,
                 image.maxSize,
@@ -724,12 +740,17 @@ open class VulkanTexture(val device: VulkanDevice,
             { vkCreateSampler(device.vulkanDevice, samplerInfo, null, this) },
             { samplerInfo.free() })
 
+        logger.debug("Created sampler {}", sampler.toHexString().lowercase())
+        val oldSampler = image.sampler
         image.sampler = sampler
+        if(oldSampler != -1L) {
+            vkDestroySampler(device.vulkanDevice, oldSampler, null)
+        }
         return sampler
     }
 
     override fun toString(): String {
-        return "VulkanTexture on $device (${this.image.image.toHexString()}, ${width}x${height}x$depth, format=${this.format}, mipLevels=${mipLevels}, gt=${this.gt != null} minFilter=${this.minFilterLinear} maxFilter=${this.maxFilterLinear})"
+        return "VulkanTexture on $device (${this.image.image.toHexString()}, ${width}x${height}x$depth, format=${this.format.formatToString()}, mipLevels=${mipLevels}, gt=${this.gt != null} minFilter=${this.minFilterLinear} maxFilter=${this.maxFilterLinear})"
     }
 
     /**
@@ -777,25 +798,9 @@ open class VulkanTexture(val device: VulkanDevice,
      * Utility methods for [VulkanTexture].
      */
     companion object {
-        @JvmStatic private val logger by LazyLogger()
+        @JvmStatic private val logger by lazyLogger()
 
         private val cache = HashMap<Texture, VulkanTexture>()
-
-        private val StandardAlphaColorModel = ComponentColorModel(
-            ColorSpace.getInstance(ColorSpace.CS_sRGB),
-            intArrayOf(8, 8, 8, 8),
-            true,
-            false,
-            ComponentColorModel.TRANSLUCENT,
-            DataBuffer.TYPE_BYTE)
-
-        private val StandardColorModel = ComponentColorModel(
-            ColorSpace.getInstance(ColorSpace.CS_sRGB),
-            intArrayOf(8, 8, 8, 0),
-            false,
-            false,
-            ComponentColorModel.OPAQUE,
-            DataBuffer.TYPE_BYTE)
 
         fun getReference(texture: Texture): VulkanTexture? {
             return cache.get(texture)
@@ -893,7 +898,8 @@ open class VulkanTexture(val device: VulkanDevice,
                 device,
                 commandPools, queue, transferQueue,
                 dimensions[0].toInt(), dimensions[1].toInt(), dimensions[2].toInt(),
-                VK_FORMAT_R16_UINT, 1, true, true)
+                VK_FORMAT_R16_UINT, 1, minFilterLinear = true, maxFilterLinear = true
+            )
 
             tex.copyFrom(imageData)
 
@@ -911,7 +917,7 @@ open class VulkanTexture(val device: VulkanDevice,
                              srcAccessMask: Int, dstAccessMask: Int,
                              commandBuffer: VkCommandBuffer, dependencyFlags: Int = 0, memoryBarrier: Boolean = false) {
             stackPush().use { stack ->
-                val barrier = VkImageMemoryBarrier.callocStack(1, stack)
+                val barrier = VkImageMemoryBarrier.calloc(1, stack)
                     .sType(VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER)
                     .pNext(NULL)
                     .oldLayout(from)
@@ -936,7 +942,7 @@ open class VulkanTexture(val device: VulkanDevice,
                 logger.trace("Transition: {} -> {} with srcAccessMark={}, dstAccessMask={}, srcStage={}, dstStage={}", from, to, barrier.srcAccessMask(), barrier.dstAccessMask(), srcStage, dstStage)
 
                 val memoryBarriers = if(memoryBarrier) {
-                    VkMemoryBarrier.callocStack(1, stack)
+                    VkMemoryBarrier.calloc(1, stack)
                         .sType(VK_STRUCTURE_TYPE_MEMORY_BARRIER)
                         .srcAccessMask(srcAccessMask)
                         .dstAccessMask(dstAccessMask)
@@ -985,83 +991,110 @@ open class VulkanTexture(val device: VulkanDevice,
                     barrier.subresourceRange(subresourceRange)
                 }
 
-                if (oldLayout == VK_IMAGE_LAYOUT_PREINITIALIZED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL) {
-                    barrier
-                        .srcAccessMask(VK_ACCESS_HOST_WRITE_BIT)
-                        .dstAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
-                } else if (oldLayout == VK_IMAGE_LAYOUT_PREINITIALIZED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
-                    barrier
-                        .srcAccessMask(VK_ACCESS_HOST_WRITE_BIT)
-                        .dstAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
-                } else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
-                    barrier
-                        .srcAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
-                    if(dstStage == VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT) {
-                        barrier.dstAccessMask(VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT)
-                    } else {
-                        barrier.dstAccessMask(VK_ACCESS_SHADER_READ_BIT)
+                when {
+                    oldLayout == VK_IMAGE_LAYOUT_PREINITIALIZED
+                        && newLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL -> {
+                        barrier
+                            .srcAccessMask(VK_ACCESS_HOST_WRITE_BIT)
+                            .dstAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
                     }
-                } else if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
-                    barrier
-                        .srcAccessMask(0)
-                        .dstAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
-                } else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL) {
-                    barrier.srcAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
-                    barrier.dstAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
-                } else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
-                    barrier
-                        .srcAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
-                        .dstAccessMask(VK_ACCESS_SHADER_READ_BIT)
-                } else if(oldLayout == KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR && newLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL) {
-                    barrier
-                        .srcAccessMask(VK_ACCESS_MEMORY_READ_BIT)
-                        .dstAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
-                } else if(oldLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL && newLayout == KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR) {
-                    barrier
-                        .srcAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
-                        .dstAccessMask(VK_ACCESS_MEMORY_READ_BIT)
-                } else if(oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
-                    barrier
-                        .srcAccessMask(0)
-                        .dstAccessMask(VK_ACCESS_SHADER_READ_BIT)
-                } else if(oldLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL) {
-                    barrier.srcAccessMask(VK_ACCESS_SHADER_READ_BIT)
-                        .dstAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
-                } else if(oldLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
-                    barrier.srcAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
-                        .dstAccessMask(VK_ACCESS_SHADER_READ_BIT)
-                } else if(oldLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
-                    barrier.srcAccessMask(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
-                        .dstAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
-                } else if(oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL) {
-                    barrier.srcAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
-                        .dstAccessMask(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
-                } else if(oldLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL) {
-                    barrier.srcAccessMask(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
-                        .dstAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
-                } else if(oldLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL) {
-                    barrier.srcAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
-                        .dstAccessMask(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
-                } else if(oldLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
-                    barrier.srcAccessMask(VK_ACCESS_INPUT_ATTACHMENT_READ_BIT)
-                        .dstAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
-                } else if(oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) {
-                    barrier.srcAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
-                        .dstAccessMask(VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT)
-                } else if(oldLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) {
-                    barrier.srcAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
-                        .dstAccessMask(VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT)
-                } else if(oldLayout == KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR && newLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL) {
-                    barrier.srcAccessMask(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
-                        .dstAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
-                } else if(oldLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL && newLayout == KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR) {
-                    barrier.srcAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
-                        .dstAccessMask(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
-                } else if(oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL) {
-                    barrier.srcAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
-                        .dstAccessMask(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
-                } else {
-                    logger.error("Unsupported layout transition: $oldLayout -> $newLayout")
+                    oldLayout == VK_IMAGE_LAYOUT_PREINITIALIZED
+                        && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL -> {
+                        barrier
+                            .srcAccessMask(VK_ACCESS_HOST_WRITE_BIT)
+                            .dstAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
+                    }
+                    oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+                        && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL -> {
+                        barrier
+                            .srcAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
+                        if(dstStage == VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT) {
+                            barrier.dstAccessMask(VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT)
+                        } else {
+                            barrier.dstAccessMask(VK_ACCESS_SHADER_READ_BIT)
+                        }
+                    }
+                    oldLayout == VK_IMAGE_LAYOUT_UNDEFINED
+                        && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL -> {
+                        barrier
+                            .srcAccessMask(0)
+                            .dstAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
+                    }
+                    oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+                        && newLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL -> {
+                        barrier.srcAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
+                        barrier.dstAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
+                    }
+                    oldLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
+                        && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL -> {
+                        barrier
+                            .srcAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
+                            .dstAccessMask(VK_ACCESS_SHADER_READ_BIT)
+                    }
+                    oldLayout == VK_IMAGE_LAYOUT_UNDEFINED
+                        && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL -> {
+                        barrier
+                            .srcAccessMask(0)
+                            .dstAccessMask(VK_ACCESS_SHADER_READ_BIT)
+                    }
+                    oldLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+                        && newLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL -> {
+                        barrier.srcAccessMask(VK_ACCESS_SHADER_READ_BIT)
+                            .dstAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
+                    }
+                    oldLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+                        && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL -> {
+                        barrier.srcAccessMask(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
+                            .dstAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
+                    }
+                    oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+                        && newLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL -> {
+                        barrier.srcAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
+                            .dstAccessMask(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
+                    }
+                    oldLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+                        && newLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL -> {
+                        barrier.srcAccessMask(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
+                            .dstAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
+                    }
+                    oldLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
+                        && newLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL -> {
+                        barrier.srcAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
+                            .dstAccessMask(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
+                    }
+                    oldLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+                        && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL -> {
+                        barrier.srcAccessMask(VK_ACCESS_INPUT_ATTACHMENT_READ_BIT)
+                            .dstAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
+                    }
+                    oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+                        && newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL -> {
+                        barrier.srcAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
+                            .dstAccessMask(VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT)
+                    }
+                    oldLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
+                        && newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL -> {
+                        barrier.srcAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
+                            .dstAccessMask(VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT)
+                    }
+                    oldLayout == KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+                        && newLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL -> {
+                        barrier.srcAccessMask(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
+                            .dstAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
+                    }
+                    oldLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
+                        && newLayout == KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR -> {
+                        barrier.srcAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
+                            .dstAccessMask(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
+                    }
+                    oldLayout == VK_IMAGE_LAYOUT_UNDEFINED
+                        && newLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL -> {
+                        barrier.srcAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
+                            .dstAccessMask(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
+                    }
+                    else -> {
+                        logger.error("Unsupported layout transition: $oldLayout -> $newLayout")
+                    }
                 }
 
                 logger.trace("Transition: {} -> {} with srcAccessMark={}, dstAccessMask={}, srcStage={}, dstStage={}", oldLayout, newLayout, barrier.srcAccessMask(), barrier.dstAccessMask(), srcStage, dstStage)
@@ -1075,7 +1108,12 @@ open class VulkanTexture(val device: VulkanDevice,
             }
         }
 
-        private fun Texture.toVulkanFormat(): Int {
+        /**
+         * For a given [Texture], this function returns the corresponding
+         * Vulkan texture format, based on the [Texture]'s format and channels,
+         * and whether it's a normalized format, or not.
+         */
+        fun Texture.toVulkanFormat(): Int {
             var format = when(this.type) {
                 is ByteType -> when(this.channels) {
                     1 -> VK_FORMAT_R8_SNORM
@@ -1150,6 +1188,198 @@ open class VulkanTexture(val device: VulkanDevice,
             }
 
             return format
+        }
+
+        /**
+         * Returns a given Vulkan format ID as String representation.
+         */
+        fun Int.formatToString(): String = when(this) {
+            0 -> "VK_FORMAT_UNDEFINED"
+            1 -> "VK_FORMAT_R4G4_UNORM_PACK8"
+            2 -> "VK_FORMAT_R4G4B4A4_UNORM_PACK16"
+            3 -> "VK_FORMAT_B4G4R4A4_UNORM_PACK16"
+            4 -> "VK_FORMAT_R5G6B5_UNORM_PACK16"
+            5 -> "VK_FORMAT_B5G6R5_UNORM_PACK16"
+            6 -> "VK_FORMAT_R5G5B5A1_UNORM_PACK16"
+            7 -> "VK_FORMAT_B5G5R5A1_UNORM_PACK16"
+            8 -> "VK_FORMAT_A1R5G5B5_UNORM_PACK16"
+            9 -> "VK_FORMAT_R8_UNORM"
+            10 -> "VK_FORMAT_R8_SNORM"
+            11 -> "VK_FORMAT_R8_USCALED"
+            12 -> "VK_FORMAT_R8_SSCALED"
+            13 -> "VK_FORMAT_R8_UINT"
+            14 -> "VK_FORMAT_R8_SINT"
+            15 -> "VK_FORMAT_R8_SRGB"
+            16 -> "VK_FORMAT_R8G8_UNORM"
+            17 -> "VK_FORMAT_R8G8_SNORM"
+            18 -> "VK_FORMAT_R8G8_USCALED"
+            19 -> "VK_FORMAT_R8G8_SSCALED"
+            20 -> "VK_FORMAT_R8G8_UINT"
+            21 -> "VK_FORMAT_R8G8_SINT"
+            22 -> "VK_FORMAT_R8G8_SRGB"
+            23 -> "VK_FORMAT_R8G8B8_UNORM"
+            24 -> "VK_FORMAT_R8G8B8_SNORM"
+            25 -> "VK_FORMAT_R8G8B8_USCALED"
+            26 -> "VK_FORMAT_R8G8B8_SSCALED"
+            27 -> "VK_FORMAT_R8G8B8_UINT"
+            28 -> "VK_FORMAT_R8G8B8_SINT"
+            29 -> "VK_FORMAT_R8G8B8_SRGB"
+            30 -> "VK_FORMAT_B8G8R8_UNORM"
+            31 -> "VK_FORMAT_B8G8R8_SNORM"
+            32 -> "VK_FORMAT_B8G8R8_USCALED"
+            33 -> "VK_FORMAT_B8G8R8_SSCALED"
+            34 -> "VK_FORMAT_B8G8R8_UINT"
+            35 -> "VK_FORMAT_B8G8R8_SINT"
+            36 -> "VK_FORMAT_B8G8R8_SRGB"
+            37 -> "VK_FORMAT_R8G8B8A8_UNORM"
+            38 -> "VK_FORMAT_R8G8B8A8_SNORM"
+            39 -> "VK_FORMAT_R8G8B8A8_USCALED"
+            40 -> "VK_FORMAT_R8G8B8A8_SSCALED"
+            41 -> "VK_FORMAT_R8G8B8A8_UINT"
+            42 -> "VK_FORMAT_R8G8B8A8_SINT"
+            43 -> "VK_FORMAT_R8G8B8A8_SRGB"
+            44 -> "VK_FORMAT_B8G8R8A8_UNORM"
+            45 -> "VK_FORMAT_B8G8R8A8_SNORM"
+            46 -> "VK_FORMAT_B8G8R8A8_USCALED"
+            47 -> "VK_FORMAT_B8G8R8A8_SSCALED"
+            48 -> "VK_FORMAT_B8G8R8A8_UINT"
+            49 -> "VK_FORMAT_B8G8R8A8_SINT"
+            50 -> "VK_FORMAT_B8G8R8A8_SRGB"
+            51 -> "VK_FORMAT_A8B8G8R8_UNORM_PACK32"
+            52 -> "VK_FORMAT_A8B8G8R8_SNORM_PACK32"
+            53 -> "VK_FORMAT_A8B8G8R8_USCALED_PACK32"
+            54 -> "VK_FORMAT_A8B8G8R8_SSCALED_PACK32"
+            55 -> "VK_FORMAT_A8B8G8R8_UINT_PACK32"
+            56 -> "VK_FORMAT_A8B8G8R8_SINT_PACK32"
+            57 -> "VK_FORMAT_A8B8G8R8_SRGB_PACK32"
+            58 -> "VK_FORMAT_A2R10G10B10_UNORM_PACK32"
+            59 -> "VK_FORMAT_A2R10G10B10_SNORM_PACK32"
+            60 -> "VK_FORMAT_A2R10G10B10_USCALED_PACK32"
+            61 -> "VK_FORMAT_A2R10G10B10_SSCALED_PACK32"
+            62 -> "VK_FORMAT_A2R10G10B10_UINT_PACK32"
+            63 -> "VK_FORMAT_A2R10G10B10_SINT_PACK32"
+            64 -> "VK_FORMAT_A2B10G10R10_UNORM_PACK32"
+            65 -> "VK_FORMAT_A2B10G10R10_SNORM_PACK32"
+            66 -> "VK_FORMAT_A2B10G10R10_USCALED_PACK32"
+            67 -> "VK_FORMAT_A2B10G10R10_SSCALED_PACK32"
+            68 -> "VK_FORMAT_A2B10G10R10_UINT_PACK32"
+            69 -> "VK_FORMAT_A2B10G10R10_SINT_PACK32"
+            70 -> "VK_FORMAT_R16_UNORM"
+            71 -> "VK_FORMAT_R16_SNORM"
+            72 -> "VK_FORMAT_R16_USCALED"
+            73 -> "VK_FORMAT_R16_SSCALED"
+            74 -> "VK_FORMAT_R16_UINT"
+            75 -> "VK_FORMAT_R16_SINT"
+            76 -> "VK_FORMAT_R16_SFLOAT"
+            77 -> "VK_FORMAT_R16G16_UNORM"
+            78 -> "VK_FORMAT_R16G16_SNORM"
+            79 -> "VK_FORMAT_R16G16_USCALED"
+            80 -> "VK_FORMAT_R16G16_SSCALED"
+            81 -> "VK_FORMAT_R16G16_UINT"
+            82 -> "VK_FORMAT_R16G16_SINT"
+            83 -> "VK_FORMAT_R16G16_SFLOAT"
+            84 -> "VK_FORMAT_R16G16B16_UNORM"
+            85 -> "VK_FORMAT_R16G16B16_SNORM"
+            86 -> "VK_FORMAT_R16G16B16_USCALED"
+            87 -> "VK_FORMAT_R16G16B16_SSCALED"
+            88 -> "VK_FORMAT_R16G16B16_UINT"
+            89 -> "VK_FORMAT_R16G16B16_SINT"
+            90 -> "VK_FORMAT_R16G16B16_SFLOAT"
+            91 -> "VK_FORMAT_R16G16B16A16_UNORM"
+            92 -> "VK_FORMAT_R16G16B16A16_SNORM"
+            93 -> "VK_FORMAT_R16G16B16A16_USCALED"
+            94 -> "VK_FORMAT_R16G16B16A16_SSCALED"
+            95 -> "VK_FORMAT_R16G16B16A16_UINT"
+            96 -> "VK_FORMAT_R16G16B16A16_SINT"
+            97 -> "VK_FORMAT_R16G16B16A16_SFLOAT"
+            98 -> "VK_FORMAT_R32_UINT"
+            99 -> "VK_FORMAT_R32_SINT"
+            100 -> "VK_FORMAT_R32_SFLOAT"
+            101 -> "VK_FORMAT_R32G32_UINT"
+            102 -> "VK_FORMAT_R32G32_SINT"
+            103 -> "VK_FORMAT_R32G32_SFLOAT"
+            104 -> "VK_FORMAT_R32G32B32_UINT"
+            105 -> "VK_FORMAT_R32G32B32_SINT"
+            106 -> "VK_FORMAT_R32G32B32_SFLOAT"
+            107 -> "VK_FORMAT_R32G32B32A32_UINT"
+            108 -> "VK_FORMAT_R32G32B32A32_SINT"
+            109 -> "VK_FORMAT_R32G32B32A32_SFLOAT"
+            110 -> "VK_FORMAT_R64_UINT"
+            111 -> "VK_FORMAT_R64_SINT"
+            112 -> "VK_FORMAT_R64_SFLOAT"
+            113 -> "VK_FORMAT_R64G64_UINT"
+            114 -> "VK_FORMAT_R64G64_SINT"
+            115 -> "VK_FORMAT_R64G64_SFLOAT"
+            116 -> "VK_FORMAT_R64G64B64_UINT"
+            117 -> "VK_FORMAT_R64G64B64_SINT"
+            118 -> "VK_FORMAT_R64G64B64_SFLOAT"
+            119 -> "VK_FORMAT_R64G64B64A64_UINT"
+            120 -> "VK_FORMAT_R64G64B64A64_SINT"
+            121 -> "VK_FORMAT_R64G64B64A64_SFLOAT"
+            122 -> "VK_FORMAT_B10G11R11_UFLOAT_PACK32"
+            123 -> "VK_FORMAT_E5B9G9R9_UFLOAT_PACK32"
+            124 -> "VK_FORMAT_D16_UNORM"
+            125 -> "VK_FORMAT_X8_D24_UNORM_PACK32"
+            126 -> "VK_FORMAT_D32_SFLOAT"
+            127 -> "VK_FORMAT_S8_UINT"
+            128 -> "VK_FORMAT_D16_UNORM_S8_UINT"
+            129 -> "VK_FORMAT_D24_UNORM_S8_UINT"
+            130 -> "VK_FORMAT_D32_SFLOAT_S8_UINT"
+            131 -> "VK_FORMAT_BC1_RGB_UNORM_BLOCK"
+            132 -> "VK_FORMAT_BC1_RGB_SRGB_BLOCK"
+            133 -> "VK_FORMAT_BC1_RGBA_UNORM_BLOCK"
+            134 -> "VK_FORMAT_BC1_RGBA_SRGB_BLOCK"
+            135 -> "VK_FORMAT_BC2_UNORM_BLOCK"
+            136 -> "VK_FORMAT_BC2_SRGB_BLOCK"
+            137 -> "VK_FORMAT_BC3_UNORM_BLOCK"
+            138 -> "VK_FORMAT_BC3_SRGB_BLOCK"
+            139 -> "VK_FORMAT_BC4_UNORM_BLOCK"
+            140 -> "VK_FORMAT_BC4_SNORM_BLOCK"
+            141 -> "VK_FORMAT_BC5_UNORM_BLOCK"
+            142 -> "VK_FORMAT_BC5_SNORM_BLOCK"
+            143 -> "VK_FORMAT_BC6H_UFLOAT_BLOCK"
+            144 -> "VK_FORMAT_BC6H_SFLOAT_BLOCK"
+            145 -> "VK_FORMAT_BC7_UNORM_BLOCK"
+            146 -> "VK_FORMAT_BC7_SRGB_BLOCK"
+            147 -> "VK_FORMAT_ETC2_R8G8B8_UNORM_BLOCK"
+            148 -> "VK_FORMAT_ETC2_R8G8B8_SRGB_BLOCK"
+            149 -> "VK_FORMAT_ETC2_R8G8B8A1_UNORM_BLOCK"
+            150 -> "VK_FORMAT_ETC2_R8G8B8A1_SRGB_BLOCK"
+            151 -> "VK_FORMAT_ETC2_R8G8B8A8_UNORM_BLOCK"
+            152 -> "VK_FORMAT_ETC2_R8G8B8A8_SRGB_BLOCK"
+            153 -> "VK_FORMAT_EAC_R11_UNORM_BLOCK"
+            154 -> "VK_FORMAT_EAC_R11_SNORM_BLOCK"
+            155 -> "VK_FORMAT_EAC_R11G11_UNORM_BLOCK"
+            156 -> "VK_FORMAT_EAC_R11G11_SNORM_BLOCK"
+            157 -> "VK_FORMAT_ASTC_4x4_UNORM_BLOCK"
+            158 -> "VK_FORMAT_ASTC_4x4_SRGB_BLOCK"
+            159 -> "VK_FORMAT_ASTC_5x4_UNORM_BLOCK"
+            160 -> "VK_FORMAT_ASTC_5x4_SRGB_BLOCK"
+            161 -> "VK_FORMAT_ASTC_5x5_UNORM_BLOCK"
+            162 -> "VK_FORMAT_ASTC_5x5_SRGB_BLOCK"
+            163 -> "VK_FORMAT_ASTC_6x5_UNORM_BLOCK"
+            164 -> "VK_FORMAT_ASTC_6x5_SRGB_BLOCK"
+            165 -> "VK_FORMAT_ASTC_6x6_UNORM_BLOCK"
+            166 -> "VK_FORMAT_ASTC_6x6_SRGB_BLOCK"
+            167 -> "VK_FORMAT_ASTC_8x5_UNORM_BLOCK"
+            168 -> "VK_FORMAT_ASTC_8x5_SRGB_BLOCK"
+            169 -> "VK_FORMAT_ASTC_8x6_UNORM_BLOCK"
+            170 -> "VK_FORMAT_ASTC_8x6_SRGB_BLOCK"
+            171 -> "VK_FORMAT_ASTC_8x8_UNORM_BLOCK"
+            172 -> "VK_FORMAT_ASTC_8x8_SRGB_BLOCK"
+            173 -> "VK_FORMAT_ASTC_10x5_UNORM_BLOCK"
+            174 -> "VK_FORMAT_ASTC_10x5_SRGB_BLOCK"
+            175 -> "VK_FORMAT_ASTC_10x6_UNORM_BLOCK"
+            176 -> "VK_FORMAT_ASTC_10x6_SRGB_BLOCK"
+            177 -> "VK_FORMAT_ASTC_10x8_UNORM_BLOCK"
+            178 -> "VK_FORMAT_ASTC_10x8_SRGB_BLOCK"
+            179 -> "VK_FORMAT_ASTC_10x10_UNORM_BLOCK"
+            180 -> "VK_FORMAT_ASTC_10x10_SRGB_BLOCK"
+            181 -> "VK_FORMAT_ASTC_12x10_UNORM_BLOCK"
+            182 -> "VK_FORMAT_ASTC_12x10_SRGB_BLOCK"
+            183 -> "VK_FORMAT_ASTC_12x12_UNORM_BLOCK"
+            184 -> "VK_FORMAT_ASTC_12x12_SRGB_BLOCK"
+            else -> "(unknown texture format)"
         }
     }
 }

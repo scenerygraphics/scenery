@@ -1,9 +1,9 @@
 package graphics.scenery.backends.vulkan
 
-import graphics.scenery.GeometryType
+import graphics.scenery.geometry.GeometryType
 import graphics.scenery.Node
 import graphics.scenery.backends.vulkan.VulkanNodeHelpers.rendererMetadata
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.vulkan.VK10
 
@@ -13,7 +13,7 @@ import org.lwjgl.vulkan.VK10
  * @author Ulrik Guenther <hello@ulrik.is>
  */
 object VulkanPostprocessPass {
-    val logger by LazyLogger()
+    val logger by lazyLogger()
 
     /**
      * Records a new command buffer for [pass] into [commandBuffer]. Eventually necessary further buffers
@@ -105,7 +105,7 @@ object VulkanPostprocessPass {
                 name.startsWith("ShaderParameters") -> "ShaderParameters-${pass.name}"
                 name.startsWith("Inputs") -> "input-${pass.name}-${spec.set}"
                 name.startsWith("Matrices") -> {
-                    val offsets = sceneUBOs.first().rendererMetadata()!!.UBOs["Matrices"]!!.second.offsets
+                    val offsets = sceneUBOs.first().renderableOrNull()?.rendererMetadata()!!.UBOs["Matrices"]!!.second.offsets
                     this.uboOffsets.put(offsets)
                     requiredDynamicOffsets += 3
 
@@ -124,7 +124,14 @@ object VulkanPostprocessPass {
                 logger.debug("${pass.name}: Adding DS#{} for {} to required pipeline DSs ($set)", i, dsName, set)
                 this.descriptorSets.put(i, set)
             } else {
-                logger.error("DS for {} not found! Available from pass are: {}", dsName, pass.descriptorSets.keys().toList().joinToString(","))
+                logger.error("DS for {} not found! Available from pass are: {}. Activate debug logging for details on the shader code seen by the renderer.", dsName, pass.descriptorSets.keys().toList().joinToString(","))
+                
+                if(logger.isDebugEnabled) {
+                    logger.debug("This might be related to shaders optimised by the compiler. The shader code seen by the renderer is the following:")
+                    pipeline.shaderStages.forEach { shaderModule ->
+                        logger.debug("${shaderModule.type} at ${shaderModule.sp.codePath}:\n${shaderModule.sp.code}")
+                    }
+                }
             }
         }
 

@@ -53,8 +53,8 @@ mat4 mv;
 	mat4 nMVP;
 	mat4 projectionMatrix;
 
-    mv = (vrParameters.stereoEnabled ^ 1) * ViewMatrices[0] * iModelMatrix + (vrParameters.stereoEnabled * ViewMatrices[currentEye.eye] * iModelMatrix);
-	projectionMatrix = (vrParameters.stereoEnabled ^ 1) * ProjectionMatrix + vrParameters.stereoEnabled * vrParameters.projectionMatrices[currentEye.eye];
+    mv = ViewMatrices[currentEye.eye] * iModelMatrix;
+	projectionMatrix = vrParameters.projectionMatrices[currentEye.eye];
 
 	if(ubo.isBillboard > 0) {
 		mv[0][0] = 1.0f;

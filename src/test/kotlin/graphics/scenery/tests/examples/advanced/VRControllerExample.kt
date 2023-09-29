@@ -7,6 +7,7 @@ import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.controls.TrackerRole
 import graphics.scenery.numerics.Random
+import graphics.scenery.attribute.material.Material
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
 import org.scijava.ui.behaviour.ClickBehaviour
@@ -18,6 +19,7 @@ import kotlin.system.exitProcess
  * HMD, and the use of intersection testing with scene elements.
  *
  * @author Ulrik Günther <hello@ulrik.is>
+ * @author Jan Tiemann <j.tiemann@hzdr.de>
  */
 class VRControllerExample : SceneryBase(VRControllerExample::class.java.simpleName,
     windowWidth = 1920, windowHeight = 1200) {
@@ -39,7 +41,9 @@ class VRControllerExample : SceneryBase(VRControllerExample::class.java.simpleNa
         renderer?.toggleVR()
 
         val cam: Camera = DetachedHeadCamera(hmd)
-        cam.position = Vector3f(0.0f, 0.0f, 0.0f)
+        cam.spatial {
+            position = Vector3f(0.0f, 0.0f, 0.0f)
+        }
 
         cam.perspectiveCamera(50.0f, windowWidth, windowHeight)
 
@@ -47,55 +51,43 @@ class VRControllerExample : SceneryBase(VRControllerExample::class.java.simpleNa
 
         boxes = (0..10).map {
             val obj = Box(Vector3f(0.1f, 0.1f, 0.1f))
-            obj.position = Vector3f(-1.0f + (it + 1) * 0.2f, 1.0f, -0.5f)
+            obj.spatial {
+                position = Vector3f(-1.0f + (it + 1) * 0.2f, 1.0f, -0.5f)
+            }
             obj
         }
 
         boxes.forEach { scene.addChild(it) }
 
-        (0..5).map {
-            val light = PointLight(radius = 15.0f)
-            light.emissionColor = Random.random3DVectorFromRange(0.0f, 1.0f)
-            light.position = Random.random3DVectorFromRange(-5.0f, 5.0f)
-            light.intensity = 1.0f
 
-            light
-        }.forEach { scene.addChild(it) }
+        val lights = Light.createLightTetrahedron<PointLight>(spread = 5.0f, radius = 8.0f)
+        lights.forEach {
+            it.emissionColor = Random.random3DVectorFromRange(0.0f, 1.0f)
+            scene.addChild(it)
+        }
 
         hullbox = Box(Vector3f(20.0f, 20.0f, 20.0f), insideNormals = true)
-        val hullboxMaterial = Material()
-        hullboxMaterial.ambient = Vector3f(0.6f, 0.6f, 0.6f)
-        hullboxMaterial.diffuse = Vector3f(0.4f, 0.4f, 0.4f)
-        hullboxMaterial.specular = Vector3f(0.0f, 0.0f, 0.0f)
-        hullboxMaterial.cullingMode = Material.CullingMode.Front
-        hullbox.material = hullboxMaterial
+        hullbox.material {
+            ambient = Vector3f(0.6f, 0.6f, 0.6f)
+            diffuse = Vector3f(0.4f, 0.4f, 0.4f)
+            specular = Vector3f(0.0f, 0.0f, 0.0f)
+            cullingMode = Material.CullingMode.Front
+        }
 
         scene.addChild(hullbox)
 
         thread {
-            while(!running) {
+            while (!running) {
                 Thread.sleep(200)
             }
 
             hmd.events.onDeviceConnect.add { hmd, device, timestamp ->
-                if(device.type == TrackedDeviceType.Controller) {
+                if (device.type == TrackedDeviceType.Controller) {
                     logger.info("Got device ${device.name} at $timestamp")
                     device.model?.let { controller ->
                         // This attaches the model of the controller to the controller's transforms
                         // from the OpenVR/SteamVR system.
                         hmd.attachToNode(device, controller, cam)
-
-                        // This update routine is called every time the position of the controller
-                        // updates, and checks for intersections with any of the boxes. If there is
-                        // an intersection with a box, that box is slightly nudged in the direction
-                        // of the controller's velocity.
-                        controller.update.add {
-                            boxes.forEach { it.material.diffuse = Vector3f(0.9f, 0.5f, 0.5f) }
-                            boxes.filter { box -> controller.children.first().intersects(box) }.forEach { box ->
-                                box.material.diffuse = Vector3f(1.0f, 0.0f, 0.0f)
-                                box.position = (device.velocity ?: Vector3f(0.0f)) * 0.05f + box.position
-                            }
-                        }
                     }
                 }
             }
@@ -137,6 +129,34 @@ class VRControllerExample : SceneryBase(VRControllerExample::class.java.simpleNa
         })
         //... and bind that to the A button on the left-hand controller.
         hmd.addKeyBinding("toggle_shell", TrackerRole.LeftHand, OpenVRHMD.OpenVRButton.A)
+
+        // actions that need the position of the controller as an input need to be wrapped in the following lines
+        hmd.events.onDeviceConnect.add { hmd, device, timestamp ->
+            if(device.type == TrackedDeviceType.Controller) {
+                logger.info("Got device ${device.name} at $timestamp")
+                device.model?.let { controller ->
+                    // If a specific controller is desired they can be selected with
+                    // if (device.role == TrackerRole.LeftHand)
+
+                    // This update routine is called every time the position of the controller
+                    // updates, and checks for intersections with any of the boxes. If there is
+                    // an intersection with a box, that box is slightly nudged in the direction
+                    // of the controller's velocity.
+                    controller.update.add {
+                        boxes.forEach { it.materialOrNull()?.diffuse = Vector3f(0.9f, 0.5f, 0.5f) }
+                        boxes.filter { box -> controller.children.first().spatialOrNull()?.intersects(box) ?: false }.forEach { box ->
+                            box.ifMaterial {
+                                diffuse = Vector3f(1.0f, 0.0f, 0.0f)
+                            }
+                            box.ifSpatial {
+                                position = (device.velocity ?: Vector3f(0.0f)) * 0.05f + position
+                            }
+                            (hmd as? OpenVRHMD)?.vibrate(device)
+                        }
+                    }
+                }
+            }
+        }
     }
 
     companion object {

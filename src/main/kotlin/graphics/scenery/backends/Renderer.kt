@@ -1,16 +1,15 @@
 package graphics.scenery.backends
 
-import com.jogamp.opengl.GLAutoDrawable
 import graphics.scenery.*
-import graphics.scenery.backends.opengl.OpenGLRenderer
 import graphics.scenery.backends.vulkan.VulkanRenderer
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.ExtractsNatives
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import graphics.scenery.utils.SceneryPanel
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.selects.select
+import org.lwjgl.system.Platform
 import java.util.concurrent.ConcurrentLinkedQueue
 
 /**
@@ -122,7 +121,7 @@ abstract class Renderer : Hubable {
      */
     @Suppress("UNUSED")
     fun toggleVR() {
-        val logger by LazyLogger()
+        val logger by lazyLogger()
         logger.info("Toggling VR!")
         val isStereo = renderConfigFile.substringBeforeLast(".").indexOf("Stereo") != -1
 
@@ -225,14 +224,14 @@ abstract class Renderer : Hubable {
      * Factory methods for creating renderers.
      */
     companion object {
-        val logger by LazyLogger()
+        val logger by lazyLogger()
+
+        /** (System) property name to declare a scenery instance headless */
+        const val HEADLESS_PROPERTY_NAME = "scenery.Headless"
 
         /**
          * Creates a new [Renderer] instance, based on what is available on the current platform, or set via
          * the scenery.Renderer system property.
-         *
-         * On Linux and Windows, [VulkanRenderer]will be created by default.
-         * On macOS, [OpenGLRenderer] will be created by default.
          *
          * @param[hub] The [Hub] to use.
          * @param[applicationName] Application name, mainly used for the title bar if shown.
@@ -240,14 +239,21 @@ abstract class Renderer : Hubable {
          * @param[windowWidth] Window width for the renderer window.
          * @param[windowHeight] Window height for the renderer window.
          * @param[embedIn] A [SceneryWindow] to embed the renderer in, can e.g. be a Swing or GLFW window.
-         * @param[embedInDrawable] A [GLAutoDrawable] to embed the renderer in. [embedIn] and [embedInDrawable] are mutually exclusive.
          * @param[renderConfigFile] A YAML file with the render path configuration from which a [RenderConfigReader.RenderConfig] will be created.
          *
          * @return A new [Renderer] instance.
          */
         @JvmOverloads
         @JvmStatic
-        fun createRenderer(hub: Hub, applicationName: String, scene: Scene, windowWidth: Int, windowHeight: Int, embedIn: SceneryPanel? = null, embedInDrawable: GLAutoDrawable? = null, renderConfigFile: String? = null): Renderer {
+        fun createRenderer(
+            hub: Hub,
+            applicationName: String,
+            scene: Scene,
+            windowWidth: Int,
+            windowHeight: Int,
+            embedIn: SceneryPanel? = null,
+            renderConfigFile: String? = null
+        ): Renderer {
             var preference = System.getProperty("scenery.Renderer", null)
             val config = renderConfigFile ?: System.getProperty("scenery.Renderer.Config", "DeferredShading.yml")
 
@@ -257,37 +263,24 @@ abstract class Renderer : Hubable {
                         || ExtractsNatives.getPlatform() == ExtractsNatives.Platform.WINDOWS) -> "VulkanRenderer"
 
                 preference == null &&
+                    ExtractsNatives.getPlatform() == ExtractsNatives.Platform.MACOS &&
+                    Platform.getArchitecture() == Platform.Architecture.ARM64 -> "VulkanRenderer"
+
+                preference == null &&
                     ExtractsNatives.getPlatform() == ExtractsNatives.Platform.MACOS -> "OpenGLRenderer"
 
                 else -> preference
             }
 
             return try {
-                if (preference == "VulkanRenderer" && embedInDrawable == null) {
-                    try {
-                        VulkanRenderer(hub, applicationName, scene, windowWidth, windowHeight, embedIn, config)
-                    } catch (e: RendererUnavailableException) {
-                        logger.warn("Vulkan unavailable ($e, ${e.cause}, ${e.message}), falling back to OpenGL.")
-                        logger.debug("Full exception: $e")
-                        if(logger.isDebugEnabled || System.getenv("CI") != null) {
-                            e.printStackTrace()
-                        }
-                        OpenGLRenderer(hub, applicationName, scene, windowWidth, windowHeight, config, embedIn, embedInDrawable)
-                    } catch (e: UnsatisfiedLinkError) {
-                        logger.warn("Vulkan unavailable (${e.cause}, ${e.message}), Vulkan runtime not installed. Falling back to OpenGL.")
-                        logger.debug("Full exception: $e")
-                        if(logger.isDebugEnabled || System.getenv("CI") != null) {
-                            e.printStackTrace()
-                        }
-                        OpenGLRenderer(hub, applicationName, scene, windowWidth, windowHeight, config, embedIn, embedInDrawable)
-                    }
-                } else {
-                    OpenGLRenderer(hub, applicationName, scene, windowWidth, windowHeight, config, embedIn, embedInDrawable)
+                VulkanRenderer(hub, applicationName, scene, windowWidth, windowHeight, embedIn, config) as Renderer
+            } catch (e: UnsatisfiedLinkError) {
+                logger.debug("Full exception: {}", e)
+                if(logger.isDebugEnabled) {
+                    e.printStackTrace()
                 }
-            } catch (e: Exception) {
-                logger.error("Could not instantiate renderer. Is your graphics card working properly and do you have the most recent drivers installed?")
-                e.printStackTrace()
-                throw e
+
+                throw RendererUnavailableException("Vulkan unavailable due to an UnsatisfiedLinkError (${e.cause}, ${e.message}), this could be due to the Vulkan runtime not being installed, or a missing dependency.")
             }
         }
     }

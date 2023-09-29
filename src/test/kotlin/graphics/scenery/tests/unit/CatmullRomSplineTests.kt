@@ -1,8 +1,8 @@
 package graphics.scenery.tests.unit
 
-import graphics.scenery.CatmullRomSpline
+import graphics.scenery.geometry.CatmullRomSpline
 import graphics.scenery.numerics.Random
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.joml.Vector3f
 import org.junit.Test
 import kotlin.math.roundToInt
@@ -16,7 +16,7 @@ import kotlin.test.assertTrue
  * @author  Justin Buerger <burger@mpi-cbg.de>
  */
 class CatmullRomSplineTests {
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
 
     /**
      * Tests if the Catmull Rom Spline object has actually the number of points defined in the class.

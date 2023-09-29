@@ -2,18 +2,25 @@ package graphics.scenery.backends.vulkan
 
 import graphics.scenery.Hub
 import graphics.scenery.backends.RenderConfigReader
+import graphics.scenery.backends.Renderer
 import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.utils.SceneryJPanel
 import graphics.scenery.utils.SceneryPanel
+import graphics.scenery.utils.lazyLogger
 import org.lwjgl.system.MemoryUtil.memFree
+import org.lwjgl.system.Platform
+import org.lwjgl.vulkan.KHRSurface
 import org.lwjgl.vulkan.KHRSwapchain
 import org.lwjgl.vulkan.VkQueue
-import org.lwjgl.vulkan.awt.AWTVKCanvas
-import org.lwjgl.vulkan.awt.VKData
+import org.lwjgl.vulkan.awt.AWTVK
 import java.awt.BorderLayout
-import java.awt.Color
+import java.awt.Canvas
+import java.awt.Dimension
+import java.awt.EventQueue
 import java.awt.event.ComponentEvent
 import java.awt.event.ComponentListener
+import java.awt.event.WindowAdapter
+import java.awt.event.WindowEvent
 import javax.swing.JFrame
 import javax.swing.SwingUtilities
 
@@ -37,6 +44,8 @@ open class SwingSwapchain(override val device: VulkanDevice,
     private val WINDOW_RESIZE_TIMEOUT: Long = 500_000_000
 
     protected var sceneryPanel: SceneryPanel? = null
+    var mainFrame: JFrame? = null
+        protected set
 
     /**
      * Creates a window for this swapchain, and initialiases [win] as [SceneryWindow.GLFWWindow].
@@ -44,65 +53,65 @@ open class SwingSwapchain(override val device: VulkanDevice,
      * Returns the initialised [SceneryWindow].
      */
     override fun createWindow(win: SceneryWindow, swapchainRecreator: VulkanRenderer.SwapchainRecreator): SceneryWindow {
-        val data = VKData()
-        data.instance = device.instance
-        logger.debug("Vulkan Instance=${data.instance}")
+        val windowCreator = Runnable {
+            val p = sceneryPanel as? SceneryJPanel ?: throw IllegalArgumentException("Must have SwingWindow")
 
-        val p = sceneryPanel as? SceneryJPanel ?: throw IllegalArgumentException("Must have SwingWindow")
+            val canvas = Canvas()
 
-        val canvas = object : AWTVKCanvas(data) {
-            private val serialVersionUID = 1L
-            var initialized: Boolean = false
-                private set
-            override fun initVK() {
-                logger.debug("Surface for canvas set to $surface")
-                this@SwingSwapchain.surface = surface
-                this.background = Color.BLACK
-                initialized = true
-            }
+            p.component = canvas
+            p.layout = BorderLayout()
+            p.add(canvas, BorderLayout.CENTER)
 
-            override fun paintVK() {}
-        }
+            val frame = SwingUtilities.getAncestorOfClass(JFrame::class.java, p) as JFrame
 
-        p.component = canvas
-        p.layout = BorderLayout()
-        p.add(canvas, BorderLayout.CENTER)
+            surface = AWTVK.create(canvas, device.instance)
 
-        val frame = SwingUtilities.getAncestorOfClass(JFrame::class.java, p) as JFrame
-        frame.isVisible = true
+            frame.addWindowListener(object : WindowAdapter() {
+                override fun windowClosing(e: WindowEvent?) {
+                    super.windowClosing(e)
 
-        while(!canvas.initialized) {
-            Thread.sleep(100)
-        }
-
-        window = SceneryWindow.SwingWindow(p)
-        window.width = win.width
-        window.height = win.height
-
-        // the listener should only be initialized here, otherwise [window]
-        // might be uninitialized.
-        p.addComponentListener(object : ComponentListener {
-            override fun componentResized(e: ComponentEvent) {
-                if(lastResize > 0L && lastResize + WINDOW_RESIZE_TIMEOUT > System.nanoTime()) {
-                    return
+                    KHRSurface.vkDestroySurfaceKHR(device.instance, surface, null)
                 }
 
-                if(e.component.width <= 0 || e.component.height <= 0) {
-                    return
+            })
+
+            window = SceneryWindow.SwingWindow(p)
+            window.width = win.width
+            window.height = win.height
+
+            // the listener should only be initialized here, otherwise [window]
+            // might be uninitialized.
+            p.addComponentListener(object : ComponentListener {
+                override fun componentResized(e: ComponentEvent) {
+                    if (lastResize > 0L && lastResize + WINDOW_RESIZE_TIMEOUT > System.nanoTime()) {
+                        return
+                    }
+
+                    if (e.component.width <= 0 || e.component.height <= 0) {
+                        return
+                    }
+
+                    window.width = e.component.width
+                    window.height = e.component.height
+
+                    logger.debug("Resizing panel to ${window.width}x${window.height}")
+                    swapchainRecreator.mustRecreate = true
+                    lastResize = System.nanoTime()
                 }
 
-                window.width = e.component.width
-                window.height = e.component.height
+                override fun componentMoved(e: ComponentEvent) {}
+                override fun componentHidden(e: ComponentEvent) {}
+                override fun componentShown(e: ComponentEvent) {}
+            })
 
-                logger.debug("Resizing panel to ${window.width}x${window.height}")
-                swapchainRecreator.mustRecreate = true
-                lastResize = System.nanoTime()
-            }
+            frame.isVisible = true
+        }
 
-            override fun componentMoved(e: ComponentEvent) {}
-            override fun componentHidden(e: ComponentEvent) {}
-            override fun componentShown(e: ComponentEvent) {}
-        })
+        if(SwingUtilities.isEventDispatchThread()) {
+            windowCreator.run()
+        } else {
+            SwingUtilities.invokeAndWait(windowCreator)
+        }
 
         return window
     }
@@ -136,7 +145,7 @@ open class SwingSwapchain(override val device: VulkanDevice,
      * Closes the swapchain, deallocating all of its resources.
      */
     override fun close() {
-        logger.debug("Closing swapchain $this")
+        logger.debug("Closing swapchain {}", this)
         KHRSwapchain.vkDestroySwapchainKHR(device.vulkanDevice, handle, null)
 
         (sceneryPanel as? SceneryJPanel)?.remove(0)
@@ -146,7 +155,52 @@ open class SwingSwapchain(override val device: VulkanDevice,
     }
 
     companion object: SwapchainParameters {
+        private val logger by lazyLogger()
         override var headless = false
-        override var usageCondition = { p: SceneryPanel? -> System.getProperty("scenery.Renderer.UseAWT", "false")?.toBoolean() ?: false || p is SceneryJPanel }
+        override var usageCondition = { p: SceneryPanel? ->
+            when {
+                System.getProperty(Renderer.HEADLESS_PROPERTY_NAME, "false").toBoolean() -> false
+                System.getProperty("scenery.Renderer.UseAWT", "false").toBoolean() -> true
+                p is SceneryJPanel -> true
+                Platform.get() == Platform.MACOSX
+                        && !System.getProperty(Renderer.HEADLESS_PROPERTY_NAME, "false").toBoolean() -> true
+                else -> false
+            }
+        }
+
+        /**
+         * Creates a new JFrame-based application frame. The title of the window will be set to [applicationName],
+         * the width and height will be set according to [windowWidth] and [windowHeight]. The function will
+         * return a new [SceneryJPanel].
+         */
+        fun createApplicationFrame(applicationName: String, windowWidth: Int, windowHeight: Int): SceneryJPanel {
+            var p: SceneryJPanel? = null
+            val creator = Runnable {
+                logger.debug("Creating JFrame in SwingSwapchain, ${windowWidth}x${windowHeight}")
+                val mainFrame = JFrame(applicationName)
+                mainFrame.layout = BorderLayout()
+
+                val sceneryPanel = SceneryJPanel()
+                sceneryPanel.preferredSize = Dimension(windowWidth, windowHeight)
+                mainFrame.add(sceneryPanel, BorderLayout.CENTER)
+                mainFrame.pack()
+
+                p = sceneryPanel
+            }
+
+            if(SwingUtilities.isEventDispatchThread()) {
+                creator.run()
+            } else {
+                SwingUtilities.invokeAndWait(creator)
+            }
+
+            val panel = p
+            if(panel == null) {
+                throw IllegalStateException("SceneryJPanel did not initialise correctly.")
+            } else {
+                return panel
+            }
+        }
+
     }
 }

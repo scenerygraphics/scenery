@@ -2,6 +2,7 @@ package graphics.scenery.backends.vulkan
 
 import graphics.scenery.Hub
 import graphics.scenery.backends.RenderConfigReader
+import graphics.scenery.backends.Renderer
 import graphics.scenery.backends.ResizeHandler
 import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.utils.SceneryPanel
@@ -132,15 +133,13 @@ open class HeadlessSwapchain(device: VulkanDevice,
             it.first.createImageView(it.second, format)
         }.toLongArray()
 
-        val semaphoreCreateInfo = VkSemaphoreCreateInfo.calloc()
-            .sType(VK10.VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO)
-
         val fenceCreateInfo = VkFenceCreateInfo.calloc()
             .sType(VK10.VK_STRUCTURE_TYPE_FENCE_CREATE_INFO)
 
         images.forEach { _ ->
-            imageAvailableSemaphores.add(VU.getLong("image available semaphore", { VK10.vkCreateSemaphore(this@HeadlessSwapchain.device.vulkanDevice, semaphoreCreateInfo, null, this) }, {}))
-            imageRenderedSemaphores.add(VU.getLong("image ready semaphore", { VK10.vkCreateSemaphore(this@HeadlessSwapchain.device.vulkanDevice, semaphoreCreateInfo, null, this) }, {}))
+            imageAvailableSemaphores.add(this@HeadlessSwapchain.device.createSemaphore())
+            imageRenderedSemaphores.add(this@HeadlessSwapchain.device.createSemaphore())
+
             fences.add(VU.getLong("Swapchain image fence", { VK10.vkCreateFence(this@HeadlessSwapchain.device.vulkanDevice, fenceCreateInfo, null, this) }, {}))
             imageUseFences.add(VU.getLong("Swapchain image usage fence", { VK10.vkCreateFence(this@HeadlessSwapchain.device.vulkanDevice, fenceCreateInfo, null, this) }, {}))
             inFlight.add(null)
@@ -164,7 +163,6 @@ open class HeadlessSwapchain(device: VulkanDevice,
         initialized = true
 
         fenceCreateInfo.free()
-        semaphoreCreateInfo.free()
 
         return this
     }
@@ -308,6 +306,6 @@ open class HeadlessSwapchain(device: VulkanDevice,
 
     companion object: SwapchainParameters {
         override var headless = true
-        override var usageCondition = { _: SceneryPanel? -> System.getProperty("scenery.Headless", "false")?.toBoolean() ?: false }
+        override var usageCondition = { _: SceneryPanel? -> System.getProperty(Renderer.HEADLESS_PROPERTY_NAME, "false")?.toBoolean() ?: false }
     }
 }

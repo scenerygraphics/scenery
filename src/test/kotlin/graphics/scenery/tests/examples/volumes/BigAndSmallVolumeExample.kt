@@ -1,6 +1,7 @@
 package graphics.scenery.tests.examples.volumes
 
 import bdv.spimdata.XmlIoSpimDataMinimal
+import bvv.core.VolumeViewerOptions
 import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
@@ -12,7 +13,6 @@ import org.scijava.Context
 import org.scijava.ui.UIService
 import org.scijava.ui.behaviour.ClickBehaviour
 import org.scijava.widget.FileWidget
-import tpietzsch.example2.VolumeViewerOptions
 import java.nio.ByteBuffer
 import java.util.*
 
@@ -60,7 +60,7 @@ class BigAndSmallVolumeExample: SceneryBase("BDV + SDV Rendering example", 1280,
         val v = Volume.fromSpimData(XmlIoSpimDataMinimal().load(files.first()), hub, options)
         v.name = "volume"
 //        v.colormap = "plasma"
-        v.scale = Vector3f(0.02f, 0.02f, 0.02f)
+        v.spatial().scale = Vector3f(0.02f, 0.02f, 0.02f)
         scene.addChild(v)
 
         volume = v
@@ -70,7 +70,7 @@ class BigAndSmallVolumeExample: SceneryBase("BDV + SDV Rendering example", 1280,
         }
 
         lights.mapIndexed { i, light ->
-            light.position = Vector3f(2.0f * i - 4.0f,  i - 1.0f, 0.0f)
+            light.spatial().position = Vector3f(2.0f * i - 4.0f,  i - 1.0f, 0.0f)
             light.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
             light.intensity = 50.0f
             scene.addChild(light)

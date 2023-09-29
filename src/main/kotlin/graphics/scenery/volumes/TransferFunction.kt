@@ -1,10 +1,9 @@
 package graphics.scenery.volumes
 
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.lwjgl.system.MemoryUtil
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
-import java.util.ArrayList
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.math.abs
 import kotlin.math.max
@@ -12,7 +11,7 @@ import kotlin.math.min
 
 /** Transfer function class with an optional [name]. */
 open class TransferFunction(val name: String = "") {
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
 
     /**
      * Data class to contain control points for transfer functions.
@@ -32,7 +31,7 @@ open class TransferFunction(val name: String = "") {
     @Transient protected val buffer: ByteBuffer = MemoryUtil.memCalloc(textureSize * 4 * textureHeight)
 
     /** Indicator whether the auxiliary texture needs to be reuploaded. */
-    var stale = true
+    @Transient var stale = true
         protected set
 
     /**
@@ -113,7 +112,7 @@ open class TransferFunction(val name: String = "") {
      */
     fun serialise(): ByteBuffer {
         if(!stale) {
-            return buffer.duplicate()
+            return buffer.duplicate().order(ByteOrder.LITTLE_ENDIAN)
         }
 
         val points = controlPoints.sortedBy { it.value }

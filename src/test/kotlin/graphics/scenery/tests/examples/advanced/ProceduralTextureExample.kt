@@ -3,9 +3,12 @@ package graphics.scenery.tests.examples.advanced
 import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
+import graphics.scenery.attribute.material.DefaultMaterial
 import graphics.scenery.textures.Texture
+import graphics.scenery.utils.RingBuffer
 import net.imglib2.type.numeric.integer.UnsignedByteType
 import org.joml.Vector3i
+import org.lwjgl.system.MemoryUtil
 import java.nio.ByteBuffer
 import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
@@ -19,27 +22,25 @@ class ProceduralTextureExample : SceneryBase("ProceduralTextureExample") {
     override fun init() {
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, 512, 512))
 
-        val boxmaterial = Material()
-        with(boxmaterial) {
+        val box = Box(Vector3f(1.0f, 1.0f, 1.0f))
+        box.name = "le box du procedurale"
+
+        box.material {
             ambient = Vector3f(1.0f, 0.0f, 0.0f)
             diffuse = Vector3f(0.0f, 1.0f, 0.0f)
             specular = Vector3f(1.0f, 1.0f, 1.0f)
         }
 
-        val box = Box(Vector3f(1.0f, 1.0f, 1.0f))
-        box.name = "le box du procedurale"
-
-        with(box) {
-            box.material = boxmaterial
-            scene.addChild(this)
-        }
+        scene.addChild(box)
 
         val lights = (0..2).map {
             PointLight(radius = 15.0f)
         }
 
         lights.mapIndexed { i, light ->
-            light.position = Vector3f(2.0f * i, 2.0f * i, 2.0f * i)
+            light.spatial {
+                position = Vector3f(2.0f * i, 2.0f * i, 2.0f * i)
+            }
             light.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
             light.intensity = 0.5f
             scene.addChild(light)
@@ -47,7 +48,9 @@ class ProceduralTextureExample : SceneryBase("ProceduralTextureExample") {
 
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
-            position = Vector3f(0.0f, 0.0f, 3.0f)
+            spatial {
+                position = Vector3f(0.0f, 0.0f, 3.0f)
+            }
             perspectiveCamera(50.0f, windowWidth, windowHeight)
 
             scene.addChild(this)
@@ -57,25 +60,28 @@ class ProceduralTextureExample : SceneryBase("ProceduralTextureExample") {
             val imageSizeX = 256
             val imageSizeY = 256
             val imageChannels = 3
-            val textureBuffer = BufferUtils.allocateByte(imageSizeX * imageSizeY * imageChannels)
+            val textureRingBuffer = RingBuffer(2, default = { MemoryUtil.memAlloc(imageSizeX * imageSizeY * imageChannels) })
             var ticks = 0L
 
             while(true) {
                 if(box.lock.tryLock(2, TimeUnit.MILLISECONDS)) {
-                    box.rotation.rotateY(0.01f)
-                    box.needsUpdate = true
+                    val textureBuffer = textureRingBuffer.get()
+                    box.spatial {
+                        rotation.rotateY(0.01f)
+                        needsUpdate = true
+                    }
 
                     textureBuffer.generateProceduralTextureAtTick(ticks,
-                        imageSizeX, imageSizeY, imageChannels)
+                                                                  imageSizeX, imageSizeY, imageChannels)
 
-                    box.material.textures.put("diffuse",
-                        Texture(
+                    box.material {
+                        textures["diffuse"] = Texture(
                             Vector3i(imageSizeX, imageSizeY, 1),
                             channels = imageChannels, contents = textureBuffer,
-                            type = UnsignedByteType()))
-
-
+                            type = UnsignedByteType())
+                    }
                     box.lock.unlock()
+
                 } else {
                     logger.debug("unsuccessful lock")
                 }

@@ -3,21 +3,19 @@ package graphics.scenery
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
-import org.joml.Vector2f
+import graphics.scenery.utils.extensions.xy
 import org.joml.Vector3f
-import java.nio.FloatBuffer
-import java.nio.IntBuffer
 import java.util.*
 import kotlin.math.*
 
 /**
- * Constructs a Icosphere with the given [radius] and number of [subdivisions].
+ * Constructs an Icosphere with the given [radius] and number of [subdivisions].
  *
  * @author Ulrik Günther <hello@ulrik.is>, based on code by Andreas Kahler, http://blog.andreaskahler.com/2009/06/creating-icosphere-mesh-in-code.html
  * @param[radius] The radius of the sphere
  * @param[subdivisions] Number of subdivisions of the base icosahedron
  */
-open class Icosphere(val radius: Float, val subdivisions: Int) : Mesh("Icosphere") {
+open class Icosphere @JvmOverloads constructor(val radius: Float, val subdivisions: Int, val insideNormals: Boolean = false) : Mesh("Icosphere") {
     fun MutableList<Vector3f>.addVertex(vararg v: Float) {
         this.add(Vector3f(v))
     }
@@ -142,49 +140,53 @@ open class Icosphere(val radius: Float, val subdivisions: Int) : Mesh("Icosphere
 
         createBaseVertices(vertexBuffer, indexBuffer)
         val faces = refineTriangles(subdivisions, vertexBuffer, indexBuffer)
+        val flip: Float = if(insideNormals) { -1.0f } else { 1.0f }
 
-        vertices = BufferUtils.allocateFloat(faces.size * 3 * 3)
-        normals = BufferUtils.allocateFloat(faces.size * 3 * 3)
-        texcoords = BufferUtils.allocateFloat(faces.size * 3 * 2)
-        indices = BufferUtils.allocateInt(0)
+        geometry {
 
-        faces.forEach { f ->
-            val v1 = vertexBuffer[f.first]
-            val v2 = vertexBuffer[f.second]
-            val v3 = vertexBuffer[f.third]
-            val uv1 = vertexToUV(v1.normalize())
-            val uv2 = vertexToUV(v2.normalize())
-            val uv3 = vertexToUV(v3.normalize())
+            vertices = BufferUtils.allocateFloat(faces.size * 3 * 3)
+            normals = BufferUtils.allocateFloat(faces.size * 3 * 3)
+            texcoords = BufferUtils.allocateFloat(faces.size * 3 * 2)
+            indices = BufferUtils.allocateInt(0)
 
-            (v1 * radius).get(vertices).position(vertices.position() + 3)
-            (v2 * radius).get(vertices).position(vertices.position() + 3)
-            (v3 * radius).get(vertices).position(vertices.position() + 3)
+            faces.forEach { f ->
+                val v1 = vertexBuffer[f.first]
+                val v2 = vertexBuffer[f.second]
+                val v3 = vertexBuffer[f.third]
+                val uv1 = vertexToUV(v1.normalize())
+                val uv2 = vertexToUV(v2.normalize())
+                val uv3 = vertexToUV(v3.normalize())
 
-            v1.get(normals).position(normals.position() + 3)
-            v2.get(normals).position(normals.position() + 3)
-            v3.get(normals).position(normals.position() + 3)
+                (v1 * radius).get(vertices).position(vertices.position() + 3)
+                (v2 * radius).get(vertices).position(vertices.position() + 3)
+                (v3 * radius).get(vertices).position(vertices.position() + 3)
 
-            val uvNormal = (uv2 - uv1).cross(uv3 - uv1)
-            if(uvNormal.z() < 0.0f) {
-                if(uv1.x() < 0.25f) {
-                    uv1.x = uv1.x() + 1.0f
+                v1.times(flip).get(normals).position(normals.position() + 3)
+                v2.times(flip).get(normals).position(normals.position() + 3)
+                v3.times(flip).get(normals).position(normals.position() + 3)
+
+                val uvNormal = (uv2 - uv1).cross(uv3 - uv1)
+                if(uvNormal.z() < 0.0f) {
+                    if(uv1.x() < 0.25f) {
+                        uv1.x = uv1.x() + 1.0f
+                    }
+                    if(uv2.x() < 0.25f) {
+                        uv2.x = uv2.x() + 1.0f
+                    }
+                    if(uv3.x() < 0.25f) {
+                        uv3.x = uv3.x() + 1.0f
+                    }
                 }
-                if(uv2.x() < 0.25f) {
-                    uv2.x = uv2.x() + 1.0f
-                }
-                if(uv3.x() < 0.25f) {
-                    uv3.x = uv3.x() + 1.0f
-                }
+
+                uv1.xy().get(texcoords).position(texcoords.position() + 2)
+                uv2.xy().get(texcoords).position(texcoords.position() + 2)
+                uv3.xy().get(texcoords).position(texcoords.position() + 2)
             }
 
-            uv1.get(texcoords).position(texcoords.position() + 2)
-            uv2.get(texcoords).position(texcoords.position() + 2)
-            uv3.get(texcoords).position(texcoords.position() + 2)
+            vertices.flip()
+            normals.flip()
+            texcoords.flip()
         }
-
-        vertices.flip()
-        normals.flip()
-        texcoords.flip()
 
         boundingBox = generateBoundingBox()
     }

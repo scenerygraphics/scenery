@@ -4,12 +4,10 @@ import java.io.File
 import java.io.FileOutputStream
 import java.lang.reflect.InvocationTargetException
 import java.net.URI
-import java.net.URL
-import java.net.URLEncoder
 import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import java.nio.file.*
 import java.text.SimpleDateFormat
-import java.time.Instant
 import java.util.*
 
 /**
@@ -20,7 +18,7 @@ import java.util.*
  */
 class SystemHelpers {
     companion object {
-        val logger by LazyLogger()
+        val logger by lazyLogger()
 
         /**
          * Sets environment variables during runtime of the process. This code is fractally nasty,
@@ -256,6 +254,29 @@ class SystemHelpers {
                 e.printStackTrace()
             }
 
+        }
+
+        /**
+         * Converts a byte array into an int array.
+         * @param[bigEndian] By default, big endian is used. Set to false to use little endian.
+         *
+         * @return An [IntArray] with the given endianness.
+         */
+        fun ByteArray.toIntArray(bigEndian: Boolean = true): IntArray {
+            val result = IntArray(this.size/4)
+            if(bigEndian) {
+                ByteBuffer
+                    .wrap(this)
+                    .asIntBuffer()
+                    .get(result)
+            } else {
+                ByteBuffer
+                    .wrap(this)
+                    .order(ByteOrder.LITTLE_ENDIAN)
+                    .asIntBuffer()
+                    .get(result)
+            }
+            return result
         }
     }
 }

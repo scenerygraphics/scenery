@@ -6,7 +6,7 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import graphics.scenery.Blending
 import graphics.scenery.utils.JsonDeserialisers
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.joml.Vector4f
 import java.nio.file.Files
 import java.nio.file.Paths
@@ -37,7 +37,7 @@ fun RenderConfigReader.RenderConfig.getInputsOfTarget(targetName: String): Set<S
  * it as a [List] of Strings.
  */
 fun RenderConfigReader.RenderConfig.createRenderpassFlow(): List<String> {
-    val logger by LazyLogger()
+    val logger by lazyLogger()
     val passes = renderpasses
     val dag = ArrayList<String>()
 
@@ -144,7 +144,7 @@ class RenderConfigReader {
 
 
         @JsonDeserialize(using = JsonDeserialisers.VREyeDeserializer::class)
-        var eye: Int = -1
+        var eye: Int = 0
     )
 
     /** Rendering quality enums */

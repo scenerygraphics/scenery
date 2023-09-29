@@ -1,14 +1,13 @@
 package graphics.scenery.backends.vulkan
 
-import graphics.scenery.GeometryType
 import graphics.scenery.backends.ShaderConsistencyException
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.backends.ShaderIntrospection
+import graphics.scenery.geometry.GeometryType
+import graphics.scenery.utils.lazyLogger
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.*
 import java.nio.IntBuffer
-import java.util.*
-import kotlin.collections.LinkedHashMap
 
 /**
  * Vulkan Pipeline class.
@@ -16,19 +15,19 @@ import kotlin.collections.LinkedHashMap
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class VulkanPipeline(val device: VulkanDevice, val renderpass: VulkanRenderpass, val vulkanRenderpass: Long, val pipelineCache: Long? = null): AutoCloseable {
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
     var type: PipelineType = PipelineType.Graphics
 
     enum class PipelineType { Graphics, Compute }
 
     var pipeline = HashMap<GeometryType, VulkanRenderer.Pipeline>()
-    var descriptorSpecs = LinkedHashMap<String, VulkanShaderModule.UBOSpec>()
-    var pushConstantSpecs = LinkedHashMap<String, VulkanShaderModule.PushConstantSpec>()
+    var descriptorSpecs = LinkedHashMap<String, ShaderIntrospection.UBOSpec>()
+    var pushConstantSpecs = LinkedHashMap<String, ShaderIntrospection.PushConstantSpec>()
 
     val inputAssemblyState: VkPipelineInputAssemblyStateCreateInfo = VkPipelineInputAssemblyStateCreateInfo.calloc()
         .sType(VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO)
         .topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST)
-        .primitiveRestartEnable(false)
+        .primitiveRestartEnable(true)
         .pNext(NULL)
 
     val rasterizationState: VkPipelineRasterizationStateCreateInfo = VkPipelineRasterizationStateCreateInfo.calloc()
@@ -183,7 +182,13 @@ class VulkanPipeline(val device: VulkanDevice, val renderpass: VulkanRenderpass,
                     .subpass(0)
 
                 if (onlyForTopology != null) {
-                    inputAssemblyState.topology(onlyForTopology.asVulkanTopology())
+                    val vulkanTopology = onlyForTopology.asVulkanTopology()
+                    inputAssemblyState.topology(vulkanTopology).pNext(NULL)
+
+                }
+
+                if(inputAssemblyState.topology() in topogoliesWithoutRestart) {
+                    inputAssemblyState.primitiveRestartEnable(false)
                 }
 
                 VU.getLong("vkCreateGraphicsPipelines for ${renderpass.name} ($vulkanRenderpass)", {
@@ -218,13 +223,23 @@ class VulkanPipeline(val device: VulkanDevice, val renderpass: VulkanRenderpass,
 
         // derivative pipelines only make sense for graphics pipelines in our case
         if(onlyForTopology == null && pipelineCreateInfo is VkGraphicsPipelineCreateInfo.Buffer) {
-            // create pipelines for other topologies as well
-            GeometryType.values().forEach { topology ->
+            // create pipelines for other topologies as well, excluding the ones not supported by the current device configuration
+            val filter = if(device.features.geometryShader()) {
+                { t: GeometryType -> t != GeometryType.TRIANGLE_FAN }
+            } else {
+                { t: GeometryType -> t != GeometryType.TRIANGLE_FAN && t != GeometryType.LINE_STRIP_ADJACENCY && t != GeometryType.LINES_ADJACENCY }
+            }
+            GeometryType.values().filter(filter).forEach { topology ->
                 if (topology == GeometryType.TRIANGLES) {
                     return@forEach
                 }
 
-                inputAssemblyState.topology(topology.asVulkanTopology()).pNext(NULL)
+                val vulkanTopology = topology.asVulkanTopology()
+                inputAssemblyState.topology(vulkanTopology).pNext(NULL)
+
+                if(vulkanTopology in topogoliesWithoutRestart) {
+                    inputAssemblyState.primitiveRestartEnable(false)
+                }
 
                 pipelineCreateInfo
                     .pInputAssemblyState(inputAssemblyState)
@@ -250,26 +265,17 @@ class VulkanPipeline(val device: VulkanDevice, val renderpass: VulkanRenderpass,
     }
 
     fun getPipelineForGeometryType(type: GeometryType): VulkanRenderer.Pipeline {
-        return pipeline.getOrElse(type, {
+        return pipeline.getOrElse(type) {
             logger.error("Pipeline $this does not contain a fitting pipeline for $type, return triangle pipeline")
-            pipeline.getOrElse(GeometryType.TRIANGLES, { throw IllegalStateException("Default triangle pipeline not present for $this") })
-        })
-    }
-
-    private fun GeometryType.asVulkanTopology(): Int {
-        return when(this) {
-            GeometryType.TRIANGLE_FAN -> VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN
-            GeometryType.TRIANGLES -> VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST
-            GeometryType.LINE -> VK_PRIMITIVE_TOPOLOGY_LINE_LIST
-            GeometryType.POINTS -> VK_PRIMITIVE_TOPOLOGY_POINT_LIST
-            GeometryType.LINES_ADJACENCY -> VK_PRIMITIVE_TOPOLOGY_LINE_LIST_WITH_ADJACENCY
-            GeometryType.LINE_STRIP_ADJACENCY -> VK_PRIMITIVE_TOPOLOGY_LINE_STRIP_WITH_ADJACENCY
-            GeometryType.POLYGON -> VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST
-            GeometryType.TRIANGLE_STRIP -> VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP
+            pipeline.getOrElse(
+                GeometryType.TRIANGLES
+            ) { throw IllegalStateException("Default triangle pipeline not present for $this") }
         }
     }
 
-    fun orderedDescriptorSpecs(): List<MutableMap.MutableEntry<String, VulkanShaderModule.UBOSpec>> {
+
+
+    fun orderedDescriptorSpecs(): List<MutableMap.MutableEntry<String, ShaderIntrospection.UBOSpec>> {
         return descriptorSpecs.entries.sortedBy { it.value.binding }.sortedBy { it.value.set }
     }
 
@@ -298,5 +304,29 @@ class VulkanPipeline(val device: VulkanDevice, val renderpass: VulkanRenderpass,
         dynamicState.free()
         memFree(pDynamicStates)
         multisampleState.free()
+    }
+
+    companion object {
+        private val topogoliesWithoutRestart = listOf(
+            VK_PRIMITIVE_TOPOLOGY_POINT_LIST,
+            VK_PRIMITIVE_TOPOLOGY_LINE_LIST,
+            VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
+            VK_PRIMITIVE_TOPOLOGY_LINE_LIST_WITH_ADJACENCY,
+            VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST_WITH_ADJACENCY,
+            VK_PRIMITIVE_TOPOLOGY_PATCH_LIST
+        )
+
+        private fun GeometryType.asVulkanTopology(): Int {
+            return when(this) {
+                GeometryType.TRIANGLE_FAN -> VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN
+                GeometryType.TRIANGLES -> VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST
+                GeometryType.LINE -> VK_PRIMITIVE_TOPOLOGY_LINE_LIST
+                GeometryType.POINTS -> VK_PRIMITIVE_TOPOLOGY_POINT_LIST
+                GeometryType.LINES_ADJACENCY -> VK_PRIMITIVE_TOPOLOGY_LINE_LIST_WITH_ADJACENCY
+                GeometryType.LINE_STRIP_ADJACENCY -> VK_PRIMITIVE_TOPOLOGY_LINE_STRIP_WITH_ADJACENCY
+                GeometryType.POLYGON -> VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST
+                GeometryType.TRIANGLE_STRIP -> VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP
+            }
+        }
     }
 }

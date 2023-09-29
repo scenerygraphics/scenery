@@ -1,6 +1,9 @@
 package graphics.scenery.tests.examples.compute
 
 import bdv.util.AxisOrder
+import bvv.core.VolumeViewerOptions
+import bvv.core.shadergen.generate.SegmentTemplate
+import bvv.core.shadergen.generate.SegmentType
 import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
@@ -15,9 +18,6 @@ import net.imglib2.img.Img
 import net.imglib2.img.display.imagej.ImageJFunctions
 import net.imglib2.type.numeric.integer.UnsignedShortType
 import org.lwjgl.system.MemoryUtil
-import tpietzsch.example2.VolumeViewerOptions
-import tpietzsch.shadergen.generate.SegmentTemplate
-import tpietzsch.shadergen.generate.SegmentType
 
 /**
  * Example showing using a custom [graphics.scenery.volumes.VolumeManager] with
@@ -38,10 +38,11 @@ class CustomVolumeManagerExample : SceneryBase("CustomVolumeManagerExample") {
                     "ComputeVolume.comp",
                     "intersectBoundingBox", "vis", "SampleVolume", "Convert", "Accumulate"),
             ))
+        volumeManager.customTextures.add("OutputRender")
 
         val outputBuffer = MemoryUtil.memCalloc(1280*720*4)
         val outputTexture = Texture.fromImage(Image(outputBuffer, 1280, 720), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
-        volumeManager.material.textures["OutputRender"] = outputTexture
+        volumeManager.material().textures["OutputRender"] = outputTexture
 
         hub.add(volumeManager)
 
@@ -54,21 +55,25 @@ class CustomVolumeManagerExample : SceneryBase("CustomVolumeManagerExample") {
 
         val box = Box(Vector3f(1.0f, 1.0f, 1.0f))
         box.name = "le box du win"
-        box.material.textures["diffuse"] = outputTexture
-        box.material.metallic = 0.0f
-        box.material.roughness = 1.0f
+        box.material {
+            textures["diffuse"] = outputTexture
+            metallic = 0.0f
+            roughness = 1.0f
+        }
 
         scene.addChild(box)
 
         val light = PointLight(radius = 15.0f)
-        light.position = Vector3f(0.0f, 0.0f, 2.0f)
+        light.spatial().position = Vector3f(0.0f, 0.0f, 2.0f)
         light.intensity = 5.0f
         light.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
         scene.addChild(light)
 
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
-            position = Vector3f(0.0f, 0.0f, 5.0f)
+            spatial {
+                position = Vector3f(0.0f, 0.0f, 5.0f)
+            }
             perspectiveCamera(50.0f, 512, 512)
 
             scene.addChild(this)
