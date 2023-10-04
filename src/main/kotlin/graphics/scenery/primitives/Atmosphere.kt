@@ -10,13 +10,13 @@ import org.joml.Vector4f
 import org.scijava.ui.behaviour.ClickBehaviour
 import java.lang.Math.toRadians
 import java.time.LocalDateTime
-import java.util.*
 import kotlin.collections.HashMap
 import kotlin.math.*
 
 /**
  * Implementation of a Nishita sky shader, applied to an [Icosphere] that wraps around the scene as a skybox.
  * The shader code is ported from Rye Terrells [repository](https://github.com/wwwtyro/glsl-atmosphere).
+ * To move the sun with arrow keybinds, attach the behaviours using the [attachRotateBehaviours] function.
  * @param initSunDir [Vector3f] of the sun position. Defaults to sun elevation of the current local time.
  * @param emissionStrength Emission strength of the atmosphere shader. Defaults to 0.3f.
  * @param latitude Latitude of the user; needed to calculate the local sun position. Defaults to 50.0, which is central Germany.
@@ -27,12 +27,7 @@ open class Atmosphere(initSunDir: Vector3f? = null, emissionStrength: Float = 0.
     @ShaderProperty
     var sunDir: Vector3f
 
-    //val sunProxy = Icosphere(1f, 2)
-
-//    private var sunLight: DirectionalLight
-//    private var ambiLight: AmbientLight
-
-    private var sunDirEnabledManual: Boolean = false
+    private var sunDirectionManual: Boolean = false
 
     init {
         this.name = "Atmosphere"
@@ -49,29 +44,20 @@ open class Atmosphere(initSunDir: Vector3f? = null, emissionStrength: Float = 0.
         }
         else {
             sunDir = initSunDir
-            sunDirEnabledManual = true
+            sunDirectionManual = true
         }
-
-//        sunLight = DirectionalLight(sunDir)
-//        sunLight.emissionColor = Vector3f(1f, 0.8f, 0.7f)
-//        addChild(sunLight)
-
-//        ambiLight = AmbientLight()
-//        ambiLight.intensity = 0.2f
-//        ambiLight.emissionColor = Vector3f(0.3f, 0.4f, 0.6f)
 
         // Spawn a coroutine to update the sun direction
         val job = CoroutineScope(Dispatchers.Default).launch {
-            while (!sunDirEnabledManual) {
+            while (!sunDirectionManual) {
                 sunDir = getSunDirFromTime()
-//                updateLights()
                 // Wait 30 seconds
                 delay(30 * 1000)
             }
         }
     }
 
-    /** Turn the current local time into a sun elevation angle, encoded as [Vector3f].
+    /** Turn the current local time into a sun elevation angle, encoded as cartesian  [Vector3f].
      * @param localTime local time parameter, defaults to [LocalDateTime.now].
      */
     private fun getSunDirFromTime(localTime: LocalDateTime = LocalDateTime.now()): Vector3f {
@@ -107,8 +93,8 @@ open class Atmosphere(initSunDir: Vector3f? = null, emissionStrength: Float = 0.
      * */
     private fun moveSun(arrowKey: String, increment: Float) {
         // Indicate that the user switched to manual sun direction controls
-        if (!sunDirEnabledManual) {
-            sunDirEnabledManual = true
+        if (!sunDirectionManual) {
+            sunDirectionManual = true
             logger.info("Switched to manual sun direction.")
         }
         // Define a HashMap to map arrow key dimension strings to rotation angles and axes
@@ -123,13 +109,12 @@ open class Atmosphere(initSunDir: Vector3f? = null, emissionStrength: Float = 0.
             val (angle, axis) = mapping
             val rotation = Quaternionf().rotationAxis(toRadians(angle.toDouble()).toFloat(), axis.x, axis.y, axis.z)
             sunDir.rotate(rotation)
-//            updateLights()
         }
     }
 
     /** Attach Up, Down, Left, Right key mappings to the inputhandler to rotate the sun in increments.
      * Keybinds are Ctrl + cursor keys for fast movement and Ctrl + Shift + cursor keys for slow movement.
-     * @param increment Increment value for the rotation in degrees, defaults to 20°. Slow movement is 10% of [increment]. */
+     * @param increment Increment value for the rotation in degrees, defaults to 20°. Slow movement is always 10% of [increment]. */
     fun attachRotateBehaviours(inputHandler: InputHandler, increment: Float = 20f) {
         val incMap = mapOf(
             "fast" to increment,
@@ -146,11 +131,5 @@ open class Atmosphere(initSunDir: Vector3f? = null, emissionStrength: Float = 0.
             }
         }
     }
-
-//    private fun updateLights() {
-//        sunLight.spatial().rotation = Quaternionf(sunDir.x, sunDir.y, sunDir.z, 0f)
-//        sunLight.intensity = sunDir.y * 4f
-//        ambiLight.intensity = sunDir.y * 0.3f
-//    }
 }
 

@@ -65,7 +65,7 @@ class AtmosphereExample : SceneryBase("Atmosphere Example",
             spatial {
                 position = Vector3f(0.0f, 0.0f, 5.0f)
             }
-            perspectiveCamera(120.0f, 512, 768)
+            perspectiveCamera(70.0f, 512, 768)
             scene.addChild(this)
         }
 
