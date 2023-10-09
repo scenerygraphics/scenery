@@ -95,15 +95,15 @@ class CurveDifferentBaseShapes: SceneryBase("CurveDifferentBaseShapes", windowWi
         }
         lights.forEach { scene.addChild(it) }
 
-        val stageLight = PointLight(radius = 100.0f)
+        val stageLight = PointLight(radius = 10.0f)
         stageLight.name = "StageLight"
-        stageLight.intensity = 1f
+        stageLight.intensity = 0.5f
         stageLight.spatial {
             position = Vector3f(0.0f, 0.0f, 5.0f)
         }
         scene.addChild(stageLight)
 
-        val cameraLight = PointLight(radius = 25.0f)
+        val cameraLight = PointLight(radius = 5.0f)
         cameraLight.name = "CameraLight"
         cameraLight.emissionColor = Vector3f(1.0f, 1.0f, 0.0f)
         cameraLight.intensity = 0.8f

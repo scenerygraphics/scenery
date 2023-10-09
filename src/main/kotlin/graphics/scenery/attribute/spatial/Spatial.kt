@@ -32,13 +32,6 @@ interface Spatial: RealLocalizable, RealPositionable, Networkable {
     /** Stores whether the [world] matrix needs an update. */
     var needsUpdateWorld: Boolean
 
-    /** Local X vector */
-    val localX: Vector3f
-    /** Local Y vector */
-    val localY: Vector3f
-    /** Local Z vector */
-    val localZ: Vector3f
-
     /**
      * Update the the [world] matrix of the [Spatial] node.
      *
@@ -78,11 +71,9 @@ interface Spatial: RealLocalizable, RealPositionable, Networkable {
     fun worldPosition(v: Vector3f? = null): Vector3f
 
     /**
-     * Checks whether this node's bounding box intersects the one of [other] using a simple bounding sphere test.
-     * If [precise] is true, the intersection test will be performed using oriented bounding boxes (OBBs),
-     * otherwise, a faster, but less precise bounding sphere test is performed.
+     * Checks whether two node's bounding boxes do intersect using a simple bounding sphere test.
      */
-    fun intersects(other: Node, precise: Boolean = false): Boolean
+    fun intersects(other: Node): Boolean
 
     /**
      * Fits the [Node] within a box of the given dimension.

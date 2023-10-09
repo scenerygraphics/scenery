@@ -11,9 +11,9 @@ import org.lwjgl.vulkan.EXTDebugUtils.vkSetDebugUtilsObjectNameEXT
 import org.lwjgl.vulkan.VK10.*
 import org.lwjgl.vulkan.VK11.VK_FORMAT_G16_B16_R16_3PLANE_444_UNORM
 import org.lwjgl.vulkan.VK11.VK_FORMAT_G8B8G8R8_422_UNORM
-import java.nio.ByteBuffer
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.Semaphore
 
 typealias QueueIndexWithProperties = Pair<Int, VkQueueFamilyProperties>
 
@@ -26,7 +26,7 @@ open class VulkanDevice(
     val instance: VkInstance,
     val physicalDevice: VkPhysicalDevice,
     val deviceData: DeviceData,
-    extensionsQuery: (VkPhysicalDevice) -> MutableList<String> = { mutableListOf() },
+    extensionsQuery: (VkPhysicalDevice) -> Array<String> = { arrayOf() },
     validationLayers: Array<String> = arrayOf(),
     val headless: Boolean = false,
     val debugEnabled: Boolean = false
@@ -38,7 +38,8 @@ open class VulkanDevice(
     /** Stores the Vulkan-internal device. */
     val vulkanDevice: VkDevice
     /** Stores available queue indices. */
-    val queues: Queues
+    val queueIndices: QueueIndices
+    private val queueProps: VkQueueFamilyProperties.Buffer
     /** Stores available extensions */
     val extensions = ArrayList<String>()
     /** Stores enabled features */
@@ -79,7 +80,7 @@ open class VulkanDevice(
      * @property[graphicsQueue] The index of the graphics queue
      * @property[computeQueue] The index of the compute queue
      */
-    data class Queues(val presentQueue: QueueIndexWithProperties, val transferQueue: QueueIndexWithProperties, val graphicsQueue: QueueIndexWithProperties, val computeQueue: QueueIndexWithProperties)
+    data class QueueIndices(val presentQueue: QueueIndexWithProperties, val transferQueue: QueueIndexWithProperties, val graphicsQueue: QueueIndexWithProperties, val computeQueue: QueueIndexWithProperties)
 
     init {
         val enabledFeatures = VkPhysicalDeviceFeatures.calloc()
@@ -87,38 +88,65 @@ open class VulkanDevice(
             val pQueueFamilyPropertyCount = stack.callocInt(1)
             vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, pQueueFamilyPropertyCount, null)
             val queueCount = pQueueFamilyPropertyCount.get(0)
-            val queueProps = VkQueueFamilyProperties.calloc(queueCount)
+            queueProps = VkQueueFamilyProperties.calloc(queueCount)
             vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, pQueueFamilyPropertyCount, queueProps)
 
-            var graphicsQueueFamilyIndex = 0
-            var transferQueueFamilyIndex = 0
-            var computeQueueFamilyIndex = 0
-            val presentQueueFamilyIndex = 0
+            var graphicsQueueFamilyIndex = -1
+            var transferQueueFamilyIndex = -1
+            var computeQueueFamilyIndex = -1
+            var presentQueueFamilyIndex = -1
             var index = 0
 
             while (index < queueCount) {
-                if (queueProps.get(index).queueFlags() and VK_QUEUE_GRAPHICS_BIT != 0) {
+                if (queueProps.get(index).queueFlags() and VK_QUEUE_GRAPHICS_BIT != 0 && graphicsQueueFamilyIndex == -1) {
                     graphicsQueueFamilyIndex = index
+                    presentQueueFamilyIndex = index
+                    index++
+                    continue
                 }
 
-                if (queueProps.get(index).queueFlags() and VK_QUEUE_TRANSFER_BIT != 0) {
+                if (queueProps.get(index).queueFlags() and VK_QUEUE_TRANSFER_BIT != 0 && transferQueueFamilyIndex == -1) {
                     transferQueueFamilyIndex = index
+                    index++
+                    continue
                 }
 
-                if (queueProps.get(index).queueFlags() and VK_QUEUE_COMPUTE_BIT != 0) {
+                if (queueProps.get(index).queueFlags() and VK_QUEUE_COMPUTE_BIT != 0 && computeQueueFamilyIndex == -1) {
                     computeQueueFamilyIndex = index
+                    index++
+                    continue
+                }
+
+                // if transfer and compute families end up on the same index, let's see
+                // if we can find more. Otherwise, we revert to the same index.
+                if(transferQueueFamilyIndex == graphicsQueueFamilyIndex) {
+                    transferQueueFamilyIndex = -1
+                }
+
+                if(computeQueueFamilyIndex == graphicsQueueFamilyIndex) {
+                    computeQueueFamilyIndex = -1
                 }
 
                 index++
             }
 
+            // no distinct queues possible, revert to index 0 for the default queue
+            if(transferQueueFamilyIndex == -1) {
+                transferQueueFamilyIndex = graphicsQueueFamilyIndex
+            }
+
+            if(computeQueueFamilyIndex == -1) {
+                computeQueueFamilyIndex = graphicsQueueFamilyIndex
+            }
+
             val requiredFamilies = listOf(
                 graphicsQueueFamilyIndex,
+                presentQueueFamilyIndex,
                 transferQueueFamilyIndex,
                 computeQueueFamilyIndex)
                 .groupBy { it }
 
-            logger.info("Creating ${requiredFamilies.size} distinct queue groups")
+            logger.debug("Creating ${requiredFamilies.size} distinct queue groups")
 
             /**
              * Adjusts the queue count of a [VkDeviceQueueCreateInfo] struct to [num].
@@ -132,10 +160,10 @@ open class VulkanDevice(
 
             requiredFamilies.entries.forEachIndexed { i, (familyIndex, group) ->
                 val size = minOf(queueProps.get(familyIndex).queueCount(), group.size)
-                logger.debug("Adding queue with familyIndex=$familyIndex, size=$size")
+                logger.debug("Adding queue with familyIndex=$familyIndex, size=$size (group size ${group.size})")
 
                 val pQueuePriorities = stack.callocFloat(group.size)
-                for(pr in 0 until group.size) { pQueuePriorities.put(pr, 1.0f) }
+                for(pr in group.indices) { pQueuePriorities.put(pr, 1.0f) }
 
                 queueCreateInfo[i]
                     .sType(VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO)
@@ -144,17 +172,7 @@ open class VulkanDevice(
                     .queueCount(size)
             }
 
-            val extensionPropertyCount = intArrayOf(0)
-            vkEnumerateDeviceExtensionProperties(physicalDevice, null as? ByteBuffer?, extensionPropertyCount, null)
-            val extensionProperties = VkExtensionProperties.calloc(extensionPropertyCount[0], stack)
-            vkEnumerateDeviceExtensionProperties(physicalDevice, null as? ByteBuffer?, extensionPropertyCount, extensionProperties)
-
             val extensionsRequested = extensionsQuery.invoke(physicalDevice)
-            extensionProperties.forEach {
-                if(it.extensionNameString() == "VK_KHR_portability_subset") {
-                    extensionsRequested += "VK_KHR_portability_subset"
-                }
-            }
             logger.debug("Requested extensions: ${extensionsRequested.joinToString(", ")} ${extensionsRequested.size}")
             val utf8Exts = extensionsRequested.map { stack.UTF8(it) }
 
@@ -218,7 +236,7 @@ open class VulkanDevice(
                 graphicsQueueFamilyIndex, computeQueueFamilyIndex, presentQueueFamilyIndex, transferQueueFamilyIndex, memoryProperties)
 
             Triple(VkDevice(device, physicalDevice, deviceCreateInfo),
-                Queues(
+                QueueIndices(
                     presentQueue = presentQueueFamilyIndex to queueProps[presentQueueFamilyIndex],
                     transferQueue = transferQueueFamilyIndex to queueProps[transferQueueFamilyIndex],
                     computeQueue = computeQueueFamilyIndex to queueProps[computeQueueFamilyIndex],
@@ -228,7 +246,7 @@ open class VulkanDevice(
         }
 
         vulkanDevice = result.first
-        queues = result.second
+        queueIndices = result.second
         memoryProperties = result.third
         features = enabledFeatures
 
@@ -355,6 +373,52 @@ open class VulkanDevice(
             logger.debug("Created semaphore {}", semaphore.toHexString().lowercase())
             semaphore
         }
+    }
+
+    data class QueueWithMutex(val queue: VkQueue, val mutex: Semaphore = Semaphore(1))
+    private val queues = ConcurrentHashMap<Int, ArrayList<QueueWithMutex>>()
+    /**
+     * Creates a new Vulkan queue on [device] with the queue family index [queueFamilyIndex] and returns the queue.
+     */
+    fun getQueue(queueFamilyIndex: Int): QueueWithMutex {
+        val index = queues[queueFamilyIndex]?.size ?: 0
+
+        val availableQueues = queueProps[queueFamilyIndex].queueCount()
+
+        if(index + 1 > availableQueues) {
+            logger.warn("Don't have more queues available for index $queueFamilyIndex, returning existing queue.")
+            return queues[queueFamilyIndex]!!.last()
+        }
+
+        logger.debug("Requesting device queue of family $queueFamilyIndex with index $index")
+        val q = VU.getPointer("Getting device queue for queueFamilyIndex=$queueFamilyIndex",
+            { vkGetDeviceQueue(vulkanDevice, queueFamilyIndex, index, this); VK_SUCCESS }, {})
+
+        val qm = QueueWithMutex(VkQueue(q, vulkanDevice))
+        queues.getOrPut(queueFamilyIndex) { arrayListOf() }?.add(qm)
+
+        return qm
+    }
+
+    /**
+     * Creates a new fence on this device, returning the handle.
+     */
+    fun createFence(): Long {
+        stackPush().use { stack ->
+            val fc = VkFenceCreateInfo.calloc(stack)
+                .sType(VK_STRUCTURE_TYPE_FENCE_CREATE_INFO)
+                .pNext(MemoryUtil.NULL)
+
+            return VU.getLong("Creating fence",
+                { vkCreateFence(vulkanDevice, fc, null, this) }, {})
+        }
+    }
+
+    /**
+     * Destroys a given [fence] that resides on this device.
+     */
+    fun destroyFence(fence: Long) {
+        vkDestroyFence(vulkanDevice, fence, null)
     }
 
     fun removeSemaphore(semaphore: Long) {
@@ -837,27 +901,12 @@ open class VulkanDevice(
                 else -> "(Unknown vendor)"
             }
 
-        private fun decodeDriverVersion(version: Int, vendor: Int): List<Int> {
-            return when(vendor) {
-                4318 -> listOf(
-                    (version shr 22) and 0x3ff,
-                    (version shr 14) and 0x0ff,
-                    (version shr 6) and 0x0ff,
-                    (version) and 0x003f
-                )
-
-                0x8086 -> listOf(
-                    (version shr 14),
-                    (version) shr 0x3fff
-                )
-
-                else -> listOf(
-                    (version shr 22),
-                    (version shr 12) and 0x3ff,
-                    (version) and 0xfff
-                    )
-            }
-        }
+        private fun decodeDriverVersion(version: Int) =
+            Triple(
+                version and 0xFFC00000.toInt() shr 22,
+                version and 0x003FF000 shr 12,
+                version and 0x00000FFF
+            )
 
         /**
          * Gets the supported format ranges for image formats,
@@ -870,8 +919,8 @@ open class VulkanDevice(
             (1 to 1) to (VK_FORMAT_G8B8G8R8_422_UNORM..VK_FORMAT_G16_B16_R16_3PLANE_444_UNORM)
         )
 
-        private fun driverVersionToString(version: Int, vendor: Int) =
-            decodeDriverVersion(version, vendor).toList().joinToString(".")
+        private fun driverVersionToString(version: Int) =
+            decodeDriverVersion(version).toList().joinToString(".")
 
         /**
          * Creates a [VulkanDevice] in a given [instance] from a physical device, requesting extensions
@@ -879,7 +928,7 @@ open class VulkanDevice(
          * such that one can filter for certain vendors, e.g.
          */
         @JvmStatic fun fromPhysicalDevice(instance: VkInstance, physicalDeviceFilter: (Int, DeviceData) -> Boolean,
-                                          additionalExtensions: (VkPhysicalDevice) -> MutableList<String> = { mutableListOf() },
+                                          additionalExtensions: (VkPhysicalDevice) -> Array<String> = { arrayOf() },
                                           validationLayers: Array<String> = arrayOf(),
                                           headless: Boolean = false, debugEnabled: Boolean = false): VulkanDevice {
 
@@ -905,7 +954,7 @@ open class VulkanDevice(
                 val properties: VkPhysicalDeviceProperties = VkPhysicalDeviceProperties.calloc()
                 vkGetPhysicalDeviceProperties(device, properties)
 
-                val apiVersion = with(decodeDriverVersion(properties.apiVersion(), 0)) { this[0] to this[1] }
+                val apiVersion = with(decodeDriverVersion(properties.apiVersion())) { this.first to this.second }
 
 
                 val formatRanges = (0 .. apiVersion.second).mapNotNull { minor -> supportedFormatRanges[1 to minor] }
@@ -923,8 +972,8 @@ open class VulkanDevice(
                 val deviceData = DeviceData(
                     vendor = vendorToString(properties.vendorID()),
                     name = properties.deviceNameString(),
-                    driverVersion = driverVersionToString(properties.driverVersion(), properties.vendorID()),
-                    apiVersion = driverVersionToString(properties.apiVersion(), 0),
+                    driverVersion = driverVersionToString(properties.driverVersion()),
+                    apiVersion = driverVersionToString(properties.apiVersion()),
                     type = toDeviceType(properties.deviceType()),
                     properties = properties,
                     formats = formats)

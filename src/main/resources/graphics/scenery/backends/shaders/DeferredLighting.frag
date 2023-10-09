@@ -491,7 +491,7 @@ void main()
 	float Depth = texture(InputZBuffer, textureCoord).r;
 
     vec3 FragPos = worldFromDepth(Depth, uv, invProjection, invView);
-    vec4 ambientOcclusion = texture(InputOcclusion, textureCoord);
+    vec4 ambientOcclusion = texture(InputOcclusion, textureCoord).rrrr;
 
     vec3 cameraPosition = invView[3].xyz;
 
@@ -501,19 +501,16 @@ void main()
 
     vec3 L;
     float lightAttenuation = 0.0;
-    float lightOcclusion = 0.0f;
 
     if(lightType == 0) {
         L = (worldPosition.xyz - FragPos.xyz);
         float distance = length(L);
         L = normalize(L);
-        lightOcclusion = 1.0f - clamp(dot(vec4(-L, 1.0), ambientOcclusion), 0.0, 1.0);
 
         lightAttenuation = clamp(1.0 - distance*distance/(lightRadius*lightRadius), 0.0, 1.0);
         lightAttenuation *= lightAttenuation;
     } else if(lightType == 2) {
-        lightOcclusion = 1.0f - dot(ambientOcclusion, ambientOcclusion);
-        FragColor = vec4(intensity * Albedo.rgb * emissionColor.rgb * lightOcclusion, 1.0);
+        FragColor = vec4(intensity * Albedo.rgb * emissionColor.rgb, 1.0);
         return;
     } else {
         L = normalize(worldPosition.xyz);
@@ -539,6 +536,7 @@ void main()
 
     vec3 specular = vec3(0.0f);
     vec3 diffuse = vec3(0.0f);
+    float lightOcclusion = ambientOcclusion.a;
 
     if(reflectanceModel == 1) {
         // Diffuse
@@ -606,7 +604,7 @@ void main()
         } if(debugLights == 4) {
             lighting = diffuse * lightAttenuation;
         } if(debugLights == 5) {
-            lighting = ambientOcclusion.rgb;
+            lighting = ambientOcclusion.rrr;
         } if(debugLights == 6) {
             lighting = vec3(lightOcclusion);
         } if(debugLights == 7) {

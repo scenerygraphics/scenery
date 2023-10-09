@@ -2,7 +2,6 @@ package graphics.scenery.backends.vulkan
 
 import graphics.scenery.Hub
 import graphics.scenery.backends.RenderConfigReader
-import graphics.scenery.backends.Renderer
 import graphics.scenery.backends.ResizeHandler
 import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.utils.SceneryPanel
@@ -20,7 +19,7 @@ import java.nio.LongBuffer
  * @author Ulrik Günther <hello@ulrik.is>
  */
 open class HeadlessSwapchain(device: VulkanDevice,
-                        queue: VkQueue,
+                        queue: VulkanDevice.QueueWithMutex,
                         commandPools: VulkanRenderer.CommandPools,
                         renderConfig: RenderConfigReader.RenderConfig,
                         useSRGB: Boolean = true,
@@ -114,7 +113,7 @@ open class HeadlessSwapchain(device: VulkanDevice,
         } else {
             VK10.VK_FORMAT_B8G8R8A8_UNORM
         }
-        presentQueue = VU.createDeviceQueue(device, device.queues.graphicsQueue.first)
+        presentQueue = device.getQueue(device.queueIndices.graphicsQueue.first)
 
         val textureImages = (0 until bufferCount).map {
             val t = VulkanTexture(device, commandPools, queue, queue, window.width, window.height, 1,
@@ -174,7 +173,7 @@ open class HeadlessSwapchain(device: VulkanDevice,
      */
     override fun next(timeout: Long): Pair<Long, Long>? {
         MemoryStack.stackPush().use { stack ->
-            VK10.vkQueueWaitIdle(presentQueue)
+            VK10.vkQueueWaitIdle(presentQueue.queue)
 
             val signal = stack.mallocLong(1)
             signal.put(0, imageAvailableSemaphores[currentImage])
@@ -257,7 +256,7 @@ open class HeadlessSwapchain(device: VulkanDevice,
                 flush = true, dealloc = true)
         }
 
-        VK10.vkQueueWaitIdle(queue)
+        VK10.vkQueueWaitIdle(queue.queue)
 
         resizeHandler.queryResize()
         currentImage = (currentImage + 1) % images.size
@@ -292,7 +291,7 @@ open class HeadlessSwapchain(device: VulkanDevice,
      * Closes the swapchain, deallocating all resources.
      */
     override fun close() {
-        vkQueueWaitIdle(queue)
+        vkQueueWaitIdle(queue.queue)
         presentInfo.free()
 
         MemoryUtil.memFree(swapchainImage)
@@ -306,6 +305,6 @@ open class HeadlessSwapchain(device: VulkanDevice,
 
     companion object: SwapchainParameters {
         override var headless = true
-        override var usageCondition = { _: SceneryPanel? -> System.getProperty(Renderer.HEADLESS_PROPERTY_NAME, "false")?.toBoolean() ?: false }
+        override var usageCondition = { _: SceneryPanel? -> System.getProperty("scenery.Headless", "false")?.toBoolean() ?: false }
     }
 }

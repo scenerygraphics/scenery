@@ -103,6 +103,7 @@ tasks {
         group = "tools"
         mainClass.set("graphics.scenery.backends.ShaderCompiler")
         classpath = sourceSets["main"].runtimeClasspath
+
     }
 
     register<JacocoReport>("fullCodeCoverageReport") {
@@ -129,10 +130,10 @@ tasks {
              *      otherwise: a reference to a file containing the current commit hash     */
             val head = file(gitFolder + "HEAD").readText().split(":") // .git/HEAD
             val isCommit = head.size == 1 // e5a7c79edabbf7dd39888442df081b1c9d8e88fd
-            // def isRef = head.length > 1     // ref: refs/heads/main
+            // def isRef = head.length > 1     // ref: refs/heads/master
             when {
                 isCommit -> head[0] // e5a7c79edabb
-                else -> file(gitFolder + head[1].trim()) // .git/refs/heads/main
+                else -> file(gitFolder + head[1].trim()) // .git/refs/heads/master
                     .readText()
             }.trim().take(digit)
         }

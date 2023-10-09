@@ -6,9 +6,7 @@ import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
 import graphics.scenery.Mesh
 import graphics.scenery.attribute.material.Material
-import graphics.scenery.utils.extensions.plus
 import kotlin.concurrent.thread
-import kotlin.math.floor
 
 /**
  * Demo animating multiple boxes with instancing.
@@ -22,7 +20,7 @@ class MultiBoxInstancedExample : SceneryBase("MultiBoxInstancedExample") {
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
             spatial {
-                position = Vector3f(10.0f, 10.0f, 70.0f)
+                position = Vector3f(10.0f, 10.0f, 10.0f)
             }
             perspectiveCamera(60.0f, windowWidth, windowHeight, 1.0f, 1000.0f)
 
@@ -34,7 +32,7 @@ class MultiBoxInstancedExample : SceneryBase("MultiBoxInstancedExample") {
 
         val container = Mesh()
 
-        val b = Box(Vector3f(1.0f))
+        val b = Box(Vector3f(0.7f, 0.7f, 0.7f))
         b.name = "boxmaster"
         b.setMaterial(ShaderMaterial.fromFiles("DefaultDeferredInstanced.vert", "DefaultDeferred.frag")) {
             diffuse = Vector3f(1.0f, 1.0f, 1.0f)
@@ -56,14 +54,14 @@ class MultiBoxInstancedExample : SceneryBase("MultiBoxInstancedExample") {
             val i: Double = it / (boundaryWidth * boundaryHeight)
 
             inst.spatial {
-                position = Vector3f(floor(i).toFloat(), floor(j).toFloat(), floor(k).toFloat()) + Random.random3DVectorFromRange(0.05f, 0.2f)
+                position = Vector3f(Math.floor(i).toFloat(), Math.floor(j).toFloat(), Math.floor(k).toFloat())
             }
 
             inst.parent = container
             inst
         }
 
-        val lights = (0..5).map {
+        val lights = (0..20).map {
             PointLight(radius = 250.0f)
         }.map {
             it.spatial {
@@ -72,7 +70,7 @@ class MultiBoxInstancedExample : SceneryBase("MultiBoxInstancedExample") {
             it.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
             it.intensity = Random.randomFromRange(0.1f, 0.5f)
             it
-        } + AmbientLight(0.5f)
+        }
 
         lights.forEach { scene.addChild(it) }
 

@@ -144,7 +144,7 @@ class RenderConfigReader {
 
 
         @JsonDeserialize(using = JsonDeserialisers.VREyeDeserializer::class)
-        var eye: Int = 0
+        var eye: Int = -1
     )
 
     /** Rendering quality enums */

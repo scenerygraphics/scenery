@@ -53,8 +53,8 @@ void main()
 	mat4 nMVP;
 	mat4 projectionMatrix;
 
-    mv = ViewMatrices[currentEye.eye] * ubo.ModelMatrix;
-	projectionMatrix = vrParameters.projectionMatrices[currentEye.eye];
+    mv = (vrParameters.stereoEnabled ^ 1) * ViewMatrices[0] * ubo.ModelMatrix + (vrParameters.stereoEnabled * ViewMatrices[currentEye.eye] * ubo.ModelMatrix);
+	projectionMatrix = (vrParameters.stereoEnabled ^ 1) * ProjectionMatrix + vrParameters.stereoEnabled * vrParameters.projectionMatrices[currentEye.eye];
 
 	nMVP = projectionMatrix*mv;
 

@@ -1,2 +1,3 @@
 #!/bin/sh
-./gradlew CompileShader --args="src/main/resources/graphics/scenery/backends/shaders"
+cd src/main/resources/graphics/scenery/backends/shaders
+./generate-spirv.sh -O $@

@@ -64,28 +64,8 @@ open class GLFWMouseAndKeyHandler(var hub: Hub?) : MouseAndKeyHandlerBase(), Aut
         return mask
     }
 
-
-    /**
-     * Return true for modiefiers keys acorrding to https://www.glfw.org/docs/3.3/group__keys.html
-     */
-    private fun Int.isGLFWModifierKey(): Boolean {
-        val modKeys = listOf(GLFW_KEY_LEFT_SHIFT,
-            GLFW_KEY_LEFT_CONTROL,
-            GLFW_KEY_LEFT_ALT,
-            GLFW_KEY_LEFT_SUPER,
-            GLFW_KEY_RIGHT_SHIFT,
-            GLFW_KEY_RIGHT_CONTROL,
-            GLFW_KEY_RIGHT_ALT,
-            GLFW_KEY_RIGHT_SUPER)
-        return modKeys.contains(this)
-    }
-
     var keyCallback = object : GLFWKeyCallback() {
         override fun invoke(window: Long, key: Int, scancode: Int, action: Int, mods: Int) {
-            if (key.isGLFWModifierKey()){
-                return
-            }
-
             val type = when(action) {
                 GLFW_PRESS -> KeyEvent.KEY_PRESSED
                 GLFW_RELEASE -> KeyEvent.KEY_RELEASED

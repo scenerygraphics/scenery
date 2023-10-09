@@ -24,7 +24,7 @@ class RibbonExampleSecondaryStructures: SceneryBase("FlatRibbonSketch", windowWi
 
         val protein = Protein.fromID("2zzt")
 
-        val ribbon = RibbonDiagram(protein, showSecondaryStructures = true)
+        val ribbon = RibbonDiagram(protein, displaySS = true)
 
         val alphaColour =  Random.random3DVectorFromRange(0f, 1f)
         val betaColour =  Random.random3DVectorFromRange(0f, 1f)

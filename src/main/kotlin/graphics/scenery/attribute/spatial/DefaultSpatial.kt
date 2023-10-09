@@ -51,28 +51,6 @@ open class DefaultSpatial(@Transient protected var node: Node = DefaultNode()) :
             propertyChanged(::position, field, value)
             field = value
         }
-
-    /** Local X vector */
-    override val localX: Vector3f
-        get() {
-            val v = Vector3f(1.0f, 0.0f, 0.0f)
-            return world.transformDirection(v).normalize()
-        }
-
-    /** Local Y vector */
-    override val localY: Vector3f
-        get() {
-            val v = Vector3f(0.0f, 1.0f, 0.0f)
-            return world.transformDirection(v).normalize()
-        }
-
-    /** Local Z vector */
-    override val localZ: Vector3f
-        get() {
-            val v = Vector3f(0.0f, 0.0f, 1.0f)
-            return world.transformDirection(v).normalize()
-        }
-
     override var wantsComposeModel = true
     @Transient override var needsUpdate = true
     @Transient override var needsUpdateWorld = true
@@ -221,17 +199,10 @@ open class DefaultSpatial(@Transient protected var node: Node = DefaultNode()) :
     }
 
 
-    /**
-     * Checks whether this node's bounding box intersects the one of [other] using a simple bounding sphere test.
-     * If [precise] is true, the intersection test will be performed using oriented bounding boxes (OBBs),
-     * otherwise, a faster, but less precise bounding sphere test is performed.
-     *
-     * If any of the nodes to test do not have a bounding box defined, the result will be false.
-     */
-    override fun intersects(other: Node, precise: Boolean): Boolean {
+    override fun intersects(other: Node): Boolean {
         node.boundingBox?.let { ownOBB ->
             other.boundingBox?.let { otherOBB ->
-                return ownOBB.intersects(otherOBB, precise)
+                return ownOBB.intersects(otherOBB)
             }
         }
 

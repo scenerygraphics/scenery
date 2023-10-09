@@ -19,6 +19,7 @@ import bvv.core.render.MultiVolumeShaderMip
 import bvv.core.shadergen.generate.Segment
 import bvv.core.shadergen.generate.SegmentTemplate
 import bvv.core.shadergen.generate.SegmentType
+import bvv.core.util.TriConsumer
 import graphics.scenery.*
 import graphics.scenery.geometry.GeometryType
 import graphics.scenery.attribute.geometry.Geometry
@@ -59,7 +60,7 @@ class VolumeManager(
     override var hub: Hub?,
     val useCompute: Boolean = false,
     val customSegments: Map<SegmentType, SegmentTemplate>? = null,
-    val customBindings: BiConsumer<Map<SegmentType, SegmentTemplate>, Map<SegmentType, Segment>>? = null
+    val customBindings: TriConsumer<Map<SegmentType, SegmentTemplate>, Map<SegmentType, Segment>, Int>? = null
 ) : DefaultNode("VolumeManager"), HasGeometry, HasRenderable, HasMaterial, Hubable, RequestRepaint {
 
     /**
@@ -130,7 +131,7 @@ class VolumeManager(
 
     /** List of custom-created textures not to be cleared automatically */
     var customTextures = arrayListOf<String>()
-
+    var customUniforms = arrayListOf<String>()
     init {
         addRenderable {
             state = State.Created
@@ -264,7 +265,7 @@ class VolumeManager(
         segments[SegmentType.FragmentShader] = SegmentTemplate(
             this.javaClass,
             "BDVVolume.frag",
-            "intersectBoundingBox", "vis", "SampleVolume", "Convert", "Accumulate"
+            "intersectBoundingBox", "vis", "localNear", "localFar", "SampleVolume", "Convert", "Accumulate"
         )
         segments[SegmentType.MaxDepth] = SegmentTemplate(
             this.javaClass,
@@ -306,16 +307,27 @@ class VolumeManager(
         )
         segments[SegmentType.Accumulator] = SegmentTemplate(
             "AccumulateSimpleVolume.frag",
-            "vis", "sampleVolume", "convert", "sceneGraphVisibility"
+            "vis", "localNear", "localFar", "sampleVolume", "convert", "sceneGraphVisibility"
         )
 
         customSegments?.forEach { (type, segment) -> segments[type] = segment }
 
+        var triggered = false
         val additionalBindings = customBindings
-            ?: BiConsumer { _: Map<SegmentType, SegmentTemplate>, instances: Map<SegmentType, Segment> ->
-                logger.debug("Connecting additional bindings")
+            ?: TriConsumer { _: Map<SegmentType, SegmentTemplate>, instances: Map<SegmentType, Segment>, i: Int ->
+                logger.info("Connecting additional bindings")
+
+                if (!triggered) {
+                    instances[SegmentType.FragmentShader]?.repeat("localNear", n)
+                    instances[SegmentType.FragmentShader]?.repeat("localFar", n)
+                    triggered = true
+                }
+
+                instances[SegmentType.FragmentShader]?.bind("localNear", i, instances[SegmentType.Accumulator])
+                instances[SegmentType.FragmentShader]?.bind("localFar", i, instances[SegmentType.Accumulator])
 
                 instances[SegmentType.SampleMultiresolutionVolume]?.bind("convert", instances[SegmentType.Convert])
+
                 instances[SegmentType.SampleVolume]?.bind("convert", instances[SegmentType.Convert])
                 instances[SegmentType.SampleVolume]?.bind("sceneGraphVisibility", instances[SegmentType.Accumulator])
                 instances[SegmentType.SampleMultiresolutionVolume]?.bind("sceneGraphVisibility", instances[SegmentType.AccumulatorMultiresolution])
@@ -753,11 +765,35 @@ class VolumeManager(
         needAtLeastNumVolumes(renderStacksStates.size)
     }
 
-    private fun replace() {
+    fun replace(toReplace: VolumeManager? = null): VolumeManager {
+        logger.debug("Replacing volume manager with ${nodes.size} volumes managed")
+        val volumes = nodes.toMutableList()
+        val current = toReplace ?: hub?.get<VolumeManager>()
+
+        if(current != null) {
+            hub?.remove(current)
+        }
+
+        val vm = VolumeManager(hub, useCompute, current?.customSegments, current?.customBindings)
+        current?.customTextures?.forEach {
+            vm.customTextures.add(it)
+            vm.material().textures[it] = current.material().textures[it]!!
+        }
+
+        volumes.forEach {
+            vm.add(it)
+            it.volumeManager = vm
+        }
+
+        hub?.add(vm)
+        return vm
+    }
+
+    fun replaceSelf(): VolumeManager {
         logger.debug("Replacing volume manager with ${nodes.size} volumes managed")
         val volumes = nodes.toMutableList()
         val current = hub?.get<VolumeManager>()
-        if(current != null) {
+        if (current != null) {
             hub?.remove(current)
         }
 
@@ -772,6 +808,7 @@ class VolumeManager(
         }
 
         hub?.add(vm)
+        return vm
     }
 
     @Synchronized

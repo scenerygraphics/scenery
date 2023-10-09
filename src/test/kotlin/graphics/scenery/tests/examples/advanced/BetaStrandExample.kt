@@ -90,9 +90,9 @@ class BetaStrandExample: SceneryBase("BetaStrandExample", windowWidth = 1280, wi
 
         lights.forEach { lightbox.addChild(it) }
 
-        val stageLight = PointLight(radius = 100.0f)
+        val stageLight = PointLight(radius = 10.0f)
         stageLight.name = "StageLight"
-        stageLight.intensity = 5f
+        stageLight.intensity = 0.5f
         stageLight.spatial {
             position = Vector3f(0.0f, 0.0f, 5.0f)
         }

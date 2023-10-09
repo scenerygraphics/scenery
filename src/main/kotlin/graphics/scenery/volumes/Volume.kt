@@ -73,7 +73,6 @@ import kotlin.math.min
 import kotlin.math.sqrt
 import kotlin.properties.Delegates
 import kotlin.streams.toList
-import net.imglib2.type.numeric.RealType
 
 @Suppress("DEPRECATION")
 open class Volume(
@@ -88,6 +87,9 @@ open class Volume(
 
     // without this line the *java* serialization framework kryo does not recognize the parameter-less constructor
     // and uses dark magic to instanciate this class
+
+    var wantsSync = true
+    override fun wantsSync(): Boolean = wantsSync
     constructor() : this(VolumeDataSource.NullSource, hub = Hub("dummyVolumeHub"))
 
     var initalizer: VolumeInitializer? = null
@@ -590,12 +592,9 @@ open class Volume(
             return fromSpimData(spimData, hub, options)
         }
 
-        /**
-         * Creates a [RAIVolume] object from [RandomAccessibleInterval] data.
-         */
         @JvmStatic
         @JvmOverloads
-        fun <T : RealType<T>> fromRAI(
+        fun <T : NumericType<T>> fromRAI(
             img: RandomAccessibleInterval<T>,
             type: T,
             axisOrder: AxisOrder = DEFAULT,
@@ -618,7 +617,6 @@ open class Volume(
                 } else {
                     s = RandomAccessibleIntervalSource<T>(stack, type, sourceTransform, name)
                 }
-
                 val source: SourceAndConverter<T> = BigDataViewer.wrapWithTransformedSource(
                     SourceAndConverter<T>(s, BigDataViewer.createConverterToARGB(type))
                 )
@@ -639,10 +637,7 @@ open class Volume(
             return RAIVolume(ds, options, hub)
         }
 
-        /**
-         * Creates a [RAIVolume] object from a given [SourceAndConverter] source from BigDataViewer.
-         */
-        @JvmStatic @JvmOverloads fun <T: RealType<T>> fromSourceAndConverter(
+        @JvmStatic @JvmOverloads fun <T: NumericType<T>> fromSourceAndConverter(
             source: SourceAndConverter<T>,
             type: T,
             name: String,
@@ -670,13 +665,8 @@ open class Volume(
             return volume
         }
 
-        /**
-         * Overloaded method that creates a [BufferedVolume] with timepoints from a hashmap of Strings and ByteBuffers.
-         * Volume dimensions can be set with [width], [height] and [depth].
-         * [voxelDimensions] can be set with a float array. The method also takes VolumeViewerOptions as [options].
-         */
         @Deprecated("Please use the version that takes List<Timepoint> as input instead of this one.")
-        @JvmStatic @JvmOverloads fun <T: RealType<T>> fromBuffer(
+        @JvmStatic @JvmOverloads fun <T: NumericType<T>> fromBuffer(
             volumes: LinkedHashMap<String, ByteBuffer>,
             width: Int,
             height: Int,
@@ -695,12 +685,7 @@ open class Volume(
             return fromBuffer(list, width, height, depth, type, hub, voxelDimensions, voxelUnit, options)
         }
 
-        /**
-         * Returns a [BufferedVolume] from a list of BufferedVolume timepoints.
-         * Volume dimensions can be set with [width], [height] and [depth].
-         * [voxelDimensions] can be set with a float array. The method also takes VolumeViewerOptions as [options].
-         */
-        @JvmStatic @JvmOverloads fun <T: RealType<T>> fromBuffer(
+        @JvmStatic @JvmOverloads fun <T: NumericType<T>> fromBuffer(
             volumes: List<BufferedVolume.Timepoint>,
             width: Int,
             height: Int,
@@ -715,15 +700,7 @@ open class Volume(
             val sources: ArrayList<SourceAndConverter<T>> = ArrayList()
 
             val timepoints = CopyOnWriteArrayList<BufferedVolume.Timepoint>(volumes)
-            val s = BufferSource(
-                timepoints,
-                width,
-                height,
-                depth,
-                FinalVoxelDimensions(voxelUnit, *(voxelDimensions.map { it.toDouble() }.toDoubleArray())),
-                "",
-                type
-            )
+            val s = BufferSource(timepoints, width, height, depth, FinalVoxelDimensions(voxelUnit, *(voxelDimensions.map { it.toDouble() }.toDoubleArray())), "", type)
             val source: SourceAndConverter<T> = BigDataViewer.wrapWithTransformedSource(
                     SourceAndConverter<T>(s, BigDataViewer.createConverterToARGB(type)))
            converterSetups.add(BigDataViewer.createConverterSetup(source, setupId.getAndIncrement()))
@@ -792,129 +769,101 @@ open class Volume(
         /**
          * Reads a volume from the given [file].
          */
-        @JvmStatic @JvmOverloads
-        fun fromPath(file: Path, hub: Hub, onlyLoadFirst: Int? = null): BufferedVolume {
+        @JvmStatic fun fromPath(file: Path, hub: Hub): BufferedVolume {
             if(file.normalize().toString().endsWith("raw")) {
                 return fromPathRaw(file, hub)
             }
-            var volumeFiles: List<Path>
-            if(Files.isDirectory(file)) {
-                volumeFiles = Files
-                    .list(file)
-                    .filter { it.toString().endsWith(".tif") && Files.isRegularFile(it) && Files.isReadable(it) }
-                    .toList()
 
-                if(onlyLoadFirst != null) {
-                    volumeFiles = volumeFiles.subList(0, onlyLoadFirst)
+            val id = file.fileName.toString()
+
+            val reader = scifio.initializer().initializeReader(FileLocation(file.toFile()))
+
+            val dims = Vector3i()
+            with(reader.openPlane(0, 0)) {
+                dims.x = lengths[0].toInt()
+                dims.y = lengths[1].toInt()
+                dims.z = reader.getPlaneCount(0).toInt()
+            }
+
+            val bytesPerVoxel = reader.openPlane(0, 0).imageMetadata.bitsPerPixel/8
+            reader.openPlane(0, 0).imageMetadata.pixelType
+
+            val type: NumericType<*> = when(reader.openPlane(0, 0).imageMetadata.pixelType) {
+                FormatTools.INT8 -> ByteType()
+                FormatTools.INT16 -> ShortType()
+                FormatTools.INT32 -> IntType()
+
+                FormatTools.UINT8 -> UnsignedByteType()
+                FormatTools.UINT16 -> UnsignedShortType()
+                FormatTools.UINT32 -> UnsignedIntType()
+
+                FormatTools.FLOAT -> FloatType()
+
+                else -> {
+                    logger.error("Unknown scif.io pixel type ${reader.openPlane(0, 0).imageMetadata.pixelType}, assuming unsigned byte.")
+                    UnsignedByteType()
+                }
+            }
+
+            logger.debug("Loading $id from disk")
+            logger.info("${file.fileName}: Allocated ${bytesPerVoxel * dims.x * dims.y * dims.z/1024/1024} MiB for $type ${8*bytesPerVoxel}bit image of $dims")
+            val imageData: ByteBuffer = MemoryUtil.memAlloc((bytesPerVoxel * dims.x * dims.y * dims.z))
+
+
+            val start = System.nanoTime()
+
+            logger.debug("Volume is little endian")
+            val planeSize = bytesPerVoxel * dims.x * dims.y
+
+            // Only do parallel reads if the settings indicate we want to do that,
+            // or if the file is a NIFTi file, or contains more than 200 planes.
+            val parallelReadingRequested = hub.get<Settings>()?.get("Volume.ParallelReads", false) ?: false
+                    || file.name.lowercase().endsWith(".nii.gz")
+
+            if(parallelReadingRequested) {
+                // Cache scifio's ReaderFilters per-thread, as their initialisation is expensive
+                val readers = ConcurrentHashMap<Thread, ReaderFilter>()
+
+                // Each plane (read: z-slice) will be read by an async Job.
+                // These jobs are distributed among worker threads. This is the reason
+                // why the current thread object serves as an index to the [readers] hash map.
+                (0 until reader.getPlaneCount(0)).forEachIndexedAsync { index, plane ->
+                    val thread = Thread.currentThread()
+                    val myReader = readers.getOrPut(thread) {
+                        scifio.initializer().initializeReader(FileLocation(file.toFile()))
+                    }
+
+                    val bytes = myReader.openPlane(0, plane).bytes
+                    // In order to prevent mess-ups, we're working on a duplicate of [imageData]
+                    // here, so it's position(), remaining() etc. remain at the original, correct values.
+                    val view = imageData.duplicate().order(ByteOrder.LITTLE_ENDIAN)
+
+                    // For writing the image data to the view, we move the buffer's position
+                    // to the place where the plane's data needs to be.
+                    view.position(index * planeSize)
+                    view.put(bytes)
                 }
 
+                val duration = (System.nanoTime() - start) / 10e5
+                logger.debug("Reading took $duration ms, used ${readers.size} parallel readers.")
+                readers.forEach { it.value.close() }
+                readers.clear()
             } else {
-                volumeFiles = listOf(file)
+                (0 until reader.getPlaneCount(0)).forEach { plane ->
+                    // Same as above, with the difference that we only use one reader to
+                    // simply read bytes Plane-wise sequentially, and add them to the buffer.
+                    val bytes = reader.openPlane(0, plane).bytes
+                    val view = imageData.duplicate().order(ByteOrder.LITTLE_ENDIAN)
+                    view.put(bytes)
+                }
+
+                val duration = (System.nanoTime() - start) / 10e5
+                logger.debug("Reading took $duration ms, no parallel readers.")
             }
+
 
             val volumes = CopyOnWriteArrayList<BufferedVolume.Timepoint>()
-            val dims = Vector3i()
-
-            var type: NumericType<*>? = null
-            var reader: ReaderFilter? = null
-            volumeFiles.forEach { v ->
-                val id = v.fileName.toString()
-                logger.debug("Reading v.toFile().toString()")
-                val localReader = scifio.initializer().initializeReader(FileLocation(v.toFile()))
-                with(localReader.openPlane(0, 0)) {
-                    dims.x = lengths[0].toInt()
-                    dims.y = lengths[1].toInt()
-                    dims.z = localReader.getPlaneCount(0).toInt()
-                }
-                if(reader == null) {
-                    reader = localReader
-                }
-
-                type = when (localReader.openPlane(0, 0).imageMetadata.pixelType) {
-                    FormatTools.INT8 -> ByteType()
-                    FormatTools.INT16 -> ShortType()
-                    FormatTools.INT32 -> IntType()
-
-                    FormatTools.UINT8 -> UnsignedByteType()
-                    FormatTools.UINT16 -> UnsignedShortType()
-                    FormatTools.UINT32 -> UnsignedIntType()
-
-                    FormatTools.FLOAT -> FloatType()
-
-                    else -> {
-                        logger.error("Unknown scif.io pixel type ${localReader.openPlane(0, 0).imageMetadata.pixelType}, assuming unsigned byte.")
-                        UnsignedByteType()
-                    }
-                }
-
-                val bytesPerVoxel = localReader.openPlane(0, 0).imageMetadata.bitsPerPixel / 8
-                localReader.openPlane(0, 0).imageMetadata.pixelType
-
-                logger.debug("Loading $id from disk")
-                val imageData: ByteBuffer = MemoryUtil.memAlloc((bytesPerVoxel * dims.x * dims.y * dims.z))
-
-                logger.debug(
-                    "{}: Allocated {} bytes for {} {}bit image of {}",
-                    file.fileName,
-                    imageData.capacity(),
-                    type,
-                    8 * bytesPerVoxel,
-                    dims
-                )
-
-                logger.debug("Volume is little endian")
-                val planeSize = bytesPerVoxel * dims.x * dims.y
-
-                // Only do parallel reads if the settings indicate we want to do that,
-                // or if the file is a NIFTi file, or contains more than 200 planes.
-                val parallelReadingRequested = hub.get<Settings>()?.get("Volume.ParallelReads", false) ?: false
-                        || file.name.lowercase().endsWith(".nii.gz")
-
-                val start = System.nanoTime()
-                if(parallelReadingRequested) {
-                    // Cache scifio's ReaderFilters per-thread, as their initialisation is expensive
-                    val readers = ConcurrentHashMap<Thread, ReaderFilter>()
-
-                    // Each plane (read: z-slice) will be read by an async Job.
-                    // These jobs are distributed among worker threads. This is the reason
-                    // why the current thread object serves as an index to the [readers] hash map.
-                    (0 until localReader.getPlaneCount(0)).forEachIndexedAsync { index, plane ->
-                        val thread = Thread.currentThread()
-                        val myReader = readers.getOrPut(thread) {
-                            scifio.initializer().initializeReader(FileLocation(file.toFile()))
-                        }
-
-                        val bytes = myReader.openPlane(0, plane).bytes
-                        // In order to prevent mess-ups, we're working on a duplicate of [imageData]
-                        // here, so it's position(), remaining() etc. remain at the original, correct values.
-                        val view = imageData.duplicate().order(ByteOrder.LITTLE_ENDIAN)
-
-                        // For writing the image data to the view, we move the buffer's position
-                        // to the place where the plane's data needs to be.
-                        view.position(index * planeSize)
-                        view.put(bytes)
-                    }
-
-                    val duration = (System.nanoTime() - start) / 10e5
-                    logger.debug("Reading took $duration ms, used ${readers.size} parallel readers.")
-                    readers.forEach { it.value.close() }
-                    readers.clear()
-                } else {
-                    (0 until localReader.getPlaneCount(0)).forEach { plane ->
-                        // Same as above, with the difference that we only use one reader to
-                        // simply read bytes Plane-wise sequentially, and add them to the buffer.
-                        val bytes = localReader.openPlane(0, plane).bytes
-                        val view = imageData.duplicate().order(ByteOrder.LITTLE_ENDIAN)
-                        view.put(bytes)
-                    }
-
-                    val duration = (System.nanoTime() - start) / 10e5
-                    logger.debug("Reading took $duration ms, no parallel readers.")
-                }
-            }
-
-
-
+            volumes.add(BufferedVolume.Timepoint(id, imageData))
             // TODO: Kotlin compiler issue, see https://youtrack.jetbrains.com/issue/KT-37955
             val volume = when(type) {
                 is ByteType -> fromBuffer(volumes, dims.x, dims.y, dims.z, ByteType(), hub)
@@ -924,11 +873,10 @@ open class Volume(
                 is IntType -> fromBuffer(volumes, dims.x, dims.y, dims.z, IntType(), hub)
                 is UnsignedIntType -> fromBuffer(volumes, dims.x, dims.y, dims.z, UnsignedIntType(), hub)
                 is FloatType -> fromBuffer(volumes, dims.x, dims.y, dims.z, FloatType(), hub)
-                else -> throw UnsupportedOperationException("Image type ${type?.javaClass?.simpleName} not supported for volume data.")
+                else -> throw UnsupportedOperationException("Image type ${type.javaClass.simpleName} not supported for volume data.")
             }
 
-            reader?.metadata?.table?.forEach { key, value ->
-                logger.debug("Populating volume metadata")
+            reader.metadata.table.forEach { key, value ->
                 volume.metadata[key] = value
             }
 
@@ -940,7 +888,7 @@ open class Volume(
          *
          * Returns the new volume.
          */
-        @JvmStatic fun fromPathRaw(file: Path, hub: Hub): BufferedVolume {
+        @JvmStatic fun fromPathRaw(file: Path, hub: Hub, is16bit: Boolean = true): BufferedVolume {
 
             val infoFile: Path
             val volumeFiles: List<Path>
@@ -968,9 +916,14 @@ open class Volume(
                     logger.debug("Loading $id from disk")
                     val buffer = ByteArray(1024 * 1024)
                     val stream = FileInputStream(v.toFile())
-                    val imageData: ByteBuffer = MemoryUtil.memAlloc((2 * dimensions.x * dimensions.y * dimensions.z))
+                    val numBytes = if(is16bit) {
+                        2
+                    } else {
+                        1
+                    }
+                    val imageData: ByteBuffer = MemoryUtil.memAlloc((numBytes * dimensions.x * dimensions.y * dimensions.z))
 
-                    logger.debug("${v.fileName}: Allocated ${imageData.capacity()} bytes for UINT16 image of $dimensions")
+                    logger.debug("${v.fileName}: Allocated ${imageData.capacity()} bytes for image of $dimensions containing $numBytes per voxel")
 
                     val start = System.nanoTime()
                     var bytesRead = stream.read(buffer, 0, buffer.size)
@@ -988,7 +941,11 @@ open class Volume(
                 volumes.add(BufferedVolume.Timepoint(id, buffer))
             }
 
-            return fromBuffer(volumes, dimensions.x, dimensions.y, dimensions.z, UnsignedShortType(), hub)
+            return if(is16bit) {
+                Volume.fromBuffer(volumes, dimensions.x, dimensions.y, dimensions.z, UnsignedShortType(), hub)
+            } else {
+                Volume.fromBuffer(volumes, dimensions.x, dimensions.y, dimensions.z, UnsignedByteType(), hub)
+            }
         }
 
         /** Amount of supported slicing planes per volume, see also sampling shader segments */
@@ -1014,4 +971,3 @@ open class Volume(
         }
     }
 }
-

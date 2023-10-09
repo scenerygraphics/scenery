@@ -74,6 +74,12 @@ class TransferFunctionEditor constructor(
     private val minValueLabel: JLabel
     private val maxValueLabel: JLabel
 
+    //ModeEditor
+    private val modePanel : JPanel
+    var switchTo = ""
+
+    //ColormapEditor
+    private val colormapPanel : JPanel
 
     private class ValueAlphaTooltipGenerator : XYToolTipGenerator {
         override fun generateToolTip(dataset: XYDataset, series: Int, category: Int): String {
@@ -277,6 +283,7 @@ class TransferFunctionEditor constructor(
             override fun chartMouseMoved(e: ChartMouseEvent) {}
         })
 
+
         //Histogram Manipulation
         val genHistButton = JCheckBox("Show Histogram")
         add(genHistButton, "growx")
@@ -353,6 +360,60 @@ class TransferFunctionEditor constructor(
         rangeEditorPanel.add(maxValueLabel, "spanx 2, right")
 
 //        updateSliderRange()
+
+        //ColorMap manipulation
+        colormapPanel = JPanel()
+        colormapPanel.layout = MigLayout("fill",
+            "[left, 10%]5[right, 40%]5[left, 10%]5[right, 40%]")
+        add(colormapPanel, "grow")
+
+        val list = Colormap.list()
+        val box = JComboBox<String>()
+        for (s in list)
+            box.addItem(s)
+
+        if (tfContainer is DummyVolume){
+            box.selectedItem = tfContainer.colormap
+            val currentColormap = JLabel("colormap: ")
+            colormapPanel.add(currentColormap, "growx")
+            colormapPanel.add(box, "growx")
+        }
+
+        box.addActionListener{
+            val item : String = box.selectedItem as String
+            if (tfContainer is DummyVolume){
+                tfContainer.colormap = Colormap.get(item)
+                mainChart.repaint()
+            }
+        }
+
+
+        //Mode manipulatiom
+        modePanel = JPanel()
+        modePanel.layout = MigLayout("fill",
+            "[left, 10%]5[right, 40%]5[left, 10%]5[right, 40%]")
+        add(modePanel, "grow")
+
+        val mode = JLabel("Current mode: Volume Rendering")
+        val modeButton = JButton("Switch mode")
+
+        if (tfContainer is DummyVolume){
+            modePanel.add(mode, "growx")
+            modePanel.add(modeButton, "growx")
+        }
+
+        modeButton.addActionListener {
+            if (switchTo.equals("toVDI")){
+                switchTo = "toVR"
+                mode.text = "Current mode: Volume Rendering"
+            }
+            else if (switchTo.equals("toVR") || switchTo.equals("")){
+                switchTo = "toVDI"
+                mode.text = "Current mode: VDI Streaming"
+            }
+            mainChart.repaint()
+        }
+
     }
 
     private fun createTFImage(): BufferedImage {

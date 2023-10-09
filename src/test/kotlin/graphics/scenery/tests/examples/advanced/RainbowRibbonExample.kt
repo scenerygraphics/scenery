@@ -24,7 +24,7 @@ class RainbowRibbonExample: SceneryBase("RainbowRibbon", windowWidth = 1280, win
 
         val rowSize = 20f
 
-        val protein = Protein.fromID("2zzt")
+        val protein = Protein.fromID("2zzm")
 
         val ribbon = RibbonDiagram(protein)
 

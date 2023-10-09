@@ -36,7 +36,7 @@ class ExampleRunner(
 
         logger.info("Memory: ${Runtime.getRuntime().freeMemory().toFloat()/1024.0f/1024.0f}M/${Runtime.getRuntime().totalMemory().toFloat()/1024.0f/1024.0f}/${Runtime.getRuntime().maxMemory().toFloat()/1024.0f/1024.0f}M (free/total/max) available.")
 
-        System.setProperty(Renderer.HEADLESS_PROPERTY_NAME, "true")
+        System.setProperty("scenery.Headless", "true")
         System.setProperty("scenery.Renderer", renderer)
         System.setProperty("scenery.Renderer.Config", pipeline)
 
@@ -120,7 +120,6 @@ class ExampleRunner(
             "TransferFunctionEditorExample",
             // these examples need additional hardware
             "VRControllerExample",
-            "VRControllerAdvancedExample",
             "VRSideChainsExample",
             "VRVolumeCroppingExample",
             "EyeTrackingExample",

@@ -2,7 +2,6 @@ package graphics.scenery.backends.vulkan
 
 import graphics.scenery.Hub
 import graphics.scenery.backends.RenderConfigReader
-import graphics.scenery.backends.Renderer
 import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.utils.SceneryJPanel
 import graphics.scenery.utils.SceneryPanel
@@ -11,7 +10,6 @@ import org.lwjgl.system.MemoryUtil.memFree
 import org.lwjgl.system.Platform
 import org.lwjgl.vulkan.KHRSurface
 import org.lwjgl.vulkan.KHRSwapchain
-import org.lwjgl.vulkan.VkQueue
 import org.lwjgl.vulkan.awt.AWTVK
 import java.awt.BorderLayout
 import java.awt.Canvas
@@ -34,7 +32,7 @@ import javax.swing.SwingUtilities
  * @author Ulrik Günther <hello@ulrik.is>
  */
 open class SwingSwapchain(override val device: VulkanDevice,
-                          override val queue: VkQueue,
+                          override val queue: VulkanDevice.QueueWithMutex,
                           override val commandPools: VulkanRenderer.CommandPools,
                           override val renderConfig: RenderConfigReader.RenderConfig,
                           override val useSRGB: Boolean = true,
@@ -158,14 +156,9 @@ open class SwingSwapchain(override val device: VulkanDevice,
         private val logger by lazyLogger()
         override var headless = false
         override var usageCondition = { p: SceneryPanel? ->
-            when {
-                System.getProperty(Renderer.HEADLESS_PROPERTY_NAME, "false").toBoolean() -> false
-                System.getProperty("scenery.Renderer.UseAWT", "false").toBoolean() -> true
-                p is SceneryJPanel -> true
-                Platform.get() == Platform.MACOSX
-                        && !System.getProperty(Renderer.HEADLESS_PROPERTY_NAME, "false").toBoolean() -> true
-                else -> false
-            }
+            System.getProperty("scenery.Renderer.UseAWT", "false")?.toBoolean() ?: false
+                    || p is SceneryJPanel
+                    || (Platform.get() == Platform.MACOSX && System.getProperty("scenery.Headless", "false").toBoolean())
         }
 
         /**

@@ -4,15 +4,12 @@ import graphics.scenery.*
 import graphics.scenery.backends.*
 import graphics.scenery.attribute.renderable.Renderable
 import graphics.scenery.attribute.material.Material
-import graphics.scenery.backends.vulkan.VulkanTexture.Companion.formatToString
-import graphics.scenery.backends.vulkan.VulkanTexture.Companion.toVulkanFormat
 import graphics.scenery.textures.Texture
 import graphics.scenery.textures.UpdatableTexture
 import graphics.scenery.utils.lazyLogger
 import org.lwjgl.system.jemalloc.JEmalloc
 import org.lwjgl.vulkan.VK10
 import org.lwjgl.vulkan.VkBufferCopy
-import org.lwjgl.vulkan.VkQueue
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.concurrent.atomic.AtomicInteger
@@ -44,7 +41,7 @@ object VulkanNodeHelpers {
         stagingPool: VulkanBufferPool,
         geometryPool: VulkanBufferPool,
         commandPools: VulkanRenderer.CommandPools,
-        queue: VkQueue
+        queue: VulkanDevice.QueueWithMutex
     ): VulkanObjectState {
         val geometry = node.geometryOrNull() ?: return state
         val vertices = geometry.vertices.duplicate()
@@ -160,7 +157,7 @@ object VulkanNodeHelpers {
      * Updates instance buffers for a given [node] on [device]. Modifies the [node]'s [state]
      * and allocates necessary command buffers from [commandPools] and submits to [queue]. Returns the [node]'s modified [VulkanObjectState].
      */
-    fun updateInstanceBuffer(device: VulkanDevice, node: InstancedNode, state: VulkanObjectState, commandPools: VulkanRenderer.CommandPools, queue: VkQueue): VulkanObjectState {
+    fun updateInstanceBuffer(device: VulkanDevice, node: InstancedNode, state: VulkanObjectState, commandPools: VulkanRenderer.CommandPools, queue: VulkanDevice.QueueWithMutex): VulkanObjectState {
         logger.trace("Updating instance buffer for {}", node.name)
 
         // parentNode.instances is a CopyOnWrite array list, and here we keep a reference to the original.
@@ -263,7 +260,7 @@ object VulkanNodeHelpers {
      *
      * Returns a [Pair] of [Boolean], indicating whether contents or descriptor set have changed.
      */
-    fun loadTexturesForNode(device: VulkanDevice, node: Node, s: VulkanObjectState, defaultTextures: Map<String, VulkanTexture>, textureCache: MutableMap<Texture, VulkanTexture>, commandPools: VulkanRenderer.CommandPools, queue: VkQueue): Pair<Boolean, Boolean> {
+    fun loadTexturesForNode(device: VulkanDevice, node: Node, s: VulkanObjectState, defaultTextures: Map<String, VulkanTexture>, textureCache: MutableMap<Texture, VulkanTexture>, commandPools: VulkanRenderer.CommandPools, queue: VulkanDevice.QueueWithMutex, transferQueue: VulkanDevice.QueueWithMutex = queue): Pair<Boolean, Boolean> {
         val material = node.materialOrNull() ?: return Pair(false, false)
         val defaultTexture = defaultTextures["DefaultTexture"] ?: throw IllegalStateException("Default fallback texture does not exist.")
         // if a node is not yet initialized, we'll definitely require a new DS
@@ -291,18 +288,16 @@ object VulkanNodeHelpers {
                     }
 
                     val existingTexture = s.textures[type]
-                    // We take care here that the potentially to-be-reused texture is not
-                    // scenery's default textures, and otherwise compatible with the new one.
-                    val t: VulkanTexture = if (existingTexture != null
-                        && existingTexture.canBeReused(texture, miplevels, device)
-                        && existingTexture != defaultTexture) {
+                    val t: VulkanTexture = if (existingTexture != null && existingTexture.canBeReused(texture, miplevels, device)) {
+                        existingTexture.gt = texture
                         existingTexture
                     } else {
                         descriptorUpdated = true
-                        VulkanTexture(device, commandPools, queue, queue, texture, miplevels)
+                        VulkanTexture(device, commandPools, queue, transferQueue, texture, miplevels)
                     }
 
                     texture.contents?.let { contents ->
+                        logger.debug("Copying contents of size ${contents.remaining()/1024/1024}M")
                         t.copyFrom(contents.duplicate())
                     }
 
@@ -412,6 +407,8 @@ object VulkanNodeHelpers {
                     val pipeline = pass.initializePipeline(shaderModules,
                         material.cullingMode,
                         material.depthTest,
+                        material.depthWrite,
+                        material.depthOp,
                         material.blending,
                         material.wireframe,
                         s.vertexDescription
@@ -489,11 +486,11 @@ object VulkanNodeHelpers {
      */
     fun VulkanTexture.canBeReused(other: Texture, miplevels: Int, device: VulkanDevice): Boolean {
         return this.device == device &&
-                this.width == other.dimensions.x() &&
-                this.height == other.dimensions.y() &&
-                this.depth == other.dimensions.z() &&
-                this.format == other.toVulkanFormat() &&
-                this.mipLevels == miplevels
+            this.width == other.dimensions.x() &&
+            this.height == other.dimensions.y() &&
+            this.depth == other.dimensions.z() &&
+            this.mipLevels == miplevels
+
     }
 
     /**

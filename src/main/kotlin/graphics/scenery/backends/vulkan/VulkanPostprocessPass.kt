@@ -124,14 +124,7 @@ object VulkanPostprocessPass {
                 logger.debug("${pass.name}: Adding DS#{} for {} to required pipeline DSs ($set)", i, dsName, set)
                 this.descriptorSets.put(i, set)
             } else {
-                logger.error("DS for {} not found! Available from pass are: {}. Activate debug logging for details on the shader code seen by the renderer.", dsName, pass.descriptorSets.keys().toList().joinToString(","))
-                
-                if(logger.isDebugEnabled) {
-                    logger.debug("This might be related to shaders optimised by the compiler. The shader code seen by the renderer is the following:")
-                    pipeline.shaderStages.forEach { shaderModule ->
-                        logger.debug("${shaderModule.type} at ${shaderModule.sp.codePath}:\n${shaderModule.sp.code}")
-                    }
-                }
+                logger.error("DS for {} not found! Available from pass are: {}", dsName, pass.descriptorSets.keys().toList().joinToString(","))
             }
         }
 
