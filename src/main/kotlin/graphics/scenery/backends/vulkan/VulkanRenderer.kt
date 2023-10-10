@@ -40,6 +40,7 @@ import java.util.concurrent.*
 import java.util.concurrent.locks.ReentrantLock
 import javax.imageio.ImageIO
 import javax.swing.JFrame
+import kotlin.collections.ArrayList
 import kotlin.concurrent.thread
 import kotlin.concurrent.withLock
 import kotlin.reflect.full.*
@@ -329,6 +330,7 @@ open class VulkanRenderer(hub: Hub,
     private var recordMovie: Boolean = false
     private var recordMovieOverwrite: Boolean = false
     override var pushMode: Boolean = false
+    val postRenderLambdas = ArrayList<()->Unit>()
 
     var scene: Scene = Scene()
     protected var sceneArray: HashSet<Node> = HashSet(256)
@@ -379,7 +381,7 @@ open class VulkanRenderer(hub: Hub,
     var fps = 0
         protected set
     protected var frames = 0
-    protected var totalFrames = 0L
+    var totalFrames = 0L
     protected var renderDelay = 0L
     protected var heartbeatTimer = Timer()
     protected var gpuStats: GPUStats? = null
@@ -1515,6 +1517,10 @@ open class VulkanRenderer(hub: Hub,
 
         if(hub?.getWorkingHMDDisplay()?.hasCompositor() == true) {
             hub?.getWorkingHMDDisplay()?.wantsVR(settings)?.update()
+        }
+
+        postRenderLambdas.forEach{
+            it.invoke()
         }
 
         val presentDuration = System.nanoTime() - startPresent
