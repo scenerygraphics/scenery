@@ -9,12 +9,8 @@ import graphics.scenery.utils.lazyLogger
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.selects.select
-import org.joml.Matrix4f
-import org.joml.Vector3f
 import org.lwjgl.system.Platform
-import org.zeromq.ZContext
 import java.util.concurrent.ConcurrentLinkedQueue
-import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Renderer interface. Defines the minimal set of functions a renderer has to implement.
@@ -89,19 +85,6 @@ abstract class Renderer : Hubable {
      * @param[filename] The filename where to save the screenshot.
      */
     abstract fun recordMovie(filename: String = "", overwrite: Boolean = false)
-
-    /** param to determinate the state of vdi streaming */
-    abstract var vdiStreaming : Boolean
-
-    /**
-     * Streams a video to the mentioned IP address.
-     */
-    fun streamVDI() {
-        streamVDI("",Camera(), Vector3f(), Matrix4f() ,ZContext())
-    }
-
-    abstract fun streamVDI(IPAddress: String = "", cam: Camera, volumeDimensions3i : Vector3f, model: Matrix4f, context: ZContext, maxSupersegments : Int = 20)
-
 
     /**
      * Reshapes the window to the given sizes.

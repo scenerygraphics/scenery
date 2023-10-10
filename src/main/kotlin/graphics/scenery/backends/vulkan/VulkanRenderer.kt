@@ -411,10 +411,6 @@ open class VulkanRenderer(hub: Hub,
             0.0f,  0.0f, 0.5f, 0.0f,
             0.0f,  0.0f, 0.5f, 1.0f)
 
-    override var vdiStreaming: Boolean = true
-        get() = field
-        set(value) { field = value}
-
 
     final override var renderConfigFile: String = ""
         set(config) {
