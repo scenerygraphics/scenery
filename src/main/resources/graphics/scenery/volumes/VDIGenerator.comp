@@ -165,74 +165,21 @@ void accumulateSupseg(vec4 color, float depthHere, float depthEnd) {
 
     float length_in_supseg = distance(supseg_start_w, supseg_end_w);
 
-    //        #if USE_PRINTF
-    //        if(gl_GlobalInvocationID.xy == debug_pixel) {
-    //            debugPrintfEXT("NDC start point: (%f, %f, %f, %f) and NDC end point: (%f, %f, %f, %f).", vec4(ndc_x, ndc_y, depthHere, 1), vec4(ndc_x, ndc_y, depthEnd, 1));
-    //            debugPrintfEXT("World start point: (%f, %f, %f, %f) and end point: (%f, %f, %f, %f). Length: %f", supseg_start_w.xyzw, supseg_end_w.xyzw, length_in_supseg);
-    //        }
-    //        #endif
-
     float adj_alpha = adjustOpacity(newAlpha, length_in_supseg);
-
-    //        #if USE_PRINTF
-    //        if(gl_GlobalInvocationID.xy == debug_pixel) {
-    //            debugPrintfEXT("Supseg: %d. Color is: (%f, %f, %f). Opacity: %f and adj opacity: %f. Supseg length: %f", i, newColor.rgb, newAlpha, adj_alpha, distance(supseg_start_w, supseg_end_w));
-    //        }
-    //        #endif
 
     supsegs_accumulated.rgb = supsegs_accumulated.rgb + (1.0f - supsegs_accumulated.a) * newColor * adj_alpha;
     supsegs_accumulated.a = supsegs_accumulated.a + (1.0f - supsegs_accumulated.a) * adj_alpha;
-
-    //    if(gl_GlobalInvocationID.xy == debug_pixel) {
-    //        debugPrintfEXT("Supersegment accumulated so far: (%f, %f, %f, %f)", supsegs_accumulated.rgba);
-    //    }
-
 }
 
 
-
-#if INT_DEPTHS
-void writeSupersegment(int index, uint start, uint end, vec4 color) {
-    //    #if USE_PRINTF
-    //    if(gl_GlobalInvocationID.xy == debug_pixel) {
-    //        debugPrintfEXT("Writing supseg: %d. Start: %u, end: %u, color: (%f, %f, %f, %f)", index, start, end, color.rgba);
-    //    }
-    //    #endif
-
-
-    #if SEPARATE_DEPTH
-    imageStore(OutputSubVDIDepth, ivec3(index, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x), uvec4(start, end, 0, 0));
-    imageStore(OutputSubVDIColor, ivec3(index, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x), color);
-    #endif
-}
-#else
 void writeSupersegment(int index, float start, float end, vec4 color) {
-    #if USE_PRINTF
-    if(gl_GlobalInvocationID.xy == debug_pixel) {
-        debugPrintfEXT("Writing supseg: %d. Start: %f, end: %f, color: (%f, %f, %f, %f)", index, start, end, color.rgba);
-    }
-    if(isnan(color.r) || isnan(color.a) || isnan(start) || isnan(end) || isnan(index)) {
-        debugPrintfEXT("Error! Wrong supersegment written by: (%d, %d)", gl_GlobalInvocationID.xy);
-    }
-    #endif
 
     #if SEPARATE_DEPTH
     imageStore(OutputSubVDIDepth, ivec3(2 * index, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x), vec4(start, 0, 0, 0));
     imageStore(OutputSubVDIDepth, ivec3(2 * index + 1, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x), vec4(end, 0, 0, 0));
     imageStore(OutputSubVDIColor, ivec3(index, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x), color);
-    //    imageStore(OutputSubVDIColor, ivec3(index * 4, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x), vec4(color.r));
-    //    imageStore(OutputSubVDIColor, ivec3(index * 4 + 1, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x), vec4(color.g));
-    //    imageStore(OutputSubVDIColor, ivec3(index * 4 + 2, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x), vec4(color.b));
-    //    imageStore(OutputSubVDIColor, ivec3(index * 4 + 3, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x), vec4(color.a));
     #endif
-
-    //    accumulateSupseg(color, start, end);
 }
-#endif
-
-//void writeThreshold(float threshold) {
-//    imageStore(Thresholds, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), vec4(threshold, 0, 0, 0));
-//}
 
 void update_cell_count(ivec3 cell) {
     uint ret = imageAtomicAdd(OctreeCells, cell, 1);
@@ -248,9 +195,6 @@ int findZInterval_view(float z_view) {
     float interval_size = ((far_plane - near_plane) / num_cells.z);
     int interval_num = int(floor(dist_from_front / interval_size));
 
-    //        if(gl_GlobalInvocationID.xy == debug_pixel) {
-    //            debugPrintfEXT("for z_view: %f, dist_from_front: %f, interval size: %f, interval found is: %d", z_view, dist_from_front, interval_size, interval_num);
-    //        }
     return interval_num;
 }
 
@@ -266,15 +210,6 @@ void main()
     if(!doGeneration) {
         return;
     }
-
-    //    #if USE_PRINTF
-    //    if(gl_GlobalInvocationID.xy == debug_pixel) {
-    //        debugPrintfEXT("Model matrix is: (%f, %f, %f, %f)", im_x_13_x_[0][0], im_x_13_x_[0][1], im_x_13_x_[0][2], im_x_13_x_[0][3]);
-    //        debugPrintfEXT("Model matrix is: (%f, %f, %f, %f)", im_x_13_x_[1][0], im_x_13_x_[1][1], im_x_13_x_[1][2], im_x_13_x_[1][3]);
-    //        debugPrintfEXT("Model matrix is: (%f, %f, %f, %f)", im_x_13_x_[2][0], im_x_13_x_[2][1], im_x_13_x_[2][2], im_x_13_x_[2][3]);
-    //        debugPrintfEXT("Model matrix is: (%f, %f, %f, %f)", im_x_13_x_[3][0], im_x_13_x_[3][1], im_x_13_x_[3][2], im_x_13_x_[3][3]);
-    //    }
-    //    #endif
 
     ivec3 imageCoords  = imageSize(OutputSubVDIColor);
     int windowWidth = imageCoords.b;
@@ -320,13 +255,6 @@ void main()
     vec4 wback = ipv * back;
     wback *= 1 / wback.w;
 
-    #if USE_PRINTF
-    if(gl_GlobalInvocationID.xy == debug_pixel) {
-        debugPrintfEXT("Num grid cells: (%d, %d, %d).", num_cells.xyz);
-        //        debugPrintfEXT("front: (%f, %f, %f, %f) back: (%f, %f, %f, %f).", front.xyzw, back.xyzw);
-        //        debugPrintfEXT("wfront: (%f, %f, %f, %f) wback: (%f, %f, %f, %f).", wfront.xyzw, wback.xyzw);
-    }
-    #endif
 
     // -- bounding box intersection for all volumes ----------
     float tnear = 1, tfar = 0, tmax = getMaxDepth( depthUV );
@@ -368,18 +296,7 @@ void main()
     if ( tnear < tfar )
     {
         vec4 fb = wback - wfront;
-        int numSteps =
-//        ( fwnw > 0.00001 )
-//        ? int ( log( ( tfar * fwnw + nw ) / ( tnear * fwnw + nw ) ) / log ( 1 + fwnw ) )
-//        :
-//        int ( trunc( ( tfar - tnear ) / nw + 1 ) );
-        int ( trunc( ( tfar - tnear ) / nw ) );
-
-        #if USE_PRINTF
-        if(gl_GlobalInvocationID.xy == debug_pixel) {
-            debugPrintfEXT("tnear: %f, tfar: %f, nw: %f. numSteps: %d.", tnear, tfar, nw, numSteps);
-        }
-        #endif
+        int numSteps = int ( trunc( ( tfar - tnear ) / nw ) );
 
         float low_thresh = 0.0;
         float high_thresh = 1.732; //sq. root of 3
@@ -389,38 +306,21 @@ void main()
         bool error_computed = false;
 
         int desired_supsegs = maxSupersegments;
-        //        int delta = 3; // up to delta supsegs less than max is acceptable
         int delta = int(floor(0.15 * maxSupersegments)); // up to delta supsegs less than max is acceptable
-
-        vec4 v = vec4( 0 );
 
         int iter = 0;
         float mid_thresh = 0.0001; //start off with a very low thresh to eliminate those rays that contain primarily homogenous regions already
-        //        float mid_thresh = (low_thresh + high_thresh)/2.0;
         bool first_iteration = true;
-
-        //        thresh_found = true;
-        //        mid_thresh = 0.027160939; //Kingsnake median
-        //        mid_thresh = 0.0948132798075676; //Kingsnake 75th
-        //        mid_thresh = 0.1759960949420929; //Kingsnake 75th
-        //        mid_thresh = 0.06775235; //Beechnut median
-        //        mid_thresh = 0.2165875; //Simulation median
 
         while(!thresh_found || !supsegs_written) {
             iter++;
-            //            if(iter > 50) break;
             newSupSegThresh = mid_thresh;
 
             int num_terminations = 0;
 
             bool supersegmentIsOpen = false;
-            #if INT_DEPTHS
-            uint supSegStartPoint = 0;
-            uint supSegEndPoint = 0;
-            #else
             float supSegStartPoint = 0.0;
             float supSegEndPoint = 0.0;
-            #endif
             bool lastSample = false;
             bool transparentSample = false;
             bool lastSupersegment = false;
@@ -437,25 +337,16 @@ void main()
             int steps_in_supseg = 0;
             int steps_trunc_trans = 0;
 
-            //        step += nw + step * fwnw;
             //            step += nw; //TODO: correct this to start exactly at the near plane
 
-            v = vec4( 0 );
             vec4 curV = vec4( 0 );
             vec4 supseg_start_w = vec4(0);
 
-            //            for ( int i = 0; i < numSteps; ++i, step += nw + step * fwnw )
             for ( int i = 0; i < numSteps; ++i, step += nw )
             {
                 if(i==(numSteps-1)) {
                     lastSample = true;
                 }
-
-                //                #if USE_PRINTF
-                //                if(gl_GlobalInvocationID.xy == debug_pixel && lastSample) {
-                //                    debugPrintfEXT("This is the lastsample. supseg should close.");
-                //                }
-                //                #endif
 
                 if(supersegmentNum == (maxSupersegments - 1)) {
                     lastSupersegment = true;
@@ -464,14 +355,6 @@ void main()
                 vec4 wpos = mix( wfront, wback, step );
 
                 vec4 ro_world, rd_world;
-
-                #if WORLD_ABS
-                ro_world = InverseViewMatrices[0] * vec4(0, 0, 0, 1);
-                ro_world = ro_world / ro_world.w;
-
-                rd_world = wback - wfront;
-                rd_world = normalize(rd_world);
-                #endif
 
 
                 // $insert{Accumulate}
@@ -493,32 +376,21 @@ void main()
             }
 
             if(thresh_found) {
-                #if RLE_INFO
-                imageStore(Thresholds, ivec2(gl_GlobalInvocationID.xy), vec4(mid_thresh));
-                #endif
                 supsegs_written = true;
             }
 
-            #if USE_PRINTF //TODO: check if the iterations are actually taking place and benchmark against fixed threshold
-            if(gl_GlobalInvocationID.xy == debug_pixel) {
-                debugPrintfEXT("Iteration: %d of searching for thresh. Low: %f, high: %f, mid: %f. Num terminations: %d", iter, low_thresh, high_thresh, mid_thresh, num_terminations);
-                debugPrintfEXT("Desired supsegs: %d and delta: %d", desired_supsegs, delta);
-            }
-            #endif
+//            #if USE_PRINTF //TODO: check if the iterations are actually taking place and benchmark against fixed threshold
+//            if(gl_GlobalInvocationID.xy == debug_pixel) {
+//                debugPrintfEXT("Iteration: %d of searching for thresh. Low: %f, high: %f, mid: %f. Num terminations: %d", iter, low_thresh, high_thresh, mid_thresh, num_terminations);
+//                debugPrintfEXT("Desired supsegs: %d and delta: %d", desired_supsegs, delta);
+//            }
+//            #endif
 
             if(!supsegs_written) {
 
                 if(abs(high_thresh - low_thresh) < 0.000001) {
                     thresh_found = true;
                     mid_thresh = ((num_terminations == 0) ? low_thresh : high_thresh); // we want to err on the higher side, so that we generate < max no of supsegs, unless we are ending up generating 0 supsegs
-
-                    //                #if USE_PRINTF
-                    //                if(gl_GlobalInvocationID.xy == debug_pixel) {
-                    //                    debugPrintfEXT("Termination criteria reached. Num_terminations: %d. Setting mid_thresh to: %f", num_terminations, mid_thresh);
-                    //                }
-                    //                #endif
-                    //                low_thresh = high_thresh;
-                    //                mid_thresh = high_thresh;// we want to err on the higher side, so that we generate < max no of supsegs
                     continue;
                 } else if(num_terminations > desired_supsegs) {
                     low_thresh = mid_thresh;
@@ -539,34 +411,7 @@ void main()
 
                 mid_thresh = (low_thresh + high_thresh) / 2.0;
             }
-
-            //            #if USE_PRINTF
-            //            if(gl_GlobalInvocationID.xy == debug_pixel && supsegs_written) {
-            //                debugPrintfEXT("Before applying the exponential, color was: (%f, %f, %f, %f)", v.rgba);
-            //            }
-            //            #endif
-
-            v.xyz = pow(v.xyz, vec3(1/2.2)); //TODO: remove
-            FragColor = v;
         }
-
-
-        #if USE_PRINTF
-        if(gl_GlobalInvocationID.xy == debug_pixel) {
-            debugPrintfEXT("Final composited color is: (%f, %f, %f, %f)", v.rgba);
-            debugPrintfEXT("Total supsegs generated: %d", supersegmentNum);
-        }
-        #endif
-
-        #if RLE_INFO
-        imageStore(SupersegmentsGenerated, ivec2(gl_GlobalInvocationID.xy), ivec4(supersegmentNum));
-        #endif
-
-        //        writeThreshold(float(supersegmentNum));
-
-        //        if(supersegmentNum == 0) {
-        //            writeThreshold(-1.);
-        //        }
 
         if(supersegmentNum < maxSupersegments) {
             for(int i = supersegmentNum; i < maxSupersegments; i++) {
@@ -574,21 +419,10 @@ void main()
             }
         }
     } else {
-        FragColor = vec4(0, 0, 0, 0);
-        //        writeThreshold(-1.);
         if(supersegmentNum < maxSupersegments) {
             for(int i = supersegmentNum; i < maxSupersegments; i++) {
                 writeSupersegment(i, 0, 0, vec4(0));
             }
         }
     }
-
-    //    if(supersegmentNum < maxSupersegments - 1) {
-    //        for(int i = supersegmentNum; i < maxSupersegments; i++) {
-    //            imageStore(OutputSubVDIDepth, ivec3(i, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x), vec4(0));
-    //            imageStore(OutputSubVDIColor, ivec3(i, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x), vec4(0));
-    //        }
-    //    }
-
-    //    imageStore(OutputRender, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), FragColor);
 }
