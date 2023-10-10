@@ -395,7 +395,6 @@ open class VulkanTexture(val device: VulkanDevice,
 
                         CoroutineScope(Dispatchers.Default).launchPeriodicAsync(50) {
                             val done = vkGetFenceStatus(this@VulkanTexture.device.vulkanDevice, f) == VK_SUCCESS
-                            logger.info("Upload done: $done")
 
                             if(done) {
                                 this@VulkanTexture.device.destroyFence(f)
@@ -403,8 +402,11 @@ open class VulkanTexture(val device: VulkanDevice,
                                 gt?.gpuMutex?.release()
 
                                 // mark as uploaded
-                                gt?.state?.add(Texture.TextureState.Uploaded)
-                                gt?.state?.add(Texture.TextureState.AvailableForUse)
+                                gt?.uploaded?.incrementAndGet()
+
+                                // necessary to clear updates here, as the command buffer might still access the
+                                // memory address of the texture update.
+                                (gt as? UpdatableTexture)?.clearConsumedUpdates()
 
 //                                vkFreeCommandBuffers(device, commandPools.Transfer, this)
                             }
@@ -509,11 +511,13 @@ open class VulkanTexture(val device: VulkanDevice,
                             if (genericTexture is UpdatableTexture) {
                                 if (genericTexture.hasConsumableUpdates()) {
                                     val contents = genericTexture.getConsumableUpdates().map { it.contents }
+                                    val count = contents.size
 
                                     genericTexture.mutex.acquire()
                                     buffer.copyFrom(contents, keepMapped = true)
                                     image.copyFrom(this, buffer, genericTexture.getConsumableUpdates())
                                     genericTexture.mutex.release()
+                                    logger.info("Consumed $count updates")
                                 } /*else {
                                 // TODO: Semantics, do we want UpdateableTextures to be only
                                 // updateable via updates, or shall they read from buffer on first init?
@@ -554,10 +558,11 @@ open class VulkanTexture(val device: VulkanDevice,
             if(block) {
                 t.join()
                 gt?.gpuMutex?.release()
+
+                // necessary to clear updates here, as the command buffer might still access the
+                // memory address of the texture update.
+                (gt as? UpdatableTexture)?.clearConsumedUpdates()
             }
-            // necessary to clear updates here, as the command buffer might still access the
-            // memory address of the texture update.
-            (gt as? UpdatableTexture)?.clearConsumedUpdates()
         } else {
             val buffer = VulkanBuffer(device,
                 sourceBuffer.limit().toLong(),
