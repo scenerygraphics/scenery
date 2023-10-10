@@ -202,11 +202,6 @@ abstract class Renderer : Hubable {
     val postRenderLambdas = ArrayList<()->Unit>()
 
     /**
-     * A list of user-defined lambdas that will be executed once per iteration of the render loop
-     */
-    val postRenderLambdas = ArrayList<()->Unit>()
-
-    /**
      * Requests the renderer to update [texture]'s contents from the GPU. [onReceive] is executed
      * on receiving the data.
      */
