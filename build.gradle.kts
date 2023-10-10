@@ -116,6 +116,9 @@ dependencies {
         exclude("org.lwjgl", "lwjgl-bom")
         exclude("org.lwjgl", "lwjgl")
     }
+    //TODO revert to official BVV
+    api("graphics.scenery:bigvolumeviewer:7f36eda")
+
     implementation("org.janelia.saalfeldlab:n5")
     implementation("org.janelia.saalfeldlab:n5-imglib2")
     listOf("core", "structure", "modfinder").forEach {
