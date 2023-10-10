@@ -105,7 +105,8 @@ dependencies {
 
     api("sc.fiji:bigdataviewer-core:10.4.10")
     api("sc.fiji:bigdataviewer-vistools:1.0.0-beta-28")
-    api("sc.fiji:bigvolumeviewer:0.3.1") {
+    //TODO revert to official BVV
+    api("graphics.scenery:bigvolumeviewer:7f36eda") {
         exclude("org.jogamp.gluegen", "gluegen-rt")
         exclude("org.jogamp.jogl", "jogl-all")
     }
@@ -116,8 +117,6 @@ dependencies {
         exclude("org.lwjgl", "lwjgl-bom")
         exclude("org.lwjgl", "lwjgl")
     }
-    //TODO revert to official BVV
-    api("graphics.scenery:bigvolumeviewer:7f36eda")
 
     implementation("org.janelia.saalfeldlab:n5")
     implementation("org.janelia.saalfeldlab:n5-imglib2")
