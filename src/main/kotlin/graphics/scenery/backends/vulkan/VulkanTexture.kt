@@ -41,7 +41,7 @@ import kotlin.math.roundToLong
  * @author Ulrik Günther <hello@ulrik.is>
  */
 open class VulkanTexture(val device: VulkanDevice,
-                    val commandPools: VulkanRenderer.CommandPools, val queue: VkQueue, val transferQueue: VkQueue,
+                    val commandPools: VulkanRenderer.CommandPools, val queue: VulkanDevice.QueueWithMutex, val transferQueue: VulkanDevice.QueueWithMutex,
                     val width: Int, val height: Int, val depth: Int = 1,
                     val format: Int = VK_FORMAT_R8G8B8_SRGB, var mipLevels: Int = 1,
                     val minFilterLinear: Boolean = true, val maxFilterLinear: Boolean = true,
@@ -221,9 +221,10 @@ open class VulkanTexture(val device: VulkanDevice,
     /**
      * Alternative constructor to create a [VulkanTexture] from a [Texture].
      */
-    constructor(device: VulkanDevice,
-                commandPools: VulkanRenderer.CommandPools, queue: VkQueue, transferQueue: VkQueue,
-                texture: Texture, mipLevels: Int = 1) : this(device,
+    constructor(
+        device: VulkanDevice,
+        commandPools: VulkanRenderer.CommandPools, queue: VulkanDevice.QueueWithMutex, transferQueue: VulkanDevice.QueueWithMutex,
+        texture: Texture, mipLevels: Int = 1) : this(device,
         commandPools,
         queue,
         transferQueue,
@@ -383,29 +384,31 @@ open class VulkanTexture(val device: VulkanDevice,
         logger.debug("Updating {} with {} miplevels", this, mipLevels)
         if (mipLevels == 1) {
             val block = !(gt?.usageType?.contains(Texture.UsageType.AsyncLoad) ?: false)
-            val fence = if(!block) {
-                val f = device.createFence()
-
-                CoroutineScope(Dispatchers.Default).launchPeriodicAsync(100) {
-                    val done = vkGetFenceStatus(device.vulkanDevice, f) == VK_SUCCESS
-                    logger.info("Upload done: $done")
-
-                    if(done) {
-                        device.destroyFence(f)
-                    }
-
-                    done
-                }
-
-                f
-            } else {
-                null
-            }
 
             logger.info("Upload will block: $block running on $transferQueue vs $queue")
 
             val t = thread {
                 with(VU.newCommandBuffer(device, commandPools.Transfer, autostart = true)) {
+                    val fence = if(!block) {
+                        val f = this@VulkanTexture.device.createFence()
+
+                        CoroutineScope(Dispatchers.Default).launchPeriodicAsync(50) {
+                            val done = vkGetFenceStatus(this@VulkanTexture.device.vulkanDevice, f) == VK_SUCCESS
+                            logger.info("Upload done: $done")
+
+                            if(done) {
+                                this@VulkanTexture.device.destroyFence(f)
+//                                vkFreeCommandBuffers(device, commandPools.Transfer, this)
+                            }
+
+                            done
+                        }
+
+                        f
+                    } else {
+                        null
+                    }
+
                     if (!initialised) {
                         transitionLayout(
                             stagingImage.image,
@@ -419,10 +422,12 @@ open class VulkanTexture(val device: VulkanDevice,
 
                     if (depth == 1) {
                         val dest = memAllocPointer(1)
+                        gt?.mutex?.acquire()
                         vkMapMemory(device, stagingImage.memory, 0, sourceBuffer.remaining() * 1L, 0, dest)
                         memCopy(memAddress(sourceBuffer), dest.get(0), sourceBuffer.remaining().toLong())
                         vkUnmapMemory(device, stagingImage.memory)
                         memFree(dest)
+                        gt?.mutex?.release()
 
                         transitionLayout(
                             image.image,
@@ -432,6 +437,7 @@ open class VulkanTexture(val device: VulkanDevice,
                             dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
                             commandBuffer = this
                         )
+
 
                         image.copyFrom(this, stagingImage)
 
@@ -496,8 +502,10 @@ open class VulkanTexture(val device: VulkanDevice,
                                 if (genericTexture.hasConsumableUpdates()) {
                                     val contents = genericTexture.getConsumableUpdates().map { it.contents }
 
+                                    genericTexture.mutex.acquire()
                                     buffer.copyFrom(contents, keepMapped = true)
                                     image.copyFrom(this, buffer, genericTexture.getConsumableUpdates())
+                                    genericTexture.mutex.release()
                                 } /*else {
                                 // TODO: Semantics, do we want UpdateableTextures to be only
                                 // updateable via updates, or shall they read from buffer on first init?
@@ -505,8 +513,10 @@ open class VulkanTexture(val device: VulkanDevice,
                                 image.copyFrom(this, buffer)
                             }*/
                             } else {
+                                genericTexture?.mutex?.acquire()
                                 buffer.copyFrom(sourceBuffer)
                                 image.copyFrom(this, buffer)
+                                genericTexture?.mutex?.release()
                             }
 
                             transitionLayout(
@@ -526,7 +536,7 @@ open class VulkanTexture(val device: VulkanDevice,
                         commandPools.Transfer,
                         transferQueue,
                         flush = true,
-                        dealloc = true,
+                        dealloc = !block,
                         block = block,
                         fence = fence
                     )
@@ -948,7 +958,7 @@ open class VulkanTexture(val device: VulkanDevice,
          * Loads a texture from a file given by [filename], and allocates the [VulkanTexture] on [device].
          */
         fun loadFromFile(device: VulkanDevice,
-                         commandPools: VulkanRenderer.CommandPools , queue: VkQueue, transferQueue: VkQueue,
+                         commandPools: VulkanRenderer.CommandPools , queue: VulkanDevice.QueueWithMutex, transferQueue: VulkanDevice.QueueWithMutex,
                          filename: String,
                          linearMin: Boolean, linearMax: Boolean,
                          generateMipmaps: Boolean = true): VulkanTexture {
@@ -977,7 +987,7 @@ open class VulkanTexture(val device: VulkanDevice,
          * Loads a texture from a file given by a [stream], and allocates the [VulkanTexture] on [device].
          */
         fun loadFromFile(device: VulkanDevice,
-                         commandPools: VulkanRenderer.CommandPools, queue: VkQueue, transferQueue: VkQueue,
+                         commandPools: VulkanRenderer.CommandPools, queue: VulkanDevice.QueueWithMutex, transferQueue: VulkanDevice.QueueWithMutex,
                          stream: InputStream, type: String,
                          linearMin: Boolean, linearMax: Boolean,
                          generateMipmaps: Boolean = true): VulkanTexture {
@@ -1021,7 +1031,7 @@ open class VulkanTexture(val device: VulkanDevice,
          */
         @Suppress("UNUSED_PARAMETER")
         fun loadFromFileRaw(device: VulkanDevice,
-                            commandPools: VulkanRenderer.CommandPools, queue: VkQueue, transferQueue: VkQueue,
+                            commandPools: VulkanRenderer.CommandPools, queue: VulkanDevice.QueueWithMutex, transferQueue: VulkanDevice.QueueWithMutex,
                             stream: InputStream, type: String, dimensions: LongArray): VulkanTexture {
             val imageData: ByteBuffer = ByteBuffer.allocateDirect((2 * dimensions[0] * dimensions[1] * dimensions[2]).toInt())
             val buffer = ByteArray(1024*1024)
