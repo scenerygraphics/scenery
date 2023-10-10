@@ -346,8 +346,6 @@ open class VulkanRenderer(hub: Hub,
     private var recordMovieOverwrite: Boolean = false
     override var pushMode: Boolean = false
 
-    val persistentTextureRequests = ArrayList<Pair<Texture, AtomicInteger>>()
-
     var scene: Scene = Scene()
     protected var sceneArray: HashSet<Node> = HashSet(256)
 
