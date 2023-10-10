@@ -338,6 +338,7 @@ class VolumeManager(
 //                    instances[SegmentType.AccumulatorMultiresolution]
 //                )
 
+                instances[SegmentType.FragmentShader]?.bind("localNear", i, instances[SegmentType.Accumulator])
                 instances[SegmentType.FragmentShader]?.bind("localFar", i, instances[SegmentType.Accumulator])
 
                 instances[SegmentType.SampleMultiresolutionVolume]?.bind("convert", instances[SegmentType.Convert])
