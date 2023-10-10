@@ -1,7 +1,6 @@
 package graphics.scenery.volumes
 
 import graphics.scenery.ui.RangeSlider
-import graphics.scenery.ui.SwingBridgeFrame
 import net.miginfocom.swing.MigLayout
 import org.jfree.chart.ChartMouseEvent
 import org.jfree.chart.ChartMouseListener
@@ -30,6 +29,7 @@ import java.awt.event.MouseEvent
 import java.awt.event.MouseListener
 import java.awt.event.MouseMotionListener
 import java.awt.image.BufferedImage
+import java.text.NumberFormat
 import javax.swing.*
 import kotlin.math.abs
 import kotlin.math.max
@@ -45,7 +45,10 @@ import kotlin.math.roundToInt
  * Able to generate a histogram and visualize it as well to help with TF-settings
  * Able to dynamically set the transfer function range -> changes histogram as well
  */
-class TransferFunctionEditor @JvmOverloads constructor(private val tfContainer : HasTransferFunction, val mainFrame : SwingBridgeFrame = SwingBridgeFrame("1DTransferFunctionEditor"), width : Int = 650, height : Int = 620): JPanel() {
+class TransferFunctionEditor constructor(
+    private val tfContainer: HasTransferFunction,
+    volumeName: String = "Volume"
+): JPanel() {
     /**
      * MouseDragTarget is set when a ControlPoint has been clicked. The initial index is set to -1 and reset when the Controlpoint has been deleted
      * The target gets passed into the different Controlpoint manipulation functions
@@ -71,6 +74,7 @@ class TransferFunctionEditor @JvmOverloads constructor(private val tfContainer :
     private val minValueLabel: JLabel
     private val maxValueLabel: JLabel
 
+
     private class ValueAlphaTooltipGenerator : XYToolTipGenerator {
         override fun generateToolTip(dataset: XYDataset, series: Int, category: Int): String {
             val x: Number = dataset.getXValue(series, category)
@@ -79,14 +83,6 @@ class TransferFunctionEditor @JvmOverloads constructor(private val tfContainer :
         }
     }
 
-    //ModeEditor
-    private val modePanel : JPanel
-    var switchTo = ""
-
-    //ColormapEditor
-    private val colormapPanel : JPanel
-
-    var name = "VolumeName"
 
     init {
         layout = MigLayout("flowy")
@@ -281,54 +277,6 @@ class TransferFunctionEditor @JvmOverloads constructor(private val tfContainer :
             override fun chartMouseMoved(e: ChartMouseEvent) {}
         })
 
-        //ColorMap manipulation
-        colormapPanel = JPanel()
-        colormapPanel.layout = MigLayout()
-        mainFrame.add(colormapPanel, "cell 0 10")
-
-        val list = Colormap.list()
-        val box = JComboBox<String>()
-        for (s in list)
-            box.addItem(s)
-        colormapPanel.add(box, "cell 4 0")
-
-        if (tfContainer is DummyVolume){
-            box.selectedItem = tfContainer.colormap
-            val currentColormap = JLabel("colormap: ${box.selectedItem}")
-            colormapPanel.add(currentColormap, "cell 0 0")
-        }
-
-        box.addActionListener{
-            val item : String = box.selectedItem as String
-            if (tfContainer is DummyVolume){
-                tfContainer.colormap = Colormap.get(item)
-                mainChart.repaint()
-            }
-        }
-
-        //Mode manipulatiom
-        modePanel = JPanel()
-        modePanel.layout = MigLayout()
-        mainFrame.add(modePanel, "cell 10 10")
-
-        val mode = JLabel("Current mode: Volume Rendering")
-        modePanel.add(mode, "cell 0 0")
-
-        val modeButton = JButton("Switch mode")
-        modePanel.add(modeButton, "cell 0 1")
-
-        modeButton.addActionListener {
-            if (switchTo.equals("toVDI")){
-                switchTo = "toVR"
-                mode.text = "Current mode: Volume Rendering"
-            }
-            else if (switchTo.equals("toVR") || switchTo.equals("")){
-                switchTo = "toVDI"
-                mode.text = "Current mode: VDI Streaming"
-            }
-            mainChart.repaint()
-        }
-
         //Histogram Manipulation
         val genHistButton = JCheckBox("Show Histogram")
         add(genHistButton, "growx")
@@ -393,7 +341,7 @@ class TransferFunctionEditor @JvmOverloads constructor(private val tfContainer :
 
         rangeEditorPanel = JPanel()
         rangeEditorPanel.layout = MigLayout("fill",
-            "[left, 10%]5[right, 40%]5[left, 10%]5[right, 40%]")
+                                            "[left, 10%]5[right, 40%]5[left, 10%]5[right, 40%]")
         add(rangeEditorPanel, "grow")
 
         rangeEditorPanel.add(JLabel("min:"), "shrinkx")
@@ -405,45 +353,6 @@ class TransferFunctionEditor @JvmOverloads constructor(private val tfContainer :
         rangeEditorPanel.add(maxValueLabel, "spanx 2, right")
 
 //        updateSliderRange()
-
-        if (tfContainer is DummyVolume){
-            box.selectedItem = tfContainer.colormap
-            val currentColormap = JLabel("colormap: ")
-            colormapPanel.add(currentColormap, "growx")
-            colormapPanel.add(box, "growx")
-        }
-
-        box.addActionListener{
-            val item : String = box.selectedItem as String
-            if (tfContainer is DummyVolume){
-                tfContainer.colormap = Colormap.get(item)
-                mainChart.repaint()
-            }
-        }
-
-
-        //Mode manipulatiom
-        modePanel.layout = MigLayout("fill",
-            "[left, 10%]5[right, 40%]5[left, 10%]5[right, 40%]")
-        add(modePanel, "grow")
-
-        if (tfContainer is DummyVolume){
-            modePanel.add(mode, "growx")
-            modePanel.add(modeButton, "growx")
-        }
-
-        modeButton.addActionListener {
-            if (switchTo.equals("toVDI")){
-                switchTo = "toVR"
-                mode.text = "Current mode: Volume Rendering"
-            }
-            else if (switchTo.equals("toVR") || switchTo.equals("")){
-                switchTo = "toVDI"
-                mode.text = "Current mode: VDI Streaming"
-            }
-            mainChart.repaint()
-        }
-
     }
 
     private fun createTFImage(): BufferedImage {
@@ -570,7 +479,7 @@ class TransferFunctionEditor @JvmOverloads constructor(private val tfContainer :
     companion object{
         fun showTFFrame(tfContainer: HasTransferFunction, volumeName: String = "Volume"){
             val frame = JFrame()
-            val tfe = TransferFunctionEditor(tfContainer)
+            val tfe = TransferFunctionEditor(tfContainer,volumeName)
             frame.add(tfe)
             frame.pack()
             frame.isVisible = true

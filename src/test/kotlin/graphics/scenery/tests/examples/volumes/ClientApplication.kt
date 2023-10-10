@@ -129,8 +129,9 @@ class ClientApplication : SceneryBase("Client Application", 512, 512)  {
                     logger.info("$count")
                 }
 
-                if (transferFunctionUI.switchTo != "")
-                    switch.value = transferFunctionUI.switchTo
+                // TODO restore
+//                if (transferFunctionUI.switchTo != "")
+//                    switch.value = transferFunctionUI.switchTo
 
                 if (!currentlyVolumeRendering && switch.value.equals("toVR")){
 
