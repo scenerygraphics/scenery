@@ -71,13 +71,6 @@ class TransferFunctionEditor @JvmOverloads constructor(private val tfContainer :
     private val minValueLabel: JLabel
     private val maxValueLabel: JLabel
 
-    //ModeEditor
-    private val modePanel : JPanel
-    var switchTo = ""
-
-    //ColormapEditor
-    private val colormapPanel : JPanel
-
     private class ValueAlphaTooltipGenerator : XYToolTipGenerator {
         override fun generateToolTip(dataset: XYDataset, series: Int, category: Int): String {
             val x: Number = dataset.getXValue(series, category)
@@ -288,7 +281,6 @@ class TransferFunctionEditor @JvmOverloads constructor(private val tfContainer :
             override fun chartMouseMoved(e: ChartMouseEvent) {}
         })
 
-<<<<<<< HEAD
         //ColorMap manipulation
         colormapPanel = JPanel()
         colormapPanel.layout = MigLayout()
@@ -414,17 +406,6 @@ class TransferFunctionEditor @JvmOverloads constructor(private val tfContainer :
 
 //        updateSliderRange()
 
-        //ColorMap manipulation
-        colormapPanel = JPanel()
-        colormapPanel.layout = MigLayout("fill",
-            "[left, 10%]5[right, 40%]5[left, 10%]5[right, 40%]")
-        add(colormapPanel, "grow")
-
-        val list = Colormap.list()
-        val box = JComboBox<String>()
-        for (s in list)
-            box.addItem(s)
-
         if (tfContainer is DummyVolume){
             box.selectedItem = tfContainer.colormap
             val currentColormap = JLabel("colormap: ")
@@ -442,13 +423,9 @@ class TransferFunctionEditor @JvmOverloads constructor(private val tfContainer :
 
 
         //Mode manipulatiom
-        modePanel = JPanel()
         modePanel.layout = MigLayout("fill",
             "[left, 10%]5[right, 40%]5[left, 10%]5[right, 40%]")
         add(modePanel, "grow")
-
-        val mode = JLabel("Current mode: Volume Rendering")
-        val modeButton = JButton("Switch mode")
 
         if (tfContainer is DummyVolume){
             modePanel.add(mode, "growx")
