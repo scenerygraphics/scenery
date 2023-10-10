@@ -53,14 +53,25 @@ class VDINode : RichNode() {
     var vdiHeight: Int = 0
 
     @ShaderProperty
+    var totalGeneratedSupsegs: Int = 0
+
+    @ShaderProperty
     var do_subsample = false
 
     @ShaderProperty
-    var windowWidth: Int = 0
+    var max_samples = 50
 
     @ShaderProperty
-    var windowHeight: Int = 0
+    var sampling_factor = 0.1f
 
+    @ShaderProperty
+    var downImage = 1f
+
+    @ShaderProperty
+    var skip_empty = true
+
+    @ShaderProperty
+    var stratified_downsampling = false
 }
 
 class VDIRenderingExample : SceneryBase("VDI Rendering Example", 1080, 1080) {
