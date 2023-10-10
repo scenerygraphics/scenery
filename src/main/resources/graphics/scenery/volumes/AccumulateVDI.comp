@@ -17,7 +17,7 @@ if (vis && step > localNear && step < localFar)
 
         if(supersegmentIsOpen) {
 
-            vec4 jump_pos = mix(wfront, wback, nw * steps_in_supseg); //TODO: jump length of single step can be precalculated and scaled to num steps in supseg
+            vec4 jump_pos = mix(wfront, wback, stepWidth * steps_in_supseg); //TODO: jump length of single step can be precalculated and scaled to num steps in supseg
 
             float segLen = length(jump_pos - wfront);
             supersegmentAdjusted.rgb = curV.rgb / curV.a;
@@ -34,7 +34,7 @@ if (vis && step > localNear && step < localFar)
                 num_terminations++;
                 supersegmentIsOpen = false;
 
-                vec4 jump_pos_trunc = mix(wfront, wback, nw * steps_trunc_trans); //TODO: jump length of single step can be precalculated and scaled to num steps in supseg
+                vec4 jump_pos_trunc = mix(wfront, wback, stepWidth * steps_trunc_trans); //TODO: jump length of single step can be precalculated and scaled to num steps in supseg
 
                 float segLen_trunc = length(jump_pos - wfront);
                 supersegmentAdjusted.rgb = curV.rgb / curV.a; //TODO: this perhaps does not need to be recalculated here
@@ -101,7 +101,7 @@ if (vis && step > localNear && step < localFar)
                 steps_trunc_trans = steps_in_supseg;
                 w_prev_non_transp = wpos;
 
-                float step_next = step + nw;
+                float step_next = step + stepWidth;
                 vec4 wnext = mix(wfront, wback, step_next);
 
                 ndcPos = pv * wnext;
@@ -113,7 +113,7 @@ if (vis && step > localNear && step < localFar)
 
         if(lastSample && supersegmentIsOpen) { //close the supersegment after the last sample is accumulated
 
-            vec4 jump_pos = mix(wfront, wback, nw * steps_trunc_trans);
+            vec4 jump_pos = mix(wfront, wback, stepWidth * steps_trunc_trans);
 
             float segLen = length(jump_pos - wfront);
             supersegmentAdjusted.rgb = curV.rgb / curV.a;

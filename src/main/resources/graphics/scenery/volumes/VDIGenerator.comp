@@ -207,6 +207,8 @@ bool thresh_found = false;
 
 void main()
 {
+    float stepWidth = nw;
+
     if(!doGeneration) {
         return;
     }
@@ -296,7 +298,7 @@ void main()
     if ( tnear < tfar )
     {
         vec4 fb = wback - wfront;
-        int numSteps = int ( trunc( ( tfar - tnear ) / nw ) );
+        int numSteps = int ( trunc( ( tfar - tnear ) / stepWidth ) );
 
         float low_thresh = 0.0;
         float high_thresh = 1.732; //sq. root of 3
@@ -314,6 +316,11 @@ void main()
 
         while(!thresh_found || !supsegs_written) {
             iter++;
+            if(iter == -1) {
+                stepWidth = nw;
+                numSteps = int ( trunc( ( tfar - tnear ) / stepWidth ) );
+            }
+
             newSupSegThresh = mid_thresh;
 
             int num_terminations = 0;
@@ -327,7 +334,7 @@ void main()
             vec4 supersegmentAdjusted = vec4(0);
 
             float step = tnear;
-            float step_prev = step - nw;
+            float step_prev = step - stepWidth;
             vec4 wprev = mix(wfront, wback, step_prev);
             vec4 w_prev_non_transp = vec4(0);
 
@@ -342,7 +349,7 @@ void main()
             vec4 curV = vec4( 0 );
             vec4 supseg_start_w = vec4(0);
 
-            for ( int i = 0; i < numSteps; ++i, step += nw )
+            for ( int i = 0; i < numSteps; ++i, step += stepWidth )
             {
                 if(i==(numSteps-1)) {
                     lastSample = true;
