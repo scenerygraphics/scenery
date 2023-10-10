@@ -195,7 +195,11 @@ abstract class Renderer : Hubable {
     }
 
     @Volatile protected var textureRequests = ConcurrentLinkedQueue<Pair<Texture, Channel<Texture>>>()
-    var persistentTextureRequests = ArrayList<Pair<Texture, AtomicInteger>>()
+
+    /**
+     * A list of user-defined lambdas that will be executed once per iteration of the render loop
+     */
+    val postRenderLambdas = ArrayList<()->Unit>()
 
     /**
      * A list of user-defined lambdas that will be executed once per iteration of the render loop

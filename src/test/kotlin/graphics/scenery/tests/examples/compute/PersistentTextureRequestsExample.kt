@@ -1,9 +1,12 @@
 package graphics.scenery.tests.examples.compute
 
 import bdv.util.AxisOrder
+<<<<<<< HEAD
 import bvv.core.VolumeViewerOptions
 import bvv.core.shadergen.generate.SegmentTemplate
 import bvv.core.shadergen.generate.SegmentType
+=======
+>>>>>>> b1c84fe66 (Renderer: adds postRenderLambdas, property counting total rendered frames)
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.backends.vulkan.VulkanRenderer
@@ -20,6 +23,12 @@ import net.imglib2.img.display.imagej.ImageJFunctions
 import net.imglib2.type.numeric.integer.UnsignedShortType
 import org.joml.Vector3f
 import org.lwjgl.system.MemoryUtil
+<<<<<<< HEAD
+=======
+import tpietzsch.example2.VolumeViewerOptions
+import tpietzsch.shadergen.generate.SegmentTemplate
+import tpietzsch.shadergen.generate.SegmentType
+>>>>>>> b1c84fe66 (Renderer: adds postRenderLambdas, property counting total rendered frames)
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.concurrent.thread
 import kotlin.test.assertEquals
@@ -53,7 +62,11 @@ class PersistentTextureRequestsExample : SceneryBase("PersistentTextureRequestsE
 
         val outputBuffer = MemoryUtil.memCalloc(1280*720*4)
         val outputTexture = Texture.fromImage(Image(outputBuffer, 1280, 720), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
+<<<<<<< HEAD
         volumeManager.material().textures["OutputRender"] = outputTexture
+=======
+        volumeManager.material.textures["OutputRender"] = outputTexture
+>>>>>>> b1c84fe66 (Renderer: adds postRenderLambdas, property counting total rendered frames)
 
         hub.add(volumeManager)
 
@@ -66,32 +79,54 @@ class PersistentTextureRequestsExample : SceneryBase("PersistentTextureRequestsE
 
         val box = Box(Vector3f(1.0f, 1.0f, 1.0f))
         box.name = "le box du win"
+<<<<<<< HEAD
         box.material().textures["diffuse"] = outputTexture
         box.material().metallic = 0.0f
         box.material().roughness = 1.0f
+=======
+        box.material.textures["diffuse"] = outputTexture
+        box.material.metallic = 0.0f
+        box.material.roughness = 1.0f
+>>>>>>> b1c84fe66 (Renderer: adds postRenderLambdas, property counting total rendered frames)
 
         scene.addChild(box)
 
         val light = PointLight(radius = 15.0f)
+<<<<<<< HEAD
         light.spatial().position = Vector3f(0.0f, 0.0f, 2.0f)
+=======
+        light.position = Vector3f(0.0f, 0.0f, 2.0f)
+>>>>>>> b1c84fe66 (Renderer: adds postRenderLambdas, property counting total rendered frames)
         light.intensity = 5.0f
         light.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
         scene.addChild(light)
 
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
+<<<<<<< HEAD
             spatial().position = Vector3f(0.0f, 0.0f, 5.0f)
+=======
+            position = Vector3f(0.0f, 0.0f, 5.0f)
+>>>>>>> b1c84fe66 (Renderer: adds postRenderLambdas, property counting total rendered frames)
             perspectiveCamera(50.0f, 512, 512)
 
             scene.addChild(this)
         }
 
         thread {
+<<<<<<< HEAD
             val opTexture = volumeManager.material().textures["OutputRender"]!!
 
             var prevCounter = 0
 
             (renderer as? VulkanRenderer)?.persistentTextureRequests?.add(opTexture to counter)
+=======
+            val opTexture = volumeManager.material.textures["OutputRender"]!!
+
+            var prevCounter = 0
+
+            renderer?.persistentTextureRequests?.add(opTexture to counter)
+>>>>>>> b1c84fe66 (Renderer: adds postRenderLambdas, property counting total rendered frames)
 
             // this is the loop where you may do your tasks that are asynchronous to rendering
             while (renderer?.shouldClose == false) {
@@ -107,6 +142,7 @@ class PersistentTextureRequestsExample : SceneryBase("PersistentTextureRequestsE
                 if (buffer != null && prevCounter == 100) {
                     SystemHelpers.dumpToFile(buffer, "texture-${SystemHelpers.formatDateTime(delimiter = "_")}.raw")
                 }
+<<<<<<< HEAD
             }
         }
 
@@ -121,6 +157,11 @@ class PersistentTextureRequestsExample : SceneryBase("PersistentTextureRequestsE
             Thread.sleep(200) //give some time for the renderer to close
 
             totalFrames = renderer?.totalFrames!!
+=======
+
+            }
+            totalFrames = (renderer as VulkanRenderer).totalFrames
+>>>>>>> b1c84fe66 (Renderer: adds postRenderLambdas, property counting total rendered frames)
         }
     }
 
@@ -140,4 +181,8 @@ class PersistentTextureRequestsExample : SceneryBase("PersistentTextureRequestsE
             PersistentTextureRequestsExample().main()
         }
     }
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> b1c84fe66 (Renderer: adds postRenderLambdas, property counting total rendered frames)
