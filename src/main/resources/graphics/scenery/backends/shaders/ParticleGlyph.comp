@@ -1,0 +1,123 @@
+#version 450
+
+
+layout(set = 0, binding = 0) uniform LightParameters {
+    mat4 ViewMatrices[2];
+    mat4 InverseViewMatrices[2];
+    mat4 ProjectionMatrix;
+    mat4 InverseProjectionMatrix;
+    vec3 CamPosition;
+} lightParams;
+
+struct Particle
+{
+    vec4 PositionRadius;
+    vec3 Color;
+};
+layout (std140, set = 1, binding = 0) readonly buffer ssboParticleData
+{
+    Particle particlesIn[];
+};
+
+struct SilhouetteVertex
+{
+    vec3 Position;
+    vec2 TextureCoordinate;
+    vec4 CenterRadius;
+    vec3 Color;
+};
+layout (std140, set = 1, binding = 1) buffer ssboParticleSilhouetteVertices
+{
+    SilhouetteVertex particlesOut[];
+};
+
+const float eps = 0.0000000001;
+
+// Function that calculates the silhouette center and the radius of the silhouette, from Camera.Position, VertexIn.Position
+// and VertexIn.Properties.x = ParticleRadius with
+// sr -> silhouette radius
+// sc -> silhouette center
+// e  -> distance between VertexIn.Position and Camera.Position
+// V  -> Vector from Camera.Position to silhouette border
+void CalculateSilhouette(in vec3 particlePos, in vec3 cameraPos, in float particleRadius, inout vec3 sc, inout float sr) {
+    // distance between particle position and camera position
+    float e = max(eps, abs(distance(particlePos, cameraPos)));
+    float rr = (particleRadius * particleRadius);
+    // distance between particle position  and silhouette center
+    float m =  rr / e;
+
+    vec3 distCenter = (m / e) * (cameraPos - particlePos);
+    sc = particlePos + distCenter;
+    sr = sqrt(rr * (1 - (rr / (e * e))));
+}
+
+layout (local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+void main() {
+    uint index = gl_GlobalInvocationID.x;
+
+    Particle particleIn = particlesIn[index];
+    vec3 pos = particleIn.PositionRadius.xyz;
+    float radius = particleIn.PositionRadius.w;
+
+    mat4 camVP = lightParams.ProjectionMatrix * lightParams.ViewMatrices[0];
+
+    vec3 sc = vec3(0.0, 0.0, 0.0);
+    float sr = 0.0;
+    CalculateSilhouette(pos, CamPosition, radius, sc, sr);
+
+    vec3 up = lightParams.InverseViewMatrices[0][1].xyz;
+    vec3 right = lightParams.InverseViewMatrices[0][0].xyz;
+    vec3 cornerPos = vec3(1.0);
+    vec4 unnormPos = vec4(1.0);
+
+    vec3 rMulUp = sr * up;
+    vec3 rMulRight = sr * right;
+
+    // calculate corner in World space
+    cornerPos = sc + rMulUp + rMulRight;
+    // bring corner to view space
+    unnormPos = camVP * vec4(cornerPos, 1.0);
+
+
+    SilhouetteVertex vertex;
+
+    //gl_Position = vec4(unnormPos.xyz / unnormPos.w, 1.0);
+    vertex.Position = cornerPos;
+    vertex.TextureCoordinate = vec2(1.0, 1.0);
+    vertex.CenterRadius = particleIn.PositionRadius;
+    vertex.Color = particleIn.Color;
+    particlesOut[index * 4] = vertex;
+
+
+    cornerPos = sc + rMulUp - rMulRight;
+    unnormPos = camVP * vec4(cornerPos, 1.0);
+
+    //gl_Position = vec4(unnormPos.xyz / unnormPos.w, 1.0);
+    vertex.Position = cornerPos;
+    vertex.TextureCoordinate = vec2(1.0, -1.0);
+    vertex.CenterRadius = particleIn.PositionRadius;
+    vertex.Color = particleIn.Color;
+    particlesOut[index * 4 + 1] = vertex;
+
+
+    cornerPos = sc - rMulUp + rMulRight;
+    unnormPos = Camera[0].VP * vec4(cornerPos, 1.0);
+
+    //gl_Position = vec4(unnormPos.xyz / unnormPos.w, 1.0);
+    SilhouetteCorner.Position = cornerPos;
+    vertex.TextureCoordinate = vec2(-1.0, 1.0);
+    vertex.CenterRadius = particleIn.PositionRadius;
+    vertex.Color = particleIn.Color;
+    particlesOut[index * 4 + 2] = vertex;
+
+
+    cornerPos = sc - rMulUp - rMulRight;
+    unnormPos = Camera[0].VP * vec4(cornerPos, 1.0);
+
+    //gl_Position = vec4(unnormPos.xyz / unnormPos.w, 1.0);
+    vertex.Position = cornerPos;
+    vertex.TextureCoordinate = vec2(-1.0, -1.0);
+    vertex.CenterRadius = particleIn.PositionRadius;
+    vertex.Color = particleIn.Color;
+    particlesOut[index * 4 + 3] = vertex;
+}
