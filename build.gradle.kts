@@ -21,7 +21,7 @@ repositories {
     mavenCentral()
     maven("https://maven.scijava.org/content/groups/public")
     maven("https://jitpack.io")
-//    mavenLocal()
+    mavenLocal()
 }
 
 val lwjglArtifacts = listOf(
@@ -110,9 +110,7 @@ dependencies {
 
     api("sc.fiji:bigdataviewer-core:10.4.10")
     api("sc.fiji:bigdataviewer-vistools:1.0.0-beta-28")
-    // TODO: Revert to official version once TriConsumer PR is merged in bigvolumeviewer-core
-    //api("sc.fiji:bigvolumeviewer:0.3.1") {
-    api("com.github.scenerygraphics:bigvolumeviewer-core:957acbe") {
+    api("sc.fiji:bigvolumeviewer:0.3.3") {
         exclude("org.jogamp.gluegen", "gluegen-rt")
         exclude("org.jogamp.jogl", "jogl-all")
     }

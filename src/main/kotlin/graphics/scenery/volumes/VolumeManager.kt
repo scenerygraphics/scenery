@@ -58,7 +58,7 @@ class VolumeManager(
     override var hub: Hub?,
     val useCompute: Boolean = false,
     val customSegments: Map<SegmentType, SegmentTemplate>? = null,
-    val customBindings: MultiVolumeShaderMip.TriConsumer? = null
+    val customBindings: MultiVolumeShaderMip.SegmentConsumer? = null
 ) : DefaultNode("VolumeManager"), HasGeometry, HasRenderable, HasMaterial, Hubable, RequestRepaint {
 
     /**
@@ -312,7 +312,7 @@ class VolumeManager(
 
         var triggered = false
         val additionalBindings = customBindings
-            ?: MultiVolumeShaderMip.TriConsumer { _: Map<SegmentType, SegmentTemplate>,
+            ?: MultiVolumeShaderMip.SegmentConsumer { _: Map<SegmentType, SegmentTemplate>,
                                                   segmentInstances: Map<SegmentType, Segment>,
                                                   volumeIndex: Int ->
                 logger.info("Connecting additional bindings")
