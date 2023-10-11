@@ -25,7 +25,8 @@ class ExampleRunner(
     private val clazz: Class<*>,
     private val clazzName: String,
     private val renderer: String,
-    private val pipeline: String
+    private val pipeline: String,
+    private val destroyInstance: Boolean
 ) {
     private val logger by lazyLogger()
 
@@ -39,6 +40,8 @@ class ExampleRunner(
         System.setProperty(Renderer.HEADLESS_PROPERTY_NAME, "true")
         System.setProperty("scenery.Renderer", renderer)
         System.setProperty("scenery.Renderer.Config", pipeline)
+
+        System.setProperty("scenery.Workarounds.DontCloseVulkanInstances", (!destroyInstance).toString().lowercase())
 
         val rendererDirectory = "$directoryName/$renderer-${pipeline.substringBefore(".")}"
         val instance: SceneryBase = clazz.getConstructor().newInstance() as SceneryBase
@@ -177,9 +180,16 @@ class ExampleRunner(
                 renderers.flatMap { renderer ->
                     configurations.map { config ->
                         logger.debug("Adding ${example.simpleName} with $renderer/$config")
-                        arrayOf(example, example.simpleName, renderer, config)
+                        arrayOf(example, example.simpleName, renderer, config, false)
                     }
                 }
+            }
+
+            configs.forEachIndexed { i, config ->
+                if(i % 4 == 0 || i == configs.size-1) {
+                    config[config.size-1] = true
+                }
+
             }
 
             logger.info("Discovered ${renderers.size} renderers with ${configurations.size} different pipelines, for ${examples.size} examples from group $testGroup, resulting in ${configs.size} run configurations.")
