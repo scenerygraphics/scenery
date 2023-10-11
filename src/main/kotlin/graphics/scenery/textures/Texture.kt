@@ -45,13 +45,13 @@ open class Texture @JvmOverloads constructor(
     /** Usage type */
     val usageType: HashSet<UsageType> = hashSetOf(UsageType.Texture),
     /** Mutex for texture data usage */
-    val mutex: Semaphore = Semaphore(1),
+    @Transient val mutex: Semaphore = Semaphore(1),
     /** Mutex for GPU upload */
-    val gpuMutex: Semaphore = Semaphore(1),
+    @Transient val gpuMutex: Semaphore = Semaphore(1),
     /** Atomic integer to indicate GPU upload state */
-    val uploaded: AtomicInteger = AtomicInteger(0),
+    @Transient val uploaded: AtomicInteger = AtomicInteger(0),
     /** Hash set to indicate the state of the texture */
-    val state: MutableSet<TextureState> = Collections.synchronizedSet(hashSetOf(TextureState.Created))
+    @Transient val state: MutableSet<TextureState> = Collections.synchronizedSet(hashSetOf(TextureState.Created))
 ) : Serializable, Timestamped {
 
     enum class TextureState {
