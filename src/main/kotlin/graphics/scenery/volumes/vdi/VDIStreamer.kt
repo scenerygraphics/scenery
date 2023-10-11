@@ -110,60 +110,70 @@ class VDIStreamer {
 
                 if (vdiColorBuffer!!.remaining() != colorSize || vdiDepthBuffer!!.remaining() != depthSize || gridCellsBuff!!.remaining() != accelSize) {
                     logger.warn("Skipping transmission this frame due to inconsistency in buffer size")
-                }
-
-                if (compressedColor == null) {
-                    compressedColor =
-                        MemoryUtil.memAlloc(compressor.returnCompressBound(colorSize.toLong(), compressionTool))
-                }
-
-                val compressedColorLength = compressor.compress(compressedColor!!, vdiColorBuffer!!, 3, compressionTool)
-                compressedColor!!.limit(compressedColorLength.toInt())
-                vdiData.bufferSizes.colorSize = compressedColorLength
-
-                if (compressedDepth == null) {
-                    compressedDepth =
-                        MemoryUtil.memAlloc(compressor.returnCompressBound(depthSize.toLong(), compressionTool))
-                }
-
-                val compressedDepthLength = compressor.compress(compressedDepth!!, vdiDepthBuffer!!, 3, compressionTool)
-                compressedDepth!!.limit(compressedDepthLength.toInt())
-                vdiData.bufferSizes.depthSize = compressedDepthLength
-
-                val metadataOut = ByteArrayOutputStream()
-                VDIDataIO.write(vdiData, metadataOut)
-
-                val metadataBytes = metadataOut.toByteArray()
-                logger.info("Size of VDI data is: ${metadataBytes.size}")
-
-                val vdiDataSize = metadataBytes.size.toString().toByteArray(Charsets.US_ASCII)
-
-                var messageLength = vdiDataSize.size + metadataBytes.size + compressedColor!!.remaining()
-                messageLength += compressedDepth!!.remaining()
-                messageLength += accelSize as Int
-
-                val message = ByteArray(messageLength)
-                vdiDataSize.copyInto(message)
-
-                metadataBytes.copyInto(message, vdiDataSize.size)
-
-                compressedColor!!.slice().get(message, vdiDataSize.size + metadataBytes.size, compressedColor!!.remaining())
-                compressedDepth!!.slice().get(message,vdiDataSize.size + metadataBytes.size + compressedColor!!.remaining(), compressedDepth!!.remaining())
-
-                vdiData.bufferSizes.accelGridSize = accelSize.toLong()
-
-                gridCellsBuff!!.get(message, vdiDataSize.size + metadataBytes.size + compressedColor!!.remaining() +
-                        compressedDepth!!.remaining(), gridCellsBuff!!.remaining())
-                gridCellsBuff!!.flip()
-
-                compressedDepth!!.limit(compressedDepth!!.capacity())
-                compressedColor!!.limit(compressedColor!!.capacity())
-
-                val sent = publisher.send(message)
-                if (!sent) {
-                    logger.warn("There was a ZeroMQ error in queuing the VDI")
                 } else {
-                    vdisStreamed += 1
+
+                    if (compressedColor == null) {
+                        compressedColor =
+                            MemoryUtil.memAlloc(compressor.returnCompressBound(colorSize.toLong(), compressionTool))
+                    }
+
+                    val compressedColorLength =
+                        compressor.compress(compressedColor!!, vdiColorBuffer!!, 3, compressionTool)
+                    compressedColor!!.limit(compressedColorLength.toInt())
+                    vdiData.bufferSizes.colorSize = compressedColorLength
+
+                    if (compressedDepth == null) {
+                        compressedDepth =
+                            MemoryUtil.memAlloc(compressor.returnCompressBound(depthSize.toLong(), compressionTool))
+                    }
+
+                    val compressedDepthLength =
+                        compressor.compress(compressedDepth!!, vdiDepthBuffer!!, 3, compressionTool)
+                    compressedDepth!!.limit(compressedDepthLength.toInt())
+                    vdiData.bufferSizes.depthSize = compressedDepthLength
+
+                    val metadataOut = ByteArrayOutputStream()
+                    VDIDataIO.write(vdiData, metadataOut)
+
+                    val metadataBytes = metadataOut.toByteArray()
+                    logger.info("Size of VDI data is: ${metadataBytes.size}")
+
+                    val vdiDataSize = metadataBytes.size.toString().toByteArray(Charsets.US_ASCII)
+
+                    var messageLength = vdiDataSize.size + metadataBytes.size + compressedColor!!.remaining()
+                    messageLength += compressedDepth!!.remaining()
+                    messageLength += accelSize as Int
+
+                    val message = ByteArray(messageLength)
+                    vdiDataSize.copyInto(message)
+
+                    metadataBytes.copyInto(message, vdiDataSize.size)
+
+                    compressedColor!!.slice()
+                        .get(message, vdiDataSize.size + metadataBytes.size, compressedColor!!.remaining())
+                    compressedDepth!!.slice().get(
+                        message,
+                        vdiDataSize.size + metadataBytes.size + compressedColor!!.remaining(),
+                        compressedDepth!!.remaining()
+                    )
+
+                    vdiData.bufferSizes.accelGridSize = accelSize.toLong()
+
+                    gridCellsBuff!!.get(
+                        message, vdiDataSize.size + metadataBytes.size + compressedColor!!.remaining() +
+                            compressedDepth!!.remaining(), gridCellsBuff!!.remaining()
+                    )
+                    gridCellsBuff!!.flip()
+
+                    compressedDepth!!.limit(compressedDepth!!.capacity())
+                    compressedColor!!.limit(compressedColor!!.capacity())
+
+                    val sent = publisher.send(message)
+                    if (!sent) {
+                        logger.warn("There was a ZeroMQ error in queuing the VDI")
+                    } else {
+                        vdisStreamed += 1
+                    }
                 }
             }
             firstFrame = false
