@@ -4,9 +4,12 @@ import graphics.scenery.*
 import org.joml.Vector3f
 import graphics.scenery.backends.Renderer
 import graphics.scenery.attribute.material.Material
+import graphics.scenery.compute.ComputeMetadata
+import graphics.scenery.compute.InvocationType
 import graphics.scenery.primitives.Plane
 import graphics.scenery.textures.Texture
 import graphics.scenery.textures.UpdatableTexture
+import graphics.scenery.utils.Image
 import graphics.scenery.utils.RingBuffer
 import graphics.scenery.volumes.Volume
 import net.imglib2.type.numeric.integer.UnsignedByteType
@@ -22,9 +25,9 @@ import kotlin.time.Duration.Companion.nanoseconds
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class AsyncTextureExample: SceneryBase("Async Texture example", 1280, 720) {
+class AsyncTextureExample: SceneryBase("Async Texture example", 512, 512) {
     lateinit var volume: Volume
-    private val size = Vector3i(512,1024,1024)
+    private val size = Vector3i(windowWidth,windowHeight,512)
     var previous = 0L
     var frametimes = ArrayList<Int>()
 
@@ -65,6 +68,26 @@ class AsyncTextureExample: SceneryBase("Async Texture example", 1280, 720) {
         Light.createLightTetrahedron<PointLight>(spread = 4.0f, radius = 15.0f, intensity = 0.5f)
             .forEach { scene.addChild(it) }
 
+        val buffer = MemoryUtil.memCalloc(windowWidth * windowHeight * 4)
+
+        val compute = RichNode()
+        compute.name = "compute node"
+        val computeTexture = Texture.fromImage(
+            Image(buffer, windowWidth, windowHeight, 1),
+            usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
+        compute.setMaterial(ShaderMaterial.fromFiles(this::class.java, "CheckDataForAsyncExample.comp")) {
+            textures["OutputViewport"] = computeTexture
+        }
+        compute.metadata["ComputeMetadata"] = ComputeMetadata(
+            workSizes = Vector3i(windowWidth, windowHeight, 1),
+            invocationType = InvocationType.Permanent
+        )
+
+        scene.addChild(compute)
+
+        val plane = FullscreenObject()
+        plane.material().textures["diffuse"] = compute.material().textures["OutputViewport"]!!
+        scene.addChild(plane)
 
         // We create textures and backing buffers separately,
         // as UpdatableTexture are supposed to have contents = null at the moment
@@ -79,7 +102,12 @@ class AsyncTextureExample: SceneryBase("Async Texture example", 1280, 720) {
         })
 
         val backing = RingBuffer(2, cleanup = null, default = {
-            MemoryUtil.memAlloc(size.x*size.y*size.z)
+            val mem = MemoryUtil.memAlloc(size.x*size.y*size.z)
+            while (mem.remaining() > 0) {
+                mem.put((it * 63).toByte())
+            }
+            mem.flip()
+            mem
         })
 
         thread {
@@ -103,7 +131,7 @@ class AsyncTextureExample: SceneryBase("Async Texture example", 1280, 720) {
                 texture.addUpdate(update)
 
                 // Reassigning the texture here, together with its one update
-                p.material().textures["humongous"] = texture
+                compute.material().textures["humongous"] = texture
 
                 val waitTime = measureTimeMillis {
                     // Here, we wait until the texture is marked as available on the GPU
