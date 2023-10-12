@@ -750,7 +750,7 @@ open class VulkanTexture(val device: VulkanDevice,
     }
 
     override fun toString(): String {
-        return "VulkanTexture on $device (${this.image.image.toHexString()}, ${width}x${height}x$depth, format=${this.format.formatToString()}, mipLevels=${mipLevels}, gt=${this.gt != null} minFilter=${this.minFilterLinear} maxFilter=${this.maxFilterLinear})"
+        return "VulkanTexture on $device (${this.image?.image?.toHexString()}, ${width}x${height}x$depth, format=${this.format.formatToString()}, mipLevels=${mipLevels}, gt=${this.gt != null} minFilter=${this.minFilterLinear} maxFilter=${this.maxFilterLinear})"
     }
 
     /**
