@@ -1,6 +1,8 @@
 package graphics.scenery.backends.vulkan
 
 import graphics.scenery.utils.lazyLogger
+import org.lwjgl.system.MemoryStack
+import org.lwjgl.system.MemoryStack.stackPush
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.system.Struct
 import org.lwjgl.vulkan.*
@@ -541,8 +543,8 @@ open class VulkanFramebuffer(protected val device: VulkanDevice,
     /**
      * Gets a Vulkan attachment description from the current framebuffer state.
      */
-    protected fun getAttachmentDescBuffer(): VkAttachmentDescription.Buffer {
-        val descriptionBuffer = VkAttachmentDescription.calloc(attachments.size)
+    protected fun getAttachmentDescBuffer(stack: MemoryStack): VkAttachmentDescription.Buffer {
+        val descriptionBuffer = VkAttachmentDescription.calloc(attachments.size, stack)
         attachments.values.forEach{ descriptionBuffer.put(it.desc) }
 
         return descriptionBuffer.flip()
@@ -551,8 +553,8 @@ open class VulkanFramebuffer(protected val device: VulkanDevice,
     /**
      * Gets all the image views of the current framebuffer.
      */
-    protected fun getAttachmentImageViews(): LongBuffer {
-        val ivBuffer = memAllocLong(attachments.size)
+    protected fun getAttachmentImageViews(stack: MemoryStack): LongBuffer {
+        val ivBuffer = stack.callocLong(attachments.size)
         attachments.values.forEach{ ivBuffer.put(it.imageView.get(0)) }
 
         ivBuffer.flip()
@@ -565,142 +567,123 @@ open class VulkanFramebuffer(protected val device: VulkanDevice,
      * framebuffer.
      */
     fun createRenderpassAndFramebuffer() {
-        val colorDescs = VkAttachmentReference.calloc(attachments.filter { it.value.type == VulkanFramebufferType.COLOR_ATTACHMENT }.size)
+        stackPush().use { stack ->
+            val colorDescs =
+                VkAttachmentReference.calloc(attachments.filter { it.value.type == VulkanFramebufferType.COLOR_ATTACHMENT }.size, stack)
 
-        attachments.values.filter { it.type == VulkanFramebufferType.COLOR_ATTACHMENT }.forEachIndexed { i, _ ->
-            colorDescs[i]
-                .attachment(i)
-                .layout(VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL)
+            attachments.values.filter { it.type == VulkanFramebufferType.COLOR_ATTACHMENT }.forEachIndexed { i, _ ->
+                colorDescs[i]
+                    .attachment(i)
+                    .layout(VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL)
+            }
+
+            val depthDescs: VkAttachmentReference? =
+                if(attachments.any { it.value.type == VulkanFramebufferType.DEPTH_ATTACHMENT }) {
+                    VkAttachmentReference.calloc(stack)
+                        .attachment(colorDescs.limit())
+                        .layout(VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
+                } else {
+                    null
+                }
+
+
+            logger.trace("Subpass for has ${colorDescs.remaining()} color attachments")
+
+            val subpass = VkSubpassDescription.calloc(1, stack)
+                .pColorAttachments(colorDescs)
+                .colorAttachmentCount(colorDescs.remaining())
+                .pDepthStencilAttachment(depthDescs)
+                .pipelineBindPoint(VK_PIPELINE_BIND_POINT_GRAPHICS)
+                .pInputAttachments(null)
+                .pPreserveAttachments(null)
+                .pResolveAttachments(null)
+                .flags(0)
+
+            val dependencyChain = VkSubpassDependency.calloc(2, stack)
+
+            dependencyChain[0]
+                .srcSubpass(VK_SUBPASS_EXTERNAL)
+                .dstSubpass(0)
+                .srcStageMask(VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT)
+                .dstStageMask(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT or VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT or VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT)
+                .srcAccessMask(VK_ACCESS_MEMORY_READ_BIT)
+                .dstAccessMask(VK_ACCESS_COLOR_ATTACHMENT_READ_BIT or VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT or VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT or VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT)
+
+            dependencyChain[1]
+                .srcSubpass(0)
+                .dstSubpass(VK_SUBPASS_EXTERNAL)
+                .srcStageMask(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT or VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT or VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT)
+                .dstStageMask(VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT or VK_PIPELINE_STAGE_TRANSFER_BIT or VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT or VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT)
+                .srcAccessMask(VK_ACCESS_COLOR_ATTACHMENT_READ_BIT or VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT or VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT or VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT)
+                .dstAccessMask(VK_ACCESS_MEMORY_READ_BIT or VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT or VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT or VK_ACCESS_SHADER_READ_BIT)
+
+            if(!attachments.any { it.value.fromSwapchain }) {
+                dependencyChain[0].dependencyFlags(VK_DEPENDENCY_BY_REGION_BIT)
+                dependencyChain[1].dependencyFlags(VK_DEPENDENCY_BY_REGION_BIT)
+            }
+
+            val attachmentDescs = getAttachmentDescBuffer(stack)
+            val renderPassInfo = VkRenderPassCreateInfo.calloc(stack)
+                .sType(VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO)
+                .pAttachments(attachmentDescs)
+                .pSubpasses(subpass)
+                .pDependencies(dependencyChain)
+                .pNext(NULL)
+
+            renderPass.put(
+                0, VU.getLong("create renderpass",
+                              { vkCreateRenderPass(device.vulkanDevice, renderPassInfo, null, this) },
+                              { })
+            )
+
+            logger.trace("Created renderpass ${renderPass.get(0)}")
+
+            val attachmentImageViews = getAttachmentImageViews(stack)
+            val fbinfo = VkFramebufferCreateInfo.calloc(stack)
+                .default()
+                .renderPass(renderPass.get(0))
+                .pAttachments(attachmentImageViews)
+                .width(width)
+                .height(height)
+                .layers(1)
+
+            framebuffer.put(
+                0, VU.getLong("create framebuffer",
+                              { vkCreateFramebuffer(device.vulkanDevice, fbinfo, null, this) },
+                              { })
+            )
+
+            outputDescriptorSetLayout = device.createDescriptorSetLayout(
+                descriptorNum = attachments.count(),
+                descriptorCount = 1,
+                type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
+            )
+
+            outputDescriptorSet = device.createRenderTargetDescriptorSet(
+                outputDescriptorSetLayout,
+                this
+            )
+
+            logger.debug("Created sampling DSL ${outputDescriptorSetLayout.toHexString()} and DS ${outputDescriptorSet.toHexString()} for framebuffer")
+
+            imageLoadStoreDescriptorSetLayout = device.createDescriptorSetLayout(
+                descriptorNum = attachments.count { it.value.loadStoreDescriptorSet != null },
+                descriptorCount = 1,
+                type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE
+            )
+
+            imageLoadStoreDescriptorSet = device.createRenderTargetDescriptorSet(
+                imageLoadStoreDescriptorSetLayout,
+                this,
+                imageLoadStore = true,
+                onlyFor = attachments.values.filter { it.loadStoreDescriptorSet != null }
+            )
+
+            logger.debug("Created load/store DSL ${imageLoadStoreDescriptorSetLayout.toHexString()} and DS ${imageLoadStoreDescriptorSet.toHexString()} for framebuffer")
+
+
+            initialized = true
         }
-
-        val depthDescs: VkAttachmentReference? = if(attachments.any { it.value.type == VulkanFramebufferType.DEPTH_ATTACHMENT }) {
-            VkAttachmentReference.calloc()
-                .attachment(colorDescs.limit())
-                .layout(VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
-        } else {
-            null
-        }
-
-
-        logger.trace("Subpass for has ${colorDescs.remaining()} color attachments")
-
-        val subpass = VkSubpassDescription.calloc(1)
-            .pColorAttachments(colorDescs)
-            .colorAttachmentCount(colorDescs.remaining())
-            .pDepthStencilAttachment(depthDescs)
-            .pipelineBindPoint(VK_PIPELINE_BIND_POINT_GRAPHICS)
-            .pInputAttachments(null)
-            .pPreserveAttachments(null)
-            .pResolveAttachments(null)
-            .flags(0)
-
-        val dependencyChain = VkSubpassDependency.calloc(2)
-
-//        dependencyChain[0]
-//            .srcSubpass(VK_SUBPASS_EXTERNAL)
-//            .dstSubpass(0)
-//            .srcStageMask(VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT or VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT or VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT)
-//            .srcAccessMask(0)
-//            .dstStageMask(VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT)
-//            .dstAccessMask(VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT)
-//
-//        dependencyChain[1]
-//            .srcSubpass(0)
-//            .dstSubpass(VK_SUBPASS_EXTERNAL)
-//            .srcStageMask(VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT or VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT)
-//            .srcAccessMask(VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT or VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT or VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT or VK_ACCESS_COLOR_ATTACHMENT_READ_BIT)
-//            .dstStageMask(VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT)
-//            .dstAccessMask(VK_ACCESS_SHADER_READ_BIT)
-
-        dependencyChain[0]
-            .srcSubpass(VK_SUBPASS_EXTERNAL)
-            .dstSubpass(0)
-            .srcStageMask(VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT)
-            .dstStageMask(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT or VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT or VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT)
-            .srcAccessMask(VK_ACCESS_MEMORY_READ_BIT)
-            .dstAccessMask(VK_ACCESS_COLOR_ATTACHMENT_READ_BIT or VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT or VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT or VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT)
-//        .dependencyFlags(VK_DEPENDENCY_BY_REGION_BIT)
-
-        dependencyChain[1]
-            .srcSubpass(0)
-            .dstSubpass(VK_SUBPASS_EXTERNAL)
-            .srcStageMask(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT or VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT or VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT)
-            .dstStageMask(VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT or VK_PIPELINE_STAGE_TRANSFER_BIT or VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT or VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT)
-            .srcAccessMask(VK_ACCESS_COLOR_ATTACHMENT_READ_BIT or VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT  or VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT or VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT)
-            .dstAccessMask(VK_ACCESS_MEMORY_READ_BIT or VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT or VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT or VK_ACCESS_SHADER_READ_BIT)
-//        .dependencyFlags(VK_DEPENDENCY_BY_REGION_BIT)
-
-        if(!attachments.any { it.value.fromSwapchain }) {
-            dependencyChain[0].dependencyFlags(VK_DEPENDENCY_BY_REGION_BIT)
-            dependencyChain[1].dependencyFlags(VK_DEPENDENCY_BY_REGION_BIT)
-        }
-
-        val attachmentDescs = getAttachmentDescBuffer()
-        val renderPassInfo = VkRenderPassCreateInfo.calloc()
-            .sType(VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO)
-            .pAttachments(attachmentDescs)
-            .pSubpasses(subpass)
-            .pDependencies(dependencyChain)
-            .pNext(NULL)
-
-        renderPass.put(0, VU.getLong("create renderpass",
-            { vkCreateRenderPass(device.vulkanDevice, renderPassInfo, null, this) },
-            { }))
-
-        logger.trace("Created renderpass ${renderPass.get(0)}")
-
-        val attachmentImageViews = getAttachmentImageViews()
-        val fbinfo = VkFramebufferCreateInfo.calloc()
-            .default()
-            .renderPass(renderPass.get(0))
-            .pAttachments(attachmentImageViews)
-            .width(width)
-            .height(height)
-            .layers(1)
-
-        framebuffer.put(0, VU.getLong("create framebuffer",
-            { vkCreateFramebuffer(device.vulkanDevice, fbinfo, null, this) },
-            { }))
-
-        outputDescriptorSetLayout = device.createDescriptorSetLayout(
-            descriptorNum = attachments.count(),
-            descriptorCount = 1,
-            type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
-        )
-
-        outputDescriptorSet = device.createRenderTargetDescriptorSet(
-            outputDescriptorSetLayout,
-            this
-        )
-
-        logger.debug("Created sampling DSL ${outputDescriptorSetLayout.toHexString()} and DS ${outputDescriptorSet.toHexString()} for framebuffer")
-
-        imageLoadStoreDescriptorSetLayout = device.createDescriptorSetLayout(
-            descriptorNum = attachments.count { it.value.loadStoreDescriptorSet != null },
-            descriptorCount = 1,
-            type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE
-        )
-
-        imageLoadStoreDescriptorSet = device.createRenderTargetDescriptorSet(
-            imageLoadStoreDescriptorSetLayout,
-            this,
-            imageLoadStore = true,
-            onlyFor = attachments.values.filter { it.loadStoreDescriptorSet != null }
-        )
-
-        logger.debug("Created load/store DSL ${imageLoadStoreDescriptorSetLayout.toHexString()} and DS ${imageLoadStoreDescriptorSet.toHexString()} for framebuffer")
-
-
-        fbinfo.free();
-        memFree(attachmentImageViews);
-        attachmentDescs.free()
-
-        renderPassInfo.free()
-        subpass.free()
-        colorDescs.free()
-        depthDescs?.free()
-
-        initialized = true
     }
 
     /**
