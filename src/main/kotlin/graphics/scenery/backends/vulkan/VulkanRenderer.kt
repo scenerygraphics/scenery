@@ -24,6 +24,7 @@ import org.lwjgl.vulkan.EXTDebugReport.*
 import org.lwjgl.vulkan.EXTDebugUtils.*
 import org.lwjgl.vulkan.KHRSurface.VK_KHR_SURFACE_EXTENSION_NAME
 import org.lwjgl.vulkan.KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+import org.lwjgl.vulkan.KHRSwapchain.VK_KHR_SWAPCHAIN_EXTENSION_NAME
 import org.lwjgl.vulkan.KHRWin32Surface.VK_KHR_WIN32_SURFACE_EXTENSION_NAME
 import org.lwjgl.vulkan.KHRXlibSurface.VK_KHR_XLIB_SURFACE_EXTENSION_NAME
 import org.lwjgl.vulkan.MVKMacosSurface.VK_MVK_MACOS_SURFACE_EXTENSION_NAME
@@ -514,7 +515,9 @@ open class VulkanRenderer(hub: Hub,
                         stack.UTF8(EXTMetalSurface.VK_EXT_METAL_SURFACE_EXTENSION_NAME)
                     )
                 } else {
-                    null
+                    stack.pointers(
+                        stack.UTF8(VK_KHR_SURFACE_EXTENSION_NAME)
+                    )
                 }
 
                 createInstance(
@@ -577,7 +580,7 @@ open class VulkanRenderer(hub: Hub,
 
             device = VulkanDevice.fromPhysicalDevice(instance,
                 physicalDeviceFilter = { _, device -> "${device.vendor} ${device.name}".contains(System.getProperty("scenery.Renderer.Device", "DOES_NOT_EXIST"))},
-                additionalExtensions = { physicalDevice -> hub.getWorkingHMDDisplay()?.getVulkanDeviceExtensions(physicalDevice)?.toMutableList() ?: mutableListOf() },
+                additionalExtensions = { physicalDevice -> hub.getWorkingHMDDisplay()?.getVulkanDeviceExtensions(physicalDevice)?.toMutableList() ?: mutableListOf(VK_KHR_SWAPCHAIN_EXTENSION_NAME) },
                 validationLayers = requestedValidationLayers,
                 headless = headless,
                 debugEnabled = validation
