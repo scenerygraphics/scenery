@@ -844,6 +844,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
         logger.debug("Closing renderpass $name...")
         output.forEach { it.value.close() }
         configuredPipelines.forEach { it.value.close() }
+        pipelines.forEach { (_, pipeline) -> pipeline.close() }
         pipelines.clear()
         UBOs.forEach { it.value.close() }
         ownDescriptorSetLayouts.forEach {

@@ -11,6 +11,7 @@ import org.lwjgl.system.MemoryUtil.memFree
 import org.lwjgl.system.Platform
 import org.lwjgl.vulkan.KHRSurface
 import org.lwjgl.vulkan.KHRSwapchain
+import org.lwjgl.vulkan.VK10.vkQueueWaitIdle
 import org.lwjgl.vulkan.VkQueue
 import org.lwjgl.vulkan.awt.AWTVK
 import java.awt.BorderLayout
@@ -69,8 +70,6 @@ open class SwingSwapchain(override val device: VulkanDevice,
             frame.addWindowListener(object : WindowAdapter() {
                 override fun windowClosing(e: WindowEvent?) {
                     super.windowClosing(e)
-
-                    KHRSurface.vkDestroySurfaceKHR(device.instance, surface, null)
                 }
 
             })
@@ -145,8 +144,12 @@ open class SwingSwapchain(override val device: VulkanDevice,
      * Closes the swapchain, deallocating all of its resources.
      */
     override fun close() {
-        logger.debug("Closing swapchain {}", this)
+        vkQueueWaitIdle(presentQueue)
+
+        closeSyncPrimitives()
+        logger.debug("Closing swapchain {} with handle {}", this, handle.toHexString())
         KHRSwapchain.vkDestroySwapchainKHR(device.vulkanDevice, handle, null)
+        KHRSurface.vkDestroySurfaceKHR(device.instance, surface, null)
 
         (sceneryPanel as? SceneryJPanel)?.remove(0)
         presentInfo.free()

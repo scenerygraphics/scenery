@@ -585,10 +585,10 @@ open class VulkanSwapchain(open val device: VulkanDevice,
         imageRenderedSemaphores.forEach { device.removeSemaphore(it) }
         imageRenderedSemaphores.clear()
 
-        fences.forEach { VK10.vkDestroyFence(device.vulkanDevice, it, null) }
+        fences.forEach { vkDestroyFence(device.vulkanDevice, it, null) }
         fences.clear()
 
-        imageUseFences.forEach { VK10.vkDestroyFence(device.vulkanDevice, it, null) }
+        imageUseFences.forEach { vkDestroyFence(device.vulkanDevice, it, null) }
         imageUseFences.clear()
     }
 
@@ -599,24 +599,15 @@ open class VulkanSwapchain(open val device: VulkanDevice,
         vkQueueWaitIdle(presentQueue)
         vkQueueWaitIdle(queue)
 
-        logger.debug("Closing swapchain $this")
+        logger.debug("Closing swapchain {}", this)
         KHRSwapchain.vkDestroySwapchainKHR(device.vulkanDevice, handle, null)
         vkDestroySurfaceKHR(device.instance, surface, null)
 
-        imageAvailableSemaphores.forEach { device.removeSemaphore(it) }
-        imageAvailableSemaphores.clear()
-        imageRenderedSemaphores.forEach { device.removeSemaphore(it) }
-        imageRenderedSemaphores.clear()
-
-        fences.forEach { vkDestroyFence(device.vulkanDevice, it, null) }
-        fences.clear()
-
-        imageUseFences.forEach { vkDestroyFence(device.vulkanDevice, it, null) }
-        imageUseFences.clear()
+        closeSyncPrimitives()
 
         presentInfo.free()
-        MemoryUtil.memFree(swapchainImage)
-        MemoryUtil.memFree(swapchainPointer)
+        memFree(swapchainImage)
+        memFree(swapchainPointer)
 
         windowSizeCallback.close()
         (window as SceneryWindow.GLFWWindow?)?.let { window ->
