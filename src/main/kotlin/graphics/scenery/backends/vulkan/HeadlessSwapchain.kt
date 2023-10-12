@@ -9,7 +9,7 @@ import graphics.scenery.utils.SceneryPanel
 import org.lwjgl.system.MemoryStack
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.vulkan.*
-import org.lwjgl.vulkan.VK10.vkQueueWaitIdle
+import org.lwjgl.vulkan.VK10.*
 import java.nio.ByteBuffer
 import java.nio.LongBuffer
 
@@ -29,6 +29,7 @@ open class HeadlessSwapchain(device: VulkanDevice,
     protected var initialized = false
     protected lateinit var sharingBuffer: VulkanBuffer
     protected lateinit var imageBuffer: ByteBuffer
+    protected lateinit var imageMemory: LongArray
 
     protected var imagePanel: SceneryPanel? = null
 
@@ -110,9 +111,9 @@ open class HeadlessSwapchain(device: VulkanDevice,
         }
 
         val format = if(useSRGB) {
-            VK10.VK_FORMAT_B8G8R8A8_SRGB
+            VK_FORMAT_B8G8R8A8_SRGB
         } else {
-            VK10.VK_FORMAT_B8G8R8A8_UNORM
+            VK_FORMAT_B8G8R8A8_UNORM
         }
         presentQueue = VU.createDeviceQueue(device, device.queues.graphicsQueue.first)
 
@@ -120,8 +121,8 @@ open class HeadlessSwapchain(device: VulkanDevice,
             val t = VulkanTexture(device, commandPools, queue, queue, window.width, window.height, 1,
                 format, 1)
             val image = t.createImage(window.width, window.height, 1, format,
-                VK10.VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT or VK10.VK_IMAGE_USAGE_TRANSFER_SRC_BIT or VK10.VK_IMAGE_USAGE_SAMPLED_BIT,
-                VK10.VK_IMAGE_TILING_OPTIMAL, VK10.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 1)
+                VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT or VK_IMAGE_USAGE_TRANSFER_SRC_BIT or VK_IMAGE_USAGE_SAMPLED_BIT,
+                VK_IMAGE_TILING_OPTIMAL, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 1)
             t to image
         }
 
@@ -133,15 +134,20 @@ open class HeadlessSwapchain(device: VulkanDevice,
             it.first.createImageView(it.second, format)
         }.toLongArray()
 
+        imageMemory = textureImages.map {
+            it.second.memory
+        }.toLongArray()
+
+
         val fenceCreateInfo = VkFenceCreateInfo.calloc()
-            .sType(VK10.VK_STRUCTURE_TYPE_FENCE_CREATE_INFO)
+            .sType(VK_STRUCTURE_TYPE_FENCE_CREATE_INFO)
 
         images.forEach { _ ->
             imageAvailableSemaphores.add(this@HeadlessSwapchain.device.createSemaphore())
             imageRenderedSemaphores.add(this@HeadlessSwapchain.device.createSemaphore())
 
-            fences.add(VU.getLong("Swapchain image fence", { VK10.vkCreateFence(this@HeadlessSwapchain.device.vulkanDevice, fenceCreateInfo, null, this) }, {}))
-            imageUseFences.add(VU.getLong("Swapchain image usage fence", { VK10.vkCreateFence(this@HeadlessSwapchain.device.vulkanDevice, fenceCreateInfo, null, this) }, {}))
+            fences.add(VU.getLong("Swapchain image fence", { vkCreateFence(this@HeadlessSwapchain.device.vulkanDevice, fenceCreateInfo, null, this) }, {}))
+            imageUseFences.add(VU.getLong("Swapchain image usage fence", { vkCreateFence(this@HeadlessSwapchain.device.vulkanDevice, fenceCreateInfo, null, this) }, {}))
             inFlight.add(null)
         }
 
@@ -150,10 +156,10 @@ open class HeadlessSwapchain(device: VulkanDevice,
         val imageByteSize = window.width * window.height * 4L
         imageBuffer = MemoryUtil.memAlloc(imageByteSize.toInt())
         sharingBuffer = VulkanBuffer(device,
-            imageByteSize,
-            VK10.VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-            VK10.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK10.VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-            wantAligned = true)
+                                     imageByteSize,
+                                     VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                                     wantAligned = true)
 
         imagePanel?.setPreferredDimensions(window.width, window.height)
 
@@ -163,6 +169,7 @@ open class HeadlessSwapchain(device: VulkanDevice,
         initialized = true
 
         fenceCreateInfo.free()
+        textureImages.forEach { (t, _) -> t.close()}
 
         return this
     }
@@ -174,7 +181,7 @@ open class HeadlessSwapchain(device: VulkanDevice,
      */
     override fun next(timeout: Long): Pair<Long, Long>? {
         MemoryStack.stackPush().use { stack ->
-            VK10.vkQueueWaitIdle(presentQueue)
+            vkQueueWaitIdle(presentQueue)
 
             val signal = stack.mallocLong(1)
             signal.put(0, imageAvailableSemaphores[currentImage])
@@ -198,7 +205,7 @@ open class HeadlessSwapchain(device: VulkanDevice,
             }
 
             val mask = stack.callocInt(1)
-            mask.put(0, VK10.VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT)
+            mask.put(0, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT)
 
             with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
                 endCommandBuffer(this@HeadlessSwapchain.device, commandPools.Standard, presentQueue,
@@ -220,7 +227,7 @@ open class HeadlessSwapchain(device: VulkanDevice,
 
         with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
             val subresource = VkImageSubresourceLayers.calloc()
-                .aspectMask(VK10.VK_IMAGE_ASPECT_COLOR_BIT)
+                .aspectMask(VK_IMAGE_ASPECT_COLOR_BIT)
                 .mipLevel(0)
                 .baseArrayLayer(0)
                 .layerCount(1)
@@ -235,29 +242,29 @@ open class HeadlessSwapchain(device: VulkanDevice,
             val transferImage = images[image]
 
             VulkanTexture.transitionLayout(transferImage,
-                KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-                VK10.VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                srcStage = VK10.VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-                dstStage = VK10.VK_PIPELINE_STAGE_TRANSFER_BIT,
-                commandBuffer = this)
+                                           KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                                           VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                                           srcStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                                           dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                           commandBuffer = this)
 
-            VK10.vkCmdCopyImageToBuffer(this, transferImage,
-                VK10.VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                sharingBuffer.vulkanBuffer,
-                regions)
+            vkCmdCopyImageToBuffer(this, transferImage,
+                                   VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                                   sharingBuffer.vulkanBuffer,
+                                   regions)
 
             VulkanTexture.transitionLayout(transferImage,
-                VK10.VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-                srcStage = VK10.VK_PIPELINE_STAGE_TRANSFER_BIT,
-                dstStage = VK10.VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-                commandBuffer = this)
+                                           VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                                           KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                                           srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                           dstStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                                           commandBuffer = this)
 
             endCommandBuffer(this@HeadlessSwapchain.device, commandPools.Standard, queue,
                 flush = true, dealloc = true)
         }
 
-        VK10.vkQueueWaitIdle(queue)
+        vkQueueWaitIdle(queue)
 
         resizeHandler.queryResize()
         currentImage = (currentImage + 1) % images.size
@@ -300,6 +307,15 @@ open class HeadlessSwapchain(device: VulkanDevice,
         MemoryUtil.memFree(imageBuffer)
 
         closeSyncPrimitives()
+
+        images.forEach { image ->
+            vkDestroyImage(device.vulkanDevice, image, null)
+        }
+
+        imageMemory.forEach { memory ->
+            vkFreeMemory(device.vulkanDevice, memory, null)
+        }
+
 
         sharingBuffer.close()
     }
