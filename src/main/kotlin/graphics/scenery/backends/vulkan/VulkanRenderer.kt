@@ -514,7 +514,9 @@ open class VulkanRenderer(hub: Hub,
                         stack.UTF8(EXTMetalSurface.VK_EXT_METAL_SURFACE_EXTENSION_NAME)
                     )
                 } else {
-                    null
+                    stack.pointers(
+                        stack.UTF8(VK_KHR_SURFACE_EXTENSION_NAME)
+                    )
                 }
 
                 createInstance(
@@ -577,7 +579,7 @@ open class VulkanRenderer(hub: Hub,
 
             device = VulkanDevice.fromPhysicalDevice(instance,
                 physicalDeviceFilter = { _, device -> "${device.vendor} ${device.name}".contains(System.getProperty("scenery.Renderer.Device", "DOES_NOT_EXIST"))},
-                additionalExtensions = { physicalDevice -> hub.getWorkingHMDDisplay()?.getVulkanDeviceExtensions(physicalDevice)?.toMutableList() ?: mutableListOf() },
+                additionalExtensions = { physicalDevice -> hub.getWorkingHMDDisplay()?.getVulkanDeviceExtensions(physicalDevice)?.toMutableList() ?: mutableListOf(KHRSwapchain.VK_KHR_SWAPCHAIN_EXTENSION_NAME) },
                 validationLayers = requestedValidationLayers,
                 headless = headless,
                 debugEnabled = validation
