@@ -233,12 +233,12 @@ open class VulkanRenderer(hub: Hub,
 
         when (severity) {
             VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT ->
-                logger.error("!! $obj($objectType) Validation$dbg: $message")
+                logger.error("🌋🔥 $obj($objectType) Validation$dbg: $message")
             VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT ->
-                logger.warn("!! $obj($objectType) Validation$dbg: $message")
+                logger.warn("🌋⚠️ $obj($objectType) Validation$dbg: $message")
             VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT ->
-                logger.info("!! $obj($objectType) Validation$dbg: $message")
-            else -> logger.info("!! $obj($objectType) Validation (unknown message type)$dbg: $message")
+                logger.info("🌋ℹ️ $obj($objectType) Validation$dbg: $message")
+            else -> logger.info("🌋ℹ️ $obj($objectType) Validation (unknown message type)$dbg: $message")
         }
 
         // trigger exception and delay if strictValidation is activated in general, or only for specific object types
@@ -273,15 +273,15 @@ open class VulkanRenderer(hub: Hub,
 
             when {
                 flags and VK_DEBUG_REPORT_ERROR_BIT_EXT == VK_DEBUG_REPORT_ERROR_BIT_EXT ->
-                    logger.error("!! $obj($objectType) Validation$dbg: " + getString(pMessage))
+                    logger.error("🔥 $obj($objectType) Validation$dbg: " + getString(pMessage))
                 flags and VK_DEBUG_REPORT_WARNING_BIT_EXT == VK_DEBUG_REPORT_WARNING_BIT_EXT ->
-                    logger.warn("!! $obj($objectType) Validation$dbg: " + getString(pMessage))
+                    logger.warn("⚠️ $obj($objectType) Validation$dbg: " + getString(pMessage))
                 flags and VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT == VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT ->
-                    logger.error("!! $obj($objectType) Validation (performance)$dbg: " + getString(pMessage))
+                    logger.error("🔥 $obj($objectType) Validation (performance)$dbg: " + getString(pMessage))
                 flags and VK_DEBUG_REPORT_INFORMATION_BIT_EXT == VK_DEBUG_REPORT_INFORMATION_BIT_EXT ->
-                    logger.info("!! $obj($objectType) Validation$dbg: " + getString(pMessage))
+                    logger.info("ℹ️ $obj($objectType) Validation$dbg: " + getString(pMessage))
                 else ->
-                    logger.info("!! $obj($objectType) Validation (unknown message type)$dbg: " + getString(pMessage))
+                    logger.info("ℹ️ $obj($objectType) Validation (unknown message type)$dbg: " + getString(pMessage))
             }
 
             // trigger exception and delay if strictValidation is activated in general, or only for specific object types

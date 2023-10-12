@@ -645,7 +645,7 @@ open class VulkanFramebuffer(protected val device: VulkanDevice,
 
         renderPass.put(0, VU.getLong("create renderpass",
             { vkCreateRenderPass(device.vulkanDevice, renderPassInfo, null, this) },
-            { attachmentDescs.free() }))
+            { }))
 
         logger.trace("Created renderpass ${renderPass.get(0)}")
 
@@ -660,7 +660,7 @@ open class VulkanFramebuffer(protected val device: VulkanDevice,
 
         framebuffer.put(0, VU.getLong("create framebuffer",
             { vkCreateFramebuffer(device.vulkanDevice, fbinfo, null, this) },
-            { fbinfo.free(); memFree(attachmentImageViews); }))
+            { }))
 
         outputDescriptorSetLayout = device.createDescriptorSetLayout(
             descriptorNum = attachments.count(),
@@ -690,6 +690,10 @@ open class VulkanFramebuffer(protected val device: VulkanDevice,
 
         logger.debug("Created load/store DSL ${imageLoadStoreDescriptorSetLayout.toHexString()} and DS ${imageLoadStoreDescriptorSet.toHexString()} for framebuffer")
 
+
+        fbinfo.free();
+        memFree(attachmentImageViews);
+        attachmentDescs.free()
 
         renderPassInfo.free()
         subpass.free()
