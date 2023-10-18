@@ -3,6 +3,7 @@ package graphics.scenery.tests.examples.volumes
 import graphics.scenery.Camera
 import graphics.scenery.DetachedHeadCamera
 import graphics.scenery.SceneryBase
+import graphics.scenery.Settings
 import graphics.scenery.backends.Renderer
 import graphics.scenery.volumes.*
 import graphics.scenery.volumes.vdi.VDIStreamer
@@ -21,12 +22,14 @@ class VDIStreamingExample : SceneryBase("VDI Streaming Example", 512, 512) {
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
 
         //Step 1: create necessary components: camera, volume, volumeManager
-        with(cam) {
-            spatial {
-                position = Vector3f(0.0f, 0.5f, 5.0f)
+        if(!Settings().get("RemoteCamera",false)) {
+            with(cam) {
+                spatial {
+                    position = Vector3f(0.0f, 0.5f, 5.0f)
+                }
+                perspectiveCamera(50.0f, windowWidth, windowHeight)
+                scene.addChild(this)
             }
-            perspectiveCamera(50.0f, windowWidth, windowHeight)
-            scene.addChild(this)
         }
 
         val volume = Volume.fromPathRaw(Paths.get(getDemoFilesPath() + "/volumes/box-iso/"), hub)
@@ -41,13 +44,14 @@ class VDIStreamingExample : SceneryBase("VDI Streaming Example", 512, 512) {
         scene.addChild(volume)
 
         // Step 2: Create VDI Volume Manager
-        val vdiVolumeManager = VDIVolumeManager( hub, windowWidth, windowHeight, maxSupersegments, scene).createVDIVolumeManger()
+        val vdiVolumeManager = VDIVolumeManager(hub, windowWidth, windowHeight, maxSupersegments, scene).createVDIVolumeManger()
 
         //step 3: switch the volume's current volume manager to VDI volume manager
         volume.volumeManager = vdiVolumeManager
 
         // Step 4: add the volume to VDI volume manager
         vdiVolumeManager.add(volume)
+        volume.volumeManager.shaderProperties["doGeneration"] = true
 
         // Step 5: add the VDI volume manager to the hub
         hub.add(vdiVolumeManager)
