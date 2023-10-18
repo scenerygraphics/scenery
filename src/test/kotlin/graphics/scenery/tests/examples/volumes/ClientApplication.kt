@@ -47,7 +47,7 @@ class ClientApplication : SceneryBase("Client Application", 512, 512)  {
     var firstVDIStream = true
     var currentlyVolumeRendering = false
 
-    val compute = VDINode()
+    lateinit var compute: VDINode
     val switch = EmptyNode()
 
     val vulkanProjectionFix =
@@ -98,16 +98,6 @@ class ClientApplication : SceneryBase("Client Application", 512, 512)  {
         swingUiNode.spatial() {
             position = Vector3f(2f,0f,0f)
         }
-
-        //Step 3: Create necessary vdi-streaming  components
-        val opBuffer = MemoryUtil.memCalloc(windowWidth * windowHeight * 4)
-        compute.name = "vdi node"
-        compute.setMaterial(ShaderMaterial(Shaders.ShadersFromFiles(arrayOf("VDIRenderer.comp"), this@ClientApplication::class.java)))
-        compute.material().textures["OutputViewport"] = Texture.fromImage(Image(opBuffer, windowWidth, windowHeight),
-                    usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
-        compute.metadata["ComputeMetadata"] = ComputeMetadata(workSizes = Vector3i(windowWidth, windowHeight, 1),
-                    invocationType = InvocationType.Permanent)
-        compute.visible = true
 
         val VDIPlane = FullscreenObject()
         with(VDIPlane){
@@ -168,6 +158,7 @@ class ClientApplication : SceneryBase("Client Application", 512, 512)  {
             }
         }
     }
+
     private fun decodeVideo( plane: FullscreenObject){
         var decodedFrameCount: Int = 0
         val videoDecoder = VideoDecoder("scenery-stream.sdp")
@@ -189,6 +180,7 @@ class ClientApplication : SceneryBase("Client Application", 512, 512)  {
         videoDecoder.close()
         logger.info("Done decoding and displaying $decodedFrameCount frames.")
     }
+
     private fun drawFrame(tex: ByteArray, width: Int, height: Int, plane: FullscreenObject) {
         if(buffer.capacity() == 0) {
             buffer = BufferUtils.allocateByteAndPut(tex)
