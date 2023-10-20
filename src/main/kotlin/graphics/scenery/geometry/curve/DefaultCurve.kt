@@ -2,6 +2,7 @@ package graphics.scenery.geometry.curve
 
 import graphics.scenery.Mesh
 import graphics.scenery.geometry.Spline
+import org.checkerframework.common.subtyping.qual.Bottom
 import org.joml.Vector3f
 
 /**
@@ -29,38 +30,38 @@ class DefaultCurve(override val spline: Spline,
     init {
         val pointsPerSection = spline.pointsPerSection()
         val transformedBaseShapes = transformedBaseShapes(baseShapes.invoke(), frenetFrames.invoke())
-
-        //No partialWindow here as we add the remaining points below
-        val subShapes = transformedBaseShapes.windowed(pointsPerSection+1, pointsPerSection, partialWindows = false)
+        val subShapes = transformedBaseShapes.windowed(pointsPerSection+1, pointsPerSection, partialWindows = true)
 
         subShapes.forEachIndexed { index, listShapes ->
-            val cover = when (index) {
-                0 -> {
-                    CurveCover.Top
-                }
+            //if the last section contains only a single shape, it will be added below
+            if (listShapes.size > 1) {
+                val cover = when (index) {
+                    0 -> {
+                        CurveCover.Top
+                    }
 
-                subShapes.lastIndex -> {
-                    CurveCover.Bottom
-                }
+                    subShapes.lastIndex -> {
+                        CurveCover.Bottom
+                    }
 
-                else -> {
-                    CurveCover.None
+                    else -> {
+                        CurveCover.None
+                    }
                 }
-            }
-            //default behaviour: the last, partial section (if it exists) will be added to the last window of the shapes
-            if(index == subShapes.lastIndex) {
-                val arrayListShapes = listShapes as ArrayList
-                for(i in (transformedBaseShapes.size % pointsPerSection) downTo 1) {
-                    arrayListShapes.add(transformedBaseShapes[transformedBaseShapes.lastIndex -i + 1])
+                //default behaviour: if the last section is a single shape,
+                // it will be added to the last window of the shapes
+                if (index == subShapes.lastIndex - 1 && subShapes.last().size == 1) {
+                    val arrayListShapes = listShapes as ArrayList
+                    arrayListShapes.add(transformedBaseShapes.last())
+                    val trianglesAndNormals = geometryCalculator.calculateTriangles(arrayListShapes,
+                        cover = CurveCover.Bottom)
+                    val partialCurve = PartialCurve(trianglesAndNormals.first, trianglesAndNormals.second)
+                    this.addChild(partialCurve)
+                } else {
+                    val trianglesAndNormals = geometryCalculator.calculateTriangles(listShapes, cover = cover)
+                    val partialCurve = PartialCurve(trianglesAndNormals.first, trianglesAndNormals.second)
+                    this.addChild(partialCurve)
                 }
-                val trianglesAndNormals = geometryCalculator.calculateTriangles(arrayListShapes, cover = cover)
-                val partialCurve = PartialCurve(trianglesAndNormals.first, trianglesAndNormals.second)
-                this.addChild(partialCurve)
-            }
-            else {
-                val trianglesAndNormals = geometryCalculator.calculateTriangles(listShapes, cover = cover)
-                val partialCurve = PartialCurve(trianglesAndNormals.first, trianglesAndNormals.second)
-                this.addChild(partialCurve)
             }
         }
     }

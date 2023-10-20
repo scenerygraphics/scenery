@@ -25,30 +25,33 @@ class Helix (private val axis: MathLine, override val spline: Spline,
     init {
         val pointsPerSection = spline.pointsPerSection()
         val transformedShapes = calculateTransformedShapes()
-        //No partialWindow here as we add the remaining points below
-        val subShapes = transformedShapes.windowed(pointsPerSection + 1, pointsPerSection, partialWindows = false)
+        val subShapes = transformedShapes.windowed(pointsPerSection + 1, pointsPerSection, partialWindows = true)
+
         subShapes.forEachIndexed { index, listShapes ->
-            val cover = when (index) {
-                0 -> {
-                    CurveCover.Top
+            //if the last section contains only a single shape, it will be added below
+            if (listShapes.size > 1) {
+                val cover = when (index) {
+                    0 -> {
+                        CurveCover.Top
+                    }
+
+                    subShapes.lastIndex -> {
+                        CurveCover.Bottom
+                    }
+
+                    else -> {
+                        CurveCover.None
+                    }
                 }
-                subShapes.size - 1 -> {
-                    CurveCover.Bottom
+                //default behaviour: if the last section is a single shape,
+                // it will be added to the last window of the shapes
+                if (index == subShapes.lastIndex - 1 && subShapes.last().size == 1) {
+                    val arrayListShapes = listShapes as ArrayList
+                    arrayListShapes.add(transformedShapes.last())
+                    this.addChild(calcMesh(arrayListShapes, CurveCover.Bottom))
+                } else {
+                    this.addChild(calcMesh(listShapes, cover))
                 }
-                else -> {
-                    CurveCover.None
-                }
-            }
-            //default behaviour: the last, partial section (if it exists) will be added to the last window of the shapes
-            if(index == subShapes.lastIndex) {
-                val arrayListShapes = listShapes as ArrayList
-                for(i in (transformedShapes.size % pointsPerSection) downTo 1) {
-                    arrayListShapes.add(transformedShapes[transformedShapes.lastIndex -i + 1])
-                }
-                this.addChild(calcMesh(listShapes, cover))
-            }
-            else {
-                this.addChild(calcMesh(listShapes, cover))
             }
         }
     }
