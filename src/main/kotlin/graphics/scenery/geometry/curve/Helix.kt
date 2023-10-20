@@ -1,10 +1,8 @@
-package graphics.scenery.proteins
+package graphics.scenery.geometry.curve
 
 import graphics.scenery.geometry.Spline
 import graphics.scenery.Mesh
-import graphics.scenery.geometry.curve.CurveCover
-import graphics.scenery.geometry.curve.CurveGeometryCalculation
-import graphics.scenery.geometry.curve.PartialCurve
+import graphics.scenery.proteins.MathLine
 import org.joml.*
 
 /**
@@ -15,7 +13,8 @@ import org.joml.*
  *
  * @author  Justin Buerger <burger@mpi-cbg.de>
  */
-class Helix (private val axis: MathLine, val spline: Spline, baseShapes: () -> List<Vector3f>): Mesh("Helix") {
+class Helix (private val axis: MathLine, override val spline: Spline,
+             override val baseShapes: () -> List<List<Vector3f>>): Curve, Mesh("Helix") {
     val splinePoints = spline.splinePoints()
     private val shapes = baseShapes.invoke()
     private val axisVector = axis.direction
@@ -24,9 +23,9 @@ class Helix (private val axis: MathLine, val spline: Spline, baseShapes: () -> L
 
 
     init {
-        val sectionVerticesCount = spline.pointsPerSection()
+        val pointsPerSection = spline.pointsPerSection()
         val transformedShapes = calculateTransformedShapes()
-        val subShapes = transformedShapes.windowed(sectionVerticesCount, sectionVerticesCount, true)
+        val subShapes = transformedShapes.windowed(pointsPerSection + 1, pointsPerSection + 1, true)
         subShapes.forEachIndexed { index, list ->
             //fill gaps
             val arrayList = list as ArrayList
@@ -56,7 +55,7 @@ class Helix (private val axis: MathLine, val spline: Spline, baseShapes: () -> L
             throw Exception("The direction vector of the axis must no become the null vector.")
         }
         val transformedShapes = ArrayList<List<Vector3f>>(splinePoints.size)
-        splinePoints.forEach { point ->
+        splinePoints.forEachIndexed { index, point ->
             /*
             The coordinate systems which walk along the spline are calculated like so:
             The x axis is the axis direction.
@@ -97,10 +96,28 @@ class Helix (private val axis: MathLine, val spline: Spline, baseShapes: () -> L
                 xAxis.y(), yAxis.y(), zAxis.y(), 0f,
                 xAxis.z(), yAxis.z(), zAxis.z(), 0f,
                 point.x(), point.y(), point.z(), 1f)
-            transformedShapes.add(shapes.map { shapePoint ->
-                val transformedPoint = Vector3f()
-                transformMatrix.transformPosition(shapePoint, transformedPoint)
-            })
+            //if there is only a single base shape, just transform it
+            when (shapes.size) {
+                1 -> {
+                    val shape = shapes.first()
+                    transformedShapes.add(shape.map { shapePoint ->
+                        val transformedPoint = Vector3f()
+                        transformMatrix.transformPosition(shapePoint, transformedPoint)
+                    })
+                }
+                splinePoints.size -> {
+                    val shape = shapes[index]
+                    transformedShapes.add(shape.map { shapePoint ->
+                        val transformedPoint = Vector3f()
+                        transformMatrix.transformPosition(shapePoint, transformedPoint)
+                    })
+                }
+                //either there is one shape or exactly as many as there are spline points. There is no default for an
+                // incorrect number of shapes
+                else -> {
+                    throw Exception("Not enough (or too many) shapes provided!")
+                }
+            }
         }
         return transformedShapes
     }
