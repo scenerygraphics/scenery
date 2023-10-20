@@ -2,7 +2,7 @@ package graphics.scenery.tests.unit
 
 import graphics.scenery.numerics.Random
 import graphics.scenery.geometry.CatmullRomSpline
-import graphics.scenery.proteins.Helix
+import graphics.scenery.geometry.curve.Helix
 import graphics.scenery.proteins.MathLine
 import graphics.scenery.utils.lazyLogger
 import org.joml.Vector3f
@@ -35,12 +35,12 @@ class HelixTests {
         val point4 = Random.random3DVectorFromRange( 31f, 100f)
         val controlPoints = arrayListOf(point1, point2, point3, point4)
         val spline = CatmullRomSpline(controlPoints)
-        val list = ArrayList<Vector3f>()
-        list.add(Vector3f(0.3f, 0.3f, 0f))
-        list.add(Vector3f(0.3f, -0.3f, 0f))
-        list.add(Vector3f(-0.3f, -0.3f, 0f))
+        val shape = ArrayList<Vector3f>()
+        shape.add(Vector3f(0.3f, 0.3f, 0f))
+        shape.add(Vector3f(0.3f, -0.3f, 0f))
+        shape.add(Vector3f(-0.3f, -0.3f, 0f))
 
-        assertFails { Helix(line, spline) { list } }
+        assertFails { Helix(line, spline) { listOf( shape ) } }
     }
 
     /**
@@ -70,7 +70,7 @@ class HelixTests {
             return list
         }
         val axis = MathLine(Random.random3DVectorFromRange(-10f, 10f).normalize(), Random.random3DVectorFromRange(-10f, 10f))
-        val helix = Helix(axis, spline) {baseShape()}
+        val helix = Helix(axis, spline) { listOf( baseShape())}
         val vertices = helix.callPrivateFunc("calculateVertices")
         if(vertices is ArrayList<*>) {
             @Suppress("UNCHECKED_CAST")
