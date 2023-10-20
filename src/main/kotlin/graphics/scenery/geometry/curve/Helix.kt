@@ -25,13 +25,9 @@ class Helix (private val axis: MathLine, override val spline: Spline,
     init {
         val pointsPerSection = spline.pointsPerSection()
         val transformedShapes = calculateTransformedShapes()
-        val subShapes = transformedShapes.windowed(pointsPerSection + 1, pointsPerSection + 1, true)
-        subShapes.forEachIndexed { index, list ->
-            //fill gaps
-            val arrayList = list as ArrayList
-            if(index != subShapes.size -1) {
-                arrayList.add(subShapes[index+1][0])
-            }
+        //No partialWindow here as we add the remaining points below
+        val subShapes = transformedShapes.windowed(pointsPerSection + 1, pointsPerSection, partialWindows = false)
+        subShapes.forEachIndexed { index, listShapes ->
             val cover = when (index) {
                 0 -> {
                     CurveCover.Top
@@ -43,7 +39,17 @@ class Helix (private val axis: MathLine, override val spline: Spline,
                     CurveCover.None
                 }
             }
-            this.addChild(calcMesh(arrayList, cover))
+            //default behaviour: the last, partial section (if it exists) will be added to the last window of the shapes
+            if(index == subShapes.lastIndex) {
+                val arrayListShapes = listShapes as ArrayList
+                for(i in (transformedShapes.size % pointsPerSection) downTo 1) {
+                    arrayListShapes.add(transformedShapes[transformedShapes.lastIndex -i + 1])
+                }
+                this.addChild(calcMesh(listShapes, cover))
+            }
+            else {
+                this.addChild(calcMesh(listShapes, cover))
+            }
         }
     }
 

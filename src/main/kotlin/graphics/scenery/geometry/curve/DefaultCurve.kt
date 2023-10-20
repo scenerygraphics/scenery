@@ -29,14 +29,11 @@ class DefaultCurve(override val spline: Spline,
     init {
         val pointsPerSection = spline.pointsPerSection()
         val transformedBaseShapes = transformedBaseShapes(baseShapes.invoke(), frenetFrames.invoke())
-        val subShapes = transformedBaseShapes.windowed(pointsPerSection + 1, pointsPerSection + 1, true)
 
-        subShapes.forEachIndexed { index, list ->
-            //fill gaps
-            val arrayList = list as ArrayList
-            if (index != subShapes.size - 1) {
-                arrayList.add(subShapes[index + 1][0])
-            }
+        //No partialWindow here as we add the remaining points below
+        val subShapes = transformedBaseShapes.windowed(pointsPerSection+1, pointsPerSection, partialWindows = false)
+
+        subShapes.forEachIndexed { index, listShapes ->
             val cover = when (index) {
                 0 -> {
                     CurveCover.Top
@@ -50,9 +47,21 @@ class DefaultCurve(override val spline: Spline,
                     CurveCover.None
                 }
             }
-            val trianglesAndNormals = geometryCalculator.calculateTriangles(arrayList, cover = cover)
-            val partialCurve = PartialCurve(trianglesAndNormals.first, trianglesAndNormals.second)
-            this.addChild(partialCurve)
+            //default behaviour: the last, partial section (if it exists) will be added to the last window of the shapes
+            if(index == subShapes.lastIndex) {
+                val arrayListShapes = listShapes as ArrayList
+                for(i in (transformedBaseShapes.size % pointsPerSection) downTo 1) {
+                    arrayListShapes.add(transformedBaseShapes[transformedBaseShapes.lastIndex -i + 1])
+                }
+                val trianglesAndNormals = geometryCalculator.calculateTriangles(arrayListShapes, cover = cover)
+                val partialCurve = PartialCurve(trianglesAndNormals.first, trianglesAndNormals.second)
+                this.addChild(partialCurve)
+            }
+            else {
+                val trianglesAndNormals = geometryCalculator.calculateTriangles(listShapes, cover = cover)
+                val partialCurve = PartialCurve(trianglesAndNormals.first, trianglesAndNormals.second)
+                this.addChild(partialCurve)
+            }
         }
     }
 }
