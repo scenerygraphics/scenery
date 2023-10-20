@@ -1,4 +1,4 @@
-package graphics.scenery.tests.examples.advanced
+package graphics.scenery.tests.examples.basic
 
 import graphics.scenery.*
 import org.joml.*
