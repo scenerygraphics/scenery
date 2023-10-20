@@ -7,6 +7,7 @@ import org.joml.*
 import graphics.scenery.numerics.Random
 import graphics.scenery.Mesh
 import graphics.scenery.geometry.curve.DefaultCurve
+import graphics.scenery.geometry.curve.Helix
 import org.biojava.nbio.structure.Atom
 import org.biojava.nbio.structure.Group
 import org.biojava.nbio.structure.secstruc.SecStrucCalc
@@ -183,65 +184,66 @@ class RibbonDiagram(val protein: Protein, private val showSecondaryStructures: B
             val length = section.length
             val subSpline = section.subSpline
             val guidePointIndex = guidePointOffset
-            val ssSubList = ArrayList<List<Vector3f>>(sectionVerticesCount * length)
 
-            val iterationLength = subSpline.size
-
-            //the beta sheets are visualized with arrows
-            if (type.isBetaStrand) {
-                val seventyPercent = (iterationLength * 0.70).toInt()
-                for (j in 0 until seventyPercent) {
-                    ssSubList.add(reversedRectangle)
+            // Helix needs separate treatment as the shapes are not oriented along the tangent but the helix axis
+            if(type == SecStrucType.helix4 && length >= 4) {
+                val caList = ArrayList<Vector3f?>(length)
+                for (k in 0 until length) {
+                    caList.add(guidePointList[guidePointIndex + k].nextResidue?.getAtom("CA")?.getVector())
                 }
-                val thirtyPercent = iterationLength - seventyPercent
-                for (j in thirtyPercent downTo 1) {
-                    val y = 1.65f * j / thirtyPercent
-                    val x = 0.1f
-                    ssSubList.add(
-                        arrayListOf(
-                            Vector3f(x, y, 0f),
-                            Vector3f(-x, y, 0f),
-                            Vector3f(-x, -y, 0f),
-                            Vector3f(x, -y, 0f)
-                        )
-                    )
-                }
-                val betaCurve = DefaultCurve(
-                    DummySpline(subSpline, sectionVerticesCount), { baseShape(ssSubList) })
+                val axis = Axis(caList)
+                val axisLine = MathLine(axis.direction, axis.position)
+                val helixCurve = Helix(axisLine, DummySpline(subSpline, sectionVerticesCount)) { listOf(rectangle) }
                 if (showSecondaryStructures) {
-                    betas.addChild(betaCurve)
+                    alphas.addChild(helixCurve)
                 } else {
-                    subParent.addChild(betaCurve)
+                    subParent.addChild(helixCurve)
                 }
-            } else {
-                for (j in 0 until iterationLength) {
-                    if (type == SecStrucType.helix4 && length >= 4) {
-                        ssSubList.add(rectangle)
+            }
+            else {
+                val ssSubList = ArrayList<List<Vector3f>>(sectionVerticesCount * length)
+
+                val iterationLength = subSpline.size
+
+                //the beta sheets are visualized with arrows
+                if (type.isBetaStrand) {
+                    val seventyPercent = (iterationLength * 0.70).toInt()
+                    for (j in 0 until seventyPercent) {
+                        ssSubList.add(reversedRectangle)
+                    }
+                    val thirtyPercent = iterationLength - seventyPercent
+                    for (j in thirtyPercent downTo 1) {
+                        val y = 1.65f * j / thirtyPercent
+                        val x = 0.1f
+                        ssSubList.add(
+                            arrayListOf(
+                                Vector3f(x, y, 0f),
+                                Vector3f(-x, y, 0f),
+                                Vector3f(-x, -y, 0f),
+                                Vector3f(x, -y, 0f)
+                            )
+                        )
+                    }
+                    val betaCurve = DefaultCurve(
+                        DummySpline(subSpline, sectionVerticesCount), { baseShape(ssSubList) })
+                    if (showSecondaryStructures) {
+                        betas.addChild(betaCurve)
                     } else {
+                        subParent.addChild(betaCurve)
+                    }
+                } else {
+                    for (j in 0 until iterationLength) {
                         ssSubList.add(octagon)
                     }
-                }
-                if (type == SecStrucType.helix4 && length >= 4) {
-                    val caList = ArrayList<Vector3f?>(length)
-                    for (k in 0 until length) {
-                        caList.add(guidePointList[guidePointIndex + k].nextResidue?.getAtom("CA")?.getVector())
-                    }
-                    val axis = Axis(caList)
-                    val axisLine = MathLine(axis.direction, axis.position)
-                    val helixCurve = Helix(axisLine, DummySpline(subSpline, sectionVerticesCount)) { rectangle }
-                    if (showSecondaryStructures) {
-                        alphas.addChild(helixCurve)
-                    } else {
-                        subParent.addChild(helixCurve)
-                    }
-                } else {
-                    val coilCurve = DefaultCurve(DummySpline(subSpline, sectionVerticesCount),  { baseShape(ssSubList) })
+                    val coilCurve =
+                        DefaultCurve(DummySpline(subSpline, sectionVerticesCount), { baseShape(ssSubList) })
                     if (showSecondaryStructures) {
                         coils.addChild(coilCurve)
                     } else {
                         subParent.addChild(coilCurve)
                     }
                 }
+
             }
             if (showSecondaryStructures) {
                 subParent.addChild(alphas)
