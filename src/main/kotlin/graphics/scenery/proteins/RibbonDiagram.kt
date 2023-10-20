@@ -119,10 +119,10 @@ class RibbonDiagram(val protein: Protein, private val showSecondaryStructures: B
 
         val subParent = Mesh("SubProtein")
 
-        //the very first point of the spline is neglected as this makes the size of the point list divisible by the
-        //section vertices count
         val splinePointCentered = spline.splinePoints().map{ it.sub(centroid) }
         val splinePoints = if(splinePointCentered.isNotEmpty())
+        //the very first point of the spline is neglected as this makes the size of the point list divisible by the
+        //section vertices count
         { splinePointCentered.subList(0, splinePointCentered.lastIndex) }
         else{splinePointCentered}
 
@@ -205,6 +205,7 @@ class RibbonDiagram(val protein: Protein, private val showSecondaryStructures: B
 
                 val iterationLength = subSpline.size
 
+
                 //the beta sheets are visualized with arrows
                 if (type.isBetaStrand) {
                     val seventyPercent = (iterationLength * 0.70).toInt()
@@ -243,7 +244,6 @@ class RibbonDiagram(val protein: Protein, private val showSecondaryStructures: B
                         subParent.addChild(coilCurve)
                     }
                 }
-
             }
             if (showSecondaryStructures) {
                 subParent.addChild(alphas)
