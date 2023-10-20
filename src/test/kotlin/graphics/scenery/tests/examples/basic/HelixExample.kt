@@ -6,7 +6,7 @@ import graphics.scenery.backends.Renderer
 import graphics.scenery.geometry.CatmullRomSpline
 import graphics.scenery.numerics.Random
 import graphics.scenery.attribute.material.Material
-import graphics.scenery.proteins.Helix
+import graphics.scenery.geometry.curve.Helix
 import graphics.scenery.proteins.MathLine
 
 /**
@@ -42,7 +42,7 @@ class HelixExample: SceneryBase("FlatRibbonSketch", windowWidth = 1280, windowHe
             return list
         }
         val axis = MathLine(Vector3f(0f, 0f, 1f), Vector3f(0f, 0f, 0f))
-        val curve = Helix(axis, spline) {baseShape()}
+        val curve = Helix(axis, spline) {listOf(baseShape())}
 
         scene.addChild(curve)
 
