@@ -1,7 +1,7 @@
 package graphics.scenery.volumes
 
+import bvv.core.shadergen.Shader
 import graphics.scenery.backends.*
-import tpietzsch.shadergen.Shader
 import kotlin.IllegalStateException
 import kotlin.math.max
 

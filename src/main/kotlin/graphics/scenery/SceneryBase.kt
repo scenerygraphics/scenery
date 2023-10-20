@@ -1,6 +1,5 @@
 package graphics.scenery
 
-import cleargl.ClearGLDefaultEventListener
 import org.joml.Vector3f
 import com.sun.jna.Library
 import com.sun.jna.Native
@@ -103,7 +102,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
         AssertionCheckPoint.AfterClose to arrayListOf()
     )
 
-    val headless = parseBoolean(System.getProperty("scenery.Headless", "false"))
+    val headless = parseBoolean(System.getProperty(Renderer.HEADLESS_PROPERTY_NAME, "false"))
     val renderdoc = if(System.getProperty("scenery.AttachRenderdoc")?.toBoolean() == true) {
         Renderdoc()
     } else {
@@ -271,7 +270,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
                 val width = r.width
                 val height = r.height
 
-                val newRenderer = Renderer.createRenderer(hub, applicationName, scene, width, height, embed, null, config)
+                val newRenderer = Renderer.createRenderer(hub, applicationName, scene, width, height, embed, config)
                 hub.add(SceneryElement.Renderer, newRenderer)
                 loadInputHandler(newRenderer)
 
@@ -382,6 +381,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
             if(wantREPL) {
                 inputHandler?.addBehaviour("show_repl", ClickBehaviour { _, _ ->
                     repl = REPL(hub, scijavaContext, scene, stats, hub)
+                    repl?.start()
                     repl?.addAccessibleObject(settings)
                     repl?.addAccessibleObject(inputHandler!!)
                     repl?.addAccessibleObject(it)

@@ -4,6 +4,8 @@ import graphics.scenery.*
 import graphics.scenery.backends.*
 import graphics.scenery.attribute.renderable.Renderable
 import graphics.scenery.attribute.material.Material
+import graphics.scenery.backends.vulkan.VulkanTexture.Companion.formatToString
+import graphics.scenery.backends.vulkan.VulkanTexture.Companion.toVulkanFormat
 import graphics.scenery.textures.Texture
 import graphics.scenery.textures.UpdatableTexture
 import graphics.scenery.utils.lazyLogger
@@ -289,7 +291,11 @@ object VulkanNodeHelpers {
                     }
 
                     val existingTexture = s.textures[type]
-                    val t: VulkanTexture = if (existingTexture != null && existingTexture.canBeReused(texture, miplevels, device)) {
+                    // We take care here that the potentially to-be-reused texture is not
+                    // scenery's default textures, and otherwise compatible with the new one.
+                    val t: VulkanTexture = if (existingTexture != null
+                        && existingTexture.canBeReused(texture, miplevels, device)
+                        && existingTexture != defaultTexture) {
                         existingTexture
                     } else {
                         descriptorUpdated = true
@@ -316,6 +322,7 @@ object VulkanNodeHelpers {
                     }
                 } catch (e: Exception) {
                     logger.warn("Could not load texture for ${node.name}: $e")
+                    e.printStackTrace()
                 }
             } else {
                 if(s.textures[type] != existing) {
@@ -482,11 +489,11 @@ object VulkanNodeHelpers {
      */
     fun VulkanTexture.canBeReused(other: Texture, miplevels: Int, device: VulkanDevice): Boolean {
         return this.device == device &&
-            this.width == other.dimensions.x() &&
-            this.height == other.dimensions.y() &&
-            this.depth == other.dimensions.z() &&
-            this.mipLevels == miplevels
-
+                this.width == other.dimensions.x() &&
+                this.height == other.dimensions.y() &&
+                this.depth == other.dimensions.z() &&
+                this.format == other.toVulkanFormat() &&
+                this.mipLevels == miplevels
     }
 
     /**

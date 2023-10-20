@@ -3,12 +3,12 @@ package graphics.scenery.primitives
 import graphics.scenery.BufferUtils
 import graphics.scenery.Mesh
 import graphics.scenery.geometry.GeometryType
+import org.joml.Vector2f
 import org.joml.Vector3f
-import java.util.*
+import kotlin.collections.ArrayList
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
-import kotlin.math.sqrt
 
 /**
  * Constructs a cylinder with the given [radius] and number of [segments].
@@ -18,61 +18,93 @@ import kotlin.math.sqrt
  * @param[segments] Number of segments in latitude and longitude.
  */
 
-class Cylinder(var radius: Float, var height: Float, var segments: Int) : Mesh("cylinder") {
+open class Cylinder @JvmOverloads constructor(var radius: Float, var height: Float, var segments: Int, fillCaps: Boolean = false, smoothSides: Boolean = false) : Mesh("cylinder") {
     init {
         geometry {
-            geometryType = GeometryType.TRIANGLE_STRIP
+            geometryType = GeometryType.TRIANGLES
 
-            val vbuffer = ArrayList<Float>(segments * segments * 2 * 3)
-            val nbuffer = ArrayList<Float>(segments * segments * 2 * 3)
-            val tbuffer = ArrayList<Float>(segments * segments * 2 * 2)
+            val vBuffer = ArrayList<Float>(segments * 12) // 12 = number of vertices per segment
+            val nBuffer = ArrayList<Float>(segments * 12)
+            val tBuffer = ArrayList<Float>(segments * 12)
 
             val delta = 2.0f * PI.toFloat() / segments.toFloat()
-            val c = cos(delta * 1.0).toFloat()
-            val s = sin(delta * 1.0).toFloat()
 
-            var x2 = radius
-            var z2 = 0.0f
+            val vTop = Vector3f(0f, height, 0f)
+            val vBottom = Vector3f(0f, 0f, 0f)
 
-            for (i: Int in 0..segments) {
+            for (i: Int in 0 until segments) {
+                val theta = i * delta
+                val theta1 = (i + 1) * delta
                 val texcoord = i / segments.toFloat()
-                val normal = 1.0f / sqrt(x2 * x2 * 1.0 + z2 * z2 * 1.0).toFloat()
-                val xn = x2 * normal
-                val zn = z2 * normal
+                val texcoord1 = (i + 1) / segments.toFloat()
+                val x = radius * cos(theta)
+                val x1 = radius * cos(theta1)
+                val z = radius * sin(theta)
+                val z1 = radius * sin(theta1)
 
-                nbuffer.add(xn)
-                nbuffer.add(0.0f)
-                nbuffer.add(zn)
+                // 4 vertices per segment
+                val v1 = Vector3f(x, 0f, z)
+                val v2 = Vector3f(x1, 0f, z1)
+                val v3 = Vector3f(x1, height, z1)
+                val v4 = Vector3f(x, height, z)
 
-                tbuffer.add(texcoord)
-                tbuffer.add(0.0f)
+                val n1 = Vector3f(x, 0f, z).normalize()
+                val n2 = if (smoothSides) Vector3f(x1, 0f, z1).normalize() else n1
+                val nTop = Vector3f(0f, 1f, 0f)
+                val nBottom = Vector3f(0f, -1f, 0f)
 
-                vbuffer.add(0.0f + x2)
-                vbuffer.add(0.0f)
-                vbuffer.add(0.0f + z2)
+                val t1 = Vector2f(texcoord, 0f)
+                val t2 = Vector2f(texcoord1, 0f)
+                val t3 = Vector2f(texcoord1, 1f)
+                val t4 = Vector2f(texcoord, 1f)
+                val tCenter = Vector2f((texcoord+texcoord1)/2, 1f)
 
-                nbuffer.add(xn)
-                nbuffer.add(0.0f)
-                nbuffer.add(zn)
+                // Face 1
+                putAll(vBuffer, v1, v4, v3)
+                putAll(nBuffer, n1, n1, n2)
+                putAll(tBuffer, t1, t4, t3)
 
-                tbuffer.add(texcoord)
-                tbuffer.add(1.0f)
+                // Face 2
+                putAll(vBuffer, v1, v3, v2)
+                putAll(nBuffer, n1, n2, n2)
+                putAll(tBuffer, t1, t3, t2)
 
-                vbuffer.add(0.0f + x2)
-                vbuffer.add(0.0f + height)
-                vbuffer.add(0.0f + z2)
+                if (fillCaps) {
+                    // Face top
+                    putAll(vBuffer, v4, vTop, v3)
+                    putAll(nBuffer, nTop, nTop, nTop)
+                    putAll(tBuffer, t1, tCenter, t2)
 
-                val x3 = x2
-                x2 = c * x2 - s * z2
-                z2 = s * x3 + c * z2
+                    // Face bottom
+                    putAll(vBuffer, v2, vBottom, v1)
+                    putAll(nBuffer, nBottom, nBottom, nBottom)
+                    putAll(tBuffer, t2, tCenter, t1)
+                }
             }
 
-            vertices = BufferUtils.allocateFloatAndPut(vbuffer.toFloatArray())
-            normals = BufferUtils.allocateFloatAndPut(nbuffer.toFloatArray())
-            texcoords = BufferUtils.allocateFloatAndPut(tbuffer.toFloatArray())
+            vertices = BufferUtils.allocateFloatAndPut(vBuffer.toFloatArray())
+            normals = BufferUtils.allocateFloatAndPut(nBuffer.toFloatArray())
+            texcoords = BufferUtils.allocateFloatAndPut(tBuffer.toFloatArray())
         }
 
         boundingBox = generateBoundingBox()
+    }
+
+    // add 3D coordinates to buffer
+    private fun putAll(buffer: ArrayList<Float>, vararg vectors: Vector3f) {
+        for (v in vectors) {
+            buffer.add(v.x)
+            buffer.add(v.y)
+            buffer.add(v.z)
+        }
+    }
+
+    // add 2D coordinates to buffer
+    private fun putAll(buffer: ArrayList<Float>, vararg vectors: Vector2f) {
+        for (v in vectors) {
+            buffer.add(v.x)
+            buffer.add(v.y)
+        }
     }
 
     companion object {

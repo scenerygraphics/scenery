@@ -1,8 +1,17 @@
 package graphics.scenery.utils
 
-import cleargl.TGAReader
 import graphics.scenery.volumes.Colormap
+import net.imglib2.type.numeric.NumericType
+import net.imglib2.type.numeric.integer.UnsignedByteType
+import net.imglib2.type.numeric.real.FloatType
+import org.lwjgl.PointerBuffer
+import org.lwjgl.system.MemoryStack
 import org.lwjgl.system.MemoryUtil
+import org.lwjgl.util.tinyexr.EXRHeader
+import org.lwjgl.util.tinyexr.EXRImage
+import org.lwjgl.util.tinyexr.EXRVersion
+import org.lwjgl.util.tinyexr.TinyEXR
+import org.lwjgl.util.tinyexr.TinyEXR.FreeEXRImage
 import java.awt.Color
 import java.awt.color.ColorSpace
 import java.awt.geom.AffineTransform
@@ -21,7 +30,7 @@ import javax.imageio.ImageIO
  *
  * @author Ulrik Guenther <hello@ulrik.is>
  */
-open class Image(val contents: ByteBuffer, val width: Int, val height: Int, val depth: Int = 1) {
+open class Image(val contents: ByteBuffer, val width: Int, val height: Int, val depth: Int = 1, var type: NumericType<*> = UnsignedByteType()) {
 
     companion object {
         protected val logger by lazyLogger()
@@ -42,6 +51,15 @@ open class Image(val contents: ByteBuffer, val width: Int, val height: Int, val 
             ComponentColorModel.OPAQUE,
             DataBuffer.TYPE_BYTE)
 
+        // Used by TinyEXR image loader
+        private fun check(result: Int, err: PointerBuffer) {
+            if (result < 0) {
+                val msg = err.getStringASCII(0)
+                TinyEXR.nFreeEXRErrorMessage(err[0])
+                throw IllegalStateException("EXR error: $result | $msg")
+            }
+        }
+
         /**
          * Creates a new [Image] from a [stream], with the [extension] given. The image
          * can be [flip]ped to accomodate Vulkan and OpenGL coordinate systems.
@@ -54,49 +72,156 @@ open class Image(val contents: ByteBuffer, val width: Int, val height: Int, val 
             val pixels: IntArray
             val buffer: ByteArray
 
-            if (extension.lowercase().endsWith("tga")) {
-                try {
-                    val reader = BufferedInputStream(stream)
-                    buffer = ByteArray(stream.available())
-                    reader.read(buffer)
-                    reader.close()
+            when {
+                extension.lowercase().endsWith("exr") -> {
+                    val memory: ByteBuffer
 
-                    pixels = TGAReader.read(buffer, TGAReader.ARGB)
-                    val width = TGAReader.getWidth(buffer)
-                    val height = TGAReader.getHeight(buffer)
-                    bi = BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB)
-                    bi.setRGB(0, 0, width, height, pixels, 0, width)
-                } catch (e: IOException) {
-                    Colormap.logger.error("Could not read image from TGA. ${e.message}")
-                    bi = BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB)
-                    bi.setRGB(0, 0, 1, 1, intArrayOf(255, 0, 0), 0, 1)
+                    try {
+                        val array = stream.readAllBytes()
+                        memory = MemoryUtil.memAlloc(array.size)
+                        memory.put(array)
+                        memory.flip()
+                    } catch (e: IOException) {
+                        logger.error("Failed to read EXR file ${e}.")
+                        if(logger.isDebugEnabled) {
+                            e.printStackTrace()
+                        }
+                        throw e
+                    }
+
+                    var result: Int
+                    val image: EXRImage
+                    val header: EXRHeader
+
+                    val stack = MemoryStack.stackPush()
+                    header = EXRHeader.malloc(stack)
+                    val version = EXRVersion.malloc(stack)
+                    val err: PointerBuffer = stack.mallocPointer(1)
+                    result = TinyEXR.ParseEXRVersionFromMemory(version, memory)
+                    check(result >= 0) { "Failed to parse EXR image version: $result" }
+                    logger.debug("Parsed EXR image version successfully.")
+                    logger.debug("--------------------------------------")
+                    logger.debug("Version : " + version.version())
+                    logger.debug("Tiled : " + version.tiled())
+                    logger.debug("Long name : " + version.long_name())
+                    logger.debug("Non-image : " + version.non_image())
+                    logger.debug("Multipart : " + version.multipart())
+                    TinyEXR.InitEXRHeader(header)
+                    result = TinyEXR.ParseEXRHeaderFromMemory(header, version, memory, err)
+                    check(result, err)
+                    logger.debug("Parsed EXR image header successfully.")
+                    logger.debug("-------------------------------------")
+                    logger.debug("Pixel aspect ratio : " + header.pixel_aspect_ratio())
+                    logger.debug("Line order : " + header.line_order())
+                    logger.debug("Data window : " + header.data_window().min_x() + ", " + header.data_window().min_y() + " -> " + header.data_window().max_x() + ", " + header.data_window().max_y())
+                    logger.debug("Display window : " + header.display_window().min_x() + ", " + header.display_window().min_y() + " -> " + header.display_window().max_x() + ", " + header.display_window().max_y())
+                    logger.debug("Screen window center : " + header.screen_window_center()[0] + ", " + header.screen_window_center()[1])
+                    logger.debug("Screen window width : " + header.screen_window_width())
+                    logger.debug("Chunk count : " + header.chunk_count())
+                    logger.debug("Tiled : " + header.tiled())
+                    logger.debug("Tile size x : " + header.tile_size_x())
+                    logger.debug("Tile size y : " + header.tile_size_y())
+                    logger.debug("Tile level mode : " + header.tile_level_mode())
+                    logger.debug("Tile rounding mode : " + header.tile_rounding_mode())
+                    logger.debug("Long name : " + header.long_name())
+                    logger.debug("Non-image : " + header.non_image())
+                    logger.debug("Multipart : " + header.multipart())
+                    logger.debug("Header length : " + header.header_len())
+                    logger.debug("Number of custom attributes : " + header.num_custom_attributes())
+                    logger.debug("Custom attributes : " + header.custom_attributes())
+                    logger.debug("Channels : " + header.channels().remaining())
+                    logger.debug("Pixel types : " + header.pixel_types().remaining())
+                    logger.debug("Number of channels : " + header.num_channels())
+                    logger.debug("Compression type : " + header.compression_type())
+                    logger.debug("Requested pixel types : " + header.requested_pixel_types().remaining())
+                    logger.debug("Name : " + header.nameString())
+
+                    image = EXRImage.malloc(stack)
+                    TinyEXR.InitEXRImage(image)
+                    result = TinyEXR.LoadEXRImageFromMemory(image, header, memory, err)
+                    check(result, err)
+                    logger.info("Parsed EXR image successfully.")
+                    logger.debug("------------------------------")
+                    logger.debug("Level x: " + image.level_x())
+                    logger.debug("Level y: " + image.level_y())
+                    logger.debug("Images: " + image.images()!!.remaining())
+                    logger.debug("Width: " + image.width())
+                    logger.debug("Height: " + image.height())
+                    logger.debug("Number of channels: " + image.num_channels())
+                    logger.debug("Number of tiles: " + image.num_tiles())
+
+                    val pb = image.images()
+                        ?: throw UnsupportedOperationException("No images found. Image is likely tiled image which is currently not supported.")
+                    val size = image.width()*image.height()
+                    val bb = MemoryUtil.memAlloc(size*4*4)
+                    val tmp = ByteBuffer.allocate(4)
+
+                    for(i in size-1 downTo 0) {
+                        for(c in 0..2) {
+                            val b = MemoryUtil.memByteBuffer(pb[c]+i*4, 4)
+                            tmp.put(0, b.get(3))
+                            tmp.put(1, b.get(2))
+                            tmp.put(2, b.get(1))
+                            tmp.put(3, b.get(0))
+                            bb.putFloat(tmp.asFloatBuffer().get(0))
+                        }
+                        bb.putFloat(1.0f)
+                    }
+
+                    bb.flip()
+
+                    FreeEXRImage(image)
+                    TinyEXR.FreeEXRHeader(header)
+
+                    stream.close()
+
+                    return Image(bb, image.width(), image.height(), type = FloatType())
                 }
 
-            } else {
-                try {
-                    val reader = BufferedInputStream(stream)
-                    bi = ImageIO.read(stream)
-                    reader.close()
+                else -> {
+                    if(extension.lowercase().endsWith("tga")) {
+                        try {
+                            val reader = BufferedInputStream(stream)
+                            buffer = ByteArray(stream.available())
+                            reader.read(buffer)
+                            reader.close()
 
-                } catch (e: IOException) {
-                    Colormap.logger.error("Could not read image: ${e.message}")
-                    bi = BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB)
-                    bi.setRGB(0, 0, 1, 1, intArrayOf(255, 0, 0), 0, 1)
+                            pixels = TGAReader.read(buffer, TGAReader.ARGB)
+                            val width = TGAReader.getWidth(buffer)
+                            val height = TGAReader.getHeight(buffer)
+                            bi = BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB)
+                            bi.setRGB(0, 0, width, height, pixels, 0, width)
+                        } catch (e: IOException) {
+                            Colormap.logger.error("Could not read image from TGA. ${e.message}")
+                            bi = BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB)
+                            bi.setRGB(0, 0, 1, 1, intArrayOf(255, 0, 0), 0, 1)
+                        }
+
+                    } else {
+                        try {
+                            val reader = BufferedInputStream(stream)
+                            bi = ImageIO.read(stream)
+                            reader.close()
+                        } catch (e: IOException) {
+                            Colormap.logger.error("Could not read image: ${e.message}")
+                            bi = BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB)
+                            bi.setRGB(0, 0, 1, 1, intArrayOf(255, 0, 0), 0, 1)
+                        }
+                    }
+
+                    stream.close()
+
+                    if(flip) {
+                        // convert to OpenGL UV space
+                        flippedImage = createFlipped(bi)
+                        imageData = bufferedImageToRGBABuffer(flippedImage)
+                    } else {
+                        imageData = bufferedImageToRGBABuffer(bi)
+                    }
+
+                    return Image(imageData, bi.width, bi.height)
                 }
-
             }
-
-            stream.close()
-
-            if(flip) {
-                // convert to OpenGL UV space
-                flippedImage = createFlipped(bi)
-                imageData = bufferedImageToRGBABuffer(flippedImage)
-            } else {
-                imageData = bufferedImageToRGBABuffer(bi)
-            }
-
-            return Image(imageData, bi.width, bi.height)
         }
 
         /**
