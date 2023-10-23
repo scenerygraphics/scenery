@@ -1,10 +1,6 @@
 package graphics.scenery.tests.unit.network
 
-import graphics.scenery.attribute.spatial.DefaultSpatial
-import graphics.scenery.net.NetworkEvent
-import graphics.scenery.Box
-import graphics.scenery.Hub
-import graphics.scenery.Scene
+import graphics.scenery.*
 import graphics.scenery.net.NodePublisher
 import graphics.scenery.net.NodeSubscriber
 import graphics.scenery.volumes.TransferFunction

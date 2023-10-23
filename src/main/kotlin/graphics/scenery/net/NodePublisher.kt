@@ -11,6 +11,8 @@ import graphics.scenery.utils.lazyLogger
 import graphics.scenery.utils.Statistics
 import graphics.scenery.volumes.VolumeManager
 import net.imglib2.img.basictypeaccess.array.ByteArray
+import org.biojava.nbio.structure.AtomImpl
+import org.biojava.nbio.structure.BondImpl
 import org.joml.Vector3f
 import org.objenesis.strategy.StdInstantiatorStrategy
 import org.slf4j.Logger

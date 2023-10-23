@@ -153,7 +153,7 @@ class CaveCubesExample: SceneryBase("Bile Canaliculi example", wantREPL = true) 
         scene += ferry
         selectableObjects.add(ferry)
 
-        TransferFunctionEditor(volume = cryoEM)
+        TransferFunctionEditor(cryoEM)
 
         val ambient = AmbientLight(0.1f)
         scene += ambient

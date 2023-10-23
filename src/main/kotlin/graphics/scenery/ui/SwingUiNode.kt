@@ -14,7 +14,7 @@ import org.joml.Vector4f
  *
  * Scene representation of a SwingFrame on a plane in form of a texture snapshot render of the frame in combination with SwingBridgeFrame
  */
-class SwingUiNode(private val swingBridgeFrame : SwingBridgeFrame) : Plane(
+class SwingUINode(private val swingBridgeFrame : SwingBridgeFrame) : Plane(
     Vector3f(-0.5f,-0.5f,0.0f),
     Vector3f(-0.5f,0.5f,0.0f),
     Vector3f(0.5f,-0.5f,0.0f),
@@ -39,7 +39,7 @@ class SwingUiNode(private val swingBridgeFrame : SwingBridgeFrame) : Plane(
      * Function that takes the last taken screenshot from the SwingUI-window coming from the attached swingBridgeFrame and updates the SwingUINodes-Plane texture with it
      */
     fun updateUITexture() {
-        swingBridgeFrame.finalImage?.let {
+        swingBridgeFrame.snapshotImage?.let {
             this.material {
                 textures["diffuse"] = Texture.fromImage((it), Texture.RepeatMode.Repeat.all(), Texture.BorderColor.OpaqueWhite, true, true,
                     Texture.FilteringMode.NearestNeighbour, Texture.FilteringMode.NearestNeighbour, hashSetOf(Texture.UsageType.Texture))

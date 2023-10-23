@@ -287,7 +287,6 @@ class VolumeManager(
             "slicingPlanes",
             "slicingMode",
             "usedSlicingPlanes",
-            "skip"
             "sceneGraphVisibility"
         )
         segments[SegmentType.SampleVolume] = SegmentTemplate(
@@ -613,7 +612,7 @@ class VolumeManager(
                     renderStateUpdated = false
                 }
 
-                var repaint = true
+                var repaint = true // todo: variable is never modified
                 val blockUpdateDuration = measureTimeMillis {
                     if (!freezeRequiredBlocks) {
                         try {
