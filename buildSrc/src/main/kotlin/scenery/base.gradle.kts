@@ -222,6 +222,122 @@ tasks {
             }
         }
     }
+
+    // this is the Kotlinized version of https://github.com/mendhak/Gradle-Github-Colored-Output
+    // (c) by Mendhak, with a few adjustments, e.g. to cache failures and skips, and print them
+    // in the summary.
+    withType(Test::class.java) {
+        val folding = System.getenv("GITHUB_ACTIONS") != null
+
+        val ANSI_BOLD_WHITE = "\u001B[01m"
+        val ANSI_RESET = "\u001B[0m"
+        val ANSI_BLACK = "\u001B[30m"
+        val ANSI_RED = "\u001B[31m"
+        val ANSI_GREEN = "\u001B[32m"
+        val ANSI_YELLOW = "\u001B[33m"
+        val ANSI_BLUE = "\u001B[34m"
+        val ANSI_PURPLE = "\u001B[35m"
+        val ANSI_CYAN = "\u001B[36m"
+        val ANSI_WHITE = "\u001B[37m"
+        val CHECK_MARK = "\u2713"
+        val NEUTRAL_FACE = "\u0CA0_\u0CA0"
+        val X_MARK = "\u274C"
+
+        addTestListener(object: TestListener {
+            val failures = ArrayList<String>()
+            val skips = ArrayList<String>()
+
+            override fun beforeSuite(suite: TestDescriptor?) {
+                if(suite == null) {
+                    return
+                }
+
+                if(suite.name.startsWith("Test Run") || suite.name.startsWith("Gradle Worker")) return
+
+                if(suite.parent != null && suite.className != null) {
+                    if(folding) {
+                        println("##[group]" + suite.name + "\r")
+                    }
+                    println(ANSI_BOLD_WHITE + suite.name + ANSI_RESET)
+                }
+
+            }
+
+            override fun afterTest(descriptor: TestDescriptor?, result: TestResult) {
+                var indicator = ANSI_WHITE
+
+                indicator = if(result.failedTestCount > 0) ANSI_RED + X_MARK
+                else if(result.skippedTestCount > 0) ANSI_YELLOW + NEUTRAL_FACE
+                else ANSI_GREEN + CHECK_MARK
+
+                println("    " + indicator + ANSI_RESET + " " + descriptor?.name)
+
+                if(result.failedTestCount > 0) {
+                    println(" ")
+                    failures.add("${descriptor?.parent}:${descriptor?.name}")
+                }
+                if(result.skippedTestCount > 0) {
+                    skips.add("${descriptor?.parent}:${descriptor?.name}")
+                }
+
+            }
+
+            override fun afterSuite(desc: TestDescriptor?, result: TestResult) {
+                if(desc == null) {
+                    return
+                }
+
+                if(desc.parent != null && desc.className != null) {
+                    if(folding && result.failedTestCount == 0L) {
+                        println("##[endgroup]\r")
+                        println("")
+                    }
+                }
+
+                // will match the outermost suite
+                if(desc.parent == null) {
+                    var failStyle = ANSI_RED
+                    var skipStyle = ANSI_YELLOW
+
+                    if(result.failedTestCount > 0) {
+                        failStyle = ANSI_RED
+                    }
+
+                    if(result.skippedTestCount > 0) {
+                        skipStyle = ANSI_YELLOW
+                    }
+
+                    val summaryStyle = when(result.resultType) {
+                        TestResult.ResultType.SUCCESS -> ANSI_GREEN
+                        TestResult.ResultType.FAILURE -> ANSI_RED
+                        else -> ANSI_WHITE
+                    }
+
+                    println("--------------------------------------------------------------------------")
+                    println(
+                        "Results: " + summaryStyle + "${result.resultType}" + ANSI_RESET
+                                + " (${result.testCount} tests, "
+                                + ANSI_GREEN + "${result.successfulTestCount} passed" + ANSI_RESET
+                                + ", " + failStyle + "${result.failedTestCount} failed" + ANSI_RESET
+                                + ", " + skipStyle + "${result.skippedTestCount} skipped" + ANSI_RESET
+                                + ")"
+                    )
+
+                    if(result.failedTestCount > 0) {
+                        println(failStyle + "Failed tests:\n${failures.joinToString("\n") { " * $it "}}" + ANSI_RESET)
+                    }
+
+                    if(result.skippedTestCount> 0) {
+                        println(skipStyle + "Skipped tests:\n${skips.joinToString("\n") { " * $it "}}" + ANSI_RESET)
+                    }
+                    println("--------------------------------------------------------------------------")
+                }
+            }
+
+            override fun beforeTest(testDescriptor: TestDescriptor?) {
+            }
+        })
+    }
 }
 
 val TaskContainer.jacocoTestReport: TaskProvider<JacocoReport>
