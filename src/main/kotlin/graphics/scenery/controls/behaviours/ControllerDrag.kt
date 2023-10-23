@@ -1,12 +1,11 @@
 package graphics.scenery.controls.behaviours
 
 import org.joml.Vector3f
-import com.jogamp.opengl.math.Quaternion
 import graphics.scenery.Node
 import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.controls.TrackerInput
 import graphics.scenery.controls.TrackerRole
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plus
 import org.joml.Quaternionf
@@ -24,7 +23,7 @@ open class ControllerDrag(val handedness: TrackerRole,
                           val trackPosition: Boolean = true,
                           val trackRotation: Boolean = false,
                           val draggedObjectFinder: () -> Node?): ClickBehaviour {
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
     protected var lastPosition: Vector3f? = null
     protected var lastRotation: Quaternionf? = null
     // half a second of timeout

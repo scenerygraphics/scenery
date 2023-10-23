@@ -43,7 +43,7 @@ class CurveUniformBSplineExample: SceneryBase("CurveUniformBSplineExample", wind
             return shapeList
         }
 
-        val bSpline = UniformBSpline(points)
+        val bSpline = UniformBSpline(points, 10)
         val splineSize = bSpline.splinePoints().size
         val geo = Curve(bSpline) { triangle(splineSize) }
 

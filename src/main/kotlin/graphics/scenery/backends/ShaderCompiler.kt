@@ -1,23 +1,23 @@
 package graphics.scenery.backends
 
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.lwjgl.util.shaderc.Shaderc
+import org.slf4j.Logger
 import picocli.CommandLine
 import java.io.File
 import java.lang.UnsupportedOperationException
 import java.util.concurrent.Callable
 import kotlin.system.exitProcess
+import kotlin.time.Duration.Companion.nanoseconds
 
 /**
  * Shader compiler class. Can be used as command line utility as well.
  */
 @CommandLine.Command(name = "CompileShader", mixinStandardHelpOptions = true, description = ["Compiles GLSL shader code to SPIRV bytecode."])
-class ShaderCompiler: AutoCloseable, Callable<ByteArray> {
-    private val logger by LazyLogger()
-
+class ShaderCompiler(private val logger: Lazy<Logger>? = this.lazyLogger()): AutoCloseable, Callable<Int> {
     protected val compiler = Shaderc.shaderc_compiler_initialize()
 
-    @CommandLine.Parameters(index = "0", description = ["The file to compile"])
+    @CommandLine.Parameters(index = "0", description = ["The file to compile. If it's a directory, all the files from the directory will be compiled."])
     lateinit var file: File
 
     @CommandLine.Option(names = ["-o", "--output"], description = ["The file to output the bytecode to. By default, .spv will be appended to the input file name."])
@@ -38,13 +38,35 @@ class ShaderCompiler: AutoCloseable, Callable<ByteArray> {
     @CommandLine.Option(names = ["-s", "--strict"], description = ["Strict compilation, treats warnings as errors."])
     var strict: Boolean = false
 
+    @CommandLine.Option(names = ["-v", "--verbose"], description = ["Activate verbose logging."])
+    var verbose: Boolean = false
+
     /**
      * Optimisation level for shader compilation.
      */
     enum class OptimisationLevel {
-        None,
+        NoOptimisation,
         Performance,
         Size
+    }
+
+    private fun Lazy<Logger>?.debug(format: String, vararg args: Any) {
+        if(this == null) {
+            // debug logging, don't do anything if verbose is not set
+            if(verbose) {
+                println(format)
+            }
+        } else {
+            this.value.debug(format, args)
+        }
+    }
+
+    private fun Lazy<Logger>?.error(format: String, vararg args: Any) {
+        if(this == null) {
+            System.err.println(format)
+        } else {
+            this.value.error(format, args)
+        }
     }
 
     /**
@@ -57,7 +79,7 @@ class ShaderCompiler: AutoCloseable, Callable<ByteArray> {
         entryPoint: String = "main",
         debug: Boolean = false,
         warningsAsErrors: Boolean = false,
-        optimisationLevel: OptimisationLevel = OptimisationLevel.None,
+        optimisationLevel: OptimisationLevel = OptimisationLevel.NoOptimisation,
         path: String? = null,
         baseClass: String? = null
     ): ByteArray {
@@ -85,7 +107,7 @@ class ShaderCompiler: AutoCloseable, Callable<ByteArray> {
         }
 
         val optimisation = when(optimisationLevel) {
-            OptimisationLevel.None -> Shaderc.shaderc_optimization_level_zero
+            OptimisationLevel.NoOptimisation -> Shaderc.shaderc_optimization_level_zero
             OptimisationLevel.Performance -> Shaderc.shaderc_optimization_level_performance
             OptimisationLevel.Size -> Shaderc.shaderc_optimization_level_size
         }
@@ -144,7 +166,7 @@ class ShaderCompiler: AutoCloseable, Callable<ByteArray> {
      */
     fun versionInfo(): String {
         val p = Package.getPackage("org.lwjgl.util.shaderc")
-        return "shaderc / lwjgl ${p?.specificationVersion} ${p?.implementationVersion}"
+        return "scenery shader compiler, based on shaderc / lwjgl ${p?.specificationVersion} ${p?.implementationVersion}"
     }
 
     /**
@@ -157,8 +179,21 @@ class ShaderCompiler: AutoCloseable, Callable<ByteArray> {
     /**
      * Hook function for picocli to be invoked on startup.
      */
-    override fun call(): ByteArray {
+    override fun call(): Int {
         println(versionInfo())
+
+        return if(file.isDirectory) {
+            val extensions = listOf("vert", "frag", "geom", "tesc", "tese", "comp")
+            println("Compiling everything in directory $file: ")
+            file.listFiles { f: File -> f.name.substringAfterLast(".").lowercase() in extensions }
+                ?.sorted()?.minOfOrNull { compileFile(it) } ?: 0
+        } else {
+            compileFile(file)
+        }
+    }
+
+    private fun compileFile(file: File): Int {
+        val start = System.nanoTime()
         val out = if(!this::output.isInitialized) {
             file.resolveSibling(file.name + ".spv")
         } else {
@@ -178,7 +213,7 @@ class ShaderCompiler: AutoCloseable, Callable<ByteArray> {
         val level = when(optimise.lowercase()) {
             "p" -> OptimisationLevel.Performance
             "s" -> OptimisationLevel.Size
-            else -> OptimisationLevel.None
+            else -> OptimisationLevel.NoOptimisation
         }
 
         val t = when(target.lowercase()) {
@@ -187,20 +222,57 @@ class ShaderCompiler: AutoCloseable, Callable<ByteArray> {
             else -> throw UnsupportedOperationException("Unknown shader target $target.")
         }
 
-        println("Compiling $file to $out, type $type, optimising for $level, target $t${if(debug) {", with debug information"} else { "" }}")
-        val bytecode = compile(file.readText(), type, t, entryPoint, debug, strict, level, file.absolutePath, null)
-
-        if(!out.exists()) {
-            out.createNewFile()
+        val inputName = if(this.file.isDirectory) {
+            file.name
         } else {
-            out.writeBytes(bytecode)
+            file.toString()
         }
 
-        return bytecode
+        val outputName = if(this.file.isDirectory) {
+            out.name
+        } else {
+            out.toString()
+        }
+
+        val code = file.readText()
+        if(code.contains(Regex("#ifdef|#ifndef|#else|#endif"))) {
+            println("⏭️  $inputName -> $outputName SKIPPED ${file.name} due to preprocessor directives in code.")
+            out.delete()
+            return 1
+        }
+
+        try {
+            val bytecode = compile(
+                file.readText(),
+                type,
+                t,
+                entryPoint,
+                debug,
+                strict,
+                level,
+                file.absolutePath,
+                null
+            )
+
+            if(!out.exists()) {
+                out.createNewFile()
+            } else {
+                out.writeBytes(bytecode)
+            }
+        } catch (sce: ShaderCompilationException){
+            System.err.println("💥 $inputName -> $outputName COMPILATION FAILED")
+            System.err.println("   ${sce.localizedMessage}")
+            return -1
+        }
+
+        val duration = (System.nanoTime() - start).nanoseconds
+
+        println("✅ $inputName -> $outputName [$type, $level, $t${if(debug) {", with debug information"} else { "" }}], took ${duration.inWholeMilliseconds}ms")
+        return 0
     }
 
     companion object {
         @JvmStatic
-        fun main(args: Array<String>): Unit = exitProcess(CommandLine(ShaderCompiler()).execute(*args))
+        fun main(args: Array<String>): Unit = exitProcess(CommandLine(ShaderCompiler(null)).execute(*args))
     }
 }

@@ -1,7 +1,7 @@
 package graphics.scenery.tests.unit
 
 import graphics.scenery.BufferUtils
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.junit.Test
 import java.nio.ByteOrder
 import kotlin.test.assertEquals
@@ -14,7 +14,7 @@ import kotlin.test.assertEquals
  */
 
 class BufferUtilsTests {
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
 
     /**
      * Tests allocation of a Float buffer

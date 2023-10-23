@@ -8,7 +8,7 @@ import graphics.scenery.attribute.renderable.Renderable
 import graphics.scenery.Settings
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.backends.*
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import graphics.scenery.utils.RingBuffer
 import org.joml.Vector2f
 import org.joml.Vector4f
@@ -34,7 +34,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
                        val vertexDescriptors: ConcurrentHashMap<VulkanRenderer.VertexDataKinds, VulkanRenderer.VertexDescription>,
                        val ringBufferSize: Int = 2): AutoCloseable {
 
-    protected val logger by LazyLogger()
+    protected val logger by lazyLogger()
 
     /** [VulkanFramebuffer] inputs of this render pass */
     val inputs = ConcurrentHashMap<String, VulkanFramebuffer>()
@@ -410,17 +410,19 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
         }
     }
 
+    val shaders = Shaders.ShadersFromFiles(passConfig.shaders.map { "shaders/$it" }.toTypedArray())
     /**
      * Initialiases the default [VulkanPipeline] for this renderpass.
      */
     fun initializeDefaultPipeline() {
-        val shaders = Shaders.ShadersFromFiles(passConfig.shaders.map { "shaders/$it" }.toTypedArray())
         val shaderModules = ShaderType.values().mapNotNull { type ->
             try {
                 VulkanShaderModule.getFromCacheOrCreate(device, "main", shaders.get(Shaders.ShaderTarget.Vulkan, type))
             } catch (e: ShaderNotFoundException) {
                 logger.debug("Shader not found: $type - this is normal if there are no errors reported")
                 null
+            } finally {
+                shaders.stale = false
             }
         }
 
@@ -874,7 +876,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
     }
 
     companion object {
-        val logger by LazyLogger()
+        val logger by lazyLogger()
         var pipelineCache = -1L
 
         fun createPipelineCache(device: VulkanDevice) {

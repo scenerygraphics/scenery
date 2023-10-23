@@ -3,6 +3,7 @@ package graphics.scenery
 import graphics.scenery.backends.ShaderType
 import graphics.scenery.backends.Shaders
 import graphics.scenery.attribute.material.DefaultMaterial
+import graphics.scenery.backends.Renderer
 
 /**
  * This class stores paths to GLSL shader files to be used for rendering preferentially,
@@ -28,6 +29,11 @@ class ShaderMaterial(var shaders: Shaders) : DefaultMaterial() {
         /** Creates a new file-based ShaderMaterial from a list of [files]. */
         @JvmStatic fun fromFiles(vararg files: String): ShaderMaterial {
             return ShaderMaterial(Shaders.ShadersFromFiles(files.toList().toTypedArray()))
+        }
+
+        /** Creates a new file-based ShaderMaterial from a list of [files]. */
+        @JvmStatic fun fromFiles(clazz: Class<*> = Renderer::class.java, vararg files: String): ShaderMaterial {
+            return ShaderMaterial(Shaders.ShadersFromFiles(files.toList().toTypedArray(), clazz = clazz))
         }
 
         /** Creates a new file-based ShaderMaterial the simpleName of the class [clazz]. */

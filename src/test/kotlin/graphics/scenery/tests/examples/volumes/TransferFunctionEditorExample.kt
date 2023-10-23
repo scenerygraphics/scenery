@@ -1,9 +1,10 @@
 package graphics.scenery.tests.examples.volumes
 
+import bvv.core.VolumeViewerOptions
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.ui.SwingBridgeFrame
-import graphics.scenery.ui.SwingUiNode
+import graphics.scenery.ui.SwingUINode
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
 import graphics.scenery.volumes.Colormap
@@ -12,7 +13,6 @@ import graphics.scenery.volumes.Volume
 import org.joml.Vector3f
 import org.scijava.ui.behaviour.ClickBehaviour
 import org.scijava.ui.behaviour.DragBehaviour
-import tpietzsch.example2.VolumeViewerOptions
 
 
 /**
@@ -64,7 +64,7 @@ class TransferFunctionEditorExample : SceneryBase("TransferFunctionEditor Exampl
 
         val options = VolumeViewerOptions().maxCacheSizeInMB(maxCacheSize)
         //Currently only .xml volume formats are usable
-        val v = Volume.fromXML("models/volumes/t1-head.xml", hub, options)
+        val v = Volume.fromXML(getDemoFilesPath() + "/volumes/t1-head.xml", hub, options)
         v.name = "t1-head"
         v.colormap = Colormap.get("grays")
         v.spatial().position = Vector3f(0.0f, 0.0f, 0.0f)
@@ -74,8 +74,10 @@ class TransferFunctionEditorExample : SceneryBase("TransferFunctionEditor Exampl
 
 
         val bridge = SwingBridgeFrame("1DTransferFunctionEditor")
-        val tfUI = TransferFunctionEditor(650, 550, v, bridge)
-        val swingUiNode = tfUI.mainFrame.uiNode
+        val tfUI = TransferFunctionEditor(v)
+        bridge.addPanel(tfUI)
+        tfUI.name = v.name
+        val swingUiNode = bridge.uiNode
         swingUiNode.spatial() {
             position = Vector3f(2f,0f,0f)
         }
@@ -96,7 +98,7 @@ class TransferFunctionEditorExample : SceneryBase("TransferFunctionEditor Exampl
                     val ray = cam.getNodesForScreenSpacePosition(x,y, listOf<Class<*>>(BoundingGrid::class.java), debugRaycast)
 
                     ray.matches.firstOrNull()?.let { hit ->
-                        val node = hit.node as? SwingUiNode ?: return
+                        val node = hit.node as? SwingUINode ?: return
                         val hitPos = ray.initialPosition + ray.initialDirection * hit.distance
                         node.ctrlClick(hitPos)
                     }
@@ -109,7 +111,7 @@ class TransferFunctionEditorExample : SceneryBase("TransferFunctionEditor Exampl
                     val ray = cam.getNodesForScreenSpacePosition(x,y, listOf<Class<*>>(BoundingGrid::class.java), debugRaycast)
 
                     ray.matches.firstOrNull()?.let { hit ->
-                        val node = hit.node as? SwingUiNode ?: return
+                        val node = hit.node as? SwingUINode ?: return
                         val hitPos = ray.initialPosition + ray.initialDirection * hit.distance
                         node.pressed(hitPos)
                     }
@@ -118,7 +120,7 @@ class TransferFunctionEditorExample : SceneryBase("TransferFunctionEditor Exampl
                     val ray = cam.getNodesForScreenSpacePosition(x,y, listOf<Class<*>>(BoundingGrid::class.java), debugRaycast)
 
                     ray.matches.firstOrNull()?.let { hit ->
-                        val node = hit.node as? SwingUiNode ?: return
+                        val node = hit.node as? SwingUINode ?: return
                         val hitPos = ray.initialPosition + ray.initialDirection * hit.distance
                         node.drag(hitPos)
                     }
@@ -127,7 +129,7 @@ class TransferFunctionEditorExample : SceneryBase("TransferFunctionEditor Exampl
                     val ray = cam.getNodesForScreenSpacePosition(x,y, listOf<Class<*>>(BoundingGrid::class.java), debugRaycast)
 
                     ray.matches.firstOrNull()?.let { hit ->
-                        val node = hit.node as? SwingUiNode ?: return
+                        val node = hit.node as? SwingUINode ?: return
                         val hitPos = ray.initialPosition + ray.initialDirection * hit.distance
                         node.released(hitPos)
                     }

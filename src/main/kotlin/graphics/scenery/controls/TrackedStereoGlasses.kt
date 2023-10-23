@@ -4,7 +4,7 @@ import graphics.scenery.*
 import graphics.scenery.backends.Display
 import graphics.scenery.backends.vulkan.VulkanDevice
 import graphics.scenery.Mesh
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
 import graphics.scenery.utils.extensions.xyzw
@@ -20,7 +20,7 @@ import org.lwjgl.vulkan.VkQueue
  */
 class TrackedStereoGlasses(var address: String = "device@localhost:5500", var screenConfig: String = "CAVEExample.yml") : Display, TrackerInput, Hubable {
 
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
     override var hub: Hub? = null
 
     var tracker = initializeTracker(address)

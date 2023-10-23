@@ -9,10 +9,10 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import graphics.scenery.Camera
 import graphics.scenery.Node
 import graphics.scenery.backends.Display
-import graphics.scenery.utils.LazyLogger
-import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
+import graphics.scenery.utils.lazyLogger
 import kotlinx.coroutines.*
+import org.joml.Math.sqrt
 import org.joml.Vector3f
 import org.msgpack.jackson.dataformat.MessagePackFactory
 import org.zeromq.ZContext
@@ -30,11 +30,11 @@ import java.util.*
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "localhost", val port: Int = System.getProperty("scenery.PupilEyeTracker.Port", "50020").toIntOrNull() ?: 50020) {
+class PupilEyeTracker(val calibrationType: CalibrationType = CalibrationType.WorldSpace, val host: String = "localhost", val port: Int = System.getProperty("scenery.PupilEyeTracker.Port", "50020").toIntOrNull() ?: 50020) {
     /** Shall we do a screen-space or world-space calibration? */
-    enum class CalibrationType { ScreenSpace, WorldSpace}
+    enum class CalibrationType { WorldSpace }
 
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
 
     private val zmqContext = ZContext(4)
     private val req = zmqContext.createSocket(ZMQ.REQ)
@@ -62,6 +62,8 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
 
                     val norm_pos: FloatArray = floatArrayOf(),
                     val gaze_point_3d: FloatArray? = floatArrayOf(),
+                    val gaze_direction: FloatArray? = floatArrayOf(),
+                    val gaze_distance: Float = 0.0f,
                     val eye_centers_3d: HashMap<Int, FloatArray>? = hashMapOf(),
                     val gaze_normals_3d: HashMap<Int, FloatArray>? = hashMapOf()) {
 
@@ -70,7 +72,8 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
         fun normalizedPosition() = this.norm_pos.toVector3f()
         /** Returns the point the user is gazing at. */
         fun gazePoint() = gaze_point_3d.toVector3f()
-
+        fun gazeDirection() = gaze_direction.toVector3f()
+        fun gazeDistance() = gaze_distance
         /** Returns the center of the left eye. */
         @Suppress("unused")
         fun leftEyeCenter() = eye_centers_3d?.getOrDefault(0, floatArrayOf(0.0f, 0.0f, 0.0f)).toVector3f()
@@ -192,9 +195,8 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
                         if(poller.isReadable(socket)) {
                             val msg = ZMsg.recvMsg(socket)
                             val msgType = msg.popString()
-//                            logger.info("Received message type $msgType")
 
-                            when(msgType) {
+                            when (msgType) {
                                 "notify.calibration.successful" -> {
                                     logger.info("Calibration successful.")
                                     calibrating = false
@@ -214,8 +216,8 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
                                     val confidence = (dict["confidence"] as Double).toFloat()
                                     val eyeId = dict["id"] as Int
 
-                                    if(confidence > 0.8) {
-                                        when(eyeId) {
+                                    if (confidence > 0.8) {
+                                        when (eyeId) {
                                             0 -> currentPupilDatumLeft = dict
                                             1 -> currentPupilDatumRight = dict
                                         }
@@ -232,30 +234,28 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
                                 "gaze.3d.01." -> {
                                     val bytes = msg.pop().data
                                     val g = objectMapper.readValue(bytes, Gaze::class.java)
-//                                    logger.info("Received data: ${String(bytes)}")
+                                    if (g.confidence > gazeConfidenceThreshold) {
 
-                                    if(g.confidence > gazeConfidenceThreshold) {
-
-                                        if(msgType.contains(".01.")) {
-//                                            gazeMode = 1
-//                                            logger.info("Received binocular gaze")
+                                        if (msgType.contains(".01.")) {
 
                                             val p = g.gaze_point_3d ?: floatArrayOf(0.0f, 0.0f, 0.0f)
-                                            var vp = Vector3f(p[0], p[1], p[2])
+                                            var vp = Vector3f(p[0], p[1] * (1.0f), p[2])
 
-//                                            if(vp.times(Vector3f(0.0f, 0.0f, -1.0f)) >= PI/2.0f) {
+                                            if (vp.z >= 0.0f) {
 //                                                logger.info("Inverting gaze direction")
-//                                                vp *= (-1.0f)
-//                                            }
+                                                vp *= (-1.0f)
+                                            }
 
-                                            vp = vp * (1.0f/pupilToSceneryRatio)
-
+                                            vp = vp * (1.0f / pupilToSceneryRatio)
+                                            val distance = sqrt(vp.x * vp.x + vp.y * vp.y + vp.z * vp.z)
                                             val ng = Gaze(
                                                 g.confidence,
                                                 g.timestamp,
                                                 2,
                                                 g.norm_pos,
                                                 floatArrayOf(vp.x, vp.y, vp.z),
+                                                floatArrayOf(vp.normalize().x, vp.normalize().y, vp.normalize().z),
+                                                distance,
                                                 g.eye_centers_3d,
                                                 g.gaze_normals_3d
                                             )
@@ -273,14 +273,21 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
                                             val p = g.gaze_point_3d ?: floatArrayOf(0.0f, 0.0f, 0.0f)
                                             var vp = Vector3f(p[0], p[1], p[2])
 
-                                            vp *= (1.0f/pupilToSceneryRatio)
+                                            if (vp.z >= 0.0f) {
+//                                                logger.info("Inverting gaze direction")
+                                                vp *= (-1.0f)
+                                            }
 
+                                            vp *= (1.0f / pupilToSceneryRatio)
+                                            val distance = sqrt(vp.x * vp.x + vp.y * vp.y + vp.z * vp.z)
                                             val ng = Gaze(
                                                 g.confidence,
                                                 g.timestamp,
                                                 msgType.substringAfterLast("d.").replace(".", "").toInt(),
                                                 g.norm_pos,
                                                 floatArrayOf(vp.x, vp.y, vp.z),
+                                                floatArrayOf(vp.normalize().x, vp.normalize().y, vp.normalize().z),
+                                                distance,
                                                 g.eye_centers_3d,
                                                 g.gaze_normals_3d
                                             )
@@ -371,7 +378,7 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
      */
     fun calibrate(cam: Camera, hmd: Display, generateReferenceData: Boolean = false, calibrationTarget: Node? = null): Boolean {
         // Threshold for samples to ignore in the beginning
-        val eyeMovingSamples = 15
+
         subscribe("notify.calibration.successful")
         subscribe("notify.calibration.failed")
         subscribe("pupil.")
@@ -392,24 +399,10 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
 
 
         when(calibrationType) {
-            CalibrationType.ScreenSpace -> {
+               CalibrationType.WorldSpace -> {
                 notify(hashMapOf(
                     "subject" to "start_plugin",
-                    "name" to "HMD_Calibration",
-                    "args" to emptyMap<String, Any>()
-                ))
-
-                notify(hashMapOf(
-                    "subject" to "calibration.should_start",
-                    "hmd_video_frame_size" to listOf(hmd.getRenderTargetSize().x().toInt(), hmd.getRenderTargetSize().y().toInt()),
-                    "outlier_threshold" to 35
-                ))
-            }
-
-            CalibrationType.WorldSpace -> {
-                notify(hashMapOf(
-                    "subject" to "start_plugin",
-                    "name" to "HMD_Calibration_3D",
+                    "name" to "HMD3DChoreographyPlugin",
                     "args" to emptyMap<String, Any>()
                 ))
 
@@ -440,19 +433,12 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
         val referenceData = arrayListOf<HashMap<String, Serializable>>()
 
         if(generateReferenceData) {
-            val numReferencePoints = if(calibrationType == CalibrationType.ScreenSpace) {
-                6
-            } else {
-                18
-            }
+            val numReferencePoints =  12
+            val eyeMovingSamples = 30
+            val samplesPerPoint = 70
 
-            val samplesPerPoint = 120
-
-            val (posKeyName, posGenerator: CalibrationPointGenerator) = when(calibrationType) {
-                CalibrationType.ScreenSpace -> "norm_pos" to CircleScreenSpaceCalibrationPointGenerator()
-                CalibrationType.WorldSpace -> "mm_pos" to LayeredCircleWorldSpaceCalibrationPointGenerator()
-            }
-
+            val posKeyName = "mm_pos"
+            val posGenerator = LayeredCircleWorldSpaceCalibrationPointGenerator()
             val positionList = (0 .. numReferencePoints).map {
                 posGenerator.generatePoint(cam, it, numReferencePoints)
             }
@@ -461,25 +447,17 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
                 logger.info("Subject looking at ${normalizedScreenPos.local}/${normalizedScreenPos.world}")
                 val position = Vector3f(normalizedScreenPos.world)
 
-                val calibrationPosition = if(calibrationType == CalibrationType.ScreenSpace) {
-                    calibrationTarget?.spatialOrNull()?.position = position + cam.forward * 0.15f
-                    val l = normalizedScreenPos.local
-                    floatArrayOf(l.x, l.y, l.z)
-                } else {
-                    calibrationTarget?.spatialOrNull()?.position = position
-                    val p = Vector3f(normalizedScreenPos.local) * pupilToSceneryRatio
-                    p.x = p.get(0) * 1.0f
-                    p.y = p.get(1) * -1.0f * cam.aspectRatio()
-                    p.z = p.get(2) * 1.0f
-                    floatArrayOf(p.x, p.y, p.z)
-                }
+                calibrationTarget?.position = position
+                val p = Vector3f(normalizedScreenPos.local) * pupilToSceneryRatio
+                p.x = p.get(0) * 1.0f
+                p.y = p.get(1) * -1.0f * cam.aspectRatio()
+                p.z = p.get(2) * 1.0f
+                val calibrationPosition = floatArrayOf(p.x, p.y, p.z)
 
-                calibrationTarget?.ifMaterial {
-                    if(normalizedScreenPos.local.x() == 0.5f && normalizedScreenPos.local.y() == 0.5f) {
-                        diffuse = Vector3f(1.0f, 1.0f, 0.0f)
-                    } else {
-                        diffuse = Vector3f(1.0f, 1.0f, 1.0f)
-                    }
+                if(normalizedScreenPos.local.x() == 0.5f && normalizedScreenPos.local.y() == 0.5f) {
+                    calibrationTarget?.ifMaterial { diffuse = Vector3f(1.0f, 1.0f, 0.0f)}
+                } else {
+                    calibrationTarget?.ifMaterial {diffuse= Vector3f(1.0f, 1.0f, 1.0f)}
                 }
 
                 (0 until samplesPerPoint).forEach {
@@ -502,7 +480,7 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
                         referenceData.add(datum1)
                     }
 
-                    Thread.sleep(20)
+                    Thread.sleep(15)
                 }
             }
 

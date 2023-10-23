@@ -2,13 +2,12 @@ package graphics.scenery.ui
 
 
 import graphics.scenery.utils.Image
-import graphics.scenery.utils.LazyLogger
 import java.awt.Component
+import java.awt.Dimension
+import java.awt.Panel
 import java.awt.event.*
 import java.awt.image.BufferedImage
-import java.io.File
 import java.nio.ByteBuffer
-import javax.imageio.ImageIO
 import javax.swing.JFrame
 import javax.swing.JPanel
 import javax.swing.SwingUtilities
@@ -21,12 +20,12 @@ import javax.swing.SwingUtilities
  */
 open class SwingBridgeFrame(title: String) : JFrame(title) {
 
-    val uiNode = SwingUiNode(this)
+    val uiNode = SwingUINode(this)
 
     private var dragged = false
     private var lastUpdate = 0L
     private var snapshotBuffer : ByteBuffer? = null
-    var finalImage : Image? = null
+    var snapshotImage : Image? = null
 
     /**
      * Init function is used to add a KeyListener to trigger snapshot recreation of the SwingFrame in order to update the texture presented on the UI-Plane
@@ -53,7 +52,17 @@ open class SwingBridgeFrame(title: String) : JFrame(title) {
     }
 
     /**
-     * Creates a snapshot of the actual SwingFrame and converts it to a ByteBuffer. Tehn updates the texture of the 2DPlane that renders in the scene to present
+     * This add function wraps frame.add.
+     * It also packs the [panel] and makes it visible.
+     */
+    fun addPanel(panel: JPanel) {
+        this.add(panel)
+        this.pack()
+        this.isVisible = true
+    }
+
+    /**
+     * Creates a snapshot of the actual SwingFrame and converts it to a ByteBuffer. Then updates the texture of the 2DPlane that renders in the scene to present
      * the UI
      */
     private fun updateImage()
@@ -61,7 +70,7 @@ open class SwingBridgeFrame(title: String) : JFrame(title) {
         val bimage = getScreen()
         val flipped = Image.createFlipped(bimage)
         snapshotBuffer = Image.bufferedImageToRGBABuffer(flipped)
-        finalImage = Image(snapshotBuffer!!, bimage.width, bimage.height)
+        snapshotImage = Image(snapshotBuffer!!, bimage.width, bimage.height)
 
         uiNode.swingUiDimension = bimage.width to bimage.height
         uiNode.updateUITexture()

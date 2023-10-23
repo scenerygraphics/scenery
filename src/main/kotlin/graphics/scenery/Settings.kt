@@ -1,66 +1,89 @@
 package graphics.scenery
 
-import graphics.scenery.utils.LazyLogger
-import java.io.File
-import java.io.FileInputStream
+import graphics.scenery.utils.lazyLogger
+import java.io.*
+import java.nio.charset.Charset
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
-
+import kotlin.io.path.Path
+import kotlin.io.path.outputStream
 
 /**
  * Flexible settings store for scenery. Stores a hash map of <String, Any>,
  * which one can query for a specific setting and type then.
  *
  * @author Ulrik Günther <hello@ulrik.is>
+ * @author Konrad Michel <Konrad.Michel@mailbox.tu-dresden.de>
  */
-class Settings(override var hub: Hub? = null, val propertiesFile: String = "scenery.properties") : Hubable {
+class Settings(override var hub: Hub? = null, val prefix : String = "scenery.", inputPropertiesStream : InputStream? = null) : Hubable {
     private var settingsStore = ConcurrentHashMap<String, Any>()
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
+
+    var settingsUpdateRoutines : HashMap<String, ArrayList<() -> Unit>> = HashMap()
 
     init {
-        if(File(propertiesFile).exists()) {
-            // reads system properties from scenery.properties file
-            logger.info("Reading custom properties from $propertiesFile")
-            val propFile = FileInputStream(propertiesFile)
-            val p = Properties()
-            p.load(propFile)
-
-            p.forEach { prop, value ->
-                val key = prop as String
-                if (key.startsWith("scenery.")) {
-                    System.setProperty(key, value as String)
-                }
-            }
-
-            if (logger.isDebugEnabled) {
-                logger.debug("System properties are:")
-                System.getProperties().forEach { prop, value ->
-                    logger.debug("* $prop=$value")
-                }
-            }
-
-            propFile.close()
-        }
-
         val properties = System.getProperties()
         properties.forEach { p ->
             val key = p.key as? String ?: return@forEach
             val value = p.value as? String ?: return@forEach
 
-            if(!key.startsWith("scenery.")) {
+            if(!key.startsWith(prefix)) {
                 return@forEach
             }
 
-            val setting = when {
-                value.lowercase() == "false" || value.lowercase() == "true" -> value.toBoolean()
-                value.lowercase().contains("f") && value.lowercase().replace("f", "").toFloatOrNull() != null -> value.lowercase().replace("f", "").toFloat()
-                value.lowercase().contains("l") && value.lowercase().replace("l", "").toLongOrNull() != null -> value.lowercase().replace("l", "").toLong()
-                value.toIntOrNull() != null -> value.toInt()
-                else -> value
-            }
-
-            set(key.substringAfter("scenery."), setting)
+            val parsed = parseType(value)
+            set(key.substringAfter(prefix), parsed)
         }
+
+        if(inputPropertiesStream != null)
+        {
+            loadProperties(inputPropertiesStream)
+        }
+
+    }
+
+    /**
+     * Loads the .properties [file]
+     * Currently not clearing the old settings -> Overwrites the already set and add new ones. Old stay untouched, if not set by new settings
+     */
+    fun loadProperties(inputStream : InputStream)
+    {
+        val prop = Properties()
+        prop.load(inputStream)
+        prop.propertyNames().toList().forEach { propName ->
+            set(propName as String, parseType(prop.getProperty(propName)))
+        }
+    }
+
+    /**
+     * Saves the currently set settings into [path] if set, or the default properties location (root) set in [this]
+     */
+    fun saveProperties(path : String? = null)
+    {
+        val props = Properties()
+        this.getAllSettings().sortedDescending().forEach { setting ->
+            props.setProperty(setting, this.getOrNull<String?>(setting).toString())
+        }
+        val out : OutputStream
+        if(path != null)
+            out = Path(path).outputStream()
+        else
+            out = Path(File("").absolutePath + "properties.properties").outputStream()
+
+        props.store(out, null)
+    }
+
+    /**
+     * Parses the type from the incoming string, returns the casted value
+     */
+    fun parseType(value:String): Any = when {
+        value.lowercase() == "false" || value.lowercase() == "true" -> value.toBoolean()
+        value.lowercase().contains(".") && value.lowercase().toFloatOrNull() != null -> value.lowercase().toFloat()
+        value.lowercase().contains("f") && value.lowercase().replace("f", "").toFloatOrNull() != null -> value.lowercase().replace("f", "").toFloat()
+        value.lowercase().contains(".") && value.lowercase().contains("f") && value.lowercase().replace("f", "").toFloatOrNull() != null -> value.lowercase().replace("f", "").toFloat()
+        value.lowercase().contains("l") && value.lowercase().replace("l", "").toLongOrNull() != null -> value.lowercase().replace("l", "").toLong()
+        value.toIntOrNull() != null -> value.toInt()
+        else -> value
     }
 
     /**
@@ -85,6 +108,20 @@ class Settings(override var hub: Hub? = null, val propertiesFile: String = "scen
     }
 
     /**
+     * Query the settings store for a setting [name] and type T. If it can not be found or cast to T null is returned.
+     *
+     * @param[name] The name of the setting
+     * @return The setting as type T
+     */
+    fun <T> getOrNull(name: String): T? {
+        if(!settingsStore.containsKey(name)) {
+            logger.debug("Settings don't contain '$name'")
+        }
+        @Suppress("UNCHECKED_CAST")
+        return settingsStore[name] as? T
+    }
+
+    /**
      * Compatibility function for Java, see [get]. Returns the settings value for [name], if found.
      */
     @JvmOverloads fun <T> getProperty(name: String, default: T? = null): T{
@@ -100,6 +137,14 @@ class Settings(override var hub: Hub? = null, val propertiesFile: String = "scen
         val s = settingsStore[name] as? T
         return s
             ?: (default ?: throw IllegalStateException("Cast of $name failed, the setting might not exist (current value: $s)"))
+    }
+
+    /**
+     * Calls a function, if set, from [settingsUpdateRoutines], for the given [setting]
+     * @param[setting] Name of the setting
+     */
+    private fun onValueChange(setting : String) {
+        settingsUpdateRoutines[setting]?.forEach { it.invoke() }
     }
 
     /**
@@ -125,6 +170,9 @@ class Settings(override var hub: Hub? = null, val propertiesFile: String = "scen
         var current = settingsStore[name]
 
         if (current != null) {
+            if(current == contents)
+                return current
+
             val type: Class<*> = current.javaClass
 
             if (type != contents.javaClass) {
@@ -144,8 +192,20 @@ class Settings(override var hub: Hub? = null, val propertiesFile: String = "scen
         } else {
             settingsStore[name] = contents
         }
+        onValueChange(name)
 
         return current ?: contents
+    }
+
+    /**
+     * Adds an update routine lambda to a specific setting [setting], which is called when the setting changes inside the [settingsStore]
+     */
+    fun addUpdateRoutine(setting : String, update: () -> Unit) {
+        if(!settingsUpdateRoutines.containsKey(setting)) {
+            settingsUpdateRoutines[setting] = arrayListOf(update)
+        } else {
+            settingsUpdateRoutines[setting]!! += update
+        }
     }
 
     /**

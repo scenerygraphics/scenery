@@ -5,8 +5,10 @@ import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.attribute.material.DefaultMaterial
 import graphics.scenery.textures.Texture
+import graphics.scenery.utils.RingBuffer
 import net.imglib2.type.numeric.integer.UnsignedByteType
 import org.joml.Vector3i
+import org.lwjgl.system.MemoryUtil
 import java.nio.ByteBuffer
 import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
@@ -20,20 +22,16 @@ class ProceduralTextureExample : SceneryBase("ProceduralTextureExample") {
     override fun init() {
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, 512, 512))
 
-        val boxmaterial = DefaultMaterial()
-        with(boxmaterial) {
+        val box = Box(Vector3f(1.0f, 1.0f, 1.0f))
+        box.name = "le box du procedurale"
+
+        box.material {
             ambient = Vector3f(1.0f, 0.0f, 0.0f)
             diffuse = Vector3f(0.0f, 1.0f, 0.0f)
             specular = Vector3f(1.0f, 1.0f, 1.0f)
         }
 
-        val box = Box(Vector3f(1.0f, 1.0f, 1.0f))
-        box.name = "le box du procedurale"
-
-        with(box) {
-            setMaterial(boxmaterial)
-            scene.addChild(this)
-        }
+        scene.addChild(box)
 
         val lights = (0..2).map {
             PointLight(radius = 15.0f)
@@ -62,25 +60,25 @@ class ProceduralTextureExample : SceneryBase("ProceduralTextureExample") {
             val imageSizeX = 256
             val imageSizeY = 256
             val imageChannels = 3
-            val textureBuffer = BufferUtils.allocateByte(imageSizeX * imageSizeY * imageChannels)
+            val textureRingBuffer = RingBuffer(2, default = { MemoryUtil.memAlloc(imageSizeX * imageSizeY * imageChannels) })
             var ticks = 0L
 
             while(true) {
                 if(box.lock.tryLock(2, TimeUnit.MILLISECONDS)) {
+                    val textureBuffer = textureRingBuffer.get()
                     box.spatial {
                         rotation.rotateY(0.01f)
                         needsUpdate = true
                     }
 
                     textureBuffer.generateProceduralTextureAtTick(ticks,
-                        imageSizeX, imageSizeY, imageChannels)
+                                                                  imageSizeX, imageSizeY, imageChannels)
 
                     box.material {
-                        textures.put("diffuse",
-                            Texture(
-                                Vector3i(imageSizeX, imageSizeY, 1),
-                                channels = imageChannels, contents = textureBuffer,
-                                type = UnsignedByteType()))
+                        textures["diffuse"] = Texture(
+                            Vector3i(imageSizeX, imageSizeY, 1),
+                            channels = imageChannels, contents = textureBuffer,
+                            type = UnsignedByteType())
                     }
                     box.lock.unlock()
 

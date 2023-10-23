@@ -3,7 +3,7 @@ package graphics.scenery.backends.vulkan
 import graphics.scenery.backends.ShaderConsistencyException
 import graphics.scenery.backends.ShaderIntrospection
 import graphics.scenery.geometry.GeometryType
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.*
@@ -15,7 +15,7 @@ import java.nio.IntBuffer
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class VulkanPipeline(val device: VulkanDevice, val renderpass: VulkanRenderpass, val vulkanRenderpass: Long, val pipelineCache: Long? = null): AutoCloseable {
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
     var type: PipelineType = PipelineType.Graphics
 
     enum class PipelineType { Graphics, Compute }
@@ -223,8 +223,13 @@ class VulkanPipeline(val device: VulkanDevice, val renderpass: VulkanRenderpass,
 
         // derivative pipelines only make sense for graphics pipelines in our case
         if(onlyForTopology == null && pipelineCreateInfo is VkGraphicsPipelineCreateInfo.Buffer) {
-            // create pipelines for other topologies as well
-            GeometryType.values().filter { it != GeometryType.TRIANGLE_FAN }.forEach { topology ->
+            // create pipelines for other topologies as well, excluding the ones not supported by the current device configuration
+            val filter = if(device.features.geometryShader()) {
+                { t: GeometryType -> t != GeometryType.TRIANGLE_FAN }
+            } else {
+                { t: GeometryType -> t != GeometryType.TRIANGLE_FAN && t != GeometryType.LINE_STRIP_ADJACENCY && t != GeometryType.LINES_ADJACENCY }
+            }
+            GeometryType.values().filter(filter).forEach { topology ->
                 if (topology == GeometryType.TRIANGLES) {
                     return@forEach
                 }
@@ -260,10 +265,12 @@ class VulkanPipeline(val device: VulkanDevice, val renderpass: VulkanRenderpass,
     }
 
     fun getPipelineForGeometryType(type: GeometryType): VulkanRenderer.Pipeline {
-        return pipeline.getOrElse(type, {
+        return pipeline.getOrElse(type) {
             logger.error("Pipeline $this does not contain a fitting pipeline for $type, return triangle pipeline")
-            pipeline.getOrElse(GeometryType.TRIANGLES, { throw IllegalStateException("Default triangle pipeline not present for $this") })
-        })
+            pipeline.getOrElse(
+                GeometryType.TRIANGLES
+            ) { throw IllegalStateException("Default triangle pipeline not present for $this") }
+        }
     }
 
 

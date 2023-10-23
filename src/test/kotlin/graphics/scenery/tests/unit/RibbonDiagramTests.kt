@@ -3,7 +3,7 @@ package graphics.scenery.tests.unit
 import graphics.scenery.geometry.DummySpline
 import graphics.scenery.proteins.Protein
 import graphics.scenery.proteins.RibbonDiagram
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.biojava.nbio.structure.Group
 import org.biojava.nbio.structure.secstruc.SecStrucElement
 import org.joml.Vector3f
@@ -21,7 +21,7 @@ import kotlin.test.assertTrue
  * @author Justin Buerger, burger@mpi-cbg.com
  */
 class RibbonDiagramTests {
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
 
     /**
      * Tests coherence of curve size and number of residues.
@@ -43,7 +43,8 @@ class RibbonDiagramTests {
                 allPlantPoints += spline.splinePoints().size
             }
         }
-        assertEquals(allPlantPoints, (46) * (10 + 1))
+        //the protein has 46 residues, each section has ten spline points, and the whole spline one starting point
+        assertEquals(allPlantPoints, (46) * (10) +1)
     }
 
     /**
@@ -102,7 +103,7 @@ class RibbonDiagramTests {
             "6ps3", "3v2y", "4pla", "3eml", "2seb", "2qej", "1d5m", "2wy8",
             "4idj", "2vr3", "2win", "6urh", "3ua7", "3mrn", "4z0x", "2rhk",
             "6pdx", "6urm", "2x4q", "1r0n", "2ff6", "4i7b", "3bs5", "5chl",
-            "5f84", "4uuz", "4v98", "4wsi", "4u68", "4aa1", "5jvs", "6hom",
+            "5f84", "4uuz", "4v98", "4wsi", "4u68", "2qho", "5jvs", "6hom",
             "4xib", "4u0q", "6phf"
         )
 
@@ -114,13 +115,17 @@ class RibbonDiagramTests {
             val protein = Protein.fromID(pdbId)
             logger.info("Testing ${protein.structure.name} ...")
             RibbonDiagram(protein)
-            val m = runtime.maxMemory()/1024/1024
+            val available = runtime.maxMemory()/1024/1024
             val used = (runtime.totalMemory()-runtime.freeMemory())/1024/1024
             val free = runtime.freeMemory()/1024/1024
-            logger.info("Memory use: $used MB, $free MB free $m MB max")
+            logger.info("Memory use: $used MB, $free MB free $available MB available, $max MB max used so far")
             max = maxOf(used, max)
+
+            // Ugly, but we try to GC here, as some proteins accrue large string allocations
+            // stemming from the Biojava CIF/PDB parser.
+            System.gc()
         }
-        logger.info("Max use was $max MB")
+        logger.info("Max memory use was $max MB")
     }
 
     /**
@@ -146,7 +151,6 @@ class RibbonDiagramTests {
         val protein = Protein.fromID("5m9m")
         val ribbon = RibbonDiagram(protein)
         val bb = ribbon.getMaximumBoundingBox()
-        print(bb.max)
         //We use ranges because the first and last guidePoint are created nondeterministically- but in the guaranteed range
         assertTrue { 22.2 < bb.max.x && bb.max.x < 22.6 }
         assertTrue { 33.6 < bb.max.y && 34 > bb.max.y }
@@ -156,6 +160,9 @@ class RibbonDiagramTests {
         assertTrue { -36.8 < bb.min.z && -36.4 > bb.min.z }
     }
 
+    /**
+     * Checks if the number of residues in the ribbon diagram corresponds to the actual number of protein residues
+     */
     @Test
     fun testSplinePointsToResidueNumber() {
         val protein = Protein.fromID("4u68")
@@ -163,6 +170,19 @@ class RibbonDiagramTests {
         val residuesCount = ribbon.children.flatMap { chain -> chain.children }.flatMap { it.children }.size
         val allResidues = protein.structure.chains.flatMap { it.atomGroups }.filter { it.hasAminoAtoms() }
         assertEquals(residuesCount, allResidues.size)
+    }
+
+    /**
+     * Checks that the important parts of proteins remain unchanged during ribbon diagram calculation
+     */
+    @Test
+    fun testUnchangedProtein() {
+        val protein = Protein.fromID("4u68")
+        val protein2 = Protein.fromID("4u68")
+        val ribbon = RibbonDiagram(protein)
+        val allResidues = protein.structure.chains.flatMap { it.atomGroups }.filter { it.hasAminoAtoms() }
+        val allResidues2 = protein2.structure.chains.flatMap { it.atomGroups }.filter { it.hasAminoAtoms() }
+        assertEquals(allResidues2.size, allResidues.size)
     }
 
     //Inline function for the protein to access residues

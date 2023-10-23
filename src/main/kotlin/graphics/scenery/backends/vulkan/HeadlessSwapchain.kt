@@ -2,6 +2,7 @@ package graphics.scenery.backends.vulkan
 
 import graphics.scenery.Hub
 import graphics.scenery.backends.RenderConfigReader
+import graphics.scenery.backends.Renderer
 import graphics.scenery.backends.ResizeHandler
 import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.utils.SceneryPanel
@@ -305,6 +306,6 @@ open class HeadlessSwapchain(device: VulkanDevice,
 
     companion object: SwapchainParameters {
         override var headless = true
-        override var usageCondition = { _: SceneryPanel? -> System.getProperty("scenery.Headless", "false")?.toBoolean() ?: false }
+        override var usageCondition = { _: SceneryPanel? -> System.getProperty(Renderer.HEADLESS_PROPERTY_NAME, "false")?.toBoolean() ?: false }
     }
 }

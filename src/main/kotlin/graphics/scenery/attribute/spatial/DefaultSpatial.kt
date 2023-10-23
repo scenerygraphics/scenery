@@ -4,7 +4,7 @@ import graphics.scenery.DefaultNode
 import graphics.scenery.Node
 import graphics.scenery.Scene
 import graphics.scenery.net.Networkable
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import graphics.scenery.utils.MaybeIntersects
 import graphics.scenery.utils.extensions.*
 import net.imglib2.Localizable
@@ -51,13 +51,35 @@ open class DefaultSpatial(@Transient protected var node: Node = DefaultNode()) :
             propertyChanged(::position, field, value)
             field = value
         }
+
+    /** Local X vector */
+    override val localX: Vector3f
+        get() {
+            val v = Vector3f(1.0f, 0.0f, 0.0f)
+            return world.transformDirection(v).normalize()
+        }
+
+    /** Local Y vector */
+    override val localY: Vector3f
+        get() {
+            val v = Vector3f(0.0f, 1.0f, 0.0f)
+            return world.transformDirection(v).normalize()
+        }
+
+    /** Local Z vector */
+    override val localZ: Vector3f
+        get() {
+            val v = Vector3f(0.0f, 0.0f, 1.0f)
+            return world.transformDirection(v).normalize()
+        }
+
     override var wantsComposeModel = true
     @Transient override var needsUpdate = true
     @Transient override var needsUpdateWorld = true
 
     override var modifiedAt = 0L
 
-    val logger by LazyLogger()
+    val logger by lazyLogger()
 
     @Suppress("UNUSED_PARAMETER")
     override fun <R> propertyChanged(property: KProperty<*>, old: R, new: R, custom: String) {
@@ -199,10 +221,17 @@ open class DefaultSpatial(@Transient protected var node: Node = DefaultNode()) :
     }
 
 
-    override fun intersects(other: Node): Boolean {
+    /**
+     * Checks whether this node's bounding box intersects the one of [other] using a simple bounding sphere test.
+     * If [precise] is true, the intersection test will be performed using oriented bounding boxes (OBBs),
+     * otherwise, a faster, but less precise bounding sphere test is performed.
+     *
+     * If any of the nodes to test do not have a bounding box defined, the result will be false.
+     */
+    override fun intersects(other: Node, precise: Boolean): Boolean {
         node.boundingBox?.let { ownOBB ->
             other.boundingBox?.let { otherOBB ->
-                return ownOBB.intersects(otherOBB)
+                return ownOBB.intersects(otherOBB, precise)
             }
         }
 

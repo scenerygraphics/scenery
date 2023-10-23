@@ -8,7 +8,6 @@ import graphics.scenery.attribute.renderable.Renderable
 import graphics.scenery.backends.*
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.*
-import io.github.classgraph.ClassGraph
 import kotlinx.coroutines.*
 import org.joml.*
 import org.lwjgl.PointerBuffer
@@ -72,7 +71,7 @@ open class VulkanRenderer(hub: Hub,
                           final override var embedIn: SceneryPanel? = null,
                           renderConfigFile: String) : Renderer(), AutoCloseable {
 
-    protected val logger by LazyLogger()
+    protected val logger by lazyLogger()
 
     // helper classes
     data class PresentHelpers(
@@ -217,28 +216,36 @@ open class VulkanRenderer(hub: Hub,
         }
     }
 
+    private fun Throwable.filteredStackTrace(): List<String> {
+        val firstIndex = this.stackTrace.indexOfFirst { it.toString().contains("VkDebugUtilsMessengerCallbackEXTI") } + 1
+        val lastIndex = this.stackTrace.indexOfLast { it.toString().contains("SceneryBase") } - 1
+
+        return this.stackTrace.copyOfRange(firstIndex, lastIndex)
+            .filter { !it.toString().contains(".coroutines.") }
+            .map { " at $it" }
+    }
+
     var debugCallbackUtils = callback@ { severity: Int, type: Int, callbackDataPointer: Long, _: Long ->
         val dbg = if (type and VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT == VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT) {
             " (performance)"
         } else if(type and VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT == VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT) {
-            " (validation)"
+            ""
         } else {
             ""
         }
 
         val callbackData = VkDebugUtilsMessengerCallbackDataEXT.create(callbackDataPointer)
-        val obj = callbackData.pMessageIdNameString()
         val message = callbackData.pMessageString()
         val objectType = 0
 
         when (severity) {
             VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT ->
-                logger.error("!! $obj($objectType) Validation$dbg: $message")
+                logger.error("🌋⛔️ Validation$dbg: $message")
             VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT ->
-                logger.warn("!! $obj($objectType) Validation$dbg: $message")
+                logger.warn("🌋⚠️ Validation$dbg: $message")
             VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT ->
-                logger.info("!! $obj($objectType) Validation$dbg: $message")
-            else -> logger.info("!! $obj($objectType) Validation (unknown message type)$dbg: $message")
+                logger.info("🌋ℹ️ Validation$dbg: $message")
+            else -> logger.info("🌋🤷 Validation (unknown message type)$dbg: $message")
         }
 
         // trigger exception and delay if strictValidation is activated in general, or only for specific object types
@@ -250,12 +257,8 @@ open class VulkanRenderer(hub: Hub,
             // set 15s of delay until the next frame is rendered if a validation error happens
             renderDelay = System.getProperty("scenery.VulkanRenderer.DefaultRenderDelay", "1500").toLong()
 
-            try {
-                throw VulkanValidationLayerException("Vulkan validation layer exception, see validation layer error messages above. To disable these exceptions, set scenery.VulkanRenderer.StrictValidation=false. Stack trace:")
-            } catch (e: VulkanValidationLayerException) {
-                logger.error(e.message)
-                e.printStackTrace()
-            }
+            val e = VulkanValidationLayerException("Vulkan validation layer exception, see validation layer error messages above. To disable these exceptions, set scenery.VulkanRenderer.StrictValidation=false.")
+            e.filteredStackTrace().forEach { logger.error(it) }
         }
 
         // return false here, otherwise the application would quit upon encountering a validation error.
@@ -293,12 +296,8 @@ open class VulkanRenderer(hub: Hub,
                 // set 15s of delay until the next frame is rendered if a validation error happens
                 renderDelay = System.getProperty("scenery.VulkanRenderer.DefaultRenderDelay", "1500").toLong()
 
-                try {
-                    throw VulkanValidationLayerException("Vulkan validation layer exception, see validation layer error messages above. To disable these exceptions, set scenery.VulkanRenderer.StrictValidation=false. Stack trace:")
-                } catch (e: VulkanValidationLayerException) {
-                    logger.error(e.message)
-                    e.printStackTrace()
-                }
+                val e = VulkanValidationLayerException("Vulkan validation layer exception, see validation layer error messages above. To disable these exceptions, set scenery.VulkanRenderer.StrictValidation=false. Stack trace:")
+                e.filteredStackTrace().forEach { logger.error(it) }
             }
 
             // return false here, otherwise the application would quit upon encountering a validation error.
@@ -420,6 +419,12 @@ open class VulkanRenderer(hub: Hub,
         private const val MATERIAL_HAS_NORMAL = 0x0008
         private const val MATERIAL_HAS_ALPHAMASK = 0x0010
 
+        private val availableSwapchains = mutableListOf(
+            SwingSwapchain::class.java,
+            HeadlessSwapchain::class.java,
+            OpenGLSwapchain::class.java
+        )
+
         fun getStrictValidation(): Pair<Boolean, List<Int>> {
             val strict = System.getProperty("scenery.VulkanRenderer.StrictValidation")
             val separated = strict?.split(",")?.asSequence()?.mapNotNull { it.toIntOrNull() }?.toList()
@@ -432,6 +437,14 @@ open class VulkanRenderer(hub: Hub,
                 else -> false to emptyList()
             }
         }
+
+        /**
+         * Registers a new special-purpose swapchain with the Vulkan renderer.
+         */
+        fun registerSwapchain(swapchain: Class<VulkanSwapchain>) {
+            availableSwapchains.add(swapchain)
+        }
+
     }
 
     fun getCurrentScene(): Scene {
@@ -479,19 +492,15 @@ open class VulkanRenderer(hub: Hub,
                 }
             }
 
-            val headlessRequested = System.getProperty("scenery.Headless")?.toBoolean() ?: false
+            val headlessRequested = System.getProperty(Renderer.HEADLESS_PROPERTY_NAME)?.toBoolean() ?: false
             // GLFW works kinda shaky on macOS, we create a JFrame here for a nicer experience then.
             // That is of course unless [embedIn] is already set.
             if(Platform.get() == Platform.MACOSX && embedIn == null && !headlessRequested) {
-                val mainFrame = JFrame(applicationName)
-                mainFrame.setSize(windowWidth, windowHeight)
-                mainFrame.layout = BorderLayout()
-
-                val sceneryPanel = SceneryJPanel()
-                mainFrame.add(sceneryPanel, BorderLayout.CENTER)
-                mainFrame.isVisible = true
-
-                embedIn = sceneryPanel
+                embedIn = SwingSwapchain.createApplicationFrame(
+                    applicationName,
+                    windowWidth,
+                    windowHeight
+                )
             }
 
             // Create the Vulkan instance
@@ -505,7 +514,9 @@ open class VulkanRenderer(hub: Hub,
                         stack.UTF8(EXTMetalSurface.VK_EXT_METAL_SURFACE_EXTENSION_NAME)
                     )
                 } else {
-                    null
+                    stack.pointers(
+                        stack.UTF8(VK_KHR_SURFACE_EXTENSION_NAME)
+                    )
                 }
 
                 createInstance(
@@ -558,24 +569,17 @@ open class VulkanRenderer(hub: Hub,
             }
 
             // get available swapchains, but remove default swapchain, will always be there as fallback
-            val start = System.nanoTime()
-            val swapchains = ClassGraph()
-                .acceptPackages("graphics.scenery.backends.vulkan")
-                .enableClassInfo()
-                .scan()
-                .getClassesImplementing("graphics.scenery.backends.vulkan.Swapchain")
-                .filter { cls -> cls.simpleName != "VulkanSwapchain" }
-                .loadClasses()
-            val duration = System.nanoTime() - start
-            logger.debug("Finding swapchains took ${duration/10e6} ms")
-
-            logger.debug("Available special-purpose swapchains are: ${swapchains.joinToString { it.simpleName }}")
-            val selectedSwapchain = swapchains.firstOrNull { (it.kotlin.companionObjectInstance as SwapchainParameters).usageCondition.invoke(embedIn) }
+            logger.info("Available special-purpose swapchains are: ${availableSwapchains.joinToString { it.simpleName }}")
+            val selectedSwapchain = availableSwapchains.firstOrNull() {
+                val result = (it.kotlin.companionObjectInstance as SwapchainParameters).usageCondition.invoke(embedIn)
+                logger.debug("Swapchain usage condition result for ${it.simpleName} is $result")
+                result
+            }
             val headless = (selectedSwapchain?.kotlin?.companionObjectInstance as? SwapchainParameters)?.headless ?: false
 
             device = VulkanDevice.fromPhysicalDevice(instance,
                 physicalDeviceFilter = { _, device -> "${device.vendor} ${device.name}".contains(System.getProperty("scenery.Renderer.Device", "DOES_NOT_EXIST"))},
-                additionalExtensions = { physicalDevice -> hub.getWorkingHMDDisplay()?.getVulkanDeviceExtensions(physicalDevice)?.toTypedArray() ?: arrayOf() },
+                additionalExtensions = { physicalDevice -> hub.getWorkingHMDDisplay()?.getVulkanDeviceExtensions(physicalDevice)?.toMutableList() ?: mutableListOf(KHRSwapchain.VK_KHR_SWAPCHAIN_EXTENSION_NAME) },
                 validationLayers = requestedValidationLayers,
                 headless = headless,
                 debugEnabled = validation
@@ -611,17 +615,20 @@ open class VulkanRenderer(hub: Hub,
             swapchain = when {
                 selectedSwapchain != null -> {
                     logger.info("Using swapchain ${selectedSwapchain.simpleName}")
-                    val params = selectedSwapchain.kotlin.primaryConstructor!!.parameters.associate { param ->
-                        param to when(param.name) {
+                    val params = selectedSwapchain.kotlin.primaryConstructor!!.parameters.associateWith { param ->
+                        when(param.name) {
                             "device" -> device
                             "queue" -> queue
                             "commandPools" -> commandPools
                             "renderConfig" -> renderConfig
                             "useSRGB" -> renderConfig.sRGB
+                            "vsync" -> !settings.get<Boolean>("Renderer.DisableVsync")
                             else -> null
                         }
                     }.filter { it.value != null }
 
+                    // The cast is actually necessary, despite the IDE saying otherwise
+                    @Suppress("USELESS_CAST")
                     selectedSwapchain
                         .kotlin
                         .primaryConstructor!!
@@ -640,7 +647,7 @@ open class VulkanRenderer(hub: Hub,
                 window = createWindow(window, swapchainRecreator)
             }
 
-            logger.debug("Created swapchain")
+            logger.debug("Created swapchain with image size ${window.width}x${window.height}")
             vertexDescriptors = prepareStandardVertexDescriptors()
             logger.debug("Created vertex descriptors")
 
@@ -686,13 +693,13 @@ open class VulkanRenderer(hub: Hub,
                     }
 
                     val validationsEnabled = if (validation) {
-                        " - VALIDATIONS ENABLED"
+                        ", validation layers enabled"
                     } else {
                         ""
                     }
 
-                    if(embedIn == null) {
-                        window.title = "$applicationName [${this@VulkanRenderer.javaClass.simpleName}, ${this@VulkanRenderer.renderConfig.name}] $validationsEnabled - $fps fps"
+                    if(embedIn == null || (embedIn as? SceneryJPanel)?.owned == true) {
+                        window.title = "$applicationName [${this@VulkanRenderer.renderConfig.name}$validationsEnabled] $fps fps"
                     }
                 }
             }, 0, 1000)
@@ -1283,7 +1290,12 @@ open class VulkanRenderer(hub: Hub,
         }
     }
 
-    private suspend fun submitFrame(queue: VkQueue, pass: VulkanRenderpass, commandBuffer: VulkanCommandBuffer, present: PresentHelpers) {
+    private suspend fun submitFrame(
+        queue: VkQueue,
+        pass: VulkanRenderpass,
+        commandBuffer: VulkanCommandBuffer,
+        present: PresentHelpers
+    ) {
         if(swapchainRecreator.mustRecreate) {
             return
         }
@@ -1292,7 +1304,7 @@ open class VulkanRenderer(hub: Hub,
         present.submitInfo
             .sType(VK_STRUCTURE_TYPE_SUBMIT_INFO)
             .pNext(NULL)
-            .waitSemaphoreCount(present.waitSemaphore.capacity())
+            .waitSemaphoreCount(present.waitSemaphore.limit())
             .pWaitSemaphores(present.waitSemaphore)
             .pWaitDstStageMask(present.waitStages)
             .pCommandBuffers(present.commandBuffers)
@@ -1301,7 +1313,9 @@ open class VulkanRenderer(hub: Hub,
         val q = (swapchain as? VulkanSwapchain)?.presentQueue ?: queue
         // Submit to the graphics queue
 //        vkResetFences(device.vulkanDevice, swapchain.currentFence)
-        VU.run("Submit viewport render queue", { vkQueueSubmit(q, present.submitInfo, swapchain.currentFence) })
+        VU.run("Submit viewport render queue", {
+            vkQueueSubmit(q, present.submitInfo, swapchain.currentFence)
+        })
 
         // submit to OpenVR if attached
         if(hub?.getWorkingHMDDisplay()?.hasCompositor() == true) {
@@ -1691,6 +1705,11 @@ open class VulkanRenderer(hub: Hub,
             }
         }
 
+        if(renderpasses.any { it.value.shaders.stale }) {
+            logger.info("Rebuilding swapchain due to stale shaders")
+            swapchainRecreator.mustRecreate = true
+        }
+
         profiler?.begin("Renderer.BeginFrame")
         val presentedFrames = swapchain.presentedFrames()
         // return if neither UBOs were updated, nor the scene was modified
@@ -1731,6 +1750,7 @@ open class VulkanRenderer(hub: Hub,
                 RenderConfigReader.RenderpassType.quad -> VulkanPostprocessPass.record(target, commandBuffer, commandPools, sceneUBOs, descriptorSets)
                 RenderConfigReader.RenderpassType.compute -> VulkanComputePass.record(target, commandBuffer, commandPools, sceneUBOs, descriptorSets)
             }
+
 
             stats?.add("VulkanRenderer.$t.recordCmdBuffer", System.nanoTime() - start)
 
@@ -1798,11 +1818,23 @@ open class VulkanRenderer(hub: Hub,
         viewportPass.updateShaderParameters()
 
         ph.commandBuffers.put(0, viewportCommandBuffer.commandBuffer!!)
-        ph.waitStages.put(0, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT or VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT)
-        ph.waitStages.put(1, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT or VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT)
         ph.signalSemaphore.put(0, semaphores.getValue(StandardSemaphores.RenderComplete)[currentFrame])
-        ph.waitSemaphore.put(0, waitSemaphore)
-        ph.waitSemaphore.put(1, swapchain.imageAvailableSemaphore)
+
+        // for single-pass render pipelines, waitSemaphore might not be valid, as
+        // there was no previous pass.
+        if(waitSemaphore == -1L) {
+            ph.waitStages.limit(1)
+            ph.waitSemaphore.limit(1)
+            ph.waitStages.put(0, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT or VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT)
+            ph.waitSemaphore.put(0, swapchain.imageAvailableSemaphore)
+        } else {
+            ph.waitStages.limit(2)
+            ph.waitSemaphore.limit(2)
+            ph.waitStages.put(0, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT or VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT)
+            ph.waitSemaphore.put(0, waitSemaphore)
+            ph.waitStages.put(1, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT or VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT)
+            ph.waitSemaphore.put(1, swapchain.imageAvailableSemaphore)
+        }
         profiler?.end()
 
         profiler?.begin("Renderer.SubmitFrame")
@@ -2198,8 +2230,11 @@ open class VulkanRenderer(hub: Hub,
         settings.getAllSettings().forEach {
             if (it.lowercase().contains("debug")) {
                 try {
-                    val property = settings.get<Int>(it).toggle()
-                    settings.set(it, property)
+                    val property = settings.get<Int>(it)
+                    val range = settings.get<Int>(it + "Range", 9)
+                    val new = (property+1) % range
+                    settings.set(it, new)
+                    logger.info("$it: $property -> $new")
 
                 } catch(e: Exception) {
                     logger.warn("$it is a property that is not togglable.")

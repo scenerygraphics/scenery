@@ -13,7 +13,7 @@ import graphics.scenery.backends.vulkan.VulkanDevice
 import graphics.scenery.backends.vulkan.VulkanTexture
 import graphics.scenery.backends.vulkan.endCommandBuffer
 import graphics.scenery.utils.JsonDeserialisers
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import graphics.scenery.utils.Statistics
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -51,7 +51,7 @@ import kotlin.math.absoluteValue
 open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = true) : TrackerInput, Display, Hubable {
 
     /** slf4j logger instance */
-    protected val logger by LazyLogger()
+    protected val logger by lazyLogger()
     /** The Hub to use for communication */
     override var hub: Hub? = null
 
@@ -917,61 +917,6 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
         return Matrix4f(this.m())
     }
 
-    private fun loadMeshFromModelPath(type: TrackedDeviceType, path: String, mesh: Mesh): Mesh {
-        val compositeFile = File(path.substringBeforeLast(".") + ".json")
-
-        when {
-            compositeFile.exists() && compositeFile.length() > 1024 -> {
-                logger.info("Loading model from composite JSON, ${compositeFile.absolutePath}")
-                val mapper = ObjectMapper(YAMLFactory())
-                mapper.registerModule(KotlinModule())
-                mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
-                mapper.configure(DeserializationFeature.FAIL_ON_IGNORED_PROPERTIES, false)
-
-                try {
-                    // SteamVR's JSON contains tabs, while it shouldn't. If not replacing this, jackson will freak out.
-                    val json = compositeFile.readText().replace("\t", "    ")
-                    val model = mapper.readValue(json, CompositeModel::class.java)
-                    model.components.forEach { (_, component) ->
-                        if(component.filename != null) {
-                            val m = Mesh()
-                            m.readFromOBJ(compositeFile.resolveSibling(component.filename).absolutePath, true)
-                            mesh.addChild(m)
-
-                            if(component.visibility?.getOrDefault("default", true) == false) {
-                                m.visible = false
-                            }
-                        }
-                    }
-                } catch(e: Exception) {
-                    logger.error("Exception: $e")
-                    logger.info("Loading composite JSON failed, trying to fall back to regular model.")
-                    mesh.readFrom(path)
-                    e.printStackTrace()
-                }
-            }
-
-            mesh.name.lowercase().endsWith("stl") ||
-                mesh.name.lowercase().endsWith("obj") -> {
-                mesh.readFrom(path)
-
-                if (type == TrackedDeviceType.Controller) {
-                    mesh.ifMaterial {
-                        diffuse = Vector3f(0.1f, 0.1f, 0.1f)
-                    }
-                    mesh.children.forEach { c ->
-                        c.ifMaterial {
-                            diffuse = Vector3f(0.1f, 0.1f, 0.1f)
-                        }
-                    }
-                }
-            }
-            else -> logger.warn("Unknown model format: $path for $type")
-        }
-
-
-        return mesh
-    }
 
     /**
      * Loads a model representing the [TrackedDevice].
@@ -1200,7 +1145,7 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
     }
 
     companion object {
-        private val logger by LazyLogger()
+        private val logger by lazyLogger()
 
         protected val keyMap: HashMap<Pair<TrackerRole, OpenVRButton>, AWTKey> = hashMapOf(
             (TrackerRole.LeftHand to OpenVRButton.Left) to AWTKey(KeyEvent.VK_H),
@@ -1312,6 +1257,67 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
 
         private fun HmdVector3.toVector3f(): Vector3f {
             return Vector3f(this.v())
+        }
+
+        /**
+         * Loads a model for a given device [type] from the JSON file given as [path]. The
+         * model data loaded from the JSON file will become a child of [mesh], and [mesh] will
+         * again be returned by this function.
+         */
+        fun loadMeshFromModelPath(type: TrackedDeviceType, path: String, mesh: Mesh): Mesh {
+            val compositeFile = File(path.substringBeforeLast(".") + ".json")
+
+            when {
+                compositeFile.exists() && compositeFile.length() > 1024 -> {
+                    logger.info("Loading model from composite JSON, ${compositeFile.absolutePath}")
+                    val mapper = ObjectMapper(YAMLFactory())
+                    mapper.registerModule(KotlinModule())
+                    mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+                    mapper.configure(DeserializationFeature.FAIL_ON_IGNORED_PROPERTIES, false)
+
+                    try {
+                        // SteamVR's JSON contains tabs, while it shouldn't. If not replacing this, jackson will freak out.
+                        val json = compositeFile.readText().replace("\t", "    ")
+                        val model = mapper.readValue(json, CompositeModel::class.java)
+                        model.components.forEach { (_, component) ->
+                            if(component.filename != null) {
+                                val m = Mesh()
+                                m.readFromOBJ(compositeFile.resolveSibling(component.filename).absolutePath, true)
+                                mesh.addChild(m)
+
+                                if(component.visibility?.getOrDefault("default", true) == false) {
+                                    m.visible = false
+                                }
+                            }
+                        }
+                    } catch(e: Exception) {
+                        logger.error("Exception: $e")
+                        logger.info("Loading composite JSON failed, trying to fall back to regular model.")
+                        mesh.readFrom(path)
+                        e.printStackTrace()
+                    }
+                }
+
+                mesh.name.lowercase().endsWith("stl") ||
+                        mesh.name.lowercase().endsWith("obj") -> {
+                    mesh.readFrom(path)
+
+                    if (type == TrackedDeviceType.Controller) {
+                        mesh.ifMaterial {
+                            diffuse = Vector3f(0.1f, 0.1f, 0.1f)
+                        }
+                        mesh.children.forEach { c ->
+                            c.ifMaterial {
+                                diffuse = Vector3f(0.1f, 0.1f, 0.1f)
+                            }
+                        }
+                    }
+                }
+                else -> logger.warn("Unknown model format: $path for $type")
+            }
+
+
+            return mesh
         }
     }
 }

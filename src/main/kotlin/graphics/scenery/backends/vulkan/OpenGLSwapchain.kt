@@ -1,7 +1,5 @@
 package graphics.scenery.backends.vulkan
 
-import com.jogamp.opengl.GL2ES3.GL_MAJOR_VERSION
-import com.jogamp.opengl.GL2ES3.GL_MINOR_VERSION
 import com.sun.jna.Pointer
 import com.sun.jna.platform.win32.User32
 import com.sun.jna.platform.win32.WinDef

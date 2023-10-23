@@ -7,12 +7,10 @@ import com.esotericsoftware.kryo.util.DefaultInstantiatorStrategy
 import de.javakaffee.kryoserializers.UUIDSerializer
 import graphics.scenery.*
 import graphics.scenery.serialization.*
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import graphics.scenery.utils.Statistics
 import graphics.scenery.volumes.VolumeManager
 import net.imglib2.img.basictypeaccess.array.ByteArray
-import org.biojava.nbio.structure.AtomImpl
-import org.biojava.nbio.structure.BondImpl
 import org.joml.Vector3f
 import org.objenesis.strategy.StdInstantiatorStrategy
 import org.slf4j.Logger
@@ -44,12 +42,12 @@ class NodePublisher(
     portBackchannel: Int = 6666,
     val context: ZContext
 ) : Hubable {
-    private val logger by LazyLogger()
+    private val logger by lazyLogger()
 
     private val addressMain = "$ip:$portMain"
     private val addressBackchannel = "$ip:$portBackchannel"
 
-    var timeout = 100
+    var timeout = 15 // -> 60fps
     private val publisher: ZMQ.Socket = context.createSocket(SocketType.PUB)
     var portMain: Int = try {
         publisher.bind(addressMain)

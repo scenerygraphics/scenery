@@ -2,7 +2,7 @@ package graphics.scenery
 
 import graphics.scenery.attribute.DefaultAttributesMap
 import graphics.scenery.net.Networkable
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.joml.Vector3f
 import java.util.*
 import java.util.concurrent.CopyOnWriteArrayList
@@ -50,7 +50,7 @@ open class DefaultNode(name: String = "Node") : Node, Networkable {
 
     override var nodeType = "Node"
     override var boundingBox: OrientedBoundingBox? = null
-    override val logger by LazyLogger()
+    override val logger by lazyLogger()
 
     @Transient private val attributes = DefaultAttributesMap()
 
@@ -120,13 +120,15 @@ open class DefaultNode(name: String = "Node") : Node, Networkable {
     override fun runRecursive(func: (Node) -> Unit) {
         func.invoke(this)
 
-        children.forEach { it.runRecursive(func) }
+        //use toArray to force a copy of children list
+        children.toArray().forEach { (it as Node).runRecursive(func) }
     }
 
     override fun runRecursive(func: Consumer<Node>) {
         func.accept(this)
 
-        children.forEach { it.runRecursive(func) }
+        //use toArray to force a copy of children list
+        children.toArray().forEach { (it as Node).runRecursive(func) }
     }
 
     @Transient private val shaderPropertyFieldCache = HashMap<String, KProperty1<DefaultNode, *>>()

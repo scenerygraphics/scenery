@@ -3,7 +3,7 @@ package graphics.scenery.proteins
 import graphics.scenery.Mesh
 import graphics.scenery.proteins.Protein.MyProtein.fromFile
 import graphics.scenery.proteins.Protein.MyProtein.fromID
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.biojava.nbio.structure.Structure
 import org.biojava.nbio.structure.StructureException
 import org.biojava.nbio.structure.StructureIO
@@ -23,7 +23,7 @@ class Protein(val structure: Structure): Mesh("Protein") {
     var id: String? = null
 
     companion object MyProtein {
-        private val proteinLogger by LazyLogger()
+        private val proteinLogger by lazyLogger()
 
         fun fromID(id: String): Protein {
             try {

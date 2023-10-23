@@ -87,8 +87,8 @@ void main()
 	mat4 nMVP;
 	mat4 projectionMatrix;
 
-    mv = (vrParameters.stereoEnabled ^ 1) * ViewMatrices[0] * ubo.ModelMatrix + (vrParameters.stereoEnabled * ViewMatrices[currentEye.eye] * ubo.ModelMatrix);
-	projectionMatrix = (vrParameters.stereoEnabled ^ 1) * ProjectionMatrix + vrParameters.stereoEnabled * vrParameters.projectionMatrices[currentEye.eye];
+    mv = ViewMatrices[currentEye.eye] * ubo.ModelMatrix;
+	projectionMatrix = vrParameters.projectionMatrices[currentEye.eye];
 
     Vertex.inverseProjection = (vrParameters.stereoEnabled ^ 1) * InverseProjectionMatrix + (vrParameters.stereoEnabled * vrParameters.inverseProjectionMatrices[currentEye.eye]);
     Vertex.inverseModelView = inverse(mv);

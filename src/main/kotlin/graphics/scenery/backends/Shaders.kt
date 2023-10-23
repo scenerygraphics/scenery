@@ -1,8 +1,10 @@
 package graphics.scenery.backends
 
-import graphics.scenery.utils.LazyLogger
-import org.lwjgl.util.shaderc.Shaderc
+import graphics.scenery.utils.lazyLogger
+import kotlinx.coroutines.*
+import java.io.File
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Shaders handling class.
@@ -10,8 +12,12 @@ import java.util.concurrent.ConcurrentHashMap
  * @author Ulrik Guenther <hello@ulrik.is>
  */
 sealed class Shaders() {
-    val logger by LazyLogger()
-    var stale: Boolean = false
+    protected val logger by lazyLogger()
+    /** Marks a collection of shaders to be stale, usually used for online reloading. */
+    @Volatile var stale: Boolean = true
+    /** Sets whether a collection of shaders residing on the local file system should be watched for changes. */
+    var watchFiles = true
+    /** The types of shaders contained in this collection. */
     val type: HashSet<ShaderType> = hashSetOf()
 
     /**
@@ -90,8 +96,31 @@ sealed class Shaders() {
             val base = baseClass.first()
             val pathPrefix = base.second
 
-            val spirvFromFile: ByteArray? = base.first.getResourceAsStream("$pathPrefix$spirvPath")?.readBytes()
-            val codeFromFile: String? = base.first.getResourceAsStream("$pathPrefix$codePath")?.bufferedReader().use { it?.readText() }
+            val f = File(codePath)
+            val paths = ShaderPaths(spirvPath, codePath)
+
+            val (spirvFromFile, codeFromFile) = if(f.exists()) {
+                logger.warn("Using $codePath from filesystem, will ignore compiled or packaged version.")
+                changeTimes.putIfAbsent(ShaderPaths(spirvPath, codePath), f.lastModified())
+
+                CoroutineScope(Dispatchers.IO).launch {
+                    while(watchFiles) {
+                        val modifiedTime = f.lastModified()
+                        if(modifiedTime > (changeTimes[paths] ?: 0)) {
+                            logger.info("File changed, marking $codePath as stale")
+                            changeTimes[paths] = modifiedTime
+                            stale = true
+                            watchFiles = false
+                        }
+                        delay(2000.milliseconds)
+                    }
+                }
+
+                null to f.readText()
+            } else {
+                base.first.getResourceAsStream("$pathPrefix$spirvPath")?.readBytes() to
+                        base.first.getResourceAsStream("$pathPrefix$codePath")?.bufferedReader().use { it?.readText() }
+            }
 
             val shaderPackage = ShaderPackage(base.first,
                 type,
@@ -102,7 +131,10 @@ sealed class Shaders() {
                 SourceSPIRVPriority.SourcePriority)
 
             val p = compile(shaderPackage, type, target, base.first)
-            cache.putIfAbsent(ShaderPaths(spirvPath, codePath), p)
+            if(stale) {
+                cache[paths] = p
+            }
+            stale = false
 
             return p
         }
@@ -122,6 +154,7 @@ sealed class Shaders() {
          */
         companion object {
             protected val cache = ConcurrentHashMap<ShaderPaths, ShaderPackage>()
+            protected val changeTimes = ConcurrentHashMap<ShaderPaths, Long>()
         }
     }
 
@@ -227,7 +260,7 @@ sealed class Shaders() {
         // code needs to be compiled first
 
         val compiler = ShaderCompiler()
-        val bytecode = compiler.compile(code, type, target, "main", debug, strict, ShaderCompiler.OptimisationLevel.None, shaderPackage.codePath, base.simpleName)
+        val bytecode = compiler.compile(code, type, target, "main", debug, strict, ShaderCompiler.OptimisationLevel.NoOptimisation, shaderPackage.codePath, base.simpleName)
         compiler.close()
         return Pair(bytecode, code)
     }

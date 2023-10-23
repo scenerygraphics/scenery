@@ -1,7 +1,7 @@
 package graphics.scenery.backends.vulkan
 
 import graphics.scenery.backends.vulkan.VulkanDevice.DescriptorPool.Companion.maxSets
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import org.lwjgl.system.MemoryStack.stackPush
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.MemoryUtil.memUTF8
@@ -11,6 +11,7 @@ import org.lwjgl.vulkan.EXTDebugUtils.vkSetDebugUtilsObjectNameEXT
 import org.lwjgl.vulkan.VK10.*
 import org.lwjgl.vulkan.VK11.VK_FORMAT_G16_B16_R16_3PLANE_444_UNORM
 import org.lwjgl.vulkan.VK11.VK_FORMAT_G8B8G8R8_422_UNORM
+import java.nio.ByteBuffer
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 
@@ -25,13 +26,13 @@ open class VulkanDevice(
     val instance: VkInstance,
     val physicalDevice: VkPhysicalDevice,
     val deviceData: DeviceData,
-    extensionsQuery: (VkPhysicalDevice) -> Array<String> = { arrayOf() },
+    extensionsQuery: (VkPhysicalDevice) -> MutableList<String> = { mutableListOf() },
     validationLayers: Array<String> = arrayOf(),
     val headless: Boolean = false,
     val debugEnabled: Boolean = false
 ) {
 
-    protected val logger by LazyLogger()
+    protected val logger by lazyLogger()
     /** Stores available memory types on the device. */
     val memoryProperties: VkPhysicalDeviceMemoryProperties
     /** Stores the Vulkan-internal device. */
@@ -40,6 +41,8 @@ open class VulkanDevice(
     val queues: Queues
     /** Stores available extensions */
     val extensions = ArrayList<String>()
+    /** Stores enabled features */
+    val features: VkPhysicalDeviceFeatures
 
     private val descriptorPools = ArrayList<DescriptorPool>(5)
 
@@ -57,7 +60,15 @@ open class VulkanDevice(
      * @property[apiVersion] The Vulkan API version supported by the device, represented as string.
      * @property[type] The [DeviceType] of the GPU.
      */
-    data class DeviceData(val vendor: String, val name: String, val driverVersion: String, val apiVersion: String, val type: DeviceType, val properties: VkPhysicalDeviceProperties, val formats: Map<Int, VkFormatProperties>) {
+    data class DeviceData(
+        val vendor: String,
+        val name: String,
+        val driverVersion: String,
+        val apiVersion: String,
+        val type: DeviceType,
+        val properties: VkPhysicalDeviceProperties,
+        val formats: Map<Int, VkFormatProperties>
+    ) {
         fun toFullString() = "$vendor $name ($type, driver version $driverVersion, Vulkan API $apiVersion)"
     }
 
@@ -71,6 +82,7 @@ open class VulkanDevice(
     data class Queues(val presentQueue: QueueIndexWithProperties, val transferQueue: QueueIndexWithProperties, val graphicsQueue: QueueIndexWithProperties, val computeQueue: QueueIndexWithProperties)
 
     init {
+        val enabledFeatures = VkPhysicalDeviceFeatures.calloc()
         val result = stackPush().use { stack ->
             val pQueueFamilyPropertyCount = stack.callocInt(1)
             vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, pQueueFamilyPropertyCount, null)
@@ -132,7 +144,17 @@ open class VulkanDevice(
                     .queueCount(size)
             }
 
+            val extensionPropertyCount = intArrayOf(0)
+            vkEnumerateDeviceExtensionProperties(physicalDevice, null as? ByteBuffer?, extensionPropertyCount, null)
+            val extensionProperties = VkExtensionProperties.calloc(extensionPropertyCount[0], stack)
+            vkEnumerateDeviceExtensionProperties(physicalDevice, null as? ByteBuffer?, extensionPropertyCount, extensionProperties)
+
             val extensionsRequested = extensionsQuery.invoke(physicalDevice)
+            extensionProperties.forEach {
+                if(it.extensionNameString() == "VK_KHR_portability_subset") {
+                    extensionsRequested += "VK_KHR_portability_subset"
+                }
+            }
             logger.debug("Requested extensions: ${extensionsRequested.joinToString(", ")} ${extensionsRequested.size}")
             val utf8Exts = extensionsRequested.map { stack.UTF8(it) }
 
@@ -163,7 +185,6 @@ open class VulkanDevice(
 
 
             // all enabled features here have >99% availability according to http://vulkan.gpuinfo.org/listfeatures.php
-            val enabledFeatures = VkPhysicalDeviceFeatures.calloc(stack)
             vkGetPhysicalDeviceFeatures(physicalDevice, enabledFeatures)
             if(!enabledFeatures.samplerAnisotropy()
                 || !enabledFeatures.largePoints()
@@ -209,6 +230,7 @@ open class VulkanDevice(
         vulkanDevice = result.first
         queues = result.second
         memoryProperties = result.third
+        features = enabledFeatures
 
         extensions.addAll(extensionsQuery.invoke(physicalDevice))
         extensions.add(KHRSwapchain.VK_KHR_SWAPCHAIN_EXTENSION_NAME)
@@ -340,13 +362,27 @@ open class VulkanDevice(
         vkDestroySemaphore(this.vulkanDevice, semaphore, null)
     }
 
-    data class DescriptorPool(val handle: Long, var free: Int = maxTextures + maxUBOs + maxInputAttachments + maxUBOs) {
+    data class DescriptorPool(
+        val handle: Long,
+        var free: ConcurrentHashMap<Int, Int> = ConcurrentHashMap(
+            mutableMapOf(
+                VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER to maxUBOs,
+                VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC to maxUBOs,
+                VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT to maxInputAttachments,
+                VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER to maxTextures,
+                VK_DESCRIPTOR_TYPE_STORAGE_IMAGE to maxTextures)
+        )
+    ) {
 
         companion object {
             val maxTextures = 2048 * 16
             val maxUBOs = 2048
             val maxInputAttachments = 32
             val maxSets = maxUBOs * 2 + maxInputAttachments + maxTextures
+        }
+
+        fun decreaseAvailable(type: Int, by: Int = 1) {
+            free[type] = free[type]!! - by
         }
     }
 
@@ -387,7 +423,7 @@ open class VulkanDevice(
             val handle = VU.getLong("vkCreateDescriptorPool",
                 { vkCreateDescriptorPool(vulkanDevice, descriptorPoolInfo, null, this) }, {})
 
-            DescriptorPool(handle, maxSets)
+            DescriptorPool(handle)
         }
     }
 
@@ -400,8 +436,8 @@ open class VulkanDevice(
         ubo: VulkanUBO.UBODescriptor,
         type: Int = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER
     ): Long {
-        val pool = findAvailableDescriptorPool()
-        pool.free -= 1
+        val pool = findAvailableDescriptorPool(type)
+        pool.decreaseAvailable(type, 1)
 
         logger.debug("Creating descriptor set with $bindingCount bindings, DSL=$descriptorSetLayout")
         return stackPush().use { stack ->
@@ -410,7 +446,7 @@ open class VulkanDevice(
             val allocInfo = VkDescriptorSetAllocateInfo.calloc(stack)
                 .sType(VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO)
                 .pNext(MemoryUtil.NULL)
-                .descriptorPool(findAvailableDescriptorPool().handle)
+                .descriptorPool(pool.handle)
                 .pSetLayouts(pDescriptorSetLayout)
 
             val descriptorSet = VU.getLong("createDescriptorSet",
@@ -450,8 +486,8 @@ open class VulkanDevice(
         buffer: VulkanBuffer,
         size: Long = 2048L
     ): Long {
-        val pool = findAvailableDescriptorPool()
-        pool.free -= 1
+        val pool = findAvailableDescriptorPool(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC)
+        pool.decreaseAvailable(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1)
 
         logger.debug("Creating dynamic descriptor set with $bindingCount bindings, DSL=${descriptorSetLayout.toHexString()}")
 
@@ -461,7 +497,7 @@ open class VulkanDevice(
             val allocInfo = VkDescriptorSetAllocateInfo.calloc()
                 .sType(VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO)
                 .pNext(MemoryUtil.NULL)
-                .descriptorPool(findAvailableDescriptorPool().handle)
+                .descriptorPool(pool.handle)
                 .pSetLayouts(pDescriptorSetLayout)
 
             val descriptorSet = VU.getLong("createDescriptorSet",
@@ -612,8 +648,6 @@ open class VulkanDevice(
         imageLoadStore: Boolean = false,
         onlyFor: List<VulkanFramebuffer.VulkanFramebufferAttachment>? = null
     ): Long {
-        val pool = findAvailableDescriptorPool()
-        pool.free -= 1
 
         return stackPush().use { stack ->
             val (type, layout) = if (!imageLoadStore) {
@@ -622,12 +656,15 @@ open class VulkanDevice(
                 VK_DESCRIPTOR_TYPE_STORAGE_IMAGE to VK_IMAGE_LAYOUT_GENERAL
             }
 
+            val pool = findAvailableDescriptorPool(type)
+            pool.decreaseAvailable(type)
+
             val pDescriptorSetLayout = stack.callocLong(1).put(0, descriptorSetLayout)
 
             val allocInfo = VkDescriptorSetAllocateInfo.calloc(stack)
                 .sType(VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO)
                 .pNext(MemoryUtil.NULL)
-                .descriptorPool(findAvailableDescriptorPool().handle)
+                .descriptorPool(pool.handle)
                 .pSetLayouts(pDescriptorSetLayout)
 
             val descriptorSet = VU.getLong("createDescriptorSet",
@@ -675,12 +712,12 @@ open class VulkanDevice(
      *
      * Creates a new pool if necessary.
      */
-    fun findAvailableDescriptorPool(requiredSets: Int = 1): DescriptorPool {
-        val available = descriptorPools.firstOrNull { it.free >= requiredSets }
+    fun findAvailableDescriptorPool(type: Int, requiredSets: Int = 1): DescriptorPool {
+        val available = descriptorPools.firstOrNull { it.free[type]!! >= requiredSets }
 
         return if(available == null) {
             descriptorPools.add(createDescriptorPool())
-            descriptorPools.first { it.free >= requiredSets }
+            descriptorPools.first { it.free[type]!! >= requiredSets }
         } else {
             available
         }
@@ -768,7 +805,7 @@ open class VulkanDevice(
      * Utility functions for [VulkanDevice].
      */
     companion object {
-        val logger by LazyLogger()
+        val logger by lazyLogger()
 
         /**
          * Data class for defining device/driver-specific workarounds.
@@ -815,12 +852,27 @@ open class VulkanDevice(
                 else -> "(Unknown vendor)"
             }
 
-        private fun decodeDriverVersion(version: Int) =
-            Triple(
-                version and 0xFFC00000.toInt() shr 22,
-                version and 0x003FF000 shr 12,
-                version and 0x00000FFF
-            )
+        private fun decodeDriverVersion(version: Int, vendor: Int): List<Int> {
+            return when(vendor) {
+                4318 -> listOf(
+                    (version shr 22) and 0x3ff,
+                    (version shr 14) and 0x0ff,
+                    (version shr 6) and 0x0ff,
+                    (version) and 0x003f
+                )
+
+                0x8086 -> listOf(
+                    (version shr 14),
+                    (version) shr 0x3fff
+                )
+
+                else -> listOf(
+                    (version shr 22),
+                    (version shr 12) and 0x3ff,
+                    (version) and 0xfff
+                    )
+            }
+        }
 
         /**
          * Gets the supported format ranges for image formats,
@@ -833,8 +885,8 @@ open class VulkanDevice(
             (1 to 1) to (VK_FORMAT_G8B8G8R8_422_UNORM..VK_FORMAT_G16_B16_R16_3PLANE_444_UNORM)
         )
 
-        private fun driverVersionToString(version: Int) =
-            decodeDriverVersion(version).toList().joinToString(".")
+        private fun driverVersionToString(version: Int, vendor: Int) =
+            decodeDriverVersion(version, vendor).toList().joinToString(".")
 
         /**
          * Creates a [VulkanDevice] in a given [instance] from a physical device, requesting extensions
@@ -842,7 +894,7 @@ open class VulkanDevice(
          * such that one can filter for certain vendors, e.g.
          */
         @JvmStatic fun fromPhysicalDevice(instance: VkInstance, physicalDeviceFilter: (Int, DeviceData) -> Boolean,
-                                          additionalExtensions: (VkPhysicalDevice) -> Array<String> = { arrayOf() },
+                                          additionalExtensions: (VkPhysicalDevice) -> MutableList<String> = { mutableListOf() },
                                           validationLayers: Array<String> = arrayOf(),
                                           headless: Boolean = false, debugEnabled: Boolean = false): VulkanDevice {
 
@@ -868,7 +920,7 @@ open class VulkanDevice(
                 val properties: VkPhysicalDeviceProperties = VkPhysicalDeviceProperties.calloc()
                 vkGetPhysicalDeviceProperties(device, properties)
 
-                val apiVersion = with(decodeDriverVersion(properties.apiVersion())) { this.first to this.second }
+                val apiVersion = with(decodeDriverVersion(properties.apiVersion(), 0)) { this[0] to this[1] }
 
 
                 val formatRanges = (0 .. apiVersion.second).mapNotNull { minor -> supportedFormatRanges[1 to minor] }
@@ -886,8 +938,8 @@ open class VulkanDevice(
                 val deviceData = DeviceData(
                     vendor = vendorToString(properties.vendorID()),
                     name = properties.deviceNameString(),
-                    driverVersion = driverVersionToString(properties.driverVersion()),
-                    apiVersion = driverVersionToString(properties.apiVersion()),
+                    driverVersion = driverVersionToString(properties.driverVersion(), properties.vendorID()),
+                    apiVersion = driverVersionToString(properties.apiVersion(), 0),
                     type = toDeviceType(properties.deviceType()),
                     properties = properties,
                     formats = formats)

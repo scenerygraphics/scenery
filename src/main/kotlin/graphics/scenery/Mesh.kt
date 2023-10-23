@@ -14,7 +14,7 @@ import graphics.scenery.net.Networkable
 import graphics.scenery.primitives.PointCloud
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.Image
-import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.lazyLogger
 import graphics.scenery.utils.SystemHelpers
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plus
@@ -91,7 +91,7 @@ open class Mesh(override var name: String = "Mesh") : DefaultNode(name), HasRend
      * @return A HashMap storing material name and [Material].
      */
     fun readFromMTL(filename: String): HashMap<String, Material> {
-        val logger by LazyLogger()
+        val logger by lazyLogger()
 
         val materials = HashMap<String, Material>()
 
@@ -234,8 +234,8 @@ open class Mesh(override var name: String = "Mesh") : DefaultNode(name), HasRend
      * @param[importMaterials] Whether a accompanying MTL file shall be used, defaults to true.
      * @param[flipNormals] Whether to flip the normals after reading them.
      */
-    fun readFromOBJ(filename: String, importMaterials: Boolean = true, flipNormals: Boolean = false, useObjGroups: Boolean = true): Mesh {
-        val logger by LazyLogger()
+    fun readFromOBJ(filename: String, importMaterials: Boolean = true, flipNormals: Boolean = false, useGroupHeuristic: Boolean = true): Mesh {
+        val logger by lazyLogger()
 
         var name = ""
 
@@ -250,11 +250,7 @@ open class Mesh(override var name: String = "Mesh") : DefaultNode(name), HasRend
         var materials = HashMap<String, Material>()
         val normalSign = if(flipNormals) { -1.0f } else { 1.0f }
 
-        val groupDelimiter = if(useObjGroups) {
-            'g'
-        } else {
-            'o'
-        }
+        var groupDelimiter = 'g'
 
         /**
          * Recalculates normals, assuming CCW winding order.
@@ -312,6 +308,23 @@ open class Mesh(override var name: String = "Mesh") : DefaultNode(name), HasRend
         val vertexCountMap = HashMap<String, Int>(50)
         val faceCountMap = HashMap<String, Int>(50)
 
+        var g = 0
+        var o = 0
+        Files.lines(p).forEach {line ->
+            val tokens = line.trim().trimEnd()
+            if(tokens.isNotEmpty()) {
+                when(tokens[0]) {
+                    'g' -> g++
+                    'o' -> o++
+                }
+            }
+        }
+
+        if(o > 0 && g > 0 && useGroupHeuristic) {
+            logger.info("Using g/o heuristic for groups in OBJ file. Set useGroupHeuristic = false to disable.")
+            groupDelimiter = 'o'
+        }
+
         val preparseStart = System.nanoTime()
         logger.info("Starting preparse")
         lines.forEach {
@@ -350,7 +363,7 @@ open class Mesh(override var name: String = "Mesh") : DefaultNode(name), HasRend
         val indexBuffers = HashMap<String, ArrayList<Int>>()
         val faceBuffers = HashMap<String, TIndexedHashSet<Vertex>>()
 
-        vertexCountMap.forEach { objectName, objectVertexCount ->
+        vertexCountMap.forEach { (objectName, objectVertexCount) ->
             vertexBuffers[objectName] = Triple(
                 MemoryUtil.memAlloc(objectVertexCount * meshGeometry.vertexSize * 4).order(ByteOrder.nativeOrder()).asFloatBuffer(),
                 MemoryUtil.memAlloc(objectVertexCount * meshGeometry.vertexSize * 4).order(ByteOrder.nativeOrder()).asFloatBuffer(),
@@ -672,7 +685,7 @@ open class Mesh(override var name: String = "Mesh") : DefaultNode(name), HasRend
      * @param[filename] The filename to read from.
      */
     fun readFromSTL(filename: String): Mesh {
-        val logger by LazyLogger()
+        val logger by lazyLogger()
 
         var name = ""
         val vbuffer = ArrayList<Float>()

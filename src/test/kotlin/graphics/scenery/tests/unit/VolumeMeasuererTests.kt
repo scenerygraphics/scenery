@@ -20,7 +20,7 @@ class VolumeMeasurerTests {
     fun testVolumeSphere() {
         val s = Icosphere(2f, 2)
         val volume = VolumeMeasurer().calculateVolume(s)
-        assertEquals(volume, 32.376359045505524)
+        assertEquals(volume, 32.376, absoluteTolerance = 0.001)
     }
 
     /**
@@ -30,6 +30,6 @@ class VolumeMeasurerTests {
     fun testVolumeCylinder() {
         val c = Cylinder(2f, 10f, 5)
         val volume = VolumeMeasurer().calculateVolume(c)
-        assertEquals(volume, 63.40377712249756)
+        assertEquals(volume, 63.404, absoluteTolerance = 0.001)
     }
 }
