@@ -105,7 +105,7 @@ dependencies {
 
     api("sc.fiji:bigdataviewer-core:10.4.10")
     api("sc.fiji:bigdataviewer-vistools:1.0.0-beta-28")
-    api("sc.fiji:bigvolumeviewer:0.3.1") {
+    api("sc.fiji:bigvolumeviewer:0.3.3") {
         exclude("org.jogamp.gluegen", "gluegen-rt")
         exclude("org.jogamp.jogl", "jogl-all")
     }
