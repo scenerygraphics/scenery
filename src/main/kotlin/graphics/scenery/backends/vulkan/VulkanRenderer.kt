@@ -640,13 +640,14 @@ open class VulkanRenderer(hub: Hub,
             swapchain = when {
                 selectedSwapchain != null -> {
                     logger.info("Using swapchain ${selectedSwapchain.simpleName}")
-                    val params = selectedSwapchain.kotlin.primaryConstructor!!.parameters.associate { param ->
-                        param to when(param.name) {
+                    val params = selectedSwapchain.kotlin.primaryConstructor!!.parameters.associateWith { param ->
+                        when(param.name) {
                             "device" -> device
                             "queue" -> queue
                             "commandPools" -> commandPools
                             "renderConfig" -> renderConfig
                             "useSRGB" -> renderConfig.sRGB
+                            "vsync" -> !settings.get<Boolean>("Renderer.DisableVsync")
                             else -> null
                         }
                     }.filter { it.value != null }
@@ -717,13 +718,13 @@ open class VulkanRenderer(hub: Hub,
                     }
 
                     val validationsEnabled = if (validation) {
-                        " - VALIDATIONS ENABLED"
+                        ", validation layers enabled"
                     } else {
                         ""
                     }
 
-                    if(embedIn == null) {
-                        window.title = "$applicationName [${this@VulkanRenderer.javaClass.simpleName}, ${this@VulkanRenderer.renderConfig.name}] $validationsEnabled - $fps fps"
+                    if(embedIn == null || (embedIn as? SceneryJPanel)?.owned == true) {
+                        window.title = "$applicationName [${this@VulkanRenderer.renderConfig.name}$validationsEnabled] $fps fps"
                     }
                 }
             }, 0, 1000)

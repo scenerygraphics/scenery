@@ -179,7 +179,7 @@ open class SwingSwapchain(override val device: VulkanDevice,
                 val mainFrame = JFrame(applicationName)
                 mainFrame.layout = BorderLayout()
 
-                val sceneryPanel = SceneryJPanel()
+                val sceneryPanel = SceneryJPanel(owned = true)
                 sceneryPanel.preferredSize = Dimension(windowWidth, windowHeight)
                 mainFrame.add(sceneryPanel, BorderLayout.CENTER)
                 mainFrame.pack()
