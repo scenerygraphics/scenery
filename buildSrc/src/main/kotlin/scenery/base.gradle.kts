@@ -7,6 +7,7 @@ plugins {
     jacoco
 }
 
+jacoco.toolVersion = "0.8.11"
 tasks {
 
     // https://docs.gradle.org/current/userguide/java_testing.html#test_filtering

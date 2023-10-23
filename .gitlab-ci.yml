@@ -20,6 +20,7 @@ variables:
   PDB_DIR: "./pdb-store"
   MODEL_DIR: "./models"
   GRADLE_USER_HOME: "./.gradle-user-home"
+  VALIDATE_VULKAN: "false"
 
 # simple unit tests without requiring GPUs
 unit-tests-no-gpu:
@@ -59,28 +60,28 @@ unit-tests-no-gpu:
     - echo -e "\e[0Ksection_end:`date +%s`:build_section\r\e[0K"
     # basic group
     - echo -e "\e[0Ksection_start:`date +%s`:basic_section[collapsed=true]\r\e[0KBasic Test Group"
-    - ./gradlew test jacocoTestReport --build-cache --full-stacktrace -Pgpu=true -Dscenery.ExampleRunner.TestGroup=basic -Dscenery.ExampleRunner.Configurations=DeferredShading.yml -Dscenery.RandomSeed=13371842 -Dscenery.ExampleRunner.Blocklist=EdgeBundlerExample -Dscenery.VulkanRenderer.EnableValidations=true -Dscenery.VulkanRenderer.StrictValidation=true -Dscenery.VulkanRenderer.DefaultRenderDelay=100
-    - ./gradlew test jacocoTestReport --build-cache --full-stacktrace -Pgpu=true -Dscenery.ExampleRunner.TestGroup=basic -Dscenery.ExampleRunner.Configurations=DeferredShadingStereo.yml -Dscenery.RandomSeed=13371842 -Dscenery.ExampleRunner.Blocklist=EdgeBundlerExample -Dscenery.VulkanRenderer.EnableValidations=true -Dscenery.VulkanRenderer.StrictValidation=true -Dscenery.VulkanRenderer.DefaultRenderDelay=100
+    - ./gradlew test jacocoTestReport --build-cache --full-stacktrace -Pgpu=true -Dscenery.ExampleRunner.TestGroup=basic -Dscenery.ExampleRunner.Configurations=DeferredShading.yml -Dscenery.RandomSeed=13371842 -Dscenery.ExampleRunner.Blocklist=EdgeBundlerExample -Dscenery.VulkanRenderer.EnableValidations=$VALIDATE_VULKAN -Dscenery.VulkanRenderer.StrictValidation=true -Dscenery.VulkanRenderer.DefaultRenderDelay=100
+    - ./gradlew test jacocoTestReport --build-cache --full-stacktrace -Pgpu=true -Dscenery.ExampleRunner.TestGroup=basic -Dscenery.ExampleRunner.Configurations=DeferredShadingStereo.yml -Dscenery.RandomSeed=13371842 -Dscenery.ExampleRunner.Blocklist=EdgeBundlerExample -Dscenery.VulkanRenderer.EnableValidations=$VALIDATE_VULKAN -Dscenery.VulkanRenderer.StrictValidation=true -Dscenery.VulkanRenderer.DefaultRenderDelay=100
     - echo -e "\e[0Ksection_end:`date +%s`:basic_section\r\e[0K"
     # advanced group
     - echo -e "\e[0Ksection_start:`date +%s`:advanced_section[collapsed=true]\r\e[0KAdvanced Test Group"
-    - ./gradlew test jacocoTestReport --build-cache --full-stacktrace -Pgpu=true -Dscenery.ExampleRunner.TestGroup=advanced -Dscenery.ExampleRunner.Configurations=DeferredShading.yml -Dscenery.RandomSeed=13371842 -Dscenery.VulkanRenderer.EnableValidations=true -Dscenery.VulkanRenderer.StrictValidation=true -Dscenery.VulkanRenderer.DefaultRenderDelay=100
-    - ./gradlew test jacocoTestReport --build-cache --full-stacktrace -Pgpu=true -Dscenery.ExampleRunner.TestGroup=advanced -Dscenery.ExampleRunner.Configurations=DeferredShadingStereo.yml -Dscenery.RandomSeed=13371842 -Dscenery.VulkanRenderer.EnableValidations=true -Dscenery.VulkanRenderer.StrictValidation=true -Dscenery.VulkanRenderer.DefaultRenderDelay=100
+    - ./gradlew test jacocoTestReport --build-cache --full-stacktrace -Pgpu=true -Dscenery.ExampleRunner.TestGroup=advanced -Dscenery.ExampleRunner.Configurations=DeferredShading.yml -Dscenery.RandomSeed=13371842 -Dscenery.VulkanRenderer.EnableValidations=$VALIDATE_VULKAN -Dscenery.VulkanRenderer.StrictValidation=true -Dscenery.VulkanRenderer.DefaultRenderDelay=100
+    - ./gradlew test jacocoTestReport --build-cache --full-stacktrace -Pgpu=true -Dscenery.ExampleRunner.TestGroup=advanced -Dscenery.ExampleRunner.Configurations=DeferredShadingStereo.yml -Dscenery.RandomSeed=13371842 -Dscenery.VulkanRenderer.EnableValidations=$VALIDATE_VULKAN -Dscenery.VulkanRenderer.StrictValidation=true -Dscenery.VulkanRenderer.DefaultRenderDelay=100
     - echo -e "\e[0Ksection_end:`date +%s`:advanced_section\r\e[0K"
     # compute group
     - echo -e "\e[0Ksection_start:`date +%s`:compute_section[collapsed=true]\r\e[0KCompute Test Group"
-    - ./gradlew test jacocoTestReport --build-cache --full-stacktrace -Pgpu=true -Dscenery.ExampleRunner.TestGroup=compute -Dscenery.ExampleRunner.Configurations=DeferredShading.yml -Dscenery.RandomSeed=13371842 -Dscenery.VulkanRenderer.EnableValidations=true -Dscenery.VulkanRenderer.StrictValidation=true -Dscenery.VulkanRenderer.DefaultRenderDelay=100
-    - ./gradlew test jacocoTestReport --build-cache --full-stacktrace -Pgpu=true -Dscenery.ExampleRunner.TestGroup=compute -Dscenery.ExampleRunner.Configurations=DeferredShadingStereo.yml -Dscenery.RandomSeed=13371842 -Dscenery.VulkanRenderer.EnableValidations=true -Dscenery.VulkanRenderer.StrictValidation=true -Dscenery.VulkanRenderer.DefaultRenderDelay=100
+    - ./gradlew test jacocoTestReport --build-cache --full-stacktrace -Pgpu=true -Dscenery.ExampleRunner.TestGroup=compute -Dscenery.ExampleRunner.Configurations=DeferredShading.yml -Dscenery.RandomSeed=13371842 -Dscenery.VulkanRenderer.EnableValidations=$VALIDATE_VULKAN -Dscenery.VulkanRenderer.StrictValidation=true -Dscenery.VulkanRenderer.DefaultRenderDelay=100
+    - ./gradlew test jacocoTestReport --build-cache --full-stacktrace -Pgpu=true -Dscenery.ExampleRunner.TestGroup=compute -Dscenery.ExampleRunner.Configurations=DeferredShadingStereo.yml -Dscenery.RandomSeed=13371842 -Dscenery.VulkanRenderer.EnableValidations=$VALIDATE_VULKAN -Dscenery.VulkanRenderer.StrictValidation=true -Dscenery.VulkanRenderer.DefaultRenderDelay=100
     - echo -e "\e[0Ksection_end:`date +%s`:compute_section\r\e[0K"
     # volumes group
     - echo -e "\e[0Ksection_start:`date +%s`:volumes_section[collapsed=true]\r\e[0KVolumes Test Group"
-    - ./gradlew test jacocoTestReport --build-cache --full-stacktrace -Pgpu=true -Dscenery.ExampleRunner.TestGroup=volumes -Dscenery.ExampleRunner.Configurations=DeferredShading.yml -Dscenery.RandomSeed=13371842 -Dscenery.VulkanRenderer.EnableValidations=true -Dscenery.VulkanRenderer.StrictValidation=true -Dscenery.VulkanRenderer.DefaultRenderDelay=100
-    - ./gradlew test jacocoTestReport --build-cache --full-stacktrace -Pgpu=true -Dscenery.ExampleRunner.TestGroup=volumes -Dscenery.ExampleRunner.Configurations=DeferredShadingStereo.yml -Dscenery.RandomSeed=13371842 -Dscenery.VulkanRenderer.EnableValidations=true -Dscenery.VulkanRenderer.StrictValidation=true -Dscenery.VulkanRenderer.DefaultRenderDelay=100
+    - ./gradlew test jacocoTestReport --build-cache --full-stacktrace -Pgpu=true -Dscenery.ExampleRunner.TestGroup=volumes -Dscenery.ExampleRunner.Configurations=DeferredShading.yml -Dscenery.RandomSeed=13371842 -Dscenery.VulkanRenderer.EnableValidations=$VALIDATE_VULKAN -Dscenery.VulkanRenderer.StrictValidation=true -Dscenery.VulkanRenderer.DefaultRenderDelay=100
+    - ./gradlew test jacocoTestReport --build-cache --full-stacktrace -Pgpu=true -Dscenery.ExampleRunner.TestGroup=volumes -Dscenery.ExampleRunner.Configurations=DeferredShadingStereo.yml -Dscenery.RandomSeed=13371842 -Dscenery.VulkanRenderer.EnableValidations=$VALIDATE_VULKAN -Dscenery.VulkanRenderer.StrictValidation=true -Dscenery.VulkanRenderer.DefaultRenderDelay=100
     - echo -e "\e[0Ksection_end:`date +%s`:volumes_section\r\e[0K"
     # code coverage reporting
     - echo -e "\e[0Ksection_start:`date +%s`:coverage_section[collapsed=true]\r\e[0KCode Coverage and Analysis"
     # we keep the same arguments here as in the last test run to not startle Gradle into re-running the test task
-    - ./gradlew fullCodeCoverageReport --build-cache --full-stacktrace -Pgpu=true -Dscenery.ExampleRunner.TestGroup=volumes -Dscenery.ExampleRunner.Configurations=DeferredShadingStereo.yml -Dscenery.RandomSeed=13371842 -Dscenery.VulkanRenderer.EnableValidations=true -Dscenery.VulkanRenderer.StrictValidation=true -Dscenery.VulkanRenderer.DefaultRenderDelay=100
+    - ./gradlew fullCodeCoverageReport --build-cache --full-stacktrace -Pgpu=true -Dscenery.ExampleRunner.TestGroup=volumes -Dscenery.ExampleRunner.Configurations=DeferredShadingStereo.yml -Dscenery.RandomSeed=13371842 -Dscenery.VulkanRenderer.EnableValidations=$VALIDATE_VULKAN -Dscenery.VulkanRenderer.StrictValidation=true -Dscenery.VulkanRenderer.DefaultRenderDelay=100
     - echo -e "\e[0Ksection_end:`date +%s`:coverage_section\r\e[0K"
   artifacts:
     when: always
