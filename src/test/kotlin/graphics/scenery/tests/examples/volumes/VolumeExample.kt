@@ -7,6 +7,7 @@ import graphics.scenery.attribute.material.Material
 import graphics.scenery.volumes.Colormap
 import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.Volume
+import net.imglib2.type.numeric.integer.UnsignedByteType
 import org.joml.Vector3f
 import java.nio.file.Paths
 import kotlin.concurrent.thread
@@ -46,7 +47,7 @@ class VolumeExample: SceneryBase("Volume Rendering example", 1280, 720) {
         s.material().diffuse = Vector3f(0.0f, 0.0f, 0.0f)
         scene.addChild(s)
 
-        val volume = Volume.fromPathRaw(Paths.get(getDemoFilesPath() + "/volumes/box-iso/"), hub)
+        val volume = Volume.fromPathRaw(Paths.get(getDemoFilesPath() + "/volumes/box-iso/"), hub, UnsignedByteType())
         volume.name = "volume"
         volume.colormap = Colormap.get("viridis")
         volume.spatial {

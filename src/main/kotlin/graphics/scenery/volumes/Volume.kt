@@ -70,6 +70,7 @@ import kotlin.io.path.name
 import kotlin.properties.Delegates
 import kotlin.streams.toList
 import net.imglib2.type.numeric.RealType
+import kotlin.io.path.fileSize
 import kotlin.math.*
 
 @Suppress("DEPRECATION")
@@ -792,7 +793,7 @@ open class Volume(
         @JvmStatic @JvmOverloads
         fun fromPath(file: Path, hub: Hub, onlyLoadFirst: Int? = null): BufferedVolume {
             if(file.normalize().toString().endsWith("raw")) {
-                return fromPathRaw(file, hub)
+                return fromPathRaw(file, hub, UnsignedByteType())
             }
             var volumeFiles: List<Path>
             if(Files.isDirectory(file)) {
@@ -937,7 +938,13 @@ open class Volume(
          *
          * Returns the new volume.
          */
-        @JvmStatic fun fromPathRaw(file: Path, hub: Hub, is16bit: Boolean = true): BufferedVolume {
+        @JvmStatic @JvmOverloads
+        fun <T: RealType<T>> fromPathRaw(
+            file: Path,
+            hub: Hub,
+            type: T,
+            offsets: Pair<Long, Long>? = null
+        ): BufferedVolume {
 
             val infoFile: Path
             val volumeFiles: List<Path>
@@ -956,85 +963,6 @@ open class Volume(
             val dimensions = Vector3i(lines.get(0).split(",").map { it.toInt() }.toIntArray())
             logger.debug("setting dim to ${dimensions.x}/${dimensions.y}/${dimensions.z}")
             logger.debug("Got ${volumeFiles.size} volumes")
-
-            val volumes = CopyOnWriteArrayList<BufferedVolume.Timepoint>()
-            volumeFiles.forEach { v ->
-                val id = v.fileName.toString()
-                val buffer: ByteBuffer by lazy {
-
-                logger.debug("Loading $id from disk")
-                val buffer = ByteArray(1024 * 1024)
-                val stream = FileInputStream(v.toFile())
-
-                val numBytes = if(is16bit) {
-                    2
-                } else {
-                    1
-                }
-                val imageData: ByteBuffer = MemoryUtil.memAlloc((numBytes * dimensions.x * dimensions.y * dimensions.z))
-
-                logger.debug("${v.fileName}: Allocated ${imageData.capacity()} bytes for image of $dimensions containing $numBytes per voxel")
-
-                    val start = System.nanoTime()
-                    var bytesRead = stream.read(buffer, 0, buffer.size)
-                    while (bytesRead > -1) {
-                        imageData.put(buffer, 0, bytesRead)
-                        bytesRead = stream.read(buffer, 0, buffer.size)
-                    }
-                    val duration = (System.nanoTime() - start) / 10e5
-                    logger.debug("Reading took $duration ms")
-
-                    imageData.flip()
-                    imageData
-                }
-
-                volumes.add(BufferedVolume.Timepoint(id, buffer))
-            }
-
-            return if(is16bit) {
-                fromBuffer(volumes, dimensions.x, dimensions.y, dimensions.z, UnsignedShortType(), hub)
-            } else {
-                fromBuffer(volumes, dimensions.x, dimensions.y, dimensions.z, UnsignedByteType(), hub)
-            }
-        }
-
-        /**
-         * Reads raw volumetric data from a [file], splits it into buffers of at most, and as close as possible to,
-         * [sizeLimit] bytes and creates a volume from each buffer.
-         *
-         * Returns the list of volumes.
-         */
-        @JvmStatic fun fromPathRawSplit(file: Path, is16bit: Boolean = true, sizeLimit: Long = 2000000000L, hub: Hub): ArrayList<BufferedVolume> {
-
-            val infoFile: Path
-            val volumeFiles: List<Path>
-
-            if(Files.isDirectory(file)) {
-                volumeFiles = Files.list(file).filter { it.toString().endsWith(".raw") && Files.isRegularFile(it) && Files.isReadable(it) }.toList()
-                infoFile = file.resolve("stacks.info")
-            } else {
-                volumeFiles = listOf(file)
-                infoFile = file.resolveSibling("stacks.info")
-            }
-
-            val lines = Files.lines(infoFile).toList()
-
-            logger.debug("reading stacks.info (${lines.joinToString()}) (${lines.size} lines)")
-            val dimensions = Vector3i(lines.get(0).split(",").map { it.toInt() }.toIntArray())
-            logger.debug("setting dim to ${dimensions.x}/${dimensions.y}/${dimensions.z}")
-            logger.debug("Got ${volumeFiles.size} volumes")
-
-            val voxelResolution = if(is16bit) {
-                2
-            } else {
-                1
-            }
-
-            val totalBytes = dimensions[0].toLong() * dimensions [1].toLong() * dimensions[2].toLong() * voxelResolution.toLong()
-
-            val numBuffers = ceil((totalBytes.toDouble() / sizeLimit.toDouble())).toInt()
-
-
 
             val volumes = CopyOnWriteArrayList<BufferedVolume.Timepoint>()
             volumeFiles.forEach { v ->
@@ -1044,16 +972,30 @@ open class Volume(
                     logger.debug("Loading $id from disk")
                     val buffer = ByteArray(1024 * 1024)
                     val stream = FileInputStream(v.toFile())
+                    if(offsets != null) {
+                        stream.skip(offsets.first)
+                    }
 
-                    val imageData: ByteBuffer = MemoryUtil.memAlloc((voxelResolution * dimensions.x * dimensions.y * dimensions.z))
+                    val numBytes = type.bitsPerPixel/8
+                    val imageData: ByteBuffer = MemoryUtil.memAlloc((numBytes * dimensions.x * dimensions.y * dimensions.z))
 
-                    logger.debug("${v.fileName}: Allocated ${imageData.capacity()} bytes for image of $dimensions containing $voxelResolution per voxel")
+                    logger.debug(
+                        "{}: Allocated {} bytes for image of {} containing {} per voxel",
+                        v.fileName,
+                        imageData.capacity(),
+                        dimensions,
+                        numBytes
+                    )
 
                     val start = System.nanoTime()
                     var bytesRead = stream.read(buffer, 0, buffer.size)
                     while (bytesRead > -1) {
                         imageData.put(buffer, 0, bytesRead)
                         bytesRead = stream.read(buffer, 0, buffer.size)
+
+                        if(offsets != null && bytesRead >= offsets.second - offsets.first) {
+                            break
+                        }
                     }
                     val duration = (System.nanoTime() - start) / 10e5
                     logger.debug("Reading took $duration ms")
@@ -1065,11 +1007,33 @@ open class Volume(
                 volumes.add(BufferedVolume.Timepoint(id, buffer))
             }
 
-            return if(is16bit) {
-                fromBuffer(volumes, dimensions.x, dimensions.y, dimensions.z, UnsignedShortType(), hub)
-            } else {
-                fromBuffer(volumes, dimensions.x, dimensions.y, dimensions.z, UnsignedByteType(), hub)
-            }
+            return fromBuffer(volumes, dimensions.x, dimensions.y, dimensions.z, type, hub)
+        }
+
+        /**
+         * Reads raw volumetric data from a [file], splits it into buffers of at most, and as close as possible to,
+         * [sizeLimit] bytes and creates a volume from each buffer.
+         *
+         * Returns the list of volumes.
+         */
+        @JvmStatic
+        fun <T: RealType<T>> fromPathRawSplit(
+            file: Path,
+            type: T,
+            sizeLimit: Long = 2000000000L,
+            hub: Hub
+        ): Pair<Node, List<Volume>> {
+            val splits = file.fileSize()/sizeLimit
+            val children = (0..splits).windowed(2, 1)
+                .map { it[0] * sizeLimit to (it[1] * sizeLimit - 1) }
+                .map { window ->
+                    fromPathRaw(file, hub, type, offsets = window)
+                }
+
+            val parent = RichNode()
+            children.forEach { parent.addChild(it) }
+
+            return parent to children
         }
 
         /** Amount of supported slicing planes per volume, see also sampling shader segments */
