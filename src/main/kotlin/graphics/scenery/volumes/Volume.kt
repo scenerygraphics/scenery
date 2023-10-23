@@ -67,13 +67,10 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.io.path.name
-import kotlin.math.abs
-import kotlin.math.max
-import kotlin.math.min
-import kotlin.math.sqrt
 import kotlin.properties.Delegates
 import kotlin.streams.toList
 import net.imglib2.type.numeric.RealType
+import kotlin.math.*
 
 @Suppress("DEPRECATION")
 open class Volume(
@@ -965,9 +962,10 @@ open class Volume(
                 val id = v.fileName.toString()
                 val buffer: ByteBuffer by lazy {
 
-                    logger.debug("Loading $id from disk")
-                    val buffer = ByteArray(1024 * 1024)
-                    val stream = FileInputStream(v.toFile())
+                logger.debug("Loading $id from disk")
+                val buffer = ByteArray(1024 * 1024)
+                val stream = FileInputStream(v.toFile())
+
                 val numBytes = if(is16bit) {
                     2
                 } else {
@@ -976,6 +974,80 @@ open class Volume(
                 val imageData: ByteBuffer = MemoryUtil.memAlloc((numBytes * dimensions.x * dimensions.y * dimensions.z))
 
                 logger.debug("${v.fileName}: Allocated ${imageData.capacity()} bytes for image of $dimensions containing $numBytes per voxel")
+
+                    val start = System.nanoTime()
+                    var bytesRead = stream.read(buffer, 0, buffer.size)
+                    while (bytesRead > -1) {
+                        imageData.put(buffer, 0, bytesRead)
+                        bytesRead = stream.read(buffer, 0, buffer.size)
+                    }
+                    val duration = (System.nanoTime() - start) / 10e5
+                    logger.debug("Reading took $duration ms")
+
+                    imageData.flip()
+                    imageData
+                }
+
+                volumes.add(BufferedVolume.Timepoint(id, buffer))
+            }
+
+            return if(is16bit) {
+                fromBuffer(volumes, dimensions.x, dimensions.y, dimensions.z, UnsignedShortType(), hub)
+            } else {
+                fromBuffer(volumes, dimensions.x, dimensions.y, dimensions.z, UnsignedByteType(), hub)
+            }
+        }
+
+        /**
+         * Reads raw volumetric data from a [file], splits it into buffers of at most, and as close as possible to,
+         * [sizeLimit] bytes and creates a volume from each buffer.
+         *
+         * Returns the list of volumes.
+         */
+        @JvmStatic fun fromPathRawSplit(file: Path, is16bit: Boolean = true, sizeLimit: Long = 2000000000L, hub: Hub): ArrayList<BufferedVolume> {
+
+            val infoFile: Path
+            val volumeFiles: List<Path>
+
+            if(Files.isDirectory(file)) {
+                volumeFiles = Files.list(file).filter { it.toString().endsWith(".raw") && Files.isRegularFile(it) && Files.isReadable(it) }.toList()
+                infoFile = file.resolve("stacks.info")
+            } else {
+                volumeFiles = listOf(file)
+                infoFile = file.resolveSibling("stacks.info")
+            }
+
+            val lines = Files.lines(infoFile).toList()
+
+            logger.debug("reading stacks.info (${lines.joinToString()}) (${lines.size} lines)")
+            val dimensions = Vector3i(lines.get(0).split(",").map { it.toInt() }.toIntArray())
+            logger.debug("setting dim to ${dimensions.x}/${dimensions.y}/${dimensions.z}")
+            logger.debug("Got ${volumeFiles.size} volumes")
+
+            val voxelResolution = if(is16bit) {
+                2
+            } else {
+                1
+            }
+
+            val totalBytes = dimensions[0].toLong() * dimensions [1].toLong() * dimensions[2].toLong() * voxelResolution.toLong()
+
+            val numBuffers = ceil((totalBytes.toDouble() / sizeLimit.toDouble())).toInt()
+
+
+
+            val volumes = CopyOnWriteArrayList<BufferedVolume.Timepoint>()
+            volumeFiles.forEach { v ->
+                val id = v.fileName.toString()
+                val buffer: ByteBuffer by lazy {
+
+                    logger.debug("Loading $id from disk")
+                    val buffer = ByteArray(1024 * 1024)
+                    val stream = FileInputStream(v.toFile())
+
+                    val imageData: ByteBuffer = MemoryUtil.memAlloc((voxelResolution * dimensions.x * dimensions.y * dimensions.z))
+
+                    logger.debug("${v.fileName}: Allocated ${imageData.capacity()} bytes for image of $dimensions containing $voxelResolution per voxel")
 
                     val start = System.nanoTime()
                     var bytesRead = stream.read(buffer, 0, buffer.size)
