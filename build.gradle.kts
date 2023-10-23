@@ -126,7 +126,7 @@ dependencies {
             exclude("org.biojava.thirdparty", "forester")
         }
     }
-    implementation("org.jetbrains.kotlin:kotlin-scripting-jsr223:1.5.31")
+    implementation("org.jetbrains.kotlin:kotlin-scripting-jsr223:1.9.10")
     api("graphics.scenery:art-dtrack-sdk:2.6.0")
 
     testImplementation(kotlin("test"))
