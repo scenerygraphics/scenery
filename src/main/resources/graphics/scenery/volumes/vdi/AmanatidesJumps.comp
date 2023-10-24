@@ -1346,7 +1346,9 @@ void main() {
         calculatedMaxSteps = int(length_in_non_empty * sampling_factor);
     }
 
-    finalColor.xyz = pow(finalColor.xyz, vec3(1/2.2));
+//    if(useSecondBuffer) {
+        finalColor.xyz = pow(finalColor.xyz, vec3(1/2.2));
+//    }
 
     imageStore(OutputViewport, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), finalColor);
 

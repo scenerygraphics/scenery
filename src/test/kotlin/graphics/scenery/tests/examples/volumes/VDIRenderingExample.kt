@@ -2,20 +2,10 @@ package graphics.scenery.tests.examples.volumes
 
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
-import graphics.scenery.backends.Shaders
-import graphics.scenery.compute.ComputeMetadata
-import graphics.scenery.compute.InvocationType
-import graphics.scenery.controls.TrackedStereoGlasses
-import graphics.scenery.textures.Texture
-import graphics.scenery.utils.Image
 import graphics.scenery.volumes.vdi.VDIDataIO
 import graphics.scenery.volumes.vdi.VDINode
-import net.imglib2.type.numeric.integer.UnsignedIntType
-import net.imglib2.type.numeric.real.FloatType
 import org.joml.Matrix4f
-import org.joml.Quaternionf
 import org.joml.Vector3f
-import org.joml.Vector3i
 import org.lwjgl.system.MemoryUtil
 import java.io.File
 import java.io.FileInputStream
@@ -23,25 +13,14 @@ import java.nio.ByteBuffer
 
 class VDIRenderingExample : SceneryBase("VDI Rendering Example", 512, 512) {
 
-    val vdiNode = VDINode()
-
     val skipEmpty = false
 
     val numSupersegments = 20
+
+    lateinit var vdiNode: VDINode
     val numLayers = 1
 
-    private val vulkanProjectionFix =
-        Matrix4f(
-            1.0f,  0.0f, 0.0f, 0.0f,
-            0.0f, -1.0f, 0.0f, 0.0f,
-            0.0f,  0.0f, 0.5f, 0.0f,
-            0.0f,  0.0f, 0.5f, 1.0f)
-
-    fun Matrix4f.applyVulkanCoordinateSystem(): Matrix4f {
-        val m = Matrix4f(vulkanProjectionFix)
-        m.mul(this)
-        return m
-    }
+    val cam: Camera = DetachedHeadCamera()
 
     override fun init() {
 
@@ -54,7 +33,6 @@ class VDIRenderingExample : SceneryBase("VDI Rendering Example", 512, 512) {
         light.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
         scene.addChild(light)
 
-        val cam: Camera = DetachedHeadCamera()
         with(cam) {
             spatial().position = Vector3f(0.0f, 0.5f, 5.0f)
             perspectiveCamera(50.0f, windowWidth, windowWidth)
@@ -62,95 +40,37 @@ class VDIRenderingExample : SceneryBase("VDI Rendering Example", 512, 512) {
         }
 
         //Step 2: read files
-        val colorBuff: ByteArray?
-        val depthBuff: ByteArray?
-        val octBuff: ByteArray?
-
         val file = FileInputStream(File("VDI_dump4"))
         val vdiData = VDIDataIO.read(file)
         logger.info("Fetching file...")
 
-        colorBuff = File("VDI_col").readBytes()
-        depthBuff = File("VDI_depth").readBytes()
-        octBuff = File("VDI_octree").readBytes()
+        vdiNode = VDINode(windowWidth, windowHeight, numSupersegments, vdiData)
+
+        val colorArray: ByteArray = File("VDI_col").readBytes()
+        val depthArray: ByteArray = File("VDI_depth").readBytes()
+        val octArray: ByteArray = File("VDI_octree").readBytes()
 
         //Step  3: assigning buffer values
-        val colBuffer: ByteBuffer
-        val depthBuffer: ByteBuffer?
-        val opBuffer = MemoryUtil.memCalloc(windowWidth * windowHeight * 4)
-
-        colBuffer = MemoryUtil.memCalloc(windowHeight * windowWidth * numSupersegments * numLayers * 4 * 4)
-        colBuffer.put(colorBuff).flip()
+        val colBuffer: ByteBuffer = MemoryUtil.memCalloc(vdiNode.vdiHeight * vdiNode.vdiWidth * numSupersegments * numLayers * 4 * 4)
+        colBuffer.put(colorArray).flip()
         colBuffer.limit(colBuffer.capacity())
-        logger.info("Length of color buffer is ${colorBuff.size} and associated bytebuffer capacity is ${colBuffer.capacity()} it has remaining: ${colBuffer.remaining()}")
-        logger.info("Col sum is ${colorBuff.sum()}")
 
-        depthBuffer = MemoryUtil.memCalloc(windowHeight * windowWidth * numSupersegments * 2 * 2 * 2)
-        depthBuffer.put(depthBuff).flip()
+        val depthBuffer = MemoryUtil.memCalloc(vdiNode.vdiHeight * vdiNode.vdiWidth * numSupersegments * 2 * 2 * 2)
+        depthBuffer.put(depthArray).flip()
         depthBuffer.limit(depthBuffer.capacity())
-        logger.info("Length of depth buffer is ${depthBuff.size} and associated bytebuffer capacity is ${depthBuffer.capacity()} it has remaining: ${depthBuffer.remaining()}")
-        logger.info("Depth sum is ${depthBuff.sum()}")
 
-        val numGridCells = Vector3f(vdiData.metadata.windowDimensions.x/ 8f, vdiData.metadata.windowDimensions.y/ 8f, numSupersegments.toFloat())
-        val lowestLevel = MemoryUtil.memCalloc(numGridCells.x.toInt() * numGridCells.y.toInt() * numGridCells.z.toInt() * 4)
+        val gridBuffer = MemoryUtil.memCalloc(vdiNode.numGridCells.x.toInt() * vdiNode.numGridCells.y.toInt() * vdiNode.numGridCells.z.toInt() * 4)
         if(skipEmpty) {
-            lowestLevel.put(octBuff).flip()
+            gridBuffer.put(octArray).flip()
         }
 
         //Step 4: Creating compute node and attach shader and vdi Files to
-        vdiNode.name = "compute node"
+        vdiNode.attachTextures(colBuffer, depthBuffer, gridBuffer)
 
-        vdiNode.setMaterial(ShaderMaterial(Shaders.ShadersFromFiles(arrayOf("AmanatidesJumps.comp"),
-            this@VDIRenderingExample::class.java))) {
-            textures["OutputViewport"] = Texture.fromImage(Image(opBuffer, windowWidth, windowHeight), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
-        }
-
-        vdiNode.material().textures["InputVDI"] = Texture(Vector3i(numSupersegments*numLayers, windowHeight, windowWidth), 4, contents = colBuffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture)
-            , type = FloatType(),
-            mipmap = false,
-            minFilter = Texture.FilteringMode.NearestNeighbour,
-            maxFilter = Texture.FilteringMode.NearestNeighbour
-        )
-        vdiNode.material().textures["DepthVDI"] = Texture(Vector3i(2 * numSupersegments, windowHeight, windowWidth),  channels = 1, contents = depthBuffer, usageType = hashSetOf(
-            Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
-
-        vdiNode.material().textures["OctreeCells"] = Texture(Vector3i(numGridCells.x.toInt(), numGridCells.y.toInt(), numGridCells.z.toInt()), 1, type = UnsignedIntType(), contents = lowestLevel, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
-
-        vdiNode.metadata["ComputeMetadata"] = ComputeMetadata(
-            workSizes = Vector3i(windowWidth, windowHeight, 1),
-            invocationType = InvocationType.Permanent
-        )
-
-        vdiNode.ProjectionOriginal = Matrix4f(vdiData.metadata.projection).applyVulkanCoordinateSystem()
-        vdiNode.invProjectionOriginal = Matrix4f(vdiData.metadata.projection).applyVulkanCoordinateSystem().invert()
-        vdiNode.ViewOriginal = vdiData.metadata.view
-        vdiNode.nw = vdiData.metadata.nw
-        vdiNode.vdiWidth = vdiData.metadata.windowDimensions.x
-        vdiNode.vdiHeight = vdiData.metadata.windowDimensions.y
-        vdiNode.invViewOriginal = Matrix4f(vdiData.metadata.view).invert()
-        vdiNode.invModel = Matrix4f(vdiData.metadata.model).invert()
-        vdiNode.volumeDims = vdiData.metadata.volumeDimensions
-        vdiNode.do_subsample = false
         vdiNode.skip_empty = skipEmpty
 
         //Attaching empty textures as placeholders for 2nd VDI buffer, which is unused here
-        val emptyColor = MemoryUtil.memCalloc(4 * 4)
-        val emptyColorTexture = Texture(Vector3i(1, 1, 1), 4, contents = emptyColor, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
-            type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
-
-        val emptyDepth = MemoryUtil.memCalloc(1 * 4)
-        val emptyDepthTexture = Texture(Vector3i(1, 1, 1), 1, contents = emptyDepth, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
-            type = FloatType(), mipmap = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
-
-        val emptyAccel = MemoryUtil.memCalloc(4)
-        val emptyAccelTexture = Texture(
-            Vector3i(1, 1, 1), 1, contents = emptyAccel, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
-            type = UnsignedIntType(), mipmap = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour
-        )
-
-        vdiNode.material().textures["InputVDI2"] = emptyColorTexture
-        vdiNode.material().textures["DepthVDI2"] = emptyDepthTexture
-        vdiNode.material().textures["OctreeCells2"] = emptyAccelTexture
+        vdiNode.attachEmptyTextures(VDINode.DoubleBuffer.Second)
 
         scene.addChild(vdiNode)
 
