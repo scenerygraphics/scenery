@@ -56,7 +56,7 @@ dependencies {
     implementation("org.scijava:script-editor")
     implementation("org.scijava:ui-behaviour")
     implementation("org.scijava:scripting-jython")
-    implementation("net.java.dev.jna:jna-platform:5.11.0")
+    implementation("net.java.dev.jna:jna-platform:5.13.0")
 
 
     lwjglArtifacts.forEach { artifact ->
