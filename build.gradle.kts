@@ -101,7 +101,7 @@ dependencies {
     implementation("org.bytedeco:ffmpeg:6.0-1.5.9", ffmpegNatives)
     implementation("io.github.classgraph:classgraph:4.8.161")
 
-    implementation("info.picocli:picocli:4.7.4")
+    implementation("info.picocli:picocli:4.7.5")
 
     api("sc.fiji:bigdataviewer-core:10.4.10")
     api("sc.fiji:bigdataviewer-vistools:1.0.0-beta-28")
@@ -126,7 +126,7 @@ dependencies {
             exclude("org.biojava.thirdparty", "forester")
         }
     }
-    implementation("org.jetbrains.kotlin:kotlin-scripting-jsr223:1.5.31")
+    implementation("org.jetbrains.kotlin:kotlin-scripting-jsr223:1.9.10")
     api("graphics.scenery:art-dtrack-sdk:2.6.0")
 
     testImplementation(kotlin("test"))
@@ -391,7 +391,7 @@ tasks {
     }
 }
 
-jacoco.toolVersion = "0.8.8"
+jacoco.toolVersion = "0.8.11"
 
 java.withSourcesJar()
 
