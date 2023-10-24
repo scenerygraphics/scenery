@@ -26,7 +26,7 @@ class NodePublisherTest {
         val zContext = ZContext()
         val hub = Hub()
         val pub = NodePublisher(hub, context = zContext)
-        pub.close()
+        pub.close().join() // close thread to use debug deterministic behavior
 
         val scene = Scene()
         val box = Box()
@@ -50,7 +50,6 @@ class NodePublisherTest {
         assert(newEvents.count{it.wrapper.obj is Material} == 2)
         assert(newEvents.count{it.wrapper.obj is Spatial} == 2)
 
-        pub.close().join()
         zContext.destroy()
     }
 
@@ -58,12 +57,11 @@ class NodePublisherTest {
     fun registerUpdate() {
         val zContext = ZContext()
         val hub = Hub()
-        val pub = NodePublisher(hub, context = zContext)
-        pub.close()
+        val pub = NodePublisher(hub, context = zContext)        
+        pub.close().join() // close thread to use debug deterministic behavior
 
         val scene = Scene()
         val box = Box()
-
         scene.addChild(box)
 
         pub.register(scene)
