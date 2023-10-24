@@ -16,7 +16,7 @@ import graphics.scenery.controls.TrackedStereoGlasses
  *
  * @author Jan Tiemann
  */
-class CaveClientExample(): SceneryBase("cave client", wantREPL = false) {
+class CaveClientExample: SceneryBase("cave client", wantREPL = false) {
     var hmd: TrackedStereoGlasses? = null
 
     override fun init() {
@@ -47,6 +47,7 @@ class CaveClientExample(): SceneryBase("cave client", wantREPL = false) {
     }
 
     companion object {
+        /** codacy wants a comment here */
         @JvmStatic
         fun main(args: Array<String>) {
             CaveClientExample().main()

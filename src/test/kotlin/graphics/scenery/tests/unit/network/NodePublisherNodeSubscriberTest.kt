@@ -130,6 +130,9 @@ class NodePublisherNodeSubscriberTest {
     }
 
 
+    /**
+     * Test updating preregistered objects
+     */
     @Test
     fun updatePreregisterd() {
 
@@ -220,6 +223,9 @@ class NodePublisherNodeSubscriberTest {
         assertEquals("lol", scene2.name)
     }
 
+    /**
+     * Test initializing child nodes using initializers
+     */
     @Test
     fun childConstructedWithParams(){
         class VolInt: Volume.VolumeInitializer{

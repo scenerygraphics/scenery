@@ -1024,6 +1024,7 @@ open class Volume(
 
     }
 
+    /** Custom spatial for volumes */
     open class VolumeSpatial(volume: Volume): DefaultSpatial(volume) {
         /**
          * Composes the world matrix for this volume node, taken voxel size and [pixelToWorldRatio]

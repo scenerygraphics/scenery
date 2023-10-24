@@ -889,8 +889,14 @@ open class Mesh(override var name: String = "Mesh") : DefaultNode(name), HasRend
         }
     }
 
+    /**
+     * Container for initalization parameters of a mesh
+     */
     class MeshInitializer(val path: String, val useMaterial: Boolean = true)
 
+    /**
+     * Custom spatial for meshes.
+     */
     open class MeshSpatial(node: Node): DefaultSpatial(node) {
 
         var origin = Origin.FrontBottomLeft
@@ -922,6 +928,7 @@ open class Mesh(override var name: String = "Mesh") : DefaultNode(name), HasRend
     }
 
     companion object{
+        /** Creat a mesh that can be synced over network */
         fun forNetwork(path: String, useMaterial: Boolean = true,hub: Hub): Mesh{
             return Mesh().constructWithParameters(MeshInitializer(path,useMaterial),hub) as Mesh
         }
