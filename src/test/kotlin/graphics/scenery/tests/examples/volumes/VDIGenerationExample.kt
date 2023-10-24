@@ -53,18 +53,18 @@ class VDIGenerationExample(wWidth: Int = 512, wHeight: Int = 512, val maxSuperse
         volume.transferFunction = TransferFunction.ramp(0.1f, 0.5f)
         scene.addChild(volume)
 
-        // Step 2: Create VDI Volume Manager
-        val vdiVolumeManager = VDIVolumeManager( hub, windowWidth, windowHeight, maxSupersegments, scene).createVDIVolumeManger()
-
-        //step 3: switch the volume's current volume manager to VDI volume manager
-        volume.volumeManager = vdiVolumeManager
-
-        // Step 4: add the volume to VDI volume manager
-        vdiVolumeManager.add(volume)
-        volume.volumeManager.shaderProperties["doGeneration"] = true
-
-        // Step 5: add the VDI volume manager to the hub
-        hub.add(vdiVolumeManager)
+//        // Step 2: Create VDI Volume Manager
+//        val vdiVolumeManager = VDIVolumeManager( hub, windowWidth, windowHeight, maxSupersegments, scene).createVDIVolumeManger()
+//
+//        //step 3: switch the volume's current volume manager to VDI volume manager
+//        volume.volumeManager = vdiVolumeManager
+//
+//        // Step 4: add the volume to VDI volume manager
+//        vdiVolumeManager.add(volume)
+//        volume.volumeManager.shaderProperties["doGeneration"] = true
+//
+//        // Step 5: add the VDI volume manager to the hub
+//        hub.add(vdiVolumeManager)
 
         // Step 6: Store VDI Generated
         val volumeDimensions3i = Vector3f(volume.getDimensions().x.toFloat(),volume.getDimensions().y.toFloat(),volume.getDimensions().z.toFloat())
@@ -82,8 +82,15 @@ class VDIGenerationExample(wWidth: Int = 512, wHeight: Int = 512, val maxSuperse
                 windowDimensions = Vector2i(cam.width, cam.height)
             )
         )
+//        thread {
+//            storeVDI(vdiVolumeManager, vdiData)
+//        }
+
         thread {
-            storeVDI(vdiVolumeManager, vdiData)
+            while (true) {
+                Thread.sleep(1000)
+                logger.info("cam target: ${cam.target}")
+            }
         }
     }
 

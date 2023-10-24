@@ -136,7 +136,7 @@ class ClientApplication : SceneryBase("Client Application", 512, 512)  {
 
                     if (firstVDIStream){
                        thread {
-                           vdiStreamer.receiveAndUpdateVDI(vdiNode)
+//                           vdiStreamer.receiveAndUpdateVDI(vdiNode)
                        }
                        firstVDIStream = false
                     }

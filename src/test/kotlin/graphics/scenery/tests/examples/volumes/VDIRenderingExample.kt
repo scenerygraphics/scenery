@@ -11,7 +11,7 @@ import java.io.File
 import java.io.FileInputStream
 import java.nio.ByteBuffer
 
-class VDIRenderingExample : SceneryBase("VDI Rendering Example", 1024, 1024) {
+class VDIRenderingExample : SceneryBase("VDI Rendering Example", 512, 512) {
 
     val skipEmpty = false
 
@@ -20,18 +20,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering Example", 1024, 1024) {
     lateinit var vdiNode: VDINode
     val numLayers = 1
 
-    private val vulkanProjectionFix =
-        Matrix4f(
-            1.0f,  0.0f, 0.0f, 0.0f,
-            0.0f, -1.0f, 0.0f, 0.0f,
-            0.0f,  0.0f, 0.5f, 0.0f,
-            0.0f,  0.0f, 0.5f, 1.0f)
-
-    fun Matrix4f.applyVulkanCoordinateSystem(): Matrix4f {
-        val m = Matrix4f(vulkanProjectionFix)
-        m.mul(this)
-        return m
-    }
+    val cam: Camera = DetachedHeadCamera()
 
     override fun init() {
 
@@ -44,7 +33,6 @@ class VDIRenderingExample : SceneryBase("VDI Rendering Example", 1024, 1024) {
         light.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
         scene.addChild(light)
 
-        val cam: Camera = DetachedHeadCamera()
         with(cam) {
             spatial().position = Vector3f(0.0f, 0.5f, 5.0f)
             perspectiveCamera(50.0f, windowWidth, windowWidth)
