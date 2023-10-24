@@ -196,12 +196,20 @@ class NodePublisher(
         )
     }
 
+    /**
+     * Empty event queue into [send]. Emulating network publishing of those events
+     */
     fun debugPublish(send: (NetworkEvent) -> Unit) {
         while (eventQueue.isNotEmpty()) {
             send(eventQueue.poll())
         }
     }
 
+    /**
+     * Stops all worker threads.
+     *
+     * @return a thread that can be joined upon to be sure everything is closed
+     */
     fun close(): Thread = thread {
         val pw = publishWorker.close()
         val bw = backchannelWorker.close()

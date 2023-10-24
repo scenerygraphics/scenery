@@ -311,6 +311,7 @@ class CaveCubesExample: SceneryBase("Bile Canaliculi example", wantREPL = true) 
     }
 
     companion object {
+        /** codacy wants a comment here */
         @JvmStatic
         fun main(args: Array<String>) {
             CaveCubesExample().main()
