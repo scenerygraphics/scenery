@@ -4,7 +4,6 @@ import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.volumes.vdi.VDIDataIO
 import graphics.scenery.volumes.vdi.VDINode
-import org.joml.Matrix4f
 import org.joml.Vector3f
 import org.lwjgl.system.MemoryUtil
 import java.io.File
@@ -34,10 +33,11 @@ class VDIRenderingExample : SceneryBase("VDI Rendering Example", 512, 512) {
         scene.addChild(light)
 
         with(cam) {
-            spatial().position = Vector3f(0.0f, 0.5f, 5.0f)
+            spatial().position = Vector3f(0.0f, 0.0f, 5.0f)
             perspectiveCamera(50.0f, windowWidth, windowWidth)
             scene.addChild(this)
         }
+        cam.target = Vector3f(0.0f,0.0f,-3.5f)
 
         //Step 2: read files
         val file = FileInputStream(File("VDI_dump4"))

@@ -11,9 +11,11 @@ import org.joml.Vector3f
 import java.nio.file.Paths
 import java.util.concurrent.atomic.AtomicInteger
 import graphics.scenery.backends.vulkan.VulkanRenderer
+import graphics.scenery.controls.behaviours.ArcballCameraControl
 import graphics.scenery.utils.SystemHelpers
 import graphics.scenery.volumes.*
 import org.joml.*
+import org.scijava.ui.behaviour.ClickBehaviour
 import org.zeromq.ZContext
 import java.io.*
 import java.nio.ByteBuffer
@@ -26,6 +28,8 @@ class VDIGenerationExample(wWidth: Int = 512, wHeight: Int = 512, val maxSuperse
 
     var cnt = 0
 
+    val cam: Camera = DetachedHeadCamera()
+
     override fun init() {
 
         // Step 1: Create renderer, volume and camera
@@ -33,10 +37,9 @@ class VDIGenerationExample(wWidth: Int = 512, wHeight: Int = 512, val maxSuperse
             SceneryElement.Renderer,
             Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
 
-        val cam: Camera = DetachedHeadCamera()
         with(cam) {
             spatial {
-                position = Vector3f(0.0f, 0.5f, 5.0f)
+                position = Vector3f(0.0f, 0.0f, 5.0f)
             }
             perspectiveCamera(50.0f, windowWidth, windowHeight)
             scene.addChild(this)
@@ -53,18 +56,20 @@ class VDIGenerationExample(wWidth: Int = 512, wHeight: Int = 512, val maxSuperse
         volume.transferFunction = TransferFunction.ramp(0.1f, 0.5f)
         scene.addChild(volume)
 
+        cam.target = volume.spatial().position
+
 //        // Step 2: Create VDI Volume Manager
-//        val vdiVolumeManager = VDIVolumeManager( hub, windowWidth, windowHeight, maxSupersegments, scene).createVDIVolumeManger()
-//
-//        //step 3: switch the volume's current volume manager to VDI volume manager
-//        volume.volumeManager = vdiVolumeManager
-//
-//        // Step 4: add the volume to VDI volume manager
-//        vdiVolumeManager.add(volume)
-//        volume.volumeManager.shaderProperties["doGeneration"] = true
-//
-//        // Step 5: add the VDI volume manager to the hub
-//        hub.add(vdiVolumeManager)
+        val vdiVolumeManager = VDIVolumeManager( hub, windowWidth, windowHeight, maxSupersegments, scene).createVDIVolumeManger()
+
+        //step 3: switch the volume's current volume manager to VDI volume manager
+        volume.volumeManager = vdiVolumeManager
+
+        // Step 4: add the volume to VDI volume manager
+        vdiVolumeManager.add(volume)
+        volume.volumeManager.shaderProperties["doGeneration"] = true
+
+        // Step 5: add the VDI volume manager to the hub
+        hub.add(vdiVolumeManager)
 
         // Step 6: Store VDI Generated
         val volumeDimensions3i = Vector3f(volume.getDimensions().x.toFloat(),volume.getDimensions().y.toFloat(),volume.getDimensions().z.toFloat())
@@ -85,15 +90,19 @@ class VDIGenerationExample(wWidth: Int = 512, wHeight: Int = 512, val maxSuperse
 //        thread {
 //            storeVDI(vdiVolumeManager, vdiData)
 //        }
-
-        thread {
-            while (true) {
-                Thread.sleep(1000)
-                logger.info("cam target: ${cam.target}")
-            }
-        }
     }
 
+    override fun inputSetup() {
+        setupCameraModeSwitching()
+
+        val arcballCameraControl = ArcballCameraControl("fixed_rotation", { scene.findObserver()!! }, windowWidth, windowHeight, scene.findObserver()!!.target)
+        inputHandler?.addBehaviour("rotate_camera",
+            ClickBehaviour { _, _ ->
+                arcballCameraControl.rotateDegrees(90f, 0f)
+            })
+        inputHandler?.addKeyBinding("rotate_camera", "R")
+
+    }
     private fun storeVDI(vdiVolumeManager: VolumeManager, vdiData: VDIData) {
         data class Timer(var start: Long, var end: Long)
         val tGeneration = Timer(0, 0)

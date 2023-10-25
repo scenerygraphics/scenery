@@ -104,7 +104,7 @@ class GiovannisExample: SceneryBase("Clustered Volume Rendering example, Giovann
 
         val croc = true
         if(croc) {
-            volume = Volume.fromPathRaw(Paths.get(basepath + "Croc/104B_08_side1_647_25p.raw"), hub, UnsignedByteType())
+            volume = Volume.fromPathRaw(Paths.get(basepath + "Croc/104B_08_side1_647_25p.raw"), hub, true)
 
             volume.name = "volume"
             volume.colormap = Colormap.get("hot") // jet, hot, rainbow, plasma, grays
@@ -124,7 +124,7 @@ class GiovannisExample: SceneryBase("Clustered Volume Rendering example, Giovann
             scene.addChild(volume)
             volume.origin = Origin.FrontBottomLeft
         } else {
-            volume = Volume.fromPathRaw(Paths.get(basepath + "droso-royer-autopilot-transposed"), hub, UnsignedByteType())
+            volume = Volume.fromPathRaw(Paths.get(basepath + "droso-royer-autopilot-transposed"), hub, true)
 
             volume.name = "volume"
             volume.colormap = Colormap.get("hot") // jet, hot, rainbow, plasma, grays

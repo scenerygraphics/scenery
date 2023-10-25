@@ -102,7 +102,8 @@ class ClusterExample: SceneryBase("Clustered Volume Rendering example") {
        val volume: BufferedVolume
        val croc = false
        if(croc) {
-           volume = Volume.fromPathRaw(Paths.get(basepath + "Croc/104B_08_side1_647_25p.raw"), hub, UnsignedByteType())
+//           volume = Volume.fromPathRaw(Paths.get(basepath + "Croc/104B_08_side1_647_25p.raw"), hub, UnsignedByteType())
+           volume = Volume.fromPathRaw(Paths.get(basepath + "Croc/104B_08_side1_647_25p.raw"), hub, true)
 
            volume.name = "volume"
            volume.colormap = Colormap.get("viridis") // jet, hot, rainbow, plasma, grays
@@ -119,7 +120,8 @@ class ClusterExample: SceneryBase("Clustered Volume Rendering example") {
            //volume.transferFunction.addControlPoint(0.1f, 0.5f)
            scene.addChild(volume)
        } else {
-           volume = Volume.fromPathRaw(Paths.get(basepath + "droso-royer-autopilot-transposed"), hub, UnsignedByteType())
+//           volume = Volume.fromPathRaw(Paths.get(basepath + "droso-royer-autopilot-transposed"), hub, UnsignedByteType())
+           volume = Volume.fromPathRaw(Paths.get(basepath + "droso-royer-autopilot-transposed"), hub, true)
 
            volume.name = "volume"
            volume.colormap = Colormap.get("hot") // jet, hot, rainbow, plasma, grays

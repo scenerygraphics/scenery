@@ -30,7 +30,7 @@ class ServerApplication : SceneryBase("Volume Server Example", 512, 512) {
             perspectiveCamera(50.0f, 512, 512)
         }
 
-        val volume = Volume.fromPathRaw(Paths.get(getDemoFilesPath() + "/volumes/box-iso/"), hub)
+        val volume = Volume.fromPathRaw(Paths.get(getDemoFilesPath() + "/volumes/box-iso/"), hub,)
         volume.name = "volume"
         volume.colormap = Colormap.get("viridis")
         volume.spatial {

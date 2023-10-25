@@ -47,7 +47,7 @@ class VolumeExample: SceneryBase("Volume Rendering example", 1280, 720) {
         s.material().diffuse = Vector3f(0.0f, 0.0f, 0.0f)
         scene.addChild(s)
 
-        val volume = Volume.fromPathRaw(Paths.get(getDemoFilesPath() + "/volumes/box-iso/"), hub, UnsignedByteType())
+        val volume = Volume.fromPathRaw(Paths.get(getDemoFilesPath() + "/volumes/box-iso/"), hub, true)
         volume.name = "volume"
         volume.colormap = Colormap.get("viridis")
         volume.spatial {

@@ -796,7 +796,8 @@ open class Volume(
         @JvmStatic @JvmOverloads
         fun fromPath(file: Path, hub: Hub, onlyLoadFirst: Int? = null): BufferedVolume {
             if(file.normalize().toString().endsWith("raw")) {
-                return fromPathRaw(file, hub, UnsignedByteType())
+//                return fromPathRaw(file, hub, UnsignedByteType())
+                return fromPathRaw(file, hub, true)
             }
             var volumeFiles: List<Path>
             if(Files.isDirectory(file)) {
@@ -942,15 +943,15 @@ open class Volume(
          * Returns the new volume.
          */
 //<<<<<<< HEAD
-//        @JvmStatic fun fromPathRaw(file: Path, hub: Hub, is16bit: Boolean = true): BufferedVolume {
+        @JvmStatic fun fromPathRaw(file: Path, hub: Hub, is16bit: Boolean = true): BufferedVolume {
 //=======
-        @JvmStatic @JvmOverloads
-        fun <T: RealType<T>> fromPathRaw(
-            file: Path,
-            hub: Hub,
-            type: T,
-            offsets: Pair<Long, Long>? = null
-        ): BufferedVolume {
+//        @JvmStatic @JvmOverloads
+//        fun <T: RealType<T>> fromPathRaw(
+//            file: Path,
+//            hub: Hub,
+//            type: T,
+//            offsets: Pair<Long, Long>? = null
+//        ): BufferedVolume {
 //>>>>>>> 39b01a7c23d9f9b0939c6192f0a2bfb5bedb714c
 
             val infoFile: Path
@@ -980,29 +981,29 @@ open class Volume(
                     val buffer = ByteArray(1024 * 1024)
                     val stream = FileInputStream(v.toFile())
 //<<<<<<< HEAD
-//                    val numBytes = if(is16bit) {
-//                        2
-//                    } else {
-//                        1
+                    val numBytes = if(is16bit) {
+                        2
+                    } else {
+                        1
+                    }
+                    val imageData: ByteBuffer = MemoryUtil.memAlloc((numBytes * dimensions.x * dimensions.y * dimensions.z))
+//
+                    logger.debug("${v.fileName}: Allocated ${imageData.capacity()} bytes for image of $dimensions containing $numBytes per voxel")
+//=======
+//                    if(offsets != null) {
+//                        stream.skip(offsets.first)
 //                    }
+//
+//                    val numBytes = type.bitsPerPixel/8
 //                    val imageData: ByteBuffer = MemoryUtil.memAlloc((numBytes * dimensions.x * dimensions.y * dimensions.z))
 //
-//                    logger.debug("${v.fileName}: Allocated ${imageData.capacity()} bytes for image of $dimensions containing $numBytes per voxel")
-//=======
-                    if(offsets != null) {
-                        stream.skip(offsets.first)
-                    }
-
-                    val numBytes = type.bitsPerPixel/8
-                    val imageData: ByteBuffer = MemoryUtil.memAlloc((numBytes * dimensions.x * dimensions.y * dimensions.z))
-
-                    logger.debug(
-                        "{}: Allocated {} bytes for image of {} containing {} per voxel",
-                        v.fileName,
-                        imageData.capacity(),
-                        dimensions,
-                        numBytes
-                    )
+//                    logger.debug(
+//                        "{}: Allocated {} bytes for image of {} containing {} per voxel",
+//                        v.fileName,
+//                        imageData.capacity(),
+//                        dimensions,
+//                        numBytes
+//                    )
 //>>>>>>> 39b01a7c23d9f9b0939c6192f0a2bfb5bedb714c
 
                     val start = System.nanoTime()
@@ -1011,9 +1012,9 @@ open class Volume(
                         imageData.put(buffer, 0, bytesRead)
                         bytesRead = stream.read(buffer, 0, buffer.size)
 
-                        if(offsets != null && bytesRead >= offsets.second - offsets.first) {
-                            break
-                        }
+//                        if(offsets != null && bytesRead >= offsets.second - offsets.first) {
+//                            break
+//                        }
                     }
                     val duration = (System.nanoTime() - start) / 10e5
                     logger.debug("Reading took $duration ms")
@@ -1026,39 +1027,39 @@ open class Volume(
             }
 
 //<<<<<<< HEAD
-//            return if(is16bit) {
-//                Volume.fromBuffer(volumes, dimensions.x, dimensions.y, dimensions.z, UnsignedShortType(), hub)
-//            } else {
-//                Volume.fromBuffer(volumes, dimensions.x, dimensions.y, dimensions.z, UnsignedByteType(), hub)
-//            }
+            return if(is16bit) {
+                Volume.fromBuffer(volumes, dimensions.x, dimensions.y, dimensions.z, UnsignedShortType(), hub)
+            } else {
+                Volume.fromBuffer(volumes, dimensions.x, dimensions.y, dimensions.z, UnsignedByteType(), hub)
+            }
 //=======
-            return fromBuffer(volumes, dimensions.x, dimensions.y, dimensions.z, type, hub)
-        }
-
-        /**
-         * Reads raw volumetric data from a [file], splits it into buffers of at most, and as close as possible to,
-         * [sizeLimit] bytes and creates a volume from each buffer.
-         *
-         * Returns the list of volumes.
-         */
-        @JvmStatic
-        fun <T: RealType<T>> fromPathRawSplit(
-            file: Path,
-            type: T,
-            sizeLimit: Long = 2000000000L,
-            hub: Hub
-        ): Pair<Node, List<Volume>> {
-            val splits = file.fileSize()/sizeLimit
-            val children = (0..splits).windowed(2, 1)
-                .map { it[0] * sizeLimit to (it[1] * sizeLimit - 1) }
-                .map { window ->
-                    fromPathRaw(file, hub, type, offsets = window)
-                }
-
-            val parent = RichNode()
-            children.forEach { parent.addChild(it) }
-
-            return parent to children
+//            return fromBuffer(volumes, dimensions.x, dimensions.y, dimensions.z, type, hub)
+//        }
+//
+//        /**
+//         * Reads raw volumetric data from a [file], splits it into buffers of at most, and as close as possible to,
+//         * [sizeLimit] bytes and creates a volume from each buffer.
+//         *
+//         * Returns the list of volumes.
+//         */
+//        @JvmStatic
+//        fun <T: RealType<T>> fromPathRawSplit(
+//            file: Path,
+//            type: T,
+//            sizeLimit: Long = 2000000000L,
+//            hub: Hub
+//        ): Pair<Node, List<Volume>> {
+//            val splits = file.fileSize()/sizeLimit
+//            val children = (0..splits).windowed(2, 1)
+//                .map { it[0] * sizeLimit to (it[1] * sizeLimit - 1) }
+//                .map { window ->
+//                    fromPathRaw(file, hub, type, offsets = window)
+//                }
+//
+//            val parent = RichNode()
+//            children.forEach { parent.addChild(it) }
+//
+//            return parent to children
 //>>>>>>> 39b01a7c23d9f9b0939c6192f0a2bfb5bedb714c
         }
 
