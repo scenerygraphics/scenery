@@ -13,7 +13,7 @@ import java.io.FileWriter
 import kotlin.concurrent.thread
 
 
-class VDIGenerationBenchmarks {
+class GenerationBenchmarkRunner {
     val benchmarkDatasets = listOf<String>("Simulation")
     val benchmarkSupersegments = listOf(15, 20, 30, 40)
 
@@ -90,7 +90,7 @@ class VDIGenerationBenchmarks {
 
         @JvmStatic
         fun main(args: Array<String>) {
-            VDIGenerationBenchmarks().benchmarkVDIGeneration(1280, 720)
+            GenerationBenchmarkRunner().benchmarkVDIGeneration(1280, 720)
         }
     }
 }
