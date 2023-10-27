@@ -4,13 +4,14 @@ import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.volumes.vdi.VDIDataIO
 import graphics.scenery.volumes.vdi.VDINode
+import org.joml.Quaternionf
 import org.joml.Vector3f
 import org.lwjgl.system.MemoryUtil
 import java.io.File
 import java.io.FileInputStream
 import java.nio.ByteBuffer
 
-class VDIRenderingExample : SceneryBase("VDI Rendering Example", 512, 512) {
+class VDIRenderingExample : SceneryBase("VDI Rendering Example", 1024, 1024) {
 
     val skipEmpty = false
 
@@ -33,7 +34,8 @@ class VDIRenderingExample : SceneryBase("VDI Rendering Example", 512, 512) {
         scene.addChild(light)
 
         with(cam) {
-            spatial().position = Vector3f(0.0f, 0.0f, 5.0f)
+            spatial().position = Vector3f( 4.622E+0f, -9.060E-1f, -1.047E+0f)
+            spatial().rotation = Quaternionf( 5.288E-2, -9.096E-1, -1.222E-1,  3.936E-1)
             perspectiveCamera(50.0f, windowWidth, windowWidth)
             scene.addChild(this)
         }
