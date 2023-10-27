@@ -18,6 +18,17 @@ class BenchmarkSetup (var dataset: Dataset) {
         Richtmyer_Meshkov
     }
 
+    fun is16Bit() : Boolean {
+        if (dataset == Dataset.Kingsnake || dataset == Dataset.Richtmyer_Meshkov) {
+            return false
+        } else if (dataset == Dataset.Rayleigh_Taylor) {
+            return true
+        } else {
+            logger.error("Wrong dataset")
+            return false
+        }
+    }
+
     fun getVolumeDims(): Vector3f {
         if(dataset == Dataset.Kingsnake) {
             return Vector3f(1024f, 1024f, 795f)
