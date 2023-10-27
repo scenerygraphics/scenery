@@ -80,8 +80,8 @@ class VDIStreamer {
         var compressedColor:  ByteBuffer? = null
         var compressedDepth: ByteBuffer? = null
 
-        val compressor = DataCompressor()
         val compressionTool = DataCompressor.CompressionTool.LZ4
+        val compressor = DataCompressor(compressionTool)
 
         var vdiColorBuffer: ByteBuffer?
         var vdiDepthBuffer: ByteBuffer?
@@ -126,21 +126,21 @@ class VDIStreamer {
 
                     if (compressedColor == null) {
                         compressedColor =
-                            MemoryUtil.memAlloc(compressor.returnCompressBound(colorSize.toLong(), compressionTool))
+                            MemoryUtil.memAlloc(compressor.returnCompressBound(colorSize.toLong()))
                     }
 
                     val compressedColorLength =
-                        compressor.compress(compressedColor!!, vdiColorBuffer!!, 3, compressionTool)
+                        compressor.compress(compressedColor!!, vdiColorBuffer!!, 3)
                     compressedColor!!.limit(compressedColorLength.toInt())
                     vdiData.bufferSizes.colorSize = compressedColorLength
 
                     if (compressedDepth == null) {
                         compressedDepth =
-                            MemoryUtil.memAlloc(compressor.returnCompressBound(depthSize.toLong(), compressionTool))
+                            MemoryUtil.memAlloc(compressor.returnCompressBound(depthSize.toLong()))
                     }
 
                     val compressedDepthLength =
-                        compressor.compress(compressedDepth!!, vdiDepthBuffer!!, 3, compressionTool)
+                        compressor.compress(compressedDepth!!, vdiDepthBuffer!!, 3)
                     compressedDepth!!.limit(compressedDepthLength.toInt())
                     vdiData.bufferSizes.depthSize = compressedDepthLength
 
@@ -290,7 +290,7 @@ class VDIStreamer {
 
         thread {
             compressedColor.limit(compressedColorLength.toInt())
-            val decompressedColorLength = compressor.decompress(colorBuffer, compressedColor.slice(), compressionTool)
+            val decompressedColorLength = compressor.decompress(colorBuffer, compressedColor.slice())
             compressedColor.limit(compressedColor.capacity())
             if (decompressedColorLength.toInt() != colorSize) {
                 logger.warn("Error decompressing color message. Decompressed length: $decompressedColorLength and desired size: $colorSize")
@@ -299,7 +299,7 @@ class VDIStreamer {
         }
 
         compressedDepth.limit(compressedDepthLength.toInt())
-        val decompressedDepthLength = compressor.decompress(depthBuffer, compressedDepth.slice(), compressionTool)
+        val decompressedDepthLength = compressor.decompress(depthBuffer, compressedDepth.slice())
         compressedDepth.limit(compressedDepth.capacity())
         if (decompressedDepthLength.toInt() != depthSize) {
             logger.warn("Error decompressing depth message. Decompressed length: $decompressedDepthLength and desired size: $depthSize")
@@ -328,8 +328,8 @@ class VDIStreamer {
         //Attaching initial empty textures to the second buffer so that it is not null
         vdiNode.attachEmptyTextures(VDINode.DoubleBuffer.Second)
 
-        val compressor = DataCompressor()
         val compressionTool = DataCompressor.CompressionTool.LZ4
+        val compressor = DataCompressor(compressionTool)
 
         //the expected sizes of each buffer
         val colorSize = windowWidth * windowHeight * numSupersegments * 4 * 4
@@ -342,9 +342,9 @@ class VDIStreamer {
         val depthBuffer = MemoryUtil.memCalloc(depthSize + decompressionBuffer)
 
         val compressedColor: ByteBuffer =
-            MemoryUtil.memAlloc(compressor.returnCompressBound(colorSize.toLong(), compressionTool))
+            MemoryUtil.memAlloc(compressor.returnCompressBound(colorSize.toLong()))
         val compressedDepth: ByteBuffer =
-            MemoryUtil.memAlloc(compressor.returnCompressBound(depthSize.toLong(), compressionTool))
+            MemoryUtil.memAlloc(compressor.returnCompressBound(depthSize.toLong()))
         val accelGridBuffer =
             MemoryUtil.memAlloc(accelSize)
 
