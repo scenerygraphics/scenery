@@ -1,21 +1,21 @@
-package graphics.scenery.tests.examples.benchmarks
+package graphics.scenery.tests.examples.volumes.benchmarks
 
 import graphics.scenery.Camera
 import graphics.scenery.SceneryElement
 import graphics.scenery.backends.Renderer
 import graphics.scenery.backends.vulkan.VulkanRenderer
 import graphics.scenery.controls.behaviours.ArcballCameraControl
-import graphics.scenery.tests.examples.volumes.VDIGenerationExample
 import graphics.scenery.utils.Statistics
+import graphics.scenery.volumes.vdi.benchmarks.BenchmarkSetup
 import org.joml.Vector3f
 import java.io.BufferedWriter
 import java.io.FileWriter
 import kotlin.concurrent.thread
 
 
-class GenerationBenchmarkRunner {
-    val benchmarkDatasets = listOf<String>("Simulation")
-    val benchmarkSupersegments = listOf(15, 20, 30, 40)
+class VDIGenerationBenchmarkRunner {
+    val benchmarkDatasets = listOf<BenchmarkSetup.Dataset>(BenchmarkSetup.Dataset.Kingsnake)
+    val benchmarkSupersegments = listOf(20)
 
     fun benchmarkVDIGeneration(windowWidth: Int, windowHeight: Int) {
         benchmarkDatasets.forEach { dataName ->
@@ -25,7 +25,7 @@ class GenerationBenchmarkRunner {
             val bw = BufferedWriter(fw)
 
             benchmarkSupersegments.forEach { ns ->
-                val instance = VDIGenerationExample(windowWidth, windowHeight, ns)
+                val instance = VDIGenerationBenchmark(windowWidth, windowHeight, ns, dataName, false)
 
                 thread {
                     while (instance.hub.get(SceneryElement.Renderer) == null) {
@@ -90,7 +90,7 @@ class GenerationBenchmarkRunner {
 
         @JvmStatic
         fun main(args: Array<String>) {
-            GenerationBenchmarkRunner().benchmarkVDIGeneration(1280, 720)
+            VDIGenerationBenchmarkRunner().benchmarkVDIGeneration(1280, 720)
         }
     }
 }
