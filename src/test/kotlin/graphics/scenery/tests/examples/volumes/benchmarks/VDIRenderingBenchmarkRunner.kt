@@ -1,15 +1,14 @@
-package graphics.scenery.tests.examples.benchmarks
+package graphics.scenery.tests.examples.volumes.benchmarks
 
 import graphics.scenery.Camera
 import graphics.scenery.SceneryElement
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.behaviours.ArcballCameraControl
-import graphics.scenery.tests.examples.volumes.ProceduralVolumeExample
 import graphics.scenery.tests.examples.volumes.VDIRenderingExample
 import org.joml.Vector3f
 import kotlin.concurrent.thread
 
-class VDIRenderingBenchmarks {
+class VDIRenderingBenchmarkRunner {
     val benchmarkDatasets = listOf<String>("Simulation")
     val benchmarkViewpoints = listOf(5, 10, 15, 20, 25, 30, 35, 40)
     val benchmarkSupersegments = listOf(20)
@@ -93,7 +92,7 @@ class VDIRenderingBenchmarks {
 
         @JvmStatic
         fun main(args: Array<String>) {
-            VDIRenderingBenchmarks().runVDIRendering()
+            VDIRenderingBenchmarkRunner().runVDIRendering()
         }
     }
 }
