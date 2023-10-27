@@ -27,6 +27,7 @@ import org.zeromq.ZMQ
 import org.zeromq.ZMQException
 import java.io.ByteArrayInputStream
 import java.nio.ByteBuffer
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.concurrent.thread
 import kotlin.system.measureNanoTime
@@ -37,7 +38,7 @@ class ClientApplication : SceneryBase("Client Application", 512, 512)  {
     val context = ZContext(4)
 
     val numSupersegments = 20
-    var vdiStreaming = true
+    var vdiStreaming = AtomicBoolean(true)
     var newVDI = false
     var firstVDI = true
     var firstVDIStream = true
@@ -114,7 +115,7 @@ class ClientApplication : SceneryBase("Client Application", 512, 512)  {
 
                     logger.info("Volume Rendering")
 
-                    vdiStreaming = false
+                    vdiStreaming.set(false)
                     scene.addChild(videoPlane)
                     scene.removeChild(vdiNode)
                     scene.removeChild(VDIPlane)
@@ -128,7 +129,7 @@ class ClientApplication : SceneryBase("Client Application", 512, 512)  {
 
                    logger.info("VDI streaming")
 
-                    vdiStreaming = true
+                    vdiStreaming.set(true)
                     scene.addChild(VDIPlane)
                     scene.addChild(vdiNode)
                     scene.removeChild(videoPlane)
@@ -156,7 +157,7 @@ class ClientApplication : SceneryBase("Client Application", 512, 512)  {
         }
         decodedFrameCount = 1
         logger.info("Decoding and displaying frames")
-        while (!vdiStreaming && videoDecoder.nextFrameExists) {
+        while (!(vdiStreaming.get()) && videoDecoder.nextFrameExists) {
             val image = videoDecoder.decodeFrame()
             if(image != null) { // image can be null, e.g. when the decoder encounters invalid information between frames
                 drawFrame(image, videoDecoder.videoWidth, videoDecoder.videoHeight, plane)
