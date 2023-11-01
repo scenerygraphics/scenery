@@ -370,13 +370,16 @@ open class VulkanDevice(
                 VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC to maxUBOs,
                 VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT to maxInputAttachments,
                 VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER to maxTextures,
-                VK_DESCRIPTOR_TYPE_STORAGE_IMAGE to maxTextures)
+                VK_DESCRIPTOR_TYPE_STORAGE_IMAGE to maxTextures,
+                VK_DESCRIPTOR_TYPE_STORAGE_BUFFER to maxSSBOs,
+                VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC to maxSSBOs)
         )
     ) {
 
         companion object {
             val maxTextures = 2048 * 16
             val maxUBOs = 2048
+            val maxSSBOs = 64
             val maxInputAttachments = 32
             val maxSets = maxUBOs * 2 + maxInputAttachments + maxTextures
         }
@@ -390,7 +393,7 @@ open class VulkanDevice(
 
         return stackPush().use { stack ->
             // We need to tell the API the number of max. requested descriptors per type
-            val typeCounts = VkDescriptorPoolSize.calloc(5, stack)
+            val typeCounts = VkDescriptorPoolSize.calloc(7, stack)
             typeCounts[0]
                 .type(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
                 .descriptorCount(DescriptorPool.maxTextures)
@@ -410,6 +413,14 @@ open class VulkanDevice(
             typeCounts[4]
                 .type(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE)
                 .descriptorCount(DescriptorPool.maxTextures)
+
+            typeCounts[5]
+                .type(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER)
+                .descriptorCount(DescriptorPool.maxSSBOs)
+
+            typeCounts[6]
+                .type(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC)
+                .descriptorCount(DescriptorPool.maxSSBOs)
 
             // Create the global descriptor pool
             // All descriptors used in this example are allocated from this pool
