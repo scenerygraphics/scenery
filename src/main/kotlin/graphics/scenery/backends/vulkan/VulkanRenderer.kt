@@ -217,28 +217,36 @@ open class VulkanRenderer(hub: Hub,
         }
     }
 
+    private fun Throwable.filteredStackTrace(): List<String> {
+        val firstIndex = this.stackTrace.indexOfFirst { it.toString().contains("VkDebugUtilsMessengerCallbackEXTI") } + 1
+        val lastIndex = this.stackTrace.indexOfLast { it.toString().contains("SceneryBase") } - 1
+
+        return this.stackTrace.copyOfRange(firstIndex, lastIndex)
+            .filter { !it.toString().contains(".coroutines.") }
+            .map { " at $it" }
+    }
+
     var debugCallbackUtils = callback@ { severity: Int, type: Int, callbackDataPointer: Long, _: Long ->
         val dbg = if (type and VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT == VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT) {
             " (performance)"
         } else if(type and VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT == VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT) {
-            " (validation)"
+            ""
         } else {
             ""
         }
 
         val callbackData = VkDebugUtilsMessengerCallbackDataEXT.create(callbackDataPointer)
-        val obj = callbackData.pMessageIdNameString()
         val message = callbackData.pMessageString()
         val objectType = 0
 
         when (severity) {
             VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT ->
-                logger.error("!! $obj($objectType) Validation$dbg: $message")
+                logger.error("🌋⛔️ Validation$dbg: $message")
             VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT ->
-                logger.warn("!! $obj($objectType) Validation$dbg: $message")
+                logger.warn("🌋⚠️ Validation$dbg: $message")
             VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT ->
-                logger.info("!! $obj($objectType) Validation$dbg: $message")
-            else -> logger.info("!! $obj($objectType) Validation (unknown message type)$dbg: $message")
+                logger.info("🌋ℹ️ Validation$dbg: $message")
+            else -> logger.info("🌋🤷 Validation (unknown message type)$dbg: $message")
         }
 
         // trigger exception and delay if strictValidation is activated in general, or only for specific object types
@@ -250,12 +258,8 @@ open class VulkanRenderer(hub: Hub,
             // set 15s of delay until the next frame is rendered if a validation error happens
             renderDelay = System.getProperty("scenery.VulkanRenderer.DefaultRenderDelay", "1500").toLong()
 
-            try {
-                throw VulkanValidationLayerException("Vulkan validation layer exception, see validation layer error messages above. To disable these exceptions, set scenery.VulkanRenderer.StrictValidation=false. Stack trace:")
-            } catch (e: VulkanValidationLayerException) {
-                logger.error(e.message)
-                e.printStackTrace()
-            }
+            val e = VulkanValidationLayerException("Vulkan validation layer exception, see validation layer error messages above. To disable these exceptions, set scenery.VulkanRenderer.StrictValidation=false.")
+            e.filteredStackTrace().forEach { logger.error(it) }
         }
 
         // return false here, otherwise the application would quit upon encountering a validation error.
@@ -293,12 +297,8 @@ open class VulkanRenderer(hub: Hub,
                 // set 15s of delay until the next frame is rendered if a validation error happens
                 renderDelay = System.getProperty("scenery.VulkanRenderer.DefaultRenderDelay", "1500").toLong()
 
-                try {
-                    throw VulkanValidationLayerException("Vulkan validation layer exception, see validation layer error messages above. To disable these exceptions, set scenery.VulkanRenderer.StrictValidation=false. Stack trace:")
-                } catch (e: VulkanValidationLayerException) {
-                    logger.error(e.message)
-                    e.printStackTrace()
-                }
+                val e = VulkanValidationLayerException("Vulkan validation layer exception, see validation layer error messages above. To disable these exceptions, set scenery.VulkanRenderer.StrictValidation=false. Stack trace:")
+                e.filteredStackTrace().forEach { logger.error(it) }
             }
 
             // return false here, otherwise the application would quit upon encountering a validation error.
@@ -519,7 +519,9 @@ open class VulkanRenderer(hub: Hub,
                         stack.UTF8(EXTMetalSurface.VK_EXT_METAL_SURFACE_EXTENSION_NAME)
                     )
                 } else {
-                    null
+                    stack.pointers(
+                        stack.UTF8(VK_KHR_SURFACE_EXTENSION_NAME)
+                    )
                 }
 
                 createInstance(
@@ -582,7 +584,7 @@ open class VulkanRenderer(hub: Hub,
 
             device = VulkanDevice.fromPhysicalDevice(instance,
                 physicalDeviceFilter = { _, device -> "${device.vendor} ${device.name}".contains(System.getProperty("scenery.Renderer.Device", "DOES_NOT_EXIST"))},
-                additionalExtensions = { physicalDevice -> hub.getWorkingHMDDisplay()?.getVulkanDeviceExtensions(physicalDevice)?.toMutableList() ?: mutableListOf() },
+                additionalExtensions = { physicalDevice -> hub.getWorkingHMDDisplay()?.getVulkanDeviceExtensions(physicalDevice)?.toMutableList() ?: mutableListOf(KHRSwapchain.VK_KHR_SWAPCHAIN_EXTENSION_NAME) },
                 validationLayers = requestedValidationLayers,
                 headless = headless,
                 debugEnabled = validation
@@ -618,13 +620,14 @@ open class VulkanRenderer(hub: Hub,
             swapchain = when {
                 selectedSwapchain != null -> {
                     logger.info("Using swapchain ${selectedSwapchain.simpleName}")
-                    val params = selectedSwapchain.kotlin.primaryConstructor!!.parameters.associate { param ->
-                        param to when(param.name) {
+                    val params = selectedSwapchain.kotlin.primaryConstructor!!.parameters.associateWith { param ->
+                        when(param.name) {
                             "device" -> device
                             "queue" -> queue
                             "commandPools" -> commandPools
                             "renderConfig" -> renderConfig
                             "useSRGB" -> renderConfig.sRGB
+                            "vsync" -> !settings.get<Boolean>("Renderer.DisableVsync")
                             else -> null
                         }
                     }.filter { it.value != null }
@@ -695,13 +698,13 @@ open class VulkanRenderer(hub: Hub,
                     }
 
                     val validationsEnabled = if (validation) {
-                        " - VALIDATIONS ENABLED"
+                        ", validation layers enabled"
                     } else {
                         ""
                     }
 
-                    if(embedIn == null) {
-                        window.title = "$applicationName [${this@VulkanRenderer.javaClass.simpleName}, ${this@VulkanRenderer.renderConfig.name}] $validationsEnabled - $fps fps"
+                    if(embedIn == null || (embedIn as? SceneryJPanel)?.owned == true) {
+                        window.title = "$applicationName [${this@VulkanRenderer.renderConfig.name}$validationsEnabled] $fps fps"
                     }
                 }
             }, 0, 1000)

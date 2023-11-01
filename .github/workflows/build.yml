@@ -33,7 +33,9 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
       - name: Build scenery
-        run: ./gradlew build -x dokkaHtml -x dokkaHtmlJar -x javadoc -x dokkaJavadocJar --no-daemon
+        run: ./gradlew build testClasses -x test -x dokkaHtml -x dokkaHtmlJar -x javadoc -x dokkaJavadocJar --no-daemon
+      - name: Test scenery
+        run: ./gradlew test -x dokkaHtml -x dokkaHtmlJar -x javadoc -x dokkaJavadocJar --no-daemon
 
   windows-unittests:
     name: 'Windows'
@@ -63,7 +65,9 @@ jobs:
           distribution: 'temurin'
           cache: 'gradle'
       - name: Build scenery
-        run: ./gradlew build -x dokkaHtml -x dokkaHtmlJar -x javadoc -x dokkaJavadocJar --no-daemon
+        run: ./gradlew build testClasses -x test -x dokkaHtml -x dokkaHtmlJar -x javadoc -x dokkaJavadocJar --no-daemon
+      - name: Test scenery
+        run: ./gradlew test -x dokkaHtml -x dokkaHtmlJar -x javadoc -x dokkaJavadocJar --no-daemon
 
   mac-unittests:
     name: 'macOS'
@@ -89,4 +93,6 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
       - name: Build scenery
-        run: ./gradlew build -x dokkaHtml -x dokkaHtmlJar -x javadoc -x dokkaJavadocJar --no-daemon
+        run: ./gradlew build testClasses -x test -x dokkaHtml -x dokkaHtmlJar -x javadoc -x dokkaJavadocJar --no-daemon
+      - name: Test scenery
+        run: ./gradlew test -x dokkaHtml -x dokkaHtmlJar -x javadoc -x dokkaJavadocJar --no-daemon
