@@ -35,6 +35,8 @@ interface Geometry : Buffers, Serializable {
     var indices: IntBuffer
     /** Whether the object is dirty and somehow needs to be updated. Used by renderers. */
     var dirty: Boolean
+    /** Whether the [vertices]/[normals]/[indices] content is generated inside a compute shader. (Currently has no check. If this is true, vertex data gets ignored!)*/
+    var shaderSourced: Boolean
 
     fun generateBoundingBox(children: List<Node>): OrientedBoundingBox?
 

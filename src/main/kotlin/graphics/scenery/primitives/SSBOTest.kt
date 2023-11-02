@@ -1,21 +1,11 @@
 package graphics.scenery.primitives
 
 import graphics.scenery.*
-import graphics.scenery.attribute.buffers.BufferType
 import graphics.scenery.attribute.buffers.Buffers
 import graphics.scenery.attribute.buffers.HasBuffers
-import graphics.scenery.attribute.geometry.HasGeometry
-import graphics.scenery.attribute.material.HasMaterial
 import graphics.scenery.attribute.material.Material
-import graphics.scenery.attribute.renderable.HasRenderable
-import graphics.scenery.attribute.spatial.HasSpatial
-import graphics.scenery.backends.ShaderType
-import graphics.scenery.backends.UBO
 import graphics.scenery.geometry.GeometryType
 import graphics.scenery.net.Networkable
-import graphics.scenery.textures.Texture
-import graphics.scenery.utils.Image
-import graphics.scenery.utils.extensions.*
 import org.joml.Vector3f
 import org.joml.Vector4f
 import java.lang.IllegalArgumentException
@@ -67,6 +57,10 @@ open class SSBOTest @JvmOverloads constructor(val sizes: Vector3f = Vector3f(1.0
                 buffer.putFloat(0.1f)
                 buffer.putFloat(1.0f)
                 buffer.flip()
+            }
+            addCustom("ssboVertexOutputDownload", Buffers.BufferUsage.Download, elements = 4, stride = 4 * 16) { layout, buffer ->
+                // layout points to an UBO object, but should not be named ubo
+                layout.add("Color1", { Vector4f(1.0f) })
             }
         }
 
@@ -189,12 +183,6 @@ open class SSBOTest @JvmOverloads constructor(val sizes: Vector3f = Vector3f(1.0
             side2 * sizes.y(),
             side2 * sizes.z())
         boundingBox = generateBoundingBox()
-    }
-
-    fun updateSSBOEntry(name : String, index : Int, layoutEntry : String, value : Any) {
-        buffers {
-            updateSSBOEntry(name, index, layoutEntry, value)
-        }
     }
 
     override fun getConstructorParameters(): Any? {

@@ -32,6 +32,7 @@ open class DefaultGeometry(private var node: Node): Geometry {
     override var vertexSize = 3
     override var texcoordSize = 2
     override var dirty: Boolean = true
+    override var shaderSourced: Boolean = false
     override var geometryType = GeometryType.TRIANGLES
 
     override fun generateBoundingBox(children: List<Node>): OrientedBoundingBox? {
@@ -88,7 +89,6 @@ operator fun <V1 : Buffer> Map<in String, Buffers.BufferDescription>.getValue(th
     @Suppress("UNCHECKED_CAST")
     return buf.buffer as V1
 }
-
 operator fun MutableMap<in String, Buffers.BufferDescription>.setValue(thisRef: Any?, property: KProperty<*>, value: FloatBuffer) {
     this[property.name]!!.buffer = value
 }

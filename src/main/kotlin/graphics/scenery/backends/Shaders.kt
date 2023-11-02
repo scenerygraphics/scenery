@@ -105,6 +105,7 @@ sealed class Shaders() {
 
                 CoroutineScope(Dispatchers.IO).launch {
                     while(watchFiles) {
+                        cache.remove(ShaderPaths(spirvPath, codePath))
                         val modifiedTime = f.lastModified()
                         if(modifiedTime > (changeTimes[paths] ?: 0)) {
                             logger.info("File changed, marking $codePath as stale")

@@ -482,10 +482,10 @@ open class VulkanRenderer(hub: Hub,
 
             logger.info("Loaded ${renderConfig.name} (${renderConfig.description ?: "no description"})")
 
-            if((System.getenv("ENABLE_VULKAN_RENDERDOC_CAPTURE")?.toInt() == 1  || Renderdoc.renderdocAttached)&& validation) {
+            /*if((System.getenv("ENABLE_VULKAN_RENDERDOC_CAPTURE")?.toInt() == 1  || Renderdoc.renderdocAttached)&& validation) {
                 logger.warn("Validation Layers requested, but Renderdoc capture and Validation Layers are mutually incompatible. Disabling validations layers.")
                 validation = false
-            }
+            }*/
 
             // explicitly create VK, to make GLFW pick up MoltenVK on OS X
             if(ExtractsNatives.getPlatform() == ExtractsNatives.Platform.MACOS) {
@@ -729,7 +729,7 @@ open class VulkanRenderer(hub: Hub,
 
             ssboDownloadPool = VulkanBufferPool(
                 device,
-                usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT or VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT or VK_BUFFER_USAGE_TRANSFER_SRC_BIT or VK_BUFFER_USAGE_VERTEX_BUFFER_BIT or VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
                 bufferSize = 1024*1024
             )
 
@@ -1691,27 +1691,26 @@ open class VulkanRenderer(hub: Hub,
                 // texturing of a given node have changed, as these might change pipelines or descriptor sets, leading
                 // to the original command buffer becoming obsolete.
                 renderable.rendererMetadata()?.let { metadata ->
-                    node.ifGeometry {
-                        if (dirty) {
-                            logger.debug("Force command buffer re-recording, as geometry for {} has been updated", node.name)
-
-                            renderable.preUpdate(this@VulkanRenderer, hub)
-                            updateNodeGeometry(node)
-                            dirty = false
-
-                            rerecordingCauses.add(node.name)
-                            forceRerecording = true
-                        }
-                    }
 
                     node.ifBuffers {
-                        //TODO: check if cmd-rerecording is necessary
-                        if(true) {
+                        // dirtySSBOs is set to true if the update function inside the buffers-attribute is used to update the buffers content, and set to false
+                        // after the new content has been consumed to update the GPU sided buffer here
+                        if(dirtySSBOs) {
                             logger.debug("Force command buffer re-recording, as SSBOs for {} has been updated", node.name)
 
                             renderable.preUpdate(this@VulkanRenderer, hub)
                             updateNodeSSBOs(node)
                             dirtySSBOs = false
+                        }
+                    }
+
+                    node.ifGeometry {
+                        if (dirty && !shaderSourced) {
+                            logger.debug("Force command buffer re-recording, as geometry for {} has been updated", node.name)
+
+                            renderable.preUpdate(this@VulkanRenderer, hub)
+                            updateNodeGeometry(node)
+                            dirty = false
 
                             rerecordingCauses.add(node.name)
                             forceRerecording = true

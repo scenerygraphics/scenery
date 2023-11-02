@@ -150,6 +150,8 @@ object VulkanScenePass {
                 }
             }
 
+            // to idea2: it might be necessary to have 2 nodes, one for the compute part and one for the geometry part. The geometry node then needs a flag
+            // signaling the renderer backend inside the render() that its geometry is coming from a shader/elsewhere, and not from HasGeometry (attribute).vertices
             val computeNodesGraphicsNodes = renderOrderList.partition {
                 val renderable = it.renderableOrNull()
                 if(renderable != null) {
@@ -240,14 +242,16 @@ object VulkanScenePass {
 
                 loadStoreTextures.forEach { (name, _) ->
                     val texture = s.textures[name] ?: return@computeLoop
-                    VulkanTexture.transitionLayout(texture.image.image,
+                    VulkanTexture.transitionLayout(
+                        texture.image.image,
                         from = VK10.VK_IMAGE_LAYOUT_GENERAL,
                         to = VK10.VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                         srcStage = VK10.VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
                         srcAccessMask = VK10.VK_ACCESS_SHADER_WRITE_BIT,
                         dstStage = VK10.VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,
                         dstAccessMask = VK10.VK_ACCESS_SHADER_READ_BIT,
-                        commandBuffer = this)
+                        commandBuffer = this
+                    )
 
                 }
 
@@ -297,6 +301,7 @@ object VulkanScenePass {
                     return@drawLoop
                 }
 
+                // TODO: The vertex+index buffer is just a VulkanBuffer which was already uploaded to the GPU in the render(...) function before cb-recording
                 val vertexIndexBuffer = s.vertexBuffers["vertex+index"]
                 val instanceBuffer = s.vertexBuffers["instance"]
 

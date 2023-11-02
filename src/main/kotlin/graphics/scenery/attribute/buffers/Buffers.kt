@@ -4,8 +4,6 @@ package graphics.scenery.attribute.buffers
 import graphics.scenery.BufferUtils
 import graphics.scenery.backends.UBO
 import net.imglib2.type.numeric.NumericType
-import org.joml.Vector4f
-import org.lwjgl.glfw.GLFWImage
 import java.io.Serializable
 import java.nio.Buffer
 import java.nio.ByteBuffer
@@ -17,10 +15,11 @@ interface Buffers : Serializable {
 
     var dirtySSBOs : Boolean
 
+    // TODO: Redo this. Differentiate between read/write and ReadWrite
+    // TODO: and if the buffer is GPU only or if it needs to be send back to the cpu (Upload/download or both)
     enum class BufferUsage {
         Upload,
-        Download,
-        UploadAndDownload
+        Download
     }
 
     /**
@@ -74,6 +73,7 @@ interface Buffers : Serializable {
                     val layout = it.type.layout
                     (it.buffer.duplicate() as ByteBuffer).order(ByteOrder.LITTLE_ENDIAN).run {
                         layout.populate(this, index.toLong(), linkedMapOf(layoutEntry to {value}))
+                        dirtySSBOs = true
                     }
                 }
             }
