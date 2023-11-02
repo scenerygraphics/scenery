@@ -20,7 +20,8 @@ data class ShaderPackage(val baseClass: Class<*>,
                          val codePath: String?,
                          val spirv: ByteArray?,
                          val code: String?,
-                         var priority: SourceSPIRVPriority) {
+                         var priority: SourceSPIRVPriority,
+                         val disableCaching: Boolean = false) {
     private val logger by lazyLogger()
 
     init {

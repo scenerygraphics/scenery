@@ -1,5 +1,6 @@
 package graphics.scenery.backends
 
+import bvv.core.shadergen.Shader
 import graphics.scenery.utils.lazyLogger
 import kotlinx.coroutines.*
 import java.io.File
@@ -48,7 +49,9 @@ sealed class Shaders() {
      * [shaders], which are assumed to be relative to a class [clazz].
      */
     open class ShadersFromFiles(val shaders: Array<String>,
-                           val clazz: Class<*> = Renderer::class.java) : Shaders() {
+        val clazz: Class<*> = Renderer::class.java) : Shaders() {
+
+
         init {
             type.addAll(shaders.map {
                 val extension = it.lowercase().substringBeforeLast(".spv").substringAfterLast(".").trim()
@@ -89,32 +92,47 @@ sealed class Shaders() {
 
             val baseClass = arrayOf(spirvPath, codePath).mapNotNull { safeFindBaseClass(arrayOf(clazz, Renderer::class.java), it) }
 
-            if (baseClass.isEmpty()) {
+            val fileCandidates = listOf(File(codePath), File("shaders/$codePath"))
+            val f = fileCandidates.firstOrNull { it.exists() }
+            val paths = ShaderPaths(spirvPath, codePath)
+            var disallowCaching = false
+
+            if (baseClass.isEmpty() && f == null) {
                 throw ShaderCompilationException("Shader files for $shaderCodePath ($spirvPath, $codePath) not found.")
             }
 
             val base = baseClass.first()
             val pathPrefix = base.second
+            var shaderPackage: ShaderPackage? = null
 
-            val f = File(codePath)
-            val paths = ShaderPaths(spirvPath, codePath)
-
-            val (spirvFromFile, codeFromFile) = if(f.exists()) {
-                logger.warn("Using $codePath from filesystem, will ignore compiled or packaged version.")
+            val (spirvFromFile, codeFromFile) = if(f != null && f.exists()) {
+                logger.warn("Using $codePath from filesystem (${f.absolutePath}), will ignore compiled or packaged version.")
                 changeTimes.putIfAbsent(ShaderPaths(spirvPath, codePath), f.lastModified())
+                disallowCaching = true
 
-                CoroutineScope(Dispatchers.IO).launch {
-                    while(watchFiles) {
-                        val modifiedTime = f.lastModified()
-                        if(modifiedTime > (changeTimes[paths] ?: 0)) {
-                            logger.info("File changed, marking $codePath as stale")
-                            changeTimes[paths] = modifiedTime
-                            stale = true
-                            watchFiles = false
+                watchers.putIfAbsent(paths,
+                    CoroutineScope(Dispatchers.IO).launch {
+                        while(isActive) {
+                            val modifiedTime = f.lastModified()
+                            val sp = shaderPackage
+                            if(modifiedTime > (changeTimes[paths] ?: 0) && sp != null) {
+                                // try compiling the changed shader, bail if this fails to avoid
+                                // replacing a working shader with a broken one
+                                try {
+                                    val newShaderPackage = sp.copy(code = f.readText())
+                                    compile(newShaderPackage, type, target, base.first)
+
+                                    logger.info("File changed and test compilation succeeded, marking $codePath as stale")
+                                    changeTimes[paths] = modifiedTime
+                                    stale = true
+                                } catch(e: ShaderCompilationException) {
+                                    logger.error("Compilation error during hot reloading, will not replace shader")
+                                }
+                            }
+
+                            delay(2000.milliseconds)
                         }
-                        delay(2000.milliseconds)
-                    }
-                }
+                    })
 
                 null to f.readText()
             } else {
@@ -122,16 +140,17 @@ sealed class Shaders() {
                         base.first.getResourceAsStream("$pathPrefix$codePath")?.bufferedReader().use { it?.readText() }
             }
 
-            val shaderPackage = ShaderPackage(base.first,
+            shaderPackage = ShaderPackage(base.first,
                 type,
                 "$pathPrefix$spirvPath",
                 "$pathPrefix$codePath",
                 spirvFromFile,
                 codeFromFile,
-                SourceSPIRVPriority.SourcePriority)
+                SourceSPIRVPriority.SourcePriority,
+                disallowCaching)
 
             val p = compile(shaderPackage, type, target, base.first)
-            if(stale) {
+            if(stale && !disallowCaching) {
                 cache[paths] = p
             }
             stale = false
@@ -155,6 +174,7 @@ sealed class Shaders() {
         companion object {
             protected val cache = ConcurrentHashMap<ShaderPaths, ShaderPackage>()
             protected val changeTimes = ConcurrentHashMap<ShaderPaths, Long>()
+            protected var watchers = ConcurrentHashMap<ShaderPaths, Job>()
         }
     }
 
