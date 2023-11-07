@@ -2379,7 +2379,7 @@ open class VulkanRenderer(hub: Hub,
         fun setConfigSetting(key: String, value: Any) {
             val setting = "Renderer.$key"
 
-            logger.debug("Setting $setting: ${settings.get<Any>(setting)} -> $value")
+            logger.debug("Setting {}: {} -> {}", setting, settings.getOrNull<Any>(setting), value)
             settings.set(setting, value)
         }
 
