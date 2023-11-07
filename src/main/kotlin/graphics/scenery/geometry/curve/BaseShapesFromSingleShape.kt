@@ -3,7 +3,7 @@ package graphics.scenery.geometry.curve
 import org.joml.Vector3f
 
 /**
- * Convinience object to create a curve with only a single base shape.
+ * Convenience object to create a curve with only a single base shape.
  */
 object BaseShapesFromSingleShape {
 
