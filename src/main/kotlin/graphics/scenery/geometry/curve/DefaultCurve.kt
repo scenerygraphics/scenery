@@ -2,7 +2,6 @@ package graphics.scenery.geometry.curve
 
 import graphics.scenery.Mesh
 import graphics.scenery.geometry.Spline
-import org.checkerframework.common.subtyping.qual.Bottom
 import org.joml.Vector3f
 
 /**
@@ -55,12 +54,12 @@ class DefaultCurve(override val spline: Spline,
                     arrayListShapes.add(transformedBaseShapes.last())
                     val trianglesAndNormals = geometryCalculator.calculateTriangles(arrayListShapes,
                         cover = CurveCover.Bottom)
-                    val partialCurve = PartialCurve(trianglesAndNormals.first, trianglesAndNormals.second)
-                    this.addChild(partialCurve)
+                    val partialCurveMesh = PartialCurveMesh(trianglesAndNormals.first, trianglesAndNormals.second)
+                    this.addChild(partialCurveMesh)
                 } else {
                     val trianglesAndNormals = geometryCalculator.calculateTriangles(listShapes, cover = cover)
-                    val partialCurve = PartialCurve(trianglesAndNormals.first, trianglesAndNormals.second)
-                    this.addChild(partialCurve)
+                    val partialCurveMesh = PartialCurveMesh(trianglesAndNormals.first, trianglesAndNormals.second)
+                    this.addChild(partialCurveMesh)
                 }
             }
         }

@@ -32,8 +32,8 @@ class SingleMeshCurve(override val spline: Spline,
         if (countDifferentShapes == 1) {
             val transformedBaseShapes = transformedBaseShapes(baseShapes.invoke(), frenetFrames.invoke())
             val trianglesAndNormals = geometryCalculator.calculateTriangles(transformedBaseShapes, cover = CurveCover.Both)
-            val partialCurve = PartialCurve(trianglesAndNormals.first, trianglesAndNormals.second)
-            this.addChild(partialCurve)
+            val partialCurveMesh = PartialCurveMesh(trianglesAndNormals.first, trianglesAndNormals.second)
+            this.addChild(partialCurveMesh)
         }
         else {
             var partialCurveSize = 1
@@ -54,8 +54,8 @@ class SingleMeshCurve(override val spline: Spline,
             if (countList.size == 1) {
                 val transformedBaseShapes = transformedBaseShapes(baseShapes.invoke(), frenetFrames.invoke())
                 val trianglesAndNormals = geometryCalculator.calculateTriangles(transformedBaseShapes, cover = CurveCover.Both)
-                val partialCurve = PartialCurve(trianglesAndNormals.first, trianglesAndNormals.second)
-                this.addChild(partialCurve)
+                val partialCurveMesh = PartialCurveMesh(trianglesAndNormals.first, trianglesAndNormals.second)
+                this.addChild(partialCurveMesh)
             }
             var position = 0
             var lastShapeUnique = false
@@ -98,8 +98,8 @@ class SingleMeshCurve(override val spline: Spline,
                     }
                     val transformedShapes = transformedBaseShapes(shapes, frames)
                     val trianglesAndNormals = geometryCalculator.calculateTriangles(transformedShapes, cover = cover)
-                    val partialCurve = PartialCurve(trianglesAndNormals.first, trianglesAndNormals.second)
-                    this.addChild(partialCurve)
+                    val partialCurveMesh = PartialCurveMesh(trianglesAndNormals.first, trianglesAndNormals.second)
+                    this.addChild(partialCurveMesh)
                 }
             }
         }
