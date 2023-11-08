@@ -59,7 +59,10 @@ class SSBOExample : SceneryBase("SSBOExample", wantREPL = false) {
                 Thread.sleep(20)
                 x = (sin(runner / 100.0f) + 1.0f) / 2.0f
                 ssboTestObj.buffers {
-                    updateSSBOEntry("ssboUpload", 0, "Color1", Vector4f(x, y, z, 1.0f))
+                    updateSSBOEntry("ssbosInput", 0, "Color1", Vector4f(x, y, z, 1.0f))
+                }
+                ssboTestObj.buffers {
+                    updateSSBOEntry("ssbosOutput", 0, "Color2", Vector4f(y, x, z, 1.0f))
                 }
 
             }

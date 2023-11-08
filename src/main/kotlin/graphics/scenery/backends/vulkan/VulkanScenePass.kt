@@ -567,7 +567,8 @@ object VulkanScenePass {
 
     private fun setRequiredDescriptorSetsForNode(pass: VulkanRenderpass, node: Node, s: VulkanObjectState, specs: List<MutableMap.MutableEntry<String, ShaderIntrospection.UBOSpec>>, descriptorSets: Map<String, Long>): Pair<List<VulkanRenderer.DescriptorSet>, Boolean> {
         var skip = false
-        return specs.mapNotNull { (name, _) ->
+        var ssboFound = false
+        return specs.mapNotNull { (name, spec) ->
             val ds = when {
                 name == "VRParameters" -> {
                     VulkanRenderer.DescriptorSet.setOrNull(descriptorSets["VRParameters"], setName = "VRParameters")
@@ -585,16 +586,23 @@ object VulkanScenePass {
                     VulkanRenderer.DescriptorSet.setOrNull(pass.descriptorSets["ShaderParameters-${pass.name}"], setName = "ShaderParameters")
                 }
 
+                name.startsWith("ssbos") && s.SSBOs.isNotEmpty() -> {
+                    if(ssboFound)
+                    {
+                        null
+                    }
+                    ssboFound = true
+                    VulkanRenderer.DescriptorSet.Set(s.SSBOs.getValue("ssbos"), setName = name)
+                }
+
                 else -> {
                     when {
                         s.UBOs.containsKey(name) ->
                             VulkanRenderer.DescriptorSet.DynamicSet(s.UBOs.getValue(name).first, offset = s.UBOs.getValue(name).second.offsets.get(0), setName = name)
                         s.UBOs.containsKey("${pass.name}-$name") ->
                             VulkanRenderer.DescriptorSet.DynamicSet(s.UBOs.getValue("${pass.name}-$name").first, offset = s.UBOs.getValue("${pass.name}-$name").second.offsets.get(0), setName = name)
-                        // TODO: Check if dynamic or simple set required
-                        // TODO: Also RenderPass related name required?
-                        s.SSBOs.containsKey(name) ->
-                            VulkanRenderer.DescriptorSet.Set(s.SSBOs.getValue(name).first, setName = name)
+                        /*s.SSBOs.containsKey(name) ->
+                            VulkanRenderer.DescriptorSet.Set(s.SSBOs.getValue(name), setName = name)*/
                         s.getTextureDescriptorSet(pass.passConfig.type.name, name) != null ->
                             VulkanRenderer.DescriptorSet.setOrNull(s.getTextureDescriptorSet(pass.passConfig.type.name, name), name)
                         else -> VulkanRenderer.DescriptorSet.None

@@ -482,10 +482,10 @@ open class VulkanRenderer(hub: Hub,
 
             logger.info("Loaded ${renderConfig.name} (${renderConfig.description ?: "no description"})")
 
-            /*if((System.getenv("ENABLE_VULKAN_RENDERDOC_CAPTURE")?.toInt() == 1  || Renderdoc.renderdocAttached)&& validation) {
+            if((System.getenv("ENABLE_VULKAN_RENDERDOC_CAPTURE")?.toInt() == 1  || Renderdoc.renderdocAttached)&& validation) {
                 logger.warn("Validation Layers requested, but Renderdoc capture and Validation Layers are mutually incompatible. Disabling validations layers.")
                 validation = false
-            }*/
+            }
 
             // explicitly create VK, to make GLFW pick up MoltenVK on OS X
             if(ExtractsNatives.getPlatform() == ExtractsNatives.Platform.MACOS) {
@@ -829,25 +829,18 @@ open class VulkanRenderer(hub: Hub,
 
     fun updateNodeSSBOs(node: Node) {
         val renderable = node.renderableOrNull() ?: return
-        var s: VulkanObjectState = renderable.rendererMetadata() ?: throw IllegalStateException("Node ${node.name} does not contain metadata object")
+        val s: VulkanObjectState = renderable.rendererMetadata() ?: throw IllegalStateException("Node ${node.name} does not contain metadata object")
         node.ifBuffers {
-            buffers.forEach { (name, description) ->
-                val type = description.type
-                if(type is BufferType.Custom)
-                {
-                    VulkanNodeHelpers.updateShaderStorageBuffers(
-                        device,
-                        node,
-                        name,
-                        s,
-                        ssboStagingPool,
-                        ssboUploadPool,
-                        ssboDownloadPool,
-                        commandPools,
-                        queue
-                    )
-                }
-            }
+            VulkanNodeHelpers.updateShaderStorageBuffers(
+                device,
+                node,
+                s,
+                ssboStagingPool,
+                ssboUploadPool,
+                ssboDownloadPool,
+                commandPools,
+                queue
+            )
         }
     }
 
@@ -947,27 +940,6 @@ open class VulkanRenderer(hub: Hub,
                 defaultBuffers.UBOs))
         }
 
-        node.ifBuffers {
-            logger.debug("Initializing ssbos for ${node.name}")
-            buffers.forEach { (name, description) ->
-                val type = description.type
-                if(type is BufferType.Custom)
-                {
-                    s = VulkanNodeHelpers.updateShaderStorageBuffers(
-                        device,
-                        node,
-                        name,
-                        s,
-                        ssboStagingPool,
-                        ssboUploadPool,
-                        ssboDownloadPool,
-                        commandPools,
-                        queue
-                    )
-                }
-            }
-        }
-
         val matricesUbo = VulkanUBO(device, backingBuffer = defaultBuffers.UBOs)
         with(matricesUbo) {
             name = "Matrices"
@@ -992,6 +964,20 @@ open class VulkanRenderer(hub: Hub,
             if (logger.isDebugEnabled) {
                 e.printStackTrace()
             }
+        }
+
+        node.ifBuffers {
+            logger.debug("Initializing ssbos for ${node.name}")
+            s = VulkanNodeHelpers.updateShaderStorageBuffers(
+                device,
+                node,
+                s,
+                ssboStagingPool,
+                ssboUploadPool,
+                ssboDownloadPool,
+                commandPools,
+                queue
+            )
         }
 
         val (_, descriptorUpdated) = VulkanNodeHelpers.loadTexturesForNode(device, node, s, defaultTextures, textureCache, commandPools, queue)

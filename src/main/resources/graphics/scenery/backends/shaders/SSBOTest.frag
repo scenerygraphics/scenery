@@ -3,9 +3,9 @@
 #extension GL_EXT_control_flow_attributes : enable
 
 layout(location = 0) in VertexData {
-    vec3 Position;
+    vec3 FragPosition;
     vec3 Normal;
-    vec4 Color;
+    vec2 TexCoord;
 } Vertex;
 
 layout(location = 0) out vec4 NormalsMaterial;
@@ -40,13 +40,22 @@ layout(set = 3, binding = 0) uniform MaterialProperties {
     MaterialInfo Material;
 };
 
-struct SSBO {
+struct SSBOIn {
     vec4 Color1;
 };
-layout(std140, set = 4, binding = 0) readonly buffer ssboUpload{
-    SSBO ssboData[];
-}ssboUploadBuffer;
+layout(std140, set = 4, binding = 0) readonly buffer ssbosInput
+{
+    SSBOIn ssboData[];
+}ssboInputBuffer;
 
+struct SSBOOut {
+    vec4 Color1;
+    vec4 Color2;
+};
+layout(std140, set = 4, binding = 1) readonly buffer ssbosOutput
+{
+    SSBOOut ssboData[];
+}ssboOutputBuffer;
 /*
 Encodes a three component unit vector into a 2 component vector. The z component of the vector is stored, along with
 the angle between the vector and the x axis.
@@ -84,8 +93,9 @@ vec2 EncodeOctaH( vec3 n )
 }
 
 void main() {
-    DiffuseAlbedo.rgb = ssboUploadBuffer.ssboData[0].Color1.rgb;
-    DiffuseAlbedo.a = ssboUploadBuffer.ssboData[0].Color1.a;
+    DiffuseAlbedo.r = ssboInputBuffer.ssboData[0].Color1.r;
+    DiffuseAlbedo.gb = ssboOutputBuffer.ssboData[0].Color2.gb;
+    DiffuseAlbedo.a = ssboInputBuffer.ssboData[0].Color1.a;
 
     NormalsMaterial.rg = EncodeOctaH(Vertex.Normal);
     NormalsMaterial.ba = vec2(Material.Roughness, Material.Metallic);

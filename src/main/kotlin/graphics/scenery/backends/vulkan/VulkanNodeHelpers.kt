@@ -162,7 +162,6 @@ object VulkanNodeHelpers {
     fun updateShaderStorageBuffers(
     device: VulkanDevice,
     node: Node,
-    name: String,
     state: VulkanObjectState,
     stagingPool: VulkanBufferPool,
     ssboUploadPool: VulkanBufferPool,
@@ -170,91 +169,95 @@ object VulkanNodeHelpers {
     commandPools: VulkanRenderer.CommandPools,
     queue: VkQueue
     ): VulkanObjectState {
-        val buffers = node.buffersOrNull() ?: return state
-        val description = buffers.buffers[name] ?: return state
-        val type = description.type
-        val usage = description.usage
-        val layout = if(type is BufferType.Primitive<*>) {
-            return state
-        } else {
-            type as BufferType.Custom
-            type.layout
-        }
-        // view into the byteBuffer
-        val backingBuffer = description.buffer.duplicate()
-        backingBuffer as ByteBuffer
 
-        val ssboSize = backingBuffer.remaining()
-        if(ssboSize <= 0)
-            return state
+        node.ifBuffers {
+            val descriptors = (0 until buffers.size).map { Pair(VK10.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1) }
+            val dsl = device.createDescriptorSetLayout(descriptors, 0, VK10.VK_SHADER_STAGE_ALL)
 
+            var stagingUpdated = false
+            val ssboUbos = mutableListOf<Pair<Int, VulkanUBO.UBODescriptor>>()
+            buffers.forEach { (name, description) ->
+                val type = description.type
+                val usage = description.usage
+                val layout = if(type is BufferType.Primitive<*>) {
+                    return@forEach
+                } else {
+                    type as BufferType.Custom
+                    type.layout
+                }
 
-        // TODO: staging might not be worth caching
-        var stagingUpdated = false
-        val ssboStagingBuffer = state.SSBOBuffers[name+"Staging"]
-        val stagingBuffer = if(ssboStagingBuffer != null && ssboStagingBuffer.size >= ssboSize) {
-            ssboStagingBuffer
-        } else {
-            logger.debug("Creating new SSBO Staging Buffer")
-            state.SSBOBuffers[name+"Staging"]?.close()
+                // view into the byteBuffer
+                val backingBuffer = description.buffer.duplicate()
+                backingBuffer as ByteBuffer
 
-            val buffer = stagingPool.createBuffer(ssboSize)
-            state.SSBOBuffers[name+"Staging"] = buffer
-            stagingUpdated = true
-            buffer
-        }
-        stagingBuffer.copyFrom(backingBuffer)
+                val ssboSize = backingBuffer.remaining()
+                if(ssboSize <= 0)
+                    return@forEach
 
+                // TODO: staging might not be worth caching
 
-        val ssboBufferCurrent = state.SSBOBuffers[name]
-        val ssboBuffer = if(ssboBufferCurrent != null && ssboBufferCurrent.size >= ssboSize.toLong()) {
-            ssboBufferCurrent
-        } else {
-            logger.debug("Creating new SSBO Buffer")
-            state.SSBOBuffers[name]?.close()
+                val ssboStagingBuffer = state.SSBOBuffers[name + "Staging"]
+                val stagingBuffer = if(ssboStagingBuffer != null && ssboStagingBuffer.size >= ssboSize) {
+                    ssboStagingBuffer
+                } else {
+                    logger.debug("Creating new SSBO Staging Buffer")
+                    state.SSBOBuffers[name+"Staging"]?.close()
 
-            val buffer = when(usage)
+                    val buffer = stagingPool.createBuffer(ssboSize)
+                    state.SSBOBuffers[name+"Staging"] = buffer
+                    stagingUpdated = true
+                    buffer
+                }
+                stagingBuffer.copyFrom(backingBuffer)
+
+                val ssboBufferCurrent = state.SSBOBuffers[name]
+                val ssboBuffer = if(ssboBufferCurrent != null && ssboBufferCurrent.size >= ssboSize.toLong()) {
+                    ssboBufferCurrent
+                } else {
+                    logger.debug("Creating new SSBO Buffer")
+                    state.SSBOBuffers[name]?.close()
+
+                    val buffer = when(usage)
+                    {
+                        Buffers.BufferUsage.Upload -> ssboUploadPool.createBuffer(ssboSize)
+                        Buffers.BufferUsage.Download -> ssboDownloadPool.createBuffer(ssboSize)
+                        else -> ssboUploadPool.createBuffer(ssboSize)
+                    }
+                    state.SSBOBuffers[name] = buffer
+                    buffer
+                }
+
+                stackPush().use { stack ->
+                    with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
+                        val copyRegion = VkBufferCopy.calloc(1, stack)
+                            .size(ssboSize * 1L)
+
+                        VK10.vkCmdCopyBuffer(
+                            this,
+                            stagingBuffer.vulkanBuffer,
+                            ssboBuffer.vulkanBuffer,
+                            copyRegion
+                        )
+
+                        this.endCommandBuffer(device, commandPools.Standard, queue, flush = true, dealloc = true)
+                    }
+                }
+
+                val ssboUbo = VulkanUBO(device, ubo = layout)
+                ssboUbo.updateBackingBuffer(ssboBuffer)
+                ssboUbo.createUniformBuffer(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT)
+                ssboUbos.add(1 to ssboUbo.descriptor)
+            }
+
+            var ds = state.requiredDescriptorSets["ssbos"]
+            if(stagingUpdated || ds == null)
             {
-                Buffers.BufferUsage.Upload -> ssboUploadPool.createBuffer(ssboSize)
-                Buffers.BufferUsage.Download -> ssboDownloadPool.createBuffer(ssboSize)
-                else -> ssboUploadPool.createBuffer(ssboSize)
+                ds = device.createDescriptorSet(
+                    dsl, ssboUbos.toList(), listOf(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER))
+                state.requiredDescriptorSets["ssbos"] = ds
             }
-            state.SSBOBuffers[name] = buffer
-            buffer
+            state.SSBOs["ssbos"] = ds
         }
-
-        stackPush().use { stack ->
-            with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
-                val copyRegion = VkBufferCopy.calloc(1, stack)
-                    .size(ssboSize * 1L)
-
-                VK10.vkCmdCopyBuffer(
-                    this,
-                    stagingBuffer.vulkanBuffer,
-                    ssboBuffer.vulkanBuffer,
-                    copyRegion
-                )
-
-                this.endCommandBuffer(device, commandPools.Standard, queue, flush = true, dealloc = true)
-            }
-        }
-
-        val ssboUbo = VulkanUBO(device, ubo = layout)
-        ssboUbo.updateBackingBuffer(ssboBuffer)
-        ssboUbo.createUniformBuffer(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT)
-
-        var ds = state.requiredDescriptorSets[name]
-        if(stagingUpdated || ds == null)
-        {
-            val dsl = device.createDescriptorSetLayout(listOf(Pair(VK10.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, description.elements)), 0, VK10.VK_SHADER_STAGE_FRAGMENT_BIT)
-            ds = device.createDescriptorSet(
-                dsl, description.elements, ssboUbo.descriptor, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER)
-            state.requiredDescriptorSets[name] = ds
-        }
-        // TODO check if the backing VulkanUBO already exists
-        state.SSBOs[name] = ds to ssboUbo
-
-
         return state
     }
 

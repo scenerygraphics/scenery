@@ -42,8 +42,8 @@ open class VulkanObjectState {
     /** UBOs required by the [graphics.scenery.Node] this metadata object is attached to. */
     var UBOs = LinkedHashMap<String, Pair<Long, VulkanUBO>>()
 
-    //Like this here?
-    var SSBOs = LinkedHashMap<String, Pair<Long, VulkanUBO>>()
+    /** SSBOs required by the [graphics.scenery.Node] this metadata object is attached to. */
+    var SSBOs = LinkedHashMap<String, Long>()
     var SSBOBuffers = LinkedHashMap<String, VulkanBuffer>()
 
     /** [VulkanTexture]s used by the [graphics.scenery.Node] this metadata object is attached to. */
@@ -274,7 +274,7 @@ open class VulkanObjectState {
 
         val set = textureDescriptorSets[passname to texture]
         if(set == null) {
-            logger.warn("$this: Could not find descriptor set for $passname and texture set $texture")
+            logger.warn("$this: Could not find descriptor set for pass $passname and texture set $texture")
 //            logger.warn("DS are: ${textureDescriptorSets.keys().asSequence().joinToString { "${it.first} in ${it.second}" }}")
             logger.warn("DS are: ${textureDescriptorSets.keys().asSequence().groupBy { it.first }.entries.joinToString { "${it.key}: ${it.value.joinToString(", ") { ds -> ds.second }}" }}")
         }
