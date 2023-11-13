@@ -3,21 +3,16 @@ package graphics.scenery.tests.examples.volumes.benchmarks
 import graphics.scenery.*
 import graphics.scenery.volumes.VolumeManager
 import graphics.scenery.backends.Renderer
-import graphics.scenery.volumes.Colormap
-import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.Volume
 import graphics.scenery.volumes.vdi.*
 import org.joml.Vector3f
 import java.nio.file.Paths
 import java.util.concurrent.atomic.AtomicInteger
 import graphics.scenery.backends.vulkan.VulkanRenderer
-import graphics.scenery.controls.behaviours.ArcballCameraControl
 import graphics.scenery.utils.SystemHelpers
 import graphics.scenery.volumes.*
 import graphics.scenery.volumes.vdi.benchmarks.BenchmarkSetup
-import net.imglib2.type.numeric.integer.UnsignedByteType
 import org.joml.*
-import org.scijava.ui.behaviour.ClickBehaviour
 import org.zeromq.ZContext
 import java.io.*
 import java.nio.ByteBuffer
@@ -48,7 +43,6 @@ public class VDIGenerationBenchmark (wWidth: Int = 512, wHeight: Int = 512, val 
         }
 
         val volume = Volume.fromPathRaw(Paths.get(System.getenv("SCENERY_BENCHMARK_FILES") + "/" + dataset.toString()), hub, benchmarkSetup.is16Bit())
-        println(System.getenv("SCENERY_BENCHMARK_FILES") + "/" +dataset.toString())
         volume.name = "volume"
         volume.spatial {
             position = Vector3f(0.0f, 0.0f, 0.0f)
@@ -65,7 +59,7 @@ public class VDIGenerationBenchmark (wWidth: Int = 512, wHeight: Int = 512, val 
 
         scene.addChild(volume)
 
-        cam.target = Vector3f(volumeDims.x/2, volumeDims.y/2, volumeDims.z/2)
+        cam.target = Vector3f(volumeDims.x/2*pixelToWorld, -volumeDims.y/2*pixelToWorld, volumeDims.z/2*pixelToWorld)
 
         // Step 2: Create VDI Volume Manager
         val vdiVolumeManager = VDIVolumeManager( hub, windowWidth, windowHeight, maxSupersegments, scene).createVDIVolumeManger()
@@ -110,6 +104,7 @@ public class VDIGenerationBenchmark (wWidth: Int = 512, wHeight: Int = 512, val 
         var vdiDepthBuffer: ByteBuffer?
             var vdiColorBuffer: ByteBuffer?
             var gridCellsBuff: ByteBuffer?
+            var iterationBuffer: ByteBuffer?
 
             val volumeList = ArrayList<BufferedVolume>()
         volumeList.add(vdiVolumeManager.nodes.first() as BufferedVolume)
@@ -131,6 +126,10 @@ public class VDIGenerationBenchmark (wWidth: Int = 512, wHeight: Int = 512, val 
             val gridTexturesCnt = AtomicInteger(0)
         (renderer as? VulkanRenderer)?.persistentTextureRequests?.add(gridCells to gridTexturesCnt)
 
+        val vdiIteration = vdiVolumeManager.material().textures["Iterations"]!!
+            val iterCnt = AtomicInteger(0)
+        (renderer as? VulkanRenderer)?.persistentTextureRequests?.add(vdiIteration to iterCnt)
+
         var prevColor = colorCnt.get()
         var prevDepth = depthCnt.get()
 
@@ -148,6 +147,7 @@ public class VDIGenerationBenchmark (wWidth: Int = 512, wHeight: Int = 512, val 
             vdiColorBuffer = vdiColor.contents
             vdiDepthBuffer = vdiDepth.contents
             gridCellsBuff = gridCells.contents
+            iterationBuffer = vdiIteration.contents
 
             tGeneration.end = System.nanoTime()
 
@@ -167,6 +167,7 @@ public class VDIGenerationBenchmark (wWidth: Int = 512, wHeight: Int = 512, val 
                 SystemHelpers.dumpToFile(vdiColorBuffer!!, "VDI_col")
                 SystemHelpers.dumpToFile(vdiDepthBuffer!!, "VDI_depth")
                 SystemHelpers.dumpToFile(gridCellsBuff!!, "VDI_octree")
+                SystemHelpers.dumpToFile(iterationBuffer!!, "${dataset}_Iterations")
 
                 logger.info("Wrote VDI $cnt")
                 VDIsGenerated.incrementAndGet()
@@ -180,7 +181,7 @@ public class VDIGenerationBenchmark (wWidth: Int = 512, wHeight: Int = 512, val 
     companion object {
         @JvmStatic
         fun main(args: Array<String>) {
-            VDIGenerationBenchmark(1024,1024, 20, BenchmarkSetup.Dataset.Kingsnake,true).main()
+            VDIGenerationBenchmark(1280,720, 20, BenchmarkSetup.Dataset.Kingsnake,true).main()
         }
     }
 }
