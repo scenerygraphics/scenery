@@ -5,11 +5,12 @@ import graphics.scenery.SceneryElement
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.behaviours.ArcballCameraControl
 import graphics.scenery.tests.examples.volumes.VDIRenderingExample
+import graphics.scenery.volumes.vdi.benchmarks.BenchmarkSetup
 import org.joml.Vector3f
 import kotlin.concurrent.thread
 
 class VDIRenderingBenchmarkRunner {
-    val benchmarkDatasets = listOf<String>("Simulation")
+    val benchmarkDatasets = listOf<BenchmarkSetup.Dataset>(BenchmarkSetup.Dataset.Kingsnake)
     val benchmarkViewpoints = listOf(5, 10, 15, 20, 25, 30, 35, 40)
     val benchmarkSupersegments = listOf(20)
     val benchmarkVos = listOf(0, 90, 180, 270)
@@ -23,7 +24,7 @@ class VDIRenderingBenchmarkRunner {
         Thread.sleep(1000)
     }
 
-    fun runTest(dataName: String, dataset: String, vo: Int) {
+    fun runTest(dataset: String, vo: Int) {
         val instance = VDIRenderingExample()
 
         thread {
@@ -37,9 +38,7 @@ class VDIRenderingBenchmarkRunner {
                 Thread.sleep(50)
             }
 
-            val target = Vector3f(0.0f, 0.0f, -3.5f)
-
-            Thread.sleep(1000)
+            val target = Vector3f( 1.920f, -1.920f,  1.491f)
 
             rotateCamera(vo.toFloat(), instance.cam, instance.windowWidth, instance.windowHeight, target)
 
@@ -63,20 +62,20 @@ class VDIRenderingBenchmarkRunner {
 
 
     fun runVDIRendering() {
-        val windowWidth = 1920
-        val windowHeight = 1080
+        val windowWidth = 1280
+        val windowHeight = 720
 
         benchmarkVos.forEach { vo ->
             benchmarkSupersegments.forEach { ns ->
                 benchmarkDatasets.forEach { dataName ->
                     val dataset = "${dataName}_${windowWidth}_${windowHeight}_${ns}_$vo"
-                    System.setProperty("VDIBenchmark.Dataset", dataName)
+                    System.setProperty("VDIBenchmark.Dataset", dataName.name)
                     System.setProperty("VDIBenchmark.WindowWidth", windowWidth.toString())
                     System.setProperty("VDIBenchmark.WindowHeight", windowHeight.toString())
                     System.setProperty("VDIBenchmark.NumSupersegments", ns.toString())
                     System.setProperty("VDIBenchmark.Vo", vo.toString())
 
-                    runTest(dataName, dataset, vo)
+                    runTest(dataset, vo)
                     println("Got the control back")
                 }
             }
