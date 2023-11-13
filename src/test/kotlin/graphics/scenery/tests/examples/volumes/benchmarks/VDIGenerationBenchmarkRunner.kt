@@ -15,7 +15,7 @@ import kotlin.concurrent.thread
 
 class VDIGenerationBenchmarkRunner {
     val benchmarkDatasets = listOf<BenchmarkSetup.Dataset>(BenchmarkSetup.Dataset.Kingsnake)
-    val benchmarkSupersegments = listOf(20)
+    val benchmarkSupersegments = listOf(15,20,30,40)
 
     fun benchmarkVDIGeneration(windowWidth: Int, windowHeight: Int) {
         benchmarkDatasets.forEach { dataName ->
@@ -40,7 +40,7 @@ class VDIGenerationBenchmarkRunner {
 
                     val stats = instance.hub.get<Statistics>()!!
 
-                    val target = Vector3f(0.0f, 0.0f, -3.5f)
+                    val target = Vector3f( 1.920f, -1.920f,  1.491f)
 
                     Thread.sleep(1000)
 
@@ -48,9 +48,6 @@ class VDIGenerationBenchmarkRunner {
                     (renderer as VulkanRenderer).postRenderLambdas.add {
                         rotateCamera(10f, instance.cam,instance.windowWidth, instance.windowHeight, target)
                         numGenerated += 1
-                        if (numGenerated % 10 == 0){
-                            println(numGenerated)
-                        }
                     }
                     while (numGenerated < 10) {
                         Thread.sleep(50)
