@@ -11,7 +11,7 @@ import java.io.File
 import java.io.FileInputStream
 import java.nio.ByteBuffer
 
-class VDIRenderingExample : SceneryBase("VDI Rendering Example", 1280, 720) {
+class VDIRenderingExample(applicationName: String, windowWidth: Int, windowHeight: Int): SceneryBase(applicationName, windowWidth,windowHeight) {
 
     val skipEmpty = false
 
@@ -83,7 +83,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering Example", 1280, 720) {
     companion object {
         @JvmStatic
         fun main(args: Array<String>) {
-            VDIRenderingExample().main()
+            VDIRenderingExample("VDI Rendering Example", 1280, 720).main()
         }
     }
 }

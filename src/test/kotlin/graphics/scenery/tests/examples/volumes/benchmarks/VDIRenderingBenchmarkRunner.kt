@@ -24,8 +24,8 @@ class VDIRenderingBenchmarkRunner {
         Thread.sleep(1000)
     }
 
-    fun runTest(dataset: String, vo: Int) {
-        val instance = VDIRenderingExample()
+    fun runTest(dataset: String, vo: Int, windowWidth: Int, windowHeight: Int) {
+        val instance = VDIRenderingExample("VDI Rendering Benchmark", windowWidth, windowHeight)
 
         thread {
             while (instance.hub.get(SceneryElement.Renderer)==null) {
@@ -75,7 +75,7 @@ class VDIRenderingBenchmarkRunner {
                     System.setProperty("VDIBenchmark.NumSupersegments", ns.toString())
                     System.setProperty("VDIBenchmark.Vo", vo.toString())
 
-                    runTest(dataset, vo)
+                    runTest(dataset, vo, windowWidth, windowHeight)
                     println("Got the control back")
                 }
             }
