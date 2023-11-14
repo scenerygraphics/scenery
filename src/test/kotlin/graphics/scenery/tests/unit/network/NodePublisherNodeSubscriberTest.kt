@@ -1,8 +1,6 @@
 package graphics.scenery.tests.unit.network
 
-import graphics.scenery.Box
-import graphics.scenery.Hub
-import graphics.scenery.Scene
+import graphics.scenery.*
 import graphics.scenery.net.NodePublisher
 import graphics.scenery.net.NodeSubscriber
 import graphics.scenery.volumes.TransferFunction
@@ -14,6 +12,7 @@ import org.junit.Before
 import org.junit.Test
 import org.zeromq.ZContext
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 
 /**
@@ -67,13 +66,36 @@ class NodePublisherNodeSubscriberTest {
      * Sync a simple node.
      */
     @Test
-    fun integrationSimpleChildNode() {
+    fun integrationSimpleNode() {
+
+        pub.register(scene1)
 
         val box = Box()
         box.name = "box"
         scene1.addChild(box)
 
+        Thread.sleep(1000)
+        sub.networkUpdate(scene2)
+
+        assert(scene2.find("box") != null)
+    }
+
+    /**
+     * Sync a simple node.
+     */
+    @Test
+    fun integrationSimpleChildNode() {
+
         pub.register(scene1)
+
+        val box = Box()
+        box.name = "box"
+        scene1.addChild(
+            DefaultNode().apply {
+                this.addChild(box)
+            }
+        )
+
         Thread.sleep(1000)
         sub.networkUpdate(scene2)
 
@@ -105,6 +127,39 @@ class NodePublisherNodeSubscriberTest {
         assert(box2 != null) { "precondition not met => Flaky or See previous tests" }
         assertEquals(3f, box2?.spatialOrNull()?.position?.z)
         assertEquals(3f, mat?.diffuse?.z)
+    }
+
+
+    /**
+     * Test updating preregistered objects
+     */
+    @Test
+    fun updatePreregisterd() {
+
+        val box = Box().also { box ->
+            box.name = "box"
+            box.networkID = -2
+            scene1.addChild(box)
+        }
+        val box2 = Box().also { box2 ->
+            box2.name = "box"
+            box2.networkID = -2
+            scene2.addChild(box2)
+        }
+
+        pub.register(scene1)
+        Thread.sleep(1000)
+        sub.networkUpdate(scene2)
+
+        box.spatial().position = Vector3f(0f, 0f, 3f)
+        box.material().diffuse = Vector3f(0f, 0f, 3f)
+        pub.scanForChanges()
+        Thread.sleep(1000)
+        sub.networkUpdate(scene2)
+
+        val mat = box2.material()
+        assertEquals(3f, box2.spatial().position.z)
+        assertEquals(3f, mat.diffuse.z)
     }
 
     /**
@@ -166,6 +221,40 @@ class NodePublisherNodeSubscriberTest {
         sub.networkUpdate(scene2)
 
         assertEquals("lol", scene2.name)
+    }
+
+    /**
+     * Test initializing child nodes using initializers
+     */
+    @Test
+    fun childConstructedWithParams(){
+        class VolInt: Volume.VolumeInitializer{
+            override fun initializeVolume(hub: Hub): Volume {
+                return Volume.fromBuffer(emptyList(), 5,5,5, UnsignedByteType(), hub)
+            }
+        }
+
+        pub.register(scene1)
+
+        val volume = Volume.forNetwork(
+            VolInt(),
+            hub1
+        )
+        scene1.addChild(
+            RichNode().apply {
+                this.name = "parent"
+                this.addChild(volume)
+            }
+        )
+
+        Thread.sleep(1000)
+        sub.networkUpdate(scene2)
+
+        val parent = scene2.find("parent")
+        assertNotNull(parent)
+        val volume2 = parent.children.firstOrNull()
+        assertNotNull(volume2)
+        assertIs<Volume>(volume2)
     }
 }
 

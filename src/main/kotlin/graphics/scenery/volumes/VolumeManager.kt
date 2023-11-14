@@ -467,7 +467,7 @@ class VolumeManager(
                     currentProg.setUniform(i, "colorMap", state.colorMap)
                     currentProg.setUniform(i, "slicingPlanes", 4, state.node.slicingArray())
                     currentProg.setUniform(i, "slicingMode", state.node.slicingMode.id)
-                    currentProg.setUniform(i,"usedSlicingPlanes",
+                    currentProg.setUniform(i, "usedSlicingPlanes",
                         min(state.node.slicingPlaneEquations.size, Volume.MAX_SUPPORTED_SLICING_PLANES))
                     currentProg.setUniform(i, "sceneGraphVisibility", if (state.node.visible) 1 else 0)
 
@@ -612,7 +612,7 @@ class VolumeManager(
                     renderStateUpdated = false
                 }
 
-                var repaint = true
+                var repaint = true // todo: variable is never modified
                 val blockUpdateDuration = measureTimeMillis {
                     if (!freezeRequiredBlocks) {
                         try {

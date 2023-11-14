@@ -19,6 +19,10 @@ class ShaderMaterial(var shaders: Shaders) : DefaultMaterial() {
      */
     fun isCompute(): Boolean = shaders.type.contains(ShaderType.ComputeShader)
 
+    override fun wantsSync(): Boolean {
+        return false
+    }
+
     /** Factory functions for ShaderMaterial */
     companion object {
 

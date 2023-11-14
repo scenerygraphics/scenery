@@ -67,6 +67,8 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.io.path.name
+import kotlin.concurrent.thread
+import kotlin.io.path.isDirectory
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
@@ -74,6 +76,7 @@ import kotlin.math.sqrt
 import kotlin.properties.Delegates
 import kotlin.streams.toList
 import net.imglib2.type.numeric.RealType
+import kotlin.time.Duration.Companion.nanoseconds
 
 @Suppress("DEPRECATION")
 open class Volume(
@@ -174,6 +177,10 @@ open class Volume(
     var slicingMode = SlicingMode.None
 
     var multiResolutionLevelLimits: Pair<Int, Int>? = null
+        set(value) {
+            field = value
+            modifiedAt = System.nanoTime()
+        }
 
     enum class SlicingMode(val id: Int){
         // Volume is rendered as it is
@@ -199,16 +206,16 @@ open class Volume(
     var currentTimepoint: Int = 0
         get() {
             // despite IDEAs warning this might be not be false if kryo uses its de/serialization magic
-            return if (dataSource == null || dataSource is VolumeDataSource.NullSource) {
+            return if (dataSource is VolumeDataSource.NullSource) {
                 0
             } else {
-                viewerState.currentTimepoint
+                field
             }
         }
         set(value) {
+            field = value
             viewerState.currentTimepoint = value
             modifiedAt = System.nanoTime()
-            field = value
         }
 
     sealed class VolumeDataSource {
@@ -366,13 +373,25 @@ open class Volume(
     }
 
 
+    override fun getAdditionalUpdateData(): Any? {
+        return converterSetups.map { it.displayRangeMin to it.displayRangeMax }.toList()
+    }
+
     override fun update(fresh: Networkable, getNetworkable: (Int) -> Networkable, additionalData: Any?) {
         if (fresh !is Volume) throw IllegalArgumentException("Update called with object of foreign class")
         super.update(fresh, getNetworkable, additionalData)
         this.colormap = fresh.colormap
         this.transferFunction = fresh.transferFunction
         this.slicingMode = fresh.slicingMode
+        this.multiResolutionLevelLimits = fresh.multiResolutionLevelLimits
+        this.origin = fresh.origin
 
+        val displayRanges = additionalData as List<Pair<Double,Double>>
+        displayRanges.forEachIndexed{index, range ->
+            converterSetups[index].setDisplayRange(range.first,range.second)
+        }
+
+        logger.info("Going to timepoint ${fresh.currentTimepoint} of ${this.timepointCount}")
         if (this.currentTimepoint != fresh.currentTimepoint) {
             this.goToTimepoint(fresh.currentTimepoint)
         }
@@ -540,6 +559,7 @@ open class Volume(
     @JvmOverloads
     open fun setTransferFunctionRange(min: Float, max: Float, forSetupId: Int = 0) {
         converterSetups.getOrNull(forSetupId)?.setDisplayRange(min.toDouble(), max.toDouble())
+        updateModifiedAt()
     }
 
     companion object {
@@ -794,7 +814,7 @@ open class Volume(
          */
         @JvmStatic @JvmOverloads
         fun fromPath(file: Path, hub: Hub, onlyLoadFirst: Int? = null): BufferedVolume {
-            if(file.normalize().toString().endsWith("raw")) {
+            if(file.normalize().toString().endsWith("raw") || Files.isDirectory(file)) {
                 return fromPathRaw(file, hub)
             }
             var volumeFiles: List<Path>
@@ -961,34 +981,42 @@ open class Volume(
             logger.debug("Got ${volumeFiles.size} volumes")
 
             val volumes = CopyOnWriteArrayList<BufferedVolume.Timepoint>()
-            volumeFiles.forEach { v ->
-                val id = v.fileName.toString()
-                val buffer: ByteBuffer by lazy {
+            val volume = fromBuffer(volumes, dimensions.x, dimensions.y, dimensions.z, UnsignedShortType(), hub)
 
-                    logger.debug("Loading $id from disk")
-                    val buffer = ByteArray(1024 * 1024)
-                    val stream = FileInputStream(v.toFile())
-                    val imageData: ByteBuffer = MemoryUtil.memAlloc((2 * dimensions.x * dimensions.y * dimensions.z))
+            thread(isDaemon = true) {
+                val start = System.nanoTime()
+                volumeFiles.forEach { v ->
+                    val id = v.fileName.toString()
+                    val buffer: ByteBuffer by lazy {
 
-                    logger.debug("${v.fileName}: Allocated ${imageData.capacity()} bytes for UINT16 image of $dimensions")
+                        logger.debug("Loading $id from disk")
+                        val buffer = ByteArray(32 * 1024 * 1024)
+                        val stream = FileInputStream(v.toFile())
+                        val imageData: ByteBuffer = MemoryUtil.memAlloc((2 * dimensions.x * dimensions.y * dimensions.z))
 
-                    val start = System.nanoTime()
-                    var bytesRead = stream.read(buffer, 0, buffer.size)
-                    while (bytesRead > -1) {
-                        imageData.put(buffer, 0, bytesRead)
-                        bytesRead = stream.read(buffer, 0, buffer.size)
+                        logger.debug("${v.fileName}: Allocated ${imageData.capacity()} bytes for UINT16 image of $dimensions")
+
+                        val start = System.nanoTime()
+                        var bytesRead = stream.read(buffer, 0, buffer.size)
+                        while (bytesRead > -1) {
+                            imageData.put(buffer, 0, bytesRead)
+                            bytesRead = stream.read(buffer, 0, buffer.size)
+                        }
+                        val duration = (System.nanoTime() - start) / 10e5
+                        logger.debug("Reading $id took $duration ms")
+                        stream.close()
+
+                        imageData.flip()
+                        imageData
                     }
-                    val duration = (System.nanoTime() - start) / 10e5
-                    logger.debug("Reading took $duration ms")
-
-                    imageData.flip()
-                    imageData
+                    volume.addTimepoint(id, buffer)
                 }
 
-                volumes.add(BufferedVolume.Timepoint(id, buffer))
+                val duration = (System.nanoTime() - start).nanoseconds
+                logger.info("Reading ${volumeFiles.size} volume files for ${volume.name} completed in ${duration.inWholeSeconds}s (${duration.inWholeMilliseconds/volumeFiles.size} ms avg.)")
             }
 
-            return fromBuffer(volumes, dimensions.x, dimensions.y, dimensions.z, UnsignedShortType(), hub)
+            return volume
         }
 
         /** Amount of supported slicing planes per volume, see also sampling shader segments */
@@ -996,19 +1024,21 @@ open class Volume(
 
     }
 
-    open class VolumeSpatial(val volume: Volume): DefaultSpatial(volume) {
+    /** Custom spatial for volumes */
+    open class VolumeSpatial(volume: Volume): DefaultSpatial(volume) {
         /**
          * Composes the world matrix for this volume node, taken voxel size and [pixelToWorldRatio]
          * into account.
          */
         override fun composeModel() {
-            val shift = Vector3f(volume.getDimensions()) * (-0.5f)
+            val volume = node as? Volume ?: return
 
             model.translation(position)
             model.mul(Matrix4f().set(this.rotation))
             model.scale(scale)
             model.scale(volume.localScale())
             if (volume.origin == Origin.Center) {
+                val shift = Vector3f(volume.getDimensions()) * (-0.5f)
                 model.translate(shift)
             }
         }

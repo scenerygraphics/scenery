@@ -654,4 +654,9 @@ interface Node : Networkable {
         }
     }
 
+    /** Add [child] to childen of this node */
+    operator fun plusAssign(child: Node) {
+        addChild(child)
+    }
+
 }
