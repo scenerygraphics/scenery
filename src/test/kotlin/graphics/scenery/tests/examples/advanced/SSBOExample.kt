@@ -4,10 +4,14 @@ import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.backends.Renderer
+import graphics.scenery.compute.ComputeMetadata
+import graphics.scenery.compute.InvocationType
+import graphics.scenery.primitives.SSBOCainTest
 import graphics.scenery.primitives.SSBOTest
 import graphics.scenery.tests.examples.basic.TexturedCubeExample
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.Image
+import org.joml.Vector3i
 import org.joml.Vector4f
 import kotlin.concurrent.thread
 import kotlin.math.sin
@@ -45,8 +49,13 @@ class SSBOExample : SceneryBase("SSBOExample", wantREPL = false) {
             scene.addChild(this)
         }
 
+        val compute = SSBOCainTest()
+        compute.buffers {
+            updateSSBOEntry("ssbosOutput", 0, "Color1", Vector4f(1.0f, 0.5f, 0.3f, 1.0f))
+        }
         val ssboTestObj = SSBOTest()
-        scene.addChild(ssboTestObj)
+        compute.addChild(ssboTestObj)
+        scene.addChild(compute)
 
         thread {
             var x = 0.0f
@@ -58,13 +67,9 @@ class SSBOExample : SceneryBase("SSBOExample", wantREPL = false) {
                 runner++
                 Thread.sleep(20)
                 x = (sin(runner / 100.0f) + 1.0f) / 2.0f
-                ssboTestObj.buffers {
+                compute.buffers {
                     updateSSBOEntry("ssbosInput", 0, "Color1", Vector4f(x, y, z, 1.0f))
                 }
-                ssboTestObj.buffers {
-                    updateSSBOEntry("ssbosOutput", 0, "Color2", Vector4f(y, x, z, 1.0f))
-                }
-
             }
         }
     }

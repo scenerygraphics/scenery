@@ -40,19 +40,19 @@ layout(set = 3, binding = 0) uniform MaterialProperties {
     MaterialInfo Material;
 };
 
-struct SSBOIn {
+/*struct SSBOIn {
     vec4 Color1;
 };
 layout(std140, set = 4, binding = 0) readonly buffer ssbosInput
 {
     SSBOIn ssboData[];
-}ssboInputBuffer;
+}ssboInputBuffer;*/
 
 struct SSBOOut {
     vec4 Color1;
     vec4 Color2;
 };
-layout(std140, set = 4, binding = 1) readonly buffer ssbosOutput
+layout(std140, set = 4, binding = 0) readonly buffer ssbosOutput
 {
     SSBOOut ssboData[];
 }ssboOutputBuffer;
@@ -93,9 +93,9 @@ vec2 EncodeOctaH( vec3 n )
 }
 
 void main() {
-    DiffuseAlbedo.r = ssboInputBuffer.ssboData[0].Color1.r;
-    DiffuseAlbedo.gb = ssboOutputBuffer.ssboData[0].Color2.gb;
-    DiffuseAlbedo.a = ssboInputBuffer.ssboData[0].Color1.a;
+    //DiffuseAlbedo.r = ssboInputBuffer.ssboData[0].Color1.r;
+    //DiffuseAlbedo.gb = ssboOutputBuffer.ssboData[0].Color2.bg;
+    DiffuseAlbedo.rgba = ssboOutputBuffer.ssboData[0].Color1.rgba;
 
     NormalsMaterial.rg = EncodeOctaH(Vertex.Normal);
     NormalsMaterial.ba = vec2(Material.Roughness, Material.Metallic);

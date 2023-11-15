@@ -125,7 +125,11 @@ open class VulkanUBO(val device: VulkanDevice, var backingBuffer: VulkanBuffer? 
             descriptor.memory = buffer.memory
             descriptor.allocationSize = buffer.size
             descriptor.buffer = buffer.vulkanBuffer
-            descriptor.offset = 0L
+            //Does not work
+            //descriptor.offset = 0L
+            //Do both work
+            //descriptor.offset = buffer.suballocation?.offset?.toLong() ?: 0L
+            descriptor.offset = buffer.bufferOffset
             descriptor.range = this.getSize() * 1L
 
             return descriptor
@@ -142,7 +146,8 @@ open class VulkanUBO(val device: VulkanDevice, var backingBuffer: VulkanBuffer? 
             descriptor.memory = buffer.memory
             descriptor.allocationSize = buffer.size
             descriptor.buffer = buffer.vulkanBuffer
-            descriptor.offset = 0L
+            //descriptor.offset = buffer.suballocation?.offset?.toLong() ?: 0L
+            descriptor.offset = buffer.bufferOffset
             descriptor.range = this.getSize() * 1L
         }
 

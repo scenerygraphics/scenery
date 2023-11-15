@@ -28,15 +28,6 @@ open class SSBOTest @JvmOverloads constructor(val sizes: Vector3f = Vector3f(1.0
 
     init {
 
-        /*val compute = RichNode()
-        compute.name = "compute node"
-        compute.setMaterial(ShaderMaterial.fromFiles(this::class.java, "SSBOTest.comp"))
-        compute.metadata["ComputeMetadata"] = ComputeMetadata(
-            workSizes = Vector3i(1, 1, 1),
-            invocationType = InvocationType.Once
-        )
-        this.addChild(compute)*/
-
         material {
             val newMaterial: Material
             newMaterial = ShaderMaterial.fromFiles(
@@ -57,37 +48,14 @@ open class SSBOTest @JvmOverloads constructor(val sizes: Vector3f = Vector3f(1.0
                 cullingMode = Material.CullingMode.None
             }
         }
-
         addBuffers()
         buffers {
             // size is by default determined by the UBO layout, but can be given as optional parameter.
             // elements is mandatory
-            addCustom("ssbosInput", Buffers.BufferUsage.Upload, elements = 1, stride = 16) { layout, buffer ->
-                // layout points to an UBO object, but should not be named ubo
-                layout.add("Color1", { Vector4f(1.0f) })
-                buffer as ByteBuffer
-                // buffer would return a view of the ByteBuffer used for backing
-                buffer.putFloat(0.0f)
-                buffer.putFloat(0.1f)
-                buffer.putFloat(0.1f)
-                buffer.putFloat(1.0f)
-                buffer.flip()
-            }
-            addCustom("ssbosOutput", Buffers.BufferUsage.Upload, elements = 1, stride = 32) { layout, buffer ->
+            addCustom("ssbosOutput", Buffers.BufferUsage.Upload, elements = 1, stride = 16, inheritance = true) { layout, _ ->
                 // layout points to an UBO object, but should not be named ubo
                 layout.add("Color1", { Vector4f(0.0f) })
                 layout.add("Color2", { Vector4f(0.0f) })
-                buffer as ByteBuffer
-                // buffer would return a view of the ByteBuffer used for backing
-                buffer.putFloat(0.0f)
-                buffer.putFloat(0.0f)
-                buffer.putFloat(0.0f)
-                buffer.putFloat(1.0f)
-                buffer.putFloat(1.0f)
-                buffer.putFloat(1.0f)
-                buffer.putFloat(0.0f)
-                buffer.putFloat(1.0f)
-                buffer.flip()
             }
         }
 

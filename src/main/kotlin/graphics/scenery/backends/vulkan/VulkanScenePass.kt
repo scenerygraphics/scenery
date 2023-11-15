@@ -150,8 +150,6 @@ object VulkanScenePass {
                 }
             }
 
-            // to idea2: it might be necessary to have 2 nodes, one for the compute part and one for the geometry part. The geometry node then needs a flag
-            // signaling the renderer backend inside the render() that its geometry is coming from a shader/elsewhere, and not from HasGeometry (attribute).vertices
             val computeNodesGraphicsNodes = renderOrderList.partition {
                 val renderable = it.renderableOrNull()
                 if(renderable != null) {
@@ -167,13 +165,25 @@ object VulkanScenePass {
                 val s = renderable.rendererMetadata() ?: return@computeLoop
 
                 val metadata = node.metadata["ComputeMetadata"] as? ComputeMetadata ?: ComputeMetadata(Vector3i(pass.getOutput().width, pass.getOutput().height, 1))
+                // TEMP:
+                val sharedDescriptors : MutableList<Long> = mutableListOf()
+                /*if(metadata.descriptorDependency)
+                {
+                    node.children.forEach { node ->
+                        node.renderableOrNull()?.rendererMetadata()?.let { it ->
+                            sharedDescriptors.addAll(
+                                it.inheritedDescriptors.values)
+                            s.SSBOs = it.SSBOs
+                        }
+                    }
+                }*/
 
                 val pipeline = pass.getActivePipeline(renderable)
                 val vulkanPipeline = pipeline.getPipelineForGeometryType(GeometryType.TRIANGLES)
 
-                if (pass.vulkanMetadata.descriptorSets.capacity() != pipeline.descriptorSpecs.count()) {
+                val totalDescriptors = pipeline.descriptorSpecs.count() + sharedDescriptors.count()
+                if (pass.vulkanMetadata.descriptorSets.capacity() != totalDescriptors) {
                     MemoryUtil.memFree(pass.vulkanMetadata.descriptorSets)
-                    pass.vulkanMetadata.descriptorSets = MemoryUtil.memAllocLong(pipeline.descriptorSpecs.count())
                 }
 
                 val specs = pipeline.orderedDescriptorSpecs()
@@ -601,8 +611,6 @@ object VulkanScenePass {
                             VulkanRenderer.DescriptorSet.DynamicSet(s.UBOs.getValue(name).first, offset = s.UBOs.getValue(name).second.offsets.get(0), setName = name)
                         s.UBOs.containsKey("${pass.name}-$name") ->
                             VulkanRenderer.DescriptorSet.DynamicSet(s.UBOs.getValue("${pass.name}-$name").first, offset = s.UBOs.getValue("${pass.name}-$name").second.offsets.get(0), setName = name)
-                        /*s.SSBOs.containsKey(name) ->
-                            VulkanRenderer.DescriptorSet.Set(s.SSBOs.getValue(name), setName = name)*/
                         s.getTextureDescriptorSet(pass.passConfig.type.name, name) != null ->
                             VulkanRenderer.DescriptorSet.setOrNull(s.getTextureDescriptorSet(pass.passConfig.type.name, name), name)
                         else -> VulkanRenderer.DescriptorSet.None

@@ -1,21 +1,25 @@
 #version 450
 
-layout (local_size_x = 16, local_size_y = 16) in;
+layout (local_size_x = 1, local_size_y = 1) in;
 
-struct SSBO {
+struct SSBOIn {
     vec4 Color1;
 };
 layout(std140, set = 0, binding = 0) readonly buffer ssbosInput
 {
-    SSBO ssboData[];
+    SSBOIn ssboData[];
 }ssboInputBuffer;
 
-layout(std140, set = 0, binding = 1) writeonly buffer ssbosOutput
+struct SSBOOut {
+    vec4 Color1;
+    vec4 Color2;
+};
+layout(std140, set = 0, binding = 1) buffer ssbosOutput
 {
-    SSBO ssboData[];
+    SSBOOut ssboData[];
 }ssboOutputBuffer;
 
 
 void main() {
-    ssboOutputBuffer.ssboData[0].Color1.rgba = ssboInputBuffer.ssboData[0].Color1.grba;
+    ssboOutputBuffer.ssboData[gl_GlobalInvocationID.x].Color1.rgba = ssboInputBuffer.ssboData[0].Color1.rgba;
 }
