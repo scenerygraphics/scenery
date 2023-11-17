@@ -43,7 +43,7 @@ dependencies {
     val lwjglVersion = project.properties["lwjglVersion"]
     
     implementation(platform("org.scijava:pom-scijava:$scijavaParentPomVersion"))
-    annotationProcessor("org.scijava:scijava-common:2.96.0")
+    annotationProcessor("org.scijava:scijava-common:2.97.1")
 
     implementation(kotlin("reflect"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
@@ -56,7 +56,7 @@ dependencies {
     implementation("org.scijava:script-editor")
     implementation("org.scijava:ui-behaviour")
     implementation("org.scijava:scripting-jython")
-    implementation("net.java.dev.jna:jna-platform:5.11.0")
+    implementation("net.java.dev.jna:jna-platform:5.13.0")
 
 
     lwjglArtifacts.forEach { artifact ->
@@ -91,7 +91,7 @@ dependencies {
     implementation("com.fasterxml.jackson.core:jackson-databind:2.15.3")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.15.3")
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.15.3")
-    implementation("org.zeromq:jeromq:0.5.3")
+    implementation("org.zeromq:jeromq:0.5.4")
     implementation("com.esotericsoftware:kryo:5.5.0")
     implementation("de.javakaffee:kryo-serializers:0.45")
     implementation("org.msgpack:msgpack-core:0.9.5")
@@ -99,11 +99,11 @@ dependencies {
     api("graphics.scenery:jvrpn:1.2.0", lwjglNatives.filter { !it.contains("arm") }.toTypedArray())
     implementation("io.scif:scifio")
     implementation("org.bytedeco:ffmpeg:6.0-1.5.9", ffmpegNatives)
-    implementation("io.github.classgraph:classgraph:4.8.161")
+    implementation("io.github.classgraph:classgraph:4.8.164")
 
     implementation("info.picocli:picocli:4.7.5")
 
-    api("sc.fiji:bigdataviewer-core:10.4.10")
+    api("sc.fiji:bigdataviewer-core:10.4.11")
     api("sc.fiji:bigdataviewer-vistools:1.0.0-beta-28")
     api("sc.fiji:bigvolumeviewer:0.3.1") {
         exclude("org.jogamp.gluegen", "gluegen-rt")
@@ -126,7 +126,7 @@ dependencies {
             exclude("org.biojava.thirdparty", "forester")
         }
     }
-    implementation("org.jetbrains.kotlin:kotlin-scripting-jsr223:1.9.10")
+    implementation("org.jetbrains.kotlin:kotlin-scripting-jsr223:1.9.20")
     api("graphics.scenery:art-dtrack-sdk:2.6.0")
 
     testImplementation(kotlin("test"))
