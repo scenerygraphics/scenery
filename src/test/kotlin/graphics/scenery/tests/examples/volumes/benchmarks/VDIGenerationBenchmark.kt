@@ -12,6 +12,8 @@ import graphics.scenery.backends.vulkan.VulkanRenderer
 import graphics.scenery.utils.SystemHelpers
 import graphics.scenery.volumes.*
 import graphics.scenery.volumes.vdi.benchmarks.BenchmarkSetup
+import net.imglib2.type.numeric.integer.UnsignedByteType
+import net.imglib2.type.numeric.integer.UnsignedShortType
 import org.joml.*
 import org.zeromq.ZContext
 import java.io.*
@@ -42,41 +44,57 @@ public class VDIGenerationBenchmark (wWidth: Int = 512, wHeight: Int = 512, val 
             scene.addChild(this)
         }
 
-        val volume = Volume.fromPathRaw(Paths.get(System.getenv("SCENERY_BENCHMARK_FILES") + "/" + dataset.toString()), hub, benchmarkSetup.is16Bit())
-        volume.name = "volume"
-        volume.spatial {
+
+        val type = if(benchmarkSetup.is16Bit()) {
+            UnsignedShortType()
+        }else {
+            UnsignedByteType()
+        }
+
+        val pair = Volume.fromPathRawSplit(Paths.get(System.getenv("SCENERY_BENCHMARK_FILES") + "\\" + dataset.toString() + "\\" + dataset.toString() + ".raw"), hub = hub, type = UnsignedShortType(), sizeLimit = 1500000000)
+        val parent = pair.first as RichNode
+        val volumeList = pair.second
+
+
+        val volumeDims = benchmarkSetup.getVolumeDims()
+        val pixelToWorld = (0.0075f * 512f) / volumeDims.x
+
+
+        val vdiVolumeManager = VDIVolumeManager( hub, windowWidth, windowHeight, maxSupersegments, scene).createVDIVolumeManger()
+
+        volumeList.forEachIndexed{ i, volume->
+            volume.name = "volume_$i"
+            benchmarkSetup.setColorMap(volume as BufferedVolume)
+            volume.transferFunction = benchmarkSetup.setupTransferFunction()
+            volume.pixelToWorldRatio = pixelToWorld
+            volume.origin = Origin.FrontBottomLeft
+            volume.volumeManager = vdiVolumeManager
+            vdiVolumeManager.add(volume)
+            volume.volumeManager.shaderProperties["doGeneration"] = true
+        }
+
+        Volume.positionSlices(volumeList, volumeList.first().pixelToWorldRatio)
+
+        parent.spatial {
             position = Vector3f(0.0f, 0.0f, 0.0f)
         }
-        volume.transferFunction = benchmarkSetup.setupTransferFunction()
-        val volumeDims = benchmarkSetup.getVolumeDims()
 
-        val pixelToWorld = (0.0075f * 512f) / volumeDims.x
-        volume.pixelToWorldRatio = pixelToWorld
-
-        benchmarkSetup.setColorMap(volume)
-
-        volume.origin = Origin.FrontBottomLeft
-
-        scene.addChild(volume)
+        scene.addChild(parent)
 
         cam.target = Vector3f(volumeDims.x/2*pixelToWorld, -volumeDims.y/2*pixelToWorld, volumeDims.z/2*pixelToWorld)
 
         // Step 2: Create VDI Volume Manager
-        val vdiVolumeManager = VDIVolumeManager( hub, windowWidth, windowHeight, maxSupersegments, scene).createVDIVolumeManger()
 
         //step 3: switch the volume's current volume manager to VDI volume manager
-        volume.volumeManager = vdiVolumeManager
 
         // Step 4: add the volume to VDI volume manager
-        vdiVolumeManager.add(volume)
-        volume.volumeManager.shaderProperties["doGeneration"] = true
 
         // Step 5: add the VDI volume manager to the hub
         hub.add(vdiVolumeManager)
 
         // Step 6: Store VDI Generated
         val volumeDimensions3i = Vector3f(volumeDims.x, volumeDims.y,volumeDims.z)
-        val model = volume.spatial().world
+        val model = volumeList.first().spatial().world
 
         val vdiData = VDIData(
             VDIBufferSizes(),
@@ -86,7 +104,7 @@ public class VDIGenerationBenchmark (wWidth: Int = 512, wHeight: Int = 512, val 
                 view = cam.spatial().getTransformation(),
                 volumeDimensions = volumeDimensions3i,
                 model = model,
-                nw = volume.volumeManager.shaderProperties["nw"] as Float,
+                nw = volumeList.first().volumeManager.shaderProperties["nw"] as Float,
                 windowDimensions = Vector2i(cam.width, cam.height)
             )
         )
@@ -181,7 +199,7 @@ public class VDIGenerationBenchmark (wWidth: Int = 512, wHeight: Int = 512, val 
     companion object {
         @JvmStatic
         fun main(args: Array<String>) {
-            VDIGenerationBenchmark(1280,720, 20, BenchmarkSetup.Dataset.Kingsnake,true).main()
+            VDIGenerationBenchmark(1280,720, 20, BenchmarkSetup.Dataset.Rayleigh_Taylor,true).main()
         }
     }
 }
