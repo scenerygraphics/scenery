@@ -60,6 +60,7 @@ public class VDIGenerationBenchmark (wWidth: Int = 512, wHeight: Int = 512, val 
         val pixelToWorld = (0.0075f * 512f) / volumeDims.x
 
 
+        // Step 2: Create VDI Volume Manager
         val vdiVolumeManager = VDIVolumeManager( hub, windowWidth, windowHeight, maxSupersegments, scene).createVDIVolumeManger()
 
         volumeList.forEachIndexed{ i, volume->
@@ -68,7 +69,9 @@ public class VDIGenerationBenchmark (wWidth: Int = 512, wHeight: Int = 512, val 
             volume.transferFunction = benchmarkSetup.setupTransferFunction()
             volume.pixelToWorldRatio = pixelToWorld
             volume.origin = Origin.FrontBottomLeft
+            //step 3: switch the volume's current volume manager to VDI volume manager
             volume.volumeManager = vdiVolumeManager
+            // Step 4: add the volume to VDI volume manager
             vdiVolumeManager.add(volume)
             volume.volumeManager.shaderProperties["doGeneration"] = true
         }
@@ -83,11 +86,6 @@ public class VDIGenerationBenchmark (wWidth: Int = 512, wHeight: Int = 512, val 
 
         cam.target = Vector3f(volumeDims.x/2*pixelToWorld, -volumeDims.y/2*pixelToWorld, volumeDims.z/2*pixelToWorld)
 
-        // Step 2: Create VDI Volume Manager
-
-        //step 3: switch the volume's current volume manager to VDI volume manager
-
-        // Step 4: add the volume to VDI volume manager
 
         // Step 5: add the VDI volume manager to the hub
         hub.add(vdiVolumeManager)
