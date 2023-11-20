@@ -7,6 +7,7 @@ import graphics.scenery.Settings
 import graphics.scenery.backends.Renderer
 import graphics.scenery.volumes.*
 import graphics.scenery.volumes.vdi.VDIStreamer
+import net.imglib2.type.numeric.integer.UnsignedByteType
 import org.joml.Vector3f
 import java.nio.file.Paths
 import org.zeromq.ZContext
@@ -32,7 +33,7 @@ class VDIStreamingExample : SceneryBase("VDI Streaming Example", 512, 512) {
             }
         }
 
-        val volume = Volume.fromPathRaw(Paths.get(getDemoFilesPath() + "/volumes/box-iso/"), hub)
+        val volume = Volume.fromPathRaw(Paths.get(getDemoFilesPath() + "/volumes/box-iso/"), hub, UnsignedByteType())
         volume.name = "volume"
         volume.colormap = Colormap.get("viridis")
         volume.spatial {

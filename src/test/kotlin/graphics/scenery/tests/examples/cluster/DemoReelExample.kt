@@ -71,7 +71,7 @@ class DemoReelExample: SceneryBase("Demo Reel") {
         val histoneVolume = Volume.fromPathRaw(
             Paths.get("$driveLetter:/ssd-backup-inauguration/CAVE_DATA/histones-isonet/stacks/default/"),
             hub,
-            true
+            UnsignedByteType()
         )
         histoneVolume.transferFunction = TransferFunction.ramp(0.1f, 1.0f)
         histoneVolume.colormap = Colormap.get("hot")
@@ -82,7 +82,7 @@ class DemoReelExample: SceneryBase("Demo Reel") {
         val drosophilaVolume = Volume.fromPathRaw(
             Paths.get("$driveLetter:/ssd-backup-inauguration/CAVE_DATA/droso-royer-autopilot-transposed/"),
             hub,
-            true
+            UnsignedByteType()
         )
         drosophilaVolume.spatial {
             rotation.rotateX(1.57f)
@@ -96,7 +96,7 @@ class DemoReelExample: SceneryBase("Demo Reel") {
         val retinaVolume = Volume.fromPathRaw(
             Paths.get("$driveLetter:/ssd-backup-inauguration/CAVE_DATA/retina_test2/"),
             hub,
-            true
+            UnsignedByteType()
         )
         retinaScene.addChild(retinaVolume)
         retinaScene.visible = false
