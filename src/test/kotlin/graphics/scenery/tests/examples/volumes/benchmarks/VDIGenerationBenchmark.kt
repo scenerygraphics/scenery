@@ -18,15 +18,18 @@ import org.joml.*
 import org.zeromq.ZContext
 import java.io.*
 import java.nio.ByteBuffer
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.concurrent.thread
 
-public class VDIGenerationBenchmark (wWidth: Int = 512, wHeight: Int = 512, val maxSupersegments: Int = 20, val dataset: BenchmarkSetup.Dataset, val storeVDI: Boolean) : SceneryBase("Volume Generation Example", wWidth, wHeight) {
+public class VDIGenerationBenchmark (wWidth: Int = 512, wHeight: Int = 512, val maxSupersegments: Int = 20, val dataset: BenchmarkSetup.Dataset, val fetchVDI: Boolean) : SceneryBase("Volume Generation Example", wWidth, wHeight) {
     val context: ZContext = ZContext(4)
 
     var cnt = 0
 
     val cam: Camera = DetachedHeadCamera()
 
+    var writeVDIs: AtomicBoolean = AtomicBoolean(false)
+    val VDIsGenerated = AtomicInteger(0)
 
     override fun init() {
 
@@ -44,14 +47,12 @@ public class VDIGenerationBenchmark (wWidth: Int = 512, wHeight: Int = 512, val 
             scene.addChild(this)
         }
 
-
-        val type = if(benchmarkSetup.is16Bit()) {
-            UnsignedShortType()
-        }else {
-            UnsignedByteType()
+        val pair = if (benchmarkSetup.is16Bit()) {
+            Volume.fromPathRawSplit(Paths.get(System.getenv("SCENERY_BENCHMARK_FILES") + "/" + dataset.toString() + "/" + dataset.toString() + ".raw"), hub = hub, type = UnsignedShortType(), sizeLimit = 2000000000)
+        } else {
+            Volume.fromPathRawSplit(Paths.get(System.getenv("SCENERY_BENCHMARK_FILES") + "/" + dataset.toString() + "/" + dataset.toString() + ".raw"), hub = hub, type = UnsignedByteType(), sizeLimit = 2000000000)
         }
 
-        val pair = Volume.fromPathRawSplit(Paths.get(System.getenv("SCENERY_BENCHMARK_FILES") + "\\" + dataset.toString() + "\\" + dataset.toString() + ".raw"), hub = hub, type = UnsignedShortType(), sizeLimit = 1500000000)
         val parent = pair.first as RichNode
         val volumeList = pair.second
 
@@ -106,7 +107,7 @@ public class VDIGenerationBenchmark (wWidth: Int = 512, wHeight: Int = 512, val 
                 windowDimensions = Vector2i(cam.width, cam.height)
             )
         )
-        if (storeVDI) {
+        if (fetchVDI) {
             thread {
                 storeVDI(vdiVolumeManager, vdiData)
             }
@@ -118,47 +119,37 @@ public class VDIGenerationBenchmark (wWidth: Int = 512, wHeight: Int = 512, val 
         val tGeneration = Timer(0, 0)
 
         var vdiDepthBuffer: ByteBuffer?
-            var vdiColorBuffer: ByteBuffer?
-            var gridCellsBuff: ByteBuffer?
-            var iterationBuffer: ByteBuffer?
+        var vdiColorBuffer: ByteBuffer?
+        var gridCellsBuff: ByteBuffer?
+        var iterationBuffer: ByteBuffer?
 
-            val volumeList = ArrayList<BufferedVolume>()
+        val volumeList = ArrayList<BufferedVolume>()
         volumeList.add(vdiVolumeManager.nodes.first() as BufferedVolume)
-        val VDIsGenerated = AtomicInteger(0)
         while (renderer?.firstImageReady == false) {
             Thread.sleep(50)
         }
 
         val vdiColor = vdiVolumeManager.material().textures["OutputSubVDIColor"]!!
-            val colorCnt = AtomicInteger(0)
+        val colorCnt = AtomicInteger(0)
         (renderer as? VulkanRenderer)?.persistentTextureRequests?.add(vdiColor to colorCnt)
 
         val vdiDepth = vdiVolumeManager.material().textures["OutputSubVDIDepth"]!!
-            val depthCnt = AtomicInteger(0)
+        val depthCnt = AtomicInteger(0)
         (renderer as? VulkanRenderer)?.persistentTextureRequests?.add(vdiDepth to depthCnt)
 
 
         val gridCells = vdiVolumeManager.material().textures["OctreeCells"]!!
-            val gridTexturesCnt = AtomicInteger(0)
+        val gridTexturesCnt = AtomicInteger(0)
         (renderer as? VulkanRenderer)?.persistentTextureRequests?.add(gridCells to gridTexturesCnt)
 
         val vdiIteration = vdiVolumeManager.material().textures["Iterations"]!!
-            val iterCnt = AtomicInteger(0)
+        val iterCnt = AtomicInteger(0)
         (renderer as? VulkanRenderer)?.persistentTextureRequests?.add(vdiIteration to iterCnt)
 
-        var prevColor = colorCnt.get()
-        var prevDepth = depthCnt.get()
+        renderer!!.postRenderLambdas.add {
 
-        while (cnt<6) { //TODO: convert VDI storage also to postRenderLambda
-
-            tGeneration.start = System.nanoTime()
-
-            while (colorCnt.get() == prevColor || depthCnt.get() == prevDepth) {
-                Thread.sleep(5)
-            }
-
-            prevColor = colorCnt.get()
-            prevDepth = depthCnt.get()
+            vdiData.metadata.projection = cam.spatial().projection
+            vdiData.metadata.view = cam.spatial().getTransformation()
 
             vdiColorBuffer = vdiColor.contents
             vdiDepthBuffer = vdiDepth.contents
@@ -173,24 +164,26 @@ public class VDIGenerationBenchmark (wWidth: Int = 512, wHeight: Int = 512, val 
 
             vdiData.metadata.index = cnt
 
-            if (cnt == 4) { //store the 4th VDI
+            if (writeVDIs.get() == true) { //store the 4th VDI
 
-                val file = FileOutputStream(File("VDI_dump$cnt"))
+                val filePrefix = dataset.toString() + "_${windowWidth}_${windowHeight}_${maxSupersegments}"
+
+                val file = FileOutputStream(File("${filePrefix}_VDI_dump${VDIsGenerated.get()}"))
                 VDIDataIO.write(vdiData, file)
                 logger.info("written the dump")
                 file.close()
 
-                SystemHelpers.dumpToFile(vdiColorBuffer!!, "VDI_col")
-                SystemHelpers.dumpToFile(vdiDepthBuffer!!, "VDI_depth")
-                SystemHelpers.dumpToFile(gridCellsBuff!!, "VDI_octree")
+                SystemHelpers.dumpToFile(vdiColorBuffer!!, "${filePrefix}_VDI_col_${VDIsGenerated.get()}")
+                SystemHelpers.dumpToFile(vdiDepthBuffer!!, "${filePrefix}_VDI_depth_${VDIsGenerated.get()}")
+                SystemHelpers.dumpToFile(gridCellsBuff!!, "${filePrefix}_VDI_octree_${VDIsGenerated.get()}")
                 SystemHelpers.dumpToFile(iterationBuffer!!, "${dataset}_Iterations")
 
-                logger.info("Wrote VDI $cnt")
+                logger.info("Wrote VDI ${VDIsGenerated.get()}")
                 VDIsGenerated.incrementAndGet()
             }
             cnt++
+            tGeneration.start = System.nanoTime()
         }
-        this.close()
     }
 
 
