@@ -96,8 +96,49 @@ class TorusDEC(val sizex: Int, val sizey: Int, val sizez: Int, val resx: Int, va
         return f
     }
 
+    //divergence here is the normalized sum of the face fluxes on the enclosing cube
+    fun div(vx: Array<Array<Array<Double>>>, vy: Array<Array<Array<Double>>>, vz: Array<Array<Array<Double>>>): Array<Array<DoubleArray>> {
+        val f = Array(resx) { Array(resy) { DoubleArray(resz) } }
 
+        for (ix in ix.indices) {
+            for (iy in iy.indices) {
+                for (iz in iz.indices) {
+                    val ixm = (this.ix[ix] - 2 + resx) % resx
+                    val iym = (this.iy[iy] - 2 + resy) % resy
+                    val izm = (this.iz[iz] - 2 + resz) % resz
 
+                    f[ix][iy][iz] = (vx[ix][iy][iz] - vx[ixm][iy][iz]) / (dx * dx) +
+                        (vy[ix][iy][iz] - vy[ix][iy][iym]) / (dy * dy) +
+                        (vz[ix][iy][iz] - vz[ix][izm][iy]) / (dz * dz)
+                }
+            }
+        }
+
+        return f
+    }
+
+    //turn 1-form into it's corresponding vector field
+    fun sharp(vx: Array<Array<Array<Double>>>, vy: Array<Array<Array<Double>>>, vz: Array<Array<Array<Double>>>): Triple<Array<Array<DoubleArray>>, Array<Array<DoubleArray>>, Array<Array<DoubleArray>>> {
+        val ux = Array(resx) { Array(resy) { DoubleArray(resz) } }
+        val uy = Array(resx) { Array(resy) { DoubleArray(resz) } }
+        val uz = Array(resx) { Array(resy) { DoubleArray(resz) } }
+
+        for (ix in ix.indices) {
+            for (iy in iy.indices) {
+                for (iz in iz.indices) {
+                    val ixm = (this.ix[ix] - 2 + resx) % resx
+                    val iym = (this.iy[iy] - 2 + resy) % resy
+                    val izm = (this.iz[iz] - 2 + resz) % resz
+
+                    ux[ix][iy][iz] = 0.5 * (vx[ixm][iy][iz] + vx[ix][iy][iz]) / dx
+                    uy[ix][iy][iz] = 0.5 * (vy[ix][iy][iym] + vy[ix][iy][iz]) / dy
+                    uz[ix][iy][iz] = 0.5 * (vz[ix][izm][iy] + vz[ix][iy][iz]) / dz
+                }
+            }
+        }
+
+        return Triple(ux, uy, uz)
+    }
 
 
 }
