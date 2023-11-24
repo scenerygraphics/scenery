@@ -118,7 +118,8 @@ class TorusDEC(val sizex: Int, val sizey: Int, val sizez: Int, val resx: Int, va
     }
 
     //turn 1-form into it's corresponding vector field
-    fun sharp(vx: Array<Array<Array<Double>>>, vy: Array<Array<Array<Double>>>, vz: Array<Array<Array<Double>>>): Triple<Array<Array<DoubleArray>>, Array<Array<DoubleArray>>, Array<Array<DoubleArray>>> {
+    fun sharp(vx: Array<Array<Array<Double>>>, vy: Array<Array<Array<Double>>>, vz: Array<Array<Array<Double>>>):
+        Triple<Array<Array<DoubleArray>>, Array<Array<DoubleArray>>, Array<Array<DoubleArray>>> {
         val ux = Array(resx) { Array(resy) { DoubleArray(resz) } }
         val uy = Array(resx) { Array(resy) { DoubleArray(resz) } }
         val uz = Array(resx) { Array(resy) { DoubleArray(resz) } }
@@ -133,6 +134,26 @@ class TorusDEC(val sizex: Int, val sizey: Int, val sizez: Int, val resx: Int, va
                     ux[ix][iy][iz] = 0.5 * (vx[ixm][iy][iz] + vx[ix][iy][iz]) / dx
                     uy[ix][iy][iz] = 0.5 * (vy[ix][iy][iym] + vy[ix][iy][iz]) / dy
                     uz[ix][iy][iz] = 0.5 * (vz[ix][izm][iy] + vz[ix][iy][iz]) / dz
+                }
+            }
+        }
+
+        return Triple(ux, uy, uz)
+    }
+
+    // computes the staggered vector fields (on the edges) for a 1-form
+    fun staggeredSharp(vx: Array<Array<Array<Double>>>, vy: Array<Array<Array<Double>>>, vz: Array<Array<Array<Double>>>):
+        Triple<Array<Array<DoubleArray>>, Array<Array<DoubleArray>>, Array<Array<DoubleArray>>> {
+        val ux = Array(resx) { Array(resy) { DoubleArray(resz) } }
+        val uy = Array(resx) { Array(resy) { DoubleArray(resz) } }
+        val uz = Array(resx) { Array(resy) { DoubleArray(resz) } }
+
+        for (ix in vx.indices) {
+            for (iy in vy[0].indices) {
+                for (iz in vz[0][0].indices) {
+                    ux[ix][iy][iz] = vx[ix][iy][iz] / dx
+                    uy[ix][iy][iz] = vy[ix][iy][iz] / dy
+                    uz[ix][iy][iz] = vz[ix][iy][iz] / dz
                 }
             }
         }
