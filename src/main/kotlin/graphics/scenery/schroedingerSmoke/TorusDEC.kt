@@ -55,6 +55,46 @@ class TorusDEC(val sizex: Int, val sizey: Int, val sizez: Int, val resx: Int, va
         return Triple(vx, vy, vz)
     }
 
+    fun derivativeOfOneForm(vx: Array<Array<Array<Double>>>, vy: Array<Array<Array<Double>>>, vz: Array<Array<Array<Double>>>):
+        Triple<Array<Array<DoubleArray>>, Array<Array<DoubleArray>>, Array<Array<DoubleArray>>> {
+        val wx = Array(resx) { Array(resy) { DoubleArray(resz) } }
+        val wy = Array(resx) { Array(resy) { DoubleArray(resz) } }
+        val wz = Array(resx) { Array(resy) { DoubleArray(resz) } }
+
+        for (ix in ix.indices) {
+            for (iy in iy.indices) {
+                for (iz in iz.indices) {
+                    val ixp = (this.ix[ix] + 1) % resx
+                    val iyp = (this.iy[iy] + 1) % resy
+                    val izp = (this.iz[iz] + 1) % resz
+
+                    wx[ix][iy][iz] = vy[ix][iy][iz] - vy[ix][iy][izp] + vz[ix][iyp][iz] - vz[ix][iy][iz]
+                    wy[ix][iy][iz] = vz[ix][iy][iz] - vz[ixp][iy][iz] + vx[ix][iy][izp] - vx[ix][iy][iz]
+                    wz[ix][iy][iz] = vx[ix][iy][iz] - vx[ix][iyp][iz] + vy[ixp][iy][iz] - vy[ix][iy][iz]
+                }
+            }
+        }
+
+        return Triple(wx, wy, wz)
+    }
+
+    fun derivativeOfTwoForm(wx: Array<Array<Array<Double>>>, wy: Array<Array<Array<Double>>>, wz: Array<Array<Array<Double>>>):
+        Array<Array<DoubleArray>> {
+        val f = Array(resx) { Array(resy) { DoubleArray(resz) } }
+
+        for (ix in ix.indices) {
+            for (iy in iy.indices) {
+                for (iz in iz.indices) {
+                    val ixp = (this.ix[ix] + 1) % resx
+                    val iyp = (this.iy[iy] + 1) % resy
+                    val izp = (this.iz[iz] + 1) % resz
+
+                    f[ix][iy][iz] = (wx[ixp][iy][iz] - wx[ix][iy][iz]) + (wy[ix][iyp][iz] - wy[ix][iy][iz]) + (wz[ix][iy][izp] - wz[ix][iy][iz])
+                }
+            }
+        }
+        return f
+    }
 
 
 
