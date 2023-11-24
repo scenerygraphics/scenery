@@ -1,6 +1,8 @@
 package graphics.scenery.schroedingerSmoke
 
 import org.joml.Vector3f
+import kotlin.math.pow
+import kotlin.math.sin
 import kotlin.properties.Delegates
 
 /**
@@ -161,7 +163,48 @@ class TorusDEC(val sizex: Int, val sizey: Int, val sizez: Int, val resx: Int, va
         return Triple(ux, uy, uz)
     }
 
+    //solve the poisson equation via a spectral method
+    fun poissonSolve(f: Array<Array<Array<Double>>>): Array<Array<Array<Double>>> {
+        // Placeholder for FFT
+        var transformedF = fft(f)
 
+        // Calculate frequency components
+        val sx = Array(resx) { i -> sin(Math.PI * i / resx) / dx }
+        val sy = Array(resy) { i -> sin(Math.PI * i / resy) / dy }
+        val sz = Array(resz) { i -> sin(Math.PI * i / resz) / dz }
+
+        // Calculate factor
+        val fac = Array(resx) { ix ->
+            Array(resy) { iy ->
+                DoubleArray(resz) { iz ->
+                    val denom = sx[ix].pow(2) + sy[iy].pow(2) + sz[iz].pow(2)
+                    if (ix == 0 && iy == 0 && iz == 0) 0.0 else -0.25 / denom
+                }
+            }
+        }
+
+        // Apply the factor
+        for (ix in transformedF.indices) {
+            for (iy in transformedF[0].indices) {
+                for (iz in transformedF[0][0].indices) {
+                    transformedF[ix][iy][iz] *= fac[ix][iy][iz]
+                }
+            }
+        }
+
+        // Placeholder for inverse FFT
+        return inverseFft(transformedF)
+    }
+
+    private fun fft(data: Array<Array<Array<Double>>>): Array<Array<Array<Double>>> {
+        // Implement FFT or call a library here
+        return data
+    }
+
+    private fun inverseFft(data: Array<Array<Array<Double>>>): Array<Array<Array<Double>>> {
+        // Implement inverse FFT or call a library here
+        return data
+    }
 }
 
 
