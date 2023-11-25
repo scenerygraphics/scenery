@@ -4,7 +4,7 @@ import kotlin.math.pow
 import kotlin.math.PI as pi
 
 
-class ISF(val hBar: Float, val dt: Float, torusDEC: TorusDEC) {
+class ISF(val hBar: Float, val dt: Float, val torusDEC: TorusDEC) {
     val nx = torusDEC.resx
     val ny = torusDEC.resy
     val nz = torusDEC.resz
@@ -75,5 +75,47 @@ class ISF(val hBar: Float, val dt: Float, torusDEC: TorusDEC) {
         }
     }
 
+    fun pressureProject(psi1: Array<Array<Array<Complex>>>, psi2: Array<Array<Array<Complex>>>): Pair<Array<Array<Array<Complex>>>, Array<Array<Array<Complex>>>> {
+        val (vx, vy, vz) = velocityOneForm(psi1, psi2)
+        val div = torusDEC.div(vx, vy, vz)
+        val q = torusDEC.poissonSolve(div)
+        return gaugeTransform(psi1, psi2, q)
+    }
 
+    fun velocityOneForm(psi1: Array<Array<Array<Complex>>>, psi2: Array<Array<Array<Complex>>>, hbar: Double = 1.0): Triple<Array<Array<Array<Double>>>, Array<Array<Array<Double>>>, Array<Array<Array<Double>>>> {
+        val ixp = Array(nx) { (it + 1) % nx }
+        val iyp = Array(ny) { (it + 1) % ny }
+        val izp = Array(nz) { (it + 1) % nz }
+
+        val vx = Array(nx) { i ->
+            Array(ny) { j ->
+                Array(nz) { k ->
+                    angle(psi1[i][j][k].conjugate().times(psi1[ixp[i]][j][k].plus(psi2[i][j][k].conjugate().times(psi2[ixp[i]][j][k]).times(Complex(hbar, 0.0)))))
+                }
+            }
+        }
+
+        val vy = Array(nx) { i ->
+            Array(ny) { j ->
+                Array(nz) { k ->
+                    angle(psi1[i][j][k].conjugate().times(psi1[i][iyp[j]][k].plus(psi2[i][j][k].conjugate().times(psi2[i][iyp[j]][k]).times(Complex(hbar, 0.0)))))
+                }
+            }
+        }
+
+        val vz = Array(nx) { i ->
+            Array(ny) { j ->
+                Array(nz) { k ->
+                    angle(psi1[i][j][k].conjugate().times(psi1[i][j][izp[k]].plus(psi2[i][j][k].conjugate().times(psi2[i][j][izp[k]]).times(Complex(hbar, 0.0)))))
+                }
+            }
+        }
+
+        return Triple(vx, vy, vz)
+    }
+
+    private fun angle(c: Complex): Double {
+        // Implement the angle (phase) calculation for a complex number
+        return Math.atan2(c.im, c.re)
+    }
 }
