@@ -1,9 +1,7 @@
 package graphics.scenery.schroedingerSmoke
 
-import org.joml.Vector3f
 import kotlin.math.pow
 import kotlin.math.sin
-import kotlin.properties.Delegates
 
 /**
     TorusDEC is a handle class that an instance is a 3D grid with periodic
@@ -164,7 +162,7 @@ class TorusDEC(val sizex: Int, val sizey: Int, val sizez: Int, val resx: Int, va
     }
 
     //solve the poisson equation via a spectral method
-    fun poissonSolve(f: Array<Array<Array<Double>>>): Array<Array<Array<Double>>> {
+    fun poissonSolve(f: Array<Array<DoubleArray>>): Array<Array<DoubleArray>> {
         // Placeholder for FFT
         var transformedF = fft(f)
 
@@ -196,12 +194,12 @@ class TorusDEC(val sizex: Int, val sizey: Int, val sizez: Int, val resx: Int, va
         return inverseFft(transformedF)
     }
 
-    private fun fft(data: Array<Array<Array<Double>>>): Array<Array<Array<Double>>> {
+    private fun fft(data: Array<Array<DoubleArray>>): Array<Array<DoubleArray>> {
         // Implement FFT or call a library here
         return data
     }
 
-    private fun inverseFft(data: Array<Array<Array<Double>>>): Array<Array<Array<Double>>> {
+    private fun inverseFft(data: Array<Array<DoubleArray>>): Array<Array<DoubleArray>> {
         // Implement inverse FFT or call a library here
         return data
     }
