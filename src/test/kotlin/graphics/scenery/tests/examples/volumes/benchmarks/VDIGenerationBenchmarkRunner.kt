@@ -12,6 +12,7 @@ import org.joml.Vector3f
 import java.io.BufferedWriter
 import java.io.FileWriter
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.concurrent.thread
 
 class VDIGenerationBenchmarkRunner {
@@ -83,7 +84,7 @@ class VDIGenerationBenchmarkRunner {
         benchmarkDatasets.forEach { dataName ->
             val dataset = "${dataName}_${windowWidth}_$windowHeight"
 
-            val fw = FileWriter("D:/1.Uni/Bachelor/spreadsheets/${dataset}_vdigeneration.csv", true)
+            val fw = FileWriter("/home/charles/bachelor/csv/${dataset}_vdigeneration.csv", true)
             val bw = BufferedWriter(fw)
 
             benchmarkSupersegments.forEach { ns ->
@@ -110,7 +111,7 @@ class VDIGenerationBenchmarkRunner {
 
                     Thread.sleep(1000)
 
-                    var numGenerated = 0
+                    var numGenerated = AtomicInteger(0)
                     (renderer as VulkanRenderer).postRenderLambdas.add {
                         if (instance.VDIsGenerated.get() > 0) {
                             if (dataName == BenchmarkSetup.Dataset.Richtmyer_Meshkov) {
@@ -119,23 +120,30 @@ class VDIGenerationBenchmarkRunner {
                                 rotateCamera(10f, 0f, instance.cam, instance.windowWidth, instance.windowHeight, target)
                             }
                         }
-                        numGenerated += 1
+                        numGenerated.incrementAndGet()
+
                     }
 
-                    while (numGenerated < 10) {
+                    while (numGenerated.get() < 10) {
                         Thread.sleep(20)
                     }
 
                     stats.clear("Renderer.fps")
 
-                    while (numGenerated < 20) {
+                    Thread.sleep(1000)
+
+                    val currentIterations = numGenerated.get()
+
+                    while (numGenerated.get() < currentIterations + 100) {
                         Thread.sleep(20)
                     }
-//                    Thread.sleep(1000)
 
                     val fps = stats.get("Renderer.fps")!!.avg()
+                    val stddev = stats.get("Renderer.fps")!!.stddev()
 
                     bw.append("$fps, ")
+                    bw.append("$stddev")
+                    bw.newLine()
 
                     println("Wrote fps: $fps")
 
@@ -146,9 +154,9 @@ class VDIGenerationBenchmarkRunner {
                 }
                 instance.main()
             }
+            bw.newLine()
             bw.flush()
         }
-        println("Got back control")
     }
 
     fun rotateCamera(yaw: Float, pitch: Float = 0f, cam: Camera, windowWidth: Int, windowHeight: Int, target: Vector3f) {
@@ -160,7 +168,8 @@ class VDIGenerationBenchmarkRunner {
 
         @JvmStatic
         fun main(args: Array<String>) {
-            VDIGenerationBenchmarkRunner().generateVDISequence(1920, 1080, 30)
+//            VDIGenerationBenchmarkRunner().generateVDISequence(1920, 1080, 1)
+            VDIGenerationBenchmarkRunner().benchmarkVDIGeneration(1920, 1080)
         }
     }
 }
