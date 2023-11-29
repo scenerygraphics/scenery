@@ -27,7 +27,7 @@ jobs:
         uses: gradle/gradle-build-action@v2
       - uses: gradle/wrapper-validation-action@v1
       - name: Set up JDK
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '${{ matrix.java }}'
           distribution: 'temurin'
@@ -63,7 +63,7 @@ jobs:
           maximum-size: 32GB
           disk-root: "D:"
       - name: Set up JDK
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '${{ matrix.java }}'
           distribution: 'temurin'
@@ -91,7 +91,7 @@ jobs:
         uses: gradle/gradle-build-action@v2
       - uses: gradle/wrapper-validation-action@v1
       - name: Set up JDK
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '${{ matrix.java }}'
           distribution: 'temurin'
