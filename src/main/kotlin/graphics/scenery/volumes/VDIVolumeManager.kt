@@ -58,6 +58,8 @@ class VDIVolumeManager ( var hub: Hub, val windowWidth: Int, val windowHeight: I
 
         val outputSubDepthBuffer = MemoryUtil.memCalloc(windowHeight*windowWidth*2*maxSupersegments*2 * 2)
 
+        val iterationBuffer: ByteBuffer = MemoryUtil.memCalloc(windowHeight * windowWidth *4)
+
         val numGridCells = Vector3f(windowWidth.toFloat() / 8f, windowHeight.toFloat() / 8f, maxSupersegments.toFloat())
 
         val lowestLevel = MemoryUtil.memCalloc(numGridCells.x.toInt() * numGridCells.y.toInt() * numGridCells.z.toInt() * 4)
@@ -80,6 +82,15 @@ class VDIVolumeManager ( var hub: Hub, val windowWidth: Int, val windowHeight: I
         volumeManager.customTextures.add("OctreeCells")
         volumeManager.material().textures["OctreeCells"] = gridCells
 
+        volumeManager.customTextures.add("Iterations")
+        volumeManager.material().textures["Iterations"] = Texture(
+            Vector3i(windowWidth, windowHeight, 1), 1, contents = iterationBuffer, usageType = hashSetOf(
+                Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture)
+            , type = IntType(),
+            mipmap = false,
+            minFilter = Texture.FilteringMode.NearestNeighbour,
+            maxFilter = Texture.FilteringMode.NearestNeighbour
+        )
         volumeManager.customUniforms.add("doGeneration")
         volumeManager.shaderProperties["doGeneration"] = true
 

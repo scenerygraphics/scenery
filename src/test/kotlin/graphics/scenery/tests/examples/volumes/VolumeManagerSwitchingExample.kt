@@ -3,6 +3,7 @@ package graphics.scenery.tests.examples.volumes
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.volumes.*
+import net.imglib2.type.numeric.integer.UnsignedByteType
 import org.joml.Vector3f
 import java.nio.file.Paths
 import kotlin.concurrent.thread
@@ -33,7 +34,7 @@ class VolumeManagerSwitchingExample : SceneryBase("Volume Manager Switching Exam
             scene.addChild(this)
         }
 
-        val volume = Volume.fromPathRaw(Paths.get(getDemoFilesPath() + "/volumes/box-iso/"), hub)
+        val volume = Volume.fromPathRaw(Paths.get(getDemoFilesPath() + "/volumes/box-iso/"), hub, UnsignedByteType())
         volume.name = "volume"
         volume.colormap = Colormap.get("viridis")
         volume.spatial {

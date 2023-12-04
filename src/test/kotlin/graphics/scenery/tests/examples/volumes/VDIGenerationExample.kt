@@ -14,6 +14,7 @@ import graphics.scenery.backends.vulkan.VulkanRenderer
 import graphics.scenery.controls.behaviours.ArcballCameraControl
 import graphics.scenery.utils.SystemHelpers
 import graphics.scenery.volumes.*
+import net.imglib2.type.numeric.integer.UnsignedByteType
 import org.joml.*
 import org.scijava.ui.behaviour.ClickBehaviour
 import org.zeromq.ZContext
@@ -45,7 +46,7 @@ class VDIGenerationExample(wWidth: Int = 512, wHeight: Int = 512, val maxSuperse
             scene.addChild(this)
         }
 
-        val volume = Volume.fromPathRaw(Paths.get(getDemoFilesPath() + "/volumes/box-iso/"), hub)
+        val volume = Volume.fromPathRaw(Paths.get(getDemoFilesPath() + "/volumes/box-iso/"), hub, UnsignedByteType())
         volume.name = "volume"
         volume.colormap = Colormap.get("viridis")
         volume.spatial {

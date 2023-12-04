@@ -7,18 +7,16 @@ import graphics.scenery.attribute.material.Material
 import graphics.scenery.volumes.Colormap
 import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.Volume
-import net.imglib2.type.numeric.integer.UnsignedByteType
 import net.imglib2.type.numeric.integer.UnsignedShortType
 import org.joml.Vector3f
 import java.nio.file.Paths
-import kotlin.concurrent.thread
 
 /**
- * Standard volume rendering example, with a volume loaded from a file.
+ * Volume rendering on a volume file partitioned into sliced buffers before loading into the scene.
  *
- * @author Ulrik Günther <hello@ulrik.is>
+ * @author Aryaman Gupta <argupta@mpi-cbg.de>
  */
-class VolumeExample: SceneryBase("Volume Rendering example", 1280, 720) {
+class SplitVolumeExample: SceneryBase("Split volume data", 1280, 720) {
     var hmd: TrackedStereoGlasses? = null
 
     override fun init() {
@@ -48,16 +46,26 @@ class VolumeExample: SceneryBase("Volume Rendering example", 1280, 720) {
         s.material().diffuse = Vector3f(0.0f, 0.0f, 0.0f)
         scene.addChild(s)
 
-        val volume = Volume.fromPathRaw(Paths.get(getDemoFilesPath() + "/volumes/box-iso/"), hub, UnsignedShortType())
-        volume.name = "volume"
-        volume.colormap = Colormap.get("viridis")
-        volume.spatial {
+        val pair = Volume.fromPathRawSplit(Paths.get(getDemoFilesPath() + "/volumes/box-iso/box_200_200_200.raw"), hub = hub, type = UnsignedShortType(), sizeLimit = 20000000)
+        val parent = pair.first as RichNode
+        val volumeList = pair.second
+
+        Volume.positionSlices(volumeList, volumeList.first().pixelToWorldRatio)
+
+        volumeList.forEachIndexed{ i, volume->
+            volume.name = "volume_$i"
+            volume.colormap = Colormap.get("viridis")
+            volume.transferFunction = TransferFunction.ramp(0.1f, 0.5f)
+            volume.origin = Origin.Center
+            volume.spatial().scale = Vector3f(20.0f, 20.0f, 20.0f)
+        }
+
+        parent.spatial {
             position = Vector3f(0.0f, 0.0f, -3.5f)
             rotation = rotation.rotateXYZ(0.05f, 0.05f, 0.05f)
-            scale = Vector3f(20.0f, 20.0f, 20.0f)
         }
-        volume.transferFunction = TransferFunction.ramp(0.1f, 0.5f)
-        scene.addChild(volume)
+
+        scene.addChild(parent)
 
         val lights = (0 until 3).map {
             PointLight(radius = 15.0f)
@@ -69,15 +77,6 @@ class VolumeExample: SceneryBase("Volume Rendering example", 1280, 720) {
             light.intensity = 0.5f
             scene.addChild(light)
         }
-
-        thread {
-            while(true) {
-                volume.spatial {
-                    rotation = rotation.rotateY(0.003f)
-                }
-                Thread.sleep(5)
-            }
-        }
     }
 
     override fun inputSetup() {
@@ -87,7 +86,7 @@ class VolumeExample: SceneryBase("Volume Rendering example", 1280, 720) {
     companion object {
         @JvmStatic
         fun main(args: Array<String>) {
-            VolumeExample().main()
+            SplitVolumeExample().main()
         }
     }
 }

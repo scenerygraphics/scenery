@@ -37,6 +37,8 @@ layout(push_constant) uniform currentEye_t {
     int eye;
 } currentEye;
 
+#define WRITE_SEG 1
+#define WRITE_ITER 0
 
 #define SEPARATE_DEPTH 1
 #define WORLD_ABS 0
@@ -55,6 +57,7 @@ layout(set = 2, binding = 0) uniform sampler3D volumeCache;
 layout(set = 3, binding = 0, rgba32f) uniform image3D OutputSubVDIColor;
 layout(set = 4, binding = 0, r32f) uniform image3D OutputSubVDIDepth;
 layout (set = 8, binding = 0, r32ui) uniform uimage3D OctreeCells;
+layout (set = 9, binding = 0, r32i) uniform iimage2D Iterations;
 #if RLE_INFO
 layout (set = 9, binding = 0, r32f) uniform image2D Thresholds;
 layout (set = 10, binding = 0, r32i) uniform iimage2D SupersegmentsGenerated;
@@ -443,38 +446,70 @@ void main()
                 if(abs(high_thresh - low_thresh) < 0.000001) {
                     thresh_found = true;
                     mid_thresh = ((num_terminations == 0) ? low_thresh : high_thresh); // we want to err on the higher side, so that we generate < max no of supsegs, unless we are ending up generating 0 supsegs
+                    #if WRITE_ITER
+                    imageStore(Iterations, ivec2(gl_GlobalInvocationID.xy), ivec4(iter));
+                    #endif
+                    #if WRITE_SEG
                     continue;
+                    #else
+                    break;
+                    #endif
+
                 } else if(num_terminations > desired_supsegs) {
                     low_thresh = mid_thresh;
                 } else if(num_terminations < (desired_supsegs - delta)) {
                     high_thresh = mid_thresh;
                 } else {
                     thresh_found = true;
+                    #if WRITE_ITER
+                    imageStore(Iterations, ivec2(gl_GlobalInvocationID.xy), ivec4(iter));
+                    #endif
+                    #if WRITE_SEG
                     continue;
+                    #else
+                    break;
+                    #endif
                 }
 
                 if(first_iteration) {
                     first_iteration = false;
                     if(num_terminations < desired_supsegs) {
                         thresh_found = true;
+                        #if WRITE_ITER
+                        if (transparentSample) {
+                            imageStore(Iterations, ivec2(gl_GlobalInvocationID.xy), ivec4(0));
+                        } else{
+                            imageStore(Iterations, ivec2(gl_GlobalInvocationID.xy), ivec4(iter));
+                        }
+                        #endif
+                        #if WRITE_SEG
                         continue;
+                        #else
+                        break;
+                        #endif
                     }
                 }
 
                 mid_thresh = (low_thresh + high_thresh) / 2.0;
             }
         }
-
+        #if WRITE_SEG
         if(supersegmentNum < maxSupersegments) {
             for(int i = supersegmentNum; i < maxSupersegments; i++) {
                 writeSupersegment(i, 0, 0, vec4(0));
             }
         }
-    } else {
+        #endif
+
+    }
+    #if WRITE_SEG
+    else {
+        imageStore(Iterations, ivec2(gl_GlobalInvocationID.xy), ivec4(0));
         if(supersegmentNum < maxSupersegments) {
             for(int i = supersegmentNum; i < maxSupersegments; i++) {
                 writeSupersegment(i, 0, 0, vec4(0));
             }
         }
     }
+    #endif
 }

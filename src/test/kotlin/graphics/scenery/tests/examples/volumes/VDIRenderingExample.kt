@@ -11,7 +11,7 @@ import java.io.File
 import java.io.FileInputStream
 import java.nio.ByteBuffer
 
-class VDIRenderingExample : SceneryBase("VDI Rendering Example", 1024, 1024) {
+class VDIRenderingExample(applicationName: String, windowWidth: Int, windowHeight: Int): SceneryBase(applicationName, windowWidth,windowHeight) {
 
     val skipEmpty = false
 
@@ -39,7 +39,6 @@ class VDIRenderingExample : SceneryBase("VDI Rendering Example", 1024, 1024) {
             perspectiveCamera(50.0f, windowWidth, windowWidth)
             scene.addChild(this)
         }
-        cam.target = Vector3f(0.0f,0.0f,-3.5f)
 
         //Step 2: read files
         val file = FileInputStream(File("VDI_dump4"))
@@ -84,7 +83,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering Example", 1024, 1024) {
     companion object {
         @JvmStatic
         fun main(args: Array<String>) {
-            VDIRenderingExample().main()
+            VDIRenderingExample("VDI Rendering Example", 1280, 720).main()
         }
     }
 }
