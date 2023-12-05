@@ -60,6 +60,8 @@ class VDIVolumeManager ( var hub: Hub, val windowWidth: Int, val windowHeight: I
 
         val iterationBuffer: ByteBuffer = MemoryUtil.memCalloc(windowHeight * windowWidth *4)
 
+        val thresholdBuffer: ByteBuffer = MemoryUtil.memCalloc(windowHeight * windowWidth * 4)
+
         val numGridCells = Vector3f(windowWidth.toFloat() / 8f, windowHeight.toFloat() / 8f, maxSupersegments.toFloat())
 
         val lowestLevel = MemoryUtil.memCalloc(numGridCells.x.toInt() * numGridCells.y.toInt() * numGridCells.z.toInt() * 4)
@@ -87,6 +89,16 @@ class VDIVolumeManager ( var hub: Hub, val windowWidth: Int, val windowHeight: I
             Vector3i(windowWidth, windowHeight, 1), 1, contents = iterationBuffer, usageType = hashSetOf(
                 Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture)
             , type = IntType(),
+            mipmap = false,
+            minFilter = Texture.FilteringMode.NearestNeighbour,
+            maxFilter = Texture.FilteringMode.NearestNeighbour
+        )
+
+        volumeManager.customTextures.add("Thresholds")
+        volumeManager.material().textures["Thresholds"] = Texture(
+            Vector3i(windowWidth, windowHeight, 1), 1, contents = thresholdBuffer, usageType = hashSetOf(
+                Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture)
+            , type = FloatType(),
             mipmap = false,
             minFilter = Texture.FilteringMode.NearestNeighbour,
             maxFilter = Texture.FilteringMode.NearestNeighbour

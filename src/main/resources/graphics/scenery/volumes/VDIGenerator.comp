@@ -38,7 +38,8 @@ layout(push_constant) uniform currentEye_t {
 } currentEye;
 
 #define WRITE_SEG 1
-#define WRITE_ITER 0
+#define WRITE_ITER 1
+#define WRITE_THRESHOLDS 1
 
 #define SEPARATE_DEPTH 1
 #define WORLD_ABS 0
@@ -58,6 +59,7 @@ layout(set = 3, binding = 0, rgba32f) uniform image3D OutputSubVDIColor;
 layout(set = 4, binding = 0, r32f) uniform image3D OutputSubVDIDepth;
 layout (set = 8, binding = 0, r32ui) uniform uimage3D OctreeCells;
 layout (set = 9, binding = 0, r32i) uniform iimage2D Iterations;
+layout (set = 10, binding = 0, r32f) uniform image2D Thresholds;
 #if RLE_INFO
 layout (set = 9, binding = 0, r32f) uniform image2D Thresholds;
 layout (set = 10, binding = 0, r32i) uniform iimage2D SupersegmentsGenerated;
@@ -65,7 +67,7 @@ layout (set = 10, binding = 0, r32i) uniform iimage2D SupersegmentsGenerated;
 
 #pragma scenery endverbatim
 
-ivec2 debug_pixel = ivec2(360, 360);
+ivec2 debug_pixel = ivec2(906, 120);
 
 // intersect ray with a box
 // http://www.siggraph.org/education/materials/HyperGraph/raytrace/rtinter3.htm
@@ -433,6 +435,9 @@ void main()
 
             if(thresh_found) {
                 supsegs_written = true;
+                #if WRITE_THRESHOLDS
+                imageStore(Thresholds, ivec2(gl_GlobalInvocationID.xy), vec4(mid_thresh));
+                #endif
             }
 
 //            #if USE_PRINTF //TODO: check if the iterations are actually taking place and benchmark against fixed threshold

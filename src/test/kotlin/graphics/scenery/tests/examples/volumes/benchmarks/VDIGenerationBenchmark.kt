@@ -122,6 +122,7 @@ public class VDIGenerationBenchmark (wWidth: Int = 512, wHeight: Int = 512, val 
         var vdiColorBuffer: ByteBuffer?
         var gridCellsBuff: ByteBuffer?
         var iterationBuffer: ByteBuffer?
+        var thresholdBuffer: ByteBuffer?
 
         val volumeList = ArrayList<BufferedVolume>()
         volumeList.add(vdiVolumeManager.nodes.first() as BufferedVolume)
@@ -146,6 +147,11 @@ public class VDIGenerationBenchmark (wWidth: Int = 512, wHeight: Int = 512, val 
         val iterCnt = AtomicInteger(0)
         (renderer as? VulkanRenderer)?.persistentTextureRequests?.add(vdiIteration to iterCnt)
 
+        val vdiThresholds = vdiVolumeManager.material().textures["Thresholds"]!!
+        val threshCnt = AtomicInteger(0)
+        (renderer as? VulkanRenderer)?.persistentTextureRequests?.add(vdiThresholds to threshCnt)
+
+
         renderer!!.postRenderLambdas.add {
 
             vdiData.metadata.projection = cam.spatial().projection
@@ -155,6 +161,8 @@ public class VDIGenerationBenchmark (wWidth: Int = 512, wHeight: Int = 512, val 
             vdiDepthBuffer = vdiDepth.contents
             gridCellsBuff = gridCells.contents
             iterationBuffer = vdiIteration.contents
+            thresholdBuffer = vdiThresholds.contents
+
 
             tGeneration.end = System.nanoTime()
 
@@ -176,7 +184,8 @@ public class VDIGenerationBenchmark (wWidth: Int = 512, wHeight: Int = 512, val 
                 SystemHelpers.dumpToFile(vdiColorBuffer!!, "${filePrefix}_VDI_col_${VDIsGenerated.get()}")
                 SystemHelpers.dumpToFile(vdiDepthBuffer!!, "${filePrefix}_VDI_depth_${VDIsGenerated.get()}")
                 SystemHelpers.dumpToFile(gridCellsBuff!!, "${filePrefix}_VDI_octree_${VDIsGenerated.get()}")
-                SystemHelpers.dumpToFile(iterationBuffer!!, "${dataset}_Iterations")
+                SystemHelpers.dumpToFile(iterationBuffer!!, "${dataset}_${maxSupersegments}_Iterations")
+                SystemHelpers.dumpToFile(thresholdBuffer!!, "${dataset}_${maxSupersegments}_Thresholds")
 
                 logger.info("Wrote VDI ${VDIsGenerated.get()}")
                 VDIsGenerated.incrementAndGet()
