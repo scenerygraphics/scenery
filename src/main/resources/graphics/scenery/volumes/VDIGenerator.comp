@@ -52,7 +52,7 @@ layout(push_constant) uniform currentEye_t {
 #extension GL_EXT_debug_printf : enable
 #endif
 
-layout(local_size_x = 15, local_size_y = 15) in; //TODO: change to 16x16
+layout(local_size_x = 16, local_size_y = 16) in; //TODO: change to 16x16
 layout(set = 2, binding = 0) uniform sampler3D volumeCache;
 layout(set = 3, binding = 0, rgba32f) uniform image3D OutputSubVDIColor;
 layout(set = 4, binding = 0, r32f) uniform image3D OutputSubVDIDepth;
@@ -373,6 +373,7 @@ void main()
 
             int num_terminations = 0;
 
+            bool emptyRegion = true;
             bool supersegmentIsOpen = false;
             float supSegStartPoint = 0.0;
             float supSegEndPoint = 0.0;
@@ -476,7 +477,7 @@ void main()
                     if(num_terminations < desired_supsegs) {
                         thresh_found = true;
                         #if WRITE_ITER
-                        if (transparentSample) {
+                        if (emptyRegion) {
                             imageStore(Iterations, ivec2(gl_GlobalInvocationID.xy), ivec4(0));
                         } else{
                             imageStore(Iterations, ivec2(gl_GlobalInvocationID.xy), ivec4(iter));

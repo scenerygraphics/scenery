@@ -1552,10 +1552,6 @@ open class VulkanRenderer(hub: Hub,
         if(hub?.getWorkingHMDDisplay()?.hasCompositor() == true) {
             hub?.getWorkingHMDDisplay()?.wantsVR(settings)?.update()
         }
-        
-        postRenderLambdas.forEach {
-            it.invoke()
-        }
 
         postRenderLambdas.forEach {
             it.invoke()

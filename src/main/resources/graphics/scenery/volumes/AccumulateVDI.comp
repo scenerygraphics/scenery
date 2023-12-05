@@ -51,6 +51,8 @@ if (vis && step > localNear && step < localFar)
 
             supersegmentIsOpen = true;
 
+            emptyRegion = false;
+
             vec4 ndcStart = pv * wpos;
             ndcStart *= 1. / ndcStart.w;
             float start_step = ndcStart.z;
