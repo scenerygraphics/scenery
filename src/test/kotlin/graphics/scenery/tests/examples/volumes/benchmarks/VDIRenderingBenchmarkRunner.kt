@@ -4,13 +4,13 @@ import graphics.scenery.Camera
 import graphics.scenery.SceneryElement
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.behaviours.ArcballCameraControl
-import graphics.scenery.tests.examples.volumes.VDIRenderingExample
+import graphics.scenery.utils.extensions.times
 import graphics.scenery.volumes.vdi.benchmarks.BenchmarkSetup
 import org.joml.Vector3f
 import kotlin.concurrent.thread
 
 class VDIRenderingBenchmarkRunner {
-    val benchmarkDatasets = listOf<BenchmarkSetup.Dataset>(BenchmarkSetup.Dataset.Kingsnake)
+    val benchmarkDatasets = listOf<BenchmarkSetup.Dataset>(BenchmarkSetup.Dataset.Kingsnake, BenchmarkSetup.Dataset.Rayleigh_Taylor, BenchmarkSetup.Dataset.Richtmyer_Meshkov)
     val benchmarkViewpoints = listOf(5, 10, 15, 20, 25, 30, 35, 40)
     val benchmarkSupersegments = listOf(20)
     val benchmarkVos = listOf(0, 90, 180, 270)
@@ -19,14 +19,13 @@ class VDIRenderingBenchmarkRunner {
 
         Thread.sleep(2000) //allow the rotation to take place
 
-        renderer.screenshot("D:/1.Uni/Bachelor/screenshots/VDI_${dataset}_${viewpoint}_$skipEmpty.png")
+        renderer.screenshot("/home/charles/bachelor/screenshots/VDI_${dataset}_${viewpoint}_$skipEmpty.png")
 
         Thread.sleep(1000)
     }
 
-    fun runTest(dataset: String, vo: Int, windowWidth: Int, windowHeight: Int) {
-        val instance = VDIRenderingExample("VDI Rendering Benchmark", windowWidth, windowHeight)
-
+    fun runTest(dataset: String, vo: Int, windowWidth: Int, windowHeight: Int, dataName: BenchmarkSetup.Dataset) {
+        val instance = VDIRenderingBenchmark("VDI Rendering Benchmark", windowWidth, windowHeight, dataName)
         thread {
             while (instance.hub.get(SceneryElement.Renderer)==null) {
                 Thread.sleep(50)
@@ -38,16 +37,28 @@ class VDIRenderingBenchmarkRunner {
                 Thread.sleep(50)
             }
 
-            val target = Vector3f( 1.920f, -1.920f,  1.491f)
+            val volumeDims = BenchmarkSetup(dataName).getVolumeDims()
+            val pixelToWorld = (0.0075f * 512f) / volumeDims.x
 
-            rotateCamera(vo.toFloat(), instance.cam, instance.windowWidth, instance.windowHeight, target)
+            val target = volumeDims * pixelToWorld * 0.5f
+            target.y *= -1
+
+            if (dataName == BenchmarkSetup.Dataset.Richtmyer_Meshkov) {
+                rotateCamera(0f, vo.toFloat(), instance.cam, instance.windowWidth, instance.windowHeight, target)
+            } else {
+                rotateCamera(vo.toFloat(), 0f, instance.cam, instance.windowWidth, instance.windowHeight, target)
+            }
 
             var previousViewpoint = 0
             benchmarkViewpoints.forEach { viewpoint->
                 val rotation = viewpoint - previousViewpoint
                 previousViewpoint = viewpoint
 
-                rotateCamera(rotation.toFloat(),instance.cam, instance.windowWidth, instance.windowHeight, target)
+                if (dataName == BenchmarkSetup.Dataset.Richtmyer_Meshkov) {
+                    rotateCamera(0f, rotation.toFloat(), instance.cam, instance.windowWidth, instance.windowHeight, target)
+                } else {
+                    rotateCamera(rotation.toFloat(), 0f, instance.cam, instance.windowWidth, instance.windowHeight, target)
+                }
 
                 vdiRenderingBenchmarks(dataset, viewpoint, renderer, false)
             }
@@ -62,8 +73,8 @@ class VDIRenderingBenchmarkRunner {
 
 
     fun runVDIRendering() {
-        val windowWidth = 1280
-        val windowHeight = 720
+        val windowWidth = 1920
+        val windowHeight = 1080
 
         benchmarkVos.forEach { vo ->
             benchmarkSupersegments.forEach { ns ->
@@ -75,16 +86,16 @@ class VDIRenderingBenchmarkRunner {
                     System.setProperty("VDIBenchmark.NumSupersegments", ns.toString())
                     System.setProperty("VDIBenchmark.Vo", vo.toString())
 
-                    runTest(dataset, vo, windowWidth, windowHeight)
+                    runTest(dataset, vo, windowWidth, windowHeight, dataName)
                     println("Got the control back")
                 }
             }
         }
     }
 
-    fun rotateCamera(yaw: Float, cam: Camera, windowWidth: Int, windowHeight: Int, target: Vector3f) {
+    fun rotateCamera(yaw: Float, pitch: Float = 0f, cam: Camera, windowWidth: Int, windowHeight: Int, target: Vector3f) {
         val arcballCameraControl = ArcballCameraControl("fixed_rotation", { cam }, windowWidth, windowHeight, target)
-        arcballCameraControl.rotateDegrees(yaw,0f)
+        arcballCameraControl.rotateDegrees(yaw,pitch)
     }
 
     companion object {
