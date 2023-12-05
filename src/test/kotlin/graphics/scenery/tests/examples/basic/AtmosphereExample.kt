@@ -1,10 +1,20 @@
 package graphics.scenery.tests.examples.basic
 
+import bdv.util.AxisOrder
+import bvv.core.VolumeViewerOptions
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.numerics.Random
 import graphics.scenery.primitives.Atmosphere
+import graphics.scenery.volumes.Colormap
+import graphics.scenery.volumes.TransferFunction
+import graphics.scenery.volumes.Volume
+import ij.IJ
+import ij.ImagePlus
+import net.imglib2.img.Img
+import net.imglib2.img.display.imagej.ImageJFunctions
+import net.imglib2.type.numeric.integer.UnsignedShortType
 import org.joml.Vector3f
 
 /**
@@ -19,6 +29,7 @@ class AtmosphereExample : SceneryBase("Atmosphere Example",
     /** Whether to run this example in VR mode. */
     private val useVR = false
 
+    lateinit var volume: Volume
 
     private var atmos = Atmosphere(emissionStrength = 0.3f)
 
@@ -36,12 +47,22 @@ class AtmosphereExample : SceneryBase("Atmosphere Example",
             renderer?.toggleVR()
         }
 
-        val ball = Icosphere(0.5f, 2)
-        ball.material {
-            diffuse = Vector3f(1f, 1f, 1f)
-            roughness = 0.5f
-        }
-        scene.addChild((ball))
+//        val ball = Icosphere(0.5f, 2)
+//        ball.material {
+//            diffuse = Vector3f(1f, 1f, 1f)
+//            roughness = 0.5f
+//        }
+//        scene.addChild((ball))
+
+        val imp: ImagePlus = IJ.openImage("https://imagej.nih.gov/ij/images/t1-head.zip")
+        val img: Img<UnsignedShortType> = ImageJFunctions.wrapShort(imp)
+
+        volume = Volume.fromRAI(img, UnsignedShortType(), AxisOrder.DEFAULT, "T1 head", hub, VolumeViewerOptions())
+        volume.colormap = Colormap.get("jet")
+        volume.setTransferFunctionRange(10f, 1000f)
+        volume.transferFunction = TransferFunction.ramp(0.001f, 0.2f, 1f)
+        volume.spatial().scale = Vector3f(1f, 1f, 2.3f)
+        scene.addChild(volume)
 
         val ambientLight = AmbientLight(0.1f)
         scene.addChild(ambientLight)
