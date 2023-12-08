@@ -22,28 +22,20 @@ import kotlin.math.sin
  */
 
 open class TorusDEC(
-    sizex: Int = 0,
-    sizey: Int = 0,
-    sizez: Int = 0,
-    open val resx: Int = 0,
-    open val resy: Int = 0,
-    open val resz: Int = 0
+    open val sizex: Int = 0,
+    open val sizey: Int = 0,
+    open val sizez: Int = 0,
+    open val resx: Int = 1,
+    open val resy: Int = 1,
+    open val resz: Int = 1
 ) {
-    private val dx = sizex.toDouble() / resx
-    private val dy = sizey.toDouble() / resy
-    private val dz = sizez.toDouble() / resz
+    val dx = sizex.toDouble() / resx
+    val dy = sizey.toDouble() / resy
+    val dz = sizez.toDouble() / resz
 
-    val px: Array<Array<DoubleArray>>
-    val py: Array<Array<DoubleArray>>
-    val pz: Array<Array<DoubleArray>>
-
-    init {
-        px = Array(resx) { iix -> Array(resy) { iiy -> DoubleArray(resz) { iiz -> iix * dx } } }
-        py = Array(resx) { iix -> Array(resy) { iiy -> DoubleArray(resz) { iiz -> iiy * dy } } }
-        pz = Array(resx) { iix -> Array(resy) { iiy -> DoubleArray(resz) { iiz -> iiz * dz } } }
-    }
-
-    // Other methods such as DerivativeOfFunction, DerivativeOfOneForm, etc. remain the same
+    val px: Array<Array<DoubleArray>> = Array(resx) { iix -> Array(resy) { iiy -> DoubleArray(resz) { iiz -> iix * dx } } }
+    val py: Array<Array<DoubleArray>> = Array(resx) { Array(resy) { iiy -> DoubleArray(resz) { iiz -> iiy * dy } } }
+    val pz: Array<Array<DoubleArray>> = Array(resx) { Array(resy) { iiy -> DoubleArray(resz) { iiz -> iiz * dz } } }
 
     fun poissonSolve(f: Array<Array<DoubleArray>>): Array<Array<DoubleArray>> {
         val transformer = FastFourierTransformer(DftNormalization.STANDARD)
