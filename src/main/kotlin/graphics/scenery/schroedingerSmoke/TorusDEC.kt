@@ -1,10 +1,15 @@
 package graphics.scenery.schroedingerSmoke
 
+import org.apache.commons.math3.complex.Complex
+import org.apache.commons.math3.transform.DftNormalization
+import org.apache.commons.math3.transform.FastFourierTransformer
+import org.apache.commons.math3.transform.TransformType
 import kotlin.math.pow
 import kotlin.math.sin
 
+
 /**
-    TorusDEC is a handle class that an instance is a 3D grid with periodic
+    TorusDEC is a handle class that models an instance of a 3D grid with periodic
     boundaries in x,y,z direction, i.e. a 3-torus. DEC stands for "Discrete
     Exterior Calculus", a set of operations including exterior derivatives,
     codifferentials.
@@ -16,192 +21,182 @@ import kotlin.math.sin
 
  */
 
-class TorusDEC(val sizex: Int, val sizey: Int, val sizez: Int, val resx: Int, val resy: Int, val resz: Int)
-{
-    private val dx = sizex.toFloat() / resx
-    private val dy = sizey.toFloat() / resy
-    private val dz = sizez.toFloat() / resz
+open class TorusDEC(
+    sizex: Int = 0,
+    sizey: Int = 0,
+    sizez: Int = 0,
+    open val resx: Int = 0,
+    open val resy: Int = 0,
+    open val resz: Int = 0
+) {
+    private val dx = sizex.toDouble() / resx
+    private val dy = sizey.toDouble() / resy
+    private val dz = sizez.toDouble() / resz
 
-    // Initialize the coordinate arrays
-    val px = Array(resx) { ix -> ix * dx }
-    val py = Array(resy) { iy -> iy * dy }
-    val pz = Array(resz) { iz -> iz * dz }
+    val px: Array<Array<DoubleArray>>
+    val py: Array<Array<DoubleArray>>
+    val pz: Array<Array<DoubleArray>>
 
-    // not sure if we still need index arrays
-    val ix = IntArray(resx) { it }
-    val iy = IntArray(resy) { it }
-    val iz = IntArray(resz) { it }
+    init {
+        px = Array(resx) { iix -> Array(resy) { iiy -> DoubleArray(resz) { iiz -> iix * dx } } }
+        py = Array(resx) { iix -> Array(resy) { iiy -> DoubleArray(resz) { iiz -> iiy * dy } } }
+        pz = Array(resx) { iix -> Array(resy) { iiy -> DoubleArray(resz) { iiz -> iiz * dz } } }
+    }
 
-    //gradient of a scalar field f
-    fun derivativeOfFunction(f: (Int, Int, Int) -> Double):
-        Triple<Array<Array<DoubleArray>>, Array<Array<DoubleArray>>, Array<Array<DoubleArray>>> {
+    // Other methods such as DerivativeOfFunction, DerivativeOfOneForm, etc. remain the same
+
+    fun poissonSolve(f: Array<Array<DoubleArray>>): Array<Array<DoubleArray>> {
+        val transformer = FastFourierTransformer(DftNormalization.STANDARD)
+        val fftData = f.map { plane ->
+            plane.map { row ->
+                row.map { value -> Complex(value, 0.0) }.toTypedArray()
+            }.toTypedArray()
+        }.toTypedArray()
+
+        // Apply FFT
+        val transformed = fftData.map { plane ->
+            plane.map { row ->
+                transformer.transform(row, TransformType.FORWARD)
+            }.toTypedArray()
+        }.toTypedArray()
+
+        // Compute sin values and denominators
+        val sx = Array(resx) { iix -> sin(Math.PI * iix / resx) / dx }
+        val sy = Array(resy) { iiy -> sin(Math.PI * iiy / resy) / dy }
+        val sz = Array(resz) { iiz -> sin(Math.PI * iiz / resz) / dz }
+
+        // Apply the spectral method operation
+        for (iix in 0 until resx) {
+            for (iiy in 0 until resy) {
+                for (iiz in 0 until resz) {
+                    val denom = sx[iix].pow(2) + sy[iiy].pow(2) + sz[iiz].pow(2)
+                    val fac = if (iix == 0 && iiy == 0 && iiz == 0) Complex.ZERO else Complex(-0.25 / denom, 0.0)
+                    transformed[iix][iiy][iiz] = transformed[iix][iiy][iiz].multiply(fac)
+                }
+            }
+        }
+
+        // Apply inverse FFT
+        val result = transformed.map { plane ->
+            plane.map { row ->
+                transformer.transform(row, TransformType.INVERSE)
+            }.toTypedArray()
+        }.toTypedArray()
+
+        // Extract real parts
+        return result.map { plane ->
+            plane.map { row ->
+                row.map { complex -> complex.real }.toDoubleArray()
+            }.toTypedArray()
+        }.toTypedArray()
+    }
+
+    // DerivativeOfFunction
+    fun derivativeOfFunction(f: Array<Array<DoubleArray>>): Triple<Array<Array<DoubleArray>>, Array<Array<DoubleArray>>, Array<Array<DoubleArray>>> {
         val vx = Array(resx) { Array(resy) { DoubleArray(resz) } }
         val vy = Array(resx) { Array(resy) { DoubleArray(resz) } }
         val vz = Array(resx) { Array(resy) { DoubleArray(resz) } }
 
-        for (i_x in ix) {
-            for (i_y in iy) {
-                for (i_z in iz) {
-                    val ixp = (ix[i_x] + 1) %(resx)
-                    val iyp = (iy[i_y] + 1) %(resy)
-                    val izp = (iz[i_z] + 1) %(resz)
-
-                    vx[i_x][i_y][i_z] = f(ixp, i_y, i_z) - f(i_x, i_y, i_z)
-                    vy[i_x][i_y][i_z] = f(i_x, iyp, i_z) - f(i_x, i_y, i_z)
-                    vz[i_x][i_y][i_z] = f(i_x, i_y, izp) - f(i_x, i_y, i_z)
+        for (i in 0 until resx) {
+            for (j in 0 until resy) {
+                for (k in 0 until resz) {
+                    val ixp = (i + 1) % resx
+                    val iyp = (j + 1) % resy
+                    val izp = (k + 1) % resz
+                    vx[i][j][k] = f[ixp][j][k] - f[i][j][k]
+                    vy[i][j][k] = f[i][iyp][k] - f[i][j][k]
+                    vz[i][j][k] = f[i][j][izp] - f[i][j][k]
                 }
             }
         }
         return Triple(vx, vy, vz)
     }
 
-    fun derivativeOfOneForm(vx: Array<Array<Array<Double>>>, vy: Array<Array<Array<Double>>>, vz: Array<Array<Array<Double>>>):
-        Triple<Array<Array<DoubleArray>>, Array<Array<DoubleArray>>, Array<Array<DoubleArray>>> {
+    // DerivativeOfOneForm
+    fun derivativeOfOneForm(vx: Array<Array<DoubleArray>>, vy: Array<Array<DoubleArray>>, vz: Array<Array<DoubleArray>>): Triple<Array<Array<DoubleArray>>, Array<Array<DoubleArray>>, Array<Array<DoubleArray>>> {
         val wx = Array(resx) { Array(resy) { DoubleArray(resz) } }
         val wy = Array(resx) { Array(resy) { DoubleArray(resz) } }
         val wz = Array(resx) { Array(resy) { DoubleArray(resz) } }
 
-        for (ix in ix.indices) {
-            for (iy in iy.indices) {
-                for (iz in iz.indices) {
-                    val ixp = (this.ix[ix] + 1) % resx
-                    val iyp = (this.iy[iy] + 1) % resy
-                    val izp = (this.iz[iz] + 1) % resz
-
-                    wx[ix][iy][iz] = vy[ix][iy][iz] - vy[ix][iy][izp] + vz[ix][iyp][iz] - vz[ix][iy][iz]
-                    wy[ix][iy][iz] = vz[ix][iy][iz] - vz[ixp][iy][iz] + vx[ix][iy][izp] - vx[ix][iy][iz]
-                    wz[ix][iy][iz] = vx[ix][iy][iz] - vx[ix][iyp][iz] + vy[ixp][iy][iz] - vy[ix][iy][iz]
+        for (i in 0 until resx) {
+            for (j in 0 until resy) {
+                for (k in 0 until resz) {
+                    val ixp = (i + 1) % resx
+                    val iyp = (j + 1) % resy
+                    val izp = (k + 1) % resz
+                    wx[i][j][k] = vy[i][j][k] - vy[i][j][izp] + vz[i][iyp][k] - vz[i][j][k]
+                    wy[i][j][k] = vz[i][j][k] - vz[ixp][j][k] + vx[i][j][izp] - vx[i][j][k]
+                    wz[i][j][k] = vx[i][j][k] - vx[i][iyp][k] + vy[ixp][j][k] - vy[i][j][k]
                 }
             }
         }
-
         return Triple(wx, wy, wz)
     }
 
-    fun derivativeOfTwoForm(wx: Array<Array<Array<Double>>>, wy: Array<Array<Array<Double>>>, wz: Array<Array<Array<Double>>>):
-        Array<Array<DoubleArray>> {
+    // DerivativeOfTwoForm
+    fun derivativeOfTwoForm(wx: Array<Array<DoubleArray>>, wy: Array<Array<DoubleArray>>, wz: Array<Array<DoubleArray>>): Array<Array<DoubleArray>> {
         val f = Array(resx) { Array(resy) { DoubleArray(resz) } }
 
-        for (ix in ix.indices) {
-            for (iy in iy.indices) {
-                for (iz in iz.indices) {
-                    val ixp = (this.ix[ix] + 1) % resx
-                    val iyp = (this.iy[iy] + 1) % resy
-                    val izp = (this.iz[iz] + 1) % resz
-
-                    f[ix][iy][iz] = (wx[ixp][iy][iz] - wx[ix][iy][iz]) + (wy[ix][iyp][iz] - wy[ix][iy][iz]) + (wz[ix][iy][izp] - wz[ix][iy][iz])
+        for (i in 0 until resx) {
+            for (j in 0 until resy) {
+                for (k in 0 until resz) {
+                    val ixp = (i + 1) % resx
+                    val iyp = (j + 1) % resy
+                    val izp = (k + 1) % resz
+                    f[i][j][k] = (wx[ixp][j][k] - wx[i][j][k]) + (wy[i][iyp][k] - wy[i][j][k]) + (wz[i][j][izp] - wz[i][j][k])
                 }
             }
         }
         return f
     }
 
-    //divergence here is the normalized sum of the face fluxes on the enclosing cube
-    fun div(vx: Array<Array<Array<Double>>>, vy: Array<Array<Array<Double>>>, vz: Array<Array<Array<Double>>>): Array<Array<DoubleArray>> {
+    // Div
+    fun div(vx: Array<Array<DoubleArray>>, vy: Array<Array<DoubleArray>>, vz: Array<Array<DoubleArray>>): Array<Array<DoubleArray>> {
         val f = Array(resx) { Array(resy) { DoubleArray(resz) } }
 
-        for (ix in ix.indices) {
-            for (iy in iy.indices) {
-                for (iz in iz.indices) {
-                    val ixm = (this.ix[ix] - 2 + resx) % resx
-                    val iym = (this.iy[iy] - 2 + resy) % resy
-                    val izm = (this.iz[iz] - 2 + resz) % resz
-
-                    f[ix][iy][iz] = (vx[ix][iy][iz] - vx[ixm][iy][iz]) / (dx * dx) +
-                        (vy[ix][iy][iz] - vy[ix][iy][iym]) / (dy * dy) +
-                        (vz[ix][iy][iz] - vz[ix][izm][iy]) / (dz * dz)
+        for (i in 0 until resx) {
+            for (j in 0 until resy) {
+                for (k in 0 until resz) {
+                    val ixm = (i - 2 + resx) % resx
+                    val iym = (j - 2 + resy) % resy
+                    val izm = (k - 2 + resz) % resz
+                    f[i][j][k] = (vx[i][j][k] - vx[ixm][j][k]) / dx.pow(2) +
+                        (vy[i][j][k] - vy[i][iym][k]) / dy.pow(2) +
+                        (vz[i][j][k] - vz[i][j][izm]) / dz.pow(2)
                 }
             }
         }
-
         return f
     }
 
-    //turn 1-form into it's corresponding vector field
-    fun sharp(vx: Array<Array<Array<Double>>>, vy: Array<Array<Array<Double>>>, vz: Array<Array<Array<Double>>>):
-        Triple<Array<Array<DoubleArray>>, Array<Array<DoubleArray>>, Array<Array<DoubleArray>>> {
+    // Sharp
+    fun sharp(vx: Array<Array<DoubleArray>>, vy: Array<Array<DoubleArray>>, vz: Array<Array<DoubleArray>>): Triple<Array<Array<DoubleArray>>, Array<Array<DoubleArray>>, Array<Array<DoubleArray>>> {
         val ux = Array(resx) { Array(resy) { DoubleArray(resz) } }
         val uy = Array(resx) { Array(resy) { DoubleArray(resz) } }
         val uz = Array(resx) { Array(resy) { DoubleArray(resz) } }
 
-        for (ix in ix.indices) {
-            for (iy in iy.indices) {
-                for (iz in iz.indices) {
-                    val ixm = (this.ix[ix] - 2 + resx) % resx
-                    val iym = (this.iy[iy] - 2 + resy) % resy
-                    val izm = (this.iz[iz] - 2 + resz) % resz
-
-                    ux[ix][iy][iz] = 0.5 * (vx[ixm][iy][iz] + vx[ix][iy][iz]) / dx
-                    uy[ix][iy][iz] = 0.5 * (vy[ix][iy][iym] + vy[ix][iy][iz]) / dy
-                    uz[ix][iy][iz] = 0.5 * (vz[ix][izm][iy] + vz[ix][iy][iz]) / dz
+        for (i in 0 until resx) {
+            for (j in 0 until resy) {
+                for (k in 0 until resz) {
+                    val ixm = (i - 2 + resx) % resx
+                    val iym = (j - 2 + resy) % resy
+                    val izm = (k - 2 + resz) % resz
+                    ux[i][j][k] = 0.5 * (vx[ixm][j][k] + vx[i][j][k]) / dx
+                    uy[i][j][k] = 0.5 * (vy[i][iym][k] + vy[i][j][k]) / dy
+                    uz[i][j][k] = 0.5 * (vz[i][j][izm] + vz[i][j][k]) / dz
                 }
             }
         }
-
         return Triple(ux, uy, uz)
     }
 
-    // computes the staggered vector fields (on the edges) for a 1-form
-    fun staggeredSharp(vx: Array<Array<Array<Double>>>, vy: Array<Array<Array<Double>>>, vz: Array<Array<Array<Double>>>):
-        Triple<Array<Array<DoubleArray>>, Array<Array<DoubleArray>>, Array<Array<DoubleArray>>> {
-        val ux = Array(resx) { Array(resy) { DoubleArray(resz) } }
-        val uy = Array(resx) { Array(resy) { DoubleArray(resz) } }
-        val uz = Array(resx) { Array(resy) { DoubleArray(resz) } }
-
-        for (ix in vx.indices) {
-            for (iy in vy[0].indices) {
-                for (iz in vz[0][0].indices) {
-                    ux[ix][iy][iz] = vx[ix][iy][iz] / dx
-                    uy[ix][iy][iz] = vy[ix][iy][iz] / dy
-                    uz[ix][iy][iz] = vz[ix][iy][iz] / dz
-                }
-            }
-        }
+    // StaggeredSharp
+    fun staggeredSharp(vx: Array<Array<DoubleArray>>, vy: Array<Array<DoubleArray>>, vz: Array<Array<DoubleArray>>): Triple<Array<Array<DoubleArray>>, Array<Array<DoubleArray>>, Array<Array<DoubleArray>>> {
+        val ux = Array(resx) { Array(resy) { DoubleArray(resz) { vx[it][0][0] / dx } } }
+        val uy = Array(resx) { Array(resy) { DoubleArray(resz) { vy[0][it][0] / dy } } }
+        val uz = Array(resx) { Array(resy) { DoubleArray(resz) { vz[0][0][it] / dz } } }
 
         return Triple(ux, uy, uz)
-    }
-
-    //solve the poisson equation via a spectral method
-    fun poissonSolve(f: Array<Array<DoubleArray>>): Array<Array<DoubleArray>> {
-        // Placeholder for FFT
-        var transformedF = fft(f)
-
-        // Calculate frequency components
-        val sx = Array(resx) { i -> sin(Math.PI * i / resx) / dx }
-        val sy = Array(resy) { i -> sin(Math.PI * i / resy) / dy }
-        val sz = Array(resz) { i -> sin(Math.PI * i / resz) / dz }
-
-        // Calculate factor
-        val fac = Array(resx) { ix ->
-            Array(resy) { iy ->
-                DoubleArray(resz) { iz ->
-                    val denom = sx[ix].pow(2) + sy[iy].pow(2) + sz[iz].pow(2)
-                    if (ix == 0 && iy == 0 && iz == 0) 0.0 else -0.25 / denom
-                }
-            }
-        }
-
-        // Apply the factor
-        for (ix in transformedF.indices) {
-            for (iy in transformedF[0].indices) {
-                for (iz in transformedF[0][0].indices) {
-                    transformedF[ix][iy][iz] *= fac[ix][iy][iz]
-                }
-            }
-        }
-
-        // Placeholder for inverse FFT
-        return inverseFft(transformedF)
-    }
-
-    private fun fft(data: Array<Array<DoubleArray>>): Array<Array<DoubleArray>> {
-        // Implement FFT or call a library here
-        return data
-    }
-
-    private fun inverseFft(data: Array<Array<DoubleArray>>): Array<Array<DoubleArray>> {
-        // Implement inverse FFT or call a library here
-        return data
     }
 }
 
