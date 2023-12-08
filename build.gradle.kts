@@ -1,6 +1,9 @@
-import org.gradle.kotlin.dsl.api
+
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
-import scenery.*
+import scenery.api
+import scenery.ffmpegNatives
+import scenery.implementation
+import scenery.lwjglNatives
 import java.net.URL
 
 plugins {
@@ -141,6 +144,7 @@ dependencies {
 
     implementation("org.jfree:jfreechart:1.5.4")
     implementation("net.imagej:imagej-ops:0.45.5")
+    implementation("org.apache.commons:commons-math3:3.6.1")
 }
 
 val isRelease: Boolean
@@ -289,7 +293,8 @@ tasks {
                 "jackson-module-kotlin",
                 "jackson-dataformat-yaml",
                 "kryo",
-                "bigvolumeviewer"
+                "bigvolumeviewer",
+                "org.commons-math3"
                 ) + lwjglArtifacts
 
             val toSkip = listOf("pom-scijava")
