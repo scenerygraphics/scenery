@@ -12,17 +12,18 @@ class ISF(
     override val sizez: Int,
     override val resx: Int,
     override val resy: Int,
-    override val resz: Int
+    override val resz: Int,
+    val hBar: Double = 0.1,
+    private val dt: Double = 1/24.toDouble()
 ) : TorusDEC(sizex, sizey, sizez, resx, resy, resz) {
 
-    var hbar = 0.1
-    var dt = 1.0 / 24
+
     lateinit var schroedingerMask: Array<Array<Array<Complex>>>
 
     private val transformer = FastFourierTransformer(DftNormalization.STANDARD)
 
-    fun buildSchroedinger() {
-        val fac = -4 * PI.pow(2) * hbar
+    init {
+        val fac = -4 * PI.pow(2) * hBar
         schroedingerMask = Array(resx) { iix ->
             Array(resy) { iiy ->
                 Array(resz) { iiz ->
