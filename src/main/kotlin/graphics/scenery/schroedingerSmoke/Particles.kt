@@ -1,53 +1,65 @@
 package graphics.scenery.schroedingerSmoke
 
+import org.apache.commons.math3.linear.ArrayRealVector
+
 class Particles {
-    // Array of positions
-    var x: DoubleArray
-    var y: DoubleArray
-    var z: DoubleArray
+    // Using Apache Commons Math's ArrayRealVector for positions
+    var x: ArrayRealVector
+    var y: ArrayRealVector
+    var z: ArrayRealVector
 
     // Default constructor
     init {
-        // Initialize arrays, you might need to adjust the initialization as needed
-        x = DoubleArray(0)
-        y = DoubleArray(0)
-        z = DoubleArray(0)
+        x = ArrayRealVector()
+        y = ArrayRealVector()
+        z = ArrayRealVector()
     }
 
     // Advect particle positions using RK4 in a grid torus with staggered velocity vx, vy, vz, for dt period of time
-    fun staggeredAdvect(torus: TorusDEC, vx: DoubleArray, vy: DoubleArray, vz: DoubleArray, dt: Double) {
+    fun staggeredAdvect(torus: TorusDEC, vx: ArrayRealVector, vy: ArrayRealVector, vz: ArrayRealVector, dt: Double) {
         val (k1x, k1y, k1z) = staggeredVelocity(x, y, z, torus, vx, vy, vz)
-        val (k2x, k2y, k2z) = staggeredVelocity(x.mapIndexed { i, xi -> xi + k1x[i] * dt / 2 }.toDoubleArray(),
-            y.mapIndexed { i, yi -> yi + k1y[i] * dt / 2 }.toDoubleArray(),
-            z.mapIndexed { i, zi -> zi + k1z[i] * dt / 2 }.toDoubleArray(),
+        val (k2x, k2y, k2z) = staggeredVelocity(x.add(k1x.mapMultiply(dt / 2)),
+            y.add(k1y.mapMultiply(dt / 2)),
+            z.add(k1z.mapMultiply(dt / 2)),
             torus, vx, vy, vz)
-        val (k3x, k3y, k3z) = staggeredVelocity(x.mapIndexed { i, xi -> xi + k2x[i] * dt / 2 }.toDoubleArray(),
-            y.mapIndexed { i, yi -> yi + k2y[i] * dt / 2 }.toDoubleArray(),
-            z.mapIndexed { i, zi -> zi + k2z[i] * dt / 2 }.toDoubleArray(),
+        val (k3x, k3y, k3z) = staggeredVelocity(x.add(k2x.mapMultiply(dt / 2)),
+            y.add(k2y.mapMultiply(dt / 2)),
+            z.add(k2z.mapMultiply(dt / 2)),
             torus, vx, vy, vz)
-        val (k4x, k4y, k4z) = staggeredVelocity(x.mapIndexed { i, xi -> xi + k3x[i] * dt }.toDoubleArray(),
-            y.mapIndexed { i, yi -> yi + k3y[i] * dt }.toDoubleArray(),
-            z.mapIndexed { i, zi -> zi + k3z[i] * dt }.toDoubleArray(),
+        val (k4x, k4y, k4z) = staggeredVelocity(x.add(k3x.mapMultiply(dt)),
+            y.add(k3y.mapMultiply(dt)),
+            z.add(k3z.mapMultiply(dt)),
             torus, vx, vy, vz)
 
-        x = x.mapIndexed { i, xi -> xi + dt / 6 * (k1x[i] + 2 * k2x[i] + 2 * k3x[i] + k4x[i]) }.toDoubleArray()
-        y = y.mapIndexed { i, yi -> yi + dt / 6 * (k1y[i] + 2 * k2y[i] + 2 * k3y[i] + k4y[i]) }.toDoubleArray()
-        z = z.mapIndexed { i, zi -> zi + dt / 6 * (k1z[i] + 2 * k2z[i] + 2 * k3z[i] + k4z[i]) }.toDoubleArray()
+        x = x.add(k1x.mapMultiply(dt / 6))
+            .add(k2x.mapMultiply(dt / 3))
+            .add(k3x.mapMultiply(dt / 3))
+            .add(k4x.mapMultiply(dt / 6))
+
+        y = y.add(k1y.mapMultiply(dt / 6))
+            .add(k2y.mapMultiply(dt / 3))
+            .add(k3y.mapMultiply(dt / 3))
+            .add(k4y.mapMultiply(dt / 6))
+
+        z = z.add(k1z.mapMultiply(dt / 6))
+            .add(k2z.mapMultiply(dt / 3))
+            .add(k3z.mapMultiply(dt / 3))
+            .add(k4z.mapMultiply(dt / 6))
     }
 
     // For removing particles
-    fun keep(ind: IntArray) {
-        x = x.filterIndexed { i, _ -> i in ind }.toDoubleArray()
-        y = y.filterIndexed { i, _ -> i in ind }.toDoubleArray()
-        z = z.filterIndexed { i, _ -> i in ind }.toDoubleArray()
+    fun keep(indices: IntArray) {
+        x = ArrayRealVector(indices.map { x.getEntry(it) }.toDoubleArray())
+        y = ArrayRealVector(indices.map { y.getEntry(it) }.toDoubleArray())
+        z = ArrayRealVector(indices.map { z.getEntry(it) }.toDoubleArray())
     }
 
     companion object {
         // Evaluates velocity at (px, py, pz) in the grid torus with staggered velocity vector field vx, vy, vz
-        fun staggeredVelocity(px: DoubleArray, py: DoubleArray, pz: DoubleArray, torus: TorusDEC, vx: DoubleArray, vy: DoubleArray, vz: DoubleArray): Triple<DoubleArray, DoubleArray, DoubleArray> {
+        fun staggeredVelocity(px: ArrayRealVector, py: ArrayRealVector, pz: ArrayRealVector, torus: TorusDEC, vx: ArrayRealVector, vy: ArrayRealVector, vz: ArrayRealVector): Triple<ArrayRealVector, ArrayRealVector, ArrayRealVector> {
             // Placeholder for trilinear interpolation logic
             // Return interpolated velocities ux, uy, uz as Triple
-            return Triple(DoubleArray(px.size) { 0.0 }, DoubleArray(py.size) { 0.0 }, DoubleArray(pz.size) { 0.0 })
+            return Triple(ArrayRealVector(px.dimension), ArrayRealVector(py.dimension), ArrayRealVector(pz.dimension))
         }
     }
 }
