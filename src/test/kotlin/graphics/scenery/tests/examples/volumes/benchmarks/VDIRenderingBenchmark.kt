@@ -3,12 +3,15 @@ package graphics.scenery.tests.examples.volumes.benchmarks
 
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
+import graphics.scenery.controls.behaviours.ArcballCameraControl
+import graphics.scenery.utils.extensions.times
 import graphics.scenery.volumes.vdi.VDIDataIO
 import graphics.scenery.volumes.vdi.VDINode
 import graphics.scenery.volumes.vdi.benchmarks.BenchmarkSetup
 import org.joml.Quaternionf
 import org.joml.Vector3f
 import org.lwjgl.system.MemoryUtil
+import org.scijava.ui.behaviour.ClickBehaviour
 import java.io.File
 import java.io.FileInputStream
 import java.nio.ByteBuffer
@@ -83,6 +86,27 @@ class VDIRenderingBenchmark(applicationName: String, windowWidth: Int, windowHei
         val plane = FullscreenObject()
         plane.material().textures["diffuse"] = vdiNode.material().textures["OutputViewport"]!!
         scene.addChild(plane)
+    }
+
+    override fun inputSetup() {
+        setupCameraModeSwitching()
+
+        val volumeDims = BenchmarkSetup(dataset).getVolumeDims()
+        val pixelToWorld = (0.0075f * 512f) / volumeDims.x
+
+        val target = volumeDims * pixelToWorld * 0.5f
+        target.y *= -1
+
+        val arcballCameraControl = ArcballCameraControl("fixed_rotation", { scene.findObserver()!! }, windowWidth, windowHeight, target)
+        inputHandler?.addBehaviour("rotate_camera",
+            ClickBehaviour { _, _ ->
+                if(dataset == BenchmarkSetup.Dataset.Richtmyer_Meshkov) {
+                    arcballCameraControl.rotateDegrees(0f, 10f)
+                } else {
+                    arcballCameraControl.rotateDegrees(10f, 0f)
+                }
+            })
+        inputHandler?.addKeyBinding("rotate_camera", "R")
     }
 
     companion object {
