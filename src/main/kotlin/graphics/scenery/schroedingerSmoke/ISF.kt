@@ -7,9 +7,9 @@ import org.apache.commons.math3.transform.TransformType
 import kotlin.math.*
 
 class ISF(
-    val sizex: Int,
-    val sizey: Int,
-    val sizez: Int,
+    override val sizex: Int,
+    override val sizey: Int,
+    override val sizez: Int,
     override val resx: Int,
     override val resy: Int,
     override val resz: Int
@@ -83,7 +83,7 @@ class ISF(
         return gaugeTransform(psi1, psi2, q)
     }
 
-    fun velocityOneForm(psi1: Array<Array<DoubleArray>>, psi2: Array<Array<DoubleArray>>, hbar: Double = 1.0): Triple<Array<Array<DoubleArray>>, Array<Array<DoubleArray>>, Array<Array<DoubleArray>>> {
+    private fun velocityOneForm(psi1: Array<Array<DoubleArray>>, psi2: Array<Array<DoubleArray>>, hbar: Double = 1.0): Triple<Array<Array<DoubleArray>>, Array<Array<DoubleArray>>, Array<Array<DoubleArray>>> {
         val vx = Array(resx) { Array(resy) { DoubleArray(resz) } }
         val vy = Array(resx) { Array(resy) { DoubleArray(resz) } }
         val vz = Array(resx) { Array(resy) { DoubleArray(resz) } }
