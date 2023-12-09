@@ -29,9 +29,14 @@ open class TorusDEC(
     open val resy: Int = 1,
     open val resz: Int = 1
 ) {
+
     val dx = sizex.toDouble() / resx
     val dy = sizey.toDouble() / resy
     val dz = sizez.toDouble() / resz
+
+    val ix: IntArray = IntArray(resx) { it }
+    val iy: IntArray = IntArray(resy) { it }
+    val iz: IntArray = IntArray(resz) { it }
 
     val px: Array<Array<DoubleArray>> = Array(resx) { iix -> Array(resy) { iiy -> DoubleArray(resz) { iiz -> iix * dx } } }
     val py: Array<Array<DoubleArray>> = Array(resx) { Array(resy) { iiy -> DoubleArray(resz) { iiz -> iiy * dy } } }
@@ -143,7 +148,7 @@ open class TorusDEC(
     }
 
     // Div
-    fun div(vx: Array<Array<DoubleArray>>, vy: Array<Array<DoubleArray>>, vz: Array<Array<DoubleArray>>): Array<Array<DoubleArray>> {
+    fun div(vx: Array<Array<Array<Double>>>, vy: Array<Array<Array<Double>>>, vz: Array<Array<Array<Double>>>): Array<Array<DoubleArray>> {
         val f = Array(resx) { Array(resy) { DoubleArray(resz) } }
 
         for (i in 0 until resx) {
@@ -183,7 +188,7 @@ open class TorusDEC(
     }
 
     // StaggeredSharp
-    fun staggeredSharp(vx: Array<Array<DoubleArray>>, vy: Array<Array<DoubleArray>>, vz: Array<Array<DoubleArray>>): Triple<Array<Array<DoubleArray>>, Array<Array<DoubleArray>>, Array<Array<DoubleArray>>> {
+    fun staggeredSharp(vx: Array<Array<Array<Double>>>, vy: Array<Array<Array<Double>>>, vz: Array<Array<Array<Double>>>): Triple<Array<Array<DoubleArray>>, Array<Array<DoubleArray>>, Array<Array<DoubleArray>>> {
         val ux = Array(resx) { Array(resy) { DoubleArray(resz) { vx[it][0][0] / dx } } }
         val uy = Array(resx) { Array(resy) { DoubleArray(resz) { vy[0][it][0] / dy } } }
         val uz = Array(resx) { Array(resy) { DoubleArray(resz) { vz[0][0][it] / dz } } }

@@ -14,11 +14,11 @@ class ISF(
     override val resy: Int,
     override val resz: Int,
     val hBar: Double = 0.1,
-    private val dt: Double = 1/24.toDouble()
+    val dt: Double = 1/24.toDouble()
 ) : TorusDEC(sizex, sizey, sizez, resx, resy, resz) {
 
 
-    lateinit var schroedingerMask: Array<Array<Array<Complex>>>
+    var schroedingerMask: Array<Array<Array<Complex>>>
 
     private val transformer = FastFourierTransformer(DftNormalization.STANDARD)
 
@@ -37,67 +37,76 @@ class ISF(
         }
     }
 
-    fun schroedingerFlow(psi1: Array<Array<DoubleArray>>, psi2: Array<Array<DoubleArray>>): Pair<Array<Array<DoubleArray>>, Array<Array<DoubleArray>>> {
-        val psi1Complex = fft(psi1)
-        val psi2Complex = fft(psi2)
+    fun schroedingerFlow(
+        psi: Array<Array<Array<Complex>>>,
+        fftTransformer: FastFourierTransformer = FastFourierTransformer(DftNormalization.STANDARD)
+    ): Array<Array<Array<Complex>>> {
 
-        for (i in 0 until resx) {
-            for (j in 0 until resy) {
-                for (k in 0 until resz) {
-                    psi1Complex[i][j][k] = psi1Complex[i][j][k].multiply(schroedingerMask[i][j][k])
-                    psi2Complex[i][j][k] = psi2Complex[i][j][k].multiply(schroedingerMask[i][j][k])
+        val transformedPsi = Array(psi.size) { Array(psi[0].size) { Array(psi[0][0].size) { Complex.ZERO } } }
+
+        for (i in psi.indices) {
+            for (j in psi[i].indices) {
+                val line = psi[i][j].copyOf()
+                val transformedLine = fftTransformer.transform(line, TransformType.FORWARD)
+
+                // Apply the Schroedinger mask and perform inverse FFT
+                for (k in transformedLine.indices) {
+                    transformedPsi[i][j][k] = transformedLine[k].multiply(schroedingerMask[i][j][k])
+                }
+
+                val inverseTransformedLine = fftTransformer.transform(transformedPsi[i][j], TransformType.INVERSE)
+                for (k in inverseTransformedLine.indices) {
+                    transformedPsi[i][j][k] = inverseTransformedLine[k]
                 }
             }
         }
 
-        return Pair(ifft(psi1Complex), ifft(psi2Complex))
+        return transformedPsi
     }
 
-    // Implementing FFT using Apache Commons Math
-    private fun fft(data: Array<Array<DoubleArray>>): Array<Array<Array<Complex>>> {
-        val complexData = data.map { plane ->
-            plane.map { row ->
-                row.map { value -> Complex(value, 0.0) }.toTypedArray()
-            }.toTypedArray()
-        }.toTypedArray()
 
-        return complexData.map { plane ->
-            plane.map { row ->
-                transformer.transform(row, TransformType.FORWARD)
-            }.toTypedArray()
-        }.toTypedArray()
-    }
-
-    // Implementing inverse FFT using Apache Commons Math
-    private fun ifft(data: Array<Array<Array<Complex>>>): Array<Array<DoubleArray>> {
-        return data.map { plane ->
-            plane.map { row ->
-                transformer.transform(row, TransformType.INVERSE).map { it.real }.toDoubleArray()
-            }.toTypedArray()
-        }.toTypedArray()
-    }
-
-    fun pressureProject(psi1: Array<Array<DoubleArray>>, psi2: Array<Array<DoubleArray>>): Pair<Array<Array<DoubleArray>>, Array<Array<DoubleArray>>> {
+    fun pressureProject(psi: Pair<Array<Array<Array<Complex>>>, Array<Array<Array<Complex>>>>):
+        Pair<Array<Array<Array<Complex>>>, Array<Array<Array<Complex>>>> {
+        val psi1 = psi.first
+        val psi2 = psi.second
         val (vx, vy, vz) = velocityOneForm(psi1, psi2)
         val div = div(vx, vy, vz)
         val q = poissonSolve(div)
         return gaugeTransform(psi1, psi2, q)
     }
 
-    private fun velocityOneForm(psi1: Array<Array<DoubleArray>>, psi2: Array<Array<DoubleArray>>, hbar: Double = 1.0): Triple<Array<Array<DoubleArray>>, Array<Array<DoubleArray>>, Array<Array<DoubleArray>>> {
-        val vx = Array(resx) { Array(resy) { DoubleArray(resz) } }
-        val vy = Array(resx) { Array(resy) { DoubleArray(resz) } }
-        val vz = Array(resx) { Array(resy) { DoubleArray(resz) } }
+    fun velocityOneForm(
+        psi1: Array<Array<Array<Complex>>>,
+        psi2: Array<Array<Array<Complex>>>,
+        hbar: Double = 1.0
+    ): Triple<Array<Array<Array<Double>>>, Array<Array<Array<Double>>>, Array<Array<Array<Double>>>> {
 
-        for (i in 0 until resx) {
-            for (j in 0 until resy) {
-                for (k in 0 until resz) {
-                    val ixp = (i + 1) % resx
-                    val iyp = (j + 1) % resy
-                    val izp = (k + 1) % resz
-                    vx[i][j][k] = hbar * atan2(psi1[ixp][j][k] * psi2[i][j][k] - psi1[i][j][k] * psi2[ixp][j][k], psi1[ixp][j][k] * psi1[i][j][k] + psi2[ixp][j][k] * psi2[i][j][k])
-                    vy[i][j][k] = hbar * atan2(psi1[i][iyp][k] * psi2[i][j][k] - psi1[i][j][k] * psi2[i][iyp][k], psi1[i][iyp][k] * psi1[i][j][k] + psi2[i][iyp][k] * psi2[i][j][k])
-                    vz[i][j][k] = hbar * atan2(psi1[i][j][izp] * psi2[i][j][k] - psi1[i][j][k] * psi2[i][j][izp], psi1[i][j][izp] * psi1[i][j][k] + psi2[i][j][izp] * psi2[i][j][k])
+        val vx = Array(psi1.size) { i ->
+            Array(psi1[i].size) { j ->
+                Array(psi1[i][j].size) { k ->
+                    val ixp = (ix[i] + 1) % resx
+                    val angle = (psi1[i][j][k].conjugate().multiply(psi1[ixp][j][k]).add(psi2[i][j][k].conjugate().multiply(psi2[ixp][j][k]))).argument
+                    angle * hbar
+                }
+            }
+        }
+
+        val vy = Array(psi1.size) { i ->
+            Array(psi1[i].size) { j ->
+                Array(psi1[i][j].size) { k ->
+                    val iyp = (iy[j] + 1) % resy
+                    val angle = (psi1[i][j][k].conjugate().multiply(psi1[i][iyp][k]).add(psi2[i][j][k].conjugate().multiply(psi2[i][iyp][k]))).argument
+                    angle * hbar
+                }
+            }
+        }
+
+        val vz = Array(psi1.size) { i ->
+            Array(psi1[i].size) { j ->
+                Array(psi1[i][j].size) { k ->
+                    val izp = (iz[k] + 1) % resz
+                    val angle = (psi1[i][j][k].conjugate().multiply(psi1[i][j][izp]).add(psi2[i][j][k].conjugate().multiply(psi2[i][j][izp]))).argument
+                    angle * hbar
                 }
             }
         }
@@ -105,53 +114,141 @@ class ISF(
         return Triple(vx, vy, vz)
     }
 
+    fun addCircle(
+        torus: TorusDEC,
+        psi: Array<Array<Array<Complex>>>,
+        center: Triple<Double, Double, Double>,
+        normal: Triple<Double, Double, Double>,
+        r: Double,
+        d: Double
+    ): Array<Array<Array<Complex>>> {
+        val normalizedNormal = normalizeVector(normal)
+        val modifiedPsi = psi.copyOf()
+
+        for (i in psi.indices) {
+            for (j in psi[i].indices) {
+                for (k in psi[i][j].indices) {
+                    val rx = torus.px[i][j][k] - center.first
+                    val ry = torus.py[i][j][k] - center.second
+                    val rz = torus.pz[i][j][k] - center.third
+
+                    val z = rx * normalizedNormal.first + ry * normalizedNormal.second + rz * normalizedNormal.third
+                    val inCylinder = rx.pow(2) + ry.pow(2) + rz.pow(2) - z.pow(2) < r.pow(2)
+                    val inLayerP = z > 0 && z <= d / 2 && inCylinder
+                    val inLayerM = z <= 0 && z >= -d / 2 && inCylinder
+
+                    var alpha = 0.0
+                    if (inLayerP) {
+                        alpha = -PI * (2 * z / d - 1)
+                    } else if (inLayerM) {
+                        alpha = -PI * (2 * z / d + 1)
+                    }
+
+                    modifiedPsi[i][j][k] = psi[i][j][k].multiply(Complex(0.0, alpha).exp())
+                }
+            }
+        }
+        return modifiedPsi
+    }
+
+    fun normalizeVector(vector: Triple<Double, Double, Double>): Triple<Double, Double, Double> {
+        val norm = sqrt(vector.first.pow(2) + vector.second.pow(2) + vector.third.pow(2))
+        return Triple(vector.first / norm, vector.second / norm, vector.third / norm)
+    }
     companion object {
-        fun gaugeTransform(psi1: Array<Array<DoubleArray>>, psi2: Array<Array<DoubleArray>>, q: Array<Array<DoubleArray>>): Pair<Array<Array<DoubleArray>>, Array<Array<DoubleArray>>> {
-            val transformedPsi1 = psi1.mapIndexed { i, plane ->
-                plane.mapIndexed { j, row ->
-                    row.mapIndexed { k, value ->
-                        value * exp(1.0 * q[i][j][k]).pow(2)
-                    }.toDoubleArray()
+        fun gaugeTransform(psi1: Array<Array<Array<Complex>>>, psi2: Array<Array<Array<Complex>>>, q: Array<Array<DoubleArray>>): Pair<Array<Array<Array<Complex>>>, Array<Array<Array<Complex>>>> {
+            val transformedPsi1 = psi1.indices.map { i ->
+                psi1[i].indices.map { j ->
+                    psi1[i][j].indices.map { k ->
+                        val eiq = Complex(0.0, q[i][j][k]).exp()
+                        psi1[i][j][k].multiply(eiq)
+                    }.toTypedArray()
                 }.toTypedArray()
             }.toTypedArray()
 
-            val transformedPsi2 = psi2.mapIndexed { i, plane ->
-                plane.mapIndexed { j, row ->
-                    row.mapIndexed { k, value ->
-                        value * exp(1.0 * q[i][j][k]).pow(2)
-                    }.toDoubleArray()
+            val transformedPsi2 = psi2.indices.map { i ->
+                psi2[i].indices.map { j ->
+                    psi2[i][j].indices.map { k ->
+                        val eiq = Complex(0.0, q[i][j][k]).exp()
+                        psi2[i][j][k].multiply(eiq)
+                    }.toTypedArray()
                 }.toTypedArray()
             }.toTypedArray()
 
             return Pair(transformedPsi1, transformedPsi2)
         }
 
-        fun normalize(psi1: Array<Array<DoubleArray>>, psi2: Array<Array<DoubleArray>>): Pair<Array<Array<DoubleArray>>, Array<Array<DoubleArray>>> {
-            val psiNorm = psi1.zip(psi2).map { (plane1, plane2) ->
-                plane1.zip(plane2).map { (row1, row2) ->
-                    row1.zip(row2).map { (value1, value2) ->
-                        sqrt(value1.pow(2) + value2.pow(2))
+        fun normalize(psi: Pair<Array<Array<Array<Complex>>>, Array<Array<Array<Complex>>>>):
+            Pair<Array<Array<Array<Complex>>>, Array<Array<Array<Complex>>>> {
+            val psi1 = psi.first
+            val psi2 = psi.second
+            val psiNorm = Array(psi1.size) { i ->
+                Array(psi1[i].size) { j ->
+                    Array(psi1[i][j].size) { k ->
+                        sqrt(psi1[i][j][k].abs().pow(2.0) +
+                            psi2[i][j][k].abs().pow(2.0))
                     }
                 }
             }
 
-            val normalizedPsi1 = psi1.mapIndexed { i, plane ->
-                plane.mapIndexed { j, row ->
-                    row.mapIndexed { k, value ->
-                        value / psiNorm[i][j][k]
-                    }.toDoubleArray()
-                }.toTypedArray()
-            }.toTypedArray()
+            val normalizedPsi1 = Array(psi1.size) { i ->
+                Array(psi1[i].size) { j ->
+                    Array(psi1[i][j].size) { k ->
+                        psi1[i][j][k].divide(psiNorm[i][j][k])
+                    }
+                }
+            }
 
-            val normalizedPsi2 = psi2.mapIndexed { i, plane ->
-                plane.mapIndexed { j, row ->
-                    row.mapIndexed { k, value ->
-                        value / psiNorm[i][j][k]
-                    }.toDoubleArray()
-                }.toTypedArray()
-            }.toTypedArray()
+            val normalizedPsi2 = Array(psi2.size) { i ->
+                Array(psi2[i].size) { j ->
+                    Array(psi2[i][j].size) { k ->
+                        psi2[i][j][k].divide(psiNorm[i][j][k])
+                    }
+                }
+            }
 
             return Pair(normalizedPsi1, normalizedPsi2)
+        }
+
+        // extract Clebsch variable s=(sx, sy, sz) from psi1, psi2
+        fun hopf(psi1: Array<Array<Array<Complex>>>, psi2: Array<Array<Array<Complex>>>): Triple<Array<Array<Array<Double>>>, Array<Array<Array<Double>>>, Array<Array<Array<Double>>>> {
+            val sx = Array(psi1.size) { i ->
+                Array(psi1[i].size) { j ->
+                    Array(psi1[i][j].size) { k ->
+                        val a = psi1[i][j][k].real
+                        val b = psi1[i][j][k].imaginary
+                        val c = psi2[i][j][k].real
+                        val d = psi2[i][j][k].imaginary
+                        2 * (a * c + b * d)
+                    }
+                }
+            }
+
+            val sy = Array(psi1.size) { i ->
+                Array(psi1[i].size) { j ->
+                    Array(psi1[i][j].size) { k ->
+                        val a = psi1[i][j][k].real
+                        val b = psi1[i][j][k].imaginary
+                        val c = psi2[i][j][k].real
+                        val d = psi2[i][j][k].imaginary
+                        2 * (a * d - b * c)
+                    }
+                }
+            }
+
+            val sz = Array(psi1.size) { i ->
+                Array(psi1[i].size) { j ->
+                    Array(psi1[i][j].size) { k ->
+                        val a = psi1[i][j][k].real
+                        val b = psi1[i][j][k].imaginary
+                        val c = psi2[i][j][k].real
+                        val d = psi2[i][j][k].imaginary
+                        a * a + b * b - c * c - d * d
+                    }
+                }
+            }
+
+            return Triple(sx, sy, sz)
         }
     }
 }
