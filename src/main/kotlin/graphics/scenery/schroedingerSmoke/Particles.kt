@@ -57,78 +57,115 @@ class Particles {
     }
 
     companion object {
-        fun staggeredVelocity(px: ArrayRealVector, py: ArrayRealVector, pz: ArrayRealVector,
-                              torus: TorusDEC, vx: ArrayRealVector, vy: ArrayRealVector, vz: ArrayRealVector)
-        :Triple<ArrayRealVector, ArrayRealVector, ArrayRealVector> {
+        fun staggeredVelocity(
+            px: Double, py: Double, pz: Double,
+            torus: TorusDEC,
+            vx: Array<Array<Array<Double>>>,
+            vy: Array<Array<Array<Double>>>,
+            vz: Array<Array<Array<Double>>>
+        ): Triple<Double, Double, Double> {
+
             // Adjust positions to be within the bounds of the grid
-            val modPx = ArrayRealVector(px.toArray().map { it % torus.sizex }.toDoubleArray())
-            val modPy = ArrayRealVector(py.toArray().map { it % torus.sizey }.toDoubleArray())
-            val modPz = ArrayRealVector(pz.toArray().map { it % torus.sizez }.toDoubleArray())
+            val modPx = px % torus.sizex
+            val modPy = py % torus.sizey
+            val modPz = pz % torus.sizez
 
-            // Calculate indices as integer values
-            val ix = Array(px.dimension) { index -> floor(modPx.getEntry(index) / torus.dx).toInt() }
-            val iy = Array(py.dimension) { index -> floor(modPy.getEntry(index) / torus.dy).toInt() }
-            val iz = Array(pz.dimension) { index -> floor(modPz.getEntry(index) / torus.dz).toInt() }
-
-            val ixp = ix.map { (it % torus.resx) }
-            val iyp = iy.map { (it % torus.resy) }
-            val izp = iz.map { (it % torus.resz) }
-
-            // Placeholder for sub2ind-like operations and fetching values from vx, vy, vz
-            // Assuming sub2indFunc returns the appropriate index in the 1D velocity array based on 3D indices
-            val ind0 = sub2indFunc(ix.toList(), iy.toList(), iz.toList(), torus)
-            val indxp = sub2indFunc(ixp, iy.toList(), iz.toList(), torus)
-            val indyp = sub2indFunc(ix.toList(), iyp, iz.toList(), torus)
-            val indzp = sub2indFunc(ix.toList(), iy.toList(), izp, torus)
-            val indxpyp = sub2indFunc(ixp, iyp, iz.toList(), torus)
-            val indypzp = sub2indFunc(ix.toList(), iyp, izp, torus)
-            val indxpzp = sub2indFunc(ixp, iy.toList(), izp, torus)
+            // Calculate indices
+            val ix = floor(modPx / torus.dx).toInt()
+            val iy = floor(modPy / torus.dy).toInt()
+            val iz = floor(modPz / torus.dz).toInt()
+            val ixp = (ix + 1) % torus.resx
+            val iyp = (iy + 1) % torus.resy
+            val izp = (iz + 1) % torus.resz
 
             // Calculate weights
-            val wx = modPx.toArray().mapIndexed { index, value -> value - (ix[index] * torus.dx) }
-            val wy = modPy.toArray().mapIndexed { index, value -> value - (iy[index] * torus.dy) }
-            val wz = modPz.toArray().mapIndexed { index, value -> value - (iz[index] * torus.dz) }
+            val wx = modPx - ix * torus.dx
+            val wy = modPy - iy * torus.dy
+            val wz = modPz - iz * torus.dz
 
-            return trilinearInterpolate(vx, vy, vz, wx, wy, wz,
-                ind0, indxp, indyp, indzp, indxpyp, indypzp, indxpzp)
+            // Perform trilinear interpolation
+            return trilinearInterpolate(vx, vy, vz, ix, iy, iz, ixp, iyp, izp, wx, wy, wz)
         }
-
-        fun sub2indFunc(ix: List<Int>, iy: List<Int>, iz: List<Int>, torus: TorusDEC): IntArray {
-            // Assuming the data is stored in a row-major order
-            return IntArray(ix.size) { index ->
-                iz[index] * (torus.resx * torus.resy) + iy[index] * torus.resx + ix[index]
-            }
-        }
-
 
         fun trilinearInterpolate(
-            vx: ArrayRealVector, vy: ArrayRealVector, vz: ArrayRealVector,
-            wx: List<Double>, wy: List<Double>, wz: List<Double>,
-            ind0: IntArray, indxp: IntArray, indyp: IntArray,
-            indzp: IntArray, indxpyp: IntArray, indypzp: IntArray, indxpzp: IntArray
-        ): Triple<ArrayRealVector, ArrayRealVector, ArrayRealVector> {
+            vx: Array<Array<Array<Double>>>,
+            vy: Array<Array<Array<Double>>>,
+            vz: Array<Array<Array<Double>>>,
+            ix: Int, iy: Int, iz: Int,
+            ixp: Int, iyp: Int, izp: Int,
+            wx: Double, wy: Double, wz: Double
+        ): Triple<Double, Double, Double> {
 
-            val uxValues = DoubleArray(wx.size)
-            val uyValues = DoubleArray(wx.size)
-            val uzValues = DoubleArray(wx.size)
+            // Ensure indices are within the array bounds
+            val safeIx = ix.coerceIn(0 until vx.size)
+            val safeIy = iy.coerceIn(0 until vx[0].size)
+            val safeIz = iz.coerceIn(0 until vx[0][0].size)
+            val safeIxp = ixp.coerceIn(0 until vx.size)
+            val safeIyp = iyp.coerceIn(0 until vx[0].size)
+            val safeIzp = izp.coerceIn(0 until vx[0][0].size)
 
-            for (i in wx.indices) {
-                uxValues[i] = (1 - wz[i]) *
-                    ((1 - wy[i]) * vx.getEntry(ind0[i]) + wy[i] * vx.getEntry(indyp[i])) +
-                    wz[i] * ((1 - wy[i]) * vx.getEntry(indzp[i]) + wy[i] * vx.getEntry(indypzp[i]))
-                uyValues[i] = (1 - wz[i]) *
-                    ((1 - wx[i]) * vy.getEntry(ind0[i]) + wx[i] * vy.getEntry(indxp[i])) +
-                    wz[i] * ((1 - wx[i]) * vy.getEntry(indzp[i]) + wx[i] * vy.getEntry(indxpzp[i]))
-                uzValues[i] = (1 - wy[i]) * ((1 - wx[i]) *
-                    vz.getEntry(ind0[i]) + wx[i] * vz.getEntry(indxp[i])) +
-                    wy[i] * ((1 - wx[i]) * vz.getEntry(indyp[i]) + wx[i] * vz.getEntry(indxpyp[i]))
-            }
+            // Fetch the relevant values for vx, vy, vz
+            val v000 = vx[safeIx][safeIy][safeIz]
+            val v100 = vx[safeIxp][safeIy][safeIz]
+            val v010 = vx[safeIx][safeIyp][safeIz]
+            val v001 = vx[safeIx][safeIy][safeIzp]
+            val v101 = vx[safeIxp][safeIy][safeIzp]
+            val v011 = vx[safeIx][safeIyp][safeIzp]
+            val v110 = vx[safeIxp][safeIyp][safeIz]
+            val v111 = vx[safeIxp][safeIyp][safeIzp]
 
-            val ux = ArrayRealVector(uxValues)
-            val uy = ArrayRealVector(uyValues)
-            val uz = ArrayRealVector(uzValues)
+            // Trilinear interpolation for vx
+            val vxInterpolated = v000 * (1 - wx) * (1 - wy) * (1 - wz) +
+                v100 * wx * (1 - wy) * (1 - wz) +
+                v010 * (1 - wx) * wy * (1 - wz) +
+                v001 * (1 - wx) * (1 - wy) * wz +
+                v101 * wx * (1 - wy) * wz +
+                v011 * (1 - wx) * wy * wz +
+                v110 * wx * wy * (1 - wz) +
+                v111 * wx * wy * wz
 
-            return Triple(ux, uy, uz)
+            // Fetch the relevant values for vy
+            val vy000 = vy[safeIx][safeIy][safeIz]
+            val vy100 = vy[safeIxp][safeIy][safeIz]
+            val vy010 = vy[safeIx][safeIyp][safeIz]
+            val vy001 = vy[safeIx][safeIy][safeIzp]
+            val vy101 = vy[safeIxp][safeIy][safeIzp]
+            val vy011 = vy[safeIx][safeIyp][safeIzp]
+            val vy110 = vy[safeIxp][safeIyp][safeIz]
+            val vy111 = vy[safeIxp][safeIyp][safeIzp]
+
+            // Trilinear interpolation for vy
+            val vyInterpolated = vy000 * (1 - wx) * (1 - wy) * (1 - wz) +
+                vy100 * wx * (1 - wy) * (1 - wz) +
+                vy010 * (1 - wx) * wy * (1 - wz) +
+                vy001 * (1 - wx) * (1 - wy) * wz +
+                vy101 * wx * (1 - wy) * wz +
+                vy011 * (1 - wx) * wy * wz +
+                vy110 * wx * wy * (1 - wz) +
+                vy111 * wx * wy * wz
+
+            // Fetch the relevant values for vz
+            val vz000 = vz[safeIx][safeIy][safeIz]
+            val vz100 = vz[safeIxp][safeIy][safeIz]
+            val vz010 = vz[safeIx][safeIyp][safeIz]
+            val vz001 = vz[safeIx][safeIy][safeIzp]
+            val vz101 = vz[safeIxp][safeIy][safeIzp]
+            val vz011 = vz[safeIx][safeIyp][safeIzp]
+            val vz110 = vz[safeIxp][safeIyp][safeIz]
+            val vz111 = vz[safeIxp][safeIyp][safeIzp]
+
+            // Trilinear interpolation for vz
+            val vzInterpolated = vz000 * (1 - wx) * (1 - wy) * (1 - wz) +
+                vz100 * wx * (1 - wy) * (1 - wz) +
+                vz010 * (1 - wx) * wy * (1 - wz) +
+                vz001 * (1 - wx) * (1 - wy) * wz +
+                vz101 * wx * (1 - wy) * wz +
+                vz011 * (1 - wx) * wy * wz +
+                vz110 * wx * wy * (1 - wz) +
+                vz111 * wx * wy * wz
+
+
+            return Triple(vxInterpolated, vyInterpolated, vzInterpolated)
         }
     }
 }
