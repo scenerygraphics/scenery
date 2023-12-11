@@ -9,12 +9,14 @@ class Particles {
     var x: ArrayRealVector
     var y: ArrayRealVector
     var z: ArrayRealVector
+    //TODO create a positions array that contains all particle positions as Vector3f. Needs to be as simple as possible and as performant as necessary
 
     // Default constructor
     init {
         x = ArrayRealVector()
         y = ArrayRealVector()
         z = ArrayRealVector()
+
     }
 
     // Advect particle positions using RK4 in a grid torus with staggered velocity vx, vy, vz, for dt period of time

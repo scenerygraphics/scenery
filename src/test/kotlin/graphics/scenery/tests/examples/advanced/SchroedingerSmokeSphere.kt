@@ -4,6 +4,7 @@ import graphics.scenery.*
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
+import graphics.scenery.primitives.PointCloud
 import graphics.scenery.schroedingerSmoke.ISF
 import graphics.scenery.schroedingerSmoke.Particles
 import org.apache.commons.math3.complex.Complex
@@ -78,7 +79,7 @@ class SchroedingerSmokeSphere : SceneryBase("SchroedingerSmokeLeapfrog") {
 
         val isf = ISF(size.first, size.second, size.third, res.first, res.second, res.third, hBar, dt)
 
-        val tmax = 5
+        val tmax = 1 //1 for performance purposes, original is 85
         val backgroundVel = Triple(-0.2, 0.0, 0.0)
 
         //radii and normal vectors of the circle
@@ -91,7 +92,6 @@ class SchroedingerSmokeSphere : SceneryBase("SchroedingerSmokeLeapfrog") {
         val cen1 = Vector3f(size.first.toFloat()/2, size.second.toFloat()/2, size.third.toFloat()/2)
         val cen2 = cen1
 
-        //TODO make this dependent on the pointcloud
         val numberOfParticles = 10000
 
 
@@ -102,7 +102,7 @@ class SchroedingerSmokeSphere : SceneryBase("SchroedingerSmokeLeapfrog") {
         particles.z = ArrayRealVector(DoubleArray(numberOfParticles) { 0.5 + 4 * vv[it] })
         particles.x = ArrayRealVector(DoubleArray(numberOfParticles) { 5.0 })
 
-
+        val particleCloud = PointCloud()
         // Calculate kvec by scaling background_vel with hbar
         val kvec = Triple(backgroundVel.first / hBar, backgroundVel.second / hBar,
             backgroundVel.third / hBar)
@@ -143,6 +143,10 @@ class SchroedingerSmokeSphere : SceneryBase("SchroedingerSmokeLeapfrog") {
         val initNormalPsi = ISF.normalize(Pair(psi1WithVortex2, initPsi2))
         var projectedPsi = isf.pressureProject(initNormalPsi)
 
+        //visualizing
+        val container = RichNode("container")
+        //TODO initialize visualization spheres and use instancing to enhance the performance
+
         val itermax = (tmax / dt).toInt()
         for (iter in 1..itermax) {
 
@@ -162,11 +166,6 @@ class SchroedingerSmokeSphere : SceneryBase("SchroedingerSmokeLeapfrog") {
             // Visualization and drawing (handled by your own framework)
             // Placeholder for visualization updates
         }
-
-        print("Success!!!!")
-
-
-
     }
 
     companion object {
