@@ -35,7 +35,8 @@ val lwjglArtifacts = listOf(
         "lwjgl-remotery",
         "lwjgl-spvc",
         "lwjgl-shaderc",
-        "lwjgl-tinyexr"
+        "lwjgl-tinyexr",
+        "lwjgl-jawt"
 )
 
 dependencies {
@@ -80,6 +81,9 @@ dependencies {
                         runtimeOnly("org.lwjgl:$artifact:$lwjglVersion:$native")
                     }
                 }
+
+                // JAWT doesn't bring natives along
+                artifact.endsWith("jawt") -> {}
 
                 else -> {
                     logger.info("else: org.lwjgl:$artifact:$lwjglVersion:$native")
@@ -223,6 +227,11 @@ tasks {
                     // OpenVR does not have macOS binaries, Vulkan only has macOS binaries
                     if(lwjglProject.contains("vulkan")
                         && !nativePlatform.contains("mac")) {
+                        return@pkg
+                    }
+
+                    // JAWT doesn't have any natives
+                    if(lwjglProject.contains("jawt")) {
                         return@pkg
                     }
 
