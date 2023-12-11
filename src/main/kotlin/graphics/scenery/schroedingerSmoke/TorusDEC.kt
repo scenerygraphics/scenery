@@ -187,14 +187,39 @@ open class TorusDEC(
         return Triple(ux, uy, uz)
     }
 
-    // StaggeredSharp
-    fun staggeredSharp(vx: Array<Array<Array<Double>>>, vy: Array<Array<Array<Double>>>, vz: Array<Array<Array<Double>>>): Triple<Array<Array<DoubleArray>>, Array<Array<DoubleArray>>, Array<Array<DoubleArray>>> {
-        val ux = Array(resx) { Array(resy) { DoubleArray(resz) { vx[it][0][0] / dx } } }
-        val uy = Array(resx) { Array(resy) { DoubleArray(resz) { vy[0][it][0] / dy } } }
-        val uz = Array(resx) { Array(resy) { DoubleArray(resz) { vz[0][0][it] / dz } } }
+    fun staggeredSharp(
+        vx: Array<Array<Array<Double>>>,
+        vy: Array<Array<Array<Double>>>,
+        vz: Array<Array<Array<Double>>>
+    ): Triple<Array<Array<Array<Double>>>, Array<Array<Array<Double>>>, Array<Array<Array<Double>>>> {
+
+        val ux = vx.map { layer ->
+            layer.map { row ->
+                row.map { value ->
+                    value / dx
+                }.toTypedArray()
+            }.toTypedArray()
+        }.toTypedArray()
+
+        val uy = vy.map { layer ->
+            layer.map { row ->
+                row.map { value ->
+                    value / dy
+                }.toTypedArray()
+            }.toTypedArray()
+        }.toTypedArray()
+
+        val uz = vz.map { layer ->
+            layer.map { row ->
+                row.map { value ->
+                    value / dz
+                }.toTypedArray()
+            }.toTypedArray()
+        }.toTypedArray()
 
         return Triple(ux, uy, uz)
     }
+
 }
 
 
