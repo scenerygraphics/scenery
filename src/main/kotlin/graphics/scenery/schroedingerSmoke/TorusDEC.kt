@@ -30,17 +30,17 @@ open class TorusDEC(
     open val resz: Int = 1
 ) {
 
-    val dx = sizex.toDouble() / resx
-    val dy = sizey.toDouble() / resy
-    val dz = sizez.toDouble() / resz
+    open val dx = sizex.toDouble() / resx
+    open val dy = sizey.toDouble() / resy
+    open val dz = sizez.toDouble() / resz
 
-    val ix: IntArray = IntArray(resx) { it }
-    val iy: IntArray = IntArray(resy) { it }
-    val iz: IntArray = IntArray(resz) { it }
+    open val ix: IntArray = IntArray(resx) { it }
+    open val iy: IntArray = IntArray(resy) { it }
+    open val iz: IntArray = IntArray(resz) { it }
 
-    val px: Array<Array<DoubleArray>> = Array(resx) { iix -> Array(resy) { iiy -> DoubleArray(resz) { iiz -> iix * dx } } }
-    val py: Array<Array<DoubleArray>> = Array(resx) { Array(resy) { iiy -> DoubleArray(resz) { iiz -> iiy * dy } } }
-    val pz: Array<Array<DoubleArray>> = Array(resx) { Array(resy) { iiy -> DoubleArray(resz) { iiz -> iiz * dz } } }
+    open val px: Array<Array<DoubleArray>> = Array(resx) { iix -> Array(resy) { iiy -> DoubleArray(resz) { iiz -> iix * dx } } }
+    open val py: Array<Array<DoubleArray>> = Array(resx) { Array(resy) { iiy -> DoubleArray(resz) { iiz -> iiy * dy } } }
+    open val pz: Array<Array<DoubleArray>> = Array(resx) { Array(resy) { iiy -> DoubleArray(resz) { iiz -> iiz * dz } } }
 
     fun poissonSolve(f: Array<Array<DoubleArray>>): Array<Array<DoubleArray>> {
         val transformer = FastFourierTransformer(DftNormalization.STANDARD)
