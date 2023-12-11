@@ -4,6 +4,7 @@ import org.apache.commons.math3.complex.Complex
 import org.apache.commons.math3.transform.DftNormalization
 import org.apache.commons.math3.transform.FastFourierTransformer
 import org.apache.commons.math3.transform.TransformType
+import org.joml.Vector3f
 import kotlin.math.*
 
 class ISF(
@@ -17,6 +18,17 @@ class ISF(
     val dt: Double = 1/24.toDouble()
 ) : TorusDEC(sizex, sizey, sizez, resx, resy, resz) {
 
+    override val dx = sizex.toDouble() / resx
+    override val dy = sizey.toDouble() / resy
+    override val dz = sizez.toDouble() / resz
+
+    override val ix: IntArray = IntArray(resx) { it }
+    override val iy: IntArray = IntArray(resy) { it }
+    override val iz: IntArray = IntArray(resz) { it }
+
+    override val px: Array<Array<DoubleArray>> = Array(resx) { iix -> Array(resy) { iiy -> DoubleArray(resz) { iiz -> iix * dx } } }
+    override val py: Array<Array<DoubleArray>> = Array(resx) { Array(resy) { iiy -> DoubleArray(resz) { iiz -> iiy * dy } } }
+    override val pz: Array<Array<DoubleArray>> = Array(resx) { Array(resy) { iiy -> DoubleArray(resz) { iiz -> iiz * dz } } }
 
     var schroedingerMask: Array<Array<Array<Complex>>>
 
@@ -115,45 +127,45 @@ class ISF(
     }
 
     fun addCircle(
-        torus: TorusDEC,
         psi: Array<Array<Array<Complex>>>,
-        center: Triple<Double, Double, Double>,
-        normal: Triple<Double, Double, Double>,
+        center: Vector3f,
+        normal: Vector3f,
         r: Double,
-        d: Double
+        d: Double,
+        dx: Double, dy: Double, dz: Double  // Assuming grid spacings are provided
     ): Array<Array<Array<Complex>>> {
-        val normalizedNormal = normalizeVector(normal)
-        val modifiedPsi = psi.copyOf()
+        // Normalize the normal vector
+        val normalizedNormal = normal.normalize()
 
-        for (i in psi.indices) {
-            for (j in psi[i].indices) {
-                for (k in psi[i][j].indices) {
-                    val rx = torus.px[i][j][k] - center.first
-                    val ry = torus.py[i][j][k] - center.second
-                    val rz = torus.pz[i][j][k] - center.third
+        // Iterate through each point in the psi array
+        return psi.mapIndexed { i, layer ->
+            layer.mapIndexed { j, row ->
+                row.mapIndexed { k, value ->
+                    // Calculate relative position to the center
+                    val rx = i * dx - center.x
+                    val ry = j * dy - center.y
+                    val rz = k * dz - center.z
 
-                    val z = rx * normalizedNormal.first + ry * normalizedNormal.second + rz * normalizedNormal.third
+                    // Project relative position onto the normal vector
+                    val z = Vector3f(rx.toFloat(), ry.toFloat(), rz.toFloat()).dot(normalizedNormal)
+
+                    // Check if the point is within the cylinder and layer
                     val inCylinder = rx.pow(2) + ry.pow(2) + rz.pow(2) - z.pow(2) < r.pow(2)
                     val inLayerP = z > 0 && z <= d / 2 && inCylinder
                     val inLayerM = z <= 0 && z >= -d / 2 && inCylinder
 
-                    var alpha = 0.0
-                    if (inLayerP) {
-                        alpha = -PI * (2 * z / d - 1)
-                    } else if (inLayerM) {
-                        alpha = -PI * (2 * z / d + 1)
+                    // Calculate the phase shift
+                    val alpha = when {
+                        inLayerP -> -PI * (2 * z / d - 1)
+                        inLayerM -> -PI * (2 * z / d + 1)
+                        else -> 0.0
                     }
 
-                    modifiedPsi[i][j][k] = psi[i][j][k].multiply(Complex(0.0, alpha).exp())
-                }
-            }
-        }
-        return modifiedPsi
-    }
-
-    fun normalizeVector(vector: Triple<Double, Double, Double>): Triple<Double, Double, Double> {
-        val norm = sqrt(vector.first.pow(2) + vector.second.pow(2) + vector.third.pow(2))
-        return Triple(vector.first / norm, vector.second / norm, vector.third / norm)
+                    // Apply the phase shift to psi
+                    value.multiply(Complex(0.0, alpha).exp())
+                }.toTypedArray()
+            }.toTypedArray()
+        }.toTypedArray()
     }
     companion object {
         fun gaugeTransform(psi1: Array<Array<Array<Complex>>>, psi2: Array<Array<Array<Complex>>>, q: Array<Array<DoubleArray>>): Pair<Array<Array<Array<Complex>>>, Array<Array<Array<Complex>>>> {
