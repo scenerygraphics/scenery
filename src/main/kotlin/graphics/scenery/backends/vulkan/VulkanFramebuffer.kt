@@ -702,7 +702,7 @@ open class VulkanFramebuffer(protected val device: VulkanDevice,
     /**
      * Helper function to set up Vulkan structs.
      */
-    fun <T : Struct> T.default(): T {
+    fun <T : Struct<*>> T.default(): T {
         if(this is VkSamplerCreateInfo) {
             this.sType(VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO).pNext(NULL)
         } else if(this is VkFramebufferCreateInfo) {
