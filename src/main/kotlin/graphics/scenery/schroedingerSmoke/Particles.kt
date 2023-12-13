@@ -1,22 +1,23 @@
 package graphics.scenery.schroedingerSmoke
 
 import org.apache.commons.math3.linear.ArrayRealVector
+import org.joml.Vector3f
 import kotlin.math.floor
 
 
-class Particles {
+class Particles(val particleCount: Int) {
     // Using Apache Commons Math's ArrayRealVector for positions
     var x: ArrayRealVector
     var y: ArrayRealVector
     var z: ArrayRealVector
-    //TODO create a positions array that contains all particle positions as Vector3f. Needs to be as simple as possible and as performant as necessary
+    var positions: ArrayList<Vector3f>
 
     // Default constructor
     init {
         x = ArrayRealVector()
         y = ArrayRealVector()
         z = ArrayRealVector()
-
+        positions = ArrayList(particleCount)
     }
 
     // Advect particle positions using RK4 in a grid torus with staggered velocity vx, vy, vz, for dt period of time
@@ -30,6 +31,7 @@ class Particles {
         val new_x = ArrayRealVector(x.dimension)
         val new_y = ArrayRealVector(y.dimension)
         val new_z = ArrayRealVector(z.dimension)
+        val newPositions = ArrayList<Vector3f>(particleCount)
 
         for (i in 0 until x.dimension) {
             val particleX = x.getEntry(i)
@@ -41,14 +43,20 @@ class Particles {
             val (k3x, k3y, k3z) = staggeredVelocity(particleX + k2x * dt / 2, particleY + k2y * dt / 2, particleZ + k2z * dt / 2, torus, vx, vy, vz)
             val (k4x, k4y, k4z) = staggeredVelocity(particleX + k3x * dt, particleY + k3y * dt, particleZ + k3z * dt, torus, vx, vy, vz)
 
+            val x = particleX + dt / 6 * (k1x + 2 * k2x + 2 * k3x + k4x)
+            val y = particleY + dt / 6 * (k1y + 2 * k2y + 2 * k3y + k4y)
+            val z = particleZ + dt / 6 * (k1z + 2 * k2z + 2 * k3z + k4z)
+
             new_x.setEntry(i, particleX + dt / 6 * (k1x + 2 * k2x + 2 * k3x + k4x))
             new_y.setEntry(i, particleY + dt / 6 * (k1y + 2 * k2y + 2 * k3y + k4y))
             new_z.setEntry(i, particleZ + dt / 6 * (k1z + 2 * k2z + 2 * k3z + k4z))
+            newPositions.add(Vector3f(x.toFloat(), y.toFloat(), z.toFloat()))
         }
 
         x = new_x
         y = new_y
         z = new_z
+        positions = newPositions
     }
 
     // For removing particles
