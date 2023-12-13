@@ -1,11 +1,13 @@
 package graphics.scenery.schroedingerSmoke
 
+import graphics.scenery.InstancedNode
+import graphics.scenery.Node
 import org.apache.commons.math3.linear.ArrayRealVector
 import org.joml.Vector3f
 import kotlin.math.floor
 
 
-class Particles(val particleCount: Int) {
+class Particles(val particleCount: Int, val visualizingNode: Node): InstancedNode(visualizingNode) {
     // Using Apache Commons Math's ArrayRealVector for positions
     var x: ArrayRealVector
     var y: ArrayRealVector
@@ -18,6 +20,16 @@ class Particles(val particleCount: Int) {
         y = ArrayRealVector()
         z = ArrayRealVector()
         positions = ArrayList(particleCount)
+    }
+
+    fun initializeInstances(){
+        positions.forEachIndexed { index, particlePosition ->
+            val p = this.addInstance()
+            p.name = "particle_${index}"
+            p.spatial {
+                position = particlePosition
+            }
+        }
     }
 
     // Advect particle positions using RK4 in a grid torus with staggered velocity vx, vy, vz, for dt period of time
@@ -47,10 +59,13 @@ class Particles(val particleCount: Int) {
             val y = particleY + dt / 6 * (k1y + 2 * k2y + 2 * k3y + k4y)
             val z = particleZ + dt / 6 * (k1z + 2 * k2z + 2 * k3z + k4z)
 
-            new_x.setEntry(i, particleX + dt / 6 * (k1x + 2 * k2x + 2 * k3x + k4x))
-            new_y.setEntry(i, particleY + dt / 6 * (k1y + 2 * k2y + 2 * k3y + k4y))
-            new_z.setEntry(i, particleZ + dt / 6 * (k1z + 2 * k2z + 2 * k3z + k4z))
+            new_x.setEntry(i, x)
+            new_y.setEntry(i, y)
+            new_z.setEntry(i, z)
             newPositions.add(Vector3f(x.toFloat(), y.toFloat(), z.toFloat()))
+            this.instances[i].spatial {
+                position = Vector3f(x.toFloat(), y.toFloat(), z.toFloat())
+            }
         }
 
         x = new_x
