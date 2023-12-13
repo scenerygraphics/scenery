@@ -9,6 +9,7 @@ import graphics.scenery.schroedingerSmoke.Particles
 import org.apache.commons.math3.complex.Complex
 import org.apache.commons.math3.linear.ArrayRealVector
 import org.joml.Vector3f
+import kotlin.concurrent.thread
 
 class SchroedingerSmokeSphere : SceneryBase("SchroedingerSmokeLeapfrog") {
     override fun init() {
@@ -96,7 +97,12 @@ class SchroedingerSmokeSphere : SceneryBase("SchroedingerSmokeLeapfrog") {
 
         val uu = FloatArray(numberOfParticles) { Random.randomFromRange(0f, 1f) }
         val vv = FloatArray(numberOfParticles) { Random.randomFromRange(0f, 1f) }
-        val particles = Particles(numberOfParticles)
+
+        //visualizing
+        val particleSphere = Icosphere(0.1f, 5)
+
+        val particles = Particles(numberOfParticles, particleSphere)
+
         particles.y = ArrayRealVector(DoubleArray(numberOfParticles) { 0.5 + 4 * uu[it] })
         particles.z = ArrayRealVector(DoubleArray(numberOfParticles) { 0.5 + 4 * vv[it] })
         particles.x = ArrayRealVector(DoubleArray(numberOfParticles) { 5.0 })
@@ -106,6 +112,10 @@ class SchroedingerSmokeSphere : SceneryBase("SchroedingerSmokeLeapfrog") {
                 Vector3f(particles.x.getEntry(i).toFloat(),
                     particles.y.getEntry(i).toFloat(), particles.z.getEntry(i).toFloat()))
         }
+
+        particles.initializeInstances()
+
+        scene.addChild(particles)
 
         // Calculate kvec by scaling background_vel with hbar
         val kvec = Triple(backgroundVel.first / hBar, backgroundVel.second / hBar,
@@ -147,28 +157,30 @@ class SchroedingerSmokeSphere : SceneryBase("SchroedingerSmokeLeapfrog") {
         val initNormalPsi = ISF.normalize(Pair(psi1WithVortex2, initPsi2))
         var projectedPsi = isf.pressureProject(initNormalPsi)
 
-        //visualizing
-        val container = RichNode("container")
-        //TODO initialize visualization spheres and use instancing to enhance the performance
+        thread {
+            val itermax = (tmax / dt).toInt()
+            for (iter in 1..itermax) {
 
-        val itermax = (tmax / dt).toInt()
-        for (iter in 1..itermax) {
+                val normalizedPsi = ISF.normalize(
+                    Pair(
+                        isf.schroedingerFlow(projectedPsi.first),
+                        isf.schroedingerFlow(projectedPsi.second)
+                    )
+                )
 
-            val normalizedPsi = ISF.normalize(Pair(isf.schroedingerFlow(projectedPsi.first),
-                isf.schroedingerFlow(projectedPsi.second)))
+                projectedPsi = isf.pressureProject(normalizedPsi)
 
-            projectedPsi = isf.pressureProject(normalizedPsi)
+                // Particle visualization and updating
+                val (vx, vy, vz) = isf.velocityOneForm(projectedPsi.first, projectedPsi.second, isf.hBar)
+                val (sharpVx, sharpVy, sharpVz) = isf.staggeredSharp(vx, vy, vz)
+                particles.staggeredAdvect(isf, sharpVx, sharpVy, sharpVz, isf.dt)
 
-            // Particle visualization and updating
-            val (vx, vy, vz) = isf.velocityOneForm(projectedPsi.first, projectedPsi.second, isf.hBar)
-            val (sharpVx, sharpVy, sharpVz) = isf.staggeredSharp(vx, vy, vz)
-            particles.staggeredAdvect(isf, sharpVx, sharpVy, sharpVz, isf.dt)
+                // Update particle positions and apply boundary conditions
+                // Placeholder for particle position updates and boundary conditions
 
-            // Update particle positions and apply boundary conditions
-            // Placeholder for particle position updates and boundary conditions
-
-            // Visualization and drawing (handled by your own framework)
-            // Placeholder for visualization updates
+                // Visualization and drawing (handled by your own framework)
+                // Placeholder for visualization updates
+            }
         }
     }
 
