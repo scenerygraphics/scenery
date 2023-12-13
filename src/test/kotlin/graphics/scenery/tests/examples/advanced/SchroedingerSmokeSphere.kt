@@ -4,7 +4,6 @@ import graphics.scenery.*
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
-import graphics.scenery.primitives.PointCloud
 import graphics.scenery.schroedingerSmoke.ISF
 import graphics.scenery.schroedingerSmoke.Particles
 import org.apache.commons.math3.complex.Complex
@@ -97,12 +96,17 @@ class SchroedingerSmokeSphere : SceneryBase("SchroedingerSmokeLeapfrog") {
 
         val uu = FloatArray(numberOfParticles) { Random.randomFromRange(0f, 1f) }
         val vv = FloatArray(numberOfParticles) { Random.randomFromRange(0f, 1f) }
-        val particles = Particles()
+        val particles = Particles(numberOfParticles)
         particles.y = ArrayRealVector(DoubleArray(numberOfParticles) { 0.5 + 4 * uu[it] })
         particles.z = ArrayRealVector(DoubleArray(numberOfParticles) { 0.5 + 4 * vv[it] })
         particles.x = ArrayRealVector(DoubleArray(numberOfParticles) { 5.0 })
 
-        val particleCloud = PointCloud()
+        for(i in 0 until numberOfParticles) {
+            particles.positions.add(
+                Vector3f(particles.x.getEntry(i).toFloat(),
+                    particles.y.getEntry(i).toFloat(), particles.z.getEntry(i).toFloat()))
+        }
+
         // Calculate kvec by scaling background_vel with hbar
         val kvec = Triple(backgroundVel.first / hBar, backgroundVel.second / hBar,
             backgroundVel.third / hBar)
