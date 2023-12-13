@@ -11,21 +11,21 @@ import kotlin.concurrent.thread
 
 class VDIRenderingBenchmarkRunner {
     val benchmarkDatasets = listOf<BenchmarkSetup.Dataset>(BenchmarkSetup.Dataset.Kingsnake, BenchmarkSetup.Dataset.Rayleigh_Taylor, BenchmarkSetup.Dataset.Richtmyer_Meshkov)
-    val benchmarkViewpoints = listOf(5, 10, 15, 20, 25, 30, 35, 40)
-    val benchmarkSupersegments = listOf(20)
+    val benchmarkViewpoints = listOf(10, 20, 30, 40)
+    val benchmarkSupersegments = listOf(10, 15, 20, 30, 40)
     val benchmarkVos = listOf(0, 90, 180, 270)
 
     fun vdiRenderingBenchmarks(dataset: String, viewpoint: Int, renderer: Renderer, skipEmpty: Boolean = false) {
 
         Thread.sleep(2000) //allow the rotation to take place
 
-        renderer.screenshot("/home/charles/bachelor/screenshots/VDI_${dataset}_${viewpoint}_$skipEmpty.png")
+        renderer.screenshot("/home/charles/Nextcloud/Screenshots/VDI_${dataset}_${viewpoint}_${skipEmpty}.png")
 
-        Thread.sleep(1000)
+        Thread.sleep(2000)
     }
 
-    fun runTest(dataset: String, vo: Int, windowWidth: Int, windowHeight: Int, dataName: BenchmarkSetup.Dataset) {
-        val instance = VDIRenderingBenchmark("VDI Rendering Benchmark", windowWidth, windowHeight, dataName)
+    fun runTest(dataset: String, vo: Int, windowWidth: Int, windowHeight: Int, dataName: BenchmarkSetup.Dataset, ns: Int) {
+        val instance = VDIRenderingBenchmark("VDI Rendering Benchmark", windowWidth, windowHeight, dataName, ns)
         thread {
             while (instance.hub.get(SceneryElement.Renderer)==null) {
                 Thread.sleep(50)
@@ -45,8 +45,10 @@ class VDIRenderingBenchmarkRunner {
 
             if (dataName == BenchmarkSetup.Dataset.Richtmyer_Meshkov) {
                 rotateCamera(0f, vo.toFloat(), instance.cam, instance.windowWidth, instance.windowHeight, target)
+                instance.cam.spatial().updateWorld(false, true)
             } else {
                 rotateCamera(vo.toFloat(), 0f, instance.cam, instance.windowWidth, instance.windowHeight, target)
+                instance.cam.spatial().updateWorld(false, true)
             }
 
             var previousViewpoint = 0
@@ -56,8 +58,10 @@ class VDIRenderingBenchmarkRunner {
 
                 if (dataName == BenchmarkSetup.Dataset.Richtmyer_Meshkov) {
                     rotateCamera(0f, rotation.toFloat(), instance.cam, instance.windowWidth, instance.windowHeight, target)
+                    instance.cam.spatial().updateWorld(false, true)
                 } else {
                     rotateCamera(rotation.toFloat(), 0f, instance.cam, instance.windowWidth, instance.windowHeight, target)
+                    instance.cam.spatial().updateWorld(false, true)
                 }
 
                 vdiRenderingBenchmarks(dataset, viewpoint, renderer, false)
@@ -86,7 +90,7 @@ class VDIRenderingBenchmarkRunner {
                     System.setProperty("VDIBenchmark.NumSupersegments", ns.toString())
                     System.setProperty("VDIBenchmark.Vo", vo.toString())
 
-                    runTest(dataset, vo, windowWidth, windowHeight, dataName)
+                    runTest(dataset, vo, windowWidth, windowHeight, dataName, ns)
                     println("Got the control back")
                 }
             }

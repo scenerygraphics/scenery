@@ -6,18 +6,17 @@ import graphics.scenery.backends.Renderer
 import graphics.scenery.volumes.vdi.VDIDataIO
 import graphics.scenery.volumes.vdi.VDINode
 import graphics.scenery.volumes.vdi.benchmarks.BenchmarkSetup
-import org.joml.Quaternionf
 import org.joml.Vector3f
 import org.lwjgl.system.MemoryUtil
 import java.io.File
 import java.io.FileInputStream
 import java.nio.ByteBuffer
 
-class VDIRenderingBenchmark(applicationName: String, windowWidth: Int, windowHeight: Int, val dataset: BenchmarkSetup.Dataset): SceneryBase(applicationName, windowWidth,windowHeight) {
+class VDIRenderingBenchmark(applicationName: String, windowWidth: Int, windowHeight: Int, val dataset: BenchmarkSetup.Dataset, val ns: Int): SceneryBase(applicationName, windowWidth,windowHeight) {
 
     val skipEmpty = false
 
-    val numSupersegments = 20
+    val numSupersegments = ns
 
     lateinit var vdiNode: VDINode
     val numLayers = 1
@@ -88,7 +87,7 @@ class VDIRenderingBenchmark(applicationName: String, windowWidth: Int, windowHei
     companion object {
         @JvmStatic
         fun main(args: Array<String>) {
-            VDIRenderingBenchmark("VDI Rendering Benchmark", 1920, 1080, BenchmarkSetup.Dataset.Richtmyer_Meshkov).main()
+            VDIRenderingBenchmark("VDI Rendering Benchmark", 1920, 1080, BenchmarkSetup.Dataset.Kingsnake, 20).main()
         }
     }
 }
