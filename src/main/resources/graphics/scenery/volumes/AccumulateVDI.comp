@@ -28,6 +28,11 @@ if (vis && step > localNear && step < localFar)
             bool newSupSeg = false;
             if(diff >= newSupSegThresh) {
                 newSupSeg = true;
+                #if FAST
+                if(lastSupersegment){
+                    newSupSeg = false;
+                }
+                #endif
             }
 
             if((newSupSeg)) { //closing a supersegment
@@ -37,7 +42,7 @@ if (vis && step > localNear && step < localFar)
 //                supersegmentAdjusted.rgb = curV.rgb / curV.a; //TODO: this perhaps does not need to be recalculated here
 //                supersegmentAdjusted.a = adjustOpacity(curV.a, 1.0/segLen_trunc);
 
-                jumpPosition(num_terminations, supersegmentIsOpen, steps_in_supseg, ndc_step, curV, steps_trunc_trans, //
+                closeSegment(num_terminations, supersegmentIsOpen, steps_in_supseg, ndc_step, curV, steps_trunc_trans, //
                     wfront, wback, stepWidth, supersegmentAdjusted, supSegEndPoint);
 
                 steps_trunc_trans = 0;
@@ -89,7 +94,7 @@ if (vis && step > localNear && step < localFar)
         }
 
         if(lastSample && supersegmentIsOpen) { //close the supersegment after the last sample is accumulated
-            jumpPosition(num_terminations, supersegmentIsOpen, steps_in_supseg, ndc_step, curV, steps_trunc_trans, //
+            closeSegment(num_terminations, supersegmentIsOpen, steps_in_supseg, ndc_step, curV, steps_trunc_trans, //
                 wfront, wback, stepWidth, supersegmentAdjusted, supSegEndPoint);
 
             writeSegAndGrid(supsegs_written, supersegmentNum, supSegStartPoint, supSegEndPoint, //

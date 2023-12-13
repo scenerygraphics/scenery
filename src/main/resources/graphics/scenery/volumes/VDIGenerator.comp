@@ -41,6 +41,8 @@ layout(push_constant) uniform currentEye_t {
 #define WRITE_ITER 1
 #define WRITE_THRESHOLDS 1
 
+#define FAST 1
+
 #define SEPARATE_DEPTH 1
 #define WORLD_ABS 0
 #define INT_DEPTHS 0
@@ -205,7 +207,7 @@ int findZInterval_view(float z_view) {
 
 bool thresh_found = false;
 
-void jumpPosition(inout int num_terminations, inout bool supersegmentIsOpen, inout int steps_in_supseg, //
+void closeSegment(inout int num_terminations, inout bool supersegmentIsOpen, inout int steps_in_supseg, //
     inout float ndc_step, inout vec4 curV, inout int steps_trunc_trans, inout vec4 wfront, inout vec4 wback, //
     inout float stepWidth, inout vec4 supersegmentAdjusted, inout float supSegEndPoint) {
 
@@ -257,7 +259,11 @@ void writeSegAndGrid(inout bool supsegs_written, inout int supersegmentNum, inou
 
 void main()
 {
+    #if FAST
+    float stepWidth = 2 * nw;
+    #else
     float stepWidth = nw;
+    #endif
 
     if(!doGeneration) {
         return;
@@ -364,12 +370,17 @@ void main()
         float mid_thresh = 0.0001; //start off with a very low thresh to eliminate those rays that contain primarily homogenous regions already
         bool first_iteration = true;
 
+        #if FAST
+        int fast_iterations = 4;
+        #endif
         while(!thresh_found || !supsegs_written) {
             iter++;
-            if(iter == -1) {
+            #if FAST
+            if(iter == fast_iterations || (thresh_found && (iter < fast_iterations))) {
                 stepWidth = nw;
                 numSteps = int ( trunc( ( tfar - tnear ) / stepWidth ) );
             }
+            #endif
 
             newSupSegThresh = mid_thresh;
 
