@@ -154,9 +154,12 @@ open class TorusDEC(
         for (i in 0 until resx) {
             for (j in 0 until resy) {
                 for (k in 0 until resz) {
-                    val ixm = (i - 2 + resx) % resx
-                    val iym = (j - 2 + resy) % resy
-                    val izm = (k - 2 + resz) % resz
+                    // Note: In MATLAB, the -2 + 1 effectively makes it -1.
+                    // So in Kotlin, we subtract 1 and then add resx to ensure positive indices.
+                    val ixm = (i - 1 + resx) % resx
+                    val iym = (j - 1 + resy) % resy
+                    val izm = (k - 1 + resz) % resz
+
                     f[i][j][k] = (vx[i][j][k] - vx[ixm][j][k]) / dx.pow(2) +
                         (vy[i][j][k] - vy[i][iym][k]) / dy.pow(2) +
                         (vz[i][j][k] - vz[i][j][izm]) / dz.pow(2)
