@@ -21,7 +21,7 @@ class VDIRenderingBenchmarkRunner {
 
         renderer.screenshot("/home/charles/Nextcloud/Screenshots/VDI_${dataset}_${viewpoint}_${skipEmpty}.png")
 
-        Thread.sleep(2000)
+        Thread.sleep(1000)
     }
 
     fun runTest(dataset: String, vo: Int, windowWidth: Int, windowHeight: Int, dataName: BenchmarkSetup.Dataset, ns: Int) {
@@ -50,6 +50,7 @@ class VDIRenderingBenchmarkRunner {
                 rotateCamera(vo.toFloat(), 0f, instance.cam, instance.windowWidth, instance.windowHeight, target)
                 instance.cam.spatial().updateWorld(false, true)
             }
+            Thread.sleep(1000)
 
             var previousViewpoint = 0
             benchmarkViewpoints.forEach { viewpoint->
