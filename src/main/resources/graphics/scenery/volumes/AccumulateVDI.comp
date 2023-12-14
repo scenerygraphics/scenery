@@ -28,11 +28,9 @@ if (vis && step > localNear && step < localFar)
             bool newSupSeg = false;
             if(diff >= newSupSegThresh) {
                 newSupSeg = true;
-                #if FAST
                 if(lastSupersegment){
                     newSupSeg = false;
                 }
-                #endif
             }
 
             if((newSupSeg)) { //closing a supersegment
