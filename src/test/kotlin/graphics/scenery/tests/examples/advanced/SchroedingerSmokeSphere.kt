@@ -80,17 +80,17 @@ class SchroedingerSmokeSphere : SceneryBase("SchroedingerSmokeLeapfrog") {
 
         val isf = ISF(size.first, size.second, size.third, res.first, res.second, res.third, hBar, dt)
 
-        val tmax = 85 //1 for performance purposes, original is 85
+        val tmax = 85
         val backgroundVel = Triple(-0.2, 0.0, 0.0)
 
         //radii and normal vectors of the circle
         val r1 = 1.5
         val r2 = 0.9
-        val n1 = Vector3f(-0.1f, 0f, 0f)
-        val n2 = Vector3f(-0.1f, 0f, 0f)
+        val n1 = Triple(-0.1, 0.0, 0.0)
+        val n2 = n1
 
         //position of the circles center
-        val cen1 = Vector3f(size.first.toFloat()/2, size.second.toFloat()/2, size.third.toFloat()/2)
+        val cen1 = Triple(size.first/2.0, size.second/2.0, size.third/2.0)
         val cen2 = cen1
 
         val numberOfParticles = 1000
@@ -160,7 +160,7 @@ class SchroedingerSmokeSphere : SceneryBase("SchroedingerSmokeLeapfrog") {
         val initPsi2 = Array(phase.size) { i ->
             Array(phase[i].size) { j ->
                 Array(phase[i][j].size) { k ->
-                    Complex(0.0, 0.01 * phase[i][j][k]).exp()
+                    Complex(0.0, phase[i][j][k]).exp().multiply(0.01)
                 }
             }
         }
