@@ -20,7 +20,7 @@ class SchroedingerSmokeSphere : SceneryBase("SchroedingerSmokeLeapfrog") {
         val ambient = AmbientLight()
         scene.addChild(ambient)
 
-        val lightbox = Box(Vector3f(500.0f, 500.0f, 500.0f), insideNormals = true)
+        val lightbox = Box(Vector3f(25.0f, 25.0f, 25.0f), insideNormals = true)
         lightbox.name = "Lightbox"
         lightbox.material {
             diffuse = Vector3f(0.1f, 0.1f, 0.1f)
@@ -28,9 +28,10 @@ class SchroedingerSmokeSphere : SceneryBase("SchroedingerSmokeLeapfrog") {
             metallic = 0.0f
             cullingMode = Material.CullingMode.None
         }
+        lightbox.spatial().position = Vector3f(0f, 0f, 10f)
         scene.addChild(lightbox)
         val lights = (0 until 8).map {
-            val l = PointLight(radius = 80.0f)
+            val l = PointLight(radius = 8.0f)
             l.spatial {
                 position = Vector3f(
                     Random.randomFromRange(-rowSize/2.0f, rowSize/2.0f),
@@ -47,7 +48,7 @@ class SchroedingerSmokeSphere : SceneryBase("SchroedingerSmokeLeapfrog") {
 
         lights.forEach { lightbox.addChild(it) }
 
-        val stageLight = PointLight(radius = 350.0f)
+        val stageLight = PointLight(radius = 35.0f)
         stageLight.name = "StageLight"
         stageLight.intensity = 0.5f
         stageLight.spatial {
@@ -79,7 +80,7 @@ class SchroedingerSmokeSphere : SceneryBase("SchroedingerSmokeLeapfrog") {
 
         val isf = ISF(size.first, size.second, size.third, res.first, res.second, res.third, hBar, dt)
 
-        val tmax = 1 //1 for performance purposes, original is 85
+        val tmax = 85 //1 for performance purposes, original is 85
         val backgroundVel = Triple(-0.2, 0.0, 0.0)
 
         //radii and normal vectors of the circle
@@ -92,30 +93,45 @@ class SchroedingerSmokeSphere : SceneryBase("SchroedingerSmokeLeapfrog") {
         val cen1 = Vector3f(size.first.toFloat()/2, size.second.toFloat()/2, size.third.toFloat()/2)
         val cen2 = cen1
 
-        val numberOfParticles = 10000
+        val numberOfParticles = 1000
 
 
         val uu = FloatArray(numberOfParticles) { Random.randomFromRange(0f, 1f) }
         val vv = FloatArray(numberOfParticles) { Random.randomFromRange(0f, 1f) }
 
         //visualizing
-        val particleSphere = Icosphere(0.1f, 5)
+        val particleSphere = Icosphere(0.01f, 3)
+        particleSphere.setMaterial(ShaderMaterial.fromFiles("DefaultDeferredInstanced.vert", "DefaultDeferred.frag")) {
+            diffuse = Vector3f(0.9f, 0.0f, 0.02f)
+            specular = Vector3f(0.05f, 0f, 0f)
+            metallic = 0.01f
+            roughness = 0.9f
+        }
+        particleSphere.name = "particleSphere_Master"
+        val particleSphereInstanced = InstancedNode(particleSphere)
+        scene.addChild(particleSphereInstanced)
 
-        val particles = Particles(numberOfParticles, particleSphere)
 
-        particles.y = ArrayRealVector(DoubleArray(numberOfParticles) { 0.5 + 4 * uu[it] })
-        particles.z = ArrayRealVector(DoubleArray(numberOfParticles) { 0.5 + 4 * vv[it] })
+        val particles = Particles(numberOfParticles)
+
+        particles.y = ArrayRealVector(DoubleArray(numberOfParticles) {  0.5 + 4 * uu[it] })
+        particles.z = ArrayRealVector(DoubleArray(numberOfParticles) { (0.5 + 4 * vv[it]) })
         particles.x = ArrayRealVector(DoubleArray(numberOfParticles) { 5.0 })
 
-        for(i in 0 until numberOfParticles) {
-            particles.positions.add(
-                Vector3f(particles.x.getEntry(i).toFloat(),
-                    particles.y.getEntry(i).toFloat(), particles.z.getEntry(i).toFloat()))
+        for( i  in 0 until numberOfParticles) {
+            val particlePosition = Vector3f(particles.x.getEntry(i).toFloat(),
+                particles.y.getEntry(i).toFloat(), particles.z.getEntry(i).toFloat())
+            particles.positions.add(particlePosition)
+            val p = particleSphereInstanced.addInstance()
+            p.name = "particle_${i}"
+            p.parent = particles
+            p.spatial {
+                position = particlePosition
+            }
         }
 
-        particles.initializeInstances()
-
         scene.addChild(particles)
+
 
         // Calculate kvec by scaling background_vel with hbar
         val kvec = Triple(backgroundVel.first / hBar, backgroundVel.second / hBar,
@@ -157,7 +173,11 @@ class SchroedingerSmokeSphere : SceneryBase("SchroedingerSmokeLeapfrog") {
         val initNormalPsi = ISF.normalize(Pair(psi1WithVortex2, initPsi2))
         var projectedPsi = isf.pressureProject(initNormalPsi)
 
+
         thread {
+            while(!sceneInitialized()) {
+                Thread.sleep(200)
+            }
             val itermax = (tmax / dt).toInt()
             for (iter in 1..itermax) {
 
@@ -174,12 +194,24 @@ class SchroedingerSmokeSphere : SceneryBase("SchroedingerSmokeLeapfrog") {
                 val (vx, vy, vz) = isf.velocityOneForm(projectedPsi.first, projectedPsi.second, isf.hBar)
                 val (sharpVx, sharpVy, sharpVz) = isf.staggeredSharp(vx, vy, vz)
                 particles.staggeredAdvect(isf, sharpVx, sharpVy, sharpVz, isf.dt)
+                particles.positions.forEachIndexed { index, position ->
+                    particleSphereInstanced.instances[index].spatial().position = position
+                }
+
+                /*
+                val indicesToKeep = particles.getIndicesWithinBounds(size)
+                particles.keep(indicesToKeep)
+                particleSphereInstanced.instances.indices.filter { !indicesToKeep.contains(it) }.forEach { instanceIndex ->
+                    particleSphereInstanced.instances[instanceIndex].visible = false
+                }
+                 */
 
                 // Update particle positions and apply boundary conditions
                 // Placeholder for particle position updates and boundary conditions
 
                 // Visualization and drawing (handled by your own framework)
                 // Placeholder for visualization updates
+                Thread.sleep(5)
             }
         }
     }

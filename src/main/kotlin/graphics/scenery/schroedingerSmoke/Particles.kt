@@ -1,13 +1,12 @@
 package graphics.scenery.schroedingerSmoke
 
-import graphics.scenery.InstancedNode
-import graphics.scenery.Node
+import graphics.scenery.RichNode
 import org.apache.commons.math3.linear.ArrayRealVector
 import org.joml.Vector3f
 import kotlin.math.floor
 
 
-class Particles(val particleCount: Int, val visualizingNode: Node): InstancedNode(visualizingNode) {
+class Particles(val particleCount: Int): RichNode("SchroedingerParticles") {
     // Using Apache Commons Math's ArrayRealVector for positions
     var x: ArrayRealVector
     var y: ArrayRealVector
@@ -22,15 +21,6 @@ class Particles(val particleCount: Int, val visualizingNode: Node): InstancedNod
         positions = ArrayList(particleCount)
     }
 
-    fun initializeInstances(){
-        positions.forEachIndexed { index, particlePosition ->
-            val p = this.addInstance()
-            p.name = "particle_${index}"
-            p.spatial {
-                position = particlePosition
-            }
-        }
-    }
 
     // Advect particle positions using RK4 in a grid torus with staggered velocity vx, vy, vz, for dt period of time
     fun staggeredAdvect(
@@ -63,9 +53,6 @@ class Particles(val particleCount: Int, val visualizingNode: Node): InstancedNod
             new_y.setEntry(i, y)
             new_z.setEntry(i, z)
             newPositions.add(Vector3f(x.toFloat(), y.toFloat(), z.toFloat()))
-            this.instances[i].spatial {
-                position = Vector3f(x.toFloat(), y.toFloat(), z.toFloat())
-            }
         }
 
         x = new_x
@@ -79,6 +66,17 @@ class Particles(val particleCount: Int, val visualizingNode: Node): InstancedNod
         x = ArrayRealVector(indices.map { x.getEntry(it) }.toDoubleArray())
         y = ArrayRealVector(indices.map { y.getEntry(it) }.toDoubleArray())
         z = ArrayRealVector(indices.map { z.getEntry(it) }.toDoubleArray())
+        positions = indices.map { Vector3f(x.getEntry(it).toFloat(), y.getEntry(it).toFloat(), z.getEntry(it).toFloat()) } as ArrayList<Vector3f>
+    }
+
+    fun getIndicesWithinBounds(volSize: Triple<Int, Int, Int>): IntArray {
+        return IntArray(x.dimension) { it }
+            .filter { index ->
+                x.getEntry(index) > 0 && x.getEntry(index) < volSize.first &&
+                    y.getEntry(index) > 0 && y.getEntry(index) < volSize.second &&
+                    z.getEntry(index) > 0 && z.getEntry(index) < volSize.third
+            }
+            .toIntArray()
     }
 
     companion object {
@@ -129,6 +127,9 @@ class Particles(val particleCount: Int, val visualizingNode: Node): InstancedNod
             val safeIyp = iyp.coerceIn(0 until vx[0].size)
             val safeIzp = izp.coerceIn(0 until vx[0][0].size)
 
+            if(safeIx != ix) {
+                print("deleteMe!")
+            }
             // Fetch the relevant values for vx, vy, vz
             val v000 = vx[safeIx][safeIy][safeIz]
             val v100 = vx[safeIxp][safeIy][safeIz]
@@ -192,6 +193,7 @@ class Particles(val particleCount: Int, val visualizingNode: Node): InstancedNod
 
             return Triple(vxInterpolated, vyInterpolated, vzInterpolated)
         }
+
     }
 }
 
