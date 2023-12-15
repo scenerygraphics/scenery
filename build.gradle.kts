@@ -145,6 +145,7 @@ dependencies {
     implementation("org.jfree:jfreechart:1.5.4")
     implementation("net.imagej:imagej-ops:0.45.5")
     implementation("org.apache.commons:commons-math3:3.6.1")
+    implementation("com.github.wendykierp:JTransforms:3.1")
 }
 
 val isRelease: Boolean
@@ -294,7 +295,7 @@ tasks {
                 "jackson-dataformat-yaml",
                 "kryo",
                 "bigvolumeviewer",
-                "org.commons-math3"
+                "org.commons-math3",
                 ) + lwjglArtifacts
 
             val toSkip = listOf("pom-scijava")
