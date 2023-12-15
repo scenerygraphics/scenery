@@ -1,9 +1,7 @@
 package graphics.scenery.schroedingerSmoke
 
 import org.apache.commons.math3.complex.Complex
-import org.apache.commons.math3.transform.DftNormalization
-import org.apache.commons.math3.transform.FastFourierTransformer
-import org.apache.commons.math3.transform.TransformType
+import org.jtransforms.fft.DoubleFFT_3D
 import kotlin.math.pow
 import kotlin.math.sin
 
@@ -42,50 +40,71 @@ open class TorusDEC(
     open val py: Array<Array<DoubleArray>> = Array(resx) { Array(resy) { iiy -> DoubleArray(resz) { iiz -> iiy * dy } } }
     open val pz: Array<Array<DoubleArray>> = Array(resx) { Array(resy) { iiy -> DoubleArray(resz) { iiz -> iiz * dz } } }
 
-    fun poissonSolve(f: Array<Array<DoubleArray>>): Array<Array<DoubleArray>> {
-        val transformer = FastFourierTransformer(DftNormalization.STANDARD)
-        val fftData = f.map { plane ->
-            plane.map { row ->
-                row.map { value -> Complex(value, 0.0) }.toTypedArray()
-            }.toTypedArray()
-        }.toTypedArray()
+    fun poissonSolve(f: Array<Array<DoubleArray>>): Array<Array<Array<Complex>>> {
+        val nx = resx
+        val ny = resy
+        val nz = resz
 
-        // Apply FFT
-        val transformed = fftData.map { plane ->
-            plane.map { row ->
-                transformer.transform(row, TransformType.FORWARD)
-            }.toTypedArray()
-        }.toTypedArray()
-
-        // Compute sin values and denominators
-        val sx = Array(resx) { iix -> sin(Math.PI * iix / resx) / dx }
-        val sy = Array(resy) { iiy -> sin(Math.PI * iiy / resy) / dy }
-        val sz = Array(resz) { iiz -> sin(Math.PI * iiz / resz) / dz }
-
-        // Apply the spectral method operation
-        for (iix in 0 until resx) {
-            for (iiy in 0 until resy) {
-                for (iiz in 0 until resz) {
-                    val denom = sx[iix].pow(2) + sy[iiy].pow(2) + sz[iiz].pow(2)
-                    val fac = if (iix == 0 && iiy == 0 && iiz == 0) Complex.ZERO else Complex(-0.25 / denom, 0.0)
-                    transformed[iix][iiy][iiz] = transformed[iix][iiy][iiz].multiply(fac)
+        // Flattening the 3D array into a single-dimensional array for JTransforms.
+        // The size of the last dimension is 2 * (nz / 2 + 1) for the real+imaginary parts in packed format.
+        val data = DoubleArray(nx * ny * 2 * (nz / 2 + 1))
+        for (i in 0 until nx) {
+            for (j in 0 until ny) {
+                for (k in 0 until nz) {
+                    data[(i * ny * 2 * (nz / 2 + 1)) + (j * 2 * (nz / 2 + 1)) + k] = f[i][j][k]
                 }
             }
         }
 
-        // Apply inverse FFT
-        val result = transformed.map { plane ->
-            plane.map { row ->
-                transformer.transform(row, TransformType.INVERSE)
-            }.toTypedArray()
-        }.toTypedArray()
+        // Perform the forward FFT.
+        val fft3d = DoubleFFT_3D(nx.toLong(), ny.toLong(), nz.toLong())
+        fft3d.realForward(data)
 
-        // Extract real parts
-        return result.map { plane ->
-            plane.map { row ->
-                row.map { complex -> complex.real }.toDoubleArray()
-            }.toTypedArray()
-        }.toTypedArray()
+        // Create wave number grids
+        val sx = Array(nx) { i -> Array(ny) { j -> DoubleArray(nz) { k -> sin(Math.PI * i / nx) / dx } } }
+        val sy = Array(nx) { i -> Array(ny) { j -> DoubleArray(nz) { k -> sin(Math.PI * j / ny) / dy } } }
+        val sz = Array(nx) { i -> Array(ny) { j -> DoubleArray(nz) { k -> sin(Math.PI * k / nz) / dz } } }
+
+        // Apply the spectral method operation
+        for (i in 0 until nx) {
+            for (j in 0 until ny) {
+                for (k in 0 until (nz / 2 + 1)) { // Half the frequency components for the last dimension
+                    val realIndex = (i * ny * (nz / 2 + 1) + j * (nz / 2 + 1) + k) * 2
+                    val imagIndex = realIndex + 1
+
+                    val sxVal = sx[i][j][k]
+                    val syVal = sy[i][j][k]
+                    val szVal = if (k * 2 < nz) sz[i][j][k] else -sz[i][j][nz - k] // Handle the symmetry
+
+                    val denom = sxVal.pow(2) + syVal.pow(2) + szVal.pow(2)
+                    if (denom != 0.0) { // Avoid division by zero
+                        val factor = -0.25 / denom
+
+                        // Apply the factor to both real and imaginary parts
+                        data[realIndex] *= factor
+                        data[imagIndex] *= factor
+                    }
+                }
+            }
+        }
+
+        // Perform the inverse FFT
+        fft3d.realInverse(data, true)
+
+        // Convert the data back to a 3D array of Complex numbers
+        val result = Array(nx) { Array(ny) { Array(nz) { Complex.ZERO } } }
+        for (i in 0 until nx) {
+            for (j in 0 until ny) {
+                for (k in 0 until nz) {
+                    val realPart = data[(i * ny * 2 * (nz / 2 + 1)) + (j * 2 * (nz / 2 + 1)) + k]
+                    // The imaginary part is zero since the inverse is to real
+                    result[i][j][k] = Complex(realPart, 0.0)
+                }
+            }
+        }
+
+
+        return result
     }
 
     // DerivativeOfFunction
