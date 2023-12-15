@@ -127,9 +127,6 @@ class Particles(val particleCount: Int): RichNode("SchroedingerParticles") {
             val safeIyp = iyp.coerceIn(0 until vx[0].size)
             val safeIzp = izp.coerceIn(0 until vx[0][0].size)
 
-            if(safeIx != ix) {
-                print("deleteMe!")
-            }
             // Fetch the relevant values for vx, vy, vz
             val v000 = vx[safeIx][safeIy][safeIz]
             val v100 = vx[safeIxp][safeIy][safeIz]

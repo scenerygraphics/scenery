@@ -4,7 +4,6 @@ import org.apache.commons.math3.complex.Complex
 import org.apache.commons.math3.transform.DftNormalization
 import org.apache.commons.math3.transform.FastFourierTransformer
 import org.apache.commons.math3.transform.TransformType
-import org.joml.Vector3f
 import kotlin.math.*
 
 class ISF(
@@ -128,26 +127,26 @@ class ISF(
 
     fun addCircle(
         psi: Array<Array<Array<Complex>>>,
-        center: Vector3f,
-        normal: Vector3f,
+        center: Triple<Double, Double, Double>,
+        normal: Triple<Double, Double, Double>,
         r: Double,
         d: Double,
         dx: Double, dy: Double, dz: Double  // Assuming grid spacings are provided
     ): Array<Array<Array<Complex>>> {
         // Normalize the normal vector
-        val normalizedNormal = normal.normalize()
+        val normalizedNormal = normalizeVector(normal)
 
         // Iterate through each point in the psi array
         return psi.mapIndexed { i, layer ->
             layer.mapIndexed { j, row ->
                 row.mapIndexed { k, value ->
                     // Calculate relative position to the center
-                    val rx = i * dx - center.x
-                    val ry = j * dy - center.y
-                    val rz = k * dz - center.z
+                    val rx = i * dx - center.first
+                    val ry = j * dy - center.second
+                    val rz = k * dz - center.third
 
                     // Project relative position onto the normal vector
-                    val z = Vector3f(rx.toFloat(), ry.toFloat(), rz.toFloat()).dot(normalizedNormal)
+                    val z = rx*normalizedNormal.first + ry*normalizedNormal.second + rz*normalizedNormal.third
 
                     // Check if the point is within the cylinder and layer
                     val inCylinder = rx.pow(2) + ry.pow(2) + rz.pow(2) - z.pow(2) < r.pow(2)
@@ -167,13 +166,27 @@ class ISF(
             }.toTypedArray()
         }.toTypedArray()
     }
+    fun normalizeVector(vector: Triple<Double, Double, Double>): Triple<Double, Double, Double> {
+        val (x, y, z) = vector
+        val magnitude = Math.sqrt(x * x + y * y + z * z)
+
+        // Prevent division by zero
+        if (magnitude == 0.0) {
+            return Triple(0.0, 0.0, 0.0)
+        }
+
+        return Triple(x / magnitude, y / magnitude, z / magnitude)
+    }
     companion object {
-        fun gaugeTransform(psi1: Array<Array<Array<Complex>>>, psi2: Array<Array<Array<Complex>>>, q: Array<Array<DoubleArray>>): Pair<Array<Array<Array<Complex>>>, Array<Array<Array<Complex>>>> {
+        fun gaugeTransform(
+            psi1: Array<Array<Array<Complex>>>,
+            psi2: Array<Array<Array<Complex>>>,
+            q: Array<Array<Array<Complex>>>
+        ): Pair<Array<Array<Array<Complex>>>, Array<Array<Array<Complex>>>> {
             val transformedPsi1 = psi1.indices.map { i ->
                 psi1[i].indices.map { j ->
                     psi1[i][j].indices.map { k ->
-                        val eiq = Complex(0.0, q[i][j][k]).exp()
-                        psi1[i][j][k].multiply(eiq)
+                        psi1[i][j][k].multiply(q[i][j][k].exp())
                     }.toTypedArray()
                 }.toTypedArray()
             }.toTypedArray()
@@ -181,8 +194,7 @@ class ISF(
             val transformedPsi2 = psi2.indices.map { i ->
                 psi2[i].indices.map { j ->
                     psi2[i][j].indices.map { k ->
-                        val eiq = Complex(0.0, q[i][j][k]).exp()
-                        psi2[i][j][k].multiply(eiq)
+                        psi2[i][j][k].multiply(q[i][j][k].exp())
                     }.toTypedArray()
                 }.toTypedArray()
             }.toTypedArray()
