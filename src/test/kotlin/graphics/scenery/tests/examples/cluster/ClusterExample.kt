@@ -18,6 +18,7 @@ import graphics.scenery.volumes.Colormap
 import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.Volume
 import net.imglib2.type.numeric.integer.UnsignedByteType
+import net.imglib2.type.numeric.integer.UnsignedShortType
 import org.scijava.ui.behaviour.ClickBehaviour
 import java.nio.file.Paths
 import kotlin.concurrent.thread
@@ -102,7 +103,7 @@ class ClusterExample: SceneryBase("Clustered Volume Rendering example") {
        val volume: BufferedVolume
        val croc = false
        if(croc) {
-           volume = Volume.fromPathRaw(Paths.get(basepath + "Croc/104B_08_side1_647_25p.raw"), hub, UnsignedByteType())
+           volume = Volume.fromPathRaw(Paths.get(basepath + "Croc/104B_08_side1_647_25p.raw"), hub, UnsignedShortType())
 
            volume.name = "volume"
            volume.colormap = Colormap.get("viridis") // jet, hot, rainbow, plasma, grays
@@ -119,7 +120,7 @@ class ClusterExample: SceneryBase("Clustered Volume Rendering example") {
            //volume.transferFunction.addControlPoint(0.1f, 0.5f)
            scene.addChild(volume)
        } else {
-           volume = Volume.fromPathRaw(Paths.get(basepath + "droso-royer-autopilot-transposed"), hub, UnsignedByteType())
+           volume = Volume.fromPathRaw(Paths.get(basepath + "droso-royer-autopilot-transposed"), hub, UnsignedShortType())
 
            volume.name = "volume"
            volume.colormap = Colormap.get("hot") // jet, hot, rainbow, plasma, grays
