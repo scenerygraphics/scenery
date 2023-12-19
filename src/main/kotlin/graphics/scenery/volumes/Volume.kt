@@ -1085,23 +1085,6 @@ open class Volume(
             return parent to children
         }
 
-        /**
-         * Positions [volumes] back-to-back without gaps, using their [pixelToWorld] ratio. Can, e.g., be used
-         * with [fromPathRawSplit] to load volume files greater than 2 GiB into sliced partitions and place
-         * the partitions back-to-back, emulating a single large volume in the scene.
-         */
-        fun positionSlices(volumes: List<Volume>, pixelToWorld: Float) {
-            var sliceIndex = 0
-            volumes.forEach { volume ->
-                val currentSlices = volume.getDimensions().z
-                logger.info("Slices: $currentSlices")
-                volume.pixelToWorldRatio = pixelToWorld
-
-                volume.spatial().position = Vector3f(0f, 0f, 1.0f * (sliceIndex) * pixelToWorld)
-                sliceIndex += currentSlices
-            }
-        }
-
         /** Amount of supported slicing planes per volume, see also sampling shader segments */
         internal const val MAX_SUPPORTED_SLICING_PLANES = 16
 
