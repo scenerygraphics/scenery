@@ -13,6 +13,7 @@ import graphics.scenery.volumes.Colormap
 import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.Volume
 import net.imglib2.type.numeric.integer.UnsignedByteType
+import net.imglib2.type.numeric.integer.UnsignedShortType
 import org.scijava.ui.behaviour.ClickBehaviour
 import java.nio.file.Paths
 import kotlin.concurrent.thread
@@ -71,7 +72,7 @@ class DemoReelExample: SceneryBase("Demo Reel") {
         val histoneVolume = Volume.fromPathRaw(
             Paths.get("$driveLetter:/ssd-backup-inauguration/CAVE_DATA/histones-isonet/stacks/default/"),
             hub,
-            UnsignedByteType()
+            UnsignedShortType()
         )
         histoneVolume.transferFunction = TransferFunction.ramp(0.1f, 1.0f)
         histoneVolume.colormap = Colormap.get("hot")
@@ -82,7 +83,7 @@ class DemoReelExample: SceneryBase("Demo Reel") {
         val drosophilaVolume = Volume.fromPathRaw(
             Paths.get("$driveLetter:/ssd-backup-inauguration/CAVE_DATA/droso-royer-autopilot-transposed/"),
             hub,
-            UnsignedByteType()
+            UnsignedShortType()
         )
         drosophilaVolume.spatial {
             rotation.rotateX(1.57f)
@@ -96,7 +97,7 @@ class DemoReelExample: SceneryBase("Demo Reel") {
         val retinaVolume = Volume.fromPathRaw(
             Paths.get("$driveLetter:/ssd-backup-inauguration/CAVE_DATA/retina_test2/"),
             hub,
-            UnsignedByteType()
+            UnsignedShortType()
         )
         retinaScene.addChild(retinaVolume)
         retinaScene.visible = false
