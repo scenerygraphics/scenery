@@ -50,7 +50,9 @@ class SplitVolumeExample: SceneryBase("Split volume data", 1280, 720) {
         val parent = pair.first as RichNode
         val volumeList = pair.second
 
-        Volume.positionSlices(volumeList, volumeList.first().pixelToWorldRatio)
+//        Volume.positionSlices(volumeList, volumeList.first().pixelToWorldRatio)
+
+        parent.positionVolumeSlices(volumeList)
 
         volumeList.forEachIndexed{ i, volume->
             volume.name = "volume_$i"
