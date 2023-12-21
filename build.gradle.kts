@@ -20,8 +20,8 @@ plugins {
 repositories {
     mavenCentral()
     maven("https://maven.scijava.org/content/groups/public")
-    maven("https://jitpack.io")
-    mavenLocal()
+//    maven("https://jitpack.io")
+//    mavenLocal()
 }
 
 val lwjglArtifacts = listOf(
@@ -95,7 +95,11 @@ dependencies {
     implementation("org.lwjgl:lwjgl-lz4:3.3.0")
     implementation("org.lwjgl:lwjgl-zstd:3.3.0")
     implementation("org.lwjgl:lwjgl-lz4:3.3.0:natives-linux")
+    implementation("org.lwjgl:lwjgl-lz4:3.3.0:natives-macos")
+    implementation("org.lwjgl:lwjgl-lz4:3.3.0:natives-windows")
     implementation("org.lwjgl:lwjgl-zstd:3.3.0:natives-linux")
+    implementation("org.lwjgl:lwjgl-zstd:3.3.0:natives-macos")
+    implementation("org.lwjgl:lwjgl-zstd:3.3.0:natives-windows")
     implementation("org.zeromq:jeromq:0.5.3")
     implementation("com.esotericsoftware:kryo:5.5.0")
     implementation("de.javakaffee:kryo-serializers:0.45")
