@@ -52,18 +52,15 @@ class SimpleVolumeServerExample : SceneryBase ("Volume Server Example", 512, 512
 
         settings.set("VideoEncoder.StreamVideo", true)
         settings.set("VideoEncoder.StreamingAddress", "rtp://127.0.0.2:5004")
-        renderer?.recordMovie()
+        renderer!!.recordMovie()
 
-        thread {
-            while (true) {
-                val dummyVolume = scene.find("DummyVolume") as? DummyVolume
-                val clientCam = scene.find("ClientCamera") as? DetachedHeadCamera
-                if (dummyVolume != null && clientCam != null ) {
-                    volume.transferFunction = dummyVolume.transferFunction
-                    volume.maxDisplayRange = dummyVolume.maxDisplayRange
-                    volume.minDisplayRange = dummyVolume.minDisplayRange
-                    volume.colormap = dummyVolume.colormap
-                }
+        renderer!!.postRenderLambdas.add {
+            val dummyVolume = scene.find("DummyVolume") as? DummyVolume
+            if (dummyVolume != null) {
+                volume.transferFunction = dummyVolume.transferFunction
+                volume.maxDisplayRange = dummyVolume.maxDisplayRange
+                volume.minDisplayRange = dummyVolume.minDisplayRange
+                volume.colormap = dummyVolume.colormap
             }
         }
 
