@@ -8,12 +8,18 @@ import java.nio.file.Paths
 import kotlin.concurrent.thread
 
 /**
- * volume with network sync
+ * Simple server application for remote server-side volume rendering. Renders a volume and transmits the rendered
+ * image as an encoded video stream. Obtains volume rendering parameters and camera by synchronizing with the
+ * remote client.
+ *
+ * Example client: [SimpleVolumeClient]
  *
  * Start master with vm param:
- * -Dscenery.Server=true
+ * -Dscenery.ServerAddress={client's IP address} -Dscenery.RemoteCamera=true
  *
- * For client see [SimpleVolumeClient]
+ * Explanation:
+ * This application, the server in the remote volume rendering setup, is the client in scenery's networking code
+ * because it uses camera and volume rendering parameters from the remote client.
  */
 class SimpleVolumeServerExample : SceneryBase ("Volume Server Example", 512, 512) {
 
