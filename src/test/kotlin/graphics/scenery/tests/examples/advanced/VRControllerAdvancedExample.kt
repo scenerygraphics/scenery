@@ -242,7 +242,13 @@ class VRControllerAdvancedExample : SceneryBase(
             scene,
             hmd,
             listOf(OpenVRHMD.OpenVRButton.Trigger, OpenVRHMD.OpenVRButton.A),
-            listOf(TrackerRole.LeftHand, TrackerRole.RightHand)
+            TrackerRole.LeftHand
+        )
+        VRPress.createAndSet(
+            scene,
+            hmd,
+            listOf(OpenVRHMD.OpenVRButton.Trigger, OpenVRHMD.OpenVRButton.A),
+            TrackerRole.RightHand
         )
 
         // point at something to execute an action with the left trigger button and
