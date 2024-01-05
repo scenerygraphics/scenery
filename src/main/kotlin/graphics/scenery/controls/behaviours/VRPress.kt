@@ -4,6 +4,7 @@ import graphics.scenery.Node
 import graphics.scenery.Scene
 import graphics.scenery.attribute.spatial.Spatial
 import graphics.scenery.controls.OpenVRHMD
+import graphics.scenery.controls.TrackedDevice
 import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.controls.TrackerRole
 import org.scijava.ui.behaviour.DragBehaviour
@@ -29,6 +30,7 @@ open class VRPress(
     val targets: () -> List<Node>,
     val button: OpenVRHMD.OpenVRButton,
     val multiTarget: Boolean = false,
+    val controlerDevice: TrackedDevice,
     val onPress: ((Node) -> Unit)? = null
 ) : DragBehaviour {
 
@@ -65,7 +67,7 @@ open class VRPress(
                 is PerButtonPressable -> {
                     this.actions[button]
                 }
-            }?.onPress?.invoke(controllerSpatial)
+            }?.onPress?.invoke(controllerSpatial,controlerDevice)
         }
     }
 
@@ -92,7 +94,7 @@ open class VRPress(
                 is PerButtonPressable -> {
                     this.actions[button]
                 }
-            }?.onHold?.invoke(controllerSpatial)
+            }?.onHold?.invoke(controllerSpatial,controlerDevice)
         }
     }
 
@@ -120,7 +122,7 @@ open class VRPress(
                 is PerButtonPressable -> {
                     this.actions[button]
                 }
-            }?.onRelease?.invoke(controllerSpatial)
+            }?.onRelease?.invoke(controllerSpatial,controlerDevice)
         }
     }
 
@@ -156,6 +158,7 @@ open class VRPress(
                                     },
                                     button,
                                     false,
+                                    device
                                 ) {
                                     (hmd as? OpenVRHMD)?.vibrate(device)
                                     onPress?.invoke(it, button)
@@ -185,16 +188,16 @@ sealed class Pressable
 /**
  * Attribute which marks a node than can be pressed by the [VRPress] behavior.
  *
- * Each action receives the [Spatial] of the pressing controller
+ * Each action receives the [Spatial] and [TrackedDevice] of the pressing controller
  *
  * @param onPress called in the first frame of the interaction
  * @param onHold called each frame of the interaction
  * @param onRelease called in the last frame of the interaction
  */
 open class SimplePressable(
-    open val onPress: ((Spatial) -> Unit)? = null,
-    open val onHold: ((Spatial) -> Unit)? = null,
-    open val onRelease: ((Spatial) -> Unit)? = null
+    open val onPress: ((Spatial, TrackedDevice) -> Unit)? = null,
+    open val onHold: ((Spatial, TrackedDevice) -> Unit)? = null,
+    open val onRelease: ((Spatial, TrackedDevice) -> Unit)? = null
 ) : Pressable()
 
 /**
