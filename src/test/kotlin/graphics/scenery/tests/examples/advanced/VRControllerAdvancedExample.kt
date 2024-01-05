@@ -136,7 +136,7 @@ class VRControllerAdvancedExample : SceneryBase(
         }
         pressableSphere.addAttribute(
             Pressable::class.java,
-            SimplePressable(onRelease = { Wiggler(pressableSphere, 0.1f, 2000) })
+            SimplePressable(onRelease = { _,_ -> Wiggler(pressableSphere, 0.1f, 2000) })
         )
         scene.addChild(pressableSphere)
 
@@ -170,7 +170,7 @@ class VRControllerAdvancedExample : SceneryBase(
         pen.addAttribute(
             Pressable::class.java, PerButtonPressable(
                 mapOf(
-                    OpenVRHMD.OpenVRButton.Trigger to SimplePressable(onHold = {
+                    OpenVRHMD.OpenVRButton.Trigger to SimplePressable(onHold = { _,_ ->
                         if (System.currentTimeMillis() - lastPenWriting > 50) {
                             val ink = Sphere(0.03f)
                             ink.spatial().position = tip.spatial().worldPosition()
@@ -178,7 +178,7 @@ class VRControllerAdvancedExample : SceneryBase(
                             lastPenWriting = System.currentTimeMillis()
                         }
                     }),
-                    OpenVRHMD.OpenVRButton.A to SimplePressable(onHold = {
+                    OpenVRHMD.OpenVRButton.A to SimplePressable(onHold = { _,_ ->
                         if (System.currentTimeMillis() - lastPenWriting > 50) {
                             val ink = Box(Vector3f(0.03f))
                             ink.spatial().position = tip.spatial().worldPosition()
