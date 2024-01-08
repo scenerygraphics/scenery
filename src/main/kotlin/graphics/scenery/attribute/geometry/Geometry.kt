@@ -36,6 +36,7 @@ interface Geometry : Buffers, Serializable {
     /** Whether the object is dirty and somehow needs to be updated. Used by renderers. */
     var dirty: Boolean
     /** Whether the [vertices]/[normals]/[indices] content is generated inside a compute shader. (Currently has no check. If this is true, vertex data gets ignored!)*/
+    // TODO: should this lead to exclusive geometry generation or should the user still be able to predefine a vertex+index buffer in there class?
     var shaderSourced: Boolean
 
     fun generateBoundingBox(children: List<Node>): OrientedBoundingBox?

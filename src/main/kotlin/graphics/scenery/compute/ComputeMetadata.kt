@@ -29,6 +29,5 @@ enum class InvocationType {
 data class ComputeMetadata(
     val workSizes: Vector3i,
     val invocationType: InvocationType = InvocationType.Permanent,
-    val descriptorDependency : Boolean = false,
     @Volatile var active: Boolean = true
 )

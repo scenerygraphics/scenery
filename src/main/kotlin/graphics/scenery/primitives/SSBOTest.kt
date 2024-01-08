@@ -10,6 +10,7 @@ import graphics.scenery.geometry.GeometryType
 import graphics.scenery.net.Networkable
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.Image
+import org.joml.Vector2f
 import org.joml.Vector3f
 import org.joml.Vector3i
 import org.joml.Vector4f
@@ -52,122 +53,34 @@ open class SSBOTest @JvmOverloads constructor(val sizes: Vector3f = Vector3f(1.0
         buffers {
             // size is by default determined by the UBO layout, but can be given as optional parameter.
             // elements is mandatory
-            addCustom("ssbosOutput", Buffers.BufferUsage.Upload, elements = 1, stride = 16, inheritance = true) { layout, _ ->
+            addCustom("ssbosOutput", Buffers.BufferUsage.Upload, elements = 1, stride = 32, inheritance = true) { layout, _ ->
                 // layout points to an UBO object, but should not be named ubo
                 layout.add("Color1", { Vector4f(0.0f) })
                 layout.add("Color2", { Vector4f(0.0f) })
+            }
+            addCustom("ssbosVertices", Buffers.BufferUsage.Upload, elements = 4, stride = 40, inheritance = true) { layout, _ ->
+                // layout points to an UBO object, but should not be named ubo
+                layout.add("Vertex", { Vector4f(0.0f) })
+                layout.add("Normal", { Vector4f(0.0f) })
+                layout.add("TexCoord", { Vector2f(0.0f) })
+            }
+            addCustom("ssbosIndices", Buffers.BufferUsage.Upload, elements = 6, stride = 4, inheritance = true) { layout, _ ->
+                // layout points to an UBO object, but should not be named ubo
+                layout.add("Index", { 0 })
             }
         }
 
         val side = 1.0f
         val side2 = side / 2.0f
         geometry {
+            shaderSourced = true
             geometryType = GeometryType.TRIANGLES
 
-            vertices = BufferUtils.allocateFloatAndPut(floatArrayOf(
-                // Front
-                -sizes.x() * side2, -side2*sizes.y(), side2*sizes.z(),
-                sizes.x() * side2, -side2*sizes.y(), side2*sizes.z(),
-                sizes.x() * side2, side2*sizes.y(), side2*sizes.z(),
-                -sizes.x() * side2, side2*sizes.y(), side2*sizes.z(),
-
-                // Right
-                sizes.x() * side2, -side2*sizes.y(), side2*sizes.z(),
-                sizes.x() * side2, -side2*sizes.y(), -side2*sizes.z(),
-                sizes.x() * side2, side2*sizes.y(), -side2*sizes.z(),
-                sizes.x() * side2, side2*sizes.y(), side2*sizes.z(),
-
-                // Back
-                -sizes.x() * side2, -side2*sizes.y(), -side2*sizes.z(),
-                -sizes.x() * side2, side2*sizes.y(), -side2*sizes.z(),
-                sizes.x() * side2, side2*sizes.y(), -side2*sizes.z(),
-                sizes.x() * side2, -side2*sizes.y(), -side2*sizes.z(),
-
-                // Left
-                -sizes.x() * side2, -side2*sizes.y(), side2*sizes.z(),
-                -sizes.x() * side2, side2*sizes.y(), side2*sizes.z(),
-                -sizes.x() * side2, side2*sizes.y(), -side2*sizes.z(),
-                -sizes.x() * side2, -side2*sizes.y(), -side2*sizes.z(),
-
-                // Bottom
-                -sizes.x() * side2, -side2*sizes.y(), side2*sizes.z(),
-                -sizes.x() * side2, -side2*sizes.y(), -side2*sizes.z(),
-                sizes.x() * side2, -side2*sizes.y(), -side2*sizes.z(),
-                sizes.x() * side2, -side2*sizes.y(), side2*sizes.z(),
-                // Top
-                -sizes.x() * side2, side2*sizes.y(), side2*sizes.z(),
-                sizes.x() * side2, side2*sizes.y(), side2*sizes.z(),
-                sizes.x() * side2, side2*sizes.y(), -side2*sizes.z(),
-                -sizes.x() * side2, side2*sizes.y(), -side2*sizes.z()
-            ))
-
-            val flip: Float = if(insideNormals) { -1.0f } else { 1.0f }
-            normals = BufferUtils.allocateFloatAndPut(floatArrayOf(
-                // Front
-                0.0f, 0.0f, 1.0f*flip,
-                0.0f, 0.0f, 1.0f*flip,
-                0.0f, 0.0f, 1.0f*flip,
-                0.0f, 0.0f, 1.0f*flip,
-                // Right
-                1.0f*flip, 0.0f, 0.0f,
-                1.0f*flip, 0.0f, 0.0f,
-                1.0f*flip, 0.0f, 0.0f,
-                1.0f*flip, 0.0f, 0.0f,
-                // Back
-                0.0f, 0.0f, -1.0f*flip,
-                0.0f, 0.0f, -1.0f*flip,
-                0.0f, 0.0f, -1.0f*flip,
-                0.0f, 0.0f, -1.0f*flip,
-                // Left
-                -1.0f*flip, 0.0f, 0.0f,
-                -1.0f*flip, 0.0f, 0.0f,
-                -1.0f*flip, 0.0f, 0.0f,
-                -1.0f*flip, 0.0f, 0.0f,
-                // Bottom
-                0.0f, -1.0f*flip, 0.0f,
-                0.0f, -1.0f*flip, 0.0f,
-                0.0f, -1.0f*flip, 0.0f,
-                0.0f, -1.0f*flip, 0.0f,
-                // Top
-                0.0f, 1.0f*flip, 0.0f,
-                0.0f, 1.0f*flip, 0.0f,
-                0.0f, 1.0f*flip, 0.0f,
-                0.0f, 1.0f*flip, 0.0f
-            ))
-            indices = BufferUtils.allocateIntAndPut(intArrayOf(
-                0, 1, 2, 0, 2, 3,
-                4, 5, 6, 4, 6, 7,
-                8, 9, 10, 8, 10, 11,
-                12, 13, 14, 12, 14, 15,
-                16, 17, 18, 16, 18, 19,
-                20, 21, 22, 20, 22, 23
-            ))
-            texcoords = BufferUtils.allocateFloatAndPut(floatArrayOf(
-                0.0f, 0.0f,
-                1.0f, 0.0f,
-                1.0f, 1.0f,
-                0.0f, 1.0f,
-                0.0f, 0.0f,
-                1.0f, 0.0f,
-                1.0f, 1.0f,
-                0.0f, 1.0f,
-                0.0f, 0.0f,
-                1.0f, 0.0f,
-                1.0f, 1.0f,
-                0.0f, 1.0f,
-                0.0f, 0.0f,
-                1.0f, 0.0f,
-                1.0f, 1.0f,
-                0.0f, 1.0f,
-                0.0f, 0.0f,
-                1.0f, 0.0f,
-                1.0f, 1.0f,
-                0.0f, 1.0f,
-                0.0f, 0.0f,
-                1.0f, 0.0f,
-                1.0f, 1.0f,
-                0.0f, 1.0f
-            ))
+            addCustomVertexLayout { layout ->
+                layout.add("Position",  { Vector3f(0.0f)}, 0)
+                layout.add("Normal",  { Vector3f(0.0f)}, 16)
+                layout.add("UV",  { Vector2f(0.0f)},  32)
+            }
         }
 
         boundingBox = OrientedBoundingBox(this,

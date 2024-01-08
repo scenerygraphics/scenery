@@ -6,6 +6,8 @@ import graphics.scenery.attribute.buffers.HasBuffers
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.compute.ComputeMetadata
 import graphics.scenery.compute.InvocationType
+import org.joml.Vector2f
+import org.joml.Vector3f
 import org.joml.Vector3i
 import org.joml.Vector4f
 import java.nio.ByteBuffer
@@ -29,8 +31,7 @@ open class SSBOCainTest @JvmOverloads constructor()
             )
             metadata["ComputeMetadata"] = ComputeMetadata(
                 workSizes = Vector3i(1, 1, 1),
-                invocationType = InvocationType.Permanent,
-                descriptorDependency = true
+                invocationType = InvocationType.Permanent
             )
             setMaterial(newMaterial) {
                 newMaterial.diffuse = diffuse
@@ -62,11 +63,26 @@ open class SSBOCainTest @JvmOverloads constructor()
                 buffer.putFloat(1.0f)
                 buffer.flip()
             }
-            addCustom("ssbosOutput", Buffers.BufferUsage.Upload, elements = 1, stride = 32) { layout, buffer ->
+            addCustom("ssbosOutput", Buffers.BufferUsage.Upload, elements = 1, stride = 32) { layout, _ ->
                 // layout points to an UBO object, but should not be named ubo
                 layout.add("Color1", { Vector4f(0.0f) })
                 layout.add("Color2", { Vector4f(0.0f) })
             }
+            addCustom("ssbosVertices", Buffers.BufferUsage.Upload, elements = 4, stride = 40) { layout, _ ->
+                // layout points to an UBO object, but should not be named ubo
+                layout.add("Vertex", { Vector4f(0.0f) })
+                layout.add("Normal", { Vector4f(0.0f) })
+                layout.add("TexCoord", { Vector2f(0.0f) })
+            }
+            addCustom("ssbosIndices", Buffers.BufferUsage.Upload, elements = 6, stride = 4) { layout, _ ->
+                // layout points to an UBO object, but should not be named ubo
+                layout.add("Index", { 0 })
+            }
+            addCustom("ssboDownload", Buffers.BufferUsage.Download, elements = 1, stride = 4) { layout, _ ->
+                // layout points to an UBO object, but should not be named ubo
+                layout.add("ColorRed", { 0.0f })
+            }
+
         }
     }
 }

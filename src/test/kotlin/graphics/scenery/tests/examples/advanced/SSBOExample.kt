@@ -50,9 +50,6 @@ class SSBOExample : SceneryBase("SSBOExample", wantREPL = false) {
         }
 
         val compute = SSBOCainTest()
-        compute.buffers {
-            updateSSBOEntry("ssbosOutput", 0, "Color1", Vector4f(1.0f, 0.5f, 0.3f, 1.0f))
-        }
         val ssboTestObj = SSBOTest()
         compute.addChild(ssboTestObj)
         scene.addChild(compute)
@@ -69,6 +66,8 @@ class SSBOExample : SceneryBase("SSBOExample", wantREPL = false) {
                 x = (sin(runner / 100.0f) + 1.0f) / 2.0f
                 compute.buffers {
                     updateSSBOEntry("ssbosInput", 0, "Color1", Vector4f(x, y, z, 1.0f))
+                    requestDownload("ssboDownload")
+                    logger.info("Red: ${getSSBOEntry("ssboDownload", 0, "ColorRed")}")
                 }
             }
         }

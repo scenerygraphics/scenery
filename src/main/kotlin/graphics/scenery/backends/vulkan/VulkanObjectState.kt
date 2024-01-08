@@ -27,8 +27,6 @@ open class VulkanObjectState {
     var initialized = false
     /** Indicates whether the mesh is using indexed vertex storage. */
     var isIndexed = false
-    /** Indicates the offset to the indices in the vertex buffer in bytes. */
-    var indexOffset = 0L
     /** The number of indices stored. */
     var indexCount = 0
     /** The number of vertices stored. */
@@ -37,7 +35,7 @@ open class VulkanObjectState {
     var instanceCount = 1
 
     /** Hash map storing necessary vertex buffers. */
-    var vertexBuffers = ConcurrentHashMap<String, VulkanBuffer>()
+    var geometryBuffers = ConcurrentHashMap<String, VulkanBuffer>()
 
     /** UBOs required by the [graphics.scenery.Node] this metadata object is attached to. */
     var UBOs = LinkedHashMap<String, Pair<Long, VulkanUBO>>()
@@ -45,6 +43,7 @@ open class VulkanObjectState {
     /** SSBOs required by the [graphics.scenery.Node] this metadata object is attached to. */
     var SSBOs = LinkedHashMap<String, Long>()
     var SSBOBuffers = LinkedHashMap<String, VulkanBuffer>()
+    //TODO: Temp
     var inheritedDescriptors = HashMap<String, Long>()
 
     /** [VulkanTexture]s used by the [graphics.scenery.Node] this metadata object is attached to. */

@@ -1,7 +1,6 @@
 package graphics.scenery.backends.vulkan
 
 import graphics.scenery.*
-import graphics.scenery.attribute.buffers.BufferType
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.attribute.renderable.DelegatesRenderable
 import graphics.scenery.attribute.renderable.HasCustomRenderable
@@ -29,7 +28,6 @@ import org.lwjgl.vulkan.KHRWin32Surface.VK_KHR_WIN32_SURFACE_EXTENSION_NAME
 import org.lwjgl.vulkan.KHRXlibSurface.VK_KHR_XLIB_SURFACE_EXTENSION_NAME
 import org.lwjgl.vulkan.MVKMacosSurface.VK_MVK_MACOS_SURFACE_EXTENSION_NAME
 import org.lwjgl.vulkan.VK10.*
-import java.awt.BorderLayout
 import java.awt.image.BufferedImage
 import java.awt.image.DataBufferByte
 import java.io.File
@@ -40,7 +38,6 @@ import java.util.*
 import java.util.concurrent.*
 import java.util.concurrent.locks.ReentrantLock
 import javax.imageio.ImageIO
-import javax.swing.JFrame
 import kotlin.concurrent.thread
 import kotlin.concurrent.withLock
 import kotlin.reflect.full.*
@@ -482,10 +479,10 @@ open class VulkanRenderer(hub: Hub,
 
             logger.info("Loaded ${renderConfig.name} (${renderConfig.description ?: "no description"})")
 
-            if((System.getenv("ENABLE_VULKAN_RENDERDOC_CAPTURE")?.toInt() == 1  || Renderdoc.renderdocAttached)&& validation) {
+            /*if((System.getenv("ENABLE_VULKAN_RENDERDOC_CAPTURE")?.toInt() == 1  || Renderdoc.renderdocAttached) && validation) {
                 logger.warn("Validation Layers requested, but Renderdoc capture and Validation Layers are mutually incompatible. Disabling validations layers.")
                 validation = false
-            }
+            }*/
 
             // explicitly create VK, to make GLFW pick up MoltenVK on OS X
             if(ExtractsNatives.getPlatform() == ExtractsNatives.Platform.MACOS) {
@@ -827,6 +824,9 @@ open class VulkanRenderer(hub: Hub,
         }
     }
 
+    /**
+     * Uploads changed SSBO buffer contents of [node] from Local to Device memory
+     */
     fun updateNodeSSBOs(node: Node) {
         val renderable = node.renderableOrNull() ?: return
         val s: VulkanObjectState = renderable.rendererMetadata() ?: throw IllegalStateException("Node ${node.name} does not contain metadata object")
@@ -838,6 +838,23 @@ open class VulkanRenderer(hub: Hub,
                 ssboStagingPool,
                 ssboUploadPool,
                 ssboDownloadPool,
+                commandPools,
+                queue
+            )
+        }
+    }
+
+    /**
+     * Downloads requested SSBO buffer contents of [node] from Local to Device memory
+     */
+    fun downloadNodeSSBOs(node: Node) {
+        val renderable = node.renderableOrNull() ?: return
+        val s: VulkanObjectState = renderable.rendererMetadata() ?: throw IllegalStateException("Node ${node.name} does not contain metadata object")
+        node.ifBuffers {
+            VulkanNodeHelpers.downloadShaderStorageBuffers(
+                device,
+                node,
+                s,
                 commandPools,
                 queue
             )
@@ -900,6 +917,13 @@ open class VulkanRenderer(hub: Hub,
         s.flags.add(RendererFlags.Seen)
 
         node.ifGeometry {
+            // When the vertex buffer comes from elsewhere, the vertex description always differs from default, because of the padding inside a ssbo-layout (always 4 byte blocks)
+            // Example:
+            //  Position    = vec3 -> vec3 + 1B padding = vec4
+            //  Normal      = vec3 -> vec3 + 1B padding = vec4
+            //  UV          = vec2 -> vec2 + 2B padding = vec4
+            //  Total       = vec3+vec3+vec2 = 32Bytes -> vec4+vec4+vec4 = 48Bytes per Vertex
+
             logger.debug("Initializing geometry for ${node.name} (${vertices.remaining() / vertexSize} vertices/${indices.remaining()} indices)")
             // determine vertex input type
             s.vertexInputType = when {
@@ -915,17 +939,32 @@ open class VulkanRenderer(hub: Hub,
                 // TODO: Rewrite shader in case it does not conform to coord/normal/texcoord vertex description
                 s.vertexInputType = VertexDataKinds.PositionNormalTexcoord
                 s.instanced = true
-                vertexDescriptionFromInstancedNode(node, vertexDescriptors.getValue(VertexDataKinds.PositionNormalTexcoord))
+                vertexDescriptionFromInstancedNode(
+                    node,
+                    vertexDescriptors.getValue(VertexDataKinds.PositionNormalTexcoord)
+                )
+            } else if(shaderSourced && customVertexLayout != null) {
+                customVertexLayout?.let {
+                    vertexDescriptionFromCustomVertexLayout(it.membersSizesAndOffsets())
+                }
             } else {
                 s.instanced = false
-                s.vertexBuffers["instance"]?.close()
-                s.vertexBuffers.remove("instance")
-                s.vertexBuffers["instanceStaging"]?.close()
-                s.vertexBuffers.remove("instanceStaging")
+                s.geometryBuffers["instance"]?.close()
+                s.geometryBuffers.remove("instance")
+                s.geometryBuffers["instanceStaging"]?.close()
+                s.geometryBuffers.remove("instanceStaging")
                 vertexDescriptors.getValue(s.vertexInputType)
             }
 
-            s = VulkanNodeHelpers.createVertexBuffers(device, node, s, stagingPool, geometryPool, commandPools, queue)
+            s = VulkanNodeHelpers.createVertexBuffers(
+                device,
+                node,
+                s,
+                stagingPool,
+                geometryPool,
+                commandPools,
+                queue
+            )
         }
 
         val matricesDescriptorSet = getDescriptorCache().getOrPut("Matrices") {
@@ -1025,7 +1064,7 @@ open class VulkanRenderer(hub: Hub,
         renderable?.rendererMetadata()?.UBOs?.forEach { it.value.second.close() }
 
         node.ifGeometry {
-            renderable?.rendererMetadata()?.vertexBuffers?.forEach {
+            renderable?.rendererMetadata()?.geometryBuffers?.forEach {
                 it.value.close()
             }
         }
@@ -1212,6 +1251,46 @@ open class VulkanRenderer(hub: Hub,
         }
     }
 
+
+    protected fun vertexDescriptionFromCustomVertexLayout(sizesAndOffsets : LinkedList<Pair<Int, Int>>) : VertexDescription {
+        val attributeDesc: VkVertexInputAttributeDescription.Buffer?
+        var stride = 0
+
+        attributeDesc = VkVertexInputAttributeDescription.calloc(sizesAndOffsets.size)
+        sizesAndOffsets.forEachIndexed() { i, it ->
+            val format = when(it.first) {
+                1 -> VK_FORMAT_R32_SFLOAT
+                2 -> VK_FORMAT_R32G32_SFLOAT
+                3 -> VK_FORMAT_R32G32B32_SFLOAT
+                4 -> VK_FORMAT_R32G32B32A32_SFLOAT
+                else -> {
+                    logger.error("This size is not supported! Falling back to R32G32B32_SFloat")
+                    VK_FORMAT_R32G32B32_SFLOAT
+                }
+            }
+            attributeDesc.get(i)
+                .binding(0)
+                .location(i)
+                .format(format)
+                .offset(it.second)
+
+            //stride of one vertex is last entry's offset plus last entries size * sizeOf(float) (for now)
+            stride += 4 * 4
+        }
+
+        val bindingDesc: VkVertexInputBindingDescription.Buffer? = VkVertexInputBindingDescription.calloc(1)
+            .binding(0)
+            .stride(stride)
+            .inputRate(VK_VERTEX_INPUT_RATE_VERTEX)
+
+        val inputState = VkPipelineVertexInputStateCreateInfo.calloc()
+            .sType(VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO)
+            .pNext(NULL)
+            .pVertexAttributeDescriptions(attributeDesc)
+            .pVertexBindingDescriptions(bindingDesc)
+
+        return VertexDescription(inputState, attributeDesc, bindingDesc)
+    }
     protected fun vertexDescriptionFromInstancedNode(node: InstancedNode, template: VertexDescription): VertexDescription {
         logger.debug("Creating instanced vertex description for ${node.name}")
 
@@ -1687,6 +1766,14 @@ open class VulkanRenderer(hub: Hub,
                             renderable.preUpdate(this@VulkanRenderer, hub)
                             updateNodeSSBOs(node)
                             dirtySSBOs = false
+                        }
+
+                        if(downloadRequests.isNotEmpty()) {
+                            logger.debug("Query buffer contentcs from marked downloadable buffers' device memory to host memory")
+                            logger.info("Requests download")
+
+                            downloadNodeSSBOs(node)
+                            downloadRequests.clear()
                         }
                     }
 

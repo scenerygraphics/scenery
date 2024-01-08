@@ -72,18 +72,14 @@ object VulkanNodeHelpers {
         }
 
         val vertexAllocationBytes: Long = 4L * (vertices.remaining() + normals.remaining() + texcoords.remaining())
-        val indexAllocationBytes: Long = 4L * indices.remaining()
-        val fullAllocationBytes: Long = vertexAllocationBytes + indexAllocationBytes
+        val stridedVertexBuffer = JEmalloc.je_malloc(vertexAllocationBytes)
 
-        val stridedBuffer = JEmalloc.je_malloc(fullAllocationBytes)
-
-        if(stridedBuffer == null) {
+        if(stridedVertexBuffer == null) {
             logger.error("Allocation failed, skipping vertex buffer creation for ${node.name}.")
             return state
         }
 
-        val fb = stridedBuffer.asFloatBuffer()
-        val ib = stridedBuffer.asIntBuffer()
+        val fb = stridedVertexBuffer.asFloatBuffer()
 
         state.vertexCount = vertices.remaining() / geometry.vertexSize
         logger.trace("${node.name} has ${vertices.remaining()} floats and ${texcoords.remaining() / geometry.texcoordSize} remaining")
@@ -103,58 +99,97 @@ object VulkanNodeHelpers {
             }
         }
 
-        logger.trace("Adding {} bytes to strided buffer", indices.remaining() * 4)
-        if (indices.remaining() > 0) {
-            state.isIndexed = true
-            ib.position(vertexAllocationBytes.toInt() / 4)
+        val stagingVertexBuffer = stagingPool.createBuffer(vertexAllocationBytes.toInt())
+        stagingVertexBuffer.copyFrom(stridedVertexBuffer)
 
-            for (index in 0 until indices.remaining()) {
-                ib.put(indices.get())
-            }
-        }
-
-        logger.trace("Strided buffer is now at {} bytes", stridedBuffer.remaining())
-
-        val stagingBuffer = stagingPool.createBuffer(fullAllocationBytes.toInt())
-
-        stagingBuffer.copyFrom(stridedBuffer)
-
-        val vertexIndexBuffer = state.vertexBuffers["vertex+index"]
-        val vertexBuffer = if(vertexIndexBuffer != null && vertexIndexBuffer.size >= fullAllocationBytes) {
-            logger.debug("Reusing existing vertex+index buffer for {} update", node.name)
-            vertexIndexBuffer
+        val vertexBuffer = state.geometryBuffers["vertex"]
+        val vBuffer = if(vertexBuffer != null && vertexBuffer.size >= vertexAllocationBytes) {
+            logger.debug("Reusing existing vertex buffer for {} update", node.name)
+            vertexBuffer
         } else {
-            logger.debug("Creating new vertex+index buffer for {} with {} bytes", node.name, fullAllocationBytes)
-            geometryPool.createBuffer(fullAllocationBytes.toInt())
+            logger.debug("Creating new vertex buffer for {} with {} bytes", node.name, vertexAllocationBytes)
+            geometryPool.createBuffer(vertexAllocationBytes.toInt())
         }
 
-        logger.debug("Using VulkanBuffer {} for vertex+index storage, offset={}", vertexBuffer.vulkanBuffer.toHexString(), vertexBuffer.bufferOffset)
-
-        logger.debug("Initiating copy with 0->${vertexBuffer.bufferOffset}, size=$fullAllocationBytes")
+        logger.debug("Using VulkanBuffer {} for vertex storage, offset={}", vBuffer.vulkanBuffer.toHexString(), vBuffer.bufferOffset)
+        logger.debug("Initiating copy with 0->${vBuffer.bufferOffset}, size=$vertexAllocationBytes")
         val copyRegion = VkBufferCopy.calloc(1)
             .srcOffset(0)
-            .dstOffset(vertexBuffer.bufferOffset)
-            .size(fullAllocationBytes * 1L)
+            .dstOffset(vBuffer.bufferOffset)
+            .size(vertexAllocationBytes * 1L)
 
         with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
             VK10.vkCmdCopyBuffer(this,
-                stagingBuffer.vulkanBuffer,
-                vertexBuffer.vulkanBuffer,
+                stagingVertexBuffer.vulkanBuffer,
+                vBuffer.vulkanBuffer,
                 copyRegion)
             this.endCommandBuffer(device, commandPools.Standard, queue, flush = true, dealloc = true)
         }
-
         copyRegion.free()
 
-        state.vertexBuffers.put("vertex+index", vertexBuffer)?.run {
+        state.geometryBuffers.put("vertex", vBuffer)?.run {
             // check if vertex buffer has been replaced, if yes, close the old one
-            if(this != vertexBuffer) { close() }
+            if(this != vBuffer) { close() }
         }
-        state.indexOffset = vertexBuffer.bufferOffset + vertexAllocationBytes
+
+        JEmalloc.je_free(stridedVertexBuffer)
+        stagingVertexBuffer.close()
+
+
+
+        if (indices.remaining() <= 0) {
+            return state
+        }
+        state.isIndexed = true
         state.indexCount = geometry.indices.remaining()
 
-        JEmalloc.je_free(stridedBuffer)
-        stagingBuffer.close()
+        val indexAllocationBytes: Long = 4L * indices.remaining()
+        val stridedIndexBuffer = JEmalloc.je_malloc(indexAllocationBytes)
+        if(stridedIndexBuffer == null) {
+            logger.error("Allocation failed, skipping vertex buffer creation for ${node.name}.")
+            return state
+        }
+
+        val ib = stridedIndexBuffer.asIntBuffer()
+        for (index in 0 until indices.remaining()) {
+            ib.put(indices.get())
+        }
+
+        val stagingIndexBuffer = stagingPool.createBuffer(indexAllocationBytes.toInt())
+        stagingIndexBuffer.copyFrom(stridedIndexBuffer)
+
+        val indexBuffer = state.geometryBuffers["index"]
+        val iBuffer = if(indexBuffer != null && indexBuffer.size >= indexAllocationBytes) {
+            logger.debug("Reusing existing index buffer for {} update", node.name)
+            indexBuffer
+        } else {
+            logger.debug("Creating new index buffer for {} with {} bytes", node.name, indexAllocationBytes)
+            geometryPool.createBuffer(indexAllocationBytes.toInt())
+        }
+
+        logger.debug("Using VulkanBuffer {} for index storage, offset={}", iBuffer.vulkanBuffer.toHexString(), iBuffer.bufferOffset)
+        logger.debug("Initiating copy with 0->${iBuffer.bufferOffset}, size=$indexAllocationBytes")
+        val copyIndexRegion = VkBufferCopy.calloc(1)
+            .srcOffset(0)
+            .dstOffset(iBuffer.bufferOffset)
+            .size(indexAllocationBytes * 1L)
+
+        with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
+            VK10.vkCmdCopyBuffer(this,
+                stagingIndexBuffer.vulkanBuffer,
+                iBuffer.vulkanBuffer,
+                copyIndexRegion)
+            this.endCommandBuffer(device, commandPools.Standard, queue, flush = true, dealloc = true)
+        }
+        copyIndexRegion.free()
+
+        state.geometryBuffers.put("index", iBuffer)?.run {
+            // check if vertex buffer has been replaced, if yes, close the old one
+            if(this != iBuffer) { close() }
+        }
+        JEmalloc.je_free(stridedIndexBuffer)
+        stagingIndexBuffer.close()
+
 
         return state
     }
@@ -169,10 +204,6 @@ object VulkanNodeHelpers {
     commandPools: VulkanRenderer.CommandPools,
     queue: VkQueue
     ): VulkanObjectState {
-
-        node.ifRenderable {
-
-        }
 
         node.ifBuffers {
             val descriptors = (0 until buffers.size).map { Pair(VK10.VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1) }
@@ -191,7 +222,7 @@ object VulkanNodeHelpers {
                 }
 
                 //This will only work if the parent node is processes before the child node.
-                // If the parent depends on the childs, a different approach must be taken (maybe skip the parent the first time and initialize it in the next frame)
+                // If the parent depends on the children, a different approach must be taken (maybe skip the parent the first time and initialize it in the next frame)
                 if(description.inheritance) {
                     //For now, assume that the parent creates and fills the needed buffer, therefore check that the parent exists
                     node.parent?.let { parent ->
@@ -220,66 +251,71 @@ object VulkanNodeHelpers {
 
                     return@forEach
                 }
-                val backingBuffer = description.buffer.duplicate()
-                backingBuffer as ByteBuffer
 
-                val ssboSize = backingBuffer.remaining()
-                if (ssboSize <= 0)
+                description.buffer?.let { buffer ->
+                    val backingBuffer = buffer.duplicate()
+                    backingBuffer as ByteBuffer
+
+                    val ssboSize = backingBuffer.remaining()
+                    if (ssboSize <= 0)
+                        return@forEach
+
+                    // TODO: staging might not be worth caching, especially because it seems that creating a VulkanBuffer creates a staging instance internally
+                    val ssboStagingBuffer = state.SSBOBuffers[name + "Staging"]
+                    val stagingBuffer = if (ssboStagingBuffer != null && ssboStagingBuffer.size >= ssboSize) {
+                        ssboStagingBuffer
+                    } else {
+                        logger.debug("Creating new SSBO Staging Buffer")
+                        state.SSBOBuffers[name + "Staging"]?.close()
+
+                        val buffer = stagingPool.createBuffer(ssboSize)
+                        state.SSBOBuffers[name + "Staging"] = buffer
+                        stagingUpdated = true
+                        buffer
+                    }
+                    stagingBuffer.copyFrom(backingBuffer)
+
+
+                    val ssboBufferCurrent = state.SSBOBuffers[name]
+                    val ssboBuffer = if (ssboBufferCurrent != null && ssboBufferCurrent.size >= ssboSize.toLong()) {
+                        ssboBufferCurrent
+                    } else {
+                        logger.debug("Creating new SSBO Buffer")
+                        state.SSBOBuffers[name]?.close()
+
+                        val buffer = when (usage) {
+                            Buffers.BufferUsage.Upload -> ssboUploadPool.createBuffer(ssboSize)
+                            Buffers.BufferUsage.Download -> ssboDownloadPool.createBuffer(ssboSize)
+                            else -> ssboUploadPool.createBuffer(ssboSize)
+                        }
+                        state.SSBOBuffers[name] = buffer
+                        buffer
+                    }
+
+                    stackPush().use { stack ->
+                        with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
+                            val copyRegion = VkBufferCopy.calloc(1, stack)
+                                .size(ssboSize * 1L)
+                                .srcOffset(stagingBuffer.suballocation?.offset?.toLong() ?: 0L)
+                                .dstOffset(ssboBuffer.suballocation?.offset?.toLong() ?: 0L)
+
+                            VK10.vkCmdCopyBuffer(
+                                this,
+                                stagingBuffer.vulkanBuffer,
+                                ssboBuffer.vulkanBuffer,
+                                copyRegion
+                            )
+
+                            this.endCommandBuffer(device, commandPools.Standard, queue, flush = true, dealloc = true)
+                        }
+                    }
+                    val ssboUbo = VulkanUBO(device, ubo = layout)
+                    ssboUbo.updateBackingBuffer(ssboBuffer)
+                    ssboUbo.createUniformBuffer(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT)
+                    ssboUbos.add(1 to ssboUbo.descriptor)
+
                     return@forEach
-
-                // TODO: staging might not be worth caching, especially because it seems that creating a VulkanBuffer creates a staging instance internally
-                val ssboStagingBuffer = state.SSBOBuffers[name + "Staging"]
-                val stagingBuffer = if (ssboStagingBuffer != null && ssboStagingBuffer.size >= ssboSize) {
-                    ssboStagingBuffer
-                } else {
-                    logger.debug("Creating new SSBO Staging Buffer")
-                    state.SSBOBuffers[name + "Staging"]?.close()
-
-                    val buffer = stagingPool.createBuffer(ssboSize)
-                    state.SSBOBuffers[name + "Staging"] = buffer
-                    stagingUpdated = true
-                    buffer
                 }
-                stagingBuffer.copyFrom(backingBuffer)
-
-
-                val ssboBufferCurrent = state.SSBOBuffers[name]
-                val ssboBuffer = if (ssboBufferCurrent != null && ssboBufferCurrent.size >= ssboSize.toLong()) {
-                    ssboBufferCurrent
-                } else {
-                    logger.debug("Creating new SSBO Buffer")
-                    state.SSBOBuffers[name]?.close()
-
-                    val buffer = when (usage) {
-                        Buffers.BufferUsage.Upload -> ssboUploadPool.createBuffer(ssboSize)
-                        Buffers.BufferUsage.Download -> ssboDownloadPool.createBuffer(ssboSize)
-                        else -> ssboUploadPool.createBuffer(ssboSize)
-                    }
-                    state.SSBOBuffers[name] = buffer
-                    buffer
-                }
-
-                stackPush().use { stack ->
-                    with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
-                        val copyRegion = VkBufferCopy.calloc(1, stack)
-                            .size(ssboSize * 1L)
-                            .srcOffset(stagingBuffer.suballocation?.offset?.toLong() ?: 0L)
-                            .dstOffset(ssboBuffer.suballocation?.offset?.toLong() ?: 0L)
-
-                        VK10.vkCmdCopyBuffer(
-                            this,
-                            stagingBuffer.vulkanBuffer,
-                            ssboBuffer.vulkanBuffer,
-                            copyRegion
-                        )
-
-                        this.endCommandBuffer(device, commandPools.Standard, queue, flush = true, dealloc = true)
-                    }
-                }
-                val ssboUbo = VulkanUBO(device, ubo = layout)
-                ssboUbo.updateBackingBuffer(ssboBuffer)
-                ssboUbo.createUniformBuffer(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT)
-                ssboUbos.add(1 to ssboUbo.descriptor)
             }
 
             var ds = state.requiredDescriptorSets["ssbos"]
@@ -291,6 +327,72 @@ object VulkanNodeHelpers {
             }
             state.SSBOs["ssbos"] = ds
         }
+        return state
+    }
+
+    fun downloadShaderStorageBuffers(
+        device: VulkanDevice,
+        node: Node,
+        state: VulkanObjectState,
+        commandPools: VulkanRenderer.CommandPools,
+        queue: VkQueue
+    ): VulkanObjectState {
+
+        node.ifBuffers {
+            downloadRequests.forEach { name ->
+                logger.info("Requesting download for {}", name)
+
+                var size = 0
+                val bufferDownloadDest = if(buffers.containsKey(name)) {
+                    buffers[name]?.let {
+                        size = it.size
+                        it.buffer?.let {
+                            it.duplicate() as ByteBuffer
+                        }
+                    }
+                } else {
+                    logger.error("Buffer {} not present in Buffers property!", name)
+                    return@forEach
+                }
+
+                val stagingBuffer = VulkanBuffer(device, size * 1L, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT or VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, false)
+
+                val ssboBuffer = state.SSBOBuffers[name]
+                val downloadBuffer = if(ssboBuffer != null) {
+                    ssboBuffer
+                } else {
+                    logger.error("SSBOBuffer {} not defined in node state!", name)
+                    return@forEach
+                }
+
+                stackPush().use { stack ->
+                    with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
+                        val copyRegion = VkBufferCopy.calloc(1, stack)
+                            .size(size * 1L)
+                            .srcOffset(downloadBuffer.suballocation?.offset?.toLong() ?: 0L)
+                            .dstOffset(stagingBuffer.suballocation?.offset?.toLong() ?: 0L)
+
+                        VK10.vkCmdCopyBuffer(
+                            this,
+                            downloadBuffer.vulkanBuffer,
+                            stagingBuffer.vulkanBuffer,
+                            copyRegion
+                        )
+
+                        this.endCommandBuffer(device, commandPools.Standard, queue, flush = true, dealloc = true)
+                    }
+                }
+
+                if(bufferDownloadDest != null) {
+                    stagingBuffer.copyTo(bufferDownloadDest)
+                } else {
+                    logger.error("Try to copy to undefined buffer {}", name)
+                }
+
+                stagingBuffer.close()
+            }
+        }
+
         return state
     }
 
@@ -323,7 +425,7 @@ object VulkanNodeHelpers {
 
         val instanceBufferSize = ubo.getSize() * instances.size
 
-        val instanceStagingBuffer = state.vertexBuffers["instanceStaging"]
+        val instanceStagingBuffer = state.geometryBuffers["instanceStaging"]
         val stagingBuffer = if(instanceStagingBuffer != null && instanceStagingBuffer.size >= instanceBufferSize) {
             instanceStagingBuffer
         } else {
@@ -334,7 +436,7 @@ object VulkanNodeHelpers {
                 VK10.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
                 wantAligned = true)
 
-            state.vertexBuffers["instanceStaging"] = buffer
+            state.geometryBuffers["instanceStaging"] = buffer
             buffer
         }
 
@@ -355,14 +457,14 @@ object VulkanNodeHelpers {
         stagingBuffer.stagingBuffer.position(stagingBuffer.stagingBuffer.limit())
         stagingBuffer.copyFromStagingBuffer()
 
-        val existingInstanceBuffer = state.vertexBuffers["instance"]
+        val existingInstanceBuffer = state.geometryBuffers["instance"]
         val instanceBuffer = if (existingInstanceBuffer != null
             && existingInstanceBuffer.size >= instanceBufferSize
             && existingInstanceBuffer.size < 1.5*instanceBufferSize) {
             existingInstanceBuffer
         } else {
-            logger.debug("Instance buffer for ${node.name} needs to be reallocated due to insufficient size ($instanceBufferSize vs ${state.vertexBuffers["instance"]?.size ?: "<not allocated yet>"})")
-            state.vertexBuffers["instance"]?.close()
+            logger.debug("Instance buffer for ${node.name} needs to be reallocated due to insufficient size ($instanceBufferSize vs ${state.geometryBuffers["instance"]?.size ?: "<not allocated yet>"})")
+            state.geometryBuffers["instance"]?.close()
 
             val buffer = VulkanBuffer(device,
                 instanceBufferSize * 1L,
@@ -370,7 +472,7 @@ object VulkanNodeHelpers {
                 VK10.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
                 wantAligned = true)
 
-            state.vertexBuffers["instance"] = buffer
+            state.geometryBuffers["instance"] = buffer
             buffer
         }
 
