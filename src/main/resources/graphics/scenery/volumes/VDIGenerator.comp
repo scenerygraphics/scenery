@@ -41,7 +41,9 @@ layout(push_constant) uniform currentEye_t {
 #define WRITE_ITER 1
 #define WRITE_THRESHOLDS 1
 
-#define FAST 1
+#define LOAD_THRESHOLDS 0
+
+#define FAST 0
 
 #define SEPARATE_DEPTH 1
 #define WORLD_ABS 0
@@ -382,6 +384,11 @@ void main()
             }
             #endif
 
+            #if LOAD_THRESHOLDS
+            mid_thresh = imageLoad(Thresholds, ivec2(gl_GlobalInvocationID.xy)).x;
+            thresh_found = true;
+            #endif
+
             newSupSegThresh = mid_thresh;
 
             int num_terminations = 0;
@@ -521,7 +528,12 @@ void main()
     }
     #if WRITE_SEG
     else {
+        #if WRITE_ITER
         imageStore(Iterations, ivec2(gl_GlobalInvocationID.xy), ivec4(0));
+        #endif
+        #if WRITE_THRESHOLDS
+        imageStore(Thresholds, ivec2(gl_GlobalInvocationID.xy), vec4(0.0));
+        #endif
         if(supersegmentNum < maxSupersegments) {
             for(int i = supersegmentNum; i < maxSupersegments; i++) {
                 writeSupersegment(i, 0, 0, vec4(0));
