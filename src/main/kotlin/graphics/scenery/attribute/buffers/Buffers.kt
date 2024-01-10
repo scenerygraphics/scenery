@@ -147,6 +147,9 @@ interface Buffers : Serializable {
                                 if(index + (sizeAndOffset.second ?: 0) + sizeAndOffset.first < bufferDescription.size)
                                     for(i in 0 until bufferDescription.size) {
                                         logger.info("{}", this.get(i))
+
+
+                                        return this.getFloat(index + (sizeAndOffset.second ?: 0)) //cast this accordingly to the type (might be a vec, Int, float, boolean?)
                                     }
                             }
                             logger.warn("Buffer entry {} could not be retrieved from buffer {}", layoutEntry, name)

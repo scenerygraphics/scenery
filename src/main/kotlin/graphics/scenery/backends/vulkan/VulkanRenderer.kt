@@ -715,34 +715,38 @@ open class VulkanRenderer(hub: Hub,
 
             geometryPool = VulkanBufferPool(
                 device,
-                usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT or VK_BUFFER_USAGE_INDEX_BUFFER_BIT or VK_BUFFER_USAGE_TRANSFER_DST_BIT
+                usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT or VK_BUFFER_USAGE_INDEX_BUFFER_BIT or VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                poolName = "GeometryPool"
             )
 
             ssboUploadPool = VulkanBufferPool(
                 device,
-                usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT or VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                bufferSize = 1024*1024
+                usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT or VK_BUFFER_USAGE_TRANSFER_DST_BIT or VK_BUFFER_USAGE_VERTEX_BUFFER_BIT or VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+                bufferSize = 1024*1024,
+                poolName = "ssboUploadPool"
             )
 
             ssboDownloadPool = VulkanBufferPool(
                 device,
-                usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT or VK_BUFFER_USAGE_TRANSFER_SRC_BIT or VK_BUFFER_USAGE_VERTEX_BUFFER_BIT or VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-                bufferSize = 1024*1024
+                usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT or VK_BUFFER_USAGE_TRANSFER_SRC_BIT or VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                bufferSize = 1024*1024,
+                poolName = "ssboDownloadPool"
             )
 
             ssboStagingPool = VulkanBufferPool(
                 device,
                 usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                 properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-                bufferSize = 64*1024*1024
+                bufferSize = 64*1024*1024,
+                poolName = "ssboStagingPool"
             )
-
 
             stagingPool = VulkanBufferPool(
                 device,
                 usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                 properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-                bufferSize = 64*1024*1024
+                bufferSize = 64*1024*1024,
+                poolName = "StagingPool"
             )
 
             initialized = true
@@ -1508,7 +1512,8 @@ open class VulkanRenderer(hub: Hub,
                 screenshotBuffer = VulkanBuffer(device, imageByteSize,
                     VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-                    wantAligned = true)
+                    wantAligned = true,
+                    name = "ScreenshotBuffer")
             }
 
             if(imageBuffer == null || imageBuffer?.capacity() != imageByteSize.toInt()) {
@@ -1769,7 +1774,7 @@ open class VulkanRenderer(hub: Hub,
                         }
 
                         if(downloadRequests.isNotEmpty()) {
-                            logger.debug("Query buffer contentcs from marked downloadable buffers' device memory to host memory")
+                            logger.debug("Query buffer contents from marked downloadable buffers' device memory to host memory")
                             logger.info("Requests download")
 
                             downloadNodeSSBOs(node)
@@ -2181,25 +2186,29 @@ open class VulkanRenderer(hub: Hub,
                 5 * 1024 * 1024,
                 VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                wantAligned = true),
+                wantAligned = true,
+                name = "DefaultBuffer_UBO"),
 
             LightParameters = VulkanBuffer(device,
                 5 * 1024 * 1024,
                 VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                wantAligned = true),
+                wantAligned = true,
+                name = "DefaultBuffer_Light"),
 
             VRParameters = VulkanBuffer(device,
                 256 * 10,
                 VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                wantAligned = true),
+                wantAligned = true,
+                name = "DefaultBuffer_VR"),
 
             ShaderProperties = VulkanBuffer(device,
                 4 * 1024 * 1024,
                 VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                wantAligned = true))
+                wantAligned = true,
+                name = "DefaultBuffer_ShaderProps"))
     }
 
     private fun Renderable.rendererMetadata(): VulkanObjectState? {

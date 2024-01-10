@@ -18,6 +18,7 @@ class VulkanBufferPool(
     val usage: Int = VK10.VK_BUFFER_USAGE_VERTEX_BUFFER_BIT or VK10.VK_BUFFER_USAGE_INDEX_BUFFER_BIT or VK10.VK_BUFFER_USAGE_TRANSFER_DST_BIT,
     val bufferSize: Long = basicBufferSize,
     val properties: Int = VK10.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+    var poolName : String
 ) {
 
     private val logger by lazyLogger()
@@ -43,7 +44,7 @@ class VulkanBufferPool(
                 bufferSize *= 4
             }
 
-            val vb = VulkanBuffer(device, bufferSize, usage, properties, true)
+            val vb = VulkanBuffer(device, bufferSize, usage, properties, true, name = "${poolName}_SubAllocatedBuffer")
             val alloc = VulkanBufferAllocation(usage, vb.allocatedSize, vb, vb.alignment.toInt())
             backingStore.add(alloc)
             logger.trace("Added new buffer of size {} to backing store", bufferSize)
@@ -62,8 +63,8 @@ class VulkanBufferPool(
     /**
      * Creates a new [VulkanBuffer] of [size], backed by this [VulkanBufferPool].
      */
-    fun createBuffer(size: Int): VulkanBuffer {
-        return VulkanBuffer.fromPool(this, size.toLong())
+    fun createBuffer(size: Int, name : String = "BufferFromPool"): VulkanBuffer {
+        return VulkanBuffer.fromPool(this, size.toLong(), name)
     }
 
     /**
