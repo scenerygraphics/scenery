@@ -38,8 +38,8 @@ layout(push_constant) uniform currentEye_t {
 } currentEye;
 
 #define WRITE_SEG 1
-#define WRITE_ITER 1
-#define WRITE_THRESHOLDS 1
+#define WRITE_ITER 0
+#define WRITE_THRESHOLDS 0
 
 #define LOAD_THRESHOLDS 0
 
@@ -71,7 +71,9 @@ layout (set = 10, binding = 0, r32i) uniform iimage2D SupersegmentsGenerated;
 
 #pragma scenery endverbatim
 
-ivec2 debug_pixel = ivec2(906, 120);
+//ivec2 debug_pixel = ivec2(906, 120);
+//ivec2 debug_pixel = ivec2(1138, 490); //normally 23 iterations, with optimized search stuck at 16 terminations at 9th iteration
+ivec2 debug_pixel = ivec2(849, 566); //normally Mid = 0.099220 with 19 iterations, with optimized search stuck at 16 terminations
 
 // intersect ray with a box
 // http://www.siggraph.org/education/materials/HyperGraph/raytrace/rtinter3.htm
@@ -455,6 +457,9 @@ void main()
                 supsegs_written = true;
                 #if WRITE_THRESHOLDS
                 imageStore(Thresholds, ivec2(gl_GlobalInvocationID.xy), vec4(mid_thresh));
+                if(emptyRegion){
+                    imageStore(Thresholds, ivec2(gl_GlobalInvocationID.xy), vec4(0));
+                }
                 #endif
             }
 
@@ -532,7 +537,7 @@ void main()
         imageStore(Iterations, ivec2(gl_GlobalInvocationID.xy), ivec4(0));
         #endif
         #if WRITE_THRESHOLDS
-        imageStore(Thresholds, ivec2(gl_GlobalInvocationID.xy), vec4(0.0));
+        imageStore(Thresholds, ivec2(gl_GlobalInvocationID.xy), vec4(0));
         #endif
         if(supersegmentNum < maxSupersegments) {
             for(int i = supersegmentNum; i < maxSupersegments; i++) {
