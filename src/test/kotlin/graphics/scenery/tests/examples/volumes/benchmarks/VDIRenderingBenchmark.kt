@@ -15,7 +15,7 @@ import java.io.File
 import java.io.FileInputStream
 import java.nio.ByteBuffer
 
-class VDIRenderingBenchmark(applicationName: String, windowWidth: Int, windowHeight: Int, val dataset: BenchmarkSetup.Dataset, val ns: Int): SceneryBase(applicationName, windowWidth,windowHeight) {
+class VDIRenderingBenchmark(applicationName: String, windowWidth: Int, windowHeight: Int, val dataset: BenchmarkSetup.Dataset, val ns: Int, val vo: Int): SceneryBase(applicationName, windowWidth,windowHeight) {
 
     val skipEmpty = false
 
@@ -25,6 +25,8 @@ class VDIRenderingBenchmark(applicationName: String, windowWidth: Int, windowHei
     val numLayers = 1
 
     val cam: Camera = DetachedHeadCamera()
+
+    var num = 0;
 
     override fun init() {
 
@@ -48,15 +50,22 @@ class VDIRenderingBenchmark(applicationName: String, windowWidth: Int, windowHei
         //Step 2: read files
         val filePrefix = dataset.toString() + "_${windowWidth}_${windowHeight}_${numSupersegments}"
 
-        val file = FileInputStream(File("${filePrefix}_VDI_dump0"))
+        when(vo){
+            0 -> num = 0
+            90 -> num = 1
+            180 -> num = 2
+            270 -> num = 3
+        }
+
+        val file = FileInputStream(File("${filePrefix}_VDI_dump${num}"))
         val vdiData = VDIDataIO.read(file)
         logger.info("Fetching file...")
 
         vdiNode = VDINode(windowWidth, windowHeight, numSupersegments, vdiData)
 
-        val colorArray: ByteArray = File("${filePrefix}_VDI_col_0").readBytes()
-        val depthArray: ByteArray = File("${filePrefix}_VDI_depth_0").readBytes()
-        val octArray: ByteArray = File("${filePrefix}_VDI_octree_0").readBytes()
+        val colorArray: ByteArray = File("${filePrefix}_VDI_col_${num}").readBytes()
+        val depthArray: ByteArray = File("${filePrefix}_VDI_depth_${num}").readBytes()
+        val octArray: ByteArray = File("${filePrefix}_VDI_octree_${num}").readBytes()
 
         //Step  3: assigning buffer values
         val colBuffer: ByteBuffer = MemoryUtil.memCalloc(vdiNode.vdiHeight * vdiNode.vdiWidth * numSupersegments * numLayers * 4 * 4)
@@ -111,7 +120,7 @@ class VDIRenderingBenchmark(applicationName: String, windowWidth: Int, windowHei
     companion object {
         @JvmStatic
         fun main(args: Array<String>) {
-            VDIRenderingBenchmark("VDI Rendering Benchmark", 1920, 1080, BenchmarkSetup.Dataset.Kingsnake, 20).main()
+            VDIRenderingBenchmark("VDI Rendering Benchmark", 1920, 1080, BenchmarkSetup.Dataset.Kingsnake, 20, 0).main()
         }
     }
 }

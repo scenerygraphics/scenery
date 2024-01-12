@@ -12,7 +12,7 @@ import kotlin.concurrent.thread
 class VDIRenderingBenchmarkRunner {
     val benchmarkDatasets = listOf<BenchmarkSetup.Dataset>(BenchmarkSetup.Dataset.Kingsnake, BenchmarkSetup.Dataset.Rayleigh_Taylor, BenchmarkSetup.Dataset.Richtmyer_Meshkov)
     val benchmarkViewpoints = listOf(10, 20, 30, 40)
-    val benchmarkSupersegments = listOf(10, 15, 20, 30, 40)
+    val benchmarkSupersegments = listOf(10, 20, 30, 40)
     val benchmarkVos = listOf(0, 90, 180, 270)
 
     fun vdiRenderingBenchmarks(dataset: String, viewpoint: Int, renderer: Renderer, skipEmpty: Boolean = false) {
@@ -25,7 +25,7 @@ class VDIRenderingBenchmarkRunner {
     }
 
     fun runTest(dataset: String, vo: Int, windowWidth: Int, windowHeight: Int, dataName: BenchmarkSetup.Dataset, ns: Int) {
-        val instance = VDIRenderingBenchmark("VDI Rendering Benchmark", windowWidth, windowHeight, dataName, ns)
+        val instance = VDIRenderingBenchmark("VDI Rendering Benchmark", windowWidth, windowHeight, dataName, ns, vo)
         thread {
             while (instance.hub.get(SceneryElement.Renderer)==null) {
                 Thread.sleep(50)
@@ -50,7 +50,7 @@ class VDIRenderingBenchmarkRunner {
                 rotateCamera(vo.toFloat(), 0f, instance.cam, instance.windowWidth, instance.windowHeight, target)
                 instance.cam.spatial().updateWorld(false, true)
             }
-            Thread.sleep(1000)
+            Thread.sleep(2000)
 
             var previousViewpoint = 0
             benchmarkViewpoints.forEach { viewpoint->
