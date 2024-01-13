@@ -343,6 +343,8 @@ open class VulkanRenderer(hub: Hub,
 
     protected var instance: VkInstance
     protected var device: VulkanDevice
+    /** list of all vulkan devices discovered during VulkanDevice.fromPhysicalDevice() */
+    val discoveredDevices = ArrayList<String>(10)
 
     protected var debugCallbackHandle: Long = -1L
 
@@ -577,10 +579,12 @@ open class VulkanRenderer(hub: Hub,
             }
             val headless = (selectedSwapchain?.kotlin?.companionObjectInstance as? SwapchainParameters)?.headless ?: false
 
+            logger.debug("Will be matching device against: "+System.getProperty("scenery.Renderer.Device"))
             device = VulkanDevice.fromPhysicalDevice(instance,
                 physicalDeviceFilter = { _, device -> "${device.vendor} ${device.name}".contains(System.getProperty("scenery.Renderer.Device", "DOES_NOT_EXIST"))},
                 additionalExtensions = { physicalDevice -> hub.getWorkingHMDDisplay()?.getVulkanDeviceExtensions(physicalDevice)?.toMutableList() ?: mutableListOf(KHRSwapchain.VK_KHR_SWAPCHAIN_EXTENSION_NAME) },
                 validationLayers = requestedValidationLayers,
+                discoveredDevices = discoveredDevices,
                 headless = headless,
                 debugEnabled = validation
             )
