@@ -1,0 +1,270 @@
+uniform vec2 viewportSize;
+uniform vec2 dsp;
+uniform float fwnw;
+uniform float nw;
+
+// -- comes from CacheSpec -----
+uniform vec3 blockSize;
+uniform vec3 paddedBlockSize;
+uniform vec3 cachePadOffset;
+
+// -- comes from TextureCache --
+uniform vec3 cacheSize; // TODO: get from texture!?
+uniform mat4 transform;
+
+uniform bool ambientOcclusion;
+
+#pragma scenery verbatim
+layout(set = 0, binding = 0) uniform VRParameters {
+    mat4 projectionMatrices[2];
+    mat4 inverseProjectionMatrices[2];
+    mat4 headShift;
+    float IPD;
+    int stereoEnabled;
+} vrParameters;
+
+const int MAX_NUM_LIGHTS = 1024;
+
+layout(set = 1, binding = 0) uniform LightParameters {
+    mat4 ViewMatrices[2];
+    mat4 InverseViewMatrices[2];
+    mat4 ProjectionMatrix;
+    mat4 InverseProjectionMatrix;
+    vec3 CamPosition;
+};
+
+layout(push_constant) uniform currentEye_t {
+    int eye;
+} currentEye;
+
+#define USE_PRINTF 1
+#define AMBIENT_OCCLUSION 0
+
+#define PREMULTIPLIED_ALPHA 0
+
+#if USE_PRINTF
+#extension GL_EXT_debug_printf : enable
+#endif
+
+layout(local_size_x = 16, local_size_y = 16) in; //TODO: change to 16x16
+layout(set = 2, binding = 0) uniform sampler3D volumeCache;
+layout(set = 3, binding = 0, rgba8) uniform image2D OutputRender;
+
+
+#pragma scenery endverbatim
+
+ivec2 debug_pixel = ivec2(640, 360);
+ivec2 pixel_coords = ivec2(gl_GlobalInvocationID.xy);
+
+// intersect ray with a box
+// http://www.siggraph.org/education/materials/HyperGraph/raytrace/rtinter3.htm
+void intersectBox( vec3 r_o, vec3 r_d, vec3 boxmin, vec3 boxmax, out float tnear, out float tfar )
+{
+    // compute intersection of ray with all six bbox planes
+    vec3 invR = 1 / r_d;
+    vec3 tbot = invR * ( boxmin - r_o );
+    vec3 ttop = invR * ( boxmax - r_o );
+
+    // re-order intersections to find smallest and largest on each axis
+    vec3 tmin = min(ttop, tbot);
+    vec3 tmax = max(ttop, tbot);
+
+    // find the largest tmin and the smallest tmax
+    tnear = max( max( tmin.x, tmin.y ), max( tmin.x, tmin.z ) );
+    tfar = min( min( tmax.x, tmax.y ), min( tmax.x, tmax.z ) );
+}
+
+float adjustOpacity(float a, float modifiedStepLength) {
+    return 1.0 - pow((1.0 - a), modifiedStepLength);
+}
+
+// ---------------------
+// $insert{Convert}
+// $insert{SampleVolume}
+// ---------------------
+
+void main()
+{
+    ivec2 imageCoords  = imageSize(OutputRender);
+    int windowWidth = imageCoords.x;
+    int windowHeight = imageCoords.y;
+
+    mat4 ipv = InverseViewMatrices[0] * InverseProjectionMatrix;
+    mat4 pv = ProjectionMatrix * ViewMatrices[0];
+    // frag coord in NDC
+    // TODO: Re-introduce dithering
+    //	vec2 fragCoord = (vrParameters.stereoEnabled ^ 1) * gl_FragCoord.xy + vrParameters.stereoEnabled * vec2((gl_FragCoord.x/2.0 + currentEye.eye * gl_FragCoord.x/2.0), gl_FragCoord.y);
+    //	vec2 viewportSizeActual = (vrParameters.stereoEnabled ^ 1) * viewportSize + vrParameters.stereoEnabled * vec2(viewportSize.x/2.0, viewportSize.y);
+    //	vec2 uv = 2 * ( gl_FragCoord.xy + dsp ) / viewportSizeActual - 1;
+
+
+    vec2 texcoord = gl_GlobalInvocationID.xy/vec2(windowWidth, windowHeight);
+    vec2 uv = texcoord * 2.0 - vec2(1.0);
+    vec2 depthUV = (vrParameters.stereoEnabled ^ 1) * texcoord + vrParameters.stereoEnabled * vec2((texcoord.x/2.0 + currentEye.eye * 0.5), texcoord.y);
+    depthUV = depthUV * 2.0 - vec2(1.0);
+
+    vec4 FragColor = vec4(0.0);
+
+    // NDC of frag on near and far plane
+    vec4 front = vec4( uv, -1, 1 );
+    vec4 back = vec4( uv, 1, 1 );
+
+    // calculate eye ray in world space
+    vec4 wfront = ipv * front;
+    wfront *= 1 / wfront.w;
+    vec4 wback = ipv * back;
+    wback *= 1 / wback.w;
+
+    //    #if USE_PRINTF
+    //    if(gl_GlobalInvocationID.xy == debug_pixel) {
+    //        debugPrintfEXT("front: (%f, %f, %f, %f) back: (%f, %f, %f, %f).", front.xyzw, back.xyzw);
+    //        debugPrintfEXT("wfront: (%f, %f, %f, %f) wback: (%f, %f, %f, %f).", wfront.xyzw, wback.xyzw);
+    //    }
+    //    #endif
+
+    // -- bounding box intersection for all volumes ----------
+    float tnear = 1, tfar = 0, tmax = getMaxDepth( depthUV );
+    float n, f;
+
+    // $repeat:{vis,localNear,localFar,intersectBoundingBox|
+    bool vis = false;
+    float localNear = 0.0f;
+    float localFar = 0.0f;
+    intersectBoundingBox( wfront, wback, n, f );
+    f = min( tmax, f );
+    if ( n < f )
+    {
+        localNear = n;
+        localFar = f;
+        tnear = min( tnear, max( 0, n ) );
+        tfar = max( tfar, f );
+        vis = true;
+    }
+    // }$
+
+    // -------------------------------------------------------
+
+    // calculate directions for local ambient occlusion
+
+    const int numAORays = 24;
+    const int numAOSteps = 5;
+
+    vec3 dirs[numAORays];
+
+    //    dirs[0] = vec3(0.33, 0.33, 0.33);
+    //    dirs[1] = vec3(-0.33, 0.33, 0.33);
+    //    dirs[2] = vec3(0.33, -0.33, 0.33);
+    //    dirs[3] = vec3(0.33, 0.33, -0.33);
+    //    dirs[4] = vec3(-0.33, -0.33, 0.33);
+    //    dirs[5] = vec3(-0.33, 0.33, -0.33);
+    //    dirs[6] = vec3(0.33, -0.33, -0.33);
+    //    dirs[7] = vec3(-0.33, -0.33, -0.33);
+
+    dirs[0] = vec3(0.11, 0.44, 0.44);
+    dirs[1] = vec3(0.44, 0.11, 0.44);
+    dirs[2] = vec3(0.44, 0.44, 0.11);
+
+    dirs[3] = vec3(0.11, -0.44, 0.44);
+    dirs[4] = vec3(0.44, -0.11, 0.44);
+    dirs[5] = vec3(0.44, -0.44, 0.11);
+
+    dirs[6] = vec3(0.11, 0.44, -0.44);
+    dirs[7] = vec3(0.44, 0.11, -0.44);
+    dirs[8] = vec3(0.44, 0.44, -0.11);
+
+    dirs[9] = vec3(-0.11, 0.44, 0.44);
+    dirs[10] = vec3(-0.44, 0.11, 0.44);
+    dirs[11] = vec3(-0.44, 0.44, 0.11);
+
+    dirs[12] = vec3(-0.11, -0.44, 0.44);
+    dirs[13] = vec3(-0.44, -0.11, 0.44);
+    dirs[14] = vec3(-0.44, -0.44, 0.11);
+
+    dirs[15] = vec3(0.11, -0.44, -0.44);
+    dirs[16] = vec3(0.44, -0.11, -0.44);
+    dirs[17] = vec3(0.44, -0.44, -0.11);
+
+    dirs[18] = vec3(-0.11, 0.44, -0.44);
+    dirs[19] = vec3(-0.44, 0.11, -0.44);
+    dirs[20] = vec3(-0.44, 0.44, -0.11);
+
+    dirs[21] = vec3(-0.11, -0.44, -0.44);
+    dirs[22] = vec3(-0.44, -0.11, -0.44);
+    dirs[23] = vec3(-0.44, -0.44, -0.11);
+
+    float minVoxelSize = nw * distance(wfront, wback);
+
+    float minOpacity = 0.0; //If alpha is less than this, the sample is considered transparent and not included in generated supersegments
+    //    float minOpacity = 0.00196078431; //If alpha is less than this, the sample is considered transparent and not included in generated supersegments
+    /* Exlanation of minOpacity value: the smallest number that can be stored in 8 but opacity channel is 1/255 = 0.00392156862. Any value less than half of this will be rounded down to 0 and
+    therefore not impact the rendering. 0.00392156862/2 = 0.00196078431*/
+
+    if ( tnear < tfar )
+    {
+        vec4 fb = wback - wfront;
+        int numSteps =
+        //        ( fwnw > 0.00001 )
+        //        ? int ( log( ( tfar * fwnw + nw ) / ( tnear * fwnw + nw ) ) / log ( 1 + fwnw ) )
+        //        :
+        int ( trunc( ( tfar - tnear ) / nw + 1 ) );
+
+        #if USE_PRINTF
+        if(gl_GlobalInvocationID.xy == debug_pixel) {
+            debugPrintfEXT("tnear: %f, tfar: %f, nw: %f. numSteps: %d.", tnear, tfar, nw, numSteps);
+        }
+            #endif
+
+        vec4 v = vec4( 0 );
+
+        float step = tnear;
+        float step_prev = step - nw;
+        vec4 wprev = mix(wfront, wback, step_prev);
+        vec4 w_prev_non_transp = vec4(0);
+
+        v = vec4( 0 );
+        vec4 curV = vec4( 0 );
+        vec4 supseg_start_w = vec4(0);
+
+        for ( int i = 0; i < numSteps; ++i, step += nw )
+        {
+            vec4 wpos = mix( wfront, wback, step );
+
+
+            // $insert{Accumulate}
+            /*
+            inserts something like the following (keys: vis,localNear,localFar,blockTexture,convert)
+
+            if (vis)
+            {
+                float x = blockTexture(wpos, volumeCache, cacheSize, blockSize, paddedBlockSize, cachePadOffset);
+                v = max(v, convert(x));
+            }
+            */
+
+            wprev = wpos;
+        }
+
+            #if !PREMULTIPLIED_ALPHA
+        v.xyz = pow(v.xyz, vec3(1/2.2)); //TODO: remove
+        #endif
+        FragColor = v;
+    }
+
+        #if USE_PRINTF
+    if(gl_GlobalInvocationID.xy == debug_pixel) {
+        debugPrintfEXT("Final color before premultiplication: (%f, %f, %f, %f)", FragColor.rgba);
+    }
+        #endif
+
+        #if PREMULTIPLIED_ALPHA
+    FragColor.rgb *= FragColor.a;
+    #endif
+
+    #if USE_PRINTF
+    if(gl_GlobalInvocationID.xy == debug_pixel) {
+        debugPrintfEXT("Premultiplied final color: (%f, %f, %f, %f)", FragColor.rgba);
+    }
+        #endif
+
+    imageStore(OutputRender, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), FragColor);
+}
