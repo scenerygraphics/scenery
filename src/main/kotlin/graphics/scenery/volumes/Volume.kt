@@ -36,6 +36,7 @@ import graphics.scenery.numerics.Random
 import graphics.scenery.utils.lazyLogger
 import graphics.scenery.utils.extensions.times
 import graphics.scenery.utils.forEachIndexedAsync
+import graphics.scenery.volumes.Volume.Companion.fromPathRawSplit
 import graphics.scenery.volumes.Volume.VolumeDataSource.SpimDataMinimalSource
 import io.scif.SCIFIO
 import io.scif.filters.ReaderFilter
@@ -982,11 +983,26 @@ open class Volume(
         }
 
         /**
-         * Reads raw volumetric data from a [file].
+         * Reads raw volumetric data from a [file], assuming the input
+         * data is 16bit Unsigned Int.
          *
          * Returns the new volume.
          */
-        @JvmStatic @JvmOverloads
+        @JvmStatic
+        fun <T: RealType<T>> fromPathRaw(
+            file: Path,
+            hub: Hub
+        ): BufferedVolume {
+            return fromPathRaw(file, hub, UnsignedShortType())
+        }
+
+        /**
+         * Reads raw volumetric data from a [file], with the [type] being
+         * explicitly specified.
+         *
+         * Returns the new volume.
+         */
+        @JvmStatic
         fun <T: RealType<T>> fromPathRaw(
             file: Path,
             hub: Hub,
@@ -1108,4 +1124,5 @@ open class Volume(
         }
     }
 }
+
 
