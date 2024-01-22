@@ -198,7 +198,7 @@ class TransferFunctionEditor constructor(
                     val annotation = XYTextAnnotation(
                         "%.2f / %.2f".format(mouseTargetCP.x.toFloat(), mouseTargetCP.y.toFloat()),
                         mouseTargetCP.x,
-                        mouseTargetCP.y)
+                        mouseTargetCP.y-0.04)
                     annotation.backgroundPaint = Color.white
                     annotation.paint = Color.darkGray
                     tfPlot.clearAnnotations()
