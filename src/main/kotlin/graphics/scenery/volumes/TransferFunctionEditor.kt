@@ -415,11 +415,7 @@ class TransferFunctionEditor constructor(
         series.add(
             targetCP.x.toFloat(), targetCP.y.toFloat()
         )
-        val newTF = TransferFunction()
-        for (i in 0 until series.itemCount) {
-            newTF.addControlPoint(series.getX(i).toFloat(), series.getY(i).toFloat())
-        }
-        tfContainer.transferFunction = newTF
+        regenerateTF(series)
     }
 
     private fun loadTransferFunction(transferFunction: TransferFunction){
@@ -447,17 +443,28 @@ class TransferFunctionEditor constructor(
         val collection = chart.chart.xyPlot.getDataset(0) as XYSeriesCollection
         val series = collection.getSeries(targetCP.seriesIndex)
 
-        targetCP.x = clamp(0.0, 1.0, targetCP.x)
+        // dont move point past other points
+        val epsilon = 0.005
+        val minX = if (targetCP.itemIndex > 0) {
+            val prev = series.getDataItem(targetCP.itemIndex - 1)
+            prev.x.toDouble() + epsilon
+        } else {
+            0.0
+        }
+        val maxX = if (targetCP.itemIndex < series.itemCount-1) {
+            val prev = series.getDataItem(targetCP.itemIndex + 1)
+            prev.x.toDouble() - epsilon
+        } else {
+            1.0
+        }
+
+        targetCP.x = clamp(minX, maxX, targetCP.x)
         targetCP.y = clamp(0.0, 1.0, targetCP.y)
 
         series.remove(targetCP.itemIndex)
         series.add(targetCP.x, targetCP.y)
 
-        val newTF = TransferFunction()
-        for (i in 0 until series.itemCount) {
-            newTF.addControlPoint(series.getX(i).toFloat(), series.getY(i).toFloat())
-        }
-        tfContainer.transferFunction = newTF
+        regenerateTF(series)
     }
 
     private fun removeControlpoint(targetCP: MouseDragTarget) {
@@ -467,14 +474,19 @@ class TransferFunctionEditor constructor(
 
 
         series.remove(targetCP.lastIndex)
+        regenerateTF(series)
+
+        targetCP.lastIndex = -1
+    }
+
+    private fun regenerateTF(series: XYSeries) {
         val newTF = TransferFunction()
         for (i in 0 until series.itemCount) {
             newTF.addControlPoint(series.getX(i).toFloat(), series.getY(i).toFloat())
         }
         tfContainer.transferFunction = newTF
-
-        targetCP.lastIndex = -1
     }
+
 
     private fun generateHistogramBins(binCount: Double, volumeHistogramData: SimpleHistogramDataset) {
         volumeHistogramData.removeAllBins()
