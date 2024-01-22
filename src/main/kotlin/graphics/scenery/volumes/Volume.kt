@@ -36,6 +36,7 @@ import graphics.scenery.numerics.Random
 import graphics.scenery.utils.lazyLogger
 import graphics.scenery.utils.extensions.times
 import graphics.scenery.utils.forEachIndexedAsync
+import graphics.scenery.volumes.Volume.Companion.fromPathRawSplit
 import graphics.scenery.volumes.Volume.VolumeDataSource.SpimDataMinimalSource
 import io.scif.SCIFIO
 import io.scif.filters.ReaderFilter
@@ -67,13 +68,10 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.io.path.name
-import kotlin.math.abs
-import kotlin.math.max
-import kotlin.math.min
-import kotlin.math.sqrt
 import kotlin.properties.Delegates
 import kotlin.streams.toList
 import net.imglib2.type.numeric.RealType
+import kotlin.math.*
 
 @Suppress("DEPRECATION")
 open class Volume(
@@ -789,13 +787,62 @@ open class Volume(
             return buffer
         }
 
+        private fun readRawFile(path: Path, dimensions: Vector3i, bytesPerVoxel: Int, offsets: Pair<Long, Long>? = null): ByteBuffer {
+            val buffer: ByteBuffer by lazy {
+
+                val buffer = ByteArray(1024 * 1024)
+                val stream = FileInputStream(path.toFile())
+                if(offsets != null) {
+                    stream.skip(offsets.first)
+                }
+
+                val imageData: ByteBuffer = MemoryUtil.memAlloc((bytesPerVoxel * dimensions.x * dimensions.y * dimensions.z))
+
+                logger.debug(
+                    "{}: Allocated {} bytes for image of {} containing {} per voxel",
+                    path.fileName,
+                    imageData.capacity(),
+                    dimensions,
+                    bytesPerVoxel
+                )
+
+                val start = System.nanoTime()
+                var bytesRead = 0
+                var total = 0
+                while (true) {
+                    var maxReadSize = minOf(buffer.size, imageData.capacity() - total)
+                    maxReadSize = maxOf(maxReadSize, 1)
+                    bytesRead = stream.read(buffer, 0, maxReadSize)
+
+                    if(bytesRead < 0) {
+                        break
+                    }
+
+                    imageData.put(buffer, 0, bytesRead)
+
+                    total += bytesRead
+
+                    if(offsets != null && total >= (offsets.second - offsets.first)) {
+                        break
+                    }
+                }
+                val duration = (System.nanoTime() - start) / 10e5
+                logger.debug("Reading took $duration ms")
+
+                imageData.flip()
+                imageData
+            }
+
+            return buffer
+        }
+
         /**
          * Reads a volume from the given [file].
          */
         @JvmStatic @JvmOverloads
         fun fromPath(file: Path, hub: Hub, onlyLoadFirst: Int? = null): BufferedVolume {
             if(file.normalize().toString().endsWith("raw")) {
-                return fromPathRaw(file, hub)
+                return fromPathRaw(file, hub, UnsignedByteType())
             }
             var volumeFiles: List<Path>
             if(Files.isDirectory(file)) {
@@ -936,11 +983,31 @@ open class Volume(
         }
 
         /**
-         * Reads raw volumetric data from a [file].
+         * Reads raw volumetric data from a [file], assuming the input
+         * data is 16bit Unsigned Int.
          *
          * Returns the new volume.
          */
-        @JvmStatic fun fromPathRaw(file: Path, hub: Hub): BufferedVolume {
+        @JvmStatic
+        fun <T: RealType<T>> fromPathRaw(
+            file: Path,
+            hub: Hub
+        ): BufferedVolume {
+            return fromPathRaw(file, hub, UnsignedShortType())
+        }
+
+        /**
+         * Reads raw volumetric data from a [file], with the [type] being
+         * explicitly specified.
+         *
+         * Returns the new volume.
+         */
+        @JvmStatic
+        fun <T: RealType<T>> fromPathRaw(
+            file: Path,
+            hub: Hub,
+            type: T
+        ): BufferedVolume {
 
             val infoFile: Path
             val volumeFiles: List<Path>
@@ -963,32 +1030,75 @@ open class Volume(
             val volumes = CopyOnWriteArrayList<BufferedVolume.Timepoint>()
             volumeFiles.forEach { v ->
                 val id = v.fileName.toString()
-                val buffer: ByteBuffer by lazy {
+                logger.debug("Loading $id from disk")
 
-                    logger.debug("Loading $id from disk")
-                    val buffer = ByteArray(1024 * 1024)
-                    val stream = FileInputStream(v.toFile())
-                    val imageData: ByteBuffer = MemoryUtil.memAlloc((2 * dimensions.x * dimensions.y * dimensions.z))
-
-                    logger.debug("${v.fileName}: Allocated ${imageData.capacity()} bytes for UINT16 image of $dimensions")
-
-                    val start = System.nanoTime()
-                    var bytesRead = stream.read(buffer, 0, buffer.size)
-                    while (bytesRead > -1) {
-                        imageData.put(buffer, 0, bytesRead)
-                        bytesRead = stream.read(buffer, 0, buffer.size)
-                    }
-                    val duration = (System.nanoTime() - start) / 10e5
-                    logger.debug("Reading took $duration ms")
-
-                    imageData.flip()
-                    imageData
-                }
+                val bytesPerVoxel = type.bitsPerPixel/8
+                val buffer = readRawFile(v, dimensions, bytesPerVoxel)
 
                 volumes.add(BufferedVolume.Timepoint(id, buffer))
             }
 
-            return fromBuffer(volumes, dimensions.x, dimensions.y, dimensions.z, UnsignedShortType(), hub)
+            return fromBuffer(volumes, dimensions.x, dimensions.y, dimensions.z, type, hub)
+        }
+
+        /**
+         * Reads raw volumetric data from a [file], splits it into buffers of at most, and as close as possible to,
+         * [sizeLimit] bytes and creates a volume from each buffer.
+         *
+         * Returns the list of volumes.
+         */
+        @JvmStatic
+        fun <T: RealType<T>> fromPathRawSplit(
+            file: Path,
+            type: T,
+            sizeLimit: Long = 2000000000L,
+            hub: Hub
+        ): Pair<Node, List<Volume>> {
+
+            val infoFile = file.resolveSibling("stacks.info")
+
+            val lines = Files.lines(infoFile).toList()
+
+            logger.debug("reading stacks.info (${lines.joinToString()}) (${lines.size} lines)")
+            val dimensions = Vector3i(lines.get(0).split(",").map { it.toInt() }.toIntArray())
+            val bytesPerVoxel = type.bitsPerPixel/8
+
+            var slicesRemaining = dimensions.z
+            var bytesRead = 0L
+            var numPartitions = 0
+
+            val slicesPerPartition = floor(sizeLimit.toFloat()/(bytesPerVoxel * dimensions.x * dimensions.y)).toInt()
+
+            val children = ArrayList<Volume>()
+
+            while (slicesRemaining > 0) {
+                val slices = if(slicesRemaining > slicesPerPartition) {
+                    slicesPerPartition
+                } else {
+                    slicesRemaining
+                }
+
+                val partitionDims = Vector3i(dimensions.x, dimensions.y, slices)
+                val size = bytesPerVoxel * dimensions.x * dimensions.y * slices
+
+                val window = bytesRead to bytesRead+size-1
+
+                logger.debug("Reading raw file with offsets: $window")
+                val buffer = readRawFile(file, partitionDims, bytesPerVoxel, window)
+
+                val volume = ArrayList<BufferedVolume.Timepoint>()
+                volume.add(BufferedVolume.Timepoint(file.fileName.toString(), buffer))
+                children.add(fromBuffer(volume, partitionDims.x, partitionDims.y, partitionDims.z, type, hub))
+
+                slicesRemaining -= slices
+                numPartitions += 1
+                bytesRead += size
+            }
+
+            val parent = RichNode()
+            children.forEach { parent.addChild(it) }
+
+            return parent to children
         }
 
         /** Amount of supported slicing planes per volume, see also sampling shader segments */
@@ -1014,4 +1124,5 @@ open class Volume(
         }
     }
 }
+
 

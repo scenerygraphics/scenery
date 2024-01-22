@@ -5,6 +5,7 @@ import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
 import graphics.scenery.attribute.material.Material
+import graphics.scenery.controls.behaviours.ArcballCameraControl
 import graphics.scenery.utils.RingBuffer
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.volumes.BufferedVolume
@@ -124,7 +125,10 @@ class ProceduralVolumeExample: SceneryBase("Procedural Volume Rendering Example"
     /**
      * Input setup override, sets up camera mode switching, where pressing C
      * can toggle between FPS and Arcball camera control. Also adds animation
-     * toggling when pressing T.
+     * toggling when pressing T. Additionally, demonstrates how the
+     * rotateDegrees of ArcballCameraControl can be used to rotate the camera
+     * by a fixed amount (here, 10 degrees yaw) about the scene origin, by
+     * pressing R.
      */
     override fun inputSetup() {
         setupCameraModeSwitching()
@@ -134,6 +138,14 @@ class ProceduralVolumeExample: SceneryBase("Procedural Volume Rendering Example"
                                        volume.metadata["animating"] = !(volume.metadata["animating"] as Boolean)
                                    })
         inputHandler?.addKeyBinding("toggle_animation", "T")
+
+        val arcballCameraControl = ArcballCameraControl("fixed_rotation", { scene.findObserver()!! }, windowWidth, windowHeight, scene.findObserver()!!.target)
+        inputHandler?.addBehaviour("rotate_camera",
+            ClickBehaviour { _, _ ->
+                arcballCameraControl.rotateDegrees(10f, 0f)
+            })
+        inputHandler?.addKeyBinding("rotate_camera", "R")
+
     }
 
     /**
