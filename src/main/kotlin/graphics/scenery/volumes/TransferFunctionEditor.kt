@@ -29,7 +29,6 @@ import java.awt.event.MouseEvent
 import java.awt.event.MouseListener
 import java.awt.event.MouseMotionListener
 import java.awt.image.BufferedImage
-import java.text.NumberFormat
 import javax.swing.*
 import kotlin.math.abs
 import kotlin.math.max
@@ -46,8 +45,7 @@ import kotlin.math.roundToInt
  * Able to dynamically set the transfer function range -> changes histogram as well
  */
 class TransferFunctionEditor constructor(
-    private val tfContainer: HasTransferFunction,
-    volumeName: String = "Volume"
+    private val tfContainer: HasTransferFunction
 ): JPanel() {
     /**
      * MouseDragTarget is set when a ControlPoint has been clicked. The initial index is set to -1 and reset when the Controlpoint has been deleted
@@ -460,7 +458,8 @@ class TransferFunctionEditor constructor(
     companion object{
         fun showTFFrame(tfContainer: HasTransferFunction, volumeName: String = "Volume"){
             val frame = JFrame()
-            val tfe = TransferFunctionEditor(tfContainer,volumeName)
+            frame.title = "$volumeName transfer function"
+            val tfe = TransferFunctionEditor(tfContainer)
             frame.add(tfe)
             frame.pack()
             frame.isVisible = true
