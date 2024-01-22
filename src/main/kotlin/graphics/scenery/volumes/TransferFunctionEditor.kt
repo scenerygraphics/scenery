@@ -331,6 +331,7 @@ class TransferFunctionEditor constructor(
         rangeEditorPanel.add(minValueLabel, "spanx 2, left")
         rangeEditorPanel.add(maxValueLabel, "spanx 2, right")
 
+        loadTransferFunction(tfContainer.transferFunction)
 //        updateSliderRange()
     }
 
@@ -391,6 +392,26 @@ class TransferFunctionEditor constructor(
             newTF.addControlPoint(series.getX(i).toFloat(), series.getY(i).toFloat())
         }
         tfContainer.transferFunction = newTF
+    }
+
+    private fun loadTransferFunction(transferFunction: TransferFunction){
+        val chart = mainChart as ChartPanel
+        val collection = chart.chart.xyPlot.getDataset(0) as XYSeriesCollection
+        val series = collection.getSeries("ControlPoints")
+
+        var points = transferFunction.controlPoints().map { it.value to it.factor }
+
+        // add first and last point if not there
+        if ((points.firstOrNull()?.first ?: 1f) > 0.0f){
+            points = listOf(0f to 0f) + points
+        }
+        if ((points.lastOrNull()?.first ?: 0f) < 1.0f){
+            points = listOf(1f to 1f) + points
+        }
+
+        points.forEach {
+            series.add(it.first,it.second)
+        }
     }
 
     private fun updateControlpoint(targetCP: MouseDragTarget) {
