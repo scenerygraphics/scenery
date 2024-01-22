@@ -68,6 +68,9 @@ float adjustOpacity(float a, float modifiedStepLength) {
 	return 1.0 - pow((1.0 - a), modifiedStepLength);
 }
 
+uniform bool fixedStepSize;
+uniform float stepsPerVoxel;
+
 // ---------------------
 // $insert{Convert}
 // $insert{SampleVolume}
@@ -138,12 +141,19 @@ void main()
 		? int ( log( ( tfar * fwnw + nw ) / ( tnear * fwnw + nw ) ) / log ( 1 + fwnw ) )
 		: int ( trunc( ( tfar - tnear ) / nw + 1 ) );
 
+		float stepWidth = nw;
+
+		if(fixedStepSize) {
+			stepWidth = (2*nw) / stepsPerVoxel;
+			numSteps = int ( trunc( ( tfar - tnear ) / stepWidth + 1 ) );
+		}
+
 		float step = tnear;
 
-		float step_prev = step - nw;
+		float step_prev = step - stepWidth;
 		vec4 wprev = mix(wfront, wback, step_prev);
 		vec4 v = vec4( 0 );
-		for ( int i = 0; i < numSteps; ++i, step += nw + step * fwnw )
+		for ( int i = 0; i < numSteps; ++i)
 		{
 			vec4 wpos = mix( wfront, wback, step );
 
@@ -158,6 +168,12 @@ void main()
 			}
 			*/
 			wprev = wpos;
+
+			if(fixedStepSize) {
+				step += stepWidth;
+			} else {
+				step += nw + step * fwnw;
+			}
 		}
         v.xyz = pow(v.xyz, vec3(1/2.2));
 		FragColor = v;
