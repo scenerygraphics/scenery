@@ -202,7 +202,6 @@ class TransferFunctionEditor constructor(
             }
             override fun mouseMoved(e: MouseEvent) {}
         })
-
         mainChart.addChartMouseListener(object : ChartMouseListener {
             override fun chartMouseClicked(e: ChartMouseEvent) {
                 if (e.entity is XYItemEntity) {
@@ -287,7 +286,7 @@ class TransferFunctionEditor constructor(
 
 
         add(DisplayRangeEditor(tfContainer), "grow")
-        loadTransferFunction(tfContainer.transferFunction)
+        initTransferFunction(tfContainer.transferFunction)
 
         //ColorMap manipulation
         colormapPanel = JPanel()
@@ -349,7 +348,7 @@ class TransferFunctionEditor constructor(
         regenerateTF(series)
     }
 
-    private fun loadTransferFunction(transferFunction: TransferFunction){
+    private fun initTransferFunction(transferFunction: TransferFunction){
         val chart = mainChart as ChartPanel
         val collection = chart.chart.xyPlot.getDataset(0) as XYSeriesCollection
         val series = collection.getSeries("ControlPoints")
