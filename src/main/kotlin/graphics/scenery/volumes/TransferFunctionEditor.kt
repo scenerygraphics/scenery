@@ -74,6 +74,8 @@ class TransferFunctionEditor constructor(
     private val minValueLabel: JLabel
     private val maxValueLabel: JLabel
 
+    //ColormapEditor
+    private val colormapPanel : JPanel
 
     private class ValueAlphaTooltipGenerator : XYToolTipGenerator {
         override fun generateToolTip(dataset: XYDataset, series: Int, category: Int): String {
@@ -353,6 +355,32 @@ class TransferFunctionEditor constructor(
         rangeEditorPanel.add(maxValueLabel, "spanx 2, right")
 
 //        updateSliderRange()
+
+        //ColorMap manipulation
+        colormapPanel = JPanel()
+        colormapPanel.layout = MigLayout("fill",
+            "[left, 10%]5[right, 40%]5[left, 10%]5[right, 40%]")
+        add(colormapPanel, "grow")
+
+        val list = Colormap.list()
+        val box = JComboBox<String>()
+        for (s in list)
+            box.addItem(s)
+
+        if (tfContainer is Volume){
+            box.selectedItem = tfContainer.colormap
+            val currentColormap = JLabel("colormap: ")
+            colormapPanel.add(currentColormap, "growx")
+            colormapPanel.add(box, "growx")
+        }
+
+        box.addActionListener{
+            val item : String = box.selectedItem as String
+            if (tfContainer is Volume){
+                tfContainer.colormap = Colormap.get(item)
+                mainChart.repaint()
+            }
+        }
     }
 
     private fun createTFImage(): BufferedImage {
