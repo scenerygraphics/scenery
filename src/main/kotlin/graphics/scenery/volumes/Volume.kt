@@ -406,9 +406,15 @@ open class Volume(
     override fun generateHistogram(): Histogram1d<*>? {
         var histogram : Histogram1d<*>? = null
 
-        this.viewerState.sources.firstOrNull()?.spimSource?.getSource(0, 0)?.let { rai ->
-            histogram = Histogram1d(Real1dBinMapper<UnsignedByteType>(minDisplayRange.toDouble(), maxDisplayRange.toDouble(), 1024, false))
-            (histogram as Histogram1d<UnsignedByteType>).countData(rai as Iterable<UnsignedByteType>)
+        try {
+            this.viewerState.sources.firstOrNull()?.spimSource?.getSource(0, 0)?.let { rai ->
+                histogram = Histogram1d(Real1dBinMapper<UnsignedByteType>(minDisplayRange.toDouble(), maxDisplayRange.toDouble(), 1024, false))
+                (histogram as Histogram1d<UnsignedByteType>).countData(rai as Iterable<UnsignedByteType>)
+            }
+        } catch (e: NotImplementedError) {
+            if(logger.isDebugEnabled) {
+                e.printStackTrace()
+            }
         }
 
         return histogram
