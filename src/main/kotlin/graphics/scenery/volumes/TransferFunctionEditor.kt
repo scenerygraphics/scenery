@@ -54,7 +54,6 @@ class TransferFunctionEditor constructor(
     data class MouseDragTarget(
         var seriesIndex: Int = -1,
         var itemIndex: Int = -1,
-        var lastIndex: Int = -1,
         var x: Double = 0.0,
         var y: Double = 0.0
     )
@@ -184,7 +183,6 @@ class TransferFunctionEditor constructor(
                     if (item.dataset is XYSeriesCollection) {
                         mouseTargetCP.seriesIndex = item.seriesIndex
                         mouseTargetCP.itemIndex = item.item
-                        mouseTargetCP.lastIndex = item.item
                     }
                 }
                 //if the drag is performed while the current target is indeed set to be a CP, update it
@@ -223,11 +221,10 @@ class TransferFunctionEditor constructor(
                     if (item.dataset is XYSeriesCollection) {
                         mouseTargetCP.seriesIndex = item.seriesIndex
                         mouseTargetCP.itemIndex = item.item
-                        mouseTargetCP.lastIndex = item.item
                         mouseTargetCP.x = clamp(0.0, 1.0, item.dataset.getX(item.seriesIndex, item.item).toDouble())
                         mouseTargetCP.y = clamp(0.0, 1.0, item.dataset.getY(item.seriesIndex, item.item).toDouble())
 
-                        if (e.trigger.isControlDown && mouseTargetCP.itemIndex != -1) {
+                        if ((e.trigger.clickCount > 1 || e.trigger.isControlDown) && mouseTargetCP.itemIndex != -1) {
                             removeControlpoint(mouseTargetCP)
                             tfPlot.backgroundImage = createTFImage()
                         }
@@ -473,10 +470,10 @@ class TransferFunctionEditor constructor(
         val series = collection.getSeries(targetCP.seriesIndex)
 
 
-        series.remove(targetCP.lastIndex)
+        series.remove(targetCP.itemIndex)
         regenerateTF(series)
 
-        targetCP.lastIndex = -1
+        targetCP.itemIndex = -1
     }
 
     private fun regenerateTF(series: XYSeries) {
