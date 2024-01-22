@@ -29,7 +29,6 @@ import java.awt.event.MouseEvent
 import java.awt.event.MouseListener
 import java.awt.event.MouseMotionListener
 import java.awt.image.BufferedImage
-import java.text.NumberFormat
 import javax.swing.*
 import kotlin.math.abs
 import kotlin.math.max
@@ -46,8 +45,7 @@ import kotlin.math.roundToInt
  * Able to dynamically set the transfer function range -> changes histogram as well
  */
 class TransferFunctionEditor constructor(
-    private val tfContainer: HasTransferFunction,
-    volumeName: String = "Volume"
+    private val tfContainer: HasTransferFunction
 ): JPanel() {
     /**
      * MouseDragTarget is set when a ControlPoint has been clicked. The initial index is set to -1 and reset when the Controlpoint has been deleted
@@ -233,48 +231,29 @@ class TransferFunctionEditor constructor(
                             removeControlpoint(mouseTargetCP)
                             tfPlot.backgroundImage = createTFImage()
                         }
-                    }
-                    //click on histogram
-                    else {
-                        val point = mainChart.translateJava2DToScreen(e.trigger.point)
-                        val plotArea = mainChart.chartRenderingInfo.plotInfo.dataArea
-                        mouseTargetCP.x = clamp(
-                            0.0,
-                            1.0,
-                            tfPlot.getDomainAxis(0).java2DToValue(point.getX(), plotArea, tfPlot.domainAxisEdge)
-                        )
-                        mouseTargetCP.y = clamp(
-                            0.0,
-                            1.0,
-                            tfPlot.getRangeAxis(0).java2DToValue(point.getY(), plotArea, tfPlot.rangeAxisEdge)
-                        )
-
-                        if (mouseTargetCP.itemIndex == -1) {
-                            addControlpoint(mouseTargetCP)
-                            tfPlot.backgroundImage = createTFImage()
-                        }
+                        return
                     }
                 }
-                //click on empty region
-                else {
-                    val point = mainChart.translateJava2DToScreen(e.trigger.point)
-                    val plotArea = mainChart.chartRenderingInfo.plotInfo.dataArea
-                    mouseTargetCP.x = clamp(
-                        0.0,
-                        1.0,
-                        tfPlot.getDomainAxis(0).java2DToValue(point.getX(), plotArea, tfPlot.domainAxisEdge)
-                    )
-                    mouseTargetCP.y = clamp(
-                        0.0,
-                        1.0,
-                        tfPlot.getRangeAxis(0).java2DToValue(point.getY(), plotArea, tfPlot.rangeAxisEdge)
-                    )
 
-                    if (mouseTargetCP.itemIndex == -1) {
-                        addControlpoint(mouseTargetCP)
-                        tfPlot.backgroundImage = createTFImage()
-                    }
+                //click on graph or  empty region
+                val point = mainChart.translateJava2DToScreen(e.trigger.point)
+                val plotArea = mainChart.chartRenderingInfo.plotInfo.dataArea
+                mouseTargetCP.x = clamp(
+                    0.0,
+                    1.0,
+                    tfPlot.getDomainAxis(0).java2DToValue(point.getX(), plotArea, tfPlot.domainAxisEdge)
+                )
+                mouseTargetCP.y = clamp(
+                    0.0,
+                    1.0,
+                    tfPlot.getRangeAxis(0).java2DToValue(point.getY(), plotArea, tfPlot.rangeAxisEdge)
+                )
+
+                if (mouseTargetCP.itemIndex == -1) {
+                    addControlpoint(mouseTargetCP)
+                    tfPlot.backgroundImage = createTFImage()
                 }
+
             }
             override fun chartMouseMoved(e: ChartMouseEvent) {}
         })
@@ -354,6 +333,7 @@ class TransferFunctionEditor constructor(
         rangeEditorPanel.add(minValueLabel, "spanx 2, left")
         rangeEditorPanel.add(maxValueLabel, "spanx 2, right")
 
+        loadTransferFunction(tfContainer.transferFunction)
 //        updateSliderRange()
 
         //ColorMap manipulation
@@ -442,6 +422,26 @@ class TransferFunctionEditor constructor(
         tfContainer.transferFunction = newTF
     }
 
+    private fun loadTransferFunction(transferFunction: TransferFunction){
+        val chart = mainChart as ChartPanel
+        val collection = chart.chart.xyPlot.getDataset(0) as XYSeriesCollection
+        val series = collection.getSeries("ControlPoints")
+
+        var points = transferFunction.controlPoints().map { it.value to it.factor }
+
+        // add first and last point if not there
+        if ((points.firstOrNull()?.first ?: 1f) > 0.0f){
+            points = listOf(0f to 0f) + points
+        }
+        if ((points.lastOrNull()?.first ?: 0f) < 1.0f){
+            points = listOf(1f to 1f) + points
+        }
+
+        points.forEach {
+            series.add(it.first,it.second)
+        }
+    }
+
     private fun updateControlpoint(targetCP: MouseDragTarget) {
         val chart = mainChart as ChartPanel
         val collection = chart.chart.xyPlot.getDataset(0) as XYSeriesCollection
@@ -507,7 +507,8 @@ class TransferFunctionEditor constructor(
     companion object{
         fun showTFFrame(tfContainer: HasTransferFunction, volumeName: String = "Volume"){
             val frame = JFrame()
-            val tfe = TransferFunctionEditor(tfContainer,volumeName)
+            frame.title = "$volumeName transfer function"
+            val tfe = TransferFunctionEditor(tfContainer)
             frame.add(tfe)
             frame.pack()
             frame.isVisible = true

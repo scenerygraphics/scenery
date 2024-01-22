@@ -35,6 +35,11 @@ open class TransferFunction(val name: String = "") {
         protected set
 
     /**
+     * @return control points of this tf
+     */
+    fun controlPoints() = controlPoints.toList()
+
+    /**
      * Adds a new control point for position [value], with [factor].
      */
     fun addControlPoint(value: Float, factor: Float): ControlPoint {
