@@ -231,48 +231,29 @@ class TransferFunctionEditor constructor(
                             removeControlpoint(mouseTargetCP)
                             tfPlot.backgroundImage = createTFImage()
                         }
-                    }
-                    //click on histogram
-                    else {
-                        val point = mainChart.translateJava2DToScreen(e.trigger.point)
-                        val plotArea = mainChart.chartRenderingInfo.plotInfo.dataArea
-                        mouseTargetCP.x = clamp(
-                            0.0,
-                            1.0,
-                            tfPlot.getDomainAxis(0).java2DToValue(point.getX(), plotArea, tfPlot.domainAxisEdge)
-                        )
-                        mouseTargetCP.y = clamp(
-                            0.0,
-                            1.0,
-                            tfPlot.getRangeAxis(0).java2DToValue(point.getY(), plotArea, tfPlot.rangeAxisEdge)
-                        )
-
-                        if (mouseTargetCP.itemIndex == -1) {
-                            addControlpoint(mouseTargetCP)
-                            tfPlot.backgroundImage = createTFImage()
-                        }
+                        return
                     }
                 }
-                //click on empty region
-                else {
-                    val point = mainChart.translateJava2DToScreen(e.trigger.point)
-                    val plotArea = mainChart.chartRenderingInfo.plotInfo.dataArea
-                    mouseTargetCP.x = clamp(
-                        0.0,
-                        1.0,
-                        tfPlot.getDomainAxis(0).java2DToValue(point.getX(), plotArea, tfPlot.domainAxisEdge)
-                    )
-                    mouseTargetCP.y = clamp(
-                        0.0,
-                        1.0,
-                        tfPlot.getRangeAxis(0).java2DToValue(point.getY(), plotArea, tfPlot.rangeAxisEdge)
-                    )
 
-                    if (mouseTargetCP.itemIndex == -1) {
-                        addControlpoint(mouseTargetCP)
-                        tfPlot.backgroundImage = createTFImage()
-                    }
+                //click on graph or  empty region
+                val point = mainChart.translateJava2DToScreen(e.trigger.point)
+                val plotArea = mainChart.chartRenderingInfo.plotInfo.dataArea
+                mouseTargetCP.x = clamp(
+                    0.0,
+                    1.0,
+                    tfPlot.getDomainAxis(0).java2DToValue(point.getX(), plotArea, tfPlot.domainAxisEdge)
+                )
+                mouseTargetCP.y = clamp(
+                    0.0,
+                    1.0,
+                    tfPlot.getRangeAxis(0).java2DToValue(point.getY(), plotArea, tfPlot.rangeAxisEdge)
+                )
+
+                if (mouseTargetCP.itemIndex == -1) {
+                    addControlpoint(mouseTargetCP)
+                    tfPlot.backgroundImage = createTFImage()
                 }
+
             }
             override fun chartMouseMoved(e: ChartMouseEvent) {}
         })
