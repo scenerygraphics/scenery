@@ -268,7 +268,7 @@ class TransferFunctionEditor constructor(
         val binResolution = 2.0.pow(resolutionStartExp)
 
         if (tfContainer is HasHistogram) {
-            genHistButton.addChangeListener {
+            genHistButton.addActionListener() {
                 val histogramVisible = tfPlot.getDataset(1) != null
 
                 if(histogramVisible) {
