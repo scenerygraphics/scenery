@@ -64,6 +64,10 @@ void intersectBox( vec3 r_o, vec3 r_d, vec3 boxmin, vec3 boxmax, out float tnear
 	tfar = min( min( tmax.x, tmax.y ), min( tmax.x, tmax.z ) );
 }
 
+float adjustOpacity(float a, float modifiedStepLength) {
+	return 1.0 - pow((1.0 - a), modifiedStepLength);
+}
+
 // ---------------------
 // $insert{Convert}
 // $insert{SampleVolume}
@@ -135,6 +139,9 @@ void main()
 		: int ( trunc( ( tfar - tnear ) / nw + 1 ) );
 
 		float step = tnear;
+
+		float step_prev = step - nw;
+		vec4 wprev = mix(wfront, wback, step_prev);
 		vec4 v = vec4( 0 );
 		for ( int i = 0; i < numSteps; ++i, step += nw + step * fwnw )
 		{
@@ -150,6 +157,7 @@ void main()
 				v = max(v, convert(x));
 			}
 			*/
+			wprev = wpos;
 		}
         v.xyz = pow(v.xyz, vec3(1/2.2));
 		FragColor = v;
