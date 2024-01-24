@@ -40,22 +40,6 @@ class ColorMapEditor : JPanel() {
             override fun mouseClicked(e: MouseEvent) {
                 val point = pointAtMouse(e)
                 when {
-                    e.isControlDown -> {
-
-                        try {
-                            // Create temp file
-                            val temp = File.createTempFile("screenshot", ".png")
-
-                            // Use the ImageIO API to write the bufferedImage to a temporary file
-                            ImageIO.write(toImage(), "png", temp)
-
-                            // Delete temp file when program exits
-                            //temp.deleteOnExit()
-                        } catch (ioe: IOException) {
-                            ioe.printStackTrace()
-                        }
-                    }
-
                     SwingUtilities.isLeftMouseButton(e) && point != null && !dragged -> {
                         point.color =
                             JColorChooser.showDialog(null, "Choose a color for point", point.color) ?: point.color
