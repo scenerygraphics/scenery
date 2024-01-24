@@ -6,6 +6,7 @@ import java.awt.event.MouseEvent
 import java.awt.event.MouseListener
 import java.awt.event.MouseMotionListener
 import org.joml.Math.clamp
+import org.joml.Math.max
 import javax.swing.JColorChooser
 import javax.swing.JFrame
 import javax.swing.JPanel
@@ -128,6 +129,34 @@ class ColorMapEditor : JPanel() {
     }
 
     class ColorPoint(var position: Float, var color: Color)
+
+    /**
+     * Loads a [Colormap] into the editor.
+     */
+    fun loadColormap(colormap: Colormap) {
+        val width = colormap.width
+        val numPoints = max(width, 10)
+
+        val sampleDistance = 1.0f/(numPoints - 2)
+
+        var colorPointsList: List<ColorPoint> = listOf()
+
+        //first sample
+        var sample = colormap.sample(0f)
+        colorPointsList = colorPointsList + ColorPoint(0f, Color(sample.x, sample.y, sample.z, sample.w))
+
+        //middle samples
+        for(i in 1..numPoints-2) {
+            sample = colormap.sample(i*sampleDistance)
+            colorPointsList = colorPointsList + ColorPoint(i*sampleDistance, Color(sample.x, sample.y, sample.z, sample.w))
+        }
+
+        //last sample
+        sample = colormap.sample(1f)
+        colorPointsList = colorPointsList + ColorPoint(1f, Color(sample.x, sample.y, sample.z, sample.w))
+
+        colorPoints = colorPointsList
+    }
 
     companion object {
         @JvmStatic
