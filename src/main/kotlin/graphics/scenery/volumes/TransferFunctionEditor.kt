@@ -285,7 +285,7 @@ class TransferFunctionEditor constructor(
         initTransferFunction(tfContainer.transferFunction)
 
         //ColorMap manipulation
-        val colorMapEditor = ColorMapEditor()
+        val colorMapEditor = ColorMapEditor(tfContainer as? Volume)
         val colormapPanel : JPanel
         colormapPanel = JPanel()
         colormapPanel.layout = MigLayout("fill")
