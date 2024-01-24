@@ -1,6 +1,5 @@
 package graphics.scenery.volumes
 
-import graphics.scenery.ui.RangeSlider
 import net.miginfocom.swing.MigLayout
 import org.jfree.chart.ChartMouseEvent
 import org.jfree.chart.ChartMouseListener
@@ -31,7 +30,6 @@ import java.awt.event.MouseMotionListener
 import java.awt.image.BufferedImage
 import javax.swing.*
 import kotlin.math.abs
-import kotlin.math.max
 import kotlin.math.pow
 import kotlin.math.roundToInt
 
@@ -54,7 +52,6 @@ class TransferFunctionEditor constructor(
     data class MouseDragTarget(
         var seriesIndex: Int = -1,
         var itemIndex: Int = -1,
-        var lastIndex: Int = -1,
         var x: Double = 0.0,
         var y: Double = 0.0
     )
@@ -64,13 +61,6 @@ class TransferFunctionEditor constructor(
     //TFEditor and Histogram
     val mainChart: JPanel
 
-    //RangeEditor
-    private val rangeEditorPanel: JPanel
-    private val minText: JTextField
-    private val maxText: JTextField
-    private val rangeSlider: RangeSlider
-    private val minValueLabel: JLabel
-    private val maxValueLabel: JLabel
 
     //ColormapEditor
     private val colormapPanel : JPanel
@@ -184,7 +174,6 @@ class TransferFunctionEditor constructor(
                     if (item.dataset is XYSeriesCollection) {
                         mouseTargetCP.seriesIndex = item.seriesIndex
                         mouseTargetCP.itemIndex = item.item
-                        mouseTargetCP.lastIndex = item.item
                     }
                 }
                 //if the drag is performed while the current target is indeed set to be a CP, update it
@@ -198,7 +187,7 @@ class TransferFunctionEditor constructor(
                     val annotation = XYTextAnnotation(
                         "%.2f / %.2f".format(mouseTargetCP.x.toFloat(), mouseTargetCP.y.toFloat()),
                         mouseTargetCP.x,
-                        mouseTargetCP.y)
+                        mouseTargetCP.y-0.04)
                     annotation.backgroundPaint = Color.white
                     annotation.paint = Color.darkGray
                     tfPlot.clearAnnotations()
@@ -213,8 +202,6 @@ class TransferFunctionEditor constructor(
             }
             override fun mouseMoved(e: MouseEvent) {}
         })
-
-
         mainChart.addChartMouseListener(object : ChartMouseListener {
             override fun chartMouseClicked(e: ChartMouseEvent) {
                 if (e.entity is XYItemEntity) {
@@ -223,11 +210,10 @@ class TransferFunctionEditor constructor(
                     if (item.dataset is XYSeriesCollection) {
                         mouseTargetCP.seriesIndex = item.seriesIndex
                         mouseTargetCP.itemIndex = item.item
-                        mouseTargetCP.lastIndex = item.item
                         mouseTargetCP.x = clamp(0.0, 1.0, item.dataset.getX(item.seriesIndex, item.item).toDouble())
                         mouseTargetCP.y = clamp(0.0, 1.0, item.dataset.getY(item.seriesIndex, item.item).toDouble())
 
-                        if (e.trigger.isControlDown && mouseTargetCP.itemIndex != -1) {
+                        if ((e.trigger.clickCount > 1 || e.trigger.isControlDown) && mouseTargetCP.itemIndex != -1) {
                             removeControlpoint(mouseTargetCP)
                             tfPlot.backgroundImage = createTFImage()
                         }
@@ -268,7 +254,7 @@ class TransferFunctionEditor constructor(
         val binResolution = 2.0.pow(resolutionStartExp)
 
         if (tfContainer is HasHistogram) {
-            genHistButton.addChangeListener {
+            genHistButton.addActionListener() {
                 val histogramVisible = tfPlot.getDataset(1) != null
 
                 if(histogramVisible) {
@@ -298,43 +284,9 @@ class TransferFunctionEditor constructor(
             }
         }
 
-        // Range editor
-        val initMinValue = max(tfContainer.minDisplayRange.toInt(), 100)
-        minText = JTextField(initMinValue.toString())
-        minValueLabel = JLabel(String.format("%.1f", tfContainer.range.first))
 
-        val initMaxValue = max(tfContainer.maxDisplayRange.toInt(), 100)
-        maxText = JTextField(initMaxValue.toString())
-        maxText.horizontalAlignment = SwingConstants.RIGHT
-        maxValueLabel = JLabel(String.format("%.1f", tfContainer.range.second))
-
-        rangeSlider = RangeSlider()
-        rangeSlider.minimum = tfContainer.range.first.roundToInt()
-        rangeSlider.maximum = tfContainer.range.second.roundToInt()
-        rangeSlider.value = tfContainer.minDisplayRange.toInt()
-        rangeSlider.upperValue = tfContainer.maxDisplayRange.toInt()
-
-        minText.addActionListener { updateSliderRange() }
-        maxText.addActionListener { updateSliderRange() }
-        rangeSlider.addChangeListener {
-            updateConverter()
-        }
-
-        rangeEditorPanel = JPanel()
-        rangeEditorPanel.layout = MigLayout("fill",
-            "[left, 10%]5[right, 40%]5[left, 10%]5[right, 40%]")
-        add(rangeEditorPanel, "grow")
-
-        rangeEditorPanel.add(JLabel("min:"), "shrinkx")
-        rangeEditorPanel.add(minText, "growx")
-        rangeEditorPanel.add(JLabel("max:"), "shrinkx")
-        rangeEditorPanel.add(maxText, "growx, wrap")
-        rangeEditorPanel.add(rangeSlider, "spanx, growx, wrap")
-        rangeEditorPanel.add(minValueLabel, "spanx 2, left")
-        rangeEditorPanel.add(maxValueLabel, "spanx 2, right")
-
-        loadTransferFunction(tfContainer.transferFunction)
-//        updateSliderRange()
+        add(DisplayRangeEditor(tfContainer), "grow")
+        initTransferFunction(tfContainer.transferFunction)
 
         //ColorMap manipulation
         colormapPanel = JPanel()
@@ -385,28 +337,6 @@ class TransferFunctionEditor constructor(
         return tfImage
     }
 
-    private fun updateSliderRange() {
-        val min = minText.toInt()
-        val max = maxText.toInt()
-        if (min != null && max != null) {
-            rangeSlider.value = min
-            rangeSlider.upperValue = max
-        }
-        updateConverter()
-    }
-
-    private fun updateConverter() {
-        minText.text = rangeSlider.value.toString()
-        maxText.text = rangeSlider.upperValue.toString()
-        minValueLabel.text = String.format("%.1f", tfContainer.range.first)
-        maxValueLabel.text = String.format("%.1f", tfContainer.range.second)
-
-        tfContainer.minDisplayRange = rangeSlider.value.toFloat()
-        tfContainer.maxDisplayRange = rangeSlider.upperValue.toFloat()
-    }
-
-    private fun JTextField.toInt() = text.toIntOrNull()
-
     private fun addControlpoint(targetCP: MouseDragTarget) {
         val chart = mainChart as ChartPanel
         val collection = chart.chart.xyPlot.getDataset(0) as XYSeriesCollection
@@ -415,14 +345,10 @@ class TransferFunctionEditor constructor(
         series.add(
             targetCP.x.toFloat(), targetCP.y.toFloat()
         )
-        val newTF = TransferFunction()
-        for (i in 0 until series.itemCount) {
-            newTF.addControlPoint(series.getX(i).toFloat(), series.getY(i).toFloat())
-        }
-        tfContainer.transferFunction = newTF
+        regenerateTF(series)
     }
 
-    private fun loadTransferFunction(transferFunction: TransferFunction){
+    private fun initTransferFunction(transferFunction: TransferFunction){
         val chart = mainChart as ChartPanel
         val collection = chart.chart.xyPlot.getDataset(0) as XYSeriesCollection
         val series = collection.getSeries("ControlPoints")
@@ -447,17 +373,28 @@ class TransferFunctionEditor constructor(
         val collection = chart.chart.xyPlot.getDataset(0) as XYSeriesCollection
         val series = collection.getSeries(targetCP.seriesIndex)
 
-        targetCP.x = clamp(0.0, 1.0, targetCP.x)
+        // dont move point past other points
+        val epsilon = 0.005
+        val minX = if (targetCP.itemIndex > 0) {
+            val prev = series.getDataItem(targetCP.itemIndex - 1)
+            prev.x.toDouble() + epsilon
+        } else {
+            0.0
+        }
+        val maxX = if (targetCP.itemIndex < series.itemCount-1) {
+            val prev = series.getDataItem(targetCP.itemIndex + 1)
+            prev.x.toDouble() - epsilon
+        } else {
+            1.0
+        }
+
+        targetCP.x = clamp(minX, maxX, targetCP.x)
         targetCP.y = clamp(0.0, 1.0, targetCP.y)
 
         series.remove(targetCP.itemIndex)
         series.add(targetCP.x, targetCP.y)
 
-        val newTF = TransferFunction()
-        for (i in 0 until series.itemCount) {
-            newTF.addControlPoint(series.getX(i).toFloat(), series.getY(i).toFloat())
-        }
-        tfContainer.transferFunction = newTF
+        regenerateTF(series)
     }
 
     private fun removeControlpoint(targetCP: MouseDragTarget) {
@@ -466,15 +403,20 @@ class TransferFunctionEditor constructor(
         val series = collection.getSeries(targetCP.seriesIndex)
 
 
-        series.remove(targetCP.lastIndex)
+        series.remove(targetCP.itemIndex)
+        regenerateTF(series)
+
+        targetCP.itemIndex = -1
+    }
+
+    private fun regenerateTF(series: XYSeries) {
         val newTF = TransferFunction()
         for (i in 0 until series.itemCount) {
             newTF.addControlPoint(series.getX(i).toFloat(), series.getY(i).toFloat())
         }
         tfContainer.transferFunction = newTF
-
-        targetCP.lastIndex = -1
     }
+
 
     private fun generateHistogramBins(binCount: Double, volumeHistogramData: SimpleHistogramDataset) {
         volumeHistogramData.removeAllBins()
