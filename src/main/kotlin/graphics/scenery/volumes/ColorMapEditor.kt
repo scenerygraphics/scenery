@@ -35,6 +35,8 @@ class ColorMapEditor(var target:Volume? = null) : JPanel() {
         this.layout = MigLayout()
         this.preferredSize = Dimension(1000, 40)
 
+        target?.let { loadColormap(it.colormap) }
+
         this.addMouseListener(object : MouseListener {
             override fun mouseClicked(e: MouseEvent) {
                 val point = pointAtMouse(e)
