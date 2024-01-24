@@ -55,6 +55,8 @@ class ColorMapEditor(var target:Volume? = null) : JPanel() {
                     }
 
                     point == null -> {
+                        //val pos = e.x/ width.toFloat()
+                        //val pointList = colorPoints.sortedBy { it.position }
                         val color =
                             JColorChooser.showDialog(null, "Choose a color for new point", Color(0.5f, 0.5f, 0.5f))
                         color?.let {
