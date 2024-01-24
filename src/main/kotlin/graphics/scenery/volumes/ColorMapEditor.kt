@@ -6,8 +6,6 @@ import java.awt.*
 import java.awt.event.MouseEvent
 import java.awt.event.MouseListener
 import java.awt.event.MouseMotionListener
-import org.joml.Math.clamp
-import org.joml.Math.max
 import java.awt.image.BufferedImage
 import javax.swing.JColorChooser
 import javax.swing.JFrame
@@ -161,7 +159,7 @@ class ColorMapEditor : JPanel() {
      */
     fun loadColormap(colormap: Colormap) {
         val width = colormap.width
-        val numPoints = max(width, 10)
+        val numPoints = 10.coerceAtMost(width)
 
         val sampleDistance = 1.0f/(numPoints - 2)
 
@@ -182,6 +180,8 @@ class ColorMapEditor : JPanel() {
         colorPointsList = colorPointsList + ColorPoint(1f, Color(sample.x, sample.y, sample.z, sample.w))
 
         colorPoints = colorPointsList
+
+        repaint()
     }
 
     companion object {
