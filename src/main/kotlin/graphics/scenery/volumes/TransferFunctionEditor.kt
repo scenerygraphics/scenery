@@ -286,18 +286,21 @@ class TransferFunctionEditor constructor(
 
         //ColorMap manipulation
         val colorMapEditor = ColorMapEditor()
-        val colormapPanel : JPanel
-        colormapPanel = JPanel()
+        val colormapPanel = JPanel()
         colormapPanel.layout = MigLayout("fill")
         add(colormapPanel, "grow")
 
         val list = Colormap.list()
         val box = JComboBox<String>()
+        box.addItem("Select a colormap")
+
         for (s in list)
             box.addItem(s)
 
+        colormapPanel.add(colorMapEditor,"spanx, growx, wrap")
+
         if (tfContainer is Volume){
-            box.selectedItem = tfContainer.colormap
+            box.selectedItem = "Select a colormap"
             val currentColormap = JLabel("colormap: ")
             colormapPanel.add(currentColormap, "")
             colormapPanel.add(box, "growx, wrap")
@@ -305,13 +308,13 @@ class TransferFunctionEditor constructor(
 
         box.addActionListener{
             val item : String = box.selectedItem as String
-            if (tfContainer is Volume){
+            if (tfContainer is Volume && item != "Select a colormap"){
                 tfContainer.colormap = Colormap.get(item)
                 mainChart.repaint()
             }
+            colorMapEditor.loadColormap(Colormap.get(item))
         }
 
-        colormapPanel.add(colorMapEditor,"spanx, growx, wrap")
     }
 
     private fun createTFImage(): BufferedImage {
