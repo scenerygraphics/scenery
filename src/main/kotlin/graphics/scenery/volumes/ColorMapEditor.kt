@@ -55,13 +55,26 @@ class ColorMapEditor(var target:Volume? = null) : JPanel() {
                     }
 
                     point == null -> {
-                        //val pos = e.x/ width.toFloat()
-                        //val pointList = colorPoints.sortedBy { it.position }
-                        val color =
-                            JColorChooser.showDialog(null, "Choose a color for new point", Color(0.5f, 0.5f, 0.5f))
-                        color?.let {
-                            colorPoints += ColorPoint((e.x / width.toFloat()), color)
+                        val pos = e.x/ width.toFloat()
+                        val pointList = colorPoints.sortedBy { it.position }
+
+                        var red = 0f
+                        var green = 0f
+                        var blue = 0f
+
+                        for(i in 0 until pointList.size) {
+                            if(pointList[i].position <= pos && pointList[i+1].position >= pos) {
+                                val interpolationFactor = (pos - pointList[i].position) / (pointList[i+1].position - pointList[i].position)
+
+                                red = pointList[i].color.red.toFloat()/255.0f + interpolationFactor * (pointList[i+1].color.red.toFloat()/255.0f - pointList[i].color.red.toFloat()/255.0f)
+                                green = pointList[i].color.green.toFloat()/255.0f + interpolationFactor * (pointList[i+1].color.green.toFloat()/255.0f - pointList[i].color.green.toFloat()/255.0f)
+                                blue = pointList[i].color.blue.toFloat()/255.0f + interpolationFactor * (pointList[i+1].color.blue.toFloat()/255.0f - pointList[i].color.blue.toFloat()/255.0f)
+                                break
+                            }
                         }
+
+                        val color = Color(red, green, blue)
+                        colorPoints += ColorPoint((e.x / width.toFloat()), color)
                     }
                 }
                 repaint()
