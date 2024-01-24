@@ -1,5 +1,6 @@
 package graphics.scenery.volumes
 
+import graphics.scenery.utils.Image
 import net.miginfocom.swing.MigLayout
 import org.joml.Math.clamp
 import java.awt.*
@@ -7,6 +8,7 @@ import java.awt.event.MouseEvent
 import java.awt.event.MouseListener
 import java.awt.event.MouseMotionListener
 import java.awt.image.BufferedImage
+import java.nio.ByteBuffer
 import javax.swing.JColorChooser
 import javax.swing.JFrame
 import javax.swing.JPanel
@@ -17,7 +19,7 @@ import kotlin.math.absoluteValue
 /**
  * A Gui element to allow users to visually create or modify a color map
  */
-class ColorMapEditor : JPanel() {
+class ColorMapEditor(var target:Volume? = null) : JPanel() {
 
     var colorPoints = listOf(
         ColorPoint(0.0f, Color(0f, 0f, 0f)),
@@ -95,11 +97,12 @@ class ColorMapEditor : JPanel() {
         })
     }
 
-    fun toImage(): BufferedImage {
+    fun toBuffer(): ByteBuffer {
         val rec: Rectangle = this.bounds
         val bufferedImage = BufferedImage(rec.width, rec.height, BufferedImage.TYPE_INT_ARGB)
         paintBackgroundGradient(colorPoints.sortedBy { it.position }, bufferedImage.graphics as Graphics2D)
-        return bufferedImage
+
+        return Image.bufferedImageToRGBABuffer(bufferedImage)
     }
 
     private fun pointAtMouse(e: MouseEvent) =
@@ -131,6 +134,9 @@ class ColorMapEditor : JPanel() {
                 innerSize.toInt(),
                 innerSize.toInt()
             )
+        }
+        target?.let {
+            it.colormap = Colormap.fromBuffer(toBuffer(),width, height)
         }
     }
 
