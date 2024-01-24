@@ -6,28 +6,54 @@ import java.awt.event.MouseEvent
 import java.awt.event.MouseListener
 import java.awt.event.MouseMotionListener
 import org.joml.Math.clamp
+import javax.swing.JColorChooser
 import javax.swing.JFrame
 import javax.swing.JPanel
+import javax.swing.SwingUtilities
 import kotlin.math.absoluteValue
 
-
+/**
+ * A Gui element to allow users to visually create or modify a color map
+ */
 class ColorMapEditor : JPanel() {
 
-    private val colorPoints = listOf(
+    var colorPoints = listOf(
         ColorPoint(0.0f, Color(0.2f, 1f, 0f)),
         ColorPoint(0.6f, Color(0.5f, 0f, 0f)),
         ColorPoint(1f, Color(0f, 0f, 0.9f))
     )
 
-    var hoveredOver:ColorPoint? = null
-    var dragging:ColorPoint? = null
+    private var hoveredOver:ColorPoint? = null
+    private var dragging:ColorPoint? = null
+    private var dragged = false
 
     init {
         this.layout = MigLayout()
         this.preferredSize = Dimension(200, preferredSize.height)
 
         this.addMouseListener(object : MouseListener{
-            override fun mouseClicked(e: MouseEvent) {}
+            override fun mouseClicked(e: MouseEvent) {
+                val point = pointAtMouse(e)
+                when {
+                    SwingUtilities.isLeftMouseButton(e) && point != null && !dragged -> {
+                        point.color = JColorChooser.showDialog(null, "Choose a color for point", point.color) ?: point.color
+                        repaint()
+                    }
+                    SwingUtilities.isRightMouseButton(e) && point != null -> {
+                        if (0f < point.position && point.position < 1.0f){
+                            // dont delete first and last point
+                            colorPoints = colorPoints - point
+                        }
+                    }
+                    point == null -> {
+                        val color = JColorChooser.showDialog(null, "Choose a color for new point", Color(0.5f,0.5f,0.5f))
+                        color?.let {
+                            colorPoints += ColorPoint((e.x/width.toFloat()), color)
+                        }
+                    }
+                }
+                repaint()
+            }
             override fun mousePressed(e: MouseEvent) {
                 val cp = pointAtMouse(e)
                 cp?.let {
@@ -36,6 +62,7 @@ class ColorMapEditor : JPanel() {
                         dragging = cp
                     }
                 }
+                dragged = false
             }
             override fun mouseReleased(e: MouseEvent?) {
                 dragging = null
@@ -47,6 +74,7 @@ class ColorMapEditor : JPanel() {
         this.addMouseMotionListener(object: MouseMotionListener{
             override fun mouseDragged(e: MouseEvent) {
                 dragging?.position = clamp(0.05f,0.95f, e.x/width.toFloat())
+                dragged = true
                 repaint()
             }
             override fun mouseMoved(e: MouseEvent) {
