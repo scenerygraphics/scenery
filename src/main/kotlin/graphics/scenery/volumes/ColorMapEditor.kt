@@ -120,23 +120,21 @@ class ColorMapEditor(var target:Volume? = null) : JPanel() {
         paintBackgroundGradient(pointList, g2d)
 
         // color point markers
+        val relativeSize = 0.5f //relative to height
+        val absoluteSize = (relativeSize * h).toInt()
+        val margin = 0.05f
+        val innerSize = (absoluteSize * (1f - margin)).toInt()
+
         pointList.forEach {
             val p1x = w * it.position
             g2d.paint = if (it == hoveredOver) Color.white else Color.BLACK
-            g2d.fillOval(p1x.toInt() - h / 2, 0, h, h)
+            g2d.fillOval(p1x.toInt() - absoluteSize / 2, (h-absoluteSize)/2, absoluteSize, absoluteSize)
 
-            val margin = 0.05f
-            val innerSize = h * (1f - margin)
             g2d.paint = it.color
-            g2d.fillOval(
-                (p1x - innerSize / 2).toInt(),
-                (h * margin * 0.5f).toInt(),
-                innerSize.toInt(),
-                innerSize.toInt()
-            )
+            g2d.fillOval((p1x - innerSize / 2).toInt(), (h - innerSize) / 2, innerSize, innerSize)
         }
         target?.let {
-            it.colormap = Colormap.fromBuffer(toBuffer(),width, height)
+            it.colormap = Colormap.fromBuffer(toBuffer(), width, height)
         }
     }
 
