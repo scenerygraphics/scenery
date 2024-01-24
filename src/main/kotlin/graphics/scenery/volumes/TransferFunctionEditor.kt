@@ -61,10 +61,6 @@ class TransferFunctionEditor constructor(
     //TFEditor and Histogram
     val mainChart: JPanel
 
-
-    //ColormapEditor
-    private val colormapPanel : JPanel
-
     private class ValueAlphaTooltipGenerator : XYToolTipGenerator {
         override fun generateToolTip(dataset: XYDataset, series: Int, category: Int): String {
             val x: Number = dataset.getXValue(series, category)
@@ -289,9 +285,10 @@ class TransferFunctionEditor constructor(
         initTransferFunction(tfContainer.transferFunction)
 
         //ColorMap manipulation
+        val colorMapEditor = ColorMapEditor()
+        val colormapPanel : JPanel
         colormapPanel = JPanel()
-        colormapPanel.layout = MigLayout("fill",
-            "[left, 10%]5[right, 40%]5[left, 10%]5[right, 40%]")
+        colormapPanel.layout = MigLayout("fill")
         add(colormapPanel, "grow")
 
         val list = Colormap.list()
@@ -302,8 +299,8 @@ class TransferFunctionEditor constructor(
         if (tfContainer is Volume){
             box.selectedItem = tfContainer.colormap
             val currentColormap = JLabel("colormap: ")
-            colormapPanel.add(currentColormap, "growx")
-            colormapPanel.add(box, "growx")
+            colormapPanel.add(currentColormap, "")
+            colormapPanel.add(box, "growx, wrap")
         }
 
         box.addActionListener{
@@ -313,6 +310,8 @@ class TransferFunctionEditor constructor(
                 mainChart.repaint()
             }
         }
+
+        colormapPanel.add(colorMapEditor,"spanx, growx, wrap")
     }
 
     private fun createTFImage(): BufferedImage {

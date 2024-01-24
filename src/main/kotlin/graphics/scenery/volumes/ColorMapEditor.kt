@@ -9,9 +9,6 @@ import java.awt.event.MouseMotionListener
 import org.joml.Math.clamp
 import org.joml.Math.max
 import java.awt.image.BufferedImage
-import java.io.File
-import java.io.IOException
-import javax.imageio.ImageIO
 import javax.swing.JColorChooser
 import javax.swing.JFrame
 import javax.swing.JPanel
@@ -25,9 +22,9 @@ import kotlin.math.absoluteValue
 class ColorMapEditor : JPanel() {
 
     var colorPoints = listOf(
-        ColorPoint(0.0f, Color(0.2f, 1f, 0f)),
-        ColorPoint(0.6f, Color(0.5f, 0f, 0f)),
-        ColorPoint(1f, Color(0f, 0f, 0.9f))
+        ColorPoint(0.0f, Color(0f, 0f, 0f)),
+        ColorPoint(0.5f, Color(0f, 0.5f, 0f)),
+        ColorPoint(1f, Color(0f, 1f, 0f))
     )
 
     private var hoveredOver: ColorPoint? = null
