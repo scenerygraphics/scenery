@@ -2,12 +2,17 @@ package graphics.scenery.volumes
 
 import graphics.scenery.utils.lazyLogger
 import org.lwjgl.system.MemoryUtil
+import java.io.BufferedWriter
+import java.io.File
+import java.io.FileWriter
+import java.io.InputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
+
 
 /** Transfer function class with an optional [name]. */
 open class TransferFunction(val name: String = "") {
@@ -38,6 +43,16 @@ open class TransferFunction(val name: String = "") {
      * @return control points of this tf
      */
     fun controlPoints() = controlPoints.toList()
+
+    constructor(name: String = "", path: String):this(name){
+        val inputStream: InputStream = File(path).inputStream()
+        inputStream.bufferedReader().forEachLine {
+            val line = it.trim().split(";").mapNotNull(String::toFloatOrNull)
+            if (line.size == 2){
+                addControlPoint(line[0],line[1])
+            }
+        }
+    }
 
     /**
      * Adds a new control point for position [value], with [factor].
@@ -176,6 +191,15 @@ open class TransferFunction(val name: String = "") {
      */
     override fun toString(): String {
         return "TransferFunction: ${controlPoints.sortedBy { it.value }.joinToString { "@${it.value}: alpha=${it.factor}" }}"
+    }
+
+    fun toFile(file: String){
+        val writer = BufferedWriter(FileWriter(file))
+        controlPoints.forEach {
+            writer.write("${it.value};${it.factor}")
+            writer.newLine()
+        }
+        writer.close()
     }
 
     companion object {
