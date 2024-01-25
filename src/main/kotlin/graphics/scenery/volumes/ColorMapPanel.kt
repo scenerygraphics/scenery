@@ -1,25 +1,38 @@
 package graphics.scenery.volumes
 
 import graphics.scenery.utils.Image
+import graphics.scenery.utils.lazyLogger
 import net.miginfocom.swing.MigLayout
+import org.apache.commons.io.FilenameUtils
 import org.joml.Math.clamp
 import java.awt.*
 import java.awt.event.MouseEvent
 import java.awt.event.MouseListener
 import java.awt.event.MouseMotionListener
 import java.awt.image.BufferedImage
+import java.io.File
+import java.io.IOException
 import java.nio.ByteBuffer
+import javax.imageio.ImageIO
 import javax.swing.*
+import javax.swing.filechooser.FileFilter
 import kotlin.math.absoluteValue
 
 
 class ColorMapPanel(val target:Volume?): JPanel() {
+    private val logger by lazyLogger()
+
+    private val colorMapEditor = ColorMapEditor(target)
+
     init {
         this.layout = MigLayout(
             "fill"
         )
         val title = BorderFactory.createTitledBorder("Color Map")
         this.border = title
+
+        // color editor
+        this.add(colorMapEditor, "spanx, growx, wrap")
 
         // color map drop down
         val list = Colormap.list()
@@ -29,15 +42,11 @@ class ColorMapPanel(val target:Volume?): JPanel() {
         for (s in list)
             box.addItem(s)
 
-        // color editor
-        val colorMapEditor = ColorMapEditor(target)
-        this.add(colorMapEditor, "spanx, growx, wrap")
-
         if (target != null) {
             box.selectedItem = "Select a colormap"
             val currentColormap = JLabel("colormap: ")
             this.add(currentColormap, "")
-            this.add(box, "growx, wrap")
+            this.add(box, "grow")
         }
 
         box.addActionListener {
@@ -48,8 +57,73 @@ class ColorMapPanel(val target:Volume?): JPanel() {
             }
             colorMapEditor.loadColormap(Colormap.get(item))
         }
+
+        val fc = JFileChooser()
+        fc.addChoosableFileFilter(PNGFileFilter());
+        fc.isAcceptAllFileFilterUsed = false
+
+        JButton("Load Color Map").also {
+            it.addActionListener {
+                val returnVal: Int = fc.showOpenDialog(this)
+                if (returnVal == JFileChooser.APPROVE_OPTION) loadFromFile(fc.selectedFile)
+            }
+            add(it)
+        }
+
+        JButton("Save Color Map").also {
+            it.addActionListener {
+                val option = fc.showSaveDialog(this)
+                if (option == JFileChooser.APPROVE_OPTION) {
+                    saveToFile (fc.selectedFile)
+                }
+            }
+            add(it,"wrap")
+        }
     }
 
+    class PNGFileFilter: FileFilter()
+    {
+        override fun accept(f: File): Boolean {
+            if (f.isDirectory()) {
+                return false;
+            }
+            if (f.extension != "png") return false
+            return true
+        }
+
+        override fun getDescription(): String {
+            return "png"
+        }
+    }
+
+    fun saveToFile(file: File){
+        var file_ = file
+        if (FilenameUtils.getExtension(file.name).equals("png", ignoreCase = true)) {
+            // filename is OK as-is
+        } else {
+            file_ = File("$file.png") // append .png if "foo.jpg.png" is OK
+        }
+
+        try {
+            ImageIO.write(colorMapEditor.toImage(), "png", file_)
+        } catch (ioe: IOException) {
+            ioe.printStackTrace()
+        }
+    }
+
+    fun loadFromFile(file: File){
+        var img: BufferedImage? = null
+        try {
+            img = ImageIO.read(file)
+        } catch (_: IllegalArgumentException){
+            logger.error("Could not find file ${file.path}")
+        } catch (e: IOException){
+            logger.error(e.toString())
+        }
+        if (img == null) return
+        val cm = Colormap.fromBuffer(Image.bufferedImageToRGBABuffer(img),img.width, img.height)
+        colorMapEditor.loadColormap(cm)
+    }
 }
 
 /**
@@ -137,12 +211,15 @@ class ColorMapEditor(var target:Volume? = null) : JPanel() {
         })
     }
 
-    fun toBuffer(): ByteBuffer {
+    fun toImage(): BufferedImage {
         val rec: Rectangle = this.bounds
         val bufferedImage = BufferedImage(rec.width, rec.height, BufferedImage.TYPE_INT_ARGB)
         paintBackgroundGradient(colorPoints.sortedBy { it.position }, bufferedImage.graphics as Graphics2D)
+        return bufferedImage
+    }
 
-        return Image.bufferedImageToRGBABuffer(bufferedImage)
+    fun toBuffer(): ByteBuffer {
+        return Image.bufferedImageToRGBABuffer(toImage())
     }
 
     private fun pointAtMouse(e: MouseEvent) =
