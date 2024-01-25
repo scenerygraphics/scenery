@@ -28,6 +28,10 @@ import java.awt.event.MouseEvent
 import java.awt.event.MouseListener
 import java.awt.event.MouseMotionListener
 import java.awt.image.BufferedImage
+import java.io.BufferedWriter
+import java.io.File
+import java.io.FileWriter
+import java.io.InputStream
 import javax.swing.*
 import kotlin.math.abs
 import kotlin.math.pow
@@ -290,7 +294,7 @@ class TransferFunctionEditor constructor(
             it.addActionListener {
                 val returnVal: Int = fc.showOpenDialog(this)
                 if (returnVal == JFileChooser.APPROVE_OPTION) {
-                    val tf = TransferFunction(file = fc.selectedFile)
+                    val tf = loadTFFromFile(file = fc.selectedFile)
                     tfContainer.transferFunction = tf
                     initTransferFunction(tfContainer.transferFunction)
                 }
@@ -312,6 +316,27 @@ class TransferFunctionEditor constructor(
         add(ColorMapPanel(tfContainer as? Volume), "grow")
 
         initTransferFunction(tfContainer.transferFunction)
+    }
+
+    fun loadTFFromFile(file: File):TransferFunction{
+        val tf = TransferFunction()
+        val inputStream: InputStream = file.inputStream()
+        inputStream.bufferedReader().forEachLine {
+            val line = it.trim().split(";").mapNotNull(String::toFloatOrNull)
+            if (line.size == 2){
+                tf.addControlPoint(line[0],line[1])
+            }
+        }
+        return tf
+    }
+
+    fun TransferFunction.toFile(file: File){
+        val writer = BufferedWriter(FileWriter(file))
+        this.controlPoints().forEach {
+            writer.write("${it.value};${it.factor}")
+            writer.newLine()
+        }
+        writer.close()
     }
 
     private fun createTFImage(): BufferedImage {

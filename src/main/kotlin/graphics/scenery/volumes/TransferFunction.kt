@@ -44,16 +44,6 @@ open class TransferFunction(val name: String = "") {
      */
     fun controlPoints() = controlPoints.toList()
 
-    constructor(name: String = "", file: File):this(name){
-        val inputStream: InputStream = file.inputStream()
-        inputStream.bufferedReader().forEachLine {
-            val line = it.trim().split(";").mapNotNull(String::toFloatOrNull)
-            if (line.size == 2){
-                addControlPoint(line[0],line[1])
-            }
-        }
-    }
-
     /**
      * Adds a new control point for position [value], with [factor].
      */
@@ -191,15 +181,6 @@ open class TransferFunction(val name: String = "") {
      */
     override fun toString(): String {
         return "TransferFunction: ${controlPoints.sortedBy { it.value }.joinToString { "@${it.value}: alpha=${it.factor}" }}"
-    }
-
-    fun toFile(file: File){
-        val writer = BufferedWriter(FileWriter(file))
-        controlPoints.forEach {
-            writer.write("${it.value};${it.factor}")
-            writer.newLine()
-        }
-        writer.close()
     }
 
     companion object {
