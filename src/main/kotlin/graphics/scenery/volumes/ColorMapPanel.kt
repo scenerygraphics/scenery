@@ -9,12 +9,48 @@ import java.awt.event.MouseListener
 import java.awt.event.MouseMotionListener
 import java.awt.image.BufferedImage
 import java.nio.ByteBuffer
-import javax.swing.JColorChooser
-import javax.swing.JFrame
-import javax.swing.JPanel
-import javax.swing.SwingUtilities
+import javax.swing.*
 import kotlin.math.absoluteValue
 
+
+class ColorMapPanel(val target:Volume?): JPanel() {
+    init {
+        this.layout = MigLayout(
+            "fill"
+        )
+        val title = BorderFactory.createTitledBorder("Color Map")
+        this.border = title
+
+        // color map drop down
+        val list = Colormap.list()
+        val box = JComboBox<String>()
+        box.addItem("Select a colormap")
+
+        for (s in list)
+            box.addItem(s)
+
+        // color editor
+        val colorMapEditor = ColorMapEditor(target)
+        this.add(colorMapEditor, "spanx, growx, wrap")
+
+        if (target != null) {
+            box.selectedItem = "Select a colormap"
+            val currentColormap = JLabel("colormap: ")
+            this.add(currentColormap, "")
+            this.add(box, "growx, wrap")
+        }
+
+        box.addActionListener {
+            val item: String = box.selectedItem as String
+            if (target != null && item != "Select a colormap") {
+                target.colormap = Colormap.get(item)
+                this.repaint()
+            }
+            colorMapEditor.loadColormap(Colormap.get(item))
+        }
+    }
+
+}
 
 /**
  * A Gui element to allow users to visually create or modify a color map
