@@ -240,9 +240,13 @@ class TransferFunctionEditor constructor(
             override fun chartMouseMoved(e: ChartMouseEvent) {}
         })
 
+        val histAndTFIOButtonsPanel = JPanel()
+        histAndTFIOButtonsPanel.layout = MigLayout()
+        add(histAndTFIOButtonsPanel, "growx")
+
         //Histogram Manipulation
         val genHistButton = JCheckBox("Show Histogram")
-        add(genHistButton, "growx")
+        histAndTFIOButtonsPanel.add(genHistButton, "")
 
         val volumeHistogramData = SimpleHistogramDataset("VolumeBin")
         volumeHistogramData.adjustForBinSize = false
@@ -280,6 +284,29 @@ class TransferFunctionEditor constructor(
             }
         }
 
+        // transfer function IO
+        val fc = JFileChooser()
+        JButton("Load Transfer Function").also {
+            it.addActionListener {
+                val returnVal: Int = fc.showOpenDialog(this)
+                if (returnVal == JFileChooser.APPROVE_OPTION) {
+                    val tf = TransferFunction(file = fc.selectedFile)
+                    tfContainer.transferFunction = tf
+                    initTransferFunction(tfContainer.transferFunction)
+                }
+            }
+            histAndTFIOButtonsPanel.add(it)
+        }
+
+        JButton("Save Transfer Function").also {
+            it.addActionListener {
+                val option = fc.showSaveDialog(this)
+                if (option == JFileChooser.APPROVE_OPTION) {
+                    tfContainer.transferFunction.toFile(fc.selectedFile)
+                }
+            }
+            histAndTFIOButtonsPanel.add(it,"wrap")
+        }
 
         add(DisplayRangeEditor(tfContainer), "grow")
         add(ColorMapPanel(tfContainer as? Volume), "grow")
@@ -324,6 +351,7 @@ class TransferFunctionEditor constructor(
         val chart = mainChart as ChartPanel
         val collection = chart.chart.xyPlot.getDataset(0) as XYSeriesCollection
         val series = collection.getSeries("ControlPoints")
+        series.clear()
 
         var points = transferFunction.controlPoints().map { it.value to it.factor }
 

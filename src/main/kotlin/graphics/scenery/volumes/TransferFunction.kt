@@ -44,8 +44,8 @@ open class TransferFunction(val name: String = "") {
      */
     fun controlPoints() = controlPoints.toList()
 
-    constructor(name: String = "", path: String):this(name){
-        val inputStream: InputStream = File(path).inputStream()
+    constructor(name: String = "", file: File):this(name){
+        val inputStream: InputStream = file.inputStream()
         inputStream.bufferedReader().forEachLine {
             val line = it.trim().split(";").mapNotNull(String::toFloatOrNull)
             if (line.size == 2){
@@ -193,7 +193,7 @@ open class TransferFunction(val name: String = "") {
         return "TransferFunction: ${controlPoints.sortedBy { it.value }.joinToString { "@${it.value}: alpha=${it.factor}" }}"
     }
 
-    fun toFile(file: String){
+    fun toFile(file: File){
         val writer = BufferedWriter(FileWriter(file))
         controlPoints.forEach {
             writer.write("${it.value};${it.factor}")
