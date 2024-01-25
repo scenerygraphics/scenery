@@ -62,6 +62,7 @@ class TransferFunctionEditor constructor(
 
     private val mouseTargetCP = MouseDragTarget()
 
+    private val displayRangeEditor = DisplayRangeEditor(tfContainer)
     //TFEditor and Histogram
     val mainChart: JPanel
 
@@ -294,9 +295,9 @@ class TransferFunctionEditor constructor(
             it.addActionListener {
                 val returnVal: Int = fc.showOpenDialog(this)
                 if (returnVal == JFileChooser.APPROVE_OPTION) {
-                    val tf = loadTFFromFile(file = fc.selectedFile)
-                    tfContainer.transferFunction = tf
+                    tfContainer.loadTFFromFile(file = fc.selectedFile)
                     initTransferFunction(tfContainer.transferFunction)
+                    displayRangeEditor.refreshDisplayRange()
                 }
             }
             histAndTFIOButtonsPanel.add(it)
@@ -306,33 +307,42 @@ class TransferFunctionEditor constructor(
             it.addActionListener {
                 val option = fc.showSaveDialog(this)
                 if (option == JFileChooser.APPROVE_OPTION) {
-                    tfContainer.transferFunction.toFile(fc.selectedFile)
+                    tfContainer.toFile(fc.selectedFile)
                 }
             }
             histAndTFIOButtonsPanel.add(it,"wrap")
         }
 
-        add(DisplayRangeEditor(tfContainer), "grow")
+        add(displayRangeEditor, "grow")
         add(ColorMapPanel(tfContainer as? Volume), "grow")
 
         initTransferFunction(tfContainer.transferFunction)
     }
 
-    fun loadTFFromFile(file: File):TransferFunction{
+    fun HasTransferFunction.loadTFFromFile(file: File){
         val tf = TransferFunction()
         val inputStream: InputStream = file.inputStream()
+        var isRangeSet = false
         inputStream.bufferedReader().forEachLine {
             val line = it.trim().split(";").mapNotNull(String::toFloatOrNull)
             if (line.size == 2){
-                tf.addControlPoint(line[0],line[1])
+                if (!isRangeSet){
+                    this.minDisplayRange = line[0]
+                    this.maxDisplayRange = line[1]
+                    isRangeSet = true
+                } else {
+                    tf.addControlPoint(line[0], line[1])
+                }
             }
         }
-        return tf
+        this.transferFunction = tf
     }
 
-    fun TransferFunction.toFile(file: File){
+    fun HasTransferFunction.toFile(file: File){
         val writer = BufferedWriter(FileWriter(file))
-        this.controlPoints().forEach {
+        writer.write("${this.minDisplayRange};${this.maxDisplayRange}")
+        writer.newLine()
+        this.transferFunction.controlPoints().forEach {
             writer.write("${it.value};${it.factor}")
             writer.newLine()
         }
