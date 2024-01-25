@@ -1,5 +1,10 @@
 package graphics.scenery.volumes
 
+import java.io.BufferedWriter
+import java.io.File
+import java.io.FileWriter
+import java.io.InputStream
+
 /**
  * @author Konrad Michel <Konrad.Michel@mailbox.tu-dresden.de>
  *
@@ -11,4 +16,43 @@ interface HasTransferFunction {
     var minDisplayRange : Float
     var maxDisplayRange : Float
     var range: Pair<Float, Float>
+
+    /**
+     * Load transfer function and display range from file that was written by [HasTransferFunction.toFile]
+     */
+    fun loadTFFromFile(file: File){
+        val tf = TransferFunction()
+        val inputStream: InputStream = file.inputStream()
+        var isRangeSet = false
+        inputStream.bufferedReader().forEachLine {
+            val line = it.trim().split(";").mapNotNull(kotlin.String::toFloatOrNull)
+            if (line.size == 2){
+                if (!isRangeSet){
+                    this.minDisplayRange = line[0]
+                    this.maxDisplayRange = line[1]
+                    isRangeSet = true
+                } else {
+                    tf.addControlPoint(line[0], line[1])
+                }
+            }
+        }
+        this.transferFunction = tf
+    }
+
+    /**
+     * Write transfer function to file in a human-readable way.
+     * Format:
+     * First line is the display range sepaerated by a semicolon.
+     * All following lines are tf control points.
+     */
+    fun toFile(file: File){
+        val writer = BufferedWriter(FileWriter(file))
+        writer.write("${this.minDisplayRange};${this.maxDisplayRange}")
+        writer.newLine()
+        this.transferFunction.controlPoints().forEach {
+            writer.write("${it.value};${it.factor}")
+            writer.newLine()
+        }
+        writer.close()
+    }
 }
