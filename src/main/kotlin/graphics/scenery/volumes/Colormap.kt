@@ -155,7 +155,7 @@ class Colormap(val buffer: ByteBuffer, val width: Int, val height: Int) {
          */
         @JvmStatic fun list(): List<String> {
             // FIXME: Hardcoded for the moment, not nice.
-            val list = arrayListOf("grays", "hot", "jet", "plasma", "viridis")
+            val list = arrayListOf("grays", "hot", "jet", "plasma", "viridis", "red-blue", "rb-darker")
             lutService?.findLUTs()?.keys?.forEach { list.add(it) }
 
             return list
