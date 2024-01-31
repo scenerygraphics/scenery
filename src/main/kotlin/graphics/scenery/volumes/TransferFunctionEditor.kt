@@ -1,5 +1,6 @@
 package graphics.scenery.volumes
 
+import graphics.scenery.SceneryElement
 import net.miginfocom.swing.MigLayout
 import org.jfree.chart.ChartMouseEvent
 import org.jfree.chart.ChartMouseListener
@@ -21,6 +22,7 @@ import org.jfree.data.xy.XYDataset
 import org.jfree.data.xy.XYSeries
 import org.jfree.data.xy.XYSeriesCollection
 import org.joml.Math.clamp
+import org.lwjgl.system.MemoryUtil
 import java.awt.Color
 import java.awt.Cursor
 import java.awt.Dimension
@@ -262,7 +264,7 @@ class TransferFunctionEditor constructor(
                 } else {
                     tfPlot.setDataset(1, volumeHistogramData)
                     tfPlot.setRangeAxis(1, histogramAxis)
-                    generateHistogramBins(binResolution, volumeHistogramData)
+                    generateHistogramBins( volumeHistogramData)
                     range = abs(tfContainer.maxDisplayRange - tfContainer.minDisplayRange)
                     histXAxis.setRange(
                         tfContainer.minDisplayRange - (axisExtensionFactor * range),
@@ -271,7 +273,8 @@ class TransferFunctionEditor constructor(
 
                     histogramAxis.setRange(
                         0.0 - (axisExtensionFactor / 100.0 * histHeight),
-                        1000.0 + (axisExtensionFactor * histHeight)
+                        Int.MAX_VALUE.toDouble()
+//                        1000.0 + (axisExtensionFactor * histHeight)
                     )
                     tfPlot.setDomainAxis(1, histXAxis)
 
@@ -421,32 +424,95 @@ class TransferFunctionEditor constructor(
     }
 
 
-    private fun generateHistogramBins(binCount: Double, volumeHistogramData: SimpleHistogramDataset) {
+    private fun generateHistogramBins(volumeHistogramData: SimpleHistogramDataset) {
         volumeHistogramData.removeAllBins()
 
+        val volume = tfContainer as? BufferedVolume ?: return
+
+        val volumeHistogram = VolumeHistogram.generateHistogram(volume, volume.timepoints?.get(volume.currentTimepoint)!!.contents, volume.getScene() ?: return)
+
         val histogram = (tfContainer as? HasHistogram)?.generateHistogram()
-        if (histogram != null) {
-            var binEnd = -0.0000001
-            val displayRange = abs(tfContainer.maxDisplayRange - tfContainer.minDisplayRange)
-            val binSize = displayRange / binCount
-            histogram.forEachIndexed { index, longType ->
 
-                val relativeCount = (longType.get().toFloat() / histogram.totalCount().toFloat()) * histogram.binCount
-                val value =
-                    (((index.toDouble() / histogram.binCount.toDouble()) * (displayRange / histogram.binCount.toDouble()))) * histogram.binCount.toDouble()
+//        val binCount = volumeHistogram.numBins.toDouble()
+        val binCount = volumeHistogram.numBins
+        val voxelCount = volume.getDimensions().x * volume.getDimensions().y * volume.getDimensions().z
+        Thread.sleep(2000)
+        val histogramBuffer = volumeHistogram.fetchHistogram(volume.getScene()!!, volume.volumeManager.hub!!.get<graphics.scenery.backends.Renderer>(
+            SceneryElement.Renderer)!!).asIntBuffer()
+        histogramBuffer.limit(binCount)
+//
+//        val histogramBuffer = MemoryUtil.memCalloc(1024 * 4).asIntBuffer()
+//
+//        histogramBuffer.put(512, 1000)
+//        histogramBuffer.put(12, 1000)
+//        histogramBuffer.put(52, 1000)
+//        histogramBuffer.put(712, 500)
 
-                if (relativeCount.roundToInt() != 0 && (value) >= binEnd) {
-                    val binStart =
-                        (((index) - (((index) % (histogram.binCount.toDouble() / binCount)))) / histogram.binCount.toDouble()) * displayRange
-                    binEnd = binStart + binSize
-                    val bin = SimpleHistogramBin(binStart, binEnd, true, false)
-                    volumeHistogramData.addBin(bin)
-                }
-                for (i in 0 until relativeCount.roundToInt()) {
-                    volumeHistogramData.addObservation(value)
-                }
-            }
+        var binEnd = 0.0000001
+        val displayRange = abs(tfContainer.maxDisplayRange - tfContainer.minDisplayRange)
+        val binSize = displayRange / binCount
+        val minDisplayRange = tfContainer.minDisplayRange.toDouble()
+
+        while (histogramBuffer.hasRemaining()) {
+            val index = histogramBuffer.position()
+            var value = histogramBuffer.get()
+
+            println("at $index, value is: $value")
+
+            val bin = SimpleHistogramBin(minDisplayRange + index * binSize, minDisplayRange +( index+1) * binSize,true,false)
+            bin.itemCount = value
+            volumeHistogramData.addBin(bin)
+
         }
+
+
+
+
+//
+//            while (histogramBuffer.hasRemaining()) {
+//            val index = histogramBuffer.position()
+//            var value2 = histogramBuffer.get().toFloat()
+//
+//            val relativeCount = (value2 / voxelCount) * binCount
+//            val value = (index.toDouble() / binCount) * displayRange
+//
+//            if (relativeCount.roundToInt() != 0 && (value) >= binEnd) {
+//                val binStart =
+//                    (((index) - (((index) % (histogram.binCount.toDouble() / binCount)))) / histogram.binCount.toDouble()) * displayRange
+//                binEnd = binStart + binSize
+//                val bin = SimpleHistogramBin(binStart, binEnd, true, false)
+//                volumeHistogramData.addBin(bin)
+//            }
+//            for (i in 0 until relativeCount.roundToInt()) {
+//                volumeHistogramData.addObservation(value)
+//            }
+
+//        }
+
+
+
+//        if (histogram != null) {
+//            var binEnd = -0.0000001
+//            val displayRange = abs(tfContainer.maxDisplayRange - tfContainer.minDisplayRange)
+//            val binSize = displayRange / binCount
+//            histogram.forEachIndexed { index, longType ->
+//
+//                val relativeCount = (longType.get().toFloat() / histogram.totalCount().toFloat()) * histogram.binCount
+//                val value =
+//                    (((index.toDouble() / histogram.binCount.toDouble()) * (displayRange / histogram.binCount.toDouble()))) * histogram.binCount.toDouble()
+//
+//                if (relativeCount.roundToInt() != 0 && (value) >= binEnd) {
+//                    val binStart =
+//                        (((index) - (((index) % (histogram.binCount.toDouble() / binCount)))) / histogram.binCount.toDouble()) * displayRange
+//                    binEnd = binStart + binSize
+//                    val bin = SimpleHistogramBin(binStart, binEnd, true, false)
+//                    volumeHistogramData.addBin(bin)
+//                }
+//                for (i in 0 until relativeCount.roundToInt()) {
+//                    volumeHistogramData.addObservation(value)
+//                }
+//            }
+//        }
     }
 
     companion object{
