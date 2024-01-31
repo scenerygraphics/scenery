@@ -8,15 +8,19 @@ import graphics.scenery.backends.Renderer
 import graphics.scenery.compute.ComputeMetadata
 import graphics.scenery.compute.InvocationType
 import graphics.scenery.textures.Texture
+import kotlinx.coroutines.runBlocking
 import net.imglib2.type.numeric.integer.IntType
 import net.imglib2.type.numeric.integer.UnsignedByteType
-import net.imglib2.type.numeric.integer.UnsignedIntType
 import net.imglib2.type.numeric.integer.UnsignedShortType
 import org.joml.Vector3i
 import org.lwjgl.system.MemoryUtil
 import java.nio.ByteBuffer
+import java.nio.IntBuffer
 
-class VolumeHistogram(val volume: Volume, data: ByteBuffer): RichNode() {
+/**
+ * A compute node to calculate a histogram of a volume on the gpu. To use call [VolumeHistogramComputeNode.generateHistogram].
+ */
+class VolumeHistogramComputeNode(val volume: Volume, data: ByteBuffer): RichNode() {
 
     var dataType = UnsignedByteType()
     private val buffer: ByteBuffer
@@ -93,31 +97,42 @@ class VolumeHistogram(val volume: Volume, data: ByteBuffer): RichNode() {
             workSizes = Vector3i(volume.getDimensions().x, volume.getDimensions().y, 1),
             invocationType = InvocationType.Once
         )
+
     }
 
-    fun fetchHistogram(scene: Scene, renderer: Renderer): ByteBuffer {
+    /**
+     * waits a bit and then fetches the histogram from the node.
+     * @return list of number of items in the histogram bins, sorted by ascending bin label
+     */
+    fun fetchHistogram(scene: Scene, renderer: Renderer): List<Int> {
 
-        var byteBuffer: ByteBuffer? = null
-
-        renderer.requestTexture(histogramTexture){
-            byteBuffer = it.contents!!
+        var buf: IntBuffer? = null
+        Thread.sleep(500) // dunno why this is required. Probably some scenery update stuff
+        runBlocking {
+            renderer.requestTexture(histogramTexture) {
+                buf = it.contents!!.asIntBuffer()
+            }.join()
         }
-
-        while (byteBuffer == null) {
-            Thread.sleep(100)
-        }
-
         scene.removeChild(this)
 
-        return byteBuffer!!
+        val list = mutableListOf<Int>()
+        buf?.let {
+            while (it.hasRemaining()){
+                list.add(it.get())
+            }
+        }
+
+        return list
     }
 
     companion object {
-        fun generateHistogram(volume: Volume, data: ByteBuffer, scene: Scene): VolumeHistogram {
-            val volumeHistogram = VolumeHistogram(volume, data)
+        /**
+         * Creates and attaches a histogram compute node to the scene. To get the histogram call [fetchHistogram]
+         */
+        fun generateHistogram(volume: Volume, data: ByteBuffer, scene: Scene): VolumeHistogramComputeNode {
+            val volumeHistogram = VolumeHistogramComputeNode(volume, data)
             scene.addChild(volumeHistogram)
             return volumeHistogram
         }
     }
-
 }
