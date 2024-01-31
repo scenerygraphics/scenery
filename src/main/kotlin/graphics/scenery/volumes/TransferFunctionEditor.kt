@@ -1,23 +1,17 @@
 package graphics.scenery.volumes
 
-import graphics.scenery.SceneryElement
 import net.miginfocom.swing.MigLayout
 import org.jfree.chart.ChartMouseEvent
 import org.jfree.chart.ChartMouseListener
 import org.jfree.chart.ChartPanel
 import org.jfree.chart.JFreeChart
 import org.jfree.chart.annotations.XYTextAnnotation
-import org.jfree.chart.axis.LogarithmicAxis
 import org.jfree.chart.axis.NumberAxis
 import org.jfree.chart.axis.NumberTickUnit
 import org.jfree.chart.entity.XYItemEntity
 import org.jfree.chart.labels.XYToolTipGenerator
 import org.jfree.chart.plot.XYPlot
-import org.jfree.chart.renderer.xy.StandardXYBarPainter
-import org.jfree.chart.renderer.xy.XYBarRenderer
 import org.jfree.chart.renderer.xy.XYLineAndShapeRenderer
-import org.jfree.data.statistics.SimpleHistogramBin
-import org.jfree.data.statistics.SimpleHistogramDataset
 import org.jfree.data.xy.XYDataset
 import org.jfree.data.xy.XYSeries
 import org.jfree.data.xy.XYSeriesCollection
@@ -30,7 +24,6 @@ import java.awt.event.MouseListener
 import java.awt.event.MouseMotionListener
 import java.awt.image.BufferedImage
 import javax.swing.*
-import kotlin.math.abs
 
 
 /**
@@ -41,7 +34,7 @@ import kotlin.math.abs
  * Able to generate a histogram and visualize it as well to help with TF-settings
  * Able to dynamically set the transfer function range -> changes histogram as well
  */
-class TransferFunctionEditor constructor(
+class TransferFunctionEditor(
     private val tfContainer: HasTransferFunction
 ): JPanel() {
     /**
@@ -85,28 +78,7 @@ class TransferFunctionEditor constructor(
         val tfRenderer = XYLineAndShapeRenderer()
         tfPlot.setRenderer(0, tfRenderer)
 
-        val histogramRenderer = XYBarRenderer()
-        histogramRenderer.setShadowVisible(false)
-        histogramRenderer.barPainter = StandardXYBarPainter()
-        histogramRenderer.isDrawBarOutline = false
-        tfPlot.setRenderer(1, histogramRenderer)
-
-        val histXAxis = NumberAxis()
-        var range = abs(tfContainer.maxDisplayRange - tfContainer.minDisplayRange)
         val axisExtensionFactor = 0.02
-        histXAxis.setRange(
-            tfContainer.minDisplayRange - (axisExtensionFactor * range),
-            tfContainer.maxDisplayRange + (axisExtensionFactor * range)
-        )
-
-        val histogramAxis = LogarithmicAxis("")
-        histogramAxis.isMinorTickMarksVisible = true
-        val histHeight = abs(1000.0 - 0.0)
-        histogramAxis.setRange(
-            0.0,
-            1000.0
-        )
-
         val tfYAxis = NumberAxis()
         tfYAxis.setRange(0.0 - axisExtensionFactor, 1.0 + axisExtensionFactor)
         tfYAxis.tickUnit = NumberTickUnit(0.1)
@@ -238,43 +210,13 @@ class TransferFunctionEditor constructor(
             override fun chartMouseMoved(e: ChartMouseEvent) {}
         })
 
-        //Histogram Manipulation
-        val genHistButton = JCheckBox("Show Histogram")
-        add(genHistButton, "growx")
 
-        val volumeHistogramData = SimpleHistogramDataset("VolumeBin")
-        volumeHistogramData.adjustForBinSize = false
-
-        if (tfContainer is HasHistogram) {
-            genHistButton.addActionListener() {
-                val histogramVisible = tfPlot.getDataset(1) != null
-
-                if(histogramVisible) {
-                    tfPlot.setDataset(1, null)
-                    tfPlot.setDomainAxis(1, null)
-                    tfPlot.setRangeAxis(1, null)
-
-                    mainChart.repaint()
-                } else {
-                    tfPlot.setDataset(1, volumeHistogramData)
-                    tfPlot.setRangeAxis(1, histogramAxis)
-                    populateHistogramBins( volumeHistogramData)
-                    range = abs(tfContainer.maxDisplayRange - tfContainer.minDisplayRange)
-                    histXAxis.setRange(
-                        tfContainer.minDisplayRange - (axisExtensionFactor * range),
-                        tfContainer.maxDisplayRange + (axisExtensionFactor * range)
-                    )
-
-                    tfPlot.setDomainAxis(1, histXAxis)
-
-                    mainChart.repaint()
-                }
-            }
-        }
-
+        val histogramChartManager = HistogramChartManager(tfPlot,mainChart,tfContainer,axisExtensionFactor)
+        add(histogramChartManager.genHistButton, "growx")
 
         add(DisplayRangeEditor(tfContainer), "grow")
         initTransferFunction(tfContainer.transferFunction)
+
 
         //ColorMap manipulation
         val colorMapEditor = ColorMapEditor(tfContainer as? Volume)
@@ -410,28 +352,6 @@ class TransferFunctionEditor constructor(
             newTF.addControlPoint(series.getX(i).toFloat(), series.getY(i).toFloat())
         }
         tfContainer.transferFunction = newTF
-    }
-
-
-    private fun populateHistogramBins(volumeHistogramData: SimpleHistogramDataset) {
-        volumeHistogramData.removeAllBins()
-
-        val volume = tfContainer as? BufferedVolume ?: return
-
-        val volumeHistogram = VolumeHistogramComputeNode.generateHistogram(volume, volume.timepoints?.get(volume.currentTimepoint)!!.contents, volume.getScene() ?: return)
-        val histogram = volumeHistogram.fetchHistogram(volume.getScene()!!, volume.volumeManager.hub!!.get<graphics.scenery.backends.Renderer>(SceneryElement.Renderer)!!)
-
-        val displayRange = abs(tfContainer.maxDisplayRange - tfContainer.minDisplayRange)
-        val binSize = displayRange / volumeHistogram.numBins
-        val minDisplayRange = tfContainer.minDisplayRange.toDouble()
-
-        histogram.forEachIndexed { index, value ->
-            val bin = SimpleHistogramBin(minDisplayRange + index * binSize, minDisplayRange +( index+1) * binSize,true,false)
-            bin.itemCount = value
-            volumeHistogramData.addBin(bin)
-        }
-
-        mainChart.repaint()
     }
 
     companion object{
