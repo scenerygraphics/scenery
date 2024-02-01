@@ -94,6 +94,10 @@ open class Camera : DefaultNode("Camera"),
     /** Disables culling for this camera. */
     var disableCulling: Boolean = false
 
+    /** The eye count (aka number of generated viewports) of the current camera. */
+    var eyeCount = 1
+        protected set
+
     var wantsSync = true
     override fun wantsSync(): Boolean = wantsSync
 

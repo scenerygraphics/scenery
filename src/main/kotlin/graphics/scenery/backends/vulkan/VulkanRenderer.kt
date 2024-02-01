@@ -1720,12 +1720,21 @@ open class VulkanRenderer(hub: Hub,
 
         profiler?.end()
 
+        val cameraConfig = (0 until activeCamera.eyeCount).map { eye ->
+            VulkanRenderpass.CameraConfig(
+                view = Matrix4f(activeCamera.spatial().getTransformationForEye(eye)),
+                projection = Matrix4f(activeCamera.spatial().projection),
+                eye = eye
+            )
+        }.toMutableList()
+
         flow.take(flow.size - 1).forEachIndexed { i, t ->
             val si = submitInfo[i]
             profiler?.begin("Renderer.$t")
             logger.trace("Running pass {}", t)
             val target = renderpasses[t]!!
             val commandBuffer = target.commandBuffer
+            target.cameraConfiguration = cameraConfig
 
             if (commandBuffer.submitted) {
                 commandBuffer.waitForFence()
@@ -1786,6 +1795,7 @@ open class VulkanRenderer(hub: Hub,
         profiler?.begin("Renderer.${renderpasses.keys.last()}")
         val viewportPass = renderpasses.values.last()
         val viewportCommandBuffer = viewportPass.commandBuffer
+        viewportPass.cameraConfiguration = cameraConfig
 
         logger.trace("Running viewport pass {}", renderpasses.keys.last())
 

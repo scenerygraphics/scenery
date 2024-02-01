@@ -1,6 +1,5 @@
 package graphics.scenery
 
-import graphics.scenery.attribute.populatesubo.DefaultPopulatesUBO
 import graphics.scenery.attribute.populatesubo.HasCustomPopulatesUBO
 import graphics.scenery.attribute.populatesubo.PopulatesUBO
 import graphics.scenery.backends.Display
@@ -26,6 +25,10 @@ import kotlin.reflect.KProperty
  */
 
 open class DetachedHeadCamera(@Transient var tracker: TrackerInput? = null) : Camera(), HasCustomPopulatesUBO<Camera.CameraUBOPopulator> {
+
+    init {
+        eyeCount = 2
+    }
 
     override var width: Int = 0
         get() = if (tracker != null && tracker is Display && tracker?.initializedAndWorking() == true) {
@@ -120,22 +123,16 @@ open class DetachedHeadCamera(@Transient var tracker: TrackerInput? = null) : Ca
             val camSpatial = cam.spatial()
             val hmd = (cam.tracker as? Display)
 
-            ubo.add("projection0", {
-                (hmd?.getEyeProjection(0, cam.nearPlaneDistance, cam.farPlaneDistance)
-                    ?: camSpatial.projection).applyVulkanCoordinateSystem()
-            })
-            ubo.add("projection1", {
-                (hmd?.getEyeProjection(1, cam.nearPlaneDistance, cam.farPlaneDistance)
-                    ?: camSpatial.projection).applyVulkanCoordinateSystem()
-            })
-            ubo.add("inverseProjection0", {
-                (hmd?.getEyeProjection(0, cam.nearPlaneDistance, cam.farPlaneDistance)
-                    ?: camSpatial.projection).applyVulkanCoordinateSystem().invert()
-            })
-            ubo.add("inverseProjection1", {
-                (hmd?.getEyeProjection(1, cam.nearPlaneDistance, cam.farPlaneDistance)
-                    ?: camSpatial.projection).applyVulkanCoordinateSystem().invert()
-            })
+            (0 until cam.eyeCount).forEach { eye ->
+                ubo.add("projection$eye", {
+                    (hmd?.getEyeProjection(eye, cam.nearPlaneDistance, cam.farPlaneDistance)
+                        ?: camSpatial.projection).applyVulkanCoordinateSystem()
+                })
+                ubo.add("inverseProjection$eye", {
+                    (hmd?.getEyeProjection(eye, cam.nearPlaneDistance, cam.farPlaneDistance)
+                        ?: camSpatial.projection).applyVulkanCoordinateSystem().invert()
+                })
+            }
             ubo.add("headShift", { hmd?.getHeadToEyeTransform(0) ?: Matrix4f().identity() })
             ubo.add("IPD", { hmd?.getIPD() ?: 0.05f })
             ubo.add("stereoEnabled", { cam.stereoEnabled })
