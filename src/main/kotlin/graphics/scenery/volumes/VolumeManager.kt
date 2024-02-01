@@ -170,7 +170,10 @@ class VolumeManager(
 
     @Synchronized
     private fun recreateMaterial(context: SceneryContext) {
-        shaderProperties.clear()
+        val oldProperties = shaderProperties.filter { it.key !in customUniforms }.keys
+        oldProperties.forEach{
+            shaderProperties.remove(it)
+        }
         shaderProperties["transform"] = Matrix4f()
         shaderProperties["viewportSize"] = Vector2f()
         shaderProperties["dsp"] = Vector2f()
@@ -801,11 +804,10 @@ class VolumeManager(
         needAtLeastNumVolumes(renderStacksStates.size)
     }
 
-    fun replace(toReplace: VolumeManager? = null): VolumeManager {
+    private fun replace() {
         logger.debug("Replacing volume manager with ${nodes.size} volumes managed")
         val volumes = nodes.toMutableList()
-        val current = toReplace ?: hub?.get<VolumeManager>()
-
+        val current = hub?.get<VolumeManager>()
         if(current != null) {
             hub?.remove(current)
         }
@@ -815,14 +817,37 @@ class VolumeManager(
             vm.customTextures.add(it)
             vm.material().textures[it] = current.material().textures[it]!!
         }
-
         volumes.forEach {
             vm.add(it)
             it.volumeManager = vm
         }
 
         hub?.add(vm)
-        return vm
+    }
+
+    /**
+     * Replaces the VolumeManager [toReplace] with the current VolumeManager, transferring volumes to the
+     * current VolumeManager. All other properties, e.g., [customSegments], [customTextures], etc. of both
+     * VolumeManagers remain unmodified.
+     */
+    fun replace(toReplace: VolumeManager) {
+        logger.debug("Replacing volume manager with ${toReplace.nodes.size} volumes managed")
+
+        hub?.remove(toReplace)
+
+        //remove the volumes currently held by this volume manager
+        nodes.forEach {
+            remove(it)
+        }
+
+        //add the volumes held by the volume manager to be replaced into this volume manager
+        val volumes = toReplace.nodes.toMutableList()
+        volumes.forEach {
+            add(it)
+            it.volumeManager = this
+        }
+
+        hub?.add(this)
     }
 
     fun replaceSelf(): VolumeManager {
