@@ -153,14 +153,14 @@ val isRelease: Boolean
 tasks {
     withType<KotlinCompile>().all {
         kotlinOptions {
-            jvmTarget = project.properties["jvmTarget"]?.toString() ?: "11"
+            jvmTarget = project.properties["jvmTarget"]?.toString() ?: "21"
             freeCompilerArgs += listOf("-Xinline-classes", "-opt-in=kotlin.RequiresOptIn")
         }
     }
 
     withType<JavaCompile>().all {
-        targetCompatibility = project.properties["jvmTarget"]?.toString() ?: "11"
-        sourceCompatibility = project.properties["jvmTarget"]?.toString() ?: "11"
+        targetCompatibility = project.properties["jvmTarget"]?.toString() ?: "21"
+        sourceCompatibility = project.properties["jvmTarget"]?.toString() ?: "21"
     }
 
     withType<GenerateMavenPom>().configureEach {
