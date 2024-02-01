@@ -6,17 +6,12 @@ import org.jfree.chart.ChartMouseListener
 import org.jfree.chart.ChartPanel
 import org.jfree.chart.JFreeChart
 import org.jfree.chart.annotations.XYTextAnnotation
-import org.jfree.chart.axis.LogarithmicAxis
 import org.jfree.chart.axis.NumberAxis
 import org.jfree.chart.axis.NumberTickUnit
 import org.jfree.chart.entity.XYItemEntity
 import org.jfree.chart.labels.XYToolTipGenerator
 import org.jfree.chart.plot.XYPlot
-import org.jfree.chart.renderer.xy.StandardXYBarPainter
-import org.jfree.chart.renderer.xy.XYBarRenderer
 import org.jfree.chart.renderer.xy.XYLineAndShapeRenderer
-import org.jfree.data.statistics.SimpleHistogramBin
-import org.jfree.data.statistics.SimpleHistogramDataset
 import org.jfree.data.xy.XYDataset
 import org.jfree.data.xy.XYSeries
 import org.jfree.data.xy.XYSeriesCollection
@@ -29,9 +24,6 @@ import java.awt.event.MouseListener
 import java.awt.event.MouseMotionListener
 import java.awt.image.BufferedImage
 import javax.swing.*
-import kotlin.math.abs
-import kotlin.math.pow
-import kotlin.math.roundToInt
 
 
 /**
@@ -42,7 +34,7 @@ import kotlin.math.roundToInt
  * Able to generate a histogram and visualize it as well to help with TF-settings
  * Able to dynamically set the transfer function range -> changes histogram as well
  */
-class TransferFunctionEditor constructor(
+class TransferFunctionEditor(
     private val tfContainer: HasTransferFunction
 ): JPanel() {
     /**
@@ -87,29 +79,7 @@ class TransferFunctionEditor constructor(
         val tfRenderer = XYLineAndShapeRenderer()
         tfPlot.setRenderer(0, tfRenderer)
 
-        val histogramRenderer = XYBarRenderer()
-        histogramRenderer.setShadowVisible(false)
-        histogramRenderer.barPainter = StandardXYBarPainter()
-        histogramRenderer.isDrawBarOutline = false
-        tfPlot.setRenderer(1, histogramRenderer)
-
-        val histXAxis = NumberAxis()
-        var range = abs(tfContainer.maxDisplayRange - tfContainer.minDisplayRange)
         val axisExtensionFactor = 0.02
-        histXAxis.setRange(
-            tfContainer.minDisplayRange - (axisExtensionFactor * range),
-            tfContainer.maxDisplayRange + (axisExtensionFactor * range)
-        )
-
-        val histogramAxis = LogarithmicAxis("")
-        histogramAxis.isMinorTickMarksVisible = true
-        val histHeight = abs(1000.0 - 0.0)
-        histogramAxis.setRange(
-            0.0 - (axisExtensionFactor / 100.0 * histHeight),
-            1000.0 + (axisExtensionFactor * histHeight)
-        )
-        histogramAxis.allowNegativesFlag
-
         val tfYAxis = NumberAxis()
         tfYAxis.setRange(0.0 - axisExtensionFactor, 1.0 + axisExtensionFactor)
         tfYAxis.tickUnit = NumberTickUnit(0.1)
@@ -245,45 +215,8 @@ class TransferFunctionEditor constructor(
         histAndTFIOButtonsPanel.layout = MigLayout()
         add(histAndTFIOButtonsPanel, "growx")
 
-        //Histogram Manipulation
-        val genHistButton = JCheckBox("Show Histogram")
-        histAndTFIOButtonsPanel.add(genHistButton, "")
-
-        val volumeHistogramData = SimpleHistogramDataset("VolumeBin")
-        volumeHistogramData.adjustForBinSize = false
-        val resolutionStartExp = 8
-        val binResolution = 2.0.pow(resolutionStartExp)
-
-        if (tfContainer is HasHistogram) {
-            genHistButton.addActionListener() {
-                val histogramVisible = tfPlot.getDataset(1) != null
-
-                if(histogramVisible) {
-                    tfPlot.setDataset(1, null)
-                    tfPlot.setDomainAxis(1, null)
-                    tfPlot.setRangeAxis(1, null)
-
-                    mainChart.repaint()
-                } else {
-                    tfPlot.setDataset(1, volumeHistogramData)
-                    tfPlot.setRangeAxis(1, histogramAxis)
-                    generateHistogramBins(binResolution, volumeHistogramData)
-                    range = abs(tfContainer.maxDisplayRange - tfContainer.minDisplayRange)
-                    histXAxis.setRange(
-                        tfContainer.minDisplayRange - (axisExtensionFactor * range),
-                        tfContainer.maxDisplayRange + (axisExtensionFactor * range)
-                    )
-
-                    histogramAxis.setRange(
-                        0.0 - (axisExtensionFactor / 100.0 * histHeight),
-                        1000.0 + (axisExtensionFactor * histHeight)
-                    )
-                    tfPlot.setDomainAxis(1, histXAxis)
-
-                    mainChart.repaint()
-                }
-            }
-        }
+        val histogramChartManager = HistogramChartManager(tfPlot,mainChart,tfContainer,axisExtensionFactor)
+        histAndTFIOButtonsPanel.add(histogramChartManager.genHistButton, "growx")
 
         // transfer function IO
         val fc = JFileChooser()
@@ -298,7 +231,6 @@ class TransferFunctionEditor constructor(
             }
             histAndTFIOButtonsPanel.add(it)
         }
-
         JButton("Save Transfer Function").also {
             it.addActionListener {
                 val option = fc.showSaveDialog(this)
@@ -308,11 +240,11 @@ class TransferFunctionEditor constructor(
             }
             histAndTFIOButtonsPanel.add(it,"wrap")
         }
+        initTransferFunction(tfContainer.transferFunction)
+
 
         add(displayRangeEditor, "grow")
         add(ColorMapPanel(tfContainer as? Volume), "grow")
-
-        initTransferFunction(tfContainer.transferFunction)
     }
 
     private fun createTFImage(): BufferedImage {
@@ -416,35 +348,6 @@ class TransferFunctionEditor constructor(
             newTF.addControlPoint(series.getX(i).toFloat(), series.getY(i).toFloat())
         }
         tfContainer.transferFunction = newTF
-    }
-
-
-    private fun generateHistogramBins(binCount: Double, volumeHistogramData: SimpleHistogramDataset) {
-        volumeHistogramData.removeAllBins()
-
-        val histogram = (tfContainer as? HasHistogram)?.generateHistogram()
-        if (histogram != null) {
-            var binEnd = -0.0000001
-            val displayRange = abs(tfContainer.maxDisplayRange - tfContainer.minDisplayRange)
-            val binSize = displayRange / binCount
-            histogram.forEachIndexed { index, longType ->
-
-                val relativeCount = (longType.get().toFloat() / histogram.totalCount().toFloat()) * histogram.binCount
-                val value =
-                    (((index.toDouble() / histogram.binCount.toDouble()) * (displayRange / histogram.binCount.toDouble()))) * histogram.binCount.toDouble()
-
-                if (relativeCount.roundToInt() != 0 && (value) >= binEnd) {
-                    val binStart =
-                        (((index) - (((index) % (histogram.binCount.toDouble() / binCount)))) / histogram.binCount.toDouble()) * displayRange
-                    binEnd = binStart + binSize
-                    val bin = SimpleHistogramBin(binStart, binEnd, true, false)
-                    volumeHistogramData.addBin(bin)
-                }
-                for (i in 0 until relativeCount.roundToInt()) {
-                    volumeHistogramData.addObservation(value)
-                }
-            }
-        }
     }
 
     companion object{

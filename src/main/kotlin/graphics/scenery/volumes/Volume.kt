@@ -36,7 +36,6 @@ import graphics.scenery.numerics.Random
 import graphics.scenery.utils.lazyLogger
 import graphics.scenery.utils.extensions.times
 import graphics.scenery.utils.forEachIndexedAsync
-import graphics.scenery.volumes.Volume.Companion.fromPathRawSplit
 import graphics.scenery.volumes.Volume.VolumeDataSource.SpimDataMinimalSource
 import io.scif.SCIFIO
 import io.scif.filters.ReaderFilter
@@ -209,6 +208,15 @@ open class Volume(
             field = value
         }
 
+    val bytesPerVoxel: Int
+        get() {
+            return when(dataSource){
+                VolumeDataSource.NullSource -> 1
+                is VolumeDataSource.RAISource<*> -> dataSource.type.toBytesPerValue()
+                is SpimDataMinimalSource -> (dataSource.sources.first().spimSource.type as NumericType<*>).toBytesPerValue() //I dont know if this works
+            }
+        }
+
     sealed class VolumeDataSource {
         class SpimDataMinimalSource(
             @Transient
@@ -360,6 +368,18 @@ open class Volume(
             is ShortType -> -32768.0f to 32767.0f
             is FloatType -> 0.0f to 1.0f
             else -> 0.0f to 1.0f
+        }
+    }
+
+
+    private fun NumericType<*>.toBytesPerValue(): Int {
+        return when(this) {
+            is UnsignedByteType -> 1
+            is ByteType -> 1
+            is UnsignedShortType -> 2
+            is ShortType -> 2
+            is FloatType -> 4
+            else -> 4
         }
     }
 
