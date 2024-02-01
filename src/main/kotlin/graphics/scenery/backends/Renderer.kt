@@ -11,6 +11,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.selects.select
 import org.lwjgl.system.Platform
 import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Renderer interface. Defines the minimal set of functions a renderer has to implement.
@@ -38,6 +39,10 @@ abstract class Renderer : Hubable {
 
     /** Signals whether a first image has been drawn. */
     abstract var firstImageReady: Boolean
+        protected set
+
+    /** The total number of frames rendered so far. */
+    var totalFrames = 0L
         protected set
 
     /** [Settings] instance the renderer is using. */
@@ -174,6 +179,11 @@ abstract class Renderer : Hubable {
     }
 
     @Volatile protected var textureRequests = ConcurrentLinkedQueue<Pair<Texture, Channel<Texture>>>()
+
+    /**
+     * A list of user-defined lambdas that will be executed once per iteration of the render loop
+     */
+    val postRenderLambdas = ArrayList<()->Unit>()
 
     /**
      * Requests the renderer to update [texture]'s contents from the GPU. [onReceive] is executed
