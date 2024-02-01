@@ -8,6 +8,7 @@ import graphics.scenery.attribute.renderable.Renderable
 import graphics.scenery.backends.*
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.*
+import graphics.scenery.utils.extensions.applyVulkanCoordinateSystem
 import kotlinx.coroutines.*
 import org.joml.*
 import org.lwjgl.PointerBuffer
@@ -28,7 +29,6 @@ import org.lwjgl.vulkan.KHRWin32Surface.VK_KHR_WIN32_SURFACE_EXTENSION_NAME
 import org.lwjgl.vulkan.KHRXlibSurface.VK_KHR_XLIB_SURFACE_EXTENSION_NAME
 import org.lwjgl.vulkan.MVKMacosSurface.VK_MVK_MACOS_SURFACE_EXTENSION_NAME
 import org.lwjgl.vulkan.VK10.*
-import java.awt.BorderLayout
 import java.awt.image.BufferedImage
 import java.awt.image.DataBufferByte
 import java.io.File
@@ -39,7 +39,6 @@ import java.util.*
 import java.util.concurrent.*
 import java.util.concurrent.locks.ReentrantLock
 import javax.imageio.ImageIO
-import javax.swing.JFrame
 import kotlin.concurrent.thread
 import kotlin.concurrent.withLock
 import kotlin.reflect.full.*
@@ -387,12 +386,6 @@ open class VulkanRenderer(hub: Hub,
     private var renderConfig: RenderConfigReader.RenderConfig
     private var flow: List<String> = listOf()
 
-    private val vulkanProjectionFix =
-        Matrix4f(
-            1.0f,  0.0f, 0.0f, 0.0f,
-            0.0f, -1.0f, 0.0f, 0.0f,
-            0.0f,  0.0f, 0.5f, 0.0f,
-            0.0f,  0.0f, 0.5f, 1.0f)
 
     final override var renderConfigFile: String = ""
         set(config) {
@@ -2064,14 +2057,6 @@ open class VulkanRenderer(hub: Hub,
         instanceMasters.isNotEmpty()
     }
 
-    fun Matrix4f.applyVulkanCoordinateSystem(): Matrix4f {
-        val m = Matrix4f(vulkanProjectionFix)
-        m.mul(this)
-
-        return m
-    }
-
-
     private fun getDescriptorCache(): TimestampedConcurrentHashMap<String, SimpleTimestamped<Long>> {
         @Suppress("UNCHECKED_CAST")
         return scene.metadata.getOrPut("DescriptorCache") {
@@ -2109,26 +2094,8 @@ open class VulkanRenderer(hub: Hub,
 
         buffers.VRParameters.reset()
         val vrUbo = defaultUBOs["VRParameters"]!!
-        vrUbo.add("projection0", {
-            (hmd?.getEyeProjection(0, cam.nearPlaneDistance, cam.farPlaneDistance)
-                ?: camSpatial.projection).applyVulkanCoordinateSystem()
-        })
-        vrUbo.add("projection1", {
-            (hmd?.getEyeProjection(1, cam.nearPlaneDistance, cam.farPlaneDistance)
-                ?: camSpatial.projection).applyVulkanCoordinateSystem()
-        })
-        vrUbo.add("inverseProjection0", {
-            (hmd?.getEyeProjection(0, cam.nearPlaneDistance, cam.farPlaneDistance)
-                ?: camSpatial.projection).applyVulkanCoordinateSystem().invert()
-        })
-        vrUbo.add("inverseProjection1", {
-            (hmd?.getEyeProjection(1, cam.nearPlaneDistance, cam.farPlaneDistance)
-                ?: camSpatial.projection).applyVulkanCoordinateSystem().invert()
-        })
-        vrUbo.add("headShift", { hmd?.getHeadToEyeTransform(0) ?: Matrix4f().identity() })
-        vrUbo.add("IPD", { hmd?.getIPD() ?: 0.05f })
-        vrUbo.add("stereoEnabled", { renderConfig.stereoEnabled.toInt() })
-
+        (cam as? DetachedHeadCamera)?.stereoEnabled = renderConfig.stereoEnabled
+        cam.populatesUBO().populate(vrUbo)
         updated = vrUbo.populate()
 
         buffers.UBOs.reset()

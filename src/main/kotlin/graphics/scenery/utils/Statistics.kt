@@ -6,6 +6,7 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.launch
 import java.util.*
+import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedDeque
 import java.util.concurrent.Executors
@@ -29,7 +30,7 @@ class Statistics(override var hub: Hub?) : Hubable {
      */
     inner class StatisticData(val isTime: Boolean) {
         /** Data storage */
-        var data: Deque<Float> = ConcurrentLinkedDeque()
+        var data: Queue<Float> = ArrayBlockingQueue(dataSize)
 
         /** Returns the average of the [data] */
         fun avg(): Float = data.sum() / data.size
@@ -60,7 +61,7 @@ class Statistics(override var hub: Hub?) : Hubable {
         }
 
         /** Returns all the stats about [data] formatted as string */
-        override fun toString(): String = "${avg().inMillisecondsIfTime()}/${min().inMillisecondsIfTime()}/${max().inMillisecondsIfTime()}/${stddev().inMillisecondsIfTime()}/${data.first.inMillisecondsIfTime()}"
+        override fun toString(): String = "${avg().inMillisecondsIfTime()}/${min().inMillisecondsIfTime()}/${max().inMillisecondsIfTime()}/${stddev().inMillisecondsIfTime()}/${data.first().inMillisecondsIfTime()}"
     }
 
     protected var stats = ConcurrentHashMap<String, StatisticData>()
@@ -72,15 +73,12 @@ class Statistics(override var hub: Hub?) : Hubable {
     fun add(name: String, value: Float, isTime: Boolean = true) {
         GlobalScope.launch(threadContext.asCoroutineDispatcher()) {
             stats.computeIfAbsent(name) {
-                val d = StatisticData(isTime)
-                d.data.push(value)
-                d
+                StatisticData(isTime)
             }.let {
                 if(it.data.size >= dataSize) {
-                    it.data.removeLast()
+                    it.data.poll()
                 }
-
-                it.data.push(value)
+                it.data.add(value)
             }
         }
     }
