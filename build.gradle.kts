@@ -99,7 +99,7 @@ dependencies {
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.16.1")
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.16.1")
     implementation("org.zeromq:jeromq:0.5.4")
-    implementation("com.esotericsoftware:kryo:5.5.0")
+    implementation("com.esotericsoftware:kryo:5.6.0")
     implementation("de.javakaffee:kryo-serializers:0.45")
     implementation("org.msgpack:msgpack-core:0.9.8")
     implementation("org.msgpack:jackson-dataformat-msgpack:0.9.8")
