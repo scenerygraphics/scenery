@@ -32,7 +32,11 @@ class VolumeHistogramComputeNode(val volume: Volume, data: ByteBuffer): RichNode
     var numBins = 100
 
     @ShaderProperty
-    val volumeIs8Bit: Boolean = true
+    val volumeIs8Bit: Boolean = when(volume.bytesPerVoxel){
+        1 -> true
+        2 -> false
+        else -> throw IllegalArgumentException("only 8 and 16 bit data supported for histograms")
+    }
 
     @ShaderProperty
     val numVoxels: Int
@@ -66,28 +70,39 @@ class VolumeHistogramComputeNode(val volume: Volume, data: ByteBuffer): RichNode
             maxFilter = Texture.FilteringMode.NearestNeighbour
         )
 
-        this.setMaterial(ShaderMaterial.fromFiles(this::class.java, "ComputeHistogram.comp")) {
-            textures["Volume8Bit"] = Texture(
-                Vector3i(volume.getDimensions()),
-                1,
-                contents = data,
-                usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
-                type = dataType,
-                mipmap = false,
-                minFilter = Texture.FilteringMode.NearestNeighbour,
-                maxFilter = Texture.FilteringMode.NearestNeighbour
-            )
 
-            textures["Volume16Bit"] = Texture(
-                Vector3i(1),
-                1,
-                contents = MemoryUtil.memCalloc(2),
-                usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
-                type = UnsignedShortType(),
-                mipmap = false,
-                minFilter = Texture.FilteringMode.NearestNeighbour,
-                maxFilter = Texture.FilteringMode.NearestNeighbour
-            )
+
+        this.setMaterial(ShaderMaterial.fromFiles(this::class.java, "ComputeHistogram.comp")) {
+            textures["Volume8Bit"] = if (volumeIs8Bit) {
+                Texture(
+                    Vector3i(volume.getDimensions()),
+                    1,
+                    contents = data,
+                    usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
+                    type = dataType,
+                    mipmap = false,
+                    minFilter = Texture.FilteringMode.NearestNeighbour,
+                    maxFilter = Texture.FilteringMode.NearestNeighbour
+                )
+            } else {
+                Texture()
+            }
+
+
+            textures["Volume16Bit"] = if (!volumeIs8Bit) {
+                Texture(
+                    Vector3i(volume.getDimensions()),
+                    1,
+                    contents = data,
+                    usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
+                    type = UnsignedShortType(),
+                    mipmap = false,
+                    minFilter = Texture.FilteringMode.NearestNeighbour,
+                    maxFilter = Texture.FilteringMode.NearestNeighbour
+                )
+            } else {
+                Texture()
+            }
 
 
             textures["Histogram"] = histogramTexture

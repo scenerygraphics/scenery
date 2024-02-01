@@ -30,12 +30,10 @@ void main() {
         float val;
 
         if(volumeIs8Bit) {
-            val = imageLoad(Volume8Bit, ivec3(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y, i)).x;
+            val = imageLoad(Volume8Bit, ivec3(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y, i)).x * pow(2,8) ;
         } else {
-            val = imageLoad(Volume16Bit, ivec3(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y, i)).x;
+            val = imageLoad(Volume16Bit, ivec3(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y, i)).x * pow(2,16);
         }
-
-        val *= 255;
 
         if(val >= minDisplayVal && val <= maxDisplayVal) {
             int binID = int(floor(val / binSize));
