@@ -21,18 +21,45 @@ import org.lwjgl.system.MemoryUtil
 import java.nio.ByteBuffer
 import kotlin.math.ceil
 
-class VDIVolumeManager ( var hub: Hub, val windowWidth: Int, val windowHeight: Int, val maxSupersegments: Int,val scene: Scene, val vdiFull: Boolean = true)
+/**
+ * Class for creating and maintaining a [VolumeManager] for generating Volumetric Depth Images (VDIs).
+ *
+ * @param[hub] The hub to which the VolumeManager is to be attached
+ * @param[windowWidth] The rendering resolution along the x (horizontal) axis
+ * @param[windowHeight] The rendering resolution along the y (vertical) axis
+ * @param[maxSupersegments] The number of supersegments along each list (ray or pixel) in the generated VDI
+ * @param[scene] The scene to which the generated VolumeManager will belong
+ *
+ * @author Aryaman Gupta <argupta@mpi-cbg.de> and Wissal Salhi
+ */
+class VDIVolumeManager (var hub: Hub, val windowWidth: Int, val windowHeight: Int, val maxSupersegments: Int, val scene: Scene)
 {
     private val logger by lazyLogger()
-    fun createVDIVolumeManger() : VolumeManager {
-        if (vdiFull)
-            return vdiFull(windowWidth, windowHeight, maxSupersegments, scene, hub)
+
+    var colorBuffer: ByteBuffer? = null
+    var depthBuffer: ByteBuffer? = null
+    var gridBuffer: ByteBuffer? = null
+
+    var prefixBuffer: ByteBuffer? = null
+    var thresholdBuffer: ByteBuffer? = null
+    var numGeneratedBuffer: ByteBuffer? = null
+
+    /**
+     * Creates a [VolumeManager] for generating VDIs
+     *
+     * @param[vdiFull] Boolean variable to indicate whether VDIs are to be generated in regular (i.e. full) resolution or compact.
+     *
+     * @return The generated [VolumeManager]
+     *
+     */
+    fun createVDIVolumeManager(vdiFull: Boolean = true) : VolumeManager {
+        return if (vdiFull)
+            vdiFull(windowWidth, windowHeight, maxSupersegments, scene, hub)
         else
-            return vdiFull(windowWidth, windowHeight, maxSupersegments, scene, hub)
+            vdiCompact(windowWidth, windowHeight, maxSupersegments, scene, hub)
     }
 
     private fun instantiateVolumeManager(raycastShader: String, accumulateShader: String, hub: Hub): VolumeManager {
-
         return VolumeManager(
             hub, useCompute = true,
             customSegments = hashMapOf(
@@ -54,28 +81,28 @@ class VDIVolumeManager ( var hub: Hub, val windowWidth: Int, val windowHeight: I
         val accumulateShader = "AccumulateVDI.comp"
         val volumeManager = instantiateVolumeManager(raycastShader, accumulateShader, hub)
 
-        val outputSubColorBuffer = MemoryUtil.memCalloc(windowHeight*windowWidth*4*maxSupersegments*4)
+        colorBuffer = MemoryUtil.memCalloc(windowHeight*windowWidth*4*maxSupersegments*4)
 
-        val outputSubDepthBuffer = MemoryUtil.memCalloc(windowHeight*windowWidth*2*maxSupersegments*2 * 2)
+        depthBuffer = MemoryUtil.memCalloc(windowHeight*windowWidth*2*maxSupersegments*2 * 2)
 
         val numGridCells = Vector3f(windowWidth.toFloat() / 8f, windowHeight.toFloat() / 8f, maxSupersegments.toFloat())
 
-        val lowestLevel = MemoryUtil.memCalloc(numGridCells.x.toInt() * numGridCells.y.toInt() * numGridCells.z.toInt() * 4)
+        gridBuffer = MemoryUtil.memCalloc(numGridCells.x.toInt() * numGridCells.y.toInt() * numGridCells.z.toInt() * 4)
 
         val outputSubVDIColor: Texture = Texture.fromImage(
-            Image(outputSubColorBuffer, maxSupersegments, windowHeight, windowWidth, FloatType()), usage = hashSetOf( Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
+            Image(colorBuffer!!, maxSupersegments, windowHeight, windowWidth, FloatType()), usage = hashSetOf( Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
             type = FloatType(), channels = 4, mipmap = false,  normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
         volumeManager.customTextures.add("OutputSubVDIColor")
         volumeManager.material().textures["OutputSubVDIColor"] = outputSubVDIColor
 
         val outputSubVDIDepth: Texture = Texture.fromImage(
-            Image(outputSubDepthBuffer, 2 * maxSupersegments, windowHeight, windowWidth, FloatType()),  usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
+            Image(depthBuffer!!, 2 * maxSupersegments, windowHeight, windowWidth, FloatType()),  usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
             type = FloatType(), channels = 1, mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
         volumeManager.customTextures.add("OutputSubVDIDepth")
         volumeManager.material().textures["OutputSubVDIDepth"] = outputSubVDIDepth
 
         val gridCells: Texture = Texture.fromImage(
-            Image(lowestLevel, numGridCells.x.toInt(), numGridCells.y.toInt(), numGridCells.z.toInt(), UnsignedIntType()), channels = 1, type = UnsignedIntType(),
+            Image(gridBuffer!!, numGridCells.x.toInt(), numGridCells.y.toInt(), numGridCells.z.toInt(), UnsignedIntType()), channels = 1, type = UnsignedIntType(),
             usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
         volumeManager.customTextures.add("OctreeCells")
         volumeManager.material().textures["OctreeCells"] = gridCells
@@ -98,8 +125,7 @@ class VDIVolumeManager ( var hub: Hub, val windowWidth: Int, val windowHeight: I
         return volumeManager
     }
 
-    private fun vdiCompact(windowWidth: Int, windowHeight: Int, maxSupersegments: Int, scene: Scene, hub: Hub): VolumeManager
-    {
+    private fun vdiCompact(windowWidth: Int, windowHeight: Int, maxSupersegments: Int, scene: Scene, hub: Hub): VolumeManager {
         val raycastShader = "AdaptiveVDIGenerator.comp"
         val accumulateShader = "AccumulateVDI.comp"
 
@@ -107,34 +133,31 @@ class VDIVolumeManager ( var hub: Hub, val windowWidth: Int, val windowHeight: I
 
         val totalMaxSupersegments = maxSupersegments * windowWidth * windowHeight
 
-        val outputSubColorBuffer = MemoryUtil.memCalloc(512 * 512 * ceil((totalMaxSupersegments / (512*512)).toDouble()).toInt() * 4 * 4)
-        val outputSubDepthBuffer = MemoryUtil.memCalloc(2 * 512 * 512 * ceil((totalMaxSupersegments / (512*512)).toDouble()).toInt() * 4)
+        colorBuffer = MemoryUtil.memCalloc(512 * 512 * ceil((totalMaxSupersegments / (512*512)).toDouble()).toInt() * 4 * 4)
+        depthBuffer = MemoryUtil.memCalloc(2 * 512 * 512 * ceil((totalMaxSupersegments / (512*512)).toDouble()).toInt() * 4)
 
 
         val numGridCells = Vector3f(windowWidth.toFloat() / 8f, windowHeight.toFloat() / 8f, maxSupersegments.toFloat())
-        val lowestLevel = MemoryUtil.memCalloc(numGridCells.x.toInt() * numGridCells.y.toInt() * numGridCells.z.toInt() * 4)
+        gridBuffer = MemoryUtil.memCalloc(numGridCells.x.toInt() * numGridCells.y.toInt() * numGridCells.z.toInt() * 4)
 
-        val prefixBuffer: ByteBuffer = MemoryUtil.memCalloc(windowHeight * windowWidth * 4)
-        val thresholdBuffer: ByteBuffer = MemoryUtil.memCalloc(windowHeight * windowWidth * 4)
-        val numGeneratedBuffer: ByteBuffer = MemoryUtil.memCalloc(windowHeight * windowWidth * 4)
+        prefixBuffer = MemoryUtil.memCalloc(windowHeight * windowWidth * 4)
+        thresholdBuffer = MemoryUtil.memCalloc(windowHeight * windowWidth * 4)
+        numGeneratedBuffer = MemoryUtil.memCalloc(windowHeight * windowWidth * 4)
 
-        val outputSubVDIColor: Texture
-        val outputSubVDIDepth: Texture
-        val gridCells: Texture
-
-        outputSubVDIColor = Texture.fromImage(
-            Image(outputSubColorBuffer, 512, 512, ceil((totalMaxSupersegments / (512*512)).toDouble()).toInt()), usage = hashSetOf(
+        val outputSubVDIColor: Texture = Texture.fromImage(
+            Image(colorBuffer!!, 512, 512, ceil((totalMaxSupersegments / (512*512)).toDouble()).toInt()), usage = hashSetOf(
             Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), channels = 4, mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
         volumeManager.customTextures.add("OutputSubVDIColor")
         volumeManager.material().textures["OutputSubVDIColor"] = outputSubVDIColor
 
-        outputSubVDIDepth = Texture.fromImage(
-            Image(outputSubDepthBuffer, 2 * 512, 512, ceil((totalMaxSupersegments / (512*512)).toDouble()).toInt()),  usage = hashSetOf(
+        val outputSubVDIDepth: Texture = Texture.fromImage(
+            Image(depthBuffer!!, 2 * 512, 512, ceil((totalMaxSupersegments / (512*512)).toDouble()).toInt()),  usage = hashSetOf(
             Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), channels = 1, mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
         volumeManager.customTextures.add("OutputSubVDIDepth")
         volumeManager.material().textures["OutputSubVDIDepth"] = outputSubVDIDepth
 
-        gridCells = Texture.fromImage(Image(lowestLevel, numGridCells.x.toInt(), numGridCells.y.toInt(), numGridCells.z.toInt()), channels = 1, type = UnsignedIntType(),
+        val gridCells: Texture =
+            Texture.fromImage(Image(gridBuffer!!, numGridCells.x.toInt(), numGridCells.y.toInt(), numGridCells.z.toInt()), channels = 1, type = UnsignedIntType(),
             usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
         volumeManager.customTextures.add("OctreeCells")
         volumeManager.material().textures["OctreeCells"] = gridCells
@@ -195,6 +218,34 @@ class VDIVolumeManager ( var hub: Hub, val windowWidth: Int, val windowHeight: I
         scene.addChild(compute)
 
         return volumeManager
+    }
 
+    /**
+     * Frees the memory allocated to the buffers used to generate VDIs.
+     */
+    fun close() {
+        colorBuffer?.let {
+            MemoryUtil.memFree(it)
+        }
+
+        depthBuffer?.let {
+            MemoryUtil.memFree(it)
+        }
+
+        gridBuffer?.let {
+            MemoryUtil.memFree(it)
+        }
+
+        prefixBuffer?.let {
+            MemoryUtil.memFree(it)
+        }
+
+        thresholdBuffer?.let {
+            MemoryUtil.memFree(it)
+        }
+
+        numGeneratedBuffer?.let {
+            MemoryUtil.memFree(it)
+        }
     }
 }
