@@ -12,13 +12,14 @@ import org.jfree.data.statistics.SimpleHistogramDataset
 import javax.swing.JCheckBox
 import kotlin.math.abs
 import kotlin.math.max
+import kotlin.math.roundToInt
 
 class HistogramChartManager(val tfPlot: XYPlot,
                             val mainChart: ChartPanel,
                             private val tfContainer: HasTransferFunction,
                             val axisExtensionFactor: Double){
-
     val genHistButton = JCheckBox("Show Histogram")
+
     private val histogramAxis = LogarithmicAxis("")
 
     init {
@@ -75,7 +76,11 @@ class HistogramChartManager(val tfPlot: XYPlot,
     private fun populateHistogramBins(volumeHistogramData: SimpleHistogramDataset) {
         volumeHistogramData.removeAllBins()
 
-        val volume = tfContainer as? BufferedVolume ?: return
+        val volume = tfContainer as? BufferedVolume
+        if (volume == null){
+            oldGenerateHistogramBins(1024.0,volumeHistogramData)
+            return
+        }
 
         val volumeHistogram = VolumeHistogramComputeNode.generateHistogram(
             volume,
@@ -109,5 +114,37 @@ class HistogramChartManager(val tfPlot: XYPlot,
         )
 
         mainChart.repaint()
+    }
+
+    /**
+     * Old code from PowerOfNames. Calculates the histogram on the CPU. I distance myself from it.
+     * Taken from https://github.com/scenerygraphics/scenery/blob/main/src/main/kotlin/graphics/scenery/volumes/TransferFunctionEditor.kt at commit 58ae87a
+     */
+    private fun oldGenerateHistogramBins(binCount: Double, volumeHistogramData: SimpleHistogramDataset) {
+        volumeHistogramData.removeAllBins()
+
+        val histogram = (tfContainer as? HasHistogram)?.generateHistogram()
+        if (histogram != null) {
+            var binEnd = -0.0000001
+            val displayRange = abs(tfContainer.maxDisplayRange - tfContainer.minDisplayRange)
+            val binSize = displayRange / binCount
+            histogram.forEachIndexed { index, longType ->
+
+                val relativeCount = (longType.get().toFloat() / histogram.totalCount().toFloat()) * histogram.binCount
+                val value =
+                    (((index.toDouble() / histogram.binCount.toDouble()) * (displayRange / histogram.binCount.toDouble()))) * histogram.binCount.toDouble()
+
+                if (relativeCount.roundToInt() != 0 && (value) >= binEnd) {
+                    val binStart =
+                        (((index) - (((index) % (histogram.binCount.toDouble() / binCount)))) / histogram.binCount.toDouble()) * displayRange
+                    binEnd = binStart + binSize
+                    val bin = SimpleHistogramBin(binStart, binEnd, true, false)
+                    volumeHistogramData.addBin(bin)
+                }
+                for (i in 0 until relativeCount.roundToInt()) {
+                    volumeHistogramData.addObservation(value)
+                }
+            }
+        }
     }
 }
