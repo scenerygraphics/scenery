@@ -311,24 +311,23 @@ class VolumeManager(
 
         customSegments?.forEach { (type, segment) -> segments[type] = segment }
 
-        val additionalBindings = customBindings
-            ?: BiConsumer { _: Map<SegmentType, SegmentTemplate>, instances: Map<SegmentType, Segment> ->
-                logger.debug("Connecting additional bindings")
+        val runBeforeBinding: MultiVolumeShaderMip.SegmentConsumer = MultiVolumeShaderMip.SegmentConsumer { segments, segmentInstances, volumeIndex ->
+            logger.debug("Connecting additional bindings for volumeIndex: $volumeIndex")
 
-                instances[SegmentType.SampleMultiresolutionVolume]?.bind("convert", instances[SegmentType.Convert])
-                instances[SegmentType.SampleVolume]?.bind("convert", instances[SegmentType.Convert])
-                instances[SegmentType.SampleVolume]?.bind("sceneGraphVisibility", instances[SegmentType.Accumulator])
-                instances[SegmentType.SampleMultiresolutionVolume]?.bind("sceneGraphVisibility", instances[SegmentType.AccumulatorMultiresolution])
-            }
+            segmentInstances[SegmentType.SampleMultiresolutionVolume]?.bind("convert", segmentInstances[SegmentType.Convert])
+            segmentInstances[SegmentType.SampleVolume]?.bind("convert", segmentInstances[SegmentType.Convert])
+            segmentInstances[SegmentType.SampleVolume]?.bind("sceneGraphVisibility", segmentInstances[SegmentType.Accumulator])
+            segmentInstances[SegmentType.SampleMultiresolutionVolume]?.bind("sceneGraphVisibility", segmentInstances[SegmentType.AccumulatorMultiresolution])
+        }
 
         val newProgvol = MultiVolumeShaderMip(
             VolumeShaderSignature(signatures),
             true, farPlaneDegradation,
             segments,
-            additionalBindings,
+            runBeforeBinding,
             "InputZBuffer"
         )
-
+        
         newProgvol.setTextureCache(textureCache)
         newProgvol.setDepthTextureName("InputZBuffer")
         logger.debug("Using program for $outOfCoreVolumeCount out-of-core volumes and $regularVolumeCount regular volumes")
