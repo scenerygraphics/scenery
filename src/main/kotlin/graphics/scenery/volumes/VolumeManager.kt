@@ -59,7 +59,7 @@ class VolumeManager(
     override var hub: Hub?,
     val useCompute: Boolean = false,
     val customSegments: Map<SegmentType, SegmentTemplate>? = null,
-    val customBindings: BiConsumer<Map<SegmentType, SegmentTemplate>, Map<SegmentType, Segment>>? = null
+    val customBindings: MultiVolumeShaderMip.SegmentConsumer? = null
 ) : DefaultNode("VolumeManager"), HasGeometry, HasRenderable, HasMaterial, Hubable, RequestRepaint {
 
     /**
@@ -311,7 +311,7 @@ class VolumeManager(
 
         customSegments?.forEach { (type, segment) -> segments[type] = segment }
 
-        val runBeforeBinding: MultiVolumeShaderMip.SegmentConsumer = MultiVolumeShaderMip.SegmentConsumer { segments, segmentInstances, volumeIndex ->
+        val additionalBindings: MultiVolumeShaderMip.SegmentConsumer = customBindings ?: MultiVolumeShaderMip.SegmentConsumer { segments, segmentInstances, volumeIndex ->
             logger.debug("Connecting additional bindings for volumeIndex: $volumeIndex")
 
             segmentInstances[SegmentType.SampleMultiresolutionVolume]?.bind("convert", segmentInstances[SegmentType.Convert])
@@ -324,10 +324,10 @@ class VolumeManager(
             VolumeShaderSignature(signatures),
             true, farPlaneDegradation,
             segments,
-            runBeforeBinding,
+            additionalBindings,
             "InputZBuffer"
         )
-        
+
         newProgvol.setTextureCache(textureCache)
         newProgvol.setDepthTextureName("InputZBuffer")
         logger.debug("Using program for $outOfCoreVolumeCount out-of-core volumes and $regularVolumeCount regular volumes")
