@@ -617,12 +617,6 @@ void main()
             lighting = vec3(MaterialParams.rg, 0.0);
         }
     } else {
-
-        // remove lightAttenuation and specularity when the object is emissive
-        //if (emissive.a > 0.0f) {
-        //    lighting = ;
-        //}
-        //else {
             lighting = (diffuse + specular) * lightAttenuation + Emissive.rgb * Emissive.a;
         }
     //}
