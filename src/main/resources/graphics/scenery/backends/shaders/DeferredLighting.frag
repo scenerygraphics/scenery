@@ -542,12 +542,6 @@ void main()
     vec3 specular = vec3(0.0f);
     vec3 diffuse = vec3(0.0f);
 
-    // remove ambient occlusion if the object is emissive;
-    // otherwise ambient occlusion would be part of the diffuse emission texture
-    //if(Emissive.a > 0.0f) {
-    //    lightOcclusion = 1.0f;
-    //}
-
     if(reflectanceModel == 1) {
         // Diffuse
         float NdotL = max(0.0, dot(N, L));
