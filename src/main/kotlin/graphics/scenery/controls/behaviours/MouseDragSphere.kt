@@ -16,7 +16,10 @@ import kotlin.math.atan2
 /**
  * Drag nodes roughly along a sphere around the camera by mouse.
  * Implements algorithm from https://forum.unity.com/threads/implement-a-drag-and-drop-script-with-c.130515/
- *
+ * @param [name] Name of the behavior
+ * @param [camera] The camera to use
+ * @param [filter] Ignore nodes for the raycast for nodes it retuns false for
+ * @param [rotateAroundCenter] Rotates the object around the world center instead of the camera. Defaults to false.
  * @author Jan Tiemann <j.tiemann@hzdr.de>
  */
 open class MouseDragSphere(

@@ -28,12 +28,6 @@ open class PointLight(val radius: Float = 5.0f) : Light("PointLight") {
     @ShaderProperty
     override val lightType: LightType = LightType.PointLight
 
-    /** Introduces self-lighting emission for the parent objects material.
-     * This attribute should only be used when the [PointLight] acts as a proxy for the corresponding @ShaderProperty. */
-    //@ShaderProperty
-    //var emissive: Float = 1f
-    //TODO Remove this part
-
     /** Maximum radius in world units */
     @Suppress("unused") // will be serialised into ShaderProperty buffer
     @ShaderProperty var lightRadius: Float = radius

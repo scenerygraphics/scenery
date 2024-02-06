@@ -61,8 +61,6 @@ layout(set = 5, binding = 0, std140) uniform ShaderProperties {
     vec3 worldPosition;
     vec3 emissionColor;
     int lightType;
-    // self-lighting property of a material
-    //float emissive;
 };
 
 layout(set = 6, binding = 0, std140) uniform ShaderParameters {

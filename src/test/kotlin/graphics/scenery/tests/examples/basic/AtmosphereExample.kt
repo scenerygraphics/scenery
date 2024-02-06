@@ -20,7 +20,9 @@ import org.joml.Vector3f
 /**
  * <Description>
  * A basic example that shows how the atmosphere object can be applied to a scene.
- *
+ * Per default, the sun position is synchronized to the local time.
+ * The sun position can be changed with Ctrl + arrow keys and fine-tuned with Shift-Ctrl + arrow keys.
+ * Call [Atmosphere.attachRotateBehaviours] in the input setup to add sun controls.
  * @author Samuel Pantze
  */
 class AtmosphereExample : SceneryBase("Atmosphere Example",
@@ -47,13 +49,6 @@ class AtmosphereExample : SceneryBase("Atmosphere Example",
             renderer?.toggleVR()
         }
 
-//        val ball = Icosphere(0.5f, 2)
-//        ball.material {
-//            diffuse = Vector3f(1f, 1f, 1f)
-//            roughness = 0.5f
-//        }
-//        scene.addChild((ball))
-
         val imp: ImagePlus = IJ.openImage("https://imagej.nih.gov/ij/images/t1-head.zip")
         val img: Img<UnsignedShortType> = ImageJFunctions.wrapShort(imp)
 
@@ -76,7 +71,6 @@ class AtmosphereExample : SceneryBase("Atmosphere Example",
                 Random.randomFromRange(-spread, spread),
             )
             light.intensity = 1f
-            //light.emissionColor = Vector3f(1f, 0.9f, 0.8f)
             scene.addChild(light)
             light
         }
@@ -102,6 +96,7 @@ class AtmosphereExample : SceneryBase("Atmosphere Example",
     }
 
     companion object {
+        /** AtmosphereExample main function */
         @JvmStatic
         fun main(args: Array<String>) {
             AtmosphereExample().main()
