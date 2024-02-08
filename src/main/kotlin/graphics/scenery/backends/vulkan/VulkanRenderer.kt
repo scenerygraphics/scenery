@@ -8,6 +8,7 @@ import graphics.scenery.attribute.renderable.Renderable
 import graphics.scenery.backends.*
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.*
+import graphics.scenery.utils.extensions.applyVulkanCoordinateSystem
 import kotlinx.coroutines.*
 import org.joml.*
 import org.lwjgl.PointerBuffer
@@ -389,14 +390,6 @@ open class VulkanRenderer(hub: Hub,
 
     private var renderConfig: RenderConfigReader.RenderConfig
     private var flow: List<String> = listOf()
-
-    private val vulkanProjectionFix =
-        Matrix4f(
-            1.0f,  0.0f, 0.0f, 0.0f,
-            0.0f, -1.0f, 0.0f, 0.0f,
-            0.0f,  0.0f, 0.5f, 0.0f,
-            0.0f,  0.0f, 0.5f, 1.0f)
-
 
     final override var renderConfigFile: String = ""
         set(config) {
@@ -2107,13 +2100,6 @@ open class VulkanRenderer(hub: Hub,
         }
 
         instanceMasters.isNotEmpty()
-    }
-
-    fun Matrix4f.applyVulkanCoordinateSystem(): Matrix4f {
-        val m = Matrix4f(vulkanProjectionFix)
-        m.mul(this)
-
-        return m
     }
 
 
