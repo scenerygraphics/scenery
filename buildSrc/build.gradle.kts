@@ -11,7 +11,10 @@ repositories {
 
 dependencies {
     implementation("org.jetbrains.dokka:dokka-gradle-plugin:1.9.20")
+//    implementation("org.gradlex:extra-java-module-info:1.8")
 }
+
+
 
 //, imagej, imgLib2, scifio, fiji, bigDataViewer, trakEM2, n5, boneJ, ome, omero,
 //groovy, apache, batik, commons, eclipseCollections, eclipseSwt, googleCloud, jackson,

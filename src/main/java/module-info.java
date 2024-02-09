@@ -45,13 +45,13 @@ module graphics.scenery {
     requires com.fasterxml.jackson.databind;
     requires com.fasterxml.jackson.dataformat.yaml;
     requires com.fasterxml.jackson.kotlin;
-    requires jinput;
-    requires trove4j;
-    requires org.scijava.ui.behaviour;
+//    requires jinput;
+//    requires trove4j;
+//    requires org.scijava.ui.behaviour;
     requires org.slf4j;
-
-//    opens java.nio;
-//    opens java.nio;
-//    opens sun.nio.ch;
-//    opens sun.
+    requires bvv;
+    requires bdv;
+//    requires bdv.util;
+    requires net.imglib2.realtransform;
+    requires net.imglib2;
 }
