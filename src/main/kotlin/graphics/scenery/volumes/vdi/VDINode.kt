@@ -9,6 +9,7 @@ import graphics.scenery.compute.InvocationType
 import graphics.scenery.textures.Texture
 import graphics.scenery.textures.UpdatableTexture
 import graphics.scenery.utils.Image
+import graphics.scenery.utils.extensions.applyVulkanCoordinateSystem
 import net.imglib2.type.numeric.integer.UnsignedIntType
 import net.imglib2.type.numeric.real.FloatType
 import org.joml.Matrix4f
@@ -101,20 +102,6 @@ class VDINode(windowWidth: Int, windowHeight: Int, val numSupersegments: Int, vd
     /** Whether empty regions should be skipped or not. Accelerates rendering without loss of quality. */
     @ShaderProperty
     var skip_empty = true
-
-    private val vulkanProjectionFix =
-        Matrix4f(
-            1.0f, 0.0f, 0.0f, 0.0f,
-            0.0f, -1.0f, 0.0f, 0.0f,
-            0.0f, 0.0f, 0.5f, 0.0f,
-            0.0f, 0.0f, 0.5f, 1.0f)
-
-    fun Matrix4f.applyVulkanCoordinateSystem(): Matrix4f {
-        val m = Matrix4f(vulkanProjectionFix)
-        m.mul(this)
-
-        return m
-    }
 
     /**
      * Enum class recording which of the two VDIs is currently being rendered.
@@ -237,19 +224,55 @@ class VDINode(windowWidth: Int, windowHeight: Int, val numSupersegments: Int, vd
         }
     }
 
-    private fun updateTextures(colorTexture: UpdatableTexture, depthTexture: UpdatableTexture, gridTexture: UpdatableTexture) {
+    /**
+     * Asynchronously updates the VDI on the GPU using double buffering and [UpdatableTexture]s.
+     */
+    private fun updateTextures(color: ByteBuffer, depth: ByteBuffer, accelGridBuffer: ByteBuffer) {
+
+        val colorTexture = UpdatableTexture(Vector3i(numSupersegments, vdiHeight, vdiWidth), 4, contents = null, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture, Texture.UsageType.AsyncLoad),
+            type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+
+        val colorUpdate = UpdatableTexture.TextureUpdate(
+            UpdatableTexture.TextureExtents(0, 0, 0, numSupersegments, vdiHeight, vdiWidth),
+            color.slice()
+        )
+        colorTexture.addUpdate(colorUpdate)
+
+
+        val depthTexture = UpdatableTexture(Vector3i(2 * numSupersegments, vdiHeight, vdiWidth), channels = 1, contents = null, usageType = hashSetOf(
+            Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture, Texture.UsageType.AsyncLoad), type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+
+        val depthUpdate = UpdatableTexture.TextureUpdate(
+            UpdatableTexture.TextureExtents(0, 0, 0, 2 * numSupersegments, vdiHeight, vdiWidth),
+            depth.slice()
+        )
+        depthTexture.addUpdate(depthUpdate)
+
+
+        val numGridCells = getAccelerationGridSize()
+
+        val accelTexture = UpdatableTexture(Vector3i(numGridCells.x.toInt(), numGridCells.y.toInt(), numGridCells.z.toInt()), channels = 1, contents = null, usageType = hashSetOf(
+            Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture, Texture.UsageType.AsyncLoad), type = UnsignedIntType(), mipmap = false, normalized = true, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+
+        val accelUpdate = UpdatableTexture.TextureUpdate(
+            UpdatableTexture.TextureExtents(0, 0, 0, vdiWidth / 8, vdiHeight / 8, numSupersegments),
+            accelGridBuffer
+        )
+        accelTexture.addUpdate(accelUpdate)
+
+
         if(currentBuffer == DoubleBuffer.First) {
             material().textures["InputVDI"] = colorTexture
             material().textures["DepthVDI"] = depthTexture
-            material().textures["OctreeCells"] = gridTexture
+            material().textures["OctreeCells"] = accelTexture
         } else {
             material().textures["InputVDI2"] = colorTexture
             material().textures["DepthVDI2"] = depthTexture
-            material().textures["OctreeCells2"] = gridTexture
+            material().textures["OctreeCells2"] = accelTexture
         }
 
-        while (!colorTexture.availableOnGPU() || !depthTexture.availableOnGPU() || !gridTexture.availableOnGPU()) {
-            logger.debug("Waiting for texture transfer. color: ${colorTexture.availableOnGPU()}, depth: ${depthTexture.availableOnGPU()}, grid: ${gridTexture.availableOnGPU()}")
+        while (!colorTexture.availableOnGPU() || !depthTexture.availableOnGPU() || !accelTexture.availableOnGPU()) {
+            logger.debug("Waiting for texture transfer. color: ${colorTexture.availableOnGPU()}, depth: ${depthTexture.availableOnGPU()}, grid: ${accelTexture.availableOnGPU()}")
             Thread.sleep(10)
         }
 
@@ -283,13 +306,13 @@ class VDINode(windowWidth: Int, windowHeight: Int, val numSupersegments: Int, vd
      * upload is complete.
      *
      * @param[vdiData] The metadata ([VDIData]) associated with the new VDI
-     * @param[colorTexture] An [UpdatableTexture] containing the colors of the supersegments in the new VDI
-     * @param[depthTexture] An [UpdatableTexture] containing the depths of the supersegments in the new VDI
-     * @param[gridTexture] An [UpdatableTexture] containing the grid acceleration data structure for the new VDI
+     * @param[color] A [ByteBuffer] containing the colors of the supersegments in the new VDI
+     * @param[depth] A [ByteBuffer] containing the depths of the supersegments in the new VDI
+     * @param[accelGridBuffer] A [ByteBuffer] containing the grid acceleration data structure for the new VDI
      */
-    fun updateVDI(vdiData: VDIData, colorTexture: UpdatableTexture, depthTexture: UpdatableTexture, gridTexture: UpdatableTexture) {
+    fun updateVDI(vdiData: VDIData, color: ByteBuffer, depth: ByteBuffer, accelGridBuffer: ByteBuffer) {
         updateMetadata(vdiData)
-        updateTextures(colorTexture, depthTexture, gridTexture)
+        updateTextures(color, depth, accelGridBuffer)
 
         if(currentBuffer == DoubleBuffer.First) {
             useSecondBuffer = false
