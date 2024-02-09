@@ -1,6 +1,8 @@
 package graphics.scenery.volumes.vdi
 
 import graphics.scenery.Camera
+import graphics.scenery.Scene
+import graphics.scenery.Settings
 import graphics.scenery.backends.Renderer
 import graphics.scenery.backends.vulkan.VulkanRenderer
 import graphics.scenery.textures.Texture
@@ -72,9 +74,6 @@ class VDIStreamer {
 
         var firstFrame = true
 
-        val windowWidth = cam.width
-        val windowHeight = cam.height
-
         val publisher = createPublisher(context, ipAddress)
 
         var compressedColor:  ByteBuffer? = null
@@ -116,13 +115,30 @@ class VDIStreamer {
                 vdiDepthBuffer = vdiDepth.contents
                 gridCellsBuff = gridCells.contents
 
-                val colorSize = windowHeight * windowWidth * maxSupersegments * 4 * 4
-                val depthSize = windowWidth * windowHeight * maxSupersegments * 4 * 2
-                val accelSize = (windowWidth / 8) * (windowHeight / 8) * maxSupersegments * 4
+                val colorSize = cam.height * cam.width * maxSupersegments * 4 * 4
+                val depthSize = cam.width * cam.height * maxSupersegments * 4 * 2
+                val accelSize = (cam.width / 8) * (cam.height / 8) * maxSupersegments * 4
 
                 if (vdiColorBuffer!!.remaining() != colorSize || vdiDepthBuffer!!.remaining() != depthSize || gridCellsBuff!!.remaining() != accelSize) {
                     logger.warn("Skipping transmission this frame due to inconsistency in buffer size")
+                    logger.warn("Size of color buffer: ${vdiColorBuffer!!.remaining()} and expected size $colorSize")
+                    logger.warn("Size of color buffer: ${vdiDepthBuffer!!.remaining()} and expected size $depthSize")
+                    logger.warn("Size of color buffer: ${gridCellsBuff!!.remaining()} and expected size $accelSize")
                 } else {
+
+                    if(Settings().get("Debug", false)) {
+                        val floatBuffer = vdiColorBuffer!!.asFloatBuffer()
+                        var cnt = 0
+                        while (floatBuffer.remaining() > 0) {
+                            val t = floatBuffer.get()
+                            if(t != 0f) {
+                                cnt++
+                            }
+                        }
+                        if(cnt == 0) {
+                            logger.warn("VDI color buffer only contains 0s.")
+                        }
+                    }
 
                     if (compressedColor == null) {
                         compressedColor =
@@ -186,76 +202,11 @@ class VDIStreamer {
                     } else {
                         vdisStreamed += 1
                     }
+
+                    Thread.sleep(2000)
                 }
             }
             firstFrame = false
-        }
-    }
-
-    fun updateTextures(color: ByteBuffer, depth: ByteBuffer, accelGridBuffer: ByteBuffer, vdiData: VDIData,
-                       firstVDI: Boolean, vdiNode: VDINode, windowWidth: Int, windowHeight: Int, numSupersegments: Int) {
-
-        vdiNode.updateMetadata(vdiData)
-
-        val colorTexture = UpdatableTexture(Vector3i(numSupersegments, windowHeight, windowWidth), 4, contents = null, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture, Texture.UsageType.AsyncLoad),
-            type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
-
-        val colorUpdate = UpdatableTexture.TextureUpdate(
-            UpdatableTexture.TextureExtents(0, 0, 0, numSupersegments, windowHeight, windowWidth),
-            color.slice()
-        )
-        colorTexture.addUpdate(colorUpdate)
-
-
-        val depthTexture = UpdatableTexture(Vector3i(2 * numSupersegments, windowHeight, windowWidth), channels = 1, contents = null, usageType = hashSetOf(
-            Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture, Texture.UsageType.AsyncLoad), type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
-
-        val depthUpdate = UpdatableTexture.TextureUpdate(
-            UpdatableTexture.TextureExtents(0, 0, 0, 2 * numSupersegments, windowHeight, windowWidth),
-            depth.slice()
-        )
-        depthTexture.addUpdate(depthUpdate)
-
-        val numGridCells = Vector3f(vdiData.metadata.windowDimensions.x.toFloat() / 8f, vdiData.metadata.windowDimensions.y.toFloat() / 8f, numSupersegments.toFloat())
-
-        val accelTexture = UpdatableTexture(Vector3i(numGridCells.x.toInt(), numGridCells.y.toInt(), numGridCells.z.toInt()), channels = 1, contents = null, usageType = hashSetOf(
-            Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture, Texture.UsageType.AsyncLoad), type = UnsignedIntType(), mipmap = false, normalized = true, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
-
-        val accelUpdate = UpdatableTexture.TextureUpdate(
-            UpdatableTexture.TextureExtents(0, 0, 0, windowWidth / 8, windowHeight / 8, numSupersegments),
-            accelGridBuffer
-        )
-        accelTexture.addUpdate(accelUpdate)
-
-        if (firstVDI || vdiNode.useSecondBuffer) { //if this is the first VDI or the second buffer was being used so far
-            vdiNode.ViewOriginal = vdiData.metadata.view
-            vdiNode.invViewOriginal = Matrix4f(vdiData.metadata.view).invert()
-
-            vdiNode.material().textures["InputVDI"] = colorTexture
-            vdiNode.material().textures["DepthVDI"] = depthTexture
-            vdiNode.material().textures["OctreeCells"] = accelTexture
-
-            logger.info("Uploading data for buffer 1")
-        } else {
-            vdiNode.ViewOriginal2 = vdiData.metadata.view
-            vdiNode.invViewOriginal2 = Matrix4f(vdiData.metadata.view).invert()
-
-            vdiNode.material().textures["InputVDI2"] = colorTexture
-            vdiNode.material().textures["DepthVDI2"] = depthTexture
-            vdiNode.material().textures["OctreeCells2"] = accelTexture
-
-            logger.info("Uploading data for buffer 2")
-        }
-
-        while (!colorTexture.availableOnGPU() || !depthTexture.availableOnGPU()) {
-            logger.debug("Waiting for texture transfer. color: ${colorTexture.availableOnGPU()} and depth: ${depthTexture.availableOnGPU()}")
-            Thread.sleep(10)
-        }
-
-        logger.debug("Data has been detected to be uploaded to GPU")
-
-        if (!firstVDI) {
-            vdiNode.useSecondBuffer = !vdiNode.useSecondBuffer
         }
     }
 
@@ -359,6 +310,8 @@ class VDIStreamer {
             }
             logger.info("Time taken for the receive: ${receiveTime/1e9}")
 
+            logger.warn("${vdiNode.skip_empty}")
+
             if (payload != null) {
                 vdiData = decompressVDI(
                     payload,
@@ -376,7 +329,7 @@ class VDIStreamer {
                 colorBuffer.limit(colorBuffer.remaining() - decompressionBuffer)
                 depthBuffer.limit(depthBuffer.remaining() - decompressionBuffer)
 
-                updateTextures(colorBuffer.slice(), depthBuffer.slice(), accelGridBuffer, vdiData, firstVDIReceived, vdiNode, windowWidth, windowHeight, numSupersegments)
+                vdiNode.updateVDI(vdiData, colorBuffer.slice(), depthBuffer.slice(), accelGridBuffer)
 
                 colorBuffer.limit(colorBuffer.capacity())
                 depthBuffer.limit(depthBuffer.capacity())
