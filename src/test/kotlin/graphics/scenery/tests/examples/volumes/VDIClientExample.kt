@@ -3,33 +3,12 @@ package graphics.scenery.tests.examples.volumes
 import graphics.scenery.SceneryBase
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
-import graphics.scenery.backends.Shaders
-import graphics.scenery.compute.ComputeMetadata
-import graphics.scenery.compute.InvocationType
-import graphics.scenery.textures.Texture
-import graphics.scenery.textures.UpdatableTexture
-import graphics.scenery.utils.DataCompressor
-import graphics.scenery.utils.Image
-import graphics.scenery.utils.SystemHelpers
 import graphics.scenery.volumes.vdi.VDIData
-import graphics.scenery.volumes.vdi.VDIDataIO
 import graphics.scenery.volumes.vdi.VDINode
 import graphics.scenery.volumes.vdi.VDIStreamer
-import net.imglib2.type.numeric.integer.UnsignedIntType
-import net.imglib2.type.numeric.real.FloatType
-import org.joml.Matrix4f
 import org.joml.Vector3f
-import org.joml.Vector3i
-import org.lwjgl.system.MemoryUtil
-import org.zeromq.SocketType
 import org.zeromq.ZContext
-import org.zeromq.ZMQ
-import org.zeromq.ZMQException
-import java.io.*
-import java.nio.ByteBuffer
-import java.util.concurrent.atomic.AtomicInteger
 import kotlin.concurrent.thread
-import kotlin.system.measureNanoTime
 
 /**
  * Example application showing how to create a client application for receiving VDIs across a network
@@ -37,7 +16,7 @@ import kotlin.system.measureNanoTime
  *
  * @author Aryaman Gupta <argupta@mpi-cbg.de>
  */
-class VDIClient : SceneryBase("VDI Client", 512, 512, wantREPL = false) {
+class VDIClientExample : SceneryBase("VDI Client", 512, 512, wantREPL = false) {
 
     val cam: Camera = DetachedHeadCamera()
     val plane = FullscreenObject()
@@ -91,7 +70,7 @@ class VDIClient : SceneryBase("VDI Client", 512, 512, wantREPL = false) {
     companion object {
         @JvmStatic
         fun main(args: Array<String>) {
-            VDIClient().main()
+            VDIClientExample().main()
         }
     }
 }
