@@ -44,7 +44,6 @@ layout(set = 5, binding = 0) uniform ShaderProperties {
     int max_samples;
     float sampling_factor;
     bool skip_empty;
-    bool stratified_downsampling;
 };
 
 layout(push_constant) uniform currentEye_t {
@@ -117,8 +116,6 @@ int prevIndex = -1;
 int maxSupersegments;
 
 ivec3 num_cells;
-
-float stratification_factor;
 
 float near_plane = 0.1; //TODO: get from the CPU
 float far_plane = 20.0;
@@ -302,34 +299,6 @@ void findFirstSupseg(ivec2 theList, float dist_to_orig, float exit_distance, out
         binSearch(theList, dist_to_orig, 0, maxSupersegments - 1, supseg_found, index, depthStart, depthEnd);
     } else {
 
-        /*if(getSupsegBack(theList, prevIndex) == 0 || getSupsegBack(theList, prevIndex) >= dist_to_orig) {
-            //the supersegment we are searching for, if present, lies on the left of prevIndex
-            //we can check the end-point of the preceding supersegment
-            if((getPrecedingDepth(theList, prevIndex) < dist_to_orig) ) { //check if prevIndex is a candidate
-                if(getSupsegBack(theList, prevIndex) != 0) { // if prevIndex was filled, it is the supseg we are searching for
-                    supseg_found = true;
-                    index = prevIndex;
-                    depthEnd = getSupsegBack(theList, index);
-
-                } else {
-                    binSearch(theList, dist_to_orig, 0, prevIndex - 1, supseg_found, index, depthStart, depthEnd);
-                }
-                // why do this?
-            } else if (prevIndex >= 1) {
-                //we can check the end-point of the supersegment before the previous
-                if((getPrecedingDepth(theList, prevIndex - 1) < dist_to_orig)) { //check whether prevIndex-1 is a candidate
-                    if(getSupsegBack(theList, prevIndex-1) != 0) { // if prevIndex-1 was filled, it is the supseg we are searching for
-                        supseg_found = true;
-                        index = prevIndex - 1;
-                        depthEnd = getSupsegBack(theList, index);
-                    } else {
-                        binSearch(theList, dist_to_orig, 0, prevIndex - 2, supseg_found, index, depthStart, depthEnd);
-                    }
-                } else {
-                    binSearch(theList, dist_to_orig, 0, prevIndex - 2, supseg_found, index, depthStart, depthEnd);
-                }
-            }
-*/
         if(getSupsegBack(theList, prevIndex) == 0 || getSupsegBack(theList, prevIndex) >= dist_to_orig) {
             //the supersegment we are searching for, if present, lies on the left of prevIndex
             //we can check the end-point of the preceding supersegment
@@ -612,10 +581,9 @@ void traverse_subsample(vec4 world_entry, vec4 world_end, float total_distance, 
     float step = 0;
 
     float normalized_jump = jump_size / total_distance;
-    float stratified_sample = (stratification_factor * normalized_jump);
 
     for(int i = 1; i <= num_samples; i++) {
-        step = (stratified_sample +  ((i - 1) * normalized_jump));
+        step = (normalized_jump +  ((i - 1) * normalized_jump));
         vec4 wpos = mix(world_entry, world_end, step);
 
         vec4 npos = pv_orig * wpos;
@@ -918,8 +886,6 @@ void main() {
         return;
     }
 
-    stratification_factor = 1.;
-
     float step = tnear;
 
     vec4 first_entry_pt, final_exit_pt;
@@ -989,8 +955,6 @@ void main() {
             if(d1 > d2) {
                 //an error has occurred. This ray either doesn't pass through the original viewport or
                 // passes right at the edge, and floating point error is making the alg. believe it misses
-
-                //TODO: check ray (496, 0) from original viewpoint. It should pass through viewport, but just misses it
 
                 imageStore(OutputViewport, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), vec4(0));
                 return;
@@ -1346,9 +1310,7 @@ void main() {
         calculatedMaxSteps = int(length_in_non_empty * sampling_factor);
     }
 
-//    if(useSecondBuffer) {
-        finalColor.xyz = pow(finalColor.xyz, vec3(1/2.2));
-//    }
+    finalColor.xyz = pow(finalColor.xyz, vec3(1/2.2));
 
     imageStore(OutputViewport, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), finalColor);
 
