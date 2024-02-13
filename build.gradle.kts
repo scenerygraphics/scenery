@@ -51,7 +51,7 @@ dependencies {
 
     implementation("org.slf4j:slf4j-api:1.7.36")
     implementation("org.joml:joml:1.10.5")
-    implementation("net.java.jinput:jinput:2.0.9", "natives-all")
+    implementation("net.java.jinput:jinput:2.0.10", "natives-all")
     implementation("org.jocl:jocl:2.0.5")
     implementation("org.scijava:scijava-common")
     implementation("org.scijava:script-editor")
@@ -92,14 +92,14 @@ dependencies {
             }
         }
     }
-    implementation("com.fasterxml.jackson.core:jackson-databind:2.16.0")
-    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.16.0")
-    implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.16.0")
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.16.1")
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.16.1")
+    implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.16.1")
     implementation("org.zeromq:jeromq:0.5.4")
     implementation("com.esotericsoftware:kryo:5.5.0")
     implementation("de.javakaffee:kryo-serializers:0.45")
-    implementation("org.msgpack:msgpack-core:0.9.6")
-    implementation("org.msgpack:jackson-dataformat-msgpack:0.9.6")
+    implementation("org.msgpack:msgpack-core:0.9.8")
+    implementation("org.msgpack:jackson-dataformat-msgpack:0.9.8")
     api("graphics.scenery:jvrpn:1.2.0", lwjglNatives.filter { !it.contains("arm") }.toTypedArray())
     implementation("io.scif:scifio")
     implementation("org.bytedeco:ffmpeg:6.0-1.5.9", ffmpegNatives)
@@ -109,7 +109,7 @@ dependencies {
 
     api("sc.fiji:bigdataviewer-core:10.4.13")
     api("sc.fiji:bigdataviewer-vistools:1.0.0-beta-28")
-    api("sc.fiji:bigvolumeviewer:0.3.1") {
+    api("sc.fiji:bigvolumeviewer:0.3.3") {
         exclude("org.jogamp.gluegen", "gluegen-rt")
         exclude("org.jogamp.jogl", "jogl-all")
     }
@@ -130,7 +130,7 @@ dependencies {
             exclude("org.biojava.thirdparty", "forester")
         }
     }
-    implementation("org.jetbrains.kotlin:kotlin-scripting-jsr223:1.9.21")
+    implementation("org.jetbrains.kotlin:kotlin-scripting-jsr223:1.9.22")
     api("graphics.scenery:art-dtrack-sdk:2.6.0")
 
     testImplementation(kotlin("test"))
@@ -153,14 +153,14 @@ val isRelease: Boolean
 tasks {
     withType<KotlinCompile>().all {
         kotlinOptions {
-            jvmTarget = project.properties["jvmTarget"]?.toString() ?: "11"
+            jvmTarget = project.properties["jvmTarget"]?.toString() ?: "21"
             freeCompilerArgs += listOf("-Xinline-classes", "-opt-in=kotlin.RequiresOptIn")
         }
     }
 
     withType<JavaCompile>().all {
-        targetCompatibility = project.properties["jvmTarget"]?.toString() ?: "11"
-        sourceCompatibility = project.properties["jvmTarget"]?.toString() ?: "11"
+        targetCompatibility = project.properties["jvmTarget"]?.toString() ?: "21"
+        sourceCompatibility = project.properties["jvmTarget"]?.toString() ?: "21"
     }
 
     withType<GenerateMavenPom>().configureEach {

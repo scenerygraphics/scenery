@@ -17,15 +17,13 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            java: 11
-          - os: ubuntu-latest
-            java: 17
+            java: 21
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - name: Setup Gradle
-        uses: gradle/gradle-build-action@v2
-      - uses: gradle/wrapper-validation-action@v1
+        uses: gradle/gradle-build-action@v3
+      - uses: gradle/wrapper-validation-action@v2
       - name: Set up JDK
         uses: actions/setup-java@v4
         with:
@@ -47,15 +45,13 @@ jobs:
       matrix:
         include:
           - os: windows-latest
-            java: 11
-          - os: windows-latest
-            java: 17
+            java: 21
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - name: Setup Gradle
-        uses: gradle/gradle-build-action@v2
-      - uses: gradle/wrapper-validation-action@v1
+        uses: gradle/gradle-build-action@v3
+      - uses: gradle/wrapper-validation-action@v2
       - name: configure Pagefile
         uses: al-cheb/configure-pagefile-action@v1.3
         with:
@@ -81,15 +77,13 @@ jobs:
       matrix:
         include:
           - os: macos-latest
-            java: 11
-          - os: macos-latest
-            java: 17
+            java: 21
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - name: Setup Gradle
-        uses: gradle/gradle-build-action@v2
-      - uses: gradle/wrapper-validation-action@v1
+        uses: gradle/gradle-build-action@v3
+      - uses: gradle/wrapper-validation-action@v2
       - name: Set up JDK
         uses: actions/setup-java@v4
         with:
