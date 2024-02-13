@@ -31,6 +31,12 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.concurrent.thread
 import kotlin.system.measureNanoTime
 
+/**
+ * Example application showing how to create a client application for receiving VDIs across a network
+ * and rendering them.
+ *
+ * @author Aryaman Gupta <argupta@mpi-cbg.de>
+ */
 class VDIClient : SceneryBase("VDI Client", 512, 512, wantREPL = false) {
 
     val cam: Camera = DetachedHeadCamera()
