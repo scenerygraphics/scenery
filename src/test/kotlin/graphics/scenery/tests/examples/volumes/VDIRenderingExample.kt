@@ -11,6 +11,11 @@ import java.io.File
 import java.io.FileInputStream
 import java.nio.ByteBuffer
 
+/**
+ * Example showing how a VDI can be rendered.
+ *
+ * @author Aryaman Gupta <argupta@mpi-cbg.de>
+ */
 class VDIRenderingExample : SceneryBase("VDI Rendering Example", 512, 512) {
 
     val skipEmpty = false
@@ -59,12 +64,15 @@ class VDIRenderingExample : SceneryBase("VDI Rendering Example", 512, 512) {
         depthBuffer.put(depthArray).flip()
         depthBuffer.limit(depthBuffer.capacity())
 
-        val gridBuffer = MemoryUtil.memCalloc(vdiNode.numGridCells.x.toInt() * vdiNode.numGridCells.y.toInt() * vdiNode.numGridCells.z.toInt() * 4)
+        val numGridCells = vdiNode.getAccelerationGridSize()
+
+        val gridBuffer = MemoryUtil.memAlloc(numGridCells.x.toInt() * numGridCells.y.toInt() * numGridCells.z.toInt() * 4)
         if(skipEmpty) {
             gridBuffer.put(octArray).flip()
+            gridBuffer.limit(gridBuffer.capacity())
         }
 
-        //Step 4: Creating compute node and attach shader and vdi Files to
+        //Step 4: Attaching the buffers to the vdi node and adding it to the scene
         vdiNode.attachTextures(colBuffer, depthBuffer, gridBuffer)
 
         vdiNode.skip_empty = skipEmpty
