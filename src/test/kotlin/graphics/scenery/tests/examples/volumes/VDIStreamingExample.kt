@@ -9,9 +9,13 @@ import graphics.scenery.volumes.*
 import graphics.scenery.volumes.vdi.VDIStreamer
 import org.joml.Vector3f
 import java.nio.file.Paths
-import org.zeromq.ZContext
-import kotlin.math.max
+import kotlin.concurrent.thread
 
+/**
+ * Example showing how Volumetric Depth Images (VDIs) can be generated and streamed across a network.
+ *
+ * @author Aryaman Gupta <argupta@mpi-cbg.de> and Wissal Salhi
+ */
 class VDIStreamingExample : SceneryBase("VDI Streaming Example", 512, 512) {
 
     val cam: Camera = DetachedHeadCamera()
@@ -44,7 +48,7 @@ class VDIStreamingExample : SceneryBase("VDI Streaming Example", 512, 512) {
         scene.addChild(volume)
 
         // Step 2: Create VDI Volume Manager
-        val vdiVolumeManager = VDIVolumeManager(hub, windowWidth, windowHeight, maxSupersegments, scene).createVDIVolumeManger()
+        val vdiVolumeManager = VDIVolumeManager(hub, windowWidth, windowHeight, maxSupersegments, scene).createVDIVolumeManager()
 
         //step 3: switch the volume's current volume manager to VDI volume manager
         volume.volumeManager = vdiVolumeManager
@@ -61,10 +65,17 @@ class VDIStreamingExample : SceneryBase("VDI Streaming Example", 512, 512) {
 
         val vdiStreamer = VDIStreamer()
 
-        vdiStreamer.vdiStreaming = true
-        vdiStreamer.streamVDI("tcp://0.0.0.0:6655", cam, volumeDimensions, volume, maxSupersegments, vdiVolumeManager,
-            renderer!!
-        )
+        thread {
+            while (!renderer!!.firstImageReady) {
+                Thread.sleep(50)
+            }
+
+            vdiStreamer.vdiStreaming = true
+            vdiStreamer.streamVDI("tcp://0.0.0.0:6655", scene.findObserver()!!, volumeDimensions, volume, maxSupersegments, vdiVolumeManager,
+                renderer!!
+            )
+        }
+
     }
 
     companion object {
