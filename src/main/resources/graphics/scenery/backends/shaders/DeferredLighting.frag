@@ -13,7 +13,8 @@ layout(location = 0) out vec4 FragColor;
 
 layout(set = 3, binding = 0) uniform sampler2D InputNormalsMaterial;
 layout(set = 3, binding = 1) uniform sampler2D InputDiffuseAlbedo;
-layout(set = 3, binding = 2) uniform sampler2D InputZBuffer;
+layout(set = 3, binding = 3) uniform sampler2D InputZBuffer;
+layout(set = 3, binding = 2) uniform sampler2D InputEmission;
 layout(set = 4, binding = 0) uniform sampler2D InputOcclusion;
 
 struct Light {
@@ -485,6 +486,7 @@ void main()
 	vec3 N = DecodeOctaH(texture(InputNormalsMaterial, textureCoord).rg);
 
 	vec4 Albedo = texture(InputDiffuseAlbedo, textureCoord).rgba;
+    vec4 Emissive = texture(InputEmission, textureCoord).rgba;
 	float Specular = texture(InputDiffuseAlbedo, textureCoord).a;
 	vec2 MaterialParams = texture(InputNormalsMaterial, textureCoord).ba;
 
@@ -615,8 +617,9 @@ void main()
             lighting = vec3(MaterialParams.rg, 0.0);
         }
     } else {
-        lighting = (diffuse + specular) * lightAttenuation;
-    }
+            lighting = (diffuse + specular) * lightAttenuation + Emissive.rgb * Emissive.a;
+        }
+    //}
 
     // check if occluded
     /*

@@ -351,10 +351,20 @@ open class UBO {
      *
      * Takes into consideration the member's name and _invoked_ value, as well as the
      * buffer's memory address to discern buffer switches the UBO is oblivious to.
+     *
+     * In case the member's _invoked_ value is an IntArray or FloatArray, contentHashCode()
+     * is used instead of hashCode(), such that simple array reallocation without content
+     * changes do not affect the hashing outcome.
      */
     protected fun getMembersHash(buffer: ByteBuffer): Int {
-        return members.map { (it.key.hashCode() xor it.value.invoke().hashCode()).toLong() }
+        return members.map { (it.key.hashCode() xor it.value.invoke().hash()).toLong() }
             .fold(31L) { acc, value -> acc + (value xor (value.ushr(32)))}.toInt() + MemoryUtil.memAddress(buffer).hashCode()
+    }
+
+    private fun Any.hash(): Int = when(this) {
+        is FloatArray -> this.contentHashCode()
+        is IntArray -> this.contentHashCode()
+        else -> this.hashCode()
     }
 
     /**

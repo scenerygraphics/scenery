@@ -943,6 +943,7 @@ open class VulkanRenderer(hub: Hub,
             add("Roughness", { node.materialOrNull()!!.roughness})
             add("Metallic", { node.materialOrNull()!!.metallic})
             add("Opacity", { node.materialOrNull()!!.blending.opacity })
+            add("Emissive", { node.materialOrNull()!!.emissive })
 
             createUniformBuffer()
             s.UBOs.put("MaterialProperties", materialPropertiesDescriptorSet.contents to this)
@@ -2378,7 +2379,7 @@ open class VulkanRenderer(hub: Hub,
         fun setConfigSetting(key: String, value: Any) {
             val setting = "Renderer.$key"
 
-            logger.debug("Setting $setting: ${settings.get<Any>(setting)} -> $value")
+            logger.debug("Setting {}: {} -> {}", setting, settings.getOrNull<Any>(setting), value)
             settings.set(setting, value)
         }
 

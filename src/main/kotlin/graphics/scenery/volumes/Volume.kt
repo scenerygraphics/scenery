@@ -441,23 +441,24 @@ open class Volume(
         return histogram
     }
 
+    private var slicingArray = FloatArray(4 * MAX_SUPPORTED_SLICING_PLANES)
+
     /**
      * Returns array of slicing plane equations for planes assigned to this volume.
      */
     fun slicingArray(): FloatArray {
-        if (slicingPlaneEquations.size > MAX_SUPPORTED_SLICING_PLANES)
-            logger.warn("More than ${MAX_SUPPORTED_SLICING_PLANES} slicing planes for ${this.name} set. Ignoring additional planes.")
-
-        val fa = FloatArray(4 * MAX_SUPPORTED_SLICING_PLANES)
-
-        slicingPlaneEquations.entries.take(MAX_SUPPORTED_SLICING_PLANES).forEachIndexed { i, entry ->
-            fa[0+i*4] = entry.value.x
-            fa[1+i*4] = entry.value.y
-            fa[2+i*4] = entry.value.z
-            fa[3+i*4] = entry.value.w
+        if (slicingPlaneEquations.size > MAX_SUPPORTED_SLICING_PLANES) {
+            logger.warn("More than $MAX_SUPPORTED_SLICING_PLANES slicing planes for ${this.name} set. Ignoring additional planes.")
         }
 
-        return fa
+        slicingPlaneEquations.entries.take(MAX_SUPPORTED_SLICING_PLANES).forEachIndexed { i, entry ->
+            slicingArray[0+i*4] = entry.value.x
+            slicingArray[1+i*4] = entry.value.y
+            slicingArray[2+i*4] = entry.value.z
+            slicingArray[3+i*4] = entry.value.w
+        }
+
+        return slicingArray
     }
 
     /**
