@@ -18,7 +18,9 @@ import javax.swing.*
 import javax.swing.filechooser.FileFilter
 import kotlin.math.absoluteValue
 
-
+/**
+ * A JPanel to display everything related to setting and editing the color map of a volume.
+ */
 class ColorMapPanel(val target:Volume?): JPanel() {
     private val logger by lazyLogger()
 
@@ -37,13 +39,14 @@ class ColorMapPanel(val target:Volume?): JPanel() {
         // color map drop down
         val list = Colormap.list()
         val box = JComboBox<String>()
-        box.addItem("Select a colormap")
+        val selectAColorMapString = "Select a colormap" // makes codacy stop complaining
+        box.addItem(selectAColorMapString)
 
         for (s in list)
             box.addItem(s)
 
         if (target != null) {
-            box.selectedItem = "Select a colormap"
+            box.selectedItem = selectAColorMapString
             val currentColormap = JLabel("colormap: ")
             this.add(currentColormap, "")
             this.add(box, "grow")
@@ -51,7 +54,7 @@ class ColorMapPanel(val target:Volume?): JPanel() {
 
         box.addActionListener {
             val item: String = box.selectedItem as String
-            if (target != null && item != "Select a colormap") {
+            if (target != null && item != selectAColorMapString) {
                 target.colormap = Colormap.get(item)
                 this.repaint()
             }
@@ -59,7 +62,7 @@ class ColorMapPanel(val target:Volume?): JPanel() {
         }
 
         val fc = JFileChooser()
-        fc.addChoosableFileFilter(PNGFileFilter());
+        fc.addChoosableFileFilter(PNGFileFilter())
         fc.isAcceptAllFileFilterUsed = false
 
         JButton("Load Color Map").also {
@@ -81,11 +84,14 @@ class ColorMapPanel(val target:Volume?): JPanel() {
         }
     }
 
+    /**
+     * A filter to only select pngs.
+     */
     class PNGFileFilter: FileFilter()
     {
         override fun accept(f: File): Boolean {
             if (f.isDirectory()) {
-                return false;
+                return false
             }
             if (f.extension != "png") return false
             return true
@@ -96,6 +102,9 @@ class ColorMapPanel(val target:Volume?): JPanel() {
         }
     }
 
+    /**
+     * Save a color map to file as a png.
+     */
     fun saveToFile(file: File){
         var file_ = file
         if (FilenameUtils.getExtension(file.name).equals("png", ignoreCase = true)) {
@@ -111,6 +120,9 @@ class ColorMapPanel(val target:Volume?): JPanel() {
         }
     }
 
+    /**
+     * Load a color map from png.
+     */
     fun loadFromFile(file: File){
         var img: BufferedImage? = null
         try {
@@ -131,7 +143,7 @@ class ColorMapPanel(val target:Volume?): JPanel() {
  */
 class ColorMapEditor(var target:Volume? = null) : JPanel() {
 
-    var colorPoints = listOf(
+    private var colorPoints = listOf(
         ColorPoint(0.0f, Color(0f, 0f, 0f)),
         ColorPoint(0.5f, Color(0f, 0.5f, 0f)),
         ColorPoint(1f, Color(0f, 1f, 0f))
@@ -224,14 +236,14 @@ class ColorMapEditor(var target:Volume? = null) : JPanel() {
         })
     }
 
-    fun toImage(): BufferedImage {
+    internal fun toImage(): BufferedImage {
         val rec: Rectangle = this.bounds
         val bufferedImage = BufferedImage(rec.width, rec.height, BufferedImage.TYPE_INT_ARGB)
         paintBackgroundGradient(colorPoints.sortedBy { it.position }, bufferedImage.graphics as Graphics2D)
         return bufferedImage
     }
 
-    fun toBuffer(): ByteBuffer {
+    private fun toBuffer(): ByteBuffer {
         return Image.bufferedImageToRGBABuffer(toImage())
     }
 
@@ -286,7 +298,7 @@ class ColorMapEditor(var target:Volume? = null) : JPanel() {
         }
     }
 
-    class ColorPoint(var position: Float, var color: Color)
+    private class ColorPoint(var position: Float, var color: Color)
 
     /**
      * Loads a [Colormap] into the editor.
@@ -316,19 +328,5 @@ class ColorMapEditor(var target:Volume? = null) : JPanel() {
         colorPoints = colorPointsList
 
         repaint()
-    }
-
-    companion object {
-        @JvmStatic
-        fun main(args: Array<String>) {
-            val frame = JFrame()
-            frame.preferredSize = Dimension(500, 200)
-
-            frame.title = " function"
-            val tfe = ColorMapEditor()
-            frame.add(tfe)
-            frame.pack()
-            frame.isVisible = true
-        }
     }
 }

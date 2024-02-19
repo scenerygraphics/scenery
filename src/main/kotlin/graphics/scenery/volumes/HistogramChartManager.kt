@@ -14,6 +14,9 @@ import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.roundToInt
 
+/**
+ * Handles all histogram related things.
+ */
 class HistogramChartManager(val tfPlot: XYPlot,
                             val mainChart: ChartPanel,
                             private val tfContainer: HasTransferFunction,
@@ -78,7 +81,7 @@ class HistogramChartManager(val tfPlot: XYPlot,
 
         val volume = tfContainer as? BufferedVolume
         if (volume == null){
-            oldGenerateHistogramBins(1024.0,volumeHistogramData)
+            oldGenerateHistogramBins(volumeHistogramData)
             return
         }
 
@@ -120,7 +123,8 @@ class HistogramChartManager(val tfPlot: XYPlot,
      * Old code from PowerOfNames. Calculates the histogram on the CPU. I distance myself from it.
      * Taken from https://github.com/scenerygraphics/scenery/blob/main/src/main/kotlin/graphics/scenery/volumes/TransferFunctionEditor.kt at commit 58ae87a
      */
-    private fun oldGenerateHistogramBins(binCount: Double, volumeHistogramData: SimpleHistogramDataset) {
+    private fun oldGenerateHistogramBins(volumeHistogramData: SimpleHistogramDataset) {
+        val binCount = 1024.0
         volumeHistogramData.removeAllBins()
 
         val histogram = (tfContainer as? HasHistogram)?.generateHistogram()

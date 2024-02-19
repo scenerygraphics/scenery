@@ -81,7 +81,10 @@ class DisplayRangeEditor(private val tfContainer: HasTransferFunction): JPanel()
         tfContainer.maxDisplayRange = rangeSlider.upperValue.toFloat()
     }
 
-    fun refreshDisplayRange() {
+    /**
+     * Set tfcontainer values to gui.
+     */
+    internal fun refreshDisplayRange() {
         rangeSlider.value = tfContainer.minDisplayRange.toInt()
         rangeSlider.upperValue = tfContainer.maxDisplayRange.toInt()
         updateConverter()

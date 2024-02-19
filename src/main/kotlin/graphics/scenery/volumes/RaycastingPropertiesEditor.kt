@@ -50,6 +50,9 @@ class RaycastingPropertiesEditor constructor(
     }
 
     companion object{
+        /**
+         * Convenience function to open a JFrame containing a [RaycastingPropertiesEditor]
+         */
         fun showRaycastingProperties(volumeManager: VolumeManager){
             val frame = JFrame()
             frame.title = "Raycasting properties"
