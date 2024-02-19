@@ -82,11 +82,11 @@ open class VulkanTexture(val device: VulkanDevice,
                 bufferImageCopy.bufferOffset(bufferOffset)
 
                 if(update != null) {
-                    logger.debug("Copying ${update.extents} to ${buffer.vulkanBuffer.toHexString()}")
+                    logger.debug("Copying {} to {}", update.extents, buffer.vulkanBuffer.toHexString())
                     bufferImageCopy.imageExtent().set(update.extents.w, update.extents.h, update.extents.d)
                     bufferImageCopy.imageOffset().set(update.extents.x, update.extents.y, update.extents.z)
                 } else {
-                    logger.debug("Copying ${width}x${height}x$depth to ${buffer.vulkanBuffer.toHexString()}")
+                    logger.debug("Copying {}x{}x{} to {}", width, height, depth, buffer.vulkanBuffer.toHexString())
                     bufferImageCopy.imageExtent().set(width, height, depth)
                     bufferImageCopy.imageOffset().set(0, 0, 0)
                 }
@@ -126,7 +126,7 @@ open class VulkanTexture(val device: VulkanDevice,
                     bufferImageCopy.imageExtent().set(update.extents.w, update.extents.h, update.extents.d)
                     bufferImageCopy.imageOffset().set(update.extents.x, update.extents.y, update.extents.z)
 
-                    logger.info("Copying ${update.extents} to ${buffer.vulkanBuffer.toHexString()}")
+                    logger.debug("Copying {} to {}", update.extents, buffer.vulkanBuffer.toHexString())
                     vkCmdCopyBufferToImage(this,
                         buffer.vulkanBuffer,
                         this@VulkanImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
