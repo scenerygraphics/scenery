@@ -21,6 +21,15 @@ class Random {
         var rng = Random(seed)
 
         /**
+         * Reseeds the PRNG with the new [seed]. If the seed is null, the value given in the
+         * system property `scenery.RandomSeed` will be used.
+         */
+        @JvmStatic fun reseed(seed: Long? = null) {
+            this.seed = seed ?: (System.getProperty("scenery.RandomSeed")?.toLong() ?: Random.nextLong())
+            rng = Random(this.seed)
+        }
+
+        /**
          * Returns a random float from the range [min]-[max].
          */
         @JvmStatic
