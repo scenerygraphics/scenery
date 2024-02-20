@@ -217,8 +217,8 @@ class ColorMapEditor(var target:Volume? = null) : JPanel() {
                 dragging = null
             }
 
-            override fun mouseEntered(e: MouseEvent?) {}
-            override fun mouseExited(e: MouseEvent?) {}
+            override fun mouseEntered(e: MouseEvent?) {/*noop*/}
+            override fun mouseExited(e: MouseEvent?) {/*noop*/}
         })
 
         this.addMouseMotionListener(object : MouseMotionListener {

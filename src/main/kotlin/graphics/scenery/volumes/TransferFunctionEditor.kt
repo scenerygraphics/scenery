@@ -123,10 +123,10 @@ class TransferFunctionEditor(
             override fun mouseReleased(e: MouseEvent) {
                 mouseTargetCP.itemIndex = -1
             }
-            override fun mousePressed(e: MouseEvent) {}
-            override fun mouseClicked(e: MouseEvent) {}
-            override fun mouseEntered(e: MouseEvent) {}
-            override fun mouseExited(e: MouseEvent) {}
+            override fun mousePressed(e: MouseEvent) {/*noop*/}
+            override fun mouseClicked(e: MouseEvent) {/*noop*/}
+            override fun mouseEntered(e: MouseEvent) {/*noop*/}
+            override fun mouseExited(e: MouseEvent) {/*noop*/}
         })
 
         var lastUpdate = 0L
@@ -167,7 +167,7 @@ class TransferFunctionEditor(
                     }
                 }
             }
-            override fun mouseMoved(e: MouseEvent) {}
+            override fun mouseMoved(e: MouseEvent) {/*noop*/}
         })
         mainChart.addChartMouseListener(object : ChartMouseListener {
             override fun chartMouseClicked(e: ChartMouseEvent) {
@@ -208,7 +208,7 @@ class TransferFunctionEditor(
                 }
 
             }
-            override fun chartMouseMoved(e: ChartMouseEvent) {}
+            override fun chartMouseMoved(e: ChartMouseEvent) {/*noop*/}
         })
 
         val histAndTFIOButtonsPanel = JPanel()
