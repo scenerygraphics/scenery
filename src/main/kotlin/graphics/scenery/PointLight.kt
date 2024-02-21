@@ -33,7 +33,7 @@ open class PointLight(val radius: Float = 5.0f) : Light("PointLight") {
     @ShaderProperty var lightRadius: Float = radius
         set(value) {
             if(value != lightRadius) {
-                logger.info("Resetting light radius")
+                logger.debug("Resetting light radius")
                 field = value
                 proxySphere = Sphere(value * 1.1f, 10)
                 geometry {
