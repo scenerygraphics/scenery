@@ -6,11 +6,13 @@ import net.imagej.lut.LUTService
 import net.imglib2.display.ColorTable
 import org.joml.Vector4f
 import org.scijava.plugin.Parameter
+import java.awt.image.BufferedImage
+import java.io.File
 import java.io.FileNotFoundException
 import java.io.IOException
 import java.io.InputStream
 import java.nio.ByteBuffer
-import java.util.*
+import javax.imageio.ImageIO
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.roundToInt
@@ -126,6 +128,22 @@ class Colormap(val buffer: ByteBuffer, val width: Int, val height: Int) {
             byteBuffer.flip()
 
             return fromBuffer(byteBuffer, width, copies)
+        }
+
+        /**
+         * Creates a color map from a png file.
+         */
+        fun fromPNGFile(file: File): Colormap {
+            var img: BufferedImage? = null
+            try {
+                img = ImageIO.read(file)
+            } catch (_: IllegalArgumentException){
+                logger.error("Could not find file ${file.path}")
+            } catch (e: IOException){
+                logger.error(e.toString())
+            }
+            if (img == null) throw IllegalArgumentException("Could not open png file $file")
+            return fromBuffer(Image.bufferedImageToRGBABuffer(img),img.width, img.height)
         }
 
         /**

@@ -49,17 +49,21 @@ class RaycastingPropertiesEditor constructor(
 
     }
 
-    companion object{
+    /**
+     * Companion object as described in https://kotlinlang.org/docs/object-declarations.html#companion-objects
+     */
+    companion object {
         /**
          * Convenience function to open a JFrame containing a [RaycastingPropertiesEditor]
          */
-        fun showRaycastingProperties(volumeManager: VolumeManager){
+        fun show(volumeManager: VolumeManager): JFrame {
             val frame = JFrame()
             frame.title = "Raycasting properties"
             val editor = RaycastingPropertiesEditor(volumeManager)
             frame.add(editor)
             frame.pack()
             frame.isVisible = true
+            return frame
         }
     }
 }

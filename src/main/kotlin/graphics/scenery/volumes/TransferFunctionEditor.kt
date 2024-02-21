@@ -154,7 +154,7 @@ class TransferFunctionEditor(
                     val annotation = XYTextAnnotation(
                         "%.2f / %.2f".format(mouseTargetCP.x.toFloat(), mouseTargetCP.y.toFloat()),
                         mouseTargetCP.x,
-                        mouseTargetCP.y-0.04)
+                        mouseTargetCP.y-0.04) //offset so the label does not hide the target
                     annotation.backgroundPaint = Color.white
                     annotation.paint = Color.darkGray
                     tfPlot.clearAnnotations()
@@ -224,7 +224,7 @@ class TransferFunctionEditor(
             it.addActionListener {
                 val returnVal: Int = fc.showOpenDialog(this)
                 if (returnVal == JFileChooser.APPROVE_OPTION) {
-                    tfContainer.loadTFFromFile(file = fc.selectedFile)
+                    tfContainer.loadTransferFunctionFromFile(file = fc.selectedFile)
                     initTransferFunction(tfContainer.transferFunction)
                     displayRangeEditor.refreshDisplayRange()
                 }
@@ -235,7 +235,7 @@ class TransferFunctionEditor(
             it.addActionListener {
                 val option = fc.showSaveDialog(this)
                 if (option == JFileChooser.APPROVE_OPTION) {
-                    tfContainer.toFile(fc.selectedFile)
+                    tfContainer.saveTransferFunctionToFile(fc.selectedFile)
                 }
             }
             histAndTFIOButtonsPanel.add(it,"wrap")

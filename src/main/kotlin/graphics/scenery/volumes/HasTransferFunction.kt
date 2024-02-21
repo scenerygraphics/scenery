@@ -18,9 +18,9 @@ interface HasTransferFunction {
     var range: Pair<Float, Float>
 
     /**
-     * Load transfer function and display range from file that was written by [HasTransferFunction.toFile]
+     * Load transfer function and display range from file that was written by [HasTransferFunction.saveTransferFunctionToFile]
      */
-    fun loadTFFromFile(file: File){
+    fun loadTransferFunctionFromFile(file: File){
         val tf = TransferFunction()
         val inputStream: InputStream = file.inputStream()
         var isRangeSet = false
@@ -28,15 +28,15 @@ interface HasTransferFunction {
             val line = it.trim().split(";").mapNotNull(kotlin.String::toFloatOrNull)
             if (line.size == 2){
                 if (!isRangeSet){
-                    this.minDisplayRange = line[0]
-                    this.maxDisplayRange = line[1]
+                    minDisplayRange = line[0]
+                    maxDisplayRange = line[1]
                     isRangeSet = true
                 } else {
                     tf.addControlPoint(line[0], line[1])
                 }
             }
         }
-        this.transferFunction = tf
+        transferFunction = tf
     }
 
     /**
@@ -45,11 +45,11 @@ interface HasTransferFunction {
      * First line is the display range sepaerated by a semicolon.
      * All following lines are tf control points.
      */
-    fun toFile(file: File){
+    fun saveTransferFunctionToFile(file: File){
         val writer = BufferedWriter(FileWriter(file))
-        writer.write("${this.minDisplayRange};${this.maxDisplayRange}")
+        writer.write("${minDisplayRange};${maxDisplayRange}")
         writer.newLine()
-        this.transferFunction.controlPoints().forEach {
+        transferFunction.controlPoints().forEach {
             writer.write("${it.value};${it.factor}")
             writer.newLine()
         }

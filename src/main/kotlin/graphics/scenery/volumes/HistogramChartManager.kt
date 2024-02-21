@@ -120,7 +120,7 @@ class HistogramChartManager(val tfPlot: XYPlot,
     }
 
     /**
-     * Old code from PowerOfNames. Calculates the histogram on the CPU. I distance myself from it.
+     * Old code from PowerOfNames. Calculates the histogram on the CPU.
      * Taken from https://github.com/scenerygraphics/scenery/blob/main/src/main/kotlin/graphics/scenery/volumes/TransferFunctionEditor.kt at commit 58ae87a
      */
     private fun oldGenerateHistogramBins(volumeHistogramData: SimpleHistogramDataset) {

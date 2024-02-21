@@ -20,12 +20,11 @@ class DisplayRangeEditor(private val tfContainer: HasTransferFunction): JPanel()
     private val maxValueLabel: JLabel
 
     init {
-        this.layout = MigLayout(
+        layout = MigLayout(
             "fill",
             "[left, 10%]5[right, 40%]5[left, 10%]5[right, 40%]"
         )
-        val title = BorderFactory.createTitledBorder("Display Range")
-        this.border = title
+        border = BorderFactory.createTitledBorder("Display Range")
 
         // Range editor
         val initMinValue = max(tfContainer.minDisplayRange.toInt(), 100)
