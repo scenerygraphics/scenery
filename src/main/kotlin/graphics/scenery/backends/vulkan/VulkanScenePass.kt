@@ -599,7 +599,7 @@ object VulkanScenePass {
             }
 
             if(ds is VulkanRenderer.DescriptorSet.DynamicSet && ds.offset == BUFFER_OFFSET_UNINTIALISED ) {
-                logger.info("${node.name} has uninitialised UBO offset, skipping for rendering")
+                logger.debug("${node.name} has uninitialised UBO offset, skipping for rendering")
                 skip = true
             }
 
