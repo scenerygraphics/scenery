@@ -45,7 +45,7 @@ class VolumeManagerSwitchingExample : SceneryBase("Volume Manager Switching Exam
         scene.addChild(volume)
 
         //Step 2: create a volume manager for vdi and add the volume to it:
-        val vdiVolumeManager = VDIVolumeManager( hub, windowWidth, windowHeight, maxSupersegments, scene).createVDIVolumeManger()
+        val vdiVolumeManager = VDIVolumeManager( hub, windowWidth, windowHeight, maxSupersegments, scene).createVDIVolumeManager()
         vdiVolumeManager.add(volume)
 
         //Step 3:  save the standard volume manger, the one who was first created with the volume
