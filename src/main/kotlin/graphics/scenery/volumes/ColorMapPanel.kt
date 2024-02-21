@@ -24,11 +24,9 @@ class ColorMapPanel(val target:Volume?): JPanel() {
     private val colorMapEditor = ColorMapEditor(target)
 
     init {
-        this.layout = MigLayout(
-            "fill"
-        )
+        layout = MigLayout()
         val title = BorderFactory.createTitledBorder("Color Map")
-        this.border = title
+        border = title
 
         // color editor
         this.add(colorMapEditor, "spanx, growx, wrap")
@@ -44,9 +42,7 @@ class ColorMapPanel(val target:Volume?): JPanel() {
 
         if (target != null) {
             box.selectedItem = selectAColorMapString
-            val currentColormap = JLabel("colormap: ")
-            this.add(currentColormap, "")
-            this.add(box, "grow")
+            add(box, "grow")
         }
 
         box.addActionListener {

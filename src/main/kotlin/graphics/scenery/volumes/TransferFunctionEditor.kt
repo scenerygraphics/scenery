@@ -64,7 +64,7 @@ class TransferFunctionEditor(
 
 
     init {
-        layout = MigLayout("flowy")
+        layout = MigLayout()
 
         // MainChart manipulation
         val tfCollection = XYSeriesCollection()
@@ -116,7 +116,7 @@ class TransferFunctionEditor(
 
         mainChart.cursor = Cursor(Cursor.CROSSHAIR_CURSOR)
 
-        add(mainChart, "grow")
+        add(mainChart, "grow,wrap")
 
         mainChart.removeMouseMotionListener(mainChart)
         mainChart.addMouseListener(object : MouseListener {
@@ -213,10 +213,10 @@ class TransferFunctionEditor(
 
         val histAndTFIOButtonsPanel = JPanel()
         histAndTFIOButtonsPanel.layout = MigLayout()
-        add(histAndTFIOButtonsPanel, "growx")
+        add(histAndTFIOButtonsPanel, "growx,wrap")
 
         val histogramChartManager = HistogramChartManager(tfPlot,mainChart,tfContainer,axisExtensionFactor)
-        histAndTFIOButtonsPanel.add(histogramChartManager.genHistButton, "growx")
+        histAndTFIOButtonsPanel.add(histogramChartManager.genHistButton, "growx,wrap")
 
         // transfer function IO
         val fc = JFileChooser()
@@ -243,8 +243,8 @@ class TransferFunctionEditor(
         initTransferFunction(tfContainer.transferFunction)
 
 
-        add(displayRangeEditor, "grow")
-        add(ColorMapPanel(tfContainer as? Volume), "grow")
+        add(displayRangeEditor, "grow,wrap")
+        add(ColorMapPanel(tfContainer as? Volume), "grow,wrap")
     }
 
     private fun createTFImage(): BufferedImage {
