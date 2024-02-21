@@ -256,6 +256,9 @@ class VideoDecoder(val filename: String) {
                 f.invoke(image, videoWidth, videoHeight, decodedFrameCount)
             }
         }
+
+        logger.debug("closing video decoder")
+        close()
     }
 
     private fun getImage(pFrame: AVFrame, width: Int, height: Int) : ByteArray {
