@@ -28,7 +28,6 @@ import org.lwjgl.vulkan.KHRWin32Surface.VK_KHR_WIN32_SURFACE_EXTENSION_NAME
 import org.lwjgl.vulkan.KHRXlibSurface.VK_KHR_XLIB_SURFACE_EXTENSION_NAME
 import org.lwjgl.vulkan.MVKMacosSurface.VK_MVK_MACOS_SURFACE_EXTENSION_NAME
 import org.lwjgl.vulkan.VK10.*
-import java.awt.BorderLayout
 import java.awt.image.BufferedImage
 import java.awt.image.DataBufferByte
 import java.io.File
@@ -39,7 +38,6 @@ import java.util.*
 import java.util.concurrent.*
 import java.util.concurrent.locks.ReentrantLock
 import javax.imageio.ImageIO
-import javax.swing.JFrame
 import kotlin.concurrent.thread
 import kotlin.concurrent.withLock
 import kotlin.reflect.full.*
@@ -853,7 +851,10 @@ open class VulkanRenderer(hub: Hub,
             return false
         }
 
-        if (s.initialized) return true
+        if (s.initialized) {
+            node.initialized = true
+            return true
+        }
 
         s.flags.add(RendererFlags.Seen)
 
@@ -1532,6 +1533,21 @@ open class VulkanRenderer(hub: Hub,
     private var currentNow = 0L
 
     /**
+     * Enum class for reasons to re-record command buffers.
+     */
+    enum class RerecordingCause {
+        GeometryUpdated,
+        TexturesUpdated,
+        MaterialUpdated,
+        InstancesUpdated,
+        SceneUpdated,
+        SwapchainUpdated
+    }
+
+    /** Keeps track of the reasons why push mode has been defeated, and in which frame. */
+    val pushModeDefeats: Queue<Pair<Int, List<Pair<String, RerecordingCause>>>> = LinkedList()
+
+    /**
      * This function renders the scene
      */
     override fun render(activeCamera: Camera, sceneNodes: List<Node>) = runBlocking {
@@ -1589,8 +1605,13 @@ open class VulkanRenderer(hub: Hub,
 
         // flag set to true if command buffer re-recording is necessary,
         // e.g. because of scene or pipeline changes
-        var forceRerecording = instancesUpdated
-        val rerecordingCauses = ArrayList<String>(20)
+        var forceRerecording = false
+        val rerecordingCauses = ArrayList<Pair<String, RerecordingCause>>(20)
+
+        if(instancesUpdated) {
+            forceRerecording = true
+            rerecordingCauses.add("General" to RerecordingCause.InstancesUpdated)
+        }
 
         profiler?.begin("Renderer.PreDraw")
         // here we discover the objects in the scene that could be relevant for the scene
@@ -1630,7 +1651,7 @@ open class VulkanRenderer(hub: Hub,
                             updateNodeGeometry(node)
                             dirty = false
 
-                            rerecordingCauses.add(node.name)
+                            rerecordingCauses.add(node.name to RerecordingCause.GeometryUpdated)
                             forceRerecording = true
                         }
                     }
@@ -1652,7 +1673,7 @@ open class VulkanRenderer(hub: Hub,
                                 renderable)
 
                             logger.trace("Force command buffer re-recording, as reloading textures for ${node.name}")
-                            rerecordingCauses.add(node.name)
+                            rerecordingCauses.add(node.name to RerecordingCause.TexturesUpdated)
                             forceRerecording = true
                         }
 
@@ -1675,7 +1696,7 @@ open class VulkanRenderer(hub: Hub,
                                 renderable)
                         }
 
-                        rerecordingCauses.add(node.name)
+                        rerecordingCauses.add(node.name to RerecordingCause.MaterialUpdated)
                         forceRerecording = true
 
                         (material as? ShaderMaterial)?.shaders?.stale = false
@@ -1687,6 +1708,7 @@ open class VulkanRenderer(hub: Hub,
                 val newSceneArray = sceneNodes.toHashSet()
                 if (!newSceneArray.equals(sceneArray)) {
                     forceRerecording = true
+                    rerecordingCauses.add("General" to RerecordingCause.SceneUpdated)
                 }
 
                 sceneArray = newSceneArray
@@ -1709,6 +1731,17 @@ open class VulkanRenderer(hub: Hub,
         if(renderpasses.any { it.value.shaders.stale }) {
             logger.info("Rebuilding swapchain due to stale shaders")
             swapchainRecreator.mustRecreate = true
+        }
+
+        if(swapchainChanged && pushMode) {
+            rerecordingCauses.add("General" to RerecordingCause.SwapchainUpdated)
+        }
+
+        if(pushMode && rerecordingCauses.size > 0) {
+            if(pushModeDefeats.size > 5) {
+                pushModeDefeats.poll()
+            }
+            pushModeDefeats.add(frames to rerecordingCauses)
         }
 
         profiler?.begin("Renderer.BeginFrame")
