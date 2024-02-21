@@ -119,7 +119,7 @@ class DataCompressor (val compressionTool: CompressionTool) {
      * @param[level] for ZSTD and LZ4, the desired level of compression. For LZ4, higher values lead to faster, but less
      * compression, while for ZSTD, the opposite is true. Optional parameter.
      *
-     * Returns the length of the compressed buffer
+     * Returns the length (in bytes) of the compressed buffer
      */
     fun compress(compressed: ByteBuffer, uncompressed: ByteBuffer, level: Int? = null): Long {
         val compressionLevel = level

@@ -5,7 +5,7 @@ import org.joml.Vector2i
 import org.joml.Vector3f
 
 /**
- * Defines the metadata that is required for reading and rendering a VDI.
+ * Defines the metadata that is required for reading and rendering a Volumetric Depth Image (VDI).
  *
  * [version] The version of the VDI generation code. Used to prevent errors due to code version mismatch.
  * [index] The index of the VDI streamed in an ongoing VDI streaming session
