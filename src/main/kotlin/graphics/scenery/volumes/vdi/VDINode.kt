@@ -121,7 +121,7 @@ class VDINode(windowWidth: Int, windowHeight: Int, val numSupersegments: Int, vd
 
     init {
         name = "vdi node"
-        setMaterial(ShaderMaterial(Shaders.ShadersFromFiles(arrayOf("AmanatidesJumps.comp"), this@VDINode::class.java)))
+        setMaterial(ShaderMaterial(Shaders.ShadersFromFiles(arrayOf("RaycastVDI.comp"), this@VDINode::class.java)))
 
         val opBuffer = MemoryUtil.memCalloc(windowWidth * windowHeight * 4)
 
