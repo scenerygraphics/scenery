@@ -24,7 +24,6 @@ import kotlin.collections.ArrayList
 
 interface Node : Networkable {
     var name: String
-    var nodeType: String
     /** Children of the Node. */
     var children: CopyOnWriteArrayList<Node>
     /** Other nodes that have linked transforms. */

@@ -48,7 +48,6 @@ open class DefaultNode(name: String = "Node") : Node, Networkable {
         return true
     }
 
-    override var nodeType = "Node"
     override var boundingBox: OrientedBoundingBox? = null
     override val logger by lazyLogger()
 

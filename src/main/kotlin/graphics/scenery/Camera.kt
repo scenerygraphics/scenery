@@ -2,14 +2,16 @@ package graphics.scenery
 
 import graphics.scenery.primitives.TextBoard
 import graphics.scenery.attribute.material.HasMaterial
+import graphics.scenery.attribute.populatesubo.DefaultPopulatesUBO
+import graphics.scenery.attribute.populatesubo.HasCustomPopulatesUBO
+import graphics.scenery.attribute.populatesubo.HasPopulatesUBO
+import graphics.scenery.attribute.populatesubo.PopulatesUBO
 import graphics.scenery.attribute.renderable.HasRenderable
 import graphics.scenery.attribute.spatial.DefaultSpatial
 import graphics.scenery.attribute.spatial.HasCustomSpatial
+import graphics.scenery.backends.UBO
 import graphics.scenery.net.Networkable
-import graphics.scenery.utils.extensions.minus
-import graphics.scenery.utils.extensions.plus
-import graphics.scenery.utils.extensions.times
-import graphics.scenery.utils.extensions.xyz
+import graphics.scenery.utils.extensions.*
 import org.joml.*
 import java.lang.Math
 import java.util.concurrent.atomic.AtomicInteger
@@ -26,7 +28,11 @@ import kotlin.math.tan
  * @constructor Creates a new camera with default position and right-handed
  *  coordinate system.
  */
-open class Camera : DefaultNode("Camera"), HasRenderable, HasMaterial, HasCustomSpatial<Camera.CameraSpatial> {
+open class Camera : DefaultNode("Camera"),
+                    HasRenderable,
+                    HasMaterial,
+                    HasCustomSpatial<Camera.CameraSpatial>,
+                    HasCustomPopulatesUBO<Camera.CameraUBOPopulator> {
 
     /** Enum class for camera projection types */
     enum class ProjectionType {
@@ -88,20 +94,28 @@ open class Camera : DefaultNode("Camera"), HasRenderable, HasMaterial, HasCustom
     /** Disables culling for this camera. */
     var disableCulling: Boolean = false
 
+    /** The eye count (aka number of generated viewports) of the current camera. */
+    var eyeCount = 1
+        protected set
+
     var wantsSync = true
     override fun wantsSync(): Boolean = wantsSync
 
     init {
-        this.nodeType = "Camera"
         this.viewSpaceTripod = cameraTripod()
         this.name = "Camera-${counter.incrementAndGet()}"
         addSpatial()
         addRenderable()
         addMaterial()
+        addPopulatesUBO()
     }
 
     override fun createSpatial(): CameraSpatial {
         return CameraSpatial(this)
+    }
+
+    override fun createPopulatesUBO(): PopulatesUBO {
+        return CameraUBOPopulator(this)
     }
 
     override fun update(fresh: Networkable, getNetworkable: (Int) -> Networkable, additionalData: Any?) {
@@ -367,6 +381,19 @@ open class Camera : DefaultNode("Camera"), HasRenderable, HasMaterial, HasCustom
         protected val counter = AtomicInteger(0)
     }
 
+    open class CameraUBOPopulator(open val cam: Camera): DefaultPopulatesUBO() {
+        override fun populate(ubo: UBO) {
+            val camSpatial = cam.spatial()
+
+            ubo.add("projection0", { camSpatial.projection.applyVulkanCoordinateSystem() })
+            ubo.add("projection1", { camSpatial.projection.applyVulkanCoordinateSystem() })
+            ubo.add("inverseProjection0", { camSpatial.projection.applyVulkanCoordinateSystem().invert() })
+            ubo.add("inverseProjection1", { camSpatial.projection.applyVulkanCoordinateSystem().invert() })
+            ubo.add("headShift", { Matrix4f().identity() })
+            ubo.add("IPD", { 0.05f })
+            ubo.add("stereoEnabled", { 0 })
+        }
+    }
 
     open class CameraSpatial(val camera: Camera): DefaultSpatial(camera) {
 

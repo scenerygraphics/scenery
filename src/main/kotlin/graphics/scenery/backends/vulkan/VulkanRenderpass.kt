@@ -10,6 +10,7 @@ import graphics.scenery.attribute.material.Material
 import graphics.scenery.backends.*
 import graphics.scenery.utils.lazyLogger
 import graphics.scenery.utils.RingBuffer
+import org.joml.Matrix4f
 import org.joml.Vector2f
 import org.joml.Vector4f
 import org.lwjgl.system.MemoryUtil.*
@@ -106,6 +107,24 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
 
     /** Whether this renderpass will render to the viewport or to a [VulkanFramebuffer] */
     var isViewportRenderpass = false
+
+    /** Data class for storing this passes' camera matrices. These are stored per-eye of the camera. */
+    data class CameraConfig(val view: Matrix4f, val projection: Matrix4f, val eye: Int)
+    /** A list of this passes' camera configuration, backed by a RingBuffer.
+      * For each element in the ring buffer, there will be multiple [CameraConfig]s stored,
+      * each corresponding to an eye of the camera at hand.
+      */
+    var cameraConfiguration: MutableList<CameraConfig>
+        get() {
+            return cameraConfigurationBacking.get()
+        }
+
+        set(cc) {
+            cameraConfigurationBacking.put(cc)
+        }
+
+    private var cameraConfigurationBacking = RingBuffer(size = ringBufferSize,
+                                                        default = { mutableListOf<CameraConfig>() })
 
     /** The number of command buffers to keep in the [RingBuffer] [commandBufferBacking]. */
     var commandBufferCount = 3

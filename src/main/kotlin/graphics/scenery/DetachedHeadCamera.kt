@@ -1,7 +1,11 @@
 package graphics.scenery
 
+import graphics.scenery.attribute.populatesubo.HasCustomPopulatesUBO
+import graphics.scenery.attribute.populatesubo.PopulatesUBO
 import graphics.scenery.backends.Display
+import graphics.scenery.backends.UBO
 import graphics.scenery.controls.TrackerInput
+import graphics.scenery.utils.extensions.applyVulkanCoordinateSystem
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
 import org.joml.Matrix4f
@@ -20,7 +24,11 @@ import kotlin.reflect.KProperty
  * @author Ulrik Günther <hello@ulrik.is>
  */
 
-class DetachedHeadCamera(@Transient var tracker: TrackerInput? = null) : Camera() {
+open class DetachedHeadCamera(@Transient var tracker: TrackerInput? = null) : Camera(), HasCustomPopulatesUBO<Camera.CameraUBOPopulator> {
+
+    init {
+        eyeCount = 2
+    }
 
     override var width: Int = 0
         get() = if (tracker != null && tracker is Display && tracker?.initializedAndWorking() == true) {
@@ -104,12 +112,36 @@ class DetachedHeadCamera(@Transient var tracker: TrackerInput? = null) : Camera(
     val headOrientation: Quaternionf by HeadOrientationDelegate()
 
     init {
-        this.nodeType = "Camera"
-        this.name = "DetachedHeadCamera-${tracker ?: "${counter.getAndIncrement()}"}"
+        name = "DetachedHeadCamera-${tracker ?: "${counter.getAndIncrement()}"}"
     }
 
     override fun createSpatial(): CameraSpatial = DetachedHeadCameraSpatial(this)
-    
+
+    override fun createPopulatesUBO(): PopulatesUBO = DetachedHeadCameraUBOPopulator(this)
+    open class DetachedHeadCameraUBOPopulator(override val cam: DetachedHeadCamera): Camera.CameraUBOPopulator(cam) {
+        override fun populate(ubo: UBO) {
+            val camSpatial = cam.spatial()
+            val hmd = (cam.tracker as? Display)
+
+            (0 until cam.eyeCount).forEach { eye ->
+                ubo.add("projection$eye", {
+                    (hmd?.getEyeProjection(eye, cam.nearPlaneDistance, cam.farPlaneDistance)
+                        ?: camSpatial.projection).applyVulkanCoordinateSystem()
+                })
+                ubo.add("inverseProjection$eye", {
+                    (hmd?.getEyeProjection(eye, cam.nearPlaneDistance, cam.farPlaneDistance)
+                        ?: camSpatial.projection).applyVulkanCoordinateSystem().invert()
+                })
+            }
+            ubo.add("headShift", { hmd?.getHeadToEyeTransform(0) ?: Matrix4f().identity() })
+            ubo.add("IPD", { hmd?.getIPD() ?: 0.05f })
+            ubo.add("stereoEnabled", { cam.stereoEnabled })
+        }
+    }
+
+    var stereoEnabled = false
+        internal set
+
     class DetachedHeadCameraSpatial(private val cam: DetachedHeadCamera) : Camera.CameraSpatial(cam) {
 
         override var projection: Matrix4f = Matrix4f().identity()
