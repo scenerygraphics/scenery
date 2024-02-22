@@ -43,6 +43,7 @@ import io.scif.filters.ReaderFilter
 import io.scif.util.FormatTools
 import mpicbg.spim.data.generic.sequence.AbstractSequenceDescription
 import mpicbg.spim.data.sequence.FinalVoxelDimensions
+import net.imagej.ops.OpService
 import net.imglib2.RandomAccessibleInterval
 import net.imglib2.Volatile
 import net.imglib2.histogram.Histogram1d
@@ -71,7 +72,14 @@ import kotlin.io.path.name
 import kotlin.properties.Delegates
 import kotlin.streams.toList
 import net.imglib2.type.numeric.RealType
+import net.imglib2.type.volatiles.VolatileIntType
+import net.imglib2.type.volatiles.VolatileLongType
+import net.imglib2.type.volatiles.VolatileUnsignedByteType
+import net.imglib2.type.volatiles.VolatileUnsignedShortType
+import org.scijava.Context
+import org.scijava.ui.UIService
 import kotlin.math.*
+import kotlin.time.measureTimedValue
 
 @Suppress("DEPRECATION")
 open class Volume(
@@ -401,17 +409,51 @@ open class Volume(
     }
 
     /**
-     * Return a histogram over the set minDisplayRange and maxDisplayRange of the volumes viewState source (currently only using spimSource)
+     * Convenience shortcut for [generateHistogram], with the default side length of 512, and 1024 bins.
      */
-    override fun generateHistogram(): Histogram1d<*>? {
-        var histogram : Histogram1d<*>? = null
+    fun generateHistogram(): Histogram1d<*>? = generateHistogram(512, 1024)
 
-        this.viewerState.sources.firstOrNull()?.spimSource?.getSource(0, 0)?.let { rai ->
-            histogram = Histogram1d(Real1dBinMapper<UnsignedByteType>(minDisplayRange.toDouble(), maxDisplayRange.toDouble(), 1024, false))
-            (histogram as Histogram1d<UnsignedByteType>).countData(rai as Iterable<UnsignedByteType>)
+    /**
+     * Return a histogram over the set minDisplayRange and maxDisplayRange of the volumes viewState source (currently only using spimSource).
+     * The function will select a miplevel which has less then [maximumResolution] voxels in side lengths and divide the results into [bins]
+     * different bins.
+     */
+    override fun generateHistogram(maximumResolution: Int, bins: Int): Histogram1d<*>? {
+        val type = viewerState.sources.firstOrNull()?.spimSource?.type ?: return null
+        logger.info("Volume type is ${type.javaClass.simpleName}")
+        val context = if(volumeManager.hub?.getApplication()?.scijavaContext != null) {
+            volumeManager.hub?.getApplication()?.scijavaContext!!
+        } else {
+            Context(OpService::class.java)
+        }
+        val ops = context.getService(OpService::class.java)
+
+        if(ops == null) {
+            logger.warn("Could not create OpService from scijava context, returning null histogram.")
+            return null
         }
 
-        return histogram
+        val miplevels = viewerState.sources.firstOrNull()?.spimSource?.numMipmapLevels ?: 0
+        logger.info("Dataset has $miplevels miplevels")
+
+        val reducedResolutionRAI = (0 until miplevels)
+            .map { it to viewerState.sources.first().spimSource.getSource(0, it) }
+            .firstOrNull { it.second.dimensionsAsLongArray().all { size -> size < maximumResolution } }
+
+        val rai = if(reducedResolutionRAI == null) {
+            val r = viewerState.sources.first().spimSource.getSource(0, 0)
+            logger.info("Using default miplevel with dimensions ${r.dimensionsAsLongArray().joinToString("/")} for histogram calculation.")
+            r
+        } else {
+            logger.info("Using miplevel ${reducedResolutionRAI.first} with dimensions ${reducedResolutionRAI.second.dimensionsAsLongArray().joinToString("/")} for histogram calculation.")
+            reducedResolutionRAI.second
+        }
+
+        val histogram = measureTimedValue { ops.run("image.histogram", rai, bins) as Histogram1d<*> }
+
+        logger.info("Histogram creation took ${histogram.duration.inWholeMilliseconds}ms")
+
+        return histogram.value
     }
 
     private var slicingArray = FloatArray(4 * MAX_SUPPORTED_SLICING_PLANES)
