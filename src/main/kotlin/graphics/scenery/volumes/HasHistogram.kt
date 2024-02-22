@@ -12,5 +12,5 @@ interface HasHistogram {
      * This is a placeholder function that needs to be overwritten by the implementing class. Currently the output should be of type Histogram1d<*>
      * from imglib2
      */
-    fun generateHistogram() : Histogram1d<*>?
+    fun generateHistogram(maximumResolution: Int = 512, bins: Int = 1024) : Histogram1d<*>?
 }
