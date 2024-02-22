@@ -189,8 +189,8 @@ open class VulkanObjectState {
             val pDescriptorSetLayout = memAllocLong(1)
             pDescriptorSetLayout.put(0, descriptorSetLayout)
 
-            val pool = device.findAvailableDescriptorPool()
-            pool.free -= 1
+            val pool = device.findAvailableDescriptorPool(VK10.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
+            pool.decreaseAvailable(VK10.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
 
             val allocInfo = VkDescriptorSetAllocateInfo.calloc()
                 .sType(VK10.VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO)

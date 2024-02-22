@@ -327,41 +327,39 @@ class VolumeManager(
                 }
 
                 logger.info("Connecting localNear/localFar for $volumeIndex")
-//                instances[SegmentType.FragmentShader]?.bind(
-//                    "localNear",
-//                    i,
-//                    instances[SegmentType.AccumulatorMultiresolution]
-//                )
-
-                segmentInstances[SegmentType.FragmentShader]?.bind(
-                    "localNear",
-                    volumeIndex,
-                    segmentInstances[SegmentType.Accumulator]
-                )
-
-//                instances[SegmentType.FragmentShader]?.bind(
-//                    "localFar",
-//                    i,
-//                    instances[SegmentType.AccumulatorMultiresolution]
-//                )
-
-                segmentInstances[SegmentType.FragmentShader]?.bind(
-                    "localNear",
-                    volumeIndex,
-                    segmentInstances[SegmentType.Accumulator]
-                )
-                segmentInstances[SegmentType.FragmentShader]?.bind(
-                    "localFar",
-                    volumeIndex,
-                    segmentInstances[SegmentType.Accumulator]
-                )
-
+                if(signatures[i].sourceStackType == SourceStacks.SourceStackType.MULTIRESOLUTION) {
+                    instances[SegmentType.FragmentShader]?.bind(
+                        "localNear",
+                        i,
+                        instances[SegmentType.AccumulatorMultiresolution]
+                    )
+                    instances[SegmentType.FragmentShader]?.bind(
+                        "localFar",
+                        i,
+                        instances[SegmentType.AccumulatorMultiresolution]
+                    )
+                } else {
+                    instances[SegmentType.FragmentShader]?.bind(
+                        "localNear",
+                        i,
+                        instances[SegmentType.Accumulator]
+                    )
+                    instances[SegmentType.FragmentShader]?.bind(
+                        "localFar",
+                        i,
+                        instances[SegmentType.Accumulator]
+                    )
+                }
+                
                 segmentInstances[SegmentType.SampleMultiresolutionVolume]?.bind(
                     "convert",
                     segmentInstances[SegmentType.Convert]
                 )
-
-                segmentInstances[SegmentType.SampleVolume]?.bind("convert", segmentInstances[SegmentType.Convert])
+                segmentInstances[SegmentType.SampleVolume]?.bind(
+                    "convert", 
+                    segmentInstances[SegmentType.Convert]
+                )
+                
                 segmentInstances[SegmentType.SampleVolume]?.bind(
                     "sceneGraphVisibility",
                     segmentInstances[SegmentType.Accumulator]
@@ -370,6 +368,7 @@ class VolumeManager(
                     "sceneGraphVisibility",
                     segmentInstances[SegmentType.AccumulatorMultiresolution]
                 )
+                
             }
 
         val newProgvol = MultiVolumeShaderMip(

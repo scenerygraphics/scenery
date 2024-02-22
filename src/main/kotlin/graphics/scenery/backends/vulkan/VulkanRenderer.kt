@@ -29,7 +29,6 @@ import org.lwjgl.vulkan.KHRWin32Surface.VK_KHR_WIN32_SURFACE_EXTENSION_NAME
 import org.lwjgl.vulkan.KHRXlibSurface.VK_KHR_XLIB_SURFACE_EXTENSION_NAME
 import org.lwjgl.vulkan.MVKMacosSurface.VK_MVK_MACOS_SURFACE_EXTENSION_NAME
 import org.lwjgl.vulkan.VK10.*
-import java.awt.BorderLayout
 import java.awt.image.BufferedImage
 import java.awt.image.DataBufferByte
 import java.io.File
@@ -41,7 +40,6 @@ import java.util.concurrent.*
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.locks.ReentrantLock
 import javax.imageio.ImageIO
-import javax.swing.JFrame
 import kotlin.collections.ArrayList
 import kotlin.concurrent.thread
 import kotlin.concurrent.withLock
@@ -219,28 +217,38 @@ open class VulkanRenderer(hub: Hub,
         }
     }
 
+    private fun Throwable.filteredStackTrace(): List<String> {
+        val firstIndex = this.stackTrace.indexOfFirst { it.toString().contains("VkDebugUtilsMessengerCallbackEXTI") } + 1
+        val lastIndex = this.stackTrace.indexOfLast { it.toString().contains("SceneryBase") } - 1
+
+        return this.stackTrace.copyOfRange(firstIndex, lastIndex)
+            .filter { !it.toString().contains(".coroutines.") }
+            .map { " at $it" }
+    }
+
     var debugCallbackUtils = callback@ { severity: Int, type: Int, callbackDataPointer: Long, _: Long ->
-        val dbg = when {
-            type and VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT == VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT -> " (performance)"
-            type and VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT == VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT -> " (validation)"
-            else -> ""
+        val dbg = if (type and VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT == VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT) {
+            " (performance)"
+        } else if(type and VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT == VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT) {
+            ""
+        } else {
+            ""
         }
 
         val callbackData = VkDebugUtilsMessengerCallbackDataEXT.create(callbackDataPointer)
-        val obj = callbackData.pMessageIdNameString()
         val message = callbackData.pMessageString()
         val objectType = 0
 
         when (severity) {
             VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT ->
-                logger.error("!! $obj($objectType) Validation$dbg: $message")
+                logger.error("🌋⛔️ Validation$dbg: $message")
             VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT ->
-                logger.warn("!! $obj($objectType) Validation$dbg: $message")
+                logger.warn("🌋⚠️ Validation$dbg: $message")
             VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT ->
-                logger.info("!! $obj($objectType) Validation$dbg: $message")
+                logger.info("🌋ℹ️ Validation$dbg: $message")
             VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT ->
-                logger.info("!! $obj($objectType) Validation$dbg: $message")
-            else -> logger.info("!! $obj($objectType) Validation (unknown message type)$dbg: $message")
+                logger.info("(verbose) $message")
+            else -> logger.info("🌋🤷 Validation (unknown message type)$dbg: $message")
         }
 
         // trigger exception and delay if strictValidation is activated in general, or only for specific object types
@@ -252,12 +260,8 @@ open class VulkanRenderer(hub: Hub,
             // set 15s of delay until the next frame is rendered if a validation error happens
             renderDelay = System.getProperty("scenery.VulkanRenderer.DefaultRenderDelay", "1500").toLong()
 
-            try {
-                throw VulkanValidationLayerException("Vulkan validation layer exception, see validation layer error messages above. To disable these exceptions, set scenery.VulkanRenderer.StrictValidation=false. Stack trace:")
-            } catch (e: VulkanValidationLayerException) {
-                logger.error(e.message)
-                e.printStackTrace()
-            }
+            val e = VulkanValidationLayerException("Vulkan validation layer exception, see validation layer error messages above. To disable these exceptions, set scenery.VulkanRenderer.StrictValidation=false.")
+            e.filteredStackTrace().forEach { logger.error(it) }
         }
 
         // return false here, otherwise the application would quit upon encountering a validation error.
@@ -295,12 +299,8 @@ open class VulkanRenderer(hub: Hub,
                 // set 15s of delay until the next frame is rendered if a validation error happens
                 renderDelay = System.getProperty("scenery.VulkanRenderer.DefaultRenderDelay", "1500").toLong()
 
-                try {
-                    throw VulkanValidationLayerException("Vulkan validation layer exception, see validation layer error messages above. To disable these exceptions, set scenery.VulkanRenderer.StrictValidation=false. Stack trace:")
-                } catch (e: VulkanValidationLayerException) {
-                    logger.error(e.message)
-                    e.printStackTrace()
-                }
+                val e = VulkanValidationLayerException("Vulkan validation layer exception, see validation layer error messages above. To disable these exceptions, set scenery.VulkanRenderer.StrictValidation=false. Stack trace:")
+                e.filteredStackTrace().forEach { logger.error(it) }
             }
 
             // return false here, otherwise the application would quit upon encountering a validation error.
@@ -511,7 +511,9 @@ open class VulkanRenderer(hub: Hub,
                         stack.UTF8(EXTMetalSurface.VK_EXT_METAL_SURFACE_EXTENSION_NAME)
                     )
                 } else {
-                    null
+                    stack.pointers(
+                        stack.UTF8(VK_KHR_SURFACE_EXTENSION_NAME)
+                    )
                 }
 
                 createInstance(
@@ -581,7 +583,7 @@ open class VulkanRenderer(hub: Hub,
                         else -> "${device.vendor} ${device.name}".contains(namePreference)
                     }
                 },
-                additionalExtensions = { physicalDevice -> hub.getWorkingHMDDisplay()?.getVulkanDeviceExtensions(physicalDevice)?.toMutableList() ?: mutableListOf() },
+                additionalExtensions = { physicalDevice -> hub.getWorkingHMDDisplay()?.getVulkanDeviceExtensions(physicalDevice)?.toMutableList() ?: mutableListOf(KHRSwapchain.VK_KHR_SWAPCHAIN_EXTENSION_NAME) },
                 validationLayers = requestedValidationLayers,
                 headless = headless,
                 debugEnabled = validation
@@ -619,13 +621,14 @@ open class VulkanRenderer(hub: Hub,
             swapchain = when {
                 selectedSwapchain != null -> {
                     logger.info("Using swapchain ${selectedSwapchain.simpleName}")
-                    val params = selectedSwapchain.kotlin.primaryConstructor!!.parameters.associate { param ->
-                        param to when(param.name) {
+                    val params = selectedSwapchain.kotlin.primaryConstructor!!.parameters.associateWith { param ->
+                        when(param.name) {
                             "device" -> device
                             "queue" -> queue
                             "commandPools" -> commandPools
                             "renderConfig" -> renderConfig
                             "useSRGB" -> renderConfig.sRGB
+                            "vsync" -> !settings.get<Boolean>("Renderer.DisableVsync")
                             else -> null
                         }
                     }.filter { it.value != null }
@@ -696,13 +699,13 @@ open class VulkanRenderer(hub: Hub,
                     }
 
                     val validationsEnabled = if (validation) {
-                        " - VALIDATIONS ENABLED"
+                        ", validation layers enabled"
                     } else {
                         ""
                     }
 
-                    if(embedIn == null) {
-                        window.title = "$applicationName [${this@VulkanRenderer.javaClass.simpleName}, ${this@VulkanRenderer.renderConfig.name}] $validationsEnabled - $fps fps"
+                    if(embedIn == null || (embedIn as? SceneryJPanel)?.owned == true) {
+                        window.title = "$applicationName [${this@VulkanRenderer.renderConfig.name}$validationsEnabled] $fps fps"
                     }
                 }
             }, 0, 1000)
@@ -856,7 +859,10 @@ open class VulkanRenderer(hub: Hub,
             return false
         }
 
-        if (s.initialized) return true
+        if (s.initialized) {
+            node.initialized = true
+            return true
+        }
 
         s.flags.add(RendererFlags.Seen)
 
@@ -955,6 +961,7 @@ open class VulkanRenderer(hub: Hub,
             add("Roughness", { node.materialOrNull()!!.roughness})
             add("Metallic", { node.materialOrNull()!!.metallic})
             add("Opacity", { node.materialOrNull()!!.blending.opacity })
+            add("Emissive", { node.materialOrNull()!!.emissive })
 
             createUniformBuffer()
             s.UBOs.put("MaterialProperties", materialPropertiesDescriptorSet.contents to this)
@@ -1560,6 +1567,21 @@ open class VulkanRenderer(hub: Hub,
     private var currentNow = 0L
 
     /**
+     * Enum class for reasons to re-record command buffers.
+     */
+    enum class RerecordingCause {
+        GeometryUpdated,
+        TexturesUpdated,
+        MaterialUpdated,
+        InstancesUpdated,
+        SceneUpdated,
+        SwapchainUpdated
+    }
+
+    /** Keeps track of the reasons why push mode has been defeated, and in which frame. */
+    val pushModeDefeats: Queue<Pair<Int, List<Pair<String, RerecordingCause>>>> = LinkedList()
+
+    /**
      * This function renders the scene
      */
     override fun render(activeCamera: Camera, sceneNodes: List<Node>) = runBlocking {
@@ -1617,8 +1639,13 @@ open class VulkanRenderer(hub: Hub,
 
         // flag set to true if command buffer re-recording is necessary,
         // e.g. because of scene or pipeline changes
-        var forceRerecording = instancesUpdated
-        val rerecordingCauses = ArrayList<String>(20)
+        var forceRerecording = false
+        val rerecordingCauses = ArrayList<Pair<String, RerecordingCause>>(20)
+
+        if(instancesUpdated) {
+            forceRerecording = true
+            rerecordingCauses.add("General" to RerecordingCause.InstancesUpdated)
+        }
 
         profiler?.begin("Renderer.PreDraw")
         // here we discover the objects in the scene that could be relevant for the scene
@@ -1658,7 +1685,7 @@ open class VulkanRenderer(hub: Hub,
                             updateNodeGeometry(node)
                             dirty = false
 
-                            rerecordingCauses.add(node.name)
+                            rerecordingCauses.add(node.name to RerecordingCause.GeometryUpdated)
                             forceRerecording = true
                         }
                     }
@@ -1689,7 +1716,7 @@ open class VulkanRenderer(hub: Hub,
                                 renderable)
 
                             logger.trace("Force command buffer re-recording, as reloading textures for ${node.name}")
-                            rerecordingCauses.add(node.name)
+                            rerecordingCauses.add(node.name to RerecordingCause.TexturesUpdated)
                             forceRerecording = true
                         }
 
@@ -1712,7 +1739,7 @@ open class VulkanRenderer(hub: Hub,
                                 renderable)
                         }
 
-                        rerecordingCauses.add(node.name)
+                        rerecordingCauses.add(node.name to RerecordingCause.MaterialUpdated)
                         forceRerecording = true
 
                         (material as? ShaderMaterial)?.shaders?.stale = false
@@ -1724,6 +1751,7 @@ open class VulkanRenderer(hub: Hub,
                 val newSceneArray = sceneNodes.toHashSet()
                 if (!newSceneArray.equals(sceneArray)) {
                     forceRerecording = true
+                    rerecordingCauses.add("General" to RerecordingCause.SceneUpdated)
                 }
 
                 sceneArray = newSceneArray
@@ -1746,6 +1774,17 @@ open class VulkanRenderer(hub: Hub,
         if(renderpasses.any { it.value.shaders.stale }) {
             logger.info("Rebuilding swapchain due to stale shaders")
             swapchainRecreator.mustRecreate = true
+        }
+
+        if(swapchainChanged && pushMode) {
+            rerecordingCauses.add("General" to RerecordingCause.SwapchainUpdated)
+        }
+
+        if(pushMode && rerecordingCauses.size > 0) {
+            if(pushModeDefeats.size > 5) {
+                pushModeDefeats.poll()
+            }
+            pushModeDefeats.add(frames to rerecordingCauses)
         }
 
         profiler?.begin("Renderer.BeginFrame")
@@ -2409,7 +2448,7 @@ open class VulkanRenderer(hub: Hub,
         fun setConfigSetting(key: String, value: Any) {
             val setting = "Renderer.$key"
 
-            logger.debug("Setting $setting: ${settings.get<Any>(setting)} -> $value")
+            logger.debug("Setting {}: {} -> {}", setting, settings.getOrNull<Any>(setting), value)
             settings.set(setting, value)
         }
 

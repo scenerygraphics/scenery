@@ -85,135 +85,67 @@ interface ExtractsNatives {
             }
         }
 
-    }
+        /**
+         * Utility function to extract native libraries from the classpath, and store them in a
+         * temporary directory.
+         *
+         * @param[paths] A list of JAR paths to extract natives from.
+         * @param[load] Whether or not to directly load the extracted libraries.
+         */
+        fun extractLibrariesFromClasspath(paths: List<String>, load: Boolean = false): String {
+            val logger = LoggerFactory.getLogger(Companion::class.java.simpleName)
 
-    /**
-     * Cleans old temporary native libraries, e.g. all directories in the temporary directory,
-     * which have "scenery-natives-tmp" in their name, and do not have a lock file present.
-     */
-    fun cleanTempFiles() {
-        File(System.getProperty("java.io.tmpdir")).listFiles().forEach { file ->
-            if (file.isDirectory && file.name.contains("scenery-natives-tmp")) {
-                val lock = File(file, ".lock")
+            if(paths.isEmpty()) {
+                throw IllegalStateException("Empty path list handed to extractLibrariesFromClasspath()")
+            }
 
-                // delete the temporary directory only if the lock does not exist
-                if (!lock.exists()) {
-                    file.deleteRecursively()
+            val tmpDir = Files.createTempDirectory("scenery-natives-tmp").toFile()
+            val lock = File(tmpDir, ".lock")
+            lock.createNewFile()
+            lock.deleteOnExit()
+
+            cleanTempFiles()
+
+            paths.forEach { nativeLibrary ->
+                val f = this::class.java.classLoader.getResourceAsStream(nativeLibrary)
+
+                if(f == null) {
+                    logger.warn("Could not find native library $nativeLibrary in classpath.")
+                    return@forEach
+                }
+
+                val out = tmpDir.resolve(nativeLibrary)
+                if(!out.exists()) {
+                    val outputStream = out.outputStream()
+                    f.copyTo(outputStream)
+                    outputStream.close()
+                    logger.info("Extracted native library $nativeLibrary to ${out.absolutePath}")
+                }
+
+                if(load) {
+                    logger.info("Loading native library from ${out.absolutePath}")
+                    System.load(out.absolutePath)
                 }
             }
+
+            return tmpDir.absolutePath
         }
-    }
 
-    /**
-     * Utility function to extract native libraries from a given JAR, store them in a
-     * temporary directory and modify the JRE's library path such that it can find
-     * these libraries.
-     *
-     * @param[paths] A list of JAR paths to extract natives from.
-     * @param[replace] Whether or not the java.library.path should be replaced.
-     */
-    fun extractLibrariesFromJar(paths: List<String>, replace: Boolean = false, load: Boolean = false): String {
-        // FIXME: Kotlin bug, revert to LazyLogger as soon as https://youtrack.jetbrains.com/issue/KT-19690 is fixed.
-        // val logger by LazyLogger()
-        val logger = LoggerFactory.getLogger(this.javaClass.simpleName)
+        /**
+         * Cleans old temporary native libraries, e.g. all directories in the temporary directory,
+         * which have "scenery-natives-tmp" in their name, and do not have a lock file present.
+         */
+        private fun cleanTempFiles() {
+            File(System.getProperty("java.io.tmpdir")).listFiles().forEach { file ->
+                if (file.isDirectory && file.name.contains("scenery-natives-tmp")) {
+                    val lock = File(file, ".lock")
 
-        val tmpDir = Files.createTempDirectory("scenery-natives-tmp").toFile()
-        val lock = File(tmpDir, ".lock")
-        lock.createNewFile()
-        lock.deleteOnExit()
-
-        cleanTempFiles()
-        val files = ArrayList<String>()
-
-        val nativeLibraryExtensions = hashMapOf(
-            Platform.WINDOWS to listOf("dll"),
-            Platform.LINUX to listOf("so"),
-            Platform.MACOS to listOf("dylib", "jnilib"))
-
-        logger.debug("Got back ${paths.joinToString(", ")}")
-        paths.filter { it.lowercase().endsWith("jar") }.forEach {
-            logger.debug("Extracting $it...")
-
-            val jar = JarFile(it)
-            val enumEntries = jar.entries()
-
-            while (enumEntries.hasMoreElements()) {
-                val file = enumEntries.nextElement()
-                if(file.getName().substringAfterLast(".") !in nativeLibraryExtensions[getPlatform()]!!) {
-                    continue
-                }
-                files.add(tmpDir.absolutePath + File.separator + file.getName())
-                val f = File(files.last())
-
-                // create directory, if needed
-                if (file.isDirectory()) {
-                    f.mkdir()
-                    continue
-                }
-
-                val ins = jar.getInputStream(file)
-                val baos = ByteArrayOutputStream()
-                val fos = FileOutputStream(f)
-
-                val buffer = ByteArray(1024)
-                var len: Int = ins.read(buffer)
-
-                while (len > -1) {
-                    baos.write(buffer, 0, len)
-                    len = ins.read(buffer)
-                }
-
-                baos.flush()
-                fos.write(baos.toByteArray())
-
-                if(getPlatform() == Platform.MACOS && file.name.substringAfterLast(".") == "jnilib") {
-                    logger.debug("macOS: Making dylib copy of jnilib file for compatibility")
-                    try {
-                        f.copyTo(File(tmpDir.absolutePath + File.separator + file.name.substringBeforeLast(".") + ".dylib"), false)
-                    } catch (e: IOException) {
-                        logger.warn("Failed to create copy of ${file.name} to ${file.name.substringBeforeLast(".")}.dylib")
+                    // delete the temporary directory only if the lock does not exist
+                    if (!lock.exists()) {
+                        file.deleteRecursively()
                     }
                 }
-
-                fos.close()
-                baos.close()
-                ins.close()
             }
         }
-
-        if(load) {
-            files.forEach { lib ->
-                logger.debug("Loading native library $lib")
-                System.load(lib)
-            }
-        }
-
-        return tmpDir.absolutePath
-    }
-
-    /**
-     * Utility function to search the current class path for JARs with native libraries
-     *
-     * @param[searchName] The string to match the JAR's name against
-     * @param[hint] A file name to look for, for the ImageJ classpath hack
-     * @return A list of JARs matching [searchName]
-     */
-    fun getNativeJars(searchName: String, hint: String = ""): List<String> {
-        val res = Thread.currentThread().contextClassLoader.getResource(hint)
-
-        if (res == null) {
-            LoggerFactory.getLogger(this.javaClass.simpleName).error("Could not find JAR matching \"" + searchName + "\" with native libraries (${getPlatform()}, $hint).")
-            return listOf()
-        }
-
-        var jar = res.path
-        var pathOffset = 5
-
-        if (getPlatform() == Platform.WINDOWS) {
-            pathOffset = 6
-        }
-
-        jar = jar.substring(jar.indexOf("file:/") + pathOffset).substringBeforeLast("!")
-        return jar.split(File.pathSeparator)
     }
 }

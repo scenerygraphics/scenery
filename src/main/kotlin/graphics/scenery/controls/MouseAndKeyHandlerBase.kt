@@ -7,7 +7,7 @@ import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.controls.behaviours.GamepadBehaviour
 import graphics.scenery.controls.behaviours.GamepadClickBehaviour
 import graphics.scenery.utils.ExtractsNatives
-import graphics.scenery.utils.ExtractsNatives.Platform.*
+import graphics.scenery.utils.ExtractsNatives.Companion.extractLibrariesFromClasspath
 import graphics.scenery.utils.lazyLogger
 import net.java.games.input.*
 import org.lwjgl.system.Platform
@@ -133,22 +133,16 @@ open class MouseAndKeyHandlerBase : ControllerListener, ExtractsNatives {
     init {
         java.util.logging.Logger.getLogger(ControllerEnvironment::class.java.name).parent.level = Level.SEVERE
 
-        /** Returns the name of the DLL/so/dylib required by JInput on the given platform. */
-        fun ExtractsNatives.Platform.getPlatformJinputLibraryName(): String {
-            return when(this) {
-                WINDOWS -> "jinput-raw_64.dll"
-                LINUX -> "libjinput-linux64.so"
-                MACOS -> "libjinput-osx.jnilib"
-                UNKNOWN -> "none"
-            }
-        }
-
         // JInput is not available on ARM32/64
         if(Platform.getArchitecture() == Platform.Architecture.X64) {
             try {
-                val platformJars = getNativeJars("jinput-platform", hint = ExtractsNatives.getPlatform().getPlatformJinputLibraryName())
-                logger.debug("Native JARs for JInput: ${platformJars.joinToString(", ")}")
-                val path = extractLibrariesFromJar(platformJars, load = false)
+                val nativeLibraries = when(Platform.get()) {
+                    Platform.LINUX -> listOf("libjinput-linux64.so")
+                    Platform.MACOSX -> listOf("libjinput-osx.jnilib")
+                    Platform.WINDOWS -> listOf("jinput-raw_64.dll", "jinput-dx8_64.dll", "jinput-wintab.dll")
+                }
+
+                val path = extractLibrariesFromClasspath(nativeLibraries, load = false)
                 System.setProperty("net.java.games.input.librarypath", path)
 
                 ControllerEnvironment.getDefaultEnvironment().controllers.forEach {
@@ -160,10 +154,10 @@ open class MouseAndKeyHandlerBase : ControllerListener, ExtractsNatives {
             } catch(ule: UnsatisfiedLinkError) {
                 logger.warn("Could not initialize JInput due to an UnsatisfiedLinkError: ${ule.message}")
                 logger.warn("This could be to either your platform not being supported by JInput, or the JInput natives missing from the classpath.")
-                logger.debug("Traceback: ${ule.stackTrace}")
+                logger.debug("Traceback: {}", ule.stackTrace)
             } catch (e: Exception) {
                 logger.warn("Could not initialize JInput: ${e.message}")
-                logger.debug("Traceback: ${e.stackTrace}")
+                logger.debug("Traceback: {}", e.stackTrace)
             }
 
             controllerThread = thread {
@@ -186,7 +180,7 @@ open class MouseAndKeyHandlerBase : ControllerListener, ExtractsNatives {
                             val b = gamepad.behaviour
                             if (b is GamepadBehaviour) {
                                 if (abs(it.value) > 0.02f && b.axis.contains(it.key)) {
-                                    logger.trace("Triggering ${it.key} because axis is down (${it.value})")
+                                    logger.trace("Triggering {} because axis is down ({})", it.key, it.value)
                                     b.axisEvent(it.key, it.value)
                                 }
                             }
@@ -357,11 +351,11 @@ open class MouseAndKeyHandlerBase : ControllerListener, ExtractsNatives {
      * @param[event] The incoming controller event
      */
     fun controllerEvent(event: Event) {
-        logger.trace("Event: $event/identifier=${event.component.identifier}")
+        logger.trace("Event: {}/identifier={}", event, event.component.identifier)
         for (gamepad in gamepads) {
             if (event.component.isAnalog) {
                 if (abs(event.component.pollData) < CONTROLLER_DOWN_THRESHOLD) {
-                    logger.trace("${event.component.identifier} over threshold, removing")
+                    logger.trace("{} over threshold, removing", event.component.identifier)
                     controllerAxisDown[event.component.identifier] = 0.0f
                 } else {
                     controllerAxisDown[event.component.identifier] = event.component.pollData
