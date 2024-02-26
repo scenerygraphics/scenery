@@ -3,35 +3,31 @@ package graphics.scenery.tests.examples.volumes
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.textures.Texture
-import graphics.scenery.textures.UpdatableTexture
 import graphics.scenery.ui.SwingBridgeFrame
-import graphics.scenery.utils.DataCompressor
 import graphics.scenery.utils.VideoDecoder
 import graphics.scenery.volumes.DummyVolume
-import graphics.scenery.volumes.EmptyNode
+import graphics.scenery.volumes.RemoteRenderingProperties
 import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.TransferFunctionEditor
 import graphics.scenery.volumes.vdi.VDIData
-import graphics.scenery.volumes.vdi.VDIDataIO
 import graphics.scenery.volumes.vdi.VDINode
 import graphics.scenery.volumes.vdi.VDIStreamer
-import net.imglib2.type.numeric.integer.UnsignedIntType
-import net.imglib2.type.numeric.real.FloatType
-import org.joml.Matrix4f
 import org.joml.Vector3f
 import org.joml.Vector3i
-import org.lwjgl.system.MemoryUtil
-import org.zeromq.SocketType
+import org.scijava.ui.behaviour.ClickBehaviour
 import org.zeromq.ZContext
-import org.zeromq.ZMQ
-import org.zeromq.ZMQException
-import java.io.ByteArrayInputStream
 import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.atomic.AtomicInteger
 import kotlin.concurrent.thread
-import kotlin.system.measureNanoTime
 
+/**
+ * An example client that can be used for remote volume rendering. Capable of switching between two visualization modes:
+ * receiving an encoded video stream and displaying it, and receiving Volumetric Depth Images (VDIs) and rendering them.
+ *
+ * Can be used with [ServerApplication].
+ *
+ * @author Aryaman Gupta <argupta@mpi-cbg.de> and Wissal Salhi
+ */
 class ClientApplication : SceneryBase("Client Application", 512, 512)  {
 
     var buffer: ByteBuffer = ByteBuffer.allocateDirect(0)
@@ -42,10 +38,12 @@ class ClientApplication : SceneryBase("Client Application", 512, 512)  {
     var newVDI = false
     var firstVDI = true
     var firstVDIStream = true
-    var currentlyVolumeRendering = false
 
+    val displayPlane = FullscreenObject()
     lateinit var vdiNode: VDINode
-    val switch = EmptyNode()
+
+    //    lateinit var vdiNode: VDINode
+    val remoteRenderingProperties = RemoteRenderingProperties()
 
     override fun init() {
 
@@ -61,8 +59,9 @@ class ClientApplication : SceneryBase("Client Application", 512, 512)  {
             perspectiveCamera(50.0f, 512, 512)
             scene.addChild(this)
         }
+        cam.farPlaneDistance = 20.0f
 
-        //Step 2: Create necessary video-streaming  components
+        //Step 2: Create necessary video-streaming components
         val dummyVolume = DummyVolume()
         with(dummyVolume) {
             name = "DummyVolume"
@@ -70,10 +69,10 @@ class ClientApplication : SceneryBase("Client Application", 512, 512)  {
             scene.addChild(this)
         }
 
-        val videoPlane = FullscreenObject()
-        with(videoPlane){
+        with(displayPlane) {
             name = "VRplane"
-            videoPlane.wantsSync = false
+            displayPlane.wantsSync = false
+            scene.addChild(this)
         }
 
         val bridge = SwingBridgeFrame("1DTransferFunctionEditor")
@@ -82,68 +81,113 @@ class ClientApplication : SceneryBase("Client Application", 512, 512)  {
         transferFunctionUI.name = dummyVolume.name
         val swingUiNode = bridge.uiNode
         swingUiNode.spatial() {
-            position = Vector3f(2f,0f,0f)
+            position = Vector3f(2f, 0f, 0f)
         }
 
+        val vdiData = VDIData()
+
+        //Step 3: Create vdi node and its properties
+        vdiNode = VDINode(windowWidth, windowHeight, numSupersegments, vdiData)
+        scene.addChild(vdiNode)
+
+        //Attaching empty textures as placeholders for VDIs before actual VDIs arrive so that rendering can begin
+        vdiNode.attachEmptyTextures(VDINode.DoubleBuffer.First)
+        vdiNode.attachEmptyTextures(VDINode.DoubleBuffer.Second)
+
+        vdiNode.skip_empty = false
+
         val VDIPlane = FullscreenObject()
-        with(VDIPlane){
+        with(VDIPlane) {
             name = "VDIplane"
+            wantsSync = false
             material().textures["diffuse"] = vdiNode.material().textures["OutputViewport"]!!
         }
 
-        //Step 4: add Empty Node to scene
-        scene.addChild(switch)
-        var count = 0
-        switch.value = "toVR"
+        //Step 4: add RemoteRenderingProperties Node to scene
+        scene.addChild(remoteRenderingProperties)
+
+        vdiStreaming.set(false)
+
+        remoteRenderingProperties.streamType = RemoteRenderingProperties.StreamType.VDI
+        var currentMode = RemoteRenderingProperties.StreamType.None
+
+//        val videoDecoder = VideoDecoder("scenery-stream.sdp")
+//        thread {
+//            while (!renderer!!.firstImageReady) {
+//                Thread.sleep(50)
+//            }
+//
+//            videoDecoder.decodeFrameByFrame(drawFrame)
+//        }
 
         val vdiStreamer = VDIStreamer()
 
-        //Step 5: switching code
         thread {
-            while (true){
-                count++
-                if(count%100000000000 == 0.toLong()){
-                    count = 0
-                    logger.info("$count")
-                }
 
-                // TODO restore
-//                if (transferFunctionUI.switchTo != "")
-//                    switch.value = transferFunctionUI.switchTo
+            while (!renderer!!.firstImageReady) {
+                Thread.sleep(50)
+            }
 
-                if (!currentlyVolumeRendering && switch.value.equals("toVR")){
+            //Step 5: switching code
+            renderer!!.postRenderLambdas.add {
+                if (currentMode != RemoteRenderingProperties.StreamType.VolumeRendering
+                    && remoteRenderingProperties.streamType == RemoteRenderingProperties.StreamType.VolumeRendering
+                ) {
 
-                    logger.info("Volume Rendering")
+                    logger.info("Switching to Volume Rendering")
 
                     vdiStreaming.set(false)
-                    scene.addChild(videoPlane)
+                    scene.addChild(displayPlane)
                     scene.removeChild(vdiNode)
                     scene.removeChild(VDIPlane)
 
                     thread {
-                        decodeVideo(videoPlane)
+                        decodeVideo(displayPlane)
                     }
-                    currentlyVolumeRendering = true
-                }
-               else if (currentlyVolumeRendering && switch.value.equals("toVDI")){
+                    currentMode = RemoteRenderingProperties.StreamType.VolumeRendering
+                } else if (currentMode != RemoteRenderingProperties.StreamType.VDI
+                    && remoteRenderingProperties.streamType == RemoteRenderingProperties.StreamType.VDI
+                ) {
 
-                   logger.info("VDI streaming")
+                    logger.info("Switching to VDI streaming")
 
                     vdiStreaming.set(true)
-                    scene.addChild(VDIPlane)
                     scene.addChild(vdiNode)
-                    scene.removeChild(videoPlane)
-                    cam.farPlaneDistance = 20.0f
+                    scene.addChild(VDIPlane)
+                    scene.removeChild(displayPlane)
 
-                    if (firstVDIStream){
-                       thread {
-//                           vdiStreamer.receiveAndUpdateVDI(vdiNode)
-                       }
-                       firstVDIStream = false
+                    if (firstVDIStream) {
+                        thread {
+                            vdiStreamer.receiveAndUpdateVDI(
+                                vdiNode,
+                                "tcp://localhost:6655",
+                                renderer!!,
+                                windowWidth,
+                                windowHeight,
+                                numSupersegments
+                            )
+                        }
+                        firstVDIStream = false
                     }
-                    currentlyVolumeRendering = false
+                    currentMode = RemoteRenderingProperties.StreamType.VDI
                 }
             }
+        }
+    }
+
+    private val drawFrame: (ByteArray, Int, Int, Int) -> Unit = {tex: ByteArray, width: Int, height: Int, frameIndex: Int ->
+        if(frameIndex % 100 == 0) {
+            logger.debug("Displaying frame $frameIndex")
+        }
+
+        if(buffer.capacity() == 0) {
+            buffer = BufferUtils.allocateByteAndPut(tex)
+        } else {
+            buffer.put(tex).flip()
+        }
+
+        displayPlane.material {
+            textures["diffuse"] = Texture(Vector3i(width, height, 1), 4, contents = buffer, mipmap = true)
         }
     }
 
@@ -182,6 +226,16 @@ class ClientApplication : SceneryBase("Client Application", 512, 512)  {
 
     override fun inputSetup() {
         setupCameraModeSwitching()
+
+        inputHandler?.addBehaviour("change_mode",
+            ClickBehaviour { _, _ ->
+                if(remoteRenderingProperties.streamType == RemoteRenderingProperties.StreamType.VolumeRendering) {
+                    remoteRenderingProperties.streamType = RemoteRenderingProperties.StreamType.VDI
+                } else {
+                    remoteRenderingProperties.streamType = RemoteRenderingProperties.StreamType.VolumeRendering
+                }
+            })
+        inputHandler?.addKeyBinding("change_mode", "T")
     }
     companion object {
         @JvmStatic
