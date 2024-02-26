@@ -604,10 +604,9 @@ open class VulkanRenderer(hub: Hub,
             }
 
             queue = device.getQueue(device.queueIndices.graphicsQueue.first)
-            logger.info("Creating transfer queue with ${device.queueIndices.transferQueue.first} (vs ${device.queueIndices.graphicsQueue.first})")
+            logger.debug("Creating transfer queue with ${device.queueIndices.transferQueue.first} (vs ${device.queueIndices.graphicsQueue.first})")
             transferQueue = device.getQueue(device.queueIndices.transferQueue.first)
-
-            logger.info("Have $queue and $transferQueue")
+            logger.debug("Have {} and {}", queue, transferQueue)
 
             with(commandPools) {
                 Render = device.createCommandPool(device.queueIndices.graphicsQueue.first)
