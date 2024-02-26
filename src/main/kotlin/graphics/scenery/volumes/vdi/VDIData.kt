@@ -26,7 +26,7 @@ data class VDIMetadata(
     var model: Matrix4f = Matrix4f(),
     val volumeDimensions: Vector3f = Vector3f(),
     var windowDimensions: Vector2i = Vector2i(),
-    val nw: Float = 0f
+    var nw: Float = 0f
 )
 
 /**
