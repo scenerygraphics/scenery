@@ -56,10 +56,6 @@ class ServerApplication : SceneryBase("Volume Server Example", 512, 512) {
         //Step 2: create a volume manager for vdi and add the volume to it:
         var vdiVolumeManager = VDIVolumeManager(hub, windowWidth, windowHeight, maxSupersegments, scene).createVDIVolumeManager()
 
-//        volume.volumeManager = vdiVolumeManager
-//        vdiVolumeManager.add(volume)
-
-
         vdiVolumeManager.customUniforms.add("doGeneration")
         vdiVolumeManager.shaderProperties["doGeneration"] = true
 
@@ -81,13 +77,6 @@ class ServerApplication : SceneryBase("Volume Server Example", 512, 512) {
 
         val vdiStreamer = VDIStreamer()
 
-//        val remoteRenderingProperties: RemoteRenderingProperties = RemoteRenderingProperties()
-//
-//        remoteRenderingProperties.streamType = RemoteRenderingProperties.StreamType.VDI
-//
-//        scene.addChild(remoteRenderingProperties)
-
-        var firstcall = true
         thread {
 
             while (!renderer!!.firstImageReady) {
@@ -96,65 +85,57 @@ class ServerApplication : SceneryBase("Volume Server Example", 512, 512) {
 
             val volumeDimensions3i = Vector3f(volume.getDimensions().x.toFloat(), volume.getDimensions().y.toFloat(), volume.getDimensions().z.toFloat())
 
-            volume.volumeManager = vdiVolumeManager
-
             scene.findObserver()?.let { cam ->
                 vdiStreamer.setup("tcp://0.0.0.0:6655", cam, volumeDimensions3i, volume, maxSupersegments, vdiVolumeManager, renderer!!)
             }
 
-            Thread.sleep(2000)
-            vdiVolumeManager.replace(standardVolumeManager)
+            renderer!!.postRenderLambdas.add {
+                val switchMode = scene.find("RemoteRenderingProperties") as? RemoteRenderingProperties
 
-            vdiStreamer.vdiStreaming.set(true)
+                if (switchMode != null) {
+                    logger.info("Value of switch mode: ${switchMode.streamType.toString()}")
 
+                    if (currentMode != RemoteRenderingProperties.StreamType.VolumeRendering
+                        && switchMode.streamType == RemoteRenderingProperties.StreamType.VolumeRendering) {
 
-//            renderer!!.postRenderLambdas.add {
-//                val switchMode = scene.find("RemoteRenderingProperties") as? RemoteRenderingProperties
-//
-//                if (switchMode != null) {
-//                    logger.info("Value of switch mode: ${switchMode.streamType.toString()}")
-//
-//                    if (currentMode != RemoteRenderingProperties.StreamType.VolumeRendering
-//                        && switchMode.streamType == RemoteRenderingProperties.StreamType.VolumeRendering) {
-//
-//                        logger.info("Server will switch to Volume Rendering")
-//
-//                        vdiStreamer.vdiStreaming = false
-//                        standardVolumeManager.replace(vdiVolumeManager)
-//                        startVideoStream()
-//
-//                        currentMode = RemoteRenderingProperties.StreamType.VolumeRendering
-//
-//                    }
-//                    else if (currentMode != RemoteRenderingProperties.StreamType.VDI
-//                        && switchMode.streamType == RemoteRenderingProperties.StreamType.VDI) {
-//
-//                        logger.info("Server will switch to VDI Streaming")
-//
-//                        if(currentMode == RemoteRenderingProperties.StreamType.VolumeRendering) {
-//                            //stop the video streaming
-//                            renderer?.recordMovie()
-//                        }
-//                        vdiVolumeManager.replace(standardVolumeManager)
-//
-//                        vdiStreamer.vdiStreaming = true
-//
-//                        currentMode = RemoteRenderingProperties.StreamType.VDI
-//                    }
-//                    else if (currentMode != RemoteRenderingProperties.StreamType.None
-//                        && switchMode.streamType == RemoteRenderingProperties.StreamType.None) {
-//
-//                        logger.info("Server will stop streaming")
-//
-//                        vdiStreamer.vdiStreaming = false
-//                        if(currentMode == RemoteRenderingProperties.StreamType.VolumeRendering) {
-//                            renderer?.recordMovie()
-//                        }
-//
-//                        currentMode = RemoteRenderingProperties.StreamType.None
-//                    }
-//                }
-//            }
+                        logger.info("Server will switch to Volume Rendering")
+
+                        vdiStreamer.vdiStreaming.set(false)
+                        standardVolumeManager.replace(vdiVolumeManager)
+                        startVideoStream()
+
+                        currentMode = RemoteRenderingProperties.StreamType.VolumeRendering
+
+                    }
+                    else if (currentMode != RemoteRenderingProperties.StreamType.VDI
+                        && switchMode.streamType == RemoteRenderingProperties.StreamType.VDI) {
+                        //TODO: investigating glitching in VDI generation/streaming and comparing with VDIStreamingExample where they do not happen
+                        logger.info("Server will switch to VDI Streaming")
+
+                        if(currentMode == RemoteRenderingProperties.StreamType.VolumeRendering) {
+                            //stop the video streaming
+                            renderer?.recordMovie()
+                        }
+                        vdiVolumeManager.replace(standardVolumeManager)
+
+                        vdiStreamer.vdiStreaming.set(true)
+
+                        currentMode = RemoteRenderingProperties.StreamType.VDI
+                    }
+                    else if (currentMode != RemoteRenderingProperties.StreamType.None
+                        && switchMode.streamType == RemoteRenderingProperties.StreamType.None) {
+
+                        logger.info("Server will stop streaming")
+
+                        vdiStreamer.vdiStreaming.set(false)
+                        if(currentMode == RemoteRenderingProperties.StreamType.VolumeRendering) {
+                            renderer?.recordMovie()
+                        }
+
+                        currentMode = RemoteRenderingProperties.StreamType.None
+                    }
+                }
+            }
         }
 
     }

@@ -35,14 +35,11 @@ class ClientApplication : SceneryBase("Client Application", 512, 512)  {
 
     val numSupersegments = 20
     var vdiStreaming = AtomicBoolean(true)
-    var newVDI = false
-    var firstVDI = true
     var firstVDIStream = true
 
     val displayPlane = FullscreenObject()
     lateinit var vdiNode: VDINode
 
-    //    lateinit var vdiNode: VDINode
     val remoteRenderingProperties = RemoteRenderingProperties()
 
     override fun init() {
@@ -111,15 +108,6 @@ class ClientApplication : SceneryBase("Client Application", 512, 512)  {
         remoteRenderingProperties.streamType = RemoteRenderingProperties.StreamType.VDI
         var currentMode = RemoteRenderingProperties.StreamType.None
 
-//        val videoDecoder = VideoDecoder("scenery-stream.sdp")
-//        thread {
-//            while (!renderer!!.firstImageReady) {
-//                Thread.sleep(50)
-//            }
-//
-//            videoDecoder.decodeFrameByFrame(drawFrame)
-//        }
-
         val vdiStreamer = VDIStreamer()
 
         thread {
@@ -172,22 +160,6 @@ class ClientApplication : SceneryBase("Client Application", 512, 512)  {
                     currentMode = RemoteRenderingProperties.StreamType.VDI
                 }
             }
-        }
-    }
-
-    private val drawFrame: (ByteArray, Int, Int, Int) -> Unit = {tex: ByteArray, width: Int, height: Int, frameIndex: Int ->
-        if(frameIndex % 100 == 0) {
-            logger.debug("Displaying frame $frameIndex")
-        }
-
-        if(buffer.capacity() == 0) {
-            buffer = BufferUtils.allocateByteAndPut(tex)
-        } else {
-            buffer.put(tex).flip()
-        }
-
-        displayPlane.material {
-            textures["diffuse"] = Texture(Vector3i(width, height, 1), 4, contents = buffer, mipmap = true)
         }
     }
 
