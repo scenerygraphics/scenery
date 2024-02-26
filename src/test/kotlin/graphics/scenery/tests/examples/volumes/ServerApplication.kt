@@ -8,7 +8,6 @@ import graphics.scenery.volumes.vdi.VDIStreamer
 import org.joml.Vector3f
 import org.zeromq.ZContext
 import java.nio.file.Paths
-import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.concurrent.thread
 
 /**
@@ -100,7 +99,7 @@ class ServerApplication : SceneryBase("Volume Server Example", 512, 512) {
             volume.volumeManager = vdiVolumeManager
 
             scene.findObserver()?.let { cam ->
-                vdiStreamer.setupVDIStreaming("tcp://0.0.0.0:6655", cam, volumeDimensions3i, volume, maxSupersegments, vdiVolumeManager, renderer!!)
+                vdiStreamer.setup("tcp://0.0.0.0:6655", cam, volumeDimensions3i, volume, maxSupersegments, vdiVolumeManager, renderer!!)
             }
 
             Thread.sleep(2000)

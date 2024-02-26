@@ -24,6 +24,10 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.concurrent.thread
 import kotlin.system.measureNanoTime
 
+/**
+ * Class to support streaming of Volumetric Depth Images (VDIs). Provides public functions to stream generated VDIs on the
+ * server side and to receive and update them on the client side.
+ */
 class VDIStreamer {
 
     private val logger by lazyLogger()
@@ -71,8 +75,19 @@ class VDIStreamer {
         return 0
     }
 
-    fun setupVDIStreaming(ipAddress: String, cam: Camera, volumeDim: Vector3f, volume: Volume,
-                          maxSupersegments : Int, vdiVolumeManager: VolumeManager, renderer: Renderer) {
+    /**
+     * Sets up streaming of VDIs to a chosen [ipAddress].
+     *
+     * @param[ipAddress] The network address (IP address and port number) to which the VDIs should be streamed
+     * @param[cam] The camera that is generating the VDI
+     * @param[volumeDim] The dimensions of [volume] on which the VDIs are being generated
+     * @param[volume] The volume on which VDIs are being generated
+     * @param[maxSupersegments] The maximum number of supersegments in any list of the VDI, i.e., its resolution along z
+     * @param[vdiVolumeManager] The [VolumeManager] set up to generate VDIs
+     * @param[renderer] The renderer for this application
+     */
+    fun setup(ipAddress: String, cam: Camera, volumeDim: Vector3f, volume: Volume,
+              maxSupersegments : Int, vdiVolumeManager: VolumeManager, renderer: Renderer) {
 
         val vdiData = VDIData(
             VDIBufferSizes(),
@@ -276,6 +291,18 @@ class VDIStreamer {
         return vdiData
     }
 
+    /**
+     * Receives VDIs from a network stream and replaces them in the scene.
+     *
+     * The function runs blocking to receive and update successive VDIs transmitted across the network.
+     *
+     * @param[vdiNode] The [VDINode] that is part of the scene to be rendered
+     * @param[ipAddress] The network address (IP address and port number) from which to receive the VDIs
+     * @param[renderer] The renderer for this application
+     * @param[windowWidth] Window width of the application window.
+     * @param[windowHeight] Window height of the application window.
+     * @param[numSupersegments] The maximum number of supersegments in any list of the VDI, i.e., its resolution along z
+     */
     fun receiveAndUpdateVDI(vdiNode: VDINode, ipAddress: String, renderer: Renderer, windowWidth: Int, windowHeight: Int, numSupersegments: Int) {
         val subscriber: ZMQ.Socket = context.createSocket(SocketType.SUB)
         subscriber.isConflate = true
@@ -354,5 +381,4 @@ class VDIStreamer {
             logger.info("Received and updated VDI data")
         }
     }
-
 }
