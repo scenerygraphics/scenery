@@ -15,7 +15,8 @@ class RemoteRenderingProperties : DefaultNode("RemoteRenderingProperties"), Netw
      */
     enum class StreamType {
         VolumeRendering,
-        VDI
+        VDI,
+        None
     }
 
     /**
