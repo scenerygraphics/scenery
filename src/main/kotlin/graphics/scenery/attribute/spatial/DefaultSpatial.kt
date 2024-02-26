@@ -1,5 +1,6 @@
 package graphics.scenery.attribute.spatial
 
+import graphics.scenery.Camera
 import graphics.scenery.DefaultNode
 import graphics.scenery.Node
 import graphics.scenery.Scene
@@ -12,6 +13,7 @@ import net.imglib2.RealLocalizable
 import org.joml.*
 import java.lang.Float.max
 import java.lang.Float.min
+import java.lang.Math
 import kotlin.reflect.KClass
 import kotlin.reflect.KProperty
 
@@ -177,6 +179,35 @@ open class DefaultSpatial(@Transient protected var node: Node = DefaultNode()) :
 
         return center
     }
+
+    /**
+     *  This function rotates this spatial by a fixed [yaw] and [pitch] about the [target]
+     *
+     *  @param[yaw] yaw in degrees
+     *  @param[pitch] pitch in degrees
+     *  @param[target] the target position
+     */
+    override fun rotateAround(yaw: Float, pitch: Float, target: Vector3f) {
+        val frameYaw = (yaw) / 180.0f * Math.PI.toFloat()
+        val framePitch = pitch / 180.0f * Math.PI.toFloat()
+
+        // first calculate the total rotation quaternion to be applied to the camera
+        val yawQ = Quaternionf().rotateXYZ(0.0f, frameYaw, 0.0f).normalize()
+        val pitchQ = Quaternionf().rotateXYZ(framePitch, 0.0f, 0.0f).normalize()
+
+        node.ifSpatial {
+            val distance = (target - position).length()
+            rotation = pitchQ.mul(rotation).mul(yawQ).normalize()
+            if(node is Camera) {
+                position = target + (node as Camera).forward * distance * (-1.0f)
+                (node as Camera).target = target
+            } else {
+                val forward = world.transform(Vector4f(1.0f, 0.0f, 0.0f, 1.0f)).xyz()
+                position = target + forward * distance * (-1.0f)
+            }
+        }
+    }
+
 
     override fun putAbove(position: Vector3f): Vector3f {
         val center = centerOn(position)

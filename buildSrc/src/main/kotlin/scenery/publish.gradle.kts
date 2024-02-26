@@ -16,18 +16,18 @@ tasks {
     dokkaHtml {
         dokkaSourceSets.configureEach {
             sourceLink {
-                localDirectory.set(file("src/main/kotlin"))
-                remoteUrl.set(URL("https://github.com/scenerygraphics/scenery/tree/main/src/main/kotlin"))
-                remoteLineSuffix.set("#L")
+                localDirectory = file("src/main/kotlin")
+                remoteUrl = URL("https://github.com/scenerygraphics/scenery/tree/main/src/main/kotlin")
+                remoteLineSuffix = "#L"
             }
         }
     }
     dokkaJavadoc {
         dokkaSourceSets.configureEach {
             sourceLink {
-                localDirectory.set(file("src/main/kotlin"))
-                remoteUrl.set(URL("https://github.com/scenerygraphics/scenery/tree/main/src/main/kotlin"))
-                remoteLineSuffix.set("#L")
+                localDirectory = file("src/main/kotlin")
+                remoteUrl = URL("https://github.com/scenerygraphics/scenery/tree/main/src/main/kotlin")
+                remoteLineSuffix = "#L"
             }
         }
     }
@@ -44,13 +44,13 @@ publishing {
             val dokkaJavadocJar by tasks.register<Jar>("dokkaJavadocJar") {
                 dependsOn(tasks.dokkaJavadoc)
                 from(tasks.dokkaJavadoc.flatMap { it.outputDirectory })
-                archiveClassifier.set("javadoc")
+                archiveClassifier = "javadoc"
             }
 
             val dokkaHtmlJar by tasks.register<Jar>("dokkaHtmlJar") {
                 dependsOn(tasks.dokkaHtml)
                 from(tasks.dokkaHtml.flatMap { it.outputDirectory })
-                archiveClassifier.set("html-doc")
+                archiveClassifier = "html-doc"
             }
 
 
@@ -59,72 +59,72 @@ publishing {
             // TODO, resolved dependencies versions? https://docs.gradle.org/current/userguide/publishing_maven.html#publishing_maven:resolved_dependencies
 
             pom {
-                name.set(rootProject.name)
-                description.set(rootProject.description)
-                url.set(sceneryUrl)
-                properties.set(mapOf("inceptionYear" to "2016"))
+                name = rootProject.name
+                description = rootProject.description
+                url = sceneryUrl
+                inceptionYear = "2016"
                 organization {
-                    name.set(rootProject.name)
-                    url.set(sceneryUrl)
+                    name = rootProject.name
+                    url = sceneryUrl
                 }
                 licenses {
                     license {
-                        name.set("GNU Lesser General Public License v3+")
-                        url.set("https://www.gnu.org/licenses/lgpl.html")
-                        distribution.set("repo")
+                        name = "GNU Lesser General Public License v3+"
+                        url = "https://www.gnu.org/licenses/lgpl.html"
+                        distribution = "repo"
                     }
                 }
                 developers {
                     developer {
-                        id.set("skalarproduktraum")
-                        name.set("Ulrik Guenther")
-                        url.set("https://ulrik.is/writing")
+                        id = "skalarproduktraum"
+                        name = "Ulrik Guenther"
+                        url = "https://ulrik.is/writing"
                         roles.addAll("founder", "lead", "developer", "debugger", "reviewer", "support", "maintainer")
                     }
                 }
                 contributors {
                     contributor {
-                        name.set("Kyle Harrington")
-                        url.set("http://www.kyleharrington.com")
-                        properties.set(mapOf("id" to "kephale"))
+                        name = "Kyle Harrington"
+                        url = "http://www.kyleharrington.com"
+                        properties = mapOf("id" to "kephale")
                     }
                     contributor {
-                        name.set("Tobias Pietzsch")
-                        url.set("https://imagej.net/people/tpietzsch")
-                        properties.set(mapOf("id" to "tpietzsch"))
+                        name = "Tobias Pietzsch"
+                        url = "https://imagej.net/people/tpietzsch"
+                        properties = mapOf("id" to "tpietzsch")
                     }
                     contributor {
-                        name.set("Loic Royer")
-                        properties.set(mapOf("id" to "royerloic"))
+                        name = "Loic Royer"
+                        properties = mapOf("id" to "royerloic")
                     }
                     contributor {
-                        name.set("Martin Weigert")
-                        properties.set(mapOf("id" to "maweigert"))
+                        name = "Martin Weigert"
+                        properties = mapOf("id" to "maweigert")
                     }
                     contributor {
-                        name.set("Aryaman Gupta")
-                        properties.set(mapOf("id" to "aryaman-gupta"))
+                        name = "Aryaman Gupta"
+                        properties = mapOf("id" to "aryaman-gupta")
                     }
                     contributor {
-                        name.set("Curtis Rueden")
-                        url.set("https://imagej.net/people/ctrueden")
-                        properties.set(mapOf("id" to "ctrueden"))
+                        name = "Curtis Rueden"
+                        url = "https://imagej.net/people/ctrueden"
+                        properties = mapOf("id" to "ctrueden")
                     }
                 }
-                mailingLists { mailingList { name.set("none") } }
+                mailingLists { mailingList { name = "none" } }
                 scm {
-                    connection.set("scm:git:https://github.com/scenerygraphics/scenery")
-                    developerConnection.set("scm:git:git@github.com:scenerygraphics/scenery")
-                    tag.set(if(snapshot) "HEAD" else "scenery-${rootProject.version}")
-                    url.set(sceneryUrl)
+                    connection = "scm:git:https://github.com/scenerygraphics/scenery"
+                    developerConnection = "scm:git:git@github.com:scenerygraphics/scenery"
+                    tag = if(snapshot) "HEAD" else "scenery-${rootProject.version}"
+                    url = sceneryUrl
                 }
                 issueManagement {
-                    system.set("GitHub Issues")
-                    url.set("https://github.com/scenerygraphics/scenery/issues")
+                    system = "GitHub Issues"
+                    url = "https://github.com/scenerygraphics/scenery/issues"
                 }
                 ciManagement {
-                    system.set("GitHub Actions")
-                    url.set("https://github.com/scenerygraphics/scenery/actions")
+                    system = "GitHub Actions"
+                    url = "https://github.com/scenerygraphics/scenery/actions"
                 }
                 distributionManagement {
                     // https://stackoverflow.com/a/21760035/1047713

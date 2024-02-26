@@ -35,7 +35,10 @@ val lwjglArtifacts = listOf(
         "lwjgl-remotery",
         "lwjgl-spvc",
         "lwjgl-shaderc",
-        "lwjgl-tinyexr"
+        "lwjgl-tinyexr",
+        "lwjgl-jawt",
+        "lwjgl-lz4",
+        "lwjgl-zstd"
 )
 
 dependencies {
@@ -43,20 +46,20 @@ dependencies {
     val lwjglVersion = project.properties["lwjglVersion"]
     
     implementation(platform("org.scijava:pom-scijava:$scijavaParentPomVersion"))
-    annotationProcessor("org.scijava:scijava-common:2.96.0")
+    annotationProcessor("org.scijava:scijava-common:2.97.1")
 
     implementation(kotlin("reflect"))
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0")
 
     implementation("org.slf4j:slf4j-api:1.7.36")
     implementation("org.joml:joml:1.10.5")
-    implementation("net.java.jinput:jinput:2.0.9", "natives-all")
+    implementation("net.java.jinput:jinput:2.0.10", "natives-all")
     implementation("org.jocl:jocl:2.0.5")
     implementation("org.scijava:scijava-common")
     implementation("org.scijava:script-editor")
     implementation("org.scijava:ui-behaviour")
     implementation("org.scijava:scripting-jython")
-    implementation("net.java.dev.jna:jna-platform:5.11.0")
+    implementation("net.java.dev.jna:jna-platform:5.14.0")
 
 
     lwjglArtifacts.forEach { artifact ->
@@ -81,6 +84,9 @@ dependencies {
                     }
                 }
 
+                // JAWT doesn't bring natives along
+                artifact.endsWith("jawt") -> {}
+
                 else -> {
                     logger.info("else: org.lwjgl:$artifact:$lwjglVersion:$native")
                     runtimeOnly("org.lwjgl:$artifact:$lwjglVersion:$native")
@@ -88,31 +94,23 @@ dependencies {
             }
         }
     }
-    implementation("com.fasterxml.jackson.core:jackson-databind:2.13.3")
-    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.13.3")
-    implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.13.3")
     implementation("org.xerial.snappy:snappy-java:1.1.8.4")
-    implementation("org.lwjgl:lwjgl-lz4:3.3.0")
-    implementation("org.lwjgl:lwjgl-zstd:3.3.0")
-    implementation("org.lwjgl:lwjgl-lz4:3.3.0:natives-linux")
-    implementation("org.lwjgl:lwjgl-lz4:3.3.0:natives-macos")
-    implementation("org.lwjgl:lwjgl-lz4:3.3.0:natives-windows")
-    implementation("org.lwjgl:lwjgl-zstd:3.3.0:natives-linux")
-    implementation("org.lwjgl:lwjgl-zstd:3.3.0:natives-macos")
-    implementation("org.lwjgl:lwjgl-zstd:3.3.0:natives-windows")
-    implementation("org.zeromq:jeromq:0.5.3")
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.16.1")
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.16.1")
+    implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.16.1")
+    implementation("org.zeromq:jeromq:0.5.4")
     implementation("com.esotericsoftware:kryo:5.5.0")
     implementation("de.javakaffee:kryo-serializers:0.45")
-    implementation("org.msgpack:msgpack-core:0.9.5")
-    implementation("org.msgpack:jackson-dataformat-msgpack:0.9.1")
+    implementation("org.msgpack:msgpack-core:0.9.8")
+    implementation("org.msgpack:jackson-dataformat-msgpack:0.9.8")
     api("graphics.scenery:jvrpn:1.2.0", lwjglNatives.filter { !it.contains("arm") }.toTypedArray())
     implementation("io.scif:scifio")
-    implementation("org.bytedeco:ffmpeg:6.0-1.5.9", ffmpegNatives)
-    implementation("io.github.classgraph:classgraph:4.8.161")
+    implementation("org.bytedeco:ffmpeg:6.1.1-1.5.10", ffmpegNatives)
+    implementation("io.github.classgraph:classgraph:4.8.165")
 
-    implementation("info.picocli:picocli:4.7.4")
+    implementation("info.picocli:picocli:4.7.5")
 
-    api("sc.fiji:bigdataviewer-core:10.4.10")
+    api("sc.fiji:bigdataviewer-core:10.4.13")
     api("sc.fiji:bigdataviewer-vistools:1.0.0-beta-28")
     api("sc.fiji:bigvolumeviewer:0.3.3") {
         exclude("org.jogamp.gluegen", "gluegen-rt")
@@ -136,7 +134,7 @@ dependencies {
             exclude("org.biojava.thirdparty", "forester")
         }
     }
-    implementation("org.jetbrains.kotlin:kotlin-scripting-jsr223:1.5.31")
+    implementation("org.jetbrains.kotlin:kotlin-scripting-jsr223:1.9.22")
     api("graphics.scenery:art-dtrack-sdk:2.6.0")
 
     testImplementation(kotlin("test"))
@@ -149,7 +147,7 @@ dependencies {
     testImplementation("net.imagej:ij")
     testImplementation("net.imglib2:imglib2-ij")
 
-    implementation("org.jfree:jfreechart:1.5.0")
+    implementation("org.jfree:jfreechart:1.5.4")
     implementation("net.imagej:imagej-ops:0.45.5")
 }
 
@@ -159,14 +157,14 @@ val isRelease: Boolean
 tasks {
     withType<KotlinCompile>().all {
         kotlinOptions {
-            jvmTarget = project.properties["jvmTarget"]?.toString() ?: "11"
+            jvmTarget = project.properties["jvmTarget"]?.toString() ?: "21"
             freeCompilerArgs += listOf("-Xinline-classes", "-opt-in=kotlin.RequiresOptIn")
         }
     }
 
     withType<JavaCompile>().all {
-        targetCompatibility = project.properties["jvmTarget"]?.toString() ?: "11"
-        sourceCompatibility = project.properties["jvmTarget"]?.toString() ?: "11"
+        targetCompatibility = project.properties["jvmTarget"]?.toString() ?: "21"
+        sourceCompatibility = project.properties["jvmTarget"]?.toString() ?: "21"
     }
 
     withType<GenerateMavenPom>().configureEach {
@@ -233,6 +231,11 @@ tasks {
                     // OpenVR does not have macOS binaries, Vulkan only has macOS binaries
                     if(lwjglProject.contains("vulkan")
                         && !nativePlatform.contains("mac")) {
+                        return@pkg
+                    }
+
+                    // JAWT doesn't have any natives
+                    if(lwjglProject.contains("jawt")) {
                         return@pkg
                     }
 
@@ -382,9 +385,9 @@ tasks {
         enabled = isRelease
         dokkaSourceSets.configureEach {
             sourceLink {
-                localDirectory.set(file("src/main/kotlin"))
-                remoteUrl.set(URL("https://github.com/scenerygraphics/scenery/tree/main/src/main/kotlin"))
-                remoteLineSuffix.set("#L")
+                localDirectory = file("src/main/kotlin")
+                remoteUrl = URL("https://github.com/scenerygraphics/scenery/tree/main/src/main/kotlin")
+                remoteLineSuffix = "#L"
             }
         }
     }
@@ -401,7 +404,7 @@ tasks {
     }
 }
 
-jacoco.toolVersion = "0.8.8"
+jacoco.toolVersion = "0.8.11"
 
 java.withSourcesJar()
 

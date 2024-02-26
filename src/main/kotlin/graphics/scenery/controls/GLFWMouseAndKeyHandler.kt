@@ -93,12 +93,21 @@ open class GLFWMouseAndKeyHandler(var hub: Hub?) : MouseAndKeyHandlerBase(), Aut
                 else -> KeyEvent.KEY_PRESSED
             }
 
+            // Fix cursor key mapping
+            val mappedKey = when(key) {
+                GLFW_KEY_UP -> KeyEvent.VK_UP
+                GLFW_KEY_DOWN -> KeyEvent.VK_DOWN
+                GLFW_KEY_LEFT -> KeyEvent.VK_LEFT
+                GLFW_KEY_RIGHT -> KeyEvent.VK_RIGHT
+                else -> key
+            }
+
             val event = KeyEvent(
                 fakeComponent,
                 type,
                 System.nanoTime(),
                 mods.glfwToSwingMods(),
-                key,
+                mappedKey,
                 KeyEvent.CHAR_UNDEFINED
             )
 

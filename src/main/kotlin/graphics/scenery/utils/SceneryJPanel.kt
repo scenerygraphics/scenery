@@ -13,7 +13,7 @@ import javax.swing.JPanel
  *
  * @author Ulrik Guenther <hello@ulrik.is>
  */
-class SceneryJPanel : JPanel(), SceneryPanel {
+class SceneryJPanel(val owned: Boolean = false) : JPanel(), SceneryPanel {
     /** Refresh rate. */
     override var refreshRate: Int = 60
 
