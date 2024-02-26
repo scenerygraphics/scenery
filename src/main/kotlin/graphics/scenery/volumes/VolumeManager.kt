@@ -304,7 +304,7 @@ class VolumeManager(
         )
         segments[SegmentType.AccumulatorMultiresolution] = SegmentTemplate(
             "AccumulateBlockVolume.frag",
-            "vis", "sampleVolume", "convert", "sceneGraphVisibility"
+            "vis", "localNear", "localFar", "sampleVolume", "convert", "sceneGraphVisibility"
         )
         segments[SegmentType.Accumulator] = SegmentTemplate(
             "AccumulateSimpleVolume.frag",
@@ -318,7 +318,7 @@ class VolumeManager(
             ?: MultiVolumeShaderMip.SegmentConsumer { _: Map<SegmentType, SegmentTemplate>,
                                                   segmentInstances: Map<SegmentType, Segment>,
                                                   volumeIndex: Int ->
-                logger.info("Connecting additional bindings")
+                logger.debug("Connecting additional bindings")
 
                 if(!triggered) {
                     segmentInstances[SegmentType.FragmentShader]?.repeat("localNear", n)
@@ -326,7 +326,6 @@ class VolumeManager(
                     triggered = true
                 }
 
-                logger.info("Connecting localNear/localFar for $volumeIndex")
                 if(signatures[volumeIndex].sourceStackType == SourceStacks.SourceStackType.MULTIRESOLUTION) {
                     segmentInstances[SegmentType.FragmentShader]?.bind(
                         "localNear",
