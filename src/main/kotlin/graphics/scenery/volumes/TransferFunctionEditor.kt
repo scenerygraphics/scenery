@@ -341,7 +341,7 @@ class TransferFunctionEditor constructor(
 
         rangeEditorPanel = JPanel()
         rangeEditorPanel.layout = MigLayout("fill",
-                                            "[left, 10%]5[right, 40%]5[left, 10%]5[right, 40%]")
+            "[left, 10%]5[right, 40%]5[left, 10%]5[right, 40%]")
         add(rangeEditorPanel, "grow")
 
         rangeEditorPanel.add(JLabel("min:"), "shrinkx")
