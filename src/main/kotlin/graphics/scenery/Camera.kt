@@ -6,6 +6,7 @@ import graphics.scenery.attribute.renderable.HasRenderable
 import graphics.scenery.attribute.spatial.DefaultSpatial
 import graphics.scenery.attribute.spatial.HasCustomSpatial
 import graphics.scenery.net.Networkable
+import graphics.scenery.primitives.Cylinder
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
@@ -491,6 +492,62 @@ open class Camera : DefaultNode("Camera"), HasRenderable, HasMaterial, HasCustom
         }
 
     }
+
+    enum class OverlayPosition {
+        CENTER, TOP_LEFT, TOP_RIGHT, BOTTOM_RIGHT, BOTTOM_LEFT
+    }
+
+    private var orientationOverlayVisible = false
+
+    private inner class OrientationOverlay(
+        camera: Camera = this,
+        radius: Float = 0.1f,
+        length: Float = 1f,
+        pos: OverlayPosition
+    ) : DefaultNode("Orientation Overlay") {
+
+        val axesRadius: Float = radius
+        val axesLength: Float = length
+        val axesParent: Node = Group()
+
+        init {
+            axesParent.name = "Orientation Axes"
+            axesParent.spatialOrNull()?.position = Vector3f(0f, 0f, -5f)
+
+            var c = Cylinder(axesRadius / 2.0f, axesLength, 12)
+            c.name = "X axis"
+            c.material().diffuse = Vector3f(1f, 0f, 0f)
+            val halfPI = Math.PI.toFloat() / 2.0f
+            c.spatial().rotation = Quaternionf().rotateLocalZ(-halfPI)
+            axesParent.addChild(c)
+            //
+            c = Cylinder(axesRadius / 2.0f, axesLength, 12)
+            c.name = "Y axis"
+            c.material().diffuse = Vector3f(0f, 1f, 0f)
+            c.spatial().rotation = Quaternionf().rotateLocalZ(Math.PI.toFloat())
+            axesParent.addChild(c)
+            //
+            c = Cylinder(axesRadius / 2.0f, axesLength, 12)
+            c.name = "Z axis"
+            c.material().diffuse = Vector3f(0f, 0f, 1f)
+            c.spatial().rotation = Quaternionf().rotateLocalX(-halfPI)
+            axesParent.addChild(c)
+            camera.addChild(axesParent)
+        }
+    }
+
+    fun toggleOrientationOverlay(pos: OverlayPosition = OverlayPosition.TOP_RIGHT) {
+
+        if (!orientationOverlayVisible) {
+            val overlay = OrientationOverlay(pos = pos)
+        } else {
+            this.removeChild("Orientation Overlay")
+        }
+
+        orientationOverlayVisible = !orientationOverlayVisible
+    }
+
+
 
     @Deprecated(message = "", replaceWith = ReplaceWith("spatial().viewportToWorld(vector)"))
     fun viewportToWorld(vector: Vector2f): Vector3f {
