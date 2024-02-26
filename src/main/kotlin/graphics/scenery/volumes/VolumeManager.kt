@@ -327,27 +327,27 @@ class VolumeManager(
                 }
 
                 logger.info("Connecting localNear/localFar for $volumeIndex")
-                if(signatures[i].sourceStackType == SourceStacks.SourceStackType.MULTIRESOLUTION) {
-                    instances[SegmentType.FragmentShader]?.bind(
+                if(signatures[volumeIndex].sourceStackType == SourceStacks.SourceStackType.MULTIRESOLUTION) {
+                    segmentInstances[SegmentType.FragmentShader]?.bind(
                         "localNear",
-                        i,
-                        instances[SegmentType.AccumulatorMultiresolution]
+                        volumeIndex,
+                        segmentInstances[SegmentType.AccumulatorMultiresolution]
                     )
-                    instances[SegmentType.FragmentShader]?.bind(
+                    segmentInstances[SegmentType.FragmentShader]?.bind(
                         "localFar",
-                        i,
-                        instances[SegmentType.AccumulatorMultiresolution]
+                        volumeIndex,
+                        segmentInstances[SegmentType.AccumulatorMultiresolution]
                     )
                 } else {
-                    instances[SegmentType.FragmentShader]?.bind(
+                    segmentInstances[SegmentType.FragmentShader]?.bind(
                         "localNear",
-                        i,
-                        instances[SegmentType.Accumulator]
+                        volumeIndex,
+                        segmentInstances[SegmentType.Accumulator]
                     )
-                    instances[SegmentType.FragmentShader]?.bind(
+                    segmentInstances[SegmentType.FragmentShader]?.bind(
                         "localFar",
-                        i,
-                        instances[SegmentType.Accumulator]
+                        volumeIndex,
+                        segmentInstances[SegmentType.Accumulator]
                     )
                 }
                 
