@@ -9,6 +9,7 @@ import graphics.scenery.volumes.*
 import graphics.scenery.volumes.vdi.VDIStreamer
 import org.joml.Vector3f
 import java.nio.file.Paths
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.concurrent.thread
 
 /**
@@ -70,8 +71,8 @@ class VDIStreamingExample : SceneryBase("VDI Streaming Example", 512, 512) {
                 Thread.sleep(50)
             }
 
-            vdiStreamer.vdiStreaming = true
-            vdiStreamer.streamVDI("tcp://0.0.0.0:6655", scene.findObserver()!!, volumeDimensions, volume, maxSupersegments, vdiVolumeManager,
+            vdiStreamer.vdiStreaming.set(true)
+            vdiStreamer.setupVDIStreaming("tcp://0.0.0.0:6655", scene.findObserver()!!, volumeDimensions, volume, maxSupersegments, vdiVolumeManager,
                 renderer!!
             )
         }
