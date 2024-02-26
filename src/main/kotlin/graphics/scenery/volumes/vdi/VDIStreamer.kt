@@ -1,23 +1,16 @@
 package graphics.scenery.volumes.vdi
 
 import graphics.scenery.Camera
-import graphics.scenery.Scene
 import graphics.scenery.Settings
 import graphics.scenery.backends.Renderer
-import graphics.scenery.backends.vulkan.VulkanRenderer
+import graphics.scenery.backends.vulkan.VulkanTexture
 import graphics.scenery.textures.Texture
-import graphics.scenery.textures.UpdatableTexture
 import graphics.scenery.utils.DataCompressor
-import graphics.scenery.utils.SystemHelpers
 import graphics.scenery.utils.lazyLogger
 import graphics.scenery.volumes.Volume
 import graphics.scenery.volumes.VolumeManager
-import net.imglib2.type.numeric.integer.UnsignedIntType
-import net.imglib2.type.numeric.real.FloatType
-import org.joml.Matrix4f
 import org.joml.Vector2i
 import org.joml.Vector3f
-import org.joml.Vector3i
 import org.lwjgl.system.MemoryUtil
 import org.zeromq.SocketType
 import org.zeromq.ZContext
@@ -26,6 +19,7 @@ import org.zeromq.ZMQException
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.concurrent.thread
 import kotlin.system.measureNanoTime
@@ -35,7 +29,7 @@ class VDIStreamer {
     private val logger by lazyLogger()
 
     /** param to determine the state of vdi streaming */
-    var vdiStreaming: Boolean = true
+    var vdiStreaming: AtomicBoolean = AtomicBoolean(false)
 
     /** the number of VDIs streamed so far */
     var vdisStreamed: Int = 0
@@ -61,14 +55,29 @@ class VDIStreamer {
         return publisher
     }
 
-    fun streamVDI(ipAddress: String, cam: Camera, volumeDim: Vector3f, volume: Volume,
-                  maxSupersegments : Int, vdiVolumeManager: VolumeManager, renderer: Renderer) {
+    private fun fetchTexture(texture: Texture) : Int {
+        val ref = VulkanTexture.getReference(texture)
+        val buffer = texture.contents ?: return -1
+
+        if(ref != null) {
+            val start = System.nanoTime()
+            texture.contents = ref.copyTo(buffer, true)
+            val end = System.nanoTime()
+            logger.info("The request textures of size ${texture.contents?.remaining()?.toFloat()?.div((1024f*1024f))} took: ${(end.toDouble()-start.toDouble())/1000000.0}")
+        } else {
+            logger.error("In fetchTexture: Texture not accessible")
+        }
+
+        return 0
+    }
+
+    fun setupVDIStreaming(ipAddress: String, cam: Camera, volumeDim: Vector3f, volume: Volume,
+                          maxSupersegments : Int, vdiVolumeManager: VolumeManager, renderer: Renderer) {
 
         val vdiData = VDIData(
             VDIBufferSizes(),
             VDIMetadata(
                 volumeDimensions = volumeDim,
-                nw = vdiVolumeManager.shaderProperties["nw"] as Float,
             )
         )
 
@@ -87,21 +96,22 @@ class VDIStreamer {
         var gridCellsBuff: ByteBuffer?
 
         val vdiColor = vdiVolumeManager.material().textures["OutputSubVDIColor"]!!
-        val colorCnt = AtomicInteger(0)
-        (renderer as VulkanRenderer).persistentTextureRequests.add(vdiColor to colorCnt)
 
         val vdiDepth = vdiVolumeManager.material().textures["OutputSubVDIDepth"]!!
-        val depthCnt = AtomicInteger(0)
-        renderer.persistentTextureRequests.add(vdiDepth to depthCnt)
-
 
         val gridCells = vdiVolumeManager.material().textures["OctreeCells"]!!
-        val gridTexturesCnt = AtomicInteger(0)
-        renderer.persistentTextureRequests.add(gridCells to gridTexturesCnt)
 
         renderer.postRenderLambdas.add {
 
-            if (!firstFrame && vdiStreaming) {
+            logger.info("vdistreaming: ${vdiStreaming.get()}")
+
+            if (!firstFrame && vdiStreaming.get()) {
+
+                logger.info("Now it is positive!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+
+                fetchTexture(vdiColor)
+                fetchTexture(vdiDepth)
+                fetchTexture(gridCells)
 
                 val model = volume.spatial().world
 
@@ -110,6 +120,7 @@ class VDIStreamer {
                 vdiData.metadata.projection = cam.spatial().projection
                 vdiData.metadata.view = cam.spatial().getTransformation()
                 vdiData.metadata.windowDimensions = Vector2i(cam.width, cam.height)
+                vdiData.metadata.nw = vdiVolumeManager.shaderProperties["nw"] as Float
 
                 vdiColorBuffer = vdiColor.contents
                 vdiDepthBuffer = vdiDepth.contents
