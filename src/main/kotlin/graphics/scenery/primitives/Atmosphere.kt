@@ -34,7 +34,7 @@ open class Atmosphere(initSunDir: Vector3f? = null, emissionStrength: Float = 0.
         setMaterial(ShaderMaterial.fromClass(this::class.java))
         material {
             cullingMode = Material.CullingMode.Front
-            depthTest = Material.DepthTest.LessEqual
+            depthOp = Material.DepthTest.LessEqual
             emissive = Vector4f(0f, 0f, 0f, emissionStrength)
         }
 
