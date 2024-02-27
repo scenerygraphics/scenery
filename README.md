@@ -98,14 +98,14 @@ The recommended way to use non-release (unstable) builds is to use jitpack. jitp
 
 ### Using _scenery_ in a Maven project
 
-Add scenery and ClearGL to your project's `pom.xml`:
+Add scenery to your project's `pom.xml`:
 
 ```xml
 <dependencies>
   <dependency>
     <groupId>graphics.scenery</groupId>
     <artifactId>scenery</artifactId>
-    <version>0.9.1</version>
+    <version>0.9.3</version>
   </dependency>
 </dependencies>
 ```
@@ -141,7 +141,7 @@ Add scenery to your project's `build.gradle`:
 ```kotlin
 dependencies {
     // ...
-    api("graphics.scenery:scenery:0.9.1")
+    api("graphics.scenery:scenery:0.9.3")
 }
 ```
 
