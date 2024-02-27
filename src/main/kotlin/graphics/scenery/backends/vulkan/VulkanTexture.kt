@@ -170,8 +170,6 @@ open class VulkanTexture(
             // necessary to clear updates here, as the command buffer might still access the
             // memory address of the texture update.
             (tex as? UpdatableTexture)?.clearConsumedUpdates()
-            tex?.state?.add(Texture.TextureState.Uploaded)
-            tex?.state?.add(Texture.TextureState.AvailableForUse)
 
             // vkFreeCommandBuffers(device, commandPools.Transfer, this)
         }
