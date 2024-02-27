@@ -54,6 +54,11 @@ open class VulkanDevice(
     enum class DeviceType { Unknown, Other, IntegratedGPU, DiscreteGPU, VirtualGPU, CPU }
 
     /**
+     * Data class to hold a Vulkan queue together with a mutex (via a [Semaphore]) for regulating access.
+     */
+    data class QueueWithMutex(val queue: VkQueue, val mutex: Semaphore = Semaphore(1))
+
+    /**
      * Class to store device-specific metadata.
      *
      * @property[vendor] The vendor name of the device.
@@ -386,7 +391,6 @@ open class VulkanDevice(
         }
     }
 
-    data class QueueWithMutex(val queue: VkQueue, val mutex: Semaphore = Semaphore(1))
     private val queues = ConcurrentHashMap<Int, ArrayList<QueueWithMutex>>()
     /**
      * Creates a new Vulkan queue on [device] with the queue family index [queueFamilyIndex] and returns the queue.
