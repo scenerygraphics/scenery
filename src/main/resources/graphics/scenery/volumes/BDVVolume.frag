@@ -175,7 +175,6 @@ void main()
 				step += nw + step * fwnw;
 			}
 		}
-        v.xyz = pow(v.xyz, vec3(1/2.2));
 		FragColor = v;
 
 		if(v.w < 0.001f) {
