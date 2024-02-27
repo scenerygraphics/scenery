@@ -9,6 +9,7 @@ import org.jfree.chart.renderer.xy.StandardXYBarPainter
 import org.jfree.chart.renderer.xy.XYBarRenderer
 import org.jfree.data.statistics.SimpleHistogramBin
 import org.jfree.data.statistics.SimpleHistogramDataset
+import java.awt.Color
 import javax.swing.JCheckBox
 import kotlin.math.abs
 import kotlin.math.max
@@ -32,6 +33,7 @@ class HistogramChartManager(val tfPlot: XYPlot,
         histogramRenderer.setShadowVisible(false)
         histogramRenderer.barPainter = StandardXYBarPainter()
         histogramRenderer.isDrawBarOutline = false
+        histogramRenderer.setSeriesPaint(0, Color.GRAY)
         tfPlot.setRenderer(1, histogramRenderer)
 
         val histXAxis = NumberAxis()
@@ -40,8 +42,13 @@ class HistogramChartManager(val tfPlot: XYPlot,
             tfContainer.minDisplayRange - (axisExtensionFactor * range),
             tfContainer.maxDisplayRange + (axisExtensionFactor * range)
         )
+        histXAxis.isTickLabelsVisible = false
+        histXAxis.isMinorTickMarksVisible = false
+        histXAxis.isTickMarksVisible = false
 
-        histogramAxis.isMinorTickMarksVisible = true
+        histogramAxis.isTickLabelsVisible = false
+        histogramAxis.isMinorTickMarksVisible = false
+        histogramAxis.isTickMarksVisible = false
         histogramAxis.setRange(
             0.0,
             1000.0
@@ -51,7 +58,7 @@ class HistogramChartManager(val tfPlot: XYPlot,
         volumeHistogramData.adjustForBinSize = false
 
         if (tfContainer is HasHistogram) {
-            genHistButton.addActionListener() {
+            genHistButton.addActionListener {
                 val histogramVisible = tfPlot.getDataset(1) != null
 
                 if(histogramVisible) {
