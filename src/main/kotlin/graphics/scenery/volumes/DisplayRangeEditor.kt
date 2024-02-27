@@ -2,7 +2,12 @@ package graphics.scenery.volumes
 
 import graphics.scenery.ui.RangeSlider
 import net.miginfocom.swing.MigLayout
+import java.awt.Color
+import java.awt.Component
+import java.awt.Insets
 import javax.swing.*
+import javax.swing.border.MatteBorder
+import javax.swing.border.TitledBorder
 import kotlin.math.max
 import kotlin.math.roundToInt
 
@@ -23,10 +28,20 @@ class DisplayRangeEditor(private val tfContainer: HasTransferFunction): JPanel()
 
     init {
         layout = MigLayout(
-            "fill",
+            "insets 0, fill",
             "[left, 10%]5[right, 40%]5[left, 10%]5[right, 40%]"
         )
-        border = BorderFactory.createTitledBorder("Display Range")
+        val title = object: TitledBorder(MatteBorder(1, 0, 0, 0, Color.GRAY), "Display Range") {
+            val customInsets = Insets(25, 0, 25, 0)
+            override fun getBorderInsets(c: Component?): Insets {
+                return customInsets
+            }
+
+            override fun getBorderInsets(c: Component?, insets: Insets?): Insets {
+                return customInsets
+            }
+        }
+        border = title
 
         // Range editor
         val initMinValue = max(tfContainer.minDisplayRange.toInt(), 100)
@@ -51,9 +66,9 @@ class DisplayRangeEditor(private val tfContainer: HasTransferFunction): JPanel()
         }
 
         val rangeEditorPanel = this
-        rangeEditorPanel.add(JLabel("min:"), "shrinkx")
+        rangeEditorPanel.add(JLabel("Minimum:"), "shrinkx")
         rangeEditorPanel.add(minText, "growx")
-        rangeEditorPanel.add(JLabel("max:"), "shrinkx")
+        rangeEditorPanel.add(JLabel("Maximum:"), "shrinkx")
         rangeEditorPanel.add(maxText, "growx, wrap")
         rangeEditorPanel.add(rangeSlider, "spanx, growx, wrap")
         rangeEditorPanel.add(minValueLabel, "spanx 2, left")
@@ -80,6 +95,20 @@ class DisplayRangeEditor(private val tfContainer: HasTransferFunction): JPanel()
 
         tfContainer.minDisplayRange = rangeSlider.value.toFloat()
         tfContainer.maxDisplayRange = rangeSlider.upperValue.toFloat()
+    }
+
+    /**
+     * Returns the currently set display range.
+     */
+    fun getDisplayRange(): Pair<Float, Float> {
+        return rangeSlider.value.toFloat() to rangeSlider.upperValue.toFloat()
+    }
+
+    /**
+     * Returns the current data range.
+     */
+    fun getDataRange(): Pair<Float, Float> {
+        return rangeSlider.minimum.toFloat() to rangeSlider.maximum.toFloat()
     }
 
     /**

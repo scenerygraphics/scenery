@@ -6,8 +6,7 @@ import org.jfree.chart.ChartMouseListener
 import org.jfree.chart.ChartPanel
 import org.jfree.chart.JFreeChart
 import org.jfree.chart.annotations.XYTextAnnotation
-import org.jfree.chart.axis.NumberAxis
-import org.jfree.chart.axis.NumberTickUnit
+import org.jfree.chart.axis.*
 import org.jfree.chart.entity.XYItemEntity
 import org.jfree.chart.labels.XYToolTipGenerator
 import org.jfree.chart.plot.XYPlot
@@ -23,6 +22,7 @@ import java.awt.event.MouseEvent
 import java.awt.event.MouseListener
 import java.awt.event.MouseMotionListener
 import java.awt.image.BufferedImage
+import java.text.NumberFormat
 import javax.swing.*
 
 
@@ -64,7 +64,7 @@ class TransferFunctionEditor(
 
 
     init {
-        layout = MigLayout()
+        layout = MigLayout("", "[][][][]")
 
         // MainChart manipulation
         val tfCollection = XYSeriesCollection()
@@ -87,6 +87,16 @@ class TransferFunctionEditor(
 
         val tfXAxis = NumberAxis()
         tfXAxis.setRange(0.0 - axisExtensionFactor, 1.0 + axisExtensionFactor)
+        val units = TickUnits()
+        units.add(object: NumberTickUnit(0.1, NumberFormat.getIntegerInstance()) {
+            override fun valueToString(value: Double): String {
+                val r = displayRangeEditor.getDataRange()
+                return super.valueToString(value * (r.second - r.first) + r.first)
+            }
+        })
+        tfXAxis.standardTickUnits = units
+
+
         tfPlot.setDomainAxis(0, tfXAxis)
         tfPlot.mapDatasetToRangeAxis(0, 0)
         tfPlot.mapDatasetToDomainAxis(0, 0)
@@ -212,15 +222,16 @@ class TransferFunctionEditor(
         })
 
         val histAndTFIOButtonsPanel = JPanel()
-        histAndTFIOButtonsPanel.layout = MigLayout()
+        histAndTFIOButtonsPanel.layout = MigLayout("insets 0", "[][][][]")
         add(histAndTFIOButtonsPanel, "growx,wrap")
 
         val histogramChartManager = HistogramChartManager(tfPlot,mainChart,tfContainer,axisExtensionFactor)
-        histAndTFIOButtonsPanel.add(histogramChartManager.genHistButton, "growx,wrap")
+        histAndTFIOButtonsPanel.add(histogramChartManager.genHistButton, "growx")
 
         // transfer function IO
         val fc = JFileChooser()
-        JButton("Load Transfer Function").also {
+        JButton("Load").also {
+            it.toolTipText = "Load a new transfer function"
             it.addActionListener {
                 val returnVal: Int = fc.showOpenDialog(this)
                 if (returnVal == JFileChooser.APPROVE_OPTION) {
@@ -229,16 +240,17 @@ class TransferFunctionEditor(
                     displayRangeEditor.refreshDisplayRange()
                 }
             }
-            histAndTFIOButtonsPanel.add(it)
+            histAndTFIOButtonsPanel.add(it, "skip 2, al right, push")
         }
-        JButton("Save Transfer Function").also {
+        JButton("Save").also {
+            it.toolTipText = "Save the current transfer function to a file"
             it.addActionListener {
                 val option = fc.showSaveDialog(this)
                 if (option == JFileChooser.APPROVE_OPTION) {
                     tfContainer.saveTransferFunctionToFile(fc.selectedFile)
                 }
             }
-            histAndTFIOButtonsPanel.add(it,"wrap")
+            histAndTFIOButtonsPanel.add(it, "al right, wrap")
         }
         initTransferFunction(tfContainer.transferFunction)
 
