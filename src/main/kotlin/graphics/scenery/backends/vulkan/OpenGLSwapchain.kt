@@ -185,10 +185,7 @@ class OpenGLSwapchain(device: VulkanDevice,
         val imgs = (0 until bufferCount).map {
             with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
 
-                val t = VulkanTexture(this@OpenGLSwapchain.device, commandPools, queue, queue,
-                    windowWidth, window.height, 1, format, 1)
-
-                val image = t.createImage(windowWidth, window.height, 1,
+                val image = VulkanImage.create(this@OpenGLSwapchain.device, windowWidth, window.height, 1,
                     format, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT or VK_IMAGE_USAGE_SAMPLED_BIT,
                     VK_IMAGE_TILING_OPTIMAL, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
                     1)
@@ -198,7 +195,7 @@ class OpenGLSwapchain(device: VulkanDevice,
                     VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 1,
                     commandBuffer = this)
 
-                val view = t.createImageView(image, format)
+                val view = image.createView()
 
                 imageAvailableSemaphores.add(this@OpenGLSwapchain.device.createSemaphore())
                 imageRenderedSemaphores.add(this@OpenGLSwapchain.device.createSemaphore())

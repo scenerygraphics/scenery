@@ -116,21 +116,24 @@ open class HeadlessSwapchain(device: VulkanDevice,
         }
         presentQueue = device.getQueue(device.queueIndices.graphicsQueue.first)
 
-        val textureImages = (0 until bufferCount).map {
-            val t = VulkanTexture(device, commandPools, queue, queue, window.width, window.height, 1,
-                format, 1)
-            val image = t.createImage(window.width, window.height, 1, format,
+        val vulkanImages = (0 until bufferCount).map {
+            VulkanImage.create(
+                device,
+                window.width,
+                window.height,
+                1,
+                format,
                 VK10.VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT or VK10.VK_IMAGE_USAGE_TRANSFER_SRC_BIT or VK10.VK_IMAGE_USAGE_SAMPLED_BIT,
-                VK10.VK_IMAGE_TILING_OPTIMAL, VK10.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 1)
-            t to image
+                VK10.VK_IMAGE_TILING_OPTIMAL,
+                VK10.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                1
+            )
         }
 
-        images = textureImages.map {
-            it.second.image
-        }.toLongArray()
+        images = vulkanImages.map { it.image }.toLongArray()
 
-        imageViews = textureImages.map {
-            it.first.createImageView(it.second, format)
+        imageViews = vulkanImages.map {
+            it.createView()
         }.toLongArray()
 
         val fenceCreateInfo = VkFenceCreateInfo.calloc()
