@@ -14,8 +14,11 @@ import java.io.IOException
 import java.nio.ByteBuffer
 import javax.imageio.ImageIO
 import javax.swing.*
+import javax.swing.border.MatteBorder
+import javax.swing.border.TitledBorder
 import javax.swing.filechooser.FileFilter
 import kotlin.math.absoluteValue
+
 
 /**
  * A JPanel to display everything related to setting and editing the color map of a volume.
@@ -25,10 +28,20 @@ import kotlin.math.absoluteValue
  */
 class ColorMapPanel(val target:Volume?): JPanel() {
     private val colorMapEditor = ColorMapEditor(target)
+    private val loadedColormaps = HashMap<String, Colormap>()
 
     init {
-        layout = MigLayout()
-        val title = BorderFactory.createTitledBorder("Color Map")
+        layout = MigLayout("insets 0", "[][][][]")
+        val title = object: TitledBorder(MatteBorder(1, 0, 0, 0, Color.GRAY), "Color Map") {
+            val customInsets = Insets(25, 0, 25, 0)
+            override fun getBorderInsets(c: Component?): Insets {
+                return customInsets
+            }
+
+            override fun getBorderInsets(c: Component?, insets: Insets?): Insets {
+                return customInsets
+            }
+        }
         border = title
 
         // color editor
@@ -37,11 +50,12 @@ class ColorMapPanel(val target:Volume?): JPanel() {
         // color map drop down
         val list = Colormap.list()
         val box = JComboBox<String>()
-        val selectAColorMapString = "Select a colormap" // makes codacy stop complaining
+        val selectAColorMapString = "Select ..." // makes codacy stop complaining
         box.addItem(selectAColorMapString)
 
-        for (s in list)
+        for (s in list) {
             box.addItem(s)
+        }
 
         if (target != null) {
             box.selectedItem = selectAColorMapString
@@ -50,36 +64,66 @@ class ColorMapPanel(val target:Volume?): JPanel() {
 
         box.addActionListener {
             val item: String = box.selectedItem as String
+            var colormap: Colormap? = null
+
             if (target != null && item != selectAColorMapString) {
-                target.colormap = Colormap.get(item)
+                // try to load from already-seen files first
+                colormap = loadedColormaps[item] ?: Colormap.get(item)
+                target.colormap = colormap
                 this.repaint()
             }
-            colorMapEditor.loadColormap(Colormap.get(item))
+
+            colormap?.let { colorMapEditor.loadColormap(it) }
         }
 
         val fc = JFileChooser()
         fc.addChoosableFileFilter(PNGFileFilter())
         fc.isAcceptAllFileFilterUsed = false
 
-        JButton("Load Color Map").also {
+        JButton("Load").also {
+            it.toolTipText = "Load a new colormap from a file"
             it.addActionListener {
                 val returnVal: Int = fc.showOpenDialog(this)
                 if (returnVal == JFileChooser.APPROVE_OPTION) {
-                    colorMapEditor.loadColormap(Colormap.fromPNGFile(fc.selectedFile))
+                    val newColormap = Colormap.fromPNGFile(fc.selectedFile)
+                    val filename = fc.selectedFile.nameWithoutExtension
+                    val currentItems = box.items() as List<String>
+
+                    val colormapName = if(filename in currentItems) {
+                        println("${currentItems.joinToString(",")}")
+                        val index = currentItems.count { n -> n.startsWith(filename) } + 1
+                        "$filename ($index)"
+                    } else {
+                        filename
+                    }
+
+                    loadedColormaps[colormapName] = newColormap
+                    colorMapEditor.loadColormap(newColormap)
+                    box.addItem(colormapName)
+                    box.selectedItem = colormapName
                 }
             }
-            add(it)
+            add(it, "skip 2, al right, push")
         }
 
-        JButton("Save Color Map").also {
+        JButton("Save").also {
+            it.toolTipText = "Save the current colormap to a file"
             it.addActionListener {
                 val option = fc.showSaveDialog(this)
                 if (option == JFileChooser.APPROVE_OPTION) {
                     saveToFile (fc.selectedFile)
                 }
             }
-            add(it,"wrap")
+            add(it, "al right, wrap")
         }
+    }
+
+    private fun JComboBox<*>.items(): List<Any> {
+        val items = ArrayList<Any>()
+        for(i in 0 until this.itemCount) {
+            items.add(this.getItemAt(i))
+        }
+        return items
     }
 
     /**
@@ -163,7 +207,7 @@ class ColorMapPanel(val target:Volume?): JPanel() {
                             var green = 0f
                             var blue = 0f
 
-                            for(i in 0 until pointList.size) {
+                            for(i in pointList.indices) {
                                 if(pointList[i].position <= pos && pointList[i+1].position >= pos) {
                                     val interpolationFactor = (pos - pointList[i].position) / (pointList[i+1].position - pointList[i].position)
 
@@ -227,7 +271,7 @@ class ColorMapPanel(val target:Volume?): JPanel() {
         }
 
         private fun pointAtMouse(e: MouseEvent) =
-            colorPoints.firstOrNull() { (e.x - (width * it.position)).absoluteValue < height / 2 }
+            colorPoints.firstOrNull { (e.x - (width * it.position)).absoluteValue < height / 2 }
 
         override fun paintComponent(g: Graphics) {
             super.paintComponent(g)
@@ -241,18 +285,35 @@ class ColorMapPanel(val target:Volume?): JPanel() {
             paintBackgroundGradient(pointList, g2d)
 
             // color point markers
-            val relativeSize = 0.5f //relative to height
+            val relativeSize = 0.25f //relative to height
             val absoluteSize = (relativeSize * h).toInt()
-            val margin = 0.05f
-            val innerSize = (absoluteSize * (1f - margin)).toInt()
 
-            pointList.forEach {
+            pointList.forEach {0
+                val margin = 0.35f
+
+                val innerSize = (absoluteSize * (1.0f - margin)).toInt()
                 val p1x = w * it.position
-                g2d.paint = if (it == hoveredOver) Color.white else Color.BLACK
-                g2d.fillOval(p1x.toInt() - absoluteSize / 2, (h-absoluteSize)/2, absoluteSize, absoluteSize)
+                val colorHSB =  floatArrayOf(0.0f, 0.0f, 0.0f)
+                Color.RGBtoHSB(it.color.red, it.color.green, it.color.blue, colorHSB)
 
+                val backgroundDark = colorHSB[2] < 0.5f
+
+                val outlineColor = if(backgroundDark) {
+                    Color.BLACK
+                } else {
+                    Color.WHITE
+                }
+
+//                g2d.fillRect((p1x - absoluteSize / 2).toInt(), (h - absoluteSize)/2, absoluteSize, absoluteSize)
+
+//                g2d.paint = it.color
+//                g2d.fillRect((p1x - innerSize / 2).toInt(), (h - innerSize) / 2, innerSize, innerSize)
+                g2d.paint = outlineColor
+                g2d.drawPolygon(intArrayOf(p1x.toInt(), (p1x - innerSize).toInt(), (p1x + innerSize).toInt()),
+                                intArrayOf(h-10, h-1, h-1), 3)
                 g2d.paint = it.color
-                g2d.fillOval((p1x - innerSize / 2).toInt(), (h - innerSize) / 2, innerSize, innerSize)
+                g2d.fillPolygon(intArrayOf(p1x.toInt(), (p1x - innerSize-1).toInt(), (p1x + innerSize+1).toInt()),
+                                intArrayOf(h-10-1, h, h), 3)
             }
             target?.let {
                 it.colormap = Colormap.fromBuffer(toBuffer(), width, height)
@@ -273,7 +334,7 @@ class ColorMapPanel(val target:Volume?): JPanel() {
                 val gp = GradientPaint(p1x, 0f, p1.color, p2x, 0f, p2.color)
 
                 g2d.paint = gp
-                g2d.fillRect(p1x.toInt(), 0, p2x.toInt(), h)
+                g2d.fillRect(p1x.toInt(), 0, p2x.toInt(), h-10)
             }
         }
 
