@@ -1,6 +1,4 @@
 #version 450
-#extension GL_EXT_debug_printf : enable
-
 
 layout (local_size_x = 16, local_size_y = 16) in;
 layout (set = 0, binding = 0, r16f) uniform image3D Volume16Bit;
@@ -15,14 +13,7 @@ layout(set = 3, binding = 0) uniform ShaderProperties {
     int numBins;
 };
 
-ivec2 debug_pixel = ivec2(512,512);
-
-
 void main() {
-
-    if(gl_GlobalInvocationID.xy == debug_pixel){
-        debugPrintfEXT("Hello World!!!!!!!!!!!!!!!!!!!!!!!!!!");
-    }
 
     float binSize = (maxDisplayVal - minDisplayVal) / numBins;
 
@@ -37,11 +28,7 @@ void main() {
 
         if(val >= minDisplayVal && val <= maxDisplayVal) {
             int binID = int(floor(val / binSize));
-
             int ret = imageAtomicAdd(Histogram, ivec3(binID, 0, 0), 1);
-            if( binID == 221 && ret != 0){
-                debugPrintfEXT("Invocation ID: (%d, %d). Incremented the bin %d, prev value was %d", gl_GlobalInvocationID.xy, binID, ret);
-            }
         }
     }
 }
