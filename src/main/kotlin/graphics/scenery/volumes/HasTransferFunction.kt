@@ -7,6 +7,7 @@ import java.io.InputStream
 
 /**
  * @author Konrad Michel <Konrad.Michel@mailbox.tu-dresden.de>
+ * @author Jan Tiemann <j.tiemann@hzdr.de>
  *
  *     Interface to abstract out the basic parameters of a TransferFunction use case.
  */

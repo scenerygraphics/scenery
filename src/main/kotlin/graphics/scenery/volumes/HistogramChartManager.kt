@@ -16,6 +16,8 @@ import kotlin.math.roundToInt
 
 /**
  * Handles all histogram related things.
+ *
+ * @author Jan Tiemann <j.tiemann@hzdr.de>
  */
 class HistogramChartManager(val tfPlot: XYPlot,
                             val mainChart: ChartPanel,

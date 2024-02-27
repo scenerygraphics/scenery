@@ -19,6 +19,9 @@ import java.nio.IntBuffer
 
 /**
  * A compute node to calculate a histogram of a volume on the gpu. To use call [VolumeHistogramComputeNode.generateHistogram].
+ *
+ * @author Aryaman Gupta <aryaman.gupta@tu-dresden.de>
+ * @author Jan Tiemann <j.tiemann@hzdr.de>
  */
 class VolumeHistogramComputeNode(val volume: Volume, data: ByteBuffer): RichNode() {
 

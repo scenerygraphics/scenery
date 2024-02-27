@@ -19,6 +19,9 @@ import kotlin.math.absoluteValue
 
 /**
  * A JPanel to display everything related to setting and editing the color map of a volume.
+ *
+ * @author Jan Tiemann <j.tiemann@hzdr.de>
+ * @author Aryaman Gupta <aryaman.gupta@tu-dresden.de>
  */
 class ColorMapPanel(val target:Volume?): JPanel() {
     private val colorMapEditor = ColorMapEditor(target)

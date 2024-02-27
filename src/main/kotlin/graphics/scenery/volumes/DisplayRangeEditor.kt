@@ -9,6 +9,8 @@ import kotlin.math.roundToInt
 /**
  * GUI for editing the display range of volumes.
  * Part of TransferFunctionEditor
+ *
+ * @author Jan Tiemann <j.tiemann@hzdr.de>
  */
 class DisplayRangeEditor(private val tfContainer: HasTransferFunction): JPanel(){
 
