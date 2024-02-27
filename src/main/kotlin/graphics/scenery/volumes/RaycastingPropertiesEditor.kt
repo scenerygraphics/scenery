@@ -5,12 +5,10 @@ import javax.swing.*
 
 
 /**
- * @author Konrad Michel <Konrad.Michel@mailbox.tu-dresden.de>
- * @author Jan Tiemann <j.tiemann@hzdr.de>
+ * Provides a graphical editor to enable interactively changing volume raycasting properties (e.g., the step size
+ * along the ray) in volume rendering applications.
  *
- * A Swing UI transfer function manipulation tool, able to add, remove and manipulate the transfer function control points of a set volume interactively.
- * Able to generate a histogram and visualize it as well to help with TF-settings
- * Able to dynamically set the transfer function range -> changes histogram as well
+ * @author Aryaman Gupta <aryaman.gupta@tu-dresden.de>
  */
 class RaycastingPropertiesEditor constructor(
     private val volumeManager: VolumeManager
