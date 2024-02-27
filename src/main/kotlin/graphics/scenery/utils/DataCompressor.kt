@@ -95,7 +95,7 @@ class DataCompressor (val compressionTool: CompressionTool) {
         if(decompressedSize != uncompressed.remaining().toLong()) {
             verificationSuccessful = false
             logger.info(
-                "Decompressed size %d != uncompressed size %d",
+                "Decompressed size {} != uncompressed size {}",
                 decompressedSize,
                 uncompressed.remaining()
             )
