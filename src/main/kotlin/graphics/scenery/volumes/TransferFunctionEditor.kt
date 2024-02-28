@@ -90,7 +90,7 @@ class TransferFunctionEditor(
         val units = TickUnits()
         units.add(object: NumberTickUnit(0.1, NumberFormat.getIntegerInstance()) {
             override fun valueToString(value: Double): String {
-                val r = displayRangeEditor.getDataRange()
+                val r = displayRangeEditor.getDisplayRange()
                 return super.valueToString(value * (r.second - r.first) + r.first)
             }
         })
