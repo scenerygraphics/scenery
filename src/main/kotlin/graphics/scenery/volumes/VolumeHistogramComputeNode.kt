@@ -134,6 +134,7 @@ class VolumeHistogramComputeNode(val volume: Volume, data: ByteBuffer): RichNode
         scene.removeChild(this)
 
         val list = mutableListOf<Int>()
+        buf?.limit(numBins)
         buf?.let {
             while (it.hasRemaining()){
                 list.add(it.get())
