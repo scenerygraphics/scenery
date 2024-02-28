@@ -87,6 +87,7 @@ class ColormapPanel(val target:Volume?): JPanel() {
                 if (returnVal == JFileChooser.APPROVE_OPTION) {
                     val newColormap = Colormap.fromPNGFile(fc.selectedFile)
                     val filename = fc.selectedFile.nameWithoutExtension
+                    @Suppress("UNCHECKED_CAST")
                     val currentItems = box.items() as List<String>
 
                     val colormapName = if(filename in currentItems) {
