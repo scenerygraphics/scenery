@@ -27,7 +27,8 @@ void main() {
         }
 
         if(val >= minDisplayVal && val <= maxDisplayVal) {
-            int binID = int(floor(val / binSize));
+            float val2 = val - minDisplayVal;
+            int binID = int(floor(val2 / binSize));
             int ret = imageAtomicAdd(Histogram, ivec3(binID, 0, 0), 1);
         }
     }
