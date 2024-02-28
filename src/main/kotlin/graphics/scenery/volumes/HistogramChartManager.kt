@@ -26,7 +26,8 @@ class HistogramChartManager(val tfPlot: XYPlot,
                             val axisExtensionFactor: Double){
     val genHistButton = JCheckBox("Show Histogram")
 
-    private val histogramAxis = LogarithmicAxis("")
+    private val histYAxis = LogarithmicAxis("")
+    private val histXAxis = NumberAxis()
 
     init {
         val histogramRenderer = XYBarRenderer()
@@ -36,23 +37,17 @@ class HistogramChartManager(val tfPlot: XYPlot,
         histogramRenderer.setSeriesPaint(0, Color.GRAY)
         tfPlot.setRenderer(1, histogramRenderer)
 
-        val histXAxis = NumberAxis()
-        var range = abs(tfContainer.maxDisplayRange - tfContainer.minDisplayRange)
-        histXAxis.setRange(
-            tfContainer.minDisplayRange - (axisExtensionFactor * range),
-            tfContainer.maxDisplayRange + (axisExtensionFactor * range)
-        )
+
         histXAxis.isTickLabelsVisible = false
         histXAxis.isMinorTickMarksVisible = false
         histXAxis.isTickMarksVisible = false
+        histXAxis.autoRangeIncludesZero = false
+        histXAxis.autoRangeStickyZero = false
+        histXAxis.isAutoRange = false
 
-        histogramAxis.isTickLabelsVisible = false
-        histogramAxis.isMinorTickMarksVisible = false
-        histogramAxis.isTickMarksVisible = false
-        histogramAxis.setRange(
-            0.0,
-            1000.0
-        )
+        histYAxis.isTickLabelsVisible = false
+        histYAxis.isMinorTickMarksVisible = false
+        histYAxis.isTickMarksVisible = false
 
         val volumeHistogramData = SimpleHistogramDataset("VolumeBin")
         volumeHistogramData.adjustForBinSize = false
@@ -62,6 +57,7 @@ class HistogramChartManager(val tfPlot: XYPlot,
                 val histogramVisible = tfPlot.getDataset(1) != null
 
                 if(histogramVisible) {
+                    // hide histogram
                     tfPlot.setDataset(1, null)
                     tfPlot.setDomainAxis(1, null)
                     tfPlot.setRangeAxis(1, null)
@@ -69,13 +65,8 @@ class HistogramChartManager(val tfPlot: XYPlot,
                     mainChart.repaint()
                 } else {
                     tfPlot.setDataset(1, volumeHistogramData)
-                    tfPlot.setRangeAxis(1, histogramAxis)
+                    tfPlot.setRangeAxis(1, histYAxis)
                     populateHistogramBins( volumeHistogramData)
-                    range = abs(tfContainer.maxDisplayRange - tfContainer.minDisplayRange)
-                    histXAxis.setRange(
-                        tfContainer.minDisplayRange - (axisExtensionFactor * range),
-                        tfContainer.maxDisplayRange + (axisExtensionFactor * range)
-                    )
 
                     tfPlot.setDomainAxis(1, histXAxis)
 
@@ -120,12 +111,14 @@ class HistogramChartManager(val tfPlot: XYPlot,
             max = max(max,value)
         }
 
-        histogramAxis.setRange(
+        histYAxis.setRange(
             -0.1 ,
             max * (1.2)
         )
-
-        mainChart.repaint()
+        histXAxis.setRange(
+            tfContainer.minDisplayRange - (axisExtensionFactor * displayRange),
+            tfContainer.maxDisplayRange + (axisExtensionFactor * displayRange)
+        )
     }
 
     /**
