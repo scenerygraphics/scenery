@@ -26,8 +26,8 @@ import kotlin.math.absoluteValue
  * @author Jan Tiemann <j.tiemann@hzdr.de>
  * @author Aryaman Gupta <aryaman.gupta@tu-dresden.de>
  */
-class ColorMapPanel(val target:Volume?): JPanel() {
-    private val colorMapEditor = ColorMapEditor(target)
+class ColormapPanel(val target:Volume?): JPanel() {
+    private val colorMapEditor = ColormapEditor(target)
     private val loadedColormaps = HashMap<String, Colormap>()
 
     init {
@@ -90,7 +90,7 @@ class ColorMapPanel(val target:Volume?): JPanel() {
                     val currentItems = box.items() as List<String>
 
                     val colormapName = if(filename in currentItems) {
-                        println("${currentItems.joinToString(",")}")
+                        println(currentItems.joinToString(","))
                         val index = currentItems.count { n -> n.startsWith(filename) } + 1
                         "$filename ($index)"
                     } else {
@@ -164,7 +164,7 @@ class ColorMapPanel(val target:Volume?): JPanel() {
     /**
      * A GUI element to allow users to visually create or modify a color map
      */
-    class ColorMapEditor(var target:Volume? = null) : JPanel() {
+    class ColormapEditor(var target:Volume? = null) : JPanel() {
 
         private var colorPoints = listOf(
             ColorPoint(0.0f, Color(0f, 0f, 0f)),
@@ -288,7 +288,7 @@ class ColorMapPanel(val target:Volume?): JPanel() {
             val relativeSize = 0.25f //relative to height
             val absoluteSize = (relativeSize * h).toInt()
 
-            pointList.forEach {0
+            pointList.forEach {
                 val margin = 0.35f
 
                 val innerSize = (absoluteSize * (1.0f - margin)).toInt()
