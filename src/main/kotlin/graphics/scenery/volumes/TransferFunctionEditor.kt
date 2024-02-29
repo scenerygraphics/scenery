@@ -230,8 +230,8 @@ class TransferFunctionEditor(
 
         // transfer function IO
         val fc = JFileChooser()
-        JButton("Load").also {
-            it.toolTipText = "Load a new transfer function"
+        JButton("TF Load").also {
+            it.toolTipText = "Load a new transfer function and display range"
             it.addActionListener {
                 val returnVal: Int = fc.showOpenDialog(this)
                 if (returnVal == JFileChooser.APPROVE_OPTION) {
@@ -242,8 +242,8 @@ class TransferFunctionEditor(
             }
             histAndTFIOButtonsPanel.add(it, "skip 2, al right, push")
         }
-        JButton("Save").also {
-            it.toolTipText = "Save the current transfer function to a file"
+        JButton("TF Save").also {
+            it.toolTipText = "Save the current transfer function and display range to a file"
             it.addActionListener {
                 val option = fc.showSaveDialog(this)
                 if (option == JFileChooser.APPROVE_OPTION) {
