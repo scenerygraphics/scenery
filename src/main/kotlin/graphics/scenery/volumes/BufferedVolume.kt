@@ -297,24 +297,22 @@ class BufferedVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewe
      * Generates a histogram using GPU acceleration via [VolumeHistogramComputeNode].
      */
     override fun generateHistogram(volumeHistogramData: SimpleHistogramDataset): Int?  {
-        val volume = this
-        val tfContainer = this
 
         val volumeHistogram = VolumeHistogramComputeNode.generateHistogram(
-            volume,
-            volume.timepoints?.get(volume.currentTimepoint)!!.contents,
-            volume.getScene() ?: return null
+            this,
+            timepoints?.get(currentTimepoint)!!.contents,
+            getScene() ?: return null
         )
 
         val histogram = volumeHistogram.fetchHistogram(
-            volume.getScene()!!, volume.volumeManager.hub!!.get<Renderer>(
+            getScene()!!, volumeManager.hub!!.get<Renderer>(
                 SceneryElement.Renderer
             )!!
         )
 
-        val displayRange = abs(tfContainer.maxDisplayRange - tfContainer.minDisplayRange)
+        val displayRange = abs(maxDisplayRange - minDisplayRange)
         val binSize = displayRange / volumeHistogram.numBins
-        val minDisplayRange = tfContainer.minDisplayRange.toDouble()
+        val minDisplayRange = minDisplayRange.toDouble()
 
         var max = 0
         histogram.forEachIndexed { index, value ->

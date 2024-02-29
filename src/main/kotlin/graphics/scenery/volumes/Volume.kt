@@ -216,7 +216,7 @@ open class Volume(
             return when(dataSource){
                 VolumeDataSource.NullSource -> 1
                 is VolumeDataSource.RAISource<*> -> dataSource.type.toBytesPerValue()
-                is SpimDataMinimalSource -> (dataSource.sources.first().spimSource.type as NumericType<*>).toBytesPerValue() //I dont know if this works
+                is SpimDataMinimalSource -> (dataSource.sources.first().spimSource.type as NumericType<*>).toBytesPerValue()
             }
         }
 
@@ -429,16 +429,14 @@ open class Volume(
      */
     override fun generateHistogram(volumeHistogramData: SimpleHistogramDataset): Int? {
         volumeHistogramData.removeAllBins()
-
-        val tfContainer = this
-
+        val bins = 1024
         // This generates a histogram over the whole volume ignoring the display range.
-        val absoluteHistogram = generateHistogramSPIMSourceOnCPU(512, 1024)
+        val absoluteHistogram = generateHistogramSPIMSourceOnCPU(512, bins)
         if (absoluteHistogram != null) {
             // We now need to select only the bins we care about.
-            val absoluteBinSize = absoluteHistogram.max() / 1024.0
-            val minDisplayRange = tfContainer.minDisplayRange.toDouble()
-            val maxDisplayRange = tfContainer.maxDisplayRange.toDouble()
+            val absoluteBinSize = absoluteHistogram.max() / bins.toDouble()
+            val minDisplayRange = minDisplayRange.toDouble()
+            val maxDisplayRange = maxDisplayRange.toDouble()
 
             var max = 100
             absoluteHistogram.forEachIndexed { index, longType ->
