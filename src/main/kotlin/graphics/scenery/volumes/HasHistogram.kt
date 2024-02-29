@@ -1,16 +1,17 @@
 package graphics.scenery.volumes
 
-import net.imglib2.histogram.Histogram1d
+import org.jfree.data.statistics.SimpleHistogramDataset
 
 /**
  * @author Konrad Michel <Konrad.Michel@mailbox.tu-dresden.de>
+ * @author Jan Tiemann <j.tiemann@hzdr.de>
  *
  * Interface to abstract out a possible histogram implementation and untie it from pure Volume usage
  */
 interface HasHistogram {
     /**
-     * This is a placeholder function that needs to be overwritten by the implementing class. Currently the output should be of type Histogram1d<*>
-     * from imglib2
+     * @return most common value found in the histogram (aka. highest bar) or null if no histogram could be generated.
+     * Needed for scaling the display correctly.
      */
-    fun generateHistogram(maximumResolution: Int = 512, bins: Int = 1024) : Histogram1d<*>?
+    fun generateHistogram(volumeHistogramData: SimpleHistogramDataset): Int?
 }

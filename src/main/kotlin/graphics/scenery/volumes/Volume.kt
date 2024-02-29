@@ -36,7 +36,6 @@ import graphics.scenery.numerics.Random
 import graphics.scenery.utils.lazyLogger
 import graphics.scenery.utils.extensions.times
 import graphics.scenery.utils.forEachIndexedAsync
-import graphics.scenery.volumes.Volume.Companion.fromPathRawSplit
 import graphics.scenery.volumes.Volume.VolumeDataSource.SpimDataMinimalSource
 import io.scif.SCIFIO
 import io.scif.filters.ReaderFilter
@@ -47,7 +46,6 @@ import net.imagej.ops.OpService
 import net.imglib2.RandomAccessibleInterval
 import net.imglib2.Volatile
 import net.imglib2.histogram.Histogram1d
-import net.imglib2.histogram.Real1dBinMapper
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.numeric.ARGBType
 import net.imglib2.type.numeric.NumericType
@@ -70,14 +68,10 @@ import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.io.path.name
 import kotlin.properties.Delegates
-import kotlin.streams.toList
 import net.imglib2.type.numeric.RealType
-import net.imglib2.type.volatiles.VolatileIntType
-import net.imglib2.type.volatiles.VolatileLongType
-import net.imglib2.type.volatiles.VolatileUnsignedByteType
-import net.imglib2.type.volatiles.VolatileUnsignedShortType
+import org.jfree.data.statistics.SimpleHistogramBin
+import org.jfree.data.statistics.SimpleHistogramDataset
 import org.scijava.Context
-import org.scijava.ui.UIService
 import kotlin.math.*
 import kotlin.time.measureTimedValue
 
@@ -429,17 +423,51 @@ open class Volume(
         return VolumeSpatial(this)
     }
 
-    /**
-     * Convenience shortcut for [generateHistogram], with the default side length of 512, and 1024 bins.
-     */
-    fun generateHistogram(): Histogram1d<*>? = generateHistogram(512, 1024)
 
     /**
-     * Return a histogram over the set minDisplayRange and maxDisplayRange of the volumes viewState source (currently only using spimSource).
+     *  Calculates the histogram on the CPU.
+     */
+    override fun generateHistogram(volumeHistogramData: SimpleHistogramDataset): Int? {
+        volumeHistogramData.removeAllBins()
+
+        val tfContainer = this
+
+        // This generates a histogram over the whole volume ignoring the display range.
+        val absoluteHistogram = generateHistogramSPIMSourceOnCPU(512, 1024)
+        if (absoluteHistogram != null) {
+            // We now need to select only the bins we care about.
+            val absoluteBinSize = absoluteHistogram.max() / 1024.0
+            val minDisplayRange = tfContainer.minDisplayRange.toDouble()
+            val maxDisplayRange = tfContainer.maxDisplayRange.toDouble()
+
+            var max = 100
+            absoluteHistogram.forEachIndexed { index, longType ->
+                val startOfAbsoluteBin = index * absoluteBinSize
+                val endOfAbsoluteBin = (index+1) * absoluteBinSize
+                if (minDisplayRange <= startOfAbsoluteBin && endOfAbsoluteBin < maxDisplayRange) {
+
+                    val bin = SimpleHistogramBin(
+                        startOfAbsoluteBin,
+                        endOfAbsoluteBin,
+                        true,
+                        false
+                    )
+                    bin.itemCount = longType.get().toInt()
+                    max = max(bin.itemCount, max)
+                    volumeHistogramData.addBin(bin)
+                }
+            }
+            return max
+        }
+        return null
+    }
+
+    /**
+     * Return a histogram over the whole volume ignoring the display range. Uses the volumes viewState source (currently only using spimSource).
      * The function will select a miplevel which has less then [maximumResolution] voxels in side lengths and divide the results into [bins]
      * different bins.
      */
-    override fun generateHistogram(maximumResolution: Int, bins: Int): Histogram1d<*>? {
+    private fun generateHistogramSPIMSourceOnCPU(maximumResolution: Int, bins: Int): Histogram1d<*>? {
         val type = viewerState.sources.firstOrNull()?.spimSource?.type ?: return null
         logger.info("Volume type is ${type.javaClass.simpleName}")
         val context = if(volumeManager.hub?.getApplication()?.scijavaContext != null) {

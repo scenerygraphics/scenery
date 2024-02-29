@@ -4,23 +4,23 @@ import bdv.tools.transformation.TransformedSource
 import bvv.core.VolumeViewerOptions
 import graphics.scenery.Hub
 import graphics.scenery.OrientedBoundingBox
+import graphics.scenery.SceneryElement
+import graphics.scenery.backends.Renderer
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
-import net.imglib2.type.numeric.NumericType
 import net.imglib2.type.numeric.integer.*
 import net.imglib2.type.numeric.real.DoubleType
 import net.imglib2.type.numeric.real.FloatType
+import org.jfree.data.statistics.SimpleHistogramBin
+import org.jfree.data.statistics.SimpleHistogramDataset
 import org.joml.Vector3f
 import org.joml.Vector3i
 import org.lwjgl.system.MemoryUtil
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.concurrent.CopyOnWriteArrayList
-import kotlin.math.floor
-import kotlin.math.max
-import kotlin.math.min
-import kotlin.math.roundToInt
+import kotlin.math.*
 
 /**
  * Convenience class to handle buffer-based volumes. Data descriptor is stored in [ds], similar
@@ -291,5 +291,43 @@ class BufferedVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewe
     override fun getDimensions(): Vector3i {
         val source = ((ds.sources.first().spimSource as? TransformedSource)?.wrappedSource as? BufferSource) ?: throw IllegalStateException("No source found")
         return Vector3i(source.width, source.height, source.depth)
+    }
+
+    /**
+     * Generates a histogram using GPU acceleration via [VolumeHistogramComputeNode].
+     */
+    override fun generateHistogram(volumeHistogramData: SimpleHistogramDataset): Int?  {
+        val volume = this
+        val tfContainer = this
+
+        val volumeHistogram = VolumeHistogramComputeNode.generateHistogram(
+            volume,
+            volume.timepoints?.get(volume.currentTimepoint)!!.contents,
+            volume.getScene() ?: return null
+        )
+
+        val histogram = volumeHistogram.fetchHistogram(
+            volume.getScene()!!, volume.volumeManager.hub!!.get<Renderer>(
+                SceneryElement.Renderer
+            )!!
+        )
+
+        val displayRange = abs(tfContainer.maxDisplayRange - tfContainer.minDisplayRange)
+        val binSize = displayRange / volumeHistogram.numBins
+        val minDisplayRange = tfContainer.minDisplayRange.toDouble()
+
+        var max = 0
+        histogram.forEachIndexed { index, value ->
+            val bin = SimpleHistogramBin(
+                minDisplayRange + index * binSize,
+                minDisplayRange + (index + 1) * binSize,
+                true,
+                false
+            )
+            bin.itemCount = value
+            volumeHistogramData.addBin(bin)
+            max = max(max, value)
+        }
+        return max
     }
 }
