@@ -13,7 +13,6 @@ import java.awt.Color
 import javax.swing.JCheckBox
 import kotlin.math.abs
 import kotlin.math.max
-import kotlin.math.roundToInt
 
 /**
  * Handles all histogram related things.
@@ -34,7 +33,7 @@ class HistogramChartManager(val tfPlot: XYPlot,
         histogramRenderer.setShadowVisible(false)
         histogramRenderer.barPainter = StandardXYBarPainter()
         histogramRenderer.isDrawBarOutline = false
-        histogramRenderer.setSeriesPaint(0, Color.GRAY)
+        histogramRenderer.setSeriesPaint(0, Color(160,160,255))
         tfPlot.setRenderer(1, histogramRenderer)
 
 
@@ -81,7 +80,7 @@ class HistogramChartManager(val tfPlot: XYPlot,
 
         val volume = tfContainer as? BufferedVolume
         if (volume == null){
-            oldGenerateHistogramBins(volumeHistogramData)
+            cpuGenerateHistogramBins(volumeHistogramData)
             return
         }
 
@@ -122,35 +121,49 @@ class HistogramChartManager(val tfPlot: XYPlot,
     }
 
     /**
-     * Old code from PowerOfNames. Calculates the histogram on the CPU.
-     * Taken from https://github.com/scenerygraphics/scenery/blob/main/src/main/kotlin/graphics/scenery/volumes/TransferFunctionEditor.kt at commit 58ae87a
+     *  Calculates the histogram on the CPU.
      */
-    private fun oldGenerateHistogramBins(volumeHistogramData: SimpleHistogramDataset) {
-        val binCount = 1024.0
+    private fun cpuGenerateHistogramBins(volumeHistogramData: SimpleHistogramDataset) {
         volumeHistogramData.removeAllBins()
 
-        val histogram = (tfContainer as? HasHistogram)?.generateHistogram()
-        if (histogram != null) {
-            var binEnd = -0.0000001
+        // This generates a histogram over the whole volume ignoring the display range.
+        // We now need to select only the bins we care about.
+        val absoluteHistogram = (tfContainer as? HasHistogram)?.generateHistogram()
+        if (absoluteHistogram != null) {
             val displayRange = abs(tfContainer.maxDisplayRange - tfContainer.minDisplayRange)
-            val binSize = displayRange / binCount
-            histogram.forEachIndexed { index, longType ->
 
-                val relativeCount = (longType.get().toFloat() / histogram.totalCount().toFloat()) * histogram.binCount
-                val value =
-                    (((index.toDouble() / histogram.binCount.toDouble()) * (displayRange / histogram.binCount.toDouble()))) * histogram.binCount.toDouble()
+            val absoluteBinSize = absoluteHistogram.max() / 1024.0
+            val minDisplayRange = tfContainer.minDisplayRange.toDouble()
+            val maxDisplayRange = tfContainer.maxDisplayRange.toDouble()
 
-                if (relativeCount.roundToInt() != 0 && (value) >= binEnd) {
-                    val binStart =
-                        (((index) - (((index) % (histogram.binCount.toDouble() / binCount)))) / histogram.binCount.toDouble()) * displayRange
-                    binEnd = binStart + binSize
-                    val bin = SimpleHistogramBin(binStart, binEnd, true, false)
+            var max = 100
+            absoluteHistogram.forEachIndexed { index, longType ->
+                val startOfAbsoluteBin = index * absoluteBinSize
+                val endOfAbsoluteBin = (index+1) * absoluteBinSize
+                if (minDisplayRange <= startOfAbsoluteBin && endOfAbsoluteBin < maxDisplayRange) {
+
+                    val bin = SimpleHistogramBin(
+                        startOfAbsoluteBin,
+                        endOfAbsoluteBin,
+                        true,
+                        false
+                    )
+                    bin.itemCount = longType.get().toInt()
+                    max = max(bin.itemCount, max)
                     volumeHistogramData.addBin(bin)
                 }
-                for (i in 0 until relativeCount.roundToInt()) {
-                    volumeHistogramData.addObservation(value)
-                }
             }
+
+            histYAxis.setRange(
+                -0.1 ,
+                max * (1.2)
+            )
+
+            histXAxis.setRange(
+                tfContainer.minDisplayRange - (axisExtensionFactor * displayRange),
+                tfContainer.maxDisplayRange + (axisExtensionFactor * displayRange)
+            )
+
         }
     }
 }
