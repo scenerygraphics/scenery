@@ -2,12 +2,17 @@ package graphics.scenery.volumes
 
 import graphics.scenery.utils.lazyLogger
 import org.lwjgl.system.MemoryUtil
+import java.io.BufferedWriter
+import java.io.File
+import java.io.FileWriter
+import java.io.InputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
+
 
 /** Transfer function class with an optional [name]. */
 open class TransferFunction(val name: String = "") {
@@ -33,6 +38,11 @@ open class TransferFunction(val name: String = "") {
     /** Indicator whether the auxiliary texture needs to be reuploaded. */
     @Transient var stale = true
         protected set
+
+    /**
+     * @return control points of this tf
+     */
+    fun controlPoints() = controlPoints.toList()
 
     /**
      * Adds a new control point for position [value], with [factor].
