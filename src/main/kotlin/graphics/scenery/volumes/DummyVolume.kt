@@ -22,6 +22,7 @@ class DummyVolume(val counterStart : Int = 0) : DefaultNode("DummyVolume"), HasT
 
     val converterSetups = ArrayList<ConverterSetup>()
 
+    /** Minimum display range. */
     override var minDisplayRange: Float = 0.0f
         get() = field
         set(value) {
@@ -29,7 +30,9 @@ class DummyVolume(val counterStart : Int = 0) : DefaultNode("DummyVolume"), HasT
             field = value
             modifiedAt = System.nanoTime()
         }
-    override var maxDisplayRange: Float = 65535F
+
+    /** Maximum display range. */
+    override var maxDisplayRange: Float = 65535f
         get() = field
         set(value) {
             setTransferFunctionRange(minDisplayRange, value)
@@ -37,6 +40,7 @@ class DummyVolume(val counterStart : Int = 0) : DefaultNode("DummyVolume"), HasT
             modifiedAt = System.nanoTime()
         }
 
+    /** A pair containing the min and max display range. */
     override var range: Pair<Float, Float> = Pair<Float, Float>(minDisplayRange,maxDisplayRange)
         get() = field
         set(m) {
@@ -69,6 +73,9 @@ class DummyVolume(val counterStart : Int = 0) : DefaultNode("DummyVolume"), HasT
         this.counter = fresh.counter
     }
 
+    /**
+     * Resets the range of this volume's transfer function to [min] and [max] for the setup given as [forSetupId].
+     */
     @JvmOverloads
     open fun setTransferFunctionRange(min: Float, max: Float, forSetupId: Int = 0) {
         converterSetups.getOrNull(forSetupId)?.setDisplayRange(min.toDouble(), max.toDouble())

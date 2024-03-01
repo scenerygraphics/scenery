@@ -4,7 +4,6 @@ import graphics.scenery.*
 import graphics.scenery.backends.*
 import graphics.scenery.attribute.renderable.Renderable
 import graphics.scenery.attribute.material.Material
-import graphics.scenery.backends.vulkan.VulkanTexture.Companion.formatToString
 import graphics.scenery.backends.vulkan.VulkanTexture.Companion.toVulkanFormat
 import graphics.scenery.textures.Texture
 import graphics.scenery.textures.UpdatableTexture
@@ -295,7 +294,7 @@ object VulkanNodeHelpers {
                     val t: VulkanTexture = if (existingTexture != null
                         && existingTexture.canBeReused(texture, miplevels, device)
                         && existingTexture != defaultTexture) {
-                        existingTexture.gt = texture
+                        existingTexture.texture = texture
                         existingTexture
                     } else {
                         descriptorUpdated = true

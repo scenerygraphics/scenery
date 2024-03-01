@@ -119,7 +119,6 @@ class AsyncTextureExample: SceneryBase("Async Texture example", 512, 512) {
 
                 logger.info("Fiddling Permits available: ${texture.mutex.availablePermits()}")
                 logger.info("Upload Permits available: ${texture.gpuMutex.availablePermits()}")
-                logger.info("Available for use: ${texture.state.contains(Texture.TextureState.AvailableForUse)}")
                 Thread.sleep(50)
 
                 // We add a TextureUpdate that covers the whole texture,
