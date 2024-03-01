@@ -26,6 +26,8 @@ import java.awt.image.BufferedImage
 import java.text.NumberFormat
 import javax.imageio.ImageIO
 import javax.swing.*
+import javax.swing.event.PopupMenuEvent
+import javax.swing.event.PopupMenuListener
 
 
 /**
@@ -261,7 +263,7 @@ class TransferFunctionEditor(
             }
         })
 
-        JToggleButton("").also { button ->
+        val tfMenuButton = JToggleButton("").also { button ->
             button.icon = ImageIcon(ImageIcon(ImageIO.read(this::class.java.getResource("../ui/gear.png"))).image.getScaledInstance(16, 16, SCALE_SMOOTH))
             button.toolTipText = "Load a new transfer function and display range"
             button.addActionListener {
@@ -273,6 +275,21 @@ class TransferFunctionEditor(
             }
             histAndTFIOButtonsPanel.add(button, "skip 2, al right, push")
         }
+
+        tfMenu.addPopupMenuListener(object: PopupMenuListener {
+            override fun popupMenuWillBecomeVisible(e: PopupMenuEvent?) {
+                /* not used */
+            }
+
+            override fun popupMenuWillBecomeInvisible(e: PopupMenuEvent?) {
+                tfMenuButton.isSelected = false
+            }
+
+            override fun popupMenuCanceled(e: PopupMenuEvent?) {
+                tfMenuButton.isSelected = false
+            }
+
+        })
 
         initTransferFunction(tfContainer.transferFunction)
 

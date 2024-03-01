@@ -16,6 +16,8 @@ import javax.imageio.ImageIO
 import javax.swing.*
 import javax.swing.border.MatteBorder
 import javax.swing.border.TitledBorder
+import javax.swing.event.PopupMenuEvent
+import javax.swing.event.PopupMenuListener
 import javax.swing.filechooser.FileFilter
 import kotlin.math.absoluteValue
 
@@ -117,7 +119,7 @@ class ColormapPanel(val target:Volume?): JPanel() {
             }
         })
 
-        JToggleButton("").also { button ->
+        val colormapMenuButton = JToggleButton("").also { button ->
             button.icon = ImageIcon(ImageIcon(ImageIO.read(this::class.java.getResource("../ui/gear.png"))).image.getScaledInstance(16, 16,
                                                                                                                                     java.awt.Image.SCALE_SMOOTH
             ))
@@ -132,6 +134,21 @@ class ColormapPanel(val target:Volume?): JPanel() {
 
             add(button, "skip 2, al right, push")
         }
+
+        colormapMenu.addPopupMenuListener(object: PopupMenuListener {
+            override fun popupMenuWillBecomeVisible(e: PopupMenuEvent?) {
+                /* not used */
+            }
+
+            override fun popupMenuWillBecomeInvisible(e: PopupMenuEvent?) {
+                colormapMenuButton.isSelected = false
+            }
+
+            override fun popupMenuCanceled(e: PopupMenuEvent?) {
+                colormapMenuButton.isSelected = false
+            }
+
+        })
     }
 
     private fun JComboBox<*>.items(): List<Any> {
@@ -320,10 +337,7 @@ class ColormapPanel(val target:Volume?): JPanel() {
                     Color.WHITE
                 }
 
-//                g2d.fillRect((p1x - absoluteSize / 2).toInt(), (h - absoluteSize)/2, absoluteSize, absoluteSize)
-
-//                g2d.paint = it.color
-//                g2d.fillRect((p1x - innerSize / 2).toInt(), (h - innerSize) / 2, innerSize, innerSize)
+                // This draws a triangle below the gradient bar to indicate control points
                 g2d.paint = outlineColor
                 g2d.drawPolygon(intArrayOf(p1x.toInt(), (p1x - innerSize).toInt(), (p1x + innerSize).toInt()),
                                 intArrayOf(h-10, h-1, h-1), 3)
