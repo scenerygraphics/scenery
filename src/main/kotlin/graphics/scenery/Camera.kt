@@ -223,7 +223,7 @@ open class Camera : DefaultNode("Camera"), HasRenderable, HasMaterial, HasCustom
     }
 
     /**
-     * Returns the starting position and direction of a ray starting at the the screen space position
+     * Returns the starting position and direction of a ray starting at the screen space position
      * indicated by [x] and [y] targeting away from the camera.
      *
      * Returns (worldPos, worldDir)
@@ -493,27 +493,38 @@ open class Camera : DefaultNode("Camera"), HasRenderable, HasMaterial, HasCustom
 
     }
 
-    enum class OverlayPosition {
+    enum class OverlayAlignment {
         CENTER, TOP_LEFT, TOP_RIGHT, BOTTOM_RIGHT, BOTTOM_LEFT
     }
 
     private var orientationOverlayVisible = false
 
+    /**
+    * Class to create an orientation overlay, consisting of three axes pointing towards positive X/Y/Z.
+     * Can be placed in the center or in any of the screen corners.
+     * @param camera the camera to attach the overlay to
+     * @param radius radius for the axes
+     * @param length length of the axes
+     * @param align four corners or the center of type [OverlayAlignment]
+     * @param margin how far from the corners the overlay should be
+    */
     private inner class OrientationOverlay(
         camera: Camera = this,
-        radius: Float = 0.1f,
-        length: Float = 1f,
-        pos: OverlayPosition
+        radius: Float,
+        length: Float,
+        align: OverlayAlignment,
+        margin: Float
     ) : DefaultNode("Orientation Overlay") {
 
-        val axesRadius: Float = radius
-        val axesLength: Float = length
+        val axesRadius: Float = radius / 10
+        val axesLength: Float = length / 10
         val axesParent: Node = Group()
 
         init {
             axesParent.name = "Orientation Axes"
-            axesParent.spatialOrNull()?.position = Vector3f(0f, 0f, -5f)
-
+            axesParent.ifSpatial {
+                position = getRelativePosition(margin, align)
+            }
             var c = Cylinder(axesRadius / 2.0f, axesLength, 12)
             c.name = "X axis"
             c.material().diffuse = Vector3f(1f, 0f, 0f)
@@ -524,27 +535,71 @@ open class Camera : DefaultNode("Camera"), HasRenderable, HasMaterial, HasCustom
             c = Cylinder(axesRadius / 2.0f, axesLength, 12)
             c.name = "Y axis"
             c.material().diffuse = Vector3f(0f, 1f, 0f)
-            c.spatial().rotation = Quaternionf().rotateLocalZ(Math.PI.toFloat())
+//            c.spatial().rotation = Quaternionf().rotateLocalZ(Math.PI.toFloat())
             axesParent.addChild(c)
             //
             c = Cylinder(axesRadius / 2.0f, axesLength, 12)
             c.name = "Z axis"
             c.material().diffuse = Vector3f(0f, 0f, 1f)
-            c.spatial().rotation = Quaternionf().rotateLocalX(-halfPI)
+            c.spatial().rotation = Quaternionf().rotateLocalX(halfPI)
             axesParent.addChild(c)
             camera.addChild(axesParent)
+
+            // workaround: continuously update the position.
+            // TODO Should be done with camera callback instead
+            thread {
+                while (true) {
+                    axesParent.ifSpatial {
+                        position = getRelativePosition(margin, align)
+                    }
+                    Thread.sleep(1000)
+                }
+            }
+        }
+
+        fun getRelativePosition(margin: Float, align: OverlayAlignment): Vector3f {
+            // position normalized in range -1 to 1
+            var pos = when (align) {
+                OverlayAlignment.CENTER -> Vector2f(0f, 0f)
+                OverlayAlignment.TOP_LEFT -> Vector2f(margin, margin)
+                OverlayAlignment.TOP_RIGHT -> Vector2f(1f - margin, 1f - margin)
+                OverlayAlignment.BOTTOM_RIGHT -> Vector2f(1f - margin, 1f - margin)
+                OverlayAlignment.BOTTOM_LEFT -> Vector2f(margin, 1f - margin)
+            }
+            return spatial().viewportToView(pos)//.add(Vector3f(0f, 0f, 0.0f))
+        }
+
+        fun updateRotation() {
+            axesParent.ifSpatial {
+                // NB: camera rotation is already inverse, no need to conjugate
+                rotation = this@Camera.spatial().rotation
+            }
         }
     }
 
-    fun toggleOrientationOverlay(pos: OverlayPosition = OverlayPosition.TOP_RIGHT) {
-
-        if (!orientationOverlayVisible) {
-            val overlay = OrientationOverlay(pos = pos)
+    /**
+     * Call this method to attach an orientation overlay to the camera,
+     * consisting of three axes pointing towards positive X/Y/Z.
+     * @param align where to spawn the overlay, defaults to [OverlayAlignment.TOP_RIGHT].
+     * @param margin how far from the screen corners to spawn the overlay. Defaults to a factor of 0.1.
+     * @param radius radius for the axes
+     * @param length length of the axes
+     */
+    fun toggleOrientationOverlay(
+        align: OverlayAlignment = OverlayAlignment.TOP_RIGHT,
+        margin: Float = 0.1f,
+        radius: Float = 0.05f,
+        length: Float = 0.3f
+    ) {
+        orientationOverlayVisible = !orientationOverlayVisible
+        if (orientationOverlayVisible) {
+            val overlay = OrientationOverlay(this, radius, length, align, margin)
+            postUpdate.add {
+                overlay.updateRotation()
+            }
         } else {
             this.removeChild("Orientation Overlay")
         }
-
-        orientationOverlayVisible = !orientationOverlayVisible
     }
 
 
