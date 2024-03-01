@@ -529,20 +529,30 @@ open class Camera : DefaultNode("Camera"), HasRenderable, HasMaterial, HasCustom
                 position = getRelativePosition(margin, align)
             }
             var c = Cylinder(axesRadius / 2.0f, axesLength, 12)
+
             c.name = "X axis"
-            c.material().diffuse = Vector3f(1f, 0f, 0f)
+            c.material {
+                diffuse = Vector3f(1f, 0f, 0f)
+                emissive = Vector4f(1f, 0f, 0f, 3f)
+            }
             val halfPI = Math.PI.toFloat() / 2.0f
             c.spatial().rotation = Quaternionf().rotateLocalZ(-halfPI)
             axesParent.addChild(c)
-            //
+
             c = Cylinder(axesRadius / 2.0f, axesLength, 12)
             c.name = "Y axis"
-            c.material().diffuse = Vector3f(0f, 1f, 0f)
+            c.material {
+                diffuse = Vector3f(0f, 1f, 0f)
+                emissive = Vector4f(0f, 1f, 0f, 3f)
+            }
             axesParent.addChild(c)
-            //
+
             c = Cylinder(axesRadius / 2.0f, axesLength, 12)
             c.name = "Z axis"
-            c.material().diffuse = Vector3f(0f, 0f, 1f)
+            c.material {
+                diffuse = Vector3f(0f, 0f, 1f)
+                emissive = Vector4f(0f, 0f, 1f, 3f)
+            }
             c.spatial().rotation = Quaternionf().rotateLocalX(halfPI)
             axesParent.addChild(c)
             camera.addChild(axesParent)
