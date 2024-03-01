@@ -493,6 +493,9 @@ open class Camera : DefaultNode("Camera"), HasRenderable, HasMaterial, HasCustom
 
     }
 
+    /**
+     * This class provides possible position states for the orientation overlay.
+     */
     enum class OverlayAlignment {
         CENTER, TOP_LEFT, TOP_RIGHT, BOTTOM_RIGHT, BOTTOM_LEFT
     }
