@@ -4,7 +4,7 @@ import graphics.scenery.backends.vulkan.VulkanTexture
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.lazyLogger
 
-fun VulkanTexture.fetchTexture(texture: Texture): Int {
+fun Texture.fetchTexture(texture: Texture): Int {
     val logger by lazyLogger()
 
     val ref = VulkanTexture.getReference(texture)
