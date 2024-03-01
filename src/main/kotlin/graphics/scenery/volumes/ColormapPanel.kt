@@ -80,34 +80,34 @@ class ColormapPanel(val target:Volume?): JPanel() {
         fc.addChoosableFileFilter(PNGFileFilter())
         fc.isAcceptAllFileFilterUsed = false
 
-        JButton("Load").also {
+        val colormapMenu = JPopupMenu()
+        colormapMenu.add(JMenuItem("Load colormap ...").also {
             it.toolTipText = "Load a new colormap from a file"
             it.addActionListener {
-                val returnVal: Int = fc.showOpenDialog(this)
-                if (returnVal == JFileChooser.APPROVE_OPTION) {
-                    val newColormap = Colormap.fromPNGFile(fc.selectedFile)
-                    val filename = fc.selectedFile.nameWithoutExtension
-                    @Suppress("UNCHECKED_CAST")
-                    val currentItems = box.items() as List<String>
+                    val returnVal: Int = fc.showOpenDialog(this)
+                    if (returnVal == JFileChooser.APPROVE_OPTION) {
+                        val newColormap = Colormap.fromPNGFile(fc.selectedFile)
+                        val filename = fc.selectedFile.nameWithoutExtension
+                        @Suppress("UNCHECKED_CAST")
+                        val currentItems = box.items() as List<String>
 
-                    val colormapName = if(filename in currentItems) {
-                        println(currentItems.joinToString(","))
-                        val index = currentItems.count { n -> n.startsWith(filename) } + 1
-                        "$filename ($index)"
-                    } else {
-                        filename
-                    }
+                        val colormapName = if(filename in currentItems) {
+                            println(currentItems.joinToString(","))
+                            val index = currentItems.count { n -> n.startsWith(filename) } + 1
+                            "$filename ($index)"
+                        } else {
+                            filename
+                        }
 
-                    loadedColormaps[colormapName] = newColormap
-                    colorMapEditor.loadColormap(newColormap)
-                    box.addItem(colormapName)
-                    box.selectedItem = colormapName
+                        loadedColormaps[colormapName] = newColormap
+                        colorMapEditor.loadColormap(newColormap)
+                        box.addItem(colormapName)
+                        box.selectedItem = colormapName
                 }
             }
-            add(it, "skip 2, al right, push")
-        }
 
-        JButton("Save").also {
+        })
+        colormapMenu.add(JMenuItem("Save colormap ...").also {
             it.toolTipText = "Save the current colormap to a file"
             it.addActionListener {
                 val option = fc.showSaveDialog(this)
@@ -115,7 +115,22 @@ class ColormapPanel(val target:Volume?): JPanel() {
                     saveToFile (fc.selectedFile)
                 }
             }
-            add(it, "al right, wrap")
+        })
+
+        JToggleButton("").also { button ->
+            button.icon = ImageIcon(ImageIcon(ImageIO.read(this::class.java.getResource("../ui/gear.png"))).image.getScaledInstance(16, 16,
+                                                                                                                                    java.awt.Image.SCALE_SMOOTH
+            ))
+            button.toolTipText = "Load a new transfer function and display range"
+            button.addActionListener {
+                if(button.isSelected) {
+                    colormapMenu.show(button, 0, button.height)
+                } else {
+                    colormapMenu.isVisible = false
+                }
+            }
+
+            add(button, "skip 2, al right, push")
         }
     }
 
