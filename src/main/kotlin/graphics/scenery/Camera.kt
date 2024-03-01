@@ -535,7 +535,6 @@ open class Camera : DefaultNode("Camera"), HasRenderable, HasMaterial, HasCustom
             c = Cylinder(axesRadius / 2.0f, axesLength, 12)
             c.name = "Y axis"
             c.material().diffuse = Vector3f(0f, 1f, 0f)
-//            c.spatial().rotation = Quaternionf().rotateLocalZ(Math.PI.toFloat())
             axesParent.addChild(c)
             //
             c = Cylinder(axesRadius / 2.0f, axesLength, 12)
@@ -566,7 +565,7 @@ open class Camera : DefaultNode("Camera"), HasRenderable, HasMaterial, HasCustom
                 OverlayAlignment.BOTTOM_RIGHT -> Vector2f(1f - margin, 1f - margin)
                 OverlayAlignment.BOTTOM_LEFT -> Vector2f(margin, 1f - margin)
             }
-            return spatial().viewportToView(pos)//.add(Vector3f(0f, 0f, 0.0f))
+            return spatial().viewportToView(pos)
         }
 
         fun updateRotation() {
