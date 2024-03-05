@@ -1,0 +1,35 @@
+#version 450
+
+layout (local_size_x = 16, local_size_y = 16) in;
+layout (set = 0, binding = 0, r16f) uniform image3D Volume16Bit;
+layout (set = 1, binding = 0, r8) uniform image3D Volume8Bit;
+layout (set = 2, binding = 0, r32i) uniform iimage3D Histogram;
+
+layout(set = 3, binding = 0) uniform ShaderProperties {
+    bool volumeIs8Bit;
+    int numVoxels;
+    float maxDisplayVal;
+    float minDisplayVal;
+    int numBins;
+};
+
+void main() {
+
+    float binSize = (maxDisplayVal - minDisplayVal) / numBins;
+
+    for(int i = 0; i < numVoxels; i++) {
+        float val;
+
+        if(volumeIs8Bit) {
+            val = imageLoad(Volume8Bit, ivec3(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y, i)).x * pow(2,8) ;
+        } else {
+            val = imageLoad(Volume16Bit, ivec3(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y, i)).x * pow(2,16);
+        }
+
+        if(val >= minDisplayVal && val <= maxDisplayVal) {
+            float val2 = val - minDisplayVal;
+            int binID = int(floor(val2 / binSize));
+            int ret = imageAtomicAdd(Histogram, ivec3(binID, 0, 0), 1);
+        }
+    }
+}
