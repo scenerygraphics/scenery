@@ -105,7 +105,7 @@ Add scenery to your project's `pom.xml`:
   <dependency>
     <groupId>graphics.scenery</groupId>
     <artifactId>scenery</artifactId>
-    <version>0.9.3</version>
+    <version>0.10.0</version>
   </dependency>
 </dependencies>
 ```
@@ -141,7 +141,7 @@ Add scenery to your project's `build.gradle`:
 ```kotlin
 dependencies {
     // ...
-    api("graphics.scenery:scenery:0.9.3")
+    api("graphics.scenery:scenery:0.10.0")
 }
 ```
 
