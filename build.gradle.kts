@@ -43,7 +43,8 @@ dependencies {
     val scijavaParentPomVersion = project.properties["scijavaParentPOMVersion"]
     val lwjglVersion = project.properties["lwjglVersion"]
     
-    implementation(platform("org.scijava:pom-scijava:$scijavaParentPomVersion"))
+//    implementation(platform("org.scijava:pom-scijava:$scijavaParentPomVersion"))
+    implementation(platform("org.scijava:platform:0.1"))
     annotationProcessor("org.scijava:scijava-common:2.97.1")
 
     implementation(kotlin("reflect"))
@@ -146,6 +147,8 @@ dependencies {
     implementation("org.jfree:jfreechart:1.5.4")
     implementation("net.imagej:imagej-ops:0.45.5")
 }
+
+//configurations.getAt("compileClasspath").incoming.resolutionResult.allDependencies.filter { it.isConstraint }.forEach { println(it) }
 
 val isRelease: Boolean
     get() = System.getProperty("release") == "true"
