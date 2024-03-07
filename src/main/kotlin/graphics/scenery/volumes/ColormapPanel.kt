@@ -222,7 +222,7 @@ class ColormapPanel(val target:Volume?): JPanel() {
                         SwingUtilities.isLeftMouseButton(e) && point != null && !dragged -> {
                             point.color =
                                 JColorChooser.showDialog(null, "Choose a color for point", point.color) ?: point.color
-                            repaint()
+                            repaintAndReassign()
                         }
 
                         SwingUtilities.isRightMouseButton(e) && point != null -> {
@@ -255,7 +255,7 @@ class ColormapPanel(val target:Volume?): JPanel() {
                             colorPoints += ColorPoint((e.x / width.toFloat()), color)
                         }
                     }
-                    repaint()
+                    repaintAndReassign()
                 }
 
                 override fun mousePressed(e: MouseEvent) {
@@ -281,15 +281,25 @@ class ColormapPanel(val target:Volume?): JPanel() {
                 override fun mouseDragged(e: MouseEvent) {
                     dragging?.position = clamp(0.05f, 0.95f, e.x / width.toFloat())
                     dragged = true
-                    repaint()
+                    repaintAndReassign()
                 }
 
                 override fun mouseMoved(e: MouseEvent) {
                     val temp = hoveredOver
                     hoveredOver = pointAtMouse(e) // height is the radius of the color point sphere
-                    if (temp != hoveredOver) repaint()
+                    if (temp != hoveredOver) {
+                        repaintAndReassign()
+                    }
                 }
             })
+        }
+
+        private fun repaintAndReassign() {
+            repaint()
+
+            if(width > 0 && height > 0) {
+                target?.colormap = Colormap.fromBuffer(toBuffer(), width, height)
+            }
         }
 
         internal fun toImage(): BufferedImage {
@@ -345,9 +355,6 @@ class ColormapPanel(val target:Volume?): JPanel() {
                 g2d.fillPolygon(intArrayOf(p1x.toInt(), (p1x - innerSize-1).toInt(), (p1x + innerSize+1).toInt()),
                                 intArrayOf(h-10-1, h, h), 3)
             }
-            target?.let {
-                it.colormap = Colormap.fromBuffer(toBuffer(), width, height)
-            }
         }
 
         private fun paintBackgroundGradient(
@@ -397,7 +404,7 @@ class ColormapPanel(val target:Volume?): JPanel() {
 
             colorPoints = colorPointsList
 
-            repaint()
+            repaintAndReassign()
         }
     }
 
