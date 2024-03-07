@@ -20,6 +20,8 @@ import java.awt.Cursor
 import java.awt.Dimension
 import java.awt.Image.SCALE_SMOOTH
 import java.awt.event.MouseEvent
+import java.awt.event.MouseEvent.BUTTON1
+import java.awt.event.MouseEvent.BUTTON1_DOWN_MASK
 import java.awt.event.MouseListener
 import java.awt.event.MouseMotionListener
 import java.awt.image.BufferedImage
@@ -146,6 +148,10 @@ class TransferFunctionEditor(
         var lastUpdate = 0L
         mainChart.addMouseMotionListener(object : MouseMotionListener {
             override fun mouseDragged(e: MouseEvent) {
+                if(!SwingUtilities.isLeftMouseButton(e)) {
+                    return
+                }
+
                 val chart = e.component as ChartPanel
                 val point = mainChart.translateJava2DToScreen(e.point)
                 val item = chart.getEntityForPoint(point.x, point.y)
@@ -185,6 +191,10 @@ class TransferFunctionEditor(
         })
         mainChart.addChartMouseListener(object : ChartMouseListener {
             override fun chartMouseClicked(e: ChartMouseEvent) {
+                if(!SwingUtilities.isLeftMouseButton(e.trigger)) {
+                    return
+                }
+
                 if (e.entity is XYItemEntity) {
                     val item = e.entity as XYItemEntity
                     //click on cp
@@ -202,7 +212,7 @@ class TransferFunctionEditor(
                     }
                 }
 
-                //click on graph or  empty region
+                //click on graph or empty region
                 val point = mainChart.translateJava2DToScreen(e.trigger.point)
                 val plotArea = mainChart.chartRenderingInfo.plotInfo.dataArea
                 mouseTargetCP.x = clamp(
