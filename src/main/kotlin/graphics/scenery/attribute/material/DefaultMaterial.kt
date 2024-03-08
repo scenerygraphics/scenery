@@ -5,6 +5,7 @@ import graphics.scenery.net.Networkable
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.TimestampedConcurrentHashMap
 import org.joml.Vector3f
+import org.joml.Vector4f
 import kotlin.reflect.KClass
 
 open class DefaultMaterial : Material, Networkable {
@@ -31,6 +32,11 @@ open class DefaultMaterial : Material, Networkable {
             updateModifiedAt()
         }
     override var metallic: Float = 0.0f
+        set(value) {
+            field = value
+            updateModifiedAt()
+        }
+    override var emissive: Vector4f = Vector4f(0.0f, 0.0f, 0.0f, 0.0f)
         set(value) {
             field = value
             updateModifiedAt()

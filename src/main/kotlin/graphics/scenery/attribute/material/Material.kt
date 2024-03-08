@@ -5,6 +5,7 @@ import graphics.scenery.attribute.material.Material.CullingMode.*
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.TimestampedConcurrentHashMap
 import org.joml.Vector3f
+import org.joml.Vector4f
 
 /**
  * Material interface, storing material colors, textures, opacity properties, etc.
@@ -37,6 +38,8 @@ interface Material {
     var roughness: Float
     /** Metallicity, 0.0 is non-metal, 1.0 is full metal */
     var metallic: Float
+    /** Emission of the material and corresponding strength */
+    var emissive: Vector4f
 
     /** Blending settings for this material. See [Blending]. */
     var blending: Blending
