@@ -8,6 +8,7 @@ import org.joml.Quaternionf
 import org.joml.Vector3f
 import org.joml.Vector4f
 import org.scijava.ui.behaviour.ClickBehaviour
+import java.lang.Math.random
 import java.lang.Math.toRadians
 import java.time.LocalDateTime
 import kotlin.collections.HashMap
@@ -19,15 +20,19 @@ import kotlin.math.*
  * To move the sun with arrow keybinds, attach the behaviours using the [attachRotateBehaviours] function.
  * @param initSunDir [Vector3f] of the sun position. Defaults to sun elevation of the current local time.
  * @param emissionStrength Emission strength of the atmosphere shader. Defaults to 0.3f.
- * @param latitude Latitude of the user; needed to calculate the local sun position. Defaults to 50.0, which is central Germany.
+ * @param lat Latitude of the user; needed to calculate the local sun position. Defaults to 50.0, which is central Germany.
  */
 open class Atmosphere(initSunDir: Vector3f? = null, emissionStrength: Float = 0.3f, var latitude: Double = 50.0) :
     Icosphere(10f, 2, insideNormals = true) {
 
     @ShaderProperty
-    var sunDir: Vector3f
+    var sunDir = Vector3f(1f, 1f, 1f)
 
     private var sunDirectionManual: Boolean = false
+    /** Flag that tracks whether the sun position controls are currently attached to the input handler. */
+    var hasControls: Boolean = false
+
+    var lat = latitude
 
     init {
         this.name = "Atmosphere"
@@ -40,7 +45,8 @@ open class Atmosphere(initSunDir: Vector3f? = null, emissionStrength: Float = 0.
 
         // Only use time-based elevation when the formal parameter is empty
         if (initSunDir == null) {
-            sunDir = getSunDirFromTime()
+            logger.info("first sundir ist $sunDir")
+            getSunDirFromTime()
         }
         else {
             sunDir = initSunDir
@@ -50,18 +56,18 @@ open class Atmosphere(initSunDir: Vector3f? = null, emissionStrength: Float = 0.
         // Spawn a coroutine to update the sun direction
         val job = CoroutineScope(Dispatchers.Default).launch {
             while (!sunDirectionManual) {
-                sunDir = getSunDirFromTime()
-                // Wait 30 seconds
-                delay(30 * 1000)
+                getSunDirFromTime()
+                // Wait 10 seconds
+                delay(10 * 1000)
             }
         }
     }
 
-    /** Turn the current local time into a sun elevation angle, encoded as cartesian  [Vector3f].
+    /** Turn the current local time into a sun elevation angle, encoded as cartesian.
      * @param localTime local time parameter, defaults to [LocalDateTime.now].
      */
-    private fun getSunDirFromTime(localTime: LocalDateTime = LocalDateTime.now()): Vector3f {
-        val latitudeRad = toRadians(latitude)
+    fun getSunDirFromTime(localTime: LocalDateTime = LocalDateTime.now()) {
+        val latitudeRad = toRadians(lat)
         val dayOfYear = localTime.dayOfYear.toDouble()
         val declination = toRadians(-23.45 * cos(360.0 / 365.0 * (dayOfYear + 10)))
         val hourAngle = toRadians((localTime.hour + localTime.minute / 60.0 - 12) * 15)
@@ -79,13 +85,12 @@ open class Atmosphere(initSunDir: Vector3f? = null, emissionStrength: Float = 0.
             cos(hourAngle) * sin(latitudeRad) - tan(declination) * cos(latitudeRad)
         ) - PI / 2
 
-        val result = Vector3f(
+        sunDir = Vector3f(
             cos(azimuth).toFloat(),
             sin(elevation).toFloat(),
             sin(azimuth).toFloat()
         )
-        logger.debug("Updated sun direction to {}.", result)
-        return result
+        logger.info("Updated sun direction to {}.", sunDir)
     }
 
     /** Move the shader sun in increments by passing a direction and optionally an increment value.
@@ -97,7 +102,7 @@ open class Atmosphere(initSunDir: Vector3f? = null, emissionStrength: Float = 0.
             sunDirectionManual = true
             logger.info("Switched to manual sun direction.")
         }
-        // Define a HashMap to map arrow key dimension strings to rotation angles and axes
+        // Define a HashMap to map the arrow key dimension strings to the rotation angles and axes
         val arrowKeyMappings = HashMap<String, Pair<Float, Vector3f>>()
         arrowKeyMappings["UP"] = Pair(increment, Vector3f(1f, 0f, 0f))
         arrowKeyMappings["DOWN"] = Pair(-increment, Vector3f(1f, 0f, 0f))
@@ -112,24 +117,40 @@ open class Atmosphere(initSunDir: Vector3f? = null, emissionStrength: Float = 0.
         }
     }
 
-    /** Attach Up, Down, Left, Right key mappings to the inputhandler to rotate the sun in increments.
+    /** Attach or detach Up, Down, Left, Right key mappings to the inputhandler to rotate the sun in increments.
      * Keybinds are Ctrl + cursor keys for fast movement and Ctrl + Shift + cursor keys for slow movement.
      * @param increment Increment value for the rotation in degrees, defaults to 20°. Slow movement is always 10% of [increment]. */
-    fun attachRotateBehaviours(inputHandler: InputHandler, increment: Float = 20f) {
+    fun toggleRotateBehaviours(inputHandler: InputHandler, increment: Float = 20f) {
+        // Invert current control state
+        hasControls = !hasControls
+
         val incMap = mapOf(
             "fast" to increment,
             "slow" to increment / 10
         )
-        for (speed in listOf("fast", "slow")) {
-            for (direction in listOf("UP", "DOWN", "LEFT", "RIGHT")) {
-                val clickBehaviour = ClickBehaviour { _, _ -> incMap[speed]?.let { moveSun(direction, it) } }
-                val bindingName = "move_sun_${direction}_$speed"
-                val bindingKey = if (speed == "slow") "ctrl shift $direction" else "ctrl $direction"
-                logger.debug("Attaching behaviour $bindingName to key $direction")
-                inputHandler.addBehaviour(bindingName, clickBehaviour)
-                inputHandler.addKeyBinding(bindingName, bindingKey)
+
+        if (hasControls) {
+            for (speed in listOf("fast", "slow")) {
+                for (direction in listOf("UP", "DOWN", "LEFT", "RIGHT")) {
+                    val clickBehaviour = ClickBehaviour { _, _ -> incMap[speed]?.let { moveSun(direction, it) } }
+                    val bindingName = "move_sun_${direction}_$speed"
+                    val bindingKey = if (speed == "slow") "ctrl shift $direction" else "ctrl $direction"
+                    logger.debug("Attaching behaviour $bindingName to key $direction")
+                    inputHandler.addBehaviour(bindingName, clickBehaviour)
+                    inputHandler.addKeyBinding(bindingName, bindingKey)
+                }
             }
+        } else {
+            val behaviors = inputHandler.behaviourMap.keys()
+            behaviors.forEach {
+                if (it.contains("move_sun")) {
+                    inputHandler.removeBehaviour(it)
+                    inputHandler.removeKeyBinding(it)
+                }
+            }
+
         }
+
     }
 }
 
