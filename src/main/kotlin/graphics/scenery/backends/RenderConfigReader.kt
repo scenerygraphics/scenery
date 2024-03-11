@@ -3,7 +3,9 @@ package graphics.scenery.backends
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
+import com.fasterxml.jackson.module.kotlin.KotlinFeature
 import com.fasterxml.jackson.module.kotlin.KotlinModule
+import com.fasterxml.jackson.module.kotlin.SingletonSupport
 import graphics.scenery.Blending
 import graphics.scenery.utils.JsonDeserialisers
 import graphics.scenery.utils.lazyLogger
@@ -178,7 +180,16 @@ class RenderConfigReader {
      */
     fun loadFromFile(path: String): RenderConfig {
         val mapper = ObjectMapper(YAMLFactory())
-        mapper.registerModule(KotlinModule())
+        mapper.registerModule(
+            KotlinModule.Builder()
+                .withReflectionCacheSize(512)
+                .configure(KotlinFeature.NullToEmptyCollection, false)
+                .configure(KotlinFeature.NullToEmptyMap, false)
+                .configure(KotlinFeature.NullIsSameAsDefault, false)
+                .configure(KotlinFeature.SingletonSupport, false)
+                .configure(KotlinFeature.StrictNullChecks, false)
+                .build()
+        )
 
         var stream = this.javaClass.getResourceAsStream(path)
 

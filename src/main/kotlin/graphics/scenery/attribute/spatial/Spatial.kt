@@ -108,6 +108,15 @@ interface Spatial: RealLocalizable, RealPositionable, Networkable {
     fun centerOn(position: Vector3f): Vector3f
 
     /**
+     *  This function rotates this spatial by a fixed [yaw] and [pitch] about the [target]
+     *
+     *  @param[yaw] yaw in degrees
+     *  @param[pitch] pitch in degrees
+     *  @param[target] the target position
+     */
+    fun rotateAround(yaw: Float, pitch: Float, target: Vector3f)
+
+    /**
      * Orients the Node between points [p1] and [p2], and optionally
      * [rescale]s and [reposition]s it.
      */

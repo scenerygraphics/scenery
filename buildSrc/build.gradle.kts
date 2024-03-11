@@ -10,7 +10,7 @@ repositories {
 }
 
 dependencies {
-    implementation("org.jetbrains.dokka:dokka-gradle-plugin:1.8.20")
+    implementation("org.jetbrains.dokka:dokka-gradle-plugin:1.9.10")
 }
 
 //, imagej, imgLib2, scifio, fiji, bigDataViewer, trakEM2, n5, boneJ, ome, omero,
