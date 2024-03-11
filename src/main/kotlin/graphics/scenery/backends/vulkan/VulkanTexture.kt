@@ -201,8 +201,10 @@ open class VulkanTexture(
         tex?.gpuMutex?.acquire()
 
         val t = CoroutineScope(TextureDispatcher).launch {
-            val threadLocalPool = device.createCommandPool(device.queueIndices.transferQueue.first)
-            with(VU.newCommandBuffer(device, threadLocalPool, autostart = true)) {
+            val threadLocalTransferPool = device.createCommandPool(device.queueIndices.transferQueue.first)
+            val threadLocalGraphicsPool = device.createCommandPool(device.queueIndices.graphicsQueue.first)
+
+            with(VU.newCommandBuffer(device, threadLocalTransferPool, autostart = true)) {
                 val fence = if(block) {
                     null
                 } else {
@@ -290,14 +292,11 @@ open class VulkanTexture(
                         commandBuffer = this
                     )
 
-                    logger.debug("Updating {} with {} miplevels", this, mipLevels)
-                    // maybeCreateMipmaps will immediately return if there's only one level requested
-                    image.maybeCreateMipmaps(this, mipLevels)
                 }
 
                 endCommandBuffer(
                     this@VulkanTexture.device,
-                    threadLocalPool,
+                    threadLocalTransferPool,
                     transferQueue,
                     flush = true,
                     // FIXME: make deallocation work again when running async
@@ -305,6 +304,24 @@ open class VulkanTexture(
                     block = block,
                     fence = fence
                 )
+            }
+
+            if(mipLevels > 1) {
+                with(VU.newCommandBuffer(device, threadLocalGraphicsPool, autostart = true)) {
+                    logger.debug("Updating {} with {} miplevels", this, mipLevels)
+                    // maybeCreateMipmaps will immediately return if there's only one level requested
+                    image.maybeCreateMipmaps(this, mipLevels)
+
+                    endCommandBuffer(
+                        this@VulkanTexture.device,
+                        threadLocalGraphicsPool,
+                        queue,
+                        flush = true,
+                        // FIXME: make deallocation work again when running async
+                        dealloc = false,
+                        block = block
+                    )
+                }
             }
         }
 
