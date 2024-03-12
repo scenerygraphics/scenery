@@ -67,6 +67,7 @@ open class Atmosphere(
         }
     }
 
+    /** Rewrite the atmosphere material with the (potentially) changed emission value stored in [emissionStrength] */
     fun updateEmissionStrength() {
         material { emissive = Vector4f(0f, 0f, 0f, emissionStrength * 0.3f) }
     }
