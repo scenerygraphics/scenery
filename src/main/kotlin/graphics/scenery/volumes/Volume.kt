@@ -546,7 +546,7 @@ open class Volume(
 
     companion object {
         val setupId = AtomicInteger(0)
-        val scifio: SCIFIO = SCIFIO()
+        lateinit var scifio: SCIFIO
         private val logger by lazyLogger()
 
         @JvmStatic @JvmOverloads fun fromSpimData(
@@ -862,6 +862,8 @@ open class Volume(
             } else {
                 volumeFiles = listOf(file)
             }
+
+            scifio = SCIFIO()
 
             val volumes = CopyOnWriteArrayList<BufferedVolume.Timepoint>()
             val dims = Vector3i()
