@@ -54,11 +54,11 @@ layout (local_size_x = 16, local_size_y = 16) in;
 layout(set = 2, binding = 0, rgba32f) uniform readonly image3D InputVDI;
 layout(set = 3, binding = 0, rgba8) uniform image2D OutputViewport;
 layout (set = 4, binding = 0, r32f) uniform readonly image3D DepthVDI;
-layout (set = 6, binding = 0, r32ui) uniform readonly uimage3D OctreeCells;
+layout (set = 6, binding = 0, r32ui) uniform readonly uimage3D AccelerationGrid;
 #if DOUBLE_BUFFER
 layout(set = 7, binding = 0, rgba32f) uniform readonly image3D InputVDI2;
 layout (set = 8, binding = 0, r32f) uniform readonly image3D DepthVDI2;
-layout (set = 9, binding = 0, r32ui) uniform readonly uimage3D OctreeCells2;
+layout (set = 9, binding = 0, r32ui) uniform readonly uimage3D AccelerationGrid2;
 #endif
 ivec2 debug_pixel = ivec2(256, 300);
 
@@ -783,12 +783,12 @@ void main() {
     if(skip_empty) {
         #if DOUBLE_BUFFER
         if(useSecondBuffer){
-            num_cells = imageSize(OctreeCells2).xyz;
+            num_cells = imageSize(AccelerationGrid2).xyz;
         } else {
-            num_cells = imageSize(OctreeCells).xyz;
+            num_cells = imageSize(AccelerationGrid).xyz;
         }
         #else
-        num_cells = imageSize(OctreeCells).xyz;
+        num_cells = imageSize(AccelerationGrid).xyz;
         #endif
     } else {
         num_cells = ivec3(1);
@@ -1135,12 +1135,12 @@ void main() {
             if(skip_empty) {
                 #if DOUBLE_BUFFER
                 if(useSecondBuffer) {
-                    grid_val = imageLoad(OctreeCells2, grid_cell).r;
+                    grid_val = imageLoad(AccelerationGrid2, grid_cell).r;
                 } else {
-                    grid_val = imageLoad(OctreeCells, grid_cell).r;
+                    grid_val = imageLoad(AccelerationGrid, grid_cell).r;
                 }
                 #else
-                grid_val = imageLoad(OctreeCells, grid_cell).r;
+                grid_val = imageLoad(AccelerationGrid, grid_cell).r;
                 #endif
             } else {
                 grid_val = 1;
@@ -1262,7 +1262,7 @@ void main() {
 
             uint supsegs_in_cell;
             if(skip_empty) {
-                supsegs_in_cell = imageLoad(OctreeCells, grid_cell).r;
+                supsegs_in_cell = imageLoad(AccelerationGrid, grid_cell).r;
             } else {
                 supsegs_in_cell = 0;
             }

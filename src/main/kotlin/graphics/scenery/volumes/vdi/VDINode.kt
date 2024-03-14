@@ -168,27 +168,27 @@ class VDINode(windowWidth: Int, windowHeight: Int, val numSupersegments: Int, vd
         val numGridCells = getAccelerationGridSize()
 
         if(toBuffer == DoubleBuffer.First) {
-            material().textures["InputVDI"] = Texture(Vector3i(numSupersegments, vdiHeight, vdiWidth), 4, contents = colBuffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture)
+            material().textures[inputColorTexture] = Texture(Vector3i(numSupersegments, vdiHeight, vdiWidth), 4, contents = colBuffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture)
                 , type = FloatType(),
                 mipmap = false,
                 minFilter = Texture.FilteringMode.NearestNeighbour,
                 maxFilter = Texture.FilteringMode.NearestNeighbour
             )
-            material().textures["DepthVDI"] = Texture(Vector3i(2 * numSupersegments, vdiHeight, vdiWidth),  channels = 1, contents = depthBuffer, usageType = hashSetOf(
+            material().textures[inputDepthTexture] = Texture(Vector3i(2 * numSupersegments, vdiHeight, vdiWidth),  channels = 1, contents = depthBuffer, usageType = hashSetOf(
                 Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
 
-            material().textures["OctreeCells"] = Texture(Vector3i(numGridCells.x.toInt(), numGridCells.y.toInt(), numGridCells.z.toInt()), 1, type = UnsignedIntType(), contents = gridBuffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
+            material().textures[inputAccelerationTexture] = Texture(Vector3i(numGridCells.x.toInt(), numGridCells.y.toInt(), numGridCells.z.toInt()), 1, type = UnsignedIntType(), contents = gridBuffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
         } else {
-            material().textures["InputVDI2"] = Texture(Vector3i(numSupersegments, vdiHeight, vdiWidth), 4, contents = colBuffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture)
+            material().textures["${inputColorTexture}2"] = Texture(Vector3i(numSupersegments, vdiHeight, vdiWidth), 4, contents = colBuffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture)
                 , type = FloatType(),
                 mipmap = false,
                 minFilter = Texture.FilteringMode.NearestNeighbour,
                 maxFilter = Texture.FilteringMode.NearestNeighbour
             )
-            material().textures["DepthVDI2"] = Texture(Vector3i(2 * numSupersegments, vdiHeight, vdiWidth),  channels = 1, contents = depthBuffer, usageType = hashSetOf(
+            material().textures["${inputDepthTexture}2"] = Texture(Vector3i(2 * numSupersegments, vdiHeight, vdiWidth),  channels = 1, contents = depthBuffer, usageType = hashSetOf(
                 Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
 
-            material().textures["OctreeCells2"] = Texture(Vector3i(numGridCells.x.toInt(), numGridCells.y.toInt(), numGridCells.z.toInt()), 1, type = UnsignedIntType(), contents = gridBuffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
+            material().textures["${inputAccelerationTexture}2"] = Texture(Vector3i(numGridCells.x.toInt(), numGridCells.y.toInt(), numGridCells.z.toInt()), 1, type = UnsignedIntType(), contents = gridBuffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
         }
     }
 
@@ -214,13 +214,13 @@ class VDINode(windowWidth: Int, windowHeight: Int, val numSupersegments: Int, vd
         )
 
         if (toBuffer == DoubleBuffer.First ) {
-            material().textures["InputVDI"] = emptyColorTexture
-            material().textures["DepthVDI"] = emptyDepthTexture
-            material().textures["OctreeCells"] = emptyAccelTexture
+            material().textures[inputColorTexture] = emptyColorTexture
+            material().textures[inputDepthTexture] = emptyDepthTexture
+            material().textures[inputAccelerationTexture] = emptyAccelTexture
         } else {
-            material().textures["InputVDI2"] = emptyColorTexture
-            material().textures["DepthVDI2"] = emptyDepthTexture
-            material().textures["OctreeCells2"] = emptyAccelTexture
+            material().textures["${inputColorTexture}2"] = emptyColorTexture
+            material().textures["${inputDepthTexture}2"] = emptyDepthTexture
+            material().textures["${inputAccelerationTexture}2"] = emptyAccelTexture
         }
     }
 
@@ -262,13 +262,13 @@ class VDINode(windowWidth: Int, windowHeight: Int, val numSupersegments: Int, vd
 
 
         if(currentBuffer == DoubleBuffer.First) {
-            material().textures["InputVDI"] = colorTexture
-            material().textures["DepthVDI"] = depthTexture
-            material().textures["OctreeCells"] = accelTexture
+            material().textures[inputColorTexture] = colorTexture
+            material().textures[inputDepthTexture] = depthTexture
+            material().textures[inputAccelerationTexture] = accelTexture
         } else {
-            material().textures["InputVDI2"] = colorTexture
-            material().textures["DepthVDI2"] = depthTexture
-            material().textures["OctreeCells2"] = accelTexture
+            material().textures["${inputColorTexture}2"] = colorTexture
+            material().textures["${inputDepthTexture}2"] = depthTexture
+            material().textures["${inputAccelerationTexture}2"] = accelTexture
         }
 
         while (!colorTexture.availableOnGPU() || !depthTexture.availableOnGPU() || !accelTexture.availableOnGPU()) {
@@ -323,5 +323,11 @@ class VDINode(windowWidth: Int, windowHeight: Int, val numSupersegments: Int, vd
             //The next buffer to which data should be uploaded is the first one
             currentBuffer = DoubleBuffer.First
         }
+    }
+
+    companion object {
+        const val inputColorTexture = "InputVDI"
+        const val inputDepthTexture = "DepthVDI"
+        const val inputAccelerationTexture = "AccelerationGrid"
     }
 }
