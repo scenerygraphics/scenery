@@ -3,7 +3,7 @@ package graphics.scenery.tests.unit
 import graphics.scenery.numerics.Random
 import graphics.scenery.geometry.CatmullRomSpline
 import graphics.scenery.geometry.curve.Helix
-import graphics.scenery.proteins.MathLine
+import graphics.scenery.proteins.PositionDirection
 import graphics.scenery.utils.lazyLogger
 import org.joml.Vector3f
 import org.junit.Test
@@ -28,7 +28,7 @@ class HelixTests {
     @Test
     fun testNullVector() {
         logger.info("Test whether the exception gets thrown when the direction is the null vector.")
-        val line = MathLine(Vector3f(0f, 0f, 0f), Random.random3DVectorFromRange(-10f, 10f))
+        val line = PositionDirection(Random.random3DVectorFromRange(-10f, 10f), Vector3f(0f, 0f, 0f))
         val point1 = Random.random3DVectorFromRange( -30f, -10f)
         val point2 = Random.random3DVectorFromRange( -9f, 20f)
         val point3 = Random.random3DVectorFromRange( 21f, 30f)
@@ -69,7 +69,10 @@ class HelixTests {
             list.add(Vector3f(0.5f, -0.5f, 0f))
             return list
         }
-        val axis = MathLine(Random.random3DVectorFromRange(-10f, 10f).normalize(), Random.random3DVectorFromRange(-10f, 10f))
+        val axis = PositionDirection(
+            Random.random3DVectorFromRange(-10f, 10f),
+            Random.random3DVectorFromRange(-10f, 10f).normalize()
+        )
         val helix = Helix(axis, spline) { listOf( baseShape())}
         val vertices = helix.callPrivateFunc("calculateVertices")
         if(vertices is ArrayList<*>) {

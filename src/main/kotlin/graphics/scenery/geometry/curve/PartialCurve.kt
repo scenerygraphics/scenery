@@ -12,7 +12,7 @@ import java.nio.FloatBuffer
  * @param normalVectors: corresponds to the normals buffer of Mesh
  *
  */
-class PartialCurveMesh(verticesBuffer: FloatBuffer, normalVectors: FloatBuffer) : Mesh("PartialCurve") {
+class PartialCurve(verticesBuffer: FloatBuffer, normalVectors: FloatBuffer) : Mesh("PartialCurve") {
     init {
         geometry {
             vertices = verticesBuffer.duplicate()

@@ -192,7 +192,7 @@ class RibbonDiagram(val protein: Protein, private val showSecondaryStructures: B
                     caList.add(guidePointList[guidePointIndex + k].nextResidue?.getAtom("CA")?.getVector())
                 }
                 val axis = Axis(caList)
-                val axisLine = MathLine(axis.direction, axis.position)
+                val axisLine = PositionDirection(axis.position, axis.direction)
                 val helixCurve = Helix(axisLine, DummySpline(subSpline, sectionVerticesCount)) { listOf(rectangle) }
                 if (showSecondaryStructures) {
                     alphas.addChild(helixCurve)

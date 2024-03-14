@@ -66,7 +66,7 @@ class CurveTests {
 
         val bSpline = UniformBSpline(points, 10)
 
-        val frenetFrames = FrenetFrameCalculation.computeFrenetFrames(bSpline)
+        val frenetFrames = FrenetCurve.computeFrenetFrames(bSpline)
 
         val distances = ArrayList<Float>()
         val sameFrame = ArrayList<Boolean>()

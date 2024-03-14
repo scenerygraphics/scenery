@@ -7,7 +7,7 @@ import graphics.scenery.geometry.CatmullRomSpline
 import graphics.scenery.numerics.Random
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.geometry.curve.Helix
-import graphics.scenery.proteins.MathLine
+import graphics.scenery.proteins.PositionDirection
 
 /**
  * This is an example of how to set up a helix.
@@ -41,7 +41,7 @@ class HelixExample: SceneryBase("FlatRibbonSketch", windowWidth = 1280, windowHe
             list.add(Vector3f(0f, -0.1f, 0f))
             return list
         }
-        val axis = MathLine(Vector3f(0f, 0f, 1f), Vector3f(0f, 0f, 0f))
+        val axis = PositionDirection(Vector3f(0f, 0f, 0f), Vector3f(0f, 0f, 1f))
         val curve = Helix(axis, spline) {listOf(baseShape())}
 
         scene.addChild(curve)

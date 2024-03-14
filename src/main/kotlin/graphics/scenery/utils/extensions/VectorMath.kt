@@ -3,6 +3,7 @@ package graphics.scenery.utils.extensions
 
 import org.joml.*
 import java.lang.Math
+import java.nio.FloatBuffer
 
 /* Vector2f */
 
@@ -199,5 +200,21 @@ fun Matrix4f.compare(right: Matrix4fc, explainDiff: Boolean): Boolean {
     }
     return true
 }
+
+operator fun FloatBuffer.plusAssign(v: Vector2f) {
+    v.get(this)
+    this.position(this.position() + 2)
+}
+
+operator fun FloatBuffer.plusAssign(v: Vector3f) {
+    v.get(this)
+    this.position(this.position() + 3)
+}
+
+operator fun FloatBuffer.plusAssign(v: Vector4f) {
+    v.get(this)
+    this.position(this.position() + 4)
+}
+
 
 

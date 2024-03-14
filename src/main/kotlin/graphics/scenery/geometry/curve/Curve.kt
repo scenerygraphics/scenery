@@ -3,6 +3,8 @@ package graphics.scenery.geometry.curve
 import graphics.scenery.geometry.Spline
 import org.joml.Vector3f
 
+typealias SegmentedBaseShapeList = List<List<Vector3f>>
+
 /**
  * Interface providing the functionality of creating a geometry which evolves along a spline object.
  *
@@ -31,5 +33,5 @@ interface Curve {
      *  10 ___ 11 _____ 12 ______ 10
      *
      */
-    val baseShapes: ()-> List<List<Vector3f>>
+    val baseShapes: () -> SegmentedBaseShapeList
 }

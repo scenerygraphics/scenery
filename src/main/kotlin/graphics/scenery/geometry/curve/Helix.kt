@@ -2,7 +2,7 @@ package graphics.scenery.geometry.curve
 
 import graphics.scenery.geometry.Spline
 import graphics.scenery.Mesh
-import graphics.scenery.proteins.MathLine
+import graphics.scenery.proteins.PositionDirection
 import org.joml.*
 
 /**
@@ -13,14 +13,9 @@ import org.joml.*
  *
  * @author  Justin Buerger <burger@mpi-cbg.de>
  */
-class Helix (private val axis: MathLine, override val spline: Spline,
-             override val baseShapes: () -> List<List<Vector3f>>): Curve, Mesh("Helix") {
-    val splinePoints = spline.splinePoints()
-    private val shapes = baseShapes.invoke()
-    private val axisVector = axis.direction
-    private val axisPoint = axis.position
-    private val geometryCalculator = CurveGeometryCalculation
-
+class Helix (private val axis: PositionDirection,
+             spline: Spline,
+             baseShapes: () -> SegmentedBaseShapeList): DefaultCurve(spline, baseShapes) {
 
     init {
         val pointsPerSection = spline.pointsPerSection()
@@ -31,36 +26,39 @@ class Helix (private val axis: MathLine, override val spline: Spline,
             //if the last section contains only a single shape, it will be added below
             if (listShapes.size > 1) {
                 val cover = when (index) {
-                    0 -> {
-                        CurveCover.Top
-                    }
-
-                    subShapes.lastIndex -> {
-                        CurveCover.Bottom
-                    }
-
-                    else -> {
-                        CurveCover.None
-                    }
+                    0 -> CurveCover.Top
+                    subShapes.lastIndex -> CurveCover.Bottom
+                    else -> CurveCover.None
                 }
+
                 //default behaviour: if the last section is a single shape,
                 // it will be added to the last window of the shapes
                 if (index == subShapes.lastIndex - 1 && subShapes.last().size == 1) {
                     val arrayListShapes = listShapes as ArrayList
                     arrayListShapes.add(transformedShapes.last())
-                    this.addChild(calcMesh(arrayListShapes, CurveCover.Bottom))
+                    this.addChild(generateMesh(arrayListShapes, CurveCover.Bottom))
                 } else {
-                    this.addChild(calcMesh(listShapes, cover))
+                    this.addChild(generateMesh(listShapes, cover))
                 }
             }
         }
     }
 
     /**
+     * Not used, as shapes are created in the constructor.
+     */
+    override fun createSubShapes() {
+        /* noop */
+    }
+
+    /**
      * Transformation of the baseShapes along the spline, aligned with the helix axis.
      */
     private fun calculateTransformedShapes(): ArrayList<List<Vector3f>> {
-        if(axisVector == Vector3f(0f, 0f, 0f)) {
+        val shapes = baseShapes.invoke()
+        val splinePoints = spline.splinePoints()
+
+        if(axis.direction == Vector3f(0f, 0f, 0f)) {
             throw Exception("The direction vector of the axis must no become the null vector.")
         }
         val transformedShapes = ArrayList<List<Vector3f>>(splinePoints.size)
@@ -82,13 +80,13 @@ class Helix (private val axis: MathLine, override val spline: Spline,
             Then y = (p-p') / |p-p'|
              */
             val iVec = Vector3f()
-            val t = (point.sub(axisPoint, iVec)).dot(axisVector)/(axisVector.length()*axisVector.length())
+            val t = (point.sub(axis.position, iVec)).dot(axis.direction)/(axis.direction.length()*axis.direction.length())
             val intermediateAxis = Vector3f()
-            intermediateAxis.set(axisVector)
+            intermediateAxis.set(axis.direction)
             val plumbLine = Vector3f()
-            axisPoint.add(intermediateAxis.mul(t), plumbLine)
+            axis.position.add(intermediateAxis.mul(t), plumbLine)
             val xAxisI = Vector3f()
-            xAxisI.set(axisVector).normalize()
+            xAxisI.set(axis.direction).normalize()
             val yAxisI = Vector3f()
             point.sub(plumbLine, yAxisI).normalize()
             val zAxisI = Vector3f()
@@ -124,16 +122,16 @@ class Helix (private val axis: MathLine, override val spline: Spline,
                 //either there is one shape or exactly as many as there are spline points. There is no default for an
                 // incorrect number of shapes
                 else -> {
-                    throw Exception("Not enough (or too many) shapes provided!")
+                    throw IllegalStateException("Not enough (or too many) shapes provided!")
                 }
             }
         }
         return transformedShapes
     }
 
-    private fun calcMesh(section: List<List<Vector3f>>, cover: CurveCover): Mesh {
+    private fun generateMesh(section: SegmentedBaseShapeList, cover: CurveCover): Mesh {
         //algorithms from the curve calculation
-        val helixSectionVertices = geometryCalculator.calculateTriangles(section, cover)
-        return PartialCurveMesh(helixSectionVertices.first, helixSectionVertices.second)
+        val helixSectionVertices = calculateTriangles(section, cover)
+        return PartialCurve(helixSectionVertices.first, helixSectionVertices.second)
     }
 }
