@@ -4,6 +4,7 @@ import graphics.scenery.geometry.Spline
 import graphics.scenery.Mesh
 import graphics.scenery.proteins.PositionDirection
 import org.joml.*
+import kotlin.math.absoluteValue
 
 /**
  * This class represents a Helix in 3D space. Currently, it needs a Spline which winds around an axis defined as a line
@@ -58,8 +59,8 @@ class Helix (private val axis: PositionDirection,
         val shapes = baseShapes.invoke()
         val splinePoints = spline.splinePoints()
 
-        if(axis.direction == Vector3f(0f, 0f, 0f)) {
-            throw Exception("The direction vector of the axis must no become the null vector.")
+        if(axis.direction.length().absoluteValue <= 0.000001f) {
+            throw IllegalArgumentException("The direction vector of the axis must not be the null vector.")
         }
         val transformedShapes = ArrayList<List<Vector3f>>(splinePoints.size)
         splinePoints.forEachIndexed { index, point ->
