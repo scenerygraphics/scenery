@@ -89,23 +89,23 @@ class VDIVolumeManager (var hub: Hub, val windowWidth: Int, val windowHeight: In
 
         gridBuffer = MemoryUtil.memCalloc(numGridCells.x.toInt() * numGridCells.y.toInt() * numGridCells.z.toInt() * 4)
 
-        val outputSubVDIColor: Texture = Texture.fromImage(
+        val vdiColor: Texture = Texture.fromImage(
             Image(colorBuffer!!, maxSupersegments, windowHeight, windowWidth, FloatType()), usage = hashSetOf( Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
             channels = 4, mipmap = false,  normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
-        volumeManager.customTextures.add("OutputSubVDIColor")
-        volumeManager.material().textures["OutputSubVDIColor"] = outputSubVDIColor
+        volumeManager.customTextures.add(colorTextureName)
+        volumeManager.material().textures[colorTextureName] = vdiColor
 
-        val outputSubVDIDepth: Texture = Texture.fromImage(
+        val vdiDepth: Texture = Texture.fromImage(
             Image(depthBuffer!!, 2 * maxSupersegments, windowHeight, windowWidth, FloatType()),  usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
             channels = 1, mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
-        volumeManager.customTextures.add("OutputSubVDIDepth")
-        volumeManager.material().textures["OutputSubVDIDepth"] = outputSubVDIDepth
+        volumeManager.customTextures.add(depthTextureName)
+        volumeManager.material().textures[depthTextureName] = vdiDepth
 
         val gridCells: Texture = Texture.fromImage(
             Image(gridBuffer!!, numGridCells.x.toInt(), numGridCells.y.toInt(), numGridCells.z.toInt(), UnsignedIntType()), channels = 1,
             usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
-        volumeManager.customTextures.add("OctreeCells")
-        volumeManager.material().textures["OctreeCells"] = gridCells
+        volumeManager.customTextures.add(accelerationTextureName)
+        volumeManager.material().textures[accelerationTextureName] = gridCells
 
         volumeManager.customUniforms.add("doGeneration")
         volumeManager.shaderProperties["doGeneration"] = true
@@ -144,23 +144,23 @@ class VDIVolumeManager (var hub: Hub, val windowWidth: Int, val windowHeight: In
         thresholdBuffer = MemoryUtil.memCalloc(windowHeight * windowWidth * 4)
         numGeneratedBuffer = MemoryUtil.memCalloc(windowHeight * windowWidth * 4)
 
-        val outputSubVDIColor: Texture = Texture.fromImage(
+        val vdiColor: Texture = Texture.fromImage(
             Image(colorBuffer!!, 512, 512, ceil((totalMaxSupersegments / (512*512)).toDouble()).toInt(), FloatType()), usage = hashSetOf(
             Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), channels = 4, mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
-        volumeManager.customTextures.add("OutputSubVDIColor")
-        volumeManager.material().textures["OutputSubVDIColor"] = outputSubVDIColor
+        volumeManager.customTextures.add(colorTextureName)
+        volumeManager.material().textures[colorTextureName] = vdiColor
 
-        val outputSubVDIDepth: Texture = Texture.fromImage(
+        val vdiDepth: Texture = Texture.fromImage(
             Image(depthBuffer!!, 2 * 512, 512, ceil((totalMaxSupersegments / (512*512)).toDouble()).toInt(), FloatType()),  usage = hashSetOf(
             Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), channels = 1, mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
-        volumeManager.customTextures.add("OutputSubVDIDepth")
-        volumeManager.material().textures["OutputSubVDIDepth"] = outputSubVDIDepth
+        volumeManager.customTextures.add(depthTextureName)
+        volumeManager.material().textures[depthTextureName] = vdiDepth
 
         val gridCells: Texture =
             Texture.fromImage(Image(gridBuffer!!, numGridCells.x.toInt(), numGridCells.y.toInt(), numGridCells.z.toInt(), FloatType()), channels = 1,
             usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
-        volumeManager.customTextures.add("OctreeCells")
-        volumeManager.material().textures["OctreeCells"] = gridCells
+        volumeManager.customTextures.add(accelerationTextureName)
+        volumeManager.material().textures[accelerationTextureName] = gridCells
 
         volumeManager.customTextures.add("PrefixSums")
         volumeManager.material().textures["PrefixSums"] = Texture(
@@ -247,5 +247,12 @@ class VDIVolumeManager (var hub: Hub, val windowWidth: Int, val windowHeight: In
         numGeneratedBuffer?.let {
             MemoryUtil.memFree(it)
         }
+    }
+
+    companion object {
+        const val colorTextureName = "VDIColor"
+        const val depthTextureName = "VDIDepth"
+        const val accelerationTextureName = "AccelerationGrid"
+
     }
 }

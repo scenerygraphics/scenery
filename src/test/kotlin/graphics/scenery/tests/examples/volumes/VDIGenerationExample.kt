@@ -114,16 +114,16 @@ class VDIGenerationExample(wWidth: Int = 512, wHeight: Int = 512, val maxSuperse
             Thread.sleep(50)
         }
 
-        val vdiColor = vdiVolumeManager.material().textures["OutputSubVDIColor"]!!
+        val vdiColor = vdiVolumeManager.material().textures[VDIVolumeManager.colorTextureName]!!
         val colorCnt = AtomicInteger(0)
         (renderer as? VulkanRenderer)?.persistentTextureRequests?.add(vdiColor to colorCnt)
 
-        val vdiDepth = vdiVolumeManager.material().textures["OutputSubVDIDepth"]!!
+        val vdiDepth = vdiVolumeManager.material().textures[VDIVolumeManager.depthTextureName]!!
         val depthCnt = AtomicInteger(0)
         (renderer as? VulkanRenderer)?.persistentTextureRequests?.add(vdiDepth to depthCnt)
 
 
-        val gridCells = vdiVolumeManager.material().textures["OctreeCells"]!!
+        val gridCells = vdiVolumeManager.material().textures[VDIVolumeManager.accelerationTextureName]!!
         val gridTexturesCnt = AtomicInteger(0)
         (renderer as? VulkanRenderer)?.persistentTextureRequests?.add(gridCells to gridTexturesCnt)
 

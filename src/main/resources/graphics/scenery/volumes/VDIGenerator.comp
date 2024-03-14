@@ -45,9 +45,9 @@ layout(push_constant) uniform currentEye_t {
 
 layout(local_size_x = 16, local_size_y = 16) in;
 layout(set = 2, binding = 0) uniform sampler3D volumeCache;
-layout(set = 3, binding = 0, rgba32f) uniform image3D OutputSubVDIColor;
-layout(set = 4, binding = 0, r32f) uniform image3D OutputSubVDIDepth;
-layout (set = 8, binding = 0, r32ui) uniform uimage3D OctreeCells;
+layout(set = 3, binding = 0, rgba32f) uniform image3D VDIColor;
+layout(set = 4, binding = 0, r32f) uniform image3D VDIDepth;
+layout (set = 8, binding = 0, r32ui) uniform uimage3D AccelerationGrid;
 
 #pragma scenery endverbatim
 
@@ -141,13 +141,13 @@ void writeSupersegment(int index, float start, float end, vec4 color) {
     }
     #endif
 
-    imageStore(OutputSubVDIDepth, ivec3(2 * index, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x), vec4(start, 0, 0, 0));
-    imageStore(OutputSubVDIDepth, ivec3(2 * index + 1, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x), vec4(end, 0, 0, 0));
-    imageStore(OutputSubVDIColor, ivec3(index, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x), color);
+    imageStore(VDIDepth, ivec3(2 * index, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x), vec4(start, 0, 0, 0));
+    imageStore(VDIDepth, ivec3(2 * index + 1, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x), vec4(end, 0, 0, 0));
+    imageStore(VDIColor, ivec3(index, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x), color);
 }
 
 void update_cell_count(ivec3 cell) {
-    uint ret = imageAtomicAdd(OctreeCells, cell, 1);
+    uint ret = imageAtomicAdd(AccelerationGrid, cell, 1);
 }
 
 ivec3 num_cells;
@@ -209,11 +209,11 @@ void main()
     }
     float stepWidth = nw;
 
-    ivec3 imageCoords  = imageSize(OutputSubVDIColor);
+    ivec3 imageCoords  = imageSize(VDIColor);
     int windowWidth = imageCoords.b;
     int windowHeight = imageCoords.g;
 
-    num_cells = imageSize(OctreeCells).xyz;
+    num_cells = imageSize(AccelerationGrid).xyz;
 
 
     ivec3 grid_cell = ivec3(0);
@@ -284,8 +284,6 @@ void main()
     therefore not impact the rendering. 0.00392156862/2 = 0.00196078431*/
 
     int supersegmentNum = 0;
-
-    float quantization_error = 0;
 
     if ( tnear < tfar )
     {

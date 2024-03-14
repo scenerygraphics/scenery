@@ -64,12 +64,6 @@ if (vis && step > localNear && step < localFar)
             curV.rgb = curV.rgb + (1 - curV.a) * newColor * w;
             curV.a = curV.a + (1 - curV.a) * w;
 
-            if(supsegs_written) {
-                vec4 supseg_color = imageLoad(OutputSubVDIColor, ivec3(supersegmentNum, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x));
-                float diff = diffPremultiplied(supseg_color, x);
-                quantization_error += diff;
-            }
-
             steps_in_supseg++;
 
             if(!transparentSample) {

@@ -8,6 +8,7 @@ import graphics.scenery.textures.Texture
 import graphics.scenery.utils.DataCompressor
 import graphics.scenery.utils.extensions.fetchTexture
 import graphics.scenery.utils.lazyLogger
+import graphics.scenery.volumes.VDIVolumeManager
 import graphics.scenery.volumes.Volume
 import graphics.scenery.volumes.VolumeManager
 import org.joml.Vector2i
@@ -95,19 +96,15 @@ class VDIStreamer {
         var vdiDepthBuffer: ByteBuffer?
         var gridCellsBuff: ByteBuffer?
 
-        val vdiColor = vdiVolumeManager.material().textures["OutputSubVDIColor"]!!
+        val vdiColor = vdiVolumeManager.material().textures[VDIVolumeManager.colorTextureName]!!
 
-        val vdiDepth = vdiVolumeManager.material().textures["OutputSubVDIDepth"]!!
+        val vdiDepth = vdiVolumeManager.material().textures[VDIVolumeManager.depthTextureName]!!
 
-        val gridCells = vdiVolumeManager.material().textures["OctreeCells"]!!
+        val gridCells = vdiVolumeManager.material().textures[VDIVolumeManager.accelerationTextureName]!!
 
         renderer.postRenderLambdas.add {
 
-            logger.info("vdistreaming: ${vdiStreaming.get()}")
-
             if (!firstFrame && vdiStreaming.get()) {
-
-                logger.info("Now it is positive!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 
                 Texture().fetchTexture(vdiColor)
                 Texture().fetchTexture(vdiDepth)
@@ -213,8 +210,6 @@ class VDIStreamer {
                     } else {
                         vdisStreamed += 1
                     }
-
-                    Thread.sleep(2000)
                 }
             }
             firstFrame = false
@@ -332,8 +327,6 @@ class VDIStreamer {
                 payload = subscriber.recv()
             }
             logger.info("Time taken for the receive: ${receiveTime/1e9}")
-
-            logger.warn("${vdiNode.skip_empty}")
 
             if (payload != null) {
                 vdiData = decompressVDI(
