@@ -110,10 +110,10 @@ class AsyncTextureExample: SceneryBase("Async Texture example", 512, 512) {
             mem
         })
 
-        thread {
+        thread(isDaemon = true) {
             Thread.sleep(5000)
 
-            while(true) {
+            while(running) {
                 val index = textures.currentReadPosition
                 val texture = textures.get()
 
