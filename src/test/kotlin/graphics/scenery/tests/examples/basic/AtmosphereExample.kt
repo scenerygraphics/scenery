@@ -93,7 +93,7 @@ class AtmosphereExample : SceneryBase("Atmosphere Example",
 
         setupCameraModeSwitching()
 
-        inputHandler?.let { atmos.toggleRotateBehaviours(it) }
+        inputHandler?.let { atmos.attachBehaviors(it) }
     }
 
     companion object {
