@@ -14,7 +14,11 @@ if (vis && step > localNear && step < localFar)
     v.rgb = v.rgb + (1.0f - v.a) * newColor * adjusted_alpha;
     v.a = v.a + (1.0f - v.a) * adjusted_alpha;
 
+    v.rgb = mix(previous.rgb, v.rgb, 0.5);
+
     if(v.a >= 1.0f) {
         break;
     }
+
+    previous = v;
 }
