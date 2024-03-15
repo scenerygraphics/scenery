@@ -11,6 +11,7 @@ import graphics.scenery.backends.Renderer
 import graphics.scenery.volumes.Colormap
 import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.Volume
+import net.imagej.lut.LUTService
 import net.imagej.ops.OpService
 import net.imglib2.histogram.Histogram1d
 import org.scijava.Context
@@ -54,7 +55,7 @@ class BDVExample: SceneryBase("BDV Rendering example", 1280, 720) {
 
             // If file is null, we'll use one of our example datasets.
             if(file == null) {
-                file = File(getDemoFilesPath() + "/volumes/t1-head.xml")
+                file = File(getDemoFilesPath() + "/volumes/visible-male.xml")
             }
             files.add(file.absolutePath)
         }
@@ -73,7 +74,7 @@ class BDVExample: SceneryBase("BDV Rendering example", 1280, 720) {
         val options = VolumeViewerOptions().maxCacheSizeInMB(maxCacheSize)
         val v = Volume.fromSpimData(XmlIoSpimDataMinimal().load(files.first()), hub, options)
         v.name = "volume"
-        v.colormap = Colormap.get("hot")
+        v.colormap = Colormap.get("jet")
 
         // we set some known properties here for the T1 head example dataset
         if(files.first().endsWith("t1-head.xml")) {
@@ -82,6 +83,8 @@ class BDVExample: SceneryBase("BDV Rendering example", 1280, 720) {
             v.spatial().scale = Vector3f(0.2f)
             v.setTransferFunctionRange(0.0f, 2000.0f)
         }
+        v.transferFunction = TransferFunction.ramp(0.2f, 0.15f)
+        v.multiResolutionLevelLimits = 0 to 1
 
         v.viewerState.sources.firstOrNull()?.spimSource?.getSource(0, 0)?.let { rai ->
             var h: Any?
