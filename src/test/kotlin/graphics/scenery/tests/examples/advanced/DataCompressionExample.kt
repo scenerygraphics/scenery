@@ -56,8 +56,13 @@ class DataCompressionExample: SceneryBase("DataCompressionExample", wantREPL = f
         }
     }
 
-
+    /**
+     * Companion object for providing a main method.
+     */
     companion object {
+        /**
+         * The main entry point. Executes this example application when it is called.
+         */
         @JvmStatic
         fun main(args: Array<String>) {
             DataCompressionExample().main()

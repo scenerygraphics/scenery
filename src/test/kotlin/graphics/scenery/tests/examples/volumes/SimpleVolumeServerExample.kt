@@ -78,7 +78,13 @@ class SimpleVolumeServerExample : SceneryBase ("Volume Server Example", 512, 512
         setupCameraModeSwitching()
     }
 
+    /**
+     * Companion object for providing a main method.
+     */
     companion object {
+        /**
+         * The main entry point. Executes this example application when it is called.
+         */
         @JvmStatic
         fun main(args: Array<String>) {
             SimpleVolumeServerExample().main()

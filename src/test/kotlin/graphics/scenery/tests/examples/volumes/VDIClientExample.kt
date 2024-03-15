@@ -14,6 +14,13 @@ import kotlin.concurrent.thread
  * Example application showing how to create a client application for receiving VDIs across a network
  * and rendering them.
  *
+ * To launch, the following VM parameter needs to be set: -Dscenery.Server=true
+ *
+ * Though this is a client application for streaming VDIs, it is a server in scenery's networking code
+ * as it controls the scene configuration (e.g., camera pose).
+ *
+ * Can be used with [VDIStreamingExample]
+ *
  * @author Aryaman Gupta <argupta@mpi-cbg.de>
  */
 class VDIClientExample : SceneryBase("VDI Client", 512, 512, wantREPL = false) {
@@ -67,7 +74,13 @@ class VDIClientExample : SceneryBase("VDI Client", 512, 512, wantREPL = false) {
         }
     }
 
+    /**
+     * Companion object for providing a main method.
+     */
     companion object {
+        /**
+         * The main entry point. Executes this example application when it is called.
+         */
         @JvmStatic
         fun main(args: Array<String>) {
             VDIClientExample().main()

@@ -89,7 +89,13 @@ class PostRenderLambdaExample : SceneryBase("PosRenderLambdaExample") {
         super.main()
     }
 
+    /**
+     * Companion object for providing a main method.
+     */
     companion object {
+        /**
+         * The main entry point. Executes this example application when it is called.
+         */
         @JvmStatic
         fun main(args: Array<String>) {
             PostRenderLambdaExample().main()

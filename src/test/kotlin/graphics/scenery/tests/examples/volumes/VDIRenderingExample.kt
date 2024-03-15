@@ -87,7 +87,13 @@ class VDIRenderingExample : SceneryBase("VDI Rendering Example", 512, 512) {
         scene.addChild(plane)
     }
 
+    /**
+     * Companion object for providing a main method.
+     */
     companion object {
+        /**
+         * The main entry point. Executes this example application when it is called.
+         */
         @JvmStatic
         fun main(args: Array<String>) {
             VDIRenderingExample().main()

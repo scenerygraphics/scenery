@@ -14,6 +14,15 @@ import kotlin.concurrent.thread
 /**
  * Example showing how Volumetric Depth Images (VDIs) can be generated and streamed across a network.
  *
+ * To launch, the following VM parameters need to be set:
+ * -Dscenery.ServerAddress=<IP_Address of client>, e.g., -Dscenery.ServerAddress=tcp://127.0.0.1
+ * -Dscenery.RemoteCamera=true
+ *
+ * Though this is a server application for streaming VDIs, it is a client in scenery's networking code
+ * as it obtains the scene configuration (e.g., camera pose) from the VDI streaming client.
+ *
+ * Can be used with [VDIClientExample]
+ *
  * @author Aryaman Gupta <argupta@mpi-cbg.de> and Wissal Salhi
  */
 class VDIStreamingExample : SceneryBase("VDI Streaming Example", 512, 512) {
@@ -78,7 +87,13 @@ class VDIStreamingExample : SceneryBase("VDI Streaming Example", 512, 512) {
 
     }
 
+    /**
+     * Companion object for providing a main method.
+     */
     companion object {
+        /**
+         * The main entry point. Executes this example application when it is called.
+         */
         @JvmStatic
         fun main(args: Array<String>) {
             VDIStreamingExample().main()

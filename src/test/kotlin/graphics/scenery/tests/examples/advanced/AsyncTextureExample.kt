@@ -152,16 +152,17 @@ class AsyncTextureExample: SceneryBase("Async Texture example", 512, 512) {
         }
     }
 
-    fun dumpTimes() {
-        val f = File("timings-${getProcessID()}.csv")
-        f.writeText(frametimes.joinToString(";"))
-    }
-
     override fun inputSetup() {
         setupCameraModeSwitching()
     }
 
+    /**
+     * Companion object for providing a main method.
+     */
     companion object {
+        /**
+         * The main entry point. Executes this example application when it is called.
+         */
         @JvmStatic
         fun main(args: Array<String>) {
             AsyncTextureExample().main()

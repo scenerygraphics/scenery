@@ -209,7 +209,14 @@ class ClientApplication : SceneryBase("Client Application", 512, 512)  {
             })
         inputHandler?.addKeyBinding("change_mode", "T")
     }
+
+    /**
+     * Companion object for providing a main method.
+     */
     companion object {
+        /**
+         * The main entry point. Executes this example application when it is called.
+         */
         @JvmStatic
         fun main(args: Array<String>) {
             ClientApplication().main()
