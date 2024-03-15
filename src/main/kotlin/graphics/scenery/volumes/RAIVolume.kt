@@ -75,7 +75,9 @@ class RAIVolume(@Transient val ds: VolumeDataSource, options: VolumeViewerOption
             val s = source.spimSource.getSource(0, 0)
             val min = Vector3i(s.min(0).toInt(), s.min(1).toInt(), s.min(2).toInt())
             val max = Vector3i(s.max(0).toInt(), s.max(1).toInt(), s.max(2).toInt())
-            max.sub(min)
+            val d = max.sub(min)
+            logger.info("Dimensions are $d")
+            d
         } else {
             Vector3i(1, 1, 1)
         }
