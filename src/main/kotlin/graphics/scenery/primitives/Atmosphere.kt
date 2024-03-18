@@ -133,7 +133,6 @@ open class Atmosphere(
      * @param increment Increment value for the rotation in degrees, defaults to 20°. Slow movement is always 10% of [increment]. */
     fun attachBehaviors(inputHandler: InputHandler, increment: Float = 20f) {
         hasControls = true
-        job.cancel()
         val incMap = mapOf(
             "fast" to increment,
             "slow" to increment / 10
@@ -154,7 +153,7 @@ open class Atmosphere(
     /** Detach Ctrl + cursor key bindings from the input handler. */
     fun detachBehaviors(inputHandler: InputHandler) {
         hasControls = false
-        job.start()
+        sunDirectionManual = false
         val behaviors = inputHandler.behaviourMap.keys()
         behaviors.forEach {
             if (it.contains("move_sun")) {
