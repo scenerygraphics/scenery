@@ -146,7 +146,7 @@ class ClientApplication : SceneryBase("Client Application", 512, 512)  {
 
                     if (firstVDIStream) {
                         thread {
-                            vdiStreamer.receiveAndUpdateVDI(
+                            vdiStreamer.receiveAndUpdate(
                                 vdiNode,
                                 "tcp://localhost:6655",
                                 renderer!!,

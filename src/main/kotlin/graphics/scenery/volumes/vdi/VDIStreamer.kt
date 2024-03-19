@@ -37,20 +37,20 @@ class VDIStreamer {
     var vdiStreaming: AtomicBoolean = AtomicBoolean(false)
 
     /** the number of VDIs streamed so far */
-    var vdisStreamed: Int = 0
+    private var vdisStreamed: Int = 0
 
     /** is this the first VDI received so far? */
-    var firstVDIReceived = true
+    private var firstVDIReceived = true
 
     /** the ZMQ context with 4 threads used for publishing the VDI */
-    val context: ZContext = ZContext(4)
+    private val context: ZContext = ZContext(4)
 
-    private fun createPublisher(context: ZContext, IPAddress : String) : ZMQ.Socket {
+    private fun createPublisher(context: ZContext, address : String) : ZMQ.Socket {
         val publisher: ZMQ.Socket = context.createSocket(SocketType.PUB)
         publisher.isConflate = true
-        val address = IPAddress
-        val port = try {
-            logger.warn(IPAddress)
+
+        try {
+            logger.warn(address)
             publisher.bind(address)
             address.substringAfterLast(":").toInt()
         } catch (e: ZMQException) {
@@ -71,8 +71,15 @@ class VDIStreamer {
      * @param[vdiVolumeManager] The [VolumeManager] set up to generate VDIs
      * @param[renderer] The renderer for this application
      */
-    fun setup(ipAddress: String, cam: Camera, volumeDim: Vector3f, volume: Volume,
-              maxSupersegments : Int, vdiVolumeManager: VolumeManager, renderer: Renderer) {
+    fun setup(
+        ipAddress: String,
+        cam: Camera,
+        volumeDim: Vector3f,
+        volume: Volume,
+        maxSupersegments: Int,
+        vdiVolumeManager: VolumeManager,
+        renderer: Renderer
+    ) {
 
         val vdiData = VDIData(
             VDIBufferSizes(),
@@ -177,7 +184,7 @@ class VDIStreamer {
 
                     var messageLength = vdiDataSize.size + metadataBytes.size + compressedColor!!.remaining()
                     messageLength += compressedDepth!!.remaining()
-                    messageLength += accelSize as Int
+                    messageLength += accelSize
 
                     val message = ByteArray(messageLength)
                     vdiDataSize.copyInto(message)
@@ -215,16 +222,17 @@ class VDIStreamer {
         }
     }
 
-    private fun decompressVDI(payload: ByteArray,
-                              compressedColor: ByteBuffer,
-                              compressedDepth: ByteBuffer,
-                              accelGridBuffer: ByteBuffer,
-                              colorBuffer: ByteBuffer,
-                              depthBuffer: ByteBuffer,
-                              colorSize: Int,
-                              depthSize: Int,
-                              compressor: DataCompressor,
-                              compressionTool: DataCompressor.CompressionTool): VDIData {
+    private fun decompress(
+        payload: ByteArray,
+        compressedColor: ByteBuffer,
+        compressedDepth: ByteBuffer,
+        accelGridBuffer: ByteBuffer,
+        colorBuffer: ByteBuffer,
+        depthBuffer: ByteBuffer,
+        colorSize: Int,
+        depthSize: Int,
+        compressor: DataCompressor
+    ): VDIData {
 
         val metadataSize = payload.sliceArray(0 until 3).toString(Charsets.US_ASCII).toInt() //hardcoded 3 digit number
         val metadata = ByteArrayInputStream(payload.sliceArray(3 until (metadataSize + 3)))
@@ -276,16 +284,22 @@ class VDIStreamer {
      * The function runs blocking to receive and update successive VDIs transmitted across the network.
      *
      * @param[vdiNode] The [VDINode] that is part of the scene to be rendered
-     * @param[ipAddress] The network address (IP address and port number) from which to receive the VDIs
+     * @param[address] The network address (name/IP address and port number) from which to receive the VDIs
      * @param[renderer] The renderer for this application
      * @param[windowWidth] Window width of the application window.
      * @param[windowHeight] Window height of the application window.
      * @param[numSupersegments] The maximum number of supersegments in any list of the VDI, i.e., its resolution along z
      */
-    fun receiveAndUpdateVDI(vdiNode: VDINode, ipAddress: String, renderer: Renderer, windowWidth: Int, windowHeight: Int, numSupersegments: Int) {
+    fun receiveAndUpdate(
+        vdiNode: VDINode,
+        address: String,
+        renderer: Renderer,
+        windowWidth: Int,
+        windowHeight: Int,
+        numSupersegments: Int
+    ) {
         val subscriber: ZMQ.Socket = context.createSocket(SocketType.SUB)
         subscriber.isConflate = true
-        val address = ipAddress
         try {
             subscriber.connect(address)
         } catch (e: ZMQException) {
@@ -328,7 +342,7 @@ class VDIStreamer {
             logger.info("Time taken for the receive: ${receiveTime/1e9}")
 
             if (payload != null) {
-                vdiData = decompressVDI(
+                vdiData = decompress(
                     payload,
                     compressedColor,
                     compressedDepth,
@@ -337,8 +351,7 @@ class VDIStreamer {
                     depthBuffer,
                     colorSize,
                     depthSize,
-                    compressor,
-                    compressionTool
+                    compressor
                 )
 
                 colorBuffer.limit(colorBuffer.remaining() - decompressionBuffer)

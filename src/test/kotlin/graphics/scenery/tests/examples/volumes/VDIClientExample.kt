@@ -70,7 +70,7 @@ class VDIClientExample : SceneryBase("VDI Client", 512, 512, wantREPL = false) {
             while (!renderer!!.firstImageReady) {
                 Thread.sleep(100)
             }
-            vdiStreamer.receiveAndUpdateVDI(vdiNode, "tcp://localhost:6655", renderer!!, windowWidth, windowHeight, numSupersegments)
+            vdiStreamer.receiveAndUpdate(vdiNode, "tcp://localhost:6655", renderer!!, windowWidth, windowHeight, numSupersegments)
         }
     }
 
