@@ -106,7 +106,7 @@ class UniformBSpline(protected val controlPoints: ArrayList<Vector3f>, val n: In
         return  controlPoints
     }
 
-    override fun verticesCountPerSection(): Int {
+    override fun pointsPerSection(): Int {
         return n
     }
 
