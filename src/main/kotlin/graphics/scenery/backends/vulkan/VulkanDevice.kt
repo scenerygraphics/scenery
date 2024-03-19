@@ -396,7 +396,7 @@ open class VulkanDevice(
      * Creates a new Vulkan queue on [device] with the queue family index [queueFamilyIndex] and returns the queue.
      */
     fun getQueue(queueFamilyIndex: Int): QueueWithMutex {
-        val index = queues[queueFamilyIndex]?.size ?: 0
+        val index = queues[queueFamilyIndex]?.lastIndex ?: 0
 
         val availableQueues = queueProps[queueFamilyIndex].queueCount()
 
