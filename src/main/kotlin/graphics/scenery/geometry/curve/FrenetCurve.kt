@@ -24,7 +24,7 @@ interface FrenetCurve: Curve {
     /**
      * Transforms the base shapes with help of the frenet frames.
      */
-    fun transformedBaseShapes(shapes: SegmentedBaseShapeList, frenetFrames: List<FrenetFrame>): SegmentedBaseShapeList {
+    fun transformedBaseShapes(shapes: SegmentedShapeList, frenetFrames: List<FrenetFrame>): SegmentedShapeList {
 
         if (frenetFrames.isEmpty()) {
             logger.warn("The spline provided for the Curve is empty.")
@@ -50,20 +50,23 @@ interface FrenetCurve: Curve {
                 tr.x(), tr.y(), tr.z(), 1f
             )
         }
-        val transformedBaseShapes = ArrayList<List<Vector3f>>(bases.size)
+        val transformedBaseShapes = ArrayList<Shape>(bases.size)
         bases.forEachIndexed { index, base ->
             val shape = if (shapes.size == 1) {
                 shapes.first()
             } else {
                 shapes[index]
             }
-            val transformedShape = ArrayList<Vector3f>(shape.size)
-            shape.forEach { point ->
+            val transformedVertices = ArrayList<Vertex>(shape.vertices.size)
+            shape.vertices.forEach { point ->
                 val transformedPoint = Vector3f()
-                base.transformPosition(point, transformedPoint)
-                transformedShape.add(transformedPoint)
+                val transformedNormal = Vector3f()
+                base.transformPosition(point.v, transformedPoint)
+                base.transformPosition(point.n, transformedNormal)
+                val v = Vertex(transformedPoint, transformedNormal, point.uv)
+                transformedVertices.add(v)
             }
-            transformedBaseShapes.add(transformedShape)
+            transformedBaseShapes.add(Shape(transformedVertices))
         }
         return transformedBaseShapes
     }

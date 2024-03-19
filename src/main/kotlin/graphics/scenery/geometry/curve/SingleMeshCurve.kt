@@ -16,7 +16,7 @@ import org.joml.Vector3f
  * @param [spline] the spline along which the geometry will be rendered
  */
 class SingleMeshCurve(spline: Spline,
-                      baseShapes: () -> SegmentedBaseShapeList,
+                      baseShapes: () -> SegmentedShapeList,
                       firstPerpendicularVector: Vector3f = Vector3f(0f, 0f, 0f),
                       countDifferentShapes: Int = 15
 ): FrenetCurve, DefaultCurve(spline, baseShapes, firstPerpendicularVector, createSubShapes = false) {
@@ -33,8 +33,8 @@ class SingleMeshCurve(spline: Spline,
         } else {
             var partialCurveSize = 1
             shapes.windowed(2, 1) { frame ->
-                when (frame[0].size) {
-                    frame[1].size -> {
+                when (frame[0].vertices.size) {
+                    frame[1].vertices.size -> {
                         partialCurveSize++
                     }
 
@@ -61,7 +61,7 @@ class SingleMeshCurve(spline: Spline,
             else {
                 countList.forEachIndexed { index, count ->
                     val incompleteShapes = baseShapes.invoke()
-                    val shapes = ArrayList<List<Vector3f>>(incompleteShapes.size+countList.size)
+                    val shapes = ArrayList<Shape>(incompleteShapes.size+countList.size)
                     val incompleteFrames = frenetFrames.invoke()
                     val frames = ArrayList<FrenetFrame>(shapes.size)
                     for (j in 0 until count) {

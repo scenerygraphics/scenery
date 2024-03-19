@@ -3,6 +3,7 @@ package graphics.scenery.geometry.curve
 import graphics.scenery.geometry.Spline
 import graphics.scenery.Mesh
 import graphics.scenery.proteins.PositionDirection
+import graphics.scenery.utils.extensions.X
 import org.joml.*
 import kotlin.math.absoluteValue
 
@@ -16,7 +17,7 @@ import kotlin.math.absoluteValue
  */
 class Helix (private val axis: PositionDirection,
              spline: Spline,
-             baseShapes: () -> SegmentedBaseShapeList): DefaultCurve(spline, baseShapes) {
+             baseShapes: () -> SegmentedShapeList): DefaultCurve(spline, baseShapes) {
 
     init {
         val pointsPerSection = spline.pointsPerSection()
@@ -55,14 +56,14 @@ class Helix (private val axis: PositionDirection,
     /**
      * Transformation of the baseShapes along the spline, aligned with the helix axis.
      */
-    private fun calculateTransformedShapes(): ArrayList<List<Vector3f>> {
+    private fun calculateTransformedShapes(): ArrayList<Shape> {
         val shapes = baseShapes.invoke()
         val splinePoints = spline.splinePoints()
 
         if(axis.direction.length().absoluteValue <= 0.000001f) {
             throw IllegalArgumentException("The direction vector of the axis must not be the null vector.")
         }
-        val transformedShapes = ArrayList<List<Vector3f>>(splinePoints.size)
+        val transformedShapes = ArrayList<Shape>(splinePoints.size)
         splinePoints.forEachIndexed { index, point ->
             /*
             The coordinate systems which walk along the spline are calculated like so:
@@ -90,8 +91,8 @@ class Helix (private val axis: PositionDirection,
             xAxisI.set(axis.direction).normalize()
             val yAxisI = Vector3f()
             point.sub(plumbLine, yAxisI).normalize()
-            val zAxisI = Vector3f()
-            xAxisI.cross(yAxisI, zAxisI).normalize()
+//            xAxisI.cross(yAxisI, zAxisI).normalize()
+            val zAxisI = (xAxisI X yAxisI).normalize()
             //point transformation
             val inversionMatrix = Matrix3f(xAxisI, yAxisI, zAxisI).invert()
             val xAxis = Vector3f()
@@ -108,17 +109,27 @@ class Helix (private val axis: PositionDirection,
             when (shapes.size) {
                 1 -> {
                     val shape = shapes.first()
-                    transformedShapes.add(shape.map { shapePoint ->
+                    transformedShapes.add(Shape(shape.vertices.map { shapePoint ->
                         val transformedPoint = Vector3f()
-                        transformMatrix.transformPosition(shapePoint, transformedPoint)
-                    })
+                        transformMatrix.transformPosition(shapePoint.v, transformedPoint)
+
+                        val transformedNormal = Vector3f()
+                        transformMatrix.transformPosition(shapePoint.n, transformedNormal)
+
+                        Vertex(transformedPoint, transformedNormal, shapePoint.uv)
+                    }))
                 }
                 splinePoints.size -> {
                     val shape = shapes[index]
-                    transformedShapes.add(shape.map { shapePoint ->
+                    transformedShapes.add(Shape(shape.vertices.map { shapePoint ->
                         val transformedPoint = Vector3f()
-                        transformMatrix.transformPosition(shapePoint, transformedPoint)
-                    })
+                        transformMatrix.transformPosition(shapePoint.v, transformedPoint)
+
+                        val transformedNormal = Vector3f()
+                        transformMatrix.transformPosition(shapePoint.n, transformedNormal)
+
+                        Vertex(transformedPoint, shapePoint.n, shapePoint.uv)
+                    }))
                 }
                 //either there is one shape or exactly as many as there are spline points. There is no default for an
                 // incorrect number of shapes
@@ -130,7 +141,7 @@ class Helix (private val axis: PositionDirection,
         return transformedShapes
     }
 
-    private fun generateMesh(section: SegmentedBaseShapeList, cover: CurveCover): Mesh {
+    private fun generateMesh(section: SegmentedShapeList, cover: CurveCover): Mesh {
         //algorithms from the curve calculation
         val helixSectionVertices = calculateTriangles(section, cover)
         return PartialCurve(helixSectionVertices.first, helixSectionVertices.second)

@@ -1,9 +1,14 @@
 package graphics.scenery.geometry.curve
 
 import graphics.scenery.geometry.Spline
+import org.joml.Vector2f
 import org.joml.Vector3f
 
-typealias SegmentedBaseShapeList = List<List<Vector3f>>
+data class Vertex(val v: Vector3f, val n: Vector3f, val uv: Vector2f)
+data class Shape(val vertices: List<Vertex>)
+typealias SegmentedShapeList = List<Shape>
+
+fun List<Vector3f>.toShape(): Shape = Shape(this.map { Vertex(it, it, Vector2f()) })
 
 /**
  * Interface providing the functionality of creating a geometry which evolves along a spline object.
@@ -33,5 +38,5 @@ interface Curve {
      *  10 ___ 11 _____ 12 ______ 10
      *
      */
-    val baseShapes: () -> SegmentedBaseShapeList
+    val baseShapes: () -> SegmentedShapeList
 }

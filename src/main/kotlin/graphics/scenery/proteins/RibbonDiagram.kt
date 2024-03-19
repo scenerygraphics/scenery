@@ -8,6 +8,8 @@ import graphics.scenery.numerics.Random
 import graphics.scenery.Mesh
 import graphics.scenery.geometry.curve.DefaultCurve
 import graphics.scenery.geometry.curve.Helix
+import graphics.scenery.geometry.curve.Shape
+import graphics.scenery.geometry.curve.Vertex
 import org.biojava.nbio.structure.Atom
 import org.biojava.nbio.structure.Group
 import org.biojava.nbio.structure.secstruc.SecStrucCalc
@@ -126,28 +128,31 @@ class RibbonDiagram(val protein: Protein, private val showSecondaryStructures: B
         { splinePointCentered.subList(0, splinePointCentered.lastIndex) }
         else{splinePointCentered}
 
-        val rectangle = ArrayList<Vector3f>(4)
-        rectangle.add(Vector3f(0.9f, 0f, 0f))
-        rectangle.add(Vector3f(0f, 0.1f, 0f))
-        rectangle.add(Vector3f(-0.9f, 0f, 0f))
-        rectangle.add(Vector3f(0f, -0.1f, 0f))
+        val rectangle = Shape(listOf(
+            Vertex(Vector3f(0.9f, 0f, 0f), Vector3f(), Vector2f()),
+            Vertex(Vector3f(0f, 0.1f, 0f), Vector3f(), Vector2f()),
+            Vertex(Vector3f(-0.9f, 0f, 0f), Vector3f(), Vector2f()),
+            Vertex(Vector3f(0f, -0.1f, 0f), Vector3f(), Vector2f())
+        ))
 
-        val octagon = ArrayList<Vector3f>(8)
         val sin45 = kotlin.math.sqrt(2f) / 40f
-        octagon.add(Vector3f(0.05f, 0f, 0f))
-        octagon.add(Vector3f(sin45, sin45, 0f))
-        octagon.add(Vector3f(0f, 0.05f, 0f))
-        octagon.add(Vector3f(-sin45, sin45, 0f))
-        octagon.add(Vector3f(-0.05f, 0f, 0f))
-        octagon.add(Vector3f(-sin45, -sin45, 0f))
-        octagon.add(Vector3f(0f, -0.05f, 0f))
-        octagon.add(Vector3f(sin45, -sin45, 0f))
+        val octagon = Shape(listOf(
+            Vertex(Vector3f(0.05f, 0f, 0f), Vector3f(), Vector2f()),
+            Vertex(Vector3f(sin45, sin45, 0f), Vector3f(), Vector2f()),
+            Vertex(Vector3f(0f, 0.05f, 0f), Vector3f(), Vector2f()),
+            Vertex(Vector3f(-sin45, sin45, 0f), Vector3f(), Vector2f()),
+            Vertex(Vector3f(-0.05f, 0f, 0f), Vector3f(), Vector2f()),
+            Vertex(Vector3f(-sin45, -sin45, 0f), Vector3f(), Vector2f()),
+            Vertex(Vector3f(0f, -0.05f, 0f), Vector3f(), Vector2f()),
+            Vertex(Vector3f(sin45, -sin45, 0f), Vector3f(), Vector2f())
+        ))
 
-        val reversedRectangle = ArrayList<Vector3f>(4)
-        reversedRectangle.add(Vector3f(0.1f, 0.8f, 0f))
-        reversedRectangle.add(Vector3f(-0.1f, 0.8f, 0f))
-        reversedRectangle.add(Vector3f(-0.1f, -0.8f, 0f))
-        reversedRectangle.add(Vector3f(0.1f, -0.8f, 0f))
+        val reversedRectangle = Shape(listOf(
+            Vertex(Vector3f(0.1f, 0.8f, 0f), Vector3f(), Vector2f()),
+            Vertex(Vector3f(-0.1f, 0.8f, 0f), Vector3f(), Vector2f()),
+            Vertex(Vector3f(-0.1f, -0.8f, 0f), Vector3f(), Vector2f()),
+            Vertex(Vector3f(0.1f, -0.8f, 0f), Vector3f(), Vector2f())
+        ))
         /*
         In the following lines of code(144-211), we build a curve for each secondary structure. How does this work, step
         by step? First, we iterate through the guide points. A guide point represents a residue, therefore, it can be
@@ -201,7 +206,7 @@ class RibbonDiagram(val protein: Protein, private val showSecondaryStructures: B
                 }
             }
             else {
-                val ssSubList = ArrayList<List<Vector3f>>(sectionVerticesCount * length)
+                val ssSubList = ArrayList<Shape>(sectionVerticesCount * length)
 
                 val iterationLength = subSpline.size
 
@@ -217,12 +222,12 @@ class RibbonDiagram(val protein: Protein, private val showSecondaryStructures: B
                         val y = 1.65f * j / thirtyPercent
                         val x = 0.1f
                         ssSubList.add(
-                            arrayListOf(
-                                Vector3f(x, y, 0f),
-                                Vector3f(-x, y, 0f),
-                                Vector3f(-x, -y, 0f),
-                                Vector3f(x, -y, 0f)
-                            )
+                            Shape(listOf(
+                                Vertex(Vector3f(x, y, 0f), Vector3f(), Vector2f()),
+                                Vertex(Vector3f(-x, y, 0f), Vector3f(), Vector2f()),
+                                Vertex(Vector3f(-x, -y, 0f), Vector3f(), Vector2f()),
+                                Vertex(Vector3f(x, -y, 0f), Vector3f(), Vector2f())
+                            ))
                         )
                     }
                     val betaCurve = DefaultCurve(
@@ -502,7 +507,7 @@ class RibbonDiagram(val protein: Protein, private val showSecondaryStructures: B
         /**
          * Dummy lambda function for the curve
          */
-        private fun baseShape(baseShapes: List<List<Vector3f>>): List<List<Vector3f>> {
+        private fun baseShape(baseShapes: List<Shape>): List<Shape> {
             return baseShapes
         }
 

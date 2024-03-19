@@ -6,7 +6,10 @@ import graphics.scenery.backends.Renderer
 import graphics.scenery.geometry.UniformBSpline
 import graphics.scenery.numerics.Random
 import graphics.scenery.attribute.material.Material
+import graphics.scenery.geometry.curve.SegmentedShapeList
+import graphics.scenery.geometry.curve.Shape
 import graphics.scenery.geometry.curve.SingleMeshCurve
+import graphics.scenery.geometry.curve.toShape
 
 /**
  * Example of a curve with different baseShapes.
@@ -31,8 +34,8 @@ class CurveDifferentBaseShapes: SceneryBase("CurveDifferentBaseShapes", windowWi
         points.add(Vector3f(0f, 0f, 0f))
         points.add(Vector3f(2f, 1f, 0f))
 
-        fun shapeGenerator(splineVerticesCount: Int): ArrayList<ArrayList<Vector3f>> {
-            val shapeList = ArrayList<ArrayList<Vector3f>>(splineVerticesCount)
+        fun shapeGenerator(splineVerticesCount: Int): SegmentedShapeList {
+            val shapeList = ArrayList<Shape>(splineVerticesCount)
             val splineVerticesCountThird = splineVerticesCount/3
             val splineVerticesCountTwoThirds = splineVerticesCount*2/3
             for (i in 0 until splineVerticesCountThird) {
@@ -40,7 +43,7 @@ class CurveDifferentBaseShapes: SceneryBase("CurveDifferentBaseShapes", windowWi
                 list.add(Vector3f(0.3f, 0.3f, 0f))
                 list.add(Vector3f(0.3f, -0.3f, 0f))
                 list.add(Vector3f(-0.3f, -0.3f, 0f))
-                shapeList.add(list)
+                shapeList.add(list.toShape())
             }
             for(i in splineVerticesCountThird until splineVerticesCountTwoThirds) {
                 val list = ArrayList<Vector3f>()
@@ -48,7 +51,7 @@ class CurveDifferentBaseShapes: SceneryBase("CurveDifferentBaseShapes", windowWi
                 list.add(Vector3f(0.3f, -0.3f, 0f))
                 list.add(Vector3f(-0.3f, -0.3f, 0f))
                 list.add(Vector3f(-0.3f, 0.3f, 0f))
-                shapeList.add(list)
+                shapeList.add(list.toShape())
             }
             for(i in splineVerticesCountTwoThirds until splineVerticesCount) {
                 val list = ArrayList<Vector3f>()
@@ -58,7 +61,7 @@ class CurveDifferentBaseShapes: SceneryBase("CurveDifferentBaseShapes", windowWi
                 list.add(Vector3f(-0.3f, -0.3f, 0f))
                 list.add(Vector3f(-0.3f, 0.3f, 0f))
                 list.add(Vector3f(0f, 0.5f, 0f))
-                shapeList.add(list)
+                shapeList.add(list.toShape())
             }
             return shapeList
         }

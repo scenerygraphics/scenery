@@ -195,6 +195,14 @@ fun Vector3f.toFloatArray(): FloatArray {
     return floatArrayOf(this.x, this.y, this.z)
 }
 
+/**
+ * Infix shortcut for calculating the cross product of this vector
+ * with [rhs]. The calculation happens on a copy of this vector, which is then returned.
+ */
+infix fun Vector3f.X(rhs: Vector3f): Vector3f {
+    return Vector3f(this).cross(rhs)
+}
+
 /* Vector4f */
 
 /**

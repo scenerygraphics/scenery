@@ -3,6 +3,8 @@ package graphics.scenery.tests.unit
 import graphics.scenery.numerics.Random
 import graphics.scenery.geometry.CatmullRomSpline
 import graphics.scenery.geometry.curve.Helix
+import graphics.scenery.geometry.curve.Shape
+import graphics.scenery.geometry.curve.toShape
 import graphics.scenery.proteins.PositionDirection
 import graphics.scenery.utils.lazyLogger
 import org.joml.Vector3f
@@ -40,7 +42,7 @@ class HelixTests {
         shape.add(Vector3f(0.3f, -0.3f, 0f))
         shape.add(Vector3f(-0.3f, -0.3f, 0f))
 
-        assertFails { Helix(line, spline) { listOf( shape ) } }
+        assertFails { Helix(line, spline) { listOf( shape.toShape() ) } }
     }
 
     /**
@@ -61,13 +63,13 @@ class HelixTests {
             }
         }
         val spline = CatmullRomSpline(helixSplineControlPoints, 20)
-        fun baseShape(): ArrayList<Vector3f> {
+        fun baseShape(): Shape {
             val list = ArrayList<Vector3f>(4)
             list.add(Vector3f(0.5f, 0.5f, 0f))
             list.add(Vector3f(-0.5f, 0.5f, 0f))
             list.add(Vector3f(-0.5f, -0.5f, 0f))
             list.add(Vector3f(0.5f, -0.5f, 0f))
-            return list
+            return list.toShape()
         }
         val axis = PositionDirection(
             Random.random3DVectorFromRange(-10f, 10f),

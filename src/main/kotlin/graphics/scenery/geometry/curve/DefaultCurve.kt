@@ -6,6 +6,7 @@ import graphics.scenery.geometry.Spline
 import graphics.scenery.geometry.curve.FrenetCurve.Companion.computeFrenetFrames
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plusAssign
+import org.joml.Vector2f
 import org.joml.Vector3f
 import java.nio.FloatBuffer
 
@@ -25,7 +26,7 @@ import java.nio.FloatBuffer
  */
 open class DefaultCurve(
     final override val spline: Spline,
-    final override val baseShapes: () -> SegmentedBaseShapeList,
+    final override val baseShapes: () -> SegmentedShapeList,
     final override val firstPerpendicularVector: Vector3f = Vector3f(0.0f),
     createSubShapes: Boolean = true
 ): FrenetCurve, Mesh("DefaultCurve") {
@@ -51,6 +52,7 @@ open class DefaultCurve(
                     subShapes.lastIndex -> CurveCover.Bottom
                     else -> CurveCover.None
                 }
+
                 //default behaviour: if the last section is a single shape,
                 // it will be added to the last window of the shapes
                 if (index == subShapes.lastIndex - 1 && subShapes.last().size == 1) {
@@ -69,13 +71,33 @@ open class DefaultCurve(
         }
     }
 
+    fun calculateTrianglesNew(curveGeometry: SegmentedShapeList, cover: CurveCover = CurveCover.None): Pair<FloatBuffer, FloatBuffer> {
+        val size = curveGeometry.sumOf { it.vertices.size * 3 }
+        val verticesBuffer = BufferUtils.allocateFloat(size)
+        val normalsBuffer = BufferUtils.allocateFloat(size)
+
+        curveGeometry.forEach { shape ->
+            shape.vertices.forEach { v ->
+                verticesBuffer += v.v
+                normalsBuffer += v.n
+            }
+        }
+
+//        verticesBuffer.flip()
+//        normalsBuffer.flip()
+
+        logger.info("vertices: ${verticesBuffer.remaining()} normals: ${normalsBuffer.remaining()}")
+
+        return verticesBuffer to normalsBuffer
+    }
+
     /**
      * This function calculates the triangles for the curve rendering. It takes as a parameter
      * the [curveGeometry] List which contains all the baseShapes transformed and translated
      * along the curve.
      */
-    fun calculateTriangles(curveGeometry: SegmentedBaseShapeList, cover: CurveCover = CurveCover.None): Pair<FloatBuffer, FloatBuffer> {
-        val sizeWithoutCover = (curveGeometry.sumOf{ it.size } * 6 - (curveGeometry.last().size* 3 + curveGeometry.first().size*3)) * 3
+    fun calculateTriangles(curveGeometry: SegmentedShapeList, cover: CurveCover = CurveCover.None): Pair<FloatBuffer, FloatBuffer> {
+        val sizeWithoutCover = (curveGeometry.sumOf { it.vertices.size } * 6 - (curveGeometry.last().vertices.size* 3 + curveGeometry.first().vertices.size * 3)) * 3
 
         val sizeWithCover = if(cover == CurveCover.Both) {
             sizeWithoutCover + curveGeometry.first().computeCoverVerticesCount(cover)*3 +
@@ -91,64 +113,64 @@ open class DefaultCurve(
             return Pair(verticesBuffer, normalsBuffer)
         }
         //if none of the lists in the curveGeometry differ in size, distinctBy leaves only one element
-        if (curveGeometry.distinctBy { it.size }.size == 1) {
-            val intermediateNormals = ArrayList<ArrayList<Vector3f>>(curveGeometry.sumOf { it.size }/curveGeometry[0].size)
+        if (curveGeometry.distinctBy { it.vertices.size }.size == 1) {
+            val intermediateNormals = ArrayList<ArrayList<Vector3f>>(curveGeometry.sumOf { it.vertices.size }/curveGeometry[0].vertices.size)
             curveGeometry.dropLast(1).forEachIndexed { shapeIndex, shape ->
 
-                val intermediateNormalSection = ArrayList<Vector3f>(shape.size)
+                val intermediateNormalSection = ArrayList<Vector3f>(shape.vertices.size)
 
-                shape.dropLast(1).forEachIndexed { vertexIndex, _ ->
-                    val triangle1Point1 = curveGeometry[shapeIndex][vertexIndex]
-                    val triangle1Point2 = curveGeometry[shapeIndex][vertexIndex + 1]
-                    val triangle1Point3 = curveGeometry[shapeIndex + 1][vertexIndex]
+                shape.vertices.dropLast(1).forEachIndexed { vertexIndex, _ ->
+                    val triangle1Point1 = curveGeometry[shapeIndex].vertices[vertexIndex]
+                    val triangle1Point2 = curveGeometry[shapeIndex].vertices[vertexIndex + 1]
+                    val triangle1Point3 = curveGeometry[shapeIndex + 1].vertices[vertexIndex]
 
-                    verticesWithoutCoverBuffer += triangle1Point1
-                    verticesWithoutCoverBuffer += triangle1Point2
-                    verticesWithoutCoverBuffer += triangle1Point3
+                    verticesWithoutCoverBuffer += triangle1Point1.v
+                    verticesWithoutCoverBuffer += triangle1Point2.v
+                    verticesWithoutCoverBuffer += triangle1Point3.v
 
                     //normal calculation triangle 1
-                    val normal1 = (triangle1Point3 - triangle1Point1)
-                        .cross(triangle1Point2 - triangle1Point1)
+                    val normal1 = (triangle1Point3.v - triangle1Point1.v)
+                        .cross(triangle1Point2.v - triangle1Point1.v)
                     intermediateNormalSection.add(normal1.normalize())
 
-                    val triangle2Point1 = curveGeometry[shapeIndex][vertexIndex + 1]
-                    val triangle2Point2 = curveGeometry[shapeIndex + 1][vertexIndex + 1]
-                    val triangle2Point3 = curveGeometry[shapeIndex + 1][vertexIndex]
+                    val triangle2Point1 = curveGeometry[shapeIndex].vertices[vertexIndex + 1]
+                    val triangle2Point2 = curveGeometry[shapeIndex + 1].vertices[vertexIndex + 1]
+                    val triangle2Point3 = curveGeometry[shapeIndex + 1].vertices[vertexIndex]
 
-                    verticesWithoutCoverBuffer += triangle2Point1
-                    verticesWithoutCoverBuffer += triangle2Point2
-                    verticesWithoutCoverBuffer += triangle2Point3
+                    verticesWithoutCoverBuffer += triangle2Point1.v
+                    verticesWithoutCoverBuffer += triangle2Point2.v
+                    verticesWithoutCoverBuffer += triangle2Point3.v
 
                     //normal calculation triangle 2
-                    val normal2 = (triangle2Point3 - triangle2Point1)
-                        .cross(triangle2Point2 - triangle2Point1)
+                    val normal2 = (triangle2Point3.v - triangle2Point1.v)
+                        .cross(triangle2Point2.v - triangle2Point1.v)
                     intermediateNormalSection.add(normal2.normalize())
                 }
 
-                val triangle1Point1 = curveGeometry[shapeIndex][shape.lastIndex]
-                val triangle1Point2 = curveGeometry[shapeIndex][0]
-                val triangle1Point3 = curveGeometry[shapeIndex + 1][shape.lastIndex]
+                val triangle1Point1 = curveGeometry[shapeIndex].vertices[shape.vertices.lastIndex]
+                val triangle1Point2 = curveGeometry[shapeIndex].vertices[0]
+                val triangle1Point3 = curveGeometry[shapeIndex + 1].vertices[shape.vertices.lastIndex]
 
-                verticesWithoutCoverBuffer += triangle1Point1
-                verticesWithoutCoverBuffer += triangle1Point2
-                verticesWithoutCoverBuffer += triangle1Point3
+                verticesWithoutCoverBuffer += triangle1Point1.v
+                verticesWithoutCoverBuffer += triangle1Point2.v
+                verticesWithoutCoverBuffer += triangle1Point3.v
 
                 //normal calculation triangle 1
-                val normal1 = (triangle1Point3 - triangle1Point1)
-                    .cross(triangle1Point2 - triangle1Point1)
+                val normal1 = (triangle1Point3.v - triangle1Point1.v)
+                    .cross(triangle1Point2.v - triangle1Point1.v)
                 intermediateNormalSection.add(normal1.normalize())
 
-                val triangle2Point1 = curveGeometry[shapeIndex][0]
-                val triangle2Point2 = curveGeometry[shapeIndex + 1][0]
-                val triangle2Point3 = curveGeometry[shapeIndex + 1][shape.lastIndex]
+                val triangle2Point1 = curveGeometry[shapeIndex].vertices[0]
+                val triangle2Point2 = curveGeometry[shapeIndex + 1].vertices[0]
+                val triangle2Point3 = curveGeometry[shapeIndex + 1].vertices[shape.vertices.lastIndex]
 
-                verticesWithoutCoverBuffer += triangle2Point1
-                verticesWithoutCoverBuffer += triangle2Point2
-                verticesWithoutCoverBuffer += triangle2Point3
+                verticesWithoutCoverBuffer += triangle2Point1.v
+                verticesWithoutCoverBuffer += triangle2Point2.v
+                verticesWithoutCoverBuffer += triangle2Point3.v
 
                 //normal calculation triangle 2
-                val normal2 = (triangle2Point3 - triangle2Point1)
-                    .cross(triangle2Point2 - triangle2Point1)
+                val normal2 = (triangle2Point3.v - triangle2Point1.v)
+                    .cross(triangle2Point2.v - triangle2Point1.v)
                 intermediateNormalSection.add(normal2.normalize())
 
                 //add all triangle normals from this section
@@ -158,7 +180,7 @@ open class DefaultCurve(
             //add the vertices and normals to the first cover to the final buffers
             if(cover == CurveCover.Top || cover == CurveCover.Both) {
                 val newVerticesAndNormals = getCoverVertices(
-                    curveGeometry.first(), true,
+                    curveGeometry.first().vertices, true,
                     intermediateNormals
                         .first()
                         .filterIndexed { index, _ -> index % 2 == 1 }
@@ -175,13 +197,13 @@ open class DefaultCurve(
             //add the vertices and normals of the curve's body to the buffers
             verticesWithoutCoverBuffer.flip()
             verticesBuffer.put(verticesWithoutCoverBuffer)
-            val curveNormals = computeNormals(intermediateNormals, curveGeometry.first().size)
+            val curveNormals = computeNormals(intermediateNormals, curveGeometry.first().vertices.size)
             curveNormals.flip()
             normalsBuffer.put(curveNormals)
 
             if (cover == CurveCover.Bottom || cover == CurveCover.Both) {
                 val newVerticesAndNormals = getCoverVertices(
-                    curveGeometry.last(), false,
+                    curveGeometry.last().vertices, false,
                     intermediateNormals
                         .last()
                         .filterIndexed { index, _ -> index % 2 == 0 }
@@ -205,15 +227,15 @@ open class DefaultCurve(
     the bottom of a curve, the triangles should be arranged counterclockwise, for the top clockwise - this is signified
     by [ccw].
      */
-    private fun getCoverVertices(verticesList: List<Vector3f>, ccw: Boolean, perpendicularNormals: List<Vector3f>): Pair<ArrayList<Vector3f>, ArrayList<Vector3f>> {
+    private fun getCoverVertices(verticesList: List<graphics.scenery.geometry.curve.Vertex>, ccw: Boolean, perpendicularNormals: List<Vector3f>): Pair<ArrayList<Vector3f>, ArrayList<Vector3f>> {
         //the direction of the cover triangle normals is the same for all triangles
         val surfaceNormal = if(!ccw) {
-            ((Vector3f(verticesList.last()).sub(Vector3f(verticesList.first())))
-            .cross(Vector3f(verticesList[verticesList.size/2]).sub(Vector3f(verticesList.first())))).normalize()
+            ((Vector3f(verticesList.last().v).sub(Vector3f(verticesList.first().v)))
+            .cross(Vector3f(verticesList[verticesList.size/2].v).sub(Vector3f(verticesList.first().v)))).normalize()
         }
         else {
-            ((Vector3f(verticesList[verticesList.size/2]).sub(Vector3f(verticesList.first())))
-            .cross(Vector3f(verticesList.last()).sub(Vector3f(verticesList.first())))).normalize()
+            ((Vector3f(verticesList[verticesList.size/2].v).sub(Vector3f(verticesList.first().v)))
+            .cross(Vector3f(verticesList.last().v).sub(Vector3f(verticesList.first().v)))).normalize()
         }
         //compute the normal for each of the vertices at the beginning/end of the curve
         val vertexNormals = perpendicularNormals.mapIndexed { index, normal ->
@@ -230,7 +252,8 @@ open class DefaultCurve(
      * a triangle. The first triangle point is stored for the next iteration. The recursion runs until no more
      * points are left.
      */
-    private fun getCoverVerticesRecursive(vertices: List<Vector3f>, normals: List<Vector3f>, ccw: Boolean): Pair<ArrayList<Vector3f>, ArrayList<Vector3f>> {
+    private fun getCoverVerticesRecursive(vertices: List<graphics.scenery.geometry.curve.Vertex>,
+                                          normals: List<Vector3f>, ccw: Boolean): Pair<ArrayList<Vector3f>, ArrayList<Vector3f>> {
         val size = vertices.size
         //the complete list at the end of the calculation
         val verticesList = ArrayList<Vector3f>(size + (size / 2))
@@ -239,14 +262,14 @@ open class DefaultCurve(
         if (vertices.size >= 3) {
             //working list for the respective iteration
             val workList = ArrayList<Pair<Vector3f, Vector3f>>(vertices.size)
-            vertices.forEachIndexed { index, vertex -> workList.add(Pair(vertex, normals[index]))}
+            vertices.forEachIndexed { index, vertex -> workList.add(Pair(vertex.v, normals[index]))}
             //list containing vertices for the next iteration
             val newVertices = ArrayList<Vector3f>(vertices.size%3)
             //list containing normals for the next iteration
             val newNormals = ArrayList<Vector3f>(newVertices.size)
             //Ensures that the algorithm does not stop before the last triangle.
             if (size % 2 == 0) {
-                workList.add(Pair(vertices.first(), normals.first()))
+                workList.add(Pair(vertices.first().v, normals.first()))
             }
 
             workList.windowed(3, 2) { triangle ->
@@ -272,10 +295,11 @@ open class DefaultCurve(
             if (newVertices.size >= 3) {
                 //to avoid gaps when the vertex number is odd
                 if (size % 2 == 1) {
-                    newVertices.add(vertices.last())
+                    newVertices.add(vertices.last().v)
                 }
 
-                val newVerticesAndNormals = getCoverVerticesRecursive(newVertices, newNormals, ccw)
+                val nv = newVertices.map { Vertex(it, Vector3f(0.0f), Vector2f(0.0f)) }
+                val newVerticesAndNormals = getCoverVerticesRecursive(nv, newNormals, ccw)
                 verticesList.addAll(newVerticesAndNormals.first)
                 normalVectors.addAll(newVerticesAndNormals.second)
             }
@@ -407,10 +431,12 @@ open class DefaultCurve(
     /**
      * Computes the number of vertices for the triangles which cover up the curve's respective ends.
      */
-    private fun <T> List<T>.computeCoverVerticesCount(cover: CurveCover): Int {
-        if(cover == CurveCover.None)  {return  0 }
+    private fun Shape.computeCoverVerticesCount(cover: CurveCover): Int {
+        if(cover == CurveCover.None)  {
+            return  0
+        }
         var coverVerticesCount = 0
-        var subListSize = this.size
+        var subListSize = vertices.size
         while(subListSize > 2) {
             val odd = subListSize%2 == 1
             subListSize /= 2

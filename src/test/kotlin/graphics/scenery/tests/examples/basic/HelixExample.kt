@@ -7,6 +7,8 @@ import graphics.scenery.geometry.CatmullRomSpline
 import graphics.scenery.numerics.Random
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.geometry.curve.Helix
+import graphics.scenery.geometry.curve.Shape
+import graphics.scenery.geometry.curve.toShape
 import graphics.scenery.proteins.PositionDirection
 
 /**
@@ -33,13 +35,13 @@ class HelixExample: SceneryBase("FlatRibbonSketch", windowWidth = 1280, windowHe
             }
         }
         val spline = CatmullRomSpline(helixSplineControlPoints, 20)
-        fun baseShape(): ArrayList<Vector3f> {
+        fun baseShape(): Shape {
             val list = ArrayList<Vector3f>(4)
             list.add(Vector3f(0.5f, 0f, 0f))
             list.add(Vector3f(0f, 0.1f, 0f))
             list.add(Vector3f(-0.5f, 0f, 0f))
             list.add(Vector3f(0f, -0.1f, 0f))
-            return list
+            return list.toShape()
         }
         val axis = PositionDirection(Vector3f(0f, 0f, 0f), Vector3f(0f, 0f, 1f))
         val curve = Helix(axis, spline) {listOf(baseShape())}
