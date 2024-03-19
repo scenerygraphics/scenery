@@ -19,7 +19,7 @@ class SingleMeshCurve(spline: Spline,
                       baseShapes: () -> SegmentedBaseShapeList,
                       firstPerpendicularVector: Vector3f = Vector3f(0f, 0f, 0f),
                       countDifferentShapes: Int = 15
-): FrenetCurve, DefaultCurve(spline, baseShapes, firstPerpendicularVector) {
+): FrenetCurve, DefaultCurve(spline, baseShapes, firstPerpendicularVector, createSubShapes = false) {
     private val shapes = baseShapes.invoke()
     private val countList = ArrayList<Int>(countDifferentShapes).toMutableList()
 

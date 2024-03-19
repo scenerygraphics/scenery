@@ -27,12 +27,15 @@ open class DefaultCurve(
     final override val spline: Spline,
     final override val baseShapes: () -> SegmentedBaseShapeList,
     final override val firstPerpendicularVector: Vector3f = Vector3f(0.0f),
+    createSubShapes: Boolean = true
 ): FrenetCurve, Mesh("DefaultCurve") {
 
     final override val frenetFrames: () -> List<FrenetFrame> =
         { computeFrenetFrames(spline, firstPerpendicularVector) }
     init {
-        createSubShapes()
+        if(createSubShapes) {
+            createSubShapes()
+        }
     }
 
     protected open fun createSubShapes() {
