@@ -62,7 +62,7 @@ class ServerApplication : SceneryBase("Volume Server Example", 512, 512) {
         //Step 3:  save the standard volume manger, the one that was first created with the volume
         val standardVolumeManager: VolumeManager = hub.get<VolumeManager>() as VolumeManager
 
-        renderer!!.postRenderLambdas.add {
+        renderer!!.runAfterRendering.add {
             val dummyVolume = scene.find("DummyVolume") as? DummyVolume
             if (dummyVolume != null) {
                 volume.transferFunction = dummyVolume.transferFunction
@@ -89,7 +89,7 @@ class ServerApplication : SceneryBase("Volume Server Example", 512, 512) {
                 vdiStreamer.setup("tcp://0.0.0.0:6655", cam, volumeDimensions3i, volume, maxSupersegments, vdiVolumeManager, renderer!!)
             }
 
-            renderer!!.postRenderLambdas.add {
+            renderer!!.runAfterRendering.add {
                 val switchMode = scene.find("RemoteRenderingProperties") as? RemoteRenderingProperties
 
                 if (switchMode != null) {

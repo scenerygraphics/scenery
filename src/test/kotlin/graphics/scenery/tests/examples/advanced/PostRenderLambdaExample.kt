@@ -2,7 +2,6 @@ package graphics.scenery.tests.examples.advanced
 
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
-import graphics.scenery.backends.vulkan.VulkanRenderer
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.Image
 import org.joml.Vector3f
@@ -48,7 +47,7 @@ class PostRenderLambdaExample : SceneryBase("PosRenderLambdaExample") {
             scene.addChild(this)
         }
 
-        renderer?.postRenderLambdas?.add {
+        renderer?.runAfterRendering?.add {
             box.spatial().rotation.rotateY(quantumOfRotation)
             box.spatial().needsUpdate = true
             logger.info("Initial rot: ${box.rotation}")

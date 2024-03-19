@@ -3,7 +3,6 @@ package graphics.scenery.volumes.vdi
 import graphics.scenery.Camera
 import graphics.scenery.Settings
 import graphics.scenery.backends.Renderer
-import graphics.scenery.backends.vulkan.VulkanTexture
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.DataCompressor
 import graphics.scenery.utils.extensions.fetchTexture
@@ -102,7 +101,7 @@ class VDIStreamer {
 
         val gridCells = vdiVolumeManager.material().textures[VDIVolumeManager.accelerationTextureName]!!
 
-        renderer.postRenderLambdas.add {
+        renderer.runAfterRendering.add {
 
             if (!firstFrame && vdiStreaming.get()) {
 

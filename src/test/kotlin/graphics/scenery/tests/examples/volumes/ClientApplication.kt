@@ -117,7 +117,7 @@ class ClientApplication : SceneryBase("Client Application", 512, 512)  {
             }
 
             //Step 5: switching code
-            renderer!!.postRenderLambdas.add {
+            renderer!!.runAfterRendering.add {
                 if (currentMode != RemoteRenderingProperties.StreamType.VolumeRendering
                     && remoteRenderingProperties.streamType == RemoteRenderingProperties.StreamType.VolumeRendering
                 ) {

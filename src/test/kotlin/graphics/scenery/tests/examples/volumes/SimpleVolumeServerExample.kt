@@ -54,7 +54,7 @@ class SimpleVolumeServerExample : SceneryBase ("Volume Server Example", 512, 512
         settings.set("VideoEncoder.StreamingAddress", "rtp://127.0.0.2:5004")
         renderer!!.recordMovie()
 
-        renderer!!.postRenderLambdas.add {
+        renderer!!.runAfterRendering.add {
             val dummyVolume = scene.find("DummyVolume") as? DummyVolume
             if (dummyVolume != null) {
                 volume.transferFunction = dummyVolume.transferFunction

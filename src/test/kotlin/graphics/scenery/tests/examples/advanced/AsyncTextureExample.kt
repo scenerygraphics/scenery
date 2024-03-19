@@ -15,7 +15,6 @@ import graphics.scenery.volumes.Volume
 import net.imglib2.type.numeric.integer.UnsignedByteType
 import org.joml.Vector3i
 import org.lwjgl.system.MemoryUtil
-import java.io.File
 import kotlin.concurrent.thread
 import kotlin.system.measureTimeMillis
 import kotlin.time.Duration.Companion.nanoseconds
@@ -33,7 +32,7 @@ class AsyncTextureExample: SceneryBase("Async Texture example", 512, 512) {
 
     override fun init() {
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
-        renderer?.postRenderLambdas?.add {
+        renderer?.runAfterRendering?.add {
             val now = System.nanoTime()
             val duration = (now - previous).nanoseconds
             previous = now
