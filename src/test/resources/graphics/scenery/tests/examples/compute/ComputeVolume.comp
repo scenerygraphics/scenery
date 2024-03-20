@@ -93,12 +93,16 @@ void main()
     float tnear = 1, tfar = 0, tmax = getMaxDepth( depthUV );
     float n, f;
 
-    // $repeat:{vis,intersectBoundingBox|
+    // $repeat:{vis,localNear,localFar,intersectBoundingBox|
     bool vis = false;
+    float localNear = 0.0f;
+    float localFar = 0.0f;
     intersectBoundingBox( wfront, wback, n, f );
     f = min( tmax, f );
     if ( n < f )
     {
+        localNear = n;
+        localFar = f;
         tnear = min( tnear, max( 0, n ) );
         tfar = max( tfar, f );
         vis = true;
@@ -123,7 +127,7 @@ void main()
 
             // $insert{Accumulate}
             /*
-            inserts something like the following (keys: vis,blockTexture,convert)
+            inserts something like the following (keys: vis,localNear,localFar,blockTexture,convert)
 
             if (vis)
             {
