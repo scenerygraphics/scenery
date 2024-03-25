@@ -2,6 +2,7 @@ package graphics.scenery.tests.examples.advanced
 
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
+import graphics.scenery.tests.examples.basic.TexturedCubeExample
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.Image
 import org.joml.Vector3f
@@ -9,12 +10,12 @@ import kotlin.concurrent.thread
 import kotlin.test.assertEquals
 
 /**
- * Example to show how post render lambdas may be used to produce animations that are
+ * Example to show how run after rendering lambdas may be used to produce animations that are
  * synchronized with the render loop
  *
  * @author Aryaman Gupta <argupta@mpi-cbg.de>
  */
-class PostRenderLambdaExample : SceneryBase("PosRenderLambdaExample") {
+class RunAfterRenderExample : SceneryBase("RunAfterRenderExample") {
 
     private val boxRotation = Vector3f(0.0f)
     private var totalFrames = 0L
@@ -28,7 +29,7 @@ class PostRenderLambdaExample : SceneryBase("PosRenderLambdaExample") {
 
         val box = Box(Vector3f(1.0f, 1.0f, 1.0f))
         box.name = "le box du win"
-        box.material().textures["diffuse"] = Texture.fromImage(Image.fromResource("textures/helix.png", this::class.java))
+        box.material().textures["diffuse"] = Texture.fromImage(Image.fromResource("textures/helix.png", TexturedCubeExample::class.java))
         box.material().metallic = 0.3f
         box.material().roughness = 0.9f
         scene.addChild(box)
@@ -97,7 +98,7 @@ class PostRenderLambdaExample : SceneryBase("PosRenderLambdaExample") {
          */
         @JvmStatic
         fun main(args: Array<String>) {
-            PostRenderLambdaExample().main()
+            RunAfterRenderExample().main()
         }
     }
 }
