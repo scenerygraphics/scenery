@@ -45,6 +45,8 @@ open class VulkanDevice(
     val extensions = ArrayList<String>()
     /** Stores enabled features */
     val features: VkPhysicalDeviceFeatures
+    /** Stores the created device queues. */
+    private val queues = ConcurrentHashMap<Int, ArrayList<QueueWithMutex>>()
 
     private val descriptorPools = ArrayList<DescriptorPool>(5)
 
@@ -391,11 +393,20 @@ open class VulkanDevice(
         }
     }
 
-    private val queues = ConcurrentHashMap<Int, ArrayList<QueueWithMutex>>()
     /**
-     * Creates a new Vulkan queue on [device] with the queue family index [queueFamilyIndex] and returns the queue.
+     * Retrieves a Vulkan queue on [device] with the queue family index [queueFamilyIndex]. If none exists
+     * yet, one will be created.
      */
     fun getQueue(queueFamilyIndex: Int): QueueWithMutex {
+        val queue = queues[queueFamilyIndex]?.last() ?: createQueue(queueFamilyIndex)
+
+        return queue
+    }
+
+    /*
+    * Creates a new Vulkan queue on [device] with the queue family index [queueFamilyIndex] and returns the queue.
+    */
+    fun createQueue(queueFamilyIndex: Int): QueueWithMutex {
         val index = queues[queueFamilyIndex]?.lastIndex ?: 0
 
         val availableQueues = queueProps[queueFamilyIndex].queueCount()
