@@ -130,6 +130,9 @@ void main()
 		}
 
         float step = tnear;
+        vec4 w_entry = mix(wfront, wback, step);
+
+        float standardStepSize = distance(mix(wfront, wback, step + nw), w_entry);
 
 		float step_prev = step - stepWidth;
 		vec4 wprev = mix(wfront, wback, step_prev);

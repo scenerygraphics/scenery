@@ -18,12 +18,18 @@ import org.joml.Math.clamp
 import java.awt.Color
 import java.awt.Cursor
 import java.awt.Dimension
+import java.awt.Image.SCALE_SMOOTH
 import java.awt.event.MouseEvent
+import java.awt.event.MouseEvent.BUTTON1
+import java.awt.event.MouseEvent.BUTTON1_DOWN_MASK
 import java.awt.event.MouseListener
 import java.awt.event.MouseMotionListener
 import java.awt.image.BufferedImage
 import java.text.NumberFormat
+import javax.imageio.ImageIO
 import javax.swing.*
+import javax.swing.event.PopupMenuEvent
+import javax.swing.event.PopupMenuListener
 
 
 /**
@@ -142,6 +148,10 @@ class TransferFunctionEditor(
         var lastUpdate = 0L
         mainChart.addMouseMotionListener(object : MouseMotionListener {
             override fun mouseDragged(e: MouseEvent) {
+                if(!SwingUtilities.isLeftMouseButton(e)) {
+                    return
+                }
+
                 val chart = e.component as ChartPanel
                 val point = mainChart.translateJava2DToScreen(e.point)
                 val item = chart.getEntityForPoint(point.x, point.y)
@@ -181,6 +191,10 @@ class TransferFunctionEditor(
         })
         mainChart.addChartMouseListener(object : ChartMouseListener {
             override fun chartMouseClicked(e: ChartMouseEvent) {
+                if(!SwingUtilities.isLeftMouseButton(e.trigger)) {
+                    return
+                }
+
                 if (e.entity is XYItemEntity) {
                     val item = e.entity as XYItemEntity
                     //click on cp
@@ -198,7 +212,7 @@ class TransferFunctionEditor(
                     }
                 }
 
-                //click on graph or  empty region
+                //click on graph or empty region
                 val point = mainChart.translateJava2DToScreen(e.trigger.point)
                 val plotArea = mainChart.chartRenderingInfo.plotInfo.dataArea
                 mouseTargetCP.x = clamp(
@@ -230,19 +244,19 @@ class TransferFunctionEditor(
 
         // transfer function IO
         val fc = JFileChooser()
-        JButton("TF Load").also {
-            it.toolTipText = "Load a new transfer function and display range"
+        val tfMenu = JPopupMenu()
+        tfMenu.add(JMenuItem("Load transfer function ...").also {
             it.addActionListener {
                 val returnVal: Int = fc.showOpenDialog(this)
-                if (returnVal == JFileChooser.APPROVE_OPTION) {
+                if(returnVal == JFileChooser.APPROVE_OPTION) {
                     tfContainer.loadTransferFunctionFromFile(file = fc.selectedFile)
                     initTransferFunction(tfContainer.transferFunction)
                     displayRangeEditor.refreshDisplayRange()
                 }
             }
-            histAndTFIOButtonsPanel.add(it, "skip 2, al right, push")
-        }
-        JButton("TF Save").also {
+
+        })
+        tfMenu.add(JMenuItem("Save transfer function ...").also {
             it.toolTipText = "Save the current transfer function and display range to a file"
             it.addActionListener {
                 val option = fc.showSaveDialog(this)
@@ -250,8 +264,43 @@ class TransferFunctionEditor(
                     tfContainer.saveTransferFunctionToFile(fc.selectedFile)
                 }
             }
-            histAndTFIOButtonsPanel.add(it, "al right, wrap")
+        })
+        tfMenu.add(JMenuItem("Reset transfer function").also {
+            it.addActionListener {
+                tfContainer.transferFunction = TransferFunction.flat(0.5f)
+                initTransferFunction(tfContainer.transferFunction)
+                tfPlot.backgroundImage = createTFImage()
+            }
+        })
+
+        val tfMenuButton = JToggleButton("").also { button ->
+            button.icon = ImageIcon(ImageIcon(ImageIO.read(this::class.java.getResource("../ui/gear.png"))).image.getScaledInstance(16, 16, SCALE_SMOOTH))
+            button.toolTipText = "Load a new transfer function and display range"
+            button.addActionListener {
+                if(button.isSelected) {
+                    tfMenu.show(button, 0, button.height)
+                } else {
+                    tfMenu.isVisible = false
+                }
+            }
+            histAndTFIOButtonsPanel.add(button, "skip 2, al right, push")
         }
+
+        tfMenu.addPopupMenuListener(object: PopupMenuListener {
+            override fun popupMenuWillBecomeVisible(e: PopupMenuEvent?) {
+                /* not used */
+            }
+
+            override fun popupMenuWillBecomeInvisible(e: PopupMenuEvent?) {
+                tfMenuButton.isSelected = false
+            }
+
+            override fun popupMenuCanceled(e: PopupMenuEvent?) {
+                tfMenuButton.isSelected = false
+            }
+
+        })
+
         initTransferFunction(tfContainer.transferFunction)
 
 

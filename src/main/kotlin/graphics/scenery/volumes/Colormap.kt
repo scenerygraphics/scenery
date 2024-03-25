@@ -22,9 +22,9 @@ import kotlin.math.roundToInt
  */
 class Colormap(val buffer: ByteBuffer, val width: Int, val height: Int) {
 
-    private constructor() : this(ByteBuffer.allocate(0), 0, 0) {
-
-    }
+    // This needs to stay, Kryo needs it for (de)serialisation
+    @Suppress("unused")
+    private constructor() : this(ByteBuffer.allocate(0), 0, 0)
 
     /**
      * Returns the value of the colormap, sampled at [position].

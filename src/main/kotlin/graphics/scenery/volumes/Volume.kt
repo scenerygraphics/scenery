@@ -69,6 +69,11 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.io.path.name
 import kotlin.properties.Delegates
 import net.imglib2.type.numeric.RealType
+import net.imglib2.type.volatiles.VolatileByteType
+import net.imglib2.type.volatiles.VolatileFloatType
+import net.imglib2.type.volatiles.VolatileShortType
+import net.imglib2.type.volatiles.VolatileUnsignedByteType
+import net.imglib2.type.volatiles.VolatileUnsignedShortType
 import org.jfree.data.statistics.SimpleHistogramBin
 import org.jfree.data.statistics.SimpleHistogramDataset
 import org.scijava.Context
@@ -368,10 +373,15 @@ open class Volume(
     private fun NumericType<*>.toRange(): Pair<Float, Float> {
         return when(this) {
             is UnsignedByteType -> 0.0f to 255.0f
+            is VolatileUnsignedByteType -> 0.0f to 255.0f
             is ByteType -> -127.0f to 128.0f
+            is VolatileByteType -> -127.0f to 128.0f
             is UnsignedShortType -> 0.0f to 65535.0f
+            is VolatileUnsignedShortType -> 0.0f to 65535.0f
             is ShortType -> -32768.0f to 32767.0f
+            is VolatileShortType -> -32768.0f to 32767.0f
             is FloatType -> 0.0f to 1.0f
+            is VolatileFloatType -> 0.0f to 1.0f
             else -> 0.0f to 1.0f
         }
     }
@@ -380,10 +390,15 @@ open class Volume(
     private fun NumericType<*>.toBytesPerValue(): Int {
         return when(this) {
             is UnsignedByteType -> 1
+            is VolatileUnsignedByteType -> 1
             is ByteType -> 1
+            is VolatileByteType -> 1
             is UnsignedShortType -> 2
+            is VolatileUnsignedShortType -> 2
             is ShortType -> 2
+            is VolatileShortType -> 2
             is FloatType -> 4
+            is VolatileFloatType -> 4
             else -> 4
         }
     }
