@@ -1,27 +1,32 @@
-package graphics.scenery.tests.examples.advanced
+package graphics.scenery.tests.unit.utils
 
-import graphics.scenery.SceneryBase
 import graphics.scenery.utils.DataCompressor
+import graphics.scenery.utils.lazyLogger
+import org.junit.Test
 import org.lwjgl.system.MemoryUtil
-import java.util.Random
+import java.util.*
 import kotlin.test.assertTrue
 
 /**
- * Example to show how [DataCompressor] can be used for lossless compression and decompression of binary data.
+ * Tests how [DataCompressor] can be used for lossless compression and decompression of binary data.
  *
  * @author Aryaman Gupta <argupta@mpi-cbg.de>
  */
-class DataCompressionExample: SceneryBase("DataCompressionExample", wantREPL = false) {
+class DataCompressorTests {
+    private val logger by lazyLogger()
 
-    override fun main() {
+    /**
+     * Tests compression and decompression of data.
+     */
+    @Test
+    fun testCompressionDecompression() {
+        val dataSize = 1024*1024*8
+        val buffer = MemoryUtil.memAlloc(dataSize)
 
-        val dataSize = 20000000
-        val buffer = MemoryUtil.memAlloc((dataSize))
-
-        //insert random integers between 0 and 5 into the buffer
+        // insert random integers between 0 and 5 into the buffer
         val rd = Random()
         val intBuffer = buffer.asIntBuffer()
-        for (i in 0 until intBuffer.remaining()) {
+        for(i in 0 until intBuffer.remaining()) {
             intBuffer.put(rd.nextInt(5))
         }
 
@@ -34,7 +39,7 @@ class DataCompressionExample: SceneryBase("DataCompressionExample", wantREPL = f
         val compressedLength = compressor.compress(compressedBuffer, buffer, 3)
         compressedBuffer.limit(compressedLength.toInt())
 
-        val compressionRatio = compressedLength.toFloat()/dataSize.toFloat()
+        val compressionRatio = compressedLength.toFloat() / dataSize.toFloat()
         logger.info("Length of compressed buffer: $compressedLength and compression ration is: $compressionRatio")
 
         val decompressed = MemoryUtil.memAlloc(dataSize)
@@ -47,25 +52,11 @@ class DataCompressionExample: SceneryBase("DataCompressionExample", wantREPL = f
             logger.info("Compression and decompression was not successful")
         }
 
-        // add assertions, these only get called when the example is called
-        // as part of scenery's integration tests
-        assertions[AssertionCheckPoint.AfterClose]?.add {
-            assertTrue {
-                compressor.verifyDecompressed(buffer, decompressed)
-            }
+        assertTrue {
+            compressor.verifyDecompressed(buffer, decompressed)
         }
-    }
 
-    /**
-     * Companion object for providing a main method.
-     */
-    companion object {
-        /**
-         * The main entry point. Executes this example application when it is called.
-         */
-        @JvmStatic
-        fun main(args: Array<String>) {
-            DataCompressionExample().main()
-        }
+        MemoryUtil.memFree(buffer)
+        MemoryUtil.memFree(decompressed)
     }
 }
