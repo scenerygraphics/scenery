@@ -48,8 +48,9 @@ class PersistentTextureRequestsExample : SceneryBase("PersistentTextureRequestsE
                 SegmentType.FragmentShader to SegmentTemplate(
                     this.javaClass,
                     "ComputeVolume.comp",
-                    "intersectBoundingBox", "vis", "SampleVolume", "Convert", "Accumulate"),
-            ))
+                    "intersectBoundingBox", "vis", "localNear", "localFar", "SampleVolume", "Convert", "Accumulate"),
+                ))
+        volumeManager.customTextures.add("OutputRender")
 
         val outputBuffer = MemoryUtil.memCalloc(1280*720*4)
         val outputTexture = Texture.fromImage(Image(outputBuffer, 1280, 720), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
@@ -66,9 +67,12 @@ class PersistentTextureRequestsExample : SceneryBase("PersistentTextureRequestsE
 
         val box = Box(Vector3f(1.0f, 1.0f, 1.0f))
         box.name = "le box du win"
-        box.material().textures["diffuse"] = outputTexture
-        box.material().metallic = 0.0f
-        box.material().roughness = 1.0f
+        box.material {
+            textures["diffuse"] = outputTexture
+            metallic = 0.0f
+            roughness = 1.0f
+        }
+
         scene.addChild(box)
 
         val light = PointLight(radius = 15.0f)
