@@ -83,15 +83,9 @@ class VDIGenerationExample(wWidth: Int = 512, wHeight: Int = 512, val maxSuperse
                 windowDimensions = Vector2i(cam.width, cam.height)
             )
         )
-        thread {
-            storeVDI(vdiVolumeManager, vdiData)
-        }
 
-        thread {
-            while (true) {
-                Thread.sleep(1000)
-                logger.info("cam target: ${cam.target}")
-            }
+        thread(isDaemon = true) {
+            storeVDI(vdiVolumeManager, vdiData)
         }
     }
 
