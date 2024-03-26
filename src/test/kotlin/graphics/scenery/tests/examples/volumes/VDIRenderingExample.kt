@@ -4,7 +4,6 @@ import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.volumes.vdi.VDIDataIO
 import graphics.scenery.volumes.vdi.VDINode
-import org.joml.Matrix4f
 import org.joml.Vector3f
 import org.lwjgl.system.MemoryUtil
 import java.io.File
@@ -19,7 +18,7 @@ import java.nio.ByteBuffer
  */
 class VDIRenderingExample : SceneryBase("VDI Rendering Example", 512, 512) {
 
-    val vdiFilename = "samplevdi.vdi"
+    val vdiFilename = "example"
     val skipEmpty = false
 
     val numSupersegments = 20
@@ -48,7 +47,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering Example", 512, 512) {
 
         // Step 2: read files
         val file = try {
-            FileInputStream(File(vdiFilename))
+            FileInputStream(File("$vdiFilename.vdi-metadata"))
         } catch(e: FileNotFoundException) {
             logger.warn("File $vdiFilename not found!")
             return
@@ -59,9 +58,9 @@ class VDIRenderingExample : SceneryBase("VDI Rendering Example", 512, 512) {
 
         vdiNode = VDINode(windowWidth, windowHeight, numSupersegments, vdiData)
 
-        val colorArray: ByteArray = File("VDI_col").readBytes()
-        val depthArray: ByteArray = File("VDI_depth").readBytes()
-        val octArray: ByteArray = File("VDI_octree").readBytes()
+        val colorArray: ByteArray = File("$vdiFilename.vdi-color").readBytes()
+        val depthArray: ByteArray = File("$vdiFilename.vdi-depth").readBytes()
+        val octArray: ByteArray = File("$vdiFilename.vdi-grid").readBytes()
 
         // Step 3: assigning buffer values
         val colBuffer: ByteBuffer = MemoryUtil.memCalloc(vdiNode.vdiHeight * vdiNode.vdiWidth * numSupersegments * numLayers * 4 * 4)

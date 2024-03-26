@@ -151,14 +151,15 @@ class VDIGenerationExample(wWidth: Int = 512, wHeight: Int = 512, val maxSuperse
 
             if (count == 4) { //store the 4th VDI
 
-                val file = FileOutputStream(File("VDI_dump$count"))
+                val vdiFilename = "example$count"
+                val file = FileOutputStream(File("$vdiFilename.vdi-metadata"))
                 VDIDataIO.write(vdiData, file)
                 logger.info("written the dump")
                 file.close()
 
-                SystemHelpers.dumpToFile(vdiColorBuffer!!, "VDI_col")
-                SystemHelpers.dumpToFile(vdiDepthBuffer!!, "VDI_depth")
-                SystemHelpers.dumpToFile(gridCellsBuff!!, "VDI_octree")
+                SystemHelpers.dumpToFile(vdiColorBuffer!!, "$vdiFilename.vdi-color")
+                SystemHelpers.dumpToFile(vdiDepthBuffer!!, "$vdiFilename.vdi-depth")
+                SystemHelpers.dumpToFile(gridCellsBuff!!, "$vdiFilename.vdi-grid")
 
                 logger.info("Wrote VDI $count")
                 vdisGenerated.incrementAndGet()
