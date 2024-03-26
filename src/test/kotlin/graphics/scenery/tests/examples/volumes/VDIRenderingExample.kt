@@ -9,6 +9,7 @@ import org.joml.Vector3f
 import org.lwjgl.system.MemoryUtil
 import java.io.File
 import java.io.FileInputStream
+import java.io.FileNotFoundException
 import java.nio.ByteBuffer
 
 /**
@@ -18,6 +19,7 @@ import java.nio.ByteBuffer
  */
 class VDIRenderingExample : SceneryBase("VDI Rendering Example", 512, 512) {
 
+    val vdiFilename = "samplevdi.vdi"
     val skipEmpty = false
 
     val numSupersegments = 20
@@ -29,7 +31,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering Example", 512, 512) {
 
     override fun init() {
 
-        //Step 1: create a Renderer, Point light and camera
+        // Step 1: create a Renderer, Point light and camera
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
 
         val light = PointLight(radius = 15.0f)
@@ -44,8 +46,14 @@ class VDIRenderingExample : SceneryBase("VDI Rendering Example", 512, 512) {
             scene.addChild(this)
         }
 
-        //Step 2: read files
-        val file = FileInputStream(File("VDI_dump4"))
+        // Step 2: read files
+        val file = try {
+            FileInputStream(File(vdiFilename))
+        } catch(e: FileNotFoundException) {
+            logger.warn("File $vdiFilename not found!")
+            return
+        }
+
         val vdiData = VDIDataIO.read(file)
         logger.info("Fetching file...")
 
@@ -55,7 +63,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering Example", 512, 512) {
         val depthArray: ByteArray = File("VDI_depth").readBytes()
         val octArray: ByteArray = File("VDI_octree").readBytes()
 
-        //Step  3: assigning buffer values
+        // Step 3: assigning buffer values
         val colBuffer: ByteBuffer = MemoryUtil.memCalloc(vdiNode.vdiHeight * vdiNode.vdiWidth * numSupersegments * numLayers * 4 * 4)
         colBuffer.put(colorArray).flip()
         colBuffer.limit(colBuffer.capacity())

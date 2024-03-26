@@ -1,8 +1,11 @@
-package graphics.scenery.tests.examples.volumes
+package graphics.scenery.tests.applications.volumes
 
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
-import graphics.scenery.volumes.*
+import graphics.scenery.volumes.Colormap
+import graphics.scenery.volumes.DummyVolume
+import graphics.scenery.volumes.TransferFunction
+import graphics.scenery.volumes.Volume
 import org.joml.Vector3f
 import java.nio.file.Paths
 import kotlin.concurrent.thread
@@ -21,14 +24,15 @@ import kotlin.concurrent.thread
  * This application, the server in the remote volume rendering setup, is the client in scenery's networking code
  * because it uses camera and volume rendering parameters from the remote client.
  */
-class SimpleVolumeServerExample : SceneryBase ("Volume Server Example", 512, 512) {
+class SimpleVolumeServerExample : SceneryBase("Volume Server Example", 512, 512) {
 
     override fun init() {
         renderer = hub.add(
             SceneryElement.Renderer,
-            Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
+            Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
+        )
 
-        if(!Settings().get("RemoteCamera",false)) {
+        if(!Settings().get("RemoteCamera", false)) {
             val cam: Camera = DetachedHeadCamera()
             with(cam) {
                 spatial {

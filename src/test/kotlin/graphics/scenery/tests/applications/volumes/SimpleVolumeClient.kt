@@ -1,11 +1,13 @@
-package graphics.scenery.tests.examples.volumes
+package graphics.scenery.tests.applications.volumes
 
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.textures.Texture
 import graphics.scenery.ui.SwingBridgeFrame
 import graphics.scenery.utils.VideoDecoder
-import graphics.scenery.volumes.*
+import graphics.scenery.volumes.DummyVolume
+import graphics.scenery.volumes.TransferFunction
+import graphics.scenery.volumes.TransferFunctionEditor
 import org.joml.Vector3f
 import org.joml.Vector3i
 import java.nio.ByteBuffer
@@ -23,7 +25,7 @@ import kotlin.concurrent.thread
  * This application, the client in the remote volume rendering setup, is the server in scenery's networking code
  * because the camera and volume properties from this scene need to be used in the remote rendering server.
  */
-class SimpleVolumeClient : SceneryBase("Volume Client", 512 , 512) {
+class SimpleVolumeClient : SceneryBase("Volume Client", 512, 512) {
 
     val displayPlane = FullscreenObject()
     var buffer: ByteBuffer = ByteBuffer.allocateDirect(0)
@@ -56,7 +58,7 @@ class SimpleVolumeClient : SceneryBase("Volume Client", 512 , 512) {
         tfUI.name = dummyVolume.name
         val swingUiNode = bridge.uiNode
         swingUiNode.spatial() {
-            position = Vector3f(2f,0f,0f)
+            position = Vector3f(2f, 0f, 0f)
         }
 
         with(displayPlane){
@@ -67,7 +69,7 @@ class SimpleVolumeClient : SceneryBase("Volume Client", 512 , 512) {
 
         val videoDecoder = VideoDecoder("scenery-stream.sdp")
         thread {
-            while (!renderer!!.firstImageReady) {
+            while(!renderer!!.firstImageReady) {
                 Thread.sleep(50)
             }
 

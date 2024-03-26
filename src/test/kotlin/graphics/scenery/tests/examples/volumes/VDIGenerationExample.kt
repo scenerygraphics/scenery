@@ -14,7 +14,6 @@ import graphics.scenery.backends.vulkan.VulkanRenderer
 import graphics.scenery.utils.SystemHelpers
 import graphics.scenery.volumes.*
 import org.joml.*
-import org.zeromq.ZContext
 import java.io.*
 import java.nio.ByteBuffer
 import kotlin.concurrent.thread
@@ -26,10 +25,7 @@ import kotlin.concurrent.thread
  * @author Aryaman Gupta <argupta@mpi-cbg.de>
  */
 class VDIGenerationExample(wWidth: Int = 512, wHeight: Int = 512, val maxSupersegments: Int = 20) : SceneryBase("Volume Generation Example", wWidth, wHeight) {
-
-    val context: ZContext = ZContext(4)
-
-    var cnt = 0
+    private var count = 0
 
     override fun init() {
 
@@ -78,7 +74,7 @@ class VDIGenerationExample(wWidth: Int = 512, wHeight: Int = 512, val maxSuperse
         val vdiData = VDIData(
             VDIBufferSizes(),
             VDIMetadata(
-                index = cnt,
+                index = count,
                 projection = cam.spatial().projection,
                 view = cam.spatial().getTransformation(),
                 volumeDimensions = volumeDimensions3i,
@@ -109,7 +105,7 @@ class VDIGenerationExample(wWidth: Int = 512, wHeight: Int = 512, val maxSuperse
 
         val volumeList = ArrayList<BufferedVolume>()
         volumeList.add(vdiVolumeManager.nodes.first() as BufferedVolume)
-        val VDIsGenerated = AtomicInteger(0)
+        val vdisGenerated = AtomicInteger(0)
         while (renderer?.firstImageReady == false) {
             Thread.sleep(50)
         }
@@ -130,7 +126,7 @@ class VDIGenerationExample(wWidth: Int = 512, wHeight: Int = 512, val maxSuperse
         var prevColor = colorCnt.get()
         var prevDepth = depthCnt.get()
 
-        while (cnt<6) { //TODO: convert VDI storage also to postRenderLambda
+        while (count<6) { //TODO: convert VDI storage also to postRenderLambda
 
             tGeneration.start = System.nanoTime()
 
@@ -151,11 +147,11 @@ class VDIGenerationExample(wWidth: Int = 512, wHeight: Int = 512, val maxSuperse
 
             logger.info("Time taken for generation (only correct if VDIs were not being written to disk): ${timeTaken}")
 
-            vdiData.metadata.index = cnt
+            vdiData.metadata.index = count
 
-            if (cnt == 4) { //store the 4th VDI
+            if (count == 4) { //store the 4th VDI
 
-                val file = FileOutputStream(File("VDI_dump$cnt"))
+                val file = FileOutputStream(File("VDI_dump$count"))
                 VDIDataIO.write(vdiData, file)
                 logger.info("written the dump")
                 file.close()
@@ -164,10 +160,10 @@ class VDIGenerationExample(wWidth: Int = 512, wHeight: Int = 512, val maxSuperse
                 SystemHelpers.dumpToFile(vdiDepthBuffer!!, "VDI_depth")
                 SystemHelpers.dumpToFile(gridCellsBuff!!, "VDI_octree")
 
-                logger.info("Wrote VDI $cnt")
-                VDIsGenerated.incrementAndGet()
+                logger.info("Wrote VDI $count")
+                vdisGenerated.incrementAndGet()
             }
-            cnt++
+            count++
         }
         this.close()
     }

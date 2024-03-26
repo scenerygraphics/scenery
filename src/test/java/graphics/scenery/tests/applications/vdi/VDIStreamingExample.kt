@@ -1,4 +1,4 @@
-package graphics.scenery.tests.examples.volumes
+package graphics.scenery.tests.applications.vdi
 
 import graphics.scenery.Camera
 import graphics.scenery.DetachedHeadCamera
