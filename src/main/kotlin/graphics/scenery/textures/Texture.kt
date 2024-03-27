@@ -10,6 +10,10 @@ import org.joml.Vector3i
 import java.io.Serializable
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.util.*
+import java.util.concurrent.Semaphore
+import java.util.concurrent.atomic.AtomicInteger
+import kotlin.collections.HashSet
 
 
 /**
@@ -39,9 +43,13 @@ open class Texture @JvmOverloads constructor(
     /** Linear or nearest neighbor filtering for scaling up. */
     var maxFilter: FilteringMode = FilteringMode.Linear,
     /** Usage type */
-    val usageType: HashSet<UsageType> = hashSetOf(UsageType.Texture)
-
-
+    val usageType: HashSet<UsageType> = hashSetOf(UsageType.Texture),
+    /** Mutex for texture data usage */
+    @Transient val mutex: Semaphore = Semaphore(1),
+    /** Mutex for GPU upload */
+    @Transient val gpuMutex: Semaphore = Semaphore(1),
+    /** Atomic integer to indicate GPU upload state */
+    @Transient val uploaded: AtomicInteger = AtomicInteger(0),
 ) : Serializable, Timestamped {
     init {
         contents?.let { c ->
@@ -68,6 +76,13 @@ open class Texture @JvmOverloads constructor(
                 throw IllegalStateException("Buffer for texture does not contain correct number of bytes. Actual: $remaining, expected: $expected for image of size $dimensions and $channels channels of type ${type.javaClass.simpleName}.")
             }
         }
+    }
+
+    /**
+     * Indicate whether a this texture is available on the GPU already.
+     */
+    fun availableOnGPU(): Boolean {
+        return (uploaded.get() > 0 && (gpuMutex.availablePermits() == 1))
     }
 
     /**
@@ -101,9 +116,16 @@ open class Texture @JvmOverloads constructor(
         Linear
     }
 
+    /**
+     * Textures need to have a usage type defined. That type can be:
+     * [Texture] - a regular texture
+     * [LoadStoreImage] - a texture that can also be used as a load/storage image in a compute shader.
+     * [AsyncLoad] - a texture that will be asynchronously loaded by the renderer.
+     */
     enum class UsageType {
         Texture,
-        LoadStoreImage
+        LoadStoreImage,
+        AsyncLoad
     }
 
     /** Companion object of [Texture], containing mainly constant defines */
@@ -121,10 +143,11 @@ open class Texture @JvmOverloads constructor(
             mipmap: Boolean = true,
             minFilter: FilteringMode = FilteringMode.Linear,
             maxFilter: FilteringMode = FilteringMode.Linear,
-            usage: HashSet<UsageType> = hashSetOf(UsageType.Texture)
+            usage: HashSet<UsageType> = hashSetOf(UsageType.Texture),
+            channels: Int = 4
         ): Texture {
             return Texture(Vector3i(image.width, image.height, image.depth),
-                4, image.type, image.contents, repeatUVW, borderColor, normalized, mipmap, usageType = usage, minFilter = minFilter, maxFilter = maxFilter)
+                channels, image.type, image.contents, repeatUVW, borderColor, normalized, mipmap, usageType = usage, minFilter = minFilter, maxFilter = maxFilter)
         }
     }
 

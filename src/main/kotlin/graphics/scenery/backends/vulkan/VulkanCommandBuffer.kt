@@ -89,7 +89,7 @@ class VulkanCommandBuffer(val device: VulkanDevice, var commandBuffer: VkCommand
                         )
                     })
 
-                val validBits = device.queues.graphicsQueue.second.timestampValidBits()
+                val validBits = device.queueIndices.graphicsQueue.second.timestampValidBits()
                 runtime = (keepBits(timingArray[1], validBits) - keepBits(
                     timingArray[0],
                     validBits

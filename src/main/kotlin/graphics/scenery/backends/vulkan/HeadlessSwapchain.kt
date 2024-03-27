@@ -20,7 +20,7 @@ import java.nio.LongBuffer
  * @author Ulrik Günther <hello@ulrik.is>
  */
 open class HeadlessSwapchain(device: VulkanDevice,
-                        queue: VkQueue,
+                        queue: VulkanDevice.QueueWithMutex,
                         commandPools: VulkanRenderer.CommandPools,
                         renderConfig: RenderConfigReader.RenderConfig,
                         useSRGB: Boolean = true,
@@ -114,23 +114,26 @@ open class HeadlessSwapchain(device: VulkanDevice,
         } else {
             VK10.VK_FORMAT_B8G8R8A8_UNORM
         }
-        presentQueue = VU.createDeviceQueue(device, device.queues.graphicsQueue.first)
+        presentQueue = device.getQueue(device.queueIndices.graphicsQueue.first)
 
-        val textureImages = (0 until bufferCount).map {
-            val t = VulkanTexture(device, commandPools, queue, queue, window.width, window.height, 1,
-                format, 1)
-            val image = t.createImage(window.width, window.height, 1, format,
+        val vulkanImages = (0 until bufferCount).map {
+            VulkanImage.create(
+                device,
+                window.width,
+                window.height,
+                1,
+                format,
                 VK10.VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT or VK10.VK_IMAGE_USAGE_TRANSFER_SRC_BIT or VK10.VK_IMAGE_USAGE_SAMPLED_BIT,
-                VK10.VK_IMAGE_TILING_OPTIMAL, VK10.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 1)
-            t to image
+                VK10.VK_IMAGE_TILING_OPTIMAL,
+                VK10.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                1
+            )
         }
 
-        images = textureImages.map {
-            it.second.image
-        }.toLongArray()
+        images = vulkanImages.map { it.image }.toLongArray()
 
-        imageViews = textureImages.map {
-            it.first.createImageView(it.second, format)
+        imageViews = vulkanImages.map {
+            it.createView()
         }.toLongArray()
 
         val fenceCreateInfo = VkFenceCreateInfo.calloc()
@@ -174,7 +177,7 @@ open class HeadlessSwapchain(device: VulkanDevice,
      */
     override fun next(timeout: Long): Pair<Long, Long>? {
         MemoryStack.stackPush().use { stack ->
-            VK10.vkQueueWaitIdle(presentQueue)
+            VK10.vkQueueWaitIdle(presentQueue.queue)
 
             val signal = stack.mallocLong(1)
             signal.put(0, imageAvailableSemaphores[currentImage])
@@ -257,7 +260,7 @@ open class HeadlessSwapchain(device: VulkanDevice,
                 flush = true, dealloc = true)
         }
 
-        VK10.vkQueueWaitIdle(queue)
+        VK10.vkQueueWaitIdle(queue.queue)
 
         resizeHandler.queryResize()
         currentImage = (currentImage + 1) % images.size
@@ -292,7 +295,7 @@ open class HeadlessSwapchain(device: VulkanDevice,
      * Closes the swapchain, deallocating all resources.
      */
     override fun close() {
-        vkQueueWaitIdle(queue)
+        vkQueueWaitIdle(queue.queue)
         presentInfo.free()
 
         MemoryUtil.memFree(swapchainImage)

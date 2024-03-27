@@ -343,7 +343,8 @@ open class SceneryContext(val node: VolumeManager, val useCompute: Boolean = fal
         }
 
         val repeat = when(texture.texWrap()) {
-            BVVTexture.Wrap.CLAMP_TO_BORDER_ZERO -> RepeatMode.ClampToBorder
+            // TODO: Fix this in BigVolumeViewer
+            BVVTexture.Wrap.CLAMP_TO_BORDER_ZERO -> RepeatMode.ClampToEdge
             BVVTexture.Wrap.CLAMP_TO_EDGE -> RepeatMode.ClampToEdge
             BVVTexture.Wrap.REPEAT -> RepeatMode.Repeat
             else -> throw UnsupportedOperationException("Unknown wrapping mode: ${texture.texWrap()}")

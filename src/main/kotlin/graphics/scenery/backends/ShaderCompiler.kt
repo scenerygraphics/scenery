@@ -1,6 +1,7 @@
 package graphics.scenery.backends
 
 import graphics.scenery.utils.lazyLogger
+import org.lwjgl.system.MemoryUtil
 import org.lwjgl.util.shaderc.Shaderc
 import org.slf4j.Logger
 import picocli.CommandLine

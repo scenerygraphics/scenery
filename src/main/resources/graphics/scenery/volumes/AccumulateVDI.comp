@@ -1,0 +1,101 @@
+if (vis && step > localNear && step < localFar)
+{
+    transparentSample = false;
+    vec4 x = sampleVolume(wpos);
+
+    //TODO: the below check should be removed for efficiency
+    if(x.r > -0.5 || lastSample) { // we need to process this sample only if it is from a volume that actually exists at this sample point
+
+        float newAlpha = x.a;
+        float w = adjustOpacity(newAlpha, length(wpos - wprev)); //TODO: jump length can be precalculated
+
+        vec3 newColor = x.rgb;
+
+        if(w <= minOpacity) {
+            transparentSample = true;
+        }
+
+        if(supersegmentIsOpen) {
+
+            vec4 jump_pos = mix(wfront, wback, stepWidth * steps_in_supseg); //TODO: jump length of single step can be precalculated and scaled to num steps in supseg
+
+            float segLen = length(jump_pos - wfront);
+            supersegmentAdjusted.rgb = curV.rgb / curV.a;
+            supersegmentAdjusted.a = adjustOpacity(curV.a, 1.0/segLen);
+
+            float diff = diffPremultiplied(supersegmentAdjusted, x);
+
+            bool newSupSeg = false;
+            if(diff >= newSupSegThresh) {
+                newSupSeg = true;
+            }
+
+            if((newSupSeg)) { //closing a supersegment
+                num_terminations++;
+                supersegmentIsOpen = false;
+
+                supSegEndPoint = ndc_step;
+                steps_in_supseg = 0;
+
+                if(thresh_found) {
+                    if(!supsegs_written) {
+                        writeSegAndGrid(supersegmentNum, supSegStartPoint, supSegEndPoint, wfront, wback, curV, stepWidth,
+                        steps_trunc_trans, ipv, uv, grid_cell);
+                    }
+                    supersegmentNum++;
+                }
+                steps_trunc_trans = 0;
+            }
+        }
+
+        if( (!supersegmentIsOpen) && (!transparentSample) ) { //opening a supersegment
+
+            supersegmentIsOpen = true;
+            vec4 ndcStart = pv * wpos;
+            ndcStart *= 1. / ndcStart.w;
+            float start_step = ndcStart.z;
+            supSegStartPoint = start_step;
+            supseg_start_w = wpos;
+            curV = vec4( 0 ); //TODO: should this be x instead?
+        }
+
+        if(supersegmentIsOpen) {
+
+            curV.rgb = curV.rgb + (1 - curV.a) * newColor * w;
+            curV.a = curV.a + (1 - curV.a) * w;
+
+            steps_in_supseg++;
+
+            if(!transparentSample) {
+                steps_trunc_trans = steps_in_supseg;
+                w_prev_non_transp = wpos;
+
+                float step_next = step + stepWidth;
+                vec4 wnext = mix(wfront, wback, step_next);
+
+                ndcPos = pv * wnext;
+                ndcPos *= 1. / ndcPos.w;
+                ndc_step = ndcPos.z;
+            }
+
+        }
+
+        if(lastSample && supersegmentIsOpen) { //close the supersegment after the last sample is accumulated
+
+            num_terminations++;
+            supersegmentIsOpen = false;
+
+            supSegEndPoint = ndc_step;
+            steps_in_supseg = 0;
+
+            if(thresh_found) {
+                if(!supsegs_written) {
+                    writeSegAndGrid(supersegmentNum, supSegStartPoint, supSegEndPoint, wfront, wback, curV, stepWidth,
+                    steps_trunc_trans, ipv, uv, grid_cell);
+                }
+                supersegmentNum++;
+            }
+            steps_trunc_trans = 0;
+        }
+    }
+}

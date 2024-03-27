@@ -149,7 +149,7 @@ class ExampleRunner(
 
         // find all basic and advanced examples, exclude blacklist
         val examples = ClassGraph()
-            .acceptPackages("graphics.scenery.tests")
+            .acceptPackages("graphics.scenery.tests.examples")
             .enableClassInfo()
             .scan()
             .getSubclasses(SceneryBase::class.java)

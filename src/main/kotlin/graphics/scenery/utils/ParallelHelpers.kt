@@ -9,6 +9,8 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.concurrent.thread
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.nanoseconds
 
 /**
  * Maps the function [f] asynchronously on [this], returning the resultant list.
@@ -114,3 +116,25 @@ fun <K, V> HashMap<K, V>.forEachParallel(maxThreads: Int = 5, action: ((K, V) ->
         }
     }
 }
+
+/**
+ * Launches a [Job] given by [action] that will be executed periodically, with a minimum delay
+ * of [every] between individual launches. [every] can be an arbitrary [Duration] bigger than 0ns.
+ */
+fun CoroutineScope.launchPeriodicAsync(
+    every: Duration,
+    action: () -> Boolean
+) = this.async {
+    if (every > 0.nanoseconds) {
+        while (isActive) {
+            val result = action()
+            if(result) {
+                break
+            }
+            delay(every)
+        }
+    } else {
+        action()
+    }
+}
+

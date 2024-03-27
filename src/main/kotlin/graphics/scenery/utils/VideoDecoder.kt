@@ -2,6 +2,7 @@ package graphics.scenery.utils
 
 import org.bytedeco.ffmpeg.avcodec.AVPacket
 import org.bytedeco.ffmpeg.avformat.AVFormatContext
+import org.bytedeco.ffmpeg.avutil.AVDictionary
 import org.bytedeco.ffmpeg.avutil.AVFrame
 import org.bytedeco.ffmpeg.global.avcodec.*
 import org.bytedeco.ffmpeg.global.avformat.*
@@ -56,7 +57,12 @@ class VideoDecoder(val filename: String) {
 
             val videoPath = filename
 
-            ret = avformat_open_input(formatContext, videoPath, null, null)
+            // We need an options dictionary here, so the sdp files produced
+            // by [VideoEncoder] are ingestible again
+            val d = AVDictionary()
+            av_dict_set(d, "protocol_whitelist", "file,udp,rtp", 0);
+
+            ret = avformat_open_input(formatContext, videoPath, null, d)
             if (ret < 0) {
                 eVal = ret
                 logger.error("Open video file $videoPath failed. Error code: $eVal")
@@ -92,10 +98,8 @@ class VideoDecoder(val filename: String) {
                 return@thread
             } else {
                 logger.debug(
-                    "Video stream %d with resolution %dx%d\n", vidStreamIdx,
-                    formatContext.streams(i).codecpar().width(),
-                    formatContext.streams(i).codecpar().height()
-                )
+                    "Video stream $vidStreamIdx with resolution resolution ${formatContext.streams(i).codecpar().width()}x" +
+                        "${formatContext.streams(i).codecpar().height()}\n")
             }
 
             ret = avcodec_parameters_to_context(codecCtx, formatContext.streams(vidStreamIdx).codecpar())
@@ -107,6 +111,7 @@ class VideoDecoder(val filename: String) {
             }
 
             val codec = avcodec_find_decoder(codecCtx.codec_id())
+//          TODO: for h264 hardware decoding on Nvidia: val codec = avcodec_find_decoder_by_name("h264_cuvid")
             if (codec == null) {
                 logger.error("Unsupported codec for video file")
                 error = true
@@ -174,6 +179,12 @@ class VideoDecoder(val filename: String) {
         }
     }
 
+    /**
+     * Decodes and returns the next frame in the video stream.
+     *
+     * @return The decoded image as a [ByteArray]
+     */
+
     fun decodeFrame(): ByteArray? {
 
         var finalize = false
@@ -229,6 +240,27 @@ class VideoDecoder(val filename: String) {
         return image
     }
 
+    /**
+     * Decodes the video stream frame-by-frame until the end and applies the lambda [f] on each decoded image.
+     *
+     * @param[f] The lambda to be applied to each decoded frame taking the decoded image ([ByteArray]),
+     * frame width (Int), height (Int) and frame number (Int) as parameters.
+     */
+    fun decodeFrameByFrame(f: (ByteArray, Int, Int, Int) -> Unit) {
+        var decodedFrameCount = 0
+
+        while (nextFrameExists) {
+            val image = decodeFrame()
+            if(image != null) { // image can be null, e.g. when the decoder encounters invalid information between frames
+                decodedFrameCount++
+                f.invoke(image, videoWidth, videoHeight, decodedFrameCount)
+            }
+        }
+
+        logger.debug("closing video decoder")
+        close()
+    }
+
     private fun getImage(pFrame: AVFrame, width: Int, height: Int) : ByteArray {
         val image = ByteArray(width * height * 4)
         val data = pFrame.data(0)
@@ -245,5 +277,12 @@ class VideoDecoder(val filename: String) {
         av_make_error_string(buffer, buffer.size*1L, returnCode)
 
         return String(buffer, 0, buffer.indexOfFirst { it == 0.toByte() })
+    }
+
+    /**
+     * Closes the video decoder and frees up allocated resources.
+     */
+    fun close () {
+        avformat_close_input(formatContext)
     }
 }

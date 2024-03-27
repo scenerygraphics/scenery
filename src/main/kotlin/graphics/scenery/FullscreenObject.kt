@@ -9,6 +9,9 @@ import graphics.scenery.attribute.material.Material
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class FullscreenObject : Mesh("FullscreenObject") {
+
+    var wantsSync = false
+    override fun wantsSync(): Boolean = wantsSync
     init {
         geometry {
             // fake geometry
