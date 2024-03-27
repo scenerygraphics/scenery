@@ -18,7 +18,7 @@ import java.nio.ByteBuffer
  */
 class VDIRenderingExample : SceneryBase("VDI Rendering Example", 512, 512) {
 
-    val vdiFilename = "example"
+    val vdiFilename = "example4"
     val skipEmpty = false
 
     val numSupersegments = 20
@@ -49,7 +49,7 @@ class VDIRenderingExample : SceneryBase("VDI Rendering Example", 512, 512) {
         val file = try {
             FileInputStream(File("$vdiFilename.vdi-metadata"))
         } catch(e: FileNotFoundException) {
-            logger.warn("File $vdiFilename not found!")
+            logger.error("File ${vdiFilename}.vdi-metadata not found!")
             return
         }
 
