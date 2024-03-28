@@ -37,7 +37,8 @@ layout(push_constant) uniform currentEye_t {
     int eye;
 } currentEye;
 
-#define USE_PRINTF 0
+#define INT_DEPTHS 1
+#define USE_PRINTF 1
 
 #if USE_PRINTF
 #extension GL_EXT_debug_printf : enable
@@ -46,12 +47,12 @@ layout(push_constant) uniform currentEye_t {
 layout(local_size_x = 16, local_size_y = 16) in;
 layout(set = 2, binding = 0) uniform sampler3D volumeCache;
 layout(set = 3, binding = 0, rgba32f) uniform image3D VDIColor;
-layout(set = 4, binding = 0, r32f) uniform image3D VDIDepth;
+layout(set = 4, binding = 0, rg16ui) uniform uimage3D VDIDepth;
 layout (set = 8, binding = 0, r32ui) uniform uimage3D AccelerationGrid;
 
 #pragma scenery endverbatim
 
-ivec2 debug_pixel = ivec2(360, 360);
+ivec2 debug_pixel = ivec2(256, 300);
 
 // intersect ray with a box
 // http://www.siggraph.org/education/materials/HyperGraph/raytrace/rtinter3.htm
@@ -131,6 +132,18 @@ vec4 encode(float x, float y){
     return rgba - 1./256.;
 }
 
+#if INT_DEPTHS
+void writeSupersegment(int index, uint start, uint end, vec4 color) {
+    #if USE_PRINTF
+    if(gl_GlobalInvocationID.xy == debug_pixel) {
+        debugPrintfEXT("Writing supseg: %d. Start: %u, end: %u, color: (%f, %f, %f, %f)", index, start, end, color.rgba);
+    }
+    #endif
+
+    imageStore(VDIDepth, ivec3(index, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x), uvec4(start, end, 0, 0));
+    imageStore(VDIColor, ivec3(index, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x), color);
+}
+#else
 void writeSupersegment(int index, float start, float end, vec4 color) {
     #if USE_PRINTF
     if(gl_GlobalInvocationID.xy == debug_pixel) {
@@ -145,6 +158,7 @@ void writeSupersegment(int index, float start, float end, vec4 color) {
     imageStore(VDIDepth, ivec3(2 * index + 1, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x), vec4(end, 0, 0, 0));
     imageStore(VDIColor, ivec3(index, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x), color);
 }
+#endif
 
 void update_cell_count(ivec3 cell) {
     uint ret = imageAtomicAdd(AccelerationGrid, cell, 1);
@@ -165,8 +179,13 @@ int findZInterval_view(float z_view) {
 
 bool thresh_found = false;
 
+#if INT_DEPTHS
+void writeSegAndGrid(int supersegmentNum, uint supSegStartPoint, uint supSegEndPoint, vec4 wfront, vec4 wback,
+    vec4 accumulatedColor, float stepWidth, int steps, mat4 ipv, vec2 uv, ivec3 grid_cell, float tnear) {
+#else
 void writeSegAndGrid(int supersegmentNum, float supSegStartPoint, float supSegEndPoint, vec4 wfront, vec4 wback,
-    vec4 accumulatedColor, float stepWidth, int steps, mat4 ipv, vec2 uv, ivec3 grid_cell) {
+    vec4 accumulatedColor, float stepWidth, int steps, mat4 ipv, vec2 uv, ivec3 grid_cell, float tnear) {
+#endif
 
     vec4 jump_pos = mix(wfront, wback, stepWidth * steps);
 
@@ -179,11 +198,19 @@ void writeSegAndGrid(int supersegmentNum, float supSegStartPoint, float supSegEn
 
     writeSupersegment(supersegmentNum, supSegStartPoint, supSegEndPoint, supersegmentColor);
 
+    #if INT_DEPTHS
+    float start_step = tnear + stepWidth * supSegStartPoint;
+    vec4 start_w = mix(wfront, wback, start_step);
+
+    float end_step = tnear + stepWidth * supSegEndPoint;
+    vec4 end_w = mix(wfront, wback, end_step);
+    #else
     vec4 start_w = ipv * vec4(uv, supSegStartPoint, 1);
     start_w *= 1. / start_w.w;
 
     vec4 end_w = ipv * vec4(uv, supSegEndPoint, 1);
     end_w *= 1. / end_w.w;
+    #endif
 
     vec4 start_v = ViewMatrices[0] * start_w;
     vec4 end_v = ViewMatrices[0] * end_w;
@@ -317,8 +344,13 @@ void main()
             int num_terminations = 0;
 
             bool supersegmentIsOpen = false;
+            #if INT_DEPTHS
+            uint supSegStartPoint = 0;
+            uint supSegEndPoint = 0;
+            #else
             float supSegStartPoint = 0.0;
             float supSegEndPoint = 0.0;
+            #endif
             bool lastSample = false;
             bool transparentSample = false;
             bool lastSupersegment = false;
@@ -412,7 +444,6 @@ void main()
 
         #if USE_PRINTF
         if(gl_GlobalInvocationID.xy == debug_pixel) {
-            debugPrintfEXT("Final composited color is: (%f, %f, %f, %f)", v.rgba);
             debugPrintfEXT("Total supsegs generated: %d", supersegmentNum);
         }
         #endif

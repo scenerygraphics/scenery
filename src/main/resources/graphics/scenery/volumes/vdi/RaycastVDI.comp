@@ -1,6 +1,7 @@
 #version 450
 #define USE_PRINTF 1
 #define DOUBLE_BUFFER 1
+#define INT_DEPTHS 1
 
 #extension GL_EXT_debug_printf : disable
 #if USE_PRINTF
@@ -53,11 +54,19 @@ layout(push_constant) uniform currentEye_t {
 layout (local_size_x = 16, local_size_y = 16) in;
 layout(set = 2, binding = 0, rgba32f) uniform readonly image3D InputVDI;
 layout(set = 3, binding = 0, rgba8) uniform image2D OutputViewport;
+#if INT_DEPTHS
+layout (set = 4, binding = 0, rg16ui) uniform readonly uimage3D DepthVDI;
+#else
 layout (set = 4, binding = 0, r32f) uniform readonly image3D DepthVDI;
+#endif
 layout (set = 6, binding = 0, r32ui) uniform readonly uimage3D AccelerationGrid;
 #if DOUBLE_BUFFER
 layout(set = 7, binding = 0, rgba32f) uniform readonly image3D InputVDI2;
+#if INT_DEPTHS
+layout (set = 8, binding = 0, rg16ui) uniform readonly uimage3D DepthVDI2;
+#else
 layout (set = 8, binding = 0, r32f) uniform readonly image3D DepthVDI2;
+#endif
 layout (set = 9, binding = 0, r32ui) uniform readonly uimage3D AccelerationGrid2;
 #endif
 ivec2 debug_pixel = ivec2(256, 300);
@@ -86,6 +95,37 @@ vec4 back_orig; // the end point of newRay in the perspective space of the origi
 
 float orig_tnear;
 float orig_tfar;
+
+float ndc_to_w(vec2 uv, float n_depth)
+{
+    //TODO: possible optimization by converting only the z coordinate to view space and comparing with f and n
+    if(n_depth >= 1.0) {
+        return 1.0;
+    }
+
+    if(n_depth <= -1.0) {
+        return 0.0;
+    }
+
+    vec4 ndc_start = vec4(uv, n_depth, 1.0);
+
+    vec4 w_start = ivp_orig * ndc_start;
+    w_start *= 1.0 / w_start.w;
+
+    float w_depth = distance(w_start, originalRay.wfront) / distance(originalRay.wfront, originalRay.wback);
+
+    return w_depth;
+}
+
+float w_to_ndc(float w_step)
+{
+    vec4 wpos = mix(originalRay.wfront, originalRay.wback, w_step);
+
+    vec4 n_pos = pv_orig * wpos;
+    n_pos *= 1.0 / n_pos.w;
+
+    return n_pos.z;
+}
 
 // intersect ray with a box
 // http://www.siggraph.org/education/materials/HyperGraph/raytrace/rtinter3.htm
@@ -162,6 +202,29 @@ void findListNumber(vec4 wpos, out ivec2 listNum, out vec4 NDC_orig) {
 }
 
 float getSupsegFront(ivec2 theList, int index) {
+
+    #if INT_DEPTHS
+    #if DOUBLE_BUFFER
+    uint front_index;
+    if(useSecondBuffer) {
+        front_index = imageLoad(DepthVDI2, ivec3(index, theList.y, theList.x)).x;
+    } else {
+        front_index = imageLoad(DepthVDI, ivec3(index, theList.y, theList.x)).x;
+    }
+    #else
+    uint front_index = imageLoad(DepthVDI, ivec3(index, theList.y, theList.x)).x;
+    #endif
+    if(front_index == 0 && index != 0) {
+        return 0.0;
+    }
+    float step = orig_tnear + nw * front_index;
+            #if USE_PRINTF
+            if(gl_GlobalInvocationID.xy == debug_pixel) {
+                debugPrintfEXT("Searching for front depth of: (%d, %d), %d. Found jump num: %u, therefore returning: %f. orig_tnear: %f, nw: %f", theList, index, front_index, step, orig_tnear, nw);
+            }
+            #endif
+    return step;
+    #else
     vec4 front;
     #if DOUBLE_BUFFER
     if(useSecondBuffer) {
@@ -173,9 +236,33 @@ float getSupsegFront(ivec2 theList, int index) {
     front = imageLoad(DepthVDI, ivec3(index*2, theList.y, theList.x));
     #endif
     return front.x;
+    #endif
 }
 
 float getSupsegBack(ivec2 theList, int index) {
+
+    #if INT_DEPTHS
+    #if DOUBLE_BUFFER
+    uint back_index;
+    if(useSecondBuffer) {
+        back_index = imageLoad(DepthVDI2, ivec3(index, theList.y, theList.x)).y;
+    } else {
+        back_index = imageLoad(DepthVDI, ivec3(index, theList.y, theList.x)).y;
+    }
+    #else
+    uint back_index = imageLoad(DepthVDI, ivec3(index, theList.y, theList.x)).y;
+    #endif
+    if(back_index == 0 && index != 0) {
+        return 0.0;
+    }
+    float step = orig_tnear + nw * back_index;
+            #if USE_PRINTF
+            if(gl_GlobalInvocationID.xy == debug_pixel) {
+                debugPrintfEXT("Searching for back depth of: (%d, %d), %d. Found jump num: %u, therefore returning: %f. orig_tnear: %f, nw: %f", theList, index, back_index, step, orig_tnear, nw);
+            }
+            #endif
+    return step;
+    #else
     vec4 back;
     #if DOUBLE_BUFFER
     if(useSecondBuffer) {
@@ -184,9 +271,10 @@ float getSupsegBack(ivec2 theList, int index) {
         back = imageLoad(DepthVDI, ivec3(index*2 + 1, theList.y, theList.x));
     }
     #else
-        back = imageLoad(DepthVDI, ivec3(index*2 + 1, theList.y, theList.x));
+    back = imageLoad(DepthVDI, ivec3(index*2 + 1, theList.y, theList.x));
     #endif
     return back.x;
+    #endif
 }
 
 float getPrecedingDepth(ivec2 theList, int index) {
@@ -429,6 +517,25 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
 
     bool first_empty = false;
 
+    #if INT_DEPTHS
+
+    #if DOUBLE_BUFFER
+    uint check;
+    if(useSecondBuffer) {
+        check = imageLoad(DepthVDI2, ivec3(0, theList.y, theList.x)).y;
+    } else {
+        check = imageLoad(DepthVDI, ivec3(0, theList.y, theList.x)).y;
+    }
+    #else
+    uint check = imageLoad(DepthVDI, ivec3(0, theList.y, theList.x)).y;
+    #endif
+
+    if(check == 0) {
+        first_empty = true;
+    }
+
+    #else
+
     vec4 check;
     #if DOUBLE_BUFFER
     if(useSecondBuffer) {
@@ -444,6 +551,7 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
     if(firstBack == 0) {
         first_empty = true;
     }
+    #endif
 
     if(first_empty) {
         //the first supersegment is empty, so empty list
@@ -476,8 +584,16 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
     //TODO: check for dir.z?
     dotPositive = (dir.z>=0) ? true: false;
 
+    #if INT_DEPTHS
+    float dist_to_orig_w = ndc_to_w(vec2(ndc_x, ndc_y), dist_to_orig_n);
+    float exit_distance_w = ndc_to_w(vec2(ndc_x, ndc_y), exit_distance_n);
+
+    float dist_to_orig = dist_to_orig_w;
+    float exit_distance = exit_distance_w;
+    #else
     float dist_to_orig = dist_to_orig_n;
     float exit_distance = exit_distance_n;
+    #endif
 
     bool supseg_found = false;
 
@@ -516,6 +632,11 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
             if(gl_GlobalInvocationID.xy == debug_pixel) {
                 debugPrintfEXT("Found supseg: (%d, %d), %d\n", theList, index);
             }
+            #endif
+
+            #if INT_DEPTHS
+            depthStart = w_to_ndc(depthStart); //if the distances were calculated in w space, we need to convert to a coordinate system that has constant value of z along the supseg face, which makes it easy to detrmine where exactly the ray has intersected the supseg
+            depthEnd = w_to_ndc(depthEnd);
             #endif
 
             float start_t = (depthStart - u.z) / dir.z;
@@ -622,11 +743,20 @@ void traverse_subsample(vec4 world_entry, vec4 world_end, float total_distance, 
         int index;
         float depth_start, depth_end;
 
+        #if INT_DEPTHS
+        float dist_to_orig = ndc_to_w(npos.xy, npos.z);
+        #else
         float dist_to_orig = npos.z;
+        #endif
 
         findFirstSupseg(list_coords, dist_to_orig, dist_to_orig, supseg_found, index, depth_start, depth_end);
 
         if(supseg_found) {
+
+            #if INT_DEPTHS
+            depth_start = w_to_ndc(depth_start);
+            depth_end = w_to_ndc(depth_end);
+            #endif
 
             vec4 supseg_start_w = ivp_orig * vec4(npos.xy, depth_start, 1);
             supseg_start_w *= 1. / supseg_start_w.w;
