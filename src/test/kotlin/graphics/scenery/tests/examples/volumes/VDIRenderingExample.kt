@@ -60,22 +60,20 @@ class VDIRenderingExample : SceneryBase("VDI Rendering Example", 512, 512) {
 
         val colorArray: ByteArray = File("$vdiFilename.vdi-color").readBytes()
         val depthArray: ByteArray = File("$vdiFilename.vdi-depth").readBytes()
-        val octArray: ByteArray = File("$vdiFilename.vdi-grid").readBytes()
+        val gridArray: ByteArray = File("$vdiFilename.vdi-grid").readBytes()
 
         // Step 3: assigning buffer values
-        val colBuffer: ByteBuffer = MemoryUtil.memCalloc(vdiNode.vdiHeight * vdiNode.vdiWidth * numSupersegments * numLayers * 4 * 4)
+        val colBuffer: ByteBuffer = MemoryUtil.memCalloc(colorArray.size)
         colBuffer.put(colorArray).flip()
         colBuffer.limit(colBuffer.capacity())
 
-        val depthBuffer = MemoryUtil.memCalloc(vdiNode.vdiHeight * vdiNode.vdiWidth * numSupersegments * 2 * 2 * 2)
+        val depthBuffer = MemoryUtil.memCalloc(depthArray.size)
         depthBuffer.put(depthArray).flip()
         depthBuffer.limit(depthBuffer.capacity())
 
-        val numGridCells = vdiNode.getAccelerationGridSize()
-
-        val gridBuffer = MemoryUtil.memAlloc(numGridCells.x.toInt() * numGridCells.y.toInt() * numGridCells.z.toInt() * 4)
+        val gridBuffer = MemoryUtil.memAlloc(gridArray.size)
         if(skipEmpty) {
-            gridBuffer.put(octArray).flip()
+            gridBuffer.put(gridArray).flip()
             gridBuffer.limit(gridBuffer.capacity())
         }
 
