@@ -9,23 +9,22 @@ import graphics.scenery.volumes.vdi.benchmarks.BenchmarkSetup
 import org.joml.Vector3f
 import kotlin.concurrent.thread
 
-class VDIRenderingBenchmarkRunner {
+class VolumeRenderingBenchmarkRunner {
     val benchmarkDatasets = listOf<BenchmarkSetup.Dataset>(BenchmarkSetup.Dataset.Kingsnake, BenchmarkSetup.Dataset.Rayleigh_Taylor, BenchmarkSetup.Dataset.Richtmyer_Meshkov)
     val benchmarkViewpoints = listOf(10, 20, 30, 40)
-    val benchmarkSupersegments = listOf(10, 20, 30, 40)
     val benchmarkVos = listOf(0, 90, 180, 270)
 
     fun vdiRenderingBenchmarks(dataset: String, viewpoint: Int, renderer: Renderer, skipEmpty: Boolean = false) {
 
         Thread.sleep(2000) //allow the rotation to take place
 
-        renderer.screenshot("/home/charles/Nextcloud/Screenshots/VDI_${dataset}_${viewpoint}_${skipEmpty}.png")
+        renderer.screenshot("/datapot/aryaman/benchmark_images/VDI_${dataset}_${viewpoint}_${skipEmpty}.png")
 
         Thread.sleep(1000)
     }
 
-    fun runTest(dataset: String, vo: Int, windowWidth: Int, windowHeight: Int, dataName: BenchmarkSetup.Dataset, ns: Int) {
-        val instance = VDIRenderingBenchmark("VDI Rendering Benchmark", windowWidth, windowHeight, dataName, ns, vo)
+    fun runTest(dataset: String, vo: Int, windowWidth: Int, windowHeight: Int, dataName: BenchmarkSetup.Dataset) {
+        val instance = VolumeRenderingBenchmark(windowWidth, windowHeight, dataName)
         thread {
             while (instance.hub.get(SceneryElement.Renderer)==null) {
                 Thread.sleep(50)
@@ -77,24 +76,21 @@ class VDIRenderingBenchmarkRunner {
     }
 
 
-    fun runVDIRendering() {
+    fun runVolumeRendering() {
         val windowWidth = 1920
         val windowHeight = 1080
 
         benchmarkVos.forEach { vo ->
-            benchmarkSupersegments.forEach { ns ->
                 benchmarkDatasets.forEach { dataName ->
-                    val dataset = "${dataName}_${windowWidth}_${windowHeight}_${ns}_$vo"
+                    val dataset = "${dataName}_${windowWidth}_${windowHeight}_$vo"
                     System.setProperty("VDIBenchmark.Dataset", dataName.name)
                     System.setProperty("VDIBenchmark.WindowWidth", windowWidth.toString())
                     System.setProperty("VDIBenchmark.WindowHeight", windowHeight.toString())
-                    System.setProperty("VDIBenchmark.NumSupersegments", ns.toString())
                     System.setProperty("VDIBenchmark.Vo", vo.toString())
 
-                    runTest(dataset, vo, windowWidth, windowHeight, dataName, ns)
+                    runTest(dataset, vo, windowWidth, windowHeight, dataName)
                     println("Got the control back")
                 }
-            }
         }
     }
 
@@ -107,7 +103,7 @@ class VDIRenderingBenchmarkRunner {
 
         @JvmStatic
         fun main(args: Array<String>) {
-            VDIRenderingBenchmarkRunner().runVDIRendering()
+            VolumeRenderingBenchmarkRunner().runVolumeRendering()
         }
     }
 }

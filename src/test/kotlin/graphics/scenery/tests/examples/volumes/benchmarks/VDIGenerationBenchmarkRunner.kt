@@ -17,8 +17,7 @@ import kotlin.concurrent.thread
 
 class VDIGenerationBenchmarkRunner {
     val benchmarkDatasets = listOf<BenchmarkSetup.Dataset>(BenchmarkSetup.Dataset.Kingsnake, BenchmarkSetup.Dataset.Rayleigh_Taylor, BenchmarkSetup.Dataset.Richtmyer_Meshkov)
-    val benchmarkSupersegments = listOf(20)
-
+    val benchmarkSupersegments = listOf(10, 15, 20, 30, 40)
     /**
      * Generates a sequence of VDIs, with the camera rotating at 10 degree increments between successive VDIs
      */
@@ -116,8 +115,10 @@ class VDIGenerationBenchmarkRunner {
                         if (instance.VDIsGenerated.get() > 0) {
                             if (dataName == BenchmarkSetup.Dataset.Richtmyer_Meshkov) {
                                 rotateCamera(0f, 10f, instance.cam, instance.windowWidth, instance.windowHeight, target)
+                                instance.cam.spatial().updateWorld(false, true)
                             } else {
                                 rotateCamera(10f, 0f, instance.cam, instance.windowWidth, instance.windowHeight, target)
+                                instance.cam.spatial().updateWorld(false, true)
                             }
                         }
                         numGenerated.incrementAndGet()
