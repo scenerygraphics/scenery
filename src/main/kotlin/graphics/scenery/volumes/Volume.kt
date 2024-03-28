@@ -78,6 +78,7 @@ import org.jfree.data.statistics.SimpleHistogramBin
 import org.jfree.data.statistics.SimpleHistogramDataset
 import org.scijava.Context
 import kotlin.math.*
+import kotlin.streams.toList
 import kotlin.time.measureTimedValue
 
 @Suppress("DEPRECATION")
