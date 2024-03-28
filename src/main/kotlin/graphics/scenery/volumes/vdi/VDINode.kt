@@ -11,6 +11,7 @@ import graphics.scenery.textures.UpdatableTexture
 import graphics.scenery.utils.Image
 import graphics.scenery.utils.extensions.applyVulkanCoordinateSystem
 import net.imglib2.type.numeric.integer.UnsignedIntType
+import net.imglib2.type.numeric.integer.UnsignedShortType
 import net.imglib2.type.numeric.real.FloatType
 import org.joml.Matrix4f
 import org.joml.Vector3f
@@ -154,6 +155,11 @@ class VDINode(windowWidth: Int, windowHeight: Int, val numSupersegments: Int, vd
         }
     }
 
+    private fun generateDepthTexture(dimensions: Vector3i, buffer: ByteBuffer) : Texture {
+        return Texture(dimensions,  channels = 2, contents = buffer, usageType = hashSetOf(
+            Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = UnsignedShortType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+    }
+
     /**
      * Attaches textures containing the VDI data for rendering.
      *
@@ -174,8 +180,7 @@ class VDINode(windowWidth: Int, windowHeight: Int, val numSupersegments: Int, vd
                 minFilter = Texture.FilteringMode.NearestNeighbour,
                 maxFilter = Texture.FilteringMode.NearestNeighbour
             )
-            material().textures[inputDepthTexture] = Texture(Vector3i(2 * numSupersegments, vdiHeight, vdiWidth),  channels = 1, contents = depthBuffer, usageType = hashSetOf(
-                Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+            material().textures[inputDepthTexture] = generateDepthTexture(Vector3i(numSupersegments, vdiHeight, vdiWidth), depthBuffer)
 
             material().textures[inputAccelerationTexture] = Texture(Vector3i(numGridCells.x.toInt(), numGridCells.y.toInt(), numGridCells.z.toInt()), 1, type = UnsignedIntType(), contents = gridBuffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
         } else {
@@ -185,8 +190,7 @@ class VDINode(windowWidth: Int, windowHeight: Int, val numSupersegments: Int, vd
                 minFilter = Texture.FilteringMode.NearestNeighbour,
                 maxFilter = Texture.FilteringMode.NearestNeighbour
             )
-            material().textures["${inputDepthTexture}2"] = Texture(Vector3i(2 * numSupersegments, vdiHeight, vdiWidth),  channels = 1, contents = depthBuffer, usageType = hashSetOf(
-                Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+            material().textures["${inputDepthTexture}2"] = generateDepthTexture(Vector3i(numSupersegments, vdiHeight, vdiWidth), depthBuffer)
 
             material().textures["${inputAccelerationTexture}2"] = Texture(Vector3i(numGridCells.x.toInt(), numGridCells.y.toInt(), numGridCells.z.toInt()), 1, type = UnsignedIntType(), contents = gridBuffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
         }
@@ -204,8 +208,7 @@ class VDINode(windowWidth: Int, windowHeight: Int, val numSupersegments: Int, vd
             type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
 
         val emptyDepth = MemoryUtil.memCalloc(1 * 4)
-        val emptyDepthTexture = Texture(Vector3i(1, 1, 1), 1, contents = emptyDepth, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
-            type = FloatType(), mipmap = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+        val emptyDepthTexture = generateDepthTexture(Vector3i(1, 1, 1), emptyDepth)
 
         val emptyAccel = MemoryUtil.memCalloc(4)
         val emptyAccelTexture = Texture(

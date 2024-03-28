@@ -14,6 +14,7 @@ import graphics.scenery.utils.Image
 import graphics.scenery.utils.lazyLogger
 import net.imglib2.type.numeric.integer.IntType
 import net.imglib2.type.numeric.integer.UnsignedIntType
+import net.imglib2.type.numeric.integer.UnsignedShortType
 import net.imglib2.type.numeric.real.FloatType
 import org.joml.Vector3f
 import org.joml.Vector3i
@@ -83,7 +84,7 @@ class VDIVolumeManager (var hub: Hub, val windowWidth: Int, val windowHeight: In
 
         colorBuffer = MemoryUtil.memCalloc(windowHeight*windowWidth*4*maxSupersegments*4)
 
-        depthBuffer = MemoryUtil.memCalloc(windowHeight*windowWidth*2*maxSupersegments*2 * 2)
+        depthBuffer = MemoryUtil.memCalloc(windowHeight*windowWidth*2*maxSupersegments*2)
 
         val numGridCells = Vector3f(windowWidth.toFloat() / 8f, windowHeight.toFloat() / 8f, maxSupersegments.toFloat())
 
@@ -96,8 +97,8 @@ class VDIVolumeManager (var hub: Hub, val windowWidth: Int, val windowHeight: In
         volumeManager.material().textures[colorTextureName] = vdiColor
 
         val vdiDepth: Texture = Texture.fromImage(
-            Image(depthBuffer!!, 2 * maxSupersegments, windowHeight, windowWidth, FloatType()),  usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
-            channels = 1, mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+            Image(depthBuffer!!, maxSupersegments, windowHeight, windowWidth, UnsignedShortType()),  usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
+            channels = 2, mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
         volumeManager.customTextures.add(depthTextureName)
         volumeManager.material().textures[depthTextureName] = vdiDepth
 
