@@ -31,32 +31,43 @@ if (vis && step > localNear && step < localFar)
             }
 
             if((newSupSeg)) { //closing a supersegment
-//                vec4 jump_pos_trunc = mix(wfront, wback, stepWidth * steps_trunc_trans); //TODO: jump length of single step can be precalculated and scaled to num steps in supseg
-//
-//                float segLen_trunc = length(jump_pos - wfront);
-//                supersegmentAdjusted.rgb = curV.rgb / curV.a; //TODO: this perhaps does not need to be recalculated here
-//                supersegmentAdjusted.a = adjustOpacity(curV.a, 1.0/segLen_trunc);
+                num_terminations++;
+                supersegmentIsOpen = false;
 
-                jumpPosition(num_terminations, supersegmentIsOpen, steps_in_supseg, ndc_step, curV, steps_trunc_trans, //
-                    wfront, wback, stepWidth, supersegmentAdjusted, supSegEndPoint);
+                #if INT_DEPTHS
+                supSegEndPoint = supSegStartPoint + steps_trunc_trans;
+                #else
+                supSegEndPoint = ndc_step;
+                #endif
+                steps_in_supseg = 0;
 
+                if(thresh_found) {
+                    if(!supsegs_written) {
+                        #if USE_PRINTF
+                        if(gl_GlobalInvocationID.xy == debug_pixel) {
+                            debugPrintfEXT("supersegment: %d ends at: %f", supersegmentNum, ndc_step);
+                        }
+                            #endif
+                        writeSegAndGrid(supersegmentNum, supSegStartPoint, supSegEndPoint, wfront, wback, curV, stepWidth,
+                        steps_trunc_trans, ipv, uv, grid_cell, tnear);
+                    }
+                    supersegmentNum++;
+                }
                 steps_trunc_trans = 0;
-
-                writeSegAndGrid(supsegs_written, supersegmentNum, supSegStartPoint, supSegEndPoint, //
-                    supersegmentAdjusted, ipv, uv, grid_cell);
             }
         }
 
         if( (!supersegmentIsOpen) && (!transparentSample) ) { //opening a supersegment
 
             supersegmentIsOpen = true;
-
-            emptyRegion = false;
-
+            #if INT_DEPTHS
+            supSegStartPoint = i;
+            #else
             vec4 ndcStart = pv * wpos;
             ndcStart *= 1. / ndcStart.w;
             float start_step = ndcStart.z;
             supSegStartPoint = start_step;
+            #endif
             supseg_start_w = wpos;
             curV = vec4( 0 ); //TODO: should this be x instead?
         }
@@ -65,12 +76,6 @@ if (vis && step > localNear && step < localFar)
 
             curV.rgb = curV.rgb + (1 - curV.a) * newColor * w;
             curV.a = curV.a + (1 - curV.a) * w;
-
-            if(supsegs_written) {
-                vec4 supseg_color = imageLoad(OutputSubVDIColor, ivec3(supersegmentNum, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x));
-                float diff = diffPremultiplied(supseg_color, x);
-                quantization_error += diff;
-            }
 
             steps_in_supseg++;
 
@@ -89,12 +94,25 @@ if (vis && step > localNear && step < localFar)
         }
 
         if(lastSample && supersegmentIsOpen) { //close the supersegment after the last sample is accumulated
-            jumpPosition(num_terminations, supersegmentIsOpen, steps_in_supseg, ndc_step, curV, steps_trunc_trans, //
-                wfront, wback, stepWidth, supersegmentAdjusted, supSegEndPoint);
 
-            writeSegAndGrid(supsegs_written, supersegmentNum, supSegStartPoint, supSegEndPoint, //
-                supersegmentAdjusted, ipv, uv, grid_cell);
+            num_terminations++;
+            supersegmentIsOpen = false;
+
+            #if INT_DEPTHS
+            supSegEndPoint = supSegStartPoint + steps_trunc_trans;
+            #else
+            supSegEndPoint = ndc_step;
+            #endif
+            steps_in_supseg = 0;
+
+            if(thresh_found) {
+                if(!supsegs_written) {
+                    writeSegAndGrid(supersegmentNum, supSegStartPoint, supSegEndPoint, wfront, wback, curV, stepWidth,
+                    steps_trunc_trans, ipv, uv, grid_cell, tnear);
+                }
+                supersegmentNum++;
+            }
+            steps_trunc_trans = 0;
         }
     }
 }
-

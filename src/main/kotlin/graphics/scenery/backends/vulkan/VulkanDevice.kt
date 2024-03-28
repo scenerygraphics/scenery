@@ -45,6 +45,8 @@ open class VulkanDevice(
     val extensions = ArrayList<String>()
     /** Stores enabled features */
     val features: VkPhysicalDeviceFeatures
+    /** Stores the created device queues. */
+    private val queues = ConcurrentHashMap<Int, ArrayList<QueueWithMutex>>()
 
     private val descriptorPools = ArrayList<DescriptorPool>(5)
 
@@ -52,6 +54,11 @@ open class VulkanDevice(
      * Enum class for GPU device types. Can be unknown, other, integrated, discrete, virtual or CPU.
      */
     enum class DeviceType { Unknown, Other, IntegratedGPU, DiscreteGPU, VirtualGPU, CPU }
+
+    /**
+     * Data class to hold a Vulkan queue together with a mutex (via a [Semaphore]) for regulating access.
+     */
+    data class QueueWithMutex(val queue: VkQueue, val mutex: Semaphore = Semaphore(1))
 
     /**
      * Class to store device-specific metadata.
@@ -386,13 +393,21 @@ open class VulkanDevice(
         }
     }
 
-    data class QueueWithMutex(val queue: VkQueue, val mutex: Semaphore = Semaphore(1))
-    private val queues = ConcurrentHashMap<Int, ArrayList<QueueWithMutex>>()
     /**
-     * Creates a new Vulkan queue on [device] with the queue family index [queueFamilyIndex] and returns the queue.
+     * Retrieves a Vulkan queue on [device] with the queue family index [queueFamilyIndex]. If none exists
+     * yet, one will be created.
      */
     fun getQueue(queueFamilyIndex: Int): QueueWithMutex {
-        val index = queues[queueFamilyIndex]?.size ?: 0
+        val queue = queues[queueFamilyIndex]?.last() ?: createQueue(queueFamilyIndex)
+
+        return queue
+    }
+
+    /*
+    * Creates a new Vulkan queue on [device] with the queue family index [queueFamilyIndex] and returns the queue.
+    */
+    fun createQueue(queueFamilyIndex: Int): QueueWithMutex {
+        val index = queues[queueFamilyIndex]?.lastIndex ?: 0
 
         val availableQueues = queueProps[queueFamilyIndex].queueCount()
 
@@ -437,13 +452,27 @@ open class VulkanDevice(
         vkDestroySemaphore(this.vulkanDevice, semaphore, null)
     }
 
-    data class DescriptorPool(val handle: Long, var free: Int = maxTextures + maxUBOs + maxInputAttachments + maxUBOs) {
+    data class DescriptorPool(
+        val handle: Long,
+        var free: ConcurrentHashMap<Int, Int> = ConcurrentHashMap(
+            mutableMapOf(
+                VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER to maxUBOs,
+                VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC to maxUBOs,
+                VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT to maxInputAttachments,
+                VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER to maxTextures,
+                VK_DESCRIPTOR_TYPE_STORAGE_IMAGE to maxTextures)
+        )
+    ) {
 
         companion object {
             val maxTextures = 2048 * 16
             val maxUBOs = 2048
             val maxInputAttachments = 32
             val maxSets = maxUBOs * 2 + maxInputAttachments + maxTextures
+        }
+
+        fun decreaseAvailable(type: Int, by: Int = 1) {
+            free[type] = free[type]!! - by
         }
     }
 
@@ -484,7 +513,7 @@ open class VulkanDevice(
             val handle = VU.getLong("vkCreateDescriptorPool",
                 { vkCreateDescriptorPool(vulkanDevice, descriptorPoolInfo, null, this) }, {})
 
-            DescriptorPool(handle, maxSets)
+            DescriptorPool(handle)
         }
     }
 
@@ -497,8 +526,8 @@ open class VulkanDevice(
         ubo: VulkanUBO.UBODescriptor,
         type: Int = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER
     ): Long {
-        val pool = findAvailableDescriptorPool()
-        pool.free -= 1
+        val pool = findAvailableDescriptorPool(type)
+        pool.decreaseAvailable(type, 1)
 
         logger.debug("Creating descriptor set with $bindingCount bindings, DSL=$descriptorSetLayout")
         return stackPush().use { stack ->
@@ -507,7 +536,7 @@ open class VulkanDevice(
             val allocInfo = VkDescriptorSetAllocateInfo.calloc(stack)
                 .sType(VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO)
                 .pNext(MemoryUtil.NULL)
-                .descriptorPool(findAvailableDescriptorPool().handle)
+                .descriptorPool(pool.handle)
                 .pSetLayouts(pDescriptorSetLayout)
 
             val descriptorSet = VU.getLong("createDescriptorSet",
@@ -547,8 +576,8 @@ open class VulkanDevice(
         buffer: VulkanBuffer,
         size: Long = 2048L
     ): Long {
-        val pool = findAvailableDescriptorPool()
-        pool.free -= 1
+        val pool = findAvailableDescriptorPool(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC)
+        pool.decreaseAvailable(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1)
 
         logger.debug("Creating dynamic descriptor set with $bindingCount bindings, DSL=${descriptorSetLayout.toHexString()}")
 
@@ -558,7 +587,7 @@ open class VulkanDevice(
             val allocInfo = VkDescriptorSetAllocateInfo.calloc()
                 .sType(VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO)
                 .pNext(MemoryUtil.NULL)
-                .descriptorPool(findAvailableDescriptorPool().handle)
+                .descriptorPool(pool.handle)
                 .pSetLayouts(pDescriptorSetLayout)
 
             val descriptorSet = VU.getLong("createDescriptorSet",
@@ -709,8 +738,6 @@ open class VulkanDevice(
         imageLoadStore: Boolean = false,
         onlyFor: List<VulkanFramebuffer.VulkanFramebufferAttachment>? = null
     ): Long {
-        val pool = findAvailableDescriptorPool()
-        pool.free -= 1
 
         return stackPush().use { stack ->
             val (type, layout) = if (!imageLoadStore) {
@@ -719,12 +746,15 @@ open class VulkanDevice(
                 VK_DESCRIPTOR_TYPE_STORAGE_IMAGE to VK_IMAGE_LAYOUT_GENERAL
             }
 
+            val pool = findAvailableDescriptorPool(type)
+            pool.decreaseAvailable(type)
+
             val pDescriptorSetLayout = stack.callocLong(1).put(0, descriptorSetLayout)
 
             val allocInfo = VkDescriptorSetAllocateInfo.calloc(stack)
                 .sType(VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO)
                 .pNext(MemoryUtil.NULL)
-                .descriptorPool(findAvailableDescriptorPool().handle)
+                .descriptorPool(pool.handle)
                 .pSetLayouts(pDescriptorSetLayout)
 
             val descriptorSet = VU.getLong("createDescriptorSet",
@@ -772,12 +802,12 @@ open class VulkanDevice(
      *
      * Creates a new pool if necessary.
      */
-    fun findAvailableDescriptorPool(requiredSets: Int = 1): DescriptorPool {
-        val available = descriptorPools.firstOrNull { it.free >= requiredSets }
+    fun findAvailableDescriptorPool(type: Int, requiredSets: Int = 1): DescriptorPool {
+        val available = descriptorPools.firstOrNull { it.free[type]!! >= requiredSets }
 
         return if(available == null) {
             descriptorPools.add(createDescriptorPool())
-            descriptorPools.first { it.free >= requiredSets }
+            descriptorPools.first { it.free[type]!! >= requiredSets }
         } else {
             available
         }

@@ -224,8 +224,12 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, val 
         fun getFromCacheOrCreate(device: VulkanDevice, entryPoint: String, sp: ShaderPackage): VulkanShaderModule {
             val signature = ShaderSignature(device, sp).hashCode()
 
-            return shaderModuleCache.getOrPut(signature) {
+            return if(sp.disableCaching) {
                 VulkanShaderModule(device, entryPoint, sp)
+            } else {
+                shaderModuleCache.getOrPut(signature) {
+                    VulkanShaderModule(device, entryPoint, sp)
+                }
             }
         }
 

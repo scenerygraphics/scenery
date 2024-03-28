@@ -36,6 +36,7 @@ import graphics.scenery.numerics.Random
 import graphics.scenery.utils.lazyLogger
 import graphics.scenery.utils.extensions.times
 import graphics.scenery.utils.forEachIndexedAsync
+import graphics.scenery.volumes.Volume.Companion.fromPathRawSplit
 import graphics.scenery.volumes.Volume.VolumeDataSource.SpimDataMinimalSource
 import io.scif.SCIFIO
 import io.scif.filters.ReaderFilter
@@ -416,23 +417,24 @@ open class Volume(
         return histogram
     }
 
+    private var slicingArray = FloatArray(4 * MAX_SUPPORTED_SLICING_PLANES)
+
     /**
      * Returns array of slicing plane equations for planes assigned to this volume.
      */
     fun slicingArray(): FloatArray {
-        if (slicingPlaneEquations.size > MAX_SUPPORTED_SLICING_PLANES)
-            logger.warn("More than ${MAX_SUPPORTED_SLICING_PLANES} slicing planes for ${this.name} set. Ignoring additional planes.")
-
-        val fa = FloatArray(4 * MAX_SUPPORTED_SLICING_PLANES)
-
-        slicingPlaneEquations.entries.take(MAX_SUPPORTED_SLICING_PLANES).forEachIndexed { i, entry ->
-            fa[0+i*4] = entry.value.x
-            fa[1+i*4] = entry.value.y
-            fa[2+i*4] = entry.value.z
-            fa[3+i*4] = entry.value.w
+        if (slicingPlaneEquations.size > MAX_SUPPORTED_SLICING_PLANES) {
+            logger.warn("More than $MAX_SUPPORTED_SLICING_PLANES slicing planes for ${this.name} set. Ignoring additional planes.")
         }
 
-        return fa
+        slicingPlaneEquations.entries.take(MAX_SUPPORTED_SLICING_PLANES).forEachIndexed { i, entry ->
+            slicingArray[0+i*4] = entry.value.x
+            slicingArray[1+i*4] = entry.value.y
+            slicingArray[2+i*4] = entry.value.z
+            slicingArray[3+i*4] = entry.value.w
+        }
+
+        return slicingArray
     }
 
     /**
@@ -544,7 +546,7 @@ open class Volume(
 
     companion object {
         val setupId = AtomicInteger(0)
-        val scifio: SCIFIO = SCIFIO()
+        lateinit var scifio: SCIFIO
         private val logger by lazyLogger()
 
         @JvmStatic @JvmOverloads fun fromSpimData(
@@ -845,7 +847,6 @@ open class Volume(
         fun fromPath(file: Path, hub: Hub, onlyLoadFirst: Int? = null): BufferedVolume {
             if(file.normalize().toString().endsWith("raw")) {
                 return fromPathRaw(file, hub, UnsignedByteType())
-//                return fromPathRaw(file, hub, true)
             }
             var volumeFiles: List<Path>
             if(Files.isDirectory(file)) {
@@ -861,6 +862,8 @@ open class Volume(
             } else {
                 volumeFiles = listOf(file)
             }
+
+            scifio = SCIFIO()
 
             val volumes = CopyOnWriteArrayList<BufferedVolume.Timepoint>()
             val dims = Vector3i()
@@ -986,17 +989,31 @@ open class Volume(
         }
 
         /**
-         * Reads raw volumetric data from a [file].
+         * Reads raw volumetric data from a [file], assuming the input
+         * data is 16bit Unsigned Int.
          *
          * Returns the new volume.
          */
-        @JvmStatic @JvmOverloads
+        @JvmStatic
+        fun <T: RealType<T>> fromPathRaw(
+            file: Path,
+            hub: Hub
+        ): BufferedVolume {
+            return fromPathRaw(file, hub, UnsignedShortType())
+        }
+
+        /**
+         * Reads raw volumetric data from a [file], with the [type] being
+         * explicitly specified.
+         *
+         * Returns the new volume.
+         */
+        @JvmStatic
         fun <T: RealType<T>> fromPathRaw(
             file: Path,
             hub: Hub,
             type: T
         ): BufferedVolume {
-
             val infoFile: Path
             val volumeFiles: List<Path>
 
@@ -1082,29 +1099,13 @@ open class Volume(
                 slicesRemaining -= slices
                 numPartitions += 1
                 bytesRead += size
+
             }
 
             val parent = RichNode()
             children.forEach { parent.addChild(it) }
 
             return parent to children
-        }
-
-        /**
-         * Positions [volumes] back-to-back without gaps, using their [pixelToWorld] ratio. Can, e.g., be used
-         * with [fromPathRawSplit] to load volume files greater than 2 GiB into sliced partitions and place
-         * the partitions back-to-back, emulating a single large volume in the scene.
-         */
-        fun positionSlices(volumes: List<Volume>, pixelToWorld: Float) {
-            var sliceIndex = 0
-            volumes.forEach { volume ->
-                val currentSlices = volume.getDimensions().z
-                logger.info("Slices: $currentSlices")
-                volume.pixelToWorldRatio = pixelToWorld
-
-                volume.spatial().position = Vector3f(0f, 0f, 1.0f * (sliceIndex) * pixelToWorld)
-                sliceIndex += currentSlices
-            }
         }
 
         /** Amount of supported slicing planes per volume, see also sampling shader segments */
@@ -1130,4 +1131,5 @@ open class Volume(
         }
     }
 }
+
 

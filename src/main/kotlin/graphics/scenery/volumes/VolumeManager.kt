@@ -170,7 +170,10 @@ class VolumeManager(
 
     @Synchronized
     private fun recreateMaterial(context: SceneryContext) {
-        shaderProperties.clear()
+        val oldProperties = shaderProperties.filter { it.key !in customUniforms }.keys
+        oldProperties.forEach{
+            shaderProperties.remove(it)
+        }
         shaderProperties["transform"] = Matrix4f()
         shaderProperties["viewportSize"] = Vector2f()
         shaderProperties["dsp"] = Vector2f()
@@ -301,7 +304,7 @@ class VolumeManager(
         )
         segments[SegmentType.AccumulatorMultiresolution] = SegmentTemplate(
             "AccumulateBlockVolume.frag",
-            "vis", "sampleVolume", "convert", "sceneGraphVisibility"
+            "vis", "localNear", "localFar", "sampleVolume", "convert", "sceneGraphVisibility"
         )
         segments[SegmentType.Accumulator] = SegmentTemplate(
             "AccumulateSimpleVolume.frag",
@@ -315,7 +318,7 @@ class VolumeManager(
             ?: MultiVolumeShaderMip.SegmentConsumer { _: Map<SegmentType, SegmentTemplate>,
                                                   segmentInstances: Map<SegmentType, Segment>,
                                                   volumeIndex: Int ->
-                logger.info("Connecting additional bindings")
+                logger.debug("Connecting additional bindings")
 
                 if(!triggered) {
                     segmentInstances[SegmentType.FragmentShader]?.repeat("localNear", n)
@@ -323,42 +326,39 @@ class VolumeManager(
                     triggered = true
                 }
 
-                logger.info("Connecting localNear/localFar for $volumeIndex")
-//                instances[SegmentType.FragmentShader]?.bind(
-//                    "localNear",
-//                    i,
-//                    instances[SegmentType.AccumulatorMultiresolution]
-//                )
-
-                segmentInstances[SegmentType.FragmentShader]?.bind(
-                    "localNear",
-                    volumeIndex,
-                    segmentInstances[SegmentType.Accumulator]
-                )
-
-//                instances[SegmentType.FragmentShader]?.bind(
-//                    "localFar",
-//                    i,
-//                    instances[SegmentType.AccumulatorMultiresolution]
-//                )
-
-                segmentInstances[SegmentType.FragmentShader]?.bind(
-                    "localNear",
-                    volumeIndex,
-                    segmentInstances[SegmentType.Accumulator]
-                )
-                segmentInstances[SegmentType.FragmentShader]?.bind(
-                    "localFar",
-                    volumeIndex,
-                    segmentInstances[SegmentType.Accumulator]
-                )
-
+                if(signatures[volumeIndex].sourceStackType == SourceStacks.SourceStackType.MULTIRESOLUTION) {
+                    segmentInstances[SegmentType.FragmentShader]?.bind(
+                        "localNear",
+                        volumeIndex,
+                        segmentInstances[SegmentType.AccumulatorMultiresolution]
+                    )
+                    segmentInstances[SegmentType.FragmentShader]?.bind(
+                        "localFar",
+                        volumeIndex,
+                        segmentInstances[SegmentType.AccumulatorMultiresolution]
+                    )
+                } else {
+                    segmentInstances[SegmentType.FragmentShader]?.bind(
+                        "localNear",
+                        volumeIndex,
+                        segmentInstances[SegmentType.Accumulator]
+                    )
+                    segmentInstances[SegmentType.FragmentShader]?.bind(
+                        "localFar",
+                        volumeIndex,
+                        segmentInstances[SegmentType.Accumulator]
+                    )
+                }
+                
                 segmentInstances[SegmentType.SampleMultiresolutionVolume]?.bind(
                     "convert",
                     segmentInstances[SegmentType.Convert]
                 )
-
-                segmentInstances[SegmentType.SampleVolume]?.bind("convert", segmentInstances[SegmentType.Convert])
+                segmentInstances[SegmentType.SampleVolume]?.bind(
+                    "convert", 
+                    segmentInstances[SegmentType.Convert]
+                )
+                
                 segmentInstances[SegmentType.SampleVolume]?.bind(
                     "sceneGraphVisibility",
                     segmentInstances[SegmentType.Accumulator]
@@ -367,6 +367,7 @@ class VolumeManager(
                     "sceneGraphVisibility",
                     segmentInstances[SegmentType.AccumulatorMultiresolution]
                 )
+                
             }
 
         val newProgvol = MultiVolumeShaderMip(
@@ -801,11 +802,10 @@ class VolumeManager(
         needAtLeastNumVolumes(renderStacksStates.size)
     }
 
-    fun replace(toReplace: VolumeManager? = null): VolumeManager {
+    private fun replace() {
         logger.debug("Replacing volume manager with ${nodes.size} volumes managed")
         val volumes = nodes.toMutableList()
-        val current = toReplace ?: hub?.get<VolumeManager>()
-
+        val current = hub?.get<VolumeManager>()
         if(current != null) {
             hub?.remove(current)
         }
@@ -815,36 +815,37 @@ class VolumeManager(
             vm.customTextures.add(it)
             vm.material().textures[it] = current.material().textures[it]!!
         }
-
         volumes.forEach {
             vm.add(it)
             it.volumeManager = vm
         }
 
         hub?.add(vm)
-        return vm
     }
 
-    fun replaceSelf(): VolumeManager {
-        logger.debug("Replacing volume manager with ${nodes.size} volumes managed")
-        val volumes = nodes.toMutableList()
-        val current = hub?.get<VolumeManager>()
-        if (current != null) {
-            hub?.remove(current)
+    /**
+     * Replaces the VolumeManager [toReplace] with the current VolumeManager, transferring volumes to the
+     * current VolumeManager. All other properties, e.g., [customSegments], [customTextures], etc. of both
+     * VolumeManagers remain unmodified.
+     */
+    fun replace(toReplace: VolumeManager) {
+        logger.debug("Replacing volume manager with ${toReplace.nodes.size} volumes managed")
+
+        hub?.remove(toReplace)
+
+        //remove the volumes currently held by this volume manager
+        nodes.forEach {
+            remove(it)
         }
 
-        val vm = VolumeManager(hub, useCompute, current?.customSegments, current?.customBindings)
-        current?.customTextures?.forEach {
-            vm.customTextures.add(it)
-            vm.material().textures[it] = current.material().textures[it]!!
-        }
+        //add the volumes held by the volume manager to be replaced into this volume manager
+        val volumes = toReplace.nodes.toMutableList()
         volumes.forEach {
-            vm.add(it)
-            it.volumeManager = vm
+            add(it)
+            it.volumeManager = this
         }
 
-        hub?.add(vm)
-        return vm
+        hub?.add(this)
     }
 
     @Synchronized

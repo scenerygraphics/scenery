@@ -1,27 +1,19 @@
 package graphics.scenery.tests.examples.cluster
 
-import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
-import graphics.scenery.controls.InputHandler
 import graphics.scenery.controls.TrackedStereoGlasses
-import graphics.scenery.net.NodePublisher
-import graphics.scenery.net.NodeSubscriber
 import graphics.scenery.numerics.Random
 import graphics.scenery.primitives.Cone
 import graphics.scenery.proteins.Protein
 import graphics.scenery.proteins.RibbonDiagram
-import graphics.scenery.utils.Statistics
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.volumes.BufferedVolume
 import graphics.scenery.volumes.Colormap
 import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.Volume
-import net.imglib2.type.numeric.integer.UnsignedByteType
-import net.imglib2.type.numeric.integer.UnsignedShortType
-import org.scijava.ui.behaviour.ClickBehaviour
+import org.joml.Vector3f
 import java.nio.file.Paths
-import kotlin.concurrent.thread
 import kotlin.math.PI
 import kotlin.math.floor
 import kotlin.math.roundToInt
@@ -103,7 +95,7 @@ class ClusterExample: SceneryBase("Clustered Volume Rendering example") {
        val volume: BufferedVolume
        val croc = false
        if(croc) {
-           volume = Volume.fromPathRaw(Paths.get(basepath + "Croc/104B_08_side1_647_25p.raw"), hub, UnsignedByteType())
+           volume = Volume.fromPathRaw(Paths.get(basepath + "Croc/104B_08_side1_647_25p.raw"), hub)
 
            volume.name = "volume"
            volume.colormap = Colormap.get("viridis") // jet, hot, rainbow, plasma, grays
@@ -120,7 +112,7 @@ class ClusterExample: SceneryBase("Clustered Volume Rendering example") {
            //volume.transferFunction.addControlPoint(0.1f, 0.5f)
            scene.addChild(volume)
        } else {
-           volume = Volume.fromPathRaw(Paths.get(basepath + "droso-royer-autopilot-transposed"), hub, UnsignedByteType())
+           volume = Volume.fromPathRaw(Paths.get(basepath + "droso-royer-autopilot-transposed"), hub)
 
            volume.name = "volume"
            volume.colormap = Colormap.get("hot") // jet, hot, rainbow, plasma, grays

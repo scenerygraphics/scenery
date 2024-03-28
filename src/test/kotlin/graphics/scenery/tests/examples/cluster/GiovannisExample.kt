@@ -1,31 +1,22 @@
 package graphics.scenery.tests.examples.cluster
 
-import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
-import graphics.scenery.controls.InputHandler
 import graphics.scenery.controls.TrackedStereoGlasses
 import graphics.scenery.controls.behaviours.GamepadClickBehaviour
 import graphics.scenery.controls.behaviours.GamepadRotationControl
-import graphics.scenery.net.NodePublisher
-import graphics.scenery.net.NodeSubscriber
-import graphics.scenery.numerics.Random
 import graphics.scenery.proteins.Protein
 import graphics.scenery.proteins.RibbonDiagram
-import graphics.scenery.utils.Statistics
-import graphics.scenery.utils.extensions.minus
 import graphics.scenery.volumes.BufferedVolume
 import graphics.scenery.volumes.Colormap
 import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.Volume
 import net.imglib2.type.numeric.integer.UnsignedByteType
 import net.java.games.input.Component
-import org.scijava.ui.behaviour.ClickBehaviour
+import org.joml.Vector3f
 import java.nio.file.Paths
 import kotlin.concurrent.thread
 import kotlin.math.PI
-import kotlin.math.floor
-import kotlin.math.roundToInt
 
 /**
  * Example to demonstrate rendering on a cluster. Will display a grid of geometric options,

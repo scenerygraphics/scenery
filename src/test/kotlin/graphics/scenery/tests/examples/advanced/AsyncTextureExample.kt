@@ -15,7 +15,6 @@ import graphics.scenery.volumes.Volume
 import net.imglib2.type.numeric.integer.UnsignedByteType
 import org.joml.Vector3i
 import org.lwjgl.system.MemoryUtil
-import java.io.File
 import kotlin.concurrent.thread
 import kotlin.system.measureTimeMillis
 import kotlin.time.Duration.Companion.nanoseconds
@@ -33,7 +32,7 @@ class AsyncTextureExample: SceneryBase("Async Texture example", 512, 512) {
 
     override fun init() {
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
-        renderer?.postRenderLambdas?.add {
+        renderer?.runAfterRendering?.add {
             val now = System.nanoTime()
             val duration = (now - previous).nanoseconds
             previous = now
@@ -110,16 +109,15 @@ class AsyncTextureExample: SceneryBase("Async Texture example", 512, 512) {
             mem
         })
 
-        thread {
+        thread(isDaemon = true) {
             Thread.sleep(5000)
 
-            while(true) {
+            while(running) {
                 val index = textures.currentReadPosition
                 val texture = textures.get()
 
                 logger.info("Fiddling Permits available: ${texture.mutex.availablePermits()}")
                 logger.info("Upload Permits available: ${texture.gpuMutex.availablePermits()}")
-                logger.info("Available for use: ${texture.state.contains(Texture.TextureState.AvailableForUse)}")
                 Thread.sleep(50)
 
                 // We add a TextureUpdate that covers the whole texture,
@@ -153,16 +151,17 @@ class AsyncTextureExample: SceneryBase("Async Texture example", 512, 512) {
         }
     }
 
-    fun dumpTimes() {
-        val f = File("timings-${getProcessID()}.csv")
-        f.writeText(frametimes.joinToString(";"))
-    }
-
     override fun inputSetup() {
         setupCameraModeSwitching()
     }
 
+    /**
+     * Companion object for providing a main method.
+     */
     companion object {
+        /**
+         * The main entry point. Executes this example application when it is called.
+         */
         @JvmStatic
         fun main(args: Array<String>) {
             AsyncTextureExample().main()

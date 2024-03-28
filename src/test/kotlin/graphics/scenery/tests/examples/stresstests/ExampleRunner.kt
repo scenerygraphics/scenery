@@ -3,6 +3,7 @@ package graphics.scenery.tests.examples.stresstests
 import graphics.scenery.SceneryBase
 import graphics.scenery.SceneryElement
 import graphics.scenery.backends.Renderer
+import graphics.scenery.numerics.Random
 import graphics.scenery.utils.ExtractsNatives
 import graphics.scenery.utils.lazyLogger
 import graphics.scenery.utils.SystemHelpers
@@ -54,6 +55,9 @@ class ExampleRunner(
                 exitProcess(-1)
             }
 
+            // re-seed scenery's PRNG to the seed given via system property
+            Random.reseed()
+
             val exampleRunnable = GlobalScope.launch(handler) {
                 instance.assertions[SceneryBase.AssertionCheckPoint.BeforeStart]?.forEach {
                     it.invoke()
@@ -70,7 +74,7 @@ class ExampleRunner(
                 delay(200)
             }
 
-            delay(2000)
+            delay(3000)
             r.screenshot("$rendererDirectory/${clazz.simpleName}.png", overwrite = true)
             Thread.sleep(2000)
 
@@ -145,7 +149,7 @@ class ExampleRunner(
 
         // find all basic and advanced examples, exclude blacklist
         val examples = ClassGraph()
-            .acceptPackages("graphics.scenery.tests")
+            .acceptPackages("graphics.scenery.tests.examples")
             .enableClassInfo()
             .scan()
             .getSubclasses(SceneryBase::class.java)

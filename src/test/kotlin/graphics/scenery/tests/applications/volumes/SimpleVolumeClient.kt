@@ -1,29 +1,34 @@
-package graphics.scenery.tests.examples.volumes
+package graphics.scenery.tests.applications.volumes
 
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.textures.Texture
 import graphics.scenery.ui.SwingBridgeFrame
 import graphics.scenery.utils.VideoDecoder
-import graphics.scenery.volumes.*
+import graphics.scenery.volumes.DummyVolume
+import graphics.scenery.volumes.TransferFunction
+import graphics.scenery.volumes.TransferFunctionEditor
 import org.joml.Vector3f
 import org.joml.Vector3i
 import java.nio.ByteBuffer
 import kotlin.concurrent.thread
 
 /**
- *  Empty scene to receive content via network and update the content via transferFunction editor and dummy volume
+ * Simple client application for remote server-side volume rendering. Receives and displays a video stream from
+ * the server (e.g. [SimpleVolumeServerExample]). Uses a [DummyVolume] to capture changes in volume rendering
+ * parameters that are synchronized with the server. Camera is also synchronized with the server.
  *
  * Start with vm param:
- * -ea -Dscenery.ServerAddress=tcp://127.0.0.1 [-Dscenery.RemoteCamera=false|true]
+ * -Dscenery.Server=true
  *
  * Explanation:
- * - RemoteCamera: (default false) Has to be set to true if the camera of the server provided scene should be used.
+ * This application, the client in the remote volume rendering setup, is the server in scenery's networking code
+ * because the camera and volume properties from this scene need to be used in the remote rendering server.
  */
-class SimpleVolumeClient : SceneryBase("Volume Client", 512 , 512) {
+class SimpleVolumeClient : SceneryBase("Volume Client", 512, 512) {
 
+    val displayPlane = FullscreenObject()
     var buffer: ByteBuffer = ByteBuffer.allocateDirect(0)
-    var decodedFrameCount: Int = 0
 
     override fun init() {
 
@@ -53,48 +58,29 @@ class SimpleVolumeClient : SceneryBase("Volume Client", 512 , 512) {
         tfUI.name = dummyVolume.name
         val swingUiNode = bridge.uiNode
         swingUiNode.spatial() {
-            position = Vector3f(2f,0f,0f)
+            position = Vector3f(2f, 0f, 0f)
         }
 
-        val plane = FullscreenObject()
-        with(plane){
+        with(displayPlane){
             name = "plane"
             wantsSync = false
             scene.addChild(this)
         }
 
-        decodeVideo(plane)
-
-    }
-
-    private fun decodeVideo(plane: FullscreenObject){
         val videoDecoder = VideoDecoder("scenery-stream.sdp")
-        logger.info("video decoder object created")
         thread {
-            while (!sceneInitialized()) {
-                Thread.sleep(200)
+            while(!renderer!!.firstImageReady) {
+                Thread.sleep(50)
             }
 
-            decodedFrameCount = 1
-
-            while (videoDecoder.nextFrameExists) {
-                val image = videoDecoder.decodeFrame()  /* the decoded image is returned as a ByteArray, and can now be processed.
-                                                        Here, it is simply displayed in fullscreen */
-                if(image != null) { // image can be null, e.g. when the decoder encounters invalid information between frames
-                    drawFrame(image, videoDecoder.videoWidth, videoDecoder.videoHeight, plane, decodedFrameCount)
-                    decodedFrameCount++
-                }
-            }
-            decodedFrameCount -= 1
-            logger.info("Done decoding and displaying $decodedFrameCount frames.")
+            videoDecoder.decodeFrameByFrame(drawFrame)
         }
     }
 
-    private fun drawFrame(tex: ByteArray, width: Int, height: Int, plane: FullscreenObject, frameIndex: Int) {
-
-        if(frameIndex % 100 == 0) {
-            logger.info("Displaying frame $frameIndex")
-        }
+     private val drawFrame: (ByteArray, Int, Int, Int) -> Unit = {tex: ByteArray, width: Int, height: Int, frameIndex: Int ->
+         if(frameIndex % 100 == 0) {
+             logger.debug("Displaying frame $frameIndex")
+         }
 
         if(buffer.capacity() == 0) {
             buffer = BufferUtils.allocateByteAndPut(tex)
@@ -102,12 +88,18 @@ class SimpleVolumeClient : SceneryBase("Volume Client", 512 , 512) {
             buffer.put(tex).flip()
         }
 
-        plane.material {
+        displayPlane.material {
             textures["diffuse"] = Texture(Vector3i(width, height, 1), 4, contents = buffer, mipmap = true)
         }
     }
 
+    /**
+     * Companion object for providing a main method.
+     */
     companion object {
+        /**
+         * The main entry point. Executes this example application when it is called.
+         */
         @JvmStatic
         fun main(args: Array<String>) {
             SimpleVolumeClient().main()

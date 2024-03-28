@@ -9,10 +9,18 @@ import org.joml.Vector3f
 import org.lwjgl.system.MemoryUtil
 import java.io.File
 import java.io.FileInputStream
+import java.io.FileNotFoundException
 import java.nio.ByteBuffer
 
+/**
+ * Example showing how a VDI can be rendered.
+ *
+ * @author Aryaman Gupta <argupta@mpi-cbg.de>
+ */
 class VDIRenderingExample(applicationName: String, windowWidth: Int, windowHeight: Int): SceneryBase(applicationName, windowWidth,windowHeight) {
 
+
+    val vdiFilename = "example4"
     val skipEmpty = false
 
     val numSupersegments = 20
@@ -24,7 +32,7 @@ class VDIRenderingExample(applicationName: String, windowWidth: Int, windowHeigh
 
     override fun init() {
 
-        //Step 1: create a Renderer, Point light and camera
+        // Step 1: create a Renderer, Point light and camera
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
 
         val light = PointLight(radius = 15.0f)
@@ -40,32 +48,39 @@ class VDIRenderingExample(applicationName: String, windowWidth: Int, windowHeigh
             scene.addChild(this)
         }
 
-        //Step 2: read files
-        val file = FileInputStream(File("VDI_dump4"))
+        // Step 2: read files
+        val file = try {
+            FileInputStream(File("$vdiFilename.vdi-metadata"))
+        } catch(e: FileNotFoundException) {
+            logger.error("File ${vdiFilename}.vdi-metadata not found!")
+            return
+        }
+
         val vdiData = VDIDataIO.read(file)
         logger.info("Fetching file...")
 
         vdiNode = VDINode(windowWidth, windowHeight, numSupersegments, vdiData)
 
-        val colorArray: ByteArray = File("VDI_col").readBytes()
-        val depthArray: ByteArray = File("VDI_depth").readBytes()
-        val octArray: ByteArray = File("VDI_octree").readBytes()
+        val colorArray: ByteArray = File("$vdiFilename.vdi-color").readBytes()
+        val depthArray: ByteArray = File("$vdiFilename.vdi-depth").readBytes()
+        val gridArray: ByteArray = File("$vdiFilename.vdi-grid").readBytes()
 
-        //Step  3: assigning buffer values
-        val colBuffer: ByteBuffer = MemoryUtil.memCalloc(vdiNode.vdiHeight * vdiNode.vdiWidth * numSupersegments * numLayers * 4 * 4)
+        // Step 3: assigning buffer values
+        val colBuffer: ByteBuffer = MemoryUtil.memCalloc(colorArray.size)
         colBuffer.put(colorArray).flip()
         colBuffer.limit(colBuffer.capacity())
 
-        val depthBuffer = MemoryUtil.memCalloc(vdiNode.vdiHeight * vdiNode.vdiWidth * numSupersegments * 2 * 2 * 2)
+        val depthBuffer = MemoryUtil.memCalloc(depthArray.size)
         depthBuffer.put(depthArray).flip()
         depthBuffer.limit(depthBuffer.capacity())
 
-        val gridBuffer = MemoryUtil.memCalloc(vdiNode.numGridCells.x.toInt() * vdiNode.numGridCells.y.toInt() * vdiNode.numGridCells.z.toInt() * 4)
+        val gridBuffer = MemoryUtil.memAlloc(gridArray.size)
         if(skipEmpty) {
-            gridBuffer.put(octArray).flip()
+            gridBuffer.put(gridArray).flip()
+            gridBuffer.limit(gridBuffer.capacity())
         }
 
-        //Step 4: Creating compute node and attach shader and vdi Files to
+        //Step 4: Attaching the buffers to the vdi node and adding it to the scene
         vdiNode.attachTextures(colBuffer, depthBuffer, gridBuffer)
 
         vdiNode.skip_empty = skipEmpty
@@ -80,7 +95,13 @@ class VDIRenderingExample(applicationName: String, windowWidth: Int, windowHeigh
         scene.addChild(plane)
     }
 
+    /**
+     * Companion object for providing a main method.
+     */
     companion object {
+        /**
+         * The main entry point. Executes this example application when it is called.
+         */
         @JvmStatic
         fun main(args: Array<String>) {
             VDIRenderingExample("VDI Rendering Example", 1280, 720).main()

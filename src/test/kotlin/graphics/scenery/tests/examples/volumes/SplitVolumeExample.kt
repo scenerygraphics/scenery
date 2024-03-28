@@ -4,6 +4,7 @@ import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.TrackedStereoGlasses
 import graphics.scenery.attribute.material.Material
+import graphics.scenery.utils.extensions.positionVolumeSlices
 import graphics.scenery.volumes.Colormap
 import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.Volume
@@ -50,7 +51,7 @@ class SplitVolumeExample: SceneryBase("Split volume data", 1280, 720) {
         val parent = pair.first as RichNode
         val volumeList = pair.second
 
-        Volume.positionSlices(volumeList, volumeList.first().pixelToWorldRatio)
+        parent.positionVolumeSlices(volumeList)
 
         volumeList.forEachIndexed{ i, volume->
             volume.name = "volume_$i"

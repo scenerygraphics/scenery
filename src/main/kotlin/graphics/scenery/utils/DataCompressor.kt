@@ -1,7 +1,5 @@
 package graphics.scenery.utils
 
-import graphics.scenery.Scene
-import graphics.scenery.backends.RenderConfigReader
 import org.xerial.snappy.Snappy
 import java.nio.ByteBuffer
 import org.lwjgl.util.zstd.Zstd.*
@@ -18,6 +16,8 @@ import org.lwjgl.util.lz4.LZ4Frame.LZ4F_isError
  */
 
 class DataCompressor (val compressionTool: CompressionTool) {
+
+    val logger by lazyLogger()
 
     /**
      * The tool used for compression
@@ -85,22 +85,30 @@ class DataCompressor (val compressionTool: CompressionTool) {
      * Compares buffers [uncompressed] and [decompressed] byte-by-byte. If the [decompressed] buffer
      * is a result of a compression followed by decompression of the [uncompressed] buffer, this
      * amounts to a verification of the compression and decompression functionalities.
+     *
+     * Returns true if the two buffers are identical, otherwise false.
      */
-    fun verifyDecompressed(uncompressed: ByteBuffer, decompressed: ByteBuffer) {
+    fun verifyDecompressed(uncompressed: ByteBuffer, decompressed: ByteBuffer): Boolean {
+        var verificationSuccessful = true
+
         val decompressedSize = decompressed.remaining().toLong()
-        check(
-            decompressedSize == uncompressed.remaining().toLong()
-        ) {
-            String.format(
-                "Decompressed size %d != uncompressed size %d",
+        if(decompressedSize != uncompressed.remaining().toLong()) {
+            verificationSuccessful = false
+            logger.info(
+                "Decompressed size {} != uncompressed size {}",
                 decompressedSize,
                 uncompressed.remaining()
             )
         }
 
         for (i in 0 until uncompressed.remaining()) {
-            check(decompressed[i] == uncompressed[i]) { "Decompressed != uncompressed at: $i" }
+            if(decompressed[i] != uncompressed[i]) {
+                verificationSuccessful = false
+                logger.debug("Decompressed != uncompressed at: $i")
+            }
         }
+
+        return verificationSuccessful
     }
 
     /**
@@ -110,6 +118,8 @@ class DataCompressor (val compressionTool: CompressionTool) {
      * @param[compressed] the buffer the compressed result is stored in
      * @param[level] for ZSTD and LZ4, the desired level of compression. For LZ4, higher values lead to faster, but less
      * compression, while for ZSTD, the opposite is true. Optional parameter.
+     *
+     * Returns the length (in bytes) of the compressed buffer
      */
     fun compress(compressed: ByteBuffer, uncompressed: ByteBuffer, level: Int? = null): Long {
         val compressionLevel = level
@@ -128,6 +138,12 @@ class DataCompressor (val compressionTool: CompressionTool) {
         }
     }
 
+    /**
+     * Decompress buffer compressed using tool [compressionTool]
+     *
+     * @param[compressed] the buffer to be compressed
+     * @param[decompressed] the buffer the decompressed result is stored in
+     */
     fun decompress(decompressed: ByteBuffer, compressed: ByteBuffer): Long {
         return when (compressionTool) {
             CompressionTool.ZSTD -> {

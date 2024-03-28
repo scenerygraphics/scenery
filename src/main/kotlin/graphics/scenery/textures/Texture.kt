@@ -50,16 +50,7 @@ open class Texture @JvmOverloads constructor(
     @Transient val gpuMutex: Semaphore = Semaphore(1),
     /** Atomic integer to indicate GPU upload state */
     @Transient val uploaded: AtomicInteger = AtomicInteger(0),
-    /** Hash set to indicate the state of the texture */
-    @Transient val state: MutableSet<TextureState> = Collections.synchronizedSet(hashSetOf(TextureState.Created))
 ) : Serializable, Timestamped {
-
-    enum class TextureState {
-        Created,
-        Uploaded,
-        AvailableForUse
-    }
-
     init {
         contents?.let { c ->
             val buffer = c.duplicate().order(ByteOrder.LITTLE_ENDIAN)
@@ -87,6 +78,9 @@ open class Texture @JvmOverloads constructor(
         }
     }
 
+    /**
+     * Indicate whether a this texture is available on the GPU already.
+     */
     fun availableOnGPU(): Boolean {
         return (uploaded.get() > 0 && (gpuMutex.availablePermits() == 1))
     }
@@ -122,6 +116,12 @@ open class Texture @JvmOverloads constructor(
         Linear
     }
 
+    /**
+     * Textures need to have a usage type defined. That type can be:
+     * [Texture] - a regular texture
+     * [LoadStoreImage] - a texture that can also be used as a load/storage image in a compute shader.
+     * [AsyncLoad] - a texture that will be asynchronously loaded by the renderer.
+     */
     enum class UsageType {
         Texture,
         LoadStoreImage,
@@ -144,7 +144,6 @@ open class Texture @JvmOverloads constructor(
             minFilter: FilteringMode = FilteringMode.Linear,
             maxFilter: FilteringMode = FilteringMode.Linear,
             usage: HashSet<UsageType> = hashSetOf(UsageType.Texture),
-            type : NumericType<*> = UnsignedByteType(),
             channels: Int = 4
         ): Texture {
             return Texture(Vector3i(image.width, image.height, image.depth),

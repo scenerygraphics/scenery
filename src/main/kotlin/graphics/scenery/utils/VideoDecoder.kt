@@ -179,6 +179,12 @@ class VideoDecoder(val filename: String) {
         }
     }
 
+    /**
+     * Decodes and returns the next frame in the video stream.
+     *
+     * @return The decoded image as a [ByteArray]
+     */
+
     fun decodeFrame(): ByteArray? {
 
         var finalize = false
@@ -234,6 +240,27 @@ class VideoDecoder(val filename: String) {
         return image
     }
 
+    /**
+     * Decodes the video stream frame-by-frame until the end and applies the lambda [f] on each decoded image.
+     *
+     * @param[f] The lambda to be applied to each decoded frame taking the decoded image ([ByteArray]),
+     * frame width (Int), height (Int) and frame number (Int) as parameters.
+     */
+    fun decodeFrameByFrame(f: (ByteArray, Int, Int, Int) -> Unit) {
+        var decodedFrameCount = 0
+
+        while (nextFrameExists) {
+            val image = decodeFrame()
+            if(image != null) { // image can be null, e.g. when the decoder encounters invalid information between frames
+                decodedFrameCount++
+                f.invoke(image, videoWidth, videoHeight, decodedFrameCount)
+            }
+        }
+
+        logger.debug("closing video decoder")
+        close()
+    }
+
     private fun getImage(pFrame: AVFrame, width: Int, height: Int) : ByteArray {
         val image = ByteArray(width * height * 4)
         val data = pFrame.data(0)
@@ -252,6 +279,9 @@ class VideoDecoder(val filename: String) {
         return String(buffer, 0, buffer.indexOfFirst { it == 0.toByte() })
     }
 
+    /**
+     * Closes the video decoder and frees up allocated resources.
+     */
     fun close () {
         avformat_close_input(formatContext)
     }

@@ -17,17 +17,18 @@ import graphics.scenery.volumes.*
 import net.imglib2.type.numeric.integer.UnsignedByteType
 import org.joml.*
 import org.scijava.ui.behaviour.ClickBehaviour
-import org.zeromq.ZContext
 import java.io.*
 import java.nio.ByteBuffer
 import kotlin.concurrent.thread
 
-
+/**
+ * Example application showing how to generate Volumetric Depth Images (VDIs). A [VolumeManager] is setup to generate
+ * VDIs and the generated VDIs are written to the file system.
+ *
+ * @author Aryaman Gupta <argupta@mpi-cbg.de>
+ */
 class VDIGenerationExample(wWidth: Int = 512, wHeight: Int = 512, val maxSupersegments: Int = 20) : SceneryBase("Volume Generation Example", wWidth, wHeight) {
-
-    val context: ZContext = ZContext(4)
-
-    var cnt = 0
+    private var count = 0
 
     val cam: Camera = DetachedHeadCamera()
 
@@ -58,9 +59,8 @@ class VDIGenerationExample(wWidth: Int = 512, wHeight: Int = 512, val maxSuperse
         scene.addChild(volume)
 
         cam.target = volume.spatial().position
-
-//        // Step 2: Create VDI Volume Manager
-        val vdiVolumeManager = VDIVolumeManager( hub, windowWidth, windowHeight, maxSupersegments, scene).createVDIVolumeManger()
+        // Step 2: Create VDI Volume Manager
+        val vdiVolumeManager = VDIVolumeManager( hub, windowWidth, windowHeight, maxSupersegments, scene).createVDIVolumeManager()
 
         //step 3: switch the volume's current volume manager to VDI volume manager
         volume.volumeManager = vdiVolumeManager
@@ -79,18 +79,15 @@ class VDIGenerationExample(wWidth: Int = 512, wHeight: Int = 512, val maxSuperse
         val vdiData = VDIData(
             VDIBufferSizes(),
             VDIMetadata(
-                index = cnt,
-                projection = cam.spatial().projection,
-                view = cam.spatial().getTransformation(),
                 volumeDimensions = volumeDimensions3i,
                 model = model,
-                nw = volume.volumeManager.shaderProperties["nw"] as Float,
                 windowDimensions = Vector2i(cam.width, cam.height)
             )
         )
-//        thread {
-//            storeVDI(vdiVolumeManager, vdiData)
-//        }
+
+        thread(isDaemon = true) {
+            storeVDI(vdiVolumeManager, vdiData)
+        }
     }
 
     override fun inputSetup() {
@@ -114,28 +111,28 @@ class VDIGenerationExample(wWidth: Int = 512, wHeight: Int = 512, val maxSuperse
 
         val volumeList = ArrayList<BufferedVolume>()
         volumeList.add(vdiVolumeManager.nodes.first() as BufferedVolume)
-        val VDIsGenerated = AtomicInteger(0)
+        val vdisGenerated = AtomicInteger(0)
         while (renderer?.firstImageReady == false) {
             Thread.sleep(50)
         }
 
-        val vdiColor = vdiVolumeManager.material().textures["OutputSubVDIColor"]!!
+        val vdiColor = vdiVolumeManager.material().textures[VDIVolumeManager.colorTextureName]!!
         val colorCnt = AtomicInteger(0)
         (renderer as? VulkanRenderer)?.persistentTextureRequests?.add(vdiColor to colorCnt)
 
-        val vdiDepth = vdiVolumeManager.material().textures["OutputSubVDIDepth"]!!
+        val vdiDepth = vdiVolumeManager.material().textures[VDIVolumeManager.depthTextureName]!!
         val depthCnt = AtomicInteger(0)
         (renderer as? VulkanRenderer)?.persistentTextureRequests?.add(vdiDepth to depthCnt)
 
 
-        val gridCells = vdiVolumeManager.material().textures["OctreeCells"]!!
+        val gridCells = vdiVolumeManager.material().textures[VDIVolumeManager.accelerationTextureName]!!
         val gridTexturesCnt = AtomicInteger(0)
         (renderer as? VulkanRenderer)?.persistentTextureRequests?.add(gridCells to gridTexturesCnt)
 
         var prevColor = colorCnt.get()
         var prevDepth = depthCnt.get()
 
-        while (cnt<6) { //TODO: convert VDI storage also to postRenderLambda
+        while (count<6) { //TODO: convert VDI storage also to postRenderLambda
 
             tGeneration.start = System.nanoTime()
 
@@ -156,23 +153,29 @@ class VDIGenerationExample(wWidth: Int = 512, wHeight: Int = 512, val maxSuperse
 
             logger.info("Time taken for generation (only correct if VDIs were not being written to disk): ${timeTaken}")
 
-            vdiData.metadata.index = cnt
+            vdiData.metadata.index = count
+            vdiData.metadata.nw = vdiVolumeManager.shaderProperties["nw"] as Float
+            scene.findObserver()?.let { cam ->
+                vdiData.metadata.projection = cam.spatial().projection
+                vdiData.metadata.view = cam.spatial().getTransformation()
+            }
 
-            if (cnt == 4) { //store the 4th VDI
+            if (count == 4) { //store the 4th VDI
 
-                val file = FileOutputStream(File("VDI_dump$cnt"))
+                val vdiFilename = "example$count"
+                val file = FileOutputStream(File("$vdiFilename.vdi-metadata"))
                 VDIDataIO.write(vdiData, file)
                 logger.info("written the dump")
                 file.close()
 
-                SystemHelpers.dumpToFile(vdiColorBuffer!!, "VDI_col")
-                SystemHelpers.dumpToFile(vdiDepthBuffer!!, "VDI_depth")
-                SystemHelpers.dumpToFile(gridCellsBuff!!, "VDI_octree")
+                SystemHelpers.dumpToFile(vdiColorBuffer!!, "$vdiFilename.vdi-color")
+                SystemHelpers.dumpToFile(vdiDepthBuffer!!, "$vdiFilename.vdi-depth")
+                SystemHelpers.dumpToFile(gridCellsBuff!!, "$vdiFilename.vdi-grid")
 
-                logger.info("Wrote VDI $cnt")
-                VDIsGenerated.incrementAndGet()
+                logger.info("Wrote VDI $count")
+                vdisGenerated.incrementAndGet()
             }
-            cnt++
+            count++
         }
         this.close()
     }

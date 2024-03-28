@@ -56,7 +56,7 @@ class Hololens: TrackerInput, Display, Hubable {
     data class CommandBufferWithStatus(val commandBuffer: VulkanCommandBuffer, var current: Boolean = false)
     private var commandBuffers: MutableList<CommandBufferWithStatus> = mutableListOf()
     private var hololensCommandPool = -1L
-    private var d3dImages: List<Pair<VulkanTexture.VulkanImage, Long>?> = emptyList()
+    private var d3dImages: List<Pair<VulkanImage, Long>?> = emptyList()
     private var currentImageIndex: Int = 0
 
     private val acqKeys = memAllocLong(1).put(0, 0)
@@ -226,7 +226,7 @@ class Hololens: TrackerInput, Display, Hubable {
      * @param[queue] The Vulkan command queue to use.
      * @param[commandPool] The Vulkan command pool to use.
      */
-    private fun getSharedHandleVulkanTexture(sharedHandleAddress: Long, width: Int, height: Int, format: Int, device: VulkanDevice, queue: VulkanDevice.QueueWithMutex, commandPool: Long): Pair<VulkanTexture.VulkanImage, Long>? {
+    private fun getSharedHandleVulkanTexture(sharedHandleAddress: Long, width: Int, height: Int, format: Int, device: VulkanDevice, queue: VulkanDevice.QueueWithMutex, commandPool: Long): Pair<VulkanImage, Long>? {
         logger.info("Registered D3D shared texture handle as ${sharedHandleAddress.toHexString()}/${sharedHandleAddress.toString(16)}")
 
         // VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_IMAGE_BIT_NV does not seem to work here
@@ -285,10 +285,6 @@ class Hololens: TrackerInput, Display, Hubable {
             dedicatedAllocationCreateInfo.dedicatedAllocation(true)
         }
 
-        val t = VulkanTexture(device, VulkanRenderer.CommandPools(commandPool, commandPool, commandPool, commandPool), queue, queue,
-            width, height, 1,
-            format, 1, true, true)
-
         val imageCreateInfo = VkImageCreateInfo.calloc()
             .sType(VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO)
             .pNext(extMemoryImageInfo.address())
@@ -306,7 +302,7 @@ class Hololens: TrackerInput, Display, Hubable {
         imageCreateInfo.extent().set(hololensDisplaySize.x().toInt(), hololensDisplaySize.y().toInt(), 1)
 
         var memoryHandle: Long = -1L
-        val img = t.createImage(hololensDisplaySize.x().toInt(), hololensDisplaySize.y().toInt(), 1,
+        val img = VulkanImage.create(device, hololensDisplaySize.x().toInt(), hololensDisplaySize.y().toInt(), 1,
             VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT,
             VK_IMAGE_TILING_OPTIMAL, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 1,
             imageCreateInfo = imageCreateInfo,

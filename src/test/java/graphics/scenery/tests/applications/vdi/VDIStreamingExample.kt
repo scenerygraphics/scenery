@@ -1,4 +1,4 @@
-package graphics.scenery.tests.examples.volumes
+package graphics.scenery.tests.applications.vdi
 
 import graphics.scenery.Camera
 import graphics.scenery.DetachedHeadCamera
@@ -10,9 +10,22 @@ import graphics.scenery.volumes.vdi.VDIStreamer
 import net.imglib2.type.numeric.integer.UnsignedByteType
 import org.joml.Vector3f
 import java.nio.file.Paths
-import org.zeromq.ZContext
-import kotlin.math.max
+import kotlin.concurrent.thread
 
+/**
+ * Example showing how Volumetric Depth Images (VDIs) can be generated and streamed across a network.
+ *
+ * To launch, the following VM parameters need to be set:
+ * -Dscenery.ServerAddress=<IP_Address of client>, e.g., -Dscenery.ServerAddress=tcp://127.0.0.1
+ * -Dscenery.RemoteCamera=true
+ *
+ * Though this is a server application for streaming VDIs, it is a client in scenery's networking code
+ * as it obtains the scene configuration (e.g., camera pose) from the VDI streaming client.
+ *
+ * Can be used with [VDIClientExample]
+ *
+ * @author Aryaman Gupta <argupta@mpi-cbg.de> and Wissal Salhi
+ */
 class VDIStreamingExample : SceneryBase("VDI Streaming Example", 512, 512) {
 
     val cam: Camera = DetachedHeadCamera()
@@ -45,7 +58,7 @@ class VDIStreamingExample : SceneryBase("VDI Streaming Example", 512, 512) {
         scene.addChild(volume)
 
         // Step 2: Create VDI Volume Manager
-        val vdiVolumeManager = VDIVolumeManager(hub, windowWidth, windowHeight, maxSupersegments, scene).createVDIVolumeManger()
+        val vdiVolumeManager = VDIVolumeManager(hub, windowWidth, windowHeight, maxSupersegments, scene).createVDIVolumeManager()
 
         //step 3: switch the volume's current volume manager to VDI volume manager
         volume.volumeManager = vdiVolumeManager
@@ -62,13 +75,26 @@ class VDIStreamingExample : SceneryBase("VDI Streaming Example", 512, 512) {
 
         val vdiStreamer = VDIStreamer()
 
-        vdiStreamer.vdiStreaming = true
-        vdiStreamer.streamVDI("tcp://0.0.0.0:6655", cam, volumeDimensions, volume, maxSupersegments, vdiVolumeManager,
-            renderer!!
-        )
+        thread {
+            while (!renderer!!.firstImageReady) {
+                Thread.sleep(50)
+            }
+
+            vdiStreamer.vdiStreaming.set(true)
+            vdiStreamer.setup("tcp://0.0.0.0:6655", scene.findObserver()!!, volumeDimensions, volume, maxSupersegments, vdiVolumeManager,
+                renderer!!
+            )
+        }
+
     }
 
+    /**
+     * Companion object for providing a main method.
+     */
     companion object {
+        /**
+         * The main entry point. Executes this example application when it is called.
+         */
         @JvmStatic
         fun main(args: Array<String>) {
             VDIStreamingExample().main()

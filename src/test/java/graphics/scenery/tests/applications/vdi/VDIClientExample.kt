@@ -1,37 +1,29 @@
-package graphics.scenery.tests.examples.volumes
+package graphics.scenery.tests.applications.vdi
 
 import graphics.scenery.SceneryBase
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
-import graphics.scenery.backends.Shaders
-import graphics.scenery.compute.ComputeMetadata
-import graphics.scenery.compute.InvocationType
-import graphics.scenery.textures.Texture
-import graphics.scenery.textures.UpdatableTexture
-import graphics.scenery.utils.DataCompressor
-import graphics.scenery.utils.Image
-import graphics.scenery.utils.SystemHelpers
 import graphics.scenery.volumes.vdi.VDIData
-import graphics.scenery.volumes.vdi.VDIDataIO
 import graphics.scenery.volumes.vdi.VDINode
 import graphics.scenery.volumes.vdi.VDIStreamer
-import net.imglib2.type.numeric.integer.UnsignedIntType
-import net.imglib2.type.numeric.real.FloatType
-import org.joml.Matrix4f
 import org.joml.Vector3f
-import org.joml.Vector3i
-import org.lwjgl.system.MemoryUtil
-import org.zeromq.SocketType
 import org.zeromq.ZContext
-import org.zeromq.ZMQ
-import org.zeromq.ZMQException
-import java.io.*
-import java.nio.ByteBuffer
-import java.util.concurrent.atomic.AtomicInteger
 import kotlin.concurrent.thread
-import kotlin.system.measureNanoTime
 
-class VDIClient : SceneryBase("VDI Client", 512, 512, wantREPL = false) {
+/**
+ * Example application showing how to create a client application for receiving VDIs across a network
+ * and rendering them.
+ *
+ * To launch, the following VM parameter needs to be set: -Dscenery.Server=true
+ *
+ * Though this is a client application for streaming VDIs, it is a server in scenery's networking code
+ * as it controls the scene configuration (e.g., camera pose).
+ *
+ * Can be used with [VDIStreamingExample]
+ *
+ * @author Aryaman Gupta <argupta@mpi-cbg.de>
+ */
+class VDIClientExample : SceneryBase("VDI Client", 512, 512, wantREPL = false) {
 
     val cam: Camera = DetachedHeadCamera()
     val plane = FullscreenObject()
@@ -78,14 +70,20 @@ class VDIClient : SceneryBase("VDI Client", 512, 512, wantREPL = false) {
             while (!renderer!!.firstImageReady) {
                 Thread.sleep(100)
             }
-            vdiStreamer.receiveAndUpdateVDI(vdiNode, "tcp://localhost:6655", renderer!!, windowWidth, windowHeight, numSupersegments)
+            vdiStreamer.receiveAndUpdate(vdiNode, "tcp://localhost:6655", renderer!!, windowWidth, windowHeight, numSupersegments)
         }
     }
 
+    /**
+     * Companion object for providing a main method.
+     */
     companion object {
+        /**
+         * The main entry point. Executes this example application when it is called.
+         */
         @JvmStatic
         fun main(args: Array<String>) {
-            VDIClient().main()
+            VDIClientExample().main()
         }
     }
 }
