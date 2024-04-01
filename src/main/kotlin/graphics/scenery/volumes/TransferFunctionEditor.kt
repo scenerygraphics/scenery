@@ -274,7 +274,7 @@ class TransferFunctionEditor(
         })
 
         val tfMenuButton = JToggleButton("").also { button ->
-            button.icon = ImageIcon(ImageIcon(ImageIO.read(this::class.java.getResource("../ui/gear.png"))).image.getScaledInstance(16, 16, SCALE_SMOOTH))
+            button.icon = ImageIcon(ImageIcon(ImageIO.read(this::class.java.getResource("/graphics/scenery/ui/gear.png"))).image.getScaledInstance(16, 16, SCALE_SMOOTH))
             button.toolTipText = "Load a new transfer function and display range"
             button.addActionListener {
                 if(button.isSelected) {

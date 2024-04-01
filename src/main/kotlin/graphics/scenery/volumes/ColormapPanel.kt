@@ -120,7 +120,7 @@ class ColormapPanel(val target:Volume?): JPanel() {
         })
 
         val colormapMenuButton = JToggleButton("").also { button ->
-            button.icon = ImageIcon(ImageIcon(ImageIO.read(this::class.java.getResource("../ui/gear.png"))).image.getScaledInstance(16, 16,
+            button.icon = ImageIcon(ImageIcon(ImageIO.read(this::class.java.getResource("/graphics/scenery/ui/gear.png"))).image.getScaledInstance(16, 16,
                                                                                                                                     java.awt.Image.SCALE_SMOOTH
             ))
             button.toolTipText = "Load a new transfer function and display range"
