@@ -3,13 +3,12 @@ package graphics.scenery.volumes.vdi
 import graphics.scenery.Camera
 import graphics.scenery.Settings
 import graphics.scenery.backends.Renderer
-import graphics.scenery.textures.Texture
 import graphics.scenery.utils.DataCompressor
-import graphics.scenery.utils.extensions.fetchTexture
+import graphics.scenery.utils.extensions.fetchFromGPU
 import graphics.scenery.utils.lazyLogger
-import graphics.scenery.volumes.VDIVolumeManager
 import graphics.scenery.volumes.Volume
 import graphics.scenery.volumes.VolumeManager
+import org.jetbrains.annotations.ApiStatus.Experimental
 import org.joml.Vector2i
 import org.joml.Vector3f
 import org.lwjgl.system.MemoryUtil
@@ -29,6 +28,7 @@ import kotlin.system.measureNanoTime
  * Class to support streaming of Volumetric Depth Images (VDIs). Provides public functions to stream generated VDIs on the
  * server side and to receive and update them on the client side.
  */
+@Experimental
 class VDIStreamer {
 
     private val logger by lazyLogger()
@@ -112,9 +112,9 @@ class VDIStreamer {
 
             if (!firstFrame && vdiStreaming.get()) {
 
-                Texture().fetchTexture(vdiColor)
-                Texture().fetchTexture(vdiDepth)
-                Texture().fetchTexture(gridCells)
+                vdiColor.fetchFromGPU()
+                vdiDepth.fetchFromGPU()
+                gridCells.fetchFromGPU()
 
                 val model = volume.spatial().world
 

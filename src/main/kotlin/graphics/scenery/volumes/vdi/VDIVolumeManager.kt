@@ -1,4 +1,4 @@
-package graphics.scenery.volumes
+package graphics.scenery.volumes.vdi
 
 import bvv.core.shadergen.generate.SegmentTemplate
 import bvv.core.shadergen.generate.SegmentType
@@ -12,9 +12,11 @@ import graphics.scenery.compute.InvocationType
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.Image
 import graphics.scenery.utils.lazyLogger
+import graphics.scenery.volumes.VolumeManager
 import net.imglib2.type.numeric.integer.IntType
 import net.imglib2.type.numeric.integer.UnsignedIntType
 import net.imglib2.type.numeric.real.FloatType
+import org.jetbrains.annotations.ApiStatus.Experimental
 import org.joml.Vector3f
 import org.joml.Vector3i
 import org.lwjgl.system.MemoryUtil
@@ -32,6 +34,8 @@ import kotlin.math.ceil
  *
  * @author Aryaman Gupta <argupta@mpi-cbg.de> and Wissal Salhi
  */
+
+@Experimental
 class VDIVolumeManager (var hub: Hub, val windowWidth: Int, val windowHeight: Int, val maxSupersegments: Int, val scene: Scene)
 {
     private val logger by lazyLogger()
