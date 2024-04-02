@@ -133,7 +133,7 @@ class AsyncTextureExample: SceneryBase("Async Texture example", 512, 512) {
 
                 val waitTime = measureTimeMillis {
                     // Here, we wait until the texture is marked as available on the GPU
-                    while(!texture.availableOnGPU()) {
+                    while(!texture.availableOnGPU() && running) {
                         logger.info("Texture $index not available yet, uploaded=${texture.uploaded.get()}/permits=${texture.gpuMutex.availablePermits()}")
                         Thread.sleep(10)
                     }
