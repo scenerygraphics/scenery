@@ -12,6 +12,7 @@ import graphics.scenery.utils.Image
 import graphics.scenery.utils.extensions.applyVulkanCoordinateSystem
 import net.imglib2.type.numeric.integer.UnsignedIntType
 import net.imglib2.type.numeric.real.FloatType
+import org.jetbrains.annotations.ApiStatus.Experimental
 import org.joml.Matrix4f
 import org.joml.Vector3f
 import org.joml.Vector3i
@@ -29,6 +30,7 @@ import java.nio.ByteBuffer
  * @param[vdiData] The metadata ([VDIData]) associated with the VDI.
  */
 
+@Experimental
 class VDINode(windowWidth: Int, windowHeight: Int, val numSupersegments: Int, vdiData: VDIData) : RichNode() {
 
     /** The projection matrix of the camera viewport that was used to generate the VDI in the first (default) buffer */
