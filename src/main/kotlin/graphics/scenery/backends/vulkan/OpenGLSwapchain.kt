@@ -37,7 +37,7 @@ import java.nio.LongBuffer
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class OpenGLSwapchain(device: VulkanDevice,
-                      queue: VkQueue,
+                      queue: VulkanDevice.QueueWithMutex,
                       commandPools: VulkanRenderer.CommandPools,
                       renderConfig: RenderConfigReader.RenderConfig,
                       useSRGB: Boolean = true,
@@ -180,15 +180,12 @@ class OpenGLSwapchain(device: VulkanDevice,
         val fenceCreateInfo = VkFenceCreateInfo.calloc()
             .sType(VK10.VK_STRUCTURE_TYPE_FENCE_CREATE_INFO)
 
-        presentQueue = VU.createDeviceQueue(device, device.queues.graphicsQueue.first)
+        presentQueue = device.getQueue(device.queueIndices.graphicsQueue.first)
 
         val imgs = (0 until bufferCount).map {
             with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
 
-                val t = VulkanTexture(this@OpenGLSwapchain.device, commandPools, queue, queue,
-                    windowWidth, window.height, 1, format, 1)
-
-                val image = t.createImage(windowWidth, window.height, 1,
+                val image = VulkanImage.create(this@OpenGLSwapchain.device, windowWidth, window.height, 1,
                     format, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT or VK_IMAGE_USAGE_SAMPLED_BIT,
                     VK_IMAGE_TILING_OPTIMAL, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
                     1)
@@ -198,7 +195,7 @@ class OpenGLSwapchain(device: VulkanDevice,
                     VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 1,
                     commandBuffer = this)
 
-                val view = t.createImageView(image, format)
+                val view = image.createView()
 
                 imageAvailableSemaphores.add(this@OpenGLSwapchain.device.createSemaphore())
                 imageRenderedSemaphores.add(this@OpenGLSwapchain.device.createSemaphore())
@@ -398,7 +395,7 @@ class OpenGLSwapchain(device: VulkanDevice,
 //        NVDrawVulkanImage.glSignalVkSemaphoreNV(-1L)
 //        return (presentedFrames % 2) to -1L//.toInt()
         MemoryStack.stackPush().use { stack ->
-            VK10.vkQueueWaitIdle(queue)
+            VK10.vkQueueWaitIdle(queue.queue)
 
             val signal = stack.mallocLong(1)
             signal.put(0, imageAvailableSemaphores[currentImage])
@@ -491,7 +488,7 @@ class OpenGLSwapchain(device: VulkanDevice,
             throw IllegalStateException("Cannot use a window of type ${window.javaClass.simpleName}")
         }
 
-        vkQueueWaitIdle(queue)
+        vkQueueWaitIdle(queue.queue)
 
         closeSyncPrimitives()
 

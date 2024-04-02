@@ -36,7 +36,9 @@ val lwjglArtifacts = listOf(
         "lwjgl-spvc",
         "lwjgl-shaderc",
         "lwjgl-tinyexr",
-        "lwjgl-jawt"
+        "lwjgl-jawt",
+        "lwjgl-lz4",
+        "lwjgl-zstd"
 )
 
 dependencies {
@@ -92,6 +94,7 @@ dependencies {
             }
         }
     }
+    implementation("org.xerial.snappy:snappy-java:1.1.8.4")
     implementation("com.fasterxml.jackson.core:jackson-databind:2.16.1")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.16.1")
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.16.1")
@@ -120,6 +123,7 @@ dependencies {
         exclude("org.lwjgl", "lwjgl-bom")
         exclude("org.lwjgl", "lwjgl")
     }
+
     implementation("org.janelia.saalfeldlab:n5")
     implementation("org.janelia.saalfeldlab:n5-imglib2")
     listOf("core", "structure", "modfinder").forEach {
