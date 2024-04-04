@@ -117,7 +117,7 @@ dependencies {
         exclude("org.jogamp.jogl", "jogl-all")
     }
 
-    implementation("com.github.lwjglx:lwjgl3-awt:bc8daf5") {
+    implementation("com.github.skalarproduktraum:lwjgl3-awt:c034a77") {
         // we exclude the LWJGL binaries here, as the lwjgl3-awt POM uses
         // Maven properties for natives, which is not supported by Gradle
         exclude("org.lwjgl", "lwjgl-bom")
