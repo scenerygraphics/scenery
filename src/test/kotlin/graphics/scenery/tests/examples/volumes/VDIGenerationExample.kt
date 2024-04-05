@@ -30,8 +30,6 @@ import kotlin.concurrent.thread
 class VDIGenerationExample(wWidth: Int = 512, wHeight: Int = 512, val maxSupersegments: Int = 20) : SceneryBase("Volume Generation Example", wWidth, wHeight) {
     private var count = 0
 
-    val cam: Camera = DetachedHeadCamera()
-
     override fun init() {
 
         // Step 1: Create renderer, volume and camera
@@ -39,15 +37,16 @@ class VDIGenerationExample(wWidth: Int = 512, wHeight: Int = 512, val maxSuperse
             SceneryElement.Renderer,
             Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
 
+        val cam: Camera = DetachedHeadCamera()
         with(cam) {
             spatial {
-                position = Vector3f(0.0f, 0.0f, 5.0f)
+                position = Vector3f(0.0f, 0.5f, 5.0f)
             }
             perspectiveCamera(50.0f, windowWidth, windowHeight)
             scene.addChild(this)
         }
 
-        val volume = Volume.fromPathRaw(Paths.get(getDemoFilesPath() + "/volumes/box-iso/"), hub, UnsignedByteType())
+        val volume = Volume.fromPathRaw(Paths.get(getDemoFilesPath() + "/volumes/box-iso/"), hub)
         volume.name = "volume"
         volume.colormap = Colormap.get("viridis")
         volume.spatial {

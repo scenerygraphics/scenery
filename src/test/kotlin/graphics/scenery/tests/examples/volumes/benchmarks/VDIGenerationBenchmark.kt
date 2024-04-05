@@ -10,6 +10,7 @@ import java.nio.file.Paths
 import java.util.concurrent.atomic.AtomicInteger
 import graphics.scenery.backends.vulkan.VulkanRenderer
 import graphics.scenery.utils.SystemHelpers
+import graphics.scenery.utils.extensions.positionVolumeSlices
 import graphics.scenery.volumes.*
 import graphics.scenery.volumes.vdi.benchmarks.BenchmarkSetup
 import net.imglib2.type.numeric.integer.UnsignedByteType
@@ -62,7 +63,7 @@ public class VDIGenerationBenchmark (wWidth: Int = 512, wHeight: Int = 512, val 
 
 
         // Step 2: Create VDI Volume Manager
-        val vdiVolumeManager = VDIVolumeManager( hub, windowWidth, windowHeight, maxSupersegments, scene).createVDIVolumeManger()
+        val vdiVolumeManager = VDIVolumeManager( hub, windowWidth, windowHeight, maxSupersegments, scene).createVDIVolumeManager()
 
         volumeList.forEachIndexed{ i, volume->
             volume.name = "volume_$i"
@@ -77,7 +78,7 @@ public class VDIGenerationBenchmark (wWidth: Int = 512, wHeight: Int = 512, val 
             volume.volumeManager.shaderProperties["doGeneration"] = true
         }
 
-        Volume.positionSlices(volumeList, volumeList.first().pixelToWorldRatio)
+        parent.positionVolumeSlices(volumeList)
 
         parent.spatial {
             position = Vector3f(0.0f, 0.0f, 0.0f)
@@ -130,29 +131,20 @@ public class VDIGenerationBenchmark (wWidth: Int = 512, wHeight: Int = 512, val 
             Thread.sleep(50)
         }
 
-        val vdiColor = vdiVolumeManager.material().textures["OutputSubVDIColor"]!!
+        val vdiColor = vdiVolumeManager.material().textures[VDIVolumeManager.colorTextureName]!!
         val colorCnt = AtomicInteger(0)
         (renderer as? VulkanRenderer)?.persistentTextureRequests?.add(vdiColor to colorCnt)
 
-        val vdiDepth = vdiVolumeManager.material().textures["OutputSubVDIDepth"]!!
+        val vdiDepth = vdiVolumeManager.material().textures[VDIVolumeManager.depthTextureName]!!
         val depthCnt = AtomicInteger(0)
         (renderer as? VulkanRenderer)?.persistentTextureRequests?.add(vdiDepth to depthCnt)
 
 
-        val gridCells = vdiVolumeManager.material().textures["OctreeCells"]!!
+        val gridCells = vdiVolumeManager.material().textures[VDIVolumeManager.accelerationTextureName]!!
         val gridTexturesCnt = AtomicInteger(0)
         (renderer as? VulkanRenderer)?.persistentTextureRequests?.add(gridCells to gridTexturesCnt)
 
-        val vdiIteration = vdiVolumeManager.material().textures["Iterations"]!!
-        val iterCnt = AtomicInteger(0)
-        (renderer as? VulkanRenderer)?.persistentTextureRequests?.add(vdiIteration to iterCnt)
-
-        val vdiThresholds = vdiVolumeManager.material().textures["Thresholds"]!!
-        val threshCnt = AtomicInteger(0)
-        (renderer as? VulkanRenderer)?.persistentTextureRequests?.add(vdiThresholds to threshCnt)
-
-
-        renderer!!.postRenderLambdas.add {
+        renderer!!.runAfterRendering.add {
 
             vdiData.metadata.projection = cam.spatial().projection
             vdiData.metadata.view = cam.spatial().getTransformation()
@@ -160,9 +152,6 @@ public class VDIGenerationBenchmark (wWidth: Int = 512, wHeight: Int = 512, val 
             vdiColorBuffer = vdiColor.contents
             vdiDepthBuffer = vdiDepth.contents
             gridCellsBuff = gridCells.contents
-            iterationBuffer = vdiIteration.contents
-            thresholdBuffer = vdiThresholds.contents
-
 
             tGeneration.end = System.nanoTime()
 
@@ -176,16 +165,14 @@ public class VDIGenerationBenchmark (wWidth: Int = 512, wHeight: Int = 512, val 
 
                 val filePrefix = dataset.toString() + "_${windowWidth}_${windowHeight}_${maxSupersegments}"
 
-                val file = FileOutputStream(File("${filePrefix}_VDI_dump${VDIsGenerated.get()}"))
+                val file = FileOutputStream(File("${filePrefix}_${VDIsGenerated.get()}.vdi-metadata"))
                 VDIDataIO.write(vdiData, file)
                 logger.info("written the dump")
                 file.close()
 
-                SystemHelpers.dumpToFile(vdiColorBuffer!!, "${filePrefix}_VDI_col_${VDIsGenerated.get()}")
-                SystemHelpers.dumpToFile(vdiDepthBuffer!!, "${filePrefix}_VDI_depth_${VDIsGenerated.get()}")
-                SystemHelpers.dumpToFile(gridCellsBuff!!, "${filePrefix}_VDI_octree_${VDIsGenerated.get()}")
-                SystemHelpers.dumpToFile(iterationBuffer!!, "${dataset}_${maxSupersegments}_Iterations")
-                SystemHelpers.dumpToFile(thresholdBuffer!!, "${dataset}_${maxSupersegments}_Thresholds")
+                SystemHelpers.dumpToFile(vdiColorBuffer!!, "${filePrefix}_${VDIsGenerated.get()}.vdi-color")
+                SystemHelpers.dumpToFile(vdiDepthBuffer!!, "${filePrefix}_${VDIsGenerated.get()}.vdi-depth")
+                SystemHelpers.dumpToFile(gridCellsBuff!!, "${filePrefix}_${VDIsGenerated.get()}.vdi-grid")
 
                 logger.info("Wrote VDI ${VDIsGenerated.get()}")
                 VDIsGenerated.incrementAndGet()
@@ -199,7 +186,7 @@ public class VDIGenerationBenchmark (wWidth: Int = 512, wHeight: Int = 512, val 
     companion object {
         @JvmStatic
         fun main(args: Array<String>) {
-            VDIGenerationBenchmark(1280,720, 20, BenchmarkSetup.Dataset.Rayleigh_Taylor,true).main()
+            VDIGenerationBenchmark(1280,720, 20, BenchmarkSetup.Dataset.Kingsnake,true).main()
         }
     }
 }

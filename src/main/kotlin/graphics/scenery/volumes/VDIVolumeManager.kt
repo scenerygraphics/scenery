@@ -19,7 +19,6 @@ import net.imglib2.type.numeric.real.FloatType
 import org.joml.Vector3f
 import org.joml.Vector3i
 import org.lwjgl.system.MemoryUtil
-import java.io.File
 import java.nio.ByteBuffer
 import kotlin.math.ceil
 
@@ -87,14 +86,6 @@ class VDIVolumeManager (var hub: Hub, val windowWidth: Int, val windowHeight: In
 
         depthBuffer = MemoryUtil.memCalloc(windowHeight*windowWidth*2*maxSupersegments*2)
 
-        val iterationBuffer: ByteBuffer = MemoryUtil.memCalloc(windowHeight * windowWidth *4)
-
-        val thresholdBuffer: ByteBuffer = MemoryUtil.memCalloc(windowHeight * windowWidth * 4)
-        //---- only needed for loading in precalculated thresholds //TODO: Remove
-        val thresholdArray: ByteArray = File("Kingsnake_20_Thresholds").readBytes()
-        thresholdBuffer.put(thresholdArray).flip()
-        thresholdBuffer.limit(thresholdBuffer.capacity())
-        //----
         val numGridCells = Vector3f(windowWidth.toFloat() / 8f, windowHeight.toFloat() / 8f, maxSupersegments.toFloat())
 
         gridBuffer = MemoryUtil.memCalloc(numGridCells.x.toInt() * numGridCells.y.toInt() * numGridCells.z.toInt() * 4)
@@ -117,25 +108,6 @@ class VDIVolumeManager (var hub: Hub, val windowWidth: Int, val windowHeight: In
         volumeManager.customTextures.add(accelerationTextureName)
         volumeManager.material().textures[accelerationTextureName] = gridCells
 
-        volumeManager.customTextures.add("Iterations")
-        volumeManager.material().textures["Iterations"] = Texture(
-            Vector3i(windowWidth, windowHeight, 1), 1, contents = iterationBuffer, usageType = hashSetOf(
-                Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture)
-            , type = IntType(),
-            mipmap = false,
-            minFilter = Texture.FilteringMode.NearestNeighbour,
-            maxFilter = Texture.FilteringMode.NearestNeighbour
-        )
-
-        volumeManager.customTextures.add("Thresholds")
-        volumeManager.material().textures["Thresholds"] = Texture(
-            Vector3i(windowWidth, windowHeight, 1), 1, contents = thresholdBuffer, usageType = hashSetOf(
-                Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture)
-            , type = FloatType(),
-            mipmap = false,
-            minFilter = Texture.FilteringMode.NearestNeighbour,
-            maxFilter = Texture.FilteringMode.NearestNeighbour
-        )
         volumeManager.customUniforms.add("doGeneration")
         volumeManager.shaderProperties["doGeneration"] = true
 

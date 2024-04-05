@@ -42,8 +42,7 @@ class VDIRenderingExample(applicationName: String, windowWidth: Int, windowHeigh
         scene.addChild(light)
 
         with(cam) {
-            spatial().position = Vector3f( 4.622E+0f, -9.060E-1f, -1.047E+0f)
-            spatial().rotation = Quaternionf( 5.288E-2, -9.096E-1, -1.222E-1,  3.936E-1)
+            spatial().position = Vector3f(0.0f, 0.5f, 5.0f)
             perspectiveCamera(50.0f, windowWidth, windowWidth)
             scene.addChild(this)
         }
@@ -104,7 +103,7 @@ class VDIRenderingExample(applicationName: String, windowWidth: Int, windowHeigh
          */
         @JvmStatic
         fun main(args: Array<String>) {
-            VDIRenderingExample("VDI Rendering Example", 1280, 720).main()
+            VDIRenderingExample("VDI Rendering Example", 512, 512).main()
         }
     }
 }

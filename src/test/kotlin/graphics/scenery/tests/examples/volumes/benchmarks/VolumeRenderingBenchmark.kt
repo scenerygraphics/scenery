@@ -11,6 +11,7 @@ import java.nio.file.Paths
 import java.util.concurrent.atomic.AtomicInteger
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.Image
+import graphics.scenery.utils.extensions.positionVolumeSlices
 import graphics.scenery.volumes.*
 import graphics.scenery.volumes.vdi.benchmarks.BenchmarkSetup
 import net.imglib2.type.numeric.integer.UnsignedByteType
@@ -85,7 +86,7 @@ public class VolumeRenderingBenchmark (wWidth: Int = 512, wHeight: Int = 512, va
             volume.volumeManager.shaderProperties["doGeneration"] = true
         }
 
-        Volume.positionSlices(volumeList, volumeList.first().pixelToWorldRatio)
+        parent.positionVolumeSlices(volumeList)
 
         parent.spatial {
             position = Vector3f(0.0f, 0.0f, 0.0f)

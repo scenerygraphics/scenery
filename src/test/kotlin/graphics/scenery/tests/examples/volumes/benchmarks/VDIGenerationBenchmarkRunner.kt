@@ -16,8 +16,8 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.concurrent.thread
 
 class VDIGenerationBenchmarkRunner {
-    val benchmarkDatasets = listOf<BenchmarkSetup.Dataset>(BenchmarkSetup.Dataset.Kingsnake, BenchmarkSetup.Dataset.Rayleigh_Taylor, BenchmarkSetup.Dataset.Richtmyer_Meshkov)
-    val benchmarkSupersegments = listOf(10, 15, 20, 30, 40)
+    val benchmarkDatasets = listOf<BenchmarkSetup.Dataset>(BenchmarkSetup.Dataset.Kingsnake)
+    val benchmarkSupersegments = listOf(20)
     /**
      * Generates a sequence of VDIs, with the camera rotating at 10 degree increments between successive VDIs
      */
@@ -47,7 +47,7 @@ class VDIGenerationBenchmarkRunner {
                     Thread.sleep(1000)
 
                     var numGenerated = 0
-                    (renderer as VulkanRenderer).postRenderLambdas.add {
+                    (renderer as VulkanRenderer).runAfterRendering.add {
                         if (instance.VDIsGenerated.get() > 0) {
                             if (dataName == BenchmarkSetup.Dataset.Richtmyer_Meshkov) {
                                 rotateCamera(0f, 10f, instance.cam, instance.windowWidth, instance.windowHeight, target)
@@ -111,7 +111,7 @@ class VDIGenerationBenchmarkRunner {
                     Thread.sleep(1000)
 
                     var numGenerated = AtomicInteger(0)
-                    (renderer as VulkanRenderer).postRenderLambdas.add {
+                    (renderer as VulkanRenderer).runAfterRendering.add {
                         if (instance.VDIsGenerated.get() > 0) {
                             if (dataName == BenchmarkSetup.Dataset.Richtmyer_Meshkov) {
                                 rotateCamera(0f, 10f, instance.cam, instance.windowWidth, instance.windowHeight, target)
@@ -169,8 +169,8 @@ class VDIGenerationBenchmarkRunner {
 
         @JvmStatic
         fun main(args: Array<String>) {
-//            VDIGenerationBenchmarkRunner().generateVDISequence(1920, 1080, 1)
-            VDIGenerationBenchmarkRunner().benchmarkVDIGeneration(1920, 1080)
+            VDIGenerationBenchmarkRunner().generateVDISequence(1280, 720, 30)
+//            VDIGenerationBenchmarkRunner().benchmarkVDIGeneration(1920, 1080)
         }
     }
 }

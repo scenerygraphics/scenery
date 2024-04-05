@@ -76,7 +76,7 @@ class VDIRenderingBenchmark(applicationName: String, windowWidth: Int, windowHei
         depthBuffer.put(depthArray).flip()
         depthBuffer.limit(depthBuffer.capacity())
 
-        val gridBuffer = MemoryUtil.memCalloc(vdiNode.numGridCells.x.toInt() * vdiNode.numGridCells.y.toInt() * vdiNode.numGridCells.z.toInt() * 4)
+        val gridBuffer = MemoryUtil.memCalloc(vdiNode.getAccelerationGridSize().x.toInt() * vdiNode.getAccelerationGridSize().y.toInt() * vdiNode.getAccelerationGridSize().z.toInt() * 4)
         if(skipEmpty) {
             gridBuffer.put(octArray).flip()
         }
