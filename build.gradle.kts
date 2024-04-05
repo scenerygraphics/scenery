@@ -94,7 +94,7 @@ dependencies {
             }
         }
     }
-    implementation("org.xerial.snappy:snappy-java:1.1.8.4")
+    implementation("org.xerial.snappy:snappy-java:1.1.10.5")
     implementation("com.fasterxml.jackson.core:jackson-databind:2.16.1")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.16.1")
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.16.1")
@@ -302,7 +302,8 @@ tasks {
                 "jackson-module-kotlin",
                 "jackson-dataformat-yaml",
                 "kryo",
-                "bigvolumeviewer"
+                "bigvolumeviewer",
+                "snappy-java"
                 ) + lwjglArtifacts
 
             val toSkip = listOf("pom-scijava")
@@ -412,10 +413,7 @@ plugins.withType<JacocoPlugin> {
     tasks.test { finalizedBy("jacocoTestReport") }
 }
 
-// disable Gradle metadata file creation on Jitpack, as jitpack modifies
-// the metadata file, resulting in broken metadata with missing native dependencies.
-if(System.getenv("JITPACK") != null) {
-    tasks.withType<GenerateModuleMetadata> {
-        enabled = false
-    }
+// disable Gradle metadata file in general, as Maven artifacts are our main publication.
+tasks.withType<GenerateModuleMetadata> {
+    enabled = false
 }
