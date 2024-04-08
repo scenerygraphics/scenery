@@ -69,7 +69,7 @@ layout (set = 8, binding = 0, r32f) uniform readonly image3D DepthVDI2;
 #endif
 layout (set = 9, binding = 0, r32ui) uniform readonly uimage3D AccelerationGrid2;
 #endif
-ivec2 debug_pixel = ivec2(256, 300);
+ivec2 debug_pixel = ivec2(224, 266);
 
 float adjustOpacity(float a, float modifiedStepLength) {
     float b = pow((1.0 - a), modifiedStepLength);
@@ -423,6 +423,7 @@ void findFirstSupseg(ivec2 theList, float dist_to_orig, float exit_distance, out
     }
 
 }
+
 void findFirstSupseg_opt_seeded(ivec2 theList, float dist_to_orig, float exit_distance, bool dotPositive, out bool supseg_found, out int index, out float depthStart, out float depthEnd) {
     supseg_found = false;
     #if USE_PRINTF
@@ -575,6 +576,19 @@ void findSupsegsInList(ivec2 theList, vec4 start_point, vec4 end_point, inout ve
 
     originalRay.wback = ivp_orig * originalRay.NDC_back;
     originalRay.wback *= 1.0 / originalRay.wback.w;
+
+    orig_tnear = 1, orig_tfar = 0;
+    float n, f;
+
+    bool vis = false;
+    intersectBoundingBox_x_11_x_( originalRay.wfront, originalRay.wback, n, f );
+
+    if ( n < f )
+    {
+        orig_tnear = min( orig_tnear, max( 0, n ) );
+        orig_tfar = max( orig_tfar, f );
+        vis = true;
+    }
 
     float dist_to_orig_n = start_point.z;
 
