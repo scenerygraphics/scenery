@@ -5,6 +5,7 @@ import org.joml.Vector3f
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
+import com.fasterxml.jackson.module.kotlin.KotlinFeature
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import graphics.scenery.utils.JsonDeserialisers
 import graphics.scenery.utils.lazyLogger
@@ -142,7 +143,15 @@ class ScreenConfig {
          */
         @JvmStatic fun loadFromFile(path: String): ScreenConfig.Config {
             val mapper = ObjectMapper(YAMLFactory())
-            mapper.registerModule(KotlinModule())
+            mapper.registerModule(
+                KotlinModule.Builder()
+                    .configure(KotlinFeature.NullToEmptyCollection, true)
+                    .configure(KotlinFeature.NullToEmptyMap, true)
+                    .configure(KotlinFeature.NullIsSameAsDefault, false)
+                    .configure(KotlinFeature.SingletonSupport, true)
+                    .configure(KotlinFeature.StrictNullChecks, true)
+                    .build()
+            )
 
             var stream = ScreenConfig::class.java.getResourceAsStream(path)
 
