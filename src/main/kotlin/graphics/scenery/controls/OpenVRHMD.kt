@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
+import com.fasterxml.jackson.module.kotlin.KotlinFeature
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import graphics.scenery.*
 import graphics.scenery.backends.Display
@@ -1271,7 +1272,15 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
                 compositeFile.exists() && compositeFile.length() > 1024 -> {
                     logger.info("Loading model from composite JSON, ${compositeFile.absolutePath}")
                     val mapper = ObjectMapper(YAMLFactory())
-                    mapper.registerModule(KotlinModule())
+                    mapper.registerModule(
+                        KotlinModule.Builder()
+                            .configure(KotlinFeature.NullToEmptyCollection, true)
+                            .configure(KotlinFeature.NullToEmptyMap, true)
+                            .configure(KotlinFeature.NullIsSameAsDefault, false)
+                            .configure(KotlinFeature.SingletonSupport, true)
+                            .configure(KotlinFeature.StrictNullChecks, true)
+                            .build()
+                    )
                     mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
                     mapper.configure(DeserializationFeature.FAIL_ON_IGNORED_PROPERTIES, false)
 
