@@ -5,6 +5,7 @@ import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.TrackedStereoGlasses
 import graphics.scenery.volumes.*
 import graphics.scenery.volumes.vdi.VDIStreamer
+import graphics.scenery.volumes.vdi.VDIVolumeManager
 import org.joml.Vector3f
 import org.zeromq.ZContext
 import java.nio.file.Paths

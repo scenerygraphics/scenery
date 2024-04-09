@@ -7,6 +7,7 @@ import graphics.scenery.Settings
 import graphics.scenery.backends.Renderer
 import graphics.scenery.volumes.*
 import graphics.scenery.volumes.vdi.VDIStreamer
+import graphics.scenery.volumes.vdi.VDIVolumeManager
 import org.joml.Vector3f
 import java.nio.file.Paths
 import kotlin.concurrent.thread

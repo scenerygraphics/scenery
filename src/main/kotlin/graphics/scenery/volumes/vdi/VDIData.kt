@@ -1,5 +1,6 @@
 package graphics.scenery.volumes.vdi
 
+import org.jetbrains.annotations.ApiStatus.Experimental
 import org.joml.Matrix4f
 import org.joml.Vector2i
 import org.joml.Vector3f
@@ -18,6 +19,7 @@ import org.joml.Vector3f
  *
  * @author Aryaman Gupta <argupta@mpi-cbg.de> and Ulrik Günther <hello@ulrik.is>
  */
+@Experimental
 data class VDIMetadata(
     val version: Int = 1,
     var index: Int = 0,

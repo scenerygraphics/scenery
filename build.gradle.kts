@@ -95,11 +95,11 @@ dependencies {
         }
     }
     implementation("org.xerial.snappy:snappy-java:1.1.10.5")
-    implementation("com.fasterxml.jackson.core:jackson-databind:2.16.1")
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.17.0")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.16.1")
-    implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.16.1")
-    implementation("org.zeromq:jeromq:0.5.4")
-    implementation("com.esotericsoftware:kryo:5.5.0")
+    implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.17.0")
+    implementation("org.zeromq:jeromq:0.6.0")
+    implementation("com.esotericsoftware:kryo:5.6.0")
     implementation("de.javakaffee:kryo-serializers:0.45")
     implementation("org.msgpack:msgpack-core:0.9.8")
     implementation("org.msgpack:jackson-dataformat-msgpack:0.9.8")

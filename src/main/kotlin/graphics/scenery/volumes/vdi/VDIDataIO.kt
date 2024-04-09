@@ -3,6 +3,7 @@ package graphics.scenery.volumes.vdi
 import com.esotericsoftware.kryo.Kryo
 import com.esotericsoftware.kryo.io.Input
 import com.esotericsoftware.kryo.io.Output
+import org.jetbrains.annotations.ApiStatus.Experimental
 import org.joml.Matrix4f
 import org.joml.Vector2i
 import org.joml.Vector3f
@@ -15,6 +16,7 @@ import java.io.OutputStream
  *
  * @author Aryaman Gupta <argupta@mpi-cbg.de> and Ulrik Günther <hello@ulrik.is>
  */
+@Experimental
 class VDIDataIO {
     companion object {
 
