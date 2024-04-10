@@ -78,13 +78,20 @@ class VDIVolumeManager (var hub: Hub, val windowWidth: Int, val windowHeight: In
     }
 
     private fun vdiFull(windowWidth: Int, windowHeight: Int, maxSupersegments: Int, scene: Scene, hub: Hub): VolumeManager {
+
+        val intDepths = true
+
         val raycastShader = "VDIGenerator.comp"
         val accumulateShader = "AccumulateVDI.comp"
         val volumeManager = instantiateVolumeManager(raycastShader, accumulateShader, hub)
 
         colorBuffer = MemoryUtil.memCalloc(windowHeight*windowWidth*4*maxSupersegments*4)
 
-        depthBuffer = MemoryUtil.memCalloc(windowHeight*windowWidth*2*maxSupersegments*2)
+        depthBuffer = if(intDepths) {
+            MemoryUtil.memCalloc(windowHeight*windowWidth*2*maxSupersegments*2)
+        } else {
+            MemoryUtil.memCalloc(windowHeight*windowWidth*2*maxSupersegments*4)
+        }
 
         val numGridCells = Vector3f(windowWidth.toFloat() / 8f, windowHeight.toFloat() / 8f, maxSupersegments.toFloat())
 
@@ -96,9 +103,15 @@ class VDIVolumeManager (var hub: Hub, val windowWidth: Int, val windowHeight: In
         volumeManager.customTextures.add(colorTextureName)
         volumeManager.material().textures[colorTextureName] = vdiColor
 
-        val vdiDepth: Texture = Texture.fromImage(
-            Image(depthBuffer!!, maxSupersegments, windowHeight, windowWidth, UnsignedShortType()),  usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
-            channels = 2, mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+        val vdiDepth: Texture = if(intDepths) {
+            Texture.fromImage(
+                Image(depthBuffer!!, maxSupersegments, windowHeight, windowWidth, UnsignedShortType()),  usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
+                channels = 2, mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+        } else {
+            Texture.fromImage(
+                Image(depthBuffer!!, 2*maxSupersegments, windowHeight, windowWidth, FloatType()),  usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
+                channels = 1, mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+        }
         volumeManager.customTextures.add(depthTextureName)
         volumeManager.material().textures[depthTextureName] = vdiDepth
 
