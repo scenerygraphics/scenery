@@ -105,7 +105,7 @@ public class VolumeRenderingBenchmark (wWidth: Int = 512, wHeight: Int = 512, va
     companion object {
         @JvmStatic
         fun main(args: Array<String>) {
-            VolumeRenderingBenchmark(1920,1080, BenchmarkSetup.Dataset.Richtmyer_Meshkov).main()
+            VolumeRenderingBenchmark(1280,720, BenchmarkSetup.Dataset.Kingsnake).main()
         }
     }
 }

@@ -169,7 +169,7 @@ class VDIGenerationBenchmarkRunner {
 
         @JvmStatic
         fun main(args: Array<String>) {
-            VDIGenerationBenchmarkRunner().generateVDISequence(1280, 720, 30)
+            VDIGenerationBenchmarkRunner().generateVDISequence(1280, 720, 5)
 //            VDIGenerationBenchmarkRunner().benchmarkVDIGeneration(1920, 1080)
         }
     }

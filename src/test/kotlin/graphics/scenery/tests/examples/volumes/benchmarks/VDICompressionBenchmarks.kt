@@ -28,10 +28,10 @@ class VDICompressionBenchmarks(val dataset: BenchmarkSetup.Dataset, val windowWi
         var totalCompressedLength: Long = 0
 
         var num = 0
-        while (true) {
+        while (num < 5) {
 
             val fileName = if(bufferType == BufferType.Color) {
-                "${filePrefix}_${num}.vdi-col"
+                "${filePrefix}_${num}.vdi-color"
             } else {
                 "${filePrefix}_${num}.vdi-depth"
             }
@@ -99,7 +99,7 @@ class VDICompressionBenchmarks(val dataset: BenchmarkSetup.Dataset, val windowWi
     companion object {
         @JvmStatic
         fun main(args: Array<String>) {
-            VDICompressionBenchmarks(BenchmarkSetup.Dataset.Kingsnake, 1280, 720, 20, BufferType.Depth).testCompressionDecompression()
+            VDICompressionBenchmarks(BenchmarkSetup.Dataset.Rayleigh_Taylor, 1280, 720, 20, BufferType.Color).testCompressionDecompression()
         }
     }
 }
