@@ -145,7 +145,7 @@ public class VDIGenerationBenchmark (wWidth: Int = 512, wHeight: Int = 512, val 
         (renderer as? VulkanRenderer)?.persistentTextureRequests?.add(gridCells to gridTexturesCnt)
 
         renderer!!.runAfterRendering.add {
-
+            vdiData.metadata.nw = vdiVolumeManager.shaderProperties["nw"] as Float
             vdiData.metadata.projection = cam.spatial().projection
             vdiData.metadata.view = cam.spatial().getTransformation()
 
