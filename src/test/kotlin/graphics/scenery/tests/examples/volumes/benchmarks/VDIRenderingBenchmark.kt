@@ -57,26 +57,26 @@ class VDIRenderingBenchmark(applicationName: String, windowWidth: Int, windowHei
             270 -> num = 3
         }
 
-        val file = FileInputStream(File("${filePrefix}_VDI_dump${num}"))
+        val file = FileInputStream(File("${filePrefix}_${num}.vdi-metadata"))
         val vdiData = VDIDataIO.read(file)
         logger.info("Fetching file...")
 
         vdiNode = VDINode(windowWidth, windowHeight, numSupersegments, vdiData)
 
-        val colorArray: ByteArray = File("${filePrefix}_VDI_col_${num}").readBytes()
-        val depthArray: ByteArray = File("${filePrefix}_VDI_depth_${num}").readBytes()
-        val octArray: ByteArray = File("${filePrefix}_VDI_octree_${num}").readBytes()
+        val colorArray: ByteArray = File("${filePrefix}_${num}.vdi-color").readBytes()
+        val depthArray: ByteArray = File("${filePrefix}_${num}.vdi-depth").readBytes()
+        val octArray: ByteArray = File("${filePrefix}_${num}.vdi-grid").readBytes()
 
         //Step  3: assigning buffer values
-        val colBuffer: ByteBuffer = MemoryUtil.memCalloc(vdiNode.vdiHeight * vdiNode.vdiWidth * numSupersegments * numLayers * 4 * 4)
+        val colBuffer: ByteBuffer = MemoryUtil.memCalloc(colorArray.size)
         colBuffer.put(colorArray).flip()
         colBuffer.limit(colBuffer.capacity())
 
-        val depthBuffer = MemoryUtil.memCalloc(vdiNode.vdiHeight * vdiNode.vdiWidth * numSupersegments * 2 * 2 * 2)
+        val depthBuffer = MemoryUtil.memCalloc(depthArray.size)
         depthBuffer.put(depthArray).flip()
         depthBuffer.limit(depthBuffer.capacity())
 
-        val gridBuffer = MemoryUtil.memCalloc(vdiNode.getAccelerationGridSize().x.toInt() * vdiNode.getAccelerationGridSize().y.toInt() * vdiNode.getAccelerationGridSize().z.toInt() * 4)
+        val gridBuffer = MemoryUtil.memCalloc(octArray.size)
         if(skipEmpty) {
             gridBuffer.put(octArray).flip()
         }
@@ -120,7 +120,7 @@ class VDIRenderingBenchmark(applicationName: String, windowWidth: Int, windowHei
     companion object {
         @JvmStatic
         fun main(args: Array<String>) {
-            VDIRenderingBenchmark("VDI Rendering Benchmark", 1920, 1080, BenchmarkSetup.Dataset.Kingsnake, 20, 0).main()
+            VDIRenderingBenchmark("VDI Rendering Benchmark", 1280, 720, BenchmarkSetup.Dataset.Kingsnake, 20, 0).main()
         }
     }
 }
