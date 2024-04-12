@@ -6,7 +6,6 @@ import graphics.scenery.utils.lazyLogger
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
-import org.joml.Quaternionf
 import org.scijava.ui.behaviour.DragBehaviour
 import org.scijava.ui.behaviour.ScrollBehaviour
 import java.util.function.Supplier
@@ -156,7 +155,7 @@ open class ArcballCameraControl(private val name: String, camera: () -> Camera?,
         }
 
         distance = (target.invoke() - cam!!.spatial().position).length()
-        distance += wheelRotation.toFloat() * scrollSpeedMultiplier
+        distance += wheelRotation.toFloat() * distance * scrollSpeedMultiplier
 
         if (distance >= maximumDistance) distance = maximumDistance
         if (distance <= minimumDistance) distance = minimumDistance

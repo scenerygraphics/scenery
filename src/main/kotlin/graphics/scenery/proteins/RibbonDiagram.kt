@@ -1,12 +1,15 @@
 package graphics.scenery.proteins
 
-import graphics.scenery.geometry.Curve
 import graphics.scenery.geometry.DummySpline
 import graphics.scenery.geometry.Spline
 import graphics.scenery.geometry.UniformBSpline
 import org.joml.*
 import graphics.scenery.numerics.Random
 import graphics.scenery.Mesh
+import graphics.scenery.geometry.curve.DefaultCurve
+import graphics.scenery.geometry.curve.Helix
+import graphics.scenery.geometry.curve.Shape
+import graphics.scenery.geometry.curve.Vertex
 import org.biojava.nbio.structure.Atom
 import org.biojava.nbio.structure.Group
 import org.biojava.nbio.structure.secstruc.SecStrucCalc
@@ -118,35 +121,38 @@ class RibbonDiagram(val protein: Protein, private val showSecondaryStructures: B
 
         val subParent = Mesh("SubProtein")
 
-        //the very first point of the spline is neglected as this makes the size of the point list divisible by the
-        //section vertices count
         val splinePointCentered = spline.splinePoints().map{ it.sub(centroid) }
         val splinePoints = if(splinePointCentered.isNotEmpty())
-                                { splinePointCentered.subList(0, splinePointCentered.lastIndex) }
-                            else{splinePointCentered}
+        //the very first point of the spline is neglected as this makes the size of the point list divisible by the
+        //section vertices count
+        { splinePointCentered.subList(0, splinePointCentered.lastIndex) }
+        else{splinePointCentered}
 
-        val rectangle = ArrayList<Vector3f>(4)
-        rectangle.add(Vector3f(0.9f, 0f, 0f))
-        rectangle.add(Vector3f(0f, 0.1f, 0f))
-        rectangle.add(Vector3f(-0.9f, 0f, 0f))
-        rectangle.add(Vector3f(0f, -0.1f, 0f))
+        val rectangle = Shape(listOf(
+            Vertex(Vector3f(0.9f, 0f, 0f), Vector3f(), Vector2f()),
+            Vertex(Vector3f(0f, 0.1f, 0f), Vector3f(), Vector2f()),
+            Vertex(Vector3f(-0.9f, 0f, 0f), Vector3f(), Vector2f()),
+            Vertex(Vector3f(0f, -0.1f, 0f), Vector3f(), Vector2f())
+        ))
 
-        val octagon = ArrayList<Vector3f>(8)
         val sin45 = kotlin.math.sqrt(2f) / 40f
-        octagon.add(Vector3f(0.05f, 0f, 0f))
-        octagon.add(Vector3f(sin45, sin45, 0f))
-        octagon.add(Vector3f(0f, 0.05f, 0f))
-        octagon.add(Vector3f(-sin45, sin45, 0f))
-        octagon.add(Vector3f(-0.05f, 0f, 0f))
-        octagon.add(Vector3f(-sin45, -sin45, 0f))
-        octagon.add(Vector3f(0f, -0.05f, 0f))
-        octagon.add(Vector3f(sin45, -sin45, 0f))
+        val octagon = Shape(listOf(
+            Vertex(Vector3f(0.05f, 0f, 0f), Vector3f(), Vector2f()),
+            Vertex(Vector3f(sin45, sin45, 0f), Vector3f(), Vector2f()),
+            Vertex(Vector3f(0f, 0.05f, 0f), Vector3f(), Vector2f()),
+            Vertex(Vector3f(-sin45, sin45, 0f), Vector3f(), Vector2f()),
+            Vertex(Vector3f(-0.05f, 0f, 0f), Vector3f(), Vector2f()),
+            Vertex(Vector3f(-sin45, -sin45, 0f), Vector3f(), Vector2f()),
+            Vertex(Vector3f(0f, -0.05f, 0f), Vector3f(), Vector2f()),
+            Vertex(Vector3f(sin45, -sin45, 0f), Vector3f(), Vector2f())
+        ))
 
-        val reversedRectangle = ArrayList<Vector3f>(4)
-        reversedRectangle.add(Vector3f(0.1f, 0.8f, 0f))
-        reversedRectangle.add(Vector3f(-0.1f, 0.8f, 0f))
-        reversedRectangle.add(Vector3f(-0.1f, -0.8f, 0f))
-        reversedRectangle.add(Vector3f(0.1f, -0.8f, 0f))
+        val reversedRectangle = Shape(listOf(
+            Vertex(Vector3f(0.1f, 0.8f, 0f), Vector3f(), Vector2f()),
+            Vertex(Vector3f(-0.1f, 0.8f, 0f), Vector3f(), Vector2f()),
+            Vertex(Vector3f(-0.1f, -0.8f, 0f), Vector3f(), Vector2f()),
+            Vertex(Vector3f(0.1f, -0.8f, 0f), Vector3f(), Vector2f())
+        ))
         /*
         In the following lines of code(144-211), we build a curve for each secondary structure. How does this work, step
         by step? First, we iterate through the guide points. A guide point represents a residue, therefore, it can be
@@ -183,59 +189,60 @@ class RibbonDiagram(val protein: Protein, private val showSecondaryStructures: B
             val length = section.length
             val subSpline = section.subSpline
             val guidePointIndex = guidePointOffset
-            val ssSubList = ArrayList<List<Vector3f>>(sectionVerticesCount * length)
 
-            val iterationLength = subSpline.size
-
-            //the beta sheets are visualized with arrows
-            if (type.isBetaStrand) {
-                val seventyPercent = (iterationLength * 0.70).toInt()
-                for (j in 0 until seventyPercent) {
-                    ssSubList.add(reversedRectangle)
+            // Helix needs separate treatment as the shapes are not oriented along the tangent but the helix axis
+            if(type == SecStrucType.helix4 && length >= 4) {
+                val caList = ArrayList<Vector3f?>(length)
+                for (k in 0 until length) {
+                    caList.add(guidePointList[guidePointIndex + k].nextResidue?.getAtom("CA")?.getVector())
                 }
-                val thirtyPercent = iterationLength - seventyPercent
-                for (j in thirtyPercent downTo 1) {
-                    val y = 1.65f * j / thirtyPercent
-                    val x = 0.1f
-                    ssSubList.add(
-                        arrayListOf(
-                            Vector3f(x, y, 0f),
-                            Vector3f(-x, y, 0f),
-                            Vector3f(-x, -y, 0f),
-                            Vector3f(x, -y, 0f)
-                        )
-                    )
-                }
-                val betaCurve = Curve(
-                    DummySpline(subSpline, sectionVerticesCount)) { baseShape(ssSubList) }
+                val axis = Axis(caList)
+                val axisLine = PositionDirection(axis.position, axis.direction)
+                val helixCurve = Helix(axisLine, DummySpline(subSpline, sectionVerticesCount)) { listOf(rectangle) }
                 if (showSecondaryStructures) {
-                    betas.addChild(betaCurve)
+                    alphas.addChild(helixCurve)
                 } else {
-                    subParent.addChild(betaCurve)
+                    subParent.addChild(helixCurve)
                 }
-            } else {
-                for (j in 0 until iterationLength) {
-                    if (type == SecStrucType.helix4 && length >= 4) {
-                        ssSubList.add(rectangle)
+            }
+            else {
+                val ssSubList = ArrayList<Shape>(sectionVerticesCount * length)
+
+                val iterationLength = subSpline.size
+
+
+                //the beta sheets are visualized with arrows
+                if (type.isBetaStrand) {
+                    val seventyPercent = (iterationLength * 0.70).toInt()
+                    for (j in 0 until seventyPercent) {
+                        ssSubList.add(reversedRectangle)
+                    }
+                    val thirtyPercent = iterationLength - seventyPercent
+                    for (j in thirtyPercent downTo 1) {
+                        val y = 1.65f * j / thirtyPercent
+                        val x = 0.1f
+                        ssSubList.add(
+                            Shape(listOf(
+                                Vertex(Vector3f(x, y, 0f), Vector3f(), Vector2f()),
+                                Vertex(Vector3f(-x, y, 0f), Vector3f(), Vector2f()),
+                                Vertex(Vector3f(-x, -y, 0f), Vector3f(), Vector2f()),
+                                Vertex(Vector3f(x, -y, 0f), Vector3f(), Vector2f())
+                            ))
+                        )
+                    }
+                    val betaCurve = DefaultCurve(
+                        DummySpline(subSpline, sectionVerticesCount), { baseShape(ssSubList) })
+                    if (showSecondaryStructures) {
+                        betas.addChild(betaCurve)
                     } else {
+                        subParent.addChild(betaCurve)
+                    }
+                } else {
+                    for (j in 0 until iterationLength) {
                         ssSubList.add(octagon)
                     }
-                }
-                if (type == SecStrucType.helix4 && length >= 4) {
-                    val caList = ArrayList<Vector3f?>(length)
-                    for (k in 0 until length) {
-                        caList.add(guidePointList[guidePointIndex + k].nextResidue?.getAtom("CA")?.getVector())
-                    }
-                    val axis = Axis(caList)
-                    val axisLine = MathLine(axis.direction, axis.position)
-                    val helixCurve = Helix(axisLine, DummySpline(subSpline, sectionVerticesCount)) { rectangle }
-                    if (showSecondaryStructures) {
-                        alphas.addChild(helixCurve)
-                    } else {
-                        subParent.addChild(helixCurve)
-                    }
-                } else {
-                    val coilCurve = Curve(DummySpline(subSpline, sectionVerticesCount)) { baseShape(ssSubList) }
+                    val coilCurve =
+                        DefaultCurve(DummySpline(subSpline, sectionVerticesCount), { baseShape(ssSubList) })
                     if (showSecondaryStructures) {
                         coils.addChild(coilCurve)
                     } else {
@@ -251,7 +258,7 @@ class RibbonDiagram(val protein: Protein, private val showSecondaryStructures: B
             guidePointOffset += length
         }
         return subParent
-     }
+    }
 
 
     /**
@@ -269,8 +276,8 @@ class RibbonDiagram(val protein: Protein, private val showSecondaryStructures: B
      * data class containing two B-Splines, which will be melted into one.
      */
     data class SplineSkeleton(
-            val splineSkeleton1: ArrayList<Vector3f>,
-            val splineSkeleton2: ArrayList<Vector3f>)
+        val splineSkeleton1: ArrayList<Vector3f>,
+        val splineSkeleton2: ArrayList<Vector3f>)
     /**
      * Calculates the splineSkeleton out of the GuidePoints
      */
@@ -391,7 +398,7 @@ class RibbonDiagram(val protein: Protein, private val showSecondaryStructures: B
                     }
                 }
                 guidePointsWithoutDummy.add(i, GuidePoint(finalPoint, cVec, dVec, offset, widthFactor,
-                        aminoList[i], aminoList[i + 1], SecStrucType.bend, 0)
+                    aminoList[i], aminoList[i + 1], SecStrucType.bend, 0)
                 )
             }
 
@@ -431,13 +438,13 @@ class RibbonDiagram(val protein: Protein, private val showSecondaryStructures: B
             }
             //if there is a width factor is still assigned at the beginning, also assign it to the first point
             if (guidePointsWithoutDummy[1].widthFactor != 0f && guidePointsWithoutDummy[2].widthFactor != 0f &&
-                    guidePointsWithoutDummy[3].widthFactor != 0f) {
+                guidePointsWithoutDummy[3].widthFactor != 0f) {
                 guidePointsWithoutDummy[0].widthFactor = guidePointsWithoutDummy[1].widthFactor
             }
             //if there is a width factor is still assigned at the and, also assign it to the last point
             if (guidePointsWithoutDummy.dropLast(1).last().widthFactor != 0f &&
-                    guidePointsWithoutDummy.dropLast(2).last().widthFactor != 0f &&
-                    guidePointsWithoutDummy.dropLast(3).last().widthFactor != 0f) {
+                guidePointsWithoutDummy.dropLast(2).last().widthFactor != 0f &&
+                guidePointsWithoutDummy.dropLast(3).last().widthFactor != 0f) {
                 guidePointsWithoutDummy.last().widthFactor = guidePointsWithoutDummy.dropLast(1).last().widthFactor
             }
 
@@ -500,7 +507,7 @@ class RibbonDiagram(val protein: Protein, private val showSecondaryStructures: B
         /**
          * Dummy lambda function for the curve
          */
-        private fun baseShape(baseShapes: List<List<Vector3f>>): List<List<Vector3f>> {
+        private fun baseShape(baseShapes: List<Shape>): List<Shape> {
             return baseShapes
         }
 
@@ -519,8 +526,8 @@ class RibbonDiagram(val protein: Protein, private val showSecondaryStructures: B
          */
         private fun Vector3f.randomFromVector(): Vector3f {
             return Vector3f(Random.randomFromRange(this.x() - 0.1f, this.x() + 0.1f),
-                    Random.randomFromRange(this.y() - 0.1f, this.y() + 0.1f),
-                    Random.randomFromRange(this.z() - 0.1f, this.z() + 0.1f))
+                Random.randomFromRange(this.y() - 0.1f, this.y() + 0.1f),
+                Random.randomFromRange(this.z() - 0.1f, this.z() + 0.1f))
         }
     }
 
@@ -542,19 +549,19 @@ class RibbonDiagram(val protein: Protein, private val showSecondaryStructures: B
             val guide = guidePoints[guidePointOffset]
             val type = guide.type
             val length = if(type.isBetaStrand || type == SecStrucType.helix4)
-                { guide.ssLength+1 }
-                else {
-                    //fuse together the coils
-                    val immutableOffset = guidePointOffset
-                    var thisLength = guide.ssLength+1
-                    var nextGuide = guidePoints[immutableOffset + thisLength]
-                    while(!nextGuide.type.isBetaStrand && nextGuide.type != SecStrucType.helix4 && immutableOffset + thisLength < guidePoints.lastIndex) {
-                        thisLength += (nextGuide.ssLength)
-                        thisLength ++
-                        nextGuide = guidePoints[immutableOffset + thisLength]
-                    }
-                    thisLength
+            { guide.ssLength+1 }
+            else {
+                //fuse together the coils
+                val immutableOffset = guidePointOffset
+                var thisLength = guide.ssLength+1
+                var nextGuide = guidePoints[immutableOffset + thisLength]
+                while(!nextGuide.type.isBetaStrand && nextGuide.type != SecStrucType.helix4 && immutableOffset + thisLength < guidePoints.lastIndex) {
+                    thisLength += (nextGuide.ssLength)
+                    thisLength ++
+                    nextGuide = guidePoints[immutableOffset + thisLength]
                 }
+                thisLength
+            }
             val subSplineLength = sectionCount*length
             val subSpline = ArrayList<Vector3f>(subSplineLength+1)
             val immutableSplineOffset = splineOffset

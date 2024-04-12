@@ -27,7 +27,8 @@ open class DefaultGeometry(private var node: Node): Geometry {
             val boundingBox = if(!children.none()) {
                 node.getMaximumBoundingBox()
             } else {
-                logger.warn("$node.name: Zero vertices currently, returning empty bounding box")
+                logger.warn("${node.name}: Zero vertices currently, returning empty bounding box")
+
                 OrientedBoundingBox(node,0.0f, 0.0f, 0.0f,
                     0.0f, 0.0f, 0.0f)
             }
