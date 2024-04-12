@@ -86,7 +86,7 @@ class BDVExample: SceneryBase("BDV Rendering example", 1280, 720) {
         v.viewerState.sources.firstOrNull()?.spimSource?.getSource(0, 0)?.let { rai ->
             var h: Any?
             val duration = measureTimeMillis {
-                h = ops.run("image.histogram", rai, 1024)
+                h = ops.run("image.histogram", rai, 32)
             }
 
             val histogram = h as? Histogram1d<*> ?: return@let

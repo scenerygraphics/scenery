@@ -4,8 +4,8 @@ import graphics.scenery.*
 import graphics.scenery.backends.vulkan.VulkanRenderer
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.ExtractsNatives
-import graphics.scenery.utils.lazyLogger
 import graphics.scenery.utils.SceneryPanel
+import graphics.scenery.utils.lazyLogger
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.selects.select
@@ -38,6 +38,10 @@ abstract class Renderer : Hubable {
 
     /** Signals whether a first image has been drawn. */
     abstract var firstImageReady: Boolean
+        protected set
+
+    /** The total number of frames rendered so far. */
+    var totalFrames = 0L
         protected set
 
     /** [Settings] instance the renderer is using. */
@@ -174,6 +178,11 @@ abstract class Renderer : Hubable {
     }
 
     @Volatile protected var textureRequests = ConcurrentLinkedQueue<Pair<Texture, Channel<Texture>>>()
+
+    /**
+     * A list of user-defined lambdas that will be executed once per iteration of the render loop
+     */
+    val runAfterRendering = ArrayList<()->Unit>()
 
     /**
      * Requests the renderer to update [texture]'s contents from the GPU. [onReceive] is executed

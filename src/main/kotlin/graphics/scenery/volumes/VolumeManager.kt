@@ -9,13 +9,13 @@ import bdv.viewer.state.SourceState
 import bvv.core.backend.Texture
 import bvv.core.backend.Texture3D
 import bvv.core.cache.*
-import bvv.core.render.VolumeBlocks
-import bvv.core.render.VolumeShaderSignature
 import bvv.core.multires.MultiResolutionStack3D
 import bvv.core.multires.SimpleStack3D
 import bvv.core.multires.SourceStacks
 import bvv.core.multires.Stack3D
 import bvv.core.render.MultiVolumeShaderMip
+import bvv.core.render.VolumeBlocks
+import bvv.core.render.VolumeShaderSignature
 import bvv.core.shadergen.generate.Segment
 import bvv.core.shadergen.generate.SegmentTemplate
 import bvv.core.shadergen.generate.SegmentType
@@ -44,7 +44,6 @@ import java.nio.IntBuffer
 import java.util.*
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.ForkJoinPool
-import java.util.function.BiConsumer
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.system.measureTimeMillis
@@ -130,7 +129,7 @@ class VolumeManager(
 
     /** List of custom-created textures not to be cleared automatically */
     var customTextures = arrayListOf<String>()
-
+    var customUniforms = arrayListOf<String>()
     init {
         addRenderable {
             state = State.Created
@@ -171,7 +170,10 @@ class VolumeManager(
 
     @Synchronized
     private fun recreateMaterial(context: SceneryContext) {
-        shaderProperties.clear()
+        val oldProperties = shaderProperties.filter { it.key !in customUniforms }.keys
+        oldProperties.forEach{
+            shaderProperties.remove(it)
+        }
         shaderProperties["transform"] = Matrix4f()
         shaderProperties["viewportSize"] = Vector2f()
         shaderProperties["dsp"] = Vector2f()
@@ -264,7 +266,7 @@ class VolumeManager(
         segments[SegmentType.FragmentShader] = SegmentTemplate(
             this.javaClass,
             "BDVVolume.frag",
-            "intersectBoundingBox", "vis", "SampleVolume", "Convert", "Accumulate"
+            "intersectBoundingBox", "vis", "localNear", "localFar", "SampleVolume", "Convert", "Accumulate"
         )
         segments[SegmentType.MaxDepth] = SegmentTemplate(
             this.javaClass,
@@ -302,23 +304,71 @@ class VolumeManager(
         )
         segments[SegmentType.AccumulatorMultiresolution] = SegmentTemplate(
             "AccumulateBlockVolume.frag",
-            "vis", "sampleVolume", "convert", "sceneGraphVisibility"
+            "vis", "localNear", "localFar", "sampleVolume", "convert", "sceneGraphVisibility"
         )
         segments[SegmentType.Accumulator] = SegmentTemplate(
             "AccumulateSimpleVolume.frag",
-            "vis", "sampleVolume", "convert", "sceneGraphVisibility"
+            "vis", "localNear", "localFar", "sampleVolume", "convert", "sceneGraphVisibility"
         )
 
         customSegments?.forEach { (type, segment) -> segments[type] = segment }
 
-        val additionalBindings: MultiVolumeShaderMip.SegmentConsumer = customBindings ?: MultiVolumeShaderMip.SegmentConsumer { segments, segmentInstances, volumeIndex ->
-            logger.debug("Connecting additional bindings for volumeIndex: $volumeIndex")
+        var triggered = false
+        val additionalBindings = customBindings
+            ?: MultiVolumeShaderMip.SegmentConsumer { _: Map<SegmentType, SegmentTemplate>,
+                                                  segmentInstances: Map<SegmentType, Segment>,
+                                                  volumeIndex: Int ->
+                logger.debug("Connecting additional bindings")
 
-            segmentInstances[SegmentType.SampleMultiresolutionVolume]?.bind("convert", segmentInstances[SegmentType.Convert])
-            segmentInstances[SegmentType.SampleVolume]?.bind("convert", segmentInstances[SegmentType.Convert])
-            segmentInstances[SegmentType.SampleVolume]?.bind("sceneGraphVisibility", segmentInstances[SegmentType.Accumulator])
-            segmentInstances[SegmentType.SampleMultiresolutionVolume]?.bind("sceneGraphVisibility", segmentInstances[SegmentType.AccumulatorMultiresolution])
-        }
+                if(!triggered) {
+                    segmentInstances[SegmentType.FragmentShader]?.repeat("localNear", n)
+                    segmentInstances[SegmentType.FragmentShader]?.repeat("localFar", n)
+                    triggered = true
+                }
+
+                if(signatures[volumeIndex].sourceStackType == SourceStacks.SourceStackType.MULTIRESOLUTION) {
+                    segmentInstances[SegmentType.FragmentShader]?.bind(
+                        "localNear",
+                        volumeIndex,
+                        segmentInstances[SegmentType.AccumulatorMultiresolution]
+                    )
+                    segmentInstances[SegmentType.FragmentShader]?.bind(
+                        "localFar",
+                        volumeIndex,
+                        segmentInstances[SegmentType.AccumulatorMultiresolution]
+                    )
+                } else {
+                    segmentInstances[SegmentType.FragmentShader]?.bind(
+                        "localNear",
+                        volumeIndex,
+                        segmentInstances[SegmentType.Accumulator]
+                    )
+                    segmentInstances[SegmentType.FragmentShader]?.bind(
+                        "localFar",
+                        volumeIndex,
+                        segmentInstances[SegmentType.Accumulator]
+                    )
+                }
+                
+                segmentInstances[SegmentType.SampleMultiresolutionVolume]?.bind(
+                    "convert",
+                    segmentInstances[SegmentType.Convert]
+                )
+                segmentInstances[SegmentType.SampleVolume]?.bind(
+                    "convert", 
+                    segmentInstances[SegmentType.Convert]
+                )
+                
+                segmentInstances[SegmentType.SampleVolume]?.bind(
+                    "sceneGraphVisibility",
+                    segmentInstances[SegmentType.Accumulator]
+                )
+                segmentInstances[SegmentType.SampleMultiresolutionVolume]?.bind(
+                    "sceneGraphVisibility",
+                    segmentInstances[SegmentType.AccumulatorMultiresolution]
+                )
+                
+            }
 
         val newProgvol = MultiVolumeShaderMip(
             VolumeShaderSignature(signatures),
@@ -771,6 +821,31 @@ class VolumeManager(
         }
 
         hub?.add(vm)
+    }
+
+    /**
+     * Replaces the VolumeManager [toReplace] with the current VolumeManager, transferring volumes to the
+     * current VolumeManager. All other properties, e.g., [customSegments], [customTextures], etc. of both
+     * VolumeManagers remain unmodified.
+     */
+    fun replace(toReplace: VolumeManager) {
+        logger.debug("Replacing volume manager with ${toReplace.nodes.size} volumes managed")
+
+        hub?.remove(toReplace)
+
+        //remove the volumes currently held by this volume manager
+        nodes.forEach {
+            remove(it)
+        }
+
+        //add the volumes held by the volume manager to be replaced into this volume manager
+        val volumes = toReplace.nodes.toMutableList()
+        volumes.forEach {
+            add(it)
+            it.volumeManager = this
+        }
+
+        hub?.add(this)
     }
 
     @Synchronized

@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
+import com.fasterxml.jackson.module.kotlin.KotlinFeature
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import graphics.scenery.*
 import graphics.scenery.backends.Display
@@ -699,7 +700,7 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
 
     override fun submitToCompositorVulkan(width: Int, height: Int, format: Int,
                                           instance: VkInstance, device: VulkanDevice,
-                                          queue: VkQueue, image: Long) {
+                                          queue: VulkanDevice.QueueWithMutex, image: Long) {
 //        update()
         if (disableSubmission || !readyForSubmission) {
             return
@@ -711,8 +712,8 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
                 .m_pInstance(instance.address())
                 .m_pPhysicalDevice(device.physicalDevice.address())
                 .m_pDevice(device.vulkanDevice.address())
-                .m_pQueue(queue.address())
-                .m_nQueueFamilyIndex(device.queues.graphicsQueue.first)
+                .m_pQueue(queue.queue.address())
+                .m_nQueueFamilyIndex(device.queueIndices.graphicsQueue.first)
                 .m_nWidth(width)
                 .m_nHeight(height)
                 .m_nFormat(format)
@@ -726,7 +727,7 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
             readyForSubmission = false
 
             if(commandPool == -1L) {
-                commandPool = device.createCommandPool(device.queues.graphicsQueue.first)
+                commandPool = device.createCommandPool(device.queueIndices.graphicsQueue.first)
             }
 
             val subresourceRange = VkImageSubresourceRange.calloc(stack)
@@ -1271,7 +1272,15 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
                 compositeFile.exists() && compositeFile.length() > 1024 -> {
                     logger.info("Loading model from composite JSON, ${compositeFile.absolutePath}")
                     val mapper = ObjectMapper(YAMLFactory())
-                    mapper.registerModule(KotlinModule())
+                    mapper.registerModule(
+                        KotlinModule.Builder()
+                            .configure(KotlinFeature.NullToEmptyCollection, true)
+                            .configure(KotlinFeature.NullToEmptyMap, true)
+                            .configure(KotlinFeature.NullIsSameAsDefault, false)
+                            .configure(KotlinFeature.SingletonSupport, true)
+                            .configure(KotlinFeature.StrictNullChecks, true)
+                            .build()
+                    )
                     mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
                     mapper.configure(DeserializationFeature.FAIL_ON_IGNORED_PROPERTIES, false)
 
