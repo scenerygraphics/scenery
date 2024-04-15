@@ -46,6 +46,8 @@ layout(push_constant) uniform currentEye_t {
 } currentEye;
 #pragma scenery endverbatim
 
+#extension GL_EXT_debug_printf : enable
+
 // intersect ray with a box
 // http://www.siggraph.org/education/materials/HyperGraph/raytrace/rtinter3.htm
 void intersectBox( vec3 r_o, vec3 r_d, vec3 boxmin, vec3 boxmax, out float tnear, out float tfar )
@@ -90,7 +92,7 @@ void main()
 	vec2 uv = Vertex.textureCoord * 2.0 - vec2(1.0);
 	vec2 depthUV = (vrParameters.stereoEnabled ^ 1) * Vertex.textureCoord + vrParameters.stereoEnabled * vec2((Vertex.textureCoord.x/2.0 + currentEye.eye * 0.5), Vertex.textureCoord.y);
 	depthUV = depthUV * 2.0 - vec2(1.0);
-
+	
 	// NDC of frag on near and far plane
 	vec4 front = vec4( uv, -1, 1 );
 	vec4 back = vec4( uv, 1, 1 );
@@ -108,12 +110,16 @@ void main()
 	float tnear = 1, tfar = 0, tmax = getMaxDepth( depthUV );
 	float n, f;
 
-	// $repeat:{vis,intersectBoundingBox|
+	// $repeat:{vis,localNear,localFar,intersectBoundingBox|
 	bool vis = false;
+	float localNear = 0.0f;
+	float localFar = 0.0f;
 	intersectBoundingBox( wfront, wback, n, f );
 	f = min( tmax, f );
 	if ( n < f )
 	{
+		localNear = n;
+		localFar = f;
 		tnear = min( tnear, max( 0, n ) );
 		tfar = max( tfar, f );
 		vis = true;
@@ -162,7 +168,7 @@ void main()
 
 			// $insert{Accumulate}
 			/*
-			inserts something like the following (keys: vis,blockTexture,convert)
+			inserts something like the following (keys: vis,localNear,localFar,blockTexture,convert)
 
 			if (vis)
 			{
@@ -179,6 +185,7 @@ void main()
 			}
 		}
 		FragColor = v;
+
 
 		if(v.w < 0.001f) {
             discard;

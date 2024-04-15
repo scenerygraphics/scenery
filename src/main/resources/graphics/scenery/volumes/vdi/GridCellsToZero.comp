@@ -1,0 +1,21 @@
+#version 450
+
+layout (local_size_x = 16, local_size_y = 16) in;
+layout (set = 0, binding = 0, r32ui) uniform uimage3D GridCells;
+
+/**
+ * This shader is used in the generation of the grid acceleration data structure used in the rendering of Volumetric
+ * Depth Images (VDIs). The cells of the grid data structure are incremented by means of an atomic increment during
+ * the generation of VDIs. This shader is used to reset the values to 0 before the generation of the next VDI begins.
+ */
+
+void main() {
+    ivec3 imageCoords  = imageSize(GridCells);
+    int num_cells_z = imageCoords.z;
+
+    int cnt = 0;
+
+    for(int i = 0; i < num_cells_z; i++) {
+        imageStore(GridCells, ivec3(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y, i), uvec4(0));
+    }
+}

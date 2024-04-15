@@ -39,7 +39,7 @@ class CustomVolumeManagerExample : SceneryBase("CustomVolumeManagerExample") {
                 SegmentType.FragmentShader to SegmentTemplate(
                     this.javaClass,
                     "ComputeVolume.comp",
-                    "intersectBoundingBox", "vis", "SampleVolume", "Convert", "Accumulate"),
+                    "intersectBoundingBox", "vis", "localNear", "localFar", "SampleVolume", "Convert", "Accumulate"),
             ))
         volumeManager.customTextures.add("OutputRender")
 

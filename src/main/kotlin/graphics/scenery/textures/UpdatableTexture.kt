@@ -16,8 +16,9 @@ class UpdatableTexture(
     normalized: Boolean = true,
     mipmap: Boolean = true,
     minFilter: FilteringMode = FilteringMode.Linear,
-    maxFilter: FilteringMode = FilteringMode.Linear
-) : Texture(dimensions, channels, type, contents, repeatUVW, borderColor, normalized, mipmap, minFilter, maxFilter) {
+    maxFilter: FilteringMode = FilteringMode.Linear,
+    usageType: HashSet<UsageType> = hashSetOf(UsageType.Texture),
+) : Texture(dimensions, channels, type, contents, repeatUVW, borderColor, normalized, mipmap, minFilter, maxFilter, usageType) {
     /** Data class for encapsulating partial transfers. */
     data class TextureExtents(val x: Int, val y: Int, val z: Int, val w: Int, val h: Int, val d: Int)
 

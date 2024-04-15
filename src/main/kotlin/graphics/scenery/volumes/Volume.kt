@@ -93,6 +93,9 @@ open class Volume(
 
     // without this line the *java* serialization framework kryo does not recognize the parameter-less constructor
     // and uses dark magic to instanciate this class
+
+    var wantsSync = true
+    override fun wantsSync(): Boolean = wantsSync
     constructor() : this(VolumeDataSource.NullSource, hub = Hub("dummyVolumeHub"))
 
     var initalizer: VolumeInitializer? = null
@@ -649,7 +652,7 @@ open class Volume(
 
     companion object {
         val setupId = AtomicInteger(0)
-        val scifio: SCIFIO = SCIFIO()
+        lateinit var scifio: SCIFIO
         private val logger by lazyLogger()
 
         @JvmStatic @JvmOverloads fun fromSpimData(
@@ -966,6 +969,8 @@ open class Volume(
                 volumeFiles = listOf(file)
             }
 
+            scifio = SCIFIO()
+
             val volumes = CopyOnWriteArrayList<BufferedVolume.Timepoint>()
             val dims = Vector3i()
 
@@ -1115,7 +1120,6 @@ open class Volume(
             hub: Hub,
             type: T
         ): BufferedVolume {
-
             val infoFile: Path
             val volumeFiles: List<Path>
 

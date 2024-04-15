@@ -86,7 +86,7 @@ open class PointLight(val radius: Float = 5.0f) : Light("PointLight") {
             blending.destinationAlphaBlendFactor = Blending.BlendFactor.One
             blending.alphaBlending = Blending.BlendOp.add
             cullingMode = Material.CullingMode.Front
-            depthTest = Material.DepthTest.Greater
+            depthOp = Material.DepthTest.Greater
         }
     }
 

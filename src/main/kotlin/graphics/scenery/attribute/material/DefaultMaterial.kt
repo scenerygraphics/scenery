@@ -46,7 +46,9 @@ open class DefaultMaterial : Material, Networkable {
     @Transient
     override var textures: TimestampedConcurrentHashMap<String, Texture> = TimestampedConcurrentHashMap()
     override var cullingMode: Material.CullingMode = Material.CullingMode.Back
-    override var depthTest: Material.DepthTest = Material.DepthTest.LessEqual
+    override var depthTest: Boolean = true
+    override var depthWrite: Boolean = true
+    override var depthOp: Material.DepthTest = Material.DepthTest.LessEqual
     override var wireframe: Boolean = false
     override var timestamp: Long = System.nanoTime()
     override var modifiedAt = Long.MIN_VALUE
