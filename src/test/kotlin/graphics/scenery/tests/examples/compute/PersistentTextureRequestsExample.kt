@@ -58,7 +58,7 @@ class PersistentTextureRequestsExample : SceneryBase("PersistentTextureRequestsE
 
         hub.add(volumeManager)
 
-        val imp: ImagePlus = IJ.openImage("https://imagej.nih.gov/ij/images/t1-head.zip")
+        val imp: ImagePlus = IJ.openImage(getDemoFilesPath() + "/volumes/t1-head.zip")
         val img: Img<UnsignedShortType> = ImageJFunctions.wrapShort(imp)
 
         val volume = Volume.fromRAI(img, UnsignedShortType(), AxisOrder.DEFAULT, "T1 head", hub, VolumeViewerOptions())
