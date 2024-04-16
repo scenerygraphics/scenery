@@ -55,7 +55,7 @@ class BDVExample: SceneryBase("BDV Rendering example", 1280, 720) {
 
             // If file is null, we'll use one of our example datasets.
             if(file == null) {
-                file = File(getDemoFilesPath() + "/volumes/visible-male.xml")
+                file = File(getDemoFilesPath() + "/volumes/t1-head.xml")
             }
             files.add(file.absolutePath)
         }
