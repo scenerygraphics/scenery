@@ -50,14 +50,7 @@ class RAIVolume(@Transient val ds: VolumeDataSource, options: VolumeViewerOption
     }
 
     override fun localScale(): Vector3f {
-        val size = getDimensions()
-        logger.debug("Sizes are $size")
-
-        return Vector3f(
-            size.x() * pixelToWorldRatio / 10.0f,
-                -1.0f * size.y() * pixelToWorldRatio / 10.0f,
-            size.z() * pixelToWorldRatio / 10.0f
-        )
+        return Vector3f(pixelToWorldRatio, -pixelToWorldRatio, pixelToWorldRatio)
     }
 
     private fun firstSource(): SourceAndConverter<out Any>? {
@@ -76,7 +69,7 @@ class RAIVolume(@Transient val ds: VolumeDataSource, options: VolumeViewerOption
             val min = Vector3i(s.min(0).toInt(), s.min(1).toInt(), s.min(2).toInt())
             val max = Vector3i(s.max(0).toInt(), s.max(1).toInt(), s.max(2).toInt())
             val d = max.sub(min)
-            logger.info("Dimensions are $d")
+            logger.debug("Dimensions are $d")
             d
         } else {
             Vector3i(1, 1, 1)
