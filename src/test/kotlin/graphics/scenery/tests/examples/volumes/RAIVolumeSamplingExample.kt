@@ -70,8 +70,8 @@ class RAIVolumeSamplingExample: SceneryBase("RAIVolume Sampling example" , 1280,
         volume = Volume.fromXML(Paths.get(getDemoFilesPath() + "/volumes/t1-head.xml").toString(), hub, VolumeViewerOptions())
 
         volume.spatial {
-            position = Vector3f(0.0f, 0.0f, 0.0f)
-            scale = Vector3f(0.5f, 0.5f, 4.5f)
+            position = Vector3f(-0.5f, 1.0f, 0.0f)
+            scale = Vector3f(10.0f)
         }
         volume.colormap = Colormap.get("jet")
         val tf: TransferFunction = volume.transferFunction

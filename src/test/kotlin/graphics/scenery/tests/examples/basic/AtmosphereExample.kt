@@ -49,14 +49,14 @@ class AtmosphereExample : SceneryBase("Atmosphere Example",
             renderer?.toggleVR()
         }
 
-        val imp: ImagePlus = IJ.openImage("https://imagej.nih.gov/ij/images/t1-head.zip")
+        val imp: ImagePlus = IJ.openImage(getDemoFilesPath() + "/volumes/t1-head.zip")
         val img: Img<UnsignedShortType> = ImageJFunctions.wrapShort(imp)
 
         volume = Volume.fromRAI(img, UnsignedShortType(), AxisOrder.DEFAULT, "T1 head", hub, VolumeViewerOptions())
         volume.colormap = Colormap.get("jet")
         volume.setTransferFunctionRange(10f, 1000f)
         volume.transferFunction = TransferFunction.ramp(0.001f, 0.2f, 1f)
-        volume.spatial().scale = Vector3f(1f, 1f, 2.3f)
+        volume.spatial().scale = Vector3f(10.0f)
         scene.addChild(volume)
 
         val ambientLight = AmbientLight(0.1f)
