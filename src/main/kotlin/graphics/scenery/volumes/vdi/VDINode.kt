@@ -11,6 +11,7 @@ import graphics.scenery.textures.UpdatableTexture
 import graphics.scenery.utils.Image
 import graphics.scenery.utils.extensions.applyVulkanCoordinateSystem
 import net.imglib2.type.numeric.integer.UnsignedIntType
+import net.imglib2.type.numeric.integer.UnsignedShortType
 import net.imglib2.type.numeric.real.FloatType
 import org.jetbrains.annotations.ApiStatus.Experimental
 import org.joml.Matrix4f
@@ -156,6 +157,37 @@ class VDINode(windowWidth: Int, windowHeight: Int, val numSupersegments: Int, vd
         }
     }
 
+    private fun generateColorTexture(vdiWidth: Int, vdiHeight: Int, numSupersegments: Int, buffer: ByteBuffer) : Texture {
+        val dimensions = getLinearizationOrder(vdiWidth, vdiHeight, numSupersegments)
+        return Texture(dimensions, 4, contents = buffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture)
+            , type = FloatType(),
+            mipmap = false,
+            minFilter = Texture.FilteringMode.NearestNeighbour,
+            maxFilter = Texture.FilteringMode.NearestNeighbour
+        )
+    }
+
+    private fun generateDepthTexture(vdiWidth: Int, vdiHeight: Int, numSupersegments: Int, buffer: ByteBuffer) : Texture {
+        val intDepths = false
+        val dimensions = getLinearizationOrder(vdiWidth, vdiHeight, numSupersegments)
+        return if(intDepths) {
+            Texture(dimensions,  channels = 2, contents = buffer, usageType = hashSetOf(
+                Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = UnsignedShortType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+        } else {
+            Texture(dimensions,  channels = 2, contents = buffer, usageType = hashSetOf(
+                Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+        }
+    }
+
+    private fun generateAccelerationTexture(buffer: ByteBuffer, dimensions: Vector3i? = null) : Texture {
+        val numGridCells = getAccelerationGridSize()
+        return if (dimensions == null) {
+            Texture(Vector3i(numGridCells.x.toInt(), numGridCells.y.toInt(), numGridCells.z.toInt()), 1, type = UnsignedIntType(), contents = buffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
+        } else {
+            Texture(dimensions, 1, type = UnsignedIntType(), contents = buffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
+        }
+    }
+
     /**
      * Attaches textures containing the VDI data for rendering.
      *
@@ -167,30 +199,15 @@ class VDINode(windowWidth: Int, windowHeight: Int, val numSupersegments: Int, vd
      */
     fun attachTextures(colBuffer: ByteBuffer, depthBuffer: ByteBuffer, gridBuffer: ByteBuffer, toBuffer: DoubleBuffer = DoubleBuffer.First) {
 
-        val numGridCells = getAccelerationGridSize()
 
         if(toBuffer == DoubleBuffer.First) {
-            material().textures[inputColorTexture] = Texture(Vector3i(numSupersegments, vdiHeight, vdiWidth), 4, contents = colBuffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture)
-                , type = FloatType(),
-                mipmap = false,
-                minFilter = Texture.FilteringMode.NearestNeighbour,
-                maxFilter = Texture.FilteringMode.NearestNeighbour
-            )
-            material().textures[inputDepthTexture] = Texture(Vector3i(2 * numSupersegments, vdiHeight, vdiWidth),  channels = 1, contents = depthBuffer, usageType = hashSetOf(
-                Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
-
-            material().textures[inputAccelerationTexture] = Texture(Vector3i(numGridCells.x.toInt(), numGridCells.y.toInt(), numGridCells.z.toInt()), 1, type = UnsignedIntType(), contents = gridBuffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
+            material().textures[inputColorTexture] = generateColorTexture(vdiWidth, vdiHeight, numSupersegments, colBuffer)
+            material().textures[inputDepthTexture] = generateDepthTexture(vdiWidth, vdiHeight, numSupersegments, depthBuffer)
+            material().textures[inputAccelerationTexture] = generateAccelerationTexture(gridBuffer)
         } else {
-            material().textures["${inputColorTexture}2"] = Texture(Vector3i(numSupersegments, vdiHeight, vdiWidth), 4, contents = colBuffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture)
-                , type = FloatType(),
-                mipmap = false,
-                minFilter = Texture.FilteringMode.NearestNeighbour,
-                maxFilter = Texture.FilteringMode.NearestNeighbour
-            )
-            material().textures["${inputDepthTexture}2"] = Texture(Vector3i(2 * numSupersegments, vdiHeight, vdiWidth),  channels = 1, contents = depthBuffer, usageType = hashSetOf(
-                Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture), type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
-
-            material().textures["${inputAccelerationTexture}2"] = Texture(Vector3i(numGridCells.x.toInt(), numGridCells.y.toInt(), numGridCells.z.toInt()), 1, type = UnsignedIntType(), contents = gridBuffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
+            material().textures["${inputColorTexture}2"] = generateColorTexture(vdiWidth, vdiHeight, numSupersegments, colBuffer)
+            material().textures["${inputDepthTexture}2"] = generateDepthTexture(vdiWidth, vdiHeight, numSupersegments, depthBuffer)
+            material().textures["${inputAccelerationTexture}2"] = generateAccelerationTexture(gridBuffer)
         }
     }
 
@@ -202,18 +219,12 @@ class VDINode(windowWidth: Int, windowHeight: Int, val numSupersegments: Int, vd
      */
     fun attachEmptyTextures(toBuffer: DoubleBuffer) {
         val emptyColor = MemoryUtil.memCalloc(4 * 4)
-        val emptyColorTexture = Texture(Vector3i(1, 1, 1), 4, contents = emptyColor, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
-            type = FloatType(), mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
-
-        val emptyDepth = MemoryUtil.memCalloc(1 * 4)
-        val emptyDepthTexture = Texture(Vector3i(1, 1, 1), 1, contents = emptyDepth, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
-            type = FloatType(), mipmap = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+        val emptyColorTexture = generateColorTexture(1, 1, 1, emptyColor)
+        val emptyDepth = MemoryUtil.memCalloc(1 * 8)
+        val emptyDepthTexture = generateDepthTexture(1, 1, 1, emptyDepth)
 
         val emptyAccel = MemoryUtil.memCalloc(4)
-        val emptyAccelTexture = Texture(
-            Vector3i(1, 1, 1), 1, contents = emptyAccel, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
-            type = UnsignedIntType(), mipmap = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour
-        )
+        val emptyAccelTexture = generateAccelerationTexture(emptyAccel, Vector3i(1, 1, 1))
 
         if (toBuffer == DoubleBuffer.First ) {
             material().textures[inputColorTexture] = emptyColorTexture
@@ -331,5 +342,9 @@ class VDINode(windowWidth: Int, windowHeight: Int, val numSupersegments: Int, vd
         const val inputColorTexture = "InputVDI"
         const val inputDepthTexture = "DepthVDI"
         const val inputAccelerationTexture = "AccelerationGrid"
+
+        fun getLinearizationOrder(vdiWidth: Int, vdiHeight: Int, numSupersegments: Int) : Vector3i {
+            return Vector3i(vdiWidth, vdiHeight, numSupersegments)
+        }
     }
 }
