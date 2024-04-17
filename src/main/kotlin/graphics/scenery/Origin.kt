@@ -8,7 +8,18 @@ import org.joml.Vector3f
  * @author Ulrik Guenther <hello@ulrik.is>
  */
 sealed class Origin {
-    object Center: Origin()
-    object FrontBottomLeft: Origin()
-    class Custom(val origin: Vector3f): Origin()
+    /**
+     * Volume origin will be the center of the volume.
+     */
+    data object Center: Origin()
+
+    /**
+     * Volume origin will be the front, bottom, left corner of the volume.
+     */
+    data object FrontBottomLeft: Origin()
+
+    /**
+     * Volume origin will be the custom vector given as [origin].
+     */
+    data class Custom(val origin: Vector3f): Origin()
 }
