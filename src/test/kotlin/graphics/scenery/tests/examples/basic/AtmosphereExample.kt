@@ -16,6 +16,7 @@ import net.imglib2.img.Img
 import net.imglib2.img.display.imagej.ImageJFunctions
 import net.imglib2.type.numeric.integer.UnsignedShortType
 import org.joml.Vector3f
+import kotlin.concurrent.thread
 
 /**
  * <Description>
@@ -92,7 +93,7 @@ class AtmosphereExample : SceneryBase("Atmosphere Example",
 
         setupCameraModeSwitching()
 
-        inputHandler?.let { atmos.attachRotateBehaviours(it) }
+        inputHandler?.let { atmos.attachBehaviors(it) }
     }
 
     companion object {
