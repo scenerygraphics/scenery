@@ -369,7 +369,7 @@ open class VulkanTexture(
 
             tmpBuffer?.let { b ->
                 with(VU.newCommandBuffer(device, commandPools.Transfer, autostart = true)) {
-                    logger.info("${System.nanoTime()}: Copying $width $height $depth")
+                    logger.debug("${System.nanoTime()}: Copying $width $height $depth")
                     transitionLayout(image.image,
                         from = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                         to = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
