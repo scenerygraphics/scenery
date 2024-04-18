@@ -5,6 +5,8 @@ enum class RendererFlags {
     Initialised,
     Updating,
     Updated,
+    PreDrawSkip,
+    Instanced,
     Rendering,
     MarkedForDeletion
 }

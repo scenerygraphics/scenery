@@ -48,9 +48,6 @@ open class PointLight(val radius: Float = 5.0f) : Light("PointLight") {
             }
         }
 
-    /** Node name of the Point Light */
-    override var name = "PointLight"
-
     @Suppress("unused") // will be serialised into ShaderProperty buffer
     @ShaderProperty val worldPosition: Vector3f
         get(): Vector3f {
