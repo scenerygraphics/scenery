@@ -9,6 +9,7 @@ import org.joml.Vector3i
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.vulkan.KHRSwapchain
 import org.lwjgl.vulkan.VK10
+import kotlin.math.ceil
 
 /**
  * Helper object for compute pass command buffer recording.
@@ -92,9 +93,9 @@ object VulkanComputePass {
                 }
 
             VK10.vkCmdDispatch(this,
-                metadata.workSizes.x() / maxOf(localSizes.first, 1),
-                metadata.workSizes.y() / maxOf(localSizes.second, 1),
-                metadata.workSizes.z() / maxOf(localSizes.third, 1))
+                ceil(metadata.workSizes.x().toFloat() / maxOf(localSizes.first, 1).toFloat()).toInt(),
+                ceil(metadata.workSizes.y().toFloat() / maxOf(localSizes.second, 1).toFloat()).toInt(),
+                ceil(metadata.workSizes.z().toFloat() / maxOf(localSizes.third, 1).toFloat()).toInt())
 
             loadStoreAttachments
                 .forEach { (isOutput, fb) ->

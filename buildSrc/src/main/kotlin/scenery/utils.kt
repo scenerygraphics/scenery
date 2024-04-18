@@ -71,6 +71,5 @@ fun DependencyHandlerScope.api(dep: String, natives: Array<String>) {
                                       native, null, null)
 }
 
-val joglNatives = arrayOf("natives-windows-amd64", "natives-linux-i586", "natives-linux-amd64", "natives-macosx-universal")
 val lwjglNatives = arrayOf("natives-windows", "natives-linux", "natives-macos", "natives-macos-arm64")
 val ffmpegNatives = arrayOf("windows-x86_64", "linux-x86_64", "macosx-x86_64", "macosx-arm64")

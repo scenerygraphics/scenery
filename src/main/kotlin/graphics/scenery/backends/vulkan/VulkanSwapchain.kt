@@ -30,7 +30,7 @@ import java.util.*
  * @author Ulrik Günther <hello@ulrik.is>
  */
 open class VulkanSwapchain(open val device: VulkanDevice,
-                           open val queue: VkQueue,
+                           open val queue: VulkanDevice.QueueWithMutex,
                            open val commandPools: VulkanRenderer.CommandPools,
                            @Suppress("unused") open val renderConfig: RenderConfigReader.RenderConfig,
                            open val useSRGB: Boolean = true,
@@ -57,7 +57,7 @@ open class VulkanSwapchain(open val device: VulkanDevice,
     /** Present info, allocated only once and reused. */
     var presentInfo: VkPresentInfoKHR = VkPresentInfoKHR.calloc()
     /** Vulkan queue used exclusively for presentation. */
-    lateinit var presentQueue: VkQueue
+    lateinit var presentQueue: VulkanDevice.QueueWithMutex
 
     /** Surface of the window to render into. */
     open var surface: Long = 0
@@ -405,7 +405,7 @@ open class VulkanSwapchain(open val device: VulkanDevice,
             }
 
             logger.info("Present queue is ${presentQueueNodeIndex}, graphics queue is ${graphicsQueueNodeIndex}")
-            presentQueue = VU.createDeviceQueue(device, device.queues.graphicsQueue.first)
+            presentQueue = device.getQueue(device.queueIndices.graphicsQueue.first)
 
             // Get list of supported formats
             val formatCount = VU.getInts("Getting supported surface formats", 1,
@@ -457,7 +457,7 @@ open class VulkanSwapchain(open val device: VulkanDevice,
         // here we accept the VK_ERROR_OUT_OF_DATE_KHR error code, which
         // seems to spuriously occur on Linux upon resizing.
         VU.run("Presenting swapchain image",
-            { KHRSwapchain.vkQueuePresentKHR(presentQueue, presentInfo) },
+            { KHRSwapchain.vkQueuePresentKHR(presentQueue.queue, presentInfo) },
             allowedResults = listOf(VK_ERROR_OUT_OF_DATE_KHR))
 
         presentedFrames++
@@ -596,8 +596,8 @@ open class VulkanSwapchain(open val device: VulkanDevice,
      * Closes the swapchain, deallocating all of its resources.
      */
     override fun close() {
-        vkQueueWaitIdle(presentQueue)
-        vkQueueWaitIdle(queue)
+        vkQueueWaitIdle(presentQueue.queue)
+        vkQueueWaitIdle(queue.queue)
 
         logger.debug("Closing swapchain $this")
         KHRSwapchain.vkDestroySwapchainKHR(device.vulkanDevice, handle, null)

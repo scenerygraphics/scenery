@@ -1,5 +1,13 @@
+#extension GL_EXT_control_flow_attributes : enable
+#extension GL_EXT_debug_printf : enable
+#extension SPV_KHR_non_semantic_info : enable
 out vec4 FragColor;
 uniform vec2 viewportSize;
+uniform float shuffleDegree;
+uniform float maxOcclusionDistance;
+uniform float kernelSize;
+uniform int occlusionSteps;
+uniform int aoDebug;
 uniform vec2 dsp;
 uniform float fwnw;
 uniform float nw;
@@ -46,6 +54,8 @@ layout(push_constant) uniform currentEye_t {
 } currentEye;
 #pragma scenery endverbatim
 
+#extension GL_EXT_debug_printf : enable
+
 // intersect ray with a box
 // http://www.siggraph.org/education/materials/HyperGraph/raytrace/rtinter3.htm
 void intersectBox( vec3 r_o, vec3 r_d, vec3 boxmin, vec3 boxmax, out float tnear, out float tfar )
@@ -71,6 +81,22 @@ float adjustOpacity(float a, float modifiedStepLength) {
 uniform bool fixedStepSize;
 uniform float stepsPerVoxel;
 
+float rand(vec2 co){
+	return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
+}
+
+#define PI 3.14159265359
+vec3 randomSpherePoint(vec3 rand) {
+	float ang1 = (rand.x + 1.0) * PI; // [-1..1) -> [0..2*PI)
+	float u = rand.y; // [-1..1), cos and acos(2v-1) cancel each other out, so we arrive at [-1..1)
+	float u2 = u * u;
+	float sqrt1MinusU2 = sqrt(1.0 - u2);
+	float x = sqrt1MinusU2 * cos(ang1);
+	float y = sqrt1MinusU2 * sin(ang1);
+	float z = u;
+	return vec3(x, y, z);
+}
+
 // ---------------------
 // $insert{Convert}
 // $insert{SampleVolume}
@@ -88,9 +114,12 @@ void main()
 	mat4 t = transform;
 
 	vec2 uv = Vertex.textureCoord * 2.0 - vec2(1.0);
+	vec3 shuffle = vec3(rand(uv), rand(uv.yx), rand(uv.xy/uv.yx));
+	uv = uv + (shuffle.xy * 0.001f * shuffleDegree);
+
 	vec2 depthUV = (vrParameters.stereoEnabled ^ 1) * Vertex.textureCoord + vrParameters.stereoEnabled * vec2((Vertex.textureCoord.x/2.0 + currentEye.eye * 0.5), Vertex.textureCoord.y);
 	depthUV = depthUV * 2.0 - vec2(1.0);
-
+	
 	// NDC of frag on near and far plane
 	vec4 front = vec4( uv, -1, 1 );
 	vec4 back = vec4( uv, 1, 1 );
@@ -101,19 +130,20 @@ void main()
 	vec4 wback = ipv * back;
 	wback *= 1 / wback.w;
 
-	vec4 direc = Vertex.inverseView * normalize(wback-wfront);
-	direc.w = 0.0f;
-
 	// -- bounding box intersection for all volumes ----------
 	float tnear = 1, tfar = 0, tmax = getMaxDepth( depthUV );
 	float n, f;
 
-	// $repeat:{vis,intersectBoundingBox|
+	// $repeat:{vis,localNear,localFar,intersectBoundingBox|
 	bool vis = false;
+	float localNear = 0.0f;
+	float localFar = 0.0f;
 	intersectBoundingBox( wfront, wback, n, f );
 	f = min( tmax, f );
 	if ( n < f )
 	{
+		localNear = n;
+		localFar = f;
 		tnear = min( tnear, max( 0, n ) );
 		tfar = max( tfar, f );
 		vis = true;
@@ -149,17 +179,21 @@ void main()
 		}
 
 		float step = tnear;
+		vec4 w_entry = mix(wfront, wback, step);
+
+		float standardStepSize = distance(mix(wfront, wback, step + nw), w_entry);
 
 		float step_prev = step - stepWidth;
 		vec4 wprev = mix(wfront, wback, step_prev);
 		vec4 v = vec4( 0 );
+		vec4 previous = vec4(0.0f);
 		for ( int i = 0; i < numSteps; ++i)
 		{
 			vec4 wpos = mix( wfront, wback, step );
 
 			// $insert{Accumulate}
 			/*
-			inserts something like the following (keys: vis,blockTexture,convert)
+			inserts something like the following (keys: vis,localNear,localFar,blockTexture,convert)
 
 			if (vis)
 			{
@@ -170,12 +204,13 @@ void main()
 			wprev = wpos;
 
 			if(fixedStepSize) {
-				step += stepWidth;
+				step += stepWidth * (1.0f+shuffleDegree*shuffle.x/2.0f);
 			} else {
-				step += nw + step * fwnw;
+				step += nw + step * fwnw * (1.0f+shuffleDegree*shuffle.x/2.0f);
 			}
 		}
 		FragColor = v;
+
 
 		if(v.w < 0.001f) {
             discard;

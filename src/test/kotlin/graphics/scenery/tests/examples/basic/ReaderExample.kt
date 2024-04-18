@@ -19,7 +19,6 @@ import java.nio.file.Files
 import java.nio.file.Paths
 import kotlin.concurrent.thread
 import kotlin.math.sqrt
-import kotlin.streams.toList
 
 /**
  * Example for loading geometry and volumetric files.
@@ -45,7 +44,7 @@ class ReaderExample : SceneryBase("ReaderExample", 1280, 720) {
         val cam = DetachedHeadCamera()
         hmd = try {
             OpenVRHMD()
-        } catch (e: Exception) {
+        } catch (e: Error) {
             null
         }
 
