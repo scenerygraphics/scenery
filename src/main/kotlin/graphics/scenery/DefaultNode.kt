@@ -15,7 +15,7 @@ import kotlin.reflect.full.memberProperties
 import kotlin.reflect.jvm.isAccessible
 
 open class DefaultNode(name: String = "Node") : Node, Networkable {
-    override var name = name
+    final override var name = name
         set(v) {
             field = v
             updateModifiedAt()
@@ -48,9 +48,8 @@ open class DefaultNode(name: String = "Node") : Node, Networkable {
         return true
     }
 
-    override var nodeType = "Node"
     override var boundingBox: OrientedBoundingBox? = null
-    override val logger by lazyLogger()
+    val logger by lazyLogger()
 
     @Transient private val attributes = DefaultAttributesMap()
 

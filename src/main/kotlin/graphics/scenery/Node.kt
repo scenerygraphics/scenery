@@ -8,12 +8,12 @@ import graphics.scenery.attribute.renderable.Renderable
 import graphics.scenery.attribute.spatial.Spatial
 import graphics.scenery.net.Networkable
 import graphics.scenery.utils.MaybeIntersects
+import graphics.scenery.utils.lazyLogger
 import net.imglib2.Localizable
 import net.imglib2.RealLocalizable
 import org.joml.Matrix4f
 import org.joml.Quaternionf
 import org.joml.Vector3f
-import org.slf4j.Logger
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
 import java.util.*
@@ -24,7 +24,6 @@ import kotlin.collections.ArrayList
 
 interface Node : Networkable {
     var name: String
-    var nodeType: String
     /** Children of the Node. */
     var children: CopyOnWriteArrayList<Node>
     /** Other nodes that have linked transforms. */
@@ -49,8 +48,6 @@ interface Node : Networkable {
     var lock: ReentrantLock
     /** Initialisation function for the object */
     fun init(): Boolean
-
-    val logger: Logger
 
     /** bounding box **/
     var boundingBox: OrientedBoundingBox?
@@ -215,6 +212,7 @@ interface Node : Networkable {
     fun getShaderProperty(name: String): Any?
 
     companion object {
+        private val logger by lazyLogger()
 
         /**
          * Depth-first search for elements in a Scene.

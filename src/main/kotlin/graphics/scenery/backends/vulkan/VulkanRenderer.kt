@@ -810,7 +810,7 @@ open class VulkanRenderer(hub: Hub,
     /**
      * Returns the material type flag for a Node, considering it's [Material]'s textures.
      */
-    protected fun Material.materialTypeFromTextures(s: VulkanObjectState): Int {
+    protected fun Material.materialTypeFromTextures(s: VulkanRendererMetadata): Int {
         var materialType = 0
         if (this.textures.containsKey("ambient") && !s.defaultTexturesFor.contains("ambient")) {
             materialType = materialType or MATERIAL_HAS_AMBIENT
@@ -842,16 +842,16 @@ open class VulkanRenderer(hub: Hub,
         val renderable = node.renderableOrNull() ?: return false
         val material = node.materialOrNull() ?: return false
         if(node is DelegatesRenderable) {
-            logger.debug("Initialising node $node with delegate $renderable (state=${node.state})")
+            logger.debug("Initialising node {} with delegate {} (state={})", node, renderable, node.state)
         } else {
-            logger.debug("Initialising node $node")
+            logger.debug("Initialising node {}", node)
         }
 
         if(renderable.rendererMetadata() == null) {
-            renderable.metadata["VulkanRenderer"] = VulkanObjectState()
+            renderable.metadata["VulkanRenderer"] = VulkanRendererMetadata()
         }
 
-        var s: VulkanObjectState = renderable.rendererMetadata() ?: throw IllegalStateException("Node ${node.name} does not contain metadata object")
+        var s: VulkanRendererMetadata = renderable.rendererMetadata() ?: throw IllegalStateException("Node ${node.name} does not contain metadata object")
 
         if(node.state != State.Ready) {
             logger.info("Not initialising Renderable $renderable because state=${node.state}")
@@ -880,10 +880,10 @@ open class VulkanRenderer(hub: Hub,
                 VulkanNodeHelpers.updateInstanceBuffer(device, node, s, commandPools, queue)
                 // TODO: Rewrite shader in case it does not conform to coord/normal/texcoord vertex description
                 s.vertexInputType = VertexDataKinds.PositionNormalTexcoord
-                s.instanced = true
+                s.flags += RendererFlags.Instanced
                 vertexDescriptionFromInstancedNode(node, vertexDescriptors.getValue(VertexDataKinds.PositionNormalTexcoord))
             } else {
-                s.instanced = false
+                s.flags -= RendererFlags.Instanced
                 s.vertexBuffers["instance"]?.close()
                 s.vertexBuffers.remove("instance")
                 s.vertexBuffers["instanceStaging"]?.close()
@@ -966,7 +966,6 @@ open class VulkanRenderer(hub: Hub,
             s.UBOs.put("MaterialProperties", materialPropertiesDescriptorSet.contents to this)
         }
 
-        s.initialized = true
         s.flags.add(RendererFlags.Initialised)
         node.initialized = true
         renderable.metadata["VulkanRenderer"] = s
@@ -1659,17 +1658,17 @@ open class VulkanRenderer(hub: Hub,
                 // in the next round
                 if (renderable.rendererMetadata() == null || node.state == State.Created || renderable.rendererMetadata()?.initialized == false) {
                     logger.debug("${node.name} is not initialized, doing that now")
-                    renderable.metadata["VulkanRenderer"] = VulkanObjectState()
+                    renderable.metadata["VulkanRenderer"] = VulkanRendererMetadata()
                     initializeNode(node)
 
                     return@forEach
                 }
 
                 if(!renderable.preDraw()) {
-                    renderable.rendererMetadata()?.preDrawSkip = true
+                    renderable.rendererMetadata()?.flags?.add(RendererFlags.PreDrawSkip)
                     return@forEach
                 } else {
-                    renderable.rendererMetadata()?.preDrawSkip = false
+                    renderable.rendererMetadata()?.flags?.remove(RendererFlags.PreDrawSkip)
                 }
 
                 // the current command buffer will be forced to be re-recorded if either geometry, blending or
@@ -1691,9 +1690,9 @@ open class VulkanRenderer(hub: Hub,
 
                     // this covers cases where a master node is not given any instanced properties in the beginning
                     // but only later, or when instancing is removed at some point.
-                    if((!metadata.instanced && node is InstancedNode) ||
-                        metadata.instanced && node !is InstancedNode) {
-                        metadata.initialized = false
+                    if((!metadata.flags.contains(RendererFlags.Instanced) && node is InstancedNode) ||
+                        metadata.flags.contains(RendererFlags.Instanced) && node !is InstancedNode) {
+                        metadata.flags.remove(RendererFlags.Initialised)
                         initializeNode(node)
                         return@forEach
                     }
@@ -1994,9 +1993,7 @@ open class VulkanRenderer(hub: Hub,
                 stack.callocPointer(size + additionalExts.size)
             }
 
-            if(requiredExtensions != null) {
-                enabledExtensionNames.put(requiredExtensions)
-            }
+            requiredExtensions?.let { exts -> enabledExtensionNames.put(exts) }
 
             utf8Exts.forEach { enabledExtensionNames.put(it) }
             enabledExtensionNames.flip()
@@ -2122,8 +2119,8 @@ open class VulkanRenderer(hub: Hub,
                 wantAligned = true))
     }
 
-    private fun Renderable.rendererMetadata(): VulkanObjectState? {
-        return this.metadata["VulkanRenderer"] as? VulkanObjectState
+    private fun Renderable.rendererMetadata(): VulkanRendererMetadata? {
+        return this.metadata["VulkanRenderer"] as? VulkanRendererMetadata
     }
 
     private fun updateInstanceBuffers(sceneObjects: List<Node>) = runBlocking {
@@ -2344,7 +2341,7 @@ open class VulkanRenderer(hub: Hub,
 
         logger.debug("Cleaning texture cache...")
         textureCache.forEach {
-            logger.debug("Cleaning ${it.key}...")
+            logger.debug("Cleaning {}...", it.key)
             it.value.close()
         }
 
@@ -2365,7 +2362,7 @@ open class VulkanRenderer(hub: Hub,
 
         logger.debug("Closing vertex descriptors ...")
         vertexDescriptors.forEach {
-            logger.debug("Closing vertex descriptor ${it.key}...")
+            logger.debug("Closing vertex descriptor {}...", it.key)
 
             it.value.attributeDescription?.free()
             it.value.bindingDescription?.free()
@@ -2410,7 +2407,7 @@ open class VulkanRenderer(hub: Hub,
 
         debugCallback.free()
 
-        logger.debug("Closing device $device...")
+        logger.debug("Closing device {}...", device)
         device.close()
 
         if(System.getProperty("scenery.Workarounds.DontCloseVulkanInstances")?.toBoolean() == true) {
