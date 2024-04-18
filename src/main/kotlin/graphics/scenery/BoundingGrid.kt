@@ -102,7 +102,8 @@ open class BoundingGrid : Mesh("Bounding Grid"), RenderingOrder {
             } else {
                 cullingMode = Material.CullingMode.Back
             }
-            depthTest = Material.DepthTest.LessEqual
+            depthTest = true
+            depthOp = Material.DepthTest.LessEqual
         }
 
         labels = hashMapOf(
