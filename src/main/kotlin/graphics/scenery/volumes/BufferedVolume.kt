@@ -4,15 +4,12 @@ import bdv.tools.transformation.TransformedSource
 import bvv.core.VolumeViewerOptions
 import graphics.scenery.Hub
 import graphics.scenery.OrientedBoundingBox
-import graphics.scenery.SceneryElement
-import graphics.scenery.backends.Renderer
 import graphics.scenery.utils.extensions.minus
 import graphics.scenery.utils.extensions.plus
 import graphics.scenery.utils.extensions.times
 import net.imglib2.type.numeric.integer.*
 import net.imglib2.type.numeric.real.DoubleType
 import net.imglib2.type.numeric.real.FloatType
-import org.jfree.data.statistics.SimpleHistogramBin
 import org.jfree.data.statistics.SimpleHistogramDataset
 import org.joml.Vector3f
 import org.joml.Vector3i
@@ -297,36 +294,7 @@ class BufferedVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewe
     /**
      * Generates a histogram using GPU acceleration via [VolumeHistogramComputeNode].
      */
-    override fun generateHistogram(volumeHistogramData: SimpleHistogramDataset): Int?  {
-
-        val volumeHistogram = VolumeHistogramComputeNode.generateHistogram(
-            this,
-            timepoints?.get(currentTimepoint)!!.contents,
-            getScene() ?: return null
-        )
-
-        val histogram = volumeHistogram.fetchHistogram(
-            getScene()!!, volumeManager.hub!!.get<Renderer>(
-                SceneryElement.Renderer
-            )!!
-        )
-
-        val displayRange = abs(maxDisplayRange - minDisplayRange)
-        val binSize = displayRange / volumeHistogram.numBins
-        val minDisplayRange = minDisplayRange.toDouble()
-
-        var max = 0
-        histogram.forEachIndexed { index, value ->
-            val bin = SimpleHistogramBin(
-                minDisplayRange + index * binSize,
-                minDisplayRange + (index + 1) * binSize,
-                true,
-                false
-            )
-            bin.itemCount = value
-            volumeHistogramData.addBin(bin)
-            max = max(max, value)
-        }
-        return max
+    override fun generateHistogram(volumeHistogramData: SimpleHistogramDataset): Int  {
+        return VolumeHistogramComputeNode.generateHistogram(this,volumeHistogramData)
     }
 }
