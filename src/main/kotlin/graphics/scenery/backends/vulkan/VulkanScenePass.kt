@@ -80,7 +80,7 @@ object VulkanScenePass {
                 }
             }
 
-            if(node.state != State.Ready || renderable.rendererMetadata()?.preDrawSkip == true) {
+            if(node.state != State.Ready || renderable.rendererMetadata()?.flags?.contains(RendererFlags.PreDrawSkip) == true) {
                 return@forEach
             }
 
@@ -561,7 +561,7 @@ object VulkanScenePass {
         }
     }
 
-    private fun setRequiredDescriptorSetsForNode(pass: VulkanRenderpass, node: Node, s: VulkanObjectState, specs: List<MutableMap.MutableEntry<String, ShaderIntrospection.UBOSpec>>, descriptorSets: Map<String, Long>): Pair<List<VulkanRenderer.DescriptorSet>, Boolean> {
+    private fun setRequiredDescriptorSetsForNode(pass: VulkanRenderpass, node: Node, s: VulkanRendererMetadata, specs: List<MutableMap.MutableEntry<String, ShaderIntrospection.UBOSpec>>, descriptorSets: Map<String, Long>): Pair<List<VulkanRenderer.DescriptorSet>, Boolean> {
         var skip = false
         return specs.mapNotNull { (name, _) ->
             val ds = when {

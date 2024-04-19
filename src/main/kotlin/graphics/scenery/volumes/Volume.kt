@@ -237,7 +237,7 @@ open class Volume(
             @Transient
             val sources: List<SourceAndConverter<*>>,
             @Transient
-            val converterSetups: ArrayList<ConverterSetup>,
+            val converterSetups: List<ConverterSetup>,
             val numTimepoints: Int
             ) : VolumeDataSource()
         class RAISource<T: NumericType<T>>(
@@ -246,7 +246,7 @@ open class Volume(
             @Transient
             val sources: List<SourceAndConverter<T>>,
             @Transient
-            val converterSetups: ArrayList<ConverterSetup>,
+            val converterSetups: List<ConverterSetup>,
             val numTimepoints: Int,
             @Transient
             val cacheControl: CacheControl? = null,

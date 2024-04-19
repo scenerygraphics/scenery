@@ -12,7 +12,7 @@ import graphics.scenery.attribute.spatial.HasSpatial
 import org.joml.Matrix4f
 import java.util.concurrent.CopyOnWriteArrayList
 
-open class InstancedNode(template: Node, override var name: String = "InstancedNode") : DefaultNode(name), DelegatesRenderable,
+open class InstancedNode(template: Node, name: String = "InstancedNode") : DefaultNode(name), DelegatesRenderable,
     DelegatesGeometry, DelegatesMaterial {
     /** instances */
     val instances = CopyOnWriteArrayList<Instance>()
@@ -64,7 +64,7 @@ open class InstancedNode(template: Node, override var name: String = "InstancedN
         return template?.generateBoundingBox()
     }
 
-    class Instance(val instancedParent : InstancedNode, override var name: String = "Instance") : DefaultNode(name),
+    class Instance(val instancedParent : InstancedNode, name: String = "Instance") : DefaultNode(name),
         HasRenderable, HasSpatial {
         var instancedProperties = LinkedHashMap<String, () -> Any>()
 

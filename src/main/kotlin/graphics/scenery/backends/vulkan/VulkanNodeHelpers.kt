@@ -33,17 +33,17 @@ object VulkanNodeHelpers {
      *
      * Will access the node's [state], allocate staging memory from [stagingPool], and GPU memory
      * from [geometryPool]. Command buffer allocation and submission is done via [commandPools] in
-     * the given [queue]. Returns the modified [VulkanObjectState].
+     * the given [queue]. Returns the modified [VulkanRendererMetadata].
      */
     fun createVertexBuffers(
         device: VulkanDevice,
         node: Node,
-        state: VulkanObjectState,
+        state: VulkanRendererMetadata,
         stagingPool: VulkanBufferPool,
         geometryPool: VulkanBufferPool,
         commandPools: VulkanRenderer.CommandPools,
         queue: VulkanDevice.QueueWithMutex
-    ): VulkanObjectState {
+    ): VulkanRendererMetadata {
         val geometry = node.geometryOrNull() ?: return state
         val vertices = geometry.vertices.duplicate()
         val normals = geometry.normals.duplicate()
@@ -156,9 +156,9 @@ object VulkanNodeHelpers {
 
     /**
      * Updates instance buffers for a given [node] on [device]. Modifies the [node]'s [state]
-     * and allocates necessary command buffers from [commandPools] and submits to [queue]. Returns the [node]'s modified [VulkanObjectState].
+     * and allocates necessary command buffers from [commandPools] and submits to [queue]. Returns the [node]'s modified [VulkanRendererMetadata].
      */
-    fun updateInstanceBuffer(device: VulkanDevice, node: InstancedNode, state: VulkanObjectState, commandPools: VulkanRenderer.CommandPools, queue: VulkanDevice.QueueWithMutex): VulkanObjectState {
+    fun updateInstanceBuffer(device: VulkanDevice, node: InstancedNode, state: VulkanRendererMetadata, commandPools: VulkanRenderer.CommandPools, queue: VulkanDevice.QueueWithMutex): VulkanRendererMetadata {
         logger.trace("Updating instance buffer for {}", node.name)
 
         // parentNode.instances is a CopyOnWrite array list, and here we keep a reference to the original.
@@ -261,7 +261,7 @@ object VulkanNodeHelpers {
      *
      * Returns a [Pair] of [Boolean], indicating whether contents or descriptor set have changed.
      */
-    fun loadTexturesForNode(device: VulkanDevice, node: Node, s: VulkanObjectState, defaultTextures: Map<String, VulkanTexture>, textureCache: MutableMap<Texture, VulkanTexture>, commandPools: VulkanRenderer.CommandPools, queue: VulkanDevice.QueueWithMutex, transferQueue: VulkanDevice.QueueWithMutex = queue): Pair<Boolean, Boolean> {
+    fun loadTexturesForNode(device: VulkanDevice, node: Node, s: VulkanRendererMetadata, defaultTextures: Map<String, VulkanTexture>, textureCache: MutableMap<Texture, VulkanTexture>, commandPools: VulkanRenderer.CommandPools, queue: VulkanDevice.QueueWithMutex, transferQueue: VulkanDevice.QueueWithMutex = queue): Pair<Boolean, Boolean> {
         val material = node.materialOrNull() ?: return Pair(false, false)
         val defaultTexture = defaultTextures["DefaultTexture"] ?: throw IllegalStateException("Default fallback texture does not exist.")
         // if a node is not yet initialized, we'll definitely require a new DS
@@ -272,7 +272,7 @@ object VulkanNodeHelpers {
         val now = System.nanoTime()
         material.textures.forEachChanged(last) { (type, texture) ->
             contentUpdated = true
-            val slot = VulkanObjectState.textureTypeToSlot(type)
+            val slot = VulkanRendererMetadata.textureTypeToSlot(type)
             val generateMipmaps = Texture.mipmappedObjectTextures.contains(type)
 
             logger.debug("${node.name} will have $type texture from $texture in slot $slot")
@@ -500,9 +500,9 @@ object VulkanNodeHelpers {
     }
 
     /**
-     * Returns a node's [VulkanRenderer] metadata, [VulkanObjectState], if available.
+     * Returns a node's [VulkanRenderer] metadata, [VulkanRendererMetadata], if available.
      */
-    fun Renderable.rendererMetadata(): VulkanObjectState? {
-        return this.metadata["VulkanRenderer"] as? VulkanObjectState
+    fun Renderable.rendererMetadata(): VulkanRendererMetadata? {
+        return this.metadata["VulkanRenderer"] as? VulkanRendererMetadata
     }
 }

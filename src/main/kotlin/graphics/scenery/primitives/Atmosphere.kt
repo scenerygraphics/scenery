@@ -4,6 +4,7 @@ import graphics.scenery.*
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.controls.InputHandler
 import kotlinx.coroutines.*
+import org.jetbrains.annotations.ApiStatus.Experimental
 import org.joml.Vector3f
 import org.joml.Vector4f
 import org.scijava.ui.behaviour.ClickBehaviour
@@ -21,15 +22,16 @@ import kotlin.time.Duration.Companion.seconds
  * @param emissionStrength Emission strength of the atmosphere shader. Defaults to 1f.
  * @param latitude Latitude of the user; needed to calculate the local sun position. Defaults to 50.0, which is central Germany.
  */
+@Experimental
 open class Atmosphere(
     initSunDirection: Vector3f? = null,
     emissionStrength: Float = 1.0f,
     var latitude: Float = 50.0f
-) :
-    Icosphere(10f, 2, insideNormals = true) {
+) : Icosphere(10f, 2, insideNormals = true) {
 
     @ShaderProperty
     var sunDirection = Vector3f(1f, 1f, 1f)
+        protected set
 
     /** Is set to true if the user manually moved the sun direction. This disables automatic updating.*/
     var isSunAnimated: Boolean = true
@@ -38,14 +40,16 @@ open class Atmosphere(
         private set
 
     var azimuth = 180f
+        protected set
     var elevation = 45f
+        protected set
 
     // Coroutine job for updating the sun direction
     private var job = CoroutineScope(Dispatchers.Default).launch(start = CoroutineStart.LAZY) {
         logger.debug("Launched sun updating job")
         while (this.coroutineContext.isActive) {
             if (isSunAnimated) {
-                setSunDirectionFromTime()
+                setSunPositionFromTime()
             }
             delay(2.seconds)
         }
@@ -70,7 +74,7 @@ open class Atmosphere(
 
         // Only animate the sun when no direction is passed to the constructor
         isSunAnimated = if (initSunDirection == null) {
-            setSunDirectionFromTime()
+            setSunPositionFromTime()
             true
         } else {
             sunDirection = initSunDirection
@@ -84,7 +88,7 @@ open class Atmosphere(
     /** Set the sun direction by the current local time.
      * @param localTime local time parameter, defaults to [LocalDateTime.now].
      */
-    fun setSunDirectionFromTime(localTime: LocalDateTime = LocalDateTime.now()) {
+    fun setSunPositionFromTime(localTime: LocalDateTime = LocalDateTime.now()) {
         val latitudeRad = toRadians(latitude.toDouble())
         val dayOfYear = localTime.dayOfYear.toDouble()
         val declination = toRadians(-23.45 * cos(360.0 / 365.0 * (dayOfYear + 10)))
@@ -112,17 +116,17 @@ open class Atmosphere(
             sin(elevationRad).toFloat(),
             sin(azimuthRad).toFloat()
         )
-        logger.info("Updated sun direction to {}.", sunDirection)
+        logger.debug("Updated sun direction to {}.", sunDirection)
     }
 
     /** Set the sun direction by passing a 3D directional vector. */
-    fun setSunDirectionFromVector(direction: Vector3f) {
+    fun setSunPosition(direction: Vector3f) {
         isSunAnimated = false
         sunDirection = direction.normalize()
     }
 
     /** Set the sun direction by passing angles for [elevation] and [azimuth] in degrees. */
-    fun setSunDirectionFromAngles(elevation: Float, azimuth: Float) {
+    fun setSunPosition(elevation: Float, azimuth: Float) {
         isSunAnimated = false
         this.elevation = elevation
         this.azimuth = azimuth
@@ -150,7 +154,7 @@ open class Atmosphere(
             "LEFT" -> azimuth -= increment
             "RIGHT" -> azimuth += increment
         }
-        setSunDirectionFromAngles(elevation, azimuth)
+        setSunPosition(elevation, azimuth)
     }
 
     /** Attach Up, Down, Left, Right key mappings to the inputhandler to rotate the sun in increments.
