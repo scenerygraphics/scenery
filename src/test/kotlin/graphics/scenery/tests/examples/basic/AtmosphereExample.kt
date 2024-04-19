@@ -34,7 +34,8 @@ class AtmosphereExample : SceneryBase("Atmosphere Example",
 
     lateinit var volume: Volume
 
-    private var atmos = Atmosphere(emissionStrength = 0.3f)
+    // hand over a fixed direction to not mess up the Argos tests
+    private var atmos = Atmosphere(Vector3f(0.2f, 0.6f, -1f))
 
     private lateinit var hmd: OpenVRHMD
 
