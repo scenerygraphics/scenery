@@ -121,7 +121,42 @@ class VolumeManager(
     var maxAllowedStepInVoxels = 1.0
 
     /** Numeric factor by which the step size may degrade on the far plane. */
-    var farPlaneDegradation = 2.0
+    var farPlaneDegradation = 1.0
+
+    /** Amount of randomisation for ray start and ray steps. 0.0 turns this off, 1.0 is the default,
+     *  values larger than 1.0 might lead to noisy renderings.  */
+    var shuffleDegree = 1.0f
+        set(value) {
+            field = value
+            shaderProperties["shuffleDegree"] = value
+        }
+
+    var maxOcclusionDistance = 4.0f
+        set(value) {
+            field = value
+            shaderProperties["maxOcclusionDistance"] = value
+        }
+
+    var kernelSize = 8.0f
+        set(value) {
+            field = value
+            shaderProperties["kernelSize"] = value
+        }
+
+    var occlusionSteps = 10
+        set(value) {
+            field = value
+            shaderProperties["occlusionSteps"] = value
+        }
+
+    var aoDebug = 0
+        set(value) {
+            field = value
+            shaderProperties["aoDebug"] = value
+        }
+
+
+
 
     // TODO: What happens when changing this? And should it change the mode for the current node only
     // or for all VolumeManager-managed nodes?
@@ -177,6 +212,7 @@ class VolumeManager(
         shaderProperties["transform"] = Matrix4f()
         shaderProperties["viewportSize"] = Vector2f()
         shaderProperties["dsp"] = Vector2f()
+        shaderProperties["shuffleDegree"] = shuffleDegree
         val oldKeys = material().textures.filter { it.key !in customTextures }.keys
         val texturesToKeep = material().textures.filter { it.key in customTextures }
         oldKeys.forEach {
@@ -266,7 +302,13 @@ class VolumeManager(
         segments[SegmentType.FragmentShader] = SegmentTemplate(
             this.javaClass,
             "BDVVolume.frag",
-            "intersectBoundingBox", "vis", "localNear", "localFar", "SampleVolume", "Convert", "Accumulate"
+            "intersectBoundingBox",
+            "vis",
+            "localNear",
+            "localFar",
+            "SampleVolume",
+            "Convert",
+            "Accumulate"
         )
         segments[SegmentType.MaxDepth] = SegmentTemplate(
             this.javaClass,
@@ -516,7 +558,7 @@ class VolumeManager(
                     currentProg.setUniform(i, "colorMap", state.colorMap)
                     currentProg.setUniform(i, "slicingPlanes", 4, state.node.slicingArray())
                     currentProg.setUniform(i, "slicingMode", state.node.slicingMode.id)
-                    currentProg.setUniform(i,"usedSlicingPlanes",
+                    currentProg.setUniform(i, "usedSlicingPlanes",
                         min(state.node.slicingPlaneEquations.size, Volume.MAX_SUPPORTED_SLICING_PLANES))
                     currentProg.setUniform(i, "sceneGraphVisibility", if (state.node.visible) 1 else 0)
 

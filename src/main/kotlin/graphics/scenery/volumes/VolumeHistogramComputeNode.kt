@@ -1,9 +1,6 @@
 package graphics.scenery.volumes
 
-import graphics.scenery.RichNode
-import graphics.scenery.Scene
-import graphics.scenery.ShaderMaterial
-import graphics.scenery.ShaderProperty
+import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.compute.ComputeMetadata
 import graphics.scenery.compute.InvocationType
@@ -12,18 +9,27 @@ import kotlinx.coroutines.runBlocking
 import net.imglib2.type.numeric.integer.IntType
 import net.imglib2.type.numeric.integer.UnsignedByteType
 import net.imglib2.type.numeric.integer.UnsignedShortType
+import org.jfree.data.statistics.SimpleHistogramBin
+import org.jfree.data.statistics.SimpleHistogramDataset
 import org.joml.Vector3i
 import org.lwjgl.system.MemoryUtil
 import java.nio.ByteBuffer
 import java.nio.IntBuffer
+import kotlin.math.abs
+import kotlin.math.max
 
 /**
- * A compute node to calculate a histogram of a volume on the gpu. To use call [VolumeHistogramComputeNode.generateHistogram].
+ * A compute node to calculate a histogram of a volume on the gpu. To use call [VolumeHistogramComputeNode.generateHistogramComputeNode].
  *
  * @author Aryaman Gupta <aryaman.gupta@tu-dresden.de>
  * @author Jan Tiemann <j.tiemann@hzdr.de>
  */
-class VolumeHistogramComputeNode(val volume: Volume, data: ByteBuffer): RichNode() {
+class VolumeHistogramComputeNode(
+    displayRange: Pair<Float, Float>,
+    dimensions: Vector3i,
+    bytesPerVoxel: Int,
+    data: ByteBuffer
+) : RichNode() {
 
     var dataType = UnsignedByteType()
     private val buffer: ByteBuffer
@@ -35,7 +41,7 @@ class VolumeHistogramComputeNode(val volume: Volume, data: ByteBuffer): RichNode
     var numBins = 100
 
     @ShaderProperty
-    val volumeIs8Bit: Boolean = when(volume.bytesPerVoxel){
+    val volumeIs8Bit: Boolean = when (bytesPerVoxel) {
         1 -> true
         2 -> false
         else -> throw IllegalArgumentException("only 8 and 16 bit data supported for histograms")
@@ -53,10 +59,10 @@ class VolumeHistogramComputeNode(val volume: Volume, data: ByteBuffer): RichNode
     init {
         this.name = "compute node"
 
-        numVoxels = volume.getDimensions().z
+        numVoxels = dimensions.z
 
-        maxDisplayVal = volume.maxDisplayRange
-        minDisplayVal = volume.minDisplayRange
+        maxDisplayVal = displayRange.second
+        minDisplayVal = displayRange.first
 
         buffer = MemoryUtil.memCalloc(numBins * 4 * 2 * 2)
 
@@ -78,7 +84,7 @@ class VolumeHistogramComputeNode(val volume: Volume, data: ByteBuffer): RichNode
         this.setMaterial(ShaderMaterial.fromFiles(this::class.java, "ComputeHistogram.comp")) {
             textures["Volume8Bit"] = if (volumeIs8Bit) {
                 Texture(
-                    Vector3i(volume.getDimensions()),
+                    Vector3i(dimensions),
                     1,
                     contents = data,
                     usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
@@ -94,7 +100,7 @@ class VolumeHistogramComputeNode(val volume: Volume, data: ByteBuffer): RichNode
 
             textures["Volume16Bit"] = if (!volumeIs8Bit) {
                 Texture(
-                    Vector3i(volume.getDimensions()),
+                    Vector3i(dimensions),
                     1,
                     contents = data,
                     usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
@@ -112,7 +118,7 @@ class VolumeHistogramComputeNode(val volume: Volume, data: ByteBuffer): RichNode
         }
 
         this.metadata["ComputeMetadata"] = ComputeMetadata(
-            workSizes = Vector3i(volume.getDimensions().x, volume.getDimensions().y, 1),
+            workSizes = Vector3i(dimensions.x, dimensions.y, 1),
             invocationType = InvocationType.Once
         )
 
@@ -136,7 +142,7 @@ class VolumeHistogramComputeNode(val volume: Volume, data: ByteBuffer): RichNode
         val list = mutableListOf<Int>()
         buf?.limit(numBins)
         buf?.let {
-            while (it.hasRemaining()){
+            while (it.hasRemaining()) {
                 list.add(it.get())
             }
         }
@@ -145,13 +151,56 @@ class VolumeHistogramComputeNode(val volume: Volume, data: ByteBuffer): RichNode
     }
 
     companion object {
+
+        fun generateHistogram(volume: BufferedVolume, volumeHistogramData: SimpleHistogramDataset): Int {
+            return generateHistogram(
+                volume.minDisplayRange to volume.maxDisplayRange,
+                volume.getDimensions(),
+                volume.bytesPerVoxel,
+                volume.getScene()!!,
+                volume.timepoints?.get(volume.currentTimepoint)!!.contents,
+                volume.volumeManager.hub!!.get<Renderer>(
+                    SceneryElement.Renderer
+                )!!,
+                volumeHistogramData
+            )
+        }
+
         /**
-         * Creates and attaches a histogram compute node to the scene. To get the histogram call [fetchHistogram]
+         * Generates a histogram using GPU acceleration via [VolumeHistogramComputeNode].
          */
-        fun generateHistogram(volume: Volume, data: ByteBuffer, scene: Scene): VolumeHistogramComputeNode {
-            val volumeHistogram = VolumeHistogramComputeNode(volume, data)
-            scene.addChild(volumeHistogram)
-            return volumeHistogram
+        fun generateHistogram(
+            displayRange: Pair<Float, Float>,
+            dimensions: Vector3i,
+            bytesPerVoxel: Int,
+            scene: Scene,
+            data: ByteBuffer,
+            renderer: Renderer,
+            volumeHistogramData: SimpleHistogramDataset
+        ): Int {
+
+            val volumeHistogramComputeNode = VolumeHistogramComputeNode(displayRange, dimensions, bytesPerVoxel, data)
+            scene.addChild(volumeHistogramComputeNode)
+
+            val histogram = volumeHistogramComputeNode.fetchHistogram(scene, renderer)
+
+            val displayRangeSpan = abs(displayRange.second - displayRange.first)
+            val binSize = displayRangeSpan / volumeHistogramComputeNode.numBins
+            val minDisplayRange = displayRange.first.toDouble()
+
+            var max = 0
+            histogram.forEachIndexed { index, value ->
+                val bin = SimpleHistogramBin(
+                    minDisplayRange + index * binSize,
+                    minDisplayRange + (index + 1) * binSize,
+                    true,
+                    false
+                )
+                bin.itemCount = value
+                volumeHistogramData.addBin(bin)
+                max = max(max, value)
+            }
+            return max
         }
     }
 }

@@ -57,7 +57,7 @@ class Colormap(val buffer: ByteBuffer, val width: Int, val height: Int) {
         val logger by lazyLogger()
 
         @Parameter
-        protected var lutService: LUTService? = null
+        var lutService: LUTService? = null
 
         /**
          * Creates a new color map from a [ByteBuffer], with dimensions given as [width] and [height].
@@ -153,7 +153,7 @@ class Colormap(val buffer: ByteBuffer, val width: Int, val height: Int) {
             try {
                 val luts = lutService?.findLUTs()
                 val colorTable = luts?.let {
-                    val url = it[name]
+                    val url = it[name] ?: throw IOException("Color map $name not found in ImageJ colormaps")
                     lutService?.loadLUT(url)
                 } ?: throw IOException("Color map $name not found in ImageJ colormaps")
 
