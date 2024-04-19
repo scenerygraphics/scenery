@@ -37,7 +37,7 @@ layout(push_constant) uniform currentEye_t {
     int eye;
 } currentEye;
 
-#define INT_DEPTHS 1
+#define INT_DEPTHS 0
 #define USE_PRINTF 1
 
 #if USE_PRINTF
@@ -50,13 +50,20 @@ layout(set = 3, binding = 0, rgba32f) uniform image3D VDIColor;
 #if INT_DEPTHS
 layout(set = 4, binding = 0, rg16ui) uniform uimage3D VDIDepth;
 #else
-layout(set = 4, binding = 0, r32f) uniform image3D VDIDepth;
+layout(set = 4, binding = 0, rg32f) uniform image3D VDIDepth;
 #endif
 layout (set = 8, binding = 0, r32ui) uniform uimage3D AccelerationGrid;
 
 #pragma scenery endverbatim
 
-ivec2 debug_pixel = ivec2(256, 300);
+#define INSERT_DEPTH(index, depths) imageStore(VDIDepth, ivec3(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y, index), depths)
+#define INSERT_COLOR(index, color) imageStore(VDIColor, ivec3(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y, index), color)
+
+ivec3 getVDIdims() {
+    return imageSize(VDIColor);
+}
+
+ivec2 debug_pixel = ivec2(720, 360);
 
 // intersect ray with a box
 // http://www.siggraph.org/education/materials/HyperGraph/raytrace/rtinter3.htm
@@ -144,8 +151,9 @@ void writeSupersegment(int index, uint start, uint end, vec4 color) {
     }
         #endif
 
-    imageStore(VDIDepth, ivec3(index, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x), uvec4(start, end, 0, 0));
-    imageStore(VDIColor, ivec3(index, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x), color);
+    uvec4 depths = uvec4(start, end, 0, 0);
+    INSERT_DEPTH(index, depths);
+    INSERT_COLOR(index, color);
 }
     #else
 void writeSupersegment(int index, float start, float end, vec4 color) {
@@ -158,9 +166,9 @@ void writeSupersegment(int index, float start, float end, vec4 color) {
     }
         #endif
 
-    imageStore(VDIDepth, ivec3(2 * index, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x), vec4(start, 0, 0, 0));
-    imageStore(VDIDepth, ivec3(2 * index + 1, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x), vec4(end, 0, 0, 0));
-    imageStore(VDIColor, ivec3(index, gl_GlobalInvocationID.y, gl_GlobalInvocationID.x), color);
+    vec4 depths = vec4(start, end, 0, 0);
+    INSERT_DEPTH(index, depths);
+    INSERT_COLOR(index, color);
 }
     #endif
 
@@ -240,9 +248,9 @@ void main()
     }
     float stepWidth = nw;
 
-    ivec3 imageCoords  = imageSize(VDIColor);
-    int windowWidth = imageCoords.b;
-    int windowHeight = imageCoords.g;
+    ivec3 imageCoords  = getVDIdims();
+    int windowWidth = imageCoords.x;
+    int windowHeight = imageCoords.y;
 
     num_cells = imageSize(AccelerationGrid).xyz;
 
@@ -262,7 +270,7 @@ void main()
     //    float newSupSegThresh = 0.00014;
     float newSupSegThresh = 0.04555;
 
-    vec2 texcoord = gl_GlobalInvocationID.xy/vec2(imageCoords.b, imageCoords.g);
+    vec2 texcoord = gl_GlobalInvocationID.xy/vec2(imageCoords.x, imageCoords.y);
     vec2 uv = texcoord * 2.0 - vec2(1.0);
     vec2 depthUV = (vrParameters.stereoEnabled ^ 1) * texcoord + vrParameters.stereoEnabled * vec2((texcoord.x/2.0 + currentEye.eye * 0.5), texcoord.y);
     depthUV = depthUV * 2.0 - vec2(1.0);
@@ -307,7 +315,7 @@ void main()
 
     // -------------------------------------------------------
 
-    int maxSupersegments = imageCoords.r;
+    int maxSupersegments = imageCoords.z;
 
     float minOpacity = 0.0; //If alpha is less than this, the sample is considered transparent and not included in generated supersegments
     //    float minOpacity = 0.00196078431; //If alpha is less than this, the sample is considered transparent and not included in generated supersegments
