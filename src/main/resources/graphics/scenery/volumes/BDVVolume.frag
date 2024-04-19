@@ -1,12 +1,14 @@
 #extension GL_EXT_control_flow_attributes : enable
 #extension GL_EXT_debug_printf : enable
 #extension SPV_KHR_non_semantic_info : enable
+#extension GL_EXT_control_flow_attributes: enable
+
 out vec4 FragColor;
 uniform vec2 viewportSize;
 uniform float shuffleDegree;
-uniform float maxOcclusionDistance;
-uniform float kernelSize;
-uniform int occlusionSteps;
+//uniform float maxOcclusionDistance;
+//uniform float kernelSize;
+//uniform int occlusionSteps;
 uniform int aoDebug;
 uniform vec2 dsp;
 uniform float fwnw;
@@ -102,6 +104,25 @@ vec3 randomSpherePoint(vec3 rand) {
 // $insert{SampleVolume}
 // ---------------------
 
+const vec2 poisson16[] = vec2[](
+vec2( -0.94201624,  -0.39906216 ),
+vec2(  0.94558609,  -0.76890725 ),
+vec2( -0.094184101, -0.92938870 ),
+vec2(  0.34495938,   0.29387760 ),
+vec2( -0.91588581,   0.45771432 ),
+vec2( -0.81544232,  -0.87912464 ),
+vec2( -0.38277543,   0.27676845 ),
+vec2(  0.97484398,   0.75648379 ),
+vec2(  0.44323325,  -0.97511554 ),
+vec2(  0.53742981,  -0.47373420 ),
+vec2( -0.26496911,  -0.41893023 ),
+vec2(  0.79197514,   0.19090188 ),
+vec2( -0.24188840,   0.99706507 ),
+vec2( -0.81409955,   0.91437590 ),
+vec2(  0.19984126,   0.78641367 ),
+vec2(  0.14383161,  -0.14100790 )
+);
+
 void main()
 {
 	mat4 ipv = Vertex.inverseView * Vertex.inverseProjection;
@@ -119,7 +140,7 @@ void main()
 
 	vec2 depthUV = (vrParameters.stereoEnabled ^ 1) * Vertex.textureCoord + vrParameters.stereoEnabled * vec2((Vertex.textureCoord.x/2.0 + currentEye.eye * 0.5), Vertex.textureCoord.y);
 	depthUV = depthUV * 2.0 - vec2(1.0);
-	
+
 	// NDC of frag on near and far plane
 	vec4 front = vec4( uv, -1, 1 );
 	vec4 back = vec4( uv, 1, 1 );
@@ -129,6 +150,9 @@ void main()
 	wfront *= 1 / wfront.w;
 	vec4 wback = ipv * back;
 	wback *= 1 / wback.w;
+
+	vec4 direc = Vertex.inverseView * normalize(wback-wfront);
+	direc.w = 0.0f;
 
 	// -- bounding box intersection for all volumes ----------
 	float tnear = 1, tfar = 0, tmax = getMaxDepth( depthUV );
@@ -183,10 +207,18 @@ void main()
 
 		float standardStepSize = distance(mix(wfront, wback, step + nw), w_entry);
 
+        int occlusionSteps = 6;
+        float kernelSize = 3.0;
+        float maxOcclusionDistance = 1.0;
+
 		float step_prev = step - stepWidth;
 		vec4 wprev = mix(wfront, wback, step_prev);
 		vec4 v = vec4( 0 );
+        float shadowDist = 0.0f;
+        float shadowing = 0.0f;
 		vec4 previous = vec4(0.0f);
+        bool isHit = false;
+        vec3 foo = vec3(0.9, 0.3, 0.2);
 		for ( int i = 0; i < numSteps; ++i)
 		{
 			vec4 wpos = mix( wfront, wback, step );
@@ -203,15 +235,15 @@ void main()
 			*/
 			wprev = wpos;
 
+
 			if(fixedStepSize) {
 				step += stepWidth * (1.0f+shuffleDegree*shuffle.x/2.0f);
 			} else {
 				step += nw + step * fwnw * (1.0f+shuffleDegree*shuffle.x/2.0f);
 			}
 		}
-		FragColor = v;
-
-
+		FragColor = vec4(foo, 1);
+//        FragColor = v;
 		if(v.w < 0.001f) {
             discard;
 		}
