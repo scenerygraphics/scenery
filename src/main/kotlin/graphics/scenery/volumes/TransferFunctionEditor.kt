@@ -305,7 +305,9 @@ class TransferFunctionEditor(
 
 
         add(displayRangeEditor, "grow,wrap")
-        add(ColormapPanel(tfContainer as? Volume), "grow,wrap")
+        (tfContainer as? HasColormap)?.let {
+            add(ColormapPanel(it), "grow,wrap")
+        }
     }
 
     private fun createTFImage(): BufferedImage {
