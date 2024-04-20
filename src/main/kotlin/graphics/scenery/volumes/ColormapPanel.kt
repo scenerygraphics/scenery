@@ -28,7 +28,7 @@ import kotlin.math.absoluteValue
  * @author Jan Tiemann <j.tiemann@hzdr.de>
  * @author Aryaman Gupta <aryaman.gupta@tu-dresden.de>
  */
-class ColormapPanel(val target:Volume?): JPanel() {
+class ColormapPanel(val target:HasColormap): JPanel() {
     private val colorMapEditor = ColormapEditor(target)
     private val loadedColormaps = HashMap<String, Colormap>()
 
@@ -197,7 +197,7 @@ class ColormapPanel(val target:Volume?): JPanel() {
     /**
      * A GUI element to allow users to visually create or modify a color map
      */
-    class ColormapEditor(var target:Volume? = null) : JPanel() {
+    class ColormapEditor(var target:HasColormap) : JPanel() {
 
         private var colorPoints = listOf(
             ColorPoint(0.0f, Color(0f, 0f, 0f)),
@@ -209,12 +209,12 @@ class ColormapPanel(val target:Volume?): JPanel() {
         private var dragging: ColorPoint? = null
         private var dragged = false
         private var markerSpace = 10
-		
+
         init {
             this.layout = MigLayout()
             this.preferredSize = Dimension(1000, 40)
 
-            target?.let { loadColormap(it.colormap) }
+            loadColormap(target.colormap)
 
             this.addMouseListener(object : MouseListener {
                 override fun mouseClicked(e: MouseEvent) {
@@ -300,7 +300,7 @@ class ColormapPanel(val target:Volume?): JPanel() {
 
             if(width > 0 && height > 0) {
                 val bi = toImage()
-                target?.colormap = Colormap.fromBuffer(Image.bufferedImageToRGBABuffer(bi), bi.width, bi.height)
+                target.colormap = Colormap.fromBuffer(Image.bufferedImageToRGBABuffer(bi), bi.width, bi.height)
             }
         }
 

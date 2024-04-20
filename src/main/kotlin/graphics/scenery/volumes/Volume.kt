@@ -97,7 +97,7 @@ open class Volume(
     hub: Hub
 ) : DefaultNode("Volume"),
     DelegatesRenderable, DelegatesGeometry, DelegatesMaterial, DisableFrustumCulling,
-    HasCustomSpatial<Volume.VolumeSpatial>, HasTransferFunction, HasHistogram {
+    HasCustomSpatial<Volume.VolumeSpatial>, HasTransferFunction, HasHistogram, HasColormap {
 
     // without this line the *java* serialization framework kryo does not recognize the parameter-less constructor
     // and uses dark magic to instanciate this class
@@ -154,7 +154,7 @@ open class Volume(
         set(value) { logger.warn("Cannot set data range, it is automatically determined.") }
 
     /** The color map for the volume. */
-    var colormap: Colormap = Colormap.get("viridis")
+    override var colormap: Colormap = Colormap.get("viridis")
         set(m) {
             field = m
             if(::volumeManager.isInitialized) {
