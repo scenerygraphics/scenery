@@ -239,8 +239,19 @@ class TransferFunctionEditor(
         histAndTFIOButtonsPanel.layout = MigLayout("insets 0", "[][][][]")
         add(histAndTFIOButtonsPanel, "growx,wrap")
 
-        val histogramChartManager = HistogramChartManager(tfPlot,mainChart,tfContainer,axisExtensionFactor)
-        histAndTFIOButtonsPanel.add(histogramChartManager.genHistButton, "growx")
+        if(tfContainer is HasHistogram) {
+            val histogramChartManager = HistogramChartManager(tfPlot, mainChart, tfContainer, axisExtensionFactor)
+            val calculateHistBut = JButton("Calculate Histogram").also { button ->
+                button.toolTipText = "Calculates a histogram of the currenlty selected object. May take a while."
+                button.addActionListener { histogramChartManager.calculateHistogram() }
+            }
+            histAndTFIOButtonsPanel.add(calculateHistBut)
+            val hideHistBut = JButton("Hide Histogram").also { button ->
+                button.toolTipText = "Hides the currently visible histogram."
+                button.addActionListener { histogramChartManager.hideHistogram() }
+            }
+            histAndTFIOButtonsPanel.add(hideHistBut)
+        }
 
         // transfer function IO
         val fc = JFileChooser()

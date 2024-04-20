@@ -24,6 +24,7 @@ class HistogramChartManager(val tfPlot: XYPlot,
 
     private val histYAxis = LogarithmicAxis("")
     private val histXAxis = NumberAxis()
+    private val volumeHistogramData: SimpleHistogramDataset
 
     init {
         val histogramRenderer = XYBarRenderer()
@@ -45,30 +46,31 @@ class HistogramChartManager(val tfPlot: XYPlot,
         histYAxis.isMinorTickMarksVisible = false
         histYAxis.isTickMarksVisible = false
 
-        val volumeHistogramData = SimpleHistogramDataset("VolumeBin")
+        volumeHistogramData = SimpleHistogramDataset("VolumeBin")
         volumeHistogramData.adjustForBinSize = false
 
-        if (tfContainer is HasHistogram) {
-            genHistButton.addActionListener {
-                val histogramVisible = tfPlot.getDataset(1) != null
+    }
 
-                if(histogramVisible) {
-                    // hide histogram
-                    tfPlot.setDataset(1, null)
-                    tfPlot.setDomainAxis(1, null)
-                    tfPlot.setRangeAxis(1, null)
+    fun calculateHistogram(){
+        if (tfContainer !is HasHistogram) return
+        tfPlot.setDataset(1, volumeHistogramData)
+        tfPlot.setRangeAxis(1, histYAxis)
+        generateHistogram( volumeHistogramData)
 
-                    mainChart.repaint()
-                } else {
-                    tfPlot.setDataset(1, volumeHistogramData)
-                    tfPlot.setRangeAxis(1, histYAxis)
-                    generateHistogram( volumeHistogramData)
+        tfPlot.setDomainAxis(1, histXAxis)
 
-                    tfPlot.setDomainAxis(1, histXAxis)
+        mainChart.repaint()
+    }
 
-                    mainChart.repaint()
-                }
-            }
+    fun hideHistogram(){
+        val histogramVisible = tfPlot.getDataset(1) != null
+        if(histogramVisible) {
+            // hide histogram
+            tfPlot.setDataset(1, null)
+            tfPlot.setDomainAxis(1, null)
+            tfPlot.setRangeAxis(1, null)
+
+            mainChart.repaint()
         }
     }
 
