@@ -123,6 +123,18 @@ vec2(  0.19984126,   0.78641367 ),
 vec2(  0.14383161,  -0.14100790 )
 );
 
+// code from https://github.com/jamieowen/glsl-blend/blob/master/overlay.glsl
+float blendOverlay(float base, float blend) {
+    return base<0.5?(2.0*base*blend):(1.0-2.0*(1.0-base)*(1.0-blend));
+}
+vec3 blendOverlay(vec3 base, vec3 blend) {
+    return vec3(blendOverlay(base.r,blend.r),blendOverlay(base.g,blend.g),blendOverlay(base.b,blend.b));
+}
+vec3 blendOverlay(vec3 base, vec3 blend, float opacity) {
+    return (blendOverlay(base, blend) * opacity + base * (1.0 - opacity));
+}
+
+
 void main()
 {
 	mat4 ipv = Vertex.inverseView * Vertex.inverseProjection;
@@ -243,7 +255,8 @@ void main()
 				step += nw + step * fwnw * (1.0f+shuffleDegree*shuffle.x/2.0f);
 			}
 		}
-        FragColor = v * shadowing;
+//        FragColor = v * shadowing;
+        FragColor = vec4(blendOverlay(v.xyz, vec3(shadowing), 1.0), 1.0);
 		if(v.w < 0.001f) {
             discard;
 		}
