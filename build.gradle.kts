@@ -106,7 +106,7 @@ dependencies {
     api("graphics.scenery:jvrpn:1.2.0", lwjglNatives.filter { !it.contains("arm") }.toTypedArray())
     implementation("io.scif:scifio")
     implementation("org.bytedeco:ffmpeg:6.1.1-1.5.10", ffmpegNatives)
-    implementation("io.github.classgraph:classgraph:4.8.171")
+    implementation("io.github.classgraph:classgraph:4.8.172")
 
     implementation("info.picocli:picocli:4.7.5")
 
