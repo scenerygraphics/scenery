@@ -16,7 +16,7 @@ if (vis && step > localNear && step < localFar)
     v.a = v.a + (1.0f - v.a) * adjusted_alpha;
 
 
-    if(x.a > shadowThreshold && occlusionSteps > 0 && !isHit) {
+    if(x.a > falloffHitThreshold && occlusionSteps > 0 && !isHit) {
 
         float d = x.a;
         float d0 = sampleVolume(wpos, vec3(kernelSize, 0.0, 0.0)).a;

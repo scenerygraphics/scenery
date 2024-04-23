@@ -6,9 +6,11 @@
 out vec4 FragColor;
 uniform vec2 viewportSize;
 uniform float shuffleDegree;
-uniform float maxOcclusionDistance; // TODO make these available again from the shader properties
+uniform float maxOcclusionDistance;
 uniform float kernelSize;
 uniform int occlusionSteps;
+uniform float falloffBlend;
+uniform float falloffHitThreshold;
 uniform int aoDebug;
 uniform vec2 dsp;
 uniform float fwnw;
@@ -219,11 +221,6 @@ void main()
 
 		float standardStepSize = distance(mix(wfront, wback, step + nw), w_entry);
 
-//        int occlusionSteps = 8;
-//        float kernelSize = 5.0;
-//        float maxOcclusionDistance = 4.0;
-        float shadowThreshold = 0.01;
-
 		float step_prev = step - stepWidth;
 		vec4 wprev = mix(wfront, wback, step_prev);
 		vec4 v = vec4( 0 );
@@ -257,8 +254,7 @@ void main()
 		}
         // use shadow squared as the opacity of the final value
         // to get rid of black artifacts from the shadows
-//        FragColor = vec4(blendOverlay(v.xyz, vec3(shadowing), 1.0), shadowing * shadowing);
-        FragColor = vec4(vec3(maxOcclusionDistance), 1.0);
+        FragColor = vec4(blendOverlay(v.xyz, vec3(shadowing), falloffBlend), shadowing * shadowing);
 		if(v.w < 0.001f) {
             discard;
 		}
