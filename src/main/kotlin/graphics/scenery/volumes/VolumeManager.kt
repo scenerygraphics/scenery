@@ -131,7 +131,7 @@ class VolumeManager(
             shaderProperties["shuffleDegree"] = value
         }
 
-    var maxOcclusionDistance = 4.0f
+    var maxOcclusionDistance = 0.8f
         set(value) {
             field = value
             shaderProperties["maxOcclusionDistance"] = value
