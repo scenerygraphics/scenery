@@ -255,8 +255,9 @@ void main()
 				step += nw + step * fwnw * (1.0f+shuffleDegree*shuffle.x/2.0f);
 			}
 		}
-//        FragColor = v * shadowing;
-        FragColor = vec4(blendOverlay(v.xyz, vec3(shadowing), 1.0), 1.0);
+        // use shadow squared as the opacity of the final value
+        // to get rid of black artifacts from the shadows
+        FragColor = vec4(blendOverlay(v.xyz, vec3(shadowing), 1.0), shadowing * shadowing);
 		if(v.w < 0.001f) {
             discard;
 		}
