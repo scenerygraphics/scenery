@@ -108,7 +108,7 @@ dependencies {
     implementation("org.bytedeco:ffmpeg:6.1.1-1.5.10", ffmpegNatives)
     implementation("io.github.classgraph:classgraph:4.8.172")
 
-    implementation("info.picocli:picocli:4.7.5")
+    implementation("info.picocli:picocli:4.7.6")
 
     api("sc.fiji:bigdataviewer-core:10.4.14")
     api("sc.fiji:bigdataviewer-vistools:1.0.0-beta-28")
