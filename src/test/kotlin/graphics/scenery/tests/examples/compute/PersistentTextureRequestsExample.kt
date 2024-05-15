@@ -23,6 +23,7 @@ import org.lwjgl.system.MemoryUtil
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.concurrent.thread
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 
 /**
  * Example to show how persistent texture requests - that are served once per frame - may be created
@@ -63,13 +64,14 @@ class PersistentTextureRequestsExample : SceneryBase("PersistentTextureRequestsE
 
         val volume = Volume.fromRAI(img, UnsignedShortType(), AxisOrder.DEFAULT, "T1 head", hub, VolumeViewerOptions())
         volume.transferFunction = TransferFunction.ramp(0.001f, 0.5f, 0.3f)
+        volume.spatial().scale = Vector3f(20.0f)
         scene.addChild(volume)
 
-        val box = Box(Vector3f(1.0f, 1.0f, 1.0f))
+        val box = Box(Vector3f(2.0f))
         box.name = "le box du win"
         box.material {
             textures["diffuse"] = outputTexture
-            metallic = 0.0f
+            metallic = 0.5f
             roughness = 1.0f
         }
 
@@ -77,7 +79,7 @@ class PersistentTextureRequestsExample : SceneryBase("PersistentTextureRequestsE
 
         val light = PointLight(radius = 15.0f)
         light.spatial().position = Vector3f(0.0f, 0.0f, 2.0f)
-        light.intensity = 5.0f
+        light.intensity = 15.0f
         light.emissionColor = Vector3f(1.0f, 1.0f, 1.0f)
         scene.addChild(light)
 
@@ -87,6 +89,14 @@ class PersistentTextureRequestsExample : SceneryBase("PersistentTextureRequestsE
             perspectiveCamera(50.0f, 512, 512)
 
             scene.addChild(this)
+        }
+
+        renderer?.runAfterRendering?.add {
+            // persistent texture requests run in sync with frame rendering,
+            // so their count should always be one less than the total number
+            // of frames rendered (totalFrames is only incremented at the very
+            // end of the render loop, in submitFrame).
+            renderer?.let { assertEquals(counter.get().toLong(), it.totalFrames+1) }
         }
 
         thread {
@@ -108,33 +118,16 @@ class PersistentTextureRequestsExample : SceneryBase("PersistentTextureRequestsE
                 //the buffer can now, e.g., be transmitted, as is required for parallel rendering
 
                 if (buffer != null && prevCounter == 100) {
-                    SystemHelpers.dumpToFile(buffer, "texture-${SystemHelpers.formatDateTime(delimiter = "_")}.raw")
+                    val file = SystemHelpers.dumpToFile(buffer, "texture-${SystemHelpers.formatDateTime(delimiter = "_")}.raw")
+                    assertNotNull(file, "File handle should not be null.")
+
+                    val sum = file.readBytes().sum()
+                    logger.info("Dumped: $file, ${file.length()} bytes, sum=$sum")
+                    assertEquals(file.length(), 1280*720*4, "File should contain the correct number of bytes for a 1280x720xRGBA image")
+                    assert(sum > 3000000) { "Sum of bytes in file should be non-zero" }
                 }
             }
         }
-
-        thread {
-            while (renderer?.firstImageReady == false) {
-                Thread.sleep(5)
-            }
-
-            Thread.sleep(1000) //give some time for the rendering to take place
-
-            renderer?.close()
-            Thread.sleep(200) //give some time for the renderer to close
-
-            totalFrames = renderer?.totalFrames!!
-        }
-    }
-
-    override fun main() {
-        // add assertions, these only get called when the example is called
-        // as part of scenery's integration tests
-        assertions[AssertionCheckPoint.AfterClose]?.add {
-
-            assertEquals ( counter.get().toLong(), totalFrames, "One texture was returned per render frame" )
-        }
-        super.main()
     }
 
     /**
