@@ -45,31 +45,37 @@ layout(set = 4, binding = 0) uniform ShaderProperties {
     float lineWidth;
     int ticksOnly;
     vec3 gridColor;
+    vec3 boundingBoxSize;
 };
 
 layout(location = 0) out vec4 FragColor;
 
 void main()
 {
-    // draw screen-spaced antialiased grid lines, inspired by
-    // http://madebyevan.com/shaders/grid - here we scale the incoming
-    // coords by the numLines factor. For correct AA, the fwidth argument
-    // also has to be scaled by that factor.
-    vec2 coord = Vertex.TexCoord;
-    vec2 grid = abs(fract(coord*numLines - 0.5) - 0.5) / fwidth(coord*numLines);
-    // line width is determined by the minimum gradient, for thicker lines, we
-    // divide by lineWidth, lowering the gradient slope.
-    float line = min(grid.x, grid.y)/lineWidth;
+    vec3 coord = Vertex.FragPosition.xyz;
+    vec2 uv = Vertex.TexCoord;
+    vec3 grid = abs(fract(coord*numLines) - 0.5);
+    vec3 df = fwidth(coord * numLines);
+    vec3 grid3D = clamp((grid - df * (lineWidth - 1.0)) / df, 0.0, 1.0);
+    vec3 axis = vec3(1.0, 1.0, 1.0);
+    float line = float(length(axis) > 0.0) * pow(grid3D.x, axis.x) * pow(grid3D.y, axis.y) * pow(grid3D.z, axis.z);
 
     // if only ticks should be display, this'll discard the interior
     // of the bounding box quad completely, apart from the ticks.
-    if(ticksOnly > 0) {
-        if(coord.x > 0.02 && coord.x < 0.98 && coord.y > 0.02 && coord.y < 0.98) {
-            discard;
-        }
-    }
 
     // mix together line colors and black background.
     // everything apart from the lines should be transparent.
-    FragColor = mix(vec4(0.0), vec4(gridColor, Material.Opacity), 1.0 - min(line, 1.0));
+    float alpha = 1.0 - line;
+
+    if(ticksOnly > 0) {
+        vec2 bl = step(vec2(0.01), uv);
+        vec2 tr = step(vec2(0.01), 1.0 - uv);
+        alpha *= (1.0 - bl.x * bl.y * tr.x * tr.y);
+    }
+
+
+    if(alpha < 0.0001f) {
+        discard;
+    }
+    FragColor = vec4(gridColor * alpha, Material.Opacity * alpha);
 }
