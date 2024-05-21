@@ -306,7 +306,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
      * @param[keybinding] The key to trigger the switching.
      */
     fun setupCameraModeSwitching(keybinding: String = "C") {
-        if(System.getProperty("scenery.Headless").toBoolean() == true) {
+        if(System.getProperty("scenery.Headless").toBoolean() == true && System.getProperty("org.graalvm.home") != null) {
             return
         }
 
