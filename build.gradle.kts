@@ -1,11 +1,9 @@
-import com.github.jengelman.gradle.plugins.shadow.ShadowJavaPlugin
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import org.gradle.kotlin.dsl.api
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import scenery.*
 import java.io.IOException
 import java.net.URI
-import java.net.URL
 
 plugins {
     // kotlin and dokka versions are now managed in settings.gradle.kts and gradle.properties
@@ -17,7 +15,7 @@ plugins {
     scenery.publish
     scenery.sign
     jacoco
-    id("com.github.johnrengelman.shadow")
+    id("io.github.goooler.shadow")
 }
 
 repositories {
@@ -409,14 +407,25 @@ tasks {
     }
 
     if(project.properties["buildFatJar"] != null) {
-        apply(plugin = "com.github.johnrengelman.shadow")
+        apply(plugin = "io.github.goooler.shadow")
     }
 
     register<ShadowJar>("fullShadowJar") {
         archiveClassifier.set("everything")
-        from(sourceSets.test.get().output)
+        from(sourceSets.test.get().output, sourceSets.main.get().output)
         configurations.add(project.configurations.testRuntimeClasspath.get())
         isZip64 = true
+
+        minimize {
+            dependencies {
+                exclude("*.DSA")
+                exclude("*.RSA")
+                exclude("*.SF")
+                exclude("META-INF/*.DSA")
+                exclude("META-INF/*.RSA")
+                exclude("META-INF/*.SF")
+            }
+        }
     }
 
     register("nativeImage") {
