@@ -3,6 +3,8 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import org.gradle.kotlin.dsl.api
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import scenery.*
+import java.io.IOException
+import java.net.URI
 import java.net.URL
 
 plugins {
@@ -14,9 +16,8 @@ plugins {
     scenery.base
     scenery.publish
     scenery.sign
-//    id("com.github.elect86.sciJava") version "0.0.4"
     jacoco
-    id("com.github.johnrengelman.shadow")// apply false
+    id("com.github.johnrengelman.shadow")
 }
 
 repositories {
@@ -143,8 +144,11 @@ dependencies {
     testImplementation(kotlin("test-junit"))
     //    implementation("com.github.kotlin-graphics:assimp:25c68811")
 
-//    testImplementation(misc.junit4)
-    implementation("org.slf4j:slf4j-simple:1.7.36")
+    if(properties["buildAsApplication"] != null) {
+        implementation("org.slf4j:slf4j-simple:1.7.36")
+    } else {
+        testImplementation("org.slf4j:slf4j-simple:1.7.36")
+    }
     testImplementation("net.imagej:imagej")
     testImplementation("net.imagej:ij")
     testImplementation("net.imglib2:imglib2-ij")
@@ -389,7 +393,7 @@ tasks {
         dokkaSourceSets.configureEach {
             sourceLink {
                 localDirectory = file("src/main/kotlin")
-                remoteUrl = URL("https://github.com/scenerygraphics/scenery/tree/main/src/main/kotlin")
+                remoteUrl = URI("https://github.com/scenerygraphics/scenery/tree/main/src/main/kotlin").toURL()
                 remoteLineSuffix = "#L"
             }
         }
@@ -400,12 +404,57 @@ tasks {
     }
 
     "shadowJar"(ShadowJar::class) {
+        enabled = false
         isZip64 = true
     }
 
-//    if(project.properties["buildFatJAR"] != null) {
-//        apply(plugin = "com.github.johnrengelman.shadow")
-//    }
+    if(project.properties["buildFatJar"] != null) {
+        apply(plugin = "com.github.johnrengelman.shadow")
+    }
+
+    register<ShadowJar>("fullShadowJar") {
+        archiveClassifier.set("everything")
+        from(sourceSets.test.get().output)
+        configurations.add(project.configurations.testRuntimeClasspath.get())
+        isZip64 = true
+    }
+
+    register("nativeImage") {
+        mustRunAfter("fullShadowJar")
+        doLast {
+            val nativeImageCmd = "native-image --no-fallback -cp ./build/libs/scenery-0.11.3-SNAPSHOT-everything.jar " +
+                    "-H:Name=scenery -H:Class=graphics.scenery.tests.examples.basic.TexturedCubeExample " +
+                    "-H:+ReportUnsupportedElementsAtRuntime " +
+                    "-H:ReflectionConfigurationFiles=src/main/resources/META-INF/native-image/reflect-config.json " +
+                    "-H:Log=registerResource:3 " +
+                    "-H:ResourceConfigurationFiles=src/main/resources/META-INF/native-image/resource-config.json" +
+                    "--initialize-at-run-time=org.lwjgl " +
+                    "--native-image-info "
+            nativeImageCmd.runCommand(projectDir)
+        }
+    }
+}
+
+private fun String.runCommand(workingDir: File): String? {
+    try {
+        val parts = this.split("\\s".toRegex())
+        val proc = ProcessBuilder(*parts.toTypedArray())
+            .directory(workingDir)
+            .redirectOutput(ProcessBuilder.Redirect.PIPE)
+            .redirectError(ProcessBuilder.Redirect.PIPE)
+            .start()
+
+        proc.waitFor(60, TimeUnit.MINUTES)
+        val result = proc.inputStream.bufferedReader().readText()
+        if(proc.exitValue() != 0) {
+            logger.error("Non-zero exit code from process, output:")
+            logger.error(result)
+        }
+        return result
+    } catch(e: IOException) {
+        e.printStackTrace()
+        return null
+    }
 }
 
 jacoco.toolVersion = "0.8.11"
