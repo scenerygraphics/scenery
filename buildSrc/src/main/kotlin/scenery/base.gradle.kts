@@ -5,7 +5,20 @@ import org.gradle.api.tasks.testing.logging.TestLogEvent
 
 plugins {
     jacoco
+//    id("org.gradlex.extra-java-module-info")
 }
+
+//extraJavaModuleInfo {
+////    module("net.imglib2:imglib2", "net.imglib2") {
+////        mergeJar("sc.fiji:bigdataviewer-core")
+////    }
+//
+////    automaticModule("sc.fiji:bigdataviewer-core", "bdv") {
+////        mergeJar("sc.fiji:bigdataviewer-vistools")
+////    }
+//
+//    deriveAutomaticModuleNamesFromFileNames.set(true)
+//}
 
 repositories {
     mavenCentral()
