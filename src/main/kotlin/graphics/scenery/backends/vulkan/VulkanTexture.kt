@@ -658,11 +658,11 @@ open class VulkanTexture(
             defaultValue: Int,
             device: VulkanDevice,
             commandPools: VulkanRenderer.CommandPools,
-            queue: VkQueue,
-            transferQueue: VkQueue
+            queue: VulkanDevice.QueueWithMutex,
+            transferQueue: VulkanDevice.QueueWithMutex
         ): VulkanTexture {
-            var texWidth = 2
-            var texHeight = 2
+            val texWidth = 2
+            val texHeight = 2
 
             val mipmapLevels = 1
 
@@ -672,9 +672,10 @@ open class VulkanTexture(
                 texWidth, texHeight, 1,
                 VK_FORMAT_R8G8B8A8_SRGB,
                 mipmapLevels,
-                true, true)
+                minFilterLinear = true, maxFilterLinear = true
+            )
 
-            val buffer = MemoryUtil.memCalloc(4*texWidth*texHeight)
+            val buffer = memCalloc(4*texWidth*texHeight)
             val v = buffer.asIntBuffer()
             while(v.hasRemaining()) {
                 v.put(defaultValue)
