@@ -3,6 +3,7 @@ package graphics.scenery.tests.unit.backends
 import graphics.scenery.*
 import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.backends.Renderer
+import graphics.scenery.backends.RenderingQuality
 import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.utils.SceneryPanel
 
@@ -65,9 +66,9 @@ class FauxRenderer(override var hub: Hub?, var scene: Scene, preparedWindow: Sce
     /**
      * Sets the rendering quality, if the loaded renderer config file supports it.
      *
-     * @param[quality] The [RenderConfigReader.RenderingQuality] to be set.
+     * @param[quality] The [RenderingQuality] to be set.
      */
-    override fun setRenderingQuality(quality: RenderConfigReader.RenderingQuality) {
+    override fun setRenderingQuality(quality: RenderingQuality) {
         logger.info("Set rendering quality to $quality")
     }
 
@@ -83,7 +84,7 @@ class FauxRenderer(override var hub: Hub?, var scene: Scene, preparedWindow: Sce
     override val managesRenderLoop: Boolean = false
     /** Total time taken for the last frame (in milliseconds). */
     override var lastFrameTime: Float = 1.0f
-    /** The file to read the [RenderConfigReader.RenderConfig] from. */
+    /** The file to read the [RenderConfig] from. */
     override var renderConfigFile: String = ""
 
     private var recordMovie = false
