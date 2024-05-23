@@ -306,7 +306,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
      * @param[keybinding] The key to trigger the switching.
      */
     fun setupCameraModeSwitching(keybinding: String = "C") {
-        if(System.getProperty("scenery.Headless").toBoolean() == true && System.getProperty("org.graalvm.home") != null) {
+        if(System.getProperty("scenery.Headless").toBoolean() == true && SceneryBase.isNative()) {
             return
         }
 
@@ -374,6 +374,11 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
      * @param[renderer] A [Renderer] instance or null.
      */
     fun loadInputHandler(renderer: Renderer?) {
+        // TODO: Restore input handling when running as native image
+        if(isNative()) {
+            return
+        }
+
         renderer?.let {
             inputHandler = InputHandler(scene, it, hub)
             inputHandler?.useDefaultBindings(System.getProperty("user.home") + "/.$applicationName.bindings")
@@ -662,5 +667,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
             val tce = TexturedCubeExample()
             tce.main()
         }
+
+        @JvmStatic fun isNative(): Boolean = System.getProperty("org.graalvm.home") != null
     }
 }

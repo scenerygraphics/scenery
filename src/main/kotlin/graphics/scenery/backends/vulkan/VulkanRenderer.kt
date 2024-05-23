@@ -8,6 +8,7 @@ import graphics.scenery.attribute.renderable.Renderable
 import graphics.scenery.backends.*
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.*
+import graphics.scenery.utils.SystemHelpers.Companion.dumpToFile
 import graphics.scenery.utils.extensions.applyVulkanCoordinateSystem
 import kotlinx.coroutines.*
 import org.joml.*
@@ -490,9 +491,10 @@ open class VulkanRenderer(hub: Hub,
             }
 
             val headlessRequested = System.getProperty(Renderer.HEADLESS_PROPERTY_NAME)?.toBoolean() ?: false
+            val disableSwing = System.getProperty("scenery.Renderer.DisableSwing")?.toBoolean() ?: false
             // GLFW works kinda shaky on macOS, we create a JFrame here for a nicer experience then.
             // That is of course unless [embedIn] is already set.
-            if(Platform.get() == Platform.MACOSX && embedIn == null && !headlessRequested) {
+            if(Platform.get() == Platform.MACOSX && embedIn == null && !headlessRequested && !disableSwing) {
                 embedIn = SwingSwapchain.createApplicationFrame(
                     applicationName,
                     windowWidth,
@@ -1243,7 +1245,7 @@ open class VulkanRenderer(hub: Hub,
 
     protected fun prepareDefaultTextures(device: VulkanDevice) {
         // TODO: Implement better way for loading default textures on GraalVM
-        val t = if(System.getProperty("org.graalvm.home") != null) {
+        val t = if(SceneryBase.isNative()) {
             VulkanTexture.fromEmpty(0x7F0000FF, device, commandPools, queue, queue)
         } else {
             VulkanTexture.loadFromFile(device, commandPools, queue, queue,
@@ -1523,18 +1525,23 @@ open class VulkanRenderer(hub: Hub,
                                 shifted[i + 3] = imageArray[i + 2]
                             }
 
-                            val image = BufferedImage(window.width, window.height, BufferedImage.TYPE_4BYTE_ABGR)
-                            val imgData = (image.raster.dataBuffer as DataBufferByte).data
-                            System.arraycopy(shifted, 0, imgData, 0, shifted.size)
-
                             if(request != null && request is RenderedImage.RenderedRGBAImage) {
                                 request.width = window.width
                                 request.height = window.height
-                                request.data = imgData
+                                request.data = shifted
                             }
 
                             if(writeToFile) {
-                                ImageIO.write(image, "png", file)
+                                if(!SceneryBase.isNative()) {
+                                    val image = BufferedImage(window.width, window.height, BufferedImage.TYPE_4BYTE_ABGR)
+                                    val imgData = (image.raster.dataBuffer as DataBufferByte).data
+                                    System.arraycopy(shifted, 0, imgData, 0, shifted.size)
+
+                                    ImageIO.write(image, "png", file)
+                                } else {
+                                    val imgBuf = ByteBuffer.wrap(shifted)
+                                    dumpToFile(imgBuf, file.absolutePath.replace(".png", ".raw"))
+                                }
                                 logger.info("Screenshot saved to ${file.absolutePath}")
                             }
                         } catch (e: Exception) {
