@@ -1,5 +1,6 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import org.gradle.kotlin.dsl.api
+import org.jetbrains.kotlin.backend.wasm.lower.excludeDeclarationsFromCodegen
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import scenery.*
 import java.io.IOException
@@ -49,7 +50,7 @@ dependencies {
     implementation(platform("org.scijava:pom-scijava:$scijavaParentPomVersion"))
     annotationProcessor("org.scijava:scijava-common:2.98.0")
 
-    implementation(kotlin("reflect"))
+    api(kotlin("reflect"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0")
 
     implementation("org.slf4j:slf4j-api:1.7.36")
@@ -153,6 +154,10 @@ dependencies {
 
     implementation("org.jfree:jfreechart:1.5.4")
     implementation("net.imagej:imagej-ops:0.45.5")
+
+    // graalvm stuff
+    // TODO: Figure out why Graal wants to have org.jruby.util.RubyFileTypeDetector
+    api("org.jruby:jruby-core:9.2.5.0")
 }
 
 val isRelease: Boolean
@@ -413,7 +418,7 @@ tasks {
     register<ShadowJar>("fullShadowJar") {
         archiveClassifier.set("everything")
         from(sourceSets.test.get().output, sourceSets.main.get().output)
-        configurations.add(project.configurations.testRuntimeClasspath.get())
+        configurations.add(project.configurations.runtimeClasspath.get())
         isZip64 = true
 
         minimize {
