@@ -1,5 +1,13 @@
 [
 {
+  "name":"java.nio.file.Files",
+  "allDeclaredFields":true
+},
+{
+  "name":"java.nio.file.Files$FileTypeDetectors",
+  "allDeclaredFields":true
+},
+{
   "name":"java.nio.Buffer",
   "allDeclaredFields":true
 },
@@ -1545,6 +1553,9 @@
 },
 {
   "name":"graphics.scenery.Blending"
+},
+{
+  "name":"graphics.scenery.PointLight"
 },
 {
   "name":"graphics.scenery.Blending$BlendFactor",
