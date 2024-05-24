@@ -1,6 +1,5 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import org.gradle.kotlin.dsl.api
-import org.jetbrains.kotlin.backend.wasm.lower.excludeDeclarationsFromCodegen
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import scenery.*
 import java.io.IOException
@@ -22,8 +21,6 @@ plugins {
 repositories {
     mavenCentral()
     maven("https://maven.scijava.org/content/groups/public")
-//    maven("https://jitpack.io")
-//    mavenLocal()
 }
 
 val lwjglArtifacts = listOf(
@@ -154,10 +151,6 @@ dependencies {
 
     implementation("org.jfree:jfreechart:1.5.4")
     implementation("net.imagej:imagej-ops:0.45.5")
-
-    // graalvm stuff
-    // TODO: Figure out why Graal wants to have org.jruby.util.RubyFileTypeDetector
-    api("org.jruby:jruby-core:9.2.5.0")
 }
 
 val isRelease: Boolean
@@ -415,11 +408,23 @@ tasks {
         apply(plugin = "io.github.goooler.shadow")
     }
 
-    register<ShadowJar>("fullShadowJar") {
+
+    val shadowJar = register<ShadowJar>("fullShadowJar") {
         archiveClassifier.set("everything")
         from(sourceSets.test.get().output, sourceSets.main.get().output)
         configurations.add(project.configurations.runtimeClasspath.get())
         isZip64 = true
+
+        // we need to exclude JRuby here, because native-image will
+        // pick up the RubyFileTypeDetector otherwise on startup, and fail.
+        val excluded = listOf("org.jruby:jruby-core",
+                              "org.jruby:joni",
+                              "org.jruby:jcodings",
+                              "org.jruby:*")
+
+        dependencies {
+            excluded.forEach { exclude(it) }
+        }
 
         minimize {
             dependencies {
@@ -434,39 +439,65 @@ tasks {
     }
 
     register("nativeImage") {
+        val mainClass = "graphics.scenery.SceneryBase"
+
+        val outputBinary = project.projectDir.resolve("./scenery-native")
+        val shadowJarArtifact = shadowJar.get().archiveFile.get().asFile.absolutePath
+
+        outputs.file(outputBinary)
+        inputs.file(shadowJarArtifact)
         mustRunAfter("fullShadowJar")
         doLast {
-            val nativeImageCmd = "native-image --no-fallback -cp ./build/libs/scenery-0.11.3-SNAPSHOT-everything.jar " +
-                    "-H:Name=scenery -H:Class=graphics.scenery.tests.examples.basic.TexturedCubeExample " +
-                    "-H:+ReportUnsupportedElementsAtRuntime " +
-                    "-H:ReflectionConfigurationFiles=src/main/resources/META-INF/native-image/reflect-config.json " +
-                    "-H:Log=registerResource:3 " +
-                    "-H:ResourceConfigurationFiles=src/main/resources/META-INF/native-image/resource-config.json" +
-                    "--initialize-at-run-time=org.lwjgl " +
-                    "--native-image-info "
-            nativeImageCmd.runCommand(projectDir)
+            val nativeImageCmd = listOf("native-image --no-fallback -cp $shadowJarArtifact",
+                    "-H:Name=${outputBinary.absolutePath} -H:Class=$mainClass",
+                    "-H:+ReportUnsupportedElementsAtRuntime",
+                    "-H:ReflectionConfigurationFiles=src/main/resources/META-INF/native-image/reflect-config.json",
+                    "-H:Log=registerResource:3",
+                    "-H:ResourceConfigurationFiles=src/main/resources/META-INF/native-image/resource-config.json",
+                    "--initialize-at-run-time=org.lwjgl",
+                    "--native-image-info",
+                    "--initialize-at-build-time=org.slf4j.simple.SimpleLogger,org.slf4j.LoggerFactory,org.jruby.util.RubyFileTypeDetector",
+                    "-H:IncludeResources=\".*.frag|.*.vert|.*.geom|.*.comp|.*.spv|.*.conf\""
+            )
+            val result = nativeImageCmd.joinToString(" ").runCommand(projectDir, showCommand = true, useStdOut = true)
+
+            if(result != null) {
+                logger.lifecycle("Native image written to ${outputBinary.absolutePath}")
+            } else {
+                throw GradleException("Failed to create native image")
+            }
         }
     }
 }
 
-private fun String.runCommand(workingDir: File): String? {
+private fun String.runCommand(workingDir: File, useStdOut: Boolean = false, showCommand: Boolean = false): String? {
     try {
         val parts = this.split("\\s".toRegex())
-        val proc = ProcessBuilder(*parts.toTypedArray())
-            .directory(workingDir)
-            .redirectOutput(ProcessBuilder.Redirect.PIPE)
-            .redirectError(ProcessBuilder.Redirect.PIPE)
-            .start()
+        if(showCommand) {
+            logger.lifecycle("Running $this ...")
+        }
+
+        val pb = ProcessBuilder(*parts.toTypedArray())
+        pb.directory(workingDir)
+        if(useStdOut) {
+            pb.inheritIO()
+        } else {
+            pb
+                .redirectErrorStream(true)
+                .redirectOutput(ProcessBuilder.Redirect.PIPE)
+        }
+        val proc = pb.start()
 
         proc.waitFor(60, TimeUnit.MINUTES)
         val result = proc.inputStream.bufferedReader().readText()
         if(proc.exitValue() != 0) {
             logger.error("Non-zero exit code from process, output:")
             logger.error(result)
+            return null
         }
         return result
     } catch(e: IOException) {
-        e.printStackTrace()
+        logger.error(e.stackTrace.toString())
         return null
     }
 }
