@@ -14,6 +14,7 @@ import net.imglib2.type.numeric.real.DoubleType
 import net.imglib2.type.numeric.real.FloatType
 import org.joml.Vector4i
 import org.lwjgl.system.MemoryStack.stackPush
+import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.*
@@ -649,6 +650,38 @@ open class VulkanTexture(
                 linearMin, linearMax)
 
             tex.copyFrom(image.contents)
+
+            return tex
+        }
+
+        fun fromEmpty(
+            defaultValue: Int,
+            device: VulkanDevice,
+            commandPools: VulkanRenderer.CommandPools,
+            queue: VulkanDevice.QueueWithMutex,
+            transferQueue: VulkanDevice.QueueWithMutex
+        ): VulkanTexture {
+            val texWidth = 2
+            val texHeight = 2
+
+            val mipmapLevels = 1
+
+            val tex = VulkanTexture(
+                device,
+                commandPools, queue, transferQueue,
+                texWidth, texHeight, 1,
+                VK_FORMAT_R8G8B8A8_SRGB,
+                mipmapLevels,
+                minFilterLinear = true, maxFilterLinear = true
+            )
+
+            val buffer = memCalloc(4*texWidth*texHeight)
+            val v = buffer.asIntBuffer()
+            while(v.hasRemaining()) {
+                v.put(defaultValue)
+            }
+
+            tex.copyFrom(buffer)
 
             return tex
         }

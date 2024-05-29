@@ -99,7 +99,7 @@ abstract class Renderer : Hubable {
      *
      * @param[quality] The [RenderConfigReader.RenderingQuality] to be set.
      */
-    abstract fun setRenderingQuality(quality: RenderConfigReader.RenderingQuality)
+    abstract fun setRenderingQuality(quality: RenderingQuality)
 
     /**
      * Activate or deactivate push-based rendering mode (render only on scene changes

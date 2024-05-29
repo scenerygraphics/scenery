@@ -6,6 +6,7 @@ import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
 import graphics.scenery.attribute.material.Material
+import graphics.scenery.backends.RenderingQuality
 import graphics.scenery.utils.extensions.minus
 import kotlin.concurrent.thread
 import kotlin.math.floor
@@ -100,8 +101,8 @@ class CycleRenderQualityExample: SceneryBase("CycleRenderQualityExample", window
             waitForSceneInitialisation()
 
             while(running) {
-                renderer?.setRenderingQuality(RenderConfigReader.RenderingQuality.values().get(quality))
-                quality = (quality + 1) % RenderConfigReader.RenderingQuality.values().size
+                renderer?.setRenderingQuality(RenderingQuality.values().get(quality))
+                quality = (quality + 1) % RenderingQuality.values().size
                 Thread.sleep(2500)
             }
         }

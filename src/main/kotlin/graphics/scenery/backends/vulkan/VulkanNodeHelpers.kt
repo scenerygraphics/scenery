@@ -8,6 +8,7 @@ import graphics.scenery.backends.vulkan.VulkanTexture.Companion.toVulkanFormat
 import graphics.scenery.textures.Texture
 import graphics.scenery.textures.UpdatableTexture
 import graphics.scenery.utils.lazyLogger
+import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.jemalloc.JEmalloc
 import org.lwjgl.vulkan.VK10
 import org.lwjgl.vulkan.VkBufferCopy
@@ -55,7 +56,7 @@ object VulkanNodeHelpers {
         }
 
         if (texcoords.remaining() == 0 && node is InstancedNode) {
-            val buffer = JEmalloc.je_calloc(1, 4L * vertices.remaining() / geometry.vertexSize * geometry.texcoordSize)
+            val buffer = MemoryUtil.memCalloc(4 * vertices.remaining() / geometry.vertexSize * geometry.texcoordSize)
 
             if(buffer == null) {
                 logger.error("Could not allocate texcoords buffer with ${4L * vertices.remaining() / geometry.vertexSize * geometry.texcoordSize} bytes for ${node.name}")
@@ -66,11 +67,11 @@ object VulkanNodeHelpers {
             }
         }
 
-        val vertexAllocationBytes: Long = 4L * (vertices.remaining() + normals.remaining() + texcoords.remaining())
-        val indexAllocationBytes: Long = 4L * indices.remaining()
-        val fullAllocationBytes: Long = vertexAllocationBytes + indexAllocationBytes
+        val vertexAllocationBytes: Int = 4 * (vertices.remaining() + normals.remaining() + texcoords.remaining())
+        val indexAllocationBytes: Int = 4 * indices.remaining()
+        val fullAllocationBytes: Int = vertexAllocationBytes + indexAllocationBytes
 
-        val stridedBuffer = JEmalloc.je_malloc(fullAllocationBytes)
+        val stridedBuffer = MemoryUtil.memCalloc(fullAllocationBytes)
 
         if(stridedBuffer == null) {
             logger.error("Allocation failed, skipping vertex buffer creation for ${node.name}.")
@@ -148,7 +149,7 @@ object VulkanNodeHelpers {
         state.indexOffset = vertexBuffer.bufferOffset + vertexAllocationBytes
         state.indexCount = geometry.indices.remaining()
 
-        JEmalloc.je_free(stridedBuffer)
+        MemoryUtil.memFree(stridedBuffer)
         stagingBuffer.close()
 
         return state
@@ -366,7 +367,7 @@ object VulkanNodeHelpers {
         if(!(material.blending.transparent || material is ShaderMaterial || material.cullingMode != Material.CullingMode.Back || material.wireframe)) {
             logger.debug("Using default renderpass material for ${node.name}")
             renderpasses
-                .filter { it.value.passConfig.type == RenderConfigReader.RenderpassType.geometry || it.value.passConfig.type == RenderConfigReader.RenderpassType.lights }
+                .filter { it.value.passConfig.type == RenderpassType.geometry || it.value.passConfig.type == RenderpassType.lights }
                 .forEach {
                     it.value.removePipeline(renderable)
                 }
@@ -380,7 +381,7 @@ object VulkanNodeHelpers {
         }
 
         renderable.rendererMetadata()?.let { s ->
-            renderpasses.filter { it.value.passConfig.type == RenderConfigReader.RenderpassType.geometry || it.value.passConfig.type == RenderConfigReader.RenderpassType.lights }
+            renderpasses.filter { it.value.passConfig.type == RenderpassType.geometry || it.value.passConfig.type == RenderpassType.lights }
                 .map { (passName, pass) ->
                     val shaders = when (material) {
                         is ShaderMaterial -> {
@@ -424,7 +425,7 @@ object VulkanNodeHelpers {
 
             if (renderable.needsShaderPropertyUBO()) {
                 renderpasses.filter {
-                    (it.value.passConfig.type == RenderConfigReader.RenderpassType.geometry || it.value.passConfig.type == RenderConfigReader.RenderpassType.lights) &&
+                    (it.value.passConfig.type == RenderpassType.geometry || it.value.passConfig.type == RenderpassType.lights) &&
                         it.value.passConfig.renderTransparent == material.blending.transparent
                 }.forEach { pass ->
                     val dsl = pass.value.initializeShaderPropertyDescriptorSetLayout()
@@ -462,7 +463,7 @@ object VulkanNodeHelpers {
 
                     if(reloaded) {
                         renderable.rendererMetadata()?.texturesToDescriptorSets(device,
-                            renderpasses.filter { pass -> pass.value.passConfig.type != RenderConfigReader.RenderpassType.quad },
+                            renderpasses.filter { pass -> pass.value.passConfig.type != RenderpassType.quad },
                             renderable)
                     }
                 }
@@ -481,9 +482,7 @@ object VulkanNodeHelpers {
         .parent
         .javaClass
         .kotlin
-        .memberProperties
-        .filter { it.findAnnotation<ShaderProperty>() != null }
-        .count() > 0
+        .memberProperties.any { it.findAnnotation<ShaderProperty>() != null }
 
     /**
      * Returns true if the current VulkanTexture can be reused to store the information in the [Texture]

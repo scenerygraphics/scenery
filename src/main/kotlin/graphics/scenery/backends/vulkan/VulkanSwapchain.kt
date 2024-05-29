@@ -1,6 +1,7 @@
 package graphics.scenery.backends.vulkan
 
 import graphics.scenery.Hub
+import graphics.scenery.backends.RenderConfig
 import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.utils.lazyLogger
@@ -32,7 +33,7 @@ import java.util.*
 open class VulkanSwapchain(open val device: VulkanDevice,
                            open val queue: VulkanDevice.QueueWithMutex,
                            open val commandPools: VulkanRenderer.CommandPools,
-                           @Suppress("unused") open val renderConfig: RenderConfigReader.RenderConfig,
+                           @Suppress("unused") open val renderConfig: RenderConfig,
                            open val useSRGB: Boolean = true,
                            open val vsync: Boolean = false,
                            open val undecorated: Boolean = false) : Swapchain {

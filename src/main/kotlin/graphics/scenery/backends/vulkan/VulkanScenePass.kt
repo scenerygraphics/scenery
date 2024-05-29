@@ -10,6 +10,7 @@ import graphics.scenery.geometry.GeometryType
 import graphics.scenery.attribute.HasDelegationType
 import graphics.scenery.attribute.DelegationType
 import graphics.scenery.attribute.renderable.Renderable
+import graphics.scenery.backends.RenderConfig
 import graphics.scenery.backends.ShaderIntrospection
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.lazyLogger
@@ -42,7 +43,7 @@ object VulkanScenePass {
         commandBuffer: VulkanCommandBuffer,
         commandPools: VulkanRenderer.CommandPools,
         descriptorSets: Map<String, Long>,
-        renderConfig: RenderConfigReader.RenderConfig,
+        renderConfig: RenderConfig,
         renderpasses: Map<String, VulkanRenderpass>,
         sceneObjects: List<Node>,
         customNodeFilter: ((Node) -> Boolean)? = null,

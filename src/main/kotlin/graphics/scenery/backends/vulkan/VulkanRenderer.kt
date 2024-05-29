@@ -8,6 +8,7 @@ import graphics.scenery.attribute.renderable.Renderable
 import graphics.scenery.backends.*
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.*
+import graphics.scenery.utils.SystemHelpers.Companion.dumpToFile
 import graphics.scenery.utils.extensions.applyVulkanCoordinateSystem
 import kotlinx.coroutines.*
 import org.joml.*
@@ -388,7 +389,7 @@ open class VulkanRenderer(hub: Hub,
     protected var heartbeatTimer = Timer()
     protected var gpuStats: GPUStats? = null
 
-    private var renderConfig: RenderConfigReader.RenderConfig
+    private var renderConfig: RenderConfig
     private var flow: List<String> = listOf()
 
     final override var renderConfigFile: String = ""
@@ -490,9 +491,10 @@ open class VulkanRenderer(hub: Hub,
             }
 
             val headlessRequested = System.getProperty(Renderer.HEADLESS_PROPERTY_NAME)?.toBoolean() ?: false
+            val disableSwing = System.getProperty("scenery.Renderer.DisableSwing")?.toBoolean() ?: false
             // GLFW works kinda shaky on macOS, we create a JFrame here for a nicer experience then.
             // That is of course unless [embedIn] is already set.
-            if(Platform.get() == Platform.MACOSX && embedIn == null && !headlessRequested) {
+            if(Platform.get() == Platform.MACOSX && embedIn == null && !headlessRequested && !disableSwing) {
                 embedIn = SwingSwapchain.createApplicationFrame(
                     applicationName,
                     windowWidth,
@@ -944,7 +946,7 @@ open class VulkanRenderer(hub: Hub,
         )
         if(descriptorUpdated) {
             s.texturesToDescriptorSets(device,
-                renderpasses.filter { it.value.passConfig.type != RenderConfigReader.RenderpassType.quad },
+                renderpasses.filter { it.value.passConfig.type != RenderpassType.quad },
                 renderable)
         }
 
@@ -1242,8 +1244,13 @@ open class VulkanRenderer(hub: Hub,
     }
 
     protected fun prepareDefaultTextures(device: VulkanDevice) {
-        val t = VulkanTexture.loadFromFile(device, commandPools, queue, transferQueue,
-            Renderer::class.java.getResourceAsStream("DefaultTexture.png"), "png", true, true)
+        // TODO: Implement better way for loading default textures on GraalVM
+        val t = if(SceneryBase.isNative()) {
+            VulkanTexture.fromEmpty(0x7F0000FF, device, commandPools, queue, queue)
+        } else {
+            VulkanTexture.loadFromFile(device, commandPools, queue, queue,
+                                       Renderer::class.java.getResourceAsStream("DefaultTexture.png"), "png", true, true)
+        }
 
         // TODO: Do an asset manager or sth here?
         defaultTextures["DefaultTexture"] = t
@@ -1518,18 +1525,23 @@ open class VulkanRenderer(hub: Hub,
                                 shifted[i + 3] = imageArray[i + 2]
                             }
 
-                            val image = BufferedImage(window.width, window.height, BufferedImage.TYPE_4BYTE_ABGR)
-                            val imgData = (image.raster.dataBuffer as DataBufferByte).data
-                            System.arraycopy(shifted, 0, imgData, 0, shifted.size)
-
                             if(request != null && request is RenderedImage.RenderedRGBAImage) {
                                 request.width = window.width
                                 request.height = window.height
-                                request.data = imgData
+                                request.data = shifted
                             }
 
                             if(writeToFile) {
-                                ImageIO.write(image, "png", file)
+                                if(!SceneryBase.isNative()) {
+                                    val image = BufferedImage(window.width, window.height, BufferedImage.TYPE_4BYTE_ABGR)
+                                    val imgData = (image.raster.dataBuffer as DataBufferByte).data
+                                    System.arraycopy(shifted, 0, imgData, 0, shifted.size)
+
+                                    ImageIO.write(image, "png", file)
+                                } else {
+                                    val imgBuf = ByteBuffer.wrap(shifted)
+                                    dumpToFile(imgBuf, file.absolutePath.replace(".png", ".raw"))
+                                }
                                 logger.info("Screenshot saved to ${file.absolutePath}")
                             }
                         } catch (e: Exception) {
@@ -1649,7 +1661,7 @@ open class VulkanRenderer(hub: Hub,
         // here we discover the objects in the scene that could be relevant for the scene
         var texturesUpdated: Boolean by StickyBoolean(false)
 
-        if (renderpasses.filter { it.value.passConfig.type != RenderConfigReader.RenderpassType.quad }.any()) {
+        if (renderpasses.filter { it.value.passConfig.type != RenderpassType.quad }.any()) {
             sceneNodes.forEach { node ->
                 val renderable = node.renderableOrNull() ?: return@forEach
                 val material = node.materialOrNull() ?: return@forEach
@@ -1710,7 +1722,7 @@ open class VulkanRenderer(hub: Hub,
                         )
                         if(descriptorUpdated) {
                             metadata.texturesToDescriptorSets(device,
-                                renderpasses.filter { it.value.passConfig.type != RenderConfigReader.RenderpassType.quad },
+                                renderpasses.filter { it.value.passConfig.type != RenderpassType.quad },
                                 renderable)
 
                             logger.trace("Force command buffer re-recording, as reloading textures for ${node.name}")
@@ -1733,7 +1745,7 @@ open class VulkanRenderer(hub: Hub,
                         // if we reloaded the node's shaders, we might need to recreate its texture descriptor sets
                         if(reloaded) {
                             renderable.rendererMetadata()?.texturesToDescriptorSets(device,
-                                renderpasses.filter { pass -> pass.value.passConfig.type != RenderConfigReader.RenderpassType.quad },
+                                renderpasses.filter { pass -> pass.value.passConfig.type != RenderpassType.quad },
                                 renderable)
                         }
 
@@ -1820,10 +1832,10 @@ open class VulkanRenderer(hub: Hub,
             val start = System.nanoTime()
 
             when (target.passConfig.type) {
-                RenderConfigReader.RenderpassType.geometry -> VulkanScenePass.record(hub!!, target, commandBuffer, commandPools, descriptorSets, renderConfig, renderpasses, sceneNodes, { it !is Light }, forceRerecording)
-                RenderConfigReader.RenderpassType.lights -> VulkanScenePass.record(hub!!, target, commandBuffer, commandPools, descriptorSets, renderConfig, renderpasses, sceneNodes, { it is Light }, forceRerecording)
-                RenderConfigReader.RenderpassType.quad -> VulkanPostprocessPass.record(target, commandBuffer, commandPools, sceneUBOs, descriptorSets)
-                RenderConfigReader.RenderpassType.compute -> VulkanComputePass.record(target, commandBuffer, commandPools, sceneUBOs, descriptorSets)
+                RenderpassType.geometry -> VulkanScenePass.record(hub!!, target, commandBuffer, commandPools, descriptorSets, renderConfig, renderpasses, sceneNodes, { it !is Light }, forceRerecording)
+                RenderpassType.lights -> VulkanScenePass.record(hub!!, target, commandBuffer, commandPools, descriptorSets, renderConfig, renderpasses, sceneNodes, { it is Light }, forceRerecording)
+                RenderpassType.quad -> VulkanPostprocessPass.record(target, commandBuffer, commandPools, sceneUBOs, descriptorSets)
+                RenderpassType.compute -> VulkanComputePass.record(target, commandBuffer, commandPools, sceneUBOs, descriptorSets)
             }
 
 
@@ -1882,10 +1894,10 @@ open class VulkanRenderer(hub: Hub,
         }*/
 
         when (viewportPass.passConfig.type) {
-            RenderConfigReader.RenderpassType.geometry -> VulkanScenePass.record(hub!!, viewportPass, viewportCommandBuffer, commandPools, descriptorSets, renderConfig, renderpasses, sceneNodes, { it !is Light }, forceRerecording)
-            RenderConfigReader.RenderpassType.lights -> VulkanScenePass.record(hub!!, viewportPass, viewportCommandBuffer, commandPools, descriptorSets, renderConfig, renderpasses, sceneNodes, { it is Light }, forceRerecording)
-            RenderConfigReader.RenderpassType.quad -> VulkanPostprocessPass.record(viewportPass, viewportCommandBuffer, commandPools, sceneUBOs, descriptorSets)
-            RenderConfigReader.RenderpassType.compute -> VulkanComputePass.record(viewportPass, viewportCommandBuffer, commandPools, sceneUBOs, descriptorSets)
+            RenderpassType.geometry -> VulkanScenePass.record(hub!!, viewportPass, viewportCommandBuffer, commandPools, descriptorSets, renderConfig, renderpasses, sceneNodes, { it !is Light }, forceRerecording)
+            RenderpassType.lights -> VulkanScenePass.record(hub!!, viewportPass, viewportCommandBuffer, commandPools, descriptorSets, renderConfig, renderpasses, sceneNodes, { it is Light }, forceRerecording)
+            RenderpassType.quad -> VulkanPostprocessPass.record(viewportPass, viewportCommandBuffer, commandPools, sceneUBOs, descriptorSets)
+            RenderpassType.compute -> VulkanComputePass.record(viewportPass, viewportCommandBuffer, commandPools, sceneUBOs, descriptorSets)
         }
 
         stats?.add("VulkanRenderer.${viewportPass.name}.recordCmdBuffer", System.nanoTime() - start)
@@ -2440,7 +2452,7 @@ open class VulkanRenderer(hub: Hub,
      *
      * @param[quality] The [RenderConfigReader.RenderingQuality] to be set.
      */
-    override fun setRenderingQuality(quality: RenderConfigReader.RenderingQuality) {
+    override fun setRenderingQuality(quality: RenderingQuality) {
         fun setConfigSetting(key: String, value: Any) {
             val setting = "Renderer.$key"
 

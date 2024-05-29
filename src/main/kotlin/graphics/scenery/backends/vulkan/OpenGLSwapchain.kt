@@ -4,6 +4,7 @@ import com.sun.jna.Pointer
 import com.sun.jna.platform.win32.User32
 import com.sun.jna.platform.win32.WinDef
 import graphics.scenery.Hub
+import graphics.scenery.backends.RenderConfig
 import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.utils.SceneryPanel
@@ -39,7 +40,7 @@ import java.nio.LongBuffer
 class OpenGLSwapchain(device: VulkanDevice,
                       queue: VulkanDevice.QueueWithMutex,
                       commandPools: VulkanRenderer.CommandPools,
-                      renderConfig: RenderConfigReader.RenderConfig,
+                      renderConfig: RenderConfig,
                       useSRGB: Boolean = true,
                       val useFramelock: Boolean = System.getProperty("scenery.Renderer.Framelock", "false")?.toBoolean() ?: false,
                       val bufferCount: Int = 2,

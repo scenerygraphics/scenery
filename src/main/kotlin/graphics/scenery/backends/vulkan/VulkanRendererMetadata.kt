@@ -7,6 +7,7 @@ import org.lwjgl.vulkan.*
 import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.backends.RendererFlags
 import graphics.scenery.attribute.renderable.Renderable
+import graphics.scenery.backends.RenderpassType
 import graphics.scenery.utils.lazyLogger
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
@@ -110,7 +111,7 @@ open class VulkanRendererMetadata {
                     // we warn only if the associated renderable is used in graphics mode, not in compute mode.
                     // compute mode nodes are not automatically assumed to have ObjectTextures available.
                     val renderableForCompute = (renderable.parent.materialOrNull() as? ShaderMaterial)?.isCompute() ?: false
-                    if (pass.passConfig.type == RenderConfigReader.RenderpassType.geometry && !renderableForCompute) {
+                    if (pass.passConfig.type == RenderpassType.geometry && !renderableForCompute) {
                         logger.warn("$this: DSL for ObjectTextures not found for pass $passName")
                     } else {
                         logger.debug("{}: DSL for ObjectTextures not found for pass {}", this, passName)

@@ -1,7 +1,9 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import org.gradle.kotlin.dsl.api
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import scenery.*
-import java.net.URL
+import java.io.IOException
+import java.net.URI
 
 plugins {
     // kotlin and dokka versions are now managed in settings.gradle.kts and gradle.properties
@@ -12,16 +14,13 @@ plugins {
     scenery.base
     scenery.publish
     scenery.sign
-//    id("com.github.elect86.sciJava") version "0.0.4"
     jacoco
-    id("com.github.johnrengelman.shadow") apply false
+    id("io.github.goooler.shadow")
 }
 
 repositories {
     mavenCentral()
     maven("https://maven.scijava.org/content/groups/public")
-//    maven("https://jitpack.io")
-//    mavenLocal()
 }
 
 val lwjglArtifacts = listOf(
@@ -48,7 +47,7 @@ dependencies {
     implementation(platform("org.scijava:pom-scijava:$scijavaParentPomVersion"))
     annotationProcessor("org.scijava:scijava-common:2.98.0")
 
-    implementation(kotlin("reflect"))
+    api(kotlin("reflect"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0")
 
     implementation("org.slf4j:slf4j-api:1.7.36")
@@ -141,8 +140,11 @@ dependencies {
     testImplementation(kotlin("test-junit"))
     //    implementation("com.github.kotlin-graphics:assimp:25c68811")
 
-//    testImplementation(misc.junit4)
-    testImplementation("org.slf4j:slf4j-simple:1.7.36")
+    if(properties["buildAsApplication"] != null) {
+        runtimeOnly("org.slf4j:slf4j-simple:1.7.36")
+    } else {
+        testRuntimeOnly("org.slf4j:slf4j-simple:1.7.36")
+    }
     testImplementation("net.imagej:imagej")
     testImplementation("net.imagej:ij")
     testImplementation("net.imglib2:imglib2-ij")
@@ -387,7 +389,7 @@ tasks {
         dokkaSourceSets.configureEach {
             sourceLink {
                 localDirectory = file("src/main/kotlin")
-                remoteUrl = URL("https://github.com/scenerygraphics/scenery/tree/main/src/main/kotlin")
+                remoteUrl = URI("https://github.com/scenerygraphics/scenery/tree/main/src/main/kotlin").toURL()
                 remoteLineSuffix = "#L"
             }
         }
@@ -397,11 +399,106 @@ tasks {
         enabled = isRelease
     }
 
-    if(project.properties["buildFatJAR"] == true) {
-        apply(plugin = "com.github.johnrengelman.shadow")
-        jar {
-            isZip64 = true
+    "shadowJar"(ShadowJar::class) {
+        enabled = false
+        isZip64 = true
+    }
+
+    if(project.properties["buildFatJar"] != null) {
+        apply(plugin = "io.github.goooler.shadow")
+    }
+
+
+    val shadowJar = register<ShadowJar>("fullShadowJar") {
+        archiveClassifier.set("everything")
+        from(sourceSets.test.get().output, sourceSets.main.get().output)
+        configurations.add(project.configurations.runtimeClasspath.get())
+        isZip64 = true
+
+        // we need to exclude JRuby here, because native-image will
+        // pick up the RubyFileTypeDetector otherwise on startup, and fail.
+        val excluded = listOf("org.jruby:jruby-core",
+                              "org.jruby:joni",
+                              "org.jruby:jcodings",
+                              "org.jruby:*")
+
+        dependencies {
+            excluded.forEach { exclude(it) }
         }
+
+        minimize {
+            dependencies {
+                exclude("*.DSA")
+                exclude("*.RSA")
+                exclude("*.SF")
+                exclude("META-INF/*.DSA")
+                exclude("META-INF/*.RSA")
+                exclude("META-INF/*.SF")
+            }
+        }
+    }
+
+    register("nativeImage") {
+        val mainClass = "graphics.scenery.SceneryBase"
+
+        val outputBinary = project.projectDir.resolve("./scenery-native")
+        val shadowJarArtifact = shadowJar.get().archiveFile.get().asFile.absolutePath
+
+        outputs.file(outputBinary)
+        inputs.file(shadowJarArtifact)
+        mustRunAfter("fullShadowJar")
+        doLast {
+            val nativeImageCmd = listOf("native-image --no-fallback -cp $shadowJarArtifact",
+                    "-H:Name=${outputBinary.absolutePath} -H:Class=$mainClass",
+                    "-H:+ReportUnsupportedElementsAtRuntime",
+                    "-H:ReflectionConfigurationFiles=src/main/resources/META-INF/native-image/reflect-config.json",
+                    "-H:Log=registerResource:3",
+                    "-H:ResourceConfigurationFiles=src/main/resources/META-INF/native-image/resource-config.json",
+                    "--initialize-at-run-time=org.lwjgl",
+                    "--native-image-info",
+                    "--initialize-at-build-time=org.slf4j.simple.SimpleLogger,org.slf4j.LoggerFactory,org.jruby.util.RubyFileTypeDetector",
+                    "-H:IncludeResources=\".*.frag|.*.vert|.*.geom|.*.comp|.*.spv|.*.conf\""
+            )
+            val result = nativeImageCmd.joinToString(" ").runCommand(projectDir, showCommand = true, useStdOut = true)
+
+            if(result != null) {
+                logger.lifecycle("Native image written to ${outputBinary.absolutePath}")
+            } else {
+                throw GradleException("Failed to create native image")
+            }
+        }
+    }
+}
+
+private fun String.runCommand(workingDir: File, useStdOut: Boolean = false, showCommand: Boolean = false): String? {
+    try {
+        val parts = this.split("\\s".toRegex())
+        if(showCommand) {
+            logger.lifecycle("Running $this ...")
+        }
+
+        val pb = ProcessBuilder(*parts.toTypedArray())
+        pb.directory(workingDir)
+        if(useStdOut) {
+            pb.inheritIO()
+        } else {
+            pb
+                .redirectErrorStream(true)
+                .redirectOutput(ProcessBuilder.Redirect.PIPE)
+        }
+        val proc = pb.start()
+
+        proc.waitFor(60, TimeUnit.MINUTES)
+        val result = proc.inputStream.bufferedReader().readText()
+        if(proc.exitValue() != 0) {
+            logger.error("Non-zero exit code from process, output:")
+            logger.error(result)
+            return null
+        }
+        return result
+    } catch(e: IOException) {
+        logger.error(e.stackTrace.toString())
+        return null
     }
 }
 

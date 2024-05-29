@@ -11,10 +11,10 @@ import org.joml.Vector3f;
  * Created by kharrington on 7/6/16.
  */
 class TexturedCubeJavaExample extends SceneryBase {
-    public static void main(String[] args) {
-       final SceneryBase app = new TexturedCubeJavaExample();
-       app.main();
-    }
+//    public static void main(String[] args) {
+//       final SceneryBase app = new TexturedCubeJavaExample();
+//       app.main();
+//    }
 
     public TexturedCubeJavaExample() {
         super("TexturedCubeJavaExample", 512, 512, true);

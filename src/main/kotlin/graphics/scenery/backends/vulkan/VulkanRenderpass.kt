@@ -28,7 +28,7 @@ import kotlin.collections.LinkedHashMap
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-open class VulkanRenderpass(val name: String, var config: RenderConfigReader.RenderConfig,
+open class VulkanRenderpass(val name: String, var config: RenderConfig,
                        val device: VulkanDevice,
                        val pipelineCache: Long,
                        val vertexDescriptors: ConcurrentHashMap<VulkanRenderer.VertexDataKinds, VulkanRenderer.VertexDescription>,
@@ -101,7 +101,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
     )
 
     /** This renderpasses' [RenderConfigReader.RenderpassConfig]. */
-    var passConfig: RenderConfigReader.RenderpassConfig = config.renderpasses.getValue(name)
+    var passConfig: RenderpassConfig = config.renderpasses.getValue(name)
         protected set
 
     /** Whether this renderpass will render to the viewport or to a [VulkanFramebuffer] */
@@ -171,7 +171,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
     fun initializeInputAttachmentDescriptorSetLayouts(shaderModules: List<VulkanShaderModule>) {
         var input = 0
         logger.debug("Renderpass $name has inputs ${inputs.keys.joinToString(", ")}")
-        val relevantFramebuffers = if(passConfig.type == RenderConfigReader.RenderpassType.compute) {
+        val relevantFramebuffers = if(passConfig.type == RenderpassType.compute) {
             inputs.entries + output.entries
         } else {
             inputs.entries
@@ -196,13 +196,13 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
                 attachment.descriptorSet
 
                 when(passConfig.type) {
-                    RenderConfigReader.RenderpassType.geometry,
-                    RenderConfigReader.RenderpassType.quad,
-                    RenderConfigReader.RenderpassType.lights -> attachment.descriptorSetLayout to attachment.descriptorSet
-                    RenderConfigReader.RenderpassType.compute -> attachment.loadStoreDescriptorSetLayout!! to attachment.loadStoreDescriptorSet!!
+                    RenderpassType.geometry,
+                    RenderpassType.quad,
+                    RenderpassType.lights -> attachment.descriptorSetLayout to attachment.descriptorSet
+                    RenderpassType.compute -> attachment.loadStoreDescriptorSetLayout!! to attachment.loadStoreDescriptorSet!!
                 }
             } else {
-                if(passConfig.type == RenderConfigReader.RenderpassType.compute) {
+                if(passConfig.type == RenderpassType.compute) {
                     inputFramebuffer.value.imageLoadStoreDescriptorSetLayout to inputFramebuffer.value.imageLoadStoreDescriptorSet
                 } else {
                     inputFramebuffer.value.outputDescriptorSetLayout to inputFramebuffer.value.outputDescriptorSet
@@ -579,7 +579,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
             logger.debug("Required DSLs: ${reqDescriptorLayouts.joinToString { it.toHexString() }}")
 
             when {
-                (passConfig.type == RenderConfigReader.RenderpassType.quad && vertexDescription != null)
+                (passConfig.type == RenderpassType.quad && vertexDescription != null)
                     && shaderModules.first().type != ShaderType.ComputeShader -> {
                     p.rasterizationState.cullMode(VK_CULL_MODE_FRONT_BIT)
                     p.rasterizationState.frontFace(VK_FRONT_FACE_COUNTER_CLOCKWISE)
@@ -591,8 +591,8 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
                     )
                 }
 
-                (passConfig.type == RenderConfigReader.RenderpassType.geometry
-                    || passConfig.type == RenderConfigReader.RenderpassType.lights)
+                (passConfig.type == RenderpassType.geometry
+                    || passConfig.type == RenderpassType.lights)
                     && shaderModules.first().type != ShaderType.ComputeShader && vertexDescription != null -> {
                     p.createPipelines(
                         vi = vertexDescription.state,
@@ -600,7 +600,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
                     )
                 }
 
-                passConfig.type == RenderConfigReader.RenderpassType.compute
+                passConfig.type == RenderpassType.compute
                     || shaderModules.first().type == ShaderType.ComputeShader -> {
                     p.createPipelines(
                         descriptorSetLayouts = reqDescriptorLayouts,
@@ -676,7 +676,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
         logger.debug("Required DSLs: ${reqDescriptorLayouts.joinToString { it.toHexString() } }")
 
         when {
-            (passConfig.type == RenderConfigReader.RenderpassType.quad && vertexInputType != null)
+            (passConfig.type == RenderpassType.quad && vertexInputType != null)
                 && shaders.first().type != ShaderType.ComputeShader -> {
                 p.rasterizationState.cullMode(VK_CULL_MODE_FRONT_BIT)
                 p.rasterizationState.frontFace(VK_FRONT_FACE_COUNTER_CLOCKWISE)
@@ -687,15 +687,15 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
                     onlyForTopology = GeometryType.TRIANGLES)
             }
 
-            (passConfig.type == RenderConfigReader.RenderpassType.geometry
-                || passConfig.type == RenderConfigReader.RenderpassType.lights)
+            (passConfig.type == RenderpassType.geometry
+                || passConfig.type == RenderpassType.lights)
                 && shaders.first().type != ShaderType.ComputeShader && vertexInputType != null -> {
                 p.createPipelines(
                     vi = vertexInputType.state,
                     descriptorSetLayouts = reqDescriptorLayouts)
             }
 
-            passConfig.type == RenderConfigReader.RenderpassType.compute
+            passConfig.type == RenderpassType.compute
                 || shaders.first().type == ShaderType.ComputeShader -> {
                 p.createPipelines(
                     descriptorSetLayouts = reqDescriptorLayouts,
@@ -908,7 +908,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
         }
 
         fun prepareRenderpassesFromConfig(
-            config: RenderConfigReader.RenderConfig,
+            config: RenderConfig,
             device: VulkanDevice,
             commandPools: VulkanRenderer.CommandPools,
             queue: VulkanDevice.QueueWithMutex,
@@ -958,23 +958,23 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
                                 logger.info(" + attachment ${att.key}, ${att.value.name}")
 
                                 when (att.value) {
-                                    RenderConfigReader.TargetFormat.RGBA_Float32 -> framebuffer.addFloatRGBABuffer(att.key, 32)
-                                    RenderConfigReader.TargetFormat.RGBA_Float16 -> framebuffer.addFloatRGBABuffer(att.key, 16)
+                                    TargetFormat.RGBA_Float32 -> framebuffer.addFloatRGBABuffer(att.key, 32)
+                                    TargetFormat.RGBA_Float16 -> framebuffer.addFloatRGBABuffer(att.key, 16)
 
-                                    RenderConfigReader.TargetFormat.RGB_Float32 -> framebuffer.addFloatRGBBuffer(att.key, 32)
-                                    RenderConfigReader.TargetFormat.RGB_Float16 -> framebuffer.addFloatRGBBuffer(att.key, 16)
+                                    TargetFormat.RGB_Float32 -> framebuffer.addFloatRGBBuffer(att.key, 32)
+                                    TargetFormat.RGB_Float16 -> framebuffer.addFloatRGBBuffer(att.key, 16)
 
-                                    RenderConfigReader.TargetFormat.RG_Float32 -> framebuffer.addFloatRGBuffer(att.key, 32)
-                                    RenderConfigReader.TargetFormat.RG_Float16 -> framebuffer.addFloatRGBuffer(att.key, 16)
+                                    TargetFormat.RG_Float32 -> framebuffer.addFloatRGBuffer(att.key, 32)
+                                    TargetFormat.RG_Float16 -> framebuffer.addFloatRGBuffer(att.key, 16)
 
-                                    RenderConfigReader.TargetFormat.RGBA_UInt16 -> framebuffer.addUnsignedByteRGBABuffer(att.key, 16)
-                                    RenderConfigReader.TargetFormat.RGBA_UInt8 -> framebuffer.addUnsignedByteRGBABuffer(att.key, 8)
-                                    RenderConfigReader.TargetFormat.R_UInt16 -> framebuffer.addUnsignedByteRBuffer(att.key, 16)
-                                    RenderConfigReader.TargetFormat.R_UInt8 -> framebuffer.addUnsignedByteRBuffer(att.key, 8)
+                                    TargetFormat.RGBA_UInt16 -> framebuffer.addUnsignedByteRGBABuffer(att.key, 16)
+                                    TargetFormat.RGBA_UInt8 -> framebuffer.addUnsignedByteRGBABuffer(att.key, 8)
+                                    TargetFormat.R_UInt16 -> framebuffer.addUnsignedByteRBuffer(att.key, 16)
+                                    TargetFormat.R_UInt8 -> framebuffer.addUnsignedByteRBuffer(att.key, 8)
 
-                                    RenderConfigReader.TargetFormat.Depth32 -> framebuffer.addDepthBuffer(att.key, 32)
-                                    RenderConfigReader.TargetFormat.Depth24 -> framebuffer.addDepthBuffer(att.key, 24)
-                                    RenderConfigReader.TargetFormat.R_Float16 -> framebuffer.addFloatBuffer(att.key, 16)
+                                    TargetFormat.Depth32 -> framebuffer.addDepthBuffer(att.key, 32)
+                                    TargetFormat.Depth24 -> framebuffer.addDepthBuffer(att.key, 24)
+                                    TargetFormat.R_Float16 -> framebuffer.addFloatBuffer(att.key, 16)
                                 }
 
                             }
