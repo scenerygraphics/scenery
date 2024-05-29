@@ -1555,6 +1555,9 @@
   "name":"graphics.scenery.Blending"
 },
 {
+  "name":"graphics.scenery.tests.examples.basic.TexturedCubeExample"
+},
+  {
   "name":"graphics.scenery.PointLight"
 },
 {
