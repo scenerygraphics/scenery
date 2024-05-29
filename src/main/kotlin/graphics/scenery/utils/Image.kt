@@ -1,6 +1,7 @@
 package graphics.scenery.utils
 
-import graphics.scenery.volumes.Colormap
+import io.scif.SCIFIO
+import net.imglib2.img.Img
 import net.imglib2.type.numeric.NumericType
 import net.imglib2.type.numeric.integer.UnsignedByteType
 import net.imglib2.type.numeric.real.FloatType
@@ -12,6 +13,9 @@ import org.lwjgl.util.tinyexr.EXRImage
 import org.lwjgl.util.tinyexr.EXRVersion
 import org.lwjgl.util.tinyexr.TinyEXR
 import org.lwjgl.util.tinyexr.TinyEXR.FreeEXRImage
+import org.scijava.Context
+import org.scijava.io.handle.DataHandleService
+import org.scijava.io.location.BytesLocation
 import java.awt.Color
 import java.awt.color.ColorSpace
 import java.awt.geom.AffineTransform
@@ -22,7 +26,9 @@ import java.io.InputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.*
-import javax.imageio.ImageIO
+import kotlin.system.measureNanoTime
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.nanoseconds
 
 /**
  * Utility class for reading RGBA images via [BufferedImage].
@@ -34,6 +40,7 @@ open class Image(val contents: ByteBuffer, val width: Int, val height: Int, val 
 
     companion object {
         protected val logger by lazyLogger()
+        protected val scifio = SCIFIO()
 
         private val StandardAlphaColorModel = ComponentColorModel(
             ColorSpace.getInstance(ColorSpace.CS_sRGB),
@@ -71,6 +78,8 @@ open class Image(val contents: ByteBuffer, val width: Int, val height: Int, val 
             val imageData: ByteBuffer
             val pixels: IntArray
             val buffer: ByteArray
+            var width: Int
+            var height: Int
 
             when {
                 extension.lowercase().endsWith("exr") -> {
@@ -180,32 +189,51 @@ open class Image(val contents: ByteBuffer, val width: Int, val height: Int, val 
 
                 else -> {
                     if(extension.lowercase().endsWith("tga")) {
-                        try {
+                        imageData = try {
                             val reader = BufferedInputStream(stream)
                             buffer = ByteArray(stream.available())
                             reader.read(buffer)
                             reader.close()
 
-                            pixels = TGAReader.read(buffer, TGAReader.ARGB)
-                            val width = TGAReader.getWidth(buffer)
-                            val height = TGAReader.getHeight(buffer)
-                            bi = BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB)
-                            bi.setRGB(0, 0, width, height, pixels, 0, width)
+                            pixels = TGAReader.read(buffer, TGAReader.RGBA)
+                            width = TGAReader.getWidth(buffer)
+                            height = TGAReader.getHeight(buffer)
+                            val b = ByteBuffer.allocateDirect(width * height * 4)
+                            b.asIntBuffer().put(pixels)
+                            b
                         } catch (e: IOException) {
-                            Colormap.logger.error("Could not read image from TGA. ${e.message}")
-                            bi = BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB)
-                            bi.setRGB(0, 0, 1, 1, intArrayOf(255, 0, 0), 0, 1)
+                            logger.error("Could not read image from TGA. ${e.message}")
+                            width = 1
+                            height = 1
+                            ByteBuffer.wrap(byteArrayOf(127,127,127,0))
                         }
 
                     } else {
-                        try {
-                            val reader = BufferedInputStream(stream)
-                            bi = ImageIO.read(stream)
+                        imageData = try {
+                            // TODO: Improve this code here
+                            val ctx = Context()//PluginService::class.java, SCIFIOService::class.java, DataHandleService::class.java)
+                            val ds = ctx.getService(DataHandleService::class.java)
+                            val h = ds.create(BytesLocation(stream.readAllBytes()))
+                            val opener = scifio.io().getOpener(h.get())
+                            logger.info("Opener: $opener")
+                            val img = opener.open(h.get()) as? Img<UnsignedByteType>
+                            logger.info("opened $img!")
+                            val reader = scifio.initializer().initializeReader(h.get())
+                            logger.info("Got reader")
+                            val plane = reader.openPlane(0, 0)
+                            logger.info("Opened plane with ${plane.bytes.size}b!")
+                            val b = ByteBuffer.allocateDirect(plane.bytes.size)
+                            b.put(plane.bytes)
+                            b.flip()
+                            width = plane.lengths[0].toInt()
+                            height = plane.lengths[1].toInt()
                             reader.close()
+                            b
                         } catch (e: IOException) {
-                            Colormap.logger.error("Could not read image: ${e.message}")
-                            bi = BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB)
-                            bi.setRGB(0, 0, 1, 1, intArrayOf(255, 0, 0), 0, 1)
+                            logger.error("Could not read image: ${e.message}")
+                            width = 1
+                            height = 1
+                            ByteBuffer.wrap(byteArrayOf(127,127,127,0))
                         }
                     }
 
@@ -213,14 +241,33 @@ open class Image(val contents: ByteBuffer, val width: Int, val height: Int, val 
 
                     if(flip) {
                         // convert to OpenGL UV space
-                        flippedImage = createFlipped(bi)
-                        imageData = bufferedImageToRGBABuffer(flippedImage)
-                    } else {
-                        imageData = bufferedImageToRGBABuffer(bi)
+                        flipInPlace(imageData, width, height)
                     }
 
-                    return Image(imageData, bi.width, bi.height)
+                    return Image(imageData, width, height)
                 }
+            }
+        }
+
+        private fun flipInPlace(imageData: ByteBuffer, width: Int, height: Int) {
+            val view = imageData.duplicate().order(ByteOrder.LITTLE_ENDIAN)
+            (0..height / 2).forEach { index ->
+                val sourceIndex = index * width * 4
+                val destIndex = width * height * 4 - (index + 1) * width * 4
+
+                val source = ByteArray(width * 4)
+                view.position(sourceIndex)
+                view.get(source)
+
+                val dest = ByteArray(width * 4)
+                view.position(destIndex)
+                view.get(dest)
+
+                view.position(sourceIndex)
+                view.put(dest)
+
+                view.position(destIndex)
+                view.put(source)
             }
         }
 

@@ -4,6 +4,7 @@ import java.io.IOException
 
 object TGAReader {
     val ARGB = Order(16, 8, 0, 24)
+    val RGBA = Order(24, 16, 8, 0)
     val ABGR = Order(0, 8, 16, 24)
     fun getWidth(buffer: ByteArray): Int {
         return buffer[12].toInt() and 0xFF or (buffer[13].toInt() and 0xFF shl 8)
