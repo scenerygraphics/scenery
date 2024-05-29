@@ -141,9 +141,9 @@ dependencies {
     //    implementation("com.github.kotlin-graphics:assimp:25c68811")
 
     if(properties["buildAsApplication"] != null) {
-        implementation("org.slf4j:slf4j-simple:1.7.36")
+        runtimeOnly("org.slf4j:slf4j-simple:1.7.36")
     } else {
-        testImplementation("org.slf4j:slf4j-simple:1.7.36")
+        testRuntimeOnly("org.slf4j:slf4j-simple:1.7.36")
     }
     testImplementation("net.imagej:imagej")
     testImplementation("net.imagej:ij")
