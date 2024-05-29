@@ -418,7 +418,7 @@ open class VulkanRenderer(hub: Hub,
         private const val MATERIAL_HAS_ALPHAMASK = 0x0010
 
         private val availableSwapchains = mutableListOf(
-//            SwingSwapchain::class.java,
+            SwingSwapchain::class.java,
             HeadlessSwapchain::class.java,
             OpenGLSwapchain::class.java
         )
