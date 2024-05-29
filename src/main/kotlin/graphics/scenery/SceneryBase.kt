@@ -13,7 +13,6 @@ import graphics.scenery.controls.behaviours.FPSCameraControl
 import graphics.scenery.net.NodePublisher
 import graphics.scenery.net.NodeSubscriber
 import graphics.scenery.repl.REPL
-import graphics.scenery.textures.Texture
 import graphics.scenery.utils.*
 import kotlinx.coroutines.*
 import org.lwjgl.system.Platform
@@ -618,7 +617,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
         }
 
         @JvmStatic fun main(args: Array<String>) {
-            class TexturedCubeExample : SceneryBase("TexturedCubeExample", wantREPL = false) {
+            class MinimalScene : SceneryBase("Minimal Scene", wantREPL = false) {
                 override fun init() {
                     renderer = hub.add(
                         SceneryElement.Renderer,
@@ -628,8 +627,6 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
                     val box = Box(Vector3f(1.0f, 1.0f, 1.0f))
                     box.name = "le box du win"
                     box.material {
-//                        textures["diffuse"] =
-//                            Texture.fromImage(Image.fromResource("textures/helix.png", TexturedCubeExample::class.java))
                         metallic = 0.3f
                         roughness = 0.9f
                     }
@@ -650,24 +647,14 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
 
                         scene.addChild(this)
                     }
-
-                    thread {
-                        while(running) {
-                            box.spatial {
-                                rotation.rotateY(0.01f)
-                                needsUpdate = true
-                            }
-
-                            Thread.sleep(20)
-                        }
-                    }
                 }
             }
 
-            val tce = TexturedCubeExample()
-            tce.main()
+            val empty = MinimalScene()
+            empty.main()
         }
 
+        /** Returns true if running from a GraalVM native image. */
         @JvmStatic fun isNative(): Boolean = System.getProperty("org.graalvm.home") != null
     }
 }
