@@ -20,6 +20,7 @@ import org.lwjgl.system.MemoryStack
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.vulkan.*
 import java.util.*
+import kotlin.math.ceil
 
 /**
  * Helper object for scene pass command buffer recording.
@@ -79,7 +80,7 @@ object VulkanScenePass {
                 }
             }
 
-            if(node.state != State.Ready || renderable.rendererMetadata()?.preDrawSkip == true) {
+            if(node.state != State.Ready || renderable.rendererMetadata()?.flags?.contains(RendererFlags.PreDrawSkip) == true) {
                 return@forEach
             }
 
@@ -223,9 +224,9 @@ object VulkanScenePass {
                 commandBuffer.device.deviceData.properties.limits().maxComputeWorkGroupCount().get(maxGroupCount)
 
                 val groupCount = intArrayOf(
-                    metadata.workSizes.x()/localSizes.first,
-                    metadata.workSizes.y()/localSizes.second,
-                    metadata.workSizes.z()/localSizes.third)
+                    ceil(metadata.workSizes.x().toFloat()/localSizes.first.toFloat()).toInt(),
+                    ceil(metadata.workSizes.y().toFloat()/localSizes.second.toFloat()).toInt(),
+                    ceil(metadata.workSizes.z().toFloat()/localSizes.third.toFloat()).toInt())
 
                 groupCount.forEachIndexed { i, gc ->
                     if(gc > maxGroupCount[i]) {
@@ -595,7 +596,7 @@ object VulkanScenePass {
         }
     }
 
-    private fun setRequiredDescriptorSetsForNode(pass: VulkanRenderpass, node: Node, s: VulkanObjectState, specs: List<MutableMap.MutableEntry<String, ShaderIntrospection.UBOSpec>>, descriptorSets: Map<String, Long>): Pair<List<VulkanRenderer.DescriptorSet>, Boolean> {
+    private fun setRequiredDescriptorSetsForNode(pass: VulkanRenderpass, node: Node, s: VulkanRendererMetadata, specs: List<MutableMap.MutableEntry<String, ShaderIntrospection.UBOSpec>>, descriptorSets: Map<String, Long>): Pair<List<VulkanRenderer.DescriptorSet>, Boolean> {
         var skip = false
         var ssboFound = false
         return specs.mapNotNull { (name, spec) ->
@@ -644,7 +645,7 @@ object VulkanScenePass {
             }
 
             if(ds is VulkanRenderer.DescriptorSet.DynamicSet && ds.offset == BUFFER_OFFSET_UNINTIALISED ) {
-                logger.info("${node.name} has uninitialised UBO offset, skipping for rendering")
+                logger.debug("${node.name} has uninitialised UBO offset, skipping for rendering")
                 skip = true
             }
 

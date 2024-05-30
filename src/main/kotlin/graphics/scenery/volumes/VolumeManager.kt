@@ -9,13 +9,13 @@ import bdv.viewer.state.SourceState
 import bvv.core.backend.Texture
 import bvv.core.backend.Texture3D
 import bvv.core.cache.*
-import bvv.core.render.VolumeBlocks
-import bvv.core.render.VolumeShaderSignature
 import bvv.core.multires.MultiResolutionStack3D
 import bvv.core.multires.SimpleStack3D
 import bvv.core.multires.SourceStacks
 import bvv.core.multires.Stack3D
 import bvv.core.render.MultiVolumeShaderMip
+import bvv.core.render.VolumeBlocks
+import bvv.core.render.VolumeShaderSignature
 import bvv.core.shadergen.generate.Segment
 import bvv.core.shadergen.generate.SegmentTemplate
 import bvv.core.shadergen.generate.SegmentType
@@ -44,7 +44,6 @@ import java.nio.IntBuffer
 import java.util.*
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.ForkJoinPool
-import java.util.function.BiConsumer
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.system.measureTimeMillis
@@ -59,7 +58,7 @@ class VolumeManager(
     override var hub: Hub?,
     val useCompute: Boolean = false,
     val customSegments: Map<SegmentType, SegmentTemplate>? = null,
-    val customBindings: BiConsumer<Map<SegmentType, SegmentTemplate>, Map<SegmentType, Segment>>? = null
+    val customBindings: MultiVolumeShaderMip.SegmentConsumer? = null
 ) : DefaultNode("VolumeManager"), HasGeometry, HasRenderable, HasMaterial, Hubable, RequestRepaint {
 
     /**
@@ -122,7 +121,42 @@ class VolumeManager(
     var maxAllowedStepInVoxels = 1.0
 
     /** Numeric factor by which the step size may degrade on the far plane. */
-    var farPlaneDegradation = 2.0
+    var farPlaneDegradation = 1.0
+
+    /** Amount of randomisation for ray start and ray steps. 0.0 turns this off, 1.0 is the default,
+     *  values larger than 1.0 might lead to noisy renderings.  */
+    var shuffleDegree = 1.0f
+        set(value) {
+            field = value
+            shaderProperties["shuffleDegree"] = value
+        }
+
+    var maxOcclusionDistance = 4.0f
+        set(value) {
+            field = value
+            shaderProperties["maxOcclusionDistance"] = value
+        }
+
+    var kernelSize = 8.0f
+        set(value) {
+            field = value
+            shaderProperties["kernelSize"] = value
+        }
+
+    var occlusionSteps = 10
+        set(value) {
+            field = value
+            shaderProperties["occlusionSteps"] = value
+        }
+
+    var aoDebug = 0
+        set(value) {
+            field = value
+            shaderProperties["aoDebug"] = value
+        }
+
+
+
 
     // TODO: What happens when changing this? And should it change the mode for the current node only
     // or for all VolumeManager-managed nodes?
@@ -130,7 +164,7 @@ class VolumeManager(
 
     /** List of custom-created textures not to be cleared automatically */
     var customTextures = arrayListOf<String>()
-
+    var customUniforms = arrayListOf<String>()
     init {
         addRenderable {
             state = State.Created
@@ -171,10 +205,14 @@ class VolumeManager(
 
     @Synchronized
     private fun recreateMaterial(context: SceneryContext) {
-        shaderProperties.clear()
+        val oldProperties = shaderProperties.filter { it.key !in customUniforms }.keys
+        oldProperties.forEach{
+            shaderProperties.remove(it)
+        }
         shaderProperties["transform"] = Matrix4f()
         shaderProperties["viewportSize"] = Vector2f()
         shaderProperties["dsp"] = Vector2f()
+        shaderProperties["shuffleDegree"] = shuffleDegree
         val oldKeys = material().textures.filter { it.key !in customTextures }.keys
         val texturesToKeep = material().textures.filter { it.key in customTextures }
         oldKeys.forEach {
@@ -264,7 +302,13 @@ class VolumeManager(
         segments[SegmentType.FragmentShader] = SegmentTemplate(
             this.javaClass,
             "BDVVolume.frag",
-            "intersectBoundingBox", "vis", "SampleVolume", "Convert", "Accumulate"
+            "intersectBoundingBox",
+            "vis",
+            "localNear",
+            "localFar",
+            "SampleVolume",
+            "Convert",
+            "Accumulate"
         )
         segments[SegmentType.MaxDepth] = SegmentTemplate(
             this.javaClass,
@@ -302,23 +346,70 @@ class VolumeManager(
         )
         segments[SegmentType.AccumulatorMultiresolution] = SegmentTemplate(
             "AccumulateBlockVolume.frag",
-            "vis", "sampleVolume", "convert", "sceneGraphVisibility"
+            "vis", "localNear", "localFar", "sampleVolume", "convert", "sceneGraphVisibility"
         )
         segments[SegmentType.Accumulator] = SegmentTemplate(
             "AccumulateSimpleVolume.frag",
-            "vis", "sampleVolume", "convert", "sceneGraphVisibility"
+            "vis", "localNear", "localFar", "sampleVolume", "convert", "sceneGraphVisibility"
         )
 
         customSegments?.forEach { (type, segment) -> segments[type] = segment }
 
+        var triggered = false
         val additionalBindings = customBindings
-            ?: BiConsumer { _: Map<SegmentType, SegmentTemplate>, instances: Map<SegmentType, Segment> ->
+            ?: MultiVolumeShaderMip.SegmentConsumer { _: Map<SegmentType, SegmentTemplate>,
+                                                  segmentInstances: Map<SegmentType, Segment>,
+                                                  volumeIndex: Int ->
                 logger.debug("Connecting additional bindings")
 
-                instances[SegmentType.SampleMultiresolutionVolume]?.bind("convert", instances[SegmentType.Convert])
-                instances[SegmentType.SampleVolume]?.bind("convert", instances[SegmentType.Convert])
-                instances[SegmentType.SampleVolume]?.bind("sceneGraphVisibility", instances[SegmentType.Accumulator])
-                instances[SegmentType.SampleMultiresolutionVolume]?.bind("sceneGraphVisibility", instances[SegmentType.AccumulatorMultiresolution])
+                if(!triggered) {
+                    segmentInstances[SegmentType.FragmentShader]?.repeat("localNear", n)
+                    segmentInstances[SegmentType.FragmentShader]?.repeat("localFar", n)
+                    triggered = true
+                }
+
+                if(signatures[volumeIndex].sourceStackType == SourceStacks.SourceStackType.MULTIRESOLUTION) {
+                    segmentInstances[SegmentType.FragmentShader]?.bind(
+                        "localNear",
+                        volumeIndex,
+                        segmentInstances[SegmentType.AccumulatorMultiresolution]
+                    )
+                    segmentInstances[SegmentType.FragmentShader]?.bind(
+                        "localFar",
+                        volumeIndex,
+                        segmentInstances[SegmentType.AccumulatorMultiresolution]
+                    )
+                } else {
+                    segmentInstances[SegmentType.FragmentShader]?.bind(
+                        "localNear",
+                        volumeIndex,
+                        segmentInstances[SegmentType.Accumulator]
+                    )
+                    segmentInstances[SegmentType.FragmentShader]?.bind(
+                        "localFar",
+                        volumeIndex,
+                        segmentInstances[SegmentType.Accumulator]
+                    )
+                }
+                
+                segmentInstances[SegmentType.SampleMultiresolutionVolume]?.bind(
+                    "convert",
+                    segmentInstances[SegmentType.Convert]
+                )
+                segmentInstances[SegmentType.SampleVolume]?.bind(
+                    "convert", 
+                    segmentInstances[SegmentType.Convert]
+                )
+                
+                segmentInstances[SegmentType.SampleVolume]?.bind(
+                    "sceneGraphVisibility",
+                    segmentInstances[SegmentType.Accumulator]
+                )
+                segmentInstances[SegmentType.SampleMultiresolutionVolume]?.bind(
+                    "sceneGraphVisibility",
+                    segmentInstances[SegmentType.AccumulatorMultiresolution]
+                )
+                
             }
 
         val newProgvol = MultiVolumeShaderMip(
@@ -467,7 +558,7 @@ class VolumeManager(
                     currentProg.setUniform(i, "colorMap", state.colorMap)
                     currentProg.setUniform(i, "slicingPlanes", 4, state.node.slicingArray())
                     currentProg.setUniform(i, "slicingMode", state.node.slicingMode.id)
-                    currentProg.setUniform(i,"usedSlicingPlanes",
+                    currentProg.setUniform(i, "usedSlicingPlanes",
                         min(state.node.slicingPlaneEquations.size, Volume.MAX_SUPPORTED_SLICING_PLANES))
                     currentProg.setUniform(i, "sceneGraphVisibility", if (state.node.visible) 1 else 0)
 
@@ -772,6 +863,31 @@ class VolumeManager(
         }
 
         hub?.add(vm)
+    }
+
+    /**
+     * Replaces the VolumeManager [toReplace] with the current VolumeManager, transferring volumes to the
+     * current VolumeManager. All other properties, e.g., [customSegments], [customTextures], etc. of both
+     * VolumeManagers remain unmodified.
+     */
+    fun replace(toReplace: VolumeManager) {
+        logger.debug("Replacing volume manager with ${toReplace.nodes.size} volumes managed")
+
+        hub?.remove(toReplace)
+
+        //remove the volumes currently held by this volume manager
+        nodes.forEach {
+            remove(it)
+        }
+
+        //add the volumes held by the volume manager to be replaced into this volume manager
+        val volumes = toReplace.nodes.toMutableList()
+        volumes.forEach {
+            add(it)
+            it.volumeManager = this
+        }
+
+        hub?.add(this)
     }
 
     @Synchronized

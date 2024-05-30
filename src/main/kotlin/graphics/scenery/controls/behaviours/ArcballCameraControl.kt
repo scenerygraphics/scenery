@@ -114,19 +114,27 @@ open class ArcballCameraControl(private val name: String, camera: () -> Camera?,
             lastX = x
             lastY = y
 
-            val frameYaw = (xoffset) / 180.0f * Math.PI.toFloat()
-            val framePitch = yoffset / 180.0f * Math.PI.toFloat()
+            node.spatial().rotateAround(xoffset, yoffset, target.invoke())
 
-            // first calculate the total rotation quaternion to be applied to the camera
-            val yawQ = Quaternionf().rotateXYZ(0.0f, frameYaw, 0.0f).normalize()
-            val pitchQ = Quaternionf().rotateXYZ(framePitch, 0.0f, 0.0f).normalize()
+            node.lock.unlock()
+        }
+    }
 
-            node.ifSpatial {
-                distance = (target.invoke() - position).length()
-                node.target = target.invoke()
-                rotation = pitchQ.mul(rotation).mul(yawQ).normalize()
-                position = target.invoke() + node.forward * distance * (-1.0f)
+
+    /**
+     *  This function rotates the camera controlled by this behaviour by a fixed [yaw]
+     *  and [pitch] about the [target]
+     *
+     *  @param[yaw] yaw in degrees
+     *  @param[pitch] pitch in degrees
+     */
+    fun rotateDegrees(yaw: Float, pitch: Float) {
+        cam?.let { node ->
+            if (!node.lock.tryLock()) {
+                return
             }
+
+            node.spatial().rotateAround(yaw, pitch, target.invoke())
 
             node.lock.unlock()
         }

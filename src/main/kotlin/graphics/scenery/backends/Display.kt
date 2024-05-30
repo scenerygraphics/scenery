@@ -60,7 +60,7 @@ interface Display {
      */
     fun submitToCompositorVulkan(width: Int, height: Int, format: Int,
                                  instance: VkInstance, device: VulkanDevice,
-                                 queue: VkQueue,
+                                 queueWithMutex: VulkanDevice.QueueWithMutex,
                                  image: Long)
 
     /**

@@ -68,7 +68,7 @@ class TransferFunctionEditorExample : SceneryBase("TransferFunctionEditor Exampl
         v.name = "t1-head"
         v.colormap = Colormap.get("grays")
         v.spatial().position = Vector3f(0.0f, 0.0f, 0.0f)
-        v.spatial().scale = Vector3f(0.1f)
+        v.spatial().scale = Vector3f(5.0f)
         v.setTransferFunctionRange(0.0f, 1000.0f)
         scene.addChild(v)
 

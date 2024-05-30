@@ -15,7 +15,7 @@ workflow:
     - if: $CI_PIPELINE_SOURCE == "push"
 
 variables:
-  JAVA_HOME: "/usr/lib/jvm/java-17-openjdk-amd64"
+  JAVA_HOME: "/usr/lib/jvm/java-21-openjdk-amd64"
   PDB_CACHE_DIR: "./pdb-store/cache"
   PDB_DIR: "./pdb-store"
   MODEL_DIR: "./models"
@@ -24,11 +24,9 @@ variables:
 
 # simple unit tests without requiring GPUs
 unit-tests-no-gpu:
-  image: ubuntu:bionic
+  image: scenerygraphics/nvidia-vulkan:1.3.261.1-ubuntu20.04-v4
   before_script:
     - mkdir -p ./pdb-store/cache
-    - apt-get update -qq --force-yes > /dev/null
-    - apt-get install -qq -y --allow-downgrades --allow-remove-essential --allow-change-held-packages unzip wget git curl libgl1-mesa-glx sudo sed openjdk-17-jdk-headless > /dev/null
     - if [ ! -d "$MODEL_DIR" ]; then wget -q https://ulrik.is/scenery-demo-models.zip && unzip -q scenery-demo-models.zip; fi
     - chmod +x gradlew
   script:
@@ -40,17 +38,14 @@ unit-tests-no-gpu:
     # $VULKAN_SDK_VERSION comes from Docker image
     - source /opt/vulkan/$VULKAN_SDK_VERSION/setup-env.sh
     - mkdir -p ./pdb-store/cache
-    # Installs Maven, Vulkan development libraries, etc.
-    - apt-get update -qq --force-yes > /dev/null
-    - apt-get install -qq -y curl sudo sed > /dev/null
     - sudo sed -i -e '/^assistive_technologies=/s/^/#/' /etc/java-*-openjdk/accessibility.properties
     # Output Vulkan driver information, but do not fail in case of non-zero
     # return (happens e.g. if $DISPLAY is not set)
-    - echo -e "\e[0Ksection_start:`date +%s`:build_section[collapsed=true]\r\e[0KHardware Information"
+    - echo -e "\e[0Ksection_start:`date +%s`:hw_info_section[collapsed=true]\r\e[0KHardware Information"
     - nvidia-smi || true
     - vulkaninfo || true
     - clinfo || true
-    - echo -e "\e[0Ksection_end:`date +%s`:build_section\r\e[0K"
+    - echo -e "\e[0Ksection_end:`date +%s`:hw_info_section\r\e[0K"
     - if [ ! -d "$MODEL_DIR" ]; then wget -q https://ulrik.is/scenery-demo-models.zip && unzip -q scenery-demo-models.zip; fi
     - chmod +x gradlew
     - ./gradlew --stop # stop any deamon https://stackoverflow.com/a/58397542/1047713
@@ -91,7 +86,7 @@ unit-tests-no-gpu:
       - "hs_err_*"
 
 scenery-nvidia:
-  image: scenerygraphics/nvidia-vulkan:1.3.261.1-ubuntu20.04-v2
+  image: scenerygraphics/nvidia-vulkan:1.3.261.1-ubuntu20.04-v4
   <<: *base-job-gpu
   after_script:
     - tar cvjf results.tar.bz2 screenshots/

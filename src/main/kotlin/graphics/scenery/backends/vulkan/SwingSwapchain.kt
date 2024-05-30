@@ -11,7 +11,6 @@ import org.lwjgl.system.MemoryUtil.memFree
 import org.lwjgl.system.Platform
 import org.lwjgl.vulkan.KHRSurface
 import org.lwjgl.vulkan.KHRSwapchain
-import org.lwjgl.vulkan.VkQueue
 import org.lwjgl.vulkan.awt.AWTVK
 import java.awt.BorderLayout
 import java.awt.Canvas
@@ -34,7 +33,7 @@ import javax.swing.SwingUtilities
  * @author Ulrik Günther <hello@ulrik.is>
  */
 open class SwingSwapchain(override val device: VulkanDevice,
-                          override val queue: VkQueue,
+                          override val queue: VulkanDevice.QueueWithMutex,
                           override val commandPools: VulkanRenderer.CommandPools,
                           override val renderConfig: RenderConfigReader.RenderConfig,
                           override val useSRGB: Boolean = true,

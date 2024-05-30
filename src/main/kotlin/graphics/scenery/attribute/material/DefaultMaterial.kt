@@ -5,6 +5,7 @@ import graphics.scenery.net.Networkable
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.TimestampedConcurrentHashMap
 import org.joml.Vector3f
+import org.joml.Vector4f
 import kotlin.reflect.KClass
 
 open class DefaultMaterial : Material, Networkable {
@@ -35,12 +36,19 @@ open class DefaultMaterial : Material, Networkable {
             field = value
             updateModifiedAt()
         }
+    override var emissive: Vector4f = Vector4f(0.0f, 0.0f, 0.0f, 0.0f)
+        set(value) {
+            field = value
+            updateModifiedAt()
+        }
     override var blending: Blending = Blending()
     @Volatile
     @Transient
     override var textures: TimestampedConcurrentHashMap<String, Texture> = TimestampedConcurrentHashMap()
     override var cullingMode: Material.CullingMode = Material.CullingMode.Back
-    override var depthTest: Material.DepthTest = Material.DepthTest.LessEqual
+    override var depthTest: Boolean = true
+    override var depthWrite: Boolean = true
+    override var depthOp: Material.DepthTest = Material.DepthTest.LessEqual
     override var wireframe: Boolean = false
     override var timestamp: Long = System.nanoTime()
     override var modifiedAt = Long.MIN_VALUE

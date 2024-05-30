@@ -20,11 +20,15 @@ import kotlin.time.measureTime
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-open class VulkanObjectState {
+open class VulkanRendererMetadata {
     protected val logger by lazyLogger()
 
-    /** Whether this metadata object has been fully initialised. */
-    var initialized = false
+    /**
+     * Whether this metadata object has been fully initialised, now redirects to the respective
+     * flag contained in [flags].
+     */
+    val initialized: Boolean
+        get() = flags.contains(RendererFlags.Initialised)
     /** Indicates whether the mesh is using indexed vertex storage. */
     var isIndexed = false
     /** The number of indices stored. */
@@ -69,12 +73,8 @@ open class VulkanObjectState {
     /** Time stamp of the last recreation of the texture descriptor sets */
     protected var descriptorSetsRecreated: Long = 0
 
-    /** Whether the node is rendered as instanced */
-    var instanced = false
-
-    var flags = EnumSet.noneOf(RendererFlags::class.java)
-    /** Skip for rendering if this is set. */
-    var preDrawSkip = false
+    /** Set of [RendererFlags] to indicate state and status. */
+    var flags: EnumSet<RendererFlags> = EnumSet.noneOf(RendererFlags::class.java)
 
     /** Last reload time for textures */
     var texturesLastSeen = 0L
@@ -84,7 +84,6 @@ open class VulkanObjectState {
      * given in [passes]. The set will reside on [device] and the descriptor set layout(s) determined from the renderpass.
      * The set will be allocated from [descriptorPool].
      */
-    @OptIn(ExperimentalTime::class)
     fun texturesToDescriptorSets(device: VulkanDevice, passes: Map<String, VulkanRenderpass>, renderable: Renderable) {
         val updateDuration = measureTime {
             // this groups textures by the ones being members of the ObjectTextures array
@@ -288,7 +287,7 @@ open class VulkanObjectState {
     )
 
     /**
-     * Utility class for [VulkanObjectState].
+     * Utility class for [VulkanRendererMetadata].
      */
     companion object {
         protected val logger by lazyLogger()

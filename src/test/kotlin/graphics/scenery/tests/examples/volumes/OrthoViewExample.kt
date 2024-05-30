@@ -50,11 +50,12 @@ class OrthoViewExample : SceneryBase("Ortho View example", 1280, 720) {
         origin.material().diffuse = Vector3f(0.8f, 0.0f, 0.0f)
         scene.addChild(origin)
 
-        val imp: ImagePlus = IJ.openImage("https://imagej.nih.gov/ij/images/t1-head.zip")
+        val imp: ImagePlus = IJ.openImage(getDemoFilesPath() + "/volumes/t1-head.zip")
         val img: Img<UnsignedShortType> = ImageJFunctions.wrapShort(imp)
 
         volume = Volume.fromRAI(img, UnsignedShortType(), AxisOrder.DEFAULT, "T1 head", hub, VolumeViewerOptions())
         volume.transferFunction = TransferFunction.ramp(0.001f, 0.5f, 0.3f)
+        volume.spatial().scale = Vector3f(10.0f)
         scene.addChild(volume)
 
         val bGrid = BoundingGrid()

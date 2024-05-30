@@ -28,9 +28,6 @@ class DirectionalLight(var direction: Vector3f = Vector3f(0.0f, 1.0f, 0.0f)) : L
 
     @ShaderProperty private var lightRadius: Float = 1.0f
 
-    /** Node name of the Point Light */
-    override var name = "PointLight"
-
     @Suppress("unused") // will be serialised into ShaderProperty buffer
     @ShaderProperty val worldPosition
         get() = direction
@@ -81,7 +78,7 @@ class DirectionalLight(var direction: Vector3f = Vector3f(0.0f, 1.0f, 0.0f)) : L
             blending.destinationAlphaBlendFactor = Blending.BlendFactor.One
             blending.alphaBlending = Blending.BlendOp.add
             cullingMode = Material.CullingMode.Front
-            depthTest = Material.DepthTest.Greater
+            depthOp = Material.DepthTest.Greater
         }
     }
 }

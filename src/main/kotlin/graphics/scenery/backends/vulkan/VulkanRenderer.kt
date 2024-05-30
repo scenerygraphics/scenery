@@ -8,6 +8,7 @@ import graphics.scenery.attribute.renderable.Renderable
 import graphics.scenery.backends.*
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.*
+import graphics.scenery.utils.extensions.applyVulkanCoordinateSystem
 import kotlinx.coroutines.*
 import org.joml.*
 import org.lwjgl.PointerBuffer
@@ -36,8 +37,10 @@ import java.nio.IntBuffer
 import java.nio.LongBuffer
 import java.util.*
 import java.util.concurrent.*
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.locks.ReentrantLock
 import javax.imageio.ImageIO
+import kotlin.collections.ArrayList
 import kotlin.concurrent.thread
 import kotlin.concurrent.withLock
 import kotlin.reflect.full.*
@@ -150,7 +153,7 @@ open class VulkanRenderer(hub: Hub,
             if(lock.tryLock() && !shouldClose) {
                 logger.info("Recreating Swapchain at frame $frames (${swapchain.javaClass.simpleName})")
                 // create new swapchain with changed surface parameters
-                vkQueueWaitIdle(queue)
+                vkQueueWaitIdle(queue.queue)
 
                 with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
                     // Create the swapchain (this will also add a memory barrier to initialize the framebuffer images)
@@ -243,6 +246,8 @@ open class VulkanRenderer(hub: Hub,
                 logger.warn("🌋⚠️ Validation$dbg: $message")
             VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT ->
                 logger.info("🌋ℹ️ Validation$dbg: $message")
+            VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT ->
+                logger.info("(verbose) $message")
             else -> logger.info("🌋🤷 Validation (unknown message type)$dbg: $message")
         }
 
@@ -328,6 +333,8 @@ open class VulkanRenderer(hub: Hub,
     private var recordMovieOverwrite: Boolean = false
     override var pushMode: Boolean = false
 
+    val persistentTextureRequests = ArrayList<Pair<Texture, AtomicInteger>>()
+
     var scene: Scene = Scene()
     protected var sceneArray: HashSet<Node> = HashSet(256)
 
@@ -345,8 +352,8 @@ open class VulkanRenderer(hub: Hub,
     protected var debugCallbackHandle: Long = -1L
 
     // Create static Vulkan resources
-    protected var queue: VkQueue
-    protected var transferQueue: VkQueue
+    protected var queue: VulkanDevice.QueueWithMutex
+    protected var transferQueue: VulkanDevice.QueueWithMutex
 
     protected var swapchain: Swapchain
     protected var ph = PresentHelpers()
@@ -381,20 +388,12 @@ open class VulkanRenderer(hub: Hub,
     var fps = 0
         protected set
     protected var frames = 0
-    protected var totalFrames = 0L
     protected var renderDelay = 0L
     protected var heartbeatTimer = Timer()
     protected var gpuStats: GPUStats? = null
 
     private var renderConfig: RenderConfigReader.RenderConfig
     private var flow: List<String> = listOf()
-
-    private val vulkanProjectionFix =
-        Matrix4f(
-            1.0f,  0.0f, 0.0f, 0.0f,
-            0.0f, -1.0f, 0.0f, 0.0f,
-            0.0f,  0.0f, 0.5f, 0.0f,
-            0.0f,  0.0f, 0.5f, 1.0f)
 
     final override var renderConfigFile: String = ""
         set(config) {
@@ -580,7 +579,14 @@ open class VulkanRenderer(hub: Hub,
             val headless = (selectedSwapchain?.kotlin?.companionObjectInstance as? SwapchainParameters)?.headless ?: false
 
             device = VulkanDevice.fromPhysicalDevice(instance,
-                physicalDeviceFilter = { _, device -> "${device.vendor} ${device.name}".contains(System.getProperty("scenery.Renderer.Device", "DOES_NOT_EXIST"))},
+                physicalDeviceFilter = { index, device ->
+                    val namePreference = System.getProperty("scenery.Renderer.Device", "DOES_NOT_EXIST")
+                    val idPreference = System.getProperty("scenery.Renderer.DeviceId", "DOES_NOT_EXIST").toIntOrNull()
+                    when {
+                        idPreference != null -> index == idPreference
+                        else -> "${device.vendor} ${device.name}".contains(namePreference)
+                    }
+                },
                 additionalExtensions = { physicalDevice -> hub.getWorkingHMDDisplay()?.getVulkanDeviceExtensions(physicalDevice)?.toMutableList() ?: mutableListOf(KHRSwapchain.VK_KHR_SWAPCHAIN_EXTENSION_NAME) },
                 validationLayers = requestedValidationLayers,
                 headless = headless,
@@ -601,15 +607,16 @@ open class VulkanRenderer(hub: Hub,
                 }
             }
 
-            queue = VU.createDeviceQueue(device, device.queues.graphicsQueue.first)
-            logger.debug("Creating transfer queue with ${device.queues.transferQueue.first} (vs ${device.queues.graphicsQueue})")
-            transferQueue = VU.createDeviceQueue(device, device.queues.transferQueue.first)
+            queue = device.getQueue(device.queueIndices.graphicsQueue.first)
+            logger.debug("Creating transfer queue with ${device.queueIndices.transferQueue.first} (vs ${device.queueIndices.graphicsQueue.first})")
+            transferQueue = device.getQueue(device.queueIndices.transferQueue.first)
+            logger.debug("Have {} and {}", queue, transferQueue)
 
             with(commandPools) {
-                Render = device.createCommandPool(device.queues.graphicsQueue.first)
-                Standard = device.createCommandPool(device.queues.graphicsQueue.first)
-                Compute = device.createCommandPool(device.queues.computeQueue.first)
-                Transfer = device.createCommandPool(device.queues.transferQueue.first)
+                Render = device.createCommandPool(device.queueIndices.graphicsQueue.first)
+                Standard = device.createCommandPool(device.queueIndices.graphicsQueue.first)
+                Compute = device.createCommandPool(device.queueIndices.computeQueue.first)
+                Transfer = device.createCommandPool(device.queueIndices.transferQueue.first)
             }
             logger.debug("Creating command pools done")
 
@@ -833,7 +840,7 @@ open class VulkanRenderer(hub: Hub,
      */
     fun updateNodeSSBOs(node: Node) {
         val renderable = node.renderableOrNull() ?: return
-        val s: VulkanObjectState = renderable.rendererMetadata() ?: throw IllegalStateException("Node ${node.name} does not contain metadata object")
+        val s: VulkanRendererMetadata = renderable.rendererMetadata() ?: throw IllegalStateException("Node ${node.name} does not contain metadata object")
         node.ifBuffers {
             VulkanNodeHelpers.updateShaderStorageBuffers(
                 device,
@@ -853,7 +860,7 @@ open class VulkanRenderer(hub: Hub,
      */
     fun downloadNodeSSBOs(node: Node) {
         val renderable = node.renderableOrNull() ?: return
-        val s: VulkanObjectState = renderable.rendererMetadata() ?: throw IllegalStateException("Node ${node.name} does not contain metadata object")
+        val s: VulkanRendererMetadata = renderable.rendererMetadata() ?: throw IllegalStateException("Node ${node.name} does not contain metadata object")
         node.ifBuffers {
             VulkanNodeHelpers.downloadShaderStorageBuffers(
                 device,
@@ -868,7 +875,7 @@ open class VulkanRenderer(hub: Hub,
     /**
      * Returns the material type flag for a Node, considering it's [Material]'s textures.
      */
-    protected fun Material.materialTypeFromTextures(s: VulkanObjectState): Int {
+    protected fun Material.materialTypeFromTextures(s: VulkanRendererMetadata): Int {
         var materialType = 0
         if (this.textures.containsKey("ambient") && !s.defaultTexturesFor.contains("ambient")) {
             materialType = materialType or MATERIAL_HAS_AMBIENT
@@ -900,23 +907,26 @@ open class VulkanRenderer(hub: Hub,
         val renderable = node.renderableOrNull() ?: return false
         val material = node.materialOrNull() ?: return false
         if(node is DelegatesRenderable) {
-            logger.debug("Initialising node $node with delegate $renderable (state=${node.state})")
+            logger.debug("Initialising node {} with delegate {} (state={})", node, renderable, node.state)
         } else {
-            logger.debug("Initialising node $node")
+            logger.debug("Initialising node {}", node)
         }
 
         if(renderable.rendererMetadata() == null) {
-            renderable.metadata["VulkanRenderer"] = VulkanObjectState()
+            renderable.metadata["VulkanRenderer"] = VulkanRendererMetadata()
         }
 
-        var s: VulkanObjectState = renderable.rendererMetadata() ?: throw IllegalStateException("Node ${node.name} does not contain metadata object")
+        var s: VulkanRendererMetadata = renderable.rendererMetadata() ?: throw IllegalStateException("Node ${node.name} does not contain metadata object")
 
         if(node.state != State.Ready) {
             logger.info("Not initialising Renderable $renderable because state=${node.state}")
             return false
         }
 
-        if (s.initialized) return true
+        if (s.initialized) {
+            node.initialized = true
+            return true
+        }
 
         s.flags.add(RendererFlags.Seen)
 
@@ -942,7 +952,7 @@ open class VulkanRenderer(hub: Hub,
                 VulkanNodeHelpers.updateInstanceBuffer(device, node, s, commandPools, queue)
                 // TODO: Rewrite shader in case it does not conform to coord/normal/texcoord vertex description
                 s.vertexInputType = VertexDataKinds.PositionNormalTexcoord
-                s.instanced = true
+                s.flags += RendererFlags.Instanced
                 vertexDescriptionFromInstancedNode(
                     node,
                     vertexDescriptors.getValue(VertexDataKinds.PositionNormalTexcoord)
@@ -952,7 +962,7 @@ open class VulkanRenderer(hub: Hub,
                     vertexDescriptionFromCustomVertexLayout(it.membersSizesAndOffsets())
                 }
             } else {
-                s.instanced = false
+                s.flags -= RendererFlags.Instanced
                 s.geometryBuffers["instance"]?.close()
                 s.geometryBuffers.remove("instance")
                 s.geometryBuffers["instanceStaging"]?.close()
@@ -1023,7 +1033,17 @@ open class VulkanRenderer(hub: Hub,
             )
         }
 
-        val (_, descriptorUpdated) = VulkanNodeHelpers.loadTexturesForNode(device, node, s, defaultTextures, textureCache, commandPools, queue)
+        val (_, descriptorUpdated) = VulkanNodeHelpers.loadTexturesForNode(
+            device,
+            node,
+            s,
+            defaultTextures,
+            textureCache,
+            commandPools,
+            queue,
+            transferQueue
+        )
+
         if(descriptorUpdated) {
             s.texturesToDescriptorSets(device,
                 renderpasses.filter { it.value.passConfig.type != RenderConfigReader.RenderpassType.quad },
@@ -1035,19 +1055,19 @@ open class VulkanRenderer(hub: Hub,
         val materialUbo = VulkanUBO(device, backingBuffer = defaultBuffers.UBOs)
         with(materialUbo) {
             name = "MaterialProperties"
-            add("materialType", { node.materialOrNull()!!.materialTypeFromTextures(s) })
+            add("materialType", { node.materialOrNull()!!.materialTypeFromTextures(renderable.rendererMetadata()!!) })
             add("Ka", { node.materialOrNull()!!.ambient })
             add("Kd", { node.materialOrNull()!!.diffuse })
             add("Ks", { node.materialOrNull()!!.specular })
             add("Roughness", { node.materialOrNull()!!.roughness})
             add("Metallic", { node.materialOrNull()!!.metallic})
             add("Opacity", { node.materialOrNull()!!.blending.opacity })
+            add("Emissive", { node.materialOrNull()!!.emissive })
 
             createUniformBuffer()
             s.UBOs.put("MaterialProperties", materialPropertiesDescriptorSet.contents to this)
         }
 
-        s.initialized = true
         s.flags.add(RendererFlags.Initialised)
         node.initialized = true
         renderable.metadata["VulkanRenderer"] = s
@@ -1364,7 +1384,7 @@ open class VulkanRenderer(hub: Hub,
     }
 
     protected fun prepareDefaultTextures(device: VulkanDevice) {
-        val t = VulkanTexture.loadFromFile(device, commandPools, queue, queue,
+        val t = VulkanTexture.loadFromFile(device, commandPools, queue, transferQueue,
             Renderer::class.java.getResourceAsStream("DefaultTexture.png"), "png", true, true)
 
         // TODO: Do an asset manager or sth here?
@@ -1430,7 +1450,7 @@ open class VulkanRenderer(hub: Hub,
     }
 
     private suspend fun submitFrame(
-        queue: VkQueue,
+        queue: VulkanDevice.QueueWithMutex,
         pass: VulkanRenderpass,
         commandBuffer: VulkanCommandBuffer,
         present: PresentHelpers
@@ -1452,9 +1472,7 @@ open class VulkanRenderer(hub: Hub,
         val q = (swapchain as? VulkanSwapchain)?.presentQueue ?: queue
         // Submit to the graphics queue
 //        vkResetFences(device.vulkanDevice, swapchain.currentFence)
-        VU.run("Submit viewport render queue", {
-            vkQueueSubmit(q, present.submitInfo, swapchain.currentFence)
-        })
+        VU.run("Submit viewport render queue", { vkQueueSubmit(q.queue, present.submitInfo, swapchain.currentFence) })
 
         // submit to OpenVR if attached
         if(hub?.getWorkingHMDDisplay()?.hasCompositor() == true) {
@@ -1488,13 +1506,28 @@ open class VulkanRenderer(hub: Hub,
                 val ref = VulkanTexture.getReference(req.first)
 
                 if(ref != null) {
-                    ref.copyTo(buffer)
+                    ref.copyTo(buffer, false)
                     req.second.send(req.first)
                     req.second.close()
                     logger.info("Sent updated texture")
                 } else {
                     logger.info("Texture not accessible")
                 }
+            }
+        }
+
+        persistentTextureRequests.forEach { (texture, indicator) ->
+            val ref = VulkanTexture.getReference(texture)
+            val buffer = texture.contents ?: return@forEach
+
+            if(ref != null) {
+                val start = System.nanoTime()
+                ref.copyTo(buffer)
+                val end = System.nanoTime()
+                logger.debug("The request textures of size ${texture.contents?.remaining()?.toFloat()?.div((1024f*1024f))} took: ${(end.toDouble()-start.toDouble())/1000000.0}")
+                indicator.incrementAndGet()
+            } else {
+                logger.error("In persistent texture requests: Texture not accessible")
             }
         }
 
@@ -1660,6 +1693,10 @@ open class VulkanRenderer(hub: Hub,
             hub?.getWorkingHMDDisplay()?.wantsVR(settings)?.update()
         }
 
+        runAfterRendering.forEach {
+            it.invoke()
+        }
+
         val presentDuration = System.nanoTime() - startPresent
         stats?.add("Renderer.viewportSubmitAndPresent", presentDuration)
 
@@ -1669,6 +1706,21 @@ open class VulkanRenderer(hub: Hub,
     private var currentFrame = 0
     private var previousFrame = 0
     private var currentNow = 0L
+
+    /**
+     * Enum class for reasons to re-record command buffers.
+     */
+    enum class RerecordingCause {
+        GeometryUpdated,
+        TexturesUpdated,
+        MaterialUpdated,
+        InstancesUpdated,
+        SceneUpdated,
+        SwapchainUpdated
+    }
+
+    /** Keeps track of the reasons why push mode has been defeated, and in which frame. */
+    val pushModeDefeats: Queue<Pair<Int, List<Pair<String, RerecordingCause>>>> = LinkedList()
 
     /**
      * This function renders the scene
@@ -1728,8 +1780,13 @@ open class VulkanRenderer(hub: Hub,
 
         // flag set to true if command buffer re-recording is necessary,
         // e.g. because of scene or pipeline changes
-        var forceRerecording = instancesUpdated
-        val rerecordingCauses = ArrayList<String>(20)
+        var forceRerecording = false
+        val rerecordingCauses = ArrayList<Pair<String, RerecordingCause>>(20)
+
+        if(instancesUpdated) {
+            forceRerecording = true
+            rerecordingCauses.add("General" to RerecordingCause.InstancesUpdated)
+        }
 
         profiler?.begin("Renderer.PreDraw")
         // here we discover the objects in the scene that could be relevant for the scene
@@ -1744,17 +1801,17 @@ open class VulkanRenderer(hub: Hub,
                 // in the next round
                 if (renderable.rendererMetadata() == null || node.state == State.Created || renderable.rendererMetadata()?.initialized == false) {
                     logger.debug("${node.name} is not initialized, doing that now")
-                    renderable.metadata["VulkanRenderer"] = VulkanObjectState()
+                    renderable.metadata["VulkanRenderer"] = VulkanRendererMetadata()
                     initializeNode(node)
 
                     return@forEach
                 }
 
                 if(!renderable.preDraw()) {
-                    renderable.rendererMetadata()?.preDrawSkip = true
+                    renderable.rendererMetadata()?.flags?.add(RendererFlags.PreDrawSkip)
                     return@forEach
                 } else {
-                    renderable.rendererMetadata()?.preDrawSkip = false
+                    renderable.rendererMetadata()?.flags?.remove(RendererFlags.PreDrawSkip)
                 }
 
                 // the current command buffer will be forced to be re-recorded if either geometry, blending or
@@ -1790,29 +1847,38 @@ open class VulkanRenderer(hub: Hub,
                             updateNodeGeometry(node)
                             dirty = false
 
-                            rerecordingCauses.add(node.name)
+                            rerecordingCauses.add(node.name to RerecordingCause.GeometryUpdated)
                             forceRerecording = true
                         }
                     }
 
                     // this covers cases where a master node is not given any instanced properties in the beginning
                     // but only later, or when instancing is removed at some point.
-                    if((!metadata.instanced && node is InstancedNode) ||
-                        metadata.instanced && node !is InstancedNode) {
-                        metadata.initialized = false
+                    if((!metadata.flags.contains(RendererFlags.Instanced) && node is InstancedNode) ||
+                        metadata.flags.contains(RendererFlags.Instanced) && node !is InstancedNode) {
+                        metadata.flags.remove(RendererFlags.Initialised)
                         initializeNode(node)
                         return@forEach
                     }
 
                     val reloadTime = measureTimeMillis {
-                        val (texturesUpdatedForNode, descriptorUpdated) = VulkanNodeHelpers.loadTexturesForNode(device, node, metadata, defaultTextures, textureCache, commandPools, queue)
+                        val (texturesUpdatedForNode, descriptorUpdated) = VulkanNodeHelpers.loadTexturesForNode(
+                            device,
+                            node,
+                            metadata,
+                            defaultTextures,
+                            textureCache,
+                            commandPools,
+                            queue,
+                            transferQueue
+                        )
                         if(descriptorUpdated) {
                             metadata.texturesToDescriptorSets(device,
                                 renderpasses.filter { it.value.passConfig.type != RenderConfigReader.RenderpassType.quad },
                                 renderable)
 
                             logger.trace("Force command buffer re-recording, as reloading textures for ${node.name}")
-                            rerecordingCauses.add(node.name)
+                            rerecordingCauses.add(node.name to RerecordingCause.TexturesUpdated)
                             forceRerecording = true
                         }
 
@@ -1835,7 +1901,7 @@ open class VulkanRenderer(hub: Hub,
                                 renderable)
                         }
 
-                        rerecordingCauses.add(node.name)
+                        rerecordingCauses.add(node.name to RerecordingCause.MaterialUpdated)
                         forceRerecording = true
 
                         (material as? ShaderMaterial)?.shaders?.stale = false
@@ -1847,6 +1913,7 @@ open class VulkanRenderer(hub: Hub,
                 val newSceneArray = sceneNodes.toHashSet()
                 if (!newSceneArray.equals(sceneArray)) {
                     forceRerecording = true
+                    rerecordingCauses.add("General" to RerecordingCause.SceneUpdated)
                 }
 
                 sceneArray = newSceneArray
@@ -1869,6 +1936,17 @@ open class VulkanRenderer(hub: Hub,
         if(renderpasses.any { it.value.shaders.stale }) {
             logger.info("Rebuilding swapchain due to stale shaders")
             swapchainRecreator.mustRecreate = true
+        }
+
+        if(swapchainChanged && pushMode) {
+            rerecordingCauses.add("General" to RerecordingCause.SwapchainUpdated)
+        }
+
+        if(pushMode && rerecordingCauses.size > 0) {
+            if(pushModeDefeats.size > 5) {
+                pushModeDefeats.poll()
+            }
+            pushModeDefeats.add(frames to rerecordingCauses)
         }
 
         profiler?.begin("Renderer.BeginFrame")
@@ -1941,7 +2019,7 @@ open class VulkanRenderer(hub: Hub,
             }
 
 //            logger.info("Submitting pass $t waiting on semaphore ${target.waitSemaphores.get(0).toHexString()}")
-            VU.run("Submit pass $t render queue", { vkQueueSubmit(queue, si, commandBuffer.getFence() )})
+            VU.run("Submit pass $t render queue", { vkQueueSubmit(queue.queue, si, commandBuffer.getFence() )})
 
             commandBuffer.submitted = true
             waitSemaphore = targetSemaphore
@@ -2079,9 +2157,7 @@ open class VulkanRenderer(hub: Hub,
                 stack.callocPointer(size + additionalExts.size)
             }
 
-            if(requiredExtensions != null) {
-                enabledExtensionNames.put(requiredExtensions)
-            }
+            requiredExtensions?.let { exts -> enabledExtensionNames.put(exts) }
 
             utf8Exts.forEach { enabledExtensionNames.put(it) }
             enabledExtensionNames.flip()
@@ -2211,8 +2287,8 @@ open class VulkanRenderer(hub: Hub,
                 name = "DefaultBuffer_ShaderProps"))
     }
 
-    private fun Renderable.rendererMetadata(): VulkanObjectState? {
-        return this.metadata["VulkanRenderer"] as? VulkanObjectState
+    private fun Renderable.rendererMetadata(): VulkanRendererMetadata? {
+        return this.metadata["VulkanRenderer"] as? VulkanRendererMetadata
     }
 
     private fun updateInstanceBuffers(sceneObjects: List<Node>) = runBlocking {
@@ -2227,13 +2303,6 @@ open class VulkanRenderer(hub: Hub,
         }
 
         instanceMasters.isNotEmpty()
-    }
-
-    fun Matrix4f.applyVulkanCoordinateSystem(): Matrix4f {
-        val m = Matrix4f(vulkanProjectionFix)
-        m.mul(this)
-
-        return m
     }
 
 
@@ -2423,7 +2492,7 @@ open class VulkanRenderer(hub: Hub,
         initialized = false
 
         logger.info("Renderer teardown started.")
-        vkQueueWaitIdle(queue)
+        vkQueueWaitIdle(queue.queue)
 
         logger.debug("Closing nodes...")
         scene.discover(scene, { true }).forEach {
@@ -2440,7 +2509,7 @@ open class VulkanRenderer(hub: Hub,
 
         logger.debug("Cleaning texture cache...")
         textureCache.forEach {
-            logger.debug("Cleaning ${it.key}...")
+            logger.debug("Cleaning {}...", it.key)
             it.value.close()
         }
 
@@ -2461,7 +2530,7 @@ open class VulkanRenderer(hub: Hub,
 
         logger.debug("Closing vertex descriptors ...")
         vertexDescriptors.forEach {
-            logger.debug("Closing vertex descriptor ${it.key}...")
+            logger.debug("Closing vertex descriptor {}...", it.key)
 
             it.value.attributeDescription?.free()
             it.value.bindingDescription?.free()
@@ -2506,7 +2575,7 @@ open class VulkanRenderer(hub: Hub,
 
         debugCallback.free()
 
-        logger.debug("Closing device $device...")
+        logger.debug("Closing device {}...", device)
         device.close()
 
         if(System.getProperty("scenery.Workarounds.DontCloseVulkanInstances")?.toBoolean() == true) {
@@ -2543,7 +2612,7 @@ open class VulkanRenderer(hub: Hub,
         fun setConfigSetting(key: String, value: Any) {
             val setting = "Renderer.$key"
 
-            logger.debug("Setting $setting: ${settings.get<Any>(setting)} -> $value")
+            logger.debug("Setting {}: {} -> {}", setting, settings.getOrNull<Any>(setting), value)
             settings.set(setting, value)
         }
 

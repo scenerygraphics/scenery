@@ -5,6 +5,7 @@ import graphics.scenery.attribute.material.Material.CullingMode.*
 import graphics.scenery.textures.Texture
 import graphics.scenery.utils.TimestampedConcurrentHashMap
 import org.joml.Vector3f
+import org.joml.Vector4f
 
 /**
  * Material interface, storing material colors, textures, opacity properties, etc.
@@ -37,6 +38,8 @@ interface Material {
     var roughness: Float
     /** Metallicity, 0.0 is non-metal, 1.0 is full metal */
     var metallic: Float
+    /** Emission of the material and corresponding strength */
+    var emissive: Vector4f
 
     /** Blending settings for this material. See [Blending]. */
     var blending: Blending
@@ -49,8 +52,14 @@ interface Material {
     /** Culling mode of the material. @see[CullingMode] */
     var cullingMode: CullingMode
 
+    /** Enable or disable depth testing */
+    var depthTest: Boolean
+
+    /** Enable or disable writing to the depth buffer */
+    var depthWrite: Boolean
+
     /** depth testing mode for this material */
-    var depthTest: DepthTest
+    var depthOp: DepthTest
 
     /** Flag to make the object wireframe */
     var wireframe: Boolean
@@ -66,9 +75,11 @@ interface Material {
     fun materialHashCode() : Int {
         var result = blending.hashCode()
         result = 31 * result + cullingMode.hashCode()
-        result = 31 * result + depthTest.hashCode()
+        result = 31 * result + depthOp.hashCode()
         result = 31 * result + wireframe.hashCode()
         result = 31 * result + timestamp.hashCode()
+        result = 31 * result + depthTest.hashCode()
+        result = 31 * result + depthWrite.hashCode()
         return result
     }
 }

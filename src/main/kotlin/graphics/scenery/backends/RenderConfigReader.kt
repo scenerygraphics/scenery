@@ -3,7 +3,9 @@ package graphics.scenery.backends
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
+import com.fasterxml.jackson.module.kotlin.KotlinFeature
 import com.fasterxml.jackson.module.kotlin.KotlinModule
+import com.fasterxml.jackson.module.kotlin.SingletonSupport
 import graphics.scenery.Blending
 import graphics.scenery.utils.JsonDeserialisers
 import graphics.scenery.utils.lazyLogger
@@ -93,7 +95,7 @@ class RenderConfigReader {
      */
     data class RendertargetConfig(
         @JsonDeserialize(using = JsonDeserialisers.FloatPairDeserializer::class) var size: Pair<Float, Float> = Pair(1.0f, 1.0f),
-        val attachments: Map<String, TargetFormat> = emptyMap()
+        val attachments: LinkedHashMap<String, TargetFormat> = LinkedHashMap()
     )
 
     data class RendertargetBinding(
@@ -178,7 +180,16 @@ class RenderConfigReader {
      */
     fun loadFromFile(path: String): RenderConfig {
         val mapper = ObjectMapper(YAMLFactory())
-        mapper.registerModule(KotlinModule())
+        mapper.registerModule(
+            KotlinModule.Builder()
+                .withReflectionCacheSize(512)
+                .configure(KotlinFeature.NullToEmptyCollection, true)
+                .configure(KotlinFeature.NullToEmptyMap, true)
+                .configure(KotlinFeature.NullIsSameAsDefault, false)
+                .configure(KotlinFeature.SingletonSupport, true)
+                .configure(KotlinFeature.StrictNullChecks, true)
+                .build()
+        )
 
         var stream = this.javaClass.getResourceAsStream(path)
 

@@ -35,7 +35,10 @@ val lwjglArtifacts = listOf(
         "lwjgl-remotery",
         "lwjgl-spvc",
         "lwjgl-shaderc",
-        "lwjgl-tinyexr"
+        "lwjgl-tinyexr",
+        "lwjgl-jawt",
+        "lwjgl-lz4",
+        "lwjgl-zstd"
 )
 
 dependencies {
@@ -43,20 +46,20 @@ dependencies {
     val lwjglVersion = project.properties["lwjglVersion"]
     
     implementation(platform("org.scijava:pom-scijava:$scijavaParentPomVersion"))
-    annotationProcessor("org.scijava:scijava-common:2.97.1")
+    annotationProcessor("org.scijava:scijava-common:2.98.0")
 
     implementation(kotlin("reflect"))
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0")
 
     implementation("org.slf4j:slf4j-api:1.7.36")
     implementation("org.joml:joml:1.10.5")
-    implementation("net.java.jinput:jinput:2.0.9", "natives-all")
+    implementation("net.java.jinput:jinput:2.0.10", "natives-all")
     implementation("org.jocl:jocl:2.0.5")
     implementation("org.scijava:scijava-common")
     implementation("org.scijava:script-editor")
     implementation("org.scijava:ui-behaviour")
     implementation("org.scijava:scripting-jython")
-    implementation("net.java.dev.jna:jna-platform:5.13.0")
+    implementation("net.java.dev.jna:jna-platform:5.14.0")
 
 
     lwjglArtifacts.forEach { artifact ->
@@ -81,6 +84,9 @@ dependencies {
                     }
                 }
 
+                // JAWT doesn't bring natives along
+                artifact.endsWith("jawt") -> {}
+
                 else -> {
                     logger.info("else: org.lwjgl:$artifact:$lwjglVersion:$native")
                     runtimeOnly("org.lwjgl:$artifact:$lwjglVersion:$native")
@@ -88,34 +94,36 @@ dependencies {
             }
         }
     }
-    implementation("com.fasterxml.jackson.core:jackson-databind:2.15.3")
-    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.15.3")
-    implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.15.3")
-    implementation("org.zeromq:jeromq:0.5.4")
-    implementation("com.esotericsoftware:kryo:5.5.0")
+    implementation("org.xerial.snappy:snappy-java:1.1.10.5")
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.17.1")
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.17.0")
+    implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.17.1")
+    implementation("org.zeromq:jeromq:0.6.0")
+    implementation("com.esotericsoftware:kryo:5.6.0")
     implementation("de.javakaffee:kryo-serializers:0.45")
-    implementation("org.msgpack:msgpack-core:0.9.5")
-    implementation("org.msgpack:jackson-dataformat-msgpack:0.9.6")
+    implementation("org.msgpack:msgpack-core:0.9.8")
+    implementation("org.msgpack:jackson-dataformat-msgpack:0.9.8")
     api("graphics.scenery:jvrpn:1.2.0", lwjglNatives.filter { !it.contains("arm") }.toTypedArray())
     implementation("io.scif:scifio")
-    implementation("org.bytedeco:ffmpeg:6.0-1.5.9", ffmpegNatives)
-    implementation("io.github.classgraph:classgraph:4.8.164")
+    implementation("org.bytedeco:ffmpeg:6.1.1-1.5.10", ffmpegNatives)
+    implementation("io.github.classgraph:classgraph:4.8.172")
 
-    implementation("info.picocli:picocli:4.7.5")
+    implementation("info.picocli:picocli:4.7.6")
 
-    api("sc.fiji:bigdataviewer-core:10.4.11")
+    api("sc.fiji:bigdataviewer-core:10.4.14")
     api("sc.fiji:bigdataviewer-vistools:1.0.0-beta-28")
-    api("sc.fiji:bigvolumeviewer:0.3.1") {
+    api("sc.fiji:bigvolumeviewer:0.3.3") {
         exclude("org.jogamp.gluegen", "gluegen-rt")
         exclude("org.jogamp.jogl", "jogl-all")
     }
 
-    implementation("com.github.lwjglx:lwjgl3-awt:bc8daf5") {
+    implementation("com.github.skalarproduktraum:lwjgl3-awt:c034a77") {
         // we exclude the LWJGL binaries here, as the lwjgl3-awt POM uses
         // Maven properties for natives, which is not supported by Gradle
         exclude("org.lwjgl", "lwjgl-bom")
         exclude("org.lwjgl", "lwjgl")
     }
+
     implementation("org.janelia.saalfeldlab:n5")
     implementation("org.janelia.saalfeldlab:n5-imglib2")
     listOf("core", "structure", "modfinder").forEach {
@@ -126,7 +134,7 @@ dependencies {
             exclude("org.biojava.thirdparty", "forester")
         }
     }
-    implementation("org.jetbrains.kotlin:kotlin-scripting-jsr223:1.9.20")
+    implementation("org.jetbrains.kotlin:kotlin-scripting-jsr223:1.9.24")
     api("graphics.scenery:art-dtrack-sdk:2.6.0")
 
     testImplementation(kotlin("test"))
@@ -149,14 +157,14 @@ val isRelease: Boolean
 tasks {
     withType<KotlinCompile>().all {
         kotlinOptions {
-            jvmTarget = project.properties["jvmTarget"]?.toString() ?: "11"
+            jvmTarget = project.properties["jvmTarget"]?.toString() ?: "21"
             freeCompilerArgs += listOf("-Xinline-classes", "-opt-in=kotlin.RequiresOptIn")
         }
     }
 
     withType<JavaCompile>().all {
-        targetCompatibility = project.properties["jvmTarget"]?.toString() ?: "11"
-        sourceCompatibility = project.properties["jvmTarget"]?.toString() ?: "11"
+        targetCompatibility = project.properties["jvmTarget"]?.toString() ?: "21"
+        sourceCompatibility = project.properties["jvmTarget"]?.toString() ?: "21"
     }
 
     withType<GenerateMavenPom>().configureEach {
@@ -226,6 +234,11 @@ tasks {
                         return@pkg
                     }
 
+                    // JAWT doesn't have any natives
+                    if(lwjglProject.contains("jawt")) {
+                        return@pkg
+                    }
+
                     if(lwjglProject.contains("openvr")
                         && nativePlatform.contains("mac")
                         && nativePlatform.contains("arm64")) {
@@ -289,7 +302,8 @@ tasks {
                 "jackson-module-kotlin",
                 "jackson-dataformat-yaml",
                 "kryo",
-                "bigvolumeviewer"
+                "bigvolumeviewer",
+                "snappy-java"
                 ) + lwjglArtifacts
 
             val toSkip = listOf("pom-scijava")
@@ -372,9 +386,9 @@ tasks {
         enabled = isRelease
         dokkaSourceSets.configureEach {
             sourceLink {
-                localDirectory.set(file("src/main/kotlin"))
-                remoteUrl.set(URL("https://github.com/scenerygraphics/scenery/tree/main/src/main/kotlin"))
-                remoteLineSuffix.set("#L")
+                localDirectory = file("src/main/kotlin")
+                remoteUrl = URL("https://github.com/scenerygraphics/scenery/tree/main/src/main/kotlin")
+                remoteLineSuffix = "#L"
             }
         }
     }
@@ -399,10 +413,7 @@ plugins.withType<JacocoPlugin> {
     tasks.test { finalizedBy("jacocoTestReport") }
 }
 
-// disable Gradle metadata file creation on Jitpack, as jitpack modifies
-// the metadata file, resulting in broken metadata with missing native dependencies.
-if(System.getenv("JITPACK") != null) {
-    tasks.withType<GenerateModuleMetadata> {
-        enabled = false
-    }
+// disable Gradle metadata file in general, as Maven artifacts are our main publication.
+tasks.withType<GenerateModuleMetadata> {
+    enabled = false
 }

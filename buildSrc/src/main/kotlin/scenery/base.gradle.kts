@@ -55,7 +55,7 @@ tasks {
             val testConfig = System.getProperty("scenery.ExampleRunner.Configurations", "None")
 
             configure<JacocoTaskExtension> {
-                setDestinationFile(file("$buildDir/jacoco/jacocoTest.$testGroup.$testConfig.exec"))
+                setDestinationFile(file("${layout.buildDirectory}/jacoco/jacocoTest.$testGroup.$testConfig.exec"))
                 println("Destination file for jacoco is $destinationFile (test, $testGroup, $testConfig)")
             }
 
@@ -82,12 +82,8 @@ tasks {
             val props = System.getProperties().filter { (k, _) -> k.toString().startsWith("scenery.") }
 
             println("Adding properties ${props.size}/$props")
-            val additionalArgs = System.getenv("SCENERY_JVM_ARGS")
-            allJvmArgs = if (additionalArgs != null) {
-                allJvmArgs + props.flatMap { (k, v) -> listOf("-D$k=$v") } + additionalArgs
-            } else {
-                allJvmArgs + props.flatMap { (k, v) -> listOf("-D$k=$v") }
-            }
+            allJvmArgs = allJvmArgs + props.flatMap { (k, v) -> listOf("-D$k=$v") }
+            System.getenv("SCENERY_JVM_ARGS")?.let { allJvmArgs = allJvmArgs + it }
         }
 
         finalizedBy(jacocoTestReport) // report is always generated after tests run
@@ -106,7 +102,7 @@ tasks {
 
     register<JavaExec>("compileShader") {
         group = "tools"
-        mainClass.set("graphics.scenery.backends.ShaderCompiler")
+        mainClass = "graphics.scenery.backends.ShaderCompiler"
         classpath = sourceSets["main"].runtimeClasspath
     }
 
@@ -116,19 +112,19 @@ tasks {
         sourceSets(sourceSets["main"], sourceSets["test"])
 
         reports {
-            xml.required.set(true)
-            html.required.set(true)
-            csv.required.set(false)
+            xml.required = true
+            html.required = true
+            csv.required = false
         }
 
         dependsOn(test)
     }
 
     named<Jar>("jar") {
-        archiveVersion.set(rootProject.version.toString())
+        archiveVersion = rootProject.version.toString()
         manifest.attributes["Implementation-Build"] = run { // retrieve the git commit hash
             val gitFolder = "$projectDir/.git/"
-            val digit = 6
+            val digit = 7
             /*  '.git/HEAD' contains either
              *      in case of detached head: the currently checked out commit hash
              *      otherwise: a reference to a file containing the current commit hash     */
@@ -141,12 +137,14 @@ tasks {
                     .readText()
             }.trim().take(digit)
         }
+
+        manifest.attributes["Implementation-Version"] = project.version
     }
 
     jacocoTestReport {
         reports {
-            xml.required.set(true)
-            html.required.set(false)
+            xml.required = true
+            html.required = false
         }
         dependsOn(test) // tests are required to run before generating the report
     }
@@ -161,17 +159,13 @@ tasks {
 
             register<JavaExec>(name = exampleName) {
                 classpath = sourceSets.test.get().runtimeClasspath
-                mainClass.set(className)
+                mainClass = className
                 group = "examples.$exampleType"
 
                 val props = System.getProperties().filter { (k, _) -> k.toString().startsWith("scenery.") }
 
-                val additionalArgs = System.getenv("SCENERY_JVM_ARGS")
-                allJvmArgs = if (additionalArgs != null) {
-                    allJvmArgs + props.flatMap { (k, v) -> listOf("-D$k=$v") } + additionalArgs
-                } else {
-                    allJvmArgs + props.flatMap { (k, v) -> listOf("-D$k=$v") }
-                }
+                allJvmArgs = allJvmArgs + props.flatMap { (k, v) -> listOf("-D$k=$v") }
+                System.getenv("SCENERY_JVM_ARGS")?.let { allJvmArgs = allJvmArgs + it }
 
                 if(JavaVersion.current() > JavaVersion.VERSION_11) {
                     allJvmArgs = allJvmArgs + listOf(
@@ -196,15 +190,11 @@ tasks {
         if (project.hasProperty("example")) {
             project.property("example")?.let { example ->
                 val file = sourceSets.test.get().allSource.files.first { "class $example" in it.readText() }
-                mainClass.set(file.path.substringAfter("kotlin${File.separatorChar}").replace(File.separatorChar, '.').substringBefore(".kt"))
+                mainClass = file.path.substringAfter("kotlin${File.separatorChar}").replace(File.separatorChar, '.').substringBefore(".kt")
                 val props = System.getProperties().filter { (k, _) -> k.toString().startsWith("scenery.") }
 
-                val additionalArgs = System.getenv("SCENERY_JVM_ARGS")
-                allJvmArgs = if (additionalArgs != null) {
-                    allJvmArgs + props.flatMap { (k, v) -> listOf("-D$k=$v") } + additionalArgs
-                } else {
-                    allJvmArgs + props.flatMap { (k, v) -> listOf("-D$k=$v") }
-                }
+                allJvmArgs = allJvmArgs + props.flatMap { (k, v) -> listOf("-D$k=$v") }
+                System.getenv("SCENERY_JVM_ARGS")?.let { allJvmArgs = allJvmArgs + it }
 
                 if(JavaVersion.current() > JavaVersion.VERSION_11) {
                     allJvmArgs = allJvmArgs + listOf(
