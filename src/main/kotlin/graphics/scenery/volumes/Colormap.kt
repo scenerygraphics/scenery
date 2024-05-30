@@ -41,7 +41,7 @@ class Colormap(val buffer: ByteBuffer, val width: Int, val height: Int) {
         //The number of bytes per pixel are fixed at 4.
         val globalOffset = width * band * 4
 
-        val b = buffer.slice()
+        val b = buffer.duplicate()
         b.position(globalOffset + previous * 4);
         val color = ByteArray(4)
         b.get(color);
