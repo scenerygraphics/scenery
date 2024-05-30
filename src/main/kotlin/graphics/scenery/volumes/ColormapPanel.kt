@@ -304,8 +304,8 @@ class ColormapPanel(val target:Volume?): JPanel() {
 
         internal fun toImage(): BufferedImage {
             val rec: Rectangle = this.bounds
-            val bufferedImage = BufferedImage(rec.width, rec.height, BufferedImage.TYPE_INT_ARGB)
-            paintBackgroundGradient(colorPoints.sortedBy { it.position }, bufferedImage.graphics as Graphics2D)
+            val bufferedImage = BufferedImage(rec.width, rec.height - 10, BufferedImage.TYPE_INT_ARGB)
+            paintBackgroundGradient(colorPoints.sortedBy { it.position }, bufferedImage.createGraphics())
             return bufferedImage
         }
 
@@ -324,8 +324,11 @@ class ColormapPanel(val target:Volume?): JPanel() {
             val h = height
             val pointList = colorPoints.sortedBy { it.position }
 
+
             // background Gradient
-            paintBackgroundGradient(pointList, g2d)
+            //paintBackgroundGradient(pointList, g2d)
+            val img = toImage()
+            g2d.drawImage(img, 0, 0, this)
 
             // color point markers
             val relativeSize = 0.25f //relative to height

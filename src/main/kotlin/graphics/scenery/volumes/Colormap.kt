@@ -27,30 +27,36 @@ class Colormap(val buffer: ByteBuffer, val width: Int, val height: Int) {
     private constructor() : this(ByteBuffer.allocate(0), 0, 0)
 
     /**
-     * Returns the value of the colormap, sampled at [position].
+     * Returns the value of the color map sampled at the normalized position.
+     *
+     * position: A floating point value between 0 and 1.
      */
     @OptIn(ExperimentalUnsignedTypes::class)
     fun sample(position: Float): Vector4f {
-        val bufferPosition: Float = position.coerceIn(0.0f, 1.0f) * width
-        val previous = floor(bufferPosition).roundToInt()
-        val next = ceil(bufferPosition).roundToInt()
+        val bufferPosition: Float = position.coerceIn(0.0f, 1.0f) * (width - 1)
+        val previous = bufferPosition.toInt()
 
-        val globalOffset = width * 4 * height / 2
-        val previousColor = globalOffset + previous * 4
-        val nextColor = globalOffset + next * 4
+        val band = height/2
 
-        val b = buffer.duplicate()
-        val color = ByteArray(8)
-        @Suppress("USELESS_CAST")
-        (b.position(previousColor) as? ByteBuffer)?.get(color, 0, 4)
-        @Suppress("USELESS_CAST")
-        (b.position(nextColor) as? ByteBuffer)?.get(color, 4, 4)
-        val ub = color.toUByteArray()
+        //The number of bytes per pixel are fixed at 4.
+        val globalOffset = width * band * 4
 
-        val c1 = Vector4f(ub[0].toFloat() / 255.0f, ub[1].toFloat() / 255.0f, ub[2].toFloat() / 255.0f, ub[3].toFloat() / 255.0f)
-        val c2 = Vector4f(ub[4].toFloat() / 255.0f, ub[5].toFloat() / 255.0f, ub[6].toFloat() / 255.0f, ub[7].toFloat() / 255.0f)
+        val b = buffer.slice()
+        b.position(globalOffset + previous * 4);
+        val color = ByteArray(4)
+        b.get(color);
+        //Add to "Image" utility class?
+        val c1 = Vector4f( color[0].toUByte().toFloat() / 255f, color[1].toUByte().toFloat() / 255f, color[2].toUByte().toFloat() / 255f, color[3].toUByte().toFloat() / 255f)
 
-        return c1.lerp(c2, bufferPosition - previous.toFloat())
+        if( bufferPosition > previous ){
+            //interpolate fraction part.
+            b.get(color);
+            val c2 = Vector4f( color[0].toUByte().toFloat() / 255f, color[1].toUByte().toFloat() / 255f, color[2].toUByte().toFloat() / 255f, color[3].toUByte().toFloat() / 255f)
+            return c1.lerp(c2, bufferPosition - previous.toFloat())
+        } else{
+            return c1
+        }
+
     }
 
     companion object {
