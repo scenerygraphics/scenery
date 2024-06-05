@@ -120,7 +120,7 @@ class VDIRenderingBenchmark(applicationName: String, windowWidth: Int, windowHei
     companion object {
         @JvmStatic
         fun main(args: Array<String>) {
-            VDIRenderingBenchmark("VDI Rendering Benchmark", 1280, 720, BenchmarkSetup.Dataset.Kingsnake, 20, 0).main()
+            VDIRenderingBenchmark("VDI Rendering Benchmark", 1920, 1080, BenchmarkSetup.Dataset.Rayleigh_Taylor, 20, 0).main()
         }
     }
 }

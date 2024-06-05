@@ -16,7 +16,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.concurrent.thread
 
 class VDIGenerationBenchmarkRunner {
-    val benchmarkDatasets = listOf<BenchmarkSetup.Dataset>(BenchmarkSetup.Dataset.Kingsnake)
+    val benchmarkDatasets = listOf<BenchmarkSetup.Dataset>(BenchmarkSetup.Dataset.Rayleigh_Taylor)
     val benchmarkSupersegments = listOf(20)
     /**
      * Generates a sequence of VDIs, with the camera rotating at 10 degree increments between successive VDIs
@@ -169,7 +169,7 @@ class VDIGenerationBenchmarkRunner {
 
         @JvmStatic
         fun main(args: Array<String>) {
-            VDIGenerationBenchmarkRunner().generateVDISequence(1280, 720, 5)
+            VDIGenerationBenchmarkRunner().generateVDISequence(1920, 1080, 5)
 //            VDIGenerationBenchmarkRunner().benchmarkVDIGeneration(1920, 1080)
         }
     }
