@@ -46,7 +46,7 @@ layout(push_constant) uniform currentEye_t {
 
 layout(local_size_x = 16, local_size_y = 16) in;
 layout(set = 2, binding = 0) uniform sampler3D volumeCache;
-layout(set = 3, binding = 0, rgba32f) uniform image3D VDIColor;
+layout(set = 3, binding = 0, rgba8) uniform image3D VDIColor;
 #if INT_DEPTHS
 layout(set = 4, binding = 0, rg16ui) uniform uimage3D VDIDepth;
 #else
@@ -63,7 +63,7 @@ ivec3 getVDIdims() {
     return imageSize(VDIColor);
 }
 
-ivec2 debug_pixel = ivec2(720, 360);
+ivec2 debug_pixel = ivec2(960, 540);
 
 // intersect ray with a box
 // http://www.siggraph.org/education/materials/HyperGraph/raytrace/rtinter3.htm

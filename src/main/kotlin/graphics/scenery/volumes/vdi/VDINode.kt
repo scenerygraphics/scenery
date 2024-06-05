@@ -10,6 +10,7 @@ import graphics.scenery.textures.Texture
 import graphics.scenery.textures.UpdatableTexture
 import graphics.scenery.utils.Image
 import graphics.scenery.utils.extensions.applyVulkanCoordinateSystem
+import net.imglib2.type.numeric.integer.UnsignedByteType
 import net.imglib2.type.numeric.integer.UnsignedIntType
 import net.imglib2.type.numeric.integer.UnsignedShortType
 import net.imglib2.type.numeric.real.FloatType
@@ -158,8 +159,8 @@ class VDINode(windowWidth: Int, windowHeight: Int, val numSupersegments: Int, vd
     private fun generateColorTexture(vdiWidth: Int, vdiHeight: Int, numSupersegments: Int, buffer: ByteBuffer) : Texture {
         val dimensions = getLinearizationOrder(vdiWidth, vdiHeight, numSupersegments)
         return Texture(dimensions, 4, contents = buffer, usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture)
-            , type = FloatType(),
-            mipmap = false,
+            , type = UnsignedByteType(),
+//            mipmap = false,
             minFilter = Texture.FilteringMode.NearestNeighbour,
             maxFilter = Texture.FilteringMode.NearestNeighbour
         )
@@ -218,7 +219,7 @@ class VDINode(windowWidth: Int, windowHeight: Int, val numSupersegments: Int, vd
      * @param[toBuffer] Defines which of the VDI buffers in the double-buffering system the textures should be attached to.
      */
     fun attachEmptyTextures(toBuffer: DoubleBuffer) {
-        val emptyColor = MemoryUtil.memCalloc(4 * 4)
+        val emptyColor = MemoryUtil.memCalloc(4 * 1)
         val emptyColorTexture = generateColorTexture(1, 1, 1, emptyColor)
         val emptyDepth = MemoryUtil.memCalloc(1 * 8)
         val emptyDepthTexture = generateDepthTexture(1, 1, 1, emptyDepth)

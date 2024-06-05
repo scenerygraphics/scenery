@@ -86,7 +86,7 @@ class VDIVolumeManager (var hub: Hub, val windowWidth: Int, val windowHeight: In
         val accumulateShader = "AccumulateVDI.comp"
         val volumeManager = instantiateVolumeManager(raycastShader, accumulateShader, hub)
 
-        colorBuffer = MemoryUtil.memCalloc(windowHeight*windowWidth*4*maxSupersegments*4)
+        colorBuffer = MemoryUtil.memCalloc(windowHeight*windowWidth*4*maxSupersegments)
 
         depthBuffer = if(intDepths) {
             MemoryUtil.memCalloc(windowHeight*windowWidth*2*maxSupersegments*2)
@@ -101,8 +101,8 @@ class VDIVolumeManager (var hub: Hub, val windowWidth: Int, val windowHeight: In
         val vdiDimensions = VDINode.getLinearizationOrder(windowWidth, windowHeight, maxSupersegments)
 
         val vdiColor: Texture = Texture.fromImage(
-            Image(colorBuffer!!, vdiDimensions.x, vdiDimensions.y, vdiDimensions.z, FloatType()), usage = hashSetOf( Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
-            channels = 4, mipmap = false,  normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+            Image(colorBuffer!!, vdiDimensions.x, vdiDimensions.y, vdiDimensions.z), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture))
+
         volumeManager.customTextures.add(colorTextureName)
         volumeManager.material().textures[colorTextureName] = vdiColor
 

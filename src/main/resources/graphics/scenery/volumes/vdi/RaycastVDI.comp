@@ -52,7 +52,7 @@ layout(push_constant) uniform currentEye_t {
 } currentEye;
 
 layout (local_size_x = 16, local_size_y = 16) in;
-layout(set = 2, binding = 0, rgba32f) uniform readonly image3D InputVDI;
+layout(set = 2, binding = 0, rgba8) uniform readonly image3D InputVDI;
 layout(set = 3, binding = 0, rgba8) uniform image2D OutputViewport;
 #if INT_DEPTHS
 layout (set = 4, binding = 0, rg16ui) uniform readonly uimage3D DepthVDI;
@@ -61,7 +61,7 @@ layout (set = 4, binding = 0, rg32f) uniform readonly image3D DepthVDI;
 #endif
 layout (set = 6, binding = 0, r32ui) uniform readonly uimage3D AccelerationGrid;
 #if DOUBLE_BUFFER
-layout(set = 7, binding = 0, rgba32f) uniform readonly image3D InputVDI2;
+layout(set = 7, binding = 0, rgba8) uniform readonly image3D InputVDI2;
 #if INT_DEPTHS
 layout (set = 8, binding = 0, rg16ui) uniform readonly uimage3D DepthVDI2;
 #else
