@@ -53,11 +53,13 @@ layout(set = 4, binding = 0, rg16ui) uniform uimage3D VDIDepth;
 layout(set = 4, binding = 0, rg32f) uniform image3D VDIDepth;
 #endif
 layout (set = 8, binding = 0, r32ui) uniform uimage3D AccelerationGrid;
+layout (set = 9, binding = 0, r32f) uniform image3D VDIAlpha;
+
 
 #pragma scenery endverbatim
 
 #define INSERT_DEPTH(index, depths) imageStore(VDIDepth, ivec3(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y, index), depths)
-#define INSERT_COLOR(index, color) imageStore(VDIColor, ivec3(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y, index), color)
+#define INSERT_COLOR(index, color) imageStore(VDIColor, ivec3(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y, index), vec4(color.rgb, 1.0f)); imageStore(VDIAlpha, ivec3(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y, index), vec4(color.a, 0, 0, 0))
 
 ivec3 getVDIdims() {
     return imageSize(VDIColor);

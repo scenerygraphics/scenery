@@ -41,6 +41,7 @@ class VDIVolumeManager (var hub: Hub, val windowWidth: Int, val windowHeight: In
     var colorBuffer: ByteBuffer? = null
     var depthBuffer: ByteBuffer? = null
     var gridBuffer: ByteBuffer? = null
+    var alphaBuffer: ByteBuffer? = null
 
     var prefixBuffer: ByteBuffer? = null
     var thresholdBuffer: ByteBuffer? = null
@@ -88,6 +89,8 @@ class VDIVolumeManager (var hub: Hub, val windowWidth: Int, val windowHeight: In
 
         colorBuffer = MemoryUtil.memCalloc(windowHeight*windowWidth*4*maxSupersegments)
 
+        alphaBuffer = MemoryUtil.memCalloc(windowHeight*windowWidth*maxSupersegments*4)
+
         depthBuffer = if(intDepths) {
             MemoryUtil.memCalloc(windowHeight*windowWidth*2*maxSupersegments*2)
         } else {
@@ -105,6 +108,13 @@ class VDIVolumeManager (var hub: Hub, val windowWidth: Int, val windowHeight: In
 
         volumeManager.customTextures.add(colorTextureName)
         volumeManager.material().textures[colorTextureName] = vdiColor
+
+        val vdiAlpha: Texture = Texture.fromImage(
+            Image(alphaBuffer!!, vdiDimensions.x, vdiDimensions.y, vdiDimensions.z, FloatType()), usage = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
+            channels = 1, mipmap = false, normalized = false, minFilter = Texture.FilteringMode.NearestNeighbour, maxFilter = Texture.FilteringMode.NearestNeighbour)
+
+        volumeManager.customTextures.add(alphaTextureName)
+        volumeManager.material().textures[alphaTextureName] = vdiAlpha
 
         val vdiDepth: Texture = if(intDepths) {
             Texture.fromImage(
@@ -268,6 +278,7 @@ class VDIVolumeManager (var hub: Hub, val windowWidth: Int, val windowHeight: In
 
     companion object {
         const val colorTextureName = "VDIColor"
+        const val alphaTextureName = "VDIAlpha"
         const val depthTextureName = "VDIDepth"
         const val accelerationTextureName = "AccelerationGrid"
 

@@ -60,18 +60,22 @@ layout (set = 4, binding = 0, rg16ui) uniform readonly uimage3D DepthVDI;
 layout (set = 4, binding = 0, rg32f) uniform readonly image3D DepthVDI;
 #endif
 layout (set = 6, binding = 0, r32ui) uniform readonly uimage3D AccelerationGrid;
+layout(set = 7, binding = 0, r32f) uniform readonly image3D AlphaVDI;
 #if DOUBLE_BUFFER
-layout(set = 7, binding = 0, rgba8) uniform readonly image3D InputVDI2;
+layout(set = 8, binding = 0, rgba8) uniform readonly image3D InputVDI2;
 #if INT_DEPTHS
-layout (set = 8, binding = 0, rg16ui) uniform readonly uimage3D DepthVDI2;
+layout (set = 9, binding = 0, rg16ui) uniform readonly uimage3D DepthVDI2;
 #else
-layout (set = 8, binding = 0, rg32f) uniform readonly image3D DepthVDI2;
+layout (set = 9, binding = 0, rg32f) uniform readonly image3D DepthVDI2;
 #endif
-layout (set = 9, binding = 0, r32ui) uniform readonly uimage3D AccelerationGrid2;
+layout (set = 10, binding = 0, r32ui) uniform readonly uimage3D AccelerationGrid2;
+layout(set = 11, binding = 0, r32f) uniform readonly image3D AlphaVDI2;
 #endif
 ivec2 debug_pixel = ivec2(720, 360);
 
-#define GET_SUPERSEGMENT_COLOR(list, index, secondBuffer) secondBuffer? imageLoad(InputVDI2, ivec3(list.x, list.y, index)) : imageLoad(InputVDI, ivec3(list.x, list.y, index))
+#define GET_SUPERSEGMENT_COLOR(list, index, secondBuffer) secondBuffer? \
+    vec4(imageLoad(InputVDI2, ivec3(list.x, list.y, index)).rgb, imageLoad(AlphaVDI2, ivec3(list.x, list.y, index)).r) : \
+    vec4(imageLoad(InputVDI, ivec3(list.x, list.y, index)).rgb, imageLoad(AlphaVDI, ivec3(list.x, list.y, index)).r)
 
 #define GET_SUPERSEGMENT_FRONT(list, index, secondBuffer) secondBuffer? imageLoad(DepthVDI2, ivec3(list.x, list.y, index)).x : imageLoad(DepthVDI, ivec3(list.x, list.y, index)).x
 #define GET_SUPERSEGMENT_BACK(list, index, secondBuffer) secondBuffer? imageLoad(DepthVDI2, ivec3(list.x, list.y, index)).y : imageLoad(DepthVDI, ivec3(list.x, list.y, index)).y

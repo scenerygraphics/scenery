@@ -61,6 +61,7 @@ class VDIRenderingExample(applicationName: String, windowWidth: Int, windowHeigh
         vdiNode = VDINode(windowWidth, windowHeight, numSupersegments, vdiData)
 
         val colorArray: ByteArray = File("$vdiFilename.vdi-color").readBytes()
+        val alphaArray: ByteArray = File("$vdiFilename.vdi-alpha").readBytes()
         val depthArray: ByteArray = File("$vdiFilename.vdi-depth").readBytes()
         val gridArray: ByteArray = File("$vdiFilename.vdi-grid").readBytes()
 
@@ -68,6 +69,10 @@ class VDIRenderingExample(applicationName: String, windowWidth: Int, windowHeigh
         val colBuffer: ByteBuffer = MemoryUtil.memCalloc(colorArray.size)
         colBuffer.put(colorArray).flip()
         colBuffer.limit(colBuffer.capacity())
+
+        val alphaBuffer = MemoryUtil.memCalloc(alphaArray.size)
+        alphaBuffer.put(alphaArray).flip()
+        alphaBuffer.limit(alphaBuffer.capacity())
 
         val depthBuffer = MemoryUtil.memCalloc(depthArray.size)
         depthBuffer.put(depthArray).flip()
@@ -80,7 +85,7 @@ class VDIRenderingExample(applicationName: String, windowWidth: Int, windowHeigh
         }
 
         //Step 4: Attaching the buffers to the vdi node and adding it to the scene
-        vdiNode.attachTextures(colBuffer, depthBuffer, gridBuffer)
+        vdiNode.attachTextures(colBuffer, alphaBuffer, depthBuffer, gridBuffer)
 
         vdiNode.skip_empty = skipEmpty
 

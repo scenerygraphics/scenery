@@ -106,6 +106,7 @@ class VDIGenerationExample(wWidth: Int = 512, wHeight: Int = 512, val maxSuperse
 
         var vdiDepthBuffer: ByteBuffer?
         var vdiColorBuffer: ByteBuffer?
+        var vdiAlphaBuffer: ByteBuffer?
         var gridCellsBuff: ByteBuffer?
 
         val volumeList = ArrayList<BufferedVolume>()
@@ -118,6 +119,10 @@ class VDIGenerationExample(wWidth: Int = 512, wHeight: Int = 512, val maxSuperse
         val vdiColor = vdiVolumeManager.material().textures[VDIVolumeManager.colorTextureName]!!
         val colorCnt = AtomicInteger(0)
         (renderer as? VulkanRenderer)?.persistentTextureRequests?.add(vdiColor to colorCnt)
+
+        val vdiAlpha = vdiVolumeManager.material().textures[VDIVolumeManager.alphaTextureName]!!
+        val alphaCnt = AtomicInteger(0)
+        (renderer as? VulkanRenderer)?.persistentTextureRequests?.add(vdiAlpha to alphaCnt)
 
         val vdiDepth = vdiVolumeManager.material().textures[VDIVolumeManager.depthTextureName]!!
         val depthCnt = AtomicInteger(0)
@@ -143,6 +148,7 @@ class VDIGenerationExample(wWidth: Int = 512, wHeight: Int = 512, val maxSuperse
             prevDepth = depthCnt.get()
 
             vdiColorBuffer = vdiColor.contents
+            vdiAlphaBuffer = vdiAlpha.contents
             vdiDepthBuffer = vdiDepth.contents
             gridCellsBuff = gridCells.contents
 
@@ -168,6 +174,7 @@ class VDIGenerationExample(wWidth: Int = 512, wHeight: Int = 512, val maxSuperse
                 file.close()
 
                 SystemHelpers.dumpToFile(vdiColorBuffer!!, "$vdiFilename.vdi-color")
+                SystemHelpers.dumpToFile(vdiAlphaBuffer!!, "$vdiFilename.vdi-alpha")
                 SystemHelpers.dumpToFile(vdiDepthBuffer!!, "$vdiFilename.vdi-depth")
                 SystemHelpers.dumpToFile(gridCellsBuff!!, "$vdiFilename.vdi-grid")
 

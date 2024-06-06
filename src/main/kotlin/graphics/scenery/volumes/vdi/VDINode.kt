@@ -166,6 +166,21 @@ class VDINode(windowWidth: Int, windowHeight: Int, val numSupersegments: Int, vd
         )
     }
 
+    private fun generateAlphaTexture(vdiWidth: Int, vdiHeight: Int, numSupersegments: Int, buffer: ByteBuffer) : Texture {
+        val dimensions = getLinearizationOrder(vdiWidth, vdiHeight, numSupersegments)
+        return Texture(
+            dimensions,
+            1,
+            contents = buffer,
+            usageType = hashSetOf(Texture.UsageType.LoadStoreImage, Texture.UsageType.Texture),
+            type = FloatType(),
+            mipmap = false,
+            normalized = false,
+            minFilter = Texture.FilteringMode.NearestNeighbour,
+            maxFilter = Texture.FilteringMode.NearestNeighbour
+        )
+    }
+
     private fun generateDepthTexture(vdiWidth: Int, vdiHeight: Int, numSupersegments: Int, buffer: ByteBuffer) : Texture {
         val intDepths = false
         val dimensions = getLinearizationOrder(vdiWidth, vdiHeight, numSupersegments)
@@ -196,16 +211,18 @@ class VDINode(windowWidth: Int, windowHeight: Int, val numSupersegments: Int, vd
      * @param[toBuffer] Defines which of the VDI buffers in the double-buffering system the textures should be attached to.
      * Defaults to [DoubleBuffer.First]
      */
-    fun attachTextures(colBuffer: ByteBuffer, depthBuffer: ByteBuffer, gridBuffer: ByteBuffer, toBuffer: DoubleBuffer = DoubleBuffer.First) {
+    fun attachTextures(colBuffer: ByteBuffer, alphaBuffer: ByteBuffer, depthBuffer: ByteBuffer, gridBuffer: ByteBuffer, toBuffer: DoubleBuffer = DoubleBuffer.First) {
 
 
         if(toBuffer == DoubleBuffer.First) {
             material().textures[inputColorTexture] = generateColorTexture(vdiWidth, vdiHeight, numSupersegments, colBuffer)
+            material().textures[inputAlphaTexture] = generateAlphaTexture(vdiWidth, vdiHeight, numSupersegments, alphaBuffer)
             material().textures[inputDepthTexture] = generateDepthTexture(vdiWidth, vdiHeight, numSupersegments, depthBuffer)
 
             material().textures[inputAccelerationTexture] = generateAccelerationTexture(gridBuffer)
         } else {
             material().textures["${inputColorTexture}2"] = generateColorTexture(vdiWidth, vdiHeight, numSupersegments, colBuffer)
+            material().textures["${inputAlphaTexture}2"] = generateAlphaTexture(vdiWidth, vdiHeight, numSupersegments, alphaBuffer)
             material().textures["${inputDepthTexture}2"] = generateDepthTexture(vdiWidth, vdiHeight, numSupersegments, depthBuffer)
 
             material().textures["${inputAccelerationTexture}2"] = generateAccelerationTexture(gridBuffer)
@@ -221,6 +238,8 @@ class VDINode(windowWidth: Int, windowHeight: Int, val numSupersegments: Int, vd
     fun attachEmptyTextures(toBuffer: DoubleBuffer) {
         val emptyColor = MemoryUtil.memCalloc(4 * 1)
         val emptyColorTexture = generateColorTexture(1, 1, 1, emptyColor)
+        val emptyAlpha = MemoryUtil.memCalloc(4 * 1)
+        val emptyAlphaTexture = generateAlphaTexture(1, 1, 1, emptyAlpha)
         val emptyDepth = MemoryUtil.memCalloc(1 * 8)
         val emptyDepthTexture = generateDepthTexture(1, 1, 1, emptyDepth)
 
@@ -229,10 +248,12 @@ class VDINode(windowWidth: Int, windowHeight: Int, val numSupersegments: Int, vd
 
         if (toBuffer == DoubleBuffer.First ) {
             material().textures[inputColorTexture] = emptyColorTexture
+            material().textures[inputAlphaTexture] = emptyAlphaTexture
             material().textures[inputDepthTexture] = emptyDepthTexture
             material().textures[inputAccelerationTexture] = emptyAccelTexture
         } else {
             material().textures["${inputColorTexture}2"] = emptyColorTexture
+            material().textures["${inputAlphaTexture}2"] = emptyAlphaTexture
             material().textures["${inputDepthTexture}2"] = emptyDepthTexture
             material().textures["${inputAccelerationTexture}2"] = emptyAccelTexture
         }
@@ -341,6 +362,7 @@ class VDINode(windowWidth: Int, windowHeight: Int, val numSupersegments: Int, vd
 
     companion object {
         const val inputColorTexture = "InputVDI"
+        const val inputAlphaTexture = "AlphaVDI"
         const val inputDepthTexture = "DepthVDI"
         const val inputAccelerationTexture = "AccelerationGrid"
 
