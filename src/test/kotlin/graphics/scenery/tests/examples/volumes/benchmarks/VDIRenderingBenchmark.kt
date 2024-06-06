@@ -64,6 +64,7 @@ class VDIRenderingBenchmark(applicationName: String, windowWidth: Int, windowHei
         vdiNode = VDINode(windowWidth, windowHeight, numSupersegments, vdiData)
 
         val colorArray: ByteArray = File("${filePrefix}_${num}.vdi-color").readBytes()
+        val alphaArray: ByteArray = File("${filePrefix}_${num}.vdi-alpha").readBytes()
         val depthArray: ByteArray = File("${filePrefix}_${num}.vdi-depth").readBytes()
         val octArray: ByteArray = File("${filePrefix}_${num}.vdi-grid").readBytes()
 
@@ -71,6 +72,10 @@ class VDIRenderingBenchmark(applicationName: String, windowWidth: Int, windowHei
         val colBuffer: ByteBuffer = MemoryUtil.memCalloc(colorArray.size)
         colBuffer.put(colorArray).flip()
         colBuffer.limit(colBuffer.capacity())
+
+        val alphaBuffer = MemoryUtil.memCalloc(alphaArray.size)
+        alphaBuffer.put(alphaArray).flip()
+        alphaBuffer.limit(alphaBuffer.capacity())
 
         val depthBuffer = MemoryUtil.memCalloc(depthArray.size)
         depthBuffer.put(depthArray).flip()
@@ -82,7 +87,7 @@ class VDIRenderingBenchmark(applicationName: String, windowWidth: Int, windowHei
         }
 
         //Step 4: Creating compute node and attach shader and vdi Files to
-        vdiNode.attachTextures(colBuffer, depthBuffer, gridBuffer)
+        vdiNode.attachTextures(colBuffer, alphaBuffer, depthBuffer, gridBuffer)
 
         vdiNode.skip_empty = skipEmpty
 
