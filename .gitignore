@@ -9,6 +9,9 @@
 .idea/
 *.iml
 *.ipr
+*.vdi-*
+*.raw
+*.png
 
 # CMake
 cmake-build-*/
