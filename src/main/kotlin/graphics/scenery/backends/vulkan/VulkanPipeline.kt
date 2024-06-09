@@ -286,14 +286,20 @@ class VulkanPipeline(val device: VulkanDevice, val renderpass: VulkanRenderpass,
     override fun close() {
         val removedLayouts = ArrayList<Long>()
 
-        pipeline.forEach { _, pipeline ->
-            vkDestroyPipeline(device.vulkanDevice, pipeline.pipeline, null)
+        pipeline.forEach { (_, pipeline) ->
+            if(pipeline.pipeline != 0L) {
+                vkDestroyPipeline(device.vulkanDevice, pipeline.pipeline, null)
+                pipeline.pipeline = 0L
+            }
 
-            if(!removedLayouts.contains(pipeline.layout)) {
-                vkDestroyPipelineLayout(device.vulkanDevice, pipeline.layout, null)
+            if(!removedLayouts.contains(pipeline.layout) && pipeline.layout != 0L) {
                 removedLayouts.add(pipeline.layout)
+                vkDestroyPipelineLayout(device.vulkanDevice, pipeline.layout, null)
+                pipeline.layout = 0L
             }
         }
+
+        pipeline.clear()
 
         inputAssemblyState.free()
         rasterizationState.free()
