@@ -44,16 +44,16 @@ class Colormap(val buffer: ByteBuffer, val width: Int, val height: Int) {
         val b = buffer.duplicate()
         b.position(globalOffset + previous * 4);
         val color = ByteArray(4)
-        b.get(color);
+        b.get(color)
         //Add to "Image" utility class?
-        val c1 = Vector4f( color[0].toUByte().toFloat() / 255f, color[1].toUByte().toFloat() / 255f, color[2].toUByte().toFloat() / 255f, color[3].toUByte().toFloat() / 255f)
+        val c1 = Vector4f(color[0].toUByte().toFloat() / 255f, color[1].toUByte().toFloat() / 255f, color[2].toUByte().toFloat() / 255f, color[3].toUByte().toFloat() / 255f)
 
-        if( bufferPosition > previous ){
+        if (bufferPosition > previous){
             //interpolate fraction part.
             b.get(color);
             val c2 = Vector4f( color[0].toUByte().toFloat() / 255f, color[1].toUByte().toFloat() / 255f, color[2].toUByte().toFloat() / 255f, color[3].toUByte().toFloat() / 255f)
             return c1.lerp(c2, bufferPosition - previous.toFloat())
-        } else{
+        } else {
             return c1
         }
 
