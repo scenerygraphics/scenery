@@ -208,7 +208,8 @@ class ColormapPanel(val target:Volume?): JPanel() {
         private var hoveredOver: ColorPoint? = null
         private var dragging: ColorPoint? = null
         private var dragged = false
-
+        private var markerSpace = 10
+		
         init {
             this.layout = MigLayout()
             this.preferredSize = Dimension(1000, 40)
@@ -304,7 +305,7 @@ class ColormapPanel(val target:Volume?): JPanel() {
 
         internal fun toImage(): BufferedImage {
             val rec: Rectangle = this.bounds
-            val bufferedImage = BufferedImage(rec.width, rec.height - 10, BufferedImage.TYPE_INT_ARGB)
+            val bufferedImage = BufferedImage(rec.width, rec.height - markerSpace, BufferedImage.TYPE_INT_ARGB)
             paintBackgroundGradient(colorPoints.sortedBy { it.position }, bufferedImage.createGraphics())
             return bufferedImage
         }
@@ -353,10 +354,10 @@ class ColormapPanel(val target:Volume?): JPanel() {
                 // This draws a triangle below the gradient bar to indicate control points
                 g2d.paint = outlineColor
                 g2d.drawPolygon(intArrayOf(p1x.toInt(), (p1x - innerSize).toInt(), (p1x + innerSize).toInt()),
-                                intArrayOf(h-10, h-1, h-1), 3)
+                                intArrayOf(h - markerSpace, h - 1, h - 1), 3)
                 g2d.paint = it.color
-                g2d.fillPolygon(intArrayOf(p1x.toInt(), (p1x - innerSize-1).toInt(), (p1x + innerSize+1).toInt()),
-                                intArrayOf(h-10-1, h, h), 3)
+                g2d.fillPolygon(intArrayOf(p1x.toInt(), (p1x - innerSize - 1).toInt(), (p1x + innerSize + 1).toInt()),
+                                intArrayOf(h - markerSpace - 1, h, h), 3)
             }
         }
 
@@ -365,7 +366,7 @@ class ColormapPanel(val target:Volume?): JPanel() {
             g2d: Graphics2D
         ) {
             val w = width
-            val h = height
+            val h = height - markerSpace
             for (i in 0 until pointList.size - 1) {
                 val p1 = pointList[i]
                 val p2 = pointList[i + 1]
@@ -374,7 +375,7 @@ class ColormapPanel(val target:Volume?): JPanel() {
                 val gp = GradientPaint(p1x, 0f, p1.color, p2x, 0f, p2.color)
 
                 g2d.paint = gp
-                g2d.fillRect(p1x.toInt(), 0, p2x.toInt(), h-10)
+                g2d.fillRect(p1x.toInt(), 0, p2x.toInt(), h)
             }
         }
 
