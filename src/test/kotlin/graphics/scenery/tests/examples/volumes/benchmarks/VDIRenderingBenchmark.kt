@@ -15,7 +15,8 @@ import java.io.File
 import java.io.FileInputStream
 import java.nio.ByteBuffer
 
-class VDIRenderingBenchmark(applicationName: String, windowWidth: Int, windowHeight: Int, val dataset: BenchmarkSetup.Dataset, val ns: Int, val vo: Int): SceneryBase(applicationName, windowWidth,windowHeight) {
+class VDIRenderingBenchmark(applicationName: String, windowWidth: Int, windowHeight: Int, val dataset: BenchmarkSetup.Dataset, val ns: Int, val vo: Int,
+    val additionalParams: String = "", val applyTo: List<String>? = null): SceneryBase(applicationName, windowWidth,windowHeight) {
 
     val skipEmpty = false
 
@@ -47,8 +48,14 @@ class VDIRenderingBenchmark(applicationName: String, windowWidth: Int, windowHei
             scene.addChild(this)
         }
 
+        val vdiDirectory = System.getProperty("VDIBenchmark.VDI_DIRECTORY", "")
+
         //Step 2: read files
-        val filePrefix = dataset.toString() + "_${windowWidth}_${windowHeight}_${numSupersegments}"
+        val filePrefix = if(vdiDirectory == "") {
+            dataset.toString() + "_${windowWidth}_${windowHeight}_${numSupersegments}"
+        } else {
+            vdiDirectory + "/" + dataset.toString() + "_${windowWidth}_${windowHeight}_${numSupersegments}"
+        }
 
         when(vo){
             0 -> num = 0
@@ -57,16 +64,37 @@ class VDIRenderingBenchmark(applicationName: String, windowWidth: Int, windowHei
             270 -> num = 3
         }
 
-        val file = FileInputStream(File("${filePrefix}_${num}.vdi-metadata"))
+        val file = if (applyTo != null && applyTo.contains("all")) {
+            FileInputStream(File("${filePrefix}_${num}${additionalParams}.vdi-metadata"))
+        } else {
+            FileInputStream(File("${filePrefix}_${num}.vdi-metadata"))
+        }
         val vdiData = VDIDataIO.read(file)
         logger.info("Fetching file...")
 
         vdiNode = VDINode(windowWidth, windowHeight, numSupersegments, vdiData)
 
-        val colorArray: ByteArray = File("${filePrefix}_${num}.vdi-color").readBytes()
-        val alphaArray: ByteArray = File("${filePrefix}_${num}.vdi-alpha").readBytes()
-        val depthArray: ByteArray = File("${filePrefix}_${num}.vdi-depth").readBytes()
-        val octArray: ByteArray = File("${filePrefix}_${num}.vdi-grid").readBytes()
+        val colorArray: ByteArray = if (applyTo != null && (applyTo.contains("color") || applyTo.contains("all"))) {
+            File("${filePrefix}_${num}${additionalParams}.vdi-color").readBytes()
+        } else {
+            File("${filePrefix}_${num}.vdi-color").readBytes()
+        }
+        val alphaArray: ByteArray = if (applyTo != null && (applyTo.contains("alpha") || applyTo.contains("all"))) {
+            File("${filePrefix}_${num}${additionalParams}.vdi-alpha").readBytes()
+        } else {
+            File("${filePrefix}_${num}.vdi-alpha").readBytes()
+        }
+
+        val depthArray: ByteArray = if (applyTo != null && (applyTo.contains("depth") || applyTo.contains("all"))) {
+            File("${filePrefix}_${num}${additionalParams}.vdi-depth").readBytes()
+        } else {
+            File("${filePrefix}_${num}.vdi-depth").readBytes()
+        }
+        val octArray: ByteArray = if (applyTo != null && (applyTo.contains("grid") || applyTo.contains("all"))) {
+            File("${filePrefix}_${num}${additionalParams}.vdi-grid").readBytes()
+        } else {
+            File("${filePrefix}_${num}.vdi-grid").readBytes()
+        }
 
         //Step  3: assigning buffer values
         val colBuffer: ByteBuffer = MemoryUtil.memCalloc(colorArray.size)

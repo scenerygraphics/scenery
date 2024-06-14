@@ -8,6 +8,7 @@ plugins {
     kotlin("jvm")
     kotlin("kapt")
     id("org.jetbrains.dokka")
+    kotlin("plugin.serialization") version "1.5.21"
 
     scenery.base
     scenery.publish
@@ -61,6 +62,7 @@ dependencies {
     implementation("org.scijava:scripting-jython")
     implementation("net.java.dev.jna:jna-platform:5.14.0")
 
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.2.2")
 
     lwjglArtifacts.forEach { artifact ->
         api("org.lwjgl:$artifact:$lwjglVersion")
