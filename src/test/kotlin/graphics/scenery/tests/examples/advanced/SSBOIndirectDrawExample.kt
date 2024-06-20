@@ -1,19 +1,14 @@
 package graphics.scenery.tests.examples.advanced
 
-import org.joml.Vector3f
 import graphics.scenery.*
 import graphics.scenery.attribute.material.Material
 import graphics.scenery.backends.Renderer
-import graphics.scenery.compute.ComputeMetadata
-import graphics.scenery.compute.InvocationType
-import graphics.scenery.primitives.SSBOCainTest
-import graphics.scenery.primitives.SSBOTest
-import graphics.scenery.tests.examples.basic.TexturedCubeExample
-import graphics.scenery.textures.Texture
-import graphics.scenery.utils.Image
-import org.joml.Vector3i
+import graphics.scenery.primitives.SSBOIndirectDrawConsumer
+import graphics.scenery.primitives.SSBOIndirectDrawProvider
+import org.joml.Vector3f
 import org.joml.Vector4f
 import kotlin.concurrent.thread
+import kotlin.math.cos
 import kotlin.math.sin
 
 /**
@@ -21,7 +16,7 @@ import kotlin.math.sin
  *
  * @author Konrad Michel <konrad.michel@mailbox.tu-dresden.de>
  */
-class SSBOExample : SceneryBase("SSBOExample", wantREPL = false) {
+class SSBOIndirectDrawExample : SceneryBase("SSBOExample", wantREPL = false) {
     override fun init() {
         renderer = hub.add(SceneryElement.Renderer,
             Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
@@ -49,8 +44,8 @@ class SSBOExample : SceneryBase("SSBOExample", wantREPL = false) {
             scene.addChild(this)
         }
 
-        val compute = SSBOCainTest()
-        val ssboTestObj = SSBOTest()
+        val compute = SSBOIndirectDrawProvider()
+        val ssboTestObj = SSBOIndirectDrawConsumer()
         compute.addChild(ssboTestObj)
         scene.addChild(compute)
 
@@ -64,6 +59,9 @@ class SSBOExample : SceneryBase("SSBOExample", wantREPL = false) {
                 runner++
                 Thread.sleep(20)
                 x = (sin(runner / 100.0f) + 1.0f) / 2.0f
+                y = (cos(runner / 100.0f) + 1.0f) / 2.0f
+                z = (-cos(runner / 100.0f) + 1.0f) / 2.0f
+
                 compute.buffers {
                     updateSSBOEntry("ssbosInput", 0, "Color1", Vector4f(x, y, z, 1.0f))
                     requestDownload("ssboDownload")
@@ -76,7 +74,7 @@ class SSBOExample : SceneryBase("SSBOExample", wantREPL = false) {
     companion object {
         @JvmStatic
         fun main(args: Array<String>) {
-            SSBOExample().main()
+            SSBOIndirectDrawExample().main()
         }
     }
 }

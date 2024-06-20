@@ -4,19 +4,11 @@ import graphics.scenery.*
 import graphics.scenery.attribute.buffers.Buffers
 import graphics.scenery.attribute.buffers.HasBuffers
 import graphics.scenery.attribute.material.Material
-import graphics.scenery.compute.ComputeMetadata
-import graphics.scenery.compute.InvocationType
 import graphics.scenery.geometry.GeometryType
 import graphics.scenery.net.Networkable
-import graphics.scenery.textures.Texture
-import graphics.scenery.utils.Image
 import org.joml.Vector2f
 import org.joml.Vector3f
-import org.joml.Vector3i
 import org.joml.Vector4f
-import java.lang.IllegalArgumentException
-import java.nio.ByteBuffer
-import kotlin.jvm.JvmOverloads
 
 /**
  * Constructs a Box [Node] with the dimensions given in [sizes]
@@ -24,8 +16,8 @@ import kotlin.jvm.JvmOverloads
  * @author Ulrik Günther <hello@ulrik.is>
  * @property[sizes] The x/y/z sizes of the box
  */
-open class SSBOTest @JvmOverloads constructor(val sizes: Vector3f = Vector3f(1.0f, 1.0f, 1.0f), val insideNormals: Boolean = false)
-    : Mesh("SSBOTest"), HasBuffers {
+open class SSBOIndirectDrawConsumer @JvmOverloads constructor(val sizes: Vector3f = Vector3f(1.0f, 1.0f, 1.0f), val insideNormals: Boolean = false)
+    : Mesh("IndirectDraw"), HasBuffers {
 
     init {
 
@@ -104,6 +96,6 @@ open class SSBOTest @JvmOverloads constructor(val sizes: Vector3f = Vector3f(1.0
         if (sizes == null || insideNormals == null){
             throw IllegalArgumentException()
         }
-        return SSBOTest(sizes,insideNormals)
+        return SSBOIndirectDrawConsumer(sizes, insideNormals)
     }
 }

@@ -7,7 +7,6 @@ import graphics.scenery.attribute.material.Material
 import graphics.scenery.compute.ComputeMetadata
 import graphics.scenery.compute.InvocationType
 import org.joml.Vector2f
-import org.joml.Vector3f
 import org.joml.Vector3i
 import org.joml.Vector4f
 import java.nio.ByteBuffer
@@ -19,7 +18,7 @@ import kotlin.jvm.JvmOverloads
  * @author Ulrik Günther <hello@ulrik.is>
  * @property[sizes] The x/y/z sizes of the box
  */
-open class SSBOCainTest @JvmOverloads constructor()
+open class SSBOIndirectDrawProvider @JvmOverloads constructor()
     : Mesh("SSBOCainTest"), HasBuffers {
 
     init {
