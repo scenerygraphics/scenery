@@ -1,0 +1,72 @@
+#version 450
+
+layout (local_size_x = 1, local_size_y = 1) in;
+
+struct SSBOIn {
+    vec4 Color1;
+};
+layout(std140, set = 0, binding = 0) readonly buffer ssbosInput
+{
+    SSBOIn ssboData[];
+}ssboInputBuffer;
+
+struct SSBOOut {
+    vec4 Color1;
+    vec4 Color2;
+};
+layout(std140, set = 0, binding = 1) buffer ssbosOutput
+{
+    SSBOOut ssboData[];
+}ssboOutputBuffer;
+
+struct SSBOVertex {
+    vec4 Position;
+    vec4 Normal;
+    vec2 TexCoord;
+};
+layout(std140, set = 0, binding = 2) buffer ssbosVertices
+{
+    SSBOVertex vertexData[];
+}ssboVerticesBuffer;
+
+
+layout(std430, set = 0, binding = 3) buffer ssbosIndices
+{
+    uint Index[];
+}ssboIndicesBuffer;
+
+layout(std430, set = 0, binding = 4) buffer ssbosDownload
+{
+    float ColorRed[];
+}ssboDownload;
+
+
+void main() {
+    uint idx = gl_GlobalInvocationID.x;
+    ssboOutputBuffer.ssboData[idx].Color1.rgba = ssboInputBuffer.ssboData[idx].Color1.rgba;
+    ssboDownload.ColorRed[idx] = ssboInputBuffer.ssboData[idx].Color1.r;
+
+    ssboVerticesBuffer.vertexData[idx].Position.xyz = vec3(-0.5, -0.5, 0.0);
+    ssboVerticesBuffer.vertexData[idx].Normal.xyz = vec3(0.0, 0.0, 1.0);
+    ssboVerticesBuffer.vertexData[idx].TexCoord = vec2(0.0, 0.0);
+
+    ssboVerticesBuffer.vertexData[idx + 1].Position.xyz = vec3(0.5, -0.5, 0.0);
+    ssboVerticesBuffer.vertexData[idx + 1].Normal.xyz = vec3(0.0, 0.0, 1.0);
+    ssboVerticesBuffer.vertexData[idx + 1].TexCoord = vec2(1.0, 0.0);
+
+    ssboVerticesBuffer.vertexData[idx + 2].Position.xyz = vec3(0.5, 0.5, 0.0);
+    ssboVerticesBuffer.vertexData[idx + 2].Normal.xyz = vec3(0.0, 0.0, 1.0);
+    ssboVerticesBuffer.vertexData[idx + 2].TexCoord = vec2(1.0, 1.0);
+
+    ssboVerticesBuffer.vertexData[idx + 3].Position.xyz = vec3(-0.5, 0.5, 0.0);
+    ssboVerticesBuffer.vertexData[idx + 3].Normal.xyz = vec3(0.0, 0.0, 1.0);
+    ssboVerticesBuffer.vertexData[idx + 3].TexCoord = vec2(0.0, 1.0);
+
+
+    ssboIndicesBuffer.Index[idx + 0] = 0;
+    ssboIndicesBuffer.Index[idx + 1] = 1;
+    ssboIndicesBuffer.Index[idx + 2] = 2;
+    ssboIndicesBuffer.Index[idx + 3] = 0;
+    ssboIndicesBuffer.Index[idx + 4] = 2;
+    ssboIndicesBuffer.Index[idx + 5] = 3;
+}

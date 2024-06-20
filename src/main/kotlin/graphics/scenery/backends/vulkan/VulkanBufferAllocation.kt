@@ -80,11 +80,16 @@ class VulkanBufferAllocation(val usage: VulkanBufferUsage,
         suballocations.removeAll { s -> s.free  }
         logger.trace("Trying to fit {} with {} pre-existing suballocs", size, suballocations.size)
 
-        val sizeWithSlack = size + 512
-        val spot = findFreeSpaceCandidate(sizeWithSlack)
+        // TODO: use the correct VkPhysicalDeviceProperties.limits.minUniformBufferOffsetAlignment
+        val minUboAlignment = 256
+        var alignedSize = size
+        if (minUboAlignment > 0) {
+            alignedSize = (alignedSize + minUboAlignment - 1) and (minUboAlignment - 1).inv()
+        }
+        val spot = findFreeSpaceCandidate(alignedSize)
 
         if (spot == null) {
-            logger.trace("Could not find space for suballocation of {}", sizeWithSlack)
+            logger.trace("Could not find space for suballocation of {}", alignedSize)
             return null
         }
 
@@ -102,13 +107,13 @@ class VulkanBufferAllocation(val usage: VulkanBufferUsage,
         }
 
         // check if offset + size of the new suballocation would exceed the buffer size
-        if (offset + sizeWithSlack >= buffer.allocatedSize) {
-            logger.trace("Allocation at {} of {} would not fit buffer of size {}", offset, sizeWithSlack, buffer.allocatedSize)
+        if (offset + alignedSize >= buffer.allocatedSize) {
+            logger.trace("Allocation at {} of {} would not fit buffer of size {}", offset, alignedSize, buffer.allocatedSize)
             return null
         }
 
         logger.trace("New suballocation at {} between {} and {} with {} bytes", offset, spot.left, spot.right, size)
-        return VulkanSuballocation(offset, sizeWithSlack, buffer)
+        return VulkanSuballocation(offset, alignedSize, buffer)
     }
 
     /** Returns a string representation of this allocation, along with its [suballocations]. */
