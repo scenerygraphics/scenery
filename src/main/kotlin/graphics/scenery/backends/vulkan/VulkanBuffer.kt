@@ -95,20 +95,7 @@ open class VulkanBuffer(val device: VulkanDevice, var size: Long,
             { vkCreateBuffer(device.vulkanDevice, bufferInfo, null, this) }, {})
         vkGetBufferMemoryRequirements(device.vulkanDevice, buffer, reqs)
 
-        stackPush().use { stack ->
-            val nameInfo = VkDebugUtilsObjectNameInfoEXT.calloc(stack)
-            val nameBuffer = stack.UTF8(debugName)
-
-            nameInfo.sType(EXTDebugUtils.VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT)
-                .objectHandle(buffer)
-                .objectType(VK_OBJECT_TYPE_BUFFER)
-                .pObjectName(nameBuffer)
-
-            EXTDebugUtils.vkSetDebugUtilsObjectNameEXT(
-                device.vulkanDevice,
-                nameInfo
-            )
-        }
+        device.tag(buffer, VulkanDevice.VulkanObjectType.Buffer, debugName)
 
         val actualSize = if (wantAligned) {
             if (reqs.size().rem(reqs.alignment()) == 0L) {
