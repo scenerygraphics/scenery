@@ -46,7 +46,7 @@ open class Atmosphere(
 
     // Coroutine job for updating the sun direction
     private var job = CoroutineScope(Dispatchers.Default).launch(start = CoroutineStart.LAZY) {
-        logger.info("Launched sun updating job")
+        logger.debug("Launched sun updating job")
         while (this.coroutineContext.isActive) {
             if (isSunAnimated) {
                 setSunPositionFromTime()
