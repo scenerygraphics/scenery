@@ -46,7 +46,7 @@ open class Atmosphere(
 
     // Coroutine job for updating the sun direction
     private var job = CoroutineScope(Dispatchers.Default).launch(start = CoroutineStart.LAZY) {
-        logger.debug("Launched sun updating job")
+        logger.info("Launched sun updating job")
         while (this.coroutineContext.isActive) {
             if (isSunAnimated) {
                 setSunPositionFromTime()
@@ -91,11 +91,11 @@ open class Atmosphere(
     fun setSunPositionFromTime(localTime: LocalDateTime = LocalDateTime.now()) {
         val latitudeRad = toRadians(latitude.toDouble())
         val dayOfYear = localTime.dayOfYear.toDouble()
-        val declination = toRadians(-23.45 * cos(360.0 / 365.0 * (dayOfYear + 10)))
+        val declination = toRadians(23.45) * sin(toRadians(360 * (284 + dayOfYear)/365))
         val hourAngle = toRadians((localTime.hour + localTime.minute / 60.0 - 12) * 15)
 
         val elevationRad = asin(
-            sin(toRadians(declination))
+            sin(declination)
                 * sin(latitudeRad)
                 + cos(declination)
                 * cos(latitudeRad)
@@ -105,7 +105,7 @@ open class Atmosphere(
         val azimuthRad = atan2(
             sin(hourAngle),
             cos(hourAngle) * sin(latitudeRad) - tan(declination) * cos(latitudeRad)
-        ) - PI / 2
+        ) + PI
 
         // update global sun angle properties; these are needed for the sciview inspector fields
         azimuth = toDegrees(azimuthRad).toFloat()
